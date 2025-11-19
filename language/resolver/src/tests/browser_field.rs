@@ -29,7 +29,7 @@ fn ignore() {
 
     for (path, request, expected) in data {
         let resolution = resolver.resolve(&path, request);
-        let expected = ResolveError::Ignored(expected);
+        let expected = ResolveError::Ignored { path: expected };
         assert_eq!(resolution, Err(expected), "{path:?} {request}");
     }
 }
@@ -112,9 +112,9 @@ fn recurse_fail() {
 
     #[rustfmt::skip]
     let data = [
-        ("recurse non existent", f.clone(), "./lib/non-existent.js", ResolveError::NotFound("./lib/non-existent.js".into())),
-        ("path partial match 1", f.clone(), "./xyz.js", ResolveError::NotFound("./xyz.js".into())),
-        ("path partial match 2", f, "./lib/xyz.js", ResolveError::NotFound("./lib/xyz.js".into())),
+        ("recurse non existent", f.clone(), "./lib/non-existent.js", ResolveError::NotFound { specifier: "./lib/non-existent.js".into() }),
+        ("path partial match 1", f.clone(), "./xyz.js", ResolveError::NotFound { specifier: "./xyz.js".into() }),
+        ("path partial match 2", f, "./lib/xyz.js", ResolveError::NotFound { specifier: "./lib/xyz.js".into() }),
     ];
 
     for (comment, path, request, expected) in data {
@@ -136,7 +136,7 @@ fn broken() {
     let data = [
         // The browser field string value should be ignored
         (f.clone(), "browser-module-broken", Ok(f.join("node_modules/browser-module-broken/main.js"))),
-        (f.join("browser-module"), "./number", Err(ResolveError::NotFound("./number".into()))),
+        (f.join("browser-module"), "./number", Err(ResolveError::NotFound { specifier: "./number".into() })),
     ];
 
     for (path, request, expected) in data {
@@ -163,7 +163,7 @@ fn crypto_js() {
         .map(|r| r.full_path());
     assert_eq!(
         resolved_path,
-        Err(ResolveError::Ignored(f.join("crypto-js")))
+        Err(ResolveError::Ignored { path: f.join("crypto-js") })
     );
 }
 
@@ -198,11 +198,10 @@ fn recursive() {
 
     for (comment, path, request) in data {
         let resolved_path = resolver.resolve(&path, request);
-        assert_eq!(
-            resolved_path,
-            Err(ResolveError::Recursion),
-            "{comment} {path:?} {request}"
-        );
+        match resolved_path {
+            Err(ResolveError::RecursiveDependency { .. }) => {}
+            _ => panic!("{comment} {path:?} {request} expected RecursiveDependency, got {resolved_path:?}"),
+        }
     }
 }
 

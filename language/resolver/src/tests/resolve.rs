@@ -149,7 +149,7 @@ fn test_resolve_hash_as_module() {
     let f = fixture();
     let resolver = TestResolver::default();
     let resolution = resolver.resolve(f, "#a");
-    assert_eq!(resolution, Err(ResolveError::NotFound("#a".into())));
+    assert_eq!(resolution, Err(ResolveError::NotFound { specifier: "#a".into() }));
 }
 
 #[test]
@@ -199,13 +199,13 @@ fn test_resolve_dot_spelled_out() {
             "dot dir",
             foo_dir.clone(),
             ".",
-            ResolveError::NotFound(".".into()),
+            ResolveError::NotFound { specifier: ".".into() },
         ),
         (
             "dot dir slash",
             foo_dir,
             "./",
-            ResolveError::NotFound("./".into()),
+            ResolveError::NotFound { specifier: "./".into() },
         ),
     ];
     for (comment, path, request, expected) in data {
@@ -256,7 +256,7 @@ fn test_resolve_abnormal_relative() {
         let resolved_path = resolver.resolve(&base, request);
         assert_eq!(
             resolved_path,
-            Err(ResolveError::NotFound(request.into())),
+            Err(ResolveError::NotFound { specifier: request.into() }),
             "{comment} {request}"
         );
     }
@@ -276,7 +276,7 @@ fn test_resolve_abnormal_relative() {
         let resolved_path = resolver.resolve(&base, request);
         assert_eq!(
             resolved_path,
-            Err(ResolveError::NotFound(request.into())),
+            Err(ResolveError::NotFound { specifier: request.into() }),
             "{comment} {request}"
         );
     }
@@ -377,14 +377,12 @@ fn test_resolve_postcss() {
     });
 
     let resolution = resolver.resolve(&module_path, "path");
-    assert_eq!(resolution, Err(ResolveError::Ignored(module_path.clone())));
+    assert_eq!(resolution, Err(ResolveError::Ignored { path: module_path.clone() }));
 
     let resolution = resolver.resolve(&module_path, "./lib/terminal-highlight");
     assert_eq!(
         resolution,
-        Err(ResolveError::Ignored(
-            module_path.join("lib/terminal-highlight")
-        ))
+        Err(ResolveError::Ignored { path: module_path.join("lib/terminal-highlight") })
     );
 }
 
@@ -582,7 +580,7 @@ fn test_resolve_file_protocol() {
     let resolved_path = resolution.as_ref().map(Resolution::full_path);
     assert_eq!(resolved_path, Some(f.join("main1.js")));
 
-    let resolve_error = ResolveError::NotFound("\\\\.\\main.js".into());
+    let resolve_error = ResolveError::NotFound { specifier: "\\\\.\\main.js".into() };
 
     assert_eq!(resolver.resolve(f, "file://./main.js"), Err(resolve_error));
 }

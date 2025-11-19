@@ -141,7 +141,7 @@ fn test_resolve_alias() {
 
     #[rustfmt::skip]
     let ignore = [
-        ("should resolve an ignore module", "ignored", ResolveError::Ignored(f.join("ignored")))
+        ("should resolve an ignore module", "ignored", ResolveError::Ignored { path: f.join("ignored") })
     ];
 
     for (comment, request, expected) in ignore {
@@ -162,7 +162,7 @@ fn infinite_recursion() {
         ..ResolveOptions::default()
     });
     let resolution = resolver.resolve(f, "./a");
-    assert_eq!(resolution, Err(ResolveError::Recursion));
+    assert_eq!(resolution, Err(ResolveError::RecursiveDependency { depth: 65 }));
 }
 
 fn check_slash(path: &Path) {
@@ -191,7 +191,7 @@ fn absolute_path() {
         ..ResolveOptions::default()
     });
     let resolution = resolver.resolve(&f, "foo/index");
-    assert_eq!(resolution, Err(ResolveError::Ignored(f.join("foo"))));
+    assert_eq!(resolution, Err(ResolveError::Ignored { path: f.join("foo") }));
 }
 
 #[test]
@@ -285,10 +285,10 @@ fn all_alias_values_are_not_found() {
     let resolution = resolver.resolve(&f, "m1/a.js");
     assert_eq!(
         resolution,
-        Err(ResolveError::MatchedAliasNotFound(
-            "m1/a.js".to_string(),
-            "m1".to_string()
-        ))
+        Err(ResolveError::MatchedAliasNotFound {
+            specifier: "m1/a.js".to_string(),
+            alias_key: "m1".to_string()
+        })
     );
 }
 

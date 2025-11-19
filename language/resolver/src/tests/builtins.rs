@@ -10,7 +10,7 @@ fn builtins_off() {
     let f = Path::new("/");
     let resolver = PhysicalResolver::default();
     let resolved_path = resolver.resolve(f, "zlib").map(|r| r.full_path());
-    assert_eq!(resolved_path, Err(ResolveError::NotFound("zlib".into())));
+    assert_eq!(resolved_path, Err(ResolveError::NotFound { specifier: "zlib".into() }));
 }
 
 #[test]
@@ -107,7 +107,7 @@ fn fail() {
     let resolver = PhysicalResolver::new(ResolveOptions::default().with_builtin_modules(true));
     let request = "xxx";
     let resolved_path = resolver.resolve(f, request);
-    let err = ResolveError::NotFound(request.to_string());
+    let err = ResolveError::NotFound { specifier: request.to_string() };
     assert_eq!(resolved_path, Err(err), "{request}");
 }
 

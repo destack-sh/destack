@@ -45,8 +45,8 @@ fn test_simple() {
 
     #[rustfmt::skip]
     let fail = [
-        ("should disallow resolve out of package scope", f.clone(), "#b", ResolveError::InvalidPackageTarget("../b.js".to_string(), "#b".to_string(), f.join("package.json"))),
-        ("should resolve package #2", f.clone(), "#a", ResolveError::PackageImportNotDefined("#a".to_string(), f.join("package.json"))),
+        ("should disallow resolve out of package scope", f.clone(), "#b", ResolveError::InvalidPackageTarget { target: "../b.js".to_string(), name: "#b".to_string(), package_path: f.join("package.json") }),
+        ("should resolve package #2", f.clone(), "#a", ResolveError::PackageImportNotDefined { specifier: "#a".to_string(), package_path: f.join("package.json") }),
     ];
 
     for (comment, path, request, error) in fail {

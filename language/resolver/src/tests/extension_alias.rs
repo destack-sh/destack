@@ -49,7 +49,11 @@ fn test_resolve_extension_alias() {
 
     // should not allow to fallback to the original extension or add extensions
     let resolution = resolver.resolve(&f, "./index.mjs").unwrap_err();
-    let expected = ResolveError::ExtensionAlias("index.mjs".into(), "index.mts".into(), f);
+    let expected = ResolveError::ExtensionAlias {
+        filename: "index.mjs".into(),
+        tried: "index.mts".into(),
+        dir: f
+    };
     assert_eq!(resolution, expected);
 
     #[cfg(all(not(target_os = "windows"), target_endian = "little"))]

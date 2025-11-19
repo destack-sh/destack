@@ -325,7 +325,7 @@ impl<Fs: FileSystem> Resolver<Fs> {
         if let Some(path) = self.load_as_file_or_directory(&path, specifier, ctx)? {
             return Ok(path);
         }
-        Err(ResolveError::NotFound(specifier.to_string()))
+        Err(ResolveError::NotFound { specifier: specifier.to_string() })
     }
 
     // 3. If X is '.' or begins with './' or '/' or '../'
@@ -357,7 +357,7 @@ impl<Fs: FileSystem> Resolver<Fs> {
             return Ok(path);
         }
         // c. THROW "not found"
-        Err(ResolveError::NotFound(specifier.to_string()))
+        Err(ResolveError::NotFound { specifier: specifier.to_string() })
     }
 
     fn require_hash(
@@ -369,7 +369,7 @@ impl<Fs: FileSystem> Resolver<Fs> {
         debug_assert_eq!(specifier.chars().next(), Some('#'));
         // a. LOAD_PACKAGE_IMPORTS(X, dirname(Y))
         self.load_package_imports(cached_path, specifier, ctx)?
-            .map_or_else(|| Err(ResolveError::NotFound(specifier.to_string())), Ok)
+            .map_or_else(|| Err(ResolveError::NotFound { specifier: specifier.to_string() }), Ok)
     }
 
     fn require_bare(
@@ -407,7 +407,7 @@ impl<Fs: FileSystem> Resolver<Fs> {
         specifier: &'s str,
         ctx: &mut ResolveContext,
     ) -> Result<(Specifier<'s>, Option<CachedPath>), ResolveError> {
-        let parsed = Specifier::parse(specifier).map_err(ResolveError::Specifier)?;
+        let parsed = Specifier::parse(specifier).map_err(|error| ResolveError::Specifier { error })?;
         ctx.set_query_fragment(parsed.query, parsed.fragment);
 
         // There is an edge-case where a request with # can be a path or a fragment -> try both
@@ -472,7 +472,7 @@ impl<Fs: FileSystem> Resolver<Fs> {
         }
 
         // 7. THROW "not found"
-        Err(ResolveError::NotFound(specifier.to_string()))
+        Err(ResolveError::NotFound { specifier: specifier.to_string() })
     }
 
     /// LOAD_PACKAGE_IMPORTS(X, DIR)
@@ -896,7 +896,7 @@ impl<Fs: FileSystem> Resolver<Fs> {
         }
 
         // 3. THROW "not found"
-        Err(ResolveError::NotFound(specifier.to_string()))
+        Err(ResolveError::NotFound { specifier: specifier.to_string() })
     }
 
     /// enhanced-resolve: AliasFieldPlugin for [ResolveOptions::alias_fields]
@@ -938,10 +938,10 @@ impl<Fs: FileSystem> Resolver<Fs> {
                         Ok(None)
                     }
                 } else {
-                    Err(ResolveError::NotFound(new_specifier.to_string()))
+                    Err(ResolveError::NotFound { specifier: new_specifier.to_string() })
                 };
             }
-            return Err(ResolveError::Recursion);
+            return Err(ResolveError::RecursiveDependency { depth: ctx.depth });
         }
         ctx.resolving_alias = Some(new_specifier.to_string());
         ctx.is_fully_specified = false;
@@ -974,8 +974,8 @@ impl<Fs: FileSystem> Resolver<Fs> {
                 }
                 alias_key_raw
             };
-            // It should stop resolving when all of the tried alias values
-            // failed to resolve.
+            
+            // It should stop resolving when all of the tried alias values failed to resolve.
             // <https://github.com/webpack/enhanced-resolve/blob/570337b969eee46120a18b62b72809a3246147da/lib/AliasPlugin.js#L65>
             let mut should_stop = false;
             for r in specifiers {
@@ -996,15 +996,15 @@ impl<Fs: FileSystem> Resolver<Fs> {
                     AliasValue::Ignore => {
                         let cached_path =
                             cached_path.normalize_with(alias_key, self.cache.as_ref());
-                        return Err(ResolveError::Ignored(cached_path.to_path_buf()));
+                        return Err(ResolveError::Ignored { path: cached_path.to_path_buf() });
                     }
                 }
             }
             if should_stop {
-                return Err(ResolveError::MatchedAliasNotFound(
-                    specifier.to_string(),
-                    alias_key.to_string(),
-                ));
+                return Err(ResolveError::MatchedAliasNotFound {
+                    specifier: specifier.to_string(),
+                    alias_key: alias_key.to_string(),
+                });
             }
         }
         Ok(None)
@@ -1065,7 +1065,7 @@ impl<Fs: FileSystem> Resolver<Fs> {
             *should_stop = true;
             ctx.is_fully_specified = false;
             return match self.require(cached_path, new_specifier.as_ref(), ctx) {
-                Err(ResolveError::NotFound(_) | ResolveError::MatchedAliasNotFound(_, _)) => {
+                Err(ResolveError::NotFound { .. } | ResolveError::MatchedAliasNotFound { .. }) => {
                     Ok(None)
                 }
                 Ok(path) => return Ok(Some(path)),
@@ -1130,11 +1130,11 @@ impl<Fs: FileSystem> Resolver<Fs> {
             .map(|ext| format!("{filename_without_extension}{ext}"))
             .collect::<Vec<_>>()
             .join(",");
-        Err(ResolveError::ExtensionAlias(
-            filename.to_string_lossy().to_string(),
-            files,
+        Err(ResolveError::ExtensionAlias {
+            filename: filename.to_string_lossy().to_string(),
+            tried: files,
             dir,
-        ))
+        })
     }
 
     /// enhanced-resolve: RootsPlugin
@@ -1186,10 +1186,10 @@ impl<Fs: FileSystem> Resolver<Fs> {
             let directory = self.cache.value(tsconfig.directory());
 
             if ctx.is_already_extended(&tsconfig.path) {
-                return Err(ResolveError::TsConfigCircular(
-                    ctx.get_extended_configs_with(tsconfig.path().to_path_buf())
+                return Err(ResolveError::TsConfigCircular {
+                    paths: ctx.get_extended_configs_with(tsconfig.path().to_path_buf())
                         .into(),
-                ));
+                });
             }
 
             // Extend tsconfig
@@ -1222,9 +1222,9 @@ impl<Fs: FileSystem> Resolver<Fs> {
                         &reference_tsconfig_path,
                         |reference_tsconfig| {
                             if reference_tsconfig.path() == path {
-                                return Err(ResolveError::TsConfigSelfReference(
-                                    reference_tsconfig.path().to_path_buf(),
-                                ));
+                                return Err(ResolveError::TsConfigSelfReference {
+                                    path: reference_tsconfig.path().to_path_buf(),
+                                });
                             }
                             self.extend_tsconfig(
                                 &self.cache.value(reference_tsconfig.directory()),
@@ -1354,9 +1354,9 @@ impl<Fs: FileSystem> Resolver<Fs> {
         specifier: &str,
     ) -> Result<PathBuf, ResolveError> {
         match specifier.as_bytes().first() {
-            None => Err(ResolveError::Specifier(SpecifierError::Empty(
+            None => Err(ResolveError::Specifier { error: SpecifierError::Empty(
                 specifier.to_string(),
-            ))),
+            ) }),
             Some(b'/') => Ok(PathBuf::from(specifier)),
             Some(b'.') => Ok(tsconfig.directory().normalize_with(specifier)),
             _ => self
@@ -1373,8 +1373,8 @@ impl<Fs: FileSystem> Resolver<Fs> {
                 )
                 .map(|p| p.to_path_buf())
                 .map_err(|err| match err {
-                    ResolveError::NotFound(_) => {
-                        ResolveError::TsConfigNotFound(PathBuf::from(specifier))
+                    ResolveError::NotFound { .. } => {
+                        ResolveError::TsConfigNotFound { path: PathBuf::from(specifier) }
                     }
                     _ => err,
                 }),
@@ -1447,7 +1447,7 @@ impl<Fs: FileSystem> Resolver<Fs> {
             }
         }
 
-        Err(ResolveError::NotFound(specifier.to_string()))
+        Err(ResolveError::NotFound { specifier: specifier.to_string() })
     }
 
     /// PACKAGE_EXPORTS_RESOLVE(packageURL, subpath, exports, conditions)
@@ -1468,9 +1468,9 @@ impl<Fs: FileSystem> Resolver<Fs> {
                 has_dot = has_dot || starts_with_dot_or_hash;
                 without_dot = without_dot || !starts_with_dot_or_hash;
                 if has_dot && without_dot {
-                    return Err(ResolveError::InvalidPackageConfig(
-                        package_url.path().join("package.json"),
-                    ));
+                    return Err(ResolveError::PackageJsonInvalid {
+                        path: package_url.path().join("package.json"),
+                    });
                 }
             }
         }
@@ -1570,10 +1570,10 @@ impl<Fs: FileSystem> Resolver<Fs> {
                 has_imports = true;
                 // TODO: fill in test case for this case
                 if specifier == "#" || specifier.starts_with("#/") {
-                    return Err(ResolveError::InvalidModuleSpecifier(
-                        specifier.to_string(),
-                        package_json.path().to_path_buf(),
-                    ));
+                    return Err(ResolveError::InvalidModuleSpecifier {
+                        specifier: specifier.to_string(),
+                        package_path: package_json.path().to_path_buf(),
+                    });
                 }
             }
             if let Some(path) = self.package_imports_exports_resolve(
@@ -1591,10 +1591,10 @@ impl<Fs: FileSystem> Resolver<Fs> {
 
         // 5. Throw a Package Import Not Defined error.
         if has_imports {
-            Err(ResolveError::PackageImportNotDefined(
-                specifier.to_string(),
-                package_json.path().to_path_buf(),
-            ))
+            Err(ResolveError::PackageImportNotDefined {
+                specifier: specifier.to_string(),
+                package_path: package_json.path().to_path_buf(),
+            })
         } else {
             Ok(None)
         }
@@ -1710,9 +1710,9 @@ impl<Fs: FileSystem> Resolver<Fs> {
                     if target_key.ends_with('/') && target.ends_with('/') {
                         Cow::Owned(format!("{target}{pattern_match}"))
                     } else {
-                        return Err(ResolveError::InvalidPackageConfigDirectory(
-                            package_url.path().join("package.json"),
-                        ));
+                            return Err(ResolveError::InvalidPackageConfigDirectory {
+                                path: package_url.path().join("package.json"),
+                            });
                     }
                 } else {
                     Cow::Owned(target.replace('*', pattern_match))
@@ -1727,7 +1727,7 @@ impl<Fs: FileSystem> Resolver<Fs> {
         if let Some(target) = target.as_string() {
             // Target string con contain queries or fragments:
             // `"exports": { ".": { "default": "./foo.js?query#fragment" }`
-            let parsed = Specifier::parse(target).map_err(ResolveError::Specifier)?;
+            let parsed = Specifier::parse(target).map_err(|error| ResolveError::Specifier { error })?;
             ctx.set_query_fragment(parsed.query, parsed.fragment);
             let target = parsed.path();
 
@@ -1736,11 +1736,11 @@ impl<Fs: FileSystem> Resolver<Fs> {
                 // 1. If isImports is false, or if target starts with "../" or "/", or if target is a valid URL, then
                 if !is_imports || target.starts_with("../") || target.starts_with('/') {
                     // 1. Throw an Invalid Package Target error.
-                    return Err(ResolveError::InvalidPackageTarget(
-                        (*target).to_string(),
-                        target_key.to_string(),
-                        package_url.path().join("package.json"),
-                    ));
+                    return Err(ResolveError::InvalidPackageTarget {
+                        target: (*target).to_string(),
+                        name: target_key.to_string(),
+                        package_path: package_url.path().join("package.json"),
+                    });
                 }
                 // 2. If patternMatch is a String, then
                 //   1. Return PACKAGE_RESOLVE(target with every instance of "*" replaced by patternMatch, packageURL + "/").
@@ -1756,11 +1756,11 @@ impl<Fs: FileSystem> Resolver<Fs> {
             // 5. If patternMatch is null, then
             let target = normalize_string_target(target_key, target, pattern_match, package_url)?;
             if Path::new(target.as_ref()).is_invalid_exports_target() {
-                return Err(ResolveError::InvalidPackageTarget(
-                    target.to_string(),
-                    target_key.to_string(),
-                    package_url.path().join("package.json"),
-                ));
+                return Err(ResolveError::InvalidPackageTarget {
+                    target: target.to_string(),
+                    name: target_key.to_string(),
+                    package_path: package_url.path().join("package.json"),
+                });
             }
             // 6. If patternMatch split on "/" or "\" contains any "", ".", "..", or "node_modules" segments, case insensitive and including percent encoded variants, throw an Invalid Module Specifier error.
             // 7. Return the URL resolution of resolvedTarget with every instance of "*" replaced with patternMatch.
@@ -1979,7 +1979,7 @@ fn resolve_file_protocol(specifier: &str) -> Result<Cow<'_, str>, ResolveError> 
                     Cow::Owned(result)
                 })
             })
-            .map_err(|()| ResolveError::PathNotSupported(PathBuf::from(specifier)))
+            .map_err(|()| ResolveError::PathNotSupported { path: PathBuf::from(specifier) })
     } else {
         Ok(Cow::Borrowed(specifier))
     }

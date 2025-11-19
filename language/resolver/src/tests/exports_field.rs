@@ -66,15 +66,15 @@ fn test_simple() {
     #[rustfmt::skip]
     let fail = [
         // ("throw error if extension not provided", f2.clone(), "exports-field/dist/main", ResolveError::NotFound(f2.join("node_modules/exports-field/lib/lib2/main"))),
-        ("relative path should not work with exports field", f.clone(), "./node_modules/exports-field/dist/main.js", ResolveError::NotFound("./node_modules/exports-field/dist/main.js".into())),
-        ("backtracking should not work for request", f.clone(), "exports-field/dist/../../../a.js", ResolveError::InvalidPackageTarget("./lib/../../../a.js".to_string(), "./dist/".to_string(), p.clone())),
-        ("backtracking should not work for exports field target", f.clone(), "exports-field/dist/a.js", ResolveError::InvalidPackageTarget("./../../a.js".to_string(), "./dist/a.js".to_string(), p.clone())),
+        ("relative path should not work with exports field", f.clone(), "./node_modules/exports-field/dist/main.js", ResolveError::NotFound { specifier: "./node_modules/exports-field/dist/main.js".into() }),
+        ("backtracking should not work for request", f.clone(), "exports-field/dist/../../../a.js", ResolveError::InvalidPackageTarget { target: "./lib/../../../a.js".to_string(), name: "./dist/".to_string(), package_path: p.clone() }),
+        ("backtracking should not work for exports field target", f.clone(), "exports-field/dist/a.js", ResolveError::InvalidPackageTarget { target: "./../../a.js".to_string(), name: "./dist/a.js".to_string(), package_path: p.clone() }),
         ("not exported error", f.clone(), "exports-field/anything/else", ResolveError::PackagePathNotExported { subpath: "./anything/else".to_string(), package_path: f.join("node_modules/exports-field"), package_json_path: p.clone(), conditions: vec!["webpack".into()].into() }),
         ("request ending with slash #1", f.clone(), "exports-field/", ResolveError::PackagePathNotExported { subpath: "./".to_string(), package_path: f.join("node_modules/exports-field"), package_json_path: p.clone(), conditions: vec!["webpack".into()].into() }),
         ("request ending with slash #2", f.clone(), "exports-field/dist/", ResolveError::PackagePathNotExported { subpath: "./dist/".to_string(), package_path: f.join("node_modules/exports-field"), package_json_path: p.clone(), conditions: vec!["webpack".into()].into() }),
         ("request ending with slash #3", f.clone(), "exports-field/lib/", ResolveError::PackagePathNotExported { subpath: "./lib/".to_string(), package_path: f.join("node_modules/exports-field"), package_json_path: p, conditions: vec!["webpack".into()].into() }),
-        ("should throw error if target is invalid", f4, "exports-field", ResolveError::InvalidPackageTarget("./a/../b/../../pack1/index.js".to_string(), ".".to_string(), p4)),
-        ("throw error if exports field is invalid", f.clone(), "invalid-exports-field", ResolveError::InvalidPackageConfig(f.join("node_modules/invalid-exports-field/package.json"))),
+        ("should throw error if target is invalid", f4, "exports-field", ResolveError::InvalidPackageTarget { target: "./a/../b/../../pack1/index.js".to_string(), name: ".".to_string(), package_path: p4 }),
+        ("throw error if exports field is invalid", f.clone(), "invalid-exports-field", ResolveError::PackageJsonInvalid { path: f.join("node_modules/invalid-exports-field/package.json") }),
         ("should throw error if target is 'null'", f5.clone(), "m/features/internal/file.js", ResolveError::PackagePathNotExported { subpath: "./features/internal/file.js".to_string(), package_path: f5.join("node_modules/m"), package_json_path: p5, conditions: vec!["webpack".into()].into() }),
     ];
 
@@ -331,7 +331,11 @@ fn extension_alias_throw_error() {
     let fail = [
         // enhanced-resolve has two test cases that are exactly the same here
         // https://github.com/webpack/enhanced-resolve/blob/a998c7d218b7a9ec2461fc4fddd1ad5dd7687485/test/exportsField.test.js#L2976-L3024
-        ("should throw error with the `extensionAlias` option", f.clone(), "pkg/string.js", ResolveError::ExtensionAlias("string.js".into(), "string.ts".into(), f.join("node_modules/pkg/dist"))),
+        ("should throw error with the `extensionAlias` option", f.clone(), "pkg/string.js", ResolveError::ExtensionAlias {
+            filename: "string.js".into(),
+            tried: "string.ts".into(),
+            dir: f.join("node_modules/pkg/dist")
+        }),
         // TODO: The error is PackagePathNotExported in enhanced-resolve
         // ("should throw error with the `extensionAlias` option", f.clone(), "pkg/string.js", ResolveError::PackagePathNotExported("node_modules/pkg/dist/string.ts".to_string())),
     ];

@@ -49,7 +49,7 @@ impl ResolveContext {
     pub fn check_depth(&mut self) -> Result<(), ResolveError> {
         self.depth += 1;
         if self.depth > self.max_depth {
-            return Err(ResolveError::Recursion);
+            return Err(ResolveError::RecursiveDependency { depth: self.depth });
         }
         Ok(())
     }
