@@ -21,24 +21,6 @@ impl FileMetadata {
             is_symlink,
         }
     }
-
-    /// Whether the file is a regular file.
-    #[must_use]
-    pub const fn is_file(self) -> bool {
-        self.is_file
-    }
-
-    /// Whether the file is a directory.
-    #[must_use]
-    pub const fn is_dir(self) -> bool {
-        self.is_directory
-    }
-
-    /// Whether the file is a symlink.
-    #[must_use]
-    pub const fn is_symlink(self) -> bool {
-        self.is_symlink
-    }
 }
 
 #[cfg(target_os = "windows")]

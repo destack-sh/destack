@@ -6,7 +6,7 @@ use std::sync::Arc;
 #[allow(clippy::struct_excessive_bools)]
 #[derive(Debug, Clone)]
 pub struct ResolveOptions {
-    /// Current working directory.
+    /// Current working directory to start from.
     pub cwd: Option<PathBuf>,
 
     /// How to discover tsconfig.

@@ -3044,7 +3044,9 @@ name = "dyst_resolver"
 version = "2025.11.15-0"
 dependencies = [
  "cfg-if",
+ "dyst_ast",
  "dyst_dir",
+ "dyst_parser",
  "dyst_source",
  "dyst_unicode",
  "indexmap 2.12.0",
