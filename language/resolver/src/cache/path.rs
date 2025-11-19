@@ -7,11 +7,12 @@ use std::path::{Component, Path, PathBuf};
 use std::sync::{Arc, OnceLock, Weak};
 
 use cfg_if::cfg_if;
+use dyst_dir::TypeScriptOptions;
 use dyst_source::FileSystem;
 use papaya::Equivalent;
 
 use super::system::CachedFileSystem;
-use crate::{PackageOptions, ResolutionContext, ResolveError, ResolveOptions, TypeScriptOptions};
+use crate::{PackageOptions, ResolutionContext, ResolveError, ResolveOptions};
 
 // Thread-local pre-allocated path buffer.
 // Used to perform operations on paths more quickly without repeated allocations.

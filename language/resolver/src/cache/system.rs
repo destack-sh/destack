@@ -12,8 +12,9 @@ use rustc_hash::FxHasher;
 use super::hasher::IdentityHasher;
 use super::path::{BorrowedCachedPath, CachedPath, CachedPathState};
 use crate::{
-    JSONError, PackageOptions, ResolutionContext, ResolveError, ResolveOptions, TypeScriptOptions,
+    JSONError, PackageOptions, ResolutionContext, ResolveError, ResolveOptions,
 };
+use dyst_dir::TypeScriptOptions;
 use dyst_source::{FileSystem, PathExt};
 
 /// A cached file system implementation.

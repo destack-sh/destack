@@ -4,9 +4,11 @@
 
 use std::path::Path;
 
+use dyst_dir::TypeScriptOptions;
+
 use crate::tests::TestResolver;
 use crate::{
-    ResolveError, ResolveOptions, TypeScriptOptions, TypeScriptOptionsDiscovery,
+    ResolveError, ResolveOptions, TypeScriptOptionsDiscovery,
     TypeScriptOptionsLocation, TypeScriptOptionsReferences,
 };
 
@@ -235,7 +237,7 @@ fn test_extend_tsconfig_no_override_existing() {
     let mut child_tsconfig = TypeScriptOptions::parse(true, child_path, &mut child_config).unwrap();
 
     // Perform the extension
-    child_tsconfig.extend_tsconfig(&parent_tsconfig);
+    child_tsconfig.extend_from(&parent_tsconfig);
     let child_built = child_tsconfig.build();
 
     let compiler_options = &child_built.compiler_options;

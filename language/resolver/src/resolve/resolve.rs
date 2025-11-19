@@ -5,12 +5,13 @@ use std::path::{Component, Path, PathBuf};
 use std::sync::Arc;
 use std::{fmt, iter};
 
+use dyst_dir::{TypeScriptOptions, TypeScriptProjectReference};
 use dyst_source::{FileSystem, MemoryFileSystem, PathExt, PhysicalFileSystem, SLASH_START};
 
 use crate::{
     Alias, AliasValue, CachedFileSystem, CachedPath, ImportsExportsEntry, ImportsExportsKind,
     ImportsExportsMap, PackageOptions, Resolution, ResolutionContext, ResolveError, ResolveOptions,
-    Restriction, Specifier, SpecifierError, TypeScriptOptions, TypeScriptOptionsDiscovery,
+    Restriction, Specifier, SpecifierError, TypeScriptOptionsDiscovery,
     TypeScriptOptionsReferences,
 };
 
@@ -1179,7 +1180,6 @@ impl<Fs: FileSystem> Resolver<Fs> {
                 .extends()
                 .map(|specifier| self.get_extended_tsconfig_path(&directory, tsconfig, specifier))
                 .collect::<Result<Vec<_>, _>>()?;
-
             if !extended_tsconfig_paths.is_empty() {
                 ctx.with_extended_file(tsconfig.path.to_owned(), |ctx| {
                     for extended_tsconfig_path in extended_tsconfig_paths {
@@ -1189,13 +1189,29 @@ impl<Fs: FileSystem> Resolver<Fs> {
                             &TypeScriptOptionsReferences::Disabled,
                             ctx,
                         )?;
-                        tsconfig.extend_tsconfig(&extended_tsconfig);
+                        tsconfig.extend_from(&extended_tsconfig);
                     }
                     Result::Ok::<(), ResolveError>(())
                 })?;
             }
 
-            if tsconfig.load_references(references) {
+            // loads the given references into this tsconfig
+            match references {
+                TypeScriptOptionsReferences::Disabled => {
+                    tsconfig.references.drain(..);
+                }
+                TypeScriptOptionsReferences::Auto => {}
+                TypeScriptOptionsReferences::Paths(paths) => {
+                    tsconfig.references = paths
+                        .iter()
+                        .map(|path| TypeScriptProjectReference {
+                            path: path.clone(),
+                            tsconfig: None,
+                        })
+                        .collect();
+                }
+            }
+            if !tsconfig.references.is_empty() {
                 let path = tsconfig.path.to_path_buf();
                 let directory = tsconfig.directory().to_path_buf();
                 for reference in tsconfig.references.iter_mut() {
@@ -1243,7 +1259,7 @@ impl<Fs: FileSystem> Resolver<Fs> {
                 &TypeScriptOptionsReferences::Disabled,
                 ctx,
             )?;
-            tsconfig.extend_tsconfig(&extended_tsconfig);
+            tsconfig.extend_from(&extended_tsconfig);
         }
         Ok(())
     }
