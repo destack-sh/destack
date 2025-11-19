@@ -6,8 +6,8 @@ use serde_json::Value;
 
 use crate::resolve::{JSONError, ResolveError};
 
-/// `package.json` configuration.
-pub struct PackageJson {
+/// Package options (from `package.json`).
+pub struct PackageOptions {
     /// Path to `package.json` (including the `package.json` filename).
     pub path: PathBuf,
     /// Realpath of `package.json` (including the `package.json` filename).
@@ -16,9 +16,9 @@ pub struct PackageJson {
     value: Value,
 }
 
-impl fmt::Debug for PackageJson {
+impl fmt::Debug for PackageOptions {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("PackageJson")
+        f.debug_struct("PackageOptions")
             .field("path", &self.path)
             .field("realpath", &self.realpath)
             .field("name", &self.name())
@@ -27,7 +27,7 @@ impl fmt::Debug for PackageJson {
     }
 }
 
-impl PackageJson {
+impl PackageOptions {
     /// Returns the path where the `package.json` was found (including `package.json`).
     pub fn path(&self) -> &Path {
         &self.path
@@ -40,7 +40,9 @@ impl PackageJson {
 
     /// Directory to `package.json` (excluding `package.json`).
     pub fn directory(&self) -> &Path {
-        self.realpath.parent().expect("package.json file must have a parent directory")
+        self.realpath
+            .parent()
+            .expect("package.json file must have a parent directory")
     }
 
     /// Name of the package.

@@ -9,7 +9,7 @@ use dyst_source::{FileSystem, MemoryFileSystem, PathExt, PhysicalFileSystem, SLA
 
 use crate::{
     Alias, AliasValue, CachedFileSystem, CachedPath, ImportsExportsEntry, ImportsExportsKind,
-    ImportsExportsMap, PackageJson, Resolution, ResolutionContext, ResolveError, ResolveOptions,
+    ImportsExportsMap, PackageOptions, Resolution, ResolutionContext, ResolveError, ResolveOptions,
     Restriction, Specifier, SpecifierError, TypeScriptOptions, TypeScriptOptionsDiscovery,
     TypeScriptOptionsReferences,
 };
@@ -112,7 +112,7 @@ impl<Fs: FileSystem> Resolver<Fs> {
             true,
             path,
             &TypeScriptOptionsReferences::Auto,
-            &mut TsconfigResolveContext::default(),
+            &mut TypeScriptOptionsResolveContext::default(),
         )
     }
 
@@ -128,15 +128,15 @@ impl<Fs: FileSystem> Resolver<Fs> {
         resolve_context: &mut ResolutionContext,
     ) -> Result<Resolution, ResolveError> {
         let mut ctx = ResolutionContext::default();
-        ctx.file_dependencies.replace(vec![]);
+        ctx.found_dependencies.replace(vec![]);
         ctx.missing_dependencies.replace(vec![]);
 
         let result = self.resolve_in_context(directory.as_ref(), specifier, &mut ctx);
 
         // append dependencies
-        if let Some(deps) = &mut ctx.file_dependencies {
+        if let Some(deps) = &mut ctx.found_dependencies {
             resolve_context
-                .file_dependencies
+                .found_dependencies
                 .get_or_insert_with(Vec::new)
                 .append(deps);
         }
@@ -183,7 +183,7 @@ impl<Fs: FileSystem> Resolver<Fs> {
         &self,
         cached_path: &CachedPath,
         ctx: &mut ResolutionContext,
-    ) -> Result<Option<Arc<PackageJson>>, ResolveError> {
+    ) -> Result<Option<Arc<PackageOptions>>, ResolveError> {
         // algorithm:
         // find `node_modules/package/package.json`
         // or the first package.json if the path is not inside node_modules.
@@ -207,8 +207,7 @@ impl<Fs: FileSystem> Resolver<Fs> {
     }
 
     /// Requires `specifier` from a module at `path`.
-    ///
-    /// See <https://nodejs.org/api/modules.html#all-together>
+    /// <https://nodejs.org/api/modules.html#all-together>
     fn require(
         &self,
         cached_path: &CachedPath,
@@ -217,10 +216,25 @@ impl<Fs: FileSystem> Resolver<Fs> {
     ) -> Result<CachedPath, ResolveError> {
         ctx.check_depth()?;
 
-        // enhanced-resolve: parse
-        let (parsed, try_fragment_as_path) = self.load_parse(cached_path, specifier, ctx)?;
-        if let Some(path) = try_fragment_as_path {
-            return Ok(path);
+        // enhanced-resolve: parse and handle optional fragments
+        let parsed =
+            Specifier::parse(specifier).map_err(|error| ResolveError::Specifier { error })?;
+        if let Some(query) = parsed.query {
+            ctx.query.replace(query.to_string());
+        }
+        if let Some(fragment) = parsed.fragment {
+            ctx.fragment.replace(fragment.to_string());
+        }
+
+        // try resolving as a path if fragment exists but no query (both interpretations possible)
+        if ctx.fragment.is_some() && ctx.query.is_none() {
+            let base_path = parsed.path();
+            let fragment = ctx.fragment.take().unwrap();
+            let candidate = format!("{base_path}{fragment}");
+            if let Ok(path) = self.require_without_parse(cached_path, &candidate, ctx) {
+                return Ok(path);
+            }
+            ctx.fragment.replace(fragment);
         }
 
         self.require_without_parse(cached_path, parsed.path(), ctx)
@@ -400,39 +414,6 @@ impl<Fs: FileSystem> Resolver<Fs> {
         }
 
         self.load_package_self_or_node_modules(cached_path, specifier, ctx)
-    }
-
-    /// Parses the specifier and handles optional fragments.
-    ///
-    /// It's allowed to escape # as \0# to avoid parsing it as fragment.
-    /// enhanced-resolve will try to resolve requests containing `#` as path and as fragment,
-    /// so it will automatically figure out if `./some#thing` means `.../some.js#thing` or `.../some#thing.js`.
-    /// When a # is resolved as path it will be escaped in the result. Here: `.../some\0#thing.js`.
-    ///
-    /// <https://github.com/webpack/enhanced-resolve#escaping>
-    fn load_parse<'s>(
-        // nocheckin: inline this
-        &self,
-        cached_path: &CachedPath,
-        specifier: &'s str,
-        ctx: &mut ResolutionContext,
-    ) -> Result<(Specifier<'s>, Option<CachedPath>), ResolveError> {
-        let parsed =
-            Specifier::parse(specifier).map_err(|error| ResolveError::Specifier { error })?;
-        ctx.set_query_fragment(parsed.query, parsed.fragment);
-
-        // there is an edge-case where a request with # can be a path or a fragment -> try both
-        if ctx.fragment.is_some() && ctx.query.is_none() {
-            let specifier = parsed.path();
-            let fragment = ctx.fragment.take().unwrap();
-            let path = format!("{specifier}{fragment}");
-            if let Ok(path) = self.require_without_parse(cached_path, &path, ctx) {
-                return Ok((parsed, Some(path)));
-            }
-            ctx.fragment.replace(fragment);
-        }
-
-        Ok((parsed, None))
     }
 
     /// Loads the package itself or resolves from node_modules.
@@ -946,7 +927,7 @@ impl<Fs: FileSystem> Resolver<Fs> {
         &self,
         cached_path: &CachedPath,
         module_specifier: Option<&str>,
-        package_json: &PackageJson,
+        package_json: &PackageOptions,
         ctx: &mut ResolutionContext,
     ) -> ResolveResult {
         let path = cached_path.path();
@@ -1230,7 +1211,7 @@ impl<Fs: FileSystem> Resolver<Fs> {
         root: bool,
         path: &Path,
         references: &TypeScriptOptionsReferences,
-        ctx: &mut TsconfigResolveContext,
+        ctx: &mut TypeScriptOptionsResolveContext,
     ) -> Result<Arc<TypeScriptOptions>, ResolveError> {
         self.cache.get_typescript_options(root, path, |tsconfig| {
             let directory = self.cache.value(tsconfig.directory());
@@ -1298,7 +1279,7 @@ impl<Fs: FileSystem> Resolver<Fs> {
         &self,
         directory: &CachedPath,
         tsconfig: &mut TypeScriptOptions,
-        ctx: &mut TsconfigResolveContext,
+        ctx: &mut TypeScriptOptionsResolveContext,
     ) -> Result<(), ResolveError> {
         let extended_tsconfig_paths = tsconfig
             .extends()
@@ -1335,7 +1316,7 @@ impl<Fs: FileSystem> Resolver<Fs> {
                     /* root */ true,
                     &tsconfig_options.config_file,
                     &tsconfig_options.references,
-                    &mut TsconfigResolveContext::default(),
+                    &mut TypeScriptOptionsResolveContext::default(),
                 )?;
                 // cache the loaded tsconfig in the path's directory
                 let tsconfig_dir = self.cache.value(tsconfig.directory());
@@ -1614,7 +1595,7 @@ impl<Fs: FileSystem> Resolver<Fs> {
     fn package_imports_resolve(
         &self,
         specifier: &str,
-        package_json: &PackageJson,
+        package_json: &PackageOptions,
         ctx: &mut ResolutionContext,
     ) -> Result<Option<CachedPath>, ResolveError> {
         // 1. assert: specifier begins with "#".
@@ -1797,7 +1778,12 @@ impl<Fs: FileSystem> Resolver<Fs> {
         if let Some(target) = target.as_string() {
             let parsed =
                 Specifier::parse(target).map_err(|error| ResolveError::Specifier { error })?;
-            ctx.set_query_fragment(parsed.query, parsed.fragment);
+            if let Some(query) = parsed.query {
+                ctx.query.replace(query.to_string());
+            }
+            if let Some(fragment) = parsed.fragment {
+                ctx.fragment.replace(fragment.to_string());
+            }
             let target = parsed.path();
 
             // 1. if target does not start with "./", then
@@ -1996,11 +1982,11 @@ impl<Fs: FileSystem> Resolver<Fs> {
 }
 
 #[derive(Default)]
-struct TsconfigResolveContext {
+struct TypeScriptOptionsResolveContext {
     extended_configs: Vec<PathBuf>,
 }
 
-impl TsconfigResolveContext {
+impl TypeScriptOptionsResolveContext {
     /// Executes a closure with a new extended file added to the context.
     fn with_extended_file<F, T>(&mut self, path: PathBuf, f: F) -> Result<T, ResolveError>
     where
@@ -2027,8 +2013,8 @@ impl TsconfigResolveContext {
     }
 }
 
-#[cfg(not(target_arch = "wasm32"))]
 /// Resolves a file protocol URL to a file path.
+#[cfg(not(target_arch = "wasm32"))]
 fn resolve_file_protocol(specifier: &str) -> Result<Cow<'_, str>, ResolveError> {
     if specifier.starts_with("file://") {
         url::Url::parse(specifier)
