@@ -11,10 +11,12 @@ use rustc_hash::FxHasher;
 
 use super::hasher::IdentityHasher;
 use super::path::{BorrowedCachedPath, CachedPath, CachedPathState};
-use crate::{JSONError, PackageJson, ResolveContext, ResolveError, ResolveOptions, TsConfig};
+use crate::{
+    JSONError, PackageJson, ResolveContext, ResolveError, ResolveOptions, TypeScriptOptions,
+};
 use dyst_source::{FileSystem, PathExt};
 
-/// Cached file system implementation.
+/// A cached file system implementation.
 #[derive(Debug, Default)]
 pub struct CachedFileSystem<Fs> {
     /// The underlying file system.
@@ -22,19 +24,20 @@ pub struct CachedFileSystem<Fs> {
     /// The cached paths.
     pub(crate) paths: HashSet<CachedPath, BuildHasherDefault<IdentityHasher>>,
     /// The cached tsconfigs.
-    pub(crate) tsconfigs: HashMap<PathBuf, Arc<TsConfig>, BuildHasherDefault<FxHasher>>,
+    pub(crate) tsconfigs: HashMap<PathBuf, Arc<TypeScriptOptions>, BuildHasherDefault<FxHasher>>,
 }
 
 impl<Fs: FileSystem> CachedFileSystem<Fs> {
-    /// Clear the caches.
+    /// Clears the caches.
     pub fn clear(&self) {
         self.paths.pin().clear();
         self.tsconfigs.pin().clear();
     }
 
-    /// Get the cached path for a given path.
+    /// Gets the cached path for a given path.
     #[allow(clippy::cast_possible_truncation)]
     pub(crate) fn value(&self, path: &Path) -> CachedPath {
+        // calculate hash
         // `Path::hash` is slow: https://doc.rust-lang.org/std/path/struct.Path.html#impl-Hash-for-Path
         // `path.as_os_str()` hash is not stable because we may joined a path like `foo/bar` and `foo\\bar` on windows.
         let hash = {
@@ -42,10 +45,14 @@ impl<Fs: FileSystem> CachedFileSystem<Fs> {
             path.as_os_str().hash(&mut hasher);
             hasher.finish()
         };
+
+        // check cache
         let paths = self.paths.pin();
         if let Some(entry) = paths.get(&BorrowedCachedPath { hash, path }) {
             return entry.clone();
         }
+
+        // create new cached path
         let parent = path.parent().map(|p| self.value(p));
         let is_node_modules = path
             .file_name()
@@ -56,6 +63,7 @@ impl<Fs: FileSystem> CachedFileSystem<Fs> {
                 .as_ref()
                 .is_some_and(|parent| parent.is_inside_node_modules);
         let parent_weak = parent.as_ref().map(|p| Arc::downgrade(&p.0));
+
         let cached_path = CachedPath(Arc::new(CachedPathState::new(
             hash,
             path.to_path_buf().into_boxed_path(),
@@ -63,14 +71,16 @@ impl<Fs: FileSystem> CachedFileSystem<Fs> {
             inside_node_modules,
             parent_weak,
         )));
+
         paths.insert(cached_path.clone());
         cached_path
     }
 
-    /// Canonicalize the cached path.
+    /// Canonicalizes the cached path.
     pub(crate) fn canonicalize(&self, path: &CachedPath) -> Result<PathBuf, ResolveError> {
         let cached_path = self.canonicalize_impl(path)?;
         let path = cached_path.to_path_buf();
+
         cfg_if! {
             if #[cfg(target_os = "windows")] {
                 dyst_source::file::windows::strip_windows_prefix(path)
@@ -80,7 +90,7 @@ impl<Fs: FileSystem> CachedFileSystem<Fs> {
         }
     }
 
-    /// Check if the cached path is a file.
+    /// Checks if the cached path is a file.
     pub(crate) fn is_file(&self, path: &CachedPath, ctx: &mut ResolveContext) -> bool {
         if path.is_file(&self.fs).is_some_and(|b| b) {
             ctx.add_file_dependency(path.path());
@@ -91,7 +101,7 @@ impl<Fs: FileSystem> CachedFileSystem<Fs> {
         }
     }
 
-    /// Check if the cached path is a directory.
+    /// Checks if the cached path is a directory.
     pub(crate) fn is_directory(&self, path: &CachedPath, ctx: &mut ResolveContext) -> bool {
         path.is_directory(&self.fs).map_or_else(
             || {
@@ -102,7 +112,7 @@ impl<Fs: FileSystem> CachedFileSystem<Fs> {
         )
     }
 
-    /// Get the `package.json` of the path.
+    /// Gets the `package.json` of the path.
     pub(crate) fn get_package_json(
         &self,
         path: &CachedPath,
@@ -122,12 +132,14 @@ impl<Fs: FileSystem> CachedFileSystem<Fs> {
                 } else {
                     package_json_path.clone()
                 };
+
                 PackageJson::parse(&self.fs, package_json_path, real_path, package_json_bytes)
                     .map(|package_json| Some(Arc::new(package_json)))
                     .map_err(|error| ResolveError::Json { error })
             })
             .cloned();
 
+        // track dependencies
         // https://github.com/webpack/enhanced-resolve/blob/58464fc7cb56673c9aa849e68e6300239601e615/lib/DescriptionFileUtils.js#L68-L82
         match &result {
             Ok(Some(package_json)) => {
@@ -144,20 +156,26 @@ impl<Fs: FileSystem> CachedFileSystem<Fs> {
                 }
             }
         }
+
         result
     }
 
-    /// Get the `tsconfig.json` of the path.
-    pub(crate) fn get_tsconfig<F: FnOnce(&mut TsConfig) -> Result<(), ResolveError>>(
+    /// Gets the `tsconfig.json` of the path.
+    pub(crate) fn get_typescript_options<
+        F: FnOnce(&mut TypeScriptOptions) -> Result<(), ResolveError>,
+    >(
         &self,
         root: bool,
         path: &Path,
         modify: F,
-    ) -> Result<Arc<TsConfig>, ResolveError> {
+    ) -> Result<Arc<TypeScriptOptions>, ResolveError> {
+        // check cache
         let tsconfigs = self.tsconfigs.pin();
         if let Some(tsconfig) = tsconfigs.get(path) {
             return Ok(Arc::clone(tsconfig));
         }
+
+        // resolve path
         let meta = self.fs.metadata(path).ok();
         let tsconfig_path = if meta.is_some_and(|m| m.is_file) {
             Cow::Borrowed(path)
@@ -168,20 +186,27 @@ impl<Fs: FileSystem> CachedFileSystem<Fs> {
             os_string.push(".json");
             Cow::Owned(PathBuf::from(os_string))
         };
-        let mut tsconfig_string = self
-            .fs
-            .read_to_string(&tsconfig_path)
-            .map_err(|_| ResolveError::TsConfigNotFound { path: path.to_path_buf() })?;
-        let mut tsconfig =
-            TsConfig::parse(root, &tsconfig_path, &mut tsconfig_string).map_err(|error| {
-                ResolveError::Json { error: JSONError {
+
+        // read file
+        let mut tsconfig_string = self.fs.read_to_string(&tsconfig_path).map_err(|_| {
+            ResolveError::TypeScriptOptionsNotFound {
+                path: path.to_path_buf(),
+            }
+        })?;
+
+        // parse
+        let mut tsconfig = TypeScriptOptions::parse(root, &tsconfig_path, &mut tsconfig_string)
+            .map_err(|error| ResolveError::Json {
+                error: JSONError {
                     path: tsconfig_path.to_path_buf(),
                     message: error.to_string(),
                     line: error.line(),
                     column: error.column(),
-                } }
+                },
             })?;
+
         modify(&mut tsconfig)?;
+
         let tsconfig = Arc::new(tsconfig.build());
         tsconfigs.insert(path.to_path_buf(), Arc::clone(&tsconfig));
         Ok(tsconfig)
@@ -189,7 +214,7 @@ impl<Fs: FileSystem> CachedFileSystem<Fs> {
 }
 
 impl<Fs: FileSystem> CachedFileSystem<Fs> {
-    /// Create a new cached file system.
+    /// Creates a new cached file system.
     pub fn new(fs: Fs) -> Self {
         Self {
             fs,
@@ -208,6 +233,7 @@ impl<Fs: FileSystem> CachedFileSystem<Fs> {
     ///
     /// <https://github.com/parcel-bundler/parcel/blob/4d27ec8b8bd1792f536811fef86e74a31fa0e704/crates/parcel-resolver/src/cache.rs#L232>
     pub(crate) fn canonicalize_impl(&self, path: &CachedPath) -> Result<CachedPath, ResolveError> {
+        // track visited paths for circular symlink detection
         // (each canonicalization chain gets its own visited set for circular symlink detection)
         let mut visited = StdHashSet::with_hasher(BuildHasherDefault::<IdentityHasher>::default());
         self.canonicalize_with_visited(path, &mut visited)
@@ -239,6 +265,7 @@ impl<Fs: FileSystem> CachedFileSystem<Fs> {
             return Err(io::Error::new(io::ErrorKind::NotFound, "Circular symlink").into());
         }
 
+        // resolve parent and normalize
         let cached_path = path.parent().map_or_else(
             || Ok(path.normalize_root(self)),
             |parent| {

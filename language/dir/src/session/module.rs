@@ -15,22 +15,11 @@ impl ModuleId {
     }
 }
 
-/// The kind of a Module.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum ModuleKind {
-    /// Script "module" (doesn't have import/export and is not explicitly declared).
-    Script,
-    /// Module "module" (has import/export or is explicitly declared).
-    Module,
-}
-
 /// A Module is a single source unit.
 #[derive(Debug, Clone)]
 pub struct Module {
     /// The id of the Module itself.
     pub id: ModuleId,
-    /// The kind of the Module.
-    pub kind: ModuleKind,
     /// The underlying source File.
     pub file_id: FileId,
     /// The URI of the Module.
@@ -65,7 +54,6 @@ impl Module {
         let parents = ast::NodeParentIndex::from_tree(&ast);
         Self {
             id,
-            kind: ModuleKind::Script,
             file_id,
             uri,
             scope: None,

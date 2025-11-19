@@ -20,14 +20,14 @@ pub enum ResolveError {
         alias_key: String,
     },
 
-    /// TsConfig not found.
-    TsConfigNotFound { path: PathBuf },
+    /// TypeScriptOptions not found.
+    TypeScriptOptionsNotFound { path: PathBuf },
 
-    /// TsConfig's project reference path points to itself.
-    TsConfigSelfReference { path: PathBuf },
+    /// TypeScriptOptions's project reference path points to itself.
+    TypeScriptOptionsSelfReference { path: PathBuf },
 
-    /// TsConfig extends configs circularly.
-    TsConfigCircular { paths: CircularPathBufs },
+    /// TypeScriptOptions extends configs circularly.
+    TypeScriptOptionsCircular { paths: CircularPathBufs },
 
     /// IO error.
     IOError { error: IOError },
@@ -107,9 +107,9 @@ impl ResolveError {
             Self::Ignored { .. } => 1,
             Self::NotFound { .. } => 2,
             Self::MatchedAliasNotFound { .. } => 3,
-            Self::TsConfigNotFound { .. } => 4,
-            Self::TsConfigSelfReference { .. } => 5,
-            Self::TsConfigCircular { .. } => 6,
+            Self::TypeScriptOptionsNotFound { .. } => 4,
+            Self::TypeScriptOptionsSelfReference { .. } => 5,
+            Self::TypeScriptOptionsCircular { .. } => 6,
             Self::IOError { .. } => 7,
             Self::PathNotSupported { .. } => 8,
             Self::Builtin { .. } => 9,
@@ -130,33 +130,33 @@ impl ResolveError {
     /// Get the message string for this error.
     pub fn message(&self) -> String {
         match self {
-            Self::Ignored { path } => format!("Path is ignored {path:?}"),
-            Self::NotFound { specifier } => format!("Module '{specifier}' not found"),
+            Self::Ignored { path } => format!("path is ignored {path:?}"),
+            Self::NotFound { specifier } => format!("module '{specifier}' not found"),
             Self::MatchedAliasNotFound {
                 specifier,
                 alias_key,
-            } => format!("Module '{specifier}' not found for matched aliased key '{alias_key}'"),
-            Self::TsConfigNotFound { path } => format!("TsConfig '{path:?}' not found"),
-            Self::TsConfigSelfReference { path } => {
-                format!("TsConfig's project reference path points to this tsconfig {path:?}")
+            } => format!("module '{specifier}' not found for matched aliased key '{alias_key}'"),
+            Self::TypeScriptOptionsNotFound { path } => format!("tsconfig '{path:?}' not found"),
+            Self::TypeScriptOptionsSelfReference { path } => {
+                format!("tsconfig's project reference path points to this tsconfig {path:?}")
             }
-            Self::TsConfigCircular { paths } => {
-                format!("TsConfig extends configs circularly: {paths:?}")
+            Self::TypeScriptOptionsCircular { paths } => {
+                format!("tsconfig extends configs circularly: {paths:?}")
             }
             Self::IOError { error } => format!("{error}"),
             Self::PathNotSupported { path } => {
-                format!("Path {path:?} contains unsupported construct.")
+                format!("path {path:?} contains unsupported construct.")
             }
             Self::Builtin {
                 resolved,
                 is_runtime_module: _,
-            } => format!("Builtin module {resolved}"),
+            } => format!("builtin module '{resolved}' does not exist as a file"),
             Self::ExtensionAlias {
                 filename,
                 tried,
                 dir,
             } => {
-                format!("Cannot resolve '{filename}' for extension aliases '{tried}' in '{dir:?}'")
+                format!("cannot resolve '{filename}' for extension aliases '{tried}' in '{dir:?}'")
             }
             Self::Specifier { error } => format!("{error}"),
             Self::Json { error } => format!("{error:?}"),
@@ -164,14 +164,14 @@ impl ResolveError {
                 specifier,
                 package_path,
             } => format!(
-                "Invalid module \"{specifier}\" specifier is not a valid subpath for the \"exports\" resolution of {package_path:?}"
+                "module '{specifier}' specifier is not a valid subpath for the 'exports' resolution of {package_path:?}"
             ),
             Self::InvalidPackageTarget {
                 target,
                 name,
                 package_path,
             } => format!(
-                "Invalid \"exports\" target \"{target}\" defined for '{name}' in the package config {package_path:?}"
+                "invalid 'exports' target '{target}' defined for '{name}' in the package config {package_path:?}"
             ),
             Self::PackagePathNotExported {
                 subpath,
@@ -179,25 +179,25 @@ impl ResolveError {
                 package_json_path,
                 conditions,
             } => format!(
-                "\"{subpath}\" is not exported under {conditions} from package {package_path:?} (see exports field in {package_json_path:?})"
+                "'{subpath}' is not exported under {conditions} from package {package_path:?} (see exports field in {package_json_path:?})"
             ),
             Self::PackageJsonInvalid { path } => format!(
-                "Invalid package config \"{path:?}\", \"exports\" cannot contain some keys starting with '.' and some not. The exports object must either be an object of package subpath keys or an object of main entry condition name keys only."
+                "invalid package config '{path:?}', 'exports' cannot contain some keys starting with '.' and some not. The exports object must either be an object of package subpath keys or an object of main entry condition name keys only."
             ),
             Self::InvalidPackageConfigDefault { path } => {
-                format!("Default condition should be last one in \"{path:?}\"")
+                format!("default condition should be last one in '{path:?}'")
             }
             Self::InvalidPackageConfigDirectory { path } => {
-                format!("Expecting folder to folder mapping. \"{path:?}\" should end with \"/\"")
+                format!("expecting folder to folder mapping. '{path:?}' should end with '/'")
             }
             Self::PackageImportNotDefined {
                 specifier,
                 package_path,
             } => format!(
-                "Package import specifier \"{specifier}\" is not defined in package {package_path:?}"
+                "package import specifier '{specifier}' is not defined in package {package_path:?}"
             ),
             Self::RecursiveDependency { depth } => {
-                format!("Recursion in resolving at depth {depth}.")
+                format!("recursion while resolving at depth {depth}.")
             }
         }
     }

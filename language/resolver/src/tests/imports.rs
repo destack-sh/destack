@@ -5,9 +5,7 @@
 use dyst_source::{MemoryFileSystem, PathExt};
 use std::path::Path;
 
-use crate::{
-    ImportsExportsMap, MemoryResolver, PhysicalResolver, ResolveError, ResolveOptions,
-};
+use crate::{ImportsExportsMap, MemoryResolver, PhysicalResolver, ResolveError, ResolveOptions};
 
 /// Test simple imports field resolution.
 #[test]

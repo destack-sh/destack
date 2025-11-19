@@ -1,21 +1,8 @@
 use crate::{Compiler, CompilerTask, ValidateResult};
 
-use dyst_dir::{ModuleId, NodeId, Pattern, Type};
-
 /// Task to validate something.
 #[derive(Debug, Clone)]
-pub enum ValidateTask {
-    /// Validate a Type.
-    ValidateType {
-        module_id: ModuleId,
-        ty: NodeId<Type>,
-    },
-    /// Validate a Pattern.
-    ValidatePattern {
-        module_id: ModuleId,
-        pattern: NodeId<Pattern>,
-    },
-}
+pub enum ValidateTask {}
 
 impl From<ValidateTask> for CompilerTask {
     fn from(task: ValidateTask) -> Self {

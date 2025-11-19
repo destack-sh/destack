@@ -8,7 +8,7 @@ use indexmap::IndexMap;
 use rustc_hash::FxHasher;
 use serde::Deserialize;
 
-use crate::resolve::TsConfigReferences;
+use crate::resolve::TypeScriptOptionsReferences;
 use dyst_source::{PathExt, strip_json};
 
 const TEMPLATE_VARIABLE: &str = "${configDir}";
@@ -18,7 +18,7 @@ pub type CompilerOptionsPathsMap = IndexMap<String, Vec<String>, BuildHasherDefa
 /// TypeScript configuration (usually from `tsconfig.json`)
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct TsConfig {
+pub struct TypeScriptOptions {
     /// Whether this is the caller tsconfig.
     /// Used for final template variable substitution when all configs are extended and merged.
     #[serde(skip)]
@@ -50,36 +50,14 @@ pub struct TsConfig {
 
     /// Bubbled up project references with a reference to their tsconfig.
     #[serde(default)]
-    pub references: Vec<ProjectReference>,
+    pub references: Vec<TypeScriptProjectReference>,
 }
 
-impl TsConfig {
-    /// Returns the path where the `tsconfig.json` was found.
-    ///
-    /// Contains the `tsconfig.json` filename.
-    pub fn path(&self) -> &Path {
-        &self.path
-    }
-
-    /// Directory to `tsconfig.json`.
-    ///
-    /// # Panics
-    ///
-    /// * When the `tsconfig.json` path is misconfigured.
+impl TypeScriptOptions {
+    /// Directory of the `tsconfig.json` file.
     pub fn directory(&self) -> &Path {
         debug_assert!(self.path.file_name().is_some());
         self.path.parent().unwrap()
-    }
-
-    /// Returns the compiler options configured in this tsconfig.
-    pub fn compiler_options(&self) -> &CompilerOptions {
-        &self.compiler_options
-    }
-
-    /// Returns a mutable reference to the compiler options configured in this
-    /// tsconfig.
-    pub fn compiler_options_mut(&mut self) -> &mut CompilerOptions {
-        &mut self.compiler_options
     }
 
     /// Returns any paths to tsconfigs that should be extended by this tsconfig.
@@ -99,16 +77,16 @@ impl TsConfig {
     /// Loads the given references into this tsconfig.
     ///
     /// Returns whether any references are defined in the tsconfig.
-    pub(crate) fn load_references(&mut self, references: &TsConfigReferences) -> bool {
+    pub(crate) fn load_references(&mut self, references: &TypeScriptOptionsReferences) -> bool {
         match references {
-            TsConfigReferences::Disabled => {
+            TypeScriptOptionsReferences::Disabled => {
                 self.references.drain(..);
             }
-            TsConfigReferences::Auto => {}
-            TsConfigReferences::Paths(paths) => {
+            TypeScriptOptionsReferences::Auto => {}
+            TypeScriptOptionsReferences::Paths(paths) => {
                 self.references = paths
                     .iter()
-                    .map(|path| ProjectReference {
+                    .map(|path| TypeScriptProjectReference {
                         path: path.clone(),
                         tsconfig: None,
                     })
@@ -125,8 +103,9 @@ impl TsConfig {
     /// [CompilerOptions]. If not configured, it returns the directory in which
     /// the tsconfig itself is found.
     pub(crate) fn base_path(&self) -> &Path {
-        self.compiler_options()
-            .base_url()
+        self.compiler_options
+            .base_url
+            .as_deref()
             .unwrap_or_else(|| self.directory())
     }
 
@@ -154,124 +133,121 @@ impl TsConfig {
         let tsconfig_dir = tsconfig.directory();
         let compiler_options = &mut self.compiler_options;
 
-        if compiler_options.base_url().is_none()
-            && let Some(base_url) = tsconfig.compiler_options().base_url()
+        if compiler_options.base_url.is_none()
+            && let Some(base_url) = &tsconfig.compiler_options.base_url
         {
-            compiler_options.set_base_url(if base_url.starts_with(TEMPLATE_VARIABLE) {
-                base_url.to_path_buf()
-            } else {
-                tsconfig_dir.join(base_url).normalize()
-            });
+            compiler_options.base_url = Some(
+                if base_url.to_string_lossy().starts_with(TEMPLATE_VARIABLE) {
+                    base_url.clone()
+                } else {
+                    tsconfig_dir.join(base_url).normalize()
+                },
+            );
         }
 
-        if compiler_options.paths().is_none() {
-            let paths_base = compiler_options.base_url().map_or_else(
+        if compiler_options.paths.is_none() {
+            let paths_base = compiler_options.base_url.as_ref().map_or_else(
                 || tsconfig_dir.to_path_buf(),
                 |path| {
-                    if path.starts_with(TEMPLATE_VARIABLE) {
-                        path.to_path_buf()
+                    if path.to_string_lossy().starts_with(TEMPLATE_VARIABLE) {
+                        path.clone()
                     } else {
                         tsconfig_dir.join(path).normalize()
                     }
                 },
             );
-            compiler_options.set_paths_base(paths_base);
-            compiler_options.set_paths(tsconfig.compiler_options().paths().cloned());
+            compiler_options.paths_base = paths_base;
+            compiler_options.paths = tsconfig.compiler_options.paths.clone();
         }
 
-        if compiler_options.experimental_decorators().is_none()
-            && let Some(experimental_decorators) =
-                tsconfig.compiler_options().experimental_decorators()
+        if compiler_options.experimental_decorators.is_none()
+            && let Some(experimental_decorators) = tsconfig.compiler_options.experimental_decorators
         {
-            compiler_options.set_experimental_decorators(*experimental_decorators);
+            compiler_options.experimental_decorators = Some(experimental_decorators);
         }
 
         if compiler_options.emit_decorator_metadata.is_none()
-            && let Some(emit_decorator_metadata) =
-                tsconfig.compiler_options().emit_decorator_metadata()
+            && let Some(emit_decorator_metadata) = tsconfig.compiler_options.emit_decorator_metadata
         {
-            compiler_options.set_emit_decorator_metadata(*emit_decorator_metadata);
+            compiler_options.emit_decorator_metadata = Some(emit_decorator_metadata);
         }
 
         if compiler_options.use_define_for_class_fields.is_none()
             && let Some(use_define_for_class_fields) =
-                tsconfig.compiler_options().use_define_for_class_fields()
+                tsconfig.compiler_options.use_define_for_class_fields
         {
-            compiler_options.set_use_define_for_class_fields(*use_define_for_class_fields);
+            compiler_options.use_define_for_class_fields = Some(use_define_for_class_fields);
         }
 
         if compiler_options
             .rewrite_relative_import_extensions
             .is_none()
-            && let Some(rewrite_relative_import_extensions) = tsconfig
-                .compiler_options()
-                .rewrite_relative_import_extensions()
+            && let Some(rewrite_relative_import_extensions) =
+                tsconfig.compiler_options.rewrite_relative_import_extensions
         {
-            compiler_options
-                .set_rewrite_relative_import_extensions(*rewrite_relative_import_extensions);
+            compiler_options.rewrite_relative_import_extensions =
+                Some(rewrite_relative_import_extensions);
         }
 
-        if compiler_options.jsx().is_none()
-            && let Some(jsx) = tsconfig.compiler_options().jsx()
+        if compiler_options.jsx.is_none()
+            && let Some(jsx) = &tsconfig.compiler_options.jsx
         {
-            compiler_options.set_jsx(jsx.to_string());
+            compiler_options.jsx = Some(jsx.clone());
         }
 
-        if compiler_options.jsx_factory().is_none()
-            && let Some(jsx_factory) = tsconfig.compiler_options().jsx_factory()
+        if compiler_options.jsx_factory.is_none()
+            && let Some(jsx_factory) = &tsconfig.compiler_options.jsx_factory
         {
-            compiler_options.set_jsx_factory(jsx_factory.to_string());
+            compiler_options.jsx_factory = Some(jsx_factory.clone());
         }
 
-        if compiler_options.jsx_fragment_factory().is_none()
-            && let Some(jsx_fragment_factory) = tsconfig.compiler_options().jsx_fragment_factory()
+        if compiler_options.jsx_fragment_factory.is_none()
+            && let Some(jsx_fragment_factory) = &tsconfig.compiler_options.jsx_fragment_factory
         {
-            compiler_options.set_jsx_fragment_factory(jsx_fragment_factory.to_string());
+            compiler_options.jsx_fragment_factory = Some(jsx_fragment_factory.clone());
         }
 
-        if compiler_options.jsx_import_source().is_none()
-            && let Some(jsx_import_source) = tsconfig.compiler_options().jsx_import_source()
+        if compiler_options.jsx_import_source.is_none()
+            && let Some(jsx_import_source) = &tsconfig.compiler_options.jsx_import_source
         {
-            compiler_options.set_jsx_import_source(jsx_import_source.to_string());
+            compiler_options.jsx_import_source = Some(jsx_import_source.clone());
         }
 
-        if compiler_options.verbatim_module_syntax().is_none()
-            && let Some(verbatim_module_syntax) =
-                tsconfig.compiler_options().verbatim_module_syntax()
+        if compiler_options.verbatim_module_syntax.is_none()
+            && let Some(verbatim_module_syntax) = tsconfig.compiler_options.verbatim_module_syntax
         {
-            compiler_options.set_verbatim_module_syntax(*verbatim_module_syntax);
+            compiler_options.verbatim_module_syntax = Some(verbatim_module_syntax);
         }
 
-        if compiler_options.preserve_value_imports().is_none()
-            && let Some(preserve_value_imports) =
-                tsconfig.compiler_options().preserve_value_imports()
+        if compiler_options.preserve_value_imports.is_none()
+            && let Some(preserve_value_imports) = tsconfig.compiler_options.preserve_value_imports
         {
-            compiler_options.set_preserve_value_imports(*preserve_value_imports);
+            compiler_options.preserve_value_imports = Some(preserve_value_imports);
         }
 
-        if compiler_options.imports_not_used_as_values().is_none()
+        if compiler_options.imports_not_used_as_values.is_none()
             && let Some(imports_not_used_as_values) =
-                tsconfig.compiler_options().imports_not_used_as_values()
+                &tsconfig.compiler_options.imports_not_used_as_values
         {
-            compiler_options.set_imports_not_used_as_values(imports_not_used_as_values.to_string());
+            compiler_options.imports_not_used_as_values = Some(imports_not_used_as_values.clone());
         }
 
-        if compiler_options.target().is_none()
-            && let Some(target) = tsconfig.compiler_options().target()
+        if compiler_options.target.is_none()
+            && let Some(target) = &tsconfig.compiler_options.target
         {
-            compiler_options.set_target(target.to_string());
+            compiler_options.target = Some(target.clone());
         }
 
-        if compiler_options.module().is_none()
-            && let Some(module) = tsconfig.compiler_options().module()
+        if compiler_options.module.is_none()
+            && let Some(module) = &tsconfig.compiler_options.module
         {
-            compiler_options.set_module(module.to_string());
+            compiler_options.module = Some(module.clone());
         }
 
-        if compiler_options.allow_js().is_none()
-            && let Some(allow_js) = tsconfig.compiler_options().allow_js()
+        if compiler_options.allow_js.is_none()
+            && let Some(allow_js) = tsconfig.compiler_options.allow_js
         {
-            compiler_options.set_allow_js(*allow_js);
+            compiler_options.allow_js = Some(allow_js);
         }
     }
 
@@ -288,7 +264,7 @@ impl TsConfig {
 
         let config_dir = self.directory().to_path_buf();
 
-        if let Some(base_url) = self.compiler_options().base_url() {
+        if let Some(base_url) = &self.compiler_options.base_url {
             // Substitute template variable in `tsconfig.compilerOptions.baseUrl`.
             let base_url = base_url
                 .to_string_lossy()
@@ -297,28 +273,22 @@ impl TsConfig {
                     || config_dir.normalize_with(base_url),
                     |stripped_path| config_dir.join(stripped_path.trim_start_matches('/')),
                 );
-            self.compiler_options_mut().set_base_url(base_url);
+            self.compiler_options.base_url = Some(base_url);
         }
 
-        if self.compiler_options().paths().is_some() {
+        if self.compiler_options.paths.is_some() {
             // `paths_base` should use config dir if it is not resolved with base url nor extended
             // with another tsconfig.
-            if let Some(base_url) = self.compiler_options().base_url().map(Path::to_path_buf) {
-                self.compiler_options_mut().set_paths_base(base_url);
+            if let Some(base_url) = &self.compiler_options.base_url {
+                self.compiler_options.paths_base = base_url.clone();
             }
 
-            if self.compiler_options().paths_base().as_os_str().is_empty() {
-                self.compiler_options_mut()
-                    .set_paths_base(config_dir.clone());
+            if self.compiler_options.paths_base.as_os_str().is_empty() {
+                self.compiler_options.paths_base = config_dir.clone();
             }
 
             // Substitute template variable in `tsconfig.compilerOptions.paths`.
-            for paths in self
-                .compiler_options_mut()
-                .paths_mut()
-                .unwrap()
-                .values_mut()
-            {
+            for paths in self.compiler_options.paths.as_mut().unwrap().values_mut() {
                 for path in paths {
                     Self::substitute_template_variable(&config_dir, path);
                 }
@@ -353,7 +323,7 @@ impl TsConfig {
         for tsconfig in self
             .references
             .iter()
-            .filter_map(ProjectReference::tsconfig)
+            .filter_map(TypeScriptProjectReference::tsconfig)
         {
             if path.starts_with(tsconfig.base_path()) {
                 return [tsconfig.resolve_path_alias(specifier), paths].concat();
@@ -369,14 +339,15 @@ impl TsConfig {
             return Vec::new();
         }
 
-        let compiler_options = self.compiler_options();
+        let compiler_options = &self.compiler_options;
         let base_url_iter = compiler_options
-            .base_url()
+            .base_url
+            .as_ref()
             .map_or_else(Vec::new, |base_url| {
                 vec![base_url.normalize_with(specifier)]
             });
 
-        let Some(paths_map) = compiler_options.paths() else {
+        let Some(paths_map) = &compiler_options.paths else {
             return base_url_iter;
         };
 
@@ -418,7 +389,7 @@ impl TsConfig {
 
         paths
             .into_iter()
-            .map(|p| compiler_options.paths_base().normalize_with(p))
+            .map(|p| compiler_options.paths_base.normalize_with(p))
             .chain(base_url_iter)
             .collect()
     }
@@ -429,242 +400,81 @@ impl TsConfig {
 #[derive(Debug, Default, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CompilerOptions {
-    /// Base URL.
+    /// Base URL (e.g. `./src`)
     /// <https://www.typescriptlang.org/tsconfig/#baseUrl>
     pub base_url: Option<PathBuf>,
 
-    /// Path aliases.
+    /// Path aliases (e.g. `{ "src/*": ["src/*"] }`)
     /// <https://www.typescriptlang.org/tsconfig/#paths>
     pub paths: Option<CompilerOptionsPathsMap>,
 
     /// The actual base from where path aliases are resolved.
     #[serde(skip)]
-    pub(crate) paths_base: PathBuf,
+    pub paths_base: PathBuf,
 
+    /// Experimental decorators (e.g. `true`)
     /// <https://www.typescriptlang.org/tsconfig/#experimentalDecorators>
     pub experimental_decorators: Option<bool>,
 
+    /// Emit decorator metadata (e.g. `true`)
     /// <https://www.typescriptlang.org/tsconfig/#emitDecoratorMetadata>
     pub emit_decorator_metadata: Option<bool>,
 
+    /// Use define for class fields (e.g. `true`)
     /// <https://www.typescriptlang.org/tsconfig/#useDefineForClassFields>
     pub use_define_for_class_fields: Option<bool>,
 
+    /// Rewrite relative import extensions (e.g. `true`)
     /// <https://www.typescriptlang.org/tsconfig/#rewriteRelativeImportExtensions>
     pub rewrite_relative_import_extensions: Option<bool>,
 
+    /// JSX (e.g. `"react-jsx"`)
     /// <https://www.typescriptlang.org/tsconfig/#jsx>
     pub jsx: Option<String>,
 
+    /// JSX factory (e.g. `"React.createElement"`)
     /// <https://www.typescriptlang.org/tsconfig/#jsxFactory>
     pub jsx_factory: Option<String>,
 
+    /// JSX fragment factory (e.g. `"React.Fragment"`)
     /// <https://www.typescriptlang.org/tsconfig/#jsxFragmentFactory>
     pub jsx_fragment_factory: Option<String>,
 
+    /// JSX import source (e.g. `"react"`)
     /// <https://www.typescriptlang.org/tsconfig/#jsxImportSource>
     pub jsx_import_source: Option<String>,
 
+    /// Verbatim module syntax (e.g. `true`)
     /// <https://www.typescriptlang.org/tsconfig/#verbatimModuleSyntax>
     pub verbatim_module_syntax: Option<bool>,
 
+    /// Preserve value imports (e.g. `true`)
     /// <https://www.typescriptlang.org/tsconfig/#preserveValueImports>
     pub preserve_value_imports: Option<bool>,
 
+    /// Imports not used as values (e.g. `"error"`)
     /// <https://www.typescriptlang.org/tsconfig/#importsNotUsedAsValues>
     pub imports_not_used_as_values: Option<String>,
 
+    /// Target (e.g. `"ES2020"`)
     /// <https://www.typescriptlang.org/tsconfig/#target>
     pub target: Option<String>,
 
+    /// Module (e.g. `"ESNext"`)
     /// <https://www.typescriptlang.org/tsconfig/#module>
     pub module: Option<String>,
 
+    /// Allow JavaScript files (e.g. `true`)
     /// <https://www.typescriptlang.org/tsconfig/#allowJs>
     pub allow_js: Option<bool>,
 
+    /// Type roots (e.g. `["src/types"]`)
     /// <https://www.typescriptlang.org/tsconfig/#typeRoots>
     pub type_roots: Option<Vec<String>>,
 
+    /// Types (e.g. `["node"]`)
     /// <https://www.typescriptlang.org/tsconfig/#types>
     pub types: Option<Vec<String>>,
-}
-
-impl CompilerOptions {
-    /// Explicit base URL configured by the user.
-    fn base_url(&self) -> Option<&Path> {
-        self.base_url.as_deref()
-    }
-
-    /// Sets the base URL.
-    fn set_base_url(&mut self, base_url: PathBuf) {
-        self.base_url = Some(base_url);
-    }
-
-    /// Path aliases.
-    fn paths(&self) -> Option<&CompilerOptionsPathsMap> {
-        self.paths.as_ref()
-    }
-
-    /// Returns a mutable reference to the path aliases.
-    fn paths_mut(&mut self) -> Option<&mut CompilerOptionsPathsMap> {
-        self.paths.as_mut()
-    }
-
-    /// Sets the path aliases.
-    fn set_paths(&mut self, paths: Option<CompilerOptionsPathsMap>) {
-        self.paths = paths;
-    }
-
-    /// The actual base from where path aliases are resolved.
-    fn paths_base(&self) -> &Path {
-        &self.paths_base
-    }
-
-    /// Sets the path base.
-    fn set_paths_base(&mut self, paths_base: PathBuf) {
-        self.paths_base = paths_base;
-    }
-
-    /// Whether to enable experimental decorators.
-    fn experimental_decorators(&self) -> Option<&bool> {
-        self.experimental_decorators.as_ref()
-    }
-
-    /// Sets whether to enable experimental decorators.
-    fn set_experimental_decorators(&mut self, experimental_decorators: bool) {
-        self.experimental_decorators = Some(experimental_decorators);
-    }
-
-    /// Whether to emit decorator metadata.
-    fn emit_decorator_metadata(&self) -> Option<&bool> {
-        self.emit_decorator_metadata.as_ref()
-    }
-
-    /// Sets whether to emit decorator metadata.
-    fn set_emit_decorator_metadata(&mut self, emit_decorator_metadata: bool) {
-        self.emit_decorator_metadata = Some(emit_decorator_metadata);
-    }
-
-    /// Whether to use define for class fields.
-    fn use_define_for_class_fields(&self) -> Option<&bool> {
-        self.use_define_for_class_fields.as_ref()
-    }
-
-    /// Sets whether to use define for class fields.
-    fn set_use_define_for_class_fields(&mut self, use_define_for_class_fields: bool) {
-        self.use_define_for_class_fields = Some(use_define_for_class_fields);
-    }
-
-    /// Whether to rewrite relative import extensions.
-    fn rewrite_relative_import_extensions(&self) -> Option<&bool> {
-        self.rewrite_relative_import_extensions.as_ref()
-    }
-
-    /// Sets whether to rewrite relative import extensions.
-    fn set_rewrite_relative_import_extensions(&mut self, rewrite_relative_import_extensions: bool) {
-        self.rewrite_relative_import_extensions = Some(rewrite_relative_import_extensions);
-    }
-
-    /// JSX.
-    fn jsx(&self) -> Option<&str> {
-        self.jsx.as_deref()
-    }
-
-    /// Sets JSX.
-    fn set_jsx(&mut self, jsx: String) {
-        self.jsx = Some(jsx);
-    }
-
-    /// JSX factory.
-    fn jsx_factory(&self) -> Option<&str> {
-        self.jsx_factory.as_deref()
-    }
-
-    /// Sets JSX factory.
-    fn set_jsx_factory(&mut self, jsx_factory: String) {
-        self.jsx_factory = Some(jsx_factory);
-    }
-
-    /// JSX fragment factory.
-    fn jsx_fragment_factory(&self) -> Option<&str> {
-        self.jsx_fragment_factory.as_deref()
-    }
-
-    /// Sets JSX fragment factory.
-    fn set_jsx_fragment_factory(&mut self, jsx_fragment_factory: String) {
-        self.jsx_fragment_factory = Some(jsx_fragment_factory);
-    }
-
-    /// JSX import source.
-    fn jsx_import_source(&self) -> Option<&str> {
-        self.jsx_import_source.as_deref()
-    }
-
-    /// Sets JSX import source.
-    fn set_jsx_import_source(&mut self, jsx_import_source: String) {
-        self.jsx_import_source = Some(jsx_import_source);
-    }
-
-    /// Whether to use verbatim module syntax.
-    fn verbatim_module_syntax(&self) -> Option<&bool> {
-        self.verbatim_module_syntax.as_ref()
-    }
-
-    /// Sets whether to use verbatim module syntax.
-    fn set_verbatim_module_syntax(&mut self, verbatim_module_syntax: bool) {
-        self.verbatim_module_syntax = Some(verbatim_module_syntax);
-    }
-
-    /// Whether to preserve value imports.
-    fn preserve_value_imports(&self) -> Option<&bool> {
-        self.preserve_value_imports.as_ref()
-    }
-
-    /// Sets whether to preserve value imports.
-    fn set_preserve_value_imports(&mut self, preserve_value_imports: bool) {
-        self.preserve_value_imports = Some(preserve_value_imports);
-    }
-
-    /// Whether to use imports not used as values.
-    fn imports_not_used_as_values(&self) -> Option<&str> {
-        self.imports_not_used_as_values.as_deref()
-    }
-
-    /// Sets whether to use imports not used as values.
-    fn set_imports_not_used_as_values(&mut self, imports_not_used_as_values: String) {
-        self.imports_not_used_as_values = Some(imports_not_used_as_values);
-    }
-
-    /// Target.
-    fn target(&self) -> Option<&str> {
-        self.target.as_deref()
-    }
-
-    /// Sets the target.
-    fn set_target(&mut self, target: String) {
-        self.target = Some(target);
-    }
-
-    /// Module.
-    fn module(&self) -> Option<&str> {
-        self.module.as_deref()
-    }
-
-    /// Sets the module.
-    fn set_module(&mut self, module: String) {
-        self.module = Some(module);
-    }
-
-    /// Whether to allow js.
-    fn allow_js(&self) -> Option<&bool> {
-        self.allow_js.as_ref()
-    }
-
-    /// Sets whether to allow js.
-    fn set_allow_js(&mut self, allow_js: bool) {
-        self.allow_js = Some(allow_js);
-    }
 }
 
 /// Value for the "extends" field.
@@ -681,33 +491,33 @@ pub enum ExtendsField {
 ///
 /// <https://www.typescriptlang.org/docs/handbook/project-references.html>
 #[derive(Debug, Deserialize)]
-pub struct ProjectReference {
+pub struct TypeScriptProjectReference {
     /// Path to the tsconfig.json file.
     pub path: PathBuf,
 
     /// Resolved tsconfig.
     #[serde(skip)]
-    pub tsconfig: Option<Arc<TsConfig>>,
+    pub tsconfig: Option<Arc<TypeScriptOptions>>,
 }
 
-impl ProjectReference {
+impl TypeScriptProjectReference {
     /// Returns the path to the tsconfig.json file.
     pub fn path(&self) -> &Path {
         &self.path
     }
 
     /// Returns the resolved tsconfig.
-    pub fn tsconfig(&self) -> Option<Arc<TsConfig>> {
+    pub fn tsconfig(&self) -> Option<Arc<TypeScriptOptions>> {
         self.tsconfig.clone()
     }
 
     /// Sets the resolved tsconfig.
-    pub(crate) fn set_tsconfig(&mut self, tsconfig: Arc<TsConfig>) {
+    pub(crate) fn set_tsconfig(&mut self, tsconfig: Arc<TypeScriptOptions>) {
         self.tsconfig.replace(tsconfig);
     }
 }
 
-impl TsConfig {
+impl TypeScriptOptions {
     /// Parses the tsconfig from a JSON string.
     pub fn parse(root: bool, path: &Path, json: &mut str) -> Result<Self, serde_json::Error> {
         let json = trim_start_matches_mut(json, '\u{feff}'); // strip bom

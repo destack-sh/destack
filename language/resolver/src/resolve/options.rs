@@ -9,8 +9,8 @@ pub struct ResolveOptions {
     /// Current working directory to start from.
     pub cwd: Option<PathBuf>,
 
-    /// How to discover tsconfig.
-    pub tsconfig: Option<TsConfigDiscovery>,
+    /// How to discover the TypeScript configuration file.
+    pub tsconfig: Option<TypeScriptOptionsDiscovery>,
 
     /// Aliases to import or require certain modules more easily.
     pub alias: Alias,
@@ -257,34 +257,28 @@ impl std::fmt::Debug for Restriction {
 }
 
 #[derive(Debug, Clone)]
-pub enum TsConfigDiscovery {
+pub enum TypeScriptOptionsDiscovery {
     Auto,
-    Manual(TsConfigOptions),
+    Manual(TypeScriptOptionsLocation),
 }
 
-/// Tsconfig Options for [ResolveOptions::tsconfig]
-///
-/// Derived from [tsconfig-paths-webpack-plugin](https://github.com/dividab/tsconfig-paths-webpack-plugin#options)
+/// Location of the TypeScript configuration file.
 #[derive(Debug, Clone)]
-pub struct TsConfigOptions {
-    /// Allows you to specify where to find the TypeScript configuration file.
-    /// You may provide
-    /// * a relative path to the configuration file. It will be resolved relative to cwd.
-    /// * an absolute path to the configuration file.
+pub struct TypeScriptOptionsLocation {
+    /// Path to the TypeScript configuration file.
     pub config_file: PathBuf,
-
-    /// Support for Typescript Project References.
-    pub references: TsConfigReferences,
+    /// How to handle references in the TypeScript configuration file.
+    pub references: TypeScriptOptionsReferences,
 }
 
-/// How to handle references in `tsconfig.json`.
+/// How to handle references in the TypeScript configuration file.
 #[derive(Debug, Clone)]
-pub enum TsConfigReferences {
+pub enum TypeScriptOptionsReferences {
     /// Disable references.
     Disabled,
-    /// Use the `references` field from `tsconfig.json` of `config_file`.
+    /// Use the `references` field from the TypeScript configuration file.
     Auto,
-    /// Manually provided relative or absolute paths.
+    /// Manually provided paths to the TypeScript configuration files.
     Paths(Vec<PathBuf>),
 }
 
@@ -301,12 +295,12 @@ impl Default for ResolveOptions {
             exports_fields: vec![vec!["exports".into()]],
             imports_fields: vec![vec!["imports".into()]],
             extensions: vec![
+                ".tsx".into(),
+                ".ts".into(),
+                ".jsx".into(),
                 ".js".into(),
                 ".mjs".into(),
                 ".cjs".into(),
-                ".wasm".into(),
-                ".jsx".into(),
-                ".tsx".into(),
                 ".json".into(),
                 ".node".into(),
             ],
