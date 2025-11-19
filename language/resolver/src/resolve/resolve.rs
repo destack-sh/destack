@@ -752,7 +752,7 @@ impl<Fs: FileSystem> Resolver<Fs> {
                         .then(|| cached_path.clone()));
                 }
 
-                // perf: try loading as directory first. No modern package manager creates `node_modules/X.js`.
+                // load directory
                 if self.cache.is_directory(&cached_path, ctx) {
                     if let Some(path) = self.load_browser_field_or_alias(&cached_path, ctx)? {
                         return Ok(Some(path));
@@ -760,7 +760,9 @@ impl<Fs: FileSystem> Resolver<Fs> {
                     if let Some(path) = self.load_as_directory(&cached_path, ctx)? {
                         return Ok(Some(path));
                     }
-                } else if let Some(path) = self.load_as_file(&cached_path, ctx)? {
+                } 
+                // load file
+                else if let Some(path) = self.load_as_file(&cached_path, ctx)? {
                     return Ok(Some(path));
                 }
             }
@@ -879,6 +881,10 @@ impl<Fs: FileSystem> Resolver<Fs> {
         package_json: &PackageOptions,
         ctx: &mut ResolutionContext,
     ) -> ResolveResult {
+        if ctx.is_fully_specified {
+            return Ok(None);
+        }
+
         let path = cached_path.path();
         let Some(new_specifier) = package_json.resolve_browser_field(path, module_specifier)?
         else {
@@ -1712,7 +1718,7 @@ impl<Fs: FileSystem> Resolver<Fs> {
 
             // normalize target
             let target = normalize_string_target(target_key, target, pattern_match, package_url)?;
-            if Path::new(target.as_ref()).is_invalid_exports_target() {
+            if is_path_invalid_exports_target(Path::new(target.as_ref())) {
                 return Err(ResolveError::InvalidPackageTarget {
                     target: target.to_string(),
                     name: target_key.to_string(),
@@ -1852,6 +1858,15 @@ impl<Fs: FileSystem> Resolver<Fs> {
             .strip_prefix(package_name)
             .filter(|tail| tail.is_empty() || tail.starts_with(SLASH_START))
     }
+}
+
+fn is_path_invalid_exports_target(path: &Path) -> bool {
+    path.components().enumerate().any(|(index, c)| match c {
+        Component::ParentDir => true,
+        Component::CurDir => index > 0,
+        Component::Normal(c) => c.eq_ignore_ascii_case("node_modules"),
+        _ => false,
+    })
 }
 
 #[derive(Default)]

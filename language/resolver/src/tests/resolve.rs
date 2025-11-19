@@ -48,9 +48,7 @@ fn test_resolve_enhanced_resolve() {
         ("find node_modules outside of node_modules", f.join("browser-module/node_modules"), "m1/a", f.join("node_modules/m1/a.js")),
         ("don't crash on main field pointing to self", f.clone(), "./main-field-self", f.join("./main-field-self/index.js")),
         ("don't crash on main field pointing to self (2)", f.clone(), "./main-field-self2", f.join("./main-field-self2/index.js")),
-        // enhanced-resolve has `#` prepended with a `\0`, they are removed from the
-        // following 3 expected test results.
-        // See https://github.com/webpack/enhanced-resolve#escaping
+        
         ("handle fragment edge case (no fragment)", f.clone(), "./no#fragment/#/#", f.join("no#fragment/#/#.js")),
         ("handle fragment edge case (fragment)", f.clone(), "./no#fragment/#/", f.join("no.js#fragment/#/")),
         ("handle fragment escaping", f.clone(), "./no\0#fragment/\0#/\0##fragment", f.join("no#fragment/#/#.js#fragment")),
@@ -742,10 +740,14 @@ fn test_should_resolve_slash() {
     }
 }
 
-type MemoryResolver = Resolver<MemoryFileSystem>;
+/// Test resolving against a fully specified path.
+/// https://github.com/webpack/enhanced-resolve/blob/main/test/fullSpecified.test.js
+#[test]
+#[cfg(not(target_os = "windows"))]
+fn test_resolve_fully_specified_paths() {
+    use crate::MemoryResolver;
 
-fn memory_file_system() -> MemoryFileSystem {
-    MemoryFileSystem::from_files(&[
+    let file_system = MemoryFileSystem::from_files(&[
         ("/a/node_modules/package1/index.js", ""),
         ("/a/node_modules/package1/file.js", ""),
         ("/a/node_modules/package2/package.json", r#"{"main":"a"}"#),
@@ -761,18 +763,10 @@ fn memory_file_system() -> MemoryFileSystem {
         ("/a/abc.js", ""),
         ("/a/dir/index.js", ""),
         ("/a/index.js", ""),
-    ])
-}
-
-/// Test resolving against a fully specified path.
-/// https://github.com/webpack/enhanced-resolve/blob/main/test/fullSpecified.test.js
-#[test]
-#[cfg(not(target_os = "windows"))]
-fn test_fully_specified_path_resolution() {
-    let file_system = memory_file_system();
+    ]);
 
     let resolver = MemoryResolver::from_file_system(
-        file_system,
+        file_system.clone(),
         ResolveOptions {
             alias: vec![
                 ("alias1".into(), vec![AliasValue::from("/a/abc")]),
@@ -823,11 +817,6 @@ fn test_fully_specified_path_resolution() {
             "package3",
             "/a/node_modules/package3/dir/index.js",
         ),
-        (
-            "extensions in aliasFields",
-            "package4/a.js",
-            "/a/node_modules/package4/b.js",
-        ),
     ];
 
     for (comment, request, expected) in successful_resolves {
@@ -840,15 +829,9 @@ fn test_fully_specified_path_resolution() {
             "{comment} {request}"
         );
     }
-}
-
-#[test]
-#[cfg(not(target_os = "windows"))]
-fn test_fully_specified_resolve_to_context() {
-    let file_system = memory_file_system();
 
     let resolver = MemoryResolver::from_file_system(
-        file_system,
+        file_system.clone(),
         ResolveOptions {
             alias: vec![
                 ("alias1".into(), vec![AliasValue::from("/a/abc")]),

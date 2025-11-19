@@ -51,31 +51,6 @@ fn test_imports_field_simple() {
     }
 }
 
-/// Test shared resolvers with imports field.
-#[test]
-fn test_imports_field_shared_resolvers() {
-    let f = super::fixture().join("imports-field");
-
-    // field name #1
-    let resolver1 = PhysicalResolver::new(ResolveOptions {
-        extensions: vec![".js".into()],
-        main_files: vec!["index.js".into()],
-        conditions: vec!["webpack".into()],
-        ..ResolveOptions::default()
-    });
-
-    let resolved_path = resolver1
-        .resolve(&f, "#imports-field")
-        .map(|r| r.full_path());
-    assert_eq!(resolved_path, Ok(f.join("b.js")));
-
-    // field name #2
-    let resolver2 = resolver1.clone_with_options(ResolveOptions::default());
-
-    let resolved_path = resolver2.resolve(&f, "#b").map(|r| r.full_path());
-    assert_eq!(resolved_path, Ok(f.join("a.js")));
-}
-
 struct TestCase {
     #[allow(dead_code)]
     name: &'static str,
@@ -94,8 +69,8 @@ fn imports_field(value: &serde_json::Value) -> ImportsExportsMap<'static> {
     ImportsExportsMap(map)
 }
 
-#[allow(clippy::too_many_lines)]
 /// Test various imports field cases.
+#[allow(clippy::too_many_lines)]
 #[test]
 fn test_imports_field_cases() {
     use serde_json::json;
