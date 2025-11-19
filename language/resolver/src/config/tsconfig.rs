@@ -8,7 +8,7 @@ use indexmap::IndexMap;
 use rustc_hash::FxHasher;
 use serde::Deserialize;
 
-use crate::resolve::TsconfigReferences;
+use crate::resolve::TsConfigReferences;
 use dyst_source::{PathExt, strip_json};
 
 const TEMPLATE_VARIABLE: &str = "${configDir}";
@@ -99,13 +99,13 @@ impl TsConfig {
     /// Loads the given references into this tsconfig.
     ///
     /// Returns whether any references are defined in the tsconfig.
-    pub(crate) fn load_references(&mut self, references: &TsconfigReferences) -> bool {
+    pub(crate) fn load_references(&mut self, references: &TsConfigReferences) -> bool {
         match references {
-            TsconfigReferences::Disabled => {
+            TsConfigReferences::Disabled => {
                 self.references.drain(..);
             }
-            TsconfigReferences::Auto => {}
-            TsconfigReferences::Paths(paths) => {
+            TsConfigReferences::Auto => {}
+            TsConfigReferences::Paths(paths) => {
                 self.references = paths
                     .iter()
                     .map(|path| ProjectReference {

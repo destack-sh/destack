@@ -1,0 +1,233 @@
+#[cfg(target_os = "windows")]
+use crate::PathUtil;
+use crate::tests::TestResolver;
+#[cfg(target_os = "windows")]
+use crate::tests::windows::get_dos_device_path;
+use std::path::{Path, PathBuf};
+use std::{fs, io};
+
+use crate::ResolveOptions;
+
+#[derive(Debug, Clone, Copy)]
+enum FileType {
+    File,
+    Dir,
+}
+
+#[allow(unused_variables)]
+fn symlink<P: AsRef<Path>, Q: AsRef<Path>>(
+    original: P,
+    link: Q,
+    file_type: FileType,
+) -> io::Result<()> {
+    #[cfg(target_family = "unix")]
+    {
+        std::os::unix::fs::symlink(original, link)
+    }
+
+    #[cfg(target_os = "windows")]
+    match file_type {
+        // NOTE: original path should use `\` instead of `/` for relative paths
+        //       otherwise the symlink will be broken and the test will fail with InvalidFilename error
+        FileType::File => std::os::windows::fs::symlink_file(original.as_ref().normalize(), link),
+        FileType::Dir => std::os::windows::fs::symlink_dir(original.as_ref().normalize(), link),
+    }
+    #[cfg(target_family = "wasm")]
+    {
+        Err(io::Error::new(io::ErrorKind::Other, "not supported"))
+    }
+}
+
+fn init(dirname: &Path, temp_path: &Path) -> io::Result<()> {
+    if temp_path.exists() {
+        _ = fs::remove_dir_all(temp_path);
+    }
+    fs::create_dir(temp_path)?;
+    symlink(
+        dirname.join("../lib/index.js"),
+        temp_path.join("test"),
+        FileType::File,
+    )?;
+    symlink(
+        dirname.join("../lib"),
+        temp_path.join("test2"),
+        FileType::Dir,
+    )?;
+    fs::remove_dir_all(temp_path)
+}
+
+fn create_symlinks(dirname: &Path, temp_path: &Path) -> io::Result<()> {
+    fs::create_dir(temp_path)?;
+    symlink(
+        dirname.join("../lib/index.js").canonicalize()?,
+        temp_path.join("index.js"),
+        FileType::File,
+    )?;
+    symlink(
+        dirname.join("../lib").canonicalize().unwrap(),
+        temp_path.join("lib"),
+        FileType::Dir,
+    )?;
+    symlink(
+        dirname.join("..").canonicalize().unwrap(),
+        temp_path.join("this"),
+        FileType::Dir,
+    )?;
+    symlink(
+        temp_path.join("this"),
+        temp_path.join("that"),
+        FileType::Dir,
+    )?;
+    symlink(
+        Path::new("../../lib/index.js"),
+        temp_path.join("node.relative.js"),
+        FileType::File,
+    )?;
+    symlink(
+        Path::new("./node.relative.js"),
+        temp_path.join("node.relative.sym.js"),
+        FileType::File,
+    )?;
+
+    #[cfg(target_os = "windows")]
+    {
+        // Ideally we should point to a Volume that does not have a drive letter.
+        // However, it's not trivial to create a Volume in CI environment.
+        // Here we are just picking up any Volume, as resolver itself is not calling `fs::canonicalize`,
+        // which potentially can resolve the Volume GUID into driver letter whenever possible.
+        let dos_device_temp_path = get_dos_device_path(temp_path).unwrap();
+        symlink(
+            dos_device_temp_path.join(r"..\..\lib"),
+            temp_path.join("device_path_lib"),
+            FileType::Dir,
+        )?;
+        symlink(
+            dos_device_temp_path.join(r"..\..\lib\index.js"),
+            temp_path.join("device_path_index.js"),
+            FileType::File,
+        )?;
+    }
+
+    Ok(())
+}
+
+fn cleanup_symlinks(temp_path: &Path) {
+    _ = fs::remove_dir_all(temp_path);
+}
+
+struct SymlinkFixturePaths {
+    root: PathBuf,
+    temp_path: PathBuf,
+}
+
+/// Prepares symlinks for the test.
+/// Specify a different `temp_path_segment` for each test to avoid conflicts when tests are executed concurrently.
+/// Returns `Ok(None)` if the symlink fixtures cannot be created at all (usually due to a lack of permission).
+/// Returns `Ok(Some(_))` if the symlink fixtures are created successfully, or already exist.
+/// Returns `Err(_)` if there is error creating the symlinks.
+fn prepare_symlinks<P: AsRef<Path>>(
+    temp_path_segment: P,
+) -> io::Result<Option<SymlinkFixturePaths>> {
+    let root = super::fixture_root().join("enhanced_resolve");
+    let dirname = root.join("test");
+    let temp_path = dirname.join(temp_path_segment.as_ref());
+    if !temp_path.exists() {
+        if let Err(err) = init(&dirname, &temp_path) {
+            println!(
+                "Skipped test: Failed to create symlinks. You may need administrator privileges. Error: {err}"
+            );
+            return Ok(None);
+        }
+        if let Err(err) = create_symlinks(&dirname, &temp_path) {
+            cleanup_symlinks(&temp_path);
+            return Err(err);
+        }
+    }
+
+    Ok(Some(SymlinkFixturePaths { root, temp_path }))
+}
+
+#[test]
+#[cfg_attr(target_family = "wasm", ignore)]
+fn test() {
+    let Some(SymlinkFixturePaths { root, temp_path }) = prepare_symlinks("temp").unwrap() else {
+        return;
+    };
+    let resolver_without_symlinks = TestResolver::new(ResolveOptions {
+        symlinks: false,
+        ..ResolveOptions::default()
+    });
+    let resolver_with_symlinks = TestResolver::default();
+
+    #[rustfmt::skip]
+    let pass = [
+        ("with a symlink to a file", temp_path.clone(), "./index.js"),
+        ("with a relative symlink to a file", temp_path.clone(), "./node.relative.js"),
+        ("with a relative symlink to a symlink to a file", temp_path.clone(), "./node.relative.sym.js"),
+        ("with a symlink to a directory 1", temp_path.clone(), "./lib/index.js"),
+        ("with a symlink to a directory 2", temp_path.clone(), "./this/lib/index.js"),
+        ("with multiple symlinks in the path 1", temp_path.clone(), "./this/test/temp/index.js"),
+        ("with multiple symlinks in the path 2", temp_path.clone(), "./this/test/temp/lib/index.js"),
+        ("with multiple symlinks in the path 3", temp_path.clone(), "./this/test/temp/this/lib/index.js"),
+        ("with a symlink to a directory 2 (chained)", temp_path.clone(), "./that/lib/index.js"),
+        ("with multiple symlinks in the path 1 (chained)", temp_path.clone(), "./that/test/temp/index.js"),
+        ("with multiple symlinks in the path 2 (chained)", temp_path.clone(), "./that/test/temp/lib/index.js"),
+        ("with multiple symlinks in the path 3 (chained)", temp_path.clone(), "./that/test/temp/that/lib/index.js"),
+        ("with symlinked directory as context 1", temp_path.join( "lib"), "./index.js"),
+        ("with symlinked directory as context 2", temp_path.join( "this"), "./lib/index.js"),
+        ("with symlinked directory as context and in path", temp_path.join( "this"), "./test/temp/lib/index.js"),
+        ("with symlinked directory in context path", temp_path.join( "this/lib"), "./index.js"),
+        ("with symlinked directory in context path and symlinked file", temp_path.join( "this/test"), "./temp/index.js"),
+        ("with symlinked directory in context path and symlinked directory", temp_path.join( "this/test"), "./temp/lib/index.js"),
+        ("with symlinked directory as context 2 (chained)", temp_path.join( "that"), "./lib/index.js"),
+        ("with symlinked directory as context and in path (chained)", temp_path.join( "that"), "./test/temp/lib/index.js"),
+        ("with symlinked directory in context path (chained)", temp_path.join( "that/lib"), "./index.js"),
+        ("with symlinked directory in context path and symlinked file (chained)", temp_path.join( "that/test"), "./temp/index.js"),
+        ("with symlinked directory in context path and symlinked directory (chained)", temp_path.join( "that/test"), "./temp/lib/index.js")
+    ];
+
+    for (comment, path, request) in pass {
+        let filename = resolver_with_symlinks
+            .resolve(&path, request)
+            .map(|r| r.full_path());
+        assert_eq!(filename, Ok(root.join("lib/index.js")), "{comment:?}");
+
+        let resolved_path = resolver_without_symlinks
+            .resolve(&path, request)
+            .map(|r| r.full_path());
+        assert_eq!(resolved_path, Ok(path.join(request)));
+    }
+}
+
+#[test]
+fn test_circular_symlink() {
+    let Some(SymlinkFixturePaths { root: _, temp_path }) =
+        prepare_symlinks("temp.test_circular_symlink").unwrap()
+    else {
+        return;
+    };
+
+    // Create a circular symlink: link1 -> link2 -> link1
+    let link1_path = temp_path.join("link1");
+    let link2_path = temp_path.join("link2");
+
+    if symlink(&link2_path, &link1_path, FileType::File).is_err() {
+        // Skip test if we can't create symlinks
+        return;
+    }
+    if symlink(&link1_path, &link2_path, FileType::File).is_err() {
+        // Skip test if we can't create symlinks
+        _ = fs::remove_file(&link1_path);
+        return;
+    }
+
+    let resolver = TestResolver::default();
+    let result = resolver.resolve(&temp_path, "./link1");
+
+    // Should error due to circular symlink
+    assert!(result.is_err());
+
+    // Cleanup
+    _ = fs::remove_file(&link1_path);
+    _ = fs::remove_file(&link2_path);
+}

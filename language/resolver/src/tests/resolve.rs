@@ -1,6 +1,7 @@
-use dyst_source::PhysicalFileSystem;
+use dyst_source::{MemoryFileSystem, PhysicalFileSystem};
 
 use super::{fixture, fixture_root};
+use crate::AliasValue;
 use crate::resolve::{Resolution, ResolveError, ResolveOptions};
 use crate::tests::Resolver;
 
@@ -149,7 +150,12 @@ fn test_resolve_hash_as_module() {
     let f = fixture();
     let resolver = TestResolver::default();
     let resolution = resolver.resolve(f, "#a");
-    assert_eq!(resolution, Err(ResolveError::NotFound { specifier: "#a".into() }));
+    assert_eq!(
+        resolution,
+        Err(ResolveError::NotFound {
+            specifier: "#a".into()
+        })
+    );
 }
 
 #[test]
@@ -256,7 +262,9 @@ fn test_resolve_abnormal_relative() {
         let resolved_path = resolver.resolve(&base, request);
         assert_eq!(
             resolved_path,
-            Err(ResolveError::NotFound { specifier: request.into() }),
+            Err(ResolveError::NotFound {
+                specifier: request.into()
+            }),
             "{comment} {request}"
         );
     }
@@ -276,7 +284,9 @@ fn test_resolve_abnormal_relative() {
         let resolved_path = resolver.resolve(&base, request);
         assert_eq!(
             resolved_path,
-            Err(ResolveError::NotFound { specifier: request.into() }),
+            Err(ResolveError::NotFound {
+                specifier: request.into()
+            }),
             "{comment} {request}"
         );
     }
@@ -377,12 +387,19 @@ fn test_resolve_postcss() {
     });
 
     let resolution = resolver.resolve(&module_path, "path");
-    assert_eq!(resolution, Err(ResolveError::Ignored { path: module_path.clone() }));
+    assert_eq!(
+        resolution,
+        Err(ResolveError::Ignored {
+            path: module_path.clone()
+        })
+    );
 
     let resolution = resolver.resolve(&module_path, "./lib/terminal-highlight");
     assert_eq!(
         resolution,
-        Err(ResolveError::Ignored { path: module_path.join("lib/terminal-highlight") })
+        Err(ResolveError::Ignored {
+            path: module_path.join("lib/terminal-highlight")
+        })
     );
 }
 
@@ -580,7 +597,316 @@ fn test_resolve_file_protocol() {
     let resolved_path = resolution.as_ref().map(Resolution::full_path);
     assert_eq!(resolved_path, Some(f.join("main1.js")));
 
-    let resolve_error = ResolveError::NotFound { specifier: "\\\\.\\main.js".into() };
+    let resolve_error = ResolveError::NotFound {
+        specifier: "\\\\.\\main.js".into(),
+    };
 
     assert_eq!(resolver.resolve(f, "file://./main.js"), Err(resolve_error));
+}
+
+/// Test resolving against scoped packages.
+/// https://github.com/webpack/enhanced-resolve/blob/main/test/scoped-packages.test.js
+#[test]
+fn test_resolve_scoped_packages() {
+    let f = fixture().join("scoped");
+    let resolver = TestResolver::default();
+
+    #[rustfmt::skip]
+    let pass = [
+        ("main field should work", f.clone(), "@scope/pack1", "@scope/pack1", f.join("./node_modules/@scope/pack1/main.js")),
+        ("browser field should work", f.clone(), "@scope/pack2", "@scope/pack2", f.join("./node_modules/@scope/pack2/main.js")),
+        ("folder request should work", f.clone(), "@scope/pack2/lib", "@scope/pack2", f.join("./node_modules/@scope/pack2/lib/index.js"))
+    ];
+
+    for (comment, path, request, package, expected) in pass {
+        let resolution = resolver.resolve(&path, request).ok();
+        let resolved_path = resolution.as_ref().map(Resolution::full_path);
+        let resolved_package_json = resolution
+            .as_ref()
+            .and_then(|r| r.package_json())
+            .map(|p| p.path.clone());
+        assert_eq!(
+            resolved_path,
+            Some(expected),
+            "{comment} {path:?} {request}"
+        );
+        let package_json_path = f.join("node_modules").join(package).join("package.json");
+        assert_eq!(
+            resolved_package_json,
+            Some(package_json_path),
+            "{path:?} {request}"
+        );
+    }
+}
+
+/// Test resolving against the roots option.
+/// https://github.com/webpack/enhanced-resolve/blob/main/test/roots.test.js>
+#[test]
+fn test_resolve_roots() {
+    let f = super::fixture();
+
+    let resolver = TestResolver::new(ResolveOptions {
+        extensions: vec![".js".into()],
+        alias: vec![("foo".into(), vec![AliasValue::from("/fixtures")])],
+        roots: vec![
+            fixture_root().join("enhanced_resolve").join("test"),
+            f.clone(),
+        ],
+        ..ResolveOptions::default()
+    });
+
+    #[rustfmt::skip]
+    let pass = [
+        ("should respect roots option", "/fixtures/b.js", f.join("b.js")),
+        ("should try another root option, if it exists", "/b.js", f.join("b.js")),
+        ("should respect extension", "/fixtures/b", f.join("b.js")),
+        ("should resolve in directory", "/fixtures/extensions/dir", f.join("extensions/dir/index.js")),
+        ("should respect aliases", "foo/b", f.join("b.js")),
+    ];
+
+    for (comment, request, expected) in pass {
+        let resolved_path = resolver.resolve(&f, request).map(|r| r.full_path());
+        assert_eq!(resolved_path, Ok(expected), "{comment} {request}");
+    }
+
+    #[rustfmt::skip]
+    let fail = [
+        ("should not work with relative path", "fixtures/b.js", ResolveError::NotFound { specifier: "fixtures/b.js".into() })
+    ];
+
+    for (comment, request, expected) in fail {
+        let resolution = resolver.resolve(&f, request);
+        assert_eq!(resolution, Err(expected), "{comment} {request}");
+    }
+}
+
+#[test]
+fn test_prefer_absolute() {
+    let f = super::fixture();
+    let resolver = TestResolver::new(ResolveOptions {
+        extensions: vec![".js".into()],
+        alias: vec![("foo".into(), vec![AliasValue::from("/fixtures")])],
+        roots: vec![
+            fixture_root().join("enhanced_resolve").join("test"),
+            f.clone(),
+        ],
+        prefer_absolute: true,
+        ..ResolveOptions::default()
+    });
+
+    #[rustfmt::skip]
+    let pass = [
+        ("should resolve an absolute path (prefer absolute)", f.join("b.js").to_string_lossy().to_string(), f.join("b.js")),
+    ];
+
+    for (comment, request, expected) in pass {
+        let resolved_path = resolver.resolve(&f, &request).map(|r| r.full_path());
+        assert_eq!(resolved_path, Ok(expected), "{comment} {request}");
+    }
+}
+
+#[test]
+fn test_roots_fall_through() {
+    let f = super::fixture();
+    let absolute_path = f.join("roots_fall_through/index.js");
+    let specifier = absolute_path.to_string_lossy();
+    let resolution =
+        TestResolver::new(ResolveOptions::default().with_root(&f)).resolve(&f, &specifier);
+    assert_eq!(resolution.map(Resolution::into_path_buf), Ok(absolute_path));
+}
+
+#[test]
+fn test_should_resolve_slash() {
+    let f = super::fixture();
+    let dir_with_index = super::fixture_root().join("./misc/dir-with-index");
+
+    #[rustfmt::skip]
+    let pass = [
+        ("should resolve if importer is root", vec![dir_with_index.clone()], &dir_with_index, dir_with_index.join("index.js")),
+    ];
+
+    for (comment, roots, directory, expected) in pass {
+        let resolver = TestResolver::new(ResolveOptions {
+            roots: roots.clone(),
+            ..ResolveOptions::default()
+        });
+        let resolved_path = resolver.resolve(directory, "/").map(|r| r.full_path());
+        assert_eq!(resolved_path, Ok(expected), "{comment} {roots:?}");
+    }
+
+    #[rustfmt::skip]
+    let fail = [
+        ("should not resolve if not found", vec![f.clone()], &f),
+        ("should not resolve if importer is not root", vec![dir_with_index], &f)
+    ];
+
+    for (comment, roots, directory) in fail {
+        let resolver = TestResolver::new(ResolveOptions {
+            roots: roots.clone(),
+            ..ResolveOptions::default()
+        });
+        let resolution = resolver.resolve(directory, "/");
+        assert_eq!(
+            resolution,
+            Err(ResolveError::NotFound {
+                specifier: "/".into()
+            }),
+            "{comment} {roots:?}"
+        );
+    }
+}
+
+type MemoryResolver = Resolver<MemoryFileSystem>;
+
+fn memory_file_system() -> MemoryFileSystem {
+    MemoryFileSystem::from_files(&[
+        ("/a/node_modules/package1/index.js", ""),
+        ("/a/node_modules/package1/file.js", ""),
+        ("/a/node_modules/package2/package.json", r#"{"main":"a"}"#),
+        ("/a/node_modules/package2/a.js", ""),
+        ("/a/node_modules/package3/package.json", r#"{"main":"dir"}"#),
+        ("/a/node_modules/package3/dir/index.js", ""),
+        (
+            "/a/node_modules/package4/package.json",
+            r#"{"browser":{"./a.js":"./b"}}"#,
+        ),
+        ("/a/node_modules/package4/a.js", ""),
+        ("/a/node_modules/package4/b.js", ""),
+        ("/a/abc.js", ""),
+        ("/a/dir/index.js", ""),
+        ("/a/index.js", ""),
+    ])
+}
+
+/// Test resolving against a fully specified path.
+/// https://github.com/webpack/enhanced-resolve/blob/main/test/fullSpecified.test.js
+#[test]
+#[cfg(not(target_os = "windows"))]
+fn test_fully_specified_path_resolution() {
+    let file_system = memory_file_system();
+
+    let resolver = MemoryResolver::from_file_system(
+        file_system,
+        ResolveOptions {
+            alias: vec![
+                ("alias1".into(), vec![AliasValue::from("/a/abc")]),
+                ("alias2".into(), vec![AliasValue::from("/a")]),
+            ],
+            alias_fields: vec![vec!["browser".into()]],
+            fully_specified: true,
+            ..ResolveOptions::default()
+        },
+    );
+
+    let failing_resolves = [
+        ("no extensions", "./abc"),
+        ("no extensions (absolute)", "/a/abc"),
+        ("no extensions in packages", "package1/file"),
+        ("no directories", "."),
+        ("no directories 2", "./"),
+        ("no directories in packages", "package3/dir"),
+        ("no extensions in packages 2", "package3/a"),
+    ];
+
+    for (comment, request) in failing_resolves {
+        let resolution = resolver.resolve("/a", request);
+        assert!(resolution.is_err(), "{comment} {request}");
+    }
+
+    let successful_resolves = [
+        ("fully relative", "./abc.js", "/a/abc.js"),
+        ("fully absolute", "/a/abc.js", "/a/abc.js"),
+        (
+            "fully relative in package",
+            "package1/file.js",
+            "/a/node_modules/package1/file.js",
+        ),
+        (
+            "extensions in mainFiles",
+            "package1",
+            "/a/node_modules/package1/index.js",
+        ),
+        (
+            "extensions in mainFields",
+            "package2",
+            "/a/node_modules/package2/a.js",
+        ),
+        ("extensions in alias", "alias1", "/a/abc.js"),
+        ("directories in alias", "alias2", "/a/index.js"),
+        (
+            "directories in packages",
+            "package3",
+            "/a/node_modules/package3/dir/index.js",
+        ),
+        (
+            "extensions in aliasFields",
+            "package4/a.js",
+            "/a/node_modules/package4/b.js",
+        ),
+    ];
+
+    for (comment, request, expected) in successful_resolves {
+        use std::path::PathBuf;
+
+        let resolution = resolver.resolve("/a", request).map(|r| r.full_path());
+        assert_eq!(
+            resolution,
+            Ok(PathBuf::from(expected)),
+            "{comment} {request}"
+        );
+    }
+}
+
+#[test]
+#[cfg(not(target_os = "windows"))]
+fn test_fully_specified_resolve_to_context() {
+    let file_system = memory_file_system();
+
+    let resolver = MemoryResolver::from_file_system(
+        file_system,
+        ResolveOptions {
+            alias: vec![
+                ("alias1".into(), vec![AliasValue::from("/a/abc")]),
+                ("alias2".into(), vec![AliasValue::from("/a")]),
+            ],
+            alias_fields: vec![vec!["browser".into()]],
+            fully_specified: true,
+            resolve_to_context: true,
+            ..ResolveOptions::default()
+        },
+    );
+
+    let successful_resolves = [
+        ("current folder", ".", "/a"),
+        ("current folder 2", "./", "/a"),
+        ("relative directory", "./dir", "/a/dir"),
+        ("relative directory 2", "./dir/", "/a/dir"),
+        (
+            "relative directory with query and fragment",
+            "./dir?123#456",
+            "/a/dir?123#456",
+        ),
+        (
+            "relative directory with query and fragment 2",
+            "./dir/?123#456",
+            "/a/dir?123#456",
+        ),
+        ("absolute directory", "/a/dir", "/a/dir"),
+        (
+            "directory in package",
+            "package3/dir",
+            "/a/node_modules/package3/dir",
+        ),
+    ];
+
+    for (comment, request, expected) in successful_resolves {
+        use std::path::PathBuf;
+
+        let resolution = resolver.resolve("/a", request).map(|r| r.full_path());
+        assert_eq!(
+            resolution,
+            Ok(PathBuf::from(expected)),
+            "{comment} {request}"
+        );
+    }
 }

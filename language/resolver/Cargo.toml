@@ -28,6 +28,7 @@ serde_json = { workspace = true, features = ["preserve_order"] }
 url = { workspace = true }
 
 [dev-dependencies]
+fancy-regex = "0.16.2"
 vfs = "0.12.2"
 
 [lints]

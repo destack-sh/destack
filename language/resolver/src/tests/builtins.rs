@@ -1,20 +1,23 @@
 use std::path::Path;
 
-use crate::{ResolveError, ResolveOptions, Resolver};
+use crate::{PhysicalResolver, ResolveError, ResolveOptions};
 use dyst_source::PhysicalFileSystem;
 
-type PhysicalResolver = Resolver<PhysicalFileSystem>;
-
 #[test]
-fn builtins_off() {
+fn test_resolve_builtins_disabled() {
     let f = Path::new("/");
     let resolver = PhysicalResolver::default();
     let resolved_path = resolver.resolve(f, "zlib").map(|r| r.full_path());
-    assert_eq!(resolved_path, Err(ResolveError::NotFound { specifier: "zlib".into() }));
+    assert_eq!(
+        resolved_path,
+        Err(ResolveError::NotFound {
+            specifier: "zlib".into()
+        })
+    );
 }
 
 #[test]
-fn builtins() {
+fn test_resolve_builtins_enabled() {
     let f = Path::new("/");
 
     let resolver = PhysicalResolver::new(ResolveOptions::default().with_builtin_modules(true));
@@ -102,17 +105,19 @@ fn builtins() {
 }
 
 #[test]
-fn fail() {
+fn test_resolve_builtins_fail() {
     let f = Path::new("/");
     let resolver = PhysicalResolver::new(ResolveOptions::default().with_builtin_modules(true));
     let request = "xxx";
     let resolved_path = resolver.resolve(f, request);
-    let err = ResolveError::NotFound { specifier: request.to_string() };
+    let err = ResolveError::NotFound {
+        specifier: request.to_string(),
+    };
     assert_eq!(resolved_path, Err(err), "{request}");
 }
 
 #[test]
-fn imports() {
+fn test_resolve_builtins_imports() {
     let f = super::fixture().join("builtins");
     let resolver = PhysicalResolver::new(ResolveOptions {
         builtin_modules: true,
@@ -129,4 +134,3 @@ fn imports() {
         assert_eq!(resolved_path, Err(err));
     }
 }
-

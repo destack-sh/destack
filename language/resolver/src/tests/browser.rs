@@ -1,9 +1,7 @@
 //! <https://github.com/webpack/enhanced-resolve/blob/main/test/browserField.test.js>
 
-use crate::{AliasValue, ResolveError, ResolveOptions, Resolver};
+use crate::{AliasValue, PhysicalResolver, ResolveError, ResolveOptions, Resolver};
 use dyst_source::PhysicalFileSystem;
-
-type PhysicalResolver = Resolver<PhysicalFileSystem>;
 
 #[test]
 fn ignore() {
@@ -163,7 +161,9 @@ fn crypto_js() {
         .map(|r| r.full_path());
     assert_eq!(
         resolved_path,
-        Err(ResolveError::Ignored { path: f.join("crypto-js") })
+        Err(ResolveError::Ignored {
+            path: f.join("crypto-js")
+        })
     );
 }
 
@@ -200,7 +200,9 @@ fn recursive() {
         let resolved_path = resolver.resolve(&path, request);
         match resolved_path {
             Err(ResolveError::RecursiveDependency { .. }) => {}
-            _ => panic!("{comment} {path:?} {request} expected RecursiveDependency, got {resolved_path:?}"),
+            _ => panic!(
+                "{comment} {path:?} {request} expected RecursiveDependency, got {resolved_path:?}"
+            ),
         }
     }
 }
