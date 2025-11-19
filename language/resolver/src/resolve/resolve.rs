@@ -155,7 +155,7 @@ impl<Fs: FileSystem> Resolver<Fs> {
         let package_json = self.find_package_json_for_a_package(&cached_path, ctx)?;
         if let Some(package_json) = &package_json {
             // path must be inside the package
-            debug_assert!(path.starts_with(package_json.directory()));
+            debug_assert!(path.starts_with(&package_json.directory));
         }
 
         Ok(Resolution {
@@ -760,7 +760,7 @@ impl<Fs: FileSystem> Resolver<Fs> {
                     if let Some(path) = self.load_as_directory(&cached_path, ctx)? {
                         return Ok(Some(path));
                     }
-                } 
+                }
                 // load file
                 else if let Some(path) = self.load_as_file(&cached_path, ctx)? {
                     return Ok(Some(path));
@@ -873,6 +873,45 @@ impl<Fs: FileSystem> Resolver<Fs> {
         })
     }
 
+    /// Resolves the request string for this `package.json` by looking at the "browser" field.
+    /// <https://github.com/defunctzombie/package-browser-field-spec>
+    fn resolve_browser_field<'a>(
+        &self,
+        package_json: &'a PackageOptions,
+        path: &Path,
+        request: Option<&str>,
+    ) -> Result<Option<&'a str>, ResolveError> {
+        if let Some(object) = package_json.browser.as_ref().and_then(|v| v.as_object()) {
+            if let Some(request) = request {
+                // Find matching key in object
+                if let Some(value) = object.get(request) {
+                    return match value {
+                        serde_json::Value::String(s) => Ok(Some(s.as_str())),
+                        serde_json::Value::Bool(false) => Err(ResolveError::Ignored {
+                            path: path.to_path_buf(),
+                        }),
+                        _ => Ok(None),
+                    };
+                }
+            } else {
+                let dir = package_json.path.parent().unwrap();
+                for (key, value) in object {
+                    let joined = dir.normalize_with(key.as_str());
+                    if joined == path {
+                        return match value {
+                            serde_json::Value::String(s) => Ok(Some(s.as_str())),
+                            serde_json::Value::Bool(false) => Err(ResolveError::Ignored {
+                                path: path.to_path_buf(),
+                            }),
+                            _ => Ok(None),
+                        };
+                    }
+                }
+            }
+        }
+        Ok(None)
+    }
+
     /// Resolves the browser field or alias field in the package.json.
     fn load_browser_field(
         &self,
@@ -886,7 +925,8 @@ impl<Fs: FileSystem> Resolver<Fs> {
         }
 
         let path = cached_path.path();
-        let Some(new_specifier) = package_json.resolve_browser_field(path, module_specifier)?
+        let Some(new_specifier) =
+            self.resolve_browser_field(package_json, path, module_specifier)?
         else {
             return Ok(None);
         };
@@ -924,7 +964,7 @@ impl<Fs: FileSystem> Resolver<Fs> {
 
         ctx.resolving_alias = Some(new_specifier.to_string());
         ctx.is_fully_specified = false;
-        let package_url = self.cache.value(package_json.path().parent().unwrap());
+        let package_url = self.cache.value(package_json.path.parent().unwrap());
         self.require(&package_url, new_specifier, ctx).map(Some)
     }
 
@@ -1551,7 +1591,7 @@ impl<Fs: FileSystem> Resolver<Fs> {
         if specifier == "#" || specifier.starts_with("#/") {
             return Err(ResolveError::InvalidModuleSpecifier {
                 specifier: specifier.to_string(),
-                package_path: package_json.path().to_path_buf(),
+                package_path: package_json.path.to_path_buf(),
             });
         }
 
@@ -1559,7 +1599,7 @@ impl<Fs: FileSystem> Resolver<Fs> {
         if let Some(path) = self.package_imports_exports_resolve(
             specifier,
             &imports_map,
-            &self.cache.value(package_json.directory()),
+            &self.cache.value(&package_json.directory),
             /* is_imports */ true,
             &self.options.conditions,
             ctx,
@@ -1569,7 +1609,7 @@ impl<Fs: FileSystem> Resolver<Fs> {
 
         Err(ResolveError::PackageImportNotDefined {
             specifier: specifier.to_string(),
-            package_path: package_json.path().to_path_buf(),
+            package_path: package_json.path.to_path_buf(),
         })
     }
 

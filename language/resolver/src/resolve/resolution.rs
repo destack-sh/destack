@@ -33,10 +33,6 @@ impl fmt::Debug for Resolution {
             .field("path", &self.path)
             .field("query", &self.query)
             .field("fragment", &self.fragment)
-            .field(
-                "package_json",
-                &self.package_json.as_ref().map(|p| p.path()),
-            )
             .finish()
     }
 }
