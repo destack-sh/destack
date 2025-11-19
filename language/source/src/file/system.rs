@@ -28,32 +28,32 @@ pub trait FileSystem: Send + Sync {
     fn canonicalize(&self, path: &Path) -> io::Result<PathBuf>;
 }
 
+#[inline]
+pub fn validate_utf8_string(bytes: Vec<u8>) -> io::Result<String> {
+    // `simdutf8` is faster than `std::str::from_utf8` which `fs::read_to_string` uses internally
+    if simdutf8::basic::from_utf8(&bytes).is_err() {
+        // Same error as `fs::read_to_string` produces (`io::Error::INVALID_UTF8`)
+        #[cold]
+        fn invalid_utf8_error() -> io::Error {
+            io::Error::new(
+                io::ErrorKind::InvalidData,
+                "stream did not contain valid UTF-8",
+            )
+        }
+        return Err(invalid_utf8_error());
+    }
+    // SAFETY: `simdutf8` has ensured it's a valid UTF-8 string
+    Ok(unsafe { String::from_utf8_unchecked(bytes) })
+}
+
 /// Physical file system implementation (backed by the current target OS).
 #[derive(Debug)]
 pub struct PhysicalFileSystem;
 
 impl PhysicalFileSystem {
-    #[inline]
-    pub fn validate_string(bytes: Vec<u8>) -> io::Result<String> {
-        // `simdutf8` is faster than `std::str::from_utf8` which `fs::read_to_string` uses internally
-        if simdutf8::basic::from_utf8(&bytes).is_err() {
-            // Same error as `fs::read_to_string` produces (`io::Error::INVALID_UTF8`)
-            #[cold]
-            fn invalid_utf8_error() -> io::Error {
-                io::Error::new(
-                    io::ErrorKind::InvalidData,
-                    "stream did not contain valid UTF-8",
-                )
-            }
-            return Err(invalid_utf8_error());
-        }
-        // SAFETY: `simdutf8` has ensured it's a valid UTF-8 string
-        Ok(unsafe { String::from_utf8_unchecked(bytes) })
-    }
-
     pub fn read_to_string(path: &Path) -> io::Result<String> {
         let bytes = std::fs::read(path)?;
-        Self::validate_string(bytes)
+        validate_utf8_string(bytes)
     }
 
     #[inline]
@@ -121,7 +121,7 @@ impl FileSystem for PhysicalFileSystem {
 
     fn read_to_string(&self, path: &Path) -> io::Result<String> {
         let bytes = self.read(path)?;
-        Self::validate_string(bytes)
+        validate_utf8_string(bytes)
     }
 
     fn metadata(&self, path: &Path) -> io::Result<FileMetadata> {

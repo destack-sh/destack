@@ -54,12 +54,6 @@ pub struct TsConfig {
 }
 
 impl TsConfig {
-    /// Whether this is the caller tsconfig.
-    /// Used for final template variable substitution when all configs are extended and merged.
-    pub fn root(&self) -> bool {
-        self.is_root
-    }
-
     /// Returns the path where the `tsconfig.json` was found.
     ///
     /// Contains the `tsconfig.json` filename.
@@ -123,16 +117,6 @@ impl TsConfig {
         }
 
         !self.references.is_empty()
-    }
-
-    /// Returns references to other tsconfig files.
-    pub(crate) fn references(&self) -> impl Iterator<Item = &ProjectReference> {
-        self.references.iter()
-    }
-
-    /// Returns mutable references to other tsconfig files.
-    pub(crate) fn references_mut(&mut self) -> impl Iterator<Item = &mut ProjectReference> {
-        self.references.iter_mut()
     }
 
     /// Returns the base path from which to resolve aliases.
@@ -298,7 +282,7 @@ impl TsConfig {
     /// * `baseUrl` to absolute path
     pub(crate) fn build(mut self) -> Self {
         // Only the root tsconfig requires paths resolution.
-        if !self.root() {
+        if !self.is_root {
             return self;
         }
 
@@ -366,7 +350,11 @@ impl TsConfig {
     /// `specifier` can be either a real path or an alias.
     pub(crate) fn resolve(&self, path: &Path, specifier: &str) -> Vec<PathBuf> {
         let paths = self.resolve_path_alias(specifier);
-        for tsconfig in self.references().filter_map(ProjectReference::tsconfig) {
+        for tsconfig in self
+            .references
+            .iter()
+            .filter_map(ProjectReference::tsconfig)
+        {
             if path.starts_with(tsconfig.base_path()) {
                 return [tsconfig.resolve_path_alias(specifier), paths].concat();
             }

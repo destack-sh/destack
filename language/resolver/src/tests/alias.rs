@@ -4,20 +4,19 @@ use std::path::{Path, PathBuf};
 
 use dyst_source::{MemoryFileSystem, PathExt, PhysicalFileSystem};
 
-use crate::{
-    AliasValue, Resolution, ResolveContext, ResolveError, ResolveOptions, Resolver,
-};
+use crate::{AliasValue, Resolution, ResolveContext, ResolveError, ResolveOptions, Resolver};
 
-type OsResolver = Resolver<PhysicalFileSystem>;
-type MemResolver = Resolver<MemoryFileSystem>;
+type PhysicalResolver = Resolver<PhysicalFileSystem>;
+type MemoryResolver = Resolver<MemoryFileSystem>;
 
+// MemoryFS's path separator is always `/` so the test will not pass in windows.
 #[allow(clippy::too_many_lines)]
 #[test]
-#[cfg(not(target_os = "windows"))] // MemoryFS's path separator is always `/` so the test will not pass in windows.
-fn alias() {
+#[cfg(not(target_os = "windows"))]
+fn test_resolve_alias() {
     let f = Path::new("/");
 
-    let file_system = MemoryFileSystem::new_with_files(&[
+    let file_system = MemoryFileSystem::from_files(&[
         ("/a/index.js", ""),
         ("/a/dir/index.js", ""),
         ("/recursive/index.js", ""),
@@ -34,7 +33,7 @@ fn alias() {
         ("/dashed-name", ""),
     ]);
 
-    let resolver = MemResolver::new_with_file_system(
+    let resolver = MemoryResolver::from_file_system(
         file_system,
         ResolveOptions {
             alias: vec![
@@ -58,10 +57,19 @@ fn alias() {
                 ("@".into(), vec![AliasValue::from("/c/dir")]),
                 ("ignored".into(), vec![AliasValue::Ignore]),
                 // not part of enhanced-resolve, added to make sure query in alias value would work
-                ("alias_query".into(), vec![AliasValue::from("a?query_after")]),
-                ("alias_fragment".into(), vec![AliasValue::from("a#fragment_after")]),
+                (
+                    "alias_query".into(),
+                    vec![AliasValue::from("a?query_after")],
+                ),
+                (
+                    "alias_fragment".into(),
+                    vec![AliasValue::from("a#fragment_after")],
+                ),
                 ("dash".into(), vec![AliasValue::Ignore]),
-                ("@scope/package-name/file$".into(), vec![AliasValue::from("/c/dir")]),
+                (
+                    "@scope/package-name/file$".into(),
+                    vec![AliasValue::from("/c/dir")],
+                ),
                 // wildcard https://github.com/webpack/enhanced-resolve/pull/439
                 ("@adir/*".into(), vec![AliasValue::from("./a/")]), // added to test value without wildcard
                 ("@*".into(), vec![AliasValue::from("/*")]),
@@ -124,7 +132,11 @@ fn alias() {
 
     for (comment, request, expected) in pass {
         let resolved_path = resolver.resolve(f, request).map(|r| r.full_path());
-        assert_eq!(resolved_path, Ok(PathBuf::from(expected)), "{comment} {request}");
+        assert_eq!(
+            resolved_path,
+            Ok(PathBuf::from(expected)),
+            "{comment} {request}"
+        );
     }
 
     #[rustfmt::skip]
@@ -142,7 +154,7 @@ fn alias() {
 #[test]
 fn infinite_recursion() {
     let f = super::fixture();
-    let resolver: OsResolver = Resolver::new(ResolveOptions {
+    let resolver: PhysicalResolver = Resolver::new(ResolveOptions {
         alias: vec![
             ("./a".into(), vec![AliasValue::from("./b")]),
             ("./b".into(), vec![AliasValue::from("./a")]),
@@ -170,8 +182,11 @@ fn check_slash(path: &Path) {
 #[test]
 fn absolute_path() {
     let f = super::fixture();
-    let resolver: OsResolver = Resolver::new(ResolveOptions {
-        alias: vec![(f.join("foo").to_str().unwrap().to_string(), vec![AliasValue::Ignore])],
+    let resolver: PhysicalResolver = Resolver::new(ResolveOptions {
+        alias: vec![(
+            f.join("foo").to_str().unwrap().to_string(),
+            vec![AliasValue::Ignore],
+        )],
         modules: vec![f.clone().to_str().unwrap().to_string()],
         ..ResolveOptions::default()
     });
@@ -182,15 +197,21 @@ fn absolute_path() {
 #[test]
 fn system_path() {
     let f = super::fixture();
-    let resolver: OsResolver = Resolver::new(ResolveOptions {
-        alias: vec![("@app".into(), vec![AliasValue::from(f.join("alias").to_string_lossy())])],
+    let resolver: PhysicalResolver = Resolver::new(ResolveOptions {
+        alias: vec![(
+            "@app".into(),
+            vec![AliasValue::from(f.join("alias").to_string_lossy())],
+        )],
         ..ResolveOptions::default()
     });
 
     let specifiers = ["@app/files/a", "@app/files/a.js"];
 
     for specifier in specifiers {
-        let path = resolver.resolve(&f, specifier).map(Resolution::into_path_buf).unwrap();
+        let path = resolver
+            .resolve(&f, specifier)
+            .map(Resolution::into_path_buf)
+            .unwrap();
         assert_eq!(path, f.join("alias/files/a.js"));
         check_slash(&path);
     }
@@ -202,14 +223,16 @@ fn alias_is_full_path() {
     let dir = f.join("foo");
     let dir_str = dir.to_string_lossy().to_string();
 
-    let resolver: OsResolver = Resolver::new(ResolveOptions {
+    let resolver: PhysicalResolver = Resolver::new(ResolveOptions {
         alias: vec![("@".into(), vec![AliasValue::Path(dir_str.clone())])],
         ..ResolveOptions::default()
     });
 
-    let mut ctx = ResolveContext::default();
-    ctx.file_dependencies = Some(Vec::new());
-    ctx.missing_dependencies = Some(Vec::new());
+    let mut ctx = ResolveContext {
+        file_dependencies: Some(Vec::new()),
+        missing_dependencies: Some(Vec::new()),
+        ..ResolveContext::default()
+    };
 
     let specifiers = [
         "@/index".to_string(),
@@ -247,17 +270,25 @@ fn alias_is_full_path() {
 #[test]
 fn all_alias_values_are_not_found() {
     let f = super::fixture();
-    let resolver: OsResolver = Resolver::new(ResolveOptions {
+    let resolver: PhysicalResolver = Resolver::new(ResolveOptions {
         alias: vec![(
             "m1".to_string(),
-            vec![AliasValue::Path(f.join("node_modules").join("m2").to_string_lossy().to_string())],
+            vec![AliasValue::Path(
+                f.join("node_modules")
+                    .join("m2")
+                    .to_string_lossy()
+                    .to_string(),
+            )],
         )],
         ..ResolveOptions::default()
     });
     let resolution = resolver.resolve(&f, "m1/a.js");
     assert_eq!(
         resolution,
-        Err(ResolveError::MatchedAliasNotFound("m1/a.js".to_string(), "m1".to_string()))
+        Err(ResolveError::MatchedAliasNotFound(
+            "m1/a.js".to_string(),
+            "m1".to_string()
+        ))
     );
 }
 
@@ -274,7 +305,11 @@ fn alias_fragment() {
             "./no#fragment/#/#",
             f.join("no#fragment/#/#.js"),
         ),
-        ("handle fragment edge case (fragment)", "./no#fragment/#/", f.join("no.js#fragment/#/")),
+        (
+            "handle fragment edge case (fragment)",
+            "./no#fragment/#/",
+            f.join("no.js#fragment/#/"),
+        ),
         (
             "handle fragment escaping",
             "./no\0#fragment/\0#/\0##fragment",
@@ -283,8 +318,11 @@ fn alias_fragment() {
     ];
 
     for (comment, request, expected) in data {
-        let resolver: OsResolver = Resolver::new(ResolveOptions {
-            alias: vec![("foo".to_string(), vec![AliasValue::Path(request.to_string())])],
+        let resolver: PhysicalResolver = Resolver::new(ResolveOptions {
+            alias: vec![(
+                "foo".to_string(),
+                vec![AliasValue::Path(request.to_string())],
+            )],
             ..ResolveOptions::default()
         });
         let resolved_path = resolver.resolve(&f, "foo").map(|r| r.full_path());
@@ -295,7 +333,7 @@ fn alias_fragment() {
 #[test]
 fn alias_try_fragment_as_path() {
     let f = super::fixture();
-    let resolver: OsResolver = Resolver::new(ResolveOptions {
+    let resolver: PhysicalResolver = Resolver::new(ResolveOptions {
         alias: vec![(
             "#".to_string(),
             vec![AliasValue::Path(f.join("#").to_string_lossy().to_string())],
@@ -309,7 +347,7 @@ fn alias_try_fragment_as_path() {
 #[test]
 fn alias_with_multiple_fallbacks() {
     let f = super::fixture();
-    let resolver: OsResolver = Resolver::new(ResolveOptions {
+    let resolver: PhysicalResolver = Resolver::new(ResolveOptions {
         alias: vec![(
             "multi".to_string(),
             vec![
@@ -319,7 +357,8 @@ fn alias_with_multiple_fallbacks() {
         )],
         ..ResolveOptions::default()
     });
-    let resolution = resolver.resolve(&f, "multi/index.js").map(|r| r.full_path());
+    let resolution = resolver
+        .resolve(&f, "multi/index.js")
+        .map(|r| r.full_path());
     assert_eq!(resolution, Ok(f.join("foo/index.js")));
 }
-

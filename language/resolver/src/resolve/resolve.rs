@@ -17,8 +17,8 @@ type ResolveResult = Result<Option<CachedPath>, ResolveError>;
 
 /// Resolved backed by some Fs implementation.
 pub struct Resolver<Fs> {
-    options: ResolveOptions,
-    cache: Arc<CachedFileSystem<Fs>>,
+    pub options: ResolveOptions,
+    pub cache: Arc<CachedFileSystem<Fs>>,
 }
 
 impl<Fs> fmt::Debug for Resolver<Fs> {
@@ -45,7 +45,7 @@ impl<Fs: FileSystem> Resolver<Fs> {
 }
 
 impl<Fs: FileSystem> Resolver<Fs> {
-    pub fn new_with_file_system(file_system: Fs, options: ResolveOptions) -> Self {
+    pub fn from_file_system(file_system: Fs, options: ResolveOptions) -> Self {
         Self {
             cache: Arc::new(CachedFileSystem::new(file_system)),
             options: options.sanitize(),
@@ -58,11 +58,6 @@ impl<Fs: FileSystem> Resolver<Fs> {
             options: options.sanitize(),
             cache: Arc::clone(&self.cache),
         }
-    }
-
-    /// Returns the options.
-    pub const fn options(&self) -> &ResolveOptions {
-        &self.options
     }
 
     /// Clear the underlying cache.
@@ -1218,7 +1213,7 @@ impl<Fs: FileSystem> Resolver<Fs> {
             if tsconfig.load_references(references) {
                 let path = tsconfig.path().to_path_buf();
                 let directory = tsconfig.directory().to_path_buf();
-                for reference in tsconfig.references_mut() {
+                for reference in tsconfig.references.iter_mut() {
                     let reference_tsconfig_path = directory.normalize_with(reference.path());
                     let tsconfig = self.cache.get_tsconfig(
                         /* root */ true,
@@ -1454,7 +1449,7 @@ impl<Fs: FileSystem> Resolver<Fs> {
     }
 
     /// PACKAGE_EXPORTS_RESOLVE(packageURL, subpath, exports, conditions)
-    fn package_exports_resolve(
+    pub(crate) fn package_exports_resolve(
         &self,
         package_url: &CachedPath,
         subpath: &str,
@@ -1604,7 +1599,7 @@ impl<Fs: FileSystem> Resolver<Fs> {
     }
 
     /// PACKAGE_IMPORTS_EXPORTS_RESOLVE(matchKey, matchObj, packageURL, isImports, conditions)
-    fn package_imports_exports_resolve(
+    pub(crate) fn package_imports_exports_resolve(
         &self,
         match_key: &str,
         match_obj: &ImportsExportsMap<'_>,

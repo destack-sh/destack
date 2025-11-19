@@ -102,14 +102,13 @@ impl<Fs: FileSystem> CachedFileSystem<Fs> {
         )
     }
 
-    /// Get the package.json of the cached path.
+    /// Get the `package.json` of the path.
     pub(crate) fn get_package_json(
         &self,
         path: &CachedPath,
         options: &ResolveOptions,
         ctx: &mut ResolveContext,
     ) -> Result<Option<Arc<PackageJson>>, ResolveError> {
-        // Change to `std::sync::OnceLock::get_or_try_init` when it is stable.
         let result = path
             .package_json
             .get_or_try_init(|| {
@@ -148,11 +147,12 @@ impl<Fs: FileSystem> CachedFileSystem<Fs> {
         result
     }
 
+    /// Get the `tsconfig.json` of the path.
     pub(crate) fn get_tsconfig<F: FnOnce(&mut TsConfig) -> Result<(), ResolveError>>(
         &self,
         root: bool,
         path: &Path,
-        callback: F, // callback for modifying tsconfig with `extends`
+        modify: F,
     ) -> Result<Arc<TsConfig>, ResolveError> {
         let tsconfigs = self.tsconfigs.pin();
         if let Some(tsconfig) = tsconfigs.get(path) {
@@ -181,7 +181,7 @@ impl<Fs: FileSystem> CachedFileSystem<Fs> {
                     column: error.column(),
                 })
             })?;
-        callback(&mut tsconfig)?;
+        modify(&mut tsconfig)?;
         let tsconfig = Arc::new(tsconfig.build());
         tsconfigs.insert(path.to_path_buf(), Arc::clone(&tsconfig));
         Ok(tsconfig)

@@ -12,13 +12,15 @@ path = "src/lib.rs"
 doctest = false
 
 [dependencies]
-dyst_source = { workspace = true }
+dyst_ast = { workspace = true }
 dyst_dir = { workspace = true }
+dyst_source = { workspace = true }
+dyst_parser = { workspace = true }
 dyst_unicode = { workspace = true }
 
 cfg-if = { workspace = true }
 rustix = { workspace = true }
-serde_json = { workspace = true }
+serde_json = { workspace = true, features = ["preserve_order"] }
 serde = { workspace = true }
 indexmap = { workspace = true, features = ["serde"] }
 papaya = { workspace = true }
