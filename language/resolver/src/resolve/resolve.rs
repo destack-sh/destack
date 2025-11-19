@@ -447,11 +447,7 @@ impl<Fs: FileSystem> Resolver<Fs> {
             return Ok(path);
         }
 
-        // TODO: add a new option for this legacy behavior?
         // abnormal relative specifier like `jest-runner-../../..`
-        // which only works with `require` not ESM
-        // see also https://github.com/jestjs/jest/issues/15712
-        // it's kind of bug feature
         if specifier.contains("/../..") || specifier.contains("../../") {
             let path = Path::new(specifier).normalize_relative();
             let mut owned = path.to_string_lossy().into_owned();
