@@ -4,7 +4,7 @@ use crate::resolve::ResolveError;
 
 /// Context for the resolver.
 #[derive(Debug, Default, Clone)]
-pub struct ResolveContext {
+pub struct ResolutionContext {
     /// Whether the specifier is fully specified.
     pub is_fully_specified: bool,
     /// Query `?query`, contains `?` (like `?foo` in `foo.js?foo`).
@@ -23,7 +23,7 @@ pub struct ResolveContext {
     pub max_depth: u8 = 64,
 }
 
-impl ResolveContext {
+impl ResolutionContext {
     pub fn set_query_fragment(&mut self, query: Option<&str>, fragment: Option<&str>) {
         if let Some(query) = query {
             self.query.replace(query.to_string());

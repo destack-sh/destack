@@ -5,7 +5,7 @@ use std::path::{Path, PathBuf};
 use dyst_source::{MemoryFileSystem, PathExt};
 
 use crate::{
-    AliasValue, MemoryResolver, PhysicalResolver, Resolution, ResolveContext, ResolveError,
+    AliasValue, MemoryResolver, PhysicalResolver, Resolution, ResolutionContext, ResolveError,
     ResolveOptions, Resolver,
 };
 
@@ -237,10 +237,10 @@ fn test_resolve_alias_is_full_path() {
         ..ResolveOptions::default()
     });
 
-    let mut ctx = ResolveContext {
+    let mut ctx = ResolutionContext {
         file_dependencies: Some(Vec::new()),
         missing_dependencies: Some(Vec::new()),
-        ..ResolveContext::default()
+        ..ResolutionContext::default()
     };
 
     let specifiers = [

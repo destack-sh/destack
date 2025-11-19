@@ -12,7 +12,7 @@ use rustc_hash::FxHasher;
 use super::hasher::IdentityHasher;
 use super::path::{BorrowedCachedPath, CachedPath, CachedPathState};
 use crate::{
-    JSONError, PackageJson, ResolveContext, ResolveError, ResolveOptions, TypeScriptOptions,
+    JSONError, PackageJson, ResolutionContext, ResolveError, ResolveOptions, TypeScriptOptions,
 };
 use dyst_source::{FileSystem, PathExt};
 
@@ -91,7 +91,7 @@ impl<Fs: FileSystem> CachedFileSystem<Fs> {
     }
 
     /// Checks if the cached path is a file.
-    pub(crate) fn is_file(&self, path: &CachedPath, ctx: &mut ResolveContext) -> bool {
+    pub(crate) fn is_file(&self, path: &CachedPath, ctx: &mut ResolutionContext) -> bool {
         if path.is_file(&self.fs).is_some_and(|b| b) {
             ctx.add_file_dependency(path.path());
             true
@@ -102,7 +102,7 @@ impl<Fs: FileSystem> CachedFileSystem<Fs> {
     }
 
     /// Checks if the cached path is a directory.
-    pub(crate) fn is_directory(&self, path: &CachedPath, ctx: &mut ResolveContext) -> bool {
+    pub(crate) fn is_directory(&self, path: &CachedPath, ctx: &mut ResolutionContext) -> bool {
         path.is_directory(&self.fs).map_or_else(
             || {
                 ctx.add_missing_dependency(path.path());
@@ -117,7 +117,7 @@ impl<Fs: FileSystem> CachedFileSystem<Fs> {
         &self,
         path: &CachedPath,
         options: &ResolveOptions,
-        ctx: &mut ResolveContext,
+        ctx: &mut ResolutionContext,
     ) -> Result<Option<Arc<PackageJson>>, ResolveError> {
         let result = path
             .package_json

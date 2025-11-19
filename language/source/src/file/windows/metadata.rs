@@ -5,9 +5,14 @@ use std::path::Path;
 // Some functions are copied and adapted from Rust standard library.
 // License: https://github.com/rust-lang/rust/blob/1.89.0/LICENSE-MIT, https://github.com/rust-lang/rust/blob/1.89.0/LICENSE-APACHE
 
+/// Metadata of a symbolic link.
+#[derive(Debug, Clone, Copy)]
 pub struct SymlinkMetadata {
+    /// Whether the file is a symlink.
     pub is_symlink: bool,
+    /// Whether the file is a directory.
     pub is_dir: bool,
+    /// Whether the file is a regular file.
     pub is_file: bool,
 }
 

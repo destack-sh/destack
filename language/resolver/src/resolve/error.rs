@@ -35,13 +35,6 @@ pub enum ResolveError {
     /// Path won't be able consumable by NodeJS `import` or `require`.
     PathNotSupported { path: PathBuf },
 
-    /// Builtin module (that therefore cannot be resolved to a file on the file system).
-    Builtin {
-        /// Resolved path including the prefix (e.g. "node:").
-        resolved: String,
-        is_runtime_module: bool,
-    },
-
     /// None of the aliased extensions were found.
     ExtensionAlias {
         filename: String,
@@ -112,7 +105,6 @@ impl ResolveError {
             Self::TypeScriptOptionsCircular { .. } => 6,
             Self::IOError { .. } => 7,
             Self::PathNotSupported { .. } => 8,
-            Self::Builtin { .. } => 9,
             Self::ExtensionAlias { .. } => 10,
             Self::Specifier { .. } => 11,
             Self::Json { .. } => 12,
@@ -147,10 +139,6 @@ impl ResolveError {
             Self::PathNotSupported { path } => {
                 format!("path {path:?} contains unsupported construct.")
             }
-            Self::Builtin {
-                resolved,
-                is_runtime_module: _,
-            } => format!("builtin module '{resolved}' does not exist as a file"),
             Self::ExtensionAlias {
                 filename,
                 tried,
