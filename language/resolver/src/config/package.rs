@@ -40,12 +40,7 @@ impl PackageJson {
 
     /// Directory to `package.json` (excluding `package.json`).
     pub fn directory(&self) -> &Path {
-        debug_assert!(
-            self.realpath
-                .file_name()
-                .is_some_and(|x| x == "package.json")
-        );
-        self.realpath.parent().unwrap()
+        self.realpath.parent().expect("package.json file must have a parent directory")
     }
 
     /// Name of the package.
@@ -261,7 +256,9 @@ impl PackageJson {
     pub fn alias_value<'a>(key: &Path, value: &'a Value) -> Result<Option<&'a str>, ResolveError> {
         match value {
             Value::String(s) => Ok(Some(s.as_str())),
-            Value::Bool(false) => Err(ResolveError::Ignored { path: key.to_path_buf() }),
+            Value::Bool(false) => Err(ResolveError::Ignored {
+                path: key.to_path_buf(),
+            }),
             _ => Ok(None),
         }
     }

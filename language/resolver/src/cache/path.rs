@@ -11,35 +11,46 @@ use dyst_source::FileSystem;
 use papaya::Equivalent;
 
 use super::system::CachedFileSystem;
-use crate::{PackageJson, ResolveContext, ResolveError, ResolveOptions, TsConfig};
+use crate::{PackageJson, ResolveContext, ResolveError, ResolveOptions, TypeScriptOptions};
 
-// Per-thread pre-allocated path that is used to perform operations on paths more quickly.
-// <https://github.com/parcel-bundler/parcel/blob/a53f8f3ba1025c7ea8653e9719e0a61ef9717079/crates/parcel-resolver/src/cache.rs#L394>
+// Thread-local pre-allocated path buffer.
+// Used to perform operations on paths more quickly without repeated allocations.
 thread_local! {
     pub static SCRATCH_PATH: RefCell<PathBuf> = RefCell::new(PathBuf::with_capacity(256));
 }
 
-/// Cached path.
+/// A cached path entry.
 #[derive(Clone)]
 pub struct CachedPath(pub Arc<CachedPathState>);
 
-/// Cached path implementation.
+/// The internal state of a cached path.
 #[derive(Debug)]
 pub struct CachedPathState {
+    /// The hash of the path.
     pub hash: u64,
+    /// The filesystem path.
     pub path: Box<Path>,
+    /// A weak reference to the parent directory.
     pub parent: Option<Weak<CachedPathState>>,
+    /// Whether the file name is `node_modules`.
     pub is_node_modules: bool,
+    /// Whether the path is inside a `node_modules` directory.
     pub is_inside_node_modules: bool,
 
-    pub meta: OnceLock<Option<(/* is_file */ bool, /* is_dir */ bool)>>, // None means not found.
+    /// Lazy-loaded metadata (is_file, is_directory).
+    pub meta: OnceLock<Option<(bool, bool)>>,
+    /// Lazy-loaded canonicalized path.
     pub canonicalized_path: OnceLock<Weak<CachedPathState>>,
+    /// Lazy-loaded `node_modules` subdirectory.
     pub node_modules: OnceLock<Option<Weak<CachedPathState>>>,
+    /// Lazy-loaded `package.json`.
     pub package_json: OnceLock<Option<Arc<PackageJson>>>,
-    pub tsconfig: OnceLock<Option<Arc<TsConfig>>>,
+    /// Lazy-loaded `tsconfig.json`.
+    pub tsconfig: OnceLock<Option<Arc<TypeScriptOptions>>>,
 }
 
 impl CachedPathState {
+    /// Creates a new cached path state.
     pub fn new(
         hash: u64,
         path: Box<Path>,
@@ -71,17 +82,17 @@ impl Deref for CachedPath {
 }
 
 impl CachedPath {
-    /// Get the path of the cached path.
+    /// Gets the filesystem path.
     pub(crate) fn path(&self) -> &Path {
         &self.0.path
     }
 
-    /// Convert the cached path to a path buffer.
+    /// Converts the cached path to a path buffer.
     pub(crate) fn to_path_buf(&self) -> PathBuf {
         self.path.to_path_buf()
     }
 
-    /// Get the parent of the cached path.
+    /// Gets the parent of the cached path.
     pub(crate) fn parent(&self) -> Option<Self> {
         self.0
             .parent
@@ -89,17 +100,7 @@ impl CachedPath {
             .and_then(|weak| weak.upgrade().map(CachedPath))
     }
 
-    /// Check if the cached path is a node_modules directory.
-    pub(crate) fn is_node_modules(&self) -> bool {
-        self.is_node_modules
-    }
-
-    /// Check if the cached path is inside a node_modules directory.
-    pub(crate) fn inside_node_modules(&self) -> bool {
-        self.is_inside_node_modules
-    }
-
-    /// Get the module directory of the cached path.
+    /// Gets the module directory of the cached path.
     pub(crate) fn module_directory<Fs: FileSystem>(
         &self,
         module_name: &str,
@@ -107,10 +108,16 @@ impl CachedPath {
         ctx: &mut ResolveContext,
     ) -> Option<Self> {
         let cached_path = cache.value(&self.path.join(module_name));
-        cache.is_directory(&cached_path, ctx).then_some(cached_path)
+
+        // only return if it is a directory
+        if cache.is_directory(&cached_path, ctx) {
+            Some(cached_path)
+        } else {
+            None
+        }
     }
 
-    /// Get the cached node_modules directory.
+    /// Gets the cached `node_modules` directory.
     pub(crate) fn cached_node_modules<Fs: FileSystem>(
         &self,
         cache: &CachedFileSystem<Fs>,
@@ -125,7 +132,7 @@ impl CachedPath {
             .and_then(|weak| weak.upgrade().map(CachedPath))
     }
 
-    /// Find package.json of a path by traversing parent directories.
+    /// Finds the `package.json` of a path by traversing parent directories.
     pub(crate) fn find_package_json<Fs: FileSystem>(
         &self,
         options: &ResolveOptions,
@@ -133,25 +140,31 @@ impl CachedPath {
         ctx: &mut ResolveContext,
     ) -> Result<Option<Arc<PackageJson>>, ResolveError> {
         let mut cache_value = self.clone();
-        // Go up directories when the querying path is not a directory
+
+        // go up directories when the querying path is not a directory
         while !cache.is_directory(&cache_value, ctx) {
-            if let Some(cv) = cache_value.parent() {
-                cache_value = cv;
+            if let Some(parent_value) = cache_value.parent() {
+                cache_value = parent_value;
             } else {
                 break;
             }
         }
+
         let mut cache_value = Some(cache_value);
+
+        // traverse parents
         while let Some(cv) = cache_value {
             if let Some(package_json) = cache.get_package_json(&cv, options, ctx)? {
                 return Ok(Some(package_json));
             }
+
             cache_value = cv.parent();
         }
+
         Ok(None)
     }
 
-    /// Add an extension to the cached path.
+    /// Adds an extension to the cached path.
     pub(crate) fn add_extension<Fs: FileSystem>(
         &self,
         ext: &str,
@@ -166,7 +179,7 @@ impl CachedPath {
         })
     }
 
-    /// Replace the extension of the cached path.
+    /// Replaces the extension of the cached path.
     pub(crate) fn replace_extension<Fs: FileSystem>(
         &self,
         ext: &str,
@@ -174,18 +187,20 @@ impl CachedPath {
     ) -> Self {
         SCRATCH_PATH.with_borrow_mut(|path| {
             path.clear();
-            let s = path.as_mut_os_string();
-            let self_len = self.path.as_os_str().len();
-            let self_bytes = self.path.as_os_str().as_encoded_bytes();
-            let slice_to_copy = self
-                .path
-                .extension()
-                .map_or(self_bytes, |previous_extension| {
-                    &self_bytes[..self_len - previous_extension.len() - 1]
-                });
-            // SAFETY: ???
-            s.push(unsafe { std::ffi::OsStr::from_encoded_bytes_unchecked(slice_to_copy) });
-            s.push(ext);
+            let path_str = path.as_mut_os_string();
+            let path_self_len = self.path.as_os_str().len();
+            let path_self_bytes = self.path.as_os_str().as_encoded_bytes();
+
+            // calculate the slice to copy
+            let slice_to_copy =
+                self.path
+                    .extension()
+                    .map_or(path_self_bytes, |previous_extension| {
+                        &path_self_bytes[..path_self_len - previous_extension.len() - 1]
+                    });
+            path_str.push(unsafe { std::ffi::OsStr::from_encoded_bytes_unchecked(slice_to_copy) });
+            path_str.push(ext);
+
             cache.value(path)
         })
     }
@@ -198,15 +213,22 @@ impl CachedPath {
     ) -> Self {
         let subpath = subpath.as_ref();
         let mut components = subpath.components();
+
+        // get the first component
         let Some(head) = components.next() else {
             return cache.value(subpath);
         };
+
+        // if the first component is a prefix or root directory, return the subpath
         if matches!(head, Component::Prefix(..) | Component::RootDir) {
             return cache.value(subpath);
         }
+
+        // normalize the path
         SCRATCH_PATH.with_borrow_mut(|path| {
             path.clear();
             path.push(&self.path);
+
             for component in std::iter::once(head).chain(components) {
                 match component {
                     Component::CurDir => {}
@@ -216,7 +238,7 @@ impl CachedPath {
                     Component::Normal(c) => {
                         cfg_if! {
                             if #[cfg(target_family = "wasm")] {
-                                // Need to trim the extra \0 introduces by https://github.com/nodejs/uvwasi/issues/262
+                                // need to trim the extra \0 introduces by https://github.com/nodejs/uvwasi/issues/262
                                 path.push(c.to_string_lossy().trim_end_matches('\0'));
                             } else {
                                 path.push(c);
@@ -233,7 +255,7 @@ impl CachedPath {
         })
     }
 
-    /// Normalize the root of the cached path.
+    /// Normalizes the root of the cached path (Windows specific).
     #[inline]
     #[cfg(windows)]
     pub(crate) fn normalize_root<Fs: FileSystem>(&self, cache: &CachedFileSystem<Fs>) -> Self {
@@ -247,7 +269,7 @@ impl CachedPath {
         }
     }
 
-    /// Normalize the root of the cached path.
+    /// Normalizes the root of the cached path (No-op on non-Windows).
     #[inline]
     #[cfg(not(windows))]
     pub(crate) fn normalize_root<Fs: FileSystem>(&self, _cache: &CachedFileSystem<Fs>) -> Self {
@@ -256,7 +278,7 @@ impl CachedPath {
 }
 
 impl CachedPath {
-    /// Get the metadata of the cached path.
+    /// Gets the metadata of the cached path.
     fn metadata<Fs: FileSystem>(&self, fs: &Fs) -> Option<(bool, bool)> {
         *self.meta.get_or_init(|| {
             fs.metadata(&self.path)
@@ -265,12 +287,12 @@ impl CachedPath {
         })
     }
 
-    /// Check if the cached path is a file.
+    /// Checks if the cached path is a file.
     pub(crate) fn is_file<Fs: FileSystem>(&self, fs: &Fs) -> Option<bool> {
         self.metadata(fs).map(|r| r.0)
     }
 
-    /// Check if the cached path is a directory.
+    /// Checks if the cached path is a directory.
     pub(crate) fn is_directory<Fs: FileSystem>(&self, fs: &Fs) -> Option<bool> {
         self.metadata(fs).map(|r| r.1)
     }
@@ -298,7 +320,8 @@ impl fmt::Debug for CachedPath {
     }
 }
 
-/// Borrowed cached path.
+/// A borrowed cached path.
+/// Used for lookups.
 #[derive(Debug)]
 pub(crate) struct BorrowedCachedPath<'a> {
     pub hash: u64,

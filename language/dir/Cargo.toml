@@ -18,6 +18,9 @@ dyst_source = { workspace = true }
 dyst_unicode = { workspace = true }
 
 parking_lot = { workspace = true }
+indexmap = { workspace = true, features = ["serde"] }
+rustc-hash = { workspace = true }
+serde = { workspace = true }
 
 [dev-dependencies]
 
