@@ -2,7 +2,7 @@ use std::fmt;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use crate::PackageOptions;
+use dyst_dir::PackageOptions;
 
 /// The final path resolution with optional `?query` and `#fragment`
 pub struct Resolution {
