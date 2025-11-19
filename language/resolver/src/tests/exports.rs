@@ -8,7 +8,7 @@ use crate::{ImportsExportsEntry, PhysicalResolver, ResolveError, ResolveOptions}
 
 /// Test simple exports field resolution.
 #[test]
-fn test_exports_field_simple() {
+fn test_resolve_exports_field_simple() {
     let f = super::fixture().join("exports-field");
     let f2 = super::fixture().join("exports-field2");
     let f4 = super::fixture().join("exports-field-error");
@@ -75,7 +75,7 @@ fn test_exports_field_simple() {
 
 /// Test resolving using exports field, ignoring browser field.
 #[test]
-fn test_exports_field_not_browser_field1() {
+fn test_resolve_exports_field_not_browser_field1() {
     let f = super::fixture().join("exports-field");
 
     let resolver = PhysicalResolver::new(ResolveOptions {
@@ -96,7 +96,7 @@ fn test_exports_field_not_browser_field1() {
 
 /// Test resolving using exports field with browser alias field.
 #[test]
-fn test_exports_field_not_browser_field2() {
+fn test_resolve_exports_field_not_browser_field2() {
     let f2 = super::fixture().join("exports-field2");
 
     let resolver = PhysicalResolver::new(ResolveOptions {
@@ -117,7 +117,7 @@ fn test_exports_field_not_browser_field2() {
 
 /// Test resolution of extension without fullySpecified.
 #[test]
-fn test_exports_field_extension_without_fully_specified() {
+fn test_resolve_exports_field_extension_without_fully_specified() {
     let f2 = super::fixture().join("exports-field2");
 
     let commonjs_resolver = PhysicalResolver::new(ResolveOptions {
@@ -137,7 +137,7 @@ fn test_exports_field_extension_without_fully_specified() {
 
 /// Test nested exports field paths.
 #[test]
-fn test_exports_field_name_path() {
+fn test_resolve_exports_field_name_path() {
     let f2 = super::fixture().join("exports-field2");
     let f3 = super::fixture().join("exports-field3");
 
@@ -220,7 +220,7 @@ fn test_exports_field_name_path() {
 
 /// Test shared resolvers with exports field.
 #[test]
-fn test_exports_field_shared_resolvers() {
+fn test_resolve_exports_field_shared_resolvers() {
     let f3 = super::fixture().join("exports-field3");
 
     let resolver1 = PhysicalResolver::new(ResolveOptions {
@@ -252,7 +252,7 @@ fn test_exports_field_shared_resolvers() {
 
 /// Test exports field with extension alias.
 #[test]
-fn test_exports_field_extension_alias() {
+fn test_resolve_exports_field_extension_alias() {
     let f = super::fixture().join("exports-field-and-extension-alias");
 
     let resolver = PhysicalResolver::new(ResolveOptions {
@@ -277,7 +277,7 @@ fn test_exports_field_extension_alias() {
 
 /// Test complex extension alias with exports field.
 #[test]
-fn test_exports_field_extension_alias_complex() {
+fn test_resolve_exports_field_extension_alias_complex() {
     let f = super::fixture().join("exports-field-and-extension-alias");
 
     let resolver = PhysicalResolver::new(ResolveOptions {
@@ -310,7 +310,7 @@ fn test_exports_field_extension_alias_complex() {
 
 /// Test extension alias errors in exports field.
 #[test]
-fn test_exports_field_extension_alias_error() {
+fn test_resolve_exports_field_extension_alias_error() {
     let f = super::fixture().join("exports-field-and-extension-alias");
 
     let resolver = PhysicalResolver::new(ResolveOptions {
@@ -342,7 +342,7 @@ fn test_exports_field_extension_alias_error() {
 
 /// Test exports field directory resolution.
 #[test]
-fn test_exports_field_directory() {
+fn test_resolve_exports_field_directory() {
     let f = super::fixture();
     let resolver = PhysicalResolver::new(ResolveOptions {
         allow_package_exports_in_directory_resolve: true,
@@ -370,7 +370,7 @@ fn exports_field(value: &serde_json::Value) -> ImportsExportsEntry<'static> {
 
 /// Test various exports field cases.
 #[test]
-fn test_exports_field_cases() {
+fn test_resolve_exports_field_cases() {
     let test_cases = vec![
         TestCase {
             name: "sample #1",

@@ -20,11 +20,10 @@ pub type CompilerOptionsPathsMap = IndexMap<String, Vec<String>, BuildHasherDefa
 #[serde(rename_all = "camelCase")]
 pub struct TypeScriptOptions {
     /// Whether this is the root tsconfig.
-    /// Used for final template variable substitution when all configs are extended and merged.
     #[serde(skip)]
     pub is_root: bool,
 
-    /// Path to the `tsconfig.json` file (including the filename).
+    /// Path to the `tsconfig.json` file (including the `tsconfig.json`).
     #[serde(skip)]
     pub path: PathBuf,
 

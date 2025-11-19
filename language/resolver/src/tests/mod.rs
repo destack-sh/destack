@@ -13,7 +13,6 @@ use crate::Resolver;
 use dyst_source::PhysicalFileSystem;
 use std::path::PathBuf;
 
-// Use PhysicalFileSystem as the default file system for tests.
 pub(crate) type TestResolver = Resolver<PhysicalFileSystem>;
 
 pub(crate) fn fixture_root() -> PathBuf {

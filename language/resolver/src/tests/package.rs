@@ -1,7 +1,8 @@
 use super::TestResolver;
 
+/// Test resolving package-json-nested always uses package.json at correct location.
 #[test]
-fn test() {
+fn test_resolve_package_json_nested_uses_correct_package_json() {
     let f = super::fixture_root().join("misc");
 
     let resolver = TestResolver::default();
@@ -35,8 +36,9 @@ fn test() {
     }
 }
 
+/// Test returning fixture-root package.json when resolving file adjacent to node_modules.
 #[test]
-fn adjacent_to_node_modules() {
+fn test_return_package_json_adjacent_to_node_modules() {
     let f = super::fixture_root().join("misc");
 
     let resolver = TestResolver::default();
@@ -59,8 +61,9 @@ fn adjacent_to_node_modules() {
     assert_eq!(package_json_name, Some("misc"));
 }
 
+/// Test returning package.json when resolving with symlinks=true.
 #[test]
-fn package_json_with_symlinks_true() {
+fn test_return_package_json_with_symlinks_true() {
     use crate::ResolveOptions;
 
     let f = super::fixture_root().join("misc");
@@ -82,9 +85,10 @@ fn package_json_with_symlinks_true() {
     assert_eq!(package_json_path, Some(&resolved_package_json_path));
 }
 
+/// Test erroring on various corrupted package.json files.
 #[test]
 #[cfg(not(target_os = "windows"))]
-fn test_corrupted_package_json() {
+fn test_error_on_corrupted_package_json() {
     use std::path::Path;
 
     use crate::{ResolveError, ResolveOptions, Resolver};
