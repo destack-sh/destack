@@ -12,8 +12,6 @@ use dyst_source::{PathExt, strip_json};
 
 const TEMPLATE_VARIABLE: &str = "${configDir}"; // TODO #Broken: revisit TsConfig template variable
 
-pub type CompilerOptionsPathsMap = IndexMap<String, Vec<String>, BuildHasherDefault<FxHasher>>;
-
 /// TypeScript configuration (usually from `tsconfig.json`)
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -394,16 +392,13 @@ impl TypeScriptOptions {
 #[derive(Debug, Default, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TypeScriptCompilerOptions {
-    // -------------------------------------------------------------------------
-    // Modules / resolution base
-    // -------------------------------------------------------------------------
     /// Base URL (e.g. `./src`)
     /// <https://www.typescriptlang.org/tsconfig/#baseUrl>
     pub base_url: Option<PathBuf>,
 
     /// Path aliases (e.g. `{ "src/*": ["src/*"] }`)
     /// <https://www.typescriptlang.org/tsconfig/#paths>
-    pub paths: Option<CompilerOptionsPathsMap>,
+    pub paths: Option<IndexMap<String, Vec<String>, BuildHasherDefault<FxHasher>>>,
 
     /// The actual base from where path aliases are resolved.
     #[serde(skip)]
@@ -441,9 +436,6 @@ pub struct TypeScriptCompilerOptions {
     /// <https://www.typescriptlang.org/tsconfig/#moduleDetection>
     pub module_detection: Option<String>,
 
-    // -------------------------------------------------------------------------
-    // Type checking
-    // -------------------------------------------------------------------------
     /// Do not report errors on unreachable code.
     /// <https://www.typescriptlang.org/tsconfig/#allowUnreachableCode>
     pub allow_unreachable_code: Option<bool>,
@@ -524,9 +516,6 @@ pub struct TypeScriptCompilerOptions {
     /// <https://www.typescriptlang.org/tsconfig/#useUnknownInCatchVariables>
     pub use_unknown_in_catch_variables: Option<bool>,
 
-    // -------------------------------------------------------------------------
-    // Decorators / metadata
-    // -------------------------------------------------------------------------
     /// Experimental decorators (e.g. `true`)
     /// <https://www.typescriptlang.org/tsconfig/#experimentalDecorators>
     pub experimental_decorators: Option<bool>,
@@ -543,9 +532,6 @@ pub struct TypeScriptCompilerOptions {
     /// <https://www.typescriptlang.org/tsconfig/#rewriteRelativeImportExtensions>
     pub rewrite_relative_import_extensions: Option<bool>,
 
-    // -------------------------------------------------------------------------
-    // JSX
-    // -------------------------------------------------------------------------
     /// JSX (e.g. `"react-jsx"`)
     /// <https://www.typescriptlang.org/tsconfig/#jsx>
     pub jsx: Option<String>,
@@ -562,9 +548,6 @@ pub struct TypeScriptCompilerOptions {
     /// <https://www.typescriptlang.org/tsconfig/#jsxImportSource>
     pub jsx_import_source: Option<String>,
 
-    // -------------------------------------------------------------------------
-    // Interop / module syntax
-    // -------------------------------------------------------------------------
     /// Verbatim module syntax (e.g. `true`)
     /// <https://www.typescriptlang.org/tsconfig/#verbatimModuleSyntax>
     pub verbatim_module_syntax: Option<bool>,
@@ -577,9 +560,6 @@ pub struct TypeScriptCompilerOptions {
     /// <https://www.typescriptlang.org/tsconfig/#importsNotUsedAsValues>
     pub imports_not_used_as_values: Option<String>,
 
-    // -------------------------------------------------------------------------
-    // Language & environment
-    // -------------------------------------------------------------------------
     /// Target (e.g. `"ES2020"`)
     /// <https://www.typescriptlang.org/tsconfig/#target>
     pub target: Option<String>,
@@ -600,9 +580,6 @@ pub struct TypeScriptCompilerOptions {
     /// <https://www.typescriptlang.org/tsconfig/#noLib>
     pub no_lib: Option<bool>,
 
-    // -------------------------------------------------------------------------
-    // JavaScript support
-    // -------------------------------------------------------------------------
     /// Allow JavaScript files (e.g. `true`)
     /// <https://www.typescriptlang.org/tsconfig/#allowJs>
     pub allow_js: Option<bool>,
@@ -611,9 +588,6 @@ pub struct TypeScriptCompilerOptions {
     /// <https://www.typescriptlang.org/tsconfig/#checkJs>
     pub check_js: Option<bool>,
 
-    // -------------------------------------------------------------------------
-    // Type acquisition / global types
-    // -------------------------------------------------------------------------
     /// Type roots (e.g. `["src/types"]`)
     /// <https://www.typescriptlang.org/tsconfig/#typeRoots>
     pub type_roots: Option<Vec<String>>,
@@ -622,9 +596,6 @@ pub struct TypeScriptCompilerOptions {
     /// <https://www.typescriptlang.org/tsconfig/#types>
     pub types: Option<Vec<String>>,
 
-    // -------------------------------------------------------------------------
-    // Completeness
-    // -------------------------------------------------------------------------
     /// [Deprecated] Skip type checking of default library declaration files.
     /// <https://www.typescriptlang.org/tsconfig/#skipDefaultLibCheck>
     pub skip_default_lib_check: Option<bool>,

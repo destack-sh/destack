@@ -1,11 +1,31 @@
 use core::fmt;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
-use dyst_source::{FileSystem, PathExt};
+use dyst_source::FileSystem;
 use serde::Deserialize;
 use serde_json::{Map, Value};
 
-use crate::resolve::{JSONError, ResolveError};
+use crate::resolve::JSONError;
+
+/// The package type.
+/// <https://nodejs.org/api/packages.html#type>
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum PackageType {
+    /// CommonJS package.
+    CommonJs,
+    /// Module package.
+    Module,
+}
+
+impl fmt::Display for PackageType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::CommonJs => f.write_str("commonjs"),
+            Self::Module => f.write_str("module"),
+        }
+    }
+}
 
 /// Package options (from `package.json`).
 #[derive(Deserialize)]
@@ -18,6 +38,10 @@ pub struct PackageOptions {
     /// Realpath of `package.json` (including the `package.json` filename).
     #[serde(skip)]
     pub realpath: PathBuf,
+
+    /// Directory of `package.json` (excluding the `package.json` filename).
+    #[serde(skip)]
+    pub directory: PathBuf,
 
     /// Name of the package.
     /// <https://docs.npmjs.com/cli/v11/configuring-npm/package-json#name>
@@ -35,17 +59,17 @@ pub struct PackageOptions {
     /// <https://docs.npmjs.com/cli/v11/configuring-npm/package-json#main>
     pub main: Option<String>,
 
+    /// The "browser" field.
+    /// <https://github.com/defunctzombie/package-browser-field-spec>
+    pub browser: Option<Value>,
+
     /// The "exports" field.
     /// <https://docs.npmjs.com/cli/v11/configuring-npm/package-json#exports>
     pub exports: Option<Value>,
 
     /// The "imports" field.
-    /// <https://docs.npmjs.com/cli/v11/configuring-npm/package-json#imports>
+    /// <https://nodejs.org/api/packages.html?utm_source=chatgpt.com#imports>
     pub imports: Option<Map<String, Value>>,
-
-    /// The "browser" field.
-    /// <https://docs.npmjs.com/cli/v11/configuring-npm/package-json#browser>
-    pub browser: Option<Value>,
 }
 
 impl fmt::Debug for PackageOptions {
@@ -60,51 +84,6 @@ impl fmt::Debug for PackageOptions {
 }
 
 impl PackageOptions {
-    /// Returns the path where the `package.json` was found (including `package.json`).
-    pub fn path(&self) -> &Path {
-        &self.path
-    }
-
-    /// Returns the path where the `package.json` file was stored on disk (including `package.json`).
-    pub fn realpath(&self) -> &Path {
-        &self.realpath
-    }
-
-    /// Directory to `package.json` (excluding `package.json`).
-    pub fn directory(&self) -> &Path {
-        self.realpath
-            .parent()
-            .expect("package.json file must have a parent directory")
-    }
-
-    /// Resolves the request string for this `package.json` by looking at the
-    /// "browser" field.
-    ///
-    /// <https://github.com/defunctzombie/package-browser-field-spec>
-    pub fn resolve_browser_field<'a>(
-        &'a self,
-        path: &Path,
-        request: Option<&str>,
-    ) -> Result<Option<&'a str>, ResolveError> {
-        if let Some(object) = self.browser.as_ref().and_then(|v| v.as_object()) {
-            if let Some(request) = request {
-                // Find matching key in object
-                if let Some(value) = object.get(request) {
-                    return Self::alias_value(path, value);
-                }
-            } else {
-                let dir = self.path.parent().unwrap();
-                for (key, value) in object {
-                    let joined = dir.normalize_with(key.as_str());
-                    if joined == path {
-                        return Self::alias_value(path, value);
-                    }
-                }
-            }
-        }
-        Ok(None)
-    }
-
     /// Parse a package.json file from JSON bytes
     pub fn parse<Fs: FileSystem>(
         _fs: &Fs,
@@ -112,14 +91,14 @@ impl PackageOptions {
         realpath: PathBuf,
         json: Vec<u8>,
     ) -> Result<Self, JSONError> {
-        // Strip BOM - UTF-8 BOM is 3 bytes: 0xEF, 0xBB, 0xBF
+        // strip BOM - UTF-8 BOM is 3 bytes: 0xEF, 0xBB, 0xBF
         let json_bytes = if json.starts_with(b"\xEF\xBB\xBF") {
             &json[3..]
         } else {
             &json[..]
         };
 
-        // check if content is empty or whitespace-only
+        // check if content is empty(ish)
         if json_bytes.iter().all(|&b| b.is_ascii_whitespace()) {
             return Err(JSONError {
                 path: path.clone(),
@@ -129,7 +108,7 @@ impl PackageOptions {
             });
         }
 
-        // Parse JSON directly from bytes
+        // parse options
         let mut options: PackageOptions =
             serde_json::from_slice(json_bytes).map_err(|error| JSONError {
                 path: path.clone(),
@@ -137,21 +116,11 @@ impl PackageOptions {
                 line: error.line(),
                 column: error.column(),
             })?;
-
         options.path = path;
         options.realpath = realpath;
+        options.directory = options.path.parent().unwrap().to_path_buf();
 
         Ok(options)
-    }
-
-    pub fn alias_value<'a>(key: &Path, value: &'a Value) -> Result<Option<&'a str>, ResolveError> {
-        match value {
-            Value::String(s) => Ok(Some(s.as_str())),
-            Value::Bool(false) => Err(ResolveError::Ignored {
-                path: key.to_path_buf(),
-            }),
-            _ => Ok(None),
-        }
     }
 }
 
@@ -245,37 +214,10 @@ impl<'a> ImportsExportsMap<'a> {
     }
 }
 
-/// The package type.
-/// <https://nodejs.org/api/packages.html#type>
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Deserialize)]
-#[serde(rename_all = "lowercase")]
-pub enum PackageType {
-    /// CommonJS package.
-    CommonJs,
-    /// Module package.
-    Module,
-}
-
-impl fmt::Display for PackageType {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::CommonJs => f.write_str("commonjs"),
-            Self::Module => f.write_str("module"),
-        }
-    }
-}
-
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum ImportsExportsKind {
     String,
     Array,
     Map,
     Invalid,
-}
-
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub enum SideEffects<'a> {
-    Bool(bool),
-    String(&'a str),
-    Array(Vec<&'a str>),
 }
