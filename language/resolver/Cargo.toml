@@ -19,16 +19,13 @@ dyst_parser = { workspace = true }
 dyst_unicode = { workspace = true }
 
 cfg-if = { workspace = true }
-rustix = { workspace = true }
-serde_json = { workspace = true, features = ["preserve_order"] }
-serde = { workspace = true }
 indexmap = { workspace = true, features = ["serde"] }
 papaya = { workspace = true }
+rustc-hash = { workspace = true }
+rustix = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true, features = ["preserve_order"] }
 url = { workspace = true }
-
-# nocheckin: vendor/remove resolver dependencies
-thiserror = "2.0.17"
-rustc-hash = "2.1.1"
 
 [dev-dependencies]
 vfs = "0.12.2"

@@ -15,9 +15,11 @@ use crate::{
 
 type ResolveResult = Result<Option<CachedPath>, ResolveError>;
 
-/// Resolved backed by some Fs implementation.
+/// Resolver with cache backed by some Fs implementation.
 pub struct Resolver<Fs> {
+    /// Resolution options.
     pub options: ResolveOptions,
+    /// Cache backed by some Fs implementation.
     pub cache: Arc<CachedFileSystem<Fs>>,
 }
 
@@ -255,7 +257,7 @@ impl<Fs: FileSystem> Resolver<Fs> {
                 // 1. If X is a core module,
                 //   a. return the core module
                 //   b. STOP
-                self.require_core(specifier)?;
+                self.require_builtin(specifier)?;
 
                 // (ESM) 5. Otherwise,
                 // Note: specifier is now a bare specifier.
@@ -277,7 +279,7 @@ impl<Fs: FileSystem> Resolver<Fs> {
     // PACKAGE_RESOLVE(packageSpecifier, parentURL)
     // 3. If packageSpecifier is a Node.js builtin module name, then
     //   1. Return the string "node:" concatenated with packageSpecifier.
-    fn require_core(&self, specifier: &str) -> Result<(), ResolveError> {
+    fn require_builtin(&self, specifier: &str) -> Result<(), ResolveError> {
         if self.options.builtin_modules {
             let is_runtime_module = specifier.starts_with("node:");
             if is_runtime_module || NODEJS_BUILTINS.binary_search(&specifier).is_ok() {
@@ -1183,8 +1185,8 @@ impl<Fs: FileSystem> Resolver<Fs> {
         self.cache.get_tsconfig(root, path, |tsconfig| {
             let directory = self.cache.value(tsconfig.directory());
 
-            if ctx.is_already_extended(tsconfig.path()) {
-                return Err(ResolveError::TsconfigCircularExtend(
+            if ctx.is_already_extended(&tsconfig.path) {
+                return Err(ResolveError::TsConfigCircular(
                     ctx.get_extended_configs_with(tsconfig.path().to_path_buf())
                         .into(),
                 ));
@@ -1220,7 +1222,7 @@ impl<Fs: FileSystem> Resolver<Fs> {
                         &reference_tsconfig_path,
                         |reference_tsconfig| {
                             if reference_tsconfig.path() == path {
-                                return Err(ResolveError::TsconfigSelfReference(
+                                return Err(ResolveError::TsConfigSelfReference(
                                     reference_tsconfig.path().to_path_buf(),
                                 ));
                             }
@@ -1372,7 +1374,7 @@ impl<Fs: FileSystem> Resolver<Fs> {
                 .map(|p| p.to_path_buf())
                 .map_err(|err| match err {
                     ResolveError::NotFound(_) => {
-                        ResolveError::TsconfigNotFound(PathBuf::from(specifier))
+                        ResolveError::TsConfigNotFound(PathBuf::from(specifier))
                     }
                     _ => err,
                 }),
@@ -1390,7 +1392,7 @@ impl<Fs: FileSystem> Resolver<Fs> {
 
         // 3. If packageSpecifier is a Node.js builtin module name, then
         //   1. Return the string "node:" concatenated with packageSpecifier.
-        self.require_core(package_name)?;
+        self.require_builtin(package_name)?;
 
         // 11. While parentURL is not the file system root,
         for module_name in &self.options.modules {

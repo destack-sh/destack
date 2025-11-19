@@ -152,7 +152,7 @@ impl TsConfig {
         }
 
         let tsconfig_dir = tsconfig.directory();
-        let compiler_options = self.compiler_options_mut();
+        let compiler_options = &mut self.compiler_options;
 
         if compiler_options.base_url().is_none()
             && let Some(base_url) = tsconfig.compiler_options().base_url()
@@ -362,11 +362,7 @@ impl TsConfig {
         paths
     }
 
-    /// Resolves the given `specifier` within the project configured by this
-    /// tsconfig.
-    ///
-    /// `specifier` is expected to be a path alias.
-    // Copied from parcel
+    /// Resolves the given `specifier` within the project configured by this tsconfig.
     // <https://github.com/parcel-bundler/parcel/blob/b6224fd519f95e68d8b93ba90376fd94c8b76e69/packages/utils/node-resolver-rs/src/tsconfig.rs#L93>
     pub(crate) fn resolve_path_alias(&self, specifier: &str) -> Vec<PathBuf> {
         if specifier.starts_with('.') {
@@ -429,14 +425,16 @@ impl TsConfig {
 }
 
 /// Compiler Options
-///
 /// <https://www.typescriptlang.org/tsconfig#compilerOptions>
 #[derive(Debug, Default, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CompilerOptions {
+    /// Base URL.
+    /// <https://www.typescriptlang.org/tsconfig/#baseUrl>
     pub base_url: Option<PathBuf>,
 
     /// Path aliases.
+    /// <https://www.typescriptlang.org/tsconfig/#paths>
     pub paths: Option<CompilerOptionsPathsMap>,
 
     /// The actual base from where path aliases are resolved.
@@ -484,6 +482,12 @@ pub struct CompilerOptions {
 
     /// <https://www.typescriptlang.org/tsconfig/#allowJs>
     pub allow_js: Option<bool>,
+
+    /// <https://www.typescriptlang.org/tsconfig/#typeRoots>
+    pub type_roots: Option<Vec<String>>,
+
+    /// <https://www.typescriptlang.org/tsconfig/#types>
+    pub types: Option<Vec<String>>,
 }
 
 impl CompilerOptions {
