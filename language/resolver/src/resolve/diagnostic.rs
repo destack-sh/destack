@@ -3,52 +3,33 @@ use std::io;
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use thiserror::Error;
-
 /// Resolution error.
-#[derive(Debug, Clone, PartialEq, Error)]
+#[derive(Debug, Clone, PartialEq)]
 #[non_exhaustive]
 pub enum ResolveError {
-    /// Ignored path
-    ///
-    /// Derived from ignored path (false value) from browser field in package.json
-    /// ```json
-    /// {
-    ///     "browser": {
-    ///         "./module": false
-    ///     }
-    /// }
-    /// ```
-    /// See <https://github.com/defunctzombie/package-browser-field-spec#ignore-a-module>
-    #[error("Path is ignored {0}")]
+    /// Ignored path.
+    /// <https://github.com/defunctzombie/package-browser-field-spec#ignore-a-module>
     Ignored(PathBuf),
 
-    /// Module not found
-    #[error("Cannot find module '{0}'")]
+    /// Module not found.
     NotFound(/* specifier */ String),
 
-    /// Matched alias value  not found
-    #[error("Cannot find module '{0}' for matched aliased key '{1}'")]
+    /// Matched alias value not found
     MatchedAliasNotFound(/* specifier */ String, /* alias key */ String),
 
     /// Tsconfig not found
-    #[error("Tsconfig not found {0}")]
-    TsconfigNotFound(PathBuf),
+    TsConfigNotFound(PathBuf),
 
-    /// Tsconfig's project reference path points to it self
-    #[error("Tsconfig's project reference path points to this tsconfig {0}")]
-    TsconfigSelfReference(PathBuf),
+    /// Tsconfig's project reference path points to itself
+    TsConfigSelfReference(PathBuf),
 
     /// Occurs when tsconfig extends configs circularly
-    #[error("Tsconfig extends configs circularly: {0}")]
-    TsconfigCircularExtend(CircularPathBufs),
+    TsConfigCircular(CircularPathBufs),
 
-    #[error("{0}")]
     IOError(IOError),
 
     /// Indicates the resulting path won't be able consumable by NodeJS `import` or `require`.
     /// For example, DOS device path with Volume GUID (`\\?\Volume{...}`) is not supported.
-    #[error("Path {0:?} contains unsupported construct.")]
     PathNotSupported(PathBuf),
 
     /// Node.js builtin module when `Options::builtin_modules` is enabled.
@@ -57,7 +38,6 @@ pub enum ResolveError {
     /// was prefixed with `node:` or not.
     ///
     /// `resolved` is always prefixed with "node:" in compliance with the ESM specification.
-    #[error("Builtin module {resolved}")]
     Builtin {
         resolved: String,
         is_runtime_module: bool,
@@ -66,7 +46,6 @@ pub enum ResolveError {
     /// All of the aliased extension are not found
     ///
     /// Displays `Cannot resolve 'index.mjs' with extension aliases 'index.mts' in ...`
-    #[error("Cannot resolve '{0}' for extension aliases '{1}' in '{2}'")]
     ExtensionAlias(
         /* File name */ String,
         /* Tried file names */ String,
@@ -74,20 +53,18 @@ pub enum ResolveError {
     ),
 
     /// The provided path specifier cannot be parsed
-    #[error("{0}")]
     Specifier(SpecifierError),
 
     /// JSON parse error
-    #[error("{0:?}")]
     Json(JSONError),
 
-    #[error(r#"Invalid module "{0}" specifier is not a valid subpath for the "exports" resolution of {1}"#)]
+    /// Invalid module specifier.
     InvalidModuleSpecifier(String, PathBuf),
 
-    #[error(r#"Invalid "exports" target "{0}" defined for '{1}' in the package config {2}"#)]
+    /// Invalid package target.
     InvalidPackageTarget(String, String, PathBuf),
 
-    #[error(r#""{subpath}" is not exported under {conditions} from package {package_path} (see exports field in {package_json_path})"#)]
+    /// Package path not exported.
     PackagePathNotExported {
         subpath: String,
         package_path: PathBuf,
@@ -95,25 +72,91 @@ pub enum ResolveError {
         conditions: ConditionNames,
     },
 
-    #[error(r#"Invalid package config "{0}", "exports" cannot contain some keys starting with '.' and some not. The exports object must either be an object of package subpath keys or an object of main entry condition name keys only."#)]
+    /// Invalid package config.
     InvalidPackageConfig(PathBuf),
 
-    #[error(r#"Default condition should be last one in "{0}""#)]
+    /// Invalid package config default.
     InvalidPackageConfigDefault(PathBuf),
 
-    #[error(r#"Expecting folder to folder mapping. "{0}" should end with "/"#)]
+    /// Invalid package config directory.
     InvalidPackageConfigDirectory(PathBuf),
 
-    #[error(r#"Package import specifier "{0}" is not defined in package {1}"#)]
+    /// Package import not defined.
     PackageImportNotDefined(String, PathBuf),
 
-    #[error("{0} is unimplemented")]
-    Unimplemented(&'static str),
-
     /// Occurs when alias paths reference each other.
-    #[error("Recursion in resolving")]
     Recursion,
 }
+
+impl std::fmt::Display for ResolveError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ResolveError::Ignored(path) => write!(f, "Path is ignored {path:?}"),
+            ResolveError::NotFound(spec) => write!(f, "Module '{spec}' not found"),
+            ResolveError::MatchedAliasNotFound(spec, key) => write!(
+                f,
+                "Module '{spec}' not found for matched aliased key '{key}'"
+            ),
+            ResolveError::TsConfigNotFound(path) => write!(f, "Tsconfig '{path:?}' not found"),
+            ResolveError::TsConfigSelfReference(path) => write!(
+                f,
+                "Tsconfig's project reference path points to this tsconfig {path:?}"
+            ),
+            ResolveError::TsConfigCircular(paths) => {
+                write!(f, "Tsconfig extends configs circularly: {paths:?}")
+            }
+            ResolveError::IOError(err) => write!(f, "{err}"),
+            ResolveError::PathNotSupported(path) => {
+                write!(f, "Path {path:?} contains unsupported construct.")
+            }
+            ResolveError::Builtin {
+                resolved,
+                is_runtime_module: _,
+            } => write!(f, "Builtin module {resolved}"),
+            ResolveError::ExtensionAlias(filename, tried, dir) => write!(
+                f,
+                "Cannot resolve '{filename}' for extension aliases '{tried}' in '{dir:?}'"
+            ),
+            ResolveError::Specifier(e) => write!(f, "{e}"),
+            ResolveError::Json(e) => write!(f, "{e:?}"),
+            ResolveError::InvalidModuleSpecifier(spec, pkg) => write!(
+                f,
+                "Invalid module \"{spec}\" specifier is not a valid subpath for the \"exports\" resolution of {pkg:?}"
+            ),
+            ResolveError::InvalidPackageTarget(target, name, path) => write!(
+                f,
+                "Invalid \"exports\" target \"{target}\" defined for '{name}' in the package config {path:?}"
+            ),
+            ResolveError::PackagePathNotExported {
+                subpath,
+                package_path,
+                package_json_path,
+                conditions,
+            } => write!(
+                f,
+                "\"{subpath}\" is not exported under {conditions} from package {package_path:?} (see exports field in {package_json_path:?})"
+            ),
+            ResolveError::InvalidPackageConfig(path) => write!(
+                f,
+                "Invalid package config \"{path:?}\", \"exports\" cannot contain some keys starting with '.' and some not. The exports object must either be an object of package subpath keys or an object of main entry condition name keys only."
+            ),
+            ResolveError::InvalidPackageConfigDefault(path) => {
+                write!(f, "Default condition should be last one in \"{path:?}\"")
+            }
+            ResolveError::InvalidPackageConfigDirectory(path) => write!(
+                f,
+                "Expecting folder to folder mapping. \"{path:?}\" should end with \"/\""
+            ),
+            ResolveError::PackageImportNotDefined(spec, path) => write!(
+                f,
+                "Package import specifier \"{spec}\" is not defined in package {path:?}"
+            ),
+            ResolveError::Recursion => write!(f, "Recursion in resolving"),
+        }
+    }
+}
+
+impl std::error::Error for ResolveError {}
 
 impl ResolveError {
     pub const fn is_ignore(&self) -> bool {
@@ -122,15 +165,24 @@ impl ResolveError {
 }
 
 /// Error for [ResolveError::Specifier]
-#[derive(Debug, Clone, Eq, PartialEq, Error)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub enum SpecifierError {
-    #[error("The specifiers must be a non-empty string. Received \"{0}\"")]
     Empty(String),
 }
 
+impl std::fmt::Display for SpecifierError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            SpecifierError::Empty(spec) => write!(
+                f,
+                "The specifiers must be a non-empty string. Received \"{spec}\""
+            ),
+        }
+    }
+}
+
 /// JSON error from [serde_json::Error]
-#[derive(Debug, Clone, Eq, PartialEq, Error)]
-#[error("{message}")]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub struct JSONError {
     pub path: PathBuf,
     pub message: String,
@@ -138,9 +190,24 @@ pub struct JSONError {
     pub column: usize,
 }
 
-#[derive(Debug, Clone, Error)]
-#[error("{0}")]
+impl std::fmt::Display for JSONError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "JSON parse error: {:?}:{}:{}: {}",
+            self.path, self.line, self.column, self.message
+        )
+    }
+}
+
+#[derive(Debug, Clone)]
 pub struct IOError(Arc<io::Error>);
+
+impl std::fmt::Display for IOError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "IO error: {:?}", self.0)
+    }
+}
 
 impl PartialEq for IOError {
     fn eq(&self, other: &Self) -> bool {

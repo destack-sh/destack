@@ -171,7 +171,7 @@ impl<Fs: FileSystem> CachedFileSystem<Fs> {
         let mut tsconfig_string = self
             .fs
             .read_to_string(&tsconfig_path)
-            .map_err(|_| ResolveError::TsconfigNotFound(path.to_path_buf()))?;
+            .map_err(|_| ResolveError::TsConfigNotFound(path.to_path_buf()))?;
         let mut tsconfig =
             TsConfig::parse(root, &tsconfig_path, &mut tsconfig_string).map_err(|error| {
                 ResolveError::Json(JSONError {

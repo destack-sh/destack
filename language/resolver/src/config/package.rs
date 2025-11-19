@@ -6,17 +6,13 @@ use serde_json::Value;
 
 use crate::resolve::{JSONError, ResolveError};
 
-/// Serde implementation for the deserializsed `package.json`.
-///
-/// This implementation is used on big-endian systems where simd-json is not available.
+/// `package.json` configuration.
 pub struct PackageJson {
-    /// Path to `package.json`. Contains the `package.json` filename.
+    /// Path to `package.json` (including the `package.json` filename).
     pub path: PathBuf,
-
-    /// Realpath to `package.json`. Contains the `package.json` filename.
+    /// Realpath of `package.json` (including the `package.json` filename).
     pub realpath: PathBuf,
-
-    /// Parsed JSON value
+    /// Parsed JSON value from `package.json`.
     value: Value,
 }
 
@@ -375,9 +371,13 @@ fn check_if_empty(json_bytes: &[u8], path: PathBuf) -> Result<(), JSONError> {
     Ok(())
 }
 
+/// The package type.
+/// <https://nodejs.org/api/packages.html#type>
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum PackageType {
+    /// CommonJS package.
     CommonJs,
+    /// Module package.
     Module,
 }
 
