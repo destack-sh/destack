@@ -328,7 +328,7 @@ fn test_resolve_styled_components() {
     );
 }
 
-/// Test resolving against the axios package.
+/// Test resolving against the axios package with various conditions.
 #[test]
 fn test_resolve_axios() {
     let dir = fixture_root();

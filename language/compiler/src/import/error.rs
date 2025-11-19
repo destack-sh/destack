@@ -1,6 +1,6 @@
 use dyst_dir::{ModuleId, NodeIdAny, Session};
 use dyst_parser::ParseError;
-use dyst_source::{FileId, StringId, Uri};
+use dyst_source::{FileId, StringId};
 
 use crate::{CompileError, CompilerStage};
 
@@ -11,7 +11,7 @@ pub enum ImportError {
     /// File ID not found.
     FileIdNotFound { file_id: FileId },
     /// Module could not be resolved.
-    ModuleUnresolved { target: StringId },
+    ModuleUnresolved { module: ModuleId, target: StringId },
     /// Failed to parse a module.
     ParseError {
         module: ModuleId,
@@ -48,7 +48,10 @@ impl ImportError {
     pub fn message<'a>(&self, _session: &'a Session<'a>) -> String {
         match self {
             Self::FileIdNotFound { .. } => "file not found".to_string(),
-            Self::ModuleUnresolved { .. } => format!("module '{}' not found", target),
+            Self::ModuleUnresolved { target, .. } => {
+                let target_str = _session.strings.get(*target).to_string();
+                format!("module '{}' not found", target_str)
+            }
             Self::ParseError { .. } => "parse error".to_string(),
             Self::CircularDependency { .. } => "circular dependency".to_string(),
         }

@@ -1,3 +1,4 @@
+mod alias;
 mod resolve;
 
 use crate::Resolver;
