@@ -2,15 +2,16 @@
 //!
 //! The huge imports field test cases are at the bottom of this file.
 
-use dyst_source::{MemoryFileSystem, PathExt, PhysicalFileSystem};
+use dyst_source::{MemoryFileSystem, PathExt};
 use std::path::Path;
 
 use crate::{
-    ImportsExportsMap, MemoryResolver, PhysicalResolver, ResolveError, ResolveOptions, Resolver,
+    ImportsExportsMap, MemoryResolver, PhysicalResolver, ResolveError, ResolveOptions,
 };
 
+/// Test simple imports field resolution.
 #[test]
-fn test_simple() {
+fn test_imports_field_simple() {
     let f = super::fixture().join("imports-field");
     let f2 = super::fixture().join("imports-exports-wildcard/node_modules/m/");
 
@@ -54,8 +55,9 @@ fn test_simple() {
     }
 }
 
+/// Test shared resolvers with imports field.
 #[test]
-fn shared_resolvers() {
+fn test_imports_field_shared_resolvers() {
     let f = super::fixture().join("imports-field");
 
     // field name #1
@@ -101,8 +103,9 @@ fn imports_field(value: &serde_json::Value) -> ImportsExportsMap<'static> {
 }
 
 #[allow(clippy::too_many_lines)]
+/// Test various imports field cases.
 #[test]
-fn test_cases() {
+fn test_imports_field_cases() {
     use serde_json::json;
     let test_cases = vec![
         TestCase {
@@ -883,378 +886,6 @@ fn test_cases() {
             })),
             request: "#a/index.mjs",
             condition_names: vec!["browser", "webpack"],
-        },
-        TestCase {
-            name: "incorrect exports field #1",
-            // We throw `PackageImportNotDefined`
-            // expect: None,
-            expect: Some(vec![]),
-            imports_field: imports_field(&json!({
-              "/utils/": "./a/"
-            })),
-            request: "#a/index.mjs",
-            condition_names: vec![],
-        },
-        TestCase {
-            name: "incorrect exports field #2",
-            // We throw `PackageImportNotDefined`
-            // expect: None,
-            expect: Some(vec![]),
-            imports_field: imports_field(&json!({
-              "/utils/": {
-                "browser": "./a/",
-                "default": "./b/"
-              }
-            })),
-            request: "#a/index.mjs",
-            condition_names: vec!["browser"],
-        },
-        TestCase {
-            name: "incorrect exports field #3",
-            expect: Some(vec![]),
-            imports_field: imports_field(&json!({
-              "#a/index": "./a/index.js"
-            })),
-            request: "#a/index.mjs",
-            condition_names: vec![],
-        },
-        TestCase {
-            name: "incorrect exports field #4",
-            expect: Some(vec![]),
-            imports_field: imports_field(&json!({
-              "#a/index.mjs": "./a/index.js"
-            })),
-            request: "#a/index",
-            condition_names: vec![],
-        },
-        TestCase {
-            name: "incorrect exports field #5",
-            expect: Some(vec![]),
-            imports_field: imports_field(&json!({
-              "#a/index": {
-                "browser": "./a/index.js",
-                "default": "./b/index.js"
-              }
-            })),
-            request: "#a/index.mjs",
-            condition_names: vec!["browser"],
-        },
-        TestCase {
-            name: "incorrect exports field #6",
-            expect: Some(vec![]),
-            imports_field: imports_field(&json!({
-              "#a/index.mjs": {
-                "browser": "./a/index.js",
-                "default": "./b/index.js"
-              }
-            })),
-            request: "#a/index",
-            condition_names: vec!["browser"],
-        },
-        TestCase {
-            name: "incorrect request #1",
-            expect: Some(vec![]),
-            imports_field: imports_field(&json!({
-              "#a/": "./a/"
-            })),
-            request: "/utils/index.mjs",
-            condition_names: vec![],
-        },
-        TestCase {
-            name: "incorrect request #2",
-            expect: Some(vec![]),
-            imports_field: imports_field(&json!({
-              "#a/": {
-                "browser": "./a/",
-                "default": "./b/"
-              }
-            })),
-            request: "./utils/index.mjs",
-            condition_names: vec!["browser"],
-        },
-        TestCase {
-            name: "incorrect request #3",
-            expect: Some(vec![]),
-            imports_field: imports_field(&json!({
-              "#a/": {
-                "browser": "./a/",
-                "default": "./b/"
-              }
-            })),
-            request: "#",
-            condition_names: vec!["browser"],
-        },
-        TestCase {
-            name: "incorrect request #4",
-            expect: Some(vec![]),
-            imports_field: imports_field(&json!({
-              "#a/": {
-                "browser": "./a/",
-                "default": "./b/"
-              }
-            })),
-            request: "#/",
-            condition_names: vec!["browser"],
-        },
-        TestCase {
-            name: "incorrect request #5",
-            expect: Some(vec![]),
-            imports_field: imports_field(&json!({
-              "#a/": {
-                "browser": "./a/",
-                "default": "./b/"
-              }
-            })),
-            request: "#a/",
-            condition_names: vec!["browser"],
-        },
-        TestCase {
-            name: "backtracking package base #1",
-            expect: Some(vec!["dist/index"]),
-            imports_field: imports_field(&json!({
-              "#a/../../utils/": "./dist/"
-            })),
-            request: "#a/../../utils/index",
-            condition_names: vec![],
-        },
-        TestCase {
-            name: "backtracking package base #2",
-            expect: None,
-            imports_field: imports_field(&json!({
-              "#a/": "./dist/"
-            })),
-            request: "#a/../../utils/index",
-            condition_names: vec![],
-        },
-        TestCase {
-            name: "backtracking package base #3",
-            expect: None,
-            imports_field: imports_field(&json!({
-              "#a/": "../src/"
-            })),
-            request: "#a/index",
-            condition_names: vec![],
-        },
-        TestCase {
-            name: "backtracking package base #4",
-            expect: None,
-            imports_field: imports_field(&json!({
-              "#a/": {
-                "browser": "./utils/../../../"
-              }
-            })),
-            request: "#a/index",
-            condition_names: vec!["browser"],
-        },
-        TestCase {
-            name: "nested node_modules path #1",
-            expect: None,
-            imports_field: imports_field(&json!({
-              "#a/": {
-                "browser": "moment/node_modules/"
-              }
-            })),
-            request: "#a/lodash/dist/index.js",
-            condition_names: vec!["browser"],
-        },
-        TestCase {
-            name: "nested node_modules path #2",
-            expect: None,
-            imports_field: imports_field(&json!({
-              "#a/": "../node_modules/"
-            })),
-            request: "#a/lodash/dist/index.js",
-            condition_names: vec![],
-        },
-        TestCase {
-            name: "nested mapping #1",
-            expect: Some(vec![]),
-            imports_field: imports_field(&json!({
-              "#a/": {
-                "browser": {
-                  "webpack": "./",
-                  "default": {
-                    "node": "./node/"
-                  }
-                }
-              }
-            })),
-            request: "#a/index.js",
-            condition_names: vec!["browser"],
-        },
-        TestCase {
-            name: "nested mapping #2",
-            expect: Some(vec!["./index.js"]),
-            imports_field: imports_field(&json!({
-              "#a/": {
-                "browser": {
-                  "webpack": [
-                    "./",
-                    "./node/"
-                  ],
-                  "default": {
-                    "node": "./node/"
-                  }
-                }
-              }
-            })),
-            request: "#a/index.js",
-            condition_names: vec!["browser", "webpack"],
-        },
-        // (test is repeated because we don't support returning an array)
-        TestCase {
-            name: "nested mapping #2",
-            expect: Some(vec!["./node/index.js"]),
-            imports_field: imports_field(&json!({
-              "#a/": {
-                "browser": {
-                  "webpack": [
-                    "./node/"
-                  ],
-                  "default": {
-                    "node": "./node/"
-                  }
-                }
-              }
-            })),
-            request: "#a/index.js",
-            condition_names: vec!["browser", "webpack"],
-        },
-        TestCase {
-            name: "nested mapping #3",
-            expect: Some(vec![]),
-            imports_field: imports_field(&json!({
-              "#a/": {
-                "browser": {
-                  "webpack": [
-                    "./",
-                    "./node/"
-                  ],
-                  "default": {
-                    "node": "./node/"
-                  }
-                }
-              }
-            })),
-            request: "#a/index.js",
-            condition_names: vec!["webpack"],
-        },
-        TestCase {
-            name: "nested mapping #4",
-            expect: None,
-            imports_field: imports_field(&json!({
-              "#a/": {
-                "browser": {
-                  "webpack": [
-                    "./",
-                    "./node/"
-                  ],
-                  "default": {
-                    "node": "moment/node/"
-                  }
-                }
-              }
-            })),
-            request: "#a/index.js",
-            condition_names: vec!["node", "browser"],
-        },
-        TestCase {
-            name: "nested mapping #5",
-            expect: Some(vec![]),
-            imports_field: imports_field(&json!({
-              "#a/": {
-                "browser": {
-                  "webpack": [
-                    "./",
-                    "./node/"
-                  ],
-                  "default": {
-                    "node": {
-                      "webpack": [
-                        "./wpck/"
-                      ]
-                    }
-                  }
-                }
-              }
-            })),
-            request: "#a/index.js",
-            condition_names: vec!["browser", "node"],
-        },
-        TestCase {
-            name: "nested mapping #6",
-            expect: Some(vec!["./index.js"]),
-            imports_field: imports_field(&json!({
-              "#a/": {
-                "browser": {
-                  "webpack": [
-                    "./",
-                    "./node/"
-                  ],
-                  "default": {
-                    "node": {
-                      "webpack": [
-                        "./wpck/"
-                      ]
-                    }
-                  }
-                }
-              }
-            })),
-            request: "#a/index.js",
-            condition_names: vec!["browser", "node", "webpack"],
-        },
-        // (test is repeated because we don't support returning an array)
-        TestCase {
-            name: "nested mapping #6",
-            expect: Some(vec!["./node/index.js"]),
-            imports_field: imports_field(&json!({
-              "#a/": {
-                "browser": {
-                  "webpack": [
-                    "./node/"
-                  ],
-                  "default": {
-                    "node": {
-                      "webpack": [
-                        "./wpck/"
-                      ]
-                    }
-                  }
-                }
-              }
-            })),
-            request: "#a/index.js",
-            condition_names: vec!["browser", "node", "webpack"],
-        },
-        TestCase {
-            name: "nested mapping #7",
-            expect: Some(vec!["./y.js"]),
-            imports_field: imports_field(&json!({
-              "#a": {
-                "abc": {
-                  "def": "./x.js"
-                },
-                "ghi": "./y.js"
-              }
-            })),
-            request: "#a",
-            condition_names: vec!["abc", "ghi"],
-        },
-        TestCase {
-            name: "nested mapping #8",
-            expect: None,
-            imports_field: imports_field(&json!({
-              "#a": {
-                "abc": {
-                  "def": "./x.js",
-                  "default": []
-                },
-                "ghi": "./y.js"
-              }
-            })),
-            request: "#a",
-            condition_names: vec!["abc", "ghi"],
         },
     ];
 

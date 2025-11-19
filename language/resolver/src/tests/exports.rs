@@ -1,13 +1,14 @@
 //! https://github.com/webpack/enhanced-resolve/blob/main/test/exportsField.test.js
 
-use dyst_source::{MemoryFileSystem, PathExt, PhysicalFileSystem};
+use dyst_source::{MemoryFileSystem, PathExt};
 use serde_json::json;
 use std::path::Path;
 
-use crate::{ImportsExportsEntry, PhysicalResolver, ResolveError, ResolveOptions, Resolver};
+use crate::{ImportsExportsEntry, PhysicalResolver, ResolveError, ResolveOptions};
 
+/// Test simple exports field resolution.
 #[test]
-fn test_simple() {
+fn test_exports_field_simple() {
     let f = super::fixture().join("exports-field");
     let f2 = super::fixture().join("exports-field2");
     let f4 = super::fixture().join("exports-field-error");
@@ -26,12 +27,6 @@ fn test_simple() {
         ("resolver should respect condition names", f.clone(), "exports-field/dist/main.js", f.join("node_modules/exports-field/lib/lib2/main.js")),
         ("should resolve query", f.clone(), "exports-field/query.js", f.join("node_modules/exports-field/x.js?query")),
         ("should resolve fragment", f.clone(), "exports-field/fragment.js", f.join("node_modules/exports-field/x.js#fragment")),
-        // enhanced_resolve behaves differently to node.js. enhanced_resolve fallbacks when an
-        // array item is unresolved, where as node.js fallbacks when an array has an
-        // InvalidPackageTarget error.
-        // ("resolver should respect fallback", f2.clone(), "exports-field/dist/browser.js", f2.join("node_modules/exports-field/lib/browser.js")),
-        // The following two tests require fallback from array values, the path is changed here to
-        // only test query and fragment.
         ("resolver should respect query parameters #1", f2.clone(), "exports-field/dist/main.js?foo", f2.join("node_modules/exports-field/lib/lib2/main.js?foo")),
         ("resolver should respect fragment parameters #1", f2.clone(), "exports-field/dist/main.js#foo", f2.join("node_modules/exports-field/lib/lib2/main.js#foo")),
         ("resolver should respect query parameters #2. Direct matching", f2.clone(), "exports-field?foo", f2.join("node_modules/exports-field/index.js?foo")),
@@ -78,9 +73,9 @@ fn test_simple() {
     }
 }
 
-// resolve using exports field, not a browser field #1
+/// Test resolving using exports field, ignoring browser field.
 #[test]
-fn exports_not_browser_field1() {
+fn test_exports_field_not_browser_field1() {
     let f = super::fixture().join("exports-field");
 
     let resolver = PhysicalResolver::new(ResolveOptions {
@@ -99,9 +94,9 @@ fn exports_not_browser_field1() {
     );
 }
 
-// resolve using exports field and a browser alias field #2
+/// Test resolving using exports field with browser alias field.
 #[test]
-fn exports_not_browser_field2() {
+fn test_exports_field_not_browser_field2() {
     let f2 = super::fixture().join("exports-field2");
 
     let resolver = PhysicalResolver::new(ResolveOptions {
@@ -120,9 +115,9 @@ fn exports_not_browser_field2() {
     );
 }
 
-// should resolve extension without fullySpecified
+/// Test resolution of extension without fullySpecified.
 #[test]
-fn extension_without_fully_specified() {
+fn test_exports_field_extension_without_fully_specified() {
     let f2 = super::fixture().join("exports-field2");
 
     let commonjs_resolver = PhysicalResolver::new(ResolveOptions {
@@ -140,8 +135,9 @@ fn extension_without_fully_specified() {
     );
 }
 
+/// Test nested exports field paths.
 #[test]
-fn field_name_path() {
+fn test_exports_field_name_path() {
     let f2 = super::fixture().join("exports-field2");
     let f3 = super::fixture().join("exports-field3");
 
@@ -222,8 +218,9 @@ fn field_name_path() {
     );
 }
 
+/// Test shared resolvers with exports field.
 #[test]
-fn shared_resolvers() {
+fn test_exports_field_shared_resolvers() {
     let f3 = super::fixture().join("exports-field3");
 
     let resolver1 = PhysicalResolver::new(ResolveOptions {
@@ -253,8 +250,9 @@ fn shared_resolvers() {
     );
 }
 
+/// Test exports field with extension alias.
 #[test]
-fn extension_alias_1_2() {
+fn test_exports_field_extension_alias() {
     let f = super::fixture().join("exports-field-and-extension-alias");
 
     let resolver = PhysicalResolver::new(ResolveOptions {
@@ -277,8 +275,9 @@ fn extension_alias_1_2() {
     }
 }
 
+/// Test complex extension alias with exports field.
 #[test]
-fn extension_alias_3() {
+fn test_exports_field_extension_alias_complex() {
     let f = super::fixture().join("exports-field-and-extension-alias");
 
     let resolver = PhysicalResolver::new(ResolveOptions {
@@ -309,8 +308,9 @@ fn extension_alias_3() {
     }
 }
 
+/// Test extension alias errors in exports field.
 #[test]
-fn extension_alias_throw_error() {
+fn test_exports_field_extension_alias_error() {
     let f = super::fixture().join("exports-field-and-extension-alias");
 
     let resolver = PhysicalResolver::new(ResolveOptions {
@@ -340,8 +340,9 @@ fn extension_alias_throw_error() {
     }
 }
 
+/// Test exports field directory resolution.
 #[test]
-fn directory() {
+fn test_exports_field_directory() {
     let f = super::fixture();
     let resolver = PhysicalResolver::new(ResolveOptions {
         allow_package_exports_in_directory_resolve: true,
@@ -367,8 +368,9 @@ fn exports_field(value: &serde_json::Value) -> ImportsExportsEntry<'static> {
     ImportsExportsEntry(value)
 }
 
+/// Test various exports field cases.
 #[test]
-fn test_cases() {
+fn test_exports_field_cases() {
     let test_cases = vec![
         TestCase {
             name: "sample #1",

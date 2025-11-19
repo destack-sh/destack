@@ -1,10 +1,10 @@
 //! <https://github.com/webpack/enhanced-resolve/blob/main/test/browserField.test.js>
 
-use crate::{AliasValue, PhysicalResolver, ResolveError, ResolveOptions, Resolver};
-use dyst_source::PhysicalFileSystem;
+use crate::{AliasValue, PhysicalResolver, ResolveError, ResolveOptions};
 
+/// Test that ignored files in browser field resolve to Ignored error.
 #[test]
-fn ignore() {
+fn test_resolve_browser_field_ignore() {
     let f = super::fixture().join("browser-module");
 
     let resolver = PhysicalResolver::new(ResolveOptions {
@@ -32,8 +32,9 @@ fn ignore() {
     }
 }
 
+/// Test shared resolvers with browser field.
 #[test]
-fn shared_resolvers() {
+fn test_resolve_browser_field_shared_resolvers() {
     let f = super::fixture().join("browser-module");
 
     let resolver1 = PhysicalResolver::new(ResolveOptions {
@@ -59,8 +60,9 @@ fn shared_resolvers() {
     assert_eq!(resolved_path, Ok(f.join("./lib/replaced.js")));
 }
 
+/// Test replacing files using browser field.
 #[test]
-fn replace_file() {
+fn test_resolve_browser_field_replace_file() {
     let f = super::fixture().join("browser-module");
 
     let resolver = PhysicalResolver::new(ResolveOptions {
@@ -99,8 +101,9 @@ fn replace_file() {
     }
 }
 
+/// Test recursion failure cases in browser field.
 #[test]
-fn recurse_fail() {
+fn test_resolve_browser_field_recurse_fail() {
     let f = super::fixture();
 
     let resolver = PhysicalResolver::new(ResolveOptions {
@@ -121,8 +124,9 @@ fn recurse_fail() {
     }
 }
 
+/// Test broken browser field configurations.
 #[test]
-fn broken() {
+fn test_resolve_browser_field_broken() {
     let f = super::fixture();
 
     let resolver = PhysicalResolver::new(ResolveOptions {
@@ -143,8 +147,9 @@ fn broken() {
     }
 }
 
+/// Test crypto-js specific case with browser field.
 #[test]
-fn crypto_js() {
+fn test_resolve_browser_field_crypto_js() {
     let f = super::fixture();
 
     let resolver = PhysicalResolver::new(ResolveOptions {
@@ -167,9 +172,10 @@ fn crypto_js() {
     );
 }
 
-// https://github.com/webpack/webpack/blob/87660921808566ef3b8796f8df61bd79fc026108/test/cases/resolving/browser-field/index.js#L40-L43
+/// Test recursive dependency detection in browser field.
+/// <https://github.com/webpack/webpack/blob/87660921808566ef3b8796f8df61bd79fc026108/test/cases/resolving/browser-field/index.js#L40-L43>
 #[test]
-fn recursive() {
+fn test_resolve_browser_field_recursive() {
     let f = super::fixture().join("browser-module");
 
     let resolver = PhysicalResolver::new(ResolveOptions {
@@ -207,6 +213,7 @@ fn recursive() {
     }
 }
 
+/// Test resolving browser field with query.
 #[test]
 fn test_resolve_browser_field_with_query() {
     let f = super::fixture().join("browser-module");

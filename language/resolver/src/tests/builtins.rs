@@ -1,8 +1,8 @@
 use std::path::Path;
 
 use crate::{PhysicalResolver, ResolveError, ResolveOptions};
-use dyst_source::PhysicalFileSystem;
 
+/// Test behavior when builtin modules are disabled.
 #[test]
 fn test_resolve_builtins_disabled() {
     let f = Path::new("/");
@@ -16,6 +16,7 @@ fn test_resolve_builtins_disabled() {
     );
 }
 
+/// Test behavior when builtin modules are enabled.
 #[test]
 fn test_resolve_builtins_enabled() {
     let f = Path::new("/");
@@ -104,6 +105,7 @@ fn test_resolve_builtins_enabled() {
     }
 }
 
+/// Test failing resolution for non-builtin modules when builtins are enabled.
 #[test]
 fn test_resolve_builtins_fail() {
     let f = Path::new("/");
@@ -116,6 +118,7 @@ fn test_resolve_builtins_fail() {
     assert_eq!(resolved_path, Err(err), "{request}");
 }
 
+/// Test resolving builtins through imports field.
 #[test]
 fn test_resolve_builtins_imports() {
     let f = super::fixture().join("builtins");

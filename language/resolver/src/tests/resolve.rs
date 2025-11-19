@@ -609,7 +609,10 @@ fn test_resolve_file_protocol() {
 #[test]
 fn test_resolve_scoped_packages() {
     let f = fixture().join("scoped");
-    let resolver = TestResolver::default();
+    let resolver = TestResolver::new(ResolveOptions {
+        alias_fields: vec![vec!["browser".into()]],
+        ..ResolveOptions::default()
+    });
 
     #[rustfmt::skip]
     let pass = [
