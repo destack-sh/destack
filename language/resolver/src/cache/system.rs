@@ -124,7 +124,7 @@ impl<Fs: FileSystem> CachedFileSystem<Fs> {
                 };
                 PackageJson::parse(&self.fs, package_json_path, real_path, package_json_bytes)
                     .map(|package_json| Some(Arc::new(package_json)))
-                    .map_err(ResolveError::Json)
+                    .map_err(|error| ResolveError::Json { error })
             })
             .cloned();
 
@@ -171,15 +171,15 @@ impl<Fs: FileSystem> CachedFileSystem<Fs> {
         let mut tsconfig_string = self
             .fs
             .read_to_string(&tsconfig_path)
-            .map_err(|_| ResolveError::TsConfigNotFound(path.to_path_buf()))?;
+            .map_err(|_| ResolveError::TsConfigNotFound { path: path.to_path_buf() })?;
         let mut tsconfig =
             TsConfig::parse(root, &tsconfig_path, &mut tsconfig_string).map_err(|error| {
-                ResolveError::Json(JSONError {
+                ResolveError::Json { error: JSONError {
                     path: tsconfig_path.to_path_buf(),
                     message: error.to_string(),
                     line: error.line(),
                     column: error.column(),
-                })
+                } }
             })?;
         modify(&mut tsconfig)?;
         let tsconfig = Arc::new(tsconfig.build());

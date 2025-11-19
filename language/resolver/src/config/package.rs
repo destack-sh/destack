@@ -261,7 +261,7 @@ impl PackageJson {
     pub fn alias_value<'a>(key: &Path, value: &'a Value) -> Result<Option<&'a str>, ResolveError> {
         match value {
             Value::String(s) => Ok(Some(s.as_str())),
-            Value::Bool(false) => Err(ResolveError::Ignored(key.to_path_buf())),
+            Value::Bool(false) => Err(ResolveError::Ignored { path: key.to_path_buf() }),
             _ => Ok(None),
         }
     }
