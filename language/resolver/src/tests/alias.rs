@@ -2,7 +2,7 @@
 
 use std::path::{Path, PathBuf};
 
-use dyst_source::{MemoryFileSystem, PathExt, PhysicalFileSystem};
+use dyst_source::{MemoryFileSystem, PathExt};
 
 use crate::{
     AliasValue, MemoryResolver, PhysicalResolver, Resolution, ResolveContext, ResolveError,

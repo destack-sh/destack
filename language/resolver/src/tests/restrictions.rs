@@ -7,8 +7,9 @@ use fancy_regex::Regex;
 use super::TestResolver;
 use crate::{ResolveError, ResolveOptions, Restriction};
 
+/// Test that regex restrictions are respected.
 #[test]
-fn should_respect_regexp_restriction() {
+fn test_restrictions_respect_regexp() {
     let f = super::fixture().join("restrictions");
 
     let re = Regex::new(r"\.(sass|scss|css)$").unwrap();
@@ -31,8 +32,9 @@ fn should_respect_regexp_restriction() {
     );
 }
 
+/// Test finding alternative files when main choice is restricted.
 #[test]
-fn should_try_to_find_alternative_1() {
+fn test_restrictions_find_alternative_extension() {
     let f = super::fixture().join("restrictions");
 
     let re = Regex::new(r"\.(sass|scss|css)$").unwrap();
@@ -51,8 +53,9 @@ fn should_try_to_find_alternative_1() {
     assert_eq!(resolution, Ok(f.join("node_modules/pck1/index.css")));
 }
 
+/// Test that string path restrictions are respected.
 #[test]
-fn should_respect_string_restriction() {
+fn test_restrictions_respect_string() {
     let fixture = super::fixture();
     let f = fixture.join("restrictions");
 
@@ -71,8 +74,9 @@ fn should_respect_string_restriction() {
     );
 }
 
+/// Test finding alternative files with custom main fields when restricted.
 #[test]
-fn should_try_to_find_alternative_2() {
+fn test_restrictions_find_alternative_main_fields() {
     let f = super::fixture().join("restrictions");
 
     let re = Regex::new(r"\.(sass|scss|css)$").unwrap();
@@ -91,8 +95,9 @@ fn should_try_to_find_alternative_2() {
     assert_eq!(resolution, Ok(f.join("node_modules/pck2/index.css")));
 }
 
+/// Test finding alternative files with expanded main fields when restricted.
 #[test]
-fn should_try_to_find_alternative_3() {
+fn test_restrictions_find_alternative_main_fields_expanded() {
     let f = super::fixture().join("restrictions");
 
     let re = Regex::new(r"\.(sass|scss|css)$").unwrap();
@@ -112,8 +117,9 @@ fn should_try_to_find_alternative_3() {
 }
 
 // Test coverage for check_restrictions at line 783 in load_index()
+/// Test restrictions during index loading with disabled extension enforcement.
 #[test]
-fn should_check_restrictions_in_load_index_with_enforce_extension_disabled() {
+fn test_restrictions_check_in_load_index_with_enforce_extension_disabled() {
     let f = super::fixture().join("restrictions");
 
     let re = Regex::new(r"\.(css)$").unwrap();
@@ -135,8 +141,9 @@ fn should_check_restrictions_in_load_index_with_enforce_extension_disabled() {
 }
 
 // Test coverage for check_restrictions at line 831 in load_alias_or_file()
+/// Test restrictions when loading aliases or files directly.
 #[test]
-fn should_check_restrictions_in_load_alias_or_file() {
+fn test_restrictions_check_in_load_alias_or_file() {
     let f = super::fixture().join("restrictions");
 
     // Restrict to only files outside the restrictions directory
@@ -155,8 +162,9 @@ fn should_check_restrictions_in_load_alias_or_file() {
 }
 
 // Test coverage for check_restrictions at line 1148 in browser field/alias resolution
+/// Test restrictions applied during browser field resolution.
 #[test]
-fn should_check_restrictions_in_browser_field_alias() {
+fn test_restrictions_check_in_browser_field_alias() {
     let f = super::fixture().join("browser-module");
 
     let resolver = TestResolver::new(ResolveOptions {
@@ -174,8 +182,9 @@ fn should_check_restrictions_in_browser_field_alias() {
 }
 
 // Test coverage for check_restrictions at line 1326 in load_extension_alias()
+/// Test restrictions applied during extension alias resolution.
 #[test]
-fn should_check_restrictions_in_extension_alias() {
+fn test_restrictions_check_in_extension_alias() {
     let f = super::fixture().join("extension-alias");
 
     let resolver = TestResolver::new(ResolveOptions {
@@ -196,8 +205,9 @@ fn should_check_restrictions_in_extension_alias() {
 }
 
 // Test coverage for check_restrictions at line 1570 in package main field resolution
+/// Test restrictions applied during package main field resolution.
 #[test]
-fn should_check_restrictions_in_package_main_fields() {
+fn test_restrictions_check_in_package_main_fields() {
     let f = super::fixture().join("restrictions");
 
     let resolver = TestResolver::new(ResolveOptions {
@@ -220,8 +230,9 @@ fn should_check_restrictions_in_package_main_fields() {
 }
 
 // Test multiple restrictions together (Path + Fn)
+/// Test that multiple restrictions are applied correctly.
 #[test]
-fn should_apply_multiple_restrictions() {
+fn test_restrictions_apply_multiple() {
     let f = super::fixture().join("restrictions");
 
     // Use two function restrictions to test that both are applied
@@ -252,8 +263,9 @@ fn should_apply_multiple_restrictions() {
 }
 
 // Test that all restrictions must pass
+/// Test that resolution fails if any single restriction fails.
 #[test]
-fn should_fail_if_any_restriction_fails() {
+fn test_restrictions_fail_if_any_fails() {
     let f = super::fixture().join("restrictions");
 
     // Use two function restrictions where one will fail
@@ -290,8 +302,9 @@ fn should_fail_if_any_restriction_fails() {
 }
 
 // Test is_inside() edge case: exact path match
+/// Test restriction behavior when allowing exact path matches.
 #[test]
-fn should_allow_exact_path_in_restriction() {
+fn test_restrictions_allow_exact_path() {
     let f = super::fixture().join("restrictions");
     let exact_file = f.join("node_modules/pck1/index.css");
 
@@ -308,8 +321,9 @@ fn should_allow_exact_path_in_restriction() {
 }
 
 // Test is_inside() edge case: parent directory restriction
+/// Test that restrictions respect parent directory boundaries.
 #[test]
-fn should_respect_parent_directory_restriction() {
+fn test_restrictions_respect_parent_directory() {
     let fixture = super::fixture();
     let f = fixture.join("restrictions");
 

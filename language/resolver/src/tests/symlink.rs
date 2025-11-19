@@ -147,9 +147,10 @@ fn prepare_symlinks<P: AsRef<Path>>(
     Ok(Some(SymlinkFixturePaths { root, temp_path }))
 }
 
+/// Test symlink resolution behavior.
 #[test]
 #[cfg_attr(target_family = "wasm", ignore)]
-fn test() {
+fn test_symlinks_resolution() {
     let Some(SymlinkFixturePaths { root, temp_path }) = prepare_symlinks("temp").unwrap() else {
         return;
     };
@@ -199,8 +200,9 @@ fn test() {
     }
 }
 
+/// Test circular symlink detection.
 #[test]
-fn test_circular_symlink() {
+fn test_symlinks_circular() {
     let Some(SymlinkFixturePaths { root: _, temp_path }) =
         prepare_symlinks("temp.test_circular_symlink").unwrap()
     else {
