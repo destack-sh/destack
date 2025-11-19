@@ -11,12 +11,12 @@ use dyst_source::FileSystem;
 use papaya::Equivalent;
 
 use super::system::CachedFileSystem;
-use crate::{PackageJson, ResolveContext, ResolveError, ResolveOptions, TypeScriptOptions};
+use crate::{PackageJson, ResolutionContext, ResolveError, ResolveOptions, TypeScriptOptions};
 
 // Thread-local pre-allocated path buffer.
 // Used to perform operations on paths more quickly without repeated allocations.
 thread_local! {
-    pub static SCRATCH_PATH: RefCell<PathBuf> = RefCell::new(PathBuf::with_capacity(256));
+    static SCRATCH_PATH: RefCell<PathBuf> = RefCell::new(PathBuf::with_capacity(256));
 }
 
 /// A cached path entry.
@@ -105,7 +105,7 @@ impl CachedPath {
         &self,
         module_name: &str,
         cache: &CachedFileSystem<Fs>,
-        ctx: &mut ResolveContext,
+        ctx: &mut ResolutionContext,
     ) -> Option<Self> {
         let cached_path = cache.value(&self.path.join(module_name));
 
@@ -121,7 +121,7 @@ impl CachedPath {
     pub(crate) fn cached_node_modules<Fs: FileSystem>(
         &self,
         cache: &CachedFileSystem<Fs>,
-        ctx: &mut ResolveContext,
+        ctx: &mut ResolutionContext,
     ) -> Option<Self> {
         self.node_modules
             .get_or_init(|| {
@@ -137,7 +137,7 @@ impl CachedPath {
         &self,
         options: &ResolveOptions,
         cache: &CachedFileSystem<Fs>,
-        ctx: &mut ResolveContext,
+        ctx: &mut ResolutionContext,
     ) -> Result<Option<Arc<PackageJson>>, ResolveError> {
         let mut cache_value = self.clone();
 
@@ -167,14 +167,14 @@ impl CachedPath {
     /// Adds an extension to the cached path.
     pub(crate) fn add_extension<Fs: FileSystem>(
         &self,
-        ext: &str,
+        extension: &str,
         cache: &CachedFileSystem<Fs>,
     ) -> Self {
         SCRATCH_PATH.with_borrow_mut(|path| {
             path.clear();
             let s = path.as_mut_os_string();
             s.push(self.path.as_os_str());
-            s.push(ext);
+            s.push(extension);
             cache.value(path)
         })
     }
@@ -182,7 +182,7 @@ impl CachedPath {
     /// Replaces the extension of the cached path.
     pub(crate) fn replace_extension<Fs: FileSystem>(
         &self,
-        ext: &str,
+        extension: &str,
         cache: &CachedFileSystem<Fs>,
     ) -> Self {
         SCRATCH_PATH.with_borrow_mut(|path| {
@@ -199,7 +199,7 @@ impl CachedPath {
                         &path_self_bytes[..path_self_len - previous_extension.len() - 1]
                     });
             path_str.push(unsafe { std::ffi::OsStr::from_encoded_bytes_unchecked(slice_to_copy) });
-            path_str.push(ext);
+            path_str.push(extension);
 
             cache.value(path)
         })
@@ -320,8 +320,7 @@ impl fmt::Debug for CachedPath {
     }
 }
 
-/// A borrowed cached path.
-/// Used for lookups.
+/// Borrowed cached path used for lookups.
 #[derive(Debug)]
 pub(crate) struct BorrowedCachedPath<'a> {
     pub hash: u64,

@@ -2500,7 +2500,7 @@ fn test_exports_field_cases() {
                 &cached_path,
                 case.request,
                 &case.exports_field,
-                &mut crate::ResolveContext::default(),
+                &mut crate::ResolutionContext::default(),
             )
             .map(|p| p.map(|p| p.to_path_buf()));
         if let Some(expect) = case.expect {

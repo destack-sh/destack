@@ -1,6 +1,5 @@
 mod alias;
 mod browser;
-mod builtins;
 mod exports;
 mod imports;
 mod package;

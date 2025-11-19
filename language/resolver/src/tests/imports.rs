@@ -904,7 +904,7 @@ fn test_imports_field_cases() {
                     .iter()
                     .map(ToString::to_string)
                     .collect::<Vec<_>>(),
-                &mut crate::ResolveContext::default(),
+                &mut crate::ResolutionContext::default(),
             )
             .map(|p| p.map(|p| p.to_path_buf()));
         if let Some(expect) = case.expect {

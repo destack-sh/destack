@@ -9,9 +9,9 @@ use dyst_source::{FileSystem, MemoryFileSystem, PathExt, PhysicalFileSystem, SLA
 
 use crate::{
     Alias, AliasValue, CachedFileSystem, CachedPath, ImportsExportsEntry, ImportsExportsKind,
-    ImportsExportsMap, NODEJS_BUILTINS, PackageJson, Resolution, ResolveContext, ResolveError,
-    ResolveOptions, Restriction, Specifier, SpecifierError, TypeScriptOptions,
-    TypeScriptOptionsDiscovery, TypeScriptOptionsReferences,
+    ImportsExportsMap, PackageJson, Resolution, ResolutionContext, ResolveError, ResolveOptions,
+    Restriction, Specifier, SpecifierError, TypeScriptOptions, TypeScriptOptionsDiscovery,
+    TypeScriptOptionsReferences,
 };
 
 pub type ResolveResult = Result<Option<CachedPath>, ResolveError>;
@@ -88,8 +88,8 @@ impl<Fs: FileSystem> Resolver<Fs> {
         directory: P,
         specifier: &str,
     ) -> Result<Resolution, ResolveError> {
-        let mut ctx = ResolveContext::default();
-        self.do_resolve(directory.as_ref(), specifier, &mut ctx)
+        let mut ctx = ResolutionContext::default();
+        self.resolve_in_context(directory.as_ref(), specifier, &mut ctx)
     }
 
     /// Resolves a `tsconfig.json` file.
@@ -125,13 +125,13 @@ impl<Fs: FileSystem> Resolver<Fs> {
         &self,
         directory: P,
         specifier: &str,
-        resolve_context: &mut ResolveContext,
+        resolve_context: &mut ResolutionContext,
     ) -> Result<Resolution, ResolveError> {
-        let mut ctx = ResolveContext::default();
+        let mut ctx = ResolutionContext::default();
         ctx.file_dependencies.replace(vec![]);
         ctx.missing_dependencies.replace(vec![]);
 
-        let result = self.do_resolve(directory.as_ref(), specifier, &mut ctx);
+        let result = self.resolve_in_context(directory.as_ref(), specifier, &mut ctx);
 
         // append dependencies
         if let Some(deps) = &mut ctx.file_dependencies {
@@ -151,11 +151,11 @@ impl<Fs: FileSystem> Resolver<Fs> {
     }
 
     /// Performs the resolution.
-    fn do_resolve(
+    fn resolve_in_context(
         &self,
         path: &Path,
         specifier: &str,
-        ctx: &mut ResolveContext,
+        ctx: &mut ResolutionContext,
     ) -> Result<Resolution, ResolveError> {
         ctx.is_fully_specified = self.options.fully_specified;
 
@@ -182,7 +182,7 @@ impl<Fs: FileSystem> Resolver<Fs> {
     fn find_package_json_for_a_package(
         &self,
         cached_path: &CachedPath,
-        ctx: &mut ResolveContext,
+        ctx: &mut ResolutionContext,
     ) -> Result<Option<Arc<PackageJson>>, ResolveError> {
         // algorithm:
         // find `node_modules/package/package.json`
@@ -213,7 +213,7 @@ impl<Fs: FileSystem> Resolver<Fs> {
         &self,
         cached_path: &CachedPath,
         specifier: &str,
-        ctx: &mut ResolveContext,
+        ctx: &mut ResolutionContext,
     ) -> Result<CachedPath, ResolveError> {
         ctx.check_depth()?;
 
@@ -231,11 +231,11 @@ impl<Fs: FileSystem> Resolver<Fs> {
         &self,
         cached_path: &CachedPath,
         specifier: &str,
-        ctx: &mut ResolveContext,
+        ctx: &mut ResolutionContext,
     ) -> Result<CachedPath, ResolveError> {
         // tsconfig-paths
         if let Some(path) =
-            self.load_tsconfig_paths(cached_path, specifier, &mut ResolveContext::default())?
+            self.load_tsconfig_paths(cached_path, specifier, &mut ResolutionContext::default())?
         {
             return Ok(path);
         }
@@ -265,16 +265,9 @@ impl<Fs: FileSystem> Resolver<Fs> {
             Some(Component::Normal(_)) if specifier.as_bytes()[0] == b'#' => {
                 self.require_hash(cached_path, specifier, ctx)
             }
-            _ => {
-                // 1. if X is a core module,
-                //   a. return the core module
-                //   b. STOP
-                self.require_builtin(specifier)?;
-
-                // (ESM) 5. otherwise,
-                // set resolved the result of PACKAGE_RESOLVE(specifier, parentURL).
-                self.require_bare(cached_path, specifier, ctx)
-            }
+            // (ESM) 5. otherwise,
+            // set resolved the result of PACKAGE_RESOLVE(specifier, parentURL).
+            _ => self.require_bare(cached_path, specifier, ctx),
         };
 
         result.or_else(|err| {
@@ -287,34 +280,12 @@ impl<Fs: FileSystem> Resolver<Fs> {
         })
     }
 
-    /// Implements `PACKAGE_RESOLVE` (packageSpecifier, parentURL).
-    ///
-    /// 3. If packageSpecifier is a Node.js builtin module name, then
-    ///   1. Return the string "node:" concatenated with packageSpecifier.
-    fn require_builtin(&self, specifier: &str) -> Result<(), ResolveError> {
-        if self.options.builtin_modules {
-            let is_runtime_module = specifier.starts_with("node:");
-            if is_runtime_module || NODEJS_BUILTINS.binary_search(&specifier).is_ok() {
-                let resolved = if is_runtime_module {
-                    specifier.to_string()
-                } else {
-                    format!("node:{specifier}")
-                };
-                return Err(ResolveError::Builtin {
-                    resolved,
-                    is_runtime_module,
-                });
-            }
-        }
-        Ok(())
-    }
-
     /// Requires an absolute path.
     fn require_absolute(
         &self,
         cached_path: &CachedPath,
         specifier: &str,
-        ctx: &mut ResolveContext,
+        ctx: &mut ResolutionContext,
     ) -> Result<CachedPath, ResolveError> {
         // make sure only path prefixes gets called
         debug_assert!(
@@ -354,7 +325,7 @@ impl<Fs: FileSystem> Resolver<Fs> {
         &self,
         cached_path: &CachedPath,
         specifier: &str,
-        ctx: &mut ResolveContext,
+        ctx: &mut ResolutionContext,
     ) -> Result<CachedPath, ResolveError> {
         // make sure only relative or normal paths gets called
         debug_assert!(
@@ -391,7 +362,7 @@ impl<Fs: FileSystem> Resolver<Fs> {
         &self,
         cached_path: &CachedPath,
         specifier: &str,
-        ctx: &mut ResolveContext,
+        ctx: &mut ResolutionContext,
     ) -> Result<CachedPath, ResolveError> {
         debug_assert_eq!(specifier.chars().next(), Some('#'));
 
@@ -412,7 +383,7 @@ impl<Fs: FileSystem> Resolver<Fs> {
         &self,
         cached_path: &CachedPath,
         specifier: &str,
-        ctx: &mut ResolveContext,
+        ctx: &mut ResolutionContext,
     ) -> Result<CachedPath, ResolveError> {
         // make sure no other path prefixes gets called
         debug_assert!(
@@ -440,10 +411,11 @@ impl<Fs: FileSystem> Resolver<Fs> {
     ///
     /// <https://github.com/webpack/enhanced-resolve#escaping>
     fn load_parse<'s>(
+        // nocheckin: inline this
         &self,
         cached_path: &CachedPath,
         specifier: &'s str,
-        ctx: &mut ResolveContext,
+        ctx: &mut ResolutionContext,
     ) -> Result<(Specifier<'s>, Option<CachedPath>), ResolveError> {
         let parsed =
             Specifier::parse(specifier).map_err(|error| ResolveError::Specifier { error })?;
@@ -468,7 +440,7 @@ impl<Fs: FileSystem> Resolver<Fs> {
         &self,
         cached_path: &CachedPath,
         specifier: &str,
-        ctx: &mut ResolveContext,
+        ctx: &mut ResolutionContext,
     ) -> Result<CachedPath, ResolveError> {
         let (package_name, subpath) = Self::parse_package_specifier(specifier);
         if subpath.is_empty() {
@@ -525,7 +497,7 @@ impl<Fs: FileSystem> Resolver<Fs> {
         &self,
         cached_path: &CachedPath,
         specifier: &str,
-        ctx: &mut ResolveContext,
+        ctx: &mut ResolutionContext,
     ) -> ResolveResult {
         // 1. find the closest package scope SCOPE to DIR.
         // 2. if no scope was found, return.
@@ -546,7 +518,7 @@ impl<Fs: FileSystem> Resolver<Fs> {
     }
 
     /// Loads a path as a file.
-    fn load_as_file(&self, cached_path: &CachedPath, ctx: &mut ResolveContext) -> ResolveResult {
+    fn load_as_file(&self, cached_path: &CachedPath, ctx: &mut ResolutionContext) -> ResolveResult {
         // enhanced-resolve feature: extension_alias
         if let Some(path) = self.load_extension_alias(cached_path, ctx)? {
             return Ok(Some(path));
@@ -573,7 +545,7 @@ impl<Fs: FileSystem> Resolver<Fs> {
     fn load_as_directory(
         &self,
         cached_path: &CachedPath,
-        ctx: &mut ResolveContext,
+        ctx: &mut ResolutionContext,
     ) -> ResolveResult {
         // 1. if X/package.json is a file,
         // a. parse X/package.json, and look for "main" field.
@@ -630,7 +602,7 @@ impl<Fs: FileSystem> Resolver<Fs> {
         &self,
         cached_path: &CachedPath,
         specifier: &str,
-        ctx: &mut ResolveContext,
+        ctx: &mut ResolutionContext,
     ) -> ResolveResult {
         if self.options.resolve_to_context {
             return Ok(self
@@ -638,17 +610,22 @@ impl<Fs: FileSystem> Resolver<Fs> {
                 .is_directory(cached_path, ctx)
                 .then(|| cached_path.clone()));
         }
+        // file
         if !specifier.ends_with('/')
             && let Some(path) = self.load_as_file(cached_path, ctx)?
         {
-            return Ok(Some(path));
+            Ok(Some(path))
         }
-        if self.cache.is_directory(cached_path, ctx)
+        // directory
+        else if self.cache.is_directory(cached_path, ctx)
             && let Some(path) = self.load_as_directory(cached_path, ctx)?
         {
-            return Ok(Some(path));
+            Ok(Some(path))
         }
-        Ok(None)
+        // not found
+        else {
+            Ok(None)
+        }
     }
 
     /// Loads extensions.
@@ -656,7 +633,7 @@ impl<Fs: FileSystem> Resolver<Fs> {
         &self,
         path: &CachedPath,
         extensions: &[String],
-        ctx: &mut ResolveContext,
+        ctx: &mut ResolutionContext,
     ) -> ResolveResult {
         if ctx.is_fully_specified {
             return Ok(None);
@@ -710,7 +687,7 @@ impl<Fs: FileSystem> Resolver<Fs> {
     }
 
     /// Loads an index file.
-    fn load_index(&self, cached_path: &CachedPath, ctx: &mut ResolveContext) -> ResolveResult {
+    fn load_index(&self, cached_path: &CachedPath, ctx: &mut ResolutionContext) -> ResolveResult {
         for main_file in &self.options.main_files {
             let cached_path = cached_path.normalize_with(main_file, self.cache.as_ref());
             if self.options.enforce_extension.is_disabled()
@@ -733,7 +710,7 @@ impl<Fs: FileSystem> Resolver<Fs> {
     fn load_browser_field_or_alias(
         &self,
         cached_path: &CachedPath,
-        ctx: &mut ResolveContext,
+        ctx: &mut ResolutionContext,
     ) -> ResolveResult {
         if !self.options.alias_fields.is_empty()
             && let Some(package_json) =
@@ -758,7 +735,7 @@ impl<Fs: FileSystem> Resolver<Fs> {
     fn load_alias_or_file(
         &self,
         cached_path: &CachedPath,
-        ctx: &mut ResolveContext,
+        ctx: &mut ResolutionContext,
     ) -> ResolveResult {
         if let Some(path) = self.load_browser_field_or_alias(cached_path, ctx)? {
             return Ok(Some(path));
@@ -776,7 +753,7 @@ impl<Fs: FileSystem> Resolver<Fs> {
         specifier: &str,
         package_name: &str,
         subpath: &str,
-        ctx: &mut ResolveContext,
+        ctx: &mut ResolutionContext,
     ) -> ResolveResult {
         // 1. let DIRS = NODE_MODULES_PATHS(START)
         // 2. for each DIR in DIRS:
@@ -857,7 +834,7 @@ impl<Fs: FileSystem> Resolver<Fs> {
         &self,
         cached_path: &CachedPath,
         module_name: &str,
-        ctx: &mut ResolveContext,
+        ctx: &mut ResolutionContext,
     ) -> Option<CachedPath> {
         if module_name == "node_modules" {
             cached_path.cached_node_modules(self.cache.as_ref(), ctx)
@@ -876,7 +853,7 @@ impl<Fs: FileSystem> Resolver<Fs> {
         specifier: &str,
         subpath: &str,
         cached_path: &CachedPath,
-        ctx: &mut ResolveContext,
+        ctx: &mut ResolutionContext,
     ) -> ResolveResult {
         // 2. if X does not match this pattern or DIR/NAME/package.json is not a file, return.
         let Some(package_json) = self
@@ -907,7 +884,7 @@ impl<Fs: FileSystem> Resolver<Fs> {
         &self,
         cached_path: &CachedPath,
         specifier: &str,
-        ctx: &mut ResolveContext,
+        ctx: &mut ResolutionContext,
     ) -> ResolveResult {
         // 1. find the closest package scope SCOPE to DIR.
         // 2. if no scope was found, return.
@@ -948,7 +925,7 @@ impl<Fs: FileSystem> Resolver<Fs> {
         &self,
         specifier: &str,
         cached_path: &CachedPath,
-        ctx: &mut ResolveContext,
+        ctx: &mut ResolutionContext,
     ) -> ResolveResult {
         // 1. let RESOLVED_PATH = fileURLToPath(MATCH)
         // 2. if the file at RESOLVED_PATH exists, load RESOLVED_PATH as its extension format. STOP
@@ -970,7 +947,7 @@ impl<Fs: FileSystem> Resolver<Fs> {
         cached_path: &CachedPath,
         module_specifier: Option<&str>,
         package_json: &PackageJson,
-        ctx: &mut ResolveContext,
+        ctx: &mut ResolutionContext,
     ) -> ResolveResult {
         let path = cached_path.path();
         let Some(new_specifier) = package_json.resolve_browser_field(
@@ -1025,7 +1002,7 @@ impl<Fs: FileSystem> Resolver<Fs> {
         cached_path: &CachedPath,
         specifier: &str,
         aliases: &Alias,
-        ctx: &mut ResolveContext,
+        ctx: &mut ResolutionContext,
     ) -> ResolveResult {
         for (alias_key_raw, specifiers) in aliases {
             let mut alias_key_has_wildcard = false;
@@ -1090,7 +1067,7 @@ impl<Fs: FileSystem> Resolver<Fs> {
         alias_key_has_wild_card: bool,
         alias_value: &str,
         request: &str,
-        ctx: &mut ResolveContext,
+        ctx: &mut ResolutionContext,
         should_stop: &mut bool,
     ) -> ResolveResult {
         if request != alias_value
@@ -1149,14 +1126,10 @@ impl<Fs: FileSystem> Resolver<Fs> {
     }
 
     /// Loads the extension alias mapping (e.g. mapping .js to .ts).
-    ///
-    /// # Errors
-    ///
-    /// * [ResolveError::ExtensionAlias]: When all of the aliased extensions are not found
     fn load_extension_alias(
         &self,
         cached_path: &CachedPath,
-        ctx: &mut ResolveContext,
+        ctx: &mut ResolutionContext,
     ) -> ResolveResult {
         if self.options.extension_alias.is_empty() {
             return Ok(None);
@@ -1223,7 +1196,7 @@ impl<Fs: FileSystem> Resolver<Fs> {
         &self,
         cached_path: &CachedPath,
         specifier: &str,
-        ctx: &mut ResolveContext,
+        ctx: &mut ResolutionContext,
     ) -> Option<CachedPath> {
         if self.options.roots.is_empty() {
             return None;
@@ -1349,7 +1322,7 @@ impl<Fs: FileSystem> Resolver<Fs> {
         &self,
         cached_path: &CachedPath,
         specifier: &str,
-        ctx: &mut ResolveContext,
+        ctx: &mut ResolutionContext,
     ) -> ResolveResult {
         if cached_path.is_inside_node_modules {
             return Ok(None);
@@ -1401,7 +1374,7 @@ impl<Fs: FileSystem> Resolver<Fs> {
     pub(crate) fn find_tsconfig(
         &self,
         cached_path: &CachedPath,
-        ctx: &mut ResolveContext,
+        ctx: &mut ResolutionContext,
     ) -> Result<Option<Arc<TypeScriptOptions>>, ResolveError> {
         // don't discover tsconfig for paths inside node_modules
         if cached_path.is_inside_node_modules {
@@ -1453,7 +1426,7 @@ impl<Fs: FileSystem> Resolver<Fs> {
                 .load_package_self_or_node_modules(
                     directory,
                     specifier,
-                    &mut ResolveContext::default(),
+                    &mut ResolutionContext::default(),
                 )
                 .map(|p| p.to_path_buf())
                 .map_err(|err| match err {
@@ -1470,13 +1443,9 @@ impl<Fs: FileSystem> Resolver<Fs> {
         &self,
         cached_path: &CachedPath,
         specifier: &str,
-        ctx: &mut ResolveContext,
+        ctx: &mut ResolutionContext,
     ) -> ResolveResult {
         let (package_name, subpath) = Self::parse_package_specifier(specifier);
-
-        // 3. if packageSpecifier is a Node.js builtin module name, then
-        //   1. return the string "node:" concatenated with packageSpecifier.
-        self.require_builtin(package_name)?;
 
         // 11. while parentURL is not the file system root,
         for module_name in &self.options.modules {
@@ -1546,7 +1515,7 @@ impl<Fs: FileSystem> Resolver<Fs> {
         package_url: &CachedPath,
         subpath: &str,
         exports: &ImportsExportsEntry<'_>,
-        ctx: &mut ResolveContext,
+        ctx: &mut ResolutionContext,
     ) -> ResolveResult {
         let conditions = &self.options.condition_names;
 
@@ -1646,7 +1615,7 @@ impl<Fs: FileSystem> Resolver<Fs> {
         &self,
         specifier: &str,
         package_json: &PackageJson,
-        ctx: &mut ResolveContext,
+        ctx: &mut ResolutionContext,
     ) -> Result<Option<CachedPath>, ResolveError> {
         // 1. assert: specifier begins with "#".
         debug_assert!(specifier.starts_with('#'), "{specifier}");
@@ -1704,7 +1673,7 @@ impl<Fs: FileSystem> Resolver<Fs> {
         package_url: &CachedPath,
         is_imports: bool,
         conditions: &[String],
-        ctx: &mut ResolveContext,
+        ctx: &mut ResolutionContext,
     ) -> ResolveResult {
         if match_key.ends_with('/') {
             return Ok(None);
@@ -1797,7 +1766,7 @@ impl<Fs: FileSystem> Resolver<Fs> {
         pattern_match: Option<&str>,
         is_imports: bool,
         conditions: &[String],
-        ctx: &mut ResolveContext,
+        ctx: &mut ResolutionContext,
     ) -> ResolveResult {
         fn normalize_string_target<'a>(
             target_key: &'a str,
