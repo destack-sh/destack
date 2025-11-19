@@ -1,11 +1,14 @@
 mod alias;
-mod browser_field;
-mod exports_field;
-mod extension_alias;
-mod full_specified;
-mod imports_field;
+mod browser;
+mod builtins;
+mod exports;
+mod imports;
+mod package;
 mod resolve;
+mod restrictions;
 mod simple;
+mod symlink;
+mod tsconfig;
 
 use crate::Resolver;
 use dyst_source::PhysicalFileSystem;

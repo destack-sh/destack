@@ -1,4 +1,4 @@
-use dyst_source::{FileSystem, PathExt, SLASH_START};
+use dyst_source::{FileSystem, MemoryFileSystem, PathExt, PhysicalFileSystem, SLASH_START};
 use std::borrow::Cow;
 use std::cmp::Ordering;
 use std::ffi::OsStr;
@@ -9,11 +9,13 @@ use std::{fmt, iter};
 use crate::{
     Alias, AliasValue, CachedFileSystem, CachedPath, ImportsExportsEntry, ImportsExportsKind,
     ImportsExportsMap, NODEJS_BUILTINS, PackageJson, Resolution, ResolveContext, ResolveError,
-    ResolveOptions, Restriction, Specifier, SpecifierError, TsConfig, TsconfigDiscovery,
-    TsconfigReferences,
+    ResolveOptions, Restriction, Specifier, SpecifierError, TsConfig, TsConfigDiscovery,
+    TsConfigReferences,
 };
 
-type ResolveResult = Result<Option<CachedPath>, ResolveError>;
+pub type ResolveResult = Result<Option<CachedPath>, ResolveError>;
+pub type PhysicalResolver = Resolver<PhysicalFileSystem>;
+pub type MemoryResolver = Resolver<MemoryFileSystem>;
 
 /// Resolver with cache backed by some Fs implementation.
 pub struct Resolver<Fs> {
@@ -103,7 +105,7 @@ impl<Fs: FileSystem> Resolver<Fs> {
         self.load_tsconfig(
             true,
             path,
-            &TsconfigReferences::Auto,
+            &TsConfigReferences::Auto,
             &mut TsconfigResolveContext::default(),
         )
     }
@@ -325,7 +327,9 @@ impl<Fs: FileSystem> Resolver<Fs> {
         if let Some(path) = self.load_as_file_or_directory(&path, specifier, ctx)? {
             return Ok(path);
         }
-        Err(ResolveError::NotFound { specifier: specifier.to_string() })
+        Err(ResolveError::NotFound {
+            specifier: specifier.to_string(),
+        })
     }
 
     // 3. If X is '.' or begins with './' or '/' or '../'
@@ -357,7 +361,9 @@ impl<Fs: FileSystem> Resolver<Fs> {
             return Ok(path);
         }
         // c. THROW "not found"
-        Err(ResolveError::NotFound { specifier: specifier.to_string() })
+        Err(ResolveError::NotFound {
+            specifier: specifier.to_string(),
+        })
     }
 
     fn require_hash(
@@ -369,7 +375,14 @@ impl<Fs: FileSystem> Resolver<Fs> {
         debug_assert_eq!(specifier.chars().next(), Some('#'));
         // a. LOAD_PACKAGE_IMPORTS(X, dirname(Y))
         self.load_package_imports(cached_path, specifier, ctx)?
-            .map_or_else(|| Err(ResolveError::NotFound { specifier: specifier.to_string() }), Ok)
+            .map_or_else(
+                || {
+                    Err(ResolveError::NotFound {
+                        specifier: specifier.to_string(),
+                    })
+                },
+                Ok,
+            )
     }
 
     fn require_bare(
@@ -407,7 +420,8 @@ impl<Fs: FileSystem> Resolver<Fs> {
         specifier: &'s str,
         ctx: &mut ResolveContext,
     ) -> Result<(Specifier<'s>, Option<CachedPath>), ResolveError> {
-        let parsed = Specifier::parse(specifier).map_err(|error| ResolveError::Specifier { error })?;
+        let parsed =
+            Specifier::parse(specifier).map_err(|error| ResolveError::Specifier { error })?;
         ctx.set_query_fragment(parsed.query, parsed.fragment);
 
         // There is an edge-case where a request with # can be a path or a fragment -> try both
@@ -472,7 +486,9 @@ impl<Fs: FileSystem> Resolver<Fs> {
         }
 
         // 7. THROW "not found"
-        Err(ResolveError::NotFound { specifier: specifier.to_string() })
+        Err(ResolveError::NotFound {
+            specifier: specifier.to_string(),
+        })
     }
 
     /// LOAD_PACKAGE_IMPORTS(X, DIR)
@@ -896,7 +912,9 @@ impl<Fs: FileSystem> Resolver<Fs> {
         }
 
         // 3. THROW "not found"
-        Err(ResolveError::NotFound { specifier: specifier.to_string() })
+        Err(ResolveError::NotFound {
+            specifier: specifier.to_string(),
+        })
     }
 
     /// enhanced-resolve: AliasFieldPlugin for [ResolveOptions::alias_fields]
@@ -938,7 +956,9 @@ impl<Fs: FileSystem> Resolver<Fs> {
                         Ok(None)
                     }
                 } else {
-                    Err(ResolveError::NotFound { specifier: new_specifier.to_string() })
+                    Err(ResolveError::NotFound {
+                        specifier: new_specifier.to_string(),
+                    })
                 };
             }
             return Err(ResolveError::RecursiveDependency { depth: ctx.depth });
@@ -974,7 +994,7 @@ impl<Fs: FileSystem> Resolver<Fs> {
                 }
                 alias_key_raw
             };
-            
+
             // It should stop resolving when all of the tried alias values failed to resolve.
             // <https://github.com/webpack/enhanced-resolve/blob/570337b969eee46120a18b62b72809a3246147da/lib/AliasPlugin.js#L65>
             let mut should_stop = false;
@@ -996,7 +1016,9 @@ impl<Fs: FileSystem> Resolver<Fs> {
                     AliasValue::Ignore => {
                         let cached_path =
                             cached_path.normalize_with(alias_key, self.cache.as_ref());
-                        return Err(ResolveError::Ignored { path: cached_path.to_path_buf() });
+                        return Err(ResolveError::Ignored {
+                            path: cached_path.to_path_buf(),
+                        });
                     }
                 }
             }
@@ -1179,7 +1201,7 @@ impl<Fs: FileSystem> Resolver<Fs> {
         &self,
         root: bool,
         path: &Path,
-        references: &TsconfigReferences,
+        references: &TsConfigReferences,
         ctx: &mut TsconfigResolveContext,
     ) -> Result<Arc<TsConfig>, ResolveError> {
         self.cache.get_tsconfig(root, path, |tsconfig| {
@@ -1187,7 +1209,8 @@ impl<Fs: FileSystem> Resolver<Fs> {
 
             if ctx.is_already_extended(&tsconfig.path) {
                 return Err(ResolveError::TsConfigCircular {
-                    paths: ctx.get_extended_configs_with(tsconfig.path().to_path_buf())
+                    paths: ctx
+                        .get_extended_configs_with(tsconfig.path().to_path_buf())
                         .into(),
                 });
             }
@@ -1203,7 +1226,7 @@ impl<Fs: FileSystem> Resolver<Fs> {
                         let extended_tsconfig = self.load_tsconfig(
                             /* root */ false,
                             &extended_tsconfig_path,
-                            &TsconfigReferences::Disabled,
+                            &TsConfigReferences::Disabled,
                             ctx,
                         )?;
                         tsconfig.extend_tsconfig(&extended_tsconfig);
@@ -1255,7 +1278,7 @@ impl<Fs: FileSystem> Resolver<Fs> {
             let extended_tsconfig = self.load_tsconfig(
                 /* root */ false,
                 &extended_tsconfig_path,
-                &TsconfigReferences::Disabled,
+                &TsConfigReferences::Disabled,
                 ctx,
             )?;
             tsconfig.extend_tsconfig(&extended_tsconfig);
@@ -1274,7 +1297,7 @@ impl<Fs: FileSystem> Resolver<Fs> {
         }
         let tsconfig = match &self.options.tsconfig {
             None => return Ok(None),
-            Some(TsconfigDiscovery::Manual(tsconfig_options)) => {
+            Some(TsConfigDiscovery::Manual(tsconfig_options)) => {
                 let tsconfig = self.load_tsconfig(
                     /* root */ true,
                     &tsconfig_options.config_file,
@@ -1288,7 +1311,7 @@ impl<Fs: FileSystem> Resolver<Fs> {
                     .get_or_init(|| Some(Arc::clone(&tsconfig)));
                 tsconfig
             }
-            Some(TsconfigDiscovery::Auto) => {
+            Some(TsConfigDiscovery::Auto) => {
                 let Some(tsconfig) = self.find_tsconfig(cached_path, ctx)? else {
                     return Ok(None);
                 };
@@ -1354,9 +1377,9 @@ impl<Fs: FileSystem> Resolver<Fs> {
         specifier: &str,
     ) -> Result<PathBuf, ResolveError> {
         match specifier.as_bytes().first() {
-            None => Err(ResolveError::Specifier { error: SpecifierError::Empty(
-                specifier.to_string(),
-            ) }),
+            None => Err(ResolveError::Specifier {
+                error: SpecifierError::Empty(specifier.to_string()),
+            }),
             Some(b'/') => Ok(PathBuf::from(specifier)),
             Some(b'.') => Ok(tsconfig.directory().normalize_with(specifier)),
             _ => self
@@ -1373,9 +1396,9 @@ impl<Fs: FileSystem> Resolver<Fs> {
                 )
                 .map(|p| p.to_path_buf())
                 .map_err(|err| match err {
-                    ResolveError::NotFound { .. } => {
-                        ResolveError::TsConfigNotFound { path: PathBuf::from(specifier) }
-                    }
+                    ResolveError::NotFound { .. } => ResolveError::TsConfigNotFound {
+                        path: PathBuf::from(specifier),
+                    },
                     _ => err,
                 }),
         }
@@ -1447,7 +1470,9 @@ impl<Fs: FileSystem> Resolver<Fs> {
             }
         }
 
-        Err(ResolveError::NotFound { specifier: specifier.to_string() })
+        Err(ResolveError::NotFound {
+            specifier: specifier.to_string(),
+        })
     }
 
     /// PACKAGE_EXPORTS_RESOLVE(packageURL, subpath, exports, conditions)
@@ -1638,6 +1663,12 @@ impl<Fs: FileSystem> Resolver<Fs> {
         // 2. Let expansionKeys be the list of keys of matchObj containing only a single "*", sorted by the sorting function PATTERN_KEY_COMPARE which orders in descending order of specificity.
         // 3. For each key expansionKey in expansionKeys, do
         for (expansion_key, target) in match_obj.iter() {
+            // ignore invalid wildcard entries that do not have a target
+            if expansion_key.ends_with('*') && target.as_string().is_some_and(|s| !s.contains('*'))
+            {
+                continue;
+            }
+
             if expansion_key.starts_with("./") || expansion_key.starts_with('#') {
                 // 1. Let patternBase be the substring of expansionKey up to but excluding the first "*" character.
                 if let Some((pattern_base, pattern_trailer)) = expansion_key.split_once('*') {
@@ -1662,7 +1693,6 @@ impl<Fs: FileSystem> Resolver<Fs> {
                     && match_key.starts_with(expansion_key)
                     && Self::pattern_key_compare(best_key, expansion_key).is_gt()
                 {
-                    // TODO: [DEP0148] DeprecationWarning: Use of deprecated folder mapping "./dist/" in the "exports" field module resolution of the package at xxx/package.json.
                     best_target = Some(target);
                     best_match = &match_key[expansion_key.len()..];
                     best_key = expansion_key;
@@ -1706,13 +1736,12 @@ impl<Fs: FileSystem> Resolver<Fs> {
             let target = if let Some(pattern_match) = pattern_match {
                 if !target_key.contains('*') && !target.contains('*') {
                     // enhanced-resolve behaviour
-                    // TODO: [DEP0148] DeprecationWarning: Use of deprecated folder mapping "./dist/" in the "exports" field module resolution of the package at xxx/package.json.
                     if target_key.ends_with('/') && target.ends_with('/') {
                         Cow::Owned(format!("{target}{pattern_match}"))
                     } else {
-                            return Err(ResolveError::InvalidPackageConfigDirectory {
-                                path: package_url.path().join("package.json"),
-                            });
+                        return Err(ResolveError::InvalidPackageConfigDirectory {
+                            path: package_url.path().join("package.json"),
+                        });
                     }
                 } else {
                     Cow::Owned(target.replace('*', pattern_match))
@@ -1727,7 +1756,8 @@ impl<Fs: FileSystem> Resolver<Fs> {
         if let Some(target) = target.as_string() {
             // Target string con contain queries or fragments:
             // `"exports": { ".": { "default": "./foo.js?query#fragment" }`
-            let parsed = Specifier::parse(target).map_err(|error| ResolveError::Specifier { error })?;
+            let parsed =
+                Specifier::parse(target).map_err(|error| ResolveError::Specifier { error })?;
             ctx.set_query_fragment(parsed.query, parsed.fragment);
             let target = parsed.path();
 
@@ -1859,16 +1889,6 @@ impl<Fs: FileSystem> Resolver<Fs> {
         let package_name =
             separator_index.map_or(specifier, |separator_index| &specifier[..separator_index]);
 
-        // TODO: https://github.com/nodejs/node/blob/8f0f17e1e3b6c4e58ce748e06343c5304062c491/lib/internal/modules/esm/resolve.js#L705C1-L714C1
-        // Package name cannot have leading . and cannot have percent-encoding or
-        // \\ separators.
-        // if (RegExpPrototypeExec(invalidPackageNameRegEx, packageName) !== null)
-        // validPackageName = false;
-
-        // if (!validPackageName) {
-        // throw new ERR_INVALID_MODULE_SPECIFIER(
-        // specifier, 'is not a valid package name', fileURLToPath(base));
-        // }
         let package_subpath =
             separator_index.map_or("", |separator_index| &specifier[separator_index..]);
         (package_name, package_subpath)
@@ -1923,6 +1943,7 @@ impl<Fs: FileSystem> Resolver<Fs> {
         Ordering::Equal
     }
 
+    /// Strip the package name from the specifier.
     fn strip_package_name<'a>(specifier: &'a str, package_name: &'a str) -> Option<&'a str> {
         specifier
             .strip_prefix(package_name)
@@ -1979,7 +2000,9 @@ fn resolve_file_protocol(specifier: &str) -> Result<Cow<'_, str>, ResolveError> 
                     Cow::Owned(result)
                 })
             })
-            .map_err(|()| ResolveError::PathNotSupported { path: PathBuf::from(specifier) })
+            .map_err(|()| ResolveError::PathNotSupported {
+                path: PathBuf::from(specifier),
+            })
     } else {
         Ok(Cow::Borrowed(specifier))
     }

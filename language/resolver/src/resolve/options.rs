@@ -10,7 +10,7 @@ pub struct ResolveOptions {
     pub cwd: Option<PathBuf>,
 
     /// How to discover tsconfig.
-    pub tsconfig: Option<TsconfigDiscovery>,
+    pub tsconfig: Option<TsConfigDiscovery>,
 
     /// Aliases to import or require certain modules more easily.
     pub alias: Alias,
@@ -257,16 +257,16 @@ impl std::fmt::Debug for Restriction {
 }
 
 #[derive(Debug, Clone)]
-pub enum TsconfigDiscovery {
+pub enum TsConfigDiscovery {
     Auto,
-    Manual(TsconfigOptions),
+    Manual(TsConfigOptions),
 }
 
 /// Tsconfig Options for [ResolveOptions::tsconfig]
 ///
 /// Derived from [tsconfig-paths-webpack-plugin](https://github.com/dividab/tsconfig-paths-webpack-plugin#options)
 #[derive(Debug, Clone)]
-pub struct TsconfigOptions {
+pub struct TsConfigOptions {
     /// Allows you to specify where to find the TypeScript configuration file.
     /// You may provide
     /// * a relative path to the configuration file. It will be resolved relative to cwd.
@@ -274,12 +274,12 @@ pub struct TsconfigOptions {
     pub config_file: PathBuf,
 
     /// Support for Typescript Project References.
-    pub references: TsconfigReferences,
+    pub references: TsConfigReferences,
 }
 
 /// How to handle references in `tsconfig.json`.
 #[derive(Debug, Clone)]
-pub enum TsconfigReferences {
+pub enum TsConfigReferences {
     /// Disable references.
     Disabled,
     /// Use the `references` field from `tsconfig.json` of `config_file`.

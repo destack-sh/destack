@@ -4,9 +4,7 @@ use dyst_source::{MemoryFileSystem, PathExt, PhysicalFileSystem};
 use serde_json::json;
 use std::path::Path;
 
-use crate::{ImportsExportsEntry, ResolveError, ResolveOptions, Resolver};
-
-type PhysicalResolver = Resolver<PhysicalFileSystem>;
+use crate::{ImportsExportsEntry, PhysicalResolver, ResolveError, ResolveOptions, Resolver};
 
 #[test]
 fn test_simple() {
@@ -51,9 +49,6 @@ fn test_simple() {
         ("should resolve with wildcard pattern #9", f5.clone(), "m/middle-5/f$/$", f5.join("node_modules/m/src/middle-5/f$/$.js")),
     ];
 
-    // Not needed or snapshot:
-    //   * should log the correct info
-
     for (comment, path, request, expected) in pass {
         let resolved_path = resolver.resolve(&path, request).map(|r| r.full_path());
         assert_eq!(resolved_path, Ok(expected), "{comment} {path:?} {request}");
@@ -65,7 +60,6 @@ fn test_simple() {
 
     #[rustfmt::skip]
     let fail = [
-        // ("throw error if extension not provided", f2.clone(), "exports-field/dist/main", ResolveError::NotFound(f2.join("node_modules/exports-field/lib/lib2/main"))),
         ("relative path should not work with exports field", f.clone(), "./node_modules/exports-field/dist/main.js", ResolveError::NotFound { specifier: "./node_modules/exports-field/dist/main.js".into() }),
         ("backtracking should not work for request", f.clone(), "exports-field/dist/../../../a.js", ResolveError::InvalidPackageTarget { target: "./lib/../../../a.js".to_string(), name: "./dist/".to_string(), package_path: p.clone() }),
         ("backtracking should not work for exports field target", f.clone(), "exports-field/dist/a.js", ResolveError::InvalidPackageTarget { target: "./../../a.js".to_string(), name: "./dist/a.js".to_string(), package_path: p.clone() }),
@@ -358,21 +352,6 @@ fn directory() {
     assert_eq!(path, f.join("exports-field").join("a.js"));
 }
 
-// Small script for generating the test cases from enhanced-resolve
-// for (c of testCases) {
-//  console.log("TestCase {")
-//  console.log(`name: ${JSON.stringify(c.name)},`)
-//	if (c.expect instanceof Error) {
-//		console.log(`expect: None,`)
-//	} else {
-//		console.log(`expect: Some(vec!${JSON.stringify(c.expect)}),`)
-//	}
-//  console.log(`exports_field: exports_field(&json!(${JSON.stringify(c.suite[0], null, 2)})),`)
-//	console.log(`request: "${c.suite[1]}",`)
-//  console.log(`condition_names: vec!${JSON.stringify(c.suite[2])},`)
-//	console.log("},")
-//}
-
 struct TestCase {
     #[allow(dead_code)]
     name: &'static str,
@@ -407,7 +386,7 @@ fn test_cases() {
             request: "./foo/test/file.js",
             condition_names: vec!["import", "webpack"],
         },
-        // Duplicated due to not supporting returning an array
+        // (test is repeated because we don't support returning an array)
         TestCase {
             name: "sample #1",
             expect: Some(vec!["./src/test/file.js"]),
@@ -439,7 +418,7 @@ fn test_cases() {
             request: "./foo/test/file.js",
             condition_names: vec!["import", "webpack"],
         },
-        // Duplicated due to not supporting returning an array
+        // (test is repeated because we don't support returning an array)
         TestCase {
             name: "sample #1 (wildcard)",
             expect: Some(vec!["./src/test/file.js"]),
@@ -544,7 +523,7 @@ fn test_cases() {
         },
         TestCase {
             name: "sample #7",
-            expect: Some(vec![]),
+            expect: None,
             exports_field: exports_field(&json!({
                 "./a/a/": "./dist/index.js"
             })),
@@ -901,7 +880,7 @@ fn test_cases() {
         },
         TestCase {
             name: "Direct mapping #7",
-            expect: Some(vec!["./src/index.js"]), // `enhanced_resolve` is `None`
+            expect: Some(vec!["./src/index.js"]),
             exports_field: exports_field(&json!({
                 ".": {
                     "default": "./src/index.js",
@@ -1034,7 +1013,7 @@ fn test_cases() {
             request: ".",
             condition_names: vec!["import", "require"],
         },
-        // Duplicated due to not supporting returning an array
+        // (test is repeated because we don't support returning an array)
         TestCase {
             name: "Direct and conditional mapping #3",
             expect: Some(vec!["./import.mjs"]),
@@ -1068,7 +1047,7 @@ fn test_cases() {
             request: ".",
             condition_names: vec!["import", "require"],
         },
-        // Duplicated due to not supporting returning an array
+        // (test is repeated because we don't support returning an array)
         TestCase {
             name: "Direct and conditional mapping #4",
             expect: Some(vec!["./import.mjs"]),
@@ -1088,7 +1067,7 @@ fn test_cases() {
             request: ".",
             condition_names: vec!["import", "require"],
         },
-        // Duplicated due to not supporting returning an array
+        // (test is repeated because we don't support returning an array)
         TestCase {
             name: "Direct and conditional mapping #4",
             expect: Some(vec!["./import.js"]),
@@ -1319,7 +1298,7 @@ fn test_cases() {
             request: "./utils/index.js",
             condition_names: vec!["browser"],
         },
-        // Duplicated due to not supporting returning an array
+        // (test is repeated because we don't support returning an array)
         TestCase {
             name: "conditional mapping folder #1",
             expect: Some(vec!["./utils/index.js"]),
@@ -1354,7 +1333,7 @@ fn test_cases() {
             request: "./utils/index.js",
             condition_names: vec!["browser"],
         },
-        // Duplicated due to not supporting returning an array
+        // (test is repeated because we don't support returning an array)
         TestCase {
             name: "conditional mapping folder #1 (wildcard)",
             expect: Some(vec!["./utils/index.js"]),
@@ -1539,52 +1518,6 @@ fn test_cases() {
             request: "./utils/index",
             condition_names: vec!["browser"],
         },
-        // Requests that are not `./` does not apply to `package_exports_resolve`
-        // TestCase {
-        // name: "incorrect request #1",
-        // expect: None,
-        // exports_field: exports_field(&json!({
-        // "./utils/": "./a/"
-        // })),
-        // request: "/utils/index.mjs",
-        // condition_names: vec![],
-        // },
-        // TestCase {
-        // name: "incorrect request #2",
-        // expect: None,
-        // exports_field: exports_field(&json!({
-        // "./utils/": {
-        // "browser": "./a/",
-        // "default": "./b/"
-        // }
-        // })),
-        // request: "/utils/index.mjs",
-        // condition_names: vec!["browser"],
-        // },
-        // TestCase {
-        // name: "incorrect request #3",
-        // expect: None,
-        // exports_field: exports_field(&json!({
-        // "./utils/": {
-        // "browser": "./a/",
-        // "default": "./b/"
-        // }
-        // })),
-        // request: "../utils/index.mjs",
-        // condition_names: vec!["browser"],
-        // },
-        // TestCase {
-        // name: "incorrect request #4",
-        // expect: None,
-        // exports_field: exports_field(&json!({
-        // "./utils/": {
-        // "browser": "./a/",
-        // "default": "./b/"
-        // }
-        // })),
-        // request: "/utils/index.mjs/",
-        // condition_names: vec!["browser"],
-        // },
         TestCase {
             name: "backtracking package base #1",
             expect: Some(vec!["./dist/index"]),
@@ -1639,34 +1572,6 @@ fn test_cases() {
             request: "./utils/index",
             condition_names: vec![],
         },
-        // enhanced-resolve does not handle backtracking here
-        // TestCase {
-        // name: "backtracking package base #4",
-        // expect: Some(vec!["./../src/index"]),
-        // exports_field: exports_field(&json!({
-        // "./utils/": "./../src/"
-        // })),
-        // request: "./utils/index",
-        // condition_names: vec![],
-        // },
-        // TestCase {
-        // name: "backtracking package base #4 (wildcard)",
-        // expect: Some(vec!["./../src/index"]),
-        // exports_field: exports_field(&json!({
-        // "./utils/*": "./../src/*"
-        // })),
-        // request: "./utils/index",
-        // condition_names: vec![],
-        // },
-        // TestCase {
-        // name: "backtracking package base #5",
-        // expect: Some(vec!["./src/../index.js"]),
-        // exports_field: exports_field(&json!({
-        // "./utils/index": "./src/../index.js"
-        // })),
-        // request: "./utils/index",
-        // condition_names: vec![],
-        // },
         TestCase {
             name: "backtracking package base #6",
             expect: Some(vec![]),
@@ -1700,8 +1605,6 @@ fn test_cases() {
         },
         TestCase {
             name: "backtracking package base #8",
-            // We throw "InvalidPackageTarget"
-            // expect: Some(vec!["./utils/../index"]),
             expect: None,
             exports_field: exports_field(&json!({
                 "./utils/": {
@@ -1713,8 +1616,6 @@ fn test_cases() {
         },
         TestCase {
             name: "backtracking package base #8 (wildcard)",
-            // We throw "InvalidPackageTarget"
-            // expect: Some(vec!["./utils/../index"]),
             expect: None,
             exports_field: exports_field(&json!({
                 "./utils/*": {
@@ -1746,9 +1647,7 @@ fn test_cases() {
         },
         TestCase {
             name: "backtracking target folder #1",
-            // We return InvalidPackageTarget
             expect: None,
-            // expect: Some(vec!["./dist/timezone/../../index"]),
             exports_field: exports_field(&json!({
                 "./utils/": "./dist/"
             })),
@@ -1757,9 +1656,7 @@ fn test_cases() {
         },
         TestCase {
             name: "backtracking target folder #1 (wildcard)",
-            // We return InvalidPackageTarget
             expect: None,
-            // expect: Some(vec!["./dist/timezone/../../index"]),
             exports_field: exports_field(&json!({
                 "./utils/*": "./dist/*"
             })),
@@ -1768,9 +1665,7 @@ fn test_cases() {
         },
         TestCase {
             name: "backtracking target folder #2",
-            // We return InvalidPackageTarget
             expect: None,
-            // expect: Some(vec!["./dist/timezone/../index"]),
             exports_field: exports_field(&json!({
                 "./utils/": "./dist/"
             })),
@@ -1779,9 +1674,7 @@ fn test_cases() {
         },
         TestCase {
             name: "backtracking target folder #2 (wildcard)",
-            // We return InvalidPackageTarget
             expect: None,
-            // expect: Some(vec!["./dist/timezone/../index"]),
             exports_field: exports_field(&json!({
                 "./utils/*": "./dist/*"
             })),
@@ -1790,9 +1683,7 @@ fn test_cases() {
         },
         TestCase {
             name: "backtracking target folder #3",
-            // We return InvalidPackageTarget
             expect: None,
-            // expect: Some(vec!["./dist/target/../../index"]),
             exports_field: exports_field(&json!({
                 "./utils/": "./dist/target/"
             })),
@@ -1801,9 +1692,7 @@ fn test_cases() {
         },
         TestCase {
             name: "backtracking target folder #3 (wildcard)",
-            // We return InvalidPackageTarget
             expect: None,
-            // expect: Some(vec!["./dist/target/../../index"]),
             exports_field: exports_field(&json!({
                 "./utils/*": "./dist/target/*"
             })),
@@ -1813,9 +1702,7 @@ fn test_cases() {
         // enhanced-resolve does not handle `node_modules` in target
         TestCase {
             name: "nested node_modules path #1",
-            // We return InvalidPackageTarget
             expect: None,
-            // expect: Some(vec!["./node_modules/lodash/dist/index.js"]),
             exports_field: exports_field(&json!({
                 "./utils/": {
                     "browser": "./node_modules/"
@@ -1826,9 +1713,7 @@ fn test_cases() {
         },
         TestCase {
             name: "nested node_modules path #1 (wildcard)",
-            // We return InvalidPackageTarget
             expect: None,
-            // expect: Some(vec!["./node_modules/lodash/dist/index.js"]),
             exports_field: exports_field(&json!({
                 "./utils/*": {
                     "browser": "./node_modules/*"
@@ -1839,9 +1724,7 @@ fn test_cases() {
         },
         TestCase {
             name: "nested node_modules path #2",
-            // We return InvalidPackageTarget
             expect: None,
-            // expect: Some(vec!["./utils/../node_modules/lodash/dist/index.js"]),
             exports_field: exports_field(&json!({
                 "./utils/": "./utils/../node_modules/"
             })),
@@ -1850,9 +1733,7 @@ fn test_cases() {
         },
         TestCase {
             name: "nested node_modules path #2 (wildcard)",
-            // We return InvalidPackageTarget
             expect: None,
-            // expect: Some(vec!["./utils/../node_modules/lodash/dist/index.js"]),
             exports_field: exports_field(&json!({
                 "./utils/*": "./utils/../node_modules/*"
             })),
@@ -1910,7 +1791,7 @@ fn test_cases() {
             request: "./utils/index.js",
             condition_names: vec!["browser", "webpack"],
         },
-        // Duplicated due to not supporting returning an array
+        // (test is repeated because we don't support returning an array)
         TestCase {
             name: "nested mapping #2",
             expect: Some(vec!["./node/index.js"]),
@@ -1948,7 +1829,7 @@ fn test_cases() {
             request: "./utils/index.js",
             condition_names: vec!["browser", "webpack"],
         },
-        // Duplicated due to not supporting returning an array
+        // (test is repeated because we don't support returning an array)
         TestCase {
             name: "nested mapping #2 (wildcard)",
             expect: Some(vec!["./node/index.js"]),
@@ -2112,7 +1993,7 @@ fn test_cases() {
             request: "./utils/index.js",
             condition_names: vec!["browser", "node", "webpack"],
         },
-        // Duplicated due to not supporting returning an array
+        // (test is repeated because we don't support returning an array)
         TestCase {
             name: "nested mapping #6",
             expect: Some(vec!["./node/index.js"]),
@@ -2158,7 +2039,7 @@ fn test_cases() {
             request: "./utils/index.js",
             condition_names: vec!["browser", "node", "webpack"],
         },
-        // Duplicated due to not supporting returning an array
+        // (test is repeated because we don't support returning an array)
         TestCase {
             name: "nested mapping #6 (wildcard)",
             expect: Some(vec!["./node/index.js"]),
@@ -2231,7 +2112,7 @@ fn test_cases() {
             request: ".",
             condition_names: vec![],
         },
-        // Duplicated due to not supporting returning an array
+        // (test is repeated because we don't support returning an array)
         TestCase {
             name: "syntax sugar #3",
             expect: Some(vec!["./b.js"]),
@@ -2538,7 +2419,7 @@ fn test_cases() {
             request: "./a/b/c.js",
             condition_names: vec![],
         },
-        // Duplicated due to not supporting returning an array
+        // (test is repeated because we don't support returning an array)
         TestCase {
             name: "wildcard pattern #9",
             expect: Some(vec!["./B/b/b/b.js"]),
