@@ -15,24 +15,14 @@ pub struct ResolveOptions {
     /// Aliases to import or require certain modules more easily.
     pub alias: Alias,
 
-    /// Alias fields in description files (e.g., `["path", "to", "exports"]`)
-    /// <https://github.com/defunctzombie/package-browser-field-spec>
-    pub alias_fields: Vec<Vec<String>>,
-
     /// Condition names for exports field which defines entry points of a package.
-    /// The key order in the exports field is significant.
+    /// The key order in the exports key is significant.
     /// During condition matching, earlier entries have higher priority and take precedence over later entries.
-    pub condition_names: Vec<String>,
+    pub conditions: Vec<String>,
 
     /// Whether and how to enforce file extensions.
     /// <https://github.com/webpack/enhanced-resolve/pull/285>.
     pub enforce_extension: EnforceExtension,
-
-    /// Exports fields in description files (like `["exports"]`).
-    pub exports_fields: Vec<Vec<String>>,
-
-    /// Imports fields in description files (like `["imports"]`).
-    pub imports_fields: Vec<Vec<String>>,
 
     /// Extension aliases (e.g., `(".js", [".ts", ".tsx"])`).
     pub extension_alias: Vec<(String, Vec<String>)>,
@@ -45,10 +35,7 @@ pub struct ResolveOptions {
 
     /// Request passed to resolve is already fully specified.
     /// Extensions or main files are not resolved for it (they are still resolved for internal requests).
-    pub fully_specified: bool,
-
-    /// Main fields in description files (e.g., `["main"]`).
-    pub main_fields: Vec<String>,
+    pub is_fully_specified: bool,
 
     /// Main files in description files (e.g., `["index"]`).
     pub main_files: Vec<String>,
@@ -73,95 +60,14 @@ pub struct ResolveOptions {
     pub roots: Vec<PathBuf>,
 
     /// Whether to resolve symlinks to their symlinked location, if possible.
-    /// NOTE that this may cause module resolution to fail when using tools that symlink packages (like `npm link`).
-    pub symlinks: bool,
+    /// (May cause module resolution to fail when using tools that symlink packages like `npm link`).
+    pub canonicalize_symlinks: bool,
 
     /// Whether to parse "builtin" Node modules or not.
     pub builtin_modules: bool,
-
-    /// Allow `exports` field in `require('../directory')`. This is not part of the spec but some vite projects rely on this behavior.
-    pub allow_package_exports_in_directory_resolve: bool,
 }
 
 impl ResolveOptions {
-    /// Set condition names.
-    /// ```
-    pub fn with_condition_names(mut self, names: &[&str]) -> Self {
-        self.condition_names = names
-            .iter()
-            .map(ToString::to_string)
-            .collect::<Vec<String>>();
-        self
-    }
-
-    /// Set whether to parse "builtin" modules or not.
-    pub const fn with_builtin_modules(mut self, flag: bool) -> Self {
-        self.builtin_modules = flag;
-        self
-    }
-
-    /// Add a single root to the options.
-    pub fn with_root<P: AsRef<Path>>(mut self, root: P) -> Self {
-        self.roots.push(root.as_ref().to_path_buf());
-        self
-    }
-
-    /// Add a single extension to the list of extensions. Extension must start with a `.`
-    pub fn with_extension<S: Into<String>>(mut self, extension: S) -> Self {
-        self.extensions.push(extension.into());
-        self
-    }
-
-    /// Add a single main field to the list of fields
-    pub fn with_main_field<S: Into<String>>(mut self, field: S) -> Self {
-        self.main_fields.push(field.into());
-        self
-    }
-
-    /// Set how the extension should be treated
-    ///
-    pub const fn with_force_extension(mut self, enforce_extension: EnforceExtension) -> Self {
-        self.enforce_extension = enforce_extension;
-        self
-    }
-
-    /// Set whether to resolve fully specified modules or not.
-    pub const fn with_fully_specified(mut self, fully_specified: bool) -> Self {
-        self.fully_specified = fully_specified;
-        self
-    }
-
-    /// Set whether to prefer relative requests or not.
-    pub const fn with_prefer_relative(mut self, flag: bool) -> Self {
-        self.prefer_relative = flag;
-        self
-    }
-
-    /// Set whether to prefer absolute requests or not.
-    pub const fn with_prefer_absolute(mut self, flag: bool) -> Self {
-        self.prefer_absolute = flag;
-        self
-    }
-
-    /// Set whether to resolve symlinks or not.
-    pub const fn with_symbolic_link(mut self, flag: bool) -> Self {
-        self.symlinks = flag;
-        self
-    }
-
-    /// Add a module to the list of modules.
-    pub fn with_module<M: Into<String>>(mut self, module: M) -> Self {
-        self.modules.push(module.into());
-        self
-    }
-
-    /// Add a main file to the list of main files.
-    ///
-    pub fn with_main_file<M: Into<String>>(mut self, module: M) -> Self {
-        self.main_files.push(module.into());
-        self
-    }
-
     /// Sanitize the options.
     pub fn sanitize(mut self) -> Self {
         debug_assert!(
@@ -288,12 +194,9 @@ impl Default for ResolveOptions {
             cwd: None,
             tsconfig: None,
             alias: vec![],
-            alias_fields: vec![],
-            condition_names: vec![],
+            conditions: vec![],
             enforce_extension: EnforceExtension::Auto,
             extension_alias: vec![],
-            exports_fields: vec![vec!["exports".into()]],
-            imports_fields: vec![vec!["imports".into()]],
             extensions: vec![
                 ".tsx".into(),
                 ".ts".into(),
@@ -305,8 +208,7 @@ impl Default for ResolveOptions {
                 ".node".into(),
             ],
             fallback: vec![],
-            fully_specified: false,
-            main_fields: vec!["main".into()],
+            is_fully_specified: false,
             main_files: vec!["index".into()],
             modules: vec!["node_modules".into()],
             resolve_to_context: false,
@@ -314,9 +216,8 @@ impl Default for ResolveOptions {
             prefer_absolute: false,
             restrictions: vec![],
             roots: vec![],
-            symlinks: true,
+            canonicalize_symlinks: true,
             builtin_modules: false,
-            allow_package_exports_in_directory_resolve: false,
         }
     }
 }
@@ -329,20 +230,11 @@ impl fmt::Display for ResolveOptions {
         if !self.alias.is_empty() {
             write!(f, "alias:{:?},", self.alias)?;
         }
-        if !self.alias_fields.is_empty() {
-            write!(f, "alias_fields:{:?},", self.alias_fields)?;
-        }
-        if !self.condition_names.is_empty() {
-            write!(f, "condition_names:{:?},", self.condition_names)?;
+        if !self.conditions.is_empty() {
+            write!(f, "condition_names:{:?},", self.conditions)?;
         }
         if self.enforce_extension.is_enabled() {
             write!(f, "enforce_extension:{:?},", self.enforce_extension)?;
-        }
-        if !self.exports_fields.is_empty() {
-            write!(f, "exports_fields:{:?},", self.exports_fields)?;
-        }
-        if !self.imports_fields.is_empty() {
-            write!(f, "imports_fields:{:?},", self.imports_fields)?;
         }
         if !self.extension_alias.is_empty() {
             write!(f, "extension_alias:{:?},", self.extension_alias)?;
@@ -353,11 +245,8 @@ impl fmt::Display for ResolveOptions {
         if !self.fallback.is_empty() {
             write!(f, "fallback:{:?},", self.fallback)?;
         }
-        if self.fully_specified {
-            write!(f, "fully_specified:{:?},", self.fully_specified)?;
-        }
-        if !self.main_fields.is_empty() {
-            write!(f, "main_fields:{:?},", self.main_fields)?;
+        if self.is_fully_specified {
+            write!(f, "fully_specified:{:?},", self.is_fully_specified)?;
         }
         if !self.main_files.is_empty() {
             write!(f, "main_files:{:?},", self.main_files)?;
@@ -380,18 +269,11 @@ impl fmt::Display for ResolveOptions {
         if !self.roots.is_empty() {
             write!(f, "roots:{:?},", self.roots)?;
         }
-        if self.symlinks {
-            write!(f, "symlinks:{:?},", self.symlinks)?;
+        if self.canonicalize_symlinks {
+            write!(f, "symlinks:{:?},", self.canonicalize_symlinks)?;
         }
         if self.builtin_modules {
             write!(f, "builtin_modules:{:?},", self.builtin_modules)?;
-        }
-        if self.allow_package_exports_in_directory_resolve {
-            write!(
-                f,
-                "allow_package_exports_in_directory_resolve:{:?},",
-                self.allow_package_exports_in_directory_resolve
-            )?;
         }
         Ok(())
     }

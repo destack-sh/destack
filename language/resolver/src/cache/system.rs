@@ -11,9 +11,7 @@ use rustc_hash::FxHasher;
 
 use super::hasher::IdentityHasher;
 use super::path::{BorrowedCachedPath, CachedPath, CachedPathState};
-use crate::{
-    JSONError, PackageOptions, ResolutionContext, ResolveError, ResolveOptions,
-};
+use crate::{JSONError, PackageOptions, ResolutionContext, ResolveError, ResolveOptions};
 use dyst_dir::TypeScriptOptions;
 use dyst_source::{FileSystem, PathExt};
 
@@ -128,7 +126,7 @@ impl<Fs: FileSystem> CachedFileSystem<Fs> {
                     return Ok(None);
                 };
 
-                let real_path = if options.symlinks {
+                let real_path = if options.canonicalize_symlinks {
                     self.canonicalize(path)?.join("package.json")
                 } else {
                     package_json_path.clone()

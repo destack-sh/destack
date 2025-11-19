@@ -82,28 +82,6 @@ fn test_restrictions_find_alternative_main_fields() {
     let re = Regex::new(r"\.(sass|scss|css)$").unwrap();
     let resolver1 = TestResolver::new(ResolveOptions {
         extensions: vec![".js".into(), ".css".into()],
-        main_fields: vec!["main".into(), "style".into()],
-        restrictions: vec![Restriction::Fn(Arc::new(move |path| {
-            path.as_os_str()
-                .to_str()
-                .is_some_and(|s| re.is_match(s).unwrap_or(false))
-        }))],
-        ..ResolveOptions::default()
-    });
-
-    let resolution = resolver1.resolve(&f, "pck2").map(|r| r.full_path());
-    assert_eq!(resolution, Ok(f.join("node_modules/pck2/index.css")));
-}
-
-/// Test finding alternative files with expanded main fields when restricted.
-#[test]
-fn test_restrictions_find_alternative_main_fields_expanded() {
-    let f = super::fixture().join("restrictions");
-
-    let re = Regex::new(r"\.(sass|scss|css)$").unwrap();
-    let resolver1 = TestResolver::new(ResolveOptions {
-        extensions: vec![".js".into()],
-        main_fields: vec!["main".into(), "module".into(), "style".into()],
         restrictions: vec![Restriction::Fn(Arc::new(move |path| {
             path.as_os_str()
                 .to_str()
@@ -168,7 +146,6 @@ fn test_restrictions_check_in_browser_field_alias() {
     let f = super::fixture().join("browser-module");
 
     let resolver = TestResolver::new(ResolveOptions {
-        alias_fields: vec![vec!["browser".into()]],
         restrictions: vec![Restriction::Fn(Arc::new(|path| {
             // Restrict files containing "browser" in their path
             !path.to_str().is_some_and(|s| s.contains("browser"))
@@ -211,7 +188,6 @@ fn test_restrictions_check_in_package_main_fields() {
     let f = super::fixture().join("restrictions");
 
     let resolver = TestResolver::new(ResolveOptions {
-        main_fields: vec!["module".into(), "main".into()],
         restrictions: vec![Restriction::Fn(Arc::new(|path| {
             // Restrict .js files
             path.extension().and_then(|e| e.to_str()) != Some("js")

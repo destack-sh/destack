@@ -1,5 +1,4 @@
 mod alias;
-mod browser;
 mod exports;
 mod imports;
 mod package;

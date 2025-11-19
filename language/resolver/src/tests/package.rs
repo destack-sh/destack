@@ -22,7 +22,7 @@ fn test_resolve_package_json_nested_uses_correct_package_json() {
             .ok()
             .and_then(|f| f.package_json().cloned());
         let package_json_path = package_json.as_ref().map(|p| &p.path);
-        let package_json_name = package_json.as_ref().and_then(|p| p.name());
+        let package_json_name = package_json.as_ref().and_then(|p| p.name.clone());
         assert_eq!(
             package_json_path,
             Some(&resolved_package_json_path),
@@ -30,7 +30,7 @@ fn test_resolve_package_json_nested_uses_correct_package_json() {
         );
         assert_eq!(
             package_json_name,
-            Some("package-json-nested"),
+            Some("package-json-nested".to_string()),
             "{path:?} {request}"
         );
     }
@@ -56,9 +56,9 @@ fn test_return_package_json_adjacent_to_node_modules() {
         .package_json()
         .cloned();
     let package_json_path = package_json.as_ref().map(|p| &p.path);
-    let package_json_name = package_json.as_ref().and_then(|p| p.name());
+    let package_json_name = package_json.as_ref().and_then(|p| p.name.clone());
     assert_eq!(package_json_path, Some(&resolved_package_json_path));
-    assert_eq!(package_json_name, Some("misc"));
+    assert_eq!(package_json_name, Some("misc".to_string()));
 }
 
 /// Test returning package.json when resolving with symlinks=true.
@@ -68,7 +68,7 @@ fn test_return_package_json_with_symlinks_true() {
 
     let f = super::fixture_root().join("misc");
     let resolver = TestResolver::new(ResolveOptions {
-        symlinks: true,
+        canonicalize_symlinks: true,
         ..ResolveOptions::default()
     });
 
