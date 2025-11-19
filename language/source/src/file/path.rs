@@ -14,11 +14,6 @@ pub trait PathExt {
     /// Normalize with subpath assuming this path is normalized without performing I/O.
     /// All redundant separator and up-level references are collapsed.
     fn normalize_with<P: AsRef<Path>>(&self, subpath: P) -> PathBuf;
-
-    // nocheckin: PathExt.is_invalid_exports_target?
-    /// Defined in ESM PACKAGE_TARGET_RESOLVE
-    /// If target split on "/" or "\" contains any "", ".", "..", or "node_modules" segments after the first "." segment, case insensitive and including percent encoded variants
-    fn is_invalid_exports_target(&self) -> bool;
 }
 
 impl PathExt for Path {
@@ -100,38 +95,6 @@ impl PathExt for Path {
 
         ret
     }
-
-    fn is_invalid_exports_target(&self) -> bool {
-        self.components().enumerate().any(|(index, c)| match c {
-            Component::ParentDir => true,
-            Component::CurDir => index > 0,
-            Component::Normal(c) => c.eq_ignore_ascii_case("node_modules"),
-            _ => false,
-        })
-    }
-}
-
-// https://github.com/webpack/enhanced-resolve/blob/main/test/path.test.js
-#[test]
-fn is_invalid_exports_target() {
-    let test_cases = [
-        "../a.js",
-        "../",
-        "./a/b/../../../c.js",
-        "./a/b/../../../",
-        "./../../c.js",
-        "./../../",
-        "./a/../b/../../c.js",
-        "./a/../b/../../",
-        "./././../",
-    ];
-
-    for case in test_cases {
-        assert!(Path::new(case).is_invalid_exports_target(), "{case}");
-    }
-
-    assert!(!Path::new("C:").is_invalid_exports_target());
-    assert!(!Path::new("/").is_invalid_exports_target());
 }
 
 #[test]

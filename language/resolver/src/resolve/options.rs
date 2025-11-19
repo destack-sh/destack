@@ -33,8 +33,7 @@ pub struct ResolveOptions {
     /// Redirect module requests when normal resolving fails.
     pub fallback: Alias,
 
-    /// Request passed to resolve is already fully specified.
-    /// Extensions or main files are not resolved for it (they are still resolved for internal requests).
+    /// Request passed to resolve is already fully specified (should ignore extensions).
     pub is_fully_specified: bool,
 
     /// Main files in description files (e.g., `["index"]`).
