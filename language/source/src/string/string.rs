@@ -30,7 +30,7 @@ impl StringId {
 #[derive(Debug)]
 pub struct StringRef<'a> {
     /// The guard to the string pool state.
-    pool: MutexGuard<'a, MutableStringPool>,
+    pool: MutexGuard<'a, StringPoolState>,
     /// The string id.
     id: StringId,
 }
@@ -57,14 +57,14 @@ impl<'a> std::cmp::PartialEq<&str> for StringRef<'a> {
 
 /// Mutable StringPool with unique ownership of bytes. NOT THREAD-SAFE.
 #[derive(Clone)]
-pub struct MutableStringPool {
+pub struct StringPoolState {
     // single ownership of bytes; index is by id (vector index)
     strings: Vec<Box<str>>,
     // hash -> small bucket of candidate ids; we compare bytes to disambiguate
     index: HashMap<u64, Vec<StringId>>,
 }
 
-impl Debug for MutableStringPool {
+impl Debug for StringPoolState {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         f.debug_struct("StringPoolState")
             .field("length", &self.strings.len())
@@ -72,7 +72,7 @@ impl Debug for MutableStringPool {
     }
 }
 
-impl MutableStringPool {
+impl StringPoolState {
     #[inline]
     fn hash_str(s: &str) -> u64 {
         let mut h = DefaultHasher::new();
@@ -105,7 +105,7 @@ impl MutableStringPool {
 
     /// Intern a string from another pool.
     #[inline]
-    fn intern_from(&mut self, other: &SharedStringPool, string_id: StringId) -> StringId {
+    fn intern_from(&mut self, other: &StringPool, string_id: StringId) -> StringId {
         let string = other.get(string_id);
         self.intern(string)
     }
@@ -129,11 +129,11 @@ impl MutableStringPool {
 }
 
 /// Thread-safe string interning with stable identifiers.
-pub struct SharedStringPool {
-    inner: Mutex<MutableStringPool>,
+pub struct StringPool {
+    inner: Mutex<StringPoolState>,
 }
 
-impl Clone for SharedStringPool {
+impl Clone for StringPool {
     fn clone(&self) -> Self {
         let state = self.inner.lock().clone();
         Self {
@@ -142,7 +142,7 @@ impl Clone for SharedStringPool {
     }
 }
 
-impl Debug for SharedStringPool {
+impl Debug for StringPool {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         // show pool length only, do not lock for longer than necessary
         let state = self.inner.lock();
@@ -152,17 +152,17 @@ impl Debug for SharedStringPool {
     }
 }
 
-impl Default for SharedStringPool {
+impl Default for StringPool {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl SharedStringPool {
+impl StringPool {
     /// Create a new empty StringPool.
     pub fn new() -> Self {
         Self {
-            inner: Mutex::new(MutableStringPool {
+            inner: Mutex::new(StringPoolState {
                 strings: Vec::new(),
                 index: HashMap::new(),
             }),
@@ -185,7 +185,7 @@ impl SharedStringPool {
 
     /// Intern a string from another pool.
     #[inline]
-    pub fn intern_from(&self, other: &SharedStringPool, string_id: StringId) -> StringId {
+    pub fn intern_from(&self, other: &StringPool, string_id: StringId) -> StringId {
         let mut inner = self.inner.lock();
         inner.intern_from(other, string_id)
     }
@@ -215,7 +215,7 @@ impl SharedStringPool {
 /// Frozen string pool with lock-free read-only access.
 #[derive(Clone)]
 pub struct ImmutableStringPool {
-    inner: MutableStringPool,
+    inner: StringPoolState,
 }
 
 impl Debug for ImmutableStringPool {
@@ -250,7 +250,7 @@ mod tests {
     /// Interning the same string twice yields the same identifier and does not grow storage.
     #[test]
     fn test_intern_same_string_yields_same_id() {
-        let pool = SharedStringPool::new();
+        let pool = StringPool::new();
         let a = pool.intern("hello");
         let b = pool.intern("hello");
         assert_eq!(a, b);
@@ -261,7 +261,7 @@ mod tests {
     /// Interning distinct strings yields different identifiers and increased length.
     #[test]
     fn test_intern_distinct_strings_yield_distinct_ids() {
-        let pool = SharedStringPool::new();
+        let pool = StringPool::new();
         let a = pool.intern("alpha");
         let b = pool.intern("beta");
         assert_ne!(a, b);
@@ -273,7 +273,7 @@ mod tests {
     /// Empty strings are supported and deduplicated correctly.
     #[test]
     fn test_intern_empty_string() {
-        let pool = SharedStringPool::new();
+        let pool = StringPool::new();
         let id1 = pool.intern("");
         let id2 = pool.intern("");
         assert_eq!(id1, id2);

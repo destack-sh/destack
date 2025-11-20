@@ -1,5 +1,5 @@
 use crate::{DystFormatContext, DystFormatOptions};
-use dyst_ast::{MutableNodeTree, NodeParentIndex, TokenSpan};
+use dyst_ast::{NodeTree, NodeParentIndex, TokenSpan};
 use dyst_fir::format;
 use dyst_fir::format::Format;
 use dyst_parser::{ParseResult, Parser};
@@ -15,7 +15,7 @@ pub(crate) struct TestFormatter {
     pub tokens: Vec<TokenSpan>,
     pub side_tokens: Vec<TokenSpan>,
     pub side_span: MultiSpan,
-    pub tree: MutableNodeTree,
+    pub tree: NodeTree,
     pub strings: ImmutableStringPool,
 }
 

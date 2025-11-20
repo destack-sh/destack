@@ -1,5 +1,5 @@
-use dyst_ast::SharedStringPool;
-use dyst_dir::SharedModuleRegistry;
+use dyst_ast::StringPool;
+use dyst_dir::ModuleRegistry;
 use dyst_javascript_ast as ast;
 use dyst_source::{FileId, Uri};
 
@@ -9,7 +9,7 @@ impl<'a> Transpiler<'a> {
     /// Map the modules to the units.
     pub(crate) fn make_units(
         options: &TranspileOptions,
-        modules: &SharedModuleRegistry,
+        modules: &ModuleRegistry,
     ) -> Vec<TranspilerUnit> {
         let mut units: Vec<TranspilerUnit> = Vec::new();
         match options.mode {
@@ -22,9 +22,9 @@ impl<'a> Transpiler<'a> {
                         options: options.clone(),
                         id: unit_id,
                         uri,
-                        ast: ast::MutableNodeTree::new(),
+                        ast: ast::NodeTree::new(),
                         roots: Vec::new(),
-                        strings: SharedStringPool::new(),
+                        strings: StringPool::new(),
                         sources: vec![module.id],
                         diagnostics: Vec::new(),
                         artifacts: Vec::new(),
@@ -38,9 +38,9 @@ impl<'a> Transpiler<'a> {
                     options: options.clone(),
                     id: TranspilerUnitId::new(0),
                     uri: Uri::from_string("combined"),
-                    ast: ast::MutableNodeTree::new(),
+                    ast: ast::NodeTree::new(),
                     roots: Vec::new(),
-                    strings: SharedStringPool::new(),
+                    strings: StringPool::new(),
                     sources: modules.iter().map(|module| module.id).collect(),
                     diagnostics: Vec::new(),
                     artifacts: Vec::new(),

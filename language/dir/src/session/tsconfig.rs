@@ -13,43 +13,44 @@ use dyst_source::{PathExt, strip_json};
 const TEMPLATE_VARIABLE: &str = "${configDir}"; // TODO #Broken: revisit TsConfig template variable
 
 /// TypeScript configuration (usually from `tsconfig.json`)
-#[derive(Debug, Deserialize)]
+/// <https://www.typescriptlang.org/tsconfig>
+#[derive(Debug, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
-pub struct TypeScriptOptions {
+pub struct TsConfigJson {
     /// Whether this is the root tsconfig.
     #[serde(skip)]
     pub is_root: bool,
-
     /// Path to the `tsconfig.json` file (including the `tsconfig.json`).
     #[serde(skip)]
     pub path: PathBuf,
 
     /// Specific files to include in the project.
+	/// <https://www.typescriptlang.org/tsconfig/#files>
     #[serde(default)]
     pub files: Option<Vec<String>>,
-
     /// Files to include in the project.
+	/// <https://www.typescriptlang.org/tsconfig/#include>
     #[serde(default)]
     pub include: Option<Vec<String>>,
-
     /// Files to exclude from the project.
+	/// <https://www.typescriptlang.org/tsconfig/#exclude>
     #[serde(default)]
     pub exclude: Option<Vec<String>>,
-
     /// Paths to other tsconfigs to extend.
+	/// <https://www.typescriptlang.org/tsconfig/#extends>
     #[serde(default)]
     pub extends: Option<ExtendsField>,
-
     /// Compiler options.
+	/// <https://www.typescriptlang.org/tsconfig/#compilerOptions>
     #[serde(default)]
-    pub compiler_options: TypeScriptCompilerOptions,
-
+    pub compiler_options: TsCompilerOptionsJson,
     /// Bubbled up project references with a reference to their tsconfig.
+	/// <https://www.typescriptlang.org/tsconfig/#references>
     #[serde(default)]
-    pub references: Vec<TypeScriptProjectReference>,
+    pub references: Vec<TsProjectReferences>,
 }
 
-impl TypeScriptOptions {
+impl TsConfigJson {
     /// Parses the tsconfig from a JSON string.
     pub fn parse(is_root: bool, path: &Path, content: &mut str) -> Result<Self, serde_json::Error> {
         let json = trim_start_matches_mut(content, '\u{feff}'); // strip bom
@@ -335,7 +336,7 @@ impl TypeScriptOptions {
         for tsconfig in self
             .references
             .iter()
-            .filter_map(TypeScriptProjectReference::tsconfig)
+            .filter_map(TsProjectReferences::tsconfig)
         {
             if path.starts_with(tsconfig.base_path()) {
                 return [tsconfig.resolve_path_alias(specifier), paths].concat();
@@ -407,11 +408,11 @@ impl TypeScriptOptions {
     }
 }
 
-/// TypeScript Compiler Options
+/// TypeScript compiler options.
 /// <https://www.typescriptlang.org/tsconfig#compilerOptions>
-#[derive(Debug, Default, Deserialize)]
+#[derive(Debug, Default, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
-pub struct TypeScriptCompilerOptions {
+pub struct TsCompilerOptionsJson {
     /// Base URL (e.g. `./src`)
     /// <https://www.typescriptlang.org/tsconfig/#baseUrl>
     pub base_url: Option<PathBuf>,
@@ -638,29 +639,29 @@ pub enum ExtendsField {
 /// Project Reference
 ///
 /// <https://www.typescriptlang.org/docs/handbook/project-references.html>
-#[derive(Debug, Deserialize)]
-pub struct TypeScriptProjectReference {
+#[derive(Debug, Deserialize, Clone)]
+pub struct TsProjectReferences {
     /// Path to the tsconfig.json file.
     pub path: PathBuf,
 
     /// Resolved tsconfig.
     #[serde(skip)]
-    pub tsconfig: Option<Arc<TypeScriptOptions>>,
+    pub tsconfig: Option<Arc<TsConfigJson>>,
 }
 
-impl TypeScriptProjectReference {
+impl TsProjectReferences {
     /// Returns the path to the tsconfig.json file.
     pub fn path(&self) -> &Path {
         &self.path
     }
 
     /// Returns the resolved tsconfig.
-    pub fn tsconfig(&self) -> Option<Arc<TypeScriptOptions>> {
+    pub fn tsconfig(&self) -> Option<Arc<TsConfigJson>> {
         self.tsconfig.clone()
     }
 
     /// Sets the resolved tsconfig.
-    pub fn set_tsconfig(&mut self, tsconfig: Arc<TypeScriptOptions>) {
+    pub fn set_tsconfig(&mut self, tsconfig: Arc<TsConfigJson>) {
         self.tsconfig.replace(tsconfig);
     }
 }

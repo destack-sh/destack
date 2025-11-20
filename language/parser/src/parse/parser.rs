@@ -2,10 +2,10 @@ use core::fmt;
 use std::fmt::Debug;
 
 use crate::{Lexer, is_semantic};
-use dyst_ast::{BlockFormat, Expression, MutableNodeTree, NodeId, NodeType, TokenSpan, TokenType};
+use dyst_ast::{BlockFormat, Expression, NodeTree, NodeId, NodeType, TokenSpan, TokenType};
 use dyst_source::{
     DiagnosticCollector, EnclosingSpan, File, FileId, LanguageOptions, MultiSpan, NodeSearch,
-    SharedStringPool, Span,
+    StringPool, Span,
 };
 
 use crate::{ParseError, ParseResult};
@@ -239,9 +239,9 @@ pub struct Parser<'ast> {
     pub(crate) options: ParserOptions,
 
     /// The Node AST tree.
-    pub tree: MutableNodeTree,
+    pub tree: NodeTree,
     /// The string pool.
-    pub strings: SharedStringPool,
+    pub strings: StringPool,
 
     /// The language options.
     pub language: LanguageOptions,
@@ -281,8 +281,8 @@ impl<'a> Parser<'a> {
             is_finished: false,
             options: ParserOptions::default(),
             language,
-            tree: MutableNodeTree::new(),
-            strings: SharedStringPool::new(),
+            tree: NodeTree::new(),
+            strings: StringPool::new(),
             diagnostics,
             eof_token,
             errors: Vec::new(),

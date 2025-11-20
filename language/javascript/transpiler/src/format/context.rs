@@ -2,9 +2,9 @@ use dyst_fir::format::{Format, FormatContext, FormatOptions, FormatResult, Forma
 use dyst_fir::prelude::*;
 use dyst_fir::print::PrintOptions;
 use dyst_javascript_ast::{
-    Annotation, Argument, Block, Definition, DependencyItem, EnumField, Expression,
-    MutableNodeTree, MutableNodeTreeImpl, Node, NodeId, NodeIdAny, NodeType, Parameter, Pattern,
-    PatternField, Property, Statement, SwitchCase, Type, TypeField,
+    Annotation, Argument, Block, Definition, DependencyItem, EnumField, Expression, Node, NodeId,
+    NodeIdAny, NodeTree, NodeTreeImpl, NodeType, Parameter, Pattern, PatternField, Property,
+    Statement, SwitchCase, Type, TypeField,
 };
 use dyst_source::{File, ImmutableStringPool, IndentStyle, LineEnding};
 
@@ -184,7 +184,7 @@ pub struct JavaScriptFormatContext<'a> {
     /// The unit.
     pub unit: &'a TranspilerUnit,
     /// The tree.
-    pub tree: &'a MutableNodeTree,
+    pub tree: &'a NodeTree,
     /// The string pool.
     pub strings: &'a ImmutableStringPool,
 }
@@ -240,7 +240,7 @@ where
 impl<'a, T: Node> Format<JavaScriptFormatContext<'a>> for NodeId<T>
 where
     T: Node + Clone,
-    MutableNodeTree: MutableNodeTreeImpl<T>,
+    NodeTree: NodeTreeImpl<T>,
     T: FormatNode<'a, T>,
 {
     #[inline]

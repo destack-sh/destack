@@ -3,7 +3,7 @@ use dyst_fir::format::FormatResult;
 use crate::expression::format_expression;
 use crate::{DystFormatContext, DystFormatter, FormatNode};
 use dyst_ast::{
-    Block, Expression, MutableNodeTree, MutableNodeTreeImpl, Node, NodeId, NodeIdAny, NodeType,
+    Block, Expression, NodeTree, NodeTreeImpl, Node, NodeId, NodeIdAny, NodeType,
 };
 use dyst_fir::prelude::*;
 use dyst_fir::{format_args, write};
@@ -17,7 +17,7 @@ pub struct EmptyBlockWithInfixAnnotations<T: Node> {
 impl<'ast, T> Format<DystFormatContext<'ast>> for EmptyBlockWithInfixAnnotations<T>
 where
     T: Node + Clone,
-    MutableNodeTree: MutableNodeTreeImpl<T>,
+    NodeTree: NodeTreeImpl<T>,
 {
     #[inline]
     fn format(&self, f: &mut Formatter<'_, DystFormatContext<'ast>>) -> FormatResult<()> {

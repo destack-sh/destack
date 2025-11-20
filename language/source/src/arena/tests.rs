@@ -3,7 +3,7 @@ use super::*;
 /// Test simple allocation.
 #[test]
 fn test_simple_allocation() {
-    let mut arena = Arena::new();
+    let mut arena = Arena::with(1024, 1024);
     let id1 = arena.allocate(10);
     let id2 = arena.allocate(20);
 
@@ -61,7 +61,7 @@ fn test_stable_addresses() {
 /// Test get mutable.
 #[test]
 fn test_get_mut() {
-    let mut arena = Arena::new();
+    let mut arena = Arena::with(1024, 1024);
     let id = arena.allocate(5);
     *arena.get_mut(id) = 10;
     assert_eq!(*arena.get(id), 10);

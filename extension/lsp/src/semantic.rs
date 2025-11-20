@@ -1,5 +1,5 @@
 use dyst_ast::{
-    Definition, MutableNodeTree, NodeId, NodeVisitor, SemanticTokenIndex, SemanticType, TokenSpan,
+    Definition, NodeTree, NodeId, NodeVisitor, SemanticTokenIndex, SemanticType, TokenSpan,
 };
 use dyst_source::File;
 use tower_lsp_server::lsp_types as lsp;
@@ -45,7 +45,7 @@ pub fn legend() -> lsp::SemanticTokensLegend {
 pub fn collect_semantic_tokens(
     source: &File,
     tokens: &Vec<TokenSpan>,
-    tree: &MutableNodeTree,
+    tree: &NodeTree,
     root_definition_id: NodeId<Definition>,
     range: Option<&lsp::Range>,
     use_lexical: bool,

@@ -368,7 +368,7 @@ impl Dump for StringId {
 /// Dump a NodeId<T> as the node it points to.
 impl<T: Node + Clone + Dump> Dump for NodeId<T>
 where
-    MutableNodeTree: MutableNodeTreeImpl<T>,
+    MutableNodeTree: NodeTreeImpl<T>,
 {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
         let node = dumper.tree.get(*self);

@@ -4,7 +4,7 @@
 
 use std::path::Path;
 
-use dyst_dir::TypeScriptOptions;
+use dyst_dir::TsConfigJson;
 
 use crate::tests::TestResolver;
 use crate::{
@@ -231,10 +231,10 @@ fn test_extend_tsconfig_no_override_existing() {
     })
     .to_string();
 
-    let parent_tsconfig = TypeScriptOptions::parse(true, parent_path, &mut parent_config)
+    let parent_tsconfig = TsConfigJson::parse(true, parent_path, &mut parent_config)
         .unwrap()
         .build();
-    let mut child_tsconfig = TypeScriptOptions::parse(true, child_path, &mut child_config).unwrap();
+    let mut child_tsconfig = TsConfigJson::parse(true, child_path, &mut child_config).unwrap();
 
     child_tsconfig.extend_from(&parent_tsconfig);
     let child_built = child_tsconfig.build();

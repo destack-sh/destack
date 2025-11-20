@@ -3,11 +3,9 @@
 #![feature(once_cell_try)]
 
 pub mod cache;
-pub mod config;
 pub mod resolve;
 
 pub use cache::*;
-pub use config::*;
 pub use resolve::*;
 
 #[cfg(test)]

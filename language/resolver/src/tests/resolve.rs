@@ -478,11 +478,11 @@ fn test_resolve_decimal_js_from_mathjs() {
 fn test_resolve_minimatch() {
     let dir = fixture_root();
     let path = dir.join("pnpm");
-    let esm_resolver = TestResolver::new(ResolveOptions {
+    let resolver = TestResolver::new(ResolveOptions {
         conditions: vec!["import".into()],
         ..ResolveOptions::default()
     });
-    let resolution = esm_resolver.resolve(&path, "minimatch").unwrap();
+    let resolution = resolver.resolve(&path, "minimatch").unwrap();
     assert_eq!(
         resolution.full_path(),
         dir.join(
@@ -490,11 +490,11 @@ fn test_resolve_minimatch() {
         )
     );
 
-    let cjs_resolver = esm_resolver.clone_with_options(ResolveOptions {
+    let resolver = TestResolver::new(ResolveOptions {
         conditions: vec!["require".into()],
         ..ResolveOptions::default()
     });
-    let resolution = cjs_resolver.resolve(&path, "minimatch").unwrap();
+    let resolution = resolver.resolve(&path, "minimatch").unwrap();
     assert_eq!(
         resolution.full_path(),
         dir.join(

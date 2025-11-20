@@ -2,18 +2,18 @@ use std::fmt;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use dyst_dir::PackageOptions;
+use dyst_dir::PackageJson;
 
-/// The final path resolution with optional `?query` and `#fragment`
+/// The final resolved path with optional `?query` and `#fragment`
 pub struct Resolution {
-    /// The final path.
+    /// The final path with query and fragment (like `foo.js?query#fragment`).
     pub(crate) path: PathBuf,
     /// Query `?query`, contains `?` (like `?foo` in `foo.js?foo`).
     pub(crate) query: Option<String>,
     /// Fragment `#query`, contains `#` (like `#foo` in `foo.js#foo`).
     pub(crate) fragment: Option<String>,
     /// `package.json` of the given module.
-    pub(crate) package_json: Option<Arc<PackageOptions>>,
+    pub(crate) package_json: Option<Arc<PackageJson>>,
 }
 
 impl Clone for Resolution {
@@ -66,11 +66,11 @@ impl Resolution {
     }
 
     /// Returns serializsed package_json.
-    pub fn package_json(&self) -> Option<&Arc<PackageOptions>> {
+    pub fn package_json(&self) -> Option<&Arc<PackageJson>> {
         self.package_json.as_ref()
     }
 
-    /// Returns the full path with query and fragment
+    /// Builds the full path with query and fragment.
     pub fn full_path(&self) -> PathBuf {
         let mut path = self.path.clone().into_os_string();
         if let Some(query) = &self.query {
