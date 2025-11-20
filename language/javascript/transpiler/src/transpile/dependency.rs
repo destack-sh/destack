@@ -1,6 +1,6 @@
 use crate::{TranspileError, TranspileResult, Transpiler, TranspilerUnit};
 use dyst_ast::StringId;
-use dyst_dir::{self as dir, Module};
+use dyst_dir::{self as dir, Module, NodeTree};
 use dyst_javascript_ast::{DependencyItem, DependencyKind, NodeId};
 
 impl<'a> Transpiler<'a> {
@@ -16,6 +16,7 @@ impl<'a> Transpiler<'a> {
     pub fn transpile_dependency_items(
         &self,
         module: &'a Module,
+        tree: &NodeTree,
         kind: dir::DependencyKind,
         item_ids: &[dir::NodeId<dir::DependencyItem>],
         unit: &mut TranspilerUnit,
@@ -23,7 +24,7 @@ impl<'a> Transpiler<'a> {
         let mut transpiled_item_ids: Vec<NodeId<DependencyItem>> = Vec::new();
         let mut default_alias: Option<StringId> = None;
         for item_id in item_ids {
-            let item = self.session.tree.get(*item_id);
+            let item = tree.get(*item_id);
             match item.as_ref() {
                 dir::DependencyItem::UnresolvedDefault {
                     kind: _,

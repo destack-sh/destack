@@ -1,4 +1,4 @@
-use dyst_dir::{self as dir, Module};
+use dyst_dir::{self as dir, Module, NodeTree};
 use dyst_javascript_ast::{
     BindingKind, BindingModifier, BindingOperator, BindingScope, Expression, NodeId, Property,
 };
@@ -43,10 +43,11 @@ impl<'a> Transpiler<'a> {
     pub fn transpile_property(
         &self,
         module: &'a Module,
+        tree: &NodeTree,
         property_id: dir::NodeId<dir::Property>,
         unit: &mut TranspilerUnit,
     ) -> TranspileResult<NodeId<Property>> {
-        let property = self.session.tree.get(property_id);
+        let property = tree.get(property_id);
         let property = match property.as_ref() {
             dir::Property::Field {
                 modifiers,
@@ -59,19 +60,19 @@ impl<'a> Transpiler<'a> {
                     .transpose()?;
                 let key = key
                     .as_ref()
-                    .map(|key| self.transpile_key(module, *key, unit))
+                    .map(|key| self.transpile_key(module, tree, *key, unit))
                     .transpose()?;
                 let value = value
                     .as_ref()
                     .map(|value| {
-                        self.transpile_expression(module, *value, unit)
+                        self.transpile_expression(module, tree, *value, unit)
                             .expect_node::<Expression>(value.into_any(), unit)
                     })
                     .transpose()?;
                 let default = default
                     .as_ref()
                     .map(|default| {
-                        self.transpile_expression(module, *default, unit)
+                        self.transpile_expression(module, tree, *default, unit)
                             .expect_node::<Expression>(default.into_any(), unit)
                     })
                     .transpose()?;
@@ -93,13 +94,13 @@ impl<'a> Transpiler<'a> {
                     .transpose()?;
                 let key = key
                     .as_ref()
-                    .map(|key| self.transpile_key(module, *key, unit))
+                    .map(|key| self.transpile_key(module, tree, *key, unit))
                     .transpose()?;
-                let signature = self.transpile_function_signature(module, signature, unit)?;
+                let signature = self.transpile_function_signature(module, tree, signature, unit)?;
                 let body = body
                     .as_ref()
                     .map(|body_id| {
-                        self.transpile_expression(module, *body_id, unit)
+                        self.transpile_expression(module, tree, *body_id, unit)
                             .expect_node::<Expression>(body_id.into_any(), unit)
                     })
                     .transpose()?;
@@ -115,7 +116,7 @@ impl<'a> Transpiler<'a> {
                     .map(|modifiers| self.transpile_binding_modifier(module, modifiers, unit))
                     .transpose()?;
                 let value = self
-                    .transpile_expression(module, *value, unit)
+                    .transpile_expression(module, tree, *value, unit)
                     .expect_node::<Expression>(value.into_any(), unit)?;
                 Property::Spread { modifiers, value }
             }

@@ -1,4 +1,4 @@
-use dyst_dir::{self as dir, Module};
+use dyst_dir::{self as dir, Module, NodeTree};
 use dyst_javascript_ast::{
     Expression, Generics, Heritage, Mutability, NodeId, PrimitiveType, Type, TypeBinaryOperator,
     TypeLiteral, TypeUnaryOperator,
@@ -19,6 +19,7 @@ impl<'a> Transpiler<'a> {
     pub fn transpile_generics(
         &self,
         module: &'a Module,
+        tree: &NodeTree,
         generics: &dir::Generics,
         unit: &mut TranspilerUnit,
     ) -> TranspileResult<Generics> {
@@ -28,7 +29,7 @@ impl<'a> Transpiler<'a> {
             .map(|static_parameters| {
                 static_parameters
                     .iter()
-                    .map(|parameter| self.transpile_parameter(module, *parameter, unit))
+                    .map(|parameter| self.transpile_parameter(module, tree, *parameter, unit))
                     .collect::<Result<Vec<_>, TranspileError>>()
             })
             .transpose()?;
@@ -40,6 +41,7 @@ impl<'a> Transpiler<'a> {
     pub fn transpile_heritage(
         &self,
         module: &'a Module,
+        tree: &NodeTree,
         heritage: &dir::Heritage,
         unit: &mut TranspilerUnit,
     ) -> TranspileResult<Heritage> {
@@ -49,7 +51,7 @@ impl<'a> Transpiler<'a> {
             .map(|extends_types| {
                 extends_types
                     .iter()
-                    .map(|extends_type| self.transpile_type(module, *extends_type, unit))
+                    .map(|extends_type| self.transpile_type(module, tree, *extends_type, unit))
                     .collect::<Result<Vec<_>, TranspileError>>()
             })
             .transpose()?;
@@ -59,7 +61,7 @@ impl<'a> Transpiler<'a> {
             .map(|implements_types| {
                 implements_types
                     .iter()
-                    .map(|implements_type| self.transpile_type(module, *implements_type, unit))
+                    .map(|implements_type| self.transpile_type(module, tree, *implements_type, unit))
                     .collect::<Result<Vec<_>, TranspileError>>()
             })
             .transpose()?;
@@ -176,10 +178,11 @@ impl<'a> Transpiler<'a> {
     pub fn transpile_type(
         &self,
         module: &'a Module,
+        tree: &NodeTree,
         ty_id: dir::NodeId<dir::Type>,
         unit: &mut TranspilerUnit,
     ) -> TranspileResult<NodeId<Type>> {
-        let ty = self.session.tree.get(ty_id);
+        let ty = tree.get(ty_id);
 
         let ty_id = match ty.as_ref() {
             dir::Type::Scalar(scalar) => {
@@ -189,7 +192,7 @@ impl<'a> Transpiler<'a> {
             }
             dir::Type::UnresolvedExpression(expression) => {
                 let expression = self
-                    .transpile_expression(module, *expression, unit)
+                    .transpile_expression(module, tree, *expression, unit)
                     .expect_node::<Expression>(expression.into_any(), unit)?;
                 let ty = Type::Expression(expression);
                 unit.ast.insert_from_source(ty, module.id, ty_id)
@@ -197,7 +200,7 @@ impl<'a> Transpiler<'a> {
 
             dir::Type::Unary { operator, right } => {
                 let operator = self.transpile_type_unary_operator(module, ty_id, *operator)?;
-                let right = self.transpile_type(module, *right, unit)?;
+                let right = self.transpile_type(module, tree, *right, unit)?;
                 let ty = Type::Unary { operator, right };
                 unit.ast.insert_from_source(ty, module.id, ty_id)
             }
@@ -206,9 +209,9 @@ impl<'a> Transpiler<'a> {
                 operator,
                 right,
             } => {
-                let left = self.transpile_type(module, *left, unit)?;
+                let left = self.transpile_type(module, tree, *left, unit)?;
                 let operator = self.transpile_type_binary_operator(module, ty_id, *operator)?;
-                let right = self.transpile_type(module, *right, unit)?;
+                let right = self.transpile_type(module, tree, *right, unit)?;
                 let ty = Type::Binary {
                     left,
                     operator,
@@ -219,7 +222,7 @@ impl<'a> Transpiler<'a> {
 
             dir::Type::Array { element } => {
                 let element = element
-                    .map(|element| self.transpile_type(module, element, unit))
+                    .map(|element| self.transpile_type(module, tree, element, unit))
                     .transpose()?;
                 let ty = Type::Array { element };
                 unit.ast.insert_from_source(ty, module.id, ty_id)
@@ -227,7 +230,7 @@ impl<'a> Transpiler<'a> {
             dir::Type::Tuple { elements } => {
                 let elements = elements
                     .iter()
-                    .map(|element| self.transpile_type(module, *element, unit))
+                    .map(|element| self.transpile_type(module, tree, *element, unit))
                     .collect::<Result<Vec<_>, TranspileError>>()?;
                 let ty = Type::Tuple { elements };
                 unit.ast.insert_from_source(ty, module.id, ty_id)
@@ -235,7 +238,7 @@ impl<'a> Transpiler<'a> {
             dir::Type::Union { elements } => {
                 let elements = elements
                     .iter()
-                    .map(|element| self.transpile_type(module, *element, unit))
+                    .map(|element| self.transpile_type(module, tree, *element, unit))
                     .collect::<Result<Vec<_>, TranspileError>>()?;
                 let ty = Type::Union { elements };
                 unit.ast.insert_from_source(ty, module.id, ty_id)
@@ -243,13 +246,13 @@ impl<'a> Transpiler<'a> {
             dir::Type::Intersection { elements } => {
                 let elements = elements
                     .iter()
-                    .map(|element| self.transpile_type(module, *element, unit))
+                    .map(|element| self.transpile_type(module, tree, *element, unit))
                     .collect::<Result<Vec<_>, TranspileError>>()?;
                 let ty = Type::Intersection { elements };
                 unit.ast.insert_from_source(ty, module.id, ty_id)
             }
             dir::Type::Function { signature } => {
-                let signature = self.transpile_function_signature(module, signature, unit)?;
+                let signature = self.transpile_function_signature(module, tree, signature, unit)?;
                 let ty = Type::Function { signature };
                 unit.ast.insert_from_source(ty, module.id, ty_id)
             }

@@ -1,4 +1,4 @@
-use dyst_dir::{self as dir, Module};
+use dyst_dir::{self as dir, Module, NodeTree};
 use dyst_javascript_ast::{Argument, Expression, NodeId, Parameter};
 
 use crate::{TranspileResult, TranspileResultExt, Transpiler, TranspilerUnit};
@@ -8,10 +8,11 @@ impl<'a> Transpiler<'a> {
     pub fn transpile_parameter(
         &self,
         module: &'a Module,
+        tree: &NodeTree,
         parameter_id: dir::NodeId<dir::Parameter>,
         unit: &mut TranspilerUnit,
     ) -> TranspileResult<NodeId<Parameter>> {
-        let parameter = self.session.tree.get(parameter_id);
+        let parameter = tree.get(parameter_id);
         let parameter = match parameter.as_ref() {
             dir::Parameter::Named {
                 modifiers,
@@ -25,11 +26,11 @@ impl<'a> Transpiler<'a> {
                     .transpose()?;
                 let name = unit.strings.intern_from(&module.strings, *name);
                 let ty = ty
-                    .map(|ty| self.transpile_type(module, ty, unit))
+                    .map(|ty| self.transpile_type(module, tree, ty, unit))
                     .transpose()?;
                 let default = default
                     .map(|default| {
-                        self.transpile_expression(module, default, unit)
+                        self.transpile_expression(module, tree, default, unit)
                             .expect_node::<Expression>(default.into_any(), unit)
                     })
                     .transpose()?;
@@ -50,13 +51,13 @@ impl<'a> Transpiler<'a> {
                 let modifiers = modifiers
                     .map(|modifiers| self.transpile_binding_modifier(module, modifiers, unit))
                     .transpose()?;
-                let pattern = self.transpile_pattern(module, *pattern, unit)?;
+                let pattern = self.transpile_pattern(module, tree, *pattern, unit)?;
                 let ty = ty
-                    .map(|ty| self.transpile_type(module, ty, unit))
+                    .map(|ty| self.transpile_type(module, tree, ty, unit))
                     .transpose()?;
                 let default = default
                     .map(|default| {
-                        self.transpile_expression(module, default, unit)
+                        self.transpile_expression(module, tree, default, unit)
                             .expect_node::<Expression>(default.into_any(), unit)
                     })
                     .transpose()?;
@@ -78,7 +79,7 @@ impl<'a> Transpiler<'a> {
                     .transpose()?;
                 let name = unit.strings.intern_from(&module.strings, *name);
                 let ty = ty
-                    .map(|ty| self.transpile_type(module, ty, unit))
+                    .map(|ty| self.transpile_type(module, tree, ty, unit))
                     .transpose()?;
                 Parameter::Variadic {
                     modifiers,
@@ -97,10 +98,11 @@ impl<'a> Transpiler<'a> {
     pub fn transpile_argument(
         &self,
         module: &'a Module,
+        tree: &NodeTree,
         argument_id: dir::NodeId<dir::Argument>,
         unit: &mut TranspilerUnit,
     ) -> TranspileResult<NodeId<Argument>> {
-        let argument = self.session.tree.get(argument_id);
+        let argument = tree.get(argument_id);
         let argument = match argument.as_ref() {
             dir::Argument::UnresolvedNamed {
                 modifiers: _,
@@ -118,7 +120,7 @@ impl<'a> Transpiler<'a> {
                 value,
             } => {
                 let value = self
-                    .transpile_expression(module, *value, unit)
+                    .transpile_expression(module, tree, *value, unit)
                     .expect_node::<Expression>(value.into_any(), unit)?;
                 Argument::Positional { value }
             }
@@ -134,7 +136,7 @@ impl<'a> Transpiler<'a> {
                 value,
             } => {
                 let value = self
-                    .transpile_expression(module, *value, unit)
+                    .transpile_expression(module, tree, *value, unit)
                     .expect_node::<Expression>(value.into_any(), unit)?;
                 Argument::Spread { value }
             }
@@ -152,10 +154,10 @@ impl<'a> Transpiler<'a> {
                 parameter: _,
             } => {
                 let key = self
-                    .transpile_expression(module, *key, unit)
+                    .transpile_expression(module, tree, *key, unit)
                     .expect_node::<Expression>(key.into_any(), unit)?;
                 let value = self
-                    .transpile_expression(module, *value, unit)
+                    .transpile_expression(module, tree, *value, unit)
                     .expect_node::<Expression>(value.into_any(), unit)?;
                 Argument::Dynamic { key, value }
             }

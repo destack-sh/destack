@@ -1,5 +1,5 @@
 use crate::{TranspileError, TranspileResult, TranspileResultExt, Transpiler, TranspilerUnit};
-use dyst_dir::{self as dir, Module};
+use dyst_dir::{self as dir, Module, NodeTree};
 use dyst_javascript_ast::{Block, NodeId, Statement};
 
 impl<'a> Transpiler<'a> {
@@ -7,10 +7,11 @@ impl<'a> Transpiler<'a> {
     pub fn transpile_block(
         &self,
         module: &'a Module,
+        tree: &NodeTree,
         block_id: dir::NodeId<dir::Block>,
         unit: &mut TranspilerUnit,
     ) -> TranspileResult<NodeId<Block>> {
-        let block = self.session.tree.get(block_id);
+        let block = tree.get(block_id);
         let label = block
             .label
             .map(|label| unit.strings.intern_from(&self.session.strings, label));
