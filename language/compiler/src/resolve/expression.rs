@@ -1,4 +1,4 @@
-use dyst_dir::{Expression, ModuleId, NodeId};
+use dyst_dir::{Expression, ModuleId, NodeId, NodeTree};
 
 use crate::{Compiler, ResolveError, ResolveResult};
 
@@ -8,8 +8,9 @@ impl<'a> Compiler<'a> {
         &self,
         _module_id: ModuleId,
         expression_id: NodeId<Expression>,
+        tree: &mut NodeTree,
     ) -> ResolveResult<()> {
-        let _expression = self.session.tree.get(expression_id);
+        let _expression = tree.get(expression_id);
         Err(ResolveError::UnsupportedNode {
             node: expression_id.into(),
         })

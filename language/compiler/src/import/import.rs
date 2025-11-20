@@ -1,6 +1,6 @@
 use crate::{Compiler, CompilerTask, ImportError, ImportResult};
 
-use dyst_dir::{Module, PackageId, Session};
+use dyst_dir::{Module, NodeTree, PackageId, Session};
 use dyst_parser::Parser;
 use dyst_source::{DiagnosticCollector, FileId, StringId};
 
@@ -52,7 +52,7 @@ impl From<ImportTask> for CompilerTask {
 
 impl<'a> Compiler<'a> {
     /// Process an import task.
-    pub fn process_import(&self, task: ImportTask) -> ImportResult<()> {
+    pub fn process_import(&self, task: ImportTask, tree: &mut NodeTree) -> ImportResult<()> {
         let file = match task {
             ImportTask::ImportModuleFromFile { file: file_id } => {
                 match self.session.files.get(file_id) {
@@ -86,7 +86,7 @@ impl<'a> Compiler<'a> {
             parser.tree,
             parser.strings,
         );
-        self.import_module(module, self.session.root_scope_id, expressions.as_slice());
+        self.import_module(module, self.session.root_scope_id, expressions.as_slice(), tree);
 
         Ok(())
     }

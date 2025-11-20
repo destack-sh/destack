@@ -1,15 +1,20 @@
 use crate::{Compiler, ResolveError, ResolveResult};
 use dyst_ast::StringId;
 use dyst_dir::{
-    Expression, FloatType, IntType, ModuleId, NodeId, PrimitiveType, Type, TypeLiteral,
+    Expression, FloatType, IntType, ModuleId, NodeId, NodeTree, PrimitiveType, Type, TypeLiteral,
     TypeUnaryOperator, UnaryOperator,
 };
 
 impl<'a> Compiler<'a> {
     /// Resolve a Type (in-place).
-    pub fn resolve_type(&self, _module_id: ModuleId, ty_id: NodeId<Type>) -> ResolveResult<()> {
+    pub fn resolve_type(
+        &self,
+        _module_id: ModuleId,
+        ty_id: NodeId<Type>,
+        tree: &mut NodeTree,
+    ) -> ResolveResult<()> {
         let expression_id = {
-            let ty = self.session.tree.get(ty_id);
+            let ty = tree.get(ty_id);
             let Type::UnresolvedExpression(expression_id) = *ty else {
                 return Ok(());
             };
@@ -17,8 +22,8 @@ impl<'a> Compiler<'a> {
         };
 
         // resolve and update in-place
-        let resolved_ty = self.try_resolve_expression_to_type_value(expression_id)?;
-        let mut ty = self.session.tree.get_mut(ty_id);
+        let resolved_ty = self.try_resolve_expression_to_type_value(expression_id, tree)?;
+        let ty = tree.get_mut(ty_id);
         *ty = resolved_ty;
 
         Ok(())
@@ -28,9 +33,10 @@ impl<'a> Compiler<'a> {
     fn try_resolve_expression_to_type(
         &self,
         expression_id: NodeId<Expression>,
+        tree: &mut NodeTree,
     ) -> ResolveResult<NodeId<Type>> {
-        let ty = self.try_resolve_expression_to_type_value(expression_id)?;
-        Ok(self.session.tree.insert_from(ty, expression_id))
+        let ty = self.try_resolve_expression_to_type_value(expression_id, tree)?;
+        Ok(tree.insert_from(ty, expression_id))
     }
 
     /// Try to Resolve an Expression as a Type.
@@ -38,9 +44,10 @@ impl<'a> Compiler<'a> {
     fn try_resolve_expression_to_type_value(
         &self,
         expression_id: NodeId<Expression>,
+        tree: &mut NodeTree,
     ) -> ResolveResult<Type> {
         let ty = self
-            .resolve_expression_to_type(expression_id)?
+            .resolve_expression_to_type(expression_id, tree)?
             .unwrap_or(Type::UnresolvedExpression(expression_id));
         Ok(ty)
     }
@@ -49,10 +56,11 @@ impl<'a> Compiler<'a> {
     fn resolve_expression_to_type(
         &self,
         expression_id: NodeId<Expression>,
+        tree: &mut NodeTree,
     ) -> ResolveResult<Option<Type>> {
-        let expression = self.session.tree.get(expression_id);
+        let expression = tree.get(expression_id);
 
-        let ty = match expression.as_ref() {
+        let ty = match expression {
             Expression::ScalarLiteral { value } => {
                 Type::Scalar(TypeLiteral::ScalarLiteral(value.clone()))
             }
@@ -63,7 +71,7 @@ impl<'a> Compiler<'a> {
                 operator: UnaryOperator::Not,
                 right,
             } => {
-                let type_id = self.try_resolve_expression_to_type(*right)?;
+                let type_id = self.try_resolve_expression_to_type(*right, tree)?;
                 Type::Unary {
                     operator: TypeUnaryOperator::Not,
                     right: type_id,
@@ -71,7 +79,7 @@ impl<'a> Compiler<'a> {
             }
             // maybe
             Expression::Maybe { left } => {
-                let type_id = self.try_resolve_expression_to_type(*left)?;
+                let type_id = self.try_resolve_expression_to_type(*left, tree)?;
                 Type::Unary {
                     operator: TypeUnaryOperator::Maybe,
                     right: type_id,
@@ -79,7 +87,7 @@ impl<'a> Compiler<'a> {
             }
             // must
             Expression::Must { left } => {
-                let type_id = self.try_resolve_expression_to_type(*left)?;
+                let type_id = self.try_resolve_expression_to_type(*left, tree)?;
                 Type::Unary {
                     operator: TypeUnaryOperator::Must,
                     right: type_id,
@@ -93,7 +101,7 @@ impl<'a> Compiler<'a> {
             } => {
                 let mutability = *mutability;
                 let variance = *variance;
-                let type_id = self.try_resolve_expression_to_type(*right)?;
+                let type_id = self.try_resolve_expression_to_type(*right, tree)?;
                 Type::ValueOf {
                     mutability,
                     variance,
@@ -108,7 +116,7 @@ impl<'a> Compiler<'a> {
             } => {
                 let mutability = *mutability;
                 let variance = *variance;
-                let type_id = self.try_resolve_expression_to_type(*right)?;
+                let type_id = self.try_resolve_expression_to_type(*right, tree)?;
                 Type::ReferenceOf {
                     mutability,
                     variance,
@@ -116,40 +124,40 @@ impl<'a> Compiler<'a> {
                 }
             }
             // unary
-            Expression::TypeUnary { operator, right } => {
-                let right_id = self.try_resolve_expression_to_type(*right)?;
+            &Expression::TypeUnary { operator, right } => {
+                let right_id = self.try_resolve_expression_to_type(right, tree)?;
                 Type::Unary {
-                    operator: *operator,
+                    operator,
                     right: right_id,
                 }
             }
             // binary
-            Expression::TypeBinary {
+            &Expression::TypeBinary {
                 left,
                 operator,
                 right,
             } => {
-                let left_id = self.try_resolve_expression_to_type(*left)?;
-                let right_id = self.try_resolve_expression_to_type(*right)?;
+                let left_id = self.try_resolve_expression_to_type(left, tree)?;
+                let right_id = self.try_resolve_expression_to_type(right, tree)?;
                 Type::Binary {
                     left: left_id,
-                    operator: *operator,
+                    operator,
                     right: right_id,
                 }
             }
 
             // range
-            Expression::RangeLiteral {
+            &Expression::RangeLiteral {
                 start,
                 end,
                 is_inclusive,
             } => {
-                let start_id = self.try_resolve_expression_to_type(*start)?;
-                let end_id = self.try_resolve_expression_to_type(*end)?;
+                let start_id = self.try_resolve_expression_to_type(start, tree)?;
+                let end_id = self.try_resolve_expression_to_type(end, tree)?;
                 Type::Range {
                     start: start_id,
                     end: end_id,
-                    is_inclusive: *is_inclusive,
+                    is_inclusive,
                 }
             }
             // tuple
@@ -166,18 +174,18 @@ impl<'a> Compiler<'a> {
             }
 
             // array or slice
-            Expression::Index { left, right } => {
+            &Expression::Index { left, right } => {
                 // array with static length
                 if let Some(right) = right {
-                    let left_id = self.try_resolve_expression_to_type(*left)?;
+                    let left_id = self.try_resolve_expression_to_type(left, tree)?;
                     Type::ArraySized {
                         element: left_id,
-                        count: *right,
+                        count: right,
                     }
                 }
                 // slice
                 else {
-                    let left_id = self.try_resolve_expression_to_type(*left)?;
+                    let left_id = self.try_resolve_expression_to_type(left, tree)?;
                     Type::Array {
                         element: Some(left_id),
                     }

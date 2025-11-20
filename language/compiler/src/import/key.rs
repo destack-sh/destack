@@ -1,10 +1,16 @@
 use crate::Compiler;
 use dyst_ast as ast;
-use dyst_dir::{Key, Module, ScopeId};
+use dyst_dir::{Key, Module, NodeTree, ScopeId};
 
 impl<'a> Compiler<'a> {
     /// Lower a key to a DIR key.
-    pub(super) fn lower_key(&self, module: &Module, scope_id: ScopeId, key: ast::Key) -> Key {
+    pub(super) fn lower_key(
+        &self,
+        module: &Module,
+        scope_id: ScopeId,
+        key: ast::Key,
+        tree: &mut NodeTree,
+    ) -> Key {
         match key {
             ast::Key::Name(name) => {
                 let name = self
@@ -14,12 +20,12 @@ impl<'a> Compiler<'a> {
                 Key::Name(name)
             }
             ast::Key::Expression(expression) => {
-                let expression = self.lower_expression(module, scope_id, expression);
+                let expression = self.lower_expression(module, scope_id, expression, tree);
                 Key::Expression(expression)
             }
             ast::Key::NamedExpression { name, key } => {
                 let name = self.session.strings.intern_from(&module.strings, name);
-                let key = self.lower_expression(module, scope_id, key);
+                let key = self.lower_expression(module, scope_id, key, tree);
                 Key::NamedExpression { name, key }
             }
         }

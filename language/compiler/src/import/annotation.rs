@@ -1,17 +1,16 @@
 use crate::Compiler;
 use dyst_ast::{self as ast};
-use dyst_dir::{Annotation, AnnotationPosition, Module, NodeId, ScopeId};
+use dyst_dir::{Annotation, AnnotationPosition, Module, NodeId, NodeTree, ScopeId};
 
 impl<'a> Compiler<'a> {
     /// Lower and attach all annotations for a module.
-    pub fn attach_annotations(&self, module: &Module, scope_id: ScopeId) {
+    pub fn attach_annotations(&self, module: &Module, scope_id: ScopeId, tree: &mut NodeTree) {
         // lower them
         for ast_annotation_id in module.get_nodes::<ast::Annotation>() {
-            self.lower_annotation(module, scope_id, ast_annotation_id);
+            self.lower_annotation(module, scope_id, ast_annotation_id, tree);
         }
 
         // attach them
-        let mut tree = self.session.tree.write();
         for (ast_node_id, ast_annotations) in module.ast.get_all_annotations() {
             let Some(dir_node_id) = tree.get_node_id_by_source_id(module.id, *ast_node_id) else {
                 continue;
@@ -48,6 +47,7 @@ impl<'a> Compiler<'a> {
         module: &Module,
         scope_id: ScopeId,
         annotation_id: ast::NodeId<ast::Annotation>,
+        tree: &mut NodeTree,
     ) -> Option<NodeId<Annotation>> {
         let annotation = module.get(annotation_id);
         let annotation = match annotation {
@@ -79,7 +79,7 @@ impl<'a> Compiler<'a> {
                 let arguments = tag.arguments.as_ref().map(|arguments| {
                     arguments
                         .iter()
-                        .map(|argument| self.lower_argument(module, scope_id, *argument))
+                        .map(|argument| self.lower_argument(module, scope_id, *argument, tree))
                         .collect()
                 });
                 Annotation::UnresolvedTag {
@@ -95,7 +95,7 @@ impl<'a> Compiler<'a> {
                 let arguments = decorator.arguments.as_ref().map(|arguments| {
                     arguments
                         .iter()
-                        .map(|argument| self.lower_argument(module, scope_id, *argument))
+                        .map(|argument| self.lower_argument(module, scope_id, *argument, tree))
                         .collect()
                 });
                 Annotation::UnresolvedDecorator {
@@ -105,10 +105,6 @@ impl<'a> Compiler<'a> {
                 }
             }
         };
-        Some(
-            self.session
-                .tree
-                .insert_from_source(annotation, module.id, annotation_id),
-        )
+        Some(tree.insert_from_source(annotation, module.id, annotation_id))
     }
 }

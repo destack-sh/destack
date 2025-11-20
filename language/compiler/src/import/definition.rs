@@ -2,7 +2,7 @@ use crate::Compiler;
 use dyst_ast as ast;
 use dyst_dir::{
     BindingScope, DeclarationDescriptor, DeclarationKind, Definition, EnumField, Module, NodeId,
-    ScopeId, ScopeKind, StructKind, SymbolId, SymbolKey, SymbolSpace,
+    NodeTree, ScopeId, ScopeKind, StructKind, SymbolId, SymbolKey, SymbolSpace,
 };
 
 impl<'a> Compiler<'a> {
@@ -29,17 +29,16 @@ impl<'a> Compiler<'a> {
         module: &Module,
         scope_id: ScopeId,
         expression_id: ast::NodeId<ast::Expression>,
+        tree: &mut NodeTree,
     ) -> Option<NodeId<Definition>> {
         let expression = module.get(expression_id);
         let definition_id = match expression {
             ast::Expression::Definition(definition_id) => {
-                self.lower_definition(module, scope_id, *definition_id)
+                self.lower_definition(module, scope_id, *definition_id, tree)
             }
             _ => return None,
         };
-        self.session
-            .tree
-            .alias_from_source(module.id, expression_id.id, definition_id);
+        tree.alias_from_source(module.id, expression_id.id, definition_id);
         Some(definition_id)
     }
 
@@ -77,9 +76,10 @@ impl<'a> Compiler<'a> {
         module: &Module,
         scope_id: ScopeId,
         definition_id: ast::NodeId<ast::Definition>,
+        tree: &mut NodeTree,
     ) -> NodeId<Definition> {
         let definition = module.get(definition_id);
-        let (symbol_id, scope_id) = self.session.tree.create_symbol_with_scope(
+        let (symbol_id, scope_id) = tree.create_symbol_with_scope(
             SymbolSpace::Value,
             None,
             ScopeKind::Block,
@@ -92,11 +92,11 @@ impl<'a> Compiler<'a> {
                 expressions,
             } => {
                 let descriptor = self.lower_declaration_descriptor(module, symbol_id, descriptor);
-                let generics = self.lower_generics(module, scope_id, generics);
+                let generics = self.lower_generics(module, scope_id, generics, tree);
                 let definitions = expressions
                     .iter()
                     .flat_map(|expression| {
-                        self.lower_expression_to_definition_maybe(module, scope_id, *expression)
+                        self.lower_expression_to_definition_maybe(module, scope_id, *expression, tree)
                     })
                     .collect();
                 Definition::Namespace {
@@ -118,11 +118,11 @@ impl<'a> Compiler<'a> {
                     ast::StructKind::Struct => StructKind::Struct,
                     ast::StructKind::Class => StructKind::Class,
                 };
-                let generics = self.lower_generics(module, scope_id, generics);
-                let heritage = self.lower_heritage(module, scope_id, heritage);
+                let generics = self.lower_generics(module, scope_id, generics, tree);
+                let heritage = self.lower_heritage(module, scope_id, heritage, tree);
                 let properties = properties
                     .iter()
-                    .map(|property| self.lower_property(module, scope_id, *property))
+                    .map(|property| self.lower_property(module, scope_id, *property, tree))
                     .collect();
                 Definition::Struct {
                     descriptor,
@@ -141,15 +141,15 @@ impl<'a> Compiler<'a> {
                 properties,
             } => {
                 let descriptor = self.lower_declaration_descriptor(module, symbol_id, descriptor);
-                let generics = self.lower_generics(module, scope_id, generics);
-                let heritage = self.lower_heritage(module, scope_id, heritage);
+                let generics = self.lower_generics(module, scope_id, generics, tree);
+                let heritage = self.lower_heritage(module, scope_id, heritage, tree);
                 let fields = fields
                     .iter()
-                    .map(|field| self.lower_enum_field(module, scope_id, *field))
+                    .map(|field| self.lower_enum_field(module, scope_id, *field, tree))
                     .collect();
                 let properties = properties
                     .iter()
-                    .map(|property| self.lower_property(module, scope_id, *property))
+                    .map(|property| self.lower_property(module, scope_id, *property, tree))
                     .collect();
                 Definition::Enum {
                     descriptor,
@@ -167,11 +167,11 @@ impl<'a> Compiler<'a> {
                 properties,
             } => {
                 let descriptor = self.lower_declaration_descriptor(module, symbol_id, descriptor);
-                let generics = self.lower_generics(module, scope_id, generics);
-                let heritage = self.lower_heritage(module, scope_id, heritage);
+                let generics = self.lower_generics(module, scope_id, generics, tree);
+                let heritage = self.lower_heritage(module, scope_id, heritage, tree);
                 let properties = properties
                     .iter()
-                    .map(|property| self.lower_property(module, scope_id, *property))
+                    .map(|property| self.lower_property(module, scope_id, *property, tree))
                     .collect();
                 Definition::Interface {
                     descriptor,
@@ -189,12 +189,12 @@ impl<'a> Compiler<'a> {
                 properties,
             } => {
                 let descriptor = self.lower_declaration_descriptor(module, symbol_id, descriptor);
-                let generics = self.lower_generics(module, scope_id, generics);
-                let target_type = self.lower_expression_to_type(module, scope_id, *target_type);
-                let heritage = self.lower_heritage(module, scope_id, heritage);
+                let generics = self.lower_generics(module, scope_id, generics, tree);
+                let target_type = self.lower_expression_to_type(module, scope_id, *target_type, tree);
+                let heritage = self.lower_heritage(module, scope_id, heritage, tree);
                 let properties = properties
                     .iter()
-                    .map(|property| self.lower_property(module, scope_id, *property))
+                    .map(|property| self.lower_property(module, scope_id, *property, tree))
                     .collect();
                 Definition::Implement {
                     descriptor,
@@ -211,8 +211,8 @@ impl<'a> Compiler<'a> {
                 body,
             } => {
                 let descriptor = self.lower_declaration_descriptor(module, symbol_id, descriptor);
-                let signature = self.lower_function_signature(module, scope_id, signature);
-                let body = body.map(|body| self.lower_expression(module, scope_id, body));
+                let signature = self.lower_function_signature(module, scope_id, signature, tree);
+                let body = body.map(|body| self.lower_expression(module, scope_id, body, tree));
                 Definition::Function {
                     descriptor,
                     signature,
@@ -223,7 +223,7 @@ impl<'a> Compiler<'a> {
                 }
             }
         };
-        self.session.tree.insert_from_source_as_symbol(
+        tree.insert_from_source_as_symbol(
             definition,
             module.id,
             definition_id,
@@ -237,6 +237,7 @@ impl<'a> Compiler<'a> {
         module: &Module,
         scope_id: ScopeId,
         field_id: ast::NodeId<ast::EnumField>,
+        tree: &mut NodeTree,
     ) -> NodeId<EnumField> {
         let field = module.get(field_id);
         let name = self
@@ -245,8 +246,8 @@ impl<'a> Compiler<'a> {
             .intern_from(&module.strings, field.name.string());
         let value = field
             .value
-            .map(|value| self.lower_expression(module, scope_id, value));
-        let symbol_id = self.session.tree.create_symbol(
+            .map(|value| self.lower_expression(module, scope_id, value, tree));
+        let symbol_id = tree.create_symbol(
             SymbolSpace::Value,
             Some(SymbolKey::Name(name)),
             scope_id,
@@ -256,8 +257,6 @@ impl<'a> Compiler<'a> {
             value,
             symbol: symbol_id,
         };
-        self.session
-            .tree
-            .insert_from_source_as_symbol(enum_field, module.id, field_id, symbol_id)
+        tree.insert_from_source_as_symbol(enum_field, module.id, field_id, symbol_id)
     }
 }

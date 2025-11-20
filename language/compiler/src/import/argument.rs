@@ -2,7 +2,7 @@ use crate::Compiler;
 use dyst_ast as ast;
 use dyst_dir::{
     Argument, BindingKind, BindingModifier, BindingOperator, BindingScope, Expression, Module,
-    Mutability, NodeId, Parameter, Path, ScopeId, SymbolKey, SymbolSpace, Visibility,
+    Mutability, NodeId, NodeTree, Parameter, Path, ScopeId, SymbolKey, SymbolSpace, Visibility,
 };
 use dyst_source::smallvec;
 
@@ -48,6 +48,7 @@ impl<'a> Compiler<'a> {
         module: &Module,
         scope_id: ScopeId,
         parameter_id: ast::NodeId<ast::Parameter>,
+        tree: &mut NodeTree,
     ) -> NodeId<Parameter> {
         let parameter = module.get(parameter_id);
         match parameter {
@@ -60,10 +61,10 @@ impl<'a> Compiler<'a> {
                 let modifiers =
                     modifiers.map(|modifiers| self.lower_binding_modifier(module, modifiers));
                 let name = self.session.strings.intern_from(&module.strings, *name);
-                let ty = ty.map(|ty| self.lower_expression_to_type(module, scope_id, ty));
+                let ty = ty.map(|ty| self.lower_expression_to_type(module, scope_id, ty, tree));
                 let default =
-                    default.map(|default| self.lower_expression(module, scope_id, default));
-                let symbol_id = self.session.tree.create_symbol(
+                    default.map(|default| self.lower_expression(module, scope_id, default, tree));
+                let symbol_id = tree.create_symbol(
                     SymbolSpace::Value,
                     Some(SymbolKey::Name(name)),
                     scope_id,
@@ -75,7 +76,7 @@ impl<'a> Compiler<'a> {
                     default,
                     symbol: symbol_id,
                 };
-                self.session.tree.insert_from_source_as_symbol(
+                tree.insert_from_source_as_symbol(
                     parameter,
                     module.id,
                     parameter_id,
@@ -90,14 +91,11 @@ impl<'a> Compiler<'a> {
             } => {
                 let modifiers =
                     modifiers.map(|modifiers| self.lower_binding_modifier(module, modifiers));
-                let pattern = self.lower_pattern(module, scope_id, *pattern);
-                let ty = ty.map(|ty| self.lower_expression_to_type(module, scope_id, ty));
+                let pattern = self.lower_pattern(module, scope_id, *pattern, tree);
+                let ty = ty.map(|ty| self.lower_expression_to_type(module, scope_id, ty, tree));
                 let default =
-                    default.map(|default| self.lower_expression(module, scope_id, default));
-                let symbol_id = self
-                    .session
-                    .tree
-                    .create_symbol(SymbolSpace::Value, None, scope_id);
+                    default.map(|default| self.lower_expression(module, scope_id, default, tree));
+                let symbol_id = tree.create_symbol(SymbolSpace::Value, None, scope_id);
                 let parameter = Parameter::Pattern {
                     modifiers,
                     pattern,
@@ -105,7 +103,7 @@ impl<'a> Compiler<'a> {
                     default,
                     symbol: symbol_id,
                 };
-                self.session.tree.insert_from_source_as_symbol(
+                tree.insert_from_source_as_symbol(
                     parameter,
                     module.id,
                     parameter_id,
@@ -120,8 +118,8 @@ impl<'a> Compiler<'a> {
                 let modifiers =
                     modifiers.map(|modifiers| self.lower_binding_modifier(module, modifiers));
                 let name = self.session.strings.intern_from(&module.strings, *name);
-                let ty = ty.map(|ty| self.lower_expression_to_type(module, scope_id, ty));
-                let symbol_id = self.session.tree.create_symbol(
+                let ty = ty.map(|ty| self.lower_expression_to_type(module, scope_id, ty, tree));
+                let symbol_id = tree.create_symbol(
                     SymbolSpace::Value,
                     Some(SymbolKey::Name(name)),
                     scope_id,
@@ -132,7 +130,7 @@ impl<'a> Compiler<'a> {
                     ty,
                     symbol: symbol_id,
                 };
-                self.session.tree.insert_from_source_as_symbol(
+                tree.insert_from_source_as_symbol(
                     parameter,
                     module.id,
                     parameter_id,
@@ -148,6 +146,7 @@ impl<'a> Compiler<'a> {
         module: &Module,
         scope_id: ScopeId,
         argument_id: ast::NodeId<ast::Argument>,
+        tree: &mut NodeTree,
     ) -> NodeId<Argument> {
         let argument = module.get(argument_id);
         match argument {
@@ -162,8 +161,8 @@ impl<'a> Compiler<'a> {
                     .session
                     .strings
                     .intern_from(&module.strings, name.string());
-                let value = self.lower_expression(module, scope_id, *value);
-                self.session.tree.insert_from_source(
+                let value = self.lower_expression(module, scope_id, *value, tree);
+                tree.insert_from_source(
                     Argument::UnresolvedNamed {
                         modifiers,
                         name,
@@ -180,7 +179,7 @@ impl<'a> Compiler<'a> {
                 let path = Path::AbsoluteString {
                     segments: smallvec![name],
                 };
-                let value = self.session.tree.insert_from_source(
+                let value = tree.insert_from_source(
                     Expression::UnresolvedPath {
                         path,
                         static_arguments: None,
@@ -188,7 +187,7 @@ impl<'a> Compiler<'a> {
                     module.id,
                     argument_id,
                 );
-                self.session.tree.insert_from_source(
+                tree.insert_from_source(
                     Argument::UnresolvedNamed {
                         modifiers,
                         name,
@@ -201,8 +200,8 @@ impl<'a> Compiler<'a> {
             ast::Argument::Positional { modifiers, value } => {
                 let modifiers =
                     modifiers.map(|modifiers| self.lower_binding_modifier(module, modifiers));
-                let value = self.lower_expression(module, scope_id, *value);
-                self.session.tree.insert_from_source(
+                let value = self.lower_expression(module, scope_id, *value, tree);
+                tree.insert_from_source(
                     Argument::UnresolvedPositional { modifiers, value },
                     module.id,
                     argument_id,
@@ -216,8 +215,8 @@ impl<'a> Compiler<'a> {
                 let modifiers =
                     modifiers.map(|modifiers| self.lower_binding_modifier(module, modifiers));
                 let name = name.map(|name| self.session.strings.intern_from(&module.strings, name));
-                let value = self.lower_expression(module, scope_id, *value);
-                self.session.tree.insert_from_source(
+                let value = self.lower_expression(module, scope_id, *value, tree);
+                tree.insert_from_source(
                     Argument::UnresolvedSpread {
                         modifiers,
                         name,

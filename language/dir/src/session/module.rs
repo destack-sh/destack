@@ -164,17 +164,6 @@ impl ModuleRegistry {
         state.modules_by_id.insert(module.id, module);
     }
 
-    /// Iterate over the modules in the graph.
-    pub fn iter(&self) -> impl Iterator<Item = Module> {
-        let state = self.state.lock();
-        state
-            .modules_by_id
-            .values()
-            .cloned()
-            .collect::<Vec<_>>()
-            .into_iter()
-    }
-
     /// Get a module by module id.
     #[inline]
     pub fn get(&self, id: ModuleId) -> Option<Module> {

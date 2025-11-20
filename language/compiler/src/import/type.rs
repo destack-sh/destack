@@ -1,7 +1,8 @@
 use crate::Compiler;
 use dyst_ast as ast;
 use dyst_dir::{
-    Generics, Heritage, Module, Mutability, NodeId, ScopeId, Type, TypeKind, VarianceBound,
+    Generics, Heritage, Module, Mutability, NodeId, NodeTree, ScopeId, Type, TypeKind,
+    VarianceBound,
 };
 
 impl<'a> Compiler<'a> {
@@ -11,16 +12,15 @@ impl<'a> Compiler<'a> {
         module: &Module,
         scope_id: ScopeId,
         expression_id: ast::NodeId<ast::Expression>,
+        tree: &mut NodeTree,
     ) -> NodeId<Type> {
-        let expression = self.lower_expression(module, scope_id, expression_id);
-        let type_id = self.session.tree.insert_from_source(
+        let expression = self.lower_expression(module, scope_id, expression_id, tree);
+        let type_id = tree.insert_from_source(
             Type::UnresolvedExpression(expression),
             module.id,
             expression_id,
         );
-        self.session
-            .tree
-            .alias_from_source(module.id, expression_id.id, type_id);
+        tree.alias_from_source(module.id, expression_id.id, type_id);
         type_id
     }
 
@@ -56,6 +56,7 @@ impl<'a> Compiler<'a> {
         module: &Module,
         scope_id: ScopeId,
         generics: &ast::Generics,
+        tree: &mut NodeTree,
     ) -> Generics {
         let static_parameters = generics
             .static_parameters
@@ -64,20 +65,20 @@ impl<'a> Compiler<'a> {
                 static_parameters
                     .iter()
                     .map(|static_parameter| {
-                        self.lower_parameter(module, scope_id, *static_parameter)
+                        self.lower_parameter(module, scope_id, *static_parameter, tree)
                     })
                     .collect()
             });
         let with_clauses = generics.with_clauses.as_ref().map(|with_clauses| {
             with_clauses
                 .iter()
-                .map(|with_clause| self.lower_with_clause(module, scope_id, *with_clause))
+                .map(|with_clause| self.lower_with_clause(module, scope_id, *with_clause, tree))
                 .collect()
         });
         let where_clauses = generics.where_clauses.as_ref().map(|where_clauses| {
             where_clauses
                 .iter()
-                .map(|where_clause| self.lower_where_clause(module, scope_id, *where_clause))
+                .map(|where_clause| self.lower_where_clause(module, scope_id, *where_clause, tree))
                 .collect()
         });
         Generics {
@@ -93,18 +94,19 @@ impl<'a> Compiler<'a> {
         module: &Module,
         scope_id: ScopeId,
         heritage: &ast::Heritage,
+        tree: &mut NodeTree,
     ) -> Heritage {
         let extends_types = heritage.extends_types.as_ref().map(|extends_types| {
             extends_types
                 .iter()
-                .map(|extends_type| self.lower_expression_to_type(module, scope_id, *extends_type))
+                .map(|extends_type| self.lower_expression_to_type(module, scope_id, *extends_type, tree))
                 .collect()
         });
         let implements_types = heritage.implements_types.as_ref().map(|implements_types| {
             implements_types
                 .iter()
                 .map(|implements_type| {
-                    self.lower_expression_to_type(module, scope_id, *implements_type)
+                    self.lower_expression_to_type(module, scope_id, *implements_type, tree)
                 })
                 .collect()
         });
