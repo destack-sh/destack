@@ -51,7 +51,8 @@ pub struct PackageOptions {
 
     /// Package type.
     /// <https://docs.npmjs.com/cli/v11/configuring-npm/package-json#type>
-    pub r#type: Option<PackageType>,
+	#[serde(rename = "type")]
+    pub ty: Option<PackageType>,
 
     /// The "main" field.
     /// <https://docs.npmjs.com/cli/v11/configuring-npm/package-json#main>
@@ -76,7 +77,7 @@ impl fmt::Debug for PackageOptions {
             .field("path", &self.path)
             .field("realpath", &self.realpath)
             .field("name", &self.name)
-            .field("type", &self.r#type)
+            .field("type", &self.ty)
             .finish_non_exhaustive()
     }
 }

@@ -113,7 +113,7 @@ impl MutableNodeTree {
         let global_id = self.next_global_id;
         self.next_global_id = global_id + 1;
         self.type_by_node_id.push(T::TYPE);
-        let local_id = <Self as MutableNodeTreeImpl<T>>::push(self, node);
+        let local_id = <Self as MutableNodeTreeImpl<T>>::allocate(self, node);
         self.local_id_by_node_id.push(local_id);
         self.source_map.append(span);
         NodeId::new(global_id)
@@ -122,20 +122,6 @@ impl MutableNodeTree {
     /// Prune nodes from the tree. Resets the next id to the given index.
     #[inline]
     pub fn reset_to(&mut self, from_idx: u32) {
-        // collect local ids by node type
-        let mut local_ids_by_node: HashMap<NodeType, Vec<u32>> = HashMap::new();
-        for idx in from_idx..self.next_global_id {
-            let node_type = self.type_by_node_id[idx as usize];
-            let local_id = self.local_id_by_node_id[idx as usize];
-            local_ids_by_node
-                .entry(node_type)
-                .or_default()
-                .push(local_id);
-        }
-        // deallocate nodes
-        for (node_type, local_ids) in local_ids_by_node {
-            self.delete(node_type, local_ids);
-        }
         self.type_by_node_id.truncate(from_idx as usize);
         self.local_id_by_node_id.truncate(from_idx as usize);
         // reset spans & next_id
@@ -255,32 +241,6 @@ impl MutableNodeTree {
         })
     }
 
-    /// Remove a given local node.
-    #[inline]
-    fn delete(&mut self, node_type: NodeType, local_ids: Vec<u32>) {
-        match node_type {
-            NodeType::Expression => self.expressions.deallocate(local_ids),
-            NodeType::Block => self.blocks.deallocate(local_ids),
-            NodeType::Definition => self.definitions.deallocate(local_ids),
-            NodeType::Property => self.properties.deallocate(local_ids),
-            NodeType::EnumField => self.enum_fields.deallocate(local_ids),
-            NodeType::WithClause => self.with_clauses.deallocate(local_ids),
-            NodeType::WhereClause => self.where_clauses.deallocate(local_ids),
-            NodeType::DependencyItem => self.dependency_items.deallocate(local_ids),
-            NodeType::Parameter => self.parameters.deallocate(local_ids),
-            NodeType::Argument => self.arguments.deallocate(local_ids),
-            NodeType::MatchCase => self.match_cases.deallocate(local_ids),
-            NodeType::Pattern => self.patterns.deallocate(local_ids),
-            NodeType::PatternField => self.pattern_fields.deallocate(local_ids),
-            NodeType::Annotation => self.annotations.deallocate(local_ids),
-            NodeType::Blank => self.blanks.deallocate(local_ids),
-            NodeType::Doc => self.docs.deallocate(local_ids),
-            NodeType::Comment => self.comments.deallocate(local_ids),
-            NodeType::Tag => self.tags.deallocate(local_ids),
-            NodeType::Decorator => self.decorators.deallocate(local_ids),
-        }
-    }
-
     /// Append a doc to a node by its global id.
     #[inline]
     pub fn append_annotation(&mut self, target_id: u32, annotation: NodeId<Annotation>) {
@@ -361,8 +321,8 @@ impl MutableNodeTree {
 
 /// Map node types to arenas.
 pub trait MutableNodeTreeImpl<T: Node> {
-    /// Push a node into the relevant arena.
-    fn push(tree: &mut MutableNodeTree, node: T) -> u32;
+    /// Allocate a node into the relevant arena.
+    fn allocate(tree: &mut MutableNodeTree, node: T) -> u32;
     /// Get a node from the relevant arena.
     fn get(tree: &MutableNodeTree, idx: u32) -> &T;
     /// Get a mutable node from the relevant arena.
@@ -373,8 +333,8 @@ macro_rules! impl_node_tree_store {
     ($ty:ty, $field:ident) => {
         impl MutableNodeTreeImpl<$ty> for MutableNodeTree {
             #[inline]
-            fn push(tree: &mut MutableNodeTree, node: $ty) -> u32 {
-                tree.$field.push(node)
+            fn allocate(tree: &mut MutableNodeTree, node: $ty) -> u32 {
+                tree.$field.allocate(node)
             }
 
             #[inline]
