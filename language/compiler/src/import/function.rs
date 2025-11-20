@@ -64,7 +64,7 @@ impl<'a> Compiler<'a> {
 
     /// Lower function signature into a DIR function signature.
     pub(super) fn lower_function_signature(
-        &mut self,
+        &self,
         module: &Module,
         scope_id: ScopeId,
         signature: &ast::FunctionSignature,

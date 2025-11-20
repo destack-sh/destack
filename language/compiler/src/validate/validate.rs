@@ -12,7 +12,7 @@ impl From<ValidateTask> for CompilerTask {
 
 impl<'a> Compiler<'a> {
     /// Process a validate task.
-    pub fn process_validate(&mut self, task: ValidateTask) -> ValidateResult<()> {
+    pub fn process_validate(&self, task: ValidateTask) -> ValidateResult<()> {
         todo!("process_validate({task:?})")
     }
 }

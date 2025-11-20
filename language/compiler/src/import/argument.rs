@@ -9,7 +9,7 @@ use dyst_source::smallvec;
 impl<'a> Compiler<'a> {
     /// Lower a binding modifiers into a DIR binding modifiers.
     pub(super) fn lower_binding_modifier(
-        &mut self,
+        &self,
         _module: &Module,
         modifiers: ast::BindingModifier,
     ) -> BindingModifier {
@@ -44,7 +44,7 @@ impl<'a> Compiler<'a> {
 
     /// Lower a parameter into a DIR parameter.
     pub(super) fn lower_parameter(
-        &mut self,
+        &self,
         module: &Module,
         scope_id: ScopeId,
         parameter_id: ast::NodeId<ast::Parameter>,
@@ -144,7 +144,7 @@ impl<'a> Compiler<'a> {
 
     /// Lower an argument into a DIR argument.
     pub(super) fn lower_argument(
-        &mut self,
+        &self,
         module: &Module,
         scope_id: ScopeId,
         argument_id: ast::NodeId<ast::Argument>,

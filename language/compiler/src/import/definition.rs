@@ -7,7 +7,7 @@ use dyst_dir::{
 
 impl<'a> Compiler<'a> {
     /// Lower declaration kind to DIR declaration kind.
-    pub(super) fn lower_declaration_kind(&mut self, kind: ast::DeclarationKind) -> DeclarationKind {
+    pub(super) fn lower_declaration_kind(&self, kind: ast::DeclarationKind) -> DeclarationKind {
         match kind {
             ast::DeclarationKind::Declaration => DeclarationKind::Declaration,
             ast::DeclarationKind::Definition => DeclarationKind::Definition,
@@ -15,7 +15,7 @@ impl<'a> Compiler<'a> {
     }
 
     /// Lower binding scope to DIR binding scope.
-    pub(super) fn lower_binding_scope(&mut self, scope: ast::BindingScope) -> BindingScope {
+    pub(super) fn lower_binding_scope(&self, scope: ast::BindingScope) -> BindingScope {
         match scope {
             ast::BindingScope::Static => BindingScope::Static,
             ast::BindingScope::Instance => BindingScope::Instance,
@@ -25,7 +25,7 @@ impl<'a> Compiler<'a> {
     /// Lower expression to DIR definition (if it's maybe a definition).
     /// nocheckin: revisit lower_expression_to_definition_maybe
     pub(super) fn lower_expression_to_definition_maybe(
-        &mut self,
+        &self,
         module: &Module,
         scope_id: ScopeId,
         expression_id: ast::NodeId<ast::Expression>,
@@ -45,7 +45,7 @@ impl<'a> Compiler<'a> {
 
     /// Lower AST definition descriptor into DIR definition descriptor.
     pub(super) fn lower_declaration_descriptor(
-        &mut self,
+        &self,
         module: &Module,
         symbol_id: SymbolId,
         descriptor: &ast::DeclarationDescriptor,
@@ -73,7 +73,7 @@ impl<'a> Compiler<'a> {
     /// Lower an AST definition to a DIR definition.
     /// Handles modules, structs, and enums.
     pub(super) fn lower_definition(
-        &mut self,
+        &self,
         module: &Module,
         scope_id: ScopeId,
         definition_id: ast::NodeId<ast::Definition>,
@@ -233,7 +233,7 @@ impl<'a> Compiler<'a> {
 
     /// Lower an AST enum field into a DIR enum field.
     pub(super) fn lower_enum_field(
-        &mut self,
+        &self,
         module: &Module,
         scope_id: ScopeId,
         field_id: ast::NodeId<ast::EnumField>,

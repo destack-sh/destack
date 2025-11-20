@@ -7,7 +7,7 @@ use dyst_dir::{
 impl<'a> Compiler<'a> {
     /// Lower a an expression into a type (without evaluating it at all).
     pub(super) fn lower_expression_to_type(
-        &mut self,
+        &self,
         module: &Module,
         scope_id: ScopeId,
         expression_id: ast::NodeId<ast::Expression>,
@@ -34,7 +34,7 @@ impl<'a> Compiler<'a> {
     }
 
     /// Lower a TypeKind to a DIR type kind.
-    pub(super) fn lower_type_kind(&mut self, kind: ast::TypeKind) -> TypeKind {
+    pub(super) fn lower_type_kind(&self, kind: ast::TypeKind) -> TypeKind {
         match kind {
             ast::TypeKind::Structural => TypeKind::Structural,
             ast::TypeKind::Nominal => TypeKind::Nominal,
@@ -42,7 +42,7 @@ impl<'a> Compiler<'a> {
     }
 
     /// Lower a VarianceBound to a DIR variance bound.
-    pub(super) fn lower_variance_bound(&mut self, bound: ast::VarianceBound) -> VarianceBound {
+    pub(super) fn lower_variance_bound(&self, bound: ast::VarianceBound) -> VarianceBound {
         match bound {
             ast::VarianceBound::Implements => VarianceBound::Implements,
             ast::VarianceBound::Extends => VarianceBound::Extends,
@@ -52,7 +52,7 @@ impl<'a> Compiler<'a> {
 
     /// Lower AST definition generics into DIR definition generics.
     pub(super) fn lower_generics(
-        &mut self,
+        &self,
         module: &Module,
         scope_id: ScopeId,
         generics: &ast::Generics,
@@ -89,7 +89,7 @@ impl<'a> Compiler<'a> {
 
     /// Lower AST heritage into DIR heritage.
     pub(super) fn lower_heritage(
-        &mut self,
+        &self,
         module: &Module,
         scope_id: ScopeId,
         heritage: &ast::Heritage,

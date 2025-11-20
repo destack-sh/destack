@@ -3,7 +3,7 @@ use crate::{Compiler, CompilerTask};
 #[allow(dead_code)]
 impl<'s> Compiler<'s> {
     /// Runs the compiler loop until there is nothing left to do.
-    pub fn compile(&mut self) {
+    pub fn compile(&self) {
         // process all tasks
         while let Some(task) = self.queue.pop_front() {
             self.process(task);
@@ -11,13 +11,13 @@ impl<'s> Compiler<'s> {
     }
 
     /// Enqueue a task to the compiler.
-    pub fn enqueue(&mut self, task: CompilerTask) {
+    pub fn enqueue(&self, task: CompilerTask) {
         self.queue.push_back(task);
     }
 
     /// Process a compiler task.
     #[inline]
-    pub(super) fn process(&mut self, task: CompilerTask) {
+    pub(super) fn process(&self, task: CompilerTask) {
         match task {
             CompilerTask::Import(import_task) => {
                 if let Err(error) = self.process_import(import_task) {

@@ -2915,6 +2915,7 @@ dependencies = [
 name = "dyst_compiler"
 version = "2025.11.15-0"
 dependencies = [
+ "crossbeam-deque",
  "dyst_ast",
  "dyst_dir",
  "dyst_fir",
@@ -3048,6 +3049,7 @@ name = "dyst_resolver"
 version = "2025.11.15-0"
 dependencies = [
  "cfg-if",
+ "crossbeam-deque",
  "dyst_ast",
  "dyst_dir",
  "dyst_parser",

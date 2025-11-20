@@ -6,7 +6,7 @@ use crate::Compiler;
 impl<'a> Compiler<'a> {
     /// Lower a with clause to a DIR with clause.
     pub(super) fn lower_with_clause(
-        &mut self,
+        &self,
         module: &Module,
         scope_id: ScopeId,
         with_clause_id: ast::NodeId<ast::WithClause>,

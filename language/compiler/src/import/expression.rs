@@ -18,7 +18,7 @@ impl<'a> Compiler<'a> {
 
     /// Lower an expression to a DIR expression.
     pub(super) fn lower_expression(
-        &mut self,
+        &self,
         module: &Module,
         scope_id: ScopeId,
         expression_id: ast::NodeId<ast::Expression>,

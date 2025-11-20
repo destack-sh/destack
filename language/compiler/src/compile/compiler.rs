@@ -55,7 +55,7 @@ impl<'s> Compiler<'s> {
 
     /// Create a new Compiler from a single module/file.
     pub fn from_file(session: &'s Session<'s>, file_id: FileId, options: CompileOptions) -> Self {
-        let mut compiler = Self {
+        let compiler = Self {
             session,
             options,
             queue: CompilerQueue::new(),
@@ -65,7 +65,7 @@ impl<'s> Compiler<'s> {
     }
 
     /// Add an error to the compiler.
-    pub fn error<T: Into<CompileError>>(&mut self, error: T) {
+    pub fn error<T: Into<CompileError>>(&self, error: T) {
         let error: CompileError = error.into();
         let diagnostic: CompileDiagnostic = error.into();
         let diagnostic: Diagnostic = diagnostic.to_diagnostic(self.session);
@@ -75,7 +75,7 @@ impl<'s> Compiler<'s> {
     }
 
     /// Add a warning to the compiler.
-    pub fn warning<T: Into<CompileWarning>>(&mut self, warning: T) {
+    pub fn warning<T: Into<CompileWarning>>(&self, warning: T) {
         let warning: CompileWarning = warning.into();
         let diagnostic: CompileDiagnostic = warning.into();
         let diagnostic: Diagnostic = diagnostic.to_diagnostic(self.session);

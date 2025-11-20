@@ -18,6 +18,7 @@ dyst_source = { workspace = true }
 dyst_parser = { workspace = true }
 dyst_unicode = { workspace = true }
 
+crossbeam-deque = { workspace = true }
 cfg-if = { workspace = true }
 indexmap = { workspace = true, features = ["serde"] }
 papaya = { workspace = true }

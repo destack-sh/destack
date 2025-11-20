@@ -12,7 +12,7 @@ impl From<OptimizeTask> for CompilerTask {
 
 impl<'a> Compiler<'a> {
     /// Process a optimize task.
-    pub fn process_optimize(&mut self, task: OptimizeTask) -> OptimizeResult<()> {
+    pub fn process_optimize(&self, task: OptimizeTask) -> OptimizeResult<()> {
         todo!("process_optimize({task:?})")
     }
 }

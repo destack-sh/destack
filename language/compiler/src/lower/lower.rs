@@ -12,7 +12,7 @@ impl From<LowerTask> for CompilerTask {
 
 impl<'a> Compiler<'a> {
     /// Process a lower task.
-    pub fn process_lower(&mut self, task: LowerTask) -> LowerResult<()> {
+    pub fn process_lower(&self, task: LowerTask) -> LowerResult<()> {
         todo!("process_lower({task:?})")
     }
 }

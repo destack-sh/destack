@@ -46,24 +46,24 @@ impl<'a> Compiler<'a> {
         }
     }
 
-    /// Resolve a module.
-    pub fn resolve_module(&mut self, module_id: ModuleId) -> ResolveResult<()> {
-        Ok(())
-    }
-
-    /// Resolve a node.
-    pub(super) fn resolve_node(
-        &mut self,
-        module_id: ModuleId,
-        node: NodeIdAny,
-    ) -> ResolveResult<()> {
+    /// Resolve a generic node.
+    pub(super) fn resolve_node(&self, module_id: ModuleId, node: NodeIdAny) -> ResolveResult<()> {
         match node.ty {
             NodeType::Expression => self.resolve_expression(module_id, node.into()),
             NodeType::Type => self.resolve_type(module_id, node.into()),
             NodeType::Argument => self.resolve_argument(module_id, node.into()),
             NodeType::DependencyItem => self.resolve_dependency_item(module_id, node.into()),
+            NodeType::PatternField => self.resolve_pattern_field(module_id, node.into()),
             NodeType::Annotation => self.resolve_annotation(module_id, node.into()),
-            _ => Err(ResolveError::UnsupportedNode { node }),
+            _ => {
+                // nothing to do
+                Ok(())
+            }
         }
+    }
+
+    /// Resolve an entire module.
+    pub fn resolve_module(&self, module_id: ModuleId) -> ResolveResult<()> {
+        Ok(())
     }
 }

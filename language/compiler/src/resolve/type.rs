@@ -1,4 +1,4 @@
-use crate::{Compiler, ResolveResult};
+use crate::{Compiler, ResolveError, ResolveResult};
 use dyst_ast::StringId;
 use dyst_dir::{
     Expression, FloatType, IntType, ModuleId, NodeId, PrimitiveType, Type, TypeLiteral,
@@ -7,7 +7,7 @@ use dyst_dir::{
 
 impl<'a> Compiler<'a> {
     /// Resolve a Type (in-place).
-    pub fn resolve_type(&mut self, _module_id: ModuleId, ty_id: NodeId<Type>) -> ResolveResult<()> {
+    pub fn resolve_type(&self, _module_id: ModuleId, ty_id: NodeId<Type>) -> ResolveResult<()> {
         let expression_id = {
             let ty = self.session.tree.get(ty_id);
             let Type::UnresolvedExpression(expression_id) = *ty else {
@@ -26,7 +26,7 @@ impl<'a> Compiler<'a> {
 
     /// Try to Resolve an Expression as a Type id.
     fn try_resolve_expression_to_type(
-        &mut self,
+        &self,
         expression_id: NodeId<Expression>,
     ) -> ResolveResult<NodeId<Type>> {
         let ty = self.try_resolve_expression_to_type_value(expression_id)?;
@@ -36,7 +36,7 @@ impl<'a> Compiler<'a> {
     /// Try to Resolve an Expression as a Type.
     /// Returns the resolved Type value, or a Type::UnresolvedExpression if it fails.
     fn try_resolve_expression_to_type_value(
-        &mut self,
+        &self,
         expression_id: NodeId<Expression>,
     ) -> ResolveResult<Type> {
         let ty = self
@@ -47,7 +47,7 @@ impl<'a> Compiler<'a> {
 
     /// Resolve an Expression into a Type (in-place).
     fn resolve_expression_to_type(
-        &mut self,
+        &self,
         expression_id: NodeId<Expression>,
     ) -> ResolveResult<Option<Type>> {
         let expression = self.session.tree.get(expression_id);
@@ -154,11 +154,15 @@ impl<'a> Compiler<'a> {
             }
             // tuple
             Expression::TupleLiteral { ty, .. } if ty.is_none() => {
-                todo!()
+                return Err(ResolveError::UnsupportedNode {
+                    node: expression_id.into(),
+                });
             }
             // struct
             Expression::StructLiteral { ty, .. } if ty.is_none() => {
-                todo!()
+                return Err(ResolveError::UnsupportedNode {
+                    node: expression_id.into(),
+                });
             }
 
             // array or slice
@@ -196,7 +200,7 @@ impl<'a> Compiler<'a> {
     }
 
     /// Resolve an expression string into a DIR type literal.
-    pub fn resolve_string_to_type(&mut self, string_id: StringId) -> Option<TypeLiteral> {
+    pub fn resolve_string_to_type(&self, string_id: StringId) -> Option<TypeLiteral> {
         let string = self.session.strings.get(string_id);
         match string.as_ref() {
             // undefined

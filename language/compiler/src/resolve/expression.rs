@@ -5,7 +5,7 @@ use crate::{Compiler, ResolveError, ResolveResult};
 impl<'a> Compiler<'a> {
     /// Resolve an Expression.
     pub fn resolve_expression(
-        &mut self,
+        &self,
         _module_id: ModuleId,
         expression_id: NodeId<Expression>,
     ) -> ResolveResult<()> {
