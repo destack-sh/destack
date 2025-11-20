@@ -2,7 +2,7 @@ use std::fmt;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-/// Resolution options (like oxc-resolver / enhanced-resolve).
+/// Resolution options (derived from `oxc-resolver` / `enhanced-resolve`).
 #[allow(clippy::struct_excessive_bools)]
 #[derive(Debug, Clone)]
 pub struct ResolveOptions {

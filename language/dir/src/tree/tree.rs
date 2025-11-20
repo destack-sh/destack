@@ -66,7 +66,7 @@ pub struct MutableNodeTree {
     /// The scopes by node id. Index is the global node id.
     pub(crate) scope_by_node_id: Vec<ScopeId>,
     /// The undisputed types by node id. Index is the global node id.
-    pub(crate) static_type_by_node_id: Vec<Option<NodeId<Type>>>,
+    pub(crate) inferred_type_by_node_id: Vec<Option<NodeId<Type>>>,
 }
 
 impl Debug for MutableNodeTree {
@@ -127,7 +127,7 @@ impl MutableNodeTree {
 
             symbol_by_node_id: Vec::with_capacity(capacity),
             scope_by_node_id: Vec::with_capacity(capacity),
-            static_type_by_node_id: Vec::with_capacity(capacity),
+            inferred_type_by_node_id: Vec::with_capacity(capacity),
         }
     }
 
@@ -140,7 +140,7 @@ impl MutableNodeTree {
         let global_id = self.next_global_id;
         self.next_global_id = global_id + 1;
         self.type_by_node_id.push(T::TYPE);
-        let local_id = <Self as MutableNodeTreeImpl<T>>::push(self, node);
+        let local_id = <Self as MutableNodeTreeImpl<T>>::allocate(self, node);
         self.local_id_by_node_id.push(local_id);
         self.module_by_node_id.push(module_id);
         NodeId::new(global_id)
@@ -340,7 +340,7 @@ impl MutableNodeTree {
             inferred_ty: None,
             remote_symbol: None,
         };
-        self.symbols.push(symbol);
+        self.symbols.allocate(symbol);
         if let Some(key) = key {
             self.scopes.get_mut(scope.0).insert_symbol(key, symbol_id);
         }
@@ -364,7 +364,7 @@ impl MutableNodeTree {
             symbols: HashMap::new(),
             children: Vec::new(),
         };
-        self.scopes.push(scope);
+        self.scopes.allocate(scope);
         if let Some(parent) = parent {
             self.scopes.get_mut(parent.0).insert_child_scope(scope_id);
         }
@@ -433,21 +433,21 @@ impl MutableNodeTree {
 
     /// Set the static type for a node.
     #[inline]
-    pub fn set_static_type(&mut self, node_id: u32, type_id: NodeId<Type>) {
-        self.static_type_by_node_id[node_id as usize] = Some(type_id);
+    pub fn set_inferred_type(&mut self, node_id: u32, type_id: NodeId<Type>) {
+        self.inferred_type_by_node_id[node_id as usize] = Some(type_id);
     }
 
     /// Get a static type by its id.
     #[inline]
-    pub fn get_static_type(&self, node_id: u32) -> Option<NodeId<Type>> {
-        self.static_type_by_node_id[node_id as usize]
+    pub fn get_inferred_type(&self, node_id: u32) -> Option<NodeId<Type>> {
+        self.inferred_type_by_node_id[node_id as usize]
     }
 }
 
 /// Map node types to arenas.
 pub trait MutableNodeTreeImpl<T: Node> {
-    /// Push a node into the relevant arena.
-    fn push(tree: &mut MutableNodeTree, node: T) -> u32;
+    /// Allocate a node into the relevant arena.
+    fn allocate(tree: &mut MutableNodeTree, node: T) -> u32;
     /// Get a node from the relevant arena.
     fn get(tree: &MutableNodeTree, idx: u32) -> &T;
     /// Get a mutable node from the relevant arena.
@@ -458,8 +458,8 @@ macro_rules! impl_node_tree_store {
     ($ty:ty, $field:ident) => {
         impl MutableNodeTreeImpl<$ty> for MutableNodeTree {
             #[inline]
-            fn push(tree: &mut MutableNodeTree, node: $ty) -> u32 {
-                tree.$field.push(node)
+            fn allocate(tree: &mut MutableNodeTree, node: $ty) -> u32 {
+                tree.$field.allocate(node)
             }
 
             #[inline]

@@ -1,10 +1,10 @@
 use std::fmt::Debug;
 
-/// Arena for storing nodes and node-like things.
+/// Arena for storing elements and element-like things.
 #[derive(Clone)]
 pub struct Arena<T> {
-    /// The nodes in the arena.
-    pub(super) nodes: Vec<T>,
+    /// The elements in the arena.
+    pub(super) elements: Vec<T>,
 }
 
 impl<T> Debug for Arena<T>
@@ -12,7 +12,7 @@ where
     T: Debug,
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("Arena").field("nodes", &self.nodes).finish()
+        f.debug_struct("Arena").field("elements", &self.elements).finish()
     }
 }
 
@@ -26,38 +26,38 @@ impl<T> Arena<T> {
     /// Create a new empty Arena.
     #[inline]
     pub fn new() -> Self {
-        Self { nodes: Vec::new() }
+        Self { elements: Vec::new() }
     }
 
     /// Create a new Arena with the given capacity.
     #[inline]
     pub fn with_capacity(capacity: usize) -> Self {
         Self {
-            nodes: Vec::with_capacity(capacity),
+            elements: Vec::with_capacity(capacity),
         }
     }
 
-    /// Allocate a new node in the tree.
+    /// Allocate a new element in the tree.
     #[inline]
-    pub fn push(&mut self, node: T) -> u32 {
-        let local_id = self.nodes.len() as u32;
-        self.nodes.push(node);
+    pub fn allocate(&mut self, element: T) -> u32 {
+        let local_id = self.elements.len() as u32;
+        self.elements.push(element);
         local_id
     }
 
-    /// Get an immutable reference to the node with the given local id.
+    /// Get an immutable reference to the element with the given local id.
     #[inline]
     pub fn get(&self, local_id: u32) -> &T {
-        &self.nodes[local_id as usize]
+        &self.elements[local_id as usize]
     }
 
-    /// Get a mutable reference to the node with the given local id.
+    /// Get a mutable reference to the element with the given local id.
     #[inline]
     pub fn get_mut(&mut self, local_id: u32) -> &mut T {
-        &mut self.nodes[local_id as usize]
+        &mut self.elements[local_id as usize]
     }
 
-    /// Delete nodes from the arena.
+    /// Delete elements from the arena.
     #[inline]
     pub fn deallocate(&mut self, local_ids: Vec<u32>) {
         // sort in descending order to remove from back to front
@@ -65,21 +65,21 @@ impl<T> Arena<T> {
         let mut sorted_ids = local_ids;
         sorted_ids.sort_by(|a, b| b.cmp(a));
         for local_id in sorted_ids {
-            if (local_id as usize) < self.nodes.len() {
-                self.nodes.remove(local_id as usize);
+            if (local_id as usize) < self.elements.len() {
+                self.elements.remove(local_id as usize);
             }
         }
     }
 
-    /// Reserve capacity for at least `n` additional nodes.
+    /// Reserve capacity for at least `n` additional elements.
     #[inline]
     pub fn reserve(&mut self, n: usize) {
-        self.nodes.reserve(n);
+        self.elements.reserve(n);
     }
 
-    /// Get an iterator over the nodes.
+    /// Get an iterator over the elements.
     #[inline]
     pub fn iter(&self) -> std::slice::Iter<'_, T> {
-        self.nodes.iter()
+        self.elements.iter()
     }
 }

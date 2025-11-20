@@ -11,7 +11,11 @@ pub enum ImportError {
     /// File ID not found.
     FileIdNotFound { file_id: FileId },
     /// Module could not be resolved.
-    ModuleUnresolved { module: ModuleId, target: StringId },
+    ModuleUnresolved {
+        module: ModuleId,
+        target: StringId,
+        error: Option<dyst_resolver::ResolveError>,
+    },
     /// Failed to parse a module.
     ParseError {
         module: ModuleId,
@@ -50,7 +54,7 @@ impl ImportError {
             Self::FileIdNotFound { .. } => "file not found".to_string(),
             Self::ModuleUnresolved { target, .. } => {
                 let target_str = _session.strings.get(*target).to_string();
-                format!("module '{}' not found", target_str)
+                format!("module '{target_str}' not found")
             }
             Self::ParseError { .. } => "parse error".to_string(),
             Self::CircularDependency { .. } => "circular dependency".to_string(),

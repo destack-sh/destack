@@ -108,7 +108,7 @@ impl MutableNodeTree {
         let global_id = self.next_global_id;
         self.next_global_id = global_id + 1;
         self.type_by_node_id.push(T::TYPE);
-        let local_id = <Self as MutableNodeTreeImpl<T>>::push(self, node);
+        let local_id = <Self as MutableNodeTreeImpl<T>>::allocate(self, node);
         self.local_id_by_node_id.push(local_id);
         self.module_by_node_id.push(module_id);
         NodeId::new(global_id)
@@ -233,8 +233,8 @@ impl MutableNodeTree {
 
 /// Map node types to arenas.
 pub trait MutableNodeTreeImpl<T: Node> {
-    /// Push a node into the relevant arena.
-    fn push(tree: &mut MutableNodeTree, node: T) -> u32;
+    /// Allocate a node into the relevant arena.
+    fn allocate(tree: &mut MutableNodeTree, node: T) -> u32;
     /// Get a node from the relevant arena.
     fn get(tree: &MutableNodeTree, idx: u32) -> &T;
     /// Get a mutable node from the relevant arena.
@@ -245,8 +245,8 @@ macro_rules! impl_node_tree_store {
     ($ty:ty, $field:ident) => {
         impl MutableNodeTreeImpl<$ty> for MutableNodeTree {
             #[inline]
-            fn push(tree: &mut MutableNodeTree, node: $ty) -> u32 {
-                tree.$field.push(node)
+            fn allocate(tree: &mut MutableNodeTree, node: $ty) -> u32 {
+                tree.$field.allocate(node)
             }
 
             #[inline]
