@@ -4,9 +4,6 @@ use crate::{Compiler, CompilerTask};
 impl<'s> Compiler<'s> {
     /// Runs the compiler loop until there is nothing left to do.
     pub fn compile(&mut self) {
-        // queue all unresolved nodes
-        self.enqueue_resolve_all();
-
         // process all tasks
         while let Some(task) = self.queue.pop_front() {
             self.process(task);

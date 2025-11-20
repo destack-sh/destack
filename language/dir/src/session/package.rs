@@ -1,7 +1,7 @@
 use core::fmt;
-use std::{collections::HashMap, path::PathBuf};
+use std::collections::HashMap;
+use std::path::PathBuf;
 
-use dyst_source::FileId;
 use parking_lot::Mutex;
 use serde::Deserialize;
 use serde::de::Error;
@@ -150,8 +150,6 @@ impl PackageJson {
 struct PackageRegistryState {
     /// The packages by id.
     packages_by_id: HashMap<PackageId, Package>,
-    /// The packages by file id.
-    packages_by_file_id: HashMap<FileId, PackageId>,
     /// The next package id.
     next_package_id: u32,
 }
@@ -183,7 +181,6 @@ impl PackageRegistry {
         Self {
             state: Mutex::new(PackageRegistryState {
                 packages_by_id: HashMap::new(),
-                packages_by_file_id: HashMap::new(),
                 next_package_id: 0,
             }),
         }
@@ -200,7 +197,6 @@ impl PackageRegistry {
     /// Insert a package into the graph.
     pub fn insert(&self, package: Package) {
         let mut state = self.state.lock();
-        state.packages_by_file_id.insert(package.file, package.id);
         state.packages_by_id.insert(package.id, package);
     }
 
@@ -209,17 +205,6 @@ impl PackageRegistry {
     pub fn get(&self, id: PackageId) -> Option<Package> {
         let state = self.state.lock();
         state.packages_by_id.get(&id).cloned()
-    }
-
-    /// Get a package by file id.
-    #[inline]
-    pub fn get_by_file_id(&self, file_id: FileId) -> Option<Package> {
-        let state = self.state.lock();
-        state
-            .packages_by_file_id
-            .get(&file_id)
-            .and_then(|id| state.packages_by_id.get(id))
-            .cloned()
     }
 
     /// Get the number of packages in the registry.

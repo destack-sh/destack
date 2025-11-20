@@ -25,15 +25,15 @@ impl<'a> Compiler<'a> {
         match self.lower_path_base(segments[0]) {
             Some(base) => {
                 if segments.len() == 1 {
-                    Path::UnresolvedBase { base }
+                    Path::Base { base }
                 } else {
-                    Path::UnresolvedRelativeString {
+                    Path::RelativeString {
                         base,
                         segments: segments.into_iter().skip(1).collect(),
                     }
                 }
             }
-            None => Path::UnresolvedAbsoluteString { segments },
+            None => Path::AbsoluteString { segments },
         }
     }
 }

@@ -13,7 +13,7 @@ use crate::{
 
 /// Mutable DIR Node tree across a set of related source units. NOT THREAD-SAFE.
 #[derive(Clone)]
-pub struct MutableNodeTree {
+pub struct NodeTree {
     // node index
     /// The next id to allocate.
     pub(crate) next_global_id: u32,
@@ -40,6 +40,7 @@ pub struct MutableNodeTree {
     pub(crate) pattern_fields: Arena<PatternField>,
     pub(crate) annotations: Arena<Annotation>,
 
+    // node side data
     /// The sources of all nodes. Index is the global node id.
     pub(crate) module_by_node_id: Vec<ModuleId>,
     /// The source AST ids of all nodes. Index is the global node id.
@@ -61,6 +62,7 @@ pub struct MutableNodeTree {
     pub(crate) symbols: Arena<Symbol>,
     pub(crate) scopes: Arena<Scope>,
 
+    // meta side data
     /// The symbols by node id. Index is the global node id.
     pub(crate) symbol_by_node_id: Vec<Option<SymbolId>>,
     /// The scopes by node id. Index is the global node id.
@@ -69,7 +71,7 @@ pub struct MutableNodeTree {
     pub(crate) inferred_type_by_node_id: Vec<Option<NodeId<Type>>>,
 }
 
-impl Debug for MutableNodeTree {
+impl Debug for NodeTree {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("NodeTree")
             .field("len", &self.local_id_by_node_id.len())
@@ -77,13 +79,13 @@ impl Debug for MutableNodeTree {
     }
 }
 
-impl Default for MutableNodeTree {
+impl Default for NodeTree {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl MutableNodeTree {
+impl NodeTree {
     /// Create a new NodeTree.
     pub fn new() -> Self {
         Self::with_capacity(0)
@@ -447,28 +449,28 @@ impl MutableNodeTree {
 /// Map node types to arenas.
 pub trait NodeTreeImpl<T: Node> {
     /// Allocate a node into the relevant arena.
-    fn allocate(tree: &mut MutableNodeTree, node: T) -> u32;
+    fn allocate(tree: &mut NodeTree, node: T) -> u32;
     /// Get a node from the relevant arena.
-    fn get(tree: &MutableNodeTree, idx: u32) -> &T;
+    fn get(tree: &NodeTree, idx: u32) -> &T;
     /// Get a mutable node from the relevant arena.
-    fn get_mut(tree: &mut MutableNodeTree, idx: u32) -> &mut T;
+    fn get_mut(tree: &mut NodeTree, idx: u32) -> &mut T;
 }
 
 macro_rules! impl_node_tree_store {
     ($ty:ty, $field:ident) => {
-        impl NodeTreeImpl<$ty> for MutableNodeTree {
+        impl NodeTreeImpl<$ty> for NodeTree {
             #[inline]
-            fn allocate(tree: &mut MutableNodeTree, node: $ty) -> u32 {
+            fn allocate(tree: &mut NodeTree, node: $ty) -> u32 {
                 tree.$field.allocate(node)
             }
 
             #[inline]
-            fn get(tree: &MutableNodeTree, idx: u32) -> &$ty {
+            fn get(tree: &NodeTree, idx: u32) -> &$ty {
                 tree.$field.get(idx)
             }
 
             #[inline]
-            fn get_mut(tree: &mut MutableNodeTree, idx: u32) -> &mut $ty {
+            fn get_mut(tree: &mut NodeTree, idx: u32) -> &mut $ty {
                 tree.$field.get_mut(idx)
             }
         }
@@ -503,11 +505,11 @@ impl_node_tree_stores! {
 
 /// Shared DIR Node tree across a set of related source units. THREAD-SAFE.
 /// nocheckin: optimize NodeTree locking (per module maybe?)
-pub struct NodeTree {
-    inner: RwLock<MutableNodeTree>,
+pub struct SharedNodeTree {
+    inner: RwLock<NodeTree>,
 }
 
-impl Clone for NodeTree {
+impl Clone for SharedNodeTree {
     fn clone(&self) -> Self {
         let state = self.inner.read().clone();
         Self {
@@ -516,34 +518,34 @@ impl Clone for NodeTree {
     }
 }
 
-impl Default for NodeTree {
+impl Default for SharedNodeTree {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl Debug for NodeTree {
+impl Debug for SharedNodeTree {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("SharedNodeTree").finish()
     }
 }
 
-impl NodeTree {
+impl SharedNodeTree {
     pub fn new() -> Self {
         Self {
-            inner: RwLock::new(MutableNodeTree::new()),
+            inner: RwLock::new(NodeTree::new()),
         }
     }
 
     /// Get a read guard to the inner mutable node tree.
     #[inline]
-    pub fn read(&self) -> RwLockReadGuard<'_, MutableNodeTree> {
+    pub fn read(&self) -> RwLockReadGuard<'_, NodeTree> {
         self.inner.read()
     }
 
     /// Get a write guard to the inner mutable node tree.
     #[inline]
-    pub fn write(&self) -> RwLockWriteGuard<'_, MutableNodeTree> {
+    pub fn write(&self) -> RwLockWriteGuard<'_, NodeTree> {
         self.inner.write()
     }
 
@@ -557,7 +559,7 @@ impl NodeTree {
     ) -> NodeId<T>
     where
         T: Node,
-        MutableNodeTree: NodeTreeImpl<T>,
+        NodeTree: NodeTreeImpl<T>,
         U: ast::Node,
     {
         let mut tree = self.write();
@@ -575,7 +577,7 @@ impl NodeTree {
     ) -> NodeId<T>
     where
         T: Node + Clone,
-        MutableNodeTree: NodeTreeImpl<T>,
+        NodeTree: NodeTreeImpl<T>,
         U: ast::Node,
     {
         let mut tree = self.write();
@@ -587,7 +589,7 @@ impl NodeTree {
     pub fn insert_from<T, U>(&self, node: T, dir_node_id: NodeId<U>) -> NodeId<T>
     where
         T: Node + Clone,
-        MutableNodeTree: NodeTreeImpl<T>,
+        NodeTree: NodeTreeImpl<T>,
         U: Node,
     {
         let mut tree = self.write();
@@ -599,7 +601,7 @@ impl NodeTree {
     pub fn alias_from_source<T>(&self, module_id: ModuleId, ast_id: u32, alias: NodeId<T>)
     where
         T: Node + Clone,
-        MutableNodeTree: NodeTreeImpl<T>,
+        NodeTree: NodeTreeImpl<T>,
     {
         let mut tree = self.write();
         tree.alias_from_source(module_id, ast_id, alias)
@@ -617,7 +619,7 @@ impl NodeTree {
     pub fn get<T>(&self, id: NodeId<T>) -> ReadNodeRef<'_, T>
     where
         T: Node,
-        MutableNodeTree: NodeTreeImpl<T>,
+        NodeTree: NodeTreeImpl<T>,
     {
         let tree = self.read();
         ReadNodeRef { tree, node_id: id }
@@ -628,7 +630,7 @@ impl NodeTree {
     pub fn get_mut<T>(&self, id: NodeId<T>) -> WriteNodeRef<'_, T>
     where
         T: Node,
-        MutableNodeTree: NodeTreeImpl<T>,
+        NodeTree: NodeTreeImpl<T>,
     {
         let tree = self.write();
         WriteNodeRef { tree, node_id: id }
@@ -713,15 +715,15 @@ impl NodeTree {
 pub struct ReadNodeRef<'a, T>
 where
     T: Node,
-    MutableNodeTree: NodeTreeImpl<T>,
+    NodeTree: NodeTreeImpl<T>,
 {
-    tree: RwLockReadGuard<'a, MutableNodeTree>,
+    tree: RwLockReadGuard<'a, NodeTree>,
     node_id: NodeId<T>,
 }
 
 impl<'a, T: Clone + Node> std::ops::Deref for ReadNodeRef<'a, T>
 where
-    MutableNodeTree: NodeTreeImpl<T>,
+    NodeTree: NodeTreeImpl<T>,
 {
     type Target = T;
 
@@ -732,7 +734,7 @@ where
 
 impl<'a, T: Clone + Node> AsRef<T> for ReadNodeRef<'a, T>
 where
-    MutableNodeTree: NodeTreeImpl<T>,
+    NodeTree: NodeTreeImpl<T>,
 {
     fn as_ref(&self) -> &T {
         self.tree.get(self.node_id)
@@ -744,15 +746,15 @@ where
 pub struct WriteNodeRef<'a, T>
 where
     T: Node,
-    MutableNodeTree: NodeTreeImpl<T>,
+    NodeTree: NodeTreeImpl<T>,
 {
-    tree: RwLockWriteGuard<'a, MutableNodeTree>,
+    tree: RwLockWriteGuard<'a, NodeTree>,
     node_id: NodeId<T>,
 }
 
 impl<'a, T: Clone + Node> std::ops::Deref for WriteNodeRef<'a, T>
 where
-    MutableNodeTree: NodeTreeImpl<T>,
+    NodeTree: NodeTreeImpl<T>,
 {
     type Target = T;
 
@@ -763,7 +765,7 @@ where
 
 impl<'a, T: Clone + Node> std::ops::DerefMut for WriteNodeRef<'a, T>
 where
-    MutableNodeTree: NodeTreeImpl<T>,
+    NodeTree: NodeTreeImpl<T>,
 {
     fn deref_mut(&mut self) -> &mut Self::Target {
         self.tree.get_mut(self.node_id)
@@ -772,7 +774,7 @@ where
 
 impl<'a, T: Clone + Node> AsRef<T> for WriteNodeRef<'a, T>
 where
-    MutableNodeTree: NodeTreeImpl<T>,
+    NodeTree: NodeTreeImpl<T>,
 {
     fn as_ref(&self) -> &T {
         self.tree.get(self.node_id)

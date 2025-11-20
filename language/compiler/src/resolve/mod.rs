@@ -4,6 +4,7 @@ mod block;
 mod dependency;
 mod error;
 mod expression;
+mod module;
 mod options;
 mod path;
 mod pattern;

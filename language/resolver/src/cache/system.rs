@@ -167,7 +167,7 @@ impl<Fs: FileSystem> CachedFileSystem<Fs> {
     }
 
     /// Gets the `tsconfig.json` of the path.
-    pub(crate) fn get_typescript_options<
+    pub(crate) fn get_tsconfig_json<
         F: FnOnce(&mut TsConfigJson) -> Result<(), ResolveError>,
     >(
         &self,
