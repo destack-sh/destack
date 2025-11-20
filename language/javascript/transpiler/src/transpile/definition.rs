@@ -1,4 +1,4 @@
-use dyst_dir::{self as dir, Module};
+use dyst_dir::{self as dir, Module, NodeTree};
 use dyst_javascript_ast::{
     BindingScope, Block, DeclarationDescriptor, DeclarationKind, Definition, EnumField, ExportType,
     Expression, NodeId, Visibility,
@@ -71,10 +71,11 @@ impl<'a> Transpiler<'a> {
     pub fn transpile_definition(
         &self,
         module: &'a Module,
+        tree: &NodeTree,
         definition_id: dir::NodeId<dir::Definition>,
         unit: &mut TranspilerUnit,
     ) -> TranspileResult<NodeId<Definition>> {
-        let definition = self.session.tree.get(definition_id);
+        let definition = tree.get(definition_id);
         let definition = match definition.as_ref() {
             dir::Definition::Namespace {
                 descriptor,
@@ -85,7 +86,7 @@ impl<'a> Transpiler<'a> {
                 let descriptor = self.transpile_declaration_descriptor(module, descriptor, unit);
                 let definitions = definitions
                     .iter()
-                    .map(|definition| self.transpile_definition(module, *definition, unit))
+                    .map(|definition| self.transpile_definition(module, tree, *definition, unit))
                     .collect::<Result<Vec<_>, TranspileError>>()?;
                 Definition::Namespace {
                     descriptor,
@@ -101,11 +102,11 @@ impl<'a> Transpiler<'a> {
                 properties,
             } => {
                 let descriptor = self.transpile_declaration_descriptor(module, descriptor, unit);
-                let generics = self.transpile_generics(module, generics, unit)?;
-                let heritage = self.transpile_heritage(module, heritage, unit)?;
+                let generics = self.transpile_generics(module, tree, generics, unit)?;
+                let heritage = self.transpile_heritage(module, tree, heritage, unit)?;
                 let properties = properties
                     .iter()
-                    .map(|property| self.transpile_property(module, *property, unit))
+                    .map(|property| self.transpile_property(module, tree, *property, unit))
                     .collect::<Result<Vec<_>, TranspileError>>()?;
                 // TODO #Broken: struct definitions should become just JS types + namespaces?
                 Definition::Class {
@@ -123,11 +124,11 @@ impl<'a> Transpiler<'a> {
                 properties,
             } => {
                 let descriptor = self.transpile_declaration_descriptor(module, descriptor, unit);
-                let generics = self.transpile_generics(module, generics, unit)?;
-                let heritage = self.transpile_heritage(module, heritage, unit)?;
+                let generics = self.transpile_generics(module, tree, generics, unit)?;
+                let heritage = self.transpile_heritage(module, tree, heritage, unit)?;
                 let properties = properties
                     .iter()
-                    .map(|property| self.transpile_property(module, *property, unit))
+                    .map(|property| self.transpile_property(module, tree, *property, unit))
                     .collect::<Result<Vec<_>, TranspileError>>()?;
                 Definition::Interface {
                     descriptor,
@@ -147,7 +148,7 @@ impl<'a> Transpiler<'a> {
                 let descriptor = self.transpile_declaration_descriptor(module, descriptor, unit);
                 let fields = fields
                     .iter()
-                    .map(|field| self.transpile_enum_field(module, *field, unit))
+                    .map(|field| self.transpile_enum_field(module, tree, *field, unit))
                     .collect::<Result<Vec<_>, TranspileError>>()?;
                 Definition::Enum { descriptor, fields }
             }
@@ -159,10 +160,10 @@ impl<'a> Transpiler<'a> {
                 body,
             } => {
                 let descriptor = self.transpile_declaration_descriptor(module, descriptor, unit);
-                let signature = self.transpile_function_signature(module, signature, unit)?;
+                let signature = self.transpile_function_signature(module, tree, signature, unit)?;
                 let body = body
                     .map(|body| {
-                        self.transpile_expression(module, body, unit)
+                        self.transpile_expression(module, tree, body, unit)
                             .expect_node::<Block>(body.into_any(), unit)
                     })
                     .transpose()?;
@@ -189,16 +190,17 @@ impl<'a> Transpiler<'a> {
     pub fn transpile_enum_field(
         &self,
         module: &'a Module,
+        tree: &NodeTree,
         field_id: dir::NodeId<dir::EnumField>,
         unit: &mut TranspilerUnit,
     ) -> TranspileResult<NodeId<EnumField>> {
-        let field = self.session.tree.get(field_id);
+        let field = tree.get(field_id);
         let name = unit.strings.intern_from(&module.strings, field.name);
         let value = field
             .value
             .as_ref()
             .map(|value_id| {
-                self.transpile_expression(module, *value_id, unit)
+                self.transpile_expression(module, tree, *value_id, unit)
                     .expect_node::<Expression>(value_id.into_any(), unit)
             })
             .transpose()?;

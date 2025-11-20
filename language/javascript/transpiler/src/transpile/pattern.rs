@@ -1,6 +1,6 @@
 use crate::{TranspileError, TranspileResult, TranspileResultExt, Transpiler, TranspilerUnit};
 use dyst_dir as dir;
-use dyst_dir::Module;
+use dyst_dir::{Module, NodeTree};
 use dyst_javascript_ast::{Expression, NodeId, Pattern, PatternField};
 
 impl<'a> Transpiler<'a> {
@@ -8,10 +8,11 @@ impl<'a> Transpiler<'a> {
     pub fn transpile_pattern(
         &self,
         module: &Module,
+        tree: &NodeTree,
         pattern_id: dir::NodeId<dir::Pattern>,
         unit: &mut TranspilerUnit,
     ) -> TranspileResult<NodeId<Pattern>> {
-        let pattern = self.session.tree.get(pattern_id);
+        let pattern = tree.get(pattern_id);
         let pattern_id = match pattern.as_ref() {
             dir::Pattern::Wildcard => {
                 let name = unit.strings.intern("_");
@@ -40,10 +41,11 @@ impl<'a> Transpiler<'a> {
     pub fn transpile_pattern_field(
         &self,
         module: &Module,
+        tree: &NodeTree,
         pattern_field_id: dir::NodeId<dir::PatternField>,
         unit: &mut TranspilerUnit,
     ) -> TranspileResult<NodeId<PatternField>> {
-        let pattern_field = self.session.tree.get(pattern_field_id);
+        let pattern_field = tree.get(pattern_field_id);
         let pattern_field_id = match pattern_field.as_ref() {
             dir::PatternField::Named {
                 mutability,
@@ -61,11 +63,11 @@ impl<'a> Transpiler<'a> {
                 let mutability = mutability.map(|mutability| self.transpile_mutability(mutability));
                 let name = unit.strings.intern_from(&self.session.strings, *name);
                 let pattern = pattern
-                    .map(|pattern| self.transpile_pattern(module, pattern, unit))
+                    .map(|pattern| self.transpile_pattern(module, tree, pattern, unit))
                     .transpose()?;
                 let default = default
                     .map(|default| {
-                        self.transpile_expression(module, default, unit)
+                        self.transpile_expression(module, tree, default, unit)
                             .expect_node::<Expression>(default.into_any(), unit)
                     })
                     .transpose()?;
@@ -96,7 +98,7 @@ impl<'a> Transpiler<'a> {
                 let alias = unit.strings.intern_from(&self.session.strings, *alias);
                 let default = default
                     .map(|default| {
-                        self.transpile_expression(module, default, unit)
+                        self.transpile_expression(module, tree, default, unit)
                             .expect_node::<Expression>(default.into_any(), unit)
                     })
                     .transpose()?;
@@ -111,7 +113,7 @@ impl<'a> Transpiler<'a> {
             }
             dir::PatternField::Positional { pattern, symbol: _ }
             | dir::PatternField::UnresolvedPositional { pattern } => {
-                let pattern = self.transpile_pattern(module, *pattern, unit)?;
+                let pattern = self.transpile_pattern(module, tree, *pattern, unit)?;
                 let pattern_field = PatternField::Positional { pattern };
                 unit.ast
                     .insert_from_source(pattern_field, module.id, pattern_field_id)

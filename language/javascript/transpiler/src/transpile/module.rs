@@ -1,4 +1,4 @@
-use dyst_dir::{self as dir, ModuleId};
+use dyst_dir::{self as dir, ModuleId, NodeTree};
 use dyst_javascript_ast::{self as ast, NodeIdAny};
 use dyst_source::{StringPool, Uri};
 
@@ -52,9 +52,9 @@ impl TranspilerUnit {
 
 impl<'a> Transpiler<'a> {
     /// Transpile the modules into AST.
-    pub fn transpile_module(&self, module: &'a dir::Module, unit: &mut TranspilerUnit) {
+    pub fn transpile_module(&self, module: &'a dir::Module, tree: &NodeTree, unit: &mut TranspilerUnit) {
         for expression_id in module.expressions.iter() {
-            match self.transpile_expression(module, *expression_id, unit) {
+            match self.transpile_expression(module, tree, *expression_id, unit) {
                 Ok(root_id) => unit.roots.push(root_id),
                 Err(error) => unit.error(error),
             }

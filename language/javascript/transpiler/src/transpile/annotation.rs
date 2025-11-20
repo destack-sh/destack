@@ -1,4 +1,4 @@
-use dyst_dir::{self as dir, Module};
+use dyst_dir::{self as dir, Module, NodeTree};
 use dyst_javascript_ast::{Annotation, AnnotationPosition, NodeId};
 
 use crate::{TranspileResult, Transpiler, TranspilerUnit};
@@ -20,11 +20,12 @@ impl<'a> Transpiler<'a> {
     pub fn transpile_annotation(
         &self,
         module: &'a Module,
+        tree: &NodeTree,
         scope_id: dir::NodeIdAny,
         annotation_id: dir::NodeId<dir::Annotation>,
         unit: &mut TranspilerUnit,
     ) -> TranspileResult<NodeId<Annotation>> {
-        let annotation = self.session.tree.get(annotation_id);
+        let annotation = tree.get(annotation_id);
         let annotation = match annotation.as_ref() {
             dir::Annotation::Doc { position, string } => {
                 let position = self.transpile_annotation_position(*position);

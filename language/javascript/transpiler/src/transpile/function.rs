@@ -1,4 +1,4 @@
-use dyst_dir::{self as dir, Module};
+use dyst_dir::{self as dir, Module, NodeTree};
 use dyst_javascript_ast::{
     Asynchrony, FunctionAbstraction, FunctionCardinality, FunctionKind, FunctionMode,
     FunctionSignature,
@@ -62,6 +62,7 @@ impl<'a> Transpiler<'a> {
     pub fn transpile_function_signature(
         &self,
         module: &'a Module,
+        tree: &NodeTree,
         function_signature: &dir::FunctionSignature,
         unit: &mut TranspilerUnit,
     ) -> TranspileResult<FunctionSignature> {
@@ -75,16 +76,16 @@ impl<'a> Transpiler<'a> {
         let generics = function_signature
             .generics
             .as_ref()
-            .map(|generics| self.transpile_generics(module, generics, unit))
+            .map(|generics| self.transpile_generics(module, tree, generics, unit))
             .transpose()?;
         let dynamic_parameters = function_signature
             .dynamic_parameters
             .iter()
-            .map(|parameter| self.transpile_parameter(module, *parameter, unit))
+            .map(|parameter| self.transpile_parameter(module, tree, *parameter, unit))
             .collect::<Result<Vec<_>, TranspileError>>()?;
         let return_type = function_signature
             .return_type
-            .map(|return_type| self.transpile_type(module, return_type, unit))
+            .map(|return_type| self.transpile_type(module, tree, return_type, unit))
             .transpose()?;
         Ok(FunctionSignature {
             abstraction,
