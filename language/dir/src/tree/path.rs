@@ -17,12 +17,12 @@ pub enum PathBase {
 #[derive(Debug, Clone, PartialEq)]
 pub enum Path {
     /// Unresolved base.
-    UnresolvedBase { base: PathBase },
+    Base { base: PathBase },
     /// Unresolved relative string path.
-    UnresolvedRelativeString {
+    RelativeString {
         base: PathBase,
         segments: SmallVec<StringId, 3>,
     },
     /// Unresolved absolute string path.
-    UnresolvedAbsoluteString { segments: SmallVec<StringId, 3> },
+    AbsoluteString { segments: SmallVec<StringId, 3> },
 }

@@ -177,7 +177,7 @@ impl<'a> Compiler<'a> {
                 let modifiers =
                     modifiers.map(|modifiers| self.lower_binding_modifier(module, modifiers));
                 let name = self.session.strings.intern_from(&module.strings, *name);
-                let path = Path::UnresolvedAbsoluteString {
+                let path = Path::AbsoluteString {
                     segments: smallvec![name],
                 };
                 let value = self.session.tree.insert_from_source(

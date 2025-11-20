@@ -52,7 +52,7 @@ pub enum DependencyEdge {
         symbol: SymbolId,
     },
     /// Resolved default dependency edge.
-    ResolvedDefault {
+    Default {
         kind: DependencyKind,
         target: StringId,
         module: ModuleId,
@@ -61,7 +61,7 @@ pub enum DependencyEdge {
         symbol: SymbolId,
     },
     /// Resolved dependency edge.
-    Resolved {
+    Item {
         kind: DependencyKind,
         target: StringId,
         module: ModuleId,
@@ -76,7 +76,7 @@ impl DependencyEdge {
     pub fn is_resolved(&self) -> bool {
         matches!(
             self,
-            DependencyEdge::Resolved { .. } | DependencyEdge::ResolvedDefault { .. }
+            DependencyEdge::Item { .. } | DependencyEdge::Default { .. }
         )
     }
 
@@ -90,8 +90,8 @@ impl DependencyEdge {
         match self {
             DependencyEdge::UnresolvedDefault { target, .. } => *target,
             DependencyEdge::UnresolvedItem { target, .. } => *target,
-            DependencyEdge::ResolvedDefault { target, .. } => *target,
-            DependencyEdge::Resolved { target, .. } => *target,
+            DependencyEdge::Default { target, .. } => *target,
+            DependencyEdge::Item { target, .. } => *target,
         }
     }
 
@@ -100,8 +100,8 @@ impl DependencyEdge {
         match self {
             DependencyEdge::UnresolvedDefault { module, .. } => *module,
             DependencyEdge::UnresolvedItem { module, .. } => *module,
-            DependencyEdge::ResolvedDefault { module, .. } => Some(*module),
-            DependencyEdge::Resolved { module, .. } => Some(*module),
+            DependencyEdge::Default { module, .. } => Some(*module),
+            DependencyEdge::Item { module, .. } => Some(*module),
         }
     }
 }

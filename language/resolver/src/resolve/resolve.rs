@@ -10,9 +10,8 @@ use dyst_source::{FileSystem, MemoryFileSystem, PathExt, PhysicalFileSystem, SLA
 
 use crate::{
     Alias, AliasValue, CachedFileSystem, CachedPath, ImportsExportsEntry, ImportsExportsKind,
-    ImportsExportsMap, Resolution, ResolutionContext, ResolveError, ResolveOptions, ResolveResult,
-    Restriction, Specifier, SpecifierError, TypeScriptOptionsDiscovery,
-    TypeScriptOptionsReferences,
+    ImportsExportsMap, Resolution, ResolutionContext, ResolveError, ResolveOptions, Restriction,
+    Specifier, SpecifierError, TypeScriptOptionsDiscovery, TypeScriptOptionsReferences,
 };
 
 /// A resolver with a cache backed by a file system.
@@ -25,6 +24,7 @@ pub struct Resolver<Fs> {
 
 pub type PhysicalResolver = Resolver<PhysicalFileSystem>;
 pub type MemoryResolver = Resolver<MemoryFileSystem>;
+pub type ResolveResult = Result<Option<CachedPath>, ResolveError>;
 
 impl<Fs> fmt::Debug for Resolver<Fs> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -1193,7 +1193,7 @@ impl<Fs: FileSystem> Resolver<Fs> {
         references: &TypeScriptOptionsReferences,
         ctx: &mut TypeScriptOptionsResolveContext,
     ) -> Result<Arc<TsConfigJson>, ResolveError> {
-        self.cache.get_typescript_options(root, path, |tsconfig| {
+        self.cache.get_tsconfig_json(root, path, |tsconfig| {
             let directory = self.cache.value(tsconfig.directory());
 
             if ctx.is_already_extended(&tsconfig.path) {
@@ -1245,7 +1245,7 @@ impl<Fs: FileSystem> Resolver<Fs> {
                 let directory = tsconfig.directory().to_path_buf();
                 for reference in tsconfig.references.iter_mut() {
                     let reference_tsconfig_path = directory.normalize_with(&reference.path);
-                    let tsconfig = self.cache.get_typescript_options(
+                    let tsconfig = self.cache.get_tsconfig_json(
                         /* root */ true,
                         &reference_tsconfig_path,
                         |reference_tsconfig| {

@@ -1,6 +1,6 @@
 use crate::{
     Annotation, Argument, Block, Definition, DependencyItem, EnumField, Expression,
-    FunctionSignature, Generics, Heritage, Key, MatchCase, MutableNodeTree, NodeId, NodeType,
+    FunctionSignature, Generics, Heritage, Key, MatchCase, NodeTree, NodeId, NodeType,
     NodeVisitor, Parameter, Pattern, PatternField, Property, TemplateLiteral, Type, TypeField,
     WhereClause, WithClause,
 };
@@ -8,7 +8,7 @@ use crate::{
 /// Walk any node.
 pub fn walk_any<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
-    tree: &MutableNodeTree,
+    tree: &NodeTree,
     node_type: NodeType,
     node_id: u32,
 ) {
@@ -84,7 +84,7 @@ pub fn walk_any<V: NodeVisitor + ?Sized>(
 /// Walk the Generics.
 fn walk_generics<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
-    tree: &MutableNodeTree,
+    tree: &NodeTree,
     generics: &Generics,
 ) {
     if let Some(static_parameters) = generics.static_parameters.as_ref() {
@@ -110,7 +110,7 @@ fn walk_generics<V: NodeVisitor + ?Sized>(
 /// Walk the Heritage.
 fn walk_heritage<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
-    tree: &MutableNodeTree,
+    tree: &NodeTree,
     heritage: &Heritage,
 ) {
     if let Some(extends_types) = heritage.extends_types.as_ref() {
@@ -136,7 +136,7 @@ fn walk_heritage<V: NodeVisitor + ?Sized>(
 /// Walk the FunctionSignature.
 fn walk_function_signature<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
-    tree: &MutableNodeTree,
+    tree: &NodeTree,
     signature: &FunctionSignature,
 ) {
     if let Some(generics) = signature.generics.as_ref() {
@@ -155,7 +155,7 @@ fn walk_function_signature<V: NodeVisitor + ?Sized>(
 /// Walk the Expression.
 pub fn walk_expression<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
-    tree: &MutableNodeTree,
+    tree: &NodeTree,
     id: NodeId<Expression>,
     expression: &Expression,
 ) {
@@ -671,7 +671,7 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
 /// Walk the Block.
 pub fn walk_block<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
-    tree: &MutableNodeTree,
+    tree: &NodeTree,
     id: NodeId<Block>,
     block: &Block,
 ) {
@@ -685,7 +685,7 @@ pub fn walk_block<V: NodeVisitor + ?Sized>(
 /// Walk the Definition.
 pub fn walk_definition<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
-    tree: &MutableNodeTree,
+    tree: &NodeTree,
     id: NodeId<Definition>,
     definition: &Definition,
 ) {
@@ -791,7 +791,7 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
 /// Walk the Type.
 pub fn walk_type<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
-    tree: &MutableNodeTree,
+    tree: &NodeTree,
     id: NodeId<Type>,
     ty: &Type,
 ) {
@@ -891,7 +891,7 @@ pub fn walk_type<V: NodeVisitor + ?Sized>(
 /// Walk the TypeField.
 pub fn walk_type_field<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
-    tree: &MutableNodeTree,
+    tree: &NodeTree,
     id: NodeId<TypeField>,
     attribute: &TypeField,
 ) {
@@ -922,7 +922,7 @@ pub fn walk_type_field<V: NodeVisitor + ?Sized>(
 }
 
 /// Walk the Key.
-pub fn walk_key<V: NodeVisitor + ?Sized>(visitor: &mut V, tree: &MutableNodeTree, key: &Key) {
+pub fn walk_key<V: NodeVisitor + ?Sized>(visitor: &mut V, tree: &NodeTree, key: &Key) {
     match key {
         Key::Name(_) => {}
         Key::Expression(expression) => {
@@ -939,7 +939,7 @@ pub fn walk_key<V: NodeVisitor + ?Sized>(visitor: &mut V, tree: &MutableNodeTree
 /// Walk the Property.
 pub fn walk_property<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
-    tree: &MutableNodeTree,
+    tree: &NodeTree,
     id: NodeId<Property>,
     property: &Property,
 ) {
@@ -991,7 +991,7 @@ pub fn walk_property<V: NodeVisitor + ?Sized>(
 /// Walk the EnumField.
 pub fn walk_enum_field<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
-    tree: &MutableNodeTree,
+    tree: &NodeTree,
     id: NodeId<EnumField>,
     enum_field: &EnumField,
 ) {
@@ -1005,7 +1005,7 @@ pub fn walk_enum_field<V: NodeVisitor + ?Sized>(
 /// Walk the WhereClause.
 pub fn walk_where_clause<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
-    tree: &MutableNodeTree,
+    tree: &NodeTree,
     id: NodeId<WhereClause>,
     where_clause: &WhereClause,
 ) {
@@ -1025,7 +1025,7 @@ pub fn walk_where_clause<V: NodeVisitor + ?Sized>(
 /// Walk the WithClause.
 pub fn walk_with_clause<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
-    tree: &MutableNodeTree,
+    tree: &NodeTree,
     id: NodeId<WithClause>,
     with_clause: &WithClause,
 ) {
@@ -1037,7 +1037,7 @@ pub fn walk_with_clause<V: NodeVisitor + ?Sized>(
 /// Walk the DependencyItem.
 pub fn walk_dependency_item<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
-    tree: &MutableNodeTree,
+    tree: &NodeTree,
     id: NodeId<DependencyItem>,
     dependency_item: &DependencyItem,
 ) {
@@ -1078,7 +1078,7 @@ pub fn walk_dependency_item<V: NodeVisitor + ?Sized>(
 /// Walk the Parameter.
 pub fn walk_parameter<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
-    tree: &MutableNodeTree,
+    tree: &NodeTree,
     id: NodeId<Parameter>,
     parameter: &Parameter,
 ) {
@@ -1135,7 +1135,7 @@ pub fn walk_parameter<V: NodeVisitor + ?Sized>(
 /// Walk the Argument.
 pub fn walk_argument<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
-    tree: &MutableNodeTree,
+    tree: &NodeTree,
     id: NodeId<Argument>,
     argument: &Argument,
 ) {
@@ -1204,7 +1204,7 @@ pub fn walk_argument<V: NodeVisitor + ?Sized>(
 /// Walk the Pattern.
 pub fn walk_pattern<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
-    tree: &MutableNodeTree,
+    tree: &NodeTree,
     id: NodeId<Pattern>,
     pattern: &Pattern,
 ) {
@@ -1288,7 +1288,7 @@ pub fn walk_pattern<V: NodeVisitor + ?Sized>(
 /// Walk the PatternField.
 pub fn walk_pattern_field<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
-    tree: &MutableNodeTree,
+    tree: &NodeTree,
     id: NodeId<PatternField>,
     pattern_field: &PatternField,
 ) {
@@ -1345,7 +1345,7 @@ pub fn walk_pattern_field<V: NodeVisitor + ?Sized>(
 /// Walk the MatchCase.
 pub fn walk_match_case<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
-    tree: &MutableNodeTree,
+    tree: &NodeTree,
     id: NodeId<MatchCase>,
     match_case: &MatchCase,
 ) {
@@ -1387,7 +1387,7 @@ pub fn walk_match_case<V: NodeVisitor + ?Sized>(
 /// Walk the Annotation.
 pub fn walk_annotation<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
-    tree: &MutableNodeTree,
+    tree: &NodeTree,
     id: NodeId<Annotation>,
     annotation: &Annotation,
 ) {

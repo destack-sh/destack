@@ -11,9 +11,9 @@ pub enum ImportError {
     /// File ID not found.
     FileIdNotFound { file_id: FileId },
     /// Module could not be resolved.
-    ModuleUnresolved {
-        module: ModuleId,
+    ModuleNotFound {
         target: StringId,
+        directory: Option<StringId>,
         error: Option<dyst_resolver::ResolveError>,
     },
     /// Failed to parse a module.
@@ -23,7 +23,7 @@ pub enum ImportError {
         diagnostics: Vec<ParseError>,
     },
     /// Circular dependency.
-    CircularDependency { module: ModuleId, node: NodeIdAny },
+    CircularDependency { node: NodeIdAny },
 }
 
 impl ImportError {
@@ -32,7 +32,7 @@ impl ImportError {
     pub fn sub_code(&self) -> u8 {
         match self {
             Self::FileIdNotFound { .. } => 1,
-            Self::ModuleUnresolved { .. } => 2,
+            Self::ModuleNotFound { .. } => 2,
             Self::ParseError { .. } => 3,
             Self::CircularDependency { .. } => 4,
         }
@@ -42,7 +42,7 @@ impl ImportError {
     pub fn node_id(&self) -> Option<NodeIdAny> {
         match self {
             Self::FileIdNotFound { .. } => None,
-            Self::ModuleUnresolved { .. } => None,
+            Self::ModuleNotFound { .. } => None,
             Self::ParseError { node, .. } => Some(*node),
             Self::CircularDependency { node, .. } => Some(*node),
         }
@@ -52,7 +52,7 @@ impl ImportError {
     pub fn message<'a>(&self, _session: &'a Session<'a>) -> String {
         match self {
             Self::FileIdNotFound { .. } => "file not found".to_string(),
-            Self::ModuleUnresolved { target, .. } => {
+            Self::ModuleNotFound { target, .. } => {
                 let target_str = _session.strings.get(*target).to_string();
                 format!("module '{target_str}' not found")
             }

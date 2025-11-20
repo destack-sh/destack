@@ -1,7 +1,7 @@
 use dyst_ast as ast;
 use dyst_dir::{Module, ScopeId, ScopeKind};
 
-use crate::Compiler;
+use crate::{Compiler, ResolveTask};
 
 impl<'a> Compiler<'a> {
     /// Import a module from AST into DIR in a given parent/root scope.
@@ -29,6 +29,6 @@ impl<'a> Compiler<'a> {
         self.session.modules.insert(module);
 
         // begin resolving
-        self.enqueue_resolve_module(module_id);
+        self.enqueue(ResolveTask::ResolveModule { module: module_id }.into());
     }
 }

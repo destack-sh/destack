@@ -125,7 +125,7 @@ impl NodeTree {
         T: Node,
         Self: NodeTreeImpl<T>,
         U: dir::Node,
-        dir::MutableNodeTree: dir::NodeTreeImpl<U>,
+        dir::NodeTree: dir::NodeTreeImpl<U>,
     {
         let node_id = self.insert(node, module_id);
         self.dir_id_by_node_id.push(Some(dir_node_id.id));

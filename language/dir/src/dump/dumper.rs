@@ -16,7 +16,7 @@ pub struct Dumper<'a> {
     /// The string pool.
     pub strings: &'a ImmutableStringPool,
     /// The node tree.
-    pub tree: &'a MutableNodeTree,
+    pub tree: &'a NodeTree,
     /// The dump options.
     pub options: DumperOptions,
     /// The visitor options.
@@ -37,7 +37,7 @@ impl<'a> Dumper<'a> {
     /// Create a new Dumper.
     pub fn new(
         strings: &'a ImmutableStringPool,
-        tree: &'a MutableNodeTree,
+        tree: &'a NodeTree,
         options: DumperOptions,
     ) -> Self {
         Self {
@@ -368,7 +368,7 @@ impl Dump for StringId {
 /// Dump a NodeId<T> as the node it points to.
 impl<T: Node + Clone + Dump> Dump for NodeId<T>
 where
-    MutableNodeTree: NodeTreeImpl<T>,
+    NodeTree: NodeTreeImpl<T>,
 {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
         let node = dumper.tree.get(*self);
@@ -496,24 +496,18 @@ impl Dump for FunctionSignature {
 impl Dump for Path {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
         match self {
-            Path::UnresolvedBase { base } => {
-                dumper
-                    .object("Path::UnresolvedBase")
-                    .field("base", base)
-                    .end();
+            Path::Base { base } => {
+                dumper.object("Path::Base").field("base", base).end();
             }
-            Path::UnresolvedRelativeString { base, segments } => {
+            Path::RelativeString { base, segments } => {
                 dumper
-                    .object("Path::UnresolvedRelativeString")
+                    .object("Path::RelativeString")
                     .field("base", base)
                     .value(segments)
                     .end();
             }
-            Path::UnresolvedAbsoluteString { segments } => {
-                dumper
-                    .object("Path::UnresolvedAbsoluteString")
-                    .value(segments)
-                    .end();
+            Path::AbsoluteString { segments } => {
+                dumper.object("Path::AbsoluteString").value(segments).end();
             }
         }
     }
@@ -755,7 +749,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
         &self.visitor_options
     }
 
-    fn visit_any(&mut self, tree: &MutableNodeTree, _ty: NodeType, id: u32) {
+    fn visit_any(&mut self, tree: &NodeTree, _ty: NodeType, id: u32) {
         let annotations = tree.get_annotations(id);
         for annotation_id in annotations {
             let annotation = tree.get(annotation_id);
@@ -765,7 +759,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
 
     fn visit_expression(
         &mut self,
-        tree: &MutableNodeTree,
+        tree: &NodeTree,
         id: NodeId<Expression>,
         expression: &Expression,
     ) {
@@ -1014,7 +1008,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 path,
                 static_arguments: _,
             } => {
-                self.node("Expression::Path", id.id)
+                self.node("Expression::UnresolvedPath", id.id)
                     .field("path", path)
                     .end();
             }
@@ -1196,7 +1190,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
         });
     }
 
-    fn visit_block(&mut self, tree: &MutableNodeTree, id: NodeId<Block>, block: &Block) {
+    fn visit_block(&mut self, tree: &NodeTree, id: NodeId<Block>, block: &Block) {
         self.node("Block", id.id).end();
         self.with_depth(|dumper| {
             walk_block(dumper, tree, id, block);
@@ -1205,7 +1199,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
 
     fn visit_definition(
         &mut self,
-        tree: &MutableNodeTree,
+        tree: &NodeTree,
         id: NodeId<Definition>,
         definition: &Definition,
     ) {
@@ -1301,7 +1295,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
         });
     }
 
-    fn visit_type(&mut self, tree: &MutableNodeTree, id: NodeId<Type>, ty: &Type) {
+    fn visit_type(&mut self, tree: &NodeTree, id: NodeId<Type>, ty: &Type) {
         match ty {
             Type::Scalar(scalar) => {
                 self.node("Type::Scalar", id.id)
@@ -1406,12 +1400,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
         });
     }
 
-    fn visit_type_field(
-        &mut self,
-        tree: &MutableNodeTree,
-        id: NodeId<TypeField>,
-        type_field: &TypeField,
-    ) {
+    fn visit_type_field(&mut self, tree: &NodeTree, id: NodeId<TypeField>, type_field: &TypeField) {
         match type_field {
             TypeField::Field {
                 modifiers,
@@ -1440,12 +1429,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
         });
     }
 
-    fn visit_property(
-        &mut self,
-        tree: &MutableNodeTree,
-        id: NodeId<Property>,
-        property: &Property,
-    ) {
+    fn visit_property(&mut self, tree: &NodeTree, id: NodeId<Property>, property: &Property) {
         match property {
             Property::Field {
                 modifiers,
@@ -1484,12 +1468,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
         });
     }
 
-    fn visit_enum_field(
-        &mut self,
-        tree: &MutableNodeTree,
-        id: NodeId<EnumField>,
-        enum_field: &EnumField,
-    ) {
+    fn visit_enum_field(&mut self, tree: &NodeTree, id: NodeId<EnumField>, enum_field: &EnumField) {
         self.node("EnumField", id.id)
             .field("name", &enum_field.name)
             .field("symbol", &enum_field.symbol)
@@ -1501,7 +1480,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
 
     fn visit_where_clause(
         &mut self,
-        tree: &MutableNodeTree,
+        tree: &NodeTree,
         id: NodeId<WhereClause>,
         where_clause: &WhereClause,
     ) {
@@ -1522,7 +1501,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
 
     fn visit_with_clause(
         &mut self,
-        tree: &MutableNodeTree,
+        tree: &NodeTree,
         id: NodeId<WithClause>,
         with_clause: &WithClause,
     ) {
@@ -1536,7 +1515,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
 
     fn visit_dependency_item(
         &mut self,
-        tree: &MutableNodeTree,
+        tree: &NodeTree,
         id: NodeId<DependencyItem>,
         dependency_item: &DependencyItem,
     ) {
@@ -1589,12 +1568,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
         });
     }
 
-    fn visit_parameter(
-        &mut self,
-        tree: &MutableNodeTree,
-        id: NodeId<Parameter>,
-        parameter: &Parameter,
-    ) {
+    fn visit_parameter(&mut self, tree: &NodeTree, id: NodeId<Parameter>, parameter: &Parameter) {
         match parameter {
             Parameter::Named {
                 modifiers,
@@ -1639,12 +1613,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
         });
     }
 
-    fn visit_argument(
-        &mut self,
-        tree: &MutableNodeTree,
-        id: NodeId<Argument>,
-        argument: &Argument,
-    ) {
+    fn visit_argument(&mut self, tree: &NodeTree, id: NodeId<Argument>, argument: &Argument) {
         match argument {
             Argument::UnresolvedNamed {
                 modifiers,
@@ -1725,7 +1694,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
         });
     }
 
-    fn visit_pattern(&mut self, tree: &MutableNodeTree, id: NodeId<Pattern>, pattern: &Pattern) {
+    fn visit_pattern(&mut self, tree: &NodeTree, id: NodeId<Pattern>, pattern: &Pattern) {
         match pattern {
             Pattern::Wildcard => {
                 self.node("Pattern::Wildcard", id.id).end();
@@ -1788,7 +1757,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
 
     fn visit_pattern_field(
         &mut self,
-        tree: &MutableNodeTree,
+        tree: &NodeTree,
         id: NodeId<PatternField>,
         pattern_field: &PatternField,
     ) {
@@ -1857,12 +1826,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
         });
     }
 
-    fn visit_match_case(
-        &mut self,
-        tree: &MutableNodeTree,
-        id: NodeId<MatchCase>,
-        match_case: &MatchCase,
-    ) {
+    fn visit_match_case(&mut self, tree: &NodeTree, id: NodeId<MatchCase>, match_case: &MatchCase) {
         match match_case {
             MatchCase::Expression {
                 pattern: _,
@@ -1892,7 +1856,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
 
     fn visit_annotation(
         &mut self,
-        tree: &MutableNodeTree,
+        tree: &NodeTree,
         id: NodeId<Annotation>,
         annotation: &Annotation,
     ) {
@@ -2005,7 +1969,7 @@ impl Dump for SymbolKey {
 }
 
 impl<'a> Dumper<'a> {
-    pub fn visit_scope(&mut self, tree: &MutableNodeTree, id: ScopeId, scope: &Scope) {
+    pub fn visit_scope(&mut self, tree: &NodeTree, id: ScopeId, scope: &Scope) {
         self.node("Scope", id.0)
             .field("id", &id)
             .field("kind", &scope.kind)
@@ -2025,7 +1989,7 @@ impl<'a> Dumper<'a> {
         });
     }
 
-    pub fn visit_symbol(&mut self, _tree: &MutableNodeTree, id: SymbolId, symbol: &Symbol) {
+    pub fn visit_symbol(&mut self, _tree: &NodeTree, id: SymbolId, symbol: &Symbol) {
         self.node("Symbol", id.0)
             .field("id", &id)
             .field("space", &symbol.space)

@@ -69,14 +69,7 @@ pub struct ResolveOptions {
 impl ResolveOptions {
     /// Sanitize the options.
     pub fn sanitize(mut self) -> Self {
-        debug_assert!(
-            self.extensions
-                .iter()
-                .filter(|e| !e.is_empty())
-                .all(|e| e.starts_with('.')),
-            "All extensions must start with a leading dot"
-        );
-        // Set `enforceExtension` to `true` when [ResolveOptions::extensions] contains an empty string.
+        // set `enforceExtension` to `true` when [ResolveOptions::extensions] contains an empty string
         // See <https://github.com/webpack/enhanced-resolve/pull/285>
         if self.enforce_extension == EnforceExtension::Auto {
             if !self.extensions.is_empty() && self.extensions.iter().any(String::is_empty) {

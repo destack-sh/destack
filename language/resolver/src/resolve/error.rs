@@ -3,8 +3,6 @@ use std::io;
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use crate::CachedPath;
-
 /// Resolution error.
 #[derive(Debug, Clone, PartialEq)]
 #[non_exhaustive]
@@ -201,9 +199,6 @@ impl std::fmt::Display for ResolveError {
 
 impl std::error::Error for ResolveError {}
 
-pub type ResolveResult = Result<Option<CachedPath>, ResolveError>;
-
-/// Error for [ResolveError::Specifier]
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub enum SpecifierError {
     Empty(String),
@@ -212,10 +207,7 @@ pub enum SpecifierError {
 impl std::fmt::Display for SpecifierError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            SpecifierError::Empty(spec) => write!(
-                f,
-                "The specifiers must be a non-empty string. Received \"{spec}\""
-            ),
+            SpecifierError::Empty(spec) => write!(f, "empty specifier '{spec}'"),
         }
     }
 }

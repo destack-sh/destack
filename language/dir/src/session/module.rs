@@ -135,6 +135,8 @@ impl Default for ModuleRegistry {
     }
 }
 
+// nocheckin: revisit ModuleRegistry/PackageRegistry locking/cloning/..
+
 impl ModuleRegistry {
     /// Create a new ModuleRegistry.
     pub fn new() -> Self {
@@ -168,7 +170,6 @@ impl ModuleRegistry {
         state
             .modules_by_id
             .values()
-            // nocheckin: no ModuleRegistry clone in iter
             .cloned()
             .collect::<Vec<_>>()
             .into_iter()
