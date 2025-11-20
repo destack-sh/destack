@@ -1,6 +1,7 @@
 use dyst_ast as ast;
 use dyst_dir::{
-    DependencyItem, DependencyKind, ExportType, Module, NodeId, ScopeId, SymbolKey, SymbolSpace,
+    DependencyItem, DependencyKind, ExportType, Module, NodeId, NodeTree, ScopeId, SymbolKey,
+    SymbolSpace,
 };
 
 use crate::Compiler;
@@ -34,6 +35,7 @@ impl<'a> Compiler<'a> {
         scope_id: ScopeId,
         kind: ast::DependencyKind,
         item_id: ast::NodeId<ast::DependencyItem>,
+        tree: &mut NodeTree,
     ) -> NodeId<DependencyItem> {
         let item = module.get(item_id);
         let kind = self.lower_dependency_kind(item.kind.unwrap_or(kind));
@@ -41,7 +43,7 @@ impl<'a> Compiler<'a> {
         let alias = item
             .alias
             .map(|alias| self.session.strings.intern_from(&module.strings, alias));
-        let symbol_id = self.session.tree.create_symbol(
+        let symbol_id = tree.create_symbol(
             SymbolSpace::Value,
             Some(SymbolKey::Name(name)),
             scope_id,
@@ -52,8 +54,6 @@ impl<'a> Compiler<'a> {
             alias,
             symbol: symbol_id,
         };
-        self.session
-            .tree
-            .insert_from_source_as_symbol(item, module.id, item_id, symbol_id)
+        tree.insert_from_source_as_symbol(item, module.id, item_id, symbol_id)
     }
 }

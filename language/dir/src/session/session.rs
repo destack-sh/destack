@@ -1,10 +1,11 @@
 use dyst_ast::StringPool;
 use dyst_source::{DiagnosticCollector, DiagnosticSeverity, FileRegistry, LanguageOptions};
+use parking_lot::RwLock;
 
-use crate::{ModuleRegistry, SharedNodeTree, PackageRegistry, ScopeId};
+use crate::{ModuleRegistry, NodeTree, PackageRegistry, ScopeId};
 
 /// A session for a language.
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct Session<'a> {
     /// The language options.
     pub language: LanguageOptions,
@@ -16,8 +17,8 @@ pub struct Session<'a> {
     pub modules: ModuleRegistry,
     /// The packages.
     pub packages: PackageRegistry,
-    /// The combined DIR node tree (including derived metadata).
-    pub tree: SharedNodeTree,
+    /// The combined DIR node tree (excluding derived metadata).
+    pub tree: RwLock<NodeTree>,
     /// The diagnostic collector.
     pub diagnostics: DiagnosticCollector,
     /// The combined string pool.
@@ -33,7 +34,7 @@ impl<'a> Session<'a> {
             root_scope_id: None,
             modules: ModuleRegistry::new(),
             packages: PackageRegistry::new(),
-            tree: SharedNodeTree::new(),
+            tree: RwLock::new(NodeTree::new()),
             diagnostics: DiagnosticCollector::new(),
             strings: StringPool::new(),
         }

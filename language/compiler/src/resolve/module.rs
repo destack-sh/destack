@@ -1,9 +1,9 @@
-use crate::{Compiler, ResolveError, ResolveResult};
+use crate::{Compiler, ResolveResult};
 use dyst_dir::{ModuleId, Node, NodeIdAny, NodeTree, NodeType};
 
 impl<'a> Compiler<'a> {
     /// Whether a node is resolved.
-    pub(super) fn is_resolved(&self, tree: &NodeTree, node_id: NodeIdAny) -> bool {
+    pub(super) fn is_resolved(&self, node_id: NodeIdAny, tree: &NodeTree) -> bool {
         match node_id.ty {
             NodeType::Expression => tree
                 .get::<dyst_dir::Expression>(node_id.into())
@@ -47,14 +47,19 @@ impl<'a> Compiler<'a> {
     }
 
     /// Resolve a generic node.
-    pub(super) fn resolve_node(&self, module_id: ModuleId, node: NodeIdAny) -> ResolveResult<()> {
+    pub(super) fn resolve_node(
+        &self,
+        module_id: ModuleId,
+        node: NodeIdAny,
+        tree: &mut NodeTree,
+    ) -> ResolveResult<()> {
         match node.ty {
-            NodeType::Expression => self.resolve_expression(module_id, node.into()),
-            NodeType::Type => self.resolve_type(module_id, node.into()),
-            NodeType::Argument => self.resolve_argument(module_id, node.into()),
-            NodeType::DependencyItem => self.resolve_dependency_item(module_id, node.into()),
-            NodeType::PatternField => self.resolve_pattern_field(module_id, node.into()),
-            NodeType::Annotation => self.resolve_annotation(module_id, node.into()),
+            NodeType::Expression => self.resolve_expression(module_id, node.into(), tree),
+            NodeType::Type => self.resolve_type(module_id, node.into(), tree),
+            NodeType::Argument => self.resolve_argument(module_id, node.into(), tree),
+            NodeType::DependencyItem => self.resolve_dependency_item(module_id, node.into(), tree),
+            NodeType::PatternField => self.resolve_pattern_field(module_id, node.into(), tree),
+            NodeType::Annotation => self.resolve_annotation(module_id, node.into(), tree),
             _ => {
                 // nothing to do
                 Ok(())
@@ -63,7 +68,7 @@ impl<'a> Compiler<'a> {
     }
 
     /// Resolve an entire module.
-    pub fn resolve_module(&self, module_id: ModuleId) -> ResolveResult<()> {
-        Ok(())
+    pub fn resolve_module(&self, module_id: ModuleId, _tree: &mut NodeTree) -> ResolveResult<()> {
+        todo!("nocheckin: resolve_module({module_id:?})");
     }
 }

@@ -2,7 +2,6 @@ use std::collections::HashMap;
 use std::fmt::{Debug, Formatter};
 
 use dyst_ast as ast;
-use parking_lot::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 
 use crate::{
     Annotation, Arena, Argument, Block, Definition, DependencyItem, EnumField, Expression,
@@ -67,8 +66,6 @@ pub struct NodeTree {
     pub(crate) symbol_by_node_id: Vec<Option<SymbolId>>,
     /// The scopes by node id. Index is the global node id.
     pub(crate) scope_by_node_id: Vec<ScopeId>,
-    /// The undisputed types by node id. Index is the global node id.
-    pub(crate) inferred_type_by_node_id: Vec<Option<NodeId<Type>>>,
 }
 
 impl Debug for NodeTree {
@@ -129,7 +126,6 @@ impl NodeTree {
 
             symbol_by_node_id: Vec::with_capacity(capacity),
             scope_by_node_id: Vec::with_capacity(capacity),
-            inferred_type_by_node_id: Vec::with_capacity(capacity),
         }
     }
 
@@ -432,18 +428,6 @@ impl NodeTree {
     pub fn get_scope_by_node_id(&self, node_id: u32) -> ScopeId {
         self.scope_by_node_id[node_id as usize]
     }
-
-    /// Set the static type for a node.
-    #[inline]
-    pub fn set_inferred_type(&mut self, node_id: u32, type_id: NodeId<Type>) {
-        self.inferred_type_by_node_id[node_id as usize] = Some(type_id);
-    }
-
-    /// Get a static type by its id.
-    #[inline]
-    pub fn get_inferred_type(&self, node_id: u32) -> Option<NodeId<Type>> {
-        self.inferred_type_by_node_id[node_id as usize]
-    }
 }
 
 /// Map node types to arenas.
@@ -501,282 +485,4 @@ impl_node_tree_stores! {
     Pattern => patterns,
     PatternField => pattern_fields,
     Annotation => annotations,
-}
-
-/// Shared DIR Node tree across a set of related source units. THREAD-SAFE.
-/// nocheckin: optimize NodeTree locking (per module maybe?)
-pub struct SharedNodeTree {
-    inner: RwLock<NodeTree>,
-}
-
-impl Clone for SharedNodeTree {
-    fn clone(&self) -> Self {
-        let state = self.inner.read().clone();
-        Self {
-            inner: RwLock::new(state),
-        }
-    }
-}
-
-impl Default for SharedNodeTree {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl Debug for SharedNodeTree {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("SharedNodeTree").finish()
-    }
-}
-
-impl SharedNodeTree {
-    pub fn new() -> Self {
-        Self {
-            inner: RwLock::new(NodeTree::new()),
-        }
-    }
-
-    /// Get a read guard to the inner mutable node tree.
-    #[inline]
-    pub fn read(&self) -> RwLockReadGuard<'_, NodeTree> {
-        self.inner.read()
-    }
-
-    /// Get a write guard to the inner mutable node tree.
-    #[inline]
-    pub fn write(&self) -> RwLockWriteGuard<'_, NodeTree> {
-        self.inner.write()
-    }
-
-    /// Allocate a new node in the DIR tree lowered from a source AST node.
-    #[inline]
-    pub fn insert_from_source<T, U>(
-        &self,
-        node: T,
-        module_id: ModuleId,
-        ast_node_id: ast::NodeId<U>,
-    ) -> NodeId<T>
-    where
-        T: Node,
-        NodeTree: NodeTreeImpl<T>,
-        U: ast::Node,
-    {
-        let mut tree = self.write();
-        tree.insert_from_source(node, module_id, ast_node_id)
-    }
-
-    /// Allocate a new node in the DIR tree derived from a source AST node as the primary declaration.
-    #[inline]
-    pub fn insert_from_source_as_symbol<T, U>(
-        &self,
-        node: T,
-        module_id: ModuleId,
-        ast_node_id: ast::NodeId<U>,
-        symbol_id: SymbolId,
-    ) -> NodeId<T>
-    where
-        T: Node + Clone,
-        NodeTree: NodeTreeImpl<T>,
-        U: ast::Node,
-    {
-        let mut tree = self.write();
-        tree.insert_from_source_as_symbol(node, module_id, ast_node_id, symbol_id)
-    }
-
-    /// Allocate a new node in the DIR tree derived from another DIR node.
-    #[inline]
-    pub fn insert_from<T, U>(&self, node: T, dir_node_id: NodeId<U>) -> NodeId<T>
-    where
-        T: Node + Clone,
-        NodeTree: NodeTreeImpl<T>,
-        U: Node,
-    {
-        let mut tree = self.write();
-        tree.insert_from(node, dir_node_id)
-    }
-
-    /// Add an alias node for a lowered AST id.
-    #[inline]
-    pub fn alias_from_source<T>(&self, module_id: ModuleId, ast_id: u32, alias: NodeId<T>)
-    where
-        T: Node + Clone,
-        NodeTree: NodeTreeImpl<T>,
-    {
-        let mut tree = self.write();
-        tree.alias_from_source(module_id, ast_id, alias)
-    }
-
-    /// Get the type of an untyped node id.
-    #[inline]
-    pub fn get_type(&self, id: u32) -> NodeType {
-        let tree = self.read();
-        tree.get_type(id)
-    }
-
-    /// Get an immutable reference to the node with the given NodeId.
-    #[inline]
-    pub fn get<T>(&self, id: NodeId<T>) -> ReadNodeRef<'_, T>
-    where
-        T: Node,
-        NodeTree: NodeTreeImpl<T>,
-    {
-        let tree = self.read();
-        ReadNodeRef { tree, node_id: id }
-    }
-
-    /// Get a mutable reference to the node with the given NodeId.
-    #[inline]
-    pub fn get_mut<T>(&self, id: NodeId<T>) -> WriteNodeRef<'_, T>
-    where
-        T: Node,
-        NodeTree: NodeTreeImpl<T>,
-    {
-        let tree = self.write();
-        WriteNodeRef { tree, node_id: id }
-    }
-
-    /// Get the source and AST id of a node by its global id.
-    /// Every DIR node has a source, but only some come directly from AST nodes.
-    #[inline]
-    pub fn get_source(&self, node_id: u32) -> (ModuleId, Option<u32>) {
-        let tree = self.read();
-        tree.get_source(node_id)
-    }
-
-    /// Get the node id by its source / AST id.
-    #[inline]
-    pub fn get_node_id_by_source_id(&self, module_id: ModuleId, ast_id: u32) -> Option<u32> {
-        let tree = self.read();
-        tree.get_node_id_by_source_id(module_id, ast_id)
-    }
-
-    /// Append a doc to a node by its global id.
-    #[inline]
-    pub fn append_annotation(&self, target_id: u32, annotation: NodeId<Annotation>) {
-        let mut tree = self.write();
-        tree.append_annotation(target_id, annotation);
-    }
-
-    /// Whether there are any annotations attached to a node.
-    #[inline]
-    pub fn has_annotations(&self, node_id: u32) -> bool {
-        let tree = self.read();
-        tree.has_annotations(node_id)
-    }
-
-    /// Get annotations attached to a node.
-    #[inline]
-    pub fn get_annotations(&self, node_id: u32) -> Vec<NodeId<Annotation>> {
-        let tree = self.read();
-        tree.get_annotations(node_id)
-    }
-
-    /// Create a new symbol in the DIR tree.
-    #[inline]
-    pub fn create_symbol(
-        &self,
-        space: SymbolSpace,
-        key: Option<SymbolKey>,
-        scope: ScopeId,
-    ) -> SymbolId {
-        let mut tree = self.write();
-        tree.create_symbol(space, key, scope)
-    }
-
-    /// Create a new scope in the tree.
-    #[inline]
-    pub fn create_scope(
-        &self,
-        kind: ScopeKind,
-        parent: Option<ScopeId>,
-        owner: Option<SymbolId>,
-    ) -> ScopeId {
-        let mut tree = self.write();
-        tree.create_scope(kind, parent, owner)
-    }
-
-    /// Create a new symbol with a scope.
-    #[inline]
-    pub fn create_symbol_with_scope(
-        &self,
-        space: SymbolSpace,
-        key: Option<SymbolKey>,
-        kind: ScopeKind,
-        scope: ScopeId,
-    ) -> (SymbolId, ScopeId) {
-        let mut tree = self.write();
-        tree.create_symbol_with_scope(space, key, kind, scope)
-    }
-}
-
-/// Immutable reference to a node.
-#[derive(Debug)]
-pub struct ReadNodeRef<'a, T>
-where
-    T: Node,
-    NodeTree: NodeTreeImpl<T>,
-{
-    tree: RwLockReadGuard<'a, NodeTree>,
-    node_id: NodeId<T>,
-}
-
-impl<'a, T: Clone + Node> std::ops::Deref for ReadNodeRef<'a, T>
-where
-    NodeTree: NodeTreeImpl<T>,
-{
-    type Target = T;
-
-    fn deref(&self) -> &Self::Target {
-        self.tree.get(self.node_id)
-    }
-}
-
-impl<'a, T: Clone + Node> AsRef<T> for ReadNodeRef<'a, T>
-where
-    NodeTree: NodeTreeImpl<T>,
-{
-    fn as_ref(&self) -> &T {
-        self.tree.get(self.node_id)
-    }
-}
-
-/// Mutable reference to a node.
-#[derive(Debug)]
-pub struct WriteNodeRef<'a, T>
-where
-    T: Node,
-    NodeTree: NodeTreeImpl<T>,
-{
-    tree: RwLockWriteGuard<'a, NodeTree>,
-    node_id: NodeId<T>,
-}
-
-impl<'a, T: Clone + Node> std::ops::Deref for WriteNodeRef<'a, T>
-where
-    NodeTree: NodeTreeImpl<T>,
-{
-    type Target = T;
-
-    fn deref(&self) -> &Self::Target {
-        self.tree.get(self.node_id)
-    }
-}
-
-impl<'a, T: Clone + Node> std::ops::DerefMut for WriteNodeRef<'a, T>
-where
-    NodeTree: NodeTreeImpl<T>,
-{
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        self.tree.get_mut(self.node_id)
-    }
-}
-
-impl<'a, T: Clone + Node> AsRef<T> for WriteNodeRef<'a, T>
-where
-    NodeTree: NodeTreeImpl<T>,
-{
-    fn as_ref(&self) -> &T {
-        self.tree.get(self.node_id)
-    }
 }

@@ -1,6 +1,6 @@
 use crate::{Compiler, CompilerTask, ResolveResult};
 
-use dyst_dir::{ModuleId, Session};
+use dyst_dir::{ModuleId, NodeTree, Session};
 
 /// Task to statically resolve something in-place.
 #[derive(Debug, Clone)]
@@ -35,9 +35,9 @@ impl From<ResolveTask> for CompilerTask {
 
 impl<'a> Compiler<'a> {
     /// Process a resolve task.
-    pub fn process_resolve(&self, task: ResolveTask) -> ResolveResult<()> {
+    pub fn process_resolve(&self, task: ResolveTask, tree: &mut NodeTree) -> ResolveResult<()> {
         match task {
-            ResolveTask::ResolveModule { module } => self.resolve_module(module),
+            ResolveTask::ResolveModule { module } => self.resolve_module(module, tree),
         }
     }
 }
