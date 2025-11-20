@@ -4,7 +4,7 @@ use dyst_dir::{Annotation, AnnotationPosition, Module, NodeId, ScopeId};
 
 impl<'a> Compiler<'a> {
     /// Lower and attach all annotations for a module.
-    pub fn attach_annotations(&mut self, module: &Module, scope_id: ScopeId) {
+    pub fn attach_annotations(&self, module: &Module, scope_id: ScopeId) {
         // lower them
         for ast_annotation_id in module.get_nodes::<ast::Annotation>() {
             self.lower_annotation(module, scope_id, ast_annotation_id);
@@ -29,7 +29,7 @@ impl<'a> Compiler<'a> {
 
     /// Lower an annotation position into a DIR annotation position.
     pub(super) fn lower_annotation_position(
-        &mut self,
+        &self,
         annotation_position: ast::AnnotationPosition,
     ) -> AnnotationPosition {
         match annotation_position {
@@ -43,8 +43,8 @@ impl<'a> Compiler<'a> {
     }
 
     /// Lower an annotation to a DIR annotation.
-    fn lower_annotation(
-        &mut self,
+    pub(super) fn lower_annotation(
+        &self,
         module: &Module,
         scope_id: ScopeId,
         annotation_id: ast::NodeId<ast::Annotation>,

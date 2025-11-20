@@ -35,7 +35,7 @@ impl From<ResolveTask> for CompilerTask {
 
 impl<'a> Compiler<'a> {
     /// Process a resolve task.
-    pub fn process_resolve(&mut self, task: ResolveTask) -> ResolveResult<()> {
+    pub fn process_resolve(&self, task: ResolveTask) -> ResolveResult<()> {
         match task {
             ResolveTask::ResolveModule { module } => self.resolve_module(module),
         }

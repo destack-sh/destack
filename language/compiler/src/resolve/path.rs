@@ -5,7 +5,7 @@ use crate::{Compiler, ResolveResult};
 impl<'a> Compiler<'a> {
     /// Resolve a Path.
     pub fn resolve_path(
-        &mut self,
+        &self,
         _module_id: ModuleId,
         _scope_id: ScopeId,
         path: Path,

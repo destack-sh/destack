@@ -49,12 +49,19 @@ impl ImportError {
     }
 
     /// Get the message of the error.
-    pub fn message<'a>(&self, _session: &'a Session<'a>) -> String {
+    pub fn message<'a>(&self, session: &'a Session<'a>) -> String {
         match self {
             Self::FileIdNotFound { .. } => "file not found".to_string(),
-            Self::ModuleNotFound { target, .. } => {
-                let target_str = _session.strings.get(*target).to_string();
-                format!("module '{target_str}' not found")
+            Self::ModuleNotFound {
+                target, directory, ..
+            } => {
+                let target_str = session.strings.get(*target).to_string();
+                if let Some(directory) = directory {
+                    let directory_str = session.strings.get(*directory).to_string();
+                    format!("module '{target_str}' not found in '{directory_str}'")
+                } else {
+                    format!("module '{target_str}' not found")
+                }
             }
             Self::ParseError { .. } => "parse error".to_string(),
             Self::CircularDependency { .. } => "circular dependency".to_string(),

@@ -12,7 +12,7 @@ impl From<BuildTask> for CompilerTask {
 
 impl<'a> Compiler<'a> {
     /// Process a build task.
-    pub fn process_build(&mut self, task: BuildTask) -> BuildResult<()> {
+    pub fn process_build(&self, task: BuildTask) -> BuildResult<()> {
         todo!("process_build({task:?})")
     }
 }

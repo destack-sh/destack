@@ -6,7 +6,7 @@ use crate::Compiler;
 impl<'a> Compiler<'a> {
     /// Lower a match case to a DIR match case.
     pub(super) fn lower_match_case(
-        &mut self,
+        &self,
         module: &Module,
         scope_id: ScopeId,
         match_case_id: ast::NodeId<ast::MatchCase>,

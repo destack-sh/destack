@@ -8,7 +8,7 @@ use dyst_dir::{
 impl<'a> Compiler<'a> {
     /// Lower a scalar literal to a DIR scalar literal.
     pub(super) fn lower_scalar_literal(
-        &mut self,
+        &self,
         module: &Module,
         scalar_literal: &ast::ScalarLiteral,
     ) -> ScalarLiteral {
@@ -37,7 +37,7 @@ impl<'a> Compiler<'a> {
 
     /// Lower a template literal to a DIR template literal.
     pub(super) fn lower_template_literal(
-        &mut self,
+        &self,
         module: &Module,
         scope_id: ScopeId,
         template_literal: &ast::TemplateLiteral,

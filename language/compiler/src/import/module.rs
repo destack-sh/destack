@@ -6,7 +6,7 @@ use crate::{Compiler, ResolveTask};
 impl<'a> Compiler<'a> {
     /// Import a module from AST into DIR in a given parent/root scope.
     pub fn import_module(
-        &mut self,
+        &self,
         mut module: Module,
         scope_id: Option<ScopeId>,
         expressions: &[ast::NodeId<ast::Expression>],

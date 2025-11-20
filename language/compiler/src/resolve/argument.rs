@@ -5,7 +5,7 @@ use crate::{Compiler, ResolveError, ResolveResult};
 impl<'a> Compiler<'a> {
     /// Resolve an Argument.
     pub(super) fn resolve_argument(
-        &mut self,
+        &self,
         _module_id: ModuleId,
         argument_id: NodeId<Argument>,
     ) -> ResolveResult<()> {

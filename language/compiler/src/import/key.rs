@@ -4,7 +4,7 @@ use dyst_dir::{Key, Module, ScopeId};
 
 impl<'a> Compiler<'a> {
     /// Lower a key to a DIR key.
-    pub(super) fn lower_key(&mut self, module: &Module, scope_id: ScopeId, key: ast::Key) -> Key {
+    pub(super) fn lower_key(&self, module: &Module, scope_id: ScopeId, key: ast::Key) -> Key {
         match key {
             ast::Key::Name(name) => {
                 let name = self

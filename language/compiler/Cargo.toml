@@ -20,6 +20,7 @@ dyst_parser = { workspace = true }
 dyst_source = { workspace = true }
 dyst_resolver = { workspace = true }
 
+crossbeam-deque = { workspace = true }
 rayon = { workspace = true }
 parking_lot = { workspace = true }
 

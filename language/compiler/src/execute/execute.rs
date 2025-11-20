@@ -17,7 +17,7 @@ impl From<ExecuteTask> for CompilerTask {
 
 impl<'a> Compiler<'a> {
     /// Execute a node.
-    pub fn process_execute(&mut self, task: ExecuteTask) -> ExecuteResult<()> {
+    pub fn process_execute(&self, task: ExecuteTask) -> ExecuteResult<()> {
         todo!("process_execute({task:?})")
     }
 }

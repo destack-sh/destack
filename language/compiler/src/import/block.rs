@@ -6,7 +6,7 @@ use crate::Compiler;
 impl<'a> Compiler<'a> {
     /// Lower a block to a DIR block.
     pub(super) fn lower_block(
-        &mut self,
+        &self,
         module: &Module,
         scope_id: ScopeId,
         block_id: ast::NodeId<ast::Block>,

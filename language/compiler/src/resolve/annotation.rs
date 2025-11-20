@@ -5,7 +5,7 @@ use crate::{Compiler, ResolveResult};
 impl<'a> Compiler<'a> {
     /// Resolve an Annotation.
     pub fn resolve_annotation(
-        &mut self,
+        &self,
         _module_id: ModuleId,
         annotation_id: NodeId<Annotation>,
     ) -> ResolveResult<()> {

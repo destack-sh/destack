@@ -1,11 +1,11 @@
-use std::collections::VecDeque;
+use crossbeam_deque::Worker;
 
 use crate::CompilerTask;
 
-/// Queue of compiler tasks.
-#[derive(Debug, Clone)]
+/// Queue of compiler tasks using a crossbeam_deque Worker.
+#[derive(Debug)]
 pub struct CompilerQueue {
-    tasks: VecDeque<CompilerTask>,
+    local: Worker<CompilerTask>,
 }
 
 impl Default for CompilerQueue {
@@ -15,25 +15,25 @@ impl Default for CompilerQueue {
 }
 
 impl CompilerQueue {
-    /// Create a new empty queue.
+    /// Create a new compiler task queue (LIFO).
     pub fn new() -> Self {
         Self {
-            tasks: VecDeque::new(),
+            local: Worker::new_fifo(),
         }
     }
 
     /// Push a task to the back of the queue.
-    pub fn push_back(&mut self, task: CompilerTask) {
-        self.tasks.push_back(task);
+    pub fn push_back(&self, task: CompilerTask) {
+        self.local.push(task);
     }
 
     /// Pop a task from the front of the queue.
-    pub fn pop_front(&mut self) -> Option<CompilerTask> {
-        self.tasks.pop_front()
+    pub fn pop_front(&self) -> Option<CompilerTask> {
+        self.local.pop()
     }
 
     /// Check if the queue is empty.
     pub fn is_empty(&self) -> bool {
-        self.tasks.is_empty()
+        self.local.is_empty()
     }
 }

@@ -12,7 +12,7 @@ impl From<LinkTask> for CompilerTask {
 
 impl<'a> Compiler<'a> {
     /// Process a link task.
-    pub fn process_link(&mut self, task: LinkTask) -> LinkResult<()> {
+    pub fn process_link(&self, task: LinkTask) -> LinkResult<()> {
         todo!("process_link({task:?})")
     }
 }
