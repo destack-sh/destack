@@ -1,5 +1,12 @@
 use std::fmt::Debug;
 
+// TODO #Performance: tune Arena capacity/chunk size (usage side)
+
+/// The default capacity of the arena.
+const DEFAULT_CAPACITY: usize = 512;
+/// The default chunk size of the arena.
+const DEFAULT_CHUNK_SIZE: usize = 512;
+
 /// Arena for storing elements and element-like things.
 /// Uses slab allocation to provide stable references.
 #[derive(Clone)]
@@ -32,7 +39,7 @@ impl<T> Arena<T> {
     /// Create a new empty Arena.
     #[inline]
     pub fn new() -> Self {
-        Self::with(1024, 1024)
+        Self::with(DEFAULT_CAPACITY, DEFAULT_CHUNK_SIZE)
     }
 
     /// Create a new Arena with the given capacity.

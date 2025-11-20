@@ -1,6 +1,6 @@
 use crate::{Compiler, CompilerTask, ImportError, ImportResult};
 
-use dyst_dir::Module;
+use dyst_dir::{Module, PackageId};
 use dyst_parser::Parser;
 use dyst_source::{DiagnosticCollector, FileId};
 
@@ -27,6 +27,7 @@ impl<'a> Compiler<'a> {
                 None => return Err(ImportError::FileIdNotFound { file_id }),
             },
         };
+        let package_id: Option<PackageId> = None; // nocheckin: resolve package for module
 
         // parse AST from file
         let mut diagnostics = DiagnosticCollector::new();
@@ -40,6 +41,7 @@ impl<'a> Compiler<'a> {
             module_id,
             file.id,
             file.uri.clone(),
+            package_id,
             parser.tree,
             parser.strings,
         );

@@ -54,7 +54,7 @@ impl TranspileDiagnostic {
             .modules
             .get(module_id)
             .unwrap_or_else(|| panic!("module not found: {module_id:?}"));
-        let file_id = module.file_id;
+        let file_id = module.file;
         let file = session
             .files
             .get(file_id)

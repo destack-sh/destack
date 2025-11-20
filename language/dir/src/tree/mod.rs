@@ -23,7 +23,7 @@ pub use argument::*;
 pub use block::*;
 pub use definition::*;
 pub use dependency::*;
-pub use dyst_source::{Arena, SharedStringPool, StringId};
+pub use dyst_source::{Arena, StringPool, StringId};
 pub use expression::*;
 pub use function::*;
 pub use key::*;

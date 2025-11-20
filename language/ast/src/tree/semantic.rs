@@ -1,7 +1,7 @@
 use std::str::FromStr;
 
 use crate::{
-    Expression, Keyword, LiteralType, MutableNodeTree, Node, NodeId, NodeVisitor,
+    Expression, Keyword, LiteralType, NodeTree, Node, NodeId, NodeVisitor,
     NodeVisitorOptions, Parameter, ScalarLiteral, TokenSpan, TokenType, walk_expression,
     walk_parameter,
 };
@@ -267,7 +267,7 @@ impl<'a> SemanticTokenIndex<'a> {
     /// Set the semantic type for a span.
     pub(crate) fn set_semantic_span<T: Node>(
         &mut self,
-        tree: &MutableNodeTree,
+        tree: &NodeTree,
         id: NodeId<T>,
         semantic_type: SemanticType,
     ) {
@@ -288,7 +288,7 @@ impl<'a> NodeVisitor for SemanticTokenIndex<'a> {
 
     fn visit_expression(
         &mut self,
-        tree: &MutableNodeTree,
+        tree: &NodeTree,
         id: NodeId<Expression>,
         expression: &Expression,
     ) {
@@ -311,7 +311,7 @@ impl<'a> NodeVisitor for SemanticTokenIndex<'a> {
 
     fn visit_parameter(
         &mut self,
-        tree: &MutableNodeTree,
+        tree: &NodeTree,
         id: NodeId<Parameter>,
         parameter: &Parameter,
     ) {

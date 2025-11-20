@@ -1,6 +1,6 @@
 use dyst_ast::{
     Annotation, AnnotationPosition, Argument, Blank, Block, Comment, Decorator, Definition,
-    DependencyItem, Doc, EnumField, Expression, MatchCase, MutableNodeTree, MutableNodeTreeImpl,
+    DependencyItem, Doc, EnumField, Expression, MatchCase, NodeTree, NodeTreeImpl,
     Node, NodeId, NodeIdAny, NodeParentIndex, NodeType, Parameter, Pattern, PatternField, Property,
     Tag, TokenSpan, TokenType, WhereClause, WithClause,
 };
@@ -138,7 +138,7 @@ pub struct DystFormatContext<'a> {
     /// The side span.
     pub side_span: &'a MultiSpan,
     /// The tree.
-    pub tree: &'a MutableNodeTree,
+    pub tree: &'a NodeTree,
     /// The source map.
     pub source_map: &'a FileSourceMap,
     /// The parent index.
@@ -165,7 +165,7 @@ impl<'a> DystFormatContext<'a> {
     pub fn get_node<T>(&self, node_id: NodeId<T>) -> &T
     where
         T: Node,
-        MutableNodeTree: MutableNodeTreeImpl<T>,
+        NodeTree: NodeTreeImpl<T>,
     {
         self.tree.get(node_id)
     }
@@ -175,7 +175,7 @@ impl<'a> DystFormatContext<'a> {
     pub fn get_node_type<T>(&self, node_id: NodeId<T>) -> NodeType
     where
         T: Node,
-        MutableNodeTree: MutableNodeTreeImpl<T>,
+        NodeTree: NodeTreeImpl<T>,
     {
         self.tree.get_type(node_id.id)
     }
@@ -185,7 +185,7 @@ impl<'a> DystFormatContext<'a> {
     pub fn get_parent<T>(&self, node_id: NodeId<T>) -> Option<(u32, NodeType)>
     where
         T: Node,
-        MutableNodeTree: MutableNodeTreeImpl<T>,
+        NodeTree: NodeTreeImpl<T>,
     {
         let parent_id = self.parents.get(node_id);
         if let Some(parent_id) = parent_id {
@@ -213,7 +213,7 @@ impl<'a> DystFormatContext<'a> {
     pub fn get_ancestors<T>(&self, node_id: NodeId<T>) -> Vec<(u32, NodeType)>
     where
         T: Node,
-        MutableNodeTree: MutableNodeTreeImpl<T>,
+        NodeTree: NodeTreeImpl<T>,
     {
         self.parents
             .get_ancestors(node_id)
@@ -230,7 +230,7 @@ impl<'a> DystFormatContext<'a> {
     pub fn get_span<T>(&self, node_id: NodeId<T>) -> Span
     where
         T: Node,
-        MutableNodeTree: MutableNodeTreeImpl<T>,
+        NodeTree: NodeTreeImpl<T>,
     {
         self.tree.get_span(node_id)
     }
@@ -297,7 +297,7 @@ impl<'a> DystFormatContext<'a> {
     pub fn get_annotations<T>(&self, node_id: NodeId<T>) -> Option<Vec<NodeId<Annotation>>>
     where
         T: Node,
-        MutableNodeTree: MutableNodeTreeImpl<T>,
+        NodeTree: NodeTreeImpl<T>,
     {
         if !self.tree.has_annotations(node_id.id) {
             return None;
@@ -310,7 +310,7 @@ impl<'a> DystFormatContext<'a> {
     pub fn has_annotation<T>(&self, node_id: NodeId<T>) -> bool
     where
         T: Node,
-        MutableNodeTree: MutableNodeTreeImpl<T>,
+        NodeTree: NodeTreeImpl<T>,
     {
         self.get_annotations(node_id).is_some()
     }
@@ -320,7 +320,7 @@ impl<'a> DystFormatContext<'a> {
     pub fn has_prefix_annotation<T>(&self, node_id: NodeId<T>) -> bool
     where
         T: Node,
-        MutableNodeTree: MutableNodeTreeImpl<T>,
+        NodeTree: NodeTreeImpl<T>,
     {
         self.get_annotations(node_id).is_some_and(|annotations| {
             annotations.iter().any(|annotation| {
@@ -336,7 +336,7 @@ impl<'a> DystFormatContext<'a> {
     pub fn has_infix_annotation<T>(&self, node_id: NodeId<T>) -> bool
     where
         T: Node,
-        MutableNodeTree: MutableNodeTreeImpl<T>,
+        NodeTree: NodeTreeImpl<T>,
     {
         self.get_annotations(node_id).is_some_and(|annotations| {
             annotations.iter().any(|annotation| {
@@ -351,7 +351,7 @@ impl<'a> DystFormatContext<'a> {
     pub fn has_postfix_annotation<T>(&self, node_id: NodeId<T>) -> bool
     where
         T: Node,
-        MutableNodeTree: MutableNodeTreeImpl<T>,
+        NodeTree: NodeTreeImpl<T>,
     {
         self.get_annotations(node_id).is_some_and(|annotations| {
             annotations.iter().any(|annotation| {
@@ -368,7 +368,7 @@ impl<'a> DystFormatContext<'a> {
     pub fn has_blank_prefix_annotation<T>(&self, node_id: NodeId<T>) -> bool
     where
         T: Node,
-        MutableNodeTree: MutableNodeTreeImpl<T>,
+        NodeTree: NodeTreeImpl<T>,
     {
         self.get_annotations(node_id).is_some_and(|annotations| {
             annotations.iter().any(
@@ -387,7 +387,7 @@ impl<'a> DystFormatContext<'a> {
     pub fn has_blank_prefix_annotation_in_first_position<T>(&self, node_id: NodeId<T>) -> bool
     where
         T: Node,
-        MutableNodeTree: MutableNodeTreeImpl<T>,
+        NodeTree: NodeTreeImpl<T>,
     {
         let Some(annotations) = self.get_annotations(node_id) else {
             return false;
@@ -431,7 +431,7 @@ where
 impl<'a, T: Node> Format<DystFormatContext<'a>> for NodeId<T>
 where
     T: Node + Clone,
-    MutableNodeTree: MutableNodeTreeImpl<T>,
+    NodeTree: NodeTreeImpl<T>,
     T: FormatNode<'a, T>,
 {
     #[inline]

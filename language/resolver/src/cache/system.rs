@@ -12,7 +12,7 @@ use rustc_hash::FxHasher;
 use super::hasher::IdentityHasher;
 use super::path::{BorrowedCachedPath, CachedPath, CachedPathState};
 use crate::{JSONError, ResolutionContext, ResolveError, ResolveOptions};
-use dyst_dir::{PackageOptions, TypeScriptOptions};
+use dyst_dir::{PackageJson, TsConfigJson};
 use dyst_source::{FileSystem, PathExt};
 
 /// A cached file system implementation.
@@ -23,7 +23,7 @@ pub struct CachedFileSystem<Fs> {
     /// The cached paths.
     pub(crate) paths: HashSet<CachedPath, BuildHasherDefault<IdentityHasher>>,
     /// The cached tsconfigs.
-    pub(crate) tsconfigs: HashMap<PathBuf, Arc<TypeScriptOptions>, BuildHasherDefault<FxHasher>>,
+    pub(crate) tsconfigs: HashMap<PathBuf, Arc<TsConfigJson>, BuildHasherDefault<FxHasher>>,
 }
 
 impl<Fs: FileSystem> CachedFileSystem<Fs> {
@@ -117,7 +117,7 @@ impl<Fs: FileSystem> CachedFileSystem<Fs> {
         path: &CachedPath,
         options: &ResolveOptions,
         ctx: &mut ResolutionContext,
-    ) -> Result<Option<Arc<PackageOptions>>, ResolveError> {
+    ) -> Result<Option<Arc<PackageJson>>, ResolveError> {
         let result = path
             .package_json
             .get_or_try_init(|| {
@@ -132,7 +132,7 @@ impl<Fs: FileSystem> CachedFileSystem<Fs> {
                     package_json_path.clone()
                 };
 
-                PackageOptions::parse(package_json_path.clone(), real_path, package_json_bytes)
+                PackageJson::parse(package_json_path.clone(), real_path, package_json_bytes)
                     .map(|package_json| Some(Arc::new(package_json)))
                     .map_err(|error| ResolveError::Json {
                         error: JSONError {
@@ -168,13 +168,13 @@ impl<Fs: FileSystem> CachedFileSystem<Fs> {
 
     /// Gets the `tsconfig.json` of the path.
     pub(crate) fn get_typescript_options<
-        F: FnOnce(&mut TypeScriptOptions) -> Result<(), ResolveError>,
+        F: FnOnce(&mut TsConfigJson) -> Result<(), ResolveError>,
     >(
         &self,
         root: bool,
         path: &Path,
         modify: F,
-    ) -> Result<Arc<TypeScriptOptions>, ResolveError> {
+    ) -> Result<Arc<TsConfigJson>, ResolveError> {
         // check cache
         let tsconfigs = self.tsconfigs.pin();
         if let Some(tsconfig) = tsconfigs.get(path) {
@@ -201,7 +201,7 @@ impl<Fs: FileSystem> CachedFileSystem<Fs> {
         })?;
 
         // parse
-        let mut tsconfig = TypeScriptOptions::parse(root, &tsconfig_path, &mut tsconfig_string)
+        let mut tsconfig = TsConfigJson::parse(root, &tsconfig_path, &mut tsconfig_string)
             .map_err(|error| ResolveError::Json {
                 error: JSONError {
                     path: tsconfig_path.to_path_buf(),

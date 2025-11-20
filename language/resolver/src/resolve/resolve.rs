@@ -5,18 +5,15 @@ use std::path::{Component, Path, PathBuf};
 use std::sync::Arc;
 use std::{fmt, iter};
 
-use dyst_dir::{PackageOptions, TypeScriptOptions, TypeScriptProjectReference};
+use dyst_dir::{PackageJson, TsConfigJson, TsProjectReferences};
 use dyst_source::{FileSystem, MemoryFileSystem, PathExt, PhysicalFileSystem, SLASH_START};
 
 use crate::{
     Alias, AliasValue, CachedFileSystem, CachedPath, ImportsExportsEntry, ImportsExportsKind,
-    ImportsExportsMap, Resolution, ResolutionContext, ResolveError, ResolveOptions, Restriction,
-    Specifier, SpecifierError, TypeScriptOptionsDiscovery, TypeScriptOptionsReferences,
+    ImportsExportsMap, Resolution, ResolutionContext, ResolveError, ResolveOptions, ResolveResult,
+    Restriction, Specifier, SpecifierError, TypeScriptOptionsDiscovery,
+    TypeScriptOptionsReferences,
 };
-
-pub type ResolveResult = Result<Option<CachedPath>, ResolveError>;
-pub type PhysicalResolver = Resolver<PhysicalFileSystem>;
-pub type MemoryResolver = Resolver<MemoryFileSystem>;
 
 /// A resolver with a cache backed by a file system.
 pub struct Resolver<Fs> {
@@ -25,6 +22,9 @@ pub struct Resolver<Fs> {
     /// The cache backed by the file system.
     pub cache: Arc<CachedFileSystem<Fs>>,
 }
+
+pub type PhysicalResolver = Resolver<PhysicalFileSystem>;
+pub type MemoryResolver = Resolver<MemoryFileSystem>;
 
 impl<Fs> fmt::Debug for Resolver<Fs> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -67,11 +67,6 @@ impl<Fs: FileSystem> Resolver<Fs> {
         }
     }
 
-    /// Clears the underlying cache.
-    pub fn clear_cache(&self) {
-        self.cache.clear();
-    }
-
     /// Resolves `specifier` at an absolute path to a `directory`.
     ///
     /// A specifier is the string passed to require or import, i.e. `require("specifier")` or `import "specifier"`.
@@ -97,7 +92,7 @@ impl<Fs: FileSystem> Resolver<Fs> {
     pub fn resolve_tsconfig<P: AsRef<Path>>(
         &self,
         path: P,
-    ) -> Result<Arc<TypeScriptOptions>, ResolveError> {
+    ) -> Result<Arc<TsConfigJson>, ResolveError> {
         let path = path.as_ref();
         self.load_tsconfig(
             true,
@@ -170,7 +165,7 @@ impl<Fs: FileSystem> Resolver<Fs> {
         &self,
         cached_path: &CachedPath,
         ctx: &mut ResolutionContext,
-    ) -> Result<Option<Arc<PackageOptions>>, ResolveError> {
+    ) -> Result<Option<Arc<PackageJson>>, ResolveError> {
         // if we are inside node_modules, find the nearest package.json by walking up
         if cached_path.is_inside_node_modules {
             let mut last = None;
@@ -876,7 +871,7 @@ impl<Fs: FileSystem> Resolver<Fs> {
     /// <https://github.com/defunctzombie/package-browser-field-spec>
     fn resolve_browser_field<'a>(
         &self,
-        package_json: &'a PackageOptions,
+        package_json: &'a PackageJson,
         path: &Path,
         request: Option<&str>,
     ) -> Result<Option<&'a str>, ResolveError> {
@@ -916,7 +911,7 @@ impl<Fs: FileSystem> Resolver<Fs> {
         &self,
         cached_path: &CachedPath,
         module_specifier: Option<&str>,
-        package_json: &PackageOptions,
+        package_json: &PackageJson,
         ctx: &mut ResolutionContext,
     ) -> ResolveResult {
         if ctx.is_fully_specified {
@@ -1197,7 +1192,7 @@ impl<Fs: FileSystem> Resolver<Fs> {
         path: &Path,
         references: &TypeScriptOptionsReferences,
         ctx: &mut TypeScriptOptionsResolveContext,
-    ) -> Result<Arc<TypeScriptOptions>, ResolveError> {
+    ) -> Result<Arc<TsConfigJson>, ResolveError> {
         self.cache.get_typescript_options(root, path, |tsconfig| {
             let directory = self.cache.value(tsconfig.directory());
 
@@ -1238,7 +1233,7 @@ impl<Fs: FileSystem> Resolver<Fs> {
                 TypeScriptOptionsReferences::Paths(paths) => {
                     tsconfig.references = paths
                         .iter()
-                        .map(|path| TypeScriptProjectReference {
+                        .map(|path| TsProjectReferences {
                             path: path.clone(),
                             tsconfig: None,
                         })
@@ -1278,7 +1273,7 @@ impl<Fs: FileSystem> Resolver<Fs> {
     fn extend_tsconfig(
         &self,
         directory: &CachedPath,
-        tsconfig: &mut TypeScriptOptions,
+        tsconfig: &mut TsConfigJson,
         ctx: &mut TypeScriptOptionsResolveContext,
     ) -> Result<(), ResolveError> {
         let extended_tsconfig_paths = tsconfig
@@ -1356,7 +1351,7 @@ impl<Fs: FileSystem> Resolver<Fs> {
         &self,
         cached_path: &CachedPath,
         ctx: &mut ResolutionContext,
-    ) -> Result<Option<Arc<TypeScriptOptions>>, ResolveError> {
+    ) -> Result<Option<Arc<TsConfigJson>>, ResolveError> {
         // don't discover tsconfig for paths inside node_modules
         if cached_path.is_inside_node_modules {
             return Ok(None);
@@ -1388,7 +1383,7 @@ impl<Fs: FileSystem> Resolver<Fs> {
     fn get_extended_tsconfig_path(
         &self,
         directory: &CachedPath,
-        tsconfig: &TypeScriptOptions,
+        tsconfig: &TsConfigJson,
         specifier: &str,
     ) -> Result<PathBuf, ResolveError> {
         match specifier.as_bytes().first() {
@@ -1578,7 +1573,7 @@ impl<Fs: FileSystem> Resolver<Fs> {
     fn package_imports_resolve(
         &self,
         specifier: &str,
-        package_json: &PackageOptions,
+        package_json: &PackageJson,
         ctx: &mut ResolutionContext,
     ) -> Result<Option<CachedPath>, ResolveError> {
         debug_assert!(specifier.starts_with('#'), "{specifier}");
@@ -1792,7 +1787,6 @@ impl<Fs: FileSystem> Resolver<Fs> {
         // resolve array target (fallback)
         else if let Some(targets) = target.as_array() {
             if targets.is_empty() {
-                // Note: return PackagePathNotExported has the same effect as return because there are no matches.
                 return Err(ResolveError::PackagePathNotExported {
                     subpath: pattern_match.unwrap_or(".").to_string(),
                     package_path: package_url.path().to_path_buf(),
@@ -1823,10 +1817,7 @@ impl<Fs: FileSystem> Resolver<Fs> {
         Ok(None)
     }
 
-    /// Parses the package specifier into a package name and subpath.
-    ///
-    /// Returns (module, subpath)
-    /// https://github.com/nodejs/node/blob/8f0f17e1e3b6c4e58ce748e06343c5304062c491/lib/internal/modules/esm/resolve.js#L688
+    /// Parses the package specifier (like `@scope/package-name/file` into `@scope/package-name` and `file`)
     fn parse_package_specifier(specifier: &str) -> (&str, &str) {
         let mut separator_index = specifier.as_bytes().iter().position(|b| *b == b'/');
         // valid package name
