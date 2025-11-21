@@ -1,34 +1,62 @@
+use clap::{ArgGroup, Args};
 use dyst_ast::{Dumper, DumperOptions, NodeVisitor};
 use dyst_dir::Session;
 use dyst_parser::Parser;
 use dyst_source::{DiagnosticOptions, FileRegistry, LanguageOptions};
 
-use crate::command::{get_string_or_file, print_diagnostics};
-use crate::{CommandArguments, console};
+use crate::command::{DiagnosticOptionsArgs, SourceArg, get_string_or_file, print_diagnostics};
+use crate::console;
 
-pub const HELP: &str = r"
-Parse source into AST (implicit module).
-    --file <path>      Read input from file
-    --string <string>  Read input from provided string
-    --type <format>  Parse a file with the given format (default: ds)
-    --silent           Don't print anything to the console (except errors)
-";
+#[derive(Args, Debug, Clone)]
+#[command(group(
+    ArgGroup::new("source")
+        .args(["file", "string"])
+        .required(true)
+        .multiple(false)
+))]
+pub struct ParseArgs {
+    /// Read input from file.
+    #[arg(long)]
+    pub file: Option<String>,
+
+    /// Read input from provided string.
+    #[arg(long)]
+    pub string: Option<String>,
+
+    /// Parse a file with the given format (default: ds).
+    #[arg(long = "type", alias = "format", value_name = "FORMAT")]
+    pub format: Option<String>,
+
+    /// Don't print anything to the console (except errors).
+    #[arg(long)]
+    pub silent: bool,
+
+    #[command(flatten)]
+    pub diagnostics: DiagnosticOptionsArgs,
+}
 
 /// Parse source into an AST and dump the statements.
-pub fn run(ctx: CommandArguments) -> i32 {
-    let silent = ctx.flag("silent");
-    let diagnostic_options = DiagnosticOptions::parse(&ctx.flags);
+pub fn run(args: &ParseArgs) -> i32 {
+    let silent = args.silent;
+    let diagnostic_options: DiagnosticOptions = args.diagnostics.clone().into();
 
     // read input source
     let mut files = FileRegistry::new();
-    let file_id = match get_string_or_file(&mut files, &ctx) {
+    let file_id = match get_string_or_file(
+        &mut files,
+        SourceArg {
+            file: args.file.as_deref(),
+            string: args.string.as_deref(),
+            format: args.format.as_deref(),
+        },
+    ) {
         Ok(Some(file)) => file,
         Ok(None) => {
-            console::error("no source provided");
+            console::error("error: failed to resolve source input");
             return 1;
         }
         Err(e) => {
-            console::error(&format!("failed to read file: {e}"));
+            console::error(&format!("error: {e}"));
             return 1;
         }
     };

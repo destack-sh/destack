@@ -1,40 +1,97 @@
+use clap::{ArgGroup, Args, ValueEnum};
 use dyst_compiler::{CompileOptions, Compiler};
 use dyst_dir::{Dumper, DumperOptions, NodeVisitor, Session};
 use dyst_source::{DiagnosticOptions, FileRegistry, LanguageOptions};
 
-use crate::command::{get_string_or_file, print_diagnostics};
-use crate::{CommandArguments, console};
+use crate::command::{DiagnosticOptionsArgs, SourceArg, get_string_or_file, print_diagnostics};
+use crate::console;
 
-pub const HELP: &str = r"
-Compile source files.
-    --package <path>     Compile a package
-    --module <module>    Compile a single module
-    --file <path>        Compile a single file
-    --string <string>    Compile a string
-    --type <format>      Compile a file with the given format (js|ts|jsx|tsx|ds, default: ds)
-    --dump <format>      Dump the compiled DIR in the given format (node|symbol|all, default: node)
-    --silent             Don't print anything to the console (except errors)
-    --error-warnings     Error on the given warning codes (like W001)
-    --suppress-errors    Suppress the given error codes (like E001) as warnings
-    --suppress-warnings  Suppress the given warning codes (like W001)
-";
+/// The format to dump the compiled DIR.
+#[derive(Clone, Copy, Debug, ValueEnum)]
+pub enum DumpFormatArg {
+    /// Dump the node representation.
+    Node,
+    /// Dump the symbol representation.
+    Symbol,
+    /// Dump both the node and symbol representations.
+    All,
+}
+
+impl DumpFormatArg {
+    /// Whether the format includes the node representation.
+    pub fn includes_node(self) -> bool {
+        matches!(self, Self::Node | Self::All)
+    }
+
+    /// Whether the format includes the symbol representation.
+    pub fn includes_symbol(self) -> bool {
+        matches!(self, Self::Symbol | Self::All)
+    }
+}
+
+#[derive(Args, Debug, Clone)]
+#[command(group(
+    ArgGroup::new("source")
+        .args(["file", "string"])
+        .required(true)
+        .multiple(false)
+))]
+pub struct CompileArgs {
+    /// Compile a package.
+    #[arg(long)]
+    pub package: Option<String>,
+
+    /// Compile a single module.
+    #[arg(long)]
+    pub module: Option<String>,
+
+    /// Compile a single file.
+    #[arg(long)]
+    pub file: Option<String>,
+
+    /// Compile a string.
+    #[arg(long)]
+    pub string: Option<String>,
+
+    /// Compile a file with the given format (js|ts|jsx|tsx|ds, default: ds).
+    #[arg(long = "type", alias = "format", value_name = "FORMAT")]
+    pub format: Option<String>,
+
+    /// Dump the compiled DIR in the given format (node|symbol|all, default: node).
+    #[arg(long, default_value_t = DumpFormatArg::Node, value_enum)]
+    pub dump: DumpFormatArg,
+
+    /// Don't print anything to the console (except errors).
+    #[arg(long)]
+    pub silent: bool,
+
+    #[command(flatten)]
+    pub diagnostics: DiagnosticOptionsArgs,
+}
 
 /// Compile source into its final DIR.
-pub fn run(ctx: CommandArguments) -> i32 {
-    let silent = ctx.flag("silent");
-    let dump = ctx.option("dump").unwrap_or("node");
-    let diagnostic_options = DiagnosticOptions::parse(&ctx.flags);
+pub fn run(args: &CompileArgs) -> i32 {
+    let silent = args.silent;
+    let dump = args.dump;
+    let diagnostic_options: DiagnosticOptions = args.diagnostics.clone().into();
 
     // read input source
     let mut files = FileRegistry::new();
-    let file_id = match get_string_or_file(&mut files, &ctx) {
+    let file_id = match get_string_or_file(
+        &mut files,
+        SourceArg {
+            file: args.file.as_deref(),
+            string: args.string.as_deref(),
+            format: args.format.as_deref(),
+        },
+    ) {
         Ok(Some(file)) => file,
         Ok(None) => {
-            console::error("no source provided");
+            console::error("error: failed to resolve source input");
             return 1;
         }
         Err(e) => {
-            console::error(&format!("failed to read file {e}"));
+            console::error(&format!("error: {e}"));
             return 1;
         }
     };
@@ -58,7 +115,7 @@ pub fn run(ctx: CommandArguments) -> i32 {
         let tree = session.tree.read();
         let strings = session.strings.clone().into_immutable();
         // dump node representation
-        if dump == "node" || dump == "all" {
+        if dump.includes_node() {
             let mut dumper = Dumper::new(&strings, &tree, dump_options);
             for module in session.modules.iter() {
                 let module = module.read();
@@ -73,7 +130,7 @@ pub fn run(ctx: CommandArguments) -> i32 {
             console::info(&dumper.finish());
         }
         // dump symbol representation
-        if dump == "symbol" || dump == "all" {
+        if dump.includes_symbol() {
             let mut dumper = Dumper::new(&strings, &tree, dump_options);
             for module in session.modules.iter() {
                 let module = module.read();

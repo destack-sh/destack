@@ -3,18 +3,27 @@ use std::path::Path;
 
 use dyst_source::{File, FileId, FileRegistry, FileType, Uri};
 
-use crate::CommandArguments;
+/// Input arguments describing a source file or inline string.
+pub(crate) struct SourceArg<'a> {
+    /// The file path.
+    pub file: Option<&'a str>,
+    /// The inline string.
+    pub string: Option<&'a str>,
+    /// The source format.
+    pub format: Option<&'a str>,
+}
 
 /// Read a source either from a file or inline string argument.
 pub(crate) fn get_string_or_file(
     files: &mut FileRegistry,
-    ctx: &CommandArguments,
+    source: SourceArg<'_>,
 ) -> Result<Option<FileId>, String> {
-    let format = FileType::from_extension_or_unknown(ctx.option("format").unwrap_or("ds"));
+    let format_name = source.format.unwrap_or("ds");
+    let format = FileType::from_extension_or_unknown(format_name);
     let extension = format.extension().unwrap();
 
     // file
-    if let Some(path_str) = ctx.option("file") {
+    if let Some(path_str) = source.file {
         let path = Path::new(path_str);
         if path.extension().unwrap_or_default() != extension {
             return Err(format!(
@@ -38,7 +47,7 @@ pub(crate) fn get_string_or_file(
         }
     }
     // string
-    else if let Some(string) = ctx.option("string") {
+    else if let Some(string) = source.string {
         let file_id = files.next_id();
         let file = File::from_string(
             file_id,

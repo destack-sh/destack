@@ -1,32 +1,63 @@
+use clap::{ArgGroup, Args};
 use dyst_ast::{SemanticType, TokenSpan, TokenType};
 use dyst_parser::{Lexer, is_semantic};
 use dyst_source::{File, FileRegistry, LanguageOptions};
 
-use crate::command::get_string_or_file;
-use crate::{CommandArguments, console, table};
+use crate::command::{SourceArg, get_string_or_file};
+use crate::console;
+use crate::console::table;
 
-const DEFAULT_MAX_LEXEME_LEN: usize = 80;
+#[derive(Args, Debug, Clone)]
+#[command(group(
+    ArgGroup::new("source")
+        .args(["file", "string"])
+        .required(true)
+        .multiple(false)
+))]
+pub struct LexArgs {
+    /// Read input from file.
+    #[arg(long)]
+    pub file: Option<String>,
 
-pub const HELP: &str = r"
-Tokenize source into Tokens.
-    --file <path>      Read input from file
-    --string <string>  Read input from provided string
-    --only-semantic    Only show semantic tokens
-    --no-whitespace    Don't show whitespace tokens
-    --max-lexeme <n>   Truncate lexeme preview to n chars
-";
+    /// Read input from provided string.
+    #[arg(long)]
+    pub string: Option<String>,
+
+    /// Parse a file with the given format (default: ds).
+    #[arg(long = "type", alias = "format", value_name = "FORMAT")]
+    pub format: Option<String>,
+
+    /// Only show semantic tokens.
+    #[arg(long)]
+    pub only_semantic: bool,
+
+    /// Don't show whitespace tokens.
+    #[arg(long)]
+    pub no_whitespace: bool,
+
+    /// Truncate lexeme preview to n chars.
+    #[arg(long, default_value_t = 80)]
+    pub max_lexeme: usize,
+}
 
 /// Tokenize input and show a colored table with locations.
-pub fn run(ctx: CommandArguments) -> i32 {
+pub fn run(args: &LexArgs) -> i32 {
     let mut files = FileRegistry::new();
-    let file_id = match get_string_or_file(&mut files, &ctx) {
+    let file_id = match get_string_or_file(
+        &mut files,
+        SourceArg {
+            file: args.file.as_deref(),
+            string: args.string.as_deref(),
+            format: args.format.as_deref(),
+        },
+    ) {
         Ok(Some(file_id)) => file_id,
         Ok(None) => {
-            console::error("no source provided");
+            console::error("error: failed to resolve source input");
             return 1;
         }
         Err(e) => {
-            console::error(&format!("failed to read file: {e}"));
+            console::error(&format!("error: {e}"));
             return 1;
         }
     };
@@ -34,12 +65,9 @@ pub fn run(ctx: CommandArguments) -> i32 {
     let text = file.text();
 
     let use_color = true;
-    let max_tokeneme_len = ctx
-        .option("max-lexeme")
-        .and_then(|value| value.parse::<usize>().ok())
-        .unwrap_or(DEFAULT_MAX_LEXEME_LEN);
-    let only_semantic = ctx.flag("only-semantic");
-    let no_whitespace = ctx.flag("no-whitespace");
+    let max_tokeneme_len = args.max_lexeme;
+    let only_semantic = args.only_semantic;
+    let no_whitespace = args.no_whitespace;
 
     let headers = vec![
         "Index".to_string(),
