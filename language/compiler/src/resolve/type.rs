@@ -7,7 +7,7 @@ use dyst_dir::{
 
 impl<'a> Compiler<'a> {
     /// Resolve a Type (in-place).
-    pub fn resolve_type(
+    pub(super) fn resolve_type(
         &self,
         _module_id: ModuleId,
         ty_id: NodeId<Type>,
@@ -208,7 +208,7 @@ impl<'a> Compiler<'a> {
     }
 
     /// Resolve an expression string into a DIR type literal.
-    pub fn resolve_string_to_type(&self, string_id: StringId) -> Option<TypeLiteral> {
+    pub(super) fn resolve_string_to_type(&self, string_id: StringId) -> Option<TypeLiteral> {
         let string = self.session.strings.get(string_id);
         match string.as_ref() {
             // undefined

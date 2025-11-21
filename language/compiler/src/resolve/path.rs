@@ -4,7 +4,7 @@ use crate::{Compiler, ResolveResult};
 
 impl<'a> Compiler<'a> {
     /// Resolve a Path.
-    pub fn resolve_path(
+    pub(super) fn resolve_path(
         &self,
         _module_id: ModuleId,
         _scope_id: ScopeId,
