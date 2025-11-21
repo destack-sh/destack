@@ -1,6 +1,6 @@
 use dyst_fir::format::FormatResult;
 use dyst_javascript_ast::{
-    Asynchrony, DeclarationKind, Definition, EnumField, ExportType, FunctionCardinality, Keyword,
+    Asynchrony, Declaration, DeclarationKind, EnumField, ExportType, FunctionCardinality, Keyword,
     LocalNodeId, Type, Visibility,
 };
 
@@ -39,12 +39,14 @@ pub(crate) fn format_super_type_clause<'ast>(
     )
 }
 
-/// Format a block of definitions.
-pub(crate) fn format_block_of_definitions<'ast>(
+/// Format a block of declarations.
+pub(crate) fn format_block_of_declarations<'ast>(
     f: &mut JavaScriptFormatter<'ast, '_>,
-    definitions: &Vec<LocalNodeId<Definition>>,
+    declarations: &Vec<LocalNodeId<Declaration>>,
 ) -> FormatResult<()> {
-    f.join_with(hard_line_break()).entries(definitions).finish()
+    f.join_with(hard_line_break())
+        .entries(declarations)
+        .finish()
 }
 
 impl<'ast> Format<JavaScriptFormatContext<'ast>> for Visibility {
@@ -67,16 +69,16 @@ impl<'ast> Format<JavaScriptFormatContext<'ast>> for ExportType {
     }
 }
 
-impl<'ast> FormatNode<'ast, Definition> for Definition {
+impl<'ast> FormatNode<'ast, Declaration> for Declaration {
     fn format_node(
         &self,
-        _node_id: LocalNodeId<Definition>,
+        _node_id: LocalNodeId<Declaration>,
         f: &mut JavaScriptFormatter<'ast, '_>,
     ) -> FormatResult<()> {
         match self {
-            Definition::Namespace {
+            Declaration::Namespace {
                 descriptor,
-                definitions,
+                declarations,
             } => {
                 // export
                 if let Some(export) = descriptor.export {
@@ -103,16 +105,16 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                     [
                         token("{"),
                         hard_line_break(),
-                        block_indent(&format_with(|f| format_block_of_definitions(
+                        block_indent(&format_with(|f| format_block_of_declarations(
                             f,
-                            definitions
+                            declarations
                         ))),
                         hard_line_break(),
                         token("}"),
                     ]
                 )?;
             }
-            Definition::Class {
+            Declaration::Class {
                 descriptor,
                 generics,
                 heritage,
@@ -170,7 +172,7 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                 )?;
                 write!(f, [hard_line_break(), token("}"),])?;
             }
-            Definition::Interface {
+            Declaration::Interface {
                 descriptor,
                 generics,
                 heritage,
@@ -219,7 +221,7 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                 )?;
                 write!(f, [hard_line_break(), token("}"),])?;
             }
-            Definition::Enum { descriptor, fields } => {
+            Declaration::Enum { descriptor, fields } => {
                 // export
                 if let Some(export) = descriptor.export {
                     write!(f, [export, space()])?;
@@ -249,7 +251,7 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
                 )?;
                 write!(f, [hard_line_break(), token("}"),])?;
             }
-            Definition::Function {
+            Declaration::Function {
                 descriptor,
                 signature,
                 body,

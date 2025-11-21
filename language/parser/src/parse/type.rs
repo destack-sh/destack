@@ -1,7 +1,7 @@
 use crate::{ParseError, ParseResult, Parser};
 
 use dyst_ast::{
-    DeclarationDescriptor, DefinitionType, Expression, FloatType, IntType, Keyword, LocalNodeId,
+    DeclarationDescriptor, DeclarationType, Expression, FloatType, IntType, Keyword, LocalNodeId,
     Mutability, TokenType, TypeKind, TypeLiteral, TypeUnaryOperator, UnaryOperator, VarianceBound,
 };
 
@@ -52,19 +52,19 @@ impl<'a> Parser<'a> {
         }
     }
 
-    /// Eat a composite / definition type literal.
+    /// Eat a composite / declaration type literal.
     pub fn eat_composite_type_literal(&mut self) -> ParseResult<TypeLiteral> {
         let next = self.eat_keyword_any()?;
         match next {
-            Keyword::Type => Ok(TypeLiteral::Composite(DefinitionType::Type)),
-            Keyword::Namespace => Ok(TypeLiteral::Composite(DefinitionType::Namespace)),
-            Keyword::Struct => Ok(TypeLiteral::Composite(DefinitionType::Struct)),
-            Keyword::Class => Ok(TypeLiteral::Composite(DefinitionType::Class)),
-            Keyword::Enum => Ok(TypeLiteral::Composite(DefinitionType::Enum)),
-            Keyword::Union => Ok(TypeLiteral::Composite(DefinitionType::Union)),
-            Keyword::Interface => Ok(TypeLiteral::Composite(DefinitionType::Interface)),
-            Keyword::Implement => Ok(TypeLiteral::Composite(DefinitionType::Extension)),
-            Keyword::Function => Ok(TypeLiteral::Composite(DefinitionType::Function)),
+            Keyword::Type => Ok(TypeLiteral::Composite(DeclarationType::Type)),
+            Keyword::Namespace => Ok(TypeLiteral::Composite(DeclarationType::Namespace)),
+            Keyword::Struct => Ok(TypeLiteral::Composite(DeclarationType::Struct)),
+            Keyword::Class => Ok(TypeLiteral::Composite(DeclarationType::Class)),
+            Keyword::Enum => Ok(TypeLiteral::Composite(DeclarationType::Enum)),
+            Keyword::Union => Ok(TypeLiteral::Composite(DeclarationType::Union)),
+            Keyword::Interface => Ok(TypeLiteral::Composite(DeclarationType::Interface)),
+            Keyword::Implement => Ok(TypeLiteral::Composite(DeclarationType::Extension)),
+            Keyword::Function => Ok(TypeLiteral::Composite(DeclarationType::Function)),
             _ => Err(ParseError::unexpected(self.peek()?.span)),
         }
     }

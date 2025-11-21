@@ -15,7 +15,7 @@ impl PartialEq for LabelId {
             if is_equal {
                 assert_eq!(
                     self.name, other.name,
-                    "Two `LabelId`s with different names have the same `value`. Are you mixing labels of two different `LabelDefinition` or are the values returned by the `LabelDefinition` not unique?"
+                    "Two `LabelId`s with different names have the same `value`. Are you mixing labels of two different `LabelDeclaration` or are the values returned by the `LabelDeclaration` not unique?"
                 );
             }
         }
@@ -25,9 +25,9 @@ impl PartialEq for LabelId {
 }
 
 impl LabelId {
-    /// Create a LabelId from a LabelDefinition.
+    /// Create a LabelId from a LabelDeclaration.
     #[expect(clippy::needless_pass_by_value)]
-    pub fn of<T: LabelDefinition>(label: T) -> Self {
+    pub fn of<T: LabelDeclaration>(label: T) -> Self {
         Self {
             value: label.value(),
             #[cfg(debug_assertions)]
@@ -38,7 +38,7 @@ impl LabelId {
 
 /// Defines the valid labels of a language.
 /// You want to have at most one implementation per formatter project.
-pub trait LabelDefinition {
+pub trait LabelDeclaration {
     /// Gets the `u64` uniquely identifying this specific label.
     fn value(&self) -> u64;
 

@@ -39,11 +39,7 @@ impl std::fmt::Display for FlowWarning {
         f.debug_struct("FlowWarning")
             .field(
                 "code",
-                &format!(
-                    "{}W{:03}",
-                    CompilePhase::Flow.letter(),
-                    self.sub_code()
-                ),
+                &format!("{}W{:03}", CompilePhase::Flow.letter(), self.sub_code()),
             )
             .finish()
     }

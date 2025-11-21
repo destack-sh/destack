@@ -2,7 +2,7 @@ use crate::parse::prelude::*;
 use crate::{ParseResult, Parser};
 
 use dyst_ast::{
-    DeclarationDescriptor, Definition, Generics, Heritage, Keyword, LocalNodeId, NodeType,
+    Declaration, DeclarationDescriptor, Generics, Heritage, Keyword, LocalNodeId, NodeType,
     TokenType,
 };
 
@@ -30,7 +30,7 @@ impl<'a> Parser<'a> {
     pub fn eat_implement(
         &mut self,
         descriptor: DeclarationDescriptor,
-    ) -> ParseResult<LocalNodeId<Definition>> {
+    ) -> ParseResult<LocalNodeId<Declaration>> {
         let start = self.mark();
 
         // keyword
@@ -56,7 +56,7 @@ impl<'a> Parser<'a> {
 
         // body
         self.try_eat_token(TokenType::OpenBrace, TokenType::CloseBrace)
-            .for_node_type(NodeType::Definition)?;
+            .for_node_type(NodeType::Declaration)?;
         self.eat_newlines_maybe()?;
         let properties = self.eat_properties()?;
         self.eat_token(TokenType::CloseBrace)?;
@@ -65,7 +65,7 @@ impl<'a> Parser<'a> {
         let generics = Generics::new(static_parameters, with_clauses, where_clauses);
         let heritage = Heritage::new(None, implements_types);
         let implement_id = self.tree.insert(
-            Definition::Implement {
+            Declaration::Implement {
                 descriptor,
                 generics,
                 target_type,
@@ -81,7 +81,7 @@ impl<'a> Parser<'a> {
 #[cfg(test)]
 mod tests {
     use dyst_ast::{
-        Argument, BinaryOperator, DeclarationDescriptor, DeclarationKind, Definition, Expression,
+        Argument, BinaryOperator, Declaration, DeclarationDescriptor, DeclarationKind, Expression,
         IntType, Parameter, TypeLiteral, WhereClause, WithClause,
     };
 
@@ -101,7 +101,7 @@ implement Foo {
         let implement_id = parser
             .eat_implement(DeclarationDescriptor::default())
             .unwrap();
-        assert_node!(parser.tree, implement_id, Definition::Implement { descriptor, generics, heritage, target_type, .. } => {
+        assert_node!(parser.tree, implement_id, Declaration::Implement { descriptor, generics, heritage, target_type, .. } => {
             assert_eq!(descriptor.kind, DeclarationKind::Definition);
             assert!(generics.is_empty());
             assert!(heritage.is_empty());
@@ -127,7 +127,7 @@ implement Foo<int32> {
         let implement_id = parser
             .eat_implement(DeclarationDescriptor::default())
             .unwrap();
-        assert_node!(parser.tree, implement_id, Definition::Implement { descriptor, generics, heritage, target_type, .. } => {
+        assert_node!(parser.tree, implement_id, Declaration::Implement { descriptor, generics, heritage, target_type, .. } => {
             assert_eq!(descriptor.kind, DeclarationKind::Definition);
             assert!(generics.is_empty());
             assert!(heritage.is_empty());
@@ -163,7 +163,7 @@ implement Bar<int32> implements Baz {
         let implement_id = parser
             .eat_implement(DeclarationDescriptor::default())
             .unwrap();
-        assert_node!(parser.tree, implement_id, Definition::Implement { descriptor, generics, heritage, target_type, .. } => {
+        assert_node!(parser.tree, implement_id, Declaration::Implement { descriptor, generics, heritage, target_type, .. } => {
             assert_eq!(descriptor.kind, DeclarationKind::Definition);
             assert!(generics.is_empty());
             assert!(!heritage.is_empty());
@@ -208,7 +208,7 @@ implement<U> Bar<T> implements Baz<T> {
         let implement_id = parser
             .eat_implement(DeclarationDescriptor::default())
             .unwrap();
-        assert_node!(parser.tree, implement_id, Definition::Implement { descriptor, generics, heritage, target_type, .. } => {
+        assert_node!(parser.tree, implement_id, Declaration::Implement { descriptor, generics, heritage, target_type, .. } => {
             assert_eq!(descriptor.kind, DeclarationKind::Definition);
             assert!(!generics.is_empty());
 
@@ -274,7 +274,7 @@ implement Foo with Context where Guard > Limit {
         let implement_id = parser
             .eat_implement(DeclarationDescriptor::default())
             .unwrap();
-        assert_node!(parser.tree, implement_id, Definition::Implement { descriptor, generics, target_type, .. } => {
+        assert_node!(parser.tree, implement_id, Declaration::Implement { descriptor, generics, target_type, .. } => {
             assert_eq!(descriptor.kind, DeclarationKind::Definition);
             assert!(!generics.is_empty());
 

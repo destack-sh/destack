@@ -1,5 +1,5 @@
 use crate::{
-    Argument, AssignOperator, BinaryOperator, Definition, FunctionSignature, LocalNodeId, Node,
+    Argument, AssignOperator, BinaryOperator, Declaration, FunctionSignature, LocalNodeId, Node,
     NodeType, Path, Property, ScalarLiteral, StringId, TemplateLiteral, TypeBinaryOperator,
     TypeUnaryOperator, UnaryOperator,
 };
@@ -16,8 +16,10 @@ pub enum PostfixPosition {
 /// An Expression is value-producing JS form.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Expression {
-    /// Definition expression.
-    Definition { definition: LocalNodeId<Definition> },
+    /// Declaration expression.
+    Declaration {
+        declaration: LocalNodeId<Declaration>,
+    },
 
     /// Path.
     Path {

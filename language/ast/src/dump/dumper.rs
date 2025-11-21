@@ -551,36 +551,36 @@ impl Dump for FloatType {
     }
 }
 
-/// Dump a DefinitionType as a structured representation.
-impl Dump for DefinitionType {
+/// Dump a DeclarationType as a structured representation.
+impl Dump for DeclarationType {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
         match self {
-            DefinitionType::Type => {
-                dumper.object("DefinitionType::Type").end();
+            DeclarationType::Type => {
+                dumper.object("DeclarationType::Type").end();
             }
-            DefinitionType::Namespace => {
-                dumper.object("DefinitionType::Namespace").end();
+            DeclarationType::Namespace => {
+                dumper.object("DeclarationType::Namespace").end();
             }
-            DefinitionType::Struct => {
-                dumper.object("DefinitionType::Struct").end();
+            DeclarationType::Struct => {
+                dumper.object("DeclarationType::Struct").end();
             }
-            DefinitionType::Class => {
-                dumper.object("DefinitionType::Class").end();
+            DeclarationType::Class => {
+                dumper.object("DeclarationType::Class").end();
             }
-            DefinitionType::Enum => {
-                dumper.object("DefinitionType::Enum").end();
+            DeclarationType::Enum => {
+                dumper.object("DeclarationType::Enum").end();
             }
-            DefinitionType::Union => {
-                dumper.object("DefinitionType::Union").end();
+            DeclarationType::Union => {
+                dumper.object("DeclarationType::Union").end();
             }
-            DefinitionType::Interface => {
-                dumper.object("DefinitionType::Interface").end();
+            DeclarationType::Interface => {
+                dumper.object("DeclarationType::Interface").end();
             }
-            DefinitionType::Extension => {
-                dumper.object("DefinitionType::Extension").end();
+            DeclarationType::Extension => {
+                dumper.object("DeclarationType::Extension").end();
             }
-            DefinitionType::Function => {
-                dumper.object("DefinitionType::Function").end();
+            DeclarationType::Function => {
+                dumper.object("DeclarationType::Function").end();
             }
         }
     }
@@ -738,8 +738,8 @@ impl<'a> NodeVisitor for Dumper<'a> {
         expression: &Expression,
     ) {
         match expression {
-            Expression::Definition(_) => {
-                self.node("Expression::Definition", _id.id).end();
+            Expression::Declaration(_) => {
+                self.node("Expression::Declaration", _id.id).end();
             }
             Expression::Block(_) => {
                 self.node("Expression::Block", _id.id).end();
@@ -1076,79 +1076,79 @@ impl<'a> NodeVisitor for Dumper<'a> {
         });
     }
 
-    fn visit_definition(
+    fn visit_declaration(
         &mut self,
         tree: &NodeTree,
-        id: LocalNodeId<crate::Definition>,
-        definition: &crate::Definition,
+        id: LocalNodeId<crate::Declaration>,
+        declaration: &crate::Declaration,
     ) {
-        match definition {
-            Definition::Namespace {
+        match declaration {
+            Declaration::Namespace {
                 descriptor,
                 generics: _,
                 expressions: _,
             } => {
-                self.node("Definition::Namespace", id.id)
+                self.node("Declaration::Namespace", id.id)
                     .field("descriptor", descriptor)
                     .end();
             }
-            Definition::Struct {
+            Declaration::Struct {
                 descriptor,
                 kind,
                 generics: _,
                 heritage: _,
                 properties: _,
             } => {
-                self.node("Definition::Struct", id.id)
+                self.node("Declaration::Struct", id.id)
                     .field("descriptor", descriptor)
                     .field("kind", kind)
                     .end();
             }
-            Definition::Enum {
+            Declaration::Enum {
                 descriptor,
                 generics: _,
                 heritage: _,
                 fields: _,
                 properties: _,
             } => {
-                self.node("Definition::Enum", id.id)
+                self.node("Declaration::Enum", id.id)
                     .field("descriptor", descriptor)
                     .end();
             }
-            Definition::Interface {
+            Declaration::Interface {
                 descriptor,
                 generics: _,
                 heritage: _,
                 properties: _,
             } => {
-                self.node("Definition::Interface", id.id)
+                self.node("Declaration::Interface", id.id)
                     .field("descriptor", descriptor)
                     .end();
             }
-            Definition::Implement {
+            Declaration::Implement {
                 descriptor,
                 generics: _,
                 target_type: _,
                 heritage: _,
                 properties: _,
             } => {
-                self.node("Definition::Extension", id.id)
+                self.node("Declaration::Extension", id.id)
                     .field("descriptor", descriptor)
                     .end();
             }
-            Definition::Function {
+            Declaration::Function {
                 descriptor,
                 signature,
                 body: _,
             } => {
-                self.node("Definition::Function", id.id)
+                self.node("Declaration::Function", id.id)
                     .field("descriptor", descriptor)
                     .field("signature", signature)
                     .end();
             }
         }
         self.with_depth(|dumper| {
-            walk_definition(dumper, tree, id, definition);
+            walk_declaration(dumper, tree, id, declaration);
         });
     }
 

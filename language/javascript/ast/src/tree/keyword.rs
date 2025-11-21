@@ -31,7 +31,7 @@ pub enum Keyword {
     As,
 
     // ------------------------------------------------------------
-    // Definitions
+    // Declarations
     // ------------------------------------------------------------
     Const,
     Let,
@@ -168,7 +168,7 @@ impl Keyword {
             Keyword::Default => "default",
             Keyword::As => "as",
 
-            // definitions
+            // declarations
             Keyword::Const => "const",
             Keyword::Let => "let",
             Keyword::Var => "var",
@@ -268,7 +268,7 @@ impl FromStr for Keyword {
             "default" => Ok(Keyword::Default),
             "as" => Ok(Keyword::As),
 
-            // definitions
+            // declarations
             "const" => Ok(Keyword::Const),
             "let" => Ok(Keyword::Let),
             "var" => Ok(Keyword::Var),

@@ -17,7 +17,7 @@ pub enum BuildError {
     MissingEntryPoint { node: LocalNodeIdAny },
     /// Unresolved external symbol / missing library at link time.
     UnresolvedSymbol { node: LocalNodeIdAny },
-    /// Duplicate symbols with incompatible definitions.
+    /// Duplicate symbols with incompatible declarations.
     DuplicateSymbol { node: LocalNodeIdAny },
     /// Incompatible object formats or library formats.
     IncompatibleFormat {

@@ -16,8 +16,8 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
         f: &mut JavaScriptFormatter<'ast, '_>,
     ) -> FormatResult<()> {
         match self {
-            Expression::Definition { definition } => {
-                write!(f, [definition])?;
+            Expression::Declaration { declaration } => {
+                write!(f, [declaration])?;
             }
             Expression::ArrowFunction { signature, body } => {
                 // asynchrony

@@ -1,7 +1,7 @@
 use dyst_ast::StringId;
 
 use crate::{
-    Argument, AssignOperator, Asynchrony, BinaryOperator, Block, Definition, DependencyItem,
+    Argument, AssignOperator, Asynchrony, BinaryOperator, Block, Declaration, DependencyItem,
     DependencyKind, ExportType, LocalNodeId, LocalScopeId, LocalSymbolId, MatchCase, MatchSource,
     ModuleId, Mutability, Node, NodeType, Parameter, Path, Pattern, Property, ScalarLiteral,
     TemplateLiteral, Type, TypeBinaryOperator, TypeKind, TypeLiteral, TypeUnaryOperator,
@@ -11,8 +11,10 @@ use crate::{
 /// An Expression is a generic container for all constructs.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Expression {
-    /// Definition as a value (with a name or anonymous).
-    Definition { definition: LocalNodeId<Definition> },
+    /// Declaration as a value (with a name or anonymous).
+    Declaration {
+        declaration: LocalNodeId<Declaration>,
+    },
 
     /// Block of "statements" (inside `{}` usually).
     Block { block: LocalNodeId<Block> },
@@ -317,7 +319,7 @@ impl Expression {
     /// Get the name of this kind of expression.
     pub fn kind_name(&self) -> &'static str {
         match self {
-            Expression::Definition { .. } => "definition",
+            Expression::Declaration { .. } => "declaration",
             Expression::Block { .. } => "block",
             Expression::Statement { .. } => "statement",
             Expression::With { .. } => "with",
@@ -457,7 +459,7 @@ pub enum YieldCardinality {
     Scalar,
 }
 
-/// A WithClause is a single clause in a with Context declaration or definition.
+/// A WithClause is a single clause in a with Context declaration or declaration.
 #[derive(Debug, Clone, PartialEq)]
 pub struct WithClause {
     /// The name of the declaration (the `T` in `T: Foo`).

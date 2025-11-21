@@ -5,7 +5,7 @@ use crate::r#where::format_where_clause;
 use crate::with::format_with_clause;
 use crate::{DystFormatContext, DystFormatter, FormatNode, empty_block_with_infix_annotations};
 use dyst_ast::{
-    Asynchrony, DeclarationKind, Definition, ExportType, Expression, FunctionAbstraction,
+    Asynchrony, Declaration, DeclarationKind, ExportType, Expression, FunctionAbstraction,
     FunctionCardinality, FunctionKind, FunctionMode, Keyword, LocalNodeId, StructKind, Visibility,
 };
 use dyst_fir::format::FormatResult;
@@ -61,17 +61,17 @@ impl<'ast> Format<DystFormatContext<'ast>> for ExportType {
     }
 }
 
-impl<'ast> FormatNode<'ast, Definition> for Definition {
+impl<'ast> FormatNode<'ast, Declaration> for Declaration {
     fn format_node(
         &self,
-        node_id: LocalNodeId<Definition>,
+        node_id: LocalNodeId<Declaration>,
         f: &mut DystFormatter<'ast, '_>,
     ) -> FormatResult<()> {
         write!(f, [f.context().any_prefix_annotations(node_id)])?;
 
         match self {
             // module
-            Definition::Namespace {
+            Declaration::Namespace {
                 descriptor,
                 generics,
                 expressions,
@@ -135,7 +135,7 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
             }
 
             // struct
-            Definition::Struct {
+            Declaration::Struct {
                 descriptor,
                 kind,
                 generics,
@@ -228,7 +228,7 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
             }
 
             // enum
-            Definition::Enum {
+            Declaration::Enum {
                 descriptor,
                 generics,
                 heritage,
@@ -331,7 +331,7 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
             }
 
             // interface
-            Definition::Interface {
+            Declaration::Interface {
                 descriptor,
                 generics,
                 heritage,
@@ -414,7 +414,7 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
             }
 
             // implement
-            Definition::Implement {
+            Declaration::Implement {
                 descriptor,
                 generics,
                 target_type,
@@ -496,7 +496,7 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
             }
 
             // function
-            Definition::Function {
+            Declaration::Function {
                 descriptor,
                 signature,
                 body,

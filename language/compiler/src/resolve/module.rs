@@ -10,8 +10,8 @@ impl<'a> Compiler<'a> {
                 .get::<dyst_dir::Expression>(node_id.into())
                 .is_resolved(),
             NodeType::Block => tree.get::<dyst_dir::Block>(node_id.into()).is_resolved(),
-            NodeType::Definition => tree
-                .get::<dyst_dir::Definition>(node_id.into())
+            NodeType::Declaration => tree
+                .get::<dyst_dir::Declaration>(node_id.into())
                 .is_resolved(),
             NodeType::Type => tree.get::<dyst_dir::Type>(node_id.into()).is_resolved(),
             NodeType::TypeField => tree

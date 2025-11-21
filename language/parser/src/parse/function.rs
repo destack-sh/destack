@@ -2,12 +2,12 @@ use crate::parse::prelude::*;
 use crate::{ParseResult, Parser};
 
 use dyst_ast::{
-    Asynchrony, DeclarationDescriptor, Definition, FunctionAbstraction, FunctionCardinality,
+    Asynchrony, Declaration, DeclarationDescriptor, FunctionAbstraction, FunctionCardinality,
     FunctionKind, FunctionMode, FunctionSignature, Generics, Keyword, LocalNodeId, NodeType,
     Parameter, TokenType,
 };
 
-/// The keywords that can appear before a function definition.
+/// The keywords that can appear before a function declaration.
 pub static FUNCTION_MODIFIERS: [Keyword; 7] = [
     Keyword::Async,
     Keyword::Abstract,
@@ -19,7 +19,7 @@ pub static FUNCTION_MODIFIERS: [Keyword; 7] = [
 ];
 
 impl<'a> Parser<'a> {
-    /// Eat a function or "lambda" definition or declaration.
+    /// Eat a function or "lambda" declaration or declaration.
     /// If no body is provided, it is a declaration for a function defined elsewhere.
     ///
     /// Examples:
@@ -77,7 +77,7 @@ impl<'a> Parser<'a> {
         mut descriptor: DeclarationDescriptor,
         expect_maybe: bool,
         expect_body: bool,
-    ) -> ParseResult<LocalNodeId<Definition>> {
+    ) -> ParseResult<LocalNodeId<Declaration>> {
         let start = self.mark();
 
         // async
@@ -128,14 +128,14 @@ impl<'a> Parser<'a> {
                 // static parameters
                 let static_parameters = self
                     .eat_static_parameters_maybe()
-                    .for_node_type(NodeType::Definition)?;
+                    .for_node_type(NodeType::Declaration)?;
 
                 (name, static_parameters)
             } else {
                 // static parameters
                 let static_parameters = self
                     .eat_static_parameters_maybe()
-                    .for_node_type(NodeType::Definition)?;
+                    .for_node_type(NodeType::Declaration)?;
 
                 (None, static_parameters)
             }
@@ -290,7 +290,7 @@ impl<'a> Parser<'a> {
             return_type,
         };
         let function_id = self.tree.insert(
-            Definition::Function {
+            Declaration::Function {
                 descriptor,
                 signature,
                 body,
@@ -304,7 +304,7 @@ impl<'a> Parser<'a> {
 #[cfg(test)]
 mod tests {
     use dyst_ast::{
-        Asynchrony, BinaryOperator, DeclarationDescriptor, Definition, Expression,
+        Asynchrony, BinaryOperator, Declaration, DeclarationDescriptor, Expression,
         FunctionCardinality, FunctionKind, FunctionMode, IntType, Parameter, TypeLiteral,
         WhereClause, WithClause,
     };
@@ -320,7 +320,7 @@ mod tests {
             .eat_function(DeclarationDescriptor::default(), false, false)
             .unwrap();
         // (x: number): number => x
-        assert_node!(parser.tree, function_id, Definition::Function { descriptor, signature, body: Some(body), .. } => {
+        assert_node!(parser.tree, function_id, Declaration::Function { descriptor, signature, body: Some(body), .. } => {
             assert_eq!(descriptor.name, None);
             assert_eq!(signature.kind, FunctionKind::Lambda);
             // x: number
@@ -347,7 +347,7 @@ mod tests {
             .eat_function(DeclarationDescriptor::default(), false, false)
             .unwrap();
         // (x): int32 => x
-        assert_node!(parser.tree, function_id, Definition::Function { descriptor, signature, body: Some(body), .. } => {
+        assert_node!(parser.tree, function_id, Declaration::Function { descriptor, signature, body: Some(body), .. } => {
             assert_eq!(descriptor.name, None);
             assert_eq!(signature.kind, FunctionKind::Lambda);
             // x
@@ -374,7 +374,7 @@ mod tests {
             .eat_function(DeclarationDescriptor::default(), false, false)
             .unwrap();
         // new (x) => int32
-        assert_node!(parser.tree, function_id, Definition::Function { descriptor, signature, .. } => {
+        assert_node!(parser.tree, function_id, Declaration::Function { descriptor, signature, .. } => {
             assert!(descriptor.name.is_none());
             assert_eq!(signature.mode, Some(FunctionMode::New));
             assert_eq!(signature.kind, FunctionKind::Lambda);
@@ -393,7 +393,7 @@ mod tests {
             .eat_function(DeclarationDescriptor::default(), false, false)
             .unwrap();
         // new <T>(x: int32) => T
-        assert_node!(parser.tree, function_id, Definition::Function { descriptor, signature, .. } => {
+        assert_node!(parser.tree, function_id, Declaration::Function { descriptor, signature, .. } => {
             assert!(descriptor.name.is_none());
             // new
             assert_eq!(signature.mode, Some(FunctionMode::New));
@@ -437,7 +437,7 @@ function foo() => int32 with (
         let function_id = parser
             .eat_function(DeclarationDescriptor::default(), false, false)
             .unwrap();
-        assert_node!(parser.tree, function_id, Definition::Function { descriptor, signature, .. } => {
+        assert_node!(parser.tree, function_id, Declaration::Function { descriptor, signature, .. } => {
             // function name
             assert_string!(parser, descriptor.name.unwrap().string(), "foo");
             let generics = signature.generics.as_ref().expect("expected generics");
@@ -490,7 +490,7 @@ function compute<Validate: boolean, Precision: uint8>(data: uint8[]) {
         let function_id = parser
             .eat_function(DeclarationDescriptor::default(), false, false)
             .unwrap();
-        assert_node!(parser.tree, function_id, Definition::Function { descriptor, signature, .. } => {
+        assert_node!(parser.tree, function_id, Declaration::Function { descriptor, signature, .. } => {
             // compute
             assert_string!(parser, descriptor.name.unwrap().string(), "compute");
             let static_parameters = signature
@@ -529,13 +529,13 @@ function compute<Validate: boolean, Precision: uint8>(data: uint8[]) {
         let function_id = parser
             .eat_function(DeclarationDescriptor::default(), false, false)
             .unwrap();
-        assert_node!(parser.tree, function_id, Definition::Function { descriptor, signature, .. } => {
+        assert_node!(parser.tree, function_id, Declaration::Function { descriptor, signature, .. } => {
             // foo
             assert_string!(parser, descriptor.name.unwrap().string() , "foo");
 
             // (str: string) => boolean
-            assert_node!(parser.tree, signature.return_type.unwrap(), Expression::Definition(definition_id) => {
-                assert_node!(parser.tree, *definition_id, Definition::Function { signature, .. } => {
+            assert_node!(parser.tree, signature.return_type.unwrap(), Expression::Declaration(declaration_id) => {
+                assert_node!(parser.tree, *declaration_id, Declaration::Function { signature, .. } => {
                     assert_eq!(signature.dynamic_parameters.len(), 1);
                     // str: string
                     assert_node!(parser.tree, signature.dynamic_parameters[0], Parameter::Named { name, ty, .. } => {
@@ -567,7 +567,7 @@ async function* foo() => int32 {
             .eat_function(DeclarationDescriptor::default(), false, false)
             .unwrap();
         // async function* foo() => int32 { body }
-        assert_node!(parser.tree, function_id, Definition::Function { descriptor, signature, .. } => {
+        assert_node!(parser.tree, function_id, Declaration::Function { descriptor, signature, .. } => {
             // foo
             assert_string!(parser, descriptor.name.unwrap().string(), "foo");
             assert_eq!(signature.asynchrony, Asynchrony::Async);
@@ -593,14 +593,14 @@ function onResolve(
         let function_id = parser
             .eat_function(DeclarationDescriptor::default(), false, false)
             .unwrap();
-        assert_node!(parser.tree, function_id, Definition::Function { descriptor, signature, .. } => {
+        assert_node!(parser.tree, function_id, Declaration::Function { descriptor, signature, .. } => {
             assert_string!(parser, descriptor.name.unwrap().string(), "onResolve");
             // callback: (args) => { .. } | void
             assert_eq!(signature.dynamic_parameters.len(), 1);
             assert_node!(parser.tree, signature.dynamic_parameters[0], Parameter::Named { name, ty, .. } => {
                 assert_string!(parser, *name, "callback");
-                assert_node!(parser.tree, ty.unwrap(), Expression::Definition(definition_id) => {
-                    assert_node!(parser.tree, *definition_id, Definition::Function { signature, .. } => {
+                assert_node!(parser.tree, ty.unwrap(), Expression::Declaration(declaration_id) => {
+                    assert_node!(parser.tree, *declaration_id, Declaration::Function { signature, .. } => {
                         assert_eq!(signature.dynamic_parameters.len(), 1);
                         // args
                         assert_node!(parser.tree, signature.dynamic_parameters[0], Parameter::Named { name, ty: None, .. } => {

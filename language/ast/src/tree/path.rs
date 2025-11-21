@@ -4,7 +4,7 @@ use dyst_source::SmallVec;
 
 use crate::StringId;
 
-/// A Path is static path to a named definition in a namespace.
+/// A Path is static path to a named declaration in a namespace.
 /// In the case of a Use declaration, the Path excludes the items.
 ///
 /// Examples:

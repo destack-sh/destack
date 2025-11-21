@@ -802,7 +802,7 @@ impl<Context> std::fmt::Debug for IndentIfGroupBreaks<'_, Context> {
     }
 }
 
-/// Changes the definition of *fits* for `content`. It measures the width of all lines and allows
+/// Changes the declaration of *fits* for `content`. It measures the width of all lines and allows
 /// the content inside of the [`fits_expanded`] to exceed the configured line width. The content
 /// coming before and after [`fits_expanded`] must fit into the configured line width.
 ///
@@ -828,7 +828,7 @@ pub struct FitsExpanded<'a, Context> {
 
 impl<Context> FitsExpanded<'_, Context> {
     /// Sets a `condition` to when the content should fit in expanded mode. The content uses the regular fits
-    /// definition if the `condition` is not met.
+    /// declaration if the `condition` is not met.
     #[must_use]
     pub fn with_condition(mut self, condition: Option<Condition>) -> Self {
         self.condition = condition;

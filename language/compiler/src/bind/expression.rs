@@ -30,10 +30,10 @@ impl<'a> Compiler<'a> {
                 let block_id = self.bind_block(module, scope_id, *block_id, tree);
                 Expression::Block { block: block_id }
             }
-            ast::Expression::Definition(definition_id) => {
-                let definition_id = self.bind_definition(module, scope_id, *definition_id, tree);
-                Expression::Definition {
-                    definition: definition_id,
+            ast::Expression::Declaration(declaration_id) => {
+                let declaration_id = self.bind_declaration(module, scope_id, *declaration_id, tree);
+                Expression::Declaration {
+                    declaration: declaration_id,
                 }
             }
             ast::Expression::Statement(expression_id) => {

@@ -123,15 +123,15 @@ pub(crate) fn format_block_of_statements<'ast>(
     let is_root_like = f
         .context()
         .get_parent_by_id(scope_id.id)
-        .is_none_or(|(_, parent_type)| parent_type == NodeType::Definition);
+        .is_none_or(|(_, parent_type)| parent_type == NodeType::Declaration);
     for (i, &expression_id) in expressions.iter().enumerate() {
         let expression = f.context().tree.get(expression_id);
 
         // blank line between expressions
         if i > 0 {
             write!(f, [hard_line_break()])?;
-            // extra blank line between definitions
-            if matches!(expression, Expression::Definition(_))
+            // extra blank line between declarations
+            if matches!(expression, Expression::Declaration(_))
                 && !f
                     .context()
                     .has_blank_prefix_annotation_in_first_position(expression_id)
@@ -200,7 +200,7 @@ pub(crate) fn should_inline_block<'ast>(
         && !f.context().is_at_line_start(block_id.id)
         && !f.context().is_at_line_start(container_node_id)
         && !f.context().has_newline(span)
-        && container_node_type != NodeType::Definition
+        && container_node_type != NodeType::Declaration
 }
 
 /// Format a block (without a nested group!).

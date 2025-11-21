@@ -26,9 +26,9 @@ pub enum PrimitiveType {
     UniqueSymbol,
 }
 
-/// A DefinitionType represents composite types.
+/// A DeclarationType represents composite types.
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub enum DefinitionType {
+pub enum DeclarationType {
     /// Root type `type`.
     Type,
     /// Module type.
@@ -69,7 +69,7 @@ pub enum TypeLiteral {
     /// Primitive type.
     Primitive(PrimitiveType),
     /// Composite type.
-    Composite(DefinitionType),
+    Composite(DeclarationType),
     /// Scalar literal.
     ScalarLiteral(ScalarLiteral),
 }

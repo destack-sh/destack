@@ -1,7 +1,7 @@
 mod annotation;
 mod argument;
 mod block;
-mod definition;
+mod declaration;
 mod dependency;
 mod expression;
 mod function;
@@ -22,7 +22,7 @@ mod walk;
 pub use annotation::*;
 pub use argument::*;
 pub use block::*;
-pub use definition::*;
+pub use declaration::*;
 pub use dependency::*;
 pub use dyst_source::{Arena, StringId, StringPool};
 pub use expression::*;

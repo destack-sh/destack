@@ -6,38 +6,38 @@ use crate::{
 /// The kind of declaration.
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum DeclarationKind {
-    /// Declare without link.
+    /// Declare.
     Declaration,
-    /// Inline definition.
+    /// Definition.
     Definition,
 }
 
-/// The meta data for a definition.
+/// The meta data for a declaration.
 #[derive(Debug, Clone, PartialEq)]
 pub struct DeclarationDescriptor {
     /// The kind of declaration.
     pub kind: DeclarationKind,
     /// The scope of the declaration.
     pub scope: BindingScope,
-    /// The name of the definition.
+    /// The name of the declaration.
     pub name: Option<StringId>,
-    /// The export type of the definition.
+    /// The export type of the declaration.
     pub export: Option<ExportType>,
-    /// The symbol of the definition.
+    /// The symbol of the declaration.
     pub symbol: LocalSymbolId,
 }
 
-/// Definition introduces a type or function into its scope.
+/// Declaration introduces a type or function into its scope.
 #[derive(Debug, Clone, PartialEq)]
-pub enum Definition {
-    /// Namespace definition.
+pub enum Declaration {
+    /// Namespace declaration.
     Namespace {
         descriptor: DeclarationDescriptor,
         generics: Generics,
         scope: LocalScopeId,
-        definitions: Vec<LocalNodeId<Definition>>,
+        declarations: Vec<LocalNodeId<Declaration>>,
     },
-    /// Struct or class definition.
+    /// Struct or class declaration.
     Struct {
         descriptor: DeclarationDescriptor,
         kind: StructKind,
@@ -46,7 +46,7 @@ pub enum Definition {
         scope: LocalScopeId,
         properties: Vec<LocalNodeId<Property>>,
     },
-    /// Enum definition.
+    /// Enum declaration.
     Enum {
         descriptor: DeclarationDescriptor,
         generics: Generics,
@@ -55,7 +55,7 @@ pub enum Definition {
         fields: Vec<LocalNodeId<EnumField>>,
         properties: Vec<LocalNodeId<Property>>,
     },
-    /// Interface definition.
+    /// Interface declaration.
     Interface {
         descriptor: DeclarationDescriptor,
         generics: Generics,
@@ -63,15 +63,15 @@ pub enum Definition {
         scope: LocalScopeId,
         properties: Vec<LocalNodeId<Property>>,
     },
-    /// Function definition. Nested definitions are lifted from the body.
+    /// Function declaration. Nested declarations are lifted from the body.
     Function {
         descriptor: DeclarationDescriptor,
         signature: FunctionSignature,
         scope: LocalScopeId,
-        definitions: Vec<LocalNodeId<Definition>>,
+        declarations: Vec<LocalNodeId<Declaration>>,
         body: Option<LocalNodeId<Expression>>,
     },
-    /// Implement definition.
+    /// Implement declaration.
     Implement {
         descriptor: DeclarationDescriptor,
         generics: Generics,
@@ -82,53 +82,53 @@ pub enum Definition {
     },
 }
 
-impl Node for Definition {
-    const TYPE: NodeType = NodeType::Definition;
+impl Node for Declaration {
+    const TYPE: NodeType = NodeType::Declaration;
 
     fn is_resolved(&self) -> bool {
         true
     }
 }
 
-impl Definition {
-    /// Get the name of this kind of definition.
+impl Declaration {
+    /// Get the name of this kind of declaration.
     pub fn kind_name(&self) -> &'static str {
         match self {
-            Definition::Namespace { .. } => "namespace",
-            Definition::Struct { .. } => "struct",
-            Definition::Enum { .. } => "enum",
-            Definition::Interface { .. } => "interface",
-            Definition::Function { .. } => "function",
-            Definition::Implement { .. } => "implement",
+            Declaration::Namespace { .. } => "namespace",
+            Declaration::Struct { .. } => "struct",
+            Declaration::Enum { .. } => "enum",
+            Declaration::Interface { .. } => "interface",
+            Declaration::Function { .. } => "function",
+            Declaration::Implement { .. } => "implement",
         }
     }
 
-    /// Get the descriptor of the definition.
+    /// Get the descriptor of the declaration.
     pub fn descriptor(&self) -> &DeclarationDescriptor {
         match self {
-            Definition::Namespace { descriptor, .. } => descriptor,
-            Definition::Struct { descriptor, .. } => descriptor,
-            Definition::Enum { descriptor, .. } => descriptor,
-            Definition::Interface { descriptor, .. } => descriptor,
-            Definition::Function { descriptor, .. } => descriptor,
-            Definition::Implement { descriptor, .. } => descriptor,
+            Declaration::Namespace { descriptor, .. } => descriptor,
+            Declaration::Struct { descriptor, .. } => descriptor,
+            Declaration::Enum { descriptor, .. } => descriptor,
+            Declaration::Interface { descriptor, .. } => descriptor,
+            Declaration::Function { descriptor, .. } => descriptor,
+            Declaration::Implement { descriptor, .. } => descriptor,
         }
     }
 
-    /// Get the symbol of the definition.
+    /// Get the symbol of the declaration.
     pub fn symbol(&self) -> LocalSymbolId {
         self.descriptor().symbol
     }
 
-    /// Get the scope of the definition.
+    /// Get the scope of the declaration.
     pub fn scope(&self) -> LocalScopeId {
         match self {
-            Definition::Namespace { scope, .. } => *scope,
-            Definition::Struct { scope, .. } => *scope,
-            Definition::Enum { scope, .. } => *scope,
-            Definition::Interface { scope, .. } => *scope,
-            Definition::Function { scope, .. } => *scope,
-            Definition::Implement { scope, .. } => *scope,
+            Declaration::Namespace { scope, .. } => *scope,
+            Declaration::Struct { scope, .. } => *scope,
+            Declaration::Enum { scope, .. } => *scope,
+            Declaration::Interface { scope, .. } => *scope,
+            Declaration::Function { scope, .. } => *scope,
+            Declaration::Implement { scope, .. } => *scope,
         }
     }
 }
@@ -142,7 +142,7 @@ pub enum StructKind {
     Class,
 }
 
-/// An enum field is a named field of an enum definition.
+/// An enum field is a named field of an enum declaration.
 #[derive(Debug, Clone, PartialEq)]
 pub struct EnumField {
     /// The name of the enum field.

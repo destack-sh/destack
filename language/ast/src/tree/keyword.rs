@@ -48,7 +48,7 @@ pub enum Keyword {
     With,
 
     // ------------------------------------------------------------
-    // Definitions
+    // Declarations
     // ------------------------------------------------------------
     /// Constant modifier.
     Const,
@@ -76,7 +76,7 @@ pub enum Keyword {
     Function,
     /// Implement a type.
     Implement,
-    /// Declare definition.
+    /// Declare declaration.
     Declare,
     /// New expression.
     New,
@@ -248,7 +248,7 @@ impl Keyword {
             Keyword::From => "from",
             Keyword::With => "with",
 
-            // definitions
+            // declarations
             Keyword::Const => "const",
             Keyword::Let => "let",
             Keyword::Var => "var",
@@ -351,7 +351,7 @@ impl FromStr for Keyword {
             "from" => Ok(Keyword::From),
             "with" => Ok(Keyword::With),
 
-            // definitions
+            // declarations
             "const" => Ok(Keyword::Const),
             "let" => Ok(Keyword::Let),
             "var" => Ok(Keyword::Var),

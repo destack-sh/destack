@@ -39,11 +39,7 @@ impl std::fmt::Display for FlowError {
         f.debug_struct("FlowError")
             .field(
                 "code",
-                &format!(
-                    "{}E{:03}",
-                    CompilePhase::Flow.letter(),
-                    self.sub_code()
-                ),
+                &format!("{}E{:03}", CompilePhase::Flow.letter(), self.sub_code()),
             )
             .finish()
     }

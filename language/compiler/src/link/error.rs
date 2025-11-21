@@ -16,7 +16,7 @@ pub enum LinkError {
         node: LocalNodeIdAny,
         symbol: String,
     },
-    /// Duplicate symbols with incompatible definitions.
+    /// Duplicate symbols with incompatible declarations.
     ConflictingSymbol {
         node: LocalNodeIdAny,
         symbol: String,

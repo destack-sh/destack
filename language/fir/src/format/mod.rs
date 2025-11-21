@@ -37,7 +37,7 @@ pub use error::{
 };
 pub use formatter::{Format, Formatted, Formatter, FormatterSnapshot, format, write};
 pub use group::{ConditionalGroup, DebugGroupId, Group, GroupId, GroupMode, ReleaseGroupId};
-pub use label::{LabelDefinition, LabelId};
+pub use label::{LabelDeclaration, LabelId};
 pub use node::{FormatNode, Interned, LineMode};
 pub use options::{FormatOptions, SimpleFormatOptions};
 pub use sizing::{

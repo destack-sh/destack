@@ -50,7 +50,7 @@ impl<'a> Compiler<'a> {
         }
     }
 
-    /// Bind AST definition generics into DIR definition generics.
+    /// Bind AST declaration generics into DIR declaration generics.
     pub(super) fn bind_generics(
         &self,
         module: &Module,

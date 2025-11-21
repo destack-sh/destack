@@ -1,5 +1,5 @@
 use crate::{
-    Annotation, Argument, Block, Definition, DependencyItem, EnumField, Expression,
+    Annotation, Argument, Block, Declaration, DependencyItem, EnumField, Expression,
     FunctionSignature, Generics, Heritage, Key, LocalNodeId, MatchCase, NodeTree, NodeType,
     NodeVisitor, Parameter, Pattern, PatternField, Property, TemplateLiteral, Type, TypeField,
     WhereClause, WithClause,
@@ -22,9 +22,9 @@ pub fn walk_any<V: NodeVisitor + ?Sized>(
             let block = tree.blocks.get(local_idx);
             walk_block(visitor, tree, LocalNodeId::new(node_id), block);
         }
-        NodeType::Definition => {
-            let definition = tree.definitions.get(local_idx);
-            walk_definition(visitor, tree, LocalNodeId::new(node_id), definition);
+        NodeType::Declaration => {
+            let declaration = tree.declarations.get(local_idx);
+            walk_declaration(visitor, tree, LocalNodeId::new(node_id), declaration);
         }
         NodeType::Type => {
             let ty = tree.types.get(local_idx);
@@ -153,11 +153,11 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
 ) {
     visitor.visit_any(tree, NodeType::Expression, id.id);
     match expression {
-        Expression::Definition {
-            definition: definition_id,
+        Expression::Declaration {
+            declaration: declaration_id,
         } => {
-            let definition = tree.get(*definition_id);
-            visitor.visit_definition(tree, *definition_id, definition);
+            let declaration = tree.get(*declaration_id);
+            visitor.visit_declaration(tree, *declaration_id, declaration);
         }
         Expression::Block { block: block_id } => {
             let block = tree.get(*block_id);
@@ -663,28 +663,28 @@ pub fn walk_block<V: NodeVisitor + ?Sized>(
     }
 }
 
-/// Walk the Definition.
-pub fn walk_definition<V: NodeVisitor + ?Sized>(
+/// Walk the Declaration.
+pub fn walk_declaration<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
     tree: &NodeTree,
-    id: LocalNodeId<Definition>,
-    definition: &Definition,
+    id: LocalNodeId<Declaration>,
+    declaration: &Declaration,
 ) {
-    visitor.visit_any(tree, NodeType::Definition, id.id);
-    match definition {
-        Definition::Namespace {
+    visitor.visit_any(tree, NodeType::Declaration, id.id);
+    match declaration {
+        Declaration::Namespace {
             descriptor: _,
             generics,
-            definitions,
+            declarations,
             scope: _,
         } => {
             walk_generics(visitor, tree, generics);
-            for definition_id in definitions {
-                let child_definition = tree.get(*definition_id);
-                visitor.visit_definition(tree, *definition_id, child_definition);
+            for declaration_id in declarations {
+                let child_declaration = tree.get(*declaration_id);
+                visitor.visit_declaration(tree, *declaration_id, child_declaration);
             }
         }
-        Definition::Struct {
+        Declaration::Struct {
             descriptor: _,
             kind: _,
             generics,
@@ -699,7 +699,7 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
                 visitor.visit_property(tree, *property_id, property);
             }
         }
-        Definition::Enum {
+        Declaration::Enum {
             descriptor: _,
             generics,
             heritage,
@@ -718,7 +718,7 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
                 visitor.visit_property(tree, *property_id, property);
             }
         }
-        Definition::Interface {
+        Declaration::Interface {
             descriptor: _,
             generics,
             heritage,
@@ -732,24 +732,24 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
                 visitor.visit_property(tree, *property_id, property);
             }
         }
-        Definition::Function {
+        Declaration::Function {
             descriptor: _,
             signature,
-            definitions,
+            declarations,
             body,
             scope: _,
         } => {
             walk_function_signature(visitor, tree, signature);
-            for definition_id in definitions.iter() {
-                let child_definition = tree.get(*definition_id);
-                visitor.visit_definition(tree, *definition_id, child_definition);
+            for declaration_id in declarations.iter() {
+                let child_declaration = tree.get(*declaration_id);
+                visitor.visit_declaration(tree, *declaration_id, child_declaration);
             }
             if let Some(body) = body {
                 let body_expression = tree.get(*body);
                 visitor.visit_expression(tree, *body, body_expression);
             }
         }
-        Definition::Implement {
+        Declaration::Implement {
             descriptor: _,
             generics,
             target_type,

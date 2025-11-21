@@ -1,5 +1,5 @@
 use crate::{
-    Argument, AssignOperator, Block, Definition, DependencyItem, DependencyKind, ExportType,
+    Argument, AssignOperator, Block, Declaration, DependencyItem, DependencyKind, ExportType,
     Expression, LocalNodeId, Mutability, Node, NodeType, Parameter, Pattern, StringId, Type,
 };
 
@@ -25,8 +25,10 @@ pub enum Statement {
     /// Export value.
     ExportValue { value: LocalNodeId<Expression> },
 
-    /// Definition statement.
-    Definition { definition: LocalNodeId<Definition> },
+    /// Declaration statement.
+    Declaration {
+        declaration: LocalNodeId<Declaration>,
+    },
     /// Block of statements.
     Block { block: LocalNodeId<Block> },
 
