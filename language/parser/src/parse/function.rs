@@ -3,7 +3,7 @@ use crate::{ParseResult, Parser};
 
 use dyst_ast::{
     Asynchrony, DeclarationDescriptor, Definition, FunctionAbstraction, FunctionCardinality,
-    FunctionKind, FunctionMode, FunctionSignature, Generics, Keyword, NodeId, NodeType, Parameter,
+    FunctionKind, FunctionMode, FunctionSignature, Generics, Keyword, LocalNodeId, NodeType, Parameter,
     TokenType,
 };
 
@@ -77,7 +77,7 @@ impl<'a> Parser<'a> {
         mut descriptor: DeclarationDescriptor,
         expect_maybe: bool,
         expect_body: bool,
-    ) -> ParseResult<NodeId<Definition>> {
+    ) -> ParseResult<LocalNodeId<Definition>> {
         let start = self.mark();
 
         // async

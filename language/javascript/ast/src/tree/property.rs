@@ -1,4 +1,4 @@
-use crate::{BindingModifier, Expression, FunctionSignature, Key, Node, NodeId, NodeType};
+use crate::{BindingModifier, Expression, FunctionSignature, Key, Node, LocalNodeId, NodeType};
 
 /// A Property is a property of a variant type (may be a field or method).
 #[derive(Debug, Clone, PartialEq)]
@@ -7,20 +7,20 @@ pub enum Property {
     Field {
         modifiers: Option<BindingModifier>,
         key: Option<Key>,
-        value: Option<NodeId<Expression>>,
-        default: Option<NodeId<Expression>>,
+        value: Option<LocalNodeId<Expression>>,
+        default: Option<LocalNodeId<Expression>>,
     },
     /// Named member function (like `foo()` or `<T>(): T`).
     Method {
         modifiers: Option<BindingModifier>,
         key: Option<Key>,
         signature: FunctionSignature,
-        body: Option<NodeId<Expression>>,
+        body: Option<LocalNodeId<Expression>>,
     },
     /// Spread property (like `...a`).
     Spread {
         modifiers: Option<BindingModifier>,
-        value: NodeId<Expression>,
+        value: LocalNodeId<Expression>,
     },
 }
 

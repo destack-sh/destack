@@ -1,4 +1,4 @@
-use dyst_dir::{NodeIdAny, Session};
+use dyst_dir::{LocalNodeIdAny, Session};
 
 use crate::{CompileError, CompileStage};
 
@@ -7,7 +7,7 @@ use crate::{CompileError, CompileStage};
 #[repr(u8)]
 pub enum LowerError {
     /// Unsupported node.
-    UnsupportedNode { node: NodeIdAny } = 1,
+    UnsupportedNode { node: LocalNodeIdAny } = 1,
 }
 
 impl LowerError {
@@ -20,7 +20,7 @@ impl LowerError {
     }
 
     /// Get the node id of the error.
-    pub fn node_id(&self) -> Option<NodeIdAny> {
+    pub fn node_id(&self) -> Option<LocalNodeIdAny> {
         match self {
             Self::UnsupportedNode { node, .. } => Some(*node),
         }

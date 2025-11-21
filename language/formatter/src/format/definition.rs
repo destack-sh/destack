@@ -6,7 +6,7 @@ use crate::with::format_with_clause;
 use crate::{DystFormatContext, DystFormatter, FormatNode, empty_block_with_infix_annotations};
 use dyst_ast::{
     Asynchrony, DeclarationKind, Definition, ExportType, Expression, FunctionAbstraction,
-    FunctionCardinality, FunctionKind, FunctionMode, Keyword, NodeId, StructKind, Visibility,
+    FunctionCardinality, FunctionKind, FunctionMode, Keyword, LocalNodeId, StructKind, Visibility,
 };
 use dyst_fir::format::FormatResult;
 use dyst_fir::prelude::*;
@@ -16,7 +16,7 @@ use dyst_fir::{format_args, write};
 pub(crate) fn format_super_type_clause<'ast>(
     f: &mut DystFormatter<'ast, '_>,
     keyword: Keyword,
-    types: &[NodeId<Expression>],
+    types: &[LocalNodeId<Expression>],
 ) -> FormatResult<()> {
     assert!(!types.is_empty());
 
@@ -64,7 +64,7 @@ impl<'ast> Format<DystFormatContext<'ast>> for ExportType {
 impl<'ast> FormatNode<'ast, Definition> for Definition {
     fn format_node(
         &self,
-        node_id: NodeId<Definition>,
+        node_id: LocalNodeId<Definition>,
         f: &mut DystFormatter<'ast, '_>,
     ) -> FormatResult<()> {
         write!(f, [f.context().any_prefix_annotations(node_id)])?;

@@ -1,6 +1,6 @@
 use crate::{
     Annotation, Argument, Block, DeclarationDescriptor, Definition, DependencyItem, EnumField,
-    Expression, FunctionSignature, Generics, Heritage, Key, NodeId, NodeTree, NodeType,
+    Expression, FunctionSignature, Generics, Heritage, Key, LocalNodeId, NodeTree, NodeType,
     NodeVisitor, Parameter, Pattern, PatternField, Property, Statement, SwitchCase,
     TemplateLiteral, Type, TypeField,
 };
@@ -16,63 +16,63 @@ pub fn walk_any<V: NodeVisitor + ?Sized>(
     match node_type {
         NodeType::Block => {
             let block = tree.blocks.get(local_idx);
-            walk_block(visitor, tree, NodeId::new(node_id), block);
+            walk_block(visitor, tree, LocalNodeId::new(node_id), block);
         }
         NodeType::Statement => {
             let statement = tree.statements.get(local_idx);
-            walk_statement(visitor, tree, NodeId::new(node_id), statement);
+            walk_statement(visitor, tree, LocalNodeId::new(node_id), statement);
         }
         NodeType::Expression => {
             let expression = tree.expressions.get(local_idx);
-            walk_expression(visitor, tree, NodeId::new(node_id), expression);
+            walk_expression(visitor, tree, LocalNodeId::new(node_id), expression);
         }
         NodeType::Definition => {
             let definition = tree.definitions.get(local_idx);
-            walk_definition(visitor, tree, NodeId::new(node_id), definition);
+            walk_definition(visitor, tree, LocalNodeId::new(node_id), definition);
         }
         NodeType::Property => {
             let field = tree.fields.get(local_idx);
-            walk_property(visitor, tree, NodeId::new(node_id), field);
+            walk_property(visitor, tree, LocalNodeId::new(node_id), field);
         }
         NodeType::Type => {
             let ty = tree.types.get(local_idx);
-            walk_type(visitor, tree, NodeId::new(node_id), ty);
+            walk_type(visitor, tree, LocalNodeId::new(node_id), ty);
         }
         NodeType::TypeField => {
             let attribute = tree.type_fields.get(local_idx);
-            walk_type_field(visitor, tree, NodeId::new(node_id), attribute);
+            walk_type_field(visitor, tree, LocalNodeId::new(node_id), attribute);
         }
         NodeType::EnumField => {
             let field = tree.enum_fields.get(local_idx);
-            walk_enum_field(visitor, tree, NodeId::new(node_id), field);
+            walk_enum_field(visitor, tree, LocalNodeId::new(node_id), field);
         }
         NodeType::DependencyItem => {
             let dependency_item = tree.dependency_items.get(local_idx);
-            walk_dependency_item(visitor, tree, NodeId::new(node_id), dependency_item);
+            walk_dependency_item(visitor, tree, LocalNodeId::new(node_id), dependency_item);
         }
         NodeType::SwitchCase => {
             let case = tree.switch_cases.get(local_idx);
-            walk_switch_case(visitor, tree, NodeId::new(node_id), case);
+            walk_switch_case(visitor, tree, LocalNodeId::new(node_id), case);
         }
         NodeType::Pattern => {
             let pattern = tree.patterns.get(local_idx);
-            walk_pattern(visitor, tree, NodeId::new(node_id), pattern);
+            walk_pattern(visitor, tree, LocalNodeId::new(node_id), pattern);
         }
         NodeType::PatternField => {
             let field = tree.pattern_fields.get(local_idx);
-            walk_pattern_field(visitor, tree, NodeId::new(node_id), field);
+            walk_pattern_field(visitor, tree, LocalNodeId::new(node_id), field);
         }
         NodeType::Parameter => {
             let parameter = tree.parameters.get(local_idx);
-            walk_parameter(visitor, tree, NodeId::new(node_id), parameter);
+            walk_parameter(visitor, tree, LocalNodeId::new(node_id), parameter);
         }
         NodeType::Argument => {
             let argument = tree.arguments.get(local_idx);
-            walk_argument(visitor, tree, NodeId::new(node_id), argument);
+            walk_argument(visitor, tree, LocalNodeId::new(node_id), argument);
         }
         NodeType::Annotation => {
             let annotation = tree.annotations.get(local_idx);
-            walk_annotation(visitor, tree, NodeId::new(node_id), annotation);
+            walk_annotation(visitor, tree, LocalNodeId::new(node_id), annotation);
         }
     }
 }
@@ -85,7 +85,7 @@ pub fn walk_any<V: NodeVisitor + ?Sized>(
 pub fn walk_block<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
     tree: &NodeTree,
-    id: NodeId<Block>,
+    id: LocalNodeId<Block>,
     block: &Block,
 ) {
     visitor.visit_any(tree, NodeType::Block, id.id);
@@ -100,7 +100,7 @@ pub fn walk_block<V: NodeVisitor + ?Sized>(
 pub fn walk_statement<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
     tree: &NodeTree,
-    id: NodeId<Statement>,
+    id: LocalNodeId<Statement>,
     statement: &Statement,
 ) {
     visitor.visit_any(tree, NodeType::Statement, id.id);
@@ -347,7 +347,7 @@ fn walk_function_signature<V: NodeVisitor + ?Sized>(
 pub fn walk_expression<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
     tree: &NodeTree,
-    id: NodeId<Expression>,
+    id: LocalNodeId<Expression>,
     expression: &Expression,
 ) {
     visitor.visit_any(tree, NodeType::Expression, id.id);
@@ -560,7 +560,7 @@ fn walk_declaration_descriptor<V: NodeVisitor + ?Sized>(
 pub fn walk_definition<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
     tree: &NodeTree,
-    id: NodeId<Definition>,
+    id: LocalNodeId<Definition>,
     definition: &Definition,
 ) {
     visitor.visit_any(tree, NodeType::Definition, id.id);
@@ -645,7 +645,7 @@ pub fn walk_key<V: NodeVisitor + ?Sized>(visitor: &mut V, tree: &NodeTree, key: 
 pub fn walk_property<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
     tree: &NodeTree,
-    id: NodeId<Property>,
+    id: LocalNodeId<Property>,
     property: &Property,
 ) {
     visitor.visit_any(tree, NodeType::Property, id.id);
@@ -698,7 +698,7 @@ pub fn walk_property<V: NodeVisitor + ?Sized>(
 pub fn walk_enum_field<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
     tree: &NodeTree,
-    id: NodeId<EnumField>,
+    id: LocalNodeId<EnumField>,
     field: &EnumField,
 ) {
     visitor.visit_any(tree, NodeType::EnumField, id.id);
@@ -713,7 +713,7 @@ pub fn walk_enum_field<V: NodeVisitor + ?Sized>(
 pub fn walk_dependency_item<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
     tree: &NodeTree,
-    id: NodeId<DependencyItem>,
+    id: LocalNodeId<DependencyItem>,
     _dependency_item: &DependencyItem,
 ) {
     visitor.visit_any(tree, NodeType::DependencyItem, id.id);
@@ -723,7 +723,7 @@ pub fn walk_dependency_item<V: NodeVisitor + ?Sized>(
 pub fn walk_switch_case<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
     tree: &NodeTree,
-    id: NodeId<SwitchCase>,
+    id: LocalNodeId<SwitchCase>,
     switch_case: &SwitchCase,
 ) {
     visitor.visit_any(tree, NodeType::SwitchCase, id.id);
@@ -738,7 +738,7 @@ pub fn walk_switch_case<V: NodeVisitor + ?Sized>(
 pub fn walk_parameter<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
     tree: &NodeTree,
-    id: NodeId<Parameter>,
+    id: LocalNodeId<Parameter>,
     parameter: &Parameter,
 ) {
     visitor.visit_any(tree, NodeType::Parameter, id.id);
@@ -793,7 +793,7 @@ pub fn walk_parameter<V: NodeVisitor + ?Sized>(
 pub fn walk_argument<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
     tree: &NodeTree,
-    id: NodeId<Argument>,
+    id: LocalNodeId<Argument>,
     argument: &Argument,
 ) {
     visitor.visit_any(tree, NodeType::Argument, id.id);
@@ -820,7 +820,7 @@ pub fn walk_argument<V: NodeVisitor + ?Sized>(
 pub fn walk_pattern<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
     tree: &NodeTree,
-    id: NodeId<Pattern>,
+    id: LocalNodeId<Pattern>,
     pattern: &Pattern,
 ) {
     visitor.visit_any(tree, NodeType::Pattern, id.id);
@@ -851,7 +851,7 @@ pub fn walk_pattern<V: NodeVisitor + ?Sized>(
 pub fn walk_pattern_field<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
     tree: &NodeTree,
-    id: NodeId<PatternField>,
+    id: LocalNodeId<PatternField>,
     field: &PatternField,
 ) {
     visitor.visit_any(tree, NodeType::PatternField, id.id);
@@ -894,7 +894,7 @@ pub fn walk_pattern_field<V: NodeVisitor + ?Sized>(
 pub fn walk_annotation<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
     tree: &NodeTree,
-    id: NodeId<Annotation>,
+    id: LocalNodeId<Annotation>,
     _annotation: &Annotation,
 ) {
     visitor.visit_any(tree, NodeType::Annotation, id.id);
@@ -904,7 +904,7 @@ pub fn walk_annotation<V: NodeVisitor + ?Sized>(
 pub fn walk_type<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
     tree: &NodeTree,
-    id: NodeId<Type>,
+    id: LocalNodeId<Type>,
     ty: &Type,
 ) {
     visitor.visit_any(tree, NodeType::Type, id.id);
@@ -983,7 +983,7 @@ pub fn walk_type<V: NodeVisitor + ?Sized>(
 pub fn walk_type_field<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
     tree: &NodeTree,
-    id: NodeId<TypeField>,
+    id: LocalNodeId<TypeField>,
     attribute: &TypeField,
 ) {
     visitor.visit_any(tree, NodeType::TypeField, id.id);

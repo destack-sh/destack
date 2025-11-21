@@ -1,5 +1,5 @@
 use crate::{
-    BindingModifier, Expression, Node, NodeId, NodeType, Pattern, StringId, SymbolId, Type,
+    BindingModifier, Expression, Node, LocalNodeId, NodeType, Pattern, StringId, LocalSymbolId, Type,
 };
 
 /// A Parameter is a parameter to some construct.
@@ -9,24 +9,24 @@ pub enum Parameter {
     Named {
         modifiers: Option<BindingModifier>,
         name: StringId,
-        ty: Option<NodeId<Type>>,
-        default: Option<NodeId<Expression>>,
-        symbol: SymbolId,
+        ty: Option<LocalNodeId<Type>>,
+        default: Option<LocalNodeId<Expression>>,
+        symbol: LocalSymbolId,
     },
     /// Pattern parameter (like `_` or `{ x }` or `{ x }: MyType = Foo`).
     Pattern {
         modifiers: Option<BindingModifier>,
-        pattern: NodeId<Pattern>,
-        ty: Option<NodeId<Type>>,
-        default: Option<NodeId<Expression>>,
-        symbol: SymbolId,
+        pattern: LocalNodeId<Pattern>,
+        ty: Option<LocalNodeId<Type>>,
+        default: Option<LocalNodeId<Expression>>,
+        symbol: LocalSymbolId,
     },
     /// Variadic parameter (like `..T` or `...x: int32[]`).
     Variadic {
         modifiers: Option<BindingModifier>,
         name: StringId,
-        ty: Option<NodeId<Type>>,
-        symbol: SymbolId,
+        ty: Option<LocalNodeId<Type>>,
+        symbol: LocalSymbolId,
     },
 }
 
@@ -45,54 +45,54 @@ pub enum Argument {
     UnresolvedNamed {
         modifiers: Option<BindingModifier>,
         name: StringId,
-        value: NodeId<Expression>,
+        value: LocalNodeId<Expression>,
     },
     /// Unresolved positional argument.
     UnresolvedPositional {
         modifiers: Option<BindingModifier>,
-        value: NodeId<Expression>,
+        value: LocalNodeId<Expression>,
     },
     /// Unresolved positional spread argument.
     UnresolvedSpread {
         modifiers: Option<BindingModifier>,
         name: Option<StringId>,
-        value: NodeId<Expression>,
+        value: LocalNodeId<Expression>,
     },
     /// Unresolved dynamic argument.
     UnresolvedDynamic {
         modifiers: Option<BindingModifier>,
         name: Option<StringId>,
-        key: NodeId<Expression>,
-        value: NodeId<Expression>,
+        key: LocalNodeId<Expression>,
+        value: LocalNodeId<Expression>,
     },
 
     /// Direct argument (named or positional).
     Direct {
         modifiers: Option<BindingModifier>,
         name: StringId,
-        parameter: NodeId<Parameter>,
-        value: NodeId<Expression>,
+        parameter: LocalNodeId<Parameter>,
+        value: LocalNodeId<Expression>,
     },
     /// Spread argument.
     Spread {
         modifiers: Option<BindingModifier>,
         name: StringId,
-        parameter: NodeId<Parameter>,
-        value: NodeId<Expression>,
+        parameter: LocalNodeId<Parameter>,
+        value: LocalNodeId<Expression>,
     },
     /// Dynamic argument.
     Dynamic {
         modifiers: Option<BindingModifier>,
         name: Option<StringId>,
-        parameter: NodeId<Parameter>,
-        key: NodeId<Expression>,
-        value: NodeId<Expression>,
+        parameter: LocalNodeId<Parameter>,
+        key: LocalNodeId<Expression>,
+        value: LocalNodeId<Expression>,
     },
 }
 
 impl Argument {
     /// Get the value of the Argument.
-    pub fn value(&self) -> NodeId<Expression> {
+    pub fn value(&self) -> LocalNodeId<Expression> {
         match self {
             Argument::UnresolvedNamed { value, .. } => *value,
             Argument::UnresolvedPositional { value, .. } => *value,

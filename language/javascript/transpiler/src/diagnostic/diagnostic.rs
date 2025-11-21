@@ -1,4 +1,4 @@
-use dyst_dir::{NodeIdAny, NodeTree, Session};
+use dyst_dir::{LocalNodeIdAny, NodeTree, Session};
 use dyst_source::{Diagnostic, DiagnosticSeverity, LabeledSpan};
 
 use crate::{TranspileError, TranspileWarning};
@@ -30,7 +30,7 @@ impl TranspileDiagnostic {
     }
 
     /// Get the node id of the diagnostic.
-    pub fn node_id(&self) -> NodeIdAny {
+    pub fn node_id(&self) -> LocalNodeIdAny {
         match self {
             Self::Error(error) => error.node_id(),
             Self::Warning(warning) => warning.node_id(),

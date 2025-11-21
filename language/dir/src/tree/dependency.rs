@@ -1,6 +1,6 @@
 use dyst_source::StringId;
 
-use crate::{Expression, ModuleId, Node, NodeId, NodeType, SymbolId};
+use crate::{Expression, ModuleId, Node, LocalNodeId, NodeType, LocalSymbolId};
 
 /// How an Export should be treated for processing by the system.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -29,23 +29,23 @@ pub enum DependencyItem {
     UnresolvedDefault {
         kind: DependencyKind,
         alias: StringId,
-        symbol: SymbolId,
+        symbol: LocalSymbolId,
     },
     /// Import or export a single item from a target (`import "foo"` or `export "foo"`).
     UnresolvedItem {
         kind: DependencyKind,
         name: StringId,
         alias: Option<StringId>,
-        symbol: SymbolId,
+        symbol: LocalSymbolId,
     },
     /// Value expression dependency (like `export = foo`).
-    Value { value: NodeId<Expression> },
+    Value { value: LocalNodeId<Expression> },
     /// Internal to the module (i.e., plain exports).
-    Local { symbol: SymbolId },
+    Local { symbol: LocalSymbolId },
     /// Remote to the module (i.e., imports and re-exports).
     Remote {
-        symbol: SymbolId,
-        remote_symbol: SymbolId,
+        symbol: LocalSymbolId,
+        remote_symbol: LocalSymbolId,
         module: ModuleId,
     },
 }

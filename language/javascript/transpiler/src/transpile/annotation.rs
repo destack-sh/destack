@@ -1,5 +1,5 @@
 use dyst_dir::{self as dir, Module, NodeTree};
-use dyst_javascript_ast::{Annotation, AnnotationPosition, NodeId};
+use dyst_javascript_ast::{Annotation, AnnotationPosition, LocalNodeId};
 
 use crate::{TranspileResult, Transpiler, TranspilerUnit};
 
@@ -21,10 +21,10 @@ impl<'a> Transpiler<'a> {
         &self,
         module: &'a Module,
         tree: &NodeTree,
-        scope_id: dir::NodeIdAny,
-        annotation_id: dir::NodeId<dir::Annotation>,
+        scope_id: dir::LocalNodeIdAny,
+        annotation_id: dir::LocalNodeId<dir::Annotation>,
         unit: &mut TranspilerUnit,
-    ) -> TranspileResult<NodeId<Annotation>> {
+    ) -> TranspileResult<LocalNodeId<Annotation>> {
         let annotation = tree.get(annotation_id);
         let annotation = match annotation {
             dir::Annotation::Doc { position, string } => {

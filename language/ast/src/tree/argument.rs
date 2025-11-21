@@ -1,4 +1,4 @@
-use crate::{BindingModifier, Expression, Name, Node, NodeId, NodeType, Pattern, StringId};
+use crate::{BindingModifier, Expression, Name, Node, LocalNodeId, NodeType, Pattern, StringId};
 
 /// A Parameter is a parameter to some construct.
 ///
@@ -22,21 +22,21 @@ pub enum Parameter {
     Named {
         modifiers: Option<BindingModifier>,
         name: StringId,
-        ty: Option<NodeId<Expression>>,
-        default: Option<NodeId<Expression>>,
+        ty: Option<LocalNodeId<Expression>>,
+        default: Option<LocalNodeId<Expression>>,
     },
     /// Pattern parameter (like `_` or `{ x }` or `{ x }: MyType = Foo`).
     Pattern {
         modifiers: Option<BindingModifier>,
-        pattern: NodeId<Pattern>,
-        ty: Option<NodeId<Expression>>,
-        default: Option<NodeId<Expression>>,
+        pattern: LocalNodeId<Pattern>,
+        ty: Option<LocalNodeId<Expression>>,
+        default: Option<LocalNodeId<Expression>>,
     },
     /// Variadic parameter (like `..T` or `...x: int32[]`).
     Variadic {
         modifiers: Option<BindingModifier>,
         name: StringId,
-        ty: Option<NodeId<Expression>>,
+        ty: Option<LocalNodeId<Expression>>,
     },
 }
 
@@ -69,7 +69,7 @@ pub enum Argument {
     Named {
         modifiers: Option<BindingModifier>,
         name: Name,
-        value: NodeId<Expression>,
+        value: LocalNodeId<Expression>,
     },
     /// Named shorthand argument (like `y`, only in certain contexts like struct literals).
     Shorthand {
@@ -79,13 +79,13 @@ pub enum Argument {
     /// Positional argument (like `1` or `foo()`).
     Positional {
         modifiers: Option<BindingModifier>,
-        value: NodeId<Expression>,
+        value: LocalNodeId<Expression>,
     },
     /// Spread argument (like `...args` or `...args: int32[]`).
     Spread {
         modifiers: Option<BindingModifier>,
         name: Option<StringId>,
-        value: NodeId<Expression>,
+        value: LocalNodeId<Expression>,
     },
 }
 

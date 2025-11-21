@@ -1,6 +1,6 @@
 use crate::{
     BindingScope, Block, ExportType, Expression, FunctionSignature, Generics, Heritage, Name, Node,
-    NodeId, NodeType, Property, StringId,
+    LocalNodeId, NodeType, Property, StringId,
 };
 
 /// The kind of declaration.
@@ -31,32 +31,32 @@ pub enum Definition {
     /// Namespace definition (TS-only).
     Namespace {
         descriptor: DeclarationDescriptor,
-        definitions: Vec<NodeId<Definition>>,
+        definitions: Vec<LocalNodeId<Definition>>,
     },
     /// Class definition.
     Class {
         descriptor: DeclarationDescriptor,
         generics: Generics,
         heritage: Heritage,
-        properties: Vec<NodeId<Property>>,
+        properties: Vec<LocalNodeId<Property>>,
     },
     /// Interface definition.
     Interface {
         descriptor: DeclarationDescriptor,
         generics: Generics,
         heritage: Heritage,
-        properties: Vec<NodeId<Property>>,
+        properties: Vec<LocalNodeId<Property>>,
     },
     /// Enum definition.
     Enum {
         descriptor: DeclarationDescriptor,
-        fields: Vec<NodeId<EnumField>>,
+        fields: Vec<LocalNodeId<EnumField>>,
     },
     /// Function definition.
     Function {
         descriptor: DeclarationDescriptor,
         signature: FunctionSignature,
-        body: Option<NodeId<Block>>,
+        body: Option<LocalNodeId<Block>>,
     },
 }
 
@@ -70,7 +70,7 @@ pub struct EnumField {
     /// The name of the enum field.
     pub name: StringId,
     /// The value of the enum field.
-    pub value: Option<NodeId<Expression>>,
+    pub value: Option<LocalNodeId<Expression>>,
 }
 
 impl Node for EnumField {

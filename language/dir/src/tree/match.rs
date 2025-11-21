@@ -1,4 +1,4 @@
-use crate::{Block, Expression, Node, NodeId, NodeType, Pattern, ScopeId};
+use crate::{Block, Expression, Node, LocalNodeId, NodeType, Pattern, LocalScopeId};
 
 /// A MatchSource is where the match was lowered from.
 #[derive(Debug, Copy, Clone, PartialEq)]
@@ -19,17 +19,17 @@ pub enum MatchSource {
 pub enum MatchCase {
     /// A match case with an expression body.
     Expression {
-        pattern: NodeId<Pattern>,
-        body: NodeId<Expression>,
-        guard: Option<NodeId<Expression>>,
-        scope: ScopeId,
+        pattern: LocalNodeId<Pattern>,
+        body: LocalNodeId<Expression>,
+        guard: Option<LocalNodeId<Expression>>,
+        scope: LocalScopeId,
     },
     /// A match case with a block body.
     Block {
-        pattern: NodeId<Pattern>,
-        body: NodeId<Block>,
-        guard: Option<NodeId<Expression>>,
-        scope: ScopeId,
+        pattern: LocalNodeId<Pattern>,
+        body: LocalNodeId<Block>,
+        guard: Option<LocalNodeId<Expression>>,
+        scope: LocalScopeId,
     },
 }
 

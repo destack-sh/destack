@@ -2,8 +2,8 @@ use dyst_fir::format::{Format, FormatContext, FormatOptions, FormatResult, Forma
 use dyst_fir::prelude::*;
 use dyst_fir::print::PrintOptions;
 use dyst_javascript_ast::{
-    Annotation, Argument, Block, Definition, DependencyItem, EnumField, Expression, Node, NodeId,
-    NodeIdAny, NodeTree, NodeTreeImpl, NodeType, Parameter, Pattern, PatternField, Property,
+    Annotation, Argument, Block, Definition, DependencyItem, EnumField, Expression, Node, LocalNodeId,
+    LocalNodeIdAny, NodeTree, NodeTreeImpl, NodeType, Parameter, Pattern, PatternField, Property,
     Statement, SwitchCase, Type, TypeField,
 };
 use dyst_source::{File, ImmutableStringPool, IndentStyle, LineEnding};
@@ -231,13 +231,13 @@ where
     /// Format a node.
     fn format_node(
         &self,
-        node_id: NodeId<T>,
+        node_id: LocalNodeId<T>,
         f: &mut JavaScriptFormatter<'a, '_>,
     ) -> FormatResult<()>;
 }
 
 /// Implement Format for FormatNode for NodeIds.
-impl<'a, T: Node> Format<JavaScriptFormatContext<'a>> for NodeId<T>
+impl<'a, T: Node> Format<JavaScriptFormatContext<'a>> for LocalNodeId<T>
 where
     T: Node + Clone,
     NodeTree: NodeTreeImpl<T>,
@@ -252,83 +252,83 @@ where
 }
 
 /// Implement Format for FormatNode for NodeIdsAny.
-impl<'a> Format<JavaScriptFormatContext<'a>> for NodeIdAny {
+impl<'a> Format<JavaScriptFormatContext<'a>> for LocalNodeIdAny {
     #[inline]
     fn format(&self, f: &mut JavaScriptFormatter<'a, '_>) -> FormatResult<()> {
         let context = f.context();
         match self.ty {
             NodeType::Block => {
-                let node_id = NodeId::<Block>::new(self.id);
+                let node_id = LocalNodeId::<Block>::new(self.id);
                 let node = context.tree.get(node_id);
                 node.format_node(node_id, f)
             }
             NodeType::Statement => {
-                let node_id = NodeId::<Statement>::new(self.id);
+                let node_id = LocalNodeId::<Statement>::new(self.id);
                 let node = context.tree.get(node_id);
                 node.format_node(node_id, f)
             }
             NodeType::Expression => {
-                let node_id = NodeId::<Expression>::new(self.id);
+                let node_id = LocalNodeId::<Expression>::new(self.id);
                 let node = context.tree.get(node_id);
                 node.format_node(node_id, f)
             }
             NodeType::Definition => {
-                let node_id = NodeId::<Definition>::new(self.id);
+                let node_id = LocalNodeId::<Definition>::new(self.id);
                 let node = context.tree.get(node_id);
                 node.format_node(node_id, f)
             }
             NodeType::Property => {
-                let node_id = NodeId::<Property>::new(self.id);
+                let node_id = LocalNodeId::<Property>::new(self.id);
                 let node = context.tree.get(node_id);
                 node.format_node(node_id, f)
             }
             NodeType::Type => {
-                let node_id = NodeId::<Type>::new(self.id);
+                let node_id = LocalNodeId::<Type>::new(self.id);
                 let node = context.tree.get(node_id);
                 node.format_node(node_id, f)
             }
             NodeType::TypeField => {
-                let node_id = NodeId::<TypeField>::new(self.id);
+                let node_id = LocalNodeId::<TypeField>::new(self.id);
                 let node = context.tree.get(node_id);
                 node.format_node(node_id, f)
             }
             NodeType::EnumField => {
-                let node_id = NodeId::<EnumField>::new(self.id);
+                let node_id = LocalNodeId::<EnumField>::new(self.id);
                 let node = context.tree.get(node_id);
                 node.format_node(node_id, f)
             }
             NodeType::DependencyItem => {
-                let node_id = NodeId::<DependencyItem>::new(self.id);
+                let node_id = LocalNodeId::<DependencyItem>::new(self.id);
                 let node = context.tree.get(node_id);
                 node.format_node(node_id, f)
             }
             NodeType::SwitchCase => {
-                let node_id = NodeId::<SwitchCase>::new(self.id);
+                let node_id = LocalNodeId::<SwitchCase>::new(self.id);
                 let node = context.tree.get(node_id);
                 node.format_node(node_id, f)
             }
             NodeType::Pattern => {
-                let node_id = NodeId::<Pattern>::new(self.id);
+                let node_id = LocalNodeId::<Pattern>::new(self.id);
                 let node = context.tree.get(node_id);
                 node.format_node(node_id, f)
             }
             NodeType::PatternField => {
-                let node_id = NodeId::<PatternField>::new(self.id);
+                let node_id = LocalNodeId::<PatternField>::new(self.id);
                 let node = context.tree.get(node_id);
                 node.format_node(node_id, f)
             }
             NodeType::Parameter => {
-                let node_id = NodeId::<Parameter>::new(self.id);
+                let node_id = LocalNodeId::<Parameter>::new(self.id);
                 let node = context.tree.get(node_id);
                 node.format_node(node_id, f)
             }
             NodeType::Argument => {
-                let node_id = NodeId::<Argument>::new(self.id);
+                let node_id = LocalNodeId::<Argument>::new(self.id);
                 let node = context.tree.get(node_id);
                 node.format_node(node_id, f)
             }
             NodeType::Annotation => {
-                let node_id = NodeId::<Annotation>::new(self.id);
+                let node_id = LocalNodeId::<Annotation>::new(self.id);
                 let node = context.tree.get(node_id);
                 node.format_node(node_id, f)
             }

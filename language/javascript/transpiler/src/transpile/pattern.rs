@@ -1,7 +1,7 @@
 use crate::{TranspileError, TranspileResult, TranspileResultExt, Transpiler, TranspilerUnit};
 use dyst_dir as dir;
 use dyst_dir::{Module, NodeTree};
-use dyst_javascript_ast::{Expression, NodeId, Pattern, PatternField};
+use dyst_javascript_ast::{Expression, LocalNodeId, Pattern, PatternField};
 
 impl<'a> Transpiler<'a> {
     /// Transpile a pattern from DIR into JS AST.
@@ -9,9 +9,9 @@ impl<'a> Transpiler<'a> {
         &self,
         module: &Module,
         tree: &NodeTree,
-        pattern_id: dir::NodeId<dir::Pattern>,
+        pattern_id: dir::LocalNodeId<dir::Pattern>,
         unit: &mut TranspilerUnit,
-    ) -> TranspileResult<NodeId<Pattern>> {
+    ) -> TranspileResult<LocalNodeId<Pattern>> {
         let pattern = tree.get(pattern_id);
         let pattern_id = match pattern {
             dir::Pattern::Wildcard => {
@@ -42,9 +42,9 @@ impl<'a> Transpiler<'a> {
         &self,
         module: &Module,
         tree: &NodeTree,
-        pattern_field_id: dir::NodeId<dir::PatternField>,
+        pattern_field_id: dir::LocalNodeId<dir::PatternField>,
         unit: &mut TranspilerUnit,
-    ) -> TranspileResult<NodeId<PatternField>> {
+    ) -> TranspileResult<LocalNodeId<PatternField>> {
         let pattern_field = tree.get(pattern_field_id);
         let pattern_field_id = match pattern_field {
             dir::PatternField::Named {

@@ -1,4 +1,4 @@
-use crate::{Expression, NodeId};
+use crate::{Expression, LocalNodeId};
 use dyst_source::StringId;
 
 /// A Name is a regular or string identifier.
@@ -16,7 +16,7 @@ pub enum Key {
     /// Name (like `x` or `someThing`).
     Name(Name),
     /// Dynamic key (like `["Content-Type"]`).
-    Expression(NodeId<Expression>),
+    Expression(LocalNodeId<Expression>),
     /// Named dynamic key (like `[x: string]: any`).
-    NamedExpression { name: Name, key: NodeId<Expression> },
+    NamedExpression { name: Name, key: LocalNodeId<Expression> },
 }

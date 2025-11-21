@@ -1,4 +1,4 @@
-use dyst_ast::{DependencyItem, DependencyKind, Keyword, NodeId};
+use dyst_ast::{DependencyItem, DependencyKind, Keyword, LocalNodeId};
 use dyst_fir::format::FormatResult;
 use dyst_source::StringId;
 
@@ -10,7 +10,7 @@ use dyst_fir::write;
 impl<'ast> FormatNode<'ast, DependencyItem> for DependencyItem {
     fn format_node(
         &self,
-        node_id: NodeId<DependencyItem>,
+        node_id: LocalNodeId<DependencyItem>,
         f: &mut DystFormatter<'ast, '_>,
     ) -> FormatResult<()> {
         write!(f, [f.context().any_prefix_annotations(node_id)])?;
@@ -37,7 +37,7 @@ pub(crate) fn format_dependency_binding<'ast>(
     f: &mut DystFormatter<'ast, '_>,
     target: Option<&StringId>,
     alias: Option<StringId>,
-    items: Option<&Vec<NodeId<DependencyItem>>>,
+    items: Option<&Vec<LocalNodeId<DependencyItem>>>,
     include_glob: bool,
 ) -> FormatResult<()> {
     // items with maybe target

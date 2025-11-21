@@ -1,7 +1,7 @@
 use crate::{Compiler, ResolveError, ResolveResult};
 use dyst_ast::StringId;
 use dyst_dir::{
-    Expression, FloatType, IntType, ModuleId, NodeId, NodeTree, PrimitiveType, Type, TypeLiteral,
+    Expression, FloatType, IntType, ModuleId, LocalNodeId, NodeTree, PrimitiveType, Type, TypeLiteral,
     TypeUnaryOperator, UnaryOperator,
 };
 
@@ -10,7 +10,7 @@ impl<'a> Compiler<'a> {
     pub(super) fn resolve_type(
         &self,
         _module_id: ModuleId,
-        ty_id: NodeId<Type>,
+        ty_id: LocalNodeId<Type>,
         tree: &mut NodeTree,
     ) -> ResolveResult<()> {
         let expression_id = {
@@ -32,9 +32,9 @@ impl<'a> Compiler<'a> {
     /// Try to Resolve an Expression as a Type id.
     fn try_resolve_expression_to_type(
         &self,
-        expression_id: NodeId<Expression>,
+        expression_id: LocalNodeId<Expression>,
         tree: &mut NodeTree,
-    ) -> ResolveResult<NodeId<Type>> {
+    ) -> ResolveResult<LocalNodeId<Type>> {
         let ty = self.try_resolve_expression_to_type_value(expression_id, tree)?;
         Ok(tree.insert_from(ty, expression_id))
     }
@@ -43,7 +43,7 @@ impl<'a> Compiler<'a> {
     /// Returns the resolved Type value, or a Type::UnresolvedExpression if it fails.
     fn try_resolve_expression_to_type_value(
         &self,
-        expression_id: NodeId<Expression>,
+        expression_id: LocalNodeId<Expression>,
         tree: &mut NodeTree,
     ) -> ResolveResult<Type> {
         let ty = self
@@ -55,7 +55,7 @@ impl<'a> Compiler<'a> {
     /// Resolve an Expression into a Type (in-place).
     fn resolve_expression_to_type(
         &self,
-        expression_id: NodeId<Expression>,
+        expression_id: LocalNodeId<Expression>,
         tree: &mut NodeTree,
     ) -> ResolveResult<Option<Type>> {
         let expression = tree.get(expression_id);

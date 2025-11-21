@@ -12,7 +12,7 @@ use crate::TsConfigJson;
 
 /// Unique identifier for Packages.
 #[repr(transparent)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct PackageId(pub u32);
 
 impl PackageId {

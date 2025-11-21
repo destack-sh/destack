@@ -4,12 +4,12 @@ use crate::{FormatNode, JavaScriptFormatter};
 use dyst_fir::format::FormatResult;
 use dyst_fir::prelude::*;
 use dyst_fir::{format_args, write};
-use dyst_javascript_ast::{DependencyKind, Keyword, Mutability, NodeId, Statement};
+use dyst_javascript_ast::{DependencyKind, Keyword, Mutability, LocalNodeId, Statement};
 
 impl<'ast> FormatNode<'ast, Statement> for Statement {
     fn format_node(
         &self,
-        _node_id: NodeId<Statement>,
+        _node_id: LocalNodeId<Statement>,
         f: &mut JavaScriptFormatter<'ast, '_>,
     ) -> FormatResult<()> {
         match self {

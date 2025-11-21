@@ -4,7 +4,7 @@ use std::marker::PhantomData;
 use crate::Keyword;
 
 /// The type of a node.
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum NodeType {
     Expression,
     Block,
@@ -65,14 +65,14 @@ pub const ANNOTATION_NODE_TYPES: [NodeType; 6] = [
     NodeType::Decorator,
 ];
 
-/// Unique identifier for nodes with dynamic type.
-#[derive(Clone, Copy, PartialEq, Eq, Hash)]
-pub struct NodeIdAny {
+/// Unique identifier for nodes with dynamic type in a local arena.
+#[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub struct LocalNodeIdAny {
     pub id: u32,
     pub ty: NodeType,
 }
 
-impl NodeIdAny {
+impl LocalNodeIdAny {
     pub fn new(id: u32, ty: NodeType) -> Self {
         Self { id, ty }
     }
@@ -83,11 +83,11 @@ impl NodeIdAny {
     }
 }
 
-impl<T: Node> From<NodeId<T>> for NodeIdAny
+impl<T: Node> From<LocalNodeId<T>> for LocalNodeIdAny
 where
     T: Node,
 {
-    fn from(id: NodeId<T>) -> Self {
+    fn from(id: LocalNodeId<T>) -> Self {
         Self {
             id: id.id,
             ty: T::TYPE,
@@ -95,17 +95,17 @@ where
     }
 }
 
-impl Debug for NodeIdAny {
+impl Debug for LocalNodeIdAny {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("NodeIdAny")
+        f.debug_struct("LocalNodeIdAny")
             .field("id", &self.id)
             .field("type", &self.ty)
             .finish()
     }
 }
 
-impl<T: Node> From<NodeIdAny> for NodeId<T> {
-    fn from(id: NodeIdAny) -> Self {
+impl<T: Node> From<LocalNodeIdAny> for LocalNodeId<T> {
+    fn from(id: LocalNodeIdAny) -> Self {
         debug_assert_eq!(id.ty, T::TYPE);
         Self {
             id: id.id,
@@ -114,15 +114,15 @@ impl<T: Node> From<NodeIdAny> for NodeId<T> {
     }
 }
 
-/// Unique identifier for nodes in an arena, parameterized by node type.
+/// Unique identifier for nodes in a local arena, parameterized by node type.
 #[repr(transparent)]
 #[derive(Clone, Eq, PartialEq, Hash, PartialOrd, Ord)]
-pub struct NodeId<T: Node> {
+pub struct LocalNodeId<T: Node> {
     pub id: u32,
     _ty: PhantomData<fn() -> T>,
 }
 
-impl<T: Node> NodeId<T> {
+impl<T: Node> LocalNodeId<T> {
     /// Create a new node id.
     #[inline]
     pub fn new(id: u32) -> Self {
@@ -132,26 +132,26 @@ impl<T: Node> NodeId<T> {
         }
     }
 
-    /// Turn into a NodeIdAny.
+    /// Turn into a LocalNodeIdAny.
     #[inline]
-    pub fn into_any(self) -> NodeIdAny {
-        NodeIdAny {
+    pub fn into_any(self) -> LocalNodeIdAny {
+        LocalNodeIdAny {
             id: self.id,
             ty: T::TYPE,
         }
     }
 }
 
-impl<T: Node> Debug for NodeId<T> {
+impl<T: Node> Debug for LocalNodeId<T> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("NodeId").field("id", &self.id).finish()
+        f.debug_struct("LocalNodeId").field("id", &self.id).finish()
     }
 }
 
 // manually mark as Copy since PhantomData over T breaks Copy otherwise (?)
-impl<T: Clone + Node> Copy for NodeId<T> {}
+impl<T: Clone + Node> Copy for LocalNodeId<T> {}
 
-impl<T: Node> NodeId<T> {
+impl<T: Node> LocalNodeId<T> {
     #[inline]
     pub fn get(&self) -> usize {
         self.id as usize

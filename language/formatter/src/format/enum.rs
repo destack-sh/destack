@@ -1,5 +1,5 @@
 use crate::{DystFormatter, FormatNode};
-use dyst_ast::{EnumField, NodeId};
+use dyst_ast::{EnumField, LocalNodeId};
 use dyst_fir::format::FormatResult;
 use dyst_fir::prelude::*;
 use dyst_fir::write;
@@ -7,7 +7,7 @@ use dyst_fir::write;
 impl<'ast> FormatNode<'ast, EnumField> for EnumField {
     fn format_node(
         &self,
-        node_id: NodeId<EnumField>,
+        node_id: LocalNodeId<EnumField>,
         f: &mut DystFormatter<'ast, '_>,
     ) -> FormatResult<()> {
         write!(f, [f.context().any_prefix_annotations(node_id)])?;

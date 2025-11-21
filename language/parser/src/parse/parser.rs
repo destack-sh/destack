@@ -2,7 +2,7 @@ use core::fmt;
 use std::fmt::Debug;
 
 use crate::{Lexer, is_semantic};
-use dyst_ast::{BlockFormat, Expression, NodeId, NodeTree, NodeType, TokenSpan, TokenType};
+use dyst_ast::{BlockFormat, Expression, LocalNodeId, NodeTree, NodeType, TokenSpan, TokenType};
 use dyst_source::{
     DiagnosticCollector, EnclosingSpan, File, FileId, LanguageOptions, MultiSpan, NodeSearch, Span,
     StringPool,
@@ -320,7 +320,7 @@ impl<'a> Parser<'a> {
     }
 
     /// Parse everything as an implicit namespace (without creating the namespace).
-    pub fn parse(&mut self) -> Vec<NodeId<Expression>> {
+    pub fn parse(&mut self) -> Vec<LocalNodeId<Expression>> {
         let expressions = self.with_recovery(
             self.mark(),
             |parser| parser.eat_block_body(BlockFormat::Implicit),

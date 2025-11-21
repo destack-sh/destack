@@ -1,4 +1,4 @@
-use crate::{NodeId, NodeIdAny, ScopeId, StringId, Type};
+use crate::{LocalNodeId, LocalNodeIdAny, LocalScopeId, ModuleId, StringId, Type};
 
 /// Key for a symbol.
 #[derive(Debug, Clone, Copy, PartialEq, Hash, PartialOrd, Eq)]
@@ -6,7 +6,7 @@ pub enum SymbolKey {
     /// Regular name key (like `x` or `"weird identifier"`).
     Name(StringId),
     /// Unique symbol expression (like `const x = Symbol("x");`).
-    UniqueSymbol(NodeIdAny),
+    UniqueSymbol(LocalNodeIdAny),
     /// Global symbol key (like `Symbol.iterator`).
     GlobalSymbol(StringId),
 }
@@ -23,12 +23,28 @@ pub enum SymbolSpace {
 /// Unique identifier for Symbols.
 #[repr(transparent)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct SymbolId(pub u32);
+pub struct LocalSymbolId(pub u32);
 
-impl SymbolId {
+impl LocalSymbolId {
     /// Wrap an id as a SymbolId.
     pub fn new(id: u32) -> Self {
         Self(id)
+    }
+}
+
+/// Global symbol id across modules.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct GlobalSymbolId {
+    /// The module id of the global symbol.
+    pub module_id: ModuleId,
+    /// The local id of the global symbol.
+    pub local_id: LocalSymbolId,
+}
+
+impl GlobalSymbolId {
+    /// Create a new global symbol id.
+    pub fn new(module_id: ModuleId, local_id: LocalSymbolId) -> Self {
+        Self { module_id, local_id }
     }
 }
 
@@ -37,25 +53,25 @@ impl SymbolId {
 #[derive(Debug, Clone, PartialEq)]
 pub struct Symbol {
     /// The id of the symbol.
-    pub id: SymbolId,
+    pub id: LocalSymbolId,
     /// The "space" of the symbol.
     pub space: SymbolSpace,
     /// The key of the symbol.
     pub key: Option<SymbolKey>,
     /// The scope that introduces the symbol.
-    pub scope: ScopeId,
+    pub scope: LocalScopeId,
     /// The owned scope of the symbol.
-    pub owned_scope: Option<ScopeId>,
+    pub owned_scope: Option<LocalScopeId>,
     /// The main declaration node of the symbol.
-    pub primary_declaration: Option<NodeIdAny>,
+    pub primary_declaration: Option<LocalNodeIdAny>,
     /// Secondary declaration nodes of the symbol.
-    pub secondary_declarations: Vec<NodeIdAny>,
+    pub secondary_declarations: Vec<LocalNodeIdAny>,
     /// The declared type of the symbol.
-    pub declared_ty: Option<NodeId<Type>>,
+    pub declared_ty: Option<LocalNodeId<Type>>,
     /// The inferred type of the symbol.
-    pub inferred_ty: Option<NodeId<Type>>,
+    pub inferred_ty: Option<LocalNodeId<Type>>,
     /// Forward to another remote symbol (like for imports, pattern bindings, etc.).
-    pub remote_symbol: Option<SymbolId>,
+    pub remote_symbol: Option<LocalSymbolId>,
 }
 
 impl Symbol {

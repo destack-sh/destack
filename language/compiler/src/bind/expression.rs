@@ -1,7 +1,7 @@
 use dyst_ast::{self as ast};
 use dyst_dir::{
-    DependencyItem, Expression, ForEachKind, IfKind, LoopKind, MatchSource, Module, NodeId,
-    NodeTree, ScopeId, ScopeKind, SymbolKey, SymbolSpace, YieldCardinality,
+    DependencyItem, Expression, ForEachKind, IfKind, LoopKind, MatchSource, Module, LocalNodeId,
+    NodeTree, LocalScopeId, ScopeKind, SymbolKey, SymbolSpace, YieldCardinality,
 };
 
 use crate::Compiler;
@@ -20,10 +20,10 @@ impl<'a> Compiler<'a> {
     pub(super) fn bind_expression(
         &self,
         module: &Module,
-        scope_id: ScopeId,
-        expression_id: ast::NodeId<ast::Expression>,
+        scope_id: LocalScopeId,
+        expression_id: ast::LocalNodeId<ast::Expression>,
         tree: &mut NodeTree,
-    ) -> NodeId<Expression> {
+    ) -> LocalNodeId<Expression> {
         let expression = module.get(expression_id);
         let expression = match expression {
             ast::Expression::Block(block_id) => {

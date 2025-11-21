@@ -1,10 +1,10 @@
 use crate::Compiler;
 use dyst_ast::{self as ast};
-use dyst_dir::{Annotation, AnnotationPosition, Module, NodeId, NodeTree, ScopeId};
+use dyst_dir::{Annotation, AnnotationPosition, Module, LocalNodeId, NodeTree, LocalScopeId};
 
 impl<'a> Compiler<'a> {
     /// Bind and attach all annotations for a module.
-    pub fn attach_annotations(&self, module: &Module, scope_id: ScopeId, tree: &mut NodeTree) {
+    pub fn attach_annotations(&self, module: &Module, scope_id: LocalScopeId, tree: &mut NodeTree) {
         // bind them
         for ast_annotation_id in module.get_nodes::<ast::Annotation>() {
             self.bind_annotation(module, scope_id, ast_annotation_id, tree);
@@ -21,7 +21,7 @@ impl<'a> Compiler<'a> {
                 else {
                     continue; // skipped by bind_annotation
                 };
-                tree.append_annotation(dir_node_id, NodeId::new(dir_annotation_id));
+                tree.append_annotation(dir_node_id, LocalNodeId::new(dir_annotation_id));
             }
         }
     }
@@ -45,10 +45,10 @@ impl<'a> Compiler<'a> {
     pub(super) fn bind_annotation(
         &self,
         module: &Module,
-        scope_id: ScopeId,
-        annotation_id: ast::NodeId<ast::Annotation>,
+        scope_id: LocalScopeId,
+        annotation_id: ast::LocalNodeId<ast::Annotation>,
         tree: &mut NodeTree,
-    ) -> Option<NodeId<Annotation>> {
+    ) -> Option<LocalNodeId<Annotation>> {
         let annotation = module.get(annotation_id);
         let annotation = match annotation {
             ast::Annotation::Blank { .. } => {

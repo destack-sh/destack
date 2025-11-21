@@ -1,4 +1,4 @@
-use dyst_dir::{ModuleId, NodeIdAny, Session};
+use dyst_dir::{ModuleId, LocalNodeIdAny, Session};
 use dyst_parser::ParseError;
 use dyst_source::{FileId, StringId};
 
@@ -19,11 +19,11 @@ pub enum ImportError {
     /// Failed to parse a module.
     ParseError {
         module: ModuleId,
-        node: NodeIdAny,
+        node: LocalNodeIdAny,
         diagnostics: Vec<ParseError>,
     },
     /// Circular dependency.
-    CircularDependency { node: NodeIdAny },
+    CircularDependency { node: LocalNodeIdAny },
 }
 
 impl ImportError {
@@ -39,7 +39,7 @@ impl ImportError {
     }
 
     /// Get the node id of the error.
-    pub fn node_id(&self) -> Option<NodeIdAny> {
+    pub fn node_id(&self) -> Option<LocalNodeIdAny> {
         match self {
             Self::FileIdNotFound { .. } => None,
             Self::ModuleNotFound { .. } => None,

@@ -2,8 +2,8 @@ use dyst_ast::StringId;
 
 use crate::{
     Argument, AssignOperator, Asynchrony, BinaryOperator, Block, Definition, DependencyItem,
-    DependencyKind, ExportType, MatchCase, MatchSource, ModuleId, Mutability, Node, NodeId,
-    NodeType, Parameter, Path, Pattern, Property, ScalarLiteral, ScopeId, SymbolId,
+    DependencyKind, ExportType, MatchCase, MatchSource, ModuleId, Mutability, Node, LocalNodeId,
+    NodeType, Parameter, Path, Pattern, Property, ScalarLiteral, LocalScopeId, LocalSymbolId,
     TemplateLiteral, Type, TypeBinaryOperator, TypeKind, TypeLiteral, TypeUnaryOperator,
     UnaryOperator, VarianceBound,
 };
@@ -12,42 +12,42 @@ use crate::{
 #[derive(Debug, Clone, PartialEq)]
 pub enum Expression {
     /// Definition as a value (with a name or anonymous).
-    Definition { definition: NodeId<Definition> },
+    Definition { definition: LocalNodeId<Definition> },
 
     /// Block of "statements" (inside `{}` usually).
-    Block { block: NodeId<Block> },
+    Block { block: LocalNodeId<Block> },
 
     /// Statement expression (explicit statement with a `;` terminator).
-    Statement { statement: NodeId<Expression> },
+    Statement { statement: LocalNodeId<Expression> },
 
     /// With context declaration (like `with Foo, Bar` for `with Foo.Bar`).
     With {
-        clauses: Vec<NodeId<WithClause>>,
-        scope: ScopeId,
-        symbol: SymbolId,
-        body: Option<NodeId<Block>>,
+        clauses: Vec<LocalNodeId<WithClause>>,
+        scope: LocalScopeId,
+        symbol: LocalSymbolId,
+        body: Option<LocalNodeId<Block>>,
     },
     /// Unresolved import dependency declaration (like `import "foo"`).
     UnresolvedImport {
         kind: DependencyKind,
         target: StringId,
-        items: Vec<NodeId<DependencyItem>>,
-        arguments: Option<Vec<NodeId<Argument>>>,
+        items: Vec<LocalNodeId<DependencyItem>>,
+        arguments: Option<Vec<LocalNodeId<Argument>>>,
     },
     /// Unresolved re-export dependency declaration (like `export { bar } from foo`).
     UnresolvedReExport {
         mode: ExportType,
         target: StringId,
         kind: DependencyKind,
-        items: Vec<NodeId<DependencyItem>>,
+        items: Vec<LocalNodeId<DependencyItem>>,
     },
     /// Import dependency (like `import "foo"` or `import { bar } from "foo"`).
     Import {
         kind: DependencyKind,
         target: StringId,
         module: ModuleId,
-        items: Vec<NodeId<DependencyItem>>,
-        arguments: Option<Vec<NodeId<Argument>>>,
+        items: Vec<LocalNodeId<DependencyItem>>,
+        arguments: Option<Vec<LocalNodeId<Argument>>>,
     },
     /// Re-export dependency (like `export { bar } from "foo"` or `export * as foo from "foo"`).
     ReExport {
@@ -55,115 +55,115 @@ pub enum Expression {
         target: StringId,
         module: ModuleId,
         kind: DependencyKind,
-        items: Vec<NodeId<DependencyItem>>,
+        items: Vec<LocalNodeId<DependencyItem>>,
     },
     /// Export dependency (like `export { bar }` or `export = foo`).
     Export {
         mode: ExportType,
         kind: DependencyKind,
-        items: Vec<NodeId<DependencyItem>>,
+        items: Vec<LocalNodeId<DependencyItem>>,
     },
 
     /// Let or var binding for constant or mutable variables (without a value, i.e. not a condition).
     Let {
         mutability: Mutability,
-        pattern: NodeId<Pattern>,
-        ty: Option<NodeId<Type>>,
-        value: Option<NodeId<Expression>>,
-        symbol: SymbolId,
+        pattern: LocalNodeId<Pattern>,
+        ty: Option<LocalNodeId<Type>>,
+        value: Option<LocalNodeId<Expression>>,
+        symbol: LocalSymbolId,
     },
     /// Type alias binding.
     LetType {
         kind: TypeKind,
         mutability: Option<Mutability>,
         name: StringId,
-        static_parameters: Option<Vec<NodeId<Parameter>>>,
-        value: NodeId<Expression>,
-        symbol: SymbolId,
+        static_parameters: Option<Vec<LocalNodeId<Parameter>>>,
+        value: LocalNodeId<Expression>,
+        symbol: LocalSymbolId,
     },
 
     /// Type unary operation.
     TypeUnary {
         operator: TypeUnaryOperator,
-        right: NodeId<Expression>,
+        right: LocalNodeId<Expression>,
     },
     /// Type binary operation.
     TypeBinary {
-        left: NodeId<Expression>,
+        left: LocalNodeId<Expression>,
         operator: TypeBinaryOperator,
-        right: NodeId<Expression>,
+        right: LocalNodeId<Expression>,
     },
     /// Unary operation (except reference/dereference, e.g., `-x`).
     Unary {
         operator: UnaryOperator,
-        right: NodeId<Expression>,
+        right: LocalNodeId<Expression>,
     },
     /// Value operation (e.g., `^x`).
     ValueOf {
         mutability: Option<Mutability>,
         variance: Option<VarianceBound>,
-        right: NodeId<Expression>,
+        right: LocalNodeId<Expression>,
     },
     /// Reference of operation (e.g., `&x`).
     ReferenceOf {
         mutability: Option<Mutability>,
         variance: Option<VarianceBound>,
-        right: NodeId<Expression>,
+        right: LocalNodeId<Expression>,
     },
     /// Binary operation.
     Binary {
-        left: NodeId<Expression>,
+        left: LocalNodeId<Expression>,
         operator: BinaryOperator,
-        right: NodeId<Expression>,
+        right: LocalNodeId<Expression>,
     },
     /// Assignment (e.g., `x = y`).
     Assign {
-        left: NodeId<Expression>,
-        right: NodeId<Expression>,
+        left: LocalNodeId<Expression>,
+        right: LocalNodeId<Expression>,
     },
     /// Assignment with operator (except direct assignment, e.g., `x += y`).
     AssignBinary {
-        left: NodeId<Expression>,
+        left: LocalNodeId<Expression>,
         operator: AssignOperator,
-        right: NodeId<Expression>,
+        right: LocalNodeId<Expression>,
     },
 
     /// Member access.
     UnresolvedMember {
-        left: NodeId<Expression>,
+        left: LocalNodeId<Expression>,
         name: StringId,
-        static_arguments: Option<Vec<NodeId<Argument>>>,
+        static_arguments: Option<Vec<LocalNodeId<Argument>>>,
     },
     /// Member access.
     Member {
-        left: NodeId<Expression>,
+        left: LocalNodeId<Expression>,
         name: StringId,
-        symbol: SymbolId,
-        static_arguments: Option<Vec<NodeId<Argument>>>,
+        symbol: LocalSymbolId,
+        static_arguments: Option<Vec<LocalNodeId<Argument>>>,
     },
     /// Call to a function.
     Call {
-        left: NodeId<Expression>,
-        static_arguments: Option<Vec<NodeId<Argument>>>,
-        dynamic_arguments: Vec<NodeId<Argument>>,
+        left: LocalNodeId<Expression>,
+        static_arguments: Option<Vec<LocalNodeId<Argument>>>,
+        dynamic_arguments: Vec<LocalNodeId<Argument>>,
     },
     /// Index into an array or slice.
     Index {
-        left: NodeId<Expression>,
-        right: Option<NodeId<Expression>>,
+        left: LocalNodeId<Expression>,
+        right: Option<LocalNodeId<Expression>>,
     },
     /// Maybe unwrap an expression with `?` and propagate.
-    Maybe { left: NodeId<Expression> },
+    Maybe { left: LocalNodeId<Expression> },
     /// Force unwrap an expression with `!` and propagate.
-    Must { left: NodeId<Expression> },
+    Must { left: LocalNodeId<Expression> },
     /// New constructor call.
     New {
-        left: NodeId<Expression>,
-        static_arguments: Option<Vec<NodeId<Argument>>>,
-        dynamic_arguments: Vec<NodeId<Argument>>,
+        left: LocalNodeId<Expression>,
+        static_arguments: Option<Vec<LocalNodeId<Argument>>>,
+        dynamic_arguments: Vec<LocalNodeId<Argument>>,
     },
     /// Delete expression.
-    Delete { value: NodeId<Expression> },
+    Delete { value: LocalNodeId<Expression> },
 
     /// --------------------------------
     /// Values.
@@ -172,7 +172,7 @@ pub enum Expression {
     /// Unresolved path.
     UnresolvedPath {
         path: Path,
-        static_arguments: Option<Vec<NodeId<Argument>>>,
+        static_arguments: Option<Vec<LocalNodeId<Argument>>>,
     },
     /// Scalar literal value.
     ScalarLiteral { value: ScalarLiteral },
@@ -180,37 +180,37 @@ pub enum Expression {
     TemplateLiteral { value: TemplateLiteral },
     /// Tagged template literal value.
     TaggedTemplateLiteral {
-        tag: NodeId<Expression>,
+        tag: LocalNodeId<Expression>,
         value: TemplateLiteral,
     },
     /// Type literal value.
     TypeLiteral { value: TypeLiteral },
     /// Range literal value.
     RangeLiteral {
-        start: NodeId<Expression>,
-        end: NodeId<Expression>,
+        start: LocalNodeId<Expression>,
+        end: LocalNodeId<Expression>,
         is_inclusive: bool,
     },
     /// Array creation.
-    ArrayLiteral { elements: Vec<NodeId<Argument>> },
+    ArrayLiteral { elements: Vec<LocalNodeId<Argument>> },
     /// Tuple creation.
     TupleLiteral {
-        ty: Option<NodeId<Type>>,
-        elements: Vec<NodeId<Argument>>,
+        ty: Option<LocalNodeId<Type>>,
+        elements: Vec<LocalNodeId<Argument>>,
     },
     /// Struct creation.
     StructLiteral {
-        ty: Option<NodeId<Type>>,
-        properties: Vec<NodeId<Property>>,
+        ty: Option<LocalNodeId<Type>>,
+        properties: Vec<LocalNodeId<Property>>,
     },
     /// Tree creation.
     TreeLiteral {
-        left: Option<NodeId<Expression>>,
-        arguments: Option<Vec<NodeId<Argument>>>,
-        elements: Option<Vec<NodeId<Argument>>>,
+        left: Option<LocalNodeId<Expression>>,
+        arguments: Option<Vec<LocalNodeId<Argument>>>,
+        elements: Option<Vec<LocalNodeId<Argument>>>,
     },
     /// Parenthesized expression.
-    Parenthesized { expression: NodeId<Expression> },
+    Parenthesized { expression: LocalNodeId<Expression> },
 
     /// --------------------------------
     /// Control flow.
@@ -219,81 +219,81 @@ pub enum Expression {
     /// If expression.
     If {
         kind: IfKind,
-        condition: NodeId<Expression>,
-        then_expression: NodeId<Expression>,
-        else_expression: Option<NodeId<Expression>>,
+        condition: LocalNodeId<Expression>,
+        then_expression: LocalNodeId<Expression>,
+        else_expression: Option<LocalNodeId<Expression>>,
     },
     /// Loop expression.
     Loop {
         kind: LoopKind,
-        condition: Option<NodeId<Expression>>,
-        body: NodeId<Block>,
-        scope: ScopeId,
-        symbol: SymbolId,
+        condition: Option<LocalNodeId<Expression>>,
+        body: LocalNodeId<Block>,
+        scope: LocalScopeId,
+        symbol: LocalSymbolId,
     },
     /// For each loop.
     ForEach {
         asynchrony: Asynchrony,
         kind: ForEachKind,
-        pattern: NodeId<Pattern>,
-        iterator: NodeId<Expression>,
-        body: NodeId<Block>,
-        scope: ScopeId,
-        symbol: SymbolId,
+        pattern: LocalNodeId<Pattern>,
+        iterator: LocalNodeId<Expression>,
+        body: LocalNodeId<Block>,
+        scope: LocalScopeId,
+        symbol: LocalSymbolId,
     },
     /// For three-part loop.
     For {
-        initialization: Option<NodeId<Expression>>,
-        condition: Option<NodeId<Expression>>,
-        increment: Option<NodeId<Expression>>,
-        body: NodeId<Block>,
-        scope: ScopeId,
-        symbol: SymbolId,
+        initialization: Option<LocalNodeId<Expression>>,
+        condition: Option<LocalNodeId<Expression>>,
+        increment: Option<LocalNodeId<Expression>>,
+        body: LocalNodeId<Block>,
+        scope: LocalScopeId,
+        symbol: LocalSymbolId,
     },
     /// Try expression.
     Try {
-        try_expression: NodeId<Expression>,
-        catch_pattern: Option<NodeId<Pattern>>,
-        catch_expression: Option<NodeId<Expression>>,
-        finally_expression: Option<NodeId<Expression>>,
-        scope: ScopeId,
-        symbol: SymbolId,
+        try_expression: LocalNodeId<Expression>,
+        catch_pattern: Option<LocalNodeId<Pattern>>,
+        catch_expression: Option<LocalNodeId<Expression>>,
+        finally_expression: Option<LocalNodeId<Expression>>,
+        scope: LocalScopeId,
+        symbol: LocalSymbolId,
     },
     /// Match expression.
     Match {
-        value: NodeId<Expression>,
-        cases: Vec<NodeId<MatchCase>>,
+        value: LocalNodeId<Expression>,
+        cases: Vec<LocalNodeId<MatchCase>>,
         source: MatchSource,
-        scope: ScopeId,
-        symbol: SymbolId,
+        scope: LocalScopeId,
+        symbol: LocalSymbolId,
     },
     /// Break expression.
     UnresolvedBreak {
         target: Option<StringId>,
-        value: Option<NodeId<Expression>>,
+        value: Option<LocalNodeId<Expression>>,
     },
     /// Break expression.
     Break {
-        target: ScopeId,
-        value: Option<NodeId<Expression>>,
+        target: LocalScopeId,
+        value: Option<LocalNodeId<Expression>>,
     },
     /// Continue expression.
     UnresolvedContinue { target: Option<StringId> },
     /// Continue expression.
-    Continue { target: ScopeId },
+    Continue { target: LocalScopeId },
     /// Defer expression.
-    Defer { expression: NodeId<Expression> },
+    Defer { expression: LocalNodeId<Expression> },
     /// Throw expression.
-    Throw { value: Option<NodeId<Expression>> },
+    Throw { value: Option<LocalNodeId<Expression>> },
     /// Await expression.
-    Await { expression: NodeId<Expression> },
+    Await { expression: LocalNodeId<Expression> },
     /// Yield expression.
     Yield {
         cardinality: YieldCardinality,
-        value: NodeId<Expression>,
+        value: LocalNodeId<Expression>,
     },
     /// Return expression.
-    Return { value: Option<NodeId<Expression>> },
+    Return { value: Option<LocalNodeId<Expression>> },
 
     /// Error expression.
     Error,
@@ -382,7 +382,7 @@ impl Expression {
     }
 
     /// Get the scope of the expression.
-    pub fn scope(&self) -> Option<ScopeId> {
+    pub fn scope(&self) -> Option<LocalScopeId> {
         match self {
             Expression::With { scope, .. } => Some(*scope),
             Expression::Loop { scope, .. } => Some(*scope),
@@ -395,7 +395,7 @@ impl Expression {
     }
 
     /// Get the symbol of the expression.
-    pub fn symbol(&self) -> Option<SymbolId> {
+    pub fn symbol(&self) -> Option<LocalSymbolId> {
         match self {
             Expression::Let { symbol, .. } => Some(*symbol),
             Expression::LetType { symbol, .. } => Some(*symbol),
@@ -457,7 +457,7 @@ pub struct WithClause {
     /// The name of the declaration (the `T` in `T: Foo`).
     pub alias: Option<StringId>,
     /// The type of the declaration (the `Foo` in `T: Foo` or `!Foo`).
-    pub right: NodeId<Expression>,
+    pub right: LocalNodeId<Expression>,
 }
 
 impl Node for WithClause {

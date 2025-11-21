@@ -1,7 +1,7 @@
 use dyst_fir::format::FormatResult;
 use dyst_fir::prelude::*;
 use dyst_fir::write;
-use dyst_javascript_ast::{Mutability, NodeId, Pattern, PatternField};
+use dyst_javascript_ast::{Mutability, LocalNodeId, Pattern, PatternField};
 
 use crate::format::argument::list_like;
 use crate::{FormatNode, JavaScriptFormatter};
@@ -9,7 +9,7 @@ use crate::{FormatNode, JavaScriptFormatter};
 impl<'ast> FormatNode<'ast, Pattern> for Pattern {
     fn format_node(
         &self,
-        _node_id: NodeId<Pattern>,
+        _node_id: LocalNodeId<Pattern>,
         f: &mut JavaScriptFormatter<'ast, '_>,
     ) -> FormatResult<()> {
         match self {
@@ -44,7 +44,7 @@ impl<'ast> FormatNode<'ast, Pattern> for Pattern {
 impl<'ast> FormatNode<'ast, PatternField> for PatternField {
     fn format_node(
         &self,
-        _node_id: NodeId<PatternField>,
+        _node_id: LocalNodeId<PatternField>,
         f: &mut JavaScriptFormatter<'ast, '_>,
     ) -> FormatResult<()> {
         match self {

@@ -2,7 +2,7 @@ use dyst_source::StringId;
 
 use crate::{
     Argument, AssignOperator, Asynchrony, BinaryOperator, Block, DeclarationDescriptor, Definition,
-    DependencyItem, DependencyKind, ExportType, Keyword, Mutability, Node, NodeId, NodeType,
+    DependencyItem, DependencyKind, ExportType, Keyword, Mutability, Node, LocalNodeId, NodeType,
     Parameter, Path, Pattern, Property, ScalarLiteral, TemplateLiteral, TypeBinaryOperator,
     TypeLiteral, TypeUnaryOperator, UnaryOperator,
 };
@@ -14,13 +14,13 @@ use crate::{
 #[derive(Debug, Clone, PartialEq)]
 pub enum Expression {
     /// Definition (with a name or anonymous).
-    Definition(NodeId<Definition>),
+    Definition(LocalNodeId<Definition>),
 
     /// Block of Expressions.
-    Block(NodeId<Block>),
+    Block(LocalNodeId<Block>),
 
     /// Statement expression (explicit statement with a `;` terminator).
-    Statement(NodeId<Expression>),
+    Statement(LocalNodeId<Expression>),
 
     /// A With is a with declaration for context management.
     /// With can declare the use of an item in a scope and refine type bounds.
@@ -39,8 +39,8 @@ pub enum Expression {
     /// )
     /// ```
     With {
-        clauses: Vec<NodeId<WithClause>>,
-        body: Option<NodeId<Block>>,
+        clauses: Vec<LocalNodeId<WithClause>>,
+        body: Option<LocalNodeId<Block>>,
     },
 
     /// An Import is an import declaration for dependency management.
@@ -58,8 +58,8 @@ pub enum Expression {
         kind: DependencyKind,
         target: StringId,
         alias: Option<StringId>,
-        items: Option<Vec<NodeId<DependencyItem>>>,
-        arguments: Option<Vec<NodeId<Argument>>>,
+        items: Option<Vec<LocalNodeId<DependencyItem>>>,
+        arguments: Option<Vec<LocalNodeId<Argument>>>,
     },
 
     /// An Export is an explicit export declaration for dependency management.
@@ -80,8 +80,8 @@ pub enum Expression {
         kind: DependencyKind,
         target: Option<StringId>,
         alias: Option<StringId>,
-        items: Option<Vec<NodeId<DependencyItem>>>,
-        value: Option<NodeId<Expression>>,
+        items: Option<Vec<LocalNodeId<DependencyItem>>>,
+        value: Option<LocalNodeId<Expression>>,
     },
 
     /// Let or var binding for constant or mutable variables.
@@ -106,9 +106,9 @@ pub enum Expression {
     Let {
         descriptor: DeclarationDescriptor,
         mutability: Mutability,
-        pattern: NodeId<Pattern>,
-        ty: Option<NodeId<Expression>>,
-        value: Option<NodeId<Expression>>,
+        pattern: LocalNodeId<Pattern>,
+        ty: Option<LocalNodeId<Expression>>,
+        value: Option<LocalNodeId<Expression>>,
     },
 
     /// Type alias binding, may be statically parameterised.
@@ -128,8 +128,8 @@ pub enum Expression {
         descriptor: DeclarationDescriptor,
         kind: TypeKind,
         mutability: Option<Mutability>,
-        static_parameters: Option<Vec<NodeId<Parameter>>>,
-        value: NodeId<Expression>,
+        static_parameters: Option<Vec<LocalNodeId<Parameter>>>,
+        value: LocalNodeId<Expression>,
     },
 
     /// If/then/else expression.
@@ -163,9 +163,9 @@ pub enum Expression {
     /// ```
     If {
         kind: IfKind,
-        condition: NodeId<Expression>,
-        then_expression: NodeId<Expression>,
-        else_expression: Option<NodeId<Expression>>,
+        condition: LocalNodeId<Expression>,
+        then_expression: LocalNodeId<Expression>,
+        else_expression: Option<LocalNodeId<Expression>>,
     },
 
     /// A While is while or do-while loop.
@@ -183,8 +183,8 @@ pub enum Expression {
     /// ```
     While {
         kind: WhileKind,
-        condition: NodeId<Expression>,
-        body: NodeId<Block>,
+        condition: LocalNodeId<Expression>,
+        body: LocalNodeId<Block>,
     },
 
     /// A ForEach is a for loop over an iterator with a pattern.
@@ -205,9 +205,9 @@ pub enum Expression {
     ForEach {
         asynchrony: Asynchrony,
         kind: ForEachKind,
-        pattern: NodeId<Pattern>,
-        iterator: NodeId<Expression>,
-        body: NodeId<Block>,
+        pattern: LocalNodeId<Pattern>,
+        iterator: LocalNodeId<Expression>,
+        body: LocalNodeId<Block>,
     },
 
     /// A For is a for loop with the traditional three-part (initialization, condition, increment).
@@ -220,10 +220,10 @@ pub enum Expression {
     /// }
     /// ```
     For {
-        initialization: Option<NodeId<Expression>>,
-        condition: Option<NodeId<Expression>>,
-        increment: Option<NodeId<Expression>>,
-        body: NodeId<Block>,
+        initialization: Option<LocalNodeId<Expression>>,
+        condition: Option<LocalNodeId<Expression>>,
+        increment: Option<LocalNodeId<Expression>>,
+        body: LocalNodeId<Block>,
     },
 
     /// A Loop is an unconditional loop.
@@ -237,7 +237,7 @@ pub enum Expression {
     ///     }
     /// }
     /// ```
-    Loop { body: NodeId<Block> },
+    Loop { body: LocalNodeId<Block> },
 
     /// A Try is try/catch/finally statement.
     /// The try expression may be a single statement or a block of statements.
@@ -271,10 +271,10 @@ pub enum Expression {
     /// }
     /// ```
     Try {
-        try_expression: NodeId<Expression>,
-        catch_pattern: Option<NodeId<Pattern>>,
-        catch_expression: Option<NodeId<Expression>>,
-        finally_expression: Option<NodeId<Expression>>,
+        try_expression: LocalNodeId<Expression>,
+        catch_pattern: Option<LocalNodeId<Pattern>>,
+        catch_expression: Option<LocalNodeId<Expression>>,
+        finally_expression: Option<LocalNodeId<Expression>>,
     },
 
     /// A Match is match expression with case patterns.
@@ -295,8 +295,8 @@ pub enum Expression {
     /// ```
     Match {
         kind: MatchKind,
-        value: NodeId<Expression>,
-        cases: Vec<NodeId<MatchCase>>,
+        value: LocalNodeId<Expression>,
+        cases: Vec<LocalNodeId<MatchCase>>,
     },
 
     /// A Break is break statement.
@@ -310,7 +310,7 @@ pub enum Expression {
     /// ```
     Break {
         label: Option<StringId>,
-        value: Option<NodeId<Expression>>,
+        value: Option<LocalNodeId<Expression>>,
     },
 
     /// A Continue is continue statement.
@@ -337,7 +337,7 @@ pub enum Expression {
     ///     someOtherFunction()
     /// }
     /// ```
-    Defer { expression: NodeId<Expression> },
+    Defer { expression: LocalNodeId<Expression> },
 
     /// Await an expression.
     /// This is more similar to `go` than classic `await`, but the meaning is context & runtime specific.
@@ -347,7 +347,7 @@ pub enum Expression {
     /// ```
     /// await someLongFunction()
     /// ```
-    Await { expression: NodeId<Expression> },
+    Await { expression: LocalNodeId<Expression> },
 
     /// Yield an expression.
     /// Suspends execution and returns a value to the caller in some way.
@@ -360,7 +360,7 @@ pub enum Expression {
     /// ```
     Yield {
         cardinality: YieldCardinality,
-        value: NodeId<Expression>,
+        value: LocalNodeId<Expression>,
     },
 
     /// Throw expression.
@@ -370,7 +370,7 @@ pub enum Expression {
     /// throw someError
     /// throw anyOldExpression()
     /// ```
-    Throw { value: Option<NodeId<Expression>> },
+    Throw { value: Option<LocalNodeId<Expression>> },
 
     /// Return expression.
     ///
@@ -379,12 +379,12 @@ pub enum Expression {
     /// return
     /// return 17
     /// ```
-    Return { value: Option<NodeId<Expression>> },
+    Return { value: Option<LocalNodeId<Expression>> },
 
     /// Alias reference to some path, statically parameterized.
     Path {
         path: Path,
-        static_arguments: Option<Vec<NodeId<Argument>>>,
+        static_arguments: Option<Vec<LocalNodeId<Argument>>>,
     },
 
     /// Literal scalar value.
@@ -422,7 +422,7 @@ pub enum Expression {
     /// (sql.expr)`SELECT * FROM users WHERE name = ${name}` AND age > ${group.age()} LIMIT 10`
     /// ```
     TaggedTemplateLiteral {
-        tag: NodeId<Expression>,
+        tag: LocalNodeId<Expression>,
         value: TemplateLiteral,
     },
 
@@ -452,8 +452,8 @@ pub enum Expression {
     /// 1..=n // inclusive
     /// ```
     RangeLiteral {
-        start: NodeId<Expression>,
-        end: NodeId<Expression>,
+        start: LocalNodeId<Expression>,
+        end: LocalNodeId<Expression>,
         is_inclusive: bool,
     },
 
@@ -470,7 +470,7 @@ pub enum Expression {
     /// ]
     /// [10, false, "Hi"] // hetereogenous array is valid in some contexts
     /// ```
-    ArrayLiteral { elements: Vec<NodeId<Argument>> },
+    ArrayLiteral { elements: Vec<LocalNodeId<Argument>> },
 
     /// A TupleLiteral is an anonymous tuple of heterogeneous elements.
     /// For named tuple "literals", see Call.
@@ -481,7 +481,7 @@ pub enum Expression {
     /// (1.0, 2.0, 3.0)
     /// (x: int32, y: boolean)
     /// ```
-    TupleLiteral { elements: Vec<NodeId<Argument>> },
+    TupleLiteral { elements: Vec<LocalNodeId<Argument>> },
 
     /// A StructLiteral is literal struct of heterogeneous fields.
     /// Struct literals always have an explicit type prefix (unlike tuple literals).
@@ -493,8 +493,8 @@ pub enum Expression {
     /// some_module.MyUnion.OptionB { a: true }
     /// ```
     StructLiteral {
-        ty: Option<NodeId<Expression>>,
-        properties: Vec<NodeId<Property>>,
+        ty: Option<LocalNodeId<Expression>>,
+        properties: Vec<LocalNodeId<Property>>,
     },
 
     /// A TreeLiteral is literal tree fragment with arguments (similar to JSX).
@@ -512,9 +512,9 @@ pub enum Expression {
     /// </Level>
     /// ```
     TreeLiteral {
-        left: Option<NodeId<Expression>>,
-        arguments: Option<Vec<NodeId<Argument>>>,
-        elements: Option<Vec<NodeId<Argument>>>,
+        left: Option<LocalNodeId<Expression>>,
+        arguments: Option<Vec<LocalNodeId<Argument>>>,
+        elements: Option<Vec<LocalNodeId<Argument>>>,
     },
 
     /// Parenthesized expression.
@@ -524,7 +524,7 @@ pub enum Expression {
     /// (x)
     /// (x + y)
     /// ```
-    Parenthesized { expression: NodeId<Expression> },
+    Parenthesized { expression: LocalNodeId<Expression> },
 
     /// Type unary operation (prefix or postfix).
     ///
@@ -536,7 +536,7 @@ pub enum Expression {
     /// ```
     TypeUnary {
         operator: TypeUnaryOperator,
-        right: NodeId<Expression>,
+        right: LocalNodeId<Expression>,
     },
 
     /// Type binary operation (infix).
@@ -551,9 +551,9 @@ pub enum Expression {
     /// x implements int32
     /// ```
     TypeBinary {
-        left: NodeId<Expression>,
+        left: LocalNodeId<Expression>,
         operator: TypeBinaryOperator,
-        right: NodeId<Expression>,
+        right: LocalNodeId<Expression>,
     },
 
     /// Unary operation (prefix or postfix).
@@ -566,7 +566,7 @@ pub enum Expression {
     /// ```
     Unary {
         operator: UnaryOperator,
-        right: NodeId<Expression>,
+        right: LocalNodeId<Expression>,
     },
 
     /// Value of operation (e.g., `^x`).
@@ -580,7 +580,7 @@ pub enum Expression {
     ValueOf {
         mutability: Option<Mutability>,
         variance: Option<VarianceBound>,
-        right: NodeId<Expression>,
+        right: LocalNodeId<Expression>,
     },
 
     /// Reference of operation (e.g., `&x`).
@@ -594,7 +594,7 @@ pub enum Expression {
     ReferenceOf {
         mutability: Option<Mutability>,
         variance: Option<VarianceBound>,
-        right: NodeId<Expression>,
+        right: LocalNodeId<Expression>,
     },
 
     /// Member access.
@@ -605,9 +605,9 @@ pub enum Expression {
     /// foo.bar<T>
     /// ```
     Member {
-        left: NodeId<Expression>,
+        left: LocalNodeId<Expression>,
         name: StringId,
-        static_arguments: Option<Vec<NodeId<Argument>>>,
+        static_arguments: Option<Vec<LocalNodeId<Argument>>>,
     },
 
     /// Index into a receiver expression.
@@ -621,8 +621,8 @@ pub enum Expression {
     /// foo().result[0][variable+1]
     Index {
         position: PostfixPosition,
-        left: NodeId<Expression>,
-        index: Option<NodeId<Expression>>,
+        left: LocalNodeId<Expression>,
+        index: Option<LocalNodeId<Expression>>,
     },
 
     /// A Call is call to a function OR an instantiation of a tuple type.
@@ -640,9 +640,9 @@ pub enum Expression {
     /// ```
     Call {
         position: PostfixPosition,
-        left: NodeId<Expression>,
-        static_arguments: Option<Vec<NodeId<Argument>>>,
-        dynamic_arguments: Vec<NodeId<Argument>>,
+        left: LocalNodeId<Expression>,
+        static_arguments: Option<Vec<LocalNodeId<Argument>>>,
+        dynamic_arguments: Vec<LocalNodeId<Argument>>,
     },
 
     /// New constructor call.
@@ -655,9 +655,9 @@ pub enum Expression {
     /// new Foo.Baz(2, 3)
     /// ```
     New {
-        left: NodeId<Expression>,
-        static_arguments: Option<Vec<NodeId<Argument>>>,
-        dynamic_arguments: Vec<NodeId<Argument>>,
+        left: LocalNodeId<Expression>,
+        static_arguments: Option<Vec<LocalNodeId<Argument>>>,
+        dynamic_arguments: Vec<LocalNodeId<Argument>>,
     },
 
     /// Delete expression.
@@ -668,34 +668,34 @@ pub enum Expression {
     /// delete foo.bar
     /// delete foo['result']
     /// ```
-    Delete { value: NodeId<Expression> },
+    Delete { value: LocalNodeId<Expression> },
 
     /// Maybe unwrap an expression with `?` and propagate.
     /// Supports chaining with `?.`.
     Maybe {
         position: PostfixPosition,
-        left: NodeId<Expression>,
+        left: LocalNodeId<Expression>,
     },
 
     /// Force unwrap an expression with `!` and propagate.
     Must {
         position: PostfixPosition,
-        left: NodeId<Expression>,
+        left: LocalNodeId<Expression>,
     },
 
     /// Binary operation.
     Binary {
-        left: NodeId<Expression>,
+        left: LocalNodeId<Expression>,
         operator: BinaryOperator,
-        right: NodeId<Expression>,
+        right: LocalNodeId<Expression>,
     },
 
     // TODO #Incomplete: pattern assign expression (without let, see JS/TS)
     /// Assignment operation.
     Assign {
-        left: NodeId<Expression>,
+        left: LocalNodeId<Expression>,
         operator: AssignOperator,
-        right: NodeId<Expression>,
+        right: LocalNodeId<Expression>,
     },
 
     /// Error placeholder.
@@ -868,7 +868,7 @@ pub struct WithClause {
     /// The name of the declaration (the `T` in `T: Foo`).
     pub alias: Option<StringId>,
     /// The type of the declaration (the `Foo` in `T: Foo` or `!Foo`).
-    pub right: NodeId<Expression>,
+    pub right: LocalNodeId<Expression>,
 }
 
 impl Node for WithClause {
@@ -893,12 +893,12 @@ pub enum WhereClause {
         /// The target to assert (like `T` in `with T: int32`)
         left: StringId,
         /// The assertion type (like `int32` in `with T: int32`)
-        right: NodeId<Expression>,
+        right: LocalNodeId<Expression>,
     },
     /// Where guard (like `T > Y`).
     Guard {
         /// The guard (like `T > Y` in `with T > Y`)
-        guard: NodeId<Expression>,
+        guard: LocalNodeId<Expression>,
     },
 }
 
@@ -929,15 +929,15 @@ pub enum MatchKind {
 pub enum MatchCase {
     /// A match case with an expression body.
     Expression {
-        pattern: NodeId<Pattern>,
-        body: NodeId<Expression>,
-        guard: Option<NodeId<Expression>>,
+        pattern: LocalNodeId<Pattern>,
+        body: LocalNodeId<Expression>,
+        guard: Option<LocalNodeId<Expression>>,
     },
     /// A match case with a block body.
     Block {
-        pattern: NodeId<Pattern>,
-        body: NodeId<Block>,
-        guard: Option<NodeId<Expression>>,
+        pattern: LocalNodeId<Pattern>,
+        body: LocalNodeId<Block>,
+        guard: Option<LocalNodeId<Expression>>,
     },
 }
 

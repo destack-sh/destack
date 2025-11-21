@@ -1,4 +1,4 @@
-use dyst_dir::{Expression, ModuleId, NodeId, NodeTree};
+use dyst_dir::{Expression, ModuleId, LocalNodeId, NodeTree};
 
 use crate::{Compiler, ResolveError, ResolveResult};
 
@@ -7,7 +7,7 @@ impl<'a> Compiler<'a> {
     pub(super) fn resolve_expression(
         &self,
         module_id: ModuleId,
-        expression_id: NodeId<Expression>,
+        expression_id: LocalNodeId<Expression>,
         tree: &mut NodeTree,
     ) -> ResolveResult<()> {
         let expression = tree.get(expression_id);

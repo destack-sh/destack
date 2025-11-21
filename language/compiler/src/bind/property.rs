@@ -1,16 +1,16 @@
 use crate::Compiler;
 use dyst_ast as ast;
-use dyst_dir::{Module, NodeId, NodeTree, Property, ScopeId};
+use dyst_dir::{Module, LocalNodeId, NodeTree, Property, LocalScopeId};
 
 impl<'a> Compiler<'a> {
     /// Bind a property to a DIR property.
     pub(super) fn bind_property(
         &self,
         module: &Module,
-        scope_id: ScopeId,
-        property_id: ast::NodeId<ast::Property>,
+        scope_id: LocalScopeId,
+        property_id: ast::LocalNodeId<ast::Property>,
         tree: &mut NodeTree,
-    ) -> NodeId<Property> {
+    ) -> LocalNodeId<Property> {
         let property = module.get(property_id);
         let property = match property {
             ast::Property::Field {

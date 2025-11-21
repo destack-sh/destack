@@ -1,13 +1,13 @@
-use crate::{Expression, Node, NodeId, NodeType, ScopeId, StringId};
+use crate::{Expression, Node, LocalNodeId, NodeType, LocalScopeId, StringId};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Block {
     /// The label of the block.
     pub label: Option<StringId>,
     /// The scope of the block.
-    pub scope: ScopeId,
+    pub scope: LocalScopeId,
     /// The expressions in the block.
-    pub expressions: Vec<NodeId<Expression>>,
+    pub expressions: Vec<LocalNodeId<Expression>>,
 }
 
 impl Node for Block {

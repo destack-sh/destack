@@ -1,4 +1,4 @@
-use dyst_dir::{ModuleId, NodeId, NodeTree, PatternField};
+use dyst_dir::{ModuleId, LocalNodeId, NodeTree, PatternField};
 
 use crate::{Compiler, ResolveError, ResolveResult};
 
@@ -7,7 +7,7 @@ impl<'a> Compiler<'a> {
     pub(super) fn resolve_pattern_field(
         &self,
         _module_id: ModuleId,
-        pattern_field_id: NodeId<PatternField>,
+        pattern_field_id: LocalNodeId<PatternField>,
         _tree: &mut NodeTree,
     ) -> ResolveResult<()> {
         Err(ResolveError::UnsupportedNode {

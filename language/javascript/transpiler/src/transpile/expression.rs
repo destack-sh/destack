@@ -1,5 +1,5 @@
 use dyst_dir::{self as dir, Module, NodeTree};
-use dyst_javascript_ast::{Expression, NodeId, NodeIdAny, NodeType, PostfixPosition, Statement};
+use dyst_javascript_ast::{Expression, LocalNodeId, LocalNodeIdAny, NodeType, PostfixPosition, Statement};
 
 use crate::{
     TranspileError, TranspileResult, TranspileResultExt, TranspileWarning, Transpiler,
@@ -10,7 +10,7 @@ impl<'a> Transpiler<'a> {
     /// Get the position of a postfix expression.
     fn get_postfix_expression_position(
         &self,
-        left_id: NodeId<Expression>,
+        left_id: LocalNodeId<Expression>,
         unit: &TranspilerUnit,
     ) -> PostfixPosition {
         if matches!(
@@ -28,9 +28,9 @@ impl<'a> Transpiler<'a> {
         &self,
         module: &'a Module,
         tree: &NodeTree,
-        expression_id: dir::NodeId<dir::Expression>,
+        expression_id: dir::LocalNodeId<dir::Expression>,
         unit: &mut TranspilerUnit,
-    ) -> TranspileResult<NodeIdAny> {
+    ) -> TranspileResult<LocalNodeIdAny> {
         let expression = tree.get(expression_id);
 
         // report unresolved warning
@@ -56,7 +56,7 @@ impl<'a> Transpiler<'a> {
             }
             dir::Expression::Statement { statement } => {
                 let transpiled_id = self.transpile_expression(module, tree, *statement, unit)?;
-                let statement_id: NodeId<Statement> = match transpiled_id.ty {
+                let statement_id: LocalNodeId<Statement> = match transpiled_id.ty {
                     // wrap expression in statement
                     NodeType::Expression => {
                         unit.warning(TranspileWarning::ExpectedStatement {

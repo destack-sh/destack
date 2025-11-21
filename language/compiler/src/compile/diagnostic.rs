@@ -1,5 +1,5 @@
 use crate::{CompileError, CompileWarning};
-use dyst_dir::{NodeIdAny, NodeTree, Session};
+use dyst_dir::{LocalNodeIdAny, NodeTree, Session};
 use dyst_source::{Diagnostic, DiagnosticSeverity, LabeledSpan};
 
 /// Diagnostic encountered during compilation.
@@ -41,7 +41,7 @@ impl CompileDiagnostic {
     }
 
     /// Get the node id of the diagnostic.
-    pub fn node_id(&self) -> Option<NodeIdAny> {
+    pub fn node_id(&self) -> Option<LocalNodeIdAny> {
         match self {
             Self::Error(error) => error.node_id(),
             Self::Warning(warning) => warning.node_id(),

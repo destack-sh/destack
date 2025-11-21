@@ -1,4 +1,4 @@
-use crate::{Argument, Node, NodeId, NodeType, Path, StringId, SymbolId};
+use crate::{Argument, Node, LocalNodeId, NodeType, Path, StringId, LocalSymbolId};
 
 /// The position of an annotation.
 #[derive(Debug, Copy, Clone, PartialEq)]
@@ -28,27 +28,27 @@ pub enum Annotation {
     UnresolvedTag {
         position: AnnotationPosition,
         left: Path,
-        arguments: Option<Vec<NodeId<Argument>>>,
+        arguments: Option<Vec<LocalNodeId<Argument>>>,
     },
     /// Unresolved decorator annotation (like `@foo` or `@foo(1, 2, 3)`).
     UnresolvedDecorator {
         position: AnnotationPosition,
         left: Path,
-        arguments: Option<Vec<NodeId<Argument>>>,
+        arguments: Option<Vec<LocalNodeId<Argument>>>,
     },
     /// Tag annotation (like `#Foo` or `#Foo(x: 1)`).
     Tag {
         position: AnnotationPosition,
         left: Path,
-        symbol: SymbolId,
-        arguments: Option<Vec<NodeId<Argument>>>,
+        symbol: LocalSymbolId,
+        arguments: Option<Vec<LocalNodeId<Argument>>>,
     },
     /// Decorator annotation (like `@foo` or `@foo(1, 2, 3)`).
     Decorator {
         position: AnnotationPosition,
         left: Path,
-        symbol: SymbolId,
-        arguments: Option<Vec<NodeId<Argument>>>,
+        symbol: LocalSymbolId,
+        arguments: Option<Vec<LocalNodeId<Argument>>>,
     },
 }
 

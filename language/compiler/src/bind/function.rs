@@ -2,7 +2,7 @@ use crate::Compiler;
 use dyst_ast as ast;
 use dyst_dir::{
     Asynchrony, FunctionAbstraction, FunctionCardinality, FunctionKind, FunctionMode,
-    FunctionSignature, Module, NodeTree, ScopeId,
+    FunctionSignature, Module, NodeTree, LocalScopeId,
 };
 
 impl<'a> Compiler<'a> {
@@ -66,7 +66,7 @@ impl<'a> Compiler<'a> {
     pub(super) fn bind_function_signature(
         &self,
         module: &Module,
-        scope_id: ScopeId,
+        scope_id: LocalScopeId,
         signature: &ast::FunctionSignature,
         tree: &mut NodeTree,
     ) -> FunctionSignature {

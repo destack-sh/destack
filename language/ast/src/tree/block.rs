@@ -1,4 +1,4 @@
-use crate::{Expression, Node, NodeId, NodeType, StringId};
+use crate::{Expression, Node, LocalNodeId, NodeType, StringId};
 
 /// How a block is defined.
 #[derive(Debug, Copy, Clone, PartialEq)]
@@ -26,7 +26,7 @@ pub enum BlockFormat {
 pub struct Block {
     pub format: BlockFormat,
     pub label: Option<StringId>,
-    pub expressions: Vec<NodeId<Expression>>,
+    pub expressions: Vec<LocalNodeId<Expression>>,
 }
 
 impl Node for Block {

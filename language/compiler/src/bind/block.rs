@@ -1,5 +1,5 @@
 use dyst_ast::{self as ast};
-use dyst_dir::{Block, Module, NodeId, NodeTree, ScopeId, ScopeKind, SymbolSpace};
+use dyst_dir::{Block, Module, LocalNodeId, NodeTree, LocalScopeId, ScopeKind, SymbolSpace};
 
 use crate::Compiler;
 
@@ -8,10 +8,10 @@ impl<'a> Compiler<'a> {
     pub(super) fn bind_block(
         &self,
         module: &Module,
-        scope_id: ScopeId,
-        block_id: ast::NodeId<ast::Block>,
+        scope_id: LocalScopeId,
+        block_id: ast::LocalNodeId<ast::Block>,
         tree: &mut NodeTree,
-    ) -> NodeId<Block> {
+    ) -> LocalNodeId<Block> {
         let (symbol_id, scope_id) =
             tree.create_symbol_with_scope(SymbolSpace::Value, None, ScopeKind::Block, scope_id);
         let block = module.get(block_id);

@@ -1,9 +1,9 @@
 use crate::{ParseResult, Parser};
-use dyst_ast::{Block, BlockFormat, Expression, IfKind, Keyword, NodeId};
+use dyst_ast::{Block, BlockFormat, Expression, IfKind, Keyword, LocalNodeId};
 
 impl<'a> Parser<'a> {
     /// Eat something as a block (if it's not a block expression OR an if, wrap in a block expression).
-    fn eat_expression_as_block(&mut self) -> ParseResult<NodeId<Expression>> {
+    fn eat_expression_as_block(&mut self) -> ParseResult<LocalNodeId<Expression>> {
         let start = self.mark();
         let expression_id = self.eat_expression()?;
         if !matches!(self.tree.get(expression_id), Expression::Block { .. })
@@ -54,7 +54,7 @@ impl<'a> Parser<'a> {
     ///     print("negative")
     /// }
     /// ```
-    pub fn eat_if(&mut self) -> ParseResult<NodeId<Expression>> {
+    pub fn eat_if(&mut self) -> ParseResult<LocalNodeId<Expression>> {
         let start = self.mark();
 
         // NOTE: ternary if is parsed in expression parser, not in eat_if

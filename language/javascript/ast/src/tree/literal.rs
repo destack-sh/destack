@@ -1,4 +1,4 @@
-use crate::{Expression, NodeId, Path, StringId};
+use crate::{Expression, LocalNodeId, Path, StringId};
 
 /// A ScalarLiteral is literal scalar value.
 #[derive(Debug, Clone, PartialEq)]
@@ -28,12 +28,12 @@ pub enum TemplateLiteral {
     /// Interpolated template literal value.
     InterpolatedString {
         template: Vec<StringId>,
-        expressions: Vec<NodeId<Expression>>,
+        expressions: Vec<LocalNodeId<Expression>>,
     },
     /// Tagged interpolated template literal value.
     TaggedInterpolatedString {
         tag: Path,
         template: Vec<StringId>,
-        expressions: Vec<NodeId<Expression>>,
+        expressions: Vec<LocalNodeId<Expression>>,
     },
 }

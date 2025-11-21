@@ -1,8 +1,8 @@
 use crate::Compiler;
 use dyst_ast as ast;
 use dyst_dir::{
-    BindingScope, DeclarationDescriptor, DeclarationKind, Definition, EnumField, Module, NodeId,
-    NodeTree, ScopeId, ScopeKind, StructKind, SymbolId, SymbolKey, SymbolSpace,
+    BindingScope, DeclarationDescriptor, DeclarationKind, Definition, EnumField, Module, LocalNodeId,
+    NodeTree, LocalScopeId, ScopeKind, StructKind, LocalSymbolId, SymbolKey, SymbolSpace,
 };
 
 impl<'a> Compiler<'a> {
@@ -27,10 +27,10 @@ impl<'a> Compiler<'a> {
     pub(super) fn bind_expression_to_definition_maybe(
         &self,
         module: &Module,
-        scope_id: ScopeId,
-        expression_id: ast::NodeId<ast::Expression>,
+        scope_id: LocalScopeId,
+        expression_id: ast::LocalNodeId<ast::Expression>,
         tree: &mut NodeTree,
-    ) -> Option<NodeId<Definition>> {
+    ) -> Option<LocalNodeId<Definition>> {
         let expression = module.get(expression_id);
         let definition_id = match expression {
             ast::Expression::Definition(definition_id) => {
@@ -46,7 +46,7 @@ impl<'a> Compiler<'a> {
     pub(super) fn bind_declaration_descriptor(
         &self,
         module: &Module,
-        symbol_id: SymbolId,
+        symbol_id: LocalSymbolId,
         descriptor: &ast::DeclarationDescriptor,
     ) -> DeclarationDescriptor {
         let kind = self.bind_declaration_kind(descriptor.kind);
@@ -74,10 +74,10 @@ impl<'a> Compiler<'a> {
     pub(super) fn bind_definition(
         &self,
         module: &Module,
-        scope_id: ScopeId,
-        definition_id: ast::NodeId<ast::Definition>,
+        scope_id: LocalScopeId,
+        definition_id: ast::LocalNodeId<ast::Definition>,
         tree: &mut NodeTree,
-    ) -> NodeId<Definition> {
+    ) -> LocalNodeId<Definition> {
         let definition = module.get(definition_id);
         let definition = match definition {
             ast::Definition::Namespace {
@@ -267,10 +267,10 @@ impl<'a> Compiler<'a> {
     pub(super) fn bind_enum_field(
         &self,
         module: &Module,
-        scope_id: ScopeId,
-        field_id: ast::NodeId<ast::EnumField>,
+        scope_id: LocalScopeId,
+        field_id: ast::LocalNodeId<ast::EnumField>,
         tree: &mut NodeTree,
-    ) -> NodeId<EnumField> {
+    ) -> LocalNodeId<EnumField> {
         let field = module.get(field_id);
         let name = self
             .session

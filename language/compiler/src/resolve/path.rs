@@ -1,4 +1,4 @@
-use dyst_dir::{ModuleId, NodeTree, Path, Scope, ScopeId, SymbolId};
+use dyst_dir::{ModuleId, NodeTree, Path, Scope, LocalScopeId, LocalSymbolId};
 
 use crate::{Compiler, ResolveResult};
 
@@ -10,7 +10,7 @@ impl<'a> Compiler<'a> {
         scope: &Scope,
         path: &Path,
         tree: &NodeTree,
-    ) -> ResolveResult<SymbolId> {
+    ) -> ResolveResult<LocalSymbolId> {
         todo!("resolve_path({path:?})")
     }
 }

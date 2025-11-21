@@ -2,7 +2,7 @@
 
 use dyst_ast::{
     Asynchrony, FunctionAbstraction, FunctionCardinality, FunctionKind, FunctionMode,
-    FunctionSignature, Generics, Keyword, NodeId, NodeType, Property, TokenType,
+    FunctionSignature, Generics, Keyword, LocalNodeId, NodeType, Property, TokenType,
 };
 
 use crate::{ParseError, ParseResult, Parser, ParserMark};
@@ -25,7 +25,7 @@ impl<'a> Parser<'a> {
     /// int32
     /// x: int32
     /// ```
-    pub fn eat_tuple_type_property(&mut self) -> ParseResult<NodeId<Property>> {
+    pub fn eat_tuple_type_property(&mut self) -> ParseResult<LocalNodeId<Property>> {
         assert!(self.options.in_variant);
         let start = self.mark();
 
@@ -80,8 +80,8 @@ impl<'a> Parser<'a> {
     pub fn eat_tuple_property_list(
         &mut self,
         terminator: TokenType,
-    ) -> ParseResult<Vec<NodeId<Property>>> {
-        let mut properties: Vec<NodeId<Property>> = Vec::new();
+    ) -> ParseResult<Vec<LocalNodeId<Property>>> {
+        let mut properties: Vec<LocalNodeId<Property>> = Vec::new();
         while self.peek().is_ok() {
             // stop on terminator
             if self.peek_token(terminator).is_ok() || self.peek_token(TokenType::End).is_ok() {
@@ -103,7 +103,7 @@ impl<'a> Parser<'a> {
 
     /// Try to eat a property (return Property::Error if error and recovery is possible).
     #[inline]
-    pub fn try_eat_property(&mut self, recover: TokenType) -> ParseResult<NodeId<Property>> {
+    pub fn try_eat_property(&mut self, recover: TokenType) -> ParseResult<LocalNodeId<Property>> {
         match self.eat_property() {
             Ok(property_id) => Ok(property_id),
             Err(err) => {
@@ -136,7 +136,7 @@ impl<'a> Parser<'a> {
     /// set x(value: int32): void
     /// private static foo(): void
     /// ```
-    pub fn eat_property(&mut self) -> ParseResult<NodeId<Property>> {
+    pub fn eat_property(&mut self) -> ParseResult<LocalNodeId<Property>> {
         let start = self.mark();
 
         // spread property
@@ -355,9 +355,9 @@ impl<'a> Parser<'a> {
     }
 
     /// Eat a variant body (without the header or `{` and `}`).
-    pub fn eat_properties(&mut self) -> ParseResult<Vec<NodeId<Property>>> {
+    pub fn eat_properties(&mut self) -> ParseResult<Vec<LocalNodeId<Property>>> {
         // eat everything
-        let mut properties: Vec<NodeId<Property>> = Vec::new();
+        let mut properties: Vec<LocalNodeId<Property>> = Vec::new();
         while self.peek().is_ok() {
             // stop on closing brace
             if self.peek_token(TokenType::CloseBrace).is_ok()

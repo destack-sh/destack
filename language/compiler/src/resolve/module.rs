@@ -1,10 +1,10 @@
 use crate::{Compiler, ResolveResult};
-use dyst_dir::{Expression, ModuleId, Node, NodeIdAny, NodeTree, NodeType};
+use dyst_dir::{Expression, ModuleId, Node, LocalNodeIdAny, NodeTree, NodeType};
 
 #[allow(dead_code)]
 impl<'a> Compiler<'a> {
     /// Whether a node is resolved.
-    pub(super) fn is_resolved(&self, node_id: NodeIdAny, tree: &NodeTree) -> bool {
+    pub(super) fn is_resolved(&self, node_id: LocalNodeIdAny, tree: &NodeTree) -> bool {
         match node_id.ty {
             NodeType::Expression => tree
                 .get::<dyst_dir::Expression>(node_id.into())
@@ -51,7 +51,7 @@ impl<'a> Compiler<'a> {
     pub(super) fn resolve_node(
         &self,
         module_id: ModuleId,
-        node: NodeIdAny,
+        node: LocalNodeIdAny,
         tree: &mut NodeTree,
     ) -> ResolveResult<()> {
         match node.ty {

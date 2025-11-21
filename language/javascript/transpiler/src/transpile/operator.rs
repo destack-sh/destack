@@ -1,6 +1,6 @@
 use dyst_dir::{self as dir, Module, NodeTree};
 use dyst_javascript_ast::{
-    AssignOperator, BinaryOperator, Expression, NodeId, TypeBinaryOperator, TypeUnaryOperator,
+    AssignOperator, BinaryOperator, Expression, LocalNodeId, TypeBinaryOperator, TypeUnaryOperator,
     UnaryOperator,
 };
 
@@ -13,17 +13,17 @@ impl<'a> Transpiler<'a> {
         &self,
         module: &'a Module,
         tree: &NodeTree,
-        expression_id: dir::NodeId<dir::Expression>,
+        expression_id: dir::LocalNodeId<dir::Expression>,
         operator: dir::TypeUnaryOperator,
-        right_id: dir::NodeId<dir::Expression>,
+        right_id: dir::LocalNodeId<dir::Expression>,
         unit: &mut TranspilerUnit,
-    ) -> TranspileResult<NodeId<Expression>> {
+    ) -> TranspileResult<LocalNodeId<Expression>> {
         let right_id = self
             .transpile_expression(module, tree, right_id, unit)
             .expect_node::<Expression>(right_id.into_any(), unit)?;
 
         // transpile a trivial unary expression to a JS unary expression
-        let mut unary = |operator: TypeUnaryOperator| -> NodeId<Expression> {
+        let mut unary = |operator: TypeUnaryOperator| -> LocalNodeId<Expression> {
             let expression = Expression::TypeUnary {
                 operator,
                 right: right_id,
@@ -59,12 +59,12 @@ impl<'a> Transpiler<'a> {
         &self,
         module: &'a Module,
         tree: &NodeTree,
-        expression_id: dir::NodeId<dir::Expression>,
-        left_id: dir::NodeId<dir::Expression>,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+        left_id: dir::LocalNodeId<dir::Expression>,
         operator: dir::TypeBinaryOperator,
-        right_id: dir::NodeId<dir::Expression>,
+        right_id: dir::LocalNodeId<dir::Expression>,
         unit: &mut TranspilerUnit,
-    ) -> TranspileResult<NodeId<Expression>> {
+    ) -> TranspileResult<LocalNodeId<Expression>> {
         let left_id = self
             .transpile_expression(module, tree, left_id, unit)
             .expect_node::<Expression>(left_id.into_any(), unit)?;
@@ -96,17 +96,17 @@ impl<'a> Transpiler<'a> {
         &self,
         module: &'a Module,
         tree: &NodeTree,
-        expression_id: dir::NodeId<dir::Expression>,
+        expression_id: dir::LocalNodeId<dir::Expression>,
         operator: dir::UnaryOperator,
-        right_id: dir::NodeId<dir::Expression>,
+        right_id: dir::LocalNodeId<dir::Expression>,
         unit: &mut TranspilerUnit,
-    ) -> TranspileResult<NodeId<Expression>> {
+    ) -> TranspileResult<LocalNodeId<Expression>> {
         let right_id = self
             .transpile_expression(module, tree, right_id, unit)
             .expect_node::<Expression>(right_id.into_any(), unit)?;
 
         // transpile a trivial unary expression to a JS unary expression
-        let mut unary = |operator: UnaryOperator| -> NodeId<Expression> {
+        let mut unary = |operator: UnaryOperator| -> LocalNodeId<Expression> {
             let expression = Expression::Unary {
                 operator,
                 right: right_id,
@@ -150,12 +150,12 @@ impl<'a> Transpiler<'a> {
         &self,
         module: &'a Module,
         tree: &NodeTree,
-        expression_id: dir::NodeId<dir::Expression>,
-        left_id: dir::NodeId<dir::Expression>,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+        left_id: dir::LocalNodeId<dir::Expression>,
         operator: dir::BinaryOperator,
-        right_id: dir::NodeId<dir::Expression>,
+        right_id: dir::LocalNodeId<dir::Expression>,
         unit: &mut TranspilerUnit,
-    ) -> TranspileResult<NodeId<Expression>> {
+    ) -> TranspileResult<LocalNodeId<Expression>> {
         let left_id = self
             .transpile_expression(module, tree, left_id, unit)
             .expect_node::<Expression>(left_id.into_any(), unit)?;
@@ -163,7 +163,7 @@ impl<'a> Transpiler<'a> {
             .transpile_expression(module, tree, right_id, unit)
             .expect_node::<Expression>(right_id.into_any(), unit)?;
 
-        let mut binary = |operator: BinaryOperator| -> NodeId<Expression> {
+        let mut binary = |operator: BinaryOperator| -> LocalNodeId<Expression> {
             let expression = Expression::Binary {
                 left: left_id,
                 operator,
@@ -229,12 +229,12 @@ impl<'a> Transpiler<'a> {
         &self,
         module: &'a Module,
         tree: &NodeTree,
-        expression_id: dir::NodeId<dir::Expression>,
-        left_id: dir::NodeId<dir::Expression>,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+        left_id: dir::LocalNodeId<dir::Expression>,
         operator: dir::AssignOperator,
-        right_id: dir::NodeId<dir::Expression>,
+        right_id: dir::LocalNodeId<dir::Expression>,
         unit: &mut TranspilerUnit,
-    ) -> TranspileResult<NodeId<Expression>> {
+    ) -> TranspileResult<LocalNodeId<Expression>> {
         let left_id = self
             .transpile_expression(module, tree, left_id, unit)
             .expect_node::<Expression>(left_id.into_any(), unit)?;
@@ -243,7 +243,7 @@ impl<'a> Transpiler<'a> {
             .expect_node::<Expression>(right_id.into_any(), unit)?;
 
         // transpile a trivial assign binary expression to a JS assign binary expression
-        let mut assign_binary = |operator: AssignOperator| -> NodeId<Expression> {
+        let mut assign_binary = |operator: AssignOperator| -> LocalNodeId<Expression> {
             let expression = Expression::AssignBinary {
                 left: left_id,
                 operator,

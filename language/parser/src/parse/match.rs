@@ -2,7 +2,7 @@ use crate::parse::prelude::*;
 use crate::{ParseResult, Parser};
 
 use dyst_ast::{
-    Block, BlockFormat, Expression, Keyword, MatchCase, MatchKind, NodeId, NodeType, Pattern,
+    Block, BlockFormat, Expression, Keyword, MatchCase, MatchKind, LocalNodeId, NodeType, Pattern,
     TokenType,
 };
 
@@ -21,7 +21,7 @@ impl<'a> Parser<'a> {
     ///     _ = ohNoes()
     /// }
     /// ```
-    pub fn eat_match(&mut self) -> ParseResult<NodeId<Expression>> {
+    pub fn eat_match(&mut self) -> ParseResult<LocalNodeId<Expression>> {
         // keyword
         // (accept switch for #Compatibility)
         let keyword = self.eat_keyword_in(&[Keyword::Match, Keyword::Switch])?;
@@ -36,7 +36,7 @@ impl<'a> Parser<'a> {
     }
 
     /// Eat a match body (without the match keyword)
-    pub fn eat_match_body(&mut self, kind: MatchKind) -> ParseResult<NodeId<Expression>> {
+    pub fn eat_match_body(&mut self, kind: MatchKind) -> ParseResult<LocalNodeId<Expression>> {
         let start = self.mark();
 
         // value
@@ -74,8 +74,8 @@ impl<'a> Parser<'a> {
     pub(crate) fn eat_match_cases(
         &mut self,
         kind: MatchKind,
-    ) -> ParseResult<Vec<NodeId<MatchCase>>> {
-        let mut cases: Vec<NodeId<MatchCase>> = Vec::new();
+    ) -> ParseResult<Vec<LocalNodeId<MatchCase>>> {
+        let mut cases: Vec<LocalNodeId<MatchCase>> = Vec::new();
         while self.peek().is_ok() {
             // stop on closing brace
             if self.peek_token(TokenType::CloseBrace).is_ok() {
@@ -106,7 +106,7 @@ impl<'a> Parser<'a> {
     ///     ...
     /// }
     /// ```
-    fn eat_match_case(&mut self, kind: MatchKind) -> ParseResult<NodeId<MatchCase>> {
+    fn eat_match_case(&mut self, kind: MatchKind) -> ParseResult<LocalNodeId<MatchCase>> {
         let start = self.mark();
 
         let (pattern_id, guard) = {
@@ -182,7 +182,7 @@ impl<'a> Parser<'a> {
         else if kind == MatchKind::Switch {
             // eat expressions until we hit a break (inclusive) or case / default (exclusive)
             self.eat_newlines_maybe()?;
-            let mut expressions: Vec<NodeId<Expression>> = Vec::new();
+            let mut expressions: Vec<LocalNodeId<Expression>> = Vec::new();
             while self.peek_keyword(Keyword::Case).is_err()
                 && self.peek_keyword(Keyword::Default).is_err()
                 && self.peek_token(TokenType::CloseBrace).is_err()

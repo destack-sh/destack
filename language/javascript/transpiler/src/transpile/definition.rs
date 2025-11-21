@@ -1,7 +1,7 @@
 use dyst_dir::{self as dir, Module, NodeTree};
 use dyst_javascript_ast::{
     BindingScope, Block, DeclarationDescriptor, DeclarationKind, Definition, EnumField, ExportType,
-    Expression, NodeId, Visibility,
+    Expression, LocalNodeId, Visibility,
 };
 
 use crate::{TranspileError, TranspileResult, TranspileResultExt, Transpiler, TranspilerUnit};
@@ -73,9 +73,9 @@ impl<'a> Transpiler<'a> {
         &self,
         module: &'a Module,
         tree: &NodeTree,
-        definition_id: dir::NodeId<dir::Definition>,
+        definition_id: dir::LocalNodeId<dir::Definition>,
         unit: &mut TranspilerUnit,
-    ) -> TranspileResult<NodeId<Definition>> {
+    ) -> TranspileResult<LocalNodeId<Definition>> {
         let definition = tree.get(definition_id);
         let definition = match definition {
             dir::Definition::Namespace {
@@ -197,9 +197,9 @@ impl<'a> Transpiler<'a> {
         &self,
         module: &'a Module,
         tree: &NodeTree,
-        field_id: dir::NodeId<dir::EnumField>,
+        field_id: dir::LocalNodeId<dir::EnumField>,
         unit: &mut TranspilerUnit,
-    ) -> TranspileResult<NodeId<EnumField>> {
+    ) -> TranspileResult<LocalNodeId<EnumField>> {
         let field = tree.get(field_id);
         let name = unit.strings.intern_from(&module.ast_strings, field.name);
         let value = field

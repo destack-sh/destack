@@ -1,4 +1,4 @@
-use dyst_dir::{NodeIdAny, Session};
+use dyst_dir::{LocalNodeIdAny, Session};
 
 use crate::{CompileWarning, CompileStage};
 
@@ -7,7 +7,7 @@ use crate::{CompileWarning, CompileStage};
 #[repr(u8)]
 pub enum ElaborateWarning {
     /// Unsupported node.
-    UnsupportedNode { node: NodeIdAny },
+    UnsupportedNode { node: LocalNodeIdAny },
 }
 
 impl ElaborateWarning {
@@ -20,7 +20,7 @@ impl ElaborateWarning {
     }
 
     /// Get the node id of the warning.
-    pub fn node_id(&self) -> Option<NodeIdAny> {
+    pub fn node_id(&self) -> Option<LocalNodeIdAny> {
         match self {
             Self::UnsupportedNode { node, .. } => Some(*node),
         }

@@ -1,5 +1,5 @@
 use crate::{ParseResult, Parser};
-use dyst_ast::{Expression, Keyword, NodeId};
+use dyst_ast::{Expression, Keyword, LocalNodeId};
 
 impl<'a> Parser<'a> {
     /// Eat a try statement.
@@ -31,7 +31,7 @@ impl<'a> Parser<'a> {
     ///     ...
     /// }
     /// ```
-    pub fn eat_try(&mut self) -> ParseResult<NodeId<Expression>> {
+    pub fn eat_try(&mut self) -> ParseResult<LocalNodeId<Expression>> {
         let start = self.mark();
         self.eat_keyword(Keyword::Try)?;
 

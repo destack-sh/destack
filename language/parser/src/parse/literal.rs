@@ -5,7 +5,7 @@ use crate::parse::prelude::*;
 use crate::{ParseError, ParseResult, Parser};
 
 use dyst_ast::{
-    Argument, Expression, LiteralType, NodeId, NodeType, NumberBase, Path, Property, ScalarLiteral,
+    Argument, Expression, LiteralType, LocalNodeId, NodeType, NumberBase, Path, Property, ScalarLiteral,
     StringId, TemplateLiteral, TokenSpan, TokenType,
 };
 
@@ -343,7 +343,7 @@ impl<'a> Parser<'a> {
         // template string with interpolation
         else if next.token.ty == TokenType::TemplateStringStart {
             let mut strings: Vec<StringId> = Vec::new();
-            let mut arguments: Vec<NodeId<Argument>> = Vec::new();
+            let mut arguments: Vec<LocalNodeId<Argument>> = Vec::new();
 
             // start
             let string = &next_str[1..next_str.len() - 2]; // remove ` and ${
@@ -385,7 +385,7 @@ impl<'a> Parser<'a> {
     }
 
     /// Eat an array literal (including the surrounding brackets).
-    pub fn eat_array_literal(&mut self) -> ParseResult<Vec<NodeId<Argument>>> {
+    pub fn eat_array_literal(&mut self) -> ParseResult<Vec<LocalNodeId<Argument>>> {
         self.eat_token(TokenType::OpenBracket)?;
         self.eat_newlines_maybe()?;
         let elements = if self.peek_token(TokenType::CloseBracket).is_ok() {
@@ -403,9 +403,9 @@ impl<'a> Parser<'a> {
     /// Eat the body of a sequence literal (excluding the surrounding parenthesis).
     pub fn eat_sequence_literal_body(
         &mut self,
-        first_element: Option<NodeId<Argument>>,
+        first_element: Option<LocalNodeId<Argument>>,
         close_token: TokenType,
-    ) -> ParseResult<Vec<NodeId<Argument>>> {
+    ) -> ParseResult<Vec<LocalNodeId<Argument>>> {
         let mut elements = Vec::new();
         if let Some(first) = first_element {
             elements.push(first);
@@ -434,7 +434,7 @@ impl<'a> Parser<'a> {
     /// { }
     /// { a: 1, b }
     /// { a(x): void }
-    pub fn eat_struct_literal(&mut self) -> ParseResult<Vec<NodeId<Property>>> {
+    pub fn eat_struct_literal(&mut self) -> ParseResult<Vec<LocalNodeId<Property>>> {
         self.eat_token(TokenType::OpenBrace)?;
         self.eat_newlines_maybe()?;
         let properties = self.eat_properties()?;
@@ -468,7 +468,7 @@ impl<'a> Parser<'a> {
     ///     ..someChildren.map(child => <Entity name={child.name} />)
     /// </Level>
     /// ```
-    pub fn eat_tree_literal(&mut self) -> ParseResult<NodeId<Expression>> {
+    pub fn eat_tree_literal(&mut self) -> ParseResult<LocalNodeId<Expression>> {
         let start = self.mark();
         self.eat_token(TokenType::LessThan)?;
         self.eat_newlines_maybe()?;
@@ -485,7 +485,7 @@ impl<'a> Parser<'a> {
         let header_start = self.mark();
 
         // header (arguments separated by `=`)
-        let arguments: Option<Vec<NodeId<Argument>>> = {
+        let arguments: Option<Vec<LocalNodeId<Argument>>> = {
             // fragment without arguments
             if self.peek_token(TokenType::Divide).is_ok()
                 || self.peek_token(TokenType::GreaterThan).is_ok()
@@ -494,7 +494,7 @@ impl<'a> Parser<'a> {
             }
             // fragment with arguments
             else {
-                let mut arguments: Vec<NodeId<Argument>> = vec![];
+                let mut arguments: Vec<LocalNodeId<Argument>> = vec![];
                 while self.peek_token(TokenType::Divide).is_err()
                     && self.peek_token(TokenType::GreaterThan).is_err()
                 {
@@ -511,7 +511,7 @@ impl<'a> Parser<'a> {
         self.eat_newlines_maybe()?;
 
         // body (either />, or > with child elements)
-        let elements: Option<Vec<NodeId<Argument>>> = {
+        let elements: Option<Vec<LocalNodeId<Argument>>> = {
             // fragment without children (/>)
             if self.peek_token(TokenType::Divide).is_ok() {
                 self.bump(); // eat /
@@ -524,7 +524,7 @@ impl<'a> Parser<'a> {
                 self.eat_newlines_maybe()?;
 
                 // eat children until closing fragment
-                let mut elements: Vec<NodeId<Argument>> = vec![];
+                let mut elements: Vec<LocalNodeId<Argument>> = vec![];
                 while self.peek().is_ok() {
                     // stop at closing fragment (</)
                     if self.peek_token(TokenType::LessThan).is_ok()

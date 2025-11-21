@@ -1,5 +1,5 @@
 use dyst_ast::{
-    Block, BlockFormat, Expression, Keyword, NodeId, NodeType, TokenType, YieldCardinality,
+    Block, BlockFormat, Expression, Keyword, LocalNodeId, NodeType, TokenType, YieldCardinality,
 };
 
 use crate::parse::prelude::*;
@@ -50,7 +50,7 @@ impl<'a> Parser<'a> {
     /// ```
     /// { ... }
     /// block: { ... }
-    pub fn eat_block(&mut self) -> ParseResult<NodeId<Block>> {
+    pub fn eat_block(&mut self) -> ParseResult<LocalNodeId<Block>> {
         let start = self.mark();
 
         // `do` prefix
@@ -93,8 +93,8 @@ impl<'a> Parser<'a> {
     }
 
     /// Eat a block of expressions (without the label, `{`, and `}`)
-    pub fn eat_block_body(&mut self, format: BlockFormat) -> ParseResult<Vec<NodeId<Expression>>> {
-        let mut expressions: Vec<NodeId<Expression>> = Vec::new();
+    pub fn eat_block_body(&mut self, format: BlockFormat) -> ParseResult<Vec<LocalNodeId<Expression>>> {
+        let mut expressions: Vec<LocalNodeId<Expression>> = Vec::new();
 
         while self.peek().is_ok() {
             // break if we're at the end of the block
@@ -132,7 +132,7 @@ impl<'a> Parser<'a> {
     /// break :label 17
     /// break 15
     /// ```
-    pub fn eat_break(&mut self) -> ParseResult<NodeId<Expression>> {
+    pub fn eat_break(&mut self) -> ParseResult<LocalNodeId<Expression>> {
         let start = self.mark();
         self.eat_keyword(Keyword::Break)?;
         // label
@@ -167,7 +167,7 @@ impl<'a> Parser<'a> {
     /// continue
     /// continue :label
     /// ```
-    pub fn eat_continue(&mut self) -> ParseResult<NodeId<Expression>> {
+    pub fn eat_continue(&mut self) -> ParseResult<LocalNodeId<Expression>> {
         let start = self.mark();
         self.eat_keyword(Keyword::Continue)?;
         // label
@@ -200,7 +200,7 @@ impl<'a> Parser<'a> {
     ///     someOtherFunction()
     /// }
     /// ```
-    pub fn eat_defer(&mut self) -> ParseResult<NodeId<Expression>> {
+    pub fn eat_defer(&mut self) -> ParseResult<LocalNodeId<Expression>> {
         let start = self.mark();
 
         // keyword
@@ -241,7 +241,7 @@ impl<'a> Parser<'a> {
     /// ```
     /// await someFunction()
     /// ```
-    pub fn eat_await(&mut self) -> ParseResult<NodeId<Expression>> {
+    pub fn eat_await(&mut self) -> ParseResult<LocalNodeId<Expression>> {
         let start = self.mark();
 
         // keyword
@@ -269,7 +269,7 @@ impl<'a> Parser<'a> {
     /// yield someValue
     /// yield* someIterator
     /// ```
-    pub fn eat_yield(&mut self) -> ParseResult<NodeId<Expression>> {
+    pub fn eat_yield(&mut self) -> ParseResult<LocalNodeId<Expression>> {
         let start = self.mark();
 
         // keyword
@@ -306,7 +306,7 @@ impl<'a> Parser<'a> {
     /// throw someError
     /// throw anyOldExpression()
     /// ```
-    pub fn eat_throw(&mut self) -> ParseResult<NodeId<Expression>> {
+    pub fn eat_throw(&mut self) -> ParseResult<LocalNodeId<Expression>> {
         let start = self.mark();
         self.eat_keyword(Keyword::Throw)?;
         // value
@@ -333,7 +333,7 @@ impl<'a> Parser<'a> {
     /// return
     /// return 17
     /// ```
-    pub fn eat_return(&mut self) -> ParseResult<NodeId<Expression>> {
+    pub fn eat_return(&mut self) -> ParseResult<LocalNodeId<Expression>> {
         let start = self.mark();
         self.eat_keyword(Keyword::Return)?;
         // value

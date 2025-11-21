@@ -1,5 +1,5 @@
 use crate::{
-    Expression, FunctionSignature, Key, Keyword, Mutability, Node, NodeId, NodeType, Visibility,
+    Expression, FunctionSignature, Key, Keyword, Mutability, Node, LocalNodeId, NodeType, Visibility,
 };
 
 /// The type of a binding.
@@ -139,20 +139,20 @@ pub enum Property {
     Field {
         modifiers: Option<BindingModifier>,
         key: Option<Key>,
-        value: Option<NodeId<Expression>>,
-        default: Option<NodeId<Expression>>,
+        value: Option<LocalNodeId<Expression>>,
+        default: Option<LocalNodeId<Expression>>,
     },
     /// Named member function (like `foo()` or `<T>(): T`).
     Method {
         modifiers: Option<BindingModifier>,
         key: Option<Key>,
         signature: FunctionSignature,
-        body: Option<NodeId<Expression>>,
+        body: Option<LocalNodeId<Expression>>,
     },
     /// Spread property (like `...a`).
     Spread {
         modifiers: Option<BindingModifier>,
-        value: NodeId<Expression>,
+        value: LocalNodeId<Expression>,
     },
 }
 

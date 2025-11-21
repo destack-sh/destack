@@ -1,4 +1,4 @@
-use crate::{Argument, NodeId, StringId};
+use crate::{Argument, LocalNodeId, StringId};
 
 /// A ScalarLiteral is literal scalar value.
 #[derive(Debug, Clone, PartialEq, PartialOrd)]
@@ -34,6 +34,6 @@ pub enum TemplateLiteral {
     /// Interpolated template literal value.
     InterpolatedString {
         strings: Vec<StringId>,
-        arguments: Vec<NodeId<Argument>>,
+        arguments: Vec<LocalNodeId<Argument>>,
     },
 }

@@ -1,6 +1,6 @@
 use crate::{TranspileError, TranspileResult, TranspileResultExt, Transpiler, TranspilerUnit};
 use dyst_dir::{self as dir, Module, NodeTree};
-use dyst_javascript_ast::{Block, NodeId, Statement};
+use dyst_javascript_ast::{Block, LocalNodeId, Statement};
 
 impl<'a> Transpiler<'a> {
     /// Transpile a block from DIR into JS AST.
@@ -8,9 +8,9 @@ impl<'a> Transpiler<'a> {
         &self,
         module: &'a Module,
         tree: &NodeTree,
-        block_id: dir::NodeId<dir::Block>,
+        block_id: dir::LocalNodeId<dir::Block>,
         unit: &mut TranspilerUnit,
-    ) -> TranspileResult<NodeId<Block>> {
+    ) -> TranspileResult<LocalNodeId<Block>> {
         let block = tree.get(block_id);
         let label = block
             .label

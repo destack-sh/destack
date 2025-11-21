@@ -5,7 +5,7 @@ use dyst_source::{FileSourceMap, Span};
 
 use crate::{
     Annotation, AnnotationPosition, Arena, Argument, Blank, Block, Comment, Decorator, Definition,
-    DependencyItem, Doc, EnumField, Expression, MatchCase, Node, NodeId, NodeType, Parameter,
+    DependencyItem, Doc, EnumField, Expression, MatchCase, Node, LocalNodeId, NodeType, Parameter,
     Pattern, PatternField, Property, Tag, WhereClause, WithClause,
 };
 
@@ -19,7 +19,7 @@ pub struct NodeTree {
     /// The types of all nodes. Index is the global node id.
     pub(crate) type_by_node_id: Vec<NodeType>,
     /// The annotations attached to nodes.
-    pub(crate) annotations_by_node_id: HashMap<u32, Vec<NodeId<Annotation>>>,
+    pub(crate) annotations_by_node_id: HashMap<u32, Vec<LocalNodeId<Annotation>>>,
     /// The spans of the NodeTree.
     pub source_map: FileSourceMap,
 
@@ -105,7 +105,7 @@ impl NodeTree {
     /// Allocate a new node in the tree.
     ///
     /// Returns a stable NodeId that can be used to retrieve the node later.
-    pub fn insert<T>(&mut self, node: T, span: Span) -> NodeId<T>
+    pub fn insert<T>(&mut self, node: T, span: Span) -> LocalNodeId<T>
     where
         T: Node,
         Self: NodeTreeImpl<T>,
@@ -116,7 +116,7 @@ impl NodeTree {
         let local_id = <Self as NodeTreeImpl<T>>::allocate(self, node);
         self.local_id_by_node_id.push(local_id);
         self.source_map.append(span);
-        NodeId::new(global_id)
+        LocalNodeId::new(global_id)
     }
 
     /// Prune nodes from the tree. Resets the next id to the given index.
@@ -137,7 +137,7 @@ impl NodeTree {
 
     /// Get an immutable reference to the node with the given NodeId.
     #[inline]
-    pub fn get<T>(&self, id: NodeId<T>) -> &T
+    pub fn get<T>(&self, id: LocalNodeId<T>) -> &T
     where
         T: Node,
         Self: NodeTreeImpl<T>,
@@ -148,7 +148,7 @@ impl NodeTree {
 
     /// Get a mutable reference to the node with the given NodeId.
     #[inline]
-    pub fn get_mut<T>(&mut self, id: NodeId<T>) -> &mut T
+    pub fn get_mut<T>(&mut self, id: LocalNodeId<T>) -> &mut T
     where
         T: Node,
         Self: NodeTreeImpl<T>,
@@ -159,7 +159,7 @@ impl NodeTree {
 
     /// Get the span for a node.
     #[inline]
-    pub fn get_span<T>(&self, node_id: NodeId<T>) -> Span
+    pub fn get_span<T>(&self, node_id: LocalNodeId<T>) -> Span
     where
         T: Node,
     {
@@ -174,7 +174,7 @@ impl NodeTree {
 
     /// Set the span for a node.
     #[inline]
-    pub fn set_span<T>(&mut self, node_id: NodeId<T>, span: Span)
+    pub fn set_span<T>(&mut self, node_id: LocalNodeId<T>, span: Span)
     where
         T: Node,
     {
@@ -195,14 +195,14 @@ impl NodeTree {
 
     /// Get the nodes for all nodes of a given type.
     #[inline]
-    pub fn get_nodes<T>(&self) -> Vec<NodeId<T>>
+    pub fn get_nodes<T>(&self) -> Vec<LocalNodeId<T>>
     where
         T: Node,
     {
         let mut nodes = Vec::new();
         for (idx, ty) in self.type_by_node_id.iter().enumerate() {
             if *ty == T::TYPE {
-                nodes.push(NodeId::new(idx as u32));
+                nodes.push(LocalNodeId::new(idx as u32));
             }
         }
         nodes
@@ -210,7 +210,7 @@ impl NodeTree {
 
     /// Get the nodes for a given type.
     #[inline]
-    pub fn get_nodes_for<T>(&self) -> Vec<NodeId<T>>
+    pub fn get_nodes_for<T>(&self) -> Vec<LocalNodeId<T>>
     where
         T: Node,
     {
@@ -218,7 +218,7 @@ impl NodeTree {
             .iter()
             .filter_map(|id| {
                 if self.type_by_node_id[*id as usize] == T::TYPE {
-                    Some(NodeId::new(*id))
+                    Some(LocalNodeId::new(*id))
                 } else {
                     None
                 }
@@ -228,13 +228,13 @@ impl NodeTree {
 
     /// Iter nodes of a given type.
     #[inline]
-    pub fn iter_nodes<T>(&self) -> impl Iterator<Item = NodeId<T>>
+    pub fn iter_nodes<T>(&self) -> impl Iterator<Item = LocalNodeId<T>>
     where
         T: Node,
     {
         self.local_id_by_node_id.iter().filter_map(|id| {
             if self.type_by_node_id[*id as usize] == T::TYPE {
-                Some(NodeId::new(*id))
+                Some(LocalNodeId::new(*id))
             } else {
                 None
             }
@@ -243,7 +243,7 @@ impl NodeTree {
 
     /// Append a doc to a node by its global id.
     #[inline]
-    pub fn append_annotation(&mut self, target_id: u32, annotation: NodeId<Annotation>) {
+    pub fn append_annotation(&mut self, target_id: u32, annotation: LocalNodeId<Annotation>) {
         debug_assert!(target_id < self.next_global_id);
         self.annotations_by_node_id
             .entry(target_id)
@@ -259,7 +259,7 @@ impl NodeTree {
 
     /// Get annotations attached to a node.
     #[inline]
-    pub fn get_annotations(&self, node_id: u32) -> Vec<NodeId<Annotation>> {
+    pub fn get_annotations(&self, node_id: u32) -> Vec<LocalNodeId<Annotation>> {
         self.annotations_by_node_id
             .get(&node_id)
             .cloned()
@@ -268,7 +268,7 @@ impl NodeTree {
 
     /// Get all annotations.
     #[inline]
-    pub fn get_all_annotations(&self) -> &HashMap<u32, Vec<NodeId<Annotation>>> {
+    pub fn get_all_annotations(&self) -> &HashMap<u32, Vec<LocalNodeId<Annotation>>> {
         &self.annotations_by_node_id
     }
 
@@ -284,7 +284,7 @@ impl NodeTree {
 
     /// Get blank annotation attached to a node, cloned as a Vec.
     #[inline]
-    pub fn get_blanks_for(&self, node_id: u32) -> Vec<(NodeId<Blank>, AnnotationPosition)> {
+    pub fn get_blanks_for(&self, node_id: u32) -> Vec<(LocalNodeId<Blank>, AnnotationPosition)> {
         self.get_annotations(node_id)
             .into_iter()
             .filter_map(|id| match self.get(id) {
@@ -296,7 +296,7 @@ impl NodeTree {
 
     /// Get comment annotations attached to a node, cloned as a Vec.
     #[inline]
-    pub fn get_comments_for(&self, node_id: u32) -> Vec<(NodeId<Comment>, AnnotationPosition)> {
+    pub fn get_comments_for(&self, node_id: u32) -> Vec<(LocalNodeId<Comment>, AnnotationPosition)> {
         self.get_annotations(node_id)
             .into_iter()
             .filter_map(|id| match self.get(id) {
@@ -308,7 +308,7 @@ impl NodeTree {
 
     /// Get doc annotation attached to a node, cloned as a Vec.
     #[inline]
-    pub fn get_docs_for(&self, node_id: u32) -> Vec<(NodeId<Doc>, AnnotationPosition)> {
+    pub fn get_docs_for(&self, node_id: u32) -> Vec<(LocalNodeId<Doc>, AnnotationPosition)> {
         self.get_annotations(node_id)
             .into_iter()
             .filter_map(|id| match self.get(id) {

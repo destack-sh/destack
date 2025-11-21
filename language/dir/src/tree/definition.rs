@@ -1,6 +1,6 @@
 use crate::{
-    BindingScope, ExportType, Expression, FunctionSignature, Generics, Heritage, Node, NodeId,
-    NodeType, Property, ScopeId, StringId, SymbolId, Type,
+    BindingScope, ExportType, Expression, FunctionSignature, Generics, Heritage, Node, LocalNodeId,
+    NodeType, Property, LocalScopeId, StringId, LocalSymbolId, Type,
 };
 
 /// The kind of declaration.
@@ -24,7 +24,7 @@ pub struct DeclarationDescriptor {
     /// The export type of the definition.
     pub export: Option<ExportType>,
     /// The symbol of the definition.
-    pub symbol: SymbolId,
+    pub symbol: LocalSymbolId,
 }
 
 /// Definition introduces a type or function into its scope.
@@ -34,8 +34,8 @@ pub enum Definition {
     Namespace {
         descriptor: DeclarationDescriptor,
         generics: Generics,
-        scope: ScopeId,
-        definitions: Vec<NodeId<Definition>>,
+        scope: LocalScopeId,
+        definitions: Vec<LocalNodeId<Definition>>,
     },
     /// Struct or class definition.
     Struct {
@@ -43,42 +43,42 @@ pub enum Definition {
         kind: StructKind,
         generics: Generics,
         heritage: Heritage,
-        scope: ScopeId,
-        properties: Vec<NodeId<Property>>,
+        scope: LocalScopeId,
+        properties: Vec<LocalNodeId<Property>>,
     },
     /// Enum definition.
     Enum {
         descriptor: DeclarationDescriptor,
         generics: Generics,
         heritage: Heritage,
-        scope: ScopeId,
-        fields: Vec<NodeId<EnumField>>,
-        properties: Vec<NodeId<Property>>,
+        scope: LocalScopeId,
+        fields: Vec<LocalNodeId<EnumField>>,
+        properties: Vec<LocalNodeId<Property>>,
     },
     /// Interface definition.
     Interface {
         descriptor: DeclarationDescriptor,
         generics: Generics,
         heritage: Heritage,
-        scope: ScopeId,
-        properties: Vec<NodeId<Property>>,
+        scope: LocalScopeId,
+        properties: Vec<LocalNodeId<Property>>,
     },
     /// Function definition. Nested definitions are lifted from the body.
     Function {
         descriptor: DeclarationDescriptor,
         signature: FunctionSignature,
-        scope: ScopeId,
-        definitions: Vec<NodeId<Definition>>,
-        body: Option<NodeId<Expression>>,
+        scope: LocalScopeId,
+        definitions: Vec<LocalNodeId<Definition>>,
+        body: Option<LocalNodeId<Expression>>,
     },
     /// Implement definition.
     Implement {
         descriptor: DeclarationDescriptor,
         generics: Generics,
-        target_type: NodeId<Type>,
+        target_type: LocalNodeId<Type>,
         heritage: Heritage,
-        scope: ScopeId,
-        properties: Vec<NodeId<Property>>,
+        scope: LocalScopeId,
+        properties: Vec<LocalNodeId<Property>>,
     },
 }
 
@@ -116,12 +116,12 @@ impl Definition {
     }
 
     /// Get the symbol of the definition.
-    pub fn symbol(&self) -> SymbolId {
+    pub fn symbol(&self) -> LocalSymbolId {
         self.descriptor().symbol
     }
 
     /// Get the scope of the definition.
-    pub fn scope(&self) -> ScopeId {
+    pub fn scope(&self) -> LocalScopeId {
         match self {
             Definition::Namespace { scope, .. } => *scope,
             Definition::Struct { scope, .. } => *scope,
@@ -148,9 +148,9 @@ pub struct EnumField {
     /// The name of the enum field.
     pub name: StringId,
     /// The value of the enum field.
-    pub value: Option<NodeId<Expression>>,
+    pub value: Option<LocalNodeId<Expression>>,
     /// The symbol of the enum field.
-    pub symbol: SymbolId,
+    pub symbol: LocalSymbolId,
 }
 
 impl Node for EnumField {

@@ -1,6 +1,6 @@
 use crate::{ParseError, ParseResult, Parser};
 
-use dyst_ast::{DeclarationDescriptor, Expression, Keyword, Mutability, NodeId, TokenType};
+use dyst_ast::{DeclarationDescriptor, Expression, Keyword, Mutability, LocalNodeId, TokenType};
 
 impl<'a> Parser<'a> {
     /// Peek a mutability modifier.
@@ -87,7 +87,7 @@ impl<'a> Parser<'a> {
     ///     ...
     /// }
     /// ```
-    pub fn eat_let(&mut self, meta: DeclarationDescriptor) -> ParseResult<NodeId<Expression>> {
+    pub fn eat_let(&mut self, meta: DeclarationDescriptor) -> ParseResult<LocalNodeId<Expression>> {
         let start = self.mark();
 
         // mutability
