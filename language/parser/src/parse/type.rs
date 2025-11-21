@@ -133,7 +133,7 @@ impl<'a> Parser<'a> {
             // bigint
             "bigint" => Ok(TypeLiteral::Bigint),
             // number
-            "number" => Ok(TypeLiteral::Number),            
+            "number" => Ok(TypeLiteral::Number),
             // int (followed by number or nothing)
             "int" => Ok(TypeLiteral::Int(IntType::Arbitrary {
                 width: None,

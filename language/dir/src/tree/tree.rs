@@ -271,10 +271,8 @@ impl NodeTree {
         T: Node + 'a,
         Self: NodeTreeImpl<T>,
     {
-        self.local_id_by_node_id
-            .iter()
-            .enumerate()
-            .filter_map(move |(global_index, &local_index)| {
+        self.local_id_by_node_id.iter().enumerate().filter_map(
+            move |(global_index, &local_index)| {
                 if self.type_by_node_id[global_index] == T::TYPE
                     && self.module_by_node_id[global_index] == module_id
                 {
@@ -284,7 +282,8 @@ impl NodeTree {
                 } else {
                     None
                 }
-            })
+            },
+        )
     }
 
     /// Iterate over all nodes.

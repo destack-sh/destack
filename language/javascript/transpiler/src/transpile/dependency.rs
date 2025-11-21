@@ -47,7 +47,8 @@ impl<'a> Transpiler<'a> {
                     symbol: _,
                 } => {
                     let name = unit.strings.intern_from(&module.ast_strings, *name);
-                    let alias = alias.map(|alias| unit.strings.intern_from(&module.ast_strings, alias));
+                    let alias =
+                        alias.map(|alias| unit.strings.intern_from(&module.ast_strings, alias));
                     let item = DependencyItem {
                         kind: if *inner_kind != kind {
                             Some(self.transpile_dependency_kind(*inner_kind))

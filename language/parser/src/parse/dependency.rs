@@ -84,7 +84,11 @@ impl<'a> Parser<'a> {
     /// export default foo
     /// export = foo
     /// ```
-    pub fn eat_export(&mut self, start: Option<ParserMark>, mode: Option<ExportType>) -> ParseResult<NodeId<Expression>> {
+    pub fn eat_export(
+        &mut self,
+        start: Option<ParserMark>,
+        mode: Option<ExportType>,
+    ) -> ParseResult<NodeId<Expression>> {
         let start = start.unwrap_or_else(|| self.mark());
 
         // mode
