@@ -1,8 +1,9 @@
-use dyst_ast as ast;
+use dyst_ast::{self as ast};
 use dyst_dir::{
     DependencyEdge, DependencyItem, DependencyKind, DependencySource, ExportType, Expression,
     Module, NodeId, NodeTree, ScopeId, SymbolKey, SymbolSpace,
 };
+use dyst_source::StringId;
 
 use crate::Compiler;
 
@@ -58,53 +59,86 @@ impl<'a> Compiler<'a> {
     }
 
     /// Extract the dependency edges of a module.
-    pub(super) fn extract_dependency_edges(
+    pub(super) fn bind_dependency_edges(
         &self,
         module: &Module,
         _scope_id: ScopeId,
         tree: &mut NodeTree,
     ) -> Vec<DependencyEdge> {
+        fn bind_dependency_item_to_edge(
+            target: StringId,
+            item_id: NodeId<DependencyItem>,
+            item: &DependencyItem,
+            source: DependencySource,
+        ) -> Option<DependencyEdge> {
+            match item {
+                DependencyItem::UnresolvedDefault {
+                    kind,
+                    alias,
+                    symbol,
+                } => Some(DependencyEdge::UnresolvedDefault {
+                    kind: *kind,
+                    target,
+                    module: None,
+                    alias: *alias,
+                    item: Some(item_id),
+                    source,
+                    symbol: *symbol,
+                }),
+                DependencyItem::UnresolvedItem {
+                    kind,
+                    name,
+                    alias,
+                    symbol,
+                } => Some(DependencyEdge::UnresolvedItem {
+                    kind: *kind,
+                    target,
+                    module: None,
+                    name: *name,
+                    alias: *alias,
+                    item: Some(item_id),
+                    source,
+                    symbol: *symbol,
+                }),
+                _ => None,
+            }
+        }
+
+        // walk expressions
         let mut edges: Vec<DependencyEdge> = Vec::new();
-        for (_expresion_id, expression) in tree.iter_nodes_of_type_in_module::<Expression>(module.id)
+        for (_expresion_id, expression) in
+            tree.iter_nodes_of_type_in_module::<Expression>(module.id)
         {
             // import statements
             if let Expression::Import { target, items, .. } = expression {
                 for item_id in items.iter() {
                     let item = tree.get(*item_id);
-                    let edge: DependencyEdge = match item {
-                        DependencyItem::UnresolvedDefault {
-                            kind,
-                            alias,
-                            symbol,
-                        } => DependencyEdge::UnresolvedDefault {
-                            kind: *kind,
-                            target: *target,
-                            module: None,
-                            alias: *alias,
-                            item: Some(*item_id),
-                            source: DependencySource::ImportStatement,
-                            symbol: *symbol,
-                        },
-                        DependencyItem::UnresolvedItem {
-                            kind,
-                            name,
-                            alias,
-                            symbol,
-                        } => DependencyEdge::UnresolvedItem {
-                            kind: *kind,
-                            target: *target,
-                            module: None,
-                            name: *name,
-                            alias: *alias,
-                            item: Some(*item_id),
-                            source: DependencySource::ImportStatement,
-                            symbol: *symbol,
-                        },
-                        _ => continue,
-                    };
-                    edges.push(edge);
+                    if let Some(edge) = bind_dependency_item_to_edge(
+                        *target,
+                        *item_id,
+                        item,
+                        DependencySource::ImportStatement,
+                    ) {
+                        edges.push(edge);
+                    }
                 }
-            } else {
+            }
+            // re-export statements
+            else if let Expression::ReExport { target, items, .. } = expression {
+                for item_id in items.iter() {
+                    let item = tree.get(*item_id);
+                    if let Some(edge) = bind_dependency_item_to_edge(
+                        *target,
+                        *item_id,
+                        item,
+                        DependencySource::ReExportStatement,
+                    ) {
+                        edges.push(edge);
+                    }
+                }
+            }
+            // something else
+            else {
                 continue;
             }
         }

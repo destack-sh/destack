@@ -52,7 +52,7 @@ impl<'a> Compiler<'a> {
         module.write().roots.extend(roots);
 
         // bind dependencies
-        let imports = self.extract_dependency_edges(&module.read(), scope_id, tree);
+        let imports = self.bind_dependency_edges(&module.read(), scope_id, tree);
         module.write().imports.extend(imports);
 
         // next task: resolve module
