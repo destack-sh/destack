@@ -93,6 +93,7 @@ impl CompileDiagnostic {
             message,
             file_id,
             primary_span,
+            primary_highlight_spans: None,
             secondary_spans: None,
             suggestions: None,
         }

@@ -195,6 +195,7 @@ impl ParseError {
                     None => format!("unexpected {token_at_primary_span}{in_node_str}"),
                 },
             },
+            primary_highlight_spans: None,
             secondary_spans: None,
             suggestions: None,
         }

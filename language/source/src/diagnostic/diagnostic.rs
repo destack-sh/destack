@@ -59,6 +59,8 @@ pub struct Diagnostic {
     pub file_id: FileId,
     /// The primary span of the diagnostic.
     pub primary_span: LabeledSpan,
+    /// The spans to highlight within the primary span.
+    pub primary_highlight_spans: Option<Vec<LabeledSpan>>,
     /// The secondary spans of the diagnostic.
     pub secondary_spans: Option<Vec<LabeledSpan>>,
     /// The suggestions for the diagnostic.
