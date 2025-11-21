@@ -16,7 +16,7 @@ impl<'a> Compiler<'a> {
                 let name = self
                     .session
                     .strings
-                    .intern_from(&module.strings, name.string());
+                    .intern_from(&module.ast_strings, name.string());
                 Key::Name(name)
             }
             ast::Key::Expression(expression) => {
@@ -24,7 +24,7 @@ impl<'a> Compiler<'a> {
                 Key::Expression(expression)
             }
             ast::Key::NamedExpression { name, key } => {
-                let name = self.session.strings.intern_from(&module.strings, name);
+                let name = self.session.strings.intern_from(&module.ast_strings, name);
                 let key = self.bind_expression(module, scope_id, key, tree);
                 Key::NamedExpression { name, key }
             }

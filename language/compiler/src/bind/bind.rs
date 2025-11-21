@@ -1,4 +1,4 @@
-use dyst_dir::{ModuleId, NodeTree, ScopeKind};
+use dyst_dir::{ModuleId, NodeTree, ScopeKind, SymbolSpace};
 
 use crate::{BindError, BindResult, Compiler, CompilerTask, ResolveTask};
 
@@ -32,20 +32,30 @@ impl<'a> Compiler<'a> {
             .ok_or(BindError::ModuleNotFound { module })?;
         let module_id = module.read().id;
 
-        // create scope
-        let scope_id = tree.create_scope(ScopeKind::Module, None, None);
-        module.write().scope = Some(scope_id);
+        // create module symbol and scope
+        let scope_id = tree.create_scope(ScopeKind::Module, self.session.root_scope_id, None);
+        let symbol_id = tree.create_symbol(SymbolSpace::Value, None, scope_id);
+        tree.get_scope_by_id_mut(scope_id).owner = Some(symbol_id);
+        {
+            let mut module = module.write();
+            module.symbol = Some(symbol_id);
+            module.scope = Some(scope_id);
+        }
 
-        // bind expressions
-        let expressions: Vec<_> = module
+        // bind roots
+        let roots: Vec<_> = module
             .read()
             .ast_roots
             .iter()
             .map(|expression| self.bind_expression(&module.read(), scope_id, *expression, tree))
             .collect();
-        module.write().roots.extend(expressions);
+        module.write().roots.extend(roots);
 
-        // begin resolving
+        // bind dependencies
+        let imports = self.extract_dependency_edges(&module.read(), scope_id, tree);
+        module.write().imports.extend(imports);
+
+        // next task: resolve module
         self.enqueue(ResolveTask::ResolveModule { module: module_id }.into());
 
         Ok(())

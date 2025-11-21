@@ -104,7 +104,7 @@ impl<'a> Transpiler<'a> {
                 items,
                 arguments,
             } => {
-                let target = unit.strings.intern_from(&module.strings, *target);
+                let target = unit.strings.intern_from(&module.ast_strings, *target);
                 let (default_alias, items) =
                     self.transpile_dependency_items(module, tree, *kind, items.as_slice(), unit)?;
                 let arguments = arguments
@@ -142,7 +142,7 @@ impl<'a> Transpiler<'a> {
                 items,
             } => {
                 let mode = self.transpile_export_type(*mode);
-                let target = unit.strings.intern_from(&module.strings, *target);
+                let target = unit.strings.intern_from(&module.ast_strings, *target);
                 let (default_alias, items) =
                     self.transpile_dependency_items(module, tree, *kind, items.as_slice(), unit)?;
                 let kind = self.transpile_dependency_kind(*kind);
@@ -349,7 +349,7 @@ impl<'a> Transpiler<'a> {
                 let left_id = self
                     .transpile_expression(module, tree, *left, unit)
                     .expect_node::<Expression>(left.into_any(), unit)?;
-                let name = unit.strings.intern_from(&module.strings, *name);
+                let name = unit.strings.intern_from(&module.ast_strings, *name);
                 let static_arguments = static_arguments
                     .as_ref()
                     .map(|arguments| {

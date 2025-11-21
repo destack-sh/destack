@@ -69,7 +69,7 @@ impl<'a> Compiler<'a> {
                 items,
                 arguments,
             } => {
-                let target = self.session.strings.intern_from(&module.strings, *target);
+                let target = self.session.strings.intern_from(&module.ast_strings, *target);
                 // items
                 let mut items: Vec<_> = items
                     .as_ref()
@@ -84,7 +84,7 @@ impl<'a> Compiler<'a> {
                     .unwrap_or_default();
                 // default item
                 if let Some(alias) = alias {
-                    let alias = self.session.strings.intern_from(&module.strings, *alias);
+                    let alias = self.session.strings.intern_from(&module.ast_strings, *alias);
                     let symbol_id = tree.create_symbol(
                         SymbolSpace::Value,
                         Some(SymbolKey::Name(alias)),
@@ -128,7 +128,7 @@ impl<'a> Compiler<'a> {
             } => {
                 let mode = self.bind_export_type(*mode);
                 let target =
-                    target.map(|target| self.session.strings.intern_from(&module.strings, target));
+                    target.map(|target| self.session.strings.intern_from(&module.ast_strings, target));
                 // re-export from import
                 if let Some(target) = target {
                     // items
@@ -145,7 +145,7 @@ impl<'a> Compiler<'a> {
                         .unwrap_or_default();
                     // default item
                     if let Some(alias) = alias {
-                        let alias = self.session.strings.intern_from(&module.strings, *alias);
+                        let alias = self.session.strings.intern_from(&module.ast_strings, *alias);
                         let symbol_id = tree.create_symbol(
                             SymbolSpace::Value,
                             Some(SymbolKey::Name(alias)),
@@ -232,7 +232,7 @@ impl<'a> Compiler<'a> {
             } => {
                 let kind = self.bind_type_kind(*kind);
                 let name = self.session.strings.intern_from(
-                    &module.strings,
+                    &module.ast_strings,
                     descriptor.name.expect("LetType must have a name").string(),
                 );
                 let mutability = mutability.map(|mutability| self.bind_mutability(mutability));
@@ -347,7 +347,7 @@ impl<'a> Compiler<'a> {
                 static_arguments,
             } => {
                 let left = self.bind_expression(module, scope_id, *left, tree);
-                let name = self.session.strings.intern_from(&module.strings, *name);
+                let name = self.session.strings.intern_from(&module.ast_strings, *name);
                 let static_arguments = static_arguments.as_ref().map(|arguments| {
                     arguments
                         .iter()
@@ -711,7 +711,7 @@ impl<'a> Compiler<'a> {
 
             ast::Expression::Break { label, value } => {
                 let label =
-                    label.map(|label| self.session.strings.intern_from(&module.strings, label));
+                    label.map(|label| self.session.strings.intern_from(&module.ast_strings, label));
                 let value = value.map(|value| self.bind_expression(module, scope_id, value, tree));
                 Expression::UnresolvedBreak {
                     target: label,
@@ -720,7 +720,7 @@ impl<'a> Compiler<'a> {
             }
             ast::Expression::Continue { label } => {
                 let label =
-                    label.map(|label| self.session.strings.intern_from(&module.strings, label));
+                    label.map(|label| self.session.strings.intern_from(&module.ast_strings, label));
                 Expression::UnresolvedContinue { target: label }
             }
             ast::Expression::Return { value } => {

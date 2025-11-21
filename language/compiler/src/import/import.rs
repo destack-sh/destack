@@ -89,7 +89,7 @@ impl<'a> Compiler<'a> {
         );
         self.session.modules.insert(module);
 
-        // begin binding
+        // next task: bind module
         self.enqueue(BindTask::BindModule { module: module_id }.into());
 
         Ok(())

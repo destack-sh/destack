@@ -24,7 +24,7 @@ impl<'a> Transpiler<'a> {
                 let modifiers = modifiers
                     .map(|modifiers| self.transpile_binding_modifier(module, modifiers, unit))
                     .transpose()?;
-                let name = unit.strings.intern_from(&module.strings, *name);
+                let name = unit.strings.intern_from(&module.ast_strings, *name);
                 let ty = ty
                     .map(|ty| self.transpile_type(module, tree, ty, unit))
                     .transpose()?;
@@ -77,7 +77,7 @@ impl<'a> Transpiler<'a> {
                 let modifiers = modifiers
                     .map(|modifiers| self.transpile_binding_modifier(module, modifiers, unit))
                     .transpose()?;
-                let name = unit.strings.intern_from(&module.strings, *name);
+                let name = unit.strings.intern_from(&module.ast_strings, *name);
                 let ty = ty
                     .map(|ty| self.transpile_type(module, tree, ty, unit))
                     .transpose()?;

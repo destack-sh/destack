@@ -17,7 +17,7 @@ impl<'a> Compiler<'a> {
         let block = module.get(block_id);
         let label = block
             .label
-            .map(|label| self.session.strings.intern_from(&module.strings, label));
+            .map(|label| self.session.strings.intern_from(&module.ast_strings, label));
         let expressions = block
             .expressions
             .iter()

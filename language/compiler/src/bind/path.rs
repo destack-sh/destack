@@ -20,7 +20,7 @@ impl<'a> Compiler<'a> {
         let segments: SmallVec<StringId, 3> = path
             .segments
             .iter()
-            .map(|segment| self.session.strings.intern_from(&module.strings, *segment))
+            .map(|segment| self.session.strings.intern_from(&module.ast_strings, *segment))
             .collect();
         match self.bind_path_base(segments[0]) {
             Some(base) => {
