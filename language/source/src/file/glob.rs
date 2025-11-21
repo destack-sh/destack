@@ -75,6 +75,7 @@ pub fn matches(pattern: &[u8], mut pattern_idx: usize, text: &[u8], mut text_idx
 pub fn glob(pattern: &str) -> Vec<PathBuf> {
     // split pattern into base directory and normalized pattern
     let (base_dir, normalized_pattern) = split_base_directory(pattern);
+    
     // set up walk options for traversal
     let walk_options = WalkOptions {
         root: base_dir,
@@ -82,6 +83,7 @@ pub fn glob(pattern: &str) -> Vec<PathBuf> {
         glob: Some(vec![normalized_pattern]),
     };
     let mut result = Vec::new();
+    
     // collect all matching paths
     walk(&walk_options, |path| result.push(path.to_path_buf()));
     result
