@@ -15,6 +15,7 @@ const FILE_GLOBS_TO_UPDATE: &[&str] = &[
     "*/*/package.json",
     "*/*/*/package.json",
 ];
+const FILE_GLOBS_TO_IGNORE: &[&str] = &["language/resolver/fixtures/"];
 
 #[derive(Subcommand, Clone, Debug)]
 pub enum VersionCommands {
@@ -67,6 +68,12 @@ pub fn bump() -> i32 {
             }
         };
         for path in paths {
+            if FILE_GLOBS_TO_IGNORE
+            .iter()
+            .any(|ignore| path.to_string_lossy().contains(ignore))
+            {
+                continue;
+            }
             console::print(&path.to_string_lossy());
             match fs::read_to_string(&path) {
                 Ok(text) => {
