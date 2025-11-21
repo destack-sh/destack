@@ -2,7 +2,7 @@ use crate::parse::prelude::*;
 use crate::{ParseResult, Parser};
 
 use dyst_ast::{
-    DeclarationDescriptor, Definition, Generics, Heritage, Keyword, NodeId, NodeType, TokenType,
+    DeclarationDescriptor, Definition, Generics, Heritage, Keyword, LocalNodeId, NodeType, TokenType,
 };
 
 impl<'a> Parser<'a> {
@@ -39,7 +39,7 @@ impl<'a> Parser<'a> {
     pub fn eat_interface(
         &mut self,
         mut descriptor: DeclarationDescriptor,
-    ) -> ParseResult<NodeId<Definition>> {
+    ) -> ParseResult<LocalNodeId<Definition>> {
         let start = self.mark();
 
         // keyword

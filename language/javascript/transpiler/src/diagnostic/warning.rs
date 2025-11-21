@@ -8,15 +8,15 @@ use crate::TranspileDiagnostic;
 #[repr(u8)]
 pub enum TranspileWarning {
     /// Imprecise type.
-    ImpreciseType { node: dir::NodeIdAny },
+    ImpreciseType { node: dir::LocalNodeIdAny },
     /// Unexpected node.
     UnexpectedNode {
-        node: dir::NodeIdAny,
+        node: dir::LocalNodeIdAny,
         wanted: NodeType,
         message: Option<String>,
     },
     /// Expected statement, got something else.
-    ExpectedStatement { node: dir::NodeIdAny },
+    ExpectedStatement { node: dir::LocalNodeIdAny },
 }
 
 impl TranspileWarning {
@@ -43,7 +43,7 @@ impl TranspileWarning {
     }
 
     /// Get the node id of the warning.
-    pub fn node_id(&self) -> dir::NodeIdAny {
+    pub fn node_id(&self) -> dir::LocalNodeIdAny {
         match self {
             Self::ImpreciseType { node, .. } => *node,
             Self::UnexpectedNode { node, .. } => *node,

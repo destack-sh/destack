@@ -1,4 +1,4 @@
-use dyst_dir::{NodeIdAny, Session};
+use dyst_dir::{LocalNodeIdAny, Session};
 
 use crate::{CompileWarning, CompileStage};
 
@@ -7,15 +7,15 @@ use crate::{CompileWarning, CompileStage};
 #[repr(u8)]
 pub enum OptimizeWarning {
     /// Inscrutable type for an expression.
-    InscrutableType { node: NodeIdAny },
+    InscrutableType { node: LocalNodeIdAny },
     /// Hint ignored.
     IgnoredHint {
-        node: NodeIdAny,
+        node: LocalNodeIdAny,
         message: Option<String>,
     },
     /// Optimization skipped.
     SkippedOptimization {
-        node: NodeIdAny,
+        node: LocalNodeIdAny,
         message: Option<String>,
     },
 }
@@ -32,7 +32,7 @@ impl OptimizeWarning {
     }
 
     /// Get the node id of the warning.
-    pub fn node_id(&self) -> Option<NodeIdAny> {
+    pub fn node_id(&self) -> Option<LocalNodeIdAny> {
         match self {
             Self::InscrutableType { node, .. } => Some(*node),
             Self::IgnoredHint { node, .. } => Some(*node),

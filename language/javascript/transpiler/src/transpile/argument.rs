@@ -1,5 +1,5 @@
 use dyst_dir::{self as dir, Module, NodeTree};
-use dyst_javascript_ast::{Argument, Expression, NodeId, Parameter};
+use dyst_javascript_ast::{Argument, Expression, LocalNodeId, Parameter};
 
 use crate::{TranspileResult, TranspileResultExt, Transpiler, TranspilerUnit};
 
@@ -9,9 +9,9 @@ impl<'a> Transpiler<'a> {
         &self,
         module: &'a Module,
         tree: &NodeTree,
-        parameter_id: dir::NodeId<dir::Parameter>,
+        parameter_id: dir::LocalNodeId<dir::Parameter>,
         unit: &mut TranspilerUnit,
-    ) -> TranspileResult<NodeId<Parameter>> {
+    ) -> TranspileResult<LocalNodeId<Parameter>> {
         let parameter = tree.get(parameter_id);
         let parameter = match parameter {
             dir::Parameter::Named {
@@ -99,9 +99,9 @@ impl<'a> Transpiler<'a> {
         &self,
         module: &'a Module,
         tree: &NodeTree,
-        argument_id: dir::NodeId<dir::Argument>,
+        argument_id: dir::LocalNodeId<dir::Argument>,
         unit: &mut TranspilerUnit,
-    ) -> TranspileResult<NodeId<Argument>> {
+    ) -> TranspileResult<LocalNodeId<Argument>> {
         let argument = tree.get(argument_id);
         let argument = match argument {
             dir::Argument::UnresolvedNamed {

@@ -3,7 +3,7 @@ use std::borrow::Cow;
 use crate::{DystFormatContext, DystFormatter};
 
 use dyst_ast::{
-    Argument, DefinitionType, FloatType, IntType, Keyword, NodeId, ScalarLiteral, TemplateLiteral,
+    Argument, DefinitionType, FloatType, IntType, Keyword, LocalNodeId, ScalarLiteral, TemplateLiteral,
     TypeLiteral,
 };
 use dyst_fir::format::{Format, FormatResult, text, token};
@@ -75,7 +75,7 @@ pub(crate) fn format_scalar_literal<'ast>(
 /// |strings| = |arguments| + 1
 fn format_interpolated_template_literal<'ast>(
     strings: &[StringId],
-    arguments: &[NodeId<Argument>],
+    arguments: &[LocalNodeId<Argument>],
     f: &mut DystFormatter<'ast, '_>,
 ) -> FormatResult<()> {
     debug_assert_eq!(strings.len(), arguments.len().saturating_add(1));

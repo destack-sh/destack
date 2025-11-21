@@ -1,14 +1,14 @@
 use dyst_fir::format::FormatResult;
 
 use crate::{DystFormatter, FormatNode};
-use dyst_ast::{Keyword, MatchCase, NodeId};
+use dyst_ast::{Keyword, MatchCase, LocalNodeId};
 use dyst_fir::prelude::*;
 use dyst_fir::write;
 
 impl<'ast> FormatNode<'ast, MatchCase> for MatchCase {
     fn format_node(
         &self,
-        node_id: NodeId<MatchCase>,
+        node_id: LocalNodeId<MatchCase>,
         f: &mut DystFormatter<'ast, '_>,
     ) -> FormatResult<()> {
         write!(f, [f.context().any_prefix_annotations(node_id)])?;

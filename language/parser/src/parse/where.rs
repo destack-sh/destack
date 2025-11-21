@@ -1,7 +1,7 @@
 //! Parse use and where declarations.
 use crate::{ParseResult, Parser};
 
-use dyst_ast::{Keyword, NodeId, TokenType, WhereClause};
+use dyst_ast::{Keyword, LocalNodeId, TokenType, WhereClause};
 
 impl<'a> Parser<'a> {
     /// Eat a where context declaration or assignment maybe.
@@ -15,7 +15,7 @@ impl<'a> Parser<'a> {
     /// where !Bar
     /// ```
     #[inline]
-    pub fn eat_where_maybe(&mut self) -> ParseResult<Option<Vec<NodeId<WhereClause>>>> {
+    pub fn eat_where_maybe(&mut self) -> ParseResult<Option<Vec<LocalNodeId<WhereClause>>>> {
         if self.peek_keyword(Keyword::Where).is_ok() {
             Ok(Some(self.eat_where()?))
         } else {
@@ -38,7 +38,7 @@ impl<'a> Parser<'a> {
     ///    T > Y
     /// )
     /// ```
-    pub fn eat_where(&mut self) -> ParseResult<Vec<NodeId<WhereClause>>> {
+    pub fn eat_where(&mut self) -> ParseResult<Vec<LocalNodeId<WhereClause>>> {
         self.eat_keyword(Keyword::Where)?;
         let clauses = self.with_options(self.options.in_before_block(), |parser| {
             parser.eat_where_body()
@@ -48,8 +48,8 @@ impl<'a> Parser<'a> {
 
     /// Eat the clauses of a `where` declaration (without the `where` keyword).
     /// Separated by commas.
-    fn eat_where_body(&mut self) -> ParseResult<Vec<NodeId<WhereClause>>> {
-        let mut clauses: Vec<NodeId<WhereClause>> = Vec::new();
+    fn eat_where_body(&mut self) -> ParseResult<Vec<LocalNodeId<WhereClause>>> {
+        let mut clauses: Vec<LocalNodeId<WhereClause>> = Vec::new();
 
         // parenthesized list with newlines
         if self.peek_token(TokenType::OpenParenthesis).is_ok() {
@@ -87,7 +87,7 @@ impl<'a> Parser<'a> {
     }
 
     /// Eat a single where clause. May be a declaration or a assignment.
-    fn eat_where_clause(&mut self) -> ParseResult<NodeId<WhereClause>> {
+    fn eat_where_clause(&mut self) -> ParseResult<LocalNodeId<WhereClause>> {
         let start = self.mark();
 
         let clause = {

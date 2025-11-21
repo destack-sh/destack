@@ -1,4 +1,4 @@
-use crate::{Expression, Mutability, Node, NodeId, NodeType, Pattern, StringId, Type, Visibility};
+use crate::{Expression, Mutability, Node, LocalNodeId, NodeType, Pattern, StringId, Type, Visibility};
 
 /// The type of a binding.
 #[derive(Debug, Copy, Clone, PartialEq)]
@@ -47,21 +47,21 @@ pub enum Parameter {
     Named {
         modifiers: Option<BindingModifier>,
         name: StringId,
-        ty: Option<NodeId<Type>>,
-        default: Option<NodeId<Expression>>,
+        ty: Option<LocalNodeId<Type>>,
+        default: Option<LocalNodeId<Expression>>,
     },
     /// Pattern parameter (like `_` or `{ x }` or `{ x, ..rest }: MyType = Foo`).
     Pattern {
         modifiers: Option<BindingModifier>,
-        pattern: NodeId<Pattern>,
-        ty: Option<NodeId<Type>>,
-        default: Option<NodeId<Expression>>,
+        pattern: LocalNodeId<Pattern>,
+        ty: Option<LocalNodeId<Type>>,
+        default: Option<LocalNodeId<Expression>>,
     },
     /// Variadic parameter (like `...args: int32[]`).
     Variadic {
         modifiers: Option<BindingModifier>,
         name: StringId,
-        ty: Option<NodeId<Type>>,
+        ty: Option<LocalNodeId<Type>>,
     },
 }
 
@@ -73,13 +73,13 @@ impl Node for Parameter {
 #[derive(Debug, Clone, PartialEq)]
 pub enum Argument {
     /// Positional argument (like `1` or `foo()`).
-    Positional { value: NodeId<Expression> },
+    Positional { value: LocalNodeId<Expression> },
     /// Spread argument (like `...args`).
-    Spread { value: NodeId<Expression> },
+    Spread { value: LocalNodeId<Expression> },
     /// Dynamic argument (like `[variable]: 2`).
     Dynamic {
-        key: NodeId<Expression>,
-        value: NodeId<Expression>,
+        key: LocalNodeId<Expression>,
+        value: LocalNodeId<Expression>,
     },
 }
 

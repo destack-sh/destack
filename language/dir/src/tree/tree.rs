@@ -5,8 +5,8 @@ use dyst_ast as ast;
 
 use crate::{
     Annotation, Arena, Argument, Block, Definition, DependencyItem, EnumField, Expression,
-    MatchCase, ModuleId, Node, NodeId, NodeIdAny, NodeType, Parameter, Pattern, PatternField,
-    Property, Scope, ScopeId, ScopeKind, Symbol, SymbolId, SymbolKey, SymbolSpace, Type, TypeField,
+    MatchCase, ModuleId, Node, LocalNodeId, LocalNodeIdAny, NodeType, Parameter, Pattern, PatternField,
+    Property, Scope, LocalScopeId, ScopeKind, Symbol, LocalSymbolId, SymbolKey, SymbolSpace, Type, TypeField,
     WhereClause, WithClause,
 };
 
@@ -49,7 +49,7 @@ pub struct NodeTree {
     /// The alias node id by DIR source / node id.
     pub(crate) alias_node_id_by_node_id: HashMap<u32, u32>,
     /// The annotations attached to nodes.
-    pub(crate) annotations_by_node_id: HashMap<u32, Vec<NodeId<Annotation>>>,
+    pub(crate) annotations_by_node_id: HashMap<u32, Vec<LocalNodeId<Annotation>>>,
 
     // meta index
     /// The next symbol id to allocate.
@@ -63,9 +63,9 @@ pub struct NodeTree {
 
     // meta side data
     /// The symbols by node id. Index is the global node id.
-    pub(crate) symbol_by_node_id: Vec<Option<SymbolId>>,
+    pub(crate) symbol_by_node_id: Vec<Option<LocalSymbolId>>,
     /// The scopes by node id. Index is the global node id.
-    pub(crate) scope_by_node_id: Vec<ScopeId>,
+    pub(crate) scope_by_node_id: Vec<LocalScopeId>,
 }
 
 impl Debug for NodeTree {
@@ -130,7 +130,7 @@ impl NodeTree {
     }
 
     /// Allocate a new node in the tree.
-    fn insert<T>(&mut self, node: T, module_id: ModuleId) -> NodeId<T>
+    fn insert<T>(&mut self, node: T, module_id: ModuleId) -> LocalNodeId<T>
     where
         T: Node,
         Self: NodeTreeImpl<T>,
@@ -141,7 +141,7 @@ impl NodeTree {
         let local_id = <Self as NodeTreeImpl<T>>::allocate(self, node);
         self.local_id_by_node_id.push(local_id);
         self.module_by_node_id.push(module_id);
-        NodeId::new(global_id)
+        LocalNodeId::new(global_id)
     }
 
     /// Allocate a new node in the DIR tree lowered from a source AST node.
@@ -149,8 +149,8 @@ impl NodeTree {
         &mut self,
         node: T,
         module_id: ModuleId,
-        ast_node_id: ast::NodeId<U>,
-    ) -> NodeId<T>
+        ast_node_id: ast::LocalNodeId<U>,
+    ) -> LocalNodeId<T>
     where
         T: Node,
         Self: NodeTreeImpl<T>,
@@ -164,7 +164,7 @@ impl NodeTree {
     }
 
     /// Allocate a new node in the DIR tree derived from another DIR node.
-    pub fn insert_from<T, U>(&mut self, node: T, dir_node_id: NodeId<U>) -> NodeId<T>
+    pub fn insert_from<T, U>(&mut self, node: T, dir_node_id: LocalNodeId<U>) -> LocalNodeId<T>
     where
         T: Node,
         Self: NodeTreeImpl<T>,
@@ -182,9 +182,9 @@ impl NodeTree {
         &mut self,
         node: T,
         module_id: ModuleId,
-        ast_node_id: ast::NodeId<U>,
-        symbol_id: SymbolId,
-    ) -> NodeId<T>
+        ast_node_id: ast::LocalNodeId<U>,
+        symbol_id: LocalSymbolId,
+    ) -> LocalNodeId<T>
     where
         T: Node + Clone,
         Self: NodeTreeImpl<T>,
@@ -196,7 +196,7 @@ impl NodeTree {
     }
 
     /// Add an alias node for a lowered AST id.
-    pub fn alias_from_source<T>(&mut self, module_id: ModuleId, ast_id: u32, alias: NodeId<T>)
+    pub fn alias_from_source<T>(&mut self, module_id: ModuleId, ast_id: u32, alias: LocalNodeId<T>)
     where
         T: Node,
         Self: NodeTreeImpl<T>,
@@ -206,7 +206,7 @@ impl NodeTree {
     }
 
     /// Add an alias node for a derived DIR id.
-    pub fn alias_from<T>(&mut self, dir_id: u32, alias: NodeId<T>)
+    pub fn alias_from<T>(&mut self, dir_id: u32, alias: LocalNodeId<T>)
     where
         T: Node,
         Self: NodeTreeImpl<T>,
@@ -222,7 +222,7 @@ impl NodeTree {
 
     /// Get an immutable reference to the node with the given NodeId.
     #[inline]
-    pub fn get<T>(&self, id: NodeId<T>) -> &T
+    pub fn get<T>(&self, id: LocalNodeId<T>) -> &T
     where
         T: Node,
         Self: NodeTreeImpl<T>,
@@ -233,7 +233,7 @@ impl NodeTree {
 
     /// Get a mutable reference to the node with the given NodeId.
     #[inline]
-    pub fn get_mut<T>(&mut self, id: NodeId<T>) -> &mut T
+    pub fn get_mut<T>(&mut self, id: LocalNodeId<T>) -> &mut T
     where
         T: Node,
         Self: NodeTreeImpl<T>,
@@ -243,7 +243,7 @@ impl NodeTree {
     }
 
     /// Iterate over all nodes of a given type together with their NodeId.
-    pub fn iter_nodes_of_type<'a, T>(&'a self) -> impl Iterator<Item = (NodeId<T>, &'a T)> + 'a
+    pub fn iter_nodes_of_type<'a, T>(&'a self) -> impl Iterator<Item = (LocalNodeId<T>, &'a T)> + 'a
     where
         T: Node + 'a,
         Self: NodeTreeImpl<T>,
@@ -253,7 +253,7 @@ impl NodeTree {
             .enumerate()
             .filter_map(|(global_index, &local_index)| {
                 if self.type_by_node_id[global_index] == T::TYPE {
-                    let node_id = NodeId::new(global_index as u32);
+                    let node_id = LocalNodeId::new(global_index as u32);
                     let node = <Self as NodeTreeImpl<T>>::get(self, local_index);
                     Some((node_id, node))
                 } else {
@@ -266,7 +266,7 @@ impl NodeTree {
     pub fn iter_nodes_of_type_in_module<'a, T>(
         &'a self,
         module_id: ModuleId,
-    ) -> impl Iterator<Item = (NodeId<T>, &'a T)> + 'a
+    ) -> impl Iterator<Item = (LocalNodeId<T>, &'a T)> + 'a
     where
         T: Node + 'a,
         Self: NodeTreeImpl<T>,
@@ -276,7 +276,7 @@ impl NodeTree {
                 if self.type_by_node_id[global_index] == T::TYPE
                     && self.module_by_node_id[global_index] == module_id
                 {
-                    let node_id = NodeId::new(global_index as u32);
+                    let node_id = LocalNodeId::new(global_index as u32);
                     let node = <Self as NodeTreeImpl<T>>::get(self, local_index);
                     Some((node_id, node))
                 } else {
@@ -287,15 +287,15 @@ impl NodeTree {
     }
 
     /// Iterate over all nodes ids.
-    pub fn iter_node_ids(&self) -> impl Iterator<Item = NodeIdAny> + '_ {
+    pub fn iter_node_ids(&self) -> impl Iterator<Item = LocalNodeIdAny> + '_ {
         self.type_by_node_id
             .iter()
             .enumerate()
-            .map(|(global_index, &type_id)| NodeIdAny::new(global_index as u32, type_id))
+            .map(|(global_index, &type_id)| LocalNodeIdAny::new(global_index as u32, type_id))
     }
 
     /// Iterate over all nodes ids of a given type.
-    pub fn iter_node_ids_of_type<T>(&self) -> Vec<NodeId<T>>
+    pub fn iter_node_ids_of_type<T>(&self) -> Vec<LocalNodeId<T>>
     where
         T: Node,
         Self: NodeTreeImpl<T>,
@@ -305,7 +305,7 @@ impl NodeTree {
             .enumerate()
             .filter_map(|(global_index, _)| {
                 if self.type_by_node_id[global_index] == T::TYPE {
-                    let node_id = NodeId::new(global_index as u32);
+                    let node_id = LocalNodeId::new(global_index as u32);
                     Some(node_id)
                 } else {
                     None
@@ -315,7 +315,7 @@ impl NodeTree {
     }
 
     /// Iterate over all nodes ids of a given type and module.
-    pub fn iter_node_ids_of_type_in_module<T>(&self, module_id: ModuleId) -> Vec<NodeId<T>>
+    pub fn iter_node_ids_of_type_in_module<T>(&self, module_id: ModuleId) -> Vec<LocalNodeId<T>>
     where
         T: Node,
         Self: NodeTreeImpl<T>,
@@ -327,7 +327,7 @@ impl NodeTree {
                 if self.type_by_node_id[global_index] == T::TYPE
                     && self.module_by_node_id[global_index] == module_id
                 {
-                    let node_id = NodeId::new(global_index as u32);
+                    let node_id = LocalNodeId::new(global_index as u32);
                     Some(node_id)
                 } else {
                     None
@@ -360,7 +360,7 @@ impl NodeTree {
 
     /// Append a doc to a node by its global id.
     #[inline]
-    pub fn append_annotation(&mut self, target_id: u32, annotation: NodeId<Annotation>) {
+    pub fn append_annotation(&mut self, target_id: u32, annotation: LocalNodeId<Annotation>) {
         debug_assert!(target_id < self.next_global_id);
         self.annotations_by_node_id
             .entry(target_id)
@@ -376,7 +376,7 @@ impl NodeTree {
 
     /// Get annotations attached to a node.
     #[inline]
-    pub fn get_annotations(&self, node_id: u32) -> Vec<NodeId<Annotation>> {
+    pub fn get_annotations(&self, node_id: u32) -> Vec<LocalNodeId<Annotation>> {
         self.annotations_by_node_id
             .get(&node_id)
             .cloned()
@@ -388,9 +388,9 @@ impl NodeTree {
         &mut self,
         space: SymbolSpace,
         key: Option<SymbolKey>,
-        scope: ScopeId,
-    ) -> SymbolId {
-        let symbol_id = SymbolId::new(self.next_symbol_id);
+        scope: LocalScopeId,
+    ) -> LocalSymbolId {
+        let symbol_id = LocalSymbolId::new(self.next_symbol_id);
         self.next_symbol_id += 1;
         let symbol = Symbol {
             id: symbol_id,
@@ -415,10 +415,10 @@ impl NodeTree {
     pub fn create_scope(
         &mut self,
         kind: ScopeKind,
-        parent: Option<ScopeId>,
-        owner: Option<SymbolId>,
-    ) -> ScopeId {
-        let scope_id = ScopeId::new(self.next_scope_id);
+        parent: Option<LocalScopeId>,
+        owner: Option<LocalSymbolId>,
+    ) -> LocalScopeId {
+        let scope_id = LocalScopeId::new(self.next_scope_id);
         self.next_scope_id += 1;
         let scope = Scope {
             id: scope_id,
@@ -441,8 +441,8 @@ impl NodeTree {
         space: SymbolSpace,
         key: Option<SymbolKey>,
         kind: ScopeKind,
-        parent: ScopeId,
-    ) -> (SymbolId, ScopeId) {
+        parent: LocalScopeId,
+    ) -> (LocalSymbolId, LocalScopeId) {
         let symbol_id = self.create_symbol(space, key, parent);
         let scope_id = self.create_scope(kind, Some(parent), Some(symbol_id));
         (symbol_id, scope_id)
@@ -450,25 +450,25 @@ impl NodeTree {
 
     /// Set the symbol for a node.
     #[inline]
-    pub fn set_symbol(&mut self, node_id: u32, symbol_id: SymbolId) {
+    pub fn set_symbol(&mut self, node_id: u32, symbol_id: LocalSymbolId) {
         self.symbol_by_node_id[node_id as usize] = Some(symbol_id);
     }
 
     /// Get a symbol by its id.
     #[inline]
-    pub fn get_symbol(&self, symbol_id: SymbolId) -> &Symbol {
+    pub fn get_symbol(&self, symbol_id: LocalSymbolId) -> &Symbol {
         self.symbols.get(symbol_id.0)
     }
 
     /// Get the symbol mutable by its id.
     #[inline]
-    pub fn get_symbol_mut(&mut self, symbol_id: SymbolId) -> &mut Symbol {
+    pub fn get_symbol_mut(&mut self, symbol_id: LocalSymbolId) -> &mut Symbol {
         self.symbols.get_mut(symbol_id.0)
     }
 
     /// Get the scope for a node id.
     #[inline]
-    pub fn get_scope<T>(&self, node_id: NodeId<T>) -> &Scope
+    pub fn get_scope<T>(&self, node_id: LocalNodeId<T>) -> &Scope
     where
         T: Node,
         Self: NodeTreeImpl<T>,
@@ -479,19 +479,19 @@ impl NodeTree {
 
     /// Get a scope by its id.
     #[inline]
-    pub fn get_scope_by_id(&self, scope_id: ScopeId) -> &Scope {
+    pub fn get_scope_by_id(&self, scope_id: LocalScopeId) -> &Scope {
         self.scopes.get(scope_id.0)
     }
 
     /// Get the scope mutable by its id.
     #[inline]
-    pub fn get_scope_by_id_mut(&mut self, scope_id: ScopeId) -> &mut Scope {
+    pub fn get_scope_by_id_mut(&mut self, scope_id: LocalScopeId) -> &mut Scope {
         self.scopes.get_mut(scope_id.0)
     }
 
     /// Get the scope for a node by its id.
     #[inline]
-    pub fn get_scope_by_node_id(&self, node_id: u32) -> ScopeId {
+    pub fn get_scope_by_node_id(&self, node_id: u32) -> LocalScopeId {
         self.scope_by_node_id[node_id as usize]
     }
 }

@@ -1,7 +1,7 @@
 use crate::{TranspileError, TranspileResult, Transpiler, TranspilerUnit};
 use dyst_ast::StringId;
 use dyst_dir::{self as dir, Module, NodeTree};
-use dyst_javascript_ast::{DependencyItem, DependencyKind, NodeId};
+use dyst_javascript_ast::{DependencyItem, DependencyKind, LocalNodeId};
 
 impl<'a> Transpiler<'a> {
     /// Transpile a dependency kind from DIR into JS AST.
@@ -18,10 +18,10 @@ impl<'a> Transpiler<'a> {
         module: &'a Module,
         tree: &NodeTree,
         kind: dir::DependencyKind,
-        item_ids: &[dir::NodeId<dir::DependencyItem>],
+        item_ids: &[dir::LocalNodeId<dir::DependencyItem>],
         unit: &mut TranspilerUnit,
-    ) -> TranspileResult<(Option<StringId>, Vec<NodeId<DependencyItem>>)> {
-        let mut transpiled_item_ids: Vec<NodeId<DependencyItem>> = Vec::new();
+    ) -> TranspileResult<(Option<StringId>, Vec<LocalNodeId<DependencyItem>>)> {
+        let mut transpiled_item_ids: Vec<LocalNodeId<DependencyItem>> = Vec::new();
         let mut default_alias: Option<StringId> = None;
         for item_id in item_ids {
             let item = tree.get(*item_id);

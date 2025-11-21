@@ -1,7 +1,7 @@
 use crate::Compiler;
 use dyst_ast as ast;
 use dyst_dir::{
-    DefinitionType, FloatType, IntType, Module, NodeTree, PrimitiveType, ScalarLiteral, ScopeId,
+    DefinitionType, FloatType, IntType, Module, NodeTree, PrimitiveType, ScalarLiteral, LocalScopeId,
     TemplateLiteral, TypeLiteral,
 };
 
@@ -45,7 +45,7 @@ impl<'a> Compiler<'a> {
     pub(super) fn bind_template_literal(
         &self,
         module: &Module,
-        scope_id: ScopeId,
+        scope_id: LocalScopeId,
         template_literal: &ast::TemplateLiteral,
         tree: &mut NodeTree,
     ) -> TemplateLiteral {

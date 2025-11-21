@@ -1,5 +1,5 @@
 use crate::{
-    Argument, BindingModifier, Expression, FunctionSignature, Key, Node, NodeId, NodeType,
+    Argument, BindingModifier, Expression, FunctionSignature, Key, Node, LocalNodeId, NodeType,
     Parameter, Path, ScalarLiteral,
 };
 
@@ -110,33 +110,33 @@ pub enum Type {
     /// Path to something.
     Path {
         path: Path,
-        static_arguments: Option<Vec<NodeId<Argument>>>,
+        static_arguments: Option<Vec<LocalNodeId<Argument>>>,
     },
     /// Expression (unevaluated).
-    Expression(NodeId<Expression>),
+    Expression(LocalNodeId<Expression>),
 
     /// Type unary operator.
     Unary {
         operator: TypeUnaryOperator,
-        right: NodeId<Type>,
+        right: LocalNodeId<Type>,
     },
     /// Binary operator.
     Binary {
-        left: NodeId<Type>,
+        left: LocalNodeId<Type>,
         operator: TypeBinaryOperator,
-        right: NodeId<Type>,
+        right: LocalNodeId<Type>,
     },
 
     /// Array type `T[]`.
-    Array { element: Option<NodeId<Type>> },
+    Array { element: Option<LocalNodeId<Type>> },
     /// Tuple type `[T1, T2, ...]`.
-    Tuple { elements: Vec<NodeId<Type>> },
+    Tuple { elements: Vec<LocalNodeId<Type>> },
     /// Object type `{ a: T1, b: T2, ... }`.
-    Object { properties: Vec<NodeId<TypeField>> },
+    Object { properties: Vec<LocalNodeId<TypeField>> },
     /// Union type `A | B | C`.
-    Union { elements: Vec<NodeId<Type>> },
+    Union { elements: Vec<LocalNodeId<Type>> },
     /// Intersection type `A & B & C`.
-    Intersection { elements: Vec<NodeId<Type>> },
+    Intersection { elements: Vec<LocalNodeId<Type>> },
     /// Function type `(T1, T2, ...) -> T`.
     Function { signature: FunctionSignature },
 
@@ -155,7 +155,7 @@ pub enum TypeField {
     Field {
         modifiers: Option<BindingModifier>,
         key: Option<Key>,
-        ty: NodeId<Type>,
+        ty: LocalNodeId<Type>,
     },
     /// Named method (like `foo(): T`).
     Method {
@@ -173,7 +173,7 @@ impl Node for TypeField {
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct Generics {
     /// The static parameters of the declaration.
-    pub static_parameters: Option<Vec<NodeId<Parameter>>> = None,
+    pub static_parameters: Option<Vec<LocalNodeId<Parameter>>> = None,
 }
 
 impl Generics {
@@ -187,9 +187,9 @@ impl Generics {
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct Heritage {
     /// The extends types of the declaration.
-    pub extends_types: Option<Vec<NodeId<Type>>> = None,
+    pub extends_types: Option<Vec<LocalNodeId<Type>>> = None,
     /// The implements types of the declaration.
-    pub implements_types: Option<Vec<NodeId<Type>>> = None,
+    pub implements_types: Option<Vec<LocalNodeId<Type>>> = None,
 }
 
 impl Heritage {

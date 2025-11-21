@@ -1,6 +1,6 @@
 use dyst_dir::{self as dir, Module, NodeTree};
 use dyst_javascript_ast::{
-    Expression, Generics, Heritage, Mutability, NodeId, PrimitiveType, Type, TypeBinaryOperator,
+    Expression, Generics, Heritage, Mutability, LocalNodeId, PrimitiveType, Type, TypeBinaryOperator,
     TypeLiteral, TypeUnaryOperator,
 };
 
@@ -78,7 +78,7 @@ impl<'a> Transpiler<'a> {
     pub fn transpile_primitive_type(
         &self,
         _module: &'a Module,
-        _ty_id: dir::NodeId<dir::Type>,
+        _ty_id: dir::LocalNodeId<dir::Type>,
         primitive: dir::PrimitiveType,
         _unit: &mut TranspilerUnit,
     ) -> TranspileResult<PrimitiveType> {
@@ -100,7 +100,7 @@ impl<'a> Transpiler<'a> {
     pub fn transpile_type_literal(
         &self,
         module: &'a Module,
-        ty_id: dir::NodeId<dir::Type>,
+        ty_id: dir::LocalNodeId<dir::Type>,
         literal: &dir::TypeLiteral,
         unit: &mut TranspilerUnit,
     ) -> TranspileResult<TypeLiteral> {
@@ -133,7 +133,7 @@ impl<'a> Transpiler<'a> {
     pub fn transpile_type_unary_operator(
         &self,
         _module: &'a Module,
-        ty_id: dir::NodeId<dir::Type>,
+        ty_id: dir::LocalNodeId<dir::Type>,
         operator: dir::TypeUnaryOperator,
     ) -> TranspileResult<TypeUnaryOperator> {
         let operator = match operator {
@@ -161,7 +161,7 @@ impl<'a> Transpiler<'a> {
     pub fn transpile_type_binary_operator(
         &self,
         _module: &'a Module,
-        _ty_id: dir::NodeId<dir::Type>,
+        _ty_id: dir::LocalNodeId<dir::Type>,
         operator: dir::TypeBinaryOperator,
     ) -> TranspileResult<TypeBinaryOperator> {
         let operator = match operator {
@@ -181,9 +181,9 @@ impl<'a> Transpiler<'a> {
         &self,
         module: &'a Module,
         tree: &NodeTree,
-        ty_id: dir::NodeId<dir::Type>,
+        ty_id: dir::LocalNodeId<dir::Type>,
         unit: &mut TranspilerUnit,
-    ) -> TranspileResult<NodeId<Type>> {
+    ) -> TranspileResult<LocalNodeId<Type>> {
         let ty = tree.get(ty_id);
 
         let ty_id = match ty {

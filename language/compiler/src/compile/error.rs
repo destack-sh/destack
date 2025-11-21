@@ -1,4 +1,4 @@
-use dyst_dir::{NodeIdAny, Session};
+use dyst_dir::{LocalNodeIdAny, Session};
 
 use crate::{
     BindError, BuildError, CompileStage, ElaborateError, ExecuteError, ImportError, LinkError,
@@ -70,7 +70,7 @@ impl CompileError {
     }
 
     /// Get the node id of the error.
-    pub fn node_id(&self) -> Option<NodeIdAny> {
+    pub fn node_id(&self) -> Option<LocalNodeIdAny> {
         match self {
             Self::Import(error) => error.node_id(),
             Self::Bind(error) => error.node_id(),

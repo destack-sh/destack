@@ -1,6 +1,6 @@
 use crate::{
     Argument, AssignOperator, Block, Definition, DependencyItem, DependencyKind, ExportType,
-    Expression, Mutability, Node, NodeId, NodeType, Parameter, Pattern, StringId, Type,
+    Expression, Mutability, Node, LocalNodeId, NodeType, Parameter, Pattern, StringId, Type,
 };
 
 /// A Statement is a JS/TS top-level statement in some container/block.
@@ -11,8 +11,8 @@ pub enum Statement {
         kind: DependencyKind,
         target: StringId,
         alias: Option<StringId>,
-        items: Vec<NodeId<DependencyItem>>,
-        arguments: Option<Vec<NodeId<Argument>>>,
+        items: Vec<LocalNodeId<DependencyItem>>,
+        arguments: Option<Vec<LocalNodeId<Argument>>>,
     },
     /// Export items (including type items).
     Export {
@@ -20,88 +20,88 @@ pub enum Statement {
         kind: DependencyKind,
         target: Option<StringId>,
         alias: Option<StringId>,
-        items: Vec<NodeId<DependencyItem>>,
+        items: Vec<LocalNodeId<DependencyItem>>,
     },
     /// Export value.
-    ExportValue { value: NodeId<Expression> },
+    ExportValue { value: LocalNodeId<Expression> },
 
     /// Definition statement.
-    Definition { definition: NodeId<Definition> },
+    Definition { definition: LocalNodeId<Definition> },
     /// Block of statements.
-    Block { block: NodeId<Block> },
+    Block { block: LocalNodeId<Block> },
 
     /// Let binding.
     Let {
         mutability: Mutability,
-        pattern: NodeId<Pattern>,
-        ty: Option<NodeId<Type>>,
-        value: Option<NodeId<Expression>>,
+        pattern: LocalNodeId<Pattern>,
+        ty: Option<LocalNodeId<Type>>,
+        value: Option<LocalNodeId<Expression>>,
     },
     /// Let type alias.
     LetType {
         name: StringId,
-        static_parameters: Option<Vec<NodeId<Parameter>>>,
-        value: NodeId<Type>,
+        static_parameters: Option<Vec<LocalNodeId<Parameter>>>,
+        value: LocalNodeId<Type>,
     },
     /// Assignment operation.
     Assign {
-        left: NodeId<Expression>,
+        left: LocalNodeId<Expression>,
         operator: AssignOperator,
-        right: NodeId<Expression>,
+        right: LocalNodeId<Expression>,
     },
     /// Expression statement.
-    Expression { expression: NodeId<Expression> },
+    Expression { expression: LocalNodeId<Expression> },
 
     /// If statement.
     If {
-        condition: NodeId<Expression>,
-        then_block: NodeId<Block>,
-        else_block: Option<NodeId<Block>>,
+        condition: LocalNodeId<Expression>,
+        then_block: LocalNodeId<Block>,
+        else_block: Option<LocalNodeId<Block>>,
     },
     /// While statement.
     While {
-        condition: NodeId<Expression>,
-        body: NodeId<Block>,
+        condition: LocalNodeId<Expression>,
+        body: LocalNodeId<Block>,
     },
     /// For statement.
     For {
-        initialization: Option<NodeId<Expression>>,
-        condition: Option<NodeId<Expression>>,
-        increment: Option<NodeId<Expression>>,
-        body: NodeId<Block>,
+        initialization: Option<LocalNodeId<Expression>>,
+        condition: Option<LocalNodeId<Expression>>,
+        increment: Option<LocalNodeId<Expression>>,
+        body: LocalNodeId<Block>,
     },
     /// For in statement.
     ForIn {
         name: StringId,
-        iterator: NodeId<Expression>,
-        body: NodeId<Block>,
+        iterator: LocalNodeId<Expression>,
+        body: LocalNodeId<Block>,
     },
     /// For of statement.
     ForOf {
-        pattern: NodeId<Pattern>,
-        iterator: NodeId<Expression>,
-        body: NodeId<Block>,
+        pattern: LocalNodeId<Pattern>,
+        iterator: LocalNodeId<Expression>,
+        body: LocalNodeId<Block>,
     },
 
     /// Try statement.
     Try {
-        try_block: NodeId<Block>,
-        catch_pattern: Option<NodeId<Pattern>>,
-        catch_block: NodeId<Block>,
-        finally_block: Option<NodeId<Block>>,
+        try_block: LocalNodeId<Block>,
+        catch_pattern: Option<LocalNodeId<Pattern>>,
+        catch_block: LocalNodeId<Block>,
+        finally_block: Option<LocalNodeId<Block>>,
     },
     /// Await statement.
-    Await { value: NodeId<Expression> },
+    Await { value: LocalNodeId<Expression> },
     /// Yield statement.
-    Yield { value: NodeId<Expression> },
+    Yield { value: LocalNodeId<Expression> },
     /// Throw statement.
-    Throw { value: NodeId<Expression> },
+    Throw { value: LocalNodeId<Expression> },
     /// Continue statement.
     Continue { label: Option<StringId> },
     /// Break statement.
     Break { label: Option<StringId> },
     /// Return statement.
-    Return { value: Option<NodeId<Expression>> },
+    Return { value: Option<LocalNodeId<Expression>> },
 }
 
 impl Node for Statement {

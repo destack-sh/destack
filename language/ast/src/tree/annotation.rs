@@ -1,6 +1,6 @@
 use std::fmt::Debug;
 
-use crate::{Argument, Node, NodeId, NodeType, Path, StringId};
+use crate::{Argument, Node, LocalNodeId, NodeType, Path, StringId};
 
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum AnnotationPosition {
@@ -21,27 +21,27 @@ pub enum AnnotationPosition {
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum Annotation {
     Blank {
-        node: NodeId<Blank>,
+        node: LocalNodeId<Blank>,
         position: AnnotationPosition,
     },
     /// A doc annotation (like `///` or `/**`).
     Doc {
-        node: NodeId<Doc>,
+        node: LocalNodeId<Doc>,
         position: AnnotationPosition,
     },
     /// A comment annotation (like `//` or `/*`).
     Comment {
-        node: NodeId<Comment>,
+        node: LocalNodeId<Comment>,
         position: AnnotationPosition,
     },
     /// A tag annotation (like `#Foo` or `#Foo(x: 1)`).
     Tag {
-        node: NodeId<Tag>,
+        node: LocalNodeId<Tag>,
         position: AnnotationPosition,
     },
     /// A decorator annotation (like `@foo` or `@foo(1, 2, 3)`).
     Decorator {
-        node: NodeId<Decorator>,
+        node: LocalNodeId<Decorator>,
         position: AnnotationPosition,
     },
 }
@@ -147,7 +147,7 @@ pub struct Tag {
     /// The tag name / path.
     pub left: Path,
     /// The arguments (if any).
-    pub arguments: Option<Vec<NodeId<Argument>>>,
+    pub arguments: Option<Vec<LocalNodeId<Argument>>>,
 }
 
 impl Node for Tag {
@@ -167,7 +167,7 @@ pub struct Decorator {
     /// The decorator name / path.
     pub left: Path,
     /// The arguments (if any).
-    pub arguments: Option<Vec<NodeId<Argument>>>,
+    pub arguments: Option<Vec<LocalNodeId<Argument>>>,
 }
 
 impl Node for Decorator {

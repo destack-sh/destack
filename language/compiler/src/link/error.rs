@@ -1,4 +1,4 @@
-use dyst_dir::{NodeIdAny, Session};
+use dyst_dir::{LocalNodeIdAny, Session};
 
 use crate::{CompileError, CompileStage};
 
@@ -7,11 +7,11 @@ use crate::{CompileError, CompileStage};
 #[repr(u8)]
 pub enum LinkError {
     /// Missing target for a symbol.
-    MissingTarget { node: NodeIdAny, symbol: String },
+    MissingTarget { node: LocalNodeIdAny, symbol: String },
     /// Unresolved external symbol.
-    UnresolvedSymbol { node: NodeIdAny, symbol: String },
+    UnresolvedSymbol { node: LocalNodeIdAny, symbol: String },
     /// Duplicate symbols with incompatible definitions.
-    ConflictingSymbol { node: NodeIdAny, symbol: String },
+    ConflictingSymbol { node: LocalNodeIdAny, symbol: String },
 }
 
 impl LinkError {
@@ -26,7 +26,7 @@ impl LinkError {
     }
 
     /// Get the node id of the error.
-    pub fn node_id(&self) -> Option<NodeIdAny> {
+    pub fn node_id(&self) -> Option<LocalNodeIdAny> {
         match self {
             Self::MissingTarget { node, .. } => Some(*node),
             Self::UnresolvedSymbol { node, .. } => Some(*node),

@@ -1,7 +1,7 @@
 use dyst_fir::format::FormatResult;
 use dyst_javascript_ast::{
     Asynchrony, DeclarationKind, Definition, EnumField, ExportType, FunctionCardinality, Keyword,
-    NodeId, Type, Visibility,
+    LocalNodeId, Type, Visibility,
 };
 
 use dyst_fir::prelude::*;
@@ -14,7 +14,7 @@ use crate::{FormatNode, JavaScriptFormatContext, JavaScriptFormatter};
 pub(crate) fn format_super_type_clause<'ast>(
     f: &mut JavaScriptFormatter<'ast, '_>,
     keyword: Keyword,
-    types: &[NodeId<Type>],
+    types: &[LocalNodeId<Type>],
 ) -> FormatResult<()> {
     assert!(!types.is_empty());
 
@@ -42,7 +42,7 @@ pub(crate) fn format_super_type_clause<'ast>(
 /// Format a block of definitions.
 pub(crate) fn format_block_of_definitions<'ast>(
     f: &mut JavaScriptFormatter<'ast, '_>,
-    definitions: &Vec<NodeId<Definition>>,
+    definitions: &Vec<LocalNodeId<Definition>>,
 ) -> FormatResult<()> {
     f.join_with(hard_line_break()).entries(definitions).finish()
 }
@@ -70,7 +70,7 @@ impl<'ast> Format<JavaScriptFormatContext<'ast>> for ExportType {
 impl<'ast> FormatNode<'ast, Definition> for Definition {
     fn format_node(
         &self,
-        _node_id: NodeId<Definition>,
+        _node_id: LocalNodeId<Definition>,
         f: &mut JavaScriptFormatter<'ast, '_>,
     ) -> FormatResult<()> {
         match self {
@@ -314,7 +314,7 @@ impl<'ast> FormatNode<'ast, Definition> for Definition {
 impl<'ast> FormatNode<'ast, EnumField> for EnumField {
     fn format_node(
         &self,
-        _node_id: NodeId<EnumField>,
+        _node_id: LocalNodeId<EnumField>,
         f: &mut JavaScriptFormatter<'ast, '_>,
     ) -> FormatResult<()> {
         write!(f, [self.name])?;

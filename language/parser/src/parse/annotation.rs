@@ -4,7 +4,7 @@ use crate::parse::prelude::*;
 use crate::{ParseResult, Parser};
 use dyst_ast::{
     ANNOTATION_NODE_TYPES, Annotation, AnnotationPosition, Blank, Comment, CommentStyle, Decorator,
-    Doc, DocStyle, NodeId, NodeType, Tag, TokenSpan, TokenType,
+    Doc, DocStyle, LocalNodeId, NodeType, Tag, TokenSpan, TokenType,
 };
 use dyst_source::{MultiSpan, NodeSearch, Span};
 
@@ -76,7 +76,7 @@ impl<'a> Parser<'a> {
     /// #Foo
     /// #Foo(x: 1)
     /// ```
-    fn eat_tag(&mut self) -> ParseResult<NodeId<Tag>> {
+    fn eat_tag(&mut self) -> ParseResult<LocalNodeId<Tag>> {
         let start = self.mark();
 
         // #
@@ -125,7 +125,7 @@ impl<'a> Parser<'a> {
     /// @foo
     /// @foo(1, 2, 3)
     /// ```
-    fn eat_decorator(&mut self) -> ParseResult<NodeId<Decorator>> {
+    fn eat_decorator(&mut self) -> ParseResult<LocalNodeId<Decorator>> {
         let start = self.mark();
 
         // @

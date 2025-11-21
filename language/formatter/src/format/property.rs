@@ -4,7 +4,7 @@ use crate::with::format_with_clause;
 use crate::{DystFormatter, FormatNode};
 use dyst_ast::{
     Asynchrony, BindingKind, BindingModifier, BindingOperator, BindingScope, FunctionAbstraction,
-    FunctionCardinality, Keyword, Mutability, NodeId, Property,
+    FunctionCardinality, Keyword, Mutability, LocalNodeId, Property,
 };
 use dyst_fir::format::FormatResult;
 use dyst_fir::prelude::*;
@@ -71,7 +71,7 @@ pub(crate) fn format_binding_modifiers_postfix_maybe<'ast>(
 /// Format a block of properties (with appropriate empty annotations)
 pub(crate) fn format_block_of_properties<'ast>(
     f: &mut DystFormatter<'ast, '_>,
-    properties: &[NodeId<Property>],
+    properties: &[LocalNodeId<Property>],
 ) -> FormatResult<()> {
     for (i, &property_id) in properties.iter().enumerate() {
         // blank line between properties
@@ -86,7 +86,7 @@ pub(crate) fn format_block_of_properties<'ast>(
 impl<'ast> FormatNode<'ast, Property> for Property {
     fn format_node(
         &self,
-        node_id: NodeId<Property>,
+        node_id: LocalNodeId<Property>,
         f: &mut DystFormatter<'ast, '_>,
     ) -> FormatResult<()> {
         write!(f, [f.context().any_prefix_annotations(node_id)])?;

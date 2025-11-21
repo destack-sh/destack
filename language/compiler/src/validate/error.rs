@@ -1,4 +1,4 @@
-use dyst_dir::{NodeId, NodeIdAny, Session, Type};
+use dyst_dir::{LocalNodeId, LocalNodeIdAny, Session, Type};
 
 use crate::{CompileError, CompileStage};
 
@@ -7,30 +7,30 @@ use crate::{CompileError, CompileStage};
 #[repr(u8)]
 pub enum ValidateError {
     /// Missing type for an expression.
-    MissingType { node: NodeIdAny },
+    MissingType { node: LocalNodeIdAny },
     /// Type is not assignable to the expected type.
     TypeMismatch {
-        node: NodeIdAny,
-        expected_ty: NodeId<Type>,
-        actual_ty: NodeId<Type>,
+        node: LocalNodeIdAny,
+        expected_ty: LocalNodeId<Type>,
+        actual_ty: LocalNodeId<Type>,
     },
     /// Calling non-callable.
-    NonCallable { node: NodeIdAny },
+    NonCallable { node: LocalNodeIdAny },
     /// Indexing non-indexable.
-    NonIndexable { node: NodeIdAny },
+    NonIndexable { node: LocalNodeIdAny },
     /// Non-exhaustive match/switch when exhaustiveness is required.
-    NonExhaustiveMatch { node: NodeIdAny },
+    NonExhaustiveMatch { node: LocalNodeIdAny },
     /// Incomplete pattern.
-    IncompletePattern { node: NodeIdAny },
+    IncompletePattern { node: LocalNodeIdAny },
     /// Missing return on code paths in functions that must return a value.
-    MissingReturn { node: NodeIdAny },
+    MissingReturn { node: LocalNodeIdAny },
     /// Use of uninitialized variable in a read position.
-    UninitializedVariable { node: NodeIdAny },
+    UninitializedVariable { node: LocalNodeIdAny },
     /// Illegal casts (unsafe or impossible with static rules).
     IllegalCast {
-        node: NodeIdAny,
-        from_ty: NodeId<Type>,
-        to_ty: NodeId<Type>,
+        node: LocalNodeIdAny,
+        from_ty: LocalNodeId<Type>,
+        to_ty: LocalNodeId<Type>,
     },
 }
 
@@ -52,7 +52,7 @@ impl ValidateError {
     }
 
     /// Get the node id of the error.
-    pub fn node_id(&self) -> Option<NodeIdAny> {
+    pub fn node_id(&self) -> Option<LocalNodeIdAny> {
         match self {
             Self::MissingType { node, .. } => Some(*node),
             Self::TypeMismatch { node, .. } => Some(*node),

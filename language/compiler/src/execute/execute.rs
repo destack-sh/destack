@@ -1,12 +1,12 @@
 use crate::{Compiler, CompileTask, ExecuteResult};
 
-use dyst_dir::{Expression, NodeId};
+use dyst_dir::{Expression, LocalNodeId};
 
 /// Task to execute something at compile time.
 #[derive(Debug, Clone)]
 pub enum ExecuteTask {
     /// Execute an Expression fully (in-place).
-    ExecuteExpression { expression: NodeId<Expression> },
+    ExecuteExpression { expression: LocalNodeId<Expression> },
 }
 
 impl From<ExecuteTask> for CompileTask {

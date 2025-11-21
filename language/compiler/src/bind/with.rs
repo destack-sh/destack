@@ -1,5 +1,5 @@
 use dyst_ast as ast;
-use dyst_dir::{Module, NodeId, NodeTree, ScopeId, WithClause};
+use dyst_dir::{Module, LocalNodeId, NodeTree, LocalScopeId, WithClause};
 
 use crate::Compiler;
 
@@ -8,10 +8,10 @@ impl<'a> Compiler<'a> {
     pub(super) fn bind_with_clause(
         &self,
         module: &Module,
-        scope_id: ScopeId,
-        with_clause_id: ast::NodeId<ast::WithClause>,
+        scope_id: LocalScopeId,
+        with_clause_id: ast::LocalNodeId<ast::WithClause>,
         tree: &mut NodeTree,
-    ) -> NodeId<WithClause> {
+    ) -> LocalNodeId<WithClause> {
         let with_clause = module.get(with_clause_id);
         let alias = with_clause
             .alias

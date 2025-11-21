@@ -1,6 +1,6 @@
 use dyst_fir::format::FormatResult;
 use dyst_javascript_ast::{
-    FunctionMode, Keyword, NodeId, PrimitiveType, Type, TypeField, TypeLiteral,
+    FunctionMode, Keyword, LocalNodeId, PrimitiveType, Type, TypeField, TypeLiteral,
 };
 
 use dyst_fir::prelude::*;
@@ -43,7 +43,7 @@ impl<'ast> Format<JavaScriptFormatContext<'ast>> for TypeLiteral {
 impl<'ast> FormatNode<'ast, TypeField> for TypeField {
     fn format_node(
         &self,
-        _node_id: NodeId<TypeField>,
+        _node_id: LocalNodeId<TypeField>,
         f: &mut JavaScriptFormatter<'ast, '_>,
     ) -> FormatResult<()> {
         match self {
@@ -99,7 +99,7 @@ impl<'ast> FormatNode<'ast, TypeField> for TypeField {
 impl<'ast> FormatNode<'ast, Type> for Type {
     fn format_node(
         &self,
-        _node_id: NodeId<Type>,
+        _node_id: LocalNodeId<Type>,
         f: &mut JavaScriptFormatter<'ast, '_>,
     ) -> FormatResult<()> {
         match self {

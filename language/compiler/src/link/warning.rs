@@ -1,4 +1,4 @@
-use dyst_dir::{NodeIdAny, Session};
+use dyst_dir::{LocalNodeIdAny, Session};
 
 use crate::{CompileWarning, CompileStage};
 
@@ -7,11 +7,11 @@ use crate::{CompileWarning, CompileStage};
 #[repr(u8)]
 pub enum LinkWarning {
     /// Missing target for a symbol.
-    MissingTarget { node: NodeIdAny },
+    MissingTarget { node: LocalNodeIdAny },
     /// Weak/duplicate symbol but one chosen deterministically (e.g. ODR violation that's survivable).
-    WeakSymbol { node: NodeIdAny, symbol: String },
+    WeakSymbol { node: LocalNodeIdAny, symbol: String },
     /// Large binary / large static data section.
-    LargeBinary { node: NodeIdAny, size_mb: u64 },
+    LargeBinary { node: LocalNodeIdAny, size_mb: u64 },
 }
 
 impl LinkWarning {
@@ -26,7 +26,7 @@ impl LinkWarning {
     }
 
     /// Get the node id of the warning.
-    pub fn node_id(&self) -> Option<NodeIdAny> {
+    pub fn node_id(&self) -> Option<LocalNodeIdAny> {
         match self {
             Self::MissingTarget { node, .. } => Some(*node),
             Self::WeakSymbol { node, .. } => Some(*node),

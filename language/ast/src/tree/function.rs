@@ -1,4 +1,4 @@
-use crate::{Asynchrony, Expression, FunctionMode, Generics, NodeId, Parameter};
+use crate::{Asynchrony, Expression, FunctionMode, Generics, LocalNodeId, Parameter};
 
 /// The cardinality of a function.
 #[derive(Debug, Copy, Clone, PartialEq)]
@@ -47,7 +47,7 @@ pub struct FunctionSignature {
     /// The generics of the function.
     pub generics: Option<Generics>,
     /// The dynamic parameters of the function.
-    pub dynamic_parameters: Vec<NodeId<Parameter>>,
+    pub dynamic_parameters: Vec<LocalNodeId<Parameter>>,
     /// The return type of the function.
-    pub return_type: Option<NodeId<Expression>>,
+    pub return_type: Option<LocalNodeId<Expression>>,
 }

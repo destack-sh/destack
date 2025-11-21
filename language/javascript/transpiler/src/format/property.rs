@@ -3,7 +3,7 @@ use dyst_fir::prelude::*;
 use dyst_fir::write;
 use dyst_javascript_ast::{
     Asynchrony, BindingKind, BindingModifier, BindingOperator, BindingScope, FunctionAbstraction,
-    FunctionCardinality, Keyword, Mutability, NodeId, Property,
+    FunctionCardinality, Keyword, Mutability, LocalNodeId, Property,
 };
 
 use crate::format::argument::list_like;
@@ -70,7 +70,7 @@ pub(crate) fn format_binding_modifiers_postfix_maybe<'ast>(
 impl<'ast> FormatNode<'ast, Property> for Property {
     fn format_node(
         &self,
-        _node_id: NodeId<Property>,
+        _node_id: LocalNodeId<Property>,
         f: &mut JavaScriptFormatter<'ast, '_>,
     ) -> FormatResult<()> {
         match self {

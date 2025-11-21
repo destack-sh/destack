@@ -1,13 +1,13 @@
 use crate::Compiler;
 use dyst_ast as ast;
-use dyst_dir::{Key, Module, NodeTree, ScopeId};
+use dyst_dir::{Key, Module, NodeTree, LocalScopeId};
 
 impl<'a> Compiler<'a> {
     /// Bind a key to a DIR key.
     pub(super) fn bind_key(
         &self,
         module: &Module,
-        scope_id: ScopeId,
+        scope_id: LocalScopeId,
         key: ast::Key,
         tree: &mut NodeTree,
     ) -> Key {

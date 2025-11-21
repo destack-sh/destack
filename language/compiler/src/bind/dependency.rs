@@ -1,7 +1,7 @@
 use dyst_ast::{self as ast};
 use dyst_dir::{
     DependencyEdge, DependencyItem, DependencyKind, DependencySource, ExportType, Expression,
-    Module, NodeId, NodeTree, ScopeId, SymbolKey, SymbolSpace,
+    Module, LocalNodeId, NodeTree, LocalScopeId, SymbolKey, SymbolSpace,
 };
 use dyst_source::StringId;
 
@@ -33,11 +33,11 @@ impl<'a> Compiler<'a> {
     pub(super) fn bind_dependency_item(
         &self,
         module: &Module,
-        scope_id: ScopeId,
+        scope_id: LocalScopeId,
         kind: ast::DependencyKind,
-        item_id: ast::NodeId<ast::DependencyItem>,
+        item_id: ast::LocalNodeId<ast::DependencyItem>,
         tree: &mut NodeTree,
-    ) -> NodeId<DependencyItem> {
+    ) -> LocalNodeId<DependencyItem> {
         let item = module.get(item_id);
         let kind = self.bind_dependency_kind(item.kind.unwrap_or(kind));
         let name = self
@@ -62,12 +62,12 @@ impl<'a> Compiler<'a> {
     pub(super) fn bind_dependency_edges(
         &self,
         module: &Module,
-        _scope_id: ScopeId,
+        _scope_id: LocalScopeId,
         tree: &mut NodeTree,
     ) -> Vec<DependencyEdge> {
         fn bind_dependency_item_to_edge(
             target: StringId,
-            item_id: NodeId<DependencyItem>,
+            item_id: LocalNodeId<DependencyItem>,
             item: &DependencyItem,
             source: DependencySource,
         ) -> Option<DependencyEdge> {

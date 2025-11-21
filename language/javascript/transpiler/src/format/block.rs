@@ -1,13 +1,13 @@
 use dyst_fir::format::FormatResult;
 use dyst_fir::prelude::*;
 use dyst_fir::write;
-use dyst_javascript_ast::{Block, NodeId, Statement};
+use dyst_javascript_ast::{Block, LocalNodeId, Statement};
 
 use crate::{FormatNode, JavaScriptFormatter};
 
 pub(crate) fn format_block_of_statements<'ast>(
     f: &mut JavaScriptFormatter<'ast, '_>,
-    statements: &Vec<NodeId<Statement>>,
+    statements: &Vec<LocalNodeId<Statement>>,
 ) -> FormatResult<()> {
     f.join_with(hard_line_break()).entries(statements).finish()
 }
@@ -15,7 +15,7 @@ pub(crate) fn format_block_of_statements<'ast>(
 impl<'ast> FormatNode<'ast, Block> for Block {
     fn format_node(
         &self,
-        _node_id: NodeId<Block>,
+        _node_id: LocalNodeId<Block>,
         f: &mut JavaScriptFormatter<'ast, '_>,
     ) -> FormatResult<()> {
         if let Some(label) = &self.label {

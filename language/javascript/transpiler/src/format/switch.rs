@@ -2,14 +2,14 @@ use dyst_fir::format::FormatResult;
 use dyst_fir::prelude::*;
 use dyst_fir::write;
 
-use dyst_javascript_ast::{Keyword, NodeId, SwitchCase};
+use dyst_javascript_ast::{Keyword, LocalNodeId, SwitchCase};
 
 use crate::{FormatNode, JavaScriptFormatter};
 
 impl<'ast> FormatNode<'ast, SwitchCase> for SwitchCase {
     fn format_node(
         &self,
-        _node_id: NodeId<SwitchCase>,
+        _node_id: LocalNodeId<SwitchCase>,
         f: &mut JavaScriptFormatter<'ast, '_>,
     ) -> FormatResult<()> {
         write!(f, [Keyword::Case, space(), self.value, token(":")])?;

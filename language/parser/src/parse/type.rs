@@ -2,7 +2,7 @@ use crate::{ParseError, ParseResult, Parser};
 
 use dyst_ast::{
     DeclarationDescriptor, DefinitionType, Expression, FloatType, IntType, Keyword, Mutability,
-    NodeId, TokenType, TypeKind, TypeLiteral, TypeUnaryOperator, UnaryOperator, VarianceBound,
+    LocalNodeId, TokenType, TypeKind, TypeLiteral, TypeUnaryOperator, UnaryOperator, VarianceBound,
 };
 
 impl<'a> Parser<'a> {
@@ -207,7 +207,7 @@ impl<'a> Parser<'a> {
     pub fn eat_type(
         &mut self,
         mut descriptor: DeclarationDescriptor,
-    ) -> ParseResult<NodeId<Expression>> {
+    ) -> ParseResult<LocalNodeId<Expression>> {
         let start = self.mark();
         let keyword: Keyword =
             self.eat_keyword_in(&[Keyword::Type, Keyword::Readonly, Keyword::Newtype])?;
@@ -297,7 +297,7 @@ impl<'a> Parser<'a> {
     }
 
     /// Eat extends types maybe.
-    pub fn eat_extends_types_maybe(&mut self) -> ParseResult<Option<Vec<NodeId<Expression>>>> {
+    pub fn eat_extends_types_maybe(&mut self) -> ParseResult<Option<Vec<LocalNodeId<Expression>>>> {
         // check for extends keyword before calling underlying implementation
         if self.peek_keyword(Keyword::Extends).is_ok() {
             self.bump(); // eat extends
@@ -309,7 +309,7 @@ impl<'a> Parser<'a> {
 
     /// Eat implements types maybe.
     #[inline]
-    pub fn eat_implements_types_maybe(&mut self) -> ParseResult<Option<Vec<NodeId<Expression>>>> {
+    pub fn eat_implements_types_maybe(&mut self) -> ParseResult<Option<Vec<LocalNodeId<Expression>>>> {
         // check for implements keyword before calling underlying implementation
         if self.peek_keyword(Keyword::Implements).is_ok() {
             self.bump(); // eat implements
@@ -324,7 +324,7 @@ impl<'a> Parser<'a> {
     fn eat_super_types_maybe(
         &mut self,
         terminators: &[Keyword],
-    ) -> ParseResult<Option<Vec<NodeId<Expression>>>> {
+    ) -> ParseResult<Option<Vec<LocalNodeId<Expression>>>> {
         let is_parenthesized = if self.peek_token(TokenType::OpenParenthesis).is_ok() {
             self.bump();
             self.eat_newlines_maybe()?;
@@ -343,8 +343,8 @@ impl<'a> Parser<'a> {
     }
 
     /// Eat super types (without the leading keyword).
-    fn eat_super_types(&mut self, terminators: &[Keyword]) -> ParseResult<Vec<NodeId<Expression>>> {
-        let mut types: Vec<NodeId<Expression>> = Vec::new();
+    fn eat_super_types(&mut self, terminators: &[Keyword]) -> ParseResult<Vec<LocalNodeId<Expression>>> {
+        let mut types: Vec<LocalNodeId<Expression>> = Vec::new();
         while self.peek().is_ok() {
             // eat until open brace or close parenthesis
             if self.peek_token(TokenType::OpenBrace).is_ok()

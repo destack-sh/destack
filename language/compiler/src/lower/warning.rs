@@ -1,4 +1,4 @@
-use dyst_dir::{NodeIdAny, Session};
+use dyst_dir::{LocalNodeIdAny, Session};
 
 use crate::{CompileWarning, CompileStage};
 
@@ -7,9 +7,9 @@ use crate::{CompileWarning, CompileStage};
 #[repr(u8)]
 pub enum LowerWarning {
     /// Complex type in target language.
-    ComplexType { node: NodeIdAny },
+    ComplexType { node: LocalNodeIdAny },
     /// This feature will be emulated slowly on this target.
-    SlowEmulation { node: NodeIdAny, feature: String },
+    SlowEmulation { node: LocalNodeIdAny, feature: String },
 }
 
 impl LowerWarning {
@@ -23,7 +23,7 @@ impl LowerWarning {
     }
 
     /// Get the node id of the warning.
-    pub fn node_id(&self) -> Option<NodeIdAny> {
+    pub fn node_id(&self) -> Option<LocalNodeIdAny> {
         match self {
             Self::ComplexType { node, .. } => Some(*node),
             Self::SlowEmulation { node, .. } => Some(*node),

@@ -1,7 +1,7 @@
 use crate::parse::prelude::*;
 use crate::{ParseResult, Parser};
 
-use dyst_ast::{Expression, NodeId, NodeType, Pattern, PatternField, TokenType};
+use dyst_ast::{Expression, LocalNodeId, NodeType, Pattern, PatternField, TokenType};
 
 impl<'a> Parser<'a> {
     /// Eat a pattern.
@@ -19,7 +19,7 @@ impl<'a> Parser<'a> {
     /// Vector2 { x: 0, y, z: zed }
     /// geom.Mesh<2, float32> { vertices: [2, ..] }
     /// ```
-    pub fn eat_pattern(&mut self) -> ParseResult<NodeId<Pattern>> {
+    pub fn eat_pattern(&mut self) -> ParseResult<LocalNodeId<Pattern>> {
         let start = self.mark();
 
         // mutability
@@ -242,7 +242,7 @@ impl<'a> Parser<'a> {
             && !self.options.in_union_pattern
         {
             // eat all union "fields" (just unnamed patterns)
-            let mut patterns: Vec<NodeId<Pattern>> = vec![pattern_id];
+            let mut patterns: Vec<LocalNodeId<Pattern>> = vec![pattern_id];
             while self.peek_token(TokenType::ElementwiseOr).is_ok() {
                 self.bump(); // eat '|'
                 let field_pattern_id = self
@@ -267,8 +267,8 @@ impl<'a> Parser<'a> {
         &mut self,
         seperator: TokenType,
         terminator: TokenType,
-    ) -> ParseResult<Vec<NodeId<PatternField>>> {
-        let mut fields: Vec<NodeId<PatternField>> = Vec::new();
+    ) -> ParseResult<Vec<LocalNodeId<PatternField>>> {
+        let mut fields: Vec<LocalNodeId<PatternField>> = Vec::new();
         while self.peek().is_ok() {
             if self.peek_token(terminator).is_ok() {
                 break;

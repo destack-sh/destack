@@ -1,5 +1,5 @@
 use dyst_ast as ast;
-use dyst_dir::{Module, NodeId, NodeTree, ScopeId, WhereClause};
+use dyst_dir::{Module, LocalNodeId, NodeTree, LocalScopeId, WhereClause};
 
 use crate::Compiler;
 
@@ -8,10 +8,10 @@ impl<'a> Compiler<'a> {
     pub(super) fn bind_where_clause(
         &self,
         module: &Module,
-        scope_id: ScopeId,
-        where_clause_id: ast::NodeId<ast::WhereClause>,
+        scope_id: LocalScopeId,
+        where_clause_id: ast::LocalNodeId<ast::WhereClause>,
         tree: &mut NodeTree,
-    ) -> NodeId<WhereClause> {
+    ) -> LocalNodeId<WhereClause> {
         let where_clause = module.get(where_clause_id);
         match where_clause {
             ast::WhereClause::Assertion { left, right } => {

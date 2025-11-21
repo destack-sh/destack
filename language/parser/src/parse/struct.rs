@@ -4,7 +4,7 @@ use crate::parse::prelude::*;
 use crate::{ParseResult, Parser};
 
 use dyst_ast::{
-    DeclarationDescriptor, Definition, Generics, Heritage, Keyword, NodeId, NodeType, StructKind,
+    DeclarationDescriptor, Definition, Generics, Heritage, Keyword, LocalNodeId, NodeType, StructKind,
     TokenType,
 };
 
@@ -42,7 +42,7 @@ impl<'a> Parser<'a> {
     pub fn eat_struct(
         &mut self,
         mut descriptor: DeclarationDescriptor,
-    ) -> ParseResult<NodeId<Definition>> {
+    ) -> ParseResult<LocalNodeId<Definition>> {
         let start = self.mark();
 
         // keyword

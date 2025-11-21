@@ -1,6 +1,6 @@
 //! Parse calls, static calls, dynamic calls, etc.
 
-use dyst_ast::{Argument, Expression, Keyword, NodeId, PostfixPosition, TokenType};
+use dyst_ast::{Argument, Expression, Keyword, LocalNodeId, PostfixPosition, TokenType};
 
 use crate::{ParseResult, Parser};
 
@@ -17,9 +17,9 @@ impl<'a> Parser<'a> {
     /// ```
     pub fn eat_index(
         &mut self,
-        receiver_id: NodeId<Expression>,
+        receiver_id: LocalNodeId<Expression>,
         position: PostfixPosition,
-    ) -> ParseResult<NodeId<Expression>> {
+    ) -> ParseResult<LocalNodeId<Expression>> {
         let start = self.mark();
 
         // open bracket
@@ -63,7 +63,7 @@ impl<'a> Parser<'a> {
     /// ```
     /// new
     /// ```
-    pub fn eat_new(&mut self) -> ParseResult<NodeId<Expression>> {
+    pub fn eat_new(&mut self) -> ParseResult<LocalNodeId<Expression>> {
         let start = self.mark();
 
         // keyword
@@ -101,7 +101,7 @@ impl<'a> Parser<'a> {
     /// delete foo.bar
     /// delete foo['result']
     /// ```
-    pub fn eat_delete(&mut self) -> ParseResult<NodeId<Expression>> {
+    pub fn eat_delete(&mut self) -> ParseResult<LocalNodeId<Expression>> {
         let start = self.mark();
 
         // keyword
@@ -131,10 +131,10 @@ impl<'a> Parser<'a> {
     /// ```
     pub fn eat_call(
         &mut self,
-        receiver_id: NodeId<Expression>,
-        static_arguments: Option<Vec<NodeId<Argument>>>,
+        receiver_id: LocalNodeId<Expression>,
+        static_arguments: Option<Vec<LocalNodeId<Argument>>>,
         position: PostfixPosition,
-    ) -> ParseResult<NodeId<Expression>> {
+    ) -> ParseResult<LocalNodeId<Expression>> {
         let start = self.mark();
 
         // static arguments (may be empty)
@@ -162,14 +162,14 @@ impl<'a> Parser<'a> {
 
 #[cfg(test)]
 mod tests {
-    use dyst_ast::{Argument, Expression, Name, NodeId, Path, PostfixPosition, ScalarLiteral};
+    use dyst_ast::{Argument, Expression, Name, LocalNodeId, Path, PostfixPosition, ScalarLiteral};
     use dyst_source::smallvec;
 
     use crate::{
         Parser, TestParser, assert_expression_path, assert_node, assert_path, assert_string,
     };
 
-    fn make_receiver(parser: &mut Parser<'_>) -> NodeId<Expression> {
+    fn make_receiver(parser: &mut Parser<'_>) -> LocalNodeId<Expression> {
         let receiver_str = parser.strings.intern("receiver");
         let receiver_path = Path {
             segments: smallvec![receiver_str],

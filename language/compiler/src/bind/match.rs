@@ -1,5 +1,5 @@
 use dyst_ast::{self as ast};
-use dyst_dir::{MatchCase, Module, NodeId, NodeTree, ScopeId, ScopeKind, SymbolSpace};
+use dyst_dir::{MatchCase, Module, LocalNodeId, NodeTree, LocalScopeId, ScopeKind, SymbolSpace};
 
 use crate::Compiler;
 
@@ -8,10 +8,10 @@ impl<'a> Compiler<'a> {
     pub(super) fn bind_match_case(
         &self,
         module: &Module,
-        scope_id: ScopeId,
-        match_case_id: ast::NodeId<ast::MatchCase>,
+        scope_id: LocalScopeId,
+        match_case_id: ast::LocalNodeId<ast::MatchCase>,
         tree: &mut NodeTree,
-    ) -> NodeId<MatchCase> {
+    ) -> LocalNodeId<MatchCase> {
         let (symbol_id, scope_id) =
             tree.create_symbol_with_scope(SymbolSpace::Value, None, ScopeKind::Block, scope_id);
         let match_case = module.get(match_case_id);

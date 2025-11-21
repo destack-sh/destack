@@ -1,6 +1,6 @@
 use dyst_ast::StringId;
 
-use crate::{DependencyItem, DependencyKind, ModuleId, NodeId, SymbolId};
+use crate::{DependencyItem, DependencyKind, ModuleId, LocalNodeId, LocalSymbolId};
 
 /// The source of the import.
 #[derive(Debug, Clone, PartialEq)]
@@ -35,9 +35,9 @@ pub enum DependencyEdge {
         target: StringId,
         module: Option<ModuleId>,
         alias: StringId,
-        item: Option<NodeId<DependencyItem>>,
+        item: Option<LocalNodeId<DependencyItem>>,
         source: DependencySource,
-        symbol: SymbolId,
+        symbol: LocalSymbolId,
     },
     /// Unresolved item dependency edge.
     /// Edges where the target is not found remain unresolved (we just resolve the module in place).
@@ -47,29 +47,29 @@ pub enum DependencyEdge {
         module: Option<ModuleId>,
         name: StringId,
         alias: Option<StringId>,
-        item: Option<NodeId<DependencyItem>>,
+        item: Option<LocalNodeId<DependencyItem>>,
         source: DependencySource,
-        symbol: SymbolId,
+        symbol: LocalSymbolId,
     },
     /// Resolved default dependency edge.
     Default {
         kind: DependencyKind,
         target: StringId,
         module: ModuleId,
-        item: Option<NodeId<DependencyItem>>,
+        item: Option<LocalNodeId<DependencyItem>>,
         source: DependencySource,
-        symbol: SymbolId,
-        remote_symbol: SymbolId,
+        symbol: LocalSymbolId,
+        remote_symbol: LocalSymbolId,
     },
     /// Resolved dependency edge.
     Item {
         kind: DependencyKind,
         target: StringId,
         module: ModuleId,
-        item: Option<NodeId<DependencyItem>>,
+        item: Option<LocalNodeId<DependencyItem>>,
         source: DependencySource,
-        symbol: SymbolId,
-        remote_symbol: SymbolId,
+        symbol: LocalSymbolId,
+        remote_symbol: LocalSymbolId,
     },
 }
 

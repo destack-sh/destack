@@ -1,5 +1,5 @@
 use dyst_dir::{self as dir, Session};
-use dyst_javascript_ast::{Node, NodeId, NodeIdAny, NodeType};
+use dyst_javascript_ast::{Node, LocalNodeId, LocalNodeIdAny, NodeType};
 
 use crate::{TranspileDiagnostic, TranspileWarning, TranspilerUnit};
 
@@ -9,23 +9,23 @@ use crate::{TranspileDiagnostic, TranspileWarning, TranspilerUnit};
 pub enum TranspileError {
     /// Unsupported node.
     UnsupportedNode {
-        node: dir::NodeIdAny,
+        node: dir::LocalNodeIdAny,
         message: Option<String>,
     },
     /// Unexpected node.
     UnexpectedNode {
-        node: dir::NodeIdAny,
+        node: dir::LocalNodeIdAny,
         wanted: NodeType,
         message: Option<String>,
     },
     /// Unresolved node.
     UnresolvedNode {
-        node: dir::NodeIdAny,
+        node: dir::LocalNodeIdAny,
         message: Option<String>,
     },
     /// Missing type.
     MissingType {
-        node: dir::NodeIdAny,
+        node: dir::LocalNodeIdAny,
         message: Option<String>,
     },
 }
@@ -65,7 +65,7 @@ impl TranspileError {
     }
 
     /// Get the node id of the error.
-    pub fn node_id(&self) -> dir::NodeIdAny {
+    pub fn node_id(&self) -> dir::LocalNodeIdAny {
         match self {
             Self::UnsupportedNode { node, .. } => *node,
             Self::UnexpectedNode { node, .. } => *node,
@@ -88,36 +88,36 @@ pub trait TranspileResultExt {
     /// Expect a node of the given type. Error with UnexpectedNode otherwise.
     fn expect_node<T: Node>(
         self,
-        source_id: dir::NodeIdAny,
+        source_id: dir::LocalNodeIdAny,
         unit: &mut TranspilerUnit,
-    ) -> TranspileResult<NodeId<T>>;
+    ) -> TranspileResult<LocalNodeId<T>>;
 
     /// Prefer a node of the given type. Warn with UnexpectedNode otherwise.
     fn prefer_node<T: Node>(
         self,
-        source_id: dir::NodeIdAny,
+        source_id: dir::LocalNodeIdAny,
         unit: &mut TranspilerUnit,
-    ) -> Option<NodeId<T>>;
+    ) -> Option<LocalNodeId<T>>;
 
     /// Unwrap a node of the given type. None otherwise.
     fn unwrap_node<T: Node>(
         self,
-        source_id: dir::NodeIdAny,
+        source_id: dir::LocalNodeIdAny,
         unit: &mut TranspilerUnit,
-    ) -> Option<NodeId<T>>;
+    ) -> Option<LocalNodeId<T>>;
 }
 
-impl TranspileResultExt for TranspileResult<NodeIdAny> {
+impl TranspileResultExt for TranspileResult<LocalNodeIdAny> {
     fn expect_node<T: Node>(
         self,
-        source_id: dir::NodeIdAny,
+        source_id: dir::LocalNodeIdAny,
         _unit: &mut TranspilerUnit,
-    ) -> TranspileResult<NodeId<T>> {
+    ) -> TranspileResult<LocalNodeId<T>> {
         match self {
             Ok(node_id) => {
                 // check the node type matches the expected type
                 if node_id.ty == T::TYPE {
-                    Ok(NodeId::<T>::new(node_id.id))
+                    Ok(LocalNodeId::<T>::new(node_id.id))
                 } else {
                     Err(TranspileError::UnexpectedNode {
                         node: source_id,
@@ -132,13 +132,13 @@ impl TranspileResultExt for TranspileResult<NodeIdAny> {
 
     fn prefer_node<T: Node>(
         self,
-        source_id: dir::NodeIdAny,
+        source_id: dir::LocalNodeIdAny,
         unit: &mut TranspilerUnit,
-    ) -> Option<NodeId<T>> {
+    ) -> Option<LocalNodeId<T>> {
         match self {
             Ok(node_id) => {
                 if node_id.ty == T::TYPE {
-                    Some(NodeId::<T>::new(node_id.id))
+                    Some(LocalNodeId::<T>::new(node_id.id))
                 } else {
                     unit.warning(TranspileWarning::UnexpectedNode {
                         node: source_id,
@@ -154,13 +154,13 @@ impl TranspileResultExt for TranspileResult<NodeIdAny> {
 
     fn unwrap_node<T: Node>(
         self,
-        _source_id: dir::NodeIdAny,
+        _source_id: dir::LocalNodeIdAny,
         _unit: &mut TranspilerUnit,
-    ) -> Option<NodeId<T>> {
+    ) -> Option<LocalNodeId<T>> {
         match self {
             Ok(node_id) => {
                 if node_id.ty == T::TYPE {
-                    Some(NodeId::<T>::new(node_id.id))
+                    Some(LocalNodeId::<T>::new(node_id.id))
                 } else {
                     None
                 }

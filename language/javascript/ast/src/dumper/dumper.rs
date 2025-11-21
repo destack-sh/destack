@@ -380,7 +380,7 @@ impl Dump for StringId {
 }
 
 /// Dump a NodeId<T> as the node it points to.
-impl<T: Node + Clone + Dump> Dump for NodeId<T>
+impl<T: Node + Clone + Dump> Dump for LocalNodeId<T>
 where
     NodeTree: NodeTreeImpl<T>,
 {
@@ -628,7 +628,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
         }
     }
 
-    fn visit_block(&mut self, tree: &NodeTree, id: NodeId<Block>, block: &Block) {
+    fn visit_block(&mut self, tree: &NodeTree, id: LocalNodeId<Block>, block: &Block) {
         let statement_count = block.statements.len() as u32;
         self.node("Block", id.id)
             .field_optional("label", &block.label)
@@ -639,7 +639,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
         });
     }
 
-    fn visit_statement(&mut self, tree: &NodeTree, id: NodeId<Statement>, statement: &Statement) {
+    fn visit_statement(&mut self, tree: &NodeTree, id: LocalNodeId<Statement>, statement: &Statement) {
         match statement {
             Statement::Import {
                 kind,
@@ -780,7 +780,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
     fn visit_expression(
         &mut self,
         tree: &NodeTree,
-        id: NodeId<Expression>,
+        id: LocalNodeId<Expression>,
         expression: &Expression,
     ) {
         match expression {
@@ -923,7 +923,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
     fn visit_switch_case(
         &mut self,
         tree: &NodeTree,
-        id: NodeId<SwitchCase>,
+        id: LocalNodeId<SwitchCase>,
         switch_case: &SwitchCase,
     ) {
         self.node("SwitchCase", id.id).end();
@@ -935,7 +935,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
     fn visit_definition(
         &mut self,
         tree: &NodeTree,
-        id: NodeId<Definition>,
+        id: LocalNodeId<Definition>,
         definition: &Definition,
     ) {
         match definition {
@@ -1003,7 +1003,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
         });
     }
 
-    fn visit_property(&mut self, tree: &NodeTree, id: NodeId<Property>, property: &Property) {
+    fn visit_property(&mut self, tree: &NodeTree, id: LocalNodeId<Property>, property: &Property) {
         match property {
             Property::Field {
                 modifiers,
@@ -1042,7 +1042,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
         });
     }
 
-    fn visit_enum_field(&mut self, tree: &NodeTree, id: NodeId<EnumField>, field: &EnumField) {
+    fn visit_enum_field(&mut self, tree: &NodeTree, id: LocalNodeId<EnumField>, field: &EnumField) {
         let has_value = field.value.is_some();
         self.node("EnumField", id.id)
             .field("name", &field.name)
@@ -1056,7 +1056,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
     fn visit_dependency_item(
         &mut self,
         tree: &NodeTree,
-        id: NodeId<DependencyItem>,
+        id: LocalNodeId<DependencyItem>,
         dependency_item: &DependencyItem,
     ) {
         self.node("DependencyItem", id.id)
@@ -1069,7 +1069,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
         });
     }
 
-    fn visit_parameter(&mut self, tree: &NodeTree, id: NodeId<Parameter>, parameter: &Parameter) {
+    fn visit_parameter(&mut self, tree: &NodeTree, id: LocalNodeId<Parameter>, parameter: &Parameter) {
         match parameter {
             Parameter::Named {
                 modifiers,
@@ -1108,7 +1108,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
         });
     }
 
-    fn visit_argument(&mut self, tree: &NodeTree, id: NodeId<Argument>, argument: &Argument) {
+    fn visit_argument(&mut self, tree: &NodeTree, id: LocalNodeId<Argument>, argument: &Argument) {
         match argument {
             Argument::Positional { value: _ } => {
                 self.node("Argument::Positional", id.id).end();
@@ -1125,7 +1125,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
         });
     }
 
-    fn visit_pattern(&mut self, tree: &NodeTree, id: NodeId<Pattern>, pattern: &Pattern) {
+    fn visit_pattern(&mut self, tree: &NodeTree, id: LocalNodeId<Pattern>, pattern: &Pattern) {
         match pattern {
             Pattern::Binding { mutability, name } => {
                 self.node("Pattern::Binding", id.id)
@@ -1156,7 +1156,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
     fn visit_pattern_field(
         &mut self,
         tree: &NodeTree,
-        id: NodeId<PatternField>,
+        id: LocalNodeId<PatternField>,
         field: &PatternField,
     ) {
         match field {
@@ -1192,7 +1192,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
         });
     }
 
-    fn visit_type(&mut self, tree: &NodeTree, id: NodeId<Type>, ty: &Type) {
+    fn visit_type(&mut self, tree: &NodeTree, id: LocalNodeId<Type>, ty: &Type) {
         match ty {
             Type::Scalar(literal) => {
                 self.node("Type::Scalar", id.id).value(literal).end();
@@ -1255,7 +1255,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
     fn visit_annotation(
         &mut self,
         tree: &NodeTree,
-        id: NodeId<Annotation>,
+        id: LocalNodeId<Annotation>,
         annotation: &Annotation,
     ) {
         match annotation {

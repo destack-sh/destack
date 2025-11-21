@@ -376,7 +376,7 @@ impl<T: Dump> Dump for &[T] {
 }
 
 /// Dump a NodeId<T> as the node it points to.
-impl<T: Node + Clone + Dump> Dump for NodeId<T>
+impl<T: Node + Clone + Dump> Dump for LocalNodeId<T>
 where
     NodeTree: NodeTreeImpl<T>,
 {
@@ -734,7 +734,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
     fn visit_expression(
         &mut self,
         _tree: &NodeTree,
-        _id: NodeId<Expression>,
+        _id: LocalNodeId<Expression>,
         expression: &Expression,
     ) {
         match expression {
@@ -1066,7 +1066,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
         });
     }
 
-    fn visit_block(&mut self, _tree: &NodeTree, _id: NodeId<Block>, block: &Block) {
+    fn visit_block(&mut self, _tree: &NodeTree, _id: LocalNodeId<Block>, block: &Block) {
         self.node("Block", _id.id)
             .field("format", &block.format)
             .field_optional("label", &block.label)
@@ -1079,7 +1079,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
     fn visit_definition(
         &mut self,
         tree: &NodeTree,
-        id: NodeId<crate::Definition>,
+        id: LocalNodeId<crate::Definition>,
         definition: &crate::Definition,
     ) {
         match definition {
@@ -1152,7 +1152,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
         });
     }
 
-    fn visit_property(&mut self, tree: &NodeTree, id: NodeId<Property>, property: &Property) {
+    fn visit_property(&mut self, tree: &NodeTree, id: LocalNodeId<Property>, property: &Property) {
         match property {
             Property::Field {
                 modifiers,
@@ -1191,7 +1191,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
         });
     }
 
-    fn visit_enum_field(&mut self, _tree: &NodeTree, _id: NodeId<EnumField>, field: &EnumField) {
+    fn visit_enum_field(&mut self, _tree: &NodeTree, _id: LocalNodeId<EnumField>, field: &EnumField) {
         self.node("EnumField", _id.id)
             .field("name", &field.name)
             .end();
@@ -1203,7 +1203,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
     fn visit_with_clause(
         &mut self,
         _tree: &NodeTree,
-        _id: NodeId<WithClause>,
+        _id: LocalNodeId<WithClause>,
         clause: &WithClause,
     ) {
         self.node("WithClause", _id.id)
@@ -1217,7 +1217,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
     fn visit_where_clause(
         &mut self,
         _tree: &NodeTree,
-        _id: NodeId<WhereClause>,
+        _id: LocalNodeId<WhereClause>,
         clause: &WhereClause,
     ) {
         match clause {
@@ -1238,7 +1238,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
     fn visit_dependency_item(
         &mut self,
         _tree: &NodeTree,
-        _id: NodeId<DependencyItem>,
+        _id: LocalNodeId<DependencyItem>,
         item: &DependencyItem,
     ) {
         self.node("DependencyItem", _id.id)
@@ -1250,7 +1250,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
         });
     }
 
-    fn visit_parameter(&mut self, _tree: &NodeTree, _id: NodeId<Parameter>, param: &Parameter) {
+    fn visit_parameter(&mut self, _tree: &NodeTree, _id: LocalNodeId<Parameter>, param: &Parameter) {
         match param {
             Parameter::Named {
                 modifiers,
@@ -1289,7 +1289,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
         });
     }
 
-    fn visit_argument(&mut self, _tree: &NodeTree, _id: NodeId<Argument>, arg: &Argument) {
+    fn visit_argument(&mut self, _tree: &NodeTree, _id: LocalNodeId<Argument>, arg: &Argument) {
         match arg {
             Argument::Named {
                 modifiers,
@@ -1331,7 +1331,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
         });
     }
 
-    fn visit_match_case(&mut self, _tree: &NodeTree, _id: NodeId<MatchCase>, case: &MatchCase) {
+    fn visit_match_case(&mut self, _tree: &NodeTree, _id: LocalNodeId<MatchCase>, case: &MatchCase) {
         match case {
             MatchCase::Expression {
                 pattern: _,
@@ -1353,7 +1353,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
         });
     }
 
-    fn visit_pattern(&mut self, _tree: &NodeTree, _id: NodeId<Pattern>, pattern: &Pattern) {
+    fn visit_pattern(&mut self, _tree: &NodeTree, _id: LocalNodeId<Pattern>, pattern: &Pattern) {
         match pattern {
             Pattern::Wildcard => {
                 self.node("Pattern::Wildcard", _id.id).end();
@@ -1417,7 +1417,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
     fn visit_pattern_field(
         &mut self,
         _tree: &NodeTree,
-        _id: NodeId<PatternField>,
+        _id: LocalNodeId<PatternField>,
         field: &PatternField,
     ) {
         match field {
@@ -1456,7 +1456,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
     fn visit_annotation(
         &mut self,
         _tree: &NodeTree,
-        _id: NodeId<Annotation>,
+        _id: LocalNodeId<Annotation>,
         annotation: &Annotation,
     ) {
         match annotation {
@@ -1491,7 +1491,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
         });
     }
 
-    fn visit_blank(&mut self, _tree: &NodeTree, _id: NodeId<Blank>, blank: &Blank) {
+    fn visit_blank(&mut self, _tree: &NodeTree, _id: LocalNodeId<Blank>, blank: &Blank) {
         self.node("Blank", _id.id)
             .field("lines", &blank.lines)
             .end();
@@ -1500,7 +1500,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
         });
     }
 
-    fn visit_doc(&mut self, _tree: &NodeTree, _id: NodeId<Doc>, doc: &Doc) {
+    fn visit_doc(&mut self, _tree: &NodeTree, _id: LocalNodeId<Doc>, doc: &Doc) {
         let string = truncate_string(self.strings.get(doc.string), 40, "...");
         self.node("Doc", _id.id)
             .field("string", &string.as_ref())
@@ -1511,7 +1511,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
         });
     }
 
-    fn visit_comment(&mut self, _tree: &NodeTree, _id: NodeId<Comment>, comment: &Comment) {
+    fn visit_comment(&mut self, _tree: &NodeTree, _id: LocalNodeId<Comment>, comment: &Comment) {
         let string = truncate_string(self.strings.get(comment.string), 40, "...");
         self.node("Comment", _id.id)
             .field("string", &string.as_ref())
@@ -1522,14 +1522,14 @@ impl<'a> NodeVisitor for Dumper<'a> {
         });
     }
 
-    fn visit_tag(&mut self, _tree: &NodeTree, _id: NodeId<Tag>, tag: &Tag) {
+    fn visit_tag(&mut self, _tree: &NodeTree, _id: LocalNodeId<Tag>, tag: &Tag) {
         self.node("Tag", _id.id).field("left", &tag.left).end();
         self.with_depth(|dumper| {
             walk_tag(dumper, _tree, _id, tag);
         });
     }
 
-    fn visit_decorator(&mut self, _tree: &NodeTree, _id: NodeId<Decorator>, decorator: &Decorator) {
+    fn visit_decorator(&mut self, _tree: &NodeTree, _id: LocalNodeId<Decorator>, decorator: &Decorator) {
         self.node("Decorator", _id.id)
             .field("left", &decorator.left)
             .end();

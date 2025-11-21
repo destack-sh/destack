@@ -1,16 +1,16 @@
 use crate::Compiler;
 use dyst_ast as ast;
-use dyst_dir::{Module, NodeId, NodeTree, Pattern, PatternField, ScopeId};
+use dyst_dir::{Module, LocalNodeId, NodeTree, Pattern, PatternField, LocalScopeId};
 
 impl<'a> Compiler<'a> {
     /// Bind a pattern to a DIR pattern.
     pub(super) fn bind_pattern(
         &self,
         module: &Module,
-        scope_id: ScopeId,
-        pattern_id: ast::NodeId<ast::Pattern>,
+        scope_id: LocalScopeId,
+        pattern_id: ast::LocalNodeId<ast::Pattern>,
         tree: &mut NodeTree,
-    ) -> NodeId<Pattern> {
+    ) -> LocalNodeId<Pattern> {
         let pattern = module.get(pattern_id);
         let pattern = match pattern {
             ast::Pattern::Wildcard => Pattern::Wildcard,
@@ -100,10 +100,10 @@ impl<'a> Compiler<'a> {
     pub(super) fn bind_pattern_field(
         &self,
         module: &Module,
-        scope_id: ScopeId,
-        pattern_field_id: ast::NodeId<ast::PatternField>,
+        scope_id: LocalScopeId,
+        pattern_field_id: ast::LocalNodeId<ast::PatternField>,
         tree: &mut NodeTree,
-    ) -> NodeId<PatternField> {
+    ) -> LocalNodeId<PatternField> {
         let pattern_field = module.get(pattern_field_id);
         let pattern_field = match pattern_field {
             ast::PatternField::Named {

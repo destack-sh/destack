@@ -1,5 +1,5 @@
 use crate::{
-    BindingScope, ExportType, Expression, FunctionSignature, Name, Node, NodeId, NodeType,
+    BindingScope, ExportType, Expression, FunctionSignature, Name, Node, LocalNodeId, NodeType,
     Parameter, Property, WhereClause, WithClause,
 };
 
@@ -66,19 +66,19 @@ impl DeclarationDescriptor {
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct Generics {
     /// The static parameters of the declaration.
-    pub static_parameters: Option<Vec<NodeId<Parameter>>> = None,
+    pub static_parameters: Option<Vec<LocalNodeId<Parameter>>> = None,
     /// The with clauses of the declaration.
-    pub with_clauses: Option<Vec<NodeId<WithClause>>> = None,
+    pub with_clauses: Option<Vec<LocalNodeId<WithClause>>> = None,
     /// The where clauses of the declaration.
-    pub where_clauses: Option<Vec<NodeId<WhereClause>>> = None,
+    pub where_clauses: Option<Vec<LocalNodeId<WhereClause>>> = None,
 }
 
 impl Generics {
     /// Create generics from the provided parts.
     pub fn new(
-        static_parameters: Option<Vec<NodeId<Parameter>>>,
-        with_clauses: Option<Vec<NodeId<WithClause>>>,
-        where_clauses: Option<Vec<NodeId<WhereClause>>>,
+        static_parameters: Option<Vec<LocalNodeId<Parameter>>>,
+        with_clauses: Option<Vec<LocalNodeId<WithClause>>>,
+        where_clauses: Option<Vec<LocalNodeId<WhereClause>>>,
     ) -> Self {
         Self {
             static_parameters,
@@ -100,7 +100,7 @@ impl Generics {
     }
 
     /// Create a new generics from the given static parameters.
-    pub fn from_static_parameters(static_parameters: Option<Vec<NodeId<Parameter>>>) -> Self {
+    pub fn from_static_parameters(static_parameters: Option<Vec<LocalNodeId<Parameter>>>) -> Self {
         Self {
             static_parameters,
             with_clauses: None,
@@ -113,16 +113,16 @@ impl Generics {
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct Heritage {
     /// The extends types of the declaration.
-    pub extends_types: Option<Vec<NodeId<Expression>>> = None,
+    pub extends_types: Option<Vec<LocalNodeId<Expression>>> = None,
     /// The implements types of the declaration.
-    pub implements_types: Option<Vec<NodeId<Expression>>> = None,
+    pub implements_types: Option<Vec<LocalNodeId<Expression>>> = None,
 }
 
 impl Heritage {
     /// Create a new heritage value.
     pub fn new(
-        extends_types: Option<Vec<NodeId<Expression>>>,
-        implements_types: Option<Vec<NodeId<Expression>>>,
+        extends_types: Option<Vec<LocalNodeId<Expression>>>,
+        implements_types: Option<Vec<LocalNodeId<Expression>>>,
     ) -> Self {
         Self {
             extends_types,
@@ -151,7 +151,7 @@ pub enum Definition {
     Namespace {
         descriptor: DeclarationDescriptor,
         generics: Generics,
-        expressions: Vec<NodeId<Expression>>,
+        expressions: Vec<LocalNodeId<Expression>>,
     },
 
     /// A Struct is struct or class definition.
@@ -193,7 +193,7 @@ pub enum Definition {
         kind: StructKind,
         generics: Generics,
         heritage: Heritage,
-        properties: Vec<NodeId<Property>>,
+        properties: Vec<LocalNodeId<Property>>,
     },
 
     /// An Enum is an enumeration definition.
@@ -235,8 +235,8 @@ pub enum Definition {
         descriptor: DeclarationDescriptor,
         generics: Generics,
         heritage: Heritage,
-        fields: Vec<NodeId<EnumField>>,
-        properties: Vec<NodeId<Property>>,
+        fields: Vec<LocalNodeId<EnumField>>,
+        properties: Vec<LocalNodeId<Property>>,
     },
 
     /// A Interface is interface definition node defining behavior and constants.
@@ -273,7 +273,7 @@ pub enum Definition {
         descriptor: DeclarationDescriptor,
         generics: Generics,
         heritage: Heritage,
-        properties: Vec<NodeId<Property>>,
+        properties: Vec<LocalNodeId<Property>>,
     },
 
     /// An Implement defines the implementation of a concrete type, optionally for some specific super types.
@@ -301,9 +301,9 @@ pub enum Definition {
     Implement {
         descriptor: DeclarationDescriptor,
         generics: Generics,
-        target_type: NodeId<Expression>,
+        target_type: LocalNodeId<Expression>,
         heritage: Heritage,
-        properties: Vec<NodeId<Property>>,
+        properties: Vec<LocalNodeId<Property>>,
     },
 
     /// A Function is function or "lambda" declaration or definition.
@@ -364,7 +364,7 @@ pub enum Definition {
     Function {
         descriptor: DeclarationDescriptor,
         signature: FunctionSignature,
-        body: Option<NodeId<Expression>>,
+        body: Option<LocalNodeId<Expression>>,
     },
 }
 
@@ -414,7 +414,7 @@ pub struct EnumField {
     /// The name of the enum field.
     pub name: Name,
     /// The default value of the enum field.
-    pub value: Option<NodeId<Expression>>,
+    pub value: Option<LocalNodeId<Expression>>,
 }
 
 impl Node for EnumField {

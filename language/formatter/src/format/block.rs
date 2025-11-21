@@ -2,14 +2,14 @@ use dyst_fir::format::FormatResult;
 
 use crate::expression::format_expression;
 use crate::{DystFormatContext, DystFormatter, FormatNode};
-use dyst_ast::{Block, Expression, Node, NodeId, NodeIdAny, NodeTree, NodeTreeImpl, NodeType};
+use dyst_ast::{Block, Expression, Node, LocalNodeId, LocalNodeIdAny, NodeTree, NodeTreeImpl, NodeType};
 use dyst_fir::prelude::*;
 use dyst_fir::{format_args, write};
 
 /// Empty block with infix annotations.
 #[derive(Debug, Clone, PartialEq)]
 pub struct EmptyBlockWithInfixAnnotations<T: Node> {
-    node_id: NodeId<T>,
+    node_id: LocalNodeId<T>,
 }
 
 impl<'ast, T> Format<DystFormatContext<'ast>> for EmptyBlockWithInfixAnnotations<T>
@@ -42,7 +42,7 @@ where
 /// }
 /// ```
 pub fn empty_block_with_infix_annotations<T: Node>(
-    node_id: NodeId<T>,
+    node_id: LocalNodeId<T>,
 ) -> EmptyBlockWithInfixAnnotations<T> {
     EmptyBlockWithInfixAnnotations { node_id }
 }
@@ -51,7 +51,7 @@ pub fn empty_block_with_infix_annotations<T: Node>(
 #[inline]
 pub(crate) fn format_block_body_narrow<'ast>(
     f: &mut DystFormatter<'ast, '_>,
-    block_id: NodeId<Block>,
+    block_id: LocalNodeId<Block>,
 ) -> FormatResult<()> {
     let block = f.context().tree.get(block_id);
     debug_assert!(block.expressions.len() <= 1);
@@ -86,7 +86,7 @@ pub(crate) fn format_block_body_narrow<'ast>(
 #[inline]
 pub(crate) fn format_block_body_wide<'ast>(
     f: &mut DystFormatter<'ast, '_>,
-    block_id: NodeId<Block>,
+    block_id: LocalNodeId<Block>,
 ) -> FormatResult<()> {
     let block = f.context().tree.get(block_id);
     // label
@@ -115,8 +115,8 @@ pub(crate) fn format_block_body_wide<'ast>(
 /// Automatically inserts semicolons for value-ignored non-statement expressions.
 pub(crate) fn format_block_of_statements<'ast>(
     f: &mut DystFormatter<'ast, '_>,
-    scope_id: NodeIdAny,
-    expressions: &[NodeId<Expression>],
+    scope_id: LocalNodeIdAny,
+    expressions: &[LocalNodeId<Expression>],
 ) -> FormatResult<()> {
     let is_root_like = f
         .context()
@@ -161,7 +161,7 @@ pub(crate) fn format_block_of_statements<'ast>(
 #[inline]
 pub(crate) fn should_inline_block<'ast>(
     f: &mut DystFormatter<'ast, '_>,
-    block_id: NodeId<Block>,
+    block_id: LocalNodeId<Block>,
 ) -> bool {
     let block = f.context().tree.get(block_id);
     let span = f.context().get_span(block_id);
@@ -204,7 +204,7 @@ pub(crate) fn should_inline_block<'ast>(
 /// Format a block (without a nested group!).
 pub fn format_block<'ast>(
     f: &mut DystFormatter<'ast, '_>,
-    node_id: NodeId<Block>,
+    node_id: LocalNodeId<Block>,
 ) -> FormatResult<()> {
     write!(f, [f.context().any_prefix_annotations(node_id)])?;
     if should_inline_block(f, node_id) {
@@ -219,7 +219,7 @@ pub fn format_block<'ast>(
 impl<'ast> FormatNode<'ast, Block> for Block {
     fn format_node(
         &self,
-        node_id: NodeId<Block>,
+        node_id: LocalNodeId<Block>,
         f: &mut DystFormatter<'ast, '_>,
     ) -> FormatResult<()> {
         write!(f, [f.context().any_prefix_annotations(node_id)])?;

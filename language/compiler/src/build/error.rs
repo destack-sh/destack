@@ -1,4 +1,4 @@
-use dyst_dir::{NodeIdAny, Session};
+use dyst_dir::{LocalNodeIdAny, Session};
 
 use crate::{CompileError, CompileStage};
 
@@ -7,30 +7,30 @@ use crate::{CompileError, CompileStage};
 #[repr(u8)]
 pub enum BuildError {
     /// Target is not available.
-    TargetNotAvailable { node: NodeIdAny },
+    TargetNotAvailable { node: LocalNodeIdAny },
     /// Unsupported target triple / architecture / ABI.
-    UnsupportedTarget { node: NodeIdAny, target: String },
+    UnsupportedTarget { node: LocalNodeIdAny, target: String },
     /// Missing entry point (main/_start) when required.
-    MissingEntryPoint { node: NodeIdAny },
+    MissingEntryPoint { node: LocalNodeIdAny },
     /// Unresolved external symbol / missing library at link time.
-    UnresolvedSymbol { node: NodeIdAny },
+    UnresolvedSymbol { node: LocalNodeIdAny },
     /// Duplicate symbols with incompatible definitions.
-    DuplicateSymbol { node: NodeIdAny },
+    DuplicateSymbol { node: LocalNodeIdAny },
     /// Incompatible object formats or library formats.
     IncompatibleFormat {
-        node: NodeIdAny,
+        node: LocalNodeIdAny,
         message: Option<String>,
     },
     /// Exceeding target limitations (too large TLS, section > size limit, etc.).
-    TargetLimitExceeded { node: NodeIdAny },
+    TargetLimitExceeded { node: LocalNodeIdAny },
     /// Failure to write output file (permissions, disk full, etc.).
     WriteFailure {
-        node: NodeIdAny,
+        node: LocalNodeIdAny,
         message: Option<String>,
     },
     /// Required runtime component missing (no standard lib for this target).
     MissingRuntime {
-        node: NodeIdAny,
+        node: LocalNodeIdAny,
         message: Option<String>,
     },
 }
@@ -62,7 +62,7 @@ impl BuildError {
     }
 
     /// Get the node id of the error.
-    pub fn node_id(&self) -> Option<NodeIdAny> {
+    pub fn node_id(&self) -> Option<LocalNodeIdAny> {
         match self {
             Self::TargetNotAvailable { node, .. } => Some(*node),
             Self::UnsupportedTarget { node, .. } => Some(*node),

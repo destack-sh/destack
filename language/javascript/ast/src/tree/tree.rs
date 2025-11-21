@@ -5,7 +5,7 @@ use dyst_dir::{self as dir, ModuleId};
 use dyst_source::Arena;
 
 use crate::{
-    Annotation, Argument, Block, Definition, DependencyItem, EnumField, Expression, Node, NodeId,
+    Annotation, Argument, Block, Definition, DependencyItem, EnumField, Expression, Node, LocalNodeId,
     NodeType, Parameter, Pattern, PatternField, Property, Statement, SwitchCase, Type, TypeField,
 };
 
@@ -21,7 +21,7 @@ pub struct NodeTree {
     /// The sources of all nodes. Index is the global node id.
     pub(crate) module_by_node_id: Vec<ModuleId>,
     /// The annotations attached to nodes.
-    pub(crate) annotations_by_node_id: HashMap<u32, Vec<NodeId<Annotation>>>,
+    pub(crate) annotations_by_node_id: HashMap<u32, Vec<LocalNodeId<Annotation>>>,
 
     /// The DIR ids of all nodes. Index is the global node id.
     pub(crate) dir_id_by_node_id: Vec<Option<u32>>,
@@ -100,7 +100,7 @@ impl NodeTree {
     }
 
     /// Allocate a new node in the tree.
-    fn insert<T>(&mut self, node: T, module_id: ModuleId) -> NodeId<T>
+    fn insert<T>(&mut self, node: T, module_id: ModuleId) -> LocalNodeId<T>
     where
         T: Node,
         Self: NodeTreeImpl<T>,
@@ -111,7 +111,7 @@ impl NodeTree {
         let local_id = <Self as NodeTreeImpl<T>>::allocate(self, node);
         self.local_id_by_node_id.push(local_id);
         self.module_by_node_id.push(module_id);
-        NodeId::new(global_id)
+        LocalNodeId::new(global_id)
     }
 
     /// Allocate a new node in the DIR tree derived from another node.
@@ -119,8 +119,8 @@ impl NodeTree {
         &mut self,
         node: T,
         module_id: ModuleId,
-        dir_node_id: dir::NodeId<U>,
-    ) -> NodeId<T>
+        dir_node_id: dir::LocalNodeId<U>,
+    ) -> LocalNodeId<T>
     where
         T: Node,
         Self: NodeTreeImpl<T>,
@@ -133,7 +133,7 @@ impl NodeTree {
     }
 
     /// Allocate a new node in the JS AST tree derived from another DIR node.
-    pub fn insert_from<T, U>(&mut self, node: T, dir_node_id: NodeId<U>) -> NodeId<T>
+    pub fn insert_from<T, U>(&mut self, node: T, dir_node_id: LocalNodeId<U>) -> LocalNodeId<T>
     where
         T: Node,
         Self: NodeTreeImpl<T>,
@@ -148,7 +148,7 @@ impl NodeTree {
     }
 
     /// Alias a node in the JS AST tree from a DIR node.
-    pub fn alias_from_source<T>(&mut self, dir_id: u32, alias: NodeId<T>)
+    pub fn alias_from_source<T>(&mut self, dir_id: u32, alias: LocalNodeId<T>)
     where
         T: Node,
         Self: NodeTreeImpl<T>,
@@ -157,7 +157,7 @@ impl NodeTree {
     }
 
     /// Alias a node in the JS AST tree from a JS AST node.
-    pub fn alias_from<T>(&mut self, node_id: u32, alias: NodeId<T>)
+    pub fn alias_from<T>(&mut self, node_id: u32, alias: LocalNodeId<T>)
     where
         T: Node,
         Self: NodeTreeImpl<T>,
@@ -179,7 +179,7 @@ impl NodeTree {
 
     /// Get an immutable reference to the node with the given NodeId.
     #[inline]
-    pub fn get<T>(&self, id: NodeId<T>) -> &T
+    pub fn get<T>(&self, id: LocalNodeId<T>) -> &T
     where
         T: Node,
         Self: NodeTreeImpl<T>,
@@ -190,7 +190,7 @@ impl NodeTree {
 
     /// Get a mutable reference to the node with the given NodeId.
     #[inline]
-    pub fn get_mut<T>(&mut self, id: NodeId<T>) -> &mut T
+    pub fn get_mut<T>(&mut self, id: LocalNodeId<T>) -> &mut T
     where
         T: Node,
         Self: NodeTreeImpl<T>,
@@ -201,14 +201,14 @@ impl NodeTree {
 
     /// Get the nodes for all nodes of a given type.
     #[inline]
-    pub fn get_nodes<T>(&self) -> Vec<NodeId<T>>
+    pub fn get_nodes<T>(&self) -> Vec<LocalNodeId<T>>
     where
         T: Node,
     {
         let mut nodes = Vec::new();
         for (idx, ty) in self.type_by_node_id.iter().enumerate() {
             if *ty == T::TYPE {
-                nodes.push(NodeId::new(idx as u32));
+                nodes.push(LocalNodeId::new(idx as u32));
             }
         }
         nodes
@@ -223,7 +223,7 @@ impl NodeTree {
     }
 
     /// Get the annotations for a node.
-    pub fn get_annotations(&self, node_id: u32) -> Vec<NodeId<Annotation>> {
+    pub fn get_annotations(&self, node_id: u32) -> Vec<LocalNodeId<Annotation>> {
         self.annotations_by_node_id
             .get(&node_id)
             .cloned()

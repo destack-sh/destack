@@ -2,7 +2,7 @@ use crate::parse::prelude::*;
 use crate::{ParseResult, Parser};
 
 use dyst_ast::{
-    DependencyItem, DependencyKind, ExportType, Expression, Keyword, NodeId, NodeType,
+    DependencyItem, DependencyKind, ExportType, Expression, Keyword, LocalNodeId, NodeType,
     ScalarLiteral, TokenType,
 };
 use dyst_source::StringId;
@@ -20,7 +20,7 @@ impl<'a> Parser<'a> {
     /// import Default, { type Item } from "foo"
     /// import foo as baz with { bar: true } // arguments
     /// ```
-    pub fn eat_import(&mut self) -> ParseResult<NodeId<Expression>> {
+    pub fn eat_import(&mut self) -> ParseResult<LocalNodeId<Expression>> {
         let start = self.mark();
 
         // keyword
@@ -88,7 +88,7 @@ impl<'a> Parser<'a> {
         &mut self,
         start: Option<ParserMark>,
         mode: Option<ExportType>,
-    ) -> ParseResult<NodeId<Expression>> {
+    ) -> ParseResult<LocalNodeId<Expression>> {
         let start = start.unwrap_or_else(|| self.mark());
 
         // mode
@@ -179,7 +179,7 @@ impl<'a> Parser<'a> {
     ) -> ParseResult<(
         Option<StringId>,
         Option<StringId>,
-        Option<Vec<NodeId<DependencyItem>>>,
+        Option<Vec<LocalNodeId<DependencyItem>>>,
     )> {
         // `{ ... }` with optional `from`
         if self.peek_token(TokenType::OpenBrace).is_ok() {
@@ -273,11 +273,11 @@ impl<'a> Parser<'a> {
     }
 
     /// Eat a block of import items (like `{ a, b }` in `import foo.{a, b}`).
-    fn eat_dependency_items_block(&mut self) -> ParseResult<Vec<NodeId<DependencyItem>>> {
+    fn eat_dependency_items_block(&mut self) -> ParseResult<Vec<LocalNodeId<DependencyItem>>> {
         self.try_eat_token(TokenType::OpenBrace, TokenType::CloseBrace)?;
         self.eat_newlines_maybe()?;
 
-        let mut items: Vec<NodeId<DependencyItem>> = Vec::new();
+        let mut items: Vec<LocalNodeId<DependencyItem>> = Vec::new();
         while self.peek_token(TokenType::CloseBrace).is_err() {
             let item = self
                 .eat_dependency_item()
@@ -300,7 +300,7 @@ impl<'a> Parser<'a> {
     /// geometry
     /// geometry as geom
     /// ```
-    pub(crate) fn eat_dependency_item(&mut self) -> ParseResult<NodeId<DependencyItem>> {
+    pub(crate) fn eat_dependency_item(&mut self) -> ParseResult<LocalNodeId<DependencyItem>> {
         let start = self.mark();
 
         // kind

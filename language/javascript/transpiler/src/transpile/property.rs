@@ -1,6 +1,6 @@
 use dyst_dir::{self as dir, Module, NodeTree};
 use dyst_javascript_ast::{
-    BindingKind, BindingModifier, BindingOperator, BindingScope, Expression, NodeId, Property,
+    BindingKind, BindingModifier, BindingOperator, BindingScope, Expression, LocalNodeId, Property,
 };
 
 use crate::{TranspileResult, TranspileResultExt, Transpiler, TranspilerUnit};
@@ -44,9 +44,9 @@ impl<'a> Transpiler<'a> {
         &self,
         module: &'a Module,
         tree: &NodeTree,
-        property_id: dir::NodeId<dir::Property>,
+        property_id: dir::LocalNodeId<dir::Property>,
         unit: &mut TranspilerUnit,
-    ) -> TranspileResult<NodeId<Property>> {
+    ) -> TranspileResult<LocalNodeId<Property>> {
         let property = tree.get(property_id);
         let property = match property {
             dir::Property::Field {

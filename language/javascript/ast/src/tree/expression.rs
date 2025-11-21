@@ -1,5 +1,5 @@
 use crate::{
-    Argument, AssignOperator, BinaryOperator, Definition, FunctionSignature, Node, NodeId,
+    Argument, AssignOperator, BinaryOperator, Definition, FunctionSignature, Node, LocalNodeId,
     NodeType, Path, Property, ScalarLiteral, StringId, TemplateLiteral, TypeBinaryOperator,
     TypeUnaryOperator, UnaryOperator,
 };
@@ -17,104 +17,104 @@ pub enum PostfixPosition {
 #[derive(Debug, Clone, PartialEq)]
 pub enum Expression {
     /// Definition expression.
-    Definition { definition: NodeId<Definition> },
+    Definition { definition: LocalNodeId<Definition> },
 
     /// Path.
     Path {
         path: Path,
-        static_arguments: Option<Vec<NodeId<Argument>>>,
+        static_arguments: Option<Vec<LocalNodeId<Argument>>>,
     },
     /// Scalar literal.
     ScalarLiteral { value: ScalarLiteral },
     /// Template literal.
     TemplateLiteral { value: TemplateLiteral },
     /// Array literal.
-    ArrayLiteral { elements: Vec<NodeId<Expression>> },
+    ArrayLiteral { elements: Vec<LocalNodeId<Expression>> },
     /// Object literal.
-    ObjectLiteral { properties: Vec<NodeId<Property>> },
+    ObjectLiteral { properties: Vec<LocalNodeId<Property>> },
 
     /// Parenthesized expression.
-    Parenthesized { expression: NodeId<Expression> },
+    Parenthesized { expression: LocalNodeId<Expression> },
 
     /// Type unary operation.
     TypeUnary {
         operator: TypeUnaryOperator,
-        right: NodeId<Expression>,
+        right: LocalNodeId<Expression>,
     },
     /// Type binary operation.
     TypeBinary {
-        left: NodeId<Expression>,
+        left: LocalNodeId<Expression>,
         operator: TypeBinaryOperator,
-        right: NodeId<Expression>,
+        right: LocalNodeId<Expression>,
     },
     /// Unary operation.
     Unary {
         operator: UnaryOperator,
-        right: NodeId<Expression>,
+        right: LocalNodeId<Expression>,
     },
     /// Binary operation.
     Binary {
-        left: NodeId<Expression>,
+        left: LocalNodeId<Expression>,
         operator: BinaryOperator,
-        right: NodeId<Expression>,
+        right: LocalNodeId<Expression>,
     },
     /// Assignment operation.
     Assign {
-        left: NodeId<Expression>,
-        right: NodeId<Expression>,
+        left: LocalNodeId<Expression>,
+        right: LocalNodeId<Expression>,
     },
     /// Assignment binary operation.
     AssignBinary {
-        left: NodeId<Expression>,
+        left: LocalNodeId<Expression>,
         operator: AssignOperator,
-        right: NodeId<Expression>,
+        right: LocalNodeId<Expression>,
     },
 
     /// Maybe unwrap an expression with `?`.
     Maybe {
         position: PostfixPosition,
-        left: NodeId<Expression>,
+        left: LocalNodeId<Expression>,
     },
     /// Force unwrap an expression with `!`.
     Must {
         position: PostfixPosition,
-        left: NodeId<Expression>,
+        left: LocalNodeId<Expression>,
     },
     /// Member access.
     Member {
-        left: NodeId<Expression>,
+        left: LocalNodeId<Expression>,
         name: StringId,
-        static_arguments: Option<Vec<NodeId<Argument>>>,
+        static_arguments: Option<Vec<LocalNodeId<Argument>>>,
     },
     /// Index.
     Index {
         position: PostfixPosition,
-        left: NodeId<Expression>,
-        right: NodeId<Expression>,
+        left: LocalNodeId<Expression>,
+        right: LocalNodeId<Expression>,
     },
     /// Call.
     Call {
         position: PostfixPosition,
-        left: NodeId<Expression>,
-        static_arguments: Option<Vec<NodeId<Argument>>>,
-        dynamic_arguments: Vec<NodeId<Argument>>,
+        left: LocalNodeId<Expression>,
+        static_arguments: Option<Vec<LocalNodeId<Argument>>>,
+        dynamic_arguments: Vec<LocalNodeId<Argument>>,
     },
     /// New.
     New {
-        left: NodeId<Expression>,
-        static_arguments: Option<Vec<NodeId<Argument>>>,
-        dynamic_arguments: Vec<NodeId<Argument>>,
+        left: LocalNodeId<Expression>,
+        static_arguments: Option<Vec<LocalNodeId<Argument>>>,
+        dynamic_arguments: Vec<LocalNodeId<Argument>>,
     },
     /// Arrow function expression.
     ArrowFunction {
         signature: FunctionSignature,
-        body: NodeId<Expression>,
+        body: LocalNodeId<Expression>,
     },
     /// If ternary.
     IfTernary {
-        condition: NodeId<Expression>,
-        then_expression: NodeId<Expression>,
-        else_expression: Option<NodeId<Expression>>,
+        condition: LocalNodeId<Expression>,
+        then_expression: LocalNodeId<Expression>,
+        else_expression: Option<LocalNodeId<Expression>>,
     },
 
     /// Error placeholder.

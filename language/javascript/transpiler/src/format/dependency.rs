@@ -2,7 +2,7 @@ use dyst_ast::StringId;
 use dyst_fir::format::FormatResult;
 use dyst_fir::prelude::*;
 use dyst_fir::write;
-use dyst_javascript_ast::{DependencyItem, DependencyKind, Keyword, NodeId};
+use dyst_javascript_ast::{DependencyItem, DependencyKind, Keyword, LocalNodeId};
 
 use crate::format::argument::list_like;
 use crate::{FormatNode, JavaScriptFormatter};
@@ -10,7 +10,7 @@ use crate::{FormatNode, JavaScriptFormatter};
 impl<'ast> FormatNode<'ast, DependencyItem> for DependencyItem {
     fn format_node(
         &self,
-        _node_id: NodeId<DependencyItem>,
+        _node_id: LocalNodeId<DependencyItem>,
         f: &mut JavaScriptFormatter<'ast, '_>,
     ) -> FormatResult<()> {
         // type
@@ -31,7 +31,7 @@ pub(crate) fn format_dependency_binding<'ast>(
     f: &mut JavaScriptFormatter<'ast, '_>,
     target: Option<StringId>,
     alias: Option<StringId>,
-    items: Option<&Vec<NodeId<DependencyItem>>>,
+    items: Option<&Vec<LocalNodeId<DependencyItem>>>,
     include_glob: bool,
 ) -> FormatResult<()> {
     // items with maybe target

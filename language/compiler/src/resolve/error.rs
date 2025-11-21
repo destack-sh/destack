@@ -1,77 +1,77 @@
 use crate::{CompileError, CompileStage};
-use dyst_dir::{ModuleId, NodeIdAny, ScopeId, Session, StringId, SymbolId, Visibility};
+use dyst_dir::{ModuleId, LocalNodeIdAny, LocalScopeId, Session, StringId, LocalSymbolId, Visibility};
 
 /// Error when evaluating something statically.
 #[derive(Debug, Clone, PartialEq)]
 #[repr(u8)]
 pub enum ResolveError {
     /// Unsupported node.
-    UnsupportedNode { node: NodeIdAny },
+    UnsupportedNode { node: LocalNodeIdAny },
     /// Dependent nodes are not ready to be resolved. May be retried.
     NotReady {
         module: ModuleId,
-        node: NodeIdAny,
-        depends_on: Vec<NodeIdAny>,
+        node: LocalNodeIdAny,
+        depends_on: Vec<LocalNodeIdAny>,
     },
 
     /// Circular dependency.
     CircularDependency {
         module: ModuleId,
-        node: NodeIdAny,
-        depends_on: Vec<NodeIdAny>,
+        node: LocalNodeIdAny,
+        depends_on: Vec<LocalNodeIdAny>,
     },
 
     /// Use of undeclared symbol.
     UndeclaredSymbol {
         module: ModuleId,
-        node: NodeIdAny,
-        scope: ScopeId,
+        node: LocalNodeIdAny,
+        scope: LocalScopeId,
         name: StringId,
     },
     /// Use of missing symbol.
     MissingSymbol {
         module: ModuleId,
-        node: NodeIdAny,
-        scope: ScopeId,
+        node: LocalNodeIdAny,
+        scope: LocalScopeId,
         name: StringId,
     },
     /// Use of ambiguous symbol.
     AmbiguousSymbol {
         module: ModuleId,
-        node: NodeIdAny,
-        scope: ScopeId,
-        symbol: SymbolId,
+        node: LocalNodeIdAny,
+        scope: LocalScopeId,
+        symbol: LocalSymbolId,
         name: StringId,
     },
     /// Unresolved module.
     UnresolvedModule {
         module: ModuleId,
-        node: NodeIdAny,
+        node: LocalNodeIdAny,
         target: StringId,
     },
     /// Unresolved member.
     UnresolvedMember {
         module: ModuleId,
-        node: NodeIdAny,
+        node: LocalNodeIdAny,
         member: StringId,
     },
     /// Visibility violation (private/internal/module boundaries).
     InaccessibleSymbol {
         module: ModuleId,
-        node: NodeIdAny,
+        node: LocalNodeIdAny,
         visibility: Visibility,
-        symbol: SymbolId,
+        symbol: LocalSymbolId,
     },
     /// Conflicting declarations in the same scope.
     ConflictingDeclaration {
         module: ModuleId,
-        node: NodeIdAny,
+        node: LocalNodeIdAny,
         name: StringId,
     },
     /// Duplicate export name in the same module.
     DuplicateExport {
         module: ModuleId,
-        node: NodeIdAny,
+        node: LocalNodeIdAny,
         name: StringId,
     },
 }
@@ -96,7 +96,7 @@ impl ResolveError {
     }
 
     /// Get the node id of the error.
-    pub fn node_id(&self) -> Option<NodeIdAny> {
+    pub fn node_id(&self) -> Option<LocalNodeIdAny> {
         match self {
             Self::UnsupportedNode { node, .. } => Some(*node),
             Self::NotReady { node, .. } => Some(*node),

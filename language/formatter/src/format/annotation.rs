@@ -5,13 +5,13 @@ use dyst_fir::{format_args, write};
 use crate::{DystFormatContext, DystFormatter, FormatNode};
 use dyst_ast::{
     Annotation, AnnotationPosition, Blank, Comment, CommentStyle, Decorator, Doc, DocStyle, Node,
-    NodeId, NodeTree, NodeTreeImpl, NodeType, Tag,
+    LocalNodeId, NodeTree, NodeTreeImpl, NodeType, Tag,
 };
 
 impl<'ast> DystFormatContext<'ast> {
     /// Format the block infix annotations for a node.
     #[inline]
-    pub fn block_infix_annotations<T: Node>(&self, node_id: NodeId<T>) -> Annotations<T> {
+    pub fn block_infix_annotations<T: Node>(&self, node_id: LocalNodeId<T>) -> Annotations<T> {
         Annotations {
             position: AnnotationCapture::BlockInfix,
             node_id,
@@ -20,7 +20,7 @@ impl<'ast> DystFormatContext<'ast> {
 
     /// Format the block prefix annotations for a node.
     #[inline]
-    pub fn block_prefix_annotations<T: Node>(&self, node_id: NodeId<T>) -> Annotations<T> {
+    pub fn block_prefix_annotations<T: Node>(&self, node_id: LocalNodeId<T>) -> Annotations<T> {
         Annotations {
             position: AnnotationCapture::BlockPrefix,
             node_id,
@@ -29,7 +29,7 @@ impl<'ast> DystFormatContext<'ast> {
 
     /// Format the block postfix annotations for a node.
     #[inline]
-    pub fn block_postfix_annotations<T: Node>(&self, node_id: NodeId<T>) -> Annotations<T> {
+    pub fn block_postfix_annotations<T: Node>(&self, node_id: LocalNodeId<T>) -> Annotations<T> {
         Annotations {
             position: AnnotationCapture::BlockPostfix,
             node_id,
@@ -38,7 +38,7 @@ impl<'ast> DystFormatContext<'ast> {
 
     /// Format the line prefix annotations for a node.
     #[inline]
-    pub fn line_prefix_annotations<T: Node>(&self, node_id: NodeId<T>) -> Annotations<T> {
+    pub fn line_prefix_annotations<T: Node>(&self, node_id: LocalNodeId<T>) -> Annotations<T> {
         Annotations {
             position: AnnotationCapture::LinePrefix,
             node_id,
@@ -47,7 +47,7 @@ impl<'ast> DystFormatContext<'ast> {
 
     /// Format the line postfix annotations for a node.
     #[inline]
-    pub fn line_postfix_annotations<T: Node>(&self, node_id: NodeId<T>) -> Annotations<T> {
+    pub fn line_postfix_annotations<T: Node>(&self, node_id: LocalNodeId<T>) -> Annotations<T> {
         Annotations {
             position: AnnotationCapture::LinePostfix,
             node_id,
@@ -56,7 +56,7 @@ impl<'ast> DystFormatContext<'ast> {
 
     /// Format the line postfix boundary annotations for a node.
     #[inline]
-    pub fn line_postfix_boundary_annotations<T: Node>(&self, node_id: NodeId<T>) -> Annotations<T> {
+    pub fn line_postfix_boundary_annotations<T: Node>(&self, node_id: LocalNodeId<T>) -> Annotations<T> {
         Annotations {
             position: AnnotationCapture::LinePostfixBoundary,
             node_id,
@@ -65,7 +65,7 @@ impl<'ast> DystFormatContext<'ast> {
 
     /// Format the line and block prefix annotations for a node.
     #[inline]
-    pub fn any_prefix_annotations<T: Node>(&self, node_id: NodeId<T>) -> Annotations<T> {
+    pub fn any_prefix_annotations<T: Node>(&self, node_id: LocalNodeId<T>) -> Annotations<T> {
         Annotations {
             position: AnnotationCapture::AnyPrefix,
             node_id,
@@ -74,7 +74,7 @@ impl<'ast> DystFormatContext<'ast> {
 
     /// Format the line and block postfix annotations for a node.
     #[inline]
-    pub fn any_postfix_annotations<T: Node>(&self, node_id: NodeId<T>) -> Annotations<T> {
+    pub fn any_postfix_annotations<T: Node>(&self, node_id: LocalNodeId<T>) -> Annotations<T> {
         Annotations {
             position: AnnotationCapture::AnyPostfix,
             node_id,
@@ -83,7 +83,7 @@ impl<'ast> DystFormatContext<'ast> {
 
     /// Format the line and block infix or postfix annotations for a node.
     #[inline]
-    pub fn any_infix_or_postfix_annotations<T: Node>(&self, node_id: NodeId<T>) -> Annotations<T> {
+    pub fn any_infix_or_postfix_annotations<T: Node>(&self, node_id: LocalNodeId<T>) -> Annotations<T> {
         Annotations {
             position: AnnotationCapture::AnyInfixOrPostfix,
             node_id,
@@ -111,7 +111,7 @@ pub struct Annotations<T: Node> {
     /// The position of the annotations.
     position: AnnotationCapture,
     /// The node ID.
-    node_id: NodeId<T>,
+    node_id: LocalNodeId<T>,
 }
 
 impl<'ast, T> Format<DystFormatContext<'ast>> for Annotations<T>
@@ -214,7 +214,7 @@ where
 impl<'ast> FormatNode<'ast, Annotation> for Annotation {
     fn format_node(
         &self,
-        node_id: NodeId<Annotation>,
+        node_id: LocalNodeId<Annotation>,
         f: &mut DystFormatter<'ast, '_>,
     ) -> FormatResult<()> {
         match self {
@@ -245,7 +245,7 @@ impl<'ast> FormatNode<'ast, Annotation> for Annotation {
 impl<'ast> FormatNode<'ast, Blank> for Blank {
     fn format_node(
         &self,
-        _node_id: NodeId<Blank>,
+        _node_id: LocalNodeId<Blank>,
         f: &mut DystFormatter<'ast, '_>,
     ) -> FormatResult<()> {
         // reduce any number of blank lines to a single one
@@ -257,7 +257,7 @@ impl<'ast> FormatNode<'ast, Blank> for Blank {
 impl<'ast> FormatNode<'ast, Doc> for Doc {
     fn format_node(
         &self,
-        _node_id: NodeId<Doc>,
+        _node_id: LocalNodeId<Doc>,
         f: &mut DystFormatter<'ast, '_>,
     ) -> FormatResult<()> {
         let string = f.context().strings.get(self.string);
@@ -309,7 +309,7 @@ impl<'ast> FormatNode<'ast, Doc> for Doc {
 impl<'ast> FormatNode<'ast, Comment> for Comment {
     fn format_node(
         &self,
-        _node_id: NodeId<Comment>,
+        _node_id: LocalNodeId<Comment>,
         f: &mut DystFormatter<'ast, '_>,
     ) -> FormatResult<()> {
         let string = f.context().strings.get(self.string);
@@ -355,7 +355,7 @@ impl<'ast> FormatNode<'ast, Comment> for Comment {
 impl<'ast> FormatNode<'ast, Tag> for Tag {
     fn format_node(
         &self,
-        _node_id: NodeId<Tag>,
+        _node_id: LocalNodeId<Tag>,
         f: &mut DystFormatter<'ast, '_>,
     ) -> FormatResult<()> {
         write!(f, [token("#"), self.left])?;
@@ -381,7 +381,7 @@ impl<'ast> FormatNode<'ast, Tag> for Tag {
 impl<'ast> FormatNode<'ast, Decorator> for Decorator {
     fn format_node(
         &self,
-        _node_id: NodeId<Decorator>,
+        _node_id: LocalNodeId<Decorator>,
         f: &mut DystFormatter<'ast, '_>,
     ) -> FormatResult<()> {
         write!(f, [token("@"), self.left])?;

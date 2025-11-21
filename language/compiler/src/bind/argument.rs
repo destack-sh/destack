@@ -2,7 +2,7 @@ use crate::Compiler;
 use dyst_ast as ast;
 use dyst_dir::{
     Argument, BindingKind, BindingModifier, BindingOperator, BindingScope, Expression, Module,
-    Mutability, NodeId, NodeTree, Parameter, Path, ScopeId, SymbolKey, SymbolSpace, Visibility,
+    Mutability, LocalNodeId, NodeTree, Parameter, Path, LocalScopeId, SymbolKey, SymbolSpace, Visibility,
 };
 use dyst_source::smallvec;
 
@@ -46,10 +46,10 @@ impl<'a> Compiler<'a> {
     pub(super) fn bind_parameter(
         &self,
         module: &Module,
-        scope_id: ScopeId,
-        parameter_id: ast::NodeId<ast::Parameter>,
+        scope_id: LocalScopeId,
+        parameter_id: ast::LocalNodeId<ast::Parameter>,
         tree: &mut NodeTree,
-    ) -> NodeId<Parameter> {
+    ) -> LocalNodeId<Parameter> {
         let parameter = module.get(parameter_id);
         match parameter {
             ast::Parameter::Named {
@@ -123,10 +123,10 @@ impl<'a> Compiler<'a> {
     pub(super) fn bind_argument(
         &self,
         module: &Module,
-        scope_id: ScopeId,
-        argument_id: ast::NodeId<ast::Argument>,
+        scope_id: LocalScopeId,
+        argument_id: ast::LocalNodeId<ast::Argument>,
         tree: &mut NodeTree,
-    ) -> NodeId<Argument> {
+    ) -> LocalNodeId<Argument> {
         let argument = module.get(argument_id);
         match argument {
             ast::Argument::Named {

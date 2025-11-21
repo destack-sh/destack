@@ -1,6 +1,6 @@
 use dyst_ast::{
     Argument, Asynchrony, DependencyKind, Expression, ForEachKind, IfKind, Keyword, Mutability,
-    NodeId, NodeTree, PostfixPosition, Property, TypeKind, TypeUnaryOperator, WhileKind,
+    LocalNodeId, NodeTree, PostfixPosition, Property, TypeKind, TypeUnaryOperator, WhileKind,
     YieldCardinality,
 };
 use dyst_fir::format::{BestFittingMode, FormatError};
@@ -17,7 +17,7 @@ use crate::{DystFormatContext, DystFormatter, FormatNode, empty_block_with_infix
 /// Tree fragment argument (with `=` instead of `: `)
 #[derive(Debug, Clone, PartialEq)]
 struct TreeLiteralArgument {
-    argument_id: NodeId<Argument>,
+    argument_id: LocalNodeId<Argument>,
 }
 
 impl<'ast> Format<DystFormatContext<'ast>> for TreeLiteralArgument {
@@ -73,7 +73,7 @@ impl<'ast> Format<DystFormatContext<'ast>> for TreeLiteralArgument {
 /// Walk a chain of if expressions and collect the if/else if/else nodes.
 pub(crate) fn format_if_else_chain<'ast>(
     f: &mut DystFormatter<'ast, '_>,
-    node_id: NodeId<Expression>,
+    node_id: LocalNodeId<Expression>,
 ) -> FormatResult<()> {
     // walk the chain
     let mut next_if_id = node_id;
@@ -160,7 +160,7 @@ pub(crate) fn format_if_else_chain<'ast>(
 #[inline]
 fn format_member_expression<'ast>(
     f: &mut DystFormatter<'ast, '_>,
-    node_id: NodeId<Expression>,
+    node_id: LocalNodeId<Expression>,
 ) -> FormatResult<()> {
     if let Expression::Member {
         left,
@@ -182,7 +182,7 @@ fn format_member_expression<'ast>(
 #[inline]
 fn format_index_expression<'ast>(
     f: &mut DystFormatter<'ast, '_>,
-    node_id: NodeId<Expression>,
+    node_id: LocalNodeId<Expression>,
 ) -> FormatResult<()> {
     if let Expression::Index {
         position,
@@ -209,7 +209,7 @@ fn format_index_expression<'ast>(
 #[inline]
 fn format_call_expression<'ast>(
     f: &mut DystFormatter<'ast, '_>,
-    node_id: NodeId<Expression>,
+    node_id: LocalNodeId<Expression>,
 ) -> FormatResult<()> {
     if let Expression::Call {
         position,
@@ -236,7 +236,7 @@ fn format_call_expression<'ast>(
 #[inline]
 fn format_maybe_expression<'ast>(
     f: &mut DystFormatter<'ast, '_>,
-    node_id: NodeId<Expression>,
+    node_id: LocalNodeId<Expression>,
 ) -> FormatResult<()> {
     if let Expression::Maybe { left, position } = f.context().tree.get(node_id) {
         write!(f, [*left])?;
@@ -255,9 +255,9 @@ fn format_maybe_expression<'ast>(
 enum ChainExpressionBaseHead {
     Path {
         segment: StringId,
-        static_arguments: Option<Vec<NodeId<Argument>>>,
+        static_arguments: Option<Vec<LocalNodeId<Argument>>>,
     },
-    Expression(NodeId<Expression>),
+    Expression(LocalNodeId<Expression>),
 }
 
 /// The initial portion of the chain including direct postfix ops.
@@ -273,17 +273,17 @@ enum ChainExpression {
     /// Member expression.
     Member {
         segment: StringId,
-        static_arguments: Option<Vec<NodeId<Argument>>>,
+        static_arguments: Option<Vec<LocalNodeId<Argument>>>,
     },
     /// Call expression.
     Call {
         position: PostfixPosition,
-        dynamic_arguments: Vec<NodeId<Argument>>,
+        dynamic_arguments: Vec<LocalNodeId<Argument>>,
     },
     /// Index expression.
     Index {
         position: PostfixPosition,
-        index: Option<NodeId<Expression>>,
+        index: Option<LocalNodeId<Expression>>,
     },
     /// Maybe expression.
     Maybe { position: PostfixPosition },
@@ -433,7 +433,7 @@ fn group_chain_expression_lines(
 }
 
 /// Check whether the expression is part of a member/call/maybe/index chain.
-fn is_expression_chain(tree: &NodeTree, node_id: NodeId<Expression>) -> bool {
+fn is_expression_chain(tree: &NodeTree, node_id: LocalNodeId<Expression>) -> bool {
     match tree.get(node_id) {
         Expression::Member { left, .. }
         | Expression::Call { left, .. }
@@ -446,7 +446,7 @@ fn is_expression_chain(tree: &NodeTree, node_id: NodeId<Expression>) -> bool {
 /// Format a member/call/maybe/index chain with prettier-style breaking.
 pub(crate) fn format_expression_chain<'ast>(
     f: &mut DystFormatter<'ast, '_>,
-    node_id: NodeId<Expression>,
+    node_id: LocalNodeId<Expression>,
 ) -> FormatResult<()> {
     let tree = f.context().tree;
 
@@ -611,7 +611,7 @@ pub(crate) fn format_expression_chain<'ast>(
 #[inline]
 pub(crate) fn format_match<'ast>(
     f: &mut DystFormatter<'ast, '_>,
-    node_id: NodeId<Expression>,
+    node_id: LocalNodeId<Expression>,
     include_prefix: bool,
 ) -> FormatResult<()> {
     let match_node = f.context().tree.get(node_id);
@@ -789,9 +789,9 @@ pub fn is_expression_breakable(tree: &NodeTree, expression: &Expression) -> bool
 #[inline]
 pub(crate) fn format_struct_literal<'ast>(
     f: &mut DystFormatter<'ast, '_>,
-    expression_id: NodeId<Expression>,
-    ty: &Option<NodeId<Expression>>,
-    properties_ids: &Vec<NodeId<Property>>,
+    expression_id: LocalNodeId<Expression>,
+    ty: &Option<LocalNodeId<Expression>>,
+    properties_ids: &Vec<LocalNodeId<Property>>,
 ) -> FormatResult<()> {
     if let Some(ty) = ty {
         write!(f, [ty, space()])?;
@@ -827,10 +827,10 @@ pub(crate) fn format_struct_literal<'ast>(
 #[inline]
 pub(crate) fn format_tree_literal<'ast>(
     f: &mut DystFormatter<'ast, '_>,
-    expression_id: NodeId<Expression>,
-    left: &Option<NodeId<Expression>>,
-    arguments: &Option<Vec<NodeId<Argument>>>,
-    elements: &Option<Vec<NodeId<Argument>>>,
+    expression_id: LocalNodeId<Expression>,
+    left: &Option<LocalNodeId<Expression>>,
+    arguments: &Option<Vec<LocalNodeId<Argument>>>,
+    elements: &Option<Vec<LocalNodeId<Argument>>>,
 ) -> FormatResult<()> {
     write!(
         f,
@@ -915,7 +915,7 @@ pub(crate) fn format_tree_literal<'ast>(
 /// Format an expression (without prefix and postfix annotations)
 pub(crate) fn format_expression<'ast>(
     f: &mut DystFormatter<'ast, '_>,
-    node_id: NodeId<Expression>,
+    node_id: LocalNodeId<Expression>,
     expression: &Expression,
 ) -> FormatResult<()> {
     let tree = f.context().tree;
@@ -1647,7 +1647,7 @@ pub(crate) fn format_expression<'ast>(
 impl<'ast> FormatNode<'ast, Expression> for Expression {
     fn format_node(
         &self,
-        node_id: NodeId<Expression>,
+        node_id: LocalNodeId<Expression>,
         f: &mut DystFormatter<'ast, '_>,
     ) -> FormatResult<()> {
         write!(f, [f.context().any_prefix_annotations(node_id)])?;

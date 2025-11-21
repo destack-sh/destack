@@ -5,7 +5,7 @@ use crate::{ParseError, ParseResult, Parser, ParserMark};
 
 use dyst_ast::{
     Argument, AssignOperator, BinaryOperator, BindingScope, DeclarationDescriptor, DeclarationKind,
-    ExportType, Expression, IfKind, InfixOperator, Keyword, NodeId, NodeType, PostfixPosition,
+    ExportType, Expression, IfKind, InfixOperator, Keyword, LocalNodeId, NodeType, PostfixPosition,
     TokenSpan, TokenType, TypeBinaryOperator, TypeUnaryOperator, UnaryOperator,
 };
 
@@ -232,9 +232,9 @@ impl<'a> Parser<'a> {
     #[inline]
     fn make_infix_expression(
         &self,
-        left: NodeId<Expression>,
+        left: LocalNodeId<Expression>,
         operator: InfixOperator,
-        right: NodeId<Expression>,
+        right: LocalNodeId<Expression>,
     ) -> Expression {
         match operator {
             InfixOperator::Binary(binary_operator) => Expression::Binary {
@@ -257,7 +257,7 @@ impl<'a> Parser<'a> {
 
     /// Try to eat an expression (return Expression::Error if error and recovery is possible).
     #[inline]
-    pub fn try_eat_expression(&mut self, recover: TokenType) -> ParseResult<NodeId<Expression>> {
+    pub fn try_eat_expression(&mut self, recover: TokenType) -> ParseResult<LocalNodeId<Expression>> {
         match self.eat_expression() {
             Ok(expression_id) => Ok(expression_id),
             Err(err) => {
@@ -276,7 +276,7 @@ impl<'a> Parser<'a> {
     /// Try to eat a statement expression (return Expression::Error if error and recovery is possible).
     /// Wraps semicolon expressions in a Statement expression, otherwise just returns the expression.
     #[inline]
-    pub fn try_eat_statement_expression(&mut self) -> ParseResult<NodeId<Expression>> {
+    pub fn try_eat_statement_expression(&mut self) -> ParseResult<LocalNodeId<Expression>> {
         let start = self.mark();
         match self.with_options(self.options.in_statement_position(), |parser| {
             parser.eat_expression()
@@ -328,7 +328,7 @@ impl<'a> Parser<'a> {
     }
 
     /// Eat an expression.
-    pub fn eat_expression(&mut self) -> ParseResult<NodeId<Expression>> {
+    pub fn eat_expression(&mut self) -> ParseResult<LocalNodeId<Expression>> {
         let start = self.mark();
 
         //
@@ -386,7 +386,7 @@ impl<'a> Parser<'a> {
         // ------------------------------------------------------------
         //
 
-        let mut left_expression_id: NodeId<Expression> = {
+        let mut left_expression_id: LocalNodeId<Expression> = {
             let token = *self.peek()?;
             let token_type = token.token.ty;
             let keyword = self.peek_any_keyword().ok();

@@ -10,7 +10,7 @@ impl<'a> Transpiler<'a> {
     pub fn transpile_path(
         &self,
         _module: &'a Module,
-        _scope_id: dir::NodeIdAny,
+        _scope_id: dir::LocalNodeIdAny,
         path: &dir::Path,
         _unit: &mut TranspilerUnit,
     ) -> TranspileResult<Path> {

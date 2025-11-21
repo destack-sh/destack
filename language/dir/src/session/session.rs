@@ -2,7 +2,7 @@ use dyst_ast::StringPool;
 use dyst_source::{DiagnosticCollector, FileRegistry, LanguageOptions};
 use parking_lot::RwLock;
 
-use crate::{ModuleRegistry, NodeTree, PackageRegistry, ScopeId};
+use crate::{ModuleRegistry, NodeTree, PackageRegistry, LocalScopeId};
 
 /// A session for a language.
 #[derive(Debug)]
@@ -12,7 +12,7 @@ pub struct Session<'a> {
     /// The files in the session.
     pub files: &'a FileRegistry,
     /// The root scope.
-    pub root_scope_id: Option<ScopeId>,
+    pub root_scope_id: Option<LocalScopeId>,
     /// The modules.
     pub modules: ModuleRegistry,
     /// The packages.

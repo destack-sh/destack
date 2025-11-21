@@ -6,7 +6,7 @@ use crate::property::{
     format_binding_modifiers_postfix_maybe, format_binding_modifiers_prefix_maybe,
 };
 use crate::{DystFormatContext, DystFormatter, FormatNode};
-use dyst_ast::{Argument, Node, NodeId, NodeTree, NodeTreeImpl, Parameter};
+use dyst_ast::{Argument, Node, LocalNodeId, NodeTree, NodeTreeImpl, Parameter};
 use dyst_fir::prelude::*;
 use dyst_fir::{best_fitting, format_args, write};
 
@@ -23,7 +23,7 @@ where
     include_space: bool,
     force_trailing_separator: bool,
     force_expand: bool,
-    elements: &'e Vec<NodeId<T>>,
+    elements: &'e Vec<LocalNodeId<T>>,
 
     _phantom: PhantomData<&'ast ()>,
 }
@@ -136,7 +136,7 @@ pub(crate) fn list_like<'ast, 'e, T>(
     start_token: &'static str,
     end_token: &'static str,
     separator: &'static str,
-    elements: &'e Vec<NodeId<T>>,
+    elements: &'e Vec<LocalNodeId<T>>,
 ) -> ListLike<'ast, 'e, T>
 where
     T: Node + Clone + FormatNode<'ast, T>,
@@ -157,7 +157,7 @@ where
 impl<'ast> FormatNode<'ast, Parameter> for Parameter {
     fn format_node(
         &self,
-        node_id: NodeId<Parameter>,
+        node_id: LocalNodeId<Parameter>,
         f: &mut DystFormatter<'ast, '_>,
     ) -> FormatResult<()> {
         write!(f, [f.context().any_prefix_annotations(node_id)])?;
@@ -232,7 +232,7 @@ impl<'ast> FormatNode<'ast, Parameter> for Parameter {
 impl<'ast> FormatNode<'ast, Argument> for Argument {
     fn format_node(
         &self,
-        node_id: NodeId<Argument>,
+        node_id: LocalNodeId<Argument>,
         f: &mut DystFormatter<'ast, '_>,
     ) -> FormatResult<()> {
         write!(f, [f.context().any_prefix_annotations(node_id)])?;

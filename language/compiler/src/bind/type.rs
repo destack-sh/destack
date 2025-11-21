@@ -1,7 +1,7 @@
 use crate::Compiler;
 use dyst_ast as ast;
 use dyst_dir::{
-    Generics, Heritage, Module, Mutability, NodeId, NodeTree, ScopeId, Type, TypeKind,
+    Generics, Heritage, Module, Mutability, LocalNodeId, NodeTree, LocalScopeId, Type, TypeKind,
     VarianceBound,
 };
 
@@ -10,10 +10,10 @@ impl<'a> Compiler<'a> {
     pub(super) fn bind_expression_to_type(
         &self,
         module: &Module,
-        scope_id: ScopeId,
-        expression_id: ast::NodeId<ast::Expression>,
+        scope_id: LocalScopeId,
+        expression_id: ast::LocalNodeId<ast::Expression>,
         tree: &mut NodeTree,
-    ) -> NodeId<Type> {
+    ) -> LocalNodeId<Type> {
         let expression = self.bind_expression(module, scope_id, expression_id, tree);
         let type_id = tree.insert_from_source(
             Type::UnresolvedExpression(expression),
@@ -54,7 +54,7 @@ impl<'a> Compiler<'a> {
     pub(super) fn bind_generics(
         &self,
         module: &Module,
-        scope_id: ScopeId,
+        scope_id: LocalScopeId,
         generics: &ast::Generics,
         tree: &mut NodeTree,
     ) -> Generics {
@@ -92,7 +92,7 @@ impl<'a> Compiler<'a> {
     pub(super) fn bind_heritage(
         &self,
         module: &Module,
-        scope_id: ScopeId,
+        scope_id: LocalScopeId,
         heritage: &ast::Heritage,
         tree: &mut NodeTree,
     ) -> Heritage {

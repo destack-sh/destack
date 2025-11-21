@@ -1,7 +1,7 @@
 use std::marker::PhantomData;
 
 use dyst_fir::format::{BestFittingMode, FormatResult};
-use dyst_javascript_ast::{Argument, Node, NodeId, NodeTree, NodeTreeImpl, Parameter};
+use dyst_javascript_ast::{Argument, Node, LocalNodeId, NodeTree, NodeTreeImpl, Parameter};
 
 use crate::format::property::{
     format_binding_modifiers_postfix_maybe, format_binding_modifiers_prefix_maybe,
@@ -24,7 +24,7 @@ where
     include_space: bool,
     force_trailing_separator: bool,
     force_expand: bool,
-    elements: &'e Vec<NodeId<T>>,
+    elements: &'e Vec<LocalNodeId<T>>,
 
     _phantom: PhantomData<&'ast ()>,
 }
@@ -137,7 +137,7 @@ pub(crate) fn list_like<'ast, 'e, T>(
     start_token: &'static str,
     end_token: &'static str,
     separator: &'static str,
-    elements: &'e Vec<NodeId<T>>,
+    elements: &'e Vec<LocalNodeId<T>>,
 ) -> ListLike<'ast, 'e, T>
 where
     T: Node + Clone + FormatNode<'ast, T>,
@@ -158,7 +158,7 @@ where
 impl<'ast> FormatNode<'ast, Parameter> for Parameter {
     fn format_node(
         &self,
-        _node_id: NodeId<Parameter>,
+        _node_id: LocalNodeId<Parameter>,
         f: &mut JavaScriptFormatter<'ast, '_>,
     ) -> FormatResult<()> {
         match self {
@@ -228,7 +228,7 @@ impl<'ast> FormatNode<'ast, Parameter> for Parameter {
 impl<'ast> FormatNode<'ast, Argument> for Argument {
     fn format_node(
         &self,
-        _node_id: NodeId<Argument>,
+        _node_id: LocalNodeId<Argument>,
         f: &mut JavaScriptFormatter<'ast, '_>,
     ) -> FormatResult<()> {
         match self {

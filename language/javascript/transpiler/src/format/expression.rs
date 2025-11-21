@@ -2,7 +2,7 @@ use dyst_fir::format::FormatResult;
 use dyst_fir::prelude::*;
 use dyst_fir::write;
 use dyst_javascript_ast::{
-    Asynchrony, Expression, FunctionCardinality, Keyword, NodeId, PostfixPosition,
+    Asynchrony, Expression, FunctionCardinality, Keyword, LocalNodeId, PostfixPosition,
 };
 
 use crate::format::argument::list_like;
@@ -12,7 +12,7 @@ use crate::{FormatNode, JavaScriptFormatter};
 impl<'ast> FormatNode<'ast, Expression> for Expression {
     fn format_node(
         &self,
-        _node_id: NodeId<Expression>,
+        _node_id: LocalNodeId<Expression>,
         f: &mut JavaScriptFormatter<'ast, '_>,
     ) -> FormatResult<()> {
         match self {

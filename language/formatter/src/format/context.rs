@@ -1,6 +1,6 @@
 use dyst_ast::{
     Annotation, AnnotationPosition, Argument, Blank, Block, Comment, Decorator, Definition,
-    DependencyItem, Doc, EnumField, Expression, MatchCase, Node, NodeId, NodeIdAny,
+    DependencyItem, Doc, EnumField, Expression, MatchCase, Node, LocalNodeId, LocalNodeIdAny,
     NodeParentIndex, NodeTree, NodeTreeImpl, NodeType, Parameter, Pattern, PatternField, Property,
     Tag, TokenSpan, TokenType, WhereClause, WithClause,
 };
@@ -162,7 +162,7 @@ impl<'a> DystFormatContext<'a> {
 
     /// Get a Node from the tree.
     #[inline]
-    pub fn get_node<T>(&self, node_id: NodeId<T>) -> &T
+    pub fn get_node<T>(&self, node_id: LocalNodeId<T>) -> &T
     where
         T: Node,
         NodeTree: NodeTreeImpl<T>,
@@ -172,7 +172,7 @@ impl<'a> DystFormatContext<'a> {
 
     /// Get a Node from the tree.
     #[inline]
-    pub fn get_node_type<T>(&self, node_id: NodeId<T>) -> NodeType
+    pub fn get_node_type<T>(&self, node_id: LocalNodeId<T>) -> NodeType
     where
         T: Node,
         NodeTree: NodeTreeImpl<T>,
@@ -182,7 +182,7 @@ impl<'a> DystFormatContext<'a> {
 
     /// Get a parent node id and its type from the tree.
     #[inline]
-    pub fn get_parent<T>(&self, node_id: NodeId<T>) -> Option<(u32, NodeType)>
+    pub fn get_parent<T>(&self, node_id: LocalNodeId<T>) -> Option<(u32, NodeType)>
     where
         T: Node,
         NodeTree: NodeTreeImpl<T>,
@@ -210,7 +210,7 @@ impl<'a> DystFormatContext<'a> {
 
     /// Get all ancestors of a node.
     #[inline]
-    pub fn get_ancestors<T>(&self, node_id: NodeId<T>) -> Vec<(u32, NodeType)>
+    pub fn get_ancestors<T>(&self, node_id: LocalNodeId<T>) -> Vec<(u32, NodeType)>
     where
         T: Node,
         NodeTree: NodeTreeImpl<T>,
@@ -227,7 +227,7 @@ impl<'a> DystFormatContext<'a> {
 
     /// Get a Span from the tree.
     #[inline]
-    pub fn get_span<T>(&self, node_id: NodeId<T>) -> Span
+    pub fn get_span<T>(&self, node_id: LocalNodeId<T>) -> Span
     where
         T: Node,
         NodeTree: NodeTreeImpl<T>,
@@ -294,7 +294,7 @@ impl<'a> DystFormatContext<'a> {
 
     /// Get annotations for a node. Annotations are sorted by position.
     #[inline]
-    pub fn get_annotations<T>(&self, node_id: NodeId<T>) -> Option<Vec<NodeId<Annotation>>>
+    pub fn get_annotations<T>(&self, node_id: LocalNodeId<T>) -> Option<Vec<LocalNodeId<Annotation>>>
     where
         T: Node,
         NodeTree: NodeTreeImpl<T>,
@@ -307,7 +307,7 @@ impl<'a> DystFormatContext<'a> {
 
     /// Check if a node has an annotation.
     #[inline]
-    pub fn has_annotation<T>(&self, node_id: NodeId<T>) -> bool
+    pub fn has_annotation<T>(&self, node_id: LocalNodeId<T>) -> bool
     where
         T: Node,
         NodeTree: NodeTreeImpl<T>,
@@ -317,7 +317,7 @@ impl<'a> DystFormatContext<'a> {
 
     /// Check if a node has a prefix annotation.
     #[inline]
-    pub fn has_prefix_annotation<T>(&self, node_id: NodeId<T>) -> bool
+    pub fn has_prefix_annotation<T>(&self, node_id: LocalNodeId<T>) -> bool
     where
         T: Node,
         NodeTree: NodeTreeImpl<T>,
@@ -333,7 +333,7 @@ impl<'a> DystFormatContext<'a> {
 
     /// Check if a node has a block infix annotation.
     #[inline]
-    pub fn has_infix_annotation<T>(&self, node_id: NodeId<T>) -> bool
+    pub fn has_infix_annotation<T>(&self, node_id: LocalNodeId<T>) -> bool
     where
         T: Node,
         NodeTree: NodeTreeImpl<T>,
@@ -348,7 +348,7 @@ impl<'a> DystFormatContext<'a> {
 
     /// Check if a node has a postfix annotation.
     #[inline]
-    pub fn has_postfix_annotation<T>(&self, node_id: NodeId<T>) -> bool
+    pub fn has_postfix_annotation<T>(&self, node_id: LocalNodeId<T>) -> bool
     where
         T: Node,
         NodeTree: NodeTreeImpl<T>,
@@ -365,7 +365,7 @@ impl<'a> DystFormatContext<'a> {
 
     /// Check if a node has a blank block prefix annotation.
     #[inline]
-    pub fn has_blank_prefix_annotation<T>(&self, node_id: NodeId<T>) -> bool
+    pub fn has_blank_prefix_annotation<T>(&self, node_id: LocalNodeId<T>) -> bool
     where
         T: Node,
         NodeTree: NodeTreeImpl<T>,
@@ -384,7 +384,7 @@ impl<'a> DystFormatContext<'a> {
 
     /// Check if a node has a blank prefix annotation in first position.
     #[inline]
-    pub fn has_blank_prefix_annotation_in_first_position<T>(&self, node_id: NodeId<T>) -> bool
+    pub fn has_blank_prefix_annotation_in_first_position<T>(&self, node_id: LocalNodeId<T>) -> bool
     where
         T: Node,
         NodeTree: NodeTreeImpl<T>,
@@ -424,11 +424,11 @@ where
     DystFormatContext<'a>: FormatContext,
 {
     /// Format a node.
-    fn format_node(&self, node_id: NodeId<T>, f: &mut DystFormatter<'a, '_>) -> FormatResult<()>;
+    fn format_node(&self, node_id: LocalNodeId<T>, f: &mut DystFormatter<'a, '_>) -> FormatResult<()>;
 }
 
 /// Implement Format for FormatNode for NodeIds.
-impl<'a, T: Node> Format<DystFormatContext<'a>> for NodeId<T>
+impl<'a, T: Node> Format<DystFormatContext<'a>> for LocalNodeId<T>
 where
     T: Node + Clone,
     NodeTree: NodeTreeImpl<T>,
@@ -443,103 +443,103 @@ where
 }
 
 /// Implement Format for FormatNode for NodeIdsAny.
-impl<'a> Format<DystFormatContext<'a>> for NodeIdAny {
+impl<'a> Format<DystFormatContext<'a>> for LocalNodeIdAny {
     #[inline]
     fn format(&self, f: &mut DystFormatter<'a, '_>) -> FormatResult<()> {
         let context = f.context();
         match self.ty {
             NodeType::Expression => {
-                let node_id = NodeId::<Expression>::new(self.id);
+                let node_id = LocalNodeId::<Expression>::new(self.id);
                 let node = context.tree.get(node_id);
                 node.format_node(node_id, f)
             }
             NodeType::Block => {
-                let node_id = NodeId::<Block>::new(self.id);
+                let node_id = LocalNodeId::<Block>::new(self.id);
                 let node = context.tree.get(node_id);
                 node.format_node(node_id, f)
             }
             NodeType::Definition => {
-                let node_id = NodeId::<Definition>::new(self.id);
+                let node_id = LocalNodeId::<Definition>::new(self.id);
                 let node = context.tree.get(node_id);
                 node.format_node(node_id, f)
             }
             NodeType::Property => {
-                let node_id = NodeId::<Property>::new(self.id);
+                let node_id = LocalNodeId::<Property>::new(self.id);
                 let node = context.tree.get(node_id);
                 node.format_node(node_id, f)
             }
             NodeType::EnumField => {
-                let node_id = NodeId::<EnumField>::new(self.id);
+                let node_id = LocalNodeId::<EnumField>::new(self.id);
                 let node = context.tree.get(node_id);
                 node.format_node(node_id, f)
             }
             NodeType::WithClause => {
-                let node_id = NodeId::<WithClause>::new(self.id);
+                let node_id = LocalNodeId::<WithClause>::new(self.id);
                 let node = context.tree.get(node_id);
                 node.format_node(node_id, f)
             }
             NodeType::WhereClause => {
-                let node_id = NodeId::<WhereClause>::new(self.id);
+                let node_id = LocalNodeId::<WhereClause>::new(self.id);
                 let node = context.tree.get(node_id);
                 node.format_node(node_id, f)
             }
             NodeType::DependencyItem => {
-                let node_id = NodeId::<DependencyItem>::new(self.id);
+                let node_id = LocalNodeId::<DependencyItem>::new(self.id);
                 let node = context.tree.get(node_id);
                 node.format_node(node_id, f)
             }
             NodeType::Parameter => {
-                let node_id = NodeId::<Parameter>::new(self.id);
+                let node_id = LocalNodeId::<Parameter>::new(self.id);
                 let node = context.tree.get(node_id);
                 node.format_node(node_id, f)
             }
             NodeType::Argument => {
-                let node_id = NodeId::<Argument>::new(self.id);
+                let node_id = LocalNodeId::<Argument>::new(self.id);
                 let node = context.tree.get(node_id);
                 node.format_node(node_id, f)
             }
             NodeType::MatchCase => {
-                let node_id = NodeId::<MatchCase>::new(self.id);
+                let node_id = LocalNodeId::<MatchCase>::new(self.id);
                 let node = context.tree.get(node_id);
                 node.format_node(node_id, f)
             }
             NodeType::Pattern => {
-                let node_id = NodeId::<Pattern>::new(self.id);
+                let node_id = LocalNodeId::<Pattern>::new(self.id);
                 let node = context.tree.get(node_id);
                 node.format_node(node_id, f)
             }
             NodeType::PatternField => {
-                let node_id = NodeId::<PatternField>::new(self.id);
+                let node_id = LocalNodeId::<PatternField>::new(self.id);
                 let node = context.tree.get(node_id);
                 node.format_node(node_id, f)
             }
             NodeType::Annotation => {
-                let node_id = NodeId::<Annotation>::new(self.id);
+                let node_id = LocalNodeId::<Annotation>::new(self.id);
                 let node = context.tree.get(node_id);
                 node.format_node(node_id, f)
             }
             NodeType::Blank => {
-                let node_id = NodeId::<Blank>::new(self.id);
+                let node_id = LocalNodeId::<Blank>::new(self.id);
                 let node = context.tree.get(node_id);
                 node.format_node(node_id, f)
             }
             NodeType::Doc => {
-                let node_id = NodeId::<Doc>::new(self.id);
+                let node_id = LocalNodeId::<Doc>::new(self.id);
                 let node = context.tree.get(node_id);
                 node.format_node(node_id, f)
             }
             NodeType::Comment => {
-                let node_id = NodeId::<Comment>::new(self.id);
+                let node_id = LocalNodeId::<Comment>::new(self.id);
                 let node = context.tree.get(node_id);
                 node.format_node(node_id, f)
             }
             NodeType::Tag => {
-                let node_id = NodeId::<Tag>::new(self.id);
+                let node_id = LocalNodeId::<Tag>::new(self.id);
                 let node = context.tree.get(node_id);
                 node.format_node(node_id, f)
             }
             NodeType::Decorator => {
-                let node_id = NodeId::<Decorator>::new(self.id);
+                let node_id = LocalNodeId::<Decorator>::new(self.id);
                 let node = context.tree.get(node_id);
                 node.format_node(node_id, f)
             }

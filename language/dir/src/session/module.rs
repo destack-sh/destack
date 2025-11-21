@@ -6,11 +6,11 @@ use std::sync::atomic::{AtomicU32, Ordering};
 use dyst_ast::{self as ast, StringPool};
 use dyst_source::{FileId, Uri};
 
-use crate::{DependencyEdge, Expression, NodeId, PackageId, ScopeId, SymbolId};
+use crate::{DependencyEdge, Expression, LocalNodeId, PackageId, LocalScopeId, LocalSymbolId};
 
 /// Unique identifier for Modules.
 #[repr(transparent)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct ModuleId(pub u32);
 
 impl ModuleId {
@@ -45,17 +45,17 @@ pub struct Module {
     /// The AST of the Module (may be empty).
     pub ast: ast::NodeTree,
     /// The top-level AST expressions of the Module.
-    pub ast_roots: Vec<ast::NodeId<ast::Expression>>,
+    pub ast_roots: Vec<ast::LocalNodeId<ast::Expression>>,
     /// The string pool of the Module.
     pub ast_strings: StringPool,
 
     // binding
     /// The symbol of the Module itself.
-    pub symbol: Option<SymbolId>,
+    pub symbol: Option<LocalSymbolId>,
     /// The scope of the Module itself.
-    pub scope: Option<ScopeId>,
+    pub scope: Option<LocalScopeId>,
     /// The top-level expressions of the Module.
-    pub roots: Vec<NodeId<Expression>>,
+    pub roots: Vec<LocalNodeId<Expression>>,
     // The imports of the Module.
     pub imports: Vec<DependencyEdge>,
 }
@@ -68,7 +68,7 @@ impl Module {
         uri: Uri,
         package: Option<PackageId>,
         ast: ast::NodeTree,
-        ast_roots: Vec<ast::NodeId<ast::Expression>>,
+        ast_roots: Vec<ast::LocalNodeId<ast::Expression>>,
         ast_strings: StringPool,
     ) -> Self {
         Self {
@@ -89,7 +89,7 @@ impl Module {
 
     /// Get an immutable reference to the node with the given NodeId.
     #[inline]
-    pub fn get<T>(&self, id: ast::NodeId<T>) -> &T
+    pub fn get<T>(&self, id: ast::LocalNodeId<T>) -> &T
     where
         T: ast::Node,
         ast::NodeTree: ast::NodeTreeImpl<T>,
@@ -99,7 +99,7 @@ impl Module {
 
     /// Get nodes for a given type.
     #[inline]
-    pub fn get_nodes<T>(&self) -> Vec<ast::NodeId<T>>
+    pub fn get_nodes<T>(&self) -> Vec<ast::LocalNodeId<T>>
     where
         T: ast::Node,
         ast::NodeTree: ast::NodeTreeImpl<T>,

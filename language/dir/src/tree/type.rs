@@ -1,6 +1,6 @@
 use crate::{
-    BindingModifier, Expression, FunctionSignature, Key, Mutability, Node, NodeId, NodeType,
-    Parameter, ScalarLiteral, StringId, SymbolId, WithClause,
+    BindingModifier, Expression, FunctionSignature, Key, Mutability, Node, LocalNodeId, NodeType,
+    Parameter, ScalarLiteral, StringId, LocalSymbolId, WithClause,
 };
 
 /// A PrimitiveType is a primitive type node.
@@ -126,63 +126,63 @@ pub enum Type {
     /// Scalar type literal.
     Scalar(TypeLiteral),
     /// Resolved symbol type.
-    Symbol(SymbolId),
+    Symbol(LocalSymbolId),
 
     /// Type unary operator.
     Unary {
         operator: TypeUnaryOperator,
-        right: NodeId<Type>,
+        right: LocalNodeId<Type>,
     },
     /// Mutable or immutable type `T`.
     Mutable {
         mutability: Mutability,
-        right: NodeId<Type>,
+        right: LocalNodeId<Type>,
     },
     /// Value `^T` of a `T`. Or `^var T` for a mutable value.
     ValueOf {
         mutability: Option<Mutability>,
         variance: Option<VarianceBound>,
-        right: NodeId<Type>,
+        right: LocalNodeId<Type>,
     },
     /// Reference of `&T` to a `T`. Or `&var T` for a mutable reference.
     ReferenceOf {
         mutability: Option<Mutability>,
         variance: Option<VarianceBound>,
-        right: NodeId<Type>,
+        right: LocalNodeId<Type>,
     },
     /// Type binary operator.
     Binary {
-        left: NodeId<Type>,
+        left: LocalNodeId<Type>,
         operator: TypeBinaryOperator,
-        right: NodeId<Type>,
+        right: LocalNodeId<Type>,
     },
 
     /// Range type `T..T` (or `T..=T` for inclusive range).
     Range {
-        start: NodeId<Type>,
-        end: NodeId<Type>,
+        start: LocalNodeId<Type>,
+        end: LocalNodeId<Type>,
         is_inclusive: bool,
     },
     /// Array type with fixed size (like `T[N]`).
     ArraySized {
-        element: NodeId<Type>,
-        count: NodeId<Expression>,
+        element: LocalNodeId<Type>,
+        count: LocalNodeId<Expression>,
     },
     /// Array type with dynamically sized elements (like `T[]`).
-    Array { element: Option<NodeId<Type>> },
+    Array { element: Option<LocalNodeId<Type>> },
     /// Tuple type `[T1, T2, ...]`.
-    Tuple { elements: Vec<NodeId<Type>> },
+    Tuple { elements: Vec<LocalNodeId<Type>> },
     /// Struct type `{ a: T1, b: T2, ... }`.
-    Struct { attributes: Vec<NodeId<TypeField>> },
+    Struct { attributes: Vec<LocalNodeId<TypeField>> },
     /// Union type `A | B | C`.
-    Union { elements: Vec<NodeId<Type>> },
+    Union { elements: Vec<LocalNodeId<Type>> },
     /// Intersection type `A & B & C`.
-    Intersection { elements: Vec<NodeId<Type>> },
+    Intersection { elements: Vec<LocalNodeId<Type>> },
     /// Function type `(T1, T2, ...) -> T`.
     Function { signature: FunctionSignature },
 
     /// Expression yet to be resolved into a Type (like a Path).
-    UnresolvedExpression(NodeId<Expression>),
+    UnresolvedExpression(LocalNodeId<Expression>),
 
     /// Error type that could not be resolved.
     Error,
@@ -203,7 +203,7 @@ pub enum TypeField {
     Field {
         modifiers: Option<BindingModifier>,
         key: Option<Key>,
-        ty: NodeId<Type>,
+        ty: LocalNodeId<Type>,
     },
     /// Named method (like `foo(): T`).
     Method {
@@ -225,11 +225,11 @@ impl Node for TypeField {
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct Generics {
     /// The static parameters of the declaration.
-    pub static_parameters: Option<Vec<NodeId<Parameter>>> = None,
+    pub static_parameters: Option<Vec<LocalNodeId<Parameter>>> = None,
     /// The with clauses of the declaration.
-    pub with_clauses: Option<Vec<NodeId<WithClause>>> = None,
+    pub with_clauses: Option<Vec<LocalNodeId<WithClause>>> = None,
     /// The where clauses of the declaration.
-    pub where_clauses: Option<Vec<NodeId<WhereClause>>> = None,
+    pub where_clauses: Option<Vec<LocalNodeId<WhereClause>>> = None,
 }
 
 impl Generics {
@@ -245,11 +245,11 @@ impl Generics {
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct Heritage {
     /// The extends types of the declaration.
-    pub extends_types: Option<Vec<NodeId<Type>>> = None,
+    pub extends_types: Option<Vec<LocalNodeId<Type>>> = None,
     /// The implements types of the declaration.
-    pub implements_types: Option<Vec<NodeId<Type>>> = None,
+    pub implements_types: Option<Vec<LocalNodeId<Type>>> = None,
     /// The embedded types of the declaration.
-    pub embedded_types: Option<Vec<NodeId<Type>>> = None,
+    pub embedded_types: Option<Vec<LocalNodeId<Type>>> = None,
 }
 
 impl Heritage {
@@ -511,12 +511,12 @@ pub enum WhereClause {
         /// The target to assert (like `T` in `T: int32`)
         left: StringId,
         /// The assertion type (like `int32` in `T: int32`)
-        right: NodeId<Expression>,
+        right: LocalNodeId<Expression>,
     },
     /// Where guard (like `T > Y`).
     Guard {
         /// The guard (like `T > Y` in `with T > Y`)
-        guard: NodeId<Expression>,
+        guard: LocalNodeId<Expression>,
     },
 }
 

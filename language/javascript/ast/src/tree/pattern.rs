@@ -1,4 +1,4 @@
-use crate::{Expression, Mutability, Node, NodeId, NodeType, StringId};
+use crate::{Expression, Mutability, Node, LocalNodeId, NodeType, StringId};
 
 /// A Pattern is a pattern to match something and unwrap it.
 #[derive(Debug, Clone, PartialEq)]
@@ -9,9 +9,9 @@ pub enum Pattern {
         name: StringId,
     },
     /// Array pattern (like `[1, 2, .., x, 3]`).
-    Array { elements: Vec<NodeId<Pattern>> },
+    Array { elements: Vec<LocalNodeId<Pattern>> },
     /// Object pattern (like `{ a: 1, b: 2, ..., x: 3 }`).
-    Object { fields: Vec<NodeId<PatternField>> },
+    Object { fields: Vec<LocalNodeId<PatternField>> },
     /// Rest pattern (like `...x` or `...rest`).
     Rest { name: Option<StringId> },
     /// Hole pattern (like the empty in `, ,`).
@@ -29,18 +29,18 @@ pub enum PatternField {
     Named {
         mutability: Option<Mutability>,
         name: StringId,
-        pattern: Option<NodeId<Pattern>>,
-        default: Option<NodeId<Expression>>,
+        pattern: Option<LocalNodeId<Pattern>>,
+        default: Option<LocalNodeId<Expression>>,
     },
     /// Named field with an alias (like `x: y`).
     Alias {
         mutability: Option<Mutability>,
         name: StringId,
         alias: StringId,
-        default: Option<NodeId<Expression>>,
+        default: Option<LocalNodeId<Expression>>,
     },
     /// Positional field with just a pattern (like `4` or `int32`).
-    Positional { pattern: NodeId<Pattern> },
+    Positional { pattern: LocalNodeId<Pattern> },
 }
 
 impl Node for PatternField {

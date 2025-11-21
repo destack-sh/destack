@@ -2,7 +2,7 @@ use crate::parse::prelude::*;
 use crate::{ParseError, ParseResult, Parser};
 
 use dyst_ast::{
-    DeclarationDescriptor, Definition, EnumField, Generics, Heritage, Keyword, NodeId, NodeType,
+    DeclarationDescriptor, Definition, EnumField, Generics, Heritage, Keyword, LocalNodeId, NodeType,
     Property, TokenType,
 };
 
@@ -40,7 +40,7 @@ impl<'a> Parser<'a> {
     pub fn eat_enum(
         &mut self,
         mut descriptor: DeclarationDescriptor,
-    ) -> ParseResult<NodeId<Definition>> {
+    ) -> ParseResult<LocalNodeId<Definition>> {
         let start = self.mark();
 
         // keyword
@@ -97,10 +97,10 @@ impl<'a> Parser<'a> {
 
     /// Eat an enum body (without the header or `{` and `}`)
     #[allow(clippy::type_complexity)]
-    fn eat_enum_body(&mut self) -> ParseResult<(Vec<NodeId<EnumField>>, Vec<NodeId<Property>>)> {
+    fn eat_enum_body(&mut self) -> ParseResult<(Vec<LocalNodeId<EnumField>>, Vec<LocalNodeId<Property>>)> {
         // eat everything
-        let mut fields: Vec<NodeId<EnumField>> = Vec::new();
-        let mut properties: Vec<NodeId<Property>> = Vec::new();
+        let mut fields: Vec<LocalNodeId<EnumField>> = Vec::new();
+        let mut properties: Vec<LocalNodeId<Property>> = Vec::new();
         while self.peek().is_ok() {
             // stop on closing brace
             if self.peek_token(TokenType::CloseBrace).is_ok() {
@@ -148,7 +148,7 @@ impl<'a> Parser<'a> {
     }
 
     /// Eat a single enum field and return it as a UnionField node id.
-    fn eat_enum_field(&mut self) -> ParseResult<NodeId<EnumField>> {
+    fn eat_enum_field(&mut self) -> ParseResult<LocalNodeId<EnumField>> {
         let start = self.mark();
         let name = self.eat_name().for_node_type(NodeType::EnumField)?;
 
