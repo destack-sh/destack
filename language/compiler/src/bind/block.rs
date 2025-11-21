@@ -4,8 +4,8 @@ use dyst_dir::{Block, Module, NodeId, NodeTree, ScopeId, ScopeKind, SymbolSpace}
 use crate::Compiler;
 
 impl<'a> Compiler<'a> {
-    /// Lower a block to a DIR block.
-    pub(super) fn lower_block(
+    /// Bind a block to a DIR block.
+    pub(super) fn bind_block(
         &self,
         module: &Module,
         scope_id: ScopeId,
@@ -25,7 +25,7 @@ impl<'a> Compiler<'a> {
         let expressions = block
             .expressions
             .iter()
-            .map(|expression| self.lower_expression(module, scope_id, *expression, tree))
+            .map(|expression| self.bind_expression(module, scope_id, *expression, tree))
             .collect();
         tree.insert_from_source_as_symbol(
             Block {

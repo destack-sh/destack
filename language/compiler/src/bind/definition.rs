@@ -6,25 +6,25 @@ use dyst_dir::{
 };
 
 impl<'a> Compiler<'a> {
-    /// Lower declaration kind to DIR declaration kind.
-    pub(super) fn lower_declaration_kind(&self, kind: ast::DeclarationKind) -> DeclarationKind {
+    /// Bind declaration kind to DIR declaration kind.
+    pub(super) fn bind_declaration_kind(&self, kind: ast::DeclarationKind) -> DeclarationKind {
         match kind {
             ast::DeclarationKind::Declaration => DeclarationKind::Declaration,
             ast::DeclarationKind::Definition => DeclarationKind::Definition,
         }
     }
 
-    /// Lower binding scope to DIR binding scope.
-    pub(super) fn lower_binding_scope(&self, scope: ast::BindingScope) -> BindingScope {
+    /// Bind binding scope to DIR binding scope.
+    pub(super) fn bind_binding_scope(&self, scope: ast::BindingScope) -> BindingScope {
         match scope {
             ast::BindingScope::Static => BindingScope::Static,
             ast::BindingScope::Instance => BindingScope::Instance,
         }
     }
 
-    /// Lower expression to DIR definition (if it's maybe a definition).
-    /// nocheckin: revisit lower_expression_to_definition_maybe
-    pub(super) fn lower_expression_to_definition_maybe(
+    /// Bind expression to DIR definition (if it's maybe a definition).
+    /// nocheckin: revisit bind_expression_to_definition_maybe
+    pub(super) fn bind_expression_to_definition_maybe(
         &self,
         module: &Module,
         scope_id: ScopeId,
@@ -34,7 +34,7 @@ impl<'a> Compiler<'a> {
         let expression = module.get(expression_id);
         let definition_id = match expression {
             ast::Expression::Definition(definition_id) => {
-                self.lower_definition(module, scope_id, *definition_id, tree)
+                self.bind_definition(module, scope_id, *definition_id, tree)
             }
             _ => return None,
         };
@@ -42,15 +42,15 @@ impl<'a> Compiler<'a> {
         Some(definition_id)
     }
 
-    /// Lower AST definition descriptor into DIR definition descriptor.
-    pub(super) fn lower_declaration_descriptor(
+    /// Bind AST definition descriptor into DIR definition descriptor.
+    pub(super) fn bind_declaration_descriptor(
         &self,
         module: &Module,
         symbol_id: SymbolId,
         descriptor: &ast::DeclarationDescriptor,
     ) -> DeclarationDescriptor {
-        let kind = self.lower_declaration_kind(descriptor.kind);
-        let scope = self.lower_binding_scope(descriptor.scope);
+        let kind = self.bind_declaration_kind(descriptor.kind);
+        let scope = self.bind_binding_scope(descriptor.scope);
         let name = descriptor.name.map(|name| {
             self.session
                 .strings
@@ -58,7 +58,7 @@ impl<'a> Compiler<'a> {
         });
         let export = descriptor
             .export
-            .map(|export| self.lower_export_type(export));
+            .map(|export| self.bind_export_type(export));
         DeclarationDescriptor {
             kind,
             scope,
@@ -68,10 +68,10 @@ impl<'a> Compiler<'a> {
         }
     }
 
-    /// Lower a definition to a DIR definition.
-    /// Lower an AST definition to a DIR definition.
+    /// Bind a definition to a DIR definition.
+    /// Bind an AST definition to a DIR definition.
     /// Handles modules, structs, and enums.
-    pub(super) fn lower_definition(
+    pub(super) fn bind_definition(
         &self,
         module: &Module,
         scope_id: ScopeId,
@@ -91,12 +91,12 @@ impl<'a> Compiler<'a> {
                 generics,
                 expressions,
             } => {
-                let descriptor = self.lower_declaration_descriptor(module, symbol_id, descriptor);
-                let generics = self.lower_generics(module, scope_id, generics, tree);
+                let descriptor = self.bind_declaration_descriptor(module, symbol_id, descriptor);
+                let generics = self.bind_generics(module, scope_id, generics, tree);
                 let definitions = expressions
                     .iter()
                     .flat_map(|expression| {
-                        self.lower_expression_to_definition_maybe(module, scope_id, *expression, tree)
+                        self.bind_expression_to_definition_maybe(module, scope_id, *expression, tree)
                     })
                     .collect();
                 Definition::Namespace {
@@ -113,16 +113,16 @@ impl<'a> Compiler<'a> {
                 heritage,
                 properties,
             } => {
-                let descriptor = self.lower_declaration_descriptor(module, symbol_id, descriptor);
+                let descriptor = self.bind_declaration_descriptor(module, symbol_id, descriptor);
                 let kind = match kind {
                     ast::StructKind::Struct => StructKind::Struct,
                     ast::StructKind::Class => StructKind::Class,
                 };
-                let generics = self.lower_generics(module, scope_id, generics, tree);
-                let heritage = self.lower_heritage(module, scope_id, heritage, tree);
+                let generics = self.bind_generics(module, scope_id, generics, tree);
+                let heritage = self.bind_heritage(module, scope_id, heritage, tree);
                 let properties = properties
                     .iter()
-                    .map(|property| self.lower_property(module, scope_id, *property, tree))
+                    .map(|property| self.bind_property(module, scope_id, *property, tree))
                     .collect();
                 Definition::Struct {
                     descriptor,
@@ -140,16 +140,16 @@ impl<'a> Compiler<'a> {
                 fields,
                 properties,
             } => {
-                let descriptor = self.lower_declaration_descriptor(module, symbol_id, descriptor);
-                let generics = self.lower_generics(module, scope_id, generics, tree);
-                let heritage = self.lower_heritage(module, scope_id, heritage, tree);
+                let descriptor = self.bind_declaration_descriptor(module, symbol_id, descriptor);
+                let generics = self.bind_generics(module, scope_id, generics, tree);
+                let heritage = self.bind_heritage(module, scope_id, heritage, tree);
                 let fields = fields
                     .iter()
-                    .map(|field| self.lower_enum_field(module, scope_id, *field, tree))
+                    .map(|field| self.bind_enum_field(module, scope_id, *field, tree))
                     .collect();
                 let properties = properties
                     .iter()
-                    .map(|property| self.lower_property(module, scope_id, *property, tree))
+                    .map(|property| self.bind_property(module, scope_id, *property, tree))
                     .collect();
                 Definition::Enum {
                     descriptor,
@@ -166,12 +166,12 @@ impl<'a> Compiler<'a> {
                 heritage,
                 properties,
             } => {
-                let descriptor = self.lower_declaration_descriptor(module, symbol_id, descriptor);
-                let generics = self.lower_generics(module, scope_id, generics, tree);
-                let heritage = self.lower_heritage(module, scope_id, heritage, tree);
+                let descriptor = self.bind_declaration_descriptor(module, symbol_id, descriptor);
+                let generics = self.bind_generics(module, scope_id, generics, tree);
+                let heritage = self.bind_heritage(module, scope_id, heritage, tree);
                 let properties = properties
                     .iter()
-                    .map(|property| self.lower_property(module, scope_id, *property, tree))
+                    .map(|property| self.bind_property(module, scope_id, *property, tree))
                     .collect();
                 Definition::Interface {
                     descriptor,
@@ -188,13 +188,13 @@ impl<'a> Compiler<'a> {
                 heritage,
                 properties,
             } => {
-                let descriptor = self.lower_declaration_descriptor(module, symbol_id, descriptor);
-                let generics = self.lower_generics(module, scope_id, generics, tree);
-                let target_type = self.lower_expression_to_type(module, scope_id, *target_type, tree);
-                let heritage = self.lower_heritage(module, scope_id, heritage, tree);
+                let descriptor = self.bind_declaration_descriptor(module, symbol_id, descriptor);
+                let generics = self.bind_generics(module, scope_id, generics, tree);
+                let target_type = self.bind_expression_to_type(module, scope_id, *target_type, tree);
+                let heritage = self.bind_heritage(module, scope_id, heritage, tree);
                 let properties = properties
                     .iter()
-                    .map(|property| self.lower_property(module, scope_id, *property, tree))
+                    .map(|property| self.bind_property(module, scope_id, *property, tree))
                     .collect();
                 Definition::Implement {
                     descriptor,
@@ -210,9 +210,9 @@ impl<'a> Compiler<'a> {
                 signature,
                 body,
             } => {
-                let descriptor = self.lower_declaration_descriptor(module, symbol_id, descriptor);
-                let signature = self.lower_function_signature(module, scope_id, signature, tree);
-                let body = body.map(|body| self.lower_expression(module, scope_id, body, tree));
+                let descriptor = self.bind_declaration_descriptor(module, symbol_id, descriptor);
+                let signature = self.bind_function_signature(module, scope_id, signature, tree);
+                let body = body.map(|body| self.bind_expression(module, scope_id, body, tree));
                 Definition::Function {
                     descriptor,
                     signature,
@@ -231,8 +231,8 @@ impl<'a> Compiler<'a> {
         )
     }
 
-    /// Lower an AST enum field into a DIR enum field.
-    pub(super) fn lower_enum_field(
+    /// Bind an AST enum field into a DIR enum field.
+    pub(super) fn bind_enum_field(
         &self,
         module: &Module,
         scope_id: ScopeId,
@@ -246,7 +246,7 @@ impl<'a> Compiler<'a> {
             .intern_from(&module.strings, field.name.string());
         let value = field
             .value
-            .map(|value| self.lower_expression(module, scope_id, value, tree));
+            .map(|value| self.bind_expression(module, scope_id, value, tree));
         let symbol_id = tree.create_symbol(
             SymbolSpace::Value,
             Some(SymbolKey::Name(name)),

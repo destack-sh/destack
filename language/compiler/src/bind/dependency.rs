@@ -8,8 +8,8 @@ use crate::Compiler;
 
 #[allow(clippy::too_many_arguments)]
 impl<'a> Compiler<'a> {
-    /// Lower an export type to a DIR export type.
-    pub(super) fn lower_export_type(&self, export_type: ast::ExportType) -> ExportType {
+    /// Bind an export type to a DIR export type.
+    pub(super) fn bind_export_type(&self, export_type: ast::ExportType) -> ExportType {
         match export_type {
             ast::ExportType::Item => ExportType::Item,
             ast::ExportType::Default => ExportType::Default,
@@ -17,8 +17,8 @@ impl<'a> Compiler<'a> {
         }
     }
 
-    /// Lower a dependency type into a DIR dependency type.
-    pub(super) fn lower_dependency_kind(
+    /// Bind a dependency type into a DIR dependency type.
+    pub(super) fn bind_dependency_kind(
         &self,
         dependency_type: ast::DependencyKind,
     ) -> DependencyKind {
@@ -28,8 +28,8 @@ impl<'a> Compiler<'a> {
         }
     }
 
-    /// Lower a dependency item into a DIR dependency item.
-    pub(super) fn lower_dependency_item(
+    /// Bind a dependency item into a DIR dependency item.
+    pub(super) fn bind_dependency_item(
         &self,
         module: &Module,
         scope_id: ScopeId,
@@ -38,7 +38,7 @@ impl<'a> Compiler<'a> {
         tree: &mut NodeTree,
     ) -> NodeId<DependencyItem> {
         let item = module.get(item_id);
-        let kind = self.lower_dependency_kind(item.kind.unwrap_or(kind));
+        let kind = self.bind_dependency_kind(item.kind.unwrap_or(kind));
         let name = self.session.strings.intern_from(&module.strings, item.name);
         let alias = item
             .alias

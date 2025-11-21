@@ -43,13 +43,13 @@ pub struct Module {
     pub scope: Option<ScopeId>,
     /// The AST of the Module (may be empty).
     pub ast: ast::NodeTree,
-    /// The AST parent index
-    pub parents: ast::NodeParentIndex,
     /// The string pool of the Module.
     pub strings: StringPool,
 
+    /// The top-level AST expressions of the Module.
+    pub ast_roots: Vec<ast::NodeId<ast::Expression>>,
     /// The top-level expressions of the Module.
-    pub expressions: Vec<NodeId<Expression>>,
+    pub roots: Vec<NodeId<Expression>>,
     // The imports of the Module.
     pub imports: Vec<DependencyEdge>,
     // The exports of the Module.
@@ -58,15 +58,15 @@ pub struct Module {
 
 impl Module {
     /// Create a new Module from a file and expressions.
-    pub fn from_file(
+    pub fn new(
         id: ModuleId,
         file: FileId,
         uri: Uri,
         package: Option<PackageId>,
         ast: ast::NodeTree,
+        ast_roots: Vec<ast::NodeId<ast::Expression>>,
         strings: StringPool,
     ) -> Self {
-        let parents = ast::NodeParentIndex::from_tree(&ast);
         Self {
             id,
             file,
@@ -74,9 +74,9 @@ impl Module {
             package,
             scope: None,
             ast,
-            parents,
+            ast_roots,
             strings,
-            expressions: Vec::new(),
+            roots: Vec::new(),
             imports: Vec::new(),
             exports: Vec::new(),
         }
@@ -108,8 +108,6 @@ impl Module {
 struct ModuleRegistryState {
     /// The modules by id.
     modules_by_id: HashMap<ModuleId, Module>,
-    /// The modules by file id.
-    modules_by_file_id: HashMap<FileId, ModuleId>,
     /// The next module id.
     next_module_id: u32,
 }
@@ -143,7 +141,6 @@ impl ModuleRegistry {
         Self {
             state: Mutex::new(ModuleRegistryState {
                 modules_by_id: HashMap::new(),
-                modules_by_file_id: HashMap::new(),
                 next_module_id: 0,
             }),
         }
@@ -160,26 +157,21 @@ impl ModuleRegistry {
     /// Insert a module into the graph.
     pub fn insert(&self, module: Module) {
         let mut state = self.state.lock();
-        state.modules_by_file_id.insert(module.file, module.id);
         state.modules_by_id.insert(module.id, module);
     }
 
     /// Get a module by module id.
     #[inline]
-    pub fn get(&self, id: ModuleId) -> Option<Module> {
+    pub fn get(&self, id: ModuleId) -> Option<&Module> {
         let state = self.state.lock();
-        state.modules_by_id.get(&id).cloned()
+        state.modules_by_id.get(&id)
     }
 
-    /// Get a module by file id.
+    /// Get a mutable reference to a module by module id.
     #[inline]
-    pub fn get_by_file_id(&self, file_id: FileId) -> Option<Module> {
-        let state = self.state.lock();
-        state
-            .modules_by_file_id
-            .get(&file_id)
-            .and_then(|id| state.modules_by_id.get(id))
-            .cloned()
+    pub fn get_mut(&self, id: ModuleId) -> Option<&mut Module> {
+        let mut state = self.state.lock();
+        state.modules_by_id.get_mut(&id)
     }
 
     /// Get the number of modules in the registry.

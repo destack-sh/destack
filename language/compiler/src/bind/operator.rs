@@ -3,8 +3,8 @@ use dyst_ast as ast;
 use dyst_dir::{AssignOperator, TypeBinaryOperator, TypeUnaryOperator, UnaryOperator};
 
 impl<'a> Compiler<'a> {
-    /// Lower a unary operator to a DIR unary operator.
-    pub(super) fn lower_unary_operator(&self, unary_operator: ast::UnaryOperator) -> UnaryOperator {
+    /// Bind a unary operator to a DIR unary operator.
+    pub(super) fn bind_unary_operator(&self, unary_operator: ast::UnaryOperator) -> UnaryOperator {
         match unary_operator {
             ast::UnaryOperator::PostIncrement => UnaryOperator::PostIncrement,
             ast::UnaryOperator::PostDecrement => UnaryOperator::PostDecrement,
@@ -20,8 +20,8 @@ impl<'a> Compiler<'a> {
         }
     }
 
-    /// Lower a type unary operator to a DIR type unary operator.
-    pub(super) fn lower_type_unary_operator(
+    /// Bind a type unary operator to a DIR type unary operator.
+    pub(super) fn bind_type_unary_operator(
         &self,
         type_unary_operator: ast::TypeUnaryOperator,
     ) -> TypeUnaryOperator {
@@ -37,8 +37,8 @@ impl<'a> Compiler<'a> {
         }
     }
 
-    /// Lower a binary operator to a DIR binary operator.
-    pub(super) fn lower_binary_operator(
+    /// Bind a binary operator to a DIR binary operator.
+    pub(super) fn bind_binary_operator(
         &self,
         binary_operator: ast::BinaryOperator,
     ) -> dyst_dir::BinaryOperator {
@@ -94,8 +94,8 @@ impl<'a> Compiler<'a> {
         }
     }
 
-    /// Lower a type binary operator to a DIR type binary operator.
-    pub(super) fn lower_type_binary_operator(
+    /// Bind a type binary operator to a DIR type binary operator.
+    pub(super) fn bind_type_binary_operator(
         &self,
         type_binary_operator: ast::TypeBinaryOperator,
     ) -> TypeBinaryOperator {
@@ -109,8 +109,8 @@ impl<'a> Compiler<'a> {
         }
     }
 
-    /// Lower an assign operator to a DIR assignment operator.
-    pub(super) fn lower_assign_operator(
+    /// Bind an assign operator to a DIR assignment operator.
+    pub(super) fn bind_assign_operator(
         &self,
         assign_operator: ast::AssignOperator,
     ) -> Option<AssignOperator> {

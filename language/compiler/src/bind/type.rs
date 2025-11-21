@@ -6,15 +6,15 @@ use dyst_dir::{
 };
 
 impl<'a> Compiler<'a> {
-    /// Lower a an expression into a type (without evaluating it at all).
-    pub(super) fn lower_expression_to_type(
+    /// Bind a an expression into a type (without evaluating it at all).
+    pub(super) fn bind_expression_to_type(
         &self,
         module: &Module,
         scope_id: ScopeId,
         expression_id: ast::NodeId<ast::Expression>,
         tree: &mut NodeTree,
     ) -> NodeId<Type> {
-        let expression = self.lower_expression(module, scope_id, expression_id, tree);
+        let expression = self.bind_expression(module, scope_id, expression_id, tree);
         let type_id = tree.insert_from_source(
             Type::UnresolvedExpression(expression),
             module.id,
@@ -24,25 +24,25 @@ impl<'a> Compiler<'a> {
         type_id
     }
 
-    /// Lower mutability into a DIR mutability.
+    /// Bind mutability into a DIR mutability.
     #[inline]
-    pub(super) fn lower_mutability(&self, mutability: ast::Mutability) -> Mutability {
+    pub(super) fn bind_mutability(&self, mutability: ast::Mutability) -> Mutability {
         match mutability {
             ast::Mutability::Immutable => Mutability::Immutable,
             ast::Mutability::Mutable => Mutability::Mutable,
         }
     }
 
-    /// Lower a TypeKind to a DIR type kind.
-    pub(super) fn lower_type_kind(&self, kind: ast::TypeKind) -> TypeKind {
+    /// Bind a TypeKind to a DIR type kind.
+    pub(super) fn bind_type_kind(&self, kind: ast::TypeKind) -> TypeKind {
         match kind {
             ast::TypeKind::Structural => TypeKind::Structural,
             ast::TypeKind::Nominal => TypeKind::Nominal,
         }
     }
 
-    /// Lower a VarianceBound to a DIR variance bound.
-    pub(super) fn lower_variance_bound(&self, bound: ast::VarianceBound) -> VarianceBound {
+    /// Bind a VarianceBound to a DIR variance bound.
+    pub(super) fn bind_variance_bound(&self, bound: ast::VarianceBound) -> VarianceBound {
         match bound {
             ast::VarianceBound::Implements => VarianceBound::Implements,
             ast::VarianceBound::Extends => VarianceBound::Extends,
@@ -50,8 +50,8 @@ impl<'a> Compiler<'a> {
         }
     }
 
-    /// Lower AST definition generics into DIR definition generics.
-    pub(super) fn lower_generics(
+    /// Bind AST definition generics into DIR definition generics.
+    pub(super) fn bind_generics(
         &self,
         module: &Module,
         scope_id: ScopeId,
@@ -65,20 +65,20 @@ impl<'a> Compiler<'a> {
                 static_parameters
                     .iter()
                     .map(|static_parameter| {
-                        self.lower_parameter(module, scope_id, *static_parameter, tree)
+                        self.bind_parameter(module, scope_id, *static_parameter, tree)
                     })
                     .collect()
             });
         let with_clauses = generics.with_clauses.as_ref().map(|with_clauses| {
             with_clauses
                 .iter()
-                .map(|with_clause| self.lower_with_clause(module, scope_id, *with_clause, tree))
+                .map(|with_clause| self.bind_with_clause(module, scope_id, *with_clause, tree))
                 .collect()
         });
         let where_clauses = generics.where_clauses.as_ref().map(|where_clauses| {
             where_clauses
                 .iter()
-                .map(|where_clause| self.lower_where_clause(module, scope_id, *where_clause, tree))
+                .map(|where_clause| self.bind_where_clause(module, scope_id, *where_clause, tree))
                 .collect()
         });
         Generics {
@@ -88,8 +88,8 @@ impl<'a> Compiler<'a> {
         }
     }
 
-    /// Lower AST heritage into DIR heritage.
-    pub(super) fn lower_heritage(
+    /// Bind AST heritage into DIR heritage.
+    pub(super) fn bind_heritage(
         &self,
         module: &Module,
         scope_id: ScopeId,
@@ -99,14 +99,14 @@ impl<'a> Compiler<'a> {
         let extends_types = heritage.extends_types.as_ref().map(|extends_types| {
             extends_types
                 .iter()
-                .map(|extends_type| self.lower_expression_to_type(module, scope_id, *extends_type, tree))
+                .map(|extends_type| self.bind_expression_to_type(module, scope_id, *extends_type, tree))
                 .collect()
         });
         let implements_types = heritage.implements_types.as_ref().map(|implements_types| {
             implements_types
                 .iter()
                 .map(|implements_type| {
-                    self.lower_expression_to_type(module, scope_id, *implements_type, tree)
+                    self.bind_expression_to_type(module, scope_id, *implements_type, tree)
                 })
                 .collect()
         });

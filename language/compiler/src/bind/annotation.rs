@@ -3,11 +3,11 @@ use dyst_ast::{self as ast};
 use dyst_dir::{Annotation, AnnotationPosition, Module, NodeId, NodeTree, ScopeId};
 
 impl<'a> Compiler<'a> {
-    /// Lower and attach all annotations for a module.
+    /// Bind and attach all annotations for a module.
     pub fn attach_annotations(&self, module: &Module, scope_id: ScopeId, tree: &mut NodeTree) {
-        // lower them
+        // bind them
         for ast_annotation_id in module.get_nodes::<ast::Annotation>() {
-            self.lower_annotation(module, scope_id, ast_annotation_id, tree);
+            self.bind_annotation(module, scope_id, ast_annotation_id, tree);
         }
 
         // attach them
@@ -19,15 +19,15 @@ impl<'a> Compiler<'a> {
                 let Some(dir_annotation_id) =
                     tree.get_node_id_by_source_id(module.id, ast_annotation_id.id)
                 else {
-                    continue; // skipped by lower_annotation
+                    continue; // skipped by bind_annotation
                 };
                 tree.append_annotation(dir_node_id, NodeId::new(dir_annotation_id));
             }
         }
     }
 
-    /// Lower an annotation position into a DIR annotation position.
-    pub(super) fn lower_annotation_position(
+    /// Bind an annotation position into a DIR annotation position.
+    pub(super) fn bind_annotation_position(
         &self,
         annotation_position: ast::AnnotationPosition,
     ) -> AnnotationPosition {
@@ -41,8 +41,8 @@ impl<'a> Compiler<'a> {
         }
     }
 
-    /// Lower an annotation to a DIR annotation.
-    pub(super) fn lower_annotation(
+    /// Bind an annotation to a DIR annotation.
+    pub(super) fn bind_annotation(
         &self,
         module: &Module,
         scope_id: ScopeId,
@@ -56,7 +56,7 @@ impl<'a> Compiler<'a> {
             }
             ast::Annotation::Doc { node, position } => {
                 let doc = module.get(*node);
-                let position = self.lower_annotation_position(*position);
+                let position = self.bind_annotation_position(*position);
                 let string = self
                     .session
                     .strings
@@ -65,7 +65,7 @@ impl<'a> Compiler<'a> {
             }
             ast::Annotation::Comment { node, position } => {
                 let comment = module.get(*node);
-                let position = self.lower_annotation_position(*position);
+                let position = self.bind_annotation_position(*position);
                 let string = self
                     .session
                     .strings
@@ -74,12 +74,12 @@ impl<'a> Compiler<'a> {
             }
             ast::Annotation::Tag { node, position } => {
                 let tag = module.get(*node);
-                let position = self.lower_annotation_position(*position);
-                let left = self.lower_path(module, &tag.left);
+                let position = self.bind_annotation_position(*position);
+                let left = self.bind_path(module, &tag.left);
                 let arguments = tag.arguments.as_ref().map(|arguments| {
                     arguments
                         .iter()
-                        .map(|argument| self.lower_argument(module, scope_id, *argument, tree))
+                        .map(|argument| self.bind_argument(module, scope_id, *argument, tree))
                         .collect()
                 });
                 Annotation::UnresolvedTag {
@@ -90,12 +90,12 @@ impl<'a> Compiler<'a> {
             }
             ast::Annotation::Decorator { node, position } => {
                 let decorator = module.get(*node);
-                let position = self.lower_annotation_position(*position);
-                let left = self.lower_path(module, &decorator.left);
+                let position = self.bind_annotation_position(*position);
+                let left = self.bind_path(module, &decorator.left);
                 let arguments = decorator.arguments.as_ref().map(|arguments| {
                     arguments
                         .iter()
-                        .map(|argument| self.lower_argument(module, scope_id, *argument, tree))
+                        .map(|argument| self.bind_argument(module, scope_id, *argument, tree))
                         .collect()
                 });
                 Annotation::UnresolvedDecorator {

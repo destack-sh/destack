@@ -1,8 +1,8 @@
 use dyst_dir::{NodeIdAny, Session};
 
 use crate::{
-    BuildWarning, CompileError, CompilerStage, ExecuteWarning, ImportWarning, LinkWarning,
-    LowerWarning, OptimizeWarning, ResolveWarning, ValidateWarning,
+    BindWarning, BuildWarning, CompileError, CompilerStage, ExecuteWarning, ImportWarning,
+    LinkWarning, LowerWarning, OptimizeWarning, ResolveWarning, ValidateWarning,
 };
 
 /// Warning during compilation.
@@ -10,7 +10,9 @@ use crate::{
 pub enum CompileWarning {
     /// Warning during importing.
     Import(ImportWarning),
-    /// Warning during evaluation.
+    /// Warning during binding.
+    Bind(BindWarning),
+    /// Warning during resolution.
     Resolve(ResolveWarning),
     /// Warning during validation.
     Validate(ValidateWarning),
@@ -33,6 +35,7 @@ impl CompileWarning {
     pub fn stage(&self) -> CompilerStage {
         match self {
             Self::Import(_) => CompilerStage::Import,
+            Self::Bind(_) => CompilerStage::Bind,
             Self::Resolve(_) => CompilerStage::Resolve,
             Self::Validate(_) => CompilerStage::Validate,
             Self::Lower(_) => CompilerStage::Lower,
@@ -54,6 +57,7 @@ impl CompileWarning {
     pub fn sub_code(&self) -> u8 {
         match self {
             Self::Import(warning) => warning.sub_code(),
+            Self::Bind(warning) => warning.sub_code(),
             Self::Resolve(warning) => warning.sub_code(),
             Self::Validate(warning) => warning.sub_code(),
             Self::Lower(warning) => warning.sub_code(),
@@ -78,6 +82,7 @@ impl CompileWarning {
     pub fn node_id(&self) -> Option<NodeIdAny> {
         match self {
             Self::Import(warning) => warning.node_id(),
+            Self::Bind(warning) => warning.node_id(),
             Self::Resolve(warning) => warning.node_id(),
             Self::Validate(warning) => warning.node_id(),
             Self::Lower(warning) => warning.node_id(),
@@ -93,6 +98,7 @@ impl CompileWarning {
     pub fn message<'a>(&self, session: &'a Session<'a>) -> String {
         match self {
             Self::Import(warning) => warning.message(session),
+            Self::Bind(warning) => warning.message(session),
             Self::Resolve(warning) => warning.message(session),
             Self::Validate(warning) => warning.message(session),
             Self::Lower(warning) => warning.message(session),

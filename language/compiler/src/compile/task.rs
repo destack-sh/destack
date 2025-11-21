@@ -1,28 +1,29 @@
 use crate::{
-    BuildTask, ExecuteTask, ImportTask, LinkTask, LowerTask, OptimizeTask, ResolveTask,
-    ValidateTask,
+    BindTask, BuildTask, ExecuteTask, ImportTask, LinkTask, LowerTask, OptimizeTask, ResolveTask, ValidateTask
 };
 
 /// Stage of the compiler.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[repr(u8)]
 pub enum CompilerStage {
-    /// Import/parse/lower source into DIR.
+    /// Import & parse source into AST.
     Import = 1,
+    /// Bind, lower and declare AST source in DIR.
+    Bind = 2,
     /// Resolve references, types and static DIR constructs.
-    Resolve = 2,
+    Resolve = 3,
     /// Validate and check all DIR constructs.
-    Validate = 3,
+    Validate = 4,
     /// Lower the DIR into MIR.
-    Lower = 4,
+    Lower = 5,
     /// Execute something statically.
-    Execute = 5,
+    Execute = 6,
     /// Optimize the MIR.
-    Optimize = 6,
+    Optimize = 7,
     /// Build the MIR into something.
-    Build = 7,
+    Build = 8,
     /// Link the artifacts into a final artifact.
-    Link = 8,
+    Link = 9,
 }
 
 impl std::fmt::Display for CompilerStage {
@@ -41,6 +42,7 @@ impl CompilerStage {
     pub fn name(&self) -> &str {
         match self {
             Self::Import => "import",
+            Self::Bind => "bind",
             Self::Resolve => "resolve",
             Self::Validate => "validate",
             Self::Lower => "lower",
@@ -55,6 +57,7 @@ impl CompilerStage {
     pub fn letter(&self) -> char {
         match self {
             Self::Import => 'I',
+            Self::Bind => 'D',
             Self::Resolve => 'R',
             Self::Validate => 'V',
             Self::Lower => 'M',
@@ -71,6 +74,8 @@ impl CompilerStage {
 pub enum CompilerTask {
     /// Import/parse/lower source into DIR.
     Import(ImportTask),
+    /// Bind & lower AST source into DIR.
+    Bind(BindTask),
     /// Resolve references, types and static DIR constructs.
     Resolve(ResolveTask),
     /// Validate and check all DIR constructs.
@@ -92,6 +97,7 @@ impl CompilerTask {
     pub fn stage(&self) -> CompilerStage {
         match self {
             Self::Import(_) => CompilerStage::Import,
+            Self::Bind(_) => CompilerStage::Bind,
             Self::Resolve(_) => CompilerStage::Resolve,
             Self::Validate(_) => CompilerStage::Validate,
             Self::Lower(_) => CompilerStage::Lower,
