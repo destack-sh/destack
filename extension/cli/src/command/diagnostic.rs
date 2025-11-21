@@ -59,7 +59,7 @@ pub(crate) fn print_diagnostics<'a>(session: &'a Session<'a>, diagnostics: &Diag
                 let options = options.with_highlight_color(original_severity.color());
                 let header_preamble_original = options
                     .color_highlight
-                    .apply_bold(&format!("{}", original_code,));
+                    .apply_bold(&original_code.to_string());
                 let header_preamble = format!("{header_preamble} ({header_preamble_original})");
                 format!("{header_preamble}: {header_message}")
             } else {

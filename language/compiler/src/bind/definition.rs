@@ -79,14 +79,18 @@ impl<'a> Compiler<'a> {
         tree: &mut NodeTree,
     ) -> NodeId<Definition> {
         let definition = module.get(definition_id);
-        let (symbol_id, scope_id) =
-            tree.create_symbol_with_scope(SymbolSpace::Value, None, ScopeKind::Block, scope_id);
         let definition = match definition {
             ast::Definition::Namespace {
                 descriptor,
                 generics,
                 expressions,
             } => {
+                let (symbol_id, scope_id) = tree.create_symbol_with_scope(
+                    SymbolSpace::Value,
+                    None,
+                    ScopeKind::Namespace,
+                    scope_id,
+                );
                 let descriptor = self.bind_declaration_descriptor(module, symbol_id, descriptor);
                 let generics = self.bind_generics(module, scope_id, generics, tree);
                 let definitions = expressions
@@ -114,6 +118,12 @@ impl<'a> Compiler<'a> {
                 heritage,
                 properties,
             } => {
+                let (symbol_id, scope_id) = tree.create_symbol_with_scope(
+                    SymbolSpace::Value,
+                    None,
+                    ScopeKind::Type,
+                    scope_id,
+                );
                 let descriptor = self.bind_declaration_descriptor(module, symbol_id, descriptor);
                 let kind = match kind {
                     ast::StructKind::Struct => StructKind::Struct,
@@ -141,6 +151,12 @@ impl<'a> Compiler<'a> {
                 fields,
                 properties,
             } => {
+                let (symbol_id, scope_id) = tree.create_symbol_with_scope(
+                    SymbolSpace::Value,
+                    None,
+                    ScopeKind::Type,
+                    scope_id,
+                );
                 let descriptor = self.bind_declaration_descriptor(module, symbol_id, descriptor);
                 let generics = self.bind_generics(module, scope_id, generics, tree);
                 let heritage = self.bind_heritage(module, scope_id, heritage, tree);
@@ -167,6 +183,12 @@ impl<'a> Compiler<'a> {
                 heritage,
                 properties,
             } => {
+                let (symbol_id, scope_id) = tree.create_symbol_with_scope(
+                    SymbolSpace::Value,
+                    None,
+                    ScopeKind::Type,
+                    scope_id,
+                );
                 let descriptor = self.bind_declaration_descriptor(module, symbol_id, descriptor);
                 let generics = self.bind_generics(module, scope_id, generics, tree);
                 let heritage = self.bind_heritage(module, scope_id, heritage, tree);
@@ -189,6 +211,12 @@ impl<'a> Compiler<'a> {
                 heritage,
                 properties,
             } => {
+                let (symbol_id, scope_id) = tree.create_symbol_with_scope(
+                    SymbolSpace::Value,
+                    None,
+                    ScopeKind::Type,
+                    scope_id,
+                );
                 let descriptor = self.bind_declaration_descriptor(module, symbol_id, descriptor);
                 let generics = self.bind_generics(module, scope_id, generics, tree);
                 let target_type =
@@ -212,6 +240,12 @@ impl<'a> Compiler<'a> {
                 signature,
                 body,
             } => {
+                let (symbol_id, scope_id) = tree.create_symbol_with_scope(
+                    SymbolSpace::Value,
+                    None,
+                    ScopeKind::Block,
+                    scope_id,
+                );
                 let descriptor = self.bind_declaration_descriptor(module, symbol_id, descriptor);
                 let signature = self.bind_function_signature(module, scope_id, signature, tree);
                 let body = body.map(|body| self.bind_expression(module, scope_id, body, tree));
@@ -225,6 +259,7 @@ impl<'a> Compiler<'a> {
                 }
             }
         };
+        let symbol_id = definition.symbol();
         tree.insert_from_source_as_symbol(definition, module.id, definition_id, symbol_id)
     }
 

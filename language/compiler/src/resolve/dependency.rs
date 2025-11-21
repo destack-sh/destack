@@ -4,7 +4,7 @@ use crate::{Compiler, ResolveError, ResolveResult};
 
 impl<'a> Compiler<'a> {
     /// Resolve a DependencyItem.
-    pub fn resolve_dependency_item(
+    pub(super) fn resolve_dependency_item(
         &self,
         _module_id: ModuleId,
         item_id: NodeId<DependencyItem>,

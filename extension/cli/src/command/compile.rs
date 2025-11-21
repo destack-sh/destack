@@ -10,10 +10,13 @@ use crate::console;
 #[derive(Clone, Copy, Debug, ValueEnum)]
 pub enum DumpFormatArg {
     /// Dump the node representation.
+    #[value(alias = "n")]
     Node,
     /// Dump the symbol representation.
+    #[value(alias = "s")]
     Symbol,
     /// Dump both the node and symbol representations.
+    #[value(alias = "a")]
     All,
 }
 

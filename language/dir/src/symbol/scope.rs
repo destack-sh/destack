@@ -5,12 +5,10 @@ use crate::{SymbolId, SymbolKey};
 /// The kind of a scope.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum ScopeKind {
-    /// Global root scope.
-    Root,
-    /// Module.
-    Module,
     /// Namespace.
     Namespace,
+    /// Type.
+    Type,
     /// Block.
     Block,
 }

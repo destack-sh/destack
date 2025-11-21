@@ -33,7 +33,7 @@ impl<'a> Compiler<'a> {
         let module_id = module.read().id;
 
         // create module symbol and scope
-        let scope_id = tree.create_scope(ScopeKind::Module, self.session.root_scope_id, None);
+        let scope_id = tree.create_scope(ScopeKind::Namespace, self.session.root_scope_id, None);
         let symbol_id = tree.create_symbol(SymbolSpace::Value, None, scope_id);
         tree.get_scope_by_id_mut(scope_id).owner = Some(symbol_id);
         {
