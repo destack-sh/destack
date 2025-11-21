@@ -84,8 +84,8 @@ impl<'a> Parser<'a> {
     /// export default foo
     /// export = foo
     /// ```
-    pub fn eat_export(&mut self, mode: Option<ExportType>) -> ParseResult<NodeId<Expression>> {
-        let start = self.mark();
+    pub fn eat_export(&mut self, start: Option<ParserMark>, mode: Option<ExportType>) -> ParseResult<NodeId<Expression>> {
+        let start = start.unwrap_or_else(|| self.mark());
 
         // mode
         let mode: ExportType = {
@@ -512,7 +512,7 @@ export type { CreateUIMessage, UIMessage }
         let mut parser = test.prepare();
         parser.eat_newline().unwrap();
 
-        let export_id = parser.eat_export(None).unwrap();
+        let export_id = parser.eat_export(None, None).unwrap();
         assert_node!(parser.tree, export_id, Expression::Export { mode, kind, target, alias, items, value: None } => {
             assert_eq!(*kind, DependencyKind::Type);
             assert_eq!(*mode, ExportType::Item);
@@ -539,7 +539,7 @@ export type { CreateUIMessage, UIMessage }
     fn test_parse_export_with_module_export() {
         let mut test = TestParser::new("export = foo");
         let mut parser = test.prepare();
-        let export_id = parser.eat_export(None).unwrap();
+        let export_id = parser.eat_export(None, None).unwrap();
         assert_node!(parser.tree, export_id, Expression::Export { mode, kind, target: None, value: Some(value), .. } => {
             assert_eq!(*mode, ExportType::Namespace);
             assert_eq!(*kind, DependencyKind::Value);

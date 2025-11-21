@@ -358,7 +358,7 @@ impl<'a> Parser<'a> {
                 || (keyword.is_none() || !DEFINITION_KEYWORDS.contains(&keyword.unwrap()))
                     && self.peek_import_clause().is_ok()
             {
-                return self.eat_export(mode);
+                return self.eat_export(Some(start), mode);
             }
 
             descriptor.export = mode;
