@@ -1,8 +1,8 @@
 use dyst_dir::{NodeIdAny, Session};
 
 use crate::{
-    BuildError, CompilerStage, ExecuteError, ImportError, LinkError, LowerError, OptimizeError,
-    ResolveError, ValidateError,
+    BindError, BuildError, CompilerStage, ExecuteError, ImportError, LinkError, LowerError,
+    OptimizeError, ResolveError, ValidateError,
 };
 
 /// Error during compilation.
@@ -10,7 +10,9 @@ use crate::{
 pub enum CompileError {
     /// Error during importing.
     Import(ImportError),
-    /// Error during evaluation.
+    /// Error during binding.
+    Bind(BindError),
+    /// Error during resolution.
     Resolve(ResolveError),
     /// Error during validation.
     Validate(ValidateError),
@@ -31,6 +33,7 @@ impl CompileError {
     pub fn stage(&self) -> CompilerStage {
         match self {
             Self::Import(_) => CompilerStage::Import,
+            Self::Bind(_) => CompilerStage::Bind,
             Self::Resolve(_) => CompilerStage::Resolve,
             Self::Validate(_) => CompilerStage::Validate,
             Self::Lower(_) => CompilerStage::Lower,
@@ -51,6 +54,7 @@ impl CompileError {
     pub fn sub_code(&self) -> u8 {
         match self {
             Self::Import(error) => error.sub_code(),
+            Self::Bind(error) => error.sub_code(),
             Self::Resolve(error) => error.sub_code(),
             Self::Validate(error) => error.sub_code(),
             Self::Lower(error) => error.sub_code(),
@@ -65,6 +69,7 @@ impl CompileError {
     pub fn node_id(&self) -> Option<NodeIdAny> {
         match self {
             Self::Import(error) => error.node_id(),
+            Self::Bind(error) => error.node_id(),
             Self::Resolve(error) => error.node_id(),
             Self::Validate(error) => error.node_id(),
             Self::Lower(error) => error.node_id(),
@@ -79,6 +84,7 @@ impl CompileError {
     pub fn message<'a>(&self, session: &'a Session<'a>) -> String {
         match self {
             Self::Import(error) => error.message(session),
+            Self::Bind(error) => error.message(session),
             Self::Resolve(error) => error.message(session),
             Self::Validate(error) => error.message(session),
             Self::Lower(error) => error.message(session),

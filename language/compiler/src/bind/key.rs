@@ -3,8 +3,8 @@ use dyst_ast as ast;
 use dyst_dir::{Key, Module, NodeTree, ScopeId};
 
 impl<'a> Compiler<'a> {
-    /// Lower a key to a DIR key.
-    pub(super) fn lower_key(
+    /// Bind a key to a DIR key.
+    pub(super) fn bind_key(
         &self,
         module: &Module,
         scope_id: ScopeId,
@@ -20,12 +20,12 @@ impl<'a> Compiler<'a> {
                 Key::Name(name)
             }
             ast::Key::Expression(expression) => {
-                let expression = self.lower_expression(module, scope_id, expression, tree);
+                let expression = self.bind_expression(module, scope_id, expression, tree);
                 Key::Expression(expression)
             }
             ast::Key::NamedExpression { name, key } => {
                 let name = self.session.strings.intern_from(&module.strings, name);
-                let key = self.lower_expression(module, scope_id, key, tree);
+                let key = self.bind_expression(module, scope_id, key, tree);
                 Key::NamedExpression { name, key }
             }
         }

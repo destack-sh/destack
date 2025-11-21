@@ -1,6 +1,7 @@
 #![feature(default_field_values)]
 #![feature(if_let_guard)]
 
+mod bind;
 mod build;
 mod compile;
 mod execute;
@@ -11,6 +12,7 @@ mod optimize;
 mod resolve;
 mod validate;
 
+pub use bind::*;
 pub use build::*;
 pub use compile::*;
 pub use execute::*;

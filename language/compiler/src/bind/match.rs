@@ -4,8 +4,8 @@ use dyst_dir::{MatchCase, Module, NodeId, NodeTree, ScopeId, ScopeKind, SymbolSp
 use crate::Compiler;
 
 impl<'a> Compiler<'a> {
-    /// Lower a match case to a DIR match case.
-    pub(super) fn lower_match_case(
+    /// Bind a match case to a DIR match case.
+    pub(super) fn bind_match_case(
         &self,
         module: &Module,
         scope_id: ScopeId,
@@ -21,9 +21,9 @@ impl<'a> Compiler<'a> {
                 body,
                 guard,
             } => {
-                let pattern = self.lower_pattern(module, scope_id, *pattern, tree);
-                let body = self.lower_expression(module, scope_id, *body, tree);
-                let guard = guard.map(|guard| self.lower_expression(module, scope_id, guard, tree));
+                let pattern = self.bind_pattern(module, scope_id, *pattern, tree);
+                let body = self.bind_expression(module, scope_id, *body, tree);
+                let guard = guard.map(|guard| self.bind_expression(module, scope_id, guard, tree));
                 MatchCase::Expression {
                     pattern,
                     body,
@@ -36,9 +36,9 @@ impl<'a> Compiler<'a> {
                 body,
                 guard,
             } => {
-                let pattern = self.lower_pattern(module, scope_id, *pattern, tree);
-                let body = self.lower_block(module, scope_id, *body, tree);
-                let guard = guard.map(|guard| self.lower_expression(module, scope_id, guard, tree));
+                let pattern = self.bind_pattern(module, scope_id, *pattern, tree);
+                let body = self.bind_block(module, scope_id, *body, tree);
+                let guard = guard.map(|guard| self.bind_expression(module, scope_id, guard, tree));
                 MatchCase::Block {
                     pattern,
                     body,

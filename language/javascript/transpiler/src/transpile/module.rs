@@ -53,7 +53,7 @@ impl TranspilerUnit {
 impl<'a> Transpiler<'a> {
     /// Transpile the modules into AST.
     pub fn transpile_module(&self, module: &'a dir::Module, tree: &NodeTree, unit: &mut TranspilerUnit) {
-        for expression_id in module.expressions.iter() {
+        for expression_id in module.roots.iter() {
             match self.transpile_expression(module, tree, *expression_id, unit) {
                 Ok(root_id) => unit.roots.push(root_id),
                 Err(error) => unit.error(error),

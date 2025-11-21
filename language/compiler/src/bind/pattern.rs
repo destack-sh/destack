@@ -3,8 +3,8 @@ use dyst_ast as ast;
 use dyst_dir::{Module, NodeId, NodeTree, Pattern, PatternField, ScopeId};
 
 impl<'a> Compiler<'a> {
-    /// Lower a pattern to a DIR pattern.
-    pub(super) fn lower_pattern(
+    /// Bind a pattern to a DIR pattern.
+    pub(super) fn bind_pattern(
         &self,
         module: &Module,
         scope_id: ScopeId,
@@ -18,14 +18,14 @@ impl<'a> Compiler<'a> {
                 name: name.map(|name| self.session.strings.intern_from(&module.strings, name)),
             },
             ast::Pattern::Maybe(pattern_id) => {
-                Pattern::Maybe(self.lower_pattern(module, scope_id, *pattern_id, tree))
+                Pattern::Maybe(self.bind_pattern(module, scope_id, *pattern_id, tree))
             }
             ast::Pattern::ReferenceOf {
                 mutability,
                 right: right_id,
             } => {
-                let mutability = mutability.map(|mutability| self.lower_mutability(mutability));
-                let right = self.lower_pattern(module, scope_id, *right_id, tree);
+                let mutability = mutability.map(|mutability| self.bind_mutability(mutability));
+                let right = self.bind_pattern(module, scope_id, *right_id, tree);
                 Pattern::Reference { mutability, right }
             }
             ast::Pattern::Binding {
@@ -33,9 +33,9 @@ impl<'a> Compiler<'a> {
                 name,
                 pattern,
             } => {
-                let mutability = mutability.map(|mutability| self.lower_mutability(mutability));
+                let mutability = mutability.map(|mutability| self.bind_mutability(mutability));
                 let name = self.session.strings.intern_from(&module.strings, *name);
-                let pattern = pattern.map(|pattern| self.lower_pattern(module, scope_id, pattern, tree));
+                let pattern = pattern.map(|pattern| self.bind_pattern(module, scope_id, pattern, tree));
                 Pattern::Binding {
                     mutability,
                     name,
@@ -43,7 +43,7 @@ impl<'a> Compiler<'a> {
                 }
             }
             ast::Pattern::Expression { value } => {
-                let value = self.lower_expression(module, scope_id, *value, tree);
+                let value = self.bind_expression(module, scope_id, *value, tree);
                 Pattern::Expression { value }
             }
             ast::Pattern::Range {
@@ -51,8 +51,8 @@ impl<'a> Compiler<'a> {
                 end,
                 is_inclusive,
             } => {
-                let start = start.map(|start| self.lower_pattern(module, scope_id, start, tree));
-                let end = end.map(|end| self.lower_pattern(module, scope_id, end, tree));
+                let start = start.map(|start| self.bind_pattern(module, scope_id, start, tree));
+                let end = end.map(|end| self.bind_pattern(module, scope_id, end, tree));
                 Pattern::Range {
                     start,
                     end,
@@ -62,32 +62,32 @@ impl<'a> Compiler<'a> {
             ast::Pattern::Tuple { ty, fields } => {
                 let ty = ty
                     .as_ref()
-                    .map(|ty| self.lower_expression_to_type(module, scope_id, *ty, tree));
+                    .map(|ty| self.bind_expression_to_type(module, scope_id, *ty, tree));
                 let fields = fields
                     .iter()
-                    .map(|field| self.lower_pattern_field(module, scope_id, *field, tree))
+                    .map(|field| self.bind_pattern_field(module, scope_id, *field, tree))
                     .collect();
                 Pattern::Tuple { ty, fields }
             }
             ast::Pattern::Slice { fields } => {
                 let fields = fields
                     .iter()
-                    .map(|field| self.lower_pattern_field(module, scope_id, *field, tree))
+                    .map(|field| self.bind_pattern_field(module, scope_id, *field, tree))
                     .collect();
                 Pattern::Slice { fields }
             }
             ast::Pattern::Struct { ty, fields } => {
-                let ty = ty.map(|ty| self.lower_expression_to_type(module, scope_id, ty, tree));
+                let ty = ty.map(|ty| self.bind_expression_to_type(module, scope_id, ty, tree));
                 let fields = fields
                     .iter()
-                    .map(|field| self.lower_pattern_field(module, scope_id, *field, tree))
+                    .map(|field| self.bind_pattern_field(module, scope_id, *field, tree))
                     .collect();
                 Pattern::Struct { ty, fields }
             }
             ast::Pattern::Union { patterns } => {
                 let patterns = patterns
                     .iter()
-                    .map(|field| self.lower_pattern(module, scope_id, *field, tree))
+                    .map(|field| self.bind_pattern(module, scope_id, *field, tree))
                     .collect();
                 Pattern::Union { patterns }
             }
@@ -95,8 +95,8 @@ impl<'a> Compiler<'a> {
         tree.insert_from_source(pattern, module.id, pattern_id)
     }
 
-    /// Lower a pattern field to a DIR pattern field.
-    pub(super) fn lower_pattern_field(
+    /// Bind a pattern field to a DIR pattern field.
+    pub(super) fn bind_pattern_field(
         &self,
         module: &Module,
         scope_id: ScopeId,
@@ -111,14 +111,14 @@ impl<'a> Compiler<'a> {
                 pattern,
                 default,
             } => {
-                let mutability = mutability.map(|mutability| self.lower_mutability(mutability));
+                let mutability = mutability.map(|mutability| self.bind_mutability(mutability));
                 let name = self
                     .session
                     .strings
                     .intern_from(&module.strings, name.string());
-                let pattern = pattern.map(|pattern| self.lower_pattern(module, scope_id, pattern, tree));
+                let pattern = pattern.map(|pattern| self.bind_pattern(module, scope_id, pattern, tree));
                 let default =
-                    default.map(|default| self.lower_expression(module, scope_id, default, tree));
+                    default.map(|default| self.bind_expression(module, scope_id, default, tree));
                 PatternField::UnresolvedNamed {
                     mutability,
                     name,
@@ -132,14 +132,14 @@ impl<'a> Compiler<'a> {
                 alias,
                 default,
             } => {
-                let mutability = mutability.map(|mutability| self.lower_mutability(mutability));
+                let mutability = mutability.map(|mutability| self.bind_mutability(mutability));
                 let name = self
                     .session
                     .strings
                     .intern_from(&module.strings, name.string());
                 let alias = self.session.strings.intern_from(&module.strings, *alias);
                 let default =
-                    default.map(|default| self.lower_expression(module, scope_id, default, tree));
+                    default.map(|default| self.bind_expression(module, scope_id, default, tree));
                 PatternField::UnresolvedAlias {
                     mutability,
                     name,
@@ -150,7 +150,7 @@ impl<'a> Compiler<'a> {
             ast::PatternField::Positional {
                 pattern: pattern_id,
             } => {
-                let pattern = self.lower_pattern(module, scope_id, *pattern_id, tree);
+                let pattern = self.bind_pattern(module, scope_id, *pattern_id, tree);
                 PatternField::UnresolvedPositional { pattern }
             }
         };

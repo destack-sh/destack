@@ -20,8 +20,13 @@ impl<'s> Compiler<'s> {
     pub(super) fn process(&self, task: CompilerTask) {
         match task {
             CompilerTask::Import(import_task) => {
+                if let Err(error) = self.process_import(import_task) {
+                    self.error(error);
+                }
+            }
+            CompilerTask::Bind(bind_task) => {
                 let mut tree = self.session.tree.write();
-                if let Err(error) = self.process_import(import_task, &mut tree) {
+                if let Err(error) = self.process_bind(bind_task, &mut tree) {
                     self.error(error);
                 }
             }

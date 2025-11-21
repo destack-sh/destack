@@ -6,27 +6,27 @@ use dyst_dir::{
 };
 
 impl<'a> Compiler<'a> {
-    /// Lower function kind into a DIR function kind.
+    /// Bind function kind into a DIR function kind.
     #[inline]
-    pub(super) fn lower_function_kind(&self, kind: ast::FunctionKind) -> FunctionKind {
+    pub(super) fn bind_function_kind(&self, kind: ast::FunctionKind) -> FunctionKind {
         match kind {
             ast::FunctionKind::Function => FunctionKind::Function,
             ast::FunctionKind::Lambda => FunctionKind::Lambda,
         }
     }
 
-    /// Lower asynchrony into a DIR asynchrony.
+    /// Bind asynchrony into a DIR asynchrony.
     #[inline]
-    pub(super) fn lower_asynchrony(&self, asynchrony: ast::Asynchrony) -> Asynchrony {
+    pub(super) fn bind_asynchrony(&self, asynchrony: ast::Asynchrony) -> Asynchrony {
         match asynchrony {
             ast::Asynchrony::Sync => Asynchrony::Sync,
             ast::Asynchrony::Async => Asynchrony::Async,
         }
     }
 
-    /// Lower function cardinality into a DIR function cardinality.
+    /// Bind function cardinality into a DIR function cardinality.
     #[inline]
-    pub(super) fn lower_function_cardinality(
+    pub(super) fn bind_function_cardinality(
         &self,
         cardinality: ast::FunctionCardinality,
     ) -> FunctionCardinality {
@@ -36,9 +36,9 @@ impl<'a> Compiler<'a> {
         }
     }
 
-    /// Lower function mode into a DIR function mode.
+    /// Bind function mode into a DIR function mode.
     #[inline]
-    pub(super) fn lower_function_mode(&self, mode: ast::FunctionMode) -> FunctionMode {
+    pub(super) fn bind_function_mode(&self, mode: ast::FunctionMode) -> FunctionMode {
         match mode {
             ast::FunctionMode::Getter => FunctionMode::Getter,
             ast::FunctionMode::Setter => FunctionMode::Setter,
@@ -48,9 +48,9 @@ impl<'a> Compiler<'a> {
         }
     }
 
-    /// Lower function abstraction into a DIR function abstraction.
+    /// Bind function abstraction into a DIR function abstraction.
     #[inline]
-    pub(super) fn lower_function_abstraction(
+    pub(super) fn bind_function_abstraction(
         &self,
         abstraction: ast::FunctionAbstraction,
     ) -> FunctionAbstraction {
@@ -62,31 +62,31 @@ impl<'a> Compiler<'a> {
         }
     }
 
-    /// Lower function signature into a DIR function signature.
-    pub(super) fn lower_function_signature(
+    /// Bind function signature into a DIR function signature.
+    pub(super) fn bind_function_signature(
         &self,
         module: &Module,
         scope_id: ScopeId,
         signature: &ast::FunctionSignature,
         tree: &mut NodeTree,
     ) -> FunctionSignature {
-        let abstraction = self.lower_function_abstraction(signature.abstraction);
-        let asynchrony = self.lower_asynchrony(signature.asynchrony);
-        let cardinality = self.lower_function_cardinality(signature.cardinality);
-        let mode = signature.mode.map(|mode| self.lower_function_mode(mode));
-        let kind = self.lower_function_kind(signature.kind);
+        let abstraction = self.bind_function_abstraction(signature.abstraction);
+        let asynchrony = self.bind_asynchrony(signature.asynchrony);
+        let cardinality = self.bind_function_cardinality(signature.cardinality);
+        let mode = signature.mode.map(|mode| self.bind_function_mode(mode));
+        let kind = self.bind_function_kind(signature.kind);
         let generics = signature
             .generics
             .as_ref()
-            .map(|generics| self.lower_generics(module, scope_id, generics, tree));
+            .map(|generics| self.bind_generics(module, scope_id, generics, tree));
         let dynamic_parameters = signature
             .dynamic_parameters
             .iter()
-            .map(|parameter| self.lower_parameter(module, scope_id, *parameter, tree))
+            .map(|parameter| self.bind_parameter(module, scope_id, *parameter, tree))
             .collect();
         let return_type = signature
             .return_type
-            .map(|return_type| self.lower_expression_to_type(module, scope_id, return_type, tree));
+            .map(|return_type| self.bind_expression_to_type(module, scope_id, return_type, tree));
         FunctionSignature {
             abstraction,
             asynchrony,

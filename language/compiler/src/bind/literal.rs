@@ -6,8 +6,8 @@ use dyst_dir::{
 };
 
 impl<'a> Compiler<'a> {
-    /// Lower a scalar literal to a DIR scalar literal.
-    pub(super) fn lower_scalar_literal(
+    /// Bind a scalar literal to a DIR scalar literal.
+    pub(super) fn bind_scalar_literal(
         &self,
         module: &Module,
         scalar_literal: &ast::ScalarLiteral,
@@ -35,8 +35,8 @@ impl<'a> Compiler<'a> {
         }
     }
 
-    /// Lower a template literal to a DIR template literal.
-    pub(super) fn lower_template_literal(
+    /// Bind a template literal to a DIR template literal.
+    pub(super) fn bind_template_literal(
         &self,
         module: &Module,
         scope_id: ScopeId,
@@ -55,15 +55,15 @@ impl<'a> Compiler<'a> {
                     .collect();
                 let arguments = arguments
                     .iter()
-                    .map(|argument| self.lower_argument(module, scope_id, *argument, tree))
+                    .map(|argument| self.bind_argument(module, scope_id, *argument, tree))
                     .collect();
                 TemplateLiteral::InterpolatedString { strings, arguments }
             }
         }
     }
 
-    /// Lower an int type to a DIR int type.
-    pub(super) fn lower_int_type(&self, int_type: &ast::IntType) -> IntType {
+    /// Bind an int type to a DIR int type.
+    pub(super) fn bind_int_type(&self, int_type: &ast::IntType) -> IntType {
         match int_type {
             // pointer
             ast::IntType::Pointer { is_signed: true } => IntType::IntP,
@@ -135,8 +135,8 @@ impl<'a> Compiler<'a> {
         }
     }
 
-    /// Lower a float type to a DIR float type.
-    pub(super) fn lower_float_type(&self, float_type: &ast::FloatType) -> FloatType {
+    /// Bind a float type to a DIR float type.
+    pub(super) fn bind_float_type(&self, float_type: &ast::FloatType) -> FloatType {
         match float_type {
             ast::FloatType { width: Some(16) } => FloatType::Float16,
             ast::FloatType { width: Some(32) } => FloatType::Float32,
@@ -150,8 +150,8 @@ impl<'a> Compiler<'a> {
         }
     }
 
-    /// Lower a composite type to a DIR composite type.
-    pub(super) fn lower_definition_type(
+    /// Bind a composite type to a DIR composite type.
+    pub(super) fn bind_definition_type(
         &self,
         composite_type: &ast::DefinitionType,
     ) -> DefinitionType {
@@ -168,8 +168,8 @@ impl<'a> Compiler<'a> {
         }
     }
 
-    /// Lower a type literal to a DIR type literal.
-    pub(super) fn lower_type_literal(&self, type_literal: &ast::TypeLiteral) -> TypeLiteral {
+    /// Bind a type literal to a DIR type literal.
+    pub(super) fn bind_type_literal(&self, type_literal: &ast::TypeLiteral) -> TypeLiteral {
         match type_literal {
             ast::TypeLiteral::Any => TypeLiteral::Any,
             ast::TypeLiteral::Never => TypeLiteral::Never,
@@ -184,13 +184,13 @@ impl<'a> Compiler<'a> {
             ast::TypeLiteral::Bigint => TypeLiteral::Primitive(PrimitiveType::Bigint),
             ast::TypeLiteral::Number => TypeLiteral::Primitive(PrimitiveType::Number),
             ast::TypeLiteral::Int(int_type) => {
-                TypeLiteral::Primitive(PrimitiveType::Int(self.lower_int_type(int_type)))
+                TypeLiteral::Primitive(PrimitiveType::Int(self.bind_int_type(int_type)))
             }
             ast::TypeLiteral::Float(float_type) => {
-                TypeLiteral::Primitive(PrimitiveType::Float(self.lower_float_type(float_type)))
+                TypeLiteral::Primitive(PrimitiveType::Float(self.bind_float_type(float_type)))
             }
             ast::TypeLiteral::Composite(composite_type) => {
-                TypeLiteral::Composite(self.lower_definition_type(composite_type))
+                TypeLiteral::Composite(self.bind_definition_type(composite_type))
             }
             ast::TypeLiteral::Self_ => panic!("self type can't be lowerd"),
             ast::TypeLiteral::Symbol => TypeLiteral::Primitive(PrimitiveType::Symbol),

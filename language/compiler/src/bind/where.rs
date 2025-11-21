@@ -4,8 +4,8 @@ use dyst_dir::{Module, NodeId, NodeTree, ScopeId, WhereClause};
 use crate::Compiler;
 
 impl<'a> Compiler<'a> {
-    /// Lower a where clause to a DIR where clause.
-    pub(super) fn lower_where_clause(
+    /// Bind a where clause to a DIR where clause.
+    pub(super) fn bind_where_clause(
         &self,
         module: &Module,
         scope_id: ScopeId,
@@ -16,7 +16,7 @@ impl<'a> Compiler<'a> {
         match where_clause {
             ast::WhereClause::Assertion { left, right } => {
                 let left = self.session.strings.intern_from(&module.strings, *left);
-                let right = self.lower_expression(module, scope_id, *right, tree);
+                let right = self.bind_expression(module, scope_id, *right, tree);
                 tree.insert_from_source(
                     WhereClause::Assertion { left, right },
                     module.id,
@@ -24,7 +24,7 @@ impl<'a> Compiler<'a> {
                 )
             }
             ast::WhereClause::Guard { guard } => {
-                let guard = self.lower_expression(module, scope_id, *guard, tree);
+                let guard = self.bind_expression(module, scope_id, *guard, tree);
                 tree.insert_from_source(
                     WhereClause::Guard { guard },
                     module.id,
