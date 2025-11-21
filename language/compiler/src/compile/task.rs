@@ -15,7 +15,7 @@ pub enum CompileStage {
     Resolve = 3,
     /// Validate and check DIR.
     Validate = 4,
-    /// Elaborate and monomorphize DIR.
+    /// Elaborate, desugar and monomorphize DIR.
     Elaborate = 5,
     /// Lower the DIR into MIR.
     Lower = 6,

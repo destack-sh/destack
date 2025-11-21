@@ -93,11 +93,6 @@ pub enum Expression {
         operator: TypeBinaryOperator,
         right: NodeId<Expression>,
     },
-    /// Unresolved unary operation (may be operator-overloaded).
-    UnresolvedUnary {
-        operator: UnaryOperator,
-        right: NodeId<Expression>,
-    },
     /// Unary operation (except reference/dereference, e.g., `-x`).
     Unary {
         operator: UnaryOperator,
@@ -115,12 +110,6 @@ pub enum Expression {
         variance: Option<VarianceBound>,
         right: NodeId<Expression>,
     },
-    /// Unresolved binary operation (may be operator-overloaded).
-    UnresolvedBinary {
-        left: NodeId<Expression>,
-        operator: BinaryOperator,
-        right: NodeId<Expression>,
-    },
     /// Binary operation.
     Binary {
         left: NodeId<Expression>,
@@ -130,12 +119,6 @@ pub enum Expression {
     /// Assignment (e.g., `x = y`).
     Assign {
         left: NodeId<Expression>,
-        right: NodeId<Expression>,
-    },
-    /// Unresolved binary assignment with operator (may be operator-overloaded).
-    UnresolvedAssignBinary {
-        left: NodeId<Expression>,
-        operator: AssignOperator,
         right: NodeId<Expression>,
     },
     /// Assignment with operator (except direct assignment, e.g., `x += y`).
@@ -341,14 +324,11 @@ impl Expression {
             Expression::LetType { .. } => "let type",
             Expression::TypeUnary { .. } => "type unary",
             Expression::TypeBinary { .. } => "type binary",
-            Expression::UnresolvedUnary { .. } => "unresolved unary",
             Expression::Unary { .. } => "unary",
             Expression::ValueOf { .. } => "value of",
             Expression::ReferenceOf { .. } => "reference of",
-            Expression::UnresolvedBinary { .. } => "unresolved binary",
             Expression::Binary { .. } => "binary",
             Expression::Assign { .. } => "assign",
-            Expression::UnresolvedAssignBinary { .. } => "unresolved assign binary",
             Expression::AssignBinary { .. } => "assign binary",
             Expression::UnresolvedMember { .. } => "unresolved member",
             Expression::Member { .. } => "member",
@@ -396,9 +376,6 @@ impl Expression {
                 | Expression::UnresolvedReExport { .. }
                 | Expression::UnresolvedMember { .. }
                 | Expression::UnresolvedPath { .. }
-                | Expression::UnresolvedUnary { .. }
-                | Expression::UnresolvedBinary { .. }
-                | Expression::UnresolvedAssignBinary { .. }
                 | Expression::UnresolvedBreak { .. }
                 | Expression::UnresolvedContinue { .. }
         )
