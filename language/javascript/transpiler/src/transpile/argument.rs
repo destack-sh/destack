@@ -31,7 +31,7 @@ impl<'a> Transpiler<'a> {
                 let default = default
                     .map(|default| {
                         self.transpile_expression(module, tree, default, unit)
-                            .expect_node::<Expression>(default.into_any(), unit)
+                            .expect_node::<Expression>(default.into_global_any(module.id), unit)
                     })
                     .transpose()?;
                 Parameter::Named {
@@ -58,7 +58,7 @@ impl<'a> Transpiler<'a> {
                 let default = default
                     .map(|default| {
                         self.transpile_expression(module, tree, default, unit)
-                            .expect_node::<Expression>(default.into_any(), unit)
+                            .expect_node::<Expression>(default.into_global_any(module.id), unit)
                     })
                     .transpose()?;
                 Parameter::Pattern {
@@ -116,12 +116,12 @@ impl<'a> Transpiler<'a> {
             | dir::Argument::Direct {
                 modifiers: _,
                 name: _,
-                symbol,
+                symbol: _,
                 value,
             } => {
                 let value = self
                     .transpile_expression(module, tree, *value, unit)
-                    .expect_node::<Expression>(value.into_any(), unit)?;
+                    .expect_node::<Expression>(value.into_global_any(module.id), unit)?;
                 Argument::Positional { value }
             }
             dir::Argument::UnresolvedSpread {
@@ -132,12 +132,12 @@ impl<'a> Transpiler<'a> {
             | dir::Argument::Spread {
                 modifiers: _,
                 name: _,
-                symbol,
+                symbol: _,
                 value,
             } => {
                 let value = self
                     .transpile_expression(module, tree, *value, unit)
-                    .expect_node::<Expression>(value.into_any(), unit)?;
+                    .expect_node::<Expression>(value.into_global_any(module.id), unit)?;
                 Argument::Spread { value }
             }
             dir::Argument::UnresolvedDynamic {
@@ -151,14 +151,14 @@ impl<'a> Transpiler<'a> {
                 name: _,
                 key,
                 value,
-                symbol,
+                symbol: _,
             } => {
                 let key = self
                     .transpile_expression(module, tree, *key, unit)
-                    .expect_node::<Expression>(key.into_any(), unit)?;
+                    .expect_node::<Expression>(key.into_global_any(module.id), unit)?;
                 let value = self
                     .transpile_expression(module, tree, *value, unit)
-                    .expect_node::<Expression>(value.into_any(), unit)?;
+                    .expect_node::<Expression>(value.into_global_any(module.id), unit)?;
                 Argument::Dynamic { key, value }
             }
         };

@@ -1,5 +1,7 @@
 use dyst_ast::{self as ast};
-use dyst_dir::{Block, LocalNodeId, LocalScopeId, Module, NodeTree, ScopeKind, SymbolSpace};
+use dyst_dir::{
+    Block, LocalNodeId, LocalScopeId, Module, NodeTree, ScopeKind, SymbolSpace, SymbolTable,
+};
 
 use crate::Compiler;
 
@@ -11,9 +13,10 @@ impl<'a> Compiler<'a> {
         scope_id: LocalScopeId,
         block_id: ast::LocalNodeId<ast::Block>,
         tree: &mut NodeTree,
+        symbols: &mut SymbolTable,
     ) -> LocalNodeId<Block> {
         let (symbol_id, scope_id) =
-            tree.create_symbol_with_scope(SymbolSpace::Value, None, ScopeKind::Block, scope_id);
+            symbols.create_symbol_with_scope(SymbolSpace::Value, None, ScopeKind::Block, scope_id);
         let block = module.get(block_id);
         let label = block
             .label
@@ -21,17 +24,17 @@ impl<'a> Compiler<'a> {
         let expressions = block
             .expressions
             .iter()
-            .map(|expression| self.bind_expression(module, scope_id, *expression, tree))
+            .map(|expression| self.bind_expression(module, scope_id, *expression, tree, symbols))
             .collect();
-        tree.insert_from_source_as_symbol(
+        let block_id = tree.insert_from_source(
             Block {
                 label,
                 expressions,
                 scope: scope_id,
             },
-            module.id,
             block_id,
-            symbol_id,
-        )
+        );
+        symbols.set_symbol_owner(symbol_id, block_id);
+        block_id
     }
 }

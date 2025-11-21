@@ -2,7 +2,7 @@ use crate::Compiler;
 use dyst_ast as ast;
 use dyst_dir::{
     Asynchrony, FunctionAbstraction, FunctionCardinality, FunctionKind, FunctionMode,
-    FunctionSignature, LocalScopeId, Module, NodeTree,
+    FunctionSignature, LocalScopeId, Module, NodeTree, SymbolTable,
 };
 
 impl<'a> Compiler<'a> {
@@ -69,6 +69,7 @@ impl<'a> Compiler<'a> {
         scope_id: LocalScopeId,
         signature: &ast::FunctionSignature,
         tree: &mut NodeTree,
+        symbols: &mut SymbolTable,
     ) -> FunctionSignature {
         let abstraction = self.bind_function_abstraction(signature.abstraction);
         let asynchrony = self.bind_asynchrony(signature.asynchrony);
@@ -78,15 +79,15 @@ impl<'a> Compiler<'a> {
         let generics = signature
             .generics
             .as_ref()
-            .map(|generics| self.bind_generics(module, scope_id, generics, tree));
+            .map(|generics| self.bind_generics(module, scope_id, generics, tree, symbols));
         let dynamic_parameters = signature
             .dynamic_parameters
             .iter()
-            .map(|parameter| self.bind_parameter(module, scope_id, *parameter, tree))
+            .map(|parameter| self.bind_parameter(module, scope_id, *parameter, tree, symbols))
             .collect();
-        let return_type = signature
-            .return_type
-            .map(|return_type| self.bind_expression_to_type(module, scope_id, return_type, tree));
+        let return_type = signature.return_type.map(|return_type| {
+            self.bind_expression_to_type(module, scope_id, return_type, tree, symbols)
+        });
         FunctionSignature {
             abstraction,
             asynchrony,

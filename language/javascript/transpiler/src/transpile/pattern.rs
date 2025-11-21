@@ -29,7 +29,7 @@ impl<'a> Transpiler<'a> {
             }
             _ => {
                 return Err(TranspileError::UnsupportedNode {
-                    node: pattern_id.into_any(),
+                    node: pattern_id.into_global_any(module.id),
                     message: None,
                 });
             }
@@ -68,7 +68,7 @@ impl<'a> Transpiler<'a> {
                 let default = default
                     .map(|default| {
                         self.transpile_expression(module, tree, default, unit)
-                            .expect_node::<Expression>(default.into_any(), unit)
+                            .expect_node::<Expression>(default.into_global_any(module.id), unit)
                     })
                     .transpose()?;
                 let pattern_field = PatternField::Named {
@@ -99,7 +99,7 @@ impl<'a> Transpiler<'a> {
                 let default = default
                     .map(|default| {
                         self.transpile_expression(module, tree, default, unit)
-                            .expect_node::<Expression>(default.into_any(), unit)
+                            .expect_node::<Expression>(default.into_global_any(module.id), unit)
                     })
                     .transpose()?;
                 let pattern_field = PatternField::Alias {

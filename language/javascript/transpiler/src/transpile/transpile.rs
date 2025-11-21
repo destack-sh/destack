@@ -56,7 +56,6 @@ impl<'a> Transpiler<'a> {
     pub fn transpile(&self) {
         // transpile each module into AST
         let mut units = Transpiler::make_units(&self.options, &self.session.modules);
-        let tree = self.session.tree.read();
         for unit in units.iter_mut() {
             for source_module_id in unit.sources.clone() {
                 let source_module = self
@@ -65,6 +64,7 @@ impl<'a> Transpiler<'a> {
                     .get(source_module_id)
                     .unwrap_or_else(|| panic!("source module not found: {source_module_id:?}"));
                 let source_module = source_module.read();
+                let tree = source_module.tree.read();
                 self.transpile_module(&source_module, &tree, unit);
             }
         }

@@ -1,4 +1,4 @@
-use dyst_dir::{LocalNodeIdAny, Session};
+use dyst_dir::{GlobalNodeIdAny, Session};
 
 use crate::{CompileError, CompilePhase};
 
@@ -7,12 +7,12 @@ use crate::{CompileError, CompilePhase};
 #[repr(u8)]
 pub enum OptimizeError {
     /// Optimization is impossible for this node.
-    UnsupportedNode { node: LocalNodeIdAny },
+    UnsupportedNode { node: GlobalNodeIdAny },
     /// Unsupported optimization.
-    UnsupportedOptimization { node: LocalNodeIdAny },
+    UnsupportedOptimization { node: GlobalNodeIdAny },
     /// Undefined behavior possible.
     PossibleUndefinedBehavior {
-        node: LocalNodeIdAny,
+        node: GlobalNodeIdAny,
         behavior: String,
     },
 }
@@ -29,7 +29,7 @@ impl OptimizeError {
     }
 
     /// Get the node id of the error.
-    pub fn node_id(&self) -> Option<LocalNodeIdAny> {
+    pub fn node_id(&self) -> Option<GlobalNodeIdAny> {
         match self {
             Self::UnsupportedNode { node, .. } => Some(*node),
             Self::UnsupportedOptimization { node, .. } => Some(*node),

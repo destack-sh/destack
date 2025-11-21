@@ -1,4 +1,4 @@
-use dyst_dir::{Expression, LocalNodeId, ModuleId, NodeTree};
+use dyst_dir::{Expression, LocalNodeId, ModuleId, NodeTree, SymbolTable};
 
 use crate::{Compiler, ResolveError, ResolveResult};
 
@@ -9,9 +9,10 @@ impl<'a> Compiler<'a> {
         module_id: ModuleId,
         expression_id: LocalNodeId<Expression>,
         tree: &mut NodeTree,
+        symbols: &SymbolTable,
     ) -> ResolveResult<()> {
         let expression = tree.get(expression_id);
-        let scope = tree.get_scope(expression_id);
+        let scope = symbols.get_scope(expression_id);
 
         let expression = match expression {
             Expression::UnresolvedPath {
@@ -33,7 +34,7 @@ impl<'a> Compiler<'a> {
             },
             _ => {
                 return Err(ResolveError::UnsupportedNode {
-                    node: expression_id.into(),
+                    node: expression_id.into_global_any(module_id),
                 });
             }
         };

@@ -1,5 +1,5 @@
 use crate::{CompileError, CompileWarning};
-use dyst_dir::{LocalNodeIdAny, NodeTree, Session};
+use dyst_dir::{GlobalNodeIdAny, Session};
 use dyst_source::{Diagnostic, DiagnosticSeverity, LabeledSpan};
 
 /// Diagnostic encountered during compilation.
@@ -41,7 +41,7 @@ impl CompileDiagnostic {
     }
 
     /// Get the node id of the diagnostic.
-    pub fn node_id(&self) -> Option<LocalNodeIdAny> {
+    pub fn node_id(&self) -> Option<GlobalNodeIdAny> {
         match self {
             Self::Error(error) => error.node_id(),
             Self::Warning(warning) => warning.node_id(),
@@ -57,29 +57,22 @@ impl CompileDiagnostic {
     }
 
     /// Turn the diagnostic into a full Dyst diagnostic.
-    pub fn to_diagnostic<'a>(&self, session: &'a Session<'a>, tree: &NodeTree) -> Diagnostic {
+    pub fn to_diagnostic<'a>(&self, session: &'a Session<'a>) -> Diagnostic {
         // get source information
         let node_id = self
             .node_id()
             .unwrap_or_else(|| panic!("TODO #Broken: diagnostic without node id"));
-        let (module_id, ast_id) = tree.get_source(node_id.id);
         let module = session
             .modules
-            .get(module_id)
-            .unwrap_or_else(|| panic!("module not found: {module_id:?}"));
+            .get(node_id.module_id)
+            .unwrap_or_else(|| panic!("module not found: {:?}", node_id.module_id));
         let file_id = module.read().file;
-        let file = session
-            .files
-            .get(file_id)
-            .unwrap_or_else(|| panic!("file not found: {file_id:?}"));
 
         // make diagnostic
         let severity = self.severity();
         let message = self.message(session);
         let code = self.full_code();
-        let primary_span = ast_id
-            .map(|ast_id| module.read().ast.get_span_by_id(ast_id))
-            .unwrap_or_else(|| file.span());
+        let primary_span = module.read().ast.get_span_by_id(node_id.local_id.id);
         let primary_span = LabeledSpan {
             span: primary_span,
             label: message.clone(),

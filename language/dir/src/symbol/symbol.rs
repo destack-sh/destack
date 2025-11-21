@@ -1,4 +1,4 @@
-use crate::{LocalNodeId, LocalNodeIdAny, LocalScopeId, ModuleId, StringId, Type};
+use crate::{GlobalNodeIdAny, LocalNodeId, LocalNodeIdAny, LocalScopeId, ModuleId, StringId, Type};
 
 /// Key for a symbol.
 #[derive(Debug, Clone, Copy, PartialEq, Hash, PartialOrd, Eq)]
@@ -87,9 +87,9 @@ pub struct Symbol {
     /// The owned scope of the symbol.
     pub owned_scope: Option<LocalScopeId>,
     /// The main declaration node of the symbol.
-    pub primary_declaration: Option<LocalNodeIdAny>,
+    pub primary_declaration: Option<GlobalNodeIdAny>,
     /// Secondary declaration nodes of the symbol.
-    pub secondary_declarations: Vec<LocalNodeIdAny>,
+    pub secondary_declarations: Vec<GlobalNodeIdAny>,
     /// The declared type of the symbol.
     pub declared_ty: Option<LocalNodeId<Type>>,
     /// The inferred type of the symbol.

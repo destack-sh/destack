@@ -2,10 +2,10 @@ use dyst_ast::StringId;
 
 use crate::{
     Argument, AssignOperator, Asynchrony, BinaryOperator, Block, Declaration, DependencyItem,
-    DependencyKind, ExportType, LocalNodeId, LocalScopeId, LocalSymbolId, MatchCase, MatchSource,
-    ModuleId, Mutability, Node, NodeType, Parameter, Path, Pattern, Property, ScalarLiteral,
-    TemplateLiteral, Type, TypeBinaryOperator, TypeKind, TypeLiteral, TypeUnaryOperator,
-    UnaryOperator, VarianceBound,
+    DependencyKind, ExportType, GlobalSymbolId, LocalNodeId, LocalScopeId, LocalSymbolId,
+    MatchCase, MatchSource, ModuleId, Mutability, Node, NodeType, Parameter, Path, Pattern,
+    Property, ScalarLiteral, TemplateLiteral, Type, TypeBinaryOperator, TypeKind, TypeLiteral,
+    TypeUnaryOperator, UnaryOperator, VarianceBound,
 };
 
 /// An Expression is a generic container for all constructs.
@@ -175,6 +175,23 @@ pub enum Expression {
     UnresolvedPath {
         path: Path,
         static_arguments: Option<Vec<LocalNodeId<Argument>>>,
+    },
+    /// Local reference.
+    LocalReference {
+        name: StringId,
+        remote_symbol: LocalSymbolId,
+    },
+    /// Module reference.
+    ModuleReference {
+        path: Path,
+        static_arguments: Option<Vec<LocalNodeId<Argument>>>,
+        remote_symbol: GlobalSymbolId,
+    },
+    /// Global reference.
+    GlobalReference {
+        path: Path,
+        static_arguments: Option<Vec<LocalNodeId<Argument>>>,
+        remote_symbol: GlobalSymbolId,
     },
     /// Scalar literal value.
     ScalarLiteral { value: ScalarLiteral },
@@ -347,6 +364,9 @@ impl Expression {
             Expression::New { .. } => "new",
             Expression::Delete { .. } => "delete",
             Expression::UnresolvedPath { .. } => "unresolved path",
+            Expression::LocalReference { .. } => "local reference",
+            Expression::ModuleReference { .. } => "declaration reference",
+            Expression::GlobalReference { .. } => "global reference",
             Expression::ScalarLiteral { .. } => "scalar literal",
             Expression::TemplateLiteral { .. } => "template literal",
             Expression::TaggedTemplateLiteral { .. } => "tagged template literal",

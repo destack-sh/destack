@@ -983,6 +983,35 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .field("path", path)
                     .end();
             }
+            Expression::LocalReference {
+                name,
+                remote_symbol,
+            } => {
+                self.node("Expression::LocalReference", id.id)
+                    .field("name", name)
+                    .field("remote_symbol", remote_symbol)
+                    .end();
+            }
+            Expression::ModuleReference {
+                path,
+                static_arguments: _,
+                remote_symbol,
+            } => {
+                self.node("Expression::ModuleReference", id.id)
+                    .field("path", path)
+                    .field("remote_symbol", remote_symbol)
+                    .end();
+            }
+            Expression::GlobalReference {
+                path,
+                static_arguments: _,
+                remote_symbol,
+            } => {
+                self.node("Expression::GlobalReference", id.id)
+                    .field("path", path)
+                    .field("remote_symbol", remote_symbol)
+                    .end();
+            }
             Expression::ScalarLiteral { value } => {
                 self.node("Expression::ScalarLiteral", id.id)
                     .field("value", value)
@@ -1378,11 +1407,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
         type_field: &TypeField,
     ) {
         match type_field {
-            TypeField::Field {
-                modifiers,
-                key,
-                ty: _,
-            } => {
+            TypeField::Field { modifiers, key } => {
                 self.node("TypeField::Field", id.id)
                     .field_optional("modifiers", modifiers)
                     .field("key", key)
@@ -1986,7 +2011,7 @@ impl<'a> Dumper<'a> {
     pub fn visit_scope(
         &mut self,
         tree: &NodeTree,
-        table: &SymbolTable,
+        symbols: &SymbolTable,
         id: LocalScopeId,
         scope: &Scope,
     ) {
@@ -1998,13 +2023,13 @@ impl<'a> Dumper<'a> {
         self.with_depth(|dumper| {
             // symbols
             for (_key, symbol_id) in scope.symbols.iter() {
-                let symbol = table.get_symbol(*symbol_id);
-                dumper.visit_symbol(tree, table, *symbol_id, symbol);
+                let symbol = symbols.get_symbol(*symbol_id);
+                dumper.visit_symbol(tree, symbols, *symbol_id, symbol);
             }
             // children
             for child_id in scope.children.iter() {
-                let child = table.get_scope_by_id(*child_id);
-                dumper.visit_scope(tree, table, *child_id, child);
+                let child = symbols.get_scope_by_id(*child_id);
+                dumper.visit_scope(tree, symbols, *child_id, child);
             }
         });
     }
@@ -2012,14 +2037,17 @@ impl<'a> Dumper<'a> {
     pub fn visit_symbol(
         &mut self,
         _tree: &NodeTree,
-        _table: &SymbolTable,
+        _symbols: &SymbolTable,
         id: LocalSymbolId,
         symbol: &Symbol,
     ) {
         self.node("Symbol", id.0)
             .field("id", &id)
             .field("space", &symbol.space)
-            .field_optional("declaration", &symbol.primary_declaration.map(|id| id.ty))
+            .field_optional(
+                "declaration",
+                &symbol.primary_declaration.map(|id| id.local_id.ty),
+            )
             .field_optional("key", &symbol.key)
             .end();
     }

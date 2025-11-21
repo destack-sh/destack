@@ -2,7 +2,7 @@ use crate::Compiler;
 use dyst_ast as ast;
 use dyst_dir::{
     DeclarationType, FloatType, IntType, LocalScopeId, Module, NodeTree, PrimitiveType,
-    ScalarLiteral, TemplateLiteral, TypeLiteral,
+    ScalarLiteral, SymbolTable, TemplateLiteral, TypeLiteral,
 };
 
 impl<'a> Compiler<'a> {
@@ -48,6 +48,7 @@ impl<'a> Compiler<'a> {
         scope_id: LocalScopeId,
         template_literal: &ast::TemplateLiteral,
         tree: &mut NodeTree,
+        symbols: &mut SymbolTable,
     ) -> TemplateLiteral {
         match template_literal {
             ast::TemplateLiteral::String { string } => {
@@ -68,7 +69,7 @@ impl<'a> Compiler<'a> {
                     .collect();
                 let arguments = arguments
                     .iter()
-                    .map(|argument| self.bind_argument(module, scope_id, *argument, tree))
+                    .map(|argument| self.bind_argument(module, scope_id, *argument, tree, symbols))
                     .collect();
                 TemplateLiteral::InterpolatedString { strings, arguments }
             }

@@ -1,5 +1,5 @@
 use crate::{Compiler, ResolveResult};
-use dyst_dir::{Expression, LocalNodeIdAny, ModuleId, Node, NodeTree, NodeType};
+use dyst_dir::{Expression, LocalNodeIdAny, ModuleId, Node, NodeTree, NodeType, SymbolTable};
 
 #[allow(dead_code)]
 impl<'a> Compiler<'a> {
@@ -53,14 +53,19 @@ impl<'a> Compiler<'a> {
         module_id: ModuleId,
         node: LocalNodeIdAny,
         tree: &mut NodeTree,
+        symbols: &SymbolTable,
     ) -> ResolveResult<()> {
         match node.ty {
-            NodeType::Expression => self.resolve_expression(module_id, node.into(), tree),
-            NodeType::Type => self.resolve_type(module_id, node.into(), tree),
-            NodeType::Argument => self.resolve_argument(module_id, node.into(), tree),
-            NodeType::DependencyItem => self.resolve_dependency_item(module_id, node.into(), tree),
-            NodeType::PatternField => self.resolve_pattern_field(module_id, node.into(), tree),
-            NodeType::Annotation => self.resolve_annotation(module_id, node.into(), tree),
+            NodeType::Expression => self.resolve_expression(module_id, node.into(), tree, symbols),
+            NodeType::Type => self.resolve_type(module_id, node.into(), tree, symbols),
+            NodeType::Argument => self.resolve_argument(module_id, node.into(), tree, symbols),
+            NodeType::DependencyItem => {
+                self.resolve_dependency_item(module_id, node.into(), tree, symbols)
+            }
+            NodeType::PatternField => {
+                self.resolve_pattern_field(module_id, node.into(), tree, symbols)
+            }
+            NodeType::Annotation => self.resolve_annotation(module_id, node.into(), tree, symbols),
             _ => {
                 // nothing to do
                 Ok(())
@@ -69,12 +74,19 @@ impl<'a> Compiler<'a> {
     }
 
     /// Resolve an entire module.
-    pub fn resolve_module(&self, module_id: ModuleId, tree: &mut NodeTree) -> ResolveResult<()> {
-        for expression_id in tree
-            .iter_node_ids_of_type_in_module::<Expression>(module_id)
-            .into_iter()
-        {
-            self.resolve_expression(module_id, expression_id, tree)?;
+    pub fn resolve_module(&self, module_id: ModuleId) -> ResolveResult<()> {
+        let module = self
+            .session
+            .modules
+            .get(module_id)
+            .unwrap_or_else(|| panic!("module not found: {:?}", module_id));
+        let module = module.read();
+        let mut tree = module.tree.write();
+        let symbols = module.symbols.read();
+
+        // resolve roots
+        for expression_id in tree.iter_node_ids_of_type::<Expression>() {
+            self.resolve_expression(module_id, expression_id.into(), &mut tree, &symbols)?;
         }
 
         Ok(())

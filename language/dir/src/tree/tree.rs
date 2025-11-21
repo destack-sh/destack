@@ -5,13 +5,16 @@ use dyst_ast as ast;
 
 use crate::{
     Annotation, Arena, Argument, Block, Declaration, DependencyItem, EnumField, Expression,
-    LocalNodeId, LocalNodeIdAny, MatchCase, Node, NodeType, Parameter, Pattern, PatternField,
-    Property, Type, TypeField, WhereClause, WithClause,
+    LocalNodeId, LocalNodeIdAny, MatchCase, ModuleId, Node, NodeType, Parameter, Pattern,
+    PatternField, Property, Type, TypeField, WhereClause, WithClause,
 };
 
 /// Mutable DIR Node tree across a set of related source units. NOT THREAD-SAFE.
 #[derive(Clone)]
 pub struct NodeTree {
+    /// The module id of the node tree.
+    pub module_id: ModuleId,
+
     // node index
     /// The next id to allocate.
     pub(crate) next_global_id: u32,
@@ -57,21 +60,17 @@ impl Debug for NodeTree {
     }
 }
 
-impl Default for NodeTree {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 impl NodeTree {
     /// Create a new NodeTree.
-    pub fn new() -> Self {
-        Self::with_capacity(0)
+    pub fn new(module_id: ModuleId) -> Self {
+        Self::with_capacity(module_id, 0)
     }
 
     /// Create a new NodeTree with the given capacity.
-    pub fn with_capacity(capacity: usize) -> Self {
+    pub fn with_capacity(module_id: ModuleId, capacity: usize) -> Self {
         Self {
+            module_id,
+
             next_global_id: 0,
             local_id_by_node_id: Vec::with_capacity(capacity),
             node_type_by_node_id: Vec::with_capacity(capacity),

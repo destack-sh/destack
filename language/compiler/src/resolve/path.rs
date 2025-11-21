@@ -1,4 +1,4 @@
-use dyst_dir::{LocalScopeId, LocalSymbolId, ModuleId, NodeTree, Path, Scope};
+use dyst_dir::{LocalSymbolId, ModuleId, NodeTree, Path, Scope};
 
 use crate::{Compiler, ResolveResult};
 
@@ -6,10 +6,10 @@ impl<'a> Compiler<'a> {
     /// Resolve a Path.
     pub(super) fn resolve_path(
         &self,
-        module_id: ModuleId,
-        scope: &Scope,
+        _module_id: ModuleId,
+        _scope: &Scope,
         path: &Path,
-        tree: &NodeTree,
+        _tree: &NodeTree,
     ) -> ResolveResult<LocalSymbolId> {
         todo!("resolve_path({path:?})")
     }

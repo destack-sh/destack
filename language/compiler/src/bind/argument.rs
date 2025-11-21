@@ -3,7 +3,7 @@ use dyst_ast as ast;
 use dyst_dir::{
     Argument, BindingKind, BindingModifier, BindingOperator, BindingScope, Expression, LocalNodeId,
     LocalScopeId, Module, Mutability, NodeTree, Parameter, Path, SymbolKey, SymbolSpace,
-    Visibility,
+    SymbolTable, Visibility,
 };
 use dyst_source::smallvec;
 
@@ -50,6 +50,7 @@ impl<'a> Compiler<'a> {
         scope_id: LocalScopeId,
         parameter_id: ast::LocalNodeId<ast::Parameter>,
         tree: &mut NodeTree,
+        symbols: &mut SymbolTable,
     ) -> LocalNodeId<Parameter> {
         let parameter = module.get(parameter_id);
         match parameter {
@@ -62,11 +63,15 @@ impl<'a> Compiler<'a> {
                 let modifiers =
                     modifiers.map(|modifiers| self.bind_binding_modifier(module, modifiers));
                 let name = self.session.strings.intern_from(&module.ast_strings, *name);
-                let ty = ty.map(|ty| self.bind_expression_to_type(module, scope_id, ty, tree));
-                let default =
-                    default.map(|default| self.bind_expression(module, scope_id, default, tree));
-                let symbol_id =
-                    tree.create_symbol(SymbolSpace::Value, Some(SymbolKey::Name(name)), scope_id);
+                let ty =
+                    ty.map(|ty| self.bind_expression_to_type(module, scope_id, ty, tree, symbols));
+                let default = default
+                    .map(|default| self.bind_expression(module, scope_id, default, tree, symbols));
+                let symbol_id = symbols.create_symbol(
+                    SymbolSpace::Value,
+                    Some(SymbolKey::Name(name)),
+                    scope_id,
+                );
                 let parameter = Parameter::Named {
                     modifiers,
                     name,
@@ -74,7 +79,9 @@ impl<'a> Compiler<'a> {
                     default,
                     symbol: symbol_id,
                 };
-                tree.insert_from_source_as_symbol(parameter, module.id, parameter_id, symbol_id)
+                let parameter_id = tree.insert_from_source(parameter, parameter_id);
+                symbols.set_symbol_owner(symbol_id, parameter_id);
+                parameter_id
             }
             ast::Parameter::Pattern {
                 modifiers,
@@ -84,11 +91,12 @@ impl<'a> Compiler<'a> {
             } => {
                 let modifiers =
                     modifiers.map(|modifiers| self.bind_binding_modifier(module, modifiers));
-                let pattern = self.bind_pattern(module, scope_id, *pattern, tree);
-                let ty = ty.map(|ty| self.bind_expression_to_type(module, scope_id, ty, tree));
-                let default =
-                    default.map(|default| self.bind_expression(module, scope_id, default, tree));
-                let symbol_id = tree.create_symbol(SymbolSpace::Value, None, scope_id);
+                let pattern = self.bind_pattern(module, scope_id, *pattern, tree, symbols);
+                let ty =
+                    ty.map(|ty| self.bind_expression_to_type(module, scope_id, ty, tree, symbols));
+                let default = default
+                    .map(|default| self.bind_expression(module, scope_id, default, tree, symbols));
+                let symbol_id = symbols.create_symbol(SymbolSpace::Value, None, scope_id);
                 let parameter = Parameter::Pattern {
                     modifiers,
                     pattern,
@@ -96,7 +104,9 @@ impl<'a> Compiler<'a> {
                     default,
                     symbol: symbol_id,
                 };
-                tree.insert_from_source_as_symbol(parameter, module.id, parameter_id, symbol_id)
+                let parameter_id = tree.insert_from_source(parameter, parameter_id);
+                symbols.set_symbol_owner(symbol_id, parameter_id);
+                parameter_id
             }
             ast::Parameter::Variadic {
                 modifiers,
@@ -106,16 +116,22 @@ impl<'a> Compiler<'a> {
                 let modifiers =
                     modifiers.map(|modifiers| self.bind_binding_modifier(module, modifiers));
                 let name = self.session.strings.intern_from(&module.ast_strings, *name);
-                let ty = ty.map(|ty| self.bind_expression_to_type(module, scope_id, ty, tree));
-                let symbol_id =
-                    tree.create_symbol(SymbolSpace::Value, Some(SymbolKey::Name(name)), scope_id);
+                let ty =
+                    ty.map(|ty| self.bind_expression_to_type(module, scope_id, ty, tree, symbols));
+                let symbol_id = symbols.create_symbol(
+                    SymbolSpace::Value,
+                    Some(SymbolKey::Name(name)),
+                    scope_id,
+                );
                 let parameter = Parameter::Variadic {
                     modifiers,
                     name,
                     ty,
                     symbol: symbol_id,
                 };
-                tree.insert_from_source_as_symbol(parameter, module.id, parameter_id, symbol_id)
+                let parameter_id = tree.insert_from_source(parameter, parameter_id);
+                symbols.set_symbol_owner(symbol_id, parameter_id);
+                parameter_id
             }
         }
     }
@@ -127,6 +143,7 @@ impl<'a> Compiler<'a> {
         scope_id: LocalScopeId,
         argument_id: ast::LocalNodeId<ast::Argument>,
         tree: &mut NodeTree,
+        symbols: &mut SymbolTable,
     ) -> LocalNodeId<Argument> {
         let argument = module.get(argument_id);
         match argument {
@@ -141,14 +158,13 @@ impl<'a> Compiler<'a> {
                     .session
                     .strings
                     .intern_from(&module.ast_strings, name.string());
-                let value = self.bind_expression(module, scope_id, *value, tree);
+                let value = self.bind_expression(module, scope_id, *value, tree, symbols);
                 tree.insert_from_source(
                     Argument::UnresolvedNamed {
                         modifiers,
                         name,
                         value,
                     },
-                    module.id,
                     argument_id,
                 )
             }
@@ -164,7 +180,6 @@ impl<'a> Compiler<'a> {
                         path,
                         static_arguments: None,
                     },
-                    module.id,
                     argument_id,
                 );
                 tree.insert_from_source(
@@ -173,17 +188,15 @@ impl<'a> Compiler<'a> {
                         name,
                         value,
                     },
-                    module.id,
                     argument_id,
                 )
             }
             ast::Argument::Positional { modifiers, value } => {
                 let modifiers =
                     modifiers.map(|modifiers| self.bind_binding_modifier(module, modifiers));
-                let value = self.bind_expression(module, scope_id, *value, tree);
+                let value = self.bind_expression(module, scope_id, *value, tree, symbols);
                 tree.insert_from_source(
                     Argument::UnresolvedPositional { modifiers, value },
-                    module.id,
                     argument_id,
                 )
             }
@@ -196,14 +209,13 @@ impl<'a> Compiler<'a> {
                     modifiers.map(|modifiers| self.bind_binding_modifier(module, modifiers));
                 let name =
                     name.map(|name| self.session.strings.intern_from(&module.ast_strings, name));
-                let value = self.bind_expression(module, scope_id, *value, tree);
+                let value = self.bind_expression(module, scope_id, *value, tree, symbols);
                 tree.insert_from_source(
                     Argument::UnresolvedSpread {
                         modifiers,
                         name,
                         value,
                     },
-                    module.id,
                     argument_id,
                 )
             }

@@ -34,7 +34,7 @@ impl<'a> Transpiler<'a> {
                     let alias = unit.strings.intern_from(&module.ast_strings, *alias);
                     if default_alias.is_some() {
                         return Err(TranspileError::UnsupportedNode {
-                            node: item_id.into_any(),
+                            node: item_id.into_global_any(module.id),
                             message: Some("multiple default items".to_string()),
                         });
                     }
@@ -63,7 +63,7 @@ impl<'a> Transpiler<'a> {
                 }
                 _ => {
                     return Err(TranspileError::UnsupportedNode {
-                        node: item_id.into_any(),
+                        node: item_id.into_global_any(module.id),
                         message: None,
                     });
                 }

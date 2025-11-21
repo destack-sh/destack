@@ -1,6 +1,6 @@
 use crate::{CompileTask, Compiler, ResolveResult};
 
-use dyst_dir::{ModuleId, NodeTree, Session};
+use dyst_dir::{ModuleId, Session};
 
 /// Task to statically resolve something in-place.
 #[derive(Debug, Clone)]

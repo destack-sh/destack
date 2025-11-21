@@ -65,6 +65,14 @@ impl LocalNodeIdAny {
     pub fn get(&self) -> usize {
         self.id as usize
     }
+
+    #[inline]
+    pub fn into_global(self, module_id: ModuleId) -> GlobalNodeIdAny {
+        GlobalNodeIdAny {
+            module_id,
+            local_id: self,
+        }
+    }
 }
 
 impl<T: Node> From<LocalNodeId<T>> for LocalNodeIdAny
@@ -122,6 +130,24 @@ impl<T: Node> LocalNodeId<T> {
         LocalNodeIdAny {
             id: self.id,
             ty: T::TYPE,
+        }
+    }
+
+    /// Turn into a GlobalNodeId.
+    #[inline]
+    pub fn into_global(self, module_id: ModuleId) -> GlobalNodeId<T> {
+        GlobalNodeId {
+            module_id,
+            local_id: self,
+        }
+    }
+
+    /// Turn into a GlobalNodeIdAny.
+    #[inline]
+    pub fn into_global_any(self, module_id: ModuleId) -> GlobalNodeIdAny {
+        GlobalNodeIdAny {
+            module_id,
+            local_id: self.into_any(),
         }
     }
 }

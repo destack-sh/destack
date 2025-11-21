@@ -1,4 +1,4 @@
-use dyst_dir::{LocalNodeIdAny, Session};
+use dyst_dir::{GlobalNodeIdAny, Session};
 
 use crate::{CompilePhase, CompileWarning};
 
@@ -7,19 +7,19 @@ use crate::{CompilePhase, CompileWarning};
 #[repr(u8)]
 pub enum ValidateWarning {
     /// Non-exhaustive match.
-    NonExhaustiveMatch { node: LocalNodeIdAny },
+    NonExhaustiveMatch { node: GlobalNodeIdAny },
     /// Always-true / always-false conditions.
-    ConstantValueCondition { node: LocalNodeIdAny },
+    ConstantValueCondition { node: GlobalNodeIdAny },
     /// Unreachable code.
-    UnreachableCode { node: LocalNodeIdAny },
+    UnreachableCode { node: GlobalNodeIdAny },
     /// Redundant patterns (match arms never hit).
-    RedundantPattern { node: LocalNodeIdAny },
+    RedundantPattern { node: GlobalNodeIdAny },
     /// Suspicious narrowing.
-    SuspiciousNarrowing { node: LocalNodeIdAny },
+    SuspiciousNarrowing { node: GlobalNodeIdAny },
     /// Unused symbol.
-    UnusedSymbol { node: LocalNodeIdAny },
+    UnusedSymbol { node: GlobalNodeIdAny },
     /// Ignored return value.
-    IgnoredReturnValue { node: LocalNodeIdAny },
+    IgnoredReturnValue { node: GlobalNodeIdAny },
 }
 
 impl ValidateWarning {
@@ -38,7 +38,7 @@ impl ValidateWarning {
     }
 
     /// Get the node id of the warning.
-    pub fn node_id(&self) -> Option<LocalNodeIdAny> {
+    pub fn node_id(&self) -> Option<GlobalNodeIdAny> {
         match self {
             Self::NonExhaustiveMatch { node, .. } => Some(*node),
             Self::UnreachableCode { node, .. } => Some(*node),

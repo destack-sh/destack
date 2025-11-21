@@ -9,23 +9,23 @@ use crate::{TranspileDiagnostic, TranspileWarning, TranspilerUnit};
 pub enum TranspileError {
     /// Unsupported node.
     UnsupportedNode {
-        node: dir::LocalNodeIdAny,
+        node: dir::GlobalNodeIdAny,
         message: Option<String>,
     },
     /// Unexpected node.
     UnexpectedNode {
-        node: dir::LocalNodeIdAny,
+        node: dir::GlobalNodeIdAny,
         wanted: NodeType,
         message: Option<String>,
     },
     /// Unresolved node.
     UnresolvedNode {
-        node: dir::LocalNodeIdAny,
+        node: dir::GlobalNodeIdAny,
         message: Option<String>,
     },
     /// Missing type.
     MissingType {
-        node: dir::LocalNodeIdAny,
+        node: dir::GlobalNodeIdAny,
         message: Option<String>,
     },
 }
@@ -34,9 +34,15 @@ impl TranspileError {
     /// Get the message of the error.
     pub fn message<'a>(&self, _session: &'a Session<'a>) -> String {
         match self {
-            Self::UnsupportedNode { node, .. } => format!("unsupported {}", node.ty.name()),
+            Self::UnsupportedNode { node, .. } => {
+                format!("unsupported {}", node.local_id.ty.name())
+            }
             Self::UnexpectedNode { node, wanted, .. } => {
-                format!("unexpected {} (wanted {})", node.ty.name(), wanted.name())
+                format!(
+                    "unexpected {} (wanted {})",
+                    node.local_id.ty.name(),
+                    wanted.name()
+                )
             }
             Self::UnresolvedNode { message, .. } => message
                 .as_ref()
@@ -65,7 +71,7 @@ impl TranspileError {
     }
 
     /// Get the node id of the error.
-    pub fn node_id(&self) -> dir::LocalNodeIdAny {
+    pub fn node_id(&self) -> dir::GlobalNodeIdAny {
         match self {
             Self::UnsupportedNode { node, .. } => *node,
             Self::UnexpectedNode { node, .. } => *node,
@@ -88,21 +94,21 @@ pub trait TranspileResultExt {
     /// Expect a node of the given type. Error with UnexpectedNode otherwise.
     fn expect_node<T: Node>(
         self,
-        source_id: dir::LocalNodeIdAny,
+        source_id: dir::GlobalNodeIdAny,
         unit: &mut TranspilerUnit,
     ) -> TranspileResult<LocalNodeId<T>>;
 
     /// Prefer a node of the given type. Warn with UnexpectedNode otherwise.
     fn prefer_node<T: Node>(
         self,
-        source_id: dir::LocalNodeIdAny,
+        source_id: dir::GlobalNodeIdAny,
         unit: &mut TranspilerUnit,
     ) -> Option<LocalNodeId<T>>;
 
     /// Unwrap a node of the given type. None otherwise.
     fn unwrap_node<T: Node>(
         self,
-        source_id: dir::LocalNodeIdAny,
+        source_id: dir::GlobalNodeIdAny,
         unit: &mut TranspilerUnit,
     ) -> Option<LocalNodeId<T>>;
 }
@@ -110,7 +116,7 @@ pub trait TranspileResultExt {
 impl TranspileResultExt for TranspileResult<LocalNodeIdAny> {
     fn expect_node<T: Node>(
         self,
-        source_id: dir::LocalNodeIdAny,
+        source_id: dir::GlobalNodeIdAny,
         _unit: &mut TranspilerUnit,
     ) -> TranspileResult<LocalNodeId<T>> {
         match self {
@@ -132,7 +138,7 @@ impl TranspileResultExt for TranspileResult<LocalNodeIdAny> {
 
     fn prefer_node<T: Node>(
         self,
-        source_id: dir::LocalNodeIdAny,
+        source_id: dir::GlobalNodeIdAny,
         unit: &mut TranspilerUnit,
     ) -> Option<LocalNodeId<T>> {
         match self {
@@ -154,7 +160,7 @@ impl TranspileResultExt for TranspileResult<LocalNodeIdAny> {
 
     fn unwrap_node<T: Node>(
         self,
-        _source_id: dir::LocalNodeIdAny,
+        _source_id: dir::GlobalNodeIdAny,
         _unit: &mut TranspilerUnit,
     ) -> Option<LocalNodeId<T>> {
         match self {

@@ -1,6 +1,6 @@
 use crate::{
-    Arena, LocalNodeId, LocalScopeId, LocalSymbolId, ModuleId, Node, NodeTreeImpl, Scope,
-    ScopeKind, Symbol, SymbolKey, SymbolSpace,
+    Arena, LocalNodeId, LocalScopeId, LocalSymbolId, ModuleId, Node, Scope, ScopeKind, Symbol,
+    SymbolKey, SymbolSpace,
 };
 use std::collections::HashMap;
 use std::fmt::Debug;
@@ -8,6 +8,9 @@ use std::fmt::Debug;
 /// A SymbolTable is a side table for a node. NOT THREAD-SAFE.
 #[derive(Debug, Clone)]
 pub struct SymbolTable {
+    /// The module id of the symbol table.
+    pub module_id: ModuleId,
+
     // meta index
     /// The next symbol id to allocate.
     pub(crate) next_symbol_id: u32,
@@ -25,16 +28,11 @@ pub struct SymbolTable {
     pub(crate) scope_by_node_id: Vec<LocalScopeId>,
 }
 
-impl Default for SymbolTable {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 impl SymbolTable {
     /// Create a new SymbolTable.
-    pub fn new() -> Self {
+    pub fn new(module_id: ModuleId) -> Self {
         Self {
+            module_id,
             next_symbol_id: 0,
             next_scope_id: 0,
             symbols: Arena::new(),
@@ -50,7 +48,6 @@ impl SymbolTable {
         space: SymbolSpace,
         key: Option<SymbolKey>,
         scope: LocalScopeId,
-        module_id: Option<ModuleId>,
     ) -> LocalSymbolId {
         let symbol_id = LocalSymbolId::new(self.next_symbol_id);
         self.next_symbol_id += 1;
@@ -59,7 +56,7 @@ impl SymbolTable {
             space,
             key,
             scope,
-            module_id,
+            module_id: Some(self.module_id),
             owned_scope: None,
             primary_declaration: None,
             secondary_declarations: Vec::new(),
@@ -80,16 +77,15 @@ impl SymbolTable {
         kind: ScopeKind,
         parent: Option<LocalScopeId>,
         owner: Option<LocalSymbolId>,
-        module_id: Option<ModuleId>,
     ) -> LocalScopeId {
         let scope_id = LocalScopeId::new(self.next_scope_id);
         self.next_scope_id += 1;
         let scope = Scope {
             id: scope_id,
             kind,
-            owner,
+            owner: owner.map(|id| id.into_global(self.module_id)),
             parent_id: parent,
-            module_id,
+            module_id: Some(self.module_id),
             symbols: HashMap::new(),
             children: Vec::new(),
         };
@@ -107,10 +103,9 @@ impl SymbolTable {
         key: Option<SymbolKey>,
         kind: ScopeKind,
         parent: LocalScopeId,
-        module_id: Option<ModuleId>,
     ) -> (LocalSymbolId, LocalScopeId) {
-        let symbol_id = self.create_symbol(space, key, parent, module_id);
-        let scope_id = self.create_scope(kind, Some(parent), Some(symbol_id), module_id);
+        let symbol_id = self.create_symbol(space, key, parent);
+        let scope_id = self.create_scope(kind, Some(parent), Some(symbol_id));
         (symbol_id, scope_id)
     }
 
@@ -118,6 +113,13 @@ impl SymbolTable {
     #[inline]
     pub fn set_symbol(&mut self, node_id: u32, symbol_id: LocalSymbolId) {
         self.symbol_by_node_id[node_id as usize] = Some(symbol_id);
+    }
+
+    /// Set the owner of a symbol.
+    #[inline]
+    pub fn set_symbol_owner<T: Node>(&mut self, symbol_id: LocalSymbolId, owner: LocalNodeId<T>) {
+        let owner = owner.into_any().into_global(self.module_id);
+        self.get_symbol_mut(symbol_id).primary_declaration = Some(owner);
     }
 
     /// Get a symbol by its id.
@@ -134,11 +136,7 @@ impl SymbolTable {
 
     /// Get the scope for a node id.
     #[inline]
-    pub fn get_scope<T>(&self, node_id: LocalNodeId<T>) -> &Scope
-    where
-        T: Node,
-        Self: NodeTreeImpl<T>,
-    {
+    pub fn get_scope<T: Node>(&self, node_id: LocalNodeId<T>) -> &Scope {
         let scope_id = self.scope_by_node_id[node_id.id as usize];
         self.get_scope_by_id(scope_id)
     }

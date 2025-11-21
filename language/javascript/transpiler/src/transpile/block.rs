@@ -20,7 +20,7 @@ impl<'a> Transpiler<'a> {
             .iter()
             .map(|statement| {
                 self.transpile_expression(module, tree, *statement, unit)
-                    .expect_node::<Statement>(statement.into_any(), unit)
+                    .expect_node::<Statement>(statement.into_global_any(module.id), unit)
             })
             .collect::<Result<Vec<_>, TranspileError>>()?;
         let block = Block { label, statements };
