@@ -64,6 +64,12 @@ impl GlobalSymbolId {
     }
 }
 
+impl From<GlobalSymbolId> for LocalSymbolId {
+    fn from(id: GlobalSymbolId) -> Self {
+        id.local_id
+    }
+}
+
 /// A Symbol is a bindable item in a scope (which may also declare a scope).
 /// Some symbols are virtual / anonymous (like block targets).
 #[derive(Debug, Clone, PartialEq)]

@@ -18,7 +18,7 @@ pub struct NodeTree {
     /// The local ids of all nodes. Index is the global node id.
     pub(crate) local_id_by_node_id: Vec<u32>,
     /// The types of all nodes. Index is the global node id.
-    pub(crate) type_by_node_id: Vec<NodeType>,
+    pub(crate) node_type_by_node_id: Vec<NodeType>,
     /// The sources of all nodes. Index is the global node id.
     pub(crate) module_by_node_id: Vec<ModuleId>,
     /// The annotations attached to nodes.
@@ -75,7 +75,7 @@ impl NodeTree {
         Self {
             next_global_id: 0,
             local_id_by_node_id: Vec::with_capacity(capacity),
-            type_by_node_id: Vec::with_capacity(capacity),
+            node_type_by_node_id: Vec::with_capacity(capacity),
             module_by_node_id: Vec::with_capacity(capacity),
             annotations_by_node_id: HashMap::new(),
             dir_id_by_node_id: Vec::with_capacity(capacity),
@@ -108,7 +108,7 @@ impl NodeTree {
     {
         let global_id = self.next_global_id;
         self.next_global_id = global_id + 1;
-        self.type_by_node_id.push(T::TYPE);
+        self.node_type_by_node_id.push(T::TYPE);
         let local_id = <Self as NodeTreeImpl<T>>::allocate(self, node);
         self.local_id_by_node_id.push(local_id);
         self.module_by_node_id.push(module_id);
@@ -174,8 +174,8 @@ impl NodeTree {
 
     /// Get the type of an untyped node id.
     #[inline]
-    pub fn get_type(&self, id: u32) -> NodeType {
-        self.type_by_node_id[id as usize]
+    pub fn get_node_type(&self, id: u32) -> NodeType {
+        self.node_type_by_node_id[id as usize]
     }
 
     /// Get an immutable reference to the node with the given NodeId.
@@ -207,7 +207,7 @@ impl NodeTree {
         T: Node,
     {
         let mut nodes = Vec::new();
-        for (idx, ty) in self.type_by_node_id.iter().enumerate() {
+        for (idx, ty) in self.node_type_by_node_id.iter().enumerate() {
             if *ty == T::TYPE {
                 nodes.push(LocalNodeId::new(idx as u32));
             }

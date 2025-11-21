@@ -1,47 +1,84 @@
 use crate::{
-    BindTask, BuildTask, ElaborateTask, ExecuteTask, ImportTask, LinkTask, LowerTask, OptimizeTask,
-    ResolveTask, ValidateTask,
+    BindTask, BuildTask, ElaborateTask, ExecuteTask, FlowTask, ImportTask, LinkTask, LowerTask,
+    OptimizeTask, ResolveTask, ValidateTask,
 };
 
-/// Stage of the compiler.
+/// Region of the compiler.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum CompilerRegion {
+    /// Front-end (import, bind, resolve, validate, elaborate).
+    Front,
+    /// Middle-end (lower, flow, optimize).
+    Middle,
+    /// Back-end (execute, build, link).
+    Back,
+}
+
+impl CompilerRegion {
+    /// Get the name of the region.
+    pub fn name(&self) -> &str {
+        match self {
+            Self::Front => "front-end",
+            Self::Middle => "middle-end",
+            Self::Back => "back-end",
+        }
+    }
+}
+
+/// Phase of the compiler.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[repr(u8)]
-pub enum CompileStage {
+pub enum CompilePhase {
     /// Import and parse source into AST.
     Import = 1,
     /// Bind, lower and declare AST source into DIR.
     Bind = 2,
     /// Resolve symbols, scopes and types in DIR.
     Resolve = 3,
-    /// Validate and check DIR.
+    /// Validate and type-check DIR.
     Validate = 4,
     /// Elaborate, desugar and monomorphize DIR.
     Elaborate = 5,
+    // --------------------------------------------------
     /// Lower the DIR into MIR.
     Lower = 6,
-    /// Execute MIR statically.
-    Execute = 7,
+    /// Validate and flow-check MIR.
+    Flow = 7,
     /// Optimize the MIR.
     Optimize = 8,
+    // --------------------------------------------------
+    /// Execute MIR statically.
+    Execute = 9,
     /// Build the MIR into some artifact.
-    Build = 9,
+    Build = 10,
     /// Link built artifacts into final output.
-    Link = 10,
+    Link = 11,
 }
 
-impl std::fmt::Display for CompileStage {
+impl std::fmt::Display for CompilePhase {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.letter())
     }
 }
 
-impl CompileStage {
-    /// Get the numeric code of the stage.
+impl CompilePhase {
+    /// Get the numeric code of the phase.
     pub fn code(&self) -> u8 {
         *self as u8
     }
 
-    /// Get the name of the stage.
+    /// Get the region of the phase.
+    pub fn region(&self) -> CompilerRegion {
+        match self {
+            Self::Import | Self::Bind | Self::Resolve | Self::Validate | Self::Elaborate => {
+                CompilerRegion::Front
+            }
+            Self::Lower | Self::Flow | Self::Optimize => CompilerRegion::Middle,
+            Self::Execute | Self::Build | Self::Link => CompilerRegion::Back,
+        }
+    }
+
+    /// Get the name of the phase.
     pub fn name(&self) -> &str {
         match self {
             Self::Import => "import",
@@ -50,14 +87,15 @@ impl CompileStage {
             Self::Validate => "validate",
             Self::Elaborate => "elaborate",
             Self::Lower => "lower",
-            Self::Execute => "execute",
+            Self::Flow => "flow",
             Self::Optimize => "optimize",
+            Self::Execute => "execute",
             Self::Build => "build",
             Self::Link => "link",
         }
     }
 
-    /// Get the description of the stage.
+    /// Get the description of the phase.
     pub fn description(&self) -> &str {
         match self {
             Self::Import => "import and parse source into AST",
@@ -66,14 +104,15 @@ impl CompileStage {
             Self::Validate => "validate and check DIR",
             Self::Elaborate => "elaborate and monomorphize DIR",
             Self::Lower => "lower the DIR into MIR",
-            Self::Execute => "execute MIR statically",
+            Self::Flow => "validate and flow-check MIR",
             Self::Optimize => "optimize the MIR",
+            Self::Execute => "execute MIR statically",
             Self::Build => "build the MIR into some artifact",
             Self::Link => "link built artifacts into final output",
         }
     }
 
-    /// Get the letter of the stage.
+    /// Get the letter of the phase.
     pub fn letter(&self) -> char {
         match self {
             Self::Import => 'I',
@@ -82,10 +121,11 @@ impl CompileStage {
             Self::Validate => 'V',
             Self::Elaborate => 'E',
             Self::Lower => 'M',
-            Self::Execute => 'X',
+            Self::Flow => 'F',
             Self::Optimize => 'O',
+            Self::Execute => 'X',
             Self::Build => 'B',
-            Self::Link => 'F',
+            Self::Link => 'L',
         }
     }
 }
@@ -103,12 +143,16 @@ pub enum CompileTask {
     Validate(ValidateTask),
     /// Elaborate and monomorphize DIR.
     Elaborate(ElaborateTask),
+    // --------------------------------------------------
     /// Lower the DIR into MIR.
     Lower(LowerTask),
-    /// Execute MIR statically.
-    Execute(ExecuteTask),
+    /// Validate and flow-check MIR.
+    Flow(FlowTask),
     /// Optimize the MIR.
     Optimize(OptimizeTask),
+    // --------------------------------------------------
+    /// Execute MIR statically.
+    Execute(ExecuteTask),
     /// Build the MIR into some artifact.
     Build(BuildTask),
     /// Link built artifacts into final output.
@@ -116,19 +160,20 @@ pub enum CompileTask {
 }
 
 impl CompileTask {
-    /// Get the stage of the task.
-    pub fn stage(&self) -> CompileStage {
+    /// Get the phase of the task.
+    pub fn phase(&self) -> CompilePhase {
         match self {
-            Self::Import(_) => CompileStage::Import,
-            Self::Bind(_) => CompileStage::Bind,
-            Self::Resolve(_) => CompileStage::Resolve,
-            Self::Validate(_) => CompileStage::Validate,
-            Self::Elaborate(_) => CompileStage::Elaborate,
-            Self::Lower(_) => CompileStage::Lower,
-            Self::Execute(_) => CompileStage::Execute,
-            Self::Optimize(_) => CompileStage::Optimize,
-            Self::Build(_) => CompileStage::Build,
-            Self::Link(_) => CompileStage::Link,
+            Self::Import(_) => CompilePhase::Import,
+            Self::Bind(_) => CompilePhase::Bind,
+            Self::Resolve(_) => CompilePhase::Resolve,
+            Self::Validate(_) => CompilePhase::Validate,
+            Self::Elaborate(_) => CompilePhase::Elaborate,
+            Self::Lower(_) => CompilePhase::Lower,
+            Self::Flow(_) => CompilePhase::Flow,
+            Self::Optimize(_) => CompilePhase::Optimize,
+            Self::Execute(_) => CompilePhase::Execute,
+            Self::Build(_) => CompilePhase::Build,
+            Self::Link(_) => CompilePhase::Link,
         }
     }
 }

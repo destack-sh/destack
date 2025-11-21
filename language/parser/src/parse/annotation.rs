@@ -355,7 +355,7 @@ impl<'a> Parser<'a> {
         let is_one_line = self.is_same_line(start_token.span, end_token.span);
         let enclosing_scope =
             self.find_node_enclosing_at(&start_token.span, NodeSearch::SmallestInnermost, |span| {
-                !ANNOTATION_NODE_TYPES.contains(&self.tree.get_type(span.idx))
+                !ANNOTATION_NODE_TYPES.contains(&self.tree.get_node_type(span.idx))
                     && !ignore_span.contains(&span.span)
             });
         let enclosing_span = enclosing_scope.map(|scope| scope.span);

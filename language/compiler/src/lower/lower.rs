@@ -1,6 +1,6 @@
 use crate::{CompileTask, Compiler, LowerResult};
 
-/// Task to lower something.
+/// Task to lower a DIR into MIR.
 #[derive(Debug, Clone)]
 pub enum LowerTask {}
 

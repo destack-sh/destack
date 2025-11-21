@@ -1,6 +1,6 @@
 use dyst_dir::{LocalNodeId, LocalNodeIdAny, Session, Type};
 
-use crate::{CompileError, CompileStage};
+use crate::{CompileError, CompilePhase};
 
 /// Error when validateing something into the compiler.
 #[derive(Debug, Clone)]
@@ -87,7 +87,7 @@ impl std::fmt::Display for ValidateError {
         f.debug_struct("ValidateError")
             .field(
                 "code",
-                &format!("{}E{:03}", CompileStage::Validate.letter(), self.sub_code()),
+                &format!("{}E{:03}", CompilePhase::Validate.letter(), self.sub_code()),
             )
             .finish()
     }

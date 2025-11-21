@@ -1,7 +1,7 @@
 use dyst_dir::{LocalNodeIdAny, Session};
 
 use crate::{
-    BindWarning, BuildWarning, CompileError, CompileStage, ElaborateWarning, ExecuteWarning,
+    BindWarning, BuildWarning, CompilePhase, ElaborateWarning, ExecuteWarning, FlowWarning,
     ImportWarning, LinkWarning, LowerWarning, OptimizeWarning, ResolveWarning, ValidateWarning,
 };
 
@@ -18,41 +18,43 @@ pub enum CompileWarning {
     Validate(ValidateWarning),
     /// Warning during elaboration.
     Elaborate(ElaborateWarning),
+    // --------------------------------------------------
     /// Warning during lower.
     Lower(LowerWarning),
-    /// Warning during execution.
-    Execute(ExecuteWarning),
+    /// Warning during flow-checking.
+    Flow(FlowWarning),
     /// Warning during optimization.
     Optimize(OptimizeWarning),
+    // --------------------------------------------------
+    /// Warning during execution.
+    Execute(ExecuteWarning),
     /// Warning during building.
     Build(BuildWarning),
     /// Warning during linking.
     Link(LinkWarning),
-    /// Suppressed compiler error.
-    Suppressed(CompileError),
 }
 
 impl CompileWarning {
-    /// Get the stage of the warning.
-    pub fn stage(&self) -> CompileStage {
+    /// Get the phase of the warning.
+    pub fn phase(&self) -> CompilePhase {
         match self {
-            Self::Import(_) => CompileStage::Import,
-            Self::Bind(_) => CompileStage::Bind,
-            Self::Resolve(_) => CompileStage::Resolve,
-            Self::Validate(_) => CompileStage::Validate,
-            Self::Elaborate(_) => CompileStage::Elaborate,
-            Self::Lower(_) => CompileStage::Lower,
-            Self::Execute(_) => CompileStage::Execute,
-            Self::Optimize(_) => CompileStage::Optimize,
-            Self::Build(_) => CompileStage::Build,
-            Self::Link(_) => CompileStage::Link,
-            Self::Suppressed(error) => error.stage(),
+            Self::Import(_) => CompilePhase::Import,
+            Self::Bind(_) => CompilePhase::Bind,
+            Self::Resolve(_) => CompilePhase::Resolve,
+            Self::Validate(_) => CompilePhase::Validate,
+            Self::Elaborate(_) => CompilePhase::Elaborate,
+            Self::Lower(_) => CompilePhase::Lower,
+            Self::Flow(_) => CompilePhase::Flow,
+            Self::Optimize(_) => CompilePhase::Optimize,
+            Self::Execute(_) => CompilePhase::Execute,
+            Self::Build(_) => CompilePhase::Build,
+            Self::Link(_) => CompilePhase::Link,
         }
     }
 
-    /// Get the stage letter of the warning.
-    pub fn stage_letter(&self) -> char {
-        self.stage().letter()
+    /// Get the phase letter of the warning.
+    pub fn phase_letter(&self) -> char {
+        self.phase().letter()
     }
 
     /// Get the numeric sub-code of the warning (e.g., `1` for `IE001`).
@@ -65,21 +67,18 @@ impl CompileWarning {
             Self::Validate(warning) => warning.sub_code(),
             Self::Elaborate(warning) => warning.sub_code(),
             Self::Lower(warning) => warning.sub_code(),
-            Self::Execute(warning) => warning.sub_code(),
+            Self::Flow(warning) => warning.sub_code(),
             Self::Optimize(warning) => warning.sub_code(),
+            Self::Execute(warning) => warning.sub_code(),
             Self::Build(warning) => warning.sub_code(),
             Self::Link(warning) => warning.sub_code(),
-            Self::Suppressed(error) => error.sub_code(),
         }
     }
 
     /// Get the full code of the error (e.g., `IE001`).
     #[inline]
     pub fn full_code(&self) -> String {
-        match self {
-            Self::Suppressed(error) => error.full_code(),
-            _ => format!("{}W{:03}", self.stage_letter(), self.sub_code()),
-        }
+        format!("{}W{:03}", self.phase_letter(), self.sub_code())
     }
 
     /// Get the node id of the warning.
@@ -91,11 +90,11 @@ impl CompileWarning {
             Self::Validate(warning) => warning.node_id(),
             Self::Elaborate(warning) => warning.node_id(),
             Self::Lower(warning) => warning.node_id(),
+            Self::Flow(warning) => warning.node_id(),
             Self::Execute(warning) => warning.node_id(),
             Self::Optimize(warning) => warning.node_id(),
             Self::Build(warning) => warning.node_id(),
             Self::Link(warning) => warning.node_id(),
-            Self::Suppressed(error) => error.node_id(),
         }
     }
 
@@ -108,11 +107,11 @@ impl CompileWarning {
             Self::Validate(warning) => warning.message(session),
             Self::Elaborate(warning) => warning.message(session),
             Self::Lower(warning) => warning.message(session),
+            Self::Flow(warning) => warning.message(session),
             Self::Execute(warning) => warning.message(session),
             Self::Optimize(warning) => warning.message(session),
             Self::Build(warning) => warning.message(session),
             Self::Link(warning) => warning.message(session),
-            Self::Suppressed(error) => error.message(session),
         }
     }
 }

@@ -27,14 +27,12 @@ impl<'s> Compiler<'s> {
                 }
             }
             CompileTask::Bind(bind_task) => {
-                let mut tree = self.session.tree.write();
-                if let Err(error) = self.process_bind(bind_task, &mut tree) {
+                if let Err(error) = self.process_bind(bind_task) {
                     self.error(error);
                 }
             }
             CompileTask::Resolve(resolve_task) => {
-                let mut tree = self.session.tree.write();
-                if let Err(error) = self.process_resolve(resolve_task, &mut tree) {
+                if let Err(error) = self.process_resolve(resolve_task) {
                     self.error(error);
                 }
             }
