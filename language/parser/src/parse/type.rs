@@ -173,15 +173,6 @@ impl<'a> Parser<'a> {
             "symbol" => Ok(TypeLiteral::Symbol),
             // unique symbol
             "unique" if next_next_str == Some("symbol") => Ok(TypeLiteral::UniqueSymbol),
-            // Self
-            "Self"
-                // if next token doesn't start a related expression
-                if next_next_type.is_none()
-                    || next_next_type.unwrap() != TokenType::OpenBrace
-                    || self.options.in_before_block =>
-            {
-                Ok(TypeLiteral::Self_)
-            }
             // composite type
             _ => Err(ParseError::unexpected(next.span)),
         }

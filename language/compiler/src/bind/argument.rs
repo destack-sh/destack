@@ -155,7 +155,7 @@ impl<'a> Compiler<'a> {
                 let modifiers =
                     modifiers.map(|modifiers| self.bind_binding_modifier(module, modifiers));
                 let name = self.session.strings.intern_from(&module.ast_strings, *name);
-                let path = Path::AbsoluteString {
+                let path = Path {
                     segments: smallvec![name],
                 };
                 let value = tree.insert_from_source(
@@ -193,7 +193,8 @@ impl<'a> Compiler<'a> {
             } => {
                 let modifiers =
                     modifiers.map(|modifiers| self.bind_binding_modifier(module, modifiers));
-                let name = name.map(|name| self.session.strings.intern_from(&module.ast_strings, name));
+                let name =
+                    name.map(|name| self.session.strings.intern_from(&module.ast_strings, name));
                 let value = self.bind_expression(module, scope_id, *value, tree);
                 tree.insert_from_source(
                     Argument::UnresolvedSpread {

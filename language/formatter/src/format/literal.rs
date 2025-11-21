@@ -141,7 +141,6 @@ impl<'ast> Format<DystFormatContext<'ast>> for TypeLiteral {
             TypeLiteral::Int(int_type) => write!(f, [int_type]),
             TypeLiteral::Float(float_type) => write!(f, [float_type]),
             TypeLiteral::Composite(composite_type) => write!(f, [composite_type]),
-            TypeLiteral::Self_ => write!(f, [token("Self")]),
             TypeLiteral::Symbol => write!(f, [token("symbol")]),
             TypeLiteral::UniqueSymbol => write!(f, [token("unique symbol")]),
         }?;
