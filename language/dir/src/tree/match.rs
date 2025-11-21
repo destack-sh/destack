@@ -1,4 +1,4 @@
-use crate::{Block, Expression, Node, LocalNodeId, NodeType, Pattern, LocalScopeId};
+use crate::{Block, Expression, LocalNodeId, LocalScopeId, Node, NodeType, Pattern};
 
 /// A MatchSource is where the match was lowered from.
 #[derive(Debug, Copy, Clone, PartialEq)]

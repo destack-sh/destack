@@ -639,7 +639,12 @@ impl<'a> NodeVisitor for Dumper<'a> {
         });
     }
 
-    fn visit_statement(&mut self, tree: &NodeTree, id: LocalNodeId<Statement>, statement: &Statement) {
+    fn visit_statement(
+        &mut self,
+        tree: &NodeTree,
+        id: LocalNodeId<Statement>,
+        statement: &Statement,
+    ) {
         match statement {
             Statement::Import {
                 kind,
@@ -1069,7 +1074,12 @@ impl<'a> NodeVisitor for Dumper<'a> {
         });
     }
 
-    fn visit_parameter(&mut self, tree: &NodeTree, id: LocalNodeId<Parameter>, parameter: &Parameter) {
+    fn visit_parameter(
+        &mut self,
+        tree: &NodeTree,
+        id: LocalNodeId<Parameter>,
+        parameter: &Parameter,
+    ) {
         match parameter {
             Parameter::Named {
                 modifiers,

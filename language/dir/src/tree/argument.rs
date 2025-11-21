@@ -1,5 +1,6 @@
 use crate::{
-    BindingModifier, Expression, Node, LocalNodeId, NodeType, Pattern, StringId, LocalSymbolId, Type,
+    BindingModifier, Expression, GlobalSymbolId, LocalNodeId, LocalSymbolId, Node, NodeType,
+    Pattern, StringId, Type,
 };
 
 /// A Parameter is a parameter to some construct.
@@ -70,21 +71,21 @@ pub enum Argument {
     Direct {
         modifiers: Option<BindingModifier>,
         name: StringId,
-        parameter: LocalNodeId<Parameter>,
+        symbol: GlobalSymbolId,
         value: LocalNodeId<Expression>,
     },
     /// Spread argument.
     Spread {
         modifiers: Option<BindingModifier>,
         name: StringId,
-        parameter: LocalNodeId<Parameter>,
+        symbol: GlobalSymbolId,
         value: LocalNodeId<Expression>,
     },
     /// Dynamic argument.
     Dynamic {
         modifiers: Option<BindingModifier>,
         name: Option<StringId>,
-        parameter: LocalNodeId<Parameter>,
+        symbol: GlobalSymbolId,
         key: LocalNodeId<Expression>,
         value: LocalNodeId<Expression>,
     },

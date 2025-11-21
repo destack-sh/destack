@@ -2,7 +2,9 @@ use dyst_fir::format::FormatResult;
 
 use crate::expression::format_expression;
 use crate::{DystFormatContext, DystFormatter, FormatNode};
-use dyst_ast::{Block, Expression, Node, LocalNodeId, LocalNodeIdAny, NodeTree, NodeTreeImpl, NodeType};
+use dyst_ast::{
+    Block, Expression, LocalNodeId, LocalNodeIdAny, Node, NodeTree, NodeTreeImpl, NodeType,
+};
 use dyst_fir::prelude::*;
 use dyst_fir::{format_args, write};
 

@@ -1,6 +1,6 @@
 use dyst_dir::{LocalNodeIdAny, Session};
 
-use crate::{CompileWarning, CompileStage};
+use crate::{CompileStage, CompileWarning};
 
 /// Warning when validating something.
 #[derive(Debug, Clone, PartialEq)]

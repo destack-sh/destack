@@ -228,18 +228,15 @@ impl<'d, 'p> StructDumper<'d, 'p> {
             self.dumper.write_str(" }", Some(Color::White));
         }
         if let Some(node_id) = self.node_id {
-            let (module_id, source_ast_id) = self.dumper.tree.get_source(node_id);
-            let module_id = module_id.0;
+            let source_ast_id = self.dumper.tree.get_source(node_id);
             if let Some(source_ast_id) = source_ast_id {
                 self.dumper.write_str(
-                    format!(" :{node_id} [{module_id:?}/{source_ast_id}]").as_str(),
+                    format!(" :{node_id} [{source_ast_id}]").as_str(),
                     Some(Color::White),
                 );
             } else {
-                self.dumper.write_str(
-                    format!(" :{node_id} [{module_id:?}]").as_str(),
-                    Some(Color::White),
-                );
+                self.dumper
+                    .write_str(format!(" :{node_id}").as_str(), Some(Color::White));
             }
             self.dumper.write_str("\n", Some(Color::White));
         }
@@ -1374,7 +1371,12 @@ impl<'a> NodeVisitor for Dumper<'a> {
         });
     }
 
-    fn visit_type_field(&mut self, tree: &NodeTree, id: LocalNodeId<TypeField>, type_field: &TypeField) {
+    fn visit_type_field(
+        &mut self,
+        tree: &NodeTree,
+        id: LocalNodeId<TypeField>,
+        type_field: &TypeField,
+    ) {
         match type_field {
             TypeField::Field {
                 modifiers,
@@ -1442,7 +1444,12 @@ impl<'a> NodeVisitor for Dumper<'a> {
         });
     }
 
-    fn visit_enum_field(&mut self, tree: &NodeTree, id: LocalNodeId<EnumField>, enum_field: &EnumField) {
+    fn visit_enum_field(
+        &mut self,
+        tree: &NodeTree,
+        id: LocalNodeId<EnumField>,
+        enum_field: &EnumField,
+    ) {
         self.node("EnumField", id.id)
             .field("name", &enum_field.name)
             .field("symbol", &enum_field.symbol)
@@ -1542,7 +1549,12 @@ impl<'a> NodeVisitor for Dumper<'a> {
         });
     }
 
-    fn visit_parameter(&mut self, tree: &NodeTree, id: LocalNodeId<Parameter>, parameter: &Parameter) {
+    fn visit_parameter(
+        &mut self,
+        tree: &NodeTree,
+        id: LocalNodeId<Parameter>,
+        parameter: &Parameter,
+    ) {
         match parameter {
             Parameter::Named {
                 modifiers,
@@ -1631,35 +1643,38 @@ impl<'a> NodeVisitor for Dumper<'a> {
             Argument::Direct {
                 modifiers,
                 name,
-                parameter: _,
+                symbol,
                 value: _,
             } => {
                 self.node("Argument::Direct", id.id)
                     .field_optional("modifiers", modifiers)
                     .field("name", name)
+                    .field("symbol", symbol)
                     .end();
             }
             Argument::Spread {
                 modifiers,
                 name,
-                parameter: _,
+                symbol,
                 value: _,
             } => {
                 self.node("Argument::Spread", id.id)
                     .field_optional("modifiers", modifiers)
                     .field("name", name)
+                    .field("symbol", symbol)
                     .end();
             }
             Argument::Dynamic {
                 modifiers,
                 name,
                 key: _,
-                parameter: _,
+                symbol,
                 value: _,
             } => {
                 self.node("Argument::Dynamic", id.id)
                     .field_optional("modifiers", modifiers)
                     .field_optional("name", name)
+                    .field("symbol", symbol)
                     .end();
             }
         }
@@ -1800,7 +1815,12 @@ impl<'a> NodeVisitor for Dumper<'a> {
         });
     }
 
-    fn visit_match_case(&mut self, tree: &NodeTree, id: LocalNodeId<MatchCase>, match_case: &MatchCase) {
+    fn visit_match_case(
+        &mut self,
+        tree: &NodeTree,
+        id: LocalNodeId<MatchCase>,
+        match_case: &MatchCase,
+    ) {
         match match_case {
             MatchCase::Expression {
                 pattern: _,
@@ -1914,9 +1934,29 @@ impl Dump for LocalScopeId {
     }
 }
 
+impl Dump for GlobalSymbolId {
+    fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
+        dumper
+            .object("GlobalSymbolId")
+            .field("module_id", &self.module_id)
+            .field("local_id", &self.local_id)
+            .end();
+    }
+}
+
 impl Dump for LocalSymbolId {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
         dumper.write_str(format!("#{}", self.0), Some(Color::Green));
+    }
+}
+
+impl Dump for GlobalScopeId {
+    fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
+        dumper
+            .object("GlobalScopeId")
+            .field("module_id", &self.module_id)
+            .field("local_id", &self.local_id)
+            .end();
     }
 }
 

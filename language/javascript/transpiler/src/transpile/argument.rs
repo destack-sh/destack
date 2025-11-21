@@ -116,7 +116,7 @@ impl<'a> Transpiler<'a> {
             | dir::Argument::Direct {
                 modifiers: _,
                 name: _,
-                parameter: _,
+                symbol,
                 value,
             } => {
                 let value = self
@@ -132,7 +132,7 @@ impl<'a> Transpiler<'a> {
             | dir::Argument::Spread {
                 modifiers: _,
                 name: _,
-                parameter: _,
+                symbol,
                 value,
             } => {
                 let value = self
@@ -151,7 +151,7 @@ impl<'a> Transpiler<'a> {
                 name: _,
                 key,
                 value,
-                parameter: _,
+                symbol,
             } => {
                 let key = self
                     .transpile_expression(module, tree, *key, unit)

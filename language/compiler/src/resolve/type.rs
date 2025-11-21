@@ -1,8 +1,8 @@
 use crate::{Compiler, ResolveError, ResolveResult};
 use dyst_ast::StringId;
 use dyst_dir::{
-    Expression, FloatType, IntType, ModuleId, LocalNodeId, NodeTree, PrimitiveType, Type, TypeLiteral,
-    TypeUnaryOperator, UnaryOperator,
+    Expression, FloatType, IntType, LocalNodeId, ModuleId, NodeTree, PrimitiveType, Type,
+    TypeLiteral, TypeUnaryOperator, UnaryOperator,
 };
 
 impl<'a> Compiler<'a> {

@@ -23,6 +23,14 @@ impl LocalScopeId {
     pub fn new(id: u32) -> Self {
         Self(id)
     }
+
+    /// Turn into a GlobalScopeId.
+    pub fn into_global(self, module_id: ModuleId) -> GlobalScopeId {
+        GlobalScopeId {
+            module_id,
+            local_id: self,
+        }
+    }
 }
 
 /// Global scope id across modules.
@@ -42,6 +50,11 @@ impl GlobalScopeId {
             local_id,
         }
     }
+
+    /// Turn into a LocalScopeId.
+    pub fn into_local(self) -> LocalScopeId {
+        self.local_id
+    }
 }
 
 /// A Scope is a container for symbols.
@@ -52,7 +65,9 @@ pub struct Scope {
     /// The kind of the scope.
     pub kind: ScopeKind,
     /// The parent scope.
-    pub parent: Option<LocalScopeId>,
+    pub parent_id: Option<LocalScopeId>,
+    /// The module id of the scope.
+    pub module_id: Option<ModuleId>,
     /// The owner of the scope.
     pub owner: Option<LocalSymbolId>,
     /// The symbols in the scope.
@@ -65,7 +80,7 @@ impl Scope {
     /// Whether the scope is the root scope.
     #[inline]
     pub fn is_root(&self) -> bool {
-        self.parent.is_none()
+        self.parent_id.is_none()
     }
 
     /// Insert a symbol into the scope.

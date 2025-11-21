@@ -3,7 +3,7 @@ use dyst_fir::prelude::*;
 use dyst_fir::write;
 use dyst_javascript_ast::{
     Asynchrony, BindingKind, BindingModifier, BindingOperator, BindingScope, FunctionAbstraction,
-    FunctionCardinality, Keyword, Mutability, LocalNodeId, Property,
+    FunctionCardinality, Keyword, LocalNodeId, Mutability, Property,
 };
 
 use crate::format::argument::list_like;

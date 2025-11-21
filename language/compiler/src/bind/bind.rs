@@ -1,6 +1,6 @@
 use dyst_dir::{ModuleId, NodeTree, ScopeKind, SymbolSpace};
 
-use crate::{BindError, BindResult, Compiler, CompileTask, ResolveTask};
+use crate::{BindError, BindResult, CompileTask, Compiler, ResolveTask};
 
 /// Task to bind AST into DIR.
 #[derive(Debug, Clone)]

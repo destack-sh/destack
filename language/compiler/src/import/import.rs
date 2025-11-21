@@ -1,4 +1,4 @@
-use crate::{BindTask, Compiler, CompileTask, ImportError, ImportResult};
+use crate::{BindTask, CompileTask, Compiler, ImportError, ImportResult};
 
 use dyst_dir::{Module, PackageId, Session};
 use dyst_parser::Parser;

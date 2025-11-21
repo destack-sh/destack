@@ -2,11 +2,11 @@
 
 use crate::{
     Annotation, Argument, Blank, Block, Comment, Decorator, Definition, DependencyItem, Doc,
-    EnumField, Expression, MatchCase, LocalNodeId, NodeTree, NodeType, Parameter, Pattern, PatternField,
-    Property, Tag, WhereClause, WithClause, walk_annotation, walk_argument, walk_blank, walk_block,
-    walk_comment, walk_decorator, walk_definition, walk_dependency_item, walk_doc, walk_enum_field,
-    walk_expression, walk_match_case, walk_parameter, walk_pattern, walk_pattern_field,
-    walk_property, walk_tag, walk_where_clause, walk_with_clause,
+    EnumField, Expression, LocalNodeId, MatchCase, NodeTree, NodeType, Parameter, Pattern,
+    PatternField, Property, Tag, WhereClause, WithClause, walk_annotation, walk_argument,
+    walk_blank, walk_block, walk_comment, walk_decorator, walk_definition, walk_dependency_item,
+    walk_doc, walk_enum_field, walk_expression, walk_match_case, walk_parameter, walk_pattern,
+    walk_pattern_field, walk_property, walk_tag, walk_where_clause, walk_with_clause,
 };
 
 #[derive(Debug, Clone, Default)]
@@ -53,7 +53,12 @@ pub trait NodeVisitor {
     }
 
     /// Visit an EnumField.
-    fn visit_enum_field(&mut self, tree: &NodeTree, id: LocalNodeId<EnumField>, enum_field: &EnumField) {
+    fn visit_enum_field(
+        &mut self,
+        tree: &NodeTree,
+        id: LocalNodeId<EnumField>,
+        enum_field: &EnumField,
+    ) {
         walk_enum_field(self, tree, id, enum_field);
     }
 
@@ -88,7 +93,12 @@ pub trait NodeVisitor {
     }
 
     /// Visit a Parameter.
-    fn visit_parameter(&mut self, tree: &NodeTree, id: LocalNodeId<Parameter>, parameter: &Parameter) {
+    fn visit_parameter(
+        &mut self,
+        tree: &NodeTree,
+        id: LocalNodeId<Parameter>,
+        parameter: &Parameter,
+    ) {
         walk_parameter(self, tree, id, parameter);
     }
 
@@ -98,7 +108,12 @@ pub trait NodeVisitor {
     }
 
     /// Visit a MatchCase.
-    fn visit_match_case(&mut self, tree: &NodeTree, id: LocalNodeId<MatchCase>, match_case: &MatchCase) {
+    fn visit_match_case(
+        &mut self,
+        tree: &NodeTree,
+        id: LocalNodeId<MatchCase>,
+        match_case: &MatchCase,
+    ) {
         walk_match_case(self, tree, id, match_case);
     }
 
@@ -148,7 +163,12 @@ pub trait NodeVisitor {
     }
 
     /// Visit a Decorator.
-    fn visit_decorator(&mut self, tree: &NodeTree, id: LocalNodeId<Decorator>, decorator: &Decorator) {
+    fn visit_decorator(
+        &mut self,
+        tree: &NodeTree,
+        id: LocalNodeId<Decorator>,
+        decorator: &Decorator,
+    ) {
         walk_decorator(self, tree, id, decorator);
     }
 }
@@ -213,7 +233,12 @@ impl NodeVisitor for CapturingNodeVisitor {
         self.visit_any(tree, NodeType::Property, id.id);
     }
 
-    fn visit_enum_field(&mut self, tree: &NodeTree, id: LocalNodeId<EnumField>, enum_field: &EnumField) {
+    fn visit_enum_field(
+        &mut self,
+        tree: &NodeTree,
+        id: LocalNodeId<EnumField>,
+        enum_field: &EnumField,
+    ) {
         self.visit_any(tree, NodeType::EnumField, id.id);
     }
 
@@ -235,7 +260,12 @@ impl NodeVisitor for CapturingNodeVisitor {
         self.visit_any(tree, NodeType::DependencyItem, id.id);
     }
 
-    fn visit_parameter(&mut self, tree: &NodeTree, id: LocalNodeId<Parameter>, parameter: &Parameter) {
+    fn visit_parameter(
+        &mut self,
+        tree: &NodeTree,
+        id: LocalNodeId<Parameter>,
+        parameter: &Parameter,
+    ) {
         self.visit_any(tree, NodeType::Parameter, id.id);
     }
 
@@ -256,7 +286,12 @@ impl NodeVisitor for CapturingNodeVisitor {
         self.visit_any(tree, NodeType::PatternField, id.id);
     }
 
-    fn visit_match_case(&mut self, tree: &NodeTree, id: LocalNodeId<MatchCase>, match_case: &MatchCase) {
+    fn visit_match_case(
+        &mut self,
+        tree: &NodeTree,
+        id: LocalNodeId<MatchCase>,
+        match_case: &MatchCase,
+    ) {
         self.visit_any(tree, NodeType::MatchCase, id.id);
     }
 
@@ -285,7 +320,12 @@ impl NodeVisitor for CapturingNodeVisitor {
         self.visit_any(tree, NodeType::Tag, id.id);
     }
 
-    fn visit_decorator(&mut self, tree: &NodeTree, id: LocalNodeId<Decorator>, decorator: &Decorator) {
+    fn visit_decorator(
+        &mut self,
+        tree: &NodeTree,
+        id: LocalNodeId<Decorator>,
+        decorator: &Decorator,
+    ) {
         self.visit_any(tree, NodeType::Decorator, id.id);
     }
 }

@@ -1,8 +1,8 @@
 use crate::{ParseError, ParseResult, Parser};
 
 use dyst_ast::{
-    DeclarationDescriptor, DefinitionType, Expression, FloatType, IntType, Keyword, Mutability,
-    LocalNodeId, TokenType, TypeKind, TypeLiteral, TypeUnaryOperator, UnaryOperator, VarianceBound,
+    DeclarationDescriptor, DefinitionType, Expression, FloatType, IntType, Keyword, LocalNodeId,
+    Mutability, TokenType, TypeKind, TypeLiteral, TypeUnaryOperator, UnaryOperator, VarianceBound,
 };
 
 impl<'a> Parser<'a> {
@@ -309,7 +309,9 @@ impl<'a> Parser<'a> {
 
     /// Eat implements types maybe.
     #[inline]
-    pub fn eat_implements_types_maybe(&mut self) -> ParseResult<Option<Vec<LocalNodeId<Expression>>>> {
+    pub fn eat_implements_types_maybe(
+        &mut self,
+    ) -> ParseResult<Option<Vec<LocalNodeId<Expression>>>> {
         // check for implements keyword before calling underlying implementation
         if self.peek_keyword(Keyword::Implements).is_ok() {
             self.bump(); // eat implements
@@ -343,7 +345,10 @@ impl<'a> Parser<'a> {
     }
 
     /// Eat super types (without the leading keyword).
-    fn eat_super_types(&mut self, terminators: &[Keyword]) -> ParseResult<Vec<LocalNodeId<Expression>>> {
+    fn eat_super_types(
+        &mut self,
+        terminators: &[Keyword],
+    ) -> ParseResult<Vec<LocalNodeId<Expression>>> {
         let mut types: Vec<LocalNodeId<Expression>> = Vec::new();
         while self.peek().is_ok() {
             // eat until open brace or close parenthesis

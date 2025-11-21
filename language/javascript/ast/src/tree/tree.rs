@@ -5,8 +5,9 @@ use dyst_dir::{self as dir, ModuleId};
 use dyst_source::Arena;
 
 use crate::{
-    Annotation, Argument, Block, Definition, DependencyItem, EnumField, Expression, Node, LocalNodeId,
-    NodeType, Parameter, Pattern, PatternField, Property, Statement, SwitchCase, Type, TypeField,
+    Annotation, Argument, Block, Definition, DependencyItem, EnumField, Expression, LocalNodeId,
+    Node, NodeType, Parameter, Pattern, PatternField, Property, Statement, SwitchCase, Type,
+    TypeField,
 };
 
 /// Mutable AST Node tree for a single source unit. NOT THREAD-SAFE.

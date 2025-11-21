@@ -4,7 +4,7 @@ use crate::{FormatNode, JavaScriptFormatter};
 use dyst_fir::format::FormatResult;
 use dyst_fir::prelude::*;
 use dyst_fir::{format_args, write};
-use dyst_javascript_ast::{DependencyKind, Keyword, Mutability, LocalNodeId, Statement};
+use dyst_javascript_ast::{DependencyKind, Keyword, LocalNodeId, Mutability, Statement};
 
 impl<'ast> FormatNode<'ast, Statement> for Statement {
     fn format_node(

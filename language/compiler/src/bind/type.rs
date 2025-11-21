@@ -1,7 +1,7 @@
 use crate::Compiler;
 use dyst_ast as ast;
 use dyst_dir::{
-    Generics, Heritage, Module, Mutability, LocalNodeId, NodeTree, LocalScopeId, Type, TypeKind,
+    Generics, Heritage, LocalNodeId, LocalScopeId, Module, Mutability, NodeTree, Type, TypeKind,
     VarianceBound,
 };
 

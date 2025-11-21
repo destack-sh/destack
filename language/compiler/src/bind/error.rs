@@ -1,4 +1,4 @@
-use dyst_dir::{ModuleId, LocalNodeIdAny, Session};
+use dyst_dir::{LocalNodeIdAny, ModuleId, Session};
 
 use crate::{CompileError, CompileStage};
 

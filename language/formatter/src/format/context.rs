@@ -1,6 +1,6 @@
 use dyst_ast::{
     Annotation, AnnotationPosition, Argument, Blank, Block, Comment, Decorator, Definition,
-    DependencyItem, Doc, EnumField, Expression, MatchCase, Node, LocalNodeId, LocalNodeIdAny,
+    DependencyItem, Doc, EnumField, Expression, LocalNodeId, LocalNodeIdAny, MatchCase, Node,
     NodeParentIndex, NodeTree, NodeTreeImpl, NodeType, Parameter, Pattern, PatternField, Property,
     Tag, TokenSpan, TokenType, WhereClause, WithClause,
 };
@@ -294,7 +294,10 @@ impl<'a> DystFormatContext<'a> {
 
     /// Get annotations for a node. Annotations are sorted by position.
     #[inline]
-    pub fn get_annotations<T>(&self, node_id: LocalNodeId<T>) -> Option<Vec<LocalNodeId<Annotation>>>
+    pub fn get_annotations<T>(
+        &self,
+        node_id: LocalNodeId<T>,
+    ) -> Option<Vec<LocalNodeId<Annotation>>>
     where
         T: Node,
         NodeTree: NodeTreeImpl<T>,
@@ -424,7 +427,11 @@ where
     DystFormatContext<'a>: FormatContext,
 {
     /// Format a node.
-    fn format_node(&self, node_id: LocalNodeId<T>, f: &mut DystFormatter<'a, '_>) -> FormatResult<()>;
+    fn format_node(
+        &self,
+        node_id: LocalNodeId<T>,
+        f: &mut DystFormatter<'a, '_>,
+    ) -> FormatResult<()>;
 }
 
 /// Implement Format for FormatNode for NodeIds.

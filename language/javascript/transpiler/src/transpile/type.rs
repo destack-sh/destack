@@ -1,7 +1,7 @@
 use dyst_dir::{self as dir, Module, NodeTree};
 use dyst_javascript_ast::{
-    Expression, Generics, Heritage, Mutability, LocalNodeId, PrimitiveType, Type, TypeBinaryOperator,
-    TypeLiteral, TypeUnaryOperator,
+    Expression, Generics, Heritage, LocalNodeId, Mutability, PrimitiveType, Type,
+    TypeBinaryOperator, TypeLiteral, TypeUnaryOperator,
 };
 
 use crate::{TranspileError, TranspileResult, TranspileResultExt, Transpiler, TranspilerUnit};

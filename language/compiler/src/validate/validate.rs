@@ -1,4 +1,4 @@
-use crate::{Compiler, CompileTask, ValidateResult};
+use crate::{CompileTask, Compiler, ValidateResult};
 
 /// Task to validate something.
 #[derive(Debug, Clone)]

@@ -1,4 +1,4 @@
-use crate::{BuildResult, Compiler, CompileTask};
+use crate::{BuildResult, CompileTask, Compiler};
 
 /// task to build something into an artifact.
 #[derive(Debug, Clone)]

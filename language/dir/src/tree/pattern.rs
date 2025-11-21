@@ -1,4 +1,4 @@
-use crate::{Expression, Mutability, Node, LocalNodeId, NodeType, StringId, LocalSymbolId, Type};
+use crate::{Expression, GlobalSymbolId, LocalNodeId, Mutability, Node, NodeType, StringId, Type};
 
 /// A Pattern is a pattern to match something and unwrap it.
 #[derive(Debug, Clone, PartialEq)]
@@ -34,7 +34,9 @@ pub enum Pattern {
         fields: Vec<LocalNodeId<PatternField>>,
     },
     /// Array or slice pattern (like `[1, 2, x]` or `[1, y, ..]`).
-    Slice { fields: Vec<LocalNodeId<PatternField>> },
+    Slice {
+        fields: Vec<LocalNodeId<PatternField>>,
+    },
     /// Struct pattern (like `Vector2 { x: 0, y, z: zedso  }`).
     Struct {
         ty: Option<LocalNodeId<Type>>,
@@ -77,7 +79,7 @@ pub enum PatternField {
         name: StringId,
         pattern: Option<LocalNodeId<Pattern>>,
         default: Option<LocalNodeId<Expression>>,
-        symbol: LocalSymbolId,
+        symbol: GlobalSymbolId,
     },
     /// Named field with an alias (like `x: y`).
     Alias {
@@ -85,12 +87,12 @@ pub enum PatternField {
         name: StringId,
         alias: StringId,
         default: Option<LocalNodeId<Expression>>,
-        symbol: LocalSymbolId,
+        symbol: GlobalSymbolId,
     },
     /// Positional field with just a pattern (like `4` or `int32`).
     Positional {
         pattern: LocalNodeId<Pattern>,
-        symbol: LocalSymbolId,
+        symbol: GlobalSymbolId,
     },
 }
 

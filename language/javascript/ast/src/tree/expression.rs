@@ -1,5 +1,5 @@
 use crate::{
-    Argument, AssignOperator, BinaryOperator, Definition, FunctionSignature, Node, LocalNodeId,
+    Argument, AssignOperator, BinaryOperator, Definition, FunctionSignature, LocalNodeId, Node,
     NodeType, Path, Property, ScalarLiteral, StringId, TemplateLiteral, TypeBinaryOperator,
     TypeUnaryOperator, UnaryOperator,
 };
@@ -29,9 +29,13 @@ pub enum Expression {
     /// Template literal.
     TemplateLiteral { value: TemplateLiteral },
     /// Array literal.
-    ArrayLiteral { elements: Vec<LocalNodeId<Expression>> },
+    ArrayLiteral {
+        elements: Vec<LocalNodeId<Expression>>,
+    },
     /// Object literal.
-    ObjectLiteral { properties: Vec<LocalNodeId<Property>> },
+    ObjectLiteral {
+        properties: Vec<LocalNodeId<Property>>,
+    },
 
     /// Parenthesized expression.
     Parenthesized { expression: LocalNodeId<Expression> },

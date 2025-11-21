@@ -1,4 +1,4 @@
-use crate::{Compiler, CompileTask};
+use crate::{CompileTask, Compiler};
 
 #[allow(dead_code)]
 impl<'s> Compiler<'s> {

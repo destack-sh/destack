@@ -1,5 +1,6 @@
 use crate::{
-    Expression, FunctionSignature, Key, Keyword, Mutability, Node, LocalNodeId, NodeType, Visibility,
+    Expression, FunctionSignature, Key, Keyword, LocalNodeId, Mutability, Node, NodeType,
+    Visibility,
 };
 
 /// The type of a binding.

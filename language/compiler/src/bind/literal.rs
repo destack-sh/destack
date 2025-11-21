@@ -1,8 +1,8 @@
 use crate::Compiler;
 use dyst_ast as ast;
 use dyst_dir::{
-    DefinitionType, FloatType, IntType, Module, NodeTree, PrimitiveType, ScalarLiteral, LocalScopeId,
-    TemplateLiteral, TypeLiteral,
+    DefinitionType, FloatType, IntType, LocalScopeId, Module, NodeTree, PrimitiveType,
+    ScalarLiteral, TemplateLiteral, TypeLiteral,
 };
 
 impl<'a> Compiler<'a> {

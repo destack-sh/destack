@@ -1,4 +1,4 @@
-use crate::{Expression, Mutability, Node, LocalNodeId, NodeType, StringId};
+use crate::{Expression, LocalNodeId, Mutability, Node, NodeType, StringId};
 
 /// A Pattern is a pattern to match something and unwrap it.
 #[derive(Debug, Clone, PartialEq)]
@@ -11,7 +11,9 @@ pub enum Pattern {
     /// Array pattern (like `[1, 2, .., x, 3]`).
     Array { elements: Vec<LocalNodeId<Pattern>> },
     /// Object pattern (like `{ a: 1, b: 2, ..., x: 3 }`).
-    Object { fields: Vec<LocalNodeId<PatternField>> },
+    Object {
+        fields: Vec<LocalNodeId<PatternField>>,
+    },
     /// Rest pattern (like `...x` or `...rest`).
     Rest { name: Option<StringId> },
     /// Hole pattern (like the empty in `, ,`).

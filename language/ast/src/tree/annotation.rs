@@ -1,6 +1,6 @@
 use std::fmt::Debug;
 
-use crate::{Argument, Node, LocalNodeId, NodeType, Path, StringId};
+use crate::{Argument, LocalNodeId, Node, NodeType, Path, StringId};
 
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum AnnotationPosition {

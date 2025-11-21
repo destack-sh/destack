@@ -15,7 +15,7 @@ impl ElaborateError {
     #[inline]
     pub fn sub_code(&self) -> u8 {
         match self {
-            Self::UnsupportedNode { .. } => 2,  
+            Self::UnsupportedNode { .. } => 2,
         }
     }
 

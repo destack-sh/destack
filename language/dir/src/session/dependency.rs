@@ -1,6 +1,6 @@
 use dyst_ast::StringId;
 
-use crate::{DependencyItem, DependencyKind, ModuleId, LocalNodeId, LocalSymbolId};
+use crate::{DependencyItem, DependencyKind, GlobalSymbolId, LocalNodeId, LocalSymbolId, ModuleId};
 
 /// The source of the import.
 #[derive(Debug, Clone, PartialEq)]
@@ -59,7 +59,7 @@ pub enum DependencyEdge {
         item: Option<LocalNodeId<DependencyItem>>,
         source: DependencySource,
         symbol: LocalSymbolId,
-        remote_symbol: LocalSymbolId,
+        remote_symbol: GlobalSymbolId,
     },
     /// Resolved dependency edge.
     Item {
@@ -69,7 +69,7 @@ pub enum DependencyEdge {
         item: Option<LocalNodeId<DependencyItem>>,
         source: DependencySource,
         symbol: LocalSymbolId,
-        remote_symbol: LocalSymbolId,
+        remote_symbol: GlobalSymbolId,
     },
 }
 

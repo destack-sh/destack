@@ -1,4 +1,4 @@
-use crate::{Expression, Node, LocalNodeId, NodeType, StringId};
+use crate::{Expression, LocalNodeId, Node, NodeType, StringId};
 
 /// How a block is defined.
 #[derive(Debug, Copy, Clone, PartialEq)]

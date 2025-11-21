@@ -1,7 +1,7 @@
 use dyst_ast::{self as ast};
 use dyst_dir::{
     DependencyEdge, DependencyItem, DependencyKind, DependencySource, ExportType, Expression,
-    Module, LocalNodeId, NodeTree, LocalScopeId, SymbolKey, SymbolSpace,
+    LocalNodeId, LocalScopeId, Module, NodeTree, SymbolKey, SymbolSpace,
 };
 use dyst_source::StringId;
 

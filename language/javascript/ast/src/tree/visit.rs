@@ -25,7 +25,12 @@ pub trait NodeVisitor {
     }
 
     /// Visit a statement.
-    fn visit_statement(&mut self, tree: &NodeTree, id: LocalNodeId<Statement>, statement: &Statement) {
+    fn visit_statement(
+        &mut self,
+        tree: &NodeTree,
+        id: LocalNodeId<Statement>,
+        statement: &Statement,
+    ) {
         walk_statement(self, tree, id, statement);
     }
 
@@ -80,7 +85,12 @@ pub trait NodeVisitor {
     }
 
     /// Visit a parameter.
-    fn visit_parameter(&mut self, tree: &NodeTree, id: LocalNodeId<Parameter>, parameter: &Parameter) {
+    fn visit_parameter(
+        &mut self,
+        tree: &NodeTree,
+        id: LocalNodeId<Parameter>,
+        parameter: &Parameter,
+    ) {
         walk_parameter(self, tree, id, parameter);
     }
 
@@ -110,7 +120,12 @@ pub trait NodeVisitor {
     }
 
     /// Visit a type field.
-    fn visit_type_field(&mut self, tree: &NodeTree, id: LocalNodeId<TypeField>, attribute: &TypeField) {
+    fn visit_type_field(
+        &mut self,
+        tree: &NodeTree,
+        id: LocalNodeId<TypeField>,
+        attribute: &TypeField,
+    ) {
         walk_type_field(self, tree, id, attribute);
     }
 
@@ -163,7 +178,12 @@ impl NodeVisitor for CapturingNodeVisitor {
         self.visit_any(tree, NodeType::Block, id.id);
     }
 
-    fn visit_statement(&mut self, tree: &NodeTree, id: LocalNodeId<Statement>, _statement: &Statement) {
+    fn visit_statement(
+        &mut self,
+        tree: &NodeTree,
+        id: LocalNodeId<Statement>,
+        _statement: &Statement,
+    ) {
         self.visit_any(tree, NodeType::Statement, id.id);
     }
 
@@ -198,7 +218,12 @@ impl NodeVisitor for CapturingNodeVisitor {
         self.visit_any(tree, NodeType::Property, id.id);
     }
 
-    fn visit_enum_field(&mut self, tree: &NodeTree, id: LocalNodeId<EnumField>, _field: &EnumField) {
+    fn visit_enum_field(
+        &mut self,
+        tree: &NodeTree,
+        id: LocalNodeId<EnumField>,
+        _field: &EnumField,
+    ) {
         self.visit_any(tree, NodeType::EnumField, id.id);
     }
 
@@ -211,7 +236,12 @@ impl NodeVisitor for CapturingNodeVisitor {
         self.visit_any(tree, NodeType::DependencyItem, id.id);
     }
 
-    fn visit_parameter(&mut self, tree: &NodeTree, id: LocalNodeId<Parameter>, _parameter: &Parameter) {
+    fn visit_parameter(
+        &mut self,
+        tree: &NodeTree,
+        id: LocalNodeId<Parameter>,
+        _parameter: &Parameter,
+    ) {
         self.visit_any(tree, NodeType::Parameter, id.id);
     }
 

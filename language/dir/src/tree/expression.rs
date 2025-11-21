@@ -2,8 +2,8 @@ use dyst_ast::StringId;
 
 use crate::{
     Argument, AssignOperator, Asynchrony, BinaryOperator, Block, Definition, DependencyItem,
-    DependencyKind, ExportType, MatchCase, MatchSource, ModuleId, Mutability, Node, LocalNodeId,
-    NodeType, Parameter, Path, Pattern, Property, ScalarLiteral, LocalScopeId, LocalSymbolId,
+    DependencyKind, ExportType, LocalNodeId, LocalScopeId, LocalSymbolId, MatchCase, MatchSource,
+    ModuleId, Mutability, Node, NodeType, Parameter, Path, Pattern, Property, ScalarLiteral,
     TemplateLiteral, Type, TypeBinaryOperator, TypeKind, TypeLiteral, TypeUnaryOperator,
     UnaryOperator, VarianceBound,
 };
@@ -192,7 +192,9 @@ pub enum Expression {
         is_inclusive: bool,
     },
     /// Array creation.
-    ArrayLiteral { elements: Vec<LocalNodeId<Argument>> },
+    ArrayLiteral {
+        elements: Vec<LocalNodeId<Argument>>,
+    },
     /// Tuple creation.
     TupleLiteral {
         ty: Option<LocalNodeId<Type>>,
@@ -284,7 +286,9 @@ pub enum Expression {
     /// Defer expression.
     Defer { expression: LocalNodeId<Expression> },
     /// Throw expression.
-    Throw { value: Option<LocalNodeId<Expression>> },
+    Throw {
+        value: Option<LocalNodeId<Expression>>,
+    },
     /// Await expression.
     Await { expression: LocalNodeId<Expression> },
     /// Yield expression.
@@ -293,7 +297,9 @@ pub enum Expression {
         value: LocalNodeId<Expression>,
     },
     /// Return expression.
-    Return { value: Option<LocalNodeId<Expression>> },
+    Return {
+        value: Option<LocalNodeId<Expression>>,
+    },
 
     /// Error expression.
     Error,

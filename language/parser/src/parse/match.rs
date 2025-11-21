@@ -2,7 +2,7 @@ use crate::parse::prelude::*;
 use crate::{ParseResult, Parser};
 
 use dyst_ast::{
-    Block, BlockFormat, Expression, Keyword, MatchCase, MatchKind, LocalNodeId, NodeType, Pattern,
+    Block, BlockFormat, Expression, Keyword, LocalNodeId, MatchCase, MatchKind, NodeType, Pattern,
     TokenType,
 };
 

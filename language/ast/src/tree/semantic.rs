@@ -1,7 +1,7 @@
 use std::str::FromStr;
 
 use crate::{
-    Expression, Keyword, LiteralType, Node, LocalNodeId, NodeTree, NodeVisitor, NodeVisitorOptions,
+    Expression, Keyword, LiteralType, LocalNodeId, Node, NodeTree, NodeVisitor, NodeVisitorOptions,
     Parameter, ScalarLiteral, TokenSpan, TokenType, walk_expression, walk_parameter,
 };
 use dyst_source::File;
@@ -308,7 +308,12 @@ impl<'a> NodeVisitor for SemanticTokenIndex<'a> {
         walk_expression(self, tree, id, expression);
     }
 
-    fn visit_parameter(&mut self, tree: &NodeTree, id: LocalNodeId<Parameter>, parameter: &Parameter) {
+    fn visit_parameter(
+        &mut self,
+        tree: &NodeTree,
+        id: LocalNodeId<Parameter>,
+        parameter: &Parameter,
+    ) {
         walk_parameter(self, tree, id, parameter);
         self.set_semantic_span(tree, id, SemanticType::Parameter);
         match parameter {

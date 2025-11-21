@@ -5,8 +5,8 @@ use crate::parse::prelude::*;
 use crate::{ParseError, ParseResult, Parser};
 
 use dyst_ast::{
-    Argument, Expression, LiteralType, LocalNodeId, NodeType, NumberBase, Path, Property, ScalarLiteral,
-    StringId, TemplateLiteral, TokenSpan, TokenType,
+    Argument, Expression, LiteralType, LocalNodeId, NodeType, NumberBase, Path, Property,
+    ScalarLiteral, StringId, TemplateLiteral, TokenSpan, TokenType,
 };
 
 impl<'a> Parser<'a> {

@@ -1,6 +1,6 @@
 use crate::Compiler;
 use dyst_ast as ast;
-use dyst_dir::{Module, LocalNodeId, NodeTree, Property, LocalScopeId};
+use dyst_dir::{LocalNodeId, LocalScopeId, Module, NodeTree, Property};
 
 impl<'a> Compiler<'a> {
     /// Bind a property to a DIR property.

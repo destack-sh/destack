@@ -1,8 +1,8 @@
 #![allow(unused_variables)]
 
 use crate::{
-    Annotation, Argument, Block, Definition, DependencyItem, EnumField, Expression, MatchCase,
-    LocalNodeId, NodeTree, NodeType, Parameter, Pattern, PatternField, Property, Type, TypeField,
+    Annotation, Argument, Block, Definition, DependencyItem, EnumField, Expression, LocalNodeId,
+    MatchCase, NodeTree, NodeType, Parameter, Pattern, PatternField, Property, Type, TypeField,
     WhereClause, WithClause, walk_annotation, walk_argument, walk_block, walk_definition,
     walk_dependency_item, walk_enum_field, walk_expression, walk_match_case, walk_parameter,
     walk_pattern, walk_pattern_field, walk_property, walk_type, walk_type_field, walk_where_clause,
@@ -53,7 +53,12 @@ pub trait NodeVisitor {
     }
 
     /// Visit a TypeField.
-    fn visit_type_field(&mut self, tree: &NodeTree, id: LocalNodeId<TypeField>, attribute: &TypeField) {
+    fn visit_type_field(
+        &mut self,
+        tree: &NodeTree,
+        id: LocalNodeId<TypeField>,
+        attribute: &TypeField,
+    ) {
         walk_type_field(self, tree, id, attribute);
     }
 
@@ -63,7 +68,12 @@ pub trait NodeVisitor {
     }
 
     /// Visit an EnumField.
-    fn visit_enum_field(&mut self, tree: &NodeTree, id: LocalNodeId<EnumField>, enum_field: &EnumField) {
+    fn visit_enum_field(
+        &mut self,
+        tree: &NodeTree,
+        id: LocalNodeId<EnumField>,
+        enum_field: &EnumField,
+    ) {
         walk_enum_field(self, tree, id, enum_field);
     }
 
@@ -98,7 +108,12 @@ pub trait NodeVisitor {
     }
 
     /// Visit a Parameter.
-    fn visit_parameter(&mut self, tree: &NodeTree, id: LocalNodeId<Parameter>, parameter: &Parameter) {
+    fn visit_parameter(
+        &mut self,
+        tree: &NodeTree,
+        id: LocalNodeId<Parameter>,
+        parameter: &Parameter,
+    ) {
         walk_parameter(self, tree, id, parameter);
     }
 
@@ -123,7 +138,12 @@ pub trait NodeVisitor {
     }
 
     /// Visit a MatchCase.
-    fn visit_match_case(&mut self, tree: &NodeTree, id: LocalNodeId<MatchCase>, match_case: &MatchCase) {
+    fn visit_match_case(
+        &mut self,
+        tree: &NodeTree,
+        id: LocalNodeId<MatchCase>,
+        match_case: &MatchCase,
+    ) {
         walk_match_case(self, tree, id, match_case);
     }
 
@@ -198,7 +218,12 @@ impl NodeVisitor for CapturingNodeVisitor {
         self.visit_any(tree, NodeType::Type, id.id);
     }
 
-    fn visit_type_field(&mut self, tree: &NodeTree, id: LocalNodeId<TypeField>, _attribute: &TypeField) {
+    fn visit_type_field(
+        &mut self,
+        tree: &NodeTree,
+        id: LocalNodeId<TypeField>,
+        _attribute: &TypeField,
+    ) {
         self.visit_any(tree, NodeType::TypeField, id.id);
     }
 
@@ -242,7 +267,12 @@ impl NodeVisitor for CapturingNodeVisitor {
         self.visit_any(tree, NodeType::DependencyItem, id.id);
     }
 
-    fn visit_parameter(&mut self, tree: &NodeTree, id: LocalNodeId<Parameter>, _parameter: &Parameter) {
+    fn visit_parameter(
+        &mut self,
+        tree: &NodeTree,
+        id: LocalNodeId<Parameter>,
+        _parameter: &Parameter,
+    ) {
         self.visit_any(tree, NodeType::Parameter, id.id);
     }
 

@@ -1,6 +1,6 @@
 use dyst_dir::{LocalNodeIdAny, Session};
 
-use crate::{CompileWarning, CompileStage};
+use crate::{CompileStage, CompileWarning};
 
 /// Warning when building something.
 #[derive(Debug, Clone, PartialEq)]
@@ -9,7 +9,10 @@ pub enum BuildWarning {
     /// Use of deprecated target / CPU / ABI.
     DeprecatedTarget { node: LocalNodeIdAny },
     /// Weak/duplicate symbol but one chosen deterministically (e.g. ODR violation that's survivable).
-    WeakSymbol { node: LocalNodeIdAny, symbol: String },
+    WeakSymbol {
+        node: LocalNodeIdAny,
+        symbol: String,
+    },
     /// Large binary / large static data section ("binary size exceeded X MB").
     LargeBinary { node: LocalNodeIdAny, size_mb: u64 },
 }

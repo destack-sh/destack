@@ -1,5 +1,5 @@
 use crate::{Compiler, ResolveResult};
-use dyst_dir::{Expression, ModuleId, Node, LocalNodeIdAny, NodeTree, NodeType};
+use dyst_dir::{Expression, LocalNodeIdAny, ModuleId, Node, NodeTree, NodeType};
 
 #[allow(dead_code)]
 impl<'a> Compiler<'a> {

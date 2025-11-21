@@ -2,7 +2,7 @@ use dyst_source::StringId;
 
 use crate::{
     Argument, AssignOperator, Asynchrony, BinaryOperator, Block, DeclarationDescriptor, Definition,
-    DependencyItem, DependencyKind, ExportType, Keyword, Mutability, Node, LocalNodeId, NodeType,
+    DependencyItem, DependencyKind, ExportType, Keyword, LocalNodeId, Mutability, Node, NodeType,
     Parameter, Path, Pattern, Property, ScalarLiteral, TemplateLiteral, TypeBinaryOperator,
     TypeLiteral, TypeUnaryOperator, UnaryOperator,
 };
@@ -370,7 +370,9 @@ pub enum Expression {
     /// throw someError
     /// throw anyOldExpression()
     /// ```
-    Throw { value: Option<LocalNodeId<Expression>> },
+    Throw {
+        value: Option<LocalNodeId<Expression>>,
+    },
 
     /// Return expression.
     ///
@@ -379,7 +381,9 @@ pub enum Expression {
     /// return
     /// return 17
     /// ```
-    Return { value: Option<LocalNodeId<Expression>> },
+    Return {
+        value: Option<LocalNodeId<Expression>>,
+    },
 
     /// Alias reference to some path, statically parameterized.
     Path {
@@ -470,7 +474,9 @@ pub enum Expression {
     /// ]
     /// [10, false, "Hi"] // hetereogenous array is valid in some contexts
     /// ```
-    ArrayLiteral { elements: Vec<LocalNodeId<Argument>> },
+    ArrayLiteral {
+        elements: Vec<LocalNodeId<Argument>>,
+    },
 
     /// A TupleLiteral is an anonymous tuple of heterogeneous elements.
     /// For named tuple "literals", see Call.
@@ -481,7 +487,9 @@ pub enum Expression {
     /// (1.0, 2.0, 3.0)
     /// (x: int32, y: boolean)
     /// ```
-    TupleLiteral { elements: Vec<LocalNodeId<Argument>> },
+    TupleLiteral {
+        elements: Vec<LocalNodeId<Argument>>,
+    },
 
     /// A StructLiteral is literal struct of heterogeneous fields.
     /// Struct literals always have an explicit type prefix (unlike tuple literals).

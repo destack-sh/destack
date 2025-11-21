@@ -1,4 +1,4 @@
-use crate::{Expression, Node, LocalNodeId, NodeType, LocalScopeId, StringId};
+use crate::{Expression, LocalNodeId, LocalScopeId, Node, NodeType, StringId};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Block {

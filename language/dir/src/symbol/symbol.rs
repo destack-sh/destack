@@ -30,6 +30,14 @@ impl LocalSymbolId {
     pub fn new(id: u32) -> Self {
         Self(id)
     }
+
+    /// Turn into a GlobalSymbolId.
+    pub fn into_global(self, module_id: ModuleId) -> GlobalSymbolId {
+        GlobalSymbolId {
+            module_id,
+            local_id: self,
+        }
+    }
 }
 
 /// Global symbol id across modules.
@@ -44,7 +52,15 @@ pub struct GlobalSymbolId {
 impl GlobalSymbolId {
     /// Create a new global symbol id.
     pub fn new(module_id: ModuleId, local_id: LocalSymbolId) -> Self {
-        Self { module_id, local_id }
+        Self {
+            module_id,
+            local_id,
+        }
+    }
+
+    /// Turn into a LocalSymbolId.
+    pub fn into_local(self) -> LocalSymbolId {
+        self.local_id
     }
 }
 
@@ -60,6 +76,8 @@ pub struct Symbol {
     pub key: Option<SymbolKey>,
     /// The scope that introduces the symbol.
     pub scope: LocalScopeId,
+    /// The module id of the scope.
+    pub module_id: Option<ModuleId>,
     /// The owned scope of the symbol.
     pub owned_scope: Option<LocalScopeId>,
     /// The main declaration node of the symbol.

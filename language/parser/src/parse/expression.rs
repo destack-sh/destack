@@ -257,7 +257,10 @@ impl<'a> Parser<'a> {
 
     /// Try to eat an expression (return Expression::Error if error and recovery is possible).
     #[inline]
-    pub fn try_eat_expression(&mut self, recover: TokenType) -> ParseResult<LocalNodeId<Expression>> {
+    pub fn try_eat_expression(
+        &mut self,
+        recover: TokenType,
+    ) -> ParseResult<LocalNodeId<Expression>> {
         match self.eat_expression() {
             Ok(expression_id) => Ok(expression_id),
             Err(err) => {

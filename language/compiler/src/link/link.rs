@@ -1,4 +1,4 @@
-use crate::{Compiler, CompileTask, LinkResult};
+use crate::{CompileTask, Compiler, LinkResult};
 
 /// Task to link something.
 #[derive(Debug, Clone)]

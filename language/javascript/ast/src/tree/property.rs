@@ -1,4 +1,4 @@
-use crate::{BindingModifier, Expression, FunctionSignature, Key, Node, LocalNodeId, NodeType};
+use crate::{BindingModifier, Expression, FunctionSignature, Key, LocalNodeId, Node, NodeType};
 
 /// A Property is a property of a variant type (may be a field or method).
 #[derive(Debug, Clone, PartialEq)]
