@@ -12,7 +12,7 @@ impl<'a> Transpiler<'a> {
         _module: &'a Module,
         _scope_id: dir::NodeIdAny,
         path: &dir::Path,
-        unit: &mut TranspilerUnit,
+        _unit: &mut TranspilerUnit,
     ) -> TranspileResult<Path> {
         let segments: SmallVec<StringId, 3> = path
             .segments

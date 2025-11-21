@@ -286,12 +286,54 @@ impl NodeTree {
         )
     }
 
-    /// Iterate over all nodes.
+    /// Iterate over all nodes ids.
     pub fn iter_node_ids(&self) -> impl Iterator<Item = NodeIdAny> + '_ {
         self.type_by_node_id
             .iter()
             .enumerate()
             .map(|(global_index, &type_id)| NodeIdAny::new(global_index as u32, type_id))
+    }
+
+    /// Iterate over all nodes ids of a given type.
+    pub fn iter_node_ids_of_type<T>(&self) -> Vec<NodeId<T>>
+    where
+        T: Node,
+        Self: NodeTreeImpl<T>,
+    {
+        self.local_id_by_node_id
+            .iter()
+            .enumerate()
+            .filter_map(|(global_index, _)| {
+                if self.type_by_node_id[global_index] == T::TYPE {
+                    let node_id = NodeId::new(global_index as u32);
+                    Some(node_id)
+                } else {
+                    None
+                }
+            })
+            .collect()
+    }
+
+    /// Iterate over all nodes ids of a given type and module.
+    pub fn iter_node_ids_of_type_in_module<T>(&self, module_id: ModuleId) -> Vec<NodeId<T>>
+    where
+        T: Node,
+        Self: NodeTreeImpl<T>,
+    {
+        self.local_id_by_node_id
+            .iter()
+            .enumerate()
+            .filter_map(move |(global_index, _)| {
+                if self.type_by_node_id[global_index] == T::TYPE
+                    && self.module_by_node_id[global_index] == module_id
+                {
+                    let node_id = NodeId::new(global_index as u32);
+                    Some(node_id)
+                } else {
+                    None
+                }
+            })
+            .collect()
     }
 
     /// Get the module id of a node by its global id.

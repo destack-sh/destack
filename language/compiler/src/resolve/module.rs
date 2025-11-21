@@ -1,6 +1,7 @@
 use crate::{Compiler, ResolveResult};
-use dyst_dir::{ModuleId, Node, NodeIdAny, NodeTree, NodeType};
+use dyst_dir::{Expression, ModuleId, Node, NodeIdAny, NodeTree, NodeType};
 
+#[allow(dead_code)]
 impl<'a> Compiler<'a> {
     /// Whether a node is resolved.
     pub(super) fn is_resolved(&self, node_id: NodeIdAny, tree: &NodeTree) -> bool {
@@ -68,8 +69,13 @@ impl<'a> Compiler<'a> {
     }
 
     /// Resolve an entire module.
-    pub fn resolve_module(&self, module_id: ModuleId, _tree: &mut NodeTree) -> ResolveResult<()> {
-        // todo!("nocheckin: resolve_module({module_id:?})");
+    pub fn resolve_module(&self, module_id: ModuleId, tree: &mut NodeTree) -> ResolveResult<()> {
+        for expression_id in tree
+            .iter_node_ids_of_type_in_module::<Expression>(module_id)
+            .into_iter()
+        {
+            self.resolve_expression(module_id, expression_id, tree)?;
+        }
 
         Ok(())
     }
