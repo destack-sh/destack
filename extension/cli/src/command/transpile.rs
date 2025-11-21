@@ -1,9 +1,7 @@
 use dyst_compiler::{CompileOptions, Compiler};
 use dyst_dir::Session;
 use dyst_javascript_transpiler::{TranspileOptions, Transpiler, TranspilerTarget};
-use dyst_source::{
-    DiagnosticOptions, DiagnosticSeverity, FileContent, FileRegistry, LanguageOptions,
-};
+use dyst_source::{DiagnosticOptions, DiagnosticSeverity, FileContent, FileRegistry, LanguageOptions};
 
 use crate::command::{get_string_or_file, print_diagnostics};
 use crate::{CommandArguments, console};
@@ -57,26 +55,29 @@ pub fn run(ctx: CommandArguments) -> i32 {
     drop(compiler);
 
     // handle compiler diagnostics
-    if session.has_diagnostics_of_severity(DiagnosticSeverity::Error) {
-        print_diagnostics(&session, DiagnosticSeverity::Warning);
+    let diagnostics = session.diagnostics.collect().map(&diagnostic_options);
+    if diagnostics.has_diagnostics_of_severity(DiagnosticSeverity::Error) {
+        // bail early with diagnostics
+        print_diagnostics(&session, &diagnostics);
         return 1;
     }
 
     // transpile source
     let transpiler_options = TranspileOptions {
         target,
-        diagnostic: diagnostic_options,
+        diagnostic: diagnostic_options.clone(),
         ..Default::default()
     };
     let transpiler = Transpiler::new(&session, transpiler_options);
     transpiler.transpile();
 
     // handle transpiler diagnostics
-    print_diagnostics(&session, DiagnosticSeverity::Note);
-    if session.has_diagnostics_of_severity(DiagnosticSeverity::Error) {
+    let diagnostics = session.diagnostics.collect().map(&diagnostic_options);
+    print_diagnostics(&session, &diagnostics);
+    if diagnostics.has_diagnostics_of_severity(DiagnosticSeverity::Error) {
         return 1;
     }
-
+    
     // print/write transpiler artifacts
     if !silent {
         let line_width = session.language.formatting.line_width as usize;
@@ -102,5 +103,5 @@ pub fn run(ctx: CommandArguments) -> i32 {
         }
     }
 
-    session.get_diagnostics_status_code()
+    diagnostics.get_status_code()
 }
