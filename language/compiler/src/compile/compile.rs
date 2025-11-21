@@ -1,4 +1,4 @@
-use crate::{Compiler, CompilerTask};
+use crate::{Compiler, CompileTask};
 
 #[allow(dead_code)]
 impl<'s> Compiler<'s> {
@@ -13,57 +13,62 @@ impl<'s> Compiler<'s> {
     }
 
     /// Enqueue a task to the compiler.
-    pub fn enqueue(&self, task: CompilerTask) {
+    pub fn enqueue(&self, task: CompileTask) {
         self.queue.push_back(task);
     }
 
     /// Process a compiler task.
     #[inline]
-    pub(super) fn process(&self, task: CompilerTask) {
+    pub(super) fn process(&self, task: CompileTask) {
         match task {
-            CompilerTask::Import(import_task) => {
+            CompileTask::Import(import_task) => {
                 if let Err(error) = self.process_import(import_task) {
                     self.error(error);
                 }
             }
-            CompilerTask::Bind(bind_task) => {
+            CompileTask::Bind(bind_task) => {
                 let mut tree = self.session.tree.write();
                 if let Err(error) = self.process_bind(bind_task, &mut tree) {
                     self.error(error);
                 }
             }
-            CompilerTask::Resolve(resolve_task) => {
+            CompileTask::Resolve(resolve_task) => {
                 let mut tree = self.session.tree.write();
                 if let Err(error) = self.process_resolve(resolve_task, &mut tree) {
                     self.error(error);
                 }
             }
-            CompilerTask::Validate(validate_task) => {
+            CompileTask::Validate(validate_task) => {
                 if let Err(error) = self.process_validate(validate_task) {
                     self.error(error);
                 }
             }
-            CompilerTask::Lower(lower_task) => {
+            CompileTask::Elaborate(elaborate_task) => {
+                if let Err(error) = self.process_elaborate(elaborate_task) {
+                    self.error(error);
+                }
+            }
+            CompileTask::Lower(lower_task) => {
                 if let Err(error) = self.process_lower(lower_task) {
                     self.error(error);
                 }
             }
-            CompilerTask::Execute(execute_task) => {
+            CompileTask::Execute(execute_task) => {
                 if let Err(error) = self.process_execute(execute_task) {
                     self.error(error);
                 }
             }
-            CompilerTask::Optimize(optimize_task) => {
+            CompileTask::Optimize(optimize_task) => {
                 if let Err(error) = self.process_optimize(optimize_task) {
                     self.error(error);
                 }
             }
-            CompilerTask::Build(build_task) => {
+            CompileTask::Build(build_task) => {
                 if let Err(error) = self.process_build(build_task) {
                     self.error(error);
                 }
             }
-            CompilerTask::Link(link_task) => {
+            CompileTask::Link(link_task) => {
                 if let Err(error) = self.process_link(link_task) {
                     self.error(error);
                 }

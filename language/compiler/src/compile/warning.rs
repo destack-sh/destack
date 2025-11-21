@@ -1,8 +1,8 @@
 use dyst_dir::{NodeIdAny, Session};
 
 use crate::{
-    BindWarning, BuildWarning, CompileError, CompilerStage, ExecuteWarning, ImportWarning,
-    LinkWarning, LowerWarning, OptimizeWarning, ResolveWarning, ValidateWarning,
+    BindWarning, BuildWarning, CompileError, CompileStage, ElaborateWarning, ExecuteWarning,
+    ImportWarning, LinkWarning, LowerWarning, OptimizeWarning, ResolveWarning, ValidateWarning,
 };
 
 /// Warning during compilation.
@@ -16,6 +16,8 @@ pub enum CompileWarning {
     Resolve(ResolveWarning),
     /// Warning during validation.
     Validate(ValidateWarning),
+    /// Warning during elaboration.
+    Elaborate(ElaborateWarning),
     /// Warning during lower.
     Lower(LowerWarning),
     /// Warning during execution.
@@ -32,17 +34,18 @@ pub enum CompileWarning {
 
 impl CompileWarning {
     /// Get the stage of the warning.
-    pub fn stage(&self) -> CompilerStage {
+    pub fn stage(&self) -> CompileStage {
         match self {
-            Self::Import(_) => CompilerStage::Import,
-            Self::Bind(_) => CompilerStage::Bind,
-            Self::Resolve(_) => CompilerStage::Resolve,
-            Self::Validate(_) => CompilerStage::Validate,
-            Self::Lower(_) => CompilerStage::Lower,
-            Self::Execute(_) => CompilerStage::Execute,
-            Self::Optimize(_) => CompilerStage::Optimize,
-            Self::Build(_) => CompilerStage::Build,
-            Self::Link(_) => CompilerStage::Link,
+            Self::Import(_) => CompileStage::Import,
+            Self::Bind(_) => CompileStage::Bind,
+            Self::Resolve(_) => CompileStage::Resolve,
+            Self::Validate(_) => CompileStage::Validate,
+            Self::Elaborate(_) => CompileStage::Elaborate,
+            Self::Lower(_) => CompileStage::Lower,
+            Self::Execute(_) => CompileStage::Execute,
+            Self::Optimize(_) => CompileStage::Optimize,
+            Self::Build(_) => CompileStage::Build,
+            Self::Link(_) => CompileStage::Link,
             Self::Suppressed(error) => error.stage(),
         }
     }
@@ -60,6 +63,7 @@ impl CompileWarning {
             Self::Bind(warning) => warning.sub_code(),
             Self::Resolve(warning) => warning.sub_code(),
             Self::Validate(warning) => warning.sub_code(),
+            Self::Elaborate(warning) => warning.sub_code(),
             Self::Lower(warning) => warning.sub_code(),
             Self::Execute(warning) => warning.sub_code(),
             Self::Optimize(warning) => warning.sub_code(),
@@ -85,6 +89,7 @@ impl CompileWarning {
             Self::Bind(warning) => warning.node_id(),
             Self::Resolve(warning) => warning.node_id(),
             Self::Validate(warning) => warning.node_id(),
+            Self::Elaborate(warning) => warning.node_id(),
             Self::Lower(warning) => warning.node_id(),
             Self::Execute(warning) => warning.node_id(),
             Self::Optimize(warning) => warning.node_id(),
@@ -101,6 +106,7 @@ impl CompileWarning {
             Self::Bind(warning) => warning.message(session),
             Self::Resolve(warning) => warning.message(session),
             Self::Validate(warning) => warning.message(session),
+            Self::Elaborate(warning) => warning.message(session),
             Self::Lower(warning) => warning.message(session),
             Self::Execute(warning) => warning.message(session),
             Self::Optimize(warning) => warning.message(session),

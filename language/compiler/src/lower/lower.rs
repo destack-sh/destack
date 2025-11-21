@@ -1,12 +1,12 @@
-use crate::{Compiler, CompilerTask, LowerResult};
+use crate::{Compiler, CompileTask, LowerResult};
 
 /// Task to lower something.
 #[derive(Debug, Clone)]
 pub enum LowerTask {}
 
-impl From<LowerTask> for CompilerTask {
+impl From<LowerTask> for CompileTask {
     fn from(task: LowerTask) -> Self {
-        CompilerTask::Lower(task)
+        CompileTask::Lower(task)
     }
 }
 

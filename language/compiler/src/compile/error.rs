@@ -1,8 +1,8 @@
 use dyst_dir::{NodeIdAny, Session};
 
 use crate::{
-    BindError, BuildError, CompilerStage, ExecuteError, ImportError, LinkError, LowerError,
-    OptimizeError, ResolveError, ValidateError,
+    BindError, BuildError, CompileStage, ElaborateError, ExecuteError, ImportError, LinkError,
+    LowerError, OptimizeError, ResolveError, ValidateError,
 };
 
 /// Error during compilation.
@@ -16,6 +16,8 @@ pub enum CompileError {
     Resolve(ResolveError),
     /// Error during validation.
     Validate(ValidateError),
+    /// Error during elaboration.
+    Elaborate(ElaborateError),
     /// Error during lower.
     Lower(LowerError),
     /// Error during execution.
@@ -30,17 +32,18 @@ pub enum CompileError {
 
 impl CompileError {
     /// Get the stage of the error.
-    pub fn stage(&self) -> CompilerStage {
+    pub fn stage(&self) -> CompileStage {
         match self {
-            Self::Import(_) => CompilerStage::Import,
-            Self::Bind(_) => CompilerStage::Bind,
-            Self::Resolve(_) => CompilerStage::Resolve,
-            Self::Validate(_) => CompilerStage::Validate,
-            Self::Lower(_) => CompilerStage::Lower,
-            Self::Execute(_) => CompilerStage::Execute,
-            Self::Optimize(_) => CompilerStage::Optimize,
-            Self::Build(_) => CompilerStage::Build,
-            Self::Link(_) => CompilerStage::Link,
+            Self::Import(_) => CompileStage::Import,
+            Self::Bind(_) => CompileStage::Bind,
+            Self::Resolve(_) => CompileStage::Resolve,
+            Self::Validate(_) => CompileStage::Validate,
+            Self::Elaborate(_) => CompileStage::Elaborate,
+            Self::Lower(_) => CompileStage::Lower,
+            Self::Execute(_) => CompileStage::Execute,
+            Self::Optimize(_) => CompileStage::Optimize,
+            Self::Build(_) => CompileStage::Build,
+            Self::Link(_) => CompileStage::Link,
         }
     }
 
@@ -57,6 +60,7 @@ impl CompileError {
             Self::Bind(error) => error.sub_code(),
             Self::Resolve(error) => error.sub_code(),
             Self::Validate(error) => error.sub_code(),
+            Self::Elaborate(error) => error.sub_code(),
             Self::Lower(error) => error.sub_code(),
             Self::Execute(error) => error.sub_code(),
             Self::Optimize(error) => error.sub_code(),
@@ -72,6 +76,7 @@ impl CompileError {
             Self::Bind(error) => error.node_id(),
             Self::Resolve(error) => error.node_id(),
             Self::Validate(error) => error.node_id(),
+            Self::Elaborate(error) => error.node_id(),
             Self::Lower(error) => error.node_id(),
             Self::Execute(error) => error.node_id(),
             Self::Optimize(error) => error.node_id(),
@@ -87,6 +92,7 @@ impl CompileError {
             Self::Bind(error) => error.message(session),
             Self::Resolve(error) => error.message(session),
             Self::Validate(error) => error.message(session),
+            Self::Elaborate(error) => error.message(session),
             Self::Lower(error) => error.message(session),
             Self::Execute(error) => error.message(session),
             Self::Optimize(error) => error.message(session),

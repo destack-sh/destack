@@ -208,9 +208,8 @@ impl<'a> Compiler<'a> {
     }
 
     /// Resolve an expression string into a DIR type literal.
-    pub(super) fn resolve_string_to_type(&self, string_id: StringId) -> Option<TypeLiteral> {
-        let string = self.session.strings.get(string_id);
-        match string.as_ref() {
+    pub(super) fn resolve_string_to_type(&self, string: &str) -> Option<TypeLiteral> {
+        match string {
             // undefined
             "undefined" => Some(TypeLiteral::Undefined),
             // unknown

@@ -1,7 +1,7 @@
 use dyst_ast::StringId;
 use dyst_dir::{self as dir, Module};
 use dyst_javascript_ast::Path;
-use dyst_source::{SmallVec, smallvec};
+use dyst_source::SmallVec;
 
 use crate::{TranspileResult, Transpiler, TranspilerUnit};
 

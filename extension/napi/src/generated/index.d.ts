@@ -87,7 +87,7 @@ export interface TranspileOptions {
   /** The transpilation mode. */
   mode: TranspilerMode
   /** The target language. */
-  target: TranspilerTarget
+  target: TranspileTarget
   /** The ECMAScript level. */
   esVersion: EcmaScriptVersion
   /** The TypeScript version. */
@@ -97,7 +97,7 @@ export interface TranspileOptions {
 }
 
 /** The target language for transpiling. */
-export declare const enum TranspilerTarget {
+export declare const enum TranspileTarget {
   /** Plain JavaScript (`.js`). */
   JavaScript = 0,
   /** TypeScript (`.ts`). */

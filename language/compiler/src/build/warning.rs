@@ -1,6 +1,6 @@
 use dyst_dir::{NodeIdAny, Session};
 
-use crate::{CompileWarning, CompilerStage};
+use crate::{CompileWarning, CompileStage};
 
 /// Warning when building something.
 #[derive(Debug, Clone, PartialEq)]
@@ -49,7 +49,7 @@ impl std::fmt::Display for BuildWarning {
         f.debug_struct("BuildWarning")
             .field(
                 "code",
-                &format!("{}W{:03}", CompilerStage::Build.letter(), self.sub_code()),
+                &format!("{}W{:03}", CompileStage::Build.letter(), self.sub_code()),
             )
             .finish()
     }

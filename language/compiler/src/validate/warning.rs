@@ -1,6 +1,6 @@
 use dyst_dir::{NodeIdAny, Session};
 
-use crate::{CompileWarning, CompilerStage};
+use crate::{CompileWarning, CompileStage};
 
 /// Warning when validating something.
 #[derive(Debug, Clone, PartialEq)]
@@ -71,7 +71,7 @@ impl std::fmt::Display for ValidateWarning {
                 "code",
                 &format!(
                     "{}W{:03}",
-                    CompilerStage::Validate.letter(),
+                    CompileStage::Validate.letter(),
                     self.sub_code()
                 ),
             )

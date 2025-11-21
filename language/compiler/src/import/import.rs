@@ -1,4 +1,4 @@
-use crate::{BindTask, Compiler, CompilerTask, ImportError, ImportResult};
+use crate::{BindTask, Compiler, CompileTask, ImportError, ImportResult};
 
 use dyst_dir::{Module, PackageId, Session};
 use dyst_parser::Parser;
@@ -44,9 +44,9 @@ impl ImportTask {
     }
 }
 
-impl From<ImportTask> for CompilerTask {
+impl From<ImportTask> for CompileTask {
     fn from(task: ImportTask) -> Self {
-        CompilerTask::Import(task)
+        CompileTask::Import(task)
     }
 }
 

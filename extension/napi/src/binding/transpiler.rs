@@ -30,7 +30,7 @@ impl From<TranspilerMode> for dyst_javascript_transpiler::TranspilerMode {
 /// The target language for transpiling.
 #[napi]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum TranspilerTarget {
+pub enum TranspileTarget {
     /// Plain JavaScript (`.js`).
     JavaScript,
     /// TypeScript (`.ts`).
@@ -39,23 +39,23 @@ pub enum TranspilerTarget {
     JavaScriptWithTypeScriptDeclarations,
 }
 
-impl Default for TranspilerTarget {
+impl Default for TranspileTarget {
     fn default() -> Self {
         Self::TypeScript
     }
 }
 
-impl From<TranspilerTarget> for dyst_javascript_transpiler::TranspilerTarget {
-    fn from(target: TranspilerTarget) -> Self {
+impl From<TranspileTarget> for dyst_javascript_transpiler::TranspileTarget {
+    fn from(target: TranspileTarget) -> Self {
         match target {
-            TranspilerTarget::JavaScript => {
-                dyst_javascript_transpiler::TranspilerTarget::JavaScript
+            TranspileTarget::JavaScript => {
+                dyst_javascript_transpiler::TranspileTarget::JavaScript
             }
-            TranspilerTarget::TypeScript => {
-                dyst_javascript_transpiler::TranspilerTarget::TypeScript
+            TranspileTarget::TypeScript => {
+                dyst_javascript_transpiler::TranspileTarget::TypeScript
             }
-            TranspilerTarget::JavaScriptWithTypeScriptDeclarations => {
-                dyst_javascript_transpiler::TranspilerTarget::JavaScriptWithTypeScriptDeclarations
+            TranspileTarget::JavaScriptWithTypeScriptDeclarations => {
+                dyst_javascript_transpiler::TranspileTarget::JavaScriptWithTypeScriptDeclarations
             }
         }
     }
@@ -215,7 +215,7 @@ pub struct TranspileOptions {
     /// The transpilation mode.
     pub mode: TranspilerMode,
     /// The target language.
-    pub target: TranspilerTarget,
+    pub target: TranspileTarget,
     /// The ECMAScript level.
     pub es_version: EcmaScriptVersion,
     /// The TypeScript version.
@@ -228,7 +228,7 @@ impl Default for TranspileOptions {
     fn default() -> Self {
         Self {
             mode: TranspilerMode::Retained,
-            target: TranspilerTarget::TypeScript,
+            target: TranspileTarget::TypeScript,
             es_version: EcmaScriptVersion::ES2022,
             ts_version: TypeScriptVersion::TS5_0,
             formatting: FormatOptions::default(),

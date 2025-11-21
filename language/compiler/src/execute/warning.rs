@@ -1,6 +1,6 @@
 use dyst_dir::{NodeIdAny, Session};
 
-use crate::{CompileWarning, CompilerStage};
+use crate::{CompileWarning, CompileStage};
 
 /// Warning when executing something.
 #[derive(Debug, Clone, PartialEq)]
@@ -44,7 +44,7 @@ impl std::fmt::Display for ExecuteWarning {
         f.debug_struct("ExecuteWarning")
             .field(
                 "code",
-                &format!("{}W{:03}", CompilerStage::Execute.letter(), self.sub_code()),
+                &format!("{}W{:03}", CompileStage::Execute.letter(), self.sub_code()),
             )
             .finish()
     }

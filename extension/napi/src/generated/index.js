@@ -580,5 +580,5 @@ module.exports.IndentStyle = nativeBinding.IndentStyle
 module.exports.LineEnding = nativeBinding.LineEnding
 module.exports.TranspilerLanguage = nativeBinding.TranspilerLanguage
 module.exports.TranspilerMode = nativeBinding.TranspilerMode
-module.exports.TranspilerTarget = nativeBinding.TranspilerTarget
+module.exports.TranspileTarget = nativeBinding.TranspileTarget
 module.exports.TypeScriptVersion = nativeBinding.TypeScriptVersion

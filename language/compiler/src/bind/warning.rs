@@ -1,6 +1,6 @@
 use dyst_dir::{NodeIdAny, Session};
 
-use crate::{CompileWarning, CompilerStage};
+use crate::{CompileWarning, CompileStage};
 
 /// Warning when binding something.
 #[derive(Debug, Clone, PartialEq)]
@@ -49,7 +49,7 @@ impl std::fmt::Display for BindWarning {
         f.debug_struct("BindWarning")
             .field(
                 "code",
-                &format!("{}W{:03}", CompilerStage::Bind.letter(), self.sub_code()),
+                &format!("{}W{:03}", CompileStage::Bind.letter(), self.sub_code()),
             )
             .finish()
     }

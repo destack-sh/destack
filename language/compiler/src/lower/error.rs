@@ -1,6 +1,6 @@
 use dyst_dir::{NodeIdAny, Session};
 
-use crate::{CompileError, CompilerStage};
+use crate::{CompileError, CompileStage};
 
 /// Error when lowering something into the compiler.
 #[derive(Debug, Clone)]
@@ -39,7 +39,7 @@ impl std::fmt::Display for LowerError {
         f.debug_struct("LowerError")
             .field(
                 "code",
-                &format!("{}E{:03}", CompilerStage::Lower.letter(), self.sub_code()),
+                &format!("{}E{:03}", CompileStage::Lower.letter(), self.sub_code()),
             )
             .finish()
     }

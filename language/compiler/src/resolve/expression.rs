@@ -10,9 +10,7 @@ impl<'a> Compiler<'a> {
         expression_id: NodeId<Expression>,
         tree: &mut NodeTree,
     ) -> ResolveResult<()> {
-        let _expression = tree.get(expression_id);
-        Err(ResolveError::UnsupportedNode {
-            node: expression_id.into(),
-        })
+        let expression = tree.get(expression_id);
+        Ok(())
     }
 }

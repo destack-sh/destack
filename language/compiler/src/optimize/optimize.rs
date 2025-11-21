@@ -1,12 +1,12 @@
-use crate::{Compiler, CompilerTask, OptimizeResult};
+use crate::{Compiler, CompileTask, OptimizeResult};
 
 /// Task to optimize something.
 #[derive(Debug, Clone)]
 pub enum OptimizeTask {}
 
-impl From<OptimizeTask> for CompilerTask {
+impl From<OptimizeTask> for CompileTask {
     fn from(task: OptimizeTask) -> Self {
-        CompilerTask::Optimize(task)
+        CompileTask::Optimize(task)
     }
 }
 

@@ -1,7 +1,7 @@
 use clap::{ArgGroup, Args, ValueEnum};
 use dyst_compiler::{CompileOptions, Compiler};
 use dyst_dir::Session;
-use dyst_javascript_transpiler::{TranspileOptions, Transpiler, TranspilerTarget};
+use dyst_javascript_transpiler::{TranspileOptions, Transpiler, TranspileTarget};
 use dyst_source::{
     DiagnosticOptions, DiagnosticSeverity, FileContent, FileRegistry, LanguageOptions,
 };
@@ -22,13 +22,13 @@ pub enum TranspileTargetArg {
     All,
 }
 
-impl From<TranspileTargetArg> for TranspilerTarget {
+impl From<TranspileTargetArg> for TranspileTarget {
     fn from(target: TranspileTargetArg) -> Self {
         match target {
-            TranspileTargetArg::Js => TranspilerTarget::JavaScript,
-            TranspileTargetArg::Ts => TranspilerTarget::TypeScript,
-            TranspileTargetArg::Jsdts => TranspilerTarget::JavaScriptWithTypeScriptDeclarations,
-            TranspileTargetArg::All => TranspilerTarget::All,
+            TranspileTargetArg::Js => TranspileTarget::JavaScript,
+            TranspileTargetArg::Ts => TranspileTarget::TypeScript,
+            TranspileTargetArg::Jsdts => TranspileTarget::JavaScriptWithTypeScriptDeclarations,
+            TranspileTargetArg::All => TranspileTarget::All,
         }
     }
 }

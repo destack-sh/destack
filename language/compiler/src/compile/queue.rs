@@ -1,11 +1,11 @@
 use crossbeam_deque::Worker;
 
-use crate::CompilerTask;
+use crate::CompileTask;
 
 /// Queue of compiler tasks using a crossbeam_deque Worker.
 #[derive(Debug)]
 pub struct CompilerQueue {
-    local: Worker<CompilerTask>,
+    local: Worker<CompileTask>,
 }
 
 impl Default for CompilerQueue {
@@ -23,12 +23,12 @@ impl CompilerQueue {
     }
 
     /// Push a task to the back of the queue.
-    pub fn push_back(&self, task: CompilerTask) {
+    pub fn push_back(&self, task: CompileTask) {
         self.local.push(task);
     }
 
     /// Pop a task from the front of the queue.
-    pub fn pop_front(&self) -> Option<CompilerTask> {
+    pub fn pop_front(&self) -> Option<CompileTask> {
         self.local.pop()
     }
 

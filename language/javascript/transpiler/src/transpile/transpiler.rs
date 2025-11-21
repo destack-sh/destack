@@ -26,7 +26,7 @@ pub struct TranspileOptions {
     /// The transpilation mode.
     pub mode: TranspilerMode = TranspilerMode::Retained,
     /// The target language.
-    pub target: TranspilerTarget = TranspilerTarget::TypeScript,
+    pub target: TranspileTarget = TranspileTarget::TypeScript,
     /// The ECMAScript level.
     pub es_version: EcmaScriptVersion = EcmaScriptVersion::ES2022,
     /// The TypeScript version.
@@ -37,7 +37,7 @@ pub struct TranspileOptions {
 
 /// The transpiler target for transpiling.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum TranspilerTarget {
+pub enum TranspileTarget {
     /// Plain JavaScript (`.js`).
     JavaScript,
     /// TypeScript (`.ts`).
@@ -48,17 +48,17 @@ pub enum TranspilerTarget {
     All,
 }
 
-impl TranspilerTarget {
+impl TranspileTarget {
     /// Get the language targets for transpiling.
     pub fn language_targets(&self) -> SmallVec<TranspilerLanguage, 3> {
         match self {
-            TranspilerTarget::JavaScript => smallvec![TranspilerLanguage::JavaScript],
-            TranspilerTarget::TypeScript => smallvec![TranspilerLanguage::TypeScript],
-            TranspilerTarget::JavaScriptWithTypeScriptDeclarations => smallvec![
+            TranspileTarget::JavaScript => smallvec![TranspilerLanguage::JavaScript],
+            TranspileTarget::TypeScript => smallvec![TranspilerLanguage::TypeScript],
+            TranspileTarget::JavaScriptWithTypeScriptDeclarations => smallvec![
                 TranspilerLanguage::JavaScript,
                 TranspilerLanguage::TypeScriptDeclaration,
             ],
-            TranspilerTarget::All => smallvec![
+            TranspileTarget::All => smallvec![
                 TranspilerLanguage::JavaScript,
                 TranspilerLanguage::TypeScript,
                 TranspilerLanguage::TypeScriptDeclaration,

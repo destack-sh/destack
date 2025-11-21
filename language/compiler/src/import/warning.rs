@@ -1,6 +1,6 @@
 use dyst_dir::{ModuleId, NodeIdAny, Session};
 
-use crate::CompilerStage;
+use crate::CompileStage;
 
 /// Warning when importing something.
 #[derive(Debug, Clone, PartialEq)]
@@ -39,7 +39,7 @@ impl std::fmt::Display for ImportWarning {
         f.debug_struct("ImportWarning")
             .field(
                 "code",
-                &format!("{}W{:03}", CompilerStage::Import.letter(), self.sub_code()),
+                &format!("{}W{:03}", CompileStage::Import.letter(), self.sub_code()),
             )
             .finish()
     }

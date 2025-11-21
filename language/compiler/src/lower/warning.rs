@@ -1,6 +1,6 @@
 use dyst_dir::{NodeIdAny, Session};
 
-use crate::{CompileWarning, CompilerStage};
+use crate::{CompileWarning, CompileStage};
 
 /// Warning when optimizing something.
 #[derive(Debug, Clone, PartialEq)]
@@ -44,7 +44,7 @@ impl std::fmt::Display for LowerWarning {
         f.debug_struct("LowerWarning")
             .field(
                 "code",
-                &format!("{}W{:03}", CompilerStage::Lower.letter(), self.sub_code()),
+                &format!("{}W{:03}", CompileStage::Lower.letter(), self.sub_code()),
             )
             .finish()
     }

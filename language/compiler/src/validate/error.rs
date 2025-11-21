@@ -1,6 +1,6 @@
 use dyst_dir::{NodeId, NodeIdAny, Session, Type};
 
-use crate::{CompileError, CompilerStage};
+use crate::{CompileError, CompileStage};
 
 /// Error when validateing something into the compiler.
 #[derive(Debug, Clone)]
@@ -89,7 +89,7 @@ impl std::fmt::Display for ValidateError {
                 "code",
                 &format!(
                     "{}E{:03}",
-                    CompilerStage::Validate.letter(),
+                    CompileStage::Validate.letter(),
                     self.sub_code()
                 ),
             )
