@@ -1,5 +1,7 @@
 use crate::{CompileError, CompileStage};
-use dyst_dir::{ModuleId, LocalNodeIdAny, LocalScopeId, Session, StringId, LocalSymbolId, Visibility};
+use dyst_dir::{
+    LocalNodeIdAny, LocalScopeId, LocalSymbolId, ModuleId, Session, StringId, Visibility,
+};
 
 /// Error when evaluating something statically.
 #[derive(Debug, Clone, PartialEq)]

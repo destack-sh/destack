@@ -1,6 +1,6 @@
 use crate::{
     Argument, AssignOperator, Block, Definition, DependencyItem, DependencyKind, ExportType,
-    Expression, Mutability, Node, LocalNodeId, NodeType, Parameter, Pattern, StringId, Type,
+    Expression, LocalNodeId, Mutability, Node, NodeType, Parameter, Pattern, StringId, Type,
 };
 
 /// A Statement is a JS/TS top-level statement in some container/block.
@@ -101,7 +101,9 @@ pub enum Statement {
     /// Break statement.
     Break { label: Option<StringId> },
     /// Return statement.
-    Return { value: Option<LocalNodeId<Expression>> },
+    Return {
+        value: Option<LocalNodeId<Expression>>,
+    },
 }
 
 impl Node for Statement {

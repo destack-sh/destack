@@ -4,8 +4,8 @@ use crate::parse::prelude::*;
 use crate::{ParseResult, Parser};
 
 use dyst_ast::{
-    DeclarationDescriptor, Definition, Generics, Heritage, Keyword, LocalNodeId, NodeType, StructKind,
-    TokenType,
+    DeclarationDescriptor, Definition, Generics, Heritage, Keyword, LocalNodeId, NodeType,
+    StructKind, TokenType,
 };
 
 impl<'a> Parser<'a> {

@@ -93,7 +93,10 @@ impl<'a> Parser<'a> {
     }
 
     /// Eat a block of expressions (without the label, `{`, and `}`)
-    pub fn eat_block_body(&mut self, format: BlockFormat) -> ParseResult<Vec<LocalNodeId<Expression>>> {
+    pub fn eat_block_body(
+        &mut self,
+        format: BlockFormat,
+    ) -> ParseResult<Vec<LocalNodeId<Expression>>> {
         let mut expressions: Vec<LocalNodeId<Expression>> = Vec::new();
 
         while self.peek().is_ok() {

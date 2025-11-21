@@ -6,7 +6,10 @@ use std::sync::atomic::{AtomicU32, Ordering};
 use dyst_ast::{self as ast, StringPool};
 use dyst_source::{FileId, Uri};
 
-use crate::{DependencyEdge, Expression, LocalNodeId, PackageId, LocalScopeId, LocalSymbolId};
+use crate::{
+    DependencyEdge, Expression, FlowTable, LocalNodeId, LocalScopeId, LocalSymbolId, NodeTree,
+    PackageId, SymbolTable,
+};
 
 /// Unique identifier for Modules.
 #[repr(transparent)]
@@ -30,7 +33,7 @@ pub enum ModuleType {
 }
 
 /// A Module is a single source unit.
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct Module {
     /// The id of the Module itself.
     pub id: ModuleId,
@@ -41,7 +44,7 @@ pub struct Module {
     /// The package of the Module.
     pub package: Option<PackageId>,
 
-    // source
+    // ast
     /// The AST of the Module (may be empty).
     pub ast: ast::NodeTree,
     /// The top-level AST expressions of the Module.
@@ -49,15 +52,21 @@ pub struct Module {
     /// The string pool of the Module.
     pub ast_strings: StringPool,
 
-    // binding
-    /// The symbol of the Module itself.
-    pub symbol: Option<LocalSymbolId>,
-    /// The scope of the Module itself.
-    pub scope: Option<LocalScopeId>,
+    // dir
+    /// The main DIR node tree of the Module.
+    pub tree: RwLock<NodeTree>,
+    /// The symbol table of the Module.
+    pub symbols: RwLock<SymbolTable>,
+    /// The flow table of the Module.
+    pub flows: RwLock<FlowTable>,
     /// The top-level expressions of the Module.
     pub roots: Vec<LocalNodeId<Expression>>,
     // The imports of the Module.
     pub imports: Vec<DependencyEdge>,
+    /// The symbol of the Module itself.
+    pub symbol: Option<LocalSymbolId>,
+    /// The scope of the Module itself.
+    pub scope: Option<LocalScopeId>,
 }
 
 impl Module {
@@ -76,10 +85,14 @@ impl Module {
             file,
             uri,
             package,
+            // ast
             ast,
             ast_roots,
             ast_strings,
-            // binding
+            // dir
+            tree: RwLock::new(NodeTree::new()),
+            symbols: RwLock::new(SymbolTable::new()),
+            flows: RwLock::new(FlowTable::new()),
             symbol: None,
             scope: None,
             roots: Vec::new(),

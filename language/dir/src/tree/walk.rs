@@ -1,8 +1,8 @@
 use crate::{
     Annotation, Argument, Block, Definition, DependencyItem, EnumField, Expression,
-    FunctionSignature, Generics, Heritage, Key, MatchCase, LocalNodeId, NodeTree, NodeType, NodeVisitor,
-    Parameter, Pattern, PatternField, Property, TemplateLiteral, Type, TypeField, WhereClause,
-    WithClause,
+    FunctionSignature, Generics, Heritage, Key, LocalNodeId, MatchCase, NodeTree, NodeType,
+    NodeVisitor, Parameter, Pattern, PatternField, Property, TemplateLiteral, Type, TypeField,
+    WhereClause, WithClause,
 };
 
 /// Walk any node.
@@ -1153,24 +1153,22 @@ pub fn walk_argument<V: NodeVisitor + ?Sized>(
         Argument::Direct {
             modifiers: _,
             name: _,
-            parameter,
+            symbol: _,
             value,
         }
         | Argument::Spread {
             modifiers: _,
             name: _,
-            parameter,
+            symbol: _,
             value,
         } => {
-            let parameter_node = tree.get(*parameter);
-            visitor.visit_parameter(tree, *parameter, parameter_node);
             let value_expression = tree.get(*value);
             visitor.visit_expression(tree, *value, value_expression);
         }
         Argument::Dynamic {
             modifiers: _,
             name: _,
-            parameter: _,
+            symbol: _,
             key,
             value,
         } => {

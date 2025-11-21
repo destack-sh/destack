@@ -1,8 +1,9 @@
 use crate::Compiler;
 use dyst_ast as ast;
 use dyst_dir::{
-    Argument, BindingKind, BindingModifier, BindingOperator, BindingScope, Expression, Module,
-    Mutability, LocalNodeId, NodeTree, Parameter, Path, LocalScopeId, SymbolKey, SymbolSpace, Visibility,
+    Argument, BindingKind, BindingModifier, BindingOperator, BindingScope, Expression, LocalNodeId,
+    LocalScopeId, Module, Mutability, NodeTree, Parameter, Path, SymbolKey, SymbolSpace,
+    Visibility,
 };
 use dyst_source::smallvec;
 

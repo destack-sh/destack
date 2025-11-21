@@ -87,11 +87,7 @@ impl std::fmt::Display for ValidateError {
         f.debug_struct("ValidateError")
             .field(
                 "code",
-                &format!(
-                    "{}E{:03}",
-                    CompileStage::Validate.letter(),
-                    self.sub_code()
-                ),
+                &format!("{}E{:03}", CompileStage::Validate.letter(), self.sub_code()),
             )
             .finish()
     }

@@ -1,4 +1,4 @@
-use crate::{Expression, Node, LocalNodeId, NodeType, Statement, StringId};
+use crate::{Expression, LocalNodeId, Node, NodeType, Statement, StringId};
 
 /// Block of statements.
 /// NOTE: JS technically supports labels on any statement, but we only support them on blocks (for now).

@@ -1,4 +1,4 @@
-use crate::{BindingModifier, Expression, Name, Node, LocalNodeId, NodeType, Pattern, StringId};
+use crate::{BindingModifier, Expression, LocalNodeId, Name, Node, NodeType, Pattern, StringId};
 
 /// A Parameter is a parameter to some construct.
 ///

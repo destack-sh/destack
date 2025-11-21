@@ -1,4 +1,4 @@
-use dyst_dir::{DependencyItem, ModuleId, LocalNodeId, NodeTree};
+use dyst_dir::{DependencyItem, LocalNodeId, ModuleId, NodeTree};
 
 use crate::{Compiler, ResolveError, ResolveResult};
 

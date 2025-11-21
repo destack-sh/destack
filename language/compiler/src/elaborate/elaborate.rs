@@ -1,4 +1,4 @@
-use crate::{Compiler, CompileTask, ElaborateResult};
+use crate::{CompileTask, Compiler, ElaborateResult};
 
 /// Task to elaborate something.
 #[derive(Debug, Clone)]

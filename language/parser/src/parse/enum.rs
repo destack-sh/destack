@@ -2,8 +2,8 @@ use crate::parse::prelude::*;
 use crate::{ParseError, ParseResult, Parser};
 
 use dyst_ast::{
-    DeclarationDescriptor, Definition, EnumField, Generics, Heritage, Keyword, LocalNodeId, NodeType,
-    Property, TokenType,
+    DeclarationDescriptor, Definition, EnumField, Generics, Heritage, Keyword, LocalNodeId,
+    NodeType, Property, TokenType,
 };
 
 impl<'a> Parser<'a> {
@@ -97,7 +97,9 @@ impl<'a> Parser<'a> {
 
     /// Eat an enum body (without the header or `{` and `}`)
     #[allow(clippy::type_complexity)]
-    fn eat_enum_body(&mut self) -> ParseResult<(Vec<LocalNodeId<EnumField>>, Vec<LocalNodeId<Property>>)> {
+    fn eat_enum_body(
+        &mut self,
+    ) -> ParseResult<(Vec<LocalNodeId<EnumField>>, Vec<LocalNodeId<Property>>)> {
         // eat everything
         let mut fields: Vec<LocalNodeId<EnumField>> = Vec::new();
         let mut properties: Vec<LocalNodeId<Property>> = Vec::new();

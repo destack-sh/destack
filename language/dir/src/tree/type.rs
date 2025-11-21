@@ -1,6 +1,6 @@
 use crate::{
-    BindingModifier, Expression, FunctionSignature, Key, Mutability, Node, LocalNodeId, NodeType,
-    Parameter, ScalarLiteral, StringId, LocalSymbolId, WithClause,
+    BindingModifier, Expression, FunctionSignature, Key, LocalNodeId, LocalSymbolId, Mutability,
+    Node, NodeType, Parameter, ScalarLiteral, StringId, WithClause,
 };
 
 /// A PrimitiveType is a primitive type node.
@@ -173,7 +173,9 @@ pub enum Type {
     /// Tuple type `[T1, T2, ...]`.
     Tuple { elements: Vec<LocalNodeId<Type>> },
     /// Struct type `{ a: T1, b: T2, ... }`.
-    Struct { attributes: Vec<LocalNodeId<TypeField>> },
+    Struct {
+        attributes: Vec<LocalNodeId<TypeField>>,
+    },
     /// Union type `A | B | C`.
     Union { elements: Vec<LocalNodeId<Type>> },
     /// Intersection type `A & B & C`.

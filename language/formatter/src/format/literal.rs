@@ -3,8 +3,8 @@ use std::borrow::Cow;
 use crate::{DystFormatContext, DystFormatter};
 
 use dyst_ast::{
-    Argument, DefinitionType, FloatType, IntType, Keyword, LocalNodeId, ScalarLiteral, TemplateLiteral,
-    TypeLiteral,
+    Argument, DefinitionType, FloatType, IntType, Keyword, LocalNodeId, ScalarLiteral,
+    TemplateLiteral, TypeLiteral,
 };
 use dyst_fir::format::{Format, FormatResult, text, token};
 use dyst_fir::prelude::*;

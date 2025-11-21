@@ -4,8 +4,8 @@ use dyst_fir::{format_args, write};
 
 use crate::{DystFormatContext, DystFormatter, FormatNode};
 use dyst_ast::{
-    Annotation, AnnotationPosition, Blank, Comment, CommentStyle, Decorator, Doc, DocStyle, Node,
-    LocalNodeId, NodeTree, NodeTreeImpl, NodeType, Tag,
+    Annotation, AnnotationPosition, Blank, Comment, CommentStyle, Decorator, Doc, DocStyle,
+    LocalNodeId, Node, NodeTree, NodeTreeImpl, NodeType, Tag,
 };
 
 impl<'ast> DystFormatContext<'ast> {
@@ -56,7 +56,10 @@ impl<'ast> DystFormatContext<'ast> {
 
     /// Format the line postfix boundary annotations for a node.
     #[inline]
-    pub fn line_postfix_boundary_annotations<T: Node>(&self, node_id: LocalNodeId<T>) -> Annotations<T> {
+    pub fn line_postfix_boundary_annotations<T: Node>(
+        &self,
+        node_id: LocalNodeId<T>,
+    ) -> Annotations<T> {
         Annotations {
             position: AnnotationCapture::LinePostfixBoundary,
             node_id,
@@ -83,7 +86,10 @@ impl<'ast> DystFormatContext<'ast> {
 
     /// Format the line and block infix or postfix annotations for a node.
     #[inline]
-    pub fn any_infix_or_postfix_annotations<T: Node>(&self, node_id: LocalNodeId<T>) -> Annotations<T> {
+    pub fn any_infix_or_postfix_annotations<T: Node>(
+        &self,
+        node_id: LocalNodeId<T>,
+    ) -> Annotations<T> {
         Annotations {
             position: AnnotationCapture::AnyInfixOrPostfix,
             node_id,

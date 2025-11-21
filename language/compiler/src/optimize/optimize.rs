@@ -1,4 +1,4 @@
-use crate::{Compiler, CompileTask, OptimizeResult};
+use crate::{CompileTask, Compiler, OptimizeResult};
 
 /// Task to optimize something.
 #[derive(Debug, Clone)]

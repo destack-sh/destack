@@ -1,7 +1,7 @@
 use dyst_ast::{self as ast};
 use dyst_dir::{
-    DependencyItem, Expression, ForEachKind, IfKind, LoopKind, MatchSource, Module, LocalNodeId,
-    NodeTree, LocalScopeId, ScopeKind, SymbolKey, SymbolSpace, YieldCardinality,
+    DependencyItem, Expression, ForEachKind, IfKind, LocalNodeId, LocalScopeId, LoopKind,
+    MatchSource, Module, NodeTree, ScopeKind, SymbolKey, SymbolSpace, YieldCardinality,
 };
 
 use crate::Compiler;

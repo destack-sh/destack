@@ -1,5 +1,5 @@
 use crate::{
-    BindingScope, ExportType, Expression, FunctionSignature, Name, Node, LocalNodeId, NodeType,
+    BindingScope, ExportType, Expression, FunctionSignature, LocalNodeId, Name, Node, NodeType,
     Parameter, Property, WhereClause, WithClause,
 };
 

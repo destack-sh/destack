@@ -3,8 +3,8 @@ use crate::{ParseResult, Parser};
 
 use dyst_ast::{
     Asynchrony, DeclarationDescriptor, Definition, FunctionAbstraction, FunctionCardinality,
-    FunctionKind, FunctionMode, FunctionSignature, Generics, Keyword, LocalNodeId, NodeType, Parameter,
-    TokenType,
+    FunctionKind, FunctionMode, FunctionSignature, Generics, Keyword, LocalNodeId, NodeType,
+    Parameter, TokenType,
 };
 
 /// The keywords that can appear before a function definition.

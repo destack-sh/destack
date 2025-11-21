@@ -2,7 +2,7 @@ use crate::Compiler;
 use dyst_ast as ast;
 use dyst_dir::{
     Asynchrony, FunctionAbstraction, FunctionCardinality, FunctionKind, FunctionMode,
-    FunctionSignature, Module, NodeTree, LocalScopeId,
+    FunctionSignature, LocalScopeId, Module, NodeTree,
 };
 
 impl<'a> Compiler<'a> {

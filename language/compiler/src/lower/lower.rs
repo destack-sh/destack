@@ -1,4 +1,4 @@
-use crate::{Compiler, CompileTask, LowerResult};
+use crate::{CompileTask, Compiler, LowerResult};
 
 /// Task to lower something.
 #[derive(Debug, Clone)]

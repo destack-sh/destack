@@ -1,5 +1,7 @@
 use dyst_dir::{self as dir, Module, NodeTree};
-use dyst_javascript_ast::{Expression, LocalNodeId, LocalNodeIdAny, NodeType, PostfixPosition, Statement};
+use dyst_javascript_ast::{
+    Expression, LocalNodeId, LocalNodeIdAny, NodeType, PostfixPosition, Statement,
+};
 
 use crate::{
     TranspileError, TranspileResult, TranspileResultExt, TranspileWarning, Transpiler,

@@ -5,7 +5,7 @@ use dyst_source::{FileSourceMap, Span};
 
 use crate::{
     Annotation, AnnotationPosition, Arena, Argument, Blank, Block, Comment, Decorator, Definition,
-    DependencyItem, Doc, EnumField, Expression, MatchCase, Node, LocalNodeId, NodeType, Parameter,
+    DependencyItem, Doc, EnumField, Expression, LocalNodeId, MatchCase, Node, NodeType, Parameter,
     Pattern, PatternField, Property, Tag, WhereClause, WithClause,
 };
 
@@ -296,7 +296,10 @@ impl NodeTree {
 
     /// Get comment annotations attached to a node, cloned as a Vec.
     #[inline]
-    pub fn get_comments_for(&self, node_id: u32) -> Vec<(LocalNodeId<Comment>, AnnotationPosition)> {
+    pub fn get_comments_for(
+        &self,
+        node_id: u32,
+    ) -> Vec<(LocalNodeId<Comment>, AnnotationPosition)> {
         self.get_annotations(node_id)
             .into_iter()
             .filter_map(|id| match self.get(id) {

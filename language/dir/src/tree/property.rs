@@ -1,4 +1,6 @@
-use crate::{Expression, FunctionSignature, Key, Mutability, Node, LocalNodeId, NodeType, Visibility};
+use crate::{
+    Expression, FunctionSignature, Key, LocalNodeId, Mutability, Node, NodeType, Visibility,
+};
 
 /// The type of a binding.
 #[derive(Debug, Copy, Clone, PartialEq)]

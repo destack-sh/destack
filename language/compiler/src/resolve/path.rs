@@ -1,4 +1,4 @@
-use dyst_dir::{ModuleId, NodeTree, Path, Scope, LocalScopeId, LocalSymbolId};
+use dyst_dir::{LocalScopeId, LocalSymbolId, ModuleId, NodeTree, Path, Scope};
 
 use crate::{Compiler, ResolveResult};
 

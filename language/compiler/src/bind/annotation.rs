@@ -1,6 +1,6 @@
 use crate::Compiler;
 use dyst_ast::{self as ast};
-use dyst_dir::{Annotation, AnnotationPosition, Module, LocalNodeId, NodeTree, LocalScopeId};
+use dyst_dir::{Annotation, AnnotationPosition, LocalNodeId, LocalScopeId, Module, NodeTree};
 
 impl<'a> Compiler<'a> {
     /// Bind and attach all annotations for a module.

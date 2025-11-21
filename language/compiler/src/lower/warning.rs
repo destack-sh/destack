@@ -1,6 +1,6 @@
 use dyst_dir::{LocalNodeIdAny, Session};
 
-use crate::{CompileWarning, CompileStage};
+use crate::{CompileStage, CompileWarning};
 
 /// Warning when optimizing something.
 #[derive(Debug, Clone, PartialEq)]
@@ -9,7 +9,10 @@ pub enum LowerWarning {
     /// Complex type in target language.
     ComplexType { node: LocalNodeIdAny },
     /// This feature will be emulated slowly on this target.
-    SlowEmulation { node: LocalNodeIdAny, feature: String },
+    SlowEmulation {
+        node: LocalNodeIdAny,
+        feature: String,
+    },
 }
 
 impl LowerWarning {

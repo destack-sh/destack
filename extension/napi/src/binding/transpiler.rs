@@ -48,12 +48,8 @@ impl Default for TranspileTarget {
 impl From<TranspileTarget> for dyst_javascript_transpiler::TranspileTarget {
     fn from(target: TranspileTarget) -> Self {
         match target {
-            TranspileTarget::JavaScript => {
-                dyst_javascript_transpiler::TranspileTarget::JavaScript
-            }
-            TranspileTarget::TypeScript => {
-                dyst_javascript_transpiler::TranspileTarget::TypeScript
-            }
+            TranspileTarget::JavaScript => dyst_javascript_transpiler::TranspileTarget::JavaScript,
+            TranspileTarget::TypeScript => dyst_javascript_transpiler::TranspileTarget::TypeScript,
             TranspileTarget::JavaScriptWithTypeScriptDeclarations => {
                 dyst_javascript_transpiler::TranspileTarget::JavaScriptWithTypeScriptDeclarations
             }

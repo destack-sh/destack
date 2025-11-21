@@ -1,6 +1,6 @@
 use crate::Compiler;
 use dyst_ast as ast;
-use dyst_dir::{Module, LocalNodeId, NodeTree, Pattern, PatternField, LocalScopeId};
+use dyst_dir::{LocalNodeId, LocalScopeId, Module, NodeTree, Pattern, PatternField};
 
 impl<'a> Compiler<'a> {
     /// Bind a pattern to a DIR pattern.

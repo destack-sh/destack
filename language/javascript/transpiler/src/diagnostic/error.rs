@@ -1,5 +1,5 @@
 use dyst_dir::{self as dir, Session};
-use dyst_javascript_ast::{Node, LocalNodeId, LocalNodeIdAny, NodeType};
+use dyst_javascript_ast::{LocalNodeId, LocalNodeIdAny, Node, NodeType};
 
 use crate::{TranspileDiagnostic, TranspileWarning, TranspilerUnit};
 

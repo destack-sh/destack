@@ -1191,7 +1191,12 @@ impl<'a> NodeVisitor for Dumper<'a> {
         });
     }
 
-    fn visit_enum_field(&mut self, _tree: &NodeTree, _id: LocalNodeId<EnumField>, field: &EnumField) {
+    fn visit_enum_field(
+        &mut self,
+        _tree: &NodeTree,
+        _id: LocalNodeId<EnumField>,
+        field: &EnumField,
+    ) {
         self.node("EnumField", _id.id)
             .field("name", &field.name)
             .end();
@@ -1250,7 +1255,12 @@ impl<'a> NodeVisitor for Dumper<'a> {
         });
     }
 
-    fn visit_parameter(&mut self, _tree: &NodeTree, _id: LocalNodeId<Parameter>, param: &Parameter) {
+    fn visit_parameter(
+        &mut self,
+        _tree: &NodeTree,
+        _id: LocalNodeId<Parameter>,
+        param: &Parameter,
+    ) {
         match param {
             Parameter::Named {
                 modifiers,
@@ -1331,7 +1341,12 @@ impl<'a> NodeVisitor for Dumper<'a> {
         });
     }
 
-    fn visit_match_case(&mut self, _tree: &NodeTree, _id: LocalNodeId<MatchCase>, case: &MatchCase) {
+    fn visit_match_case(
+        &mut self,
+        _tree: &NodeTree,
+        _id: LocalNodeId<MatchCase>,
+        case: &MatchCase,
+    ) {
         match case {
             MatchCase::Expression {
                 pattern: _,
@@ -1529,7 +1544,12 @@ impl<'a> NodeVisitor for Dumper<'a> {
         });
     }
 
-    fn visit_decorator(&mut self, _tree: &NodeTree, _id: LocalNodeId<Decorator>, decorator: &Decorator) {
+    fn visit_decorator(
+        &mut self,
+        _tree: &NodeTree,
+        _id: LocalNodeId<Decorator>,
+        decorator: &Decorator,
+    ) {
         self.node("Decorator", _id.id)
             .field("left", &decorator.left)
             .end();

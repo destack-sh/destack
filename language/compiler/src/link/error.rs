@@ -7,11 +7,20 @@ use crate::{CompileError, CompileStage};
 #[repr(u8)]
 pub enum LinkError {
     /// Missing target for a symbol.
-    MissingTarget { node: LocalNodeIdAny, symbol: String },
+    MissingTarget {
+        node: LocalNodeIdAny,
+        symbol: String,
+    },
     /// Unresolved external symbol.
-    UnresolvedSymbol { node: LocalNodeIdAny, symbol: String },
+    UnresolvedSymbol {
+        node: LocalNodeIdAny,
+        symbol: String,
+    },
     /// Duplicate symbols with incompatible definitions.
-    ConflictingSymbol { node: LocalNodeIdAny, symbol: String },
+    ConflictingSymbol {
+        node: LocalNodeIdAny,
+        symbol: String,
+    },
 }
 
 impl LinkError {

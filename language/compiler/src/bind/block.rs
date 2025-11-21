@@ -1,5 +1,5 @@
 use dyst_ast::{self as ast};
-use dyst_dir::{Block, Module, LocalNodeId, NodeTree, LocalScopeId, ScopeKind, SymbolSpace};
+use dyst_dir::{Block, LocalNodeId, LocalScopeId, Module, NodeTree, ScopeKind, SymbolSpace};
 
 use crate::Compiler;
 

@@ -4,7 +4,7 @@ use crate::with::format_with_clause;
 use crate::{DystFormatter, FormatNode};
 use dyst_ast::{
     Asynchrony, BindingKind, BindingModifier, BindingOperator, BindingScope, FunctionAbstraction,
-    FunctionCardinality, Keyword, Mutability, LocalNodeId, Property,
+    FunctionCardinality, Keyword, LocalNodeId, Mutability, Property,
 };
 use dyst_fir::format::FormatResult;
 use dyst_fir::prelude::*;

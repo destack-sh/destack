@@ -1,7 +1,7 @@
 use clap::{ArgGroup, Args, ValueEnum};
 use dyst_compiler::{CompileOptions, Compiler};
 use dyst_dir::Session;
-use dyst_javascript_transpiler::{TranspileOptions, Transpiler, TranspileTarget};
+use dyst_javascript_transpiler::{TranspileOptions, TranspileTarget, Transpiler};
 use dyst_source::{
     DiagnosticOptions, DiagnosticSeverity, FileContent, FileRegistry, LanguageOptions,
 };

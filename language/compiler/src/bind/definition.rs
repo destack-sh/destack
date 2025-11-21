@@ -1,8 +1,8 @@
 use crate::Compiler;
 use dyst_ast as ast;
 use dyst_dir::{
-    BindingScope, DeclarationDescriptor, DeclarationKind, Definition, EnumField, Module, LocalNodeId,
-    NodeTree, LocalScopeId, ScopeKind, StructKind, LocalSymbolId, SymbolKey, SymbolSpace,
+    BindingScope, DeclarationDescriptor, DeclarationKind, Definition, EnumField, LocalNodeId,
+    LocalScopeId, LocalSymbolId, Module, NodeTree, ScopeKind, StructKind, SymbolKey, SymbolSpace,
 };
 
 impl<'a> Compiler<'a> {

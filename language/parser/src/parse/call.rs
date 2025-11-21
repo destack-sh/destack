@@ -162,7 +162,7 @@ impl<'a> Parser<'a> {
 
 #[cfg(test)]
 mod tests {
-    use dyst_ast::{Argument, Expression, Name, LocalNodeId, Path, PostfixPosition, ScalarLiteral};
+    use dyst_ast::{Argument, Expression, LocalNodeId, Name, Path, PostfixPosition, ScalarLiteral};
     use dyst_source::smallvec;
 
     use crate::{

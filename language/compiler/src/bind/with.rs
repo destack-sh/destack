@@ -1,5 +1,5 @@
 use dyst_ast as ast;
-use dyst_dir::{Module, LocalNodeId, NodeTree, LocalScopeId, WithClause};
+use dyst_dir::{LocalNodeId, LocalScopeId, Module, NodeTree, WithClause};
 
 use crate::Compiler;
 

@@ -2,9 +2,9 @@ use dyst_fir::format::{Format, FormatContext, FormatOptions, FormatResult, Forma
 use dyst_fir::prelude::*;
 use dyst_fir::print::PrintOptions;
 use dyst_javascript_ast::{
-    Annotation, Argument, Block, Definition, DependencyItem, EnumField, Expression, Node, LocalNodeId,
-    LocalNodeIdAny, NodeTree, NodeTreeImpl, NodeType, Parameter, Pattern, PatternField, Property,
-    Statement, SwitchCase, Type, TypeField,
+    Annotation, Argument, Block, Definition, DependencyItem, EnumField, Expression, LocalNodeId,
+    LocalNodeIdAny, Node, NodeTree, NodeTreeImpl, NodeType, Parameter, Pattern, PatternField,
+    Property, Statement, SwitchCase, Type, TypeField,
 };
 use dyst_source::{File, ImmutableStringPool, IndentStyle, LineEnding};
 

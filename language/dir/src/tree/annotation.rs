@@ -1,4 +1,4 @@
-use crate::{Argument, Node, LocalNodeId, NodeType, Path, StringId, LocalSymbolId};
+use crate::{Argument, GlobalSymbolId, LocalNodeId, Node, NodeType, Path, StringId};
 
 /// The position of an annotation.
 #[derive(Debug, Copy, Clone, PartialEq)]
@@ -40,14 +40,14 @@ pub enum Annotation {
     Tag {
         position: AnnotationPosition,
         left: Path,
-        symbol: LocalSymbolId,
+        symbol: GlobalSymbolId,
         arguments: Option<Vec<LocalNodeId<Argument>>>,
     },
     /// Decorator annotation (like `@foo` or `@foo(1, 2, 3)`).
     Decorator {
         position: AnnotationPosition,
         left: Path,
-        symbol: LocalSymbolId,
+        symbol: GlobalSymbolId,
         arguments: Option<Vec<LocalNodeId<Argument>>>,
     },
 }

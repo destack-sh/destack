@@ -1,5 +1,5 @@
 use crate::{
-    Argument, BindingModifier, Expression, FunctionSignature, Key, Node, LocalNodeId, NodeType,
+    Argument, BindingModifier, Expression, FunctionSignature, Key, LocalNodeId, Node, NodeType,
     Parameter, Path, ScalarLiteral,
 };
 
@@ -132,7 +132,9 @@ pub enum Type {
     /// Tuple type `[T1, T2, ...]`.
     Tuple { elements: Vec<LocalNodeId<Type>> },
     /// Object type `{ a: T1, b: T2, ... }`.
-    Object { properties: Vec<LocalNodeId<TypeField>> },
+    Object {
+        properties: Vec<LocalNodeId<TypeField>>,
+    },
     /// Union type `A | B | C`.
     Union { elements: Vec<LocalNodeId<Type>> },
     /// Intersection type `A & B & C`.

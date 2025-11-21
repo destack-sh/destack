@@ -1,6 +1,6 @@
 use dyst_source::StringId;
 
-use crate::{Expression, Mutability, Name, Node, LocalNodeId, NodeType};
+use crate::{Expression, LocalNodeId, Mutability, Name, Node, NodeType};
 
 /// A Pattern is a pattern to match something and unwrap it.
 /// Guards are handled only for match cases (see MatchCase).
@@ -54,7 +54,9 @@ pub enum Pattern {
         fields: Vec<LocalNodeId<PatternField>>,
     },
     /// Array or slice pattern (like `[1, 2, x]` or `[1, y, ..]`).
-    Slice { fields: Vec<LocalNodeId<PatternField>> },
+    Slice {
+        fields: Vec<LocalNodeId<PatternField>>,
+    },
     /// Struct pattern (like `Vector2 { x: 0, y, z: zed  }` or `{ a: 2 }`).
     Struct {
         ty: Option<LocalNodeId<Expression>>,

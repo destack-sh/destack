@@ -1,17 +1,26 @@
-use dyst_dir::{ModuleId, LocalNodeIdAny, Session};
+use dyst_dir::{LocalNodeIdAny, ModuleId, Session};
 
-use crate::{CompileWarning, CompileStage};
+use crate::{CompileStage, CompileWarning};
 
 /// Warning when evaluating something statically.
 #[derive(Debug, Clone, PartialEq)]
 #[repr(u8)]
 pub enum ResolveWarning {
     /// Unknown import.
-    UnknownImport { module: ModuleId, node: LocalNodeIdAny },
+    UnknownImport {
+        module: ModuleId,
+        node: LocalNodeIdAny,
+    },
     /// Unused imports / unused re-exports.
-    UnusedImport { module: ModuleId, node: LocalNodeIdAny },
+    UnusedImport {
+        module: ModuleId,
+        node: LocalNodeIdAny,
+    },
     /// Import that resolves but is only used for side effects.
-    SideEffectOnlyImport { module: ModuleId, node: LocalNodeIdAny },
+    SideEffectOnlyImport {
+        module: ModuleId,
+        node: LocalNodeIdAny,
+    },
 }
 
 impl ResolveWarning {

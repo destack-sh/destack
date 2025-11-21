@@ -1,6 +1,6 @@
 use crate::{
-    BindingScope, ExportType, Expression, FunctionSignature, Generics, Heritage, Node, LocalNodeId,
-    NodeType, Property, LocalScopeId, StringId, LocalSymbolId, Type,
+    BindingScope, ExportType, Expression, FunctionSignature, Generics, Heritage, LocalNodeId,
+    LocalScopeId, LocalSymbolId, Node, NodeType, Property, StringId, Type,
 };
 
 /// The kind of declaration.

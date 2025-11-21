@@ -1,7 +1,7 @@
 use dyst_fir::format::FormatResult;
 
 use crate::{DystFormatter, FormatNode};
-use dyst_ast::{Keyword, MatchCase, LocalNodeId};
+use dyst_ast::{Keyword, LocalNodeId, MatchCase};
 use dyst_fir::prelude::*;
 use dyst_fir::write;
 

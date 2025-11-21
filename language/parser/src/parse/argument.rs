@@ -1,6 +1,7 @@
 use dyst_ast::{
     Argument, BindingKind, BindingModifier, BindingOperator, BindingScope, Expression, Keyword,
-    Mutability, Name, LocalNodeId, NodeType, Parameter, Pattern, ScalarLiteral, StringId, TokenType,
+    LocalNodeId, Mutability, Name, NodeType, Parameter, Pattern, ScalarLiteral, StringId,
+    TokenType,
 };
 
 use crate::parse::prelude::*;
@@ -270,7 +271,9 @@ impl<'a> Parser<'a> {
     }
 
     /// Eat static parameters (including the `<` and `>` tokens) if they exist.
-    pub fn eat_static_parameters_maybe(&mut self) -> ParseResult<Option<Vec<LocalNodeId<Parameter>>>> {
+    pub fn eat_static_parameters_maybe(
+        &mut self,
+    ) -> ParseResult<Option<Vec<LocalNodeId<Parameter>>>> {
         if self.peek_token(TokenType::LessThan).is_ok() {
             return Ok(Some(self.eat_static_parameters()?));
         }
@@ -297,7 +300,9 @@ impl<'a> Parser<'a> {
     }
 
     /// Eat dynamic parameters (including the `(` and `)` tokens) if they exist.
-    pub fn eat_dynamic_parameters_maybe(&mut self) -> ParseResult<Option<Vec<LocalNodeId<Parameter>>>> {
+    pub fn eat_dynamic_parameters_maybe(
+        &mut self,
+    ) -> ParseResult<Option<Vec<LocalNodeId<Parameter>>>> {
         if self.peek_token(TokenType::OpenParenthesis).is_ok() {
             return Ok(Some(self.eat_dynamic_parameters()?));
         }
@@ -512,7 +517,9 @@ impl<'a> Parser<'a> {
     }
 
     /// Eat static arguments (including the `<` and `>` tokens) if they exist.
-    pub fn eat_static_arguments_maybe(&mut self) -> ParseResult<Option<Vec<LocalNodeId<Argument>>>> {
+    pub fn eat_static_arguments_maybe(
+        &mut self,
+    ) -> ParseResult<Option<Vec<LocalNodeId<Argument>>>> {
         if self.peek_token(TokenType::LessThan).is_ok() {
             return Ok(Some(self.eat_static_arguments()?));
         }
@@ -541,7 +548,9 @@ impl<'a> Parser<'a> {
     }
 
     /// Eat dynamic arguments (including the `(` and `)` tokens) if they exist.
-    pub fn eat_dynamic_arguments_maybe(&mut self) -> ParseResult<Option<Vec<LocalNodeId<Argument>>>> {
+    pub fn eat_dynamic_arguments_maybe(
+        &mut self,
+    ) -> ParseResult<Option<Vec<LocalNodeId<Argument>>>> {
         if self.peek_token(TokenType::OpenParenthesis).is_ok() {
             return Ok(Some(self.eat_dynamic_arguments()?));
         }

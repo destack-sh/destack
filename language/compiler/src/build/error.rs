@@ -9,7 +9,10 @@ pub enum BuildError {
     /// Target is not available.
     TargetNotAvailable { node: LocalNodeIdAny },
     /// Unsupported target triple / architecture / ABI.
-    UnsupportedTarget { node: LocalNodeIdAny, target: String },
+    UnsupportedTarget {
+        node: LocalNodeIdAny,
+        target: String,
+    },
     /// Missing entry point (main/_start) when required.
     MissingEntryPoint { node: LocalNodeIdAny },
     /// Unresolved external symbol / missing library at link time.

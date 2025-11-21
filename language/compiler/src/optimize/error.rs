@@ -11,7 +11,10 @@ pub enum OptimizeError {
     /// Unsupported optimization.
     UnsupportedOptimization { node: LocalNodeIdAny },
     /// Undefined behavior possible.
-    PossibleUndefinedBehavior { node: LocalNodeIdAny, behavior: String },
+    PossibleUndefinedBehavior {
+        node: LocalNodeIdAny,
+        behavior: String,
+    },
 }
 
 impl OptimizeError {
@@ -49,11 +52,7 @@ impl std::fmt::Display for OptimizeError {
         f.debug_struct("OptimizeError")
             .field(
                 "code",
-                &format!(
-                    "{}E{:03}",
-                    CompileStage::Optimize.letter(),
-                    self.sub_code()
-                ),
+                &format!("{}E{:03}", CompileStage::Optimize.letter(), self.sub_code()),
             )
             .finish()
     }

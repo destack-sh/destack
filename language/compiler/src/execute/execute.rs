@@ -1,4 +1,4 @@
-use crate::{Compiler, CompileTask, ExecuteResult};
+use crate::{CompileTask, Compiler, ExecuteResult};
 
 use dyst_dir::{Expression, LocalNodeId};
 

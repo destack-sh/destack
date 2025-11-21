@@ -1,6 +1,6 @@
 use dyst_source::StringId;
 
-use crate::{Expression, ModuleId, Node, LocalNodeId, NodeType, LocalSymbolId};
+use crate::{Expression, GlobalSymbolId, LocalNodeId, LocalSymbolId, ModuleId, Node, NodeType};
 
 /// How an Export should be treated for processing by the system.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -45,7 +45,7 @@ pub enum DependencyItem {
     /// Remote to the module (i.e., imports and re-exports).
     Remote {
         symbol: LocalSymbolId,
-        remote_symbol: LocalSymbolId,
+        remote_symbol: GlobalSymbolId,
         module: ModuleId,
     },
 }

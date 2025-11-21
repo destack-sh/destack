@@ -1,4 +1,4 @@
-use crate::{Compiler, CompileTask, ResolveResult};
+use crate::{CompileTask, Compiler, ResolveResult};
 
 use dyst_dir::{ModuleId, NodeTree, Session};
 

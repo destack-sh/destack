@@ -1,4 +1,4 @@
-use dyst_dir::{Annotation, ModuleId, LocalNodeId, NodeTree};
+use dyst_dir::{Annotation, LocalNodeId, ModuleId, NodeTree};
 
 use crate::{Compiler, ResolveResult};
 
