@@ -1,7 +1,7 @@
 use dyst_ast::{self as ast};
 use dyst_dir::{
     DependencyItem, Expression, ForEachKind, IfKind, LoopKind, MatchSource, Module, NodeId,
-    NodeTree, Path, PathBase, ScopeId, ScopeKind, SymbolKey, SymbolSpace, YieldCardinality,
+    NodeTree, ScopeId, ScopeKind, SymbolKey, SymbolSpace, YieldCardinality,
 };
 
 use crate::Compiler;
@@ -69,7 +69,10 @@ impl<'a> Compiler<'a> {
                 items,
                 arguments,
             } => {
-                let target = self.session.strings.intern_from(&module.ast_strings, *target);
+                let target = self
+                    .session
+                    .strings
+                    .intern_from(&module.ast_strings, *target);
                 // items
                 let mut items: Vec<_> = items
                     .as_ref()
@@ -84,7 +87,10 @@ impl<'a> Compiler<'a> {
                     .unwrap_or_default();
                 // default item
                 if let Some(alias) = alias {
-                    let alias = self.session.strings.intern_from(&module.ast_strings, *alias);
+                    let alias = self
+                        .session
+                        .strings
+                        .intern_from(&module.ast_strings, *alias);
                     let symbol_id = tree.create_symbol(
                         SymbolSpace::Value,
                         Some(SymbolKey::Name(alias)),
@@ -127,8 +133,11 @@ impl<'a> Compiler<'a> {
                 value,
             } => {
                 let mode = self.bind_export_type(*mode);
-                let target =
-                    target.map(|target| self.session.strings.intern_from(&module.ast_strings, target));
+                let target = target.map(|target| {
+                    self.session
+                        .strings
+                        .intern_from(&module.ast_strings, target)
+                });
                 // re-export from import
                 if let Some(target) = target {
                     // items
@@ -145,7 +154,10 @@ impl<'a> Compiler<'a> {
                         .unwrap_or_default();
                     // default item
                     if let Some(alias) = alias {
-                        let alias = self.session.strings.intern_from(&module.ast_strings, *alias);
+                        let alias = self
+                            .session
+                            .strings
+                            .intern_from(&module.ast_strings, *alias);
                         let symbol_id = tree.create_symbol(
                             SymbolSpace::Value,
                             Some(SymbolKey::Name(alias)),
@@ -457,17 +469,8 @@ impl<'a> Compiler<'a> {
                 Expression::TaggedTemplateLiteral { tag, value }
             }
             ast::Expression::TypeLiteral(value) => {
-                if *value == ast::TypeLiteral::Self_ {
-                    Expression::UnresolvedPath {
-                        path: Path::Base {
-                            base: PathBase::SelfType,
-                        },
-                        static_arguments: None,
-                    }
-                } else {
-                    let value = self.bind_type_literal(value);
-                    Expression::TypeLiteral { value }
-                }
+                let value = self.bind_type_literal(value);
+                Expression::TypeLiteral { value }
             }
             ast::Expression::RangeLiteral {
                 start,

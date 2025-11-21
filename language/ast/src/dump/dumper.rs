@@ -153,7 +153,7 @@ impl<'a> Dumper<'a> {
         self.write_char('"', Some(Color::White));
     }
 
-    /// Write the path behind a PathId.
+    /// Write the path represented by a Path.
     #[inline]
     pub fn write_path(&mut self, path: &Path) {
         for (i, string_id) in path.segments.iter().enumerate() {
@@ -702,9 +702,6 @@ impl Dump for TypeLiteral {
                     .object("TypeLiteral::Composite")
                     .value(composite_type)
                     .end();
-            }
-            TypeLiteral::Self_ => {
-                dumper.object("TypeLiteral::Self").end();
             }
             TypeLiteral::Symbol => {
                 dumper.object("TypeLiteral::Symbol").end();

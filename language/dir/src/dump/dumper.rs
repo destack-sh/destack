@@ -133,6 +133,18 @@ impl<'a> Dumper<'a> {
         self.write_char('"', Some(Color::White));
     }
 
+    /// Write the path represented by a Path.
+    #[inline]
+    pub fn write_path(&mut self, path: &Path) {
+        for (i, string_id) in path.segments.iter().enumerate() {
+            let string = self.strings.get(*string_id);
+            self.write_str(string, Some(Color::Green));
+            if i + 1 < path.segments.len() {
+                self.write_str(".", Some(Color::White));
+            }
+        }
+    }
+
     /// Helper for dumping a single node.
     #[inline]
     pub fn node<'d>(&'d mut self, name: &str, id: u32) -> StructDumper<'d, 'a> {
@@ -407,7 +419,6 @@ impl_dump_display! {
     ReferenceType,
     Runtime,
     StructKind,
-    PathBase,
     TypeBinaryOperator,
     TypeUnaryOperator,
     UnaryOperator,
@@ -495,21 +506,7 @@ impl Dump for FunctionSignature {
 /// Dump a Path as a structured representation.
 impl Dump for Path {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
-        match self {
-            Path::Base { base } => {
-                dumper.object("Path::Base").field("base", base).end();
-            }
-            Path::RelativeString { base, segments } => {
-                dumper
-                    .object("Path::RelativeString")
-                    .field("base", base)
-                    .value(segments)
-                    .end();
-            }
-            Path::AbsoluteString { segments } => {
-                dumper.object("Path::AbsoluteString").value(segments).end();
-            }
-        }
+        dumper.write_path(self);
     }
 }
 

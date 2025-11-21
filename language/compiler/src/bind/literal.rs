@@ -192,7 +192,6 @@ impl<'a> Compiler<'a> {
             ast::TypeLiteral::Composite(composite_type) => {
                 TypeLiteral::Composite(self.bind_definition_type(composite_type))
             }
-            ast::TypeLiteral::Self_ => panic!("self type can't be lowerd"),
             ast::TypeLiteral::Symbol => TypeLiteral::Primitive(PrimitiveType::Symbol),
             ast::TypeLiteral::UniqueSymbol => TypeLiteral::Primitive(PrimitiveType::UniqueSymbol),
         }

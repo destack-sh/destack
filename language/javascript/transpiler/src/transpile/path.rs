@@ -6,16 +6,6 @@ use dyst_source::{SmallVec, smallvec};
 use crate::{TranspileResult, Transpiler, TranspilerUnit};
 
 impl<'a> Transpiler<'a> {
-    /// Transpile a DIR path base into a JS string.
-    pub fn transpile_path_base(&self, base: dir::PathBase, unit: &mut TranspilerUnit) -> StringId {
-        let string = match base {
-            dir::PathBase::SelfType => "Self",
-            dir::PathBase::SelfValue => "this",
-            dir::PathBase::Module => "module",
-        };
-        unit.strings.intern(string)
-    }
-
     /// Transpile a DIR path into a JS path.
     pub fn transpile_path(
         &self,
@@ -24,31 +14,16 @@ impl<'a> Transpiler<'a> {
         path: &dir::Path,
         unit: &mut TranspilerUnit,
     ) -> TranspileResult<Path> {
-        let path = match path {
-            dir::Path::Base { base } => {
-                let base = self.transpile_path_base(*base, unit);
-                Path {
-                    segments: smallvec![base],
-                }
-            }
-            dir::Path::RelativeString { base, segments } => {
-                let base = self.transpile_path_base(*base, unit);
-                let mut segments: SmallVec<StringId, 3> = segments
-                    .iter()
-                    .map(|segment| unit.strings.intern_from(&self.session.strings, *segment))
-                    .collect();
-                segments.insert(0, base);
-                Path { segments }
-            }
-            dir::Path::AbsoluteString { segments } => {
-                let segments = segments
-                    .iter()
-                    .map(|segment| unit.strings.intern_from(&self.session.strings, *segment))
-                    .collect();
-                Path { segments }
-            }
-        };
-
+        let segments: SmallVec<StringId, 3> = path
+            .segments
+            .iter()
+            .map(|segment| {
+                self.session
+                    .strings
+                    .intern_from(&self.session.strings, *segment)
+            })
+            .collect();
+        let path = Path { segments };
         Ok(path)
     }
 

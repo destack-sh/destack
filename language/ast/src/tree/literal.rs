@@ -78,7 +78,6 @@ pub enum TemplateLiteral {
 /// int2
 /// float64
 /// boolean
-/// Self
 /// symbol
 /// unique symbol
 /// ```
@@ -114,8 +113,6 @@ pub enum TypeLiteral {
     Float(FloatType),
     /// Composite type.
     Composite(DefinitionType),
-    /// Self type.
-    Self_,
     /// Symbol type.
     Symbol,
     /// Unique symbol type.
