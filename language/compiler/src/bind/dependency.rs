@@ -95,7 +95,7 @@ impl<'a> Compiler<'a> {
                             target: *target,
                             module: None,
                             name: *name,
-                            alias: alias.clone(),
+                            alias: *alias,
                             item: Some(*item_id),
                             source: DependencySource::ImportStatement,
                             symbol: *symbol,

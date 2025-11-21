@@ -180,6 +180,7 @@ impl ParseError {
         };
         Diagnostic {
             code: "P001".to_string(),
+            original_code: None,
             severity: DiagnosticSeverity::Error,
             original_severity: None,
             message: match expected {

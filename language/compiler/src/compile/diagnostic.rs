@@ -87,6 +87,7 @@ impl CompileDiagnostic {
 
         Diagnostic {
             code,
+            original_code: None,
             severity,
             original_severity: None,
             message,

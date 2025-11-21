@@ -47,9 +47,11 @@ impl DiagnosticSeverity {
 pub struct Diagnostic {
     /// The stable identifier of the diagnostic (like `E001` or `W017`).
     pub code: String,
+    /// The original code of the diagnostic (if changed by options).
+    pub original_code: Option<String>,
     /// The DiagnosticSeverity of the diagnostic.
     pub severity: DiagnosticSeverity,
-    /// The original severity of the diagnostic.
+    /// The original severity of the diagnostic (if changed by options).
     pub original_severity: Option<DiagnosticSeverity>,
     /// The message of the diagnostic.
     pub message: String,
@@ -110,16 +112,25 @@ impl DiagnosticOptions {
 
     /// Map a diagnostic to its adjusted diagnostic.
     pub fn map(&self, mut diagnostic: Diagnostic) -> Option<Diagnostic> {
+        // retain original code/severity
+        diagnostic.original_code = Some(diagnostic.code.clone());
         diagnostic.original_severity = Some(diagnostic.severity);
+
+        // map severity
+        // error -> warning
         if diagnostic.severity == DiagnosticSeverity::Error
             && self.suppress_errors.contains(&diagnostic.code)
         {
             diagnostic.severity = DiagnosticSeverity::Warning;
-        } else if diagnostic.severity == DiagnosticSeverity::Warning
+        }
+        // warning -> error
+        else if diagnostic.severity == DiagnosticSeverity::Warning
             && self.error_warnings.contains(&diagnostic.code)
         {
             diagnostic.severity = DiagnosticSeverity::Error;
-        } else if diagnostic.severity == DiagnosticSeverity::Warning
+        }
+        // warning -> none
+        else if diagnostic.severity == DiagnosticSeverity::Warning
             && self.suppress_warnings.contains(&diagnostic.code)
         {
             return None;
