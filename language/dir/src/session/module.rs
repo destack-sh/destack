@@ -6,7 +6,7 @@ use std::sync::atomic::{AtomicU32, Ordering};
 use dyst_ast::{self as ast, StringPool};
 use dyst_source::{FileId, Uri};
 
-use crate::{DependencyEdge, Expression, NodeId, PackageId, ScopeId};
+use crate::{DependencyEdge, Expression, NodeId, PackageId, ScopeId, SymbolId};
 
 /// Unique identifier for Modules.
 #[repr(transparent)]
@@ -41,21 +41,23 @@ pub struct Module {
     /// The package of the Module.
     pub package: Option<PackageId>,
 
-    /// The scope of the Module itself.
-    pub scope: Option<ScopeId>,
+    // source
     /// The AST of the Module (may be empty).
     pub ast: ast::NodeTree,
-    /// The string pool of the Module.
-    pub strings: StringPool,
-
     /// The top-level AST expressions of the Module.
     pub ast_roots: Vec<ast::NodeId<ast::Expression>>,
+    /// The string pool of the Module.
+    pub ast_strings: StringPool,
+
+    // binding
+    /// The symbol of the Module itself.
+    pub symbol: Option<SymbolId>,
+    /// The scope of the Module itself.
+    pub scope: Option<ScopeId>,
     /// The top-level expressions of the Module.
     pub roots: Vec<NodeId<Expression>>,
     // The imports of the Module.
     pub imports: Vec<DependencyEdge>,
-    // The exports of the Module.
-    pub exports: Vec<DependencyEdge>,
 }
 
 impl Module {
@@ -67,20 +69,21 @@ impl Module {
         package: Option<PackageId>,
         ast: ast::NodeTree,
         ast_roots: Vec<ast::NodeId<ast::Expression>>,
-        strings: StringPool,
+        ast_strings: StringPool,
     ) -> Self {
         Self {
             id,
             file,
             uri,
             package,
-            scope: None,
             ast,
             ast_roots,
-            strings,
+            ast_strings,
+            // binding
+            symbol: None,
+            scope: None,
             roots: Vec::new(),
             imports: Vec::new(),
-            exports: Vec::new(),
         }
     }
 

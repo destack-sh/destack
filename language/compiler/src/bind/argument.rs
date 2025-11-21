@@ -60,7 +60,7 @@ impl<'a> Compiler<'a> {
             } => {
                 let modifiers =
                     modifiers.map(|modifiers| self.bind_binding_modifier(module, modifiers));
-                let name = self.session.strings.intern_from(&module.strings, *name);
+                let name = self.session.strings.intern_from(&module.ast_strings, *name);
                 let ty = ty.map(|ty| self.bind_expression_to_type(module, scope_id, ty, tree));
                 let default =
                     default.map(|default| self.bind_expression(module, scope_id, default, tree));
@@ -104,7 +104,7 @@ impl<'a> Compiler<'a> {
             } => {
                 let modifiers =
                     modifiers.map(|modifiers| self.bind_binding_modifier(module, modifiers));
-                let name = self.session.strings.intern_from(&module.strings, *name);
+                let name = self.session.strings.intern_from(&module.ast_strings, *name);
                 let ty = ty.map(|ty| self.bind_expression_to_type(module, scope_id, ty, tree));
                 let symbol_id =
                     tree.create_symbol(SymbolSpace::Value, Some(SymbolKey::Name(name)), scope_id);
@@ -139,7 +139,7 @@ impl<'a> Compiler<'a> {
                 let name = self
                     .session
                     .strings
-                    .intern_from(&module.strings, name.string());
+                    .intern_from(&module.ast_strings, name.string());
                 let value = self.bind_expression(module, scope_id, *value, tree);
                 tree.insert_from_source(
                     Argument::UnresolvedNamed {
@@ -154,7 +154,7 @@ impl<'a> Compiler<'a> {
             ast::Argument::Shorthand { modifiers, name } => {
                 let modifiers =
                     modifiers.map(|modifiers| self.bind_binding_modifier(module, modifiers));
-                let name = self.session.strings.intern_from(&module.strings, *name);
+                let name = self.session.strings.intern_from(&module.ast_strings, *name);
                 let path = Path::AbsoluteString {
                     segments: smallvec![name],
                 };
@@ -193,7 +193,7 @@ impl<'a> Compiler<'a> {
             } => {
                 let modifiers =
                     modifiers.map(|modifiers| self.bind_binding_modifier(module, modifiers));
-                let name = name.map(|name| self.session.strings.intern_from(&module.strings, name));
+                let name = name.map(|name| self.session.strings.intern_from(&module.ast_strings, name));
                 let value = self.bind_expression(module, scope_id, *value, tree);
                 tree.insert_from_source(
                     Argument::UnresolvedSpread {

@@ -31,7 +31,7 @@ impl<'a> Transpiler<'a> {
                     alias,
                     symbol: _,
                 } => {
-                    let alias = unit.strings.intern_from(&module.strings, *alias);
+                    let alias = unit.strings.intern_from(&module.ast_strings, *alias);
                     if default_alias.is_some() {
                         return Err(TranspileError::UnsupportedNode {
                             node: item_id.into_any(),
@@ -46,8 +46,8 @@ impl<'a> Transpiler<'a> {
                     alias,
                     symbol: _,
                 } => {
-                    let name = unit.strings.intern_from(&module.strings, *name);
-                    let alias = alias.map(|alias| unit.strings.intern_from(&module.strings, alias));
+                    let name = unit.strings.intern_from(&module.ast_strings, *name);
+                    let alias = alias.map(|alias| unit.strings.intern_from(&module.ast_strings, alias));
                     let item = DependencyItem {
                         kind: if *inner_kind != kind {
                             Some(self.transpile_dependency_kind(*inner_kind))

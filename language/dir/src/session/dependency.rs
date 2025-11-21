@@ -59,6 +59,7 @@ pub enum DependencyEdge {
         item: Option<NodeId<DependencyItem>>,
         source: DependencySource,
         symbol: SymbolId,
+        remote_symbol: SymbolId,
     },
     /// Resolved dependency edge.
     Item {
@@ -68,6 +69,7 @@ pub enum DependencyEdge {
         item: Option<NodeId<DependencyItem>>,
         source: DependencySource,
         symbol: SymbolId,
+        remote_symbol: SymbolId,
     },
 }
 

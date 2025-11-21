@@ -1,7 +1,7 @@
 use dyst_ast as ast;
 use dyst_dir::{
-    DependencyItem, DependencyKind, ExportType, Module, NodeId, NodeTree, ScopeId, SymbolKey,
-    SymbolSpace,
+    DependencyEdge, DependencyItem, DependencyKind, DependencySource, ExportType, Expression,
+    Module, NodeId, NodeTree, ScopeId, SymbolKey, SymbolSpace,
 };
 
 use crate::Compiler;
@@ -39,10 +39,13 @@ impl<'a> Compiler<'a> {
     ) -> NodeId<DependencyItem> {
         let item = module.get(item_id);
         let kind = self.bind_dependency_kind(item.kind.unwrap_or(kind));
-        let name = self.session.strings.intern_from(&module.strings, item.name);
+        let name = self
+            .session
+            .strings
+            .intern_from(&module.ast_strings, item.name);
         let alias = item
             .alias
-            .map(|alias| self.session.strings.intern_from(&module.strings, alias));
+            .map(|alias| self.session.strings.intern_from(&module.ast_strings, alias));
         let symbol_id =
             tree.create_symbol(SymbolSpace::Value, Some(SymbolKey::Name(name)), scope_id);
         let item = DependencyItem::UnresolvedItem {
@@ -52,5 +55,59 @@ impl<'a> Compiler<'a> {
             symbol: symbol_id,
         };
         tree.insert_from_source_as_symbol(item, module.id, item_id, symbol_id)
+    }
+
+    /// Extract the dependency edges of a module.
+    pub(super) fn extract_dependency_edges(
+        &self,
+        module: &Module,
+        _scope_id: ScopeId,
+        tree: &mut NodeTree,
+    ) -> Vec<DependencyEdge> {
+        let mut edges: Vec<DependencyEdge> = Vec::new();
+        for (_expresion_id, expression) in tree.iter_nodes_of_type_in_module::<Expression>(module.id)
+        {
+            // import statements
+            if let Expression::Import { target, items, .. } = expression {
+                for item_id in items.iter() {
+                    let item = tree.get(*item_id);
+                    let edge: DependencyEdge = match item {
+                        DependencyItem::UnresolvedDefault {
+                            kind,
+                            alias,
+                            symbol,
+                        } => DependencyEdge::UnresolvedDefault {
+                            kind: *kind,
+                            target: *target,
+                            module: None,
+                            alias: *alias,
+                            item: Some(*item_id),
+                            source: DependencySource::ImportStatement,
+                            symbol: *symbol,
+                        },
+                        DependencyItem::UnresolvedItem {
+                            kind,
+                            name,
+                            alias,
+                            symbol,
+                        } => DependencyEdge::UnresolvedItem {
+                            kind: *kind,
+                            target: *target,
+                            module: None,
+                            name: *name,
+                            alias: alias.clone(),
+                            item: Some(*item_id),
+                            source: DependencySource::ImportStatement,
+                            symbol: *symbol,
+                        },
+                        _ => continue,
+                    };
+                    edges.push(edge);
+                }
+            } else {
+                continue;
+            }
+        }
+        edges
     }
 }

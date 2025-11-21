@@ -15,7 +15,7 @@ impl<'a> Compiler<'a> {
         let pattern = match pattern {
             ast::Pattern::Wildcard => Pattern::Wildcard,
             ast::Pattern::Rest { name } => Pattern::Rest {
-                name: name.map(|name| self.session.strings.intern_from(&module.strings, name)),
+                name: name.map(|name| self.session.strings.intern_from(&module.ast_strings, name)),
             },
             ast::Pattern::Maybe(pattern_id) => {
                 Pattern::Maybe(self.bind_pattern(module, scope_id, *pattern_id, tree))
@@ -34,7 +34,7 @@ impl<'a> Compiler<'a> {
                 pattern,
             } => {
                 let mutability = mutability.map(|mutability| self.bind_mutability(mutability));
-                let name = self.session.strings.intern_from(&module.strings, *name);
+                let name = self.session.strings.intern_from(&module.ast_strings, *name);
                 let pattern =
                     pattern.map(|pattern| self.bind_pattern(module, scope_id, pattern, tree));
                 Pattern::Binding {
@@ -116,7 +116,7 @@ impl<'a> Compiler<'a> {
                 let name = self
                     .session
                     .strings
-                    .intern_from(&module.strings, name.string());
+                    .intern_from(&module.ast_strings, name.string());
                 let pattern =
                     pattern.map(|pattern| self.bind_pattern(module, scope_id, pattern, tree));
                 let default =
@@ -138,8 +138,8 @@ impl<'a> Compiler<'a> {
                 let name = self
                     .session
                     .strings
-                    .intern_from(&module.strings, name.string());
-                let alias = self.session.strings.intern_from(&module.strings, *alias);
+                    .intern_from(&module.ast_strings, name.string());
+                let alias = self.session.strings.intern_from(&module.ast_strings, *alias);
                 let default =
                     default.map(|default| self.bind_expression(module, scope_id, default, tree));
                 PatternField::UnresolvedAlias {

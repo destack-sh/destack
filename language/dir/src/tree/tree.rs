@@ -262,6 +262,31 @@ impl NodeTree {
             })
     }
 
+    /// Iterate over all nodes of a given type and module together with their NodeId.
+    pub fn iter_nodes_of_type_in_module<'a, T>(
+        &'a self,
+        module_id: ModuleId,
+    ) -> impl Iterator<Item = (NodeId<T>, &'a T)> + 'a
+    where
+        T: Node + 'a,
+        Self: NodeTreeImpl<T>,
+    {
+        self.local_id_by_node_id
+            .iter()
+            .enumerate()
+            .filter_map(move |(global_index, &local_index)| {
+                if self.type_by_node_id[global_index] == T::TYPE
+                    && self.module_by_node_id[global_index] == module_id
+                {
+                    let node_id = NodeId::new(global_index as u32);
+                    let node = <Self as NodeTreeImpl<T>>::get(self, local_index);
+                    Some((node_id, node))
+                } else {
+                    None
+                }
+            })
+    }
+
     /// Iterate over all nodes.
     pub fn iter_node_ids(&self) -> impl Iterator<Item = NodeIdAny> + '_ {
         self.type_by_node_id
@@ -375,10 +400,10 @@ impl NodeTree {
         space: SymbolSpace,
         key: Option<SymbolKey>,
         kind: ScopeKind,
-        scope: ScopeId,
+        parent: ScopeId,
     ) -> (SymbolId, ScopeId) {
-        let symbol_id = self.create_symbol(space, key, scope);
-        let scope_id = self.create_scope(kind, Some(scope), Some(symbol_id));
+        let symbol_id = self.create_symbol(space, key, parent);
+        let scope_id = self.create_scope(kind, Some(parent), Some(symbol_id));
         (symbol_id, scope_id)
     }
 

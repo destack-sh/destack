@@ -3,7 +3,7 @@ use dyst_dir::{ModuleId, Node, NodeIdAny, NodeTree, NodeType};
 
 impl<'a> Compiler<'a> {
     /// Whether a node is resolved.
-    pub(super) fn is_resolved(&self, node_id: NodeIdAny, tree: &NodeTree) -> bool {
+    pub fn is_resolved(&self, node_id: NodeIdAny, tree: &NodeTree) -> bool {
         match node_id.ty {
             NodeType::Expression => tree
                 .get::<dyst_dir::Expression>(node_id.into())
@@ -70,6 +70,7 @@ impl<'a> Compiler<'a> {
     /// Resolve an entire module.
     pub fn resolve_module(&self, module_id: ModuleId, _tree: &mut NodeTree) -> ResolveResult<()> {
         // todo!("nocheckin: resolve_module({module_id:?})");
+        
         Ok(())
     }
 }

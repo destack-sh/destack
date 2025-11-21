@@ -54,7 +54,7 @@ impl<'a> Compiler<'a> {
         let name = descriptor.name.map(|name| {
             self.session
                 .strings
-                .intern_from(&module.strings, name.string())
+                .intern_from(&module.ast_strings, name.string())
         });
         let export = descriptor
             .export
@@ -240,7 +240,7 @@ impl<'a> Compiler<'a> {
         let name = self
             .session
             .strings
-            .intern_from(&module.strings, field.name.string());
+            .intern_from(&module.ast_strings, field.name.string());
         let value = field
             .value
             .map(|value| self.bind_expression(module, scope_id, value, tree));
