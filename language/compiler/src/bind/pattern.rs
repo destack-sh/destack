@@ -139,7 +139,10 @@ impl<'a> Compiler<'a> {
                     .session
                     .strings
                     .intern_from(&module.ast_strings, name.string());
-                let alias = self.session.strings.intern_from(&module.ast_strings, *alias);
+                let alias = self
+                    .session
+                    .strings
+                    .intern_from(&module.ast_strings, *alias);
                 let default =
                     default.map(|default| self.bind_expression(module, scope_id, default, tree));
                 PatternField::UnresolvedAlias {

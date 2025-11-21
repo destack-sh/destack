@@ -69,8 +69,8 @@ pub fn bump() -> i32 {
         };
         for path in paths {
             if FILE_GLOBS_TO_IGNORE
-            .iter()
-            .any(|ignore| path.to_string_lossy().contains(ignore))
+                .iter()
+                .any(|ignore| path.to_string_lossy().contains(ignore))
             {
                 continue;
             }
