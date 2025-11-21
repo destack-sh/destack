@@ -37,14 +37,14 @@ impl<'a> Transpiler<'a> {
             dir::Key::Expression(expression_id) => {
                 let expression_id = self
                     .transpile_expression(module, tree, expression_id, unit)
-                    .expect_node::<Expression>(expression_id.into_any(), unit)?;
+                    .expect_node::<Expression>(expression_id.into_global_any(module.id), unit)?;
                 Key::Expression(expression_id)
             }
             dir::Key::NamedExpression { name, key } => {
                 let name = self.transpile_string_to_name(module, name, unit);
                 let key = self
                     .transpile_expression(module, tree, key, unit)
-                    .expect_node::<Expression>(key.into_any(), unit)?;
+                    .expect_node::<Expression>(key.into_global_any(module.id), unit)?;
                 Key::NamedExpression { name, key }
             }
         };

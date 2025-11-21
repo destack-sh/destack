@@ -1,4 +1,4 @@
-use dyst_dir::{LocalNodeIdAny, Session};
+use dyst_dir::{GlobalNodeIdAny, Session};
 
 use crate::{CompilePhase, CompileWarning};
 
@@ -7,14 +7,14 @@ use crate::{CompilePhase, CompileWarning};
 #[repr(u8)]
 pub enum BindWarning {
     /// Use of deprecated target / CPU / ABI.
-    DeprecatedTarget { node: LocalNodeIdAny },
+    DeprecatedTarget { node: GlobalNodeIdAny },
     /// Weak/duplicate symbol but one chosen deterministically (e.g. ODR violation that's survivable).
     WeakSymbol {
-        node: LocalNodeIdAny,
+        node: GlobalNodeIdAny,
         symbol: String,
     },
     /// Large binary / large static data section ("binary size exceeded X MB").
-    LargeBinary { node: LocalNodeIdAny, size_mb: u64 },
+    LargeBinary { node: GlobalNodeIdAny, size_mb: u64 },
 }
 
 impl BindWarning {
@@ -29,7 +29,7 @@ impl BindWarning {
     }
 
     /// Get the node id of the warning.
-    pub fn node_id(&self) -> Option<LocalNodeIdAny> {
+    pub fn node_id(&self) -> Option<GlobalNodeIdAny> {
         match self {
             Self::DeprecatedTarget { node, .. } => Some(*node),
             Self::WeakSymbol { node, .. } => Some(*node),

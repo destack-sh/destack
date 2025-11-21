@@ -121,7 +121,7 @@ impl<'a> Transpiler<'a> {
             }
             _ => {
                 return Err(TranspileError::UnsupportedNode {
-                    node: ty_id.into_any(),
+                    node: ty_id.into_global_any(module.id),
                     message: None,
                 });
             }
@@ -132,7 +132,7 @@ impl<'a> Transpiler<'a> {
     /// Transpile a type unary operator from DIR into JS AST.
     pub fn transpile_type_unary_operator(
         &self,
-        _module: &'a Module,
+        module: &'a Module,
         ty_id: dir::LocalNodeId<dir::Type>,
         operator: dir::TypeUnaryOperator,
     ) -> TranspileResult<TypeUnaryOperator> {
@@ -143,7 +143,7 @@ impl<'a> Transpiler<'a> {
             dir::TypeUnaryOperator::Type => TypeUnaryOperator::Type,
             dir::TypeUnaryOperator::Newtype => {
                 return Err(TranspileError::UnsupportedNode {
-                    node: ty_id.into_any(),
+                    node: ty_id.into_global_any(module.id),
                     message: None,
                 });
             }
@@ -193,9 +193,9 @@ impl<'a> Transpiler<'a> {
                 unit.ast.insert_from_source(ty, module.id, ty_id)
             }
             dir::Type::UnresolvedExpression(expression) => {
-                let expression = self
-                    .transpile_expression(module, tree, *expression, unit)
-                    .expect_node::<Expression>(expression.into_any(), unit)?;
+                let expression =
+                    self.transpile_expression(module, tree, *expression, unit)
+                        .expect_node::<Expression>(expression.into_global_any(module.id), unit)?;
                 let ty = Type::Expression(expression);
                 unit.ast.insert_from_source(ty, module.id, ty_id)
             }
@@ -261,7 +261,7 @@ impl<'a> Transpiler<'a> {
 
             _ => {
                 return Err(TranspileError::UnsupportedNode {
-                    node: ty_id.into_any(),
+                    node: ty_id.into_global_any(module.id),
                     message: None,
                 });
             }

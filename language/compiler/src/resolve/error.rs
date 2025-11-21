@@ -1,79 +1,62 @@
 use crate::{CompileError, CompilePhase};
-use dyst_dir::{
-    LocalNodeIdAny, LocalScopeId, LocalSymbolId, ModuleId, Session, StringId, Visibility,
-};
+use dyst_dir::{GlobalNodeIdAny, LocalScopeId, LocalSymbolId, Session, StringId, Visibility};
 
 /// Error when evaluating something statically.
 #[derive(Debug, Clone, PartialEq)]
 #[repr(u8)]
 pub enum ResolveError {
     /// Unsupported node.
-    UnsupportedNode { node: LocalNodeIdAny },
-    /// Dependent nodes are not ready to be resolved. May be retried.
-    NotReady {
-        module: ModuleId,
-        node: LocalNodeIdAny,
-        depends_on: Vec<LocalNodeIdAny>,
-    },
+    UnsupportedNode { node: GlobalNodeIdAny },
 
     /// Circular dependency.
     CircularDependency {
-        module: ModuleId,
-        node: LocalNodeIdAny,
-        depends_on: Vec<LocalNodeIdAny>,
+        node: GlobalNodeIdAny,
+        depends_on: Vec<GlobalNodeIdAny>,
     },
 
     /// Use of undeclared symbol.
     UndeclaredSymbol {
-        module: ModuleId,
-        node: LocalNodeIdAny,
+        node: GlobalNodeIdAny,
         scope: LocalScopeId,
         name: StringId,
     },
     /// Use of missing symbol.
     MissingSymbol {
-        module: ModuleId,
-        node: LocalNodeIdAny,
+        node: GlobalNodeIdAny,
         scope: LocalScopeId,
         name: StringId,
     },
     /// Use of ambiguous symbol.
     AmbiguousSymbol {
-        module: ModuleId,
-        node: LocalNodeIdAny,
+        node: GlobalNodeIdAny,
         scope: LocalScopeId,
         symbol: LocalSymbolId,
         name: StringId,
     },
     /// Unresolved module.
     UnresolvedModule {
-        module: ModuleId,
-        node: LocalNodeIdAny,
+        node: GlobalNodeIdAny,
         target: StringId,
     },
     /// Unresolved member.
     UnresolvedMember {
-        module: ModuleId,
-        node: LocalNodeIdAny,
+        node: GlobalNodeIdAny,
         member: StringId,
     },
     /// Visibility violation (private/internal/module boundaries).
     InaccessibleSymbol {
-        module: ModuleId,
-        node: LocalNodeIdAny,
+        node: GlobalNodeIdAny,
         visibility: Visibility,
         symbol: LocalSymbolId,
     },
     /// Conflicting declarations in the same scope.
     ConflictingDeclaration {
-        module: ModuleId,
-        node: LocalNodeIdAny,
+        node: GlobalNodeIdAny,
         name: StringId,
     },
     /// Duplicate export name in the same module.
     DuplicateExport {
-        module: ModuleId,
-        node: LocalNodeIdAny,
+        node: GlobalNodeIdAny,
         name: StringId,
     },
 }
@@ -84,24 +67,22 @@ impl ResolveError {
     pub fn sub_code(&self) -> u8 {
         match self {
             Self::UnsupportedNode { .. } => 1,
-            Self::NotReady { .. } => 2,
-            Self::CircularDependency { .. } => 3,
-            Self::UndeclaredSymbol { .. } => 4,
-            Self::MissingSymbol { .. } => 5,
-            Self::AmbiguousSymbol { .. } => 6,
-            Self::UnresolvedModule { .. } => 7,
-            Self::UnresolvedMember { .. } => 8,
-            Self::InaccessibleSymbol { .. } => 9,
-            Self::ConflictingDeclaration { .. } => 10,
-            Self::DuplicateExport { .. } => 11,
+            Self::CircularDependency { .. } => 2,
+            Self::UndeclaredSymbol { .. } => 3,
+            Self::MissingSymbol { .. } => 4,
+            Self::AmbiguousSymbol { .. } => 5,
+            Self::UnresolvedModule { .. } => 6,
+            Self::UnresolvedMember { .. } => 7,
+            Self::InaccessibleSymbol { .. } => 8,
+            Self::ConflictingDeclaration { .. } => 9,
+            Self::DuplicateExport { .. } => 10,
         }
     }
 
     /// Get the node id of the error.
-    pub fn node_id(&self) -> Option<LocalNodeIdAny> {
+    pub fn node_id(&self) -> Option<GlobalNodeIdAny> {
         match self {
             Self::UnsupportedNode { node, .. } => Some(*node),
-            Self::NotReady { node, .. } => Some(*node),
             Self::CircularDependency { node, .. } => Some(*node),
             Self::UndeclaredSymbol { node, .. } => Some(*node),
             Self::MissingSymbol { node, .. } => Some(*node),
@@ -118,7 +99,6 @@ impl ResolveError {
     pub fn message<'a>(&self, _session: &'a Session<'a>) -> String {
         match self {
             Self::UnsupportedNode { .. } => "unsupported node".to_string(),
-            Self::NotReady { .. } => "dependent nodes are not ready to be resolved".to_string(),
             Self::CircularDependency { .. } => "circular dependency".to_string(),
             Self::UndeclaredSymbol { .. } => "use of undeclared symbol".to_string(),
             Self::MissingSymbol { .. } => "missing symbol".to_string(),

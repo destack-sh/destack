@@ -1,4 +1,4 @@
-use dyst_dir::{LocalNodeIdAny, Session};
+use dyst_dir::{GlobalNodeIdAny, Session};
 
 use crate::{CompilePhase, CompileWarning};
 
@@ -7,7 +7,7 @@ use crate::{CompilePhase, CompileWarning};
 #[repr(u8)]
 pub enum FlowWarning {
     /// Unsupported node.
-    UnsupportedNode { node: LocalNodeIdAny },
+    UnsupportedNode { node: GlobalNodeIdAny },
 }
 
 impl FlowWarning {
@@ -20,7 +20,7 @@ impl FlowWarning {
     }
 
     /// Get the node id of the warning.
-    pub fn node_id(&self) -> Option<LocalNodeIdAny> {
+    pub fn node_id(&self) -> Option<GlobalNodeIdAny> {
         match self {
             Self::UnsupportedNode { node, .. } => Some(*node),
         }

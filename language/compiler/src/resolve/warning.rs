@@ -1,4 +1,4 @@
-use dyst_dir::{LocalNodeIdAny, ModuleId, Session};
+use dyst_dir::{GlobalNodeIdAny, Session};
 
 use crate::{CompilePhase, CompileWarning};
 
@@ -7,20 +7,11 @@ use crate::{CompilePhase, CompileWarning};
 #[repr(u8)]
 pub enum ResolveWarning {
     /// Unknown import.
-    UnknownImport {
-        module: ModuleId,
-        node: LocalNodeIdAny,
-    },
+    UnknownImport { node: GlobalNodeIdAny },
     /// Unused imports / unused re-exports.
-    UnusedImport {
-        module: ModuleId,
-        node: LocalNodeIdAny,
-    },
+    UnusedImport { node: GlobalNodeIdAny },
     /// Import that resolves but is only used for side effects.
-    SideEffectOnlyImport {
-        module: ModuleId,
-        node: LocalNodeIdAny,
-    },
+    SideEffectOnlyImport { node: GlobalNodeIdAny },
 }
 
 impl ResolveWarning {
@@ -35,7 +26,7 @@ impl ResolveWarning {
     }
 
     /// Get the node id of the warning.
-    pub fn node_id(&self) -> Option<LocalNodeIdAny> {
+    pub fn node_id(&self) -> Option<GlobalNodeIdAny> {
         match self {
             Self::UnknownImport { node, .. } => Some(*node),
             Self::UnusedImport { node, .. } => Some(*node),

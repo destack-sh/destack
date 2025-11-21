@@ -38,7 +38,7 @@ impl<'a> Transpiler<'a> {
         // report unresolved warning
         if !expression.is_resolved() {
             unit.error(TranspileError::UnresolvedNode {
-                node: expression_id.into_any(),
+                node: expression_id.into_global_any(module.id),
                 message: Some(expression.kind_name().to_string()),
             });
         }
@@ -62,7 +62,7 @@ impl<'a> Transpiler<'a> {
                     // wrap expression in statement
                     NodeType::Expression => {
                         unit.warning(TranspileWarning::ExpectedStatement {
-                            node: expression_id.into_any(),
+                            node: expression_id.into_global_any(module.id),
                         });
                         let statement = Statement::Expression {
                             expression: transpiled_id.into(),
@@ -73,7 +73,7 @@ impl<'a> Transpiler<'a> {
                     NodeType::Statement => transpiled_id.into(),
                     _ => {
                         return Err(TranspileError::UnsupportedNode {
-                            node: expression_id.into_any(),
+                            node: expression_id.into_global_any(module.id),
                             message: None,
                         });
                     }
@@ -89,7 +89,7 @@ impl<'a> Transpiler<'a> {
                 symbol: _,
             } => {
                 return Err(TranspileError::UnsupportedNode {
-                    node: expression_id.into_any(),
+                    node: expression_id.into_global_any(module.id),
                     message: None,
                 });
             }
@@ -175,7 +175,7 @@ impl<'a> Transpiler<'a> {
                 let value = value
                     .map(|value| {
                         self.transpile_expression(module, tree, value, unit)
-                            .expect_node::<Expression>(value.into_any(), unit)
+                            .expect_node::<Expression>(value.into_global_any(module.id), unit)
                     })
                     .transpose()?;
                 let statement = Statement::Let {
@@ -224,7 +224,7 @@ impl<'a> Transpiler<'a> {
                     .map(|element_id| {
                         let element = tree.get(*element_id);
                         self.transpile_expression(module, tree, element.value(), unit)
-                            .expect_node::<Expression>(element_id.into_any(), unit)
+                            .expect_node::<Expression>(element_id.into_global_any(module.id), unit)
                     })
                     .collect::<Result<Vec<_>, TranspileError>>()?;
                 let expression = Expression::ArrayLiteral { elements };
@@ -238,7 +238,7 @@ impl<'a> Transpiler<'a> {
                     .map(|element_id| {
                         let element = tree.get(*element_id);
                         self.transpile_expression(module, tree, element.value(), unit)
-                            .expect_node::<Expression>(element_id.into_any(), unit)
+                            .expect_node::<Expression>(element_id.into_global_any(module.id), unit)
                     })
                     .collect::<Result<Vec<_>, TranspileError>>()?;
                 let expression = Expression::ArrayLiteral { elements };
@@ -303,10 +303,10 @@ impl<'a> Transpiler<'a> {
             dir::Expression::Assign { left, right } => {
                 let left_id = self
                     .transpile_expression(module, tree, *left, unit)
-                    .expect_node::<Expression>(left.into_any(), unit)?;
+                    .expect_node::<Expression>(left.into_global_any(module.id), unit)?;
                 let right_id = self
                     .transpile_expression(module, tree, *right, unit)
-                    .expect_node::<Expression>(right.into_any(), unit)?;
+                    .expect_node::<Expression>(right.into_global_any(module.id), unit)?;
                 let expression = Expression::Assign {
                     left: left_id,
                     right: right_id,
@@ -339,7 +339,7 @@ impl<'a> Transpiler<'a> {
             } => {
                 let left_id = self
                     .transpile_expression(module, tree, *left, unit)
-                    .expect_node::<Expression>(left.into_any(), unit)?;
+                    .expect_node::<Expression>(left.into_global_any(module.id), unit)?;
                 let name = unit.strings.intern_from(&module.ast_strings, *name);
                 let static_arguments = static_arguments
                     .as_ref()
@@ -362,17 +362,17 @@ impl<'a> Transpiler<'a> {
             dir::Expression::Index { left, right } => {
                 let left_id = self
                     .transpile_expression(module, tree, *left, unit)
-                    .expect_node::<Expression>(left.into_any(), unit)?;
+                    .expect_node::<Expression>(left.into_global_any(module.id), unit)?;
                 let position = self.get_postfix_expression_position(left_id, unit);
                 let &Some(right) = right else {
                     return Err(TranspileError::UnsupportedNode {
-                        node: expression_id.into_any(),
+                        node: expression_id.into_global_any(module.id),
                         message: None,
                     });
                 };
                 let right_id = self
                     .transpile_expression(module, tree, right, unit)
-                    .expect_node::<Expression>(right.into_any(), unit)?;
+                    .expect_node::<Expression>(right.into_global_any(module.id), unit)?;
                 let expression = Expression::Index {
                     position,
                     left: left_id,
@@ -389,7 +389,7 @@ impl<'a> Transpiler<'a> {
             } => {
                 let left_id = self
                     .transpile_expression(module, tree, *left, unit)
-                    .expect_node::<Expression>(left.into_any(), unit)?;
+                    .expect_node::<Expression>(left.into_global_any(module.id), unit)?;
                 let position = self.get_postfix_expression_position(left_id, unit);
                 let static_arguments = static_arguments
                     .as_ref()
@@ -421,7 +421,7 @@ impl<'a> Transpiler<'a> {
             } => {
                 let left_id = self
                     .transpile_expression(module, tree, *left, unit)
-                    .expect_node::<Expression>(left.into_any(), unit)?;
+                    .expect_node::<Expression>(left.into_global_any(module.id), unit)?;
                 let static_arguments = static_arguments
                     .as_ref()
                     .map(|arguments| {
@@ -454,7 +454,7 @@ impl<'a> Transpiler<'a> {
 
             _ => {
                 return Err(TranspileError::UnsupportedNode {
-                    node: expression_id.into_any(),
+                    node: expression_id.into_global_any(module.id),
                     message: None,
                 });
             }

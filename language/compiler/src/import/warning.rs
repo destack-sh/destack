@@ -1,4 +1,4 @@
-use dyst_dir::{LocalNodeIdAny, ModuleId, Session};
+use dyst_dir::{GlobalNodeIdAny, ModuleId, Session};
 
 use crate::CompilePhase;
 
@@ -20,7 +20,7 @@ impl ImportWarning {
     }
 
     /// Get the node id of the warning.
-    pub fn node_id(&self) -> Option<LocalNodeIdAny> {
+    pub fn node_id(&self) -> Option<GlobalNodeIdAny> {
         match self {
             Self::HugeFile { .. } => None,
         }

@@ -120,6 +120,7 @@ pub enum TypeBinaryOperator {
     Implements,
 }
 
+// nocheckin: move Types into type/TypeTable?
 /// An Type in the type system.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Type {
@@ -205,7 +206,6 @@ pub enum TypeField {
     Field {
         modifiers: Option<BindingModifier>,
         key: Option<Key>,
-        ty: LocalNodeId<Type>,
     },
     /// Named method (like `foo(): T`).
     Method {

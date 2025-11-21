@@ -1,4 +1,4 @@
-use dyst_dir::{LocalNodeIdAny, Session};
+use dyst_dir::{GlobalNodeIdAny, Session};
 
 use crate::{CompilePhase, CompileWarning};
 
@@ -7,9 +7,9 @@ use crate::{CompilePhase, CompileWarning};
 #[repr(u8)]
 pub enum ExecuteWarning {
     /// Complex node.
-    ComplexNode { node: LocalNodeIdAny },
+    ComplexNode { node: GlobalNodeIdAny },
     /// Slow evaluation.
-    SlowEvaluation { node: LocalNodeIdAny },
+    SlowEvaluation { node: GlobalNodeIdAny },
 }
 
 impl ExecuteWarning {
@@ -23,7 +23,7 @@ impl ExecuteWarning {
     }
 
     /// Get the node id of the warning.
-    pub fn node_id(&self) -> Option<LocalNodeIdAny> {
+    pub fn node_id(&self) -> Option<GlobalNodeIdAny> {
         match self {
             Self::ComplexNode { node, .. } => Some(*node),
             Self::SlowEvaluation { node, .. } => Some(*node),

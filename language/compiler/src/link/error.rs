@@ -1,4 +1,4 @@
-use dyst_dir::{LocalNodeIdAny, Session};
+use dyst_dir::{GlobalNodeIdAny, Session};
 
 use crate::{CompileError, CompilePhase};
 
@@ -8,17 +8,17 @@ use crate::{CompileError, CompilePhase};
 pub enum LinkError {
     /// Missing target for a symbol.
     MissingTarget {
-        node: LocalNodeIdAny,
+        node: GlobalNodeIdAny,
         symbol: String,
     },
     /// Unresolved external symbol.
     UnresolvedSymbol {
-        node: LocalNodeIdAny,
+        node: GlobalNodeIdAny,
         symbol: String,
     },
     /// Duplicate symbols with incompatible declarations.
     ConflictingSymbol {
-        node: LocalNodeIdAny,
+        node: GlobalNodeIdAny,
         symbol: String,
     },
 }
@@ -35,7 +35,7 @@ impl LinkError {
     }
 
     /// Get the node id of the error.
-    pub fn node_id(&self) -> Option<LocalNodeIdAny> {
+    pub fn node_id(&self) -> Option<GlobalNodeIdAny> {
         match self {
             Self::MissingTarget { node, .. } => Some(*node),
             Self::UnresolvedSymbol { node, .. } => Some(*node),

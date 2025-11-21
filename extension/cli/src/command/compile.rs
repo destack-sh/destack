@@ -115,13 +115,13 @@ pub fn run(args: &CompileArgs) -> i32 {
     // dump DIR to output
     if !silent {
         let dump_options = DumperOptions::default();
-        let tree = session.tree.read();
         let strings = session.strings.clone().into_immutable();
         // dump node representation
         if dump.includes_node() {
-            let mut dumper = Dumper::new(&strings, &tree, dump_options);
             for module in session.modules.iter() {
                 let module = module.read();
+                let tree = module.tree.read();
+                let mut dumper = Dumper::new(&strings, &tree, dump_options);
                 console::info("=".repeat(80).as_str());
                 console::info(format!("{} [NODE]", module.uri).as_str());
                 console::info("=".repeat(80).as_str());
@@ -129,23 +129,25 @@ pub fn run(args: &CompileArgs) -> i32 {
                     let expression = tree.get(*expression_id);
                     dumper.visit_expression(&tree, *expression_id, expression);
                 }
+                console::info(&dumper.finish());
             }
-            console::info(&dumper.finish());
         }
         // dump symbol representation
         if dump.includes_symbol() {
-            let mut dumper = Dumper::new(&strings, &tree, dump_options);
             for module in session.modules.iter() {
                 let module = module.read();
+                let tree = module.tree.read();
+                let symbols = module.symbols.read();
+                let mut dumper = Dumper::new(&strings, &tree, dump_options);
                 console::info("=".repeat(80).as_str());
                 console::info(format!("{} [SYMBOL]", module.uri).as_str());
                 console::info("=".repeat(80).as_str());
                 if let Some(scope_id) = module.scope {
-                    let scope = tree.get_scope_by_id(scope_id);
-                    dumper.visit_scope(&tree, scope_id, scope);
+                    let scope = symbols.get_scope_by_id(scope_id);
+                    dumper.visit_scope(&tree, &symbols, scope_id, scope);
                 }
+                console::info(&dumper.finish());
             }
-            console::info(&dumper.finish());
         }
     }
 

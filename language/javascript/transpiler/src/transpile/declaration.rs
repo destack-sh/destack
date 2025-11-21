@@ -170,7 +170,7 @@ impl<'a> Transpiler<'a> {
                 let body = body
                     .map(|body| {
                         self.transpile_expression(module, tree, body, unit)
-                            .expect_node::<Block>(body.into_any(), unit)
+                            .expect_node::<Block>(body.into_global_any(module.id), unit)
                     })
                     .transpose()?;
                 Declaration::Function {
@@ -181,7 +181,7 @@ impl<'a> Transpiler<'a> {
             }
             _ => {
                 return Err(TranspileError::UnsupportedNode {
-                    node: declaration_id.into_any(),
+                    node: declaration_id.into_global_any(module.id),
                     message: None,
                 });
             }
@@ -207,7 +207,7 @@ impl<'a> Transpiler<'a> {
             .as_ref()
             .map(|value_id| {
                 self.transpile_expression(module, tree, *value_id, unit)
-                    .expect_node::<Expression>(value_id.into_any(), unit)
+                    .expect_node::<Expression>(value_id.into_global_any(module.id), unit)
             })
             .transpose()?;
         let field = EnumField { name, value };

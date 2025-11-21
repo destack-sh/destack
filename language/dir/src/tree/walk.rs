@@ -408,6 +408,26 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
                 }
             }
         }
+        Expression::LocalReference {
+            name: _,
+            remote_symbol: _,
+        } => {
+            // nothing to do
+        }
+        Expression::ModuleReference {
+            path: _,
+            static_arguments: _,
+            remote_symbol: _,
+        } => {
+            // nothing to do
+        }
+        Expression::GlobalReference {
+            path: _,
+            static_arguments: _,
+            remote_symbol: _,
+        } => {
+            // nothing to do
+        }
         Expression::ScalarLiteral { value: _ } => {
             // nothing to do
         }
@@ -878,16 +898,10 @@ pub fn walk_type_field<V: NodeVisitor + ?Sized>(
 ) {
     visitor.visit_any(tree, NodeType::TypeField, id.id);
     match attribute {
-        TypeField::Field {
-            modifiers: _,
-            key,
-            ty,
-        } => {
+        TypeField::Field { modifiers: _, key } => {
             if let Some(key) = key {
                 walk_key(visitor, tree, key);
             }
-            let ty_type = tree.get(*ty);
-            visitor.visit_type(tree, *ty, ty_type);
         }
         TypeField::Method {
             modifiers: _,

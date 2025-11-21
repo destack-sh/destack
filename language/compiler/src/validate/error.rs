@@ -1,4 +1,4 @@
-use dyst_dir::{LocalNodeId, LocalNodeIdAny, Session, Type};
+use dyst_dir::{GlobalNodeIdAny, LocalNodeId, Session, Type};
 
 use crate::{CompileError, CompilePhase};
 
@@ -7,28 +7,28 @@ use crate::{CompileError, CompilePhase};
 #[repr(u8)]
 pub enum ValidateError {
     /// Missing type for an expression.
-    MissingType { node: LocalNodeIdAny },
+    MissingType { node: GlobalNodeIdAny },
     /// Type is not assignable to the expected type.
     TypeMismatch {
-        node: LocalNodeIdAny,
+        node: GlobalNodeIdAny,
         expected_ty: LocalNodeId<Type>,
         actual_ty: LocalNodeId<Type>,
     },
     /// Calling non-callable.
-    NonCallable { node: LocalNodeIdAny },
+    NonCallable { node: GlobalNodeIdAny },
     /// Indexing non-indexable.
-    NonIndexable { node: LocalNodeIdAny },
+    NonIndexable { node: GlobalNodeIdAny },
     /// Non-exhaustive match/switch when exhaustiveness is required.
-    NonExhaustiveMatch { node: LocalNodeIdAny },
+    NonExhaustiveMatch { node: GlobalNodeIdAny },
     /// Incomplete pattern.
-    IncompletePattern { node: LocalNodeIdAny },
+    IncompletePattern { node: GlobalNodeIdAny },
     /// Missing return on code paths in functions that must return a value.
-    MissingReturn { node: LocalNodeIdAny },
+    MissingReturn { node: GlobalNodeIdAny },
     /// Use of uninitialized variable in a read position.
-    UninitializedVariable { node: LocalNodeIdAny },
+    UninitializedVariable { node: GlobalNodeIdAny },
     /// Illegal casts (unsafe or impossible with static rules).
     IllegalCast {
-        node: LocalNodeIdAny,
+        node: GlobalNodeIdAny,
         from_ty: LocalNodeId<Type>,
         to_ty: LocalNodeId<Type>,
     },
@@ -52,7 +52,7 @@ impl ValidateError {
     }
 
     /// Get the node id of the error.
-    pub fn node_id(&self) -> Option<LocalNodeIdAny> {
+    pub fn node_id(&self) -> Option<GlobalNodeIdAny> {
         match self {
             Self::MissingType { node, .. } => Some(*node),
             Self::TypeMismatch { node, .. } => Some(*node),

@@ -139,9 +139,8 @@ impl<'a> Transpiler<'a> {
     /// Flush pending diagnostics into the session.
     pub fn flush_diagnostics(&self) {
         let mut diagnostics = self.pending_diagnostics.write();
-        let tree = self.session.tree.read();
         for diagnostic in diagnostics.drain(..) {
-            let diagnostic = diagnostic.to_diagnostic(self.session, &tree);
+            let diagnostic = diagnostic.to_diagnostic(self.session);
             self.session.diagnostics.insert(diagnostic);
         }
     }

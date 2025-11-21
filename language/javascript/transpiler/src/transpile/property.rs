@@ -66,14 +66,14 @@ impl<'a> Transpiler<'a> {
                     .as_ref()
                     .map(|value| {
                         self.transpile_expression(module, tree, *value, unit)
-                            .expect_node::<Expression>(value.into_any(), unit)
+                            .expect_node::<Expression>(value.into_global_any(module.id), unit)
                     })
                     .transpose()?;
                 let default = default
                     .as_ref()
                     .map(|default| {
                         self.transpile_expression(module, tree, *default, unit)
-                            .expect_node::<Expression>(default.into_any(), unit)
+                            .expect_node::<Expression>(default.into_global_any(module.id), unit)
                     })
                     .transpose()?;
                 Property::Field {
@@ -101,7 +101,7 @@ impl<'a> Transpiler<'a> {
                     .as_ref()
                     .map(|body_id| {
                         self.transpile_expression(module, tree, *body_id, unit)
-                            .expect_node::<Expression>(body_id.into_any(), unit)
+                            .expect_node::<Expression>(body_id.into_global_any(module.id), unit)
                     })
                     .transpose()?;
                 Property::Method {
@@ -117,7 +117,7 @@ impl<'a> Transpiler<'a> {
                     .transpose()?;
                 let value = self
                     .transpile_expression(module, tree, *value, unit)
-                    .expect_node::<Expression>(value.into_any(), unit)?;
+                    .expect_node::<Expression>(value.into_global_any(module.id), unit)?;
                 Property::Spread { modifiers, value }
             }
         };

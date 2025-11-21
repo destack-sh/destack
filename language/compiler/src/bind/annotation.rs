@@ -1,23 +1,30 @@
 use crate::Compiler;
 use dyst_ast::{self as ast};
-use dyst_dir::{Annotation, AnnotationPosition, LocalNodeId, LocalScopeId, Module, NodeTree};
+use dyst_dir::{
+    Annotation, AnnotationPosition, LocalNodeId, LocalScopeId, Module, NodeTree, SymbolTable,
+};
 
 impl<'a> Compiler<'a> {
     /// Bind and attach all annotations for a module.
-    pub fn attach_annotations(&self, module: &Module, scope_id: LocalScopeId, tree: &mut NodeTree) {
+    pub fn attach_annotations(
+        &self,
+        module: &Module,
+        scope_id: LocalScopeId,
+        tree: &mut NodeTree,
+        symbols: &mut SymbolTable,
+    ) {
         // bind them
         for ast_annotation_id in module.get_nodes::<ast::Annotation>() {
-            self.bind_annotation(module, scope_id, ast_annotation_id, tree);
+            self.bind_annotation(module, scope_id, ast_annotation_id, tree, symbols);
         }
 
         // attach them
         for (ast_node_id, ast_annotations) in module.ast.get_all_annotations() {
-            let Some(dir_node_id) = tree.get_node_id_by_source_id(module.id, *ast_node_id) else {
+            let Some(dir_node_id) = tree.get_node_id_by_source_id(*ast_node_id) else {
                 continue;
             };
             for ast_annotation_id in ast_annotations {
-                let Some(dir_annotation_id) =
-                    tree.get_node_id_by_source_id(module.id, ast_annotation_id.id)
+                let Some(dir_annotation_id) = tree.get_node_id_by_source_id(ast_annotation_id.id)
                 else {
                     continue; // skipped by bind_annotation
                 };
@@ -48,6 +55,7 @@ impl<'a> Compiler<'a> {
         scope_id: LocalScopeId,
         annotation_id: ast::LocalNodeId<ast::Annotation>,
         tree: &mut NodeTree,
+        symbols: &mut SymbolTable,
     ) -> Option<LocalNodeId<Annotation>> {
         let annotation = module.get(annotation_id);
         let annotation = match annotation {
@@ -79,7 +87,9 @@ impl<'a> Compiler<'a> {
                 let arguments = tag.arguments.as_ref().map(|arguments| {
                     arguments
                         .iter()
-                        .map(|argument| self.bind_argument(module, scope_id, *argument, tree))
+                        .map(|argument| {
+                            self.bind_argument(module, scope_id, *argument, tree, symbols)
+                        })
                         .collect()
                 });
                 Annotation::UnresolvedTag {
@@ -95,7 +105,9 @@ impl<'a> Compiler<'a> {
                 let arguments = decorator.arguments.as_ref().map(|arguments| {
                     arguments
                         .iter()
-                        .map(|argument| self.bind_argument(module, scope_id, *argument, tree))
+                        .map(|argument| {
+                            self.bind_argument(module, scope_id, *argument, tree, symbols)
+                        })
                         .collect()
                 });
                 Annotation::UnresolvedDecorator {
@@ -105,6 +117,6 @@ impl<'a> Compiler<'a> {
                 }
             }
         };
-        Some(tree.insert_from_source(annotation, module.id, annotation_id))
+        Some(tree.insert_from_source(annotation, annotation_id))
     }
 }

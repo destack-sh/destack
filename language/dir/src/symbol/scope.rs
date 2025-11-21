@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::{LocalSymbolId, ModuleId, SymbolKey};
+use crate::{GlobalSymbolId, LocalSymbolId, ModuleId, SymbolKey};
 
 /// The kind of a scope.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
@@ -75,7 +75,7 @@ pub struct Scope {
     /// The module id of the scope.
     pub module_id: Option<ModuleId>,
     /// The owner of the scope.
-    pub owner: Option<LocalSymbolId>,
+    pub owner: Option<GlobalSymbolId>,
     /// The symbols in the scope.
     pub symbols: HashMap<SymbolKey, LocalSymbolId>,
     /// The children scopes.

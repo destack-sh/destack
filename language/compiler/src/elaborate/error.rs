@@ -1,4 +1,4 @@
-use dyst_dir::{LocalNodeIdAny, Session};
+use dyst_dir::{GlobalNodeIdAny, Session};
 
 use crate::{CompileError, CompilePhase};
 
@@ -7,7 +7,7 @@ use crate::{CompileError, CompilePhase};
 #[repr(u8)]
 pub enum ElaborateError {
     /// Unsupported node.
-    UnsupportedNode { node: LocalNodeIdAny },
+    UnsupportedNode { node: GlobalNodeIdAny },
 }
 
 impl ElaborateError {
@@ -20,7 +20,7 @@ impl ElaborateError {
     }
 
     /// Get the node id of the error.
-    pub fn node_id(&self) -> Option<LocalNodeIdAny> {
+    pub fn node_id(&self) -> Option<GlobalNodeIdAny> {
         match self {
             Self::UnsupportedNode { node, .. } => Some(*node),
         }

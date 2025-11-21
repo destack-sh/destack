@@ -1,4 +1,4 @@
-use dyst_dir::{LocalNodeIdAny, Session};
+use dyst_dir::{GlobalNodeIdAny, Session};
 
 use crate::{
     BindWarning, BuildWarning, CompilePhase, ElaborateWarning, ExecuteWarning, FlowWarning,
@@ -82,7 +82,7 @@ impl CompileWarning {
     }
 
     /// Get the node id of the warning.
-    pub fn node_id(&self) -> Option<LocalNodeIdAny> {
+    pub fn node_id(&self) -> Option<GlobalNodeIdAny> {
         match self {
             Self::Import(warning) => warning.node_id(),
             Self::Bind(warning) => warning.node_id(),

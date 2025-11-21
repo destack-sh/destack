@@ -20,7 +20,7 @@ impl<'a> Transpiler<'a> {
     ) -> TranspileResult<LocalNodeId<Expression>> {
         let right_id = self
             .transpile_expression(module, tree, right_id, unit)
-            .expect_node::<Expression>(right_id.into_any(), unit)?;
+            .expect_node::<Expression>(right_id.into_global_any(module.id), unit)?;
 
         // transpile a trivial unary expression to a JS unary expression
         let mut unary = |operator: TypeUnaryOperator| -> LocalNodeId<Expression> {
@@ -35,7 +35,7 @@ impl<'a> Transpiler<'a> {
         let expression_id = match operator {
             dir::TypeUnaryOperator::Newtype => {
                 return Err(TranspileError::UnsupportedNode {
-                    node: expression_id.into_any(),
+                    node: expression_id.into_global_any(module.id),
                     message: None,
                 });
             }
@@ -67,10 +67,10 @@ impl<'a> Transpiler<'a> {
     ) -> TranspileResult<LocalNodeId<Expression>> {
         let left_id = self
             .transpile_expression(module, tree, left_id, unit)
-            .expect_node::<Expression>(left_id.into_any(), unit)?;
+            .expect_node::<Expression>(left_id.into_global_any(module.id), unit)?;
         let right_id = self
             .transpile_expression(module, tree, right_id, unit)
-            .expect_node::<Expression>(right_id.into_any(), unit)?;
+            .expect_node::<Expression>(right_id.into_global_any(module.id), unit)?;
         let operator = match operator {
             dir::TypeBinaryOperator::Cast => TypeBinaryOperator::Cast,
             dir::TypeBinaryOperator::In => TypeBinaryOperator::In,
@@ -103,7 +103,7 @@ impl<'a> Transpiler<'a> {
     ) -> TranspileResult<LocalNodeId<Expression>> {
         let right_id = self
             .transpile_expression(module, tree, right_id, unit)
-            .expect_node::<Expression>(right_id.into_any(), unit)?;
+            .expect_node::<Expression>(right_id.into_global_any(module.id), unit)?;
 
         // transpile a trivial unary expression to a JS unary expression
         let mut unary = |operator: UnaryOperator| -> LocalNodeId<Expression> {
@@ -125,7 +125,7 @@ impl<'a> Transpiler<'a> {
             dir::UnaryOperator::Negate => unary(UnaryOperator::Negate),
             dir::UnaryOperator::WrappingNegate => {
                 return Err(TranspileError::UnsupportedNode {
-                    node: expression_id.into_any(),
+                    node: expression_id.into_global_any(module.id),
                     message: None,
                 });
             }
@@ -136,7 +136,7 @@ impl<'a> Transpiler<'a> {
             }
             dir::UnaryOperator::Spread => {
                 return Err(TranspileError::UnsupportedNode {
-                    node: expression_id.into_any(),
+                    node: expression_id.into_global_any(module.id),
                     message: None,
                 });
             }
@@ -158,10 +158,10 @@ impl<'a> Transpiler<'a> {
     ) -> TranspileResult<LocalNodeId<Expression>> {
         let left_id = self
             .transpile_expression(module, tree, left_id, unit)
-            .expect_node::<Expression>(left_id.into_any(), unit)?;
+            .expect_node::<Expression>(left_id.into_global_any(module.id), unit)?;
         let right_id = self
             .transpile_expression(module, tree, right_id, unit)
-            .expect_node::<Expression>(right_id.into_any(), unit)?;
+            .expect_node::<Expression>(right_id.into_global_any(module.id), unit)?;
 
         let mut binary = |operator: BinaryOperator| -> LocalNodeId<Expression> {
             let expression = Expression::Binary {
@@ -215,7 +215,7 @@ impl<'a> Transpiler<'a> {
 
             _ => {
                 return Err(TranspileError::UnsupportedNode {
-                    node: expression_id.into_any(),
+                    node: expression_id.into_global_any(module.id),
                     message: None,
                 });
             }
@@ -237,10 +237,10 @@ impl<'a> Transpiler<'a> {
     ) -> TranspileResult<LocalNodeId<Expression>> {
         let left_id = self
             .transpile_expression(module, tree, left_id, unit)
-            .expect_node::<Expression>(left_id.into_any(), unit)?;
+            .expect_node::<Expression>(left_id.into_global_any(module.id), unit)?;
         let right_id = self
             .transpile_expression(module, tree, right_id, unit)
-            .expect_node::<Expression>(right_id.into_any(), unit)?;
+            .expect_node::<Expression>(right_id.into_global_any(module.id), unit)?;
 
         // transpile a trivial assign binary expression to a JS assign binary expression
         let mut assign_binary = |operator: AssignOperator| -> LocalNodeId<Expression> {
@@ -291,7 +291,7 @@ impl<'a> Transpiler<'a> {
 
             _ => {
                 return Err(TranspileError::UnsupportedNode {
-                    node: expression_id.into_any(),
+                    node: expression_id.into_global_any(module.id),
                     message: None,
                 });
             }

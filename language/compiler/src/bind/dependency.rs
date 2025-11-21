@@ -1,7 +1,7 @@
 use dyst_ast::{self as ast};
 use dyst_dir::{
     DependencyEdge, DependencyItem, DependencyKind, DependencySource, ExportType, Expression,
-    LocalNodeId, LocalScopeId, Module, NodeTree, SymbolKey, SymbolSpace,
+    LocalNodeId, LocalScopeId, Module, NodeTree, SymbolKey, SymbolSpace, SymbolTable,
 };
 use dyst_source::StringId;
 
@@ -37,6 +37,7 @@ impl<'a> Compiler<'a> {
         kind: ast::DependencyKind,
         item_id: ast::LocalNodeId<ast::DependencyItem>,
         tree: &mut NodeTree,
+        symbols: &mut SymbolTable,
     ) -> LocalNodeId<DependencyItem> {
         let item = module.get(item_id);
         let kind = self.bind_dependency_kind(item.kind.unwrap_or(kind));
@@ -48,22 +49,25 @@ impl<'a> Compiler<'a> {
             .alias
             .map(|alias| self.session.strings.intern_from(&module.ast_strings, alias));
         let symbol_id =
-            tree.create_symbol(SymbolSpace::Value, Some(SymbolKey::Name(name)), scope_id);
+            symbols.create_symbol(SymbolSpace::Value, Some(SymbolKey::Name(name)), scope_id);
         let item = DependencyItem::UnresolvedItem {
             kind,
             name,
             alias,
             symbol: symbol_id,
         };
-        tree.insert_from_source_as_symbol(item, module.id, item_id, symbol_id)
+        let item_id = tree.insert_from_source(item, item_id);
+        symbols.set_symbol_owner(symbol_id, item_id);
+        item_id
     }
 
     /// Extract the dependency edges of a module.
     pub(super) fn bind_dependency_edges(
         &self,
-        module: &Module,
+        _module: &Module,
         _scope_id: LocalScopeId,
         tree: &mut NodeTree,
+        _symbols: &mut SymbolTable,
     ) -> Vec<DependencyEdge> {
         fn bind_dependency_item_to_edge(
             target: StringId,
@@ -106,9 +110,7 @@ impl<'a> Compiler<'a> {
 
         // walk expressions
         let mut edges: Vec<DependencyEdge> = Vec::new();
-        for (_expresion_id, expression) in
-            tree.iter_nodes_of_type_in_module::<Expression>(module.id)
-        {
+        for (_expresion_id, expression) in tree.iter_nodes_of_type::<Expression>() {
             // import statements
             if let Expression::Import { target, items, .. } = expression {
                 for item_id in items.iter() {

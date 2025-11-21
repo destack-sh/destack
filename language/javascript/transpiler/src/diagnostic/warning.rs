@@ -8,15 +8,15 @@ use crate::TranspileDiagnostic;
 #[repr(u8)]
 pub enum TranspileWarning {
     /// Imprecise type.
-    ImpreciseType { node: dir::LocalNodeIdAny },
+    ImpreciseType { node: dir::GlobalNodeIdAny },
     /// Unexpected node.
     UnexpectedNode {
-        node: dir::LocalNodeIdAny,
+        node: dir::GlobalNodeIdAny,
         wanted: NodeType,
         message: Option<String>,
     },
     /// Expected statement, got something else.
-    ExpectedStatement { node: dir::LocalNodeIdAny },
+    ExpectedStatement { node: dir::GlobalNodeIdAny },
 }
 
 impl TranspileWarning {
@@ -25,10 +25,14 @@ impl TranspileWarning {
         match self {
             Self::ImpreciseType { .. } => "imprecise type".to_string(),
             Self::UnexpectedNode { node, wanted, .. } => {
-                format!("unexpected {} (wanted {})", node.ty.name(), wanted.name())
+                format!(
+                    "unexpected {} (wanted {})",
+                    node.local_id.ty.name(),
+                    wanted.name()
+                )
             }
             Self::ExpectedStatement { node, .. } => {
-                format!("expected statement, got {}", node.ty.name())
+                format!("expected statement, got {}", node.local_id.ty.name())
             }
         }
     }
@@ -43,7 +47,7 @@ impl TranspileWarning {
     }
 
     /// Get the node id of the warning.
-    pub fn node_id(&self) -> dir::LocalNodeIdAny {
+    pub fn node_id(&self) -> dir::GlobalNodeIdAny {
         match self {
             Self::ImpreciseType { node, .. } => *node,
             Self::UnexpectedNode { node, .. } => *node,

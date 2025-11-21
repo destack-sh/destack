@@ -1,4 +1,4 @@
-use dyst_dir::{LocalNodeIdAny, ModuleId, Session};
+use dyst_dir::{GlobalNodeIdAny, ModuleId, Session};
 
 use crate::{CompileError, CompilePhase};
 
@@ -9,7 +9,7 @@ pub enum BindError {
     /// Module not found.
     ModuleNotFound { module: ModuleId },
     /// Unsupported node.
-    UnsupportedNode { node: LocalNodeIdAny },
+    UnsupportedNode { node: GlobalNodeIdAny },
 }
 
 pub type BindResult<T> = Result<T, BindError>;
@@ -32,10 +32,10 @@ impl BindError {
     }
 
     /// Get the node id of the error.
-    pub fn node_id(&self) -> Option<LocalNodeIdAny> {
+    pub fn node_id(&self) -> Option<GlobalNodeIdAny> {
         match self {
             Self::ModuleNotFound { .. } => None,
-            Self::UnsupportedNode { node, .. } => Some(*node),
+            Self::UnsupportedNode { node } => Some(*node),
         }
     }
 
