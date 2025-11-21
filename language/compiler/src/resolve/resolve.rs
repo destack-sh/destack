@@ -1,4 +1,4 @@
-use crate::{Compiler, CompilerTask, ResolveResult};
+use crate::{Compiler, CompileTask, ResolveResult};
 
 use dyst_dir::{ModuleId, NodeTree, Session};
 
@@ -27,9 +27,9 @@ impl ResolveTask {
     }
 }
 
-impl From<ResolveTask> for CompilerTask {
+impl From<ResolveTask> for CompileTask {
     fn from(task: ResolveTask) -> Self {
-        CompilerTask::Resolve(task)
+        CompileTask::Resolve(task)
     }
 }
 

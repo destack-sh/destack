@@ -1,12 +1,12 @@
-use crate::{BuildResult, Compiler, CompilerTask};
+use crate::{BuildResult, Compiler, CompileTask};
 
 /// task to build something into an artifact.
 #[derive(Debug, Clone)]
 pub enum BuildTask {}
 
-impl From<BuildTask> for CompilerTask {
+impl From<BuildTask> for CompileTask {
     fn from(task: BuildTask) -> Self {
-        CompilerTask::Build(task)
+        CompileTask::Build(task)
     }
 }
 

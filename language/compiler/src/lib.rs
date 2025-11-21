@@ -4,6 +4,7 @@
 mod bind;
 mod build;
 mod compile;
+mod elaborate;
 mod execute;
 mod import;
 mod link;
@@ -15,6 +16,7 @@ mod validate;
 pub use bind::*;
 pub use build::*;
 pub use compile::*;
+pub use elaborate::*;
 pub use execute::*;
 pub use import::*;
 pub use link::*;

@@ -1,12 +1,12 @@
-use crate::{Compiler, CompilerTask, LinkResult};
+use crate::{Compiler, CompileTask, LinkResult};
 
 /// Task to link something.
 #[derive(Debug, Clone)]
 pub enum LinkTask {}
 
-impl From<LinkTask> for CompilerTask {
+impl From<LinkTask> for CompileTask {
     fn from(task: LinkTask) -> Self {
-        CompilerTask::Link(task)
+        CompileTask::Link(task)
     }
 }
 

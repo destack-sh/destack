@@ -1,6 +1,6 @@
 use dyst_dir::{NodeIdAny, Session};
 
-use crate::{CompileError, CompilerStage};
+use crate::{CompileError, CompileStage};
 
 /// Error when linking something into the compiler.
 #[derive(Debug, Clone)]
@@ -49,7 +49,7 @@ impl std::fmt::Display for LinkError {
         f.debug_struct("LinkError")
             .field(
                 "code",
-                &format!("{}E{:03}", CompilerStage::Link.letter(), self.sub_code()),
+                &format!("{}E{:03}", CompileStage::Link.letter(), self.sub_code()),
             )
             .finish()
     }

@@ -1,6 +1,6 @@
 use dyst_dir::{NodeIdAny, Session};
 
-use crate::{CompileError, CompilerStage};
+use crate::{CompileError, CompileStage};
 
 /// Error when building something into the compiler.
 #[derive(Debug, Clone)]
@@ -97,7 +97,7 @@ impl std::fmt::Display for BuildError {
         f.debug_struct("BuildError")
             .field(
                 "code",
-                &format!("{}E{:03}", CompilerStage::Build.letter(), self.sub_code()),
+                &format!("{}E{:03}", CompileStage::Build.letter(), self.sub_code()),
             )
             .finish()
     }

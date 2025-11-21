@@ -1,6 +1,6 @@
 use dyst_dir::{ModuleId, NodeTree, ScopeKind, SymbolSpace};
 
-use crate::{BindError, BindResult, Compiler, CompilerTask, ResolveTask};
+use crate::{BindError, BindResult, Compiler, CompileTask, ResolveTask};
 
 /// Task to bind AST into DIR.
 #[derive(Debug, Clone)]
@@ -9,9 +9,9 @@ pub enum BindTask {
     BindModule { module: ModuleId },
 }
 
-impl From<BindTask> for CompilerTask {
+impl From<BindTask> for CompileTask {
     fn from(task: BindTask) -> Self {
-        CompilerTask::Bind(task)
+        CompileTask::Bind(task)
     }
 }
 

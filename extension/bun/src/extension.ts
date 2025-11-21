@@ -4,7 +4,7 @@ import {
     defaultTranspileOptions,
     TranspilerLanguage,
     type TranspileOptions,
-    TranspilerTarget,
+    TranspileTarget,
 } from "@destack/napi";
 import type { BunPlugin, PluginBuilder } from "bun";
 
@@ -28,7 +28,7 @@ export const destackPlugin: BunPlugin = {
             console.debug("onStart");
             transpiler = new Transpiler({
                 ...defaultTranspileOptions(),
-                target: TranspilerTarget.TypeScript,
+                target: TranspileTarget.TypeScript,
             });
             transpiler.transpile();
         });

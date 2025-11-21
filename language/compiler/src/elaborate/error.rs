@@ -2,20 +2,20 @@ use dyst_dir::{NodeIdAny, Session};
 
 use crate::{CompileError, CompileStage};
 
-/// Error when evaluating something statically.
+/// Error when elaborateing something into the compiler.
 #[derive(Debug, Clone)]
 #[repr(u8)]
-pub enum ExecuteError {
+pub enum ElaborateError {
     /// Unsupported node.
-    UnsupportedNode { node: NodeIdAny } = 1,
+    UnsupportedNode { node: NodeIdAny },
 }
 
-impl ExecuteError {
+impl ElaborateError {
     /// Get the numeric sub-code of the error.
     #[inline]
     pub fn sub_code(&self) -> u8 {
         match self {
-            Self::UnsupportedNode { .. } => 1,
+            Self::UnsupportedNode { .. } => 2,  
         }
     }
 
@@ -34,22 +34,26 @@ impl ExecuteError {
     }
 }
 
-impl std::fmt::Display for ExecuteError {
+impl std::fmt::Display for ElaborateError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("ExecuteError")
+        f.debug_struct("ElaborateError")
             .field(
                 "code",
-                &format!("{}E{:03}", CompileStage::Execute.letter(), self.sub_code()),
+                &format!(
+                    "{}E{:03}",
+                    CompileStage::Elaborate.letter(),
+                    self.sub_code()
+                ),
             )
             .finish()
     }
 }
 
-pub type ExecuteResult<T> = Result<T, ExecuteError>;
-
-impl From<ExecuteError> for CompileError {
+impl From<ElaborateError> for CompileError {
     #[inline]
-    fn from(error: ExecuteError) -> Self {
-        CompileError::Execute(error)
+    fn from(error: ElaborateError) -> Self {
+        CompileError::Elaborate(error)
     }
 }
+
+pub type ElaborateResult<T> = Result<T, ElaborateError>;

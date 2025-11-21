@@ -1,12 +1,12 @@
-use crate::{CompileError, CompilerTask};
+use crate::{CompileError, CompileTask};
 
 /// Event emitted by the compiler.
 #[derive(Debug, Clone)]
 pub enum CompilerEvent {
     /// Task started.
-    TaskStarted(CompilerTask),
+    TaskStarted(CompileTask),
     /// Task completed.
-    TaskCompleted(CompilerTask),
+    TaskCompleted(CompileTask),
     /// Task failed.
-    TaskFailed(CompilerTask, CompileError),
+    TaskFailed(CompileTask, CompileError),
 }

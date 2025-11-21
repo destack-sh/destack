@@ -1,12 +1,12 @@
-use crate::{Compiler, CompilerTask, ValidateResult};
+use crate::{Compiler, CompileTask, ValidateResult};
 
 /// Task to validate something.
 #[derive(Debug, Clone)]
 pub enum ValidateTask {}
 
-impl From<ValidateTask> for CompilerTask {
+impl From<ValidateTask> for CompileTask {
     fn from(task: ValidateTask) -> Self {
-        CompilerTask::Validate(task)
+        CompileTask::Validate(task)
     }
 }
 

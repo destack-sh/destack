@@ -1,4 +1,4 @@
-use crate::{CompileError, CompilerStage};
+use crate::{CompileError, CompileStage};
 use dyst_dir::{ModuleId, NodeIdAny, ScopeId, Session, StringId, SymbolId, Visibility};
 
 /// Error when evaluating something statically.
@@ -135,7 +135,7 @@ impl std::fmt::Display for ResolveError {
         f.debug_struct("ResolveError")
             .field(
                 "code",
-                &format!("{}E{:03}", CompilerStage::Resolve.letter(), self.sub_code()),
+                &format!("{}E{:03}", CompileStage::Resolve.letter(), self.sub_code()),
             )
             .finish()
     }
