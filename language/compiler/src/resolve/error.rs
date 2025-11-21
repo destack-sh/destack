@@ -1,4 +1,4 @@
-use crate::{CompileError, CompileStage};
+use crate::{CompileError, CompilePhase};
 use dyst_dir::{
     LocalNodeIdAny, LocalScopeId, LocalSymbolId, ModuleId, Session, StringId, Visibility,
 };
@@ -137,7 +137,7 @@ impl std::fmt::Display for ResolveError {
         f.debug_struct("ResolveError")
             .field(
                 "code",
-                &format!("{}E{:03}", CompileStage::Resolve.letter(), self.sub_code()),
+                &format!("{}E{:03}", CompilePhase::Resolve.letter(), self.sub_code()),
             )
             .finish()
     }

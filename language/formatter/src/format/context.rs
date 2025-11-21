@@ -177,7 +177,7 @@ impl<'a> DystFormatContext<'a> {
         T: Node,
         NodeTree: NodeTreeImpl<T>,
     {
-        self.tree.get_type(node_id.id)
+        self.tree.get_node_type(node_id.id)
     }
 
     /// Get a parent node id and its type from the tree.
@@ -189,7 +189,7 @@ impl<'a> DystFormatContext<'a> {
     {
         let parent_id = self.parents.get(node_id);
         if let Some(parent_id) = parent_id {
-            let parent_type = self.tree.get_type(parent_id);
+            let parent_type = self.tree.get_node_type(parent_id);
             Some((parent_id, parent_type))
         } else {
             None
@@ -201,7 +201,7 @@ impl<'a> DystFormatContext<'a> {
     pub fn get_parent_by_id(&self, node_id: u32) -> Option<(u32, NodeType)> {
         let parent_id = self.parents.get_by_id(node_id);
         if let Some(parent_id) = parent_id {
-            let parent_type = self.tree.get_type(parent_id);
+            let parent_type = self.tree.get_node_type(parent_id);
             Some((parent_id, parent_type))
         } else {
             None
@@ -219,7 +219,7 @@ impl<'a> DystFormatContext<'a> {
             .get_ancestors(node_id)
             .into_iter()
             .map(|parent_id| {
-                let parent_type = self.tree.get_type(parent_id);
+                let parent_type = self.tree.get_node_type(parent_id);
                 (parent_id, parent_type)
             })
             .collect()

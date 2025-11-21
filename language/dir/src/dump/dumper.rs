@@ -1983,7 +1983,13 @@ impl Dump for SymbolKey {
 }
 
 impl<'a> Dumper<'a> {
-    pub fn visit_scope(&mut self, tree: &NodeTree, id: LocalScopeId, scope: &Scope) {
+    pub fn visit_scope(
+        &mut self,
+        tree: &NodeTree,
+        table: &SymbolTable,
+        id: LocalScopeId,
+        scope: &Scope,
+    ) {
         self.node("Scope", id.0)
             .field("id", &id)
             .field("kind", &scope.kind)
@@ -1992,18 +1998,24 @@ impl<'a> Dumper<'a> {
         self.with_depth(|dumper| {
             // symbols
             for (_key, symbol_id) in scope.symbols.iter() {
-                let symbol = tree.get_symbol(*symbol_id);
-                dumper.visit_symbol(tree, *symbol_id, symbol);
+                let symbol = table.get_symbol(*symbol_id);
+                dumper.visit_symbol(tree, table, *symbol_id, symbol);
             }
             // children
             for child_id in scope.children.iter() {
-                let child = tree.get_scope_by_id(*child_id);
-                dumper.visit_scope(tree, *child_id, child);
+                let child = table.get_scope_by_id(*child_id);
+                dumper.visit_scope(tree, table, *child_id, child);
             }
         });
     }
 
-    pub fn visit_symbol(&mut self, _tree: &NodeTree, id: LocalSymbolId, symbol: &Symbol) {
+    pub fn visit_symbol(
+        &mut self,
+        _tree: &NodeTree,
+        _table: &SymbolTable,
+        id: LocalSymbolId,
+        symbol: &Symbol,
+    ) {
         self.node("Symbol", id.0)
             .field("id", &id)
             .field("space", &symbol.space)

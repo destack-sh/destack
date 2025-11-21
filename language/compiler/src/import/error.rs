@@ -2,7 +2,7 @@ use dyst_dir::{LocalNodeIdAny, ModuleId, Session};
 use dyst_parser::ParseError;
 use dyst_source::{FileId, StringId};
 
-use crate::{CompileError, CompileStage};
+use crate::{CompileError, CompilePhase};
 
 /// Error when importing something into the compiler.
 #[derive(Debug, Clone)]
@@ -74,7 +74,7 @@ impl std::fmt::Display for ImportError {
         f.debug_struct("ImportError")
             .field(
                 "code",
-                &format!("{}E{:03}", CompileStage::Import.letter(), self.sub_code()),
+                &format!("{}E{:03}", CompilePhase::Import.letter(), self.sub_code()),
             )
             .finish()
     }

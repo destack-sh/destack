@@ -1,8 +1,8 @@
 use dyst_dir::{LocalNodeIdAny, Session};
 
 use crate::{
-    BindError, BuildError, CompileStage, ElaborateError, ExecuteError, ImportError, LinkError,
-    LowerError, OptimizeError, ResolveError, ValidateError,
+    BindError, BuildError, CompilePhase, ElaborateError, ExecuteError, FlowError, ImportError,
+    LinkError, LowerError, OptimizeError, ResolveError, ValidateError,
 };
 
 /// Error during compilation.
@@ -18,12 +18,16 @@ pub enum CompileError {
     Validate(ValidateError),
     /// Error during elaboration.
     Elaborate(ElaborateError),
+    // --------------------------------------------------
     /// Error during lower.
     Lower(LowerError),
-    /// Error during execution.
-    Execute(ExecuteError),
+    /// Error during flow-checking.
+    Flow(FlowError),
     /// Error during optimization.
     Optimize(OptimizeError),
+    // --------------------------------------------------
+    /// Error during execution.
+    Execute(ExecuteError),
     /// Error during building.
     Build(BuildError),
     /// Error during linking.
@@ -31,25 +35,26 @@ pub enum CompileError {
 }
 
 impl CompileError {
-    /// Get the stage of the error.
-    pub fn stage(&self) -> CompileStage {
+    /// Get the phase of the error.
+    pub fn phase(&self) -> CompilePhase {
         match self {
-            Self::Import(_) => CompileStage::Import,
-            Self::Bind(_) => CompileStage::Bind,
-            Self::Resolve(_) => CompileStage::Resolve,
-            Self::Validate(_) => CompileStage::Validate,
-            Self::Elaborate(_) => CompileStage::Elaborate,
-            Self::Lower(_) => CompileStage::Lower,
-            Self::Execute(_) => CompileStage::Execute,
-            Self::Optimize(_) => CompileStage::Optimize,
-            Self::Build(_) => CompileStage::Build,
-            Self::Link(_) => CompileStage::Link,
+            Self::Import(_) => CompilePhase::Import,
+            Self::Bind(_) => CompilePhase::Bind,
+            Self::Resolve(_) => CompilePhase::Resolve,
+            Self::Validate(_) => CompilePhase::Validate,
+            Self::Elaborate(_) => CompilePhase::Elaborate,
+            Self::Lower(_) => CompilePhase::Lower,
+            Self::Flow(_) => CompilePhase::Flow,
+            Self::Optimize(_) => CompilePhase::Optimize,
+            Self::Execute(_) => CompilePhase::Execute,
+            Self::Build(_) => CompilePhase::Build,
+            Self::Link(_) => CompilePhase::Link,
         }
     }
 
-    /// Get the stage letter of the error.
-    pub fn stage_letter(&self) -> char {
-        self.stage().letter()
+    /// Get the phase letter of the error.
+    pub fn phase_letter(&self) -> char {
+        self.phase().letter()
     }
 
     /// Get the numeric sub-code of the error (e.g., `1` for `IE001`).
@@ -62,8 +67,9 @@ impl CompileError {
             Self::Validate(error) => error.sub_code(),
             Self::Elaborate(error) => error.sub_code(),
             Self::Lower(error) => error.sub_code(),
-            Self::Execute(error) => error.sub_code(),
+            Self::Flow(error) => error.sub_code(),
             Self::Optimize(error) => error.sub_code(),
+            Self::Execute(error) => error.sub_code(),
             Self::Build(error) => error.sub_code(),
             Self::Link(error) => error.sub_code(),
         }
@@ -78,8 +84,9 @@ impl CompileError {
             Self::Validate(error) => error.node_id(),
             Self::Elaborate(error) => error.node_id(),
             Self::Lower(error) => error.node_id(),
-            Self::Execute(error) => error.node_id(),
+            Self::Flow(error) => error.node_id(),
             Self::Optimize(error) => error.node_id(),
+            Self::Execute(error) => error.node_id(),
             Self::Build(error) => error.node_id(),
             Self::Link(error) => error.node_id(),
         }
@@ -94,8 +101,9 @@ impl CompileError {
             Self::Validate(error) => error.message(session),
             Self::Elaborate(error) => error.message(session),
             Self::Lower(error) => error.message(session),
-            Self::Execute(error) => error.message(session),
+            Self::Flow(error) => error.message(session),
             Self::Optimize(error) => error.message(session),
+            Self::Execute(error) => error.message(session),
             Self::Build(error) => error.message(session),
             Self::Link(error) => error.message(session),
         }
@@ -104,7 +112,7 @@ impl CompileError {
     /// Get the full code of the error (e.g., `IE001`).
     #[inline]
     pub fn full_code(&self) -> String {
-        format!("{}E{:03}", self.stage_letter(), self.sub_code())
+        format!("{}E{:03}", self.phase_letter(), self.sub_code())
     }
 }
 

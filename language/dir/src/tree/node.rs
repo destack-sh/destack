@@ -170,6 +170,12 @@ impl<T: Node> Debug for GlobalNodeId<T> {
     }
 }
 
+impl<T: Node> From<GlobalNodeId<T>> for LocalNodeId<T> {
+    fn from(id: GlobalNodeId<T>) -> Self {
+        id.local_id
+    }
+}
+
 /// Global node id across modules.
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct GlobalNodeIdAny {
@@ -197,6 +203,38 @@ impl Debug for GlobalNodeIdAny {
             .finish()
     }
 }
+
+impl<T: Node> From<GlobalNodeId<T>> for GlobalNodeIdAny {
+    fn from(id: GlobalNodeId<T>) -> Self {
+        Self {
+            module_id: id.module_id,
+            local_id: id.local_id.into_any(),
+        }
+    }
+}
+
+impl<T: Node> From<GlobalNodeIdAny> for GlobalNodeId<T> {
+    fn from(id: GlobalNodeIdAny) -> Self {
+        debug_assert_eq!(id.local_id.ty, T::TYPE);
+        Self {
+            module_id: id.module_id,
+            local_id: id.local_id.into(),
+        }
+    }
+}
+
+impl<T: Node> From<GlobalNodeIdAny> for LocalNodeId<T> {
+    fn from(id: GlobalNodeIdAny) -> Self {
+        id.local_id.into()
+    }
+}
+
+impl From<GlobalNodeIdAny> for LocalNodeIdAny {
+    fn from(id: GlobalNodeIdAny) -> Self {
+        id.local_id
+    }
+}
+
 /// A Node.
 pub trait Node: Sized {
     const TYPE: NodeType;

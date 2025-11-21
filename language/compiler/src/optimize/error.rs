@@ -1,6 +1,6 @@
 use dyst_dir::{LocalNodeIdAny, Session};
 
-use crate::{CompileError, CompileStage};
+use crate::{CompileError, CompilePhase};
 
 /// Error when optimizing something into the compiler.
 #[derive(Debug, Clone)]
@@ -52,7 +52,7 @@ impl std::fmt::Display for OptimizeError {
         f.debug_struct("OptimizeError")
             .field(
                 "code",
-                &format!("{}E{:03}", CompileStage::Optimize.letter(), self.sub_code()),
+                &format!("{}E{:03}", CompilePhase::Optimize.letter(), self.sub_code()),
             )
             .finish()
     }

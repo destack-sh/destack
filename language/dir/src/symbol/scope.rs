@@ -57,6 +57,12 @@ impl GlobalScopeId {
     }
 }
 
+impl From<GlobalScopeId> for LocalScopeId {
+    fn from(id: GlobalScopeId) -> Self {
+        id.local_id
+    }
+}
+
 /// A Scope is a container for symbols.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Scope {

@@ -1,6 +1,6 @@
 use dyst_dir::{LocalNodeIdAny, Session};
 
-use crate::{CompileError, CompileStage};
+use crate::{CompileError, CompilePhase};
 
 /// Error when evaluating something statically.
 #[derive(Debug, Clone)]
@@ -39,7 +39,7 @@ impl std::fmt::Display for ExecuteError {
         f.debug_struct("ExecuteError")
             .field(
                 "code",
-                &format!("{}E{:03}", CompileStage::Execute.letter(), self.sub_code()),
+                &format!("{}E{:03}", CompilePhase::Execute.letter(), self.sub_code()),
             )
             .finish()
     }

@@ -1,32 +1,32 @@
 use dyst_dir::{LocalNodeIdAny, Session};
 
-use crate::{CompileError, CompilePhase};
+use crate::{CompilePhase, CompileWarning};
 
-/// Error when elaborateing something into the compiler.
-#[derive(Debug, Clone)]
+/// Warning when validating something.
+#[derive(Debug, Clone, PartialEq)]
 #[repr(u8)]
-pub enum ElaborateError {
+pub enum FlowWarning {
     /// Unsupported node.
     UnsupportedNode { node: LocalNodeIdAny },
 }
 
-impl ElaborateError {
-    /// Get the numeric sub-code of the error.
+impl FlowWarning {
+    /// Get the numeric sub-code of the warning.
     #[inline]
     pub fn sub_code(&self) -> u8 {
         match self {
-            Self::UnsupportedNode { .. } => 2,
+            Self::UnsupportedNode { .. } => 1,
         }
     }
 
-    /// Get the node id of the error.
+    /// Get the node id of the warning.
     pub fn node_id(&self) -> Option<LocalNodeIdAny> {
         match self {
             Self::UnsupportedNode { node, .. } => Some(*node),
         }
     }
 
-    /// Get the message of the error.
+    /// Get the message of the warning.
     pub fn message<'a>(&self, _session: &'a Session<'a>) -> String {
         match self {
             Self::UnsupportedNode { .. } => "unsupported node".to_string(),
@@ -34,14 +34,14 @@ impl ElaborateError {
     }
 }
 
-impl std::fmt::Display for ElaborateError {
+impl std::fmt::Display for FlowWarning {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("ElaborateError")
+        f.debug_struct("FlowWarning")
             .field(
                 "code",
                 &format!(
-                    "{}E{:03}",
-                    CompilePhase::Elaborate.letter(),
+                    "{}W{:03}",
+                    CompilePhase::Flow.letter(),
                     self.sub_code()
                 ),
             )
@@ -49,11 +49,8 @@ impl std::fmt::Display for ElaborateError {
     }
 }
 
-impl From<ElaborateError> for CompileError {
-    #[inline]
-    fn from(error: ElaborateError) -> Self {
-        CompileError::Elaborate(error)
+impl From<FlowWarning> for CompileWarning {
+    fn from(warning: FlowWarning) -> Self {
+        CompileWarning::Flow(warning)
     }
 }
-
-pub type ElaborateResult<T> = Result<T, ElaborateError>;

@@ -5,7 +5,7 @@ use crate::{
 use std::collections::HashMap;
 use std::fmt::Debug;
 
-/// A SymbolTable is a side table of side information for a node. NOT THREAD-SAFE.
+/// A SymbolTable is a side table for a node. NOT THREAD-SAFE.
 #[derive(Debug, Clone)]
 pub struct SymbolTable {
     // meta index
@@ -25,7 +25,25 @@ pub struct SymbolTable {
     pub(crate) scope_by_node_id: Vec<LocalScopeId>,
 }
 
+impl Default for SymbolTable {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl SymbolTable {
+    /// Create a new SymbolTable.
+    pub fn new() -> Self {
+        Self {
+            next_symbol_id: 0,
+            next_scope_id: 0,
+            symbols: Arena::new(),
+            scopes: Arena::new(),
+            symbol_by_node_id: Vec::new(),
+            scope_by_node_id: Vec::new(),
+        }
+    }
+
     /// Create a new symbol in the tree.
     pub fn create_symbol(
         &mut self,

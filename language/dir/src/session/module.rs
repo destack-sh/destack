@@ -8,7 +8,7 @@ use dyst_source::{FileId, Uri};
 
 use crate::{
     DependencyEdge, Expression, FlowTable, LocalNodeId, LocalScopeId, LocalSymbolId, NodeTree,
-    PackageId, SymbolTable,
+    PackageId, SymbolTable, TypeTable,
 };
 
 /// Unique identifier for Modules.
@@ -57,10 +57,14 @@ pub struct Module {
     pub tree: RwLock<NodeTree>,
     /// The symbol table of the Module.
     pub symbols: RwLock<SymbolTable>,
+    /// The type table of the Module.
+    pub types: RwLock<TypeTable>,
     /// The flow table of the Module.
     pub flows: RwLock<FlowTable>,
     /// The top-level expressions of the Module.
     pub roots: Vec<LocalNodeId<Expression>>,
+
+    // derived bindings
     // The imports of the Module.
     pub imports: Vec<DependencyEdge>,
     /// The symbol of the Module itself.
@@ -92,6 +96,7 @@ impl Module {
             // dir
             tree: RwLock::new(NodeTree::new()),
             symbols: RwLock::new(SymbolTable::new()),
+            types: RwLock::new(TypeTable::new()),
             flows: RwLock::new(FlowTable::new()),
             symbol: None,
             scope: None,

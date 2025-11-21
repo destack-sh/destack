@@ -35,9 +35,9 @@ impl From<ResolveTask> for CompileTask {
 
 impl<'a> Compiler<'a> {
     /// Process a resolve task.
-    pub fn process_resolve(&self, task: ResolveTask, tree: &mut NodeTree) -> ResolveResult<()> {
+    pub fn process_resolve(&self, task: ResolveTask) -> ResolveResult<()> {
         match task {
-            ResolveTask::ResolveModule { module } => self.resolve_module(module, tree),
+            ResolveTask::ResolveModule { module } => self.resolve_module(module),
         }
     }
 }

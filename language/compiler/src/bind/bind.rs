@@ -17,7 +17,7 @@ impl From<BindTask> for CompileTask {
 
 impl<'a> Compiler<'a> {
     /// Process a bind task.
-    pub fn process_bind(&self, task: BindTask, tree: &mut NodeTree) -> BindResult<()> {
+    pub fn process_bind(&self, task: BindTask) -> BindResult<()> {
         match task {
             BindTask::BindModule { module } => self.bind_module(module, tree),
         }
