@@ -44,9 +44,9 @@ impl<'a> Transpiler<'a> {
         }
 
         let transpiled_id = match expression {
-            dir::Expression::Definition { definition } => {
-                let definition = self.transpile_definition(module, tree, *definition, unit)?;
-                let expression = Expression::Definition { definition };
+            dir::Expression::Declaration { declaration } => {
+                let declaration = self.transpile_declaration(module, tree, *declaration, unit)?;
+                let expression = Expression::Declaration { declaration };
                 unit.ast
                     .insert_from_source(expression, module.id, expression_id)
                     .into_any()

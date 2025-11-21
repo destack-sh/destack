@@ -921,8 +921,8 @@ pub(crate) fn format_expression<'ast>(
     let tree = f.context().tree;
 
     match expression {
-        // definition
-        Expression::Definition(node) => node.format(f)?,
+        // declaration
+        Expression::Declaration(node) => node.format(f)?,
 
         // block
         Expression::Block(node) => node.format(f)?,

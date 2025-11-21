@@ -2,7 +2,7 @@ mod annotation;
 mod argument;
 mod bind;
 mod block;
-mod definition;
+mod declaration;
 mod dependency;
 mod error;
 mod expression;

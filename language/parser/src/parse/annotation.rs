@@ -764,7 +764,7 @@ impl<'a> Parser<'a> {
 mod tests {
     use dyst_ast::{
         Annotation, AnnotationPosition, Argument, BinaryOperator, Blank, Block, BlockFormat,
-        Comment, CommentStyle, DeclarationDescriptor, Decorator, Definition, Doc, DocStyle,
+        Comment, CommentStyle, Declaration, DeclarationDescriptor, Decorator, Doc, DocStyle,
         Expression, Key, Name, Property, ScalarLiteral, Tag,
     };
 
@@ -937,8 +937,8 @@ struct Test {}
             });
         });
 
-        // block infix to innermost node (Definition::Struct)
-        assert_node!(parser.tree, expressions[0], Expression::Definition(node) => {
+        // block infix to innermost node (Declaration::Struct)
+        assert_node!(parser.tree, expressions[0], Expression::Declaration(node) => {
             let annotations = parser.tree.get_annotations(node.id);
             assert_eq!(annotations.len(), 3);
             // C: block infix
@@ -1042,7 +1042,7 @@ over multiple lines with trailing space    */",
         });
     }
 
-    /// Block doc comments in definition blocks should attach to the following function.
+    /// Block doc comments in declaration blocks should attach to the following function.
     #[test]
     fn test_attach_doc_block_prefix_to_next_function() {
         let mut test = TestParser::new(
@@ -1060,7 +1060,7 @@ over multiple lines with trailing space    */",
         parser.finish();
 
         // interface X
-        assert_node!(parser.tree, interface_id, Definition::Interface { properties, .. } => {
+        assert_node!(parser.tree, interface_id, Declaration::Interface { properties, .. } => {
             assert_eq!(properties.len(), 2);
 
             // a(): A
@@ -1109,14 +1109,14 @@ over multiple lines with trailing space    */",
         parser.finish();
 
         // function foo()
-        assert_node!(parser.tree, function, Definition::Function { body: body_id, .. } => {
+        assert_node!(parser.tree, function, Declaration::Function { body: body_id, .. } => {
             assert_node!(parser.tree, body_id.unwrap(), Expression::Block(block_id) => {
                 assert_node!(parser.tree, *block_id, Block { expressions, .. } => {
                     assert_eq!(expressions.len(), 3);
 
                     // function a(): A
-                    assert_node!(parser.tree, expressions[0], Expression::Definition(node) => {
-                        assert_node!(parser.tree, *node, Definition::Function { descriptor, .. } => {
+                    assert_node!(parser.tree, expressions[0], Expression::Declaration(node) => {
+                        assert_node!(parser.tree, *node, Declaration::Function { descriptor, .. } => {
                             assert_string!(parser, descriptor.name.unwrap().string(), "a");
                         });
                     });
@@ -1131,8 +1131,8 @@ over multiple lines with trailing space    */",
                     });
 
                     // function b(): B
-                    assert_node!(parser.tree, expressions[1], Expression::Definition(node) => {
-                        assert_node!(parser.tree, *node, Definition::Function { descriptor, .. } => {
+                    assert_node!(parser.tree, expressions[1], Expression::Declaration(node) => {
+                        assert_node!(parser.tree, *node, Declaration::Function { descriptor, .. } => {
                             assert_string!(parser, descriptor.name.unwrap().string(), "b");
                         });
                     });
@@ -1147,8 +1147,8 @@ over multiple lines with trailing space    */",
                     });
 
                     // function c() C { .. }
-                    assert_node!(parser.tree, expressions[2], Expression::Definition(node) => {
-                        assert_node!(parser.tree, *node, Definition::Function { descriptor, .. } => {
+                    assert_node!(parser.tree, expressions[2], Expression::Declaration(node) => {
+                        assert_node!(parser.tree, *node, Declaration::Function { descriptor, .. } => {
                             assert_string!(parser, descriptor.name.unwrap().string(), "c");
                         });
                     });
@@ -1324,7 +1324,7 @@ function main() {
         parser.finish();
 
         // (annotation should be infix to innermost node, i.e. the block)
-        assert_node!(parser.tree, function, Definition::Function { body: body_id, .. } => {
+        assert_node!(parser.tree, function, Declaration::Function { body: body_id, .. } => {
             assert_node!(parser.tree, body_id.unwrap(), Expression::Block(block_id) => {
                 // block comment, infix
                 let annotations = parser.tree.get_annotations(block_id.id);
@@ -1395,8 +1395,8 @@ struct Floof {
         });
 
         // struct Floof
-        assert_node!(parser.tree, expressions[0], Expression::Definition(node) => {
-            assert_node!(parser.tree, *node, Definition::Struct { properties, .. } => {
+        assert_node!(parser.tree, expressions[0], Expression::Declaration(node) => {
+            assert_node!(parser.tree, *node, Declaration::Struct { properties, .. } => {
                 // a: int32
                 assert_eq!(properties.len(), 1);
                 assert_node!(parser.tree, properties[0], Property::Field { key: Some(Key::Name(Name::Identifier(name))), .. } => {
@@ -1464,7 +1464,7 @@ export namespace Outer {
         parser.finish();
 
         // Outer
-        assert_node!(parser.tree, expressions[0], Expression::Definition(node) => {
+        assert_node!(parser.tree, expressions[0], Expression::Declaration(node) => {
             // Outer comment
             let annotations = parser.tree.get_annotations(expressions[0].id);
             assert_eq!(annotations.len(), 1);
@@ -1477,7 +1477,7 @@ export namespace Outer {
             });
 
             // Outer
-            assert_node!(parser.tree, *node, Definition::Namespace { descriptor, expressions, .. } => {
+            assert_node!(parser.tree, *node, Declaration::Namespace { descriptor, expressions, .. } => {
                 assert_string!(parser, descriptor.name.unwrap().string(), "Outer");
 
                 // Middle comment
@@ -1493,8 +1493,8 @@ export namespace Outer {
                 });
 
                 // Middle
-                assert_node!(parser.tree, expressions[0], Expression::Definition(node) => {
-                    assert_node!(parser.tree, *node, Definition::Namespace { descriptor, expressions, .. } => {
+                assert_node!(parser.tree, expressions[0], Expression::Declaration(node) => {
+                    assert_node!(parser.tree, *node, Declaration::Namespace { descriptor, expressions, .. } => {
                         assert_string!(parser, descriptor.name.unwrap().string(), "Middle");
 
                         // Inner comment

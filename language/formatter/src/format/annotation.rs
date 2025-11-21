@@ -230,7 +230,7 @@ impl<'ast> FormatNode<'ast, Annotation> for Annotation {
                     .context()
                     .get_ancestors(node_id)
                     .into_iter()
-                    .find(|(_, node_type)| *node_type == NodeType::Definition);
+                    .find(|(_, node_type)| *node_type == NodeType::Declaration);
                 if let Some((container_id, _)) = container {
                     let container_span = f.context().get_span_by_id(container_id);
                     if container_span.end >= f.context().file.len - 1 {
@@ -441,7 +441,7 @@ mod tests {
 
     /// Tags should be preserved in order.
     #[test]
-    fn test_format_tags_around_definition() {
+    fn test_format_tags_around_declaration() {
         let source = r#"struct Entity {
     /// name
     #BeginGroup(17)

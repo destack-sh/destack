@@ -53,8 +53,8 @@ impl<'ast> FormatNode<'ast, Statement> for Statement {
             Statement::ExportValue { value } => {
                 write!(f, [Keyword::Export, space(), token("="), space(), value])?;
             }
-            Statement::Definition { definition } => {
-                definition.format(f)?;
+            Statement::Declaration { declaration } => {
+                declaration.format(f)?;
             }
             Statement::Block { block } => {
                 block.format(f)?;

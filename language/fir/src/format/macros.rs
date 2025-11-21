@@ -61,9 +61,9 @@ macro_rules! format {
 /// to find the first variant that fits and prints this variant in [`Flat`] mode. If no variant fits, then
 /// the printer falls back to printing the [`MostExpanded`] variant in [`Expanded`] mode.
 ///
-/// The definition of *fits* differs to groups in that the printer only tests if it is possible to print
+/// The declaration of *fits* differs to groups in that the printer only tests if it is possible to print
 /// the content up to the first non-soft line break without exceeding the configured print width.
-/// This definition differs from groups as that non-soft line breaks make group expand.
+/// This declaration differs from groups as that non-soft line breaks make group expand.
 ///
 /// [`crate::BestFitting`] acts as a "break" boundary, meaning that it is considered to fit
 ///

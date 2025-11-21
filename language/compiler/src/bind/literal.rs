@@ -1,7 +1,7 @@
 use crate::Compiler;
 use dyst_ast as ast;
 use dyst_dir::{
-    DefinitionType, FloatType, IntType, LocalScopeId, Module, NodeTree, PrimitiveType,
+    DeclarationType, FloatType, IntType, LocalScopeId, Module, NodeTree, PrimitiveType,
     ScalarLiteral, TemplateLiteral, TypeLiteral,
 };
 
@@ -164,20 +164,20 @@ impl<'a> Compiler<'a> {
     }
 
     /// Bind a composite type to a DIR composite type.
-    pub(super) fn bind_definition_type(
+    pub(super) fn bind_declaration_type(
         &self,
-        composite_type: &ast::DefinitionType,
-    ) -> DefinitionType {
+        composite_type: &ast::DeclarationType,
+    ) -> DeclarationType {
         match composite_type {
-            ast::DefinitionType::Type => DefinitionType::Type,
-            ast::DefinitionType::Namespace => DefinitionType::Namespace,
-            ast::DefinitionType::Struct => DefinitionType::Struct,
-            ast::DefinitionType::Class => DefinitionType::Class,
-            ast::DefinitionType::Enum => DefinitionType::Enum,
-            ast::DefinitionType::Union => DefinitionType::Union,
-            ast::DefinitionType::Interface => DefinitionType::Interface,
-            ast::DefinitionType::Extension => DefinitionType::Extension,
-            ast::DefinitionType::Function => DefinitionType::Function,
+            ast::DeclarationType::Type => DeclarationType::Type,
+            ast::DeclarationType::Namespace => DeclarationType::Namespace,
+            ast::DeclarationType::Struct => DeclarationType::Struct,
+            ast::DeclarationType::Class => DeclarationType::Class,
+            ast::DeclarationType::Enum => DeclarationType::Enum,
+            ast::DeclarationType::Union => DeclarationType::Union,
+            ast::DeclarationType::Interface => DeclarationType::Interface,
+            ast::DeclarationType::Extension => DeclarationType::Extension,
+            ast::DeclarationType::Function => DeclarationType::Function,
         }
     }
 
@@ -203,7 +203,7 @@ impl<'a> Compiler<'a> {
                 TypeLiteral::Primitive(PrimitiveType::Float(self.bind_float_type(float_type)))
             }
             ast::TypeLiteral::Composite(composite_type) => {
-                TypeLiteral::Composite(self.bind_definition_type(composite_type))
+                TypeLiteral::Composite(self.bind_declaration_type(composite_type))
             }
             ast::TypeLiteral::Symbol => TypeLiteral::Primitive(PrimitiveType::Symbol),
             ast::TypeLiteral::UniqueSymbol => TypeLiteral::Primitive(PrimitiveType::UniqueSymbol),

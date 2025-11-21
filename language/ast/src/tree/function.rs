@@ -9,16 +9,16 @@ pub enum FunctionCardinality {
     Generator,
 }
 
-/// The abstraction level of a definition.
+/// The abstraction level of a declaration.
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum FunctionAbstraction {
-    /// Abstract definition.
+    /// Abstract declaration.
     Abstract,
     /// Abstract override.
     AbstractOverride,
     /// Concrete override.
     ConcreteOverride,
-    /// Concrete definition.
+    /// Concrete declaration.
     Concrete,
 }
 

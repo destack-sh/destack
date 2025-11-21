@@ -8,7 +8,7 @@ use crate::Keyword;
 pub enum NodeType {
     Expression,
     Block,
-    Definition,
+    Declaration,
     Property,
     EnumField,
     WithClause,
@@ -34,7 +34,7 @@ impl NodeType {
         match self {
             NodeType::Expression => "expression",
             NodeType::Block => "block",
-            NodeType::Definition => "definition",
+            NodeType::Declaration => "declaration",
             NodeType::Property => "property",
             NodeType::EnumField => "enum field",
             NodeType::WithClause => "with clause",

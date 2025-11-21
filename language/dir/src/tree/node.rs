@@ -8,7 +8,7 @@ use crate::ModuleId;
 pub enum NodeType {
     Expression,
     Block,
-    Definition,
+    Declaration,
     Type,
     TypeField,
     Property,
@@ -31,7 +31,7 @@ impl NodeType {
         match self {
             NodeType::Expression => "expression",
             NodeType::Block => "block",
-            NodeType::Definition => "definition",
+            NodeType::Declaration => "declaration",
             NodeType::Type => "type",
             NodeType::TypeField => "type field",
             NodeType::Property => "property",

@@ -5,7 +5,7 @@ use dyst_dir::{self as dir, ModuleId};
 use dyst_source::Arena;
 
 use crate::{
-    Annotation, Argument, Block, Definition, DependencyItem, EnumField, Expression, LocalNodeId,
+    Annotation, Argument, Block, Declaration, DependencyItem, EnumField, Expression, LocalNodeId,
     Node, NodeType, Parameter, Pattern, PatternField, Property, Statement, SwitchCase, Type,
     TypeField,
 };
@@ -35,7 +35,7 @@ pub struct NodeTree {
     pub(crate) blocks: Arena<Block>,
     pub(crate) statements: Arena<Statement>,
     pub(crate) expressions: Arena<Expression>,
-    pub(crate) definitions: Arena<Definition>,
+    pub(crate) declarations: Arena<Declaration>,
     pub(crate) fields: Arena<Property>,
     pub(crate) types: Arena<Type>,
     pub(crate) type_fields: Arena<TypeField>,
@@ -85,7 +85,7 @@ impl NodeTree {
             blocks: Arena::new(),
             statements: Arena::new(),
             expressions: Arena::new(),
-            definitions: Arena::new(),
+            declarations: Arena::new(),
             fields: Arena::new(),
             types: Arena::new(),
             type_fields: Arena::new(),
@@ -273,7 +273,7 @@ impl_node_tree_stores! {
     Block => blocks,
     Statement => statements,
     Expression => expressions,
-    Definition => definitions,
+    Declaration => declarations,
     Property => fields,
     Type => types,
     TypeField => type_fields,

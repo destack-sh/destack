@@ -1,7 +1,7 @@
 use crate::Compiler;
 use dyst_ast as ast;
 use dyst_dir::{
-    BindingScope, DeclarationDescriptor, DeclarationKind, Definition, EnumField, LocalNodeId,
+    BindingScope, Declaration, DeclarationDescriptor, DeclarationKind, EnumField, LocalNodeId,
     LocalScopeId, LocalSymbolId, Module, NodeTree, ScopeKind, StructKind, SymbolKey, SymbolSpace,
 };
 
@@ -22,27 +22,27 @@ impl<'a> Compiler<'a> {
         }
     }
 
-    /// Bind expression to DIR definition (if it's maybe a definition).
-    /// nocheckin: revisit bind_expression_to_definition_maybe
-    pub(super) fn bind_expression_to_definition_maybe(
+    /// Bind expression to DIR declaration (if it's maybe a declaration).
+    /// nocheckin: revisit bind_expression_to_declaration_maybe
+    pub(super) fn bind_expression_to_declaration_maybe(
         &self,
         module: &Module,
         scope_id: LocalScopeId,
         expression_id: ast::LocalNodeId<ast::Expression>,
         tree: &mut NodeTree,
-    ) -> Option<LocalNodeId<Definition>> {
+    ) -> Option<LocalNodeId<Declaration>> {
         let expression = module.get(expression_id);
-        let definition_id = match expression {
-            ast::Expression::Definition(definition_id) => {
-                self.bind_definition(module, scope_id, *definition_id, tree)
+        let declaration_id = match expression {
+            ast::Expression::Declaration(declaration_id) => {
+                self.bind_declaration(module, scope_id, *declaration_id, tree)
             }
             _ => return None,
         };
-        tree.alias_from_source(module.id, expression_id.id, definition_id);
-        Some(definition_id)
+        tree.alias_from_source(module.id, expression_id.id, declaration_id);
+        Some(declaration_id)
     }
 
-    /// Bind AST definition descriptor into DIR definition descriptor.
+    /// Bind AST declaration descriptor into DIR declaration descriptor.
     pub(super) fn bind_declaration_descriptor(
         &self,
         module: &Module,
@@ -68,19 +68,19 @@ impl<'a> Compiler<'a> {
         }
     }
 
-    /// Bind a definition to a DIR definition.
-    /// Bind an AST definition to a DIR definition.
+    /// Bind a declaration to a DIR declaration.
+    /// Bind an AST declaration to a DIR declaration.
     /// Handles modules, structs, and enums.
-    pub(super) fn bind_definition(
+    pub(super) fn bind_declaration(
         &self,
         module: &Module,
         scope_id: LocalScopeId,
-        definition_id: ast::LocalNodeId<ast::Definition>,
+        declaration_id: ast::LocalNodeId<ast::Declaration>,
         tree: &mut NodeTree,
-    ) -> LocalNodeId<Definition> {
-        let definition = module.get(definition_id);
-        let definition = match definition {
-            ast::Definition::Namespace {
+    ) -> LocalNodeId<Declaration> {
+        let declaration = module.get(declaration_id);
+        let declaration = match declaration {
+            ast::Declaration::Namespace {
                 descriptor,
                 generics,
                 expressions,
@@ -93,10 +93,10 @@ impl<'a> Compiler<'a> {
                 );
                 let descriptor = self.bind_declaration_descriptor(module, symbol_id, descriptor);
                 let generics = self.bind_generics(module, scope_id, generics, tree);
-                let definitions = expressions
+                let declarations = expressions
                     .iter()
                     .flat_map(|expression| {
-                        self.bind_expression_to_definition_maybe(
+                        self.bind_expression_to_declaration_maybe(
                             module,
                             scope_id,
                             *expression,
@@ -104,14 +104,14 @@ impl<'a> Compiler<'a> {
                         )
                     })
                     .collect();
-                Definition::Namespace {
+                Declaration::Namespace {
                     descriptor,
                     generics,
                     scope: scope_id,
-                    definitions,
+                    declarations,
                 }
             }
-            ast::Definition::Struct {
+            ast::Declaration::Struct {
                 descriptor,
                 kind,
                 generics,
@@ -135,7 +135,7 @@ impl<'a> Compiler<'a> {
                     .iter()
                     .map(|property| self.bind_property(module, scope_id, *property, tree))
                     .collect();
-                Definition::Struct {
+                Declaration::Struct {
                     descriptor,
                     kind,
                     generics,
@@ -144,7 +144,7 @@ impl<'a> Compiler<'a> {
                     properties,
                 }
             }
-            ast::Definition::Enum {
+            ast::Declaration::Enum {
                 descriptor,
                 generics,
                 heritage,
@@ -168,7 +168,7 @@ impl<'a> Compiler<'a> {
                     .iter()
                     .map(|property| self.bind_property(module, scope_id, *property, tree))
                     .collect();
-                Definition::Enum {
+                Declaration::Enum {
                     descriptor,
                     generics,
                     heritage,
@@ -177,7 +177,7 @@ impl<'a> Compiler<'a> {
                     properties,
                 }
             }
-            ast::Definition::Interface {
+            ast::Declaration::Interface {
                 descriptor,
                 generics,
                 heritage,
@@ -196,7 +196,7 @@ impl<'a> Compiler<'a> {
                     .iter()
                     .map(|property| self.bind_property(module, scope_id, *property, tree))
                     .collect();
-                Definition::Interface {
+                Declaration::Interface {
                     descriptor,
                     generics,
                     heritage,
@@ -204,7 +204,7 @@ impl<'a> Compiler<'a> {
                     properties,
                 }
             }
-            ast::Definition::Implement {
+            ast::Declaration::Implement {
                 descriptor,
                 generics,
                 target_type,
@@ -226,7 +226,7 @@ impl<'a> Compiler<'a> {
                     .iter()
                     .map(|property| self.bind_property(module, scope_id, *property, tree))
                     .collect();
-                Definition::Implement {
+                Declaration::Implement {
                     descriptor,
                     generics,
                     target_type,
@@ -235,7 +235,7 @@ impl<'a> Compiler<'a> {
                     properties,
                 }
             }
-            ast::Definition::Function {
+            ast::Declaration::Function {
                 descriptor,
                 signature,
                 body,
@@ -249,18 +249,18 @@ impl<'a> Compiler<'a> {
                 let descriptor = self.bind_declaration_descriptor(module, symbol_id, descriptor);
                 let signature = self.bind_function_signature(module, scope_id, signature, tree);
                 let body = body.map(|body| self.bind_expression(module, scope_id, body, tree));
-                Definition::Function {
+                Declaration::Function {
                     descriptor,
                     signature,
                     scope: scope_id,
-                    // nocheckin unpack definitions from function body DIR
-                    definitions: Vec::new(),
+                    // nocheckin unpack declarations from function body DIR
+                    declarations: Vec::new(),
                     body,
                 }
             }
         };
-        let symbol_id = definition.symbol();
-        tree.insert_from_source_as_symbol(definition, module.id, definition_id, symbol_id)
+        let symbol_id = declaration.symbol();
+        tree.insert_from_source_as_symbol(declaration, module.id, declaration_id, symbol_id)
     }
 
     /// Bind an AST enum field into a DIR enum field.

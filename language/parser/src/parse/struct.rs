@@ -4,7 +4,7 @@ use crate::parse::prelude::*;
 use crate::{ParseResult, Parser};
 
 use dyst_ast::{
-    DeclarationDescriptor, Definition, Generics, Heritage, Keyword, LocalNodeId, NodeType,
+    Declaration, DeclarationDescriptor, Generics, Heritage, Keyword, LocalNodeId, NodeType,
     StructKind, TokenType,
 };
 
@@ -42,13 +42,13 @@ impl<'a> Parser<'a> {
     pub fn eat_struct(
         &mut self,
         mut descriptor: DeclarationDescriptor,
-    ) -> ParseResult<LocalNodeId<Definition>> {
+    ) -> ParseResult<LocalNodeId<Declaration>> {
         let start = self.mark();
 
         // keyword
         let keyword = self
             .eat_keyword_in(&[Keyword::Struct, Keyword::Class])
-            .for_node_type(NodeType::Definition)?;
+            .for_node_type(NodeType::Declaration)?;
         let kind = match keyword {
             Keyword::Struct => StructKind::Struct,
             Keyword::Class => StructKind::Class,
@@ -61,42 +61,44 @@ impl<'a> Parser<'a> {
         // optional static parameters: < ... >
         let static_parameters = self
             .eat_static_parameters_maybe()
-            .for_node_type(NodeType::Definition)?;
+            .for_node_type(NodeType::Declaration)?;
 
         // optional extends types
         let extends_types = self
             .eat_extends_types_maybe()
-            .for_node_type(NodeType::Definition)?;
+            .for_node_type(NodeType::Declaration)?;
 
         // optional implements types
         let implements_types = self
             .eat_implements_types_maybe()
-            .for_node_type(NodeType::Definition)?;
+            .for_node_type(NodeType::Declaration)?;
 
         // with
         let with_clauses = self
             .eat_with_header_maybe()
-            .for_node_type(NodeType::Definition)?;
+            .for_node_type(NodeType::Declaration)?;
         // where
-        let where_clauses = self.eat_where_maybe().for_node_type(NodeType::Definition)?;
+        let where_clauses = self
+            .eat_where_maybe()
+            .for_node_type(NodeType::Declaration)?;
 
         // body
         self.try_eat_token(TokenType::OpenBrace, TokenType::CloseBrace)
-            .for_node_type(NodeType::Definition)?;
+            .for_node_type(NodeType::Declaration)?;
         self.eat_newlines_maybe()?;
         let properties = self
             .with_options(self.options.nested().in_variant(), |parser| {
                 parser.eat_properties()
             })
-            .for_node_type(NodeType::Definition)?;
+            .for_node_type(NodeType::Declaration)?;
         self.eat_token(TokenType::CloseBrace)
-            .for_node_type(NodeType::Definition)?;
+            .for_node_type(NodeType::Declaration)?;
 
         // struct
         let generics = Generics::new(static_parameters, with_clauses, where_clauses);
         let heritage = Heritage::new(extends_types, implements_types);
         let struct_id = self.tree.insert(
-            Definition::Struct {
+            Declaration::Struct {
                 descriptor,
                 kind,
                 generics,
@@ -113,7 +115,7 @@ impl<'a> Parser<'a> {
 #[cfg(test)]
 mod tests {
     use dyst_ast::{
-        BinaryOperator, BindingKind, DeclarationDescriptor, DeclarationKind, Definition,
+        BinaryOperator, BindingKind, Declaration, DeclarationDescriptor, DeclarationKind,
         Expression, IntType, Key, Mutability, Name, Parameter, Property, ScalarLiteral,
         TypeLiteral, Visibility, WhereClause, WithClause,
     };
@@ -133,7 +135,7 @@ struct { public x: int32, readonly y: boolean
 
         // struct { x: int32, y: boolean }
         let struct_id = parser.eat_struct(DeclarationDescriptor::default()).unwrap();
-        assert_node!(parser.tree, struct_id, Definition::Struct { descriptor, generics, properties, .. } => {
+        assert_node!(parser.tree, struct_id, Declaration::Struct { descriptor, generics, properties, .. } => {
             assert_eq!(descriptor.kind, DeclarationKind::Definition);
             assert!(descriptor.name.is_none());
             assert!(generics.is_empty());
@@ -168,7 +170,7 @@ struct Foo extends Bar {}
         parser.eat_newline().unwrap();
 
         let struct_id = parser.eat_struct(DeclarationDescriptor::default()).unwrap();
-        assert_node!(parser.tree, struct_id, Definition::Struct { descriptor, heritage, properties, .. } => {
+        assert_node!(parser.tree, struct_id, Declaration::Struct { descriptor, heritage, properties, .. } => {
             assert_eq!(descriptor.kind, DeclarationKind::Definition);
             assert_string!(parser, descriptor.name.unwrap().string(), "Foo");
             assert!(properties.is_empty());
@@ -202,7 +204,7 @@ struct Foo<T: Numeric> extends Boz implements Quux {
         parser.eat_newline().unwrap();
 
         let struct_id = parser.eat_struct(DeclarationDescriptor::default()).unwrap();
-        assert_node!(parser.tree, struct_id, Definition::Struct { descriptor, generics, heritage, properties, .. } => {
+        assert_node!(parser.tree, struct_id, Declaration::Struct { descriptor, generics, heritage, properties, .. } => {
             assert_eq!(descriptor.kind, DeclarationKind::Definition);
             assert_string!(parser, descriptor.name.unwrap().string(), "Foo");
             assert!(!generics.is_empty());
@@ -294,7 +296,7 @@ struct Foo with Context where Guard > Limit {
         parser.eat_newline().unwrap();
 
         let struct_id = parser.eat_struct(DeclarationDescriptor::default()).unwrap();
-        assert_node!(parser.tree, struct_id, Definition::Struct { descriptor, generics, properties, .. } => {
+        assert_node!(parser.tree, struct_id, Declaration::Struct { descriptor, generics, properties, .. } => {
             assert_eq!(descriptor.kind, DeclarationKind::Definition);
             assert!(properties.is_empty());
             assert!(!generics.is_empty());
@@ -336,7 +338,7 @@ struct Foo {
         parser.eat_newline().unwrap();
 
         let struct_id = parser.eat_struct(DeclarationDescriptor::default()).unwrap();
-        assert_node!(parser.tree, struct_id, Definition::Struct { descriptor, properties, .. } => {
+        assert_node!(parser.tree, struct_id, Declaration::Struct { descriptor, properties, .. } => {
             assert_eq!(descriptor.kind, DeclarationKind::Definition);
             assert_eq!(properties.len(), 1);
         });

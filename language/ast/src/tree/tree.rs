@@ -4,7 +4,7 @@ use std::fmt::{Debug, Formatter};
 use dyst_source::{FileSourceMap, Span};
 
 use crate::{
-    Annotation, AnnotationPosition, Arena, Argument, Blank, Block, Comment, Decorator, Definition,
+    Annotation, AnnotationPosition, Arena, Argument, Blank, Block, Comment, Declaration, Decorator,
     DependencyItem, Doc, EnumField, Expression, LocalNodeId, MatchCase, Node, NodeType, Parameter,
     Pattern, PatternField, Property, Tag, WhereClause, WithClause,
 };
@@ -26,7 +26,7 @@ pub struct NodeTree {
     // node arenas
     pub(crate) expressions: Arena<Expression>,
     pub(crate) blocks: Arena<Block>,
-    pub(crate) definitions: Arena<Definition>,
+    pub(crate) declarations: Arena<Declaration>,
     pub(crate) properties: Arena<Property>,
     pub(crate) enum_fields: Arena<EnumField>,
     pub(crate) with_clauses: Arena<WithClause>,
@@ -76,7 +76,7 @@ impl NodeTree {
             source_map: FileSourceMap::new(),
             expressions: Arena::new(),
             blocks: Arena::new(),
-            definitions: Arena::new(),
+            declarations: Arena::new(),
             properties: Arena::new(),
             enum_fields: Arena::new(),
             with_clauses: Arena::new(),
@@ -362,7 +362,7 @@ macro_rules! impl_node_tree_stores {
 impl_node_tree_stores! {
     Expression => expressions,
     Block => blocks,
-    Definition => definitions,
+    Declaration => declarations,
     Property => properties,
     EnumField => enum_fields,
     WithClause => with_clauses,

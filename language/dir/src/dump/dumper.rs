@@ -551,36 +551,36 @@ impl Dump for FloatType {
     }
 }
 
-/// Dump a DefinitionType as a structured representation.
-impl Dump for DefinitionType {
+/// Dump a DeclarationType as a structured representation.
+impl Dump for DeclarationType {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
         match self {
-            DefinitionType::Type => {
-                dumper.object("DefinitionType::Type").end();
+            DeclarationType::Type => {
+                dumper.object("DeclarationType::Type").end();
             }
-            DefinitionType::Namespace => {
-                dumper.object("DefinitionType::Module").end();
+            DeclarationType::Namespace => {
+                dumper.object("DeclarationType::Module").end();
             }
-            DefinitionType::Struct => {
-                dumper.object("DefinitionType::Struct").end();
+            DeclarationType::Struct => {
+                dumper.object("DeclarationType::Struct").end();
             }
-            DefinitionType::Class => {
-                dumper.object("DefinitionType::Class").end();
+            DeclarationType::Class => {
+                dumper.object("DeclarationType::Class").end();
             }
-            DefinitionType::Enum => {
-                dumper.object("DefinitionType::Enum").end();
+            DeclarationType::Enum => {
+                dumper.object("DeclarationType::Enum").end();
             }
-            DefinitionType::Union => {
-                dumper.object("DefinitionType::Union").end();
+            DeclarationType::Union => {
+                dumper.object("DeclarationType::Union").end();
             }
-            DefinitionType::Interface => {
-                dumper.object("DefinitionType::Interface").end();
+            DeclarationType::Interface => {
+                dumper.object("DeclarationType::Interface").end();
             }
-            DefinitionType::Extension => {
-                dumper.object("DefinitionType::Extension").end();
+            DeclarationType::Extension => {
+                dumper.object("DeclarationType::Extension").end();
             }
-            DefinitionType::Function => {
-                dumper.object("DefinitionType::Function").end();
+            DeclarationType::Function => {
+                dumper.object("DeclarationType::Function").end();
             }
         }
     }
@@ -758,8 +758,8 @@ impl<'a> NodeVisitor for Dumper<'a> {
         expression: &Expression,
     ) {
         match expression {
-            Expression::Definition { definition: _ } => {
-                self.node("Expression::Definition", id.id).end();
+            Expression::Declaration { declaration: _ } => {
+                self.node("Expression::Declaration", id.id).end();
             }
             Expression::Block { block: _ } => {
                 self.node("Expression::Block", id.id).end();
@@ -1168,26 +1168,26 @@ impl<'a> NodeVisitor for Dumper<'a> {
         });
     }
 
-    fn visit_definition(
+    fn visit_declaration(
         &mut self,
         tree: &NodeTree,
-        id: LocalNodeId<Definition>,
-        definition: &Definition,
+        id: LocalNodeId<Declaration>,
+        declaration: &Declaration,
     ) {
-        match definition {
-            Definition::Namespace {
+        match declaration {
+            Declaration::Namespace {
                 descriptor,
                 generics,
-                definitions: _,
+                declarations: _,
                 scope,
             } => {
-                self.node("Definition::Module", id.id)
+                self.node("Declaration::Module", id.id)
                     .field("descriptor", descriptor)
                     .field("generics", generics)
                     .field("scope", scope)
                     .end();
             }
-            Definition::Struct {
+            Declaration::Struct {
                 descriptor,
                 kind,
                 generics,
@@ -1195,7 +1195,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 properties: _,
                 scope,
             } => {
-                self.node("Definition::Struct", id.id)
+                self.node("Declaration::Struct", id.id)
                     .field("descriptor", descriptor)
                     .field("kind", kind)
                     .field("generics", generics)
@@ -1203,7 +1203,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .field("scope", scope)
                     .end();
             }
-            Definition::Enum {
+            Declaration::Enum {
                 descriptor,
                 generics,
                 heritage,
@@ -1211,41 +1211,41 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 properties: _,
                 scope,
             } => {
-                self.node("Definition::Enum", id.id)
+                self.node("Declaration::Enum", id.id)
                     .field("descriptor", descriptor)
                     .field("generics", generics)
                     .field("heritage", heritage)
                     .field("scope", scope)
                     .end();
             }
-            Definition::Interface {
+            Declaration::Interface {
                 descriptor,
                 generics,
                 heritage,
                 properties: _,
                 scope,
             } => {
-                self.node("Definition::Interface", id.id)
+                self.node("Declaration::Interface", id.id)
                     .field("descriptor", descriptor)
                     .field("generics", generics)
                     .field("heritage", heritage)
                     .field("scope", scope)
                     .end();
             }
-            Definition::Function {
+            Declaration::Function {
                 descriptor,
                 signature,
-                definitions: _,
+                declarations: _,
                 body: _,
                 scope,
             } => {
-                self.node("Definition::Function", id.id)
+                self.node("Declaration::Function", id.id)
                     .field("descriptor", descriptor)
                     .field("signature", signature)
                     .field("scope", scope)
                     .end();
             }
-            Definition::Implement {
+            Declaration::Implement {
                 descriptor,
                 generics,
                 target_type: _,
@@ -1253,7 +1253,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 properties: _,
                 scope,
             } => {
-                self.node("Definition::Extension", id.id)
+                self.node("Declaration::Extension", id.id)
                     .field("descriptor", descriptor)
                     .field("generics", generics)
                     .field("heritage", heritage)
@@ -1262,7 +1262,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
             }
         }
         self.with_depth(|dumper| {
-            walk_definition(dumper, tree, id, definition);
+            walk_declaration(dumper, tree, id, declaration);
         });
     }
 
@@ -1528,7 +1528,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 self.node("DependencyItem::Value", id.id).end();
             }
             DependencyItem::Local { symbol } => {
-                self.node("DependencyItem::Definition", id.id)
+                self.node("DependencyItem::Declaration", id.id)
                     .field("symbol", symbol)
                     .end();
             }

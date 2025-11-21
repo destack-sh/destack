@@ -2,7 +2,7 @@ use crate::parse::prelude::*;
 use crate::{ParseError, ParseResult, Parser};
 
 use dyst_ast::{
-    DeclarationDescriptor, Definition, EnumField, Generics, Heritage, Keyword, LocalNodeId,
+    Declaration, DeclarationDescriptor, EnumField, Generics, Heritage, Keyword, LocalNodeId,
     NodeType, Property, TokenType,
 };
 
@@ -40,7 +40,7 @@ impl<'a> Parser<'a> {
     pub fn eat_enum(
         &mut self,
         mut descriptor: DeclarationDescriptor,
-    ) -> ParseResult<LocalNodeId<Definition>> {
+    ) -> ParseResult<LocalNodeId<Declaration>> {
         let start = self.mark();
 
         // keyword
@@ -52,37 +52,39 @@ impl<'a> Parser<'a> {
         // optional static parameters: < ... >
         let static_parameters = self
             .eat_static_parameters_maybe()
-            .for_node_type(NodeType::Definition)?;
+            .for_node_type(NodeType::Declaration)?;
 
         // optional extends types
         let extends_types = self
             .eat_extends_types_maybe()
-            .for_node_type(NodeType::Definition)?;
+            .for_node_type(NodeType::Declaration)?;
 
         // optional implements types
         let implements_types = self
             .eat_implements_types_maybe()
-            .for_node_type(NodeType::Definition)?;
+            .for_node_type(NodeType::Declaration)?;
 
         // with
         let with_clauses = self
             .eat_with_header_maybe()
-            .for_node_type(NodeType::Definition)?;
+            .for_node_type(NodeType::Declaration)?;
 
         // where
-        let where_clauses = self.eat_where_maybe().for_node_type(NodeType::Definition)?;
+        let where_clauses = self
+            .eat_where_maybe()
+            .for_node_type(NodeType::Declaration)?;
 
         // body
         self.try_eat_token(TokenType::OpenBrace, TokenType::CloseBrace)
-            .for_node_type(NodeType::Definition)?;
+            .for_node_type(NodeType::Declaration)?;
         self.eat_newlines_maybe()?;
-        let (fields, properties) = self.eat_enum_body().for_node_type(NodeType::Definition)?;
+        let (fields, properties) = self.eat_enum_body().for_node_type(NodeType::Declaration)?;
         self.eat_token(TokenType::CloseBrace)?;
 
         let generics = Generics::new(static_parameters, with_clauses, where_clauses);
         let heritage = Heritage::new(extends_types, implements_types);
         let enum_id = self.tree.insert(
-            Definition::Enum {
+            Declaration::Enum {
                 descriptor,
                 generics,
                 heritage,
@@ -175,7 +177,7 @@ impl<'a> Parser<'a> {
 #[cfg(test)]
 mod tests {
     use dyst_ast::{
-        DeclarationDescriptor, DeclarationKind, Definition, EnumField, Expression, Parameter,
+        Declaration, DeclarationDescriptor, DeclarationKind, EnumField, Expression, Parameter,
         ScalarLiteral, WhereClause, WithClause,
     };
 
@@ -192,7 +194,7 @@ enum Foo extends Day {}
         parser.eat_newline().unwrap();
 
         let enum_id = parser.eat_enum(DeclarationDescriptor::default()).unwrap();
-        assert_node!(parser.tree, enum_id, Definition::Enum { descriptor, generics, heritage, fields, properties, .. } => {
+        assert_node!(parser.tree, enum_id, Declaration::Enum { descriptor, generics, heritage, fields, properties, .. } => {
             assert_eq!(descriptor.kind, DeclarationKind::Definition);
             assert_string!(parser, descriptor.name.unwrap().string(), "Foo");
             assert!(properties.is_empty());
@@ -223,7 +225,7 @@ enum {
         parser.eat_newline().unwrap();
 
         let enum_id = parser.eat_enum(DeclarationDescriptor::default()).unwrap();
-        assert_node!(parser.tree, enum_id, Definition::Enum { descriptor, fields, .. } => {
+        assert_node!(parser.tree, enum_id, Declaration::Enum { descriptor, fields, .. } => {
             assert_eq!(descriptor.kind, DeclarationKind::Definition);
             assert!(descriptor.name.is_none());
             assert_eq!(fields.len(), 2);
@@ -259,7 +261,7 @@ enum Foo extends Day {
         parser.eat_newline().unwrap();
 
         let enum_id = parser.eat_enum(DeclarationDescriptor::default()).unwrap();
-        assert_node!(parser.tree, enum_id, Definition::Enum { descriptor, fields, generics, heritage, .. } => {
+        assert_node!(parser.tree, enum_id, Declaration::Enum { descriptor, fields, generics, heritage, .. } => {
             assert_eq!(descriptor.kind, DeclarationKind::Definition);
             // Foo
             assert_string!(parser, descriptor.name.unwrap().string(), "Foo");
@@ -306,7 +308,7 @@ enum Machine<T: int32 = 3, IsSomething: boolean = true> {
         parser.eat_newline().unwrap();
 
         let enum_id = parser.eat_enum(DeclarationDescriptor::default()).unwrap();
-        assert_node!(parser.tree, enum_id, Definition::Enum { descriptor, generics, fields, .. } => {
+        assert_node!(parser.tree, enum_id, Declaration::Enum { descriptor, generics, fields, .. } => {
             assert_eq!(descriptor.kind, DeclarationKind::Definition);
             // Machine
             assert_string!(parser, descriptor.name.unwrap().string(), "Machine");
@@ -342,7 +344,7 @@ enum Foo with Context where Requirement: Interface {
         parser.eat_newline().unwrap();
 
         let enum_id = parser.eat_enum(DeclarationDescriptor::default()).unwrap();
-        assert_node!(parser.tree, enum_id, Definition::Enum { descriptor, generics, fields, .. } => {
+        assert_node!(parser.tree, enum_id, Declaration::Enum { descriptor, generics, fields, .. } => {
             assert_eq!(descriptor.kind, DeclarationKind::Definition);
             // with Context
             assert!(!generics.is_empty());

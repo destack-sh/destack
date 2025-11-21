@@ -2,7 +2,7 @@ use crate::parse::prelude::*;
 use crate::{ParseResult, Parser};
 
 use dyst_ast::{
-    BlockFormat, DeclarationDescriptor, Definition, Generics, Keyword, LocalNodeId, NodeType,
+    BlockFormat, Declaration, DeclarationDescriptor, Generics, Keyword, LocalNodeId, NodeType,
     TokenType,
 };
 
@@ -11,7 +11,7 @@ impl<'a> Parser<'a> {
     pub fn eat_namespace(
         &mut self,
         mut descriptor: DeclarationDescriptor,
-    ) -> ParseResult<LocalNodeId<Definition>> {
+    ) -> ParseResult<LocalNodeId<Declaration>> {
         let start = self.mark();
 
         // keyword
@@ -35,12 +35,12 @@ impl<'a> Parser<'a> {
                     .eat_block_body(BlockFormat::Explicit)
                     .for_node_type(NodeType::Block)?;
                 self.eat_token(TokenType::CloseBrace)
-                    .for_node_type(NodeType::Definition)?;
+                    .for_node_type(NodeType::Declaration)?;
                 expressions
             } else {
                 vec![]
             };
-            Definition::Namespace {
+            Declaration::Namespace {
                 descriptor,
                 generics,
                 expressions,
@@ -55,7 +55,8 @@ impl<'a> Parser<'a> {
 #[cfg(test)]
 mod tests {
     use dyst_ast::{
-        BinaryOperator, DeclarationDescriptor, Definition, Expression, WhereClause, WithClause,
+        BinaryOperator, Declaration, DeclarationDescriptor, DeclarationKind, Expression,
+        WhereClause, WithClause,
     };
 
     use crate::{TestParser, assert_expression_path, assert_node, assert_path, assert_string};
@@ -67,8 +68,8 @@ mod tests {
         let namespace_id = parser
             .eat_namespace(DeclarationDescriptor::default())
             .unwrap();
-        assert_node!(parser.tree, namespace_id, Definition::Namespace { descriptor, expressions, generics, .. } => {
-            assert_eq!(descriptor.kind, dyst_ast::DeclarationKind::Definition);
+        assert_node!(parser.tree, namespace_id, Declaration::Namespace { descriptor, expressions, generics, .. } => {
+            assert_eq!(descriptor.kind, DeclarationKind::Definition);
             assert!(descriptor.name.is_none());
             assert!(descriptor.export.is_none());
             assert!(expressions.is_empty());
@@ -91,8 +92,8 @@ namespace Foo with Context where Guard > Limit {
         let namespace_id = parser
             .eat_namespace(DeclarationDescriptor::default())
             .unwrap();
-        assert_node!(parser.tree, namespace_id, Definition::Namespace { descriptor, expressions, generics, .. } => {
-            assert_eq!(descriptor.kind, dyst_ast::DeclarationKind::Definition);
+        assert_node!(parser.tree, namespace_id, Declaration::Namespace { descriptor, expressions, generics, .. } => {
+            assert_eq!(descriptor.kind, DeclarationKind::Definition);
             assert_string!(parser, descriptor.name.unwrap().string(), "Foo");
             assert!(descriptor.export.is_none());
             assert!(expressions.is_empty());
@@ -130,8 +131,8 @@ namespace Foo with Context where Guard > Limit {
             .eat_namespace(DeclarationDescriptor::default())
             .unwrap();
 
-        assert_node!(parser.tree, namespace_id, Definition::Namespace { descriptor, expressions, generics, .. } => {
-            assert_eq!(descriptor.kind, dyst_ast::DeclarationKind::Definition);
+        assert_node!(parser.tree, namespace_id, Declaration::Namespace { descriptor, expressions, generics, .. } => {
+            assert_eq!(descriptor.kind, DeclarationKind::Definition);
             assert_string!(parser, descriptor.name.unwrap().string(), "Foo");
             assert!(descriptor.export.is_none());
             assert!(expressions.is_empty());

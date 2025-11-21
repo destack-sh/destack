@@ -1,5 +1,5 @@
 use dyst_ast::{
-    Annotation, AnnotationPosition, Argument, Blank, Block, Comment, Decorator, Definition,
+    Annotation, AnnotationPosition, Argument, Blank, Block, Comment, Declaration, Decorator,
     DependencyItem, Doc, EnumField, Expression, LocalNodeId, LocalNodeIdAny, MatchCase, Node,
     NodeParentIndex, NodeTree, NodeTreeImpl, NodeType, Parameter, Pattern, PatternField, Property,
     Tag, TokenSpan, TokenType, WhereClause, WithClause,
@@ -465,8 +465,8 @@ impl<'a> Format<DystFormatContext<'a>> for LocalNodeIdAny {
                 let node = context.tree.get(node_id);
                 node.format_node(node_id, f)
             }
-            NodeType::Definition => {
-                let node_id = LocalNodeId::<Definition>::new(self.id);
+            NodeType::Declaration => {
+                let node_id = LocalNodeId::<Declaration>::new(self.id);
                 let node = context.tree.get(node_id);
                 node.format_node(node_id, f)
             }

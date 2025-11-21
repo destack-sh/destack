@@ -6,43 +6,33 @@ use crate::{
 /// The kind of declaration.
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum DeclarationKind {
-    /// Declare without link.
+    /// Declare.
     Declaration,
-    /// Inline definition.
+    /// Definition.
     Definition,
 }
 
-/// The descriptor data for a definition.
+/// The descriptor data for a declaration.
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct DeclarationDescriptor {
     /// The kind of declaration.
     pub kind: DeclarationKind = DeclarationKind::Definition,
     /// The scope of the declaration.
     pub scope: BindingScope = BindingScope::Instance,
-    /// The name of the definition.
+    /// The name of the declaration.
     pub name: Option<Name> = None,
-    /// The export type of the definition.
+    /// The export type of the declaration.
     pub export: Option<ExportType> = None,
 }
 
 impl DeclarationDescriptor {
-    /// Create a new definition descriptor with the given name.
-    pub fn named(name: Name) -> Self {
-        Self {
-            kind: DeclarationKind::Definition,
-            scope: BindingScope::Instance,
-            name: Some(name),
-            export: None,
-        }
-    }
-
-    /// Create a new definition descriptor with the given name and scope.
+    /// Create a new declaration descriptor with the given name and scope.
     #[inline]
     pub fn with_scope(self, scope: BindingScope) -> Self {
         Self { scope, ..self }
     }
 
-    /// Create a new definition descriptor with the given name and name.
+    /// Create a new declaration descriptor with the given name and name.
     #[inline]
     pub fn with_name(self, name: Name) -> Self {
         Self {
@@ -51,7 +41,7 @@ impl DeclarationDescriptor {
         }
     }
 
-    /// Update the name of the definition descriptor maybe.
+    /// Update the name of the declaration descriptor maybe.
     #[inline]
     pub fn with_name_maybe(self, name: Option<Name>) -> Self {
         if let Some(name) = name {
@@ -136,9 +126,9 @@ impl Heritage {
     }
 }
 
-/// Definition introduces a type or such into a scope.
+/// Declaration introduces a type or such into a scope.
 #[derive(Debug, Clone, PartialEq)]
-pub enum Definition {
+pub enum Declaration {
     /// A Namespace is a namespace declaration.
     /// Namespaces may be whole directories, single files, or nested within a file.
     ///
@@ -154,7 +144,7 @@ pub enum Definition {
         expressions: Vec<LocalNodeId<Expression>>,
     },
 
-    /// A Struct is struct or class definition.
+    /// A Struct is struct or class declaration.
     /// The ',' separator is optional if newline-delimited.
     /// Structs may `use` other structs to include them (just like interfaces).
     /// Structs may also extend other structs as semantic sugar for `use`-ing them.
@@ -196,7 +186,7 @@ pub enum Definition {
         properties: Vec<LocalNodeId<Property>>,
     },
 
-    /// An Enum is an enumeration definition.
+    /// An Enum is an enumeration declaration.
     /// Like with structs, the ',' separator is optional if newline-delimited.
     /// Like other types, enums can extend other enums (sugar for `use`-ing them) and
     /// implement interfaces.
@@ -239,7 +229,7 @@ pub enum Definition {
         properties: Vec<LocalNodeId<Property>>,
     },
 
-    /// A Interface is interface definition node defining behavior and constants.
+    /// A Interface is interface declaration node defining behavior and constants.
     /// Interfaces can `use` other interfaces to include them (just like structs / unions).
     /// Interfaces can also have super interfaces as semantic sugar for `use`-ing other interfaces.
     ///
@@ -306,9 +296,9 @@ pub enum Definition {
         properties: Vec<LocalNodeId<Property>>,
     },
 
-    /// A Function is function or "lambda" declaration or definition.
+    /// A Function is function or "lambda" declaration or declaration.
     /// If no body is provided, it is a declaration for a function defined elsewhere.
-    /// In type contexts, lambda return resolves to a type, otherwise it's a function definition.
+    /// In type contexts, lambda return resolves to a type, otherwise it's a function declaration.
     /// Functions can have four cardinalities: async/sync, scalar/generator.
     ///
     /// Examples:
@@ -368,25 +358,25 @@ pub enum Definition {
     },
 }
 
-impl Node for Definition {
-    const TYPE: NodeType = NodeType::Definition;
+impl Node for Declaration {
+    const TYPE: NodeType = NodeType::Declaration;
 }
 
-impl Definition {
-    /// Get the descriptor data of the definition.
+impl Declaration {
+    /// Get the descriptor data of the declaration.
     #[inline]
     pub fn descriptor(&self) -> &DeclarationDescriptor {
         match self {
-            Definition::Namespace { descriptor, .. } => descriptor,
-            Definition::Struct { descriptor, .. } => descriptor,
-            Definition::Enum { descriptor, .. } => descriptor,
-            Definition::Interface { descriptor, .. } => descriptor,
-            Definition::Implement { descriptor, .. } => descriptor,
-            Definition::Function { descriptor, .. } => descriptor,
+            Declaration::Namespace { descriptor, .. } => descriptor,
+            Declaration::Struct { descriptor, .. } => descriptor,
+            Declaration::Enum { descriptor, .. } => descriptor,
+            Declaration::Interface { descriptor, .. } => descriptor,
+            Declaration::Implement { descriptor, .. } => descriptor,
+            Declaration::Function { descriptor, .. } => descriptor,
         }
     }
 
-    /// Get the name of the definition.
+    /// Get the name of the declaration.
     #[inline]
     pub fn name(&self) -> Option<Name> {
         self.descriptor().name

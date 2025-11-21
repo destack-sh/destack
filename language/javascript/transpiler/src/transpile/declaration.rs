@@ -1,7 +1,7 @@
 use dyst_dir::{self as dir, Module, NodeTree};
 use dyst_javascript_ast::{
-    BindingScope, Block, DeclarationDescriptor, DeclarationKind, Definition, EnumField, ExportType,
-    Expression, LocalNodeId, Visibility,
+    BindingScope, Block, Declaration, DeclarationDescriptor, DeclarationKind, EnumField,
+    ExportType, Expression, LocalNodeId, Visibility,
 };
 
 use crate::{TranspileError, TranspileResult, TranspileResultExt, Transpiler, TranspilerUnit};
@@ -68,34 +68,34 @@ impl<'a> Transpiler<'a> {
         }
     }
 
-    /// Transpile a definition from DIR into JS AST.
-    pub fn transpile_definition(
+    /// Transpile a declaration from DIR into JS AST.
+    pub fn transpile_declaration(
         &self,
         module: &'a Module,
         tree: &NodeTree,
-        definition_id: dir::LocalNodeId<dir::Definition>,
+        declaration_id: dir::LocalNodeId<dir::Declaration>,
         unit: &mut TranspilerUnit,
-    ) -> TranspileResult<LocalNodeId<Definition>> {
-        let definition = tree.get(definition_id);
-        let definition = match definition {
-            dir::Definition::Namespace {
+    ) -> TranspileResult<LocalNodeId<Declaration>> {
+        let declaration = tree.get(declaration_id);
+        let declaration = match declaration {
+            dir::Declaration::Namespace {
                 descriptor,
                 scope: _,
                 generics: _,
-                definitions,
+                declarations,
             } => {
                 let descriptor =
                     self.transpile_declaration_descriptor(module, tree, descriptor, unit);
-                let definitions = definitions
+                let declarations = declarations
                     .iter()
-                    .map(|definition| self.transpile_definition(module, tree, *definition, unit))
+                    .map(|declaration| self.transpile_declaration(module, tree, *declaration, unit))
                     .collect::<Result<Vec<_>, TranspileError>>()?;
-                Definition::Namespace {
+                Declaration::Namespace {
                     descriptor,
-                    definitions,
+                    declarations,
                 }
             }
-            dir::Definition::Struct {
+            dir::Declaration::Struct {
                 descriptor,
                 scope: _,
                 kind: _,
@@ -111,15 +111,15 @@ impl<'a> Transpiler<'a> {
                     .iter()
                     .map(|property| self.transpile_property(module, tree, *property, unit))
                     .collect::<Result<Vec<_>, TranspileError>>()?;
-                // TODO #Broken: struct definitions should become just JS types + namespaces?
-                Definition::Class {
+                // TODO #Broken: struct declarations should become just JS types + namespaces?
+                Declaration::Class {
                     descriptor,
                     generics,
                     heritage,
                     properties,
                 }
             }
-            dir::Definition::Interface {
+            dir::Declaration::Interface {
                 descriptor,
                 scope: _,
                 generics,
@@ -134,14 +134,14 @@ impl<'a> Transpiler<'a> {
                     .iter()
                     .map(|property| self.transpile_property(module, tree, *property, unit))
                     .collect::<Result<Vec<_>, TranspileError>>()?;
-                Definition::Interface {
+                Declaration::Interface {
                     descriptor,
                     generics,
                     heritage,
                     properties,
                 }
             }
-            dir::Definition::Enum {
+            dir::Declaration::Enum {
                 descriptor,
                 scope: _,
                 generics: _,
@@ -155,13 +155,13 @@ impl<'a> Transpiler<'a> {
                     .iter()
                     .map(|field| self.transpile_enum_field(module, tree, *field, unit))
                     .collect::<Result<Vec<_>, TranspileError>>()?;
-                Definition::Enum { descriptor, fields }
+                Declaration::Enum { descriptor, fields }
             }
-            dir::Definition::Function {
+            dir::Declaration::Function {
                 descriptor,
                 scope: _,
                 signature,
-                definitions: _,
+                declarations: _,
                 body,
             } => {
                 let descriptor =
@@ -173,7 +173,7 @@ impl<'a> Transpiler<'a> {
                             .expect_node::<Block>(body.into_any(), unit)
                     })
                     .transpose()?;
-                Definition::Function {
+                Declaration::Function {
                     descriptor,
                     signature,
                     body,
@@ -181,15 +181,15 @@ impl<'a> Transpiler<'a> {
             }
             _ => {
                 return Err(TranspileError::UnsupportedNode {
-                    node: definition_id.into_any(),
+                    node: declaration_id.into_any(),
                     message: None,
                 });
             }
         };
-        let definition_id = unit
+        let declaration_id = unit
             .ast
-            .insert_from_source(definition, module.id, definition_id);
-        Ok(definition_id)
+            .insert_from_source(declaration, module.id, declaration_id);
+        Ok(declaration_id)
     }
 
     /// Transpile an enum field from DIR into JS AST.

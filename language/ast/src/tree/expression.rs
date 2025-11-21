@@ -1,10 +1,10 @@
 use dyst_source::StringId;
 
 use crate::{
-    Argument, AssignOperator, Asynchrony, BinaryOperator, Block, DeclarationDescriptor, Definition,
-    DependencyItem, DependencyKind, ExportType, Keyword, LocalNodeId, Mutability, Node, NodeType,
-    Parameter, Path, Pattern, Property, ScalarLiteral, TemplateLiteral, TypeBinaryOperator,
-    TypeLiteral, TypeUnaryOperator, UnaryOperator,
+    Argument, AssignOperator, Asynchrony, BinaryOperator, Block, Declaration,
+    DeclarationDescriptor, DependencyItem, DependencyKind, ExportType, Keyword, LocalNodeId,
+    Mutability, Node, NodeType, Parameter, Path, Pattern, Property, ScalarLiteral, TemplateLiteral,
+    TypeBinaryOperator, TypeLiteral, TypeUnaryOperator, UnaryOperator,
 };
 
 // TODO #Performance: reduce Expression size to <=64B
@@ -13,8 +13,8 @@ use crate::{
 /// Unlike most languages, we don't differentiate "statements" and "expressions" up-front.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Expression {
-    /// Definition (with a name or anonymous).
-    Definition(LocalNodeId<Definition>),
+    /// Declaration (with a name or anonymous).
+    Declaration(LocalNodeId<Declaration>),
 
     /// Block of Expressions.
     Block(LocalNodeId<Block>),
@@ -63,7 +63,7 @@ pub enum Expression {
     },
 
     /// An Export is an explicit export declaration for dependency management.
-    /// Implicit exports may also be specified on lets and any definitions.
+    /// Implicit exports may also be specified on lets and any declarations.
     ///
     /// Examples:
     /// ```
@@ -720,7 +720,7 @@ impl Expression {
     pub fn is_statement_like(&self) -> bool {
         match self {
             Expression::Block(_) => true,
-            Expression::Definition(_) => true,
+            Expression::Declaration(_) => true,
             Expression::Statement(_) => true,
             Expression::With { .. } => true,
             Expression::If { .. } => true,
@@ -767,7 +767,7 @@ impl Expression {
         matches!(
             self,
             Expression::Statement { .. }
-                | Expression::Definition { .. }
+                | Expression::Declaration { .. }
                 | Expression::With { .. }
                 | Expression::Import { .. }
                 | Expression::Let { .. }
@@ -859,7 +859,7 @@ pub enum YieldCardinality {
     Generator,
 }
 
-/// A WithClause is a single clause in a with Context declaration or definition.
+/// A WithClause is a single clause in a with Context declaration or declaration.
 /// It can declare the use of a Context or assign it.
 /// The type must resolve to a type with the Context trait.
 /// NOTE: in the AST we can't disambiguate between with declaration and with assignment.

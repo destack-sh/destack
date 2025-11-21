@@ -676,8 +676,8 @@ impl<'a> NodeVisitor for Dumper<'a> {
             Statement::ExportValue { value: _ } => {
                 self.node("Statement::ExportValue", id.id).end();
             }
-            Statement::Definition { definition: _ } => {
-                self.node("Statement::Definition", id.id).end();
+            Statement::Declaration { declaration: _ } => {
+                self.node("Statement::Declaration", id.id).end();
             }
             Statement::Block { block: _ } => {
                 self.node("Statement::Block", id.id).end();
@@ -789,8 +789,8 @@ impl<'a> NodeVisitor for Dumper<'a> {
         expression: &Expression,
     ) {
         match expression {
-            Expression::Definition { definition: _ } => {
-                self.node("Expression::Definition", id.id).end();
+            Expression::Declaration { declaration: _ } => {
+                self.node("Expression::Declaration", id.id).end();
             }
             Expression::ArrowFunction { signature, body: _ } => {
                 self.node("Expression::ArrowFunction", id.id)
@@ -937,28 +937,28 @@ impl<'a> NodeVisitor for Dumper<'a> {
         });
     }
 
-    fn visit_definition(
+    fn visit_declaration(
         &mut self,
         tree: &NodeTree,
-        id: LocalNodeId<Definition>,
-        definition: &Definition,
+        id: LocalNodeId<Declaration>,
+        declaration: &Declaration,
     ) {
-        match definition {
-            Definition::Namespace {
+        match declaration {
+            Declaration::Namespace {
                 descriptor,
-                definitions: _,
+                declarations: _,
             } => {
-                self.node("Definition::Namespace", id.id)
+                self.node("Declaration::Namespace", id.id)
                     .field("descriptor", descriptor)
                     .end();
             }
-            Definition::Class {
+            Declaration::Class {
                 descriptor,
                 generics,
                 heritage,
                 properties: _,
             } => {
-                let mut node = self.node("Definition::Class", id.id);
+                let mut node = self.node("Declaration::Class", id.id);
                 node.field("descriptor", descriptor);
                 if !generics.is_empty() {
                     node.field("generics", generics);
@@ -968,13 +968,13 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 }
                 node.end();
             }
-            Definition::Interface {
+            Declaration::Interface {
                 descriptor,
                 generics,
                 heritage,
                 properties: _,
             } => {
-                let mut node = self.node("Definition::Interface", id.id);
+                let mut node = self.node("Declaration::Interface", id.id);
                 node.field("descriptor", descriptor);
                 if !generics.is_empty() {
                     node.field("generics", generics);
@@ -984,27 +984,27 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 }
                 node.end();
             }
-            Definition::Enum {
+            Declaration::Enum {
                 descriptor,
                 fields: _,
             } => {
-                self.node("Definition::Enum", id.id)
+                self.node("Declaration::Enum", id.id)
                     .field("descriptor", descriptor)
                     .end();
             }
-            Definition::Function {
+            Declaration::Function {
                 descriptor,
                 signature,
                 body: _,
             } => {
-                self.node("Definition::Function", id.id)
+                self.node("Declaration::Function", id.id)
                     .field("descriptor", descriptor)
                     .field("signature", signature)
                     .end();
             }
         }
         self.with_depth(|dumper| {
-            walk_definition(dumper, tree, id, definition);
+            walk_declaration(dumper, tree, id, declaration);
         });
     }
 

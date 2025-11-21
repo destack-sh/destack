@@ -2,7 +2,7 @@ pub mod annotation;
 pub mod argument;
 pub mod block;
 pub mod context;
-pub mod definition;
+pub mod declaration;
 pub mod dependency;
 pub mod r#enum;
 pub mod expression;

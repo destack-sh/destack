@@ -6,53 +6,53 @@ use crate::{
 /// The kind of declaration.
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum DeclarationKind {
-    /// Declare without link.
+    /// Declare.
     Declaration,
-    /// Inline definition.
+    /// Definition.
     Definition,
 }
 
-/// The descriptor for a definition.
-#[derive(Debug, Clone, PartialEq, Default)]
+/// The descriptor for a declaration.
+#[derive(Debug, Clone, PartialEq)]
 pub struct DeclarationDescriptor {
     /// The kind of declaration.
-    pub kind: DeclarationKind = DeclarationKind::Definition,
+    pub kind: DeclarationKind,
     /// The scope of the declaration.
-    pub scope: BindingScope = BindingScope::Instance,
-    /// The name of the definition.
-    pub name: Option<Name> = None,
-    /// The export type of the definition.
-    pub export: Option<ExportType> = None,
+    pub scope: BindingScope,
+    /// The name of the declaration.
+    pub name: Option<Name>,
+    /// The export type of the declaration.
+    pub export: Option<ExportType>,
 }
 
-/// A Definition is a declaration in some namespace.
+/// A Declaration is a declaration in some namespace.
 #[derive(Debug, Clone, PartialEq)]
-pub enum Definition {
-    /// Namespace definition (TS-only).
+pub enum Declaration {
+    /// Namespace declaration (TS-only).
     Namespace {
         descriptor: DeclarationDescriptor,
-        definitions: Vec<LocalNodeId<Definition>>,
+        declarations: Vec<LocalNodeId<Declaration>>,
     },
-    /// Class definition.
+    /// Class declaration.
     Class {
         descriptor: DeclarationDescriptor,
         generics: Generics,
         heritage: Heritage,
         properties: Vec<LocalNodeId<Property>>,
     },
-    /// Interface definition.
+    /// Interface declaration.
     Interface {
         descriptor: DeclarationDescriptor,
         generics: Generics,
         heritage: Heritage,
         properties: Vec<LocalNodeId<Property>>,
     },
-    /// Enum definition.
+    /// Enum declaration.
     Enum {
         descriptor: DeclarationDescriptor,
         fields: Vec<LocalNodeId<EnumField>>,
     },
-    /// Function definition.
+    /// Function declaration.
     Function {
         descriptor: DeclarationDescriptor,
         signature: FunctionSignature,
@@ -60,11 +60,11 @@ pub enum Definition {
     },
 }
 
-impl Node for Definition {
-    const TYPE: NodeType = NodeType::Definition;
+impl Node for Declaration {
+    const TYPE: NodeType = NodeType::Declaration;
 }
 
-/// An EnumField is a named field of an enum definition.
+/// An EnumField is a named field of an enum declaration.
 #[derive(Debug, Clone, PartialEq)]
 pub struct EnumField {
     /// The name of the enum field.

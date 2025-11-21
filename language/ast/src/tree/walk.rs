@@ -1,5 +1,5 @@
 use crate::{
-    Annotation, Argument, Blank, Block, Comment, DeclarationDescriptor, Decorator, Definition,
+    Annotation, Argument, Blank, Block, Comment, Declaration, DeclarationDescriptor, Decorator,
     DependencyItem, Doc, EnumField, Expression, FunctionSignature, Generics, Heritage, Key,
     LocalNodeId, MatchCase, NodeTree, NodeType, NodeVisitor, Parameter, Pattern, PatternField,
     Property, Tag, TemplateLiteral, WhereClause, WithClause,
@@ -28,9 +28,9 @@ pub fn walk_any<V: NodeVisitor + ?Sized>(
         // --------------------------------------------------------------------
         // Declarations
         // --------------------------------------------------------------------
-        NodeType::Definition => {
-            let definition = tree.definitions.get(local_idx);
-            walk_definition(visitor, tree, LocalNodeId::new(node_id), definition);
+        NodeType::Declaration => {
+            let declaration = tree.declarations.get(local_idx);
+            walk_declaration(visitor, tree, LocalNodeId::new(node_id), declaration);
         }
         NodeType::Property => {
             let property = tree.properties.get(local_idx);
@@ -134,9 +134,9 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
 ) {
     visitor.visit_any(tree, NodeType::Expression, id.id);
     match expression {
-        Expression::Definition(definition_id) => {
-            let definition = tree.get(*definition_id);
-            visitor.visit_definition(tree, *definition_id, definition);
+        Expression::Declaration(declaration_id) => {
+            let declaration = tree.get(*declaration_id);
+            visitor.visit_declaration(tree, *declaration_id, declaration);
         }
 
         Expression::Block(block_id) => {
@@ -700,17 +700,17 @@ fn walk_function_signature<V: NodeVisitor + ?Sized>(
     }
 }
 
-/// Walk the Definition and visit all child nodes.
-pub fn walk_definition<V: NodeVisitor + ?Sized>(
+/// Walk the Declaration and visit all child nodes.
+pub fn walk_declaration<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
     tree: &NodeTree,
-    id: LocalNodeId<Definition>,
-    definition: &Definition,
+    id: LocalNodeId<Declaration>,
+    declaration: &Declaration,
 ) {
-    visitor.visit_any(tree, NodeType::Definition, id.id);
+    visitor.visit_any(tree, NodeType::Declaration, id.id);
 
-    match definition {
-        Definition::Namespace {
+    match declaration {
+        Declaration::Namespace {
             descriptor,
             generics,
             expressions: statements,
@@ -722,7 +722,7 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
                 visitor.visit_expression(tree, *statement_id, statement);
             }
         }
-        Definition::Struct {
+        Declaration::Struct {
             descriptor,
             kind: _,
             generics,
@@ -737,7 +737,7 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
                 visitor.visit_property(tree, *property_id, property);
             }
         }
-        Definition::Enum {
+        Declaration::Enum {
             descriptor,
             generics,
             heritage,
@@ -756,7 +756,7 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
                 visitor.visit_property(tree, *property_id, property);
             }
         }
-        Definition::Interface {
+        Declaration::Interface {
             descriptor,
             generics,
             heritage,
@@ -770,7 +770,7 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
                 visitor.visit_property(tree, *property_id, property);
             }
         }
-        Definition::Implement {
+        Declaration::Implement {
             descriptor,
             generics,
             target_type,
@@ -787,7 +787,7 @@ pub fn walk_definition<V: NodeVisitor + ?Sized>(
                 visitor.visit_property(tree, *property_id, property);
             }
         }
-        Definition::Function {
+        Declaration::Function {
             descriptor,
             signature,
             body,

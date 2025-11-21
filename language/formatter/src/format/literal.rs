@@ -3,7 +3,7 @@ use std::borrow::Cow;
 use crate::{DystFormatContext, DystFormatter};
 
 use dyst_ast::{
-    Argument, DefinitionType, FloatType, IntType, Keyword, LocalNodeId, ScalarLiteral,
+    Argument, DeclarationType, FloatType, IntType, Keyword, LocalNodeId, ScalarLiteral,
     TemplateLiteral, TypeLiteral,
 };
 use dyst_fir::format::{Format, FormatResult, text, token};
@@ -190,18 +190,18 @@ impl<'ast> Format<DystFormatContext<'ast>> for FloatType {
     }
 }
 
-impl<'ast> Format<DystFormatContext<'ast>> for DefinitionType {
+impl<'ast> Format<DystFormatContext<'ast>> for DeclarationType {
     fn format(&self, f: &mut Formatter<'_, DystFormatContext<'ast>>) -> FormatResult<()> {
         match self {
-            DefinitionType::Type => write!(f, [Keyword::Type]),
-            DefinitionType::Namespace => write!(f, [Keyword::Namespace]),
-            DefinitionType::Struct => write!(f, [Keyword::Struct]),
-            DefinitionType::Class => write!(f, [Keyword::Class]),
-            DefinitionType::Enum => write!(f, [Keyword::Enum]),
-            DefinitionType::Union => write!(f, [Keyword::Union]),
-            DefinitionType::Interface => write!(f, [Keyword::Interface]),
-            DefinitionType::Extension => write!(f, [Keyword::Implement]),
-            DefinitionType::Function => write!(f, [Keyword::Function]),
+            DeclarationType::Type => write!(f, [Keyword::Type]),
+            DeclarationType::Namespace => write!(f, [Keyword::Namespace]),
+            DeclarationType::Struct => write!(f, [Keyword::Struct]),
+            DeclarationType::Class => write!(f, [Keyword::Class]),
+            DeclarationType::Enum => write!(f, [Keyword::Enum]),
+            DeclarationType::Union => write!(f, [Keyword::Union]),
+            DeclarationType::Interface => write!(f, [Keyword::Interface]),
+            DeclarationType::Extension => write!(f, [Keyword::Implement]),
+            DeclarationType::Function => write!(f, [Keyword::Function]),
         }
     }
 }

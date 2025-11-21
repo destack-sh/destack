@@ -112,7 +112,7 @@ pub enum TypeLiteral {
     /// Float type.
     Float(FloatType),
     /// Composite type.
-    Composite(DefinitionType),
+    Composite(DeclarationType),
     /// Symbol type.
     Symbol,
     /// Unique symbol type.
@@ -189,9 +189,9 @@ impl FloatType {
     }
 }
 
-/// A DefinitionType represents composite types.
+/// A DeclarationType represents composite types.
 #[derive(Debug, Clone, PartialEq)]
-pub enum DefinitionType {
+pub enum DeclarationType {
     /// Root type `type`.
     Type,
     /// Module type.

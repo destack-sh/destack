@@ -9,7 +9,7 @@ use dyst_ast::{
     TokenSpan, TokenType, TypeBinaryOperator, TypeUnaryOperator, UnaryOperator,
 };
 
-pub static DEFINITION_KEYWORDS: [Keyword; 21] = [
+pub static DECLARATION_KEYWORDS: [Keyword; 21] = [
     Keyword::Declare,
     Keyword::Namespace,
     Keyword::Struct,
@@ -33,7 +33,7 @@ pub static DEFINITION_KEYWORDS: [Keyword; 21] = [
     Keyword::Async,
 ];
 
-pub static DEFINITION_START_TOKENS: [TokenType; 6] = [
+pub static DECLARATION_START_TOKENS: [TokenType; 6] = [
     TokenType::Literal,
     TokenType::Identifier,
     TokenType::OpenParenthesis,
@@ -358,7 +358,7 @@ impl<'a> Parser<'a> {
             // just parse the export if followed by dependency items or module export
             let keyword = self.peek_any_keyword().ok();
             if mode == Some(ExportType::Namespace)
-                || (keyword.is_none() || !DEFINITION_KEYWORDS.contains(&keyword.unwrap()))
+                || (keyword.is_none() || !DECLARATION_KEYWORDS.contains(&keyword.unwrap()))
                     && self.peek_import_clause().is_ok()
             {
                 return self.eat_export(Some(start), mode);
@@ -458,8 +458,10 @@ impl<'a> Parser<'a> {
                     || self.peek_next_token(TokenType::ArrowWide).is_ok())
             {
                 let lambda_id = self.eat_function(descriptor, false, false)?;
-                self.tree
-                    .insert(Expression::Definition(lambda_id), self.get_span_from(start))
+                self.tree.insert(
+                    Expression::Declaration(lambda_id),
+                    self.get_span_from(start),
+                )
             }
             // parenthesis
             // (may be tuple, lambda or just a parenthesized expression)
@@ -485,8 +487,10 @@ impl<'a> Parser<'a> {
                     .unwrap_or(false)
                 {
                     let lambda_id = self.eat_function(descriptor, false, false)?;
-                    self.tree
-                        .insert(Expression::Definition(lambda_id), self.get_span_from(start))
+                    self.tree.insert(
+                        Expression::Declaration(lambda_id),
+                        self.get_span_from(start),
+                    )
                 }
                 // tuple or parenthesized expression
                 else {
@@ -620,7 +624,7 @@ impl<'a> Parser<'a> {
                 && next_token_type != TokenType::OpenBracket
                 // composite type is eagerly closed before a block 
                 // (to allow stuff like `if x instanceof type { ... }` where type excludes the block)
-                && (!DEFINITION_START_TOKENS.contains(&next_token_type) || self.options.in_before_block && next_token_type == TokenType::OpenBrace)
+                && (!DECLARATION_START_TOKENS.contains(&next_token_type) || self.options.in_before_block && next_token_type == TokenType::OpenBrace)
                 // type is only allowed in `(type)` parenthesis to disambiguate from expression form
                 // (other composites don't need this since they're always followed by `<`, `(`, or `{`))
                 && (keyword != Keyword::Type && keyword != Keyword::Newtype || self.prev_token_type() == TokenType::OpenParenthesis && next_token_type == TokenType::CloseParenthesis)
@@ -633,47 +637,49 @@ impl<'a> Parser<'a> {
             }
             // namespace
             else if keyword == Some(Keyword::Namespace)
-                && DEFINITION_START_TOKENS.contains(&next_token_type)
+                && DECLARATION_START_TOKENS.contains(&next_token_type)
             {
                 let namespace_id = self.eat_namespace(descriptor)?;
                 self.tree.insert(
-                    Expression::Definition(namespace_id),
+                    Expression::Declaration(namespace_id),
                     self.get_span_from(start),
                 )
             }
             // struct / class
             else if (keyword == Some(Keyword::Struct) || keyword == Some(Keyword::Class))
-                && DEFINITION_START_TOKENS.contains(&next_token_type)
+                && DECLARATION_START_TOKENS.contains(&next_token_type)
             {
                 let struct_id = self.eat_struct(descriptor)?;
-                self.tree
-                    .insert(Expression::Definition(struct_id), self.get_span_from(start))
+                self.tree.insert(
+                    Expression::Declaration(struct_id),
+                    self.get_span_from(start),
+                )
             }
             // enum
             else if keyword == Some(Keyword::Enum)
-                && DEFINITION_START_TOKENS.contains(&next_token_type)
+                && DECLARATION_START_TOKENS.contains(&next_token_type)
             {
                 let enum_id = self.eat_enum(descriptor)?;
                 self.tree
-                    .insert(Expression::Definition(enum_id), self.get_span_from(start))
+                    .insert(Expression::Declaration(enum_id), self.get_span_from(start))
             }
             // interface
             else if keyword == Some(Keyword::Interface)
-                && DEFINITION_START_TOKENS.contains(&next_token_type)
+                && DECLARATION_START_TOKENS.contains(&next_token_type)
             {
                 let interface_id = self.eat_interface(descriptor)?;
                 self.tree.insert(
-                    Expression::Definition(interface_id),
+                    Expression::Declaration(interface_id),
                     self.get_span_from(start),
                 )
             }
             // implement
             else if keyword == Some(Keyword::Implement)
-                && DEFINITION_START_TOKENS.contains(&next_token_type)
+                && DECLARATION_START_TOKENS.contains(&next_token_type)
             {
                 let implement_id = self.eat_implement(descriptor)?;
                 self.tree.insert(
-                    Expression::Definition(implement_id),
+                    Expression::Declaration(implement_id),
                     self.get_span_from(start),
                 )
             }
@@ -700,7 +706,7 @@ impl<'a> Parser<'a> {
             {
                 let function_id = self.eat_function(descriptor, false, false)?;
                 self.tree.insert(
-                    Expression::Definition(function_id),
+                    Expression::Declaration(function_id),
                     self.get_span_from(start),
                 )
             }
@@ -1263,8 +1269,8 @@ impl<'a> Parser<'a> {
 #[cfg(test)]
 mod tests {
     use dyst_ast::{
-        Argument, AssignOperator, BinaryOperator, Block, DeclarationDescriptor, Definition,
-        DefinitionType, DependencyItem, DependencyKind, ExportType, Expression, FunctionKind,
+        Argument, AssignOperator, BinaryOperator, Block, Declaration, DeclarationDescriptor,
+        DeclarationType, DependencyItem, DependencyKind, ExportType, Expression, FunctionKind,
         IntType, Key, Mutability, Name, Parameter, Pattern, PatternField, PostfixPosition,
         Property, ScalarLiteral, TypeBinaryOperator, TypeLiteral, TypeUnaryOperator, UnaryOperator,
         VarianceBound, WithClause,
@@ -1375,7 +1381,7 @@ type = type * 2
             assert_node!(parser.tree, *condition, Expression::TypeBinary { left, operator, right } => {
                 assert_expression_path!(parser, parser.tree.get(*left), "x");
                 assert_eq!(*operator, TypeBinaryOperator::Extends);
-                assert_node!(parser.tree, *right, Expression::TypeLiteral(TypeLiteral::Composite(DefinitionType::Struct)));
+                assert_node!(parser.tree, *right, Expression::TypeLiteral(TypeLiteral::Composite(DeclarationType::Struct)));
             });
             // { body }
             assert_node!(parser.tree, *then_expression, Expression::Block(block_id) => {
@@ -1403,7 +1409,7 @@ type = type * 2
                 assert_node!(parser.tree, *expression, Expression::TypeBinary { left, operator, right } => {
                     assert_expression_path!(parser, parser.tree.get(*left), "T");
                     assert_eq!(*operator, TypeBinaryOperator::InstanceOf);
-                    assert_node!(parser.tree, *right, Expression::TypeLiteral(TypeLiteral::Composite(DefinitionType::Class)));
+                    assert_node!(parser.tree, *right, Expression::TypeLiteral(TypeLiteral::Composite(DeclarationType::Class)));
                 });
             });
             // { value }
@@ -1495,9 +1501,9 @@ type = type * 2
         });
     }
 
-    /// Parse an export declaration of a type definition.
+    /// Parse an export declaration of a type declaration.
     #[test]
-    fn test_parse_export_expression_type_definition() {
+    fn test_parse_export_expression_type_declaration() {
         let mut test = TestParser::new("export type NonNullValue = Something");
         let mut parser = test.prepare();
         let expression_id = parser.eat_expression().unwrap();
@@ -1914,8 +1920,8 @@ const shapes = (
         let expr_id = parser
             .with_options(parser.options.in_type(), |parser| parser.eat_expression())
             .unwrap();
-        assert_node!(parser.tree, expr_id, Expression::Definition(definition_id) => {
-            assert_node!(parser.tree, *definition_id, Definition::Function { signature, .. } => {
+        assert_node!(parser.tree, expr_id, Expression::Declaration(declaration_id) => {
+            assert_node!(parser.tree, *declaration_id, Declaration::Function { signature, .. } => {
                 assert_eq!(signature.kind, FunctionKind::Lambda);
                 assert_eq!(signature.dynamic_parameters.len(), 0);
                 assert_node!(parser.tree, signature.return_type.unwrap(), Expression::TypeLiteral(TypeLiteral::Void));
@@ -1931,8 +1937,8 @@ const shapes = (
         let expr_id = parser
             .with_options(parser.options.in_type(), |parser| parser.eat_expression())
             .unwrap();
-        assert_node!(parser.tree, expr_id, Expression::Definition(definition_id) => {
-            assert_node!(parser.tree, *definition_id, Definition::Function { signature, .. } => {
+        assert_node!(parser.tree, expr_id, Expression::Declaration(declaration_id) => {
+            assert_node!(parser.tree, *declaration_id, Declaration::Function { signature, .. } => {
                 assert_eq!(signature.kind, FunctionKind::Lambda);
                 // (a: int32)
                 assert_node!(parser.tree, signature.dynamic_parameters[0], Parameter::Named { name, ty, .. } => {
@@ -1960,8 +1966,8 @@ const shapes = (
         let mut test = TestParser::new("(a) => a > 2");
         let mut parser = test.prepare();
         let expr_id = parser.eat_expression().unwrap();
-        assert_node!(parser.tree, expr_id, Expression::Definition(definition_id) => {
-            assert_node!(parser.tree, *definition_id, Definition::Function { signature, body, .. } => {
+        assert_node!(parser.tree, expr_id, Expression::Declaration(declaration_id) => {
+            assert_node!(parser.tree, *declaration_id, Declaration::Function { signature, body, .. } => {
                 assert_eq!(signature.kind, FunctionKind::Lambda);
                 assert!(signature.return_type.is_none());
                 assert!(body.is_some());
@@ -1986,8 +1992,8 @@ const shapes = (
         let mut test = TestParser::new("(_, { x, y }: T) => a");
         let mut parser = test.prepare();
         let expr_id = parser.eat_expression().unwrap();
-        assert_node!(parser.tree, expr_id, Expression::Definition(definition_id) => {
-            assert_node!(parser.tree, *definition_id, Definition::Function { signature, body: Some(_), .. } => {
+        assert_node!(parser.tree, expr_id, Expression::Declaration(declaration_id) => {
+            assert_node!(parser.tree, *declaration_id, Declaration::Function { signature, body: Some(_), .. } => {
                 assert_eq!(signature.kind, FunctionKind::Lambda);
                 assert!(signature.return_type.is_none());
                 assert_eq!(signature.dynamic_parameters.len(), 2);
@@ -2024,8 +2030,8 @@ const shapes = (
         let mut test = TestParser::new("x => x");
         let mut parser = test.prepare();
         let expr_id = parser.eat_expression().unwrap();
-        assert_node!(parser.tree, expr_id, Expression::Definition(definition_id) => {
-            assert_node!(parser.tree, *definition_id, Definition::Function { signature, body, .. } => {
+        assert_node!(parser.tree, expr_id, Expression::Declaration(declaration_id) => {
+            assert_node!(parser.tree, *declaration_id, Declaration::Function { signature, body, .. } => {
                 assert_eq!(signature.kind, FunctionKind::Lambda);
                 assert!(signature.return_type.is_none());
                 assert_eq!(signature.dynamic_parameters.len(), 1);
@@ -2771,8 +2777,8 @@ function isStringy(value: any): asserts value is string {
 
         let expr_id = parser.eat_expression().unwrap();
         // function isStringy(value: any): asserts value is string { .. }
-        assert_node!(parser.tree, expr_id, Expression::Definition(definition_id) => {
-            assert_node!(parser.tree, *definition_id, Definition::Function { descriptor, signature, .. } => {
+        assert_node!(parser.tree, expr_id, Expression::Declaration(declaration_id) => {
+            assert_node!(parser.tree, *declaration_id, Declaration::Function { descriptor, signature, .. } => {
                 // isStringy
                 assert_string!(parser, descriptor.name.unwrap().string(), "isStringy");
                 assert_eq!(signature.dynamic_parameters.len(), 1);
