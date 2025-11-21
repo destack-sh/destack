@@ -1,6 +1,6 @@
 use dyst_ast::{
     Argument, Asynchrony, DependencyKind, Expression, ForEachKind, IfKind, Keyword, Mutability,
-    NodeTree, NodeId, PostfixPosition, Property, TypeKind, TypeUnaryOperator, WhileKind,
+    NodeId, NodeTree, PostfixPosition, Property, TypeKind, TypeUnaryOperator, WhileKind,
     YieldCardinality,
 };
 use dyst_fir::format::{BestFittingMode, FormatError};

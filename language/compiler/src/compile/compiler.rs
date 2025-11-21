@@ -1,5 +1,6 @@
 use dyst_dir::Session;
-use dyst_source::{Diagnostic, DiagnosticOptions, FileId};
+use dyst_source::{DiagnosticOptions, FileId};
+use parking_lot::RwLock;
 
 use crate::{
     BuildOptions, CompileDiagnostic, CompileError, CompileWarning, CompilerQueue, ExecuteOptions,
@@ -38,6 +39,8 @@ pub struct Compiler<'s> {
     pub session: &'s Session<'s>,
     /// The options for compiling.
     pub options: CompileOptions,
+    /// The pending compiler diagnostics.
+    pub pending_diagnostics: RwLock<Vec<CompileDiagnostic>>,
     /// The queue of compiler tasks.
     pub(super) queue: CompilerQueue,
 }
@@ -49,6 +52,7 @@ impl<'s> Compiler<'s> {
         Self {
             session,
             options: CompileOptions::default(),
+            pending_diagnostics: RwLock::new(Vec::new()),
             queue: CompilerQueue::new(),
         }
     }
@@ -58,6 +62,7 @@ impl<'s> Compiler<'s> {
         let compiler = Self {
             session,
             options,
+            pending_diagnostics: RwLock::new(Vec::new()),
             queue: CompilerQueue::new(),
         };
         compiler.enqueue(ImportTask::ImportModuleFromFile { file: file_id }.into());
@@ -68,18 +73,28 @@ impl<'s> Compiler<'s> {
     pub fn error<T: Into<CompileError>>(&self, error: T) {
         let error: CompileError = error.into();
         let diagnostic: CompileDiagnostic = error.into();
-        let diagnostic: Diagnostic = diagnostic.to_diagnostic(self.session);
-        if let Some(diagnostic) = self.options.diagnostic.map(diagnostic) {
-            self.session.diagnostics.insert(diagnostic);
-        }
+        self.pending_diagnostics.write().push(diagnostic);
     }
 
     /// Add a warning to the compiler.
     pub fn warning<T: Into<CompileWarning>>(&self, warning: T) {
         let warning: CompileWarning = warning.into();
         let diagnostic: CompileDiagnostic = warning.into();
-        let diagnostic: Diagnostic = diagnostic.to_diagnostic(self.session);
-        if let Some(diagnostic) = self.options.diagnostic.map(diagnostic) {
+        self.pending_diagnostics.write().push(diagnostic);
+    }
+
+    /// Add a diagnostic to the compiler.
+    pub fn diagnostic<T: Into<CompileDiagnostic>>(&self, diagnostic: T) {
+        let diagnostic: CompileDiagnostic = diagnostic.into();
+        self.pending_diagnostics.write().push(diagnostic);
+    }
+
+    /// Flush pending diagnostics into the session.
+    pub fn flush_diagnostics(&self) {
+        let mut diagnostics = self.pending_diagnostics.write();
+        let tree = self.session.tree.read();
+        for diagnostic in diagnostics.drain(..) {
+            let diagnostic = diagnostic.to_diagnostic(self.session, &tree);
             self.session.diagnostics.insert(diagnostic);
         }
     }

@@ -64,11 +64,8 @@ impl<'a> Compiler<'a> {
                 let ty = ty.map(|ty| self.bind_expression_to_type(module, scope_id, ty, tree));
                 let default =
                     default.map(|default| self.bind_expression(module, scope_id, default, tree));
-                let symbol_id = tree.create_symbol(
-                    SymbolSpace::Value,
-                    Some(SymbolKey::Name(name)),
-                    scope_id,
-                );
+                let symbol_id =
+                    tree.create_symbol(SymbolSpace::Value, Some(SymbolKey::Name(name)), scope_id);
                 let parameter = Parameter::Named {
                     modifiers,
                     name,
@@ -76,12 +73,7 @@ impl<'a> Compiler<'a> {
                     default,
                     symbol: symbol_id,
                 };
-                tree.insert_from_source_as_symbol(
-                    parameter,
-                    module.id,
-                    parameter_id,
-                    symbol_id,
-                )
+                tree.insert_from_source_as_symbol(parameter, module.id, parameter_id, symbol_id)
             }
             ast::Parameter::Pattern {
                 modifiers,
@@ -103,12 +95,7 @@ impl<'a> Compiler<'a> {
                     default,
                     symbol: symbol_id,
                 };
-                tree.insert_from_source_as_symbol(
-                    parameter,
-                    module.id,
-                    parameter_id,
-                    symbol_id,
-                )
+                tree.insert_from_source_as_symbol(parameter, module.id, parameter_id, symbol_id)
             }
             ast::Parameter::Variadic {
                 modifiers,
@@ -119,23 +106,15 @@ impl<'a> Compiler<'a> {
                     modifiers.map(|modifiers| self.bind_binding_modifier(module, modifiers));
                 let name = self.session.strings.intern_from(&module.strings, *name);
                 let ty = ty.map(|ty| self.bind_expression_to_type(module, scope_id, ty, tree));
-                let symbol_id = tree.create_symbol(
-                    SymbolSpace::Value,
-                    Some(SymbolKey::Name(name)),
-                    scope_id,
-                );
+                let symbol_id =
+                    tree.create_symbol(SymbolSpace::Value, Some(SymbolKey::Name(name)), scope_id);
                 let parameter = Parameter::Variadic {
                     modifiers,
                     name,
                     ty,
                     symbol: symbol_id,
                 };
-                tree.insert_from_source_as_symbol(
-                    parameter,
-                    module.id,
-                    parameter_id,
-                    symbol_id,
-                )
+                tree.insert_from_source_as_symbol(parameter, module.id, parameter_id, symbol_id)
             }
         }
     }

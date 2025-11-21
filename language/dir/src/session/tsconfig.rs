@@ -17,6 +17,7 @@ const TEMPLATE_VARIABLE: &str = "${configDir}"; // TODO #Broken: revisit TsConfi
 #[derive(Debug, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct TsConfigJson {
+    // nocheckin: remove is_root from TsConfigJson (into Package/TsConfig)
     /// Whether this is the root tsconfig.
     #[serde(skip)]
     pub is_root: bool,
@@ -25,27 +26,27 @@ pub struct TsConfigJson {
     pub path: PathBuf,
 
     /// Specific files to include in the project.
-	/// <https://www.typescriptlang.org/tsconfig/#files>
+    /// <https://www.typescriptlang.org/tsconfig/#files>
     #[serde(default)]
     pub files: Option<Vec<String>>,
     /// Files to include in the project.
-	/// <https://www.typescriptlang.org/tsconfig/#include>
+    /// <https://www.typescriptlang.org/tsconfig/#include>
     #[serde(default)]
     pub include: Option<Vec<String>>,
     /// Files to exclude from the project.
-	/// <https://www.typescriptlang.org/tsconfig/#exclude>
+    /// <https://www.typescriptlang.org/tsconfig/#exclude>
     #[serde(default)]
     pub exclude: Option<Vec<String>>,
     /// Paths to other tsconfigs to extend.
-	/// <https://www.typescriptlang.org/tsconfig/#extends>
+    /// <https://www.typescriptlang.org/tsconfig/#extends>
     #[serde(default)]
     pub extends: Option<ExtendsField>,
     /// Compiler options.
-	/// <https://www.typescriptlang.org/tsconfig/#compilerOptions>
+    /// <https://www.typescriptlang.org/tsconfig/#compilerOptions>
     #[serde(default)]
     pub compiler_options: TsCompilerOptionsJson,
     /// Bubbled up project references with a reference to their tsconfig.
-	/// <https://www.typescriptlang.org/tsconfig/#references>
+    /// <https://www.typescriptlang.org/tsconfig/#references>
     #[serde(default)]
     pub references: Vec<TsProjectReferences>,
 }

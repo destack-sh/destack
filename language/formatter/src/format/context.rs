@@ -1,7 +1,7 @@
 use dyst_ast::{
     Annotation, AnnotationPosition, Argument, Blank, Block, Comment, Decorator, Definition,
-    DependencyItem, Doc, EnumField, Expression, MatchCase, NodeTree, NodeTreeImpl,
-    Node, NodeId, NodeIdAny, NodeParentIndex, NodeType, Parameter, Pattern, PatternField, Property,
+    DependencyItem, Doc, EnumField, Expression, MatchCase, Node, NodeId, NodeIdAny,
+    NodeParentIndex, NodeTree, NodeTreeImpl, NodeType, Parameter, Pattern, PatternField, Property,
     Tag, TokenSpan, TokenType, WhereClause, WithClause,
 };
 use dyst_fir::format::{Format, FormatContext, FormatOptions, FormatResult, Formatter};

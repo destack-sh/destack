@@ -31,8 +31,8 @@ pub struct TranspilerUnit {
     pub strings: StringPool,
     /// The source modules.
     pub sources: Vec<ModuleId>,
-    /// The diagnostics encountered during transpilation.
-    pub diagnostics: Vec<TranspileDiagnostic>,
+    /// The pending diagnostics encountered during transpilation.
+    pub pending_diagnostics: Vec<TranspileDiagnostic>,
     /// The artifacts produced by the transpilation unit.
     pub artifacts: Vec<Uri>,
 }
@@ -41,18 +41,23 @@ pub struct TranspilerUnit {
 impl TranspilerUnit {
     /// Add an error to the transpilation unit.
     pub(crate) fn error(&mut self, error: TranspileError) {
-        self.diagnostics.push(error.into());
+        self.pending_diagnostics.push(error.into());
     }
 
     /// Add a warning to the transpilation unit.
     pub(crate) fn warning(&mut self, warning: TranspileWarning) {
-        self.diagnostics.push(warning.into());
+        self.pending_diagnostics.push(warning.into());
     }
 }
 
 impl<'a> Transpiler<'a> {
     /// Transpile the modules into AST.
-    pub fn transpile_module(&self, module: &'a dir::Module, tree: &NodeTree, unit: &mut TranspilerUnit) {
+    pub fn transpile_module(
+        &self,
+        module: &'a dir::Module,
+        tree: &NodeTree,
+        unit: &mut TranspilerUnit,
+    ) {
         for expression_id in module.roots.iter() {
             match self.transpile_expression(module, tree, *expression_id, unit) {
                 Ok(root_id) => unit.roots.push(root_id),

@@ -52,7 +52,7 @@ pub fn run(ctx: CommandArguments) -> i32 {
 
     // compile source
     let session = Session::new(LanguageOptions::default(), &files);
-    let mut compiler = Compiler::from_file(&session, file_id, CompileOptions::default());
+    let compiler = Compiler::from_file(&session, file_id, CompileOptions::default());
     compiler.compile();
     drop(compiler);
 

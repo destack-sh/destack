@@ -48,6 +48,7 @@ impl<'a> Transpiler<'a> {
     pub fn transpile_declaration_descriptor(
         &self,
         module: &'a Module,
+        _tree: &NodeTree,
         descriptor: &dir::DeclarationDescriptor,
         unit: &mut TranspilerUnit,
     ) -> DeclarationDescriptor {
@@ -76,14 +77,15 @@ impl<'a> Transpiler<'a> {
         unit: &mut TranspilerUnit,
     ) -> TranspileResult<NodeId<Definition>> {
         let definition = tree.get(definition_id);
-        let definition = match definition.as_ref() {
+        let definition = match definition {
             dir::Definition::Namespace {
                 descriptor,
                 scope: _,
                 generics: _,
                 definitions,
             } => {
-                let descriptor = self.transpile_declaration_descriptor(module, descriptor, unit);
+                let descriptor =
+                    self.transpile_declaration_descriptor(module, tree, descriptor, unit);
                 let definitions = definitions
                     .iter()
                     .map(|definition| self.transpile_definition(module, tree, *definition, unit))
@@ -101,7 +103,8 @@ impl<'a> Transpiler<'a> {
                 heritage,
                 properties,
             } => {
-                let descriptor = self.transpile_declaration_descriptor(module, descriptor, unit);
+                let descriptor =
+                    self.transpile_declaration_descriptor(module, tree, descriptor, unit);
                 let generics = self.transpile_generics(module, tree, generics, unit)?;
                 let heritage = self.transpile_heritage(module, tree, heritage, unit)?;
                 let properties = properties
@@ -123,7 +126,8 @@ impl<'a> Transpiler<'a> {
                 heritage,
                 properties,
             } => {
-                let descriptor = self.transpile_declaration_descriptor(module, descriptor, unit);
+                let descriptor =
+                    self.transpile_declaration_descriptor(module, tree, descriptor, unit);
                 let generics = self.transpile_generics(module, tree, generics, unit)?;
                 let heritage = self.transpile_heritage(module, tree, heritage, unit)?;
                 let properties = properties
@@ -145,7 +149,8 @@ impl<'a> Transpiler<'a> {
                 fields,
                 properties: _,
             } => {
-                let descriptor = self.transpile_declaration_descriptor(module, descriptor, unit);
+                let descriptor =
+                    self.transpile_declaration_descriptor(module, tree, descriptor, unit);
                 let fields = fields
                     .iter()
                     .map(|field| self.transpile_enum_field(module, tree, *field, unit))
@@ -159,7 +164,8 @@ impl<'a> Transpiler<'a> {
                 definitions: _,
                 body,
             } => {
-                let descriptor = self.transpile_declaration_descriptor(module, descriptor, unit);
+                let descriptor =
+                    self.transpile_declaration_descriptor(module, tree, descriptor, unit);
                 let signature = self.transpile_function_signature(module, tree, signature, unit)?;
                 let body = body
                     .map(|body| {

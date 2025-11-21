@@ -1,5 +1,5 @@
 use dyst_ast::{
-    Definition, NodeTree, NodeId, NodeVisitor, SemanticTokenIndex, SemanticType, TokenSpan,
+    Definition, NodeId, NodeTree, NodeVisitor, SemanticTokenIndex, SemanticType, TokenSpan,
 };
 use dyst_source::File;
 use tower_lsp_server::lsp_types as lsp;

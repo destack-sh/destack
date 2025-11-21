@@ -13,7 +13,7 @@ impl<'a> Transpiler<'a> {
         unit: &mut TranspilerUnit,
     ) -> TranspileResult<NodeId<Parameter>> {
         let parameter = tree.get(parameter_id);
-        let parameter = match parameter.as_ref() {
+        let parameter = match parameter {
             dir::Parameter::Named {
                 modifiers,
                 name,
@@ -103,7 +103,7 @@ impl<'a> Transpiler<'a> {
         unit: &mut TranspilerUnit,
     ) -> TranspileResult<NodeId<Argument>> {
         let argument = tree.get(argument_id);
-        let argument = match argument.as_ref() {
+        let argument = match argument {
             dir::Argument::UnresolvedNamed {
                 modifiers: _,
                 name: _,

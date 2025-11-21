@@ -13,7 +13,7 @@ impl<'a> Transpiler<'a> {
         unit: &mut TranspilerUnit,
     ) -> TranspileResult<NodeId<Pattern>> {
         let pattern = tree.get(pattern_id);
-        let pattern_id = match pattern.as_ref() {
+        let pattern_id = match pattern {
             dir::Pattern::Wildcard => {
                 let name = unit.strings.intern("_");
                 let pattern = Pattern::Binding {
@@ -46,7 +46,7 @@ impl<'a> Transpiler<'a> {
         unit: &mut TranspilerUnit,
     ) -> TranspileResult<NodeId<PatternField>> {
         let pattern_field = tree.get(pattern_field_id);
-        let pattern_field_id = match pattern_field.as_ref() {
+        let pattern_field_id = match pattern_field {
             dir::PatternField::Named {
                 mutability,
                 name,

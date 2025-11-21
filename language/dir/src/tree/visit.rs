@@ -2,7 +2,7 @@
 
 use crate::{
     Annotation, Argument, Block, Definition, DependencyItem, EnumField, Expression, MatchCase,
-    NodeTree, NodeId, NodeType, Parameter, Pattern, PatternField, Property, Type, TypeField,
+    NodeId, NodeTree, NodeType, Parameter, Pattern, PatternField, Property, Type, TypeField,
     WhereClause, WithClause, walk_annotation, walk_argument, walk_block, walk_definition,
     walk_dependency_item, walk_enum_field, walk_expression, walk_match_case, walk_parameter,
     walk_pattern, walk_pattern_field, walk_property, walk_type, walk_type_field, walk_where_clause,
@@ -53,32 +53,17 @@ pub trait NodeVisitor {
     }
 
     /// Visit a TypeField.
-    fn visit_type_field(
-        &mut self,
-        tree: &NodeTree,
-        id: NodeId<TypeField>,
-        attribute: &TypeField,
-    ) {
+    fn visit_type_field(&mut self, tree: &NodeTree, id: NodeId<TypeField>, attribute: &TypeField) {
         walk_type_field(self, tree, id, attribute);
     }
 
     /// Visit a Property.
-    fn visit_property(
-        &mut self,
-        tree: &NodeTree,
-        id: NodeId<Property>,
-        property: &Property,
-    ) {
+    fn visit_property(&mut self, tree: &NodeTree, id: NodeId<Property>, property: &Property) {
         walk_property(self, tree, id, property);
     }
 
     /// Visit an EnumField.
-    fn visit_enum_field(
-        &mut self,
-        tree: &NodeTree,
-        id: NodeId<EnumField>,
-        enum_field: &EnumField,
-    ) {
+    fn visit_enum_field(&mut self, tree: &NodeTree, id: NodeId<EnumField>, enum_field: &EnumField) {
         walk_enum_field(self, tree, id, enum_field);
     }
 
@@ -113,22 +98,12 @@ pub trait NodeVisitor {
     }
 
     /// Visit a Parameter.
-    fn visit_parameter(
-        &mut self,
-        tree: &NodeTree,
-        id: NodeId<Parameter>,
-        parameter: &Parameter,
-    ) {
+    fn visit_parameter(&mut self, tree: &NodeTree, id: NodeId<Parameter>, parameter: &Parameter) {
         walk_parameter(self, tree, id, parameter);
     }
 
     /// Visit an Argument.
-    fn visit_argument(
-        &mut self,
-        tree: &NodeTree,
-        id: NodeId<Argument>,
-        argument: &Argument,
-    ) {
+    fn visit_argument(&mut self, tree: &NodeTree, id: NodeId<Argument>, argument: &Argument) {
         walk_argument(self, tree, id, argument);
     }
 
@@ -148,12 +123,7 @@ pub trait NodeVisitor {
     }
 
     /// Visit a MatchCase.
-    fn visit_match_case(
-        &mut self,
-        tree: &NodeTree,
-        id: NodeId<MatchCase>,
-        match_case: &MatchCase,
-    ) {
+    fn visit_match_case(&mut self, tree: &NodeTree, id: NodeId<MatchCase>, match_case: &MatchCase) {
         walk_match_case(self, tree, id, match_case);
     }
 
@@ -228,21 +198,11 @@ impl NodeVisitor for CapturingNodeVisitor {
         self.visit_any(tree, NodeType::Type, id.id);
     }
 
-    fn visit_type_field(
-        &mut self,
-        tree: &NodeTree,
-        id: NodeId<TypeField>,
-        _attribute: &TypeField,
-    ) {
+    fn visit_type_field(&mut self, tree: &NodeTree, id: NodeId<TypeField>, _attribute: &TypeField) {
         self.visit_any(tree, NodeType::TypeField, id.id);
     }
 
-    fn visit_property(
-        &mut self,
-        tree: &NodeTree,
-        id: NodeId<Property>,
-        _property: &Property,
-    ) {
+    fn visit_property(&mut self, tree: &NodeTree, id: NodeId<Property>, _property: &Property) {
         self.visit_any(tree, NodeType::Property, id.id);
     }
 
@@ -282,21 +242,11 @@ impl NodeVisitor for CapturingNodeVisitor {
         self.visit_any(tree, NodeType::DependencyItem, id.id);
     }
 
-    fn visit_parameter(
-        &mut self,
-        tree: &NodeTree,
-        id: NodeId<Parameter>,
-        _parameter: &Parameter,
-    ) {
+    fn visit_parameter(&mut self, tree: &NodeTree, id: NodeId<Parameter>, _parameter: &Parameter) {
         self.visit_any(tree, NodeType::Parameter, id.id);
     }
 
-    fn visit_argument(
-        &mut self,
-        tree: &NodeTree,
-        id: NodeId<Argument>,
-        _argument: &Argument,
-    ) {
+    fn visit_argument(&mut self, tree: &NodeTree, id: NodeId<Argument>, _argument: &Argument) {
         self.visit_any(tree, NodeType::Argument, id.id);
     }
 

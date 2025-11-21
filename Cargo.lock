@@ -2916,6 +2916,7 @@ name = "dyst_compiler"
 version = "2025.11.15-0"
 dependencies = [
  "crossbeam-deque",
+ "dashmap 6.1.0",
  "dyst_ast",
  "dyst_dir",
  "dyst_fir",
@@ -2925,6 +2926,8 @@ dependencies = [
  "dyst_source",
  "parking_lot",
  "rayon",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]

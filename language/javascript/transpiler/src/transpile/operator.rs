@@ -6,6 +6,7 @@ use dyst_javascript_ast::{
 
 use crate::{TranspileError, TranspileResult, TranspileResultExt, Transpiler, TranspilerUnit};
 
+#[allow(clippy::too_many_arguments)]
 impl<'a> Transpiler<'a> {
     /// Transpile a DIR type unary operator to a JS type unary operator.
     pub fn transpile_type_unary_expression(

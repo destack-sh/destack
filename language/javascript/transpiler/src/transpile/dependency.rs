@@ -25,7 +25,7 @@ impl<'a> Transpiler<'a> {
         let mut default_alias: Option<StringId> = None;
         for item_id in item_ids {
             let item = tree.get(*item_id);
-            match item.as_ref() {
+            match item {
                 dir::DependencyItem::UnresolvedDefault {
                     kind: _,
                     alias,

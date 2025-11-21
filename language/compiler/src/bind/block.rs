@@ -12,12 +12,8 @@ impl<'a> Compiler<'a> {
         block_id: ast::NodeId<ast::Block>,
         tree: &mut NodeTree,
     ) -> NodeId<Block> {
-        let (symbol_id, scope_id) = tree.create_symbol_with_scope(
-            SymbolSpace::Value,
-            None,
-            ScopeKind::Block,
-            scope_id,
-        );
+        let (symbol_id, scope_id) =
+            tree.create_symbol_with_scope(SymbolSpace::Value, None, ScopeKind::Block, scope_id);
         let block = module.get(block_id);
         let label = block
             .label

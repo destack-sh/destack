@@ -99,7 +99,9 @@ impl<'a> Compiler<'a> {
         let extends_types = heritage.extends_types.as_ref().map(|extends_types| {
             extends_types
                 .iter()
-                .map(|extends_type| self.bind_expression_to_type(module, scope_id, *extends_type, tree))
+                .map(|extends_type| {
+                    self.bind_expression_to_type(module, scope_id, *extends_type, tree)
+                })
                 .collect()
         });
         let implements_types = heritage.implements_types.as_ref().map(|implements_types| {
