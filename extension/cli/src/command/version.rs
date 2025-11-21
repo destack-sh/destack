@@ -2,9 +2,10 @@ use std::fs;
 use std::path::PathBuf;
 use std::process::Command;
 
+use clap::Subcommand;
 use dyst_source::glob;
 
-use crate::{CommandApp, CommandArguments, console};
+use crate::console;
 
 const FILE_GLOBS_TO_UPDATE: &[&str] = &[
     "version.txt",
@@ -15,23 +16,17 @@ const FILE_GLOBS_TO_UPDATE: &[&str] = &[
     "*/*/*/package.json",
 ];
 
-/// Create the version command app.
-pub fn app() -> CommandApp {
-    CommandApp::new("version")
-        .help("Mark new versions.")
-        .default_command("bump")
-        .command(
-            "bump",
-            bump,
-            Some("Bump CalVer (YYYY.MM.DD.R).".to_string()),
-        )
+#[derive(Subcommand, Clone, Debug)]
+pub enum VersionCommands {
+    /// Bump CalVer (YYYY.MM.DD.R).
+    Bump,
 }
 
 /// Bump the version use CalVer format.
 ///
 /// Increments the revision number if the date is the same, otherwise resets to 0.
 /// Updates all relevant files with the new version.
-fn bump(_ctx: CommandArguments) -> i32 {
+pub fn bump() -> i32 {
     let current_version =
         read_current_version().unwrap_or_else(|| panic!("version file not found"));
 
@@ -77,14 +72,16 @@ fn bump(_ctx: CommandArguments) -> i32 {
                 Ok(text) => {
                     if !text.contains(&current_version) && !text.contains(&current_semver) {
                         console::error(&format!(
-                            "{current_version} or {current_semver} not found in {path:?} (from \"{glob_path}\")"
+                            "error: {current_version} or {current_semver} not found in {path:?} (from \"{glob_path}\")"
                         ));
                         return 1;
                     }
                     files.push((path, text));
                 }
                 Err(e) => {
-                    console::error(&format!("{path:?} not found: {e} (from \"{glob_path}\")"));
+                    console::error(&format!(
+                        "error: {path:?} not found ({e}) from \"{glob_path}\""
+                    ));
                     return 1;
                 }
             }
@@ -93,7 +90,7 @@ fn bump(_ctx: CommandArguments) -> i32 {
 
     // write new version to version file
     if let Err(e) = fs::write("version.txt", &new_version) {
-        console::error(&format!("failed to write version: {e}"));
+        console::error(&format!("error: failed to write version file ({e})"));
         return 1;
     }
 
@@ -103,7 +100,7 @@ fn bump(_ctx: CommandArguments) -> i32 {
             .replace(&current_version, &new_version)
             .replace(&current_semver, &new_semver);
         if let Err(e) = fs::write(&p, updated) {
-            console::error(&format!("failed to write {}: {e}", p.display()));
+            console::error(&format!("error: failed to write {} ({e})", p.display()));
             return 1;
         }
     }

@@ -1,20 +1,18 @@
-use destack_cli::{CommandApp, compile, lex, parse, transpile, version};
+use clap::Parser;
+use destack_cli::cli::Cli;
+use destack_cli::command::version::VersionCommands;
+use destack_cli::{compile, lex, parse, transpile, version};
 
 fn main() {
-    // build cli
-    let app = CommandApp::new("destack")
-        .help("Destack CLI")
-        .command("lex", lex::run, Some(lex::HELP.to_string()))
-        .command("parse", parse::run, Some(parse::HELP.to_string()))
-        .command("compile", compile::run, Some(compile::HELP.to_string()))
-        .command(
-            "transpile",
-            transpile::run,
-            Some(transpile::HELP.to_string()),
-        )
-        .sub_app("version", version::app());
-
-    // run cli
-    let exit_code = app.run();
+    let cli = Cli::parse();
+    let exit_code = match cli {
+        Cli::Lex(args) => lex::run(&args),
+        Cli::Parse(args) => parse::run(&args),
+        Cli::Compile(args) => compile::run(&args),
+        Cli::Transpile(args) => transpile::run(&args),
+        Cli::Version { subcommand } => match subcommand {
+            VersionCommands::Bump => version::bump(),
+        },
+    };
     std::process::exit(exit_code);
 }

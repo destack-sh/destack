@@ -1,6 +1,35 @@
 use crate::console;
 use dyst_dir::Session;
-use dyst_source::{AnnotateOptions, DiagnosticCollection, annotate_source, pluralize};
+use dyst_source::{
+    AnnotateOptions, DiagnosticCollection, DiagnosticOptions, annotate_source, pluralize,
+};
+
+use clap::Args;
+
+#[derive(Args, Debug, Clone)]
+pub struct DiagnosticOptionsArgs {
+    /// Error on the given warning codes (like W001).
+    #[arg(long, value_delimiter = ',', value_name = "CODES")]
+    pub error_warnings: Vec<String>,
+
+    /// Suppress the given error codes (like E001) as warnings.
+    #[arg(long, value_delimiter = ',', value_name = "CODES")]
+    pub suppress_errors: Vec<String>,
+
+    /// Suppress the given warning codes (like W001).
+    #[arg(long, value_delimiter = ',', value_name = "CODES")]
+    pub suppress_warnings: Vec<String>,
+}
+
+impl From<DiagnosticOptionsArgs> for DiagnosticOptions {
+    fn from(args: DiagnosticOptionsArgs) -> Self {
+        DiagnosticOptions {
+            error_warnings: args.error_warnings,
+            suppress_errors: args.suppress_errors,
+            suppress_warnings: args.suppress_warnings,
+        }
+    }
+}
 
 /// Print diagnostics (and suggestions) to the console.
 pub(crate) fn print_diagnostics<'a>(session: &'a Session<'a>, diagnostics: &DiagnosticCollection) {

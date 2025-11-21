@@ -1,49 +1,89 @@
+use clap::{ArgGroup, Args, ValueEnum};
 use dyst_compiler::{CompileOptions, Compiler};
 use dyst_dir::Session;
 use dyst_javascript_transpiler::{TranspileOptions, Transpiler, TranspilerTarget};
-use dyst_source::{DiagnosticOptions, DiagnosticSeverity, FileContent, FileRegistry, LanguageOptions};
+use dyst_source::{
+    DiagnosticOptions, DiagnosticSeverity, FileContent, FileRegistry, LanguageOptions,
+};
 
-use crate::command::{get_string_or_file, print_diagnostics};
-use crate::{CommandArguments, console};
+use crate::command::{DiagnosticOptionsArgs, SourceArg, get_string_or_file, print_diagnostics};
+use crate::console;
 
-pub const HELP: &str = r"
-Transpile source files.
-    --file <path>        Read input from file
-    --string <string>    Read input from provided string
-    --target <target>    Transpile to the given target (js|ts|jsdts|all, default: all)
-    --silent             Don't print anything to the console (except errors)
-    --error-warnings     Error on the given warning codes (like W001)
-    --suppress-errors    Suppress the given error codes (like E001) as warnings
-    --suppress-warnings  Suppress the given warning codes (like W001)
-";
+/// The target language to transpile to.
+#[derive(Clone, Copy, Debug, ValueEnum)]
+pub enum TranspileTargetArg {
+    /// Plain JavaScript (`.js`).
+    Js,
+    /// TypeScript (`.ts`).
+    Ts,
+    /// Plain JavaScript with TypeScript declarations (.js and .d.ts).
+    Jsdts,
+    /// All languages.
+    All,
+}
+
+impl From<TranspileTargetArg> for TranspilerTarget {
+    fn from(target: TranspileTargetArg) -> Self {
+        match target {
+            TranspileTargetArg::Js => TranspilerTarget::JavaScript,
+            TranspileTargetArg::Ts => TranspilerTarget::TypeScript,
+            TranspileTargetArg::Jsdts => TranspilerTarget::JavaScriptWithTypeScriptDeclarations,
+            TranspileTargetArg::All => TranspilerTarget::All,
+        }
+    }
+}
+
+#[derive(Args, Debug, Clone)]
+#[command(group(
+    ArgGroup::new("source")
+        .args(["file", "string"])
+        .required(true)
+        .multiple(false)
+))]
+pub struct TranspileArgs {
+    /// Read input from file.
+    #[arg(long)]
+    pub file: Option<String>,
+
+    /// Read input from provided string.
+    #[arg(long)]
+    pub string: Option<String>,
+
+    /// Transpile to the given target (js|ts|jsdts|all, default: all).
+    #[arg(long, default_value_t = TranspileTargetArg::All, value_enum)]
+    pub target: TranspileTargetArg,
+
+    /// Don't print anything to the console (except errors).
+    #[arg(long)]
+    pub silent: bool,
+
+    #[command(flatten)]
+    pub diagnostics: DiagnosticOptionsArgs,
+}
 
 /// Transpile source into its final JavaScript.
-pub fn run(ctx: CommandArguments) -> i32 {
-    let silent = ctx.flag("silent");
-    let target = ctx.option("target");
-    let target = match target {
-        Some("js") => TranspilerTarget::JavaScript,
-        Some("ts") => TranspilerTarget::TypeScript,
-        Some("jsdts") => TranspilerTarget::JavaScriptWithTypeScriptDeclarations,
-        Some("all") => TranspilerTarget::All,
-        Some(target) => {
-            console::error(&format!("invalid target {target}"));
-            return 1;
-        }
-        None => TranspilerTarget::All,
-    };
-    let diagnostic_options = DiagnosticOptions::parse(&ctx.flags);
+pub fn run(args: &TranspileArgs) -> i32 {
+    let silent = args.silent;
+    let target = args.target.into();
+    let diagnostic_options: DiagnosticOptions = args.diagnostics.clone().into();
 
     // read input source
     let mut files = FileRegistry::new();
-    let file_id = match get_string_or_file(&mut files, &ctx) {
+    let file_id = match get_string_or_file(
+        &mut files,
+        SourceArg {
+            file: args.file.as_deref(),
+            string: args.string.as_deref(),
+            format: None,
+        },
+    ) {
         Ok(Some(file_id)) => file_id,
         Ok(None) => {
-            console::error("no source provided");
+            console::error("error: failed to resolve source input");
             return 1;
         }
         Err(e) => {
-            console::error(&format!("failed to read file {e}"));
+            console::error(&format!("error: {e}"));
             return 1;
         }
     };
@@ -77,7 +117,7 @@ pub fn run(ctx: CommandArguments) -> i32 {
     if diagnostics.has_diagnostics_of_severity(DiagnosticSeverity::Error) {
         return 1;
     }
-    
+
     // print/write transpiler artifacts
     if !silent {
         let line_width = session.language.formatting.line_width as usize;

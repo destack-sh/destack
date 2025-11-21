@@ -30,7 +30,6 @@ impl DiagnosticCollection {
         self.diagnostics.push(diagnostic);
     }
 
-
     /// Get a vector clone of diagnostics.
     pub fn iter(&self) -> Vec<Diagnostic> {
         self.diagnostics.clone()
@@ -45,7 +44,6 @@ impl DiagnosticCollection {
     pub fn is_empty(&self) -> bool {
         self.diagnostics.is_empty()
     }
-
 
     /// Clone and map these diagnostics to their adjusted diagnostics.
     pub fn map(&self, options: &DiagnosticOptions) -> DiagnosticCollection {
