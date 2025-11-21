@@ -48,8 +48,25 @@ pub(crate) fn print_diagnostics<'a>(session: &'a Session<'a>, diagnostics: &Diag
             diagnostic.severity.family_name().to_ascii_lowercase(),
             diagnostic.code,
         ));
+
         let header_message = options.color_normal.apply(&diagnostic.message);
-        let header = format!("{header_preamble}: {header_message}");
+        let header = {
+            // include original code/severity if it exists
+            if let Some(original_code) = diagnostic.original_code
+                && let Some(original_severity) = diagnostic.original_severity
+                && (original_code != diagnostic.code || original_severity != diagnostic.severity)
+            {
+                let options = options.with_highlight_color(original_severity.color());
+                let header_preamble_original = options
+                    .color_highlight
+                    .apply_bold(&format!("{}", original_code,));
+                let header_preamble = format!("{header_preamble} ({header_preamble_original})");
+                format!("{header_preamble}: {header_message}")
+            } else {
+                format!("{header_preamble}: {header_message}")
+            }
+        };
+
         let body = annotate_source(file, &diagnostic.primary_span, options);
         console::error(&header);
         console::print(&body);
