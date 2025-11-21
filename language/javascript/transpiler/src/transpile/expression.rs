@@ -280,16 +280,10 @@ impl<'a> Transpiler<'a> {
                     unit,
                 )?
                 .into_any(),
-            dir::Expression::UnresolvedUnary { operator, right }
-            | dir::Expression::Unary { operator, right } => self
+            dir::Expression::Unary { operator, right } => self
                 .transpile_unary_expression(module, tree, expression_id, *operator, *right, unit)?
                 .into_any(),
-            dir::Expression::UnresolvedBinary {
-                left,
-                operator,
-                right,
-            }
-            | dir::Expression::Binary {
+            dir::Expression::Binary {
                 left,
                 operator,
                 right,
@@ -319,12 +313,7 @@ impl<'a> Transpiler<'a> {
                     .insert_from_source(expression, module.id, expression_id)
                     .into_any()
             }
-            dir::Expression::UnresolvedAssignBinary {
-                left,
-                operator,
-                right,
-            }
-            | dir::Expression::AssignBinary {
+            dir::Expression::AssignBinary {
                 left,
                 operator,
                 right,

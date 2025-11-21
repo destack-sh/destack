@@ -870,11 +870,6 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .end();
             }
 
-            Expression::UnresolvedUnary { operator, right: _ } => {
-                self.node("Expression::UnresolvedUnary", id.id)
-                    .field("operator", operator)
-                    .end();
-            }
             Expression::Unary { operator, right: _ } => {
                 self.node("Expression::Unary", id.id)
                     .field("operator", operator)
@@ -905,15 +900,6 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .field_optional("variance", variance)
                     .end();
             }
-            Expression::UnresolvedBinary {
-                left: _,
-                operator,
-                right: _,
-            } => {
-                self.node("Expression::UnresolvedBinary", id.id)
-                    .field("operator", operator)
-                    .end();
-            }
             Expression::Binary {
                 left: _,
                 operator,
@@ -934,15 +920,6 @@ impl<'a> NodeVisitor for Dumper<'a> {
             }
             Expression::Assign { left: _, right: _ } => {
                 self.node("Expression::Assign", id.id).end();
-            }
-            Expression::UnresolvedAssignBinary {
-                left: _,
-                operator,
-                right: _,
-            } => {
-                self.node("Expression::UnresolvedAssignBinary", id.id)
-                    .field("operator", operator)
-                    .end();
             }
             Expression::AssignBinary {
                 left: _,

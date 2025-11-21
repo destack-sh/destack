@@ -269,7 +269,7 @@ impl<'a> Compiler<'a> {
             ast::Expression::Unary { operator, right } => {
                 let right = self.bind_expression(module, scope_id, *right, tree);
                 let operator = self.bind_unary_operator(*operator);
-                Expression::UnresolvedUnary { operator, right }
+                Expression::Unary { operator, right }
             }
 
             ast::Expression::TypeUnary { operator, right } => {
@@ -314,7 +314,7 @@ impl<'a> Compiler<'a> {
                 let left = self.bind_expression(module, scope_id, *left, tree);
                 let right = self.bind_expression(module, scope_id, *right, tree);
                 let operator = self.bind_binary_operator(*operator);
-                Expression::UnresolvedBinary {
+                Expression::Binary {
                     left,
                     operator,
                     right,
@@ -343,7 +343,7 @@ impl<'a> Compiler<'a> {
                 let right = self.bind_expression(module, scope_id, *right, tree);
                 let operator = self.bind_assign_operator(*operator);
                 if let Some(operator) = operator {
-                    Expression::UnresolvedAssignBinary {
+                    Expression::AssignBinary {
                         left,
                         operator,
                         right,
