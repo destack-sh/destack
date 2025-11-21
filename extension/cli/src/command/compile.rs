@@ -1,6 +1,6 @@
 use dyst_compiler::{CompileOptions, Compiler};
 use dyst_dir::{Dumper, DumperOptions, NodeVisitor, Session};
-use dyst_source::{DiagnosticOptions, DiagnosticSeverity, FileRegistry, LanguageOptions};
+use dyst_source::{DiagnosticOptions, FileRegistry, LanguageOptions};
 
 use crate::command::{get_string_or_file, print_diagnostics};
 use crate::{CommandArguments, console};
@@ -45,7 +45,7 @@ pub fn run(ctx: CommandArguments) -> i32 {
         &session,
         file_id,
         CompileOptions {
-            diagnostic: diagnostic_options,
+            diagnostic: diagnostic_options.clone(),
             ..Default::default()
         },
     );
@@ -90,6 +90,7 @@ pub fn run(ctx: CommandArguments) -> i32 {
     }
 
     // handle diagnostics
-    print_diagnostics(&session, DiagnosticSeverity::Note);
-    session.get_diagnostics_status_code()
+    let diagnostics = session.diagnostics.collect().map(&diagnostic_options);
+    print_diagnostics(&session, &diagnostics);
+    diagnostics.get_status_code()
 }

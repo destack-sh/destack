@@ -1,7 +1,7 @@
 use dyst_ast::{Dumper, DumperOptions, NodeVisitor};
 use dyst_dir::Session;
 use dyst_parser::Parser;
-use dyst_source::{DiagnosticSeverity, FileRegistry, LanguageOptions};
+use dyst_source::{DiagnosticOptions, FileRegistry, LanguageOptions};
 
 use crate::command::{get_string_or_file, print_diagnostics};
 use crate::{CommandArguments, console};
@@ -17,6 +17,7 @@ Parse source into AST (implicit module).
 /// Parse source into an AST and dump the statements.
 pub fn run(ctx: CommandArguments) -> i32 {
     let silent = ctx.flag("silent");
+    let diagnostic_options = DiagnosticOptions::parse(&ctx.flags);
 
     // read input source
     let mut files = FileRegistry::new();
@@ -50,6 +51,7 @@ pub fn run(ctx: CommandArguments) -> i32 {
     }
 
     // handle diagnostics
-    print_diagnostics(&session, DiagnosticSeverity::Note);
-    session.get_diagnostics_status_code()
+    let diagnostics = session.diagnostics.collect().map(&diagnostic_options);
+    print_diagnostics(&session, &diagnostics);
+    diagnostics.get_status_code()
 }

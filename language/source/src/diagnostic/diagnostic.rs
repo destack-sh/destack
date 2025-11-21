@@ -108,7 +108,7 @@ impl DiagnosticOptions {
         options
     }
 
-    /// Map a diagnostic to a new diagnostic.
+    /// Map a diagnostic to its adjusted diagnostic.
     pub fn map(&self, mut diagnostic: Diagnostic) -> Option<Diagnostic> {
         diagnostic.original_severity = Some(diagnostic.severity);
         if diagnostic.severity == DiagnosticSeverity::Error
@@ -125,5 +125,13 @@ impl DiagnosticOptions {
             return None;
         }
         Some(diagnostic)
+    }
+
+    /// Map a sequence of diagnostics to their adjusted diagnostics.
+    pub fn map_all(&self, diagnostics: &[Diagnostic]) -> Vec<Diagnostic> {
+        diagnostics
+            .iter()
+            .filter_map(|d| self.map(d.clone()))
+            .collect()
     }
 }
