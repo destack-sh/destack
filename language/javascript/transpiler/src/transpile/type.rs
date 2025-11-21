@@ -61,7 +61,9 @@ impl<'a> Transpiler<'a> {
             .map(|implements_types| {
                 implements_types
                     .iter()
-                    .map(|implements_type| self.transpile_type(module, tree, *implements_type, unit))
+                    .map(|implements_type| {
+                        self.transpile_type(module, tree, *implements_type, unit)
+                    })
                     .collect::<Result<Vec<_>, TranspileError>>()
             })
             .transpose()?;
@@ -184,7 +186,7 @@ impl<'a> Transpiler<'a> {
     ) -> TranspileResult<NodeId<Type>> {
         let ty = tree.get(ty_id);
 
-        let ty_id = match ty.as_ref() {
+        let ty_id = match ty {
             dir::Type::Scalar(scalar) => {
                 let literal = self.transpile_type_literal(module, ty_id, scalar, unit)?;
                 let ty = Type::Scalar(literal);

@@ -25,11 +25,7 @@ impl<'a> Compiler<'a> {
             }
             ast::WhereClause::Guard { guard } => {
                 let guard = self.bind_expression(module, scope_id, *guard, tree);
-                tree.insert_from_source(
-                    WhereClause::Guard { guard },
-                    module.id,
-                    where_clause_id,
-                )
+                tree.insert_from_source(WhereClause::Guard { guard }, module.id, where_clause_id)
             }
         }
     }

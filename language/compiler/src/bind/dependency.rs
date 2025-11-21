@@ -43,11 +43,8 @@ impl<'a> Compiler<'a> {
         let alias = item
             .alias
             .map(|alias| self.session.strings.intern_from(&module.strings, alias));
-        let symbol_id = tree.create_symbol(
-            SymbolSpace::Value,
-            Some(SymbolKey::Name(name)),
-            scope_id,
-        );
+        let symbol_id =
+            tree.create_symbol(SymbolSpace::Value, Some(SymbolKey::Name(name)), scope_id);
         let item = DependencyItem::UnresolvedItem {
             kind,
             name,

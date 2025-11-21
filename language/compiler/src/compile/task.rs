@@ -1,5 +1,6 @@
 use crate::{
-    BindTask, BuildTask, ExecuteTask, ImportTask, LinkTask, LowerTask, OptimizeTask, ResolveTask, ValidateTask
+    BindTask, BuildTask, ExecuteTask, ImportTask, LinkTask, LowerTask, OptimizeTask, ResolveTask,
+    ValidateTask,
 };
 
 /// Stage of the compiler.

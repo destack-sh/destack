@@ -79,12 +79,8 @@ impl<'a> Compiler<'a> {
         tree: &mut NodeTree,
     ) -> NodeId<Definition> {
         let definition = module.get(definition_id);
-        let (symbol_id, scope_id) = tree.create_symbol_with_scope(
-            SymbolSpace::Value,
-            None,
-            ScopeKind::Block,
-            scope_id,
-        );
+        let (symbol_id, scope_id) =
+            tree.create_symbol_with_scope(SymbolSpace::Value, None, ScopeKind::Block, scope_id);
         let definition = match definition {
             ast::Definition::Namespace {
                 descriptor,
@@ -96,7 +92,12 @@ impl<'a> Compiler<'a> {
                 let definitions = expressions
                     .iter()
                     .flat_map(|expression| {
-                        self.bind_expression_to_definition_maybe(module, scope_id, *expression, tree)
+                        self.bind_expression_to_definition_maybe(
+                            module,
+                            scope_id,
+                            *expression,
+                            tree,
+                        )
                     })
                     .collect();
                 Definition::Namespace {
@@ -190,7 +191,8 @@ impl<'a> Compiler<'a> {
             } => {
                 let descriptor = self.bind_declaration_descriptor(module, symbol_id, descriptor);
                 let generics = self.bind_generics(module, scope_id, generics, tree);
-                let target_type = self.bind_expression_to_type(module, scope_id, *target_type, tree);
+                let target_type =
+                    self.bind_expression_to_type(module, scope_id, *target_type, tree);
                 let heritage = self.bind_heritage(module, scope_id, heritage, tree);
                 let properties = properties
                     .iter()
@@ -223,12 +225,7 @@ impl<'a> Compiler<'a> {
                 }
             }
         };
-        tree.insert_from_source_as_symbol(
-            definition,
-            module.id,
-            definition_id,
-            symbol_id,
-        )
+        tree.insert_from_source_as_symbol(definition, module.id, definition_id, symbol_id)
     }
 
     /// Bind an AST enum field into a DIR enum field.
@@ -247,11 +244,8 @@ impl<'a> Compiler<'a> {
         let value = field
             .value
             .map(|value| self.bind_expression(module, scope_id, value, tree));
-        let symbol_id = tree.create_symbol(
-            SymbolSpace::Value,
-            Some(SymbolKey::Name(name)),
-            scope_id,
-        );
+        let symbol_id =
+            tree.create_symbol(SymbolSpace::Value, Some(SymbolKey::Name(name)), scope_id);
         let enum_field = EnumField {
             name,
             value,

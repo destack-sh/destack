@@ -1,5 +1,5 @@
 use crate::{DystFormatContext, DystFormatOptions};
-use dyst_ast::{NodeTree, NodeParentIndex, TokenSpan};
+use dyst_ast::{NodeParentIndex, NodeTree, TokenSpan};
 use dyst_fir::format;
 use dyst_fir::format::Format;
 use dyst_parser::{ParseResult, Parser};

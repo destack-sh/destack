@@ -8,6 +8,8 @@ impl<'s> Compiler<'s> {
         while let Some(task) = self.queue.pop_front() {
             self.process(task);
         }
+        // flush remaining diagnostics
+        self.flush_diagnostics();
     }
 
     /// Enqueue a task to the compiler.

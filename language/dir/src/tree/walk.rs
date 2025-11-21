@@ -1,8 +1,8 @@
 use crate::{
     Annotation, Argument, Block, Definition, DependencyItem, EnumField, Expression,
-    FunctionSignature, Generics, Heritage, Key, MatchCase, NodeTree, NodeId, NodeType,
-    NodeVisitor, Parameter, Pattern, PatternField, Property, TemplateLiteral, Type, TypeField,
-    WhereClause, WithClause,
+    FunctionSignature, Generics, Heritage, Key, MatchCase, NodeId, NodeTree, NodeType, NodeVisitor,
+    Parameter, Pattern, PatternField, Property, TemplateLiteral, Type, TypeField, WhereClause,
+    WithClause,
 };
 
 /// Walk any node.
@@ -82,11 +82,7 @@ pub fn walk_any<V: NodeVisitor + ?Sized>(
 }
 
 /// Walk the Generics.
-fn walk_generics<V: NodeVisitor + ?Sized>(
-    visitor: &mut V,
-    tree: &NodeTree,
-    generics: &Generics,
-) {
+fn walk_generics<V: NodeVisitor + ?Sized>(visitor: &mut V, tree: &NodeTree, generics: &Generics) {
     if let Some(static_parameters) = generics.static_parameters.as_ref() {
         for parameter_id in static_parameters.iter() {
             let parameter = tree.get(*parameter_id);
@@ -108,11 +104,7 @@ fn walk_generics<V: NodeVisitor + ?Sized>(
 }
 
 /// Walk the Heritage.
-fn walk_heritage<V: NodeVisitor + ?Sized>(
-    visitor: &mut V,
-    tree: &NodeTree,
-    heritage: &Heritage,
-) {
+fn walk_heritage<V: NodeVisitor + ?Sized>(visitor: &mut V, tree: &NodeTree, heritage: &Heritage) {
     if let Some(extends_types) = heritage.extends_types.as_ref() {
         for extends_type_id in extends_types.iter() {
             let extends_type = tree.get(*extends_type_id);

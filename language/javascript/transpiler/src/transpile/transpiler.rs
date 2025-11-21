@@ -4,7 +4,10 @@ use dyst_dir as dir;
 use dyst_source::{DiagnosticOptions, SmallVec, Uri, smallvec};
 use parking_lot::RwLock;
 
-use crate::{JavaScriptFormatOptions, TranspilerArtifact, TranspilerUnit};
+use crate::{
+    JavaScriptFormatOptions, TranspileDiagnostic, TranspileError, TranspileWarning,
+    TranspilerArtifact, TranspilerUnit,
+};
 
 /// The transpilation mode.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -96,6 +99,8 @@ pub struct Transpiler<'a> {
     pub session: &'a dir::Session<'a>,
     /// The options for transpiling.
     pub options: TranspileOptions,
+    /// The pending transpiler diagnostics.
+    pub pending_diagnostics: RwLock<Vec<TranspileDiagnostic>>,
     /// The transpiled modules (from the source modules).
     pub units: RwLock<HashMap<Uri, TranspilerUnit>>,
     /// The transpiled artifacts (from those units).
@@ -108,8 +113,36 @@ impl<'a> Transpiler<'a> {
         Self {
             session,
             options,
+            pending_diagnostics: RwLock::new(Vec::new()),
             units: RwLock::new(HashMap::new()),
             artifacts: RwLock::new(HashMap::new()),
+        }
+    }
+
+    /// Add an error to the transpiler.
+    pub fn error(&self, error: TranspileError) {
+        let diagnostic: TranspileDiagnostic = error.into();
+        self.pending_diagnostics.write().push(diagnostic);
+    }
+
+    /// Add a warning to the transpiler.
+    pub fn warning(&self, warning: TranspileWarning) {
+        let diagnostic: TranspileDiagnostic = warning.into();
+        self.pending_diagnostics.write().push(diagnostic);
+    }
+
+    /// Add a diagnostic to the transpiler.
+    pub fn diagnostic(&self, diagnostic: TranspileDiagnostic) {
+        self.pending_diagnostics.write().push(diagnostic);
+    }
+
+    /// Flush pending diagnostics into the session.
+    pub fn flush_diagnostics(&self) {
+        let mut diagnostics = self.pending_diagnostics.write();
+        let tree = self.session.tree.read();
+        for diagnostic in diagnostics.drain(..) {
+            let diagnostic = diagnostic.to_diagnostic(self.session, &tree);
+            self.session.diagnostics.insert(diagnostic);
         }
     }
 }

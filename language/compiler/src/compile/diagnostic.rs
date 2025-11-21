@@ -1,5 +1,5 @@
 use crate::{CompileError, CompileWarning};
-use dyst_dir::{NodeIdAny, Session};
+use dyst_dir::{NodeIdAny, NodeTree, Session};
 use dyst_source::{Diagnostic, DiagnosticSeverity, LabeledSpan};
 
 /// Diagnostic encountered during compilation.
@@ -57,17 +57,17 @@ impl CompileDiagnostic {
     }
 
     /// Turn the diagnostic into a full Dyst diagnostic.
-    pub fn to_diagnostic<'a>(&self, session: &'a Session<'a>) -> Diagnostic {
+    pub fn to_diagnostic<'a>(&self, session: &'a Session<'a>, tree: &NodeTree) -> Diagnostic {
         // get source information
         let node_id = self
             .node_id()
             .unwrap_or_else(|| panic!("TODO #Broken: diagnostic without node id"));
-        let (module_id, ast_id) = session.tree.get_source(node_id.id);
+        let (module_id, ast_id) = tree.get_source(node_id.id);
         let module = session
             .modules
             .get(module_id)
             .unwrap_or_else(|| panic!("module not found: {module_id:?}"));
-        let file_id = module.file;
+        let file_id = module.read().file;
         let file = session
             .files
             .get(file_id)
@@ -78,7 +78,7 @@ impl CompileDiagnostic {
         let message = self.message(session);
         let code = self.full_code();
         let primary_span = ast_id
-            .map(|ast_id| module.ast.get_span_by_id(ast_id))
+            .map(|ast_id| module.read().ast.get_span_by_id(ast_id))
             .unwrap_or_else(|| file.span());
         let primary_span = LabeledSpan {
             span: primary_span,

@@ -69,6 +69,7 @@ impl<'a> Compiler<'a> {
 
     /// Resolve an entire module.
     pub fn resolve_module(&self, module_id: ModuleId, _tree: &mut NodeTree) -> ResolveResult<()> {
-        todo!("nocheckin: resolve_module({module_id:?})");
+        // todo!("nocheckin: resolve_module({module_id:?})");
+        Ok(())
     }
 }

@@ -35,7 +35,8 @@ impl<'a> Compiler<'a> {
             } => {
                 let mutability = mutability.map(|mutability| self.bind_mutability(mutability));
                 let name = self.session.strings.intern_from(&module.strings, *name);
-                let pattern = pattern.map(|pattern| self.bind_pattern(module, scope_id, pattern, tree));
+                let pattern =
+                    pattern.map(|pattern| self.bind_pattern(module, scope_id, pattern, tree));
                 Pattern::Binding {
                     mutability,
                     name,
@@ -116,7 +117,8 @@ impl<'a> Compiler<'a> {
                     .session
                     .strings
                     .intern_from(&module.strings, name.string());
-                let pattern = pattern.map(|pattern| self.bind_pattern(module, scope_id, pattern, tree));
+                let pattern =
+                    pattern.map(|pattern| self.bind_pattern(module, scope_id, pattern, tree));
                 let default =
                     default.map(|default| self.bind_expression(module, scope_id, default, tree));
                 PatternField::UnresolvedNamed {

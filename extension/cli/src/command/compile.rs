@@ -41,7 +41,7 @@ pub fn run(ctx: CommandArguments) -> i32 {
 
     // compile source
     let session = Session::new(LanguageOptions::default(), &files);
-    let mut compiler = Compiler::from_file(
+    let compiler = Compiler::from_file(
         &session,
         file_id,
         CompileOptions {
@@ -61,10 +61,11 @@ pub fn run(ctx: CommandArguments) -> i32 {
         if dump == "node" || dump == "all" {
             let mut dumper = Dumper::new(&strings, &tree, dump_options);
             for module in session.modules.iter() {
+                let module = module.read();
                 console::info("=".repeat(80).as_str());
                 console::info(format!("{} [NODE]", module.uri).as_str());
                 console::info("=".repeat(80).as_str());
-                for expression_id in &module.expressions {
+                for expression_id in &module.roots {
                     let expression = tree.get(*expression_id);
                     dumper.visit_expression(&tree, *expression_id, expression);
                 }
@@ -75,6 +76,7 @@ pub fn run(ctx: CommandArguments) -> i32 {
         if dump == "symbol" || dump == "all" {
             let mut dumper = Dumper::new(&strings, &tree, dump_options);
             for module in session.modules.iter() {
+                let module = module.read();
                 console::info("=".repeat(80).as_str());
                 console::info(format!("{} [SYMBOL]", module.uri).as_str());
                 console::info("=".repeat(80).as_str());

@@ -41,7 +41,7 @@ impl<'a> Transpiler<'a> {
             });
         }
 
-        let transpiled_id = match expression.as_ref() {
+        let transpiled_id = match expression {
             dir::Expression::Definition { definition } => {
                 let definition = self.transpile_definition(module, tree, *definition, unit)?;
                 let expression = Expression::Definition { definition };
@@ -256,7 +256,14 @@ impl<'a> Transpiler<'a> {
             }
 
             dir::Expression::TypeUnary { operator, right } => self
-                .transpile_type_unary_expression(module, tree, expression_id, *operator, *right, unit)?
+                .transpile_type_unary_expression(
+                    module,
+                    tree,
+                    expression_id,
+                    *operator,
+                    *right,
+                    unit,
+                )?
                 .into_any(),
             dir::Expression::TypeBinary {
                 left,
@@ -287,7 +294,15 @@ impl<'a> Transpiler<'a> {
                 operator,
                 right,
             } => self
-                .transpile_binary_expression(module, tree, expression_id, *left, *operator, *right, unit)?
+                .transpile_binary_expression(
+                    module,
+                    tree,
+                    expression_id,
+                    *left,
+                    *operator,
+                    *right,
+                    unit,
+                )?
                 .into_any(),
             dir::Expression::Assign { left, right } => {
                 let left_id = self
@@ -396,7 +411,7 @@ impl<'a> Transpiler<'a> {
                     .transpose()?;
                 let dynamic_arguments = dynamic_arguments
                     .iter()
-                    .map(|argument| self.transpile_argument(module, *argument, unit))
+                    .map(|argument| self.transpile_argument(module, tree, *argument, unit))
                     .collect::<Result<Vec<_>, TranspileError>>()?;
                 let expression = Expression::Call {
                     position,
@@ -427,7 +442,7 @@ impl<'a> Transpiler<'a> {
                     .transpose()?;
                 let dynamic_arguments = dynamic_arguments
                     .iter()
-                    .map(|argument| self.transpile_argument(module, *argument, unit))
+                    .map(|argument| self.transpile_argument(module, tree, *argument, unit))
                     .collect::<Result<Vec<_>, TranspileError>>()?;
                 let expression = Expression::New {
                     left: left_id,

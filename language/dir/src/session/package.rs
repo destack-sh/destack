@@ -1,11 +1,12 @@
 use core::fmt;
-use std::collections::HashMap;
-use std::path::PathBuf;
-
-use parking_lot::Mutex;
+use parking_lot::{Mutex, RwLock};
 use serde::Deserialize;
 use serde::de::Error;
 use serde_json::{Map, Value};
+use std::collections::HashMap;
+use std::path::PathBuf;
+use std::sync::Arc;
+use std::sync::atomic::{AtomicU32, Ordering};
 
 use crate::TsConfigJson;
 
@@ -69,6 +70,7 @@ impl fmt::Display for PackageType {
 #[derive(Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct PackageJson {
+    // nocheckin: remove path/realpath/directory from PackageJson (into Package)
     /// Path to `package.json` (including the `package.json` filename).
     #[serde(skip)]
     pub path: PathBuf,
@@ -145,28 +147,13 @@ impl PackageJson {
     }
 }
 
-/// Inner state for PackageRegistry. NOT THREAD-SAFE.
-#[derive(Debug, Clone)]
-struct PackageRegistryState {
-    /// The packages by id.
-    packages_by_id: HashMap<PackageId, Package>,
-    /// The next package id.
-    next_package_id: u32,
-}
-
 /// Graph of Packages (including their underlying Files). THREAD-SAFE.
 #[derive(Debug)]
 pub struct PackageRegistry {
-    state: Mutex<PackageRegistryState>,
-}
-
-impl Clone for PackageRegistry {
-    fn clone(&self) -> Self {
-        let state = self.state.lock().clone();
-        Self {
-            state: Mutex::new(state),
-        }
-    }
+    /// The packages by id.
+    packages_by_id: Mutex<HashMap<PackageId, Arc<RwLock<Package>>>>,
+    /// The next package id.
+    next_package_id: AtomicU32,
 }
 
 impl Default for PackageRegistry {
@@ -179,43 +166,46 @@ impl PackageRegistry {
     /// Create a new PackageRegistry.
     pub fn new() -> Self {
         Self {
-            state: Mutex::new(PackageRegistryState {
-                packages_by_id: HashMap::new(),
-                next_package_id: 0,
-            }),
+            packages_by_id: Mutex::new(HashMap::new()),
+            next_package_id: AtomicU32::new(0),
         }
     }
 
     /// Get and increment the next package id.
     pub fn next_id(&self) -> PackageId {
-        let mut state = self.state.lock();
-        let id = PackageId::new(state.next_package_id);
-        state.next_package_id += 1;
-        id
+        let next_package_id = self.next_package_id.fetch_add(1, Ordering::Relaxed);
+        PackageId::new(next_package_id)
     }
 
     /// Insert a package into the graph.
     pub fn insert(&self, package: Package) {
-        let mut state = self.state.lock();
-        state.packages_by_id.insert(package.id, package);
+        let mut packages_by_id = self.packages_by_id.lock();
+        packages_by_id.insert(package.id, Arc::new(RwLock::new(package)));
     }
 
     /// Get a package by package id.
     #[inline]
-    pub fn get(&self, id: PackageId) -> Option<Package> {
-        let state = self.state.lock();
-        state.packages_by_id.get(&id).cloned()
+    pub fn get(&self, id: PackageId) -> Option<Arc<RwLock<Package>>> {
+        let packages_by_id = self.packages_by_id.lock();
+        packages_by_id.get(&id).cloned()
+    }
+
+    /// Iterate over the packages in the registry.
+    pub fn iter(&self) -> impl Iterator<Item = Arc<RwLock<Package>>> {
+        let packages_by_id = self.packages_by_id.lock();
+        let snapshot: Vec<_> = packages_by_id.values().cloned().collect();
+        snapshot.into_iter()
     }
 
     /// Get the number of packages in the registry.
     pub fn len(&self) -> usize {
-        let state = self.state.lock();
-        state.packages_by_id.len()
+        let packages_by_id = self.packages_by_id.lock();
+        packages_by_id.len()
     }
 
     /// Whether the registry is empty.
     pub fn is_empty(&self) -> bool {
-        let state = self.state.lock();
-        state.packages_by_id.is_empty()
+        let packages_by_id = self.packages_by_id.lock();
+        packages_by_id.is_empty()
     }
 }

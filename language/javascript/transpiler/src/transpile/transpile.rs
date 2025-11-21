@@ -16,6 +16,7 @@ impl<'a> Transpiler<'a> {
             // map every module to an artifact
             TranspilerMode::Retained => {
                 for (idx, module) in modules.iter().enumerate() {
+                    let module = module.read();
                     let unit_id = TranspilerUnitId::new(idx as u32);
                     let uri = module.uri.without_extension();
                     let unit = TranspilerUnit {
@@ -26,7 +27,7 @@ impl<'a> Transpiler<'a> {
                         roots: Vec::new(),
                         strings: StringPool::new(),
                         sources: vec![module.id],
-                        diagnostics: Vec::new(),
+                        pending_diagnostics: Vec::new(),
                         artifacts: Vec::new(),
                     };
                     units.push(unit);
@@ -41,8 +42,8 @@ impl<'a> Transpiler<'a> {
                     ast: ast::NodeTree::new(),
                     roots: Vec::new(),
                     strings: StringPool::new(),
-                    sources: modules.iter().map(|module| module.id).collect(),
-                    diagnostics: Vec::new(),
+                    sources: modules.iter().map(|module| module.read().id).collect(),
+                    pending_diagnostics: Vec::new(),
                     artifacts: Vec::new(),
                 };
                 units.push(unit);
@@ -63,6 +64,7 @@ impl<'a> Transpiler<'a> {
                     .modules
                     .get(source_module_id)
                     .unwrap_or_else(|| panic!("source module not found: {source_module_id:?}"));
+                let source_module = source_module.read();
                 self.transpile_module(&source_module, &tree, unit);
             }
         }
@@ -83,13 +85,13 @@ impl<'a> Transpiler<'a> {
                 }
             }
             // add all the diagnostics to the session
-            for diagnostic in &unit.diagnostics {
-                let diagnostic = diagnostic.to_diagnostic(self.session);
-                if let Some(diagnostic) = self.options.diagnostic.map(diagnostic) {
-                    self.session.diagnostics.insert(diagnostic);
-                }
+            for diagnostic in unit.pending_diagnostics.drain(..) {
+                self.diagnostic(diagnostic);
             }
             self.units.write().insert(unit.uri.clone(), unit);
         }
+
+        // flush remaining diagnostics
+        self.flush_diagnostics();
     }
 }

@@ -1,6 +1,6 @@
 use crate::{
     Annotation, Argument, Block, DeclarationDescriptor, Definition, DependencyItem, EnumField,
-    Expression, FunctionSignature, Generics, Heritage, Key, NodeTree, NodeId, NodeType,
+    Expression, FunctionSignature, Generics, Heritage, Key, NodeId, NodeTree, NodeType,
     NodeVisitor, Parameter, Pattern, PatternField, Property, Statement, SwitchCase,
     TemplateLiteral, Type, TypeField,
 };
@@ -299,11 +299,7 @@ pub fn walk_statement<V: NodeVisitor + ?Sized>(
 }
 
 /// Walk the Generics.
-fn walk_generics<V: NodeVisitor + ?Sized>(
-    visitor: &mut V,
-    tree: &NodeTree,
-    generics: &Generics,
-) {
+fn walk_generics<V: NodeVisitor + ?Sized>(visitor: &mut V, tree: &NodeTree, generics: &Generics) {
     if let Some(static_parameters) = generics.static_parameters.as_ref() {
         for parameter_id in static_parameters {
             let parameter = tree.get(*parameter_id);
@@ -313,11 +309,7 @@ fn walk_generics<V: NodeVisitor + ?Sized>(
 }
 
 /// Walk the Heritage.
-fn walk_heritage<V: NodeVisitor + ?Sized>(
-    visitor: &mut V,
-    tree: &NodeTree,
-    heritage: &Heritage,
-) {
+fn walk_heritage<V: NodeVisitor + ?Sized>(visitor: &mut V, tree: &NodeTree, heritage: &Heritage) {
     if let Some(extends_types) = heritage.extends_types.as_ref() {
         for extends_type_id in extends_types {
             let extends_type = tree.get(*extends_type_id);

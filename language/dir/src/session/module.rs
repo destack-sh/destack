@@ -1,5 +1,7 @@
-use parking_lot::Mutex;
+use parking_lot::{Mutex, RwLock};
 use std::collections::HashMap;
+use std::sync::Arc;
+use std::sync::atomic::{AtomicU32, Ordering};
 
 use dyst_ast::{self as ast, StringPool};
 use dyst_source::{FileId, Uri};
@@ -103,28 +105,13 @@ impl Module {
     }
 }
 
-/// Inner state for ModuleRegistry. NOT THREAD-SAFE.
-#[derive(Debug, Clone)]
-struct ModuleRegistryState {
-    /// The modules by id.
-    modules_by_id: HashMap<ModuleId, Module>,
-    /// The next module id.
-    next_module_id: u32,
-}
-
 /// Graph of Modules (including their underlying Files). THREAD-SAFE.
 #[derive(Debug)]
 pub struct ModuleRegistry {
-    state: Mutex<ModuleRegistryState>,
-}
-
-impl Clone for ModuleRegistry {
-    fn clone(&self) -> Self {
-        let state = self.state.lock().clone();
-        Self {
-            state: Mutex::new(state),
-        }
-    }
+    /// The modules by id.
+    modules_by_id: Mutex<HashMap<ModuleId, Arc<RwLock<Module>>>>,
+    /// The next module id.
+    next_module_id: AtomicU32,
 }
 
 impl Default for ModuleRegistry {
@@ -133,56 +120,50 @@ impl Default for ModuleRegistry {
     }
 }
 
-// nocheckin: revisit ModuleRegistry/PackageRegistry locking/cloning/..
-
 impl ModuleRegistry {
     /// Create a new ModuleRegistry.
     pub fn new() -> Self {
         Self {
-            state: Mutex::new(ModuleRegistryState {
-                modules_by_id: HashMap::new(),
-                next_module_id: 0,
-            }),
+            modules_by_id: Mutex::new(HashMap::new()),
+            next_module_id: AtomicU32::new(0),
         }
     }
 
     /// Get and increment the next module id.
     pub fn next_id(&self) -> ModuleId {
-        let mut state = self.state.lock();
-        let id = ModuleId::new(state.next_module_id);
-        state.next_module_id += 1;
-        id
+        let next_module_id = self.next_module_id.fetch_add(1, Ordering::Relaxed);
+        ModuleId::new(next_module_id)
     }
 
     /// Insert a module into the graph.
     pub fn insert(&self, module: Module) {
-        let mut state = self.state.lock();
-        state.modules_by_id.insert(module.id, module);
+        let mut modules_by_id = self.modules_by_id.lock();
+        modules_by_id.insert(module.id, Arc::new(RwLock::new(module)));
     }
 
     /// Get a module by module id.
     #[inline]
-    pub fn get(&self, id: ModuleId) -> Option<&Module> {
-        let state = self.state.lock();
-        state.modules_by_id.get(&id)
+    pub fn get(&self, id: ModuleId) -> Option<Arc<RwLock<Module>>> {
+        let modules_by_id = self.modules_by_id.lock();
+        modules_by_id.get(&id).cloned()
     }
 
-    /// Get a mutable reference to a module by module id.
-    #[inline]
-    pub fn get_mut(&self, id: ModuleId) -> Option<&mut Module> {
-        let mut state = self.state.lock();
-        state.modules_by_id.get_mut(&id)
+    /// Iterate over the modules in the registry.
+    pub fn iter(&self) -> impl Iterator<Item = Arc<RwLock<Module>>> {
+        let modules_by_id = self.modules_by_id.lock();
+        let snapshot: Vec<_> = modules_by_id.values().cloned().collect();
+        snapshot.into_iter()
     }
 
     /// Get the number of modules in the registry.
     pub fn len(&self) -> usize {
-        let state = self.state.lock();
-        state.modules_by_id.len()
+        let modules_by_id = self.modules_by_id.lock();
+        modules_by_id.len()
     }
 
     /// Whether the registry is empty.
     pub fn is_empty(&self) -> bool {
-        let state = self.state.lock();
-        state.modules_by_id.is_empty()
+        let modules_by_id = self.modules_by_id.lock();
+        modules_by_id.is_empty()
     }
 }

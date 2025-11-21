@@ -48,7 +48,7 @@ impl<'a> Transpiler<'a> {
         unit: &mut TranspilerUnit,
     ) -> TranspileResult<NodeId<Property>> {
         let property = tree.get(property_id);
-        let property = match property.as_ref() {
+        let property = match property {
             dir::Property::Field {
                 modifiers,
                 key,

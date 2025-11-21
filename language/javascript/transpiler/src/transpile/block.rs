@@ -19,7 +19,7 @@ impl<'a> Transpiler<'a> {
             .expressions
             .iter()
             .map(|statement| {
-                self.transpile_expression(module, *statement, unit)
+                self.transpile_expression(module, tree, *statement, unit)
                     .expect_node::<Statement>(statement.into_any(), unit)
             })
             .collect::<Result<Vec<_>, TranspileError>>()?;
