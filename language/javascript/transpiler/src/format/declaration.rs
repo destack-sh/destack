@@ -40,16 +40,6 @@ pub(crate) fn format_super_type_clause<'ast>(
     )
 }
 
-/// Format a block of declarations.
-pub(crate) fn format_block_of_declarations<'ast>(
-    f: &mut JavaScriptFormatter<'ast, '_>,
-    declarations: &Vec<LocalNodeId<Declaration>>,
-) -> FormatResult<()> {
-    f.join_with(hard_line_break())
-        .entries(declarations)
-        .finish()
-}
-
 impl<'ast> Format<JavaScriptFormatContext<'ast>> for Visibility {
     fn format(&self, f: &mut JavaScriptFormatter<'ast, '_>) -> FormatResult<()> {
         match self {
