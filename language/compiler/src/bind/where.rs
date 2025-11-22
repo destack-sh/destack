@@ -18,7 +18,11 @@ impl<'a> Compiler<'a> {
             ast::WhereClause::Assertion { left, right } => {
                 let left = self.session.strings.intern_from(&module.ast_strings, *left);
                 let right = self.bind_expression(module, scope_id, *right, tree, symbols);
-                tree.insert_from_source(WhereClause::Assertion { left, right }, where_clause_id, scope_id)
+                tree.insert_from_source(
+                    WhereClause::Assertion { left, right },
+                    where_clause_id,
+                    scope_id,
+                )
             }
             ast::WhereClause::Guard { guard } => {
                 let guard = self.bind_expression(module, scope_id, *guard, tree, symbols);

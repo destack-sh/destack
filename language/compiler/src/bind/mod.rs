@@ -13,14 +13,14 @@ mod operator;
 mod options;
 mod path;
 mod pattern;
+mod process;
 mod property;
 mod r#type;
 mod warning;
-mod process;
 mod r#where;
 mod with;
 
 pub use error::*;
-pub use process::*;
 pub use options::*;
+pub use process::*;
 pub use warning::*;

@@ -16,8 +16,11 @@ impl<'a> Compiler<'a> {
         symbols: &mut SymbolTable,
     ) -> LocalNodeId<Type> {
         let expression = self.bind_expression(module, scope_id, expression_id, tree, symbols);
-        let type_id =
-            tree.insert_from_source(Type::UnresolvedExpression(expression), expression_id, scope_id);
+        let type_id = tree.insert_from_source(
+            Type::UnresolvedExpression(expression),
+            expression_id,
+            scope_id,
+        );
         tree.alias_from_source(expression_id.id, type_id);
         type_id
     }

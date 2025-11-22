@@ -6,9 +6,9 @@ mod error;
 mod expression;
 mod module;
 mod options;
-mod path;
 mod pattern;
 mod process;
+mod symbol;
 mod r#type;
 mod warning;
 

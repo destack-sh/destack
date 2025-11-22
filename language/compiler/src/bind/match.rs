@@ -15,8 +15,12 @@ impl<'a> Compiler<'a> {
         tree: &mut NodeTree,
         symbols: &mut SymbolTable,
     ) -> LocalNodeId<MatchCase> {
-        let (symbol_id, scope_id) =
-            symbols.create_local_symbol_with_scope(SymbolSpace::Value, None, ScopeKind::Block, scope_id);
+        let (symbol_id, scope_id) = symbols.create_local_symbol_with_scope(
+            SymbolSpace::Value,
+            None,
+            ScopeKind::Block,
+            scope_id,
+        );
         let match_case = module.get(match_case_id);
         let match_case = match match_case {
             ast::MatchCase::Expression {
