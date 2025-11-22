@@ -1,7 +1,7 @@
 use crate::{Compiler, ResolveError, ResolveResult};
 use dyst_dir::{
-    Expression, FloatType, IntType, LocalNodeId, Module, NodeTree, PrimitiveType, SymbolTable,
-    Type, TypeLiteral, TypeUnaryOperator, UnaryOperator,
+    Expression, FloatType, IntType, LocalNodeId, LocalTypeId, Module, NodeTree, PrimitiveType,
+    SymbolTable, Type, TypeLiteral, TypeTable, TypeUnaryOperator, UnaryOperator,
 };
 
 impl<'a> Compiler<'a> {
@@ -9,12 +9,13 @@ impl<'a> Compiler<'a> {
     pub(super) fn resolve_type(
         &self,
         module: &Module,
-        ty_id: LocalNodeId<Type>,
+        ty_id: LocalTypeId,
         tree: &mut NodeTree,
         symbols: &SymbolTable,
+        types: &mut TypeTable,
     ) -> ResolveResult<()> {
         let expression_id = {
-            let ty = tree.get(ty_id);
+            let ty = types.get(ty_id);
             let Type::UnresolvedExpression(expression_id) = *ty else {
                 return Ok(());
             };
@@ -23,8 +24,8 @@ impl<'a> Compiler<'a> {
 
         // resolve and update in-place
         let resolved_ty =
-            self.try_resolve_expression_to_type_value(module, expression_id, tree, symbols)?;
-        let ty = tree.get_mut(ty_id);
+            self.try_resolve_expression_to_type_value(module, expression_id, tree, symbols, types)?;
+        let ty = types.get_mut(ty_id);
         *ty = resolved_ty;
 
         Ok(())
@@ -37,9 +38,10 @@ impl<'a> Compiler<'a> {
         expression_id: LocalNodeId<Expression>,
         tree: &mut NodeTree,
         symbols: &SymbolTable,
-    ) -> ResolveResult<LocalNodeId<Type>> {
-        let ty = self.try_resolve_expression_to_type_value(module, expression_id, tree, symbols)?;
-        Ok(tree.insert_from(ty, expression_id, None))
+        types: &mut TypeTable,
+    ) -> ResolveResult<LocalTypeId> {
+        let ty = self.try_resolve_expression_to_type_value(module, expression_id, tree, symbols, types)?;
+        Ok(types.insert_from(ty, expression_id))
     }
 
     /// Try to Resolve an Expression as a Type.
@@ -50,9 +52,10 @@ impl<'a> Compiler<'a> {
         expression_id: LocalNodeId<Expression>,
         tree: &mut NodeTree,
         symbols: &SymbolTable,
+        types: &mut TypeTable,
     ) -> ResolveResult<Type> {
         let ty = self
-            .resolve_expression_to_type(module, expression_id, tree, symbols)?
+            .resolve_expression_to_type(module, expression_id, tree, symbols, types)?
             .unwrap_or(Type::UnresolvedExpression(expression_id));
         Ok(ty)
     }
@@ -64,6 +67,7 @@ impl<'a> Compiler<'a> {
         expression_id: LocalNodeId<Expression>,
         tree: &mut NodeTree,
         symbols: &SymbolTable,
+        types: &mut TypeTable,
     ) -> ResolveResult<Option<Type>> {
         let expression = tree.get(expression_id);
 
@@ -78,7 +82,8 @@ impl<'a> Compiler<'a> {
                 operator: UnaryOperator::Not,
                 right,
             } => {
-                let type_id = self.try_resolve_expression_to_type(module, *right, tree, symbols)?;
+                let type_id =
+                    self.try_resolve_expression_to_type(module, *right, tree, symbols, types)?;
                 Type::Unary {
                     operator: TypeUnaryOperator::Not,
                     right: type_id,
@@ -86,7 +91,8 @@ impl<'a> Compiler<'a> {
             }
             // maybe
             Expression::Maybe { left } => {
-                let type_id = self.try_resolve_expression_to_type(module, *left, tree, symbols)?;
+                let type_id =
+                    self.try_resolve_expression_to_type(module, *left, tree, symbols, types)?;
                 Type::Unary {
                     operator: TypeUnaryOperator::Maybe,
                     right: type_id,
@@ -94,7 +100,8 @@ impl<'a> Compiler<'a> {
             }
             // must
             Expression::Must { left } => {
-                let type_id = self.try_resolve_expression_to_type(module, *left, tree, symbols)?;
+                let type_id =
+                    self.try_resolve_expression_to_type(module, *left, tree, symbols, types)?;
                 Type::Unary {
                     operator: TypeUnaryOperator::Must,
                     right: type_id,
@@ -108,7 +115,8 @@ impl<'a> Compiler<'a> {
             } => {
                 let mutability = *mutability;
                 let variance = *variance;
-                let type_id = self.try_resolve_expression_to_type(module, *right, tree, symbols)?;
+                let type_id =
+                    self.try_resolve_expression_to_type(module, *right, tree, symbols, types)?;
                 Type::ValueOf {
                     mutability,
                     variance,
@@ -123,7 +131,8 @@ impl<'a> Compiler<'a> {
             } => {
                 let mutability = *mutability;
                 let variance = *variance;
-                let type_id = self.try_resolve_expression_to_type(module, *right, tree, symbols)?;
+                let type_id =
+                    self.try_resolve_expression_to_type(module, *right, tree, symbols, types)?;
                 Type::ReferenceOf {
                     mutability,
                     variance,
@@ -132,7 +141,8 @@ impl<'a> Compiler<'a> {
             }
             // unary
             &Expression::TypeUnary { operator, right } => {
-                let right_id = self.try_resolve_expression_to_type(module, right, tree, symbols)?;
+                let right_id =
+                    self.try_resolve_expression_to_type(module, right, tree, symbols, types)?;
                 Type::Unary {
                     operator,
                     right: right_id,
@@ -144,8 +154,10 @@ impl<'a> Compiler<'a> {
                 operator,
                 right,
             } => {
-                let left_id = self.try_resolve_expression_to_type(module, left, tree, symbols)?;
-                let right_id = self.try_resolve_expression_to_type(module, right, tree, symbols)?;
+                let left_id =
+                    self.try_resolve_expression_to_type(module, left, tree, symbols, types)?;
+                let right_id =
+                    self.try_resolve_expression_to_type(module, right, tree, symbols, types)?;
                 Type::Binary {
                     left: left_id,
                     operator,
@@ -159,8 +171,10 @@ impl<'a> Compiler<'a> {
                 end,
                 is_inclusive,
             } => {
-                let start_id = self.try_resolve_expression_to_type(module, start, tree, symbols)?;
-                let end_id = self.try_resolve_expression_to_type(module, end, tree, symbols)?;
+                let start_id =
+                    self.try_resolve_expression_to_type(module, start, tree, symbols, types)?;
+                let end_id =
+                    self.try_resolve_expression_to_type(module, end, tree, symbols, types)?;
                 Type::Range {
                     start: start_id,
                     end: end_id,
@@ -185,7 +199,7 @@ impl<'a> Compiler<'a> {
                 // array with static length
                 if let Some(right) = right {
                     let left_id =
-                        self.try_resolve_expression_to_type(module, left, tree, symbols)?;
+                        self.try_resolve_expression_to_type(module, left, tree, symbols, types)?;
                     Type::ArraySized {
                         element: left_id,
                         count: right,
@@ -194,7 +208,7 @@ impl<'a> Compiler<'a> {
                 // slice
                 else {
                     let left_id =
-                        self.try_resolve_expression_to_type(module, left, tree, symbols)?;
+                        self.try_resolve_expression_to_type(module, left, tree, symbols, types)?;
                     Type::Array {
                         element: Some(left_id),
                     }

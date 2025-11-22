@@ -39,6 +39,8 @@ pub enum Type {
     Scalar(TypeLiteral),
     /// Redirect to symbol type.
     Symbol(LocalSymbolId),
+	/// Unresolved expression type.
+	UnresolvedExpression(LocalNodeId<Expression>),
 
     /// Type unary operator.
     Unary {

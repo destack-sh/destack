@@ -230,15 +230,12 @@ impl<'a> Compiler<'a> {
                 let mutability = self.bind_mutability(*mutability);
                 // nocheckin: bind pattern symbols (and remove Let symbol? see symbols.create_local_symbol usages)
                 let pattern = self.bind_pattern(module, scope_id, *pattern, tree, symbols);
-                let ty =
-                    ty.map(|ty| self.bind_expression_to_type(module, scope_id, ty, tree, symbols));
                 let value =
                     value.map(|value| self.bind_expression(module, scope_id, value, tree, symbols));
                 let symbol_id = symbols.insert_symbol(SymbolSpace::Value, None, scope_id);
                 Expression::Let {
                     mutability,
                     pattern,
-                    ty,
                     value,
                     symbol: symbol_id,
                 }
@@ -507,8 +504,7 @@ impl<'a> Compiler<'a> {
                 }
             }
             ast::Expression::StructLiteral { ty, properties } => {
-                let ty =
-                    ty.map(|ty| self.bind_expression_to_type(module, scope_id, ty, tree, symbols));
+                let ty = ty.map(|ty| self.bind_expression(module, scope_id, ty, tree, symbols));
                 let properties = properties
                     .iter()
                     .map(|property| self.bind_property(module, scope_id, *property, tree, symbols))

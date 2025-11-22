@@ -1,6 +1,6 @@
 use indexmap::IndexMap;
 
-use crate::{Arena, GlobalNodeIdAny, LocalTypeId, ModuleId, Type};
+use crate::{Arena, GlobalNodeIdAny, LocalNodeId, LocalTypeId, ModuleId, Node, Type};
 
 /// A TypeTable is a side table for a node. NOT THREAD-SAFE.
 #[derive(Debug, Clone)]
@@ -10,9 +10,11 @@ pub struct TypeTable {
 
     /// The next type id to allocate.
     pub(crate) next_type_id: u32,
-
+    /// The types.
     pub(crate) types: Arena<Type>,
 
+    /// The source id by type id.
+    pub(crate) source_id_by_type_id: IndexMap<LocalTypeId, u32>,
     /// The declared type by node id.
     pub(crate) declared_type_by_node_id: IndexMap<GlobalNodeIdAny, LocalTypeId>,
     /// The inferred type by node id.
@@ -26,17 +28,35 @@ impl TypeTable {
             module_id,
             next_type_id: 0,
             types: Arena::new(),
+            source_id_by_type_id: IndexMap::new(),
             declared_type_by_node_id: IndexMap::new(),
             inferred_type_by_node_id: IndexMap::new(),
         }
     }
 
     /// Insert a type.
-    pub fn insert_type(&mut self, ty: Type) -> LocalTypeId {
+    pub fn insert(&mut self, ty: Type) -> LocalTypeId {
         let type_id = LocalTypeId::new(self.next_type_id);
         self.next_type_id += 1;
         self.types.allocate(ty);
         type_id
+    }
+
+    /// Insert a type derived from another node.
+    pub fn insert_from<T: Node>(&mut self, ty: Type, node_id: LocalNodeId<T>) -> LocalTypeId {
+        let type_id = self.insert(ty);
+        self.source_id_by_type_id.insert(type_id, node_id.id);
+        type_id
+    }
+
+    /// Get a type by its id.
+    pub fn get(&self, type_id: LocalTypeId) -> &Type {
+        self.types.get(type_id.0)
+    }
+
+    /// Get a mutable type by its id.
+    pub fn get_mut(&mut self, type_id: LocalTypeId) -> &mut Type {
+        self.types.get_mut(type_id.0)
     }
 
     /// Set the declared type for a node.
