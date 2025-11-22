@@ -83,9 +83,7 @@ pub struct Symbol {
     /// The scope that introduces the symbol.
     pub scope: LocalScopeId,
     /// The module id of the scope.
-    pub module_id: Option<ModuleId>,
-    /// The owned scope of the symbol.
-    pub owned_scope: Option<LocalScopeId>,
+    pub module_id: ModuleId,
     /// The main declaration node of the symbol.
     pub primary_declaration: Option<GlobalNodeIdAny>,
     /// Secondary declaration nodes of the symbol.
@@ -95,7 +93,7 @@ pub struct Symbol {
     /// The inferred type of the symbol.
     pub inferred_ty: Option<LocalNodeId<Type>>,
     /// Forward to another remote symbol (like for imports, pattern bindings, etc.).
-    pub remote_symbol: Option<LocalSymbolId>,
+    pub remote_symbol: Option<GlobalSymbolId>,
 }
 
 impl Symbol {

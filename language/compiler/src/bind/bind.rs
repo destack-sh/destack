@@ -1,4 +1,4 @@
-use dyst_dir::{DependencyEdge, Expression, LocalNodeId, ModuleId, ScopeKind, SymbolSpace};
+use dyst_dir::{DependencyEdge, Expression, LocalNodeId, ModuleId};
 
 use crate::{BindError, BindResult, CompileTask, Compiler, ResolveTask};
 
@@ -32,17 +32,6 @@ impl<'a> Compiler<'a> {
             .ok_or(BindError::ModuleNotFound { module })?;
         let module_id = module.read().id;
 
-        // create module symbol and scope
-        let (scope_id, _symbol_id) = {
-            let module = module.read();
-            let mut symbols = module.symbols.write();
-            let scope_id =
-                symbols.create_scope(ScopeKind::Namespace, self.session.root_scope_id, None);
-            let symbol_id = symbols.create_symbol(SymbolSpace::Value, None, scope_id);
-            symbols.get_scope_by_id_mut(scope_id).owner = Some(symbol_id.into_global(module_id));
-            (scope_id, symbol_id)
-        };
-
         // bind roots
         let roots: Vec<LocalNodeId<Expression>> = {
             let module = module.read();
@@ -52,7 +41,13 @@ impl<'a> Compiler<'a> {
                 .ast_roots
                 .iter()
                 .map(|expression| {
-                    self.bind_expression(&module, scope_id, *expression, &mut tree, &mut symbols)
+                    self.bind_expression(
+                        &module,
+                        module.scope,
+                        *expression,
+                        &mut tree,
+                        &mut symbols,
+                    )
                 })
                 .collect()
         };
@@ -63,7 +58,7 @@ impl<'a> Compiler<'a> {
             let module = module.read();
             let mut tree = module.tree.write();
             let mut symbols = module.symbols.write();
-            self.bind_dependency_edges(&module, scope_id, &mut tree, &mut symbols)
+            self.bind_dependency_edges(&module, module.scope, &mut tree, &mut symbols)
         };
         module.write().imports.extend(imports);
 

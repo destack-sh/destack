@@ -67,7 +67,7 @@ impl<'a> Compiler<'a> {
                     ty.map(|ty| self.bind_expression_to_type(module, scope_id, ty, tree, symbols));
                 let default = default
                     .map(|default| self.bind_expression(module, scope_id, default, tree, symbols));
-                let symbol_id = symbols.create_symbol(
+                let symbol_id = symbols.create_local_symbol(
                     SymbolSpace::Value,
                     Some(SymbolKey::Name(name)),
                     scope_id,
@@ -79,8 +79,8 @@ impl<'a> Compiler<'a> {
                     default,
                     symbol: symbol_id,
                 };
-                let parameter_id = tree.insert_from_source(parameter, parameter_id);
-                symbols.set_symbol_owner(symbol_id, parameter_id);
+                let parameter_id = tree.insert_from_source(parameter, parameter_id, scope_id);
+                symbols.set_primary_declaration(symbol_id, parameter_id);
                 parameter_id
             }
             ast::Parameter::Pattern {
@@ -96,7 +96,7 @@ impl<'a> Compiler<'a> {
                     ty.map(|ty| self.bind_expression_to_type(module, scope_id, ty, tree, symbols));
                 let default = default
                     .map(|default| self.bind_expression(module, scope_id, default, tree, symbols));
-                let symbol_id = symbols.create_symbol(SymbolSpace::Value, None, scope_id);
+                let symbol_id = symbols.create_local_symbol(SymbolSpace::Value, None, scope_id);
                 let parameter = Parameter::Pattern {
                     modifiers,
                     pattern,
@@ -104,8 +104,8 @@ impl<'a> Compiler<'a> {
                     default,
                     symbol: symbol_id,
                 };
-                let parameter_id = tree.insert_from_source(parameter, parameter_id);
-                symbols.set_symbol_owner(symbol_id, parameter_id);
+                let parameter_id = tree.insert_from_source(parameter, parameter_id, scope_id);
+                symbols.set_primary_declaration(symbol_id, parameter_id);
                 parameter_id
             }
             ast::Parameter::Variadic {
@@ -118,7 +118,7 @@ impl<'a> Compiler<'a> {
                 let name = self.session.strings.intern_from(&module.ast_strings, *name);
                 let ty =
                     ty.map(|ty| self.bind_expression_to_type(module, scope_id, ty, tree, symbols));
-                let symbol_id = symbols.create_symbol(
+                let symbol_id = symbols.create_local_symbol(
                     SymbolSpace::Value,
                     Some(SymbolKey::Name(name)),
                     scope_id,
@@ -129,8 +129,8 @@ impl<'a> Compiler<'a> {
                     ty,
                     symbol: symbol_id,
                 };
-                let parameter_id = tree.insert_from_source(parameter, parameter_id);
-                symbols.set_symbol_owner(symbol_id, parameter_id);
+                let parameter_id = tree.insert_from_source(parameter, parameter_id, scope_id);
+                symbols.set_primary_declaration(symbol_id, parameter_id);
                 parameter_id
             }
         }
@@ -166,6 +166,7 @@ impl<'a> Compiler<'a> {
                         value,
                     },
                     argument_id,
+                    scope_id,
                 )
             }
             ast::Argument::Shorthand { modifiers, name } => {
@@ -181,6 +182,7 @@ impl<'a> Compiler<'a> {
                         static_arguments: None,
                     },
                     argument_id,
+                    scope_id,
                 );
                 tree.insert_from_source(
                     Argument::UnresolvedNamed {
@@ -189,6 +191,7 @@ impl<'a> Compiler<'a> {
                         value,
                     },
                     argument_id,
+                    scope_id,
                 )
             }
             ast::Argument::Positional { modifiers, value } => {
@@ -198,6 +201,7 @@ impl<'a> Compiler<'a> {
                 tree.insert_from_source(
                     Argument::UnresolvedPositional { modifiers, value },
                     argument_id,
+                    scope_id,
                 )
             }
             ast::Argument::Spread {
@@ -217,6 +221,7 @@ impl<'a> Compiler<'a> {
                         value,
                     },
                     argument_id,
+                    scope_id,
                 )
             }
         }

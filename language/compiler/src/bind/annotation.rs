@@ -117,6 +117,6 @@ impl<'a> Compiler<'a> {
                 }
             }
         };
-        Some(tree.insert_from_source(annotation, annotation_id))
+        Some(tree.insert_from_source(annotation, annotation_id, scope_id))
     }
 }

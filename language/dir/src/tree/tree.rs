@@ -5,8 +5,8 @@ use dyst_ast as ast;
 
 use crate::{
     Annotation, Arena, Argument, Block, Declaration, DependencyItem, EnumField, Expression,
-    LocalNodeId, LocalNodeIdAny, MatchCase, ModuleId, Node, NodeType, Parameter, Pattern,
-    PatternField, Property, Type, TypeField, WhereClause, WithClause,
+    LocalNodeId, LocalNodeIdAny, LocalScopeId, MatchCase, ModuleId, Node, NodeType, Parameter,
+    Pattern, PatternField, Property, Type, TypeField, WhereClause, WithClause,
 };
 
 /// Mutable DIR Node tree across a set of related source units. NOT THREAD-SAFE.
@@ -42,6 +42,9 @@ pub struct NodeTree {
     pub(crate) annotations: Arena<Annotation>,
 
     // node side data
+    /// The scopes by node id. Index is the global node id.
+    /// (Main data is in SymbolTable, but indexed here for efficiency since *every* node needs a scope.)
+    pub(crate) scopes_by_node_id: Vec<LocalScopeId>,
     /// The AST node ids of all nodes. Index is the global node id.
     pub(crate) source_id_by_node_id: Vec<Option<u32>>,
     /// The alias node id by AST node id.
@@ -92,6 +95,7 @@ impl NodeTree {
             pattern_fields: Arena::new(),
             annotations: Arena::new(),
 
+            scopes_by_node_id: Vec::with_capacity(capacity),
             source_id_by_node_id: Vec::with_capacity(capacity),
             alias_node_id_by_source_id: HashMap::new(),
             alias_node_id_by_node_id: HashMap::new(),
@@ -100,7 +104,7 @@ impl NodeTree {
     }
 
     /// Allocate a new node in the tree.
-    fn insert<T>(&mut self, node: T) -> LocalNodeId<T>
+    fn insert<T>(&mut self, node: T, scope_id: LocalScopeId) -> LocalNodeId<T>
     where
         T: Node,
         Self: NodeTreeImpl<T>,
@@ -110,6 +114,7 @@ impl NodeTree {
         self.node_type_by_node_id.push(T::TYPE);
         let local_id = <Self as NodeTreeImpl<T>>::allocate(self, node);
         self.local_id_by_node_id.push(local_id);
+        self.scopes_by_node_id.push(scope_id);
         LocalNodeId::new(global_id)
     }
 
@@ -118,13 +123,14 @@ impl NodeTree {
         &mut self,
         node: T,
         ast_node_id: ast::LocalNodeId<U>,
+        scope_id: LocalScopeId,
     ) -> LocalNodeId<T>
     where
         T: Node,
         Self: NodeTreeImpl<T>,
         U: ast::Node,
     {
-        let node_id = self.insert(node);
+        let node_id = self.insert(node, scope_id);
         self.source_id_by_node_id.push(Some(ast_node_id.id));
         self.alias_node_id_by_source_id
             .insert(ast_node_id.id, node_id.id);
@@ -132,13 +138,19 @@ impl NodeTree {
     }
 
     /// Allocate a new node in the DIR tree derived from another DIR node.
-    pub fn insert_from<T, U>(&mut self, node: T, dir_node_id: LocalNodeId<U>) -> LocalNodeId<T>
+    pub fn insert_from<T, U>(
+        &mut self,
+        node: T,
+        dir_node_id: LocalNodeId<U>,
+        scope_id: Option<LocalScopeId>,
+    ) -> LocalNodeId<T>
     where
         T: Node,
         Self: NodeTreeImpl<T>,
         U: Node,
     {
-        let node_id = self.insert(node);
+        let scope_id = scope_id.unwrap_or_else(|| self.scopes_by_node_id[dir_node_id.id as usize]);
+        let node_id = self.insert(node, scope_id);
         self.source_id_by_node_id.push(None);
         self.alias_node_id_by_node_id
             .insert(dir_node_id.id, node_id.id);
@@ -249,6 +261,12 @@ impl NodeTree {
     #[inline]
     pub fn get_node_id_by_source_id(&self, ast_id: u32) -> Option<u32> {
         self.alias_node_id_by_source_id.get(&ast_id).copied()
+    }
+
+    /// Get the scope for a node id.
+    #[inline]
+    pub fn get_scope<T: Node>(&self, node_id: LocalNodeId<T>) -> LocalScopeId {
+        self.scopes_by_node_id[node_id.id as usize]
     }
 
     /// Append a doc to a node by its global id.

@@ -185,7 +185,7 @@ pub enum Expression {
     ModuleReference {
         path: Path,
         static_arguments: Option<Vec<LocalNodeId<Argument>>>,
-        remote_symbol: GlobalSymbolId,
+        remote_symbol: LocalSymbolId,
     },
     /// Global reference.
     GlobalReference {

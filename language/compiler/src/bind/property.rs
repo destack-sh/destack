@@ -61,6 +61,6 @@ impl<'a> Compiler<'a> {
                 Property::Spread { modifiers, value }
             }
         };
-        tree.insert_from_source(property, property_id)
+        tree.insert_from_source(property, property_id, scope_id)
     }
 }

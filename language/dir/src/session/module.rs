@@ -8,7 +8,7 @@ use dyst_source::{FileId, Uri};
 
 use crate::{
     DependencyEdge, Expression, FlowTable, LocalNodeId, LocalScopeId, LocalSymbolId, NodeTree,
-    PackageId, SymbolTable, TypeTable,
+    PackageId, ScopeKind, SymbolSpace, SymbolTable, TypeTable,
 };
 
 /// Unique identifier for Modules.
@@ -55,26 +55,26 @@ pub struct Module {
     // dir
     /// The main DIR node tree of the Module.
     pub tree: RwLock<NodeTree>,
-    /// The symbol table of the Module.
+    /// The symbol side table of the Module.
     pub symbols: RwLock<SymbolTable>,
-    /// The type table of the Module.
+    /// The type side table of the Module.
     pub types: RwLock<TypeTable>,
-    /// The flow table of the Module.
+    /// The flow side table of the Module.
     pub flows: RwLock<FlowTable>,
     /// The top-level expressions of the Module.
     pub roots: Vec<LocalNodeId<Expression>>,
 
     // derived bindings
+    /// The symbol of the Module itself.
+    pub symbol: LocalSymbolId,
+    /// The scope of the Module itself.
+    pub scope: LocalScopeId,
     // The imports of the Module.
     pub imports: Vec<DependencyEdge>,
-    /// The symbol of the Module itself.
-    pub symbol: Option<LocalSymbolId>,
-    /// The scope of the Module itself.
-    pub scope: Option<LocalScopeId>,
 }
 
 impl Module {
-    /// Create a new Module from a file and expressions.
+    /// Create a new Module.
     pub fn new(
         id: ModuleId,
         file: FileId,
@@ -84,6 +84,11 @@ impl Module {
         ast_roots: Vec<ast::LocalNodeId<ast::Expression>>,
         ast_strings: StringPool,
     ) -> Self {
+        let mut symbols = SymbolTable::new(id);
+        let scope_id = symbols.create_local_scope(ScopeKind::Namespace, None, None);
+        let symbol_id = symbols.create_local_symbol(SymbolSpace::Value, None, scope_id);
+        symbols.get_scope_by_id_mut(scope_id).owner = Some(symbol_id);
+
         Self {
             id,
             file,
@@ -95,11 +100,11 @@ impl Module {
             ast_strings,
             // dir
             tree: RwLock::new(NodeTree::new(id)),
-            symbols: RwLock::new(SymbolTable::new(id)),
+            symbols: RwLock::new(symbols),
             types: RwLock::new(TypeTable::new(id)),
             flows: RwLock::new(FlowTable::new(id)),
-            symbol: None,
-            scope: None,
+            symbol: symbol_id,
+            scope: scope_id,
             roots: Vec::new(),
             imports: Vec::new(),
         }

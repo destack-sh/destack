@@ -16,7 +16,7 @@ impl<'a> Compiler<'a> {
         symbols: &mut SymbolTable,
     ) -> LocalNodeId<MatchCase> {
         let (symbol_id, scope_id) =
-            symbols.create_symbol_with_scope(SymbolSpace::Value, None, ScopeKind::Block, scope_id);
+            symbols.create_local_symbol_with_scope(SymbolSpace::Value, None, ScopeKind::Block, scope_id);
         let match_case = module.get(match_case_id);
         let match_case = match match_case {
             ast::MatchCase::Expression {
@@ -52,8 +52,8 @@ impl<'a> Compiler<'a> {
                 }
             }
         };
-        let match_case_id = tree.insert_from_source(match_case, match_case_id);
-        symbols.set_symbol_owner(symbol_id, match_case_id);
+        let match_case_id = tree.insert_from_source(match_case, match_case_id, scope_id);
+        symbols.set_primary_declaration(symbol_id, match_case_id);
         match_case_id
     }
 }

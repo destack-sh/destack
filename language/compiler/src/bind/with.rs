@@ -18,6 +18,6 @@ impl<'a> Compiler<'a> {
             .alias
             .map(|alias| self.session.strings.intern_from(&module.ast_strings, alias));
         let right = self.bind_expression(module, scope_id, with_clause.right, tree, symbols);
-        tree.insert_from_source(WithClause { alias, right }, with_clause_id)
+        tree.insert_from_source(WithClause { alias, right }, with_clause_id, scope_id)
     }
 }
