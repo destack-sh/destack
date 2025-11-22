@@ -1,10 +1,12 @@
 use dyst_ast::{self as ast};
 use dyst_dir::{
     Block, LocalNodeId, LocalScopeId, Module, NodeTree, ScopeKind, SymbolSpace, SymbolTable,
+    TypeTable,
 };
 
 use crate::Compiler;
 
+#[allow(clippy::too_many_arguments)]
 impl<'a> Compiler<'a> {
     /// Bind a block to a DIR block.
     pub(super) fn bind_block(
@@ -14,6 +16,7 @@ impl<'a> Compiler<'a> {
         block_id: ast::LocalNodeId<ast::Block>,
         tree: &mut NodeTree,
         symbols: &mut SymbolTable,
+        types: &mut TypeTable,
     ) -> LocalNodeId<Block> {
         let (symbol_id, scope_id) = symbols.insert_symbol_with_scope(
             SymbolSpace::Value,
@@ -28,7 +31,7 @@ impl<'a> Compiler<'a> {
         let expressions = block
             .expressions
             .iter()
-            .map(|expression| self.bind_expression(module, scope_id, *expression, tree, symbols))
+            .map(|expression| self.bind_expression(module, scope_id, *expression, tree, symbols, types))
             .collect();
         let block_id = tree.insert_from_source(
             Block {

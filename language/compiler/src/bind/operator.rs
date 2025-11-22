@@ -2,6 +2,7 @@ use crate::Compiler;
 use dyst_ast as ast;
 use dyst_dir::{AssignOperator, TypeBinaryOperator, TypeUnaryOperator, UnaryOperator};
 
+#[allow(clippy::too_many_arguments)]
 impl<'a> Compiler<'a> {
     /// Bind a unary operator to a DIR unary operator.
     pub(super) fn bind_unary_operator(&self, unary_operator: ast::UnaryOperator) -> UnaryOperator {

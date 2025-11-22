@@ -1,10 +1,12 @@
 use dyst_ast::{self as ast};
 use dyst_dir::{
     LocalNodeId, LocalScopeId, MatchCase, Module, NodeTree, ScopeKind, SymbolSpace, SymbolTable,
+    TypeTable,
 };
 
 use crate::Compiler;
 
+#[allow(clippy::too_many_arguments)]
 impl<'a> Compiler<'a> {
     /// Bind a match case to a DIR match case.
     pub(super) fn bind_match_case(
@@ -14,6 +16,7 @@ impl<'a> Compiler<'a> {
         match_case_id: ast::LocalNodeId<ast::MatchCase>,
         tree: &mut NodeTree,
         symbols: &mut SymbolTable,
+        types: &mut TypeTable,
     ) -> LocalNodeId<MatchCase> {
         let (symbol_id, scope_id) = symbols.insert_symbol_with_scope(
             SymbolSpace::Value,
@@ -28,10 +31,10 @@ impl<'a> Compiler<'a> {
                 body,
                 guard,
             } => {
-                let pattern = self.bind_pattern(module, scope_id, *pattern, tree, symbols);
-                let body = self.bind_expression(module, scope_id, *body, tree, symbols);
+                let pattern = self.bind_pattern(module, scope_id, *pattern, tree, symbols, types);
+                let body = self.bind_expression(module, scope_id, *body, tree, symbols, types);
                 let guard =
-                    guard.map(|guard| self.bind_expression(module, scope_id, guard, tree, symbols));
+                    guard.map(|guard| self.bind_expression(module, scope_id, guard, tree, symbols, types));
                 MatchCase::Expression {
                     pattern,
                     body,
@@ -44,10 +47,10 @@ impl<'a> Compiler<'a> {
                 body,
                 guard,
             } => {
-                let pattern = self.bind_pattern(module, scope_id, *pattern, tree, symbols);
-                let body = self.bind_block(module, scope_id, *body, tree, symbols);
+                let pattern = self.bind_pattern(module, scope_id, *pattern, tree, symbols, types);
+                let body = self.bind_block(module, scope_id, *body, tree, symbols, types);
                 let guard =
-                    guard.map(|guard| self.bind_expression(module, scope_id, guard, tree, symbols));
+                    guard.map(|guard| self.bind_expression(module, scope_id, guard, tree, symbols, types));
                 MatchCase::Block {
                     pattern,
                     body,

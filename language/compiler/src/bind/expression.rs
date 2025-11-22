@@ -1,12 +1,13 @@
 use dyst_ast::{self as ast};
 use dyst_dir::{
     DependencyItem, Expression, ForEachKind, IfKind, LocalNodeId, LocalScopeId, LoopKind,
-    MatchSource, Module, NodeTree, ScopeKind, SymbolKey, SymbolSpace, SymbolTable,
+    MatchSource, Module, NodeTree, ScopeKind, SymbolKey, SymbolSpace, SymbolTable, TypeTable,
     YieldCardinality,
 };
 
 use crate::Compiler;
 
+#[allow(clippy::too_many_arguments)]
 impl<'a> Compiler<'a> {
     /// Bind if kind into a DIR if kind.
     #[inline]
@@ -25,23 +26,24 @@ impl<'a> Compiler<'a> {
         expression_id: ast::LocalNodeId<ast::Expression>,
         tree: &mut NodeTree,
         symbols: &mut SymbolTable,
+        types: &mut TypeTable,
     ) -> LocalNodeId<Expression> {
         let expression = module.get(expression_id);
         let expression = match expression {
             ast::Expression::Block(block_id) => {
-                let block_id = self.bind_block(module, scope_id, *block_id, tree, symbols);
+                let block_id = self.bind_block(module, scope_id, *block_id, tree, symbols, types);
                 Expression::Block { block: block_id }
             }
             ast::Expression::Declaration(declaration_id) => {
                 let declaration_id =
-                    self.bind_declaration(module, scope_id, *declaration_id, tree, symbols);
+                    self.bind_declaration(module, scope_id, *declaration_id, tree, symbols, types);
                 Expression::Declaration {
                     declaration: declaration_id,
                 }
             }
             ast::Expression::Statement(expression_id) => {
                 let expression_id =
-                    self.bind_expression(module, scope_id, *expression_id, tree, symbols);
+                    self.bind_expression(module, scope_id, *expression_id, tree, symbols, types);
                 Expression::Statement {
                     statement: expression_id,
                 }
@@ -56,9 +58,12 @@ impl<'a> Compiler<'a> {
                 );
                 let clauses = clauses
                     .iter()
-                    .map(|clause| self.bind_with_clause(module, scope_id, *clause, tree, symbols))
+                    .map(|clause| {
+                        self.bind_with_clause(module, scope_id, *clause, tree, symbols, types)
+                    })
                     .collect();
-                let body = body.map(|body| self.bind_block(module, scope_id, body, tree, symbols));
+                let body =
+                    body.map(|body| self.bind_block(module, scope_id, body, tree, symbols, types));
                 Expression::With {
                     clauses,
                     body,
@@ -85,7 +90,7 @@ impl<'a> Compiler<'a> {
                             .iter()
                             .map(|item| {
                                 self.bind_dependency_item(
-                                    module, scope_id, *kind, *item, tree, symbols,
+                                    module, scope_id, *kind, *item, tree, symbols, types,
                                 )
                             })
                             .collect()
@@ -116,7 +121,7 @@ impl<'a> Compiler<'a> {
                     arguments
                         .iter()
                         .map(|argument| {
-                            self.bind_argument(module, scope_id, *argument, tree, symbols)
+                            self.bind_argument(module, scope_id, *argument, tree, symbols, types)
                         })
                         .collect()
                 });
@@ -153,7 +158,7 @@ impl<'a> Compiler<'a> {
                                 .iter()
                                 .map(|item| {
                                     self.bind_dependency_item(
-                                        module, scope_id, *kind, *item, tree, symbols,
+                                        module, scope_id, *kind, *item, tree, symbols, types,
                                     )
                                 })
                                 .collect()
@@ -193,8 +198,8 @@ impl<'a> Compiler<'a> {
                     // export = value
                     let items = {
                         if let Some(value_id) = value {
-                            let value =
-                                self.bind_expression(module, scope_id, *value_id, tree, symbols);
+                            let value = self
+                                .bind_expression(module, scope_id, *value_id, tree, symbols, types);
                             let item = DependencyItem::Value { value };
                             let item_id = tree.insert_from_source(item, *value_id, scope_id);
                             vec![item_id]
@@ -209,6 +214,7 @@ impl<'a> Compiler<'a> {
                                         .map(|item| {
                                             self.bind_dependency_item(
                                                 module, scope_id, *kind, *item, tree, symbols,
+                                                types,
                                             )
                                         })
                                         .collect()
@@ -229,10 +235,17 @@ impl<'a> Compiler<'a> {
             } => {
                 let mutability = self.bind_mutability(*mutability);
                 // nocheckin: bind pattern symbols (and remove Let symbol? see symbols.create_local_symbol usages)
-                let pattern = self.bind_pattern(module, scope_id, *pattern, tree, symbols);
-                let value =
-                    value.map(|value| self.bind_expression(module, scope_id, value, tree, symbols));
+                let pattern = self.bind_pattern(module, scope_id, *pattern, tree, symbols, types);
+                let value = value.map(|value| {
+                    self.bind_expression(module, scope_id, value, tree, symbols, types)
+                });
                 let symbol_id = symbols.insert_symbol(SymbolSpace::Value, None, scope_id);
+                if let Some(ty) = ty {
+                    let ty =
+                        self.bind_expression_to_type(module, scope_id, *ty, tree, symbols, types);
+                    let symbol = symbols.get_symbol_mut(symbol_id);
+                    symbol.declared_ty = Some(ty);
+                }
                 Expression::Let {
                     mutability,
                     pattern,
@@ -256,10 +269,12 @@ impl<'a> Compiler<'a> {
                 let static_parameters = static_parameters.as_ref().map(|params| {
                     params
                         .iter()
-                        .map(|param| self.bind_parameter(module, scope_id, *param, tree, symbols))
+                        .map(|param| {
+                            self.bind_parameter(module, scope_id, *param, tree, symbols, types)
+                        })
                         .collect()
                 });
-                let value = self.bind_expression(module, scope_id, *value, tree, symbols);
+                let value = self.bind_expression(module, scope_id, *value, tree, symbols, types);
                 let symbol_id = symbols.insert_symbol(
                     SymbolSpace::Value,
                     Some(SymbolKey::Name(name)),
@@ -276,13 +291,13 @@ impl<'a> Compiler<'a> {
             }
 
             ast::Expression::Unary { operator, right } => {
-                let right = self.bind_expression(module, scope_id, *right, tree, symbols);
+                let right = self.bind_expression(module, scope_id, *right, tree, symbols, types);
                 let operator = self.bind_unary_operator(*operator);
                 Expression::Unary { operator, right }
             }
 
             ast::Expression::TypeUnary { operator, right } => {
-                let right = self.bind_expression(module, scope_id, *right, tree, symbols);
+                let right = self.bind_expression(module, scope_id, *right, tree, symbols, types);
                 let operator = self.bind_type_unary_operator(*operator);
                 Expression::TypeUnary { operator, right }
             }
@@ -294,7 +309,7 @@ impl<'a> Compiler<'a> {
             } => {
                 let mutability = mutability.map(|mutability| self.bind_mutability(mutability));
                 let variance = variance.map(|variance| self.bind_variance_bound(variance));
-                let right = self.bind_expression(module, scope_id, *right, tree, symbols);
+                let right = self.bind_expression(module, scope_id, *right, tree, symbols, types);
                 Expression::ValueOf {
                     mutability,
                     variance,
@@ -308,7 +323,7 @@ impl<'a> Compiler<'a> {
             } => {
                 let mutability = mutability.map(|mutability| self.bind_mutability(mutability));
                 let variance = variance.map(|variance| self.bind_variance_bound(variance));
-                let right = self.bind_expression(module, scope_id, *right, tree, symbols);
+                let right = self.bind_expression(module, scope_id, *right, tree, symbols, types);
                 Expression::ReferenceOf {
                     mutability,
                     variance,
@@ -320,8 +335,8 @@ impl<'a> Compiler<'a> {
                 operator,
                 right,
             } => {
-                let left = self.bind_expression(module, scope_id, *left, tree, symbols);
-                let right = self.bind_expression(module, scope_id, *right, tree, symbols);
+                let left = self.bind_expression(module, scope_id, *left, tree, symbols, types);
+                let right = self.bind_expression(module, scope_id, *right, tree, symbols, types);
                 let operator = self.bind_binary_operator(*operator);
                 Expression::Binary {
                     left,
@@ -334,8 +349,8 @@ impl<'a> Compiler<'a> {
                 operator,
                 right,
             } => {
-                let left = self.bind_expression(module, scope_id, *left, tree, symbols);
-                let right = self.bind_expression(module, scope_id, *right, tree, symbols);
+                let left = self.bind_expression(module, scope_id, *left, tree, symbols, types);
+                let right = self.bind_expression(module, scope_id, *right, tree, symbols, types);
                 let operator = self.bind_type_binary_operator(*operator);
                 Expression::TypeBinary {
                     left,
@@ -348,8 +363,8 @@ impl<'a> Compiler<'a> {
                 operator,
                 right,
             } => {
-                let left = self.bind_expression(module, scope_id, *left, tree, symbols);
-                let right = self.bind_expression(module, scope_id, *right, tree, symbols);
+                let left = self.bind_expression(module, scope_id, *left, tree, symbols, types);
+                let right = self.bind_expression(module, scope_id, *right, tree, symbols, types);
                 let operator = self.bind_assign_operator(*operator);
                 if let Some(operator) = operator {
                     Expression::AssignBinary {
@@ -367,13 +382,13 @@ impl<'a> Compiler<'a> {
                 name,
                 static_arguments,
             } => {
-                let left = self.bind_expression(module, scope_id, *left, tree, symbols);
+                let left = self.bind_expression(module, scope_id, *left, tree, symbols, types);
                 let name = self.session.strings.intern_from(&module.ast_strings, *name);
                 let static_arguments = static_arguments.as_ref().map(|arguments| {
                     arguments
                         .iter()
                         .map(|argument| {
-                            self.bind_argument(module, scope_id, *argument, tree, symbols)
+                            self.bind_argument(module, scope_id, *argument, tree, symbols, types)
                         })
                         .collect()
                 });
@@ -389,18 +404,20 @@ impl<'a> Compiler<'a> {
                 static_arguments,
                 dynamic_arguments,
             } => {
-                let left = self.bind_expression(module, scope_id, *left, tree, symbols);
+                let left = self.bind_expression(module, scope_id, *left, tree, symbols, types);
                 let static_arguments = static_arguments.as_ref().map(|arguments| {
                     arguments
                         .iter()
                         .map(|argument| {
-                            self.bind_argument(module, scope_id, *argument, tree, symbols)
+                            self.bind_argument(module, scope_id, *argument, tree, symbols, types)
                         })
                         .collect()
                 });
                 let dynamic_arguments = dynamic_arguments
                     .iter()
-                    .map(|argument| self.bind_argument(module, scope_id, *argument, tree, symbols))
+                    .map(|argument| {
+                        self.bind_argument(module, scope_id, *argument, tree, symbols, types)
+                    })
                     .collect();
                 Expression::Call {
                     left,
@@ -413,18 +430,20 @@ impl<'a> Compiler<'a> {
                 static_arguments,
                 dynamic_arguments,
             } => {
-                let left = self.bind_expression(module, scope_id, *left, tree, symbols);
+                let left = self.bind_expression(module, scope_id, *left, tree, symbols, types);
                 let static_arguments = static_arguments.as_ref().map(|arguments| {
                     arguments
                         .iter()
                         .map(|argument| {
-                            self.bind_argument(module, scope_id, *argument, tree, symbols)
+                            self.bind_argument(module, scope_id, *argument, tree, symbols, types)
                         })
                         .collect()
                 });
                 let dynamic_arguments = dynamic_arguments
                     .iter()
-                    .map(|argument| self.bind_argument(module, scope_id, *argument, tree, symbols))
+                    .map(|argument| {
+                        self.bind_argument(module, scope_id, *argument, tree, symbols, types)
+                    })
                     .collect();
                 Expression::New {
                     left,
@@ -433,7 +452,7 @@ impl<'a> Compiler<'a> {
                 }
             }
             ast::Expression::Delete { value } => {
-                let value = self.bind_expression(module, scope_id, *value, tree, symbols);
+                let value = self.bind_expression(module, scope_id, *value, tree, symbols, types);
                 Expression::Delete { value }
             }
             ast::Expression::Index {
@@ -441,17 +460,18 @@ impl<'a> Compiler<'a> {
                 left,
                 index,
             } => {
-                let left = self.bind_expression(module, scope_id, *left, tree, symbols);
-                let index =
-                    index.map(|index| self.bind_expression(module, scope_id, index, tree, symbols));
+                let left = self.bind_expression(module, scope_id, *left, tree, symbols, types);
+                let index = index.map(|index| {
+                    self.bind_expression(module, scope_id, index, tree, symbols, types)
+                });
                 Expression::Index { left, right: index }
             }
             ast::Expression::Maybe { position: _, left } => {
-                let left = self.bind_expression(module, scope_id, *left, tree, symbols);
+                let left = self.bind_expression(module, scope_id, *left, tree, symbols, types);
                 Expression::Maybe { left }
             }
             ast::Expression::Must { position: _, left } => {
-                let left = self.bind_expression(module, scope_id, *left, tree, symbols);
+                let left = self.bind_expression(module, scope_id, *left, tree, symbols, types);
                 Expression::Must { left }
             }
 
@@ -464,7 +484,7 @@ impl<'a> Compiler<'a> {
                     arguments
                         .iter()
                         .map(|argument| {
-                            self.bind_argument(module, scope_id, *argument, tree, symbols)
+                            self.bind_argument(module, scope_id, *argument, tree, symbols, types)
                         })
                         .collect()
                 });
@@ -478,12 +498,14 @@ impl<'a> Compiler<'a> {
                 Expression::ScalarLiteral { value }
             }
             ast::Expression::TemplateLiteral { value } => {
-                let value = self.bind_template_literal(module, scope_id, value, tree, symbols);
+                let value =
+                    self.bind_template_literal(module, scope_id, value, tree, symbols, types);
                 Expression::TemplateLiteral { value }
             }
             ast::Expression::TaggedTemplateLiteral { tag, value } => {
-                let tag = self.bind_expression(module, scope_id, *tag, tree, symbols);
-                let value = self.bind_template_literal(module, scope_id, value, tree, symbols);
+                let tag = self.bind_expression(module, scope_id, *tag, tree, symbols, types);
+                let value =
+                    self.bind_template_literal(module, scope_id, value, tree, symbols, types);
                 Expression::TaggedTemplateLiteral { tag, value }
             }
             ast::Expression::TypeLiteral(value) => {
@@ -495,8 +517,8 @@ impl<'a> Compiler<'a> {
                 end,
                 is_inclusive,
             } => {
-                let start = self.bind_expression(module, scope_id, *start, tree, symbols);
-                let end = self.bind_expression(module, scope_id, *end, tree, symbols);
+                let start = self.bind_expression(module, scope_id, *start, tree, symbols, types);
+                let end = self.bind_expression(module, scope_id, *end, tree, symbols, types);
                 Expression::RangeLiteral {
                     start,
                     end,
@@ -504,24 +526,31 @@ impl<'a> Compiler<'a> {
                 }
             }
             ast::Expression::StructLiteral { ty, properties } => {
-                let ty = ty.map(|ty| self.bind_expression(module, scope_id, ty, tree, symbols));
+                let ty =
+                    ty.map(|ty| self.bind_expression(module, scope_id, ty, tree, symbols, types));
                 let properties = properties
                     .iter()
-                    .map(|property| self.bind_property(module, scope_id, *property, tree, symbols))
+                    .map(|property| {
+                        self.bind_property(module, scope_id, *property, tree, symbols, types)
+                    })
                     .collect();
                 Expression::StructLiteral { ty, properties }
             }
             ast::Expression::TupleLiteral { elements } => {
                 let elements = elements
                     .iter()
-                    .map(|element| self.bind_argument(module, scope_id, *element, tree, symbols))
+                    .map(|element| {
+                        self.bind_argument(module, scope_id, *element, tree, symbols, types)
+                    })
                     .collect();
                 Expression::TupleLiteral { ty: None, elements }
             }
             ast::Expression::ArrayLiteral { elements } => {
                 let elements = elements
                     .iter()
-                    .map(|element| self.bind_argument(module, scope_id, *element, tree, symbols))
+                    .map(|element| {
+                        self.bind_argument(module, scope_id, *element, tree, symbols, types)
+                    })
                     .collect();
                 Expression::ArrayLiteral { elements }
             }
@@ -530,13 +559,13 @@ impl<'a> Compiler<'a> {
                 arguments,
                 elements,
             } => {
-                let left =
-                    left.map(|left| self.bind_expression(module, scope_id, left, tree, symbols));
+                let left = left
+                    .map(|left| self.bind_expression(module, scope_id, left, tree, symbols, types));
                 let arguments = arguments.as_ref().map(|arguments| {
                     arguments
                         .iter()
                         .map(|argument| {
-                            self.bind_argument(module, scope_id, *argument, tree, symbols)
+                            self.bind_argument(module, scope_id, *argument, tree, symbols, types)
                         })
                         .collect()
                 });
@@ -544,7 +573,7 @@ impl<'a> Compiler<'a> {
                     elements
                         .iter()
                         .map(|element| {
-                            self.bind_argument(module, scope_id, *element, tree, symbols)
+                            self.bind_argument(module, scope_id, *element, tree, symbols, types)
                         })
                         .collect()
                 });
@@ -555,7 +584,8 @@ impl<'a> Compiler<'a> {
                 }
             }
             ast::Expression::Parenthesized { expression } => {
-                let expression = self.bind_expression(module, scope_id, *expression, tree, symbols);
+                let expression =
+                    self.bind_expression(module, scope_id, *expression, tree, symbols, types);
                 Expression::Parenthesized { expression }
             }
 
@@ -566,11 +596,12 @@ impl<'a> Compiler<'a> {
                 else_expression,
             } => {
                 let kind = self.bind_if_kind(*kind);
-                let condition = self.bind_expression(module, scope_id, *condition, tree, symbols);
+                let condition =
+                    self.bind_expression(module, scope_id, *condition, tree, symbols, types);
                 let then_expression =
-                    self.bind_expression(module, scope_id, *then_expression, tree, symbols);
+                    self.bind_expression(module, scope_id, *then_expression, tree, symbols, types);
                 let else_expression = else_expression.map(|else_expression| {
-                    self.bind_expression(module, scope_id, else_expression, tree, symbols)
+                    self.bind_expression(module, scope_id, else_expression, tree, symbols, types)
                 });
                 Expression::If {
                     kind,
@@ -588,14 +619,15 @@ impl<'a> Compiler<'a> {
                     ast::WhileKind::While => LoopKind::PreTest,
                     ast::WhileKind::DoWhile => LoopKind::PostTest,
                 };
-                let condition = self.bind_expression(module, scope_id, *condition, tree, symbols);
+                let condition =
+                    self.bind_expression(module, scope_id, *condition, tree, symbols, types);
                 let (symbol_id, scope_id) = symbols.insert_symbol_with_scope(
                     SymbolSpace::Value,
                     None,
                     ScopeKind::Block,
                     scope_id,
                 );
-                let body = self.bind_block(module, scope_id, *body, tree, symbols);
+                let body = self.bind_block(module, scope_id, *body, tree, symbols, types);
                 Expression::Loop {
                     kind,
                     condition: Some(condition),
@@ -616,15 +648,16 @@ impl<'a> Compiler<'a> {
                     ast::ForEachKind::In => ForEachKind::In,
                     ast::ForEachKind::Of => ForEachKind::Of,
                 };
-                let pattern = self.bind_pattern(module, scope_id, *pattern, tree, symbols);
-                let iterator = self.bind_expression(module, scope_id, *iterator, tree, symbols);
+                let pattern = self.bind_pattern(module, scope_id, *pattern, tree, symbols, types);
+                let iterator =
+                    self.bind_expression(module, scope_id, *iterator, tree, symbols, types);
                 let (symbol_id, scope_id) = symbols.insert_symbol_with_scope(
                     SymbolSpace::Value,
                     None,
                     ScopeKind::Block,
                     scope_id,
                 );
-                let body = self.bind_block(module, scope_id, *body, tree, symbols);
+                let body = self.bind_block(module, scope_id, *body, tree, symbols, types);
                 Expression::ForEach {
                     asynchrony,
                     kind,
@@ -648,15 +681,15 @@ impl<'a> Compiler<'a> {
                     scope_id,
                 );
                 let initialization = initialization.map(|initialization| {
-                    self.bind_expression(module, scope_id, initialization, tree, symbols)
+                    self.bind_expression(module, scope_id, initialization, tree, symbols, types)
                 });
                 let condition = condition.map(|condition| {
-                    self.bind_expression(module, scope_id, condition, tree, symbols)
+                    self.bind_expression(module, scope_id, condition, tree, symbols, types)
                 });
                 let increment = increment.map(|increment| {
-                    self.bind_expression(module, scope_id, increment, tree, symbols)
+                    self.bind_expression(module, scope_id, increment, tree, symbols, types)
                 });
-                let body = self.bind_block(module, scope_id, *body, tree, symbols);
+                let body = self.bind_block(module, scope_id, *body, tree, symbols, types);
                 Expression::For {
                     initialization,
                     condition,
@@ -673,7 +706,7 @@ impl<'a> Compiler<'a> {
                     ScopeKind::Block,
                     scope_id,
                 );
-                let body = self.bind_block(module, scope_id, *body, tree, symbols);
+                let body = self.bind_block(module, scope_id, *body, tree, symbols, types);
                 Expression::Loop {
                     kind: LoopKind::NoTest,
                     condition: None,
@@ -695,15 +728,15 @@ impl<'a> Compiler<'a> {
                     scope_id,
                 );
                 let try_expression =
-                    self.bind_expression(module, scope_id, *try_expression, tree, symbols);
+                    self.bind_expression(module, scope_id, *try_expression, tree, symbols, types);
                 let catch_pattern = catch_pattern.map(|catch_pattern| {
-                    self.bind_pattern(module, scope_id, catch_pattern, tree, symbols)
+                    self.bind_pattern(module, scope_id, catch_pattern, tree, symbols, types)
                 });
                 let catch_expression = catch_expression.map(|catch_expression| {
-                    self.bind_expression(module, scope_id, catch_expression, tree, symbols)
+                    self.bind_expression(module, scope_id, catch_expression, tree, symbols, types)
                 });
                 let finally_expression = finally_expression.map(|finally_expression| {
-                    self.bind_expression(module, scope_id, finally_expression, tree, symbols)
+                    self.bind_expression(module, scope_id, finally_expression, tree, symbols, types)
                 });
                 Expression::Try {
                     try_expression,
@@ -719,7 +752,7 @@ impl<'a> Compiler<'a> {
                 value,
                 cases,
             } => {
-                let value = self.bind_expression(module, scope_id, *value, tree, symbols);
+                let value = self.bind_expression(module, scope_id, *value, tree, symbols, types);
                 let (symbol_id, scope_id) = symbols.insert_symbol_with_scope(
                     SymbolSpace::Value,
                     None,
@@ -728,7 +761,7 @@ impl<'a> Compiler<'a> {
                 );
                 let cases = cases
                     .iter()
-                    .map(|case| self.bind_match_case(module, scope_id, *case, tree, symbols))
+                    .map(|case| self.bind_match_case(module, scope_id, *case, tree, symbols, types))
                     .collect();
                 Expression::Match {
                     value,
@@ -742,8 +775,9 @@ impl<'a> Compiler<'a> {
             ast::Expression::Break { label, value } => {
                 let label =
                     label.map(|label| self.session.strings.intern_from(&module.ast_strings, label));
-                let value =
-                    value.map(|value| self.bind_expression(module, scope_id, value, tree, symbols));
+                let value = value.map(|value| {
+                    self.bind_expression(module, scope_id, value, tree, symbols, types)
+                });
                 Expression::UnresolvedBreak {
                     target: label,
                     value,
@@ -755,16 +789,19 @@ impl<'a> Compiler<'a> {
                 Expression::UnresolvedContinue { target: label }
             }
             ast::Expression::Return { value } => {
-                let value =
-                    value.map(|value| self.bind_expression(module, scope_id, value, tree, symbols));
+                let value = value.map(|value| {
+                    self.bind_expression(module, scope_id, value, tree, symbols, types)
+                });
                 Expression::Return { value }
             }
             ast::Expression::Defer { expression } => {
-                let expression = self.bind_expression(module, scope_id, *expression, tree, symbols);
+                let expression =
+                    self.bind_expression(module, scope_id, *expression, tree, symbols, types);
                 Expression::Defer { expression }
             }
             ast::Expression::Await { expression } => {
-                let expression = self.bind_expression(module, scope_id, *expression, tree, symbols);
+                let expression =
+                    self.bind_expression(module, scope_id, *expression, tree, symbols, types);
                 Expression::Await { expression }
             }
             ast::Expression::Yield { cardinality, value } => {
@@ -772,12 +809,13 @@ impl<'a> Compiler<'a> {
                     ast::YieldCardinality::Generator => YieldCardinality::Generator,
                     ast::YieldCardinality::Scalar => YieldCardinality::Scalar,
                 };
-                let value = self.bind_expression(module, scope_id, *value, tree, symbols);
+                let value = self.bind_expression(module, scope_id, *value, tree, symbols, types);
                 Expression::Yield { cardinality, value }
             }
             ast::Expression::Throw { value } => {
-                let value =
-                    value.map(|value| self.bind_expression(module, scope_id, value, tree, symbols));
+                let value = value.map(|value| {
+                    self.bind_expression(module, scope_id, value, tree, symbols, types)
+                });
                 Expression::Throw { value }
             }
 

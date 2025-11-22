@@ -2,8 +2,10 @@ use crate::Compiler;
 use dyst_ast::{self as ast};
 use dyst_dir::{
     Annotation, AnnotationPosition, LocalNodeId, LocalScopeId, Module, NodeTree, SymbolTable,
+    TypeTable,
 };
 
+#[allow(clippy::too_many_arguments)]
 impl<'a> Compiler<'a> {
     /// Bind and attach all annotations for a module.
     pub fn attach_annotations(
@@ -12,10 +14,11 @@ impl<'a> Compiler<'a> {
         scope_id: LocalScopeId,
         tree: &mut NodeTree,
         symbols: &mut SymbolTable,
+        types: &mut TypeTable,
     ) {
         // bind them
         for ast_annotation_id in module.get_nodes::<ast::Annotation>() {
-            self.bind_annotation(module, scope_id, ast_annotation_id, tree, symbols);
+            self.bind_annotation(module, scope_id, ast_annotation_id, tree, symbols, types);
         }
 
         // attach them
@@ -56,6 +59,7 @@ impl<'a> Compiler<'a> {
         annotation_id: ast::LocalNodeId<ast::Annotation>,
         tree: &mut NodeTree,
         symbols: &mut SymbolTable,
+        types: &mut TypeTable,
     ) -> Option<LocalNodeId<Annotation>> {
         let annotation = module.get(annotation_id);
         let annotation = match annotation {
@@ -88,7 +92,7 @@ impl<'a> Compiler<'a> {
                     arguments
                         .iter()
                         .map(|argument| {
-                            self.bind_argument(module, scope_id, *argument, tree, symbols)
+                            self.bind_argument(module, scope_id, *argument, tree, symbols, types)
                         })
                         .collect()
                 });
@@ -106,7 +110,7 @@ impl<'a> Compiler<'a> {
                     arguments
                         .iter()
                         .map(|argument| {
-                            self.bind_argument(module, scope_id, *argument, tree, symbols)
+                            self.bind_argument(module, scope_id, *argument, tree, symbols, types)
                         })
                         .collect()
                 });

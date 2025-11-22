@@ -2,9 +2,10 @@ use crate::Compiler;
 use dyst_ast as ast;
 use dyst_dir::{
     Asynchrony, FunctionAbstraction, FunctionCardinality, FunctionKind, FunctionMode,
-    FunctionSignature, LocalScopeId, Module, NodeTree, SymbolTable,
+    FunctionSignature, LocalScopeId, Module, NodeTree, SymbolTable, TypeTable,
 };
 
+#[allow(clippy::too_many_arguments)]
 impl<'a> Compiler<'a> {
     /// Bind function kind into a DIR function kind.
     #[inline]
@@ -70,6 +71,7 @@ impl<'a> Compiler<'a> {
         signature: &ast::FunctionSignature,
         tree: &mut NodeTree,
         symbols: &mut SymbolTable,
+        types: &mut TypeTable,
     ) -> FunctionSignature {
         let abstraction = self.bind_function_abstraction(signature.abstraction);
         let asynchrony = self.bind_asynchrony(signature.asynchrony);
@@ -79,15 +81,15 @@ impl<'a> Compiler<'a> {
         let generics = signature
             .generics
             .as_ref()
-            .map(|generics| self.bind_generics(module, scope_id, generics, tree, symbols));
+            .map(|generics| self.bind_generics(module, scope_id, generics, tree, symbols, types));
         let dynamic_parameters = signature
             .dynamic_parameters
             .iter()
-            .map(|parameter| self.bind_parameter(module, scope_id, *parameter, tree, symbols))
+            .map(|parameter| self.bind_parameter(module, scope_id, *parameter, tree, symbols, types))
             .collect();
         let return_type = signature
             .return_type
-            .map(|return_type| self.bind_expression(module, scope_id, return_type, tree, symbols));
+            .map(|return_type| self.bind_expression(module, scope_id, return_type, tree, symbols, types));
         FunctionSignature {
             abstraction,
             asynchrony,

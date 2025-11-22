@@ -1,7 +1,7 @@
 use dyst_ast::{self as ast};
 use dyst_dir::{
     DependencyEdge, DependencyItem, DependencyKind, DependencySource, ExportType, Expression,
-    LocalNodeId, LocalScopeId, Module, NodeTree, SymbolKey, SymbolSpace, SymbolTable,
+    LocalNodeId, LocalScopeId, Module, NodeTree, SymbolKey, SymbolSpace, SymbolTable, TypeTable,
 };
 use dyst_source::StringId;
 
@@ -38,6 +38,7 @@ impl<'a> Compiler<'a> {
         item_id: ast::LocalNodeId<ast::DependencyItem>,
         tree: &mut NodeTree,
         symbols: &mut SymbolTable,
+        _types: &mut TypeTable,
     ) -> LocalNodeId<DependencyItem> {
         let item = module.get(item_id);
         let kind = self.bind_dependency_kind(item.kind.unwrap_or(kind));
