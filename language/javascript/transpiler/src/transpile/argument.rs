@@ -1,4 +1,4 @@
-use dyst_dir::{self as dir, Module, NodeTree};
+use dyst_dir::{self as dir, Module, NodeTree, SymbolTable, TypeTable};
 use dyst_javascript_ast::{Argument, Expression, LocalNodeId, Parameter};
 
 use crate::{TranspileResult, TranspileResultExt, Transpiler, TranspilerUnit};
@@ -9,6 +9,8 @@ impl<'a> Transpiler<'a> {
         &self,
         module: &'a Module,
         tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &TypeTable,
         parameter_id: dir::LocalNodeId<dir::Parameter>,
         unit: &mut TranspilerUnit,
     ) -> TranspileResult<LocalNodeId<Parameter>> {
@@ -17,20 +19,21 @@ impl<'a> Transpiler<'a> {
             dir::Parameter::Named {
                 modifiers,
                 name,
-                ty,
                 default,
-                symbol: _,
+                symbol,
             } => {
+                let symbol = symbols.get_symbol(*symbol);
                 let modifiers = modifiers
                     .map(|modifiers| self.transpile_binding_modifier(module, modifiers, unit))
                     .transpose()?;
                 let name = unit.strings.intern_from(&module.ast_strings, *name);
-                let ty = ty
-                    .map(|ty| self.transpile_type(module, tree, ty, unit))
+                let ty = symbol
+                    .declared_ty
+                    .map(|ty| self.transpile_type(module, tree, symbols, types, ty, unit))
                     .transpose()?;
                 let default = default
                     .map(|default| {
-                        self.transpile_expression(module, tree, default, unit)
+                        self.transpile_expression(module, tree, symbols, types, default, unit)
                             .expect_node::<Expression>(default.into_global_any(module.id), unit)
                     })
                     .transpose()?;
@@ -47,16 +50,19 @@ impl<'a> Transpiler<'a> {
                 default,
                 symbol: symbol_id,
             } => {
+                let symbol = symbols.get_symbol(*symbol_id);
                 let modifiers = modifiers
                     .map(|modifiers| self.transpile_binding_modifier(module, modifiers, unit))
                     .transpose()?;
-                let pattern = self.transpile_pattern(module, tree, *pattern, unit)?;
-                let ty = ty
-                    .map(|ty| self.transpile_type(module, tree, ty, unit))
+                let pattern =
+                    self.transpile_pattern(module, tree, symbols, types, *pattern, unit)?;
+                let ty = symbol
+                    .declared_ty
+                    .map(|ty| self.transpile_type(module, tree, symbols, types, ty, unit))
                     .transpose()?;
                 let default = default
                     .map(|default| {
-                        self.transpile_expression(module, tree, default, unit)
+                        self.transpile_expression(module, tree, symbols, types, default, unit)
                             .expect_node::<Expression>(default.into_global_any(module.id), unit)
                     })
                     .transpose()?;
@@ -70,15 +76,16 @@ impl<'a> Transpiler<'a> {
             dir::Parameter::Variadic {
                 modifiers,
                 name,
-                ty,
-                symbol: _,
+                symbol: symbol_id,
             } => {
+                let symbol = symbols.get_symbol(*symbol_id);
                 let modifiers = modifiers
                     .map(|modifiers| self.transpile_binding_modifier(module, modifiers, unit))
                     .transpose()?;
                 let name = unit.strings.intern_from(&module.ast_strings, *name);
-                let ty = ty
-                    .map(|ty| self.transpile_type(module, tree, ty, unit))
+                let ty = symbol
+                    .declared_ty
+                    .map(|ty| self.transpile_type(module, tree, symbols, types, ty, unit))
                     .transpose()?;
                 Parameter::Variadic {
                     modifiers,
@@ -98,6 +105,8 @@ impl<'a> Transpiler<'a> {
         &self,
         module: &'a Module,
         tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &TypeTable,
         argument_id: dir::LocalNodeId<dir::Argument>,
         unit: &mut TranspilerUnit,
     ) -> TranspileResult<LocalNodeId<Argument>> {
@@ -119,7 +128,7 @@ impl<'a> Transpiler<'a> {
                 value,
             } => {
                 let value = self
-                    .transpile_expression(module, tree, *value, unit)
+                    .transpile_expression(module, tree, symbols, types, *value, unit)
                     .expect_node::<Expression>(value.into_global_any(module.id), unit)?;
                 Argument::Positional { value }
             }
@@ -135,7 +144,7 @@ impl<'a> Transpiler<'a> {
                 value,
             } => {
                 let value = self
-                    .transpile_expression(module, tree, *value, unit)
+                    .transpile_expression(module, tree, symbols, types, *value, unit)
                     .expect_node::<Expression>(value.into_global_any(module.id), unit)?;
                 Argument::Spread { value }
             }
@@ -153,10 +162,10 @@ impl<'a> Transpiler<'a> {
                 remote_symbol: _,
             } => {
                 let key = self
-                    .transpile_expression(module, tree, *key, unit)
+                    .transpile_expression(module, tree, symbols, types, *key, unit)
                     .expect_node::<Expression>(key.into_global_any(module.id), unit)?;
                 let value = self
-                    .transpile_expression(module, tree, *value, unit)
+                    .transpile_expression(module, tree, symbols, types, *value, unit)
                     .expect_node::<Expression>(value.into_global_any(module.id), unit)?;
                 Argument::Dynamic { key, value }
             }

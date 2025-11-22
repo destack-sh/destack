@@ -1,4 +1,4 @@
-use dyst_dir::{self as dir, ModuleId, NodeTree};
+use dyst_dir::{self as dir, ModuleId, NodeTree, SymbolTable, TypeTable};
 use dyst_javascript_ast::{self as ast, LocalNodeIdAny};
 use dyst_source::{StringPool, Uri};
 
@@ -56,10 +56,12 @@ impl<'a> Transpiler<'a> {
         &self,
         module: &'a dir::Module,
         tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &TypeTable,
         unit: &mut TranspilerUnit,
     ) {
         for expression_id in module.roots.iter() {
-            match self.transpile_expression(module, tree, *expression_id, unit) {
+            match self.transpile_expression(module, tree, symbols, types, *expression_id, unit) {
                 Ok(root_id) => unit.roots.push(root_id),
                 Err(error) => unit.error(error),
             }

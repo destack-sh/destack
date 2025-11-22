@@ -1,10 +1,10 @@
-use dyst_dir::{self as dir, Module, NodeTree};
+use dyst_dir::{self as dir, Module, NodeTree, SymbolTable, TypeTable};
 use dyst_javascript_ast::{
-    Asynchrony, FunctionAbstraction, FunctionCardinality, FunctionKind, FunctionMode,
+    Asynchrony, Expression, FunctionAbstraction, FunctionCardinality, FunctionKind, FunctionMode,
     FunctionSignature,
 };
 
-use crate::{TranspileError, TranspileResult, Transpiler, TranspilerUnit};
+use crate::{TranspileError, TranspileResult, TranspileResultExt, Transpiler, TranspilerUnit};
 
 impl<'a> Transpiler<'a> {
     /// Transpile asynchrony from DIR into JS AST.
@@ -63,6 +63,8 @@ impl<'a> Transpiler<'a> {
         &self,
         module: &'a Module,
         tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &TypeTable,
         function_signature: &dir::FunctionSignature,
         unit: &mut TranspilerUnit,
     ) -> TranspileResult<FunctionSignature> {
@@ -76,17 +78,18 @@ impl<'a> Transpiler<'a> {
         let generics = function_signature
             .generics
             .as_ref()
-            .map(|generics| self.transpile_generics(module, tree, generics, unit))
+            .map(|generics| self.transpile_generics(module, tree, symbols, types, generics, unit))
             .transpose()?;
         let dynamic_parameters = function_signature
             .dynamic_parameters
             .iter()
-            .map(|parameter| self.transpile_parameter(module, tree, *parameter, unit))
+            .map(|parameter| {
+                self.transpile_parameter(module, tree, symbols, types, *parameter, unit)
+            })
             .collect::<Result<Vec<_>, TranspileError>>()?;
-        let return_type = function_signature
-            .return_type
-            .map(|return_type| self.transpile_type(module, tree, return_type, unit))
-            .transpose()?;
+        let return_type = function_signature.return_type.map(|return_type| {
+            todo!("transpile return type");
+        });
         Ok(FunctionSignature {
             abstraction,
             asynchrony,

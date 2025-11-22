@@ -1,4 +1,4 @@
-use dyst_dir::{self as dir, Module, NodeTree};
+use dyst_dir::{self as dir, Module, NodeTree, SymbolTable, TypeTable};
 use dyst_javascript_ast::{
     Expression, LocalNodeId, LocalNodeIdAny, NodeType, PostfixPosition, Statement,
 };
@@ -30,6 +30,8 @@ impl<'a> Transpiler<'a> {
         &self,
         module: &'a Module,
         tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &TypeTable,
         expression_id: dir::LocalNodeId<dir::Expression>,
         unit: &mut TranspilerUnit,
     ) -> TranspileResult<LocalNodeIdAny> {
@@ -45,19 +47,21 @@ impl<'a> Transpiler<'a> {
 
         let transpiled_id = match expression {
             dir::Expression::Declaration { declaration } => {
-                let declaration = self.transpile_declaration(module, tree, *declaration, unit)?;
+                let declaration =
+                    self.transpile_declaration(module, tree, symbols, types, *declaration, unit)?;
                 let expression = Expression::Declaration { declaration };
                 unit.ast
                     .insert_from_source(expression, module.id, expression_id)
                     .into_any()
             }
             dir::Expression::Block { block } => {
-                let block_id = self.transpile_block(module, tree, *block, unit)?;
+                let block_id = self.transpile_block(module, tree, symbols, types, *block, unit)?;
                 unit.ast.alias_from(expression_id.id, block_id);
                 block_id.into_any()
             }
             dir::Expression::Statement { statement } => {
-                let transpiled_id = self.transpile_expression(module, tree, *statement, unit)?;
+                let transpiled_id =
+                    self.transpile_expression(module, tree, symbols, types, *statement, unit)?;
                 let statement_id: LocalNodeId<Statement> = match transpiled_id.ty {
                     // wrap expression in statement
                     NodeType::Expression => {
@@ -107,14 +111,25 @@ impl<'a> Transpiler<'a> {
                 arguments,
             } => {
                 let target = unit.strings.intern_from(&module.ast_strings, *target);
-                let (default_alias, items) =
-                    self.transpile_dependency_items(module, tree, *kind, items.as_slice(), unit)?;
+                let (default_alias, items) = self.transpile_dependency_items(
+                    module,
+                    tree,
+                    symbols,
+                    types,
+                    *kind,
+                    items.as_slice(),
+                    unit,
+                )?;
                 let arguments = arguments
                     .as_ref()
                     .map(|arguments| {
                         arguments
                             .iter()
-                            .map(|argument| self.transpile_argument(module, tree, *argument, unit))
+                            .map(|argument| {
+                                self.transpile_argument(
+                                    module, tree, symbols, types, *argument, unit,
+                                )
+                            })
                             .collect::<Result<Vec<_>, TranspileError>>()
                     })
                     .transpose()?;
@@ -145,8 +160,15 @@ impl<'a> Transpiler<'a> {
             } => {
                 let mode = self.transpile_export_type(*mode);
                 let target = unit.strings.intern_from(&module.ast_strings, *target);
-                let (default_alias, items) =
-                    self.transpile_dependency_items(module, tree, *kind, items.as_slice(), unit)?;
+                let (default_alias, items) = self.transpile_dependency_items(
+                    module,
+                    tree,
+                    symbols,
+                    types,
+                    *kind,
+                    items.as_slice(),
+                    unit,
+                )?;
                 let kind = self.transpile_dependency_kind(*kind);
                 let statement = Statement::Export {
                     mode,
@@ -163,18 +185,20 @@ impl<'a> Transpiler<'a> {
             dir::Expression::Let {
                 mutability,
                 pattern,
-                ty,
                 value,
-                symbol: _,
+                symbol: symbol_id,
             } => {
+                let symbol = symbols.get_symbol(*symbol_id);
                 let mutability = self.transpile_mutability(*mutability);
-                let pattern = self.transpile_pattern(module, tree, *pattern, unit)?;
-                let ty = ty
-                    .map(|ty| self.transpile_type(module, tree, ty, unit))
+                let pattern =
+                    self.transpile_pattern(module, tree, symbols, types, *pattern, unit)?;
+                let ty = symbol
+                    .declared_ty
+                    .map(|ty| self.transpile_type(module, tree, symbols, types, ty, unit))
                     .transpose()?;
                 let value = value
                     .map(|value| {
-                        self.transpile_expression(module, tree, value, unit)
+                        self.transpile_expression(module, tree, symbols, types, value, unit)
                             .expect_node::<Expression>(value.into_global_any(module.id), unit)
                     })
                     .transpose()?;
@@ -199,7 +223,11 @@ impl<'a> Transpiler<'a> {
                     .map(|arguments| {
                         arguments
                             .iter()
-                            .map(|argument| self.transpile_argument(module, tree, *argument, unit))
+                            .map(|argument| {
+                                self.transpile_argument(
+                                    module, tree, symbols, types, *argument, unit,
+                                )
+                            })
                             .collect::<Result<Vec<_>, TranspileError>>()
                     })
                     .transpose()?;
@@ -223,8 +251,15 @@ impl<'a> Transpiler<'a> {
                     .iter()
                     .map(|element_id| {
                         let element = tree.get(*element_id);
-                        self.transpile_expression(module, tree, element.value(), unit)
-                            .expect_node::<Expression>(element_id.into_global_any(module.id), unit)
+                        self.transpile_expression(
+                            module,
+                            tree,
+                            symbols,
+                            types,
+                            element.value(),
+                            unit,
+                        )
+                        .expect_node::<Expression>(element_id.into_global_any(module.id), unit)
                     })
                     .collect::<Result<Vec<_>, TranspileError>>()?;
                 let expression = Expression::ArrayLiteral { elements };
@@ -237,8 +272,15 @@ impl<'a> Transpiler<'a> {
                     .iter()
                     .map(|element_id| {
                         let element = tree.get(*element_id);
-                        self.transpile_expression(module, tree, element.value(), unit)
-                            .expect_node::<Expression>(element_id.into_global_any(module.id), unit)
+                        self.transpile_expression(
+                            module,
+                            tree,
+                            symbols,
+                            types,
+                            element.value(),
+                            unit,
+                        )
+                        .expect_node::<Expression>(element_id.into_global_any(module.id), unit)
                     })
                     .collect::<Result<Vec<_>, TranspileError>>()?;
                 let expression = Expression::ArrayLiteral { elements };
@@ -249,7 +291,9 @@ impl<'a> Transpiler<'a> {
             dir::Expression::StructLiteral { ty: _, properties } => {
                 let properties = properties
                     .iter()
-                    .map(|property_id| self.transpile_property(module, tree, *property_id, unit))
+                    .map(|property_id| {
+                        self.transpile_property(module, tree, symbols, types, *property_id, unit)
+                    })
                     .collect::<Result<Vec<_>, TranspileError>>()?;
                 let expression = Expression::ObjectLiteral { properties };
                 unit.ast
@@ -261,6 +305,8 @@ impl<'a> Transpiler<'a> {
                 .transpile_type_unary_expression(
                     module,
                     tree,
+                    symbols,
+                    types,
                     expression_id,
                     *operator,
                     *right,
@@ -275,6 +321,8 @@ impl<'a> Transpiler<'a> {
                 .transpile_type_binary_expression(
                     module,
                     tree,
+                    symbols,
+                    types,
                     expression_id,
                     *left,
                     *operator,
@@ -283,7 +331,16 @@ impl<'a> Transpiler<'a> {
                 )?
                 .into_any(),
             dir::Expression::Unary { operator, right } => self
-                .transpile_unary_expression(module, tree, expression_id, *operator, *right, unit)?
+                .transpile_unary_expression(
+                    module,
+                    tree,
+                    symbols,
+                    types,
+                    expression_id,
+                    *operator,
+                    *right,
+                    unit,
+                )?
                 .into_any(),
             dir::Expression::Binary {
                 left,
@@ -293,6 +350,8 @@ impl<'a> Transpiler<'a> {
                 .transpile_binary_expression(
                     module,
                     tree,
+                    symbols,
+                    types,
                     expression_id,
                     *left,
                     *operator,
@@ -302,10 +361,10 @@ impl<'a> Transpiler<'a> {
                 .into_any(),
             dir::Expression::Assign { left, right } => {
                 let left_id = self
-                    .transpile_expression(module, tree, *left, unit)
+                    .transpile_expression(module, tree, symbols, types, *left, unit)
                     .expect_node::<Expression>(left.into_global_any(module.id), unit)?;
                 let right_id = self
-                    .transpile_expression(module, tree, *right, unit)
+                    .transpile_expression(module, tree, symbols, types, *right, unit)
                     .expect_node::<Expression>(right.into_global_any(module.id), unit)?;
                 let expression = Expression::Assign {
                     left: left_id,
@@ -323,6 +382,8 @@ impl<'a> Transpiler<'a> {
                 .transpile_assign_binary_expression(
                     module,
                     tree,
+                    symbols,
+                    types,
                     expression_id,
                     *left,
                     *operator,
@@ -338,7 +399,7 @@ impl<'a> Transpiler<'a> {
                 static_arguments,
             } => {
                 let left_id = self
-                    .transpile_expression(module, tree, *left, unit)
+                    .transpile_expression(module, tree, symbols, types, *left, unit)
                     .expect_node::<Expression>(left.into_global_any(module.id), unit)?;
                 let name = unit.strings.intern_from(&module.ast_strings, *name);
                 let static_arguments = static_arguments
@@ -346,7 +407,11 @@ impl<'a> Transpiler<'a> {
                     .map(|arguments| {
                         arguments
                             .iter()
-                            .map(|argument| self.transpile_argument(module, tree, *argument, unit))
+                            .map(|argument| {
+                                self.transpile_argument(
+                                    module, tree, symbols, types, *argument, unit,
+                                )
+                            })
                             .collect::<Result<Vec<_>, TranspileError>>()
                     })
                     .transpose()?;
@@ -361,7 +426,7 @@ impl<'a> Transpiler<'a> {
             }
             dir::Expression::Index { left, right } => {
                 let left_id = self
-                    .transpile_expression(module, tree, *left, unit)
+                    .transpile_expression(module, tree, symbols, types, *left, unit)
                     .expect_node::<Expression>(left.into_global_any(module.id), unit)?;
                 let position = self.get_postfix_expression_position(left_id, unit);
                 let &Some(right) = right else {
@@ -371,7 +436,7 @@ impl<'a> Transpiler<'a> {
                     });
                 };
                 let right_id = self
-                    .transpile_expression(module, tree, right, unit)
+                    .transpile_expression(module, tree, symbols, types, right, unit)
                     .expect_node::<Expression>(right.into_global_any(module.id), unit)?;
                 let expression = Expression::Index {
                     position,
@@ -388,7 +453,7 @@ impl<'a> Transpiler<'a> {
                 dynamic_arguments,
             } => {
                 let left_id = self
-                    .transpile_expression(module, tree, *left, unit)
+                    .transpile_expression(module, tree, symbols, types, *left, unit)
                     .expect_node::<Expression>(left.into_global_any(module.id), unit)?;
                 let position = self.get_postfix_expression_position(left_id, unit);
                 let static_arguments = static_arguments
@@ -396,13 +461,19 @@ impl<'a> Transpiler<'a> {
                     .map(|arguments| {
                         arguments
                             .iter()
-                            .map(|argument| self.transpile_argument(module, tree, *argument, unit))
+                            .map(|argument| {
+                                self.transpile_argument(
+                                    module, tree, symbols, types, *argument, unit,
+                                )
+                            })
                             .collect::<Result<Vec<_>, TranspileError>>()
                     })
                     .transpose()?;
                 let dynamic_arguments = dynamic_arguments
                     .iter()
-                    .map(|argument| self.transpile_argument(module, tree, *argument, unit))
+                    .map(|argument| {
+                        self.transpile_argument(module, tree, symbols, types, *argument, unit)
+                    })
                     .collect::<Result<Vec<_>, TranspileError>>()?;
                 let expression = Expression::Call {
                     position,
@@ -420,20 +491,26 @@ impl<'a> Transpiler<'a> {
                 dynamic_arguments,
             } => {
                 let left_id = self
-                    .transpile_expression(module, tree, *left, unit)
+                    .transpile_expression(module, tree, symbols, types, *left, unit)
                     .expect_node::<Expression>(left.into_global_any(module.id), unit)?;
                 let static_arguments = static_arguments
                     .as_ref()
                     .map(|arguments| {
                         arguments
                             .iter()
-                            .map(|argument| self.transpile_argument(module, tree, *argument, unit))
+                            .map(|argument| {
+                                self.transpile_argument(
+                                    module, tree, symbols, types, *argument, unit,
+                                )
+                            })
                             .collect::<Result<Vec<_>, TranspileError>>()
                     })
                     .transpose()?;
                 let dynamic_arguments = dynamic_arguments
                     .iter()
-                    .map(|argument| self.transpile_argument(module, tree, *argument, unit))
+                    .map(|argument| {
+                        self.transpile_argument(module, tree, symbols, types, *argument, unit)
+                    })
                     .collect::<Result<Vec<_>, TranspileError>>()?;
                 let expression = Expression::New {
                     left: left_id,

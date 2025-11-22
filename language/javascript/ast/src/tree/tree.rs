@@ -100,7 +100,7 @@ impl NodeTree {
         }
     }
 
-    /// Allocate a new node in the tree.
+    /// Allocate a new node in the JS AST tree.
     fn insert<T>(&mut self, node: T, module_id: ModuleId) -> LocalNodeId<T>
     where
         T: Node,
@@ -115,7 +115,7 @@ impl NodeTree {
         LocalNodeId::new(global_id)
     }
 
-    /// Allocate a new node in the DIR tree derived from another node.
+    /// Allocate a new node in the JS AST tree derived from another JS AST node.
     pub fn insert_from_source<T, U>(
         &mut self,
         node: T,
@@ -127,6 +127,22 @@ impl NodeTree {
         Self: NodeTreeImpl<T>,
         U: dir::Node,
         dir::NodeTree: dir::NodeTreeImpl<U>,
+    {
+        let node_id = self.insert(node, module_id);
+        self.dir_id_by_node_id.push(Some(dir_node_id.id));
+        node_id
+    }
+
+    /// Allocate a new node in the JS AST tree derived from a DIR node.
+    pub fn insert_from_source_any<T>(
+        &mut self,
+        node: T,
+        module_id: ModuleId,
+        dir_node_id: dir::LocalNodeIdAny,
+    ) -> LocalNodeId<T>
+    where
+        T: Node,
+        Self: NodeTreeImpl<T>,
     {
         let node_id = self.insert(node, module_id);
         self.dir_id_by_node_id.push(Some(dir_node_id.id));
