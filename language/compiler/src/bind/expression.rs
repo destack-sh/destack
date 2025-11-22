@@ -48,7 +48,7 @@ impl<'a> Compiler<'a> {
             }
 
             ast::Expression::With { clauses, body } => {
-                let (symbol_id, scope_id) = symbols.create_local_symbol_with_scope(
+                let (symbol_id, scope_id) = symbols.insert_symbol_with_scope(
                     SymbolSpace::Value,
                     None,
                     ScopeKind::Block,
@@ -97,7 +97,7 @@ impl<'a> Compiler<'a> {
                         .session
                         .strings
                         .intern_from(&module.ast_strings, *alias);
-                    let symbol_id = symbols.create_local_symbol(
+                    let symbol_id = symbols.insert_symbol(
                         SymbolSpace::Value,
                         Some(SymbolKey::Name(alias)),
                         scope_id,
@@ -165,7 +165,7 @@ impl<'a> Compiler<'a> {
                             .session
                             .strings
                             .intern_from(&module.ast_strings, *alias);
-                        let symbol_id = symbols.create_local_symbol(
+                        let symbol_id = symbols.insert_symbol(
                             SymbolSpace::Value,
                             Some(SymbolKey::Name(alias)),
                             scope_id,
@@ -234,7 +234,7 @@ impl<'a> Compiler<'a> {
                     ty.map(|ty| self.bind_expression_to_type(module, scope_id, ty, tree, symbols));
                 let value =
                     value.map(|value| self.bind_expression(module, scope_id, value, tree, symbols));
-                let symbol_id = symbols.create_local_symbol(SymbolSpace::Value, None, scope_id);
+                let symbol_id = symbols.insert_symbol(SymbolSpace::Value, None, scope_id);
                 Expression::Let {
                     mutability,
                     pattern,
@@ -263,7 +263,7 @@ impl<'a> Compiler<'a> {
                         .collect()
                 });
                 let value = self.bind_expression(module, scope_id, *value, tree, symbols);
-                let symbol_id = symbols.create_local_symbol(
+                let symbol_id = symbols.insert_symbol(
                     SymbolSpace::Value,
                     Some(SymbolKey::Name(name)),
                     scope_id,
@@ -593,7 +593,7 @@ impl<'a> Compiler<'a> {
                     ast::WhileKind::DoWhile => LoopKind::PostTest,
                 };
                 let condition = self.bind_expression(module, scope_id, *condition, tree, symbols);
-                let (symbol_id, scope_id) = symbols.create_local_symbol_with_scope(
+                let (symbol_id, scope_id) = symbols.insert_symbol_with_scope(
                     SymbolSpace::Value,
                     None,
                     ScopeKind::Block,
@@ -622,7 +622,7 @@ impl<'a> Compiler<'a> {
                 };
                 let pattern = self.bind_pattern(module, scope_id, *pattern, tree, symbols);
                 let iterator = self.bind_expression(module, scope_id, *iterator, tree, symbols);
-                let (symbol_id, scope_id) = symbols.create_local_symbol_with_scope(
+                let (symbol_id, scope_id) = symbols.insert_symbol_with_scope(
                     SymbolSpace::Value,
                     None,
                     ScopeKind::Block,
@@ -645,7 +645,7 @@ impl<'a> Compiler<'a> {
                 increment,
                 body,
             } => {
-                let (symbol_id, scope_id) = symbols.create_local_symbol_with_scope(
+                let (symbol_id, scope_id) = symbols.insert_symbol_with_scope(
                     SymbolSpace::Value,
                     None,
                     ScopeKind::Block,
@@ -671,7 +671,7 @@ impl<'a> Compiler<'a> {
                 }
             }
             ast::Expression::Loop { body } => {
-                let (symbol_id, scope_id) = symbols.create_local_symbol_with_scope(
+                let (symbol_id, scope_id) = symbols.insert_symbol_with_scope(
                     SymbolSpace::Value,
                     None,
                     ScopeKind::Block,
@@ -692,7 +692,7 @@ impl<'a> Compiler<'a> {
                 catch_expression,
                 finally_expression,
             } => {
-                let (symbol_id, scope_id) = symbols.create_local_symbol_with_scope(
+                let (symbol_id, scope_id) = symbols.insert_symbol_with_scope(
                     SymbolSpace::Value,
                     None,
                     ScopeKind::Block,
@@ -724,7 +724,7 @@ impl<'a> Compiler<'a> {
                 cases,
             } => {
                 let value = self.bind_expression(module, scope_id, *value, tree, symbols);
-                let (symbol_id, scope_id) = symbols.create_local_symbol_with_scope(
+                let (symbol_id, scope_id) = symbols.insert_symbol_with_scope(
                     SymbolSpace::Value,
                     None,
                     ScopeKind::Block,

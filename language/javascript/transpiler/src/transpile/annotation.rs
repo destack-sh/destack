@@ -43,7 +43,7 @@ impl<'a> Transpiler<'a> {
             dir::Annotation::Tag {
                 position,
                 left,
-                symbol: _,
+                remote_symbol: _,
                 arguments: _,
             }
             | dir::Annotation::UnresolvedTag {
@@ -63,7 +63,7 @@ impl<'a> Transpiler<'a> {
             dir::Annotation::Decorator {
                 position,
                 left,
-                symbol: _,
+                remote_symbol: _,
                 arguments: _,
             }
             | dir::Annotation::UnresolvedDecorator {

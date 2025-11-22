@@ -1,4 +1,4 @@
-use crate::{Expression, GlobalSymbolId, LocalNodeId, Mutability, Node, NodeType, StringId, Type};
+use crate::{Expression, GlobalSymbolId, LocalNodeId, Mutability, Node, NodeType, StringId};
 
 /// A Pattern is a pattern to match something and unwrap it.
 #[derive(Debug, Clone, PartialEq)]
@@ -28,18 +28,28 @@ pub enum Pattern {
         end: Option<LocalNodeId<Pattern>>,
         is_inclusive: bool,
     },
+    /// Unresolved tuple pattern (like `Result.Success(_)`).
+    UnresolvedTuple {
+        ty: LocalNodeId<Expression>,
+        fields: Vec<LocalNodeId<PatternField>>,
+    },
     /// Tuple pattern (like `(x, 0)` or `Result.Success(_)`).
     Tuple {
-        ty: Option<LocalNodeId<Type>>,
+        remote_symbol: GlobalSymbolId,
         fields: Vec<LocalNodeId<PatternField>>,
     },
     /// Array or slice pattern (like `[1, 2, x]` or `[1, y, ..]`).
     Slice {
         fields: Vec<LocalNodeId<PatternField>>,
     },
+    /// Unresolved struct pattern (like `Vector2 { x: 0, y, z: zedso  }`).
+    UnresolvedStruct {
+        ty: LocalNodeId<Expression>,
+        fields: Vec<LocalNodeId<PatternField>>,
+    },
     /// Struct pattern (like `Vector2 { x: 0, y, z: zedso  }`).
     Struct {
-        ty: Option<LocalNodeId<Type>>,
+        remote_symbol: GlobalSymbolId,
         fields: Vec<LocalNodeId<PatternField>>,
     },
     /// Union pattern (like `1 | 2 | 3`).

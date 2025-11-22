@@ -85,8 +85,8 @@ impl Module {
         ast_strings: StringPool,
     ) -> Self {
         let mut symbols = SymbolTable::new(id);
-        let scope_id = symbols.create_local_scope(ScopeKind::Namespace, None, None);
-        let symbol_id = symbols.create_local_symbol(SymbolSpace::Value, None, scope_id);
+        let scope_id = symbols.insert_scope(ScopeKind::Namespace, None, None);
+        let symbol_id = symbols.insert_symbol(SymbolSpace::Value, None, scope_id);
         symbols.get_scope_by_id_mut(scope_id).owner = Some(symbol_id);
 
         Self {

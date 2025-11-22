@@ -4,7 +4,7 @@ use crate::{
     Argument, AssignOperator, Asynchrony, BinaryOperator, Block, Declaration, DependencyItem,
     DependencyKind, ExportType, GlobalSymbolId, LocalNodeId, LocalScopeId, LocalSymbolId,
     MatchCase, MatchSource, ModuleId, Mutability, Node, NodeType, Parameter, Path, Pattern,
-    Property, ScalarLiteral, TemplateLiteral, Type, TypeBinaryOperator, TypeKind, TypeLiteral,
+    Property, ScalarLiteral, TemplateLiteral, TypeBinaryOperator, TypeKind, TypeLiteral,
     TypeUnaryOperator, UnaryOperator, VarianceBound,
 };
 
@@ -70,7 +70,6 @@ pub enum Expression {
     Let {
         mutability: Mutability,
         pattern: LocalNodeId<Pattern>,
-        ty: Option<LocalNodeId<Type>>,
         value: Option<LocalNodeId<Expression>>,
         symbol: LocalSymbolId,
     },
@@ -201,6 +200,9 @@ pub enum Expression {
         static_arguments: Option<Vec<LocalNodeId<Argument>>>,
         remote_symbol: GlobalSymbolId,
     },
+
+    /// Type as a value.
+    Type { symbol: LocalSymbolId },
     /// Scalar literal value.
     ScalarLiteral { value: ScalarLiteral },
     /// Template literal value.
@@ -224,12 +226,12 @@ pub enum Expression {
     },
     /// Tuple creation.
     TupleLiteral {
-        ty: Option<LocalNodeId<Type>>,
+        ty: Option<LocalNodeId<Expression>>,
         elements: Vec<LocalNodeId<Argument>>,
     },
     /// Struct creation.
     StructLiteral {
-        ty: Option<LocalNodeId<Type>>,
+        ty: Option<LocalNodeId<Expression>>,
         properties: Vec<LocalNodeId<Property>>,
     },
     /// Tree creation.
@@ -345,18 +347,22 @@ impl Expression {
     pub fn kind_name(&self) -> &'static str {
         match self {
             Expression::Declaration { .. } => "declaration",
-            Expression::Block { .. } => "block",
-            Expression::Statement { .. } => "statement",
             Expression::With { .. } => "with",
             Expression::UnresolvedImport { .. } => "unresolved import",
             Expression::UnresolvedReExport { .. } => "unresolved re-export",
             Expression::Import { .. } => "import",
             Expression::ReExport { .. } => "re-export",
             Expression::Export { .. } => "export",
+
+            Expression::Block { .. } => "block",
+            Expression::Statement { .. } => "statement",
+
             Expression::Let { .. } => "let",
             Expression::LetType { .. } => "let type",
+
             Expression::TypeUnary { .. } => "type unary",
             Expression::TypeBinary { .. } => "type binary",
+
             Expression::Unary { .. } => "unary",
             Expression::ValueOf { .. } => "value of",
             Expression::ReferenceOf { .. } => "reference of",
@@ -371,11 +377,14 @@ impl Expression {
             Expression::Must { .. } => "must",
             Expression::New { .. } => "new",
             Expression::Delete { .. } => "delete",
+
             Expression::UnresolvedAbsolutePath { .. } => "unresolved path",
             Expression::UnresolvedRelativePath { .. } => "unresolved relative path",
             Expression::LocalReference { .. } => "local reference",
             Expression::ModuleReference { .. } => "declaration reference",
             Expression::GlobalReference { .. } => "global reference",
+
+            Expression::Type { .. } => "type",
             Expression::ScalarLiteral { .. } => "scalar literal",
             Expression::TemplateLiteral { .. } => "template literal",
             Expression::TaggedTemplateLiteral { .. } => "tagged template literal",
@@ -386,6 +395,7 @@ impl Expression {
             Expression::StructLiteral { .. } => "struct literal",
             Expression::TreeLiteral { .. } => "tree literal",
             Expression::Parenthesized { .. } => "parenthesized",
+
             Expression::If { .. } => "if",
             Expression::Loop { .. } => "loop",
             Expression::ForEach { .. } => "for each",
@@ -401,6 +411,7 @@ impl Expression {
             Expression::Await { .. } => "await",
             Expression::Yield { .. } => "yield",
             Expression::Return { .. } => "return",
+
             Expression::Error => "error",
         }
     }
@@ -500,6 +511,31 @@ pub struct WithClause {
 
 impl Node for WithClause {
     const TYPE: NodeType = NodeType::WithClause;
+
+    fn is_resolved(&self) -> bool {
+        true
+    }
+}
+
+/// A WhereClause is a single clause in a where type declaration.
+#[derive(Debug, Clone, PartialEq)]
+pub enum WhereClause {
+    /// Where assertion (like `T: int32`).
+    Assertion {
+        /// The target to assert (like `T` in `T: int32`)
+        left: StringId,
+        /// The assertion type (like `int32` in `T: int32`)
+        right: LocalNodeId<Expression>,
+    },
+    /// Where guard (like `T > Y`).
+    Guard {
+        /// The guard (like `T > Y` in `with T > Y`)
+        guard: LocalNodeId<Expression>,
+    },
+}
+
+impl Node for WhereClause {
+    const TYPE: NodeType = NodeType::WhereClause;
 
     fn is_resolved(&self) -> bool {
         true

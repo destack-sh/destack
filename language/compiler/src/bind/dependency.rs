@@ -49,7 +49,7 @@ impl<'a> Compiler<'a> {
             .alias
             .map(|alias| self.session.strings.intern_from(&module.ast_strings, alias));
         let symbol_id =
-            symbols.create_local_symbol(SymbolSpace::Value, Some(SymbolKey::Name(name)), scope_id);
+            symbols.insert_symbol(SymbolSpace::Value, Some(SymbolKey::Name(name)), scope_id);
         let item = DependencyItem::UnresolvedItem {
             kind,
             name,

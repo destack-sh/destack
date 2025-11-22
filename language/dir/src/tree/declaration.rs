@@ -1,6 +1,6 @@
 use crate::{
-    BindingScope, ExportType, Expression, FunctionSignature, Generics, Heritage, LocalNodeId,
-    LocalScopeId, LocalSymbolId, Node, NodeType, Property, StringId, Type,
+    BindingScope, ExportType, Expression, FunctionSignature, Generics, GlobalSymbolId, Heritage,
+    LocalNodeId, LocalScopeId, LocalSymbolId, Node, NodeType, Property, StringId,
 };
 
 /// The kind of declaration.
@@ -74,7 +74,8 @@ pub enum Declaration {
     Implement {
         descriptor: DeclarationDescriptor,
         generics: Generics,
-        target_type: LocalNodeId<Type>,
+        target_type: LocalNodeId<Expression>,
+        target_symbol: Option<GlobalSymbolId>,
         heritage: Heritage,
         scope: LocalScopeId,
         properties: Vec<LocalNodeId<Property>>,
