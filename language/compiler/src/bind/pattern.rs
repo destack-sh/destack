@@ -1,6 +1,9 @@
 use crate::Compiler;
 use dyst_ast as ast;
-use dyst_dir::{LocalNodeId, LocalScopeId, Module, NodeTree, Pattern, PatternField, SymbolTable, TypeTable};
+use dyst_dir::{
+    LocalNodeId, LocalScopeId, Module, NodeTree, Pattern, PatternField, SymbolKey, SymbolSpace,
+    SymbolTable, TypeTable,
+};
 
 #[allow(clippy::too_many_arguments)]
 impl<'a> Compiler<'a> {
@@ -20,9 +23,14 @@ impl<'a> Compiler<'a> {
             ast::Pattern::Rest { name } => Pattern::Rest {
                 name: name.map(|name| self.session.strings.intern_from(&module.ast_strings, name)),
             },
-            ast::Pattern::Maybe(pattern_id) => {
-                Pattern::Maybe(self.bind_pattern(module, scope_id, *pattern_id, tree, symbols, types))
-            }
+            ast::Pattern::Maybe(pattern_id) => Pattern::Maybe(self.bind_pattern(
+                module,
+                scope_id,
+                *pattern_id,
+                tree,
+                symbols,
+                types,
+            )),
             ast::Pattern::ReferenceOf {
                 mutability,
                 right: right_id,
@@ -38,12 +46,19 @@ impl<'a> Compiler<'a> {
             } => {
                 let mutability = mutability.map(|mutability| self.bind_mutability(mutability));
                 let name = self.session.strings.intern_from(&module.ast_strings, *name);
-                let pattern = pattern
-                    .map(|pattern| self.bind_pattern(module, scope_id, pattern, tree, symbols, types));
+                let pattern = pattern.map(|pattern| {
+                    self.bind_pattern(module, scope_id, pattern, tree, symbols, types)
+                });
+                let symbol = symbols.insert_symbol(
+                    SymbolSpace::Value,
+                    Some(SymbolKey::Name(name)),
+                    scope_id,
+                );
                 Pattern::Binding {
                     mutability,
                     name,
                     pattern,
+                    symbol,
                 }
             }
             ast::Pattern::Expression { value } => {
@@ -55,9 +70,10 @@ impl<'a> Compiler<'a> {
                 end,
                 is_inclusive,
             } => {
-                let start =
-                    start.map(|start| self.bind_pattern(module, scope_id, start, tree, symbols, types));
-                let end = end.map(|end| self.bind_pattern(module, scope_id, end, tree, symbols, types));
+                let start = start
+                    .map(|start| self.bind_pattern(module, scope_id, start, tree, symbols, types));
+                let end =
+                    end.map(|end| self.bind_pattern(module, scope_id, end, tree, symbols, types));
                 Pattern::Range {
                     start,
                     end,
@@ -70,7 +86,9 @@ impl<'a> Compiler<'a> {
                     .map(|ty| self.bind_expression(module, scope_id, *ty, tree, symbols, types));
                 let fields = fields
                     .iter()
-                    .map(|field| self.bind_pattern_field(module, scope_id, *field, tree, symbols, types))
+                    .map(|field| {
+                        self.bind_pattern_field(module, scope_id, *field, tree, symbols, types)
+                    })
                     .collect();
                 if let Some(ty) = ty {
                     Pattern::UnresolvedTuple { ty, fields }
@@ -84,15 +102,20 @@ impl<'a> Compiler<'a> {
             ast::Pattern::Slice { fields } => {
                 let fields = fields
                     .iter()
-                    .map(|field| self.bind_pattern_field(module, scope_id, *field, tree, symbols, types))
+                    .map(|field| {
+                        self.bind_pattern_field(module, scope_id, *field, tree, symbols, types)
+                    })
                     .collect();
                 Pattern::Slice { fields }
             }
             ast::Pattern::Struct { ty, fields } => {
-                let ty = ty.map(|ty| self.bind_expression(module, scope_id, ty, tree, symbols, types));
+                let ty =
+                    ty.map(|ty| self.bind_expression(module, scope_id, ty, tree, symbols, types));
                 let fields = fields
                     .iter()
-                    .map(|field| self.bind_pattern_field(module, scope_id, *field, tree, symbols, types))
+                    .map(|field| {
+                        self.bind_pattern_field(module, scope_id, *field, tree, symbols, types)
+                    })
                     .collect();
                 if let Some(ty) = ty {
                     Pattern::UnresolvedStruct { ty, fields }
@@ -137,15 +160,23 @@ impl<'a> Compiler<'a> {
                     .session
                     .strings
                     .intern_from(&module.ast_strings, name.string());
-                let pattern = pattern
-                    .map(|pattern| self.bind_pattern(module, scope_id, pattern, tree, symbols, types));
-                let default = default
-                    .map(|default| self.bind_expression(module, scope_id, default, tree, symbols, types));
+                let pattern = pattern.map(|pattern| {
+                    self.bind_pattern(module, scope_id, pattern, tree, symbols, types)
+                });
+                let default = default.map(|default| {
+                    self.bind_expression(module, scope_id, default, tree, symbols, types)
+                });
+                let symbol = symbols.insert_symbol(
+                    SymbolSpace::Value,
+                    Some(SymbolKey::Name(name)),
+                    scope_id,
+                );
                 PatternField::UnresolvedNamed {
                     mutability,
                     name,
                     pattern,
                     default,
+                    symbol,
                 }
             }
             ast::PatternField::Alias {
@@ -163,19 +194,27 @@ impl<'a> Compiler<'a> {
                     .session
                     .strings
                     .intern_from(&module.ast_strings, *alias);
-                let default = default
-                    .map(|default| self.bind_expression(module, scope_id, default, tree, symbols, types));
+                let default = default.map(|default| {
+                    self.bind_expression(module, scope_id, default, tree, symbols, types)
+                });
+                let symbol = symbols.insert_symbol(
+                    SymbolSpace::Value,
+                    Some(SymbolKey::Name(name)),
+                    scope_id,
+                );
                 PatternField::UnresolvedAlias {
                     mutability,
                     name,
                     alias,
                     default,
+                    symbol,
                 }
             }
             ast::PatternField::Positional {
                 pattern: pattern_id,
             } => {
-                let pattern = self.bind_pattern(module, scope_id, *pattern_id, tree, symbols, types);
+                let pattern =
+                    self.bind_pattern(module, scope_id, *pattern_id, tree, symbols, types);
                 PatternField::UnresolvedPositional { pattern }
             }
         };

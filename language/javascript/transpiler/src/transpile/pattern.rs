@@ -57,12 +57,14 @@ impl<'a> Transpiler<'a> {
                 pattern,
                 default,
                 symbol: _,
+                target_symbol: _,
             }
             | dir::PatternField::UnresolvedNamed {
                 mutability,
                 name,
                 pattern,
                 default,
+                symbol: _,
             } => {
                 let mutability = mutability.map(|mutability| self.transpile_mutability(mutability));
                 let name = unit.strings.intern_from(&self.session.strings, *name);
@@ -90,12 +92,14 @@ impl<'a> Transpiler<'a> {
                 alias,
                 default,
                 symbol: _,
+                target_symbol: _,
             }
             | dir::PatternField::UnresolvedAlias {
                 mutability,
                 name,
                 alias,
                 default,
+                symbol: _,
             } => {
                 let mutability = mutability.map(|mutability| self.transpile_mutability(mutability));
                 let name = unit.strings.intern_from(&self.session.strings, *name);
@@ -115,7 +119,7 @@ impl<'a> Transpiler<'a> {
                 unit.ast
                     .insert_from_source(pattern_field, module.id, pattern_field_id)
             }
-            dir::PatternField::Positional { pattern, symbol: _ }
+            dir::PatternField::Positional { pattern }
             | dir::PatternField::UnresolvedPositional { pattern } => {
                 let pattern = self.transpile_pattern(module, tree, symbols, types, *pattern, unit)?;
                 let pattern_field = PatternField::Positional { pattern };

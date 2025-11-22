@@ -1,6 +1,6 @@
 use dyst_dir::{self as dir, Module, NodeTree, SymbolTable, TypeTable};
 use dyst_javascript_ast::{
-    Asynchrony, Expression, FunctionAbstraction, FunctionCardinality, FunctionKind, FunctionMode,
+    Asynchrony, FunctionAbstraction, FunctionCardinality, FunctionKind, FunctionMode,
     FunctionSignature,
 };
 
