@@ -4,7 +4,7 @@ use crate::parse::prelude::*;
 use crate::{ParseError, ParseResult, Parser, ParserMark};
 
 use dyst_ast::{
-    Argument, AssignOperator, BinaryOperator, BindingScope, DeclarationDescriptor, DeclarationKind,
+    Argument, AssignOperator, BinaryOperator, BindingAnchor, DeclarationDescriptor, DeclarationKind,
     ExportType, Expression, IfKind, InfixOperator, Keyword, LocalNodeId, NodeType, PostfixPosition,
     TokenSpan, TokenType, TypeBinaryOperator, TypeUnaryOperator, UnaryOperator,
 };
@@ -375,12 +375,12 @@ impl<'a> Parser<'a> {
             DeclarationKind::Definition
         };
 
-        // scope
-        descriptor.scope = if self.peek_keyword(Keyword::Static).is_ok() {
+        // anchor
+        descriptor.anchor = if self.peek_keyword(Keyword::Static).is_ok() {
             self.bump(); // eat static
-            BindingScope::Static
+            BindingAnchor::Static
         } else {
-            BindingScope::Instance
+            BindingAnchor::Instance
         };
 
         //

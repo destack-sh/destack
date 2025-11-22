@@ -12,12 +12,12 @@ pub enum BindingKind {
     Maybe,
 }
 
-/// The scope of a binding (dynamic or static).
+/// The anchor of a binding (static or instance).
 #[derive(Debug, Copy, Clone, PartialEq)]
-pub enum BindingScope {
-    /// Static scope (static in relation to the container).
+pub enum BindingAnchor {
+    /// Static container (static in relation to the container).
     Static,
-    /// Container scope (whatever contains the declaration).
+    /// Instance container (whatever contains the declaration).
     Instance,
 }
 
@@ -33,8 +33,8 @@ pub enum BindingOperator {
 pub struct BindingModifier {
     /// The kind of the binding.
     pub kind: Option<BindingKind> = None,
-    /// The scope of the binding.
-    pub scope: Option<BindingScope> = None,
+    /// The anchor of the binding.
+    pub anchor: Option<BindingAnchor> = None,
     /// The mutability of the binding.
     pub mutability: Option<Mutability> = None,
     /// The visibility of the binding.
@@ -52,10 +52,10 @@ impl BindingModifier {
         }
     }
 
-    /// Create a new binding modifiers with the given scope.
-    pub fn with_scope(self, scope: BindingScope) -> Self {
+    /// Create a new binding modifiers with the given anchor.
+    pub fn with_anchor(self, anchor: BindingAnchor) -> Self {
         Self {
-            scope: Some(scope),
+            anchor: Some(anchor),
             ..self
         }
     }

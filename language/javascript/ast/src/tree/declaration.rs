@@ -1,5 +1,5 @@
 use crate::{
-    BindingScope, Block, ExportType, Expression, FunctionSignature, Generics, Heritage,
+    BindingAnchor, Block, ExportType, Expression, FunctionSignature, Generics, Heritage,
     LocalNodeId, Name, Node, NodeType, Property, Statement, StringId,
 };
 
@@ -17,8 +17,8 @@ pub enum DeclarationKind {
 pub struct DeclarationDescriptor {
     /// The kind of declaration.
     pub kind: DeclarationKind,
-    /// The scope of the declaration.
-    pub scope: BindingScope,
+    /// The anchor of the declaration.
+    pub anchor: BindingAnchor,
     /// The name of the declaration.
     pub name: Option<Name>,
     /// The export type of the declaration.

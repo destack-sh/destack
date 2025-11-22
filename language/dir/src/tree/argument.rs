@@ -68,21 +68,21 @@ pub enum Argument {
     Direct {
         modifiers: Option<BindingModifier>,
         name: StringId,
-        remote_symbol: GlobalSymbolId,
+        target_symbol: GlobalSymbolId,
         value: LocalNodeId<Expression>,
     },
     /// Spread argument.
     Spread {
         modifiers: Option<BindingModifier>,
         name: StringId,
-        remote_symbol: GlobalSymbolId,
+        target_symbol: GlobalSymbolId,
         value: LocalNodeId<Expression>,
     },
     /// Dynamic argument.
     Dynamic {
         modifiers: Option<BindingModifier>,
         name: Option<StringId>,
-        remote_symbol: GlobalSymbolId,
+        target_symbol: GlobalSymbolId,
         key: LocalNodeId<Expression>,
         value: LocalNodeId<Expression>,
     },

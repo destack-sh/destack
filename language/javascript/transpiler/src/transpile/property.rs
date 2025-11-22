@@ -1,6 +1,6 @@
 use dyst_dir::{self as dir, Module, NodeTree, SymbolTable, TypeTable};
 use dyst_javascript_ast::{
-    BindingKind, BindingModifier, BindingOperator, BindingScope, Expression, LocalNodeId, Property,
+    BindingAnchor, BindingKind, BindingModifier, BindingOperator, Expression, LocalNodeId, Property,
 };
 
 use crate::{TranspileResult, TranspileResultExt, Transpiler, TranspilerUnit};
@@ -17,9 +17,9 @@ impl<'a> Transpiler<'a> {
             dir::BindingKind::Must => BindingKind::Must,
             dir::BindingKind::Maybe => BindingKind::Maybe,
         });
-        let scope = modifier.scope.map(|scope| match scope {
-            dir::BindingScope::Static => BindingScope::Static,
-            dir::BindingScope::Instance => BindingScope::Instance,
+        let anchor = modifier.anchor.map(|anchor| match anchor {
+            dir::BindingAnchor::Static => BindingAnchor::Static,
+            dir::BindingAnchor::Instance => BindingAnchor::Instance,
         });
         let mutability = modifier
             .mutability
@@ -32,7 +32,7 @@ impl<'a> Transpiler<'a> {
         });
         Ok(BindingModifier {
             kind,
-            scope,
+            anchor,
             mutability,
             visibility,
             operator,
@@ -98,7 +98,8 @@ impl<'a> Transpiler<'a> {
                     .as_ref()
                     .map(|key| self.transpile_key(module, tree, symbols, types, *key, unit))
                     .transpose()?;
-                let signature = self.transpile_function_signature(module, tree, symbols, types, signature, unit)?;
+                let signature = self
+                    .transpile_function_signature(module, tree, symbols, types, signature, unit)?;
                 let body = body
                     .as_ref()
                     .map(|body_id| {

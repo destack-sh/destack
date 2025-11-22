@@ -2,7 +2,7 @@ use dyst_fir::format::FormatResult;
 use dyst_fir::prelude::*;
 use dyst_fir::write;
 use dyst_javascript_ast::{
-    Asynchrony, BindingKind, BindingModifier, BindingOperator, BindingScope, FunctionAbstraction,
+    Asynchrony, BindingKind, BindingModifier, BindingOperator, BindingAnchor, FunctionAbstraction,
     FunctionCardinality, Keyword, LocalNodeId, Mutability, Property,
 };
 
@@ -19,7 +19,7 @@ pub(crate) fn format_binding_modifiers_prefix<'ast>(
         write!(f, [visibility, space()])?;
     }
     // scope
-    if modifiers.scope == Some(BindingScope::Static) {
+    if modifiers.anchor == Some(BindingAnchor::Static) {
         write!(f, [Keyword::Static, space()])?;
     }
     // mutability

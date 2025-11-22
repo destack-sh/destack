@@ -52,12 +52,10 @@ impl SymbolTable {
             secondary_declarations: Vec::new(),
             declared_ty: None,
             inferred_ty: None,
-            remote_symbol: None,
+            target_symbol: None,
         };
         self.symbols.allocate(symbol);
-        if let Some(key) = key {
-            self.scopes.get_mut(scope.0).insert_symbol(key, symbol_id);
-        }
+        self.scopes.get_mut(scope.0).insert_symbol(key, symbol_id);
         symbol_id
     }
 
@@ -76,7 +74,8 @@ impl SymbolTable {
             owner,
             parent_id: parent,
             module_id: self.module_id,
-            symbols: IndexMap::new(),
+            symbols_by_key: IndexMap::new(),
+            anonymous_symbols: Vec::new(),
             children: Vec::new(),
         };
         self.scopes.allocate(scope);
@@ -86,7 +85,7 @@ impl SymbolTable {
         scope_id
     }
 
-    /// Create a new local symbol with an owned scope.
+    /// Create a new local symbol with an owned scope. Symbols belongs to outer scope.
     pub fn insert_symbol_with_scope(
         &mut self,
         space: SymbolSpace,

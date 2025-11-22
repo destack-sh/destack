@@ -93,7 +93,7 @@ pub struct Symbol {
     /// The inferred type of the symbol.
     pub inferred_ty: Option<LocalTypeId>,
     /// Forward to another remote symbol (like for imports, pattern bindings, etc.).
-    pub remote_symbol: Option<GlobalSymbolId>,
+    pub target_symbol: Option<GlobalSymbolId>,
 }
 
 impl Symbol {

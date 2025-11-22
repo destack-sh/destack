@@ -397,7 +397,7 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
         }
         Expression::UnresolvedRelativePath {
             path: _,
-            local_symbol: _,
+            target_symbol: _,
             remaining_path: _,
             static_arguments,
         } => {
@@ -411,17 +411,17 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
         Expression::LocalReference {
             path: _,
             static_arguments,
-            local_symbol: _,
+            target_symbol: _,
         }
         | Expression::ModuleReference {
             path: _,
             static_arguments,
-            local_symbol: _,
+            target_symbol: _,
         }
         | Expression::GlobalReference {
             path: _,
             static_arguments,
-            remote_symbol: _,
+            target_symbol: _,
         } => {
             if let Some(static_arguments) = static_arguments {
                 for argument_id in static_arguments {
@@ -937,7 +937,7 @@ pub fn walk_dependency_item<V: NodeVisitor + ?Sized>(
         }
         DependencyItem::Remote {
             symbol: _,
-            remote_symbol: _,
+            target_symbol: _,
             module: _,
         } => {
             // nothing to do
@@ -1028,13 +1028,13 @@ pub fn walk_argument<V: NodeVisitor + ?Sized>(
         Argument::Direct {
             modifiers: _,
             name: _,
-            remote_symbol: _,
+            target_symbol: _,
             value,
         }
         | Argument::Spread {
             modifiers: _,
             name: _,
-            remote_symbol: _,
+            target_symbol: _,
             value,
         } => {
             let value_expression = tree.get(*value);
@@ -1043,7 +1043,7 @@ pub fn walk_argument<V: NodeVisitor + ?Sized>(
         Argument::Dynamic {
             modifiers: _,
             name: _,
-            remote_symbol: _,
+            target_symbol: _,
             key,
             value,
         } => {
@@ -1113,7 +1113,7 @@ pub fn walk_pattern<V: NodeVisitor + ?Sized>(
             }
         }
         Pattern::Tuple {
-            remote_symbol: _,
+            target_symbol: _,
             fields,
         } => {
             for field_id in fields {
@@ -1136,7 +1136,7 @@ pub fn walk_pattern<V: NodeVisitor + ?Sized>(
             }
         }
         Pattern::Struct {
-            remote_symbol: _,
+            target_symbol: _,
             fields,
         } => {
             for field_id in fields {
@@ -1272,7 +1272,7 @@ pub fn walk_annotation<V: NodeVisitor + ?Sized>(
         Annotation::Tag {
             position: _,
             left: _,
-            remote_symbol: _,
+            target_symbol: _,
             arguments,
         }
         | Annotation::UnresolvedTag {
@@ -1283,7 +1283,7 @@ pub fn walk_annotation<V: NodeVisitor + ?Sized>(
         | Annotation::Decorator {
             position: _,
             left: _,
-            remote_symbol: _,
+            target_symbol: _,
             arguments,
         }
         | Annotation::UnresolvedDecorator {

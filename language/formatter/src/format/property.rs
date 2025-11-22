@@ -3,7 +3,7 @@ use crate::r#where::format_where_clause;
 use crate::with::format_with_clause;
 use crate::{DystFormatter, FormatNode};
 use dyst_ast::{
-    Asynchrony, BindingKind, BindingModifier, BindingOperator, BindingScope, FunctionAbstraction,
+    Asynchrony, BindingKind, BindingModifier, BindingOperator, BindingAnchor, FunctionAbstraction,
     FunctionCardinality, Keyword, LocalNodeId, Mutability, Property,
 };
 use dyst_fir::format::FormatResult;
@@ -20,7 +20,7 @@ pub(crate) fn format_binding_modifiers_prefix<'ast>(
         write!(f, [visibility, space()])?;
     }
     // scope
-    if modifiers.scope == Some(BindingScope::Static) {
+    if modifiers.anchor == Some(BindingAnchor::Static) {
         write!(f, [Keyword::Static, space()])?;
     }
     // mutability

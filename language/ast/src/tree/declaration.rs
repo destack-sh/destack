@@ -1,5 +1,5 @@
 use crate::{
-    BindingScope, ExportType, Expression, FunctionSignature, LocalNodeId, Name, Node, NodeType,
+    BindingAnchor, ExportType, Expression, FunctionSignature, LocalNodeId, Name, Node, NodeType,
     Parameter, Property, WhereClause, WithClause,
 };
 
@@ -17,8 +17,8 @@ pub enum DeclarationKind {
 pub struct DeclarationDescriptor {
     /// The kind of declaration.
     pub kind: DeclarationKind = DeclarationKind::Definition,
-    /// The scope of the declaration.
-    pub scope: BindingScope = BindingScope::Instance,
+    /// The anchor of the declaration.
+    pub anchor: BindingAnchor = BindingAnchor::Instance,
     /// The name of the declaration.
     pub name: Option<Name> = None,
     /// The export type of the declaration.
@@ -26,13 +26,13 @@ pub struct DeclarationDescriptor {
 }
 
 impl DeclarationDescriptor {
-    /// Create a new declaration descriptor with the given name and scope.
+    /// Create a new declaration descriptor with the given anchor.
     #[inline]
-    pub fn with_scope(self, scope: BindingScope) -> Self {
-        Self { scope, ..self }
+    pub fn with_anchor(self, anchor: BindingAnchor) -> Self {
+        Self { anchor, ..self }
     }
 
-    /// Create a new declaration descriptor with the given name and name.
+    /// Create a new declaration descriptor with the given name.
     #[inline]
     pub fn with_name(self, name: Name) -> Self {
         Self {

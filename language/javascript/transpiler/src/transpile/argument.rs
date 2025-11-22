@@ -124,7 +124,7 @@ impl<'a> Transpiler<'a> {
             | dir::Argument::Direct {
                 modifiers: _,
                 name: _,
-                remote_symbol: _,
+                target_symbol: _,
                 value,
             } => {
                 let value = self
@@ -140,7 +140,7 @@ impl<'a> Transpiler<'a> {
             | dir::Argument::Spread {
                 modifiers: _,
                 name: _,
-                remote_symbol: _,
+                target_symbol: _,
                 value,
             } => {
                 let value = self
@@ -159,7 +159,7 @@ impl<'a> Transpiler<'a> {
                 name: _,
                 key,
                 value,
-                remote_symbol: _,
+                target_symbol: _,
             } => {
                 let key = self
                     .transpile_expression(module, tree, symbols, types, *key, unit)

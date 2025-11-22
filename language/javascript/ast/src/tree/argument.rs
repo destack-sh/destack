@@ -13,7 +13,7 @@ pub enum BindingKind {
 
 /// The scope of a binding (dynamic or static).
 #[derive(Debug, Copy, Clone, PartialEq)]
-pub enum BindingScope {
+pub enum BindingAnchor {
     /// Container scope.
     Instance,
     /// Static scope.
@@ -33,7 +33,7 @@ pub struct BindingModifier {
     /// The kind of the binding.
     pub kind: Option<BindingKind> = None,
     /// The scope of the binding.
-    pub scope: Option<BindingScope> = None,
+    pub anchor: Option<BindingAnchor> = None,
     /// The mutability of the field.
     pub mutability: Option<Mutability> = None,
     /// The visibility of the field.

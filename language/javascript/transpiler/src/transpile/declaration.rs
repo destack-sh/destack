@@ -1,6 +1,6 @@
 use dyst_dir::{self as dir, Module, NodeTree, SymbolTable, TypeTable};
 use dyst_javascript_ast::{
-    BindingScope, Block, Declaration, DeclarationDescriptor, DeclarationKind, EnumField,
+    BindingAnchor, Block, Declaration, DeclarationDescriptor, DeclarationKind, EnumField,
     ExportType, Expression, LocalNodeId, Statement, Visibility,
 };
 
@@ -36,11 +36,11 @@ impl<'a> Transpiler<'a> {
         }
     }
 
-    /// Transpile a binding scope from DIR into JS AST.
-    pub fn transpile_binding_scope(&self, scope: dir::BindingScope) -> BindingScope {
-        match scope {
-            dir::BindingScope::Static => BindingScope::Static,
-            dir::BindingScope::Instance => BindingScope::Instance,
+    /// Transpile a binding anchor from DIR into JS AST.
+    pub fn transpile_binding_anchor(&self, anchor: dir::BindingAnchor) -> BindingAnchor {
+        match anchor {
+            dir::BindingAnchor::Static => BindingAnchor::Static,
+            dir::BindingAnchor::Instance => BindingAnchor::Instance,
         }
     }
 
@@ -55,7 +55,7 @@ impl<'a> Transpiler<'a> {
         unit: &mut TranspilerUnit,
     ) -> DeclarationDescriptor {
         let kind = self.transpile_declaration_kind(descriptor.kind);
-        let scope = self.transpile_binding_scope(descriptor.scope);
+        let anchor = self.transpile_binding_anchor(descriptor.anchor);
         let name = descriptor
             .name
             .map(|name| self.transpile_string_to_name(module, name, unit));
@@ -64,7 +64,7 @@ impl<'a> Transpiler<'a> {
             .map(|export| self.transpile_export_type(export));
         DeclarationDescriptor {
             kind,
-            scope,
+            anchor,
             name,
             export,
         }
@@ -88,8 +88,9 @@ impl<'a> Transpiler<'a> {
                 generics: _,
                 expressions,
             } => {
-                let descriptor =
-                    self.transpile_declaration_descriptor(module, tree, symbols, types, descriptor, unit);
+                let descriptor = self.transpile_declaration_descriptor(
+                    module, tree, symbols, types, descriptor, unit,
+                );
                 let statements = expressions
                     .iter()
                     .map(|expression| {
@@ -110,13 +111,18 @@ impl<'a> Transpiler<'a> {
                 heritage,
                 properties,
             } => {
-                let descriptor =
-                    self.transpile_declaration_descriptor(module, tree, symbols, types, descriptor, unit);
-                let generics = self.transpile_generics(module, tree, symbols, types, generics, unit)?;
-                let heritage = self.transpile_heritage(module, tree, symbols, types, heritage, unit)?;
+                let descriptor = self.transpile_declaration_descriptor(
+                    module, tree, symbols, types, descriptor, unit,
+                );
+                let generics =
+                    self.transpile_generics(module, tree, symbols, types, generics, unit)?;
+                let heritage =
+                    self.transpile_heritage(module, tree, symbols, types, heritage, unit)?;
                 let properties = properties
                     .iter()
-                    .map(|property| self.transpile_property(module, tree, symbols, types, *property, unit))
+                    .map(|property| {
+                        self.transpile_property(module, tree, symbols, types, *property, unit)
+                    })
                     .collect::<Result<Vec<_>, TranspileError>>()?;
                 // TODO #Broken: struct declarations should become just JS types + namespaces?
                 Declaration::Class {
@@ -133,13 +139,18 @@ impl<'a> Transpiler<'a> {
                 heritage,
                 properties,
             } => {
-                let descriptor =
-                    self.transpile_declaration_descriptor(module, tree, symbols, types, descriptor, unit);
-                let generics = self.transpile_generics(module, tree, symbols, types, generics, unit)?;
-                let heritage = self.transpile_heritage(module, tree, symbols, types, heritage, unit)?;
+                let descriptor = self.transpile_declaration_descriptor(
+                    module, tree, symbols, types, descriptor, unit,
+                );
+                let generics =
+                    self.transpile_generics(module, tree, symbols, types, generics, unit)?;
+                let heritage =
+                    self.transpile_heritage(module, tree, symbols, types, heritage, unit)?;
                 let properties = properties
                     .iter()
-                    .map(|property| self.transpile_property(module, tree, symbols, types, *property, unit))
+                    .map(|property| {
+                        self.transpile_property(module, tree, symbols, types, *property, unit)
+                    })
                     .collect::<Result<Vec<_>, TranspileError>>()?;
                 Declaration::Interface {
                     descriptor,
@@ -156,11 +167,14 @@ impl<'a> Transpiler<'a> {
                 fields,
                 properties: _,
             } => {
-                let descriptor =
-                    self.transpile_declaration_descriptor(module, tree, symbols, types, descriptor, unit);
+                let descriptor = self.transpile_declaration_descriptor(
+                    module, tree, symbols, types, descriptor, unit,
+                );
                 let fields = fields
                     .iter()
-                    .map(|field| self.transpile_enum_field(module, tree, symbols, types, *field, unit))
+                    .map(|field| {
+                        self.transpile_enum_field(module, tree, symbols, types, *field, unit)
+                    })
                     .collect::<Result<Vec<_>, TranspileError>>()?;
                 Declaration::Enum { descriptor, fields }
             }
@@ -170,9 +184,11 @@ impl<'a> Transpiler<'a> {
                 signature,
                 body,
             } => {
-                let descriptor =
-                    self.transpile_declaration_descriptor(module, tree, symbols, types, descriptor, unit);
-                let signature = self.transpile_function_signature(module, tree, symbols, types, signature, unit)?;
+                let descriptor = self.transpile_declaration_descriptor(
+                    module, tree, symbols, types, descriptor, unit,
+                );
+                let signature = self
+                    .transpile_function_signature(module, tree, symbols, types, signature, unit)?;
                 let body = body
                     .map(|body| {
                         self.transpile_expression(module, tree, symbols, types, body, unit)
