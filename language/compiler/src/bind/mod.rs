@@ -1,6 +1,5 @@
 mod annotation;
 mod argument;
-mod bind;
 mod block;
 mod declaration;
 mod dependency;
@@ -17,10 +16,11 @@ mod pattern;
 mod property;
 mod r#type;
 mod warning;
+mod process;
 mod r#where;
 mod with;
 
-pub use bind::*;
 pub use error::*;
+pub use process::*;
 pub use options::*;
 pub use warning::*;

@@ -1,10 +1,10 @@
 mod error;
 mod options;
+mod process;
 mod r#type;
-mod validate;
 mod warning;
 
 pub use error::*;
 pub use options::*;
-pub use validate::*;
+pub use process::*;
 pub use warning::*;

@@ -8,11 +8,11 @@ mod module;
 mod options;
 mod path;
 mod pattern;
-mod resolve;
+mod process;
 mod r#type;
 mod warning;
 
 pub use error::*;
 pub use options::*;
-pub use resolve::*;
+pub use process::*;
 pub use warning::*;
