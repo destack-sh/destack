@@ -1220,7 +1220,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
             Declaration::Namespace {
                 descriptor,
                 generics,
-                declarations: _,
+                expressions: _,
                 scope,
             } => {
                 self.node("Declaration::Module", id.id)

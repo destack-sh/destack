@@ -946,7 +946,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
         match declaration {
             Declaration::Namespace {
                 descriptor,
-                declarations: _,
+                statements: _,
             } => {
                 self.node("Declaration::Namespace", id.id)
                     .field("descriptor", descriptor)

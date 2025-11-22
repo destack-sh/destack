@@ -710,13 +710,13 @@ pub fn walk_declaration<V: NodeVisitor + ?Sized>(
         Declaration::Namespace {
             descriptor: _,
             generics,
-            declarations,
+            expressions,
             scope: _,
         } => {
             walk_generics(visitor, tree, generics);
-            for declaration_id in declarations {
-                let child_declaration = tree.get(*declaration_id);
-                visitor.visit_declaration(tree, *declaration_id, child_declaration);
+            for expression_id in expressions {
+                let expression = tree.get(*expression_id);
+                visitor.visit_expression(tree, *expression_id, expression);
             }
         }
         Declaration::Struct {

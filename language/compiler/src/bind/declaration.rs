@@ -23,27 +23,6 @@ impl<'a> Compiler<'a> {
         }
     }
 
-    /// Bind expression to DIR declaration (if it's maybe a declaration).
-    /// nocheckin: revisit bind_expression_to_declaration_maybe
-    pub(super) fn bind_expression_to_declaration_maybe(
-        &self,
-        module: &Module,
-        scope_id: LocalScopeId,
-        expression_id: ast::LocalNodeId<ast::Expression>,
-        tree: &mut NodeTree,
-        symbols: &mut SymbolTable,
-    ) -> Option<LocalNodeId<Declaration>> {
-        let expression = module.get(expression_id);
-        let declaration_id = match expression {
-            ast::Expression::Declaration(declaration_id) => {
-                self.bind_declaration(module, scope_id, *declaration_id, tree, symbols)
-            }
-            _ => return None,
-        };
-        tree.alias_from_source(expression_id.id, declaration_id);
-        Some(declaration_id)
-    }
-
     /// Bind AST declaration descriptor into DIR declaration descriptor.
     pub(super) fn bind_declaration_descriptor(
         &self,
@@ -96,23 +75,17 @@ impl<'a> Compiler<'a> {
                 );
                 let descriptor = self.bind_declaration_descriptor(module, symbol_id, descriptor);
                 let generics = self.bind_generics(module, scope_id, generics, tree, symbols);
-                let declarations = expressions
+                let expressions = expressions
                     .iter()
-                    .flat_map(|expression| {
-                        self.bind_expression_to_declaration_maybe(
-                            module,
-                            scope_id,
-                            *expression,
-                            tree,
-                            symbols,
-                        )
+                    .map(|expression| {
+                        self.bind_expression(module, scope_id, *expression, tree, symbols)
                     })
                     .collect();
                 Declaration::Namespace {
                     descriptor,
                     generics,
                     scope: scope_id,
-                    declarations,
+                    expressions,
                 }
             }
             ast::Declaration::Struct {
