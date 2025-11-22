@@ -15,8 +15,12 @@ impl<'a> Compiler<'a> {
         tree: &mut NodeTree,
         symbols: &mut SymbolTable,
     ) -> LocalNodeId<Block> {
-        let (symbol_id, scope_id) =
-            symbols.create_local_symbol_with_scope(SymbolSpace::Value, None, ScopeKind::Block, scope_id);
+        let (symbol_id, scope_id) = symbols.create_local_symbol_with_scope(
+            SymbolSpace::Value,
+            None,
+            ScopeKind::Block,
+            scope_id,
+        );
         let block = module.get(block_id);
         let label = block
             .label

@@ -397,7 +397,7 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             let left_expression = tree.get(*left);
             visitor.visit_expression(tree, *left, left_expression);
         }
-        Expression::UnresolvedPath {
+        Expression::UnresolvedAbsolutePath {
             path: _,
             static_arguments,
         } => {
@@ -408,15 +408,28 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
                 }
             }
         }
-        Expression::LocalReference {
-            name: _,
+        Expression::UnresolvedRelativePath {
+            path: _,
+            local_symbol: _,
+            remaining_path: _,
             static_arguments,
-            remote_symbol: _,
+        } => {
+            if let Some(static_arguments) = static_arguments {
+                for argument_id in static_arguments {
+                    let argument = tree.get(*argument_id);
+                    visitor.visit_argument(tree, *argument_id, argument);
+                }
+            }
+        }
+        Expression::LocalReference {
+            path: _,
+            static_arguments,
+            local_symbol: _,
         }
         | Expression::ModuleReference {
             path: _,
             static_arguments,
-            remote_symbol: _,
+            local_symbol: _,
         }
         | Expression::GlobalReference {
             path: _,

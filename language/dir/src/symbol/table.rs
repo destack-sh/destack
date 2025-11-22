@@ -46,7 +46,7 @@ impl SymbolTable {
             id: symbol_id,
             space,
             key,
-            scope,
+            scope_id: scope,
             module_id: self.module_id,
             primary_declaration: None,
             secondary_declarations: Vec::new(),
@@ -137,13 +137,16 @@ impl SymbolTable {
 
     /// Get the scope for a node id.
     #[inline]
-    pub fn get_scope<'a, T: Node>(
-        &'a self,
-        node_id: LocalNodeId<T>,
-        tree: &NodeTree,
-    ) -> &'a Scope {
+    pub fn get_scope<'a, T: Node>(&'a self, node_id: LocalNodeId<T>, tree: &NodeTree) -> &'a Scope {
         let scope_id = tree.get_scope(node_id);
         self.scopes.get(scope_id.0)
+    }
+
+    /// Get the scope for a symbol id.
+    #[inline]
+    pub fn get_scope_by_symbol(&self, symbol_id: LocalSymbolId) -> &Scope {
+        let symbol = self.get_symbol(symbol_id);
+        self.scopes.get(symbol.scope_id.0)
     }
 
     /// Get a scope by its id.

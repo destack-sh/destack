@@ -1,5 +1,5 @@
 use crate::{CompileError, CompilePhase};
-use dyst_dir::{GlobalNodeIdAny, GlobalScopeId, GlobalSymbolId, Session, StringId};
+use dyst_dir::{GlobalNodeIdAny, GlobalScopeId, GlobalSymbolId, Session, StringId, SymbolKey};
 
 /// Error when evaluating something statically.
 #[derive(Debug, Clone, PartialEq)]
@@ -18,32 +18,26 @@ pub enum ResolveError {
     UndeclaredSymbol {
         node: GlobalNodeIdAny,
         scope: GlobalScopeId,
-        name: StringId,
+        key: SymbolKey,
     },
     /// Use of missing symbol.
     MissingSymbol {
         node: GlobalNodeIdAny,
         scope: GlobalScopeId,
-        name: StringId,
+        key: SymbolKey,
     },
     /// Use of ambiguous symbol.
     AmbiguousSymbol {
         node: GlobalNodeIdAny,
         scope: GlobalScopeId,
         symbol: GlobalSymbolId,
-        name: StringId,
+        key: SymbolKey,
     },
     /// Unresolved module.
     UnresolvedModule {
         node: GlobalNodeIdAny,
         scope: GlobalScopeId,
         target: StringId,
-    },
-    /// Unresolved member.
-    UnresolvedMember {
-        node: GlobalNodeIdAny,
-        scope: GlobalScopeId,
-        name: StringId,
     },
     /// Conflicting declarations in the same scope.
     ConflictingDeclaration {
@@ -72,9 +66,8 @@ impl ResolveError {
             Self::MissingSymbol { .. } => 4,
             Self::AmbiguousSymbol { .. } => 5,
             Self::UnresolvedModule { .. } => 7,
-            Self::UnresolvedMember { .. } => 8,
-            Self::ConflictingDeclaration { .. } => 9,
-            Self::DuplicateExport { .. } => 10,
+            Self::ConflictingDeclaration { .. } => 8,
+            Self::DuplicateExport { .. } => 9,
         }
     }
 
@@ -87,7 +80,6 @@ impl ResolveError {
             Self::MissingSymbol { node, .. } => Some(*node),
             Self::AmbiguousSymbol { node, .. } => Some(*node),
             Self::UnresolvedModule { node, .. } => Some(*node),
-            Self::UnresolvedMember { node, .. } => Some(*node),
             Self::ConflictingDeclaration { node, .. } => Some(*node),
             Self::DuplicateExport { node, .. } => Some(*node),
         }
@@ -102,7 +94,6 @@ impl ResolveError {
             Self::MissingSymbol { .. } => "missing symbol".to_string(),
             Self::AmbiguousSymbol { .. } => "ambiguous symbol".to_string(),
             Self::UnresolvedModule { .. } => "unresolved module".to_string(),
-            Self::UnresolvedMember { .. } => "unresolved member".to_string(),
             Self::ConflictingDeclaration { .. } => "conflicting declaration".to_string(),
             Self::DuplicateExport { .. } => "duplicate export".to_string(),
         }

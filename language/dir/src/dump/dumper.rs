@@ -975,32 +975,44 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 self.node("Expression::Must", id.id).end();
             }
 
-            Expression::UnresolvedPath {
+            Expression::UnresolvedAbsolutePath {
                 path,
                 static_arguments: _,
             } => {
-                self.node("Expression::UnresolvedPath", id.id)
+                self.node("Expression::UnresolvedAbsolutePath", id.id)
+                    .field("path", path)
+                    .end();
+            }
+            Expression::UnresolvedRelativePath {
+                remaining_path,
+                local_symbol,
+                path,
+                static_arguments: _,
+            } => {
+                self.node("Expression::UnresolvedRelativePath", id.id)
+                    .field("remaining_path", remaining_path)
+                    .field("local_symbol", local_symbol)
                     .field("path", path)
                     .end();
             }
             Expression::LocalReference {
-                name,
+                path,
                 static_arguments: _,
-                remote_symbol,
+                local_symbol,
             } => {
                 self.node("Expression::LocalReference", id.id)
-                    .field("name", name)
-                    .field("remote_symbol", remote_symbol)
+                    .field("path", path)
+                    .field("local_symbol", local_symbol)
                     .end();
             }
             Expression::ModuleReference {
                 path,
                 static_arguments: _,
-                remote_symbol,
+                local_symbol,
             } => {
                 self.node("Expression::ModuleReference", id.id)
                     .field("path", path)
-                    .field("remote_symbol", remote_symbol)
+                    .field("local_symbol", local_symbol)
                     .end();
             }
             Expression::GlobalReference {

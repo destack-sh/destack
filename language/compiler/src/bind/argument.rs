@@ -177,7 +177,7 @@ impl<'a> Compiler<'a> {
                     segments: smallvec![name],
                 };
                 let value = tree.insert_from_source(
-                    Expression::UnresolvedPath {
+                    Expression::UnresolvedAbsolutePath {
                         path,
                         static_arguments: None,
                     },

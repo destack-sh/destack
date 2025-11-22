@@ -171,22 +171,29 @@ pub enum Expression {
     /// Values.
     /// --------------------------------
 
-    /// Unresolved path.
-    UnresolvedPath {
+    /// Unresolved absolute path.
+    UnresolvedAbsolutePath {
         path: Path,
+        static_arguments: Option<Vec<LocalNodeId<Argument>>>,
+    },
+    /// Unresolved relative path to a remote symbol.
+    UnresolvedRelativePath {
+        path: Path,
+        local_symbol: LocalSymbolId,
+        remaining_path: Path,
         static_arguments: Option<Vec<LocalNodeId<Argument>>>,
     },
     /// Local reference.
     LocalReference {
-        name: StringId,
+        path: Path,
         static_arguments: Option<Vec<LocalNodeId<Argument>>>,
-        remote_symbol: LocalSymbolId,
+        local_symbol: LocalSymbolId,
     },
     /// Module reference.
     ModuleReference {
         path: Path,
         static_arguments: Option<Vec<LocalNodeId<Argument>>>,
-        remote_symbol: LocalSymbolId,
+        local_symbol: LocalSymbolId,
     },
     /// Global reference.
     GlobalReference {
@@ -364,7 +371,8 @@ impl Expression {
             Expression::Must { .. } => "must",
             Expression::New { .. } => "new",
             Expression::Delete { .. } => "delete",
-            Expression::UnresolvedPath { .. } => "unresolved path",
+            Expression::UnresolvedAbsolutePath { .. } => "unresolved path",
+            Expression::UnresolvedRelativePath { .. } => "unresolved relative path",
             Expression::LocalReference { .. } => "local reference",
             Expression::ModuleReference { .. } => "declaration reference",
             Expression::GlobalReference { .. } => "global reference",
@@ -404,7 +412,8 @@ impl Expression {
             Expression::UnresolvedImport { .. }
                 | Expression::UnresolvedReExport { .. }
                 | Expression::UnresolvedMember { .. }
-                | Expression::UnresolvedPath { .. }
+                | Expression::UnresolvedAbsolutePath { .. }
+                | Expression::UnresolvedRelativePath { .. }
                 | Expression::UnresolvedBreak { .. }
                 | Expression::UnresolvedContinue { .. }
         )

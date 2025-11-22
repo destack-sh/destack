@@ -189,7 +189,7 @@ impl<'a> Transpiler<'a> {
                     .into_any()
             }
 
-            dir::Expression::UnresolvedPath {
+            dir::Expression::UnresolvedAbsolutePath {
                 path,
                 static_arguments,
             } => {

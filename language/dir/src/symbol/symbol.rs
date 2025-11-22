@@ -81,7 +81,7 @@ pub struct Symbol {
     /// The key of the symbol.
     pub key: Option<SymbolKey>,
     /// The scope that introduces the symbol.
-    pub scope: LocalScopeId,
+    pub scope_id: LocalScopeId,
     /// The module id of the scope.
     pub module_id: ModuleId,
     /// The main declaration node of the symbol.
