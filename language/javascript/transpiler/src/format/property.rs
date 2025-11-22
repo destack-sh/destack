@@ -2,7 +2,7 @@ use dyst_fir::format::FormatResult;
 use dyst_fir::prelude::*;
 use dyst_fir::write;
 use dyst_javascript_ast::{
-    Asynchrony, BindingKind, BindingModifier, BindingOperator, BindingAnchor, FunctionAbstraction,
+    Asynchrony, BindingAnchor, BindingKind, BindingModifier, BindingOperator, FunctionAbstraction,
     FunctionCardinality, Keyword, LocalNodeId, Mutability, Property,
 };
 

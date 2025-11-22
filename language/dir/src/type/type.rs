@@ -1,6 +1,6 @@
 use crate::{
-    Asynchrony, BindingModifier, Expression, FunctionCardinality, FunctionSignature, Key, LocalNodeId,
-    LocalSymbolId, Mutability, ScalarLiteral, VarianceBound,
+    Asynchrony, BindingModifier, Expression, FunctionCardinality, FunctionSignature, Key,
+    LocalNodeId, LocalSymbolId, Mutability, ScalarLiteral, VarianceBound,
 };
 
 use super::{DeclarationType, PrimitiveType, TypeBinaryOperator, TypeUnaryOperator};
@@ -39,8 +39,8 @@ pub enum Type {
     Scalar(TypeLiteral),
     /// Redirect to symbol type.
     Symbol(LocalSymbolId),
-	/// Unresolved expression type.
-	UnresolvedExpression(LocalNodeId<Expression>),
+    /// Unresolved expression type.
+    UnresolvedExpression(LocalNodeId<Expression>),
 
     /// Type unary operator.
     Unary {

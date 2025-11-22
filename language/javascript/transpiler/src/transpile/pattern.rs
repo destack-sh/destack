@@ -69,7 +69,9 @@ impl<'a> Transpiler<'a> {
                 let mutability = mutability.map(|mutability| self.transpile_mutability(mutability));
                 let name = unit.strings.intern_from(&self.session.strings, *name);
                 let pattern = pattern
-                    .map(|pattern| self.transpile_pattern(module, tree, symbols, types, pattern, unit))
+                    .map(|pattern| {
+                        self.transpile_pattern(module, tree, symbols, types, pattern, unit)
+                    })
                     .transpose()?;
                 let default = default
                     .map(|default| {
@@ -121,7 +123,8 @@ impl<'a> Transpiler<'a> {
             }
             dir::PatternField::Positional { pattern }
             | dir::PatternField::UnresolvedPositional { pattern } => {
-                let pattern = self.transpile_pattern(module, tree, symbols, types, *pattern, unit)?;
+                let pattern =
+                    self.transpile_pattern(module, tree, symbols, types, *pattern, unit)?;
                 let pattern_field = PatternField::Positional { pattern };
                 unit.ast
                     .insert_from_source(pattern_field, module.id, pattern_field_id)

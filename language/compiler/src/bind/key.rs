@@ -23,7 +23,8 @@ impl<'a> Compiler<'a> {
                 Key::Name(name)
             }
             ast::Key::Expression(expression) => {
-                let expression = self.bind_expression(module, scope_id, expression, tree, symbols, types);
+                let expression =
+                    self.bind_expression(module, scope_id, expression, tree, symbols, types);
                 Key::Expression(expression)
             }
             ast::Key::NamedExpression { name, key } => {

@@ -25,10 +25,12 @@ impl<'a> Compiler<'a> {
                 let modifiers =
                     modifiers.map(|modifiers| self.bind_binding_modifier(module, modifiers));
                 let key = key.map(|key| self.bind_key(module, scope_id, key, tree, symbols, types));
-                let value =
-                    value.map(|value| self.bind_expression(module, scope_id, value, tree, symbols, types));
-                let default = default
-                    .map(|default| self.bind_expression(module, scope_id, default, tree, symbols, types));
+                let value = value.map(|value| {
+                    self.bind_expression(module, scope_id, value, tree, symbols, types)
+                });
+                let default = default.map(|default| {
+                    self.bind_expression(module, scope_id, default, tree, symbols, types)
+                });
                 Property::Field {
                     modifiers,
                     key,
@@ -47,8 +49,8 @@ impl<'a> Compiler<'a> {
                 let key = key.map(|key| self.bind_key(module, scope_id, key, tree, symbols, types));
                 let signature =
                     self.bind_function_signature(module, scope_id, signature, tree, symbols, types);
-                let body =
-                    body.map(|body| self.bind_expression(module, scope_id, body, tree, symbols, types));
+                let body = body
+                    .map(|body| self.bind_expression(module, scope_id, body, tree, symbols, types));
                 Property::Method {
                     modifiers,
                     key,

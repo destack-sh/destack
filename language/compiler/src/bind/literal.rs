@@ -71,7 +71,9 @@ impl<'a> Compiler<'a> {
                     .collect();
                 let arguments = arguments
                     .iter()
-                    .map(|argument| self.bind_argument(module, scope_id, *argument, tree, symbols, types))
+                    .map(|argument| {
+                        self.bind_argument(module, scope_id, *argument, tree, symbols, types)
+                    })
                     .collect();
                 TemplateLiteral::InterpolatedString { strings, arguments }
             }

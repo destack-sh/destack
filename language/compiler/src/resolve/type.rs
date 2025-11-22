@@ -40,7 +40,8 @@ impl<'a> Compiler<'a> {
         symbols: &SymbolTable,
         types: &mut TypeTable,
     ) -> ResolveResult<LocalTypeId> {
-        let ty = self.try_resolve_expression_to_type_value(module, expression_id, tree, symbols, types)?;
+        let ty =
+            self.try_resolve_expression_to_type_value(module, expression_id, tree, symbols, types)?;
         Ok(types.insert_from(ty, expression_id))
     }
 
