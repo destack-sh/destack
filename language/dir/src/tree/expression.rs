@@ -179,6 +179,7 @@ pub enum Expression {
     /// Local reference.
     LocalReference {
         name: StringId,
+        static_arguments: Option<Vec<LocalNodeId<Argument>>>,
         remote_symbol: LocalSymbolId,
     },
     /// Module reference.

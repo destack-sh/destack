@@ -1,4 +1,4 @@
-use dyst_dir::{Expression, LocalNodeId, ModuleId, NodeTree, SymbolTable};
+use dyst_dir::{Expression, LocalNodeId, Module, NodeTree, SymbolTable};
 
 use crate::{Compiler, ResolveError, ResolveResult};
 
@@ -6,7 +6,7 @@ impl<'a> Compiler<'a> {
     /// Resolve an Expression.
     pub(super) fn resolve_expression(
         &self,
-        module_id: ModuleId,
+        module: &Module,
         expression_id: LocalNodeId<Expression>,
         tree: &mut NodeTree,
         symbols: &SymbolTable,
@@ -18,7 +18,14 @@ impl<'a> Compiler<'a> {
             Expression::UnresolvedPath {
                 path,
                 static_arguments,
-            } => match self.resolve_path(module_id, scope, path, tree) {
+            } => match self.resolve_path(
+                module,
+                expression_id.into_any(),
+                scope,
+                path,
+                tree,
+                symbols,
+            ) {
                 Ok(symbol_id) => {
                     todo!("resolve_expression({expression_id:?})")
                 }
@@ -32,11 +39,7 @@ impl<'a> Compiler<'a> {
                     }
                 }
             },
-            _ => {
-                return Err(ResolveError::UnsupportedNode {
-                    node: expression_id.into_global_any(module_id),
-                });
-            }
+            _ => return Ok(()),
         };
         *tree.get_mut(expression_id) = expression;
 

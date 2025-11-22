@@ -1,5 +1,5 @@
 use crate::{CompileError, CompilePhase};
-use dyst_dir::{GlobalNodeIdAny, LocalScopeId, LocalSymbolId, Session, StringId, Visibility};
+use dyst_dir::{GlobalNodeIdAny, GlobalScopeId, GlobalSymbolId, Session, StringId};
 
 /// Error when evaluating something statically.
 #[derive(Debug, Clone, PartialEq)]
@@ -17,46 +17,46 @@ pub enum ResolveError {
     /// Use of undeclared symbol.
     UndeclaredSymbol {
         node: GlobalNodeIdAny,
-        scope: LocalScopeId,
+        scope: GlobalScopeId,
         name: StringId,
     },
     /// Use of missing symbol.
     MissingSymbol {
         node: GlobalNodeIdAny,
-        scope: LocalScopeId,
+        scope: GlobalScopeId,
         name: StringId,
     },
     /// Use of ambiguous symbol.
     AmbiguousSymbol {
         node: GlobalNodeIdAny,
-        scope: LocalScopeId,
-        symbol: LocalSymbolId,
+        scope: GlobalScopeId,
+        symbol: GlobalSymbolId,
         name: StringId,
     },
     /// Unresolved module.
     UnresolvedModule {
         node: GlobalNodeIdAny,
+        scope: GlobalScopeId,
         target: StringId,
     },
     /// Unresolved member.
     UnresolvedMember {
         node: GlobalNodeIdAny,
-        member: StringId,
-    },
-    /// Visibility violation (private/internal/module boundaries).
-    InaccessibleSymbol {
-        node: GlobalNodeIdAny,
-        visibility: Visibility,
-        symbol: LocalSymbolId,
+        scope: GlobalScopeId,
+        name: StringId,
     },
     /// Conflicting declarations in the same scope.
     ConflictingDeclaration {
         node: GlobalNodeIdAny,
+        scope: GlobalScopeId,
+        symbol: GlobalSymbolId,
         name: StringId,
     },
     /// Duplicate export name in the same module.
     DuplicateExport {
         node: GlobalNodeIdAny,
+        scope: GlobalScopeId,
+        symbol: GlobalSymbolId,
         name: StringId,
     },
 }
@@ -71,9 +71,8 @@ impl ResolveError {
             Self::UndeclaredSymbol { .. } => 3,
             Self::MissingSymbol { .. } => 4,
             Self::AmbiguousSymbol { .. } => 5,
-            Self::UnresolvedModule { .. } => 6,
-            Self::UnresolvedMember { .. } => 7,
-            Self::InaccessibleSymbol { .. } => 8,
+            Self::UnresolvedModule { .. } => 7,
+            Self::UnresolvedMember { .. } => 8,
             Self::ConflictingDeclaration { .. } => 9,
             Self::DuplicateExport { .. } => 10,
         }
@@ -89,7 +88,6 @@ impl ResolveError {
             Self::AmbiguousSymbol { node, .. } => Some(*node),
             Self::UnresolvedModule { node, .. } => Some(*node),
             Self::UnresolvedMember { node, .. } => Some(*node),
-            Self::InaccessibleSymbol { node, .. } => Some(*node),
             Self::ConflictingDeclaration { node, .. } => Some(*node),
             Self::DuplicateExport { node, .. } => Some(*node),
         }
@@ -105,7 +103,6 @@ impl ResolveError {
             Self::AmbiguousSymbol { .. } => "ambiguous symbol".to_string(),
             Self::UnresolvedModule { .. } => "unresolved module".to_string(),
             Self::UnresolvedMember { .. } => "unresolved member".to_string(),
-            Self::InaccessibleSymbol { .. } => "inaccessible symbol".to_string(),
             Self::ConflictingDeclaration { .. } => "conflicting declaration".to_string(),
             Self::DuplicateExport { .. } => "duplicate export".to_string(),
         }

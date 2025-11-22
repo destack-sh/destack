@@ -1,6 +1,6 @@
 use crate::{Compiler, ResolveError, ResolveResult};
 use dyst_dir::{
-    Expression, FloatType, IntType, LocalNodeId, ModuleId, NodeTree, PrimitiveType, SymbolTable,
+    Expression, FloatType, IntType, LocalNodeId, Module, NodeTree, PrimitiveType, SymbolTable,
     Type, TypeLiteral, TypeUnaryOperator, UnaryOperator,
 };
 
@@ -8,7 +8,7 @@ impl<'a> Compiler<'a> {
     /// Resolve a Type (in-place).
     pub(super) fn resolve_type(
         &self,
-        module_id: ModuleId,
+        module: &Module,
         ty_id: LocalNodeId<Type>,
         tree: &mut NodeTree,
         symbols: &SymbolTable,
@@ -23,7 +23,7 @@ impl<'a> Compiler<'a> {
 
         // resolve and update in-place
         let resolved_ty =
-            self.try_resolve_expression_to_type_value(module_id, expression_id, tree, symbols)?;
+            self.try_resolve_expression_to_type_value(module, expression_id, tree, symbols)?;
         let ty = tree.get_mut(ty_id);
         *ty = resolved_ty;
 
@@ -33,13 +33,12 @@ impl<'a> Compiler<'a> {
     /// Try to Resolve an Expression as a Type id.
     fn try_resolve_expression_to_type(
         &self,
-        module_id: ModuleId,
+        module: &Module,
         expression_id: LocalNodeId<Expression>,
         tree: &mut NodeTree,
         symbols: &SymbolTable,
     ) -> ResolveResult<LocalNodeId<Type>> {
-        let ty =
-            self.try_resolve_expression_to_type_value(module_id, expression_id, tree, symbols)?;
+        let ty = self.try_resolve_expression_to_type_value(module, expression_id, tree, symbols)?;
         Ok(tree.insert_from(ty, expression_id, None))
     }
 
@@ -47,13 +46,13 @@ impl<'a> Compiler<'a> {
     /// Returns the resolved Type value, or a Type::UnresolvedExpression if it fails.
     fn try_resolve_expression_to_type_value(
         &self,
-        module_id: ModuleId,
+        module: &Module,
         expression_id: LocalNodeId<Expression>,
         tree: &mut NodeTree,
         symbols: &SymbolTable,
     ) -> ResolveResult<Type> {
         let ty = self
-            .resolve_expression_to_type(module_id, expression_id, tree, symbols)?
+            .resolve_expression_to_type(module, expression_id, tree, symbols)?
             .unwrap_or(Type::UnresolvedExpression(expression_id));
         Ok(ty)
     }
@@ -61,7 +60,7 @@ impl<'a> Compiler<'a> {
     /// Resolve an Expression into a Type (in-place).
     fn resolve_expression_to_type(
         &self,
-        module_id: ModuleId,
+        module: &Module,
         expression_id: LocalNodeId<Expression>,
         tree: &mut NodeTree,
         symbols: &SymbolTable,
@@ -79,8 +78,7 @@ impl<'a> Compiler<'a> {
                 operator: UnaryOperator::Not,
                 right,
             } => {
-                let type_id =
-                    self.try_resolve_expression_to_type(module_id, *right, tree, symbols)?;
+                let type_id = self.try_resolve_expression_to_type(module, *right, tree, symbols)?;
                 Type::Unary {
                     operator: TypeUnaryOperator::Not,
                     right: type_id,
@@ -88,8 +86,7 @@ impl<'a> Compiler<'a> {
             }
             // maybe
             Expression::Maybe { left } => {
-                let type_id =
-                    self.try_resolve_expression_to_type(module_id, *left, tree, symbols)?;
+                let type_id = self.try_resolve_expression_to_type(module, *left, tree, symbols)?;
                 Type::Unary {
                     operator: TypeUnaryOperator::Maybe,
                     right: type_id,
@@ -97,8 +94,7 @@ impl<'a> Compiler<'a> {
             }
             // must
             Expression::Must { left } => {
-                let type_id =
-                    self.try_resolve_expression_to_type(module_id, *left, tree, symbols)?;
+                let type_id = self.try_resolve_expression_to_type(module, *left, tree, symbols)?;
                 Type::Unary {
                     operator: TypeUnaryOperator::Must,
                     right: type_id,
@@ -112,8 +108,7 @@ impl<'a> Compiler<'a> {
             } => {
                 let mutability = *mutability;
                 let variance = *variance;
-                let type_id =
-                    self.try_resolve_expression_to_type(module_id, *right, tree, symbols)?;
+                let type_id = self.try_resolve_expression_to_type(module, *right, tree, symbols)?;
                 Type::ValueOf {
                     mutability,
                     variance,
@@ -128,8 +123,7 @@ impl<'a> Compiler<'a> {
             } => {
                 let mutability = *mutability;
                 let variance = *variance;
-                let type_id =
-                    self.try_resolve_expression_to_type(module_id, *right, tree, symbols)?;
+                let type_id = self.try_resolve_expression_to_type(module, *right, tree, symbols)?;
                 Type::ReferenceOf {
                     mutability,
                     variance,
@@ -138,8 +132,7 @@ impl<'a> Compiler<'a> {
             }
             // unary
             &Expression::TypeUnary { operator, right } => {
-                let right_id =
-                    self.try_resolve_expression_to_type(module_id, right, tree, symbols)?;
+                let right_id = self.try_resolve_expression_to_type(module, right, tree, symbols)?;
                 Type::Unary {
                     operator,
                     right: right_id,
@@ -151,10 +144,8 @@ impl<'a> Compiler<'a> {
                 operator,
                 right,
             } => {
-                let left_id =
-                    self.try_resolve_expression_to_type(module_id, left, tree, symbols)?;
-                let right_id =
-                    self.try_resolve_expression_to_type(module_id, right, tree, symbols)?;
+                let left_id = self.try_resolve_expression_to_type(module, left, tree, symbols)?;
+                let right_id = self.try_resolve_expression_to_type(module, right, tree, symbols)?;
                 Type::Binary {
                     left: left_id,
                     operator,
@@ -168,9 +159,8 @@ impl<'a> Compiler<'a> {
                 end,
                 is_inclusive,
             } => {
-                let start_id =
-                    self.try_resolve_expression_to_type(module_id, start, tree, symbols)?;
-                let end_id = self.try_resolve_expression_to_type(module_id, end, tree, symbols)?;
+                let start_id = self.try_resolve_expression_to_type(module, start, tree, symbols)?;
+                let end_id = self.try_resolve_expression_to_type(module, end, tree, symbols)?;
                 Type::Range {
                     start: start_id,
                     end: end_id,
@@ -180,13 +170,13 @@ impl<'a> Compiler<'a> {
             // tuple
             Expression::TupleLiteral { ty, .. } if ty.is_none() => {
                 return Err(ResolveError::UnsupportedNode {
-                    node: expression_id.into_global_any(module_id),
+                    node: expression_id.into_global_any(module.id),
                 });
             }
             // struct
             Expression::StructLiteral { ty, .. } if ty.is_none() => {
                 return Err(ResolveError::UnsupportedNode {
-                    node: expression_id.into_global_any(module_id),
+                    node: expression_id.into_global_any(module.id),
                 });
             }
 
@@ -195,7 +185,7 @@ impl<'a> Compiler<'a> {
                 // array with static length
                 if let Some(right) = right {
                     let left_id =
-                        self.try_resolve_expression_to_type(module_id, left, tree, symbols)?;
+                        self.try_resolve_expression_to_type(module, left, tree, symbols)?;
                     Type::ArraySized {
                         element: left_id,
                         count: right,
@@ -204,7 +194,7 @@ impl<'a> Compiler<'a> {
                 // slice
                 else {
                     let left_id =
-                        self.try_resolve_expression_to_type(module_id, left, tree, symbols)?;
+                        self.try_resolve_expression_to_type(module, left, tree, symbols)?;
                     Type::Array {
                         element: Some(left_id),
                     }
