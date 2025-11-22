@@ -1,4 +1,4 @@
-use dyst_dir::{Expression, LocalNodeId, Module, NodeTree, Path, Scope, SymbolTable};
+use dyst_dir::{Expression, LocalNodeId, Module, NodeTree, SymbolTable};
 
 use crate::{Compiler, ResolveError, ResolveResult};
 

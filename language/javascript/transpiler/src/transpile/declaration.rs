@@ -1,7 +1,7 @@
 use dyst_dir::{self as dir, Module, NodeTree};
 use dyst_javascript_ast::{
     BindingScope, Block, Declaration, DeclarationDescriptor, DeclarationKind, EnumField,
-    ExportType, Expression, LocalNodeId, Visibility,
+    ExportType, Expression, LocalNodeId, Statement, Visibility,
 };
 
 use crate::{TranspileError, TranspileResult, TranspileResultExt, Transpiler, TranspilerUnit};
@@ -82,17 +82,20 @@ impl<'a> Transpiler<'a> {
                 descriptor,
                 scope: _,
                 generics: _,
-                declarations,
+                expressions,
             } => {
                 let descriptor =
                     self.transpile_declaration_descriptor(module, tree, descriptor, unit);
-                let declarations = declarations
+                let statements = expressions
                     .iter()
-                    .map(|declaration| self.transpile_declaration(module, tree, *declaration, unit))
+                    .map(|expression| {
+                        self.transpile_expression(module, tree, *expression, unit)
+                            .expect_node::<Statement>(expression.into_global_any(module.id), unit)
+                    })
                     .collect::<Result<Vec<_>, TranspileError>>()?;
                 Declaration::Namespace {
                     descriptor,
-                    declarations,
+                    statements,
                 }
             }
             dir::Declaration::Struct {

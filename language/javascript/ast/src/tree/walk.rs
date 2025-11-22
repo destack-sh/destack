@@ -568,12 +568,12 @@ pub fn walk_declaration<V: NodeVisitor + ?Sized>(
     match declaration {
         Declaration::Namespace {
             descriptor,
-            declarations,
+            statements,
         } => {
             walk_declaration_descriptor(visitor, tree, descriptor);
-            for declaration_id in declarations {
-                let declaration = tree.get(*declaration_id);
-                visitor.visit_declaration(tree, *declaration_id, declaration);
+            for statement_id in statements {
+                let statement = tree.get(*statement_id);
+                visitor.visit_statement(tree, *statement_id, statement);
             }
         }
         Declaration::Class {

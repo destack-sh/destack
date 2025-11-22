@@ -1,6 +1,6 @@
 use crate::{
     BindingScope, Block, ExportType, Expression, FunctionSignature, Generics, Heritage,
-    LocalNodeId, Name, Node, NodeType, Property, StringId,
+    LocalNodeId, Name, Node, NodeType, Property, Statement, StringId,
 };
 
 /// The kind of declaration.
@@ -31,7 +31,7 @@ pub enum Declaration {
     /// Namespace declaration (TS-only).
     Namespace {
         descriptor: DeclarationDescriptor,
-        declarations: Vec<LocalNodeId<Declaration>>,
+        statements: Vec<LocalNodeId<Statement>>,
     },
     /// Class declaration.
     Class {

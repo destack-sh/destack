@@ -8,6 +8,7 @@ use dyst_fir::prelude::*;
 use dyst_fir::{format_args, write};
 
 use crate::format::argument::list_like;
+use crate::format::block::format_block_of_statements;
 use crate::{FormatNode, JavaScriptFormatContext, JavaScriptFormatter};
 
 /// Format a super type clause.
@@ -78,7 +79,7 @@ impl<'ast> FormatNode<'ast, Declaration> for Declaration {
         match self {
             Declaration::Namespace {
                 descriptor,
-                declarations,
+                statements,
             } => {
                 // export
                 if let Some(export) = descriptor.export {
@@ -105,10 +106,7 @@ impl<'ast> FormatNode<'ast, Declaration> for Declaration {
                     [
                         token("{"),
                         hard_line_break(),
-                        block_indent(&format_with(|f| format_block_of_declarations(
-                            f,
-                            declarations
-                        ))),
+                        block_indent(&format_with(|f| format_block_of_statements(f, statements))),
                         hard_line_break(),
                         token("}"),
                     ]

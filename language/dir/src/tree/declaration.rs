@@ -35,7 +35,7 @@ pub enum Declaration {
         descriptor: DeclarationDescriptor,
         generics: Generics,
         scope: LocalScopeId,
-        declarations: Vec<LocalNodeId<Declaration>>,
+        expressions: Vec<LocalNodeId<Expression>>,
     },
     /// Struct or class declaration.
     Struct {
