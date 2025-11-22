@@ -1,6 +1,6 @@
 use crate::{TranspileError, TranspileResult, TranspileResultExt, Transpiler, TranspilerUnit};
 use dyst_dir as dir;
-use dyst_dir::{Module, NodeTree};
+use dyst_dir::{Module, NodeTree, SymbolTable, TypeTable};
 use dyst_javascript_ast::{Expression, LocalNodeId, Pattern, PatternField};
 
 impl<'a> Transpiler<'a> {
@@ -9,6 +9,8 @@ impl<'a> Transpiler<'a> {
         &self,
         module: &Module,
         tree: &NodeTree,
+        _symbols: &SymbolTable,
+        _types: &TypeTable,
         pattern_id: dir::LocalNodeId<dir::Pattern>,
         unit: &mut TranspilerUnit,
     ) -> TranspileResult<LocalNodeId<Pattern>> {
@@ -42,6 +44,8 @@ impl<'a> Transpiler<'a> {
         &self,
         module: &Module,
         tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &TypeTable,
         pattern_field_id: dir::LocalNodeId<dir::PatternField>,
         unit: &mut TranspilerUnit,
     ) -> TranspileResult<LocalNodeId<PatternField>> {
@@ -63,11 +67,11 @@ impl<'a> Transpiler<'a> {
                 let mutability = mutability.map(|mutability| self.transpile_mutability(mutability));
                 let name = unit.strings.intern_from(&self.session.strings, *name);
                 let pattern = pattern
-                    .map(|pattern| self.transpile_pattern(module, tree, pattern, unit))
+                    .map(|pattern| self.transpile_pattern(module, tree, symbols, types, pattern, unit))
                     .transpose()?;
                 let default = default
                     .map(|default| {
-                        self.transpile_expression(module, tree, default, unit)
+                        self.transpile_expression(module, tree, symbols, types, default, unit)
                             .expect_node::<Expression>(default.into_global_any(module.id), unit)
                     })
                     .transpose()?;
@@ -98,7 +102,7 @@ impl<'a> Transpiler<'a> {
                 let alias = unit.strings.intern_from(&self.session.strings, *alias);
                 let default = default
                     .map(|default| {
-                        self.transpile_expression(module, tree, default, unit)
+                        self.transpile_expression(module, tree, symbols, types, default, unit)
                             .expect_node::<Expression>(default.into_global_any(module.id), unit)
                     })
                     .transpose()?;
@@ -113,7 +117,7 @@ impl<'a> Transpiler<'a> {
             }
             dir::PatternField::Positional { pattern, symbol: _ }
             | dir::PatternField::UnresolvedPositional { pattern } => {
-                let pattern = self.transpile_pattern(module, tree, *pattern, unit)?;
+                let pattern = self.transpile_pattern(module, tree, symbols, types, *pattern, unit)?;
                 let pattern_field = PatternField::Positional { pattern };
                 unit.ast
                     .insert_from_source(pattern_field, module.id, pattern_field_id)

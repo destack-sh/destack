@@ -1,4 +1,4 @@
-use dyst_dir::{self as dir, Module, NodeTree};
+use dyst_dir::{self as dir, Module, NodeTree, SymbolTable, TypeTable};
 use dyst_javascript_ast::{
     BindingScope, Block, Declaration, DeclarationDescriptor, DeclarationKind, EnumField,
     ExportType, Expression, LocalNodeId, Statement, Visibility,
@@ -49,6 +49,8 @@ impl<'a> Transpiler<'a> {
         &self,
         module: &'a Module,
         _tree: &NodeTree,
+        _symbols: &SymbolTable,
+        _types: &TypeTable,
         descriptor: &dir::DeclarationDescriptor,
         unit: &mut TranspilerUnit,
     ) -> DeclarationDescriptor {
@@ -73,6 +75,8 @@ impl<'a> Transpiler<'a> {
         &self,
         module: &'a Module,
         tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &TypeTable,
         declaration_id: dir::LocalNodeId<dir::Declaration>,
         unit: &mut TranspilerUnit,
     ) -> TranspileResult<LocalNodeId<Declaration>> {
@@ -85,11 +89,11 @@ impl<'a> Transpiler<'a> {
                 expressions,
             } => {
                 let descriptor =
-                    self.transpile_declaration_descriptor(module, tree, descriptor, unit);
+                    self.transpile_declaration_descriptor(module, tree, symbols, types, descriptor, unit);
                 let statements = expressions
                     .iter()
                     .map(|expression| {
-                        self.transpile_expression(module, tree, *expression, unit)
+                        self.transpile_expression(module, tree, symbols, types, *expression, unit)
                             .expect_node::<Statement>(expression.into_global_any(module.id), unit)
                     })
                     .collect::<Result<Vec<_>, TranspileError>>()?;
@@ -107,12 +111,12 @@ impl<'a> Transpiler<'a> {
                 properties,
             } => {
                 let descriptor =
-                    self.transpile_declaration_descriptor(module, tree, descriptor, unit);
-                let generics = self.transpile_generics(module, tree, generics, unit)?;
-                let heritage = self.transpile_heritage(module, tree, heritage, unit)?;
+                    self.transpile_declaration_descriptor(module, tree, symbols, types, descriptor, unit);
+                let generics = self.transpile_generics(module, tree, symbols, types, generics, unit)?;
+                let heritage = self.transpile_heritage(module, tree, symbols, types, heritage, unit)?;
                 let properties = properties
                     .iter()
-                    .map(|property| self.transpile_property(module, tree, *property, unit))
+                    .map(|property| self.transpile_property(module, tree, symbols, types, *property, unit))
                     .collect::<Result<Vec<_>, TranspileError>>()?;
                 // TODO #Broken: struct declarations should become just JS types + namespaces?
                 Declaration::Class {
@@ -130,12 +134,12 @@ impl<'a> Transpiler<'a> {
                 properties,
             } => {
                 let descriptor =
-                    self.transpile_declaration_descriptor(module, tree, descriptor, unit);
-                let generics = self.transpile_generics(module, tree, generics, unit)?;
-                let heritage = self.transpile_heritage(module, tree, heritage, unit)?;
+                    self.transpile_declaration_descriptor(module, tree, symbols, types, descriptor, unit);
+                let generics = self.transpile_generics(module, tree, symbols, types, generics, unit)?;
+                let heritage = self.transpile_heritage(module, tree, symbols, types, heritage, unit)?;
                 let properties = properties
                     .iter()
-                    .map(|property| self.transpile_property(module, tree, *property, unit))
+                    .map(|property| self.transpile_property(module, tree, symbols, types, *property, unit))
                     .collect::<Result<Vec<_>, TranspileError>>()?;
                 Declaration::Interface {
                     descriptor,
@@ -153,10 +157,10 @@ impl<'a> Transpiler<'a> {
                 properties: _,
             } => {
                 let descriptor =
-                    self.transpile_declaration_descriptor(module, tree, descriptor, unit);
+                    self.transpile_declaration_descriptor(module, tree, symbols, types, descriptor, unit);
                 let fields = fields
                     .iter()
-                    .map(|field| self.transpile_enum_field(module, tree, *field, unit))
+                    .map(|field| self.transpile_enum_field(module, tree, symbols, types, *field, unit))
                     .collect::<Result<Vec<_>, TranspileError>>()?;
                 Declaration::Enum { descriptor, fields }
             }
@@ -167,11 +171,11 @@ impl<'a> Transpiler<'a> {
                 body,
             } => {
                 let descriptor =
-                    self.transpile_declaration_descriptor(module, tree, descriptor, unit);
-                let signature = self.transpile_function_signature(module, tree, signature, unit)?;
+                    self.transpile_declaration_descriptor(module, tree, symbols, types, descriptor, unit);
+                let signature = self.transpile_function_signature(module, tree, symbols, types, signature, unit)?;
                 let body = body
                     .map(|body| {
-                        self.transpile_expression(module, tree, body, unit)
+                        self.transpile_expression(module, tree, symbols, types, body, unit)
                             .expect_node::<Block>(body.into_global_any(module.id), unit)
                     })
                     .transpose()?;
@@ -199,6 +203,8 @@ impl<'a> Transpiler<'a> {
         &self,
         module: &'a Module,
         tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &TypeTable,
         field_id: dir::LocalNodeId<dir::EnumField>,
         unit: &mut TranspilerUnit,
     ) -> TranspileResult<LocalNodeId<EnumField>> {
@@ -208,7 +214,7 @@ impl<'a> Transpiler<'a> {
             .value
             .as_ref()
             .map(|value_id| {
-                self.transpile_expression(module, tree, *value_id, unit)
+                self.transpile_expression(module, tree, symbols, types, *value_id, unit)
                     .expect_node::<Expression>(value_id.into_global_any(module.id), unit)
             })
             .transpose()?;

@@ -1,6 +1,6 @@
 use crate::{TranspileError, TranspileResult, Transpiler, TranspilerUnit};
 use dyst_ast::StringId;
-use dyst_dir::{self as dir, Module, NodeTree};
+use dyst_dir::{self as dir, Module, NodeTree, SymbolTable, TypeTable};
 use dyst_javascript_ast::{DependencyItem, DependencyKind, LocalNodeId};
 
 impl<'a> Transpiler<'a> {
@@ -17,6 +17,8 @@ impl<'a> Transpiler<'a> {
         &self,
         module: &'a Module,
         tree: &NodeTree,
+        _symbols: &SymbolTable,
+        _types: &TypeTable,
         kind: dir::DependencyKind,
         item_ids: &[dir::LocalNodeId<dir::DependencyItem>],
         unit: &mut TranspilerUnit,

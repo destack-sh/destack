@@ -65,7 +65,9 @@ impl<'a> Transpiler<'a> {
                     .unwrap_or_else(|| panic!("source module not found: {source_module_id:?}"));
                 let source_module = source_module.read();
                 let tree = source_module.tree.read();
-                self.transpile_module(&source_module, &tree, unit);
+                let symbols = source_module.symbols.read();
+                let types = source_module.types.read();
+                self.transpile_module(&source_module, &tree, &symbols, &types, unit);
             }
         }
 

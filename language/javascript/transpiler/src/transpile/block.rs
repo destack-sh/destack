@@ -1,5 +1,5 @@
 use crate::{TranspileError, TranspileResult, TranspileResultExt, Transpiler, TranspilerUnit};
-use dyst_dir::{self as dir, Module, NodeTree};
+use dyst_dir::{self as dir, Module, NodeTree, SymbolTable, TypeTable};
 use dyst_javascript_ast::{Block, LocalNodeId, Statement};
 
 impl<'a> Transpiler<'a> {
@@ -8,6 +8,8 @@ impl<'a> Transpiler<'a> {
         &self,
         module: &'a Module,
         tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &TypeTable,
         block_id: dir::LocalNodeId<dir::Block>,
         unit: &mut TranspilerUnit,
     ) -> TranspileResult<LocalNodeId<Block>> {
@@ -19,7 +21,7 @@ impl<'a> Transpiler<'a> {
             .expressions
             .iter()
             .map(|statement| {
-                self.transpile_expression(module, tree, *statement, unit)
+                self.transpile_expression(module, tree, symbols, types, *statement, unit)
                     .expect_node::<Statement>(statement.into_global_any(module.id), unit)
             })
             .collect::<Result<Vec<_>, TranspileError>>()?;
