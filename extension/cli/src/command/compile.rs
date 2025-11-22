@@ -142,10 +142,8 @@ pub fn run(args: &CompileArgs) -> i32 {
                 console::info("=".repeat(80).as_str());
                 console::info(format!("{} [SYMBOL]", module.uri).as_str());
                 console::info("=".repeat(80).as_str());
-                if let Some(scope_id) = module.scope {
-                    let scope = symbols.get_scope_by_id(scope_id);
-                    dumper.visit_scope(&tree, &symbols, scope_id, scope);
-                }
+                let scope = symbols.get_scope_by_id(module.scope);
+                dumper.visit_scope(&tree, &symbols, module.scope, scope);
                 console::info(&dumper.finish());
             }
         }

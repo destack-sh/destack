@@ -88,7 +88,7 @@ impl<'a> Compiler<'a> {
                 generics,
                 expressions,
             } => {
-                let (symbol_id, scope_id) = symbols.create_symbol_with_scope(
+                let (symbol_id, scope_id) = symbols.create_local_symbol_with_scope(
                     SymbolSpace::Value,
                     None,
                     ScopeKind::Namespace,
@@ -122,7 +122,7 @@ impl<'a> Compiler<'a> {
                 heritage,
                 properties,
             } => {
-                let (symbol_id, scope_id) = symbols.create_symbol_with_scope(
+                let (symbol_id, scope_id) = symbols.create_local_symbol_with_scope(
                     SymbolSpace::Value,
                     None,
                     ScopeKind::Type,
@@ -155,7 +155,7 @@ impl<'a> Compiler<'a> {
                 fields,
                 properties,
             } => {
-                let (symbol_id, scope_id) = symbols.create_symbol_with_scope(
+                let (symbol_id, scope_id) = symbols.create_local_symbol_with_scope(
                     SymbolSpace::Value,
                     None,
                     ScopeKind::Type,
@@ -187,7 +187,7 @@ impl<'a> Compiler<'a> {
                 heritage,
                 properties,
             } => {
-                let (symbol_id, scope_id) = symbols.create_symbol_with_scope(
+                let (symbol_id, scope_id) = symbols.create_local_symbol_with_scope(
                     SymbolSpace::Value,
                     None,
                     ScopeKind::Type,
@@ -215,7 +215,7 @@ impl<'a> Compiler<'a> {
                 heritage,
                 properties,
             } => {
-                let (symbol_id, scope_id) = symbols.create_symbol_with_scope(
+                let (symbol_id, scope_id) = symbols.create_local_symbol_with_scope(
                     SymbolSpace::Value,
                     None,
                     ScopeKind::Type,
@@ -244,7 +244,7 @@ impl<'a> Compiler<'a> {
                 signature,
                 body,
             } => {
-                let (symbol_id, scope_id) = symbols.create_symbol_with_scope(
+                let (symbol_id, scope_id) = symbols.create_local_symbol_with_scope(
                     SymbolSpace::Value,
                     None,
                     ScopeKind::Block,
@@ -266,8 +266,8 @@ impl<'a> Compiler<'a> {
             }
         };
         let symbol_id = declaration.symbol();
-        let declaration_id = tree.insert_from_source(declaration, declaration_id);
-        symbols.set_symbol_owner(symbol_id, declaration_id);
+        let declaration_id = tree.insert_from_source(declaration, declaration_id, scope_id);
+        symbols.set_primary_declaration(symbol_id, declaration_id);
         declaration_id
     }
 
@@ -289,14 +289,14 @@ impl<'a> Compiler<'a> {
             .value
             .map(|value| self.bind_expression(module, scope_id, value, tree, symbols));
         let symbol_id =
-            symbols.create_symbol(SymbolSpace::Value, Some(SymbolKey::Name(name)), scope_id);
+            symbols.create_local_symbol(SymbolSpace::Value, Some(SymbolKey::Name(name)), scope_id);
         let enum_field = EnumField {
             name,
             value,
             symbol: symbol_id,
         };
-        let enum_field_id = tree.insert_from_source(enum_field, field_id);
-        symbols.set_symbol_owner(symbol_id, enum_field_id);
+        let enum_field_id = tree.insert_from_source(enum_field, field_id, scope_id);
+        symbols.set_primary_declaration(symbol_id, enum_field_id);
         enum_field_id
     }
 }

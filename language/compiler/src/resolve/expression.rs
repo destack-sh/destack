@@ -11,8 +11,8 @@ impl<'a> Compiler<'a> {
         tree: &mut NodeTree,
         symbols: &SymbolTable,
     ) -> ResolveResult<()> {
+        let scope = symbols.get_scope(expression_id, tree);
         let expression = tree.get(expression_id);
-        let scope = symbols.get_scope(expression_id);
 
         let expression = match expression {
             Expression::UnresolvedPath {

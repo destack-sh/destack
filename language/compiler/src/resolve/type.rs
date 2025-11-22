@@ -40,7 +40,7 @@ impl<'a> Compiler<'a> {
     ) -> ResolveResult<LocalNodeId<Type>> {
         let ty =
             self.try_resolve_expression_to_type_value(module_id, expression_id, tree, symbols)?;
-        Ok(tree.insert_from(ty, expression_id))
+        Ok(tree.insert_from(ty, expression_id, None))
     }
 
     /// Try to Resolve an Expression as a Type.

@@ -1,7 +1,7 @@
 use dyst_ast::StringPool;
 use dyst_source::{DiagnosticCollector, FileRegistry, LanguageOptions};
 
-use crate::{LocalScopeId, ModuleRegistry, PackageRegistry};
+use crate::{GlobalScopeId, ModuleRegistry, PackageRegistry};
 
 /// A session for a language.
 #[derive(Debug)]
@@ -11,7 +11,7 @@ pub struct Session<'a> {
     /// The files in the session.
     pub files: &'a FileRegistry,
     /// The root scope.
-    pub root_scope_id: Option<LocalScopeId>,
+    pub root_scope_id: Option<GlobalScopeId>,
     /// The modules.
     pub modules: ModuleRegistry,
     /// The packages.

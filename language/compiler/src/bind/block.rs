@@ -16,7 +16,7 @@ impl<'a> Compiler<'a> {
         symbols: &mut SymbolTable,
     ) -> LocalNodeId<Block> {
         let (symbol_id, scope_id) =
-            symbols.create_symbol_with_scope(SymbolSpace::Value, None, ScopeKind::Block, scope_id);
+            symbols.create_local_symbol_with_scope(SymbolSpace::Value, None, ScopeKind::Block, scope_id);
         let block = module.get(block_id);
         let label = block
             .label
@@ -33,8 +33,9 @@ impl<'a> Compiler<'a> {
                 scope: scope_id,
             },
             block_id,
+            scope_id,
         );
-        symbols.set_symbol_owner(symbol_id, block_id);
+        symbols.set_primary_declaration(symbol_id, block_id);
         block_id
     }
 }

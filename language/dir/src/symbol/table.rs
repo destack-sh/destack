@@ -1,8 +1,9 @@
+use indexmap::IndexMap;
+
 use crate::{
-    Arena, LocalNodeId, LocalScopeId, LocalSymbolId, ModuleId, Node, Scope, ScopeKind, Symbol,
-    SymbolKey, SymbolSpace,
+    Arena, LocalNodeId, LocalScopeId, LocalSymbolId, ModuleId, Node, NodeTree, Scope, ScopeKind,
+    Symbol, SymbolKey, SymbolSpace,
 };
-use std::collections::HashMap;
 use std::fmt::Debug;
 
 /// A SymbolTable is a side table for a node. NOT THREAD-SAFE.
@@ -11,21 +12,13 @@ pub struct SymbolTable {
     /// The module id of the symbol table.
     pub module_id: ModuleId,
 
-    // meta index
     /// The next symbol id to allocate.
     pub(crate) next_symbol_id: u32,
     /// The next scope id to allocate.
     pub(crate) next_scope_id: u32,
 
-    // meta arenas
     pub(crate) symbols: Arena<Symbol>,
     pub(crate) scopes: Arena<Scope>,
-
-    // meta side data
-    /// The symbols by node id. Index is the global node id.
-    pub(crate) symbol_by_node_id: Vec<Option<LocalSymbolId>>,
-    /// The scopes by node id. Index is the global node id.
-    pub(crate) scope_by_node_id: Vec<LocalScopeId>,
 }
 
 impl SymbolTable {
@@ -37,13 +30,11 @@ impl SymbolTable {
             next_scope_id: 0,
             symbols: Arena::new(),
             scopes: Arena::new(),
-            symbol_by_node_id: Vec::new(),
-            scope_by_node_id: Vec::new(),
         }
     }
 
-    /// Create a new symbol in the tree.
-    pub fn create_symbol(
+    /// Create a new local symbol.
+    pub fn create_local_symbol(
         &mut self,
         space: SymbolSpace,
         key: Option<SymbolKey>,
@@ -56,8 +47,7 @@ impl SymbolTable {
             space,
             key,
             scope,
-            module_id: Some(self.module_id),
-            owned_scope: None,
+            module_id: self.module_id,
             primary_declaration: None,
             secondary_declarations: Vec::new(),
             declared_ty: None,
@@ -71,8 +61,8 @@ impl SymbolTable {
         symbol_id
     }
 
-    /// Create a new scope in the tree.
-    pub fn create_scope(
+    /// Create a new local scope.
+    pub fn create_local_scope(
         &mut self,
         kind: ScopeKind,
         parent: Option<LocalScopeId>,
@@ -83,10 +73,10 @@ impl SymbolTable {
         let scope = Scope {
             id: scope_id,
             kind,
-            owner: owner.map(|id| id.into_global(self.module_id)),
+            owner,
             parent_id: parent,
-            module_id: Some(self.module_id),
-            symbols: HashMap::new(),
+            module_id: self.module_id,
+            symbols: IndexMap::new(),
             children: Vec::new(),
         };
         self.scopes.allocate(scope);
@@ -96,30 +86,17 @@ impl SymbolTable {
         scope_id
     }
 
-    /// Create a new symbol with a scope.
-    pub fn create_symbol_with_scope(
+    /// Create a new local symbol with an owned scope.
+    pub fn create_local_symbol_with_scope(
         &mut self,
         space: SymbolSpace,
         key: Option<SymbolKey>,
         kind: ScopeKind,
-        parent: LocalScopeId,
+        scope: LocalScopeId,
     ) -> (LocalSymbolId, LocalScopeId) {
-        let symbol_id = self.create_symbol(space, key, parent);
-        let scope_id = self.create_scope(kind, Some(parent), Some(symbol_id));
+        let symbol_id = self.create_local_symbol(space, key, scope);
+        let scope_id = self.create_local_scope(kind, Some(scope), Some(symbol_id));
         (symbol_id, scope_id)
-    }
-
-    /// Set the symbol for a node.
-    #[inline]
-    pub fn set_symbol(&mut self, node_id: u32, symbol_id: LocalSymbolId) {
-        self.symbol_by_node_id[node_id as usize] = Some(symbol_id);
-    }
-
-    /// Set the owner of a symbol.
-    #[inline]
-    pub fn set_symbol_owner<T: Node>(&mut self, symbol_id: LocalSymbolId, owner: LocalNodeId<T>) {
-        let owner = owner.into_any().into_global(self.module_id);
-        self.get_symbol_mut(symbol_id).primary_declaration = Some(owner);
     }
 
     /// Get a symbol by its id.
@@ -134,11 +111,39 @@ impl SymbolTable {
         self.symbols.get_mut(symbol_id.0)
     }
 
+    /// Set the primary declaration for a symbol.
+    #[inline]
+    pub fn set_primary_declaration<T: Node>(
+        &mut self,
+        symbol_id: LocalSymbolId,
+        node_id: LocalNodeId<T>,
+    ) {
+        self.symbols.get_mut(symbol_id.0).primary_declaration =
+            Some(node_id.into_global_any(self.module_id));
+    }
+
+    /// Add a secondary declaration for a symbol.
+    #[inline]
+    pub fn add_secondary_declaration<T: Node>(
+        &mut self,
+        symbol_id: LocalSymbolId,
+        node_id: LocalNodeId<T>,
+    ) {
+        self.symbols
+            .get_mut(symbol_id.0)
+            .secondary_declarations
+            .push(node_id.into_global_any(self.module_id));
+    }
+
     /// Get the scope for a node id.
     #[inline]
-    pub fn get_scope<T: Node>(&self, node_id: LocalNodeId<T>) -> &Scope {
-        let scope_id = self.scope_by_node_id[node_id.id as usize];
-        self.get_scope_by_id(scope_id)
+    pub fn get_scope<'a, T: Node>(
+        &'a self,
+        node_id: LocalNodeId<T>,
+        tree: &NodeTree,
+    ) -> &'a Scope {
+        let scope_id = tree.get_scope(node_id);
+        self.scopes.get(scope_id.0)
     }
 
     /// Get a scope by its id.
@@ -151,11 +156,5 @@ impl SymbolTable {
     #[inline]
     pub fn get_scope_by_id_mut(&mut self, scope_id: LocalScopeId) -> &mut Scope {
         self.scopes.get_mut(scope_id.0)
-    }
-
-    /// Get the scope for a node by its id.
-    #[inline]
-    pub fn get_scope_by_node_id(&self, node_id: u32) -> LocalScopeId {
-        self.scope_by_node_id[node_id as usize]
     }
 }

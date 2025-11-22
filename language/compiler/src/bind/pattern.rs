@@ -96,7 +96,7 @@ impl<'a> Compiler<'a> {
                 Pattern::Union { patterns }
             }
         };
-        tree.insert_from_source(pattern, pattern_id)
+        tree.insert_from_source(pattern, pattern_id, scope_id)
     }
 
     /// Bind a pattern field to a DIR pattern field.
@@ -163,6 +163,6 @@ impl<'a> Compiler<'a> {
                 PatternField::UnresolvedPositional { pattern }
             }
         };
-        tree.insert_from_source(pattern_field, pattern_field_id)
+        tree.insert_from_source(pattern_field, pattern_field_id, scope_id)
     }
 }
