@@ -197,7 +197,7 @@ impl<'a> Compiler<'a> {
                 let descriptor = self.bind_declaration_descriptor(module, symbol_id, descriptor);
                 let generics = self.bind_generics(module, scope_id, generics, tree, symbols);
                 let target_type =
-                    self.bind_expression_to_type(module, scope_id, *target_type, tree, symbols);
+                    self.bind_expression(module, scope_id, *target_type, tree, symbols);
                 let heritage = self.bind_heritage(module, scope_id, heritage, tree, symbols);
                 let properties = properties
                     .iter()
@@ -207,6 +207,7 @@ impl<'a> Compiler<'a> {
                     descriptor,
                     generics,
                     target_type,
+                    target_symbol: None,
                     heritage,
                     scope: scope_id,
                     properties,

@@ -1,5 +1,5 @@
 use dyst_dir::{
-    FunctionAbstraction, GlobalNodeIdAny, GlobalSymbolId, LocalNodeId, Session, Type, Visibility,
+    FunctionAbstraction, GlobalNodeIdAny, GlobalSymbolId, GlobalTypeId, Session, Visibility,
 };
 
 use crate::{CompileError, CompilePhase};
@@ -13,8 +13,8 @@ pub enum ValidateError {
     /// Type is not assignable to the expected type.
     TypeMismatch {
         node: GlobalNodeIdAny,
-        expected_ty: LocalNodeId<Type>,
-        actual_ty: LocalNodeId<Type>,
+        expected_ty: GlobalTypeId,
+        actual_ty: GlobalTypeId,
     },
     /// Inaccessible symbol (private/internal/module boundaries).
     InaccessibleSymbol {
@@ -42,8 +42,8 @@ pub enum ValidateError {
     /// Illegal casts (unsafe or impossible with static rules).
     IllegalCast {
         node: GlobalNodeIdAny,
-        from_ty: LocalNodeId<Type>,
-        to_ty: LocalNodeId<Type>,
+        from_ty: GlobalTypeId,
+        to_ty: GlobalTypeId,
     },
 }
 
@@ -89,7 +89,9 @@ impl ValidateError {
             Self::MissingType { .. } => "missing type".to_string(),
             Self::TypeMismatch { .. } => "type mismatch".to_string(),
             Self::InaccessibleSymbol { .. } => "inaccessible symbol".to_string(),
-            Self::InconsistentFunctionOverride { .. } => "inconsistent function override".to_string(),
+            Self::InconsistentFunctionOverride { .. } => {
+                "inconsistent function override".to_string()
+            }
             Self::NonCallable { .. } => "calling non-callable".to_string(),
             Self::NonIndexable { .. } => "indexing non-indexable".to_string(),
             Self::NonExhaustiveMatch { .. } => "non-exhaustive match".to_string(),

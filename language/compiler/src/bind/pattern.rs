@@ -65,12 +65,19 @@ impl<'a> Compiler<'a> {
             ast::Pattern::Tuple { ty, fields } => {
                 let ty = ty
                     .as_ref()
-                    .map(|ty| self.bind_expression_to_type(module, scope_id, *ty, tree, symbols));
+                    .map(|ty| self.bind_expression(module, scope_id, *ty, tree, symbols));
                 let fields = fields
                     .iter()
                     .map(|field| self.bind_pattern_field(module, scope_id, *field, tree, symbols))
                     .collect();
-                Pattern::Tuple { ty, fields }
+                if let Some(ty) = ty {
+                    Pattern::UnresolvedTuple { ty, fields }
+                } else {
+                    Pattern::Tuple {
+                        remote_symbol: None,
+                        fields,
+                    }
+                }
             }
             ast::Pattern::Slice { fields } => {
                 let fields = fields
@@ -80,13 +87,19 @@ impl<'a> Compiler<'a> {
                 Pattern::Slice { fields }
             }
             ast::Pattern::Struct { ty, fields } => {
-                let ty =
-                    ty.map(|ty| self.bind_expression_to_type(module, scope_id, ty, tree, symbols));
+                let ty = ty.map(|ty| self.bind_expression(module, scope_id, ty, tree, symbols));
                 let fields = fields
                     .iter()
                     .map(|field| self.bind_pattern_field(module, scope_id, *field, tree, symbols))
                     .collect();
-                Pattern::Struct { ty, fields }
+                if let Some(ty) = ty {
+                    Pattern::UnresolvedStruct { ty, fields }
+                } else {
+                    Pattern::Struct {
+                        remote_symbol: None,
+                        fields,
+                    }
+                }
             }
             ast::Pattern::Union { patterns } => {
                 let patterns = patterns

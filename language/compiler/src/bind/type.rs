@@ -1,8 +1,8 @@
 use crate::Compiler;
 use dyst_ast as ast;
 use dyst_dir::{
-    Generics, Heritage, LocalNodeId, LocalScopeId, Module, Mutability, NodeTree, SymbolTable, Type,
-    TypeKind, VarianceBound,
+    Generics, Heritage, LocalScopeId, LocalTypeId, Module, Mutability, NodeTree, SymbolTable, Type,
+    TypeKind, TypeTable, VarianceBound,
 };
 
 impl<'a> Compiler<'a> {
@@ -14,14 +14,11 @@ impl<'a> Compiler<'a> {
         expression_id: ast::LocalNodeId<ast::Expression>,
         tree: &mut NodeTree,
         symbols: &mut SymbolTable,
-    ) -> LocalNodeId<Type> {
-        let expression = self.bind_expression(module, scope_id, expression_id, tree, symbols);
-        let type_id = tree.insert_from_source(
-            Type::UnresolvedExpression(expression),
-            expression_id,
-            scope_id,
-        );
-        tree.alias_from_source(expression_id.id, type_id);
+        types: &mut TypeTable,
+    ) -> LocalTypeId {
+        let expression_id = self.bind_expression(module, scope_id, expression_id, tree, symbols);
+        let type_id =
+            types.insert_from(Type::UnresolvedExpression(expression_id), expression_id);
         type_id
     }
 
@@ -107,7 +104,7 @@ impl<'a> Compiler<'a> {
             extends_types
                 .iter()
                 .map(|extends_type| {
-                    self.bind_expression_to_type(module, scope_id, *extends_type, tree, symbols)
+                    self.bind_expression(module, scope_id, *extends_type, tree, symbols)
                 })
                 .collect()
         });
@@ -115,7 +112,7 @@ impl<'a> Compiler<'a> {
             implements_types
                 .iter()
                 .map(|implements_type| {
-                    self.bind_expression_to_type(module, scope_id, *implements_type, tree, symbols)
+                    self.bind_expression(module, scope_id, *implements_type, tree, symbols)
                 })
                 .collect()
         });

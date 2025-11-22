@@ -44,9 +44,8 @@ impl<'a> Transpiler<'a> {
             dir::Parameter::Pattern {
                 modifiers,
                 pattern,
-                ty,
                 default,
-                symbol: _,
+                symbol: symbol_id,
             } => {
                 let modifiers = modifiers
                     .map(|modifiers| self.transpile_binding_modifier(module, modifiers, unit))

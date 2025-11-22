@@ -85,9 +85,9 @@ impl<'a> Compiler<'a> {
             .iter()
             .map(|parameter| self.bind_parameter(module, scope_id, *parameter, tree, symbols))
             .collect();
-        let return_type = signature.return_type.map(|return_type| {
-            self.bind_expression_to_type(module, scope_id, return_type, tree, symbols)
-        });
+        let return_type = signature
+            .return_type
+            .map(|return_type| self.bind_expression(module, scope_id, return_type, tree, symbols));
         FunctionSignature {
             abstraction,
             asynchrony,

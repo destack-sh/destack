@@ -63,8 +63,6 @@ impl<'a> Compiler<'a> {
                 let modifiers =
                     modifiers.map(|modifiers| self.bind_binding_modifier(module, modifiers));
                 let name = self.session.strings.intern_from(&module.ast_strings, *name);
-                let ty =
-                    ty.map(|ty| self.bind_expression_to_type(module, scope_id, ty, tree, symbols));
                 let default = default
                     .map(|default| self.bind_expression(module, scope_id, default, tree, symbols));
                 let symbol_id = symbols.insert_symbol(
@@ -75,7 +73,6 @@ impl<'a> Compiler<'a> {
                 let parameter = Parameter::Named {
                     modifiers,
                     name,
-                    ty,
                     default,
                     symbol: symbol_id,
                 };
@@ -92,20 +89,18 @@ impl<'a> Compiler<'a> {
                 let modifiers =
                     modifiers.map(|modifiers| self.bind_binding_modifier(module, modifiers));
                 let pattern = self.bind_pattern(module, scope_id, *pattern, tree, symbols);
-                let ty =
-                    ty.map(|ty| self.bind_expression_to_type(module, scope_id, ty, tree, symbols));
                 let default = default
                     .map(|default| self.bind_expression(module, scope_id, default, tree, symbols));
                 let symbol_id = symbols.insert_symbol(SymbolSpace::Value, None, scope_id);
                 let parameter = Parameter::Pattern {
                     modifiers,
                     pattern,
-                    ty,
                     default,
                     symbol: symbol_id,
                 };
                 let parameter_id = tree.insert_from_source(parameter, parameter_id, scope_id);
-                symbols.set_primary_declaration(symbol_id, parameter_id);
+                let symbol = symbols.get_symbol_mut(symbol_id);
+                symbol.primary_declaration = Some(parameter_id.into_global_any(module.id));
                 parameter_id
             }
             ast::Parameter::Variadic {
@@ -116,8 +111,6 @@ impl<'a> Compiler<'a> {
                 let modifiers =
                     modifiers.map(|modifiers| self.bind_binding_modifier(module, modifiers));
                 let name = self.session.strings.intern_from(&module.ast_strings, *name);
-                let ty =
-                    ty.map(|ty| self.bind_expression_to_type(module, scope_id, ty, tree, symbols));
                 let symbol_id = symbols.insert_symbol(
                     SymbolSpace::Value,
                     Some(SymbolKey::Name(name)),
@@ -126,7 +119,6 @@ impl<'a> Compiler<'a> {
                 let parameter = Parameter::Variadic {
                     modifiers,
                     name,
-                    ty,
                     symbol: symbol_id,
                 };
                 let parameter_id = tree.insert_from_source(parameter, parameter_id, scope_id);

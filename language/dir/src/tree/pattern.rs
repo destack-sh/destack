@@ -35,7 +35,7 @@ pub enum Pattern {
     },
     /// Tuple pattern (like `(x, 0)` or `Result.Success(_)`).
     Tuple {
-        remote_symbol: GlobalSymbolId,
+        remote_symbol: Option<GlobalSymbolId>,
         fields: Vec<LocalNodeId<PatternField>>,
     },
     /// Array or slice pattern (like `[1, 2, x]` or `[1, y, ..]`).
@@ -49,7 +49,7 @@ pub enum Pattern {
     },
     /// Struct pattern (like `Vector2 { x: 0, y, z: zedso  }`).
     Struct {
-        remote_symbol: GlobalSymbolId,
+        remote_symbol: Option<GlobalSymbolId>,
         fields: Vec<LocalNodeId<PatternField>>,
     },
     /// Union pattern (like `1 | 2 | 3`).
