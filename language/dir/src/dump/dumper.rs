@@ -985,6 +985,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
             }
             Expression::LocalReference {
                 name,
+                static_arguments: _,
                 remote_symbol,
             } => {
                 self.node("Expression::LocalReference", id.id)

@@ -228,6 +228,7 @@ impl<'a> Compiler<'a> {
                 value,
             } => {
                 let mutability = self.bind_mutability(*mutability);
+                // nocheckin: bind pattern symbols (and remove Let symbol? see symbols.create_local_symbol usages)
                 let pattern = self.bind_pattern(module, scope_id, *pattern, tree, symbols);
                 let ty =
                     ty.map(|ty| self.bind_expression_to_type(module, scope_id, ty, tree, symbols));
@@ -262,7 +263,11 @@ impl<'a> Compiler<'a> {
                         .collect()
                 });
                 let value = self.bind_expression(module, scope_id, *value, tree, symbols);
-                let symbol_id = symbols.create_local_symbol(SymbolSpace::Value, None, scope_id);
+                let symbol_id = symbols.create_local_symbol(
+                    SymbolSpace::Value,
+                    Some(SymbolKey::Name(name)),
+                    scope_id,
+                );
                 Expression::LetType {
                     kind,
                     mutability,

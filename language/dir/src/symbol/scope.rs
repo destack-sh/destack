@@ -95,7 +95,7 @@ impl Scope {
     }
 
     /// Get a symbol from the scope.
-    pub fn get_symbol(&self, key: SymbolKey) -> Option<LocalSymbolId> {
+    pub fn find_symbol(&self, key: SymbolKey) -> Option<LocalSymbolId> {
         self.symbols.get(&key).cloned()
     }
 

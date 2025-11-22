@@ -1,4 +1,4 @@
-use dyst_dir::{GlobalNodeIdAny, LocalNodeId, Session, Type};
+use dyst_dir::{GlobalNodeIdAny, GlobalSymbolId, LocalNodeId, Session, Type, Visibility};
 
 use crate::{CompileError, CompilePhase};
 
@@ -13,6 +13,12 @@ pub enum ValidateError {
         node: GlobalNodeIdAny,
         expected_ty: LocalNodeId<Type>,
         actual_ty: LocalNodeId<Type>,
+    },
+    /// Inaccessible symbol (private/internal/module boundaries).
+    InaccessibleSymbol {
+        node: GlobalNodeIdAny,
+        visibility: Visibility,
+        symbol: GlobalSymbolId,
     },
     /// Calling non-callable.
     NonCallable { node: GlobalNodeIdAny },
@@ -39,8 +45,9 @@ impl ValidateError {
     #[inline]
     pub fn sub_code(&self) -> u8 {
         match self {
-            Self::MissingType { .. } => 2,
-            Self::TypeMismatch { .. } => 3,
+            Self::MissingType { .. } => 1,
+            Self::TypeMismatch { .. } => 2,
+            Self::InaccessibleSymbol { .. } => 3,
             Self::NonCallable { .. } => 4,
             Self::NonIndexable { .. } => 5,
             Self::NonExhaustiveMatch { .. } => 6,
@@ -56,6 +63,7 @@ impl ValidateError {
         match self {
             Self::MissingType { node, .. } => Some(*node),
             Self::TypeMismatch { node, .. } => Some(*node),
+            Self::InaccessibleSymbol { node, .. } => Some(*node),
             Self::NonCallable { node, .. } => Some(*node),
             Self::NonIndexable { node, .. } => Some(*node),
             Self::NonExhaustiveMatch { node, .. } => Some(*node),
@@ -71,6 +79,7 @@ impl ValidateError {
         match self {
             Self::MissingType { .. } => "missing type".to_string(),
             Self::TypeMismatch { .. } => "type mismatch".to_string(),
+            Self::InaccessibleSymbol { .. } => "inaccessible symbol".to_string(),
             Self::NonCallable { .. } => "calling non-callable".to_string(),
             Self::NonIndexable { .. } => "indexing non-indexable".to_string(),
             Self::NonExhaustiveMatch { .. } => "non-exhaustive match".to_string(),

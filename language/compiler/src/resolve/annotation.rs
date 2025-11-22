@@ -1,4 +1,4 @@
-use dyst_dir::{Annotation, LocalNodeId, ModuleId, NodeTree, SymbolTable};
+use dyst_dir::{Annotation, LocalNodeId, Module, NodeTree, SymbolTable};
 
 use crate::{Compiler, ResolveResult};
 
@@ -6,7 +6,7 @@ impl<'a> Compiler<'a> {
     /// Resolve an Annotation.
     pub fn resolve_annotation(
         &self,
-        _module_id: ModuleId,
+        _module: &Module,
         annotation_id: LocalNodeId<Annotation>,
         tree: &mut NodeTree,
         _symbols: &SymbolTable,

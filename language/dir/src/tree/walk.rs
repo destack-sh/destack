@@ -410,23 +410,25 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
         }
         Expression::LocalReference {
             name: _,
+            static_arguments,
             remote_symbol: _,
-        } => {
-            // nothing to do
         }
-        Expression::ModuleReference {
+        | Expression::ModuleReference {
             path: _,
-            static_arguments: _,
+            static_arguments,
             remote_symbol: _,
-        } => {
-            // nothing to do
         }
-        Expression::GlobalReference {
+        | Expression::GlobalReference {
             path: _,
-            static_arguments: _,
+            static_arguments,
             remote_symbol: _,
         } => {
-            // nothing to do
+            if let Some(static_arguments) = static_arguments {
+                for argument_id in static_arguments {
+                    let argument = tree.get(*argument_id);
+                    visitor.visit_argument(tree, *argument_id, argument);
+                }
+            }
         }
         Expression::ScalarLiteral { value: _ } => {
             // nothing to do

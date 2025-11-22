@@ -1,5 +1,7 @@
 use crate::{Compiler, ResolveResult};
-use dyst_dir::{Expression, LocalNodeIdAny, ModuleId, Node, NodeTree, NodeType, SymbolTable};
+use dyst_dir::{
+    Expression, LocalNodeIdAny, Module, ModuleId, Node, NodeTree, NodeType, SymbolTable,
+};
 
 #[allow(dead_code)]
 impl<'a> Compiler<'a> {
@@ -50,22 +52,22 @@ impl<'a> Compiler<'a> {
     /// Resolve a generic node.
     pub(super) fn resolve_node(
         &self,
-        module_id: ModuleId,
+        module: &Module,
         node: LocalNodeIdAny,
         tree: &mut NodeTree,
         symbols: &SymbolTable,
     ) -> ResolveResult<()> {
         match node.ty {
-            NodeType::Expression => self.resolve_expression(module_id, node.into(), tree, symbols),
-            NodeType::Type => self.resolve_type(module_id, node.into(), tree, symbols),
-            NodeType::Argument => self.resolve_argument(module_id, node.into(), tree, symbols),
+            NodeType::Expression => self.resolve_expression(module, node.into(), tree, symbols),
+            NodeType::Type => self.resolve_type(module, node.into(), tree, symbols),
+            NodeType::Argument => self.resolve_argument(module, node.into(), tree, symbols),
             NodeType::DependencyItem => {
-                self.resolve_dependency_item(module_id, node.into(), tree, symbols)
+                self.resolve_dependency_item(module, node.into(), tree, symbols)
             }
             NodeType::PatternField => {
-                self.resolve_pattern_field(module_id, node.into(), tree, symbols)
+                self.resolve_pattern_field(module, node.into(), tree, symbols)
             }
-            NodeType::Annotation => self.resolve_annotation(module_id, node.into(), tree, symbols),
+            NodeType::Annotation => self.resolve_annotation(module, node.into(), tree, symbols),
             _ => {
                 // nothing to do
                 Ok(())
@@ -86,7 +88,9 @@ impl<'a> Compiler<'a> {
 
         // resolve roots
         for expression_id in tree.iter_node_ids_of_type::<Expression>() {
-            self.resolve_expression(module_id, expression_id, &mut tree, &symbols)?;
+            self.try_resolve(|compiler| {
+                compiler.resolve_expression(&module, expression_id, &mut tree, &symbols)
+            });
         }
 
         Ok(())
