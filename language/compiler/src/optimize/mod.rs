@@ -1,9 +1,9 @@
 mod error;
-mod optimize;
 mod options;
+mod process;
 mod warning;
 
 pub use error::*;
-pub use optimize::*;
 pub use options::*;
+pub use process::*;
 pub use warning::*;

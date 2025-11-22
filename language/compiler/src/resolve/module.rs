@@ -79,14 +79,14 @@ impl<'a> Compiler<'a> {
             .session
             .modules
             .get(module_id)
-            .unwrap_or_else(|| panic!("module not found: {:?}", module_id));
+            .unwrap_or_else(|| panic!("module not found: {module_id:?}"));
         let module = module.read();
         let mut tree = module.tree.write();
         let symbols = module.symbols.read();
 
         // resolve roots
         for expression_id in tree.iter_node_ids_of_type::<Expression>() {
-            self.resolve_expression(module_id, expression_id.into(), &mut tree, &symbols)?;
+            self.resolve_expression(module_id, expression_id, &mut tree, &symbols)?;
         }
 
         Ok(())
