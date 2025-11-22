@@ -1614,10 +1614,12 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 mutability,
                 name,
                 pattern: _,
+                symbol,
             } => {
                 self.node("Pattern::Binding", id.id)
                     .field_optional("mutability", mutability)
                     .field("name", name)
+                    .field("symbol", symbol)
                     .end();
             }
             Pattern::Expression { value: _ } => {
@@ -1678,10 +1680,12 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 name,
                 default: _,
                 pattern: _,
+                symbol,
             } => {
                 self.node("PatternField::Named", id.id)
                     .field("name", name)
                     .field_optional("mutability", mutability)
+                    .field("symbol", symbol)
                     .end();
             }
             PatternField::UnresolvedAlias {
@@ -1689,11 +1693,13 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 name,
                 alias,
                 default: _,
+                symbol,
             } => {
                 self.node("PatternField::Alias", id.id)
                     .field("name", name)
                     .field("alias", alias)
                     .field_optional("mutability", mutability)
+                    .field("symbol", symbol)
                     .end();
             }
             PatternField::UnresolvedPositional { pattern: _ } => {
@@ -1705,11 +1711,13 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 pattern: _,
                 default: _,
                 symbol,
+                target_symbol,
             } => {
                 self.node("PatternField::Named", id.id)
                     .field("name", name)
                     .field_optional("mutability", mutability)
                     .field("symbol", symbol)
+                    .field("target_symbol", target_symbol)
                     .end();
             }
             PatternField::Alias {
@@ -1718,18 +1726,18 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 alias,
                 default: _,
                 symbol,
+                target_symbol,
             } => {
                 self.node("PatternField::Alias", id.id)
                     .field("name", name)
                     .field("alias", alias)
                     .field_optional("mutability", mutability)
                     .field("symbol", symbol)
+                    .field("target_symbol", target_symbol)
                     .end();
             }
-            PatternField::Positional { pattern: _, symbol } => {
-                self.node("PatternField::Positional", id.id)
-                    .field("symbol", symbol)
-                    .end();
+            PatternField::Positional { pattern: _ } => {
+                self.node("PatternField::Positional", id.id).end();
             }
         }
         self.with_depth(|dumper| {
@@ -1858,11 +1866,10 @@ impl Dump for LocalScopeId {
 
 impl Dump for GlobalSymbolId {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
-        dumper
-            .object("GlobalSymbolId")
-            .field("module_id", &self.module_id)
-            .field("local_id", &self.local_id)
-            .end();
+        dumper.write_str(
+            format!("#{}/{}/", self.module_id.0, self.local_id.0),
+            Some(Color::Green),
+        );
     }
 }
 
@@ -1874,11 +1881,10 @@ impl Dump for LocalSymbolId {
 
 impl Dump for GlobalScopeId {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
-        dumper
-            .object("GlobalScopeId")
-            .field("module_id", &self.module_id)
-            .field("local_id", &self.local_id)
-            .end();
+        dumper.write_str(
+            format!("#{}/#{}", self.module_id.0, self.local_id.0),
+            Some(Color::Green),
+        );
     }
 }
 

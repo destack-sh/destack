@@ -1,4 +1,6 @@
-use crate::{Expression, GlobalSymbolId, LocalNodeId, Mutability, Node, NodeType, StringId};
+use crate::{
+    Expression, GlobalSymbolId, LocalNodeId, LocalSymbolId, Mutability, Node, NodeType, StringId,
+};
 
 /// A Pattern is a pattern to match something and unwrap it.
 #[derive(Debug, Clone, PartialEq)]
@@ -19,6 +21,7 @@ pub enum Pattern {
         mutability: Option<Mutability>,
         name: StringId,
         pattern: Option<LocalNodeId<Pattern>>,
+        symbol: LocalSymbolId,
     },
     /// Literal value, type or path pattern (like `4`, `int32`, `Vector2`, `MyEnum.A`).
     Expression { value: LocalNodeId<Expression> },
@@ -73,6 +76,7 @@ pub enum PatternField {
         name: StringId,
         pattern: Option<LocalNodeId<Pattern>>,
         default: Option<LocalNodeId<Expression>>,
+        symbol: LocalSymbolId,
     },
     /// Named field with an alias (like `x: y`).
     UnresolvedAlias {
@@ -80,6 +84,7 @@ pub enum PatternField {
         name: StringId,
         alias: StringId,
         default: Option<LocalNodeId<Expression>>,
+        symbol: LocalSymbolId,
     },
     /// Positional field with just a pattern (like `4` or `int32`).
     UnresolvedPositional { pattern: LocalNodeId<Pattern> },
@@ -89,7 +94,8 @@ pub enum PatternField {
         name: StringId,
         pattern: Option<LocalNodeId<Pattern>>,
         default: Option<LocalNodeId<Expression>>,
-        symbol: GlobalSymbolId,
+        symbol: LocalSymbolId,
+        target_symbol: GlobalSymbolId,
     },
     /// Named field with an alias (like `x: y`).
     Alias {
@@ -97,13 +103,11 @@ pub enum PatternField {
         name: StringId,
         alias: StringId,
         default: Option<LocalNodeId<Expression>>,
-        symbol: GlobalSymbolId,
+        symbol: LocalSymbolId,
+        target_symbol: GlobalSymbolId,
     },
     /// Positional field with just a pattern (like `4` or `int32`).
-    Positional {
-        pattern: LocalNodeId<Pattern>,
-        symbol: GlobalSymbolId,
-    },
+    Positional { pattern: LocalNodeId<Pattern> },
 }
 
 impl Node for PatternField {

@@ -1080,6 +1080,7 @@ pub fn walk_pattern<V: NodeVisitor + ?Sized>(
             mutability: _,
             name: _,
             pattern,
+            symbol: _,
         } => {
             if let Some(pattern_id) = pattern {
                 let pattern_node = tree.get(*pattern_id);
@@ -1166,12 +1167,14 @@ pub fn walk_pattern_field<V: NodeVisitor + ?Sized>(
             mutability: _,
             name: _,
             symbol: _,
+            target_symbol: _,
             pattern,
             default,
         }
         | PatternField::UnresolvedNamed {
             mutability: _,
             name: _,
+            symbol: _,
             pattern,
             default,
         } => {
@@ -1189,12 +1192,14 @@ pub fn walk_pattern_field<V: NodeVisitor + ?Sized>(
             name: _,
             alias: _,
             symbol: _,
+            target_symbol: _,
             default,
         }
         | PatternField::UnresolvedAlias {
             mutability: _,
             name: _,
             alias: _,
+            symbol: _,
             default,
         } => {
             if let Some(default) = default {
@@ -1202,8 +1207,7 @@ pub fn walk_pattern_field<V: NodeVisitor + ?Sized>(
                 visitor.visit_expression(tree, *default, default_expression);
             }
         }
-        PatternField::Positional { pattern, symbol: _ }
-        | PatternField::UnresolvedPositional { pattern } => {
+        PatternField::Positional { pattern } | PatternField::UnresolvedPositional { pattern } => {
             let pattern_node = tree.get(*pattern);
             visitor.visit_pattern(tree, *pattern, pattern_node);
         }
