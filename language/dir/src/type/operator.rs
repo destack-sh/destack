@@ -43,4 +43,3 @@ pub enum TypeBinaryOperator {
     /// `implements`
     Implements,
 }
-

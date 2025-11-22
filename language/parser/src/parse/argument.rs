@@ -1,5 +1,5 @@
 use dyst_ast::{
-    Argument, BindingKind, BindingModifier, BindingOperator, BindingAnchor, Expression, Keyword,
+    Argument, BindingAnchor, BindingKind, BindingModifier, BindingOperator, Expression, Keyword,
     LocalNodeId, Mutability, Name, NodeType, Parameter, Pattern, ScalarLiteral, StringId,
     TokenType,
 };

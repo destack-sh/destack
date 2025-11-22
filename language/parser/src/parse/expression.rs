@@ -4,9 +4,9 @@ use crate::parse::prelude::*;
 use crate::{ParseError, ParseResult, Parser, ParserMark};
 
 use dyst_ast::{
-    Argument, AssignOperator, BinaryOperator, BindingAnchor, DeclarationDescriptor, DeclarationKind,
-    ExportType, Expression, IfKind, InfixOperator, Keyword, LocalNodeId, NodeType, PostfixPosition,
-    TokenSpan, TokenType, TypeBinaryOperator, TypeUnaryOperator, UnaryOperator,
+    Argument, AssignOperator, BinaryOperator, BindingAnchor, DeclarationDescriptor,
+    DeclarationKind, ExportType, Expression, IfKind, InfixOperator, Keyword, LocalNodeId, NodeType,
+    PostfixPosition, TokenSpan, TokenType, TypeBinaryOperator, TypeUnaryOperator, UnaryOperator,
 };
 
 pub static DECLARATION_KEYWORDS: [Keyword; 21] = [

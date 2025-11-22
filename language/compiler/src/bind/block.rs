@@ -18,12 +18,8 @@ impl<'a> Compiler<'a> {
         symbols: &mut SymbolTable,
         types: &mut TypeTable,
     ) -> LocalNodeId<Block> {
-        let (symbol_id, scope_id) = symbols.insert_symbol_with_scope(
-            SymbolSpace::Value,
-            None,
-            ScopeKind::Block,
-            scope_id,
-        );
+        let (symbol_id, scope_id) =
+            symbols.insert_symbol_with_scope(SymbolSpace::Value, None, ScopeKind::Block, scope_id);
         let block = module.get(block_id);
         let label = block
             .label
@@ -31,7 +27,9 @@ impl<'a> Compiler<'a> {
         let expressions = block
             .expressions
             .iter()
-            .map(|expression| self.bind_expression(module, scope_id, *expression, tree, symbols, types))
+            .map(|expression| {
+                self.bind_expression(module, scope_id, *expression, tree, symbols, types)
+            })
             .collect();
         let block_id = tree.insert_from_source(
             Block {

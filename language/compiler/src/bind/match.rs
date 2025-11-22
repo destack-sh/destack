@@ -18,12 +18,8 @@ impl<'a> Compiler<'a> {
         symbols: &mut SymbolTable,
         types: &mut TypeTable,
     ) -> LocalNodeId<MatchCase> {
-        let (symbol_id, scope_id) = symbols.insert_symbol_with_scope(
-            SymbolSpace::Value,
-            None,
-            ScopeKind::Block,
-            scope_id,
-        );
+        let (symbol_id, scope_id) =
+            symbols.insert_symbol_with_scope(SymbolSpace::Value, None, ScopeKind::Block, scope_id);
         let match_case = module.get(match_case_id);
         let match_case = match match_case {
             ast::MatchCase::Expression {
@@ -33,8 +29,9 @@ impl<'a> Compiler<'a> {
             } => {
                 let pattern = self.bind_pattern(module, scope_id, *pattern, tree, symbols, types);
                 let body = self.bind_expression(module, scope_id, *body, tree, symbols, types);
-                let guard =
-                    guard.map(|guard| self.bind_expression(module, scope_id, guard, tree, symbols, types));
+                let guard = guard.map(|guard| {
+                    self.bind_expression(module, scope_id, guard, tree, symbols, types)
+                });
                 MatchCase::Expression {
                     pattern,
                     body,
@@ -49,8 +46,9 @@ impl<'a> Compiler<'a> {
             } => {
                 let pattern = self.bind_pattern(module, scope_id, *pattern, tree, symbols, types);
                 let body = self.bind_block(module, scope_id, *body, tree, symbols, types);
-                let guard =
-                    guard.map(|guard| self.bind_expression(module, scope_id, guard, tree, symbols, types));
+                let guard = guard.map(|guard| {
+                    self.bind_expression(module, scope_id, guard, tree, symbols, types)
+                });
                 MatchCase::Block {
                     pattern,
                     body,

@@ -3,7 +3,7 @@ use crate::r#where::format_where_clause;
 use crate::with::format_with_clause;
 use crate::{DystFormatter, FormatNode};
 use dyst_ast::{
-    Asynchrony, BindingKind, BindingModifier, BindingOperator, BindingAnchor, FunctionAbstraction,
+    Asynchrony, BindingAnchor, BindingKind, BindingModifier, BindingOperator, FunctionAbstraction,
     FunctionCardinality, Keyword, LocalNodeId, Mutability, Property,
 };
 use dyst_fir::format::FormatResult;
