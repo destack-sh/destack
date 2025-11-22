@@ -468,7 +468,7 @@ impl_dump_display! {
     BinaryOperator,
     BindingKind,
     BindingOperator,
-    BindingScope,
+    BindingAnchor,
     DeclarationKind,
     DependencyKind,
     ExportType,
@@ -593,7 +593,7 @@ impl Dump for BindingModifier {
         dumper
             .object("BindingModifier")
             .field_optional("kind", &self.kind)
-            .field_optional("scope", &self.scope)
+            .field_optional("anchor", &self.anchor)
             .field_optional("mutability", &self.mutability)
             .field_optional("visibility", &self.visibility)
             .field_optional("operator", &self.operator)
@@ -607,7 +607,7 @@ impl Dump for DeclarationDescriptor {
         dumper
             .object("DeclarationDescriptor")
             .field("kind", &self.kind)
-            .field("scope", &self.scope)
+            .field("anchor", &self.anchor)
             .field_optional("name", &self.name)
             .field_optional("export", &self.export)
             .end();

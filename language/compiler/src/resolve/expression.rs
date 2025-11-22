@@ -51,15 +51,15 @@ impl<'a> Compiler<'a> {
             }
             Expression::UnresolvedRelativePath {
                 path,
-                local_symbol: remote_symbol,
+                target_symbol,
                 remaining_path,
                 static_arguments,
             } => {
-                let remote_symbol = symbols.get_symbol(*remote_symbol);
+                let target_symbol = symbols.get_symbol(*target_symbol);
                 self.resolve_relative_path(
                     module,
                     expression_id.into_any(),
-                    remote_symbol,
+                    target_symbol,
                     path,
                     remaining_path,
                     static_arguments.clone(),

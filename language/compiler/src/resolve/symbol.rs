@@ -107,7 +107,7 @@ impl<'a> Compiler<'a> {
         if let Some(remaining_path) = remaining_path {
             Ok(Expression::UnresolvedRelativePath {
                 path: path.clone(),
-                local_symbol: symbol_id,
+                target_symbol: symbol_id,
                 remaining_path,
                 static_arguments,
             })
@@ -143,7 +143,7 @@ impl<'a> Compiler<'a> {
         if let Some(remaining_path) = remaining_path {
             Ok(Expression::UnresolvedRelativePath {
                 path: path.clone(),
-                local_symbol: symbol_id,
+                target_symbol: symbol_id,
                 remaining_path,
                 static_arguments,
             })
@@ -178,20 +178,20 @@ impl<'a> Compiler<'a> {
                 Ok(Expression::LocalReference {
                     path: path.clone(),
                     static_arguments,
-                    local_symbol: symbol.id,
+                    target_symbol: symbol.id,
                 })
             } else {
                 Ok(Expression::ModuleReference {
                     path: path.clone(),
                     static_arguments,
-                    local_symbol: symbol.id,
+                    target_symbol: symbol.id,
                 })
             }
         } else {
             Ok(Expression::GlobalReference {
                 path: path.clone(),
                 static_arguments,
-                remote_symbol: symbol.id.into_global(module.id),
+                target_symbol: symbol.id.into_global(module.id),
             })
         }
     }

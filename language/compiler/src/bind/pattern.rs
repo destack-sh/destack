@@ -76,7 +76,7 @@ impl<'a> Compiler<'a> {
                     Pattern::UnresolvedTuple { ty, fields }
                 } else {
                     Pattern::Tuple {
-                        remote_symbol: None,
+                        target_symbol: None,
                         fields,
                     }
                 }
@@ -98,7 +98,7 @@ impl<'a> Compiler<'a> {
                     Pattern::UnresolvedStruct { ty, fields }
                 } else {
                     Pattern::Struct {
-                        remote_symbol: None,
+                        target_symbol: None,
                         fields,
                     }
                 }

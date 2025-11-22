@@ -45,7 +45,7 @@ pub enum DependencyItem {
     /// Remote to the module (i.e., imports and re-exports).
     Remote {
         symbol: LocalSymbolId,
-        remote_symbol: GlobalSymbolId,
+        target_symbol: GlobalSymbolId,
         module: ModuleId,
     },
 }

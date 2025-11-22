@@ -1,9 +1,9 @@
 use crate::Compiler;
 use dyst_ast as ast;
 use dyst_dir::{
-    BindingScope, Declaration, DeclarationDescriptor, DeclarationKind, EnumField, LocalNodeId,
-    LocalScopeId, LocalSymbolId, Module, NodeTree, ScopeKind, StructKind, SymbolKey, SymbolSpace,
-    SymbolTable, TypeTable,
+    BindingAnchor, Declaration, DeclarationDescriptor, DeclarationKind, EnumField, LocalNodeId,
+    LocalScopeId, Module, NodeTree, ScopeKind, StructKind, SymbolKey, SymbolSpace, SymbolTable,
+    TypeTable,
 };
 
 #[allow(clippy::too_many_arguments)]
@@ -16,43 +16,49 @@ impl<'a> Compiler<'a> {
         }
     }
 
-    /// Bind binding scope to DIR binding scope.
-    pub(super) fn bind_binding_scope(&self, scope: ast::BindingScope) -> BindingScope {
-        match scope {
-            ast::BindingScope::Static => BindingScope::Static,
-            ast::BindingScope::Instance => BindingScope::Instance,
+    /// Bind binding anchor to DIR binding anchor.
+    pub(super) fn bind_binding_anchor(&self, anchor: ast::BindingAnchor) -> BindingAnchor {
+        match anchor {
+            ast::BindingAnchor::Static => BindingAnchor::Static,
+            ast::BindingAnchor::Instance => BindingAnchor::Instance,
         }
     }
 
-    /// Bind AST declaration descriptor into DIR declaration descriptor.
+    /// Bind AST declaration descriptor into DIR declaration descriptor (including symbol and scope).
     pub(super) fn bind_declaration_descriptor(
         &self,
         module: &Module,
-        symbol_id: LocalSymbolId,
+        scope_id: LocalScopeId,
         descriptor: &ast::DeclarationDescriptor,
-    ) -> DeclarationDescriptor {
-        let kind = self.bind_declaration_kind(descriptor.kind);
-        let scope = self.bind_binding_scope(descriptor.scope);
+        symbols: &mut SymbolTable,
+    ) -> (DeclarationDescriptor, LocalScopeId) {
         let name = descriptor.name.map(|name| {
             self.session
                 .strings
                 .intern_from(&module.ast_strings, name.string())
         });
+        let (symbol_id, scope_id) = symbols.insert_symbol_with_scope(
+            SymbolSpace::Value,
+            name.map(SymbolKey::Name),
+            ScopeKind::Namespace,
+            scope_id,
+        );
+        let kind = self.bind_declaration_kind(descriptor.kind);
+        let anchor = self.bind_binding_anchor(descriptor.anchor);
         let export = descriptor
             .export
             .map(|export| self.bind_export_type(export));
-        DeclarationDescriptor {
+        let descriptor = DeclarationDescriptor {
             kind,
-            scope,
+            anchor,
             name,
             export,
             symbol: symbol_id,
-        }
+        };
+        (descriptor, scope_id)
     }
 
-    /// Bind a declaration to a DIR declaration.
-    /// Bind an AST declaration to a DIR declaration.
-    /// Handles modules, structs, and enums.
+    /// Bind an AST declaration into a DIR declaration.
     pub(super) fn bind_declaration(
         &self,
         module: &Module,
@@ -69,13 +75,8 @@ impl<'a> Compiler<'a> {
                 generics,
                 expressions,
             } => {
-                let (symbol_id, scope_id) = symbols.insert_symbol_with_scope(
-                    SymbolSpace::Value,
-                    None,
-                    ScopeKind::Namespace,
-                    scope_id,
-                );
-                let descriptor = self.bind_declaration_descriptor(module, symbol_id, descriptor);
+                let (descriptor, scope_id) =
+                    self.bind_declaration_descriptor(module, scope_id, descriptor, symbols);
                 let generics = self.bind_generics(module, scope_id, generics, tree, symbols, types);
                 let expressions = expressions
                     .iter()
@@ -97,13 +98,8 @@ impl<'a> Compiler<'a> {
                 heritage,
                 properties,
             } => {
-                let (symbol_id, scope_id) = symbols.insert_symbol_with_scope(
-                    SymbolSpace::Value,
-                    None,
-                    ScopeKind::Type,
-                    scope_id,
-                );
-                let descriptor = self.bind_declaration_descriptor(module, symbol_id, descriptor);
+                let (descriptor, scope_id) =
+                    self.bind_declaration_descriptor(module, scope_id, descriptor, symbols);
                 let kind = match kind {
                     ast::StructKind::Struct => StructKind::Struct,
                     ast::StructKind::Class => StructKind::Class,
@@ -112,7 +108,9 @@ impl<'a> Compiler<'a> {
                 let heritage = self.bind_heritage(module, scope_id, heritage, tree, symbols, types);
                 let properties = properties
                     .iter()
-                    .map(|property| self.bind_property(module, scope_id, *property, tree, symbols, types))
+                    .map(|property| {
+                        self.bind_property(module, scope_id, *property, tree, symbols, types)
+                    })
                     .collect();
                 Declaration::Struct {
                     descriptor,
@@ -130,22 +128,21 @@ impl<'a> Compiler<'a> {
                 fields,
                 properties,
             } => {
-                let (symbol_id, scope_id) = symbols.insert_symbol_with_scope(
-                    SymbolSpace::Value,
-                    None,
-                    ScopeKind::Type,
-                    scope_id,
-                );
-                let descriptor = self.bind_declaration_descriptor(module, symbol_id, descriptor);
+                let (descriptor, scope_id) =
+                    self.bind_declaration_descriptor(module, scope_id, descriptor, symbols);
                 let generics = self.bind_generics(module, scope_id, generics, tree, symbols, types);
                 let heritage = self.bind_heritage(module, scope_id, heritage, tree, symbols, types);
                 let fields = fields
                     .iter()
-                    .map(|field| self.bind_enum_field(module, scope_id, *field, tree, symbols, types))
+                    .map(|field| {
+                        self.bind_enum_field(module, scope_id, *field, tree, symbols, types)
+                    })
                     .collect();
                 let properties = properties
                     .iter()
-                    .map(|property| self.bind_property(module, scope_id, *property, tree, symbols, types))
+                    .map(|property| {
+                        self.bind_property(module, scope_id, *property, tree, symbols, types)
+                    })
                     .collect();
                 Declaration::Enum {
                     descriptor,
@@ -162,18 +159,15 @@ impl<'a> Compiler<'a> {
                 heritage,
                 properties,
             } => {
-                let (symbol_id, scope_id) = symbols.insert_symbol_with_scope(
-                    SymbolSpace::Value,
-                    None,
-                    ScopeKind::Type,
-                    scope_id,
-                );
-                let descriptor = self.bind_declaration_descriptor(module, symbol_id, descriptor);
+                let (descriptor, scope_id) =
+                    self.bind_declaration_descriptor(module, scope_id, descriptor, symbols);
                 let generics = self.bind_generics(module, scope_id, generics, tree, symbols, types);
                 let heritage = self.bind_heritage(module, scope_id, heritage, tree, symbols, types);
                 let properties = properties
                     .iter()
-                    .map(|property| self.bind_property(module, scope_id, *property, tree, symbols, types))
+                    .map(|property| {
+                        self.bind_property(module, scope_id, *property, tree, symbols, types)
+                    })
                     .collect();
                 Declaration::Interface {
                     descriptor,
@@ -190,20 +184,17 @@ impl<'a> Compiler<'a> {
                 heritage,
                 properties,
             } => {
-                let (symbol_id, scope_id) = symbols.insert_symbol_with_scope(
-                    SymbolSpace::Value,
-                    None,
-                    ScopeKind::Type,
-                    scope_id,
-                );
-                let descriptor = self.bind_declaration_descriptor(module, symbol_id, descriptor);
+                let (descriptor, scope_id) =
+                    self.bind_declaration_descriptor(module, scope_id, descriptor, symbols);
                 let generics = self.bind_generics(module, scope_id, generics, tree, symbols, types);
                 let target_type =
                     self.bind_expression(module, scope_id, *target_type, tree, symbols, types);
                 let heritage = self.bind_heritage(module, scope_id, heritage, tree, symbols, types);
                 let properties = properties
                     .iter()
-                    .map(|property| self.bind_property(module, scope_id, *property, tree, symbols, types))
+                    .map(|property| {
+                        self.bind_property(module, scope_id, *property, tree, symbols, types)
+                    })
                     .collect();
                 Declaration::Implement {
                     descriptor,
@@ -220,17 +211,12 @@ impl<'a> Compiler<'a> {
                 signature,
                 body,
             } => {
-                let (symbol_id, scope_id) = symbols.insert_symbol_with_scope(
-                    SymbolSpace::Value,
-                    None,
-                    ScopeKind::Block,
-                    scope_id,
-                );
-                let descriptor = self.bind_declaration_descriptor(module, symbol_id, descriptor);
+                let (descriptor, scope_id) =
+                    self.bind_declaration_descriptor(module, scope_id, descriptor, symbols);
                 let signature =
                     self.bind_function_signature(module, scope_id, signature, tree, symbols, types);
-                let body =
-                    body.map(|body| self.bind_expression(module, scope_id, body, tree, symbols, types));
+                let body = body
+                    .map(|body| self.bind_expression(module, scope_id, body, tree, symbols, types));
                 Declaration::Function {
                     descriptor,
                     signature,

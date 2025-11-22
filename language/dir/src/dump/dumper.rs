@@ -398,7 +398,7 @@ impl_dump_display! {
     AssignOperator,
     BindingKind,
     BindingOperator,
-    BindingScope,
+    BindingAnchor,
     BinaryOperator,
     DeclarationKind,
     DependencyKind,
@@ -432,7 +432,7 @@ impl Dump for BindingModifier {
         dumper
             .object("BindingModifier")
             .field_optional("kind", &self.kind)
-            .field_optional("scope", &self.scope)
+            .field_optional("anchor", &self.anchor)
             .field_optional("mutability", &self.mutability)
             .field_optional("visibility", &self.visibility)
             .field_optional("operator", &self.operator)
@@ -984,44 +984,44 @@ impl<'a> NodeVisitor for Dumper<'a> {
             }
             Expression::UnresolvedRelativePath {
                 remaining_path,
-                local_symbol,
+                target_symbol,
                 path,
                 static_arguments: _,
             } => {
                 self.node("Expression::UnresolvedRelativePath", id.id)
                     .field("remaining_path", remaining_path)
-                    .field("local_symbol", local_symbol)
+                    .field("target_symbol", target_symbol)
                     .field("path", path)
                     .end();
             }
             Expression::LocalReference {
                 path,
                 static_arguments: _,
-                local_symbol,
+                target_symbol,
             } => {
                 self.node("Expression::LocalReference", id.id)
                     .field("path", path)
-                    .field("local_symbol", local_symbol)
+                    .field("target_symbol", target_symbol)
                     .end();
             }
             Expression::ModuleReference {
                 path,
                 static_arguments: _,
-                local_symbol,
+                target_symbol,
             } => {
                 self.node("Expression::ModuleReference", id.id)
                     .field("path", path)
-                    .field("local_symbol", local_symbol)
+                    .field("target_symbol", target_symbol)
                     .end();
             }
             Expression::GlobalReference {
                 path,
                 static_arguments: _,
-                remote_symbol,
+                target_symbol,
             } => {
                 self.node("Expression::GlobalReference", id.id)
                     .field("path", path)
-                    .field("remote_symbol", remote_symbol)
+                    .field("target_symbol", target_symbol)
                     .end();
             }
 
@@ -1443,12 +1443,12 @@ impl<'a> NodeVisitor for Dumper<'a> {
             }
             DependencyItem::Remote {
                 symbol,
-                remote_symbol,
+                target_symbol,
                 module,
             } => {
                 self.node("DependencyItem::Remote", id.id)
                     .field("symbol", symbol)
-                    .field("remote_symbol", remote_symbol)
+                    .field("target_symbol", target_symbol)
                     .field("module", module)
                     .end();
             }
@@ -1549,38 +1549,38 @@ impl<'a> NodeVisitor for Dumper<'a> {
             Argument::Direct {
                 modifiers,
                 name,
-                remote_symbol: symbol,
+                target_symbol,
                 value: _,
             } => {
                 self.node("Argument::Direct", id.id)
                     .field_optional("modifiers", modifiers)
                     .field("name", name)
-                    .field("symbol", symbol)
+                    .field("target_symbol", target_symbol)
                     .end();
             }
             Argument::Spread {
                 modifiers,
                 name,
-                remote_symbol: symbol,
+                target_symbol,
                 value: _,
             } => {
                 self.node("Argument::Spread", id.id)
                     .field_optional("modifiers", modifiers)
                     .field("name", name)
-                    .field("symbol", symbol)
+                    .field("target_symbol", target_symbol)
                     .end();
             }
             Argument::Dynamic {
                 modifiers,
                 name,
                 key: _,
-                remote_symbol: symbol,
+                target_symbol,
                 value: _,
             } => {
                 self.node("Argument::Dynamic", id.id)
                     .field_optional("modifiers", modifiers)
                     .field_optional("name", name)
-                    .field("symbol", symbol)
+                    .field("target_symbol", target_symbol)
                     .end();
             }
         }
@@ -1636,11 +1636,11 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 self.node("Pattern::UnresolvedTuple", id.id).end();
             }
             Pattern::Tuple {
-                remote_symbol,
+                target_symbol,
                 fields: _,
             } => {
                 self.node("Pattern::Tuple", id.id)
-                    .field("remote_symbol", remote_symbol)
+                    .field("target_symbol", target_symbol)
                     .end();
             }
             Pattern::Slice { fields: _ } => {
@@ -1650,11 +1650,11 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 self.node("Pattern::UnresolvedStruct", id.id).end();
             }
             Pattern::Struct {
-                remote_symbol,
+                target_symbol,
                 fields: _,
             } => {
                 self.node("Pattern::Struct", id.id)
-                    .field("remote_symbol", remote_symbol)
+                    .field("target_symbol", target_symbol)
                     .end();
             }
             Pattern::Union { patterns: _ } => {
@@ -1812,25 +1812,25 @@ impl<'a> NodeVisitor for Dumper<'a> {
             Annotation::Tag {
                 position,
                 left,
-                remote_symbol,
+                target_symbol,
                 arguments: _,
             } => {
                 self.node("Annotation::Tag", id.id)
                     .field("position", position)
                     .field("left", left)
-                    .field("remote_symbol", remote_symbol)
+                    .field("target_symbol", target_symbol)
                     .end();
             }
             Annotation::Decorator {
                 position,
                 left,
-                remote_symbol,
+                target_symbol,
                 arguments: _,
             } => {
                 self.node("Annotation::Decorator", id.id)
                     .field("position", position)
                     .field("left", left)
-                    .field("remote_symbol", remote_symbol)
+                    .field("target_symbol", target_symbol)
                     .end();
             }
         }
@@ -1919,7 +1919,7 @@ impl<'a> Dumper<'a> {
             .end();
         self.with_depth(|dumper| {
             // symbols
-            for (_key, symbol_id) in scope.symbols.iter() {
+            for (_key, symbol_id) in scope.symbols_by_key.iter() {
                 let symbol = symbols.get_symbol(*symbol_id);
                 dumper.visit_symbol(tree, symbols, *symbol_id, symbol);
             }

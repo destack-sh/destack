@@ -234,7 +234,7 @@ impl<'a> Compiler<'a> {
                 value,
             } => {
                 let mutability = self.bind_mutability(*mutability);
-                // nocheckin: bind pattern symbols (and remove Let symbol? see symbols.create_local_symbol usages)
+                // nocheckin: bind pattern symbols (and remove Let symbol? see symbols.create_target_symbol usages)
                 let pattern = self.bind_pattern(module, scope_id, *pattern, tree, symbols, types);
                 let value = value.map(|value| {
                     self.bind_expression(module, scope_id, value, tree, symbols, types)

@@ -420,7 +420,7 @@ impl_dump_display! {
     AssignOperator,
     BindingKind,
     BindingOperator,
-    BindingScope,
+    BindingAnchor,
     BlockFormat,
     BinaryOperator,
     CommentStyle,

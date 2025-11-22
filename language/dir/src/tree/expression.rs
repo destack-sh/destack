@@ -178,7 +178,7 @@ pub enum Expression {
     /// Unresolved relative path to a remote symbol.
     UnresolvedRelativePath {
         path: Path,
-        local_symbol: LocalSymbolId,
+        target_symbol: LocalSymbolId,
         remaining_path: Path,
         static_arguments: Option<Vec<LocalNodeId<Argument>>>,
     },
@@ -186,19 +186,19 @@ pub enum Expression {
     LocalReference {
         path: Path,
         static_arguments: Option<Vec<LocalNodeId<Argument>>>,
-        local_symbol: LocalSymbolId,
+        target_symbol: LocalSymbolId,
     },
     /// Module reference.
     ModuleReference {
         path: Path,
         static_arguments: Option<Vec<LocalNodeId<Argument>>>,
-        local_symbol: LocalSymbolId,
+        target_symbol: LocalSymbolId,
     },
     /// Global reference.
     GlobalReference {
         path: Path,
         static_arguments: Option<Vec<LocalNodeId<Argument>>>,
-        remote_symbol: GlobalSymbolId,
+        target_symbol: GlobalSymbolId,
     },
 
     /// Type as a value.

@@ -1,5 +1,5 @@
 use dyst_ast::{
-    Argument, BindingKind, BindingModifier, BindingOperator, BindingScope, Expression, Keyword,
+    Argument, BindingKind, BindingModifier, BindingOperator, BindingAnchor, Expression, Keyword,
     LocalNodeId, Mutability, Name, NodeType, Parameter, Pattern, ScalarLiteral, StringId,
     TokenType,
 };
@@ -25,7 +25,7 @@ impl<'a> Parser<'a> {
             if modifiers.is_none() {
                 modifiers = Some(BindingModifier::default());
             }
-            modifiers.as_mut().unwrap().scope = Some(BindingScope::Static);
+            modifiers.as_mut().unwrap().anchor = Some(BindingAnchor::Static);
         }
         // mutability
         if self.peek_keyword(Keyword::Readonly).is_ok() {

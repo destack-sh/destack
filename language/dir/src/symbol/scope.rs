@@ -77,7 +77,9 @@ pub struct Scope {
     /// The owner of the scope.
     pub owner: Option<LocalSymbolId>,
     /// The symbols in the scope.
-    pub symbols: IndexMap<SymbolKey, LocalSymbolId>,
+    pub symbols_by_key: IndexMap<SymbolKey, LocalSymbolId>,
+    /// THe anonymous symbols in the scope.
+    pub anonymous_symbols: Vec<LocalSymbolId>,
     /// The children scopes.
     pub children: Vec<LocalScopeId>,
 }
@@ -90,13 +92,20 @@ impl Scope {
     }
 
     /// Insert a symbol into the scope.
-    pub fn insert_symbol(&mut self, key: SymbolKey, symbol_id: LocalSymbolId) {
-        self.symbols.insert(key, symbol_id);
+    pub fn insert_symbol(&mut self, key: Option<SymbolKey>, symbol_id: LocalSymbolId) {
+        match key {
+            Some(key) => {
+                self.symbols_by_key.insert(key, symbol_id);
+            }
+            None => {
+                self.anonymous_symbols.push(symbol_id);
+            }
+        }
     }
 
     /// Get a symbol from the scope.
     pub fn find_symbol(&self, key: SymbolKey) -> Option<LocalSymbolId> {
-        self.symbols.get(&key).cloned()
+        self.symbols_by_key.get(&key).cloned()
     }
 
     /// Insert a child scope into the scope.
