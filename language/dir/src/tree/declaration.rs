@@ -68,7 +68,6 @@ pub enum Declaration {
         descriptor: DeclarationDescriptor,
         signature: FunctionSignature,
         scope: LocalScopeId,
-        declarations: Vec<LocalNodeId<Declaration>>,
         body: Option<LocalNodeId<Expression>>,
     },
     /// Implement declaration.

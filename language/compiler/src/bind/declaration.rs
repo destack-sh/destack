@@ -232,8 +232,6 @@ impl<'a> Compiler<'a> {
                     descriptor,
                     signature,
                     scope: scope_id,
-                    // nocheckin unpack declarations from function body DIR
-                    declarations: Vec::new(),
                     body,
                 }
             }

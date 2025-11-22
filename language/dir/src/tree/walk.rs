@@ -770,15 +770,10 @@ pub fn walk_declaration<V: NodeVisitor + ?Sized>(
         Declaration::Function {
             descriptor: _,
             signature,
-            declarations,
             body,
             scope: _,
         } => {
             walk_function_signature(visitor, tree, signature);
-            for declaration_id in declarations.iter() {
-                let child_declaration = tree.get(*declaration_id);
-                visitor.visit_declaration(tree, *declaration_id, child_declaration);
-            }
             if let Some(body) = body {
                 let body_expression = tree.get(*body);
                 visitor.visit_expression(tree, *body, body_expression);

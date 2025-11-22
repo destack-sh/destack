@@ -164,7 +164,6 @@ impl<'a> Transpiler<'a> {
                 descriptor,
                 scope: _,
                 signature,
-                declarations: _,
                 body,
             } => {
                 let descriptor =

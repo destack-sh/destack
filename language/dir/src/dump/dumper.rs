@@ -1277,7 +1277,6 @@ impl<'a> NodeVisitor for Dumper<'a> {
             Declaration::Function {
                 descriptor,
                 signature,
-                declarations: _,
                 body: _,
                 scope,
             } => {
