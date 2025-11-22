@@ -1,4 +1,6 @@
-use dyst_dir::{GlobalNodeIdAny, GlobalSymbolId, LocalNodeId, Session, Type, Visibility};
+use dyst_dir::{
+    FunctionAbstraction, GlobalNodeIdAny, GlobalSymbolId, LocalNodeId, Session, Type, Visibility,
+};
 
 use crate::{CompileError, CompilePhase};
 
@@ -19,6 +21,11 @@ pub enum ValidateError {
         node: GlobalNodeIdAny,
         visibility: Visibility,
         symbol: GlobalSymbolId,
+    },
+    /// Inconsistent function override.
+    InconsistentFunctionOverride {
+        node: GlobalNodeIdAny,
+        abstraction: FunctionAbstraction,
     },
     /// Calling non-callable.
     NonCallable { node: GlobalNodeIdAny },
@@ -48,13 +55,14 @@ impl ValidateError {
             Self::MissingType { .. } => 1,
             Self::TypeMismatch { .. } => 2,
             Self::InaccessibleSymbol { .. } => 3,
-            Self::NonCallable { .. } => 4,
-            Self::NonIndexable { .. } => 5,
-            Self::NonExhaustiveMatch { .. } => 6,
-            Self::IncompletePattern { .. } => 7,
-            Self::MissingReturn { .. } => 8,
-            Self::UninitializedVariable { .. } => 9,
-            Self::IllegalCast { .. } => 10,
+            Self::InconsistentFunctionOverride { .. } => 4,
+            Self::NonCallable { .. } => 5,
+            Self::NonIndexable { .. } => 6,
+            Self::NonExhaustiveMatch { .. } => 7,
+            Self::IncompletePattern { .. } => 8,
+            Self::MissingReturn { .. } => 9,
+            Self::UninitializedVariable { .. } => 10,
+            Self::IllegalCast { .. } => 11,
         }
     }
 
@@ -64,6 +72,7 @@ impl ValidateError {
             Self::MissingType { node, .. } => Some(*node),
             Self::TypeMismatch { node, .. } => Some(*node),
             Self::InaccessibleSymbol { node, .. } => Some(*node),
+            Self::InconsistentFunctionOverride { node, .. } => Some(*node),
             Self::NonCallable { node, .. } => Some(*node),
             Self::NonIndexable { node, .. } => Some(*node),
             Self::NonExhaustiveMatch { node, .. } => Some(*node),
@@ -80,6 +89,7 @@ impl ValidateError {
             Self::MissingType { .. } => "missing type".to_string(),
             Self::TypeMismatch { .. } => "type mismatch".to_string(),
             Self::InaccessibleSymbol { .. } => "inaccessible symbol".to_string(),
+            Self::InconsistentFunctionOverride { .. } => "inconsistent function override".to_string(),
             Self::NonCallable { .. } => "calling non-callable".to_string(),
             Self::NonIndexable { .. } => "indexing non-indexable".to_string(),
             Self::NonExhaustiveMatch { .. } => "non-exhaustive match".to_string(),

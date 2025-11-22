@@ -15,10 +15,6 @@ impl<'a> Compiler<'a> {
             NodeType::Declaration => tree
                 .get::<dyst_dir::Declaration>(node_id.into())
                 .is_resolved(),
-            NodeType::Type => tree.get::<dyst_dir::Type>(node_id.into()).is_resolved(),
-            NodeType::TypeField => tree
-                .get::<dyst_dir::TypeField>(node_id.into())
-                .is_resolved(),
             NodeType::Property => tree.get::<dyst_dir::Property>(node_id.into()).is_resolved(),
             NodeType::EnumField => tree
                 .get::<dyst_dir::EnumField>(node_id.into())
@@ -59,7 +55,6 @@ impl<'a> Compiler<'a> {
     ) -> ResolveResult<()> {
         match node.ty {
             NodeType::Expression => self.resolve_expression(module, node.into(), tree, symbols),
-            NodeType::Type => self.resolve_type(module, node.into(), tree, symbols),
             NodeType::Argument => self.resolve_argument(module, node.into(), tree, symbols),
             NodeType::DependencyItem => {
                 self.resolve_dependency_item(module, node.into(), tree, symbols)

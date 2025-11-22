@@ -34,7 +34,7 @@ impl SymbolTable {
     }
 
     /// Create a new local symbol.
-    pub fn create_local_symbol(
+    pub fn insert_symbol(
         &mut self,
         space: SymbolSpace,
         key: Option<SymbolKey>,
@@ -62,7 +62,7 @@ impl SymbolTable {
     }
 
     /// Create a new local scope.
-    pub fn create_local_scope(
+    pub fn insert_scope(
         &mut self,
         kind: ScopeKind,
         parent: Option<LocalScopeId>,
@@ -87,15 +87,15 @@ impl SymbolTable {
     }
 
     /// Create a new local symbol with an owned scope.
-    pub fn create_local_symbol_with_scope(
+    pub fn insert_symbol_with_scope(
         &mut self,
         space: SymbolSpace,
         key: Option<SymbolKey>,
         kind: ScopeKind,
         scope: LocalScopeId,
     ) -> (LocalSymbolId, LocalScopeId) {
-        let symbol_id = self.create_local_symbol(space, key, scope);
-        let scope_id = self.create_local_scope(kind, Some(scope), Some(symbol_id));
+        let symbol_id = self.insert_symbol(space, key, scope);
+        let scope_id = self.insert_scope(kind, Some(scope), Some(symbol_id));
         (symbol_id, scope_id)
     }
 

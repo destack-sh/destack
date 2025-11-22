@@ -6,7 +6,7 @@ use dyst_ast as ast;
 use crate::{
     Annotation, Arena, Argument, Block, Declaration, DependencyItem, EnumField, Expression,
     LocalNodeId, LocalNodeIdAny, LocalScopeId, MatchCase, ModuleId, Node, NodeType, Parameter,
-    Pattern, PatternField, Property, Type, TypeField, WhereClause, WithClause,
+    Pattern, PatternField, Property, WhereClause, WithClause,
 };
 
 /// Mutable DIR Node tree across a set of related source units. NOT THREAD-SAFE.
@@ -27,8 +27,6 @@ pub struct NodeTree {
     pub(crate) expressions: Arena<Expression>,
     pub(crate) blocks: Arena<Block>,
     pub(crate) declarations: Arena<Declaration>,
-    pub(crate) types: Arena<Type>,
-    pub(crate) type_fields: Arena<TypeField>,
     pub(crate) properties: Arena<Property>,
     pub(crate) enum_fields: Arena<EnumField>,
     pub(crate) where_clauses: Arena<WhereClause>,
@@ -81,8 +79,6 @@ impl NodeTree {
             expressions: Arena::new(),
             blocks: Arena::new(),
             declarations: Arena::new(),
-            types: Arena::new(),
-            type_fields: Arena::new(),
             properties: Arena::new(),
             enum_fields: Arena::new(),
             where_clauses: Arena::new(),
@@ -337,8 +333,6 @@ impl_node_tree_stores! {
     Expression => expressions,
     Block => blocks,
     Declaration => declarations,
-    Type => types,
-    TypeField => type_fields,
     Property => properties,
     EnumField => enum_fields,
     WhereClause => where_clauses,

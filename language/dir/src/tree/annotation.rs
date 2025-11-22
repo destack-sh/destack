@@ -40,14 +40,14 @@ pub enum Annotation {
     Tag {
         position: AnnotationPosition,
         left: Path,
-        symbol: GlobalSymbolId,
+        remote_symbol: GlobalSymbolId,
         arguments: Option<Vec<LocalNodeId<Argument>>>,
     },
     /// Decorator annotation (like `@foo` or `@foo(1, 2, 3)`).
     Decorator {
         position: AnnotationPosition,
         left: Path,
-        symbol: GlobalSymbolId,
+        remote_symbol: GlobalSymbolId,
         arguments: Option<Vec<LocalNodeId<Argument>>>,
     },
 }

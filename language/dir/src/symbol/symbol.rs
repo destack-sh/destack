@@ -1,4 +1,4 @@
-use crate::{GlobalNodeIdAny, LocalNodeId, LocalNodeIdAny, LocalScopeId, ModuleId, StringId, Type};
+use crate::{GlobalNodeIdAny, LocalNodeIdAny, LocalScopeId, LocalTypeId, ModuleId, StringId};
 
 /// Key for a symbol.
 #[derive(Debug, Clone, Copy, PartialEq, Hash, PartialOrd, Eq)]
@@ -89,9 +89,9 @@ pub struct Symbol {
     /// Secondary declaration nodes of the symbol.
     pub secondary_declarations: Vec<GlobalNodeIdAny>,
     /// The declared type of the symbol.
-    pub declared_ty: Option<LocalNodeId<Type>>,
+    pub declared_ty: Option<LocalTypeId>,
     /// The inferred type of the symbol.
-    pub inferred_ty: Option<LocalNodeId<Type>>,
+    pub inferred_ty: Option<LocalTypeId>,
     /// Forward to another remote symbol (like for imports, pattern bindings, etc.).
     pub remote_symbol: Option<GlobalSymbolId>,
 }

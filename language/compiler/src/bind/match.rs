@@ -15,7 +15,7 @@ impl<'a> Compiler<'a> {
         tree: &mut NodeTree,
         symbols: &mut SymbolTable,
     ) -> LocalNodeId<MatchCase> {
-        let (symbol_id, scope_id) = symbols.create_local_symbol_with_scope(
+        let (symbol_id, scope_id) = symbols.insert_symbol_with_scope(
             SymbolSpace::Value,
             None,
             ScopeKind::Block,

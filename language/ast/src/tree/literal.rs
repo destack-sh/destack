@@ -65,6 +65,8 @@ pub enum TemplateLiteral {
     },
 }
 
+// NOTE #Architecture: maybe TypeLiterals shouldn't even exist at AST level?
+
 /// A TypeLiteral is literal type.
 /// Some types are also their literal scalar values (like `null`).
 ///

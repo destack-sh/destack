@@ -67,7 +67,7 @@ impl<'a> Compiler<'a> {
                     ty.map(|ty| self.bind_expression_to_type(module, scope_id, ty, tree, symbols));
                 let default = default
                     .map(|default| self.bind_expression(module, scope_id, default, tree, symbols));
-                let symbol_id = symbols.create_local_symbol(
+                let symbol_id = symbols.insert_symbol(
                     SymbolSpace::Value,
                     Some(SymbolKey::Name(name)),
                     scope_id,
@@ -96,7 +96,7 @@ impl<'a> Compiler<'a> {
                     ty.map(|ty| self.bind_expression_to_type(module, scope_id, ty, tree, symbols));
                 let default = default
                     .map(|default| self.bind_expression(module, scope_id, default, tree, symbols));
-                let symbol_id = symbols.create_local_symbol(SymbolSpace::Value, None, scope_id);
+                let symbol_id = symbols.insert_symbol(SymbolSpace::Value, None, scope_id);
                 let parameter = Parameter::Pattern {
                     modifiers,
                     pattern,
@@ -118,7 +118,7 @@ impl<'a> Compiler<'a> {
                 let name = self.session.strings.intern_from(&module.ast_strings, *name);
                 let ty =
                     ty.map(|ty| self.bind_expression_to_type(module, scope_id, ty, tree, symbols));
-                let symbol_id = symbols.create_local_symbol(
+                let symbol_id = symbols.insert_symbol(
                     SymbolSpace::Value,
                     Some(SymbolKey::Name(name)),
                     scope_id,

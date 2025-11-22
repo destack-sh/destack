@@ -842,7 +842,6 @@ impl<'a> NodeVisitor for Dumper<'a> {
             Expression::Let {
                 mutability,
                 pattern: _,
-                ty: _,
                 value: _,
                 symbol,
             } => {
@@ -1023,6 +1022,12 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 self.node("Expression::GlobalReference", id.id)
                     .field("path", path)
                     .field("remote_symbol", remote_symbol)
+                    .end();
+            }
+
+            Expression::Type { symbol } => {
+                self.node("Expression::Type", id.id)
+                    .field("symbol", symbol)
                     .end();
             }
             Expression::ScalarLiteral { value } => {
@@ -1290,6 +1295,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 descriptor,
                 generics,
                 target_type: _,
+                target_symbol,
                 heritage,
                 properties: _,
                 scope,
@@ -1297,6 +1303,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 self.node("Declaration::Extension", id.id)
                     .field("descriptor", descriptor)
                     .field("generics", generics)
+                    .field_optional("target_symbol", target_symbol)
                     .field("heritage", heritage)
                     .field("scope", scope)
                     .end();
@@ -1304,141 +1311,6 @@ impl<'a> NodeVisitor for Dumper<'a> {
         }
         self.with_depth(|dumper| {
             walk_declaration(dumper, tree, id, declaration);
-        });
-    }
-
-    fn visit_type(&mut self, tree: &NodeTree, id: LocalNodeId<Type>, ty: &Type) {
-        match ty {
-            Type::Scalar(scalar) => {
-                self.node("Type::Scalar", id.id)
-                    .field("scalar", scalar)
-                    .end();
-            }
-            Type::Symbol(symbol) => {
-                self.node("Type::Symbol", id.id)
-                    .field("symbol", symbol)
-                    .end();
-            }
-
-            Type::Unary { operator, right: _ } => {
-                self.node("Type::Unary", id.id)
-                    .field("operator", operator)
-                    .end();
-            }
-            Type::Mutable {
-                mutability,
-                right: _,
-            } => {
-                self.node("Type::Mutable", id.id)
-                    .field("mutability", mutability)
-                    .end();
-            }
-            Type::ValueOf {
-                mutability,
-                variance,
-                right: _,
-            } => {
-                self.node("Type::ValueOf", id.id)
-                    .field_optional("mutability", mutability)
-                    .field_optional("variance", variance)
-                    .end();
-            }
-            Type::ReferenceOf {
-                mutability,
-                variance,
-                right: _,
-            } => {
-                self.node("Type::ReferenceOf", id.id)
-                    .field_optional("mutability", mutability)
-                    .field_optional("variance", variance)
-                    .end();
-            }
-            Type::Binary {
-                left: _,
-                operator,
-                right: _,
-            } => {
-                self.node("Type::Binary", id.id)
-                    .field("operator", operator)
-                    .end();
-            }
-
-            Type::Range {
-                start: _,
-                end: _,
-                is_inclusive,
-            } => {
-                self.node("Type::Range", id.id)
-                    .field("is_inclusive", is_inclusive)
-                    .end();
-            }
-            Type::ArraySized {
-                element: _,
-                count: _,
-            } => {
-                self.node("Type::ArraySized", id.id).end();
-            }
-            Type::Array { element: _ } => {
-                self.node("Type::Array", id.id).end();
-            }
-            Type::Tuple { elements: _ } => {
-                self.node("Type::Tuple", id.id).end();
-            }
-            Type::Struct { attributes: _ } => {
-                self.node("Type::Struct", id.id).end();
-            }
-            Type::Union { elements: _ } => {
-                self.node("Type::Union", id.id).end();
-            }
-            Type::Intersection { elements: _ } => {
-                self.node("Type::Intersection", id.id).end();
-            }
-            Type::Function { signature } => {
-                self.node("Type::Function", id.id)
-                    .field("signature", signature)
-                    .end();
-            }
-
-            Type::UnresolvedExpression(_) => {
-                self.node("Type::UnresolvedExpression", id.id).end();
-            }
-
-            Type::Error => {
-                self.node("Type::Error", id.id).end();
-            }
-        }
-        self.with_depth(|dumper| {
-            walk_type(dumper, tree, id, ty);
-        });
-    }
-
-    fn visit_type_field(
-        &mut self,
-        tree: &NodeTree,
-        id: LocalNodeId<TypeField>,
-        type_field: &TypeField,
-    ) {
-        match type_field {
-            TypeField::Field { modifiers, key } => {
-                self.node("TypeField::Field", id.id)
-                    .field_optional("modifiers", modifiers)
-                    .field("key", key)
-                    .end();
-            }
-            TypeField::Method {
-                modifiers,
-                key,
-                signature,
-            } => {
-                self.node("TypeField::Method", id.id)
-                    .field_optional("modifiers", modifiers)
-                    .field("key", key)
-                    .field("signature", signature)
-                    .end();
-            }
-        }
-        self.with_depth(|dumper| {
-            walk_type_field(dumper, tree, id, type_field);
         });
     }
 
@@ -1597,7 +1469,6 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 modifiers,
                 name,
                 symbol,
-                ty: _,
                 default: _,
             } => {
                 self.node("Parameter::Scalar", id.id)
@@ -1610,7 +1481,6 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 modifiers,
                 pattern: _,
                 symbol,
-                ty: _,
                 default: _,
             } => {
                 self.node("Parameter::Pattern", id.id)
@@ -1622,7 +1492,6 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 modifiers,
                 name,
                 symbol,
-                ty: _,
             } => {
                 self.node("Parameter::Variadic", id.id)
                     .field_optional("modifiers", modifiers)
@@ -1680,7 +1549,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
             Argument::Direct {
                 modifiers,
                 name,
-                symbol,
+                remote_symbol: symbol,
                 value: _,
             } => {
                 self.node("Argument::Direct", id.id)
@@ -1692,7 +1561,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
             Argument::Spread {
                 modifiers,
                 name,
-                symbol,
+                remote_symbol: symbol,
                 value: _,
             } => {
                 self.node("Argument::Spread", id.id)
@@ -1705,7 +1574,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 modifiers,
                 name,
                 key: _,
-                symbol,
+                remote_symbol: symbol,
                 value: _,
             } => {
                 self.node("Argument::Dynamic", id.id)
@@ -1763,14 +1632,30 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .field("is_inclusive", is_inclusive)
                     .end();
             }
-            Pattern::Tuple { ty: _, fields: _ } => {
-                self.node("Pattern::Tuple", id.id).end();
+            Pattern::UnresolvedTuple { ty: _, fields: _ } => {
+                self.node("Pattern::UnresolvedTuple", id.id).end();
+            }
+            Pattern::Tuple {
+                remote_symbol,
+                fields: _,
+            } => {
+                self.node("Pattern::Tuple", id.id)
+                    .field("remote_symbol", remote_symbol)
+                    .end();
             }
             Pattern::Slice { fields: _ } => {
                 self.node("Pattern::Slice", id.id).end();
             }
-            Pattern::Struct { ty: _, fields: _ } => {
-                self.node("Pattern::Struct", id.id).end();
+            Pattern::UnresolvedStruct { ty: _, fields: _ } => {
+                self.node("Pattern::UnresolvedStruct", id.id).end();
+            }
+            Pattern::Struct {
+                remote_symbol,
+                fields: _,
+            } => {
+                self.node("Pattern::Struct", id.id)
+                    .field("remote_symbol", remote_symbol)
+                    .end();
             }
             Pattern::Union { patterns: _ } => {
                 self.node("Pattern::Union", id.id).end();
@@ -1927,25 +1812,25 @@ impl<'a> NodeVisitor for Dumper<'a> {
             Annotation::Tag {
                 position,
                 left,
-                symbol,
+                remote_symbol,
                 arguments: _,
             } => {
                 self.node("Annotation::Tag", id.id)
                     .field("position", position)
                     .field("left", left)
-                    .field("symbol", symbol)
+                    .field("remote_symbol", remote_symbol)
                     .end();
             }
             Annotation::Decorator {
                 position,
                 left,
-                symbol,
+                remote_symbol,
                 arguments: _,
             } => {
                 self.node("Annotation::Decorator", id.id)
                     .field("position", position)
                     .field("left", left)
-                    .field("symbol", symbol)
+                    .field("remote_symbol", remote_symbol)
                     .end();
             }
         }
