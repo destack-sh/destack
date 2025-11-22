@@ -15,6 +15,7 @@ impl From<BindTask> for CompileTask {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 impl<'a> Compiler<'a> {
     /// Process a bind task.
     pub fn process_bind(&self, task: BindTask) -> BindResult<()> {
@@ -37,6 +38,7 @@ impl<'a> Compiler<'a> {
             let module = module.read();
             let mut tree = module.tree.write();
             let mut symbols = module.symbols.write();
+            let mut types = module.types.write();
             module
                 .ast_roots
                 .iter()
@@ -47,6 +49,7 @@ impl<'a> Compiler<'a> {
                         *expression,
                         &mut tree,
                         &mut symbols,
+                        &mut types,
                     )
                 })
                 .collect()

@@ -5,6 +5,7 @@ use dyst_dir::{
     TypeKind, TypeTable, VarianceBound,
 };
 
+#[allow(clippy::too_many_arguments)]
 impl<'a> Compiler<'a> {
     /// Bind a an expression into a type (without evaluating it at all).
     pub(super) fn bind_expression_to_type(
@@ -16,10 +17,9 @@ impl<'a> Compiler<'a> {
         symbols: &mut SymbolTable,
         types: &mut TypeTable,
     ) -> LocalTypeId {
-        let expression_id = self.bind_expression(module, scope_id, expression_id, tree, symbols);
-        let type_id =
-            types.insert_from(Type::UnresolvedExpression(expression_id), expression_id);
-        type_id
+        let expression_id =
+            self.bind_expression(module, scope_id, expression_id, tree, symbols, types);
+        types.insert_from(Type::UnresolvedExpression(expression_id), expression_id)
     }
 
     /// Bind mutability into a DIR mutability.
@@ -56,6 +56,7 @@ impl<'a> Compiler<'a> {
         generics: &ast::Generics,
         tree: &mut NodeTree,
         symbols: &mut SymbolTable,
+        types: &mut TypeTable,
     ) -> Generics {
         let static_parameters = generics
             .static_parameters
@@ -64,7 +65,14 @@ impl<'a> Compiler<'a> {
                 static_parameters
                     .iter()
                     .map(|static_parameter| {
-                        self.bind_parameter(module, scope_id, *static_parameter, tree, symbols)
+                        self.bind_parameter(
+                            module,
+                            scope_id,
+                            *static_parameter,
+                            tree,
+                            symbols,
+                            types,
+                        )
                     })
                     .collect()
             });
@@ -72,7 +80,7 @@ impl<'a> Compiler<'a> {
             with_clauses
                 .iter()
                 .map(|with_clause| {
-                    self.bind_with_clause(module, scope_id, *with_clause, tree, symbols)
+                    self.bind_with_clause(module, scope_id, *with_clause, tree, symbols, types)
                 })
                 .collect()
         });
@@ -80,7 +88,7 @@ impl<'a> Compiler<'a> {
             where_clauses
                 .iter()
                 .map(|where_clause| {
-                    self.bind_where_clause(module, scope_id, *where_clause, tree, symbols)
+                    self.bind_where_clause(module, scope_id, *where_clause, tree, symbols, types)
                 })
                 .collect()
         });
@@ -99,12 +107,13 @@ impl<'a> Compiler<'a> {
         heritage: &ast::Heritage,
         tree: &mut NodeTree,
         symbols: &mut SymbolTable,
+        types: &mut TypeTable,
     ) -> Heritage {
         let extends_types = heritage.extends_types.as_ref().map(|extends_types| {
             extends_types
                 .iter()
                 .map(|extends_type| {
-                    self.bind_expression(module, scope_id, *extends_type, tree, symbols)
+                    self.bind_expression(module, scope_id, *extends_type, tree, symbols, types)
                 })
                 .collect()
         });
@@ -112,7 +121,7 @@ impl<'a> Compiler<'a> {
             implements_types
                 .iter()
                 .map(|implements_type| {
-                    self.bind_expression(module, scope_id, *implements_type, tree, symbols)
+                    self.bind_expression(module, scope_id, *implements_type, tree, symbols, types)
                 })
                 .collect()
         });

@@ -2,9 +2,10 @@ use crate::Compiler;
 use dyst_ast as ast;
 use dyst_dir::{
     DeclarationType, FloatType, IntType, LocalScopeId, Module, NodeTree, PrimitiveType,
-    ScalarLiteral, SymbolTable, TemplateLiteral, TypeLiteral,
+    ScalarLiteral, SymbolTable, TemplateLiteral, TypeLiteral, TypeTable,
 };
 
+#[allow(clippy::too_many_arguments)]
 impl<'a> Compiler<'a> {
     /// Bind a scalar literal to a DIR scalar literal.
     pub(super) fn bind_scalar_literal(
@@ -49,6 +50,7 @@ impl<'a> Compiler<'a> {
         template_literal: &ast::TemplateLiteral,
         tree: &mut NodeTree,
         symbols: &mut SymbolTable,
+        types: &mut TypeTable,
     ) -> TemplateLiteral {
         match template_literal {
             ast::TemplateLiteral::String { string } => {
@@ -69,7 +71,7 @@ impl<'a> Compiler<'a> {
                     .collect();
                 let arguments = arguments
                     .iter()
-                    .map(|argument| self.bind_argument(module, scope_id, *argument, tree, symbols))
+                    .map(|argument| self.bind_argument(module, scope_id, *argument, tree, symbols, types))
                     .collect();
                 TemplateLiteral::InterpolatedString { strings, arguments }
             }
