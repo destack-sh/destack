@@ -2,6 +2,8 @@ use std::fmt;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
+use indexmap::IndexMap;
+
 /// Resolution options (derived from `oxc-resolver` / `enhanced-resolve`).
 #[allow(clippy::struct_excessive_bools)]
 #[derive(Debug, Clone)]
@@ -25,7 +27,7 @@ pub struct ResolveOptions {
     pub enforce_extension: EnforceExtension,
 
     /// Extension aliases (e.g., `(".js", [".ts", ".tsx"])`).
-    pub extension_alias: Vec<(String, Vec<String>)>,
+    pub extension_alias: IndexMap<String, Vec<String>>,
 
     /// Attempt to resolve these extensions in order (e.g., `[".js", ".json", ".node"]`).
     pub extensions: Vec<String>,
@@ -43,7 +45,7 @@ pub struct ResolveOptions {
     pub modules: Vec<String>,
 
     /// Resolve to a context instead of a file.
-    pub resolve_to_context: bool,
+    pub resolve_directory: bool,
 
     /// Prefer to resolve module requests as relative requests instead of using modules from node_modules directories.
     pub prefer_relative: bool,
@@ -61,9 +63,6 @@ pub struct ResolveOptions {
     /// Whether to resolve symlinks to their symlinked location, if possible.
     /// (May cause module resolution to fail when using tools that symlink packages like `npm link`).
     pub canonicalize_symlinks: bool,
-
-    /// Whether to parse "builtin" Node modules or not.
-    pub builtin_modules: bool,
 }
 
 impl ResolveOptions {
@@ -188,7 +187,7 @@ impl Default for ResolveOptions {
             alias: vec![],
             conditions: vec![],
             enforce_extension: EnforceExtension::Auto,
-            extension_alias: vec![],
+            extension_alias: IndexMap::new(),
             extensions: vec![
                 ".tsx".into(),
                 ".ts".into(),
@@ -203,13 +202,12 @@ impl Default for ResolveOptions {
             is_fully_specified: false,
             main_files: vec!["index".into()],
             modules: vec!["node_modules".into()],
-            resolve_to_context: false,
+            resolve_directory: false,
             prefer_relative: false,
             prefer_absolute: false,
             restrictions: vec![],
             roots: vec![],
             canonicalize_symlinks: true,
-            builtin_modules: false,
         }
     }
 }
@@ -246,8 +244,8 @@ impl fmt::Display for ResolveOptions {
         if !self.modules.is_empty() {
             write!(f, "modules:{:?},", self.modules)?;
         }
-        if self.resolve_to_context {
-            write!(f, "resolve_to_context:{:?},", self.resolve_to_context)?;
+        if self.resolve_directory {
+            write!(f, "resolve_directory:{:?},", self.resolve_directory)?;
         }
         if self.prefer_relative {
             write!(f, "prefer_relative:{:?},", self.prefer_relative)?;
@@ -263,9 +261,6 @@ impl fmt::Display for ResolveOptions {
         }
         if self.canonicalize_symlinks {
             write!(f, "symlinks:{:?},", self.canonicalize_symlinks)?;
-        }
-        if self.builtin_modules {
-            write!(f, "builtin_modules:{:?},", self.builtin_modules)?;
         }
         Ok(())
     }

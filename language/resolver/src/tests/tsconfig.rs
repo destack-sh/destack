@@ -1,11 +1,3 @@
-//! Tests for tsconfig discovery
-//!
-//! Tests that tsconfig.json can be auto-discovered when no explicit tsconfig option is provided.
-
-use std::path::Path;
-
-use dyst_dir::TsConfigJson;
-
 use crate::tests::TestResolver;
 use crate::{
     ResolveError, ResolveOptions, TypeScriptOptionsDiscovery, TypeScriptOptionsLocation,
@@ -207,44 +199,4 @@ fn test_extend_tsconfig_preserves_child_settings() {
     // Child should preserve its own settings and not inherit conflicting ones
     assert_eq!(compiler_options.jsx, Some("preserve".to_string())); // Child value
     assert_eq!(compiler_options.target, Some("ES2020".to_string())); // Inherited from parent
-}
-
-#[test]
-fn test_extend_tsconfig_no_override_existing() {
-    // Test the internal logic directly to ensure extend_tsconfig doesn't override existing values
-    let parent_path = Path::new("/parent/tsconfig.json");
-    let child_path = Path::new("/child/tsconfig.json");
-
-    let mut parent_config = serde_json::json!({
-        "compilerOptions": {
-            "baseUrl": "./src",
-            "jsx": "react-jsx",
-            "target": "ES2020"
-        }
-    })
-    .to_string();
-
-    let mut child_config = serde_json::json!({
-        "compilerOptions": {
-            "jsx": "preserve"  // This should NOT be overridden
-        }
-    })
-    .to_string();
-
-    let parent_tsconfig = TsConfigJson::parse(true, parent_path, &mut parent_config)
-        .unwrap()
-        .build();
-    let mut child_tsconfig = TsConfigJson::parse(true, child_path, &mut child_config).unwrap();
-
-    child_tsconfig.extend_from(&parent_tsconfig);
-    let child_built = child_tsconfig.build();
-
-    let compiler_options = &child_built.compiler_options;
-
-    // Child's jsx should be preserved
-    assert_eq!(compiler_options.jsx, Some("preserve".to_string()));
-    // Parent's target should be inherited
-    assert_eq!(compiler_options.target, Some("ES2020".to_string()));
-    // Parent's baseUrl should be inherited (with proper path resolution)
-    assert!(compiler_options.base_url.is_some());
 }

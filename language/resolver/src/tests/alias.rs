@@ -2,6 +2,8 @@
 
 use std::path::{Path, PathBuf};
 
+use indexmap::IndexMap;
+
 use dyst_source::{MemoryFileSystem, PathExt};
 
 use crate::{
@@ -383,10 +385,10 @@ fn test_resolve_extension_alias() {
     let resolver: PhysicalResolver = Resolver::new(ResolveOptions {
         extensions: vec![".js".into()],
         main_files: vec!["index.js".into()],
-        extension_alias: vec![
+        extension_alias: IndexMap::from([
             (".js".into(), vec![".ts".into(), ".js".into()]),
             (".mjs".into(), vec![".mts".into()]),
-        ],
+        ]),
         ..ResolveOptions::default()
     });
 
@@ -430,7 +432,7 @@ fn test_resolve_extension_alias() {
     #[cfg(all(not(target_os = "windows"), target_endian = "little"))]
     {
         let resolver: PhysicalResolver = Resolver::new(ResolveOptions {
-            extension_alias: vec![(".js".into(), vec![".ts".into(), ".d.ts".into()])],
+            extension_alias: IndexMap::from([(".js".into(), vec![".ts".into(), ".d.ts".into()])]),
             ..ResolveOptions::default()
         });
 
@@ -454,7 +456,7 @@ fn test_resolve_extension_alias_do_not_apply_to_main_files() {
     let resolver: PhysicalResolver = Resolver::new(ResolveOptions {
         extensions: vec![".js".into()],
         main_files: vec!["index".into()],
-        extension_alias: vec![(".js".into(), vec![])],
+        extension_alias: IndexMap::from([(".js".into(), vec![])]),
         ..ResolveOptions::default()
     });
 

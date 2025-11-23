@@ -1,6 +1,7 @@
 //! https://github.com/webpack/enhanced-resolve/blob/main/test/exportsField.test.js
 
 use dyst_source::{MemoryFileSystem, PathExt};
+use indexmap::IndexMap;
 use serde_json::json;
 use std::path::Path;
 
@@ -140,7 +141,7 @@ fn test_resolve_exports_field_extension_alias() {
 
     let resolver = PhysicalResolver::new(ResolveOptions {
         extensions: vec![".js".into()],
-        extension_alias: vec![(".js".into(), vec![".ts".into(), ".js".into()])],
+        extension_alias: IndexMap::from([(".js".into(), vec![".ts".into(), ".js".into()])]),
         is_fully_specified: true,
         conditions: vec!["webpack".into(), "default".into()],
         ..ResolveOptions::default()
@@ -165,7 +166,7 @@ fn test_resolve_exports_field_extension_alias_complex() {
 
     let resolver = PhysicalResolver::new(ResolveOptions {
         extensions: vec![".js".into()],
-        extension_alias: vec![(
+        extension_alias: IndexMap::from([(
             ".js".into(),
             vec![
                 ".foo".into(),
@@ -174,7 +175,7 @@ fn test_resolve_exports_field_extension_alias_complex() {
                 ".ts".into(),
                 ".js".into(),
             ],
-        )],
+        )]),
         is_fully_specified: true,
         conditions: vec!["webpack".into(), "default".into()],
         ..ResolveOptions::default()
@@ -198,7 +199,7 @@ fn test_resolve_exports_field_extension_alias_error() {
 
     let resolver = PhysicalResolver::new(ResolveOptions {
         extensions: vec![".js".into()],
-        extension_alias: vec![(".js".into(), vec![".ts".into()])],
+        extension_alias: IndexMap::from([(".js".into(), vec![".ts".into()])]),
         is_fully_specified: true,
         conditions: vec!["webpack".into(), "default".into()],
         ..ResolveOptions::default()

@@ -32,7 +32,7 @@ pub struct ResolveArgs {
 
     /// Resolve to a context instead of a file.
     #[arg(long)]
-    pub resolve_to_context: bool,
+    pub resolve_directory: bool,
 }
 
 pub fn run(args: &ResolveArgs) -> i32 {
@@ -55,7 +55,7 @@ pub fn run(args: &ResolveArgs) -> i32 {
 
     options.prefer_relative = args.prefer_relative;
     options.prefer_absolute = args.prefer_absolute;
-    options.resolve_to_context = args.resolve_to_context;
+    options.resolve_directory = args.resolve_directory;
 
     let resolver = PhysicalResolver::new(options);
 

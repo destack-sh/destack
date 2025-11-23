@@ -529,7 +529,7 @@ impl<Fs: FileSystem> Resolver<Fs> {
         specifier: &str,
         ctx: &mut ResolutionContext,
     ) -> ResolveResult {
-        if self.options.resolve_to_context {
+        if self.options.resolve_directory {
             return Ok(self
                 .cache
                 .is_directory(cached_path, ctx)
@@ -725,7 +725,7 @@ impl<Fs: FileSystem> Resolver<Fs> {
                 // try as file or directory for all other cases
                 let cached_path = cached_path.normalize_with(specifier, self.cache.as_ref());
 
-                if self.options.resolve_to_context {
+                if self.options.resolve_directory {
                     return Ok(self
                         .cache
                         .is_directory(&cached_path, ctx)
@@ -1091,12 +1091,12 @@ impl<Fs: FileSystem> Resolver<Fs> {
             return Ok(None);
         };
 
-        let Some((_, extensions)) = self
-            .options
-            .extension_alias
-            .iter()
-            .find(|(ext, _)| OsStr::new(ext.trim_start_matches('.')) == path_extension)
-        else {
+        let Some(path_extension_str) = path_extension.to_str() else {
+            return Ok(None);
+        };
+
+        let extension_key = format!(".{path_extension_str}");
+        let Some(extensions) = self.options.extension_alias.get(&extension_key) else {
             return Ok(None);
         };
 
