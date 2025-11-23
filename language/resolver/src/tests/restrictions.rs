@@ -16,7 +16,7 @@ fn test_restrictions_respect_regexp() {
     let re = Regex::new(r"\.(sass|scss|css)$").unwrap();
     let resolver1 = TestResolver::new(ResolveOptions {
         extensions: vec![".js".into()],
-        restrictions: vec![Restriction::Fn(Arc::new(move |path| {
+        restrictions: vec![Restriction::Function(Arc::new(move |path| {
             path.as_os_str()
                 .to_str()
                 .is_some_and(|s| re.is_match(s).unwrap_or(false))
@@ -42,7 +42,7 @@ fn test_restrictions_find_alternative_extension() {
     let resolver1 = TestResolver::new(ResolveOptions {
         extensions: vec![".js".into(), ".css".into()],
         main_files: vec!["index".into()],
-        restrictions: vec![Restriction::Fn(Arc::new(move |path| {
+        restrictions: vec![Restriction::Function(Arc::new(move |path| {
             path.as_os_str()
                 .to_str()
                 .is_some_and(|s| re.is_match(s).unwrap_or(false))
@@ -83,7 +83,7 @@ fn test_restrictions_find_alternative_main_fields() {
     let re = Regex::new(r"\.(sass|scss|css)$").unwrap();
     let resolver1 = TestResolver::new(ResolveOptions {
         extensions: vec![".js".into(), ".css".into()],
-        restrictions: vec![Restriction::Fn(Arc::new(move |path| {
+        restrictions: vec![Restriction::Function(Arc::new(move |path| {
             path.as_os_str()
                 .to_str()
                 .is_some_and(|s| re.is_match(s).unwrap_or(false))
@@ -106,7 +106,7 @@ fn test_restrictions_check_in_load_index_with_enforce_extension_disabled() {
         extensions: vec![".js".into(), ".css".into()],
         main_files: vec!["index".into()],
         enforce_extension: crate::EnforceExtension::Disabled,
-        restrictions: vec![Restriction::Fn(Arc::new(move |path| {
+        restrictions: vec![Restriction::Function(Arc::new(move |path| {
             path.as_os_str()
                 .to_str()
                 .is_some_and(|s| re.is_match(s).unwrap_or(false))
@@ -129,7 +129,7 @@ fn test_restrictions_check_in_load_alias_or_file() {
     let restrictions_path = f.clone();
     let resolver = TestResolver::new(ResolveOptions {
         extensions: vec![".js".into()],
-        restrictions: vec![Restriction::Fn(Arc::new(move |path| {
+        restrictions: vec![Restriction::Function(Arc::new(move |path| {
             !path.starts_with(&restrictions_path)
         }))],
         ..ResolveOptions::default()
@@ -147,7 +147,7 @@ fn test_restrictions_check_in_browser_field_alias() {
     let f = super::fixture().join("browser-module");
 
     let resolver = TestResolver::new(ResolveOptions {
-        restrictions: vec![Restriction::Fn(Arc::new(|path| {
+        restrictions: vec![Restriction::Function(Arc::new(|path| {
             // Restrict files containing "browser" in their path
             !path.to_str().is_some_and(|s| s.contains("browser"))
         }))],
@@ -170,7 +170,7 @@ fn test_restrictions_check_in_extension_alias() {
             (".js".into(), vec![".ts".into(), ".js".into()]),
             (".mjs".into(), vec![".mts".into(), ".mjs".into()]),
         ]),
-        restrictions: vec![Restriction::Fn(Arc::new(|path| {
+        restrictions: vec![Restriction::Function(Arc::new(|path| {
             // Only allow .js files, not .ts files
             path.extension().and_then(|e| e.to_str()) == Some("js")
         }))],
@@ -189,7 +189,7 @@ fn test_restrictions_check_in_package_main_fields() {
     let f = super::fixture().join("restrictions");
 
     let resolver = TestResolver::new(ResolveOptions {
-        restrictions: vec![Restriction::Fn(Arc::new(|path| {
+        restrictions: vec![Restriction::Function(Arc::new(|path| {
             // Restrict .js files
             path.extension().and_then(|e| e.to_str()) != Some("js")
         }))],
@@ -219,12 +219,12 @@ fn test_restrictions_apply_multiple() {
         extensions: vec![".js".into(), ".css".into()],
         main_files: vec!["index".into()],
         restrictions: vec![
-            Restriction::Fn(Arc::new(move |path| {
+            Restriction::Function(Arc::new(move |path| {
                 path.as_os_str()
                     .to_str()
                     .is_some_and(|s| re_css.is_match(s).unwrap_or(false))
             })),
-            Restriction::Fn(Arc::new(move |path| {
+            Restriction::Function(Arc::new(move |path| {
                 // Reject .js files
                 path.as_os_str()
                     .to_str()
@@ -252,13 +252,13 @@ fn test_restrictions_fail_if_any_fails() {
         extensions: vec![".js".into(), ".css".into()],
         main_files: vec!["index".into()],
         restrictions: vec![
-            Restriction::Fn(Arc::new(move |path| {
+            Restriction::Function(Arc::new(move |path| {
                 // First restriction: must be CSS
                 path.as_os_str()
                     .to_str()
                     .is_some_and(|s| re_css.is_match(s).unwrap_or(false))
             })),
-            Restriction::Fn(Arc::new(move |path| {
+            Restriction::Function(Arc::new(move |path| {
                 // Second restriction: must NOT be CSS (contradicts first)
                 path.as_os_str()
                     .to_str()

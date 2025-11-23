@@ -1,13 +1,12 @@
 use std::fmt::Debug;
 use std::io;
 use std::path::PathBuf;
-use std::sync::Arc;
 
 /// Resolution error.
 #[derive(Debug, Clone, PartialEq)]
 #[non_exhaustive]
 pub enum ResolveError {
-    /// Ignored path.
+    /// Path explicitly ignored.
     /// <https://github.com/defunctzombie/package-browser-field-spec#ignore-a-module>
     Ignored { path: PathBuf },
 
@@ -21,35 +20,35 @@ pub enum ResolveError {
     },
 
     /// TypeScriptOptions not found.
-    TypeScriptOptionsNotFound { path: PathBuf },
+    TsConfigNotFound { path: PathBuf },
+
+    /// Invalid tsconfig.
+    TsConfigInvalid { path: PathBuf },
 
     /// TypeScriptOptions's project reference path points to itself.
-    TypeScriptOptionsSelfReference { path: PathBuf },
+    TsConfigSelfReference { path: PathBuf },
 
-    /// TypeScriptOptions extends configs circularly.
-    TypeScriptOptionsCircular { paths: Vec<PathBuf> },
+    /// Circular tsconfig extends.
+    TsConfigCircular { paths: Vec<PathBuf> },
 
     /// IO error.
-    IOError { error: IOError },
+    IoError { path: PathBuf, kind: io::ErrorKind },
 
     /// Path won't be able consumable by NodeJS `import` or `require`.
-    PathNotSupported { path: PathBuf },
+    UnsupportedPath { path: PathBuf },
 
     /// None of the aliased extensions were found.
-    ExtensionAlias {
+    ExtensionAliasNotFound {
         filename: String,
         tried: String,
         dir: PathBuf,
     },
 
     /// Path specifier cannot be parsed.
-    Specifier {
+    InvalidSpecifier {
         specifier: String,
         message: Option<String>,
     },
-
-    /// JSON parse error.
-    Json { error: JSONError },
 
     /// Invalid module specifier (e.g. `#/`).
     InvalidModuleSpecifier {
@@ -73,7 +72,7 @@ pub enum ResolveError {
     },
 
     /// Invalid package config.
-    PackageJsonInvalid { path: PathBuf },
+    InvalidPackageJson { path: PathBuf },
 
     /// Invalid package config default.
     InvalidPackageConfigDefault { path: PathBuf },
@@ -103,18 +102,18 @@ impl ResolveError {
             Self::Ignored { .. } => 1,
             Self::NotFound { .. } => 2,
             Self::MatchedAliasNotFound { .. } => 3,
-            Self::TypeScriptOptionsNotFound { .. } => 4,
-            Self::TypeScriptOptionsSelfReference { .. } => 5,
-            Self::TypeScriptOptionsCircular { .. } => 6,
-            Self::IOError { .. } => 7,
-            Self::PathNotSupported { .. } => 8,
-            Self::ExtensionAlias { .. } => 10,
-            Self::Specifier { .. } => 11,
-            Self::Json { .. } => 12,
+            Self::TsConfigNotFound { .. } => 4,
+            Self::TsConfigInvalid { .. } => 5,
+            Self::TsConfigSelfReference { .. } => 5,
+            Self::TsConfigCircular { .. } => 6,
+            Self::IoError { .. } => 7,
+            Self::UnsupportedPath { .. } => 8,
+            Self::ExtensionAliasNotFound { .. } => 10,
+            Self::InvalidSpecifier { .. } => 11,
             Self::InvalidModuleSpecifier { .. } => 13,
             Self::InvalidPackageTarget { .. } => 14,
             Self::PackagePathNotExported { .. } => 15,
-            Self::PackageJsonInvalid { .. } => 16,
+            Self::InvalidPackageJson { .. } => 16,
             Self::InvalidPackageConfigDefault { .. } => 17,
             Self::InvalidPackageConfigDirectory { .. } => 18,
             Self::PackageImportNotDefined { .. } => 19,
@@ -131,32 +130,32 @@ impl ResolveError {
                 specifier,
                 alias_key,
             } => format!("module '{specifier}' not found for matched aliased key '{alias_key}'"),
-            Self::TypeScriptOptionsNotFound { path } => format!("tsconfig '{path:?}' not found"),
-            Self::TypeScriptOptionsSelfReference { path } => {
+            Self::TsConfigNotFound { path } => format!("tsconfig '{path:?}' not found"),
+            Self::TsConfigInvalid { path } => format!("invalid tsconfig '{path:?}'"),
+            Self::TsConfigSelfReference { path } => {
                 format!("tsconfig's project reference path points to this tsconfig {path:?}")
             }
-            Self::TypeScriptOptionsCircular { paths } => {
+            Self::TsConfigCircular { paths } => {
                 format!("tsconfig extends configs circularly: {paths:?}")
             }
-            Self::IOError { error } => format!("{error}"),
-            Self::PathNotSupported { path } => {
+            Self::IoError { path, kind } => format!("IO error at {path:?}: {kind}"),
+            Self::UnsupportedPath { path } => {
                 format!("path {path:?} contains unsupported construct.")
             }
-            Self::ExtensionAlias {
+            Self::ExtensionAliasNotFound {
                 filename,
                 tried,
                 dir,
             } => {
                 format!("cannot resolve '{filename}' for extension aliases '{tried}' in '{dir:?}'")
             }
-            Self::Specifier { specifier, message } => {
+            Self::InvalidSpecifier { specifier, message } => {
                 if let Some(message) = message {
                     format!("invalid specifier '{specifier:?}': {message}")
                 } else {
                     format!("invalid specifier '{specifier:?}'")
                 }
             }
-            Self::Json { error } => format!("{error:?}"),
             Self::InvalidModuleSpecifier {
                 specifier,
                 package_path,
@@ -189,7 +188,7 @@ impl ResolveError {
                     "'{subpath}' is not exported under {conditions_str} from package {package_path:?} (see 'exports' field in {package_json_path:?})"
                 )
             }
-            Self::PackageJsonInvalid { path } => format!(
+            Self::InvalidPackageJson { path } => format!(
                 "invalid package config '{path:?}', 'exports' cannot contain some keys starting with '.' and some not. The exports object must either be an object of package subpath keys or an object of main entry condition name keys only."
             ),
             Self::InvalidPackageConfigDefault { path } => {
@@ -218,59 +217,3 @@ impl std::fmt::Display for ResolveError {
 }
 
 impl std::error::Error for ResolveError {}
-
-/// JSON parse error.
-#[derive(Debug, Clone, Eq, PartialEq)]
-pub struct JSONError {
-    /// Path to the JSON file.
-    pub path: PathBuf,
-    /// Error message.
-    pub message: String,
-    /// Line number.
-    pub line: usize,
-    /// Column number.
-    pub column: usize,
-}
-
-impl std::fmt::Display for JSONError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "JSON parse error: {:?}:{}:{}: {}",
-            self.path, self.line, self.column, self.message
-        )
-    }
-}
-
-/// IO error.
-#[derive(Debug, Clone)]
-pub struct IOError(Arc<io::Error>);
-
-impl std::fmt::Display for IOError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "IO error: {:?}", self.0)
-    }
-}
-
-impl PartialEq for IOError {
-    fn eq(&self, other: &Self) -> bool {
-        self.0.kind() == other.0.kind()
-    }
-}
-
-impl From<IOError> for io::Error {
-    #[cold]
-    fn from(error: IOError) -> Self {
-        let io_error = error.0.as_ref();
-        Self::new(io_error.kind(), io_error.to_string())
-    }
-}
-
-impl From<io::Error> for ResolveError {
-    #[cold]
-    fn from(err: io::Error) -> Self {
-        Self::IOError {
-            error: IOError(Arc::new(err)),
-        }
-    }
-}

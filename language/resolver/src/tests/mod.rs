@@ -1,7 +1,6 @@
 mod alias;
 mod exports;
 mod imports;
-mod package;
 mod resolve;
 mod restrictions;
 mod simple;
