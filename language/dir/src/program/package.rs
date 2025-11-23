@@ -80,21 +80,44 @@ pub struct PackageOptions {
     pub content: PackageJson,
 }
 
+impl PackageOptions {
+    /// Parse a package.json file from JSON bytes.
+    pub fn parse(
+        id: FileId,
+        path: PathBuf,
+        realpath: PathBuf,
+        content: Vec<u8>,
+    ) -> Result<Self, serde_json::Error> {
+        // strip BOM - UTF-8 BOM is 3 bytes: 0xEF, 0xBB, 0xBF
+        let json_bytes = if content.starts_with(b"\xEF\xBB\xBF") {
+            &content[3..]
+        } else {
+            &content[..]
+        };
+
+        // check if content is empty(ish)
+        if json_bytes.iter().all(|&b| b.is_ascii_whitespace()) {
+            return Err(serde_json::Error::custom("File is empty"));
+        }
+
+        // parse options
+        let options: PackageJson = serde_json::from_slice(json_bytes)?;
+        let directory = path.parent().unwrap().to_path_buf();
+
+        Ok(Self {
+            id,
+            path,
+            realpath,
+            directory,
+            content: options,
+        })
+    }
+}
+
 /// Package JSON (from `package.json`).
-#[derive(Deserialize, Clone)]
+#[derive(Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct PackageJson {
-    // nocheckin: remove path/realpath/directory from PackageJson (into Package)
-    /// Path to `package.json` (including the `package.json` filename).
-    #[serde(skip)]
-    pub path: PathBuf,
-    /// Realpath of `package.json` (including the `package.json` filename).
-    #[serde(skip)]
-    pub realpath: PathBuf,
-    /// Directory of `package.json` (excluding the `package.json` filename).
-    #[serde(skip)]
-    pub directory: PathBuf,
-
     /// Name of the package.
     /// <https://docs.npmjs.com/cli/v11/configuring-npm/package-json#name>
     pub name: Option<String>,
@@ -119,46 +142,6 @@ pub struct PackageJson {
     /// The "imports" mapping. Node module imports.
     /// <https://nodejs.org/api/packages.html#imports>
     pub imports: Option<Map<String, Value>>,
-}
-
-impl fmt::Debug for PackageJson {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("PackageOptions")
-            .field("path", &self.path)
-            .field("realpath", &self.realpath)
-            .field("name", &self.name)
-            .field("type", &self.ty)
-            .finish_non_exhaustive()
-    }
-}
-
-impl PackageJson {
-    /// Parse a package.json file from JSON bytes.
-    pub fn parse(
-        path: PathBuf,
-        realpath: PathBuf,
-        content: Vec<u8>,
-    ) -> Result<Self, serde_json::Error> {
-        // strip BOM - UTF-8 BOM is 3 bytes: 0xEF, 0xBB, 0xBF
-        let json_bytes = if content.starts_with(b"\xEF\xBB\xBF") {
-            &content[3..]
-        } else {
-            &content[..]
-        };
-
-        // check if content is empty(ish)
-        if json_bytes.iter().all(|&b| b.is_ascii_whitespace()) {
-            return Err(serde_json::Error::custom("File is empty"));
-        }
-
-        // parse options
-        let mut options: PackageJson = serde_json::from_slice(json_bytes)?;
-        options.path = path;
-        options.realpath = realpath;
-        options.directory = options.path.parent().unwrap().to_path_buf();
-
-        Ok(options)
-    }
 }
 
 /// Graph of Packages (including their underlying Files). THREAD-SAFE.

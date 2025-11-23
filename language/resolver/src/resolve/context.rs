@@ -16,7 +16,7 @@ pub struct ResolutionContext {
     pub found_dependencies: Option<Vec<PathBuf>>,
     /// Files that we have not found on file system in this resolution (only tracked if not none).
     pub missing_dependencies: Option<Vec<PathBuf>>,
-    
+
     /// The current resolving alias for bailing recursion alias.
     pub resolving_alias: Option<String>,
 

@@ -7,13 +7,12 @@ use std::path::{Component, Path, PathBuf};
 use std::sync::{Arc, OnceLock, Weak};
 
 use cfg_if::cfg_if;
-use dyst_dir::TsConfigJson;
+use dyst_dir::{PackageOptions, TsConfigOptions};
 use dyst_source::FileSystem;
 use papaya::Equivalent;
 
 use super::system::CachedFileSystem;
 use crate::{ResolutionContext, ResolveError, ResolveOptions};
-use dyst_dir::PackageJson;
 
 // Thread-local pre-allocated path buffer.
 // Used to perform operations on paths more quickly without repeated allocations.
@@ -46,9 +45,9 @@ pub struct CachedPathState {
     /// Lazy-loaded `node_modules` subdirectory.
     pub node_modules: OnceLock<Option<Weak<CachedPathState>>>,
     /// Lazy-loaded `package.json`.
-    pub package_json: OnceLock<Option<Arc<PackageJson>>>,
+    pub package_json: OnceLock<Option<Arc<PackageOptions>>>,
     /// Lazy-loaded `tsconfig.json`.
-    pub tsconfig: OnceLock<Option<Arc<TsConfigJson>>>,
+    pub tsconfig: OnceLock<Option<Arc<TsConfigOptions>>>,
 }
 
 impl CachedPathState {
@@ -140,7 +139,7 @@ impl CachedPath {
         options: &ResolveOptions,
         cache: &CachedFileSystem<Fs>,
         ctx: &mut ResolutionContext,
-    ) -> Result<Option<Arc<PackageJson>>, ResolveError> {
+    ) -> Result<Option<Arc<PackageOptions>>, ResolveError> {
         let mut cache_value = self.clone();
 
         // go up directories when the querying path is not a directory
