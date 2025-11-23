@@ -55,16 +55,6 @@ fn test_resolve_enhanced_resolve() {
     for (comment, path, request, expected) in pass {
         let resolution = resolver.resolve(&path, request).ok();
         let resolved_path = resolution.as_ref().map(Resolution::full_path);
-        let resolved_package_json = resolution
-            .as_ref()
-            .and_then(|r| r.package_json())
-            .map(|p| p.path.clone());
-        if expected.to_str().unwrap().contains("node_modules") {
-            assert!(
-                resolved_package_json.is_some(),
-                "{comment} {path:?} {request}"
-            );
-        }
         assert_eq!(
             resolved_path,
             Some(expected),
@@ -602,20 +592,10 @@ fn test_resolve_scoped_packages() {
     for (comment, path, request, package, expected) in pass {
         let resolution = resolver.resolve(&path, request).ok();
         let resolved_path = resolution.as_ref().map(Resolution::full_path);
-        let resolved_package_json = resolution
-            .as_ref()
-            .and_then(|r| r.package_json())
-            .map(|p| p.path.clone());
         assert_eq!(
             resolved_path,
             Some(expected),
             "{comment} {path:?} {request}"
-        );
-        let package_json_path = f.join("node_modules").join(package).join("package.json");
-        assert_eq!(
-            resolved_package_json,
-            Some(package_json_path),
-            "{path:?} {request}"
         );
     }
 }

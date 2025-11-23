@@ -9,9 +9,9 @@ use dyst_dir::{DependencySpecifier, PackageJson, TsConfigJson, TsProjectReferenc
 use dyst_source::{FileSystem, MemoryFileSystem, PathExt, PhysicalFileSystem, SLASH_START};
 
 use crate::{
-    Alias, AliasValue, CachedFileSystem, CachedPath, ImportsExportsEntry,
-    ImportsExportsKind, ImportsExportsMap, Resolution, ResolutionContext, ResolveError,
-    ResolveOptions, Restriction, TypeScriptOptionsDiscovery, TypeScriptOptionsReferences,
+    Alias, AliasValue, CachedFileSystem, CachedPath, ImportsExportsEntry, ImportsExportsKind,
+    ImportsExportsMap, Resolution, ResolutionContext, ResolveError, ResolveOptions, Restriction,
+    TypeScriptOptionsDiscovery, TypeScriptOptionsReferences,
 };
 
 /// A resolver with a cache backed by a file system.
@@ -145,19 +145,12 @@ impl<Fs: FileSystem> Resolver<Fs> {
         let cached_path = self.require(&cached_path, specifier, ctx)?;
         let path = self.load_realpath(&cached_path)?;
 
-        // ensure that the path is inside the package boundary defined by package.json
-        let package_json = self.find_package_json_for_a_package(&cached_path, ctx)?;
-        if let Some(package_json) = &package_json {
-            // path must be inside the package
-            debug_assert!(path.starts_with(&package_json.directory));
-        }
-
-        Ok(Resolution {
+        let resolution = Resolution {
             path,
             query: ctx.query.take(),
             fragment: ctx.fragment.take(),
-            package_json,
-        })
+        };
+        Ok(resolution)
     }
 
     /// Finds the `package.json` for a resolved package.
