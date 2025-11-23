@@ -4,6 +4,7 @@ use crate::{
     TypeScriptOptionsReferences,
 };
 
+/// Test discovering a tsconfig file in a virtual file importer.
 #[test]
 fn tsconfig_discovery_virtual_file_importer() {
     let f = super::fixture_root().join("tsconfig");
@@ -25,6 +26,7 @@ fn tsconfig_discovery_virtual_file_importer() {
     );
 }
 
+/// Test extending a tsconfig file.
 #[test]
 fn test_extend_tsconfig() {
     let f = super::fixture_root().join("tsconfig/cases/extends");
@@ -71,6 +73,7 @@ fn test_extend_tsconfig() {
     );
 }
 
+/// Test extending tsconfig paths.
 #[test]
 fn test_extend_tsconfig_paths() {
     let f = super::fixture_root().join("tsconfig/cases/extends-paths-inheritance");
@@ -91,6 +94,7 @@ fn test_extend_tsconfig_paths() {
     assert_eq!(resolved_path, Ok(f.join("src/test.ts")));
 }
 
+/// Test extending tsconfig override behavior.
 #[test]
 fn test_extend_tsconfig_override_behavior() {
     let f = super::fixture_root().join("tsconfig/cases/extends-override");
@@ -113,6 +117,7 @@ fn test_extend_tsconfig_override_behavior() {
     assert_eq!(compiler_options.target, Some("ES2020".to_string()));
 }
 
+/// Test extending tsconfig template variables.
 #[test]
 fn test_extend_tsconfig_template_variables() {
     let f = super::fixture_root().join("tsconfig/cases/extends-template-vars");
@@ -133,6 +138,7 @@ fn test_extend_tsconfig_template_variables() {
     assert_eq!(resolved_path, Ok(f.join("src/utils.ts")));
 }
 
+/// Test extending tsconfig missing file.
 #[test]
 fn test_extend_tsconfig_missing_file() {
     use crate::ResolveError;
@@ -156,6 +162,7 @@ fn test_extend_tsconfig_missing_file() {
     ));
 }
 
+/// Test extending tsconfig multiple inheritance.
 #[test]
 fn test_extend_tsconfig_multiple_inheritance() {
     let f = super::fixture_root().join("tsconfig/cases/extends-chain");
@@ -179,6 +186,7 @@ fn test_extend_tsconfig_multiple_inheritance() {
     assert_eq!(compiler_options.module, Some("ESNext".to_string()));
 }
 
+/// Test extending tsconfig preserves child settings.
 #[test]
 fn test_extend_tsconfig_preserves_child_settings() {
     let f = super::fixture_root().join("tsconfig/cases/extends-preserve-child");

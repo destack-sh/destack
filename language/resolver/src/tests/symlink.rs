@@ -11,7 +11,7 @@ use crate::ResolveOptions;
 #[derive(Debug, Clone, Copy)]
 enum FileType {
     File,
-    Dir,
+    Directory,
 }
 
 #[allow(unused_variables)]
@@ -30,7 +30,7 @@ fn symlink<P: AsRef<Path>, Q: AsRef<Path>>(
         // NOTE: original path should use `\` instead of `/` for relative paths
         //       otherwise the symlink will be broken and the test will fail with InvalidFilename error
         FileType::File => std::os::windows::fs::symlink_file(original.as_ref().normalize(), link),
-        FileType::Dir => std::os::windows::fs::symlink_dir(original.as_ref().normalize(), link),
+        FileType::Directory => std::os::windows::fs::symlink_dir(original.as_ref().normalize(), link),
     }
     #[cfg(target_family = "wasm")]
     {
@@ -51,7 +51,7 @@ fn init(dirname: &Path, temp_path: &Path) -> io::Result<()> {
     symlink(
         dirname.join("../lib"),
         temp_path.join("test2"),
-        FileType::Dir,
+        FileType::Directory,
     )?;
     fs::remove_dir_all(temp_path)
 }
@@ -66,17 +66,17 @@ fn create_symlinks(dirname: &Path, temp_path: &Path) -> io::Result<()> {
     symlink(
         dirname.join("../lib").canonicalize().unwrap(),
         temp_path.join("lib"),
-        FileType::Dir,
+        FileType::Directory,
     )?;
     symlink(
         dirname.join("..").canonicalize().unwrap(),
         temp_path.join("this"),
-        FileType::Dir,
+        FileType::Directory,
     )?;
     symlink(
         temp_path.join("this"),
         temp_path.join("that"),
-        FileType::Dir,
+        FileType::Directory,
     )?;
     symlink(
         Path::new("../../lib/index.js"),
@@ -99,7 +99,7 @@ fn create_symlinks(dirname: &Path, temp_path: &Path) -> io::Result<()> {
         symlink(
             dos_device_temp_path.join(r"..\..\lib"),
             temp_path.join("device_path_lib"),
-            FileType::Dir,
+            FileType::Directory,
         )?;
         symlink(
             dos_device_temp_path.join(r"..\..\lib\index.js"),
@@ -209,27 +209,25 @@ fn test_symlinks_circular() {
         return;
     };
 
-    // Create a circular symlink: link1 -> link2 -> link1
+    // create a circular symlink: link1 -> link2 -> link1
     let link1_path = temp_path.join("link1");
     let link2_path = temp_path.join("link2");
 
     if symlink(&link2_path, &link1_path, FileType::File).is_err() {
-        // Skip test if we can't create symlinks
+        // skip test if we can't create symlinks
         return;
     }
     if symlink(&link1_path, &link2_path, FileType::File).is_err() {
-        // Skip test if we can't create symlinks
+        // skip test if we can't create symlinks
         _ = fs::remove_file(&link1_path);
         return;
     }
 
+    // should error due to circular symlink
     let resolver = TestResolver::default();
     let result = resolver.resolve(&temp_path, "./link1");
-
-    // Should error due to circular symlink
     assert!(result.is_err());
 
-    // Cleanup
     _ = fs::remove_file(&link1_path);
     _ = fs::remove_file(&link2_path);
 }
