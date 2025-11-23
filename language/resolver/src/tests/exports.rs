@@ -66,7 +66,7 @@ fn test_resolve_exports_field_simple() {
         ("request ending with slash #2", f.clone(), "exports-field/dist/", ResolveError::PackagePathNotExported { subpath: "./dist/".to_string(), package_path: f.join("node_modules/exports-field"), package_json_path: p.clone(), conditions: vec!["webpack".into()] }),
         ("request ending with slash #3", f.clone(), "exports-field/lib/", ResolveError::PackagePathNotExported { subpath: "./lib/".to_string(), package_path: f.join("node_modules/exports-field"), package_json_path: p, conditions: vec!["webpack".into()] }),
         ("should throw error if target is invalid", f4, "exports-field", ResolveError::InvalidPackageTarget { target: "./a/../b/../../pack1/index.js".to_string(), name: ".".to_string(), package_path: p4 }),
-        ("throw error if exports field is invalid", f.clone(), "invalid-exports-field", ResolveError::PackageJsonInvalid { path: f.join("node_modules/invalid-exports-field/package.json") }),
+        ("throw error if exports field is invalid", f.clone(), "invalid-exports-field", ResolveError::InvalidPackageJson { path: f.join("node_modules/invalid-exports-field/package.json") }),
         ("should throw error if target is 'null'", f5.clone(), "m/features/internal/file.js", ResolveError::PackagePathNotExported { subpath: "./features/internal/file.js".to_string(), package_path: f5.join("node_modules/m"), package_json_path: p5, conditions: vec!["webpack".into()] }),
     ];
 
@@ -210,7 +210,7 @@ fn test_resolve_exports_field_extension_alias_error() {
     #[rustfmt::skip]
     let fail = [
         // https://github.com/webpack/enhanced-resolve/blob/a998c7d218b7a9ec2461fc4fddd1ad5dd7687485/test/exportsField.test.js#L2976-L3024
-        ("should throw error with the `extensionAlias` option", f.clone(), "pkg/string.js", ResolveError::ExtensionAlias {
+        ("should throw error with the `extensionAlias` option", f.clone(), "pkg/string.js", ResolveError::ExtensionAliasNotFound {
             filename: "string.js".into(),
             tried: "string.ts".into(),
             dir: f.join("node_modules/pkg/dist")

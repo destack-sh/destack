@@ -422,7 +422,7 @@ fn test_resolve_extension_alias() {
 
     // should not allow to fallback to the original extension or add extensions
     let resolution = resolver.resolve(&f, "./index.mjs").unwrap_err();
-    let expected = ResolveError::ExtensionAlias {
+    let expected = ResolveError::ExtensionAliasNotFound {
         filename: "index.mjs".into(),
         tried: "index.mts".into(),
         dir: f,

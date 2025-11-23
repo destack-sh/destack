@@ -70,7 +70,7 @@ impl ResolveOptions {
     pub fn sanitize(mut self) -> Self {
         // set `enforceExtension` to `true` when [ResolveOptions::extensions] contains an empty string
         // See <https://github.com/webpack/enhanced-resolve/pull/285>
-        if self.enforce_extension == EnforceExtension::Auto {
+        if self.enforce_extension == EnforceExtension::Automatic {
             if !self.extensions.is_empty() && self.extensions.iter().any(String::is_empty) {
                 self.enforce_extension = EnforceExtension::Enabled;
             } else {
@@ -85,7 +85,7 @@ impl ResolveOptions {
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub enum EnforceExtension {
     /// Automatically determine whether to enforce file extensions based on the list of extensions.
-    Auto,
+    Automatic,
     /// Enforce file extensions.
     Enabled,
     /// Do not enforce file extensions.
@@ -94,14 +94,14 @@ pub enum EnforceExtension {
 
 impl Default for EnforceExtension {
     fn default() -> Self {
-        Self::Auto
+        Self::Automatic
     }
 }
 
 impl EnforceExtension {
     /// Check if the enforce extension is automatic.
     pub const fn is_auto(self) -> bool {
-        matches!(self, Self::Auto)
+        matches!(self, Self::Automatic)
     }
 
     /// Check if the enforce extension is enabled.
@@ -118,12 +118,11 @@ impl EnforceExtension {
 /// Alias for [ResolveOptions::alias] and [ResolveOptions::fallback]
 pub type Alias = Vec<(String, Vec<AliasValue>)>;
 
-/// Alias Value for [ResolveOptions::alias] and [ResolveOptions::fallback]
+/// Alias value.
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub enum AliasValue {
     /// The path value
     Path(String),
-
     /// The `false` value
     Ignore,
 }
@@ -137,25 +136,30 @@ where
     }
 }
 
-/// Value for [ResolveOptions::restrictions]
+/// Restriction for resolution.
 #[derive(Clone)]
 pub enum Restriction {
+    /// Prefix path restriction.
     Path(PathBuf),
-    Fn(Arc<dyn Fn(&Path) -> bool + Sync + Send>),
+    /// Function restriction.
+    Function(Arc<dyn Fn(&Path) -> bool + Sync + Send>),
 }
 
 impl std::fmt::Debug for Restriction {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Path(path) => write!(f, "Path(\"{}\")", path.display()),
-            Self::Fn(_) => write!(f, "Fn(<function>)"),
+            Self::Function(_) => write!(f, "Function(<function>)"),
         }
     }
 }
 
+/// How to discover the TypeScript configuration file.
 #[derive(Debug, Clone)]
 pub enum TypeScriptOptionsDiscovery {
-    Auto,
+    /// Auto-discover the TypeScript configuration file.
+    Automatic,
+    /// Manual discovery of the TypeScript configuration file.
     Manual(TypeScriptOptionsLocation),
 }
 
@@ -173,8 +177,8 @@ pub struct TypeScriptOptionsLocation {
 pub enum TypeScriptOptionsReferences {
     /// Disable references.
     Disabled,
-    /// Use the `references` field from the TypeScript configuration file.
-    Auto,
+    /// Auto-discover the TypeScript configuration file references.
+    Automatic,
     /// Manually provided paths to the TypeScript configuration files.
     Paths(Vec<PathBuf>),
 }
@@ -186,7 +190,7 @@ impl Default for ResolveOptions {
             tsconfig: None,
             alias: vec![],
             conditions: vec![],
-            enforce_extension: EnforceExtension::Auto,
+            enforce_extension: EnforceExtension::Automatic,
             extension_alias: IndexMap::new(),
             extensions: vec![
                 ".tsx".into(),

@@ -90,7 +90,7 @@ impl<Fs: FileSystem> Resolver<Fs> {
         self.load_tsconfig(
             true,
             path,
-            &TypeScriptOptionsReferences::Auto,
+            &TypeScriptOptionsReferences::Automatic,
             &mut TypeScriptOptionsResolveContext::default(),
         )
     }
@@ -599,7 +599,7 @@ impl<Fs: FileSystem> Resolver<Fs> {
                         return false;
                     }
                 }
-                Restriction::Fn(f) => {
+                Restriction::Function(f) => {
                     if !f(path) {
                         return false;
                     }
@@ -858,7 +858,7 @@ impl<Fs: FileSystem> Resolver<Fs> {
     ) -> Result<Option<&'a str>, ResolveError> {
         if let Some(object) = package_json.browser.as_ref().and_then(|v| v.as_object()) {
             if let Some(request) = request {
-                // Find matching key in object
+                // find matching key in object
                 if let Some(value) = object.get(request) {
                     return match value {
                         serde_json::Value::String(s) => Ok(Some(s.as_str())),
@@ -1109,7 +1109,7 @@ impl<Fs: FileSystem> Resolver<Fs> {
             }
         }
 
-        // bail if path is module directory such as `ipaddr.js`
+        // bail if path is module directory (like `ipaddr.js`)
         if !self.cache.is_file(cached_path, ctx) {
             ctx.is_fully_specified = false;
             return Ok(None);
@@ -1126,7 +1126,7 @@ impl<Fs: FileSystem> Resolver<Fs> {
             .map(|ext| format!("{filename_without_extension}{ext}"))
             .collect::<Vec<_>>()
             .join(",");
-        Err(ResolveError::ExtensionAlias {
+        Err(ResolveError::ExtensionAliasNotFound {
             filename: filename.to_string_lossy().to_string(),
             tried: files,
             dir,
@@ -1178,7 +1178,7 @@ impl<Fs: FileSystem> Resolver<Fs> {
             let directory = self.cache.value(tsconfig.directory());
 
             if ctx.is_already_extended(&tsconfig.path) {
-                return Err(ResolveError::TypeScriptOptionsCircular {
+                return Err(ResolveError::TsConfigCircular {
                     paths: ctx.get_extended_configs_with(tsconfig.path.to_path_buf()),
                 });
             }
@@ -1208,7 +1208,7 @@ impl<Fs: FileSystem> Resolver<Fs> {
                 TypeScriptOptionsReferences::Disabled => {
                     tsconfig.references.drain(..);
                 }
-                TypeScriptOptionsReferences::Auto => {}
+                TypeScriptOptionsReferences::Automatic => {}
                 TypeScriptOptionsReferences::Paths(paths) => {
                     tsconfig.references = paths
                         .iter()
@@ -1229,7 +1229,7 @@ impl<Fs: FileSystem> Resolver<Fs> {
                         &reference_tsconfig_path,
                         |reference_tsconfig| {
                             if reference_tsconfig.path == path {
-                                return Err(ResolveError::TypeScriptOptionsSelfReference {
+                                return Err(ResolveError::TsConfigSelfReference {
                                     path: reference_tsconfig.path.to_path_buf(),
                                 });
                             }
@@ -1299,7 +1299,7 @@ impl<Fs: FileSystem> Resolver<Fs> {
                     .get_or_init(|| Some(Arc::clone(&tsconfig)));
                 tsconfig
             }
-            Some(TypeScriptOptionsDiscovery::Auto) => {
+            Some(TypeScriptOptionsDiscovery::Automatic) => {
                 let Some(tsconfig) = self.find_tsconfig(cached_path, ctx)? else {
                     return Ok(None);
                 };
@@ -1366,7 +1366,7 @@ impl<Fs: FileSystem> Resolver<Fs> {
         specifier: &str,
     ) -> Result<PathBuf, ResolveError> {
         match specifier.as_bytes().first() {
-            None => Err(ResolveError::Specifier {
+            None => Err(ResolveError::InvalidSpecifier {
                 specifier: specifier.to_string(),
                 message: None,
             }),
@@ -1386,7 +1386,7 @@ impl<Fs: FileSystem> Resolver<Fs> {
                 )
                 .map(|p| p.to_path_buf())
                 .map_err(|err| match err {
-                    ResolveError::NotFound { .. } => ResolveError::TypeScriptOptionsNotFound {
+                    ResolveError::NotFound { .. } => ResolveError::TsConfigNotFound {
                         path: PathBuf::from(specifier),
                     },
                     _ => err,
@@ -1478,7 +1478,7 @@ impl<Fs: FileSystem> Resolver<Fs> {
                 has_dot = has_dot || starts_with_dot_or_hash;
                 without_dot = without_dot || !starts_with_dot_or_hash;
                 if has_dot && without_dot {
-                    return Err(ResolveError::PackageJsonInvalid {
+                    return Err(ResolveError::InvalidPackageJson {
                         path: package_url.path().join("package.json"),
                     });
                 }
@@ -1929,7 +1929,7 @@ fn resolve_file_protocol(specifier: &str) -> Result<Cow<'_, str>, ResolveError> 
                     Cow::Owned(result)
                 })
             })
-            .map_err(|()| ResolveError::PathNotSupported {
+            .map_err(|()| ResolveError::UnsupportedPath {
                 path: PathBuf::from(specifier),
             })
     } else {

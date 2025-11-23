@@ -11,7 +11,7 @@ use rustc_hash::FxHasher;
 
 use super::hasher::IdentityHasher;
 use super::path::{BorrowedCachedPath, CachedPath, CachedPathState};
-use crate::{JSONError, ResolutionContext, ResolveError, ResolveOptions};
+use crate::{ResolutionContext, ResolveError, ResolveOptions};
 use dyst_dir::{PackageJson, TsConfigJson};
 use dyst_source::{FileSystem, PathExt};
 
@@ -134,13 +134,8 @@ impl<Fs: FileSystem> CachedFileSystem<Fs> {
 
                 PackageJson::parse(package_json_path.clone(), real_path, package_json_bytes)
                     .map(|package_json| Some(Arc::new(package_json)))
-                    .map_err(|error| ResolveError::Json {
-                        error: JSONError {
-                            path: package_json_path,
-                            message: error.to_string(),
-                            line: error.line(),
-                            column: error.column(),
-                        },
+                    .map_err(|_| ResolveError::InvalidPackageJson {
+                        path: package_json_path,
                     })
             })
             .cloned();
@@ -188,21 +183,17 @@ impl<Fs: FileSystem> CachedFileSystem<Fs> {
         };
 
         // read file
-        let mut tsconfig_string = self.fs.read_to_string(&tsconfig_path).map_err(|_| {
-            ResolveError::TypeScriptOptionsNotFound {
-                path: path.to_path_buf(),
-            }
-        })?;
+        let mut tsconfig_string =
+            self.fs
+                .read_to_string(&tsconfig_path)
+                .map_err(|_| ResolveError::TsConfigNotFound {
+                    path: path.to_path_buf(),
+                })?;
 
         // parse
         let mut tsconfig = TsConfigJson::parse(root, &tsconfig_path, &mut tsconfig_string)
-            .map_err(|error| ResolveError::Json {
-                error: JSONError {
-                    path: tsconfig_path.to_path_buf(),
-                    message: error.to_string(),
-                    line: error.line(),
-                    column: error.column(),
-                },
+            .map_err(|_| ResolveError::TsConfigInvalid {
+                path: tsconfig_path.to_path_buf(),
             })?;
 
         modify(&mut tsconfig)?;
@@ -253,16 +244,12 @@ impl<Fs: FileSystem> CachedFileSystem<Fs> {
         path: &CachedPath,
         visited: &mut StdHashSet<u64, BuildHasherDefault<IdentityHasher>>,
     ) -> Result<CachedPath, ResolveError> {
-        // check cache first
-        if let Some(weak) = path.canonicalized_path.get() {
-            return weak.upgrade().map(CachedPath).ok_or_else(|| {
-                io::Error::new(io::ErrorKind::NotFound, "Cached path no longer exists").into()
-            });
-        }
-
         // check for circular symlink by tracking visited paths in the current canonicalization chain
         if !visited.insert(path.hash) {
-            return Err(io::Error::new(io::ErrorKind::NotFound, "Circular symlink").into());
+            return Err(ResolveError::IoError {
+                path: path.path().to_path_buf(),
+                kind: io::ErrorKind::NotFound,
+            });
         }
 
         // resolve parent and normalize
@@ -279,7 +266,13 @@ impl<Fs: FileSystem> CachedFileSystem<Fs> {
                             .get_symlink_metadata(path.path())
                             .is_ok_and(|m| m.is_symlink)
                         {
-                            let link = self.fs.resolve_symlink(normalized.path())?;
+                            let link =
+                                self.fs
+                                    .resolve_symlink(normalized.path())
+                                    .map_err(|error| ResolveError::IoError {
+                                        path: normalized.path().to_path_buf(),
+                                        kind: error.kind(),
+                                    })?;
                             if link.is_absolute() {
                                 return self.canonicalize_with_visited(
                                     &self.value(&link.normalize()),
