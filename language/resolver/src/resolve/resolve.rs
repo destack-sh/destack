@@ -5,7 +5,7 @@ use std::path::{Component, Path, PathBuf};
 use std::sync::Arc;
 use std::{fmt, iter};
 
-use dyst_dir::{ModuleSpecifier, PackageJson, TsConfigJson, TsProjectReferences};
+use dyst_dir::{ModuleSpecifier, PackageOptions, TsConfigOptions, TsProjectReferences};
 use dyst_source::{FileSystem, MemoryFileSystem, PathExt, PhysicalFileSystem, SLASH_START};
 
 use crate::{
@@ -85,7 +85,7 @@ impl<Fs: FileSystem> Resolver<Fs> {
     pub fn resolve_tsconfig<P: AsRef<Path>>(
         &self,
         path: P,
-    ) -> Result<Arc<TsConfigJson>, ResolveError> {
+    ) -> Result<Arc<TsConfigOptions>, ResolveError> {
         let path = path.as_ref();
         self.load_tsconfig(
             true,
@@ -151,7 +151,7 @@ impl<Fs: FileSystem> Resolver<Fs> {
         &self,
         cached_path: &CachedPath,
         ctx: &mut ResolutionContext,
-    ) -> Result<Option<Arc<PackageJson>>, ResolveError> {
+    ) -> Result<Option<Arc<PackageOptions>>, ResolveError> {
         // if we are inside node_modules, find the nearest package.json by walking up
         if cached_path.is_inside_node_modules {
             let mut last = None;
@@ -487,7 +487,7 @@ impl<Fs: FileSystem> Resolver<Fs> {
             .cache
             .get_package_json(cached_path, &self.options, ctx)?
         {
-            if let Some(main_field) = package_json.main.as_deref() {
+            if let Some(main_field) = package_json.content.main.as_deref() {
                 let main_field = if main_field.starts_with("./") || main_field.starts_with("../") {
                     Cow::Borrowed(main_field)
                 } else {
@@ -509,7 +509,7 @@ impl<Fs: FileSystem> Resolver<Fs> {
             }
 
             // allow `exports` field in `require('../directory')`
-            if let Some(exports) = package_json.exports.as_ref()
+            if let Some(exports) = package_json.content.exports.as_ref()
                 && let Some(path) = self.package_exports_resolve(cached_path, ".", exports, ctx)?
             {
                 return Ok(Some(path));
@@ -782,7 +782,7 @@ impl<Fs: FileSystem> Resolver<Fs> {
             return Ok(None);
         };
 
-        if let Some(exports) = package_json.exports.as_ref()
+        if let Some(exports) = package_json.content.exports.as_ref()
             && let Some(path) =
                 self.package_exports_resolve(cached_path, &format!(".{subpath}"), exports, ctx)?
         {
@@ -808,12 +808,13 @@ impl<Fs: FileSystem> Resolver<Fs> {
 
         // check if the package name matches the specifier
         if let Some(subpath) = package_json
+            .content
             .name
             .as_ref()
             .and_then(|package_name| Self::strip_package_name(specifier, package_name.as_str()))
         {
             let package_url = self.cache.value(package_json.path.parent().unwrap());
-            if let Some(exports) = package_json.exports.as_ref()
+            if let Some(exports) = package_json.content.exports.as_ref()
                 && let Some(cached_path) = self.package_exports_resolve(
                     &package_url,
                     &format!(".{subpath}"),
@@ -852,11 +853,16 @@ impl<Fs: FileSystem> Resolver<Fs> {
     /// <https://github.com/defunctzombie/package-browser-field-spec>
     fn resolve_browser_field<'a>(
         &self,
-        package_json: &'a PackageJson,
+        package_json: &'a PackageOptions,
         path: &Path,
         request: Option<&str>,
     ) -> Result<Option<&'a str>, ResolveError> {
-        if let Some(object) = package_json.browser.as_ref().and_then(|v| v.as_object()) {
+        if let Some(object) = package_json
+            .content
+            .browser
+            .as_ref()
+            .and_then(|v| v.as_object())
+        {
             if let Some(request) = request {
                 // find matching key in object
                 if let Some(value) = object.get(request) {
@@ -892,7 +898,7 @@ impl<Fs: FileSystem> Resolver<Fs> {
         &self,
         cached_path: &CachedPath,
         module_specifier: Option<&str>,
-        package_json: &PackageJson,
+        package_json: &PackageOptions,
         ctx: &mut ResolutionContext,
     ) -> ResolveResult {
         if ctx.is_fully_specified {
@@ -1173,7 +1179,7 @@ impl<Fs: FileSystem> Resolver<Fs> {
         path: &Path,
         references: &TypeScriptOptionsReferences,
         ctx: &mut TypeScriptOptionsResolveContext,
-    ) -> Result<Arc<TsConfigJson>, ResolveError> {
+    ) -> Result<Arc<TsConfigOptions>, ResolveError> {
         self.cache.get_tsconfig_json(root, path, |tsconfig| {
             let directory = self.cache.value(tsconfig.directory());
 
@@ -1185,6 +1191,7 @@ impl<Fs: FileSystem> Resolver<Fs> {
 
             // extend tsconfig
             let extended_tsconfig_paths = tsconfig
+                .content
                 .extends()
                 .map(|specifier| self.get_extended_tsconfig_path(&directory, tsconfig, specifier))
                 .collect::<Result<Vec<_>, _>>()?;
@@ -1206,11 +1213,11 @@ impl<Fs: FileSystem> Resolver<Fs> {
             // loads the given references into this tsconfig
             match references {
                 TypeScriptOptionsReferences::Disabled => {
-                    tsconfig.references.drain(..);
+                    tsconfig.content.references.drain(..);
                 }
                 TypeScriptOptionsReferences::Automatic => {}
                 TypeScriptOptionsReferences::Paths(paths) => {
-                    tsconfig.references = paths
+                    tsconfig.content.references = paths
                         .iter()
                         .map(|path| TsProjectReferences {
                             path: path.clone(),
@@ -1219,10 +1226,10 @@ impl<Fs: FileSystem> Resolver<Fs> {
                         .collect();
                 }
             }
-            if !tsconfig.references.is_empty() {
+            if !tsconfig.content.references.is_empty() {
                 let path = tsconfig.path.to_path_buf();
                 let directory = tsconfig.directory().to_path_buf();
-                for reference in tsconfig.references.iter_mut() {
+                for reference in tsconfig.content.references.iter_mut() {
                     let reference_tsconfig_path = directory.normalize_with(&reference.path);
                     let tsconfig = self.cache.get_tsconfig_json(
                         /* root */ true,
@@ -1252,10 +1259,11 @@ impl<Fs: FileSystem> Resolver<Fs> {
     fn extend_tsconfig(
         &self,
         directory: &CachedPath,
-        tsconfig: &mut TsConfigJson,
+        tsconfig: &mut TsConfigOptions,
         ctx: &mut TypeScriptOptionsResolveContext,
     ) -> Result<(), ResolveError> {
         let extended_tsconfig_paths = tsconfig
+            .content
             .extends()
             .map(|specifier| self.get_extended_tsconfig_path(directory, tsconfig, specifier))
             .collect::<Result<Vec<_>, _>>()?;
@@ -1330,7 +1338,7 @@ impl<Fs: FileSystem> Resolver<Fs> {
         &self,
         cached_path: &CachedPath,
         ctx: &mut ResolutionContext,
-    ) -> Result<Option<Arc<TsConfigJson>>, ResolveError> {
+    ) -> Result<Option<Arc<TsConfigOptions>>, ResolveError> {
         // don't discover tsconfig for paths inside node_modules
         if cached_path.is_inside_node_modules {
             return Ok(None);
@@ -1362,7 +1370,7 @@ impl<Fs: FileSystem> Resolver<Fs> {
     fn get_extended_tsconfig_path(
         &self,
         directory: &CachedPath,
-        tsconfig: &TsConfigJson,
+        tsconfig: &TsConfigOptions,
         specifier: &str,
     ) -> Result<PathBuf, ResolveError> {
         match specifier.as_bytes().first() {
@@ -1423,7 +1431,7 @@ impl<Fs: FileSystem> Resolver<Fs> {
                         self.cache
                             .get_package_json(&cached_path, &self.options, ctx)?
                     {
-                        if let Some(exports) = package_json.exports.as_ref()
+                        if let Some(exports) = package_json.content.exports.as_ref()
                             && let Some(path) = self.package_exports_resolve(
                                 &cached_path,
                                 &format!(".{subpath}"),
@@ -1435,7 +1443,7 @@ impl<Fs: FileSystem> Resolver<Fs> {
                         }
 
                         if subpath == "."
-                            && let Some(main_field) = package_json.main.as_deref()
+                            && let Some(main_field) = package_json.content.main.as_deref()
                         {
                             let cached_path =
                                 cached_path.normalize_with(main_field, self.cache.as_ref());
@@ -1551,12 +1559,12 @@ impl<Fs: FileSystem> Resolver<Fs> {
     fn package_imports_resolve(
         &self,
         specifier: &str,
-        package_json: &PackageJson,
+        package_json: &PackageOptions,
         ctx: &mut ResolutionContext,
     ) -> Result<Option<CachedPath>, ResolveError> {
         debug_assert!(specifier.starts_with('#'), "{specifier}");
 
-        let Some(imports) = package_json.imports.as_ref() else {
+        let Some(imports) = package_json.content.imports.as_ref() else {
             return Ok(None);
         };
 

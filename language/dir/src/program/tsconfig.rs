@@ -25,19 +25,325 @@ pub struct TsConfigOptions {
     pub content: TsConfigJson,
 }
 
+impl TsConfigOptions {
+    /// Parses the tsconfig from a JSON string.
+    pub fn parse(
+        id: FileId,
+        is_root: bool,
+        path: &Path,
+        content: &mut str,
+    ) -> Result<Self, serde_json::Error> {
+        let json = trim_start_matches_mut(content, '\u{feff}'); // strip bom
+        let stripped = strip_json(json).map_err(serde_json::Error::io)?;
+
+        // default to empty object if the file is empty
+        let json = if stripped.trim().is_empty() {
+            Cow::Borrowed("{}")
+        } else {
+            Cow::Owned(stripped)
+        };
+
+        // parse the tsconfig
+        let tsconfig: TsConfigJson = serde_json::from_str(json.as_ref())?;
+
+        Ok(Self {
+            id,
+            is_root,
+            path: path.to_path_buf(),
+            content: tsconfig,
+        })
+    }
+
+    /// Directory of the `tsconfig.json` file.
+    pub fn directory(&self) -> &Path {
+        debug_assert!(self.path.file_name().is_some());
+        self.path.parent().unwrap()
+    }
+
+    /// Returns the base path from which to resolve aliases.
+    ///
+    /// The base path can be configured by the user as part of the
+    /// [CompilerOptions]. If not configured, it returns the directory in which
+    /// the tsconfig itself is found.
+    pub(crate) fn base_path(&self) -> &Path {
+        self.content
+            .compiler_options
+            .base_url
+            .as_deref()
+            .unwrap_or_else(|| self.directory())
+    }
+
+    /// Inherits settings from the given tsconfig into `self`.
+    #[allow(clippy::cognitive_complexity, clippy::too_many_lines)]
+    pub fn extend_from(&mut self, tsconfig: &Self) {
+        // files
+        if self.content.files.is_none()
+            && let Some(files) = &tsconfig.content.files
+        {
+            self.content.files = Some(files.clone());
+        }
+
+        // include
+        if self.content.include.is_none()
+            && let Some(include) = &tsconfig.content.include
+        {
+            self.content.include = Some(include.clone());
+        }
+
+        // exclude
+        if self.content.exclude.is_none()
+            && let Some(exclude) = &tsconfig.content.exclude
+        {
+            self.content.exclude = Some(exclude.clone());
+        }
+
+        let tsconfig_dir = tsconfig.directory();
+        let compiler_options = &mut self.content.compiler_options;
+
+        // compilerOptions.baseUrl
+        if compiler_options.base_url.is_none()
+            && let Some(base_url) = &tsconfig.content.compiler_options.base_url
+        {
+            compiler_options.base_url = Some(
+                if base_url.to_string_lossy().starts_with(TEMPLATE_VARIABLE) {
+                    base_url.clone()
+                } else {
+                    tsconfig_dir.join(base_url).normalize()
+                },
+            );
+        }
+
+        // compilerOptions.paths
+        if compiler_options.paths.is_none() {
+            let paths_base = compiler_options.base_url.as_ref().map_or_else(
+                || tsconfig_dir.to_path_buf(),
+                |path| {
+                    if path.to_string_lossy().starts_with(TEMPLATE_VARIABLE) {
+                        path.clone()
+                    } else {
+                        tsconfig_dir.join(path).normalize()
+                    }
+                },
+            );
+            compiler_options.paths_base = paths_base;
+            compiler_options.paths = tsconfig.content.compiler_options.paths.clone();
+        }
+
+        // compilerOptions.experimentalDecorators
+        if compiler_options.experimental_decorators.is_none()
+            && let Some(experimental_decorators) =
+                tsconfig.content.compiler_options.experimental_decorators
+        {
+            compiler_options.experimental_decorators = Some(experimental_decorators);
+        }
+
+        // compilerOptions.emitDecoratorMetadata
+        if compiler_options.emit_decorator_metadata.is_none()
+            && let Some(emit_decorator_metadata) =
+                tsconfig.content.compiler_options.emit_decorator_metadata
+        {
+            compiler_options.emit_decorator_metadata = Some(emit_decorator_metadata);
+        }
+
+        // compilerOptions.useDefineForClassFields
+        if compiler_options.use_define_for_class_fields.is_none()
+            && let Some(use_define_for_class_fields) = tsconfig
+                .content
+                .compiler_options
+                .use_define_for_class_fields
+        {
+            compiler_options.use_define_for_class_fields = Some(use_define_for_class_fields);
+        }
+
+        // compilerOptions.rewriteRelativeImportExtensions
+        if compiler_options
+            .rewrite_relative_import_extensions
+            .is_none()
+            && let Some(rewrite_relative_import_extensions) = tsconfig
+                .content
+                .compiler_options
+                .rewrite_relative_import_extensions
+        {
+            compiler_options.rewrite_relative_import_extensions =
+                Some(rewrite_relative_import_extensions);
+        }
+
+        // compilerOptions.jsx
+        if compiler_options.jsx.is_none()
+            && let Some(jsx) = &tsconfig.content.compiler_options.jsx
+        {
+            compiler_options.jsx = Some(jsx.clone());
+        }
+
+        // compilerOptions.jsxFactory
+        if compiler_options.jsx_factory.is_none()
+            && let Some(jsx_factory) = &tsconfig.content.compiler_options.jsx_factory
+        {
+            compiler_options.jsx_factory = Some(jsx_factory.clone());
+        }
+
+        // compilerOptions.jsxFragmentFactory
+        if compiler_options.jsx_fragment_factory.is_none()
+            && let Some(jsx_fragment_factory) =
+                &tsconfig.content.compiler_options.jsx_fragment_factory
+        {
+            compiler_options.jsx_fragment_factory = Some(jsx_fragment_factory.clone());
+        }
+
+        // compilerOptions.jsxImportSource
+        if compiler_options.jsx_import_source.is_none()
+            && let Some(jsx_import_source) = &tsconfig.content.compiler_options.jsx_import_source
+        {
+            compiler_options.jsx_import_source = Some(jsx_import_source.clone());
+        }
+
+        // compilerOptions.verbatimModuleSyntax
+        if compiler_options.verbatim_module_syntax.is_none()
+            && let Some(verbatim_module_syntax) =
+                tsconfig.content.compiler_options.verbatim_module_syntax
+        {
+            compiler_options.verbatim_module_syntax = Some(verbatim_module_syntax);
+        }
+
+        // compilerOptions.preserveValueImports
+        if compiler_options.preserve_value_imports.is_none()
+            && let Some(preserve_value_imports) =
+                tsconfig.content.compiler_options.preserve_value_imports
+        {
+            compiler_options.preserve_value_imports = Some(preserve_value_imports);
+        }
+
+        // compilerOptions.importsNotUsedAsValues
+        if compiler_options.imports_not_used_as_values.is_none()
+            && let Some(imports_not_used_as_values) =
+                &tsconfig.content.compiler_options.imports_not_used_as_values
+        {
+            compiler_options.imports_not_used_as_values = Some(imports_not_used_as_values.clone());
+        }
+
+        // compilerOptions.target
+        if compiler_options.target.is_none()
+            && let Some(target) = &tsconfig.content.compiler_options.target
+        {
+            compiler_options.target = Some(target.clone());
+        }
+
+        // compilerOptions.module
+        if compiler_options.module.is_none()
+            && let Some(module) = &tsconfig.content.compiler_options.module
+        {
+            compiler_options.module = Some(module.clone());
+        }
+
+        // compilerOptions.allowJs
+        if compiler_options.allow_js.is_none()
+            && let Some(allow_js) = tsconfig.content.compiler_options.allow_js
+        {
+            compiler_options.allow_js = Some(allow_js);
+        }
+    }
+
+    /// "Build" the root tsconfig, resolve:
+    ///
+    /// * `{configDir}` template variable
+    /// * `paths_base` for resolving paths alias
+    /// * `baseUrl` to absolute path
+    pub fn build(mut self) -> Self {
+        // Only the root tsconfig requires paths resolution.
+        if !self.is_root {
+            return self;
+        }
+
+        let config_dir = self.directory().to_path_buf();
+
+        if let Some(base_url) = &self.content.compiler_options.base_url {
+            // Substitute template variable in `tsconfig.compilerOptions.baseUrl`.
+            let base_url = base_url
+                .to_string_lossy()
+                .strip_prefix(TEMPLATE_VARIABLE)
+                .map_or_else(
+                    || config_dir.normalize_with(base_url),
+                    |stripped_path| config_dir.join(stripped_path.trim_start_matches('/')),
+                );
+            self.content.compiler_options.base_url = Some(base_url);
+        }
+
+        if self.content.compiler_options.paths.is_some() {
+            // `paths_base` should use config dir if it is not resolved with base url nor extended
+            // with another tsconfig.
+            if let Some(base_url) = &self.content.compiler_options.base_url {
+                self.content.compiler_options.paths_base = base_url.clone();
+            }
+
+            if self
+                .content
+                .compiler_options
+                .paths_base
+                .as_os_str()
+                .is_empty()
+            {
+                self.content.compiler_options.paths_base = config_dir.clone();
+            }
+
+            // Substitute template variable in `tsconfig.compilerOptions.paths`.
+            for paths in self
+                .content
+                .compiler_options
+                .paths
+                .as_mut()
+                .unwrap()
+                .values_mut()
+            {
+                for path in paths {
+                    Self::substitute_template_variable(&config_dir, path);
+                }
+            }
+        }
+
+        self
+    }
+
+    /// Resolves the given `specifier` within the project configured by this
+    /// tsconfig, relative to the given `path`.
+    ///
+    /// `specifier` can be either a real path or an alias.
+    pub fn resolve(&self, path: &Path, specifier: &str) -> Vec<PathBuf> {
+        let paths = self.content.resolve_path_alias(specifier);
+        for tsconfig in self
+            .content
+            .references
+            .iter()
+            .filter_map(TsProjectReferences::tsconfig)
+        {
+            if path.starts_with(tsconfig.base_path()) {
+                return [tsconfig.content.resolve_path_alias(specifier), paths].concat();
+            }
+        }
+        paths
+    }
+
+    /// Template variable `${configDir}` for substitution of config files
+    /// directory path.
+    ///
+    /// NOTE: All tests cases are just a head replacement of `${configDir}`, so
+    ///       we are constrained as such.
+    ///
+    /// See <https://github.com/microsoft/TypeScript/pull/58042>.
+    pub fn substitute_template_variable(directory: &Path, path: &mut String) {
+        if let Some(stripped_path) = path.strip_prefix(TEMPLATE_VARIABLE) {
+            *path = directory
+                .join(stripped_path.trim_start_matches('/'))
+                .to_string_lossy()
+                .to_string();
+        }
+    }
+}
+
 /// TypeScript JSON (usually from `tsconfig.json`)
 /// <https://www.typescriptlang.org/tsconfig>
 #[derive(Debug, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct TsConfigJson {
-    // nocheckin: remove is_root from TsConfigJson (into Package/TsConfig)
-    /// Whether this is the root tsconfig.
-    #[serde(skip)]
-    pub is_root: bool,
-    /// Path to the `tsconfig.json` file (including the `tsconfig.json`).
-    #[serde(skip)]
-    pub path: PathBuf,
-
     /// Specific files to include in the project.
     /// <https://www.typescriptlang.org/tsconfig/#files>
     #[serde(default)]
@@ -65,32 +371,7 @@ pub struct TsConfigJson {
 }
 
 impl TsConfigJson {
-    /// Parses the tsconfig from a JSON string.
-    pub fn parse(is_root: bool, path: &Path, content: &mut str) -> Result<Self, serde_json::Error> {
-        let json = trim_start_matches_mut(content, '\u{feff}'); // strip bom
-        let stripped = strip_json(json).map_err(serde_json::Error::io)?;
-
-        // default to empty object if the file is empty
-        let json = if stripped.trim().is_empty() {
-            Cow::Borrowed("{}")
-        } else {
-            Cow::Owned(stripped)
-        };
-
-        // parse the tsconfig
-        let mut tsconfig: Self = serde_json::from_str(json.as_ref())?;
-        tsconfig.is_root = is_root;
-        tsconfig.path = path.to_path_buf();
-
-        Ok(tsconfig)
-    }
-
     /// Directory of the `tsconfig.json` file.
-    pub fn directory(&self) -> &Path {
-        debug_assert!(self.path.file_name().is_some());
-        self.path.parent().unwrap()
-    }
-
     /// Returns any paths to tsconfigs that should be extended by this tsconfig.
     pub fn extends(&self) -> impl Iterator<Item = &str> {
         let specifiers = match &self.extends {
@@ -103,260 +384,6 @@ impl TsConfigJson {
             None => Vec::new(),
         };
         specifiers.into_iter()
-    }
-
-    /// Returns the base path from which to resolve aliases.
-    ///
-    /// The base path can be configured by the user as part of the
-    /// [CompilerOptions]. If not configured, it returns the directory in which
-    /// the tsconfig itself is found.
-    pub(crate) fn base_path(&self) -> &Path {
-        self.compiler_options
-            .base_url
-            .as_deref()
-            .unwrap_or_else(|| self.directory())
-    }
-
-    /// Inherits settings from the given tsconfig into `self`.
-    #[allow(clippy::cognitive_complexity, clippy::too_many_lines)]
-    pub fn extend_from(&mut self, tsconfig: &Self) {
-        // files
-        if self.files.is_none()
-            && let Some(files) = &tsconfig.files
-        {
-            self.files = Some(files.clone());
-        }
-
-        // include
-        if self.include.is_none()
-            && let Some(include) = &tsconfig.include
-        {
-            self.include = Some(include.clone());
-        }
-
-        // exclude
-        if self.exclude.is_none()
-            && let Some(exclude) = &tsconfig.exclude
-        {
-            self.exclude = Some(exclude.clone());
-        }
-
-        let tsconfig_dir = tsconfig.directory();
-        let compiler_options = &mut self.compiler_options;
-
-        // compilerOptions.baseUrl
-        if compiler_options.base_url.is_none()
-            && let Some(base_url) = &tsconfig.compiler_options.base_url
-        {
-            compiler_options.base_url = Some(
-                if base_url.to_string_lossy().starts_with(TEMPLATE_VARIABLE) {
-                    base_url.clone()
-                } else {
-                    tsconfig_dir.join(base_url).normalize()
-                },
-            );
-        }
-
-        // compilerOptions.paths
-        if compiler_options.paths.is_none() {
-            let paths_base = compiler_options.base_url.as_ref().map_or_else(
-                || tsconfig_dir.to_path_buf(),
-                |path| {
-                    if path.to_string_lossy().starts_with(TEMPLATE_VARIABLE) {
-                        path.clone()
-                    } else {
-                        tsconfig_dir.join(path).normalize()
-                    }
-                },
-            );
-            compiler_options.paths_base = paths_base;
-            compiler_options.paths = tsconfig.compiler_options.paths.clone();
-        }
-
-        // compilerOptions.experimentalDecorators
-        if compiler_options.experimental_decorators.is_none()
-            && let Some(experimental_decorators) = tsconfig.compiler_options.experimental_decorators
-        {
-            compiler_options.experimental_decorators = Some(experimental_decorators);
-        }
-
-        // compilerOptions.emitDecoratorMetadata
-        if compiler_options.emit_decorator_metadata.is_none()
-            && let Some(emit_decorator_metadata) = tsconfig.compiler_options.emit_decorator_metadata
-        {
-            compiler_options.emit_decorator_metadata = Some(emit_decorator_metadata);
-        }
-
-        // compilerOptions.useDefineForClassFields
-        if compiler_options.use_define_for_class_fields.is_none()
-            && let Some(use_define_for_class_fields) =
-                tsconfig.compiler_options.use_define_for_class_fields
-        {
-            compiler_options.use_define_for_class_fields = Some(use_define_for_class_fields);
-        }
-
-        // compilerOptions.rewriteRelativeImportExtensions
-        if compiler_options
-            .rewrite_relative_import_extensions
-            .is_none()
-            && let Some(rewrite_relative_import_extensions) =
-                tsconfig.compiler_options.rewrite_relative_import_extensions
-        {
-            compiler_options.rewrite_relative_import_extensions =
-                Some(rewrite_relative_import_extensions);
-        }
-
-        // compilerOptions.jsx
-        if compiler_options.jsx.is_none()
-            && let Some(jsx) = &tsconfig.compiler_options.jsx
-        {
-            compiler_options.jsx = Some(jsx.clone());
-        }
-
-        // compilerOptions.jsxFactory
-        if compiler_options.jsx_factory.is_none()
-            && let Some(jsx_factory) = &tsconfig.compiler_options.jsx_factory
-        {
-            compiler_options.jsx_factory = Some(jsx_factory.clone());
-        }
-
-        // compilerOptions.jsxFragmentFactory
-        if compiler_options.jsx_fragment_factory.is_none()
-            && let Some(jsx_fragment_factory) = &tsconfig.compiler_options.jsx_fragment_factory
-        {
-            compiler_options.jsx_fragment_factory = Some(jsx_fragment_factory.clone());
-        }
-
-        // compilerOptions.jsxImportSource
-        if compiler_options.jsx_import_source.is_none()
-            && let Some(jsx_import_source) = &tsconfig.compiler_options.jsx_import_source
-        {
-            compiler_options.jsx_import_source = Some(jsx_import_source.clone());
-        }
-
-        // compilerOptions.verbatimModuleSyntax
-        if compiler_options.verbatim_module_syntax.is_none()
-            && let Some(verbatim_module_syntax) = tsconfig.compiler_options.verbatim_module_syntax
-        {
-            compiler_options.verbatim_module_syntax = Some(verbatim_module_syntax);
-        }
-
-        // compilerOptions.preserveValueImports
-        if compiler_options.preserve_value_imports.is_none()
-            && let Some(preserve_value_imports) = tsconfig.compiler_options.preserve_value_imports
-        {
-            compiler_options.preserve_value_imports = Some(preserve_value_imports);
-        }
-
-        // compilerOptions.importsNotUsedAsValues
-        if compiler_options.imports_not_used_as_values.is_none()
-            && let Some(imports_not_used_as_values) =
-                &tsconfig.compiler_options.imports_not_used_as_values
-        {
-            compiler_options.imports_not_used_as_values = Some(imports_not_used_as_values.clone());
-        }
-
-        // compilerOptions.target
-        if compiler_options.target.is_none()
-            && let Some(target) = &tsconfig.compiler_options.target
-        {
-            compiler_options.target = Some(target.clone());
-        }
-
-        // compilerOptions.module
-        if compiler_options.module.is_none()
-            && let Some(module) = &tsconfig.compiler_options.module
-        {
-            compiler_options.module = Some(module.clone());
-        }
-
-        // compilerOptions.allowJs
-        if compiler_options.allow_js.is_none()
-            && let Some(allow_js) = tsconfig.compiler_options.allow_js
-        {
-            compiler_options.allow_js = Some(allow_js);
-        }
-    }
-
-    /// "Build" the root tsconfig, resolve:
-    ///
-    /// * `{configDir}` template variable
-    /// * `paths_base` for resolving paths alias
-    /// * `baseUrl` to absolute path
-    pub fn build(mut self) -> Self {
-        // Only the root tsconfig requires paths resolution.
-        if !self.is_root {
-            return self;
-        }
-
-        let config_dir = self.directory().to_path_buf();
-
-        if let Some(base_url) = &self.compiler_options.base_url {
-            // Substitute template variable in `tsconfig.compilerOptions.baseUrl`.
-            let base_url = base_url
-                .to_string_lossy()
-                .strip_prefix(TEMPLATE_VARIABLE)
-                .map_or_else(
-                    || config_dir.normalize_with(base_url),
-                    |stripped_path| config_dir.join(stripped_path.trim_start_matches('/')),
-                );
-            self.compiler_options.base_url = Some(base_url);
-        }
-
-        if self.compiler_options.paths.is_some() {
-            // `paths_base` should use config dir if it is not resolved with base url nor extended
-            // with another tsconfig.
-            if let Some(base_url) = &self.compiler_options.base_url {
-                self.compiler_options.paths_base = base_url.clone();
-            }
-
-            if self.compiler_options.paths_base.as_os_str().is_empty() {
-                self.compiler_options.paths_base = config_dir.clone();
-            }
-
-            // Substitute template variable in `tsconfig.compilerOptions.paths`.
-            for paths in self.compiler_options.paths.as_mut().unwrap().values_mut() {
-                for path in paths {
-                    Self::substitute_template_variable(&config_dir, path);
-                }
-            }
-        }
-
-        self
-    }
-
-    /// Template variable `${configDir}` for substitution of config files
-    /// directory path.
-    ///
-    /// NOTE: All tests cases are just a head replacement of `${configDir}`, so
-    ///       we are constrained as such.
-    ///
-    /// See <https://github.com/microsoft/TypeScript/pull/58042>.
-    pub fn substitute_template_variable(directory: &Path, path: &mut String) {
-        if let Some(stripped_path) = path.strip_prefix(TEMPLATE_VARIABLE) {
-            *path = directory
-                .join(stripped_path.trim_start_matches('/'))
-                .to_string_lossy()
-                .to_string();
-        }
-    }
-
-    /// Resolves the given `specifier` within the project configured by this
-    /// tsconfig, relative to the given `path`.
-    ///
-    /// `specifier` can be either a real path or an alias.
-    pub fn resolve(&self, path: &Path, specifier: &str) -> Vec<PathBuf> {
-        let paths = self.resolve_path_alias(specifier);
-        for tsconfig in self
-            .references
-            .iter()
-            .filter_map(TsProjectReferences::tsconfig)
-        {
-            if path.starts_with(tsconfig.base_path()) {
-                return [tsconfig.resolve_path_alias(specifier), paths].concat();
-            }
-        }
-        paths
     }
 
     /// Resolves the given `specifier` within the project configured by this tsconfig.
@@ -660,7 +687,7 @@ pub struct TsProjectReferences {
 
     /// Resolved tsconfig.
     #[serde(skip)]
-    pub tsconfig: Option<Arc<TsConfigJson>>,
+    pub tsconfig: Option<Arc<TsConfigOptions>>,
 }
 
 impl TsProjectReferences {
@@ -670,12 +697,12 @@ impl TsProjectReferences {
     }
 
     /// Returns the resolved tsconfig.
-    pub fn tsconfig(&self) -> Option<Arc<TsConfigJson>> {
+    pub fn tsconfig(&self) -> Option<Arc<TsConfigOptions>> {
         self.tsconfig.clone()
     }
 
     /// Sets the resolved tsconfig.
-    pub fn set_tsconfig(&mut self, tsconfig: Arc<TsConfigJson>) {
+    pub fn set_tsconfig(&mut self, tsconfig: Arc<TsConfigOptions>) {
         self.tsconfig.replace(tsconfig);
     }
 }
@@ -692,7 +719,8 @@ fn trim_start_matches_mut(string: &mut str, pattern: char) -> &mut str {
 
 #[cfg(test)]
 mod tests {
-    use super::TsConfigJson;
+    use super::TsConfigOptions;
+    use dyst_source::FileId;
     use std::path::Path;
 
     #[test]
@@ -717,15 +745,17 @@ mod tests {
         })
         .to_string();
 
-        let parent_tsconfig = TsConfigJson::parse(true, parent_path, &mut parent_config)
-            .unwrap()
-            .build();
-        let mut child_tsconfig = TsConfigJson::parse(true, child_path, &mut child_config).unwrap();
+        let parent_tsconfig =
+            TsConfigOptions::parse(FileId::new(0), true, parent_path, &mut parent_config)
+                .unwrap()
+                .build();
+        let mut child_tsconfig =
+            TsConfigOptions::parse(FileId::new(1), true, child_path, &mut child_config).unwrap();
 
         child_tsconfig.extend_from(&parent_tsconfig);
         let child_built = child_tsconfig.build();
 
-        let compiler_options = &child_built.compiler_options;
+        let compiler_options = &child_built.content.compiler_options;
 
         // Child's jsx should be preserved
         assert_eq!(compiler_options.jsx, Some("preserve".to_string()));
