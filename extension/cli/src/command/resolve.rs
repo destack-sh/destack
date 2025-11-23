@@ -1,0 +1,72 @@
+use std::path::PathBuf;
+
+use clap::Args;
+use dyst_resolver::{PhysicalResolver, ResolveOptions};
+
+use crate::console;
+
+#[derive(Args, Debug, Clone)]
+pub struct ResolveArgs {
+    /// The specifier to resolve.
+    pub specifier: String,
+
+    /// The directory to resolve from.
+    #[arg(long, short = 'd')]
+    pub directory: Option<PathBuf>,
+
+    /// Condition names for exports field.
+    #[arg(long)]
+    pub condition: Vec<String>,
+
+    /// Extensions to try.
+    #[arg(long)]
+    pub extension: Vec<String>,
+
+    /// Prefer relative paths.
+    #[arg(long)]
+    pub prefer_relative: bool,
+
+    /// Prefer absolute paths.
+    #[arg(long)]
+    pub prefer_absolute: bool,
+
+    /// Resolve to a context instead of a file.
+    #[arg(long)]
+    pub resolve_to_context: bool,
+}
+
+pub fn run(args: &ResolveArgs) -> i32 {
+    let cwd = std::env::current_dir().unwrap_or_default();
+    let directory = args
+        .directory
+        .clone()
+        .unwrap_or(cwd)
+        .canonicalize()
+        .expect("failed to canonicalize directory");
+
+    let mut options = ResolveOptions::default();
+
+    if !args.condition.is_empty() {
+        options.conditions = args.condition.clone();
+    }
+    if !args.extension.is_empty() {
+        options.extensions = args.extension.clone();
+    }
+
+    options.prefer_relative = args.prefer_relative;
+    options.prefer_absolute = args.prefer_absolute;
+    options.resolve_to_context = args.resolve_to_context;
+
+    let resolver = PhysicalResolver::new(options);
+
+    match resolver.resolve(&directory, &args.specifier) {
+        Ok(resolution) => {
+            console::info(&resolution.path().to_string_lossy());
+            0
+        }
+        Err(err) => {
+            console::error(&format!("error: {err}"));
+            1
+        }
+    }
+}

@@ -589,7 +589,7 @@ fn test_resolve_scoped_packages() {
         ("folder request should work", f.clone(), "@scope/pack2/lib", "@scope/pack2", f.join("./node_modules/@scope/pack2/lib/index.js"))
     ];
 
-    for (comment, path, request, package, expected) in pass {
+    for (comment, path, request, _, expected) in pass {
         let resolution = resolver.resolve(&path, request).ok();
         let resolved_path = resolution.as_ref().map(Resolution::full_path);
         assert_eq!(

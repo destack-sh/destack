@@ -29,6 +29,7 @@ dyst_source = { workspace = true }
 clap = { version = "4.5.4", features = ["derive"] }
 
 tokio = { version = "1.47.1" }
+dyst_resolver.workspace = true
 
 [dev-dependencies]
 

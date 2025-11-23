@@ -5,7 +5,7 @@ use std::path::{Component, Path, PathBuf};
 use std::sync::Arc;
 use std::{fmt, iter};
 
-use dyst_dir::{DependencySpecifier, PackageJson, TsConfigJson, TsProjectReferences};
+use dyst_dir::{ModuleSpecifier, PackageJson, TsConfigJson, TsProjectReferences};
 use dyst_source::{FileSystem, MemoryFileSystem, PathExt, PhysicalFileSystem, SLASH_START};
 
 use crate::{
@@ -67,13 +67,7 @@ impl<Fs: FileSystem> Resolver<Fs> {
         }
     }
 
-    /// Resolves `specifier` at an absolute path to a `directory`.
-    ///
-    /// A specifier is the string passed to require or import, i.e. `require("specifier")` or `import "specifier"`.
-    ///
-    /// `directory` must be an **absolute** path to a directory where the specifier is resolved against.
-    /// For CommonJS modules, it is the `__dirname` variable that contains the absolute path to the folder containing current module.
-    /// For ECMAScript modules, it is the value of `import.meta.url`.
+    /// Resolves specifier at an absolute path to a `directory`.
     pub fn resolve<P: AsRef<Path>>(
         &self,
         directory: P,
@@ -191,7 +185,7 @@ impl<Fs: FileSystem> Resolver<Fs> {
         ctx.check_depth()?;
 
         // parse query and fragment identifiers
-        let parsed = DependencySpecifier::parse(specifier);
+        let parsed = ModuleSpecifier::parse(specifier);
         if let Some(query) = &parsed.query {
             ctx.query.replace(query.to_string());
         }
@@ -1190,9 +1184,7 @@ impl<Fs: FileSystem> Resolver<Fs> {
 
             if ctx.is_already_extended(&tsconfig.path) {
                 return Err(ResolveError::TypeScriptOptionsCircular {
-                    paths: ctx
-                        .get_extended_configs_with(tsconfig.path.to_path_buf())
-                        .into(),
+                    paths: ctx.get_extended_configs_with(tsconfig.path.to_path_buf()),
                 });
             }
 
@@ -1558,7 +1550,7 @@ impl<Fs: FileSystem> Resolver<Fs> {
             subpath: subpath.to_string(),
             package_path: package_url.path().to_path_buf(),
             package_json_path: package_url.path().join("package.json"),
-            conditions: self.options.conditions.clone().into(),
+            conditions: self.options.conditions.clone(),
         })
     }
 
@@ -1635,8 +1627,10 @@ impl<Fs: FileSystem> Resolver<Fs> {
 
         // pattern match
         // find the best matching key in the match object
-        for (expansion_key, target) in match_obj.iter() {
-            if expansion_key.ends_with('*') && target.as_string().is_some_and(|s| !s.contains('*'))
+        for (expansion_key, target_key) in match_obj.iter() {
+            // ignore invalid mappings (wildcard expansion without wildcard target)
+            if expansion_key.ends_with('*')
+                && target_key.as_string().is_some_and(|s| !s.contains('*'))
             {
                 continue;
             }
@@ -1650,7 +1644,7 @@ impl<Fs: FileSystem> Resolver<Fs> {
                                 && match_key.ends_with(pattern_trailer)))
                         && Self::pattern_key_compare(best_key, expansion_key).is_gt()
                     {
-                        best_target = Some(target);
+                        best_target = Some(target_key);
                         best_match =
                             &match_key[pattern_base.len()..match_key.len() - pattern_trailer.len()];
                         best_key = expansion_key;
@@ -1659,7 +1653,7 @@ impl<Fs: FileSystem> Resolver<Fs> {
                     && match_key.starts_with(expansion_key)
                     && Self::pattern_key_compare(best_key, expansion_key).is_gt()
                 {
-                    best_target = Some(target);
+                    best_target = Some(target_key);
                     best_match = &match_key[expansion_key.len()..];
                     best_key = expansion_key;
                 }
@@ -1720,7 +1714,7 @@ impl<Fs: FileSystem> Resolver<Fs> {
 
         // resolve string target
         if let Some(target) = target.as_string() {
-            let parsed = DependencySpecifier::parse(target);
+            let parsed = ModuleSpecifier::parse(target);
             if let Some(query) = &parsed.query {
                 ctx.query.replace(query.to_string());
             }
@@ -1783,7 +1777,7 @@ impl<Fs: FileSystem> Resolver<Fs> {
                     subpath: pattern_match.unwrap_or(".").to_string(),
                     package_path: package_url.path().to_path_buf(),
                     package_json_path: package_url.path().join("package.json"),
-                    conditions: self.options.conditions.clone().into(),
+                    conditions: self.options.conditions.clone(),
                 });
             }
             for (i, target_value) in targets.iter().enumerate() {

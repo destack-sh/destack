@@ -1,8 +1,9 @@
 pub mod compile;
-mod diagnostic;
+pub mod diagnostic;
 pub mod lex;
 pub mod parse;
-mod source;
+pub mod resolve;
+pub mod source;
 pub mod transpile;
 pub mod version;
 
