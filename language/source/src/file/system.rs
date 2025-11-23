@@ -20,14 +20,14 @@ pub trait FileSystem: Send + Sync {
 
     /// Returns the metadata of a file.
     /// See [std::fs::metadata]
-    fn metadata(&self, path: &Path) -> io::Result<FileMetadata>;
+    fn get_metadata(&self, path: &Path) -> io::Result<FileMetadata>;
 
     /// Returns the metadata of a symbolic link.
     /// See [std::fs::symlink_metadata]
-    fn symlink_metadata(&self, path: &Path) -> io::Result<FileMetadata>;
+    fn get_symlink_metadata(&self, path: &Path) -> io::Result<FileMetadata>;
 
     /// Returns the path of a symbolic link.
-    fn read_link(&self, path: &Path) -> io::Result<PathBuf>;
+    fn resolve_symlink(&self, path: &Path) -> io::Result<PathBuf>;
 
     /// Returns the canonical, absolute form of a path with all intermediate components normalized.
     fn canonicalize(&self, path: &Path) -> io::Result<PathBuf>;
@@ -129,15 +129,15 @@ impl FileSystem for PhysicalFileSystem {
         validate_utf8_string(bytes)
     }
 
-    fn metadata(&self, path: &Path) -> io::Result<FileMetadata> {
+    fn get_metadata(&self, path: &Path) -> io::Result<FileMetadata> {
         Self::metadata(path)
     }
 
-    fn symlink_metadata(&self, path: &Path) -> io::Result<FileMetadata> {
+    fn get_symlink_metadata(&self, path: &Path) -> io::Result<FileMetadata> {
         Self::symlink_metadata(path)
     }
 
-    fn read_link(&self, path: &Path) -> io::Result<PathBuf> {
+    fn resolve_symlink(&self, path: &Path) -> io::Result<PathBuf> {
         Self::read_link(path)
     }
 

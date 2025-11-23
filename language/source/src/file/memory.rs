@@ -78,7 +78,7 @@ impl FileSystem for MemoryFileSystem {
         validate_utf8_string(bytes)
     }
 
-    fn metadata(&self, path: &Path) -> io::Result<FileMetadata> {
+    fn get_metadata(&self, path: &Path) -> io::Result<FileMetadata> {
         let inner = self.inner.read().expect("lock poisoned");
         if inner.directories.contains(path) {
             Ok(FileMetadata::new(false, true, false))
@@ -92,11 +92,11 @@ impl FileSystem for MemoryFileSystem {
         }
     }
 
-    fn symlink_metadata(&self, path: &Path) -> io::Result<FileMetadata> {
-        self.metadata(path)
+    fn get_symlink_metadata(&self, path: &Path) -> io::Result<FileMetadata> {
+        self.get_metadata(path)
     }
 
-    fn read_link(&self, path: &Path) -> io::Result<PathBuf> {
+    fn resolve_symlink(&self, path: &Path) -> io::Result<PathBuf> {
         Err(io::Error::new(
             io::ErrorKind::NotFound,
             path.display().to_string(),
@@ -104,7 +104,7 @@ impl FileSystem for MemoryFileSystem {
     }
 
     fn canonicalize(&self, path: &Path) -> io::Result<PathBuf> {
-        let metadata = self.metadata(path)?;
+        let metadata = self.get_metadata(path)?;
         if metadata.is_directory || metadata.is_file {
             return Ok(path.normalize());
         }

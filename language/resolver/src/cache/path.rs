@@ -283,7 +283,7 @@ impl CachedPath {
     /// Gets the metadata of the cached path.
     fn metadata<Fs: FileSystem>(&self, fs: &Fs) -> Option<(bool, bool)> {
         *self.meta.get_or_init(|| {
-            fs.metadata(&self.path)
+            fs.get_metadata(&self.path)
                 .ok()
                 .map(|r| (r.is_file, r.is_directory))
         })

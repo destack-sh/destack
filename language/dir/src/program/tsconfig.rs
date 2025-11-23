@@ -8,11 +8,24 @@ use indexmap::IndexMap;
 use rustc_hash::FxHasher;
 use serde::Deserialize;
 
-use dyst_source::{PathExt, strip_json};
+use dyst_source::{FileId, PathExt, strip_json};
 
 const TEMPLATE_VARIABLE: &str = "${configDir}"; // TODO #Broken: revisit TsConfig template variable
 
-/// TypeScript configuration (usually from `tsconfig.json`)
+/// TypeScript options.
+#[derive(Debug, Clone)]
+pub struct TsConfigOptions {
+    /// The id of the `tsconfig.json` file.
+    pub id: FileId,
+    /// Whether this is the root tsconfig.
+    pub is_root: bool,
+    /// Path to the `tsconfig.json` file (including the `tsconfig.json`).
+    pub path: PathBuf,
+    /// The content of the `tsconfig.json` file.
+    pub content: TsConfigJson,
+}
+
+/// TypeScript JSON (usually from `tsconfig.json`)
 /// <https://www.typescriptlang.org/tsconfig>
 #[derive(Debug, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]

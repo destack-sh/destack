@@ -5,13 +5,13 @@ use std::path::{Component, Path, PathBuf};
 use std::sync::Arc;
 use std::{fmt, iter};
 
-use dyst_dir::{PackageJson, TsConfigJson, TsProjectReferences};
+use dyst_dir::{DependencySpecifier, PackageJson, TsConfigJson, TsProjectReferences};
 use dyst_source::{FileSystem, MemoryFileSystem, PathExt, PhysicalFileSystem, SLASH_START};
 
 use crate::{
-    Alias, AliasValue, CachedFileSystem, CachedPath, ImportsExportsEntry, ImportsExportsKind,
-    ImportsExportsMap, Resolution, ResolutionContext, ResolveError, ResolveOptions, Restriction,
-    Specifier, SpecifierError, TypeScriptOptionsDiscovery, TypeScriptOptionsReferences,
+    Alias, AliasValue, CachedFileSystem, CachedPath, ImportsExportsEntry,
+    ImportsExportsKind, ImportsExportsMap, Resolution, ResolutionContext, ResolveError,
+    ResolveOptions, Restriction, TypeScriptOptionsDiscovery, TypeScriptOptionsReferences,
 };
 
 /// A resolver with a cache backed by a file system.
@@ -198,12 +198,11 @@ impl<Fs: FileSystem> Resolver<Fs> {
         ctx.check_depth()?;
 
         // parse query and fragment identifiers
-        let parsed =
-            Specifier::parse(specifier).map_err(|error| ResolveError::Specifier { error })?;
-        if let Some(query) = parsed.query {
+        let parsed = DependencySpecifier::parse(specifier);
+        if let Some(query) = &parsed.query {
             ctx.query.replace(query.to_string());
         }
-        if let Some(fragment) = parsed.fragment {
+        if let Some(fragment) = &parsed.fragment {
             ctx.fragment.replace(fragment.to_string());
         }
 
@@ -1388,7 +1387,8 @@ impl<Fs: FileSystem> Resolver<Fs> {
     ) -> Result<PathBuf, ResolveError> {
         match specifier.as_bytes().first() {
             None => Err(ResolveError::Specifier {
-                error: SpecifierError::Empty(specifier.to_string()),
+                specifier: specifier.to_string(),
+                message: None,
             }),
             Some(b'/') => Ok(PathBuf::from(specifier)),
             Some(b'.') => Ok(tsconfig.directory().normalize_with(specifier)),
@@ -1727,12 +1727,11 @@ impl<Fs: FileSystem> Resolver<Fs> {
 
         // resolve string target
         if let Some(target) = target.as_string() {
-            let parsed =
-                Specifier::parse(target).map_err(|error| ResolveError::Specifier { error })?;
-            if let Some(query) = parsed.query {
+            let parsed = DependencySpecifier::parse(target);
+            if let Some(query) = &parsed.query {
                 ctx.query.replace(query.to_string());
             }
-            if let Some(fragment) = parsed.fragment {
+            if let Some(fragment) = &parsed.fragment {
                 ctx.fragment.replace(fragment.to_string());
             }
             let target = parsed.path();

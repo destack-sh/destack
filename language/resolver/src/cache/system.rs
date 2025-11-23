@@ -152,14 +152,10 @@ impl<Fs: FileSystem> CachedFileSystem<Fs> {
                 ctx.add_found_dependency_maybe(&package_json.path);
             }
             Ok(None) => {
-                if let Some(deps) = &mut ctx.missing_dependencies {
-                    deps.push(path.path.join("package.json"));
-                }
+                ctx.add_missing_dependency_maybe(&path.path.join("package.json"));
             }
             Err(_) => {
-                if let Some(deps) = &mut ctx.found_dependencies {
-                    deps.push(path.path.join("package.json"));
-                }
+                ctx.add_found_dependency_maybe(&path.path.join("package.json"));
             }
         }
 
@@ -180,7 +176,7 @@ impl<Fs: FileSystem> CachedFileSystem<Fs> {
         }
 
         // resolve path
-        let meta = self.fs.metadata(path).ok();
+        let meta = self.fs.get_metadata(path).ok();
         let tsconfig_path = if meta.is_some_and(|m| m.is_file) {
             Cow::Borrowed(path)
         } else if meta.is_some_and(|m| m.is_directory) {
@@ -280,10 +276,10 @@ impl<Fs: FileSystem> CachedFileSystem<Fs> {
 
                         if self
                             .fs
-                            .symlink_metadata(path.path())
+                            .get_symlink_metadata(path.path())
                             .is_ok_and(|m| m.is_symlink)
                         {
-                            let link = self.fs.read_link(normalized.path())?;
+                            let link = self.fs.resolve_symlink(normalized.path())?;
                             if link.is_absolute() {
                                 return self.canonicalize_with_visited(
                                     &self.value(&link.normalize()),
