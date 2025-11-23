@@ -1,5 +1,5 @@
 use crate::{
-    BindTask, BuildTask, ElaborateTask, ExecuteTask, FlowTask, ImportTask, LinkTask, LowerTask,
+    AnalyzeTask, BindTask, BuildTask, ElaborateTask, ExecuteTask, ImportTask, LinkTask, LowerTask,
     OptimizeTask, ResolveTask, ValidateTask,
 };
 
@@ -8,7 +8,7 @@ use crate::{
 pub enum CompilerRegion {
     /// Front-end (import, bind, resolve, validate, elaborate).
     Front,
-    /// Middle-end (lower, flow, optimize).
+    /// Middle-end (lower, analyze, optimize).
     Middle,
     /// Back-end (execute, build, link).
     Back,
@@ -42,8 +42,8 @@ pub enum CompilePhase {
     // --------------------------------------------------
     /// Lower the DIR into MIR.
     Lower = 6,
-    /// Validate and flow-check MIR.
-    Flow = 7,
+    /// Analyze and flow-check MIR.
+    Analyze = 7,
     /// Optimize the MIR.
     Optimize = 8,
     // --------------------------------------------------
@@ -73,7 +73,7 @@ impl CompilePhase {
             Self::Import | Self::Bind | Self::Resolve | Self::Validate | Self::Elaborate => {
                 CompilerRegion::Front
             }
-            Self::Lower | Self::Flow | Self::Optimize => CompilerRegion::Middle,
+            Self::Lower | Self::Analyze | Self::Optimize => CompilerRegion::Middle,
             Self::Execute | Self::Build | Self::Link => CompilerRegion::Back,
         }
     }
@@ -87,7 +87,7 @@ impl CompilePhase {
             Self::Validate => "validate",
             Self::Elaborate => "elaborate",
             Self::Lower => "lower",
-            Self::Flow => "flow",
+            Self::Analyze => "analyze",
             Self::Optimize => "optimize",
             Self::Execute => "execute",
             Self::Build => "build",
@@ -104,7 +104,7 @@ impl CompilePhase {
             Self::Validate => "validate and check DIR",
             Self::Elaborate => "elaborate and monomorphize DIR",
             Self::Lower => "lower the DIR into MIR",
-            Self::Flow => "validate and flow-check MIR",
+            Self::Analyze => "analyze and flow-check MIR",
             Self::Optimize => "optimize the MIR",
             Self::Execute => "execute MIR statically",
             Self::Build => "build the MIR into some artifact",
@@ -121,7 +121,7 @@ impl CompilePhase {
             Self::Validate => 'V',
             Self::Elaborate => 'E',
             Self::Lower => 'M',
-            Self::Flow => 'F',
+            Self::Analyze => 'A',
             Self::Optimize => 'O',
             Self::Execute => 'X',
             Self::Build => 'B',
@@ -146,8 +146,8 @@ pub enum CompileTask {
     // --------------------------------------------------
     /// Lower the DIR into MIR.
     Lower(LowerTask),
-    /// Validate and flow-check MIR.
-    Flow(FlowTask),
+    /// Analyze and flow-check MIR.
+    Analyze(AnalyzeTask),
     /// Optimize the MIR.
     Optimize(OptimizeTask),
     // --------------------------------------------------
@@ -169,7 +169,7 @@ impl CompileTask {
             Self::Validate(_) => CompilePhase::Validate,
             Self::Elaborate(_) => CompilePhase::Elaborate,
             Self::Lower(_) => CompilePhase::Lower,
-            Self::Flow(_) => CompilePhase::Flow,
+            Self::Analyze(_) => CompilePhase::Analyze,
             Self::Optimize(_) => CompilePhase::Optimize,
             Self::Execute(_) => CompilePhase::Execute,
             Self::Build(_) => CompilePhase::Build,

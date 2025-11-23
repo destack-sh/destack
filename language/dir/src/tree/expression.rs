@@ -244,7 +244,7 @@ pub enum Expression {
     Parenthesized { expression: LocalNodeId<Expression> },
 
     /// --------------------------------
-    /// Control flow.
+    /// Control analyze.
     /// --------------------------------
 
     /// If expression.

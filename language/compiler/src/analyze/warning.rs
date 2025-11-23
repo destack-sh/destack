@@ -2,15 +2,15 @@ use dyst_dir::{GlobalNodeIdAny, Program};
 
 use crate::{CompilePhase, CompileWarning};
 
-/// Warning when validating something.
+/// Warning when analyzing something.
 #[derive(Debug, Clone, PartialEq)]
 #[repr(u8)]
-pub enum FlowWarning {
+pub enum AnalyzeWarning {
     /// Unsupported node.
     UnsupportedNode { node: GlobalNodeIdAny },
 }
 
-impl FlowWarning {
+impl AnalyzeWarning {
     /// Get the numeric sub-code of the warning.
     #[inline]
     pub fn sub_code(&self) -> u8 {
@@ -34,19 +34,19 @@ impl FlowWarning {
     }
 }
 
-impl std::fmt::Display for FlowWarning {
+impl std::fmt::Display for AnalyzeWarning {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("FlowWarning")
+        f.debug_struct("AnalyzeWarning")
             .field(
                 "code",
-                &format!("{}W{:03}", CompilePhase::Flow.letter(), self.sub_code()),
+                &format!("{}W{:03}", CompilePhase::Analyze.letter(), self.sub_code()),
             )
             .finish()
     }
 }
 
-impl From<FlowWarning> for CompileWarning {
-    fn from(warning: FlowWarning) -> Self {
-        CompileWarning::Flow(warning)
+impl From<AnalyzeWarning> for CompileWarning {
+    fn from(warning: AnalyzeWarning) -> Self {
+        CompileWarning::Analyze(warning)
     }
 }

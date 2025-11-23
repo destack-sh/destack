@@ -2,15 +2,15 @@ use dyst_dir::{GlobalNodeIdAny, Program};
 
 use crate::{CompileError, CompilePhase};
 
-/// Error when flowing something into the compiler.
+/// Error when analyzeing something into the compiler.
 #[derive(Debug, Clone)]
 #[repr(u8)]
-pub enum FlowError {
+pub enum AnalyzeError {
     /// Unsupported node.
     UnsupportedNode { node: GlobalNodeIdAny },
 }
 
-impl FlowError {
+impl AnalyzeError {
     /// Get the numeric sub-code of the error.
     #[inline]
     pub fn sub_code(&self) -> u8 {
@@ -34,22 +34,22 @@ impl FlowError {
     }
 }
 
-impl std::fmt::Display for FlowError {
+impl std::fmt::Display for AnalyzeError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("FlowError")
+        f.debug_struct("AnalyzeError")
             .field(
                 "code",
-                &format!("{}E{:03}", CompilePhase::Flow.letter(), self.sub_code()),
+                &format!("{}E{:03}", CompilePhase::Analyze.letter(), self.sub_code()),
             )
             .finish()
     }
 }
 
-impl From<FlowError> for CompileError {
+impl From<AnalyzeError> for CompileError {
     #[inline]
-    fn from(error: FlowError) -> Self {
-        CompileError::Flow(error)
+    fn from(error: AnalyzeError) -> Self {
+        CompileError::Analyze(error)
     }
 }
 
-pub type FlowResult<T> = Result<T, FlowError>;
+pub type AnalyzeResult<T> = Result<T, AnalyzeError>;
