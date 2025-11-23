@@ -1,8 +1,5 @@
 use std::fmt;
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
-
-use dyst_dir::PackageJson;
 
 /// The final resolved path with optional `?query` and `#fragment`
 pub struct Resolution {
@@ -12,8 +9,6 @@ pub struct Resolution {
     pub(crate) query: Option<String>,
     /// Fragment `#query`, contains `#` (like `#foo` in `foo.js#foo`).
     pub(crate) fragment: Option<String>,
-    /// `package.json` of the given module.
-    pub(crate) package_json: Option<Arc<PackageJson>>,
 }
 
 impl Clone for Resolution {
@@ -22,7 +17,6 @@ impl Clone for Resolution {
             path: self.path.clone(),
             query: self.query.clone(),
             fragment: self.fragment.clone(),
-            package_json: self.package_json.clone(),
         }
     }
 }
@@ -63,11 +57,6 @@ impl Resolution {
     /// Returns the path fragment `#fragment`, contains the leading `#`
     pub fn fragment(&self) -> Option<&str> {
         self.fragment.as_deref()
-    }
-
-    /// Returns serializsed package_json.
-    pub fn package_json(&self) -> Option<&Arc<PackageJson>> {
-        self.package_json.as_ref()
     }
 
     /// Builds the full path with query and fragment.

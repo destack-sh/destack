@@ -30,11 +30,11 @@ pub struct ResolveOptions {
     /// Attempt to resolve these extensions in order (e.g., `[".js", ".json", ".node"]`).
     pub extensions: Vec<String>,
 
-    /// Redirect module requests when normal resolving fails.
-    pub fallback: Alias,
-
     /// Request passed to resolve is already fully specified (should ignore extensions).
     pub is_fully_specified: bool,
+
+    /// Redirect module requests when normal resolving fails.
+    pub fallback: Alias,
 
     /// Main files in description files (e.g., `["index"]`).
     pub main_files: Vec<String>,
