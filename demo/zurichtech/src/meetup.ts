@@ -16,35 +16,35 @@ export type MeetupLanguage = z.infer<typeof MeetupLanguage>;
 // Represents a series of related Meetups.
 export const MeetupSeries = z.object({
     // The name of the Meetup Series.
-    name: z.string(),
+    name: z.string().describe("The name of the Meetup Series."),
     // The prefix of the Meetup Series.
-    prefix: z.string(),
+    prefix: z.string().describe("The prefix of the Meetup Series."),
 });
 export type MeetupSeries = z.infer<typeof MeetupSeries>;
 
 // Represents a Meetup.
 export const Meetup = z.object({
     // When the Meetup is happening.
-    date: z.date(),
+    date: z.date().describe("When the Meetup is happening."),
     // The name of the Meetup.
-    name: z.string(),
+    name: z.string().describe("The name of the Meetup."),
     // The number of the Meetup.
-    number: z.number().int().nonnegative(),
+    number: z.number().int().nonnegative().describe("The number of the Meetup."),
     // The Series this Meetup is part of.
-    seriesId: z.string(),
+    seriesId: z.string().describe("The Series this Meetup is part of."),
     // The language of the Meetup.
-    language: MeetupLanguage,
+    language: MeetupLanguage.describe("The language of the Meetup."),
     // The status of the Meetup.
-    status: MeetupStatus,
+    status: MeetupStatus1.describe("The status of the Meetup."),
 });
 export type Meetup = z.infer<typeof Meetup>;
 
 // Represents a registration for a Meetup.
 export const MeetupRegistration = z.object({
     // The Meetup this registration is for.
-    meetupId: z.string(),
+    meetupId: z.string().describe("The Meetup this registration is for."),
     // The person registering.
-    userId: z.string(),
+    userId: z.string().describe("The person registering."),
 });
 export type MeetupRegistration = z.infer<typeof MeetupRegistration>;
 

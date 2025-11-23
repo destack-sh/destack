@@ -1,4 +1,5 @@
 use core::fmt;
+use dyst_source::FileId;
 use parking_lot::{Mutex, RwLock};
 use serde::Deserialize;
 use serde::de::Error;
@@ -8,7 +9,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU32, Ordering};
 
-use crate::TsConfigJson;
+use crate::TsConfigOptions;
 
 /// Unique identifier for Packages.
 #[repr(transparent)]
@@ -27,12 +28,10 @@ impl PackageId {
 pub struct Package {
     /// The id of the Package.
     pub id: PackageId,
-    /// The path to the package.
+    /// The path to the package directory.
     pub path: PathBuf,
-    /// The realpath to the package.
+    /// The realpath to the package directory.
     pub realpath: PathBuf,
-    /// The directory of the package.
-    pub directory: PathBuf,
     /// The name of the package.
     pub name: Option<String>,
     /// The version of the package.
@@ -41,9 +40,9 @@ pub struct Package {
     pub ty: PackageType,
 
     /// The detailed options of the package.
-    pub package_json: PackageJson,
+    pub options: PackageOptions,
     /// The tsconfig of the package.
-    pub tsconfig_json: Option<TsConfigJson>,
+    pub tsconfig: Option<TsConfigOptions>,
 }
 
 /// The package type.
@@ -66,7 +65,22 @@ impl fmt::Display for PackageType {
     }
 }
 
-/// Package options (from `package.json`).
+/// Package options.
+#[derive(Debug, Clone)]
+pub struct PackageOptions {
+    /// The id of the `package.json` file.
+    pub id: FileId,
+    /// The path to the package.
+    pub path: PathBuf,
+    /// The realpath to the package.
+    pub realpath: PathBuf,
+    /// The directory of the package.
+    pub directory: PathBuf,
+    /// The content of the package.json file.
+    pub content: PackageJson,
+}
+
+/// Package JSON (from `package.json`).
 #[derive(Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct PackageJson {

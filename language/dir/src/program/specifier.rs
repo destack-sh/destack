@@ -1,69 +1,51 @@
 use std::borrow::Cow;
 
-use crate::resolve::SpecifierError;
-
-/// Specifier (like `./foo.js` or `../bar.js` or `#baz`).
+/// Dependency specifier (like `./foo.js` or `../bar.js` or `#baz`).
 #[derive(Debug)]
-pub struct Specifier<'a> {
+pub struct DependencySpecifier {
     /// Path (like `./foo.js` or `../bar.js`), without query or fragment.
-    pub path: Cow<'a, str>,
+    pub path: String,
     /// Query `?query`, contains `?` (like `?foo` in `foo.js?foo`).
-    pub query: Option<&'a str>,
+    pub query: Option<String>,
     /// Fragment `#query`, contains `#` (like `#foo` in `foo.js#foo`).
-    pub fragment: Option<&'a str>,
+    pub fragment: Option<String>,
 }
 
-impl<'a> Specifier<'a> {
+impl DependencySpecifier {
     /// Returns the path, without query or fragment.
-    pub fn path(&'a self) -> &'a str {
-        self.path.as_ref()
+    pub fn path(&self) -> &str {
+        &self.path
     }
 
-    /// Parses a Specifier from a string.
-    pub fn parse(specifier: &'a str) -> Result<Self, SpecifierError> {
+    /// Parses a dependency specifier from a string.
+    pub fn parse(specifier: &str) -> Self {
         if specifier.is_empty() {
-            #[cold]
-            fn empty_specifier_error(specifier: &str) -> SpecifierError {
-                SpecifierError::Empty(specifier.to_string())
-            }
-            return Err(empty_specifier_error(specifier));
+            return Self {
+                path: String::new(),
+                query: None,
+                fragment: None,
+            };
         }
+
+        // determine offset for certain leading characters
         let offset = match specifier.as_bytes()[0] {
             b'/' | b'.' | b'#' => 1,
             _ => 0,
         };
-        let (path, query, fragment) = Self::parse_query_fragment(specifier, offset);
-        if path.is_empty() {
-            #[cold]
-            fn empty_path_error(specifier: &str) -> SpecifierError {
-                SpecifierError::Empty(specifier.to_string())
-            }
-            return Err(empty_path_error(specifier));
-        }
-        Ok(Self {
-            path,
-            query,
-            fragment,
-        })
-    }
 
-    /// Parses the query and fragment from a string.
-    fn parse_query_fragment(
-        specifier: &'a str,
-        skip: usize,
-    ) -> (Cow<'a, str>, Option<&'a str>, Option<&'a str>) {
         let mut query_start: Option<usize> = None;
         let mut fragment_start: Option<usize> = None;
         let mut prev = specifier.chars().next().unwrap();
 
-        // Optimize for the common case: most specifiers don't have escaped characters
+        // optimize for the common case (no escaped chars)
         let mut escaped_indexes: Option<Vec<usize>> = None;
-        for (i, c) in specifier.char_indices().skip(skip) {
+        for (i, c) in specifier.char_indices().skip(offset) {
             if c == '?' && query_start.is_none() {
                 query_start = Some(i);
             }
             if c == '#' {
                 if prev == '\0' {
+                    // escape for # with \0
                     escaped_indexes.get_or_insert_with(Vec::new).push(i - 1);
                 } else {
                     fragment_start = Some(i);
@@ -73,7 +55,8 @@ impl<'a> Specifier<'a> {
             prev = c;
         }
 
-        let (path, query, fragment) = match (query_start, fragment_start) {
+        // parse main path, query, and fragment ranges
+        let (path_raw, query, fragment) = match (query_start, fragment_start) {
             (Some(i), Some(j)) => {
                 debug_assert!(i < j);
                 (
@@ -87,92 +70,84 @@ impl<'a> Specifier<'a> {
             _ => (specifier, None, None),
         };
 
-        let path = escaped_indexes.map_or(Cow::Borrowed(path), |escaped_indexes| {
+        // remove any escaped indexes from path
+        let path = escaped_indexes.map_or(Cow::Borrowed(path_raw), |escaped_indexes| {
             Cow::Owned(
-                path.chars()
+                path_raw
+                    .chars()
                     .enumerate()
                     .filter_map(|(i, c)| (!escaped_indexes.contains(&i)).then_some(c))
                     .collect::<String>(),
             )
         });
 
-        (path, query, fragment)
+        Self {
+            path: path.to_string(),
+            query: query.map(|q| q.to_string()),
+            fragment: fragment.map(|f| f.to_string()),
+        }
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{Specifier, SpecifierError};
-
-    /// Test parsing an empty specifier.
-    #[test]
-    fn test_parse_empty_specifier() {
-        let specifiers = ["", "?"];
-        for specifier in specifiers {
-            let error = Specifier::parse(specifier).unwrap_err();
-            assert_eq!(error, SpecifierError::Empty(specifier.to_string()));
-        }
-    }
+    use super::DependencySpecifier;
 
     /// Parse an absolute specifier.
     #[test]
-    fn test_parse_absolute_specifier() -> Result<(), SpecifierError> {
+    fn test_parse_absolute_specifier() {
         let specifier = "/test?#";
-        let parsed = Specifier::parse(specifier)?;
+        let parsed = DependencySpecifier::parse(specifier);
         assert_eq!(parsed.path, "/test");
-        assert_eq!(parsed.query, Some("?"));
-        assert_eq!(parsed.fragment, Some("#"));
-        Ok(())
+        assert_eq!(parsed.query, Some("?".to_string()));
+        assert_eq!(parsed.fragment, Some("#".to_string()));
     }
 
     /// Parse a relative specifier.
     #[test]
-    fn test_parse_relative_specifier() -> Result<(), SpecifierError> {
+    fn test_parse_relative_specifier() {
         let specifiers = ["./test", "../test", "../../test"];
         for specifier in specifiers {
             let mut r = specifier.to_string();
             r.push_str("?#");
-            let parsed = Specifier::parse(&r)?;
+            let parsed = DependencySpecifier::parse(&r);
             assert_eq!(parsed.path, specifier);
-            assert_eq!(parsed.query, Some("?"));
-            assert_eq!(parsed.fragment, Some("#"));
+            assert_eq!(parsed.query, Some("?".to_string()));
+            assert_eq!(parsed.fragment, Some("#".to_string()));
         }
-        Ok(())
     }
 
     /// Parse a hash specifier.
     #[test]
-    fn test_parse_hash_specifier() -> Result<(), SpecifierError> {
+    fn test_parse_hash_specifier() {
         let specifiers = ["#", "#path"];
         for specifier in specifiers {
             let mut r = specifier.to_string();
             r.push_str("?#");
-            let parsed = Specifier::parse(&r)?;
+            let parsed = DependencySpecifier::parse(&r);
             assert_eq!(parsed.path, specifier);
-            assert_eq!(parsed.query, Some("?"));
-            assert_eq!(parsed.fragment, Some("#"));
+            assert_eq!(parsed.query, Some("?".to_string()));
+            assert_eq!(parsed.fragment, Some("#".to_string()));
         }
-        Ok(())
     }
 
     /// Parse a module specifier.
     #[test]
-    fn test_parse_module_specifier() -> Result<(), SpecifierError> {
+    fn test_parse_module_specifier() {
         let specifiers = ["module"];
         for specifier in specifiers {
             let mut r = specifier.to_string();
             r.push_str("?#");
-            let parsed = Specifier::parse(&r)?;
+            let parsed = DependencySpecifier::parse(&r);
             assert_eq!(parsed.path, specifier);
-            assert_eq!(parsed.query, Some("?"));
-            assert_eq!(parsed.fragment, Some("#"));
+            assert_eq!(parsed.query, Some("?".to_string()));
+            assert_eq!(parsed.fragment, Some("#".to_string()));
         }
-        Ok(())
     }
 
     /// Parse a query and fragment specifier.
     #[test]
-    fn test_parse_query_fragment_specifier() -> Result<(), SpecifierError> {
+    fn test_parse_query_fragment_specifier() {
         let data = [
             ("a?", Some("?"), None),
             ("a?query", Some("?query"), None),
@@ -194,19 +169,25 @@ mod tests {
         ];
 
         for (specifier_str, query, fragment) in data {
-            let specifier = Specifier::parse(specifier_str)?;
+            let specifier = DependencySpecifier::parse(specifier_str);
             assert_eq!(specifier.path, "a", "{specifier_str}");
-            assert_eq!(specifier.query, query, "{specifier_str}");
-            assert_eq!(specifier.fragment, fragment, "{specifier_str}");
+            assert_eq!(
+                specifier.query,
+                query.map(|q| q.to_string()),
+                "{specifier_str}"
+            );
+            assert_eq!(
+                specifier.fragment,
+                fragment.map(|f| f.to_string()),
+                "{specifier_str}"
+            );
         }
-
-        Ok(())
     }
 
     /// Test parsing enhanced-resolve edge cases.
     #[test]
     // https://github.com/webpack/enhanced-resolve/blob/main/test/identifier.test.js
-    fn test_parse_enhanced_resolve_edge_cases() -> Result<(), SpecifierError> {
+    fn test_parse_enhanced_resolve_edge_cases() {
         let data = [
             ("path/#", "path/", "", "#"),
             ("path/as/?", "path/as/", "?", ""),
@@ -224,23 +205,25 @@ mod tests {
         ];
 
         for (specifier_str, path, query, fragment) in data {
-            let specifier = Specifier::parse(specifier_str)?;
+            let specifier = DependencySpecifier::parse(specifier_str);
             assert_eq!(specifier.path, path, "{specifier_str}");
-            assert_eq!(specifier.query.unwrap_or(""), query, "{specifier_str}");
             assert_eq!(
-                specifier.fragment.unwrap_or(""),
+                specifier.query.unwrap_or("".to_string()),
+                query,
+                "{specifier_str}"
+            );
+            assert_eq!(
+                specifier.fragment.unwrap_or("".to_string()),
                 fragment,
                 "{specifier_str}"
             );
         }
-
-        Ok(())
     }
 
     /// Test parsing enhanced-resolve windows-like specifiers.
     /// https://github.com/webpack/enhanced-resolve/blob/main/test/identifier.test.js
     #[test]
-    fn test_parse_enhanced_resolve_windows_like() -> Result<(), SpecifierError> {
+    fn test_parse_enhanced_resolve_windows_like() {
         let data = [
             ("path\\#", "path\\", "", "#"),
             ("path\\as\\?", "path\\as\\", "?", ""),
@@ -263,16 +246,19 @@ mod tests {
         ];
 
         for (specifier_str, path, query, fragment) in data {
-            let specifier = Specifier::parse(specifier_str)?;
+            let specifier = DependencySpecifier::parse(specifier_str);
             assert_eq!(specifier.path, path, "{specifier_str}");
-            assert_eq!(specifier.query.unwrap_or(""), query, "{specifier_str}");
             assert_eq!(
-                specifier.fragment.unwrap_or(""),
+                specifier.query.unwrap_or("".to_string()),
+                query,
+                "{specifier_str}"
+            );
+            assert_eq!(
+                specifier.fragment.unwrap_or("".to_string()),
                 fragment,
                 "{specifier_str}"
             );
         }
-
-        Ok(())
     }
 }
+

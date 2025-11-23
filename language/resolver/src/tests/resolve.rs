@@ -1,11 +1,9 @@
-use dyst_source::{MemoryFileSystem, PhysicalFileSystem};
+use dyst_source::MemoryFileSystem;
 
 use super::{fixture, fixture_root};
 use crate::AliasValue;
 use crate::resolve::{Resolution, ResolveError, ResolveOptions};
-use crate::tests::Resolver;
-
-type TestResolver = Resolver<PhysicalFileSystem>;
+use crate::tests::TestResolver;
 
 /// Run the tests from the enhanced-resolve test suite (webpack).
 /// https://github.com/webpack/enhanced-resolve/tree/main/test/fixtures

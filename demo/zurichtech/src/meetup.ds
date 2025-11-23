@@ -17,7 +17,7 @@ export enum MeetupStatus {
 /// A Series of related Meetups (with a common prefix).
 @entity
 export struct MeetupSeries {
-    // The name of the Meetup Series.
+    /// The name of the Meetup Series.
     name: string,
     /// The prefix of the Meetup Series.
     prefix: string,
@@ -33,26 +33,26 @@ export enum MeetupLanguage {
 
 @entity
 export struct Meetup {
-    // When the Meetup is happening.
+    /// When the Meetup is happening.
     date: DateTime,
-    // The name of the Meetup.
+    /// The name of the Meetup.
     name: string,
-    // The number of the Meetup.
+    /// The number of the Meetup.
     number: uint,   
-    // The Series this Meetup is part of.
+    /// The Series this Meetup is part of.
     series: MeetupSeries | null,
-    // The language of the Meetup.
+    /// The language of the Meetup.
     language: MeetupLanguage,
-    // The status of the Meetup.
+    /// The status of the Meetup.
     status: MeetupStatus,
 }
 
 /// Registration for a Meetup.
 @entity
 export struct MeetupRegistration {
-    // The Meetup this registration is for.
+    /// The Meetup this registration is for.
     meetup: Meetup,
-    // The person registering.
+    /// The person registering.
     user: User,
 }
 

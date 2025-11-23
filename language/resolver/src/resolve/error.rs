@@ -43,7 +43,10 @@ pub enum ResolveError {
     },
 
     /// Path specifier cannot be parsed.
-    Specifier { error: SpecifierError },
+    Specifier {
+        specifier: String,
+        message: Option<String>,
+    },
 
     /// JSON parse error.
     Json { error: JSONError },
@@ -146,7 +149,13 @@ impl ResolveError {
             } => {
                 format!("cannot resolve '{filename}' for extension aliases '{tried}' in '{dir:?}'")
             }
-            Self::Specifier { error } => format!("{error}"),
+            Self::Specifier { specifier, message } => {
+                if let Some(message) = message {
+                    format!("invalid specifier '{specifier:?}': {message}")
+                } else {
+                    format!("invalid specifier '{specifier:?}'")
+                }
+            }
             Self::Json { error } => format!("{error:?}"),
             Self::InvalidModuleSpecifier {
                 specifier,
@@ -198,19 +207,6 @@ impl std::fmt::Display for ResolveError {
 }
 
 impl std::error::Error for ResolveError {}
-
-#[derive(Debug, Clone, Eq, PartialEq)]
-pub enum SpecifierError {
-    Empty(String),
-}
-
-impl std::fmt::Display for SpecifierError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            SpecifierError::Empty(spec) => write!(f, "empty specifier '{spec}'"),
-        }
-    }
-}
 
 /// JSON parse error.
 #[derive(Debug, Clone, Eq, PartialEq)]
