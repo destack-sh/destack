@@ -9,9 +9,8 @@ use dyst_dir::{ModuleSpecifier, PackageJson, TsConfigJson, TsProjectReferences};
 use dyst_source::{FileSystem, MemoryFileSystem, PathExt, PhysicalFileSystem, SLASH_START};
 
 use crate::{
-    Alias, AliasValue, CachedFileSystem, CachedPath, ImportsExportsEntry, ImportsExportsKind,
-    ImportsExportsMap, Resolution, ResolutionContext, ResolveError, ResolveOptions, Restriction,
-    TypeScriptOptionsDiscovery, TypeScriptOptionsReferences,
+    Alias, AliasValue, CachedFileSystem, CachedPath, Resolution, ResolutionContext, ResolveError,
+    ResolveOptions, Restriction, TypeScriptOptionsDiscovery, TypeScriptOptionsReferences,
 };
 
 /// A resolver with a cache backed by a file system.
@@ -510,11 +509,10 @@ impl<Fs: FileSystem> Resolver<Fs> {
             }
 
             // allow `exports` field in `require('../directory')`
-            if let Some(exports) = package_json.exports.as_ref() {
-                let entry = ImportsExportsEntry(exports);
-                if let Some(path) = self.package_exports_resolve(cached_path, ".", &entry, ctx)? {
-                    return Ok(Some(path));
-                }
+            if let Some(exports) = package_json.exports.as_ref()
+                && let Some(path) = self.package_exports_resolve(cached_path, ".", exports, ctx)?
+            {
+                return Ok(Some(path));
             }
         }
 
@@ -784,16 +782,11 @@ impl<Fs: FileSystem> Resolver<Fs> {
             return Ok(None);
         };
 
-        if let Some(exports) = package_json.exports.as_ref() {
-            let exports_entry = ImportsExportsEntry(exports);
-            if let Some(path) = self.package_exports_resolve(
-                cached_path,
-                &format!(".{subpath}"),
-                &exports_entry,
-                ctx,
-            )? {
-                return self.resolve_esm_match(specifier, &path, ctx);
-            }
+        if let Some(exports) = package_json.exports.as_ref()
+            && let Some(path) =
+                self.package_exports_resolve(cached_path, &format!(".{subpath}"), exports, ctx)?
+        {
+            return self.resolve_esm_match(specifier, &path, ctx);
         }
 
         Ok(None)
@@ -820,13 +813,15 @@ impl<Fs: FileSystem> Resolver<Fs> {
             .and_then(|package_name| Self::strip_package_name(specifier, package_name.as_str()))
         {
             let package_url = self.cache.value(package_json.path.parent().unwrap());
-            if let Some(exports) = package_json.exports.as_ref() {
-                let entry = ImportsExportsEntry(exports);
-                if let Some(cached_path) =
-                    self.package_exports_resolve(&package_url, &format!(".{subpath}"), &entry, ctx)?
-                {
-                    return self.resolve_esm_match(specifier, &cached_path, ctx);
-                }
+            if let Some(exports) = package_json.exports.as_ref()
+                && let Some(cached_path) = self.package_exports_resolve(
+                    &package_url,
+                    &format!(".{subpath}"),
+                    exports,
+                    ctx,
+                )?
+            {
+                return self.resolve_esm_match(specifier, &cached_path, ctx);
             }
         }
 
@@ -1428,16 +1423,15 @@ impl<Fs: FileSystem> Resolver<Fs> {
                         self.cache
                             .get_package_json(&cached_path, &self.options, ctx)?
                     {
-                        if let Some(exports) = package_json.exports.as_ref() {
-                            let entry = ImportsExportsEntry(exports);
-                            if let Some(path) = self.package_exports_resolve(
+                        if let Some(exports) = package_json.exports.as_ref()
+                            && let Some(path) = self.package_exports_resolve(
                                 &cached_path,
                                 &format!(".{subpath}"),
-                                &entry,
+                                exports,
                                 ctx,
-                            )? {
-                                return Ok(Some(path));
-                            }
+                            )?
+                        {
+                            return Ok(Some(path));
                         }
 
                         if subpath == "."
@@ -1470,13 +1464,13 @@ impl<Fs: FileSystem> Resolver<Fs> {
         &self,
         package_url: &CachedPath,
         subpath: &str,
-        exports: &ImportsExportsEntry<'_>,
+        exports: &serde_json::Value,
         ctx: &mut ResolutionContext,
     ) -> ResolveResult {
         let conditions = &self.options.conditions;
 
         // validate exports: cannot mix starting with "." and not starting with "."
-        if let Some(map) = exports.as_map() {
+        if let Some(map) = exports.as_object() {
             let mut has_dot = false;
             let mut without_dot = false;
             for key in map.keys() {
@@ -1493,25 +1487,24 @@ impl<Fs: FileSystem> Resolver<Fs> {
 
         // resolve root export
         if subpath == "." {
-            let main_export = match exports.kind() {
-                ImportsExportsKind::String | ImportsExportsKind::Array => {
+            let main_export = match exports {
+                serde_json::Value::String(_) | serde_json::Value::Array(_) => {
                     Some(Cow::Borrowed(exports))
                 }
-                _ => exports.as_map().and_then(|map| {
-                    map.get(".").map_or_else(
-                        || {
-                            if map
-                                .keys()
-                                .any(|key| key.starts_with("./") || key.starts_with('#'))
-                            {
-                                None
-                            } else {
-                                Some(Cow::Borrowed(exports))
-                            }
-                        },
-                        |entry| Some(Cow::Owned(entry)),
-                    )
-                }),
+                serde_json::Value::Object(map) => map.get(".").map_or_else(
+                    || {
+                        if map
+                            .keys()
+                            .any(|key| key.starts_with("./") || key.starts_with('#'))
+                        {
+                            None
+                        } else {
+                            Some(Cow::Borrowed(exports))
+                        }
+                    },
+                    |entry| Some(Cow::Borrowed(entry)),
+                ),
+                _ => None,
             };
 
             if let Some(main_export) = main_export {
@@ -1531,11 +1524,11 @@ impl<Fs: FileSystem> Resolver<Fs> {
         }
 
         // resolve subpath export
-        if let Some(exports) = exports.as_map() {
+        if let Some(exports) = exports.as_object() {
             let match_key = &subpath;
             if let Some(path) = self.package_imports_exports_resolve(
                 match_key,
-                &exports,
+                exports,
                 package_url,
                 /* is_imports */ false,
                 conditions,
@@ -1574,10 +1567,9 @@ impl<Fs: FileSystem> Resolver<Fs> {
             });
         }
 
-        let imports_map = ImportsExportsMap(imports);
         if let Some(path) = self.package_imports_exports_resolve(
             specifier,
-            &imports_map,
+            imports,
             &self.cache.value(&package_json.directory),
             /* is_imports */ true,
             &self.options.conditions,
@@ -1596,7 +1588,7 @@ impl<Fs: FileSystem> Resolver<Fs> {
     pub(crate) fn package_imports_exports_resolve(
         &self,
         match_key: &str,
-        match_obj: &ImportsExportsMap<'_>,
+        match_obj: &serde_json::Map<String, serde_json::Value>,
         package_url: &CachedPath,
         is_imports: bool,
         conditions: &[String],
@@ -1613,7 +1605,7 @@ impl<Fs: FileSystem> Resolver<Fs> {
             return self.package_target_resolve(
                 package_url,
                 match_key,
-                &target,
+                target,
                 None,
                 is_imports,
                 conditions,
@@ -1629,8 +1621,7 @@ impl<Fs: FileSystem> Resolver<Fs> {
         // find the best matching key in the match object
         for (expansion_key, target_key) in match_obj.iter() {
             // ignore invalid mappings (wildcard expansion without wildcard target)
-            if expansion_key.ends_with('*')
-                && target_key.as_string().is_some_and(|s| !s.contains('*'))
+            if expansion_key.ends_with('*') && target_key.as_str().is_some_and(|s| !s.contains('*'))
             {
                 continue;
             }
@@ -1664,7 +1655,7 @@ impl<Fs: FileSystem> Resolver<Fs> {
             return self.package_target_resolve(
                 package_url,
                 best_key,
-                &best_target,
+                best_target,
                 Some(best_match),
                 is_imports,
                 conditions,
@@ -1681,7 +1672,7 @@ impl<Fs: FileSystem> Resolver<Fs> {
         &self,
         package_url: &CachedPath,
         target_key: &str,
-        target: &ImportsExportsEntry<'_>,
+        target: &serde_json::Value,
         pattern_match: Option<&str>,
         is_imports: bool,
         conditions: &[String],
@@ -1713,7 +1704,7 @@ impl<Fs: FileSystem> Resolver<Fs> {
         }
 
         // resolve string target
-        if let Some(target) = target.as_string() {
+        if let Some(target) = target.as_str() {
             let parsed = ModuleSpecifier::parse(target);
             if let Some(query) = &parsed.query {
                 ctx.query.replace(query.to_string());
@@ -1751,13 +1742,13 @@ impl<Fs: FileSystem> Resolver<Fs> {
             ));
         }
         // resolve object target (conditions)
-        else if let Some(target) = target.as_map() {
+        else if let Some(target) = target.as_object() {
             for (key, target_value) in target.iter() {
                 if key == "default" || conditions.iter().any(|condition| condition == key) {
                     let resolved = self.package_target_resolve(
                         package_url,
                         target_key,
-                        &target_value,
+                        target_value,
                         pattern_match,
                         is_imports,
                         conditions,
@@ -1784,7 +1775,7 @@ impl<Fs: FileSystem> Resolver<Fs> {
                 let resolved = self.package_target_resolve(
                     package_url,
                     target_key,
-                    &target_value,
+                    target_value,
                     pattern_match,
                     is_imports,
                     conditions,

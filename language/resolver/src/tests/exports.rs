@@ -1,11 +1,13 @@
 //! https://github.com/webpack/enhanced-resolve/blob/main/test/exportsField.test.js
 
+use std::borrow::Cow;
+use std::path::Path;
+
 use dyst_source::{MemoryFileSystem, PathExt};
 use indexmap::IndexMap;
 use serde_json::json;
-use std::path::Path;
 
-use crate::{ImportsExportsEntry, PhysicalResolver, ResolveError, ResolveOptions};
+use crate::{PhysicalResolver, ResolveError, ResolveOptions};
 
 /// Test simple exports field resolution.
 #[test]
@@ -235,15 +237,15 @@ struct TestCase {
     #[allow(dead_code)]
     name: &'static str,
     expect: Option<Vec<&'static str>>,
-    exports: ImportsExportsEntry<'static>,
+    exports: Cow<'static, serde_json::Value>,
     request: &'static str,
     conditions: Vec<&'static str>,
 }
 
-fn exports_field(value: &serde_json::Value) -> ImportsExportsEntry<'static> {
+fn exports_field(value: &serde_json::Value) -> Cow<'static, serde_json::Value> {
     // Clone and leak the value to get a 'static reference for big-endian
     let value = Box::leak::<'static>(Box::new(value.clone()));
-    ImportsExportsEntry(value)
+    Cow::Borrowed(value)
 }
 
 /// Test various exports field cases.
