@@ -1,4 +1,4 @@
-use std::fmt::{self, Debug, Display};
+use std::fmt::Debug;
 use std::io;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -27,7 +27,7 @@ pub enum ResolveError {
     TypeScriptOptionsSelfReference { path: PathBuf },
 
     /// TypeScriptOptions extends configs circularly.
-    TypeScriptOptionsCircular { paths: CircularPathBufs },
+    TypeScriptOptionsCircular { paths: Vec<PathBuf> },
 
     /// IO error.
     IOError { error: IOError },
@@ -69,7 +69,7 @@ pub enum ResolveError {
         subpath: String,
         package_path: PathBuf,
         package_json_path: PathBuf,
-        conditions: ConditionNames,
+        conditions: Vec<String>,
     },
 
     /// Invalid package config.
@@ -175,9 +175,20 @@ impl ResolveError {
                 package_path,
                 package_json_path,
                 conditions,
-            } => format!(
-                "'{subpath}' is not exported under {conditions} from package {package_path:?} (see exports field in {package_json_path:?})"
-            ),
+            } => {
+                let conditions_str = if conditions.is_empty() {
+                    "<no conditions>".to_string()
+                } else {
+                    conditions
+                        .iter()
+                        .map(|s| format!("\"{s}\""))
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                };
+                format!(
+                    "'{subpath}' is not exported under {conditions_str} from package {package_path:?} (see 'exports' field in {package_json_path:?})"
+                )
+            }
             Self::PackageJsonInvalid { path } => format!(
                 "invalid package config '{path:?}', 'exports' cannot contain some keys starting with '.' and some not. The exports object must either be an object of package subpath keys or an object of main entry condition name keys only."
             ),
@@ -260,58 +271,6 @@ impl From<io::Error> for ResolveError {
     fn from(err: io::Error) -> Self {
         Self::IOError {
             error: IOError(Arc::new(err)),
-        }
-    }
-}
-
-/// Circular path buffers (for displaying tsconfig circular references).
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct CircularPathBufs(Vec<PathBuf>);
-
-impl Display for CircularPathBufs {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        for (i, path) in self.0.iter().enumerate() {
-            if i != 0 {
-                write!(f, " -> ")?;
-            }
-            path.fmt(f)?;
-        }
-        Ok(())
-    }
-}
-
-impl From<Vec<PathBuf>> for CircularPathBufs {
-    #[cold]
-    fn from(value: Vec<PathBuf>) -> Self {
-        Self(value)
-    }
-}
-
-/// Condition names (for formatting condition names in error messages).
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ConditionNames(Vec<String>);
-
-impl From<Vec<String>> for ConditionNames {
-    fn from(conditions: Vec<String>) -> Self {
-        Self(conditions)
-    }
-}
-
-impl Display for ConditionNames {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self.0.len() {
-            0 => write!(f, "no conditions"),
-            1 => write!(f, "the condition \"{}\"", self.0[0]),
-            _ => {
-                write!(f, "the conditions ")?;
-                let conditions_str = self
-                    .0
-                    .iter()
-                    .map(|s| format!("\"{s}\""))
-                    .collect::<Vec<_>>()
-                    .join(", ");
-                write!(f, "[{conditions_str}]")
-            }
         }
     }
 }

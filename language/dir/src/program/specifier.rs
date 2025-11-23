@@ -1,8 +1,8 @@
 use std::borrow::Cow;
 
-/// Dependency specifier (like `./foo.js` or `../bar.js` or `#baz`).
+/// Module dependency specifier (like `./foo.js` or `../bar.js` or `#baz`).
 #[derive(Debug)]
-pub struct DependencySpecifier {
+pub struct ModuleSpecifier {
     /// Path (like `./foo.js` or `../bar.js`), without query or fragment.
     pub path: String,
     /// Query `?query`, contains `?` (like `?foo` in `foo.js?foo`).
@@ -11,13 +11,13 @@ pub struct DependencySpecifier {
     pub fragment: Option<String>,
 }
 
-impl DependencySpecifier {
-    /// Returns the path, without query or fragment.
+impl ModuleSpecifier {
+    /// Returns the module path, without query or fragment.
     pub fn path(&self) -> &str {
         &self.path
     }
 
-    /// Parses a dependency specifier from a string.
+    /// Parses a module dependency specifier from a string.
     pub fn parse(specifier: &str) -> Self {
         if specifier.is_empty() {
             return Self {
@@ -91,13 +91,13 @@ impl DependencySpecifier {
 
 #[cfg(test)]
 mod tests {
-    use super::DependencySpecifier;
+    use super::ModuleSpecifier;
 
     /// Parse an absolute specifier.
     #[test]
     fn test_parse_absolute_specifier() {
         let specifier = "/test?#";
-        let parsed = DependencySpecifier::parse(specifier);
+        let parsed = ModuleSpecifier::parse(specifier);
         assert_eq!(parsed.path, "/test");
         assert_eq!(parsed.query, Some("?".to_string()));
         assert_eq!(parsed.fragment, Some("#".to_string()));
@@ -110,7 +110,7 @@ mod tests {
         for specifier in specifiers {
             let mut r = specifier.to_string();
             r.push_str("?#");
-            let parsed = DependencySpecifier::parse(&r);
+            let parsed = ModuleSpecifier::parse(&r);
             assert_eq!(parsed.path, specifier);
             assert_eq!(parsed.query, Some("?".to_string()));
             assert_eq!(parsed.fragment, Some("#".to_string()));
@@ -124,7 +124,7 @@ mod tests {
         for specifier in specifiers {
             let mut r = specifier.to_string();
             r.push_str("?#");
-            let parsed = DependencySpecifier::parse(&r);
+            let parsed = ModuleSpecifier::parse(&r);
             assert_eq!(parsed.path, specifier);
             assert_eq!(parsed.query, Some("?".to_string()));
             assert_eq!(parsed.fragment, Some("#".to_string()));
@@ -138,7 +138,7 @@ mod tests {
         for specifier in specifiers {
             let mut r = specifier.to_string();
             r.push_str("?#");
-            let parsed = DependencySpecifier::parse(&r);
+            let parsed = ModuleSpecifier::parse(&r);
             assert_eq!(parsed.path, specifier);
             assert_eq!(parsed.query, Some("?".to_string()));
             assert_eq!(parsed.fragment, Some("#".to_string()));
@@ -169,7 +169,7 @@ mod tests {
         ];
 
         for (specifier_str, query, fragment) in data {
-            let specifier = DependencySpecifier::parse(specifier_str);
+            let specifier = ModuleSpecifier::parse(specifier_str);
             assert_eq!(specifier.path, "a", "{specifier_str}");
             assert_eq!(
                 specifier.query,
@@ -205,7 +205,7 @@ mod tests {
         ];
 
         for (specifier_str, path, query, fragment) in data {
-            let specifier = DependencySpecifier::parse(specifier_str);
+            let specifier = ModuleSpecifier::parse(specifier_str);
             assert_eq!(specifier.path, path, "{specifier_str}");
             assert_eq!(
                 specifier.query.unwrap_or("".to_string()),
@@ -246,7 +246,7 @@ mod tests {
         ];
 
         for (specifier_str, path, query, fragment) in data {
-            let specifier = DependencySpecifier::parse(specifier_str);
+            let specifier = ModuleSpecifier::parse(specifier_str);
             assert_eq!(specifier.path, path, "{specifier_str}");
             assert_eq!(
                 specifier.query.unwrap_or("".to_string()),
@@ -261,4 +261,3 @@ mod tests {
         }
     }
 }
-

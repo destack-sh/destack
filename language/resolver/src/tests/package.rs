@@ -1,5 +1,3 @@
-use super::TestResolver;
-
 /// Test erroring on various corrupted package.json files.
 #[test]
 #[cfg(not(target_os = "windows"))]

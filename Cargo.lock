@@ -2736,6 +2736,7 @@ dependencies = [
  "dyst_javascript_machine",
  "dyst_javascript_transpiler",
  "dyst_parser",
+ "dyst_resolver",
  "dyst_source",
  "tokio",
 ]
