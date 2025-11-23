@@ -2,12 +2,12 @@
 #![feature(if_let_guard)]
 #![feature(str_as_str)]
 
+mod analyze;
 mod bind;
 mod build;
 mod compile;
 mod elaborate;
 mod execute;
-mod flow;
 mod import;
 mod link;
 mod lower;
@@ -15,12 +15,12 @@ mod optimize;
 mod resolve;
 mod validate;
 
+pub use analyze::*;
 pub use bind::*;
 pub use build::*;
 pub use compile::*;
 pub use elaborate::*;
 pub use execute::*;
-pub use flow::*;
 pub use import::*;
 pub use link::*;
 pub use lower::*;

@@ -1,7 +1,7 @@
 use dyst_dir::{GlobalNodeIdAny, Program};
 
 use crate::{
-    BindWarning, BuildWarning, CompilePhase, ElaborateWarning, ExecuteWarning, FlowWarning,
+    AnalyzeWarning, BindWarning, BuildWarning, CompilePhase, ElaborateWarning, ExecuteWarning,
     ImportWarning, LinkWarning, LowerWarning, OptimizeWarning, ResolveWarning, ValidateWarning,
 };
 
@@ -21,8 +21,8 @@ pub enum CompileWarning {
     // --------------------------------------------------
     /// Warning during lower.
     Lower(LowerWarning),
-    /// Warning during flow-checking.
-    Flow(FlowWarning),
+    /// Warning during analysis.
+    Analyze(AnalyzeWarning),
     /// Warning during optimization.
     Optimize(OptimizeWarning),
     // --------------------------------------------------
@@ -44,7 +44,7 @@ impl CompileWarning {
             Self::Validate(_) => CompilePhase::Validate,
             Self::Elaborate(_) => CompilePhase::Elaborate,
             Self::Lower(_) => CompilePhase::Lower,
-            Self::Flow(_) => CompilePhase::Flow,
+            Self::Analyze(_) => CompilePhase::Analyze,
             Self::Optimize(_) => CompilePhase::Optimize,
             Self::Execute(_) => CompilePhase::Execute,
             Self::Build(_) => CompilePhase::Build,
@@ -67,7 +67,7 @@ impl CompileWarning {
             Self::Validate(warning) => warning.sub_code(),
             Self::Elaborate(warning) => warning.sub_code(),
             Self::Lower(warning) => warning.sub_code(),
-            Self::Flow(warning) => warning.sub_code(),
+            Self::Analyze(warning) => warning.sub_code(),
             Self::Optimize(warning) => warning.sub_code(),
             Self::Execute(warning) => warning.sub_code(),
             Self::Build(warning) => warning.sub_code(),
@@ -90,7 +90,7 @@ impl CompileWarning {
             Self::Validate(warning) => warning.node_id(),
             Self::Elaborate(warning) => warning.node_id(),
             Self::Lower(warning) => warning.node_id(),
-            Self::Flow(warning) => warning.node_id(),
+            Self::Analyze(warning) => warning.node_id(),
             Self::Execute(warning) => warning.node_id(),
             Self::Optimize(warning) => warning.node_id(),
             Self::Build(warning) => warning.node_id(),
@@ -107,7 +107,7 @@ impl CompileWarning {
             Self::Validate(warning) => warning.message(program),
             Self::Elaborate(warning) => warning.message(program),
             Self::Lower(warning) => warning.message(program),
-            Self::Flow(warning) => warning.message(program),
+            Self::Analyze(warning) => warning.message(program),
             Self::Execute(warning) => warning.message(program),
             Self::Optimize(warning) => warning.message(program),
             Self::Build(warning) => warning.message(program),

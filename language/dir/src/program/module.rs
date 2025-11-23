@@ -7,7 +7,7 @@ use dyst_ast::{self as ast, StringPool};
 use dyst_source::{FileId, Uri};
 
 use crate::{
-    DependencyEdge, Expression, FlowTable, LocalNodeId, LocalScopeId, LocalSymbolId, NodeTree,
+    AnalysisTable, DependencyEdge, Expression, LocalNodeId, LocalScopeId, LocalSymbolId, NodeTree,
     PackageId, ScopeKind, SymbolSpace, SymbolTable, TypeTable,
 };
 
@@ -59,8 +59,8 @@ pub struct Module {
     pub symbols: RwLock<SymbolTable>,
     /// The type side table of the Module.
     pub types: RwLock<TypeTable>,
-    /// The flow side table of the Module.
-    pub flows: RwLock<FlowTable>,
+    /// The analysis side table of the Module.
+    pub analysis: RwLock<AnalysisTable>,
     /// The top-level expressions of the Module.
     pub roots: Vec<LocalNodeId<Expression>>,
 
@@ -102,7 +102,7 @@ impl Module {
             tree: RwLock::new(NodeTree::new(id)),
             symbols: RwLock::new(symbols),
             types: RwLock::new(TypeTable::new(id)),
-            flows: RwLock::new(FlowTable::new(id)),
+            analysis: RwLock::new(AnalysisTable::new(id)),
             symbol: symbol_id,
             scope: scope_id,
             roots: Vec::new(),

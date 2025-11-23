@@ -1,7 +1,7 @@
 use dyst_dir::{GlobalNodeIdAny, Program};
 
 use crate::{
-    BindError, BuildError, CompilePhase, ElaborateError, ExecuteError, FlowError, ImportError,
+    AnalyzeError, BindError, BuildError, CompilePhase, ElaborateError, ExecuteError, ImportError,
     LinkError, LowerError, OptimizeError, ResolveError, ValidateError,
 };
 
@@ -21,8 +21,8 @@ pub enum CompileError {
     // --------------------------------------------------
     /// Error during lower.
     Lower(LowerError),
-    /// Error during flow-checking.
-    Flow(FlowError),
+    /// Error during analysis.
+    Analyze(AnalyzeError),
     /// Error during optimization.
     Optimize(OptimizeError),
     // --------------------------------------------------
@@ -44,7 +44,7 @@ impl CompileError {
             Self::Validate(_) => CompilePhase::Validate,
             Self::Elaborate(_) => CompilePhase::Elaborate,
             Self::Lower(_) => CompilePhase::Lower,
-            Self::Flow(_) => CompilePhase::Flow,
+            Self::Analyze(_) => CompilePhase::Analyze,
             Self::Optimize(_) => CompilePhase::Optimize,
             Self::Execute(_) => CompilePhase::Execute,
             Self::Build(_) => CompilePhase::Build,
@@ -67,7 +67,7 @@ impl CompileError {
             Self::Validate(error) => error.sub_code(),
             Self::Elaborate(error) => error.sub_code(),
             Self::Lower(error) => error.sub_code(),
-            Self::Flow(error) => error.sub_code(),
+            Self::Analyze(error) => error.sub_code(),
             Self::Optimize(error) => error.sub_code(),
             Self::Execute(error) => error.sub_code(),
             Self::Build(error) => error.sub_code(),
@@ -84,7 +84,7 @@ impl CompileError {
             Self::Validate(error) => error.node_id(),
             Self::Elaborate(error) => error.node_id(),
             Self::Lower(error) => error.node_id(),
-            Self::Flow(error) => error.node_id(),
+            Self::Analyze(error) => error.node_id(),
             Self::Optimize(error) => error.node_id(),
             Self::Execute(error) => error.node_id(),
             Self::Build(error) => error.node_id(),
@@ -101,7 +101,7 @@ impl CompileError {
             Self::Validate(error) => error.message(program),
             Self::Elaborate(error) => error.message(program),
             Self::Lower(error) => error.message(program),
-            Self::Flow(error) => error.message(program),
+            Self::Analyze(error) => error.message(program),
             Self::Optimize(error) => error.message(program),
             Self::Execute(error) => error.message(program),
             Self::Build(error) => error.message(program),
