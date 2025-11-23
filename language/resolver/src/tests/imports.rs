@@ -3,7 +3,7 @@
 use dyst_source::{MemoryFileSystem, PathExt};
 use std::path::Path;
 
-use crate::{ImportsExportsMap, MemoryResolver, PhysicalResolver, ResolveError, ResolveOptions};
+use crate::{MemoryResolver, PhysicalResolver, ResolveError, ResolveOptions};
 
 /// Test simple imports field resolution.
 #[test]
@@ -55,18 +55,18 @@ struct TestCase {
     #[allow(dead_code)]
     name: &'static str,
     expect: Option<Vec<&'static str>>,
-    imports: ImportsExportsMap<'static>,
+    imports: serde_json::Map<String, serde_json::Value>,
     request: &'static str,
     conditions: Vec<&'static str>,
 }
 
-fn imports_field(value: &serde_json::Value) -> ImportsExportsMap<'static> {
+fn imports_field(value: &serde_json::Value) -> serde_json::Map<String, serde_json::Value> {
     // Clone and leak the value to get a 'static reference for big-endian
     let value = Box::leak::<'static>(Box::new(value.clone()));
     let serde_json::Value::Object(map) = value else {
         panic!("Expected an object");
     };
-    ImportsExportsMap(map)
+    map.clone()
 }
 
 /// Test various imports field cases.
