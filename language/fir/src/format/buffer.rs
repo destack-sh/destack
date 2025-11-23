@@ -35,10 +35,10 @@ pub trait Buffer {
         write(&mut self, arguments)
     }
 
-    /// Returns the formatting state relevant for this formatting session.
+    /// Returns the formatting state relevant for this formatting program.
     fn state(&self) -> &FormatState<Self::Context>;
 
-    /// Returns the mutable formatting state relevant for this formatting session.
+    /// Returns the mutable formatting state relevant for this formatting program.
     fn state_mut(&mut self) -> &mut FormatState<Self::Context>;
 
     /// Takes a snapshot of the Buffers state, excluding the formatter state.

@@ -1,5 +1,5 @@
 use crate::{CompileError, CompileWarning};
-use dyst_dir::{GlobalNodeIdAny, Session};
+use dyst_dir::{GlobalNodeIdAny, Program};
 use dyst_source::{Diagnostic, DiagnosticSeverity, LabeledSpan};
 
 /// Diagnostic encountered during compilation.
@@ -33,10 +33,10 @@ impl CompileDiagnostic {
     }
 
     /// Get the message of the diagnostic.
-    pub fn message<'a>(&self, session: &'a Session<'a>) -> String {
+    pub fn message<'a>(&self, program: &'a Program<'a>) -> String {
         match self {
-            Self::Error(error) => error.message(session),
-            Self::Warning(warning) => warning.message(session),
+            Self::Error(error) => error.message(program),
+            Self::Warning(warning) => warning.message(program),
         }
     }
 
@@ -57,12 +57,12 @@ impl CompileDiagnostic {
     }
 
     /// Turn the diagnostic into a full Dyst diagnostic.
-    pub fn to_diagnostic<'a>(&self, session: &'a Session<'a>) -> Diagnostic {
+    pub fn to_diagnostic<'a>(&self, program: &'a Program<'a>) -> Diagnostic {
         // get source information
         let node_id = self
             .node_id()
             .unwrap_or_else(|| panic!("TODO #Broken: diagnostic without node id"));
-        let module = session
+        let module = program
             .modules
             .get(node_id.module_id)
             .unwrap_or_else(|| panic!("module not found: {:?}", node_id.module_id));
@@ -70,7 +70,7 @@ impl CompileDiagnostic {
 
         // make diagnostic
         let severity = self.severity();
-        let message = self.message(session);
+        let message = self.message(program);
         let code = self.full_code();
         let primary_span = module.read().ast.get_span_by_id(node_id.local_id.id);
         let primary_span = LabeledSpan {

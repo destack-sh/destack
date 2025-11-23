@@ -1,4 +1,4 @@
-use dyst_dir::{GlobalNodeIdAny, Session};
+use dyst_dir::{GlobalNodeIdAny, Program};
 
 use crate::{CompileError, CompilePhase};
 
@@ -80,7 +80,7 @@ impl BuildError {
     }
 
     /// Get the message of the error.
-    pub fn message<'a>(&self, _session: &'a Session<'a>) -> String {
+    pub fn message<'a>(&self, _program: &'a Program<'a>) -> String {
         match self {
             Self::TargetNotAvailable { .. } => "target is not available".to_string(),
             Self::UnsupportedTarget { .. } => "unsupported target".to_string(),

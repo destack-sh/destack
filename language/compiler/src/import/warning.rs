@@ -1,4 +1,4 @@
-use dyst_dir::{GlobalNodeIdAny, ModuleId, Session};
+use dyst_dir::{GlobalNodeIdAny, ModuleId, Program};
 
 use crate::CompilePhase;
 
@@ -27,7 +27,7 @@ impl ImportWarning {
     }
 
     /// Get the message of the warning.
-    pub fn message<'a>(&self, _session: &'a Session<'a>) -> String {
+    pub fn message<'a>(&self, _program: &'a Program<'a>) -> String {
         match self {
             Self::HugeFile { .. } => "huge file".to_string(),
         }

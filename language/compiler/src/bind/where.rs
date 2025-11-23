@@ -18,7 +18,7 @@ impl<'a> Compiler<'a> {
         let where_clause = module.get(where_clause_id);
         match where_clause {
             ast::WhereClause::Assertion { left, right } => {
-                let left = self.session.strings.intern_from(&module.ast_strings, *left);
+                let left = self.program.strings.intern_from(&module.ast_strings, *left);
                 let right = self.bind_expression(module, scope_id, *right, tree, symbols, types);
                 tree.insert_from_source(
                     WhereClause::Assertion { left, right },

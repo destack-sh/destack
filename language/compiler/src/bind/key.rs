@@ -17,7 +17,7 @@ impl<'a> Compiler<'a> {
         match key {
             ast::Key::Name(name) => {
                 let name = self
-                    .session
+                    .program
                     .strings
                     .intern_from(&module.ast_strings, name.string());
                 Key::Name(name)
@@ -28,7 +28,7 @@ impl<'a> Compiler<'a> {
                 Key::Expression(expression)
             }
             ast::Key::NamedExpression { name, key } => {
-                let name = self.session.strings.intern_from(&module.ast_strings, name);
+                let name = self.program.strings.intern_from(&module.ast_strings, name);
                 let key = self.bind_expression(module, scope_id, key, tree, symbols, types);
                 Key::NamedExpression { name, key }
             }

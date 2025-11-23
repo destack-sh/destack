@@ -1,6 +1,6 @@
 use clap::{ArgGroup, Args, ValueEnum};
 use dyst_compiler::{CompileOptions, Compiler};
-use dyst_dir::Session;
+use dyst_dir::Program;
 use dyst_javascript_transpiler::{TranspileOptions, TranspileTarget, Transpiler};
 use dyst_source::{
     DiagnosticOptions, DiagnosticSeverity, FileContent, FileRegistry, LanguageOptions,
@@ -89,16 +89,16 @@ pub fn run(args: &TranspileArgs) -> i32 {
     };
 
     // compile source
-    let session = Session::new(LanguageOptions::default(), &files);
-    let compiler = Compiler::from_file(&session, file_id, CompileOptions::default());
+    let program = Program::new(LanguageOptions::default(), &files);
+    let compiler = Compiler::from_file(&program, file_id, CompileOptions::default());
     compiler.compile();
     drop(compiler);
 
     // handle compiler diagnostics
-    let diagnostics = session.diagnostics.collect().map(&diagnostic_options);
+    let diagnostics = program.diagnostics.collect().map(&diagnostic_options);
     if diagnostics.has_diagnostics_of_severity(DiagnosticSeverity::Error) {
         // bail early with diagnostics
-        print_diagnostics(&session, &diagnostics);
+        print_diagnostics(&program, &diagnostics);
         return 1;
     }
 
@@ -108,19 +108,19 @@ pub fn run(args: &TranspileArgs) -> i32 {
         diagnostic: diagnostic_options.clone(),
         ..Default::default()
     };
-    let transpiler = Transpiler::new(&session, transpiler_options);
+    let transpiler = Transpiler::new(&program, transpiler_options);
     transpiler.transpile();
 
     // handle transpiler diagnostics
-    let diagnostics = session.diagnostics.collect().map(&diagnostic_options);
-    print_diagnostics(&session, &diagnostics);
+    let diagnostics = program.diagnostics.collect().map(&diagnostic_options);
+    print_diagnostics(&program, &diagnostics);
     if diagnostics.has_diagnostics_of_severity(DiagnosticSeverity::Error) {
         return 1;
     }
 
     // print/write transpiler artifacts
     if !silent {
-        let line_width = session.language.formatting.line_width as usize;
+        let line_width = program.language.formatting.line_width as usize;
         let artifacts = transpiler.artifacts.read();
         for (i, (uri, artifact)) in artifacts.iter().enumerate() {
             console::print("=".repeat(line_width).as_str());

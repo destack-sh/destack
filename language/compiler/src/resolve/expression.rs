@@ -42,7 +42,7 @@ impl<'a> Compiler<'a> {
                             && path.segments.len() == 1 =>
                     {
                         // try resolving simple terms as builtin expression
-                        let string = self.session.strings.get(path.segments[0]);
+                        let string = self.program.strings.get(path.segments[0]);
                         self.resolve_string_to_builtin_expression(string.as_str())
                             .ok_or(error)?
                     }

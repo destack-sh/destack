@@ -1,4 +1,4 @@
-use dyst_dir::{GlobalNodeIdAny, Session};
+use dyst_dir::{GlobalNodeIdAny, Program};
 
 use crate::{
     BindError, BuildError, CompilePhase, ElaborateError, ExecuteError, FlowError, ImportError,
@@ -93,19 +93,19 @@ impl CompileError {
     }
 
     /// Get the message of the error.
-    pub fn message<'a>(&self, session: &'a Session<'a>) -> String {
+    pub fn message<'a>(&self, program: &'a Program<'a>) -> String {
         match self {
-            Self::Import(error) => error.message(session),
-            Self::Bind(error) => error.message(session),
-            Self::Resolve(error) => error.message(session),
-            Self::Validate(error) => error.message(session),
-            Self::Elaborate(error) => error.message(session),
-            Self::Lower(error) => error.message(session),
-            Self::Flow(error) => error.message(session),
-            Self::Optimize(error) => error.message(session),
-            Self::Execute(error) => error.message(session),
-            Self::Build(error) => error.message(session),
-            Self::Link(error) => error.message(session),
+            Self::Import(error) => error.message(program),
+            Self::Bind(error) => error.message(program),
+            Self::Resolve(error) => error.message(program),
+            Self::Validate(error) => error.message(program),
+            Self::Elaborate(error) => error.message(program),
+            Self::Lower(error) => error.message(program),
+            Self::Flow(error) => error.message(program),
+            Self::Optimize(error) => error.message(program),
+            Self::Execute(error) => error.message(program),
+            Self::Build(error) => error.message(program),
+            Self::Link(error) => error.message(program),
         }
     }
 

@@ -18,9 +18,9 @@ impl<'a> Transpiler<'a> {
             .segments
             .iter()
             .map(|segment| {
-                self.session
+                self.program
                     .strings
-                    .intern_from(&self.session.strings, *segment)
+                    .intern_from(&self.program.strings, *segment)
             })
             .collect();
         let path = Path { segments };

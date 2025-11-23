@@ -21,7 +21,7 @@ impl<'a> Compiler<'a> {
         let pattern = match pattern {
             ast::Pattern::Wildcard => Pattern::Wildcard,
             ast::Pattern::Rest { name } => Pattern::Rest {
-                name: name.map(|name| self.session.strings.intern_from(&module.ast_strings, name)),
+                name: name.map(|name| self.program.strings.intern_from(&module.ast_strings, name)),
             },
             ast::Pattern::Maybe(pattern_id) => Pattern::Maybe(self.bind_pattern(
                 module,
@@ -45,7 +45,7 @@ impl<'a> Compiler<'a> {
                 pattern,
             } => {
                 let mutability = mutability.map(|mutability| self.bind_mutability(mutability));
-                let name = self.session.strings.intern_from(&module.ast_strings, *name);
+                let name = self.program.strings.intern_from(&module.ast_strings, *name);
                 let pattern = pattern.map(|pattern| {
                     self.bind_pattern(module, scope_id, pattern, tree, symbols, types)
                 });
@@ -157,7 +157,7 @@ impl<'a> Compiler<'a> {
             } => {
                 let mutability = mutability.map(|mutability| self.bind_mutability(mutability));
                 let name = self
-                    .session
+                    .program
                     .strings
                     .intern_from(&module.ast_strings, name.string());
                 let pattern = pattern.map(|pattern| {
@@ -187,11 +187,11 @@ impl<'a> Compiler<'a> {
             } => {
                 let mutability = mutability.map(|mutability| self.bind_mutability(mutability));
                 let name = self
-                    .session
+                    .program
                     .strings
                     .intern_from(&module.ast_strings, name.string());
                 let alias = self
-                    .session
+                    .program
                     .strings
                     .intern_from(&module.ast_strings, *alias);
                 let default = default.map(|default| {

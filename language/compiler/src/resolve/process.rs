@@ -1,6 +1,6 @@
 use crate::{CompileTask, Compiler, ResolveResult};
 
-use dyst_dir::{ModuleId, Session};
+use dyst_dir::{ModuleId, Program};
 
 /// Task to statically resolve something in-place.
 #[derive(Debug, Clone)]
@@ -18,7 +18,7 @@ impl ResolveTask {
     }
 
     /// Get a message for the task.
-    pub fn message<'a>(&self, _session: &'a Session<'a>) -> String {
+    pub fn message<'a>(&self, _program: &'a Program<'a>) -> String {
         match self {
             ResolveTask::ResolveModule { module } => {
                 format!("resolve module '{module:?}'")

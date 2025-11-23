@@ -70,7 +70,7 @@ impl<'a> Compiler<'a> {
                 let doc = module.get(*node);
                 let position = self.bind_annotation_position(*position);
                 let string = self
-                    .session
+                    .program
                     .strings
                     .intern_from(&module.ast_strings, doc.string);
                 Annotation::Doc { position, string }
@@ -79,7 +79,7 @@ impl<'a> Compiler<'a> {
                 let comment = module.get(*node);
                 let position = self.bind_annotation_position(*position);
                 let string = self
-                    .session
+                    .program
                     .strings
                     .intern_from(&module.ast_strings, comment.string);
                 Annotation::Comment { position, string }

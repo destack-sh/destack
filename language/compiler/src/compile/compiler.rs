@@ -1,4 +1,4 @@
-use dyst_dir::Session;
+use dyst_dir::Program;
 use dyst_source::{DiagnosticOptions, FileId};
 use parking_lot::RwLock;
 
@@ -35,8 +35,8 @@ pub struct CompileOptions {
 /// Includes module importing, parsing, evaluation, validation, execution, and building.
 #[derive(Debug)]
 pub struct Compiler<'s> {
-    /// The session.
-    pub session: &'s Session<'s>,
+    /// The program.
+    pub program: &'s Program<'s>,
     /// The options for compiling.
     pub options: CompileOptions,
     /// The pending compiler diagnostics.
@@ -48,9 +48,9 @@ pub struct Compiler<'s> {
 #[allow(clippy::too_many_arguments)]
 impl<'s> Compiler<'s> {
     /// Create a new Compiler.
-    pub fn new(session: &'s Session<'s>) -> Self {
+    pub fn new(program: &'s Program<'s>) -> Self {
         Self {
-            session,
+            program,
             options: CompileOptions::default(),
             pending_diagnostics: RwLock::new(Vec::new()),
             queue: CompilerQueue::new(),
@@ -58,9 +58,9 @@ impl<'s> Compiler<'s> {
     }
 
     /// Create a new Compiler from a single module/file.
-    pub fn from_file(session: &'s Session<'s>, file_id: FileId, options: CompileOptions) -> Self {
+    pub fn from_file(program: &'s Program<'s>, file_id: FileId, options: CompileOptions) -> Self {
         let compiler = Self {
-            session,
+            program,
             options,
             pending_diagnostics: RwLock::new(Vec::new()),
             queue: CompilerQueue::new(),
@@ -89,12 +89,12 @@ impl<'s> Compiler<'s> {
         self.pending_diagnostics.write().push(diagnostic);
     }
 
-    /// Flush pending diagnostics into the session.
+    /// Flush pending diagnostics into the program.
     pub fn flush_diagnostics(&self) {
         let mut diagnostics = self.pending_diagnostics.write();
         for diagnostic in diagnostics.drain(..) {
-            let diagnostic = diagnostic.to_diagnostic(self.session);
-            self.session.diagnostics.insert(diagnostic);
+            let diagnostic = diagnostic.to_diagnostic(self.program);
+            self.program.diagnostics.insert(diagnostic);
         }
     }
 }

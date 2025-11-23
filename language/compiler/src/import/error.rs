@@ -1,4 +1,4 @@
-use dyst_dir::{GlobalNodeIdAny, ModuleId, Session};
+use dyst_dir::{GlobalNodeIdAny, ModuleId, Program};
 use dyst_parser::ParseError;
 use dyst_source::{FileId, StringId};
 
@@ -49,15 +49,15 @@ impl ImportError {
     }
 
     /// Get the message of the error.
-    pub fn message<'a>(&self, session: &'a Session<'a>) -> String {
+    pub fn message<'a>(&self, program: &'a Program<'a>) -> String {
         match self {
             Self::FileIdNotFound { .. } => "file not found".to_string(),
             Self::ModuleNotFound {
                 target, directory, ..
             } => {
-                let target_str = session.strings.get(*target).to_string();
+                let target_str = program.strings.get(*target).to_string();
                 if let Some(directory) = directory {
-                    let directory_str = session.strings.get(*directory).to_string();
+                    let directory_str = program.strings.get(*directory).to_string();
                     format!("module '{target_str}' not found in '{directory_str}'")
                 } else {
                     format!("module '{target_str}' not found")

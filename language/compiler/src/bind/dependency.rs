@@ -43,12 +43,12 @@ impl<'a> Compiler<'a> {
         let item = module.get(item_id);
         let kind = self.bind_dependency_kind(item.kind.unwrap_or(kind));
         let name = self
-            .session
+            .program
             .strings
             .intern_from(&module.ast_strings, item.name);
         let alias = item
             .alias
-            .map(|alias| self.session.strings.intern_from(&module.ast_strings, alias));
+            .map(|alias| self.program.strings.intern_from(&module.ast_strings, alias));
         let symbol_id =
             symbols.insert_symbol(SymbolSpace::Value, Some(SymbolKey::Name(name)), scope_id);
         let item = DependencyItem::UnresolvedItem {

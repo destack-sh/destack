@@ -1,5 +1,5 @@
 use crate::console;
-use dyst_dir::Session;
+use dyst_dir::Program;
 use dyst_source::{
     AnnotateOptions, DiagnosticCollection, DiagnosticOptions, annotate_source, pluralize,
 };
@@ -32,13 +32,13 @@ impl From<DiagnosticOptionsArgs> for DiagnosticOptions {
 }
 
 /// Print diagnostics (and suggestions) to the console.
-pub(crate) fn print_diagnostics<'a>(session: &'a Session<'a>, diagnostics: &DiagnosticCollection) {
+pub(crate) fn print_diagnostics<'a>(program: &'a Program<'a>, diagnostics: &DiagnosticCollection) {
     let options =
-        AnnotateOptions::default().with_line_width(session.language.formatting.line_width as u32);
+        AnnotateOptions::default().with_line_width(program.language.formatting.line_width as u32);
 
     // individual diagnostics
     for diagnostic in diagnostics.iter() {
-        let Some(file) = session.files.get(diagnostic.file_id) else {
+        let Some(file) = program.files.get(diagnostic.file_id) else {
             console::error(&format!("no source for diagnostic: {diagnostic:?}"));
             continue;
         };
@@ -94,8 +94,8 @@ pub(crate) fn print_diagnostics<'a>(session: &'a Session<'a>, diagnostics: &Diag
             "{}: {} from {} {}",
             color.apply_bold(&name),
             summary,
-            session.modules.len(),
-            pluralize(session.modules.len(), "module")
+            program.modules.len(),
+            pluralize(program.modules.len(), "module")
         ));
     }
 }

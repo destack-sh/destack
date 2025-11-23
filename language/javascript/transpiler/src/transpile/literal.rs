@@ -22,12 +22,12 @@ impl<'a> Transpiler<'a> {
                 ScalarLiteral::String(string)
             }
             dir::ScalarLiteral::String(string) => {
-                let string = unit.strings.intern_from(&self.session.strings, *string);
+                let string = unit.strings.intern_from(&self.program.strings, *string);
                 ScalarLiteral::String(string)
             }
             dir::ScalarLiteral::RegexString { content, flags } => {
-                let content = unit.strings.intern_from(&self.session.strings, *content);
-                let flags = flags.map(|flag| unit.strings.intern_from(&self.session.strings, flag));
+                let content = unit.strings.intern_from(&self.program.strings, *content);
+                let flags = flags.map(|flag| unit.strings.intern_from(&self.program.strings, flag));
                 ScalarLiteral::RegexString { content, flags }
             }
             dir::ScalarLiteral::ByteString(byte_string) => {

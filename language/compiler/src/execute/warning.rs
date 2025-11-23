@@ -1,4 +1,4 @@
-use dyst_dir::{GlobalNodeIdAny, Session};
+use dyst_dir::{GlobalNodeIdAny, Program};
 
 use crate::{CompilePhase, CompileWarning};
 
@@ -31,7 +31,7 @@ impl ExecuteWarning {
     }
 
     /// Get the message of the warning.
-    pub fn message<'a>(&self, _session: &'a Session<'a>) -> String {
+    pub fn message<'a>(&self, _program: &'a Program<'a>) -> String {
         match self {
             Self::ComplexNode { .. } => "complex node".to_string(),
             Self::SlowEvaluation { .. } => "slow evaluation".to_string(),

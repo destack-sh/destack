@@ -73,7 +73,7 @@ impl<'a> Compiler<'a> {
     /// Resolve an entire module.
     pub fn resolve_module(&self, module_id: ModuleId) -> ResolveResult<()> {
         let module = self
-            .session
+            .program
             .modules
             .get(module_id)
             .unwrap_or_else(|| panic!("module not found: {module_id:?}"));

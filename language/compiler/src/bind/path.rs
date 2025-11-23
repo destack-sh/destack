@@ -12,7 +12,7 @@ impl<'a> Compiler<'a> {
             .segments
             .iter()
             .map(|segment| {
-                self.session
+                self.program
                     .strings
                     .intern_from(&module.ast_strings, *segment)
             })

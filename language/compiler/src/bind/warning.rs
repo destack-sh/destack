@@ -1,4 +1,4 @@
-use dyst_dir::{GlobalNodeIdAny, Session};
+use dyst_dir::{GlobalNodeIdAny, Program};
 
 use crate::{CompilePhase, CompileWarning};
 
@@ -38,7 +38,7 @@ impl BindWarning {
     }
 
     /// Get the message of the warning.
-    pub fn message<'a>(&self, _session: &'a Session<'a>) -> String {
+    pub fn message<'a>(&self, _program: &'a Program<'a>) -> String {
         match self {
             Self::DeprecatedTarget { .. } => "deprecated target".to_string(),
             Self::WeakSymbol { .. } => "weak symbol".to_string(),

@@ -1,4 +1,4 @@
-use dyst_dir::{GlobalNodeIdAny, Session};
+use dyst_dir::{GlobalNodeIdAny, Program};
 
 use crate::{CompilePhase, CompileWarning};
 
@@ -34,7 +34,7 @@ impl LowerWarning {
     }
 
     /// Get the message of the warning.
-    pub fn message<'a>(&self, _session: &'a Session<'a>) -> String {
+    pub fn message<'a>(&self, _program: &'a Program<'a>) -> String {
         match self {
             Self::ComplexType { .. } => "complex type in target".to_string(),
             Self::SlowEmulation { .. } => "slow emulation in target".to_string(),

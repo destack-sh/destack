@@ -1,4 +1,4 @@
-use dyst_dir::{GlobalNodeIdAny, ModuleId, Session};
+use dyst_dir::{GlobalNodeIdAny, ModuleId, Program};
 
 use crate::{CompileError, CompilePhase};
 
@@ -40,7 +40,7 @@ impl BindError {
     }
 
     /// Get the message of the error.
-    pub fn message<'a>(&self, _session: &'a Session<'a>) -> String {
+    pub fn message<'a>(&self, _program: &'a Program<'a>) -> String {
         match self {
             Self::ModuleNotFound { .. } => "module not found".to_string(),
             Self::UnsupportedNode { .. } => "unsupported node".to_string(),
