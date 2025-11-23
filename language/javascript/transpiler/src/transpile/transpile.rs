@@ -55,11 +55,11 @@ impl<'a> Transpiler<'a> {
     /// Transpile the compiler's DIR into JS/TS artifacts.
     pub fn transpile(&self) {
         // transpile each module into AST
-        let mut units = Transpiler::make_units(&self.options, &self.session.modules);
+        let mut units = Transpiler::make_units(&self.options, &self.program.modules);
         for unit in units.iter_mut() {
             for source_module_id in unit.sources.clone() {
                 let source_module = self
-                    .session
+                    .program
                     .modules
                     .get(source_module_id)
                     .unwrap_or_else(|| panic!("source module not found: {source_module_id:?}"));
@@ -86,7 +86,7 @@ impl<'a> Transpiler<'a> {
                     Err(error) => unit.error(error),
                 }
             }
-            // add all the diagnostics to the session
+            // add all the diagnostics to the program
             for diagnostic in unit.pending_diagnostics.drain(..) {
                 self.diagnostic(diagnostic);
             }

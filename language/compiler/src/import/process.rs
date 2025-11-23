@@ -1,6 +1,6 @@
 use crate::{BindTask, CompileTask, Compiler, ImportError, ImportResult};
 
-use dyst_dir::{Module, PackageId, Session};
+use dyst_dir::{Module, PackageId, Program};
 use dyst_parser::Parser;
 use dyst_source::{DiagnosticCollector, FileId, StringId};
 
@@ -26,15 +26,15 @@ impl ImportTask {
     }
 
     /// Get a message for the task.
-    pub fn message<'a>(&self, session: &'a Session<'a>) -> String {
+    pub fn message<'a>(&self, program: &'a Program<'a>) -> String {
         match self {
             ImportTask::ImportModuleFromFile { file: file_id } => {
                 format!("import file:'{file_id:?}'")
             }
             ImportTask::ImportModuleFromSpecifier { directory, target } => {
-                let target_str = session.strings.get(*target).to_string();
+                let target_str = program.strings.get(*target).to_string();
                 if let Some(directory) = directory {
-                    let directory_str = session.strings.get(*directory).to_string();
+                    let directory_str = program.strings.get(*directory).to_string();
                     format!("import '{target_str}' from '{directory_str}'")
                 } else {
                     format!("import '{target_str}'")
@@ -55,7 +55,7 @@ impl<'a> Compiler<'a> {
     pub fn process_import(&self, task: ImportTask) -> ImportResult<()> {
         let file = match task {
             ImportTask::ImportModuleFromFile { file: file_id } => {
-                match self.session.files.get(file_id) {
+                match self.program.files.get(file_id) {
                     Some(file) => file,
                     None => return Err(ImportError::FileIdNotFound { file_id }),
                 }
@@ -72,12 +72,12 @@ impl<'a> Compiler<'a> {
 
         // parse AST from file
         let mut diagnostics = DiagnosticCollector::new();
-        let mut parser = Parser::lex_file(file, self.session.language, &mut diagnostics);
+        let mut parser = Parser::lex_file(file, self.program.language, &mut diagnostics);
         let expressions = parser.parse();
-        self.session.diagnostics.merge_from(parser.diagnostics);
+        self.program.diagnostics.merge_from(parser.diagnostics);
 
         // insert module
-        let module_id = self.session.modules.next_id();
+        let module_id = self.program.modules.next_id();
         let module = Module::new(
             module_id,
             file.id,
@@ -87,7 +87,7 @@ impl<'a> Compiler<'a> {
             expressions,
             parser.strings,
         );
-        self.session.modules.insert(module);
+        self.program.modules.insert(module);
 
         // next task: bind module
         self.enqueue(BindTask::BindModule { module: module_id }.into());

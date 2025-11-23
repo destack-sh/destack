@@ -33,7 +33,7 @@ impl<'a> Compiler<'a> {
         symbols: &mut SymbolTable,
     ) -> (DeclarationDescriptor, LocalScopeId) {
         let name = descriptor.name.map(|name| {
-            self.session
+            self.program
                 .strings
                 .intern_from(&module.ast_strings, name.string())
         });
@@ -243,7 +243,7 @@ impl<'a> Compiler<'a> {
     ) -> LocalNodeId<EnumField> {
         let field = module.get(field_id);
         let name = self
-            .session
+            .program
             .strings
             .intern_from(&module.ast_strings, field.name.string());
         let value = field

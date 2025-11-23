@@ -27,7 +27,7 @@ impl<'a> Compiler<'a> {
     /// Bind a module.
     pub fn bind_module(&self, module: ModuleId) -> BindResult<()> {
         let module = self
-            .session
+            .program
             .modules
             .get(module)
             .ok_or(BindError::ModuleNotFound { module })?;

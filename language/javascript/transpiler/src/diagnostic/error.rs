@@ -1,4 +1,4 @@
-use dyst_dir::{self as dir, Session};
+use dyst_dir::{self as dir, Program};
 use dyst_javascript_ast::{LocalNodeId, LocalNodeIdAny, Node, NodeType};
 
 use crate::{TranspileDiagnostic, TranspileWarning, TranspilerUnit};
@@ -32,7 +32,7 @@ pub enum TranspileError {
 
 impl TranspileError {
     /// Get the message of the error.
-    pub fn message<'a>(&self, _session: &'a Session<'a>) -> String {
+    pub fn message<'a>(&self, _program: &'a Program<'a>) -> String {
         match self {
             Self::UnsupportedNode { node, .. } => {
                 format!("unsupported {}", node.local_id.ty.name())

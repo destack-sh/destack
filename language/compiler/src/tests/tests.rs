@@ -52,8 +52,8 @@ macro_rules! assert_node {
 /// Assert a `StringId` directly against an expected string.
 #[macro_export]
 macro_rules! assert_string {
-    ($session:expr, $id:expr, $expected:expr) => {{
-        let got = $session.strings.get($id).to_string();
+    ($program:expr, $id:expr, $expected:expr) => {{
+        let got = $program.strings.get($id).to_string();
         assert_eq!(got, $expected, "expected string");
     }};
 }
@@ -61,8 +61,8 @@ macro_rules! assert_string {
 /// Assert a `Name` directly against an expected string.
 #[macro_export]
 macro_rules! assert_name {
-    ($session:expr, $name:expr, $expected:expr) => {{
-        let got = $session.strings.get($name.string()).to_string();
+    ($program:expr, $name:expr, $expected:expr) => {{
+        let got = $program.strings.get($name.string()).to_string();
         assert_eq!(got, $expected, "expected name");
     }};
 }
@@ -70,11 +70,11 @@ macro_rules! assert_name {
 /// Assert a `Path` directly against an expected string.
 #[macro_export]
 macro_rules! assert_path {
-    ($session:expr, $path:expr, $expected:expr) => {{
+    ($program:expr, $path:expr, $expected:expr) => {{
         let path_str = $path
             .segments
             .iter()
-            .map(|s| $session.strings.get(*s).to_string())
+            .map(|s| $program.strings.get(*s).to_string())
             .collect::<Vec<_>>()
             .join(".");
         assert_eq!(path_str, $expected, "expected path");
@@ -84,13 +84,13 @@ macro_rules! assert_path {
 /// Assert an "Expression::Path(path)" directly against an expected string.
 #[macro_export]
 macro_rules! assert_expression_path {
-    ($session:expr, $expr:expr, $expected:expr) => {{
+    ($program:expr, $expr:expr, $expected:expr) => {{
         match $expr {
             ::dyst_dir::Expression::Path {
                 path,
                 static_arguments: _,
             } => {
-                assert_path!($session, *path, $expected);
+                assert_path!($program, *path, $expected);
             }
             other => panic!("expected Expression::Path, got {other:?}"),
         }

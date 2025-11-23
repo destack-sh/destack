@@ -1,4 +1,4 @@
-use dyst_dir::{GlobalNodeIdAny, Session};
+use dyst_dir::{GlobalNodeIdAny, Program};
 
 use crate::{CompilePhase, CompileWarning};
 
@@ -35,7 +35,7 @@ impl ResolveWarning {
     }
 
     /// Get the message of the warning.
-    pub fn message<'a>(&self, _session: &'a Session<'a>) -> String {
+    pub fn message<'a>(&self, _program: &'a Program<'a>) -> String {
         match self {
             Self::UnknownImport { .. } => "unknown import".to_string(),
             Self::UnusedImport { .. } => "unused import".to_string(),

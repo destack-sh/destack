@@ -12,8 +12,8 @@ impl<'a> Transpiler<'a> {
         string_id: StringId,
         unit: &mut TranspilerUnit,
     ) -> Name {
-        let string_id = unit.strings.intern_from(&self.session.strings, string_id);
-        let string = self.session.strings.get(string_id);
+        let string_id = unit.strings.intern_from(&self.program.strings, string_id);
+        let string = self.program.strings.get(string_id);
         if is_identifier(string.as_ref()) {
             Name::Identifier(string_id)
         } else {

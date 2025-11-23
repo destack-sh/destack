@@ -1,4 +1,4 @@
-use dyst_dir::{self as dir, Session};
+use dyst_dir::{self as dir, Program};
 use dyst_javascript_ast::NodeType;
 
 use crate::TranspileDiagnostic;
@@ -21,7 +21,7 @@ pub enum TranspileWarning {
 
 impl TranspileWarning {
     /// Get the message of the warning.
-    pub fn message<'a>(&self, _session: &'a Session<'a>) -> String {
+    pub fn message<'a>(&self, _program: &'a Program<'a>) -> String {
         match self {
             Self::ImpreciseType { .. } => "imprecise type".to_string(),
             Self::UnexpectedNode { node, wanted, .. } => {

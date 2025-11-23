@@ -1,5 +1,5 @@
 use dyst_dir::{
-    FunctionAbstraction, GlobalNodeIdAny, GlobalSymbolId, GlobalTypeId, Session, Visibility,
+    FunctionAbstraction, GlobalNodeIdAny, GlobalSymbolId, GlobalTypeId, Program, Visibility,
 };
 
 use crate::{CompileError, CompilePhase};
@@ -84,7 +84,7 @@ impl ValidateError {
     }
 
     /// Get the message of the error.
-    pub fn message<'a>(&self, _session: &'a Session<'a>) -> String {
+    pub fn message<'a>(&self, _program: &'a Program<'a>) -> String {
         match self {
             Self::MissingType { .. } => "missing type".to_string(),
             Self::TypeMismatch { .. } => "type mismatch".to_string(),

@@ -1,4 +1,4 @@
-use dyst_dir::{GlobalNodeIdAny, Session};
+use dyst_dir::{GlobalNodeIdAny, Program};
 
 use crate::{
     BindWarning, BuildWarning, CompilePhase, ElaborateWarning, ExecuteWarning, FlowWarning,
@@ -99,19 +99,19 @@ impl CompileWarning {
     }
 
     /// Get the message of the warning.
-    pub fn message<'a>(&self, session: &'a Session<'a>) -> String {
+    pub fn message<'a>(&self, program: &'a Program<'a>) -> String {
         match self {
-            Self::Import(warning) => warning.message(session),
-            Self::Bind(warning) => warning.message(session),
-            Self::Resolve(warning) => warning.message(session),
-            Self::Validate(warning) => warning.message(session),
-            Self::Elaborate(warning) => warning.message(session),
-            Self::Lower(warning) => warning.message(session),
-            Self::Flow(warning) => warning.message(session),
-            Self::Execute(warning) => warning.message(session),
-            Self::Optimize(warning) => warning.message(session),
-            Self::Build(warning) => warning.message(session),
-            Self::Link(warning) => warning.message(session),
+            Self::Import(warning) => warning.message(program),
+            Self::Bind(warning) => warning.message(program),
+            Self::Resolve(warning) => warning.message(program),
+            Self::Validate(warning) => warning.message(program),
+            Self::Elaborate(warning) => warning.message(program),
+            Self::Lower(warning) => warning.message(program),
+            Self::Flow(warning) => warning.message(program),
+            Self::Execute(warning) => warning.message(program),
+            Self::Optimize(warning) => warning.message(program),
+            Self::Build(warning) => warning.message(program),
+            Self::Link(warning) => warning.message(program),
         }
     }
 }

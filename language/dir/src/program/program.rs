@@ -3,12 +3,12 @@ use dyst_source::{DiagnosticCollector, FileRegistry, LanguageOptions};
 
 use crate::{GlobalScopeId, ModuleRegistry, PackageRegistry};
 
-/// A session for a language.
+/// A Program.
 #[derive(Debug)]
-pub struct Session<'a> {
+pub struct Program<'a> {
     /// The language options.
     pub language: LanguageOptions,
-    /// The files in the session.
+    /// The files in the program.
     pub files: &'a FileRegistry,
     /// The root scope.
     pub root_scope_id: Option<GlobalScopeId>,
@@ -22,8 +22,8 @@ pub struct Session<'a> {
     pub strings: StringPool,
 }
 
-impl<'a> Session<'a> {
-    /// Create a new Session.
+impl<'a> Program<'a> {
+    /// Create a new Program.
     pub fn new(language: LanguageOptions, files: &'a FileRegistry) -> Self {
         Self {
             language,

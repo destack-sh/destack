@@ -1,6 +1,6 @@
 use clap::{ArgGroup, Args};
 use dyst_ast::{Dumper, DumperOptions, NodeVisitor};
-use dyst_dir::Session;
+use dyst_dir::Program;
 use dyst_parser::Parser;
 use dyst_source::{DiagnosticOptions, FileRegistry, LanguageOptions};
 
@@ -62,9 +62,9 @@ pub fn run(args: &ParseArgs) -> i32 {
     };
 
     // parse as implicit module
-    let mut session = Session::new(LanguageOptions::default(), &files);
+    let mut program = Program::new(LanguageOptions::default(), &files);
     let file = files.get(file_id).unwrap();
-    let mut parser = Parser::lex_file(file, session.language, &mut session.diagnostics);
+    let mut parser = Parser::lex_file(file, program.language, &mut program.diagnostics);
     let expressions = parser.parse();
 
     // dump AST to output
@@ -79,7 +79,7 @@ pub fn run(args: &ParseArgs) -> i32 {
     }
 
     // handle diagnostics
-    let diagnostics = session.diagnostics.collect().map(&diagnostic_options);
-    print_diagnostics(&session, &diagnostics);
+    let diagnostics = program.diagnostics.collect().map(&diagnostic_options);
+    print_diagnostics(&program, &diagnostics);
     diagnostics.get_status_code()
 }

@@ -1,4 +1,4 @@
-use dyst_dir::{GlobalNodeIdAny, Session};
+use dyst_dir::{GlobalNodeIdAny, Program};
 
 use crate::{CompilePhase, CompileWarning};
 
@@ -51,7 +51,7 @@ impl ValidateWarning {
     }
 
     /// Get the message of the warning.
-    pub fn message<'a>(&self, _session: &'a Session<'a>) -> String {
+    pub fn message<'a>(&self, _program: &'a Program<'a>) -> String {
         match self {
             Self::NonExhaustiveMatch { .. } => "non-exhaustive match".to_string(),
             Self::UnreachableCode { .. } => "unreachable code".to_string(),

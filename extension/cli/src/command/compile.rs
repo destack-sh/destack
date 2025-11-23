@@ -1,6 +1,6 @@
 use clap::{ArgGroup, Args, ValueEnum};
 use dyst_compiler::{CompileOptions, Compiler};
-use dyst_dir::{Dumper, DumperOptions, NodeVisitor, Session};
+use dyst_dir::{Dumper, DumperOptions, NodeVisitor, Program};
 use dyst_source::{DiagnosticOptions, FileRegistry, LanguageOptions};
 
 use crate::command::{DiagnosticOptionsArgs, SourceArg, get_string_or_file, print_diagnostics};
@@ -61,7 +61,7 @@ pub struct CompileArgs {
     pub format: Option<String>,
 
     /// Dump the compiled DIR in the given format (node|symbol|all, default: node).
-    #[arg(long, default_value_t = DumpFormatArg::Node, value_enum)]
+    #[arg(long, default_value_t = DumpFormatArg::All, value_enum)]
     pub dump: DumpFormatArg,
 
     /// Don't print anything to the console (except errors).
@@ -100,9 +100,9 @@ pub fn run(args: &CompileArgs) -> i32 {
     };
 
     // compile source
-    let session = Session::new(LanguageOptions::default(), &files);
+    let program = Program::new(LanguageOptions::default(), &files);
     let compiler = Compiler::from_file(
-        &session,
+        &program,
         file_id,
         CompileOptions {
             diagnostic: diagnostic_options.clone(),
@@ -115,10 +115,10 @@ pub fn run(args: &CompileArgs) -> i32 {
     // dump DIR to output
     if !silent {
         let dump_options = DumperOptions::default();
-        let strings = session.strings.clone().into_immutable();
+        let strings = program.strings.clone().into_immutable();
         // dump node representation
         if dump.includes_node() {
-            for module in session.modules.iter() {
+            for module in program.modules.iter() {
                 let module = module.read();
                 let tree = module.tree.read();
                 let mut dumper = Dumper::new(&strings, &tree, dump_options);
@@ -134,7 +134,7 @@ pub fn run(args: &CompileArgs) -> i32 {
         }
         // dump symbol representation
         if dump.includes_symbol() {
-            for module in session.modules.iter() {
+            for module in program.modules.iter() {
                 let module = module.read();
                 let tree = module.tree.read();
                 let symbols = module.symbols.read();
@@ -150,7 +150,7 @@ pub fn run(args: &CompileArgs) -> i32 {
     }
 
     // handle diagnostics
-    let diagnostics = session.diagnostics.collect().map(&diagnostic_options);
-    print_diagnostics(&session, &diagnostics);
+    let diagnostics = program.diagnostics.collect().map(&diagnostic_options);
+    print_diagnostics(&program, &diagnostics);
     diagnostics.get_status_code()
 }

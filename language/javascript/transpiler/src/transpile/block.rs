@@ -16,7 +16,7 @@ impl<'a> Transpiler<'a> {
         let block = tree.get(block_id);
         let label = block
             .label
-            .map(|label| unit.strings.intern_from(&self.session.strings, label));
+            .map(|label| unit.strings.intern_from(&self.program.strings, label));
         let statements = block
             .expressions
             .iter()

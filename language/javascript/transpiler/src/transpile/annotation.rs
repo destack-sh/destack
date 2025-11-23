@@ -29,12 +29,12 @@ impl<'a> Transpiler<'a> {
         let annotation = match annotation {
             dir::Annotation::Doc { position, string } => {
                 let position = self.transpile_annotation_position(*position);
-                let string = unit.strings.intern_from(&self.session.strings, *string);
+                let string = unit.strings.intern_from(&self.program.strings, *string);
                 Annotation::Doc { position, string }
             }
             dir::Annotation::Comment { position, string } => {
                 let position = self.transpile_annotation_position(*position);
-                let string = unit.strings.intern_from(&self.session.strings, *string);
+                let string = unit.strings.intern_from(&self.program.strings, *string);
                 Annotation::Comment { position, string }
             }
 

@@ -95,8 +95,8 @@ pub enum TypeScriptVersion {
 /// A transpiler for a Dyst package containing related Dyst sources.
 #[derive(Debug)]
 pub struct Transpiler<'a> {
-    /// The session.
-    pub session: &'a dir::Session<'a>,
+    /// The program.
+    pub program: &'a dir::Program<'a>,
     /// The options for transpiling.
     pub options: TranspileOptions,
     /// The pending transpiler diagnostics.
@@ -109,9 +109,9 @@ pub struct Transpiler<'a> {
 
 impl<'a> Transpiler<'a> {
     /// Create a new Transpiler from a Compiler state.
-    pub fn new(session: &'a dir::Session<'a>, options: TranspileOptions) -> Self {
+    pub fn new(program: &'a dir::Program<'a>, options: TranspileOptions) -> Self {
         Self {
-            session,
+            program,
             options,
             pending_diagnostics: RwLock::new(Vec::new()),
             units: RwLock::new(HashMap::new()),
@@ -136,12 +136,12 @@ impl<'a> Transpiler<'a> {
         self.pending_diagnostics.write().push(diagnostic);
     }
 
-    /// Flush pending diagnostics into the session.
+    /// Flush pending diagnostics into the program.
     pub fn flush_diagnostics(&self) {
         let mut diagnostics = self.pending_diagnostics.write();
         for diagnostic in diagnostics.drain(..) {
-            let diagnostic = diagnostic.to_diagnostic(self.session);
-            self.session.diagnostics.insert(diagnostic);
+            let diagnostic = diagnostic.to_diagnostic(self.program);
+            self.program.diagnostics.insert(diagnostic);
         }
     }
 }

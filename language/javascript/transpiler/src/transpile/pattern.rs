@@ -25,7 +25,7 @@ impl<'a> Transpiler<'a> {
                 unit.ast.insert_from_source(pattern, module.id, pattern_id)
             }
             dir::Pattern::Rest { name } => {
-                let name = name.map(|name| unit.strings.intern_from(&self.session.strings, name));
+                let name = name.map(|name| unit.strings.intern_from(&self.program.strings, name));
                 let pattern = Pattern::Rest { name };
                 unit.ast.insert_from_source(pattern, module.id, pattern_id)
             }
@@ -67,7 +67,7 @@ impl<'a> Transpiler<'a> {
                 symbol: _,
             } => {
                 let mutability = mutability.map(|mutability| self.transpile_mutability(mutability));
-                let name = unit.strings.intern_from(&self.session.strings, *name);
+                let name = unit.strings.intern_from(&self.program.strings, *name);
                 let pattern = pattern
                     .map(|pattern| {
                         self.transpile_pattern(module, tree, symbols, types, pattern, unit)
@@ -104,8 +104,8 @@ impl<'a> Transpiler<'a> {
                 symbol: _,
             } => {
                 let mutability = mutability.map(|mutability| self.transpile_mutability(mutability));
-                let name = unit.strings.intern_from(&self.session.strings, *name);
-                let alias = unit.strings.intern_from(&self.session.strings, *alias);
+                let name = unit.strings.intern_from(&self.program.strings, *name);
+                let alias = unit.strings.intern_from(&self.program.strings, *alias);
                 let default = default
                     .map(|default| {
                         self.transpile_expression(module, tree, symbols, types, default, unit)

@@ -18,7 +18,7 @@ impl<'a> Compiler<'a> {
         let with_clause = module.get(with_clause_id);
         let alias = with_clause
             .alias
-            .map(|alias| self.session.strings.intern_from(&module.ast_strings, alias));
+            .map(|alias| self.program.strings.intern_from(&module.ast_strings, alias));
         let right = self.bind_expression(module, scope_id, with_clause.right, tree, symbols, types);
         tree.insert_from_source(WithClause { alias, right }, with_clause_id, scope_id)
     }

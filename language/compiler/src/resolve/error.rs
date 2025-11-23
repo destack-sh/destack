@@ -1,5 +1,5 @@
 use crate::{CompileError, CompilePhase};
-use dyst_dir::{GlobalNodeIdAny, GlobalScopeId, GlobalSymbolId, Session, StringId, SymbolKey};
+use dyst_dir::{GlobalNodeIdAny, GlobalScopeId, GlobalSymbolId, Program, StringId, SymbolKey};
 
 /// Error when evaluating something statically.
 #[derive(Debug, Clone, PartialEq)]
@@ -86,7 +86,7 @@ impl ResolveError {
     }
 
     /// Get the message of the error.
-    pub fn message<'a>(&self, _session: &'a Session<'a>) -> String {
+    pub fn message<'a>(&self, _program: &'a Program<'a>) -> String {
         match self {
             Self::UnsupportedNode { .. } => "unsupported node".to_string(),
             Self::CircularDependency { .. } => "circular dependency".to_string(),
