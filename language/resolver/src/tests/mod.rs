@@ -3,7 +3,6 @@ mod exports;
 mod imports;
 mod resolve;
 mod restrictions;
-mod simple;
 mod symlink;
 mod tsconfig;
 

@@ -11,6 +11,7 @@ use crate::{
     ResolveOptions, Resolver,
 };
 
+/// Test resolving aliases.
 #[allow(clippy::too_many_lines)]
 #[test]
 #[cfg(not(target_os = "windows"))]
@@ -228,6 +229,7 @@ fn test_resolve_alias_to_system_path() {
     }
 }
 
+/// Test resolving an alias to a full path.
 #[test]
 fn test_resolve_alias_is_full_path() {
     let f = super::fixture();
