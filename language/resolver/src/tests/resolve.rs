@@ -1,4 +1,5 @@
 use dyst_source::MemoryFileSystem;
+use indexmap::IndexMap;
 
 use super::{fixture, fixture_root};
 use crate::AliasValue;
@@ -109,10 +110,10 @@ fn test_resolve_prefer_relative() {
 }
 
 #[test]
-fn test_resolve_to_context() {
+fn test_resolve_directory() {
     let f = fixture();
     let resolver = TestResolver::new(ResolveOptions {
-        resolve_to_context: true,
+        resolve_directory: true,
         ..ResolveOptions::default()
     });
 
@@ -384,10 +385,10 @@ fn test_resolve_ipaddr_js() {
 
     let resolvers = [
         TestResolver::new(ResolveOptions {
-            extension_alias: vec![(
+            extension_alias: IndexMap::from([(
                 ".js".into(),
                 vec![".js".into(), ".ts".into(), ".tsx".into()],
-            )],
+            )]),
             ..ResolveOptions::default()
         }),
         TestResolver::new(ResolveOptions {
@@ -413,10 +414,10 @@ fn test_resolve_decimal_js() {
 
     let resolvers = [
         TestResolver::new(ResolveOptions {
-            extension_alias: vec![(
+            extension_alias: IndexMap::from([(
                 ".js".into(),
                 vec![".js".into(), ".ts".into(), ".tsx".into()],
-            )],
+            )]),
             conditions: vec!["import".into()],
             ..ResolveOptions::default()
         }),
@@ -442,10 +443,10 @@ fn test_resolve_decimal_js_from_mathjs() {
 
     let resolvers = [
         TestResolver::new(ResolveOptions {
-            extension_alias: vec![(
+            extension_alias: IndexMap::from([(
                 ".js".into(),
                 vec![".js".into(), ".ts".into(), ".tsx".into()],
-            )],
+            )]),
             conditions: vec!["import".into()],
             ..ResolveOptions::default()
         }),
@@ -816,7 +817,7 @@ fn test_resolve_fully_specified_paths() {
                 ("alias2".into(), vec![AliasValue::from("/a")]),
             ],
             is_fully_specified: true,
-            resolve_to_context: true,
+            resolve_directory: true,
             ..ResolveOptions::default()
         },
     );

@@ -3,6 +3,7 @@
 use std::sync::Arc;
 
 use fancy_regex::Regex;
+use indexmap::IndexMap;
 
 use super::TestResolver;
 use crate::{ResolveError, ResolveOptions, Restriction};
@@ -165,10 +166,10 @@ fn test_restrictions_check_in_extension_alias() {
     let f = super::fixture().join("extension-alias");
 
     let resolver = TestResolver::new(ResolveOptions {
-        extension_alias: vec![
+        extension_alias: IndexMap::from([
             (".js".into(), vec![".ts".into(), ".js".into()]),
             (".mjs".into(), vec![".mts".into(), ".mjs".into()]),
-        ],
+        ]),
         restrictions: vec![Restriction::Fn(Arc::new(|path| {
             // Only allow .js files, not .ts files
             path.extension().and_then(|e| e.to_str()) == Some("js")
