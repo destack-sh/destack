@@ -4,7 +4,7 @@ use crate::{Expression, GlobalSymbolId, LocalNodeId, LocalSymbolId, ModuleId, No
 
 /// How an Export should be treated for processing by the system.
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub enum ExportType {
+pub enum DependencyMode {
     /// Export as regular item (export foo)
     Item,
     /// Export as default item (export default foo)
@@ -26,24 +26,46 @@ pub enum DependencyKind {
 #[derive(Debug, Clone, PartialEq)]
 pub enum DependencyItem {
     /// Unresolved default from a target (like `import * as foo from "foo"`).
-    UnresolvedDefault {
+    UnresolvedRemoteDefault {
         kind: DependencyKind,
         alias: StringId,
+        target: StringId,
         symbol: LocalSymbolId,
     },
-    /// Import or export a single item from a target (`import "foo"` or `export "foo"`).
-    UnresolvedItem {
+    /// Import or export a single item from a target (`import { foo } from "foo"` or `export { foo } from "foo"`).
+    UnresolvedRemoteItem {
+        kind: DependencyKind,
+        name: StringId,
+        alias: Option<StringId>,
+        target: StringId,
+        symbol: LocalSymbolId,
+    },
+    /// Export a default item from the module (like `export default foo`).
+    UnresolvedLocalDefault {
+        kind: DependencyKind,
+        name: StringId,
+        alias: Option<StringId>,
+    },
+    /// Export a single item from the module (like `export { foo }`).
+    UnresolvedLocalItem {
+        kind: DependencyKind,
+        name: StringId,
+    },
+    /// Value expression dependency (like `export = foo`).
+    Value { value: LocalNodeId<Expression> },
+    /// Internal to the module (i.e., plain exports).
+    Local {
         kind: DependencyKind,
         name: StringId,
         alias: Option<StringId>,
         symbol: LocalSymbolId,
     },
-    /// Value expression dependency (like `export = foo`).
-    Value { value: LocalNodeId<Expression> },
-    /// Internal to the module (i.e., plain exports).
-    Local { symbol: LocalSymbolId },
     /// Remote to the module (i.e., imports and re-exports).
     Remote {
+        kind: DependencyKind,
+        name: StringId,
+        alias: Option<StringId>,
+        target: StringId,
         symbol: LocalSymbolId,
         target_symbol: GlobalSymbolId,
         module: ModuleId,

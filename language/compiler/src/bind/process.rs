@@ -15,6 +15,10 @@ impl From<BindTask> for CompileTask {
     }
 }
 
+/// Output of a bind task.
+#[derive(Debug, Clone)]
+pub struct BindOutput {}
+
 #[allow(clippy::too_many_arguments)]
 impl<'a> Compiler<'a> {
     /// Process a bind task.

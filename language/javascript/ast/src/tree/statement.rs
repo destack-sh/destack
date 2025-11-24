@@ -1,5 +1,5 @@
 use crate::{
-    Argument, AssignOperator, Block, Declaration, DependencyItem, DependencyKind, ExportType,
+    Argument, AssignOperator, Block, Declaration, DependencyItem, DependencyKind, DependencyMode,
     Expression, LocalNodeId, Mutability, Node, NodeType, Parameter, Pattern, StringId, Type,
 };
 
@@ -16,7 +16,7 @@ pub enum Statement {
     },
     /// Export items (including type items).
     Export {
-        mode: ExportType,
+        mode: DependencyMode,
         kind: DependencyKind,
         target: Option<StringId>,
         alias: Option<StringId>,

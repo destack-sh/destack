@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use crate::{BindTask, CompileTask, Compiler, ImportError, ImportResult};
 
-use dyst_dir::{Module, PackageId, Program};
+use dyst_dir::{DependencySource, Module, ModuleId, PackageId, Program};
 use dyst_parser::Parser;
 use dyst_source::{DiagnosticCollector, File, FileId, FileType, StringId, Uri};
 
@@ -15,8 +15,9 @@ pub enum ImportTask {
     ImportModuleFromUri { uri: Uri, ty: Option<FileType> },
     /// Import module from a specifier.
     ImportModuleFromSpecifier {
-        directory: Option<StringId>,
+        source: DependencySource,
         target: StringId,
+        module: ModuleId,
     },
 }
 
@@ -39,14 +40,9 @@ impl ImportTask {
             ImportTask::ImportModuleFromUri { uri, .. } => {
                 format!("import '{uri}'")
             }
-            ImportTask::ImportModuleFromSpecifier { directory, target } => {
+            ImportTask::ImportModuleFromSpecifier { target, .. } => {
                 let target_str = program.strings.get(*target).to_string();
-                if let Some(directory) = directory {
-                    let directory_str = program.strings.get(*directory).to_string();
-                    format!("import '{target_str}' from '{directory_str}'")
-                } else {
-                    format!("import '{target_str}'")
-                }
+                format!("import '{target_str}'")
             }
         }
     }
@@ -58,9 +54,15 @@ impl From<ImportTask> for CompileTask {
     }
 }
 
+/// Output of an import task.
+#[derive(Debug, Clone)]
+pub struct ImportOutput {
+    pub module: ModuleId,
+}
+
 impl<'a> Compiler<'a> {
     /// Process an import task for a module.
-    pub fn process_import(&self, task: ImportTask) -> ImportResult<()> {
+    pub fn process_import(&self, task: ImportTask) -> ImportResult<ImportOutput> {
         // read file
         let file: Arc<File> = match task {
             ImportTask::ImportModuleFromFile { file: file_id } => {
@@ -95,10 +97,14 @@ impl<'a> Compiler<'a> {
                 self.program.files.insert(file);
                 self.program.files.get(file_id).unwrap()
             }
-            ImportTask::ImportModuleFromSpecifier { directory, target } => {
+            ImportTask::ImportModuleFromSpecifier {
+                target,
+                module,
+                source,
+            } => {
                 return Err(ImportError::ModuleNotFound {
                     target,
-                    directory,
+                    module,
                     error: None,
                 });
             }
@@ -127,6 +133,6 @@ impl<'a> Compiler<'a> {
         // next task: bind module
         self.enqueue(BindTask::BindModule { module: module_id }.into());
 
-        Ok(())
+        Ok(ImportOutput { module: module_id })
     }
 }

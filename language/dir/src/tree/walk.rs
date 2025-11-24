@@ -913,14 +913,38 @@ pub fn walk_dependency_item<V: NodeVisitor + ?Sized>(
 ) {
     visitor.visit_any(tree, NodeType::DependencyItem, id.id);
     match dependency_item {
-        DependencyItem::UnresolvedDefault {
+        DependencyItem::UnresolvedRemoteDefault {
             kind: _,
             alias: _,
+            target: _,
             symbol: _,
         } => {
             // nothing to do
         }
-        DependencyItem::UnresolvedItem {
+        DependencyItem::UnresolvedRemoteItem {
+            kind: _,
+            name: _,
+            alias: _,
+            target: _,
+            symbol: _,
+        } => {
+            // nothing to do
+        }
+        DependencyItem::UnresolvedLocalDefault {
+            kind: _,
+            name: _,
+            alias: _,
+        } => {
+            // nothing to do
+        }
+        DependencyItem::UnresolvedLocalItem { kind: _, name: _ } => {
+            // nothing to do
+        }
+        DependencyItem::Value { value } => {
+            let value_expression = tree.get(*value);
+            visitor.visit_expression(tree, *value, value_expression);
+        }
+        DependencyItem::Local {
             kind: _,
             name: _,
             alias: _,
@@ -928,14 +952,11 @@ pub fn walk_dependency_item<V: NodeVisitor + ?Sized>(
         } => {
             // nothing to do
         }
-        DependencyItem::Value { value } => {
-            let value_expression = tree.get(*value);
-            visitor.visit_expression(tree, *value, value_expression);
-        }
-        DependencyItem::Local { symbol: _ } => {
-            // nothing to do
-        }
         DependencyItem::Remote {
+            kind: _,
+            name: _,
+            alias: _,
+            target: _,
             symbol: _,
             target_symbol: _,
             module: _,

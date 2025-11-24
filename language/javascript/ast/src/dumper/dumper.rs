@@ -473,7 +473,7 @@ impl_dump_display! {
     BindingAnchor,
     DeclarationKind,
     DependencyKind,
-    ExportType,
+    DependencyMode,
     FunctionAbstraction,
     FunctionCardinality,
     FunctionKind,

@@ -2,8 +2,8 @@ use dyst_source::StringId;
 
 use crate::{
     Argument, AssignOperator, Asynchrony, BinaryOperator, Block, Declaration,
-    DeclarationDescriptor, DependencyItem, DependencyKind, ExportType, Keyword, LocalNodeId,
-    Mutability, Node, NodeType, Parameter, Path, Pattern, Property, ScalarLiteral, TemplateLiteral,
+    DeclarationDescriptor, DependencyItem, DependencyKind, Keyword, LocalNodeId, Mutability, Node,
+    NodeType, Parameter, Path, Pattern, Property, ScalarLiteral, TemplateLiteral,
     TypeBinaryOperator, TypeLiteral, TypeUnaryOperator, UnaryOperator,
 };
 
@@ -49,16 +49,15 @@ pub enum Expression {
     /// ```
     /// import "foo"
     /// import "foo.bar"
-    /// import * as foo from "foo" // same as `import "foo" as foo`
+    /// import * as foo from "foo"
     /// import { bar, baz } from "foo"
     /// import Default, { type Item } from "foo"
-    /// import foo as baz with { bar: true } // arguments
+    /// import foo as baz with { bar: true }
     /// ```
     Import {
         kind: DependencyKind,
         target: StringId,
-        alias: Option<StringId>,
-        items: Option<Vec<LocalNodeId<DependencyItem>>>,
+        items: Vec<LocalNodeId<DependencyItem>>,
         arguments: Option<Vec<LocalNodeId<Argument>>>,
     },
 
@@ -68,20 +67,19 @@ pub enum Expression {
     /// Examples:
     /// ```
     /// export "foo"
-    /// export * from "foo" // same as `export "foo"`
-    /// export * as foo from "foo" // same as `export "foo" as foo`
+    /// export * from "foo"
+    /// export * as foo from "foo"
     /// export { bar, baz } from "foo"
     /// export { bar as bar, baz }
+    /// export { default, foo } from 'foo'
+    /// export { default as bar, default as baz } from 'foo'
     /// export default foo
     /// export = foo
     /// ```
     Export {
-        mode: ExportType,
         kind: DependencyKind,
         target: Option<StringId>,
-        alias: Option<StringId>,
-        items: Option<Vec<LocalNodeId<DependencyItem>>>,
-        value: Option<LocalNodeId<Expression>>,
+        items: Vec<LocalNodeId<DependencyItem>>,
     },
 
     /// Let or var binding for constant or mutable variables.

@@ -163,15 +163,12 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
         Expression::Import {
             kind: _,
             target: _,
-            alias: _,
             items,
             arguments,
         } => {
-            if let Some(items) = items {
-                for item_id in items {
-                    let item = tree.get(*item_id);
-                    visitor.visit_dependency_item(tree, *item_id, item);
-                }
+            for item_id in items {
+                let item = tree.get(*item_id);
+                visitor.visit_dependency_item(tree, *item_id, item);
             }
             if let Some(arguments) = arguments {
                 for argument_id in arguments {
@@ -182,22 +179,13 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
         }
 
         Expression::Export {
-            mode: _,
             kind: _,
             target: _,
-            alias: _,
             items,
-            value,
         } => {
-            if let Some(items) = items {
-                for item_id in items {
-                    let item = tree.get(*item_id);
-                    visitor.visit_dependency_item(tree, *item_id, item);
-                }
-            }
-            if let Some(value_id) = value {
-                let value_expr = tree.get(*value_id);
-                visitor.visit_expression(tree, *value_id, value_expr);
+            for item_id in items {
+                let item = tree.get(*item_id);
+                visitor.visit_dependency_item(tree, *item_id, item);
             }
         }
 
@@ -921,12 +909,15 @@ pub fn walk_where_clause<V: NodeVisitor + ?Sized>(
 /// Walk the DependencyItem.
 pub fn walk_dependency_item<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
-    _tree: &NodeTree,
+    tree: &NodeTree,
     id: LocalNodeId<DependencyItem>,
-    _dependency_item: &DependencyItem,
+    dependency_item: &DependencyItem,
 ) {
-    visitor.visit_any(_tree, NodeType::DependencyItem, id.id);
-    // DependencyItem has no child nodes to visit (only StringId fields)
+    visitor.visit_any(tree, NodeType::DependencyItem, id.id);
+    if let Some(value) = &dependency_item.value {
+        let value_expr = tree.get(*value);
+        visitor.visit_expression(tree, *value, value_expr);
+    }
 }
 
 /// Walk the Parameter.

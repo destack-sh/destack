@@ -431,7 +431,7 @@ impl_dump_display! {
     DeclarationKind,
     DependencyKind,
     DocStyle,
-    ExportType,
+    DependencyMode,
     ForEachKind,
     FunctionAbstraction,
     FunctionCardinality,
@@ -760,29 +760,22 @@ impl<'a> NodeVisitor for Dumper<'a> {
             Expression::Import {
                 kind,
                 target,
-                alias,
                 items: _,
                 arguments: _,
             } => {
                 self.node("Expression::Import", _id.id)
                     .field("kind", kind)
                     .field("target", target)
-                    .field_optional("alias", alias)
                     .end();
             }
             Expression::Export {
-                mode,
                 kind,
                 target,
-                alias,
                 items: _,
-                value: _,
             } => {
                 self.node("Expression::Export", _id.id)
-                    .field("mode", mode)
                     .field("kind", kind)
                     .field_optional("target", target)
-                    .field_optional("alias", alias)
                     .end();
             }
             Expression::Let {
@@ -1251,7 +1244,9 @@ impl<'a> NodeVisitor for Dumper<'a> {
         item: &DependencyItem,
     ) {
         self.node("DependencyItem", _id.id)
-            .field("name", &item.name)
+            .field("mode", &item.mode)
+            .field_optional("kind", &item.kind)
+            .field_optional("name", &item.name)
             .field_optional("alias", &item.alias)
             .end();
         self.with_depth(|dumper| {

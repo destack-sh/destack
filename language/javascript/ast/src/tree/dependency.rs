@@ -2,7 +2,7 @@ use crate::{Node, NodeType, StringId};
 
 /// How an Export should be treated for processing by the system.
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub enum ExportType {
+pub enum DependencyMode {
     /// Export as regular item (like `export foo`).
     Item,
     /// Export as default item (like `export default foo`).

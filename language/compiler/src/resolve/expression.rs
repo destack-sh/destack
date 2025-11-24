@@ -1,6 +1,6 @@
-use dyst_dir::{Expression, LocalNodeId, Module, NodeTree, SymbolTable};
+use dyst_dir::{DependencySource, Expression, LocalNodeId, Module, NodeTree, SymbolTable};
 
-use crate::{Compiler, ResolveError, ResolveResult};
+use crate::{Compiler, ImportTask, ResolveError, ResolveResult};
 
 #[allow(clippy::too_many_arguments)]
 impl<'a> Compiler<'a> {
@@ -32,6 +32,11 @@ impl<'a> Compiler<'a> {
                 items,
                 arguments,
             } => {
+                let import_task = ImportTask::ImportModuleFromSpecifier {
+                    source: DependencySource::ImportStatement,
+                    target: *target,
+                    module: module.id,
+                };
                 // nocheckin: resolve import
                 return Err(ResolveError::UnresolvedModule {
                     node: expression_id.into_global_any(module.id),
