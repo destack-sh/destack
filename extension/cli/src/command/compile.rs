@@ -1,7 +1,9 @@
 use clap::{ArgGroup, Args, ValueEnum};
 use dyst_compiler::{CompileOptions, Compiler};
 use dyst_dir::{Dumper, DumperOptions, NodeVisitor, Program};
-use dyst_source::{DiagnosticOptions, FileRegistry, FileSystem, LanguageOptions, PhysicalFileSystem};
+use dyst_source::{
+    DiagnosticOptions, FileRegistry, FileSystem, LanguageOptions, PhysicalFileSystem,
+};
 
 use crate::command::{DiagnosticOptionsArgs, SourceArg, get_string_or_file, print_diagnostics};
 use crate::console;

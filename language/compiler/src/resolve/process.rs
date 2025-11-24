@@ -33,12 +33,17 @@ impl From<ResolveTask> for CompileTask {
     }
 }
 
+/// Output of a resolve task.
+#[derive(Debug, Clone)]
+pub struct ResolveOutput {}
+
 impl<'a> Compiler<'a> {
     /// Process a resolve task.
-    pub fn process_resolve(&self, task: ResolveTask) -> ResolveResult<()> {
+    pub fn process_resolve(&self, task: ResolveTask) -> ResolveResult<ResolveOutput> {
         match task {
-            ResolveTask::ResolveModule { module } => self.resolve_module(module),
+            ResolveTask::ResolveModule { module } => self.resolve_module(module)?,
         }
+        Ok(ResolveOutput {})
     }
 
     /// Attempt some resolve operation. Add errors to the compiler's diagnostics.

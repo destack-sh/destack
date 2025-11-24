@@ -1,5 +1,5 @@
 use crate::{
-    BindingAnchor, Block, ExportType, Expression, FunctionSignature, Generics, Heritage,
+    BindingAnchor, Block, DependencyMode, Expression, FunctionSignature, Generics, Heritage,
     LocalNodeId, Name, Node, NodeType, Property, Statement, StringId,
 };
 
@@ -22,7 +22,7 @@ pub struct DeclarationDescriptor {
     /// The name of the declaration.
     pub name: Option<Name>,
     /// The export type of the declaration.
-    pub export: Option<ExportType>,
+    pub export: Option<DependencyMode>,
 }
 
 /// A Declaration is a declaration in some namespace.

@@ -2,7 +2,9 @@ use clap::{ArgGroup, Args};
 use dyst_ast::{Dumper, DumperOptions, NodeVisitor};
 use dyst_dir::Program;
 use dyst_parser::Parser;
-use dyst_source::{DiagnosticOptions, FileRegistry, FileSystem, LanguageOptions, PhysicalFileSystem};
+use dyst_source::{
+    DiagnosticOptions, FileRegistry, FileSystem, LanguageOptions, PhysicalFileSystem,
+};
 
 use crate::command::{DiagnosticOptionsArgs, SourceArg, get_string_or_file, print_diagnostics};
 use crate::console;

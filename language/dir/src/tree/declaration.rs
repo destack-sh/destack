@@ -1,6 +1,6 @@
 use crate::{
-    BindingAnchor, ExportType, Expression, FunctionSignature, Generics, GlobalSymbolId, Heritage,
-    LocalNodeId, LocalScopeId, LocalSymbolId, Node, NodeType, Property, StringId,
+    BindingAnchor, DependencyMode, Expression, FunctionSignature, Generics, GlobalSymbolId,
+    Heritage, LocalNodeId, LocalScopeId, LocalSymbolId, Node, NodeType, Property, StringId,
 };
 
 /// The kind of declaration.
@@ -22,7 +22,7 @@ pub struct DeclarationDescriptor {
     /// The name of the declaration.
     pub name: Option<StringId>,
     /// The export type of the declaration.
-    pub export: Option<ExportType>,
+    pub export: Option<DependencyMode>,
     /// The symbol of the declaration.
     pub symbol: LocalSymbolId,
 }

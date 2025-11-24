@@ -5,7 +5,7 @@ use crate::r#where::format_where_clause;
 use crate::with::format_with_clause;
 use crate::{DystFormatContext, DystFormatter, FormatNode, empty_block_with_infix_annotations};
 use dyst_ast::{
-    Asynchrony, Declaration, DeclarationKind, ExportType, Expression, FunctionAbstraction,
+    Asynchrony, Declaration, DeclarationKind, DependencyMode, Expression, FunctionAbstraction,
     FunctionCardinality, FunctionKind, FunctionMode, Keyword, LocalNodeId, StructKind, Visibility,
 };
 use dyst_fir::format::FormatResult;
@@ -51,12 +51,12 @@ impl<'ast> Format<DystFormatContext<'ast>> for Visibility {
     }
 }
 
-impl<'ast> Format<DystFormatContext<'ast>> for ExportType {
+impl<'ast> Format<DystFormatContext<'ast>> for DependencyMode {
     fn format(&self, f: &mut DystFormatter<'ast, '_>) -> FormatResult<()> {
         match self {
-            ExportType::Item => write!(f, [Keyword::Export]),
-            ExportType::Default => write!(f, [Keyword::Export, space(), Keyword::Default]),
-            ExportType::Namespace => write!(f, [Keyword::Export]),
+            DependencyMode::Item => write!(f, [Keyword::Export]),
+            DependencyMode::Default => write!(f, [Keyword::Export, space(), Keyword::Default]),
+            DependencyMode::Namespace => write!(f, [Keyword::Export]),
         }
     }
 }

@@ -1,10 +1,10 @@
 use dyst_source::StringId;
 
-use crate::{Node, NodeType};
+use crate::{Expression, LocalNodeId, Node, NodeType};
 
-/// How an Export should be treated for processing by the system.
+/// The mode of an export.
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub enum ExportType {
+pub enum DependencyMode {
     /// Export as regular item (export foo)
     Item,
     /// Export as default item (export default foo)
@@ -22,21 +22,27 @@ pub enum DependencyKind {
     Value,
 }
 
-/// A DependencyItem is an item to import / export from a target in a import clause.
+/// A DependencyItem is an item to import / export from a target.
 ///
 /// Examples:
 /// ```
 /// baz
 /// qux as quux
+/// default
+/// default as bar
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub struct DependencyItem {
+    /// The type of the item.
+    pub mode: DependencyMode,
     /// The type of the item (if specified).
     pub kind: Option<DependencyKind>,
-    /// The source of the item (like `foo` in `foo as bar`)
-    pub name: StringId,
+    /// The name of the item (like `foo` in `foo as bar`, None if default)
+    pub name: Option<StringId>,
     /// The alias to use for the item (like `bar` in `foo as bar`)
     pub alias: Option<StringId>,
+    /// The value of the item (for namespace exports)
+    pub value: Option<LocalNodeId<Expression>>,
 }
 
 impl Node for DependencyItem {

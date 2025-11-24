@@ -407,7 +407,7 @@ impl_dump_display! {
     DeclarationKind,
     DependencyKind,
     DependencySource,
-    ExportType,
+    DependencyMode,
     ForEachKind,
     FunctionAbstraction,
     FunctionCardinality,
@@ -1414,43 +1414,77 @@ impl<'a> NodeVisitor for Dumper<'a> {
         dependency_item: &DependencyItem,
     ) {
         match dependency_item {
-            DependencyItem::UnresolvedDefault {
-                kind: _,
+            DependencyItem::UnresolvedRemoteDefault {
+                kind,
                 alias,
+                target,
                 symbol,
             } => {
-                self.node("DependencyItem::UnresolvedDefault", id.id)
+                self.node("DependencyItem::UnresolvedRemoteDefault", id.id)
+                    .field("kind", kind)
                     .field("alias", alias)
+                    .field("target", target)
                     .field("symbol", symbol)
                     .end();
             }
-            DependencyItem::UnresolvedItem {
+            DependencyItem::UnresolvedRemoteItem {
+                kind,
+                name,
+                alias,
+                target,
+                symbol,
+            } => {
+                self.node("DependencyItem::UnresolvedRemoteItem", id.id)
+                    .field("kind", kind)
+                    .field("name", name)
+                    .field_optional("alias", alias)
+                    .field("target", target)
+                    .field("symbol", symbol)
+                    .end();
+            }
+            DependencyItem::UnresolvedLocalDefault { kind, name, alias } => {
+                self.node("DependencyItem::UnresolvedLocalDefault", id.id)
+                    .field("kind", kind)
+                    .field("name", name)
+                    .field_optional("alias", alias)
+                    .end();
+            }
+            DependencyItem::UnresolvedLocalItem { kind, name } => {
+                self.node("DependencyItem::UnresolvedLocalItem", id.id)
+                    .field("kind", kind)
+                    .field("name", name)
+                    .end();
+            }
+            DependencyItem::Value { value: _ } => {
+                self.node("DependencyItem::Value", id.id).end();
+            }
+            DependencyItem::Local {
                 kind,
                 name,
                 alias,
                 symbol,
             } => {
-                self.node("DependencyItem::UnresolvedNamed", id.id)
+                self.node("DependencyItem::Declaration", id.id)
                     .field("kind", kind)
                     .field("name", name)
                     .field_optional("alias", alias)
                     .field("symbol", symbol)
                     .end();
             }
-            DependencyItem::Value { value: _ } => {
-                self.node("DependencyItem::Value", id.id).end();
-            }
-            DependencyItem::Local { symbol } => {
-                self.node("DependencyItem::Declaration", id.id)
-                    .field("symbol", symbol)
-                    .end();
-            }
             DependencyItem::Remote {
+                kind,
+                name,
+                alias,
+                target,
                 symbol,
                 target_symbol,
                 module,
             } => {
                 self.node("DependencyItem::Remote", id.id)
+                    .field("kind", kind)
+                    .field("name", name)
+                    .field_optional("alias", alias)
+                    .field("target", target)
                     .field("symbol", symbol)
                     .field("target_symbol", target_symbol)
                     .field("module", module)

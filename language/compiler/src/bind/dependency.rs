@@ -1,6 +1,6 @@
 use dyst_ast::{self as ast};
 use dyst_dir::{
-    DependencyEdge, DependencyItem, DependencyKind, DependencySource, ExportType, Expression,
+    DependencyEdge, DependencyItem, DependencyKind, DependencyMode, DependencySource, Expression,
     LocalNodeId, LocalScopeId, Module, NodeTree, SymbolKey, SymbolSpace, SymbolTable, TypeTable,
 };
 use dyst_source::StringId;
@@ -10,11 +10,11 @@ use crate::Compiler;
 #[allow(clippy::too_many_arguments)]
 impl<'a> Compiler<'a> {
     /// Bind an export type to a DIR export type.
-    pub(super) fn bind_export_type(&self, export_type: ast::ExportType) -> ExportType {
+    pub(super) fn bind_export_type(&self, export_type: ast::DependencyMode) -> DependencyMode {
         match export_type {
-            ast::ExportType::Item => ExportType::Item,
-            ast::ExportType::Default => ExportType::Default,
-            ast::ExportType::Namespace => ExportType::Namespace,
+            ast::DependencyMode::Item => DependencyMode::Item,
+            ast::DependencyMode::Default => DependencyMode::Default,
+            ast::DependencyMode::Namespace => DependencyMode::Namespace,
         }
     }
 

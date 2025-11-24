@@ -1,7 +1,7 @@
 use dyst_dir::{self as dir, Module, NodeTree, SymbolTable, TypeTable};
 use dyst_javascript_ast::{
-    BindingAnchor, Block, Declaration, DeclarationDescriptor, DeclarationKind, EnumField,
-    ExportType, Expression, LocalNodeId, Statement, Visibility,
+    BindingAnchor, Block, Declaration, DeclarationDescriptor, DeclarationKind, DependencyMode,
+    EnumField, Expression, LocalNodeId, Statement, Visibility,
 };
 
 use crate::{TranspileError, TranspileResult, TranspileResultExt, Transpiler, TranspilerUnit};
@@ -28,11 +28,11 @@ impl<'a> Transpiler<'a> {
     }
 
     /// Transpile an export type from DIR into JS AST.
-    pub fn transpile_export_type(&self, export_type: dir::ExportType) -> ExportType {
+    pub fn transpile_export_type(&self, export_type: dir::DependencyMode) -> DependencyMode {
         match export_type {
-            dir::ExportType::Item => ExportType::Item,
-            dir::ExportType::Default => ExportType::Default,
-            dir::ExportType::Namespace => ExportType::Namespace,
+            dir::DependencyMode::Item => DependencyMode::Item,
+            dir::DependencyMode::Default => DependencyMode::Default,
+            dir::DependencyMode::Namespace => DependencyMode::Namespace,
         }
     }
 

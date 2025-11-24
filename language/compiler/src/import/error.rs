@@ -17,7 +17,7 @@ pub enum ImportError {
     /// Module could not be resolved.
     ModuleNotFound {
         target: StringId,
-        directory: Option<StringId>,
+        module: ModuleId,
         error: Option<dyst_resolver::ResolveError>,
     },
     /// Failed to parse a module.
@@ -62,16 +62,9 @@ impl ImportError {
             Self::InvalidUri { uri } => format!("invalid URI: '{uri}'"),
             Self::FileIdNotFound { .. } => "file not found".to_string(),
             Self::FileUriNotFound { uri } => format!("file URI not found: '{uri}'"),
-            Self::ModuleNotFound {
-                target, directory, ..
-            } => {
+            Self::ModuleNotFound { target, .. } => {
                 let target_str = program.strings.get(*target).to_string();
-                if let Some(directory) = directory {
-                    let directory_str = program.strings.get(*directory).to_string();
-                    format!("module '{target_str}' not found in '{directory_str}'")
-                } else {
-                    format!("module '{target_str}' not found")
-                }
+                format!("module '{target_str}' not found")
             }
             Self::ParseError { .. } => "parse error".to_string(),
             Self::CircularDependency { .. } => "circular dependency".to_string(),

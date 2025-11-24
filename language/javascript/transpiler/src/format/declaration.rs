@@ -1,7 +1,7 @@
 use dyst_fir::format::FormatResult;
 use dyst_javascript_ast::{
-    Asynchrony, Declaration, DeclarationKind, EnumField, ExportType, FunctionCardinality, Keyword,
-    LocalNodeId, Type, Visibility,
+    Asynchrony, Declaration, DeclarationKind, DependencyMode, EnumField, FunctionCardinality,
+    Keyword, LocalNodeId, Type, Visibility,
 };
 
 use dyst_fir::prelude::*;
@@ -50,12 +50,12 @@ impl<'ast> Format<JavaScriptFormatContext<'ast>> for Visibility {
     }
 }
 
-impl<'ast> Format<JavaScriptFormatContext<'ast>> for ExportType {
+impl<'ast> Format<JavaScriptFormatContext<'ast>> for DependencyMode {
     fn format(&self, f: &mut JavaScriptFormatter<'ast, '_>) -> FormatResult<()> {
         match self {
-            ExportType::Item => write!(f, [Keyword::Export]),
-            ExportType::Default => write!(f, [Keyword::Export, space(), Keyword::Default]),
-            ExportType::Namespace => write!(f, [Keyword::Export]),
+            DependencyMode::Item => write!(f, [Keyword::Export]),
+            DependencyMode::Default => write!(f, [Keyword::Export, space(), Keyword::Default]),
+            DependencyMode::Namespace => write!(f, [Keyword::Export]),
         }
     }
 }

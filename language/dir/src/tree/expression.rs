@@ -2,7 +2,7 @@ use dyst_ast::StringId;
 
 use crate::{
     Argument, AssignOperator, Asynchrony, BinaryOperator, Block, Declaration, DependencyItem,
-    DependencyKind, ExportType, GlobalSymbolId, LocalNodeId, LocalScopeId, LocalSymbolId,
+    DependencyKind, DependencyMode, GlobalSymbolId, LocalNodeId, LocalScopeId, LocalSymbolId,
     MatchCase, MatchSource, ModuleId, Mutability, Node, NodeType, Parameter, Path, Pattern,
     Property, ScalarLiteral, TemplateLiteral, TypeBinaryOperator, TypeKind, TypeLiteral,
     TypeUnaryOperator, UnaryOperator, VarianceBound,
@@ -38,7 +38,7 @@ pub enum Expression {
     },
     /// Unresolved re-export dependency declaration (like `export { bar } from foo`).
     UnresolvedReExport {
-        mode: ExportType,
+        mode: DependencyMode,
         target: StringId,
         kind: DependencyKind,
         items: Vec<LocalNodeId<DependencyItem>>,
@@ -53,7 +53,7 @@ pub enum Expression {
     },
     /// Re-export dependency (like `export { bar } from "foo"` or `export * as foo from "foo"`).
     ReExport {
-        mode: ExportType,
+        mode: DependencyMode,
         target: StringId,
         module: ModuleId,
         kind: DependencyKind,
@@ -61,7 +61,7 @@ pub enum Expression {
     },
     /// Export dependency (like `export { bar }` or `export = foo`).
     Export {
-        mode: ExportType,
+        mode: DependencyMode,
         kind: DependencyKind,
         items: Vec<LocalNodeId<DependencyItem>>,
     },
