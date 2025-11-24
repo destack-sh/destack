@@ -1,7 +1,7 @@
 use clap::{ArgGroup, Args};
 use dyst_ast::{SemanticType, TokenSpan, TokenType};
 use dyst_parser::{Lexer, is_semantic};
-use dyst_source::{File, FileRegistry, LanguageOptions};
+use dyst_source::{File, FileRegistry, FileSystem, LanguageOptions, PhysicalFileSystem};
 
 use crate::command::{SourceArg, get_string_or_file};
 use crate::console;
@@ -42,8 +42,10 @@ pub struct LexArgs {
 
 /// Tokenize input and show a colored table with locations.
 pub fn run(args: &LexArgs) -> i32 {
+    let mut fs = PhysicalFileSystem::new();
     let mut files = FileRegistry::new();
     let file_id = match get_string_or_file(
+        &mut fs,
         &mut files,
         SourceArg {
             file: args.file.as_deref(),
@@ -108,8 +110,8 @@ pub fn run(args: &LexArgs) -> i32 {
             }
         }
 
-        let kind_str = format_token(file, token, use_color);
-        let lexeme_preview = truncate_tokeneme(file, token, max_tokeneme_len, use_color);
+        let kind_str = format_token(&file, token, use_color);
+        let lexeme_preview = truncate_tokeneme(&file, token, max_tokeneme_len, use_color);
         let index_str = if use_color {
             console::color(&index.to_string(), "35")
         } else {

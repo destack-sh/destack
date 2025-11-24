@@ -3148,6 +3148,7 @@ name = "dyst_source"
 version = "2025.11.21-1"
 dependencies = [
  "cfg-if",
+ "dashmap 6.1.0",
  "parking_lot",
  "rustix 1.1.2",
  "serde",

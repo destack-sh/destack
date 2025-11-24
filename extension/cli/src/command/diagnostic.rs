@@ -67,7 +67,7 @@ pub(crate) fn print_diagnostics<'a>(program: &'a Program<'a>, diagnostics: &Diag
             }
         };
 
-        let body = annotate_source(file, &diagnostic.primary_span, options);
+        let body = annotate_source(&file, &diagnostic.primary_span, options);
         console::error(&header);
         console::print(&body);
     }

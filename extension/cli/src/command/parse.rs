@@ -2,7 +2,7 @@ use clap::{ArgGroup, Args};
 use dyst_ast::{Dumper, DumperOptions, NodeVisitor};
 use dyst_dir::Program;
 use dyst_parser::Parser;
-use dyst_source::{DiagnosticOptions, FileRegistry, LanguageOptions, PhysicalFileSystem};
+use dyst_source::{DiagnosticOptions, FileRegistry, FileSystem, LanguageOptions, PhysicalFileSystem};
 
 use crate::command::{DiagnosticOptionsArgs, SourceArg, get_string_or_file, print_diagnostics};
 use crate::console;
@@ -66,7 +66,7 @@ pub fn run(args: &ParseArgs) -> i32 {
     // parse as implicit module
     let mut program = Program::new(LanguageOptions::default(), &fs, &files);
     let file = files.get(file_id).unwrap();
-    let mut parser = Parser::lex_file(file, program.language, &mut program.diagnostics);
+    let mut parser = Parser::lex_file(file.as_ref(), program.language, &mut program.diagnostics);
     let expressions = parser.parse();
 
     // dump AST to output
