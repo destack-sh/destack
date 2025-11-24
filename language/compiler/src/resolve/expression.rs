@@ -5,7 +5,10 @@ use crate::{Compiler, ResolveError, ResolveResult};
 #[allow(clippy::too_many_arguments)]
 impl<'a> Compiler<'a> {
     /// Resolve a string to a builtin expression.
-    pub(super) fn resolve_string_to_builtin_expression(&self, string: &str) -> Option<Expression> {
+    pub(super) fn resolve_string_to_builtin_expression_maybe(
+        &self,
+        string: &str,
+    ) -> Option<Expression> {
         // type expression
         let ty = self.resolve_string_to_type(string.as_str())?;
         Some(Expression::TypeLiteral { value: ty })
@@ -23,6 +26,20 @@ impl<'a> Compiler<'a> {
         let expression = tree.get(expression_id);
 
         let expression = match expression {
+            Expression::UnresolvedImport {
+                kind,
+                target,
+                items,
+                arguments,
+            } => {
+                // nocheckin: resolve import
+                return Err(ResolveError::UnresolvedModule {
+                    node: expression_id.into_global_any(module.id),
+                    scope: scope.id.into_global(module.id),
+                    target: *target,
+                });
+            }
+
             Expression::UnresolvedAbsolutePath {
                 path,
                 static_arguments,
@@ -43,7 +60,7 @@ impl<'a> Compiler<'a> {
                     {
                         // try resolving simple terms as builtin expression
                         let string = self.program.strings.get(path.segments[0]);
-                        self.resolve_string_to_builtin_expression(string.as_str())
+                        self.resolve_string_to_builtin_expression_maybe(string.as_str())
                             .ok_or(error)?
                     }
                     Err(error) => return Err(error),

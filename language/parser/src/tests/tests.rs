@@ -19,7 +19,7 @@ impl TestParser {
     /// Create a new TestParser with custom options.
     pub(crate) fn new_with_options(input: &str, options: LanguageOptions) -> Self {
         let file_id = FileId::new(0);
-        let source = File::from_string(
+        let source = File::from_text(
             file_id,
             "<string>".to_string(),
             Uri::from_string("<string>"),
@@ -177,7 +177,7 @@ mod tests {
                 .map(|s| s.to_string_lossy().into_owned())
                 .unwrap_or("<file>".to_string());
             let path = ds_file.to_string_lossy().into_owned();
-            let source = File::from_string(
+            let source = File::from_text(
                 file_id,
                 name,
                 Uri::from_string(path),

@@ -127,11 +127,14 @@ pub fn run(args: &TranspileArgs) -> i32 {
             console::print(uri.as_ref());
             console::print("=".repeat(line_width).as_str());
             match &artifact.content {
-                FileContent::Text(text) => {
-                    console::print(text);
+                FileContent::Text { content } => {
+                    console::print(content);
                 }
-                FileContent::Binary(bytes) => {
-                    console::error(&format!("<binary {} bytes>", bytes.len()));
+                FileContent::Json { content, .. } => {
+                    console::print(content);
+                }
+                FileContent::Binary { content } => {
+                    console::error(&format!("<binary {} bytes>", content.len()));
                 }
                 FileContent::Unloaded => {
                     console::error("<unloaded>");

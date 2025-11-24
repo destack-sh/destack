@@ -44,17 +44,22 @@ pub struct File {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum FileContent {
     /// Text content.
-    Text(String),
+    Text { content: String },
+    /// JSON content.
+    Json {
+        content: String,
+        value: serde_json::Value,
+    },
     /// Binary content.
-    Binary(Vec<u8>),
+    Binary { content: Vec<u8> },
     /// Content not yet loaded.
     Unloaded,
 }
 
 impl File {
     /// Create an empty source in some format.
-    pub fn empty_with_type(ty: FileType) -> Self {
-        Self::from_string(
+    pub fn empty_text_with_type(ty: FileType) -> Self {
+        Self::from_text(
             FileId::new(0),
             "<empty>".to_string(),
             Uri::from_string("<empty>"),
@@ -64,42 +69,70 @@ impl File {
     }
 
     /// Create an empty source.
-    pub fn empty_with_id(ty: FileType, id: FileId, uri: Uri) -> Self {
+    pub fn empty_text_with_id(ty: FileType, id: FileId, uri: Uri) -> Self {
         let name = uri
             .last_segment()
             .unwrap_or_else(|| uri.as_ref())
             .to_string();
-        Self::from_string(id, name, uri, ty, String::new())
+        Self::from_text(id, name, uri, ty, String::new())
     }
 
-    /// Create a new File.
-    /// Precomputes indexing information immediately.
-    pub fn from_string(id: FileId, name: String, uri: Uri, ty: FileType, content: String) -> Self {
-        let len = content.len() as u32;
-
-        // precompute line start byte offsets for O(1) line -> byte lookup
+    /// Precompute line start byte offsets for O(1) line.
+    fn precompute_line_start_offsets(content: &str) -> Vec<u32> {
         let mut line_start_offsets = vec![0];
         for (i, ch) in content.char_indices() {
             if ch == '\n' {
                 line_start_offsets.push(i as u32 + 1);
             }
         }
+        line_start_offsets
+    }
 
+    /// Create a new File.
+    pub fn from_text(id: FileId, name: String, uri: Uri, ty: FileType, content: String) -> Self {
+        let len = content.len() as u32;
+        let line_start_offsets = Self::precompute_line_start_offsets(&content);
         Self {
             id,
             name,
             uri,
             ty,
-            content: FileContent::Text(content),
+            content: FileContent::Text { content },
             len,
             line_start_offsets: Some(line_start_offsets),
         }
     }
 
+    /// Create a new file from text as JSON.
+    pub fn from_text_as_json(
+        id: FileId,
+        name: String,
+        uri: Uri,
+        ty: FileType,
+        content: String,
+    ) -> Result<Self, serde_json::Error> {
+        let json = serde_json::from_str(&content)?;
+        let len = content.len() as u32;
+        let line_start_offsets = Self::precompute_line_start_offsets(&content);
+        let file = Self {
+            id,
+            name,
+            uri,
+            ty,
+            content: FileContent::Json {
+                content,
+                value: json,
+            },
+            len,
+            line_start_offsets: Some(line_start_offsets),
+        };
+        Ok(file)
+    }
+
     /// Get the text content of the File (empty if not text).
     #[inline]
     pub fn text(&self) -> &str {
-        if let FileContent::Text(content) = &self.content {
+        if let FileContent::Text { content } = &self.content {
             content
         } else {
             ""
@@ -110,8 +143,11 @@ impl File {
     #[inline]
     pub fn get_span_str(&self, span: Span) -> Option<&str> {
         match &self.content {
-            FileContent::Text(content) => Some(&content[span.start as usize..span.end as usize]),
-            FileContent::Binary(_) => None,
+            FileContent::Text { content } => Some(&content[span.start as usize..span.end as usize]),
+            FileContent::Json { content, .. } => {
+                Some(&content[span.start as usize..span.end as usize])
+            }
+            FileContent::Binary { .. } => None,
             FileContent::Unloaded => None,
         }
     }

@@ -41,7 +41,7 @@ fn bench_parse(c: &mut Criterion) {
             }
         }
     }
-    let file = File::from_string(
+    let file = File::from_text(
         FileId::new(0),
         "<string>".to_string(),
         Uri::from_string("<string>"),

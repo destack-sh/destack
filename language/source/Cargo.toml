@@ -16,6 +16,8 @@ doctest = false
 parking_lot = { workspace = true }
 cfg-if = { workspace = true }
 rustix = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true, features = ["preserve_order"] }
 simdutf8 = { workspace = true }
 
 [dev-dependencies]

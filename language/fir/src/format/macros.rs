@@ -176,7 +176,7 @@ mod tests {
             line_width: 10,
             ..SimpleFormatOptions::default()
         };
-        let context = SimpleFormatContext::new(options, File::empty_with_type(FileType::Dyst));
+        let context = SimpleFormatContext::new(options, File::empty_text_with_type(FileType::Dyst));
 
         let formatted = format!(
             context,
@@ -207,7 +207,7 @@ mod tests {
                     line_width: 80,
                     ..SimpleFormatOptions::default()
                 },
-                File::empty_with_type(FileType::Dyst)
+                File::empty_text_with_type(FileType::Dyst)
             ),
             [
                 token("aVeryLongIdentifier"),
@@ -240,7 +240,7 @@ mod tests {
                     line_width: 50,
                     ..SimpleFormatOptions::default()
                 },
-                File::empty_with_type(FileType::Dyst),
+                File::empty_text_with_type(FileType::Dyst),
             ),
         )
         .print()
@@ -256,7 +256,7 @@ mod tests {
                     line_width: 20,
                     ..SimpleFormatOptions::default()
                 },
-                File::empty_with_type(FileType::Dyst),
+                File::empty_text_with_type(FileType::Dyst),
             ),
         )
         .print()
@@ -333,7 +333,7 @@ mod tests {
                         line_width: 80,
                         ..SimpleFormatOptions::default()
                     },
-                    File::empty_with_type(FileType::Dyst)
+                    File::empty_text_with_type(FileType::Dyst)
                 )
             )
             .print()
@@ -353,7 +353,7 @@ mod tests {
                         line_width: 21,
                         ..SimpleFormatOptions::default()
                     },
-                    File::empty_with_type(FileType::Dyst)
+                    File::empty_text_with_type(FileType::Dyst)
                 )
             )
             .print()
@@ -372,7 +372,7 @@ mod tests {
                         line_width: 20,
                         ..SimpleFormatOptions::default()
                     },
-                    File::empty_with_type(FileType::Dyst)
+                    File::empty_text_with_type(FileType::Dyst)
                 )
             )
             .print()
@@ -458,7 +458,7 @@ mod tests {
                     line_width: 40,
                     ..SimpleFormatOptions::default()
                 },
-                File::empty_with_type(FileType::Dyst)
+                File::empty_text_with_type(FileType::Dyst)
             ),
             [document.clone()]
         )
@@ -477,7 +477,7 @@ mod tests {
                     line_width: 23,
                     ..SimpleFormatOptions::default()
                 },
-                File::empty_with_type(FileType::Dyst)
+                File::empty_text_with_type(FileType::Dyst)
             ),
             [document.clone()]
         )
@@ -495,7 +495,7 @@ mod tests {
                     line_width: 22,
                     ..SimpleFormatOptions::default()
                 },
-                File::empty_with_type(FileType::Dyst)
+                File::empty_text_with_type(FileType::Dyst)
             ),
             [document.clone()]
         )
@@ -516,7 +516,7 @@ mod tests {
                     line_width: 80,
                     ..SimpleFormatOptions::default()
                 },
-                File::empty_with_type(FileType::Dyst),
+                File::empty_text_with_type(FileType::Dyst),
             ),
             [best_fitting!(
                 // first variant - method call on line but break array
@@ -569,7 +569,7 @@ mod tests {
                     line_width: 80,
                     ..SimpleFormatOptions::default()
                 },
-                File::empty_with_type(FileType::Dyst),
+                File::empty_text_with_type(FileType::Dyst),
             ),
         )
         .print()
@@ -635,7 +635,7 @@ mod tests {
                     line_width: 30,
                     ..SimpleFormatOptions::default()
                 },
-                File::empty_with_type(FileType::Dyst),
+                File::empty_text_with_type(FileType::Dyst),
             ),
         )
         .print()
@@ -744,7 +744,7 @@ mod tests {
                     line_width: 30,
                     ..SimpleFormatOptions::default()
                 },
-                File::empty_with_type(FileType::Dyst),
+                File::empty_text_with_type(FileType::Dyst),
             ),
         )
         .print()
@@ -760,7 +760,7 @@ mod tests {
                     line_width: 30,
                     ..SimpleFormatOptions::default()
                 },
-                File::empty_with_type(FileType::Dyst),
+                File::empty_text_with_type(FileType::Dyst),
             ),
         )
         .print()

@@ -3143,6 +3143,8 @@ dependencies = [
  "cfg-if",
  "parking_lot",
  "rustix 1.1.2",
+ "serde",
+ "serde_json",
  "simdutf8",
 ]
 
