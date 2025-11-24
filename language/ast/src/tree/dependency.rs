@@ -5,11 +5,11 @@ use crate::{Expression, LocalNodeId, Node, NodeType};
 /// The mode of an export.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum DependencyMode {
-    /// Export as regular item (export foo)
+    /// Regular item (`import { foo } from "foo"` or `export { foo } from "foo"`)
     Item,
-    /// Export as default item (export default foo)
+    /// Default item (`export default foo`)
     Default,
-    /// Export as entire namespace (export = foo)
+    /// Namespace (`export = foo`)
     Namespace,
 }
 

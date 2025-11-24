@@ -1,9 +1,6 @@
-use dyst_ast::{DependencyItem, DependencyKind, Keyword, LocalNodeId};
-use dyst_fir::format::FormatResult;
-use dyst_source::StringId;
-
-use crate::argument::list_like;
 use crate::{DystFormatter, FormatNode};
+use dyst_ast::{DependencyItem, DependencyKind, DependencyMode, Keyword, LocalNodeId};
+use dyst_fir::format::FormatResult;
 use dyst_fir::prelude::*;
 use dyst_fir::write;
 
@@ -20,72 +17,28 @@ impl<'ast> FormatNode<'ast, DependencyItem> for DependencyItem {
             write!(f, [Keyword::Type, space()])?;
         }
 
-        // name and alias
-        write!(f, [self.name])?;
-        if let Some(alias) = self.alias {
-            write!(f, [space(), Keyword::As, space(), alias])?;
+        // default
+        if self.mode == DependencyMode::Default {
+            write!(f, [Keyword::Default])?;
+            // alias
+            if let Some(alias) = self.alias {
+                write!(f, [space(), Keyword::As, space(), alias])?;
+            }
+        }
+        // item
+        else {
+            // name
+            write!(f, [self.name])?;
+            // alias
+            if let Some(alias) = self.alias {
+                write!(f, [space(), Keyword::As, space(), alias])?;
+            }
         }
 
         write!(f, [f.context().any_infix_or_postfix_annotations(node_id)])?;
 
         Ok(())
     }
-}
-
-/// Format a import binding (like `foo` or `{ bar, baz } from foo` or `* as foo from foo`).
-pub(crate) fn format_dependency_binding<'ast>(
-    f: &mut DystFormatter<'ast, '_>,
-    target: Option<&StringId>,
-    alias: Option<StringId>,
-    items: Option<&Vec<LocalNodeId<DependencyItem>>>,
-    include_glob: bool,
-) -> FormatResult<()> {
-    // items with maybe target
-    if let Some(items) = items
-        && (!items.is_empty() || target.is_none() && alias.is_none())
-    {
-        // items
-        write!(f, [list_like("{", "}", ",", items).include_space()])?;
-        // target
-        if let Some(target) = target {
-            write!(
-                f,
-                [
-                    space(),
-                    Keyword::From,
-                    space(),
-                    token("\""),
-                    target,
-                    token("\"")
-                ]
-            )?;
-        }
-    }
-    // target only
-    else if let Some(target) = target {
-        // alias as `* as foo`
-        if let Some(alias) = alias {
-            write!(
-                f,
-                [
-                    token("*"),
-                    space(),
-                    Keyword::As,
-                    space(),
-                    alias,
-                    space(),
-                    Keyword::From,
-                    space(),
-                ]
-            )?;
-        } else if include_glob {
-            write!(f, [token("*"), space(), Keyword::From, space()])?;
-        }
-        // target
-        write!(f, [token("\""), target, token("\"")])?;
-    }
-
-    Ok(())
 }
 
 #[cfg(test)]
@@ -105,8 +58,8 @@ mod tests {
     #[test]
     fn test_format_import_with_alias() {
         assert_format!(
-            "import \"foo\" as bar",
-            "import * as bar from \"foo\"",
+            "import * as foo from \"foo\"",
+            "import * as foo from \"foo\"",
             |p| p.eat_expression(),
             DystFormatOptions::default()
         );
@@ -143,6 +96,26 @@ mod tests {
         assert_format!(
             r#"export * from "./foo""#,
             r#"export * from "./foo""#,
+            |p| p.eat_expression(),
+            DystFormatOptions::default()
+        );
+    }
+
+    #[test]
+    fn test_format_import_with_default_and_block() {
+        assert_format!(
+            "import Default, { type Item } from \"foo\"",
+            "import Default, { type Item } from \"foo\"",
+            |p| p.eat_expression(),
+            DystFormatOptions::default()
+        );
+    }
+
+    #[test]
+    fn test_format_export_with_default_and_block() {
+        assert_format!(
+            "export { default, default as bar, foo } from \"foo\"",
+            "export { default, default as bar, foo } from \"foo\"",
             |p| p.eat_expression(),
             DystFormatOptions::default()
         );
