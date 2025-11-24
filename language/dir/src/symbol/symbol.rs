@@ -1,4 +1,6 @@
-use crate::{GlobalNodeIdAny, LocalNodeIdAny, LocalScopeId, LocalTypeId, ModuleId, StringId};
+use crate::{
+    GlobalNodeIdAny, LocalNodeIdAny, LocalScopeId, LocalTypeId, ModuleId, Program, StringId,
+};
 
 /// Key for a symbol.
 #[derive(Debug, Clone, Copy, PartialEq, Hash, PartialOrd, Eq)]
@@ -9,6 +11,30 @@ pub enum SymbolKey {
     UniqueSymbol(LocalNodeIdAny),
     /// Global symbol key (like `Symbol.iterator`).
     GlobalSymbol(StringId),
+}
+
+impl SymbolKey {
+    /// Get the name of the symbol key.
+    pub fn name(&self) -> Option<StringId> {
+        match self {
+            SymbolKey::Name(name) => Some(*name),
+            SymbolKey::UniqueSymbol(..) => None,
+            SymbolKey::GlobalSymbol(name) => Some(*name),
+        }
+    }
+
+    /// Get the debug string in a given program.
+    pub fn debug_string<'a>(&self, program: &'a Program<'a>) -> String {
+        match self {
+            SymbolKey::Name(name) => {
+                format!("'{}'", program.strings.get(*name).as_str()).to_string()
+            }
+            SymbolKey::UniqueSymbol(..) => "<unique symbol>".to_string(),
+            SymbolKey::GlobalSymbol(name) => {
+                format!("'{}'", program.strings.get(*name).as_str()).to_string()
+            }
+        }
+    }
 }
 
 /// The space of a symbol.
