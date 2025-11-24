@@ -1,7 +1,7 @@
 use dyst_ast::{
-    Argument, Asynchrony, DependencyKind, Expression, ForEachKind, IfKind, Keyword, LocalNodeId,
-    Mutability, NodeTree, PostfixPosition, Property, TypeKind, TypeUnaryOperator, WhileKind,
-    YieldCardinality,
+    Argument, Asynchrony, DependencyItem, DependencyKind, DependencyMode, Expression, ForEachKind,
+    IfKind, Keyword, LocalNodeId, Mutability, NodeTree, PostfixPosition, Property, TypeKind,
+    TypeUnaryOperator, WhileKind, YieldCardinality,
 };
 use dyst_fir::format::{BestFittingMode, FormatError};
 use dyst_fir::prelude::*;
@@ -11,7 +11,6 @@ use smallvec::{SmallVec, smallvec};
 
 use crate::argument::list_like;
 use crate::block::format_block;
-use crate::dependency::format_dependency_binding;
 use crate::literal::{format_scalar_literal, format_template_literal};
 use crate::{DystFormatContext, DystFormatter, FormatNode, empty_block_with_infix_annotations};
 
@@ -962,21 +961,58 @@ pub(crate) fn format_expression<'ast>(
         Expression::Import {
             kind,
             target,
-            alias,
             items,
             arguments,
         } => {
+            // keyword
             write!(f, [Keyword::Import, space()])?;
             if *kind == DependencyKind::Type {
                 write!(f, [Keyword::Type, space()])?;
             }
-            format_dependency_binding(
-                f,
-                Some(target),
-                alias.as_ref().copied(),
-                items.as_ref(),
-                false,
-            )?;
+
+            // items
+            let first_item = items.first().map(|item| tree.get(*item));
+            // namespace
+            if items.len() == 1 && first_item.unwrap().mode == DependencyMode::Namespace {
+                write!(
+                    f,
+                    [
+                        token("*"),
+                        space(),
+                        Keyword::As,
+                        space(),
+                        first_item.unwrap().alias
+                    ]
+                )?;
+            }
+            // items
+            else {
+                // default
+                if let Some(first_item) = first_item
+                    && first_item.mode == DependencyMode::Default
+                {
+                    write!(f, [first_item.alias, token(","), space()])?;
+                    let rest_items: Vec<LocalNodeId<DependencyItem>> =
+                        items.iter().skip(1).copied().collect();
+                    if !rest_items.is_empty() {
+                        write!(f, [list_like("{", "}", ",", &rest_items).include_space(),])?;
+                    }
+                }
+                // items
+                else if !items.is_empty() {
+                    write!(f, [list_like("{", "}", ",", items).include_space()])?;
+                }
+            }
+
+            // from
+            if !items.is_empty() {
+                write!(f, [space(), Keyword::From, space()])?;
+            }
+
+            // target
+            write!(f, [token("\""), target, token("\"")])?;
+
+            // arguments
             if let Some(arguments) = arguments {
                 write!(
                     f,
@@ -992,26 +1028,42 @@ pub(crate) fn format_expression<'ast>(
 
         // export
         Expression::Export {
-            mode,
             kind,
             target,
-            alias,
             items,
-            value,
         } => {
-            write!(f, [mode, space()])?;
+            // keyword
+            write!(f, [Keyword::Export, space()])?;
             if *kind == DependencyKind::Type {
                 write!(f, [Keyword::Type, space()])?;
             }
-            if let Some(value) = value {
-                write!(f, [token("="), space(), value])?;
-            } else {
-                format_dependency_binding(
+
+            // items
+            let first_item = items.first().map(|item| tree.get(*item));
+            // namespace
+            if items.len() == 1 && first_item.unwrap().mode == DependencyMode::Namespace {
+                write!(f, [token("*")])?;
+                if let Some(alias) = first_item.unwrap().alias {
+                    write!(f, [space(), Keyword::As, space(), alias])?;
+                }
+            }
+            // items
+            else if !items.is_empty() {
+                write!(f, [list_like("{", "}", ",", items).include_space()])?;
+            }
+
+            // target
+            if let Some(target) = target {
+                write!(
                     f,
-                    target.as_ref(),
-                    alias.as_ref().copied(),
-                    items.as_ref(),
-                    true,
+                    [
+                        space(),
+                        Keyword::From,
+                        space(),
+                        token("\""),
+                        target,
+                        token("\"")
+                    ]
                 )?;
             }
         }
@@ -1019,7 +1071,7 @@ pub(crate) fn format_expression<'ast>(
         // let
         Expression::Let {
             mutability,
-            descriptor: meta,
+            descriptor,
             pattern,
             ty,
             value: value_id,
@@ -1027,7 +1079,7 @@ pub(crate) fn format_expression<'ast>(
             // header
             let header = format_with(|f| {
                 // export
-                if let Some(export) = meta.export {
+                if let Some(export) = descriptor.export {
                     write!(f, [export, space()])?;
                 }
                 // keyword
@@ -1092,13 +1144,13 @@ pub(crate) fn format_expression<'ast>(
         Expression::LetType {
             kind,
             mutability,
-            descriptor: meta,
+            descriptor,
             static_parameters,
             value: value_id,
         } => {
             let header = format_with(|f| {
                 // export
-                if let Some(export) = meta.export {
+                if let Some(export) = descriptor.export {
                     write!(f, [export, space()])?;
                 }
                 // keyword
@@ -1111,7 +1163,7 @@ pub(crate) fn format_expression<'ast>(
                     write!(f, [Keyword::Newtype])?;
                 }
                 // name
-                if let Some(name) = meta.name {
+                if let Some(name) = descriptor.name {
                     write!(f, [space(), name])?;
                 }
                 // static parameters

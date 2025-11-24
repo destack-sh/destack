@@ -1478,9 +1478,9 @@ type = type * 2
         });
     }
 
-    /// Parse `export * as baz from foo`.
+    /// Parse `export * as baz from "foo"`.
     #[test]
-    fn test_parse_export_expression_default_alias() {
+    fn test_parse_export_expression_namespace_alias() {
         let mut test = TestParser::new("export * as baz from \"foo\"");
         let mut parser = test.prepare();
         let expression_id = parser.eat_expression().unwrap();
@@ -1492,7 +1492,7 @@ type = type * 2
             assert_eq!(items.len(), 1);
             // * as baz
             assert_node!(parser.tree, items[0], DependencyItem { mode, name: None, alias: Some(alias), .. } => {
-                assert_eq!(*mode, DependencyMode::Default);
+                assert_eq!(*mode, DependencyMode::Namespace);
                 assert_string!(parser, *alias, "baz");
             });
         });
@@ -1555,9 +1555,9 @@ type = type * 2
         });
     }
 
-    /// Parse `import * as baz from foo`.
+    /// Parse `import * as baz from "foo" with { bar: true }`.
     #[test]
-    fn test_parse_import_expression_default_alias_with_arguments() {
+    fn test_parse_import_expression_namespace_alias_with_arguments() {
         let mut test = TestParser::new("import * as baz from \"foo\" with { bar: true }");
         let mut parser = test.prepare();
         let expression_id = parser.eat_expression().unwrap();
@@ -1569,7 +1569,7 @@ type = type * 2
             assert_eq!(items.len(), 1);
             // * as baz
             assert_node!(parser.tree, items[0], DependencyItem { mode, name: None, alias: Some(alias), .. } => {
-                assert_eq!(*mode, DependencyMode::Default);
+                assert_eq!(*mode, DependencyMode::Namespace);
                 assert_string!(parser, *alias, "baz");
             });
             // with { bar: true }
