@@ -16,7 +16,7 @@ const TEMPLATE_VARIABLE: &str = "${configDir}"; // TODO #Broken: revisit TsConfi
 #[derive(Debug, Clone)]
 pub struct TsConfigOptions {
     /// The id of the `tsconfig.json` file.
-    pub id: FileId,
+    pub file_id: FileId,
     /// Whether this is the root tsconfig.
     pub is_root: bool,
     /// Path to the `tsconfig.json` file (including the `tsconfig.json`).
@@ -28,7 +28,7 @@ pub struct TsConfigOptions {
 impl TsConfigOptions {
     /// Parses the tsconfig from a JSON string.
     pub fn parse(
-        id: FileId,
+        file_id: FileId,
         is_root: bool,
         path: &Path,
         content: &mut str,
@@ -44,14 +44,14 @@ impl TsConfigOptions {
         };
 
         // parse the tsconfig
-        let tsconfig: TsConfigJson = serde_json::from_str(json.as_ref())?;
-
-        Ok(Self {
-            id,
+        let tsconfig_json: TsConfigJson = serde_json::from_str(json.as_ref())?;
+        let tsconfig = Self {
+            file_id,
             is_root,
             path: path.to_path_buf(),
-            content: tsconfig,
-        })
+            content: tsconfig_json,
+        };
+        Ok(tsconfig)
     }
 
     /// Directory of the `tsconfig.json` file.
@@ -244,12 +244,11 @@ impl TsConfigOptions {
     }
 
     /// "Build" the root tsconfig, resolve:
-    ///
     /// * `{configDir}` template variable
     /// * `paths_base` for resolving paths alias
     /// * `baseUrl` to absolute path
     pub fn build(mut self) -> Self {
-        // Only the root tsconfig requires paths resolution.
+        // only the root tsconfig requires paths resolution.
         if !self.is_root {
             return self;
         }
@@ -305,8 +304,6 @@ impl TsConfigOptions {
 
     /// Resolves the given `specifier` within the project configured by this
     /// tsconfig, relative to the given `path`.
-    ///
-    /// `specifier` can be either a real path or an alias.
     pub fn resolve(&self, path: &Path, specifier: &str) -> Vec<PathBuf> {
         let paths = self.content.resolve_path_alias(specifier);
         for tsconfig in self

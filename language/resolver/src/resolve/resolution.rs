@@ -12,22 +12,22 @@ pub struct Resolution {
 }
 
 impl Resolution {
-    /// Returns the path without query and fragment
+    /// Returns the path without query and fragment.
     pub fn path(&self) -> &Path {
         &self.path
     }
 
-    /// Returns the path without query and fragment
+    /// Returns the path without query and fragment.
     pub fn into_path_buf(self) -> PathBuf {
-        self.path
+        self.path.clone()
     }
 
-    /// Returns the path query `?query`, contains the leading `?`
+    /// Returns the path query `?query` (including the leading `?`).
     pub fn query(&self) -> Option<&str> {
         self.query.as_deref()
     }
 
-    /// Returns the path fragment `#fragment`, contains the leading `#`
+    /// Returns the path fragment `#fragment` (including the leading `#`).
     pub fn fragment(&self) -> Option<&str> {
         self.fragment.as_deref()
     }
