@@ -68,8 +68,10 @@ pub fn run(args: &TranspileArgs) -> i32 {
     let diagnostic_options: DiagnosticOptions = args.diagnostics.clone().into();
 
     // read input source
+    let mut fs = PhysicalFileSystem::new();
     let mut files = FileRegistry::new();
     let file_id = match get_string_or_file(
+        &mut fs,
         &mut files,
         SourceArg {
             file: args.file.as_deref(),
@@ -89,7 +91,7 @@ pub fn run(args: &TranspileArgs) -> i32 {
     };
 
     // compile source
-    let program = Program::new(LanguageOptions::default(), &files);
+    let program = Program::new(LanguageOptions::default(), &fs, &files);
     let compiler = Compiler::from_file(&program, file_id, CompileOptions::default());
     compiler.compile();
     drop(compiler);

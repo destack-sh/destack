@@ -1,7 +1,6 @@
-use std::fs;
 use std::path::Path;
 
-use dyst_source::{File, FileId, FileRegistry, FileType, Uri};
+use dyst_source::{File, FileId, FileRegistry, FileSystem, FileType, Uri};
 
 /// Input arguments describing a source file or inline string.
 pub(crate) struct SourceArg<'a> {
@@ -14,7 +13,8 @@ pub(crate) struct SourceArg<'a> {
 }
 
 /// Read a source either from a file or inline string argument.
-pub(crate) fn get_string_or_file(
+pub(crate) fn get_string_or_file<Fs: FileSystem>(
+    fs: &mut Fs,
     files: &mut FileRegistry,
     source: SourceArg<'_>,
 ) -> Result<Option<FileId>, String> {
@@ -37,7 +37,7 @@ pub(crate) fn get_string_or_file(
             .map(|s| s.to_string_lossy().into_owned())
             .unwrap_or("<file>".to_string());
         let uri = Uri::from_string(path_str);
-        match fs::read_to_string(path) {
+        match fs.read_to_string(path) {
             Ok(content) => {
                 let file = File::from_text(file_id, name, uri, format, content);
                 files.insert(file);

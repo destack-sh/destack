@@ -1,3 +1,4 @@
+use std::fmt::Debug;
 use std::path::{Path, PathBuf};
 use std::{fs, io};
 
@@ -6,24 +7,26 @@ use cfg_if::cfg_if;
 use crate::FileMetadata;
 
 /// Abstract file system.
-pub trait FileSystem: Send + Sync {
+pub trait FileSystem: Send + Sync + Debug {
     /// Creates a new file system.
-    fn new() -> Self;
+    fn new() -> Self
+    where
+        Self: Sized;
 
     /// Reads the contents of a file into a vector of bytes.
-    /// See [std::fs::read]
+    /// See [std::fs::read].
     fn read(&self, path: &Path) -> io::Result<Vec<u8>>;
 
     /// Reads the contents of a file into a string.
-    /// See [std::fs::read_to_string]
+    /// See [std::fs::read_to_string].
     fn read_to_string(&self, path: &Path) -> io::Result<String>;
 
     /// Returns the metadata of a file.
-    /// See [std::fs::metadata]
+    /// See [std::fs::metadata].
     fn get_metadata(&self, path: &Path) -> io::Result<FileMetadata>;
 
     /// Returns the metadata of a symbolic link.
-    /// See [std::fs::symlink_metadata]
+    /// See [std::fs::symlink_metadata].
     fn get_symlink_metadata(&self, path: &Path) -> io::Result<FileMetadata>;
 
     /// Returns the path of a symbolic link.

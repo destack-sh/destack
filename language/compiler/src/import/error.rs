@@ -1,6 +1,6 @@
 use dyst_dir::{GlobalNodeIdAny, ModuleId, Program};
 use dyst_parser::ParseError;
-use dyst_source::{FileId, StringId};
+use dyst_source::{FileId, StringId, Uri};
 
 use crate::{CompileError, CompilePhase};
 
@@ -8,8 +8,12 @@ use crate::{CompileError, CompilePhase};
 #[derive(Debug, Clone)]
 #[repr(u8)]
 pub enum ImportError {
+    /// Invalid URI.
+    InvalidUri { uri: Uri },
     /// File ID not found.
     FileIdNotFound { file_id: FileId },
+    /// File URI not found.
+    FileUriNotFound { uri: Uri },
     /// Module could not be resolved.
     ModuleNotFound {
         target: StringId,
@@ -31,17 +35,21 @@ impl ImportError {
     #[inline]
     pub fn sub_code(&self) -> u8 {
         match self {
-            Self::FileIdNotFound { .. } => 1,
-            Self::ModuleNotFound { .. } => 2,
-            Self::ParseError { .. } => 3,
-            Self::CircularDependency { .. } => 4,
+            Self::InvalidUri { .. } => 1,
+            Self::FileIdNotFound { .. } => 2,
+            Self::FileUriNotFound { .. } => 3,
+            Self::ModuleNotFound { .. } => 4,
+            Self::ParseError { .. } => 5,
+            Self::CircularDependency { .. } => 6,
         }
     }
 
     /// Get the node id of the error.
     pub fn node_id(&self) -> Option<GlobalNodeIdAny> {
         match self {
+            Self::InvalidUri { .. } => None,
             Self::FileIdNotFound { .. } => None,
+            Self::FileUriNotFound { .. } => None,
             Self::ModuleNotFound { .. } => None,
             Self::ParseError { node, .. } => Some(*node),
             Self::CircularDependency { node, .. } => Some(*node),
@@ -51,7 +59,9 @@ impl ImportError {
     /// Get the message of the error.
     pub fn message<'a>(&self, program: &'a Program<'a>) -> String {
         match self {
+            Self::InvalidUri { uri } => format!("invalid URI: '{uri}'"),
             Self::FileIdNotFound { .. } => "file not found".to_string(),
+            Self::FileUriNotFound { uri } => format!("file URI not found: '{uri}'"),
             Self::ModuleNotFound {
                 target, directory, ..
             } => {

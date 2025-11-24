@@ -1,7 +1,7 @@
 use clap::{ArgGroup, Args, ValueEnum};
 use dyst_compiler::{CompileOptions, Compiler};
 use dyst_dir::{Dumper, DumperOptions, NodeVisitor, Program};
-use dyst_source::{DiagnosticOptions, FileRegistry, LanguageOptions};
+use dyst_source::{DiagnosticOptions, FileRegistry, LanguageOptions, PhysicalFileSystem};
 
 use crate::command::{DiagnosticOptionsArgs, SourceArg, get_string_or_file, print_diagnostics};
 use crate::console;
@@ -79,8 +79,10 @@ pub fn run(args: &CompileArgs) -> i32 {
     let diagnostic_options: DiagnosticOptions = args.diagnostics.clone().into();
 
     // read input source
+    let mut fs = PhysicalFileSystem::new();
     let mut files = FileRegistry::new();
     let file_id = match get_string_or_file(
+        &mut fs,
         &mut files,
         SourceArg {
             file: args.file.as_deref(),
@@ -100,7 +102,7 @@ pub fn run(args: &CompileArgs) -> i32 {
     };
 
     // compile source
-    let program = Program::new(LanguageOptions::default(), &files);
+    let program = Program::new(LanguageOptions::default(), &fs, &files);
     let compiler = Compiler::from_file(
         &program,
         file_id,
