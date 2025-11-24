@@ -5,7 +5,7 @@ use dyst_dir::{
     LocalNodeId, LocalScopeId, Module, Mutability, NodeTree, Parameter, Path, SymbolKey,
     SymbolSpace, SymbolTable, TypeTable, Visibility,
 };
-use dyst_source::smallvec;
+use smallvec::smallvec;
 
 #[allow(clippy::too_many_arguments)]
 impl<'a> Compiler<'a> {

@@ -6,7 +6,8 @@ use dyst_ast::{
 use dyst_fir::format::{BestFittingMode, FormatError};
 use dyst_fir::prelude::*;
 use dyst_fir::{best_fitting, format_args, write};
-use dyst_source::{SmallVec, StringId, smallvec};
+use dyst_source::StringId;
+use smallvec::{SmallVec, smallvec};
 
 use crate::argument::list_like;
 use crate::block::format_block;
@@ -386,7 +387,7 @@ fn format_chain_expression_line<'ast>(
 /// Group chain operations into the segments that should share lines.
 fn group_chain_expression_lines(
     operations: Vec<ChainExpression>,
-) -> Vec<SmallVec<ChainExpression, 2>> {
+) -> Vec<SmallVec<[ChainExpression; 2]>> {
     let mut lines = Vec::new();
     let mut iter = operations.into_iter().peekable();
     while let Some(op) = iter.next() {
@@ -800,7 +801,7 @@ pub(crate) fn format_struct_literal<'ast>(
     let properties = properties_ids
         .iter()
         .map(|property| f.context().tree.get(*property))
-        .collect::<SmallVec<_, 3>>();
+        .collect::<SmallVec<[_; 3]>>();
 
     let is_trivial = properties.is_empty()
         || properties.len() <= 5
@@ -1414,7 +1415,7 @@ pub(crate) fn format_expression<'ast>(
             let elements = elements_ids
                 .iter()
                 .map(|id| tree.get(*id))
-                .collect::<SmallVec<_, 3>>();
+                .collect::<SmallVec<[_; 3]>>();
             let should_expand = elements.len() > 1
                 && elements
                     .iter()
@@ -1437,7 +1438,7 @@ pub(crate) fn format_expression<'ast>(
                 let elements = elements_ids
                     .iter()
                     .map(|id| tree.get(*id))
-                    .collect::<SmallVec<_, 3>>();
+                    .collect::<SmallVec<[_; 3]>>();
                 let should_expand = elements.len() > 1
                     && elements
                         .iter()

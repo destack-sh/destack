@@ -1,6 +1,6 @@
 use std::fmt::Debug;
 
-use dyst_source::SmallVec;
+use smallvec::SmallVec;
 
 use crate::StringId;
 
@@ -15,5 +15,5 @@ use crate::StringId;
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub struct Path {
-    pub segments: SmallVec<StringId, 3>,
+    pub segments: SmallVec<[StringId; 3]>,
 }

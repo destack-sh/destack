@@ -2976,6 +2976,7 @@ dependencies = [
  "dyst_source",
  "dyst_unicode",
  "pprof",
+ "smallvec",
 ]
 
 [[package]]
@@ -2995,6 +2996,7 @@ dependencies = [
  "rayon",
  "serde",
  "serde_json",
+ "smallvec",
 ]
 
 [[package]]
@@ -3010,6 +3012,7 @@ dependencies = [
  "rustc-hash 2.1.1",
  "serde",
  "serde_json",
+ "smallvec",
 ]
 
 [[package]]
@@ -3028,6 +3031,7 @@ dependencies = [
  "dyst_fir",
  "dyst_parser",
  "dyst_source",
+ "smallvec",
 ]
 
 [[package]]
@@ -3037,6 +3041,7 @@ dependencies = [
  "dyst_dir",
  "dyst_source",
  "dyst_unicode",
+ "smallvec",
 ]
 
 [[package]]
@@ -3068,6 +3073,7 @@ dependencies = [
  "dyst_unicode",
  "parking_lot",
  "rayon",
+ "smallvec",
 ]
 
 [[package]]
@@ -3112,6 +3118,7 @@ dependencies = [
  "dyst_source",
  "dyst_unicode",
  "pprof",
+ "smallvec",
 ]
 
 [[package]]
@@ -3146,6 +3153,7 @@ dependencies = [
  "serde",
  "serde_json",
  "simdutf8",
+ "smallvec",
 ]
 
 [[package]]

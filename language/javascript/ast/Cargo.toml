@@ -16,6 +16,7 @@ dyst_dir = { workspace = true }
 dyst_source = { workspace = true }
 
 dyst_unicode = { workspace = true }
+smallvec = { workspace = true }
 
 [dev-dependencies]
 

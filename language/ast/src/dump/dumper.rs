@@ -1,7 +1,8 @@
 #![allow(clippy::match_like_matches_macro)]
 
 use crate::*;
-use dyst_source::{Color, ImmutableStringPool, SmallVec, impl_dump_display, rebuild_tree_output};
+use dyst_source::{Color, ImmutableStringPool, impl_dump_display, rebuild_tree_output};
+use smallvec::{Array, SmallVec};
 use std::borrow::Cow;
 
 #[derive(Debug, Clone, Copy)]
@@ -303,8 +304,11 @@ impl<T: Dump> Dump for Vec<T> {
     }
 }
 
-/// Dump a SmallVec<T, N> as a slice.
-impl<T: Dump, const N: usize> Dump for SmallVec<T, N> {
+/// Dump a SmallVec<A> as a slice.
+impl<A: Array> Dump for SmallVec<A>
+where
+    A::Item: Dump,
+{
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
         self.as_slice().dump(dumper)
     }

@@ -1,8 +1,9 @@
 use std::collections::HashMap;
 
 use dyst_dir as dir;
-use dyst_source::{DiagnosticOptions, SmallVec, Uri, smallvec};
+use dyst_source::{DiagnosticOptions, Uri};
 use parking_lot::RwLock;
+use smallvec::{SmallVec, smallvec};
 
 use crate::{
     JavaScriptFormatOptions, TranspileDiagnostic, TranspileError, TranspileWarning,
@@ -50,7 +51,7 @@ pub enum TranspileTarget {
 
 impl TranspileTarget {
     /// Get the language targets for transpiling.
-    pub fn language_targets(&self) -> SmallVec<TranspilerLanguage, 3> {
+    pub fn language_targets(&self) -> SmallVec<[TranspilerLanguage; 3]> {
         match self {
             TranspileTarget::JavaScript => smallvec![TranspilerLanguage::JavaScript],
             TranspileTarget::TypeScript => smallvec![TranspilerLanguage::TypeScript],
