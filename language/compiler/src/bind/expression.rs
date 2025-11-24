@@ -1,8 +1,7 @@
 use dyst_ast::{self as ast};
 use dyst_dir::{
-    DependencyItem, Expression, ForEachKind, IfKind, LocalNodeId, LocalScopeId, LoopKind,
-    MatchSource, Module, NodeTree, ScopeKind, SymbolKey, SymbolSpace, SymbolTable, TypeTable,
-    YieldCardinality,
+    Expression, ForEachKind, IfKind, LocalNodeId, LocalScopeId, LoopKind, MatchSource, Module,
+    NodeTree, ScopeKind, SymbolKey, SymbolSpace, SymbolTable, TypeTable, YieldCardinality,
 };
 
 use crate::Compiler;
@@ -74,7 +73,6 @@ impl<'a> Compiler<'a> {
             ast::Expression::Import {
                 kind,
                 target,
-                alias,
                 items,
                 arguments,
             } => {
@@ -83,39 +81,21 @@ impl<'a> Compiler<'a> {
                     .strings
                     .intern_from(&module.ast_strings, *target);
                 // items
-                let mut items: Vec<_> = items
-                    .as_ref()
-                    .map(|items| {
-                        items
-                            .iter()
-                            .map(|item| {
-                                self.bind_dependency_item(
-                                    module, scope_id, *kind, *item, tree, symbols, types,
-                                )
-                            })
-                            .collect()
+                let items: Vec<_> = items
+                    .iter()
+                    .map(|item| {
+                        self.bind_dependency_item(
+                            module,
+                            scope_id,
+                            *kind,
+                            Some(target),
+                            *item,
+                            tree,
+                            symbols,
+                            types,
+                        )
                     })
-                    .unwrap_or_default();
-                // default item
-                if let Some(alias) = alias {
-                    let alias = self
-                        .program
-                        .strings
-                        .intern_from(&module.ast_strings, *alias);
-                    let symbol_id = symbols.insert_symbol(
-                        SymbolSpace::Value,
-                        Some(SymbolKey::Name(alias)),
-                        scope_id,
-                    );
-                    let item = DependencyItem::UnresolvedDefault {
-                        kind: self.bind_dependency_kind(*kind),
-                        alias,
-                        symbol: symbol_id,
-                    };
-                    let item_id = tree.insert_from_source(item, expression_id, scope_id);
-                    symbols.set_primary_declaration(symbol_id, item_id);
-                    items.push(item_id);
-                }
+                    .collect();
                 // arguments
                 let arguments = arguments.as_ref().map(|arguments| {
                     arguments
@@ -135,14 +115,10 @@ impl<'a> Compiler<'a> {
                 }
             }
             ast::Expression::Export {
-                mode,
                 kind,
                 target,
-                alias,
                 items,
-                value,
             } => {
-                let mode = self.bind_export_type(*mode);
                 let target = target.map(|target| {
                     self.program
                         .strings
@@ -151,43 +127,24 @@ impl<'a> Compiler<'a> {
                 // re-export from import
                 if let Some(target) = target {
                     // items
-                    let mut items: Vec<_> = items
-                        .as_ref()
-                        .map(|items| {
-                            items
-                                .iter()
-                                .map(|item| {
-                                    self.bind_dependency_item(
-                                        module, scope_id, *kind, *item, tree, symbols, types,
-                                    )
-                                })
-                                .collect()
+                    let items: Vec<_> = items
+                        .iter()
+                        .map(|item| {
+                            self.bind_dependency_item(
+                                module,
+                                scope_id,
+                                *kind,
+                                Some(target),
+                                *item,
+                                tree,
+                                symbols,
+                                types,
+                            )
                         })
-                        .unwrap_or_default();
-                    // default item
-                    if let Some(alias) = alias {
-                        let alias = self
-                            .program
-                            .strings
-                            .intern_from(&module.ast_strings, *alias);
-                        let symbol_id = symbols.insert_symbol(
-                            SymbolSpace::Value,
-                            Some(SymbolKey::Name(alias)),
-                            scope_id,
-                        );
-                        let item = DependencyItem::UnresolvedDefault {
-                            kind: self.bind_dependency_kind(*kind),
-                            alias,
-                            symbol: symbol_id,
-                        };
-                        let item_id = tree.insert_from_source(item, expression_id, scope_id);
-                        symbols.set_primary_declaration(symbol_id, item_id);
-                        items.push(item_id);
-                    }
+                        .collect();
                     let kind = self.bind_dependency_kind(*kind);
                     // re-export
                     Expression::UnresolvedReExport {
-                        mode,
                         target,
                         kind,
                         items,
@@ -197,33 +154,18 @@ impl<'a> Compiler<'a> {
                 else {
                     // export = value
                     let items = {
-                        if let Some(value_id) = value {
-                            let value = self
-                                .bind_expression(module, scope_id, *value_id, tree, symbols, types);
-                            let item = DependencyItem::Value { value };
-                            let item_id = tree.insert_from_source(item, *value_id, scope_id);
-                            vec![item_id]
-                        }
                         // export items
-                        else {
-                            items
-                                .as_ref()
-                                .map(|items| {
-                                    items
-                                        .iter()
-                                        .map(|item| {
-                                            self.bind_dependency_item(
-                                                module, scope_id, *kind, *item, tree, symbols,
-                                                types,
-                                            )
-                                        })
-                                        .collect()
-                                })
-                                .unwrap_or_default()
-                        }
+                        items
+                            .iter()
+                            .map(|item| {
+                                self.bind_dependency_item(
+                                    module, scope_id, *kind, None, *item, tree, symbols, types,
+                                )
+                            })
+                            .collect()
                     };
                     let kind = self.bind_dependency_kind(*kind);
-                    Expression::Export { mode, kind, items }
+                    Expression::Export { kind, items }
                 }
             }
             ast::Expression::Let {

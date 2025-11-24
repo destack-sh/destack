@@ -1,6 +1,9 @@
 use dyst_ast::StringId;
 
-use crate::{DependencyItem, DependencyKind, GlobalSymbolId, LocalNodeId, LocalSymbolId, ModuleId};
+use crate::{
+    DependencyItem, DependencyKind, DependencyMode, GlobalSymbolId, LocalNodeId, LocalSymbolId,
+    ModuleId,
+};
 
 /// The source of the import.
 #[derive(Debug, Clone, PartialEq)]
@@ -27,83 +30,21 @@ impl DependencySource {
 
 /// A DependencyEdge is an edge in the dependency graph.
 #[derive(Debug, Clone, PartialEq)]
-pub enum DependencyEdge {
-    /// Unresolved default dependency edge.
-    /// Edges where the target is not found remain unresolved (we just resolve the module in place).
-    UnresolvedDefault {
-        kind: DependencyKind,
-        target: StringId,
-        module: Option<ModuleId>,
-        alias: StringId,
-        item: Option<LocalNodeId<DependencyItem>>,
-        source: DependencySource,
-        symbol: LocalSymbolId,
-    },
-    /// Unresolved item dependency edge.
-    /// Edges where the target is not found remain unresolved (we just resolve the module in place).
-    UnresolvedItem {
-        kind: DependencyKind,
-        target: StringId,
-        module: Option<ModuleId>,
-        name: StringId,
-        alias: Option<StringId>,
-        item: Option<LocalNodeId<DependencyItem>>,
-        source: DependencySource,
-        symbol: LocalSymbolId,
-    },
-    /// Resolved default dependency edge.
-    Default {
-        kind: DependencyKind,
-        target: StringId,
-        module: ModuleId,
-        item: Option<LocalNodeId<DependencyItem>>,
-        source: DependencySource,
-        symbol: LocalSymbolId,
-        target_symbol: GlobalSymbolId,
-    },
-    /// Resolved dependency edge.
-    Item {
-        kind: DependencyKind,
-        target: StringId,
-        module: ModuleId,
-        item: Option<LocalNodeId<DependencyItem>>,
-        source: DependencySource,
-        symbol: LocalSymbolId,
-        target_symbol: GlobalSymbolId,
-    },
-}
-
-impl DependencyEdge {
-    /// Whether the dependency edge is resolved (ignoring child nodes).
-    pub fn is_resolved(&self) -> bool {
-        matches!(
-            self,
-            DependencyEdge::Item { .. } | DependencyEdge::Default { .. }
-        )
-    }
-
-    /// Whether the module is resolved.
-    pub fn is_module_resolved(&self) -> bool {
-        self.module().is_some()
-    }
-
-    /// Get the target name.
-    pub fn target(&self) -> StringId {
-        match self {
-            DependencyEdge::UnresolvedDefault { target, .. } => *target,
-            DependencyEdge::UnresolvedItem { target, .. } => *target,
-            DependencyEdge::Default { target, .. } => *target,
-            DependencyEdge::Item { target, .. } => *target,
-        }
-    }
-
-    /// Get the module.
-    pub fn module(&self) -> Option<ModuleId> {
-        match self {
-            DependencyEdge::UnresolvedDefault { module, .. } => *module,
-            DependencyEdge::UnresolvedItem { module, .. } => *module,
-            DependencyEdge::Default { module, .. } => Some(*module),
-            DependencyEdge::Item { module, .. } => Some(*module),
-        }
-    }
+pub struct DependencyEdge {
+    /// The mode of the dependency (item, default, namespace).
+    pub mode: DependencyMode,
+    /// The kind of the dependency (value or type).
+    pub kind: DependencyKind,
+    /// The unresolved target of the edge.
+    pub target: StringId,
+    /// The resolved module of the edge.
+    pub module: Option<ModuleId>,
+    /// The corresponding item in the tree.
+    pub item: Option<LocalNodeId<DependencyItem>>,
+    /// The source of the edge.
+    pub source: DependencySource,
+    /// The local symbol of the edge.
+    pub symbol: Option<LocalSymbolId>,
+    /// The global symbol of the target.
+    pub target_symbol: Option<GlobalSymbolId>,
 }

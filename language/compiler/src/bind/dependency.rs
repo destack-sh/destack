@@ -9,9 +9,9 @@ use crate::Compiler;
 
 #[allow(clippy::too_many_arguments)]
 impl<'a> Compiler<'a> {
-    /// Bind an export type to a DIR export type.
-    pub(super) fn bind_export_type(&self, export_type: ast::DependencyMode) -> DependencyMode {
-        match export_type {
+    /// Bind a dependency mode to a DIR dependency mode.
+    pub(super) fn bind_dependency_mode(&self, mode: ast::DependencyMode) -> DependencyMode {
+        match mode {
             ast::DependencyMode::Item => DependencyMode::Item,
             ast::DependencyMode::Default => DependencyMode::Default,
             ast::DependencyMode::Namespace => DependencyMode::Namespace,
@@ -35,31 +35,44 @@ impl<'a> Compiler<'a> {
         module: &Module,
         scope_id: LocalScopeId,
         kind: ast::DependencyKind,
+        target: Option<StringId>,
         item_id: ast::LocalNodeId<ast::DependencyItem>,
         tree: &mut NodeTree,
         symbols: &mut SymbolTable,
         _types: &mut TypeTable,
     ) -> LocalNodeId<DependencyItem> {
-        let item = module.get(item_id);
+        let item = module.ast.get(item_id);
         let kind = self.bind_dependency_kind(item.kind.unwrap_or(kind));
-        let name = self
-            .program
-            .strings
-            .intern_from(&module.ast_strings, item.name);
+        let mode = self.bind_dependency_mode(item.mode);
+        let name = item
+            .name
+            .map(|name| self.program.strings.intern_from(&module.ast_strings, name));
         let alias = item
             .alias
             .map(|alias| self.program.strings.intern_from(&module.ast_strings, alias));
-        let symbol_id =
-            symbols.insert_symbol(SymbolSpace::Value, Some(SymbolKey::Name(name)), scope_id);
-        let item = DependencyItem::UnresolvedItem {
-            kind,
-            name,
-            alias,
-            symbol: symbol_id,
-        };
-        let item_id = tree.insert_from_source(item, item_id, scope_id);
-        symbols.set_primary_declaration(symbol_id, item_id);
-        item_id
+        if let Some(target) = target {
+            let target = self
+                .program
+                .strings
+                .intern_from(&module.ast_strings, target);
+            let symbol_id =
+                symbols.insert_symbol(SymbolSpace::Value, name.map(SymbolKey::Name), scope_id);
+            let item = DependencyItem::UnresolvedRemote {
+                mode,
+                kind,
+                alias,
+                target,
+                symbol: symbol_id,
+            };
+            tree.insert_from_source(item, item_id, scope_id)
+        } else {
+            let item = DependencyItem::UnresolvedLocal {
+                mode,
+                kind,
+                name: name.unwrap_or_else(|| panic!("name is required for local dependency item")),
+            };
+            tree.insert_from_source(item, item_id, scope_id)
+        }
     }
 
     /// Extract the dependency edges of a module.
@@ -71,40 +84,13 @@ impl<'a> Compiler<'a> {
         _symbols: &mut SymbolTable,
     ) -> Vec<DependencyEdge> {
         fn bind_dependency_item_to_edge(
-            target: StringId,
-            item_id: LocalNodeId<DependencyItem>,
+            _target: StringId,
+            _item_id: LocalNodeId<DependencyItem>,
             item: &DependencyItem,
-            source: DependencySource,
+            _source: DependencySource,
         ) -> Option<DependencyEdge> {
             match item {
-                DependencyItem::UnresolvedDefault {
-                    kind,
-                    alias,
-                    symbol,
-                } => Some(DependencyEdge::UnresolvedDefault {
-                    kind: *kind,
-                    target,
-                    module: None,
-                    alias: *alias,
-                    item: Some(item_id),
-                    source,
-                    symbol: *symbol,
-                }),
-                DependencyItem::UnresolvedItem {
-                    kind,
-                    name,
-                    alias,
-                    symbol,
-                } => Some(DependencyEdge::UnresolvedItem {
-                    kind: *kind,
-                    target,
-                    module: None,
-                    name: *name,
-                    alias: *alias,
-                    item: Some(item_id),
-                    source,
-                    symbol: *symbol,
-                }),
+                // TODO #Broken: bind dependency items to edges
                 _ => None,
             }
         }

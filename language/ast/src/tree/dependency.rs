@@ -2,14 +2,14 @@ use dyst_source::StringId;
 
 use crate::{Expression, LocalNodeId, Node, NodeType};
 
-/// The mode of an export.
+/// The mode of a dependency item.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum DependencyMode {
     /// Regular item (`import { foo } from "foo"` or `export { foo } from "foo"`)
     Item,
     /// Default item (`export default foo`)
     Default,
-    /// Namespace (`export = foo`)
+    /// Namespace (`export * from "foo"` or `export = foo`)
     Namespace,
 }
 

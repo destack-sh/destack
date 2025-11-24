@@ -100,7 +100,7 @@ impl<'a> Compiler<'a> {
             ImportTask::ImportModuleFromSpecifier {
                 target,
                 module,
-                source,
+                source: _,
             } => {
                 return Err(ImportError::ModuleNotFound {
                     target,

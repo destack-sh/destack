@@ -212,7 +212,6 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             }
         }
         Expression::UnresolvedReExport {
-            mode: _,
             target: _,
             kind: _,
             items,
@@ -223,7 +222,6 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             }
         }
         Expression::ReExport {
-            mode: _,
             target: _,
             module: _,
             kind: _,
@@ -234,11 +232,7 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
                 visitor.visit_dependency_item(tree, *item_id, item);
             }
         }
-        Expression::Export {
-            mode: _,
-            kind: _,
-            items,
-        } => {
+        Expression::Export { kind: _, items } => {
             for item_id in items {
                 let item = tree.get(*item_id);
                 visitor.visit_dependency_item(tree, *item_id, item);
@@ -913,7 +907,8 @@ pub fn walk_dependency_item<V: NodeVisitor + ?Sized>(
 ) {
     visitor.visit_any(tree, NodeType::DependencyItem, id.id);
     match dependency_item {
-        DependencyItem::UnresolvedRemoteDefault {
+        DependencyItem::UnresolvedRemote {
+            mode: _,
             kind: _,
             alias: _,
             target: _,
@@ -921,23 +916,11 @@ pub fn walk_dependency_item<V: NodeVisitor + ?Sized>(
         } => {
             // nothing to do
         }
-        DependencyItem::UnresolvedRemoteItem {
+        DependencyItem::UnresolvedLocal {
+            mode: _,
             kind: _,
             name: _,
-            alias: _,
-            target: _,
-            symbol: _,
         } => {
-            // nothing to do
-        }
-        DependencyItem::UnresolvedLocalDefault {
-            kind: _,
-            name: _,
-            alias: _,
-        } => {
-            // nothing to do
-        }
-        DependencyItem::UnresolvedLocalItem { kind: _, name: _ } => {
             // nothing to do
         }
         DependencyItem::Value { value } => {
@@ -945,21 +928,23 @@ pub fn walk_dependency_item<V: NodeVisitor + ?Sized>(
             visitor.visit_expression(tree, *value, value_expression);
         }
         DependencyItem::Local {
+            mode: _,
             kind: _,
             name: _,
             alias: _,
-            symbol: _,
+            target_symbol: _,
         } => {
             // nothing to do
         }
         DependencyItem::Remote {
+            mode: _,
             kind: _,
             name: _,
             alias: _,
             target: _,
+            module: _,
             symbol: _,
             target_symbol: _,
-            module: _,
         } => {
             // nothing to do
         }

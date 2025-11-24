@@ -38,7 +38,6 @@ pub enum Expression {
     },
     /// Unresolved re-export dependency declaration (like `export { bar } from foo`).
     UnresolvedReExport {
-        mode: DependencyMode,
         target: StringId,
         kind: DependencyKind,
         items: Vec<LocalNodeId<DependencyItem>>,
@@ -53,7 +52,6 @@ pub enum Expression {
     },
     /// Re-export dependency (like `export { bar } from "foo"` or `export * as foo from "foo"`).
     ReExport {
-        mode: DependencyMode,
         target: StringId,
         module: ModuleId,
         kind: DependencyKind,
@@ -61,7 +59,6 @@ pub enum Expression {
     },
     /// Export dependency (like `export { bar }` or `export = foo`).
     Export {
-        mode: DependencyMode,
         kind: DependencyKind,
         items: Vec<LocalNodeId<DependencyItem>>,
     },

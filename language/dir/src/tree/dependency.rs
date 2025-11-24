@@ -2,14 +2,14 @@ use dyst_source::StringId;
 
 use crate::{Expression, GlobalSymbolId, LocalNodeId, LocalSymbolId, ModuleId, Node, NodeType};
 
-/// How an Export should be treated for processing by the system.
+/// The mode of a dependency item.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum DependencyMode {
-    /// Export as regular item (export foo)
+    /// Regular item (`import { foo } from "foo"` or `export { foo } from "foo"`)
     Item,
-    /// Export as default item (export default foo)
+    /// Default item (`export default foo`)
     Default,
-    /// Export as entire namespace (export * from foo)
+    /// Namespace (`export * from "foo"` or `export = foo`)
     Namespace,
 }
 
@@ -25,29 +25,17 @@ pub enum DependencyKind {
 /// A DependencyItem is an item to use in a import clause.
 #[derive(Debug, Clone, PartialEq)]
 pub enum DependencyItem {
-    /// Unresolved default from a target (like `import * as foo from "foo"`).
-    UnresolvedRemoteDefault {
+    /// Unresolved remote item aliased to a local item from a target.
+    UnresolvedRemote {
+        mode: DependencyMode,
         kind: DependencyKind,
-        alias: StringId,
-        target: StringId,
-        symbol: LocalSymbolId,
-    },
-    /// Import or export a single item from a target (`import { foo } from "foo"` or `export { foo } from "foo"`).
-    UnresolvedRemoteItem {
-        kind: DependencyKind,
-        name: StringId,
         alias: Option<StringId>,
         target: StringId,
         symbol: LocalSymbolId,
     },
-    /// Export a default item from the module (like `export default foo`).
-    UnresolvedLocalDefault {
-        kind: DependencyKind,
-        name: StringId,
-        alias: Option<StringId>,
-    },
-    /// Export a single item from the module (like `export { foo }`).
-    UnresolvedLocalItem {
+    /// Unresolved local item from the module.
+    UnresolvedLocal {
+        mode: DependencyMode,
         kind: DependencyKind,
         name: StringId,
     },
@@ -55,20 +43,22 @@ pub enum DependencyItem {
     Value { value: LocalNodeId<Expression> },
     /// Internal to the module (i.e., plain exports).
     Local {
+        mode: DependencyMode,
         kind: DependencyKind,
         name: StringId,
         alias: Option<StringId>,
-        symbol: LocalSymbolId,
+        target_symbol: LocalSymbolId,
     },
     /// Remote to the module (i.e., imports and re-exports).
     Remote {
+        mode: DependencyMode,
         kind: DependencyKind,
         name: StringId,
         alias: Option<StringId>,
         target: StringId,
+        module: ModuleId,
         symbol: LocalSymbolId,
         target_symbol: GlobalSymbolId,
-        module: ModuleId,
     },
 }
 

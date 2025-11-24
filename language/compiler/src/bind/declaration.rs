@@ -47,7 +47,7 @@ impl<'a> Compiler<'a> {
         let anchor = self.bind_binding_anchor(descriptor.anchor);
         let export = descriptor
             .export
-            .map(|export| self.bind_export_type(export));
+            .map(|export| self.bind_dependency_mode(export));
         let descriptor = DeclarationDescriptor {
             kind,
             anchor,
