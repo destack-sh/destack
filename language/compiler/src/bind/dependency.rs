@@ -84,14 +84,37 @@ impl<'a> Compiler<'a> {
         _symbols: &mut SymbolTable,
     ) -> Vec<DependencyEdge> {
         fn bind_dependency_item_to_edge(
-            _target: StringId,
-            _item_id: LocalNodeId<DependencyItem>,
+            target: StringId,
+            item_id: LocalNodeId<DependencyItem>,
             item: &DependencyItem,
-            _source: DependencySource,
+            source: DependencySource,
         ) -> Option<DependencyEdge> {
             match item {
-                // TODO #Broken: bind dependency items to edges
-                _ => None,
+                DependencyItem::UnresolvedRemote {
+                    mode, kind, symbol, ..
+                } => Some(DependencyEdge {
+                    mode: *mode,
+                    kind: *kind,
+                    target,
+                    module: None,
+                    item: Some(item_id),
+                    source,
+                    symbol: Some(*symbol),
+                    target_symbol: None,
+                }),
+                DependencyItem::UnresolvedLocal { mode, kind, .. } => Some(DependencyEdge {
+                    mode: *mode,
+                    kind: *kind,
+                    target,
+                    module: None,
+                    item: Some(item_id),
+                    source,
+                    symbol: None,
+                    target_symbol: None,
+                }),
+                DependencyItem::Value { .. }
+                | DependencyItem::Local { .. }
+                | DependencyItem::Remote { .. } => None,
             }
         }
 

@@ -651,28 +651,22 @@ impl<'a> NodeVisitor for Dumper<'a> {
             Statement::Import {
                 kind,
                 target,
-                alias,
                 items: _,
                 arguments: _,
             } => {
                 self.node("Statement::Import", id.id)
                     .field("kind", kind)
                     .field("target", target)
-                    .field_optional("alias", alias)
                     .end();
             }
             Statement::Export {
-                mode,
                 kind,
                 target,
-                alias,
                 items: _,
             } => {
                 self.node("Statement::Export", id.id)
-                    .field("mode", mode)
                     .field("kind", kind)
                     .field_optional("target", target)
-                    .field_optional("alias", alias)
                     .end();
             }
             Statement::ExportValue { value: _ } => {
@@ -1067,8 +1061,9 @@ impl<'a> NodeVisitor for Dumper<'a> {
         dependency_item: &DependencyItem,
     ) {
         self.node("DependencyItem", id.id)
+            .field("mode", &dependency_item.mode)
             .field_optional("kind", &dependency_item.kind)
-            .field("name", &dependency_item.name)
+            .field_optional("name", &dependency_item.name)
             .field_optional("alias", &dependency_item.alias)
             .end();
         self.with_depth(|dumper| {

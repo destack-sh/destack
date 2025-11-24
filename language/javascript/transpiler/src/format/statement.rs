@@ -1,5 +1,5 @@
 use crate::format::argument::list_like;
-use crate::format::dependency::format_dependency_binding;
+use crate::format::dependency::{format_export_binding, format_import_binding};
 use crate::{FormatNode, JavaScriptFormatter};
 use dyst_fir::format::FormatResult;
 use dyst_fir::prelude::*;
@@ -16,7 +16,6 @@ impl<'ast> FormatNode<'ast, Statement> for Statement {
             Statement::Import {
                 kind,
                 target,
-                alias,
                 items,
                 arguments,
             } => {
@@ -24,7 +23,7 @@ impl<'ast> FormatNode<'ast, Statement> for Statement {
                 if *kind == DependencyKind::Type {
                     write!(f, [Keyword::Type, space()])?;
                 }
-                format_dependency_binding(f, Some(*target), *alias, Some(items), false)?;
+                format_import_binding(f, *target, items)?;
                 if let Some(arguments) = arguments {
                     write!(
                         f,
@@ -37,18 +36,12 @@ impl<'ast> FormatNode<'ast, Statement> for Statement {
                     )?;
                 }
             }
-            Statement::Export {
-                mode,
-                kind,
-                target,
-                alias,
-                items,
-            } => {
-                write!(f, [mode, space()])?;
+            Statement::Export { kind, target, items } => {
+                write!(f, [Keyword::Export, space()])?;
                 if *kind == DependencyKind::Type {
                     write!(f, [Keyword::Type, space()])?;
                 }
-                format_dependency_binding(f, *target, *alias, Some(items), true)?;
+                format_export_binding(f, *target, items)?;
             }
             Statement::ExportValue { value } => {
                 write!(f, [Keyword::Export, space(), token("="), space(), value])?;

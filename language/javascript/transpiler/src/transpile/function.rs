@@ -4,7 +4,7 @@ use dyst_javascript_ast::{
     FunctionSignature,
 };
 
-use crate::{TranspileError, TranspileResult, TranspileResultExt, Transpiler, TranspilerUnit};
+use crate::{TranspileError, TranspileResult, Transpiler, TranspilerUnit};
 
 impl<'a> Transpiler<'a> {
     /// Transpile asynchrony from DIR into JS AST.
@@ -87,7 +87,7 @@ impl<'a> Transpiler<'a> {
                 self.transpile_parameter(module, tree, symbols, types, *parameter, unit)
             })
             .collect::<Result<Vec<_>, TranspileError>>()?;
-        let return_type = function_signature.return_type.map(|return_type| {
+        let return_type = function_signature.return_type.map(|_| {
             todo!("transpile return type");
         });
         Ok(FunctionSignature {

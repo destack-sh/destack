@@ -109,7 +109,6 @@ pub fn walk_statement<V: NodeVisitor + ?Sized>(
         Statement::Import {
             kind: _,
             target: _,
-            alias: _,
             items,
             arguments,
         } => {
@@ -125,10 +124,8 @@ pub fn walk_statement<V: NodeVisitor + ?Sized>(
             }
         }
         Statement::Export {
-            mode: _,
             kind: _,
             target: _,
-            alias: _,
             items,
         } => {
             for item_id in items {
@@ -714,9 +711,13 @@ pub fn walk_dependency_item<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
     tree: &NodeTree,
     id: LocalNodeId<DependencyItem>,
-    _dependency_item: &DependencyItem,
+    dependency_item: &DependencyItem,
 ) {
     visitor.visit_any(tree, NodeType::DependencyItem, id.id);
+    if let Some(value) = &dependency_item.value {
+        let value_expr = tree.get(*value);
+        visitor.visit_expression(tree, *value, value_expr);
+    }
 }
 
 /// Walk a switch case.
