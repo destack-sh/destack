@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use crate::{BindTask, CompileTask, Compiler, ImportError, ImportResult};
 
 use dyst_dir::{Module, PackageId, Program};
@@ -59,7 +61,8 @@ impl From<ImportTask> for CompileTask {
 impl<'a> Compiler<'a> {
     /// Process an import task for a module.
     pub fn process_import(&self, task: ImportTask) -> ImportResult<()> {
-        let file: &File = match task {
+        // read file
+        let file: Arc<File> = match task {
             ImportTask::ImportModuleFromFile { file: file_id } => {
                 match self.program.files.get(file_id) {
                     Some(file) => file,
@@ -104,7 +107,7 @@ impl<'a> Compiler<'a> {
 
         // parse AST from file
         let mut diagnostics = DiagnosticCollector::new();
-        let mut parser = Parser::lex_file(file, self.program.language, &mut diagnostics);
+        let mut parser = Parser::lex_file(file.as_ref(), self.program.language, &mut diagnostics);
         let expressions = parser.parse();
         self.program.diagnostics.merge_from(parser.diagnostics);
 

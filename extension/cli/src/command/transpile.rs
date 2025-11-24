@@ -3,7 +3,8 @@ use dyst_compiler::{CompileOptions, Compiler};
 use dyst_dir::Program;
 use dyst_javascript_transpiler::{TranspileOptions, TranspileTarget, Transpiler};
 use dyst_source::{
-    DiagnosticOptions, DiagnosticSeverity, FileContent, FileRegistry, LanguageOptions,
+    DiagnosticOptions, DiagnosticSeverity, FileContent, FileRegistry, FileSystem, LanguageOptions,
+    PhysicalFileSystem,
 };
 
 use crate::command::{DiagnosticOptionsArgs, SourceArg, get_string_or_file, print_diagnostics};
