@@ -1,6 +1,6 @@
 use crate::{
-    Argument, AssignOperator, Block, Declaration, DependencyItem, DependencyKind, DependencyMode,
-    Expression, LocalNodeId, Mutability, Node, NodeType, Parameter, Pattern, StringId, Type,
+    Argument, AssignOperator, Block, Declaration, DependencyItem, DependencyKind, Expression,
+    LocalNodeId, Mutability, Node, NodeType, Parameter, Pattern, StringId, Type,
 };
 
 /// A Statement is a JS/TS top-level statement in some container/block.
@@ -10,16 +10,13 @@ pub enum Statement {
     Import {
         kind: DependencyKind,
         target: StringId,
-        alias: Option<StringId>,
         items: Vec<LocalNodeId<DependencyItem>>,
         arguments: Option<Vec<LocalNodeId<Argument>>>,
     },
     /// Export items (including type items).
     Export {
-        mode: DependencyMode,
         kind: DependencyKind,
         target: Option<StringId>,
-        alias: Option<StringId>,
         items: Vec<LocalNodeId<DependencyItem>>,
     },
     /// Export value.

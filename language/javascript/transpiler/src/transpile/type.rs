@@ -45,12 +45,12 @@ impl<'a> Transpiler<'a> {
     /// Transpile Heritage from DIR into JS AST.
     pub fn transpile_heritage(
         &self,
-        module: &'a Module,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &TypeTable,
+        _module: &'a Module,
+        _tree: &NodeTree,
+        _symbols: &SymbolTable,
+        _types: &TypeTable,
         heritage: &dir::Heritage,
-        unit: &mut TranspilerUnit,
+        _unit: &mut TranspilerUnit,
     ) -> TranspileResult<Heritage> {
         let extends_types = heritage
             .extends_types

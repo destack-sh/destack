@@ -1,8 +1,10 @@
-use crate::{TranspileError, TranspileResult, Transpiler, TranspilerUnit};
-use dyst_ast::StringId;
+use crate::{TranspileResult, TranspileResultExt, Transpiler, TranspilerUnit};
 use dyst_dir::{self as dir, Module, NodeTree, SymbolTable, TypeTable};
-use dyst_javascript_ast::{DependencyItem, DependencyKind, LocalNodeId};
+use dyst_javascript_ast::{
+    DependencyItem, DependencyKind, DependencyMode, Expression, LocalNodeId,
+};
 
+#[allow(clippy::too_many_arguments)]
 impl<'a> Transpiler<'a> {
     /// Transpile a dependency kind from DIR into JS AST.
     pub fn transpile_dependency_kind(&self, kind: dir::DependencyKind) -> DependencyKind {
@@ -12,65 +14,138 @@ impl<'a> Transpiler<'a> {
         }
     }
 
-    /// Transpile a dependency item from DIR into JS AST.
+    /// Transpile a dependency mode from DIR into JS AST.
+    pub fn transpile_dependency_mode(&self, mode: dir::DependencyMode) -> DependencyMode {
+        match mode {
+            dir::DependencyMode::Item => DependencyMode::Item,
+            dir::DependencyMode::Default => DependencyMode::Default,
+            dir::DependencyMode::Namespace => DependencyMode::Namespace,
+        }
+    }
+
+    /// Transpile dependency items from DIR into JS AST.
     pub fn transpile_dependency_items(
         &self,
         module: &'a Module,
         tree: &NodeTree,
-        _symbols: &SymbolTable,
-        _types: &TypeTable,
+        symbols: &SymbolTable,
+        types: &TypeTable,
         kind: dir::DependencyKind,
         item_ids: &[dir::LocalNodeId<dir::DependencyItem>],
         unit: &mut TranspilerUnit,
-    ) -> TranspileResult<(Option<StringId>, Vec<LocalNodeId<DependencyItem>>)> {
+    ) -> TranspileResult<Vec<LocalNodeId<DependencyItem>>> {
         let mut transpiled_item_ids: Vec<LocalNodeId<DependencyItem>> = Vec::new();
-        let mut default_alias: Option<StringId> = None;
         for item_id in item_ids {
             let item = tree.get(*item_id);
-            match item {
-                dir::DependencyItem::UnresolvedDefault {
-                    kind: _,
+            let transpiled_item = match item {
+                dir::DependencyItem::UnresolvedRemote {
+                    mode,
+                    kind: item_kind,
                     alias,
+                    target: _,
                     symbol: _,
                 } => {
-                    let alias = unit.strings.intern_from(&module.ast_strings, *alias);
-                    if default_alias.is_some() {
-                        return Err(TranspileError::UnsupportedNode {
-                            node: item_id.into_global_any(module.id),
-                            message: Some("multiple default items".to_string()),
-                        });
-                    }
-                    default_alias = Some(alias);
-                }
-                dir::DependencyItem::UnresolvedItem {
-                    kind: inner_kind,
-                    name,
-                    alias,
-                    symbol: _,
-                } => {
-                    let name = unit.strings.intern_from(&module.ast_strings, *name);
+                    let mode = self.transpile_dependency_mode(*mode);
                     let alias =
                         alias.map(|alias| unit.strings.intern_from(&module.ast_strings, alias));
-                    let item = DependencyItem {
-                        kind: if *inner_kind != kind {
-                            Some(self.transpile_dependency_kind(*inner_kind))
+                    DependencyItem {
+                        mode,
+                        kind: if *item_kind != kind {
+                            Some(self.transpile_dependency_kind(*item_kind))
                         } else {
                             None
                         },
-                        name,
+                        name: None,
                         alias,
-                    };
-                    let item_id = unit.ast.insert_from_source(item, module.id, *item_id);
-                    transpiled_item_ids.push(item_id);
+                        value: None,
+                    }
                 }
-                _ => {
-                    return Err(TranspileError::UnsupportedNode {
-                        node: item_id.into_global_any(module.id),
-                        message: None,
-                    });
+                dir::DependencyItem::UnresolvedLocal {
+                    mode,
+                    kind: item_kind,
+                    name,
+                } => {
+                    let mode = self.transpile_dependency_mode(*mode);
+                    let name = unit.strings.intern_from(&module.ast_strings, *name);
+                    DependencyItem {
+                        mode,
+                        kind: if *item_kind != kind {
+                            Some(self.transpile_dependency_kind(*item_kind))
+                        } else {
+                            None
+                        },
+                        name: Some(name),
+                        alias: None,
+                        value: None,
+                    }
+                }
+                dir::DependencyItem::Value { value } => {
+                    let value_id = self
+                        .transpile_expression(module, tree, symbols, types, *value, unit)
+                        .expect_node::<Expression>(value.into_global_any(module.id), unit)?;
+                    DependencyItem {
+                        mode: DependencyMode::Namespace,
+                        kind: None,
+                        name: None,
+                        alias: None,
+                        value: Some(value_id),
+                    }
+                }
+                dir::DependencyItem::Local {
+                    mode,
+                    kind: item_kind,
+                    name,
+                    alias,
+                    target_symbol: _,
+                } => {
+                    let mode = self.transpile_dependency_mode(*mode);
+                    let name = unit.strings.intern_from(&module.ast_strings, *name);
+                    let alias =
+                        alias.map(|alias| unit.strings.intern_from(&module.ast_strings, alias));
+                    DependencyItem {
+                        mode,
+                        kind: if *item_kind != kind {
+                            Some(self.transpile_dependency_kind(*item_kind))
+                        } else {
+                            None
+                        },
+                        name: Some(name),
+                        alias,
+                        value: None,
+                    }
+                }
+                dir::DependencyItem::Remote {
+                    mode,
+                    kind: item_kind,
+                    name,
+                    alias,
+                    target: _,
+                    module: _,
+                    symbol: _,
+                    target_symbol: _,
+                } => {
+                    let mode = self.transpile_dependency_mode(*mode);
+                    let name = unit.strings.intern_from(&module.ast_strings, *name);
+                    let alias =
+                        alias.map(|alias| unit.strings.intern_from(&module.ast_strings, alias));
+                    DependencyItem {
+                        mode,
+                        kind: if *item_kind != kind {
+                            Some(self.transpile_dependency_kind(*item_kind))
+                        } else {
+                            None
+                        },
+                        name: Some(name),
+                        alias,
+                        value: None,
+                    }
                 }
             };
+            let item_id = unit
+                .ast
+                .insert_from_source(transpiled_item, module.id, *item_id);
+            transpiled_item_ids.push(item_id);
         }
-        Ok((default_alias, transpiled_item_ids))
+        Ok(transpiled_item_ids)
     }
 }

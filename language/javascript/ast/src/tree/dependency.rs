@@ -1,4 +1,4 @@
-use crate::{Node, NodeType, StringId};
+use crate::{Expression, LocalNodeId, Node, NodeType, StringId};
 
 /// How an Export should be treated for processing by the system.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -29,12 +29,17 @@ pub enum DependencyKind {
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub struct DependencyItem {
-    /// The type of the item (if specified).
+    /// The mode of the item (Item, Default, Namespace).
+    pub mode: DependencyMode,
+    /// The type of the item (if specified, like `type` in `import type foo`).
     pub kind: Option<DependencyKind>,
-    /// The source of the item (like `foo` in `foo as bar`)
-    pub name: StringId,
-    /// The alias to use for the item (like `bar` in `foo as bar`)
+    /// The name of the item (like `foo` in `foo as bar`).
+    /// None for default/namespace items where only alias matters.
+    pub name: Option<StringId>,
+    /// The alias to use for the item (like `bar` in `foo as bar`).
     pub alias: Option<StringId>,
+    /// The value of the item (for `export = foo` style exports).
+    pub value: Option<LocalNodeId<Expression>>,
 }
 
 impl Node for DependencyItem {

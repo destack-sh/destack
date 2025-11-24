@@ -111,7 +111,7 @@ impl<'a> Transpiler<'a> {
                 arguments,
             } => {
                 let target = unit.strings.intern_from(&module.ast_strings, *target);
-                let (default_alias, items) = self.transpile_dependency_items(
+                let items = self.transpile_dependency_items(
                     module,
                     tree,
                     symbols,
@@ -137,7 +137,6 @@ impl<'a> Transpiler<'a> {
                 let statement = Statement::Import {
                     kind,
                     target,
-                    alias: default_alias,
                     items,
                     arguments,
                 };
@@ -146,21 +145,18 @@ impl<'a> Transpiler<'a> {
                     .into_any()
             }
             dir::Expression::UnresolvedReExport {
-                mode,
                 kind,
                 target,
                 items,
             }
             | dir::Expression::ReExport {
-                mode,
                 kind,
                 target,
                 module: _,
                 items,
             } => {
-                let mode = self.transpile_export_type(*mode);
                 let target = unit.strings.intern_from(&module.ast_strings, *target);
-                let (default_alias, items) = self.transpile_dependency_items(
+                let items = self.transpile_dependency_items(
                     module,
                     tree,
                     symbols,
@@ -171,10 +167,28 @@ impl<'a> Transpiler<'a> {
                 )?;
                 let kind = self.transpile_dependency_kind(*kind);
                 let statement = Statement::Export {
-                    mode,
                     kind,
                     target: Some(target),
-                    alias: default_alias,
+                    items,
+                };
+                unit.ast
+                    .insert_from_source(statement, module.id, expression_id)
+                    .into_any()
+            }
+            dir::Expression::Export { kind, items } => {
+                let items = self.transpile_dependency_items(
+                    module,
+                    tree,
+                    symbols,
+                    types,
+                    *kind,
+                    items.as_slice(),
+                    unit,
+                )?;
+                let kind = self.transpile_dependency_kind(*kind);
+                let statement = Statement::Export {
+                    kind,
+                    target: None,
                     items,
                 };
                 unit.ast
