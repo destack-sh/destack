@@ -808,38 +808,32 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .end();
             }
             Expression::UnresolvedReExport {
-                mode,
                 target,
                 kind,
                 items: _,
             } => {
                 self.node("Expression::UnresolvedReExport", id.id)
-                    .field("mode", mode)
                     .field("kind", kind)
                     .field("target", target)
                     .end();
             }
             Expression::ReExport {
-                mode,
                 target,
                 module,
                 kind,
                 items: _,
             } => {
                 self.node("Expression::ReExport", id.id)
-                    .field("mode", mode)
                     .field("kind", kind)
                     .field("target", target)
                     .field("module", module)
                     .end();
             }
             Expression::Export {
-                mode,
                 kind,
                 items: _,
             } => {
                 self.node("Expression::Export", id.id)
-                    .field("mode", mode)
                     .field("kind", kind)
                     .end();
             }
@@ -1414,43 +1408,24 @@ impl<'a> NodeVisitor for Dumper<'a> {
         dependency_item: &DependencyItem,
     ) {
         match dependency_item {
-            DependencyItem::UnresolvedRemoteDefault {
+            DependencyItem::UnresolvedRemote {
+                mode,
                 kind,
                 alias,
                 target,
                 symbol,
             } => {
                 self.node("DependencyItem::UnresolvedRemoteDefault", id.id)
+                    .field("mode", mode)
                     .field("kind", kind)
                     .field("alias", alias)
                     .field("target", target)
                     .field("symbol", symbol)
                     .end();
             }
-            DependencyItem::UnresolvedRemoteItem {
-                kind,
-                name,
-                alias,
-                target,
-                symbol,
-            } => {
-                self.node("DependencyItem::UnresolvedRemoteItem", id.id)
-                    .field("kind", kind)
-                    .field("name", name)
-                    .field_optional("alias", alias)
-                    .field("target", target)
-                    .field("symbol", symbol)
-                    .end();
-            }
-            DependencyItem::UnresolvedLocalDefault { kind, name, alias } => {
-                self.node("DependencyItem::UnresolvedLocalDefault", id.id)
-                    .field("kind", kind)
-                    .field("name", name)
-                    .field_optional("alias", alias)
-                    .end();
-            }
-            DependencyItem::UnresolvedLocalItem { kind, name } => {
-                self.node("DependencyItem::UnresolvedLocalItem", id.id)
+            DependencyItem::UnresolvedLocal { mode, kind, name } => {
+                self.node("DependencyItem::UnresolvedLocal", id.id)
+                    .field("mode", mode)
                     .field("kind", kind)
                     .field("name", name)
                     .end();
@@ -1459,35 +1434,39 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 self.node("DependencyItem::Value", id.id).end();
             }
             DependencyItem::Local {
+                mode,
                 kind,
                 name,
                 alias,
-                symbol,
+                target_symbol,
             } => {
                 self.node("DependencyItem::Declaration", id.id)
+                    .field("mode", mode)
                     .field("kind", kind)
                     .field("name", name)
                     .field_optional("alias", alias)
-                    .field("symbol", symbol)
+                    .field("target_symbol", target_symbol)
                     .end();
             }
             DependencyItem::Remote {
+                mode,
                 kind,
                 name,
                 alias,
                 target,
+                module,
                 symbol,
                 target_symbol,
-                module,
             } => {
                 self.node("DependencyItem::Remote", id.id)
+                    .field("mode", mode)
                     .field("kind", kind)
                     .field("name", name)
                     .field_optional("alias", alias)
                     .field("target", target)
+                    .field("module", module)
                     .field("symbol", symbol)
                     .field("target_symbol", target_symbol)
-                    .field("module", module)
                     .end();
             }
         }
