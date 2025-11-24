@@ -28,6 +28,8 @@ impl PackageId {
 pub struct Package {
     /// The id of the Package.
     pub id: PackageId,
+    /// The id of the `package.json` file.
+    pub file_id: FileId,
     /// The path to the package directory.
     pub path: PathBuf,
     /// The realpath to the package directory.
@@ -69,7 +71,7 @@ impl fmt::Display for PackageType {
 #[derive(Debug, Clone)]
 pub struct PackageOptions {
     /// The id of the `package.json` file.
-    pub id: FileId,
+    pub file_id: FileId,
     /// The path to the package.
     pub path: PathBuf,
     /// The realpath to the package.
@@ -101,16 +103,16 @@ impl PackageOptions {
         }
 
         // parse options
-        let options: PackageJson = serde_json::from_slice(json_bytes)?;
+        let package_json: PackageJson = serde_json::from_slice(json_bytes)?;
         let directory = path.parent().unwrap().to_path_buf();
-
-        Ok(Self {
-            id,
+        let package = Self {
+            file_id: id,
             path,
             realpath,
             directory,
-            content: options,
-        })
+            content: package_json,
+        };
+        Ok(package)
     }
 }
 
@@ -121,24 +123,34 @@ pub struct PackageJson {
     /// Name of the package.
     /// <https://docs.npmjs.com/cli/v11/configuring-npm/package-json#name>
     pub name: Option<String>,
+
     /// Version of the package.
     /// <https://docs.npmjs.com/cli/v11/configuring-npm/package-json#version>
     pub version: Option<String>,
+
     /// Package type (Module or CommonJS).
     /// <https://docs.npmjs.com/cli/v11/configuring-npm/package-json#type>
     #[serde(rename = "type")]
     pub ty: Option<PackageType>,
+
     /// The "main" entry point.
     /// <https://docs.npmjs.com/cli/v11/configuring-npm/package-json#main>
     pub main: Option<String>,
+
+    /// The "module" entry point for ECMAScript bundles.
+    pub module: Option<String>,
+
     /// The "types" entry point. TypeScript types entry point of the package.
     pub types: Option<String>,
+
     /// The "browser" mapping. Browser-specific overrides.
     /// <https://github.com/defunctzombie/package-browser-field-spec>
     pub browser: Option<Value>,
+
     /// The "exports" mapping. ECMAScript module exports.
     /// <https://docs.npmjs.com/cli/v11/configuring-npm/package-json#exports>
     pub exports: Option<Value>,
+
     /// The "imports" mapping. Node module imports.
     /// <https://nodejs.org/api/packages.html#imports>
     pub imports: Option<Map<String, Value>>,

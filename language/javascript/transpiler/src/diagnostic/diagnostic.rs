@@ -53,7 +53,7 @@ impl TranspileDiagnostic {
             .modules
             .get(node_id.module_id)
             .unwrap_or_else(|| panic!("module not found: {:?}", node_id.module_id));
-        let file_id = module.read().file;
+        let file_id = module.read().file_id;
 
         // make diagnostic
         let severity = self.severity();

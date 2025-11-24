@@ -38,11 +38,11 @@ pub struct Module {
     /// The id of the Module itself.
     pub id: ModuleId,
     /// The underlying source File.
-    pub file: FileId,
+    pub file_id: FileId,
     /// The URI of the Module.
     pub uri: Uri,
     /// The package of the Module.
-    pub package: Option<PackageId>,
+    pub package_id: Option<PackageId>,
 
     // ast
     /// The AST of the Module (may be empty).
@@ -91,9 +91,9 @@ impl Module {
 
         Self {
             id,
-            file,
+            file_id: file,
             uri,
-            package,
+            package_id: package,
             // ast
             ast,
             ast_roots,
