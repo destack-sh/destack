@@ -39,7 +39,7 @@ pub(crate) fn get_string_or_file(
         let uri = Uri::from_string(path_str);
         match fs::read_to_string(path) {
             Ok(content) => {
-                let file = File::from_string(file_id, name, uri, format, content);
+                let file = File::from_text(file_id, name, uri, format, content);
                 files.insert(file);
                 Ok(Some(file_id))
             }
@@ -49,7 +49,7 @@ pub(crate) fn get_string_or_file(
     // string
     else if let Some(string) = source.string {
         let file_id = files.next_id();
-        let file = File::from_string(
+        let file = File::from_text(
             file_id,
             "<string>".to_string(),
             Uri::from_string("<string>"),

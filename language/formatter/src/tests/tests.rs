@@ -27,7 +27,7 @@ impl TestFormatter {
     {
         // tokenize source
         let file_id = FileId::new(0);
-        let source = File::from_string(
+        let source = File::from_text(
             file_id,
             "<string>".to_string(),
             Uri::from_string("<string>"),

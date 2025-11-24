@@ -36,7 +36,7 @@ impl<'a> Transpiler<'a> {
         };
         let extension = ty.extension().unwrap();
         let uri = unit.uri.with_extension(extension);
-        let file = File::empty_with_id(ty, file_id, uri);
+        let file = File::empty_text_with_id(ty, file_id, uri);
 
         // print unit
         let strings = unit.strings.clone().into_immutable(); // #Performance
@@ -57,7 +57,7 @@ impl<'a> Transpiler<'a> {
             unit_id: unit.id,
             ty,
             file,
-            content: FileContent::Text(content),
+            content: FileContent::Text { content },
         };
         Ok(artifact)
     }

@@ -481,7 +481,7 @@ mod tests {
     let variable = 42;
 }"#
         .to_string();
-        let source = File::from_string(
+        let source = File::from_text(
             id,
             "<test>".to_string(),
             Uri::from_string("<test>"),
@@ -522,7 +522,7 @@ mod tests {
     fn test_annotate_wrapped_line() {
         let content = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\n";
         let id = FileId::new(0);
-        let source = File::from_string(
+        let source = File::from_text(
             id,
             "<test>".to_string(),
             Uri::from_string("<test>"),

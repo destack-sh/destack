@@ -11,14 +11,13 @@ pub struct ResolutionContext {
     pub query: Option<String>,
     /// Fragment `#query`, contains `#` (like `#foo` in `foo.js#foo`).
     pub fragment: Option<String>,
+    /// The current resolving alias for bailing recursion alias.
+    pub resolving_alias: Option<String>,
 
     /// Files that we have found on file system in this resolution (only tracked if not none).
     pub found_dependencies: Option<Vec<PathBuf>>,
     /// Files that we have not found on file system in this resolution (only tracked if not none).
     pub missing_dependencies: Option<Vec<PathBuf>>,
-
-    /// The current resolving alias for bailing recursion alias.
-    pub resolving_alias: Option<String>,
 
     /// Current depth of the resolution.
     pub depth: u8,
