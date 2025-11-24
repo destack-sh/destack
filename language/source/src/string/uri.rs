@@ -83,7 +83,7 @@ impl Borrow<str> for Uri {
 
 impl Uri {
     /// Convert a URI to a Path.
-    pub fn to_file_path(&self) -> Option<&Path> {
+    pub fn to_path(&self) -> Option<&Path> {
         let path = Path::new(&self.0);
         Some(path)
     }

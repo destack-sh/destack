@@ -1477,7 +1477,8 @@ impl<Fs: FileSystem> Resolver<Fs> {
     ) -> ResolveResult {
         let conditions = &self.options.conditions;
 
-        // validate exports: cannot mix starting with "." and not starting with "."
+        // validate exports
+        // (1) cannot mix starting with "." and not starting with ".")
         if let Some(map) = exports.as_object() {
             let mut has_dot = false;
             let mut without_dot = false;
