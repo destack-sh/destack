@@ -7,7 +7,7 @@ use crate::CompilePhase;
 #[repr(u8)]
 pub enum ImportWarning {
     /// Huge file.
-    HugeFile { module: ModuleId, len: usize },
+    VeryLargeFile { module: ModuleId, len: usize },
 }
 
 impl ImportWarning {
@@ -15,21 +15,21 @@ impl ImportWarning {
     #[inline]
     pub fn sub_code(&self) -> u8 {
         match self {
-            Self::HugeFile { .. } => 1,
+            Self::VeryLargeFile { .. } => 1,
         }
     }
 
     /// Get the node id of the warning.
     pub fn node_id(&self) -> Option<GlobalNodeIdAny> {
         match self {
-            Self::HugeFile { .. } => None,
+            Self::VeryLargeFile { .. } => None,
         }
     }
 
     /// Get the message of the warning.
     pub fn message<'a>(&self, _program: &'a Program<'a>) -> String {
         match self {
-            Self::HugeFile { .. } => "huge file".to_string(),
+            Self::VeryLargeFile { len, .. } => format!("very large file ({len} bytes)"),
         }
     }
 }

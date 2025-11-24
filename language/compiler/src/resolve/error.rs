@@ -86,16 +86,36 @@ impl ResolveError {
     }
 
     /// Get the message of the error.
-    pub fn message<'a>(&self, _program: &'a Program<'a>) -> String {
+    pub fn message<'a>(&self, program: &'a Program<'a>) -> String {
         match self {
-            Self::UnsupportedNode { .. } => "unsupported node".to_string(),
+            Self::UnsupportedNode { node, .. } => {
+                format!("unsupported {}", node.local_id.ty.name())
+            }
             Self::CircularDependency { .. } => "circular dependency".to_string(),
-            Self::UndeclaredSymbol { .. } => "use of undeclared symbol".to_string(),
-            Self::MissingSymbol { .. } => "missing symbol".to_string(),
-            Self::AmbiguousSymbol { .. } => "ambiguous symbol".to_string(),
-            Self::UnresolvedModule { .. } => "unresolved module".to_string(),
-            Self::ConflictingDeclaration { .. } => "conflicting declaration".to_string(),
-            Self::DuplicateExport { .. } => "duplicate export".to_string(),
+            Self::UndeclaredSymbol { key, .. } => {
+                let key = key.debug_string(program);
+                format!("undeclared symbol {key}")
+            }
+            Self::MissingSymbol { key, .. } => {
+                let key = key.debug_string(program);
+                format!("missing symbol {key}")
+            }
+            Self::AmbiguousSymbol { key, .. } => {
+                let key = key.debug_string(program);
+                format!("ambiguous symbol {key}")
+            }
+            Self::UnresolvedModule { target, .. } => {
+                let target = program.strings.get(*target).to_string();
+                format!("unresolved module '{target}'")
+            }
+            Self::ConflictingDeclaration { name, .. } => {
+                let name = program.strings.get(*name).to_string();
+                format!("conflicting declaration {name}")
+            }
+            Self::DuplicateExport { name, .. } => {
+                let name = program.strings.get(*name).to_string();
+                format!("duplicate export {name}")
+            }
         }
     }
 }
