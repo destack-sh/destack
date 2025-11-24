@@ -1,7 +1,7 @@
 use dyst_ast::StringId;
 use dyst_dir::{self as dir, Module};
 use dyst_javascript_ast::Path;
-use dyst_source::SmallVec;
+use smallvec::SmallVec;
 
 use crate::{TranspileResult, Transpiler, TranspilerUnit};
 
@@ -14,7 +14,7 @@ impl<'a> Transpiler<'a> {
         path: &dir::Path,
         _unit: &mut TranspilerUnit,
     ) -> TranspileResult<Path> {
-        let segments: SmallVec<StringId, 3> = path
+        let segments: SmallVec<[StringId; 3]> = path
             .segments
             .iter()
             .map(|segment| {

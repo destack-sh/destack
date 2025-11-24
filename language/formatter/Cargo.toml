@@ -16,6 +16,7 @@ dyst_ast = { workspace = true }
 dyst_fir = { workspace = true }
 dyst_parser = { workspace = true }
 dyst_source = { workspace = true }
+smallvec = { workspace = true }
 
 [dev-dependencies]
 

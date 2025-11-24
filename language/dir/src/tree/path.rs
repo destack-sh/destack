@@ -1,4 +1,4 @@
-use dyst_source::SmallVec;
+use smallvec::SmallVec;
 use std::ops::{
     Index, IndexMut, Range, RangeFrom, RangeFull, RangeInclusive, RangeTo, RangeToInclusive,
 };
@@ -9,7 +9,7 @@ use crate::StringId;
 #[derive(Debug, Clone, PartialEq)]
 pub struct Path {
     /// The segments of the path.
-    pub segments: SmallVec<StringId, 3>,
+    pub segments: SmallVec<[StringId; 3]>,
 }
 
 impl Path {

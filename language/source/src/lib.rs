@@ -5,7 +5,6 @@ mod arena;
 mod diagnostic;
 mod file;
 mod language;
-mod smallvec;
 mod string;
 mod tree;
 
@@ -13,6 +12,5 @@ pub use arena::*;
 pub use diagnostic::*;
 pub use file::*;
 pub use language::*;
-pub use smallvec::*;
 pub use string::*;
 pub use tree::*;

@@ -16,6 +16,7 @@ dyst_ast = { workspace = true }
 dyst_fir = { workspace = true }
 dyst_source = { workspace = true }
 dyst_unicode = { workspace = true }
+smallvec = { workspace = true }
 
 parking_lot = { workspace = true }
 indexmap = { workspace = true, features = ["serde"] }
