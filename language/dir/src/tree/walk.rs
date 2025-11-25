@@ -911,6 +911,7 @@ pub fn walk_dependency_item<V: NodeVisitor + ?Sized>(
             source: _,
             mode: _,
             kind: _,
+            name: _,
             alias: _,
             target: _,
             module: _,

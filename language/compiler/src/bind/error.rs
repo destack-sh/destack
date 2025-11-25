@@ -1,18 +1,13 @@
-use dyst_dir::{GlobalNodeIdAny, ModuleId, Program};
+use dyst_dir::{GlobalNodeIdAny, Program};
 
-use crate::{CompileError, CompilePhase, CompileTask};
+use crate::{CompileError, CompilePhase, CompileTaskWait};
 
 /// Error when binding something into the compiler.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 #[repr(u8)]
 pub enum BindError {
     /// Wait for other tasks.
-    Wait {
-        nodes: Vec<GlobalNodeIdAny>,
-        tasks: Vec<CompileTask>,
-    },
-    /// Module not found.
-    ModuleNotFound { module: ModuleId },
+    Wait { wait: CompileTaskWait },
     /// Unsupported node.
     UnsupportedNode { node: GlobalNodeIdAny },
 }
@@ -32,16 +27,14 @@ impl BindError {
     pub fn sub_code(&self) -> u8 {
         match self {
             Self::Wait { .. } => 0,
-            Self::ModuleNotFound { .. } => 1,
-            Self::UnsupportedNode { .. } => 2,
+            Self::UnsupportedNode { .. } => 1,
         }
     }
 
     /// Get the node id of the error.
     pub fn node_id(&self) -> Option<GlobalNodeIdAny> {
         match self {
-            Self::Wait { nodes, .. } => nodes.first().copied(),
-            Self::ModuleNotFound { .. } => None,
+            Self::Wait { wait, .. } => wait.nodes.first().copied(),
             Self::UnsupportedNode { node } => Some(*node),
         }
     }
@@ -49,10 +42,9 @@ impl BindError {
     /// Get the message of the error.
     pub fn message<'a>(&self, _program: &'a Program<'a>) -> String {
         match self {
-            Self::Wait { tasks, .. } => {
-                format!("wait for {} tasks", tasks.len())
+            Self::Wait { wait, .. } => {
+                format!("wait for {} tasks", wait.tasks.len())
             }
-            Self::ModuleNotFound { .. } => "module not found".to_string(),
             Self::UnsupportedNode { .. } => "unsupported node".to_string(),
         }
     }

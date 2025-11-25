@@ -1,4 +1,4 @@
-use dyst_dir::Program;
+use dyst_dir::{GlobalNodeIdAny, Program};
 
 use crate::{
     AnalyzeOutput, AnalyzeTask, BindOutput, BindTask, BuildOutput, BuildTask, CompileError,
@@ -278,6 +278,17 @@ impl CompileTaskHandle {
     pub fn message<'a>(&self, program: &'a Program<'a>) -> String {
         self.task.message(program)
     }
+}
+
+/// Task wait for other tasks.
+#[derive(Debug, Clone, PartialEq)]
+pub struct CompileTaskWait {
+    /// The nodes involved in the wait.
+    pub nodes: Vec<GlobalNodeIdAny>,
+    /// The tasks to wait for.
+    pub tasks: Vec<CompileTask>,
+    /// The error to generate if the wait is not resolved.
+    pub error: Option<Box<CompileError>>,
 }
 
 /// Output of a compiler task.

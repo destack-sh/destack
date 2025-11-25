@@ -195,10 +195,16 @@ impl PackageRegistry {
     }
 
     /// Get a package by package id.
+    ///
+    /// # Panics
+    /// Panics if the package is not found.
     #[inline]
-    pub fn get(&self, id: PackageId) -> Option<Arc<RwLock<Package>>> {
+    pub fn get(&self, id: PackageId) -> Arc<RwLock<Package>> {
         let packages_by_id = self.packages_by_id.lock();
-        packages_by_id.get(&id).cloned()
+        packages_by_id
+            .get(&id)
+            .unwrap_or_else(|| panic!("package not found: {id:?}"))
+            .clone()
     }
 
     /// Iterate over the packages in the registry.

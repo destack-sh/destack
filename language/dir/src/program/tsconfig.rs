@@ -386,9 +386,15 @@ impl TsConfigRegistry {
     }
 
     /// Get a tsconfig by id.
-    pub fn get(&self, id: TsConfigId) -> Option<Arc<RwLock<TsConfig>>> {
+    ///
+    /// # Panics
+    /// Panics if the tsconfig is not found.
+    pub fn get(&self, id: TsConfigId) -> Arc<RwLock<TsConfig>> {
         let tsconfigs_by_id = self.tsconfigs_by_id.lock();
-        tsconfigs_by_id.get(&id).cloned()
+        tsconfigs_by_id
+            .get(&id)
+            .unwrap_or_else(|| panic!("tsconfig not found: {id:?}"))
+            .clone()
     }
 
     /// Iterate over the tsconfigs in the registry.

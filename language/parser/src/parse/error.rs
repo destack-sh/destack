@@ -4,7 +4,7 @@ use dyst_ast::{NodeType, TokenSpan, TokenType};
 use dyst_source::{Diagnostic, DiagnosticSeverity, File, LabeledSpan, Span};
 
 /// Error when parsing the AST.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct ParseError {
     /// The span of the error.
     pub span: Span,

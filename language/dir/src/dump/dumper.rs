@@ -1409,6 +1409,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 source,
                 mode,
                 kind,
+                name,
                 alias,
                 target,
                 module,
@@ -1418,6 +1419,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .field("source", source)
                     .field("mode", mode)
                     .field("kind", kind)
+                    .field_optional("name", name)
                     .field_optional("alias", alias)
                     .field("target", target)
                     .field_optional("module", module)

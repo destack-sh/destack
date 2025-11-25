@@ -62,6 +62,7 @@ impl<'a> Compiler<'a> {
                 source,
                 mode,
                 kind,
+                name,
                 alias,
                 target,
                 module: None,

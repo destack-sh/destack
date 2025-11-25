@@ -2,17 +2,14 @@ use dyst_dir::{
     FunctionAbstraction, GlobalNodeIdAny, GlobalSymbolId, GlobalTypeId, Program, Visibility,
 };
 
-use crate::{CompileError, CompilePhase, CompileTask};
+use crate::{CompileError, CompilePhase, CompileTaskWait};
 
 /// Error when validateing something into the compiler.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 #[repr(u8)]
 pub enum ValidateError {
     /// Wait for other tasks.
-    Wait {
-        nodes: Vec<GlobalNodeIdAny>,
-        tasks: Vec<CompileTask>,
-    },
+    Wait { wait: CompileTaskWait },
     /// Missing type for an expression.
     MissingType { node: GlobalNodeIdAny },
     /// Type is not assignable to the expected type.
@@ -75,7 +72,7 @@ impl ValidateError {
     /// Get the node id of the error.
     pub fn node_id(&self) -> Option<GlobalNodeIdAny> {
         match self {
-            Self::Wait { nodes, .. } => nodes.first().copied(),
+            Self::Wait { wait, .. } => wait.nodes.first().copied(),
             Self::MissingType { node, .. } => Some(*node),
             Self::TypeMismatch { node, .. } => Some(*node),
             Self::InaccessibleSymbol { node, .. } => Some(*node),
@@ -93,8 +90,8 @@ impl ValidateError {
     /// Get the message of the error.
     pub fn message<'a>(&self, _program: &'a Program<'a>) -> String {
         match self {
-            Self::Wait { tasks, .. } => {
-                format!("wait for {} tasks", tasks.len())
+            Self::Wait { wait, .. } => {
+                format!("wait for {} tasks", wait.tasks.len())
             }
             Self::MissingType { .. } => "missing type".to_string(),
             Self::TypeMismatch { .. } => "type mismatch".to_string(),

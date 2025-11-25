@@ -45,8 +45,14 @@ impl FileRegistry {
     }
 
     /// Get a file by id.
-    pub fn get(&self, id: FileId) -> Option<Arc<File>> {
-        self.files_by_id.get(&id).map(|file| file.clone())
+    ///
+    /// # Panics
+    /// Panics if the file is not found.
+    pub fn get(&self, id: FileId) -> Arc<File> {
+        self.files_by_id
+            .get(&id)
+            .unwrap_or_else(|| panic!("file not found: {id:?}"))
+            .clone()
     }
 
     /// Get a file by uri.

@@ -1,22 +1,17 @@
 use dyst_dir::{GlobalNodeIdAny, ModuleId, Program};
 use dyst_parser::ParseError;
-use dyst_source::{FileId, StringId, Uri};
+use dyst_source::{StringId, Uri};
 
-use crate::{CompileError, CompilePhase, CompileTask};
+use crate::{CompileError, CompilePhase, CompileTaskWait};
 
 /// Error when importing something into the compiler.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 #[repr(u8)]
 pub enum ImportError {
     /// Wait for other tasks.
-    Wait {
-        nodes: Vec<GlobalNodeIdAny>,
-        tasks: Vec<CompileTask>,
-    },
+    Wait { wait: CompileTaskWait },
     /// Invalid URI.
     InvalidUri { uri: Uri },
-    /// File ID not found.
-    FileIdNotFound { file_id: FileId },
     /// File URI not found.
     FileUriNotFound { uri: Uri },
     /// Module could not be resolved.
@@ -42,20 +37,18 @@ impl ImportError {
         match self {
             Self::Wait { .. } => 0,
             Self::InvalidUri { .. } => 1,
-            Self::FileIdNotFound { .. } => 2,
-            Self::FileUriNotFound { .. } => 3,
-            Self::ModuleNotFound { .. } => 4,
-            Self::ParseError { .. } => 5,
-            Self::CircularDependency { .. } => 6,
+            Self::FileUriNotFound { .. } => 2,
+            Self::ModuleNotFound { .. } => 3,
+            Self::ParseError { .. } => 4,
+            Self::CircularDependency { .. } => 5,
         }
     }
 
     /// Get the node id of the error.
     pub fn node_id(&self) -> Option<GlobalNodeIdAny> {
         match self {
-            Self::Wait { nodes, .. } => nodes.first().copied(),
+            Self::Wait { wait, .. } => wait.nodes.first().copied(),
             Self::InvalidUri { .. } => None,
-            Self::FileIdNotFound { .. } => None,
             Self::FileUriNotFound { .. } => None,
             Self::ModuleNotFound { .. } => None,
             Self::ParseError { node, .. } => Some(*node),
@@ -66,11 +59,10 @@ impl ImportError {
     /// Get the message of the error.
     pub fn message<'a>(&self, program: &'a Program<'a>) -> String {
         match self {
-            Self::Wait { tasks, .. } => {
-                format!("wait for {} tasks", tasks.len())
+            Self::Wait { wait, .. } => {
+                format!("wait for {} tasks", wait.tasks.len())
             }
             Self::InvalidUri { uri } => format!("invalid URI: '{uri}'"),
-            Self::FileIdNotFound { .. } => "file not found".to_string(),
             Self::FileUriNotFound { uri } => format!("file URI not found: '{uri}'"),
             Self::ModuleNotFound { target, .. } => {
                 let target_str = program.strings.get(*target).to_string();
