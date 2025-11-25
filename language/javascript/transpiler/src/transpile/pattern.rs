@@ -3,7 +3,7 @@ use dyst_dir as dir;
 use dyst_dir::{Module, NodeTree, SymbolTable, TypeTable};
 use dyst_javascript_ast::{Expression, LocalNodeId, Pattern, PatternField};
 
-impl<'a> Transpiler<'a> {
+impl Transpiler {
     /// Transpile a pattern from DIR into JS AST.
     pub fn transpile_pattern(
         &self,

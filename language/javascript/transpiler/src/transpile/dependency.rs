@@ -5,7 +5,7 @@ use dyst_javascript_ast::{
 };
 
 #[allow(clippy::too_many_arguments)]
-impl<'a> Transpiler<'a> {
+impl Transpiler {
     /// Transpile a dependency kind from DIR into JS AST.
     pub fn transpile_dependency_kind(&self, kind: dir::DependencyKind) -> DependencyKind {
         match kind {
@@ -26,7 +26,7 @@ impl<'a> Transpiler<'a> {
     /// Transpile dependency items from DIR into JS AST.
     pub fn transpile_dependency_items(
         &self,
-        module: &'a Module,
+        module: &Module,
         tree: &NodeTree,
         symbols: &SymbolTable,
         types: &TypeTable,
@@ -44,7 +44,7 @@ impl<'a> Transpiler<'a> {
                     kind: item_kind,
                     name,
                     alias,
-                    target,
+                    target: _,
                     module: _,
                     symbol: _,
                 } => {

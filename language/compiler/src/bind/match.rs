@@ -7,7 +7,7 @@ use dyst_dir::{
 use crate::Compiler;
 
 #[allow(clippy::too_many_arguments)]
-impl<'a> Compiler<'a> {
+impl Compiler {
     /// Bind a match case to a DIR match case.
     pub(super) fn bind_match_case(
         &self,

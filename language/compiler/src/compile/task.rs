@@ -209,7 +209,7 @@ impl CompileTask {
     }
 
     /// Get the message of the task.
-    pub fn message<'a>(&self, program: &'a Program<'a>) -> String {
+    pub fn message(&self, program: &Program) -> String {
         match self {
             Self::Import(task) => task.message(program),
             Self::Bind(task) => task.message(program),
@@ -275,7 +275,7 @@ impl CompileTaskHandle {
     }
 
     /// Get the message of the task.
-    pub fn message<'a>(&self, program: &'a Program<'a>) -> String {
+    pub fn message(&self, program: &Program) -> String {
         self.task.message(program)
     }
 }

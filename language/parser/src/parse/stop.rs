@@ -1,7 +1,7 @@
 use crate::{ParseError, ParseResult, Parser};
 use dyst_ast::{TokenSpan, TokenType};
 
-impl<'a> Parser<'a> {
+impl Parser {
     /// Peek an item stop (comma or newline).
     #[inline]
     pub fn peek_item_stop(&self) -> ParseResult<&TokenSpan> {

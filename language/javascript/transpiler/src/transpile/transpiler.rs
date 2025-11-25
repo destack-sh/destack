@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::sync::Arc;
 
 use dyst_dir as dir;
 use dyst_source::{DiagnosticOptions, Uri};
@@ -95,9 +96,9 @@ pub enum TypeScriptVersion {
 
 /// A transpiler for a Dyst package containing related Dyst sources.
 #[derive(Debug)]
-pub struct Transpiler<'a> {
+pub struct Transpiler {
     /// The program.
-    pub program: &'a dir::Program<'a>,
+    pub program: Arc<dir::Program>,
     /// The options for transpiling.
     pub options: TranspileOptions,
     /// The pending transpiler diagnostics.
@@ -108,9 +109,9 @@ pub struct Transpiler<'a> {
     pub artifacts: RwLock<HashMap<Uri, TranspilerArtifact>>,
 }
 
-impl<'a> Transpiler<'a> {
+impl Transpiler {
     /// Create a new Transpiler from a Compiler state.
-    pub fn new(program: &'a dir::Program<'a>, options: TranspileOptions) -> Self {
+    pub fn new(program: Arc<dir::Program>, options: TranspileOptions) -> Self {
         Self {
             program,
             options,
@@ -141,7 +142,7 @@ impl<'a> Transpiler<'a> {
     pub fn flush_diagnostics(&self) {
         let mut diagnostics = self.pending_diagnostics.write();
         for diagnostic in diagnostics.drain(..) {
-            let diagnostic = diagnostic.to_diagnostic(self.program);
+            let diagnostic = diagnostic.to_diagnostic(self.program.as_ref());
             self.program.diagnostics.insert(diagnostic);
         }
     }

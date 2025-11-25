@@ -4,7 +4,7 @@ use dyst_ast::{Argument, Expression, Keyword, LocalNodeId, PostfixPosition, Toke
 
 use crate::{ParseResult, Parser};
 
-impl<'a> Parser<'a> {
+impl Parser {
     /// Eat an explicit index (postfix, excluding the receiver, with `[` and `]`).
     ///
     /// Examples:
@@ -169,7 +169,7 @@ mod tests {
         Parser, TestParser, assert_expression_path, assert_node, assert_path, assert_string,
     };
 
-    fn make_receiver(parser: &mut Parser<'_>) -> LocalNodeId<Expression> {
+    fn make_receiver(parser: &mut Parser) -> LocalNodeId<Expression> {
         let receiver_str = parser.strings.intern("receiver");
         let receiver_path = Path {
             segments: smallvec![receiver_str],

@@ -18,7 +18,7 @@ impl AnalyzeTask {
     }
 
     /// Get a message for the task.
-    pub fn message<'a>(&self, _program: &'a Program<'a>) -> String {
+    pub fn message(&self, _program: &Program) -> String {
         match self {
             Self::Analyze { module } => {
                 format!("analyze module '{module:?}'")
@@ -43,7 +43,7 @@ impl From<AnalyzeOutput> for CompileOutput {
     }
 }
 
-impl<'a> Compiler<'a> {
+impl Compiler {
     /// Process a analyze task.
     pub fn process_analyze(&self, task: AnalyzeTask) -> AnalyzeResult<AnalyzeOutput> {
         todo!("process_analyze({task:?})")

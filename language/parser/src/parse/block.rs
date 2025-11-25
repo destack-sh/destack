@@ -5,7 +5,7 @@ use dyst_ast::{
 use crate::parse::prelude::*;
 use crate::{ParseError, ParseResult, Parser};
 
-impl<'a> Parser<'a> {
+impl Parser {
     /// Peek a block (with and without label). Optional `do` prefix for disambiguation.
     #[inline]
     pub fn peek_block(&self) -> ParseResult<()> {

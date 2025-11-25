@@ -6,7 +6,7 @@ use dyst_dir::{
 };
 
 #[allow(clippy::too_many_arguments)]
-impl<'a> Compiler<'a> {
+impl Compiler {
     /// Bind a pattern to a DIR pattern.
     pub(super) fn bind_pattern(
         &self,

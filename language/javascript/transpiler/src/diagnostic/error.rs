@@ -32,7 +32,7 @@ pub enum TranspileError {
 
 impl TranspileError {
     /// Get the message of the error.
-    pub fn message<'a>(&self, _program: &'a Program<'a>) -> String {
+    pub fn message(&self, _program: &Program) -> String {
         match self {
             Self::UnsupportedNode { node, .. } => {
                 format!("unsupported {}", node.local_id.ty.name())

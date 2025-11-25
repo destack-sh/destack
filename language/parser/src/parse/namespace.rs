@@ -6,7 +6,7 @@ use dyst_ast::{
     TokenType,
 };
 
-impl<'a> Parser<'a> {
+impl Parser {
     /// Eat a namespace declaration (incl. `namespace` keyword).
     pub fn eat_namespace(
         &mut self,

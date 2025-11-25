@@ -6,7 +6,7 @@ use dyst_javascript_ast::{
 
 use crate::{TranspileError, TranspileResult, Transpiler, TranspilerUnit};
 
-impl<'a> Transpiler<'a> {
+impl Transpiler {
     /// Transpile asynchrony from DIR into JS AST.
     pub fn transpile_asynchrony(&self, asynchrony: dir::Asynchrony) -> Asynchrony {
         match asynchrony {
@@ -61,7 +61,7 @@ impl<'a> Transpiler<'a> {
     /// Transpile a function signature from DIR into JS AST.
     pub fn transpile_function_signature(
         &self,
-        module: &'a Module,
+        module: &Module,
         tree: &NodeTree,
         symbols: &SymbolTable,
         types: &TypeTable,

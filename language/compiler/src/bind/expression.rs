@@ -8,7 +8,7 @@ use dyst_dir::{
 use crate::Compiler;
 
 #[allow(clippy::too_many_arguments)]
-impl<'a> Compiler<'a> {
+impl Compiler {
     /// Bind if kind into a DIR if kind.
     #[inline]
     pub(super) fn bind_if_kind(&self, kind: ast::IfKind) -> IfKind {

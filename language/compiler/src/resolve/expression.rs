@@ -3,7 +3,7 @@ use dyst_dir::{DependencySource, Expression, LocalNodeId, Module, NodeTree, Symb
 use crate::{Compiler, ResolveError, ResolveResult};
 
 #[allow(clippy::too_many_arguments)]
-impl<'a> Compiler<'a> {
+impl Compiler {
     /// Resolve a string to a builtin expression.
     pub(super) fn resolve_string_to_builtin_expression_maybe(
         &self,

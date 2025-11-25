@@ -38,7 +38,7 @@ impl LinkWarning {
     }
 
     /// Get the message of the warning.
-    pub fn message<'a>(&self, _program: &'a Program<'a>) -> String {
+    pub fn message(&self, _program: &Program) -> String {
         match self {
             Self::MissingTarget { .. } => "missing target for a symbol".to_string(),
             Self::WeakSymbol { .. } => "weak symbol".to_string(),

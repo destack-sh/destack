@@ -7,7 +7,7 @@ use dyst_javascript_ast::{
 use crate::{TranspileError, TranspileResult, TranspileResultExt, Transpiler, TranspilerUnit};
 
 #[allow(clippy::too_many_arguments)]
-impl<'a> Transpiler<'a> {
+impl Transpiler {
     /// Transpile a mutability from DIR into JS AST.
     pub fn transpile_mutability(&self, mutability: dir::Mutability) -> Mutability {
         match mutability {
@@ -19,7 +19,7 @@ impl<'a> Transpiler<'a> {
     /// Transpile Generics from DIR into JS AST.
     pub fn transpile_generics(
         &self,
-        module: &'a Module,
+        module: &Module,
         tree: &NodeTree,
         symbols: &SymbolTable,
         types: &TypeTable,
@@ -45,7 +45,7 @@ impl<'a> Transpiler<'a> {
     /// Transpile Heritage from DIR into JS AST.
     pub fn transpile_heritage(
         &self,
-        _module: &'a Module,
+        _module: &Module,
         _tree: &NodeTree,
         _symbols: &SymbolTable,
         _types: &TypeTable,
@@ -72,7 +72,7 @@ impl<'a> Transpiler<'a> {
     /// Transpile a primitive type from DIR into JS AST.
     pub fn transpile_primitive_type(
         &self,
-        _module: &'a Module,
+        _module: &Module,
         _tree: &NodeTree,
         _symbols: &SymbolTable,
         _types: &TypeTable,
@@ -97,7 +97,7 @@ impl<'a> Transpiler<'a> {
     /// Transpile a type literal from DIR into JS AST.
     pub fn transpile_type_literal(
         &self,
-        module: &'a Module,
+        module: &Module,
         tree: &NodeTree,
         symbols: &SymbolTable,
         types: &TypeTable,
@@ -136,7 +136,7 @@ impl<'a> Transpiler<'a> {
     /// Transpile a type unary operator from DIR into JS AST.
     pub fn transpile_type_unary_operator(
         &self,
-        module: &'a Module,
+        module: &Module,
         _tree: &NodeTree,
         _symbols: &SymbolTable,
         types: &TypeTable,
@@ -168,7 +168,7 @@ impl<'a> Transpiler<'a> {
     /// Transpile a type binary operator from DIR into JS AST.
     pub fn transpile_type_binary_operator(
         &self,
-        _module: &'a Module,
+        _module: &Module,
         _tree: &NodeTree,
         _symbols: &SymbolTable,
         _types: &TypeTable,
@@ -190,7 +190,7 @@ impl<'a> Transpiler<'a> {
     /// Transpile a type from DIR into JS AST.
     pub fn transpile_type(
         &self,
-        module: &'a Module,
+        module: &Module,
         tree: &NodeTree,
         symbols: &SymbolTable,
         types: &TypeTable,

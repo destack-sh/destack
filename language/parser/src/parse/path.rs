@@ -4,7 +4,7 @@ use smallvec::SmallVec;
 use crate::{ParseResult, Parser};
 use dyst_ast::{Path, TokenType};
 
-impl<'a> Parser<'a> {
+impl Parser {
     /// Eat a Path.
     pub fn eat_path(&mut self) -> ParseResult<Path> {
         let mut segments: SmallVec<[StringId; 3]> = SmallVec::new();

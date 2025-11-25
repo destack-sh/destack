@@ -151,7 +151,7 @@ fn to_infix_operator(
     }
 }
 
-impl<'a> Parser<'a> {
+impl Parser {
     /// Peek a unary prefix operator.
     #[inline]
     pub fn peek_unary_prefix_operator(&self) -> ParseResult<UnaryOperator> {

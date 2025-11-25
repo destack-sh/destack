@@ -18,7 +18,7 @@ impl LinkTask {
     }
 
     /// Get a message for the task.
-    pub fn message<'a>(&self, _program: &'a Program<'a>) -> String {
+    pub fn message(&self, _program: &Program) -> String {
         match self {
             Self::Link { module } => {
                 format!("link module '{module:?}'")
@@ -43,7 +43,7 @@ impl From<LinkOutput> for CompileOutput {
     }
 }
 
-impl<'a> Compiler<'a> {
+impl Compiler {
     /// Process a link task.
     pub fn process_link(&self, task: LinkTask) -> LinkResult<LinkOutput> {
         todo!("process_link({task:?})")

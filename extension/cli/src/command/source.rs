@@ -14,8 +14,8 @@ pub(crate) struct SourceArg<'a> {
 
 /// Read a source either from a file or inline string argument.
 pub(crate) fn get_string_or_file<Fs: FileSystem>(
-    fs: &mut Fs,
-    files: &mut FileRegistry,
+    fs: &Fs,
+    files: &FileRegistry,
     source: SourceArg<'_>,
 ) -> Result<Option<FileId>, String> {
     let format_name = source.format.unwrap_or("ds");

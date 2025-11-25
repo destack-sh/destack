@@ -13,6 +13,12 @@ pub enum SymbolKey {
     GlobalSymbol(StringId),
 }
 
+impl From<StringId> for SymbolKey {
+    fn from(name: StringId) -> Self {
+        SymbolKey::Name(name)
+    }
+}
+
 impl SymbolKey {
     /// Get the name of the symbol key.
     pub fn name(&self) -> Option<StringId> {
@@ -24,7 +30,7 @@ impl SymbolKey {
     }
 
     /// Get the debug string in a given program.
-    pub fn debug_string<'a>(&self, program: &'a Program<'a>) -> String {
+    pub fn debug_string(&self, program: &Program) -> String {
         match self {
             SymbolKey::Name(name) => {
                 format!("'{}'", program.strings.get(*name).as_str()).to_string()

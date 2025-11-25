@@ -18,7 +18,7 @@ impl ElaborateTask {
     }
 
     /// Get a message for the task.
-    pub fn message<'a>(&self, _program: &'a Program<'a>) -> String {
+    pub fn message(&self, _program: &Program) -> String {
         match self {
             Self::Elaborate { module } => {
                 format!("elaborate module '{module:?}'")
@@ -43,7 +43,7 @@ impl From<ElaborateOutput> for CompileOutput {
     }
 }
 
-impl<'a> Compiler<'a> {
+impl Compiler {
     /// Process a elaborate task.
     pub fn process_elaborate(&self, task: ElaborateTask) -> ElaborateResult<ElaborateOutput> {
         todo!("process_elaborate({task:?})")

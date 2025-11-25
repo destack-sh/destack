@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use clap::{ArgGroup, Args};
 use dyst_ast::{Dumper, DumperOptions, NodeVisitor};
 use dyst_dir::Program;
@@ -43,11 +45,11 @@ pub fn run(args: &ParseArgs) -> i32 {
     let diagnostic_options: DiagnosticOptions = args.diagnostics.clone().into();
 
     // read input source
-    let mut fs = PhysicalFileSystem::new();
-    let mut files = FileRegistry::new();
+    let fs = Arc::new(PhysicalFileSystem::new());
+    let files = Arc::new(FileRegistry::new());
     let file_id = match get_string_or_file(
-        &mut fs,
-        &mut files,
+        fs.as_ref(),
+        files.as_ref(),
         SourceArg {
             file: args.file.as_deref(),
             string: args.string.as_deref(),
@@ -66,9 +68,13 @@ pub fn run(args: &ParseArgs) -> i32 {
     };
 
     // parse as implicit module
-    let mut program = Program::new(LanguageOptions::default(), &fs, &files);
-    let file = files.get(file_id).unwrap();
-    let mut parser = Parser::lex_file(file.as_ref(), program.language, &mut program.diagnostics);
+    let program = Arc::new(Program::new(
+        LanguageOptions::default(),
+        fs.clone(),
+        files.clone(),
+    ));
+    let file = files.get(file_id);
+    let mut parser = Parser::lex_file(file.clone(), program.language);
     let expressions = parser.parse();
 
     // dump AST to output

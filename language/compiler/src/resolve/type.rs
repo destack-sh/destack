@@ -4,7 +4,7 @@ use dyst_dir::{
     SymbolTable, Type, TypeLiteral, TypeTable, TypeUnaryOperator, UnaryOperator,
 };
 
-impl<'a> Compiler<'a> {
+impl Compiler {
     /// Resolve a Type (in-place).
     pub(super) fn resolve_type(
         &self,

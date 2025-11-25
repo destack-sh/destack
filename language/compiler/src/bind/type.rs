@@ -6,7 +6,7 @@ use dyst_dir::{
 };
 
 #[allow(clippy::too_many_arguments)]
-impl<'a> Compiler<'a> {
+impl Compiler {
     /// Bind a an expression into a type (without evaluating it at all).
     pub(super) fn bind_expression_to_type(
         &self,

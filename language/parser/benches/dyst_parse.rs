@@ -1,9 +1,10 @@
 use criterion::{BenchmarkId, Criterion, Throughput, black_box, criterion_group, criterion_main};
 use dyst_parser::Parser;
-use dyst_source::{DiagnosticCollector, File, FileId, FileType, LanguageOptions, Uri, glob};
+use dyst_source::{File, FileId, FileType, LanguageOptions, Uri, glob};
 use pprof::criterion::{Output, PProfProfiler};
 use std::fs;
 use std::path::PathBuf;
+use std::sync::Arc;
 
 fn bench_parse(c: &mut Criterion) {
     // find workspace root by walking up until we find a known repo marker
@@ -48,6 +49,7 @@ fn bench_parse(c: &mut Criterion) {
         FileType::Dyst,
         ds_str,
     );
+    let file = Arc::new(file);
 
     // single benchmark over the whole workspace content
     let mut group = c.benchmark_group("dyst_ast");
@@ -56,8 +58,7 @@ fn bench_parse(c: &mut Criterion) {
     group.bench_with_input(BenchmarkId::new("parse", "all"), &file, |b, file| {
         b.iter(|| {
             let language = LanguageOptions::default();
-            let mut diagnostics = DiagnosticCollector::new();
-            let mut parser = Parser::lex_file(file, language, &mut diagnostics);
+            let mut parser = Parser::lex_file(file.clone(), language);
             parser.parse();
             black_box(parser);
         });

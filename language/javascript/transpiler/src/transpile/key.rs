@@ -4,11 +4,11 @@ use dyst_javascript_ast::{Expression, Key, Name};
 
 use crate::{TranspileResult, TranspileResultExt, Transpiler, TranspilerUnit};
 
-impl<'a> Transpiler<'a> {
+impl Transpiler {
     /// Transpile a string to a name.
     pub fn transpile_string_to_name(
         &self,
-        _module: &'a Module,
+        _module: &Module,
         string_id: StringId,
         unit: &mut TranspilerUnit,
     ) -> Name {
@@ -24,7 +24,7 @@ impl<'a> Transpiler<'a> {
     /// Transpile a key from DIR into JS AST.
     pub fn transpile_key(
         &self,
-        module: &'a Module,
+        module: &Module,
         tree: &NodeTree,
         symbols: &SymbolTable,
         types: &TypeTable,

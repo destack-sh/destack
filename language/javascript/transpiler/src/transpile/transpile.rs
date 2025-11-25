@@ -5,7 +5,7 @@ use dyst_source::{FileId, Uri};
 
 use crate::{TranspileOptions, Transpiler, TranspilerMode, TranspilerUnit, TranspilerUnitId};
 
-impl<'a> Transpiler<'a> {
+impl Transpiler {
     /// Map the modules to the units.
     pub(crate) fn make_units(
         options: &TranspileOptions,

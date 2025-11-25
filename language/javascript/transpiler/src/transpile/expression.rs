@@ -8,7 +8,7 @@ use crate::{
     TranspilerUnit,
 };
 
-impl<'a> Transpiler<'a> {
+impl Transpiler {
     /// Get the position of a postfix expression.
     fn get_postfix_expression_position(
         &self,
@@ -28,7 +28,7 @@ impl<'a> Transpiler<'a> {
     /// Transpile a expression from DIR into JS AST.
     pub fn transpile_expression(
         &self,
-        module: &'a Module,
+        module: &Module,
         tree: &NodeTree,
         symbols: &SymbolTable,
         types: &TypeTable,

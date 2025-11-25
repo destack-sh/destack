@@ -6,7 +6,7 @@ use dyst_ast::{
     NodeType, Property, TokenType,
 };
 
-impl<'a> Parser<'a> {
+impl Parser {
     /// Eat an enum declaration.
     ///
     /// Examples:

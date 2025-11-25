@@ -1,3 +1,3 @@
 use crate::Compiler;
 
-impl<'a> Compiler<'a> {}
+impl Compiler {}

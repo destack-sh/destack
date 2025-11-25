@@ -7,7 +7,7 @@ use dyst_ast::{
 use crate::parse::prelude::*;
 use crate::{ParseResult, Parser};
 
-impl<'a> Parser<'a> {
+impl Parser {
     /// Eat a binding modifiers prefix (visibility and mutability).
     pub fn eat_binding_modifiers_prefix_maybe(&mut self) -> ParseResult<Option<BindingModifier>> {
         let mut modifiers: Option<BindingModifier> = None;

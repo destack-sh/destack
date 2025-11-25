@@ -3,7 +3,7 @@ use crate::{ParseResult, Parser};
 
 use dyst_ast::{Expression, Keyword, LocalNodeId, TokenType, WithClause};
 
-impl<'a> Parser<'a> {
+impl Parser {
     /// Eat a with context declaration or assignment maybe (including the `with` keyword and an optional body).
     #[inline]
     pub fn eat_with_maybe(&mut self) -> ParseResult<Option<LocalNodeId<Expression>>> {

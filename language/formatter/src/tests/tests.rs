@@ -1,17 +1,16 @@
+use std::sync::Arc;
+
 use crate::{DystFormatContext, DystFormatOptions};
 use dyst_ast::{NodeParentIndex, NodeTree, TokenSpan};
 use dyst_fir::format;
 use dyst_fir::format::Format;
 use dyst_parser::{ParseResult, Parser};
-use dyst_source::{
-    DiagnosticCollector, File, FileId, FileType, ImmutableStringPool, LanguageOptions, MultiSpan,
-    Uri,
-};
+use dyst_source::{File, FileId, FileType, ImmutableStringPool, LanguageOptions, MultiSpan, Uri};
 
 /// A test wrapper for Formatter.
 #[derive(Debug)]
 pub(crate) struct TestFormatter {
-    pub source: File,
+    pub file: File,
     pub tokens: Vec<TokenSpan>,
     pub side_tokens: Vec<TokenSpan>,
     pub side_span: MultiSpan,
@@ -23,34 +22,37 @@ impl TestFormatter {
     /// Make a TestFormatter over a parse function on an input.
     pub(crate) fn parse<F, N>(input: &str, parse_fn: F) -> ParseResult<(Self, N)>
     where
-        F: FnOnce(&mut Parser<'_>) -> ParseResult<N>,
+        F: FnOnce(&mut Parser) -> ParseResult<N>,
     {
         // tokenize source
         let file_id = FileId::new(0);
-        let source = File::from_text(
+        let file = File::from_text(
             file_id,
             "<string>".to_string(),
             Uri::from_string("<string>"),
             FileType::Dyst,
             input.to_string(),
         );
+        let file = Arc::new(file);
 
         // parse
-        let mut diagnostics = DiagnosticCollector::new();
         let language = LanguageOptions::default();
-        let mut parser = Parser::lex_file(&source, language, &mut diagnostics);
-        let n = parse_fn(&mut parser)?;
-        parser.finish();
-
-        // take out results
-        let side_span = parser.compute_side_span();
-        let tree = parser.tree;
-        let tokens = parser.tokens;
-        let side_tokens = parser.side_tokens;
-        let strings = parser.strings.into_immutable();
+        let (side_span, tree, tokens, side_tokens, strings, n) = {
+            let mut parser = Parser::lex_file(file.clone(), language);
+            let n = parse_fn(&mut parser)?;
+            parser.finish();
+            (
+                parser.compute_side_span(),
+                parser.tree,
+                parser.tokens,
+                parser.side_tokens,
+                parser.strings.into_immutable(),
+                n,
+            )
+        };
 
         let formatter = Self {
-            source,
+            file: Arc::try_unwrap(file).unwrap(),
             tokens,
             side_tokens,
             side_span,
@@ -68,7 +70,7 @@ impl TestFormatter {
     {
         let context = DystFormatContext {
             options,
-            file: &self.source,
+            file: &self.file,
             tree: &self.tree,
             source_map: &self.tree.source_map,
             parents: NodeParentIndex::from_tree(&self.tree),

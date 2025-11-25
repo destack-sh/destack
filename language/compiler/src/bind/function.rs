@@ -6,7 +6,7 @@ use dyst_dir::{
 };
 
 #[allow(clippy::too_many_arguments)]
-impl<'a> Compiler<'a> {
+impl Compiler {
     /// Bind function kind into a DIR function kind.
     #[inline]
     pub(super) fn bind_function_kind(&self, kind: ast::FunctionKind) -> FunctionKind {

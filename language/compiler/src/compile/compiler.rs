@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use dyst_dir::Program;
 use dyst_source::{DiagnosticOptions, FileId};
 use parking_lot::RwLock;
@@ -34,9 +36,9 @@ pub struct CompileOptions {
 /// Compile files and sources into something (via DIR).
 /// Includes module importing, parsing, evaluation, validation, execution, and building.
 #[derive(Debug)]
-pub struct Compiler<'s> {
+pub struct Compiler {
     /// The program.
-    pub program: &'s Program<'s>,
+    pub program: Arc<Program>,
     /// The options for compiling.
     pub options: CompileOptions,
     /// The pending compiler diagnostics.
@@ -46,9 +48,9 @@ pub struct Compiler<'s> {
 }
 
 #[allow(clippy::too_many_arguments)]
-impl<'s> Compiler<'s> {
+impl Compiler {
     /// Create a new Compiler.
-    pub fn new(program: &'s Program<'s>) -> Self {
+    pub fn new(program: Arc<Program>) -> Self {
         Self {
             program,
             options: CompileOptions::default(),
@@ -57,8 +59,12 @@ impl<'s> Compiler<'s> {
         }
     }
 
-    /// Create a new Compiler from a single module/file.
-    pub fn from_file(program: &'s Program<'s>, file_id: FileId, options: CompileOptions) -> Self {
+    /// Create a new Compiler from a single module.
+    pub fn from_single_module(
+        program: Arc<Program>,
+        file_id: FileId,
+        options: CompileOptions,
+    ) -> Self {
         let compiler = Self {
             program,
             options,
@@ -93,7 +99,7 @@ impl<'s> Compiler<'s> {
     pub fn flush_diagnostics(&self) {
         let mut diagnostics = self.pending_diagnostics.write();
         for diagnostic in diagnostics.drain(..) {
-            let diagnostic = diagnostic.to_diagnostic(self.program);
+            let diagnostic = diagnostic.to_diagnostic(&self.program);
             self.program.diagnostics.insert(diagnostic);
         }
     }

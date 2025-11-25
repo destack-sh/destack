@@ -4,7 +4,7 @@ use dyst_ast::{Asynchrony, Expression, ForEachKind, Keyword, LocalNodeId, TokenT
 
 use crate::{ParseResult, Parser};
 
-impl<'a> Parser<'a> {
+impl Parser {
     /// Eat a loop (e.g., `loop { ... }`).
     ///
     /// Examples:

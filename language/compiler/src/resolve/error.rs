@@ -91,7 +91,7 @@ impl ResolveError {
     }
 
     /// Get the message of the error.
-    pub fn message<'a>(&self, program: &'a Program<'a>) -> String {
+    pub fn message(&self, program: &Program) -> String {
         match self {
             Self::Wait { wait, .. } => {
                 format!("wait for {} tasks", wait.tasks.len())

@@ -8,7 +8,7 @@ use dyst_ast::{
 use dyst_source::StringId;
 
 #[allow(clippy::type_complexity)]
-impl<'a> Parser<'a> {
+impl Parser {
     /// Eat a import declaration (including the `import` keyword and an optional body).
     ///
     /// Examples:

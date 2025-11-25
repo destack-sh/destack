@@ -27,7 +27,7 @@ impl ImportWarning {
     }
 
     /// Get the message of the warning.
-    pub fn message<'a>(&self, _program: &'a Program<'a>) -> String {
+    pub fn message(&self, _program: &Program) -> String {
         match self {
             Self::VeryLargeFile { len, .. } => format!("very large file ({len} bytes)"),
         }

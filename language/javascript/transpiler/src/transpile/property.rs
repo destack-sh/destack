@@ -5,11 +5,11 @@ use dyst_javascript_ast::{
 
 use crate::{TranspileResult, TranspileResultExt, Transpiler, TranspilerUnit};
 
-impl<'a> Transpiler<'a> {
+impl Transpiler {
     /// Transpile a binding modifier from DIR into JS AST.
     pub fn transpile_binding_modifier(
         &self,
-        _module: &'a Module,
+        _module: &Module,
         modifier: dir::BindingModifier,
         _unit: &mut TranspilerUnit,
     ) -> TranspileResult<BindingModifier> {
@@ -42,7 +42,7 @@ impl<'a> Transpiler<'a> {
     /// Transpile a property from DIR into JS AST.
     pub fn transpile_property(
         &self,
-        module: &'a Module,
+        module: &Module,
         tree: &NodeTree,
         symbols: &SymbolTable,
         types: &TypeTable,

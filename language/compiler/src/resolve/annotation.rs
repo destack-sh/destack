@@ -2,7 +2,7 @@ use dyst_dir::{Annotation, LocalNodeId, Module, NodeTree, SymbolTable};
 
 use crate::{Compiler, ResolveResult};
 
-impl<'a> Compiler<'a> {
+impl Compiler {
     /// Resolve an Annotation.
     pub fn resolve_annotation(
         &self,

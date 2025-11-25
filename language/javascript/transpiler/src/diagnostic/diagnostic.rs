@@ -22,7 +22,7 @@ impl TranspileDiagnostic {
     }
 
     /// Get the message of the diagnostic.
-    pub fn message<'a>(&self, program: &'a Program<'a>) -> String {
+    pub fn message(&self, program: &Program) -> String {
         match self {
             Self::Error(error) => error.message(program),
             Self::Warning(warning) => warning.message(program),
@@ -46,7 +46,7 @@ impl TranspileDiagnostic {
     }
 
     /// Turn the diagnostic into a full Dyst diagnostic.
-    pub fn to_diagnostic<'a>(&self, program: &'a Program<'a>) -> Diagnostic {
+    pub fn to_diagnostic(&self, program: &Program) -> Diagnostic {
         // get source information
         let node_id = self.node_id();
         let module = program.modules.get(node_id.module_id);

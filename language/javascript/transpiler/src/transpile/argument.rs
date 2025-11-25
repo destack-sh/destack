@@ -3,11 +3,11 @@ use dyst_javascript_ast::{Argument, Expression, LocalNodeId, Parameter};
 
 use crate::{TranspileResult, TranspileResultExt, Transpiler, TranspilerUnit};
 
-impl<'a> Transpiler<'a> {
+impl Transpiler {
     /// Transpile a parameter from DIR into JS AST.
     pub fn transpile_parameter(
         &self,
-        module: &'a Module,
+        module: &Module,
         tree: &NodeTree,
         symbols: &SymbolTable,
         types: &TypeTable,
@@ -103,7 +103,7 @@ impl<'a> Transpiler<'a> {
     /// Transpile a argument from DIR into JS AST.
     pub fn transpile_argument(
         &self,
-        module: &'a Module,
+        module: &Module,
         tree: &NodeTree,
         symbols: &SymbolTable,
         types: &TypeTable,

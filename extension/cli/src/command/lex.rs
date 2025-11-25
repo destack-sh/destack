@@ -63,7 +63,7 @@ pub fn run(args: &LexArgs) -> i32 {
             return 1;
         }
     };
-    let file = files.get(file_id).unwrap();
+    let file = files.get(file_id);
     let text = file.text();
 
     let use_color = true;

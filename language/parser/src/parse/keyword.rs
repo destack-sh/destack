@@ -3,7 +3,7 @@ use std::str::FromStr;
 use crate::{ParseError, ParseResult, Parser};
 use dyst_ast::{Keyword, TokenSpan, TokenType};
 
-impl<'a> Parser<'a> {
+impl Parser {
     /// Peek a keyword.
     #[inline]
     pub fn peek_keyword(&self, keyword: Keyword) -> ParseResult<&TokenSpan> {

@@ -18,7 +18,7 @@ impl LowerTask {
     }
 
     /// Get a message for the task.
-    pub fn message<'a>(&self, _program: &'a Program<'a>) -> String {
+    pub fn message(&self, _program: &Program) -> String {
         match self {
             Self::Lower { module } => {
                 format!("lower module '{module:?}'")
@@ -43,7 +43,7 @@ impl From<LowerOutput> for CompileOutput {
     }
 }
 
-impl<'a> Compiler<'a> {
+impl Compiler {
     /// Process a lower task.
     pub fn process_lower(&self, task: LowerTask) -> LowerResult<LowerOutput> {
         todo!("process_lower({task:?})")

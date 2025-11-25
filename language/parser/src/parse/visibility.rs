@@ -4,7 +4,7 @@ use dyst_ast::{Keyword, TokenType, Visibility};
 // NOTE: we support parsing `#name` as alias for `private name` for #Compatibility
 // (only works in compatibility mode since #name is pre-parsed as a tag)
 
-impl<'a> Parser<'a> {
+impl Parser {
     /// Peek a visibility.
     #[inline]
     pub fn peek_visibility(&self) -> ParseResult<Option<Visibility>> {

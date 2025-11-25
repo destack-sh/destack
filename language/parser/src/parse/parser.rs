@@ -1,5 +1,6 @@
 use core::fmt;
 use std::fmt::Debug;
+use std::sync::Arc;
 
 use crate::{Lexer, is_semantic};
 use dyst_ast::{BlockFormat, Expression, LocalNodeId, NodeTree, NodeType, TokenSpan, TokenType};
@@ -219,9 +220,9 @@ impl ParserOptions {
 ///
 /// The Parser works on "semantic" undifferentiated Tokens (keywords are just identifiers).
 /// Whitespace and regular line comments are completely ignored; newline is significant (see ASI rules).
-pub struct Parser<'ast> {
+pub struct Parser {
     /// The source we're parsing.
-    pub file: &'ast File,
+    pub file: Arc<File>,
     /// The source ID.
     pub file_id: FileId,
     /// The current main tokens to consider.
@@ -246,25 +247,21 @@ pub struct Parser<'ast> {
     /// The language options.
     pub language: LanguageOptions,
     /// The diagnostic collector.
-    pub diagnostics: &'ast mut DiagnosticCollector,
+    pub diagnostics: DiagnosticCollector,
     /// The errors encountered so far (for deduplication).
     pub errors: Vec<ParseError>,
 }
 
-impl Debug for Parser<'_> {
+impl Debug for Parser {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "Parser")
     }
 }
 
-impl<'a> Parser<'a> {
+impl Parser {
     /// Create a new parser from a text File and tokenize it.
     /// Also prepares the pre-annotations (like tags) in a pre-parse pass.
-    pub fn lex_file(
-        file: &'a File,
-        language: LanguageOptions,
-        diagnostics: &'a mut DiagnosticCollector,
-    ) -> Self {
+    pub fn lex_file(file: Arc<File>, language: LanguageOptions) -> Self {
         // tokenize
         let (all_tokens, eof_token) = Lexer::lex(file.id, file.text(), language);
         let (tokens, side_tokens) = all_tokens
@@ -272,9 +269,10 @@ impl<'a> Parser<'a> {
             .partition(|token| is_semantic(token.token.ty));
 
         // make parser
+        let file_id = file.id;
         let mut parser = Self {
             file,
-            file_id: file.id,
+            file_id,
             tokens,
             side_tokens,
             pos: 0,
@@ -283,7 +281,7 @@ impl<'a> Parser<'a> {
             language,
             tree: NodeTree::new(),
             strings: StringPool::new(),
-            diagnostics,
+            diagnostics: DiagnosticCollector::new(),
             eof_token,
             errors: Vec::new(),
         };
@@ -367,7 +365,7 @@ impl<'a> Parser<'a> {
     pub(crate) fn handle_error(&mut self, e: &ParseError) {
         if !self.errors.iter().any(|d| d.eq_content(e)) {
             self.errors.push(e.clone());
-            let diagnostic = e.to_diagnostic(self.file, &self.tokens);
+            let diagnostic = e.to_diagnostic(self.file.as_ref(), &self.tokens);
             self.diagnostics.insert(diagnostic);
         }
     }
@@ -421,13 +419,13 @@ impl<'a> Parser<'a> {
 
     /// Gets the str source backing a Span.
     #[inline]
-    pub fn get_span_str(&self, span: Span) -> &'a str {
+    pub fn get_span_str(&self, span: Span) -> &str {
         self.file.get_span_str(span).unwrap_or_default()
     }
 
     /// Gets the str source backing a TokenSpan.
     #[inline]
-    pub fn get_token_str(&self, token: TokenSpan) -> &'a str {
+    pub fn get_token_str(&self, token: TokenSpan) -> &str {
         self.file.get_span_str(token.span).unwrap_or_default()
     }
 

@@ -18,7 +18,7 @@ impl BuildTask {
     }
 
     /// Get a message for the task.
-    pub fn message<'a>(&self, _program: &'a Program<'a>) -> String {
+    pub fn message(&self, _program: &Program) -> String {
         match self {
             Self::Build { module } => {
                 format!("build module '{module:?}'")
@@ -43,7 +43,7 @@ impl From<BuildOutput> for CompileOutput {
     }
 }
 
-impl<'a> Compiler<'a> {
+impl Compiler {
     /// Process a build task.
     pub fn process_build(&self, task: BuildTask) -> BuildResult<BuildOutput> {
         todo!("process_build({task:?})")

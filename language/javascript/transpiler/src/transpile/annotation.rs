@@ -3,7 +3,7 @@ use dyst_javascript_ast::{Annotation, AnnotationPosition, LocalNodeId};
 
 use crate::{TranspileResult, Transpiler, TranspilerUnit};
 
-impl<'a> Transpiler<'a> {
+impl Transpiler {
     /// Transpile a DIR annotation position into a JS annotation position.
     pub fn transpile_annotation_position(
         &self,
@@ -19,7 +19,7 @@ impl<'a> Transpiler<'a> {
     /// Transpile an annotation from DIR into JS AST.
     pub fn transpile_annotation(
         &self,
-        module: &'a Module,
+        module: &Module,
         tree: &NodeTree,
         scope_id: dir::LocalNodeIdAny,
         annotation_id: dir::LocalNodeId<dir::Annotation>,

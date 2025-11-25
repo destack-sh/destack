@@ -4,7 +4,7 @@ use dyst_dir::{LocalNodeId, LocalScopeId, Module, NodeTree, SymbolTable, TypeTab
 use crate::Compiler;
 
 #[allow(clippy::too_many_arguments)]
-impl<'a> Compiler<'a> {
+impl Compiler {
     /// Bind a with clause to a DIR with clause.
     pub(super) fn bind_with_clause(
         &self,

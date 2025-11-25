@@ -93,7 +93,7 @@ impl CompileError {
     }
 
     /// Get the message of the error.
-    pub fn message<'a>(&self, program: &'a Program<'a>) -> String {
+    pub fn message(&self, program: &Program) -> String {
         match self {
             Self::Import(error) => error.message(program),
             Self::Bind(error) => error.message(program),

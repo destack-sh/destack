@@ -18,7 +18,7 @@ impl OptimizeTask {
     }
 
     /// Get a message for the task.
-    pub fn message<'a>(&self, _program: &'a Program<'a>) -> String {
+    pub fn message(&self, _program: &Program) -> String {
         match self {
             Self::Optimize { module } => {
                 format!("optimize module '{module:?}'")
@@ -43,7 +43,7 @@ impl From<OptimizeOutput> for CompileOutput {
     }
 }
 
-impl<'a> Compiler<'a> {
+impl Compiler {
     /// Process a optimize task.
     pub fn process_optimize(&self, task: OptimizeTask) -> OptimizeResult<OptimizeOutput> {
         todo!("process_optimize({task:?})")

@@ -7,7 +7,7 @@ use dyst_dir::{
 };
 
 #[allow(clippy::too_many_arguments)]
-impl<'a> Compiler<'a> {
+impl Compiler {
     /// Bind declaration kind to DIR declaration kind.
     pub(super) fn bind_declaration_kind(&self, kind: ast::DeclarationKind) -> DeclarationKind {
         match kind {

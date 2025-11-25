@@ -18,7 +18,7 @@ impl ResolveTask {
     }
 
     /// Get a message for the task.
-    pub fn message<'a>(&self, _program: &'a Program<'a>) -> String {
+    pub fn message(&self, _program: &Program) -> String {
         match self {
             ResolveTask::ResolveModule { module } => {
                 format!("resolve module '{module:?}'")
@@ -43,7 +43,7 @@ impl From<ResolveOutput> for CompileOutput {
     }
 }
 
-impl<'a> Compiler<'a> {
+impl Compiler {
     /// Process a resolve task.
     pub fn process_resolve(&self, task: ResolveTask) -> ResolveResult<ResolveOutput> {
         match task {
@@ -55,7 +55,7 @@ impl<'a> Compiler<'a> {
     /// Attempt some resolve operation. Add errors to the compiler's diagnostics.
     pub(super) fn try_resolve<T, F>(&self, fun: F) -> Option<T>
     where
-        F: FnOnce(&Compiler<'a>) -> ResolveResult<T>,
+        F: FnOnce(&Compiler) -> ResolveResult<T>,
     {
         match fun(self) {
             Ok(result) => Some(result),

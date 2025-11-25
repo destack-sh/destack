@@ -1,3 +1,15 @@
+use dyst_dir::{Module, NodeTree, Pattern, Program};
+use dyst_source::{FileRegistry, FileSystem};
+
+/// A test wrapper for Compiler.
+#[derive(Debug)]
+pub struct TestCompiler<Fs: FileSystem> {
+    /// The file system.
+    pub fs: Fs,
+    /// The files.
+    pub files: FileRegistry,
+}
+
 /// Assert that `tree.get(id)` matches `$pat`.
 /// If a body is provided (`=> { ... }`), it runs with the pattern bindings.
 ///
