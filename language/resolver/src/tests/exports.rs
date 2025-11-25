@@ -2375,13 +2375,12 @@ fn test_resolve_exports_field_cases() {
                 ..ResolveOptions::default()
             },
         );
-        let resolved_path = resolver
-            .package_exports_resolve(
-                Path::new(""),
-                case.request,
-                &case.exports,
-                &mut crate::ResolutionContext::default(),
-            );
+        let resolved_path = resolver.package_exports_resolve(
+            Path::new(""),
+            case.request,
+            &case.exports,
+            &mut crate::ResolutionContext::default(),
+        );
         if let Some(expect) = case.expect {
             if expect.is_empty() {
                 assert!(

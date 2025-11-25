@@ -862,19 +862,18 @@ fn test_imports_field_cases() {
             Arc::new(MemoryFileSystem::default()),
             ResolveOptions::default(),
         );
-        let resolved_path = resolver
-            .package_imports_exports_resolve(
-                case.request,
-                &case.imports,
-                Path::new(""),
-                true,
-                &case
-                    .conditions
-                    .iter()
-                    .map(ToString::to_string)
-                    .collect::<Vec<_>>(),
-                &mut crate::ResolutionContext::default(),
-            );
+        let resolved_path = resolver.package_imports_exports_resolve(
+            case.request,
+            &case.imports,
+            Path::new(""),
+            true,
+            &case
+                .conditions
+                .iter()
+                .map(ToString::to_string)
+                .collect::<Vec<_>>(),
+            &mut crate::ResolutionContext::default(),
+        );
         if let Some(expect) = case.expect {
             if expect.is_empty() {
                 assert!(
