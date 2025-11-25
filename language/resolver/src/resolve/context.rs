@@ -5,7 +5,7 @@ use crate::resolve::ResolveError;
 /// Context for the resolver.
 #[derive(Debug, Default, Clone)]
 pub struct ResolutionContext {
-    /// Whether the specifier is fully specified.
+    /// Whether the extension is fully specified.
     pub is_fully_specified: bool,
     /// Query `?query`, contains `?` (like `?foo` in `foo.js?foo`).
     pub query: Option<String>,
