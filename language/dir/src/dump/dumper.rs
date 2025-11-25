@@ -829,10 +829,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .field("module", module)
                     .end();
             }
-            Expression::Export {
-                kind,
-                items: _,
-            } => {
+            Expression::Export { kind, items: _ } => {
                 self.node("Expression::Export", id.id)
                     .field("kind", kind)
                     .end();
@@ -1415,10 +1412,10 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 target,
                 symbol,
             } => {
-                self.node("DependencyItem::UnresolvedRemoteDefault", id.id)
+                self.node("DependencyItem::UnresolvedRemote", id.id)
                     .field("mode", mode)
                     .field("kind", kind)
-                    .field("alias", alias)
+                    .field_optional("alias", alias)
                     .field("target", target)
                     .field("symbol", symbol)
                     .end();

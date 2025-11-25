@@ -52,7 +52,7 @@ impl std::fmt::Display for LinkWarning {
         f.debug_struct("LinkWarning")
             .field(
                 "code",
-                &format!("{}W{:03}", CompilePhase::Link.letter(), self.sub_code()),
+                &format!("W{}{:03}", CompilePhase::Link.letter(), self.sub_code()),
             )
             .finish()
     }

@@ -112,7 +112,7 @@ impl CompileError {
     /// Get the full code of the error (e.g., `IE001`).
     #[inline]
     pub fn full_code(&self) -> String {
-        format!("{}E{:03}", self.phase_letter(), self.sub_code())
+        format!("E{}{:03}", self.phase_letter(), self.sub_code())
     }
 }
 

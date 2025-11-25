@@ -44,7 +44,7 @@ impl std::fmt::Display for ExecuteWarning {
         f.debug_struct("ExecuteWarning")
             .field(
                 "code",
-                &format!("{}W{:03}", CompilePhase::Execute.letter(), self.sub_code()),
+                &format!("W{}{:03}", CompilePhase::Execute.letter(), self.sub_code()),
             )
             .finish()
     }

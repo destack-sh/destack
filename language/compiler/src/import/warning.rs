@@ -39,7 +39,7 @@ impl std::fmt::Display for ImportWarning {
         f.debug_struct("ImportWarning")
             .field(
                 "code",
-                &format!("{}W{:03}", CompilePhase::Import.letter(), self.sub_code()),
+                &format!("W{}{:03}", CompilePhase::Import.letter(), self.sub_code()),
             )
             .finish()
     }

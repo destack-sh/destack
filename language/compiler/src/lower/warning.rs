@@ -47,7 +47,7 @@ impl std::fmt::Display for LowerWarning {
         f.debug_struct("LowerWarning")
             .field(
                 "code",
-                &format!("{}W{:03}", CompilePhase::Lower.letter(), self.sub_code()),
+                &format!("W{}{:03}", CompilePhase::Lower.letter(), self.sub_code()),
             )
             .finish()
     }

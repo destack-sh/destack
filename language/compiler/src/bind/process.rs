@@ -1,4 +1,4 @@
-use dyst_dir::{DependencyEdge, Expression, LocalNodeId, ModuleId};
+use dyst_dir::{DependencyEdge, Expression, LocalNodeId, ModuleId, Program};
 
 use crate::{BindError, BindResult, CompileTask, Compiler, ResolveTask};
 
@@ -7,6 +7,24 @@ use crate::{BindError, BindResult, CompileTask, Compiler, ResolveTask};
 pub enum BindTask {
     /// Bind a module.
     BindModule { module: ModuleId },
+}
+
+impl BindTask {
+    /// Get the sub code for the task.
+    pub fn sub_code(&self) -> u8 {
+        match self {
+            BindTask::BindModule { .. } => 1,
+        }
+    }
+
+    /// Get a message for the task.
+    pub fn message<'a>(&self, _program: &'a Program<'a>) -> String {
+        match self {
+            BindTask::BindModule { module } => {
+                format!("bind module '{module:?}'")
+            }
+        }
+    }
 }
 
 impl From<BindTask> for CompileTask {

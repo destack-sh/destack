@@ -52,7 +52,7 @@ impl std::fmt::Display for BuildWarning {
         f.debug_struct("BuildWarning")
             .field(
                 "code",
-                &format!("{}W{:03}", CompilePhase::Build.letter(), self.sub_code()),
+                &format!("W{}{:03}", CompilePhase::Build.letter(), self.sub_code()),
             )
             .finish()
     }

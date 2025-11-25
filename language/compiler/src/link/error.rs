@@ -58,7 +58,7 @@ impl std::fmt::Display for LinkError {
         f.debug_struct("LinkError")
             .field(
                 "code",
-                &format!("{}E{:03}", CompilePhase::Link.letter(), self.sub_code()),
+                &format!("E{}{:03}", CompilePhase::Link.letter(), self.sub_code()),
             )
             .finish()
     }

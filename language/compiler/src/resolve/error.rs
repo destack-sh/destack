@@ -125,7 +125,7 @@ impl std::fmt::Display for ResolveError {
         f.debug_struct("ResolveError")
             .field(
                 "code",
-                &format!("{}E{:03}", CompilePhase::Resolve.letter(), self.sub_code()),
+                &format!("E{}{:03}", CompilePhase::Resolve.letter(), self.sub_code()),
             )
             .finish()
     }

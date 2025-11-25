@@ -11,6 +11,7 @@ impl<'a> Compiler<'a> {
         _tree: &mut NodeTree,
         _symbols: &SymbolTable,
     ) -> ResolveResult<()> {
+        // nocheckin: resolve dependency item
         Err(ResolveError::UnsupportedNode {
             node: item_id.into_global_any(module.id),
         })

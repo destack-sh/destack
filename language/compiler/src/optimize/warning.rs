@@ -61,7 +61,7 @@ impl std::fmt::Display for OptimizeWarning {
         f.debug_struct("OptimizeWarning")
             .field(
                 "code",
-                &format!("{}W{:03}", CompilePhase::Optimize.letter(), self.sub_code()),
+                &format!("W{}{:03}", CompilePhase::Optimize.letter(), self.sub_code()),
             )
             .finish()
     }

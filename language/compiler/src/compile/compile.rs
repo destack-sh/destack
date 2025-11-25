@@ -51,6 +51,11 @@ impl<'s> Compiler<'s> {
                     self.error(error);
                 }
             }
+            CompileTask::Analyze(analyze_task) => {
+                if let Err(error) = self.process_analyze(analyze_task) {
+                    self.error(error);
+                }
+            }
             CompileTask::Execute(execute_task) => {
                 if let Err(error) = self.process_execute(execute_task) {
                     self.error(error);

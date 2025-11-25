@@ -77,7 +77,7 @@ impl std::fmt::Display for ImportError {
         f.debug_struct("ImportError")
             .field(
                 "code",
-                &format!("{}E{:03}", CompilePhase::Import.letter(), self.sub_code()),
+                &format!("E{}{:03}", CompilePhase::Import.letter(), self.sub_code()),
             )
             .finish()
     }

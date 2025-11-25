@@ -25,9 +25,9 @@ export struct MeetupSeries {
 
 /// The language of a Meetup.
 export enum MeetupLanguage {
-    /// The language of the Meetup is English.
+    /// The main language of the Meetup is English.
     English,
-    /// The language of the Meetup is German.
+    /// The main language of the Meetup is German.
     German,
 }
 

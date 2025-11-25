@@ -78,7 +78,7 @@ impl CompileWarning {
     /// Get the full code of the error (e.g., `IE001`).
     #[inline]
     pub fn full_code(&self) -> String {
-        format!("{}W{:03}", self.phase_letter(), self.sub_code())
+        format!("W{}{:03}", self.phase_letter(), self.sub_code())
     }
 
     /// Get the node id of the warning.

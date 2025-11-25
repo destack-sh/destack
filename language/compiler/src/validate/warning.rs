@@ -69,7 +69,7 @@ impl std::fmt::Display for ValidateWarning {
         f.debug_struct("ValidateWarning")
             .field(
                 "code",
-                &format!("{}W{:03}", CompilePhase::Validate.letter(), self.sub_code()),
+                &format!("W{}{:03}", CompilePhase::Validate.letter(), self.sub_code()),
             )
             .finish()
     }
