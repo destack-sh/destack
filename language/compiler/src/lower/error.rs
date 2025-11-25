@@ -39,7 +39,7 @@ impl std::fmt::Display for LowerError {
         f.debug_struct("LowerError")
             .field(
                 "code",
-                &format!("{}E{:03}", CompilePhase::Lower.letter(), self.sub_code()),
+                &format!("E{}{:03}", CompilePhase::Lower.letter(), self.sub_code()),
             )
             .finish()
     }

@@ -39,7 +39,7 @@ impl std::fmt::Display for ExecuteError {
         f.debug_struct("ExecuteError")
             .field(
                 "code",
-                &format!("{}E{:03}", CompilePhase::Execute.letter(), self.sub_code()),
+                &format!("E{}{:03}", CompilePhase::Execute.letter(), self.sub_code()),
             )
             .finish()
     }

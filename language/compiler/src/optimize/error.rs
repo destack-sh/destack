@@ -52,7 +52,7 @@ impl std::fmt::Display for OptimizeError {
         f.debug_struct("OptimizeError")
             .field(
                 "code",
-                &format!("{}E{:03}", CompilePhase::Optimize.letter(), self.sub_code()),
+                &format!("E{}{:03}", CompilePhase::Optimize.letter(), self.sub_code()),
             )
             .finish()
     }

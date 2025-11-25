@@ -53,7 +53,7 @@ impl std::fmt::Display for BindError {
         f.debug_struct("BindError")
             .field(
                 "code",
-                &format!("{}E{:03}", CompilePhase::Bind.letter(), self.sub_code()),
+                &format!("E{}{:03}", CompilePhase::Bind.letter(), self.sub_code()),
             )
             .finish()
     }

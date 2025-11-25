@@ -1,6 +1,6 @@
 {
 	"name": "@destack/console",
-	"version": "2025.11.21.1",
+	"version": "2025.11.25.0",
 	"license": "MIT",
 	"type": "module",
 	"scripts": {

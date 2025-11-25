@@ -100,7 +100,7 @@ impl std::fmt::Display for BuildError {
         f.debug_struct("BuildError")
             .field(
                 "code",
-                &format!("{}E{:03}", CompilePhase::Build.letter(), self.sub_code()),
+                &format!("E{}{:03}", CompilePhase::Build.letter(), self.sub_code()),
             )
             .finish()
     }

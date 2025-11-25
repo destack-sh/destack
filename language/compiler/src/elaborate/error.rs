@@ -40,7 +40,7 @@ impl std::fmt::Display for ElaborateError {
             .field(
                 "code",
                 &format!(
-                    "{}E{:03}",
+                    "E{}{:03}",
                     CompilePhase::Elaborate.letter(),
                     self.sub_code()
                 ),

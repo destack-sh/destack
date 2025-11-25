@@ -52,7 +52,7 @@ impl std::fmt::Display for BindWarning {
         f.debug_struct("BindWarning")
             .field(
                 "code",
-                &format!("{}W{:03}", CompilePhase::Bind.letter(), self.sub_code()),
+                &format!("W{}{:03}", CompilePhase::Bind.letter(), self.sub_code()),
             )
             .finish()
     }

@@ -39,7 +39,7 @@ impl std::fmt::Display for AnalyzeError {
         f.debug_struct("AnalyzeError")
             .field(
                 "code",
-                &format!("{}E{:03}", CompilePhase::Analyze.letter(), self.sub_code()),
+                &format!("E{}{:03}", CompilePhase::Analyze.letter(), self.sub_code()),
             )
             .finish()
     }

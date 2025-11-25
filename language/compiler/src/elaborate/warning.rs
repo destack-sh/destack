@@ -40,7 +40,7 @@ impl std::fmt::Display for ElaborateWarning {
             .field(
                 "code",
                 &format!(
-                    "{}W{:03}",
+                    "W{}{:03}",
                     CompilePhase::Elaborate.letter(),
                     self.sub_code()
                 ),

@@ -1,6 +1,10 @@
+use dyst_dir::Program;
+
 use crate::{
-    AnalyzeTask, BindTask, BuildTask, ElaborateTask, ExecuteTask, ImportTask, LinkTask, LowerTask,
-    OptimizeTask, ResolveTask, ValidateTask,
+    AnalyzeOutput, AnalyzeTask, BindOutput, BindTask, BuildOutput, BuildTask, CompileError,
+    ElaborateOutput, ElaborateTask, ExecuteOutput, ExecuteTask, ImportOutput, ImportTask,
+    LinkOutput, LinkTask, LowerOutput, LowerTask, OptimizeOutput, OptimizeTask, ResolveOutput,
+    ResolveTask, ValidateOutput, ValidateTask,
 };
 
 /// Region of the compiler.
@@ -176,4 +180,116 @@ impl CompileTask {
             Self::Link(_) => CompilePhase::Link,
         }
     }
+
+    /// Get the region of the task.
+    pub fn region(&self) -> CompilerRegion {
+        self.phase().region()
+    }
+
+    /// Get the sub code of the task.
+    pub fn sub_code(&self) -> u8 {
+        match self {
+            Self::Import(task) => task.sub_code(),
+            Self::Bind(task) => task.sub_code(),
+            Self::Resolve(task) => task.sub_code(),
+            Self::Validate(task) => task.sub_code(),
+            Self::Elaborate(task) => task.sub_code(),
+            Self::Lower(task) => task.sub_code(),
+            Self::Analyze(task) => task.sub_code(),
+            Self::Optimize(task) => task.sub_code(),
+            Self::Execute(task) => task.sub_code(),
+            Self::Build(task) => task.sub_code(),
+            Self::Link(task) => task.sub_code(),
+        }
+    }
+
+    /// Get the full code of the task.
+    pub fn full_code(&self) -> String {
+        format!("T{}{:03}", self.phase().letter(), self.sub_code())
+    }
+
+    /// Get the message of the task.
+    pub fn message<'a>(&self, program: &'a Program<'a>) -> String {
+        match self {
+            Self::Import(task) => task.message(program),
+            Self::Bind(task) => task.message(program),
+            Self::Resolve(task) => task.message(program),
+            Self::Validate(task) => task.message(program),
+            Self::Elaborate(task) => task.message(program),
+            Self::Lower(task) => task.message(program),
+            Self::Analyze(task) => task.message(program),
+            Self::Optimize(task) => task.message(program),
+            Self::Execute(task) => task.message(program),
+            Self::Build(task) => task.message(program),
+            Self::Link(task) => task.message(program),
+        }
+    }
+}
+
+/// Id for a compiler task.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct CompileTaskId(u32);
+
+impl CompileTaskId {
+    /// Get the numeric code of the id.
+    pub fn code(&self) -> u32 {
+        self.0
+    }
+}
+
+/// Handle for a compiler task.
+#[derive(Debug, Clone)]
+pub struct CompileTaskHandle {
+    /// The handle id.
+    pub id: CompileTaskId,
+    /// The task.
+    pub task: CompileTask,
+    /// The result of the task.
+    pub result: Result<CompileOutput, CompileError>,
+}
+
+impl CompileTaskHandle {
+    /// Get the phase of the task.
+    pub fn phase(&self) -> CompilePhase {
+        self.task.phase()
+    }
+
+    /// Get the region of the task.
+    pub fn region(&self) -> CompilerRegion {
+        self.task.region()
+    }
+
+    /// Get the message of the task.
+    pub fn message<'a>(&self, program: &'a Program<'a>) -> String {
+        self.task.message(program)
+    }
+}
+
+/// Output of a compiler task.
+#[derive(Debug, Clone)]
+pub enum CompileOutput {
+    /// Output of an import task.
+    Import(ImportOutput),
+    /// Output of a bind task.
+    Bind(BindOutput),
+    /// Output of a resolve task.
+    Resolve(ResolveOutput),
+    /// Output of a validate task.
+    Validate(ValidateOutput),
+    /// Output of an elaborate task.
+    Elaborate(ElaborateOutput),
+    // --------------------------------------------------
+    /// Output of a lower task.
+    Lower(LowerOutput),
+    /// Output of an analyze task.
+    Analyze(AnalyzeOutput),
+    /// Output of an optimize task.
+    Optimize(OptimizeOutput),
+    // --------------------------------------------------
+    /// Output of an execute task.
+    Execute(ExecuteOutput),
+    /// Output of a build task.
+    Build(BuildOutput),
+    /// Output of a link task.
+    Link(LinkOutput),
 }

@@ -49,7 +49,7 @@ impl std::fmt::Display for ResolveWarning {
         f.debug_struct("ResolveWarning")
             .field(
                 "code",
-                &format!("{}W{:03}", CompilePhase::Resolve.letter(), self.sub_code()),
+                &format!("W{}{:03}", CompilePhase::Resolve.letter(), self.sub_code()),
             )
             .finish()
     }
