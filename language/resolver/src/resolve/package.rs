@@ -43,14 +43,10 @@ impl Resolver {
             }
         };
 
-        // get a new PackageId
+        // parse `package.json` file
         let package_id = self.program.packages.next_id();
-
-        // get a FileId for the package.json file
         // nocheckin TODO @Incomplete: should properly register the file in FileRegistry with content
         let file_id = self.program.files.next_id();
-
-        // parse `package.json` file
         let package_options = PackageOptions::parse(
             file_id,
             package_json_path.clone(),
