@@ -5,67 +5,79 @@ use std::path::{Component, Path, PathBuf};
 use std::sync::Arc;
 use std::{fmt, iter};
 
-use dyst_dir::{ModuleSpecifier, PackageOptions, TsConfig, TsConfigProjectReferences};
-use dyst_source::{FileSystem, MemoryFileSystem, PathExt, PhysicalFileSystem, SLASH_START};
+use dyst_dir::{ModuleSpecifier, PackageOptions, Program, TsConfig, TsConfigProjectReferences};
+use dyst_source::{FileSystem, PathExt, SLASH_START};
 
 use crate::{
     Alias, AliasValue, CachedFileSystem, CachedPath, Resolution, ResolutionContext, ResolveError,
     ResolveOptions, Restriction, TypeScriptOptionsDiscovery, TypeScriptOptionsReferences,
 };
 
-/// A resolver with a cache backed by a file system.
-pub struct Resolver<Fs> {
+/// A resolver for module resolution..
+pub struct Resolver {
+    /// The program.
+    pub program: Arc<Program>,
     /// The resolution options.
     pub options: ResolveOptions,
     /// The cache backed by the file system.
-    pub cache: Arc<CachedFileSystem<Fs>>,
+    pub cache: Arc<CachedFileSystem>,
 }
 
-pub type PhysicalResolver = Resolver<PhysicalFileSystem>;
-pub type MemoryResolver = Resolver<MemoryFileSystem>;
-pub type ResolveResult = Result<Option<CachedPath>, ResolveError>;
-
-impl<Fs> fmt::Debug for Resolver<Fs> {
+impl fmt::Debug for Resolver {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         self.options.fmt(f)
     }
 }
 
-impl<Fs: FileSystem> Default for Resolver<Fs> {
-    fn default() -> Self {
-        Self::new(ResolveOptions::default())
-    }
-}
-
-impl<Fs: FileSystem> Resolver<Fs> {
-    /// Creates a new resolver with default options.
-    pub fn new(options: ResolveOptions) -> Self {
-        let fs = Fs::new();
-        let cache = Arc::new(CachedFileSystem::new(fs));
+impl Resolver {
+    /// Creates a new resolver with some options in an existing program.
+    pub fn new(program: Arc<Program>, options: ResolveOptions) -> Self {
+        let cache = Arc::new(CachedFileSystem::new(program.fs.clone()));
         Self {
+            program,
             options: options.sanitize(),
             cache,
         }
     }
-}
 
-impl<Fs: FileSystem> Resolver<Fs> {
-    /// Creates a new resolver from a file system and options.
-    pub fn from_file_system(file_system: Fs, options: ResolveOptions) -> Self {
-        Self {
-            cache: Arc::new(CachedFileSystem::new(file_system)),
-            options: options.sanitize(),
-        }
+    /// Creates a new resolver with physical file system in an empty program.
+    pub fn blank(options: ResolveOptions) -> Self {
+        use dyst_source::{FileRegistry, LanguageOptions, PhysicalFileSystem};
+
+        let fs: Arc<dyn FileSystem> = Arc::new(PhysicalFileSystem::new());
+        let files = Arc::new(FileRegistry::new());
+        let program = Arc::new(Program::new(
+            LanguageOptions::default(),
+            fs.clone(),
+            files.clone(),
+        ));
+        Self::new(program, options)
     }
 
-    /// Clones the resolver using the same underlying cache.
+    /// Creates a new resolver with memory file system.
+    pub fn blank_with_fs(fs: Arc<dyn FileSystem>, options: ResolveOptions) -> Self {
+        use dyst_source::{FileRegistry, LanguageOptions};
+
+        let files = Arc::new(FileRegistry::new());
+        let program = Arc::new(Program::new(
+            LanguageOptions::default(),
+            fs.clone(),
+            files.clone(),
+        ));
+        Self::new(program, options)
+    }
+
+    /// Clones the resolver with new options.
     pub fn clone_with_options(&self, options: ResolveOptions) -> Self {
         Self {
+            program: self.program.clone(),
             options: options.sanitize(),
-            cache: Arc::clone(&self.cache),
+            cache: self.cache.clone(),
         }
     }
+}
 
+impl Resolver {
     /// Resolves specifier at an absolute path to a `directory`.
     pub fn resolve<P: AsRef<Path>>(
         &self,
@@ -435,7 +447,7 @@ impl<Fs: FileSystem> Resolver<Fs> {
         cached_path: &CachedPath,
         specifier: &str,
         ctx: &mut ResolutionContext,
-    ) -> ResolveResult {
+    ) -> Result<Option<CachedPath>, ResolveError> {
         // find the closest package scope to the directory
         let Some(package_json) =
             cached_path.find_package_json(&self.options, self.cache.as_ref(), ctx)?
@@ -452,7 +464,11 @@ impl<Fs: FileSystem> Resolver<Fs> {
     }
 
     /// Loads a path as a file.
-    fn load_as_file(&self, cached_path: &CachedPath, ctx: &mut ResolutionContext) -> ResolveResult {
+    fn load_as_file(
+        &self,
+        cached_path: &CachedPath,
+        ctx: &mut ResolutionContext,
+    ) -> Result<Option<CachedPath>, ResolveError> {
         // try extension alias
         if let Some(path) = self.load_extension_alias(cached_path, ctx)? {
             return Ok(Some(path));
@@ -478,7 +494,7 @@ impl<Fs: FileSystem> Resolver<Fs> {
         &self,
         cached_path: &CachedPath,
         ctx: &mut ResolutionContext,
-    ) -> ResolveResult {
+    ) -> Result<Option<CachedPath>, ResolveError> {
         // check for package.json in the directory
         if let Some(package_json) = self
             .cache
@@ -523,7 +539,7 @@ impl<Fs: FileSystem> Resolver<Fs> {
         cached_path: &CachedPath,
         specifier: &str,
         ctx: &mut ResolutionContext,
-    ) -> ResolveResult {
+    ) -> Result<Option<CachedPath>, ResolveError> {
         if self.options.resolve_directory {
             return Ok(self
                 .cache
@@ -554,7 +570,7 @@ impl<Fs: FileSystem> Resolver<Fs> {
         path: &CachedPath,
         extensions: &[String],
         ctx: &mut ResolutionContext,
-    ) -> ResolveResult {
+    ) -> Result<Option<CachedPath>, ResolveError> {
         if ctx.is_fully_specified {
             return Ok(None);
         }
@@ -607,7 +623,11 @@ impl<Fs: FileSystem> Resolver<Fs> {
     }
 
     /// Loads an index file.
-    fn load_index(&self, cached_path: &CachedPath, ctx: &mut ResolutionContext) -> ResolveResult {
+    fn load_index(
+        &self,
+        cached_path: &CachedPath,
+        ctx: &mut ResolutionContext,
+    ) -> Result<Option<CachedPath>, ResolveError> {
         for main_file in &self.options.main_files {
             let cached_path = cached_path.normalize_with(main_file, self.cache.as_ref());
             if self.options.enforce_extension.is_disabled()
@@ -630,7 +650,7 @@ impl<Fs: FileSystem> Resolver<Fs> {
         &self,
         cached_path: &CachedPath,
         ctx: &mut ResolutionContext,
-    ) -> ResolveResult {
+    ) -> Result<Option<CachedPath>, ResolveError> {
         if let Some(package_json) =
             cached_path.find_package_json(&self.options, self.cache.as_ref(), ctx)?
             && let Some(path) = self.load_browser_field(cached_path, None, &package_json, ctx)?
@@ -655,7 +675,7 @@ impl<Fs: FileSystem> Resolver<Fs> {
         &self,
         cached_path: &CachedPath,
         ctx: &mut ResolutionContext,
-    ) -> ResolveResult {
+    ) -> Result<Option<CachedPath>, ResolveError> {
         if let Some(path) = self.load_browser_field_or_alias(cached_path, ctx)? {
             return Ok(Some(path));
         }
@@ -673,7 +693,7 @@ impl<Fs: FileSystem> Resolver<Fs> {
         package_name: &str,
         subpath: &str,
         ctx: &mut ResolutionContext,
-    ) -> ResolveResult {
+    ) -> Result<Option<CachedPath>, ResolveError> {
         // check each module directory (node_modules)
         for module_name in &self.options.modules {
             for cached_path in std::iter::successors(Some(cached_path.clone()), CachedPath::parent)
@@ -770,7 +790,7 @@ impl<Fs: FileSystem> Resolver<Fs> {
         subpath: &str,
         cached_path: &CachedPath,
         ctx: &mut ResolutionContext,
-    ) -> ResolveResult {
+    ) -> Result<Option<CachedPath>, ResolveError> {
         // check if package.json exists
         let Some(package_json) = self
             .cache
@@ -795,7 +815,7 @@ impl<Fs: FileSystem> Resolver<Fs> {
         cached_path: &CachedPath,
         specifier: &str,
         ctx: &mut ResolutionContext,
-    ) -> ResolveResult {
+    ) -> Result<Option<CachedPath>, ResolveError> {
         // find the closest package scope to the directory
         let Some(package_json) =
             cached_path.find_package_json(&self.options, self.cache.as_ref(), ctx)?
@@ -833,7 +853,7 @@ impl<Fs: FileSystem> Resolver<Fs> {
         specifier: &str,
         cached_path: &CachedPath,
         ctx: &mut ResolutionContext,
-    ) -> ResolveResult {
+    ) -> Result<Option<CachedPath>, ResolveError> {
         // if the file at path exists, load it as its extension format
         // non-compliant ESM can result in a directory, so directory is tried as well.
         if let Some(path) = self.load_as_file_or_directory(cached_path, "", ctx)? {
@@ -897,7 +917,7 @@ impl<Fs: FileSystem> Resolver<Fs> {
         module_specifier: Option<&str>,
         package_json: &PackageOptions,
         ctx: &mut ResolutionContext,
-    ) -> ResolveResult {
+    ) -> Result<Option<CachedPath>, ResolveError> {
         if ctx.is_fully_specified {
             return Ok(None);
         }
@@ -953,7 +973,7 @@ impl<Fs: FileSystem> Resolver<Fs> {
         specifier: &str,
         aliases: &Alias,
         ctx: &mut ResolutionContext,
-    ) -> ResolveResult {
+    ) -> Result<Option<CachedPath>, ResolveError> {
         for (alias_key_raw, specifiers) in aliases {
             let mut alias_key_has_wildcard = false;
             let alias_key = if let Some(alias_key) = alias_key_raw.strip_suffix('$') {
@@ -1019,7 +1039,7 @@ impl<Fs: FileSystem> Resolver<Fs> {
         request: &str,
         ctx: &mut ResolutionContext,
         should_stop: &mut bool,
-    ) -> ResolveResult {
+    ) -> Result<Option<CachedPath>, ResolveError> {
         if request != alias_value
             && !request
                 .strip_prefix(alias_value)
@@ -1080,7 +1100,7 @@ impl<Fs: FileSystem> Resolver<Fs> {
         &self,
         cached_path: &CachedPath,
         ctx: &mut ResolutionContext,
-    ) -> ResolveResult {
+    ) -> Result<Option<CachedPath>, ResolveError> {
         if self.options.extension_alias.is_empty() {
             return Ok(None);
         }
@@ -1283,7 +1303,7 @@ impl<Fs: FileSystem> Resolver<Fs> {
         cached_path: &CachedPath,
         specifier: &str,
         ctx: &mut ResolutionContext,
-    ) -> ResolveResult {
+    ) -> Result<Option<CachedPath>, ResolveError> {
         if cached_path.is_inside_node_modules {
             return Ok(None);
         }
@@ -1327,10 +1347,6 @@ impl<Fs: FileSystem> Resolver<Fs> {
     }
 
     /// Find tsconfig.json of a path by traversing parent directories.
-    ///
-    /// # Errors
-    ///
-    /// * [ResolveError::Json]
     pub(crate) fn find_tsconfig(
         &self,
         cached_path: &CachedPath,
@@ -1405,7 +1421,7 @@ impl<Fs: FileSystem> Resolver<Fs> {
         cached_path: &CachedPath,
         specifier: &str,
         ctx: &mut ResolutionContext,
-    ) -> ResolveResult {
+    ) -> Result<Option<CachedPath>, ResolveError> {
         let (package_name, subpath) = Self::parse_package_specifier(specifier);
 
         // iterate over all possible node_modules directories
@@ -1471,11 +1487,11 @@ impl<Fs: FileSystem> Resolver<Fs> {
         subpath: &str,
         exports: &serde_json::Value,
         ctx: &mut ResolutionContext,
-    ) -> ResolveResult {
+    ) -> Result<Option<CachedPath>, ResolveError> {
         let conditions = &self.options.conditions;
 
         // validate exports
-        // (1) cannot mix starting with "." and not starting with ".")
+        // (cannot mix starting with "." and not starting with ".")
         if let Some(map) = exports.as_object() {
             let mut has_dot = false;
             let mut without_dot = false;
@@ -1599,7 +1615,7 @@ impl<Fs: FileSystem> Resolver<Fs> {
         is_imports: bool,
         conditions: &[String],
         ctx: &mut ResolutionContext,
-    ) -> ResolveResult {
+    ) -> Result<Option<CachedPath>, ResolveError> {
         if match_key.ends_with('/') {
             return Ok(None);
         }
@@ -1683,7 +1699,7 @@ impl<Fs: FileSystem> Resolver<Fs> {
         is_imports: bool,
         conditions: &[String],
         ctx: &mut ResolutionContext,
-    ) -> ResolveResult {
+    ) -> Result<Option<CachedPath>, ResolveError> {
         fn normalize_string_target<'a>(
             target_key: &'a str,
             target: &'a str,

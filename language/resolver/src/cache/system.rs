@@ -16,17 +16,17 @@ use dyst_dir::{PackageOptions, TsConfig};
 use dyst_source::{FileId, FileSystem, PathExt};
 
 /// A cached file system implementation.
-#[derive(Debug, Default)]
-pub struct CachedFileSystem<Fs> {
+#[derive(Debug)]
+pub struct CachedFileSystem {
     /// The underlying file system.
-    pub(crate) fs: Fs,
+    pub(crate) fs: Arc<dyn FileSystem>,
     /// The cached paths.
     pub(crate) paths: HashSet<CachedPath, BuildHasherDefault<IdentityHasher>>,
     /// The cached tsconfigs.
     pub(crate) tsconfigs: HashMap<PathBuf, Arc<TsConfig>, BuildHasherDefault<FxHasher>>,
 }
 
-impl<Fs: FileSystem> CachedFileSystem<Fs> {
+impl CachedFileSystem {
     /// Clears the caches.
     pub fn clear(&self) {
         self.paths.pin().clear();
@@ -91,7 +91,7 @@ impl<Fs: FileSystem> CachedFileSystem<Fs> {
 
     /// Checks if the cached path is a file.
     pub(crate) fn is_file(&self, path: &CachedPath, ctx: &mut ResolutionContext) -> bool {
-        if path.is_file(&self.fs).is_some_and(|b| b) {
+        if path.is_file(self.fs.as_ref()).is_some_and(|b| b) {
             ctx.add_found_dependency_maybe(path.path());
             true
         } else {
@@ -102,7 +102,7 @@ impl<Fs: FileSystem> CachedFileSystem<Fs> {
 
     /// Checks if the cached path is a directory.
     pub(crate) fn is_directory(&self, path: &CachedPath, ctx: &mut ResolutionContext) -> bool {
-        path.is_directory(&self.fs).map_or_else(
+        path.is_directory(self.fs.as_ref()).map_or_else(
             || {
                 ctx.add_missing_dependency_maybe(path.path());
                 false
@@ -211,9 +211,9 @@ impl<Fs: FileSystem> CachedFileSystem<Fs> {
     }
 }
 
-impl<Fs: FileSystem> CachedFileSystem<Fs> {
+impl CachedFileSystem {
     /// Creates a new cached file system.
-    pub fn new(fs: Fs) -> Self {
+    pub fn new(fs: Arc<dyn FileSystem>) -> Self {
         Self {
             fs,
             paths: HashSet::builder()

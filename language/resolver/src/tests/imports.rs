@@ -2,8 +2,9 @@
 
 use dyst_source::{MemoryFileSystem, PathExt};
 use std::path::Path;
+use std::sync::Arc;
 
-use crate::{MemoryResolver, PhysicalResolver, ResolveError, ResolveOptions};
+use crate::{ResolveError, ResolveOptions, Resolver};
 
 /// Test simple imports field resolution.
 #[test]
@@ -11,7 +12,7 @@ fn test_imports_field_simple() {
     let f = super::fixture().join("imports-field");
     let f2 = super::fixture().join("imports-exports-wildcard/node_modules/m/");
 
-    let resolver = PhysicalResolver::new(ResolveOptions {
+    let resolver = Resolver::blank(ResolveOptions {
         extensions: vec![".js".into()],
         main_files: vec!["index".into()],
         conditions: vec!["webpack".into()],
@@ -857,8 +858,8 @@ fn test_imports_field_cases() {
     ];
 
     for case in test_cases {
-        let resolver = MemoryResolver::from_file_system(
-            MemoryFileSystem::default(),
+        let resolver = Resolver::blank_with_fs(
+            Arc::new(MemoryFileSystem::default()),
             ResolveOptions::default(),
         );
         let cached_path = resolver.cache.value(Path::new(""));

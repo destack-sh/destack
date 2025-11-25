@@ -57,7 +57,7 @@ pub fn run(args: &ResolveArgs) -> i32 {
     options.prefer_absolute = args.prefer_absolute;
     options.resolve_directory = args.resolve_directory;
 
-    let resolver = PhysicalResolver::new(options);
+    let resolver = Resolver::blank(options);
 
     match resolver.resolve(&directory, &args.specifier) {
         Ok(resolution) => {
