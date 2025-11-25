@@ -1,7 +1,7 @@
 use dyst_ast::{self as ast};
 use dyst_dir::{
-    DependencyEdge, DependencyItem, DependencyKind, DependencyMode, DependencySource, Expression,
-    LocalNodeId, LocalScopeId, Module, NodeTree, SymbolKey, SymbolSpace, SymbolTable, TypeTable,
+    DependencyItem, DependencyKind, DependencyMode, DependencySource, LocalNodeId, LocalScopeId,
+    Module, NodeTree, SymbolKey, SymbolSpace, SymbolTable, TypeTable,
 };
 use dyst_source::StringId;
 
@@ -34,6 +34,7 @@ impl<'a> Compiler<'a> {
         &self,
         module: &Module,
         scope_id: LocalScopeId,
+        source: DependencySource,
         kind: ast::DependencyKind,
         target: Option<StringId>,
         item_id: ast::LocalNodeId<ast::DependencyItem>,
@@ -58,10 +59,12 @@ impl<'a> Compiler<'a> {
             let symbol_id =
                 symbols.insert_symbol(SymbolSpace::Value, name.map(SymbolKey::Name), scope_id);
             let item = DependencyItem::UnresolvedRemote {
+                source,
                 mode,
                 kind,
                 alias,
                 target,
+                module: None,
                 symbol: symbol_id,
             };
             tree.insert_from_source(item, item_id, scope_id)
@@ -70,90 +73,9 @@ impl<'a> Compiler<'a> {
                 mode,
                 kind,
                 name: name.unwrap_or_else(|| panic!("name is required for local dependency item")),
+                alias,
             };
             tree.insert_from_source(item, item_id, scope_id)
         }
-    }
-
-    /// Extract the dependency edges of a module.
-    pub(super) fn bind_dependency_edges(
-        &self,
-        _module: &Module,
-        _scope_id: LocalScopeId,
-        tree: &mut NodeTree,
-        _symbols: &mut SymbolTable,
-    ) -> Vec<DependencyEdge> {
-        fn bind_dependency_item_to_edge(
-            target: StringId,
-            item_id: LocalNodeId<DependencyItem>,
-            item: &DependencyItem,
-            source: DependencySource,
-        ) -> Option<DependencyEdge> {
-            match item {
-                DependencyItem::UnresolvedRemote {
-                    mode, kind, symbol, ..
-                } => Some(DependencyEdge {
-                    mode: *mode,
-                    kind: *kind,
-                    target,
-                    module: None,
-                    item: Some(item_id),
-                    source,
-                    symbol: Some(*symbol),
-                    target_symbol: None,
-                }),
-                DependencyItem::UnresolvedLocal { mode, kind, .. } => Some(DependencyEdge {
-                    mode: *mode,
-                    kind: *kind,
-                    target,
-                    module: None,
-                    item: Some(item_id),
-                    source,
-                    symbol: None,
-                    target_symbol: None,
-                }),
-                DependencyItem::Value { .. }
-                | DependencyItem::Local { .. }
-                | DependencyItem::Remote { .. } => None,
-            }
-        }
-
-        // walk expressions
-        let mut edges: Vec<DependencyEdge> = Vec::new();
-        for (_expresion_id, expression) in tree.iter_nodes_of_type::<Expression>() {
-            // import statements
-            if let Expression::Import { target, items, .. } = expression {
-                for item_id in items.iter() {
-                    let item = tree.get(*item_id);
-                    if let Some(edge) = bind_dependency_item_to_edge(
-                        *target,
-                        *item_id,
-                        item,
-                        DependencySource::ImportStatement,
-                    ) {
-                        edges.push(edge);
-                    }
-                }
-            }
-            // re-export statements
-            else if let Expression::ReExport { target, items, .. } = expression {
-                for item_id in items.iter() {
-                    let item = tree.get(*item_id);
-                    if let Some(edge) = bind_dependency_item_to_edge(
-                        *target,
-                        *item_id,
-                        item,
-                        DependencySource::ReExportStatement,
-                    ) {
-                        edges.push(edge);
-                    }
-                }
-            }
-            // something else
-            else {
-                continue;
-            }
-        }
-        edges
     }
 }

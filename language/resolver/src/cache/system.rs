@@ -197,10 +197,11 @@ impl<Fs: FileSystem> CachedFileSystem<Fs> {
 
         // parse
         let mut tsconfig =
-            TsConfig::parse(FileId::new(0), root, &tsconfig_path, &mut tsconfig_string)
-                .map_err(|_| ResolveError::TsConfigInvalid {
+            TsConfig::parse(FileId::new(0), root, &tsconfig_path, &mut tsconfig_string).map_err(
+                |_| ResolveError::TsConfigInvalid {
                     path: tsconfig_path.to_path_buf(),
-                })?;
+                },
+            )?;
 
         modify(&mut tsconfig)?;
 

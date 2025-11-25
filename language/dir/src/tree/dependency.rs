@@ -2,8 +2,23 @@ use dyst_source::StringId;
 
 use crate::{Expression, GlobalSymbolId, LocalNodeId, LocalSymbolId, ModuleId, Node, NodeType};
 
+/// The source of a dependency.
+#[derive(Debug, Clone, Copy, PartialEq, Hash, Eq)]
+pub enum DependencySource {
+    /// Plain import statement (like `import "foo"`).
+    ImportStatement,
+    /// Re-export statement (like `export { bar } from "foo"`).
+    ReExportStatement,
+    /// Import call (like `await import("foo")`).
+    ImportCall,
+    /// Require call (like `require("foo")`).
+    RequireCall,
+    /// Value expression (like `export = foo`).
+    ValueExpression,
+}
+
 /// The mode of a dependency item.
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Hash, Eq)]
 pub enum DependencyMode {
     /// Regular item (`import { foo } from "foo"` or `export { foo } from "foo"`)
     Item,
@@ -14,7 +29,7 @@ pub enum DependencyMode {
 }
 
 /// The type of a dependency item.
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Hash, Eq)]
 pub enum DependencyKind {
     /// Type dependency (`import type foo` or `export type foo`).
     Type,
@@ -27,10 +42,12 @@ pub enum DependencyKind {
 pub enum DependencyItem {
     /// Unresolved remote item aliased to a local item from a target.
     UnresolvedRemote {
+        source: DependencySource,
         mode: DependencyMode,
         kind: DependencyKind,
         alias: Option<StringId>,
         target: StringId,
+        module: Option<ModuleId>, // item may remain unresolved even if we can resolve the target module
         symbol: LocalSymbolId,
     },
     /// Unresolved local item from the module.
@@ -38,6 +55,7 @@ pub enum DependencyItem {
         mode: DependencyMode,
         kind: DependencyKind,
         name: StringId,
+        alias: Option<StringId>,
     },
     /// Value expression dependency (like `export = foo`).
     Value { value: LocalNodeId<Expression> },

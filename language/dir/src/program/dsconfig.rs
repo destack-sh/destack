@@ -70,14 +70,14 @@ pub struct DsConfigCompilerOptionsJson {}
 #[derive(Debug, Default, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct DsConfigTargetJson {
-	/// whether this is a debug build.
-	pub debug: bool,
-	/// whether this is an optimized build.
-	pub optimize: bool,
-	/// Optimization level (0-3).
-	pub optimize_level: Option<u8>,
-	/// Shrink levels (0-3).
-	pub shrink_level: Option<u8>,
+    /// whether this is a debug build.
+    pub debug: bool,
+    /// whether this is an optimized build.
+    pub optimize: bool,
+    /// Optimization level (0-3).
+    pub optimize_level: Option<u8>,
+    /// Shrink levels (0-3).
+    pub shrink_level: Option<u8>,
 }
 
 /// Dyst configuration registry.

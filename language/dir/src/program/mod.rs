@@ -1,4 +1,3 @@
-mod dependency;
 mod dsconfig;
 mod module;
 mod package;
@@ -6,7 +5,6 @@ mod program;
 mod specifier;
 mod tsconfig;
 
-pub use dependency::*;
 pub use dsconfig::*;
 pub use module::*;
 pub use package::*;

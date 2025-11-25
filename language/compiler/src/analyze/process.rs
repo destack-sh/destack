@@ -1,4 +1,4 @@
-use crate::{AnalyzeResult, CompileTask, Compiler};
+use crate::{AnalyzeResult, CompileOutput, CompileTask, Compiler};
 
 use dyst_dir::{ModuleId, Program};
 
@@ -36,6 +36,12 @@ impl From<AnalyzeTask> for CompileTask {
 /// Output of an analyze task.
 #[derive(Debug, Clone)]
 pub struct AnalyzeOutput {}
+
+impl From<AnalyzeOutput> for CompileOutput {
+    fn from(output: AnalyzeOutput) -> Self {
+        CompileOutput::Analyze(output)
+    }
+}
 
 impl<'a> Compiler<'a> {
     /// Process a analyze task.

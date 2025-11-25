@@ -1,4 +1,4 @@
-use crate::{CompileTask, Compiler, ElaborateResult};
+use crate::{CompileOutput, CompileTask, Compiler, ElaborateResult};
 
 use dyst_dir::{ModuleId, Program};
 
@@ -36,6 +36,12 @@ impl From<ElaborateTask> for CompileTask {
 /// Output of an elaborate task.
 #[derive(Debug, Clone)]
 pub struct ElaborateOutput {}
+
+impl From<ElaborateOutput> for CompileOutput {
+    fn from(output: ElaborateOutput) -> Self {
+        CompileOutput::Elaborate(output)
+    }
+}
 
 impl<'a> Compiler<'a> {
     /// Process a elaborate task.

@@ -52,7 +52,10 @@ pub(crate) fn format_import_binding<'ast>(
         && let Some(first_item) = first_item
         && first_item.mode == DependencyMode::Namespace
     {
-        write!(f, [token("*"), space(), Keyword::As, space(), first_item.alias])?;
+        write!(
+            f,
+            [token("*"), space(), Keyword::As, space(), first_item.alias]
+        )?;
     }
     // items
     else {

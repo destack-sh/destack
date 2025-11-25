@@ -7,8 +7,8 @@ use dyst_ast::{self as ast, StringPool};
 use dyst_source::{FileId, Uri};
 
 use crate::{
-    AnalysisTable, DependencyEdge, Expression, LocalNodeId, LocalScopeId, LocalSymbolId, NodeTree,
-    PackageId, ScopeKind, SymbolSpace, SymbolTable, TypeTable,
+    AnalysisTable, Expression, LocalNodeId, LocalScopeId, LocalSymbolId, NodeTree, PackageId,
+    ScopeKind, SymbolSpace, SymbolTable, TypeTable,
 };
 
 /// Unique identifier for Modules.
@@ -53,6 +53,10 @@ pub struct Module {
     pub ast_strings: StringPool,
 
     // dir
+    /// The symbol of the Module itself.
+    pub symbol: LocalSymbolId,
+    /// The scope of the Module itself.
+    pub scope: LocalScopeId,
     /// The main DIR node tree of the Module.
     pub tree: RwLock<NodeTree>,
     /// The symbol side table of the Module.
@@ -63,14 +67,6 @@ pub struct Module {
     pub analysis: RwLock<AnalysisTable>,
     /// The top-level expressions of the Module.
     pub roots: Vec<LocalNodeId<Expression>>,
-
-    // derived bindings
-    /// The symbol of the Module itself.
-    pub symbol: LocalSymbolId,
-    /// The scope of the Module itself.
-    pub scope: LocalScopeId,
-    // The imports of the Module.
-    pub imports: Vec<DependencyEdge>,
 }
 
 impl Module {
@@ -94,19 +90,18 @@ impl Module {
             file_id: file,
             uri,
             package_id: package,
-            // ast
+            // astgit ad
             ast,
             ast_roots,
             ast_strings,
             // dir
+            symbol: symbol_id,
+            scope: scope_id,
             tree: RwLock::new(NodeTree::new(id)),
             symbols: RwLock::new(symbols),
             types: RwLock::new(TypeTable::new(id)),
             analysis: RwLock::new(AnalysisTable::new(id)),
-            symbol: symbol_id,
-            scope: scope_id,
             roots: Vec::new(),
-            imports: Vec::new(),
         }
     }
 

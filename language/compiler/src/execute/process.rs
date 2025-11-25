@@ -1,4 +1,4 @@
-use crate::{CompileTask, Compiler, ExecuteResult};
+use crate::{CompileOutput, CompileTask, Compiler, ExecuteResult};
 
 use dyst_dir::{LocalNodeIdAny, Program};
 
@@ -36,6 +36,12 @@ impl From<ExecuteTask> for CompileTask {
 /// Output of an execute task.
 #[derive(Debug, Clone)]
 pub struct ExecuteOutput {}
+
+impl From<ExecuteOutput> for CompileOutput {
+    fn from(output: ExecuteOutput) -> Self {
+        CompileOutput::Execute(output)
+    }
+}
 
 impl<'a> Compiler<'a> {
     /// Execute a node.

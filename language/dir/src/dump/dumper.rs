@@ -1406,25 +1406,35 @@ impl<'a> NodeVisitor for Dumper<'a> {
     ) {
         match dependency_item {
             DependencyItem::UnresolvedRemote {
+                source,
                 mode,
                 kind,
                 alias,
                 target,
+                module,
                 symbol,
             } => {
                 self.node("DependencyItem::UnresolvedRemote", id.id)
+                    .field("source", source)
                     .field("mode", mode)
                     .field("kind", kind)
                     .field_optional("alias", alias)
                     .field("target", target)
+                    .field_optional("module", module)
                     .field("symbol", symbol)
                     .end();
             }
-            DependencyItem::UnresolvedLocal { mode, kind, name } => {
+            DependencyItem::UnresolvedLocal {
+                mode,
+                kind,
+                name,
+                alias,
+            } => {
                 self.node("DependencyItem::UnresolvedLocal", id.id)
                     .field("mode", mode)
                     .field("kind", kind)
                     .field("name", name)
+                    .field_optional("alias", alias)
                     .end();
             }
             DependencyItem::Value { value: _ } => {
