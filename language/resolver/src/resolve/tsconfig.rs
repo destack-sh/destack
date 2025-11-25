@@ -78,12 +78,10 @@ impl Resolver {
             return Ok(tsconfig_id);
         }
 
-        // get IDs for this tsconfig
+        // parse the `tsconfig.json` file
         let tsconfig_id = self.program.tsconfigs.next_id();
         // nocheckin TODO @Incomplete: should properly register the file in FileRegistry with content
         let file_id = self.program.files.next_id();
-
-        // read and parse the tsconfig
         let mut tsconfig = self.read_tsconfig(tsconfig_id, file_id, is_root, path)?;
 
         // check for circular extends
@@ -168,8 +166,8 @@ impl Resolver {
         }
 
         // store in registry
-        let built = tsconfig.build();
-        self.program.tsconfigs.insert(built);
+        let tsconfig = tsconfig.build();
+        self.program.tsconfigs.insert(tsconfig);
 
         Ok(tsconfig_id)
     }

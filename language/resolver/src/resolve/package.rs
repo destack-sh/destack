@@ -46,9 +46,9 @@ impl Resolver {
         // parse `package.json` file
         let package_id = self.program.packages.next_id();
         // nocheckin TODO @Incomplete: should properly register the file in FileRegistry with content
-        let file_id = self.program.files.next_id();
+        let package_file_id = self.program.files.next_id();
         let package_options = PackageOptions::parse(
-            file_id,
+            package_file_id,
             package_json_path.clone(),
             package_json_path.clone(),
             bytes,
@@ -60,7 +60,7 @@ impl Resolver {
         // create and insert package
         let package = Package {
             id: package_id,
-            file_id,
+            file_id: package_file_id,
             path: package_options.directory.clone(),
             realpath: package_options.directory.clone(),
             name: package_options.content.name.clone(),

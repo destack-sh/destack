@@ -30,7 +30,8 @@ impl Resolver {
         inner_ctx.found_dependencies.replace(vec![]);
         inner_ctx.missing_dependencies.replace(vec![]);
 
-        let result = self.resolve_in_context(directory.as_ref(), specifier, &mut inner_ctx);
+        // resolve
+        let resolution = self.resolve_in_context(directory.as_ref(), specifier, &mut inner_ctx);
 
         // append dependencies to caller's context
         if let Some(deps) = &mut inner_ctx.found_dependencies {
@@ -44,7 +45,7 @@ impl Resolver {
                 .append(deps);
         }
 
-        result
+        resolution
     }
 
     /// Perform the resolution with a mutable context.
