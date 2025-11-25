@@ -2,12 +2,13 @@
 
 use std::borrow::Cow;
 use std::path::Path;
+use std::sync::Arc;
 
 use dyst_source::{MemoryFileSystem, PathExt};
 use indexmap::IndexMap;
 use serde_json::json;
 
-use crate::{PhysicalResolver, ResolveError, ResolveOptions};
+use crate::{ResolveError, ResolveOptions, Resolver};
 
 /// Test simple exports field resolution.
 #[test]
@@ -17,7 +18,7 @@ fn test_resolve_exports_field_simple() {
     let f4 = super::fixture().join("exports-field-error");
     let f5 = super::fixture().join("imports-exports-wildcard");
 
-    let resolver = PhysicalResolver::new(ResolveOptions {
+    let resolver = Resolver::blank(ResolveOptions {
         extensions: vec![".js".into()],
         is_fully_specified: true,
         conditions: vec!["webpack".into()],
@@ -81,7 +82,7 @@ fn test_resolve_exports_field_simple() {
 fn test_resolve_exports_field_not_browser_field1() {
     let f = super::fixture().join("exports-field");
 
-    let resolver = PhysicalResolver::new(ResolveOptions {
+    let resolver = Resolver::blank(ResolveOptions {
         conditions: vec!["webpack".into()],
         extensions: vec![".js".into()],
         ..ResolveOptions::default()
@@ -101,7 +102,7 @@ fn test_resolve_exports_field_not_browser_field1() {
 fn test_resolve_exports_field_not_browser_field2() {
     let f2 = super::fixture().join("exports-field2");
 
-    let resolver = PhysicalResolver::new(ResolveOptions {
+    let resolver = Resolver::blank(ResolveOptions {
         extensions: vec![".js".into()],
         conditions: vec!["node".into()],
         ..ResolveOptions::default()
@@ -121,7 +122,7 @@ fn test_resolve_exports_field_not_browser_field2() {
 fn test_resolve_exports_field_extension_without_fully_specified() {
     let f2 = super::fixture().join("exports-field2");
 
-    let commonjs_resolver = PhysicalResolver::new(ResolveOptions {
+    let commonjs_resolver = Resolver::blank(ResolveOptions {
         extensions: vec![".js".into()],
         conditions: vec!["webpack".into()],
         ..ResolveOptions::default()
@@ -141,7 +142,7 @@ fn test_resolve_exports_field_extension_without_fully_specified() {
 fn test_resolve_exports_field_extension_alias() {
     let f = super::fixture().join("exports-field-and-extension-alias");
 
-    let resolver = PhysicalResolver::new(ResolveOptions {
+    let resolver = Resolver::blank(ResolveOptions {
         extensions: vec![".js".into()],
         extension_alias: IndexMap::from([(".js".into(), vec![".ts".into(), ".js".into()])]),
         is_fully_specified: true,
@@ -166,7 +167,7 @@ fn test_resolve_exports_field_extension_alias() {
 fn test_resolve_exports_field_extension_alias_complex() {
     let f = super::fixture().join("exports-field-and-extension-alias");
 
-    let resolver = PhysicalResolver::new(ResolveOptions {
+    let resolver = Resolver::blank(ResolveOptions {
         extensions: vec![".js".into()],
         extension_alias: IndexMap::from([(
             ".js".into(),
@@ -199,7 +200,7 @@ fn test_resolve_exports_field_extension_alias_complex() {
 fn test_resolve_exports_field_extension_alias_error() {
     let f = super::fixture().join("exports-field-and-extension-alias");
 
-    let resolver = PhysicalResolver::new(ResolveOptions {
+    let resolver = Resolver::blank(ResolveOptions {
         extensions: vec![".js".into()],
         extension_alias: IndexMap::from([(".js".into(), vec![".ts".into()])]),
         is_fully_specified: true,
@@ -227,7 +228,7 @@ fn test_resolve_exports_field_extension_alias_error() {
 #[test]
 fn test_resolve_exports_field_directory() {
     let f = super::fixture();
-    let resolver = PhysicalResolver::new(ResolveOptions::default());
+    let resolver = Resolver::blank(ResolveOptions::default());
     let resolution = resolver.resolve(f.join("foo"), "../exports-field");
     let path = resolution.unwrap().full_path();
     assert_eq!(path, f.join("exports-field").join("a.js"));
@@ -2367,8 +2368,8 @@ fn test_resolve_exports_field_cases() {
             .map(ToString::to_string)
             .collect::<Vec<_>>();
         let file_system = MemoryFileSystem::default();
-        let resolver = crate::Resolver::from_file_system(
-            file_system,
+        let resolver = Resolver::blank_with_fs(
+            Arc::new(file_system),
             ResolveOptions {
                 conditions: condition_names,
                 ..ResolveOptions::default()

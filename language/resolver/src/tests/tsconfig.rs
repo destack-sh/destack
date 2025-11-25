@@ -1,6 +1,5 @@
-use crate::tests::TestResolver;
 use crate::{
-    ResolveError, ResolveOptions, TypeScriptOptionsDiscovery, TypeScriptOptionsLocation,
+    ResolveError, ResolveOptions, Resolver, TypeScriptOptionsDiscovery, TypeScriptOptionsLocation,
     TypeScriptOptionsReferences,
 };
 
@@ -9,7 +8,7 @@ use crate::{
 fn tsconfig_discovery_virtual_file_importer() {
     let f = super::fixture_root().join("tsconfig");
 
-    let resolver = TestResolver::new(ResolveOptions {
+    let resolver = Resolver::blank(ResolveOptions {
         tsconfig: Some(TypeScriptOptionsDiscovery::Automatic),
         cwd: Some(f.join("cases/index")),
         ..ResolveOptions::default()
@@ -31,7 +30,7 @@ fn tsconfig_discovery_virtual_file_importer() {
 fn test_extend_tsconfig() {
     let f = super::fixture_root().join("tsconfig/cases/extends");
 
-    let resolver = TestResolver::new(ResolveOptions {
+    let resolver = Resolver::blank(ResolveOptions {
         tsconfig: Some(TypeScriptOptionsDiscovery::Manual(
             TypeScriptOptionsLocation {
                 config_file: f.join("tsconfig.json"),
@@ -84,7 +83,7 @@ fn test_extend_tsconfig() {
 fn test_extend_tsconfig_paths() {
     let f = super::fixture_root().join("tsconfig/cases/extends-paths-inheritance");
 
-    let resolver = TestResolver::new(ResolveOptions {
+    let resolver = Resolver::blank(ResolveOptions {
         tsconfig: Some(TypeScriptOptionsDiscovery::Manual(
             TypeScriptOptionsLocation {
                 config_file: f.join("tsconfig.json"),
@@ -105,7 +104,7 @@ fn test_extend_tsconfig_paths() {
 fn test_extend_tsconfig_override_behavior() {
     let f = super::fixture_root().join("tsconfig/cases/extends-override");
 
-    let resolver = TestResolver::new(ResolveOptions {
+    let resolver = Resolver::blank(ResolveOptions {
         tsconfig: Some(TypeScriptOptionsDiscovery::Manual(
             TypeScriptOptionsLocation {
                 config_file: f.join("tsconfig.json"),
@@ -128,7 +127,7 @@ fn test_extend_tsconfig_override_behavior() {
 fn test_extend_tsconfig_template_variables() {
     let f = super::fixture_root().join("tsconfig/cases/extends-template-vars");
 
-    let resolver = TestResolver::new(ResolveOptions {
+    let resolver = Resolver::blank(ResolveOptions {
         tsconfig: Some(TypeScriptOptionsDiscovery::Manual(
             TypeScriptOptionsLocation {
                 config_file: f.join("tsconfig.json"),
@@ -151,7 +150,7 @@ fn test_extend_tsconfig_missing_file() {
 
     let f = super::fixture_root().join("tsconfig/cases");
 
-    let resolver = TestResolver::new(ResolveOptions {
+    let resolver = Resolver::blank(ResolveOptions {
         tsconfig: Some(TypeScriptOptionsDiscovery::Manual(
             TypeScriptOptionsLocation {
                 config_file: f.join("nonexistent-tsconfig.json"),
@@ -173,7 +172,7 @@ fn test_extend_tsconfig_missing_file() {
 fn test_extend_tsconfig_multiple_inheritance() {
     let f = super::fixture_root().join("tsconfig/cases/extends-chain");
 
-    let resolver = TestResolver::new(ResolveOptions {
+    let resolver = Resolver::blank(ResolveOptions {
         tsconfig: Some(TypeScriptOptionsDiscovery::Manual(
             TypeScriptOptionsLocation {
                 config_file: f.join("tsconfig.json"),
@@ -197,7 +196,7 @@ fn test_extend_tsconfig_multiple_inheritance() {
 fn test_extend_tsconfig_preserves_child_settings() {
     let f = super::fixture_root().join("tsconfig/cases/extends-preserve-child");
 
-    let resolver = TestResolver::new(ResolveOptions {
+    let resolver = Resolver::blank(ResolveOptions {
         tsconfig: Some(TypeScriptOptionsDiscovery::Manual(
             TypeScriptOptionsLocation {
                 config_file: f.join("tsconfig.json"),

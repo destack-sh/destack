@@ -8,8 +8,8 @@ use parking_lot::RwLock;
 use crate::validate_utf8_string;
 
 use super::FileSystem;
-use super::system::FileMetadata;
 use super::path::PathExt;
+use super::system::FileMetadata;
 
 /// Memory file system implementation. THREAD-SAFE.
 #[derive(Debug, Default, Clone)]
@@ -132,6 +132,7 @@ impl FileSystem for MemoryFileSystem {
                 entries.push(dir_path.clone());
             }
         }
+        entries.sort();
         Ok(entries)
     }
 

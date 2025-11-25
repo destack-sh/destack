@@ -1,12 +1,11 @@
 #[cfg(target_os = "windows")]
 use crate::PathUtil;
-use crate::tests::TestResolver;
 #[cfg(target_os = "windows")]
 use crate::tests::windows::get_dos_device_path;
 use std::path::{Path, PathBuf};
 use std::{fs, io};
 
-use crate::ResolveOptions;
+use crate::{ResolveOptions, Resolver};
 
 #[derive(Debug, Clone, Copy)]
 enum FileType {
@@ -156,11 +155,11 @@ fn test_symlinks_resolution() {
     let Some(SymlinkFixturePaths { root, temp_path }) = prepare_symlinks("temp").unwrap() else {
         return;
     };
-    let resolver_without_symlinks = TestResolver::new(ResolveOptions {
+    let resolver_without_symlinks = Resolver::blank(ResolveOptions {
         canonicalize_symlinks: false,
         ..ResolveOptions::default()
     });
-    let resolver_with_symlinks = TestResolver::default();
+    let resolver_with_symlinks = Resolver::blank(ResolveOptions::default());
 
     #[rustfmt::skip]
     let pass = [
@@ -226,7 +225,7 @@ fn test_symlinks_circular() {
     }
 
     // should error due to circular symlink
-    let resolver = TestResolver::default();
+    let resolver = Resolver::blank(ResolveOptions::default());
     let result = resolver.resolve(&temp_path, "./link1");
     assert!(result.is_err());
 

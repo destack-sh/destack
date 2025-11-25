@@ -5,8 +5,7 @@ use std::sync::Arc;
 use fancy_regex::Regex;
 use indexmap::IndexMap;
 
-use super::TestResolver;
-use crate::{ResolveError, ResolveOptions, Restriction};
+use crate::{ResolveError, ResolveOptions, Resolver, Restriction};
 
 /// Test that regex restrictions are respected.
 #[test]
@@ -14,7 +13,7 @@ fn test_restrictions_respect_regexp() {
     let f = super::fixture().join("restrictions");
 
     let re = Regex::new(r"\.(sass|scss|css)$").unwrap();
-    let resolver1 = TestResolver::new(ResolveOptions {
+    let resolver1 = Resolver::blank(ResolveOptions {
         extensions: vec![".js".into()],
         restrictions: vec![Restriction::Function(Arc::new(move |path| {
             path.as_os_str()
@@ -39,7 +38,7 @@ fn test_restrictions_find_alternative_extension() {
     let f = super::fixture().join("restrictions");
 
     let re = Regex::new(r"\.(sass|scss|css)$").unwrap();
-    let resolver1 = TestResolver::new(ResolveOptions {
+    let resolver1 = Resolver::blank(ResolveOptions {
         extensions: vec![".js".into(), ".css".into()],
         main_files: vec!["index".into()],
         restrictions: vec![Restriction::Function(Arc::new(move |path| {
@@ -60,7 +59,7 @@ fn test_restrictions_respect_string() {
     let fixture = super::fixture();
     let f = fixture.join("restrictions");
 
-    let resolver = TestResolver::new(ResolveOptions {
+    let resolver = Resolver::blank(ResolveOptions {
         extensions: vec![".js".into()],
         restrictions: vec![Restriction::Path(f.clone())],
         ..ResolveOptions::default()
@@ -81,7 +80,7 @@ fn test_restrictions_find_alternative_main_fields() {
     let f = super::fixture().join("restrictions");
 
     let re = Regex::new(r"\.(sass|scss|css)$").unwrap();
-    let resolver1 = TestResolver::new(ResolveOptions {
+    let resolver1 = Resolver::blank(ResolveOptions {
         extensions: vec![".js".into(), ".css".into()],
         restrictions: vec![Restriction::Function(Arc::new(move |path| {
             path.as_os_str()
@@ -102,7 +101,7 @@ fn test_restrictions_check_in_load_index_with_enforce_extension_disabled() {
     let f = super::fixture().join("restrictions");
 
     let re = Regex::new(r"\.(css)$").unwrap();
-    let resolver = TestResolver::new(ResolveOptions {
+    let resolver = Resolver::blank(ResolveOptions {
         extensions: vec![".js".into(), ".css".into()],
         main_files: vec!["index".into()],
         enforce_extension: crate::EnforceExtension::Disabled,
@@ -127,7 +126,7 @@ fn test_restrictions_check_in_load_alias_or_file() {
 
     // Restrict to only files outside the restrictions directory
     let restrictions_path = f.clone();
-    let resolver = TestResolver::new(ResolveOptions {
+    let resolver = Resolver::blank(ResolveOptions {
         extensions: vec![".js".into()],
         restrictions: vec![Restriction::Function(Arc::new(move |path| {
             !path.starts_with(&restrictions_path)
@@ -146,7 +145,7 @@ fn test_restrictions_check_in_load_alias_or_file() {
 fn test_restrictions_check_in_browser_field_alias() {
     let f = super::fixture().join("browser-module");
 
-    let resolver = TestResolver::new(ResolveOptions {
+    let resolver = Resolver::blank(ResolveOptions {
         restrictions: vec![Restriction::Function(Arc::new(|path| {
             // Restrict files containing "browser" in their path
             !path.to_str().is_some_and(|s| s.contains("browser"))
@@ -165,7 +164,7 @@ fn test_restrictions_check_in_browser_field_alias() {
 fn test_restrictions_check_in_extension_alias() {
     let f = super::fixture().join("extension-alias");
 
-    let resolver = TestResolver::new(ResolveOptions {
+    let resolver = Resolver::blank(ResolveOptions {
         extension_alias: IndexMap::from([
             (".js".into(), vec![".ts".into(), ".js".into()]),
             (".mjs".into(), vec![".mts".into(), ".mjs".into()]),
@@ -188,7 +187,7 @@ fn test_restrictions_check_in_extension_alias() {
 fn test_restrictions_check_in_package_main_fields() {
     let f = super::fixture().join("restrictions");
 
-    let resolver = TestResolver::new(ResolveOptions {
+    let resolver = Resolver::blank(ResolveOptions {
         restrictions: vec![Restriction::Function(Arc::new(|path| {
             // Restrict .js files
             path.extension().and_then(|e| e.to_str()) != Some("js")
@@ -215,7 +214,7 @@ fn test_restrictions_apply_multiple() {
     // Use two function restrictions to test that both are applied
     let re_css = Regex::new(r"\.(css)$").unwrap();
     let re_no_js = Regex::new(r"\.(js)$").unwrap();
-    let resolver = TestResolver::new(ResolveOptions {
+    let resolver = Resolver::blank(ResolveOptions {
         extensions: vec![".js".into(), ".css".into()],
         main_files: vec!["index".into()],
         restrictions: vec![
@@ -248,7 +247,7 @@ fn test_restrictions_fail_if_any_fails() {
     // Use two function restrictions where one will fail
     let re_css = Regex::new(r"\.(css)$").unwrap();
     let re_no_css = Regex::new(r"\.(css)$").unwrap();
-    let resolver = TestResolver::new(ResolveOptions {
+    let resolver = Resolver::blank(ResolveOptions {
         extensions: vec![".js".into(), ".css".into()],
         main_files: vec!["index".into()],
         restrictions: vec![
@@ -285,7 +284,7 @@ fn test_restrictions_allow_exact_path() {
     let f = super::fixture().join("restrictions");
     let exact_file = f.join("node_modules/pck1/index.css");
 
-    let resolver = TestResolver::new(ResolveOptions {
+    let resolver = Resolver::blank(ResolveOptions {
         extensions: vec![".css".into()],
         main_files: vec!["index".into()],
         restrictions: vec![Restriction::Path(exact_file.clone())],
@@ -304,7 +303,7 @@ fn test_restrictions_respect_parent_directory() {
     let fixture = super::fixture();
     let f = fixture.join("restrictions");
 
-    let resolver = TestResolver::new(ResolveOptions {
+    let resolver = Resolver::blank(ResolveOptions {
         extensions: vec![".js".into()],
         restrictions: vec![Restriction::Path(fixture)],
         ..ResolveOptions::default()

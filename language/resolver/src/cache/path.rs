@@ -8,7 +8,7 @@ use std::sync::{Arc, OnceLock, Weak};
 
 use cfg_if::cfg_if;
 use dyst_dir::{PackageOptions, TsConfig};
-use dyst_source::FileSystem;
+use dyst_source::{FileMetadata, FileSystem};
 use papaya::Equivalent;
 
 use super::system::CachedFileSystem;
@@ -39,7 +39,7 @@ pub struct CachedPathState {
     pub is_inside_node_modules: bool,
 
     /// Lazy-loaded metadata (is_file, is_directory).
-    pub meta: OnceLock<Option<(bool, bool)>>,
+    pub meta: OnceLock<Option<FileMetadata>>,
     /// Lazy-loaded canonicalized path.
     pub canonicalized_path: OnceLock<Weak<CachedPathState>>,
     /// Lazy-loaded `node_modules` subdirectory.
@@ -102,10 +102,10 @@ impl CachedPath {
     }
 
     /// Gets the module directory of the cached path.
-    pub(crate) fn module_directory<Fs: FileSystem>(
+    pub(crate) fn module_directory(
         &self,
         module_name: &str,
-        cache: &CachedFileSystem<Fs>,
+        cache: &CachedFileSystem,
         ctx: &mut ResolutionContext,
     ) -> Option<Self> {
         let cached_path = cache.value(&self.path.join(module_name));
@@ -119,9 +119,9 @@ impl CachedPath {
     }
 
     /// Gets the cached `node_modules` directory.
-    pub(crate) fn cached_node_modules<Fs: FileSystem>(
+    pub(crate) fn cached_node_modules(
         &self,
-        cache: &CachedFileSystem<Fs>,
+        cache: &CachedFileSystem,
         ctx: &mut ResolutionContext,
     ) -> Option<Self> {
         self.node_modules
@@ -134,10 +134,10 @@ impl CachedPath {
     }
 
     /// Finds the `package.json` of a path by traversing parent directories.
-    pub(crate) fn find_package_json<Fs: FileSystem>(
+    pub(crate) fn find_package_json(
         &self,
         options: &ResolveOptions,
-        cache: &CachedFileSystem<Fs>,
+        cache: &CachedFileSystem,
         ctx: &mut ResolutionContext,
     ) -> Result<Option<Arc<PackageOptions>>, ResolveError> {
         let mut cache_value = self.clone();
@@ -166,11 +166,7 @@ impl CachedPath {
     }
 
     /// Adds an extension to the cached path.
-    pub(crate) fn add_extension<Fs: FileSystem>(
-        &self,
-        extension: &str,
-        cache: &CachedFileSystem<Fs>,
-    ) -> Self {
+    pub(crate) fn add_extension(&self, extension: &str, cache: &CachedFileSystem) -> Self {
         SCRATCH_PATH.with_borrow_mut(|path| {
             path.clear();
             let s = path.as_mut_os_string();
@@ -181,11 +177,7 @@ impl CachedPath {
     }
 
     /// Replaces the extension of the cached path.
-    pub(crate) fn replace_extension<Fs: FileSystem>(
-        &self,
-        extension: &str,
-        cache: &CachedFileSystem<Fs>,
-    ) -> Self {
+    pub(crate) fn replace_extension(&self, extension: &str, cache: &CachedFileSystem) -> Self {
         SCRATCH_PATH.with_borrow_mut(|path| {
             path.clear();
             let path_str = path.as_mut_os_string();
@@ -207,10 +199,10 @@ impl CachedPath {
     }
 
     /// Returns a new path by resolving the given subpath (including "." and ".." components) with this path.
-    pub(crate) fn normalize_with<Fs: FileSystem, P: AsRef<Path>>(
+    pub(crate) fn normalize_with<P: AsRef<Path>>(
         &self,
         subpath: P,
-        cache: &CachedFileSystem<Fs>,
+        cache: &CachedFileSystem,
     ) -> Self {
         let subpath = subpath.as_ref();
         let mut components = subpath.components();
@@ -259,7 +251,7 @@ impl CachedPath {
     /// Normalizes the root of the cached path (Windows specific).
     #[inline]
     #[cfg(windows)]
-    pub(crate) fn normalize_root<Fs: FileSystem>(&self, cache: &CachedFileSystem<Fs>) -> Self {
+    pub(crate) fn normalize_root(&self, cache: &CachedFileSystem) -> Self {
         if self.path().as_os_str().as_encoded_bytes().last() == Some(&b'/') {
             let mut path_string = self.path.to_string_lossy().into_owned();
             path_string.pop();
@@ -273,29 +265,25 @@ impl CachedPath {
     /// Normalizes the root of the cached path (No-op on non-Windows).
     #[inline]
     #[cfg(not(windows))]
-    pub(crate) fn normalize_root<Fs: FileSystem>(&self, _cache: &CachedFileSystem<Fs>) -> Self {
+    pub(crate) fn normalize_root(&self, _cache: &CachedFileSystem) -> Self {
         self.clone()
     }
 }
 
 impl CachedPath {
     /// Gets the metadata of the cached path.
-    fn metadata<Fs: FileSystem>(&self, fs: &Fs) -> Option<(bool, bool)> {
-        *self.meta.get_or_init(|| {
-            fs.metadata(&self.path)
-                .ok()
-                .map(|r| (r.is_file, r.is_directory))
-        })
+    fn metadata(&self, fs: &dyn FileSystem) -> Option<FileMetadata> {
+        *self.meta.get_or_init(|| fs.metadata(&self.path).ok())
     }
 
     /// Checks if the cached path is a file.
-    pub(crate) fn is_file<Fs: FileSystem>(&self, fs: &Fs) -> Option<bool> {
-        self.metadata(fs).map(|r| r.0)
+    pub(crate) fn is_file(&self, fs: &dyn FileSystem) -> Option<bool> {
+        self.metadata(fs).map(|r| r.is_file)
     }
 
     /// Checks if the cached path is a directory.
-    pub(crate) fn is_directory<Fs: FileSystem>(&self, fs: &Fs) -> Option<bool> {
-        self.metadata(fs).map(|r| r.1)
+    pub(crate) fn is_directory(&self, fs: &dyn FileSystem) -> Option<bool> {
+        self.metadata(fs).map(|r| r.is_directory)
     }
 }
 
