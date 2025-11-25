@@ -42,6 +42,8 @@ pub struct TsConfig {
     pub path: PathBuf,
     /// The directory containing the `tsconfig.json` file.
     pub directory: PathBuf,
+    /// Base directory from which to resolve path aliases.
+    pub paths_base: PathBuf,
     /// The content of the `tsconfig.json` file.
     pub content: TsConfigJson,
 }
@@ -76,6 +78,7 @@ impl TsConfig {
             is_root,
             path: path.to_path_buf(),
             directory: directory.to_path_buf(),
+            paths_base: directory.to_path_buf(),
             content: tsconfig_json,
         };
         Ok(tsconfig)
@@ -131,7 +134,7 @@ impl TsConfig {
 
         // compilerOptions.paths
         if compiler_options.paths.is_none() {
-            let paths_base = compiler_options.base_url.as_ref().map_or_else(
+            self.paths_base = compiler_options.base_url.as_ref().map_or_else(
                 || tsconfig.directory.to_path_buf(),
                 |path| {
                     if path.to_string_lossy().starts_with(TEMPLATE_VARIABLE) {
@@ -141,7 +144,6 @@ impl TsConfig {
                     }
                 },
             );
-            compiler_options.paths_base = paths_base;
             compiler_options.paths = tsconfig.content.compiler_options.paths.clone();
         }
 
@@ -284,23 +286,17 @@ impl TsConfig {
         }
 
         if self.content.compiler_options.paths.is_some() {
-            // `paths_base` should use config dir if it is not resolved with base url nor extended
-            // with another tsconfig.
+            // paths_base should use base_url if set, otherwise config dir
             if let Some(base_url) = &self.content.compiler_options.base_url {
-                self.content.compiler_options.paths_base = base_url.clone();
+                self.paths_base = base_url.clone();
             }
 
-            if self
-                .content
-                .compiler_options
-                .paths_base
-                .as_os_str()
-                .is_empty()
-            {
-                self.content.compiler_options.paths_base = config_dir.clone();
+            // default to config dir if paths_base is still empty
+            if self.paths_base.as_os_str().is_empty() {
+                self.paths_base = config_dir.clone();
             }
 
-            // Substitute template variable in `tsconfig.compilerOptions.paths`.
+            // substitute template variable in `tsconfig.compilerOptions.paths`
             for paths in self
                 .content
                 .compiler_options
@@ -320,16 +316,26 @@ impl TsConfig {
 
     /// Resolves the given `specifier` within the project configured by this
     /// tsconfig, relative to the given `path`.
-    pub fn resolve(&self, path: &Path, specifier: &str) -> Vec<PathBuf> {
-        let paths = self.content.resolve_path_alias(specifier);
-        for tsconfig in self
-            .content
-            .references
-            .iter()
-            .filter_map(TsConfigProjectReferences::tsconfig)
-        {
+    pub fn resolve(
+        &self,
+        path: &Path,
+        specifier: &str,
+        registry: &TsConfigRegistry,
+    ) -> Vec<PathBuf> {
+        let paths = self.content.resolve_path_alias(specifier, &self.paths_base);
+        for reference in &self.content.references {
+            // compute the full path to the reference tsconfig and look it up
+            let reference_path = self.directory.normalize_with(&reference.path);
+            let Some(tsconfig_id) = registry.get_id_by_path(&reference_path) else {
+                continue;
+            };
+            let tsconfig_lock = registry.get(tsconfig_id);
+            let tsconfig = tsconfig_lock.read();
             if path.starts_with(tsconfig.base_path()) {
-                return [tsconfig.content.resolve_path_alias(specifier), paths].concat();
+                let ref_paths = tsconfig
+                    .content
+                    .resolve_path_alias(specifier, &tsconfig.paths_base);
+                return [ref_paths, paths].concat();
             }
         }
         paths
@@ -490,7 +496,7 @@ impl TsConfigJson {
 
     /// Resolves the given `specifier` within the project configured by this tsconfig.
     // <https://github.com/parcel-bundler/parcel/blob/b6224fd519f95e68d8b93ba90376fd94c8b76e69/packages/utils/node-resolver-rs/src/tsconfig.rs#L93>
-    pub fn resolve_path_alias(&self, specifier: &str) -> Vec<PathBuf> {
+    pub(super) fn resolve_path_alias(&self, specifier: &str, paths_base: &Path) -> Vec<PathBuf> {
         if specifier.starts_with('.') {
             return Vec::new();
         }
@@ -545,7 +551,7 @@ impl TsConfigJson {
 
         paths
             .into_iter()
-            .map(|p| compiler_options.paths_base.normalize_with(p))
+            .map(|p| paths_base.normalize_with(p))
             .chain(base_url_iter)
             .collect()
     }
@@ -563,10 +569,6 @@ pub struct TsConfigCompilerOptionsJson {
     /// Path aliases (e.g. `{ "src/*": ["src/*"] }`)
     /// <https://www.typescriptlang.org/tsconfig/#paths>
     pub paths: Option<IndexMap<String, Vec<String>, BuildHasherDefault<FxHasher>>>,
-
-    /// The actual base from where path aliases are resolved.
-    #[serde(skip)]
-    pub paths_base: PathBuf, // nocheckin: remove
 
     /// Allow arbitrary non-standard file extensions to be imported.
     /// <https://www.typescriptlang.org/tsconfig/#allowArbitraryExtensions>
@@ -786,29 +788,8 @@ pub enum TsConfigExtendsField {
 /// <https://www.typescriptlang.org/docs/handbook/project-references.html>
 #[derive(Debug, Deserialize, Clone)]
 pub struct TsConfigProjectReferences {
-    /// Path to the tsconfig.json file.
+    /// Path to the tsconfig.json file (relative to containing tsconfig).
     pub path: PathBuf,
-
-    /// Resolved tsconfig. // nocheckin: remove
-    #[serde(skip)]
-    pub tsconfig: Option<Arc<TsConfig>>,
-}
-
-impl TsConfigProjectReferences {
-    /// Returns the path to the tsconfig.json file.
-    pub fn path(&self) -> &Path {
-        &self.path
-    }
-
-    /// Returns the resolved tsconfig.
-    pub fn tsconfig(&self) -> Option<Arc<TsConfig>> {
-        self.tsconfig.clone()
-    }
-
-    /// Sets the resolved tsconfig.
-    pub fn set_tsconfig(&mut self, tsconfig: Arc<TsConfig>) {
-        self.tsconfig.replace(tsconfig);
-    }
 }
 
 /// Trims the start of a string if it starts with the given character.

@@ -1,6 +1,5 @@
 use std::borrow::Cow;
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
 
 use dyst_dir::{TsConfig, TsConfigId, TsConfigProjectReferences};
 use dyst_source::PathExt;
@@ -81,6 +80,7 @@ impl Resolver {
 
         // get IDs for this tsconfig
         let tsconfig_id = self.program.tsconfigs.next_id();
+        // nocheckin TODO @Incomplete: should properly register the file in FileRegistry with content
         let file_id = self.program.files.next_id();
 
         // read and parse the tsconfig
@@ -127,10 +127,7 @@ impl Resolver {
             TypeScriptOptionsReferences::Paths(paths) => {
                 tsconfig.content.references = paths
                     .iter()
-                    .map(|path| TsConfigProjectReferences {
-                        path: path.clone(),
-                        tsconfig: None,
-                    })
+                    .map(|path| TsConfigProjectReferences { path: path.clone() })
                     .collect();
             }
         }
@@ -138,10 +135,11 @@ impl Resolver {
         // load reference tsconfigs
         if !tsconfig.content.references.is_empty() {
             let current_path = tsconfig.path.to_path_buf();
-            for reference in tsconfig.content.references.iter_mut() {
+            for reference in &tsconfig.content.references {
                 let reference_tsconfig_path = tsconfig.directory.normalize_with(&reference.path);
                 let reference_tsconfig_id = self.program.tsconfigs.next_id();
                 let reference_file_id = self.program.files.next_id();
+                // nocheckin TODO @Incomplete: should properly register the file in FileRegistry with content
                 let mut referenced_tsconfig = self.read_tsconfig(
                     reference_tsconfig_id,
                     reference_file_id,
@@ -163,10 +161,9 @@ impl Resolver {
                     ctx,
                 )?;
 
-                // insert the tsconfig
-                let reference_tsconfig = Arc::new(referenced_tsconfig.build());
-                self.program.tsconfigs.insert((*reference_tsconfig).clone());
-                reference.set_tsconfig(reference_tsconfig);
+                // insert the tsconfig into registry (looked up by path later)
+                let referenced_tsconfig = referenced_tsconfig.build();
+                self.program.tsconfigs.insert(referenced_tsconfig);
             }
         }
 
@@ -271,7 +268,7 @@ impl Resolver {
         };
 
         let tsconfig = self.get_tsconfig(tsconfig_id);
-        let paths = tsconfig.resolve(path, specifier);
+        let paths = tsconfig.resolve(path, specifier, &self.program.tsconfigs);
         for resolved in paths {
             if let Some(resolution) = self.load_as_file_or_directory(&resolved, ".", ctx)? {
                 return Ok(Some(resolution));
