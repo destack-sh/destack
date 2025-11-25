@@ -1,13 +1,14 @@
 use core::fmt;
+use std::collections::HashMap;
+use std::path::{Path, PathBuf};
+use std::sync::Arc;
+use std::sync::atomic::{AtomicU32, Ordering};
+
 use dyst_source::FileId;
 use parking_lot::{Mutex, RwLock};
 use serde::Deserialize;
 use serde::de::Error;
 use serde_json::{Map, Value};
-use std::collections::HashMap;
-use std::path::PathBuf;
-use std::sync::Arc;
-use std::sync::atomic::{AtomicU32, Ordering};
 
 use crate::{DsConfigId, TsConfigId};
 
@@ -163,6 +164,8 @@ pub struct PackageJson {
 pub struct PackageRegistry {
     /// The packages by id.
     packages_by_id: Mutex<HashMap<PackageId, Arc<RwLock<Package>>>>,
+    /// Path-based index for looking up packages by their directory path.
+    packages_by_path: Mutex<HashMap<PathBuf, PackageId>>,
     /// The next package id.
     next_package_id: AtomicU32,
 }
@@ -178,6 +181,7 @@ impl PackageRegistry {
     pub fn new() -> Self {
         Self {
             packages_by_id: Mutex::new(HashMap::new()),
+            packages_by_path: Mutex::new(HashMap::new()),
             next_package_id: AtomicU32::new(0),
         }
     }
@@ -190,8 +194,14 @@ impl PackageRegistry {
 
     /// Insert a package into the registry.
     pub fn insert(&self, package: Package) {
+        let path = package.path.clone();
+        let id = package.id;
         let mut packages_by_id = self.packages_by_id.lock();
-        packages_by_id.insert(package.id, Arc::new(RwLock::new(package)));
+        packages_by_id.insert(id, Arc::new(RwLock::new(package)));
+
+        // maintain path index
+        let mut packages_by_path = self.packages_by_path.lock();
+        packages_by_path.insert(path, id);
     }
 
     /// Get a package by package id.
@@ -205,6 +215,24 @@ impl PackageRegistry {
             .get(&id)
             .unwrap_or_else(|| panic!("package not found: {id:?}"))
             .clone()
+    }
+
+    /// Get a package id by its directory path.
+    pub fn get_id_by_path(&self, path: &Path) -> Option<PackageId> {
+        let packages_by_path = self.packages_by_path.lock();
+        packages_by_path.get(path).copied()
+    }
+
+    /// Get a package by its directory path.
+    pub fn get_by_path(&self, path: &Path) -> Option<Arc<RwLock<Package>>> {
+        let id = self.get_id_by_path(path)?;
+        Some(self.get(id))
+    }
+
+    /// Check if a package exists at the given directory path.
+    pub fn contains_path(&self, path: &Path) -> bool {
+        let packages_by_path = self.packages_by_path.lock();
+        packages_by_path.contains_key(path)
     }
 
     /// Iterate over the packages in the registry.

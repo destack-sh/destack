@@ -88,6 +88,12 @@ impl Uri {
         Some(path)
     }
 
+    /// Convert a URI to a PathBuf.
+    pub fn to_path_buf(&self) -> Option<PathBuf> {
+        let path = Path::new(&self.0);
+        Some(path.to_path_buf())
+    }
+
     /// Convert a file Path to a URI.
     pub fn from_file_path<A: AsRef<Path>>(path: A) -> Self {
         Self(path.as_ref().to_string_lossy().into_owned())

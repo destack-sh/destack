@@ -45,7 +45,7 @@ pub struct ResolveOptions {
     pub modules: Vec<String>,
 
     /// Resolve to a context instead of a file.
-    pub resolve_directory: bool,
+    pub resolve_to_directory: bool,
 
     /// Prefer to resolve module requests as relative requests instead of using modules from node_modules directories.
     pub prefer_relative: bool,
@@ -206,7 +206,7 @@ impl Default for ResolveOptions {
             is_fully_specified: false,
             main_files: vec!["index".into()],
             modules: vec!["node_modules".into()],
-            resolve_directory: false,
+            resolve_to_directory: false,
             prefer_relative: false,
             prefer_absolute: false,
             restrictions: vec![],
@@ -248,8 +248,8 @@ impl fmt::Display for ResolveOptions {
         if !self.modules.is_empty() {
             write!(f, "modules:{:?},", self.modules)?;
         }
-        if self.resolve_directory {
-            write!(f, "resolve_directory:{:?},", self.resolve_directory)?;
+        if self.resolve_to_directory {
+            write!(f, "resolve_directory:{:?},", self.resolve_to_directory)?;
         }
         if self.prefer_relative {
             write!(f, "prefer_relative:{:?},", self.prefer_relative)?;

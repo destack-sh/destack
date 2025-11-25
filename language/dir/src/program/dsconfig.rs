@@ -1,9 +1,10 @@
-use indexmap::IndexMap;
-use parking_lot::{Mutex, RwLock};
 use std::collections::HashMap;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU32, Ordering};
+
+use indexmap::IndexMap;
+use parking_lot::{Mutex, RwLock};
 
 use dyst_source::FileId;
 use serde::Deserialize;
@@ -85,6 +86,8 @@ pub struct DsConfigTargetJson {
 pub struct DsConfigRegistry {
     /// The dsconfigs by id.
     dsconfigs_by_id: Mutex<HashMap<DsConfigId, Arc<RwLock<DsConfig>>>>,
+    /// Path-based index for looking up dsconfigs by their file path.
+    dsconfigs_by_path: Mutex<HashMap<PathBuf, DsConfigId>>,
     /// The next dsconfig id.
     next_dsconfig_id: AtomicU32,
 }
@@ -100,6 +103,7 @@ impl DsConfigRegistry {
     pub fn new() -> Self {
         Self {
             dsconfigs_by_id: Mutex::new(HashMap::new()),
+            dsconfigs_by_path: Mutex::new(HashMap::new()),
             next_dsconfig_id: AtomicU32::new(0),
         }
     }
@@ -112,8 +116,14 @@ impl DsConfigRegistry {
 
     /// Insert a dsconfig into the registry.
     pub fn insert(&self, dsconfig: DsConfig) {
+        let path = dsconfig.path.clone();
+        let id = dsconfig.id;
         let mut dsconfigs_by_id = self.dsconfigs_by_id.lock();
-        dsconfigs_by_id.insert(dsconfig.id, Arc::new(RwLock::new(dsconfig)));
+        dsconfigs_by_id.insert(id, Arc::new(RwLock::new(dsconfig)));
+
+        // maintain path index
+        let mut dsconfigs_by_path = self.dsconfigs_by_path.lock();
+        dsconfigs_by_path.insert(path, id);
     }
 
     /// Get a dsconfig by id.
@@ -126,6 +136,24 @@ impl DsConfigRegistry {
             .get(&id)
             .unwrap_or_else(|| panic!("dsconfig not found: {id:?}"))
             .clone()
+    }
+
+    /// Get a dsconfig id by its file path.
+    pub fn get_id_by_path(&self, path: &Path) -> Option<DsConfigId> {
+        let dsconfigs_by_path = self.dsconfigs_by_path.lock();
+        dsconfigs_by_path.get(path).copied()
+    }
+
+    /// Get a dsconfig by its file path.
+    pub fn get_by_path(&self, path: &Path) -> Option<Arc<RwLock<DsConfig>>> {
+        let id = self.get_id_by_path(path)?;
+        Some(self.get(id))
+    }
+
+    /// Check if a dsconfig exists at the given file path.
+    pub fn contains_path(&self, path: &Path) -> bool {
+        let dsconfigs_by_path = self.dsconfigs_by_path.lock();
+        dsconfigs_by_path.contains_key(path)
     }
 
     /// Iterate over the dsconfigs in the registry.

@@ -47,8 +47,9 @@ pub struct TsConfig {
 }
 
 impl TsConfig {
-    /// Parses the tsconfig from a JSON string.
+    /// Parse a tsconfig from a JSON string.
     pub fn parse(
+        id: TsConfigId,
         file_id: FileId,
         is_root: bool,
         path: &Path,
@@ -70,7 +71,7 @@ impl TsConfig {
             .expect("tsconfig.json must have a parent directory");
         let tsconfig_json: TsConfigJson = serde_json::from_str(json.as_ref())?;
         let tsconfig = Self {
-            id: TsConfigId::new(0), // nocheckin
+            id,
             file_id,
             is_root,
             path: path.to_path_buf(),
@@ -350,6 +351,8 @@ impl TsConfig {
 pub struct TsConfigRegistry {
     /// The tsconfigs by id.
     tsconfigs_by_id: Mutex<HashMap<TsConfigId, Arc<RwLock<TsConfig>>>>,
+    /// Path-based index for looking up tsconfigs by their file path.
+    tsconfigs_by_path: Mutex<HashMap<PathBuf, TsConfigId>>,
     /// The next tsconfig id.
     next_tsconfig_id: AtomicU32,
 }
@@ -365,6 +368,7 @@ impl TsConfigRegistry {
     pub fn new() -> Self {
         Self {
             tsconfigs_by_id: Mutex::new(HashMap::new()),
+            tsconfigs_by_path: Mutex::new(HashMap::new()),
             next_tsconfig_id: AtomicU32::new(0),
         }
     }
@@ -377,8 +381,14 @@ impl TsConfigRegistry {
 
     /// Insert a tsconfig into the registry.
     pub fn insert(&self, tsconfig: TsConfig) {
+        let path = tsconfig.path.clone();
+        let id = tsconfig.id;
         let mut tsconfigs_by_id = self.tsconfigs_by_id.lock();
-        tsconfigs_by_id.insert(tsconfig.id, Arc::new(RwLock::new(tsconfig)));
+        tsconfigs_by_id.insert(id, Arc::new(RwLock::new(tsconfig)));
+
+        // maintain path index
+        let mut tsconfigs_by_path = self.tsconfigs_by_path.lock();
+        tsconfigs_by_path.insert(path, id);
     }
 
     /// Get a tsconfig by id.
@@ -391,6 +401,24 @@ impl TsConfigRegistry {
             .get(&id)
             .unwrap_or_else(|| panic!("tsconfig not found: {id:?}"))
             .clone()
+    }
+
+    /// Get a tsconfig id by its file path.
+    pub fn get_id_by_path(&self, path: &Path) -> Option<TsConfigId> {
+        let tsconfigs_by_path = self.tsconfigs_by_path.lock();
+        tsconfigs_by_path.get(path).copied()
+    }
+
+    /// Get a tsconfig by its file path.
+    pub fn get_by_path(&self, path: &Path) -> Option<Arc<RwLock<TsConfig>>> {
+        let id = self.get_id_by_path(path)?;
+        Some(self.get(id))
+    }
+
+    /// Check if a tsconfig exists at the given file path.
+    pub fn contains_path(&self, path: &Path) -> bool {
+        let tsconfigs_by_path = self.tsconfigs_by_path.lock();
+        tsconfigs_by_path.contains_key(path)
     }
 
     /// Iterate over the tsconfigs in the registry.
@@ -795,9 +823,10 @@ fn trim_start_matches_mut(string: &mut str, pattern: char) -> &mut str {
 
 #[cfg(test)]
 mod tests {
-    use super::TsConfig;
     use dyst_source::FileId;
     use std::path::Path;
+
+    use crate::{TsConfig, TsConfigId};
 
     #[test]
     fn test_extend_tsconfig_no_override_existing() {
@@ -821,12 +850,23 @@ mod tests {
         })
         .to_string();
 
-        let parent_tsconfig =
-            TsConfig::parse(FileId::new(0), true, parent_path, &mut parent_config)
-                .unwrap()
-                .build();
-        let mut child_tsconfig =
-            TsConfig::parse(FileId::new(1), true, child_path, &mut child_config).unwrap();
+        let parent_tsconfig = TsConfig::parse(
+            TsConfigId::new(0),
+            FileId::new(0),
+            true,
+            parent_path,
+            &mut parent_config,
+        )
+        .unwrap()
+        .build();
+        let mut child_tsconfig = TsConfig::parse(
+            TsConfigId::new(1),
+            FileId::new(1),
+            true,
+            child_path,
+            &mut child_config,
+        )
+        .unwrap();
 
         child_tsconfig.extend_from(&parent_tsconfig);
         let child_built = child_tsconfig.build();
