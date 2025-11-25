@@ -13,7 +13,9 @@ use serde::Deserialize;
 
 use dyst_source::{FileId, PathExt, strip_json};
 
-const TEMPLATE_VARIABLE: &str = "${configDir}"; // TODO #Broken: revisit TsConfig template variable
+/// Template variable for the config directory path (e.g. `${configDir}`).
+/// <https://github.com/microsoft/TypeScript/pull/58042>
+const TEMPLATE_VARIABLE: &str = "${configDir}";
 
 /// Unique identifier for TsConfigs.
 #[repr(transparent)]
@@ -332,14 +334,8 @@ impl TsConfig {
         paths
     }
 
-    /// Template variable `${configDir}` for substitution of config files
-    /// directory path.
-    ///
-    /// NOTE: All tests cases are just a head replacement of `${configDir}`, so
-    ///       we are constrained as such.
-    ///
-    /// See <https://github.com/microsoft/TypeScript/pull/58042>.
-    pub fn substitute_template_variable(directory: &Path, path: &mut String) {
+    /// Template variable `${configDir}` for substitution of config files directory path.
+    fn substitute_template_variable(directory: &Path, path: &mut String) {
         if let Some(stripped_path) = path.strip_prefix(TEMPLATE_VARIABLE) {
             *path = directory
                 .join(stripped_path.trim_start_matches('/'))

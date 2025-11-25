@@ -1,14 +1,31 @@
-use dyst_dir::{Module, NodeTree, Pattern, Program};
-use dyst_source::{FileRegistry, FileSystem};
+use std::sync::Arc;
 
-/// A test wrapper for Compiler.
+use dyst_dir::Program;
+use dyst_source::{
+    FileRegistry, FileSystem, LanguageOptions, MemoryFileSystem, PhysicalFileSystem,
+};
+
+use crate::Compiler;
+
+/// A test wrapper for a Program.
 #[derive(Debug)]
-pub struct TestCompiler<Fs: FileSystem> {
+pub(crate) struct TestProgram<Fs: FileSystem> {
+    /// The language options.
+    pub language: LanguageOptions,
     /// The file system.
-    pub fs: Fs,
+    pub fs: Arc<Fs>,
     /// The files.
-    pub files: FileRegistry,
+    pub files: Arc<FileRegistry>,
+    /// The program.
+    pub program: Arc<Program>,
+    /// The compiler.
+    pub compiler: Arc<Compiler>,
 }
+
+pub(crate) type MemoryTestProgram = TestProgram<MemoryFileSystem>;
+pub(crate) type PhysicalTestProgram = TestProgram<PhysicalFileSystem>;
+
+impl MemoryTestProgram {}
 
 /// Assert that `tree.get(id)` matches `$pat`.
 /// If a body is provided (`=> { ... }`), it runs with the pattern bindings.

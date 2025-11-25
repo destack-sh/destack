@@ -176,7 +176,7 @@ impl<Fs: FileSystem> CachedFileSystem<Fs> {
         }
 
         // resolve path
-        let meta = self.fs.get_metadata(path).ok();
+        let meta = self.fs.metadata(path).ok();
         let tsconfig_path = if meta.is_some_and(|m| m.is_file) {
             Cow::Borrowed(path)
         } else if meta.is_some_and(|m| m.is_directory) {
@@ -270,7 +270,7 @@ impl<Fs: FileSystem> CachedFileSystem<Fs> {
 
                         if self
                             .fs
-                            .get_symlink_metadata(path.path())
+                            .symlink_metadata(path.path())
                             .is_ok_and(|m| m.is_symlink)
                         {
                             let link =

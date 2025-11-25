@@ -34,7 +34,7 @@ impl BindError {
     /// Get the node id of the error.
     pub fn node_id(&self) -> Option<GlobalNodeIdAny> {
         match self {
-            Self::Wait { wait, .. } => wait.nodes.first().copied(),
+            Self::Wait { wait } => wait.nodes.first().copied(),
             Self::UnsupportedNode { node } => Some(*node),
         }
     }
@@ -42,9 +42,7 @@ impl BindError {
     /// Get the message of the error.
     pub fn message(&self, _program: &Program) -> String {
         match self {
-            Self::Wait { wait, .. } => {
-                format!("wait for {} tasks", wait.tasks.len())
-            }
+            Self::Wait { .. } => "wait for task".to_string(),
             Self::UnsupportedNode { .. } => "unsupported node".to_string(),
         }
     }

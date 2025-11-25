@@ -18,7 +18,7 @@ use crate::{
 fn test_resolve_alias() {
     let f = Path::new("/");
 
-    let file_system = MemoryFileSystem::from_files(&[
+    let fs = MemoryFileSystem::from_files(&[
         ("/a/index.js", ""),
         ("/a/dir/index.js", ""),
         ("/recursive/index.js", ""),
@@ -36,7 +36,7 @@ fn test_resolve_alias() {
     ]);
 
     let resolver = MemoryResolver::from_file_system(
-        file_system,
+        fs,
         ResolveOptions {
             alias: vec![
                 ("aliasA".into(), vec![AliasValue::from("a")]),

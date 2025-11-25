@@ -1,12 +1,14 @@
 use std::collections::{HashMap, HashSet};
 use std::io;
 use std::path::{Path, PathBuf};
-use std::sync::{Arc, RwLock};
+use std::sync::Arc;
+
+use parking_lot::RwLock;
 
 use crate::validate_utf8_string;
 
 use super::FileSystem;
-use super::metadata::FileMetadata;
+use super::system::FileMetadata;
 use super::path::PathExt;
 
 /// Memory file system implementation. THREAD-SAFE.
@@ -25,7 +27,7 @@ struct MemoryFileSystemState {
 }
 
 impl MemoryFileSystem {
-    /// Creates a new MemoryFileSystem from the given files.
+    /// Create a new MemoryFileSystem from the given files.
     /// Any intermediate directories are created automatically.
     pub fn from_files(entries: &[(&str, &str)]) -> Self {
         let fs = Self::default();
@@ -36,25 +38,26 @@ impl MemoryFileSystem {
         fs
     }
 
-    /// Adds a file to the MemoryFileSystem.
+    /// Add a file to the MemoryFileSystem (including all parent directories).
     pub fn add_file<P: AsRef<Path>>(&self, path: P, content: &[u8]) -> io::Result<()> {
         let path = path.as_ref();
-        let mut inner = self.inner.write().expect("lock poisoned");
-        Self::ensure_directory_entries(&mut inner.directories, path);
+        self.ensure_directories(path);
+        let mut inner = self.inner.write();
         inner.files.insert(path.to_path_buf(), content.to_vec());
         Ok(())
     }
 
-    /// Ensures that all directories leading up to the given path are created.
-    fn ensure_directory_entries(directories: &mut HashSet<PathBuf>, path: &Path) {
+    /// Ensure that all directories leading up to the given path are created.
+    fn ensure_directories(&self, path: &Path) {
+        let mut inner = self.inner.write();
         for ancestor in path.ancestors().skip(1) {
             if ancestor.as_os_str().is_empty() {
                 continue;
             }
-            directories.insert(ancestor.to_path_buf());
+            inner.directories.insert(ancestor.to_path_buf());
         }
         if path.is_absolute() {
-            directories.insert(PathBuf::from("/"));
+            inner.directories.insert(PathBuf::from("/"));
         }
     }
 }
@@ -64,22 +67,13 @@ impl FileSystem for MemoryFileSystem {
         Self::default()
     }
 
-    fn read(&self, path: &Path) -> io::Result<Vec<u8>> {
-        let inner = self.inner.read().expect("lock poisoned");
-        inner
-            .files
-            .get(path)
-            .cloned()
-            .ok_or_else(|| io::Error::new(io::ErrorKind::NotFound, path.display().to_string()))
+    fn exists(&self, path: &Path) -> io::Result<bool> {
+        let inner = self.inner.read();
+        Ok(inner.files.contains_key(path) || inner.directories.contains(path))
     }
 
-    fn read_to_string(&self, path: &Path) -> io::Result<String> {
-        let bytes = self.read(path)?;
-        validate_utf8_string(bytes)
-    }
-
-    fn get_metadata(&self, path: &Path) -> io::Result<FileMetadata> {
-        let inner = self.inner.read().expect("lock poisoned");
+    fn metadata(&self, path: &Path) -> io::Result<FileMetadata> {
+        let inner = self.inner.read();
         if inner.directories.contains(path) {
             Ok(FileMetadata::new(false, true, false))
         } else if inner.files.contains_key(path) {
@@ -92,10 +86,6 @@ impl FileSystem for MemoryFileSystem {
         }
     }
 
-    fn get_symlink_metadata(&self, path: &Path) -> io::Result<FileMetadata> {
-        self.get_metadata(path)
-    }
-
     fn resolve_symlink(&self, path: &Path) -> io::Result<PathBuf> {
         Err(io::Error::new(
             io::ErrorKind::NotFound,
@@ -104,7 +94,7 @@ impl FileSystem for MemoryFileSystem {
     }
 
     fn canonicalize(&self, path: &Path) -> io::Result<PathBuf> {
-        let metadata = self.get_metadata(path)?;
+        let metadata = self.metadata(path)?;
         if metadata.is_directory || metadata.is_file {
             return Ok(path.normalize());
         }
@@ -112,5 +102,45 @@ impl FileSystem for MemoryFileSystem {
             io::ErrorKind::NotFound,
             path.display().to_string(),
         ))
+    }
+
+    fn read(&self, path: &Path) -> io::Result<Vec<u8>> {
+        let inner = self.inner.read();
+        inner
+            .files
+            .get(path)
+            .cloned()
+            .ok_or_else(|| io::Error::new(io::ErrorKind::NotFound, path.display().to_string()))
+    }
+
+    fn read_dir(&self, path: &Path) -> io::Result<Vec<PathBuf>> {
+        let inner = self.inner.read();
+        if !inner.directories.contains(path) {
+            return Err(io::Error::new(
+                io::ErrorKind::NotFound,
+                path.display().to_string(),
+            ));
+        }
+        let mut entries = Vec::new();
+        for file_path in inner.files.keys() {
+            if file_path.parent() == Some(path) {
+                entries.push(file_path.clone());
+            }
+        }
+        for dir_path in &inner.directories {
+            if dir_path.parent() == Some(path) {
+                entries.push(dir_path.clone());
+            }
+        }
+        Ok(entries)
+    }
+
+    fn read_to_string(&self, path: &Path) -> io::Result<String> {
+        let bytes = self.read(path)?;
+        validate_utf8_string(bytes)
+    }
+
+    fn symlink_metadata(&self, path: &Path) -> io::Result<FileMetadata> {
+        self.metadata(path)
     }
 }

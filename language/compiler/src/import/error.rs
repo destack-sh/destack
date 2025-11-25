@@ -47,7 +47,7 @@ impl ImportError {
     /// Get the node id of the error.
     pub fn node_id(&self) -> Option<GlobalNodeIdAny> {
         match self {
-            Self::Wait { wait, .. } => wait.nodes.first().copied(),
+            Self::Wait { wait } => wait.nodes.first().copied(),
             Self::InvalidUri { .. } => None,
             Self::FileUriNotFound { .. } => None,
             Self::ModuleNotFound { .. } => None,
@@ -59,9 +59,7 @@ impl ImportError {
     /// Get the message of the error.
     pub fn message(&self, program: &Program) -> String {
         match self {
-            Self::Wait { wait, .. } => {
-                format!("wait for {} tasks", wait.tasks.len())
-            }
+            Self::Wait { .. } => "wait for task".to_string(),
             Self::InvalidUri { uri } => format!("invalid URI: '{uri}'"),
             Self::FileUriNotFound { uri } => format!("file URI not found: '{uri}'"),
             Self::ModuleNotFound { target, .. } => {
