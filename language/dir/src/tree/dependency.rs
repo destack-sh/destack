@@ -45,6 +45,7 @@ pub enum DependencyItem {
         source: DependencySource,
         mode: DependencyMode,
         kind: DependencyKind,
+        name: Option<StringId>,
         alias: Option<StringId>,
         target: StringId,
         module: Option<ModuleId>, // item may remain unresolved even if we can resolve the target module
@@ -71,7 +72,7 @@ pub enum DependencyItem {
     Remote {
         mode: DependencyMode,
         kind: DependencyKind,
-        name: StringId,
+        name: Option<StringId>,
         alias: Option<StringId>,
         target: StringId,
         module: ModuleId,

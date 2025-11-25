@@ -6,7 +6,7 @@ use crate::{
 };
 
 /// Error during compilation.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum CompileError {
     /// Error during importing.
     Import(ImportError),

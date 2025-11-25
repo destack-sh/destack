@@ -1,6 +1,6 @@
 use dyst_dir::{
-    Argument, Expression, LocalNodeId, LocalNodeIdAny, LocalSymbolId, Module, NodeTree, Path,
-    Scope, ScopeKind, Symbol, SymbolKey, SymbolTable,
+    Argument, Expression, GlobalNodeIdAny, LocalNodeId, LocalSymbolId, Module, Path, Scope,
+    ScopeKind, Symbol, SymbolKey, SymbolTable,
 };
 
 use crate::{Compiler, ResolveError, ResolveResult};
@@ -11,10 +11,9 @@ impl<'a> Compiler<'a> {
     pub(super) fn resolve_absolute_symbol(
         &self,
         module: &Module,
-        node: LocalNodeIdAny,
+        node: GlobalNodeIdAny,
         scope: &Scope,
         key: SymbolKey,
-        _tree: &NodeTree,
         symbols: &SymbolTable,
     ) -> ResolveResult<LocalSymbolId> {
         let mut scope = scope;
@@ -34,7 +33,7 @@ impl<'a> Compiler<'a> {
         }
 
         Err(ResolveError::MissingSymbol {
-            node: node.into_global(module.id),
+            node,
             scope: scope.id.into_global(module.id),
             key,
         })
@@ -44,10 +43,9 @@ impl<'a> Compiler<'a> {
     pub(super) fn resolve_relative_symbol(
         &self,
         module: &Module,
-        node: LocalNodeIdAny,
+        node: GlobalNodeIdAny,
         symbol_id: LocalSymbolId,
         path: &Path,
-        _tree: &NodeTree,
         symbols: &SymbolTable,
     ) -> ResolveResult<(LocalSymbolId, Option<Path>)> {
         let mut symbol = symbols.get_symbol(symbol_id);
@@ -62,7 +60,7 @@ impl<'a> Compiler<'a> {
                 scope = symbols.get_scope_by_symbol(symbol.id);
             } else {
                 return Err(ResolveError::MissingSymbol {
-                    node: node.into_global(module.id),
+                    node,
                     scope: scope.id.into_global(module.id),
                     key,
                 });
@@ -81,11 +79,10 @@ impl<'a> Compiler<'a> {
     pub(super) fn resolve_absolute_path(
         &self,
         module: &Module,
-        node: LocalNodeIdAny,
+        node: GlobalNodeIdAny,
         scope: &Scope,
         path: &Path,
         static_arguments: Option<Vec<LocalNodeId<Argument>>>,
-        tree: &NodeTree,
         symbols: &SymbolTable,
     ) -> ResolveResult<Expression> {
         let first_segment = path.first_segment().expect("path is empty in {node:?}");
@@ -96,14 +93,13 @@ impl<'a> Compiler<'a> {
             node,
             scope,
             SymbolKey::Name(first_segment),
-            tree,
             symbols,
         )?;
         let remaining_path = path.slice(1..);
 
         // resolve remaining path
         let (symbol_id, remaining_path) =
-            self.resolve_relative_symbol(module, node, symbol_id, &remaining_path, tree, symbols)?;
+            self.resolve_relative_symbol(module, node, symbol_id, &remaining_path, symbols)?;
         if let Some(remaining_path) = remaining_path {
             Ok(Expression::UnresolvedRelativePath {
                 path: path.clone(),
@@ -113,15 +109,7 @@ impl<'a> Compiler<'a> {
             })
         } else {
             let symbol = symbols.get_symbol(symbol_id);
-            self.resolve_symbol_to_expression(
-                module,
-                node,
-                symbol,
-                path,
-                static_arguments,
-                tree,
-                symbols,
-            )
+            self.resolve_symbol_to_expression(module, node, symbol, path, static_arguments, symbols)
         }
     }
 
@@ -129,17 +117,16 @@ impl<'a> Compiler<'a> {
     pub(super) fn resolve_relative_path(
         &self,
         module: &Module,
-        node: LocalNodeIdAny,
+        node: GlobalNodeIdAny,
         symbol: &Symbol,
         path: &Path,
         remaining_path: &Path,
         static_arguments: Option<Vec<LocalNodeId<Argument>>>,
-        tree: &NodeTree,
         symbols: &SymbolTable,
     ) -> ResolveResult<Expression> {
         // resolve relative symbol
         let (symbol_id, remaining_path) =
-            self.resolve_relative_symbol(module, node, symbol.id, remaining_path, tree, symbols)?;
+            self.resolve_relative_symbol(module, node, symbol.id, remaining_path, symbols)?;
         if let Some(remaining_path) = remaining_path {
             Ok(Expression::UnresolvedRelativePath {
                 path: path.clone(),
@@ -149,15 +136,7 @@ impl<'a> Compiler<'a> {
             })
         } else {
             let symbol = symbols.get_symbol(symbol_id);
-            self.resolve_symbol_to_expression(
-                module,
-                node,
-                symbol,
-                path,
-                static_arguments,
-                tree,
-                symbols,
-            )
+            self.resolve_symbol_to_expression(module, node, symbol, path, static_arguments, symbols)
         }
     }
 
@@ -165,11 +144,10 @@ impl<'a> Compiler<'a> {
     pub(super) fn resolve_symbol_to_expression(
         &self,
         module: &Module,
-        _node: LocalNodeIdAny,
+        _node: GlobalNodeIdAny,
         symbol: &Symbol,
         path: &Path,
         static_arguments: Option<Vec<LocalNodeId<Argument>>>,
-        _tree: &NodeTree,
         symbols: &SymbolTable,
     ) -> ResolveResult<Expression> {
         let scope = symbols.get_scope_by_symbol(symbol.id);

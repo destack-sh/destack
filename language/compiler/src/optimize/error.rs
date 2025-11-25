@@ -1,16 +1,13 @@
 use dyst_dir::{GlobalNodeIdAny, Program};
 
-use crate::{CompileError, CompilePhase, CompileTask};
+use crate::{CompileError, CompilePhase, CompileTaskWait};
 
 /// Error when optimizing something into the compiler.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 #[repr(u8)]
 pub enum OptimizeError {
     /// Wait for other tasks.
-    Wait {
-        nodes: Vec<GlobalNodeIdAny>,
-        tasks: Vec<CompileTask>,
-    },
+    Wait { wait: CompileTaskWait },
     /// Optimization is impossible for this node.
     UnsupportedNode { node: GlobalNodeIdAny },
     /// Unsupported optimization.
@@ -37,7 +34,7 @@ impl OptimizeError {
     /// Get the node id of the error.
     pub fn node_id(&self) -> Option<GlobalNodeIdAny> {
         match self {
-            Self::Wait { nodes, .. } => nodes.first().copied(),
+            Self::Wait { wait, .. } => wait.nodes.first().copied(),
             Self::UnsupportedNode { node, .. } => Some(*node),
             Self::UnsupportedOptimization { node, .. } => Some(*node),
             Self::PossibleUndefinedBehavior { node, .. } => Some(*node),
@@ -47,8 +44,8 @@ impl OptimizeError {
     /// Get the message of the error.
     pub fn message<'a>(&self, _program: &'a Program<'a>) -> String {
         match self {
-            Self::Wait { tasks, .. } => {
-                format!("wait for {} tasks", tasks.len())
+            Self::Wait { wait, .. } => {
+                format!("wait for {} tasks", wait.tasks.len())
             }
             Self::UnsupportedNode { .. } => "unsupported node".to_string(),
             Self::UnsupportedOptimization { .. } => "unsupported optimization".to_string(),

@@ -117,9 +117,15 @@ impl DsConfigRegistry {
     }
 
     /// Get a dsconfig by id.
-    pub fn get(&self, id: DsConfigId) -> Option<Arc<RwLock<DsConfig>>> {
+    ///
+    /// # Panics
+    /// Panics if the dsconfig is not found.
+    pub fn get(&self, id: DsConfigId) -> Arc<RwLock<DsConfig>> {
         let dsconfigs_by_id = self.dsconfigs_by_id.lock();
-        dsconfigs_by_id.get(&id).cloned()
+        dsconfigs_by_id
+            .get(&id)
+            .unwrap_or_else(|| panic!("dsconfig not found: {id:?}"))
+            .clone()
     }
 
     /// Iterate over the dsconfigs in the registry.

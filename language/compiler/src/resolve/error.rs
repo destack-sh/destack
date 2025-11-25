@@ -1,4 +1,4 @@
-use crate::{CompileError, CompilePhase, CompileTask};
+use crate::{CompileError, CompilePhase, CompileTaskWait};
 use dyst_dir::{GlobalNodeIdAny, GlobalScopeId, GlobalSymbolId, Program, StringId, SymbolKey};
 
 /// Error when evaluating something statically.
@@ -6,10 +6,7 @@ use dyst_dir::{GlobalNodeIdAny, GlobalScopeId, GlobalSymbolId, Program, StringId
 #[repr(u8)]
 pub enum ResolveError {
     /// Wait for other tasks.
-    Wait {
-        nodes: Vec<GlobalNodeIdAny>,
-        tasks: Vec<CompileTask>,
-    },
+    Wait { wait: CompileTaskWait },
 
     /// Unsupported node.
     UnsupportedNode { node: GlobalNodeIdAny },
@@ -81,7 +78,7 @@ impl ResolveError {
     /// Get the node id of the error.
     pub fn node_id(&self) -> Option<GlobalNodeIdAny> {
         match self {
-            Self::Wait { nodes, .. } => nodes.first().copied(),
+            Self::Wait { wait, .. } => wait.nodes.first().copied(),
             Self::UnsupportedNode { node, .. } => Some(*node),
             Self::CircularDependency { node, .. } => Some(*node),
             Self::UndeclaredSymbol { node, .. } => Some(*node),
@@ -96,8 +93,8 @@ impl ResolveError {
     /// Get the message of the error.
     pub fn message<'a>(&self, program: &'a Program<'a>) -> String {
         match self {
-            Self::Wait { tasks, .. } => {
-                format!("wait for {} tasks", tasks.len())
+            Self::Wait { wait, .. } => {
+                format!("wait for {} tasks", wait.tasks.len())
             }
             Self::UnsupportedNode { node, .. } => {
                 format!("unsupported {}", node.local_id.ty.name())

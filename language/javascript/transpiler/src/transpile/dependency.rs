@@ -40,12 +40,16 @@ impl<'a> Transpiler<'a> {
             let transpiled_item = match item {
                 dir::DependencyItem::UnresolvedRemote {
                     mode,
+                    source: _,
                     kind: item_kind,
+                    name,
                     alias,
-                    target: _,
+                    target,
+                    module: _,
                     symbol: _,
                 } => {
                     let mode = self.transpile_dependency_mode(*mode);
+                    let name = name.map(|name| unit.strings.intern_from(&module.ast_strings, name));
                     let alias =
                         alias.map(|alias| unit.strings.intern_from(&module.ast_strings, alias));
                     DependencyItem {
@@ -55,7 +59,7 @@ impl<'a> Transpiler<'a> {
                         } else {
                             None
                         },
-                        name: None,
+                        name,
                         alias,
                         value: None,
                     }
@@ -64,9 +68,12 @@ impl<'a> Transpiler<'a> {
                     mode,
                     kind: item_kind,
                     name,
+                    alias,
                 } => {
                     let mode = self.transpile_dependency_mode(*mode);
                     let name = unit.strings.intern_from(&module.ast_strings, *name);
+                    let alias =
+                        alias.map(|alias| unit.strings.intern_from(&module.ast_strings, alias));
                     DependencyItem {
                         mode,
                         kind: if *item_kind != kind {
@@ -75,7 +82,7 @@ impl<'a> Transpiler<'a> {
                             None
                         },
                         name: Some(name),
-                        alias: None,
+                        alias,
                         value: None,
                     }
                 }
@@ -125,7 +132,7 @@ impl<'a> Transpiler<'a> {
                     target_symbol: _,
                 } => {
                     let mode = self.transpile_dependency_mode(*mode);
-                    let name = unit.strings.intern_from(&module.ast_strings, *name);
+                    let name = name.map(|name| unit.strings.intern_from(&module.ast_strings, name));
                     let alias =
                         alias.map(|alias| unit.strings.intern_from(&module.ast_strings, alias));
                     DependencyItem {
@@ -135,7 +142,7 @@ impl<'a> Transpiler<'a> {
                         } else {
                             None
                         },
-                        name: Some(name),
+                        name,
                         alias,
                         value: None,
                     }

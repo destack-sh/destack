@@ -72,11 +72,7 @@ impl<'a> Compiler<'a> {
 
     /// Resolve an entire module.
     pub fn resolve_module(&self, module_id: ModuleId) -> ResolveResult<()> {
-        let module = self
-            .program
-            .modules
-            .get(module_id)
-            .unwrap_or_else(|| panic!("module not found: {module_id:?}"));
+        let module = self.program.modules.get(module_id);
         let module = module.read();
         let mut tree = module.tree.write();
         let symbols = module.symbols.read();

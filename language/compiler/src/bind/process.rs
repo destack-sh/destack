@@ -1,6 +1,6 @@
 use dyst_dir::{Expression, LocalNodeId, ModuleId, Program};
 
-use crate::{BindError, BindResult, CompileOutput, CompileTask, Compiler, ResolveTask};
+use crate::{BindResult, CompileOutput, CompileTask, Compiler, ResolveTask};
 
 /// Task to bind AST into DIR.
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
@@ -54,11 +54,7 @@ impl<'a> Compiler<'a> {
 
     /// Bind a module.
     pub fn bind_module(&self, module: ModuleId) -> BindResult<()> {
-        let module = self
-            .program
-            .modules
-            .get(module)
-            .ok_or(BindError::ModuleNotFound { module })?;
+        let module = self.program.modules.get(module);
         let module_id = module.read().id;
 
         // bind roots
@@ -73,7 +69,7 @@ impl<'a> Compiler<'a> {
                 .map(|expression| {
                     self.bind_expression(
                         &module,
-                        module.scope,
+                        module.namespace_scope,
                         *expression,
                         &mut tree,
                         &mut symbols,

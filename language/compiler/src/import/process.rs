@@ -71,12 +71,7 @@ impl<'a> Compiler<'a> {
     pub fn process_import(&self, task: ImportTask) -> ImportResult<ImportOutput> {
         // read file
         let file: Arc<File> = match task {
-            ImportTask::ImportModuleFromFile { file: file_id } => {
-                match self.program.files.get(file_id) {
-                    Some(file) => file,
-                    None => return Err(ImportError::FileIdNotFound { file_id }),
-                }
-            }
+            ImportTask::ImportModuleFromFile { file: file_id } => self.program.files.get(file_id),
             ImportTask::ImportModuleFromUri { uri, ty } => {
                 let path = uri
                     .to_path()
@@ -101,7 +96,7 @@ impl<'a> Compiler<'a> {
                 let file_id = self.program.files.next_id();
                 let file = File::from_text(file_id, name, uri, ty, content);
                 self.program.files.insert(file);
-                self.program.files.get(file_id).unwrap()
+                self.program.files.get(file_id)
             }
             ImportTask::ImportModuleFromSpecifier {
                 target,

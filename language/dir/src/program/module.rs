@@ -53,10 +53,12 @@ pub struct Module {
     pub ast_strings: StringPool,
 
     // dir
-    /// The symbol of the Module itself.
-    pub symbol: LocalSymbolId,
-    /// The scope of the Module itself.
-    pub scope: LocalScopeId,
+    /// The symbol of the Module namespace.
+    pub namespace_symbol: LocalSymbolId,
+    /// The scope of the Module.
+    pub namespace_scope: LocalScopeId,
+    /// The symbol of the Module default.
+    pub default_symbol: LocalSymbolId,
     /// The main DIR node tree of the Module.
     pub tree: RwLock<NodeTree>,
     /// The symbol side table of the Module.
@@ -81,9 +83,11 @@ impl Module {
         ast_strings: StringPool,
     ) -> Self {
         let mut symbols = SymbolTable::new(id);
-        let scope_id = symbols.insert_scope(ScopeKind::Namespace, None, None);
-        let symbol_id = symbols.insert_symbol(SymbolSpace::Value, None, scope_id);
-        symbols.get_scope_by_id_mut(scope_id).owner = Some(symbol_id);
+        let namespace_scope_id = symbols.insert_scope(ScopeKind::Namespace, None, None);
+        let namespace_symbol_id =
+            symbols.insert_symbol(SymbolSpace::Value, None, namespace_scope_id);
+        symbols.get_scope_by_id_mut(namespace_scope_id).owner = Some(namespace_symbol_id);
+        let default_symbol_id = symbols.insert_symbol(SymbolSpace::Value, None, namespace_scope_id);
 
         Self {
             id,
@@ -95,8 +99,9 @@ impl Module {
             ast_roots,
             ast_strings,
             // dir
-            symbol: symbol_id,
-            scope: scope_id,
+            namespace_symbol: namespace_symbol_id,
+            namespace_scope: namespace_scope_id,
+            default_symbol: default_symbol_id,
             tree: RwLock::new(NodeTree::new(id)),
             symbols: RwLock::new(symbols),
             types: RwLock::new(TypeTable::new(id)),
@@ -163,10 +168,16 @@ impl ModuleRegistry {
     }
 
     /// Get a module by module id.
+    ///
+    /// # Panics
+    /// Panics if the module is not found.
     #[inline]
-    pub fn get(&self, id: ModuleId) -> Option<Arc<RwLock<Module>>> {
+    pub fn get(&self, id: ModuleId) -> Arc<RwLock<Module>> {
         let modules_by_id = self.modules_by_id.lock();
-        modules_by_id.get(&id).cloned()
+        modules_by_id
+            .get(&id)
+            .unwrap_or_else(|| panic!("module not found: {id:?}"))
+            .clone()
     }
 
     /// Iterate over the modules in the registry.

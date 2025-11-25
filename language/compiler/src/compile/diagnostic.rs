@@ -62,10 +62,7 @@ impl CompileDiagnostic {
         let node_id = self
             .node_id()
             .unwrap_or_else(|| panic!("TODO #Broken: diagnostic without node id"));
-        let module = program
-            .modules
-            .get(node_id.module_id)
-            .unwrap_or_else(|| panic!("module not found: {:?}", node_id.module_id));
+        let module = program.modules.get(node_id.module_id);
         let file_id = module.read().file_id;
 
         // make diagnostic
