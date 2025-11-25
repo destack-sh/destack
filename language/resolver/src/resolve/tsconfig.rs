@@ -2,7 +2,7 @@ use std::borrow::Cow;
 use std::path::{Path, PathBuf};
 
 use dyst_dir::{TsConfig, TsConfigId, TsConfigProjectReferences};
-use dyst_source::PathExt;
+use dyst_source::{File, FileType, PathExt, Uri};
 
 use super::file::is_inside_modules;
 use crate::{
@@ -78,29 +78,36 @@ impl Resolver {
             return Ok(tsconfig_id);
         }
 
-        // parse the `tsconfig.json` file
-        let tsconfig_id = self.program.tsconfigs.next_id();
-        // nocheckin TODO @Incomplete: should properly register the file in FileRegistry with content
-        let file_id = self.program.files.next_id();
-        let mut tsconfig = self.read_tsconfig(tsconfig_id, file_id, is_root, path)?;
+        // parse the `tsconfig.json` file and insert into registry
+        let tsconfig_id = self.read_tsconfig(is_root, path)?;
+
+        // get write access to modify the tsconfig
+        let tsconfig_lock = self.program.tsconfigs.get(tsconfig_id);
 
         // check for circular extends
-        if ctx.is_already_extended(&tsconfig.path) {
-            return Err(ResolveError::TsConfigCircular {
-                paths: ctx.get_extended_configs_with(tsconfig.path.to_path_buf()),
-            });
+        {
+            let tsconfig = tsconfig_lock.read();
+            if ctx.is_already_extended(&tsconfig.path) {
+                return Err(ResolveError::TsConfigCircular {
+                    paths: ctx.get_extended_configs_with(tsconfig.path.to_path_buf()),
+                });
+            }
         }
 
         // extend tsconfig from parent configs
-        let extended_tsconfig_paths = tsconfig
-            .content
-            .extends()
-            .map(|specifier| {
-                self.get_extended_tsconfig_path(&tsconfig.directory, &tsconfig, specifier)
-            })
-            .collect::<Result<Vec<_>, _>>()?;
+        let extended_tsconfig_paths = {
+            let tsconfig = tsconfig_lock.read();
+            tsconfig
+                .content
+                .extends()
+                .map(|specifier| {
+                    self.get_extended_tsconfig_path(&tsconfig.directory, &tsconfig, specifier)
+                })
+                .collect::<Result<Vec<_>, _>>()?
+        };
         if !extended_tsconfig_paths.is_empty() {
-            ctx.with_extended_file(tsconfig.path.to_owned(), |ctx| {
+            let tsconfig_path = tsconfig_lock.read().path.to_owned();
+            ctx.with_extended_file(tsconfig_path, |ctx| {
                 for extended_tsconfig_path in extended_tsconfig_paths {
                     let extended_tsconfig_id = self.load_tsconfig(
                         false,
@@ -110,6 +117,7 @@ impl Resolver {
                     )?;
                     let extended = self.program.tsconfigs.get(extended_tsconfig_id);
                     let extended_guard = extended.read();
+                    let mut tsconfig = tsconfig_lock.write();
                     tsconfig.extend_from(&extended_guard);
                 }
                 Result::Ok::<(), ResolveError>(())
@@ -117,69 +125,77 @@ impl Resolver {
         }
 
         // load the given references into this tsconfig
-        match references {
-            TypeScriptOptionsReferences::Disabled => {
-                tsconfig.content.references.drain(..);
-            }
-            TypeScriptOptionsReferences::Automatic => {}
-            TypeScriptOptionsReferences::Paths(paths) => {
-                tsconfig.content.references = paths
-                    .iter()
-                    .map(|path| TsConfigProjectReferences { path: path.clone() })
-                    .collect();
+        {
+            let mut tsconfig = tsconfig_lock.write();
+            match references {
+                TypeScriptOptionsReferences::Disabled => {
+                    tsconfig.content.references.drain(..);
+                }
+                TypeScriptOptionsReferences::Automatic => {}
+                TypeScriptOptionsReferences::Paths(paths) => {
+                    tsconfig.content.references = paths
+                        .iter()
+                        .map(|path| TsConfigProjectReferences { path: path.clone() })
+                        .collect();
+                }
             }
         }
 
         // load reference tsconfigs
-        if !tsconfig.content.references.is_empty() {
-            let current_path = tsconfig.path.to_path_buf();
-            for reference in &tsconfig.content.references {
-                let reference_tsconfig_path = tsconfig.directory.normalize_with(&reference.path);
-                let reference_tsconfig_id = self.program.tsconfigs.next_id();
-                let reference_file_id = self.program.files.next_id();
-                // nocheckin TODO @Incomplete: should properly register the file in FileRegistry with content
-                let mut referenced_tsconfig = self.read_tsconfig(
-                    reference_tsconfig_id,
-                    reference_file_id,
-                    true,
-                    &reference_tsconfig_path,
-                )?;
+        let references_to_load: Vec<_> = {
+            let tsconfig = tsconfig_lock.read();
+            tsconfig
+                .content
+                .references
+                .iter()
+                .map(|r| tsconfig.directory.normalize_with(&r.path))
+                .collect()
+        };
+        let current_path = tsconfig_lock.read().path.to_path_buf();
+        for reference_tsconfig_path in references_to_load {
+            let reference_tsconfig_id = self.read_tsconfig(true, &reference_tsconfig_path)?;
 
-                // error if reference tsconfig points to itself
+            // error if reference tsconfig points to itself
+            {
+                let referenced = self.program.tsconfigs.get(reference_tsconfig_id);
+                let referenced_tsconfig = referenced.read();
                 if referenced_tsconfig.path == current_path {
                     return Err(ResolveError::TsConfigSelfReference {
                         path: referenced_tsconfig.path.to_path_buf(),
                     });
                 }
+            }
 
-                // extend the reference tsconfig
-                self.extend_tsconfig(
-                    &referenced_tsconfig.directory.to_path_buf(),
-                    &mut referenced_tsconfig,
-                    ctx,
-                )?;
+            // extend the reference tsconfig
+            {
+                let referenced_tsconfig = self.program.tsconfigs.get(reference_tsconfig_id);
+                let directory = referenced_tsconfig.read().directory.to_path_buf();
+                self.extend_tsconfig(reference_tsconfig_id, &directory, ctx)?;
+            }
 
-                // insert the tsconfig into registry (looked up by path later)
-                let referenced_tsconfig = referenced_tsconfig.build();
-                self.program.tsconfigs.insert(referenced_tsconfig);
+            // build the reference tsconfig
+            {
+                let referenced_tsconfig = self.program.tsconfigs.get(reference_tsconfig_id);
+                let mut referenced_tsconfig = referenced_tsconfig.write();
+                referenced_tsconfig.build();
             }
         }
 
-        // store in registry
-        let tsconfig = tsconfig.build();
-        self.program.tsconfigs.insert(tsconfig);
+        // build the main tsconfig
+        {
+            let mut tsconfig = tsconfig_lock.write();
+            tsconfig.build();
+        }
 
         Ok(tsconfig_id)
     }
 
-    /// Read and parse a tsconfig.json file.
-    fn read_tsconfig(
-        &self,
-        tsconfig_id: TsConfigId,
-        file_id: dyst_source::FileId,
-        root: bool,
-        path: &Path,
-    ) -> Result<TsConfig, ResolveError> {
+    /// Read and parse a tsconfig.json file, inserting into both registries.
+    ///
+    /// Creates a `File`, inserts it into the file registry, parses to `TsConfig`,
+    /// and inserts into the tsconfig registry. Returns the `TsConfigId` for further
+    /// modification via `self.program.tsconfigs.get(id).write()`.
+    fn read_tsconfig(&self, is_root: bool, path: &Path) -> Result<TsConfigId, ResolveError> {
         // resolve path to actual tsconfig file
         let meta = self.fs().metadata(path).ok();
         let tsconfig_path = if meta.is_some_and(|m| m.is_file) {
@@ -192,38 +208,57 @@ impl Resolver {
             Cow::Owned(PathBuf::from(os_string))
         };
 
-        // read file
-        let mut tsconfig_string = self.fs().read_to_string(&tsconfig_path).map_err(|_| {
+        // read file content
+        let content = self.fs().read_to_string(&tsconfig_path).map_err(|_| {
             ResolveError::TsConfigNotFound {
                 path: path.to_path_buf(),
             }
         })?;
 
-        // parse
-        TsConfig::parse(
-            tsconfig_id,
-            file_id,
-            root,
-            &tsconfig_path,
-            &mut tsconfig_string,
-        )
-        .map_err(|_| ResolveError::TsConfigInvalid {
-            path: tsconfig_path.to_path_buf(),
-        })
+        // create File and insert into file registry
+        let file_id = self.program.files.next_id();
+        let (name, uri) = Uri::from_path_with_name(&*tsconfig_path);
+        let file = File::from_text_as_jsonc(file_id, name, uri, FileType::Json, content).map_err(
+            |_| ResolveError::TsConfigInvalid {
+                path: tsconfig_path.to_path_buf(),
+            },
+        )?;
+        self.program.files.insert(file);
+        let file = self.program.files.get(file_id);
+
+        // parse tsconfig from file
+        let tsconfig_id = self.program.tsconfigs.next_id();
+        let tsconfig = TsConfig::parse(tsconfig_id, is_root, &file).map_err(|_| {
+            ResolveError::TsConfigInvalid {
+                path: tsconfig_path.to_path_buf(),
+            }
+        })?;
+
+        // insert into tsconfig registry
+        self.program.tsconfigs.insert(tsconfig);
+
+        Ok(tsconfig_id)
     }
 
-    /// Extend a tsconfig with inherited configurations.
+    /// Extend a tsconfig (by ID) with inherited configurations.
     fn extend_tsconfig(
         &self,
+        tsconfig_id: TsConfigId,
         directory: &Path,
-        tsconfig: &mut TsConfig,
         ctx: &mut TypeScriptOptionsResolveContext,
     ) -> Result<(), ResolveError> {
-        let extended_tsconfig_paths = tsconfig
-            .content
-            .extends()
-            .map(|specifier| self.get_extended_tsconfig_path(directory, tsconfig, specifier))
-            .collect::<Result<Vec<_>, _>>()?;
+        // collect the paths to extend from
+        let extended_tsconfig_paths = {
+            let tsconfig_lock = self.program.tsconfigs.get(tsconfig_id);
+            let tsconfig = tsconfig_lock.read();
+            tsconfig
+                .content
+                .extends()
+                .map(|specifier| self.get_extended_tsconfig_path(directory, &tsconfig, specifier))
+                .collect::<Result<Vec<_>, _>>()?
+        };
+
+        // extend from each parent config
         for extended_tsconfig_path in extended_tsconfig_paths {
             let extended_tsconfig_id = self.load_tsconfig(
                 false,
@@ -233,6 +268,8 @@ impl Resolver {
             )?;
             let extended = self.program.tsconfigs.get(extended_tsconfig_id);
             let extended_guard = extended.read();
+            let tsconfig_lock = self.program.tsconfigs.get(tsconfig_id);
+            let mut tsconfig = tsconfig_lock.write();
             tsconfig.extend_from(&extended_guard);
         }
         Ok(())

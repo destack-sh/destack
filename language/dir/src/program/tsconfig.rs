@@ -1,4 +1,3 @@
-use std::borrow::Cow;
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::hash::BuildHasherDefault;
@@ -11,7 +10,7 @@ use parking_lot::{Mutex, RwLock};
 use rustc_hash::FxHasher;
 use serde::Deserialize;
 
-use dyst_source::{FileId, PathExt, strip_json};
+use dyst_source::{File, FileContent, FileId, PathExt};
 
 /// Template variable for the config directory path (e.g. `${configDir}`).
 /// <https://github.com/microsoft/TypeScript/pull/58042>
@@ -49,36 +48,40 @@ pub struct TsConfig {
 }
 
 impl TsConfig {
-    /// Parse a tsconfig from a JSON string.
+    /// Parse a tsconfig from a File with JSON content.
     pub fn parse(
         id: TsConfigId,
-        file_id: FileId,
         is_root: bool,
-        path: &Path,
-        content: &mut str,
+        file: &Arc<File>,
     ) -> Result<Self, serde_json::Error> {
-        let json = trim_start_matches_mut(content, '\u{feff}'); // strip bom
-        let stripped = strip_json(json).map_err(serde_json::Error::io)?;
-
-        // default to empty object if the file is empty
-        let json = if stripped.trim().is_empty() {
-            Cow::Borrowed("{}")
-        } else {
-            Cow::Owned(stripped)
+        // extract the JSON value from file content
+        let FileContent::Json { value, .. } = &file.content else {
+            return Err(serde_json::Error::io(std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                "file is not JSON",
+            )));
         };
 
-        // parse the tsconfig
+        // parse the tsconfig from the JSON value
+        let tsconfig_json: TsConfigJson = serde_json::from_value(value.clone())?;
+
+        // extract path from file URI
+        let path = file
+            .uri
+            .to_path_buf()
+            .expect("tsconfig file must have a valid path");
         let directory = path
             .parent()
-            .expect("tsconfig.json must have a parent directory");
-        let tsconfig_json: TsConfigJson = serde_json::from_str(json.as_ref())?;
+            .expect("tsconfig.json must have a parent directory")
+            .to_path_buf();
+
         let tsconfig = Self {
             id,
-            file_id,
+            file_id: file.id,
             is_root,
-            path: path.to_path_buf(),
-            directory: directory.to_path_buf(),
-            paths_base: directory.to_path_buf(),
+            path,
+            directory: directory.clone(),
+            paths_base: directory,
             content: tsconfig_json,
         };
         Ok(tsconfig)
@@ -261,20 +264,20 @@ impl TsConfig {
         }
     }
 
-    /// "Build" the root tsconfig, resolve:
+    /// "Build" the root tsconfig in place, resolving:
     /// * `{configDir}` template variable
     /// * `paths_base` for resolving paths alias
     /// * `baseUrl` to absolute path
-    pub fn build(mut self) -> Self {
-        // only the root tsconfig requires path resolution.
+    pub fn build(&mut self) {
+        // only the root tsconfig requires path resolution
         if !self.is_root {
-            return self;
+            return;
         }
 
         let config_dir = self.directory.to_path_buf();
 
         if let Some(base_url) = &self.content.compiler_options.base_url {
-            // Substitute template variable in `tsconfig.compilerOptions.baseUrl`.
+            // substitute template variable in `tsconfig.compilerOptions.baseUrl`
             let base_url = base_url
                 .to_string_lossy()
                 .strip_prefix(TEMPLATE_VARIABLE)
@@ -310,8 +313,6 @@ impl TsConfig {
                 }
             }
         }
-
-        self
     }
 
     /// Resolves the given `specifier` within the project configured by this
@@ -792,30 +793,18 @@ pub struct TsConfigProjectReferences {
     pub path: PathBuf,
 }
 
-/// Trims the start of a string if it starts with the given character.
-fn trim_start_matches_mut(string: &mut str, pattern: char) -> &mut str {
-    if string.starts_with(pattern) {
-        // trim the prefix
-        &mut string[pattern.len_utf8()..]
-    } else {
-        string
-    }
-}
-
 #[cfg(test)]
 mod tests {
-    use dyst_source::FileId;
-    use std::path::Path;
+    use std::sync::Arc;
+
+    use dyst_source::{File, FileId, FileType, Uri};
 
     use crate::{TsConfig, TsConfigId};
 
     #[test]
     fn test_extend_tsconfig_no_override_existing() {
-        // Test the internal logic directly to ensure extend_tsconfig doesn't override existing values
-        let parent_path = Path::new("/parent/tsconfig.json");
-        let child_path = Path::new("/child/tsconfig.json");
-
-        let mut parent_config = serde_json::json!({
+        // verify extend_tsconfig doesn't override existing values
+        let parent_config = serde_json::json!({
             "compilerOptions": {
                 "baseUrl": "./src",
                 "jsx": "react-jsx",
@@ -824,41 +813,50 @@ mod tests {
         })
         .to_string();
 
-        let mut child_config = serde_json::json!({
+        let child_config = serde_json::json!({
             "compilerOptions": {
-                "jsx": "preserve"  // This should NOT be overridden
+                "jsx": "preserve"
             }
         })
         .to_string();
 
-        let parent_tsconfig = TsConfig::parse(
-            TsConfigId::new(0),
-            FileId::new(0),
-            true,
-            parent_path,
-            &mut parent_config,
-        )
-        .unwrap()
-        .build();
-        let mut child_tsconfig = TsConfig::parse(
-            TsConfigId::new(1),
-            FileId::new(1),
-            true,
-            child_path,
-            &mut child_config,
-        )
-        .unwrap();
+        // create parent file and parse
+        let parent_file = Arc::new(
+            File::from_text_as_jsonc(
+                FileId::new(0),
+                "tsconfig.json".to_string(),
+                Uri::from_path("/parent/tsconfig.json"),
+                FileType::Json,
+                parent_config,
+            )
+            .unwrap(),
+        );
+        let mut parent_tsconfig = TsConfig::parse(TsConfigId::new(0), true, &parent_file).unwrap();
+        parent_tsconfig.build();
+
+        // create child file and parse
+        let child_file = Arc::new(
+            File::from_text_as_jsonc(
+                FileId::new(1),
+                "tsconfig.json".to_string(),
+                Uri::from_path("/child/tsconfig.json"),
+                FileType::Json,
+                child_config,
+            )
+            .unwrap(),
+        );
+        let mut child_tsconfig = TsConfig::parse(TsConfigId::new(1), true, &child_file).unwrap();
 
         child_tsconfig.extend_from(&parent_tsconfig);
-        let child_built = child_tsconfig.build();
+        child_tsconfig.build();
 
-        let compiler_options = &child_built.content.compiler_options;
+        let compiler_options = &child_tsconfig.content.compiler_options;
 
-        // Child's jsx should be preserved
+        // child's jsx should be preserved
         assert_eq!(compiler_options.jsx, Some("preserve".to_string()));
-        // Parent's target should be inherited
+        // parent's target should be inherited
         assert_eq!(compiler_options.target, Some("ES2020".to_string()));
-        // Parent's baseUrl should be inherited (with proper path resolution)
+        // parent's baseUrl should be inherited (with proper path resolution)
         assert!(compiler_options.base_url.is_some());
     }
 }

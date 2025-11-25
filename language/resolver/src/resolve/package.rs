@@ -3,7 +3,7 @@ use std::cmp::Ordering;
 use std::path::{Component, Path, PathBuf};
 
 use dyst_dir::{ModuleSpecifier, Package, PackageId, PackageOptions};
-use dyst_source::PathExt;
+use dyst_source::{File, FileType, PathExt, Uri};
 
 use crate::{ResolutionContext, ResolveError, Resolver};
 
@@ -43,24 +43,31 @@ impl Resolver {
             }
         };
 
-        // parse `package.json` file
+        // create File and insert into registry
+        let file_id = self.program.files.next_id();
+        let (name, uri) = Uri::from_path_with_name(&package_json_path);
+        let file =
+            File::from_bytes_as_json(file_id, name, uri, FileType::Json, bytes).map_err(|_| {
+                ResolveError::InvalidPackageJson {
+                    path: package_json_path.clone(),
+                }
+            })?;
+        self.program.files.insert(file);
+        let file = self.program.files.get(file_id);
+
+        // parse `package.json` from file
         let package_id = self.program.packages.next_id();
-        // nocheckin TODO @Incomplete: should properly register the file in FileRegistry with content
-        let package_file_id = self.program.files.next_id();
-        let package_options = PackageOptions::parse(
-            package_file_id,
-            package_json_path.clone(),
-            package_json_path.clone(),
-            bytes,
-        )
-        .map_err(|_| ResolveError::InvalidPackageJson {
-            path: package_json_path.clone(),
-        })?;
+        let package_options =
+            PackageOptions::parse(&file, package_json_path.clone()).map_err(|_| {
+                ResolveError::InvalidPackageJson {
+                    path: package_json_path.clone(),
+                }
+            })?;
 
         // create and insert package
         let package = Package {
             id: package_id,
-            file_id: package_file_id,
+            file_id,
             path: package_options.directory.clone(),
             realpath: package_options.directory.clone(),
             name: package_options.content.name.clone(),
