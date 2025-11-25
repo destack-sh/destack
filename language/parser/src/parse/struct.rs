@@ -8,7 +8,7 @@ use dyst_ast::{
     StructKind, TokenType,
 };
 
-impl<'a> Parser<'a> {
+impl Parser {
     /// Eat a struct declaration.
     ///
     /// Examples:

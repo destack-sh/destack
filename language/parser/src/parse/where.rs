@@ -3,7 +3,7 @@ use crate::{ParseResult, Parser};
 
 use dyst_ast::{Keyword, LocalNodeId, TokenType, WhereClause};
 
-impl<'a> Parser<'a> {
+impl Parser {
     /// Eat a where context declaration or assignment maybe.
     ///
     /// Examples:

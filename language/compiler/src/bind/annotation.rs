@@ -6,7 +6,7 @@ use dyst_dir::{
 };
 
 #[allow(clippy::too_many_arguments)]
-impl<'a> Compiler<'a> {
+impl Compiler {
     /// Bind and attach all annotations for a module.
     pub fn attach_annotations(
         &self,

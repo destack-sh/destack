@@ -6,7 +6,7 @@ use dyst_dir::{
 };
 
 #[allow(clippy::too_many_arguments)]
-impl<'a> Compiler<'a> {
+impl Compiler {
     /// Bind a scalar literal to a DIR scalar literal.
     pub(super) fn bind_scalar_literal(
         &self,

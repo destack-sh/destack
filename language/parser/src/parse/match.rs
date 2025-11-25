@@ -6,7 +6,7 @@ use dyst_ast::{
     TokenType,
 };
 
-impl<'a> Parser<'a> {
+impl Parser {
     /// Eat a match statement. Tolerates switch-kind syntax for #Compatibility.
     ///
     /// Examples:

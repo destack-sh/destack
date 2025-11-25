@@ -3,7 +3,7 @@ use dyst_ast as ast;
 use dyst_dir::{Key, LocalScopeId, Module, NodeTree, SymbolTable, TypeTable};
 
 #[allow(clippy::too_many_arguments)]
-impl<'a> Compiler<'a> {
+impl Compiler {
     /// Bind a key to a DIR key.
     pub(super) fn bind_key(
         &self,

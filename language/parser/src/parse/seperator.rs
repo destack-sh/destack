@@ -1,7 +1,7 @@
 use crate::{ParseError, ParseResult, Parser};
 use dyst_ast::{TokenSpan, TokenType};
 
-impl<'a> Parser<'a> {
+impl Parser {
     /// Peek a colon.
     #[inline]
     pub fn peek_colon(&self) -> ParseResult<&TokenSpan> {

@@ -3,7 +3,7 @@ use dyst_ast as ast;
 use dyst_dir::{LocalNodeId, LocalScopeId, Module, NodeTree, Property, SymbolTable, TypeTable};
 
 #[allow(clippy::too_many_arguments)]
-impl<'a> Compiler<'a> {
+impl Compiler {
     /// Bind a property to a DIR property.
     pub(super) fn bind_property(
         &self,

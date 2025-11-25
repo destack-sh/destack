@@ -6,7 +6,7 @@ use dyst_ast::{
     TokenType,
 };
 
-impl<'a> Parser<'a> {
+impl Parser {
     /// Eat an implement (incl. `implement` keyword).
     ///
     /// Examples:

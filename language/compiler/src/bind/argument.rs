@@ -8,7 +8,7 @@ use dyst_dir::{
 use smallvec::smallvec;
 
 #[allow(clippy::too_many_arguments)]
-impl<'a> Compiler<'a> {
+impl Compiler {
     /// Bind a binding modifiers into a DIR binding modifiers.
     pub(super) fn bind_binding_modifier(
         &self,

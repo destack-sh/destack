@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use clap::{ArgGroup, Args, ValueEnum};
 use dyst_compiler::{CompileOptions, Compiler};
 use dyst_dir::{Dumper, DumperOptions, NodeVisitor, Program};
@@ -81,11 +83,11 @@ pub fn run(args: &CompileArgs) -> i32 {
     let diagnostic_options: DiagnosticOptions = args.diagnostics.clone().into();
 
     // read input source
-    let mut fs = PhysicalFileSystem::new();
-    let mut files = FileRegistry::new();
+    let fs = Arc::new(PhysicalFileSystem::new());
+    let files = Arc::new(FileRegistry::new());
     let file_id = match get_string_or_file(
-        &mut fs,
-        &mut files,
+        fs.as_ref(),
+        files.as_ref(),
         SourceArg {
             file: args.file.as_deref(),
             string: args.string.as_deref(),
@@ -104,9 +106,13 @@ pub fn run(args: &CompileArgs) -> i32 {
     };
 
     // compile source
-    let program = Program::new(LanguageOptions::default(), &fs, &files);
-    let compiler = Compiler::from_file(
-        &program,
+    let program = Arc::new(Program::new(
+        LanguageOptions::default(),
+        fs.clone(),
+        files.clone(),
+    ));
+    let compiler = Compiler::from_single_module(
+        program.clone(),
         file_id,
         CompileOptions {
             diagnostic: diagnostic_options.clone(),

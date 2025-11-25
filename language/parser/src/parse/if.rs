@@ -1,7 +1,7 @@
 use crate::{ParseResult, Parser};
 use dyst_ast::{Block, BlockFormat, Expression, IfKind, Keyword, LocalNodeId};
 
-impl<'a> Parser<'a> {
+impl Parser {
     /// Eat something as a block (if it's not a block expression OR an if, wrap in a block expression).
     fn eat_expression_as_block(&mut self) -> ParseResult<LocalNodeId<Expression>> {
         let start = self.mark();

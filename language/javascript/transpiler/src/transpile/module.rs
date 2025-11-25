@@ -50,11 +50,11 @@ impl TranspilerUnit {
     }
 }
 
-impl<'a> Transpiler<'a> {
+impl Transpiler {
     /// Transpile the modules into AST.
     pub fn transpile_module(
         &self,
-        module: &'a dir::Module,
+        module: &dir::Module,
         tree: &NodeTree,
         symbols: &SymbolTable,
         types: &TypeTable,

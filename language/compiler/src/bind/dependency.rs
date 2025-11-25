@@ -8,7 +8,7 @@ use dyst_source::StringId;
 use crate::Compiler;
 
 #[allow(clippy::too_many_arguments)]
-impl<'a> Compiler<'a> {
+impl Compiler {
     /// Bind a dependency mode to a DIR dependency mode.
     pub(super) fn bind_dependency_mode(&self, mode: ast::DependencyMode) -> DependencyMode {
         match mode {

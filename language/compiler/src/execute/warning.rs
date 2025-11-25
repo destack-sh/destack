@@ -31,7 +31,7 @@ impl ExecuteWarning {
     }
 
     /// Get the message of the warning.
-    pub fn message<'a>(&self, _program: &'a Program<'a>) -> String {
+    pub fn message(&self, _program: &Program) -> String {
         match self {
             Self::ComplexNode { .. } => "complex node".to_string(),
             Self::SlowEvaluation { .. } => "slow evaluation".to_string(),

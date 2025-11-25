@@ -6,7 +6,7 @@ use dyst_dir::{
 use crate::{Compiler, ResolveError, ResolveResult};
 
 #[allow(clippy::too_many_arguments)]
-impl<'a> Compiler<'a> {
+impl Compiler {
     /// Resolve an absolute symbol key.
     pub(super) fn resolve_absolute_symbol(
         &self,

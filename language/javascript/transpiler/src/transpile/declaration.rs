@@ -6,7 +6,7 @@ use dyst_javascript_ast::{
 
 use crate::{TranspileError, TranspileResult, TranspileResultExt, Transpiler, TranspilerUnit};
 
-impl<'a> Transpiler<'a> {
+impl Transpiler {
     /// Transpile visibility from DIR into JS AST.
     pub fn transpile_visibility(&self, visibility: dir::Visibility) -> Visibility {
         match visibility {
@@ -47,7 +47,7 @@ impl<'a> Transpiler<'a> {
     /// Transpile a declaration descriptor from DIR into JS AST.
     pub fn transpile_declaration_descriptor(
         &self,
-        module: &'a Module,
+        module: &Module,
         _tree: &NodeTree,
         _symbols: &SymbolTable,
         _types: &TypeTable,
@@ -73,7 +73,7 @@ impl<'a> Transpiler<'a> {
     /// Transpile a declaration from DIR into JS AST.
     pub fn transpile_declaration(
         &self,
-        module: &'a Module,
+        module: &Module,
         tree: &NodeTree,
         symbols: &SymbolTable,
         types: &TypeTable,
@@ -217,7 +217,7 @@ impl<'a> Transpiler<'a> {
     /// Transpile an enum field from DIR into JS AST.
     pub fn transpile_enum_field(
         &self,
-        module: &'a Module,
+        module: &Module,
         tree: &NodeTree,
         symbols: &SymbolTable,
         types: &TypeTable,

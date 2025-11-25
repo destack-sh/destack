@@ -1,7 +1,7 @@
 use crate::console;
 use dyst_dir::Program;
 use dyst_source::{
-    AnnotateOptions, DiagnosticCollection, DiagnosticOptions, annotate_source, pluralize,
+    AnnotateOptions, DiagnosticCollection, DiagnosticOptions, annotate_file, pluralize,
 };
 
 use clap::Args;
@@ -32,16 +32,13 @@ impl From<DiagnosticOptionsArgs> for DiagnosticOptions {
 }
 
 /// Print diagnostics (and suggestions) to the console.
-pub(crate) fn print_diagnostics<'a>(program: &'a Program<'a>, diagnostics: &DiagnosticCollection) {
+pub(crate) fn print_diagnostics(program: &Program, diagnostics: &DiagnosticCollection) {
     let options =
         AnnotateOptions::default().with_line_width(program.language.formatting.line_width as u32);
 
     // individual diagnostics
     for diagnostic in diagnostics.iter() {
-        let Some(file) = program.files.get(diagnostic.file_id) else {
-            console::error(&format!("no source for diagnostic: {diagnostic:?}"));
-            continue;
-        };
+        let file = program.files.get(diagnostic.file_id);
         let options = options.with_highlight_color(diagnostic.severity.color());
         let header_preamble = options.color_highlight.apply_bold(&format!(
             "{} {}",
@@ -67,7 +64,7 @@ pub(crate) fn print_diagnostics<'a>(program: &'a Program<'a>, diagnostics: &Diag
             }
         };
 
-        let body = annotate_source(&file, &diagnostic.primary_span, options);
+        let body = annotate_file(&file, &diagnostic.primary_span, options);
         console::error(&header);
         console::print(&body);
     }

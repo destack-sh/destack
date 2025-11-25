@@ -4,7 +4,7 @@ use dyst_dir::{
 };
 
 #[allow(dead_code)]
-impl<'a> Compiler<'a> {
+impl Compiler {
     /// Whether a node is resolved.
     pub(super) fn is_resolved(&self, node_id: LocalNodeIdAny, tree: &NodeTree) -> bool {
         match node_id.ty {

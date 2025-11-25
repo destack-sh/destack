@@ -4,7 +4,7 @@ use crate::{BindTask, CompileOutput, CompileTask, Compiler, ImportError, ImportR
 
 use dyst_dir::{DependencySource, Module, ModuleId, PackageId, Program};
 use dyst_parser::Parser;
-use dyst_source::{DiagnosticCollector, File, FileId, FileType, StringId, Uri};
+use dyst_source::{File, FileId, FileType, StringId, Uri};
 
 /// Task to import a file into the compiler.
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
@@ -32,7 +32,7 @@ impl ImportTask {
     }
 
     /// Get a message for the task.
-    pub fn message<'a>(&self, program: &'a Program<'a>) -> String {
+    pub fn message(&self, program: &Program) -> String {
         match self {
             ImportTask::ImportModuleFromFile { file: file_id } => {
                 format!("import file:{file_id:?}")
@@ -66,7 +66,7 @@ impl From<ImportOutput> for CompileOutput {
     }
 }
 
-impl<'a> Compiler<'a> {
+impl Compiler {
     /// Process an import task for a module.
     pub fn process_import(&self, task: ImportTask) -> ImportResult<ImportOutput> {
         // read file
@@ -113,10 +113,9 @@ impl<'a> Compiler<'a> {
         let package_id: Option<PackageId> = None; // nocheckin: resolve package/.. for module
 
         // parse AST from file
-        let mut diagnostics = DiagnosticCollector::new();
-        let mut parser = Parser::lex_file(file.as_ref(), self.program.language, &mut diagnostics);
+        let mut parser = Parser::lex_file(file.clone(), self.program.language);
         let expressions = parser.parse();
-        self.program.diagnostics.merge_from(parser.diagnostics);
+        self.program.diagnostics.merge_from(&parser.diagnostics);
 
         // insert module
         let module_id = self.program.modules.next_id();

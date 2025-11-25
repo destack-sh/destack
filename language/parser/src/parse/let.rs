@@ -2,7 +2,7 @@ use crate::{ParseError, ParseResult, Parser};
 
 use dyst_ast::{DeclarationDescriptor, Expression, Keyword, LocalNodeId, Mutability, TokenType};
 
-impl<'a> Parser<'a> {
+impl Parser {
     /// Peek a mutability modifier.
     pub fn peek_mutability(&mut self) -> ParseResult<()> {
         let keyword = self.peek_any_keyword()?;

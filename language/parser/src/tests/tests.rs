@@ -1,12 +1,13 @@
-use dyst_source::{DiagnosticCollector, File, FileId, FileType, LanguageOptions, Uri};
+use std::sync::Arc;
+
+use dyst_source::{File, FileId, FileType, LanguageOptions, Uri};
 
 use crate::Parser;
 
 /// A test wrapper for Parser.
 #[derive(Debug)]
 pub(crate) struct TestParser {
-    pub source: File,
-    pub diagnostics: DiagnosticCollector,
+    pub file: Arc<File>,
     pub language: LanguageOptions,
 }
 
@@ -19,7 +20,7 @@ impl TestParser {
     /// Create a new TestParser with custom options.
     pub(crate) fn new_with_options(input: &str, options: LanguageOptions) -> Self {
         let file_id = FileId::new(0);
-        let source = File::from_text(
+        let file = File::from_text(
             file_id,
             "<string>".to_string(),
             Uri::from_string("<string>"),
@@ -27,15 +28,14 @@ impl TestParser {
             input.to_string(),
         );
         Self {
-            source,
-            diagnostics: DiagnosticCollector::new(),
+            file: Arc::new(file),
             language: options,
         }
     }
 
     /// Get a Parser for this test.
-    pub(crate) fn prepare(&mut self) -> Parser<'_> {
-        Parser::lex_file(&self.source, self.language, &mut self.diagnostics)
+    pub(crate) fn prepare(&mut self) -> Parser {
+        Parser::lex_file(self.file.clone(), self.language)
     }
 }
 
@@ -143,6 +143,7 @@ mod tests {
     use std::collections::HashMap;
     use std::fs;
     use std::path::PathBuf;
+    use std::sync::Arc;
 
     use dyst_ast::{BlockFormat, TokenType};
     use dyst_source::{DiagnosticCollector, File, FileId, FileType, LanguageOptions, Uri, glob};
@@ -164,8 +165,8 @@ mod tests {
         // glob all .ds files under the workspace root
         let ds_files = glob(&format!("{workspace_root}/**/*.ds"));
 
-        let mut sources: HashMap<FileId, File> = HashMap::new();
-        let mut diagnostics = DiagnosticCollector::new();
+        let mut files: HashMap<FileId, Arc<File>> = HashMap::new();
+        let diagnostics: DiagnosticCollector = DiagnosticCollector::new();
         let language = LanguageOptions::default();
 
         // parse every ds file
@@ -177,30 +178,31 @@ mod tests {
                 .map(|s| s.to_string_lossy().into_owned())
                 .unwrap_or("<file>".to_string());
             let path = ds_file.to_string_lossy().into_owned();
-            let source = File::from_text(
+            let file = File::from_text(
                 file_id,
                 name,
                 Uri::from_string(path),
                 FileType::Dyst,
                 fs::read_to_string(ds_file).unwrap(),
             );
-            sources.insert(file_id, source);
-            let mut parser =
-                Parser::lex_file(sources.get(&file_id).unwrap(), language, &mut diagnostics);
+            let file = Arc::new(file);
+            files.insert(file_id, file.clone());
+            let mut parser = Parser::lex_file(file.clone(), language);
             let _ = parser.with_recovery(
                 parser.mark(),
                 |parser| parser.eat_block_body(BlockFormat::Implicit),
                 Vec::new(),
                 TokenType::End,
             );
+            diagnostics.merge_from(&parser.diagnostics);
         }
 
         // dump diagnostics
         if !diagnostics.is_empty() {
             for diagnostic in diagnostics.iter() {
-                let source = sources.get(&diagnostic.file_id).unwrap();
-                let annotated = dyst_source::annotate_source(
-                    source,
+                let file = files.get(&diagnostic.file_id).unwrap();
+                let annotated = dyst_source::annotate_file(
+                    file,
                     &diagnostic.primary_span,
                     dyst_source::AnnotateOptions::default(),
                 );

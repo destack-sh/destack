@@ -5,7 +5,7 @@ use dyst_ast::{
     Mutability, TokenType, TypeKind, TypeLiteral, TypeUnaryOperator, UnaryOperator, VarianceBound,
 };
 
-impl<'a> Parser<'a> {
+impl Parser {
     /// Eat a variance bound maybe.
     #[inline]
     pub fn eat_variance_bound_maybe(&mut self) -> ParseResult<Option<VarianceBound>> {

@@ -18,7 +18,7 @@ impl BindTask {
     }
 
     /// Get a message for the task.
-    pub fn message<'a>(&self, _program: &'a Program<'a>) -> String {
+    pub fn message(&self, _program: &Program) -> String {
         match self {
             BindTask::BindModule { module } => {
                 format!("bind module '{module:?}'")
@@ -44,7 +44,7 @@ impl From<BindOutput> for CompileOutput {
 }
 
 #[allow(clippy::too_many_arguments)]
-impl<'a> Compiler<'a> {
+impl Compiler {
     /// Process a bind task.
     pub fn process_bind(&self, task: BindTask) -> BindResult<()> {
         match task {

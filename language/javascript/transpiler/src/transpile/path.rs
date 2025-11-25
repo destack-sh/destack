@@ -5,11 +5,11 @@ use smallvec::SmallVec;
 
 use crate::{TranspileResult, Transpiler, TranspilerUnit};
 
-impl<'a> Transpiler<'a> {
+impl Transpiler {
     /// Transpile a DIR path into a JS path.
     pub fn transpile_path(
         &self,
-        _module: &'a Module,
+        _module: &Module,
         _scope_id: dir::LocalNodeIdAny,
         path: &dir::Path,
         _unit: &mut TranspilerUnit,

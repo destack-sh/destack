@@ -18,7 +18,7 @@ const ANNOTATION_TOKEN_TYPES: [TokenType; 5] = [
 
 const STATIC_BLOCK_KEYWORDS_STR: [&str; 3] = ["loop", "for", "while"];
 
-impl<'a> Parser<'a> {
+impl Parser {
     /// Eat all side annotations (like Tags).
     /// NOTE: One full pass, consuming the entire Parser.
     pub(crate) fn eat_side_annotations(&mut self) {
@@ -40,7 +40,7 @@ impl<'a> Parser<'a> {
                 // must be block scoped
                 && (self.prev().is_none()
                     || self.prev().unwrap().token.ty == TokenType::Newline)
-                && let Ok(next) = self.peek_next()
+                && let Ok(&next) = self.peek_next()
                 && let next_span_str = self.get_span_str(next.span)
                 && !STATIC_BLOCK_KEYWORDS_STR.contains(&next_span_str)
             {
@@ -54,6 +54,7 @@ impl<'a> Parser<'a> {
                 );
 
                 // allow `@if(...)` if it's unambiguously an if without a following block
+                let next_span_str = self.get_span_str(next.span);
                 if decorator.is_some() && next_span_str == "if" && self.peek_block().is_ok() {
                     // otherwise ignore this decorator, it's just a static if
                     self.restore(speculative_start.0, speculative_start.1);

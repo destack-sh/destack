@@ -18,7 +18,7 @@ impl ValidateTask {
     }
 
     /// Get a message for the task.
-    pub fn message<'a>(&self, _program: &'a Program<'a>) -> String {
+    pub fn message(&self, _program: &Program) -> String {
         match self {
             Self::Validate { module } => {
                 format!("validate module '{module:?}'")
@@ -43,7 +43,7 @@ impl From<ValidateOutput> for CompileOutput {
     }
 }
 
-impl<'a> Compiler<'a> {
+impl Compiler {
     /// Process a validate task.
     pub fn process_validate(&self, task: ValidateTask) -> ValidateResult<ValidateOutput> {
         todo!("process_validate({task:?})")

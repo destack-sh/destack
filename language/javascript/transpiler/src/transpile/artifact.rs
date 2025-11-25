@@ -19,7 +19,7 @@ pub struct TranspilerArtifact {
     pub content: FileContent,
 }
 
-impl<'a> Transpiler<'a> {
+impl Transpiler {
     /// Generate an artifact from a transpiled unit.
     pub fn generate_artifact(
         &self,

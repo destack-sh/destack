@@ -2,7 +2,7 @@ use dyst_dir::{LocalNodeId, Module, NodeTree, PatternField, SymbolTable};
 
 use crate::{Compiler, ResolveError, ResolveResult};
 
-impl<'a> Compiler<'a> {
+impl Compiler {
     /// Resolve a PatternField.
     pub(super) fn resolve_pattern_field(
         &self,

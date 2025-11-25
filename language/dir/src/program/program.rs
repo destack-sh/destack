@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use dyst_ast::StringPool;
 use dyst_source::{DiagnosticCollector, FileRegistry, FileSystem, LanguageOptions};
 
@@ -5,15 +7,13 @@ use crate::{DsConfigRegistry, GlobalScopeId, ModuleRegistry, PackageRegistry, Ts
 
 /// A Program.
 #[derive(Debug)]
-pub struct Program<'a> {
+pub struct Program {
     /// The language options.
     pub language: LanguageOptions,
     /// The file system.
-    pub fs: &'a dyn FileSystem,
+    pub fs: Arc<dyn FileSystem>,
     /// The files in the program.
-    pub files: &'a FileRegistry,
-    /// The root scope.
-    pub root_scope_id: Option<GlobalScopeId>,
+    pub files: Arc<FileRegistry>,
     /// The modules.
     pub modules: ModuleRegistry,
     /// The packages.
@@ -26,22 +26,28 @@ pub struct Program<'a> {
     pub strings: StringPool,
     /// The diagnostic collector.
     pub diagnostics: DiagnosticCollector,
+    /// The root scope.
+    pub root_scope_id: Option<GlobalScopeId>,
 }
 
-impl<'a> Program<'a> {
+impl Program {
     /// Create a new Program.
-    pub fn new(language: LanguageOptions, fs: &'a dyn FileSystem, files: &'a FileRegistry) -> Self {
+    pub fn new(
+        language: LanguageOptions,
+        fs: Arc<dyn FileSystem>,
+        files: Arc<FileRegistry>,
+    ) -> Self {
         Self {
             language,
             fs,
             files,
-            root_scope_id: None,
             modules: ModuleRegistry::new(),
             packages: PackageRegistry::new(),
             tsconfigs: TsConfigRegistry::new(),
             dsconfigs: DsConfigRegistry::new(),
             strings: StringPool::new(),
             diagnostics: DiagnosticCollector::new(),
+            root_scope_id: None,
         }
     }
 }

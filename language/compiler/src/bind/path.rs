@@ -4,7 +4,7 @@ use dyst_dir::{Module, Path};
 use smallvec::SmallVec;
 
 #[allow(clippy::too_many_arguments)]
-impl<'a> Compiler<'a> {
+impl Compiler {
     /// Bind a path to a DIR path.
     pub(super) fn bind_path(&self, module: &Module, path: &ast::Path) -> Path {
         assert!(!path.segments.is_empty());

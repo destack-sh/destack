@@ -17,7 +17,7 @@ pub static BINDING_MODIFIERS: [Keyword; 6] = [
     Keyword::Private,
 ];
 
-impl<'a> Parser<'a> {
+impl Parser {
     /// Eat a tuple property.
     ///
     /// Examples:

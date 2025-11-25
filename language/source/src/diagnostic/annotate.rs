@@ -74,7 +74,7 @@ impl AnnotateOptions {
 /// Prefix and suffix line counts control how many lines are shown before and
 /// after the highlighted region.
 /// Lines longer than `max_line_width` are clipped to keep the highlight visible.
-pub fn annotate_source(source: &File, span: &LabeledSpan, options: AnnotateOptions) -> String {
+pub fn annotate_file(source: &File, span: &LabeledSpan, options: AnnotateOptions) -> String {
     debug_assert_eq!(source.id, span.span.file);
 
     // compute span bounds
@@ -504,7 +504,7 @@ mod tests {
             color_meta: Color::BrightMagenta,
             color_highlight: Color::BrightYellow,
         };
-        let annotated = annotate_source(&source, &span, options);
+        let annotated = annotate_file(&source, &span, options);
 
         let expected = r#"==> <test>:2:9
  | 
@@ -545,7 +545,7 @@ mod tests {
             color_meta: Color::BrightMagenta,
             color_highlight: Color::BrightYellow,
         };
-        let annotated = annotate_source(&source, &span, options);
+        let annotated = annotate_file(&source, &span, options);
 
         let expected = r#"==> <test>:1:151
  | 

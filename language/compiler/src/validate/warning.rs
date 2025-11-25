@@ -51,7 +51,7 @@ impl ValidateWarning {
     }
 
     /// Get the message of the warning.
-    pub fn message<'a>(&self, _program: &'a Program<'a>) -> String {
+    pub fn message(&self, _program: &Program) -> String {
         match self {
             Self::NonExhaustiveMatch { .. } => "non-exhaustive match".to_string(),
             Self::UnreachableCode { .. } => "unreachable code".to_string(),

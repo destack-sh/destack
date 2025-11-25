@@ -18,7 +18,7 @@ pub static FUNCTION_MODIFIERS: [Keyword; 7] = [
     Keyword::New,
 ];
 
-impl<'a> Parser<'a> {
+impl Parser {
     /// Eat a function or "lambda" declaration or declaration.
     /// If no body is provided, it is a declaration for a function defined elsewhere.
     ///

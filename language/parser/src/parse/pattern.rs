@@ -3,7 +3,7 @@ use crate::{ParseResult, Parser};
 
 use dyst_ast::{Expression, LocalNodeId, NodeType, Pattern, PatternField, TokenType};
 
-impl<'a> Parser<'a> {
+impl Parser {
     /// Eat a pattern.
     ///
     /// Examples:

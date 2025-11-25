@@ -72,7 +72,7 @@ pub struct Module {
 }
 
 impl Module {
-    /// Create a new Module.
+    /// Create a new Module from an AST.
     pub fn new(
         id: ModuleId,
         file: FileId,

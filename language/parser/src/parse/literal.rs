@@ -9,7 +9,7 @@ use dyst_ast::{
     ScalarLiteral, StringId, TemplateLiteral, TokenSpan, TokenType,
 };
 
-impl<'a> Parser<'a> {
+impl Parser {
     /// Peek a scalar literal token.
     #[inline]
     pub fn peek_scalar_literal(&self) -> ParseResult<&TokenSpan> {

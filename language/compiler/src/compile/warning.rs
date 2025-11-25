@@ -99,7 +99,7 @@ impl CompileWarning {
     }
 
     /// Get the message of the warning.
-    pub fn message<'a>(&self, program: &'a Program<'a>) -> String {
+    pub fn message(&self, program: &Program) -> String {
         match self {
             Self::Import(warning) => warning.message(program),
             Self::Bind(warning) => warning.message(program),

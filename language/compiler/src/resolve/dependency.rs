@@ -6,7 +6,7 @@ use dyst_dir::{
 
 use crate::{CompileTaskWait, Compiler, ImportTask, ResolveError, ResolveResult};
 
-impl<'a> Compiler<'a> {
+impl Compiler {
     /// Error to wait for an import.
     pub(super) fn resolve_wait_for_import(
         &self,

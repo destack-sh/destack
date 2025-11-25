@@ -2,11 +2,11 @@ use crate::{TranspileError, TranspileResult, TranspileResultExt, Transpiler, Tra
 use dyst_dir::{self as dir, Module, NodeTree, SymbolTable, TypeTable};
 use dyst_javascript_ast::{Block, LocalNodeId, Statement};
 
-impl<'a> Transpiler<'a> {
+impl Transpiler {
     /// Transpile a block from DIR into JS AST.
     pub fn transpile_block(
         &self,
-        module: &'a Module,
+        module: &Module,
         tree: &NodeTree,
         symbols: &SymbolTable,
         types: &TypeTable,

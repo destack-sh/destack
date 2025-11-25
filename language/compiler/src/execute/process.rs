@@ -18,7 +18,7 @@ impl ExecuteTask {
     }
 
     /// Get a message for the task.
-    pub fn message<'a>(&self, _program: &'a Program<'a>) -> String {
+    pub fn message(&self, _program: &Program) -> String {
         match self {
             ExecuteTask::ExecuteExpression { node } => {
                 format!("execute expression '{node:?}'")
@@ -43,7 +43,7 @@ impl From<ExecuteOutput> for CompileOutput {
     }
 }
 
-impl<'a> Compiler<'a> {
+impl Compiler {
     /// Execute a node.
     pub fn process_execute(&self, task: ExecuteTask) -> ExecuteResult<ExecuteOutput> {
         todo!("process_execute({task:?})")

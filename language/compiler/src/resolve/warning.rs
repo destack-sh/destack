@@ -35,7 +35,7 @@ impl ResolveWarning {
     }
 
     /// Get the message of the warning.
-    pub fn message<'a>(&self, _program: &'a Program<'a>) -> String {
+    pub fn message(&self, _program: &Program) -> String {
         match self {
             Self::UnknownImport { .. } => "unknown import".to_string(),
             Self::UnusedImport { .. } => "unused import".to_string(),

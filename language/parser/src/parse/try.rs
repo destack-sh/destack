@@ -1,7 +1,7 @@
 use crate::{ParseResult, Parser};
 use dyst_ast::{Expression, Keyword, LocalNodeId};
 
-impl<'a> Parser<'a> {
+impl Parser {
     /// Eat a try statement.
     ///
     /// Examples:

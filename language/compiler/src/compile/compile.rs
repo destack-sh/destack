@@ -1,7 +1,7 @@
 use crate::{CompileTask, Compiler};
 
 #[allow(dead_code)]
-impl<'s> Compiler<'s> {
+impl Compiler {
     /// Runs the compiler loop until there is nothing left to do.
     pub fn compile(&self) {
         // process all tasks

@@ -2,7 +2,7 @@ use dyst_dir::{Argument, LocalNodeId, Module, NodeTree, SymbolTable};
 
 use crate::{Compiler, ResolveError, ResolveResult};
 
-impl<'a> Compiler<'a> {
+impl Compiler {
     /// Resolve an Argument.
     pub(super) fn resolve_argument(
         &self,
