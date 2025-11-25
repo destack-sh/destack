@@ -12,7 +12,7 @@ use rustc_hash::FxHasher;
 use super::hasher::IdentityHasher;
 use super::path::{BorrowedCachedPath, CachedPath, CachedPathState};
 use crate::{ResolutionContext, ResolveError, ResolveOptions};
-use dyst_dir::{PackageOptions, TsConfigOptions};
+use dyst_dir::{PackageOptions, TsConfig};
 use dyst_source::{FileId, FileSystem, PathExt};
 
 /// A cached file system implementation.
@@ -23,7 +23,7 @@ pub struct CachedFileSystem<Fs> {
     /// The cached paths.
     pub(crate) paths: HashSet<CachedPath, BuildHasherDefault<IdentityHasher>>,
     /// The cached tsconfigs.
-    pub(crate) tsconfigs: HashMap<PathBuf, Arc<TsConfigOptions>, BuildHasherDefault<FxHasher>>,
+    pub(crate) tsconfigs: HashMap<PathBuf, Arc<TsConfig>, BuildHasherDefault<FxHasher>>,
 }
 
 impl<Fs: FileSystem> CachedFileSystem<Fs> {
@@ -163,12 +163,12 @@ impl<Fs: FileSystem> CachedFileSystem<Fs> {
     }
 
     /// Gets the `tsconfig.json` of the path.
-    pub(crate) fn get_tsconfig_json<F: FnOnce(&mut TsConfigOptions) -> Result<(), ResolveError>>(
+    pub(crate) fn get_tsconfig_json<F: FnOnce(&mut TsConfig) -> Result<(), ResolveError>>(
         &self,
         root: bool,
         path: &Path,
         modify: F,
-    ) -> Result<Arc<TsConfigOptions>, ResolveError> {
+    ) -> Result<Arc<TsConfig>, ResolveError> {
         // check cache
         let tsconfigs = self.tsconfigs.pin();
         if let Some(tsconfig) = tsconfigs.get(path) {
@@ -197,7 +197,7 @@ impl<Fs: FileSystem> CachedFileSystem<Fs> {
 
         // parse
         let mut tsconfig =
-            TsConfigOptions::parse(FileId::new(0), root, &tsconfig_path, &mut tsconfig_string)
+            TsConfig::parse(FileId::new(0), root, &tsconfig_path, &mut tsconfig_string)
                 .map_err(|_| ResolveError::TsConfigInvalid {
                     path: tsconfig_path.to_path_buf(),
                 })?;

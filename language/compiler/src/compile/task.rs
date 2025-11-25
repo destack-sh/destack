@@ -135,7 +135,7 @@ impl CompilePhase {
 }
 
 /// Task for the compiler during compilation.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub enum CompileTask {
     /// Import and parse source into AST.
     Import(ImportTask),
@@ -237,15 +237,30 @@ impl CompileTaskId {
     }
 }
 
+/// Status of a compiler task.
+#[derive(Debug, Clone)]
+pub enum CompileTaskStatus {
+    /// The task is wait for a dependency.
+    Waiting,
+    /// The task is queued.
+    Queued,
+    /// The task is running.
+    Running,
+    /// The task is complete.
+    Complete { output: CompileOutput },
+    /// The task failed.
+    Failed { error: CompileError },
+}
+
 /// Handle for a compiler task.
 #[derive(Debug, Clone)]
 pub struct CompileTaskHandle {
     /// The handle id.
     pub id: CompileTaskId,
+    /// The status of the task.
+    pub status: CompileTaskStatus,
     /// The task.
     pub task: CompileTask,
-    /// The result of the task.
-    pub result: Result<CompileOutput, CompileError>,
 }
 
 impl CompileTaskHandle {

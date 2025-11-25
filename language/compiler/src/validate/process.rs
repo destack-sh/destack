@@ -3,7 +3,7 @@ use crate::{CompileTask, Compiler, ValidateResult};
 use dyst_dir::{ModuleId, Program};
 
 /// Task to validate something.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub enum ValidateTask {
     /// Validate a module.
     Validate { module: ModuleId },

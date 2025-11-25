@@ -1,11 +1,16 @@
 use dyst_dir::{GlobalNodeIdAny, Program};
 
-use crate::{CompileError, CompilePhase};
+use crate::{CompileError, CompilePhase, CompileTask};
 
 /// Error when linking something into the compiler.
 #[derive(Debug, Clone)]
 #[repr(u8)]
 pub enum LinkError {
+    /// Wait for other tasks.
+    Wait {
+        nodes: Vec<GlobalNodeIdAny>,
+        tasks: Vec<CompileTask>,
+    },
     /// Missing target for a symbol.
     MissingTarget {
         node: GlobalNodeIdAny,
@@ -28,6 +33,7 @@ impl LinkError {
     #[inline]
     pub fn sub_code(&self) -> u8 {
         match self {
+            Self::Wait { .. } => 0,
             Self::MissingTarget { .. } => 1,
             Self::UnresolvedSymbol { .. } => 2,
             Self::ConflictingSymbol { .. } => 3,
@@ -37,6 +43,7 @@ impl LinkError {
     /// Get the node id of the error.
     pub fn node_id(&self) -> Option<GlobalNodeIdAny> {
         match self {
+            Self::Wait { nodes, .. } => nodes.first().copied(),
             Self::MissingTarget { node, .. } => Some(*node),
             Self::UnresolvedSymbol { node, .. } => Some(*node),
             Self::ConflictingSymbol { node, .. } => Some(*node),
@@ -46,6 +53,9 @@ impl LinkError {
     /// Get the message of the error.
     pub fn message<'a>(&self, _program: &'a Program<'a>) -> String {
         match self {
+            Self::Wait { tasks, .. } => {
+                format!("wait for {} tasks", tasks.len())
+            }
             Self::MissingTarget { .. } => "missing target".to_string(),
             Self::UnresolvedSymbol { .. } => "unresolved symbol".to_string(),
             Self::ConflictingSymbol { .. } => "conflicting symbol".to_string(),

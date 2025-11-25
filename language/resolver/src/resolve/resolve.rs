@@ -5,7 +5,7 @@ use std::path::{Component, Path, PathBuf};
 use std::sync::Arc;
 use std::{fmt, iter};
 
-use dyst_dir::{ModuleSpecifier, PackageOptions, TsConfigOptions, TsProjectReferences};
+use dyst_dir::{ModuleSpecifier, PackageOptions, TsConfig, TsConfigProjectReferences};
 use dyst_source::{FileSystem, MemoryFileSystem, PathExt, PhysicalFileSystem, SLASH_START};
 
 use crate::{
@@ -82,10 +82,7 @@ impl<Fs: FileSystem> Resolver<Fs> {
     /// * Path to a file with `.json` extension.
     /// * Path to a file without `.json` extension, `.json` will be appended to filename.
     /// * Path to a directory, where the filename is defaulted to `tsconfig.json`
-    pub fn resolve_tsconfig<P: AsRef<Path>>(
-        &self,
-        path: P,
-    ) -> Result<Arc<TsConfigOptions>, ResolveError> {
+    pub fn resolve_tsconfig<P: AsRef<Path>>(&self, path: P) -> Result<Arc<TsConfig>, ResolveError> {
         let path = path.as_ref();
         self.load_tsconfig(
             true,
@@ -1179,9 +1176,9 @@ impl<Fs: FileSystem> Resolver<Fs> {
         path: &Path,
         references: &TypeScriptOptionsReferences,
         ctx: &mut TypeScriptOptionsResolveContext,
-    ) -> Result<Arc<TsConfigOptions>, ResolveError> {
+    ) -> Result<Arc<TsConfig>, ResolveError> {
         self.cache.get_tsconfig_json(root, path, |tsconfig| {
-            let directory = self.cache.value(tsconfig.directory());
+            let directory = self.cache.value(&tsconfig.directory);
 
             if ctx.is_already_extended(&tsconfig.path) {
                 return Err(ResolveError::TsConfigCircular {
@@ -1219,7 +1216,7 @@ impl<Fs: FileSystem> Resolver<Fs> {
                 TypeScriptOptionsReferences::Paths(paths) => {
                     tsconfig.content.references = paths
                         .iter()
-                        .map(|path| TsProjectReferences {
+                        .map(|path| TsConfigProjectReferences {
                             path: path.clone(),
                             tsconfig: None,
                         })
@@ -1228,7 +1225,7 @@ impl<Fs: FileSystem> Resolver<Fs> {
             }
             if !tsconfig.content.references.is_empty() {
                 let path = tsconfig.path.to_path_buf();
-                let directory = tsconfig.directory().to_path_buf();
+                let directory = tsconfig.directory.to_path_buf();
                 for reference in tsconfig.content.references.iter_mut() {
                     let reference_tsconfig_path = directory.normalize_with(&reference.path);
                     let tsconfig = self.cache.get_tsconfig_json(
@@ -1241,7 +1238,7 @@ impl<Fs: FileSystem> Resolver<Fs> {
                                 });
                             }
                             self.extend_tsconfig(
-                                &self.cache.value(reference_tsconfig.directory()),
+                                &self.cache.value(&reference_tsconfig.directory),
                                 reference_tsconfig,
                                 ctx,
                             )?;
@@ -1259,7 +1256,7 @@ impl<Fs: FileSystem> Resolver<Fs> {
     fn extend_tsconfig(
         &self,
         directory: &CachedPath,
-        tsconfig: &mut TsConfigOptions,
+        tsconfig: &mut TsConfig,
         ctx: &mut TypeScriptOptionsResolveContext,
     ) -> Result<(), ResolveError> {
         let extended_tsconfig_paths = tsconfig
@@ -1301,7 +1298,7 @@ impl<Fs: FileSystem> Resolver<Fs> {
                     &mut TypeScriptOptionsResolveContext::default(),
                 )?;
                 // cache the loaded tsconfig in the path's directory
-                let tsconfig_dir = self.cache.value(tsconfig.directory());
+                let tsconfig_dir = self.cache.value(&tsconfig.directory);
                 _ = tsconfig_dir
                     .tsconfig
                     .get_or_init(|| Some(Arc::clone(&tsconfig)));
@@ -1338,7 +1335,7 @@ impl<Fs: FileSystem> Resolver<Fs> {
         &self,
         cached_path: &CachedPath,
         ctx: &mut ResolutionContext,
-    ) -> Result<Option<Arc<TsConfigOptions>>, ResolveError> {
+    ) -> Result<Option<Arc<TsConfig>>, ResolveError> {
         // don't discover tsconfig for paths inside node_modules
         if cached_path.is_inside_node_modules {
             return Ok(None);
@@ -1370,7 +1367,7 @@ impl<Fs: FileSystem> Resolver<Fs> {
     fn get_extended_tsconfig_path(
         &self,
         directory: &CachedPath,
-        tsconfig: &TsConfigOptions,
+        tsconfig: &TsConfig,
         specifier: &str,
     ) -> Result<PathBuf, ResolveError> {
         match specifier.as_bytes().first() {
@@ -1379,7 +1376,7 @@ impl<Fs: FileSystem> Resolver<Fs> {
                 message: None,
             }),
             Some(b'/') => Ok(PathBuf::from(specifier)),
-            Some(b'.') => Ok(tsconfig.directory().normalize_with(specifier)),
+            Some(b'.') => Ok(tsconfig.directory.normalize_with(specifier)),
             _ => self
                 .clone_with_options(ResolveOptions {
                     tsconfig: None,

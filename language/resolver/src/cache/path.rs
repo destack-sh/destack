@@ -7,7 +7,7 @@ use std::path::{Component, Path, PathBuf};
 use std::sync::{Arc, OnceLock, Weak};
 
 use cfg_if::cfg_if;
-use dyst_dir::{PackageOptions, TsConfigOptions};
+use dyst_dir::{PackageOptions, TsConfig};
 use dyst_source::FileSystem;
 use papaya::Equivalent;
 
@@ -47,7 +47,7 @@ pub struct CachedPathState {
     /// Lazy-loaded `package.json`.
     pub package_json: OnceLock<Option<Arc<PackageOptions>>>,
     /// Lazy-loaded `tsconfig.json`.
-    pub tsconfig: OnceLock<Option<Arc<TsConfigOptions>>>,
+    pub tsconfig: OnceLock<Option<Arc<TsConfig>>>,
 }
 
 impl CachedPathState {

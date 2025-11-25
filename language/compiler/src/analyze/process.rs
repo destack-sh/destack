@@ -3,7 +3,7 @@ use crate::{AnalyzeResult, CompileTask, Compiler};
 use dyst_dir::{ModuleId, Program};
 
 /// Task to analyze something.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub enum AnalyzeTask {
     /// Analyze a module.
     Analyze { module: ModuleId },

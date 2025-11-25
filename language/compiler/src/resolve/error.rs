@@ -1,10 +1,16 @@
-use crate::{CompileError, CompilePhase};
+use crate::{CompileError, CompilePhase, CompileTask};
 use dyst_dir::{GlobalNodeIdAny, GlobalScopeId, GlobalSymbolId, Program, StringId, SymbolKey};
 
 /// Error when evaluating something statically.
 #[derive(Debug, Clone, PartialEq)]
 #[repr(u8)]
 pub enum ResolveError {
+    /// Wait for other tasks.
+    Wait {
+        nodes: Vec<GlobalNodeIdAny>,
+        tasks: Vec<CompileTask>,
+    },
+
     /// Unsupported node.
     UnsupportedNode { node: GlobalNodeIdAny },
 
@@ -60,7 +66,8 @@ impl ResolveError {
     #[inline]
     pub fn sub_code(&self) -> u8 {
         match self {
-            Self::UnsupportedNode { .. } => 1,
+            Self::Wait { .. } => 0,
+            Self::UnsupportedNode { .. } => 2,
             Self::CircularDependency { .. } => 2,
             Self::UndeclaredSymbol { .. } => 3,
             Self::MissingSymbol { .. } => 4,
@@ -74,6 +81,7 @@ impl ResolveError {
     /// Get the node id of the error.
     pub fn node_id(&self) -> Option<GlobalNodeIdAny> {
         match self {
+            Self::Wait { nodes, .. } => nodes.first().copied(),
             Self::UnsupportedNode { node, .. } => Some(*node),
             Self::CircularDependency { node, .. } => Some(*node),
             Self::UndeclaredSymbol { node, .. } => Some(*node),
@@ -88,6 +96,9 @@ impl ResolveError {
     /// Get the message of the error.
     pub fn message<'a>(&self, program: &'a Program<'a>) -> String {
         match self {
+            Self::Wait { tasks, .. } => {
+                format!("wait for {} tasks", tasks.len())
+            }
             Self::UnsupportedNode { node, .. } => {
                 format!("unsupported {}", node.local_id.ty.name())
             }

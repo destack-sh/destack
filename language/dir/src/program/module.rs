@@ -131,7 +131,7 @@ impl Module {
     }
 }
 
-/// Graph of Modules (including their underlying Files). THREAD-SAFE.
+/// Registry of Modules. THREAD-SAFE.
 #[derive(Debug)]
 pub struct ModuleRegistry {
     /// The modules by id.
@@ -161,7 +161,7 @@ impl ModuleRegistry {
         ModuleId::new(next_module_id)
     }
 
-    /// Insert a module into the graph.
+    /// Insert a module into the registry.
     pub fn insert(&self, module: Module) {
         let mut modules_by_id = self.modules_by_id.lock();
         modules_by_id.insert(module.id, Arc::new(RwLock::new(module)));

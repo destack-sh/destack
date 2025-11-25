@@ -3,7 +3,7 @@ use crate::{CompileTask, Compiler, LinkResult};
 use dyst_dir::{ModuleId, Program};
 
 /// Task to link something.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub enum LinkTask {
     /// Link a module.
     Link { module: ModuleId },

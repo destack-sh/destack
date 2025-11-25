@@ -1,7 +1,7 @@
 use dyst_ast::StringPool;
 use dyst_source::{DiagnosticCollector, FileRegistry, FileSystem, LanguageOptions};
 
-use crate::{GlobalScopeId, ModuleRegistry, PackageRegistry};
+use crate::{DsConfigRegistry, GlobalScopeId, ModuleRegistry, PackageRegistry, TsConfigRegistry};
 
 /// A Program.
 #[derive(Debug)]
@@ -18,6 +18,10 @@ pub struct Program<'a> {
     pub modules: ModuleRegistry,
     /// The packages.
     pub packages: PackageRegistry,
+    /// The tsconfigs.
+    pub tsconfigs: TsConfigRegistry,
+    /// The dsconfigs.
+    pub dsconfigs: DsConfigRegistry,
     /// The combined string pool.
     pub strings: StringPool,
     /// The diagnostic collector.
@@ -34,6 +38,8 @@ impl<'a> Program<'a> {
             root_scope_id: None,
             modules: ModuleRegistry::new(),
             packages: PackageRegistry::new(),
+            tsconfigs: TsConfigRegistry::new(),
+            dsconfigs: DsConfigRegistry::new(),
             strings: StringPool::new(),
             diagnostics: DiagnosticCollector::new(),
         }

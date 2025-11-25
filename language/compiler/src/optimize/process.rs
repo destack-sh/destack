@@ -3,7 +3,7 @@ use crate::{CompileTask, Compiler, OptimizeResult};
 use dyst_dir::{ModuleId, Program};
 
 /// Task to optimize something.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub enum OptimizeTask {
     /// Optimize a module.
     Optimize { module: ModuleId },

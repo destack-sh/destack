@@ -1,10 +1,13 @@
 use std::borrow::Cow;
+use std::collections::HashMap;
 use std::fmt::Debug;
 use std::hash::BuildHasherDefault;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicU32, Ordering};
 
 use indexmap::IndexMap;
+use parking_lot::{Mutex, RwLock};
 use rustc_hash::FxHasher;
 use serde::Deserialize;
 
@@ -12,20 +15,36 @@ use dyst_source::{FileId, PathExt, strip_json};
 
 const TEMPLATE_VARIABLE: &str = "${configDir}"; // TODO #Broken: revisit TsConfig template variable
 
-/// TypeScript options.
+/// Unique identifier for TsConfigs.
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub struct TsConfigId(pub u32);
+
+impl TsConfigId {
+    /// Wrap an id as a TsConfigId.
+    pub fn new(id: u32) -> Self {
+        Self(id)
+    }
+}
+
+/// TypeScript configuration (usually from `tsconfig.json`).
 #[derive(Debug, Clone)]
-pub struct TsConfigOptions {
+pub struct TsConfig {
+    /// The id of the TsConfig.
+    pub id: TsConfigId,
     /// The id of the `tsconfig.json` file.
     pub file_id: FileId,
-    /// Whether this is the root tsconfig.
+    /// Whether this is the root tsconfig in its context.
     pub is_root: bool,
     /// Path to the `tsconfig.json` file (including the `tsconfig.json`).
     pub path: PathBuf,
+    /// The directory containing the `tsconfig.json` file.
+    pub directory: PathBuf,
     /// The content of the `tsconfig.json` file.
     pub content: TsConfigJson,
 }
 
-impl TsConfigOptions {
+impl TsConfig {
     /// Parses the tsconfig from a JSON string.
     pub fn parse(
         file_id: FileId,
@@ -44,33 +63,28 @@ impl TsConfigOptions {
         };
 
         // parse the tsconfig
+        let directory = path
+            .parent()
+            .expect("tsconfig.json must have a parent directory");
         let tsconfig_json: TsConfigJson = serde_json::from_str(json.as_ref())?;
         let tsconfig = Self {
+            id: TsConfigId::new(0), // nocheckin
             file_id,
             is_root,
             path: path.to_path_buf(),
+            directory: directory.to_path_buf(),
             content: tsconfig_json,
         };
         Ok(tsconfig)
     }
 
-    /// Directory of the `tsconfig.json` file.
-    pub fn directory(&self) -> &Path {
-        debug_assert!(self.path.file_name().is_some());
-        self.path.parent().unwrap()
-    }
-
     /// Returns the base path from which to resolve aliases.
-    ///
-    /// The base path can be configured by the user as part of the
-    /// [CompilerOptions]. If not configured, it returns the directory in which
-    /// the tsconfig itself is found.
-    pub(crate) fn base_path(&self) -> &Path {
+    pub fn base_path(&self) -> &Path {
         self.content
             .compiler_options
             .base_url
             .as_deref()
-            .unwrap_or_else(|| self.directory())
+            .unwrap_or_else(|| &self.directory)
     }
 
     /// Inherits settings from the given tsconfig into `self`.
@@ -97,7 +111,6 @@ impl TsConfigOptions {
             self.content.exclude = Some(exclude.clone());
         }
 
-        let tsconfig_dir = tsconfig.directory();
         let compiler_options = &mut self.content.compiler_options;
 
         // compilerOptions.baseUrl
@@ -108,7 +121,7 @@ impl TsConfigOptions {
                 if base_url.to_string_lossy().starts_with(TEMPLATE_VARIABLE) {
                     base_url.clone()
                 } else {
-                    tsconfig_dir.join(base_url).normalize()
+                    tsconfig.directory.join(base_url).normalize()
                 },
             );
         }
@@ -116,12 +129,12 @@ impl TsConfigOptions {
         // compilerOptions.paths
         if compiler_options.paths.is_none() {
             let paths_base = compiler_options.base_url.as_ref().map_or_else(
-                || tsconfig_dir.to_path_buf(),
+                || tsconfig.directory.to_path_buf(),
                 |path| {
                     if path.to_string_lossy().starts_with(TEMPLATE_VARIABLE) {
                         path.clone()
                     } else {
-                        tsconfig_dir.join(path).normalize()
+                        tsconfig.directory.join(path).normalize()
                     }
                 },
             );
@@ -248,12 +261,12 @@ impl TsConfigOptions {
     /// * `paths_base` for resolving paths alias
     /// * `baseUrl` to absolute path
     pub fn build(mut self) -> Self {
-        // only the root tsconfig requires paths resolution.
+        // only the root tsconfig requires path resolution.
         if !self.is_root {
             return self;
         }
 
-        let config_dir = self.directory().to_path_buf();
+        let config_dir = self.directory.to_path_buf();
 
         if let Some(base_url) = &self.content.compiler_options.base_url {
             // Substitute template variable in `tsconfig.compilerOptions.baseUrl`.
@@ -310,7 +323,7 @@ impl TsConfigOptions {
             .content
             .references
             .iter()
-            .filter_map(TsProjectReferences::tsconfig)
+            .filter_map(TsConfigProjectReferences::tsconfig)
         {
             if path.starts_with(tsconfig.base_path()) {
                 return [tsconfig.content.resolve_path_alias(specifier), paths].concat();
@@ -336,6 +349,68 @@ impl TsConfigOptions {
     }
 }
 
+/// Registry of TsConfigs. THREAD-SAFE.
+#[derive(Debug)]
+pub struct TsConfigRegistry {
+    /// The tsconfigs by id.
+    tsconfigs_by_id: Mutex<HashMap<TsConfigId, Arc<RwLock<TsConfig>>>>,
+    /// The next tsconfig id.
+    next_tsconfig_id: AtomicU32,
+}
+
+impl Default for TsConfigRegistry {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl TsConfigRegistry {
+    /// Create a new TsConfigRegistry.
+    pub fn new() -> Self {
+        Self {
+            tsconfigs_by_id: Mutex::new(HashMap::new()),
+            next_tsconfig_id: AtomicU32::new(0),
+        }
+    }
+
+    /// Get and increment the next tsconfig id.
+    pub fn next_id(&self) -> TsConfigId {
+        let next_tsconfig_id = self.next_tsconfig_id.fetch_add(1, Ordering::Relaxed);
+        TsConfigId::new(next_tsconfig_id)
+    }
+
+    /// Insert a tsconfig into the registry.
+    pub fn insert(&self, tsconfig: TsConfig) {
+        let mut tsconfigs_by_id = self.tsconfigs_by_id.lock();
+        tsconfigs_by_id.insert(tsconfig.id, Arc::new(RwLock::new(tsconfig)));
+    }
+
+    /// Get a tsconfig by id.
+    pub fn get(&self, id: TsConfigId) -> Option<Arc<RwLock<TsConfig>>> {
+        let tsconfigs_by_id = self.tsconfigs_by_id.lock();
+        tsconfigs_by_id.get(&id).cloned()
+    }
+
+    /// Iterate over the tsconfigs in the registry.
+    pub fn iter(&self) -> impl Iterator<Item = Arc<RwLock<TsConfig>>> {
+        let tsconfigs_by_id = self.tsconfigs_by_id.lock();
+        let snapshot: Vec<_> = tsconfigs_by_id.values().cloned().collect();
+        snapshot.into_iter()
+    }
+
+    /// Get the number of tsconfigs in the registry.
+    pub fn len(&self) -> usize {
+        let tsconfigs_by_id = self.tsconfigs_by_id.lock();
+        tsconfigs_by_id.len()
+    }
+
+    /// Whether the registry is empty.
+    pub fn is_empty(&self) -> bool {
+        let tsconfigs_by_id = self.tsconfigs_by_id.lock();
+        tsconfigs_by_id.is_empty()
+    }
+}
+
 /// TypeScript JSON (usually from `tsconfig.json`)
 /// <https://www.typescriptlang.org/tsconfig>
 #[derive(Debug, Deserialize, Clone)]
@@ -356,15 +431,15 @@ pub struct TsConfigJson {
     /// Paths to other tsconfigs to extend.
     /// <https://www.typescriptlang.org/tsconfig/#extends>
     #[serde(default)]
-    pub extends: Option<ExtendsField>,
+    pub extends: Option<TsConfigExtendsField>,
     /// Compiler options.
     /// <https://www.typescriptlang.org/tsconfig/#compilerOptions>
     #[serde(default)]
-    pub compiler_options: TsCompilerOptionsJson,
+    pub compiler_options: TsConfigCompilerOptionsJson,
     /// Bubbled up project references with a reference to their tsconfig.
     /// <https://www.typescriptlang.org/tsconfig/#references>
     #[serde(default)]
-    pub references: Vec<TsProjectReferences>,
+    pub references: Vec<TsConfigProjectReferences>,
 }
 
 impl TsConfigJson {
@@ -372,10 +447,10 @@ impl TsConfigJson {
     /// Returns any paths to tsconfigs that should be extended by this tsconfig.
     pub fn extends(&self) -> impl Iterator<Item = &str> {
         let specifiers = match &self.extends {
-            Some(ExtendsField::Single(specifier)) => {
+            Some(TsConfigExtendsField::Single(specifier)) => {
                 vec![specifier.as_str()]
             }
-            Some(ExtendsField::Multiple(specifiers)) => {
+            Some(TsConfigExtendsField::Multiple(specifiers)) => {
                 specifiers.iter().map(String::as_str).collect()
             }
             None => Vec::new(),
@@ -450,7 +525,7 @@ impl TsConfigJson {
 /// <https://www.typescriptlang.org/tsconfig#compilerOptions>
 #[derive(Debug, Default, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
-pub struct TsCompilerOptionsJson {
+pub struct TsConfigCompilerOptionsJson {
     /// Base URL (e.g. `./src`)
     /// <https://www.typescriptlang.org/tsconfig/#baseUrl>
     pub base_url: Option<PathBuf>,
@@ -461,7 +536,7 @@ pub struct TsCompilerOptionsJson {
 
     /// The actual base from where path aliases are resolved.
     #[serde(skip)]
-    pub paths_base: PathBuf,
+    pub paths_base: PathBuf, // nocheckin: remove
 
     /// Allow arbitrary non-standard file extensions to be imported.
     /// <https://www.typescriptlang.org/tsconfig/#allowArbitraryExtensions>
@@ -669,8 +744,10 @@ pub struct TsCompilerOptionsJson {
 /// <https://www.typescriptlang.org/tsconfig/#extends>
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq)]
 #[serde(untagged)]
-pub enum ExtendsField {
+pub enum TsConfigExtendsField {
+    /// Extend a single tsconfig.
     Single(String),
+    /// Extend multiple tsconfigs.
     Multiple(Vec<String>),
 }
 
@@ -678,28 +755,28 @@ pub enum ExtendsField {
 ///
 /// <https://www.typescriptlang.org/docs/handbook/project-references.html>
 #[derive(Debug, Deserialize, Clone)]
-pub struct TsProjectReferences {
+pub struct TsConfigProjectReferences {
     /// Path to the tsconfig.json file.
     pub path: PathBuf,
 
-    /// Resolved tsconfig.
+    /// Resolved tsconfig. // nocheckin: remove
     #[serde(skip)]
-    pub tsconfig: Option<Arc<TsConfigOptions>>,
+    pub tsconfig: Option<Arc<TsConfig>>,
 }
 
-impl TsProjectReferences {
+impl TsConfigProjectReferences {
     /// Returns the path to the tsconfig.json file.
     pub fn path(&self) -> &Path {
         &self.path
     }
 
     /// Returns the resolved tsconfig.
-    pub fn tsconfig(&self) -> Option<Arc<TsConfigOptions>> {
+    pub fn tsconfig(&self) -> Option<Arc<TsConfig>> {
         self.tsconfig.clone()
     }
 
     /// Sets the resolved tsconfig.
-    pub fn set_tsconfig(&mut self, tsconfig: Arc<TsConfigOptions>) {
+    pub fn set_tsconfig(&mut self, tsconfig: Arc<TsConfig>) {
         self.tsconfig.replace(tsconfig);
     }
 }
@@ -716,7 +793,7 @@ fn trim_start_matches_mut(string: &mut str, pattern: char) -> &mut str {
 
 #[cfg(test)]
 mod tests {
-    use super::TsConfigOptions;
+    use super::TsConfig;
     use dyst_source::FileId;
     use std::path::Path;
 
@@ -743,11 +820,11 @@ mod tests {
         .to_string();
 
         let parent_tsconfig =
-            TsConfigOptions::parse(FileId::new(0), true, parent_path, &mut parent_config)
+            TsConfig::parse(FileId::new(0), true, parent_path, &mut parent_config)
                 .unwrap()
                 .build();
         let mut child_tsconfig =
-            TsConfigOptions::parse(FileId::new(1), true, child_path, &mut child_config).unwrap();
+            TsConfig::parse(FileId::new(1), true, child_path, &mut child_config).unwrap();
 
         child_tsconfig.extend_from(&parent_tsconfig);
         let child_built = child_tsconfig.build();

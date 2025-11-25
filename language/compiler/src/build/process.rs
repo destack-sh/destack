@@ -3,7 +3,7 @@ use crate::{BuildResult, CompileTask, Compiler};
 use dyst_dir::{ModuleId, Program};
 
 /// task to build something into an artifact.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub enum BuildTask {
     /// Build a module.
     Build { module: ModuleId },

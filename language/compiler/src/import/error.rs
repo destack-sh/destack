@@ -2,12 +2,17 @@ use dyst_dir::{GlobalNodeIdAny, ModuleId, Program};
 use dyst_parser::ParseError;
 use dyst_source::{FileId, StringId, Uri};
 
-use crate::{CompileError, CompilePhase};
+use crate::{CompileError, CompilePhase, CompileTask};
 
 /// Error when importing something into the compiler.
 #[derive(Debug, Clone)]
 #[repr(u8)]
 pub enum ImportError {
+    /// Wait for other tasks.
+    Wait {
+        nodes: Vec<GlobalNodeIdAny>,
+        tasks: Vec<CompileTask>,
+    },
     /// Invalid URI.
     InvalidUri { uri: Uri },
     /// File ID not found.
@@ -35,6 +40,7 @@ impl ImportError {
     #[inline]
     pub fn sub_code(&self) -> u8 {
         match self {
+            Self::Wait { .. } => 0,
             Self::InvalidUri { .. } => 1,
             Self::FileIdNotFound { .. } => 2,
             Self::FileUriNotFound { .. } => 3,
@@ -47,6 +53,7 @@ impl ImportError {
     /// Get the node id of the error.
     pub fn node_id(&self) -> Option<GlobalNodeIdAny> {
         match self {
+            Self::Wait { nodes, .. } => nodes.first().copied(),
             Self::InvalidUri { .. } => None,
             Self::FileIdNotFound { .. } => None,
             Self::FileUriNotFound { .. } => None,
@@ -59,6 +66,9 @@ impl ImportError {
     /// Get the message of the error.
     pub fn message<'a>(&self, program: &'a Program<'a>) -> String {
         match self {
+            Self::Wait { tasks, .. } => {
+                format!("wait for {} tasks", tasks.len())
+            }
             Self::InvalidUri { uri } => format!("invalid URI: '{uri}'"),
             Self::FileIdNotFound { .. } => "file not found".to_string(),
             Self::FileUriNotFound { uri } => format!("file URI not found: '{uri}'"),

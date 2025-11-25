@@ -3,7 +3,7 @@ use crate::{CompileTask, Compiler, ResolveResult};
 use dyst_dir::{ModuleId, Program};
 
 /// Task to statically resolve something in-place.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub enum ResolveTask {
     /// Resolve all unresolved nodes in a module.
     ResolveModule { module: ModuleId },

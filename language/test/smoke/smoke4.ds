@@ -1565,7 +1565,7 @@ declare namespace "bun" {
      * @returns Promise that resolves with [key, member, score] or null if timeout
      * @example
      * ```ts
-     * // Block for up to 1 second waiting for an element
+     * // Block for up to 1 second wait for an element
      * const result = await redis.bzpopmin("myzset", 1.0);
      * if (result) {
      *   const [key, member, score] = result;
@@ -1581,7 +1581,7 @@ declare namespace "bun" {
      * @returns Promise that resolves with [key, member, score] or null if timeout
      * @example
      * ```ts
-     * // Block for up to 1 second waiting for an element
+     * // Block for up to 1 second wait for an element
      * const result = await redis.bzpopmax("myzset", 1.0);
      * if (result) {
      *   const [key, member, score] = result;
@@ -3319,7 +3319,7 @@ declare namespace "bun" {
      *
      * @example
      * ```ts
-     * // Block for 5 seconds waiting for a member
+     * // Block for 5 seconds wait for a member
      * const result1 = await redis.bzmpop(5, 1, "myzset", "MIN");
      * // Returns: ["myzset", [["member1", 1]]] or null if timeout
      *
