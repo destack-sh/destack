@@ -72,7 +72,7 @@ impl ValidateError {
     /// Get the node id of the error.
     pub fn node_id(&self) -> Option<GlobalNodeIdAny> {
         match self {
-            Self::Wait { wait, .. } => wait.nodes.first().copied(),
+            Self::Wait { wait } => wait.nodes.first().copied(),
             Self::MissingType { node, .. } => Some(*node),
             Self::TypeMismatch { node, .. } => Some(*node),
             Self::InaccessibleSymbol { node, .. } => Some(*node),
@@ -90,9 +90,7 @@ impl ValidateError {
     /// Get the message of the error.
     pub fn message(&self, _program: &Program) -> String {
         match self {
-            Self::Wait { wait, .. } => {
-                format!("wait for {} tasks", wait.tasks.len())
-            }
+            Self::Wait { .. } => "wait for task".to_string(),
             Self::MissingType { .. } => "missing type".to_string(),
             Self::TypeMismatch { .. } => "type mismatch".to_string(),
             Self::InaccessibleSymbol { .. } => "inaccessible symbol".to_string(),

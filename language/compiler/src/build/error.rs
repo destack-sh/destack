@@ -70,7 +70,7 @@ impl BuildError {
     /// Get the node id of the error.
     pub fn node_id(&self) -> Option<GlobalNodeIdAny> {
         match self {
-            Self::Wait { wait, .. } => wait.nodes.first().copied(),
+            Self::Wait { wait } => wait.nodes.first().copied(),
             Self::TargetNotAvailable { node, .. } => Some(*node),
             Self::UnsupportedTarget { node, .. } => Some(*node),
             Self::MissingEntryPoint { node, .. } => Some(*node),
@@ -86,9 +86,7 @@ impl BuildError {
     /// Get the message of the error.
     pub fn message(&self, _program: &Program) -> String {
         match self {
-            Self::Wait { wait, .. } => {
-                format!("wait for {} tasks", wait.tasks.len())
-            }
+            Self::Wait { .. } => "wait for task".to_string(),
             Self::TargetNotAvailable { .. } => "target is not available".to_string(),
             Self::UnsupportedTarget { .. } => "unsupported target".to_string(),
             Self::MissingEntryPoint { .. } => "missing entry point".to_string(),

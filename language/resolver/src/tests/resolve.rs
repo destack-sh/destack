@@ -790,7 +790,7 @@ fn test_should_resolve_slash() {
 fn test_resolve_fully_specified_paths() {
     use crate::MemoryResolver;
 
-    let file_system = MemoryFileSystem::from_files(&[
+    let fs = MemoryFileSystem::from_files(&[
         ("/a/node_modules/package1/index.js", ""),
         ("/a/node_modules/package1/file.js", ""),
         ("/a/node_modules/package2/package.json", r#"{"main":"a"}"#),
@@ -809,7 +809,7 @@ fn test_resolve_fully_specified_paths() {
     ]);
 
     let resolver = MemoryResolver::from_file_system(
-        file_system.clone(),
+        fs.clone(),
         ResolveOptions {
             alias: vec![
                 ("alias1".into(), vec![AliasValue::from("/a/abc")]),
@@ -874,7 +874,7 @@ fn test_resolve_fully_specified_paths() {
     }
 
     let resolver = MemoryResolver::from_file_system(
-        file_system.clone(),
+        fs.clone(),
         ResolveOptions {
             alias: vec![
                 ("alias1".into(), vec![AliasValue::from("/a/abc")]),
@@ -933,8 +933,8 @@ mod windows {
         use std::path::Path;
 
         let f = Path::new("/");
-        let file_system = MemoryFileSystem::from_files(&[]);
-        let resolver = MemoryResolver::from_file_system(file_system, ResolveOptions::default());
+        let fs = MemoryFileSystem::from_files(&[]);
+        let resolver = MemoryResolver::from_file_system(fs, ResolveOptions::default());
         let resolved_path = resolver.resolve(f, "package");
         assert!(resolved_path.is_err());
     }
