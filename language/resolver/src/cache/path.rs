@@ -39,11 +39,11 @@ pub struct CachedPathState {
     pub is_inside_node_modules: bool,
 
     /// Lazy-loaded metadata (is_file, is_directory).
-    pub meta: OnceLock<Option<FileMetadata>>,
+    meta: OnceLock<Option<FileMetadata>>,
     /// Lazy-loaded canonicalized path.
     pub canonicalized_path: OnceLock<Weak<CachedPathState>>,
     /// Lazy-loaded `node_modules` subdirectory.
-    pub node_modules: OnceLock<Option<Weak<CachedPathState>>>,
+    node_modules: OnceLock<Option<Weak<CachedPathState>>>,
     /// Lazy-loaded `package.json`.
     pub package_json: OnceLock<Option<Arc<PackageOptions>>>,
     /// Lazy-loaded `tsconfig.json`.
@@ -151,9 +151,8 @@ impl CachedPath {
             }
         }
 
-        let mut cache_value = Some(cache_value);
-
         // traverse parents
+        let mut cache_value = Some(cache_value);
         while let Some(cv) = cache_value {
             if let Some(package_json) = cache.get_package_json(&cv, options, ctx)? {
                 return Ok(Some(package_json));
@@ -166,7 +165,11 @@ impl CachedPath {
     }
 
     /// Adds an extension to the cached path.
-    pub(crate) fn add_extension(&self, extension: &str, cache: &CachedFileSystem) -> Self {
+    pub(crate) fn with_appended_extension(
+        &self,
+        extension: &str,
+        cache: &CachedFileSystem,
+    ) -> Self {
         SCRATCH_PATH.with_borrow_mut(|path| {
             path.clear();
             let s = path.as_mut_os_string();
@@ -177,7 +180,7 @@ impl CachedPath {
     }
 
     /// Replaces the extension of the cached path.
-    pub(crate) fn replace_extension(&self, extension: &str, cache: &CachedFileSystem) -> Self {
+    pub(crate) fn with_extension(&self, extension: &str, cache: &CachedFileSystem) -> Self {
         SCRATCH_PATH.with_borrow_mut(|path| {
             path.clear();
             let path_str = path.as_mut_os_string();

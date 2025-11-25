@@ -4,6 +4,7 @@ use crate::{BindTask, CompileOutput, CompileTask, Compiler, ImportError, ImportR
 
 use dyst_dir::{DependencySource, Module, ModuleId, PackageId, Program};
 use dyst_parser::Parser;
+use dyst_resolver::Resolver;
 use dyst_source::{File, FileId, FileType, StringId, Uri};
 
 /// Task to import a file into the compiler.
@@ -103,11 +104,8 @@ impl Compiler {
                 module,
                 source: _,
             } => {
-                return Err(ImportError::ModuleNotFound {
-                    target,
-                    module,
-                    error: None,
-                });
+                let module = self.program.modules.get(module);
+                todo!()
             }
         };
         let package_id: Option<PackageId> = None; // nocheckin: resolve package/.. for module

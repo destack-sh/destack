@@ -575,7 +575,7 @@ impl Resolver {
             return Ok(None);
         }
         for extension in extensions {
-            let cached_path = path.add_extension(extension, self.cache.as_ref());
+            let cached_path = path.with_appended_extension(extension, self.cache.as_ref());
             if let Some(path) = self.load_alias_or_file(&cached_path, ctx)? {
                 return Ok(Some(path));
             }
@@ -1125,7 +1125,7 @@ impl Resolver {
 
         ctx.is_fully_specified = true;
         for extension in extensions {
-            let cached_path = cached_path.replace_extension(extension, self.cache.as_ref());
+            let cached_path = cached_path.with_extension(extension, self.cache.as_ref());
             if let Some(path) = self.load_alias_or_file(&cached_path, ctx)? {
                 ctx.is_fully_specified = false;
                 return Ok(Some(path));
