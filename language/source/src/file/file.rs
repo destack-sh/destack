@@ -1,4 +1,4 @@
-use crate::{FileType, Span, Uri};
+use crate::{FileType, Span, Uri, strip_json};
 
 /// The id of a File.
 #[repr(transparent)]
@@ -111,7 +111,10 @@ impl File {
         ty: FileType,
         content: String,
     ) -> Result<Self, serde_json::Error> {
-        let json = serde_json::from_str(&content)?;
+        // strip BOM from content for parsing, but keep original content
+        let json_str = content.strip_prefix('\u{feff}').unwrap_or(&content);
+
+        let json = serde_json::from_str(json_str)?;
         let len = content.len() as u32;
         let line_start_offsets = Self::precompute_line_start_offsets(&content);
         let file = Self {
@@ -127,6 +130,69 @@ impl File {
             line_start_offsets: Some(line_start_offsets),
         };
         Ok(file)
+    }
+
+    /// Create a new file from text as JSONC (JSON with comments).
+    pub fn from_text_as_jsonc(
+        id: FileId,
+        name: String,
+        uri: Uri,
+        ty: FileType,
+        content: String,
+    ) -> Result<Self, serde_json::Error> {
+        // strip BOM from content for parsing
+        let json_content = content.strip_prefix('\u{feff}').unwrap_or(&content);
+
+        // strip comments from JSONC
+        let json_str = strip_json(json_content).map_err(serde_json::Error::io)?;
+
+        // default to empty object if the file is empty
+        let json_str = if json_str.trim().is_empty() {
+            "{}".to_string()
+        } else {
+            json_str
+        };
+
+        let json = serde_json::from_str(&json_str)?;
+        let len = content.len() as u32;
+        let line_start_offsets = Self::precompute_line_start_offsets(&content);
+        let file = Self {
+            id,
+            name,
+            uri,
+            ty,
+            content: FileContent::Json {
+                content,
+                value: json,
+            },
+            len,
+            line_start_offsets: Some(line_start_offsets),
+        };
+        Ok(file)
+    }
+
+    /// Create a new file from bytes as JSON.
+    pub fn from_bytes_as_json(
+        id: FileId,
+        name: String,
+        uri: Uri,
+        ty: FileType,
+        bytes: Vec<u8>,
+    ) -> Result<Self, serde_json::Error> {
+        let content = String::from_utf8(bytes).unwrap_or_else(|_| String::new());
+        Self::from_text_as_json(id, name, uri, ty, content)
+    }
+
+    /// Create a new file from bytes as JSONC.
+    pub fn from_bytes_as_jsonc(
+        id: FileId,
+        name: String,
+        uri: Uri,
+        ty: FileType,
+        bytes: Vec<u8>,
+    ) -> Result<Self, serde_json::Error> {
+        let content = String::from_utf8(bytes).unwrap_or_else(|_| String::new());
+        Self::from_text_as_jsonc(id, name, uri, ty, content)
     }
 
     /// Get the text content of the File (empty if not text).

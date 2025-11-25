@@ -9,6 +9,23 @@ use std::str::FromStr;
 pub struct Uri(String);
 
 impl Uri {
+    /// Create a new URI from a path.
+    pub fn from_path<P: AsRef<Path>>(path: P) -> Self {
+        Self(path.as_ref().to_string_lossy().into_owned())
+    }
+
+    /// Create a new URI and a name from a path.
+    pub fn from_path_with_name<P: AsRef<Path>>(path: P) -> (String, Self) {
+        let path = path.as_ref();
+        let name = path
+            .file_name()
+            .unwrap_or_default()
+            .to_string_lossy()
+            .into_owned();
+        let uri = Self(path.to_string_lossy().into_owned());
+        (name, uri)
+    }
+
     /// Create a new URI from a string.
     pub fn from_string<T: Into<String>>(uri: T) -> Self {
         Self(uri.into())

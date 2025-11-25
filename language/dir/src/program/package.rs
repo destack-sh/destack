@@ -4,10 +4,9 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU32, Ordering};
 
-use dyst_source::FileId;
+use dyst_source::{File, FileContent, FileId};
 use parking_lot::{Mutex, RwLock};
 use serde::Deserialize;
-use serde::de::Error;
 use serde_json::{Map, Value};
 
 use crate::{DsConfigId, TsConfigId};
@@ -86,30 +85,31 @@ pub struct PackageOptions {
 }
 
 impl PackageOptions {
-    /// Parse a package.json file from JSON bytes.
-    pub fn parse(
-        id: FileId,
-        path: PathBuf,
-        realpath: PathBuf,
-        content: Vec<u8>,
-    ) -> Result<Self, serde_json::Error> {
-        // strip BOM - UTF-8 BOM is 3 bytes: 0xEF, 0xBB, 0xBF
-        let json_bytes = if content.starts_with(b"\xEF\xBB\xBF") {
-            &content[3..]
-        } else {
-            &content[..]
+    /// Parse a package.json file from a File with JSON content.
+    pub fn parse(file: &Arc<File>, realpath: PathBuf) -> Result<Self, serde_json::Error> {
+        // extract the JSON value from file content
+        let FileContent::Json { value, .. } = &file.content else {
+            return Err(serde_json::Error::io(std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                "file is not JSON",
+            )));
         };
 
-        // check if content is empty(ish)
-        if json_bytes.iter().all(|&b| b.is_ascii_whitespace()) {
-            return Err(serde_json::Error::custom("File is empty"));
-        }
+        // parse package.json from the JSON value
+        let package_json: PackageJson = serde_json::from_value(value.clone())?;
 
-        // parse options
-        let package_json: PackageJson = serde_json::from_slice(json_bytes)?;
-        let directory = path.parent().unwrap().to_path_buf();
+        // extract path from file URI
+        let path = file
+            .uri
+            .to_path_buf()
+            .expect("package.json file must have a valid path");
+        let directory = path
+            .parent()
+            .expect("package.json must have a parent directory")
+            .to_path_buf();
+
         let package = Self {
-            file_id: id,
+            file_id: file.id,
             path,
             realpath,
             directory,
