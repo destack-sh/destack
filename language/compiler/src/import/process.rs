@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::{BindTask, CompileTask, Compiler, ImportError, ImportResult};
+use crate::{BindTask, CompileOutput, CompileTask, Compiler, ImportError, ImportResult};
 
 use dyst_dir::{DependencySource, Module, ModuleId, PackageId, Program};
 use dyst_parser::Parser;
@@ -58,6 +58,12 @@ impl From<ImportTask> for CompileTask {
 #[derive(Debug, Clone)]
 pub struct ImportOutput {
     pub module: ModuleId,
+}
+
+impl From<ImportOutput> for CompileOutput {
+    fn from(output: ImportOutput) -> Self {
+        CompileOutput::Import(output)
+    }
 }
 
 impl<'a> Compiler<'a> {

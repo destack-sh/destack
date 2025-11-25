@@ -1,4 +1,4 @@
-use crate::{CompileTask, Compiler, ValidateResult};
+use crate::{CompileOutput, CompileTask, Compiler, ValidateResult};
 
 use dyst_dir::{ModuleId, Program};
 
@@ -36,6 +36,12 @@ impl From<ValidateTask> for CompileTask {
 /// Output of a validate task.
 #[derive(Debug, Clone)]
 pub struct ValidateOutput {}
+
+impl From<ValidateOutput> for CompileOutput {
+    fn from(output: ValidateOutput) -> Self {
+        CompileOutput::Validate(output)
+    }
+}
 
 impl<'a> Compiler<'a> {
     /// Process a validate task.

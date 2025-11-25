@@ -36,7 +36,11 @@ impl<'ast> FormatNode<'ast, Statement> for Statement {
                     )?;
                 }
             }
-            Statement::Export { kind, target, items } => {
+            Statement::Export {
+                kind,
+                target,
+                items,
+            } => {
                 write!(f, [Keyword::Export, space()])?;
                 if *kind == DependencyKind::Type {
                     write!(f, [Keyword::Type, space()])?;

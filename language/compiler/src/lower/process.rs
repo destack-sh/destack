@@ -1,4 +1,4 @@
-use crate::{CompileTask, Compiler, LowerResult};
+use crate::{CompileOutput, CompileTask, Compiler, LowerResult};
 
 use dyst_dir::{ModuleId, Program};
 
@@ -36,6 +36,12 @@ impl From<LowerTask> for CompileTask {
 /// Output of a lower task.
 #[derive(Debug, Clone)]
 pub struct LowerOutput {}
+
+impl From<LowerOutput> for CompileOutput {
+    fn from(output: LowerOutput) -> Self {
+        CompileOutput::Lower(output)
+    }
+}
 
 impl<'a> Compiler<'a> {
     /// Process a lower task.

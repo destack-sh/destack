@@ -908,10 +908,12 @@ pub fn walk_dependency_item<V: NodeVisitor + ?Sized>(
     visitor.visit_any(tree, NodeType::DependencyItem, id.id);
     match dependency_item {
         DependencyItem::UnresolvedRemote {
+            source: _,
             mode: _,
             kind: _,
             alias: _,
             target: _,
+            module: _,
             symbol: _,
         } => {
             // nothing to do
@@ -920,6 +922,7 @@ pub fn walk_dependency_item<V: NodeVisitor + ?Sized>(
             mode: _,
             kind: _,
             name: _,
+            alias: _,
         } => {
             // nothing to do
         }

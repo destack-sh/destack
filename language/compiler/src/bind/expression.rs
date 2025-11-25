@@ -1,7 +1,8 @@
 use dyst_ast::{self as ast};
 use dyst_dir::{
-    Expression, ForEachKind, IfKind, LocalNodeId, LocalScopeId, LoopKind, MatchSource, Module,
-    NodeTree, ScopeKind, SymbolKey, SymbolSpace, SymbolTable, TypeTable, YieldCardinality,
+    DependencySource, Expression, ForEachKind, IfKind, LocalNodeId, LocalScopeId, LoopKind,
+    MatchSource, Module, NodeTree, ScopeKind, SymbolKey, SymbolSpace, SymbolTable, TypeTable,
+    YieldCardinality,
 };
 
 use crate::Compiler;
@@ -87,6 +88,7 @@ impl<'a> Compiler<'a> {
                         self.bind_dependency_item(
                             module,
                             scope_id,
+                            DependencySource::ImportStatement,
                             *kind,
                             Some(target),
                             *item,
@@ -133,6 +135,7 @@ impl<'a> Compiler<'a> {
                             self.bind_dependency_item(
                                 module,
                                 scope_id,
+                                DependencySource::ReExportStatement,
                                 *kind,
                                 Some(target),
                                 *item,
@@ -159,7 +162,15 @@ impl<'a> Compiler<'a> {
                             .iter()
                             .map(|item| {
                                 self.bind_dependency_item(
-                                    module, scope_id, *kind, None, *item, tree, symbols, types,
+                                    module,
+                                    scope_id,
+                                    DependencySource::ValueExpression,
+                                    *kind,
+                                    None,
+                                    *item,
+                                    tree,
+                                    symbols,
+                                    types,
                                 )
                             })
                             .collect()

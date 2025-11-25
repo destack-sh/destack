@@ -1,6 +1,6 @@
-use dyst_dir::{DependencyEdge, Expression, LocalNodeId, ModuleId, Program};
+use dyst_dir::{Expression, LocalNodeId, ModuleId, Program};
 
-use crate::{BindError, BindResult, CompileTask, Compiler, ResolveTask};
+use crate::{BindError, BindResult, CompileOutput, CompileTask, Compiler, ResolveTask};
 
 /// Task to bind AST into DIR.
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
@@ -36,6 +36,12 @@ impl From<BindTask> for CompileTask {
 /// Output of a bind task.
 #[derive(Debug, Clone)]
 pub struct BindOutput {}
+
+impl From<BindOutput> for CompileOutput {
+    fn from(output: BindOutput) -> Self {
+        CompileOutput::Bind(output)
+    }
+}
 
 #[allow(clippy::too_many_arguments)]
 impl<'a> Compiler<'a> {
@@ -77,15 +83,6 @@ impl<'a> Compiler<'a> {
                 .collect()
         };
         module.write().roots.extend(roots);
-
-        // bind dependencies
-        let imports: Vec<DependencyEdge> = {
-            let module = module.read();
-            let mut tree = module.tree.write();
-            let mut symbols = module.symbols.write();
-            self.bind_dependency_edges(&module, module.scope, &mut tree, &mut symbols)
-        };
-        module.write().imports.extend(imports);
 
         // next task: resolve module
         self.enqueue(ResolveTask::ResolveModule { module: module_id }.into());

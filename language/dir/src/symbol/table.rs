@@ -1,3 +1,4 @@
+use dyst_ast::StringId;
 use indexmap::IndexMap;
 
 use crate::{
@@ -6,7 +7,7 @@ use crate::{
 };
 use std::fmt::Debug;
 
-/// A SymbolTable is a side table for a node. NOT THREAD-SAFE.
+/// A SymbolTable is a side table for mapping symbols and scopes. NOT THREAD-SAFE.
 #[derive(Debug, Clone)]
 pub struct SymbolTable {
     /// The module id of the symbol table.
@@ -17,8 +18,13 @@ pub struct SymbolTable {
     /// The next scope id to allocate.
     pub(crate) next_scope_id: u32,
 
+    /// The symbols in the table.
     pub(crate) symbols: Arena<Symbol>,
+    /// The scopes in the table.
     pub(crate) scopes: Arena<Scope>,
+
+    /// The resolved modules by target.
+    pub(crate) imports_by_target: IndexMap<StringId, ModuleId>,
 }
 
 impl SymbolTable {
@@ -30,6 +36,7 @@ impl SymbolTable {
             next_scope_id: 0,
             symbols: Arena::new(),
             scopes: Arena::new(),
+            imports_by_target: IndexMap::new(),
         }
     }
 
@@ -158,5 +165,17 @@ impl SymbolTable {
     #[inline]
     pub fn get_scope_by_id_mut(&mut self, scope_id: LocalScopeId) -> &mut Scope {
         self.scopes.get_mut(scope_id.0)
+    }
+
+    /// Set a resolved import for a target.
+    #[inline]
+    pub fn resolve_import(&mut self, target: StringId, module_id: ModuleId) {
+        self.imports_by_target.insert(target, module_id);
+    }
+
+    /// Get a resolved import for a target.
+    #[inline]
+    pub fn get_resolved_import(&self, target: StringId) -> Option<ModuleId> {
+        self.imports_by_target.get(&target).cloned()
     }
 }
