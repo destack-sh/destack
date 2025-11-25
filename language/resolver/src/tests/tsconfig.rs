@@ -40,7 +40,8 @@ fn test_extend_tsconfig() {
         ..ResolveOptions::default()
     });
 
-    let resolution = resolver.resolve_tsconfig(&f).expect("resolved");
+    let tsconfig_id = resolver.resolve_tsconfig(&f).expect("resolved");
+    let resolution = resolver.get_tsconfig(tsconfig_id);
 
     // Should inherit tsconfig from parent
     assert_eq!(resolution.content.files, Some(vec!["files".to_string()]));
@@ -114,7 +115,8 @@ fn test_extend_tsconfig_override_behavior() {
         ..ResolveOptions::default()
     });
 
-    let resolution = resolver.resolve_tsconfig(&f).expect("resolved");
+    let tsconfig_id = resolver.resolve_tsconfig(&f).expect("resolved");
+    let resolution = resolver.get_tsconfig(tsconfig_id);
     let compiler_options = &resolution.content.compiler_options;
 
     // Child should override parent values
@@ -182,7 +184,8 @@ fn test_extend_tsconfig_multiple_inheritance() {
         ..ResolveOptions::default()
     });
 
-    let resolution = resolver.resolve_tsconfig(&f).expect("resolved");
+    let tsconfig_id = resolver.resolve_tsconfig(&f).expect("resolved");
+    let resolution = resolver.get_tsconfig(tsconfig_id);
     let compiler_options = &resolution.content.compiler_options;
 
     // Should have settings from all configs in the chain
@@ -206,7 +209,8 @@ fn test_extend_tsconfig_preserves_child_settings() {
         ..ResolveOptions::default()
     });
 
-    let resolution = resolver.resolve_tsconfig(&f).expect("resolved");
+    let tsconfig_id = resolver.resolve_tsconfig(&f).expect("resolved");
+    let resolution = resolver.get_tsconfig(tsconfig_id);
     let compiler_options = &resolution.content.compiler_options;
 
     // Child should preserve its own settings and not inherit conflicting ones

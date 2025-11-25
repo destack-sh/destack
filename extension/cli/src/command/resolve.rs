@@ -55,7 +55,7 @@ pub fn run(args: &ResolveArgs) -> i32 {
 
     options.prefer_relative = args.prefer_relative;
     options.prefer_absolute = args.prefer_absolute;
-    options.resolve_directory = args.resolve_directory;
+    options.resolve_to_directory = args.resolve_directory;
 
     let resolver = Resolver::blank(options);
 

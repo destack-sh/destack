@@ -862,12 +862,11 @@ fn test_imports_field_cases() {
             Arc::new(MemoryFileSystem::default()),
             ResolveOptions::default(),
         );
-        let cached_path = resolver.cache.value(Path::new(""));
         let resolved_path = resolver
             .package_imports_exports_resolve(
                 case.request,
                 &case.imports,
-                &cached_path,
+                Path::new(""),
                 true,
                 &case
                     .conditions
@@ -875,8 +874,7 @@ fn test_imports_field_cases() {
                     .map(ToString::to_string)
                     .collect::<Vec<_>>(),
                 &mut crate::ResolutionContext::default(),
-            )
-            .map(|p| p.map(|p| p.to_path_buf()));
+            );
         if let Some(expect) = case.expect {
             if expect.is_empty() {
                 assert!(
