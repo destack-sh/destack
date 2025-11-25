@@ -179,7 +179,7 @@ impl ParseError {
             None => "".to_string(),
         };
         Diagnostic {
-            code: "P001".to_string(),
+            code: "EP001".to_string(),
             original_code: None,
             severity: DiagnosticSeverity::Error,
             original_severity: None,

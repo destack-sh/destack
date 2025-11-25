@@ -1,11 +1,16 @@
 use dyst_dir::{GlobalNodeIdAny, ModuleId, Program};
 
-use crate::{CompileError, CompilePhase};
+use crate::{CompileError, CompilePhase, CompileTask};
 
 /// Error when binding something into the compiler.
 #[derive(Debug, Clone)]
 #[repr(u8)]
 pub enum BindError {
+    /// Wait for other tasks.
+    Wait {
+        nodes: Vec<GlobalNodeIdAny>,
+        tasks: Vec<CompileTask>,
+    },
     /// Module not found.
     ModuleNotFound { module: ModuleId },
     /// Unsupported node.
@@ -26,6 +31,7 @@ impl BindError {
     #[inline]
     pub fn sub_code(&self) -> u8 {
         match self {
+            Self::Wait { .. } => 0,
             Self::ModuleNotFound { .. } => 1,
             Self::UnsupportedNode { .. } => 2,
         }
@@ -34,6 +40,7 @@ impl BindError {
     /// Get the node id of the error.
     pub fn node_id(&self) -> Option<GlobalNodeIdAny> {
         match self {
+            Self::Wait { nodes, .. } => nodes.first().copied(),
             Self::ModuleNotFound { .. } => None,
             Self::UnsupportedNode { node } => Some(*node),
         }
@@ -42,6 +49,9 @@ impl BindError {
     /// Get the message of the error.
     pub fn message<'a>(&self, _program: &'a Program<'a>) -> String {
         match self {
+            Self::Wait { tasks, .. } => {
+                format!("wait for {} tasks", tasks.len())
+            }
             Self::ModuleNotFound { .. } => "module not found".to_string(),
             Self::UnsupportedNode { .. } => "unsupported node".to_string(),
         }

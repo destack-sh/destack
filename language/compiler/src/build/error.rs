@@ -1,11 +1,16 @@
 use dyst_dir::{GlobalNodeIdAny, Program};
 
-use crate::{CompileError, CompilePhase};
+use crate::{CompileError, CompilePhase, CompileTask};
 
 /// Error when building something into the compiler.
 #[derive(Debug, Clone)]
 #[repr(u8)]
 pub enum BuildError {
+    /// Wait for other tasks.
+    Wait {
+        nodes: Vec<GlobalNodeIdAny>,
+        tasks: Vec<CompileTask>,
+    },
     /// Target is not available.
     TargetNotAvailable { node: GlobalNodeIdAny },
     /// Unsupported target triple / architecture / ABI.
@@ -52,6 +57,7 @@ impl BuildError {
     #[inline]
     pub fn sub_code(&self) -> u8 {
         match self {
+            Self::Wait { .. } => 0,
             Self::TargetNotAvailable { .. } => 1,
             Self::UnsupportedTarget { .. } => 2,
             Self::MissingEntryPoint { .. } => 3,
@@ -67,6 +73,7 @@ impl BuildError {
     /// Get the node id of the error.
     pub fn node_id(&self) -> Option<GlobalNodeIdAny> {
         match self {
+            Self::Wait { nodes, .. } => nodes.first().copied(),
             Self::TargetNotAvailable { node, .. } => Some(*node),
             Self::UnsupportedTarget { node, .. } => Some(*node),
             Self::MissingEntryPoint { node, .. } => Some(*node),
@@ -82,6 +89,9 @@ impl BuildError {
     /// Get the message of the error.
     pub fn message<'a>(&self, _program: &'a Program<'a>) -> String {
         match self {
+            Self::Wait { tasks, .. } => {
+                format!("wait for {} tasks", tasks.len())
+            }
             Self::TargetNotAvailable { .. } => "target is not available".to_string(),
             Self::UnsupportedTarget { .. } => "unsupported target".to_string(),
             Self::MissingEntryPoint { .. } => "missing entry point".to_string(),

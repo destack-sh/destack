@@ -6,7 +6,7 @@ use crate::{
 };
 
 /// The source of the import.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Hash, Eq)]
 pub enum DependencySource {
     /// Plain import statement (like `import "foo"`).
     ImportStatement,

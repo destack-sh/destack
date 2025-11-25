@@ -1,11 +1,16 @@
 use dyst_dir::{GlobalNodeIdAny, Program};
 
-use crate::{CompileError, CompilePhase};
+use crate::{CompileError, CompilePhase, CompileTask};
 
 /// Error when elaborateing something into the compiler.
 #[derive(Debug, Clone)]
 #[repr(u8)]
 pub enum ElaborateError {
+    /// Wait for other tasks.
+    Wait {
+        nodes: Vec<GlobalNodeIdAny>,
+        tasks: Vec<CompileTask>,
+    },
     /// Unsupported node.
     UnsupportedNode { node: GlobalNodeIdAny },
 }
@@ -15,6 +20,7 @@ impl ElaborateError {
     #[inline]
     pub fn sub_code(&self) -> u8 {
         match self {
+            Self::Wait { .. } => 0,
             Self::UnsupportedNode { .. } => 2,
         }
     }
@@ -22,6 +28,7 @@ impl ElaborateError {
     /// Get the node id of the error.
     pub fn node_id(&self) -> Option<GlobalNodeIdAny> {
         match self {
+            Self::Wait { nodes, .. } => nodes.first().copied(),
             Self::UnsupportedNode { node, .. } => Some(*node),
         }
     }
@@ -29,6 +36,9 @@ impl ElaborateError {
     /// Get the message of the error.
     pub fn message<'a>(&self, _program: &'a Program<'a>) -> String {
         match self {
+            Self::Wait { tasks, .. } => {
+                format!("wait for {} tasks", tasks.len())
+            }
             Self::UnsupportedNode { .. } => "unsupported node".to_string(),
         }
     }

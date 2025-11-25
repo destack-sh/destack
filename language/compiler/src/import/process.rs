@@ -7,7 +7,7 @@ use dyst_parser::Parser;
 use dyst_source::{DiagnosticCollector, File, FileId, FileType, StringId, Uri};
 
 /// Task to import a file into the compiler.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub enum ImportTask {
     /// Import module from a (preloaded) file. (Mostly for internal use.)
     ImportModuleFromFile { file: FileId },

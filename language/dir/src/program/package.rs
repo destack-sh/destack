@@ -9,7 +9,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU32, Ordering};
 
-use crate::TsConfigOptions;
+use crate::{DsConfigId, TsConfigId};
 
 /// Unique identifier for Packages.
 #[repr(transparent)]
@@ -43,8 +43,10 @@ pub struct Package {
 
     /// The detailed options of the package.
     pub options: PackageOptions,
-    /// The tsconfig of the package.
-    pub tsconfig: Option<TsConfigOptions>,
+    /// The root tsconfig of the package.
+    pub main_tsconfig_id: Option<TsConfigId>,
+    /// The root dsconfig of the package.
+    pub main_dsconfig_id: Option<DsConfigId>,
 }
 
 /// The package type.
@@ -156,7 +158,7 @@ pub struct PackageJson {
     pub imports: Option<Map<String, Value>>,
 }
 
-/// Graph of Packages (including their underlying Files). THREAD-SAFE.
+/// Registry of Packages. THREAD-SAFE.
 #[derive(Debug)]
 pub struct PackageRegistry {
     /// The packages by id.
@@ -186,7 +188,7 @@ impl PackageRegistry {
         PackageId::new(next_package_id)
     }
 
-    /// Insert a package into the graph.
+    /// Insert a package into the registry.
     pub fn insert(&self, package: Package) {
         let mut packages_by_id = self.packages_by_id.lock();
         packages_by_id.insert(package.id, Arc::new(RwLock::new(package)));

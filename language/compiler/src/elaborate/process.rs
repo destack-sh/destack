@@ -3,7 +3,7 @@ use crate::{CompileTask, Compiler, ElaborateResult};
 use dyst_dir::{ModuleId, Program};
 
 /// Task to elaborate something.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub enum ElaborateTask {
     /// Elaborate a module.
     Elaborate { module: ModuleId },

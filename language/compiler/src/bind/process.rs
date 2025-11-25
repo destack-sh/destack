@@ -3,7 +3,7 @@ use dyst_dir::{DependencyEdge, Expression, LocalNodeId, ModuleId, Program};
 use crate::{BindError, BindResult, CompileTask, Compiler, ResolveTask};
 
 /// Task to bind AST into DIR.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub enum BindTask {
     /// Bind a module.
     BindModule { module: ModuleId },

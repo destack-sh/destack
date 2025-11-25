@@ -30,7 +30,7 @@ impl<'a> Compiler<'a> {
                 kind,
                 target,
                 items,
-                arguments,
+                arguments: _,
             } => {
                 let import_task = ImportTask::ImportModuleFromSpecifier {
                     source: DependencySource::ImportStatement,

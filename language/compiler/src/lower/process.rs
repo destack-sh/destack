@@ -3,7 +3,7 @@ use crate::{CompileTask, Compiler, LowerResult};
 use dyst_dir::{ModuleId, Program};
 
 /// Task to lower a DIR into MIR.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub enum LowerTask {
     /// Lower a module.
     Lower { module: ModuleId },
