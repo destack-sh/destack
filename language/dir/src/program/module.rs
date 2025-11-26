@@ -7,8 +7,8 @@ use dyst_ast::{self as ast, StringPool};
 use dyst_source::{FileId, Uri};
 
 use crate::{
-    AnalysisTable, Expression, LocalNodeId, LocalScopeId, LocalScopeMark, LocalSymbolId, NodeTree,
-    PackageId, ScopeKind, SymbolKind, SymbolSpace, SymbolTable, TypeTable,
+    AnalysisTable, DependencyMode, Expression, LocalNodeId, LocalScopeId, LocalScopeMark,
+    LocalSymbolId, NodeTree, PackageId, ScopeKind, SymbolKind, SymbolSpace, SymbolTable, TypeTable,
 };
 
 /// Unique identifier for Modules.
@@ -89,6 +89,7 @@ impl Module {
             SymbolSpace::Value,
             None,
             (namespace_scope_id, LocalScopeMark::end()),
+            Some(DependencyMode::Namespace),
         );
         symbols.get_scope_by_id_mut(namespace_scope_id).owner_id = Some(namespace_symbol_id);
         let (default_symbol_id, _) = symbols.insert_symbol(
@@ -96,6 +97,7 @@ impl Module {
             SymbolSpace::Value,
             None,
             (namespace_scope_id, LocalScopeMark::end()),
+            Some(DependencyMode::Default),
         );
 
         Self {

@@ -69,6 +69,7 @@ impl Transpiler {
                     kind: item_kind,
                     name,
                     alias,
+                    symbol: _,
                 } => {
                     let mode = self.transpile_dependency_mode(*mode);
                     let name = unit.strings.intern_from(&module.ast_strings, *name);
@@ -103,6 +104,7 @@ impl Transpiler {
                     kind: item_kind,
                     name,
                     alias,
+                    symbol: _,
                     target_symbol: _,
                 } => {
                     let mode = self.transpile_dependency_mode(*mode);
