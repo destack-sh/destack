@@ -247,13 +247,13 @@ impl NodeTree {
             .collect()
     }
 
-    /// Get the source and AST id of a node by its global id.
-    /// Every DIR node has a source, but only some come directly from AST nodes.
+    /// Get the AST id of a node by its DIR node id.
+    #[inline]
     pub fn get_source(&self, node_id: u32) -> Option<u32> {
         self.source_id_by_node_id[node_id as usize]
     }
 
-    // Get the node id by its source / AST id.
+    /// Get the DIR node id by its AST id.
     #[inline]
     pub fn get_node_id_by_source_id(&self, ast_id: u32) -> Option<u32> {
         self.alias_node_id_by_source_id.get(&ast_id).copied()

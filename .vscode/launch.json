@@ -28,7 +28,7 @@
                 "args": ["run", "--bin", "destack_cli"],
                 "filter": { "kind": "bin", "name": "destack_cli" }
             },
-            "args": ["compile", "--file", "library/ui/src/style/fill.ds"],
+            "args": ["compile", "--string", "export let x = 0"],
             "cwd": "${workspaceFolder}",
             "console": "integratedTerminal"
         },

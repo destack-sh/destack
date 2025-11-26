@@ -149,6 +149,12 @@ impl<'a> Dumper<'a> {
     /// Helper for dumping a single node.
     #[inline]
     pub fn node<'d>(&'d mut self, name: &str, id: u32) -> StructDumper<'d, 'a> {
+        self.node_like(name, Some(id))
+    }
+
+    /// Helper for dumping a single node like thing.
+    #[inline]
+    pub fn node_like<'d>(&'d mut self, name: &str, id: Option<u32>) -> StructDumper<'d, 'a> {
         let has_more = false;
         // draw prefix depending on current structural depth
         if self.branch_stack.is_empty() {
@@ -166,7 +172,7 @@ impl<'a> Dumper<'a> {
         }
         // set before dumping so nested with_depth sees correct parent branch info
         self.last_line_has_more = Some(has_more);
-        StructDumper::new(self, name, Some(id))
+        StructDumper::new(self, name, id)
     }
 
     /// Helper for dumping a single struct.
@@ -229,16 +235,8 @@ impl<'d, 'p> StructDumper<'d, 'p> {
             self.dumper.write_str(" }", Some(Color::White));
         }
         if let Some(node_id) = self.node_id {
-            let source_ast_id = self.dumper.tree.get_source(node_id);
-            if let Some(source_ast_id) = source_ast_id {
-                self.dumper.write_str(
-                    format!(" :{node_id} [{source_ast_id}]").as_str(),
-                    Some(Color::White),
-                );
-            } else {
-                self.dumper
-                    .write_str(format!(" :{node_id}").as_str(), Some(Color::White));
-            }
+            self.dumper
+                .write_str(format!(" :{node_id}").as_str(), Some(Color::White));
             self.dumper.write_str("\n", Some(Color::White));
         }
         self
@@ -1961,7 +1959,7 @@ impl<'a> Dumper<'a> {
         id: LocalScopeId,
         scope: &Scope,
     ) {
-        self.node("Scope", id.0)
+        self.node_like("Scope", Some(id.0))
             .field("id", &id)
             .field_optional(
                 "parent",
@@ -1991,7 +1989,7 @@ impl<'a> Dumper<'a> {
         id: LocalSymbolId,
         symbol: &Symbol,
     ) {
-        self.node("Symbol", id.0)
+        self.node_like("Symbol", Some(id.0))
             .field("id", &id)
             .field("kind", &symbol.kind)
             .field("space", &symbol.space)
