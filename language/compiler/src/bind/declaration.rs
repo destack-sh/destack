@@ -31,22 +31,24 @@ impl Compiler {
         scope: (LocalScopeId, LocalScopeMark),
         descriptor: &ast::DeclarationDescriptor,
         symbols: &mut SymbolTable,
-    ) -> (DeclarationDescriptor, LocalScopeId, LocalScopeMark) {
+    ) -> (DeclarationDescriptor, LocalScopeId) {
         let name = descriptor.name.map(|name| {
             self.program
                 .strings
                 .intern_from(&module.ast_strings, name.string())
         });
-        let (symbol_id, scope_id, scope_mark) = {
+        let (symbol_id, scope_id) = {
             if let Some(name) = name {
-                symbols.bind_named_item_with_scope(
+                self.bind_named_item_with_scope(
+                    module,
                     SymbolSpace::Value,
                     SymbolKey::Name(name),
                     ScopeKind::Namespace,
                     scope,
+                    symbols,
                 )
             } else {
-                symbols.bind_anonymous_item_with_scope(ScopeKind::Namespace, scope)
+                self.bind_anonymous_item_with_scope(module, ScopeKind::Namespace, scope, symbols)
             }
         };
         let kind = self.bind_declaration_kind(descriptor.kind);
@@ -61,7 +63,7 @@ impl Compiler {
             export,
             symbol: symbol_id,
         };
-        (descriptor, scope_id, scope_mark)
+        (descriptor, scope_id)
     }
 
     /// Bind an AST declaration into a DIR declaration.
@@ -81,7 +83,7 @@ impl Compiler {
                 generics,
                 expressions,
             } => {
-                let (descriptor, scope_id, _) =
+                let (descriptor, scope_id) =
                     self.bind_declaration_descriptor(module, scope, descriptor, symbols);
                 let generics = self.bind_generics(
                     module,
@@ -118,7 +120,7 @@ impl Compiler {
                 heritage,
                 properties,
             } => {
-                let (descriptor, scope_id, _) =
+                let (descriptor, scope_id) =
                     self.bind_declaration_descriptor(module, scope, descriptor, symbols);
                 let kind = match kind {
                     ast::StructKind::Struct => StructKind::Struct,
@@ -169,7 +171,7 @@ impl Compiler {
                 fields,
                 properties,
             } => {
-                let (descriptor, scope_id, _) =
+                let (descriptor, scope_id) =
                     self.bind_declaration_descriptor(module, scope, descriptor, symbols);
                 let generics = self.bind_generics(
                     module,
@@ -228,7 +230,7 @@ impl Compiler {
                 heritage,
                 properties,
             } => {
-                let (descriptor, scope_id, _) =
+                let (descriptor, scope_id) =
                     self.bind_declaration_descriptor(module, scope, descriptor, symbols);
                 let generics = self.bind_generics(
                     module,
@@ -274,7 +276,7 @@ impl Compiler {
                 heritage,
                 properties,
             } => {
-                let (descriptor, scope_id, _) =
+                let (descriptor, scope_id) =
                     self.bind_declaration_descriptor(module, scope, descriptor, symbols);
                 let generics = self.bind_generics(
                     module,
@@ -328,7 +330,7 @@ impl Compiler {
                 signature,
                 body,
             } => {
-                let (descriptor, scope_id, _) =
+                let (descriptor, scope_id) =
                     self.bind_declaration_descriptor(module, scope, descriptor, symbols);
                 let signature = self.bind_function_signature(
                     module,
@@ -357,7 +359,7 @@ impl Compiler {
             }
         };
         let symbol_id = declaration.symbol();
-        let declaration_id = tree.insert_from_source(declaration, declaration_id, scope.0);
+        let declaration_id = tree.insert_from_source(declaration, declaration_id, scope);
         symbols
             .get_symbol_mut(symbol_id)
             .declare_primary(declaration_id);
@@ -382,8 +384,13 @@ impl Compiler {
         let value = field
             .value
             .map(|value| self.bind_expression(module, scope, value, tree, symbols, types));
-        let (symbol_id, _) =
-            symbols.bind_named_item(SymbolSpace::Value, SymbolKey::Name(name), scope);
+        let (symbol_id, _) = self.bind_named_item(
+            module,
+            SymbolSpace::Value,
+            SymbolKey::Name(name),
+            scope,
+            symbols,
+        );
         let enum_field = EnumField {
             name,
             value,

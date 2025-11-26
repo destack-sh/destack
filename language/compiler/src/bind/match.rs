@@ -18,8 +18,8 @@ impl Compiler {
         symbols: &mut SymbolTable,
         types: &mut TypeTable,
     ) -> LocalNodeId<MatchCase> {
-        let (symbol_id, scope_id, _) =
-            symbols.bind_anonymous_local_with_scope(ScopeKind::Block, scope);
+        let (symbol_id, scope_id) =
+            self.bind_anonymous_local_with_scope(module, ScopeKind::Block, scope, symbols);
         let match_case = module.get(match_case_id);
         let match_case = match match_case {
             ast::MatchCase::Expression {

@@ -1,6 +1,8 @@
 use crate::Compiler;
 use dyst_ast as ast;
-use dyst_dir::{LocalNodeId, LocalScopeId, LocalScopeMark, Module, NodeTree, Property, SymbolTable, TypeTable};
+use dyst_dir::{
+    LocalNodeId, LocalScopeId, LocalScopeMark, Module, NodeTree, Property, SymbolTable, TypeTable,
+};
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
@@ -25,9 +27,8 @@ impl Compiler {
                 let modifiers =
                     modifiers.map(|modifiers| self.bind_binding_modifier(module, modifiers));
                 let key = key.map(|key| self.bind_key(module, scope, key, tree, symbols, types));
-                let value = value.map(|value| {
-                    self.bind_expression(module, scope, value, tree, symbols, types)
-                });
+                let value = value
+                    .map(|value| self.bind_expression(module, scope, value, tree, symbols, types));
                 let default = default.map(|default| {
                     self.bind_expression(module, scope, default, tree, symbols, types)
                 });

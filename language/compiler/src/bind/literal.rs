@@ -1,8 +1,8 @@
 use crate::Compiler;
 use dyst_ast as ast;
 use dyst_dir::{
-    DeclarationType, FloatType, IntType, LocalScopeId, LocalScopeMark, Module, NodeTree, PrimitiveType,
-    ScalarLiteral, SymbolTable, TemplateLiteral, TypeLiteral, TypeTable,
+    DeclarationType, FloatType, IntType, LocalScopeId, LocalScopeMark, Module, NodeTree,
+    PrimitiveType, ScalarLiteral, SymbolTable, TemplateLiteral, TypeLiteral, TypeTable,
 };
 
 #[allow(clippy::too_many_arguments)]

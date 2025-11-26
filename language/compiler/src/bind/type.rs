@@ -1,8 +1,8 @@
 use crate::Compiler;
 use dyst_ast as ast;
 use dyst_dir::{
-    Generics, Heritage, LocalScopeId, LocalScopeMark, LocalTypeId, Module, Mutability, NodeTree, SymbolTable, Type,
-    TypeKind, TypeTable, VarianceBound,
+    Generics, Heritage, LocalScopeId, LocalScopeMark, LocalTypeId, Module, Mutability, NodeTree,
+    SymbolTable, Type, TypeKind, TypeTable, VarianceBound,
 };
 
 #[allow(clippy::too_many_arguments)]
@@ -65,14 +65,7 @@ impl Compiler {
                 static_parameters
                     .iter()
                     .map(|static_parameter| {
-                        self.bind_parameter(
-                            module,
-                            scope,
-                            *static_parameter,
-                            tree,
-                            symbols,
-                            types,
-                        )
+                        self.bind_parameter(module, scope, *static_parameter, tree, symbols, types)
                     })
                     .collect()
             });

@@ -15,6 +15,7 @@ mod path;
 mod pattern;
 mod process;
 mod property;
+mod symbol;
 mod r#type;
 mod warning;
 mod r#where;

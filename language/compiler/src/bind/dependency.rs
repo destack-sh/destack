@@ -56,8 +56,17 @@ impl Compiler {
                 .program
                 .strings
                 .intern_from(&module.ast_strings, target);
-            let (symbol_id, _) =
-                symbols.bind_named_item(SymbolSpace::Value, name.map(SymbolKey::Name), scope);
+            let (symbol_id, _) = if let Some(name) = name {
+                self.bind_named_item(
+                    module,
+                    SymbolSpace::Value,
+                    SymbolKey::Name(name),
+                    scope,
+                    symbols,
+                )
+            } else {
+                self.bind_anonymous_item(module, SymbolSpace::Value, scope, symbols)
+            };
             let item = DependencyItem::UnresolvedRemote {
                 source,
                 mode,

@@ -1,5 +1,7 @@
 use dyst_ast as ast;
-use dyst_dir::{LocalNodeId, LocalScopeId, LocalScopeMark, Module, NodeTree, SymbolTable, TypeTable, WithClause};
+use dyst_dir::{
+    LocalNodeId, LocalScopeId, LocalScopeMark, Module, NodeTree, SymbolTable, TypeTable, WithClause,
+};
 
 use crate::Compiler;
 

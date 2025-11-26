@@ -1,8 +1,8 @@
 use dyst_ast::{self as ast};
 use dyst_dir::{
-    DependencySource, Expression, ForEachKind, IfKind, LocalNodeId, LocalScopeId, LocalScopeMark, LoopKind,
-    MatchSource, Module, NodeTree, ScopeKind, SymbolKey, SymbolSpace, SymbolTable, TypeTable,
-    YieldCardinality,
+    DependencySource, Expression, ForEachKind, IfKind, LocalNodeId, LocalScopeId, LocalScopeMark,
+    LoopKind, MatchSource, Module, NodeTree, ScopeKind, SymbolKey, SymbolSpace, SymbolTable,
+    TypeTable, YieldCardinality,
 };
 
 use crate::Compiler;
@@ -51,15 +51,30 @@ impl Compiler {
 
             ast::Expression::With { clauses, body } => {
                 let (symbol_id, scope_id) =
-                    symbols.insert_anonymous_symbol_with_scope(ScopeKind::Block, scope.0);
+                    self.bind_anonymous_item_with_scope(module, ScopeKind::Block, scope, symbols);
                 let clauses = clauses
                     .iter()
                     .map(|clause| {
-                        self.bind_with_clause(module, (scope_id, symbols.get_scope_mark(scope_id)), *clause, tree, symbols, types)
+                        self.bind_with_clause(
+                            module,
+                            (scope_id, symbols.get_scope_mark(scope_id)),
+                            *clause,
+                            tree,
+                            symbols,
+                            types,
+                        )
                     })
                     .collect();
-                let body =
-                    body.map(|body| self.bind_block(module, (scope_id, symbols.get_scope_mark(scope_id)), body, tree, symbols, types));
+                let body = body.map(|body| {
+                    self.bind_block(
+                        module,
+                        (scope_id, symbols.get_scope_mark(scope_id)),
+                        body,
+                        tree,
+                        symbols,
+                        types,
+                    )
+                });
                 Expression::With {
                     clauses,
                     body,
@@ -184,21 +199,19 @@ impl Compiler {
             } => {
                 let mutability = self.bind_mutability(*mutability);
                 let pattern = self.bind_pattern(module, scope, *pattern, tree, symbols, types);
-                let value = value.map(|value| {
-                    self.bind_expression(module, scope, value, tree, symbols, types)
-                });
-                let symbol_id = symbols.append_anonymous_symbol(scope.0);
+                let value = value
+                    .map(|value| self.bind_expression(module, scope, value, tree, symbols, types));
+                let (symbol_id, _) =
+                    self.bind_anonymous_item(module, SymbolSpace::Value, scope, symbols);
                 if let Some(ty) = ty {
-                    let ty =
-                        self.bind_expression_to_type(module, scope, *ty, tree, symbols, types);
+                    let ty = self.bind_expression_to_type(module, scope, *ty, tree, symbols, types);
                     let expression = Expression::Let {
                         mutability,
                         pattern,
                         value,
                         symbol: symbol_id,
                     };
-                    let expression_id =
-                        tree.insert_from_source(expression, expression_id, scope.0);
+                    let expression_id = tree.insert_from_source(expression, expression_id, scope);
                     symbols
                         .get_symbol_mut(symbol_id)
                         .declare_primary(expression_id);
@@ -234,10 +247,12 @@ impl Compiler {
                         .collect()
                 });
                 let value = self.bind_expression(module, scope, *value, tree, symbols, types);
-                let symbol_id = symbols.append_symbol(
+                let (symbol_id, _) = self.bind_named_item(
+                    module,
                     SymbolSpace::Value,
-                    Some(SymbolKey::Name(name)),
-                    scope.0,
+                    SymbolKey::Name(name),
+                    scope,
+                    symbols,
                 );
                 Expression::LetType {
                     kind,
@@ -420,9 +435,8 @@ impl Compiler {
                 index,
             } => {
                 let left = self.bind_expression(module, scope, *left, tree, symbols, types);
-                let index = index.map(|index| {
-                    self.bind_expression(module, scope, index, tree, symbols, types)
-                });
+                let index = index
+                    .map(|index| self.bind_expression(module, scope, index, tree, symbols, types));
                 Expression::Index { left, right: index }
             }
             ast::Expression::Maybe { position: _, left } => {
@@ -457,14 +471,12 @@ impl Compiler {
                 Expression::ScalarLiteral { value }
             }
             ast::Expression::TemplateLiteral { value } => {
-                let value =
-                    self.bind_template_literal(module, scope, value, tree, symbols, types);
+                let value = self.bind_template_literal(module, scope, value, tree, symbols, types);
                 Expression::TemplateLiteral { value }
             }
             ast::Expression::TaggedTemplateLiteral { tag, value } => {
                 let tag = self.bind_expression(module, scope, *tag, tree, symbols, types);
-                let value =
-                    self.bind_template_literal(module, scope, value, tree, symbols, types);
+                let value = self.bind_template_literal(module, scope, value, tree, symbols, types);
                 Expression::TaggedTemplateLiteral { tag, value }
             }
             ast::Expression::TypeLiteral(value) => {
@@ -485,8 +497,7 @@ impl Compiler {
                 }
             }
             ast::Expression::StructLiteral { ty, properties } => {
-                let ty =
-                    ty.map(|ty| self.bind_expression(module, scope, ty, tree, symbols, types));
+                let ty = ty.map(|ty| self.bind_expression(module, scope, ty, tree, symbols, types));
                 let properties = properties
                     .iter()
                     .map(|property| {
@@ -581,8 +592,15 @@ impl Compiler {
                 let condition =
                     self.bind_expression(module, scope, *condition, tree, symbols, types);
                 let (symbol_id, scope_id) =
-                    symbols.insert_anonymous_symbol_with_scope(ScopeKind::Block, scope.0);
-                let body = self.bind_block(module, (scope_id, symbols.get_scope_mark(scope_id)), *body, tree, symbols, types);
+                    self.bind_anonymous_item_with_scope(module, ScopeKind::Block, scope, symbols);
+                let body = self.bind_block(
+                    module,
+                    (scope_id, symbols.get_scope_mark(scope_id)),
+                    *body,
+                    tree,
+                    symbols,
+                    types,
+                );
                 Expression::Loop {
                     kind,
                     condition: Some(condition),
@@ -604,11 +622,17 @@ impl Compiler {
                     ast::ForEachKind::Of => ForEachKind::Of,
                 };
                 let pattern = self.bind_pattern(module, scope, *pattern, tree, symbols, types);
-                let iterator =
-                    self.bind_expression(module, scope, *iterator, tree, symbols, types);
+                let iterator = self.bind_expression(module, scope, *iterator, tree, symbols, types);
                 let (symbol_id, scope_id) =
-                    symbols.insert_anonymous_symbol_with_scope(ScopeKind::Block, scope.0);
-                let body = self.bind_block(module, (scope_id, symbols.get_scope_mark(scope_id)), *body, tree, symbols, types);
+                    self.bind_anonymous_item_with_scope(module, ScopeKind::Block, scope, symbols);
+                let body = self.bind_block(
+                    module,
+                    (scope_id, symbols.get_scope_mark(scope_id)),
+                    *body,
+                    tree,
+                    symbols,
+                    types,
+                );
                 Expression::ForEach {
                     asynchrony,
                     kind,
@@ -626,17 +650,45 @@ impl Compiler {
                 body,
             } => {
                 let (symbol_id, scope_id) =
-                    symbols.insert_anonymous_symbol_with_scope(ScopeKind::Block, scope.0);
+                    self.bind_anonymous_item_with_scope(module, ScopeKind::Block, scope, symbols);
                 let initialization = initialization.map(|initialization| {
-                    self.bind_expression(module, (scope_id, symbols.get_scope_mark(scope_id)), initialization, tree, symbols, types)
+                    self.bind_expression(
+                        module,
+                        (scope_id, symbols.get_scope_mark(scope_id)),
+                        initialization,
+                        tree,
+                        symbols,
+                        types,
+                    )
                 });
                 let condition = condition.map(|condition| {
-                    self.bind_expression(module, (scope_id, symbols.get_scope_mark(scope_id)), condition, tree, symbols, types)
+                    self.bind_expression(
+                        module,
+                        (scope_id, symbols.get_scope_mark(scope_id)),
+                        condition,
+                        tree,
+                        symbols,
+                        types,
+                    )
                 });
                 let increment = increment.map(|increment| {
-                    self.bind_expression(module, (scope_id, symbols.get_scope_mark(scope_id)), increment, tree, symbols, types)
+                    self.bind_expression(
+                        module,
+                        (scope_id, symbols.get_scope_mark(scope_id)),
+                        increment,
+                        tree,
+                        symbols,
+                        types,
+                    )
                 });
-                let body = self.bind_block(module, (scope_id, symbols.get_scope_mark(scope_id)), *body, tree, symbols, types);
+                let body = self.bind_block(
+                    module,
+                    (scope_id, symbols.get_scope_mark(scope_id)),
+                    *body,
+                    tree,
+                    symbols,
+                    types,
+                );
                 Expression::For {
                     initialization,
                     condition,
@@ -648,8 +700,15 @@ impl Compiler {
             }
             ast::Expression::Loop { body } => {
                 let (symbol_id, scope_id) =
-                    symbols.insert_anonymous_symbol_with_scope(ScopeKind::Block, scope.0);
-                let body = self.bind_block(module, (scope_id, symbols.get_scope_mark(scope_id)), *body, tree, symbols, types);
+                    self.bind_anonymous_item_with_scope(module, ScopeKind::Block, scope, symbols);
+                let body = self.bind_block(
+                    module,
+                    (scope_id, symbols.get_scope_mark(scope_id)),
+                    *body,
+                    tree,
+                    symbols,
+                    types,
+                );
                 Expression::Loop {
                     kind: LoopKind::NoTest,
                     condition: None,
@@ -665,17 +724,44 @@ impl Compiler {
                 finally_expression,
             } => {
                 let (symbol_id, scope_id) =
-                    symbols.insert_anonymous_symbol_with_scope(ScopeKind::Block, scope.0);
-                let try_expression =
-                    self.bind_expression(module, (scope_id, symbols.get_scope_mark(scope_id)), *try_expression, tree, symbols, types);
+                    self.bind_anonymous_item_with_scope(module, ScopeKind::Block, scope, symbols);
+                let try_expression = self.bind_expression(
+                    module,
+                    (scope_id, symbols.get_scope_mark(scope_id)),
+                    *try_expression,
+                    tree,
+                    symbols,
+                    types,
+                );
                 let catch_pattern = catch_pattern.map(|catch_pattern| {
-                    self.bind_pattern(module, (scope_id, symbols.get_scope_mark(scope_id)), catch_pattern, tree, symbols, types)
+                    self.bind_pattern(
+                        module,
+                        (scope_id, symbols.get_scope_mark(scope_id)),
+                        catch_pattern,
+                        tree,
+                        symbols,
+                        types,
+                    )
                 });
                 let catch_expression = catch_expression.map(|catch_expression| {
-                    self.bind_expression(module, (scope_id, symbols.get_scope_mark(scope_id)), catch_expression, tree, symbols, types)
+                    self.bind_expression(
+                        module,
+                        (scope_id, symbols.get_scope_mark(scope_id)),
+                        catch_expression,
+                        tree,
+                        symbols,
+                        types,
+                    )
                 });
                 let finally_expression = finally_expression.map(|finally_expression| {
-                    self.bind_expression(module, (scope_id, symbols.get_scope_mark(scope_id)), finally_expression, tree, symbols, types)
+                    self.bind_expression(
+                        module,
+                        (scope_id, symbols.get_scope_mark(scope_id)),
+                        finally_expression,
+                        tree,
+                        symbols,
+                        types,
+                    )
                 });
                 Expression::Try {
                     try_expression,
@@ -693,10 +779,19 @@ impl Compiler {
             } => {
                 let value = self.bind_expression(module, scope, *value, tree, symbols, types);
                 let (symbol_id, scope_id) =
-                    symbols.insert_anonymous_symbol_with_scope(ScopeKind::Block, scope.0);
+                    self.bind_anonymous_item_with_scope(module, ScopeKind::Block, scope, symbols);
                 let cases = cases
                     .iter()
-                    .map(|case| self.bind_match_case(module, (scope_id, symbols.get_scope_mark(scope_id)), *case, tree, symbols, types))
+                    .map(|case| {
+                        self.bind_match_case(
+                            module,
+                            (scope_id, symbols.get_scope_mark(scope_id)),
+                            *case,
+                            tree,
+                            symbols,
+                            types,
+                        )
+                    })
                     .collect();
                 Expression::Match {
                     value,
@@ -710,9 +805,8 @@ impl Compiler {
             ast::Expression::Break { label, value } => {
                 let label =
                     label.map(|label| self.program.strings.intern_from(&module.ast_strings, label));
-                let value = value.map(|value| {
-                    self.bind_expression(module, scope, value, tree, symbols, types)
-                });
+                let value = value
+                    .map(|value| self.bind_expression(module, scope, value, tree, symbols, types));
                 Expression::UnresolvedBreak {
                     target: label,
                     value,
@@ -724,9 +818,8 @@ impl Compiler {
                 Expression::UnresolvedContinue { target: label }
             }
             ast::Expression::Return { value } => {
-                let value = value.map(|value| {
-                    self.bind_expression(module, scope, value, tree, symbols, types)
-                });
+                let value = value
+                    .map(|value| self.bind_expression(module, scope, value, tree, symbols, types));
                 Expression::Return { value }
             }
             ast::Expression::Defer { expression } => {
@@ -748,9 +841,8 @@ impl Compiler {
                 Expression::Yield { cardinality, value }
             }
             ast::Expression::Throw { value } => {
-                let value = value.map(|value| {
-                    self.bind_expression(module, scope, value, tree, symbols, types)
-                });
+                let value = value
+                    .map(|value| self.bind_expression(module, scope, value, tree, symbols, types));
                 Expression::Throw { value }
             }
 
@@ -759,13 +851,13 @@ impl Compiler {
 
         // expression
         if let Some(symbol_id) = expression.symbol() {
-            let expression_id = tree.insert_from_source(expression, expression_id, scope.0);
+            let expression_id = tree.insert_from_source(expression, expression_id, scope);
             symbols
                 .get_symbol_mut(symbol_id)
                 .declare_primary(expression_id);
             expression_id
         } else {
-            tree.insert_from_source(expression, expression_id, scope.0)
+            tree.insert_from_source(expression, expression_id, scope)
         }
     }
 }
