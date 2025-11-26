@@ -177,6 +177,8 @@ impl Compiler {
 
 #[cfg(test)]
 mod tests {
+    use dyst_dir::Symbol;
+
     use crate::{ImportTask, TestProgram};
 
     #[test]
@@ -193,6 +195,6 @@ let z = y;
         test.enqueue(ImportTask::ImportModuleFromFile { file: file.id });
         test.compile();
 
-        // let module = test.program.modules.get
+        let x_symbol: Symbol = test.resolve_symbol_in_module("test.ds", "x").unwrap();
     }
 }
