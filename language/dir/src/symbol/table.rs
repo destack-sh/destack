@@ -2,7 +2,8 @@ use dyst_ast::StringId;
 use indexmap::IndexMap;
 
 use crate::{
-    Arena, DependencyMode, LocalNodeId, LocalScopeId, LocalScopeMark, LocalSymbolId, ModuleId, Node, NodeTree, Scope, ScopeKind, Symbol, SymbolKey, SymbolKind, SymbolSpace
+    Arena, DependencyMode, LocalNodeId, LocalScopeId, LocalScopeMark, LocalSymbolId, ModuleId,
+    Node, NodeTree, Scope, ScopeKind, Symbol, SymbolKey, SymbolKind, SymbolSpace,
 };
 use std::fmt::Debug;
 
@@ -40,6 +41,18 @@ impl SymbolTable {
             imported_module_by_target: IndexMap::new(),
             exported_symbol_by_key: IndexMap::new(),
         }
+    }
+
+    /// Get the symbols.
+    #[inline]
+    pub fn symbols(&self) -> impl Iterator<Item = &Symbol> {
+        self.symbols.iter()
+    }
+
+    /// Get the scopes.
+    #[inline]
+    pub fn scopes(&self) -> impl Iterator<Item = &Scope> {
+        self.scopes.iter()
     }
 
     /// Insert a new symbol.

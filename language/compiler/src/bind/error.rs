@@ -21,14 +21,14 @@ pub enum BindError {
     /// Conflicting export name in the same module.
     ConflictingExport {
         node: GlobalNodeIdAny,
-        other_node: Option<GlobalNodeIdAny>,
+        other_node: GlobalNodeIdAny,
         module: ModuleId,
         name: Option<SymbolKey>,
     },
     /// Conflicting default export.
     ConflictingDefaultExport {
         node: GlobalNodeIdAny,
-        other_node: Option<GlobalNodeIdAny>,
+        other_node: GlobalNodeIdAny,
         name: Option<StringId>,
         module: ModuleId,
     },
