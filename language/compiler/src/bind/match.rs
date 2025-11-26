@@ -20,7 +20,7 @@ impl Compiler {
     ) -> LocalNodeId<MatchCase> {
         let (symbol_id, scope_id) =
             self.bind_anonymous_local_with_scope(module, ScopeKind::Block, scope, symbols);
-        let match_case = module.get(match_case_id);
+        let match_case = module.ast.get(match_case_id);
         let match_case = match match_case {
             ast::MatchCase::Expression {
                 pattern,

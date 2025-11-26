@@ -16,7 +16,7 @@ impl Compiler {
         symbols: &mut SymbolTable,
         types: &mut TypeTable,
     ) -> LocalNodeId<Property> {
-        let property = module.get(property_id);
+        let property = module.ast.get(property_id);
         let property = match property {
             ast::Property::Field {
                 modifiers,

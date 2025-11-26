@@ -42,11 +42,11 @@ pub struct LexArgs {
 
 /// Tokenize input and show a colored table with locations.
 pub fn run(args: &LexArgs) -> i32 {
-    let mut fs = PhysicalFileSystem::new();
-    let mut files = FileRegistry::new();
+    let fs = PhysicalFileSystem::new();
+    let files = FileRegistry::new();
     let file_id = match get_string_or_file(
-        &mut fs,
-        &mut files,
+        &fs,
+        &files,
         SourceArg {
             file: args.file.as_deref(),
             string: args.string.as_deref(),

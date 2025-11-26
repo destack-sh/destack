@@ -1,11 +1,11 @@
 use dyst_ast::StringId;
 
 use crate::{
-    Argument, AssignOperator, Asynchrony, BinaryOperator, Block, Declaration, DependencyItem,
-    DependencyKind, GlobalSymbolId, LocalNodeId, LocalScopeId, LocalSymbolId, MatchCase,
-    MatchSource, ModuleId, Mutability, Node, NodeType, Parameter, Path, Pattern, Property,
-    ScalarLiteral, TemplateLiteral, TypeBinaryOperator, TypeKind, TypeLiteral, TypeUnaryOperator,
-    UnaryOperator, VarianceBound,
+    Argument, AssignOperator, Asynchrony, BinaryOperator, Block, Declaration,
+    DeclarationDescriptor, DependencyItem, DependencyKind, GlobalSymbolId, LocalNodeId,
+    LocalScopeId, LocalSymbolId, MatchCase, MatchSource, ModuleId, Mutability, Node, NodeType,
+    Parameter, Path, Pattern, Property, ScalarLiteral, TemplateLiteral, TypeBinaryOperator,
+    TypeKind, TypeLiteral, TypeUnaryOperator, UnaryOperator, VarianceBound,
 };
 
 /// An Expression is a generic container for all constructs.
@@ -65,19 +65,18 @@ pub enum Expression {
 
     /// Let or var binding for constant or mutable variables (without a value, i.e. not a condition).
     Let {
+        descriptor: DeclarationDescriptor,
         mutability: Mutability,
         pattern: LocalNodeId<Pattern>,
         value: Option<LocalNodeId<Expression>>,
-        symbol: LocalSymbolId,
     },
     /// Type alias binding.
     LetType {
+        descriptor: DeclarationDescriptor,
         kind: TypeKind,
         mutability: Option<Mutability>,
-        name: StringId,
         static_parameters: Option<Vec<LocalNodeId<Parameter>>>,
         value: LocalNodeId<Expression>,
-        symbol: LocalSymbolId,
     },
 
     /// Type unary operation.
@@ -443,8 +442,8 @@ impl Expression {
     /// Get the symbol of the expression.
     pub fn symbol(&self) -> Option<LocalSymbolId> {
         match self {
-            Expression::Let { symbol, .. } => Some(*symbol),
-            Expression::LetType { symbol, .. } => Some(*symbol),
+            Expression::Let { descriptor, .. } => Some(descriptor.symbol),
+            Expression::LetType { descriptor, .. } => Some(descriptor.symbol),
             _ => None,
         }
     }

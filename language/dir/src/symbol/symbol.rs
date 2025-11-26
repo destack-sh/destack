@@ -56,7 +56,9 @@ pub enum SymbolSpace {
 /// The kind of a symbol.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum SymbolKind {
-    /// Declaration (must be unique within its scope).
+    /// Namespace.
+    Namespace,
+    /// Item (must be unique within its scope).
     Item,
     /// Local (may be shadowed within its scope).
     Local,

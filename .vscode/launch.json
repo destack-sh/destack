@@ -28,7 +28,7 @@
                 "args": ["run", "--bin", "destack_cli"],
                 "filter": { "kind": "bin", "name": "destack_cli" }
             },
-            "args": ["compile", "--file", "library/entity/src/entity/entity.ds"],
+            "args": ["compile", "--file", "library/ui/src/style/fill.ds"],
             "cwd": "${workspaceFolder}",
             "console": "integratedTerminal"
         },

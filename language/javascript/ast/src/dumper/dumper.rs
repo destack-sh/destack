@@ -679,22 +679,24 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 self.node("Statement::Block", id.id).end();
             }
             Statement::Let {
+                descriptor,
                 mutability,
                 pattern: _,
                 ty: _,
                 value: _,
             } => {
                 self.node("Statement::Let", id.id)
+                    .field("descriptor", descriptor)
                     .field("mutability", mutability)
                     .end();
             }
             Statement::LetType {
-                name,
+                descriptor,
                 static_parameters: _,
                 value: _,
             } => {
                 self.node("Statement::LetType", id.id)
-                    .field("name", name)
+                    .field("descriptor", descriptor)
                     .end();
             }
             Statement::Assign {

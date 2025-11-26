@@ -4,7 +4,9 @@ use crate::{FormatNode, JavaScriptFormatter};
 use dyst_fir::format::FormatResult;
 use dyst_fir::prelude::*;
 use dyst_fir::{format_args, write};
-use dyst_javascript_ast::{DependencyKind, Keyword, LocalNodeId, Mutability, Statement};
+use dyst_javascript_ast::{
+    DeclarationKind, DependencyKind, Keyword, LocalNodeId, Mutability, Statement,
+};
 
 impl<'ast> FormatNode<'ast, Statement> for Statement {
     fn format_node(
@@ -58,32 +60,62 @@ impl<'ast> FormatNode<'ast, Statement> for Statement {
             }
 
             Statement::Let {
+                descriptor,
                 mutability,
                 pattern,
                 ty,
                 value,
             } => {
+                // export
+                if let Some(export) = descriptor.export {
+                    write!(f, [export, space()])?;
+                }
+
+                // kind
+                if descriptor.kind == DeclarationKind::Declaration {
+                    write!(f, [Keyword::Declare, space()])?;
+                }
+
+                // keyword
                 match mutability {
                     Mutability::Mutable => write!(f, [Keyword::Let])?,
                     Mutability::Immutable => write!(f, [Keyword::Const])?,
                 }
+
+                // pattern
                 write!(f, [pattern])?;
+
+                // type
                 if f.context().include_types()
                     && let Some(ty) = ty
                 {
                     write!(f, [space(), token(":"), space(), ty])?;
                 }
+
+                // value
                 if let Some(value) = value {
                     write!(f, [space(), token("="), space(), *value])?;
                 }
             }
             Statement::LetType {
-                name,
+                descriptor,
                 static_parameters,
                 value,
             } => {
-                assert!(f.context().include_types());
-                write!(f, [Keyword::Type, space(), name])?;
+                // export
+                if let Some(export) = descriptor.export {
+                    write!(f, [export, space()])?;
+                }
+
+                // keyword
+                write!(f, [Keyword::Type])?;
+
+                // name / key
+                if let Some(name) = descriptor.name {
+                    write!(f, [space(), name])?;
+                }
+
+                // static parameters
                 if let Some(static_parameters) = static_parameters {
                     write!(
                         f,
@@ -97,6 +129,8 @@ impl<'ast> FormatNode<'ast, Statement> for Statement {
                         ]
                     )?;
                 }
+                
+                // value
                 write!(f, [space(), token("="), space(), *value])?;
             }
             Statement::Assign {

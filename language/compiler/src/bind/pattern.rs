@@ -17,7 +17,7 @@ impl Compiler {
         symbols: &mut SymbolTable,
         types: &mut TypeTable,
     ) -> LocalNodeId<Pattern> {
-        let pattern = module.get(pattern_id);
+        let pattern = module.ast.get(pattern_id);
         let pattern = match pattern {
             ast::Pattern::Wildcard => Pattern::Wildcard,
             ast::Pattern::Rest { name } => Pattern::Rest {
@@ -150,7 +150,7 @@ impl Compiler {
         symbols: &mut SymbolTable,
         types: &mut TypeTable,
     ) -> LocalNodeId<PatternField> {
-        let pattern_field = module.get(pattern_field_id);
+        let pattern_field = module.ast.get(pattern_field_id);
         let pattern_field = match pattern_field {
             ast::PatternField::Named {
                 mutability,

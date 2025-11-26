@@ -18,7 +18,7 @@ impl Compiler {
         symbols: &mut SymbolTable,
         types: &mut TypeTable,
     ) -> LocalNodeId<WhereClause> {
-        let where_clause = module.get(where_clause_id);
+        let where_clause = module.ast.get(where_clause_id);
         match where_clause {
             ast::WhereClause::Assertion { left, right } => {
                 let left = self.program.strings.intern_from(&module.ast_strings, *left);

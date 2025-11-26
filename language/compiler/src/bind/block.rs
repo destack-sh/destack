@@ -20,7 +20,7 @@ impl Compiler {
     ) -> LocalNodeId<Block> {
         let (symbol_id, scope_id) =
             self.bind_anonymous_item_with_scope(module, ScopeKind::Block, scope, symbols);
-        let block = module.get(block_id);
+        let block = module.ast.get(block_id);
         let label = block
             .label
             .map(|label| self.program.strings.intern_from(&module.ast_strings, label));

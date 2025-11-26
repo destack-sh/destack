@@ -1,8 +1,7 @@
 use dyst_ast::{self as ast};
 use dyst_dir::{
     DependencySource, Expression, ForEachKind, IfKind, LocalNodeId, LocalScopeId, LocalScopeMark,
-    LoopKind, MatchSource, Module, NodeTree, ScopeKind, SymbolKey, SymbolSpace, SymbolTable,
-    TypeTable, YieldCardinality,
+    LoopKind, MatchSource, Module, NodeTree, ScopeKind, SymbolTable, TypeTable, YieldCardinality,
 };
 
 use crate::Compiler;
@@ -28,13 +27,15 @@ impl Compiler {
         symbols: &mut SymbolTable,
         types: &mut TypeTable,
     ) -> LocalNodeId<Expression> {
-        let expression = module.get(expression_id);
+        let expression = module.ast.get(expression_id);
         let expression = match expression {
             ast::Expression::Block(block_id) => {
                 let block_id = self.bind_block(module, scope, *block_id, tree, symbols, types);
                 Expression::Block { block: block_id }
             }
             ast::Expression::Declaration(declaration_id) => {
+                // declarations can bind to entire containing scope
+                let scope = (scope.0, LocalScopeMark::end());
                 let declaration_id =
                     self.bind_declaration(module, scope, *declaration_id, tree, symbols, types);
                 Expression::Declaration {
@@ -191,26 +192,27 @@ impl Compiler {
                 }
             }
             ast::Expression::Let {
-                descriptor: _,
+                descriptor,
                 mutability,
                 pattern,
                 ty,
                 value,
             } => {
+                let (descriptor, _) =
+                    self.bind_declaration_descriptor(module, scope, descriptor, symbols);
+                let symbol_id = descriptor.symbol;
                 let mutability = self.bind_mutability(*mutability);
                 let pattern = self.bind_pattern(module, scope, *pattern, tree, symbols, types);
                 let value = value
                     .map(|value| self.bind_expression(module, scope, value, tree, symbols, types));
-                let (symbol_id, _) =
-                    self.bind_anonymous_item(module, SymbolSpace::Value, scope, symbols);
+                let expression = Expression::Let {
+                    descriptor,
+                    mutability,
+                    pattern,
+                    value,
+                };
                 if let Some(ty) = ty {
                     let ty = self.bind_expression_to_type(module, scope, *ty, tree, symbols, types);
-                    let expression = Expression::Let {
-                        mutability,
-                        pattern,
-                        value,
-                        symbol: symbol_id,
-                    };
                     let expression_id = tree.insert_from_source(expression, expression_id, scope);
                     symbols
                         .get_symbol_mut(symbol_id)
@@ -218,25 +220,18 @@ impl Compiler {
                     types.declare_type(expression_id.into_global_any(module.id), ty);
                     return expression_id;
                 }
-                Expression::Let {
-                    mutability,
-                    pattern,
-                    value,
-                    symbol: symbol_id,
-                }
+                expression
             }
             ast::Expression::LetType {
-                kind,
                 descriptor,
+                kind,
                 mutability,
                 static_parameters,
                 value,
             } => {
+                let (descriptor, _) =
+                    self.bind_declaration_descriptor(module, scope, descriptor, symbols);
                 let kind = self.bind_type_kind(*kind);
-                let name = self.program.strings.intern_from(
-                    &module.ast_strings,
-                    descriptor.name.expect("LetType must have a name").string(),
-                );
                 let mutability = mutability.map(|mutability| self.bind_mutability(mutability));
                 let static_parameters = static_parameters.as_ref().map(|params| {
                     params
@@ -247,20 +242,12 @@ impl Compiler {
                         .collect()
                 });
                 let value = self.bind_expression(module, scope, *value, tree, symbols, types);
-                let (symbol_id, _) = self.bind_named_item(
-                    module,
-                    SymbolSpace::Value,
-                    SymbolKey::Name(name),
-                    scope,
-                    symbols,
-                );
                 Expression::LetType {
+                    descriptor,
                     kind,
                     mutability,
-                    name,
                     static_parameters,
                     value,
-                    symbol: symbol_id,
                 }
             }
 

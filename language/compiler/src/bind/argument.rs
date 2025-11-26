@@ -54,7 +54,7 @@ impl Compiler {
         symbols: &mut SymbolTable,
         types: &mut TypeTable,
     ) -> LocalNodeId<Parameter> {
-        let parameter = module.get(parameter_id);
+        let parameter = module.ast.get(parameter_id);
         match parameter {
             ast::Parameter::Named {
                 modifiers,
@@ -161,7 +161,7 @@ impl Compiler {
         symbols: &mut SymbolTable,
         types: &mut TypeTable,
     ) -> LocalNodeId<Argument> {
-        let argument = module.get(argument_id);
+        let argument = module.ast.get(argument_id);
         match argument {
             ast::Argument::Named {
                 modifiers,
