@@ -74,7 +74,10 @@ impl Resolver {
     #[inline]
     pub(crate) fn is_directory(&self, path: &Path, ctx: &mut ResolutionContext) -> bool {
         match self.fs().metadata(path) {
-            Ok(meta) if meta.is_directory => true,
+            Ok(meta) if meta.is_directory => {
+                ctx.track_found_dependency(path);
+                true
+            }
             _ => {
                 ctx.track_missing_dependency(path);
                 false
@@ -87,7 +90,7 @@ impl Resolver {
         // track visited paths for circular symlink detection
         let mut visited = HashSet::with_hasher(BuildHasherDefault::<IdentityHasher>::default());
         let result = self
-            .canonicalize_with_visited(path, &mut visited)
+            .canonicalize_recursive(path, &mut visited)
             .or_else(|err| {
                 // fallback: try direct FS canonicalize
                 self.fs().canonicalize(path).map_err(|_| err)
@@ -100,7 +103,7 @@ impl Resolver {
     }
 
     /// Canonicalize a path with a set of already-visited paths for cycle detection.
-    fn canonicalize_with_visited(
+    fn canonicalize_recursive(
         &self,
         path: &Path,
         visited: &mut HashSet<u64, BuildHasherDefault<IdentityHasher>>,
@@ -118,7 +121,7 @@ impl Resolver {
 
         // try to get parent and canonicalize recursively
         if let Some(parent) = path.parent().filter(|p| !p.as_os_str().is_empty()) {
-            self.canonicalize_with_visited(parent, visited)
+            self.canonicalize_recursive(parent, visited)
                 .and_then(|parent_canonical| {
                     let normalized = parent_canonical
                         .normalize_with(path.strip_prefix(parent).unwrap_or(Path::new("")));
@@ -127,7 +130,7 @@ impl Resolver {
                     if self.fs().symlink_metadata(path).is_ok_and(|m| m.is_symlink) {
                         // try to canonicalize via the filesystem directly
                         if let Ok(canonical) = self.fs().canonicalize(&normalized) {
-                            return self.canonicalize_with_visited(&canonical, visited);
+                            return self.canonicalize_recursive(&canonical, visited);
                         }
                     }
 
@@ -169,15 +172,19 @@ impl Resolver {
         /// Check if a path is inside a restricted path.
         /// See <https://github.com/webpack/enhanced-resolve/blob/a998c7d218b7a9ec2461fc4fddd1ad5dd7687485/lib/RestrictionsPlugin.js#L19-L24>
         fn is_in_restricted(path: &Path, parent: &Path) -> bool {
+            // not a prefix
             if !path.starts_with(parent) {
-                return false;
+                false
             }
             // exact path match
-            if path.as_os_str().len() == parent.as_os_str().len() {
-                return true;
+            else if path.as_os_str().len() == parent.as_os_str().len() {
+                true
             }
-            path.strip_prefix(parent)
-                .is_ok_and(|p| p == Path::new("./"))
+            // relative path match
+            else {
+                path.strip_prefix(parent)
+                    .is_ok_and(|p| p == Path::new("./"))
+            }
         }
 
         // check all restrictions

@@ -1,7 +1,7 @@
 use std::borrow::Cow;
 use std::path::{Path, PathBuf};
 
-use dyst_dir::PackageOptions;
+use dyst_dir::PackageConfig;
 use dyst_source::{PathExt, SLASH_START};
 
 use crate::{Alias, AliasValue, ResolutionContext, ResolveError, Resolver};
@@ -11,11 +11,11 @@ impl Resolver {
     /// Resolve the browser field value for a path or request.
     pub(crate) fn resolve_browser_field<'a>(
         &self,
-        package_json: &'a PackageOptions,
+        package_config: &'a PackageConfig,
         path: &Path,
         request: Option<&str>,
     ) -> Result<Option<&'a str>, ResolveError> {
-        let Some(object) = package_json
+        let Some(object) = package_config
             .content
             .browser
             .as_ref()
@@ -38,10 +38,10 @@ impl Resolver {
         }
         // find matching key by resolved path
         else {
-            let directory = package_json.path.parent().unwrap_or_else(|| {
+            let directory = package_config.path.parent().unwrap_or_else(|| {
                 panic!(
                     "package.json path is not in a directory: {}",
-                    package_json.path.display()
+                    package_config.path.display()
                 )
             });
             for (key, value) in object {
@@ -66,7 +66,7 @@ impl Resolver {
         &self,
         path: &Path,
         module_specifier: Option<&str>,
-        package_json: &PackageOptions,
+        package_config: &PackageConfig,
         ctx: &mut ResolutionContext,
     ) -> Result<Option<PathBuf>, ResolveError> {
         if ctx.is_fully_specified {
@@ -75,7 +75,7 @@ impl Resolver {
 
         // bail if there is no new browser specifier
         let Some(new_specifier) =
-            self.resolve_browser_field(package_json, path, module_specifier)?
+            self.resolve_browser_field(package_config, path, module_specifier)?
         else {
             return Ok(None);
         };
@@ -115,7 +115,7 @@ impl Resolver {
         // resolve alias
         ctx.resolving_alias = Some(new_specifier.to_string());
         ctx.is_fully_specified = false;
-        let package_url = package_json.path.parent().unwrap().to_path_buf();
+        let package_url = package_config.path.parent().unwrap().to_path_buf();
         self.require(&package_url, new_specifier, ctx).map(Some)
     }
 

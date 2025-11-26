@@ -28,12 +28,8 @@ impl PackageId {
 pub struct Package {
     /// The id of the Package.
     pub id: PackageId,
-    /// The id of the `package.json` file.
-    pub file_id: FileId,
     /// The path to the package directory.
     pub path: PathBuf,
-    /// The realpath to the package directory.
-    pub realpath: PathBuf,
     /// The name of the package.
     pub name: Option<String>,
     /// The version of the package.
@@ -41,8 +37,8 @@ pub struct Package {
     /// The type of the package.
     pub ty: PackageType,
 
-    /// The detailed options of the package.
-    pub options: PackageOptions,
+    /// The config file of the package.
+    pub config: PackageConfig,
     /// The root tsconfig of the package.
     pub main_tsconfig_id: Option<TsConfigId>,
     /// The root dsconfig of the package.
@@ -71,20 +67,20 @@ impl fmt::Display for PackageType {
 
 /// Package options.
 #[derive(Debug, Clone)]
-pub struct PackageOptions {
+pub struct PackageConfig {
     /// The id of the `package.json` file.
     pub file_id: FileId,
-    /// The path to the package.
+    /// The path to the `package.json` file.
     pub path: PathBuf,
-    /// The realpath to the package.
+    /// The realpath to the `package.json` file.
     pub realpath: PathBuf,
-    /// The directory of the package.
+    /// The directory of the `package.json` file.
     pub directory: PathBuf,
-    /// The content of the package.json file.
+    /// The content of the `package.json` file.
     pub content: PackageJson,
 }
 
-impl PackageOptions {
+impl PackageConfig {
     /// Parse a package.json file from a File with JSON content.
     pub fn parse(file: &Arc<File>, realpath: PathBuf) -> Result<Self, serde_json::Error> {
         // extract the JSON value from file content

@@ -2,7 +2,7 @@ use std::borrow::Cow;
 use std::cmp::Ordering;
 use std::path::{Component, Path, PathBuf};
 
-use dyst_dir::{ModuleSpecifier, Package, PackageId, PackageOptions};
+use dyst_dir::{ModuleSpecifier, Package, PackageConfig, PackageId};
 use dyst_source::{File, FileType, PathExt, Uri};
 
 use crate::{ResolutionContext, ResolveError, Resolver};
@@ -19,7 +19,7 @@ fn is_path_invalid_exports_target(path: &Path) -> bool {
 
 impl Resolver {
     /// Load a package.json from a directory, registering it in the program.
-    pub(crate) fn load_package_json_id(
+    pub(crate) fn load_package(
         &self,
         path: &Path,
         ctx: &mut ResolutionContext,
@@ -29,8 +29,8 @@ impl Resolver {
         // check if already in registry
         if let Some(package_id) = self.program.packages.get_id_by_path(&package_json_path) {
             let package = self.program.packages.get(package_id);
-            let package_guard = package.read();
-            ctx.track_found_dependency(&package_guard.options.path);
+            let package = package.read();
+            ctx.track_found_dependency(&package.config.path);
             return Ok(Some(package_id));
         }
 
@@ -58,23 +58,21 @@ impl Resolver {
         // parse `package.json` from file
         let package_id = self.program.packages.next_id();
         let package_options =
-            PackageOptions::parse(&file, package_json_path.clone()).map_err(|_| {
+            PackageConfig::parse(&file, package_json_path.clone()).map_err(|_| {
                 ResolveError::InvalidPackageJson {
                     path: package_json_path.clone(),
                 }
             })?;
         let package = Package {
             id: package_id,
-            file_id,
             path: package_options.directory.clone(),
-            realpath: package_options.directory.clone(),
             name: package_options.content.name.clone(),
             version: package_options.content.version.clone(),
             ty: package_options
                 .content
                 .ty
                 .unwrap_or(dyst_dir::PackageType::CommonJs),
-            options: package_options,
+            config: package_options,
             main_tsconfig_id: None,
             main_dsconfig_id: None,
         };
@@ -84,42 +82,8 @@ impl Resolver {
         Ok(Some(package_id))
     }
 
-    // nocheckin: remove this, don't clone PackageOptions or TsConfig!
-    /// Get the PackageOptions for a given PackageId.
-    pub(crate) fn get_package_options(&self, package_id: PackageId) -> PackageOptions {
-        let package = self.program.packages.get(package_id);
-        let package_guard = package.read();
-        package_guard.options.clone()
-    }
-
-    /// Find the nearest package.json by walking up parent directories.
-    pub(crate) fn find_package_json(
-        &self,
-        path: &Path,
-        ctx: &mut ResolutionContext,
-    ) -> Result<Option<PackageOptions>, ResolveError> {
-        if let Some(package_id) = self.find_package_json_id(path, ctx)? {
-            Ok(Some(self.get_package_options(package_id)))
-        } else {
-            Ok(None)
-        }
-    }
-
-    /// Load package.json from a directory if it exists.
-    pub(crate) fn load_package_json(
-        &self,
-        path: &Path,
-        ctx: &mut ResolutionContext,
-    ) -> Result<Option<PackageOptions>, ResolveError> {
-        if let Some(package_id) = self.load_package_json_id(path, ctx)? {
-            Ok(Some(self.get_package_options(package_id)))
-        } else {
-            Ok(None)
-        }
-    }
-
     /// Find the nearest package.json by traversing parent directories.
-    pub(crate) fn find_package_json_id(
+    pub(crate) fn find_package_json(
         &self,
         path: &Path,
         ctx: &mut ResolutionContext,
@@ -138,7 +102,7 @@ impl Resolver {
         // traverse parents looking for package.json
         let mut current = Some(current);
         while let Some(dir) = current {
-            if let Some(package_id) = self.load_package_json_id(&dir, ctx)? {
+            if let Some(package_id) = self.load_package(&dir, ctx)? {
                 return Ok(Some(package_id));
             }
             current = dir.parent().map(|p| p.to_path_buf());
@@ -201,12 +165,14 @@ impl Resolver {
         ctx: &mut ResolutionContext,
     ) -> Result<Option<PathBuf>, ResolveError> {
         // find the closest package scope to the directory
-        let Some(package_json) = self.find_package_json(path, ctx)? else {
+        let Some(package_id) = self.find_package_json(path, ctx)? else {
             return Ok(None);
         };
+        let package = self.program.packages.get(package_id);
+        let package = package.read();
 
         // check if the package has imports
-        if let Some(resolved) = self.package_imports_resolve(specifier, &package_json, ctx)? {
+        if let Some(resolved) = self.package_imports_resolve(specifier, &package.config, ctx)? {
             self.resolve_esm_match(specifier, &resolved, ctx)
         } else {
             Ok(None)
@@ -333,12 +299,14 @@ impl Resolver {
         ctx: &mut ResolutionContext,
     ) -> Result<Option<PathBuf>, ResolveError> {
         // check if package.json exists
-        let Some(package_json) = self.load_package_json(path, ctx)? else {
+        let Some(package_id) = self.load_package(path, ctx)? else {
             return Ok(None);
         };
+        let package = self.program.packages.get(package_id);
+        let package = package.read();
 
         // resolve exports
-        if let Some(exports) = package_json.content.exports.as_ref()
+        if let Some(exports) = package.config.content.exports.as_ref()
             && let Some(resolved) =
                 self.package_exports_resolve(path, &format!(".{subpath}"), exports, ctx)?
         {
@@ -356,29 +324,33 @@ impl Resolver {
         ctx: &mut ResolutionContext,
     ) -> Result<Option<PathBuf>, ResolveError> {
         // find the closest package scope to the directory
-        let Some(package_json) = self.find_package_json(path, ctx)? else {
+        let Some(package_id) = self.find_package_json(path, ctx)? else {
             return Ok(None);
         };
+        let package = self.program.packages.get(package_id);
+        let package = package.read();
 
         // check if the package name matches the specifier
-        if let Some(subpath) = package_json
+        if let Some(subpath) = package
+            .config
             .content
             .name
             .as_ref()
             .and_then(|package_name| Self::strip_package_name(specifier, package_name.as_str()))
         {
-            let package_url = package_json
+            let package_url = package
+                .config
                 .path
                 .parent()
                 .unwrap_or_else(|| {
                     panic!(
                         "package.json path is not in a directory: {}",
-                        package_json.path.display()
+                        package.config.path.display()
                     )
                 })
                 .to_path_buf();
 
-            if let Some(exports) = package_json.content.exports.as_ref()
+            if let Some(exports) = package.config.content.exports.as_ref()
                 && let Some(resolved) = self.package_exports_resolve(
                     &package_url,
                     &format!(".{subpath}"),
@@ -391,7 +363,7 @@ impl Resolver {
         }
 
         // fallback to browser field
-        self.load_browser_field(path, Some(specifier), &package_json, ctx)
+        self.load_browser_field(path, Some(specifier), &package.config, ctx)
     }
 
     /// Resolve an ESM match by loading as file or directory.
@@ -434,12 +406,14 @@ impl Resolver {
 
                 // check if the package exists in the module directory
                 let package_path = module_dir.normalize_with(package_name);
-
                 if self.is_directory(&package_path, ctx) {
                     // load `package.json`
-                    if let Some(package_json) = self.load_package_json(&package_path, ctx)? {
+                    if let Some(package_id) = self.load_package(&package_path, ctx)? {
+                        let package = self.program.packages.get(package_id);
+                        let package = package.read();
+
                         // resolve exports
-                        if let Some(exports) = package_json.content.exports.as_ref()
+                        if let Some(exports) = package.config.content.exports.as_ref()
                             && let Some(resolved) = self.package_exports_resolve(
                                 &package_path,
                                 &format!(".{subpath}"),
@@ -452,7 +426,7 @@ impl Resolver {
 
                         // resolve main field
                         if subpath == "."
-                            && let Some(main_field) = package_json.content.main.as_deref()
+                            && let Some(main_field) = package.config.content.main.as_deref()
                         {
                             let main_path = package_path.normalize_with(main_field);
                             if self.is_file(&main_path, ctx) && self.check_restrictions(&main_path)
@@ -567,13 +541,13 @@ impl Resolver {
     fn package_imports_resolve(
         &self,
         specifier: &str,
-        package_json: &PackageOptions,
+        package_config: &PackageConfig,
         ctx: &mut ResolutionContext,
     ) -> Result<Option<PathBuf>, ResolveError> {
         debug_assert!(specifier.starts_with('#'), "{specifier}");
 
         // bail if no imports are configured
-        let Some(imports) = package_json.content.imports.as_ref() else {
+        let Some(imports) = package_config.content.imports.as_ref() else {
             return Ok(None);
         };
 
@@ -581,7 +555,7 @@ impl Resolver {
         if specifier == "#" || specifier.starts_with("#/") {
             return Err(ResolveError::InvalidModuleSpecifier {
                 specifier: specifier.to_string(),
-                package_path: package_json.path.to_path_buf(),
+                package_path: package_config.path.to_path_buf(),
             });
         }
 
@@ -589,7 +563,7 @@ impl Resolver {
         if let Some(resolved) = self.package_imports_exports_resolve(
             specifier,
             imports,
-            &package_json.directory,
+            &package_config.directory,
             true,
             &self.options.conditions,
             ctx,
@@ -598,7 +572,7 @@ impl Resolver {
         } else {
             Err(ResolveError::PackageImportNotDefined {
                 specifier: specifier.to_string(),
-                package_path: package_json.path.to_path_buf(),
+                package_path: package_config.path.to_path_buf(),
             })
         }
     }

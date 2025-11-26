@@ -70,7 +70,7 @@ impl Resolver {
     /// Find the nearest package.json by walking up parent directories.
     pub fn find_package(&self, path: &Path) -> Option<PackageId> {
         let mut ctx = ResolutionContext::default();
-        let package_id = self.find_package_json_id(path, &mut ctx).ok()??;
+        let package_id = self.find_package_json(path, &mut ctx).ok()??;
         Some(package_id)
     }
 

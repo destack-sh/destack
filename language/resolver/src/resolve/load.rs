@@ -40,8 +40,10 @@ impl Resolver {
         ctx: &mut ResolutionContext,
     ) -> Result<Option<PathBuf>, ResolveError> {
         // check for package.json in the directory
-        if let Some(package_json) = self.load_package_json(path, ctx)? {
-            if let Some(main_field) = package_json.content.main.as_deref() {
+        if let Some(package_id) = self.load_package(path, ctx)? {
+            let package = self.program.packages.get(package_id);
+            let package = package.read();
+            if let Some(main_field) = package.config.content.main.as_deref() {
                 let main_field = if main_field.starts_with("./") || main_field.starts_with("../") {
                     Cow::Borrowed(main_field)
                 } else {
@@ -62,7 +64,7 @@ impl Resolver {
             }
 
             // allow `exports` field in `require('../directory')`
-            if let Some(exports) = package_json.content.exports.as_ref()
+            if let Some(exports) = package.config.content.exports.as_ref()
                 && let Some(resolved) = self.package_exports_resolve(path, ".", exports, ctx)?
             {
                 return Ok(Some(resolved));
@@ -157,10 +159,12 @@ impl Resolver {
         ctx: &mut ResolutionContext,
     ) -> Result<Option<PathBuf>, ResolveError> {
         // try browser field
-        if let Some(package_json) = self.find_package_json(path, ctx)?
-            && let Some(resolved) = self.load_browser_field(path, None, &package_json, ctx)?
-        {
-            return Ok(Some(resolved));
+        if let Some(package_id) = self.find_package_json(path, ctx)? {
+            let package = self.program.packages.get(package_id);
+            let package = package.read();
+            if let Some(resolved) = self.load_browser_field(path, None, &package.config, ctx)? {
+                return Ok(Some(resolved));
+            }
         }
         // try alias
         if !self.options.alias.is_empty() {
@@ -182,12 +186,14 @@ impl Resolver {
     ) -> Result<Option<PathBuf>, ResolveError> {
         // try browser field and alias first
         if let Some(resolved) = self.load_browser_field_or_alias(path, ctx)? {
-            return Ok(Some(resolved));
+            Ok(Some(resolved))
         }
         // try as direct file
-        if self.is_file(path, ctx) && self.check_restrictions(path) {
+        else if self.is_file(path, ctx) && self.check_restrictions(path) {
             Ok(Some(path.to_path_buf()))
-        } else {
+        }
+        // not found
+        else {
             Ok(None)
         }
     }
