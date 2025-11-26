@@ -1,8 +1,7 @@
 use std::sync::Arc;
 
 use dyst_dir::Program;
-use dyst_source::DiagnosticOptions;
-use parking_lot::RwLock;
+use dyst_source::{DiagnosticCollector, DiagnosticOptions};
 
 use crate::{
     BuildOptions, CompileDiagnostic, CompileError, CompileWarning, CompilerQueue, ExecuteOptions,
@@ -33,7 +32,6 @@ pub struct CompileOptions {
 }
 
 /// Compile files and sources into something (via DIR).
-/// Includes module importing, parsing, evaluation, validation, execution, and building.
 #[derive(Debug)]
 pub struct Compiler {
     /// The program.
@@ -41,7 +39,7 @@ pub struct Compiler {
     /// The options for compiling.
     pub options: CompileOptions,
     /// The pending compiler diagnostics.
-    pub pending_diagnostics: RwLock<Vec<CompileDiagnostic>>,
+    pub pending_diagnostics: DiagnosticCollector,
     /// The queue of compiler tasks.
     pub(super) queue: CompilerQueue,
 }
@@ -53,7 +51,7 @@ impl Compiler {
         Self {
             program,
             options,
-            pending_diagnostics: RwLock::new(Vec::new()),
+            pending_diagnostics: DiagnosticCollector::new(),
             queue: CompilerQueue::new(),
         }
     }
@@ -62,28 +60,29 @@ impl Compiler {
     pub fn error<T: Into<CompileError>>(&self, error: T) {
         let error: CompileError = error.into();
         let diagnostic: CompileDiagnostic = error.into();
-        self.pending_diagnostics.write().push(diagnostic);
+        let diagnostic = diagnostic.to_diagnostic(&self.program);
+        self.pending_diagnostics.insert(diagnostic);
     }
 
     /// Add a warning to the compiler.
     pub fn warning<T: Into<CompileWarning>>(&self, warning: T) {
         let warning: CompileWarning = warning.into();
         let diagnostic: CompileDiagnostic = warning.into();
-        self.pending_diagnostics.write().push(diagnostic);
+        let diagnostic = diagnostic.to_diagnostic(&self.program);
+        self.pending_diagnostics.insert(diagnostic);
     }
 
     /// Add a diagnostic to the compiler.
     pub fn diagnostic<T: Into<CompileDiagnostic>>(&self, diagnostic: T) {
         let diagnostic: CompileDiagnostic = diagnostic.into();
-        self.pending_diagnostics.write().push(diagnostic);
+        let diagnostic = diagnostic.to_diagnostic(&self.program);
+        self.pending_diagnostics.insert(diagnostic);
     }
 
     /// Flush pending diagnostics into the program.
     pub fn flush_diagnostics(&self) {
-        let mut diagnostics = self.pending_diagnostics.write();
-        for diagnostic in diagnostics.drain(..) {
-            let diagnostic = diagnostic.to_diagnostic(&self.program);
-            self.program.diagnostics.insert(diagnostic);
-        }
+        self.program
+            .diagnostics
+            .take_from(&self.pending_diagnostics);
     }
 }

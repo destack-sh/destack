@@ -3003,6 +3003,7 @@ dependencies = [
 name = "dyst_dir"
 version = "2025.11.25-0"
 dependencies = [
+ "dashmap 6.1.0",
  "dyst_ast",
  "dyst_fir",
  "dyst_source",
@@ -3062,6 +3063,7 @@ dependencies = [
 name = "dyst_javascript_transpiler"
 version = "2025.11.25-0"
 dependencies = [
+ "dashmap 6.1.0",
  "dyst_ast",
  "dyst_compiler",
  "dyst_dir",

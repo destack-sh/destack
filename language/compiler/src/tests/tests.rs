@@ -1,31 +1,114 @@
+#![allow(dead_code)]
+
+use std::path::PathBuf;
 use std::sync::Arc;
 
 use dyst_dir::Program;
 use dyst_source::{
-    FileRegistry, FileSystem, LanguageOptions, MemoryFileSystem, PhysicalFileSystem,
+    File, FileRegistry, FileSystem, FileType, LanguageOptions, MemoryFileSystem,
+    PhysicalFileSystem, Uri,
 };
 
-use crate::Compiler;
+use crate::{CompileOptions, CompileTask, Compiler};
+
+/// A test file system.
+#[derive(Debug, Clone)]
+pub enum TestFileSystem {
+    /// An in-memory file system.
+    Memory { fs: Arc<MemoryFileSystem> },
+    /// A physical file system.
+    Physical {
+        root_directory: PathBuf,
+        fs: Arc<PhysicalFileSystem>,
+    },
+}
+
+impl TestFileSystem {
+    /// Create a new in-memory file system.
+    pub fn fs(&self) -> Arc<dyn FileSystem> {
+        match self {
+            Self::Memory { fs } => fs.clone(),
+            Self::Physical { fs, .. } => fs.clone(),
+        }
+    }
+}
 
 /// A test wrapper for a Program.
 #[derive(Debug)]
-pub(crate) struct TestProgram<Fs: FileSystem> {
-    /// The language options.
-    pub language: LanguageOptions,
+pub struct TestProgram {
     /// The file system.
-    pub fs: Arc<Fs>,
-    /// The files.
-    pub files: Arc<FileRegistry>,
+    pub fs: TestFileSystem,
     /// The program.
     pub program: Arc<Program>,
     /// The compiler.
     pub compiler: Arc<Compiler>,
 }
 
-pub(crate) type MemoryTestProgram = TestProgram<MemoryFileSystem>;
-pub(crate) type PhysicalTestProgram = TestProgram<PhysicalFileSystem>;
+impl TestProgram {
+    /// Create a new blank TestProgram.
+    pub fn memory() -> Self {
+        let fs = TestFileSystem::Memory {
+            fs: Arc::new(MemoryFileSystem::new()),
+        };
+        let program = Arc::new(Program::new(
+            LanguageOptions::default(),
+            PathBuf::new(),
+            fs.fs(),
+            Arc::new(FileRegistry::new()),
+        ));
+        let compiler = Arc::new(Compiler::new(program.clone(), CompileOptions::default()));
+        Self {
+            fs,
+            program,
+            compiler,
+        }
+    }
 
-impl MemoryTestProgram {}
+    /// Create a new TestProgram from a physical fixture.
+    pub fn physical(root_directory: &str) -> Self {
+        let root_directory = PathBuf::from(root_directory);
+        let fs = TestFileSystem::Physical {
+            root_directory: root_directory.clone(),
+            fs: Arc::new(PhysicalFileSystem::new()),
+        };
+        let program = Arc::new(Program::new(
+            LanguageOptions::default(),
+            root_directory.clone(),
+            fs.fs(),
+            Arc::new(FileRegistry::new()),
+        ));
+        let compiler = Arc::new(Compiler::new(program.clone(), CompileOptions::default()));
+        Self {
+            fs,
+            program,
+            compiler,
+        }
+    }
+
+    /// Create a new source file.
+    pub fn file(&self, path: &str, content: &str) -> Arc<File> {
+        let file_id = self.program.files.next_id();
+        let file = File::from_text(
+            file_id,
+            path.to_string(),
+            Uri::from_string(path),
+            FileType::Dyst,
+            content.to_string(),
+        );
+        self.program.files.insert(file);
+        self.program.files.get(file_id)
+    }
+
+    /// Enqueue a compile task.
+    pub fn enqueue<T: Into<CompileTask>>(&self, task: T) {
+        self.compiler.enqueue(task);
+    }
+
+    /// Compile the program.
+    pub fn compile(&self) {
+        self.compiler.compile();
+    }
+}
 
 /// Assert that `tree.get(id)` matches `$pat`.
 /// If a body is provided (`=> { ... }`), it runs with the pattern bindings.

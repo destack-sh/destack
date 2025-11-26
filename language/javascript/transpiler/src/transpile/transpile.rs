@@ -1,13 +1,16 @@
+use std::sync::Arc;
+
 use dyst_ast::StringPool;
-use dyst_dir::ModuleRegistry;
+use dyst_dir::{ModuleRegistry, Program};
 use dyst_javascript_ast as ast;
-use dyst_source::{FileId, Uri};
+use dyst_source::{DiagnosticCollector, FileId, Uri};
 
 use crate::{TranspileOptions, Transpiler, TranspilerMode, TranspilerUnit, TranspilerUnitId};
 
 impl Transpiler {
     /// Map the modules to the units.
     pub(crate) fn make_units(
+        program: Arc<Program>,
         options: &TranspileOptions,
         modules: &ModuleRegistry,
     ) -> Vec<TranspilerUnit> {
@@ -20,14 +23,15 @@ impl Transpiler {
                     let unit_id = TranspilerUnitId::new(idx as u32);
                     let uri = module.uri.without_extension();
                     let unit = TranspilerUnit {
-                        options: options.clone(),
                         id: unit_id,
+                        program: program.clone(),
+                        options: options.clone(),
                         uri,
                         ast: ast::NodeTree::new(),
                         roots: Vec::new(),
                         strings: StringPool::new(),
                         sources: vec![module.id],
-                        pending_diagnostics: Vec::new(),
+                        pending_diagnostics: DiagnosticCollector::new(),
                         artifacts: Vec::new(),
                     };
                     units.push(unit);
@@ -36,14 +40,15 @@ impl Transpiler {
             // map all modules to a single artifact
             TranspilerMode::Combined => {
                 let unit = TranspilerUnit {
-                    options: options.clone(),
                     id: TranspilerUnitId::new(0),
+                    program: program.clone(),
+                    options: options.clone(),
                     uri: Uri::from_string("combined"),
                     ast: ast::NodeTree::new(),
                     roots: Vec::new(),
                     strings: StringPool::new(),
                     sources: modules.iter().map(|module| module.read().id).collect(),
-                    pending_diagnostics: Vec::new(),
+                    pending_diagnostics: DiagnosticCollector::new(),
                     artifacts: Vec::new(),
                 };
                 units.push(unit);
@@ -55,7 +60,8 @@ impl Transpiler {
     /// Transpile the compiler's DIR into JS/TS artifacts.
     pub fn transpile(&self) {
         // transpile each module into AST
-        let mut units = Transpiler::make_units(&self.options, &self.program.modules);
+        let mut units =
+            Transpiler::make_units(self.program.clone(), &self.options, &self.program.modules);
         for unit in units.iter_mut() {
             for source_module_id in unit.sources.clone() {
                 let source_module = self.program.modules.get(source_module_id);
@@ -75,18 +81,16 @@ impl Transpiler {
                 match self.generate_artifact(&unit, file_id, formatting, language) {
                     Ok(artifact) => {
                         unit.artifacts.push(artifact.file.uri.clone());
-                        self.artifacts
-                            .write()
-                            .insert(artifact.file.uri.clone(), artifact);
+                        self.artifacts.insert(artifact.file.uri.clone(), artifact);
                     }
                     Err(error) => unit.error(error),
                 }
             }
             // add all the diagnostics to the program
-            for diagnostic in unit.pending_diagnostics.drain(..) {
-                self.diagnostic(diagnostic);
+            for diagnostic in unit.pending_diagnostics.drain() {
+                self.pending_diagnostics.insert(diagnostic);
             }
-            self.units.write().insert(unit.uri.clone(), unit);
+            self.units.insert(unit.uri.clone(), unit);
         }
 
         // flush remaining diagnostics

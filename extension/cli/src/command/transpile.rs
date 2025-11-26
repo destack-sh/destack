@@ -118,8 +118,9 @@ pub fn run(args: &TranspileArgs) -> i32 {
     // print/write transpiler artifacts
     if !silent {
         let line_width = program.language.formatting.line_width as usize;
-        let artifacts = transpiler.artifacts.read();
-        for (i, (uri, artifact)) in artifacts.iter().enumerate() {
+        let artifact_count = transpiler.artifacts.len();
+        for (i, entry) in transpiler.artifacts.iter().enumerate() {
+            let (uri, artifact) = (entry.key(), entry.value());
             console::print("=".repeat(line_width).as_str());
             console::print(uri.as_ref());
             console::print("=".repeat(line_width).as_str());
@@ -137,7 +138,7 @@ pub fn run(args: &TranspileArgs) -> i32 {
                     console::error("<unloaded>");
                 }
             }
-            if i < artifacts.len() - 1 {
+            if i < artifact_count - 1 {
                 console::print("");
             }
         }

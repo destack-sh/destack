@@ -1,4 +1,5 @@
-use std::{path::PathBuf, sync::Arc};
+use std::path::PathBuf;
+use std::sync::Arc;
 
 use dyst_ast::StringPool;
 use dyst_source::{DiagnosticCollector, FileRegistry, FileSystem, LanguageOptions};

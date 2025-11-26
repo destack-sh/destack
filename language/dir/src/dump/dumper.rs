@@ -450,6 +450,7 @@ impl Dump for DeclarationDescriptor {
             .field("kind", &self.kind)
             .field_optional("name", &self.name)
             .field_optional("export", &self.export)
+            .field("symbol", &self.symbol)
             .end();
     }
 }

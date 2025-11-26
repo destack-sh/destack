@@ -1,9 +1,8 @@
-use std::collections::HashMap;
 use std::sync::Arc;
 
+use dashmap::DashMap;
 use dyst_dir as dir;
-use dyst_source::{DiagnosticOptions, Uri};
-use parking_lot::RwLock;
+use dyst_source::{DiagnosticCollector, DiagnosticOptions, Uri};
 use smallvec::{SmallVec, smallvec};
 
 use crate::{
@@ -102,11 +101,11 @@ pub struct Transpiler {
     /// The options for transpiling.
     pub options: TranspileOptions,
     /// The pending transpiler diagnostics.
-    pub pending_diagnostics: RwLock<Vec<TranspileDiagnostic>>,
+    pub pending_diagnostics: DiagnosticCollector,
     /// The transpiled modules (from the source modules).
-    pub units: RwLock<HashMap<Uri, TranspilerUnit>>,
+    pub units: DashMap<Uri, TranspilerUnit>,
     /// The transpiled artifacts (from those units).
-    pub artifacts: RwLock<HashMap<Uri, TranspilerArtifact>>,
+    pub artifacts: DashMap<Uri, TranspilerArtifact>,
 }
 
 impl Transpiler {
@@ -115,35 +114,30 @@ impl Transpiler {
         Self {
             program,
             options,
-            pending_diagnostics: RwLock::new(Vec::new()),
-            units: RwLock::new(HashMap::new()),
-            artifacts: RwLock::new(HashMap::new()),
+            pending_diagnostics: DiagnosticCollector::new(),
+            units: DashMap::new(),
+            artifacts: DashMap::new(),
         }
     }
 
     /// Add an error to the transpiler.
     pub fn error(&self, error: TranspileError) {
         let diagnostic: TranspileDiagnostic = error.into();
-        self.pending_diagnostics.write().push(diagnostic);
+        let diagnostic = diagnostic.to_diagnostic(self.program.as_ref());
+        self.pending_diagnostics.insert(diagnostic);
     }
 
     /// Add a warning to the transpiler.
     pub fn warning(&self, warning: TranspileWarning) {
         let diagnostic: TranspileDiagnostic = warning.into();
-        self.pending_diagnostics.write().push(diagnostic);
-    }
-
-    /// Add a diagnostic to the transpiler.
-    pub fn diagnostic(&self, diagnostic: TranspileDiagnostic) {
-        self.pending_diagnostics.write().push(diagnostic);
+        let diagnostic = diagnostic.to_diagnostic(self.program.as_ref());
+        self.pending_diagnostics.insert(diagnostic);
     }
 
     /// Flush pending diagnostics into the program.
     pub fn flush_diagnostics(&self) {
-        let mut diagnostics = self.pending_diagnostics.write();
-        for diagnostic in diagnostics.drain(..) {
-            let diagnostic = diagnostic.to_diagnostic(self.program.as_ref());
-            self.program.diagnostics.insert(diagnostic);
-        }
+        self.program
+            .diagnostics
+            .take_from(&self.pending_diagnostics);
     }
 }
