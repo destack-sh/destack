@@ -1,7 +1,7 @@
 use dyst_ast::{self as ast};
 use dyst_dir::{
     DependencyItem, DependencyKind, DependencyMode, DependencySource, LocalNodeId, LocalScopeId,
-    Module, NodeTree, SymbolKey, SymbolSpace, SymbolTable, TypeTable,
+    LocalScopeMark, Module, NodeTree, SymbolKey, SymbolSpace, SymbolTable, TypeTable,
 };
 use dyst_source::StringId;
 
@@ -33,7 +33,7 @@ impl Compiler {
     pub(super) fn bind_dependency_item(
         &self,
         module: &Module,
-        scope_id: LocalScopeId,
+        scope: (LocalScopeId, LocalScopeMark),
         source: DependencySource,
         kind: ast::DependencyKind,
         target: Option<StringId>,
@@ -56,8 +56,8 @@ impl Compiler {
                 .program
                 .strings
                 .intern_from(&module.ast_strings, target);
-            let symbol_id =
-                symbols.insert_symbol(SymbolSpace::Value, name.map(SymbolKey::Name), scope_id);
+            let (symbol_id, _) =
+                symbols.bind_named_item(SymbolSpace::Value, name.map(SymbolKey::Name), scope);
             let item = DependencyItem::UnresolvedRemote {
                 source,
                 mode,
@@ -68,7 +68,7 @@ impl Compiler {
                 module: None,
                 symbol: symbol_id,
             };
-            tree.insert_from_source(item, item_id, scope_id)
+            tree.insert_from_source(item, item_id, scope)
         } else {
             let item = DependencyItem::UnresolvedLocal {
                 mode,
@@ -76,7 +76,7 @@ impl Compiler {
                 name: name.unwrap_or_else(|| panic!("name is required for local dependency item")),
                 alias,
             };
-            tree.insert_from_source(item, item_id, scope_id)
+            tree.insert_from_source(item, item_id, scope)
         }
     }
 }

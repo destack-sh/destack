@@ -1,6 +1,7 @@
 use dyst_ast::{self as ast};
 use dyst_dir::{
-    LocalNodeId, LocalScopeId, MatchCase, Module, NodeTree, ScopeKind, SymbolTable, TypeTable,
+    LocalNodeId, LocalScopeId, LocalScopeMark, MatchCase, Module, NodeTree, ScopeKind, SymbolTable,
+    TypeTable,
 };
 
 use crate::Compiler;
@@ -11,14 +12,14 @@ impl Compiler {
     pub(super) fn bind_match_case(
         &self,
         module: &Module,
-        scope_id: LocalScopeId,
+        scope: (LocalScopeId, LocalScopeMark),
         match_case_id: ast::LocalNodeId<ast::MatchCase>,
         tree: &mut NodeTree,
         symbols: &mut SymbolTable,
         types: &mut TypeTable,
     ) -> LocalNodeId<MatchCase> {
-        let (symbol_id, scope_id) =
-            symbols.insert_anonymous_symbol_with_scope(ScopeKind::Block, scope_id);
+        let (symbol_id, scope_id, _) =
+            symbols.bind_anonymous_local_with_scope(ScopeKind::Block, scope);
         let match_case = module.get(match_case_id);
         let match_case = match match_case {
             ast::MatchCase::Expression {
@@ -26,10 +27,31 @@ impl Compiler {
                 body,
                 guard,
             } => {
-                let pattern = self.bind_pattern(module, scope_id, *pattern, tree, symbols, types);
-                let body = self.bind_expression(module, scope_id, *body, tree, symbols, types);
+                let pattern = self.bind_pattern(
+                    module,
+                    (scope_id, symbols.get_scope_mark(scope_id)),
+                    *pattern,
+                    tree,
+                    symbols,
+                    types,
+                );
+                let body = self.bind_expression(
+                    module,
+                    (scope_id, symbols.get_scope_mark(scope_id)),
+                    *body,
+                    tree,
+                    symbols,
+                    types,
+                );
                 let guard = guard.map(|guard| {
-                    self.bind_expression(module, scope_id, guard, tree, symbols, types)
+                    self.bind_expression(
+                        module,
+                        (scope_id, symbols.get_scope_mark(scope_id)),
+                        guard,
+                        tree,
+                        symbols,
+                        types,
+                    )
                 });
                 MatchCase::Expression {
                     pattern,
@@ -43,10 +65,31 @@ impl Compiler {
                 body,
                 guard,
             } => {
-                let pattern = self.bind_pattern(module, scope_id, *pattern, tree, symbols, types);
-                let body = self.bind_block(module, scope_id, *body, tree, symbols, types);
+                let pattern = self.bind_pattern(
+                    module,
+                    (scope_id, symbols.get_scope_mark(scope_id)),
+                    *pattern,
+                    tree,
+                    symbols,
+                    types,
+                );
+                let body = self.bind_block(
+                    module,
+                    (scope_id, symbols.get_scope_mark(scope_id)),
+                    *body,
+                    tree,
+                    symbols,
+                    types,
+                );
                 let guard = guard.map(|guard| {
-                    self.bind_expression(module, scope_id, guard, tree, symbols, types)
+                    self.bind_expression(
+                        module,
+                        (scope_id, symbols.get_scope_mark(scope_id)),
+                        guard,
+                        tree,
+                        symbols,
+                        types,
+                    )
                 });
                 MatchCase::Block {
                     pattern,
@@ -56,8 +99,10 @@ impl Compiler {
                 }
             }
         };
-        let match_case_id = tree.insert_from_source(match_case, match_case_id, scope_id);
-        symbols.set_primary_declaration(symbol_id, match_case_id);
+        let match_case_id = tree.insert_from_source(match_case, match_case_id, scope);
+        symbols
+            .get_symbol_mut(symbol_id)
+            .declare_primary(match_case_id);
         match_case_id
     }
 }

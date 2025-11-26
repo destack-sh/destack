@@ -1,6 +1,6 @@
 use crate::Compiler;
 use dyst_ast as ast;
-use dyst_dir::{LocalNodeId, LocalScopeId, Module, NodeTree, Property, SymbolTable, TypeTable};
+use dyst_dir::{LocalNodeId, LocalScopeId, LocalScopeMark, Module, NodeTree, Property, SymbolTable, TypeTable};
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
@@ -8,7 +8,7 @@ impl Compiler {
     pub(super) fn bind_property(
         &self,
         module: &Module,
-        scope_id: LocalScopeId,
+        scope: (LocalScopeId, LocalScopeMark),
         property_id: ast::LocalNodeId<ast::Property>,
         tree: &mut NodeTree,
         symbols: &mut SymbolTable,
@@ -24,12 +24,12 @@ impl Compiler {
             } => {
                 let modifiers =
                     modifiers.map(|modifiers| self.bind_binding_modifier(module, modifiers));
-                let key = key.map(|key| self.bind_key(module, scope_id, key, tree, symbols, types));
+                let key = key.map(|key| self.bind_key(module, scope, key, tree, symbols, types));
                 let value = value.map(|value| {
-                    self.bind_expression(module, scope_id, value, tree, symbols, types)
+                    self.bind_expression(module, scope, value, tree, symbols, types)
                 });
                 let default = default.map(|default| {
-                    self.bind_expression(module, scope_id, default, tree, symbols, types)
+                    self.bind_expression(module, scope, default, tree, symbols, types)
                 });
                 Property::Field {
                     modifiers,
@@ -46,11 +46,11 @@ impl Compiler {
             } => {
                 let modifiers =
                     modifiers.map(|modifiers| self.bind_binding_modifier(module, modifiers));
-                let key = key.map(|key| self.bind_key(module, scope_id, key, tree, symbols, types));
+                let key = key.map(|key| self.bind_key(module, scope, key, tree, symbols, types));
                 let signature =
-                    self.bind_function_signature(module, scope_id, signature, tree, symbols, types);
+                    self.bind_function_signature(module, scope, signature, tree, symbols, types);
                 let body = body
-                    .map(|body| self.bind_expression(module, scope_id, body, tree, symbols, types));
+                    .map(|body| self.bind_expression(module, scope, body, tree, symbols, types));
                 Property::Method {
                     modifiers,
                     key,
@@ -61,10 +61,10 @@ impl Compiler {
             ast::Property::Spread { modifiers, value } => {
                 let modifiers =
                     modifiers.map(|modifiers| self.bind_binding_modifier(module, modifiers));
-                let value = self.bind_expression(module, scope_id, *value, tree, symbols, types);
+                let value = self.bind_expression(module, scope, *value, tree, symbols, types);
                 Property::Spread { modifiers, value }
             }
         };
-        tree.insert_from_source(property, property_id, scope_id)
+        tree.insert_from_source(property, property_id, scope)
     }
 }

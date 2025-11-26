@@ -36,7 +36,6 @@ pub enum ResolveError {
     /// Unresolved module.
     UnresolvedModule {
         node: GlobalNodeIdAny,
-        scope: GlobalScopeId,
         target: StringId,
     },
 }

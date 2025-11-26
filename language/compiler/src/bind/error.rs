@@ -3,6 +3,8 @@ use dyst_dir::{GlobalNodeIdAny, GlobalScopeId, GlobalSymbolId, Program};
 
 use crate::{CompileError, CompilePhase, CompileTaskWait};
 
+// nocheckin: bind exports, report duplicate declaration bindings, ..
+
 /// Error when binding something into the compiler.
 #[derive(Debug, Clone, PartialEq)]
 #[repr(u8)]
@@ -13,6 +15,13 @@ pub enum BindError {
     UnsupportedNode { node: GlobalNodeIdAny },
     /// Conflicting declarations in the same scope.
     ConflictingDeclaration {
+        node: GlobalNodeIdAny,
+        scope: GlobalScopeId,
+        symbol: GlobalSymbolId,
+        name: StringId,
+    },
+    /// Conflicting parameter or pattern binding.
+    ConflictingBinding {
         node: GlobalNodeIdAny,
         scope: GlobalScopeId,
         symbol: GlobalSymbolId,
@@ -44,7 +53,8 @@ impl BindError {
             Self::Wait { .. } => 0,
             Self::UnsupportedNode { .. } => 1,
             Self::ConflictingDeclaration { .. } => 2,
-            Self::ConflictingExport { .. } => 3,
+            Self::ConflictingBinding { .. } => 3,
+            Self::ConflictingExport { .. } => 4,
         }
     }
 
@@ -54,6 +64,7 @@ impl BindError {
             Self::Wait { wait } => wait.nodes.first().copied(),
             Self::UnsupportedNode { node } => Some(*node),
             Self::ConflictingDeclaration { node, .. } => Some(*node),
+            Self::ConflictingBinding { node, .. } => Some(*node),
             Self::ConflictingExport { node, .. } => Some(*node),
         }
     }
@@ -66,6 +77,10 @@ impl BindError {
             Self::ConflictingDeclaration { name, .. } => {
                 let name = program.strings.get(*name).to_string();
                 format!("conflicting declaration of '{name}'")
+            }
+            Self::ConflictingBinding { name, .. } => {
+                let name = program.strings.get(*name).to_string();
+                format!("conflicting binding of '{name}'")
             }
             Self::ConflictingExport { name, .. } => {
                 let name = program.strings.get(*name).to_string();

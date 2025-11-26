@@ -1,7 +1,7 @@
 use dyst_ast::StringId;
 use dyst_dir::{
-    DependencyItem, DependencyMode, DependencySource, GlobalNodeIdAny, GlobalScopeId, LocalNodeId,
-    Module, NodeTree, SymbolKey, SymbolTable,
+    DependencyItem, DependencyMode, DependencySource, GlobalNodeIdAny, LocalNodeId, Module,
+    NodeTree, SymbolKey, SymbolTable,
 };
 
 use crate::{CompileTaskWait, Compiler, ImportTask, ResolveError, ResolveResult};
@@ -12,7 +12,6 @@ impl Compiler {
         &self,
         module: &Module,
         node: GlobalNodeIdAny,
-        scope: GlobalScopeId,
         source: DependencySource,
         target: StringId,
     ) -> ResolveError {
@@ -21,11 +20,7 @@ impl Compiler {
             target,
             module: module.id,
         };
-        let error = ResolveError::UnresolvedModule {
-            node,
-            scope,
-            target,
-        };
+        let error = ResolveError::UnresolvedModule { node, target };
         let wait = CompileTaskWait {
             nodes: vec![node],
             tasks: vec![import_task.into()],
@@ -95,7 +90,6 @@ impl Compiler {
                     return Err(self.resolve_wait_for_import(
                         module,
                         item_id.into_global_any(module.id),
-                        scope.id.into_global(module.id),
                         *source,
                         *target,
                     ));

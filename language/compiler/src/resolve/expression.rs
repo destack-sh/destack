@@ -47,7 +47,6 @@ impl Compiler {
                     return Err(self.resolve_wait_for_import(
                         module,
                         expression_id.into_global_any(module.id),
-                        scope.id.into_global(module.id),
                         DependencySource::ImportStatement,
                         *target,
                     ));
