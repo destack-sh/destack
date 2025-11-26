@@ -203,12 +203,7 @@ impl Transpiler {
                 value,
             } => {
                 let descriptor = self.transpile_declaration_descriptor(
-                    module,
-                    tree,
-                    symbols,
-                    types,
-                    descriptor,
-                    unit,
+                    module, tree, symbols, types, descriptor, unit,
                 );
                 let mutability = self.transpile_mutability(*mutability);
                 let pattern =

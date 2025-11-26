@@ -1,6 +1,8 @@
 use crate::{ParseError, ParseResult, Parser};
 
-use dyst_ast::{DeclarationDescriptor, Expression, Keyword, LocalNodeId, Mutability, Name, Pattern, TokenType};
+use dyst_ast::{
+    DeclarationDescriptor, Expression, Keyword, LocalNodeId, Mutability, Name, Pattern, TokenType,
+};
 
 impl Parser {
     /// Peek a mutability modifier.

@@ -1,7 +1,8 @@
 use dyst_ast::{self as ast};
 use dyst_dir::{
     DependencySource, Expression, ForEachKind, IfKind, LocalNodeId, LocalScopeId, LocalScopeMark,
-    LoopKind, MatchSource, Module, NodeTree, ScopeKind, SymbolTable, TypeTable, YieldCardinality,
+    LoopKind, MatchSource, Module, NodeTree, ScopeKind, SymbolKind, SymbolTable, TypeTable,
+    YieldCardinality,
 };
 
 use crate::Compiler;
@@ -203,8 +204,18 @@ impl Compiler {
                 ty,
                 value,
             } => {
-                let (descriptor, _) =
-                    self.bind_declaration_descriptor(module, scope, descriptor, symbols);
+                let symbol_kind = if descriptor.export.is_some() {
+                    SymbolKind::Item
+                } else {
+                    SymbolKind::Local
+                };
+                let (descriptor, _) = self.bind_declaration_descriptor(
+                    module,
+                    scope,
+                    descriptor,
+                    symbol_kind,
+                    symbols,
+                );
                 let symbol_id = descriptor.symbol;
                 let mutability = self.bind_mutability(*mutability);
                 let pattern = self.bind_pattern(module, scope, *pattern, tree, symbols, types);
@@ -234,8 +245,18 @@ impl Compiler {
                 static_parameters,
                 value,
             } => {
-                let (descriptor, _) =
-                    self.bind_declaration_descriptor(module, scope, descriptor, symbols);
+                let symbol_kind = if descriptor.export.is_some() {
+                    SymbolKind::Item
+                } else {
+                    SymbolKind::Local
+                };
+                let (descriptor, _) = self.bind_declaration_descriptor(
+                    module,
+                    scope,
+                    descriptor,
+                    symbol_kind,
+                    symbols,
+                );
                 let kind = self.bind_type_kind(*kind);
                 let mutability = mutability.map(|mutability| self.bind_mutability(mutability));
                 let static_parameters = static_parameters.as_ref().map(|params| {

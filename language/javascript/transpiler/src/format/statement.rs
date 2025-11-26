@@ -129,7 +129,7 @@ impl<'ast> FormatNode<'ast, Statement> for Statement {
                         ]
                     )?;
                 }
-                
+
                 // value
                 write!(f, [space(), token("="), space(), *value])?;
             }

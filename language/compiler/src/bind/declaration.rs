@@ -2,8 +2,8 @@ use crate::Compiler;
 use dyst_ast as ast;
 use dyst_dir::{
     BindingAnchor, Declaration, DeclarationDescriptor, DeclarationKind, EnumField, LocalNodeId,
-    LocalScopeId, LocalScopeMark, Module, NodeTree, ScopeKind, StructKind, SymbolKey, SymbolSpace,
-    SymbolTable, TypeTable,
+    LocalScopeId, LocalScopeMark, Module, NodeTree, ScopeKind, StructKind, SymbolKey, SymbolKind,
+    SymbolSpace, SymbolTable, TypeTable,
 };
 
 #[allow(clippy::too_many_arguments)]
@@ -30,6 +30,7 @@ impl Compiler {
         module: &Module,
         scope: (LocalScopeId, LocalScopeMark),
         descriptor: &ast::DeclarationDescriptor,
+        kind: SymbolKind,
         symbols: &mut SymbolTable,
     ) -> (DeclarationDescriptor, LocalScopeId) {
         let name = descriptor.name.map(|name| {
@@ -41,25 +42,15 @@ impl Compiler {
             .export
             .map(|export| self.bind_dependency_mode(export));
         let (symbol_id, scope_id) = {
-            if let Some(name) = name {
-                self.bind_named_item_with_scope(
-                    module,
-                    SymbolSpace::Value,
-                    SymbolKey::Name(name),
-                    ScopeKind::Namespace,
-                    scope,
-                    symbols,
-                    export,
-                )
-            } else {
-                self.bind_anonymous_item_with_scope(
-                    module,
-                    ScopeKind::Namespace,
-                    scope,
-                    symbols,
-                    export,
-                )
-            }
+            let (symbol_id, _) = symbols.insert_symbol(
+                kind,
+                SymbolSpace::Value,
+                name.map(SymbolKey::Name),
+                scope,
+                export,
+            );
+            let scope_id = symbols.insert_scope(ScopeKind::Namespace, Some(scope), Some(symbol_id));
+            (symbol_id, scope_id)
         };
         let kind = self.bind_declaration_kind(descriptor.kind);
         let anchor = self.bind_binding_anchor(descriptor.anchor);
@@ -90,8 +81,13 @@ impl Compiler {
                 generics,
                 expressions,
             } => {
-                let (descriptor, scope_id) =
-                    self.bind_declaration_descriptor(module, scope, descriptor, symbols);
+                let (descriptor, scope_id) = self.bind_declaration_descriptor(
+                    module,
+                    scope,
+                    descriptor,
+                    SymbolKind::Item,
+                    symbols,
+                );
                 let generics = self.bind_generics(
                     module,
                     (scope_id, symbols.get_scope_mark(scope_id)),
@@ -127,8 +123,13 @@ impl Compiler {
                 heritage,
                 properties,
             } => {
-                let (descriptor, scope_id) =
-                    self.bind_declaration_descriptor(module, scope, descriptor, symbols);
+                let (descriptor, scope_id) = self.bind_declaration_descriptor(
+                    module,
+                    scope,
+                    descriptor,
+                    SymbolKind::Item,
+                    symbols,
+                );
                 let kind = match kind {
                     ast::StructKind::Struct => StructKind::Struct,
                     ast::StructKind::Class => StructKind::Class,
@@ -178,8 +179,13 @@ impl Compiler {
                 fields,
                 properties,
             } => {
-                let (descriptor, scope_id) =
-                    self.bind_declaration_descriptor(module, scope, descriptor, symbols);
+                let (descriptor, scope_id) = self.bind_declaration_descriptor(
+                    module,
+                    scope,
+                    descriptor,
+                    SymbolKind::Item,
+                    symbols,
+                );
                 let generics = self.bind_generics(
                     module,
                     (scope_id, symbols.get_scope_mark(scope_id)),
@@ -237,8 +243,13 @@ impl Compiler {
                 heritage,
                 properties,
             } => {
-                let (descriptor, scope_id) =
-                    self.bind_declaration_descriptor(module, scope, descriptor, symbols);
+                let (descriptor, scope_id) = self.bind_declaration_descriptor(
+                    module,
+                    scope,
+                    descriptor,
+                    SymbolKind::Item,
+                    symbols,
+                );
                 let generics = self.bind_generics(
                     module,
                     (scope_id, symbols.get_scope_mark(scope_id)),
@@ -283,8 +294,13 @@ impl Compiler {
                 heritage,
                 properties,
             } => {
-                let (descriptor, scope_id) =
-                    self.bind_declaration_descriptor(module, scope, descriptor, symbols);
+                let (descriptor, scope_id) = self.bind_declaration_descriptor(
+                    module,
+                    scope,
+                    descriptor,
+                    SymbolKind::Item,
+                    symbols,
+                );
                 let generics = self.bind_generics(
                     module,
                     (scope_id, symbols.get_scope_mark(scope_id)),
@@ -337,8 +353,13 @@ impl Compiler {
                 signature,
                 body,
             } => {
-                let (descriptor, scope_id) =
-                    self.bind_declaration_descriptor(module, scope, descriptor, symbols);
+                let (descriptor, scope_id) = self.bind_declaration_descriptor(
+                    module,
+                    scope,
+                    descriptor,
+                    SymbolKind::Item,
+                    symbols,
+                );
                 let signature = self.bind_function_signature(
                     module,
                     (scope_id, symbols.get_scope_mark(scope_id)),
