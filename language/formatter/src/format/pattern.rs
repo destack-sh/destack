@@ -39,6 +39,13 @@ impl<'ast> FormatNode<'ast, Pattern> for Pattern {
                 }
                 write!(f, [right])?;
             }
+            Pattern::ValueOf { right, mutability } => {
+                write!(f, [token("^")])?;
+                if let Some(mutability) = mutability {
+                    write!(f, [mutability, space()])?;
+                }
+                write!(f, [right])?;
+            }
             Pattern::Binding {
                 mutability,
                 name,

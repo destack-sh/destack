@@ -1384,7 +1384,15 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 mutability,
                 right: _,
             } => {
-                self.node("Pattern::Pointer", _id.id)
+                self.node("Pattern::ReferenceOf", _id.id)
+                    .field_optional("mutability", mutability)
+                    .end();
+            }
+            Pattern::ValueOf {
+                mutability,
+                right: _,
+            } => {
+                self.node("Pattern::ValueOf", _id.id)
                     .field_optional("mutability", mutability)
                     .end();
             }

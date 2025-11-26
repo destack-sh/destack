@@ -1079,12 +1079,19 @@ pub fn walk_pattern<V: NodeVisitor + ?Sized>(
             let inner_pattern = tree.get(*inner);
             visitor.visit_pattern(tree, *inner, inner_pattern);
         }
-        Pattern::Reference {
-            right: target,
+        Pattern::ReferenceOf {
+            right,
             mutability: _,
         } => {
-            let target_pattern = tree.get(*target);
-            visitor.visit_pattern(tree, *target, target_pattern);
+            let right_pattern = tree.get(*right);
+            visitor.visit_pattern(tree, *right, right_pattern);
+        }
+        Pattern::ValueOf {
+            right,
+            mutability: _,
+        } => {
+            let right_pattern = tree.get(*right);
+            visitor.visit_pattern(tree, *right, right_pattern);
         }
         Pattern::Binding {
             mutability: _,

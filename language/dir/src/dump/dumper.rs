@@ -1628,11 +1628,19 @@ impl<'a> NodeVisitor for Dumper<'a> {
             Pattern::Maybe(_) => {
                 self.node("Pattern::Maybe", id.id).end();
             }
-            Pattern::Reference {
+            Pattern::ReferenceOf {
                 right: _,
                 mutability,
             } => {
                 self.node("Pattern::ReferenceOf", id.id)
+                    .field("mutability", mutability)
+                    .end();
+            }
+            Pattern::ValueOf {
+                right: _,
+                mutability,
+            } => {
+                self.node("Pattern::ValueOf", id.id)
                     .field("mutability", mutability)
                     .end();
             }

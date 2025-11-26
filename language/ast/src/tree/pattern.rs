@@ -34,6 +34,11 @@ pub enum Pattern {
         mutability: Option<Mutability>,
         right: LocalNodeId<Pattern>,
     },
+    /// Value of pattern (like `^x`).
+    ValueOf {
+        mutability: Option<Mutability>,
+        right: LocalNodeId<Pattern>,
+    },
     /// Binding pattern (basically a PatternField, like `x`, `x: 4`, or `x: int32`).
     Binding {
         mutability: Option<Mutability>,

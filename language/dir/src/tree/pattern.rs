@@ -12,7 +12,12 @@ pub enum Pattern {
     /// Maybe pattern (like `T?`).
     Maybe(LocalNodeId<Pattern>),
     /// Reference pattern (like `&x`).
-    Reference {
+    ReferenceOf {
+        mutability: Option<Mutability>,
+        right: LocalNodeId<Pattern>,
+    },
+    /// Value pattern (like `^x`).
+    ValueOf {
         mutability: Option<Mutability>,
         right: LocalNodeId<Pattern>,
     },
