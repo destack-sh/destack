@@ -62,7 +62,7 @@ struct TestCase {
 }
 
 fn imports_field(value: &serde_json::Value) -> serde_json::Map<String, serde_json::Value> {
-    // Clone and leak the value to get a 'static reference for big-endian
+    // clone and leak the value to get a 'static reference for big-endian
     let value = Box::leak::<'static>(Box::new(value.clone()));
     let serde_json::Value::Object(map) = value else {
         panic!("Expected an object");
@@ -862,7 +862,7 @@ fn test_imports_field_cases() {
             Arc::new(MemoryFileSystem::default()),
             ResolveOptions::default(),
         );
-        let resolved_path = resolver.package_imports_exports_resolve(
+        let resolved_path = resolver.package_match_resolve(
             case.request,
             &case.imports,
             Path::new(""),
@@ -872,7 +872,7 @@ fn test_imports_field_cases() {
                 .iter()
                 .map(ToString::to_string)
                 .collect::<Vec<_>>(),
-            &mut crate::ResolutionContext::default(),
+            &mut crate::ResolveContext::default(),
         );
         if let Some(expect) = case.expect {
             if expect.is_empty() {

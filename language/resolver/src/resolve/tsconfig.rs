@@ -6,7 +6,7 @@ use dyst_source::{File, FileType, PathExt, Uri};
 
 use super::file::is_inside_modules;
 use crate::{
-    ResolutionContext, ResolveError, ResolveOptions, Resolver, TypeScriptOptionsDiscovery,
+    ResolveContext, ResolveError, ResolveOptions, Resolver, TypeScriptOptionsDiscovery,
     TypeScriptOptionsReferences,
 };
 
@@ -276,7 +276,7 @@ impl Resolver {
         &self,
         path: &Path,
         specifier: &str,
-        ctx: &mut ResolutionContext,
+        ctx: &mut ResolveContext,
     ) -> Result<Option<PathBuf>, ResolveError> {
         if is_inside_modules(path) {
             return Ok(None);
@@ -312,7 +312,7 @@ impl Resolver {
     pub(crate) fn find_tsconfig(
         &self,
         path: &Path,
-        ctx: &mut ResolutionContext,
+        ctx: &mut ResolveContext,
     ) -> Result<Option<TsConfigId>, ResolveError> {
         // don't discover tsconfig for paths inside node_modules
         if is_inside_modules(path) {
@@ -361,11 +361,7 @@ impl Resolver {
                     main_files: vec!["tsconfig".into()],
                     ..ResolveOptions::default()
                 })
-                .load_package_self_or_modules(
-                    directory,
-                    specifier,
-                    &mut ResolutionContext::default(),
-                )
+                .load_package_self_or_modules(directory, specifier, &mut ResolveContext::default())
                 .map(|p| p.to_path_buf())
                 .map_err(|err| match err {
                     ResolveError::NotFound { .. } => ResolveError::TsConfigNotFound {

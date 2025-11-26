@@ -6,7 +6,7 @@ use indexmap::IndexMap;
 
 use dyst_source::{MemoryFileSystem, PathExt};
 
-use crate::{AliasValue, Resolution, ResolutionContext, ResolveError, ResolveOptions, Resolver};
+use crate::{AliasValue, Resolution, ResolveContext, ResolveError, ResolveOptions, Resolver};
 
 /// Test resolving aliases.
 #[allow(clippy::too_many_lines)]
@@ -240,10 +240,10 @@ fn test_resolve_alias_is_full_path() {
         ..ResolveOptions::default()
     });
 
-    let mut ctx = ResolutionContext {
+    let mut ctx = ResolveContext {
         found_dependencies: Some(Vec::new()),
         missing_dependencies: Some(Vec::new()),
-        ..ResolutionContext::default()
+        ..ResolveContext::default()
     };
 
     let specifiers = [

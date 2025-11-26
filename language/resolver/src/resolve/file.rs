@@ -5,7 +5,7 @@ use std::path::{Component, Path, PathBuf};
 
 use dyst_source::{FileSystem, PathExt};
 
-use crate::{ResolutionContext, ResolveError, Resolver, Restriction};
+use crate::{ResolveContext, ResolveError, Resolver, Restriction};
 
 // thread-local pre-allocated path buffer for path manipulation
 thread_local! {
@@ -57,7 +57,7 @@ impl Resolver {
 
     /// Check if a path is a file.
     #[inline]
-    pub(crate) fn is_file(&self, path: &Path, ctx: &mut ResolutionContext) -> bool {
+    pub(crate) fn is_file(&self, path: &Path, ctx: &mut ResolveContext) -> bool {
         match self.fs().metadata(path) {
             Ok(meta) if meta.is_file => {
                 ctx.track_found_dependency(path);
@@ -72,7 +72,7 @@ impl Resolver {
 
     /// Check if a path is a directory.
     #[inline]
-    pub(crate) fn is_directory(&self, path: &Path, ctx: &mut ResolutionContext) -> bool {
+    pub(crate) fn is_directory(&self, path: &Path, ctx: &mut ResolveContext) -> bool {
         match self.fs().metadata(path) {
             Ok(meta) if meta.is_directory => {
                 ctx.track_found_dependency(path);

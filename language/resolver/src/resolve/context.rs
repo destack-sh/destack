@@ -7,13 +7,12 @@ use crate::resolve::ResolveError;
 /// - Collect parsed query/fragment from specifiers (e.g., `?foo#bar`)
 /// - Maintain resolution flags that affect behavior at different stages
 #[derive(Debug, Default, Clone)]
-pub struct ResolutionContext {
+pub struct ResolveContext {
     // resolution state
-    /// Whether the current specifier has a fully-specified extension.
-    /// When true, the resolver won't try adding extensions.
-    pub is_fully_specified: bool,
+    /// Whether the current specifier already has a fully-specified extension.
+    pub skip_extension: bool,
     /// Alias currently being resolved, used to detect and bail on recursive aliases.
-    pub resolving_alias: Option<String>,
+    pub alias: Option<String>,
     /// Query string from specifier (e.g., `?foo` from `module.js?foo`).
     pub query: Option<String>,
     /// Fragment from specifier (e.g., `#bar` from `module.js#bar`).
@@ -32,7 +31,7 @@ pub struct ResolutionContext {
     pub max_depth: u8 = 64,
 }
 
-impl ResolutionContext {
+impl ResolveContext {
     /// Track a found dependency (if dependency tracking is enabled).
     pub fn track_found_dependency(&mut self, path: &Path) {
         if let Some(dependencies) = &mut self.found_dependencies {

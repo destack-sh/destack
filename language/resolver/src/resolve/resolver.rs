@@ -7,10 +7,6 @@ use dyst_source::{FileRegistry, FileSystem, LanguageOptions, PhysicalFileSystem}
 use crate::ResolveOptions;
 
 /// Module resolver implementing Node.js-style resolution.
-///
-/// Resolves import specifiers to absolute file paths following the Node.js
-/// resolution algorithm with extensions for TypeScript path mapping,
-/// browser field substitution, and custom aliases.
 pub struct Resolver {
     /// The program containing file registries and filesystem access.
     pub program: Arc<Program>,

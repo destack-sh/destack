@@ -4,14 +4,14 @@ use std::path::{Path, PathBuf};
 use dyst_source::PathExt;
 
 use super::file::append_extension;
-use crate::{ResolutionContext, ResolveError, Resolver};
+use crate::{ResolveContext, ResolveError, Resolver};
 
 impl Resolver {
     /// Try to resolve a path as a file with optional extension adding.
     pub(crate) fn load_as_file(
         &self,
         path: &Path,
-        ctx: &mut ResolutionContext,
+        ctx: &mut ResolveContext,
     ) -> Result<Option<PathBuf>, ResolveError> {
         // try extension alias
         if let Some(resolved) = self.load_with_extension_alias(path, ctx)? {
@@ -37,7 +37,7 @@ impl Resolver {
     pub(crate) fn load_as_directory(
         &self,
         path: &Path,
-        ctx: &mut ResolutionContext,
+        ctx: &mut ResolveContext,
     ) -> Result<Option<PathBuf>, ResolveError> {
         // check for package.json in the directory
         if let Some(package_id) = self.load_package(path, ctx)? {
@@ -80,7 +80,7 @@ impl Resolver {
         &self,
         path: &Path,
         specifier: &str,
-        ctx: &mut ResolutionContext,
+        ctx: &mut ResolveContext,
     ) -> Result<Option<PathBuf>, ResolveError> {
         // special mode: resolve to directory itself
         if self.options.resolve_to_directory && self.is_directory(path, ctx) {
@@ -110,9 +110,9 @@ impl Resolver {
         &self,
         path: &Path,
         extensions: &[String],
-        ctx: &mut ResolutionContext,
+        ctx: &mut ResolveContext,
     ) -> Result<Option<PathBuf>, ResolveError> {
-        if ctx.is_fully_specified {
+        if ctx.skip_extension {
             return Ok(None);
         }
         for extension in extensions {
@@ -128,7 +128,7 @@ impl Resolver {
     pub(crate) fn load_index(
         &self,
         path: &Path,
-        ctx: &mut ResolutionContext,
+        ctx: &mut ResolveContext,
     ) -> Result<Option<PathBuf>, ResolveError> {
         // try every main file
         for main_file in &self.options.main_files {
@@ -156,7 +156,7 @@ impl Resolver {
     pub(crate) fn load_browser_field_or_alias(
         &self,
         path: &Path,
-        ctx: &mut ResolutionContext,
+        ctx: &mut ResolveContext,
     ) -> Result<Option<PathBuf>, ResolveError> {
         // try browser field
         if let Some(package_id) = self.find_package_json(path, ctx)? {
@@ -182,7 +182,7 @@ impl Resolver {
     pub(crate) fn load_alias_or_file(
         &self,
         path: &Path,
-        ctx: &mut ResolutionContext,
+        ctx: &mut ResolveContext,
     ) -> Result<Option<PathBuf>, ResolveError> {
         // try browser field and alias first
         if let Some(resolved) = self.load_browser_field_or_alias(path, ctx)? {
