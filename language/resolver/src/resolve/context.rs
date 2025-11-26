@@ -3,11 +3,9 @@ use std::path::{Path, PathBuf};
 use crate::resolve::ResolveError;
 
 /// Mutable state passed through the resolution call chain.
-///
-/// This context serves multiple purposes during module resolution:
-/// - Tracks recursion depth to detect circular dependencies
-/// - Collects parsed query/fragment from specifiers (e.g., `?foo#bar`)
-/// - Manages resolution flags that affect behavior at different stages
+/// - Track recursion depth to detect circular dependencies
+/// - Collect parsed query/fragment from specifiers (e.g., `?foo#bar`)
+/// - Maintain resolution flags that affect behavior at different stages
 #[derive(Debug, Default, Clone)]
 pub struct ResolutionContext {
     // resolution state
@@ -16,8 +14,6 @@ pub struct ResolutionContext {
     pub is_fully_specified: bool,
     /// Alias currently being resolved, used to detect and bail on recursive aliases.
     pub resolving_alias: Option<String>,
-
-    // parsed specifier components (populated during resolution, extracted at end)
     /// Query string from specifier (e.g., `?foo` from `module.js?foo`).
     pub query: Option<String>,
     /// Fragment from specifier (e.g., `#bar` from `module.js#bar`).

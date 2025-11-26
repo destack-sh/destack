@@ -208,14 +208,12 @@ impl Resolver {
             Cow::Owned(PathBuf::from(os_string))
         };
 
-        // read file content
+        // read `tsconfig.json` file
         let content = self.fs().read_to_string(&tsconfig_path).map_err(|_| {
             ResolveError::TsConfigNotFound {
                 path: path.to_path_buf(),
             }
         })?;
-
-        // create File and insert into file registry
         let file_id = self.program.files.next_id();
         let (name, uri) = Uri::from_path_with_name(&*tsconfig_path);
         let file = File::from_text_as_jsonc(file_id, name, uri, FileType::Json, content).map_err(
@@ -233,8 +231,6 @@ impl Resolver {
                 path: tsconfig_path.to_path_buf(),
             }
         })?;
-
-        // insert into tsconfig registry
         self.program.tsconfigs.insert(tsconfig);
 
         Ok(tsconfig_id)
