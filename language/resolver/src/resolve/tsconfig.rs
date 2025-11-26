@@ -78,15 +78,13 @@ impl Resolver {
             return Ok(tsconfig_id);
         }
 
-        // parse the `tsconfig.json` file and insert into registry
+        // parse the `tsconfig.json` file
         let tsconfig_id = self.read_tsconfig(is_root, path)?;
-
-        // get write access to modify the tsconfig
-        let tsconfig_lock = self.program.tsconfigs.get(tsconfig_id);
+        let tsconfig = self.program.tsconfigs.get(tsconfig_id);
 
         // check for circular extends
         {
-            let tsconfig = tsconfig_lock.read();
+            let tsconfig = tsconfig.read();
             if ctx.is_already_extended(&tsconfig.path) {
                 return Err(ResolveError::TsConfigCircular {
                     paths: ctx.get_extended_configs_with(tsconfig.path.to_path_buf()),
@@ -96,7 +94,7 @@ impl Resolver {
 
         // extend tsconfig from parent configs
         let extended_tsconfig_paths = {
-            let tsconfig = tsconfig_lock.read();
+            let tsconfig = tsconfig.read();
             tsconfig
                 .content
                 .extends()
@@ -106,7 +104,7 @@ impl Resolver {
                 .collect::<Result<Vec<_>, _>>()?
         };
         if !extended_tsconfig_paths.is_empty() {
-            let tsconfig_path = tsconfig_lock.read().path.to_owned();
+            let tsconfig_path = tsconfig.read().path.to_owned();
             ctx.with_extended_file(tsconfig_path, |ctx| {
                 for extended_tsconfig_path in extended_tsconfig_paths {
                     let extended_tsconfig_id = self.load_tsconfig(
@@ -117,7 +115,7 @@ impl Resolver {
                     )?;
                     let extended = self.program.tsconfigs.get(extended_tsconfig_id);
                     let extended_guard = extended.read();
-                    let mut tsconfig = tsconfig_lock.write();
+                    let mut tsconfig = tsconfig.write();
                     tsconfig.extend_from(&extended_guard);
                 }
                 Result::Ok::<(), ResolveError>(())
@@ -126,7 +124,7 @@ impl Resolver {
 
         // load the given references into this tsconfig
         {
-            let mut tsconfig = tsconfig_lock.write();
+            let mut tsconfig = tsconfig.write();
             match references {
                 TypeScriptOptionsReferences::Disabled => {
                     tsconfig.content.references.drain(..);
@@ -143,7 +141,7 @@ impl Resolver {
 
         // load reference tsconfigs
         let references_to_load: Vec<_> = {
-            let tsconfig = tsconfig_lock.read();
+            let tsconfig = tsconfig.read();
             tsconfig
                 .content
                 .references
@@ -151,7 +149,7 @@ impl Resolver {
                 .map(|r| tsconfig.directory.normalize_with(&r.path))
                 .collect()
         };
-        let current_path = tsconfig_lock.read().path.to_path_buf();
+        let current_path = tsconfig.read().path.to_path_buf();
         for reference_tsconfig_path in references_to_load {
             let reference_tsconfig_id = self.read_tsconfig(true, &reference_tsconfig_path)?;
 
@@ -183,7 +181,7 @@ impl Resolver {
 
         // build the main tsconfig
         {
-            let mut tsconfig = tsconfig_lock.write();
+            let mut tsconfig = tsconfig.write();
             tsconfig.build();
         }
 
