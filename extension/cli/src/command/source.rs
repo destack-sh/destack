@@ -1,6 +1,8 @@
 use std::path::Path;
+use std::sync::Arc;
 
-use dyst_source::{File, FileId, FileRegistry, FileSystem, FileType, Uri};
+use dyst_dir::Program;
+use dyst_source::{File, FileType, Uri};
 
 /// Input arguments describing a source file or inline string.
 pub(crate) struct SourceArg<'a> {
@@ -13,11 +15,10 @@ pub(crate) struct SourceArg<'a> {
 }
 
 /// Read a source either from a file or inline string argument.
-pub(crate) fn get_string_or_file<Fs: FileSystem>(
-    fs: &Fs,
-    files: &FileRegistry,
+pub(crate) fn get_string_or_file(
+    program: &Program,
     source: SourceArg<'_>,
-) -> Result<Option<FileId>, String> {
+) -> Result<Arc<File>, String> {
     let format_name = source.format.unwrap_or("ds");
     let format = FileType::from_extension_or_unknown(format_name);
     let extension = format.extension().unwrap();
@@ -30,25 +31,25 @@ pub(crate) fn get_string_or_file<Fs: FileSystem>(
                 "{path_str}: invalid file extension, expected {extension}"
             ));
         }
-        let file_id = files.next_id();
+        let file_id = program.files.next_id();
         let name = path
             .iter()
             .next_back()
             .map(|s| s.to_string_lossy().into_owned())
             .unwrap_or("<file>".to_string());
         let uri = Uri::from_string(path_str);
-        match fs.read_to_string(path) {
+        match program.fs.read_to_string(path) {
             Ok(content) => {
                 let file = File::from_text(file_id, name, uri, format, content);
-                files.insert(file);
-                Ok(Some(file_id))
+                program.files.insert(file);
+                Ok(program.files.get(file_id))
             }
             Err(e) => Err(format!("\"{path_str}\": {e}")),
         }
     }
     // string
     else if let Some(string) = source.string {
-        let file_id = files.next_id();
+        let file_id = program.files.next_id();
         let file = File::from_text(
             file_id,
             "<string>".to_string(),
@@ -56,11 +57,11 @@ pub(crate) fn get_string_or_file<Fs: FileSystem>(
             format,
             string.to_string(),
         );
-        files.insert(file);
-        Ok(Some(file_id))
+        program.files.insert(file);
+        Ok(program.files.get(file_id))
     }
     // nothing
     else {
-        Ok(None)
+        Err("no source input provided".to_string())
     }
 }

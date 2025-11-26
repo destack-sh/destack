@@ -1,11 +1,9 @@
 use std::path::PathBuf;
-use std::sync::Arc;
 
 use clap::Args;
-use dyst_dir::Program;
 use dyst_resolver::{ResolveOptions, Resolver};
-use dyst_source::{FileRegistry, LanguageOptions, PhysicalFileSystem};
 
+use crate::command::ProgramArgs;
 use crate::console;
 
 #[derive(Args, Debug, Clone)]
@@ -36,39 +34,34 @@ pub struct ResolveArgs {
     /// Resolve to a context instead of a file.
     #[arg(long)]
     pub resolve_directory: bool,
+
+    #[command(flatten)]
+    pub program: ProgramArgs,
 }
 
 pub fn run(args: &ResolveArgs) -> i32 {
-    let cwd = std::env::current_dir().unwrap_or_default();
+    let program = args.program.setup();
+
+    // determine directory to resolve from
     let directory = args
         .directory
         .clone()
-        .unwrap_or(cwd)
+        .unwrap_or_else(|| program.root_directory.clone())
         .canonicalize()
         .expect("failed to canonicalize directory");
 
+    // set up resolve options
     let mut options = ResolveOptions::default();
-
     if !args.condition.is_empty() {
         options.conditions = args.condition.clone();
     }
     if !args.extension.is_empty() {
         options.extensions = args.extension.clone();
     }
-
     options.prefer_relative = args.prefer_relative;
     options.prefer_absolute = args.prefer_absolute;
     options.resolve_to_directory = args.resolve_directory;
 
-    let cwd = std::env::current_dir().unwrap();
-    let fs = Arc::new(PhysicalFileSystem);
-    let files = Arc::new(FileRegistry::new());
-    let program = Arc::new(Program::new(
-        LanguageOptions::default(),
-        cwd,
-        fs.clone(),
-        files.clone(),
-    ));
     let resolver = Resolver::new(program, options);
 
     match resolver.resolve(&directory, &args.specifier) {

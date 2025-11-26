@@ -1,14 +1,11 @@
-use std::sync::Arc;
-
 use clap::{ArgGroup, Args};
 use dyst_ast::{Dumper, DumperOptions, NodeVisitor};
-use dyst_dir::Program;
 use dyst_parser::Parser;
-use dyst_source::{
-    DiagnosticOptions, FileRegistry, FileSystem, LanguageOptions, PhysicalFileSystem,
-};
+use dyst_source::DiagnosticOptions;
 
-use crate::command::{DiagnosticOptionsArgs, SourceArg, get_string_or_file, print_diagnostics};
+use crate::command::{
+    DiagnosticOptionsArgs, ProgramArgs, SourceArg, get_string_or_file, print_diagnostics,
+};
 use crate::console;
 
 #[derive(Args, Debug, Clone)]
@@ -36,6 +33,9 @@ pub struct ParseArgs {
     pub silent: bool,
 
     #[command(flatten)]
+    pub program: ProgramArgs,
+
+    #[command(flatten)]
     pub diagnostics: DiagnosticOptionsArgs,
 }
 
@@ -43,24 +43,18 @@ pub struct ParseArgs {
 pub fn run(args: &ParseArgs) -> i32 {
     let silent = args.silent;
     let diagnostic_options: DiagnosticOptions = args.diagnostics.clone().into();
+    let program = args.program.setup();
 
     // read input source
-    let fs = Arc::new(PhysicalFileSystem::new());
-    let files = Arc::new(FileRegistry::new());
-    let file_id = match get_string_or_file(
-        fs.as_ref(),
-        files.as_ref(),
+    let file = match get_string_or_file(
+        &program,
         SourceArg {
             file: args.file.as_deref(),
             string: args.string.as_deref(),
             format: args.format.as_deref(),
         },
     ) {
-        Ok(Some(file)) => file,
-        Ok(None) => {
-            console::error("error: failed to resolve source input");
-            return 1;
-        }
+        Ok(file) => file,
         Err(e) => {
             console::error(&format!("error: {e}"));
             return 1;
@@ -68,14 +62,6 @@ pub fn run(args: &ParseArgs) -> i32 {
     };
 
     // parse as implicit module
-    let cwd = std::env::current_dir().unwrap();
-    let program = Arc::new(Program::new(
-        LanguageOptions::default(),
-        cwd,
-        fs.clone(),
-        files.clone(),
-    ));
-    let file = files.get(file_id);
     let mut parser = Parser::lex_file(file.clone(), program.language);
     let expressions = parser.parse();
 
