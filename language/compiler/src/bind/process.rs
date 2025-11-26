@@ -1,6 +1,9 @@
-use dyst_dir::{Expression, LocalNodeId, ModuleId, Program};
+use dyst_dir::{
+    Expression, GlobalNodeIdAny, LocalNodeId, LocalNodeIdAny, LocalSymbolId, ModuleId, Program,
+    SymbolKey,
+};
 
-use crate::{BindResult, CompileOutput, CompileTask, Compiler, ResolveTask};
+use crate::{BindError, BindResult, CompileOutput, CompileTask, Compiler, ResolveTask};
 
 /// Task to bind AST into DIR.
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
@@ -87,10 +90,55 @@ impl Compiler {
         {
             let module = module.read();
             let tree = module.tree.read();
-            // nocheckin: bind export symbols (and detect conflicting exports)
+            let mut symbols = module.symbols.write();
+
+            // collect exported symbols
+            let root_scope = symbols.get_scope_by_id(module.namespace_scope);
+            let exported_symbols: Vec<(GlobalNodeIdAny, LocalSymbolId)> = root_scope
+                .named_symbols
+                .iter()
+                .filter_map(|(key, symbol_id)| {
+                    let symbol = symbols.get_symbol(*symbol_id);
+                    if let Some(primary_declaration) = symbol.primary_declaration
+                        && symbol.export.is_some()
+                    {
+                        Some((primary_declaration, *symbol_id))
+                    } else {
+                        None
+                    }
+                })
+                .collect();
+
+            // resolve exported symbols and check for conflicts
+            for (node_id, symbol_id) in exported_symbols.iter() {
+                let symbol = symbols.get_symbol(*symbol_id);
+                let space = symbol.space;
+                let Some(key) = symbol.name() else {
+                    continue; // should have a name but fine
+                };
+                let key = SymbolKey::Name(key);
+                // error on conflicting export
+                if let Some(existing_symbol_id) = symbols.get_exported_symbol((space, key)) {
+                    let existing_symbol = symbols.get_symbol(existing_symbol_id);
+                    let error = BindError::ConflictingExport {
+                        node: *node_id,
+                        other_node: existing_symbol.primary_declaration,
+                        module: module_id,
+                        name: Some(key),
+                    };
+                    self.error(error);
+                }
+                // resolve if not conflicting
+                else {
+                    symbols.resolve_export((space, key), *symbol_id);
+                }
+            }
         }
 
-        // nocheckin: detect conflicting item symbols in scopes
+        // check for conflicting item symbols in scopes
+        {
+            // nocheckin: detect conflicting item symbols in scopes
+        }
 
         // next task: resolve module
         self.enqueue(ResolveTask::ResolveModule { module: module_id });

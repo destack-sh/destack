@@ -37,6 +37,9 @@ impl Compiler {
                 .strings
                 .intern_from(&module.ast_strings, name.string())
         });
+        let export = descriptor
+            .export
+            .map(|export| self.bind_dependency_mode(export));
         let (symbol_id, scope_id) = {
             if let Some(name) = name {
                 self.bind_named_item_with_scope(
@@ -46,16 +49,20 @@ impl Compiler {
                     ScopeKind::Namespace,
                     scope,
                     symbols,
+                    export,
                 )
             } else {
-                self.bind_anonymous_item_with_scope(module, ScopeKind::Namespace, scope, symbols)
+                self.bind_anonymous_item_with_scope(
+                    module,
+                    ScopeKind::Namespace,
+                    scope,
+                    symbols,
+                    export,
+                )
             }
         };
         let kind = self.bind_declaration_kind(descriptor.kind);
         let anchor = self.bind_binding_anchor(descriptor.anchor);
-        let export = descriptor
-            .export
-            .map(|export| self.bind_dependency_mode(export));
         let descriptor = DeclarationDescriptor {
             kind,
             anchor,
@@ -390,6 +397,7 @@ impl Compiler {
             SymbolKey::Name(name),
             scope,
             symbols,
+            None,
         );
         let enum_field = EnumField {
             name,

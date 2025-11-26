@@ -8,7 +8,7 @@ pub enum DependencySource {
     /// Plain import statement (like `import "foo"`).
     ImportStatement,
     /// Re-export statement (like `export { bar } from "foo"`).
-    ReExportStatement,
+    ExportStatement,
     /// Import call (like `await import("foo")`).
     ImportCall,
     /// Require call (like `require("foo")`).
@@ -57,6 +57,7 @@ pub enum DependencyItem {
         kind: DependencyKind,
         name: StringId,
         alias: Option<StringId>,
+        symbol: LocalSymbolId,
     },
     /// Value expression dependency (like `export = foo`).
     Value { value: LocalNodeId<Expression> },
@@ -66,6 +67,7 @@ pub enum DependencyItem {
         kind: DependencyKind,
         name: StringId,
         alias: Option<StringId>,
+        symbol: LocalSymbolId,
         target_symbol: LocalSymbolId,
     },
     /// Remote to the module (i.e., imports and re-exports).
@@ -91,5 +93,18 @@ impl Node for DependencyItem {
                 | DependencyItem::Remote { .. }
                 | DependencyItem::Value { .. }
         )
+    }
+}
+
+impl DependencyItem {
+    /// Get the symbol of the dependency item.
+    pub fn symbol(&self) -> Option<LocalSymbolId> {
+        match self {
+            DependencyItem::UnresolvedRemote { symbol, .. } => Some(*symbol),
+            DependencyItem::UnresolvedLocal { symbol, .. } => Some(*symbol),
+            DependencyItem::Value { .. } => None,
+            DependencyItem::Local { symbol, .. } => Some(*symbol),
+            DependencyItem::Remote { symbol, .. } => Some(*symbol),
+        }
     }
 }

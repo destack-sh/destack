@@ -1427,12 +1427,14 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 kind,
                 name,
                 alias,
+                symbol,
             } => {
                 self.node("DependencyItem::UnresolvedLocal", id.id)
                     .field("mode", mode)
                     .field("kind", kind)
                     .field("name", name)
                     .field_optional("alias", alias)
+                    .field("symbol", symbol)
                     .end();
             }
             DependencyItem::Value { value: _ } => {
@@ -1443,6 +1445,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 kind,
                 name,
                 alias,
+                symbol,
                 target_symbol,
             } => {
                 self.node("DependencyItem::Declaration", id.id)
@@ -1450,6 +1453,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .field("kind", kind)
                     .field("name", name)
                     .field_optional("alias", alias)
+                    .field("symbol", symbol)
                     .field("target_symbol", target_symbol)
                     .end();
             }
@@ -1999,6 +2003,7 @@ impl<'a> Dumper<'a> {
             )
             .field_optional("key", &symbol.key)
             .field("scope", &format!("{}{}", symbol.scope.0, symbol.scope.1))
+            .field_optional("export", &symbol.export)
             .end();
     }
 }

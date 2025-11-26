@@ -74,6 +74,7 @@ impl Compiler {
                     SymbolKey::Name(name),
                     scope,
                     symbols,
+                    None,
                 );
                 let parameter = Parameter::Named {
                     modifiers,
@@ -103,7 +104,7 @@ impl Compiler {
                     self.bind_expression(module, scope, default, tree, symbols, types)
                 });
                 let (symbol_id, _) =
-                    self.bind_anonymous_item(module, SymbolSpace::Value, scope, symbols);
+                    self.bind_anonymous_item(module, SymbolSpace::Value, scope, symbols, None);
                 let parameter = Parameter::Pattern {
                     modifiers,
                     pattern,
@@ -133,6 +134,7 @@ impl Compiler {
                     SymbolKey::Name(name),
                     scope,
                     symbols,
+                    None,
                 );
                 let parameter = Parameter::Variadic {
                     modifiers,

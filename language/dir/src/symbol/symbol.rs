@@ -1,6 +1,6 @@
 use crate::{
-    GlobalNodeIdAny, LocalNodeId, LocalNodeIdAny, LocalScopeId, LocalScopeMark, ModuleId, Node,
-    Program, StringId,
+    DependencyMode, GlobalNodeIdAny, LocalNodeId, LocalNodeIdAny, LocalScopeId, LocalScopeMark,
+    ModuleId, Node, Program, StringId,
 };
 
 /// Key for a symbol.
@@ -47,6 +47,7 @@ impl SymbolKey {
 /// The space of a symbol.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum SymbolSpace {
+    // nocheckin: merge SymbolSpace with DependencyKind?
     /// The type space.
     Type,
     /// The value space.
@@ -129,10 +130,12 @@ pub struct Symbol {
     pub scope: (LocalScopeId, LocalScopeMark),
     /// The module id of the scope.
     pub module_id: ModuleId,
+    /// The export mode of the symbol.
+    pub export: Option<DependencyMode>,
     /// The main declaration node of the symbol.
     pub primary_declaration: Option<GlobalNodeIdAny>,
     /// Secondary declaration nodes of the symbol.
-    pub secondary_declarations: Vec<GlobalNodeIdAny>,
+    pub secondary_declarations: Option<Box<Vec<GlobalNodeIdAny>>>,
     /// Forward to another remote symbol (like for imports, pattern bindings, etc.).
     pub target_symbol: Option<GlobalSymbolId>,
 }
@@ -154,7 +157,12 @@ impl Symbol {
 
     /// Declare a secondary declaration for this symbol.
     pub fn declare_secondary<T: Node>(&mut self, node_id: LocalNodeId<T>) {
+        if self.secondary_declarations.is_none() {
+            self.secondary_declarations = Some(Box::new(Vec::new()));
+        }
         self.secondary_declarations
+            .as_mut()
+            .unwrap()
             .push(node_id.into_global_any(self.module_id));
     }
 

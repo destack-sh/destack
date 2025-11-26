@@ -923,6 +923,7 @@ pub fn walk_dependency_item<V: NodeVisitor + ?Sized>(
             kind: _,
             name: _,
             alias: _,
+            symbol: _,
         } => {
             // nothing to do
         }
@@ -935,6 +936,7 @@ pub fn walk_dependency_item<V: NodeVisitor + ?Sized>(
             kind: _,
             name: _,
             alias: _,
+            symbol: _,
             target_symbol: _,
         } => {
             // nothing to do

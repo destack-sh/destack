@@ -2,8 +2,7 @@ use dyst_ast::StringId;
 use indexmap::IndexMap;
 
 use crate::{
-    Arena, LocalNodeId, LocalScopeId, LocalScopeMark, LocalSymbolId, ModuleId, Node, NodeTree,
-    Scope, ScopeKind, Symbol, SymbolKey, SymbolKind, SymbolSpace,
+    Arena, DependencyMode, LocalNodeId, LocalScopeId, LocalScopeMark, LocalSymbolId, ModuleId, Node, NodeTree, Scope, ScopeKind, Symbol, SymbolKey, SymbolKind, SymbolSpace
 };
 use std::fmt::Debug;
 
@@ -50,6 +49,7 @@ impl SymbolTable {
         space: SymbolSpace,
         key: Option<SymbolKey>,
         scope: (LocalScopeId, LocalScopeMark),
+        export: Option<DependencyMode>,
     ) -> (LocalSymbolId, LocalScopeMark) {
         let symbol_id = LocalSymbolId::new(self.next_symbol_id);
         self.next_symbol_id += 1;
@@ -60,8 +60,9 @@ impl SymbolTable {
             key,
             scope,
             module_id: self.module_id,
+            export,
             primary_declaration: None,
-            secondary_declarations: Vec::new(),
+            secondary_declarations: None,
             target_symbol: None,
         };
         self.symbols.allocate(symbol);

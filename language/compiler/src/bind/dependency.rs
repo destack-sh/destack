@@ -43,6 +43,10 @@ impl Compiler {
         _types: &mut TypeTable,
     ) -> LocalNodeId<DependencyItem> {
         let item = module.ast.get(item_id);
+        let is_export = matches!(
+            source,
+            DependencySource::ExportStatement | DependencySource::ValueExpression
+        );
         let kind = self.bind_dependency_kind(item.kind.unwrap_or(kind));
         let mode = self.bind_dependency_mode(item.mode);
         let name = item
@@ -51,22 +55,29 @@ impl Compiler {
         let alias = item
             .alias
             .map(|alias| self.program.strings.intern_from(&module.ast_strings, alias));
+        let (symbol_id, _) = if let Some(name) = name {
+            self.bind_named_item(
+                module,
+                SymbolSpace::Value,
+                SymbolKey::Name(name),
+                scope,
+                symbols,
+                if is_export { Some(mode) } else { None },
+            )
+        } else {
+            self.bind_anonymous_item(
+                module,
+                SymbolSpace::Value,
+                scope,
+                symbols,
+                if is_export { Some(mode) } else { None },
+            )
+        };
         if let Some(target) = target {
             let target = self
                 .program
                 .strings
                 .intern_from(&module.ast_strings, target);
-            let (symbol_id, _) = if let Some(name) = name {
-                self.bind_named_item(
-                    module,
-                    SymbolSpace::Value,
-                    SymbolKey::Name(name),
-                    scope,
-                    symbols,
-                )
-            } else {
-                self.bind_anonymous_item(module, SymbolSpace::Value, scope, symbols)
-            };
             let item = DependencyItem::UnresolvedRemote {
                 source,
                 mode,
@@ -84,6 +95,7 @@ impl Compiler {
                 kind,
                 name: name.unwrap_or_else(|| panic!("name is required for local dependency item")),
                 alias,
+                symbol: symbol_id,
             };
             tree.insert_from_source(item, item_id, scope)
         }

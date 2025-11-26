@@ -28,7 +28,7 @@
                 "args": ["run", "--bin", "destack_cli"],
                 "filter": { "kind": "bin", "name": "destack_cli" }
             },
-            "args": ["compile", "--string", "export let x = 0"],
+            "args": ["compile", "--string", "export const x = 0;\nexport const x = 1;"],
             "cwd": "${workspaceFolder}",
             "console": "integratedTerminal"
         },

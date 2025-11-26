@@ -51,8 +51,13 @@ impl Compiler {
             }
 
             ast::Expression::With { clauses, body } => {
-                let (symbol_id, scope_id) =
-                    self.bind_anonymous_item_with_scope(module, ScopeKind::Block, scope, symbols);
+                let (symbol_id, scope_id) = self.bind_anonymous_item_with_scope(
+                    module,
+                    ScopeKind::Block,
+                    scope,
+                    symbols,
+                    None,
+                );
                 let clauses = clauses
                     .iter()
                     .map(|clause| {
@@ -147,7 +152,7 @@ impl Compiler {
                             self.bind_dependency_item(
                                 module,
                                 scope,
-                                DependencySource::ReExportStatement,
+                                DependencySource::ExportStatement,
                                 *kind,
                                 Some(target),
                                 *item,
@@ -578,8 +583,13 @@ impl Compiler {
                 };
                 let condition =
                     self.bind_expression(module, scope, *condition, tree, symbols, types);
-                let (symbol_id, scope_id) =
-                    self.bind_anonymous_item_with_scope(module, ScopeKind::Block, scope, symbols);
+                let (symbol_id, scope_id) = self.bind_anonymous_item_with_scope(
+                    module,
+                    ScopeKind::Block,
+                    scope,
+                    symbols,
+                    None,
+                );
                 let body = self.bind_block(
                     module,
                     (scope_id, symbols.get_scope_mark(scope_id)),
@@ -610,8 +620,13 @@ impl Compiler {
                 };
                 let pattern = self.bind_pattern(module, scope, *pattern, tree, symbols, types);
                 let iterator = self.bind_expression(module, scope, *iterator, tree, symbols, types);
-                let (symbol_id, scope_id) =
-                    self.bind_anonymous_item_with_scope(module, ScopeKind::Block, scope, symbols);
+                let (symbol_id, scope_id) = self.bind_anonymous_item_with_scope(
+                    module,
+                    ScopeKind::Block,
+                    scope,
+                    symbols,
+                    None,
+                );
                 let body = self.bind_block(
                     module,
                     (scope_id, symbols.get_scope_mark(scope_id)),
@@ -636,8 +651,13 @@ impl Compiler {
                 increment,
                 body,
             } => {
-                let (symbol_id, scope_id) =
-                    self.bind_anonymous_item_with_scope(module, ScopeKind::Block, scope, symbols);
+                let (symbol_id, scope_id) = self.bind_anonymous_item_with_scope(
+                    module,
+                    ScopeKind::Block,
+                    scope,
+                    symbols,
+                    None,
+                );
                 let initialization = initialization.map(|initialization| {
                     self.bind_expression(
                         module,
@@ -686,8 +706,13 @@ impl Compiler {
                 }
             }
             ast::Expression::Loop { body } => {
-                let (symbol_id, scope_id) =
-                    self.bind_anonymous_item_with_scope(module, ScopeKind::Block, scope, symbols);
+                let (symbol_id, scope_id) = self.bind_anonymous_item_with_scope(
+                    module,
+                    ScopeKind::Block,
+                    scope,
+                    symbols,
+                    None,
+                );
                 let body = self.bind_block(
                     module,
                     (scope_id, symbols.get_scope_mark(scope_id)),
@@ -710,8 +735,13 @@ impl Compiler {
                 catch_expression,
                 finally_expression,
             } => {
-                let (symbol_id, scope_id) =
-                    self.bind_anonymous_item_with_scope(module, ScopeKind::Block, scope, symbols);
+                let (symbol_id, scope_id) = self.bind_anonymous_item_with_scope(
+                    module,
+                    ScopeKind::Block,
+                    scope,
+                    symbols,
+                    None,
+                );
                 let try_expression = self.bind_expression(
                     module,
                     (scope_id, symbols.get_scope_mark(scope_id)),
@@ -765,8 +795,13 @@ impl Compiler {
                 cases,
             } => {
                 let value = self.bind_expression(module, scope, *value, tree, symbols, types);
-                let (symbol_id, scope_id) =
-                    self.bind_anonymous_item_with_scope(module, ScopeKind::Block, scope, symbols);
+                let (symbol_id, scope_id) = self.bind_anonymous_item_with_scope(
+                    module,
+                    ScopeKind::Block,
+                    scope,
+                    symbols,
+                    None,
+                );
                 let cases = cases
                     .iter()
                     .map(|case| {

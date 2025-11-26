@@ -100,6 +100,7 @@ impl Compiler {
                 kind,
                 name,
                 alias,
+                symbol,
             } => {
                 let target_symbol_id = self.resolve_absolute_symbol(
                     module,
@@ -113,6 +114,7 @@ impl Compiler {
                     kind: *kind,
                     name: *name,
                     alias: *alias,
+                    symbol: *symbol,
                     target_symbol: target_symbol_id,
                 }
             }
