@@ -48,7 +48,7 @@ impl TypeScriptOptionsResolveContext {
 }
 
 impl Resolver {
-    /// Resolve a tsconfig.json file at the given path.
+    /// Resolve a `tsconfig.json` file at the given path.
     pub fn resolve_tsconfig<P: AsRef<Path>>(&self, path: P) -> Result<TsConfigId, ResolveError> {
         self.load_tsconfig(
             true,
@@ -65,7 +65,7 @@ impl Resolver {
         (*tsconfig_guard).clone()
     }
 
-    /// Load and parse a tsconfig.json file recursively, using the registry for caching.
+    /// Load and parse a `tsconfig.json` file recursively.
     pub(crate) fn load_tsconfig(
         &self,
         is_root: bool,

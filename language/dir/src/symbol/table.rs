@@ -24,7 +24,9 @@ pub struct SymbolTable {
     pub(crate) scopes: Arena<Scope>,
 
     /// The resolved modules by target.
-    pub(crate) imports_by_target: IndexMap<StringId, ModuleId>,
+    pub(crate) imported_module_by_target: IndexMap<StringId, ModuleId>,
+    /// The exported symbol by key.
+    pub(crate) exported_symbol_by_key: IndexMap<(SymbolSpace, SymbolKey), LocalSymbolId>,
 }
 
 impl SymbolTable {
@@ -36,10 +38,12 @@ impl SymbolTable {
             next_scope_id: 0,
             symbols: Arena::new(),
             scopes: Arena::new(),
-            imports_by_target: IndexMap::new(),
+            imported_module_by_target: IndexMap::new(),
+            exported_symbol_by_key: IndexMap::new(),
         }
     }
 
+    // nocheckin: bind exports, report duplicate declaration bindings, ..
     /// Create a new local symbol.
     pub fn insert_symbol(
         &mut self,
@@ -170,12 +174,24 @@ impl SymbolTable {
     /// Set a resolved import for a target.
     #[inline]
     pub fn resolve_import(&mut self, target: StringId, module_id: ModuleId) {
-        self.imports_by_target.insert(target, module_id);
+        self.imported_module_by_target.insert(target, module_id);
     }
 
     /// Get a resolved import for a target.
     #[inline]
     pub fn get_resolved_import(&self, target: StringId) -> Option<ModuleId> {
-        self.imports_by_target.get(&target).cloned()
+        self.imported_module_by_target.get(&target).cloned()
+    }
+
+    /// Set an exported symbol for a key.
+    #[inline]
+    pub fn resolve_export(&mut self, key: (SymbolSpace, SymbolKey), symbol_id: LocalSymbolId) {
+        self.exported_symbol_by_key.insert(key, symbol_id);
+    }
+
+    /// Get an exported symbol for a key.
+    #[inline]
+    pub fn get_exported_symbol(&self, key: (SymbolSpace, SymbolKey)) -> Option<LocalSymbolId> {
+        self.exported_symbol_by_key.get(&key).cloned()
     }
 }

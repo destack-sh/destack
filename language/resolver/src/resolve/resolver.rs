@@ -1,5 +1,3 @@
-//! Resolver struct definition and constructors.
-
 use std::fmt;
 use std::sync::Arc;
 

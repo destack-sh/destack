@@ -1,11 +1,3 @@
-//! Module resolution implementation.
-//!
-//! This module provides Node.js-style module resolution with extensions for:
-//! - TypeScript path mapping (`tsconfig.json` paths)
-//! - Package exports/imports (ESM)
-//! - Browser field substitution
-//! - Custom aliases
-
 mod alias;
 mod context;
 mod error;

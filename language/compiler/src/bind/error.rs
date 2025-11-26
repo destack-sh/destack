@@ -1,4 +1,5 @@
-use dyst_dir::{GlobalNodeIdAny, Program};
+use dyst_ast::StringId;
+use dyst_dir::{GlobalNodeIdAny, GlobalScopeId, GlobalSymbolId, Program};
 
 use crate::{CompileError, CompilePhase, CompileTaskWait};
 
@@ -10,6 +11,20 @@ pub enum BindError {
     Wait { wait: CompileTaskWait },
     /// Unsupported node.
     UnsupportedNode { node: GlobalNodeIdAny },
+    /// Conflicting declarations in the same scope.
+    ConflictingDeclaration {
+        node: GlobalNodeIdAny,
+        scope: GlobalScopeId,
+        symbol: GlobalSymbolId,
+        name: StringId,
+    },
+    /// Conflicting export name in the same module.
+    ConflictingExport {
+        node: GlobalNodeIdAny,
+        scope: GlobalScopeId,
+        symbol: GlobalSymbolId,
+        name: StringId,
+    },
 }
 
 pub type BindResult<T> = Result<T, BindError>;
@@ -28,6 +43,8 @@ impl BindError {
         match self {
             Self::Wait { .. } => 0,
             Self::UnsupportedNode { .. } => 1,
+            Self::ConflictingDeclaration { .. } => 2,
+            Self::ConflictingExport { .. } => 3,
         }
     }
 
@@ -36,14 +53,24 @@ impl BindError {
         match self {
             Self::Wait { wait } => wait.nodes.first().copied(),
             Self::UnsupportedNode { node } => Some(*node),
+            Self::ConflictingDeclaration { node, .. } => Some(*node),
+            Self::ConflictingExport { node, .. } => Some(*node),
         }
     }
 
     /// Get the message of the error.
-    pub fn message(&self, _program: &Program) -> String {
+    pub fn message(&self, program: &Program) -> String {
         match self {
             Self::Wait { .. } => "wait for task".to_string(),
             Self::UnsupportedNode { .. } => "unsupported node".to_string(),
+            Self::ConflictingDeclaration { name, .. } => {
+                let name = program.strings.get(*name).to_string();
+                format!("conflicting declaration of '{name}'")
+            }
+            Self::ConflictingExport { name, .. } => {
+                let name = program.strings.get(*name).to_string();
+                format!("conflicting export of '{name}'")
+            }
         }
     }
 }
