@@ -1,6 +1,8 @@
-use dyst_dir::{self as dir, ModuleId, NodeTree, SymbolTable, TypeTable};
+use std::sync::Arc;
+
+use dyst_dir::{self as dir, ModuleId, NodeTree, Program, SymbolTable, TypeTable};
 use dyst_javascript_ast::{self as ast, LocalNodeIdAny};
-use dyst_source::{StringPool, Uri};
+use dyst_source::{DiagnosticCollector, StringPool, Uri};
 
 use crate::{TranspileDiagnostic, TranspileError, TranspileOptions, TranspileWarning, Transpiler};
 
@@ -17,10 +19,12 @@ impl TranspilerUnitId {
 /// A transpiled module.
 #[derive(Debug, Clone)]
 pub struct TranspilerUnit {
-    /// The options for transpilation.
-    pub options: TranspileOptions,
     /// The id of the transpiled module.
     pub id: TranspilerUnitId,
+    /// The program.
+    pub program: Arc<Program>,
+    /// The options for transpilation.
+    pub options: TranspileOptions,
     /// The URI of the transpiled module (excluding extension).
     pub uri: Uri,
     /// The AST of the transpiled module.
@@ -32,7 +36,7 @@ pub struct TranspilerUnit {
     /// The source modules.
     pub sources: Vec<ModuleId>,
     /// The pending diagnostics encountered during transpilation.
-    pub pending_diagnostics: Vec<TranspileDiagnostic>,
+    pub pending_diagnostics: DiagnosticCollector,
     /// The artifacts produced by the transpilation unit.
     pub artifacts: Vec<Uri>,
 }
@@ -41,12 +45,16 @@ pub struct TranspilerUnit {
 impl TranspilerUnit {
     /// Add an error to the transpilation unit.
     pub(crate) fn error(&mut self, error: TranspileError) {
-        self.pending_diagnostics.push(error.into());
+        let diagnostic: TranspileDiagnostic = error.into();
+        let diagnostic = diagnostic.to_diagnostic(self.program.as_ref());
+        self.pending_diagnostics.insert(diagnostic);
     }
 
     /// Add a warning to the transpilation unit.
     pub(crate) fn warning(&mut self, warning: TranspileWarning) {
-        self.pending_diagnostics.push(warning.into());
+        let diagnostic: TranspileDiagnostic = warning.into();
+        let diagnostic = diagnostic.to_diagnostic(self.program.as_ref());
+        self.pending_diagnostics.insert(diagnostic);
     }
 }
 

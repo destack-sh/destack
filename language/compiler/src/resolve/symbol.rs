@@ -174,3 +174,25 @@ impl Compiler {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::{ImportTask, TestProgram};
+
+    #[test]
+    fn test_resolve_symbol() {
+        let test = TestProgram::memory();
+        let file = test.file(
+            "test.ds",
+            r"
+let x = 0;
+let y = x;
+let z = y;
+",
+        );
+        test.enqueue(ImportTask::ImportModuleFromFile { file: file.id });
+        test.compile();
+
+        // let module = test.program.modules.get
+    }
+}

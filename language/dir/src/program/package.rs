@@ -1,11 +1,11 @@
 use core::fmt;
-use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU32, Ordering};
 
+use dashmap::DashMap;
 use dyst_source::{File, FileContent, FileId};
-use parking_lot::{Mutex, RwLock};
+use parking_lot::RwLock;
 use serde::Deserialize;
 use serde_json::{Map, Value};
 
@@ -159,9 +159,9 @@ pub struct PackageJson {
 #[derive(Debug)]
 pub struct PackageRegistry {
     /// The packages by id.
-    packages_by_id: Mutex<HashMap<PackageId, Arc<RwLock<Package>>>>,
+    packages_by_id: DashMap<PackageId, Arc<RwLock<Package>>>,
     /// Path-based index for looking up packages by their directory path.
-    packages_by_path: Mutex<HashMap<PathBuf, PackageId>>,
+    packages_by_path: DashMap<PathBuf, PackageId>,
     /// The next package id.
     next_package_id: AtomicU32,
 }
@@ -176,8 +176,8 @@ impl PackageRegistry {
     /// Create a new PackageRegistry.
     pub fn new() -> Self {
         Self {
-            packages_by_id: Mutex::new(HashMap::new()),
-            packages_by_path: Mutex::new(HashMap::new()),
+            packages_by_id: DashMap::new(),
+            packages_by_path: DashMap::new(),
             next_package_id: AtomicU32::new(0),
         }
     }
@@ -192,12 +192,9 @@ impl PackageRegistry {
     pub fn insert(&self, package: Package) {
         let path = package.path.clone();
         let id = package.id;
-        let mut packages_by_id = self.packages_by_id.lock();
-        packages_by_id.insert(id, Arc::new(RwLock::new(package)));
-
-        // maintain path index
-        let mut packages_by_path = self.packages_by_path.lock();
-        packages_by_path.insert(path, id);
+        self.packages_by_id
+            .insert(id, Arc::new(RwLock::new(package)));
+        self.packages_by_path.insert(path, id);
     }
 
     /// Get a package by package id.
@@ -206,8 +203,7 @@ impl PackageRegistry {
     /// Panics if the package is not found.
     #[inline]
     pub fn get(&self, id: PackageId) -> Arc<RwLock<Package>> {
-        let packages_by_id = self.packages_by_id.lock();
-        packages_by_id
+        self.packages_by_id
             .get(&id)
             .unwrap_or_else(|| panic!("package not found: {id:?}"))
             .clone()
@@ -215,8 +211,7 @@ impl PackageRegistry {
 
     /// Get a package id by its directory path.
     pub fn get_id_by_path(&self, path: &Path) -> Option<PackageId> {
-        let packages_by_path = self.packages_by_path.lock();
-        packages_by_path.get(path).copied()
+        self.packages_by_path.get(path).map(|r| *r.value())
     }
 
     /// Get a package by its directory path.
@@ -227,26 +222,26 @@ impl PackageRegistry {
 
     /// Check if a package exists at the given directory path.
     pub fn contains_path(&self, path: &Path) -> bool {
-        let packages_by_path = self.packages_by_path.lock();
-        packages_by_path.contains_key(path)
+        self.packages_by_path.contains_key(path)
     }
 
     /// Iterate over the packages in the registry.
     pub fn iter(&self) -> impl Iterator<Item = Arc<RwLock<Package>>> {
-        let packages_by_id = self.packages_by_id.lock();
-        let snapshot: Vec<_> = packages_by_id.values().cloned().collect();
+        let snapshot: Vec<_> = self
+            .packages_by_id
+            .iter()
+            .map(|r| r.value().clone())
+            .collect();
         snapshot.into_iter()
     }
 
     /// Get the number of packages in the registry.
     pub fn len(&self) -> usize {
-        let packages_by_id = self.packages_by_id.lock();
-        packages_by_id.len()
+        self.packages_by_id.len()
     }
 
     /// Whether the registry is empty.
     pub fn is_empty(&self) -> bool {
-        let packages_by_id = self.packages_by_id.lock();
-        packages_by_id.is_empty()
+        self.packages_by_id.is_empty()
     }
 }

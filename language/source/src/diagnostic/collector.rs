@@ -137,6 +137,21 @@ impl DiagnosticCollector {
             .extend(other_locked.diagnostics.iter().cloned());
     }
 
+    /// Take the diagnostics from another diagnostic collector.
+    pub fn take_from(&self, other: &DiagnosticCollector) {
+        let mut this_locked = self.collection.lock();
+        let mut other_locked = other.collection.lock();
+        this_locked
+            .diagnostics
+            .append(&mut other_locked.diagnostics);
+    }
+
+    /// Drain the diagnostics into a vector.
+    pub fn drain(&self) -> Vec<Diagnostic> {
+        let mut collection = self.collection.lock();
+        collection.diagnostics.drain(..).collect()
+    }
+
     /// Check if diagnostics of the given DiagnosticSeverity are present.
     pub fn has_diagnostics_of_severity(&self, severity: DiagnosticSeverity) -> bool {
         self.collection.lock().has_diagnostics_of_severity(severity)

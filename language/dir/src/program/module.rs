@@ -1,5 +1,5 @@
-use parking_lot::{Mutex, RwLock};
-use std::collections::HashMap;
+use dashmap::DashMap;
+use parking_lot::RwLock;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU32, Ordering};
 
@@ -126,7 +126,9 @@ impl Module {
 #[derive(Debug)]
 pub struct ModuleRegistry {
     /// The modules by id.
-    modules_by_id: Mutex<HashMap<ModuleId, Arc<RwLock<Module>>>>,
+    modules_by_id: DashMap<ModuleId, Arc<RwLock<Module>>>,
+    /// URI-based index for looking up modules by their URI.
+    modules_by_uri: DashMap<Uri, ModuleId>,
     /// The next module id.
     next_module_id: AtomicU32,
 }
@@ -141,7 +143,8 @@ impl ModuleRegistry {
     /// Create a new ModuleRegistry.
     pub fn new() -> Self {
         Self {
-            modules_by_id: Mutex::new(HashMap::new()),
+            modules_by_id: DashMap::new(),
+            modules_by_uri: DashMap::new(),
             next_module_id: AtomicU32::new(0),
         }
     }
@@ -154,8 +157,10 @@ impl ModuleRegistry {
 
     /// Insert a module into the registry.
     pub fn insert(&self, module: Module) {
-        let mut modules_by_id = self.modules_by_id.lock();
-        modules_by_id.insert(module.id, Arc::new(RwLock::new(module)));
+        let uri = module.uri.clone();
+        let id = module.id;
+        self.modules_by_id.insert(id, Arc::new(RwLock::new(module)));
+        self.modules_by_uri.insert(uri, id);
     }
 
     /// Get a module by module id.
@@ -164,29 +169,45 @@ impl ModuleRegistry {
     /// Panics if the module is not found.
     #[inline]
     pub fn get(&self, id: ModuleId) -> Arc<RwLock<Module>> {
-        let modules_by_id = self.modules_by_id.lock();
-        modules_by_id
+        self.modules_by_id
             .get(&id)
             .unwrap_or_else(|| panic!("module not found: {id:?}"))
             .clone()
     }
 
+    /// Get a module id by its URI.
+    pub fn get_id_by_uri(&self, uri: &Uri) -> Option<ModuleId> {
+        self.modules_by_uri.get(uri).map(|r| *r.value())
+    }
+
+    /// Get a module by its URI.
+    pub fn get_by_uri(&self, uri: &Uri) -> Option<Arc<RwLock<Module>>> {
+        let id = self.get_id_by_uri(uri)?;
+        Some(self.get(id))
+    }
+
+    /// Check if a module exists at the given URI.
+    pub fn contains_uri(&self, uri: &Uri) -> bool {
+        self.modules_by_uri.contains_key(uri)
+    }
+
     /// Iterate over the modules in the registry.
     pub fn iter(&self) -> impl Iterator<Item = Arc<RwLock<Module>>> {
-        let modules_by_id = self.modules_by_id.lock();
-        let snapshot: Vec<_> = modules_by_id.values().cloned().collect();
+        let snapshot: Vec<_> = self
+            .modules_by_id
+            .iter()
+            .map(|r| r.value().clone())
+            .collect();
         snapshot.into_iter()
     }
 
     /// Get the number of modules in the registry.
     pub fn len(&self) -> usize {
-        let modules_by_id = self.modules_by_id.lock();
-        modules_by_id.len()
+        self.modules_by_id.len()
     }
 
     /// Whether the registry is empty.
     pub fn is_empty(&self) -> bool {
-        let modules_by_id = self.modules_by_id.lock();
-        modules_by_id.is_empty()
+        self.modules_by_id.is_empty()
     }
 }
