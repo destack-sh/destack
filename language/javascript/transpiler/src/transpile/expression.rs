@@ -197,11 +197,19 @@ impl Transpiler {
             }
 
             dir::Expression::Let {
+                descriptor,
                 mutability,
                 pattern,
                 value,
-                symbol: _,
             } => {
+                let descriptor = self.transpile_declaration_descriptor(
+                    module,
+                    tree,
+                    symbols,
+                    types,
+                    descriptor,
+                    unit,
+                );
                 let mutability = self.transpile_mutability(*mutability);
                 let pattern =
                     self.transpile_pattern(module, tree, symbols, types, *pattern, unit)?;
@@ -216,6 +224,7 @@ impl Transpiler {
                     })
                     .transpose()?;
                 let statement = Statement::Let {
+                    descriptor,
                     mutability,
                     pattern,
                     ty,

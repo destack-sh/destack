@@ -1,9 +1,7 @@
 use dyst_ast::StringId;
-use dyst_dir::{GlobalNodeIdAny, GlobalScopeId, GlobalSymbolId, Program};
+use dyst_dir::{GlobalNodeIdAny, GlobalScopeId, ModuleId, Program};
 
 use crate::{CompileError, CompilePhase, CompileTaskWait};
-
-// nocheckin: bind exports, report duplicate declaration bindings, ..
 
 /// Error when binding something into the compiler.
 #[derive(Debug, Clone, PartialEq)]
@@ -13,26 +11,26 @@ pub enum BindError {
     Wait { wait: CompileTaskWait },
     /// Unsupported node.
     UnsupportedNode { node: GlobalNodeIdAny },
-    /// Conflicting declarations in the same scope.
-    ConflictingDeclaration {
-        node: GlobalNodeIdAny,
-        scope: GlobalScopeId,
-        symbol: GlobalSymbolId,
-        name: StringId,
-    },
-    /// Conflicting parameter or pattern binding.
+    /// Conflicting symbol binding.
     ConflictingBinding {
         node: GlobalNodeIdAny,
+        other_node: GlobalNodeIdAny,
         scope: GlobalScopeId,
-        symbol: GlobalSymbolId,
         name: StringId,
     },
     /// Conflicting export name in the same module.
     ConflictingExport {
         node: GlobalNodeIdAny,
-        scope: GlobalScopeId,
-        symbol: GlobalSymbolId,
+        other_node: Option<GlobalNodeIdAny>,
+        module: ModuleId,
         name: StringId,
+    },
+    /// Conflicting default export.
+    ConflictingDefaultExport {
+        node: GlobalNodeIdAny,
+        other_node: Option<GlobalNodeIdAny>,
+        name: Option<StringId>,
+        module: ModuleId,
     },
 }
 
@@ -52,9 +50,9 @@ impl BindError {
         match self {
             Self::Wait { .. } => 0,
             Self::UnsupportedNode { .. } => 1,
-            Self::ConflictingDeclaration { .. } => 2,
-            Self::ConflictingBinding { .. } => 3,
-            Self::ConflictingExport { .. } => 4,
+            Self::ConflictingBinding { .. } => 2,
+            Self::ConflictingExport { .. } => 3,
+            Self::ConflictingDefaultExport { .. } => 4,
         }
     }
 
@@ -63,9 +61,9 @@ impl BindError {
         match self {
             Self::Wait { wait } => wait.nodes.first().copied(),
             Self::UnsupportedNode { node } => Some(*node),
-            Self::ConflictingDeclaration { node, .. } => Some(*node),
             Self::ConflictingBinding { node, .. } => Some(*node),
             Self::ConflictingExport { node, .. } => Some(*node),
+            Self::ConflictingDefaultExport { node, .. } => Some(*node),
         }
     }
 
@@ -74,10 +72,6 @@ impl BindError {
         match self {
             Self::Wait { .. } => "wait for task".to_string(),
             Self::UnsupportedNode { .. } => "unsupported node".to_string(),
-            Self::ConflictingDeclaration { name, .. } => {
-                let name = program.strings.get(*name).to_string();
-                format!("conflicting declaration of '{name}'")
-            }
             Self::ConflictingBinding { name, .. } => {
                 let name = program.strings.get(*name).to_string();
                 format!("conflicting binding of '{name}'")
@@ -85,6 +79,14 @@ impl BindError {
             Self::ConflictingExport { name, .. } => {
                 let name = program.strings.get(*name).to_string();
                 format!("conflicting export of '{name}'")
+            }
+            Self::ConflictingDefaultExport { name, .. } => {
+                if let Some(name) = name {
+                    let name = program.strings.get(*name).to_string();
+                    format!("conflicting default export of '{name}'")
+                } else {
+                    "conflicting default export".to_string()
+                }
             }
         }
     }

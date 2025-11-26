@@ -1,6 +1,6 @@
 use crate::{ParseError, ParseResult, Parser};
 
-use dyst_ast::{DeclarationDescriptor, Expression, Keyword, LocalNodeId, Mutability, TokenType};
+use dyst_ast::{DeclarationDescriptor, Expression, Keyword, LocalNodeId, Mutability, Name, Pattern, TokenType};
 
 impl Parser {
     /// Peek a mutability modifier.
@@ -87,17 +87,24 @@ impl Parser {
     ///     ...
     /// }
     /// ```
-    pub fn eat_let(&mut self, meta: DeclarationDescriptor) -> ParseResult<LocalNodeId<Expression>> {
+    pub fn eat_let(
+        &mut self,
+        mut descriptor: DeclarationDescriptor,
+    ) -> ParseResult<LocalNodeId<Expression>> {
         let start = self.mark();
 
         // mutability
         let mutability = self.eat_mutability()?;
 
         // pattern
-        let pattern = self
+        let pattern_id = self
             .with_options(self.options.not_in_position().in_before_type(), |parser| {
                 parser.eat_pattern()
             })?;
+        let pattern = self.tree.get(pattern_id);
+        if let Pattern::Binding { name, .. } = pattern {
+            descriptor.name = Some(Name::Identifier(*name));
+        }
 
         // type
         let ty = if self.peek_colon().is_ok() {
@@ -124,8 +131,8 @@ impl Parser {
         // let
         let let_id = self.tree.insert(
             Expression::Let {
-                descriptor: meta,
-                pattern,
+                descriptor,
+                pattern: pattern_id,
                 mutability,
                 ty,
                 value,

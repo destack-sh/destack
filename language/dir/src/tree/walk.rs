@@ -239,10 +239,10 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             }
         }
         Expression::Let {
+            descriptor: _,
             mutability: _,
             pattern: pattern_id,
             value: value_id,
-            symbol: _,
         } => {
             let pattern = tree.get(*pattern_id);
             visitor.visit_pattern(tree, *pattern_id, pattern);
@@ -252,12 +252,11 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             }
         }
         Expression::LetType {
+            descriptor: _,
             kind: _,
             mutability: _,
-            name: _,
             static_parameters,
             value,
-            symbol: _,
         } => {
             if let Some(static_parameters) = static_parameters {
                 for parameter_id in static_parameters {

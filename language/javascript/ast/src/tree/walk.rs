@@ -146,6 +146,7 @@ pub fn walk_statement<V: NodeVisitor + ?Sized>(
             visitor.visit_block(tree, *block, block_node);
         }
         Statement::Let {
+            descriptor: _,
             mutability: _,
             pattern,
             ty,
@@ -163,7 +164,7 @@ pub fn walk_statement<V: NodeVisitor + ?Sized>(
             }
         }
         Statement::LetType {
-            name: _,
+            descriptor: _,
             static_parameters,
             value,
         } => {

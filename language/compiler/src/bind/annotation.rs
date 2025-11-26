@@ -17,7 +17,7 @@ impl Compiler {
         types: &mut TypeTable,
     ) {
         // bind them
-        for ast_annotation_id in module.get_nodes::<ast::Annotation>() {
+        for ast_annotation_id in module.ast.get_nodes::<ast::Annotation>() {
             self.bind_annotation(module, scope, ast_annotation_id, tree, symbols, types);
         }
 
@@ -61,13 +61,13 @@ impl Compiler {
         symbols: &mut SymbolTable,
         types: &mut TypeTable,
     ) -> Option<LocalNodeId<Annotation>> {
-        let annotation = module.get(annotation_id);
+        let annotation = module.ast.get(annotation_id);
         let annotation = match annotation {
             ast::Annotation::Blank { .. } => {
                 return None;
             }
             ast::Annotation::Doc { node, position } => {
-                let doc = module.get(*node);
+                let doc = module.ast.get(*node);
                 let position = self.bind_annotation_position(*position);
                 let string = self
                     .program
@@ -76,7 +76,7 @@ impl Compiler {
                 Annotation::Doc { position, string }
             }
             ast::Annotation::Comment { node, position } => {
-                let comment = module.get(*node);
+                let comment = module.ast.get(*node);
                 let position = self.bind_annotation_position(*position);
                 let string = self
                     .program
@@ -85,7 +85,7 @@ impl Compiler {
                 Annotation::Comment { position, string }
             }
             ast::Annotation::Tag { node, position } => {
-                let tag = module.get(*node);
+                let tag = module.ast.get(*node);
                 let position = self.bind_annotation_position(*position);
                 let left = self.bind_path(module, &tag.left);
                 let arguments = tag.arguments.as_ref().map(|arguments| {
@@ -103,7 +103,7 @@ impl Compiler {
                 }
             }
             ast::Annotation::Decorator { node, position } => {
-                let decorator = module.get(*node);
+                let decorator = module.ast.get(*node);
                 let position = self.bind_annotation_position(*position);
                 let left = self.bind_path(module, &decorator.left);
                 let arguments = decorator.arguments.as_ref().map(|arguments| {

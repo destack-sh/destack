@@ -53,7 +53,7 @@ impl Compiler {
     }
 
     /// Bind a module.
-    pub fn bind_module(&self, module: ModuleId) -> BindResult<()> {
+    pub(super) fn bind_module(&self, module: ModuleId) -> BindResult<()> {
         let module = self.program.modules.get(module);
         let module_id = module.read().id;
 
@@ -82,6 +82,15 @@ impl Compiler {
                 .collect()
         };
         module.write().roots.extend(roots);
+
+        // bind exports
+        {
+            let module = module.read();
+            let tree = module.tree.read();
+            // nocheckin: bind export symbols (and detect conflicting exports)
+        }
+
+        // nocheckin: detect conflicting item symbols in scopes
 
         // next task: resolve module
         self.enqueue(ResolveTask::ResolveModule { module: module_id });

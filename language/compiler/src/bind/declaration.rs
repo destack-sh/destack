@@ -76,7 +76,7 @@ impl Compiler {
         symbols: &mut SymbolTable,
         types: &mut TypeTable,
     ) -> LocalNodeId<Declaration> {
-        let declaration = module.get(declaration_id);
+        let declaration = module.ast.get(declaration_id);
         let declaration = match declaration {
             ast::Declaration::Namespace {
                 descriptor,
@@ -376,7 +376,7 @@ impl Compiler {
         symbols: &mut SymbolTable,
         types: &mut TypeTable,
     ) -> LocalNodeId<EnumField> {
-        let field = module.get(field_id);
+        let field = module.ast.get(field_id);
         let name = self
             .program
             .strings

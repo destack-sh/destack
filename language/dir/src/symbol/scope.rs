@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use crate::{LocalSymbolId, ModuleId, SymbolKey};
 
 /// The kind of a scope.
@@ -27,6 +29,22 @@ impl LocalScopeId {
         GlobalScopeId {
             module_id,
             local_id: self,
+        }
+    }
+}
+
+impl Display for LocalScopeId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "#{}", self.0)
+    }
+}
+
+impl Display for LocalScopeMark {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        if self.0 == u32::MAX {
+            write!(f, ".END")
+        } else {
+            write!(f, ".{}", self.0)
         }
     }
 }
@@ -64,7 +82,7 @@ impl From<GlobalScopeId> for LocalScopeId {
 /// Mark a position in a scope.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 #[repr(transparent)]
-pub struct LocalScopeMark(u32);
+pub struct LocalScopeMark(pub u32);
 
 impl LocalScopeMark {
     /// Get the full scope view.
@@ -122,19 +140,23 @@ impl Scope {
 
     /// Get a symbol from the scope by its key.
     pub fn find(&self, key: SymbolKey) -> Option<LocalSymbolId> {
-        self.named_symbols
-            .iter()
-            .rev()
-            .find_map(|(k, id)| if *k == key { Some(*id) } else { None })
+        for (candidate_key, id) in self.named_symbols.iter().rev() {
+            if *candidate_key == key {
+                return Some(*id);
+            }
+        }
+        None
     }
 
     /// Get a symbol from the scope by its id up to a given mark.
     pub fn find_up_to(&self, key: SymbolKey, mark: LocalScopeMark) -> Option<LocalSymbolId> {
-        self.named_symbols
-            .iter()
-            .take((mark.0 + 1) as usize)
-            .rev()
-            .find_map(|(k, id)| if *k == key { Some(*id) } else { None })
+        let limit = mark.0 as usize;
+        for (candidate_key, id) in self.named_symbols.iter().take(limit).rev() {
+            if *candidate_key == key {
+                return Some(*id);
+            }
+        }
+        None
     }
 
     /// Insert a child scope into the scope.

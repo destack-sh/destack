@@ -85,14 +85,14 @@ impl Module {
         let mut symbols = SymbolTable::new(id);
         let namespace_scope_id = symbols.insert_scope(ScopeKind::Namespace, None, None);
         let (namespace_symbol_id, _) = symbols.insert_symbol(
-            SymbolKind::Item,
+            SymbolKind::Namespace,
             SymbolSpace::Value,
             None,
             (namespace_scope_id, LocalScopeMark::end()),
         );
         symbols.get_scope_by_id_mut(namespace_scope_id).owner_id = Some(namespace_symbol_id);
         let (default_symbol_id, _) = symbols.insert_symbol(
-            SymbolKind::Item,
+            SymbolKind::Namespace,
             SymbolSpace::Value,
             None,
             (namespace_scope_id, LocalScopeMark::end()),
@@ -117,26 +117,6 @@ impl Module {
             analysis: RwLock::new(AnalysisTable::new(id)),
             roots: Vec::new(),
         }
-    }
-
-    /// Get an immutable reference to the node with the given NodeId.
-    #[inline]
-    pub fn get<T>(&self, id: ast::LocalNodeId<T>) -> &T
-    where
-        T: ast::Node,
-        ast::NodeTree: ast::NodeTreeImpl<T>,
-    {
-        self.ast.get(id)
-    }
-
-    /// Get nodes for a given type.
-    #[inline]
-    pub fn get_nodes<T>(&self) -> Vec<ast::LocalNodeId<T>>
-    where
-        T: ast::Node,
-        ast::NodeTree: ast::NodeTreeImpl<T>,
-    {
-        self.ast.get_nodes::<T>()
     }
 }
 

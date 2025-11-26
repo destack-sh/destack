@@ -17,7 +17,7 @@ impl Compiler {
         symbols: &mut SymbolTable,
         types: &mut TypeTable,
     ) -> LocalNodeId<WithClause> {
-        let with_clause = module.get(with_clause_id);
+        let with_clause = module.ast.get(with_clause_id);
         let alias = with_clause
             .alias
             .map(|alias| self.program.strings.intern_from(&module.ast_strings, alias));

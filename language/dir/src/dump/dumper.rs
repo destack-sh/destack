@@ -835,29 +835,27 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .end();
             }
             Expression::Let {
+                descriptor,
                 mutability,
                 pattern: _,
                 value: _,
-                symbol,
             } => {
                 self.node("Expression::Let", id.id)
+                    .field("descriptor", descriptor)
                     .field("mutability", mutability)
-                    .field("symbol", symbol)
                     .end();
             }
             Expression::LetType {
+                descriptor,
                 kind,
                 mutability,
-                name,
                 static_parameters: _,
                 value: _,
-                symbol,
             } => {
-                self.node("Expression::Type", id.id)
+                self.node("Expression::LetType", id.id)
+                    .field("descriptor", descriptor)
                     .field("kind", kind)
                     .field_optional("mutability", mutability)
-                    .field("name", name)
-                    .field("symbol", symbol)
                     .end();
             }
 
@@ -1899,6 +1897,16 @@ impl Dump for LocalScopeId {
     }
 }
 
+impl Dump for LocalScopeMark {
+    fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
+        if self.0 == u32::MAX {
+            dumper.write_str(".END", Some(Color::Green));
+        } else {
+            dumper.write_str(format!(".{}", self.0), Some(Color::Green));
+        }
+    }
+}
+
 impl Dump for GlobalSymbolId {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
         dumper.write_str(
@@ -1955,6 +1963,10 @@ impl<'a> Dumper<'a> {
     ) {
         self.node("Scope", id.0)
             .field("id", &id)
+            .field_optional(
+                "parent",
+                &scope.parent.map(|(id, mark)| format!("{id}{mark}")),
+            )
             .field("kind", &scope.kind)
             .field_optional("owner", &scope.owner_id)
             .end();
@@ -1988,6 +2000,7 @@ impl<'a> Dumper<'a> {
                 &symbol.primary_declaration.map(|id| id.local_id.ty),
             )
             .field_optional("key", &symbol.key)
+            .field("scope", &format!("{}{}", symbol.scope.0, symbol.scope.1))
             .end();
     }
 }
