@@ -8,24 +8,24 @@ use crate::{Expression, LocalNodeId, Mutability, Name, Node, NodeType};
 /// Examples:
 /// ```
 /// _
-/// ..
+/// ...
 /// x
 /// 1
 /// &MyEnum.A
 /// 2 | 3
 /// 4..6
-/// (x, 0, ..)
+/// (x, 0, ...)
 /// Success(_)
 /// Vector2 { x: 0, y, z: zed }
-/// geom.Mesh<2, float32> { vertices: [2, ..] }
-/// (var x, ..)
+/// geom.Mesh<2, float32> { vertices: [2, ...] }
+/// (var x, ...)
 /// { a: 2 }
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub enum Pattern {
     /// Wildcard scalar pattern (`_`).
     Wildcard,
-    /// Wildcard rest pattern (`..` or `..rest`).
+    /// Wildcard rest pattern (`...` or `...rest`).
     Rest { name: Option<StringId> },
     /// Maybe pattern (like `T?`).
     Maybe(LocalNodeId<Pattern>),

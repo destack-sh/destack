@@ -20,15 +20,14 @@ impl Transpiler {
                 modifiers,
                 name,
                 default,
-                symbol,
+                symbol: _,
             } => {
-                let symbol = symbols.get_symbol(*symbol);
                 let modifiers = modifiers
                     .map(|modifiers| self.transpile_binding_modifier(module, modifiers, unit))
                     .transpose()?;
                 let name = unit.strings.intern_from(&module.ast_strings, *name);
-                let ty = symbol
-                    .declared_ty
+                let ty = types
+                    .get_declared_type_id(parameter_id.into_global_any(module.id))
                     .map(|ty| self.transpile_type(module, tree, symbols, types, ty, unit))
                     .transpose()?;
                 let default = default
@@ -48,16 +47,15 @@ impl Transpiler {
                 modifiers,
                 pattern,
                 default,
-                symbol: symbol_id,
+                symbol: _,
             } => {
-                let symbol = symbols.get_symbol(*symbol_id);
                 let modifiers = modifiers
                     .map(|modifiers| self.transpile_binding_modifier(module, modifiers, unit))
                     .transpose()?;
                 let pattern =
                     self.transpile_pattern(module, tree, symbols, types, *pattern, unit)?;
-                let ty = symbol
-                    .declared_ty
+                let ty = types
+                    .get_declared_type_id(parameter_id.into_global_any(module.id))
                     .map(|ty| self.transpile_type(module, tree, symbols, types, ty, unit))
                     .transpose()?;
                 let default = default
@@ -76,15 +74,14 @@ impl Transpiler {
             dir::Parameter::Variadic {
                 modifiers,
                 name,
-                symbol: symbol_id,
+                symbol: _,
             } => {
-                let symbol = symbols.get_symbol(*symbol_id);
                 let modifiers = modifiers
                     .map(|modifiers| self.transpile_binding_modifier(module, modifiers, unit))
                     .transpose()?;
                 let name = unit.strings.intern_from(&module.ast_strings, *name);
-                let ty = symbol
-                    .declared_ty
+                let ty = types
+                    .get_declared_type_id(parameter_id.into_global_any(module.id))
                     .map(|ty| self.transpile_type(module, tree, symbols, types, ty, unit))
                     .transpose()?;
                 Parameter::Variadic {

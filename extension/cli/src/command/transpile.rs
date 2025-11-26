@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use clap::{ArgGroup, Args, ValueEnum};
-use dyst_compiler::{CompileOptions, Compiler};
+use dyst_compiler::{CompileOptions, Compiler, ImportTask};
 use dyst_dir::Program;
 use dyst_javascript_transpiler::{TranspileOptions, TranspileTarget, Transpiler};
 use dyst_source::{
@@ -99,15 +99,14 @@ pub fn run(args: &TranspileArgs) -> i32 {
         fs.clone(),
         files.clone(),
     ));
-    let compiler =
-        Compiler::from_single_module(program.clone(), file_id, CompileOptions::default());
+    let compiler = Compiler::new(program.clone(), CompileOptions::default());
+    compiler.enqueue(ImportTask::ImportModuleFromFile { file: file_id });
     compiler.compile();
     drop(compiler);
 
     // handle compiler diagnostics
     let diagnostics = program.diagnostics.collect().map(&diagnostic_options);
     if diagnostics.has_diagnostics_of_severity(DiagnosticSeverity::Error) {
-        // bail early with diagnostics
         print_diagnostics(&program, &diagnostics);
         return 1;
     }

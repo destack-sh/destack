@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use clap::{ArgGroup, Args, ValueEnum};
-use dyst_compiler::{CompileOptions, Compiler};
+use dyst_compiler::{CompileOptions, Compiler, ImportTask};
 use dyst_dir::{Dumper, DumperOptions, NodeVisitor, Program};
 use dyst_source::{
     DiagnosticOptions, FileRegistry, FileSystem, LanguageOptions, PhysicalFileSystem,
@@ -111,14 +111,14 @@ pub fn run(args: &CompileArgs) -> i32 {
         fs.clone(),
         files.clone(),
     ));
-    let compiler = Compiler::from_single_module(
+    let compiler = Compiler::new(
         program.clone(),
-        file_id,
         CompileOptions {
             diagnostic: diagnostic_options.clone(),
             ..Default::default()
         },
     );
+    compiler.enqueue(ImportTask::ImportModuleFromFile { file: file_id });
     compiler.compile();
     drop(compiler);
 

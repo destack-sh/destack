@@ -200,14 +200,13 @@ impl Transpiler {
                 mutability,
                 pattern,
                 value,
-                symbol: symbol_id,
+                symbol: _,
             } => {
-                let symbol = symbols.get_symbol(*symbol_id);
                 let mutability = self.transpile_mutability(*mutability);
                 let pattern =
                     self.transpile_pattern(module, tree, symbols, types, *pattern, unit)?;
-                let ty = symbol
-                    .declared_ty
+                let ty = types
+                    .get_declared_type_id(expression_id.into_global_any(module.id))
                     .map(|ty| self.transpile_type(module, tree, symbols, types, ty, unit))
                     .transpose()?;
                 let value = value

@@ -80,12 +80,13 @@ impl Compiler {
                     symbol: symbol_id,
                 };
                 let parameter_id = tree.insert_from_source(parameter, parameter_id, scope_id);
-                let ty = ty.map(|ty| {
-                    self.bind_expression_to_type(module, scope_id, ty, tree, symbols, types)
-                });
                 let symbol = symbols.get_symbol_mut(symbol_id);
-                symbol.declared_ty = ty;
                 symbol.primary_declaration = Some(parameter_id.into_global_any(module.id));
+                if let Some(ty) = ty {
+                    let ty =
+                        self.bind_expression_to_type(module, scope_id, *ty, tree, symbols, types);
+                    types.declare_type(parameter_id.into_global_any(module.id), ty);
+                }
                 parameter_id
             }
             ast::Parameter::Pattern {
@@ -108,12 +109,13 @@ impl Compiler {
                     symbol: symbol_id,
                 };
                 let parameter_id = tree.insert_from_source(parameter, parameter_id, scope_id);
-                let ty = ty.map(|ty| {
-                    self.bind_expression_to_type(module, scope_id, ty, tree, symbols, types)
-                });
                 let symbol = symbols.get_symbol_mut(symbol_id);
-                symbol.declared_ty = ty;
                 symbol.primary_declaration = Some(parameter_id.into_global_any(module.id));
+                if let Some(ty) = ty {
+                    let ty =
+                        self.bind_expression_to_type(module, scope_id, *ty, tree, symbols, types);
+                    types.declare_type(parameter_id.into_global_any(module.id), ty);
+                }
                 parameter_id
             }
             ast::Parameter::Variadic {
@@ -135,12 +137,13 @@ impl Compiler {
                     symbol: symbol_id,
                 };
                 let parameter_id = tree.insert_from_source(parameter, parameter_id, scope_id);
-                let ty = ty.map(|ty| {
-                    self.bind_expression_to_type(module, scope_id, ty, tree, symbols, types)
-                });
                 let symbol = symbols.get_symbol_mut(symbol_id);
-                symbol.declared_ty = ty;
                 symbol.primary_declaration = Some(parameter_id.into_global_any(module.id));
+                if let Some(ty) = ty {
+                    let ty =
+                        self.bind_expression_to_type(module, scope_id, *ty, tree, symbols, types);
+                    types.declare_type(parameter_id.into_global_any(module.id), ty);
+                }
                 parameter_id
             }
         }

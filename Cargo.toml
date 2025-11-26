@@ -111,9 +111,9 @@ split-debuginfo = "unpacked"
 panic = "abort"
 
 [profile.bench]
-opt-level = 3
+opt-level = 2
 codegen-units = 1
-lto = "thin"
+lto = "off"
 debug-assertions = false
 overflow-checks = false
 split-debuginfo = "unpacked"
@@ -121,9 +121,9 @@ strip = "none"
 debug = true
 
 [profile.release]
-opt-level = 3
+opt-level = 2
 codegen-units = 1
-lto = "thin"
+lto = "off"
 debug-assertions = false
 overflow-checks = false
 strip = "symbols"

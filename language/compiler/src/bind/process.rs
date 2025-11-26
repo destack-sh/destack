@@ -81,7 +81,7 @@ impl Compiler {
         module.write().roots.extend(roots);
 
         // next task: resolve module
-        self.enqueue(ResolveTask::ResolveModule { module: module_id }.into());
+        self.enqueue(ResolveTask::ResolveModule { module: module_id });
 
         Ok(())
     }

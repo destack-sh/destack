@@ -1,13 +1,12 @@
 use std::sync::Arc;
 
 use dyst_dir::Program;
-use dyst_source::{DiagnosticOptions, FileId};
+use dyst_source::DiagnosticOptions;
 use parking_lot::RwLock;
 
 use crate::{
     BuildOptions, CompileDiagnostic, CompileError, CompileWarning, CompilerQueue, ExecuteOptions,
-    ImportOptions, ImportTask, LinkOptions, LowerOptions, OptimizeOptions, ResolveOptions,
-    ValidateOptions,
+    ImportOptions, LinkOptions, LowerOptions, OptimizeOptions, ResolveOptions, ValidateOptions,
 };
 
 /// The options for compiling a Workspace.
@@ -50,29 +49,13 @@ pub struct Compiler {
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
     /// Create a new Compiler.
-    pub fn new(program: Arc<Program>) -> Self {
+    pub fn new(program: Arc<Program>, options: CompileOptions) -> Self {
         Self {
-            program,
-            options: CompileOptions::default(),
-            pending_diagnostics: RwLock::new(Vec::new()),
-            queue: CompilerQueue::new(),
-        }
-    }
-
-    /// Create a new Compiler from a single module.
-    pub fn from_single_module(
-        program: Arc<Program>,
-        file_id: FileId,
-        options: CompileOptions,
-    ) -> Self {
-        let compiler = Self {
             program,
             options,
             pending_diagnostics: RwLock::new(Vec::new()),
             queue: CompilerQueue::new(),
-        };
-        compiler.enqueue(ImportTask::ImportModuleFromFile { file: file_id }.into());
-        compiler
+        }
     }
 
     /// Add an error to the compiler.

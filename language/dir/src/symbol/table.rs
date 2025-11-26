@@ -61,13 +61,16 @@ impl SymbolTable {
             module_id: self.module_id,
             primary_declaration: None,
             secondary_declarations: Vec::new(),
-            declared_ty: None,
-            inferred_ty: None,
             target_symbol: None,
         };
         self.symbols.allocate(symbol);
         self.scopes.get_mut(scope.0).insert_symbol(key, symbol_id);
         symbol_id
+    }
+
+    /// Create a new local anonymous symbol.
+    pub fn insert_anonymous_symbol(&mut self, scope: LocalScopeId) -> LocalSymbolId {
+        self.insert_symbol(SymbolSpace::Value, None, scope)
     }
 
     /// Create a new local scope.
@@ -100,11 +103,22 @@ impl SymbolTable {
     pub fn insert_symbol_with_scope(
         &mut self,
         space: SymbolSpace,
-        key: Option<SymbolKey>,
+        key: SymbolKey,
         kind: ScopeKind,
         scope: LocalScopeId,
     ) -> (LocalSymbolId, LocalScopeId) {
-        let symbol_id = self.insert_symbol(space, key, scope);
+        let symbol_id = self.insert_symbol(space, Some(key), scope);
+        let scope_id = self.insert_scope(kind, Some(scope), Some(symbol_id));
+        (symbol_id, scope_id)
+    }
+
+    /// Create a new anonymous symbol and scope. Symbol belongs to outer scope.
+    pub fn insert_anonymous_symbol_with_scope(
+        &mut self,
+        kind: ScopeKind,
+        scope: LocalScopeId,
+    ) -> (LocalSymbolId, LocalScopeId) {
+        let symbol_id = self.insert_symbol(SymbolSpace::Value, None, scope);
         let scope_id = self.insert_scope(kind, Some(scope), Some(symbol_id));
         (symbol_id, scope_id)
     }
