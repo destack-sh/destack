@@ -283,6 +283,7 @@ impl CompileTaskHandle {
 /// Task wait for other tasks.
 #[derive(Debug, Clone, PartialEq)]
 pub struct CompileTaskWait {
+    // nocheckin: wait for tasks (and error if dependent tasks fail)
     /// The nodes involved in the wait.
     pub nodes: Vec<GlobalNodeIdAny>,
     /// The tasks to wait for.

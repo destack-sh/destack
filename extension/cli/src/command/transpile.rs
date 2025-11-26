@@ -94,8 +94,10 @@ pub fn run(args: &TranspileArgs) -> i32 {
     };
 
     // compile source
+    let cwd = std::env::current_dir().unwrap();
     let program = Arc::new(Program::new(
         LanguageOptions::default(),
+        cwd,
         fs.clone(),
         files.clone(),
     ));

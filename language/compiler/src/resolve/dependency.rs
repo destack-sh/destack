@@ -18,6 +18,7 @@ impl Compiler {
         let import_task = ImportTask::ImportModuleFromSpecifier {
             source,
             target,
+            ty: None,
             module: module.id,
         };
         let error = ResolveError::UnresolvedModule { node, target };

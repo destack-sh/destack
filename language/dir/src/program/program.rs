@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{path::PathBuf, sync::Arc};
 
 use dyst_ast::StringPool;
 use dyst_source::{DiagnosticCollector, FileRegistry, FileSystem, LanguageOptions};
@@ -10,6 +10,8 @@ use crate::{DsConfigRegistry, GlobalScopeId, ModuleRegistry, PackageRegistry, Ts
 pub struct Program {
     /// The language options.
     pub language: LanguageOptions,
+    /// The current working directory.
+    pub root_directory: PathBuf,
     /// The file system.
     pub fs: Arc<dyn FileSystem>,
     /// The files in the program.
@@ -34,11 +36,13 @@ impl Program {
     /// Create a new Program.
     pub fn new(
         language: LanguageOptions,
+        root_directory: PathBuf,
         fs: Arc<dyn FileSystem>,
         files: Arc<FileRegistry>,
     ) -> Self {
         Self {
             language,
+            root_directory,
             fs,
             files,
             modules: ModuleRegistry::new(),

@@ -68,8 +68,10 @@ pub fn run(args: &ParseArgs) -> i32 {
     };
 
     // parse as implicit module
+    let cwd = std::env::current_dir().unwrap();
     let program = Arc::new(Program::new(
         LanguageOptions::default(),
+        cwd,
         fs.clone(),
         files.clone(),
     ));
