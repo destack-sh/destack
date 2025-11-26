@@ -85,9 +85,7 @@ impl Compiler {
         let dynamic_parameters = signature
             .dynamic_parameters
             .iter()
-            .map(|parameter| {
-                self.bind_parameter(module, scope, *parameter, tree, symbols, types)
-            })
+            .map(|parameter| self.bind_parameter(module, scope, *parameter, tree, symbols, types))
             .collect();
         let return_type = signature.return_type.map(|return_type| {
             self.bind_expression(module, scope, return_type, tree, symbols, types)

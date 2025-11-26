@@ -8,7 +8,7 @@ use dyst_source::{FileId, Uri};
 
 use crate::{
     AnalysisTable, Expression, LocalNodeId, LocalScopeId, LocalScopeMark, LocalSymbolId, NodeTree,
-    PackageId, ScopeKind, SymbolSpace, SymbolTable, TypeTable,
+    PackageId, ScopeKind, SymbolKind, SymbolSpace, SymbolTable, TypeTable,
 };
 
 /// Unique identifier for Modules.
@@ -84,13 +84,17 @@ impl Module {
     ) -> Self {
         let mut symbols = SymbolTable::new(id);
         let namespace_scope_id = symbols.insert_scope(ScopeKind::Namespace, None, None);
-        let (namespace_symbol_id, _) = symbols.bind_anonymous_item(
+        let (namespace_symbol_id, _) = symbols.insert_symbol(
+            SymbolKind::Item,
             SymbolSpace::Value,
+            None,
             (namespace_scope_id, LocalScopeMark::end()),
         );
         symbols.get_scope_by_id_mut(namespace_scope_id).owner_id = Some(namespace_symbol_id);
-        let (default_symbol_id, _) = symbols.bind_anonymous_item(
+        let (default_symbol_id, _) = symbols.insert_symbol(
+            SymbolKind::Item,
             SymbolSpace::Value,
+            None,
             (namespace_scope_id, LocalScopeMark::end()),
         );
 

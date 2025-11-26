@@ -43,8 +43,8 @@ impl SymbolTable {
         }
     }
 
-    /// Bind a new symbol.
-    fn bind(
+    /// Insert a new symbol.
+    pub fn insert_symbol(
         &mut self,
         kind: SymbolKind,
         space: SymbolSpace,
@@ -69,84 +69,7 @@ impl SymbolTable {
         (symbol_id, mark)
     }
 
-    /// Bind a new named item.
-    pub fn bind_named_item(
-        &mut self,
-        space: SymbolSpace,
-        key: SymbolKey,
-        scope: (LocalScopeId, LocalScopeMark),
-    ) -> (LocalSymbolId, LocalScopeMark) {
-        self.bind(SymbolKind::Item, space, Some(key), scope)
-    }
-
-    /// Bind a new anonymous item.
-    pub fn bind_anonymous_item(
-        &mut self,
-        space: SymbolSpace,
-        scope: (LocalScopeId, LocalScopeMark),
-    ) -> (LocalSymbolId, LocalScopeMark) {
-        self.bind(SymbolKind::Item, space, None, scope)
-    }
-
-    /// Bind a new named item with an owned scope. Symbols belongs to outer scope.
-    pub fn bind_named_item_with_scope(
-        &mut self,
-        space: SymbolSpace,
-        key: SymbolKey,
-        kind: ScopeKind,
-        scope: (LocalScopeId, LocalScopeMark),
-    ) -> (LocalSymbolId, LocalScopeId, LocalScopeMark) {
-        let (symbol_id, mark) = self.bind(SymbolKind::Item, space, Some(key), scope);
-        let scope_id = self.insert_scope(kind, Some(scope), Some(symbol_id));
-        (symbol_id, scope_id, mark)
-    }
-
-    /// Bind a new anonymous item with an owned scope. Symbol belongs to outer scope.
-    pub fn bind_anonymous_item_with_scope(
-        &mut self,
-        kind: ScopeKind,
-        scope: (LocalScopeId, LocalScopeMark),
-    ) -> (LocalSymbolId, LocalScopeId, LocalScopeMark) {
-        let (symbol_id, mark) = self.bind(SymbolKind::Item, SymbolSpace::Value, None, scope);
-        let scope_id = self.insert_scope(kind, Some(scope), Some(symbol_id));
-        (symbol_id, scope_id, mark)
-    }
-
-    /// Bind a new named local.
-    pub fn bind_named_local(
-        &mut self,
-        space: SymbolSpace,
-        key: SymbolKey,
-        scope: (LocalScopeId, LocalScopeMark),
-    ) -> (LocalSymbolId, LocalScopeMark) {
-        self.bind(SymbolKind::Local, space, Some(key), scope)
-    }
-
-    /// Bind a new named local with an owned scope. Symbol belongs to outer scope.
-    pub fn bind_named_local_with_scope(
-        &mut self,
-        space: SymbolSpace,
-        key: SymbolKey,
-        kind: ScopeKind,
-        scope: (LocalScopeId, LocalScopeMark),
-    ) -> (LocalSymbolId, LocalScopeId, LocalScopeMark) {
-        let (symbol_id, mark) = self.bind(SymbolKind::Local, space, Some(key), scope);
-        let scope_id = self.insert_scope(kind, Some(scope), Some(symbol_id));
-        (symbol_id, scope_id, mark)
-    }
-
-    /// Bind a new anonymous local with an owned scope. Symbol belongs to outer scope.
-    pub fn bind_anonymous_local_with_scope(
-        &mut self,
-        kind: ScopeKind,
-        scope: (LocalScopeId, LocalScopeMark),
-    ) -> (LocalSymbolId, LocalScopeId, LocalScopeMark) {
-        let (symbol_id, mark) = self.bind(SymbolKind::Local, SymbolSpace::Value, None, scope);
-        let scope_id = self.insert_scope(kind, Some(scope), Some(symbol_id));
-        (symbol_id, scope_id, mark)
-    }
-
-    /// Bind a new scope.
+    /// Insert a new scope.
     pub fn insert_scope(
         &mut self,
         kind: ScopeKind,
