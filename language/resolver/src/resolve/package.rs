@@ -43,7 +43,7 @@ impl Resolver {
             }
         };
 
-        // create File and insert into registry
+        // create package file
         let file_id = self.program.files.next_id();
         let (name, uri) = Uri::from_path_with_name(&package_json_path);
         let file =
@@ -63,8 +63,6 @@ impl Resolver {
                     path: package_json_path.clone(),
                 }
             })?;
-
-        // create and insert package
         let package = Package {
             id: package_id,
             file_id,
@@ -86,6 +84,7 @@ impl Resolver {
         Ok(Some(package_id))
     }
 
+    // nocheckin: remove this, don't clone PackageOptions or TsConfig!
     /// Get the PackageOptions for a given PackageId.
     pub(crate) fn get_package_options(&self, package_id: PackageId) -> PackageOptions {
         let package = self.program.packages.get(package_id);
@@ -404,15 +403,15 @@ impl Resolver {
     ) -> Result<Option<PathBuf>, ResolveError> {
         // non-compliant ESM can result in a directory, so directory is tried as well
         if let Some(resolved) = self.load_as_file_or_directory(path, "", ctx)? {
-            return Ok(Some(resolved));
+            Ok(Some(resolved))
+        } else {
+            Err(ResolveError::NotFound {
+                specifier: specifier.to_string(),
+            })
         }
-
-        Err(ResolveError::NotFound {
-            specifier: specifier.to_string(),
-        })
     }
 
-    /// Resolve a bare package specifier by searching node_modules directories.
+    /// Resolve a bare package specifier by searching modules directories.
     pub(crate) fn package_resolve(
         &self,
         path: &Path,
@@ -421,7 +420,7 @@ impl Resolver {
     ) -> Result<Option<PathBuf>, ResolveError> {
         let (package_name, subpath) = Self::parse_package_specifier(specifier);
 
-        // iterate over all possible node_modules directories
+        // iterate over all possible modules directories
         for module_name in &self.options.modules {
             // walk up parent directories
             let mut current = Some(path.to_path_buf());
@@ -633,41 +632,41 @@ impl Resolver {
             );
         }
 
-        // pattern match - find the best matching key
+        // find the best matching pattern key
         let mut best_target = None;
         let mut best_match = "";
         let mut best_key = "";
-        for (expansion_key, target_key) in match_obj.iter() {
+        for (source_key, target_key) in match_obj.iter() {
             // ignore invalid mappings
-            if expansion_key.ends_with('*') && target_key.as_str().is_some_and(|s| !s.contains('*'))
-            {
+            if source_key.ends_with('*') && target_key.as_str().is_some_and(|s| !s.contains('*')) {
+                // (can't have asterisk in source key but not in target)
                 continue;
             }
 
-            if expansion_key.starts_with("./") || expansion_key.starts_with('#') {
+            if source_key.starts_with("./") || source_key.starts_with('#') {
                 // wildcard pattern match
-                if let Some((pattern_base, pattern_trailer)) = expansion_key.split_once('*') {
+                if let Some((pattern_base, pattern_trailer)) = source_key.split_once('*') {
                     if match_key.starts_with(pattern_base)
                         && !pattern_trailer.contains('*')
                         && (pattern_trailer.is_empty()
-                            || (match_key.len() >= expansion_key.len()
+                            || (match_key.len() >= source_key.len()
                                 && match_key.ends_with(pattern_trailer)))
-                        && Self::pattern_key_compare(best_key, expansion_key).is_gt()
+                        && Self::pattern_key_compare(best_key, source_key).is_gt()
                     {
                         best_target = Some(target_key);
                         best_match =
                             &match_key[pattern_base.len()..match_key.len() - pattern_trailer.len()];
-                        best_key = expansion_key;
+                        best_key = source_key;
                     }
                 }
                 // directory pattern match
-                else if expansion_key.ends_with('/')
-                    && match_key.starts_with(expansion_key)
-                    && Self::pattern_key_compare(best_key, expansion_key).is_gt()
+                else if source_key.ends_with('/')
+                    && match_key.starts_with(source_key)
+                    && Self::pattern_key_compare(best_key, source_key).is_gt()
                 {
                     best_target = Some(target_key);
-                    best_match = &match_key[expansion_key.len()..];
-                    best_key = expansion_key;
+                    best_match = &match_key[source_key.len()..];
+                    best_key = source_key;
                 }
             }
         }

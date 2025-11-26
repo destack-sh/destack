@@ -7,16 +7,13 @@ use dyst_dir::{GlobalNodeIdAny, GlobalScopeId, GlobalSymbolId, Program, StringId
 pub enum ResolveError {
     /// Wait for other tasks.
     Wait { wait: CompileTaskWait },
-
     /// Unsupported node.
     UnsupportedNode { node: GlobalNodeIdAny },
-
     /// Circular dependency.
     CircularDependency {
         node: GlobalNodeIdAny,
         depends_on: Vec<GlobalNodeIdAny>,
     },
-
     /// Use of undeclared symbol.
     UndeclaredSymbol {
         node: GlobalNodeIdAny,
@@ -42,20 +39,6 @@ pub enum ResolveError {
         scope: GlobalScopeId,
         target: StringId,
     },
-    /// Conflicting declarations in the same scope.
-    ConflictingDeclaration {
-        node: GlobalNodeIdAny,
-        scope: GlobalScopeId,
-        symbol: GlobalSymbolId,
-        name: StringId,
-    },
-    /// Duplicate export name in the same module.
-    DuplicateExport {
-        node: GlobalNodeIdAny,
-        scope: GlobalScopeId,
-        symbol: GlobalSymbolId,
-        name: StringId,
-    },
 }
 
 impl ResolveError {
@@ -70,8 +53,6 @@ impl ResolveError {
             Self::MissingSymbol { .. } => 4,
             Self::AmbiguousSymbol { .. } => 5,
             Self::UnresolvedModule { .. } => 7,
-            Self::ConflictingDeclaration { .. } => 8,
-            Self::DuplicateExport { .. } => 9,
         }
     }
 
@@ -85,8 +66,6 @@ impl ResolveError {
             Self::MissingSymbol { node, .. } => Some(*node),
             Self::AmbiguousSymbol { node, .. } => Some(*node),
             Self::UnresolvedModule { node, .. } => Some(*node),
-            Self::ConflictingDeclaration { node, .. } => Some(*node),
-            Self::DuplicateExport { node, .. } => Some(*node),
         }
     }
 
@@ -114,14 +93,7 @@ impl ResolveError {
                 let target = program.strings.get(*target).to_string();
                 format!("unresolved module '{target}'")
             }
-            Self::ConflictingDeclaration { name, .. } => {
-                let name = program.strings.get(*name).to_string();
-                format!("conflicting declaration {name}")
-            }
-            Self::DuplicateExport { name, .. } => {
-                let name = program.strings.get(*name).to_string();
-                format!("duplicate export {name}")
-            }
+            
         }
     }
 }
