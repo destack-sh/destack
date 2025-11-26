@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 use dyst_dir::{GlobalNodeIdAny, ModuleId, Program};
 use dyst_parser::ParseError;
 use dyst_source::{StringId, Uri};
@@ -14,6 +16,8 @@ pub enum ImportError {
     InvalidUri { uri: Uri },
     /// File URI not found.
     FileUriNotFound { uri: Uri },
+    /// File not found.
+    FilePathNotFound { path: PathBuf },
     /// Module could not be resolved.
     ModuleNotFound {
         target: StringId,
@@ -38,9 +42,10 @@ impl ImportError {
             Self::Wait { .. } => 0,
             Self::InvalidUri { .. } => 1,
             Self::FileUriNotFound { .. } => 2,
-            Self::ModuleNotFound { .. } => 3,
-            Self::ParseError { .. } => 4,
-            Self::CircularDependency { .. } => 5,
+            Self::FilePathNotFound { .. } => 3,
+            Self::ModuleNotFound { .. } => 4,
+            Self::ParseError { .. } => 5,
+            Self::CircularDependency { .. } => 6,
         }
     }
 
@@ -50,6 +55,7 @@ impl ImportError {
             Self::Wait { wait } => wait.nodes.first().copied(),
             Self::InvalidUri { .. } => None,
             Self::FileUriNotFound { .. } => None,
+            Self::FilePathNotFound { .. } => None,
             Self::ModuleNotFound { .. } => None,
             Self::ParseError { node, .. } => Some(*node),
             Self::CircularDependency { node, .. } => Some(*node),
@@ -62,6 +68,7 @@ impl ImportError {
             Self::Wait { .. } => "wait for task".to_string(),
             Self::InvalidUri { uri } => format!("invalid URI: '{uri}'"),
             Self::FileUriNotFound { uri } => format!("file URI not found: '{uri}'"),
+            Self::FilePathNotFound { path } => format!("file path not found: '{path:?}'"),
             Self::ModuleNotFound { target, .. } => {
                 let target_str = program.strings.get(*target).to_string();
                 format!("module '{target_str}' not found")

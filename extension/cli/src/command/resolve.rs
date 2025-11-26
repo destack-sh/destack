@@ -1,7 +1,10 @@
 use std::path::PathBuf;
+use std::sync::Arc;
 
 use clap::Args;
+use dyst_dir::Program;
 use dyst_resolver::{ResolveOptions, Resolver};
+use dyst_source::{FileRegistry, LanguageOptions, PhysicalFileSystem};
 
 use crate::console;
 
@@ -57,7 +60,16 @@ pub fn run(args: &ResolveArgs) -> i32 {
     options.prefer_absolute = args.prefer_absolute;
     options.resolve_to_directory = args.resolve_directory;
 
-    let resolver = Resolver::blank(options);
+    let cwd = std::env::current_dir().unwrap();
+    let fs = Arc::new(PhysicalFileSystem);
+    let files = Arc::new(FileRegistry::new());
+    let program = Arc::new(Program::new(
+        LanguageOptions::default(),
+        cwd,
+        fs.clone(),
+        files.clone(),
+    ));
+    let resolver = Resolver::new(program, options);
 
     match resolver.resolve(&directory, &args.specifier) {
         Ok(resolution) => {

@@ -20,6 +20,7 @@ impl fmt::Debug for Resolver {
     }
 }
 
+#[allow(dead_code)]
 impl Resolver {
     /// Create a new resolver with options in an existing program.
     pub fn new(program: Arc<Program>, options: ResolveOptions) -> Self {
@@ -29,34 +30,44 @@ impl Resolver {
         }
     }
 
-    /// Create a new resolver with physical file system in an empty program.
-    pub fn blank(options: ResolveOptions) -> Self {
-        let fs: Arc<dyn FileSystem> = Arc::new(PhysicalFileSystem::new());
-        let files = Arc::new(FileRegistry::new());
-        let program = Arc::new(Program::new(
-            LanguageOptions::default(),
-            fs.clone(),
-            files.clone(),
-        ));
-        Self::new(program, options)
-    }
-
-    /// Create a new resolver with a custom file system in an empty program.
-    pub fn blank_with_fs(fs: Arc<dyn FileSystem>, options: ResolveOptions) -> Self {
-        let files = Arc::new(FileRegistry::new());
-        let program = Arc::new(Program::new(
-            LanguageOptions::default(),
-            fs.clone(),
-            files.clone(),
-        ));
-        Self::new(program, options)
-    }
-
     /// Clone the resolver with new options.
     pub fn with_options(&self, options: ResolveOptions) -> Self {
         Self {
             program: self.program.clone(),
             options: options.sanitize(),
         }
+    }
+
+    /// Create a new resolver with physical file system in an empty program (for testing).
+    pub(crate) fn blank(options: ResolveOptions) -> Self {
+        let cwd = options
+            .cwd
+            .clone()
+            .unwrap_or_else(|| std::env::current_dir().unwrap());
+        let fs: Arc<dyn FileSystem> = Arc::new(PhysicalFileSystem::new());
+        let files = Arc::new(FileRegistry::new());
+        let program = Arc::new(Program::new(
+            LanguageOptions::default(),
+            cwd,
+            fs.clone(),
+            files.clone(),
+        ));
+        Self::new(program, options)
+    }
+
+    /// Create a new resolver with a custom file system in an empty program (for testing).
+    pub(crate) fn blank_with_fs(fs: Arc<dyn FileSystem>, options: ResolveOptions) -> Self {
+        let cwd = options
+            .cwd
+            .clone()
+            .unwrap_or_else(|| std::env::current_dir().unwrap());
+        let files = Arc::new(FileRegistry::new());
+        let program = Arc::new(Program::new(
+            LanguageOptions::default(),
+            cwd,
+            fs.clone(),
+            files.clone(),
+        ));
+        Self::new(program, options)
     }
 }

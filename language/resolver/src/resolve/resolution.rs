@@ -3,11 +3,11 @@ use std::path::{Path, PathBuf};
 /// The final resolved path with optional `?query` and `#fragment`
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Resolution {
-    /// The final path with query and fragment (like `foo.js?query#fragment`).
+    /// The path without query and fragment (like `foo.js` in `foo.js?query#fragment`).
     pub path: PathBuf,
-    /// Query `?query`, contains `?` (like `?foo` in `foo.js?foo`).
+    /// Query `?query` (like `?foo` in `foo.js?foo`, including the `?`).
     pub query: Option<String>,
-    /// Fragment `#query`, contains `#` (like `#foo` in `foo.js#foo`).
+    /// Fragment `#query` (like `#foo` in `foo.js#foo`, including the `#`).
     pub fragment: Option<String>,
 }
 

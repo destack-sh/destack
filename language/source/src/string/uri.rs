@@ -86,6 +86,12 @@ impl From<&PathBuf> for Uri {
     }
 }
 
+impl From<PathBuf> for Uri {
+    fn from(path: PathBuf) -> Self {
+        Self(path.to_string_lossy().into_owned())
+    }
+}
+
 impl Display for Uri {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.0)

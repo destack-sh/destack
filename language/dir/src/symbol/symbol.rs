@@ -47,7 +47,6 @@ impl SymbolKey {
 /// The space of a symbol.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum SymbolSpace {
-    // nocheckin: merge SymbolSpace with DependencyKind?
     /// The type space.
     Type,
     /// The value space.
