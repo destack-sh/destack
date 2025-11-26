@@ -37,7 +37,15 @@ impl Compiler {
             } => {
                 let mutability = mutability.map(|mutability| self.bind_mutability(mutability));
                 let right = self.bind_pattern(module, scope_id, *right_id, tree, symbols, types);
-                Pattern::Reference { mutability, right }
+                Pattern::ReferenceOf { mutability, right }
+            }
+            ast::Pattern::ValueOf {
+                mutability,
+                right: right_id,
+            } => {
+                let mutability = mutability.map(|mutability| self.bind_mutability(mutability));
+                let right = self.bind_pattern(module, scope_id, *right_id, tree, symbols, types);
+                Pattern::ValueOf { mutability, right }
             }
             ast::Pattern::Binding {
                 mutability,

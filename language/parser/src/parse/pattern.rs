@@ -46,17 +46,30 @@ impl Parser {
                 self.tree
                     .insert(Pattern::Rest { name }, self.get_span_from(start))
             }
-            // pointer
+            // reference of
             else if self.peek_token(TokenType::Multiply).is_ok()
                 || self.peek_token(TokenType::ElementwiseAnd).is_ok()
             {
-                self.bump(); // eat pointer
+                self.bump(); // eat & or *
                 let mutability = self.eat_mutability_maybe()?;
-                let target_id = self.eat_pattern().for_node_type(NodeType::Pattern)?;
+                let right_id = self.eat_pattern().for_node_type(NodeType::Pattern)?;
                 self.tree.insert(
                     Pattern::ReferenceOf {
                         mutability,
-                        right: target_id,
+                        right: right_id,
+                    },
+                    self.get_span_from(start),
+                )
+            }
+            // value of
+            else if self.peek_token(TokenType::ElementwiseXor).is_ok() {
+                self.bump(); // eat ^
+                let mutability = self.eat_mutability_maybe()?;
+                let right_id = self.eat_pattern().for_node_type(NodeType::Pattern)?;
+                self.tree.insert(
+                    Pattern::ValueOf {
+                        mutability,
+                        right: right_id,
                     },
                     self.get_span_from(start),
                 )
@@ -439,6 +452,20 @@ mod tests {
                 assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
             });
         })
+    }
+
+    #[test]
+    fn test_parse_pattern_value() {
+        // ^var _
+        let mut test = TestParser::new("^mut x");
+        let mut parser = test.prepare();
+        let pattern_id = parser.eat_pattern().unwrap();
+        assert_node!(parser.tree, pattern_id, Pattern::ValueOf { mutability: Some(mutability), right } => {
+            assert_eq!(*mutability, Mutability::Mutable);
+            assert_node!(parser.tree, *right, Pattern::Binding { mutability: None, name, pattern: None } => {
+                assert_string!(parser, *name, "x");
+            });
+        });
     }
 
     #[test]
