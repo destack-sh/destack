@@ -4,7 +4,6 @@ use crate::{BindTask, CompileOutput, CompileTask, Compiler, ImportError, ImportR
 
 use dyst_dir::{DependencySource, Module, ModuleId, PackageId, Program};
 use dyst_parser::Parser;
-use dyst_resolver::Resolver;
 use dyst_source::{File, FileId, FileType, StringId, Uri};
 
 /// Task to import a file into the compiler.
@@ -129,7 +128,7 @@ impl Compiler {
         self.program.modules.insert(module);
 
         // next task: bind module
-        self.enqueue(BindTask::BindModule { module: module_id }.into());
+        self.enqueue(BindTask::BindModule { module: module_id });
 
         Ok(ImportOutput { module: module_id })
     }

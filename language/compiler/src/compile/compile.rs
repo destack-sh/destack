@@ -13,8 +13,8 @@ impl Compiler {
     }
 
     /// Enqueue a task to the compiler.
-    pub fn enqueue(&self, task: CompileTask) {
-        self.queue.push_back(task);
+    pub fn enqueue<T: Into<CompileTask>>(&self, task: T) {
+        self.queue.push_back(task.into());
     }
 
     /// Process a compiler task.

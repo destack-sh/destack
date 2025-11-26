@@ -70,12 +70,12 @@ impl TypeTable {
     }
 
     /// Set the declared type for a node.
-    pub fn set_declared_type(&mut self, node_id: GlobalNodeIdAny, ty: LocalTypeId) {
+    pub fn declare_type(&mut self, node_id: GlobalNodeIdAny, ty: LocalTypeId) {
         self.declared_type_by_node_id.insert(node_id, ty);
     }
 
     /// Set the inferred type for a node.
-    pub fn set_inferred_type(&mut self, node_id: GlobalNodeIdAny, ty: LocalTypeId) {
+    pub fn infer_type(&mut self, node_id: GlobalNodeIdAny, ty: LocalTypeId) {
         self.inferred_type_by_node_id.insert(node_id, ty);
     }
 
@@ -86,10 +86,20 @@ impl TypeTable {
             .map(|ty| self.types.get(ty.0))
     }
 
+    /// Get the declared type id for a node.
+    pub fn get_declared_type_id(&self, node_id: GlobalNodeIdAny) -> Option<LocalTypeId> {
+        self.declared_type_by_node_id.get(&node_id).cloned()
+    }
+
     /// Get the inferred type for a node.
     pub fn get_inferred_type(&self, node_id: GlobalNodeIdAny) -> Option<&Type> {
         self.inferred_type_by_node_id
             .get(&node_id)
             .map(|ty| self.types.get(ty.0))
+    }
+
+    /// Get the inferred type id for a node.
+    pub fn get_inferred_type_id(&self, node_id: GlobalNodeIdAny) -> Option<LocalTypeId> {
+        self.inferred_type_by_node_id.get(&node_id).cloned()
     }
 }

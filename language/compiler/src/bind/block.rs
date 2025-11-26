@@ -1,7 +1,6 @@
 use dyst_ast::{self as ast};
 use dyst_dir::{
-    Block, LocalNodeId, LocalScopeId, Module, NodeTree, ScopeKind, SymbolSpace, SymbolTable,
-    TypeTable,
+    Block, LocalNodeId, LocalScopeId, Module, NodeTree, ScopeKind, SymbolTable, TypeTable,
 };
 
 use crate::Compiler;
@@ -19,7 +18,7 @@ impl Compiler {
         types: &mut TypeTable,
     ) -> LocalNodeId<Block> {
         let (symbol_id, scope_id) =
-            symbols.insert_symbol_with_scope(SymbolSpace::Value, None, ScopeKind::Block, scope_id);
+            symbols.insert_anonymous_symbol_with_scope(ScopeKind::Block, scope_id);
         let block = module.get(block_id);
         let label = block
             .label

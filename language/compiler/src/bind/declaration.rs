@@ -37,12 +37,18 @@ impl Compiler {
                 .strings
                 .intern_from(&module.ast_strings, name.string())
         });
-        let (symbol_id, scope_id) = symbols.insert_symbol_with_scope(
-            SymbolSpace::Value,
-            name.map(SymbolKey::Name),
-            ScopeKind::Namespace,
-            scope_id,
-        );
+        let (symbol_id, scope_id) = {
+            if let Some(name) = name {
+                symbols.insert_symbol_with_scope(
+                    SymbolSpace::Value,
+                    SymbolKey::Name(name),
+                    ScopeKind::Namespace,
+                    scope_id,
+                )
+            } else {
+                symbols.insert_anonymous_symbol_with_scope(ScopeKind::Namespace, scope_id)
+            }
+        };
         let kind = self.bind_declaration_kind(descriptor.kind);
         let anchor = self.bind_binding_anchor(descriptor.anchor);
         let export = descriptor
