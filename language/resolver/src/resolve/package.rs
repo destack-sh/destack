@@ -5,7 +5,7 @@ use std::path::{Component, Path, PathBuf};
 use dyst_dir::{ModuleSpecifier, Package, PackageConfig, PackageId};
 use dyst_source::{File, FileType, PathExt, Uri};
 
-use crate::{ResolutionContext, ResolveError, Resolver};
+use crate::{ResolveContext, ResolveError, Resolver};
 
 /// Check if a path is an invalid exports target.
 fn is_path_invalid_exports_target(path: &Path) -> bool {
@@ -17,12 +17,13 @@ fn is_path_invalid_exports_target(path: &Path) -> bool {
     })
 }
 
+#[allow(clippy::too_many_arguments)]
 impl Resolver {
     /// Load a package.json from a directory, registering it in the program.
     pub(crate) fn load_package(
         &self,
         path: &Path,
-        ctx: &mut ResolutionContext,
+        ctx: &mut ResolveContext,
     ) -> Result<Option<PackageId>, ResolveError> {
         let package_json_path = path.join("package.json");
 
@@ -86,7 +87,7 @@ impl Resolver {
     pub(crate) fn find_package_json(
         &self,
         path: &Path,
-        ctx: &mut ResolutionContext,
+        ctx: &mut ResolveContext,
     ) -> Result<Option<PackageId>, ResolveError> {
         let mut current = path.to_path_buf();
 
@@ -116,11 +117,11 @@ impl Resolver {
         &self,
         path: &Path,
         specifier: &str,
-        ctx: &mut ResolutionContext,
+        ctx: &mut ResolveContext,
     ) -> Result<PathBuf, ResolveError> {
         let (package_name, subpath) = Self::parse_package_specifier(specifier);
         if subpath.is_empty() {
-            ctx.is_fully_specified = false;
+            ctx.skip_extension = false;
         }
 
         // try to load from the package itself
@@ -162,7 +163,7 @@ impl Resolver {
         &self,
         path: &Path,
         specifier: &str,
-        ctx: &mut ResolutionContext,
+        ctx: &mut ResolveContext,
     ) -> Result<Option<PathBuf>, ResolveError> {
         // find the closest package scope to the directory
         let Some(package_id) = self.find_package_json(path, ctx)? else {
@@ -186,7 +187,7 @@ impl Resolver {
         specifier: &str,
         package_name: &str,
         subpath: &str,
-        ctx: &mut ResolutionContext,
+        ctx: &mut ResolveContext,
     ) -> Result<Option<PathBuf>, ResolveError> {
         // check each module directory (node_modules)
         for module_name in &self.options.modules {
@@ -270,7 +271,7 @@ impl Resolver {
         &self,
         path: &Path,
         module_name: &str,
-        ctx: &mut ResolutionContext,
+        ctx: &mut ResolveContext,
     ) -> Option<PathBuf> {
         // check if already in the module directory
         if path
@@ -296,7 +297,7 @@ impl Resolver {
         specifier: &str,
         subpath: &str,
         path: &Path,
-        ctx: &mut ResolutionContext,
+        ctx: &mut ResolveContext,
     ) -> Result<Option<PathBuf>, ResolveError> {
         // check if package.json exists
         let Some(package_id) = self.load_package(path, ctx)? else {
@@ -321,7 +322,7 @@ impl Resolver {
         &self,
         path: &Path,
         specifier: &str,
-        ctx: &mut ResolutionContext,
+        ctx: &mut ResolveContext,
     ) -> Result<Option<PathBuf>, ResolveError> {
         // find the closest package scope to the directory
         let Some(package_id) = self.find_package_json(path, ctx)? else {
@@ -371,7 +372,7 @@ impl Resolver {
         &self,
         specifier: &str,
         path: &Path,
-        ctx: &mut ResolutionContext,
+        ctx: &mut ResolveContext,
     ) -> Result<Option<PathBuf>, ResolveError> {
         // non-compliant ESM can result in a directory, so directory is tried as well
         if let Some(resolved) = self.load_as_file_or_directory(path, "", ctx)? {
@@ -388,7 +389,7 @@ impl Resolver {
         &self,
         path: &Path,
         specifier: &str,
-        ctx: &mut ResolutionContext,
+        ctx: &mut ResolveContext,
     ) -> Result<Option<PathBuf>, ResolveError> {
         let (package_name, subpath) = Self::parse_package_specifier(specifier);
 
@@ -438,7 +439,7 @@ impl Resolver {
 
                     // resolve subpath
                     let subpath_spec = format!(".{subpath}");
-                    ctx.is_fully_specified = false;
+                    ctx.skip_extension = false;
                     return self.require(&package_path, &subpath_spec, ctx).map(Some);
                 }
                 current = current_path.parent().map(|p| p.to_path_buf());
@@ -456,7 +457,7 @@ impl Resolver {
         package_url: &Path,
         subpath: &str,
         exports: &serde_json::Value,
-        ctx: &mut ResolutionContext,
+        ctx: &mut ResolveContext,
     ) -> Result<Option<PathBuf>, ResolveError> {
         let conditions = &self.options.conditions;
 
@@ -497,7 +498,6 @@ impl Resolver {
                 ),
                 _ => None,
             };
-
             if let Some(main_export) = main_export {
                 let resolved = self.package_target_resolve(
                     package_url,
@@ -516,14 +516,8 @@ impl Resolver {
 
         // resolve subpath export
         if let Some(exports) = exports.as_object()
-            && let Some(resolved) = self.package_imports_exports_resolve(
-                subpath,
-                exports,
-                package_url,
-                false,
-                conditions,
-                ctx,
-            )?
+            && let Some(resolved) =
+                self.package_match_resolve(subpath, exports, package_url, false, conditions, ctx)?
         {
             return Ok(Some(resolved));
         }
@@ -542,7 +536,7 @@ impl Resolver {
         &self,
         specifier: &str,
         package_config: &PackageConfig,
-        ctx: &mut ResolutionContext,
+        ctx: &mut ResolveContext,
     ) -> Result<Option<PathBuf>, ResolveError> {
         debug_assert!(specifier.starts_with('#'), "{specifier}");
 
@@ -560,7 +554,7 @@ impl Resolver {
         }
 
         // resolve imports
-        if let Some(resolved) = self.package_imports_exports_resolve(
+        if let Some(resolved) = self.package_match_resolve(
             specifier,
             imports,
             &package_config.directory,
@@ -578,14 +572,14 @@ impl Resolver {
     }
 
     /// Resolve a key against an imports or exports mapping object.
-    pub(crate) fn package_imports_exports_resolve(
+    pub(crate) fn package_match_resolve(
         &self,
         match_key: &str,
         match_obj: &serde_json::Map<String, serde_json::Value>,
         package_url: &Path,
         is_imports: bool,
         conditions: &[String],
-        ctx: &mut ResolutionContext,
+        ctx: &mut ResolveContext,
     ) -> Result<Option<PathBuf>, ResolveError> {
         if match_key.ends_with('/') {
             return Ok(None);
@@ -662,8 +656,7 @@ impl Resolver {
     }
 
     /// Resolve a package target value (string, object, or array) to a path.
-    #[allow(clippy::too_many_arguments)]
-    pub(crate) fn package_target_resolve(
+    fn package_target_resolve(
         &self,
         package_url: &Path,
         target_key: &str,
@@ -671,7 +664,7 @@ impl Resolver {
         pattern_match: Option<&str>,
         is_imports: bool,
         conditions: &[String],
-        ctx: &mut ResolutionContext,
+        ctx: &mut ResolveContext,
     ) -> Result<Option<PathBuf>, ResolveError> {
         /// Normalize a string target by substituting pattern match.
         fn normalize_string_target<'a>(
@@ -819,7 +812,7 @@ impl Resolver {
             return Ordering::Greater;
         }
 
-        // ensure pattern keys end with '/' or contain exactly one '*'
+        // ensure pattern keys are actual pattern keys
         debug_assert!(
             key_a.ends_with('/') || key_a.match_indices('*').count() == 1,
             "{key_a}"

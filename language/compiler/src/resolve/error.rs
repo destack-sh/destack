@@ -93,7 +93,6 @@ impl ResolveError {
                 let target = program.strings.get(*target).to_string();
                 format!("unresolved module '{target}'")
             }
-            
         }
     }
 }

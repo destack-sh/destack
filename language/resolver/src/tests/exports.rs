@@ -20,7 +20,7 @@ fn test_resolve_exports_field_simple() {
 
     let resolver = Resolver::blank(ResolveOptions {
         extensions: vec![".js".into()],
-        is_fully_specified: true,
+        skip_extension: true,
         conditions: vec!["webpack".into()],
         ..ResolveOptions::default()
     });
@@ -145,7 +145,7 @@ fn test_resolve_exports_field_extension_alias() {
     let resolver = Resolver::blank(ResolveOptions {
         extensions: vec![".js".into()],
         extension_alias: IndexMap::from([(".js".into(), vec![".ts".into(), ".js".into()])]),
-        is_fully_specified: true,
+        skip_extension: true,
         conditions: vec!["webpack".into(), "default".into()],
         ..ResolveOptions::default()
     });
@@ -179,7 +179,7 @@ fn test_resolve_exports_field_extension_alias_complex() {
                 ".js".into(),
             ],
         )]),
-        is_fully_specified: true,
+        skip_extension: true,
         conditions: vec!["webpack".into(), "default".into()],
         ..ResolveOptions::default()
     });
@@ -203,7 +203,7 @@ fn test_resolve_exports_field_extension_alias_error() {
     let resolver = Resolver::blank(ResolveOptions {
         extensions: vec![".js".into()],
         extension_alias: IndexMap::from([(".js".into(), vec![".ts".into()])]),
-        is_fully_specified: true,
+        skip_extension: true,
         conditions: vec!["webpack".into(), "default".into()],
         ..ResolveOptions::default()
     });
@@ -2379,7 +2379,7 @@ fn test_resolve_exports_field_cases() {
             Path::new(""),
             case.request,
             &case.exports,
-            &mut crate::ResolutionContext::default(),
+            &mut crate::ResolveContext::default(),
         );
         if let Some(expect) = case.expect {
             if expect.is_empty() {

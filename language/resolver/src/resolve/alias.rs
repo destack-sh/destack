@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 use dyst_dir::PackageConfig;
 use dyst_source::{PathExt, SLASH_START};
 
-use crate::{Alias, AliasValue, ResolutionContext, ResolveError, Resolver};
+use crate::{Alias, AliasValue, ResolveContext, ResolveError, Resolver};
 
 #[allow(clippy::too_many_arguments)]
 impl Resolver {
@@ -67,9 +67,9 @@ impl Resolver {
         path: &Path,
         module_specifier: Option<&str>,
         package_config: &PackageConfig,
-        ctx: &mut ResolutionContext,
+        ctx: &mut ResolveContext,
     ) -> Result<Option<PathBuf>, ResolveError> {
-        if ctx.is_fully_specified {
+        if ctx.skip_extension {
             return Ok(None);
         }
 
@@ -86,11 +86,7 @@ impl Resolver {
         }
 
         // check for recursive alias resolution
-        if ctx
-            .resolving_alias
-            .as_ref()
-            .is_some_and(|s| s == new_specifier)
-        {
+        if ctx.alias.as_ref().is_some_and(|s| s == new_specifier) {
             // complete when resolving to self `{"./a.js": "./a.js"}`
             if new_specifier
                 .strip_prefix("./")
@@ -113,8 +109,8 @@ impl Resolver {
         }
 
         // resolve alias
-        ctx.resolving_alias = Some(new_specifier.to_string());
-        ctx.is_fully_specified = false;
+        ctx.alias = Some(new_specifier.to_string());
+        ctx.skip_extension = false;
         let package_url = package_config.path.parent().unwrap().to_path_buf();
         self.require(&package_url, new_specifier, ctx).map(Some)
     }
@@ -125,7 +121,7 @@ impl Resolver {
         path: &Path,
         specifier: &str,
         aliases: &Alias,
-        ctx: &mut ResolutionContext,
+        ctx: &mut ResolveContext,
     ) -> Result<Option<PathBuf>, ResolveError> {
         for (alias_key_raw, specifiers) in aliases {
             let mut alias_key_has_wildcard = false;
@@ -193,7 +189,7 @@ impl Resolver {
         alias_key_has_wildcard: bool,
         alias_value: &str,
         request: &str,
-        ctx: &mut ResolutionContext,
+        ctx: &mut ResolveContext,
         should_stop: &mut bool,
     ) -> Result<Option<PathBuf>, ResolveError> {
         // skip if request matches alias_value exactly or is a subpath of it
@@ -247,7 +243,7 @@ impl Resolver {
 
         // resolve the substituted specifier
         *should_stop = true;
-        ctx.is_fully_specified = false;
+        ctx.skip_extension = false;
         match self.require(path, new_specifier.as_ref(), ctx) {
             Ok(resolved) => Ok(Some(resolved)),
             Err(ResolveError::NotFound { .. } | ResolveError::MatchedAliasNotFound { .. }) => {
@@ -261,7 +257,7 @@ impl Resolver {
     pub(crate) fn load_with_extension_alias(
         &self,
         path: &Path,
-        ctx: &mut ResolutionContext,
+        ctx: &mut ResolveContext,
     ) -> Result<Option<PathBuf>, ResolveError> {
         // no extension alias configured or found
         if self.options.extension_alias.is_empty() {
@@ -283,27 +279,27 @@ impl Resolver {
             return Ok(None);
         };
 
-        ctx.is_fully_specified = true;
+        ctx.skip_extension = true;
         for extension in extensions {
             // extension has leading dot (e.g., ".ts"), but with_extension needs without dot
             let extension = extension.strip_prefix('.').unwrap_or(extension);
             let path_with_ext = path.with_extension(extension);
             if let Some(resolved) = self.load_alias_or_file(&path_with_ext, ctx)? {
-                ctx.is_fully_specified = false;
+                ctx.skip_extension = false;
                 return Ok(Some(resolved));
             }
         }
 
         // bail if path is module directory (like `ipaddr.js`)
         if !self.is_file(path, ctx) {
-            ctx.is_fully_specified = false;
+            ctx.skip_extension = false;
             return Ok(None);
         } else if !self.check_restrictions(path) {
             return Ok(None);
         }
 
         // error: couldn't resolve any extension alias
-        ctx.is_fully_specified = false;
+        ctx.skip_extension = false;
         let dir = path.parent().unwrap().to_path_buf();
         let filename_without_extension = Path::new(file_name).with_extension("");
         let filename_without_extension = filename_without_extension.to_string_lossy();

@@ -32,8 +32,8 @@ pub struct ResolveOptions {
     /// Attempt to resolve these extensions in order (e.g., `[".js", ".json", ".node"]`).
     pub extensions: Vec<String>,
 
-    /// Request passed to resolve is already fully specified (should ignore extensions).
-    pub is_fully_specified: bool,
+    /// Request passed to resolve is already fully specified (ignore extensions, originally `is_fully_specified`).
+    pub skip_extension: bool,
 
     /// Redirect module requests when normal resolving fails.
     pub fallback: Alias,
@@ -203,7 +203,7 @@ impl Default for ResolveOptions {
                 ".node".into(),
             ],
             fallback: vec![],
-            is_fully_specified: false,
+            skip_extension: false,
             main_files: vec!["index".into()],
             modules: vec!["node_modules".into()],
             resolve_to_directory: false,
@@ -239,8 +239,8 @@ impl fmt::Display for ResolveOptions {
         if !self.fallback.is_empty() {
             write!(f, "fallback:{:?},", self.fallback)?;
         }
-        if self.is_fully_specified {
-            write!(f, "fully_specified:{:?},", self.is_fully_specified)?;
+        if self.skip_extension {
+            write!(f, "fully_specified:{:?},", self.skip_extension)?;
         }
         if !self.main_files.is_empty() {
             write!(f, "main_files:{:?},", self.main_files)?;

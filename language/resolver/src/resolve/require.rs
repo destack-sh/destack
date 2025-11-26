@@ -4,7 +4,7 @@ use std::path::{Component, Path, PathBuf};
 use dyst_dir::ModuleSpecifier;
 use dyst_source::{PathExt, SLASH_START};
 
-use crate::{ResolutionContext, ResolveError, Resolver};
+use crate::{ResolveContext, ResolveError, Resolver};
 
 #[cfg(not(target_arch = "wasm32"))]
 fn resolve_file_protocol(specifier: &str) -> Result<Cow<'_, str>, ResolveError> {
@@ -40,7 +40,7 @@ impl Resolver {
         &self,
         path: &Path,
         specifier: &str,
-        ctx: &mut ResolutionContext,
+        ctx: &mut ResolveContext,
     ) -> Result<PathBuf, ResolveError> {
         ctx.check_depth()?;
 
@@ -72,11 +72,11 @@ impl Resolver {
         &self,
         path: &Path,
         specifier: &str,
-        ctx: &mut ResolutionContext,
+        ctx: &mut ResolveContext,
     ) -> Result<PathBuf, ResolveError> {
         // check tsconfig paths
         if let Some(resolved) =
-            self.load_tsconfig_paths(path, specifier, &mut ResolutionContext::default())?
+            self.load_tsconfig_paths(path, specifier, &mut ResolveContext::default())?
         {
             return Ok(resolved);
         }
@@ -126,7 +126,7 @@ impl Resolver {
         &self,
         path: &Path,
         specifier: &str,
-        ctx: &mut ResolutionContext,
+        ctx: &mut ResolveContext,
     ) -> Result<PathBuf, ResolveError> {
         debug_assert!(
             Path::new(specifier)
@@ -164,7 +164,7 @@ impl Resolver {
         &self,
         path: &Path,
         specifier: &str,
-        ctx: &mut ResolutionContext,
+        ctx: &mut ResolveContext,
     ) -> Result<PathBuf, ResolveError> {
         debug_assert!(
             Path::new(specifier)
@@ -197,7 +197,7 @@ impl Resolver {
         &self,
         path: &Path,
         specifier: &str,
-        ctx: &mut ResolutionContext,
+        ctx: &mut ResolveContext,
     ) -> Result<PathBuf, ResolveError> {
         debug_assert_eq!(specifier.chars().next(), Some('#'));
 
@@ -212,7 +212,7 @@ impl Resolver {
         &self,
         path: &Path,
         specifier: &str,
-        ctx: &mut ResolutionContext,
+        ctx: &mut ResolveContext,
     ) -> Result<PathBuf, ResolveError> {
         debug_assert!(
             Path::new(specifier)
@@ -241,7 +241,7 @@ impl Resolver {
         &self,
         path: &Path,
         specifier: &str,
-        ctx: &mut ResolutionContext,
+        ctx: &mut ResolveContext,
     ) -> Option<PathBuf> {
         // bail if no roots configured
         if self.options.roots.is_empty() {
