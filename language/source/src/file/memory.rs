@@ -27,6 +27,11 @@ struct MemoryFileSystemState {
 }
 
 impl MemoryFileSystem {
+    /// Create a new (empty) MemoryFileSystem.
+    pub fn new() -> Self {
+        Self::default()
+    }
+
     /// Create a new MemoryFileSystem from the given files.
     /// Any intermediate directories are created automatically.
     pub fn from_files(entries: &[(&str, &str)]) -> Self {

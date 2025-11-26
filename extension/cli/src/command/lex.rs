@@ -1,9 +1,9 @@
 use clap::{ArgGroup, Args};
 use dyst_ast::{SemanticType, TokenSpan, TokenType};
 use dyst_parser::{Lexer, is_semantic};
-use dyst_source::{File, FileRegistry, FileSystem, LanguageOptions, PhysicalFileSystem};
+use dyst_source::File;
 
-use crate::command::{SourceArg, get_string_or_file};
+use crate::command::{ProgramArgs, SourceArg, get_string_or_file};
 use crate::console;
 use crate::console::table;
 
@@ -38,32 +38,30 @@ pub struct LexArgs {
     /// Truncate lexeme preview to n chars.
     #[arg(long, default_value_t = 80)]
     pub max_lexeme: usize,
+
+    #[command(flatten)]
+    pub program: ProgramArgs,
 }
 
 /// Tokenize input and show a colored table with locations.
 pub fn run(args: &LexArgs) -> i32 {
-    let fs = PhysicalFileSystem::new();
-    let files = FileRegistry::new();
-    let file_id = match get_string_or_file(
-        &fs,
-        &files,
+    let program = args.program.setup();
+
+    // read input source
+    let file = match get_string_or_file(
+        &program,
         SourceArg {
             file: args.file.as_deref(),
             string: args.string.as_deref(),
             format: args.format.as_deref(),
         },
     ) {
-        Ok(Some(file_id)) => file_id,
-        Ok(None) => {
-            console::error("error: failed to resolve source input");
-            return 1;
-        }
+        Ok(file) => file,
         Err(e) => {
             console::error(&format!("error: {e}"));
             return 1;
         }
     };
-    let file = files.get(file_id);
     let text = file.text();
 
     let use_color = true;
@@ -87,8 +85,7 @@ pub fn run(args: &LexArgs) -> i32 {
     } else {
         |_| true
     };
-    let language = LanguageOptions::default();
-    let (tokens, _) = Lexer::lex(file.id, text, language);
+    let (tokens, _) = Lexer::lex(file.id, text, program.language);
     let tokens: Vec<TokenSpan> = tokens
         .into_iter()
         .filter(|token| filter(token.token.ty))

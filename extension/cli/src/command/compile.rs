@@ -1,13 +1,11 @@
-use std::sync::Arc;
-
 use clap::{ArgGroup, Args, ValueEnum};
 use dyst_compiler::{CompileOptions, Compiler, ImportTask};
-use dyst_dir::{Dumper, DumperOptions, NodeVisitor, Program};
-use dyst_source::{
-    DiagnosticOptions, FileRegistry, FileSystem, LanguageOptions, PhysicalFileSystem,
-};
+use dyst_dir::{Dumper, DumperOptions, NodeVisitor};
+use dyst_source::DiagnosticOptions;
 
-use crate::command::{DiagnosticOptionsArgs, SourceArg, get_string_or_file, print_diagnostics};
+use crate::command::{
+    DiagnosticOptionsArgs, ProgramArgs, SourceArg, get_string_or_file, print_diagnostics,
+};
 use crate::console;
 
 /// The format to dump the compiled DIR.
@@ -73,6 +71,9 @@ pub struct CompileArgs {
     pub silent: bool,
 
     #[command(flatten)]
+    pub program: ProgramArgs,
+
+    #[command(flatten)]
     pub diagnostics: DiagnosticOptionsArgs,
 }
 
@@ -81,24 +82,18 @@ pub fn run(args: &CompileArgs) -> i32 {
     let silent = args.silent;
     let dump = args.dump;
     let diagnostic_options: DiagnosticOptions = args.diagnostics.clone().into();
+    let program = args.program.setup();
 
     // read input source
-    let fs = Arc::new(PhysicalFileSystem::new());
-    let files = Arc::new(FileRegistry::new());
-    let file_id = match get_string_or_file(
-        fs.as_ref(),
-        files.as_ref(),
+    let file = match get_string_or_file(
+        &program,
         SourceArg {
             file: args.file.as_deref(),
             string: args.string.as_deref(),
             format: args.format.as_deref(),
         },
     ) {
-        Ok(Some(file)) => file,
-        Ok(None) => {
-            console::error("error: failed to resolve source input");
-            return 1;
-        }
+        Ok(file) => file,
         Err(e) => {
             console::error(&format!("error: {e}"));
             return 1;
@@ -106,13 +101,6 @@ pub fn run(args: &CompileArgs) -> i32 {
     };
 
     // compile source
-    let cwd = std::env::current_dir().unwrap();
-    let program = Arc::new(Program::new(
-        LanguageOptions::default(),
-        cwd,
-        fs.clone(),
-        files.clone(),
-    ));
     let compiler = Compiler::new(
         program.clone(),
         CompileOptions {
@@ -120,7 +108,7 @@ pub fn run(args: &CompileArgs) -> i32 {
             ..Default::default()
         },
     );
-    compiler.enqueue(ImportTask::ImportModuleFromFile { file: file_id });
+    compiler.enqueue(ImportTask::ImportModuleFromFile { file: file.id });
     compiler.compile();
     drop(compiler);
 
