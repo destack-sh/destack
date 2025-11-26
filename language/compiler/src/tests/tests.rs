@@ -92,6 +92,7 @@ impl TestProgram {
             file_id,
             path.to_string(),
             Uri::from_string(path),
+            None,
             FileType::Dyst,
             content.to_string(),
         );

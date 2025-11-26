@@ -4,7 +4,7 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicU32, Ordering};
 
 use dashmap::DashMap;
-use dyst_source::{File, FileContent, FileId};
+use dyst_source::{File, FileContent, FileId, Uri};
 use parking_lot::RwLock;
 use serde::Deserialize;
 use serde_json::{Map, Value};
@@ -28,6 +28,8 @@ impl PackageId {
 pub struct Package {
     /// The id of the Package.
     pub id: PackageId,
+    /// The URI of the package.
+    pub uri: Uri,
     /// The path to the package directory.
     pub path: PathBuf,
     /// The name of the package.
@@ -70,6 +72,8 @@ impl fmt::Display for PackageType {
 pub struct PackageConfig {
     /// The id of the `package.json` file.
     pub file_id: FileId,
+    /// The URI of the `package.json` file.
+    pub uri: Uri,
     /// The path to the `package.json` file.
     pub path: PathBuf,
     /// The realpath to the `package.json` file.
@@ -106,6 +110,7 @@ impl PackageConfig {
 
         let package = Self {
             file_id: file.id,
+            uri: file.uri.clone(),
             path,
             realpath,
             directory,
@@ -160,6 +165,8 @@ pub struct PackageJson {
 pub struct PackageRegistry {
     /// The packages by id.
     packages_by_id: DashMap<PackageId, Arc<RwLock<Package>>>,
+    /// URI-based index for looking up packages by their URI.
+    packages_by_uri: DashMap<Uri, PackageId>,
     /// Path-based index for looking up packages by their directory path.
     packages_by_path: DashMap<PathBuf, PackageId>,
     /// The next package id.
@@ -177,6 +184,7 @@ impl PackageRegistry {
     pub fn new() -> Self {
         Self {
             packages_by_id: DashMap::new(),
+            packages_by_uri: DashMap::new(),
             packages_by_path: DashMap::new(),
             next_package_id: AtomicU32::new(0),
         }
@@ -190,10 +198,12 @@ impl PackageRegistry {
 
     /// Insert a package into the registry.
     pub fn insert(&self, package: Package) {
+        let uri = package.uri.clone();
         let path = package.path.clone();
         let id = package.id;
         self.packages_by_id
             .insert(id, Arc::new(RwLock::new(package)));
+        self.packages_by_uri.insert(uri, id);
         self.packages_by_path.insert(path, id);
     }
 
@@ -207,6 +217,22 @@ impl PackageRegistry {
             .get(&id)
             .unwrap_or_else(|| panic!("package not found: {id:?}"))
             .clone()
+    }
+
+    /// Get a package id by its URI.
+    pub fn get_id_by_uri(&self, uri: &Uri) -> Option<PackageId> {
+        self.packages_by_uri.get(uri).map(|r| *r.value())
+    }
+
+    /// Get a package by its URI.
+    pub fn get_by_uri(&self, uri: &Uri) -> Option<Arc<RwLock<Package>>> {
+        let id = self.get_id_by_uri(uri)?;
+        Some(self.get(id))
+    }
+
+    /// Check if a package exists with the given URI.
+    pub fn contains_uri(&self, uri: &Uri) -> bool {
+        self.packages_by_uri.contains_key(uri)
     }
 
     /// Get a package id by its directory path.

@@ -30,6 +30,7 @@ impl TestFormatter {
             file_id,
             "<string>".to_string(),
             Uri::from_string("<string>"),
+            None,
             FileType::Dyst,
             input.to_string(),
         );

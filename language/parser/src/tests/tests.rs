@@ -24,6 +24,7 @@ impl TestParser {
             file_id,
             "<string>".to_string(),
             Uri::from_string("<string>"),
+            None,
             FileType::Dyst,
             input.to_string(),
         );
@@ -181,7 +182,8 @@ mod tests {
             let file = File::from_text(
                 file_id,
                 name,
-                Uri::from_string(path),
+                Uri::from_string(&path),
+                Some(std::path::PathBuf::from(&path)),
                 FileType::Dyst,
                 fs::read_to_string(ds_file).unwrap(),
             );

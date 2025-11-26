@@ -214,11 +214,17 @@ impl Resolver {
         })?;
         let file_id = self.program.files.next_id();
         let (name, uri) = Uri::from_path_with_name(&*tsconfig_path);
-        let file = File::from_text_as_jsonc(file_id, name, uri, FileType::Json, content).map_err(
-            |_| ResolveError::TsConfigInvalid {
-                path: tsconfig_path.to_path_buf(),
-            },
-        )?;
+        let file = File::from_text_as_jsonc(
+            file_id,
+            name,
+            uri,
+            Some(tsconfig_path.to_path_buf()),
+            FileType::Json,
+            content,
+        )
+        .map_err(|_| ResolveError::TsConfigInvalid {
+            path: tsconfig_path.to_path_buf(),
+        })?;
         self.program.files.insert(file);
         let file = self.program.files.get(file_id);
 

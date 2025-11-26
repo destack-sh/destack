@@ -46,6 +46,7 @@ fn bench_parse(c: &mut Criterion) {
         FileId::new(0),
         "<string>".to_string(),
         Uri::from_string("<string>"),
+        None,
         FileType::Dyst,
         ds_str,
     );

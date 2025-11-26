@@ -1,16 +1,16 @@
-use std::collections::HashMap;
 use std::fmt::Debug;
 use std::hash::BuildHasherDefault;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU32, Ordering};
 
+use dashmap::DashMap;
 use indexmap::IndexMap;
-use parking_lot::{Mutex, RwLock};
+use parking_lot::RwLock;
 use rustc_hash::FxHasher;
 use serde::Deserialize;
 
-use dyst_source::{File, FileContent, FileId, PathExt};
+use dyst_source::{File, FileContent, FileId, PathExt, Uri};
 
 /// Template variable for the config directory path (e.g. `${configDir}`).
 /// <https://github.com/microsoft/TypeScript/pull/58042>
@@ -37,6 +37,8 @@ pub struct TsConfig {
     pub file_id: FileId,
     /// Whether this is the root tsconfig in its context.
     pub is_root: bool,
+    /// The URI of the `tsconfig.json` file.
+    pub uri: Uri,
     /// Path to the `tsconfig.json` file (including the `tsconfig.json`).
     pub path: PathBuf,
     /// The directory containing the `tsconfig.json` file.
@@ -65,10 +67,11 @@ impl TsConfig {
         // parse the tsconfig from the JSON value
         let tsconfig_json: TsConfigJson = serde_json::from_value(value.clone())?;
 
-        // extract path from file URI
+        // extract path from file (prefer file.path, fall back to URI conversion)
         let path = file
-            .uri
-            .to_path_buf()
+            .path
+            .clone()
+            .or_else(|| file.uri.to_path_buf())
             .expect("tsconfig file must have a valid path");
         let directory = path
             .parent()
@@ -79,6 +82,7 @@ impl TsConfig {
             id,
             file_id: file.id,
             is_root,
+            uri: file.uri.clone(),
             path,
             directory: directory.clone(),
             paths_base: directory,
@@ -357,9 +361,11 @@ impl TsConfig {
 #[derive(Debug)]
 pub struct TsConfigRegistry {
     /// The tsconfigs by id.
-    tsconfigs_by_id: Mutex<HashMap<TsConfigId, Arc<RwLock<TsConfig>>>>,
+    tsconfigs_by_id: DashMap<TsConfigId, Arc<RwLock<TsConfig>>>,
+    /// URI-based index for looking up tsconfigs by their URI.
+    tsconfigs_by_uri: DashMap<Uri, TsConfigId>,
     /// Path-based index for looking up tsconfigs by their file path.
-    tsconfigs_by_path: Mutex<HashMap<PathBuf, TsConfigId>>,
+    tsconfigs_by_path: DashMap<PathBuf, TsConfigId>,
     /// The next tsconfig id.
     next_tsconfig_id: AtomicU32,
 }
@@ -374,8 +380,9 @@ impl TsConfigRegistry {
     /// Create a new TsConfigRegistry.
     pub fn new() -> Self {
         Self {
-            tsconfigs_by_id: Mutex::new(HashMap::new()),
-            tsconfigs_by_path: Mutex::new(HashMap::new()),
+            tsconfigs_by_id: DashMap::new(),
+            tsconfigs_by_uri: DashMap::new(),
+            tsconfigs_by_path: DashMap::new(),
             next_tsconfig_id: AtomicU32::new(0),
         }
     }
@@ -388,14 +395,13 @@ impl TsConfigRegistry {
 
     /// Insert a tsconfig into the registry.
     pub fn insert(&self, tsconfig: TsConfig) {
+        let uri = tsconfig.uri.clone();
         let path = tsconfig.path.clone();
         let id = tsconfig.id;
-        let mut tsconfigs_by_id = self.tsconfigs_by_id.lock();
-        tsconfigs_by_id.insert(id, Arc::new(RwLock::new(tsconfig)));
-
-        // maintain path index
-        let mut tsconfigs_by_path = self.tsconfigs_by_path.lock();
-        tsconfigs_by_path.insert(path, id);
+        self.tsconfigs_by_id
+            .insert(id, Arc::new(RwLock::new(tsconfig)));
+        self.tsconfigs_by_uri.insert(uri, id);
+        self.tsconfigs_by_path.insert(path, id);
     }
 
     /// Get a tsconfig by id.
@@ -403,17 +409,31 @@ impl TsConfigRegistry {
     /// # Panics
     /// Panics if the tsconfig is not found.
     pub fn get(&self, id: TsConfigId) -> Arc<RwLock<TsConfig>> {
-        let tsconfigs_by_id = self.tsconfigs_by_id.lock();
-        tsconfigs_by_id
+        self.tsconfigs_by_id
             .get(&id)
             .unwrap_or_else(|| panic!("tsconfig not found: {id:?}"))
             .clone()
     }
 
+    /// Get a tsconfig id by its URI.
+    pub fn get_id_by_uri(&self, uri: &Uri) -> Option<TsConfigId> {
+        self.tsconfigs_by_uri.get(uri).map(|r| *r.value())
+    }
+
+    /// Get a tsconfig by its URI.
+    pub fn get_by_uri(&self, uri: &Uri) -> Option<Arc<RwLock<TsConfig>>> {
+        let id = self.get_id_by_uri(uri)?;
+        Some(self.get(id))
+    }
+
+    /// Check if a tsconfig exists with the given URI.
+    pub fn contains_uri(&self, uri: &Uri) -> bool {
+        self.tsconfigs_by_uri.contains_key(uri)
+    }
+
     /// Get a tsconfig id by its file path.
     pub fn get_id_by_path(&self, path: &Path) -> Option<TsConfigId> {
-        let tsconfigs_by_path = self.tsconfigs_by_path.lock();
-        tsconfigs_by_path.get(path).copied()
+        self.tsconfigs_by_path.get(path).map(|r| *r.value())
     }
 
     /// Get a tsconfig by its file path.
@@ -424,27 +444,27 @@ impl TsConfigRegistry {
 
     /// Check if a tsconfig exists at the given file path.
     pub fn contains_path(&self, path: &Path) -> bool {
-        let tsconfigs_by_path = self.tsconfigs_by_path.lock();
-        tsconfigs_by_path.contains_key(path)
+        self.tsconfigs_by_path.contains_key(path)
     }
 
     /// Iterate over the tsconfigs in the registry.
     pub fn iter(&self) -> impl Iterator<Item = Arc<RwLock<TsConfig>>> {
-        let tsconfigs_by_id = self.tsconfigs_by_id.lock();
-        let snapshot: Vec<_> = tsconfigs_by_id.values().cloned().collect();
+        let snapshot: Vec<_> = self
+            .tsconfigs_by_id
+            .iter()
+            .map(|r| r.value().clone())
+            .collect();
         snapshot.into_iter()
     }
 
     /// Get the number of tsconfigs in the registry.
     pub fn len(&self) -> usize {
-        let tsconfigs_by_id = self.tsconfigs_by_id.lock();
-        tsconfigs_by_id.len()
+        self.tsconfigs_by_id.len()
     }
 
     /// Whether the registry is empty.
     pub fn is_empty(&self) -> bool {
-        let tsconfigs_by_id = self.tsconfigs_by_id.lock();
-        tsconfigs_by_id.is_empty()
+        self.tsconfigs_by_id.is_empty()
     }
 }
 
@@ -795,6 +815,7 @@ pub struct TsConfigProjectReferences {
 
 #[cfg(test)]
 mod tests {
+    use std::path::PathBuf;
     use std::sync::Arc;
 
     use dyst_source::{File, FileId, FileType, Uri};
@@ -826,6 +847,7 @@ mod tests {
                 FileId::new(0),
                 "tsconfig.json".to_string(),
                 Uri::from_path("/parent/tsconfig.json"),
+                Some(PathBuf::from("/parent/tsconfig.json")),
                 FileType::Json,
                 parent_config,
             )
@@ -840,6 +862,7 @@ mod tests {
                 FileId::new(1),
                 "tsconfig.json".to_string(),
                 Uri::from_path("/child/tsconfig.json"),
+                Some(PathBuf::from("/child/tsconfig.json")),
                 FileType::Json,
                 child_config,
             )

@@ -485,6 +485,7 @@ mod tests {
             id,
             "<test>".to_string(),
             Uri::from_string("<test>"),
+            None,
             FileType::Dyst,
             content.clone(),
         );
@@ -526,6 +527,7 @@ mod tests {
             id,
             "<test>".to_string(),
             Uri::from_string("<test>"),
+            None,
             FileType::Dyst,
             content.to_string(),
         );
