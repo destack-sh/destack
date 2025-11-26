@@ -1,6 +1,7 @@
 use dyst_ast::{self as ast};
 use dyst_dir::{
-    Block, LocalNodeId, LocalScopeId, Module, NodeTree, ScopeKind, SymbolTable, TypeTable,
+    Block, LocalNodeId, LocalScopeId, LocalScopeMark, Module, NodeTree, ScopeKind, SymbolTable,
+    TypeTable,
 };
 
 use crate::Compiler;
@@ -11,14 +12,14 @@ impl Compiler {
     pub(super) fn bind_block(
         &self,
         module: &Module,
-        scope_id: LocalScopeId,
+        scope: (LocalScopeId, LocalScopeMark),
         block_id: ast::LocalNodeId<ast::Block>,
         tree: &mut NodeTree,
         symbols: &mut SymbolTable,
         types: &mut TypeTable,
     ) -> LocalNodeId<Block> {
-        let (symbol_id, scope_id) =
-            symbols.insert_anonymous_symbol_with_scope(ScopeKind::Block, scope_id);
+        let (symbol_id, scope_id, _) =
+            symbols.bind_anonymous_item_with_scope(ScopeKind::Block, scope);
         let block = module.get(block_id);
         let label = block
             .label
@@ -27,7 +28,14 @@ impl Compiler {
             .expressions
             .iter()
             .map(|expression| {
-                self.bind_expression(module, scope_id, *expression, tree, symbols, types)
+                self.bind_expression(
+                    module,
+                    (scope_id, symbols.get_scope_mark(scope_id)),
+                    *expression,
+                    tree,
+                    symbols,
+                    types,
+                )
             })
             .collect();
         let block_id = tree.insert_from_source(
@@ -37,9 +45,9 @@ impl Compiler {
                 scope: scope_id,
             },
             block_id,
-            scope_id,
+            (scope_id, LocalScopeMark::end()),
         );
-        symbols.set_primary_declaration(symbol_id, block_id);
+        symbols.get_symbol_mut(symbol_id).declare_primary(block_id);
         block_id
     }
 }

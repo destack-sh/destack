@@ -1,5 +1,3 @@
-use indexmap::IndexMap;
-
 use crate::{LocalSymbolId, ModuleId, SymbolKey};
 
 /// The kind of a scope.
@@ -63,6 +61,18 @@ impl From<GlobalScopeId> for LocalScopeId {
     }
 }
 
+/// Mark a position in a scope.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[repr(transparent)]
+pub struct LocalScopeMark(u32);
+
+impl LocalScopeMark {
+    /// Get the full scope view.
+    pub fn end() -> Self {
+        Self(u32::MAX)
+    }
+}
+
 /// A Scope is a container for symbols.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Scope {
@@ -71,13 +81,13 @@ pub struct Scope {
     /// The kind of the scope.
     pub kind: ScopeKind,
     /// The parent scope.
-    pub parent_id: Option<LocalScopeId>,
+    pub parent: Option<(LocalScopeId, LocalScopeMark)>,
     /// The module id of the scope.
     pub module_id: ModuleId,
     /// The owner of the scope.
-    pub owner: Option<LocalSymbolId>,
+    pub owner_id: Option<LocalSymbolId>,
     /// The symbols in the scope.
-    pub symbols_by_key: IndexMap<SymbolKey, LocalSymbolId>,
+    pub named_symbols: Vec<(SymbolKey, LocalSymbolId)>,
     /// THe anonymous symbols in the scope.
     pub anonymous_symbols: Vec<LocalSymbolId>,
     /// The children scopes.
@@ -88,28 +98,47 @@ impl Scope {
     /// Whether the scope is the root scope.
     #[inline]
     pub fn is_root(&self) -> bool {
-        self.parent_id.is_none()
+        self.parent.is_none()
+    }
+
+    /// Get the current scope mark.
+    pub fn mark(&self) -> LocalScopeMark {
+        LocalScopeMark(self.named_symbols.len() as u32)
     }
 
     /// Insert a symbol into the scope.
-    pub fn insert_symbol(&mut self, key: Option<SymbolKey>, symbol_id: LocalSymbolId) {
+    pub fn append(&mut self, key: Option<SymbolKey>, symbol_id: LocalSymbolId) -> LocalScopeMark {
+        let mark = LocalScopeMark(self.named_symbols.len() as u32);
         match key {
             Some(key) => {
-                self.symbols_by_key.insert(key, symbol_id);
+                self.named_symbols.push((key, symbol_id));
             }
             None => {
                 self.anonymous_symbols.push(symbol_id);
             }
         }
+        mark
     }
 
-    /// Get a symbol from the scope.
-    pub fn find_symbol(&self, key: SymbolKey) -> Option<LocalSymbolId> {
-        self.symbols_by_key.get(&key).cloned()
+    /// Get a symbol from the scope by its key.
+    pub fn find(&self, key: SymbolKey) -> Option<LocalSymbolId> {
+        self.named_symbols
+            .iter()
+            .rev()
+            .find_map(|(k, id)| if *k == key { Some(*id) } else { None })
+    }
+
+    /// Get a symbol from the scope by its id up to a given mark.
+    pub fn find_up_to(&self, key: SymbolKey, mark: LocalScopeMark) -> Option<LocalSymbolId> {
+        self.named_symbols
+            .iter()
+            .take((mark.0 + 1) as usize)
+            .rev()
+            .find_map(|(k, id)| if *k == key { Some(*id) } else { None })
     }
 
     /// Insert a child scope into the scope.
-    pub fn insert_child_scope(&mut self, scope_id: LocalScopeId) {
+    pub fn append_child(&mut self, scope_id: LocalScopeId) {
         self.children.push(scope_id);
     }
 }

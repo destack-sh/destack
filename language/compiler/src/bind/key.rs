@@ -1,6 +1,6 @@
 use crate::Compiler;
 use dyst_ast as ast;
-use dyst_dir::{Key, LocalScopeId, Module, NodeTree, SymbolTable, TypeTable};
+use dyst_dir::{Key, LocalScopeId, LocalScopeMark, Module, NodeTree, SymbolTable, TypeTable};
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
@@ -8,7 +8,7 @@ impl Compiler {
     pub(super) fn bind_key(
         &self,
         module: &Module,
-        scope_id: LocalScopeId,
+        scope: (LocalScopeId, LocalScopeMark),
         key: ast::Key,
         tree: &mut NodeTree,
         symbols: &mut SymbolTable,
@@ -24,12 +24,12 @@ impl Compiler {
             }
             ast::Key::Expression(expression) => {
                 let expression =
-                    self.bind_expression(module, scope_id, expression, tree, symbols, types);
+                    self.bind_expression(module, scope, expression, tree, symbols, types);
                 Key::Expression(expression)
             }
             ast::Key::NamedExpression { name, key } => {
                 let name = self.program.strings.intern_from(&module.ast_strings, name);
-                let key = self.bind_expression(module, scope_id, key, tree, symbols, types);
+                let key = self.bind_expression(module, scope, key, tree, symbols, types);
                 Key::NamedExpression { name, key }
             }
         }

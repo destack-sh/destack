@@ -1,7 +1,7 @@
 use crate::Compiler;
 use dyst_ast as ast;
 use dyst_dir::{
-    DeclarationType, FloatType, IntType, LocalScopeId, Module, NodeTree, PrimitiveType,
+    DeclarationType, FloatType, IntType, LocalScopeId, LocalScopeMark, Module, NodeTree, PrimitiveType,
     ScalarLiteral, SymbolTable, TemplateLiteral, TypeLiteral, TypeTable,
 };
 
@@ -46,7 +46,7 @@ impl Compiler {
     pub(super) fn bind_template_literal(
         &self,
         module: &Module,
-        scope_id: LocalScopeId,
+        scope: (LocalScopeId, LocalScopeMark),
         template_literal: &ast::TemplateLiteral,
         tree: &mut NodeTree,
         symbols: &mut SymbolTable,
@@ -72,7 +72,7 @@ impl Compiler {
                 let arguments = arguments
                     .iter()
                     .map(|argument| {
-                        self.bind_argument(module, scope_id, *argument, tree, symbols, types)
+                        self.bind_argument(module, scope, *argument, tree, symbols, types)
                     })
                     .collect();
                 TemplateLiteral::InterpolatedString { strings, arguments }

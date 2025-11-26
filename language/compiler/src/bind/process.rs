@@ -69,7 +69,10 @@ impl Compiler {
                 .map(|expression| {
                     self.bind_expression(
                         &module,
-                        module.namespace_scope,
+                        (
+                            module.namespace_scope,
+                            symbols.get_scope_mark(module.namespace_scope),
+                        ),
                         *expression,
                         &mut tree,
                         &mut symbols,

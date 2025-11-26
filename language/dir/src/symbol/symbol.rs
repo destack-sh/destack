@@ -1,4 +1,7 @@
-use crate::{GlobalNodeIdAny, LocalNodeIdAny, LocalScopeId, ModuleId, Program, StringId};
+use crate::{
+    GlobalNodeIdAny, LocalNodeId, LocalNodeIdAny, LocalScopeId, LocalScopeMark, ModuleId, Node,
+    Program, StringId,
+};
 
 /// Key for a symbol.
 #[derive(Debug, Clone, Copy, PartialEq, Hash, PartialOrd, Eq)]
@@ -48,6 +51,15 @@ pub enum SymbolSpace {
     Type,
     /// The value space.
     Value,
+}
+
+/// The kind of a symbol.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub enum SymbolKind {
+    /// Declaration (must be unique within its scope).
+    Item,
+    /// Local (may be shadowed within its scope).
+    Local,
 }
 
 /// Unique identifier for Symbols.
@@ -100,18 +112,19 @@ impl From<GlobalSymbolId> for LocalSymbolId {
     }
 }
 
-/// A Symbol is a bindable item in a scope (which may also declare a scope).
-/// Some symbols are virtual / anonymous (like block targets).
+/// A Symbol is a bindable item or local in a scope (which may also declare a scope).
 #[derive(Debug, Clone, PartialEq)]
 pub struct Symbol {
     /// The id of the symbol.
     pub id: LocalSymbolId,
+    /// The kind of the symbol.
+    pub kind: SymbolKind,
     /// The "space" of the symbol.
     pub space: SymbolSpace,
     /// The key of the symbol.
     pub key: Option<SymbolKey>,
     /// The scope that introduces the symbol.
-    pub scope_id: LocalScopeId,
+    pub scope: (LocalScopeId, LocalScopeMark),
     /// The module id of the scope.
     pub module_id: ModuleId,
     /// The main declaration node of the symbol.
@@ -130,5 +143,21 @@ impl Symbol {
             Some(SymbolKey::Name(name)) => Some(name),
             _ => None,
         }
+    }
+
+    /// Declare this symbol from a declaration node.
+    pub fn declare_primary<T: Node>(&mut self, node_id: LocalNodeId<T>) {
+        self.primary_declaration = Some(node_id.into_global_any(self.module_id));
+    }
+
+    /// Declare a secondary declaration for this symbol.
+    pub fn declare_secondary<T: Node>(&mut self, node_id: LocalNodeId<T>) {
+        self.secondary_declarations
+            .push(node_id.into_global_any(self.module_id));
+    }
+
+    /// Resolve a target symbol for this symbol.
+    pub fn resolve_to(&mut self, target_symbol: GlobalSymbolId) {
+        self.target_symbol = Some(target_symbol);
     }
 }

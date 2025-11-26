@@ -1889,6 +1889,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
 impl_dump_display! {
     ScopeKind,
     SymbolSpace,
+    SymbolKind,
     NodeType,
 }
 
@@ -1955,11 +1956,11 @@ impl<'a> Dumper<'a> {
         self.node("Scope", id.0)
             .field("id", &id)
             .field("kind", &scope.kind)
-            .field_optional("owner", &scope.owner)
+            .field_optional("owner", &scope.owner_id)
             .end();
         self.with_depth(|dumper| {
             // symbols
-            for (_key, symbol_id) in scope.symbols_by_key.iter() {
+            for (_key, symbol_id) in scope.named_symbols.iter() {
                 let symbol = symbols.get_symbol(*symbol_id);
                 dumper.visit_symbol(tree, symbols, *symbol_id, symbol);
             }
@@ -1980,6 +1981,7 @@ impl<'a> Dumper<'a> {
     ) {
         self.node("Symbol", id.0)
             .field("id", &id)
+            .field("kind", &symbol.kind)
             .field("space", &symbol.space)
             .field_optional(
                 "declaration",

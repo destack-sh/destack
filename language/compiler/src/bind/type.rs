@@ -1,7 +1,7 @@
 use crate::Compiler;
 use dyst_ast as ast;
 use dyst_dir::{
-    Generics, Heritage, LocalScopeId, LocalTypeId, Module, Mutability, NodeTree, SymbolTable, Type,
+    Generics, Heritage, LocalScopeId, LocalScopeMark, LocalTypeId, Module, Mutability, NodeTree, SymbolTable, Type,
     TypeKind, TypeTable, VarianceBound,
 };
 
@@ -11,14 +11,14 @@ impl Compiler {
     pub(super) fn bind_expression_to_type(
         &self,
         module: &Module,
-        scope_id: LocalScopeId,
+        scope: (LocalScopeId, LocalScopeMark),
         expression_id: ast::LocalNodeId<ast::Expression>,
         tree: &mut NodeTree,
         symbols: &mut SymbolTable,
         types: &mut TypeTable,
     ) -> LocalTypeId {
         let expression_id =
-            self.bind_expression(module, scope_id, expression_id, tree, symbols, types);
+            self.bind_expression(module, scope, expression_id, tree, symbols, types);
         types.insert_from(Type::UnresolvedExpression(expression_id), expression_id)
     }
 
@@ -52,7 +52,7 @@ impl Compiler {
     pub(super) fn bind_generics(
         &self,
         module: &Module,
-        scope_id: LocalScopeId,
+        scope: (LocalScopeId, LocalScopeMark),
         generics: &ast::Generics,
         tree: &mut NodeTree,
         symbols: &mut SymbolTable,
@@ -67,7 +67,7 @@ impl Compiler {
                     .map(|static_parameter| {
                         self.bind_parameter(
                             module,
-                            scope_id,
+                            scope,
                             *static_parameter,
                             tree,
                             symbols,
@@ -80,7 +80,7 @@ impl Compiler {
             with_clauses
                 .iter()
                 .map(|with_clause| {
-                    self.bind_with_clause(module, scope_id, *with_clause, tree, symbols, types)
+                    self.bind_with_clause(module, scope, *with_clause, tree, symbols, types)
                 })
                 .collect()
         });
@@ -88,7 +88,7 @@ impl Compiler {
             where_clauses
                 .iter()
                 .map(|where_clause| {
-                    self.bind_where_clause(module, scope_id, *where_clause, tree, symbols, types)
+                    self.bind_where_clause(module, scope, *where_clause, tree, symbols, types)
                 })
                 .collect()
         });
@@ -103,7 +103,7 @@ impl Compiler {
     pub(super) fn bind_heritage(
         &self,
         module: &Module,
-        scope_id: LocalScopeId,
+        scope: (LocalScopeId, LocalScopeMark),
         heritage: &ast::Heritage,
         tree: &mut NodeTree,
         symbols: &mut SymbolTable,
@@ -113,7 +113,7 @@ impl Compiler {
             extends_types
                 .iter()
                 .map(|extends_type| {
-                    self.bind_expression(module, scope_id, *extends_type, tree, symbols, types)
+                    self.bind_expression(module, scope, *extends_type, tree, symbols, types)
                 })
                 .collect()
         });
@@ -121,7 +121,7 @@ impl Compiler {
             implements_types
                 .iter()
                 .map(|implements_type| {
-                    self.bind_expression(module, scope_id, *implements_type, tree, symbols, types)
+                    self.bind_expression(module, scope, *implements_type, tree, symbols, types)
                 })
                 .collect()
         });

@@ -1,8 +1,8 @@
 use crate::Compiler;
 use dyst_ast::{self as ast};
 use dyst_dir::{
-    Annotation, AnnotationPosition, LocalNodeId, LocalScopeId, Module, NodeTree, SymbolTable,
-    TypeTable,
+    Annotation, AnnotationPosition, LocalNodeId, LocalScopeId, LocalScopeMark, Module, NodeTree,
+    SymbolTable, TypeTable,
 };
 
 #[allow(clippy::too_many_arguments)]
@@ -11,14 +11,14 @@ impl Compiler {
     pub fn attach_annotations(
         &self,
         module: &Module,
-        scope_id: LocalScopeId,
+        scope: (LocalScopeId, LocalScopeMark),
         tree: &mut NodeTree,
         symbols: &mut SymbolTable,
         types: &mut TypeTable,
     ) {
         // bind them
         for ast_annotation_id in module.get_nodes::<ast::Annotation>() {
-            self.bind_annotation(module, scope_id, ast_annotation_id, tree, symbols, types);
+            self.bind_annotation(module, scope, ast_annotation_id, tree, symbols, types);
         }
 
         // attach them
@@ -55,7 +55,7 @@ impl Compiler {
     pub(super) fn bind_annotation(
         &self,
         module: &Module,
-        scope_id: LocalScopeId,
+        scope: (LocalScopeId, LocalScopeMark),
         annotation_id: ast::LocalNodeId<ast::Annotation>,
         tree: &mut NodeTree,
         symbols: &mut SymbolTable,
@@ -92,7 +92,7 @@ impl Compiler {
                     arguments
                         .iter()
                         .map(|argument| {
-                            self.bind_argument(module, scope_id, *argument, tree, symbols, types)
+                            self.bind_argument(module, scope, *argument, tree, symbols, types)
                         })
                         .collect()
                 });
@@ -110,7 +110,7 @@ impl Compiler {
                     arguments
                         .iter()
                         .map(|argument| {
-                            self.bind_argument(module, scope_id, *argument, tree, symbols, types)
+                            self.bind_argument(module, scope, *argument, tree, symbols, types)
                         })
                         .collect()
                 });
@@ -121,6 +121,6 @@ impl Compiler {
                 }
             }
         };
-        Some(tree.insert_from_source(annotation, annotation_id, scope_id))
+        Some(tree.insert_from_source(annotation, annotation_id, scope))
     }
 }

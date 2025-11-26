@@ -1,6 +1,6 @@
 use dyst_dir::{
-    Argument, Expression, GlobalNodeIdAny, LocalNodeId, LocalSymbolId, Module, Path, Scope,
-    ScopeKind, Symbol, SymbolKey, SymbolTable,
+    Argument, Expression, GlobalNodeIdAny, LocalNodeId, LocalScopeMark, LocalSymbolId, Module,
+    Path, Scope, ScopeKind, Symbol, SymbolKey, SymbolTable,
 };
 
 use crate::{Compiler, ResolveError, ResolveResult};
@@ -12,19 +12,19 @@ impl Compiler {
         &self,
         module: &Module,
         node: GlobalNodeIdAny,
-        scope: &Scope,
+        scope: (&Scope, LocalScopeMark),
         key: SymbolKey,
         symbols: &SymbolTable,
     ) -> ResolveResult<LocalSymbolId> {
         let mut scope = scope;
         loop {
             // find symbol
-            if let Some(symbol_id) = scope.find_symbol(key) {
+            if let Some(symbol_id) = scope.0.find_up_to(key, scope.1) {
                 return Ok(symbol_id);
             }
             // go to parent scope
-            else if let Some(parent_scope_id) = scope.parent_id {
-                scope = symbols.get_scope_by_id(parent_scope_id);
+            else if let Some((parent_scope_id, parent_mark)) = scope.0.parent {
+                scope = (symbols.get_scope_by_id(parent_scope_id), parent_mark);
             }
             // no more scopes
             else {
@@ -34,7 +34,7 @@ impl Compiler {
 
         Err(ResolveError::MissingSymbol {
             node,
-            scope: scope.id.into_global(module.id),
+            scope: scope.0.id.into_global(module.id),
             key,
         })
     }
@@ -55,7 +55,7 @@ impl Compiler {
         // resolve path segments
         while let Some(segment) = remaining_path.segments.pop() {
             let key = SymbolKey::Name(segment);
-            if let Some(symbol_id) = scope.find_symbol(key) {
+            if let Some(symbol_id) = scope.find(key) {
                 symbol = symbols.get_symbol(symbol_id);
                 scope = symbols.get_scope_by_symbol(symbol.id);
             } else {
@@ -80,7 +80,7 @@ impl Compiler {
         &self,
         module: &Module,
         node: GlobalNodeIdAny,
-        scope: &Scope,
+        scope: (&Scope, LocalScopeMark),
         path: &Path,
         static_arguments: Option<Vec<LocalNodeId<Argument>>>,
         symbols: &SymbolTable,

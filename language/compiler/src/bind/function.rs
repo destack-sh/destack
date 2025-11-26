@@ -2,7 +2,7 @@ use crate::Compiler;
 use dyst_ast as ast;
 use dyst_dir::{
     Asynchrony, FunctionAbstraction, FunctionCardinality, FunctionKind, FunctionMode,
-    FunctionSignature, LocalScopeId, Module, NodeTree, SymbolTable, TypeTable,
+    FunctionSignature, LocalScopeId, LocalScopeMark, Module, NodeTree, SymbolTable, TypeTable,
 };
 
 #[allow(clippy::too_many_arguments)]
@@ -67,7 +67,7 @@ impl Compiler {
     pub(super) fn bind_function_signature(
         &self,
         module: &Module,
-        scope_id: LocalScopeId,
+        scope: (LocalScopeId, LocalScopeMark),
         signature: &ast::FunctionSignature,
         tree: &mut NodeTree,
         symbols: &mut SymbolTable,
@@ -81,16 +81,16 @@ impl Compiler {
         let generics = signature
             .generics
             .as_ref()
-            .map(|generics| self.bind_generics(module, scope_id, generics, tree, symbols, types));
+            .map(|generics| self.bind_generics(module, scope, generics, tree, symbols, types));
         let dynamic_parameters = signature
             .dynamic_parameters
             .iter()
             .map(|parameter| {
-                self.bind_parameter(module, scope_id, *parameter, tree, symbols, types)
+                self.bind_parameter(module, scope, *parameter, tree, symbols, types)
             })
             .collect();
         let return_type = signature.return_type.map(|return_type| {
-            self.bind_expression(module, scope_id, return_type, tree, symbols, types)
+            self.bind_expression(module, scope, return_type, tree, symbols, types)
         });
         FunctionSignature {
             abstraction,

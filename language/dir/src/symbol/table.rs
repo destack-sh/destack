@@ -2,8 +2,8 @@ use dyst_ast::StringId;
 use indexmap::IndexMap;
 
 use crate::{
-    Arena, LocalNodeId, LocalScopeId, LocalSymbolId, ModuleId, Node, NodeTree, Scope, ScopeKind,
-    Symbol, SymbolKey, SymbolSpace,
+    Arena, LocalNodeId, LocalScopeId, LocalScopeMark, LocalSymbolId, ModuleId, Node, NodeTree,
+    Scope, ScopeKind, Symbol, SymbolKey, SymbolKind, SymbolSpace,
 };
 use std::fmt::Debug;
 
@@ -43,41 +43,114 @@ impl SymbolTable {
         }
     }
 
-    // nocheckin: bind exports, report duplicate declaration bindings, ..
-    /// Create a new local symbol.
-    pub fn insert_symbol(
+    /// Bind a new symbol.
+    fn bind(
         &mut self,
+        kind: SymbolKind,
         space: SymbolSpace,
         key: Option<SymbolKey>,
-        scope: LocalScopeId,
-    ) -> LocalSymbolId {
+        scope: (LocalScopeId, LocalScopeMark),
+    ) -> (LocalSymbolId, LocalScopeMark) {
         let symbol_id = LocalSymbolId::new(self.next_symbol_id);
         self.next_symbol_id += 1;
         let symbol = Symbol {
             id: symbol_id,
+            kind,
             space,
             key,
-            scope_id: scope,
+            scope,
             module_id: self.module_id,
             primary_declaration: None,
             secondary_declarations: Vec::new(),
             target_symbol: None,
         };
         self.symbols.allocate(symbol);
-        self.scopes.get_mut(scope.0).insert_symbol(key, symbol_id);
-        symbol_id
+        let mark = self.scopes.get_mut(scope.0.0).append(key, symbol_id);
+        (symbol_id, mark)
     }
 
-    /// Create a new local anonymous symbol.
-    pub fn insert_anonymous_symbol(&mut self, scope: LocalScopeId) -> LocalSymbolId {
-        self.insert_symbol(SymbolSpace::Value, None, scope)
+    /// Bind a new named item.
+    pub fn bind_named_item(
+        &mut self,
+        space: SymbolSpace,
+        key: SymbolKey,
+        scope: (LocalScopeId, LocalScopeMark),
+    ) -> (LocalSymbolId, LocalScopeMark) {
+        self.bind(SymbolKind::Item, space, Some(key), scope)
     }
 
-    /// Create a new local scope.
+    /// Bind a new anonymous item.
+    pub fn bind_anonymous_item(
+        &mut self,
+        space: SymbolSpace,
+        scope: (LocalScopeId, LocalScopeMark),
+    ) -> (LocalSymbolId, LocalScopeMark) {
+        self.bind(SymbolKind::Item, space, None, scope)
+    }
+
+    /// Bind a new named item with an owned scope. Symbols belongs to outer scope.
+    pub fn bind_named_item_with_scope(
+        &mut self,
+        space: SymbolSpace,
+        key: SymbolKey,
+        kind: ScopeKind,
+        scope: (LocalScopeId, LocalScopeMark),
+    ) -> (LocalSymbolId, LocalScopeId, LocalScopeMark) {
+        let (symbol_id, mark) = self.bind(SymbolKind::Item, space, Some(key), scope);
+        let scope_id = self.insert_scope(kind, Some(scope), Some(symbol_id));
+        (symbol_id, scope_id, mark)
+    }
+
+    /// Bind a new anonymous item with an owned scope. Symbol belongs to outer scope.
+    pub fn bind_anonymous_item_with_scope(
+        &mut self,
+        kind: ScopeKind,
+        scope: (LocalScopeId, LocalScopeMark),
+    ) -> (LocalSymbolId, LocalScopeId, LocalScopeMark) {
+        let (symbol_id, mark) = self.bind(SymbolKind::Item, SymbolSpace::Value, None, scope);
+        let scope_id = self.insert_scope(kind, Some(scope), Some(symbol_id));
+        (symbol_id, scope_id, mark)
+    }
+
+    /// Bind a new named local.
+    pub fn bind_named_local(
+        &mut self,
+        space: SymbolSpace,
+        key: SymbolKey,
+        scope: (LocalScopeId, LocalScopeMark),
+    ) -> (LocalSymbolId, LocalScopeMark) {
+        self.bind(SymbolKind::Local, space, Some(key), scope)
+    }
+
+    /// Bind a new named local with an owned scope. Symbol belongs to outer scope.
+    pub fn bind_named_local_with_scope(
+        &mut self,
+        space: SymbolSpace,
+        key: SymbolKey,
+        kind: ScopeKind,
+        scope: (LocalScopeId, LocalScopeMark),
+    ) -> (LocalSymbolId, LocalScopeId, LocalScopeMark) {
+        let (symbol_id, mark) = self.bind(SymbolKind::Local, space, Some(key), scope);
+        let scope_id = self.insert_scope(kind, Some(scope), Some(symbol_id));
+        (symbol_id, scope_id, mark)
+    }
+
+    /// Bind a new anonymous local with an owned scope. Symbol belongs to outer scope.
+    pub fn bind_anonymous_local_with_scope(
+        &mut self,
+        kind: ScopeKind,
+        scope: (LocalScopeId, LocalScopeMark),
+    ) -> (LocalSymbolId, LocalScopeId, LocalScopeMark) {
+        let (symbol_id, mark) = self.bind(SymbolKind::Local, SymbolSpace::Value, None, scope);
+        let scope_id = self.insert_scope(kind, Some(scope), Some(symbol_id));
+        (symbol_id, scope_id, mark)
+    }
+
+    /// Bind a new scope.
     pub fn insert_scope(
         &mut self,
         kind: ScopeKind,
-        parent: Option<LocalScopeId>,
+        parent: Option<(LocalScopeId, LocalScopeMark)>,
         owner: Option<LocalSymbolId>,
     ) -> LocalScopeId {
         let scope_id = LocalScopeId::new(self.next_scope_id);
@@ -85,42 +158,18 @@ impl SymbolTable {
         let scope = Scope {
             id: scope_id,
             kind,
-            owner,
-            parent_id: parent,
+            owner_id: owner,
+            parent,
             module_id: self.module_id,
-            symbols_by_key: IndexMap::new(),
+            named_symbols: Vec::new(),
             anonymous_symbols: Vec::new(),
             children: Vec::new(),
         };
         self.scopes.allocate(scope);
         if let Some(parent) = parent {
-            self.scopes.get_mut(parent.0).insert_child_scope(scope_id);
+            self.scopes.get_mut(parent.0.0).append_child(scope_id);
         }
         scope_id
-    }
-
-    /// Create a new local symbol with an owned scope. Symbols belongs to outer scope.
-    pub fn insert_symbol_with_scope(
-        &mut self,
-        space: SymbolSpace,
-        key: SymbolKey,
-        kind: ScopeKind,
-        scope: LocalScopeId,
-    ) -> (LocalSymbolId, LocalScopeId) {
-        let symbol_id = self.insert_symbol(space, Some(key), scope);
-        let scope_id = self.insert_scope(kind, Some(scope), Some(symbol_id));
-        (symbol_id, scope_id)
-    }
-
-    /// Create a new anonymous symbol and scope. Symbol belongs to outer scope.
-    pub fn insert_anonymous_symbol_with_scope(
-        &mut self,
-        kind: ScopeKind,
-        scope: LocalScopeId,
-    ) -> (LocalSymbolId, LocalScopeId) {
-        let symbol_id = self.insert_symbol(SymbolSpace::Value, None, scope);
-        let scope_id = self.insert_scope(kind, Some(scope), Some(symbol_id));
-        (symbol_id, scope_id)
     }
 
     /// Get a symbol by its id.
@@ -135,42 +184,29 @@ impl SymbolTable {
         self.symbols.get_mut(symbol_id.0)
     }
 
-    /// Set the primary declaration for a symbol.
+    /// Get the scope view for a scope id.
     #[inline]
-    pub fn set_primary_declaration<T: Node>(
-        &mut self,
-        symbol_id: LocalSymbolId,
-        node_id: LocalNodeId<T>,
-    ) {
-        self.symbols.get_mut(symbol_id.0).primary_declaration =
-            Some(node_id.into_global_any(self.module_id));
-    }
-
-    /// Add a secondary declaration for a symbol.
-    #[inline]
-    pub fn add_secondary_declaration<T: Node>(
-        &mut self,
-        symbol_id: LocalSymbolId,
-        node_id: LocalNodeId<T>,
-    ) {
-        self.symbols
-            .get_mut(symbol_id.0)
-            .secondary_declarations
-            .push(node_id.into_global_any(self.module_id));
+    pub fn get_scope_mark(&self, scope_id: LocalScopeId) -> LocalScopeMark {
+        self.scopes.get(scope_id.0).mark()
     }
 
     /// Get the scope for a node id.
     #[inline]
-    pub fn get_scope<'a, T: Node>(&'a self, node_id: LocalNodeId<T>, tree: &NodeTree) -> &'a Scope {
-        let scope_id = tree.get_scope(node_id);
-        self.scopes.get(scope_id.0)
+    pub fn get_scope<'a, T: Node>(
+        &'a self,
+        node_id: LocalNodeId<T>,
+        tree: &NodeTree,
+    ) -> (&'a Scope, LocalScopeMark) {
+        let (scope_id, mark) = tree.get_scope(node_id);
+        let scope = self.scopes.get(scope_id.0);
+        (scope, mark)
     }
 
     /// Get the scope for a symbol id.
     #[inline]
     pub fn get_scope_by_symbol(&self, symbol_id: LocalSymbolId) -> &Scope {
         let symbol = self.get_symbol(symbol_id);
-        self.scopes.get(symbol.scope_id.0)
+        self.scopes.get(symbol.scope.0.0)
     }
 
     /// Get a scope by its id.
