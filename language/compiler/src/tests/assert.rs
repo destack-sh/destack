@@ -98,4 +98,3 @@ macro_rules! assert_expression_path {
         }
     }};
 }
-
