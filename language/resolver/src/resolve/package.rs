@@ -47,12 +47,17 @@ impl Resolver {
         // create package file
         let file_id = self.program.files.next_id();
         let (name, uri) = Uri::from_path_with_name(&package_json_path);
-        let file =
-            File::from_bytes_as_json(file_id, name, uri, FileType::Json, bytes).map_err(|_| {
-                ResolveError::InvalidPackageJson {
-                    path: package_json_path.clone(),
-                }
-            })?;
+        let file = File::from_bytes_as_json(
+            file_id,
+            name,
+            uri,
+            Some(package_json_path.clone()),
+            FileType::Json,
+            bytes,
+        )
+        .map_err(|_| ResolveError::InvalidPackageJson {
+            path: package_json_path.clone(),
+        })?;
         self.program.files.insert(file);
         let file = self.program.files.get(file_id);
 
@@ -66,6 +71,7 @@ impl Resolver {
             })?;
         let package = Package {
             id: package_id,
+            uri: package_options.uri.clone(),
             path: package_options.directory.clone(),
             name: package_options.content.name.clone(),
             version: package_options.content.version.clone(),

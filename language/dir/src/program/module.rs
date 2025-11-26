@@ -1,7 +1,9 @@
-use dashmap::DashMap;
-use parking_lot::RwLock;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU32, Ordering};
+
+use dashmap::DashMap;
+use parking_lot::RwLock;
 
 use dyst_ast::{self as ast, StringPool};
 use dyst_source::{FileId, Uri};
@@ -41,6 +43,8 @@ pub struct Module {
     pub file_id: FileId,
     /// The URI of the Module.
     pub uri: Uri,
+    /// THe path to the Module.
+    pub path: Option<PathBuf>,
     /// The package of the Module.
     pub package_id: Option<PackageId>,
 
@@ -71,12 +75,14 @@ pub struct Module {
     pub roots: Vec<LocalNodeId<Expression>>,
 }
 
+#[allow(clippy::too_many_arguments)]
 impl Module {
     /// Create a new Module from an AST.
     pub fn new(
         id: ModuleId,
         file: FileId,
         uri: Uri,
+        path: Option<PathBuf>,
         package: Option<PackageId>,
         ast: ast::NodeTree,
         ast_roots: Vec<ast::LocalNodeId<ast::Expression>>,
@@ -104,6 +110,7 @@ impl Module {
             id,
             file_id: file,
             uri,
+            path,
             package_id: package,
             // astgit ad
             ast,
@@ -129,6 +136,8 @@ pub struct ModuleRegistry {
     modules_by_id: DashMap<ModuleId, Arc<RwLock<Module>>>,
     /// URI-based index for looking up modules by their URI.
     modules_by_uri: DashMap<Uri, ModuleId>,
+    /// Path-based index for looking up modules by their path (only for modules with valid paths).
+    modules_by_path: DashMap<PathBuf, ModuleId>,
     /// The next module id.
     next_module_id: AtomicU32,
 }
@@ -145,6 +154,7 @@ impl ModuleRegistry {
         Self {
             modules_by_id: DashMap::new(),
             modules_by_uri: DashMap::new(),
+            modules_by_path: DashMap::new(),
             next_module_id: AtomicU32::new(0),
         }
     }
@@ -158,9 +168,13 @@ impl ModuleRegistry {
     /// Insert a module into the registry.
     pub fn insert(&self, module: Module) {
         let uri = module.uri.clone();
+        let path = module.path.clone();
         let id = module.id;
         self.modules_by_id.insert(id, Arc::new(RwLock::new(module)));
         self.modules_by_uri.insert(uri, id);
+        if let Some(path) = path {
+            self.modules_by_path.insert(path, id);
+        }
     }
 
     /// Get a module by module id.
@@ -189,6 +203,22 @@ impl ModuleRegistry {
     /// Check if a module exists at the given URI.
     pub fn contains_uri(&self, uri: &Uri) -> bool {
         self.modules_by_uri.contains_key(uri)
+    }
+
+    /// Get a module id by its path.
+    pub fn get_id_by_path(&self, path: &Path) -> Option<ModuleId> {
+        self.modules_by_path.get(path).map(|r| *r.value())
+    }
+
+    /// Get a module by its path.
+    pub fn get_by_path(&self, path: &Path) -> Option<Arc<RwLock<Module>>> {
+        let id = self.get_id_by_path(path)?;
+        Some(self.get(id))
+    }
+
+    /// Check if a module exists at the given path.
+    pub fn contains_path(&self, path: &Path) -> bool {
+        self.modules_by_path.contains_key(path)
     }
 
     /// Iterate over the modules in the registry.

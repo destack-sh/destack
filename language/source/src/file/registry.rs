@@ -1,17 +1,21 @@
-use dashmap::DashMap;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU32, Ordering};
+
+use dashmap::DashMap;
 
 use crate::{File, FileId, Uri};
 
 /// Registry of files. THREAD-SAFE.
-/// NOTE #Robustness: use single/exctra lock around both id<->file and uri<->id mappings?
+/// NOTE @Robustness: use single/extra lock around both id<->file and uri<->id mappings?
 #[derive(Debug)]
 pub struct FileRegistry {
     /// The files by id.
     files_by_id: DashMap<FileId, Arc<File>>,
     /// The files by uri.
     files_by_uri: DashMap<Uri, FileId>,
+    /// The files by path (only for files with valid paths).
+    files_by_path: DashMap<PathBuf, FileId>,
     /// The next file id.
     next_file_id: AtomicU32,
 }
@@ -28,6 +32,7 @@ impl FileRegistry {
         Self {
             files_by_id: DashMap::new(),
             files_by_uri: DashMap::new(),
+            files_by_path: DashMap::new(),
             next_file_id: AtomicU32::new(0),
         }
     }
@@ -40,8 +45,12 @@ impl FileRegistry {
 
     /// Insert a file into the registry.
     pub fn insert(&self, file: File) {
-        self.files_by_uri.insert(file.uri.clone(), file.id);
-        self.files_by_id.insert(file.id, Arc::new(file));
+        let id = file.id;
+        self.files_by_uri.insert(file.uri.clone(), id);
+        if let Some(path) = &file.path {
+            self.files_by_path.insert(path.clone(), id);
+        }
+        self.files_by_id.insert(id, Arc::new(file));
     }
 
     /// Get a file by id.
@@ -55,11 +64,36 @@ impl FileRegistry {
             .clone()
     }
 
+    /// Get a file id by its URI.
+    pub fn get_id_by_uri(&self, uri: &Uri) -> Option<FileId> {
+        self.files_by_uri.get(uri).map(|r| *r.value())
+    }
+
     /// Get a file by uri.
     pub fn get_by_uri(&self, uri: &Uri) -> Option<Arc<File>> {
-        self.files_by_uri
-            .get(uri)
-            .and_then(|id| self.files_by_id.get(&id).map(|file| file.clone()))
+        let id = self.get_id_by_uri(uri)?;
+        Some(self.get(id))
+    }
+
+    /// Check if a file exists with the given URI.
+    pub fn contains_uri(&self, uri: &Uri) -> bool {
+        self.files_by_uri.contains_key(uri)
+    }
+
+    /// Get a file id by its path.
+    pub fn get_id_by_path(&self, path: &Path) -> Option<FileId> {
+        self.files_by_path.get(path).map(|r| *r.value())
+    }
+
+    /// Get a file by path.
+    pub fn get_by_path(&self, path: &Path) -> Option<Arc<File>> {
+        let id = self.get_id_by_path(path)?;
+        Some(self.get(id))
+    }
+
+    /// Check if a file exists with the given path.
+    pub fn contains_path(&self, path: &Path) -> bool {
+        self.files_by_path.contains_key(path)
     }
 
     /// Get the number of files in the registry.

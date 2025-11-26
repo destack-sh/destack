@@ -123,6 +123,7 @@ impl Compiler {
             module_id,
             file.id,
             file.uri.clone(),
+            file.path.clone(),
             package_id,
             parser.tree,
             expressions,
@@ -178,7 +179,8 @@ impl Compiler {
 
         // make file
         let file_id = self.program.files.next_id();
-        let file = File::from_text(file_id, name, path.clone().into(), ty, content);
+        let uri = Uri::from_path(&path);
+        let file = File::from_text(file_id, name, uri, Some(path), ty, content);
         self.program.files.insert(file);
         let file = self.program.files.get(file_id);
         Ok(file)

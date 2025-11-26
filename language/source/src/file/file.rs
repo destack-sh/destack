@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 use crate::{FileType, Span, Uri, strip_json};
 
 /// The id of a File.
@@ -30,6 +32,8 @@ pub struct File {
     pub name: String,
     /// The URI of the File.
     pub uri: Uri,
+    /// The path to the File (may be invalid as a path).
+    pub path: Option<PathBuf>,
     /// The type of file.
     pub ty: FileType,
     /// The length of the File in bytes.
@@ -63,6 +67,7 @@ impl File {
             FileId::new(0),
             "<empty>".to_string(),
             Uri::from_string("<empty>"),
+            None,
             ty,
             String::new(),
         )
@@ -74,7 +79,7 @@ impl File {
             .last_segment()
             .unwrap_or_else(|| uri.as_ref())
             .to_string();
-        Self::from_text(id, name, uri, ty, String::new())
+        Self::from_text(id, name, uri, None, ty, String::new())
     }
 
     /// Precompute line start byte offsets for O(1) line.
@@ -89,13 +94,21 @@ impl File {
     }
 
     /// Create a new File.
-    pub fn from_text(id: FileId, name: String, uri: Uri, ty: FileType, content: String) -> Self {
+    pub fn from_text(
+        id: FileId,
+        name: String,
+        uri: Uri,
+        path: Option<PathBuf>,
+        ty: FileType,
+        content: String,
+    ) -> Self {
         let len = content.len() as u32;
         let line_start_offsets = Self::precompute_line_start_offsets(&content);
         Self {
             id,
             name,
             uri,
+            path,
             ty,
             content: FileContent::Text { content },
             len,
@@ -108,6 +121,7 @@ impl File {
         id: FileId,
         name: String,
         uri: Uri,
+        path: Option<PathBuf>,
         ty: FileType,
         content: String,
     ) -> Result<Self, serde_json::Error> {
@@ -121,6 +135,7 @@ impl File {
             id,
             name,
             uri,
+            path,
             ty,
             content: FileContent::Json {
                 content,
@@ -137,6 +152,7 @@ impl File {
         id: FileId,
         name: String,
         uri: Uri,
+        path: Option<PathBuf>,
         ty: FileType,
         content: String,
     ) -> Result<Self, serde_json::Error> {
@@ -160,6 +176,7 @@ impl File {
             id,
             name,
             uri,
+            path,
             ty,
             content: FileContent::Json {
                 content,
@@ -176,11 +193,12 @@ impl File {
         id: FileId,
         name: String,
         uri: Uri,
+        path: Option<PathBuf>,
         ty: FileType,
         bytes: Vec<u8>,
     ) -> Result<Self, serde_json::Error> {
         let content = String::from_utf8(bytes).unwrap_or_else(|_| String::new());
-        Self::from_text_as_json(id, name, uri, ty, content)
+        Self::from_text_as_json(id, name, uri, path, ty, content)
     }
 
     /// Create a new file from bytes as JSONC.
@@ -188,11 +206,12 @@ impl File {
         id: FileId,
         name: String,
         uri: Uri,
+        path: Option<PathBuf>,
         ty: FileType,
         bytes: Vec<u8>,
     ) -> Result<Self, serde_json::Error> {
         let content = String::from_utf8(bytes).unwrap_or_else(|_| String::new());
-        Self::from_text_as_jsonc(id, name, uri, ty, content)
+        Self::from_text_as_jsonc(id, name, uri, path, ty, content)
     }
 
     /// Get the text content of the File (empty if not text).

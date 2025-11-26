@@ -40,7 +40,14 @@ pub(crate) fn get_string_or_file(
         let uri = Uri::from_string(path_str);
         match program.fs.read_to_string(path) {
             Ok(content) => {
-                let file = File::from_text(file_id, name, uri, format, content);
+                let file = File::from_text(
+                    file_id,
+                    name,
+                    uri,
+                    Some(path.to_path_buf()),
+                    format,
+                    content,
+                );
                 program.files.insert(file);
                 Ok(program.files.get(file_id))
             }
@@ -54,6 +61,7 @@ pub(crate) fn get_string_or_file(
             file_id,
             "<string>".to_string(),
             Uri::from_string("<string>"),
+            None,
             format,
             string.to_string(),
         );
