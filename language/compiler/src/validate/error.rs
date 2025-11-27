@@ -37,6 +37,11 @@ pub enum ValidateError {
     NonExhaustiveMatch { node: GlobalNodeIdAny },
     /// Incomplete pattern.
     IncompletePattern { node: GlobalNodeIdAny },
+    /// Conflicting pattern arms.
+    ConflictingPattern {
+        node: GlobalNodeIdAny,
+        other_node: Option<GlobalNodeIdAny>,
+    },
     /// Missing return on code paths in functions that must return a value.
     MissingReturn { node: GlobalNodeIdAny },
     /// Use of uninitialized variable in a read position.
@@ -63,9 +68,10 @@ impl ValidateError {
             Self::NonIndexable { .. } => 6,
             Self::NonExhaustiveMatch { .. } => 7,
             Self::IncompletePattern { .. } => 8,
-            Self::MissingReturn { .. } => 9,
-            Self::UninitializedVariable { .. } => 10,
-            Self::IllegalCast { .. } => 11,
+            Self::ConflictingPattern { .. } => 9,
+            Self::MissingReturn { .. } => 10,
+            Self::UninitializedVariable { .. } => 11,
+            Self::IllegalCast { .. } => 12,
         }
     }
 
@@ -81,6 +87,7 @@ impl ValidateError {
             Self::NonIndexable { node, .. } => Some(*node),
             Self::NonExhaustiveMatch { node, .. } => Some(*node),
             Self::IncompletePattern { node, .. } => Some(*node),
+            Self::ConflictingPattern { node, .. } => Some(*node),
             Self::MissingReturn { node, .. } => Some(*node),
             Self::UninitializedVariable { node, .. } => Some(*node),
             Self::IllegalCast { node, .. } => Some(*node),
@@ -101,6 +108,7 @@ impl ValidateError {
             Self::NonIndexable { .. } => "indexing non-indexable".to_string(),
             Self::NonExhaustiveMatch { .. } => "non-exhaustive match".to_string(),
             Self::IncompletePattern { .. } => "incomplete pattern".to_string(),
+            Self::ConflictingPattern { .. } => "conflicting pattern".to_string(),
             Self::MissingReturn { .. } => "missing return".to_string(),
             Self::UninitializedVariable { .. } => "uninitialized variable".to_string(),
             Self::IllegalCast { .. } => "illegal cast".to_string(),

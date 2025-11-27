@@ -177,7 +177,7 @@ impl Compiler {
 
 #[cfg(test)]
 mod tests {
-    use dyst_dir::{Expression, ScalarLiteral};
+    use dyst_dir::{Expression, Pattern, ScalarLiteral};
 
     use crate::{ImportTask, TestProgram, assert_node};
 
@@ -199,9 +199,21 @@ let z = y;
         let module = test.module("test.ds");
         let module = module.read();
         let tree = module.tree.read();
-        let (x_symbol_id, x_node) = test.resolve_to_node::<Expression>("test.ds", "x").unwrap();
-        let (y_symbol_id, y_node) = test.resolve_to_node::<Expression>("test.ds", "y").unwrap();
-        let (_z_symbol_id, z_node) = test.resolve_to_node::<Expression>("test.ds", "z").unwrap();
+        let (x_symbol_id, x_node) = test.resolve_to_node::<Pattern>("test.ds", "x").unwrap();
+        let x_node = tree
+            .get_parent(x_node.id)
+            .unwrap()
+            .into_typed::<Expression>();
+        let (y_symbol_id, y_node) = test.resolve_to_node::<Pattern>("test.ds", "y").unwrap();
+        let y_node = tree
+            .get_parent(y_node.id)
+            .unwrap()
+            .into_typed::<Expression>();
+        let (_z_symbol_id, z_node) = test.resolve_to_node::<Pattern>("test.ds", "z").unwrap();
+        let z_node = tree
+            .get_parent(z_node.id)
+            .unwrap()
+            .into_typed::<Expression>();
 
         // let x = 0;
         assert_node!(tree, x_node, Expression::Let { value: Some(value), ..} => {
