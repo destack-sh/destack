@@ -2,7 +2,9 @@ use std::collections::HashMap;
 
 use crate::{CapturingNodeVisitor, LocalNodeId, Node, NodeTree, NodeTreeImpl, walk_any};
 
-/// The NodeParentIndex is a side index of parent nodes into a NodeTree.
+/// The NodeParentIndex is a side index of parent nodes into the AST NodeTree.
+/// (We maintain this separately since it's more convenient to build bottom up during parsing;
+///  having bottom-up ids also makes it simpler to get the "innermost" or "outermost" node unambiguously.)
 #[derive(Debug, Clone)]
 pub struct NodeParentIndex {
     parents_per_node: Vec<Option<u32>>,

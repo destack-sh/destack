@@ -1,7 +1,8 @@
 use dyst_ast::{self as ast};
 use dyst_dir::{
-    DependencyItem, DependencyKind, DependencyMode, DependencySource, LocalNodeId, LocalScopeId,
-    LocalScopeMark, Module, NodeTree, SymbolKey, SymbolSpace, SymbolTable, TypeTable,
+    DependencyItem, DependencyKind, DependencyMode, DependencySource, LocalNodeId, LocalNodeIdAny,
+    LocalScopeId, LocalScopeMark, Module, NodeTree, NodeType, SymbolKey, SymbolSpace, SymbolTable,
+    TypeTable,
 };
 use dyst_source::StringId;
 
@@ -37,22 +38,25 @@ impl Compiler {
         source: DependencySource,
         kind: ast::DependencyKind,
         target: Option<StringId>,
-        item_id: ast::LocalNodeId<ast::DependencyItem>,
+        ast_item_id: ast::LocalNodeId<ast::DependencyItem>,
+        parent_id: Option<LocalNodeIdAny>,
         tree: &mut NodeTree,
         symbols: &mut SymbolTable,
         _types: &mut TypeTable,
     ) -> LocalNodeId<DependencyItem> {
-        let item = module.ast.get(item_id);
+        let ast_item = module.ast.get(ast_item_id);
+        let item_id =
+            tree.reserve_from_source(NodeType::DependencyItem, ast_item_id, scope, parent_id);
         let is_export = matches!(
             source,
             DependencySource::ExportStatement | DependencySource::ValueExpression
         );
-        let kind = self.bind_dependency_kind(item.kind.unwrap_or(kind));
-        let mode = self.bind_dependency_mode(item.mode);
-        let name = item
+        let kind = self.bind_dependency_kind(ast_item.kind.unwrap_or(kind));
+        let mode = self.bind_dependency_mode(ast_item.mode);
+        let name = ast_item
             .name
             .map(|name| self.program.strings.intern_from(&module.ast_strings, name));
-        let alias = item
+        let alias = ast_item
             .alias
             .map(|alias| self.program.strings.intern_from(&module.ast_strings, alias));
         let (symbol_id, _) = if let Some(name) = name {
@@ -88,7 +92,7 @@ impl Compiler {
                 module: None,
                 symbol: symbol_id,
             };
-            tree.insert_from_source(item, item_id, scope)
+            tree.insert(item_id, item)
         } else {
             let item = DependencyItem::UnresolvedLocal {
                 mode,
@@ -97,7 +101,7 @@ impl Compiler {
                 alias,
                 symbol: symbol_id,
             };
-            tree.insert_from_source(item, item_id, scope)
+            tree.insert(item_id, item)
         }
     }
 }

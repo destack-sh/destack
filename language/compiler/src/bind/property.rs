@@ -1,7 +1,8 @@
 use crate::Compiler;
 use dyst_ast as ast;
 use dyst_dir::{
-    LocalNodeId, LocalScopeId, LocalScopeMark, Module, NodeTree, Property, SymbolTable, TypeTable,
+    LocalNodeId, LocalNodeIdAny, LocalScopeId, LocalScopeMark, Module, NodeTree, NodeType,
+    Property, SymbolTable, TypeTable,
 };
 
 #[allow(clippy::too_many_arguments)]
@@ -11,13 +12,16 @@ impl Compiler {
         &self,
         module: &Module,
         scope: (LocalScopeId, LocalScopeMark),
-        property_id: ast::LocalNodeId<ast::Property>,
+        ast_property_id: ast::LocalNodeId<ast::Property>,
+        parent_id: Option<LocalNodeIdAny>,
         tree: &mut NodeTree,
         symbols: &mut SymbolTable,
         types: &mut TypeTable,
     ) -> LocalNodeId<Property> {
-        let property = module.ast.get(property_id);
-        let property = match property {
+        let ast_property = module.ast.get(ast_property_id);
+        let property_id =
+            tree.reserve_from_source(NodeType::Property, ast_property_id, scope, parent_id);
+        let property = match ast_property {
             ast::Property::Field {
                 modifiers,
                 key,
@@ -26,11 +30,30 @@ impl Compiler {
             } => {
                 let modifiers =
                     modifiers.map(|modifiers| self.bind_binding_modifier(module, modifiers));
-                let key = key.map(|key| self.bind_key(module, scope, key, tree, symbols, types));
-                let value = value
-                    .map(|value| self.bind_expression(module, scope, value, tree, symbols, types));
+                let key = key.map(|key| {
+                    self.bind_key(module, scope, key, Some(property_id), tree, symbols, types)
+                });
+                let value = value.map(|value| {
+                    self.bind_expression(
+                        module,
+                        scope,
+                        value,
+                        Some(property_id),
+                        tree,
+                        symbols,
+                        types,
+                    )
+                });
                 let default = default.map(|default| {
-                    self.bind_expression(module, scope, default, tree, symbols, types)
+                    self.bind_expression(
+                        module,
+                        scope,
+                        default,
+                        Some(property_id),
+                        tree,
+                        symbols,
+                        types,
+                    )
                 });
                 Property::Field {
                     modifiers,
@@ -47,11 +70,29 @@ impl Compiler {
             } => {
                 let modifiers =
                     modifiers.map(|modifiers| self.bind_binding_modifier(module, modifiers));
-                let key = key.map(|key| self.bind_key(module, scope, key, tree, symbols, types));
-                let signature =
-                    self.bind_function_signature(module, scope, signature, tree, symbols, types);
-                let body = body
-                    .map(|body| self.bind_expression(module, scope, body, tree, symbols, types));
+                let key = key.map(|key| {
+                    self.bind_key(module, scope, key, Some(property_id), tree, symbols, types)
+                });
+                let signature = self.bind_function_signature(
+                    module,
+                    scope,
+                    signature,
+                    Some(property_id),
+                    tree,
+                    symbols,
+                    types,
+                );
+                let body = body.map(|body| {
+                    self.bind_expression(
+                        module,
+                        scope,
+                        body,
+                        Some(property_id),
+                        tree,
+                        symbols,
+                        types,
+                    )
+                });
                 Property::Method {
                     modifiers,
                     key,
@@ -62,10 +103,18 @@ impl Compiler {
             ast::Property::Spread { modifiers, value } => {
                 let modifiers =
                     modifiers.map(|modifiers| self.bind_binding_modifier(module, modifiers));
-                let value = self.bind_expression(module, scope, *value, tree, symbols, types);
+                let value = self.bind_expression(
+                    module,
+                    scope,
+                    *value,
+                    Some(property_id),
+                    tree,
+                    symbols,
+                    types,
+                );
                 Property::Spread { modifiers, value }
             }
         };
-        tree.insert_from_source(property, property_id, scope)
+        tree.insert(property_id, property)
     }
 }

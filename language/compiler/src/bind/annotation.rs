@@ -1,8 +1,8 @@
 use crate::Compiler;
 use dyst_ast::{self as ast};
 use dyst_dir::{
-    Annotation, AnnotationPosition, LocalNodeId, LocalScopeId, LocalScopeMark, Module, NodeTree,
-    SymbolTable, TypeTable,
+    Annotation, AnnotationPosition, LocalNodeId, LocalNodeIdAny, LocalScopeId, LocalScopeMark,
+    Module, NodeTree, NodeType, SymbolTable, TypeTable,
 };
 
 #[allow(clippy::too_many_arguments)]
@@ -18,7 +18,18 @@ impl Compiler {
     ) {
         // bind them
         for ast_annotation_id in module.ast.get_nodes::<ast::Annotation>() {
-            self.bind_annotation(module, scope, ast_annotation_id, tree, symbols, types);
+            let ast_parent_id = module.ast_parents.get(ast_annotation_id);
+            let dir_parent_id = ast_parent_id
+                .and_then(|ast_parent_id| tree.get_node_id_by_source_id(ast_parent_id));
+            self.bind_annotation(
+                module,
+                scope,
+                ast_annotation_id,
+                dir_parent_id,
+                tree,
+                symbols,
+                types,
+            );
         }
 
         // attach them
@@ -31,7 +42,7 @@ impl Compiler {
                 else {
                     continue; // skipped by bind_annotation
                 };
-                tree.append_annotation(dir_node_id, LocalNodeId::new(dir_annotation_id));
+                tree.append_annotation(dir_node_id, LocalNodeId::new(dir_annotation_id.id));
             }
         }
     }
@@ -56,16 +67,23 @@ impl Compiler {
         &self,
         module: &Module,
         scope: (LocalScopeId, LocalScopeMark),
-        annotation_id: ast::LocalNodeId<ast::Annotation>,
+        ast_annotation_id: ast::LocalNodeId<ast::Annotation>,
+        parent_id: Option<LocalNodeIdAny>,
         tree: &mut NodeTree,
         symbols: &mut SymbolTable,
         types: &mut TypeTable,
     ) -> Option<LocalNodeId<Annotation>> {
-        let annotation = module.ast.get(annotation_id);
-        let annotation = match annotation {
-            ast::Annotation::Blank { .. } => {
-                return None;
-            }
+        let ast_annotation = module.ast.get(ast_annotation_id);
+
+        // skip blank annotations without reserving
+        if matches!(ast_annotation, ast::Annotation::Blank { .. }) {
+            return None;
+        }
+
+        let annotation_id =
+            tree.reserve_from_source(NodeType::Annotation, ast_annotation_id, scope, parent_id);
+        let annotation = match ast_annotation {
+            ast::Annotation::Blank { .. } => unreachable!(),
             ast::Annotation::Doc { node, position } => {
                 let doc = module.ast.get(*node);
                 let position = self.bind_annotation_position(*position);
@@ -92,7 +110,15 @@ impl Compiler {
                     arguments
                         .iter()
                         .map(|argument| {
-                            self.bind_argument(module, scope, *argument, tree, symbols, types)
+                            self.bind_argument(
+                                module,
+                                scope,
+                                *argument,
+                                Some(annotation_id),
+                                tree,
+                                symbols,
+                                types,
+                            )
                         })
                         .collect()
                 });
@@ -110,7 +136,15 @@ impl Compiler {
                     arguments
                         .iter()
                         .map(|argument| {
-                            self.bind_argument(module, scope, *argument, tree, symbols, types)
+                            self.bind_argument(
+                                module,
+                                scope,
+                                *argument,
+                                Some(annotation_id),
+                                tree,
+                                symbols,
+                                types,
+                            )
                         })
                         .collect()
                 });
@@ -121,6 +155,6 @@ impl Compiler {
                 }
             }
         };
-        Some(tree.insert_from_source(annotation, annotation_id, scope))
+        Some(tree.insert(annotation_id, annotation))
     }
 }

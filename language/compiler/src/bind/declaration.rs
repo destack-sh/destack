@@ -2,8 +2,8 @@ use crate::Compiler;
 use dyst_ast as ast;
 use dyst_dir::{
     BindingAnchor, Declaration, DeclarationDescriptor, DeclarationKind, EnumField, LocalNodeId,
-    LocalScopeId, LocalScopeMark, Module, NodeTree, ScopeKind, StructKind, SymbolKey, SymbolKind,
-    SymbolSpace, SymbolTable, TypeTable,
+    LocalNodeIdAny, LocalScopeId, LocalScopeMark, Module, NodeTree, NodeType, ScopeKind,
+    StructKind, SymbolKey, SymbolKind, SymbolSpace, SymbolTable, TypeTable,
 };
 
 #[allow(clippy::too_many_arguments)]
@@ -69,13 +69,16 @@ impl Compiler {
         &self,
         module: &Module,
         scope: (LocalScopeId, LocalScopeMark),
-        declaration_id: ast::LocalNodeId<ast::Declaration>,
+        ast_declaration_id: ast::LocalNodeId<ast::Declaration>,
+        parent_id: Option<LocalNodeIdAny>,
         tree: &mut NodeTree,
         symbols: &mut SymbolTable,
         types: &mut TypeTable,
     ) -> LocalNodeId<Declaration> {
-        let declaration = module.ast.get(declaration_id);
-        let declaration = match declaration {
+        let ast_declaration = module.ast.get(ast_declaration_id);
+        let declaration_id =
+            tree.reserve_from_source(NodeType::Declaration, ast_declaration_id, scope, parent_id);
+        let declaration = match ast_declaration {
             ast::Declaration::Namespace {
                 descriptor,
                 generics,
@@ -92,6 +95,7 @@ impl Compiler {
                     module,
                     (scope_id, symbols.get_scope_mark(scope_id)),
                     generics,
+                    Some(declaration_id),
                     tree,
                     symbols,
                     types,
@@ -103,6 +107,7 @@ impl Compiler {
                             module,
                             (scope_id, symbols.get_scope_mark(scope_id)),
                             *expression,
+                            Some(declaration_id),
                             tree,
                             symbols,
                             types,
@@ -138,6 +143,7 @@ impl Compiler {
                     module,
                     (scope_id, symbols.get_scope_mark(scope_id)),
                     generics,
+                    Some(declaration_id),
                     tree,
                     symbols,
                     types,
@@ -146,6 +152,7 @@ impl Compiler {
                     module,
                     (scope_id, symbols.get_scope_mark(scope_id)),
                     heritage,
+                    Some(declaration_id),
                     tree,
                     symbols,
                     types,
@@ -157,6 +164,7 @@ impl Compiler {
                             module,
                             (scope_id, symbols.get_scope_mark(scope_id)),
                             *property,
+                            Some(declaration_id),
                             tree,
                             symbols,
                             types,
@@ -190,6 +198,7 @@ impl Compiler {
                     module,
                     (scope_id, symbols.get_scope_mark(scope_id)),
                     generics,
+                    Some(declaration_id),
                     tree,
                     symbols,
                     types,
@@ -198,6 +207,7 @@ impl Compiler {
                     module,
                     (scope_id, symbols.get_scope_mark(scope_id)),
                     heritage,
+                    Some(declaration_id),
                     tree,
                     symbols,
                     types,
@@ -209,6 +219,7 @@ impl Compiler {
                             module,
                             (scope_id, symbols.get_scope_mark(scope_id)),
                             *field,
+                            Some(declaration_id),
                             tree,
                             symbols,
                             types,
@@ -222,6 +233,7 @@ impl Compiler {
                             module,
                             (scope_id, symbols.get_scope_mark(scope_id)),
                             *property,
+                            Some(declaration_id),
                             tree,
                             symbols,
                             types,
@@ -254,6 +266,7 @@ impl Compiler {
                     module,
                     (scope_id, symbols.get_scope_mark(scope_id)),
                     generics,
+                    Some(declaration_id),
                     tree,
                     symbols,
                     types,
@@ -262,6 +275,7 @@ impl Compiler {
                     module,
                     (scope_id, symbols.get_scope_mark(scope_id)),
                     heritage,
+                    Some(declaration_id),
                     tree,
                     symbols,
                     types,
@@ -273,6 +287,7 @@ impl Compiler {
                             module,
                             (scope_id, symbols.get_scope_mark(scope_id)),
                             *property,
+                            Some(declaration_id),
                             tree,
                             symbols,
                             types,
@@ -305,6 +320,7 @@ impl Compiler {
                     module,
                     (scope_id, symbols.get_scope_mark(scope_id)),
                     generics,
+                    Some(declaration_id),
                     tree,
                     symbols,
                     types,
@@ -313,6 +329,7 @@ impl Compiler {
                     module,
                     (scope_id, symbols.get_scope_mark(scope_id)),
                     *target_type,
+                    Some(declaration_id),
                     tree,
                     symbols,
                     types,
@@ -321,6 +338,7 @@ impl Compiler {
                     module,
                     (scope_id, symbols.get_scope_mark(scope_id)),
                     heritage,
+                    Some(declaration_id),
                     tree,
                     symbols,
                     types,
@@ -332,6 +350,7 @@ impl Compiler {
                             module,
                             (scope_id, symbols.get_scope_mark(scope_id)),
                             *property,
+                            Some(declaration_id),
                             tree,
                             symbols,
                             types,
@@ -364,6 +383,7 @@ impl Compiler {
                     module,
                     (scope_id, symbols.get_scope_mark(scope_id)),
                     signature,
+                    Some(declaration_id),
                     tree,
                     symbols,
                     types,
@@ -373,6 +393,7 @@ impl Compiler {
                         module,
                         (scope_id, symbols.get_scope_mark(scope_id)),
                         body,
+                        Some(declaration_id),
                         tree,
                         symbols,
                         types,
@@ -387,7 +408,7 @@ impl Compiler {
             }
         };
         let symbol_id = declaration.symbol();
-        let declaration_id = tree.insert_from_source(declaration, declaration_id, scope);
+        let declaration_id = tree.insert(declaration_id, declaration);
         symbols
             .get_symbol_mut(symbol_id)
             .declare_primary(declaration_id);
@@ -399,19 +420,22 @@ impl Compiler {
         &self,
         module: &Module,
         scope: (LocalScopeId, LocalScopeMark),
-        field_id: ast::LocalNodeId<ast::EnumField>,
+        ast_field_id: ast::LocalNodeId<ast::EnumField>,
+        parent_id: Option<LocalNodeIdAny>,
         tree: &mut NodeTree,
         symbols: &mut SymbolTable,
         types: &mut TypeTable,
     ) -> LocalNodeId<EnumField> {
-        let field = module.ast.get(field_id);
+        let ast_field = module.ast.get(ast_field_id);
+        let field_id =
+            tree.reserve_from_source(NodeType::EnumField, ast_field_id, scope, parent_id);
         let name = self
             .program
             .strings
-            .intern_from(&module.ast_strings, field.name.string());
-        let value = field
-            .value
-            .map(|value| self.bind_expression(module, scope, value, tree, symbols, types));
+            .intern_from(&module.ast_strings, ast_field.name.string());
+        let value = ast_field.value.map(|value| {
+            self.bind_expression(module, scope, value, Some(field_id), tree, symbols, types)
+        });
         let (symbol_id, _) = self.bind_named_item(
             module,
             SymbolSpace::Value,
@@ -425,7 +449,7 @@ impl Compiler {
             value,
             symbol: symbol_id,
         };
-        let enum_field_id = tree.insert_from_source(enum_field, field_id, scope);
+        let enum_field_id = tree.insert(field_id, enum_field);
         symbols
             .get_symbol_mut(symbol_id)
             .declare_primary(enum_field_id);

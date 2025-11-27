@@ -57,9 +57,14 @@ impl Compiler {
 
     /// Bind a module.
     pub(super) fn bind_module(&self, module_id: ModuleId) -> BindResult<()> {
+        // bind AST into DIR
         self.bind_module_roots(module_id)?;
+
+        // bind module exports
         self.bind_module_exports(module_id)?;
-        self.check_module_scopes(module_id)?;
+
+        // check for conflicting symbols in scopes
+        self.bind_check_scopes(module_id)?;
 
         // next task: resolve module
         self.enqueue(ResolveTask::ResolveModule { module: module_id });
@@ -86,6 +91,7 @@ impl Compiler {
                             symbols.get_scope_mark(module.namespace_scope),
                         ),
                         *expression,
+                        None,
                         &mut tree,
                         &mut symbols,
                         &mut types,
@@ -135,7 +141,7 @@ impl Compiler {
     }
 
     /// Check for conflicting item symbols in module scopes and report errors.
-    fn check_module_scopes(&self, module_id: ModuleId) -> BindResult<()> {
+    fn bind_check_scopes(&self, module_id: ModuleId) -> BindResult<()> {
         let module = self.program.modules.get(module_id);
         let module = module.read();
         let symbols = module.symbols.read();
