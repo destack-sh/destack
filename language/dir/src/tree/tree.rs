@@ -104,7 +104,6 @@ impl NodeTree {
     }
 
     /// Reserve a new node slot in the tree for a node lowered from an AST node.
-    /// Allocates the slot and registers all metadata. Call `insert` to fill in the node data.
     pub fn reserve_from_source<U: ast::Node>(
         &mut self,
         node_type: NodeType,

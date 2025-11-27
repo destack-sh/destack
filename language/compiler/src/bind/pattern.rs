@@ -92,12 +92,12 @@ impl Compiler {
                         types,
                     )
                 });
-                let (symbol, _) = self.bind_named_local(
+                let (symbol, _) = self.bind_named_symbol(
                     module,
                     SymbolSpace::Value,
                     SymbolKey::Name(name),
                     scope,
-                    None,
+                    export,
                     symbols,
                 );
                 Pattern::Binding {
@@ -314,12 +314,12 @@ impl Compiler {
                         types,
                     )
                 });
-                let (symbol, _) = self.bind_named_local(
+                let (symbol, _) = self.bind_named_symbol(
                     module,
                     SymbolSpace::Value,
                     SymbolKey::Name(name),
                     scope,
-                    None,
+                    export,
                     symbols,
                 );
                 PatternField::UnresolvedNamed {
@@ -356,12 +356,12 @@ impl Compiler {
                         types,
                     )
                 });
-                let (symbol, _) = self.bind_named_local(
+                let (symbol, _) = self.bind_named_symbol(
                     module,
                     SymbolSpace::Value,
                     SymbolKey::Name(name),
                     scope,
-                    None,
+                    export,
                     symbols,
                 );
                 PatternField::UnresolvedAlias {

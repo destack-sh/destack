@@ -77,10 +77,9 @@ impl Compiler {
         space: SymbolSpace,
         key: SymbolKey,
         scope: (LocalScopeId, LocalScopeMark),
-        export: Option<DependencyMode>,
         symbols: &mut SymbolTable,
     ) -> (LocalSymbolId, LocalScopeMark) {
-        symbols.insert_symbol(SymbolKind::Local, space, Some(key), scope, export)
+        symbols.insert_symbol(SymbolKind::Local, space, Some(key), scope, None)
     }
 
     /// Bind a new named local with an owned scope. Symbol belongs to outer scope.
@@ -92,11 +91,10 @@ impl Compiler {
         key: SymbolKey,
         kind: ScopeKind,
         scope: (LocalScopeId, LocalScopeMark),
-        export: Option<DependencyMode>,
         symbols: &mut SymbolTable,
     ) -> (LocalSymbolId, LocalScopeId) {
         let (symbol_id, _) =
-            symbols.insert_symbol(SymbolKind::Local, space, Some(key), scope, export);
+            symbols.insert_symbol(SymbolKind::Local, space, Some(key), scope, None);
         let scope_id = symbols.insert_scope(kind, Some(scope), Some(symbol_id));
         (symbol_id, scope_id)
     }
@@ -108,10 +106,9 @@ impl Compiler {
         _module: &Module,
         space: SymbolSpace,
         scope: (LocalScopeId, LocalScopeMark),
-        export: Option<DependencyMode>,
         symbols: &mut SymbolTable,
     ) -> (LocalSymbolId, LocalScopeMark) {
-        symbols.insert_symbol(SymbolKind::Local, space, None, scope, export)
+        symbols.insert_symbol(SymbolKind::Local, space, None, scope, None)
     }
 
     /// Bind a new anonymous local with an owned scope. Symbol belongs to outer scope.
@@ -121,12 +118,29 @@ impl Compiler {
         _module: &Module,
         kind: ScopeKind,
         scope: (LocalScopeId, LocalScopeMark),
-        export: Option<DependencyMode>,
         symbols: &mut SymbolTable,
     ) -> (LocalSymbolId, LocalScopeId) {
         let (symbol_id, _) =
-            symbols.insert_symbol(SymbolKind::Local, SymbolSpace::Value, None, scope, export);
+            symbols.insert_symbol(SymbolKind::Local, SymbolSpace::Value, None, scope, None);
         let scope_id = symbols.insert_scope(kind, Some(scope), Some(symbol_id));
         (symbol_id, scope_id)
+    }
+
+    /// Bind a new named item or local (if export is set, it's an item, otherwise a local).
+    #[inline]
+    pub(super) fn bind_named_symbol(
+        &self,
+        module: &Module,
+        space: SymbolSpace,
+        key: SymbolKey,
+        scope: (LocalScopeId, LocalScopeMark),
+        export: Option<DependencyMode>,
+        symbols: &mut SymbolTable,
+    ) -> (LocalSymbolId, LocalScopeMark) {
+        if let Some(export) = export {
+            self.bind_named_item(module, space, key, scope, Some(export), symbols)
+        } else {
+            self.bind_named_local(module, space, key, scope, symbols)
+        }
     }
 }
