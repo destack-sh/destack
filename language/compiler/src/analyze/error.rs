@@ -1,15 +1,26 @@
 use dyst_dir::{GlobalNodeIdAny, Program};
 
-use crate::{CompileError, CompilePhase, CompileTaskDependency};
+use crate::{TaskError, Phase, TaskDependency};
 
 /// Error when analyzeing something into the compiler.
 #[derive(Debug, Clone, PartialEq)]
 #[repr(u8)]
 pub enum AnalyzeError {
     /// Wait for task dependency.
-    Yield { wait: CompileTaskDependency },
+    Yield { wait: TaskDependency },
     /// Unsupported node.
     UnsupportedNode { node: GlobalNodeIdAny },
+}
+
+impl TryFrom<AnalyzeError> for TaskDependency {
+    type Error = AnalyzeError;
+
+    fn try_from(error: AnalyzeError) -> Result<Self, Self::Error> {
+        match error {
+            AnalyzeError::Yield { wait } => Ok(wait),
+            _ => Err(error),
+        }
+    }
 }
 
 impl AnalyzeError {
@@ -44,16 +55,16 @@ impl std::fmt::Display for AnalyzeError {
         f.debug_struct("AnalyzeError")
             .field(
                 "code",
-                &format!("E{}{:03}", CompilePhase::Analyze.letter(), self.sub_code()),
+                &format!("E{}{:03}", Phase::Analyze.letter(), self.sub_code()),
             )
             .finish()
     }
 }
 
-impl From<AnalyzeError> for CompileError {
+impl From<AnalyzeError> for TaskError {
     #[inline]
     fn from(error: AnalyzeError) -> Self {
-        CompileError::Analyze(error)
+        TaskError::Analyze(error)
     }
 }
 

@@ -1,15 +1,26 @@
 use dyst_dir::{GlobalNodeIdAny, Program};
 
-use crate::{CompileError, CompilePhase, CompileTaskDependency};
+use crate::{TaskError, Phase, TaskDependency};
 
 /// Error when lowering something into the compiler.
 #[derive(Debug, Clone, PartialEq)]
 #[repr(u8)]
 pub enum LowerError {
     /// Wait for task dependency.
-    Yield { wait: CompileTaskDependency } = 0,
+    Yield { wait: TaskDependency } = 0,
     /// Unsupported node.
     UnsupportedNode { node: GlobalNodeIdAny } = 1,
+}
+
+impl TryFrom<LowerError> for TaskDependency {
+    type Error = LowerError;
+
+    fn try_from(error: LowerError) -> Result<Self, Self::Error> {
+        match error {
+            LowerError::Yield { wait } => Ok(wait),
+            _ => Err(error),
+        }
+    }
 }
 
 impl LowerError {
@@ -44,7 +55,7 @@ impl std::fmt::Display for LowerError {
         f.debug_struct("LowerError")
             .field(
                 "code",
-                &format!("E{}{:03}", CompilePhase::Lower.letter(), self.sub_code()),
+                &format!("E{}{:03}", Phase::Lower.letter(), self.sub_code()),
             )
             .finish()
     }
@@ -52,9 +63,9 @@ impl std::fmt::Display for LowerError {
 
 pub type LowerResult<T> = Result<T, LowerError>;
 
-impl From<LowerError> for CompileError {
+impl From<LowerError> for TaskError {
     #[inline]
     fn from(error: LowerError) -> Self {
-        CompileError::Lower(error)
+        TaskError::Lower(error)
     }
 }

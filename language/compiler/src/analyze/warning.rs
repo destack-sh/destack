@@ -1,6 +1,6 @@
 use dyst_dir::{GlobalNodeIdAny, Program};
 
-use crate::{CompilePhase, CompileWarning};
+use crate::{Phase, CompileWarning};
 
 /// Warning when analyzing something.
 #[derive(Debug, Clone, PartialEq)]
@@ -39,7 +39,7 @@ impl std::fmt::Display for AnalyzeWarning {
         f.debug_struct("AnalyzeWarning")
             .field(
                 "code",
-                &format!("W{}{:03}", CompilePhase::Analyze.letter(), self.sub_code()),
+                &format!("W{}{:03}", Phase::Analyze.letter(), self.sub_code()),
             )
             .finish()
     }

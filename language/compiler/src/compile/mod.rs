@@ -1,9 +1,9 @@
 mod artifact;
-mod compile;
 mod compiler;
 mod diagnostic;
 mod error;
 mod event;
+mod process;
 mod queue;
 mod task;
 mod warning;

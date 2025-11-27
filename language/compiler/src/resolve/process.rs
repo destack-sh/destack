@@ -1,4 +1,4 @@
-use crate::{CompileOutput, CompileTask, Compiler, ResolveResult};
+use crate::{TaskOutput, Task, Compiler, ResolveResult};
 
 use dyst_dir::{ModuleId, Program};
 
@@ -27,19 +27,19 @@ impl ResolveTask {
     }
 }
 
-impl From<ResolveTask> for CompileTask {
+impl From<ResolveTask> for Task {
     fn from(task: ResolveTask) -> Self {
-        CompileTask::Resolve(task)
+        Task::Resolve(task)
     }
 }
 
 /// Output of a resolve task.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct ResolveOutput {}
 
-impl From<ResolveOutput> for CompileOutput {
+impl From<ResolveOutput> for TaskOutput {
     fn from(output: ResolveOutput) -> Self {
-        CompileOutput::Resolve(output)
+        TaskOutput::Resolve(output)
     }
 }
 

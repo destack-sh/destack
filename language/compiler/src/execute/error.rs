@@ -1,15 +1,26 @@
 use dyst_dir::{GlobalNodeIdAny, Program};
 
-use crate::{CompileError, CompilePhase, CompileTaskDependency};
+use crate::{TaskError, Phase, TaskDependency};
 
 /// Error when evaluating something statically.
 #[derive(Debug, Clone, PartialEq)]
 #[repr(u8)]
 pub enum ExecuteError {
     /// Wait for task dependency.
-    Yield { wait: CompileTaskDependency } = 0,
+    Yield { wait: TaskDependency } = 0,
     /// Unsupported node.
     UnsupportedNode { node: GlobalNodeIdAny } = 1,
+}
+
+impl TryFrom<ExecuteError> for TaskDependency {
+    type Error = ExecuteError;
+
+    fn try_from(error: ExecuteError) -> Result<Self, Self::Error> {
+        match error {
+            ExecuteError::Yield { wait } => Ok(wait),
+            _ => Err(error),
+        }
+    }
 }
 
 impl ExecuteError {
@@ -44,7 +55,7 @@ impl std::fmt::Display for ExecuteError {
         f.debug_struct("ExecuteError")
             .field(
                 "code",
-                &format!("E{}{:03}", CompilePhase::Execute.letter(), self.sub_code()),
+                &format!("E{}{:03}", Phase::Execute.letter(), self.sub_code()),
             )
             .finish()
     }
@@ -52,9 +63,9 @@ impl std::fmt::Display for ExecuteError {
 
 pub type ExecuteResult<T> = Result<T, ExecuteError>;
 
-impl From<ExecuteError> for CompileError {
+impl From<ExecuteError> for TaskError {
     #[inline]
     fn from(error: ExecuteError) -> Self {
-        CompileError::Execute(error)
+        TaskError::Execute(error)
     }
 }

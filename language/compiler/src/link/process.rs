@@ -1,4 +1,4 @@
-use crate::{CompileOutput, CompileTask, Compiler, LinkResult};
+use crate::{TaskOutput, Task, Compiler, LinkResult};
 
 use dyst_dir::{ModuleId, Program};
 
@@ -27,19 +27,19 @@ impl LinkTask {
     }
 }
 
-impl From<LinkTask> for CompileTask {
+impl From<LinkTask> for Task {
     fn from(task: LinkTask) -> Self {
-        CompileTask::Link(task)
+        Task::Link(task)
     }
 }
 
 /// Output of a link task.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct LinkOutput {}
 
-impl From<LinkOutput> for CompileOutput {
+impl From<LinkOutput> for TaskOutput {
     fn from(output: LinkOutput) -> Self {
-        CompileOutput::Link(output)
+        TaskOutput::Link(output)
     }
 }
 

@@ -4,7 +4,7 @@ use dyst_dir::Program;
 use dyst_source::{DiagnosticCollector, DiagnosticOptions};
 
 use crate::{
-    BuildOptions, CompileDiagnostic, CompileError, CompileWarning, CompilerQueue, ExecuteOptions,
+    BuildOptions, CompileDiagnostic, TaskError, CompileWarning, TaskQueue, ExecuteOptions,
     ImportOptions, LinkOptions, LowerOptions, OptimizeOptions, ResolveOptions, ValidateOptions,
 };
 
@@ -13,6 +13,8 @@ use crate::{
 pub struct CompileOptions {
     /// The diagnostic options.
     pub diagnostic: DiagnosticOptions,
+    /// The number of worker threads to use.
+    pub workers: Option<u16>,
     /// The options for importing.
     pub import: ImportOptions,
     /// The options for evaluating.
@@ -41,7 +43,7 @@ pub struct Compiler {
     /// The pending compiler diagnostics.
     pub pending_diagnostics: DiagnosticCollector,
     /// The queue of compiler tasks.
-    pub(super) queue: CompilerQueue,
+    pub(super) queue: TaskQueue,
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -52,13 +54,13 @@ impl Compiler {
             program,
             options,
             pending_diagnostics: DiagnosticCollector::new(),
-            queue: CompilerQueue::new(),
+            queue: TaskQueue::new(),
         }
     }
 
     /// Add an error to the compiler.
-    pub fn error<T: Into<CompileError>>(&self, error: T) {
-        let error: CompileError = error.into();
+    pub fn error<T: Into<TaskError>>(&self, error: T) {
+        let error: TaskError = error.into();
         let diagnostic: CompileDiagnostic = error.into();
         let diagnostic = diagnostic.to_diagnostic(&self.program);
         self.pending_diagnostics.insert(diagnostic);

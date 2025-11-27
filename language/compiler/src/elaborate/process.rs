@@ -1,4 +1,4 @@
-use crate::{CompileOutput, CompileTask, Compiler, ElaborateResult};
+use crate::{TaskOutput, Task, Compiler, ElaborateResult};
 
 use dyst_dir::{ModuleId, Program};
 
@@ -27,19 +27,19 @@ impl ElaborateTask {
     }
 }
 
-impl From<ElaborateTask> for CompileTask {
+impl From<ElaborateTask> for Task {
     fn from(task: ElaborateTask) -> Self {
-        CompileTask::Elaborate(task)
+        Task::Elaborate(task)
     }
 }
 
 /// Output of an elaborate task.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct ElaborateOutput {}
 
-impl From<ElaborateOutput> for CompileOutput {
+impl From<ElaborateOutput> for TaskOutput {
     fn from(output: ElaborateOutput) -> Self {
-        CompileOutput::Elaborate(output)
+        TaskOutput::Elaborate(output)
     }
 }
 

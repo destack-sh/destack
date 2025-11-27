@@ -1,4 +1,4 @@
-use crate::{CompileOutput, CompileTask, Compiler, OptimizeResult};
+use crate::{TaskOutput, Task, Compiler, OptimizeResult};
 
 use dyst_dir::{ModuleId, Program};
 
@@ -27,19 +27,19 @@ impl OptimizeTask {
     }
 }
 
-impl From<OptimizeTask> for CompileTask {
+impl From<OptimizeTask> for Task {
     fn from(task: OptimizeTask) -> Self {
-        CompileTask::Optimize(task)
+        Task::Optimize(task)
     }
 }
 
 /// Output of an optimize task.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct OptimizeOutput {}
 
-impl From<OptimizeOutput> for CompileOutput {
+impl From<OptimizeOutput> for TaskOutput {
     fn from(output: OptimizeOutput) -> Self {
-        CompileOutput::Optimize(output)
+        TaskOutput::Optimize(output)
     }
 }
 

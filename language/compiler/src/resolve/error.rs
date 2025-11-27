@@ -1,4 +1,4 @@
-use crate::{CompileError, CompilePhase, CompileTaskDependency};
+use crate::{Phase, TaskDependency, TaskError};
 use dyst_dir::{GlobalNodeIdAny, GlobalScopeId, GlobalSymbolId, Program, StringId, SymbolKey};
 
 /// Error when evaluating something statically.
@@ -6,7 +6,7 @@ use dyst_dir::{GlobalNodeIdAny, GlobalScopeId, GlobalSymbolId, Program, StringId
 #[repr(u8)]
 pub enum ResolveError {
     /// Wait for task dependency.
-    Yield { wait: CompileTaskDependency },
+    Yield { wait: TaskDependency },
     /// Unsupported node.
     UnsupportedNode { node: GlobalNodeIdAny },
     /// Circular dependency.
@@ -38,6 +38,17 @@ pub enum ResolveError {
         node: GlobalNodeIdAny,
         target: StringId,
     },
+}
+
+impl TryFrom<ResolveError> for TaskDependency {
+    type Error = ResolveError;
+
+    fn try_from(error: ResolveError) -> Result<Self, Self::Error> {
+        match error {
+            ResolveError::Yield { wait } => Ok(wait),
+            _ => Err(error),
+        }
+    }
 }
 
 impl ResolveError {
@@ -101,16 +112,16 @@ impl std::fmt::Display for ResolveError {
         f.debug_struct("ResolveError")
             .field(
                 "code",
-                &format!("E{}{:03}", CompilePhase::Resolve.letter(), self.sub_code()),
+                &format!("E{}{:03}", Phase::Resolve.letter(), self.sub_code()),
             )
             .finish()
     }
 }
 
-impl From<ResolveError> for CompileError {
+impl From<ResolveError> for TaskError {
     #[inline]
     fn from(error: ResolveError) -> Self {
-        CompileError::Resolve(error)
+        TaskError::Resolve(error)
     }
 }
 

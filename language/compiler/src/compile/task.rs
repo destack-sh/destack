@@ -1,15 +1,15 @@
 use dyst_dir::{GlobalNodeIdAny, Program};
 
 use crate::{
-    AnalyzeOutput, AnalyzeTask, BindOutput, BindTask, BuildOutput, BuildTask, CompileError,
-    ElaborateOutput, ElaborateTask, ExecuteOutput, ExecuteTask, ImportOutput, ImportTask,
-    LinkOutput, LinkTask, LowerOutput, LowerTask, OptimizeOutput, OptimizeTask, ResolveOutput,
-    ResolveTask, ValidateOutput, ValidateTask,
+    AnalyzeOutput, AnalyzeTask, BindOutput, BindTask, BuildOutput, BuildTask, ElaborateOutput,
+    ElaborateTask, ExecuteOutput, ExecuteTask, ImportOutput, ImportTask, LinkOutput, LinkTask,
+    LowerOutput, LowerTask, OptimizeOutput, OptimizeTask, ResolveOutput, ResolveTask, TaskError,
+    ValidateOutput, ValidateTask,
 };
 
 /// Region of the compiler.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum CompilerRegion {
+pub enum Region {
     /// Front-end (import, bind, resolve, validate, elaborate).
     Front,
     /// Middle-end (lower, analyze, optimize).
@@ -18,7 +18,7 @@ pub enum CompilerRegion {
     Back,
 }
 
-impl CompilerRegion {
+impl Region {
     /// Get the name of the region.
     pub fn name(&self) -> &str {
         match self {
@@ -32,7 +32,7 @@ impl CompilerRegion {
 /// Phase of the compiler.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[repr(u8)]
-pub enum CompilePhase {
+pub enum Phase {
     /// Import and parse source into AST.
     Import = 1,
     /// Bind, lower and declare AST source into DIR.
@@ -59,26 +59,26 @@ pub enum CompilePhase {
     Link = 11,
 }
 
-impl std::fmt::Display for CompilePhase {
+impl std::fmt::Display for Phase {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.letter())
     }
 }
 
-impl CompilePhase {
+impl Phase {
     /// Get the numeric code of the phase.
     pub fn code(&self) -> u8 {
         *self as u8
     }
 
     /// Get the region of the phase.
-    pub fn region(&self) -> CompilerRegion {
+    pub fn region(&self) -> Region {
         match self {
             Self::Import | Self::Bind | Self::Resolve | Self::Validate | Self::Elaborate => {
-                CompilerRegion::Front
+                Region::Front
             }
-            Self::Lower | Self::Analyze | Self::Optimize => CompilerRegion::Middle,
-            Self::Execute | Self::Build | Self::Link => CompilerRegion::Back,
+            Self::Lower | Self::Analyze | Self::Optimize => Region::Middle,
+            Self::Execute | Self::Build | Self::Link => Region::Back,
         }
     }
 
@@ -136,7 +136,7 @@ impl CompilePhase {
 
 /// Task for the compiler during compilation.
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
-pub enum CompileTask {
+pub enum Task {
     /// Import and parse source into AST.
     Import(ImportTask),
     /// Bind, lower and declare AST source into DIR.
@@ -163,26 +163,26 @@ pub enum CompileTask {
     Link(LinkTask),
 }
 
-impl CompileTask {
+impl Task {
     /// Get the phase of the task.
-    pub fn phase(&self) -> CompilePhase {
+    pub fn phase(&self) -> Phase {
         match self {
-            Self::Import(_) => CompilePhase::Import,
-            Self::Bind(_) => CompilePhase::Bind,
-            Self::Resolve(_) => CompilePhase::Resolve,
-            Self::Validate(_) => CompilePhase::Validate,
-            Self::Elaborate(_) => CompilePhase::Elaborate,
-            Self::Lower(_) => CompilePhase::Lower,
-            Self::Analyze(_) => CompilePhase::Analyze,
-            Self::Optimize(_) => CompilePhase::Optimize,
-            Self::Execute(_) => CompilePhase::Execute,
-            Self::Build(_) => CompilePhase::Build,
-            Self::Link(_) => CompilePhase::Link,
+            Self::Import(_) => Phase::Import,
+            Self::Bind(_) => Phase::Bind,
+            Self::Resolve(_) => Phase::Resolve,
+            Self::Validate(_) => Phase::Validate,
+            Self::Elaborate(_) => Phase::Elaborate,
+            Self::Lower(_) => Phase::Lower,
+            Self::Analyze(_) => Phase::Analyze,
+            Self::Optimize(_) => Phase::Optimize,
+            Self::Execute(_) => Phase::Execute,
+            Self::Build(_) => Phase::Build,
+            Self::Link(_) => Phase::Link,
         }
     }
 
     /// Get the region of the task.
-    pub fn region(&self) -> CompilerRegion {
+    pub fn region(&self) -> Region {
         self.phase().region()
     }
 
@@ -228,9 +228,15 @@ impl CompileTask {
 
 /// Id for a compiler task.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct CompileTaskId(u32);
+#[repr(transparent)]
+pub struct TaskId(pub u32);
 
-impl CompileTaskId {
+impl TaskId {
+    /// Create a new task id.
+    pub fn new(id: u32) -> Self {
+        Self(id)
+    }
+
     /// Get the numeric code of the id.
     pub fn code(&self) -> u32 {
         self.0
@@ -238,39 +244,58 @@ impl CompileTaskId {
 }
 
 /// Status of a compiler task.
-#[derive(Debug, Clone)]
-pub enum CompileTaskStatus {
-    /// The task is wait for a dependency.
-    Waiting,
+#[derive(Debug, Clone, PartialEq)]
+pub enum TaskStatus {
     /// The task is queued.
     Queued,
     /// The task is running.
     Running,
+    /// The task is wait for a dependency.
+    Yielded { dependency: TaskDependency },
     /// The task is complete.
-    Complete { output: CompileOutput },
+    Complete { output: TaskOutput },
     /// The task failed.
-    Failed { error: CompileError },
+    Failed { error: TaskError },
+}
+
+impl From<TaskOutcome> for TaskStatus {
+    fn from(outcome: TaskOutcome) -> Self {
+        match outcome {
+            TaskOutcome::Yield { dependency } => Self::Yielded { dependency },
+            TaskOutcome::Error { error } => Self::Failed { error },
+            TaskOutcome::Complete { output } => Self::Complete { output },
+        }
+    }
 }
 
 /// Handle for a compiler task.
-#[derive(Debug, Clone)]
-pub struct CompileTaskHandle {
-    /// The handle id.
-    pub id: CompileTaskId,
+#[derive(Debug, Clone, PartialEq)]
+pub struct TaskHandle {
+    /// The task id.
+    pub id: TaskId,
     /// The status of the task.
-    pub status: CompileTaskStatus,
+    pub status: TaskStatus,
     /// The task.
-    pub task: CompileTask,
+    pub task: Task,
 }
 
-impl CompileTaskHandle {
+impl TaskHandle {
+    /// Create a new task handle.
+    pub fn new(id: TaskId, task: Task) -> Self {
+        Self {
+            id,
+            status: TaskStatus::Queued,
+            task,
+        }
+    }
+
     /// Get the phase of the task.
-    pub fn phase(&self) -> CompilePhase {
+    pub fn phase(&self) -> Phase {
         self.task.phase()
     }
 
     /// Get the region of the task.
-    pub fn region(&self) -> CompilerRegion {
+    pub fn region(&self) -> Region {
         self.task.region()
     }
 
@@ -280,28 +305,69 @@ impl CompileTaskHandle {
     }
 }
 
-// nocheckin: wait for tasks (and error if dependent tasks fail)
+/// Outcome of a compiler task.
+#[derive(Debug, Clone, PartialEq)]
+pub enum TaskOutcome {
+    /// The task yielded a dependency.
+    Yield { dependency: TaskDependency },
+    /// The task failed with an error.
+    Error { error: TaskError },
+    /// The task completed with an output.
+    Complete { output: TaskOutput },
+}
+
+impl<O, E> From<Result<O, E>> for TaskOutcome
+where
+    O: Into<TaskOutput>,
+    E: Into<TaskError>,
+    E: TryInto<TaskDependency, Error = E>,
+{
+    fn from(result: Result<O, E>) -> Self {
+        match result {
+            Ok(output) => Self::Complete {
+                output: output.into(),
+            },
+            Err(error) => match error.try_into() {
+                Ok(dependency) => Self::Yield { dependency },
+                Err(error) => Self::Error {
+                    error: error.into(),
+                },
+            },
+        }
+    }
+}
+
+impl TaskOutcome {
+    /// Check if the outcome is final (i.e., will not change).
+    pub fn is_final(&self) -> bool {
+        match self {
+            Self::Yield { .. } => false,
+            Self::Error { .. } => true,
+            Self::Complete { .. } => true,
+        }
+    }
+}
 
 /// Task dependency to wait for.
 #[derive(Debug, Clone, PartialEq)]
-pub enum CompileTaskDependency {
+pub enum TaskDependency {
     /// Wait for a single task dependency to complete.
     Complete {
         node: GlobalNodeIdAny,
-        task: CompileTask,
-        error: Option<Box<CompileError>>,
+        task: Task,
+        error: Option<Box<TaskError>>,
     },
     /// Wait for all of the given task dependencies to be satisfied.
     CompleteAll {
-        dependencies: Vec<Box<CompileTaskDependency>>,
+        dependencies: Vec<Box<TaskDependency>>,
     },
     /// Wait for any of the given task dependencies to be satisfied.
     CompleteAny {
-        dependencies: Vec<Box<CompileTaskDependency>>,
+        dependencies: Vec<Box<TaskDependency>>,
     },
 }
 
-impl CompileTaskDependency {
+impl TaskDependency {
     /// Get the first node involved in the wait.
     pub fn first_node(&self) -> Option<GlobalNodeIdAny> {
         match self {
@@ -332,8 +398,8 @@ impl CompileTaskDependency {
 }
 
 /// Output of a compiler task.
-#[derive(Debug, Clone)]
-pub enum CompileOutput {
+#[derive(Debug, Clone, PartialEq)]
+pub enum TaskOutput {
     /// Output of an import task.
     Import(ImportOutput),
     /// Output of a bind task.

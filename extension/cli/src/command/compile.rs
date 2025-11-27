@@ -4,7 +4,8 @@ use dyst_dir::{Dumper, DumperOptions, NodeVisitor};
 use dyst_source::DiagnosticOptions;
 
 use crate::command::{
-    DiagnosticOptionsArgs, ProgramArgs, SourceArg, get_string_or_file, print_diagnostics,
+    DiagnosticOptionsArgs, ProgramArgs, SourceArg, WorkerOptionsArgs, get_string_or_file,
+    print_diagnostics,
 };
 use crate::console;
 
@@ -75,6 +76,9 @@ pub struct CompileArgs {
 
     #[command(flatten)]
     pub diagnostics: DiagnosticOptionsArgs,
+
+    #[command(flatten)]
+    pub workers: WorkerOptionsArgs,
 }
 
 /// Compile source into its final DIR.
@@ -105,6 +109,7 @@ pub fn run(args: &CompileArgs) -> i32 {
         program.clone(),
         CompileOptions {
             diagnostic: diagnostic_options.clone(),
+            workers: args.workers.workers,
             ..Default::default()
         },
     );

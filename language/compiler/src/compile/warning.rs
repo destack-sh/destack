@@ -1,7 +1,7 @@
 use dyst_dir::{GlobalNodeIdAny, Program};
 
 use crate::{
-    AnalyzeWarning, BindWarning, BuildWarning, CompilePhase, ElaborateWarning, ExecuteWarning,
+    AnalyzeWarning, BindWarning, BuildWarning, Phase, ElaborateWarning, ExecuteWarning,
     ImportWarning, LinkWarning, LowerWarning, OptimizeWarning, ResolveWarning, ValidateWarning,
 };
 
@@ -36,19 +36,19 @@ pub enum CompileWarning {
 
 impl CompileWarning {
     /// Get the phase of the warning.
-    pub fn phase(&self) -> CompilePhase {
+    pub fn phase(&self) -> Phase {
         match self {
-            Self::Import(_) => CompilePhase::Import,
-            Self::Bind(_) => CompilePhase::Bind,
-            Self::Resolve(_) => CompilePhase::Resolve,
-            Self::Validate(_) => CompilePhase::Validate,
-            Self::Elaborate(_) => CompilePhase::Elaborate,
-            Self::Lower(_) => CompilePhase::Lower,
-            Self::Analyze(_) => CompilePhase::Analyze,
-            Self::Optimize(_) => CompilePhase::Optimize,
-            Self::Execute(_) => CompilePhase::Execute,
-            Self::Build(_) => CompilePhase::Build,
-            Self::Link(_) => CompilePhase::Link,
+            Self::Import(_) => Phase::Import,
+            Self::Bind(_) => Phase::Bind,
+            Self::Resolve(_) => Phase::Resolve,
+            Self::Validate(_) => Phase::Validate,
+            Self::Elaborate(_) => Phase::Elaborate,
+            Self::Lower(_) => Phase::Lower,
+            Self::Analyze(_) => Phase::Analyze,
+            Self::Optimize(_) => Phase::Optimize,
+            Self::Execute(_) => Phase::Execute,
+            Self::Build(_) => Phase::Build,
+            Self::Link(_) => Phase::Link,
         }
     }
 

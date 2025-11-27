@@ -1,13 +1,13 @@
 use dyst_dir::{GlobalNodeIdAny, Program};
 
-use crate::{CompileError, CompilePhase, CompileTaskDependency};
+use crate::{TaskError, Phase, TaskDependency};
 
 /// Error when optimizing something into the compiler.
 #[derive(Debug, Clone, PartialEq)]
 #[repr(u8)]
 pub enum OptimizeError {
     /// Wait for task dependency.
-    Yield { wait: CompileTaskDependency },
+    Yield { wait: TaskDependency },
     /// Optimization is impossible for this node.
     UnsupportedNode { node: GlobalNodeIdAny },
     /// Unsupported optimization.
@@ -17,6 +17,17 @@ pub enum OptimizeError {
         node: GlobalNodeIdAny,
         behavior: String,
     },
+}
+
+impl TryFrom<OptimizeError> for TaskDependency {
+    type Error = OptimizeError;
+
+    fn try_from(error: OptimizeError) -> Result<Self, Self::Error> {
+        match error {
+            OptimizeError::Yield { wait } => Ok(wait),
+            _ => Err(error),
+        }
+    }
 }
 
 impl OptimizeError {
@@ -57,7 +68,7 @@ impl std::fmt::Display for OptimizeError {
         f.debug_struct("OptimizeError")
             .field(
                 "code",
-                &format!("E{}{:03}", CompilePhase::Optimize.letter(), self.sub_code()),
+                &format!("E{}{:03}", Phase::Optimize.letter(), self.sub_code()),
             )
             .finish()
     }
@@ -65,9 +76,9 @@ impl std::fmt::Display for OptimizeError {
 
 pub type OptimizeResult<T> = Result<T, OptimizeError>;
 
-impl From<OptimizeError> for CompileError {
+impl From<OptimizeError> for TaskError {
     #[inline]
     fn from(error: OptimizeError) -> Self {
-        CompileError::Optimize(error)
+        TaskError::Optimize(error)
     }
 }

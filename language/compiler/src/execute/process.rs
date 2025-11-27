@@ -1,4 +1,4 @@
-use crate::{CompileOutput, CompileTask, Compiler, ExecuteResult};
+use crate::{TaskOutput, Task, Compiler, ExecuteResult};
 
 use dyst_dir::{LocalNodeIdAny, Program};
 
@@ -27,19 +27,19 @@ impl ExecuteTask {
     }
 }
 
-impl From<ExecuteTask> for CompileTask {
+impl From<ExecuteTask> for Task {
     fn from(task: ExecuteTask) -> Self {
-        CompileTask::Execute(task)
+        Task::Execute(task)
     }
 }
 
 /// Output of an execute task.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct ExecuteOutput {}
 
-impl From<ExecuteOutput> for CompileOutput {
+impl From<ExecuteOutput> for TaskOutput {
     fn from(output: ExecuteOutput) -> Self {
-        CompileOutput::Execute(output)
+        TaskOutput::Execute(output)
     }
 }
 
