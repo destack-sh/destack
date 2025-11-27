@@ -119,4 +119,9 @@ impl TestProgram {
             .get_by_uri(&Uri::from_string(module_uri))
             .unwrap()
     }
+
+    /// Get a module by file id.
+    pub fn module_for_file(&self, file: &File) -> Arc<RwLock<Module>> {
+        self.program.modules.get_by_uri(&file.uri).unwrap()
+    }
 }

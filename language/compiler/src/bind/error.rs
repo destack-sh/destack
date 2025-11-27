@@ -1,14 +1,14 @@
 use dyst_ast::StringId;
 use dyst_dir::{GlobalNodeIdAny, GlobalScopeId, ModuleId, Program, SymbolKey};
 
-use crate::{CompileError, CompilePhase, CompileTaskWait};
+use crate::{CompileError, CompilePhase, CompileTaskDependency};
 
 /// Error when binding something into the compiler.
 #[derive(Debug, Clone, PartialEq)]
 #[repr(u8)]
 pub enum BindError {
     /// Wait for other tasks.
-    Wait { wait: CompileTaskWait },
+    Wait { wait: CompileTaskDependency },
     /// Unsupported node.
     UnsupportedNode { node: GlobalNodeIdAny },
     /// Conflicting symbol binding.
@@ -65,7 +65,7 @@ impl BindError {
     /// Get the node id of the error.
     pub fn node_id(&self) -> Option<GlobalNodeIdAny> {
         match self {
-            Self::Wait { wait } => wait.nodes.first().copied(),
+            Self::Wait { wait } => wait.first_node(),
             Self::UnsupportedNode { node } => Some(*node),
             Self::ConflictingBinding { node, .. } => Some(*node),
             Self::ConflictingExport { node, .. } => Some(*node),

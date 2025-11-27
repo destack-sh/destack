@@ -93,9 +93,7 @@ impl Compiler {
 
         // resolve roots
         for expression_id in tree.iter_node_ids_of_type::<Expression>() {
-            self.try_resolve(|compiler| {
-                compiler.resolve_expression(&module, expression_id, &mut tree, &symbols)
-            });
+            self.resolve_expression(&module, expression_id, &mut tree, &symbols)?;
         }
 
         Ok(())

@@ -1,13 +1,13 @@
 use dyst_dir::{GlobalNodeIdAny, Program};
 
-use crate::{CompileError, CompilePhase, CompileTaskWait};
+use crate::{CompileError, CompilePhase, CompileTaskDependency};
 
 /// Error when building something into the compiler.
 #[derive(Debug, Clone, PartialEq)]
 #[repr(u8)]
 pub enum BuildError {
     /// Wait for other tasks.
-    Wait { wait: CompileTaskWait },
+    Wait { wait: CompileTaskDependency },
     /// Target is not available.
     TargetNotAvailable { node: GlobalNodeIdAny },
     /// Unsupported target triple / architecture / ABI.
@@ -70,7 +70,7 @@ impl BuildError {
     /// Get the node id of the error.
     pub fn node_id(&self) -> Option<GlobalNodeIdAny> {
         match self {
-            Self::Wait { wait } => wait.nodes.first().copied(),
+            Self::Wait { wait } => wait.first_node(),
             Self::TargetNotAvailable { node, .. } => Some(*node),
             Self::UnsupportedTarget { node, .. } => Some(*node),
             Self::MissingEntryPoint { node, .. } => Some(*node),

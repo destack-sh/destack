@@ -280,16 +280,55 @@ impl CompileTaskHandle {
     }
 }
 
-/// Task wait for other tasks.
+// nocheckin: wait for tasks (and error if dependent tasks fail)
+
+/// Task dependency to wait for.
 #[derive(Debug, Clone, PartialEq)]
-pub struct CompileTaskWait {
-    // nocheckin: wait for tasks (and error if dependent tasks fail)
-    /// The nodes involved in the wait.
-    pub nodes: Vec<GlobalNodeIdAny>,
-    /// The tasks to wait for.
-    pub tasks: Vec<CompileTask>,
-    /// The error to generate if the wait is not resolved.
-    pub error: Option<Box<CompileError>>,
+pub enum CompileTaskDependency {
+    /// Wait for a single task dependency to complete.
+    Complete {
+        node: GlobalNodeIdAny,
+        task: CompileTask,
+        error: Option<Box<CompileError>>,
+    },
+    /// Wait for all of the given task dependencies to be satisfied.
+    CompleteAll {
+        dependencies: Vec<Box<CompileTaskDependency>>,
+    },
+    /// Wait for any of the given task dependencies to be satisfied.
+    CompleteAny {
+        dependencies: Vec<Box<CompileTaskDependency>>,
+    },
+}
+
+impl CompileTaskDependency {
+    /// Get the first node involved in the wait.
+    pub fn first_node(&self) -> Option<GlobalNodeIdAny> {
+        match self {
+            Self::Complete { node, .. } => Some(*node),
+            Self::CompleteAll { dependencies } => dependencies
+                .first()
+                .and_then(|dependency| dependency.first_node()),
+            Self::CompleteAny { dependencies } => dependencies
+                .first()
+                .and_then(|dependency| dependency.first_node()),
+        }
+    }
+
+    /// Get the nodes involved in the wait.
+    pub fn nodes(&self) -> Vec<GlobalNodeIdAny> {
+        match self {
+            Self::Complete { node, .. } => vec![*node],
+            Self::CompleteAll { dependencies } => dependencies
+                .iter()
+                .flat_map(|dependency| dependency.nodes())
+                .collect(),
+            Self::CompleteAny { dependencies } => dependencies
+                .iter()
+                .flat_map(|dependency| dependency.nodes())
+                .collect(),
+        }
+    }
 }
 
 /// Output of a compiler task.
