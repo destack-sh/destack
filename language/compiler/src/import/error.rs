@@ -10,8 +10,8 @@ use crate::{CompileError, CompilePhase, CompileTaskDependency};
 #[derive(Debug, Clone, PartialEq)]
 #[repr(u8)]
 pub enum ImportError {
-    /// Wait for other tasks.
-    Wait { wait: CompileTaskDependency },
+    /// Wait for task dependency.
+    Yield { wait: CompileTaskDependency },
     /// Invalid URI.
     InvalidUri { uri: Uri },
     /// File URI not found.
@@ -39,7 +39,7 @@ impl ImportError {
     #[inline]
     pub fn sub_code(&self) -> u8 {
         match self {
-            Self::Wait { .. } => 0,
+            Self::Yield { .. } => 0,
             Self::InvalidUri { .. } => 1,
             Self::FileUriNotFound { .. } => 2,
             Self::FilePathNotFound { .. } => 3,
@@ -52,7 +52,7 @@ impl ImportError {
     /// Get the node id of the error.
     pub fn node_id(&self) -> Option<GlobalNodeIdAny> {
         match self {
-            Self::Wait { wait } => wait.first_node(),
+            Self::Yield { wait } => wait.first_node(),
             Self::InvalidUri { .. } => None,
             Self::FileUriNotFound { .. } => None,
             Self::FilePathNotFound { .. } => None,
@@ -65,7 +65,7 @@ impl ImportError {
     /// Get the message of the error.
     pub fn message(&self, program: &Program) -> String {
         match self {
-            Self::Wait { .. } => "wait for task".to_string(),
+            Self::Yield { .. } => "unresolved dependency".to_string(),
             Self::InvalidUri { uri } => format!("invalid URI: '{uri}'"),
             Self::FileUriNotFound { uri } => format!("file URI not found: '{uri}'"),
             Self::FilePathNotFound { path } => format!("file path not found: '{path:?}'"),

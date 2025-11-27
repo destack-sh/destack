@@ -8,8 +8,8 @@ use crate::{CompileError, CompilePhase, CompileTaskDependency};
 #[derive(Debug, Clone, PartialEq)]
 #[repr(u8)]
 pub enum ValidateError {
-    /// Wait for other tasks.
-    Wait { wait: CompileTaskDependency },
+    /// Wait for task dependency.
+    Yield { wait: CompileTaskDependency },
     /// Missing type for an expression.
     MissingType { node: GlobalNodeIdAny },
     /// Type is not assignable to the expected type.
@@ -59,7 +59,7 @@ impl ValidateError {
     #[inline]
     pub fn sub_code(&self) -> u8 {
         match self {
-            Self::Wait { .. } => 0,
+            Self::Yield { .. } => 0,
             Self::MissingType { .. } => 1,
             Self::TypeMismatch { .. } => 2,
             Self::InaccessibleSymbol { .. } => 3,
@@ -78,7 +78,7 @@ impl ValidateError {
     /// Get the node id of the error.
     pub fn node_id(&self) -> Option<GlobalNodeIdAny> {
         match self {
-            Self::Wait { wait } => wait.first_node(),
+            Self::Yield { wait } => wait.first_node(),
             Self::MissingType { node, .. } => Some(*node),
             Self::TypeMismatch { node, .. } => Some(*node),
             Self::InaccessibleSymbol { node, .. } => Some(*node),
@@ -97,7 +97,7 @@ impl ValidateError {
     /// Get the message of the error.
     pub fn message(&self, _program: &Program) -> String {
         match self {
-            Self::Wait { .. } => "wait for task".to_string(),
+            Self::Yield { .. } => "unresolved dependency".to_string(),
             Self::MissingType { .. } => "missing type".to_string(),
             Self::TypeMismatch { .. } => "type mismatch".to_string(),
             Self::InaccessibleSymbol { .. } => "inaccessible symbol".to_string(),

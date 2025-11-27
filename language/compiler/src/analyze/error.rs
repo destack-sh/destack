@@ -6,8 +6,8 @@ use crate::{CompileError, CompilePhase, CompileTaskDependency};
 #[derive(Debug, Clone, PartialEq)]
 #[repr(u8)]
 pub enum AnalyzeError {
-    /// Wait for other tasks.
-    Wait { wait: CompileTaskDependency },
+    /// Wait for task dependency.
+    Yield { wait: CompileTaskDependency },
     /// Unsupported node.
     UnsupportedNode { node: GlobalNodeIdAny },
 }
@@ -17,7 +17,7 @@ impl AnalyzeError {
     #[inline]
     pub fn sub_code(&self) -> u8 {
         match self {
-            Self::Wait { .. } => 0,
+            Self::Yield { .. } => 0,
             Self::UnsupportedNode { .. } => 2,
         }
     }
@@ -25,7 +25,7 @@ impl AnalyzeError {
     /// Get the node id of the error.
     pub fn node_id(&self) -> Option<GlobalNodeIdAny> {
         match self {
-            Self::Wait { wait } => wait.first_node(),
+            Self::Yield { wait } => wait.first_node(),
             Self::UnsupportedNode { node, .. } => Some(*node),
         }
     }
@@ -33,7 +33,7 @@ impl AnalyzeError {
     /// Get the message of the error.
     pub fn message(&self, _program: &Program) -> String {
         match self {
-            Self::Wait { .. } => "wait for task".to_string(),
+            Self::Yield { .. } => "unresolved dependency".to_string(),
             Self::UnsupportedNode { .. } => "unsupported node".to_string(),
         }
     }
