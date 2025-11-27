@@ -1,6 +1,6 @@
 use dyst_dir::{GlobalNodeIdAny, Program};
 
-use crate::{CompilePhase, CompileWarning};
+use crate::{Phase, CompileWarning};
 
 /// Warning when validating something.
 #[derive(Debug, Clone, PartialEq)]
@@ -41,7 +41,7 @@ impl std::fmt::Display for ElaborateWarning {
                 "code",
                 &format!(
                     "W{}{:03}",
-                    CompilePhase::Elaborate.letter(),
+                    Phase::Elaborate.letter(),
                     self.sub_code()
                 ),
             )

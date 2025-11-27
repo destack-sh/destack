@@ -1,6 +1,6 @@
 use dyst_dir::{GlobalNodeIdAny, Program};
 
-use crate::{CompilePhase, CompileWarning};
+use crate::{Phase, CompileWarning};
 
 /// Warning when linking something.
 #[derive(Debug, Clone, PartialEq)]
@@ -52,7 +52,7 @@ impl std::fmt::Display for LinkWarning {
         f.debug_struct("LinkWarning")
             .field(
                 "code",
-                &format!("W{}{:03}", CompilePhase::Link.letter(), self.sub_code()),
+                &format!("W{}{:03}", Phase::Link.letter(), self.sub_code()),
             )
             .finish()
     }

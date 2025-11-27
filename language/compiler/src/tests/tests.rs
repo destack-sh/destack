@@ -10,7 +10,7 @@ use dyst_source::{
 };
 use parking_lot::RwLock;
 
-use crate::{CompileOptions, CompileTask, Compiler};
+use crate::{CompileOptions, Task, Compiler};
 
 /// A test file system.
 #[derive(Debug, Clone)]
@@ -103,7 +103,7 @@ impl TestProgram {
     }
 
     /// Enqueue a compile task.
-    pub fn enqueue<T: Into<CompileTask>>(&self, task: T) {
+    pub fn enqueue<T: Into<Task>>(&self, task: T) {
         self.compiler.enqueue(task);
     }
 

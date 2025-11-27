@@ -4,7 +4,8 @@ use dyst_javascript_transpiler::{TranspileOptions, TranspileTarget, Transpiler};
 use dyst_source::{DiagnosticOptions, DiagnosticSeverity, FileContent};
 
 use crate::command::{
-    DiagnosticOptionsArgs, ProgramArgs, SourceArg, get_string_or_file, print_diagnostics,
+    DiagnosticOptionsArgs, ProgramArgs, SourceArg, WorkerOptionsArgs, get_string_or_file,
+    print_diagnostics,
 };
 use crate::console;
 
@@ -61,6 +62,9 @@ pub struct TranspileArgs {
 
     #[command(flatten)]
     pub diagnostics: DiagnosticOptionsArgs,
+
+    #[command(flatten)]
+    pub workers: WorkerOptionsArgs,
 }
 
 /// Transpile source into its final JavaScript.
@@ -87,7 +91,14 @@ pub fn run(args: &TranspileArgs) -> i32 {
     };
 
     // compile source
-    let compiler = Compiler::new(program.clone(), CompileOptions::default());
+    let compiler = Compiler::new(
+        program.clone(),
+        CompileOptions {
+            diagnostic: diagnostic_options.clone(),
+            workers: args.workers.workers,
+            ..Default::default()
+        },
+    );
     compiler.enqueue(ImportTask::ImportModuleFromFile { file: file.id });
     compiler.compile();
     drop(compiler);
@@ -103,6 +114,7 @@ pub fn run(args: &TranspileArgs) -> i32 {
     let transpiler_options = TranspileOptions {
         target,
         diagnostic: diagnostic_options.clone(),
+        workers: args.workers.workers,
         ..Default::default()
     };
     let transpiler = Transpiler::new(program.clone(), transpiler_options);

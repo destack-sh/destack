@@ -1,4 +1,4 @@
-use crate::{BuildResult, CompileOutput, CompileTask, Compiler};
+use crate::{BuildResult, TaskOutput, Task, Compiler};
 
 use dyst_dir::{ModuleId, Program};
 
@@ -27,19 +27,19 @@ impl BuildTask {
     }
 }
 
-impl From<BuildTask> for CompileTask {
+impl From<BuildTask> for Task {
     fn from(task: BuildTask) -> Self {
-        CompileTask::Build(task)
+        Task::Build(task)
     }
 }
 
 /// Output of a build task.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct BuildOutput {}
 
-impl From<BuildOutput> for CompileOutput {
+impl From<BuildOutput> for TaskOutput {
     fn from(output: BuildOutput) -> Self {
-        CompileOutput::Build(output)
+        TaskOutput::Build(output)
     }
 }
 

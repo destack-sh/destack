@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use crate::{BindTask, CompileOutput, CompileTask, Compiler, ImportError, ImportResult};
+use crate::{BindTask, TaskOutput, Task, Compiler, ImportError, ImportResult};
 
 use dyst_dir::{DependencySource, Module, ModuleId, Program};
 use dyst_parser::Parser;
@@ -57,21 +57,21 @@ impl ImportTask {
     }
 }
 
-impl From<ImportTask> for CompileTask {
+impl From<ImportTask> for Task {
     fn from(task: ImportTask) -> Self {
-        CompileTask::Import(task)
+        Task::Import(task)
     }
 }
 
 /// Output of an import task.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct ImportOutput {
     pub module: ModuleId,
 }
 
-impl From<ImportOutput> for CompileOutput {
+impl From<ImportOutput> for TaskOutput {
     fn from(output: ImportOutput) -> Self {
-        CompileOutput::Import(output)
+        TaskOutput::Import(output)
     }
 }
 

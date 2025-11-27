@@ -4,7 +4,7 @@ use dyst_dir::{
     NodeTree, SymbolKey, SymbolTable,
 };
 
-use crate::{CompileTaskDependency, Compiler, ImportTask, ResolveError, ResolveResult};
+use crate::{TaskDependency, Compiler, ImportTask, ResolveError, ResolveResult};
 
 impl Compiler {
     /// Error to wait for an import.
@@ -22,7 +22,7 @@ impl Compiler {
             module: module.id,
         };
         let error = ResolveError::UnresolvedModule { node, target };
-        let dependency = CompileTaskDependency::Complete {
+        let dependency = TaskDependency::Complete {
             node,
             task: import_task.into(),
             error: Some(Box::new(error.into())),

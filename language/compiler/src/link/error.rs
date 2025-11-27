@@ -1,13 +1,13 @@
 use dyst_dir::{GlobalNodeIdAny, Program};
 
-use crate::{CompileError, CompilePhase, CompileTaskDependency};
+use crate::{TaskError, Phase, TaskDependency};
 
 /// Error when linking something into the compiler.
 #[derive(Debug, Clone, PartialEq)]
 #[repr(u8)]
 pub enum LinkError {
     /// Wait for task dependency.
-    Yield { wait: CompileTaskDependency },
+    Yield { wait: TaskDependency },
     /// Missing target for a symbol.
     MissingTarget {
         node: GlobalNodeIdAny,
@@ -23,6 +23,17 @@ pub enum LinkError {
         node: GlobalNodeIdAny,
         symbol: String,
     },
+}
+
+impl TryFrom<LinkError> for TaskDependency {
+    type Error = LinkError;
+
+    fn try_from(error: LinkError) -> Result<Self, Self::Error> {
+        match error {
+            LinkError::Yield { wait } => Ok(wait),
+            _ => Err(error),
+        }
+    }
 }
 
 impl LinkError {
@@ -63,7 +74,7 @@ impl std::fmt::Display for LinkError {
         f.debug_struct("LinkError")
             .field(
                 "code",
-                &format!("E{}{:03}", CompilePhase::Link.letter(), self.sub_code()),
+                &format!("E{}{:03}", Phase::Link.letter(), self.sub_code()),
             )
             .finish()
     }
@@ -71,9 +82,9 @@ impl std::fmt::Display for LinkError {
 
 pub type LinkResult<T> = Result<T, LinkError>;
 
-impl From<LinkError> for CompileError {
+impl From<LinkError> for TaskError {
     #[inline]
     fn from(error: LinkError) -> Self {
-        CompileError::Link(error)
+        TaskError::Link(error)
     }
 }

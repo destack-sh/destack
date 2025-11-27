@@ -3,7 +3,7 @@ use dyst_dir::{
     SymbolKind,
 };
 
-use crate::{BindError, BindResult, CompileOutput, CompileTask, Compiler, ResolveTask};
+use crate::{BindError, BindResult, TaskOutput, Task, Compiler, ResolveTask};
 
 /// Task to bind AST into DIR.
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
@@ -30,33 +30,33 @@ impl BindTask {
     }
 }
 
-impl From<BindTask> for CompileTask {
+impl From<BindTask> for Task {
     fn from(task: BindTask) -> Self {
-        CompileTask::Bind(task)
+        Task::Bind(task)
     }
 }
 
 /// Output of a bind task.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct BindOutput {}
 
-impl From<BindOutput> for CompileOutput {
+impl From<BindOutput> for TaskOutput {
     fn from(output: BindOutput) -> Self {
-        CompileOutput::Bind(output)
+        TaskOutput::Bind(output)
     }
 }
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
     /// Process a bind task.
-    pub fn process_bind(&self, task: BindTask) -> BindResult<()> {
+    pub fn process_bind(&self, task: BindTask) -> BindResult<BindOutput> {
         match task {
             BindTask::BindModule { module } => self.bind_module(module),
         }
     }
 
     /// Bind a module.
-    pub(super) fn bind_module(&self, module_id: ModuleId) -> BindResult<()> {
+    pub(super) fn bind_module(&self, module_id: ModuleId) -> BindResult<BindOutput> {
         // bind AST into DIR
         self.bind_module_roots(module_id)?;
 
@@ -69,7 +69,7 @@ impl Compiler {
         // next task: resolve module
         self.enqueue(ResolveTask::ResolveModule { module: module_id });
 
-        Ok(())
+        Ok(BindOutput {})
     }
 
     /// Bind the AST root expressions for a module.

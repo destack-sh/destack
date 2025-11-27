@@ -2,14 +2,14 @@ use dyst_dir::{
     FunctionAbstraction, GlobalNodeIdAny, GlobalSymbolId, GlobalTypeId, Program, Visibility,
 };
 
-use crate::{CompileError, CompilePhase, CompileTaskDependency};
+use crate::{TaskError, Phase, TaskDependency};
 
 /// Error when validateing something into the compiler.
 #[derive(Debug, Clone, PartialEq)]
 #[repr(u8)]
 pub enum ValidateError {
     /// Wait for task dependency.
-    Yield { wait: CompileTaskDependency },
+    Yield { wait: TaskDependency },
     /// Missing type for an expression.
     MissingType { node: GlobalNodeIdAny },
     /// Type is not assignable to the expected type.
@@ -52,6 +52,17 @@ pub enum ValidateError {
         from_ty: GlobalTypeId,
         to_ty: GlobalTypeId,
     },
+}
+
+impl TryFrom<ValidateError> for TaskDependency {
+    type Error = ValidateError;
+
+    fn try_from(error: ValidateError) -> Result<Self, Self::Error> {
+        match error {
+            ValidateError::Yield { wait } => Ok(wait),
+            _ => Err(error),
+        }
+    }
 }
 
 impl ValidateError {
@@ -121,16 +132,16 @@ impl std::fmt::Display for ValidateError {
         f.debug_struct("ValidateError")
             .field(
                 "code",
-                &format!("E{}{:03}", CompilePhase::Validate.letter(), self.sub_code()),
+                &format!("E{}{:03}", Phase::Validate.letter(), self.sub_code()),
             )
             .finish()
     }
 }
 
-impl From<ValidateError> for CompileError {
+impl From<ValidateError> for TaskError {
     #[inline]
     fn from(error: ValidateError) -> Self {
-        CompileError::Validate(error)
+        TaskError::Validate(error)
     }
 }
 

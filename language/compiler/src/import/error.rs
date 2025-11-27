@@ -4,14 +4,14 @@ use dyst_dir::{GlobalNodeIdAny, ModuleId, Program};
 use dyst_parser::ParseError;
 use dyst_source::{StringId, Uri};
 
-use crate::{CompileError, CompilePhase, CompileTaskDependency};
+use crate::{TaskError, Phase, TaskDependency};
 
 /// Error when importing something into the compiler.
 #[derive(Debug, Clone, PartialEq)]
 #[repr(u8)]
 pub enum ImportError {
     /// Wait for task dependency.
-    Yield { wait: CompileTaskDependency },
+    Yield { wait: TaskDependency },
     /// Invalid URI.
     InvalidUri { uri: Uri },
     /// File URI not found.
@@ -32,6 +32,17 @@ pub enum ImportError {
     },
     /// Circular dependency.
     CircularDependency { node: GlobalNodeIdAny },
+}
+
+impl TryFrom<ImportError> for TaskDependency {
+    type Error = ImportError;
+
+    fn try_from(error: ImportError) -> Result<Self, Self::Error> {
+        match error {
+            ImportError::Yield { wait } => Ok(wait),
+            _ => Err(error),
+        }
+    }
 }
 
 impl ImportError {
@@ -84,7 +95,7 @@ impl std::fmt::Display for ImportError {
         f.debug_struct("ImportError")
             .field(
                 "code",
-                &format!("E{}{:03}", CompilePhase::Import.letter(), self.sub_code()),
+                &format!("E{}{:03}", Phase::Import.letter(), self.sub_code()),
             )
             .finish()
     }
@@ -92,9 +103,9 @@ impl std::fmt::Display for ImportError {
 
 pub type ImportResult<T> = Result<T, ImportError>;
 
-impl From<ImportError> for CompileError {
+impl From<ImportError> for TaskError {
     #[inline]
     fn from(error: ImportError) -> Self {
-        CompileError::Import(error)
+        TaskError::Import(error)
     }
 }

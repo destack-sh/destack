@@ -1,13 +1,13 @@
 use dyst_dir::{GlobalNodeIdAny, Program};
 
-use crate::{CompileError, CompilePhase, CompileTaskDependency};
+use crate::{TaskError, Phase, TaskDependency};
 
 /// Error when building something into the compiler.
 #[derive(Debug, Clone, PartialEq)]
 #[repr(u8)]
 pub enum BuildError {
     /// Wait for task dependency.
-    Yield { wait: CompileTaskDependency },
+    Yield { wait: TaskDependency },
     /// Target is not available.
     TargetNotAvailable { node: GlobalNodeIdAny },
     /// Unsupported target triple / architecture / ABI.
@@ -40,12 +40,23 @@ pub enum BuildError {
     },
 }
 
+impl TryFrom<BuildError> for TaskDependency {
+    type Error = BuildError;
+
+    fn try_from(error: BuildError) -> Result<Self, Self::Error> {
+        match error {
+            BuildError::Yield { wait } => Ok(wait),
+            _ => Err(error),
+        }
+    }
+}
+
 pub type BuildResult<T> = Result<T, BuildError>;
 
-impl From<BuildError> for CompileError {
+impl From<BuildError> for TaskError {
     #[inline]
     fn from(error: BuildError) -> Self {
-        CompileError::Build(error)
+        TaskError::Build(error)
     }
 }
 
@@ -105,7 +116,7 @@ impl std::fmt::Display for BuildError {
         f.debug_struct("BuildError")
             .field(
                 "code",
-                &format!("E{}{:03}", CompilePhase::Build.letter(), self.sub_code()),
+                &format!("E{}{:03}", Phase::Build.letter(), self.sub_code()),
             )
             .finish()
     }

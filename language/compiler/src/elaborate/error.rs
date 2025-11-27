@@ -1,15 +1,26 @@
 use dyst_dir::{GlobalNodeIdAny, Program};
 
-use crate::{CompileError, CompilePhase, CompileTaskDependency};
+use crate::{TaskError, Phase, TaskDependency};
 
 /// Error when elaborateing something into the compiler.
 #[derive(Debug, Clone, PartialEq)]
 #[repr(u8)]
 pub enum ElaborateError {
     /// Wait for task dependency.
-    Yield { wait: CompileTaskDependency },
+    Yield { wait: TaskDependency },
     /// Unsupported node.
     UnsupportedNode { node: GlobalNodeIdAny },
+}
+
+impl TryFrom<ElaborateError> for TaskDependency {
+    type Error = ElaborateError;
+
+    fn try_from(error: ElaborateError) -> Result<Self, Self::Error> {
+        match error {
+            ElaborateError::Yield { wait } => Ok(wait),
+            _ => Err(error),
+        }
+    }
 }
 
 impl ElaborateError {
@@ -46,7 +57,7 @@ impl std::fmt::Display for ElaborateError {
                 "code",
                 &format!(
                     "E{}{:03}",
-                    CompilePhase::Elaborate.letter(),
+                    Phase::Elaborate.letter(),
                     self.sub_code()
                 ),
             )
@@ -54,10 +65,10 @@ impl std::fmt::Display for ElaborateError {
     }
 }
 
-impl From<ElaborateError> for CompileError {
+impl From<ElaborateError> for TaskError {
     #[inline]
     fn from(error: ElaborateError) -> Self {
-        CompileError::Elaborate(error)
+        TaskError::Elaborate(error)
     }
 }
 

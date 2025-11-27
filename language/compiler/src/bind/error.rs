@@ -1,14 +1,14 @@
 use dyst_ast::StringId;
 use dyst_dir::{GlobalNodeIdAny, GlobalScopeId, ModuleId, Program, SymbolKey};
 
-use crate::{CompileError, CompilePhase, CompileTaskDependency};
+use crate::{TaskError, Phase, TaskDependency};
 
 /// Error when binding something into the compiler.
 #[derive(Debug, Clone, PartialEq)]
 #[repr(u8)]
 pub enum BindError {
     /// Wait for task dependency.
-    Yield { wait: CompileTaskDependency },
+    Yield { wait: TaskDependency },
     /// Unsupported node.
     UnsupportedNode { node: GlobalNodeIdAny },
     /// Conflicting symbol binding.
@@ -39,12 +39,23 @@ pub enum BindError {
     },
 }
 
+impl TryFrom<BindError> for TaskDependency {
+    type Error = BindError;
+
+    fn try_from(error: BindError) -> Result<Self, Self::Error> {
+        match error {
+            BindError::Yield { wait } => Ok(wait),
+            _ => Err(error),
+        }
+    }
+}
+
 pub type BindResult<T> = Result<T, BindError>;
 
-impl From<BindError> for CompileError {
+impl From<BindError> for TaskError {
     #[inline]
     fn from(error: BindError) -> Self {
-        CompileError::Bind(error)
+        TaskError::Bind(error)
     }
 }
 
@@ -119,7 +130,7 @@ impl std::fmt::Display for BindError {
         f.debug_struct("BindError")
             .field(
                 "code",
-                &format!("E{}{:03}", CompilePhase::Bind.letter(), self.sub_code()),
+                &format!("E{}{:03}", Phase::Bind.letter(), self.sub_code()),
             )
             .finish()
     }

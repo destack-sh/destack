@@ -78,6 +78,14 @@ impl From<LineEndingArg> for LineEnding {
     }
 }
 
+/// Arguments for configuring worker threads.
+#[derive(Args, Debug, Clone, Default)]
+pub struct WorkerOptionsArgs {
+    /// The number of worker threads to use (default: number of CPU cores).
+    #[arg(long = "workers", short = 'j')]
+    pub workers: Option<u16>,
+}
+
 /// Arguments for configuring language options.
 #[derive(Args, Debug, Clone)]
 pub struct LanguageOptionsArgs {

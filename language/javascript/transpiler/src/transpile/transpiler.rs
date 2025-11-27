@@ -24,6 +24,8 @@ pub enum TranspilerMode {
 pub struct TranspileOptions {
     /// The diagnostic options.
     pub diagnostic: DiagnosticOptions,
+    /// The number of worker threads to use.
+    pub workers: Option<u16>,
     /// The transpilation mode.
     pub mode: TranspilerMode = TranspilerMode::Retained,
     /// The target language.

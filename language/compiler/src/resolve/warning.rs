@@ -1,6 +1,6 @@
 use dyst_dir::{GlobalNodeIdAny, Program};
 
-use crate::{CompilePhase, CompileWarning};
+use crate::{Phase, CompileWarning};
 
 /// Warning when evaluating something statically.
 #[derive(Debug, Clone, PartialEq)]
@@ -49,7 +49,7 @@ impl std::fmt::Display for ResolveWarning {
         f.debug_struct("ResolveWarning")
             .field(
                 "code",
-                &format!("W{}{:03}", CompilePhase::Resolve.letter(), self.sub_code()),
+                &format!("W{}{:03}", Phase::Resolve.letter(), self.sub_code()),
             )
             .finish()
     }
