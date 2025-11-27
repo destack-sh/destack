@@ -1,13 +1,13 @@
 use dyst_dir::{GlobalNodeIdAny, Program};
 
-use crate::{CompileError, CompilePhase, CompileTaskWait};
+use crate::{CompileError, CompilePhase, CompileTaskDependency};
 
 /// Error when evaluating something statically.
 #[derive(Debug, Clone, PartialEq)]
 #[repr(u8)]
 pub enum ExecuteError {
     /// Wait for other tasks.
-    Wait { wait: CompileTaskWait } = 0,
+    Wait { wait: CompileTaskDependency } = 0,
     /// Unsupported node.
     UnsupportedNode { node: GlobalNodeIdAny } = 1,
 }
@@ -25,7 +25,7 @@ impl ExecuteError {
     /// Get the node id of the error.
     pub fn node_id(&self) -> Option<GlobalNodeIdAny> {
         match self {
-            Self::Wait { wait } => wait.nodes.first().copied(),
+            Self::Wait { wait } => wait.first_node(),
             Self::UnsupportedNode { node, .. } => Some(*node),
         }
     }

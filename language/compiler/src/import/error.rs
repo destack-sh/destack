@@ -4,14 +4,14 @@ use dyst_dir::{GlobalNodeIdAny, ModuleId, Program};
 use dyst_parser::ParseError;
 use dyst_source::{StringId, Uri};
 
-use crate::{CompileError, CompilePhase, CompileTaskWait};
+use crate::{CompileError, CompilePhase, CompileTaskDependency};
 
 /// Error when importing something into the compiler.
 #[derive(Debug, Clone, PartialEq)]
 #[repr(u8)]
 pub enum ImportError {
     /// Wait for other tasks.
-    Wait { wait: CompileTaskWait },
+    Wait { wait: CompileTaskDependency },
     /// Invalid URI.
     InvalidUri { uri: Uri },
     /// File URI not found.
@@ -52,7 +52,7 @@ impl ImportError {
     /// Get the node id of the error.
     pub fn node_id(&self) -> Option<GlobalNodeIdAny> {
         match self {
-            Self::Wait { wait } => wait.nodes.first().copied(),
+            Self::Wait { wait } => wait.first_node(),
             Self::InvalidUri { .. } => None,
             Self::FileUriNotFound { .. } => None,
             Self::FilePathNotFound { .. } => None,

@@ -78,10 +78,6 @@ impl Compiler {
             )
         };
         if let Some(target) = target {
-            let target = self
-                .program
-                .strings
-                .intern_from(&module.ast_strings, target);
             let item = DependencyItem::UnresolvedRemote {
                 source,
                 mode,

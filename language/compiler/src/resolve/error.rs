@@ -1,4 +1,4 @@
-use crate::{CompileError, CompilePhase, CompileTaskWait};
+use crate::{CompileError, CompilePhase, CompileTaskDependency};
 use dyst_dir::{GlobalNodeIdAny, GlobalScopeId, GlobalSymbolId, Program, StringId, SymbolKey};
 
 /// Error when evaluating something statically.
@@ -6,7 +6,7 @@ use dyst_dir::{GlobalNodeIdAny, GlobalScopeId, GlobalSymbolId, Program, StringId
 #[repr(u8)]
 pub enum ResolveError {
     /// Wait for other tasks.
-    Wait { wait: CompileTaskWait },
+    Wait { wait: CompileTaskDependency },
     /// Unsupported node.
     UnsupportedNode { node: GlobalNodeIdAny },
     /// Circular dependency.
@@ -58,7 +58,7 @@ impl ResolveError {
     /// Get the node id of the error.
     pub fn node_id(&self) -> Option<GlobalNodeIdAny> {
         match self {
-            Self::Wait { wait } => wait.nodes.first().copied(),
+            Self::Wait { wait } => wait.first_node(),
             Self::UnsupportedNode { node, .. } => Some(*node),
             Self::CircularDependency { node, .. } => Some(*node),
             Self::UndeclaredSymbol { node, .. } => Some(*node),

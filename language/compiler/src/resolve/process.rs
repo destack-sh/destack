@@ -51,18 +51,4 @@ impl Compiler {
         }
         Ok(ResolveOutput {})
     }
-
-    /// Attempt some resolve operation. Add errors to the compiler's diagnostics.
-    pub(super) fn try_resolve<T, F>(&self, fun: F) -> Option<T>
-    where
-        F: FnOnce(&Compiler) -> ResolveResult<T>,
-    {
-        match fun(self) {
-            Ok(result) => Some(result),
-            Err(error) => {
-                self.error(error);
-                None
-            }
-        }
-    }
 }

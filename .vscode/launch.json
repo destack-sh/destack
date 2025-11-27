@@ -28,7 +28,7 @@
                 "args": ["run", "--bin", "destack_cli"],
                 "filter": { "kind": "bin", "name": "destack_cli" }
             },
-            "args": ["compile", "--string", "{ const x = 0; const x = 1; }"],
+            "args": ["compile", "--string", "import { Gradient, Image } from '@destack/ui';"],
             "cwd": "${workspaceFolder}",
             "console": "integratedTerminal"
         },

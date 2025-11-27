@@ -63,13 +63,18 @@ impl CompileDiagnostic {
             .node_id()
             .unwrap_or_else(|| panic!("TODO #Broken: diagnostic without node id"));
         let module = program.modules.get(node_id.module_id);
-        let file_id = module.read().file_id;
+        let module = module.read();
+        let source_node_id = module
+            .tree
+            .read()
+            .get_source(node_id.local_id.id)
+            .unwrap_or_else(|| panic!("TODO #Broken: diagnostic without source node id"));
 
         // make diagnostic
         let severity = self.severity();
         let message = self.message(program);
         let code = self.full_code();
-        let primary_span = module.read().ast.get_span_by_id(node_id.local_id.id);
+        let primary_span = module.ast.get_span_by_id(source_node_id);
         let primary_span = LabeledSpan {
             span: primary_span,
             label: message.clone(),
@@ -81,7 +86,7 @@ impl CompileDiagnostic {
             severity,
             original_severity: None,
             message,
-            file_id,
+            file_id: module.file_id,
             primary_span,
             primary_highlight_spans: None,
             secondary_spans: None,

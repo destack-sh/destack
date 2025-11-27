@@ -187,16 +187,16 @@ mod tests {
         let test = TestProgram::memory();
         let file = test.file(
             "test.ds",
-            r"
+            r#"
 let x = 0;
 let y = x;
 let z = y;
-",
+"#,
         );
         test.enqueue(ImportTask::ImportModuleFromFile { file: file.id });
         test.compile();
 
-        let module = test.module("test.ds");
+        let module = test.module_for_file(&file);
         let module = module.read();
         let tree = module.tree.read();
         let (x_symbol_id, x_node) = test.resolve_to_node::<Pattern>("test.ds", "x").unwrap();
@@ -229,6 +229,56 @@ let z = y;
         assert_node!(tree, z_node, Expression::Let { value: Some(value), ..} => {
             assert_node!(tree, *value, Expression::ModuleReference { target_symbol, .. } => {
                 assert_eq!(*target_symbol, y_symbol_id);
+            })
+        });
+    }
+
+    /// Resolve symbols across two modules.
+    #[test]
+    fn test_resolve_symbol_across_two_modules() {
+        let test = TestProgram::memory();
+        let file_a = test.file(
+            "a.ds",
+            r#"
+export let A = 1;
+            "#,
+        );
+        let file_b = test.file(
+            "b.ds",
+            r#"
+import { A } from "a.ds";
+export let B = A + 1;
+            "#,
+        );
+        test.enqueue(ImportTask::ImportModuleFromFile { file: file_b.id });
+        test.compile();
+
+        let module_a = test.module_for_file(&file_a);
+        let module_a = module_a.read();
+        let tree_a = module_a.tree.read();
+        let module_b = test.module_for_file(&file_b);
+        let module_b = module_b.read();
+        let tree_b = module_b.tree.read();
+
+        // export let A = 1;
+        let (a_symbol_id, a_node) = test.resolve_to_node::<Pattern>("a.ds", "A").unwrap();
+        let _a_node = tree_a
+            .get_parent(a_node.id)
+            .unwrap()
+            .into_typed::<Expression>();
+
+        // export let B = A + 1;
+        let (_b_symbol_id, b_node) = test.resolve_to_node::<Pattern>("b.ds", "B").unwrap();
+        let b_node = tree_b
+            .get_parent(b_node.id)
+            .unwrap()
+            .into_typed::<Expression>();
+        assert_node!(tree_b, b_node, Expression::Let { value: Some(value), ..} => {
+            assert_node!(tree_b, *value, Expression::Binary { left, right, .. } => {
+                assert_node!(tree_b, *left, Expression::ModuleReference { target_symbol, .. } => {
+                    assert_eq!(*target_symbol, a_symbol_id);
+                });
+                assert_node!(tree_b, *right, Expression::ScalarLiteral { value: ScalarLiteral::Integer(1) });
             })
         });
     }
