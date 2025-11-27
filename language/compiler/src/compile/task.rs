@@ -369,15 +369,17 @@ pub enum TaskDependency {
 
 impl TaskDependency {
     /// Get the first node involved in the wait.
-    pub fn first_node(&self) -> Option<GlobalNodeIdAny> {
+    pub fn node(&self) -> GlobalNodeIdAny {
         match self {
-            Self::Complete { node, .. } => Some(*node),
+            Self::Complete { node, .. } => *node,
             Self::CompleteAll { dependencies } => dependencies
                 .first()
-                .and_then(|dependency| dependency.first_node()),
+                .map(|dependency| dependency.node())
+                .unwrap(),
             Self::CompleteAny { dependencies } => dependencies
                 .first()
-                .and_then(|dependency| dependency.first_node()),
+                .map(|dependency| dependency.node())
+                .unwrap(),
         }
     }
 

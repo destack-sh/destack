@@ -1,8 +1,8 @@
 use dyst_dir::{GlobalNodeIdAny, Program};
 
 use crate::{
-    AnalyzeWarning, BindWarning, BuildWarning, Phase, ElaborateWarning, ExecuteWarning,
-    ImportWarning, LinkWarning, LowerWarning, OptimizeWarning, ResolveWarning, ValidateWarning,
+    AnalyzeWarning, BindWarning, BuildWarning, ElaborateWarning, ExecuteWarning, ImportWarning,
+    LinkWarning, LowerWarning, OptimizeWarning, Phase, ResolveWarning, ValidateWarning,
 };
 
 /// Warning during compilation.
@@ -81,20 +81,20 @@ impl CompileWarning {
         format!("W{}{:03}", self.phase_letter(), self.sub_code())
     }
 
-    /// Get the node id of the warning.
-    pub fn node_id(&self) -> Option<GlobalNodeIdAny> {
+    /// Get the node of the warning.
+    pub fn node(&self) -> GlobalNodeIdAny {
         match self {
-            Self::Import(warning) => warning.node_id(),
-            Self::Bind(warning) => warning.node_id(),
-            Self::Resolve(warning) => warning.node_id(),
-            Self::Validate(warning) => warning.node_id(),
-            Self::Elaborate(warning) => warning.node_id(),
-            Self::Lower(warning) => warning.node_id(),
-            Self::Analyze(warning) => warning.node_id(),
-            Self::Execute(warning) => warning.node_id(),
-            Self::Optimize(warning) => warning.node_id(),
-            Self::Build(warning) => warning.node_id(),
-            Self::Link(warning) => warning.node_id(),
+            Self::Import(warning) => warning.node(),
+            Self::Bind(warning) => warning.node(),
+            Self::Resolve(warning) => warning.node(),
+            Self::Validate(warning) => warning.node(),
+            Self::Elaborate(warning) => warning.node(),
+            Self::Lower(warning) => warning.node(),
+            Self::Analyze(warning) => warning.node(),
+            Self::Execute(warning) => warning.node(),
+            Self::Optimize(warning) => warning.node(),
+            Self::Build(warning) => warning.node(),
+            Self::Link(warning) => warning.node(),
         }
     }
 

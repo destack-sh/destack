@@ -1,14 +1,16 @@
 use dyst_ast::StringId;
 use dyst_dir::{GlobalNodeIdAny, GlobalScopeId, ModuleId, Program, SymbolKey};
 
-use crate::{TaskError, Phase, TaskDependency};
+use crate::{Phase, TaskDependency, TaskError};
 
 /// Error when binding something into the compiler.
 #[derive(Debug, Clone, PartialEq)]
 #[repr(u8)]
 pub enum BindError {
     /// Wait for task dependency.
-    Yield { wait: TaskDependency },
+    Yield { dependency: TaskDependency },
+    /// Yield dependency has failed.
+    YieldFailed { dependency: TaskDependency },
     /// Unsupported node.
     UnsupportedNode { node: GlobalNodeIdAny },
     /// Conflicting symbol binding.
@@ -44,7 +46,7 @@ impl TryFrom<BindError> for TaskDependency {
 
     fn try_from(error: BindError) -> Result<Self, Self::Error> {
         match error {
-            BindError::Yield { wait } => Ok(wait),
+            BindError::Yield { dependency } => Ok(dependency),
             _ => Err(error),
         }
     }
@@ -65,30 +67,33 @@ impl BindError {
     pub fn sub_code(&self) -> u8 {
         match self {
             Self::Yield { .. } => 0,
-            Self::UnsupportedNode { .. } => 1,
-            Self::ConflictingBinding { .. } => 2,
-            Self::ConflictingExport { .. } => 3,
-            Self::ConflictingDefaultExport { .. } => 4,
-            Self::UnnamedExport { .. } => 5,
+            Self::YieldFailed { .. } => 1,
+            Self::UnsupportedNode { .. } => 2,
+            Self::ConflictingBinding { .. } => 3,
+            Self::ConflictingExport { .. } => 4,
+            Self::ConflictingDefaultExport { .. } => 5,
+            Self::UnnamedExport { .. } => 6,
         }
     }
 
     /// Get the node id of the error.
-    pub fn node_id(&self) -> Option<GlobalNodeIdAny> {
+    pub fn node(&self) -> GlobalNodeIdAny {
         match self {
-            Self::Yield { wait } => wait.first_node(),
-            Self::UnsupportedNode { node } => Some(*node),
-            Self::ConflictingBinding { node, .. } => Some(*node),
-            Self::ConflictingExport { node, .. } => Some(*node),
-            Self::ConflictingDefaultExport { node, .. } => Some(*node),
-            Self::UnnamedExport { node, .. } => Some(*node),
+            Self::Yield { dependency } => dependency.node(),
+            Self::YieldFailed { dependency } => dependency.node(),
+            Self::UnsupportedNode { node } => *node,
+            Self::ConflictingBinding { node, .. } => *node,
+            Self::ConflictingExport { node, .. } => *node,
+            Self::ConflictingDefaultExport { node, .. } => *node,
+            Self::UnnamedExport { node, .. } => *node,
         }
     }
 
     /// Get the message of the error.
     pub fn message(&self, program: &Program) -> String {
         match self {
-            Self::Yield { .. } => "unresolved dependency".to_string(),
+            Self::Yield { .. } => "pending dependency".to_string(),
+            Self::YieldFailed { .. } => "unsatisfied dependency".to_string(),
             Self::UnsupportedNode { .. } => "unsupported node".to_string(),
             Self::ConflictingBinding { name, .. } => {
                 let name = name

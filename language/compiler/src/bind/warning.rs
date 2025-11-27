@@ -1,6 +1,6 @@
 use dyst_dir::{GlobalNodeIdAny, Program};
 
-use crate::{Phase, CompileWarning};
+use crate::{CompileWarning, Phase};
 
 /// Warning when binding something.
 #[derive(Debug, Clone, PartialEq)]
@@ -28,12 +28,12 @@ impl BindWarning {
         }
     }
 
-    /// Get the node id of the warning.
-    pub fn node_id(&self) -> Option<GlobalNodeIdAny> {
+    /// Get the node of the warning.
+    pub fn node(&self) -> GlobalNodeIdAny {
         match self {
-            Self::DeprecatedTarget { node, .. } => Some(*node),
-            Self::WeakSymbol { node, .. } => Some(*node),
-            Self::LargeBinary { node, .. } => Some(*node),
+            Self::DeprecatedTarget { node, .. } => *node,
+            Self::WeakSymbol { node, .. } => *node,
+            Self::LargeBinary { node, .. } => *node,
         }
     }
 

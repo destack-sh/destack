@@ -10,7 +10,7 @@ use dyst_source::{
 };
 use parking_lot::RwLock;
 
-use crate::{CompileOptions, Task, Compiler};
+use crate::{CompileOptions, Compiler, Task};
 
 /// A test file system.
 #[derive(Debug, Clone)]

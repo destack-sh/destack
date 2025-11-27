@@ -1,13 +1,15 @@
 use dyst_dir::{GlobalNodeIdAny, Program};
 
-use crate::{TaskError, Phase, TaskDependency};
+use crate::{Phase, TaskDependency, TaskError};
 
 /// Error when analyzeing something into the compiler.
 #[derive(Debug, Clone, PartialEq)]
 #[repr(u8)]
 pub enum AnalyzeError {
     /// Wait for task dependency.
-    Yield { wait: TaskDependency },
+    Yield { dependency: TaskDependency },
+    /// Yield dependency has failed.
+    YieldFailed { dependency: TaskDependency },
     /// Unsupported node.
     UnsupportedNode { node: GlobalNodeIdAny },
 }
@@ -17,7 +19,7 @@ impl TryFrom<AnalyzeError> for TaskDependency {
 
     fn try_from(error: AnalyzeError) -> Result<Self, Self::Error> {
         match error {
-            AnalyzeError::Yield { wait } => Ok(wait),
+            AnalyzeError::Yield { dependency } => Ok(dependency),
             _ => Err(error),
         }
     }
@@ -29,22 +31,25 @@ impl AnalyzeError {
     pub fn sub_code(&self) -> u8 {
         match self {
             Self::Yield { .. } => 0,
+            Self::YieldFailed { .. } => 1,
             Self::UnsupportedNode { .. } => 2,
         }
     }
 
     /// Get the node id of the error.
-    pub fn node_id(&self) -> Option<GlobalNodeIdAny> {
+    pub fn node(&self) -> GlobalNodeIdAny {
         match self {
-            Self::Yield { wait } => wait.first_node(),
-            Self::UnsupportedNode { node, .. } => Some(*node),
+            Self::Yield { dependency } => dependency.node(),
+            Self::YieldFailed { dependency } => dependency.node(),
+            Self::UnsupportedNode { node, .. } => *node,
         }
     }
 
     /// Get the message of the error.
     pub fn message(&self, _program: &Program) -> String {
         match self {
-            Self::Yield { .. } => "unresolved dependency".to_string(),
+            Self::Yield { .. } => "pending dependency".to_string(),
+            Self::YieldFailed { .. } => "unsatisfied dependency".to_string(),
             Self::UnsupportedNode { .. } => "unsupported node".to_string(),
         }
     }

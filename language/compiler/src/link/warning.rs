@@ -1,6 +1,6 @@
 use dyst_dir::{GlobalNodeIdAny, Program};
 
-use crate::{Phase, CompileWarning};
+use crate::{CompileWarning, Phase};
 
 /// Warning when linking something.
 #[derive(Debug, Clone, PartialEq)]
@@ -28,12 +28,12 @@ impl LinkWarning {
         }
     }
 
-    /// Get the node id of the warning.
-    pub fn node_id(&self) -> Option<GlobalNodeIdAny> {
+    /// Get the node of the warning.
+    pub fn node(&self) -> GlobalNodeIdAny {
         match self {
-            Self::MissingTarget { node, .. } => Some(*node),
-            Self::WeakSymbol { node, .. } => Some(*node),
-            Self::LargeBinary { node, .. } => Some(*node),
+            Self::MissingTarget { node, .. } => *node,
+            Self::WeakSymbol { node, .. } => *node,
+            Self::LargeBinary { node, .. } => *node,
         }
     }
 

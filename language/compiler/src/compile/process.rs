@@ -1,7 +1,11 @@
 use std::num::NonZero;
 use std::thread;
 
-use crate::{Compiler, Task, TaskDependency, TaskId, TaskOutcome, TaskStatus};
+use crate::{
+    AnalyzeError, BindError, BuildError, Compiler, ElaborateError, ExecuteError, ImportError,
+    LinkError, LowerError, OptimizeError, Phase, ResolveError, Task, TaskDependency, TaskError,
+    TaskId, TaskOutcome, TaskStatus, ValidateError,
+};
 
 impl Compiler {
     /// Runs the compiler loop until there is nothing left to do.
@@ -37,9 +41,7 @@ impl Compiler {
             };
 
             // get the task handle and run it
-            let Some(handle) = self.queue.get_task(task_id) else {
-                continue;
-            };
+            let handle = self.queue.get_task(task_id);
             self.queue.begin_work();
             self.queue.set_status(task_id, TaskStatus::Running);
             let outcome = self.process_task(&handle.task);
@@ -171,19 +173,66 @@ impl Compiler {
 
     /// Fail a waiter using the fallback error from its dependency.
     fn fail_waiter_with_fallback(&self, waiter_id: TaskId, dependency: &TaskDependency) {
-        if let Some(error) = Self::get_fallback_error(dependency) {
-            self.queue.set_status(
-                waiter_id,
-                TaskStatus::Failed {
-                    error: error.clone(),
-                },
-            );
-            self.error(error);
-        }
+        let error: TaskError = Self::get_fallback_error(dependency).unwrap_or_else(|| {
+            let task = self.queue.get_task(waiter_id);
+            match task.phase() {
+                Phase::Import => ImportError::YieldFailed {
+                    dependency: dependency.clone(),
+                }
+                .into(),
+                Phase::Bind => BindError::YieldFailed {
+                    dependency: dependency.clone(),
+                }
+                .into(),
+                Phase::Resolve => ResolveError::YieldFailed {
+                    dependency: dependency.clone(),
+                }
+                .into(),
+                Phase::Validate => ValidateError::YieldFailed {
+                    dependency: dependency.clone(),
+                }
+                .into(),
+                Phase::Elaborate => ElaborateError::YieldFailed {
+                    dependency: dependency.clone(),
+                }
+                .into(),
+                Phase::Lower => LowerError::YieldFailed {
+                    dependency: dependency.clone(),
+                }
+                .into(),
+                Phase::Analyze => AnalyzeError::YieldFailed {
+                    dependency: dependency.clone(),
+                }
+                .into(),
+                Phase::Optimize => OptimizeError::YieldFailed {
+                    dependency: dependency.clone(),
+                }
+                .into(),
+                Phase::Execute => ExecuteError::YieldFailed {
+                    dependency: dependency.clone(),
+                }
+                .into(),
+                Phase::Build => BuildError::YieldFailed {
+                    dependency: dependency.clone(),
+                }
+                .into(),
+                Phase::Link => LinkError::YieldFailed {
+                    dependency: dependency.clone(),
+                }
+                .into(),
+            }
+        });
+        self.queue.set_status(
+            waiter_id,
+            TaskStatus::Failed {
+                error: error.clone(),
+            },
+        );
+        self.error(error);
     }
 
     /// Get the fallback error from a dependency.
-    fn get_fallback_error(dependency: &TaskDependency) -> Option<crate::TaskError> {
+    fn get_fallback_error(dependency: &TaskDependency) -> Option<TaskError> {
         match dependency {
             TaskDependency::Complete { error, .. } => error.as_ref().map(|e| *e.clone()),
             TaskDependency::CompleteAll { dependencies } => {

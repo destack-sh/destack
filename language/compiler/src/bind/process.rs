@@ -3,7 +3,7 @@ use dyst_dir::{
     SymbolKind,
 };
 
-use crate::{BindError, BindResult, TaskOutput, Task, Compiler, ResolveTask};
+use crate::{BindError, BindResult, Compiler, ResolveTask, Task, TaskOutput};
 
 /// Task to bind AST into DIR.
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]

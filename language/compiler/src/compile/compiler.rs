@@ -4,8 +4,8 @@ use dyst_dir::Program;
 use dyst_source::{DiagnosticCollector, DiagnosticOptions};
 
 use crate::{
-    BuildOptions, CompileDiagnostic, TaskError, CompileWarning, TaskQueue, ExecuteOptions,
-    ImportOptions, LinkOptions, LowerOptions, OptimizeOptions, ResolveOptions, ValidateOptions,
+    BuildOptions, CompileDiagnostic, CompileWarning, ExecuteOptions, ImportOptions, LinkOptions,
+    LowerOptions, OptimizeOptions, ResolveOptions, TaskError, TaskQueue, ValidateOptions,
 };
 
 /// The options for compiling a Workspace.

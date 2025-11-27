@@ -1,6 +1,6 @@
 use dyst_dir::{GlobalNodeIdAny, Program};
 
-use crate::{Phase, CompileWarning};
+use crate::{CompileWarning, Phase};
 
 /// Warning when analyzing something.
 #[derive(Debug, Clone, PartialEq)]
@@ -19,10 +19,10 @@ impl AnalyzeWarning {
         }
     }
 
-    /// Get the node id of the warning.
-    pub fn node_id(&self) -> Option<GlobalNodeIdAny> {
+    /// Get the node of the warning.
+    pub fn node(&self) -> GlobalNodeIdAny {
         match self {
-            Self::UnsupportedNode { node, .. } => Some(*node),
+            Self::UnsupportedNode { node, .. } => *node,
         }
     }
 

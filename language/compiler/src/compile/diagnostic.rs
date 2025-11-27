@@ -1,4 +1,4 @@
-use crate::{TaskError, CompileWarning};
+use crate::{CompileWarning, TaskError};
 use dyst_dir::{GlobalNodeIdAny, Program};
 use dyst_source::{Diagnostic, DiagnosticSeverity, LabeledSpan};
 
@@ -40,11 +40,11 @@ impl CompileDiagnostic {
         }
     }
 
-    /// Get the node id of the diagnostic.
-    pub fn node_id(&self) -> Option<GlobalNodeIdAny> {
+    /// Get the node of the diagnostic.
+    pub fn node(&self) -> GlobalNodeIdAny {
         match self {
-            Self::Error(error) => error.node_id(),
-            Self::Warning(warning) => warning.node_id(),
+            Self::Error(error) => error.node(),
+            Self::Warning(warning) => warning.node(),
         }
     }
 
@@ -59,16 +59,10 @@ impl CompileDiagnostic {
     /// Turn the diagnostic into a full Dyst diagnostic.
     pub fn to_diagnostic(&self, program: &Program) -> Diagnostic {
         // get source information
-        let node_id = self
-            .node_id()
-            .unwrap_or_else(|| panic!("TODO #Broken: diagnostic without node id"));
+        let node_id = self.node();
         let module = program.modules.get(node_id.module_id);
         let module = module.read();
-        let source_node_id = module
-            .tree
-            .read()
-            .get_source(node_id.local_id.id)
-            .unwrap_or_else(|| panic!("TODO #Broken: diagnostic without source node id"));
+        let source_node_id = module.tree.read().get_source(node_id.local_id.id);
 
         // make diagnostic
         let severity = self.severity();

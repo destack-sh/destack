@@ -1,6 +1,6 @@
 use dyst_dir::{GlobalNodeIdAny, Program};
 
-use crate::{Phase, CompileWarning};
+use crate::{CompileWarning, Phase};
 
 /// Warning when validating something.
 #[derive(Debug, Clone, PartialEq)]
@@ -37,16 +37,16 @@ impl ValidateWarning {
         }
     }
 
-    /// Get the node id of the warning.
-    pub fn node_id(&self) -> Option<GlobalNodeIdAny> {
+    /// Get the node of the warning.
+    pub fn node(&self) -> GlobalNodeIdAny {
         match self {
-            Self::NonExhaustiveMatch { node, .. } => Some(*node),
-            Self::UnreachableCode { node, .. } => Some(*node),
-            Self::ConstantValueCondition { node, .. } => Some(*node),
-            Self::RedundantPattern { node, .. } => Some(*node),
-            Self::SuspiciousNarrowing { node, .. } => Some(*node),
-            Self::UnusedSymbol { node, .. } => Some(*node),
-            Self::IgnoredReturnValue { node, .. } => Some(*node),
+            Self::NonExhaustiveMatch { node, .. } => *node,
+            Self::UnreachableCode { node, .. } => *node,
+            Self::ConstantValueCondition { node, .. } => *node,
+            Self::RedundantPattern { node, .. } => *node,
+            Self::SuspiciousNarrowing { node, .. } => *node,
+            Self::UnusedSymbol { node, .. } => *node,
+            Self::IgnoredReturnValue { node, .. } => *node,
         }
     }
 

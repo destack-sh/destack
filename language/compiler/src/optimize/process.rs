@@ -1,4 +1,4 @@
-use crate::{TaskOutput, Task, Compiler, OptimizeResult};
+use crate::{Compiler, OptimizeResult, Task, TaskOutput};
 
 use dyst_dir::{ModuleId, Program};
 

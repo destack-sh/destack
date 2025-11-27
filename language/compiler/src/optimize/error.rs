@@ -1,13 +1,15 @@
 use dyst_dir::{GlobalNodeIdAny, Program};
 
-use crate::{TaskError, Phase, TaskDependency};
+use crate::{Phase, TaskDependency, TaskError};
 
 /// Error when optimizing something into the compiler.
 #[derive(Debug, Clone, PartialEq)]
 #[repr(u8)]
 pub enum OptimizeError {
     /// Wait for task dependency.
-    Yield { wait: TaskDependency },
+    Yield { dependency: TaskDependency },
+    /// Yield dependency has failed.
+    YieldFailed { dependency: TaskDependency },
     /// Optimization is impossible for this node.
     UnsupportedNode { node: GlobalNodeIdAny },
     /// Unsupported optimization.
@@ -24,7 +26,7 @@ impl TryFrom<OptimizeError> for TaskDependency {
 
     fn try_from(error: OptimizeError) -> Result<Self, Self::Error> {
         match error {
-            OptimizeError::Yield { wait } => Ok(wait),
+            OptimizeError::Yield { dependency } => Ok(dependency),
             _ => Err(error),
         }
     }
@@ -36,26 +38,29 @@ impl OptimizeError {
     pub fn sub_code(&self) -> u8 {
         match self {
             Self::Yield { .. } => 0,
-            Self::UnsupportedNode { .. } => 1,
-            Self::UnsupportedOptimization { .. } => 2,
-            Self::PossibleUndefinedBehavior { .. } => 3,
+            Self::YieldFailed { .. } => 1,
+            Self::UnsupportedNode { .. } => 2,
+            Self::UnsupportedOptimization { .. } => 3,
+            Self::PossibleUndefinedBehavior { .. } => 4,
         }
     }
 
-    /// Get the node id of the error.
-    pub fn node_id(&self) -> Option<GlobalNodeIdAny> {
+    /// Get the node of the error.
+    pub fn node(&self) -> GlobalNodeIdAny {
         match self {
-            Self::Yield { wait } => wait.first_node(),
-            Self::UnsupportedNode { node, .. } => Some(*node),
-            Self::UnsupportedOptimization { node, .. } => Some(*node),
-            Self::PossibleUndefinedBehavior { node, .. } => Some(*node),
+            Self::Yield { dependency } => dependency.node(),
+            Self::YieldFailed { dependency } => dependency.node(),
+            Self::UnsupportedNode { node, .. } => *node,
+            Self::UnsupportedOptimization { node, .. } => *node,
+            Self::PossibleUndefinedBehavior { node, .. } => *node,
         }
     }
 
     /// Get the message of the error.
     pub fn message(&self, _program: &Program) -> String {
         match self {
-            Self::Yield { .. } => "unresolved dependency".to_string(),
+            Self::Yield { .. } => "pending dependency".to_string(),
+            Self::YieldFailed { .. } => "unsatisfied dependency".to_string(),
             Self::UnsupportedNode { .. } => "unsupported node".to_string(),
             Self::UnsupportedOptimization { .. } => "unsupported optimization".to_string(),
             Self::PossibleUndefinedBehavior { .. } => "possible undefined behavior".to_string(),

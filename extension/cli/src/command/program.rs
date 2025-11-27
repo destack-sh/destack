@@ -166,6 +166,8 @@ impl ProgramArgs {
             FileSystemArg::Physical => Arc::new(PhysicalFileSystem::new()),
             FileSystemArg::Memory => Arc::new(MemoryFileSystem::new()),
         };
-        Arc::new(Program::new(language_options, cwd, fs, files))
+
+        let program = Program::new(language_options, cwd, fs, files);
+        Arc::new(program)
     }
 }

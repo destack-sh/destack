@@ -1,15 +1,17 @@
 use dyst_dir::{GlobalNodeIdAny, Program};
 
-use crate::{TaskError, Phase, TaskDependency};
+use crate::{Phase, TaskDependency, TaskError};
 
 /// Error when evaluating something statically.
 #[derive(Debug, Clone, PartialEq)]
 #[repr(u8)]
 pub enum ExecuteError {
     /// Wait for task dependency.
-    Yield { wait: TaskDependency } = 0,
+    Yield { dependency: TaskDependency } = 0,
+    /// Yield dependency has failed.
+    YieldFailed { dependency: TaskDependency } = 1,
     /// Unsupported node.
-    UnsupportedNode { node: GlobalNodeIdAny } = 1,
+    UnsupportedNode { node: GlobalNodeIdAny } = 2,
 }
 
 impl TryFrom<ExecuteError> for TaskDependency {
@@ -17,7 +19,7 @@ impl TryFrom<ExecuteError> for TaskDependency {
 
     fn try_from(error: ExecuteError) -> Result<Self, Self::Error> {
         match error {
-            ExecuteError::Yield { wait } => Ok(wait),
+            ExecuteError::Yield { dependency } => Ok(dependency),
             _ => Err(error),
         }
     }
@@ -29,22 +31,25 @@ impl ExecuteError {
     pub fn sub_code(&self) -> u8 {
         match self {
             Self::Yield { .. } => 0,
-            Self::UnsupportedNode { .. } => 1,
+            Self::YieldFailed { .. } => 1,
+            Self::UnsupportedNode { .. } => 2,
         }
     }
 
-    /// Get the node id of the error.
-    pub fn node_id(&self) -> Option<GlobalNodeIdAny> {
+    /// Get the node of the error.
+    pub fn node(&self) -> GlobalNodeIdAny {
         match self {
-            Self::Yield { wait } => wait.first_node(),
-            Self::UnsupportedNode { node, .. } => Some(*node),
+            Self::Yield { dependency } => dependency.node(),
+            Self::YieldFailed { dependency } => dependency.node(),
+            Self::UnsupportedNode { node, .. } => *node,
         }
     }
 
     /// Get the message of the error.
     pub fn message(&self, _program: &Program) -> String {
         match self {
-            Self::Yield { .. } => "unresolved dependency".to_string(),
+            Self::Yield { .. } => "pending dependency".to_string(),
+            Self::YieldFailed { .. } => "unsatisfied dependency".to_string(),
             Self::UnsupportedNode { .. } => "unsupported node".to_string(),
         }
     }

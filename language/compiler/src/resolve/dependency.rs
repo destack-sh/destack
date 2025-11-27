@@ -4,7 +4,7 @@ use dyst_dir::{
     NodeTree, SymbolKey, SymbolTable,
 };
 
-use crate::{TaskDependency, Compiler, ImportTask, ResolveError, ResolveResult};
+use crate::{Compiler, ImportTask, ResolveError, ResolveResult, TaskDependency};
 
 impl Compiler {
     /// Error to wait for an import.
@@ -27,7 +27,7 @@ impl Compiler {
             task: import_task.into(),
             error: Some(Box::new(error.into())),
         };
-        ResolveError::Yield { wait: dependency }
+        ResolveError::Yield { dependency }
     }
 
     /// Resolve a DependencyItem.
