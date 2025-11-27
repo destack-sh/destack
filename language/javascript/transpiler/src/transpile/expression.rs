@@ -69,12 +69,12 @@ impl Transpiler {
                             node: expression_id.into_global_any(module.id),
                         });
                         let statement = Statement::Expression {
-                            expression: transpiled_id.into(),
+                            expression: transpiled_id.try_into().unwrap(),
                         };
                         unit.ast
                             .insert_from_source(statement, module.id, expression_id)
                     }
-                    NodeType::Statement => transpiled_id.into(),
+                    NodeType::Statement => transpiled_id.try_into().unwrap(),
                     _ => {
                         return Err(TranspileError::UnsupportedNode {
                             node: expression_id.into_global_any(module.id),

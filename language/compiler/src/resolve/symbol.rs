@@ -156,13 +156,13 @@ impl Compiler {
                 Ok(Expression::LocalReference {
                     path: path.clone(),
                     static_arguments,
-                    target_symbol: symbol.id,
+                    target_symbol: symbol.id.into_global(module.id),
                 })
             } else {
                 Ok(Expression::ModuleReference {
                     path: path.clone(),
                     static_arguments,
-                    target_symbol: symbol.id,
+                    target_symbol: symbol.id.into_global(module.id),
                 })
             }
         } else {
@@ -177,9 +177,9 @@ impl Compiler {
 
 #[cfg(test)]
 mod tests {
-    use dyst_dir::Symbol;
+    use dyst_dir::{Expression, ScalarLiteral};
 
-    use crate::{ImportTask, TestProgram};
+    use crate::{ImportTask, TestProgram, assert_node};
 
     #[test]
     fn test_resolve_symbol() {
@@ -195,6 +195,28 @@ let z = y;
         test.enqueue(ImportTask::ImportModuleFromFile { file: file.id });
         test.compile();
 
-        let x_symbol: Symbol = test.resolve_symbol_in_module("test.ds", "x").unwrap();
+        let module = test.module("test.ds");
+        let module = module.read();
+        let tree = module.tree.read();
+        let (x_symbol_id, x_node) = test.resolve_to_node::<Expression>("test.ds", "x").unwrap();
+        let (y_symbol_id, y_node) = test.resolve_to_node::<Expression>("test.ds", "y").unwrap();
+        let (_z_symbol_id, z_node) = test.resolve_to_node::<Expression>("test.ds", "z").unwrap();
+
+        // let x = 0;
+        assert_node!(tree, x_node, Expression::Let { value: Some(value), ..} => {
+            assert_node!(tree, *value, Expression::ScalarLiteral { value: ScalarLiteral::Integer(0) });
+        });
+        // let y = x;
+        assert_node!(tree, y_node, Expression::Let { value: Some(value), ..} => {
+            assert_node!(tree, *value, Expression::ModuleReference { target_symbol, .. } => {
+                assert_eq!(*target_symbol, x_symbol_id);
+            })
+        });
+        // let z = y;
+        assert_node!(tree, z_node, Expression::Let { value: Some(value), ..} => {
+            assert_node!(tree, *value, Expression::ModuleReference { target_symbol, .. } => {
+                assert_eq!(*target_symbol, y_symbol_id);
+            })
+        });
     }
 }

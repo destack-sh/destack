@@ -68,6 +68,7 @@ impl GlobalScopeId {
     }
 
     /// Turn into a LocalScopeId.
+    #[inline]
     pub fn into_local(self) -> LocalScopeId {
         self.local_id
     }

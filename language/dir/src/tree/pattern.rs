@@ -72,6 +72,16 @@ impl Node for Pattern {
     }
 }
 
+impl Pattern {
+    /// Get the symbol of the pattern.
+    pub fn symbol(&self) -> Option<LocalSymbolId> {
+        match self {
+            Pattern::Binding { symbol, .. } => Some(*symbol),
+            _ => None,
+        }
+    }
+}
+
 /// A PatternField is a field in a pattern (tuple, struct, union, etc.).
 #[derive(Debug, Clone, PartialEq)]
 pub enum PatternField {
@@ -125,5 +135,19 @@ impl Node for PatternField {
                 | PatternField::Alias { .. }
                 | PatternField::Positional { .. }
         )
+    }
+}
+
+impl PatternField {
+    /// Get the symbol of the pattern field.
+    pub fn symbol(&self) -> Option<LocalSymbolId> {
+        match self {
+            PatternField::UnresolvedNamed { symbol, .. } => Some(*symbol),
+            PatternField::UnresolvedAlias { symbol, .. } => Some(*symbol),
+            PatternField::UnresolvedPositional { .. } => None,
+            PatternField::Named { symbol, .. } => Some(*symbol),
+            PatternField::Alias { symbol, .. } => Some(*symbol),
+            PatternField::Positional { .. } => None,
+        }
     }
 }
