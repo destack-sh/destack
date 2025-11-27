@@ -7,7 +7,11 @@ use crate::Phase;
 #[repr(u8)]
 pub enum ImportWarning {
     /// Huge file.
-    VeryLargeFile { module: ModuleId, len: usize },
+    VeryLargeFile {
+        node: GlobalNodeIdAny,
+        module: ModuleId,
+        len: usize,
+    },
 }
 
 impl ImportWarning {
@@ -19,10 +23,10 @@ impl ImportWarning {
         }
     }
 
-    /// Get the node id of the warning.
-    pub fn node_id(&self) -> Option<GlobalNodeIdAny> {
+    /// Get the node of the warning.
+    pub fn node(&self) -> GlobalNodeIdAny {
         match self {
-            Self::VeryLargeFile { .. } => None,
+            Self::VeryLargeFile { node, .. } => *node,
         }
     }
 

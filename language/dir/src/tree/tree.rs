@@ -47,7 +47,7 @@ pub struct NodeTree {
     /// (Main data is in SymbolTable, but indexed here for efficiency since *every* node needs a scope.)
     scopes_by_node_id: Vec<(LocalScopeId, LocalScopeMark)>,
     /// The AST node ids of all nodes. Index is the global node id.
-    source_id_by_node_id: Vec<Option<u32>>,
+    source_id_by_node_id: Vec<u32>,
     /// The alias node id by AST node id.
     alias_node_id_by_source_id: HashMap<u32, u32>,
     /// The alias node id by DIR node id.
@@ -119,7 +119,7 @@ impl NodeTree {
         self.scopes_by_node_id.push(scope);
         self.parent_id_by_node_id
             .push(parent_id.map(|parent_id| parent_id.id));
-        self.source_id_by_node_id.push(Some(ast_node_id.id));
+        self.source_id_by_node_id.push(ast_node_id.id);
         self.alias_node_id_by_source_id
             .insert(ast_node_id.id, global_id);
 
@@ -142,7 +142,8 @@ impl NodeTree {
         self.scopes_by_node_id.push(scope);
         self.parent_id_by_node_id
             .push(parent_id.map(|parent_id| parent_id.id));
-        self.source_id_by_node_id.push(None);
+        let source_id = self.source_id_by_node_id[dir_node_id.id as usize];
+        self.source_id_by_node_id.push(source_id);
         self.alias_node_id_by_node_id
             .insert(dir_node_id.id, global_id);
 
@@ -271,7 +272,7 @@ impl NodeTree {
 
     /// Get the AST id of a node by its DIR node id.
     #[inline]
-    pub fn get_source(&self, node_id: u32) -> Option<u32> {
+    pub fn get_source(&self, node_id: u32) -> u32 {
         self.source_id_by_node_id[node_id as usize]
     }
 

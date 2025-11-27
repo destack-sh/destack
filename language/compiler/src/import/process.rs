@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use crate::{BindTask, TaskOutput, Task, Compiler, ImportError, ImportResult};
+use crate::{BindTask, Compiler, ImportError, ImportResult, Task, TaskOutput};
 
 use dyst_dir::{DependencySource, Module, ModuleId, Program};
 use dyst_parser::Parser;
@@ -144,9 +144,11 @@ impl Compiler {
         ty: Option<FileType>,
         resolver: &Resolver,
     ) -> ImportResult<Arc<File>> {
-        let path = uri
-            .to_path()
-            .ok_or_else(|| ImportError::InvalidUri { uri: uri.clone() })?;
+        let path = uri.to_path().ok_or_else(|| ImportError::ModuleNotFound {
+            node: self.program.root_node_id,
+            target: self.program.strings.intern(&uri),
+            error: None,
+        })?;
         self.import_file_from_path(path.to_path_buf(), ty, resolver)
     }
 
@@ -171,11 +173,15 @@ impl Compiler {
             .into_owned();
 
         // read file
-        let content = self
-            .program
-            .fs
-            .read_to_string(&path)
-            .map_err(|_| ImportError::FilePathNotFound { path: path.clone() })?;
+        let content =
+            self.program
+                .fs
+                .read_to_string(&path)
+                .map_err(|_| ImportError::ModuleNotFound {
+                    node: self.program.root_node_id,
+                    target: self.program.strings.intern(&path.to_string_lossy()),
+                    error: None,
+                })?;
 
         // make file
         let file_id = self.program.files.next_id();
@@ -201,15 +207,15 @@ impl Compiler {
         let module_directory = module_file
             .uri
             .to_path_buf()
-            .unwrap_or_else(|| self.program.root_directory.clone());
+            .unwrap_or_else(|| self.program.cwd.clone());
         let specifier = self.program.strings.get(target).to_string();
 
         // resolve
         let resolution = resolver
             .resolve(&module_directory, &specifier)
             .map_err(|error| ImportError::ModuleNotFound {
+                node: self.program.root_node_id,
                 target,
-                module: module_id,
                 error: Some(error),
             })?;
 

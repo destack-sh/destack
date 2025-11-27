@@ -51,11 +51,7 @@ impl TranspileDiagnostic {
         let node_id = self.node_id();
         let module = program.modules.get(node_id.module_id);
         let module = module.read();
-        let source_node_id = module
-            .tree
-            .read()
-            .get_source(node_id.local_id.id)
-            .unwrap_or_else(|| panic!("TODO #Broken: diagnostic without source node id"));
+        let source_node_id = module.tree.read().get_source(node_id.local_id.id);
 
         // make diagnostic
         let severity = self.severity();

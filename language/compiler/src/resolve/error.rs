@@ -6,7 +6,9 @@ use dyst_dir::{GlobalNodeIdAny, GlobalScopeId, GlobalSymbolId, Program, StringId
 #[repr(u8)]
 pub enum ResolveError {
     /// Wait for task dependency.
-    Yield { wait: TaskDependency },
+    Yield { dependency: TaskDependency },
+    /// Yield dependency has failed.
+    YieldFailed { dependency: TaskDependency },
     /// Unsupported node.
     UnsupportedNode { node: GlobalNodeIdAny },
     /// Circular dependency.
@@ -45,7 +47,7 @@ impl TryFrom<ResolveError> for TaskDependency {
 
     fn try_from(error: ResolveError) -> Result<Self, Self::Error> {
         match error {
-            ResolveError::Yield { wait } => Ok(wait),
+            ResolveError::Yield { dependency } => Ok(dependency),
             _ => Err(error),
         }
     }
@@ -57,32 +59,35 @@ impl ResolveError {
     pub fn sub_code(&self) -> u8 {
         match self {
             Self::Yield { .. } => 0,
+            Self::YieldFailed { .. } => 1,
             Self::UnsupportedNode { .. } => 2,
-            Self::CircularDependency { .. } => 2,
-            Self::UndeclaredSymbol { .. } => 3,
-            Self::MissingSymbol { .. } => 4,
-            Self::AmbiguousSymbol { .. } => 5,
+            Self::CircularDependency { .. } => 3,
+            Self::UndeclaredSymbol { .. } => 4,
+            Self::MissingSymbol { .. } => 5,
+            Self::AmbiguousSymbol { .. } => 6,
             Self::UnresolvedModule { .. } => 7,
         }
     }
 
-    /// Get the node id of the error.
-    pub fn node_id(&self) -> Option<GlobalNodeIdAny> {
+    /// Get the node of the error.
+    pub fn node(&self) -> GlobalNodeIdAny {
         match self {
-            Self::Yield { wait } => wait.first_node(),
-            Self::UnsupportedNode { node, .. } => Some(*node),
-            Self::CircularDependency { node, .. } => Some(*node),
-            Self::UndeclaredSymbol { node, .. } => Some(*node),
-            Self::MissingSymbol { node, .. } => Some(*node),
-            Self::AmbiguousSymbol { node, .. } => Some(*node),
-            Self::UnresolvedModule { node, .. } => Some(*node),
+            Self::Yield { dependency } => dependency.node(),
+            Self::YieldFailed { dependency } => dependency.node(),
+            Self::UnsupportedNode { node, .. } => *node,
+            Self::CircularDependency { node, .. } => *node,
+            Self::UndeclaredSymbol { node, .. } => *node,
+            Self::MissingSymbol { node, .. } => *node,
+            Self::AmbiguousSymbol { node, .. } => *node,
+            Self::UnresolvedModule { node, .. } => *node,
         }
     }
 
     /// Get the message of the error.
     pub fn message(&self, program: &Program) -> String {
         match self {
-            Self::Yield { .. } => "unresolved dependency".to_string(),
+            Self::Yield { .. } => "pending dependency".to_string(),
+            Self::YieldFailed { .. } => "unsatisfied dependency".to_string(),
             Self::UnsupportedNode { node, .. } => {
                 format!("unsupported {}", node.local_id.ty.name())
             }

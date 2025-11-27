@@ -1,8 +1,8 @@
 use dyst_dir::{GlobalNodeIdAny, Program};
 
 use crate::{
-    AnalyzeError, BindError, BuildError, Phase, ElaborateError, ExecuteError, ImportError,
-    LinkError, LowerError, OptimizeError, ResolveError, ValidateError,
+    AnalyzeError, BindError, BuildError, ElaborateError, ExecuteError, ImportError, LinkError,
+    LowerError, OptimizeError, Phase, ResolveError, ValidateError,
 };
 
 /// Error during compilation.
@@ -75,20 +75,20 @@ impl TaskError {
         }
     }
 
-    /// Get the node id of the error.
-    pub fn node_id(&self) -> Option<GlobalNodeIdAny> {
+    /// Get the node of the error.
+    pub fn node(&self) -> GlobalNodeIdAny {
         match self {
-            Self::Import(error) => error.node_id(),
-            Self::Bind(error) => error.node_id(),
-            Self::Resolve(error) => error.node_id(),
-            Self::Validate(error) => error.node_id(),
-            Self::Elaborate(error) => error.node_id(),
-            Self::Lower(error) => error.node_id(),
-            Self::Analyze(error) => error.node_id(),
-            Self::Optimize(error) => error.node_id(),
-            Self::Execute(error) => error.node_id(),
-            Self::Build(error) => error.node_id(),
-            Self::Link(error) => error.node_id(),
+            Self::Import(error) => error.node(),
+            Self::Bind(error) => error.node(),
+            Self::Resolve(error) => error.node(),
+            Self::Validate(error) => error.node(),
+            Self::Elaborate(error) => error.node(),
+            Self::Lower(error) => error.node(),
+            Self::Analyze(error) => error.node(),
+            Self::Optimize(error) => error.node(),
+            Self::Execute(error) => error.node(),
+            Self::Build(error) => error.node(),
+            Self::Link(error) => error.node(),
         }
     }
 

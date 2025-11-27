@@ -25,7 +25,7 @@ pub struct NodeTree {
     pub(crate) annotations_by_node_id: HashMap<u32, Vec<LocalNodeId<Annotation>>>,
 
     /// The DIR ids of all nodes. Index is the global node id.
-    pub(crate) dir_id_by_node_id: Vec<Option<u32>>,
+    pub(crate) source_id_by_node_id: Vec<u32>,
     /// The alias node id by DIR node id.
     pub(crate) alias_node_id_by_dir_id: HashMap<u32, u32>,
     /// The alias node id by JS AST node id.
@@ -78,7 +78,7 @@ impl NodeTree {
             node_type_by_node_id: Vec::with_capacity(capacity),
             module_by_node_id: Vec::with_capacity(capacity),
             annotations_by_node_id: HashMap::new(),
-            dir_id_by_node_id: Vec::with_capacity(capacity),
+            source_id_by_node_id: Vec::with_capacity(capacity),
             alias_node_id_by_dir_id: HashMap::new(),
             alias_node_id_by_node_id: HashMap::new(),
             // node arenas
@@ -129,7 +129,7 @@ impl NodeTree {
         dir::NodeTree: dir::NodeTreeImpl<U>,
     {
         let node_id = self.insert(node, module_id);
-        self.dir_id_by_node_id.push(Some(dir_node_id.id));
+        self.source_id_by_node_id.push(dir_node_id.id);
         node_id
     }
 
@@ -145,7 +145,7 @@ impl NodeTree {
         Self: NodeTreeImpl<T>,
     {
         let node_id = self.insert(node, module_id);
-        self.dir_id_by_node_id.push(Some(dir_node_id.id));
+        self.source_id_by_node_id.push(dir_node_id.id);
         node_id
     }
 
@@ -158,7 +158,8 @@ impl NodeTree {
     {
         let module_id = self.module_by_node_id[dir_node_id.id as usize];
         let node_id = self.insert(node, module_id);
-        self.dir_id_by_node_id.push(None);
+        let source_id = self.source_id_by_node_id[dir_node_id.id as usize];
+        self.source_id_by_node_id.push(source_id);
         self.alias_node_id_by_dir_id
             .insert(dir_node_id.id, node_id.id);
         node_id
@@ -232,10 +233,10 @@ impl NodeTree {
     }
 
     /// Get the source and DIR id of a node by its global id.
-    pub fn get_source(&self, node_id: u32) -> (ModuleId, Option<u32>) {
+    pub fn get_source(&self, node_id: u32) -> (ModuleId, u32) {
         (
             self.module_by_node_id[node_id as usize],
-            self.dir_id_by_node_id[node_id as usize],
+            self.source_id_by_node_id[node_id as usize],
         )
     }
 

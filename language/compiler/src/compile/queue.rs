@@ -91,9 +91,14 @@ impl TaskQueue {
     }
 
     /// Get the task handle for a task id.
-    pub fn get_task(&self, task_id: TaskId) -> Option<TaskHandle> {
+    ///
+    /// # Panics
+    /// Panics if the task id is not found.
+    pub fn get_task(&self, task_id: TaskId) -> TaskHandle {
         let tasks = self.tasks.lock();
-        tasks.get(task_id.0 as usize).cloned()
+        tasks.get(task_id.0 as usize).cloned().unwrap_or_else(|| {
+            panic!("task id not found: {}", task_id.0);
+        })
     }
 
     /// Update the status of a task.

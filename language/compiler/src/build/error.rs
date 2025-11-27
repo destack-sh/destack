@@ -1,13 +1,15 @@
 use dyst_dir::{GlobalNodeIdAny, Program};
 
-use crate::{TaskError, Phase, TaskDependency};
+use crate::{Phase, TaskDependency, TaskError};
 
 /// Error when building something into the compiler.
 #[derive(Debug, Clone, PartialEq)]
 #[repr(u8)]
 pub enum BuildError {
     /// Wait for task dependency.
-    Yield { wait: TaskDependency },
+    Yield { dependency: TaskDependency },
+    /// Yield dependency has failed.
+    YieldFailed { dependency: TaskDependency },
     /// Target is not available.
     TargetNotAvailable { node: GlobalNodeIdAny },
     /// Unsupported target triple / architecture / ABI.
@@ -45,7 +47,7 @@ impl TryFrom<BuildError> for TaskDependency {
 
     fn try_from(error: BuildError) -> Result<Self, Self::Error> {
         match error {
-            BuildError::Yield { wait } => Ok(wait),
+            BuildError::Yield { dependency } => Ok(dependency),
             _ => Err(error),
         }
     }
@@ -66,38 +68,41 @@ impl BuildError {
     pub fn sub_code(&self) -> u8 {
         match self {
             Self::Yield { .. } => 0,
-            Self::TargetNotAvailable { .. } => 1,
-            Self::UnsupportedTarget { .. } => 2,
-            Self::MissingEntryPoint { .. } => 3,
-            Self::UnresolvedSymbol { .. } => 4,
-            Self::DuplicateSymbol { .. } => 5,
-            Self::IncompatibleFormat { .. } => 6,
-            Self::TargetLimitExceeded { .. } => 7,
-            Self::WriteFailure { .. } => 8,
-            Self::MissingRuntime { .. } => 9,
+            Self::YieldFailed { .. } => 1,
+            Self::TargetNotAvailable { .. } => 2,
+            Self::UnsupportedTarget { .. } => 3,
+            Self::MissingEntryPoint { .. } => 4,
+            Self::UnresolvedSymbol { .. } => 5,
+            Self::DuplicateSymbol { .. } => 6,
+            Self::IncompatibleFormat { .. } => 7,
+            Self::TargetLimitExceeded { .. } => 8,
+            Self::WriteFailure { .. } => 9,
+            Self::MissingRuntime { .. } => 10,
         }
     }
 
-    /// Get the node id of the error.
-    pub fn node_id(&self) -> Option<GlobalNodeIdAny> {
+    /// Get the node of the error.
+    pub fn node(&self) -> GlobalNodeIdAny {
         match self {
-            Self::Yield { wait } => wait.first_node(),
-            Self::TargetNotAvailable { node, .. } => Some(*node),
-            Self::UnsupportedTarget { node, .. } => Some(*node),
-            Self::MissingEntryPoint { node, .. } => Some(*node),
-            Self::UnresolvedSymbol { node, .. } => Some(*node),
-            Self::DuplicateSymbol { node, .. } => Some(*node),
-            Self::IncompatibleFormat { node, .. } => Some(*node),
-            Self::TargetLimitExceeded { node, .. } => Some(*node),
-            Self::WriteFailure { node, .. } => Some(*node),
-            Self::MissingRuntime { node, .. } => Some(*node),
+            Self::Yield { dependency } => dependency.node(),
+            Self::YieldFailed { dependency } => dependency.node(),
+            Self::TargetNotAvailable { node, .. } => *node,
+            Self::UnsupportedTarget { node, .. } => *node,
+            Self::MissingEntryPoint { node, .. } => *node,
+            Self::UnresolvedSymbol { node, .. } => *node,
+            Self::DuplicateSymbol { node, .. } => *node,
+            Self::IncompatibleFormat { node, .. } => *node,
+            Self::TargetLimitExceeded { node, .. } => *node,
+            Self::WriteFailure { node, .. } => *node,
+            Self::MissingRuntime { node, .. } => *node,
         }
     }
 
     /// Get the message of the error.
     pub fn message(&self, _program: &Program) -> String {
         match self {
-            Self::Yield { .. } => "unresolved dependency".to_string(),
+            Self::Yield { .. } => "pending dependency".to_string(),
+            Self::YieldFailed { .. } => "unsatisfied dependency".to_string(),
             Self::TargetNotAvailable { .. } => "target is not available".to_string(),
             Self::UnsupportedTarget { .. } => "unsupported target".to_string(),
             Self::MissingEntryPoint { .. } => "missing entry point".to_string(),

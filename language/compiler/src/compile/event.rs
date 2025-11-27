@@ -1,4 +1,4 @@
-use crate::{TaskError, Task};
+use crate::{Task, TaskError};
 
 /// Event emitted by the compiler.
 #[derive(Debug, Clone)]

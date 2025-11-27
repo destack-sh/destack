@@ -1,6 +1,6 @@
 use dyst_dir::{GlobalNodeIdAny, Program};
 
-use crate::{Phase, CompileWarning};
+use crate::{CompileWarning, Phase};
 
 /// Warning when executing something.
 #[derive(Debug, Clone, PartialEq)]
@@ -22,11 +22,11 @@ impl ExecuteWarning {
         }
     }
 
-    /// Get the node id of the warning.
-    pub fn node_id(&self) -> Option<GlobalNodeIdAny> {
+    /// Get the node of the warning.
+    pub fn node(&self) -> GlobalNodeIdAny {
         match self {
-            Self::ComplexNode { node, .. } => Some(*node),
-            Self::SlowEvaluation { node, .. } => Some(*node),
+            Self::ComplexNode { node, .. } => *node,
+            Self::SlowEvaluation { node, .. } => *node,
         }
     }
 

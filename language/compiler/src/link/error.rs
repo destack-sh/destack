@@ -1,13 +1,15 @@
 use dyst_dir::{GlobalNodeIdAny, Program};
 
-use crate::{TaskError, Phase, TaskDependency};
+use crate::{Phase, TaskDependency, TaskError};
 
 /// Error when linking something into the compiler.
 #[derive(Debug, Clone, PartialEq)]
 #[repr(u8)]
 pub enum LinkError {
     /// Wait for task dependency.
-    Yield { wait: TaskDependency },
+    Yield { dependency: TaskDependency },
+    /// Yield dependency has failed.
+    YieldFailed { dependency: TaskDependency },
     /// Missing target for a symbol.
     MissingTarget {
         node: GlobalNodeIdAny,
@@ -30,7 +32,7 @@ impl TryFrom<LinkError> for TaskDependency {
 
     fn try_from(error: LinkError) -> Result<Self, Self::Error> {
         match error {
-            LinkError::Yield { wait } => Ok(wait),
+            LinkError::Yield { dependency } => Ok(dependency),
             _ => Err(error),
         }
     }
@@ -42,26 +44,29 @@ impl LinkError {
     pub fn sub_code(&self) -> u8 {
         match self {
             Self::Yield { .. } => 0,
-            Self::MissingTarget { .. } => 1,
-            Self::UnresolvedSymbol { .. } => 2,
-            Self::ConflictingSymbol { .. } => 3,
+            Self::YieldFailed { .. } => 1,
+            Self::MissingTarget { .. } => 2,
+            Self::UnresolvedSymbol { .. } => 3,
+            Self::ConflictingSymbol { .. } => 4,
         }
     }
 
-    /// Get the node id of the error.
-    pub fn node_id(&self) -> Option<GlobalNodeIdAny> {
+    /// Get the node of the error.
+    pub fn node(&self) -> GlobalNodeIdAny {
         match self {
-            Self::Yield { wait } => wait.first_node(),
-            Self::MissingTarget { node, .. } => Some(*node),
-            Self::UnresolvedSymbol { node, .. } => Some(*node),
-            Self::ConflictingSymbol { node, .. } => Some(*node),
+            Self::Yield { dependency } => dependency.node(),
+            Self::YieldFailed { dependency } => dependency.node(),
+            Self::MissingTarget { node, .. } => *node,
+            Self::UnresolvedSymbol { node, .. } => *node,
+            Self::ConflictingSymbol { node, .. } => *node,
         }
     }
 
     /// Get the message of the error.
     pub fn message(&self, _program: &Program) -> String {
         match self {
-            Self::Yield { .. } => "unresolved dependency".to_string(),
+            Self::Yield { .. } => "pending dependency".to_string(),
+            Self::YieldFailed { .. } => "unsatisfied dependency".to_string(),
             Self::MissingTarget { .. } => "missing target".to_string(),
             Self::UnresolvedSymbol { .. } => "unresolved symbol".to_string(),
             Self::ConflictingSymbol { .. } => "conflicting symbol".to_string(),

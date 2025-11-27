@@ -1,6 +1,6 @@
 use dyst_dir::{GlobalNodeIdAny, Program};
 
-use crate::{Phase, CompileWarning};
+use crate::{CompileWarning, Phase};
 
 /// Warning when evaluating something statically.
 #[derive(Debug, Clone, PartialEq)]
@@ -25,12 +25,12 @@ impl ResolveWarning {
         }
     }
 
-    /// Get the node id of the warning.
-    pub fn node_id(&self) -> Option<GlobalNodeIdAny> {
+    /// Get the node of the warning.
+    pub fn node(&self) -> GlobalNodeIdAny {
         match self {
-            Self::UnknownImport { node, .. } => Some(*node),
-            Self::UnusedImport { node, .. } => Some(*node),
-            Self::SideEffectOnlyImport { node, .. } => Some(*node),
+            Self::UnknownImport { node, .. } => *node,
+            Self::UnusedImport { node, .. } => *node,
+            Self::SideEffectOnlyImport { node, .. } => *node,
         }
     }
 

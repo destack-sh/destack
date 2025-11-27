@@ -1,6 +1,6 @@
 use dyst_dir::{GlobalNodeIdAny, Program};
 
-use crate::{Phase, CompileWarning};
+use crate::{CompileWarning, Phase};
 
 /// Warning when validating something.
 #[derive(Debug, Clone, PartialEq)]
@@ -19,10 +19,10 @@ impl ElaborateWarning {
         }
     }
 
-    /// Get the node id of the warning.
-    pub fn node_id(&self) -> Option<GlobalNodeIdAny> {
+    /// Get the node of the warning.
+    pub fn node(&self) -> GlobalNodeIdAny {
         match self {
-            Self::UnsupportedNode { node, .. } => Some(*node),
+            Self::UnsupportedNode { node, .. } => *node,
         }
     }
 
@@ -39,11 +39,7 @@ impl std::fmt::Display for ElaborateWarning {
         f.debug_struct("ElaborateWarning")
             .field(
                 "code",
-                &format!(
-                    "W{}{:03}",
-                    Phase::Elaborate.letter(),
-                    self.sub_code()
-                ),
+                &format!("W{}{:03}", Phase::Elaborate.letter(), self.sub_code()),
             )
             .finish()
     }

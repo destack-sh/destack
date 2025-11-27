@@ -46,7 +46,7 @@ pub fn run(args: &ResolveArgs) -> i32 {
     let directory = args
         .directory
         .clone()
-        .unwrap_or_else(|| program.root_directory.clone())
+        .unwrap_or_else(|| program.cwd.clone())
         .canonicalize()
         .expect("failed to canonicalize directory");
 

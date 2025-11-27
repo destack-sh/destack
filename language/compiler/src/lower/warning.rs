@@ -1,6 +1,6 @@
 use dyst_dir::{GlobalNodeIdAny, Program};
 
-use crate::{Phase, CompileWarning};
+use crate::{CompileWarning, Phase};
 
 /// Warning when optimizing something.
 #[derive(Debug, Clone, PartialEq)]
@@ -25,11 +25,11 @@ impl LowerWarning {
         }
     }
 
-    /// Get the node id of the warning.
-    pub fn node_id(&self) -> Option<GlobalNodeIdAny> {
+    /// Get the node of the warning.
+    pub fn node(&self) -> GlobalNodeIdAny {
         match self {
-            Self::ComplexType { node, .. } => Some(*node),
-            Self::SlowEmulation { node, .. } => Some(*node),
+            Self::ComplexType { node, .. } => *node,
+            Self::SlowEmulation { node, .. } => *node,
         }
     }
 
