@@ -6,8 +6,8 @@ use crate::{CompileError, CompilePhase, CompileTaskDependency};
 #[derive(Debug, Clone, PartialEq)]
 #[repr(u8)]
 pub enum BuildError {
-    /// Wait for other tasks.
-    Wait { wait: CompileTaskDependency },
+    /// Wait for task dependency.
+    Yield { wait: CompileTaskDependency },
     /// Target is not available.
     TargetNotAvailable { node: GlobalNodeIdAny },
     /// Unsupported target triple / architecture / ABI.
@@ -54,7 +54,7 @@ impl BuildError {
     #[inline]
     pub fn sub_code(&self) -> u8 {
         match self {
-            Self::Wait { .. } => 0,
+            Self::Yield { .. } => 0,
             Self::TargetNotAvailable { .. } => 1,
             Self::UnsupportedTarget { .. } => 2,
             Self::MissingEntryPoint { .. } => 3,
@@ -70,7 +70,7 @@ impl BuildError {
     /// Get the node id of the error.
     pub fn node_id(&self) -> Option<GlobalNodeIdAny> {
         match self {
-            Self::Wait { wait } => wait.first_node(),
+            Self::Yield { wait } => wait.first_node(),
             Self::TargetNotAvailable { node, .. } => Some(*node),
             Self::UnsupportedTarget { node, .. } => Some(*node),
             Self::MissingEntryPoint { node, .. } => Some(*node),
@@ -86,7 +86,7 @@ impl BuildError {
     /// Get the message of the error.
     pub fn message(&self, _program: &Program) -> String {
         match self {
-            Self::Wait { .. } => "wait for task".to_string(),
+            Self::Yield { .. } => "unresolved dependency".to_string(),
             Self::TargetNotAvailable { .. } => "target is not available".to_string(),
             Self::UnsupportedTarget { .. } => "unsupported target".to_string(),
             Self::MissingEntryPoint { .. } => "missing entry point".to_string(),

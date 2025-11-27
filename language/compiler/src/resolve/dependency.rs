@@ -22,12 +22,12 @@ impl Compiler {
             module: module.id,
         };
         let error = ResolveError::UnresolvedModule { node, target };
-        let wait = CompileTaskDependency::Complete {
+        let dependency = CompileTaskDependency::Complete {
             node,
             task: import_task.into(),
             error: Some(Box::new(error.into())),
         };
-        ResolveError::Wait { wait }
+        ResolveError::Yield { wait: dependency }
     }
 
     /// Resolve a DependencyItem.

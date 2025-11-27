@@ -6,8 +6,8 @@ use crate::{CompileError, CompilePhase, CompileTaskDependency};
 #[derive(Debug, Clone, PartialEq)]
 #[repr(u8)]
 pub enum OptimizeError {
-    /// Wait for other tasks.
-    Wait { wait: CompileTaskDependency },
+    /// Wait for task dependency.
+    Yield { wait: CompileTaskDependency },
     /// Optimization is impossible for this node.
     UnsupportedNode { node: GlobalNodeIdAny },
     /// Unsupported optimization.
@@ -24,7 +24,7 @@ impl OptimizeError {
     #[inline]
     pub fn sub_code(&self) -> u8 {
         match self {
-            Self::Wait { .. } => 0,
+            Self::Yield { .. } => 0,
             Self::UnsupportedNode { .. } => 1,
             Self::UnsupportedOptimization { .. } => 2,
             Self::PossibleUndefinedBehavior { .. } => 3,
@@ -34,7 +34,7 @@ impl OptimizeError {
     /// Get the node id of the error.
     pub fn node_id(&self) -> Option<GlobalNodeIdAny> {
         match self {
-            Self::Wait { wait } => wait.first_node(),
+            Self::Yield { wait } => wait.first_node(),
             Self::UnsupportedNode { node, .. } => Some(*node),
             Self::UnsupportedOptimization { node, .. } => Some(*node),
             Self::PossibleUndefinedBehavior { node, .. } => Some(*node),
@@ -44,7 +44,7 @@ impl OptimizeError {
     /// Get the message of the error.
     pub fn message(&self, _program: &Program) -> String {
         match self {
-            Self::Wait { .. } => "wait for task".to_string(),
+            Self::Yield { .. } => "unresolved dependency".to_string(),
             Self::UnsupportedNode { .. } => "unsupported node".to_string(),
             Self::UnsupportedOptimization { .. } => "unsupported optimization".to_string(),
             Self::PossibleUndefinedBehavior { .. } => "possible undefined behavior".to_string(),

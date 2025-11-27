@@ -6,8 +6,8 @@ use crate::{CompileError, CompilePhase, CompileTaskDependency};
 #[derive(Debug, Clone, PartialEq)]
 #[repr(u8)]
 pub enum LinkError {
-    /// Wait for other tasks.
-    Wait { wait: CompileTaskDependency },
+    /// Wait for task dependency.
+    Yield { wait: CompileTaskDependency },
     /// Missing target for a symbol.
     MissingTarget {
         node: GlobalNodeIdAny,
@@ -30,7 +30,7 @@ impl LinkError {
     #[inline]
     pub fn sub_code(&self) -> u8 {
         match self {
-            Self::Wait { .. } => 0,
+            Self::Yield { .. } => 0,
             Self::MissingTarget { .. } => 1,
             Self::UnresolvedSymbol { .. } => 2,
             Self::ConflictingSymbol { .. } => 3,
@@ -40,7 +40,7 @@ impl LinkError {
     /// Get the node id of the error.
     pub fn node_id(&self) -> Option<GlobalNodeIdAny> {
         match self {
-            Self::Wait { wait } => wait.first_node(),
+            Self::Yield { wait } => wait.first_node(),
             Self::MissingTarget { node, .. } => Some(*node),
             Self::UnresolvedSymbol { node, .. } => Some(*node),
             Self::ConflictingSymbol { node, .. } => Some(*node),
@@ -50,7 +50,7 @@ impl LinkError {
     /// Get the message of the error.
     pub fn message(&self, _program: &Program) -> String {
         match self {
-            Self::Wait { .. } => "wait for task".to_string(),
+            Self::Yield { .. } => "unresolved dependency".to_string(),
             Self::MissingTarget { .. } => "missing target".to_string(),
             Self::UnresolvedSymbol { .. } => "unresolved symbol".to_string(),
             Self::ConflictingSymbol { .. } => "conflicting symbol".to_string(),
