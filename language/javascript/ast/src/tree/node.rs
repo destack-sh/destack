@@ -84,13 +84,22 @@ impl Debug for LocalNodeIdAny {
     }
 }
 
-impl<T: Node> From<LocalNodeIdAny> for LocalNodeId<T> {
-    fn from(id: LocalNodeIdAny) -> Self {
-        debug_assert_eq!(id.ty, T::TYPE);
-        Self {
+impl<T: Node> TryFrom<LocalNodeIdAny> for LocalNodeId<T> {
+    type Error = String;
+
+    fn try_from(id: LocalNodeIdAny) -> Result<Self, Self::Error> {
+        if id.ty != T::TYPE {
+            return Err(format!(
+                "expected {}, got {} for {:?}",
+                T::TYPE.name(),
+                id.ty.name(),
+                id
+            ));
+        }
+        Ok(Self {
             id: id.id,
             _ty: PhantomData,
-        }
+        })
     }
 }
 

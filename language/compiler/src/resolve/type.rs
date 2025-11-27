@@ -4,6 +4,8 @@ use dyst_dir::{
     SymbolTable, Type, TypeLiteral, TypeTable, TypeUnaryOperator, UnaryOperator,
 };
 
+#[allow(clippy::too_many_arguments)]
+#[allow(dead_code)]
 impl Compiler {
     /// Resolve a Type (in-place).
     pub(super) fn resolve_type(

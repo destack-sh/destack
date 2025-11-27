@@ -62,6 +62,26 @@ impl LocalNodeIdAny {
         self.id as usize
     }
 
+    /// Turn into a typed local node id.
+    #[inline]
+    pub fn try_into_typed<T: Node>(self) -> Result<LocalNodeId<T>, String> {
+        if self.ty != T::TYPE {
+            return Err(format!(
+                "expected {}, got {} for {}",
+                T::TYPE.name(),
+                self.ty.name(),
+                self.id
+            ));
+        }
+        Ok(LocalNodeId::new(self.id))
+    }
+
+    /// Turn into a typed local node id.
+    pub fn into_typed<T: Node>(self) -> LocalNodeId<T> {
+        self.try_into_typed().unwrap()
+    }
+
+    /// Turn into a GlobalNodeIdAny.
     #[inline]
     pub fn into_global(self, module_id: ModuleId) -> GlobalNodeIdAny {
         GlobalNodeIdAny {
@@ -92,13 +112,22 @@ impl Debug for LocalNodeIdAny {
     }
 }
 
-impl<T: Node> From<LocalNodeIdAny> for LocalNodeId<T> {
-    fn from(id: LocalNodeIdAny) -> Self {
-        debug_assert_eq!(id.ty, T::TYPE);
-        Self {
+impl<T: Node> TryFrom<LocalNodeIdAny> for LocalNodeId<T> {
+    type Error = String;
+
+    fn try_from(id: LocalNodeIdAny) -> Result<Self, Self::Error> {
+        if id.ty != T::TYPE {
+            return Err(format!(
+                "expected {}, got {} for {}",
+                T::TYPE.name(),
+                id.ty.name(),
+                id.id
+            ));
+        }
+        Ok(Self {
             id: id.id,
             _ty: PhantomData,
-        }
+        })
     }
 }
 
@@ -215,6 +244,47 @@ impl GlobalNodeIdAny {
             local_id,
         }
     }
+
+    /// Turn into a typed global node id.
+    pub fn try_into_typed<T: Node>(self) -> Result<GlobalNodeId<T>, String> {
+        if self.local_id.ty != T::TYPE {
+            return Err(format!(
+                "expected {}, got {} for {}/{}",
+                T::TYPE.name(),
+                self.local_id.ty.name(),
+                self.module_id.0,
+                self.local_id.id
+            ));
+        }
+        Ok(GlobalNodeId {
+            module_id: self.module_id,
+            local_id: LocalNodeId::new(self.local_id.id),
+        })
+    }
+
+    /// Turn into a typed global node id.
+    pub fn into_type<T: Node>(self) -> GlobalNodeId<T> {
+        self.try_into_typed().unwrap()
+    }
+
+    /// Turn into a typed local node id.
+    pub fn try_into_local_typed<T: Node>(self) -> Result<LocalNodeId<T>, String> {
+        if self.local_id.ty != T::TYPE {
+            return Err(format!(
+                "expected {}, got {} for {}/{}",
+                T::TYPE.name(),
+                self.local_id.ty.name(),
+                self.module_id.0,
+                self.local_id.id
+            ));
+        }
+        Ok(LocalNodeId::new(self.local_id.id))
+    }
+
+    /// Turn into a typed local node id.
+    pub fn into_local_typed<T: Node>(self) -> LocalNodeId<T> {
+        self.try_into_local_typed().unwrap()
+    }
 }
 
 impl Debug for GlobalNodeIdAny {
@@ -235,19 +305,31 @@ impl<T: Node> From<GlobalNodeId<T>> for GlobalNodeIdAny {
     }
 }
 
-impl<T: Node> From<GlobalNodeIdAny> for GlobalNodeId<T> {
-    fn from(id: GlobalNodeIdAny) -> Self {
-        debug_assert_eq!(id.local_id.ty, T::TYPE);
-        Self {
-            module_id: id.module_id,
-            local_id: id.local_id.into(),
+impl<T: Node> TryFrom<GlobalNodeIdAny> for GlobalNodeId<T> {
+    type Error = String;
+
+    fn try_from(id: GlobalNodeIdAny) -> Result<Self, Self::Error> {
+        if id.local_id.ty != T::TYPE {
+            return Err(format!(
+                "expected {}, got {} for {}/{}",
+                T::TYPE.name(),
+                id.local_id.ty.name(),
+                id.module_id.0,
+                id.local_id.id
+            ));
         }
+        Ok(Self {
+            module_id: id.module_id,
+            local_id: LocalNodeId::new(id.local_id.id),
+        })
     }
 }
 
-impl<T: Node> From<GlobalNodeIdAny> for LocalNodeId<T> {
-    fn from(id: GlobalNodeIdAny) -> Self {
-        id.local_id.into()
+impl<T: Node> TryFrom<GlobalNodeIdAny> for LocalNodeId<T> {
+    type Error = String;
+
+    fn try_from(id: GlobalNodeIdAny) -> Result<Self, Self::Error> {
+        id.local_id.try_into()
     }
 }
 

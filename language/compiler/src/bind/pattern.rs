@@ -137,7 +137,17 @@ impl Compiler {
                 Pattern::Union { patterns }
             }
         };
-        tree.insert_from_source(pattern, pattern_id, scope)
+
+        // pattern
+        if let Some(symbol_id) = pattern.symbol() {
+            let pattern_id = tree.insert_from_source(pattern, pattern_id, scope);
+            symbols
+                .get_symbol_mut(symbol_id)
+                .declare_primary(pattern_id);
+            pattern_id
+        } else {
+            tree.insert_from_source(pattern, pattern_id, scope)
+        }
     }
 
     /// Bind a pattern field to a DIR pattern field.
@@ -223,6 +233,16 @@ impl Compiler {
                 PatternField::UnresolvedPositional { pattern }
             }
         };
-        tree.insert_from_source(pattern_field, pattern_field_id, scope)
+
+        // pattern field
+        if let Some(symbol_id) = pattern_field.symbol() {
+            let pattern_field_id = tree.insert_from_source(pattern_field, pattern_field_id, scope);
+            symbols
+                .get_symbol_mut(symbol_id)
+                .declare_primary(pattern_field_id);
+            pattern_field_id
+        } else {
+            tree.insert_from_source(pattern_field, pattern_field_id, scope)
+        }
     }
 }

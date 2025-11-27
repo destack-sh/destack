@@ -103,6 +103,7 @@ impl GlobalSymbolId {
     }
 
     /// Turn into a LocalSymbolId.
+    #[inline]
     pub fn into_local(self) -> LocalSymbolId {
         self.local_id
     }

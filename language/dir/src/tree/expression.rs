@@ -182,13 +182,13 @@ pub enum Expression {
     LocalReference {
         path: Path,
         static_arguments: Option<Vec<LocalNodeId<Argument>>>,
-        target_symbol: LocalSymbolId,
+        target_symbol: GlobalSymbolId,
     },
     /// Module reference.
     ModuleReference {
         path: Path,
         static_arguments: Option<Vec<LocalNodeId<Argument>>>,
-        target_symbol: LocalSymbolId,
+        target_symbol: GlobalSymbolId,
     },
     /// Global reference.
     GlobalReference {
@@ -377,7 +377,7 @@ impl Expression {
             Expression::UnresolvedAbsolutePath { .. } => "unresolved path",
             Expression::UnresolvedRelativePath { .. } => "unresolved relative path",
             Expression::LocalReference { .. } => "local reference",
-            Expression::ModuleReference { .. } => "declaration reference",
+            Expression::ModuleReference { .. } => "module reference",
             Expression::GlobalReference { .. } => "global reference",
 
             Expression::Type { .. } => "type",

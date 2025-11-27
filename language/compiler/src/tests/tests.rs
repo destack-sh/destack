@@ -113,7 +113,7 @@ impl TestProgram {
     }
 
     /// Get a module by URI.
-    pub fn get_module_by_uri(&self, module_uri: &str) -> Arc<RwLock<Module>> {
+    pub fn module(&self, module_uri: &str) -> Arc<RwLock<Module>> {
         self.program
             .modules
             .get_by_uri(&Uri::from_string(module_uri))

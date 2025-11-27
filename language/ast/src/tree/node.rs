@@ -81,6 +81,20 @@ impl LocalNodeIdAny {
     pub fn get(&self) -> usize {
         self.id as usize
     }
+
+    /// Turn into a typed local node id.
+    #[inline]
+    pub fn try_into_typed<T: Node>(self) -> Result<LocalNodeId<T>, String> {
+        if self.ty != T::TYPE {
+            return Err(format!(
+                "expected {}, got {} for {}",
+                T::TYPE.name(),
+                self.ty.name(),
+                self.id
+            ));
+        }
+        Ok(LocalNodeId::new(self.id))
+    }
 }
 
 impl<T: Node> From<LocalNodeId<T>> for LocalNodeIdAny
@@ -104,13 +118,22 @@ impl Debug for LocalNodeIdAny {
     }
 }
 
-impl<T: Node> From<LocalNodeIdAny> for LocalNodeId<T> {
-    fn from(id: LocalNodeIdAny) -> Self {
-        debug_assert_eq!(id.ty, T::TYPE);
-        Self {
+impl<T: Node> TryFrom<LocalNodeIdAny> for LocalNodeId<T> {
+    type Error = String;
+
+    fn try_from(id: LocalNodeIdAny) -> Result<Self, Self::Error> {
+        if id.ty != T::TYPE {
+            return Err(format!(
+                "expected {}, got {} for {:?}",
+                T::TYPE.name(),
+                id.ty.name(),
+                id
+            ));
+        }
+        Ok(Self {
             id: id.id,
             _ty: PhantomData,
-        }
+        })
     }
 }
 
