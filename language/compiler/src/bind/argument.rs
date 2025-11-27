@@ -73,8 +73,8 @@ impl Compiler {
                     SymbolSpace::Value,
                     SymbolKey::Name(name),
                     scope,
-                    symbols,
                     None,
+                    symbols,
                 );
                 let parameter = Parameter::Named {
                     modifiers,
@@ -99,12 +99,13 @@ impl Compiler {
             } => {
                 let modifiers =
                     modifiers.map(|modifiers| self.bind_binding_modifier(module, modifiers));
-                let pattern = self.bind_pattern(module, scope, *pattern, tree, symbols, types);
+                let pattern =
+                    self.bind_pattern(module, scope, None, *pattern, tree, symbols, types);
                 let default = default.map(|default| {
                     self.bind_expression(module, scope, default, tree, symbols, types)
                 });
                 let (symbol_id, _) =
-                    self.bind_anonymous_item(module, SymbolSpace::Value, scope, symbols, None);
+                    self.bind_anonymous_item(module, SymbolSpace::Value, scope, None, symbols);
                 let parameter = Parameter::Pattern {
                     modifiers,
                     pattern,
@@ -133,8 +134,8 @@ impl Compiler {
                     SymbolSpace::Value,
                     SymbolKey::Name(name),
                     scope,
-                    symbols,
                     None,
+                    symbols,
                 );
                 let parameter = Parameter::Variadic {
                     modifiers,

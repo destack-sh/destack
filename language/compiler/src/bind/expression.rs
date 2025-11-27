@@ -56,8 +56,8 @@ impl Compiler {
                     module,
                     ScopeKind::Block,
                     scope,
-                    symbols,
                     None,
+                    symbols,
                 );
                 let clauses = clauses
                     .iter()
@@ -218,7 +218,15 @@ impl Compiler {
                 );
                 let symbol_id = descriptor.symbol;
                 let mutability = self.bind_mutability(*mutability);
-                let pattern = self.bind_pattern(module, scope, *pattern, tree, symbols, types);
+                let pattern = self.bind_pattern(
+                    module,
+                    scope,
+                    descriptor.export,
+                    *pattern,
+                    tree,
+                    symbols,
+                    types,
+                );
                 let value = value
                     .map(|value| self.bind_expression(module, scope, value, tree, symbols, types));
                 let expression = Expression::Let {
@@ -608,8 +616,8 @@ impl Compiler {
                     module,
                     ScopeKind::Block,
                     scope,
-                    symbols,
                     None,
+                    symbols,
                 );
                 let body = self.bind_block(
                     module,
@@ -639,14 +647,15 @@ impl Compiler {
                     ast::ForEachKind::In => ForEachKind::In,
                     ast::ForEachKind::Of => ForEachKind::Of,
                 };
-                let pattern = self.bind_pattern(module, scope, *pattern, tree, symbols, types);
+                let pattern =
+                    self.bind_pattern(module, scope, None, *pattern, tree, symbols, types);
                 let iterator = self.bind_expression(module, scope, *iterator, tree, symbols, types);
                 let (symbol_id, scope_id) = self.bind_anonymous_item_with_scope(
                     module,
                     ScopeKind::Block,
                     scope,
-                    symbols,
                     None,
+                    symbols,
                 );
                 let body = self.bind_block(
                     module,
@@ -676,8 +685,8 @@ impl Compiler {
                     module,
                     ScopeKind::Block,
                     scope,
-                    symbols,
                     None,
+                    symbols,
                 );
                 let initialization = initialization.map(|initialization| {
                     self.bind_expression(
@@ -731,8 +740,8 @@ impl Compiler {
                     module,
                     ScopeKind::Block,
                     scope,
-                    symbols,
                     None,
+                    symbols,
                 );
                 let body = self.bind_block(
                     module,
@@ -760,8 +769,8 @@ impl Compiler {
                     module,
                     ScopeKind::Block,
                     scope,
-                    symbols,
                     None,
+                    symbols,
                 );
                 let try_expression = self.bind_expression(
                     module,
@@ -775,6 +784,7 @@ impl Compiler {
                     self.bind_pattern(
                         module,
                         (scope_id, symbols.get_scope_mark(scope_id)),
+                        None,
                         catch_pattern,
                         tree,
                         symbols,
@@ -820,8 +830,8 @@ impl Compiler {
                     module,
                     ScopeKind::Block,
                     scope,
-                    symbols,
                     None,
+                    symbols,
                 );
                 let cases = cases
                     .iter()

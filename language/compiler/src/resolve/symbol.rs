@@ -181,8 +181,9 @@ mod tests {
 
     use crate::{ImportTask, TestProgram, assert_node};
 
+    /// Resolve symbols at top level in a single module.
     #[test]
-    fn test_resolve_symbol() {
+    fn test_resolve_symbol_in_single_module() {
         let test = TestProgram::memory();
         let file = test.file(
             "test.ds",

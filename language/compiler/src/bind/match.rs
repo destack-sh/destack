@@ -19,7 +19,7 @@ impl Compiler {
         types: &mut TypeTable,
     ) -> LocalNodeId<MatchCase> {
         let (symbol_id, scope_id) =
-            self.bind_anonymous_local_with_scope(module, ScopeKind::Block, scope, symbols);
+            self.bind_anonymous_local_with_scope(module, ScopeKind::Block, scope, None, symbols);
         let match_case = module.ast.get(match_case_id);
         let match_case = match match_case {
             ast::MatchCase::Expression {
@@ -30,6 +30,7 @@ impl Compiler {
                 let pattern = self.bind_pattern(
                     module,
                     (scope_id, symbols.get_scope_mark(scope_id)),
+                    None,
                     *pattern,
                     tree,
                     symbols,
@@ -68,6 +69,7 @@ impl Compiler {
                 let pattern = self.bind_pattern(
                     module,
                     (scope_id, symbols.get_scope_mark(scope_id)),
+                    None,
                     *pattern,
                     tree,
                     symbols,
