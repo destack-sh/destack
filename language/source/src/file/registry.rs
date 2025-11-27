@@ -60,7 +60,7 @@ impl FileRegistry {
     pub fn get(&self, id: FileId) -> Arc<File> {
         self.files_by_id
             .get(&id)
-            .unwrap_or_else(|| panic!("file not found: {id:?}"))
+            .unwrap_or_else(|| panic!("file not found for id: {id:?}"))
             .clone()
     }
 

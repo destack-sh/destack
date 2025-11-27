@@ -1,4 +1,4 @@
-use crate::{Compiler, OptimizeResult, Task, TaskOutput};
+use crate::{Compiler, OptimizeResult, Task, TaskOutput, TaskDebug};
 
 use dyst_dir::{ModuleId, Program};
 
@@ -16,12 +16,21 @@ impl OptimizeTask {
             Self::Optimize { .. } => 1,
         }
     }
+}
 
-    /// Get a message for the task.
-    pub fn message(&self, _program: &Program) -> String {
+impl TaskDebug for OptimizeTask {
+    fn name(&self) -> &'static str {
+        match self {
+            Self::Optimize { .. } => "module",
+        }
+    }
+
+    fn trace_args(&self, program: &Program) -> String {
         match self {
             Self::Optimize { module } => {
-                format!("optimize module '{module:?}'")
+                let module = program.modules.get(*module);
+                let uri = module.read().uri.clone();
+                format!("module={uri}")
             }
         }
     }

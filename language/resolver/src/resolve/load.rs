@@ -8,11 +8,13 @@ use crate::{ResolveContext, ResolveError, Resolver};
 
 impl Resolver {
     /// Try to resolve a path as a file with optional extension adding.
+    #[tracing::instrument(name = "resolver.load_as_file", level = "trace", skip(self, ctx))]
     pub(crate) fn load_as_file(
         &self,
         path: &Path,
         ctx: &mut ResolveContext,
     ) -> Result<Option<PathBuf>, ResolveError> {
+        tracing::trace!(?path, "resolver.load_as_file");
         // try extension alias
         if let Some(resolved) = self.load_with_extension_alias(path, ctx)? {
             Ok(Some(resolved))
@@ -34,11 +36,13 @@ impl Resolver {
     }
 
     /// Try to resolve a path as a directory via main files or index files.
+    #[tracing::instrument(name = "resolver.load_as_directory", level = "trace", skip(self, ctx))]
     pub(crate) fn load_as_directory(
         &self,
         path: &Path,
         ctx: &mut ResolveContext,
     ) -> Result<Option<PathBuf>, ResolveError> {
+        tracing::trace!(?path, "resolver.load_as_directory");
         // check for package.json in the directory
         if let Some(package_id) = self.load_package(path, ctx)? {
             let package = self.program.packages.get(package_id);

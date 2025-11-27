@@ -265,7 +265,7 @@ impl Parser {
             else {
                 // error if no position found
                 let error = ParseError::unexpected_for(span, NodeType::Tag);
-                self.handle_error(&error);
+                self.error(&error);
                 continue;
             };
 
@@ -290,7 +290,7 @@ impl Parser {
             else {
                 // error if no position found
                 let error = ParseError::unexpected_for(span, NodeType::Decorator);
-                self.handle_error(&error);
+                self.error(&error);
                 continue;
             };
 
@@ -567,7 +567,7 @@ impl Parser {
                 _ => unreachable!("unexpected token type: {token_type:?}"),
             };
             let error = ParseError::unexpected_for(span, node_type);
-            self.handle_error(&error);
+            self.error(&error);
             return; // could not find a position
         };
 

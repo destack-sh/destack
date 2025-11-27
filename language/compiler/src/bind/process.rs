@@ -3,7 +3,7 @@ use dyst_dir::{
     SymbolKind,
 };
 
-use crate::{BindError, BindResult, Compiler, ResolveTask, Task, TaskOutput};
+use crate::{BindError, BindResult, Compiler, ResolveTask, Task, TaskOutput, TaskDebug};
 
 /// Task to bind AST into DIR.
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
@@ -19,12 +19,21 @@ impl BindTask {
             BindTask::BindModule { .. } => 1,
         }
     }
+}
 
-    /// Get a message for the task.
-    pub fn message(&self, _program: &Program) -> String {
+impl TaskDebug for BindTask {
+    fn name(&self) -> &'static str {
+        match self {
+            BindTask::BindModule { .. } => "module",
+        }
+    }
+
+    fn trace_args(&self, program: &Program) -> String {
         match self {
             BindTask::BindModule { module } => {
-                format!("bind module '{module:?}'")
+                let module = program.modules.get(*module);
+                let uri = module.read().uri.clone();
+                format!("module={uri}")
             }
         }
     }

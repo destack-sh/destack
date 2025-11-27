@@ -411,7 +411,7 @@ impl TsConfigRegistry {
     pub fn get(&self, id: TsConfigId) -> Arc<RwLock<TsConfig>> {
         self.tsconfigs_by_id
             .get(&id)
-            .unwrap_or_else(|| panic!("tsconfig not found: {id:?}"))
+            .unwrap_or_else(|| panic!("tsconfig not found for id: {id:?}"))
             .clone()
     }
 

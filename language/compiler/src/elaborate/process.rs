@@ -1,4 +1,4 @@
-use crate::{Compiler, ElaborateResult, Task, TaskOutput};
+use crate::{Compiler, ElaborateResult, Task, TaskOutput, TaskDebug};
 
 use dyst_dir::{ModuleId, Program};
 
@@ -16,12 +16,21 @@ impl ElaborateTask {
             Self::Elaborate { .. } => 1,
         }
     }
+}
 
-    /// Get a message for the task.
-    pub fn message(&self, _program: &Program) -> String {
+impl TaskDebug for ElaborateTask {
+    fn name(&self) -> &'static str {
+        match self {
+            Self::Elaborate { .. } => "module",
+        }
+    }
+
+    fn trace_args(&self, program: &Program) -> String {
         match self {
             Self::Elaborate { module } => {
-                format!("elaborate module '{module:?}'")
+                let module = program.modules.get(*module);
+                let uri = module.read().uri.clone();
+                format!("module={uri}")
             }
         }
     }

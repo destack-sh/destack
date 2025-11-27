@@ -215,7 +215,7 @@ impl PackageRegistry {
     pub fn get(&self, id: PackageId) -> Arc<RwLock<Package>> {
         self.packages_by_id
             .get(&id)
-            .unwrap_or_else(|| panic!("package not found: {id:?}"))
+            .unwrap_or_else(|| panic!("package not found for id: {id:?}"))
             .clone()
     }
 

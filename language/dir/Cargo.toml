@@ -24,6 +24,7 @@ indexmap = { workspace = true, features = ["serde"] }
 rustc-hash = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
+tracing = { workspace = true }
 
 [dev-dependencies]
 

@@ -20,11 +20,13 @@ fn is_path_invalid_exports_target(path: &Path) -> bool {
 #[allow(clippy::too_many_arguments)]
 impl Resolver {
     /// Load a package.json from a directory, registering it in the program.
+    #[tracing::instrument(name = "resolver.load_package", level = "trace", skip(self, ctx))]
     pub(crate) fn load_package(
         &self,
         path: &Path,
         ctx: &mut ResolveContext,
     ) -> Result<Option<PackageId>, ResolveError> {
+        tracing::trace!(?path, "resolver.load_package");
         let package_json_path = path.join("package.json");
 
         // check if already in registry
@@ -90,11 +92,13 @@ impl Resolver {
     }
 
     /// Find the nearest package.json by traversing parent directories.
+    #[tracing::instrument(name = "resolver.find_package_json", level = "trace", skip(self, ctx))]
     pub(crate) fn find_package_json(
         &self,
         path: &Path,
         ctx: &mut ResolveContext,
     ) -> Result<Option<PackageId>, ResolveError> {
+        tracing::trace!(?path, "resolver.find_package_json");
         let mut current = path.to_path_buf();
 
         // go up directories when the querying path is not a directory
@@ -187,6 +191,7 @@ impl Resolver {
     }
 
     /// Search node_modules directories walking up from the given path.
+    #[tracing::instrument(name = "resolver.load_modules", level = "trace", skip(self, ctx))]
     pub(crate) fn load_modules(
         &self,
         path: &Path,
@@ -195,6 +200,7 @@ impl Resolver {
         subpath: &str,
         ctx: &mut ResolveContext,
     ) -> Result<Option<PathBuf>, ResolveError> {
+        tracing::trace!(?path, specifier, package_name, subpath, "resolver.load_modules");
         // check each module directory (node_modules)
         for module_name in &self.options.modules {
             // walk up parent directories

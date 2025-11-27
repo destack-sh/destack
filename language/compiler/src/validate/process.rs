@@ -1,4 +1,4 @@
-use crate::{Compiler, Task, TaskOutput, ValidateResult};
+use crate::{Compiler, Task, TaskOutput, TaskDebug, ValidateResult};
 
 use dyst_dir::{ModuleId, Program};
 
@@ -16,12 +16,21 @@ impl ValidateTask {
             Self::Validate { .. } => 1,
         }
     }
+}
 
-    /// Get a message for the task.
-    pub fn message(&self, _program: &Program) -> String {
+impl TaskDebug for ValidateTask {
+    fn name(&self) -> &'static str {
+        match self {
+            Self::Validate { .. } => "module",
+        }
+    }
+
+    fn trace_args(&self, program: &Program) -> String {
         match self {
             Self::Validate { module } => {
-                format!("validate module '{module:?}'")
+                let module = program.modules.get(*module);
+                let uri = module.read().uri.clone();
+                format!("module={uri}")
             }
         }
     }

@@ -73,6 +73,8 @@ serde = "1.0.228"
 serde_json = { version = "1.0.145", features = ["preserve_order"] }
 simdutf8 = "0.1.5"
 smallvec = "1.15.1"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 url = "2.5.7"
 
 # dev

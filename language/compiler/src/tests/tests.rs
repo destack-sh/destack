@@ -117,11 +117,14 @@ impl TestProgram {
         self.program
             .modules
             .get_by_uri(&Uri::from_string(module_uri))
-            .unwrap()
+            .unwrap_or_else(|| panic!("module not found for '{module_uri}'"))
     }
 
     /// Get a module by file id.
     pub fn module_for_file(&self, file: &File) -> Arc<RwLock<Module>> {
-        self.program.modules.get_by_uri(&file.uri).unwrap()
+        self.program
+            .modules
+            .get_by_uri(&file.uri)
+            .unwrap_or_else(|| panic!("module not found for file: '{:?}'", file.uri.to_string()))
     }
 }

@@ -261,6 +261,7 @@ impl Debug for Parser {
 impl Parser {
     /// Create a new parser from a text File and tokenize it.
     /// Also prepares the pre-annotations (like tags) in a pre-parse pass.
+    #[tracing::instrument(name = "parser.lex", level = "trace", skip_all, fields(file_id = ?file.id))]
     pub fn lex_file(file: Arc<File>, language: LanguageOptions) -> Self {
         // tokenize
         let (all_tokens, eof_token) = Lexer::lex(file.id, file.text(), language);
@@ -318,6 +319,7 @@ impl Parser {
     }
 
     /// Parse everything as an implicit namespace (without creating the namespace).
+    #[tracing::instrument(name = "parser.parse", level = "trace", skip_all, fields(file_id = ?self.file_id))]
     pub fn parse(&mut self) -> Vec<LocalNodeId<Expression>> {
         let expressions = self.with_recovery(
             self.mark(),
@@ -362,7 +364,7 @@ impl Parser {
     /// Handle an error as a Diagnostic.
     /// Errors are deduplicated by leaf content to avoid squiggly red line noise.
     #[inline]
-    pub(crate) fn handle_error(&mut self, e: &ParseError) {
+    pub(crate) fn error(&mut self, e: &ParseError) {
         if !self.errors.iter().any(|d| d.eq_content(e)) {
             self.errors.push(e.clone());
             let diagnostic = e.to_diagnostic(self.file.as_ref(), &self.tokens);
@@ -699,7 +701,7 @@ impl Parser {
             // recover from here (but report error)
             if token.token.ty == recover {
                 let error = ParseError::from_source_maybe(self.get_span_from(start), error);
-                self.handle_error(&error);
+                self.error(&error);
                 return Ok(());
             } else {
                 // keep going
@@ -708,7 +710,7 @@ impl Parser {
         }
         // error if we didn't hit the expected token
         let error = ParseError::from_source_maybe(self.get_span_from(start), error);
-        self.handle_error(&error);
+        self.error(&error);
         Err(error)
     }
 
@@ -732,7 +734,7 @@ impl Parser {
             if token.token.ty == expected {
                 let error = ParseError::unexpected(self.get_span_from(start));
                 self.bump();
-                self.handle_error(&error);
+                self.error(&error);
                 return Ok(());
             }
             // keep going
@@ -743,7 +745,7 @@ impl Parser {
 
         // error if we didn't hit the expected token, we're either at recovery or EOF
         let error = ParseError::unexpected(self.get_span_from(start));
-        self.handle_error(&error);
+        self.error(&error);
         Err(error)
     }
 
