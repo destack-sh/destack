@@ -1,4 +1,4 @@
-use crate::{Compiler, ExecuteResult, Task, TaskOutput};
+use crate::{Compiler, ExecuteResult, Task, TaskOutput, TaskDebug};
 
 use dyst_dir::{LocalNodeIdAny, Program};
 
@@ -16,13 +16,18 @@ impl ExecuteTask {
             ExecuteTask::ExecuteExpression { .. } => 1,
         }
     }
+}
 
-    /// Get a message for the task.
-    pub fn message(&self, _program: &Program) -> String {
+impl TaskDebug for ExecuteTask {
+    fn name(&self) -> &'static str {
         match self {
-            ExecuteTask::ExecuteExpression { node } => {
-                format!("execute expression '{node:?}'")
-            }
+            ExecuteTask::ExecuteExpression { .. } => "expression",
+        }
+    }
+
+    fn trace_args(&self, _program: &Program) -> String {
+        match self {
+            ExecuteTask::ExecuteExpression { node } => format!("node={node:?}"),
         }
     }
 }

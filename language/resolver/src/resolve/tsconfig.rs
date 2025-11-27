@@ -49,7 +49,9 @@ impl TypeScriptOptionsResolveContext {
 
 impl Resolver {
     /// Resolve a `tsconfig.json` file at the given path.
+    #[tracing::instrument(name = "resolver.resolve_tsconfig", level = "trace", skip(self, path))]
     pub fn resolve_tsconfig<P: AsRef<Path>>(&self, path: P) -> Result<TsConfigId, ResolveError> {
+        tracing::trace!(path = ?path.as_ref(), "resolver.resolve_tsconfig");
         self.load_tsconfig(
             true,
             path.as_ref(),
@@ -66,6 +68,7 @@ impl Resolver {
     }
 
     /// Load and parse a `tsconfig.json` file recursively.
+    #[tracing::instrument(name = "resolver.load_tsconfig", level = "trace", skip(self, references, ctx))]
     pub(crate) fn load_tsconfig(
         &self,
         is_root: bool,
@@ -73,6 +76,7 @@ impl Resolver {
         references: &TypeScriptOptionsReferences,
         ctx: &mut TypeScriptOptionsResolveContext,
     ) -> Result<TsConfigId, ResolveError> {
+        tracing::trace!(?path, is_root, "resolver.load_tsconfig");
         // check if already in registry
         if let Some(tsconfig_id) = self.program.tsconfigs.get_id_by_path(path) {
             return Ok(tsconfig_id);
@@ -313,11 +317,13 @@ impl Resolver {
     }
 
     /// Find tsconfig.json by traversing parent directories.
+    #[tracing::instrument(name = "resolver.find_tsconfig", level = "trace", skip(self, ctx))]
     pub(crate) fn find_tsconfig(
         &self,
         path: &Path,
         ctx: &mut ResolveContext,
     ) -> Result<Option<TsConfigId>, ResolveError> {
+        tracing::trace!(?path, "resolver.find_tsconfig");
         // don't discover tsconfig for paths inside node_modules
         if is_inside_modules(path) {
             return Ok(None);

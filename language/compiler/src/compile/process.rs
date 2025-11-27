@@ -4,7 +4,7 @@ use std::thread;
 use crate::{
     AnalyzeError, BindError, BuildError, Compiler, ElaborateError, ExecuteError, ImportError,
     LinkError, LowerError, OptimizeError, Phase, ResolveError, Task, TaskDependency, TaskError,
-    TaskId, TaskOutcome, TaskStatus, ValidateError,
+    TaskId, TaskOutcome, TaskStatus, TaskDebug, ValidateError,
 };
 
 impl Compiler {
@@ -54,11 +54,17 @@ impl Compiler {
     /// Noop if we already have the same task queued, returns the existing TaskId.
     pub fn enqueue<T: Into<Task>>(&self, task: T) -> TaskId {
         let task: Task = task.into();
+        let event = format!("{}.{}.enqueue", task.phase().name(), task.name());
+        let args = task.trace_args(&self.program);
+        tracing::trace!(%event, %args);
         self.queue.enqueue(task)
     }
 
     /// Process a compiler task and return the outcome.
     fn process_task(&self, task: &Task) -> TaskOutcome {
+        let event = format!("{}.{}.start", task.phase().name(), task.name());
+        let args = task.trace_args(&self.program);
+        tracing::debug!(%event, %args);
         match task.clone() {
             Task::Import(import_task) => self.process_import(import_task).into(),
             Task::Bind(bind_task) => self.process_bind(bind_task).into(),
@@ -76,13 +82,21 @@ impl Compiler {
 
     /// Handle the outcome of a processed task.
     fn handle_outcome(&self, task_id: TaskId, outcome: TaskOutcome) {
+        let handle = self.queue.get_task(task_id);
+        let phase = handle.phase();
+        let name = handle.task.name();
+        let args = handle.task.trace_args(&self.program);
         match outcome {
             TaskOutcome::Complete { output } => {
+                let event = format!("{}.{}.complete", phase.name(), name);
+                tracing::debug!(%event, %args);
                 self.queue
                     .set_status(task_id, TaskStatus::Complete { output });
                 self.wake_waiters(task_id);
             }
             TaskOutcome::Error { error } => {
+                let event = format!("{}.{}.error", phase.name(), name);
+                tracing::debug!(%event, %args);
                 self.queue.set_status(
                     task_id,
                     TaskStatus::Failed {
@@ -93,6 +107,8 @@ impl Compiler {
                 self.fail_waiters(task_id);
             }
             TaskOutcome::Yield { dependency } => {
+                let event = format!("{}.{}.yield", phase.name(), name);
+                tracing::trace!(%event, %args);
                 self.queue.set_status(
                     task_id,
                     TaskStatus::Yielded {

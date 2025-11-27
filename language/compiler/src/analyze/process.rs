@@ -1,4 +1,4 @@
-use crate::{AnalyzeResult, Compiler, Task, TaskOutput};
+use crate::{AnalyzeResult, Compiler, Task, TaskOutput, TaskDebug};
 
 use dyst_dir::{ModuleId, Program};
 
@@ -16,12 +16,21 @@ impl AnalyzeTask {
             Self::Analyze { .. } => 1,
         }
     }
+}
 
-    /// Get a message for the task.
-    pub fn message(&self, _program: &Program) -> String {
+impl TaskDebug for AnalyzeTask {
+    fn name(&self) -> &'static str {
+        match self {
+            Self::Analyze { .. } => "module",
+        }
+    }
+
+    fn trace_args(&self, program: &Program) -> String {
         match self {
             Self::Analyze { module } => {
-                format!("analyze module '{module:?}'")
+                let module = program.modules.get(*module);
+                let uri = module.read().uri.clone();
+                format!("module={uri}")
             }
         }
     }

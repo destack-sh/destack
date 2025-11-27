@@ -1,4 +1,4 @@
-use crate::{Compiler, LinkResult, Task, TaskOutput};
+use crate::{Compiler, LinkResult, Task, TaskOutput, TaskDebug};
 
 use dyst_dir::{ModuleId, Program};
 
@@ -16,12 +16,21 @@ impl LinkTask {
             Self::Link { .. } => 1,
         }
     }
+}
 
-    /// Get a message for the task.
-    pub fn message(&self, _program: &Program) -> String {
+impl TaskDebug for LinkTask {
+    fn name(&self) -> &'static str {
+        match self {
+            Self::Link { .. } => "module",
+        }
+    }
+
+    fn trace_args(&self, program: &Program) -> String {
         match self {
             Self::Link { module } => {
-                format!("link module '{module:?}'")
+                let module = program.modules.get(*module);
+                let uri = module.read().uri.clone();
+                format!("module={uri}")
             }
         }
     }

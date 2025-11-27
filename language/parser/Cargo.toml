@@ -16,6 +16,7 @@ dyst_ast = { workspace = true }
 dyst_source = { workspace = true }
 dyst_unicode = { workspace = true }
 smallvec = { workspace = true }
+tracing = { workspace = true }
 
 [dev-dependencies]
 pprof = { workspace = true }

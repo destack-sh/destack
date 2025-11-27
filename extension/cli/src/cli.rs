@@ -1,5 +1,6 @@
 use clap::Parser;
 
+use crate::command::TracingArgs;
 use crate::command::compile::CompileArgs;
 use crate::command::lex::LexArgs;
 use crate::command::parse::ParseArgs;
@@ -9,7 +10,16 @@ use crate::command::version::VersionCommands;
 
 #[derive(Parser, Debug)]
 #[command(name = "destack", version, about = "Destack CLI", long_about = None)]
-pub enum Cli {
+pub struct Cli {
+    #[command(flatten)]
+    pub tracing: TracingArgs,
+
+    #[command(subcommand)]
+    pub command: Command,
+}
+
+#[derive(Parser, Debug)]
+pub enum Command {
     /// Tokenize source into tokens.
     Lex(LexArgs),
     /// Parse source into AST (implicit module).

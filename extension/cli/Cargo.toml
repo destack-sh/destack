@@ -26,10 +26,12 @@ dyst_javascript_transpiler = { workspace = true }
 dyst_javascript_machine = { workspace = true, optional = true }
 dyst_parser = { workspace = true }
 dyst_source = { workspace = true }
-clap = { version = "4.5.4", features = ["derive"] }
-
-tokio = { version = "1.47.1" }
 dyst_resolver.workspace = true
+
+clap = { version = "4.5.4", features = ["derive"] }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+tokio = { version = "1.47.1" }
 
 [dev-dependencies]
 

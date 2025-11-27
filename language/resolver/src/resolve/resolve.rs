@@ -6,16 +6,15 @@ use crate::{Resolution, ResolveContext, ResolveError, Resolver};
 
 impl Resolver {
     /// Resolve a specifier from a directory to a file path.
+    #[tracing::instrument(name = "resolver.resolve", level = "debug", skip(self, directory), fields(specifier))]
     pub fn resolve<P: AsRef<Path>>(
         &self,
         directory: P,
         specifier: &str,
     ) -> Result<Resolution, ResolveError> {
-        self.resolve_in_context(
-            directory.as_ref(),
-            specifier,
-            &mut ResolveContext::default(),
-        )
+        let directory = directory.as_ref();
+        tracing::debug!(?directory, specifier, "resolver.resolve");
+        self.resolve_in_context(directory, specifier, &mut ResolveContext::default())
     }
 
     /// Resolve a specifier with a custom context for dependency tracking.

@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use crate::{BindTask, Compiler, ImportError, ImportResult, Task, TaskOutput};
+use crate::{BindTask, Compiler, ImportError, ImportResult, Task, TaskOutput, TaskDebug};
 
 use dyst_dir::{DependencySource, Module, ModuleId, Program};
 use dyst_parser::Parser;
@@ -36,22 +36,31 @@ impl ImportTask {
             ImportTask::ImportModuleFromSpecifier { .. } => 4,
         }
     }
+}
 
-    /// Get a message for the task.
-    pub fn message(&self, program: &Program) -> String {
+impl TaskDebug for ImportTask {
+    fn name(&self) -> &'static str {
         match self {
-            ImportTask::ImportModuleFromFile { file: file_id } => {
-                format!("import file:{file_id:?}")
+            ImportTask::ImportModuleFromFile { .. } => "file",
+            ImportTask::ImportModuleFromUri { .. } => "uri",
+            ImportTask::ImportModuleFromPath { .. } => "path",
+            ImportTask::ImportModuleFromSpecifier { .. } => "specifier",
+        }
+    }
+
+    fn trace_args(&self, program: &Program) -> String {
+        match self {
+            ImportTask::ImportModuleFromFile { file } => {
+                let uri = &program.files.get(*file).uri;
+                format!("file={uri}")
             }
-            ImportTask::ImportModuleFromUri { uri, .. } => {
-                format!("import '{uri}'")
-            }
-            ImportTask::ImportModuleFromPath { path, .. } => {
-                format!("import '{path:?}'")
-            }
-            ImportTask::ImportModuleFromSpecifier { target, .. } => {
-                let target_str = program.strings.get(*target).to_string();
-                format!("import '{target_str}'")
+            ImportTask::ImportModuleFromUri { uri, .. } => format!("uri={uri}"),
+            ImportTask::ImportModuleFromPath { path, .. } => format!("path={}", path.display()),
+            ImportTask::ImportModuleFromSpecifier { target, module, .. } => {
+                let specifier = program.strings.get(*target).to_string();
+                let module = program.modules.get(*module);
+                let module_uri = module.read().uri.clone();
+                format!("specifier={specifier} from={module_uri}")
             }
         }
     }
@@ -179,7 +188,7 @@ impl Compiler {
                 .read_to_string(&path)
                 .map_err(|_| ImportError::ModuleNotFound {
                     node: self.program.root_node_id,
-                    target: self.program.strings.intern(&path.to_string_lossy()),
+                    target: self.program.strings.intern(path.to_string_lossy()),
                     error: None,
                 })?;
 

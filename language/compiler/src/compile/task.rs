@@ -7,6 +7,15 @@ use crate::{
     ValidateOutput, ValidateTask,
 };
 
+/// Trait for formatting task information.
+pub trait TaskDebug {
+    /// Get the task variant name (e.g., "file", "module", "specifier").
+    fn name(&self) -> &'static str;
+
+    /// Format the task arguments for tracing, resolving IDs to readable values.
+    fn trace_args(&self, program: &Program) -> String;
+}
+
 /// Region of the compiler.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Region {
@@ -208,20 +217,38 @@ impl Task {
         format!("T{}{:03}", self.phase().letter(), self.sub_code())
     }
 
-    /// Get the message of the task.
-    pub fn message(&self, program: &Program) -> String {
+}
+
+impl TaskDebug for Task {
+    fn name(&self) -> &'static str {
         match self {
-            Self::Import(task) => task.message(program),
-            Self::Bind(task) => task.message(program),
-            Self::Resolve(task) => task.message(program),
-            Self::Validate(task) => task.message(program),
-            Self::Elaborate(task) => task.message(program),
-            Self::Lower(task) => task.message(program),
-            Self::Analyze(task) => task.message(program),
-            Self::Optimize(task) => task.message(program),
-            Self::Execute(task) => task.message(program),
-            Self::Build(task) => task.message(program),
-            Self::Link(task) => task.message(program),
+            Self::Import(task) => task.name(),
+            Self::Bind(task) => task.name(),
+            Self::Resolve(task) => task.name(),
+            Self::Validate(task) => task.name(),
+            Self::Elaborate(task) => task.name(),
+            Self::Lower(task) => task.name(),
+            Self::Analyze(task) => task.name(),
+            Self::Optimize(task) => task.name(),
+            Self::Execute(task) => task.name(),
+            Self::Build(task) => task.name(),
+            Self::Link(task) => task.name(),
+        }
+    }
+
+    fn trace_args(&self, program: &Program) -> String {
+        match self {
+            Self::Import(task) => task.trace_args(program),
+            Self::Bind(task) => task.trace_args(program),
+            Self::Resolve(task) => task.trace_args(program),
+            Self::Validate(task) => task.trace_args(program),
+            Self::Elaborate(task) => task.trace_args(program),
+            Self::Lower(task) => task.trace_args(program),
+            Self::Analyze(task) => task.trace_args(program),
+            Self::Optimize(task) => task.trace_args(program),
+            Self::Execute(task) => task.trace_args(program),
+            Self::Build(task) => task.trace_args(program),
+            Self::Link(task) => task.trace_args(program),
         }
     }
 }
@@ -297,11 +324,6 @@ impl TaskHandle {
     /// Get the region of the task.
     pub fn region(&self) -> Region {
         self.task.region()
-    }
-
-    /// Get the message of the task.
-    pub fn message(&self, program: &Program) -> String {
-        self.task.message(program)
     }
 }
 

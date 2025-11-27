@@ -192,7 +192,7 @@ impl ModuleRegistry {
     pub fn get(&self, id: ModuleId) -> Arc<RwLock<Module>> {
         self.modules_by_id
             .get(&id)
-            .unwrap_or_else(|| panic!("module not found: {id:?}"))
+            .unwrap_or_else(|| panic!("module not found for id: {id:?}"))
             .clone()
     }
 

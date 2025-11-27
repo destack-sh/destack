@@ -1,4 +1,4 @@
-use crate::{Compiler, LowerResult, Task, TaskOutput};
+use crate::{Compiler, LowerResult, Task, TaskOutput, TaskDebug};
 
 use dyst_dir::{ModuleId, Program};
 
@@ -16,12 +16,21 @@ impl LowerTask {
             Self::Lower { .. } => 1,
         }
     }
+}
 
-    /// Get a message for the task.
-    pub fn message(&self, _program: &Program) -> String {
+impl TaskDebug for LowerTask {
+    fn name(&self) -> &'static str {
+        match self {
+            Self::Lower { .. } => "module",
+        }
+    }
+
+    fn trace_args(&self, program: &Program) -> String {
         match self {
             Self::Lower { module } => {
-                format!("lower module '{module:?}'")
+                let module = program.modules.get(*module);
+                let uri = module.read().uri.clone();
+                format!("module={uri}")
             }
         }
     }

@@ -1,4 +1,4 @@
-use crate::{Compiler, ResolveResult, Task, TaskOutput};
+use crate::{Compiler, ResolveResult, Task, TaskOutput, TaskDebug};
 
 use dyst_dir::{ModuleId, Program};
 
@@ -16,12 +16,21 @@ impl ResolveTask {
             ResolveTask::ResolveModule { .. } => 1,
         }
     }
+}
 
-    /// Get a message for the task.
-    pub fn message(&self, _program: &Program) -> String {
+impl TaskDebug for ResolveTask {
+    fn name(&self) -> &'static str {
+        match self {
+            ResolveTask::ResolveModule { .. } => "module",
+        }
+    }
+
+    fn trace_args(&self, program: &Program) -> String {
         match self {
             ResolveTask::ResolveModule { module } => {
-                format!("resolve module '{module:?}'")
+                let module = program.modules.get(*module);
+                let uri = module.read().uri.clone();
+                format!("module={uri}")
             }
         }
     }

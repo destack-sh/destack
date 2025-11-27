@@ -36,12 +36,14 @@ fn resolve_file_protocol(specifier: &str) -> Result<Cow<'_, str>, ResolveError> 
 
 impl Resolver {
     /// Resolve a specifier from a directory, parsing query and fragment.
+    #[tracing::instrument(name = "resolver.require", level = "trace", skip(self, ctx))]
     pub(crate) fn require(
         &self,
         path: &Path,
         specifier: &str,
         ctx: &mut ResolveContext,
     ) -> Result<PathBuf, ResolveError> {
+        tracing::trace!(?path, specifier, "resolver.require");
         ctx.check_depth()?;
 
         // parse query and fragment identifiers
@@ -122,12 +124,14 @@ impl Resolver {
     }
 
     /// Resolve an absolute path specifier (starting with `/` or drive letter).
+    #[tracing::instrument(name = "resolver.require_absolute", level = "trace", skip(self, ctx))]
     fn require_absolute(
         &self,
         path: &Path,
         specifier: &str,
         ctx: &mut ResolveContext,
     ) -> Result<PathBuf, ResolveError> {
+        tracing::trace!(?path, specifier, "resolver.require_absolute");
         debug_assert!(
             Path::new(specifier)
                 .components()
@@ -160,12 +164,14 @@ impl Resolver {
     }
 
     /// Resolve a relative path specifier (starting with `./` or `../`).
+    #[tracing::instrument(name = "resolver.require_relative", level = "trace", skip(self, ctx))]
     fn require_relative(
         &self,
         path: &Path,
         specifier: &str,
         ctx: &mut ResolveContext,
     ) -> Result<PathBuf, ResolveError> {
+        tracing::trace!(?path, specifier, "resolver.require_relative");
         debug_assert!(
             Path::new(specifier)
                 .components()
@@ -193,12 +199,14 @@ impl Resolver {
     }
 
     /// Resolve a hash-prefixed specifier against package.json imports.
+    #[tracing::instrument(name = "resolver.require_hash", level = "trace", skip(self, ctx))]
     fn require_hash(
         &self,
         path: &Path,
         specifier: &str,
         ctx: &mut ResolveContext,
     ) -> Result<PathBuf, ResolveError> {
+        tracing::trace!(?path, specifier, "resolver.require_hash");
         debug_assert_eq!(specifier.chars().next(), Some('#'));
 
         self.load_package_imports(path, specifier, ctx)?
@@ -208,12 +216,14 @@ impl Resolver {
     }
 
     /// Resolve a bare specifier by searching node_modules directories.
+    #[tracing::instrument(name = "resolver.require_bare", level = "trace", skip(self, ctx))]
     fn require_bare(
         &self,
         path: &Path,
         specifier: &str,
         ctx: &mut ResolveContext,
     ) -> Result<PathBuf, ResolveError> {
+        tracing::trace!(?path, specifier, "resolver.require_bare");
         debug_assert!(
             Path::new(specifier)
                 .components()
