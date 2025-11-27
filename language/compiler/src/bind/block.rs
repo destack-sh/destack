@@ -1,7 +1,7 @@
 use dyst_ast::{self as ast};
 use dyst_dir::{
-    Block, LocalNodeId, LocalScopeId, LocalScopeMark, Module, NodeTree, ScopeKind, SymbolTable,
-    TypeTable,
+    Block, LocalNodeId, LocalNodeIdAny, LocalScopeId, LocalScopeMark, Module, NodeTree, NodeType,
+    ScopeKind, SymbolTable, TypeTable,
 };
 
 use crate::Compiler;
@@ -13,18 +13,25 @@ impl Compiler {
         &self,
         module: &Module,
         scope: (LocalScopeId, LocalScopeMark),
-        block_id: ast::LocalNodeId<ast::Block>,
+        ast_block_id: ast::LocalNodeId<ast::Block>,
+        parent_id: Option<LocalNodeIdAny>,
         tree: &mut NodeTree,
         symbols: &mut SymbolTable,
         types: &mut TypeTable,
     ) -> LocalNodeId<Block> {
+        let ast_block = module.ast.get(ast_block_id);
         let (symbol_id, scope_id) =
             self.bind_anonymous_item_with_scope(module, ScopeKind::Block, scope, None, symbols);
-        let block = module.ast.get(block_id);
-        let label = block
+        let block_id = tree.reserve_from_source(
+            NodeType::Block,
+            ast_block_id,
+            (scope_id, LocalScopeMark::end()),
+            parent_id,
+        );
+        let label = ast_block
             .label
             .map(|label| self.program.strings.intern_from(&module.ast_strings, label));
-        let expressions = block
+        let expressions = ast_block
             .expressions
             .iter()
             .map(|expression| {
@@ -32,20 +39,20 @@ impl Compiler {
                     module,
                     (scope_id, symbols.get_scope_mark(scope_id)),
                     *expression,
+                    Some(block_id),
                     tree,
                     symbols,
                     types,
                 )
             })
             .collect();
-        let block_id = tree.insert_from_source(
+        let block_id = tree.insert(
+            block_id,
             Block {
                 label,
                 expressions,
                 scope: scope_id,
             },
-            block_id,
-            (scope_id, LocalScopeMark::end()),
         );
         symbols.get_symbol_mut(symbol_id).declare_primary(block_id);
         block_id

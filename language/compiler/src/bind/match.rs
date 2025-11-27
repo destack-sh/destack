@@ -1,7 +1,7 @@
 use dyst_ast::{self as ast};
 use dyst_dir::{
-    LocalNodeId, LocalScopeId, LocalScopeMark, MatchCase, Module, NodeTree, ScopeKind, SymbolTable,
-    TypeTable,
+    LocalNodeId, LocalNodeIdAny, LocalScopeId, LocalScopeMark, MatchCase, Module, NodeTree,
+    NodeType, ScopeKind, SymbolTable, TypeTable,
 };
 
 use crate::Compiler;
@@ -13,15 +13,18 @@ impl Compiler {
         &self,
         module: &Module,
         scope: (LocalScopeId, LocalScopeMark),
-        match_case_id: ast::LocalNodeId<ast::MatchCase>,
+        ast_match_case_id: ast::LocalNodeId<ast::MatchCase>,
+        parent_id: Option<LocalNodeIdAny>,
         tree: &mut NodeTree,
         symbols: &mut SymbolTable,
         types: &mut TypeTable,
     ) -> LocalNodeId<MatchCase> {
+        let ast_match_case = module.ast.get(ast_match_case_id);
+        let match_case_id =
+            tree.reserve_from_source(NodeType::MatchCase, ast_match_case_id, scope, parent_id);
         let (symbol_id, scope_id) =
             self.bind_anonymous_local_with_scope(module, ScopeKind::Block, scope, None, symbols);
-        let match_case = module.ast.get(match_case_id);
-        let match_case = match match_case {
+        let match_case = match ast_match_case {
             ast::MatchCase::Expression {
                 pattern,
                 body,
@@ -32,6 +35,7 @@ impl Compiler {
                     (scope_id, symbols.get_scope_mark(scope_id)),
                     None,
                     *pattern,
+                    Some(match_case_id),
                     tree,
                     symbols,
                     types,
@@ -40,6 +44,7 @@ impl Compiler {
                     module,
                     (scope_id, symbols.get_scope_mark(scope_id)),
                     *body,
+                    Some(match_case_id),
                     tree,
                     symbols,
                     types,
@@ -49,6 +54,7 @@ impl Compiler {
                         module,
                         (scope_id, symbols.get_scope_mark(scope_id)),
                         guard,
+                        Some(match_case_id),
                         tree,
                         symbols,
                         types,
@@ -71,6 +77,7 @@ impl Compiler {
                     (scope_id, symbols.get_scope_mark(scope_id)),
                     None,
                     *pattern,
+                    Some(match_case_id),
                     tree,
                     symbols,
                     types,
@@ -79,6 +86,7 @@ impl Compiler {
                     module,
                     (scope_id, symbols.get_scope_mark(scope_id)),
                     *body,
+                    Some(match_case_id),
                     tree,
                     symbols,
                     types,
@@ -88,6 +96,7 @@ impl Compiler {
                         module,
                         (scope_id, symbols.get_scope_mark(scope_id)),
                         guard,
+                        Some(match_case_id),
                         tree,
                         symbols,
                         types,
@@ -101,7 +110,7 @@ impl Compiler {
                 }
             }
         };
-        let match_case_id = tree.insert_from_source(match_case, match_case_id, scope);
+        let match_case_id = tree.insert(match_case_id, match_case);
         symbols
             .get_symbol_mut(symbol_id)
             .declare_primary(match_case_id);

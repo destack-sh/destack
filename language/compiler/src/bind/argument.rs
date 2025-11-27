@@ -2,8 +2,8 @@ use crate::Compiler;
 use dyst_ast as ast;
 use dyst_dir::{
     Argument, BindingAnchor, BindingKind, BindingModifier, BindingOperator, Expression,
-    LocalNodeId, LocalScopeId, LocalScopeMark, Module, Mutability, NodeTree, Parameter, Path,
-    SymbolKey, SymbolSpace, SymbolTable, TypeTable, Visibility,
+    LocalNodeId, LocalNodeIdAny, LocalScopeId, LocalScopeMark, Module, Mutability, NodeTree,
+    NodeType, Parameter, Path, SymbolKey, SymbolSpace, SymbolTable, TypeTable, Visibility,
 };
 use smallvec::smallvec;
 
@@ -49,13 +49,16 @@ impl Compiler {
         &self,
         module: &Module,
         scope: (LocalScopeId, LocalScopeMark),
-        parameter_id: ast::LocalNodeId<ast::Parameter>,
+        ast_parameter_id: ast::LocalNodeId<ast::Parameter>,
+        parent_id: Option<LocalNodeIdAny>,
         tree: &mut NodeTree,
         symbols: &mut SymbolTable,
         types: &mut TypeTable,
     ) -> LocalNodeId<Parameter> {
-        let parameter = module.ast.get(parameter_id);
-        match parameter {
+        let ast_parameter = module.ast.get(ast_parameter_id);
+        let parameter_id =
+            tree.reserve_from_source(NodeType::Parameter, ast_parameter_id, scope, parent_id);
+        match ast_parameter {
             ast::Parameter::Named {
                 modifiers,
                 name,
@@ -66,7 +69,15 @@ impl Compiler {
                     modifiers.map(|modifiers| self.bind_binding_modifier(module, modifiers));
                 let name = self.program.strings.intern_from(&module.ast_strings, *name);
                 let default = default.map(|default| {
-                    self.bind_expression(module, scope, default, tree, symbols, types)
+                    self.bind_expression(
+                        module,
+                        scope,
+                        default,
+                        Some(parameter_id),
+                        tree,
+                        symbols,
+                        types,
+                    )
                 });
                 let (symbol_id, _) = self.bind_named_item(
                     module,
@@ -82,11 +93,19 @@ impl Compiler {
                     default,
                     symbol: symbol_id,
                 };
-                let parameter_id = tree.insert_from_source(parameter, parameter_id, scope);
+                let parameter_id = tree.insert(parameter_id, parameter);
                 let symbol = symbols.get_symbol_mut(symbol_id);
                 symbol.primary_declaration = Some(parameter_id.into_global_any(module.id));
                 if let Some(ty) = ty {
-                    let ty = self.bind_expression_to_type(module, scope, *ty, tree, symbols, types);
+                    let ty = self.bind_expression_to_type(
+                        module,
+                        scope,
+                        *ty,
+                        Some(parameter_id.into()),
+                        tree,
+                        symbols,
+                        types,
+                    );
                     types.declare_type(parameter_id.into_global_any(module.id), ty);
                 }
                 parameter_id
@@ -99,10 +118,26 @@ impl Compiler {
             } => {
                 let modifiers =
                     modifiers.map(|modifiers| self.bind_binding_modifier(module, modifiers));
-                let pattern =
-                    self.bind_pattern(module, scope, None, *pattern, tree, symbols, types);
+                let pattern = self.bind_pattern(
+                    module,
+                    scope,
+                    None,
+                    *pattern,
+                    Some(parameter_id),
+                    tree,
+                    symbols,
+                    types,
+                );
                 let default = default.map(|default| {
-                    self.bind_expression(module, scope, default, tree, symbols, types)
+                    self.bind_expression(
+                        module,
+                        scope,
+                        default,
+                        Some(parameter_id),
+                        tree,
+                        symbols,
+                        types,
+                    )
                 });
                 let (symbol_id, _) =
                     self.bind_anonymous_item(module, SymbolSpace::Value, scope, None, symbols);
@@ -112,11 +147,19 @@ impl Compiler {
                     default,
                     symbol: symbol_id,
                 };
-                let parameter_id = tree.insert_from_source(parameter, parameter_id, scope);
+                let parameter_id = tree.insert(parameter_id, parameter);
                 let symbol = symbols.get_symbol_mut(symbol_id);
                 symbol.primary_declaration = Some(parameter_id.into_global_any(module.id));
                 if let Some(ty) = ty {
-                    let ty = self.bind_expression_to_type(module, scope, *ty, tree, symbols, types);
+                    let ty = self.bind_expression_to_type(
+                        module,
+                        scope,
+                        *ty,
+                        Some(parameter_id.into()),
+                        tree,
+                        symbols,
+                        types,
+                    );
                     types.declare_type(parameter_id.into_global_any(module.id), ty);
                 }
                 parameter_id
@@ -142,11 +185,19 @@ impl Compiler {
                     name,
                     symbol: symbol_id,
                 };
-                let parameter_id = tree.insert_from_source(parameter, parameter_id, scope);
+                let parameter_id = tree.insert(parameter_id, parameter);
                 let symbol = symbols.get_symbol_mut(symbol_id);
                 symbol.primary_declaration = Some(parameter_id.into_global_any(module.id));
                 if let Some(ty) = ty {
-                    let ty = self.bind_expression_to_type(module, scope, *ty, tree, symbols, types);
+                    let ty = self.bind_expression_to_type(
+                        module,
+                        scope,
+                        *ty,
+                        Some(parameter_id.into()),
+                        tree,
+                        symbols,
+                        types,
+                    );
                     types.declare_type(parameter_id.into_global_any(module.id), ty);
                 }
                 parameter_id
@@ -159,13 +210,16 @@ impl Compiler {
         &self,
         module: &Module,
         scope: (LocalScopeId, LocalScopeMark),
-        argument_id: ast::LocalNodeId<ast::Argument>,
+        ast_argument_id: ast::LocalNodeId<ast::Argument>,
+        parent_id: Option<LocalNodeIdAny>,
         tree: &mut NodeTree,
         symbols: &mut SymbolTable,
         types: &mut TypeTable,
     ) -> LocalNodeId<Argument> {
-        let argument = module.ast.get(argument_id);
-        match argument {
+        let ast_argument = module.ast.get(ast_argument_id);
+        let argument_id =
+            tree.reserve_from_source(NodeType::Argument, ast_argument_id, scope, parent_id);
+        match ast_argument {
             ast::Argument::Named {
                 modifiers,
                 name,
@@ -177,15 +231,22 @@ impl Compiler {
                     .program
                     .strings
                     .intern_from(&module.ast_strings, name.string());
-                let value = self.bind_expression(module, scope, *value, tree, symbols, types);
-                tree.insert_from_source(
+                let value = self.bind_expression(
+                    module,
+                    scope,
+                    *value,
+                    Some(argument_id),
+                    tree,
+                    symbols,
+                    types,
+                );
+                tree.insert(
+                    argument_id,
                     Argument::UnresolvedNamed {
                         modifiers,
                         name,
                         value,
                     },
-                    argument_id,
-                    scope,
                 )
             }
             ast::Argument::Shorthand { modifiers, name } => {
@@ -195,32 +256,44 @@ impl Compiler {
                 let path = Path {
                     segments: smallvec![name],
                 };
-                let value = tree.insert_from_source(
+                // synthetic expression for the shorthand value
+                let value_id = tree.reserve_from_source(
+                    NodeType::Expression,
+                    ast_argument_id,
+                    scope,
+                    Some(argument_id),
+                );
+                let value = tree.insert(
+                    value_id,
                     Expression::UnresolvedAbsolutePath {
                         path,
                         static_arguments: None,
                     },
-                    argument_id,
-                    scope,
                 );
-                tree.insert_from_source(
+                tree.insert(
+                    argument_id,
                     Argument::UnresolvedNamed {
                         modifiers,
                         name,
                         value,
                     },
-                    argument_id,
-                    scope,
                 )
             }
             ast::Argument::Positional { modifiers, value } => {
                 let modifiers =
                     modifiers.map(|modifiers| self.bind_binding_modifier(module, modifiers));
-                let value = self.bind_expression(module, scope, *value, tree, symbols, types);
-                tree.insert_from_source(
-                    Argument::UnresolvedPositional { modifiers, value },
-                    argument_id,
+                let value = self.bind_expression(
+                    module,
                     scope,
+                    *value,
+                    Some(argument_id),
+                    tree,
+                    symbols,
+                    types,
+                );
+                tree.insert(
+                    argument_id,
+                    Argument::UnresolvedPositional { modifiers, value },
                 )
             }
             ast::Argument::Spread {
@@ -232,15 +305,22 @@ impl Compiler {
                     modifiers.map(|modifiers| self.bind_binding_modifier(module, modifiers));
                 let name =
                     name.map(|name| self.program.strings.intern_from(&module.ast_strings, name));
-                let value = self.bind_expression(module, scope, *value, tree, symbols, types);
-                tree.insert_from_source(
+                let value = self.bind_expression(
+                    module,
+                    scope,
+                    *value,
+                    Some(argument_id),
+                    tree,
+                    symbols,
+                    types,
+                );
+                tree.insert(
+                    argument_id,
                     Argument::UnresolvedSpread {
                         modifiers,
                         name,
                         value,
                     },
-                    argument_id,
-                    scope,
                 )
             }
         }

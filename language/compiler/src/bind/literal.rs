@@ -1,8 +1,8 @@
 use crate::Compiler;
 use dyst_ast as ast;
 use dyst_dir::{
-    DeclarationType, FloatType, IntType, LocalScopeId, LocalScopeMark, Module, NodeTree,
-    PrimitiveType, ScalarLiteral, SymbolTable, TemplateLiteral, TypeLiteral, TypeTable,
+    DeclarationType, FloatType, IntType, LocalNodeIdAny, LocalScopeId, LocalScopeMark, Module,
+    NodeTree, PrimitiveType, ScalarLiteral, SymbolTable, TemplateLiteral, TypeLiteral, TypeTable,
 };
 
 #[allow(clippy::too_many_arguments)]
@@ -48,6 +48,7 @@ impl Compiler {
         module: &Module,
         scope: (LocalScopeId, LocalScopeMark),
         template_literal: &ast::TemplateLiteral,
+        parent_id: Option<LocalNodeIdAny>,
         tree: &mut NodeTree,
         symbols: &mut SymbolTable,
         types: &mut TypeTable,
@@ -72,7 +73,9 @@ impl Compiler {
                 let arguments = arguments
                     .iter()
                     .map(|argument| {
-                        self.bind_argument(module, scope, *argument, tree, symbols, types)
+                        self.bind_argument(
+                            module, scope, *argument, parent_id, tree, symbols, types,
+                        )
                     })
                     .collect();
                 TemplateLiteral::InterpolatedString { strings, arguments }

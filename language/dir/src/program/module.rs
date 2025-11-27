@@ -51,6 +51,8 @@ pub struct Module {
     // ast
     /// The AST of the Module (may be empty).
     pub ast: ast::NodeTree,
+    /// THe AST parent index.
+    pub ast_parents: ast::NodeParentIndex,
     /// The top-level AST expressions of the Module.
     pub ast_roots: Vec<ast::LocalNodeId<ast::Expression>>,
     /// The string pool of the Module.
@@ -59,7 +61,7 @@ pub struct Module {
     // dir
     /// The symbol of the Module namespace.
     pub namespace_symbol: LocalSymbolId,
-    /// The scope of the Module.
+    /// The scope of the Module.≤
     pub namespace_scope: LocalScopeId,
     /// The symbol of the Module default.
     pub default_symbol: LocalSymbolId,
@@ -88,6 +90,10 @@ impl Module {
         ast_roots: Vec<ast::LocalNodeId<ast::Expression>>,
         ast_strings: StringPool,
     ) -> Self {
+        // index AST
+        let ast_parents = ast::NodeParentIndex::from_tree(&ast);
+
+        // set up default namespace and default symbol
         let mut symbols = SymbolTable::new(id);
         let namespace_scope_id = symbols.insert_scope(ScopeKind::Namespace, None, None);
         let (namespace_symbol_id, _) = symbols.insert_symbol(
@@ -114,6 +120,7 @@ impl Module {
             package_id: package,
             // astgit ad
             ast,
+            ast_parents,
             ast_roots,
             ast_strings,
             // dir

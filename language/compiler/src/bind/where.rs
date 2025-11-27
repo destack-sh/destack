@@ -1,7 +1,7 @@
 use dyst_ast as ast;
 use dyst_dir::{
-    LocalNodeId, LocalScopeId, LocalScopeMark, Module, NodeTree, SymbolTable, TypeTable,
-    WhereClause,
+    LocalNodeId, LocalNodeIdAny, LocalScopeId, LocalScopeMark, Module, NodeTree, NodeType,
+    SymbolTable, TypeTable, WhereClause,
 };
 
 use crate::Compiler;
@@ -13,25 +13,40 @@ impl Compiler {
         &self,
         module: &Module,
         scope: (LocalScopeId, LocalScopeMark),
-        where_clause_id: ast::LocalNodeId<ast::WhereClause>,
+        ast_where_clause_id: ast::LocalNodeId<ast::WhereClause>,
+        parent_id: Option<LocalNodeIdAny>,
         tree: &mut NodeTree,
         symbols: &mut SymbolTable,
         types: &mut TypeTable,
     ) -> LocalNodeId<WhereClause> {
-        let where_clause = module.ast.get(where_clause_id);
-        match where_clause {
+        let ast_where_clause = module.ast.get(ast_where_clause_id);
+        let where_clause_id =
+            tree.reserve_from_source(NodeType::WhereClause, ast_where_clause_id, scope, parent_id);
+        match ast_where_clause {
             ast::WhereClause::Assertion { left, right } => {
                 let left = self.program.strings.intern_from(&module.ast_strings, *left);
-                let right = self.bind_expression(module, scope, *right, tree, symbols, types);
-                tree.insert_from_source(
-                    WhereClause::Assertion { left, right },
-                    where_clause_id,
+                let right = self.bind_expression(
+                    module,
                     scope,
-                )
+                    *right,
+                    Some(where_clause_id),
+                    tree,
+                    symbols,
+                    types,
+                );
+                tree.insert(where_clause_id, WhereClause::Assertion { left, right })
             }
             ast::WhereClause::Guard { guard } => {
-                let guard = self.bind_expression(module, scope, *guard, tree, symbols, types);
-                tree.insert_from_source(WhereClause::Guard { guard }, where_clause_id, scope)
+                let guard = self.bind_expression(
+                    module,
+                    scope,
+                    *guard,
+                    Some(where_clause_id),
+                    tree,
+                    symbols,
+                    types,
+                );
+                tree.insert(where_clause_id, WhereClause::Guard { guard })
             }
         }
     }

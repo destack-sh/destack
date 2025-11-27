@@ -1,8 +1,8 @@
 use dyst_ast::{self as ast};
 use dyst_dir::{
-    DependencySource, Expression, ForEachKind, IfKind, LocalNodeId, LocalScopeId, LocalScopeMark,
-    LoopKind, MatchSource, Module, NodeTree, ScopeKind, SymbolKind, SymbolTable, TypeTable,
-    YieldCardinality,
+    DependencySource, Expression, ForEachKind, IfKind, LocalNodeId, LocalNodeIdAny, LocalScopeId,
+    LocalScopeMark, LoopKind, MatchSource, Module, NodeTree, NodeType, ScopeKind, SymbolKind,
+    SymbolTable, TypeTable, YieldCardinality,
 };
 
 use crate::Compiler;
@@ -23,31 +23,56 @@ impl Compiler {
         &self,
         module: &Module,
         scope: (LocalScopeId, LocalScopeMark),
-        expression_id: ast::LocalNodeId<ast::Expression>,
+        ast_expression_id: ast::LocalNodeId<ast::Expression>,
+        parent_id: Option<LocalNodeIdAny>,
         tree: &mut NodeTree,
         symbols: &mut SymbolTable,
         types: &mut TypeTable,
     ) -> LocalNodeId<Expression> {
-        let expression = module.ast.get(expression_id);
-        let expression = match expression {
+        let ast_expression = module.ast.get(ast_expression_id);
+        let expression_id =
+            tree.reserve_from_source(NodeType::Expression, ast_expression_id, scope, parent_id);
+        let expression = match ast_expression {
             ast::Expression::Block(block_id) => {
-                let block_id = self.bind_block(module, scope, *block_id, tree, symbols, types);
+                let block_id = self.bind_block(
+                    module,
+                    scope,
+                    *block_id,
+                    Some(expression_id),
+                    tree,
+                    symbols,
+                    types,
+                );
                 Expression::Block { block: block_id }
             }
             ast::Expression::Declaration(declaration_id) => {
                 // declarations can bind to entire containing scope
                 let scope = (scope.0, LocalScopeMark::end());
-                let declaration_id =
-                    self.bind_declaration(module, scope, *declaration_id, tree, symbols, types);
+                let declaration_id = self.bind_declaration(
+                    module,
+                    scope,
+                    *declaration_id,
+                    Some(expression_id),
+                    tree,
+                    symbols,
+                    types,
+                );
                 Expression::Declaration {
                     declaration: declaration_id,
                 }
             }
-            ast::Expression::Statement(expression_id) => {
-                let expression_id =
-                    self.bind_expression(module, scope, *expression_id, tree, symbols, types);
+            ast::Expression::Statement(inner_expression_id) => {
+                let inner_expression_id = self.bind_expression(
+                    module,
+                    scope,
+                    *inner_expression_id,
+                    Some(expression_id),
+                    tree,
+                    symbols,
+                    types,
+                );
                 Expression::Statement {
-                    statement: expression_id,
+                    statement: inner_expression_id,
                 }
             }
 
@@ -66,6 +91,7 @@ impl Compiler {
                             module,
                             (scope_id, symbols.get_scope_mark(scope_id)),
                             *clause,
+                            Some(expression_id),
                             tree,
                             symbols,
                             types,
@@ -77,6 +103,7 @@ impl Compiler {
                         module,
                         (scope_id, symbols.get_scope_mark(scope_id)),
                         body,
+                        Some(expression_id),
                         tree,
                         symbols,
                         types,
@@ -110,6 +137,7 @@ impl Compiler {
                             *kind,
                             Some(target),
                             *item,
+                            Some(expression_id),
                             tree,
                             symbols,
                             types,
@@ -121,7 +149,15 @@ impl Compiler {
                     arguments
                         .iter()
                         .map(|argument| {
-                            self.bind_argument(module, scope, *argument, tree, symbols, types)
+                            self.bind_argument(
+                                module,
+                                scope,
+                                *argument,
+                                Some(expression_id),
+                                tree,
+                                symbols,
+                                types,
+                            )
                         })
                         .collect()
                 });
@@ -157,6 +193,7 @@ impl Compiler {
                                 *kind,
                                 Some(target),
                                 *item,
+                                Some(expression_id),
                                 tree,
                                 symbols,
                                 types,
@@ -186,6 +223,7 @@ impl Compiler {
                                     *kind,
                                     None,
                                     *item,
+                                    Some(expression_id),
                                     tree,
                                     symbols,
                                     types,
@@ -223,12 +261,22 @@ impl Compiler {
                     scope,
                     descriptor.export,
                     *pattern,
+                    Some(expression_id),
                     tree,
                     symbols,
                     types,
                 );
-                let value = value
-                    .map(|value| self.bind_expression(module, scope, value, tree, symbols, types));
+                let value = value.map(|value| {
+                    self.bind_expression(
+                        module,
+                        scope,
+                        value,
+                        Some(expression_id),
+                        tree,
+                        symbols,
+                        types,
+                    )
+                });
                 let expression = Expression::Let {
                     descriptor,
                     mutability,
@@ -236,8 +284,16 @@ impl Compiler {
                     value,
                 };
                 if let Some(ty) = ty {
-                    let ty = self.bind_expression_to_type(module, scope, *ty, tree, symbols, types);
-                    let expression_id = tree.insert_from_source(expression, expression_id, scope);
+                    let ty = self.bind_expression_to_type(
+                        module,
+                        scope,
+                        *ty,
+                        Some(expression_id),
+                        tree,
+                        symbols,
+                        types,
+                    );
+                    let expression_id = tree.insert(expression_id, expression);
                     symbols
                         .get_symbol_mut(symbol_id)
                         .declare_primary(expression_id);
@@ -271,11 +327,27 @@ impl Compiler {
                     params
                         .iter()
                         .map(|param| {
-                            self.bind_parameter(module, scope, *param, tree, symbols, types)
+                            self.bind_parameter(
+                                module,
+                                scope,
+                                *param,
+                                Some(expression_id),
+                                tree,
+                                symbols,
+                                types,
+                            )
                         })
                         .collect()
                 });
-                let value = self.bind_expression(module, scope, *value, tree, symbols, types);
+                let value = self.bind_expression(
+                    module,
+                    scope,
+                    *value,
+                    Some(expression_id),
+                    tree,
+                    symbols,
+                    types,
+                );
                 Expression::LetType {
                     descriptor,
                     kind,
@@ -286,13 +358,29 @@ impl Compiler {
             }
 
             ast::Expression::Unary { operator, right } => {
-                let right = self.bind_expression(module, scope, *right, tree, symbols, types);
+                let right = self.bind_expression(
+                    module,
+                    scope,
+                    *right,
+                    Some(expression_id),
+                    tree,
+                    symbols,
+                    types,
+                );
                 let operator = self.bind_unary_operator(*operator);
                 Expression::Unary { operator, right }
             }
 
             ast::Expression::TypeUnary { operator, right } => {
-                let right = self.bind_expression(module, scope, *right, tree, symbols, types);
+                let right = self.bind_expression(
+                    module,
+                    scope,
+                    *right,
+                    Some(expression_id),
+                    tree,
+                    symbols,
+                    types,
+                );
                 let operator = self.bind_type_unary_operator(*operator);
                 Expression::TypeUnary { operator, right }
             }
@@ -304,7 +392,15 @@ impl Compiler {
             } => {
                 let mutability = mutability.map(|mutability| self.bind_mutability(mutability));
                 let variance = variance.map(|variance| self.bind_variance_bound(variance));
-                let right = self.bind_expression(module, scope, *right, tree, symbols, types);
+                let right = self.bind_expression(
+                    module,
+                    scope,
+                    *right,
+                    Some(expression_id),
+                    tree,
+                    symbols,
+                    types,
+                );
                 Expression::ValueOf {
                     mutability,
                     variance,
@@ -318,7 +414,15 @@ impl Compiler {
             } => {
                 let mutability = mutability.map(|mutability| self.bind_mutability(mutability));
                 let variance = variance.map(|variance| self.bind_variance_bound(variance));
-                let right = self.bind_expression(module, scope, *right, tree, symbols, types);
+                let right = self.bind_expression(
+                    module,
+                    scope,
+                    *right,
+                    Some(expression_id),
+                    tree,
+                    symbols,
+                    types,
+                );
                 Expression::ReferenceOf {
                     mutability,
                     variance,
@@ -330,8 +434,24 @@ impl Compiler {
                 operator,
                 right,
             } => {
-                let left = self.bind_expression(module, scope, *left, tree, symbols, types);
-                let right = self.bind_expression(module, scope, *right, tree, symbols, types);
+                let left = self.bind_expression(
+                    module,
+                    scope,
+                    *left,
+                    Some(expression_id),
+                    tree,
+                    symbols,
+                    types,
+                );
+                let right = self.bind_expression(
+                    module,
+                    scope,
+                    *right,
+                    Some(expression_id),
+                    tree,
+                    symbols,
+                    types,
+                );
                 let operator = self.bind_binary_operator(*operator);
                 Expression::Binary {
                     left,
@@ -344,8 +464,24 @@ impl Compiler {
                 operator,
                 right,
             } => {
-                let left = self.bind_expression(module, scope, *left, tree, symbols, types);
-                let right = self.bind_expression(module, scope, *right, tree, symbols, types);
+                let left = self.bind_expression(
+                    module,
+                    scope,
+                    *left,
+                    Some(expression_id),
+                    tree,
+                    symbols,
+                    types,
+                );
+                let right = self.bind_expression(
+                    module,
+                    scope,
+                    *right,
+                    Some(expression_id),
+                    tree,
+                    symbols,
+                    types,
+                );
                 let operator = self.bind_type_binary_operator(*operator);
                 Expression::TypeBinary {
                     left,
@@ -358,8 +494,24 @@ impl Compiler {
                 operator,
                 right,
             } => {
-                let left = self.bind_expression(module, scope, *left, tree, symbols, types);
-                let right = self.bind_expression(module, scope, *right, tree, symbols, types);
+                let left = self.bind_expression(
+                    module,
+                    scope,
+                    *left,
+                    Some(expression_id),
+                    tree,
+                    symbols,
+                    types,
+                );
+                let right = self.bind_expression(
+                    module,
+                    scope,
+                    *right,
+                    Some(expression_id),
+                    tree,
+                    symbols,
+                    types,
+                );
                 let operator = self.bind_assign_operator(*operator);
                 if let Some(operator) = operator {
                     Expression::AssignBinary {
@@ -377,13 +529,29 @@ impl Compiler {
                 name,
                 static_arguments,
             } => {
-                let left = self.bind_expression(module, scope, *left, tree, symbols, types);
+                let left = self.bind_expression(
+                    module,
+                    scope,
+                    *left,
+                    Some(expression_id),
+                    tree,
+                    symbols,
+                    types,
+                );
                 let name = self.program.strings.intern_from(&module.ast_strings, *name);
                 let static_arguments = static_arguments.as_ref().map(|arguments| {
                     arguments
                         .iter()
                         .map(|argument| {
-                            self.bind_argument(module, scope, *argument, tree, symbols, types)
+                            self.bind_argument(
+                                module,
+                                scope,
+                                *argument,
+                                Some(expression_id),
+                                tree,
+                                symbols,
+                                types,
+                            )
                         })
                         .collect()
                 });
@@ -399,19 +567,43 @@ impl Compiler {
                 static_arguments,
                 dynamic_arguments,
             } => {
-                let left = self.bind_expression(module, scope, *left, tree, symbols, types);
+                let left = self.bind_expression(
+                    module,
+                    scope,
+                    *left,
+                    Some(expression_id),
+                    tree,
+                    symbols,
+                    types,
+                );
                 let static_arguments = static_arguments.as_ref().map(|arguments| {
                     arguments
                         .iter()
                         .map(|argument| {
-                            self.bind_argument(module, scope, *argument, tree, symbols, types)
+                            self.bind_argument(
+                                module,
+                                scope,
+                                *argument,
+                                Some(expression_id),
+                                tree,
+                                symbols,
+                                types,
+                            )
                         })
                         .collect()
                 });
                 let dynamic_arguments = dynamic_arguments
                     .iter()
                     .map(|argument| {
-                        self.bind_argument(module, scope, *argument, tree, symbols, types)
+                        self.bind_argument(
+                            module,
+                            scope,
+                            *argument,
+                            Some(expression_id),
+                            tree,
+                            symbols,
+                            types,
+                        )
                     })
                     .collect();
                 Expression::Call {
@@ -425,19 +617,43 @@ impl Compiler {
                 static_arguments,
                 dynamic_arguments,
             } => {
-                let left = self.bind_expression(module, scope, *left, tree, symbols, types);
+                let left = self.bind_expression(
+                    module,
+                    scope,
+                    *left,
+                    Some(expression_id),
+                    tree,
+                    symbols,
+                    types,
+                );
                 let static_arguments = static_arguments.as_ref().map(|arguments| {
                     arguments
                         .iter()
                         .map(|argument| {
-                            self.bind_argument(module, scope, *argument, tree, symbols, types)
+                            self.bind_argument(
+                                module,
+                                scope,
+                                *argument,
+                                Some(expression_id),
+                                tree,
+                                symbols,
+                                types,
+                            )
                         })
                         .collect()
                 });
                 let dynamic_arguments = dynamic_arguments
                     .iter()
                     .map(|argument| {
-                        self.bind_argument(module, scope, *argument, tree, symbols, types)
+                        self.bind_argument(
+                            module,
+                            scope,
+                            *argument,
+                            Some(expression_id),
+                            tree,
+                            symbols,
+                            types,
+                        )
                     })
                     .collect();
                 Expression::New {
@@ -447,7 +663,15 @@ impl Compiler {
                 }
             }
             ast::Expression::Delete { value } => {
-                let value = self.bind_expression(module, scope, *value, tree, symbols, types);
+                let value = self.bind_expression(
+                    module,
+                    scope,
+                    *value,
+                    Some(expression_id),
+                    tree,
+                    symbols,
+                    types,
+                );
                 Expression::Delete { value }
             }
             ast::Expression::Index {
@@ -455,17 +679,50 @@ impl Compiler {
                 left,
                 index,
             } => {
-                let left = self.bind_expression(module, scope, *left, tree, symbols, types);
-                let index = index
-                    .map(|index| self.bind_expression(module, scope, index, tree, symbols, types));
+                let left = self.bind_expression(
+                    module,
+                    scope,
+                    *left,
+                    Some(expression_id),
+                    tree,
+                    symbols,
+                    types,
+                );
+                let index = index.map(|index| {
+                    self.bind_expression(
+                        module,
+                        scope,
+                        index,
+                        Some(expression_id),
+                        tree,
+                        symbols,
+                        types,
+                    )
+                });
                 Expression::Index { left, right: index }
             }
             ast::Expression::Maybe { position: _, left } => {
-                let left = self.bind_expression(module, scope, *left, tree, symbols, types);
+                let left = self.bind_expression(
+                    module,
+                    scope,
+                    *left,
+                    Some(expression_id),
+                    tree,
+                    symbols,
+                    types,
+                );
                 Expression::Maybe { left }
             }
             ast::Expression::Must { position: _, left } => {
-                let left = self.bind_expression(module, scope, *left, tree, symbols, types);
+                let left = self.bind_expression(
+                    module,
+                    scope,
+                    *left,
+                    Some(expression_id),
+                    tree,
+                    symbols,
+                    types,
+                );
                 Expression::Must { left }
             }
 
@@ -478,7 +735,15 @@ impl Compiler {
                     arguments
                         .iter()
                         .map(|argument| {
-                            self.bind_argument(module, scope, *argument, tree, symbols, types)
+                            self.bind_argument(
+                                module,
+                                scope,
+                                *argument,
+                                Some(expression_id),
+                                tree,
+                                symbols,
+                                types,
+                            )
                         })
                         .collect()
                 });
@@ -492,12 +757,36 @@ impl Compiler {
                 Expression::ScalarLiteral { value }
             }
             ast::Expression::TemplateLiteral { value } => {
-                let value = self.bind_template_literal(module, scope, value, tree, symbols, types);
+                let value = self.bind_template_literal(
+                    module,
+                    scope,
+                    value,
+                    Some(expression_id),
+                    tree,
+                    symbols,
+                    types,
+                );
                 Expression::TemplateLiteral { value }
             }
             ast::Expression::TaggedTemplateLiteral { tag, value } => {
-                let tag = self.bind_expression(module, scope, *tag, tree, symbols, types);
-                let value = self.bind_template_literal(module, scope, value, tree, symbols, types);
+                let tag = self.bind_expression(
+                    module,
+                    scope,
+                    *tag,
+                    Some(expression_id),
+                    tree,
+                    symbols,
+                    types,
+                );
+                let value = self.bind_template_literal(
+                    module,
+                    scope,
+                    value,
+                    Some(expression_id),
+                    tree,
+                    symbols,
+                    types,
+                );
                 Expression::TaggedTemplateLiteral { tag, value }
             }
             ast::Expression::TypeLiteral(value) => {
@@ -509,8 +798,24 @@ impl Compiler {
                 end,
                 is_inclusive,
             } => {
-                let start = self.bind_expression(module, scope, *start, tree, symbols, types);
-                let end = self.bind_expression(module, scope, *end, tree, symbols, types);
+                let start = self.bind_expression(
+                    module,
+                    scope,
+                    *start,
+                    Some(expression_id),
+                    tree,
+                    symbols,
+                    types,
+                );
+                let end = self.bind_expression(
+                    module,
+                    scope,
+                    *end,
+                    Some(expression_id),
+                    tree,
+                    symbols,
+                    types,
+                );
                 Expression::RangeLiteral {
                     start,
                     end,
@@ -518,11 +823,29 @@ impl Compiler {
                 }
             }
             ast::Expression::StructLiteral { ty, properties } => {
-                let ty = ty.map(|ty| self.bind_expression(module, scope, ty, tree, symbols, types));
+                let ty = ty.map(|ty| {
+                    self.bind_expression(
+                        module,
+                        scope,
+                        ty,
+                        Some(expression_id),
+                        tree,
+                        symbols,
+                        types,
+                    )
+                });
                 let properties = properties
                     .iter()
                     .map(|property| {
-                        self.bind_property(module, scope, *property, tree, symbols, types)
+                        self.bind_property(
+                            module,
+                            scope,
+                            *property,
+                            Some(expression_id),
+                            tree,
+                            symbols,
+                            types,
+                        )
                     })
                     .collect();
                 Expression::StructLiteral { ty, properties }
@@ -531,7 +854,15 @@ impl Compiler {
                 let elements = elements
                     .iter()
                     .map(|element| {
-                        self.bind_argument(module, scope, *element, tree, symbols, types)
+                        self.bind_argument(
+                            module,
+                            scope,
+                            *element,
+                            Some(expression_id),
+                            tree,
+                            symbols,
+                            types,
+                        )
                     })
                     .collect();
                 Expression::TupleLiteral { ty: None, elements }
@@ -540,7 +871,15 @@ impl Compiler {
                 let elements = elements
                     .iter()
                     .map(|element| {
-                        self.bind_argument(module, scope, *element, tree, symbols, types)
+                        self.bind_argument(
+                            module,
+                            scope,
+                            *element,
+                            Some(expression_id),
+                            tree,
+                            symbols,
+                            types,
+                        )
                     })
                     .collect();
                 Expression::ArrayLiteral { elements }
@@ -550,13 +889,30 @@ impl Compiler {
                 arguments,
                 elements,
             } => {
-                let left = left
-                    .map(|left| self.bind_expression(module, scope, left, tree, symbols, types));
+                let left = left.map(|left| {
+                    self.bind_expression(
+                        module,
+                        scope,
+                        left,
+                        Some(expression_id),
+                        tree,
+                        symbols,
+                        types,
+                    )
+                });
                 let arguments = arguments.as_ref().map(|arguments| {
                     arguments
                         .iter()
                         .map(|argument| {
-                            self.bind_argument(module, scope, *argument, tree, symbols, types)
+                            self.bind_argument(
+                                module,
+                                scope,
+                                *argument,
+                                Some(expression_id),
+                                tree,
+                                symbols,
+                                types,
+                            )
                         })
                         .collect()
                 });
@@ -564,7 +920,15 @@ impl Compiler {
                     elements
                         .iter()
                         .map(|element| {
-                            self.bind_argument(module, scope, *element, tree, symbols, types)
+                            self.bind_argument(
+                                module,
+                                scope,
+                                *element,
+                                Some(expression_id),
+                                tree,
+                                symbols,
+                                types,
+                            )
                         })
                         .collect()
                 });
@@ -575,8 +939,15 @@ impl Compiler {
                 }
             }
             ast::Expression::Parenthesized { expression } => {
-                let expression =
-                    self.bind_expression(module, scope, *expression, tree, symbols, types);
+                let expression = self.bind_expression(
+                    module,
+                    scope,
+                    *expression,
+                    Some(expression_id),
+                    tree,
+                    symbols,
+                    types,
+                );
                 Expression::Parenthesized { expression }
             }
 
@@ -587,12 +958,34 @@ impl Compiler {
                 else_expression,
             } => {
                 let kind = self.bind_if_kind(*kind);
-                let condition =
-                    self.bind_expression(module, scope, *condition, tree, symbols, types);
-                let then_expression =
-                    self.bind_expression(module, scope, *then_expression, tree, symbols, types);
+                let condition = self.bind_expression(
+                    module,
+                    scope,
+                    *condition,
+                    Some(expression_id),
+                    tree,
+                    symbols,
+                    types,
+                );
+                let then_expression = self.bind_expression(
+                    module,
+                    scope,
+                    *then_expression,
+                    Some(expression_id),
+                    tree,
+                    symbols,
+                    types,
+                );
                 let else_expression = else_expression.map(|else_expression| {
-                    self.bind_expression(module, scope, else_expression, tree, symbols, types)
+                    self.bind_expression(
+                        module,
+                        scope,
+                        else_expression,
+                        Some(expression_id),
+                        tree,
+                        symbols,
+                        types,
+                    )
                 });
                 Expression::If {
                     kind,
@@ -610,8 +1003,15 @@ impl Compiler {
                     ast::WhileKind::While => LoopKind::PreTest,
                     ast::WhileKind::DoWhile => LoopKind::PostTest,
                 };
-                let condition =
-                    self.bind_expression(module, scope, *condition, tree, symbols, types);
+                let condition = self.bind_expression(
+                    module,
+                    scope,
+                    *condition,
+                    Some(expression_id),
+                    tree,
+                    symbols,
+                    types,
+                );
                 let (symbol_id, scope_id) = self.bind_anonymous_item_with_scope(
                     module,
                     ScopeKind::Block,
@@ -623,6 +1023,7 @@ impl Compiler {
                     module,
                     (scope_id, symbols.get_scope_mark(scope_id)),
                     *body,
+                    Some(expression_id),
                     tree,
                     symbols,
                     types,
@@ -647,9 +1048,25 @@ impl Compiler {
                     ast::ForEachKind::In => ForEachKind::In,
                     ast::ForEachKind::Of => ForEachKind::Of,
                 };
-                let pattern =
-                    self.bind_pattern(module, scope, None, *pattern, tree, symbols, types);
-                let iterator = self.bind_expression(module, scope, *iterator, tree, symbols, types);
+                let pattern = self.bind_pattern(
+                    module,
+                    scope,
+                    None,
+                    *pattern,
+                    Some(expression_id),
+                    tree,
+                    symbols,
+                    types,
+                );
+                let iterator = self.bind_expression(
+                    module,
+                    scope,
+                    *iterator,
+                    Some(expression_id),
+                    tree,
+                    symbols,
+                    types,
+                );
                 let (symbol_id, scope_id) = self.bind_anonymous_item_with_scope(
                     module,
                     ScopeKind::Block,
@@ -661,6 +1078,7 @@ impl Compiler {
                     module,
                     (scope_id, symbols.get_scope_mark(scope_id)),
                     *body,
+                    Some(expression_id),
                     tree,
                     symbols,
                     types,
@@ -693,6 +1111,7 @@ impl Compiler {
                         module,
                         (scope_id, symbols.get_scope_mark(scope_id)),
                         initialization,
+                        Some(expression_id),
                         tree,
                         symbols,
                         types,
@@ -703,6 +1122,7 @@ impl Compiler {
                         module,
                         (scope_id, symbols.get_scope_mark(scope_id)),
                         condition,
+                        Some(expression_id),
                         tree,
                         symbols,
                         types,
@@ -713,6 +1133,7 @@ impl Compiler {
                         module,
                         (scope_id, symbols.get_scope_mark(scope_id)),
                         increment,
+                        Some(expression_id),
                         tree,
                         symbols,
                         types,
@@ -722,6 +1143,7 @@ impl Compiler {
                     module,
                     (scope_id, symbols.get_scope_mark(scope_id)),
                     *body,
+                    Some(expression_id),
                     tree,
                     symbols,
                     types,
@@ -747,6 +1169,7 @@ impl Compiler {
                     module,
                     (scope_id, symbols.get_scope_mark(scope_id)),
                     *body,
+                    Some(expression_id),
                     tree,
                     symbols,
                     types,
@@ -776,6 +1199,7 @@ impl Compiler {
                     module,
                     (scope_id, symbols.get_scope_mark(scope_id)),
                     *try_expression,
+                    Some(expression_id),
                     tree,
                     symbols,
                     types,
@@ -786,6 +1210,7 @@ impl Compiler {
                         (scope_id, symbols.get_scope_mark(scope_id)),
                         None,
                         catch_pattern,
+                        Some(expression_id),
                         tree,
                         symbols,
                         types,
@@ -796,6 +1221,7 @@ impl Compiler {
                         module,
                         (scope_id, symbols.get_scope_mark(scope_id)),
                         catch_expression,
+                        Some(expression_id),
                         tree,
                         symbols,
                         types,
@@ -806,6 +1232,7 @@ impl Compiler {
                         module,
                         (scope_id, symbols.get_scope_mark(scope_id)),
                         finally_expression,
+                        Some(expression_id),
                         tree,
                         symbols,
                         types,
@@ -825,7 +1252,15 @@ impl Compiler {
                 value,
                 cases,
             } => {
-                let value = self.bind_expression(module, scope, *value, tree, symbols, types);
+                let value = self.bind_expression(
+                    module,
+                    scope,
+                    *value,
+                    Some(expression_id),
+                    tree,
+                    symbols,
+                    types,
+                );
                 let (symbol_id, scope_id) = self.bind_anonymous_item_with_scope(
                     module,
                     ScopeKind::Block,
@@ -840,6 +1275,7 @@ impl Compiler {
                             module,
                             (scope_id, symbols.get_scope_mark(scope_id)),
                             *case,
+                            Some(expression_id),
                             tree,
                             symbols,
                             types,
@@ -858,8 +1294,17 @@ impl Compiler {
             ast::Expression::Break { label, value } => {
                 let label =
                     label.map(|label| self.program.strings.intern_from(&module.ast_strings, label));
-                let value = value
-                    .map(|value| self.bind_expression(module, scope, value, tree, symbols, types));
+                let value = value.map(|value| {
+                    self.bind_expression(
+                        module,
+                        scope,
+                        value,
+                        Some(expression_id),
+                        tree,
+                        symbols,
+                        types,
+                    )
+                });
                 Expression::UnresolvedBreak {
                     target: label,
                     value,
@@ -871,18 +1316,41 @@ impl Compiler {
                 Expression::UnresolvedContinue { target: label }
             }
             ast::Expression::Return { value } => {
-                let value = value
-                    .map(|value| self.bind_expression(module, scope, value, tree, symbols, types));
+                let value = value.map(|value| {
+                    self.bind_expression(
+                        module,
+                        scope,
+                        value,
+                        Some(expression_id),
+                        tree,
+                        symbols,
+                        types,
+                    )
+                });
                 Expression::Return { value }
             }
             ast::Expression::Defer { expression } => {
-                let expression =
-                    self.bind_expression(module, scope, *expression, tree, symbols, types);
+                let expression = self.bind_expression(
+                    module,
+                    scope,
+                    *expression,
+                    Some(expression_id),
+                    tree,
+                    symbols,
+                    types,
+                );
                 Expression::Defer { expression }
             }
             ast::Expression::Await { expression } => {
-                let expression =
-                    self.bind_expression(module, scope, *expression, tree, symbols, types);
+                let expression = self.bind_expression(
+                    module,
+                    scope,
+                    *expression,
+                    Some(expression_id),
+                    tree,
+                    symbols,
+                    types,
+                );
                 Expression::Await { expression }
             }
             ast::Expression::Yield { cardinality, value } => {
@@ -890,12 +1358,29 @@ impl Compiler {
                     ast::YieldCardinality::Generator => YieldCardinality::Generator,
                     ast::YieldCardinality::Scalar => YieldCardinality::Scalar,
                 };
-                let value = self.bind_expression(module, scope, *value, tree, symbols, types);
+                let value = self.bind_expression(
+                    module,
+                    scope,
+                    *value,
+                    Some(expression_id),
+                    tree,
+                    symbols,
+                    types,
+                );
                 Expression::Yield { cardinality, value }
             }
             ast::Expression::Throw { value } => {
-                let value = value
-                    .map(|value| self.bind_expression(module, scope, value, tree, symbols, types));
+                let value = value.map(|value| {
+                    self.bind_expression(
+                        module,
+                        scope,
+                        value,
+                        Some(expression_id),
+                        tree,
+                        symbols,
+                        types,
+                    )
+                });
                 Expression::Throw { value }
             }
 
@@ -904,13 +1389,13 @@ impl Compiler {
 
         // expression
         if let Some(symbol_id) = expression.symbol() {
-            let expression_id = tree.insert_from_source(expression, expression_id, scope);
+            let expression_id = tree.insert(expression_id, expression);
             symbols
                 .get_symbol_mut(symbol_id)
                 .declare_primary(expression_id);
             expression_id
         } else {
-            tree.insert_from_source(expression, expression_id, scope)
+            tree.insert(expression_id, expression)
         }
     }
 }

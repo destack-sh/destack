@@ -1,8 +1,8 @@
 use crate::Compiler;
 use dyst_ast as ast;
 use dyst_dir::{
-    Generics, Heritage, LocalScopeId, LocalScopeMark, LocalTypeId, Module, Mutability, NodeTree,
-    SymbolTable, Type, TypeKind, TypeTable, VarianceBound,
+    Generics, Heritage, LocalNodeIdAny, LocalScopeId, LocalScopeMark, LocalTypeId, Module,
+    Mutability, NodeTree, SymbolTable, Type, TypeKind, TypeTable, VarianceBound,
 };
 
 #[allow(clippy::too_many_arguments)]
@@ -12,13 +12,21 @@ impl Compiler {
         &self,
         module: &Module,
         scope: (LocalScopeId, LocalScopeMark),
-        expression_id: ast::LocalNodeId<ast::Expression>,
+        ast_expression_id: ast::LocalNodeId<ast::Expression>,
+        parent_id: Option<LocalNodeIdAny>,
         tree: &mut NodeTree,
         symbols: &mut SymbolTable,
         types: &mut TypeTable,
     ) -> LocalTypeId {
-        let expression_id =
-            self.bind_expression(module, scope, expression_id, tree, symbols, types);
+        let expression_id = self.bind_expression(
+            module,
+            scope,
+            ast_expression_id,
+            parent_id,
+            tree,
+            symbols,
+            types,
+        );
         types.insert_from(Type::UnresolvedExpression(expression_id), expression_id)
     }
 
@@ -54,6 +62,7 @@ impl Compiler {
         module: &Module,
         scope: (LocalScopeId, LocalScopeMark),
         generics: &ast::Generics,
+        parent_id: Option<LocalNodeIdAny>,
         tree: &mut NodeTree,
         symbols: &mut SymbolTable,
         types: &mut TypeTable,
@@ -65,7 +74,15 @@ impl Compiler {
                 static_parameters
                     .iter()
                     .map(|static_parameter| {
-                        self.bind_parameter(module, scope, *static_parameter, tree, symbols, types)
+                        self.bind_parameter(
+                            module,
+                            scope,
+                            *static_parameter,
+                            parent_id,
+                            tree,
+                            symbols,
+                            types,
+                        )
                     })
                     .collect()
             });
@@ -73,7 +90,15 @@ impl Compiler {
             with_clauses
                 .iter()
                 .map(|with_clause| {
-                    self.bind_with_clause(module, scope, *with_clause, tree, symbols, types)
+                    self.bind_with_clause(
+                        module,
+                        scope,
+                        *with_clause,
+                        parent_id,
+                        tree,
+                        symbols,
+                        types,
+                    )
                 })
                 .collect()
         });
@@ -81,7 +106,15 @@ impl Compiler {
             where_clauses
                 .iter()
                 .map(|where_clause| {
-                    self.bind_where_clause(module, scope, *where_clause, tree, symbols, types)
+                    self.bind_where_clause(
+                        module,
+                        scope,
+                        *where_clause,
+                        parent_id,
+                        tree,
+                        symbols,
+                        types,
+                    )
                 })
                 .collect()
         });
@@ -98,6 +131,7 @@ impl Compiler {
         module: &Module,
         scope: (LocalScopeId, LocalScopeMark),
         heritage: &ast::Heritage,
+        parent_id: Option<LocalNodeIdAny>,
         tree: &mut NodeTree,
         symbols: &mut SymbolTable,
         types: &mut TypeTable,
@@ -106,7 +140,15 @@ impl Compiler {
             extends_types
                 .iter()
                 .map(|extends_type| {
-                    self.bind_expression(module, scope, *extends_type, tree, symbols, types)
+                    self.bind_expression(
+                        module,
+                        scope,
+                        *extends_type,
+                        parent_id,
+                        tree,
+                        symbols,
+                        types,
+                    )
                 })
                 .collect()
         });
@@ -114,7 +156,15 @@ impl Compiler {
             implements_types
                 .iter()
                 .map(|implements_type| {
-                    self.bind_expression(module, scope, *implements_type, tree, symbols, types)
+                    self.bind_expression(
+                        module,
+                        scope,
+                        *implements_type,
+                        parent_id,
+                        tree,
+                        symbols,
+                        types,
+                    )
                 })
                 .collect()
         });

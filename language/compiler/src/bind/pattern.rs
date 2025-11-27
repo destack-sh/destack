@@ -1,8 +1,8 @@
 use crate::Compiler;
 use dyst_ast as ast;
 use dyst_dir::{
-    DependencyMode, LocalNodeId, LocalScopeId, LocalScopeMark, Module, NodeTree, Pattern,
-    PatternField, SymbolKey, SymbolSpace, SymbolTable, TypeTable,
+    DependencyMode, LocalNodeId, LocalNodeIdAny, LocalScopeId, LocalScopeMark, Module, NodeTree,
+    NodeType, Pattern, PatternField, SymbolKey, SymbolSpace, SymbolTable, TypeTable,
 };
 
 #[allow(clippy::too_many_arguments)]
@@ -13,22 +13,28 @@ impl Compiler {
         module: &Module,
         scope: (LocalScopeId, LocalScopeMark),
         export: Option<DependencyMode>,
-        pattern_id: ast::LocalNodeId<ast::Pattern>,
+        ast_pattern_id: ast::LocalNodeId<ast::Pattern>,
+        parent_id: Option<LocalNodeIdAny>,
         tree: &mut NodeTree,
         symbols: &mut SymbolTable,
         types: &mut TypeTable,
     ) -> LocalNodeId<Pattern> {
-        let pattern = module.ast.get(pattern_id);
-        let pattern = match pattern {
+        let ast_pattern = module.ast.get(ast_pattern_id);
+        let pattern_id =
+            tree.reserve_from_source(NodeType::Pattern, ast_pattern_id, scope, parent_id);
+        let pattern = match ast_pattern {
             ast::Pattern::Wildcard => Pattern::Wildcard,
-            ast::Pattern::Rest { name } => Pattern::Rest {
-                name: name.map(|name| self.program.strings.intern_from(&module.ast_strings, name)),
-            },
-            ast::Pattern::Maybe(pattern_id) => Pattern::Maybe(self.bind_pattern(
+            ast::Pattern::Rest { name } => {
+                let name =
+                    name.map(|name| self.program.strings.intern_from(&module.ast_strings, name));
+                Pattern::Rest { name }
+            }
+            ast::Pattern::Maybe(ast_pattern_id) => Pattern::Maybe(self.bind_pattern(
                 module,
                 scope,
                 export,
-                *pattern_id,
+                *ast_pattern_id,
+                Some(pattern_id),
                 tree,
                 symbols,
                 types,
@@ -38,8 +44,16 @@ impl Compiler {
                 right: right_id,
             } => {
                 let mutability = mutability.map(|mutability| self.bind_mutability(mutability));
-                let right =
-                    self.bind_pattern(module, scope, export, *right_id, tree, symbols, types);
+                let right = self.bind_pattern(
+                    module,
+                    scope,
+                    export,
+                    *right_id,
+                    Some(pattern_id),
+                    tree,
+                    symbols,
+                    types,
+                );
                 Pattern::ReferenceOf { mutability, right }
             }
             ast::Pattern::ValueOf {
@@ -47,8 +61,16 @@ impl Compiler {
                 right: right_id,
             } => {
                 let mutability = mutability.map(|mutability| self.bind_mutability(mutability));
-                let right =
-                    self.bind_pattern(module, scope, export, *right_id, tree, symbols, types);
+                let right = self.bind_pattern(
+                    module,
+                    scope,
+                    export,
+                    *right_id,
+                    Some(pattern_id),
+                    tree,
+                    symbols,
+                    types,
+                );
                 Pattern::ValueOf { mutability, right }
             }
             ast::Pattern::Binding {
@@ -59,7 +81,16 @@ impl Compiler {
                 let mutability = mutability.map(|mutability| self.bind_mutability(mutability));
                 let name = self.program.strings.intern_from(&module.ast_strings, *name);
                 let pattern = pattern.map(|pattern| {
-                    self.bind_pattern(module, scope, export, pattern, tree, symbols, types)
+                    self.bind_pattern(
+                        module,
+                        scope,
+                        export,
+                        pattern,
+                        Some(pattern_id),
+                        tree,
+                        symbols,
+                        types,
+                    )
                 });
                 let (symbol, _) = self.bind_named_local(
                     module,
@@ -77,7 +108,15 @@ impl Compiler {
                 }
             }
             ast::Pattern::Expression { value } => {
-                let value = self.bind_expression(module, scope, *value, tree, symbols, types);
+                let value = self.bind_expression(
+                    module,
+                    scope,
+                    *value,
+                    Some(pattern_id),
+                    tree,
+                    symbols,
+                    types,
+                );
                 Pattern::Expression { value }
             }
             ast::Pattern::Range {
@@ -86,10 +125,29 @@ impl Compiler {
                 is_inclusive,
             } => {
                 let start = start.map(|start| {
-                    self.bind_pattern(module, scope, export, start, tree, symbols, types)
+                    self.bind_pattern(
+                        module,
+                        scope,
+                        export,
+                        start,
+                        Some(pattern_id),
+                        tree,
+                        symbols,
+                        types,
+                    )
                 });
-                let end = end
-                    .map(|end| self.bind_pattern(module, scope, export, end, tree, symbols, types));
+                let end = end.map(|end| {
+                    self.bind_pattern(
+                        module,
+                        scope,
+                        export,
+                        end,
+                        Some(pattern_id),
+                        tree,
+                        symbols,
+                        types,
+                    )
+                });
                 Pattern::Range {
                     start,
                     end,
@@ -97,13 +155,22 @@ impl Compiler {
                 }
             }
             ast::Pattern::Tuple { ty, fields } => {
-                let ty = ty
-                    .as_ref()
-                    .map(|ty| self.bind_expression(module, scope, *ty, tree, symbols, types));
+                let ty = ty.as_ref().map(|ty| {
+                    self.bind_expression(module, scope, *ty, Some(pattern_id), tree, symbols, types)
+                });
                 let fields = fields
                     .iter()
                     .map(|field| {
-                        self.bind_pattern_field(module, scope, export, *field, tree, symbols, types)
+                        self.bind_pattern_field(
+                            module,
+                            scope,
+                            export,
+                            *field,
+                            Some(pattern_id),
+                            tree,
+                            symbols,
+                            types,
+                        )
                     })
                     .collect();
                 if let Some(ty) = ty {
@@ -119,17 +186,37 @@ impl Compiler {
                 let fields = fields
                     .iter()
                     .map(|field| {
-                        self.bind_pattern_field(module, scope, export, *field, tree, symbols, types)
+                        self.bind_pattern_field(
+                            module,
+                            scope,
+                            export,
+                            *field,
+                            Some(pattern_id),
+                            tree,
+                            symbols,
+                            types,
+                        )
                     })
                     .collect();
                 Pattern::Slice { fields }
             }
             ast::Pattern::Struct { ty, fields } => {
-                let ty = ty.map(|ty| self.bind_expression(module, scope, ty, tree, symbols, types));
+                let ty = ty.map(|ty| {
+                    self.bind_expression(module, scope, ty, Some(pattern_id), tree, symbols, types)
+                });
                 let fields = fields
                     .iter()
                     .map(|field| {
-                        self.bind_pattern_field(module, scope, export, *field, tree, symbols, types)
+                        self.bind_pattern_field(
+                            module,
+                            scope,
+                            export,
+                            *field,
+                            Some(pattern_id),
+                            tree,
+                            symbols,
+                            types,
+                        )
                     })
                     .collect();
                 if let Some(ty) = ty {
@@ -145,7 +232,16 @@ impl Compiler {
                 let patterns = patterns
                     .iter()
                     .map(|field| {
-                        self.bind_pattern(module, scope, export, *field, tree, symbols, types)
+                        self.bind_pattern(
+                            module,
+                            scope,
+                            export,
+                            *field,
+                            Some(pattern_id),
+                            tree,
+                            symbols,
+                            types,
+                        )
                     })
                     .collect();
                 Pattern::Union { patterns }
@@ -154,13 +250,13 @@ impl Compiler {
 
         // pattern
         if let Some(symbol_id) = pattern.symbol() {
-            let pattern_id = tree.insert_from_source(pattern, pattern_id, scope);
+            let pattern_id = tree.insert(pattern_id, pattern);
             symbols
                 .get_symbol_mut(symbol_id)
                 .declare_primary(pattern_id);
             pattern_id
         } else {
-            tree.insert_from_source(pattern, pattern_id, scope)
+            tree.insert(pattern_id, pattern)
         }
     }
 
@@ -170,13 +266,20 @@ impl Compiler {
         module: &Module,
         scope: (LocalScopeId, LocalScopeMark),
         export: Option<DependencyMode>,
-        pattern_field_id: ast::LocalNodeId<ast::PatternField>,
+        ast_pattern_field_id: ast::LocalNodeId<ast::PatternField>,
+        parent_id: Option<LocalNodeIdAny>,
         tree: &mut NodeTree,
         symbols: &mut SymbolTable,
         types: &mut TypeTable,
     ) -> LocalNodeId<PatternField> {
-        let pattern_field = module.ast.get(pattern_field_id);
-        let pattern_field = match pattern_field {
+        let ast_pattern_field = module.ast.get(ast_pattern_field_id);
+        let pattern_field_id = tree.reserve_from_source(
+            NodeType::PatternField,
+            ast_pattern_field_id,
+            scope,
+            parent_id,
+        );
+        let pattern_field = match ast_pattern_field {
             ast::PatternField::Named {
                 mutability,
                 name,
@@ -189,10 +292,27 @@ impl Compiler {
                     .strings
                     .intern_from(&module.ast_strings, name.string());
                 let pattern = pattern.map(|pattern| {
-                    self.bind_pattern(module, scope, export, pattern, tree, symbols, types)
+                    self.bind_pattern(
+                        module,
+                        scope,
+                        export,
+                        pattern,
+                        Some(pattern_field_id),
+                        tree,
+                        symbols,
+                        types,
+                    )
                 });
                 let default = default.map(|default| {
-                    self.bind_expression(module, scope, default, tree, symbols, types)
+                    self.bind_expression(
+                        module,
+                        scope,
+                        default,
+                        Some(pattern_field_id),
+                        tree,
+                        symbols,
+                        types,
+                    )
                 });
                 let (symbol, _) = self.bind_named_local(
                     module,
@@ -226,7 +346,15 @@ impl Compiler {
                     .strings
                     .intern_from(&module.ast_strings, *alias);
                 let default = default.map(|default| {
-                    self.bind_expression(module, scope, default, tree, symbols, types)
+                    self.bind_expression(
+                        module,
+                        scope,
+                        default,
+                        Some(pattern_field_id),
+                        tree,
+                        symbols,
+                        types,
+                    )
                 });
                 let (symbol, _) = self.bind_named_local(
                     module,
@@ -247,21 +375,29 @@ impl Compiler {
             ast::PatternField::Positional {
                 pattern: pattern_id,
             } => {
-                let pattern =
-                    self.bind_pattern(module, scope, export, *pattern_id, tree, symbols, types);
+                let pattern = self.bind_pattern(
+                    module,
+                    scope,
+                    export,
+                    *pattern_id,
+                    Some(pattern_field_id),
+                    tree,
+                    symbols,
+                    types,
+                );
                 PatternField::UnresolvedPositional { pattern }
             }
         };
 
         // pattern field
         if let Some(symbol_id) = pattern_field.symbol() {
-            let pattern_field_id = tree.insert_from_source(pattern_field, pattern_field_id, scope);
+            let pattern_field_id = tree.insert(pattern_field_id, pattern_field);
             symbols
                 .get_symbol_mut(symbol_id)
                 .declare_primary(pattern_field_id);
             pattern_field_id
         } else {
-            tree.insert_from_source(pattern_field, pattern_field_id, scope)
+            tree.insert(pattern_field_id, pattern_field)
         }
     }
 }
