@@ -19,7 +19,7 @@ impl Compiler {
         types: &mut TypeTable,
     ) -> LocalNodeId<Block> {
         let (symbol_id, scope_id) =
-            self.bind_anonymous_item_with_scope(module, ScopeKind::Block, scope, symbols, None);
+            self.bind_anonymous_item_with_scope(module, ScopeKind::Block, scope, None, symbols);
         let block = module.ast.get(block_id);
         let label = block
             .label

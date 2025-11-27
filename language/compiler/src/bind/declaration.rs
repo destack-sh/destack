@@ -417,8 +417,8 @@ impl Compiler {
             SymbolSpace::Value,
             SymbolKey::Name(name),
             scope,
-            symbols,
             None,
+            symbols,
         );
         let enum_field = EnumField {
             name,

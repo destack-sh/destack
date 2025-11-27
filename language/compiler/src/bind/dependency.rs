@@ -61,16 +61,16 @@ impl Compiler {
                 SymbolSpace::Value,
                 SymbolKey::Name(name),
                 scope,
-                symbols,
                 if is_export { Some(mode) } else { None },
+                symbols,
             )
         } else {
             self.bind_anonymous_item(
                 module,
                 SymbolSpace::Value,
                 scope,
-                symbols,
                 if is_export { Some(mode) } else { None },
+                symbols,
             )
         };
         if let Some(target) = target {
