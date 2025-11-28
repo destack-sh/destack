@@ -2,9 +2,12 @@ use std::thread;
 
 use crate::{
     AnalyzeError, BindError, BuildError, Compiler, ElaborateError, ExecuteError, ImportError,
-    LinkError, LowerError, OptimizeError, Phase, ResolveError, Task, TaskDebug, TaskDependency,
-    TaskError, TaskHandle, TaskId, TaskOutcome, TaskStatus, ValidateError,
+    InternalError, LinkError, LowerError, OptimizeError, Phase, ResolveError, Task, TaskDebug,
+    TaskDependency, TaskError, TaskHandle, TaskId, TaskOutcome, TaskStatus, ValidateError,
 };
+
+/// Maximum number of yields allowed per task before treating it as an (internal) bug.
+const MAX_TOTAL_YIELD_COUNT: u32 = 100;
 
 impl Compiler {
     /// Runs the compiler loop until there is nothing left to do.
@@ -44,22 +47,32 @@ impl Compiler {
 
     /// Enqueue a task to the compiler.
     /// Noop if we already have the same task queued, returns the existing TaskId.
-    pub fn enqueue<T: Into<Task>>(&self, task: T) -> TaskId {
+    pub fn enqueue<T: Into<Task>>(&self, task: T) -> (TaskId, bool) {
         let task: Task = task.into();
         let event = format!("{}.{}.enqueue", task.phase().name(), task.name());
         let args = task.trace_args(&self.program);
-        let task_id = self.queue.enqueue(task);
-        tracing::trace!(%event, %args, ?task_id, "compile.enqueue");
-        task_id
+        let (task_id, is_new) = self.queue.enqueue(task);
+        if is_new {
+            tracing::trace!(%event, %args, ?task_id, "compile.enqueue");
+        }
+        (task_id, is_new)
     }
 
     /// Process a compiler task and return the outcome.
     fn process_task(&self, handle: &TaskHandle) -> TaskOutcome {
+        // trace
         let task = &handle.task;
         let task_id = handle.id;
         let args = task.trace_args(&self.program);
-        let event = format!("{}.{}.start", task.phase().name(), task.name());
+        let event_name = if handle.last_outcome.is_some() {
+            "resume"
+        } else {
+            "start"
+        };
+        let event = format!("{}.{}.{}", task.phase().name(), task.name(), event_name);
         tracing::debug!(%event, %args, ?task_id);
+
+        // process
         match task.clone() {
             Task::Import(import_task) => self.process_import(import_task).into(),
             Task::Bind(bind_task) => self.process_bind(bind_task).into(),
@@ -78,19 +91,19 @@ impl Compiler {
     /// Handle the outcome of a processed task.
     fn handle_outcome(&self, task_id: TaskId, outcome: TaskOutcome) {
         let handle = self.queue.get_task(task_id);
-        let phase = handle.phase();
-        let name = handle.task.name();
         let args = handle.task.trace_args(&self.program);
-        match outcome {
+        match &outcome {
+            // complete and wake waiters
             TaskOutcome::Complete { output } => {
-                let event = format!("{}.{}.complete", phase.name(), name);
+                let event = format!("{}.{}.complete", handle.phase().name(), handle.task.name());
                 tracing::debug!(%event, %args, ?task_id);
                 self.queue
-                    .set_status(task_id, TaskStatus::Complete { output });
+                    .set_status(task_id, TaskStatus::Complete { output: output.clone() });
                 self.wake_waiters(task_id);
             }
+            // error and fail waiters
             TaskOutcome::Error { error } => {
-                let event = format!("{}.{}.error", phase.name(), name);
+                let event = format!("{}.{}.error", handle.phase().name(), handle.task.name());
                 tracing::debug!(%event, %args, ?task_id);
                 self.queue.set_status(
                     task_id,
@@ -98,11 +111,28 @@ impl Compiler {
                         error: error.clone(),
                     },
                 );
-                self.error(error);
+                self.error(error.clone());
                 self.fail_waiters(task_id);
             }
+            // yield if possible
             TaskOutcome::Yield { dependency } => {
-                let event = format!("{}.{}.yield", phase.name(), name);
+                // check for yield errors
+                if let Some(internal_error) = self.check_yield(task_id, &handle, dependency) {
+                    let event = format!("{}.{}.circuit", handle.phase().name(), handle.task.name());
+                    tracing::error!(%event, %args, ?task_id);
+                    self.queue.set_status(
+                        task_id,
+                        TaskStatus::Failed {
+                            error: internal_error.clone().into(),
+                        },
+                    );
+                    self.error(internal_error);
+                    self.fail_waiters(task_id);
+                    return;
+                }
+
+                // yield
+                let event = format!("{}.{}.yield", handle.phase().name(), handle.task.name());
                 tracing::debug!(%event, %args, ?task_id);
                 self.queue.set_status(
                     task_id,
@@ -110,9 +140,43 @@ impl Compiler {
                         dependency: dependency.clone(),
                     },
                 );
-                self.register_dependency(task_id, &dependency);
+                self.register_dependency(task_id, dependency);
             }
         }
+        // remember outcome 
+        self.queue.set_last_outcome(task_id, outcome);
+    }
+
+    /// Check if a yield should trigger an internal error (i.e. circuit break).
+    fn check_yield(
+        &self,
+        task_id: TaskId,
+        handle: &TaskHandle,
+        dependency: &TaskDependency,
+    ) -> Option<InternalError> {
+        // check for repeated yield to the same dependency
+        if let Some(TaskOutcome::Yield {
+            dependency: previous_dependency,
+        }) = &handle.last_outcome
+            && *previous_dependency == *dependency
+        {
+            return Some(InternalError::SuspiciousYield {
+                node: dependency.node(),
+                task_id,
+                dependency: dependency.clone(),
+            });
+        }
+
+        // check for excessive yields
+        if handle.yield_count >= MAX_TOTAL_YIELD_COUNT {
+            return Some(InternalError::ExcessiveYield {
+                node: dependency.node(),
+                task_id,
+                yield_count: handle.yield_count,
+            });
+        }
+
+        None
     }
 
     /// Register dependencies for a yielded task.
@@ -120,7 +184,7 @@ impl Compiler {
         match dependency {
             TaskDependency::Complete { task, .. } => {
                 // enqueue the dependency task (might already exist)
-                let dependency_id = self.enqueue(task.clone());
+                let (dependency_id, _) = self.enqueue(task.clone());
 
                 // check if already complete
                 if let Some(status) = self.queue.get_status(dependency_id) {

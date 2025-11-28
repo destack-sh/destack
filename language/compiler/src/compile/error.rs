@@ -2,7 +2,7 @@ use dyst_dir::{GlobalNodeIdAny, Program};
 
 use crate::{
     AnalyzeError, BindError, BuildError, ElaborateError, ExecuteError, ImportError, LinkError,
-    LowerError, OptimizeError, Phase, ResolveError, ValidateError,
+    LowerError, OptimizeError, Phase, ResolveError, TaskDependency, TaskId, ValidateError,
 };
 
 /// Error during compilation.
@@ -32,29 +32,117 @@ pub enum TaskError {
     Build(BuildError),
     /// Error during linking.
     Link(LinkError),
+    // --------------------------------------------------
+    /// Internal compiler error (bug).
+    Internal(InternalError),
+}
+
+/// Internal compiler error (bug in the compiler).
+#[derive(Debug, Clone, PartialEq)]
+pub enum InternalError {
+    /// Task yielded to the same dependency twice in a row.
+    SuspiciousYield {
+        node: GlobalNodeIdAny,
+        task_id: TaskId,
+        dependency: TaskDependency,
+    },
+    /// Task exceeded maximum yield count.
+    ExcessiveYield {
+        node: GlobalNodeIdAny,
+        task_id: TaskId,
+        yield_count: u32,
+    },
+    /// Circular dependency detected in task graph.
+    CircularDependency {
+        node: GlobalNodeIdAny,
+        task_id: TaskId,
+        cycle: Vec<TaskId>,
+    },
+}
+
+impl InternalError {
+    /// Get the numeric sub-code of the error.
+    #[inline]
+    pub fn sub_code(&self) -> u8 {
+        match self {
+            Self::SuspiciousYield { .. } => 1,
+            Self::ExcessiveYield { .. } => 2,
+            Self::CircularDependency { .. } => 3,
+        }
+    }
+
+    /// Get the node of the error.
+    pub fn node(&self) -> GlobalNodeIdAny {
+        match self {
+            Self::SuspiciousYield { node, .. }
+            | Self::ExcessiveYield { node, .. }
+            | Self::CircularDependency { node, .. } => *node,
+        }
+    }
+
+    /// Get the message of the error.
+    pub fn message(&self, _program: &Program) -> String {
+        match self {
+            Self::SuspiciousYield { task_id, .. } => {
+                format!("internal error: task {task_id} yielded to the same dependency twice")
+            }
+            Self::ExcessiveYield {
+                task_id,
+                yield_count,
+                ..
+            } => {
+                format!("internal error: task {task_id} yielded {yield_count} times")
+            }
+            Self::CircularDependency { task_id, cycle, .. } => {
+                let cycle_str = cycle
+                    .iter()
+                    .map(|id| format!("{id}"))
+                    .collect::<Vec<_>>()
+                    .join(" -> ");
+                format!("internal error: circular dependency involving {task_id}: {cycle_str}")
+            }
+        }
+    }
+}
+
+impl std::fmt::Display for InternalError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "EC{:03}", self.sub_code())
+    }
+}
+
+impl From<InternalError> for TaskError {
+    #[inline]
+    fn from(error: InternalError) -> Self {
+        TaskError::Internal(error)
+    }
 }
 
 impl TaskError {
-    /// Get the phase of the error.
-    pub fn phase(&self) -> Phase {
+    /// Get the phase of the error, if applicable.
+    pub fn phase(&self) -> Option<Phase> {
         match self {
-            Self::Import(_) => Phase::Import,
-            Self::Bind(_) => Phase::Bind,
-            Self::Resolve(_) => Phase::Resolve,
-            Self::Validate(_) => Phase::Validate,
-            Self::Elaborate(_) => Phase::Elaborate,
-            Self::Lower(_) => Phase::Lower,
-            Self::Analyze(_) => Phase::Analyze,
-            Self::Optimize(_) => Phase::Optimize,
-            Self::Execute(_) => Phase::Execute,
-            Self::Build(_) => Phase::Build,
-            Self::Link(_) => Phase::Link,
+            Self::Import(_) => Some(Phase::Import),
+            Self::Bind(_) => Some(Phase::Bind),
+            Self::Resolve(_) => Some(Phase::Resolve),
+            Self::Validate(_) => Some(Phase::Validate),
+            Self::Elaborate(_) => Some(Phase::Elaborate),
+            Self::Lower(_) => Some(Phase::Lower),
+            Self::Analyze(_) => Some(Phase::Analyze),
+            Self::Optimize(_) => Some(Phase::Optimize),
+            Self::Execute(_) => Some(Phase::Execute),
+            Self::Build(_) => Some(Phase::Build),
+            Self::Link(_) => Some(Phase::Link),
+            Self::Internal(_) => None,
         }
     }
 
     /// Get the phase letter of the error.
     pub fn phase_letter(&self) -> char {
-        self.phase().letter()
+        match self.phase() {
+            Some(phase) => phase.letter(),
+            None => 'C', // C for Compiler internal error
+        }
     }
 
     /// Get the numeric sub-code of the error (e.g., `1` for `IE001`).
@@ -72,6 +160,7 @@ impl TaskError {
             Self::Execute(error) => error.sub_code(),
             Self::Build(error) => error.sub_code(),
             Self::Link(error) => error.sub_code(),
+            Self::Internal(error) => error.sub_code(),
         }
     }
 
@@ -89,6 +178,7 @@ impl TaskError {
             Self::Execute(error) => error.node(),
             Self::Build(error) => error.node(),
             Self::Link(error) => error.node(),
+            Self::Internal(error) => error.node(),
         }
     }
 
@@ -106,6 +196,7 @@ impl TaskError {
             Self::Execute(error) => error.message(program),
             Self::Build(error) => error.message(program),
             Self::Link(error) => error.message(program),
+            Self::Internal(error) => error.message(program),
         }
     }
 

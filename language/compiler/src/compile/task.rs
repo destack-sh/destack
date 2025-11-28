@@ -216,7 +216,6 @@ impl Task {
     pub fn full_code(&self) -> String {
         format!("T{}{:03}", self.phase().letter(), self.sub_code())
     }
-
 }
 
 impl TaskDebug for Task {
@@ -297,6 +296,21 @@ pub enum TaskStatus {
     Failed { error: TaskError },
 }
 
+impl TaskStatus {
+    /// Whether the status is final (i.e., will not change).
+    pub fn is_final(&self) -> bool {
+        matches!(self, Self::Complete { .. } | Self::Failed { .. })
+    }
+
+    /// Whether the status is an outcome (i.e., yield, complete or fail).
+    pub fn is_outcome(&self) -> bool {
+        matches!(
+            self,
+            Self::Yielded { .. } | Self::Complete { .. } | Self::Failed { .. }
+        )
+    }
+}
+
 impl From<TaskOutcome> for TaskStatus {
     fn from(outcome: TaskOutcome) -> Self {
         match outcome {
@@ -314,8 +328,12 @@ pub struct TaskHandle {
     pub id: TaskId,
     /// The status of the task.
     pub status: TaskStatus,
+    /// The previous outcome of the task.
+    pub last_outcome: Option<TaskOutcome>,
     /// The task.
     pub task: Task,
+    /// Number of times this task has yielded (for debugging).
+    pub yield_count: u32,
 }
 
 impl TaskHandle {
@@ -324,7 +342,9 @@ impl TaskHandle {
         Self {
             id,
             status: TaskStatus::Queued,
+            last_outcome: None,
             task,
+            yield_count: 0,
         }
     }
 

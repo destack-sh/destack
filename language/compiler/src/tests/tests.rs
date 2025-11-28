@@ -103,6 +103,16 @@ impl TestProgram {
             content.to_string(),
         );
         self.program.files.insert(file);
+        match &self.fs {
+            TestFileSystem::Memory { fs } => {
+                fs.add_file(path, content.as_bytes()).unwrap_or_else(|_| {
+                    panic!("failed to add test file '{path}' to memory file system")
+                });
+            }
+            TestFileSystem::Physical { .. } => {
+                panic!("cannot add test file '{path}' to physical file system");
+            }
+        }
         self.program.files.get(file_id)
     }
 
@@ -129,6 +139,6 @@ impl TestProgram {
         self.program
             .modules
             .get_by_uri(&file.uri)
-            .unwrap_or_else(|| panic!("module not found for file: '{:?}'", file.uri.to_string()))
+            .unwrap_or_else(|| panic!("module not found for file: '{}'", file.uri))
     }
 }
