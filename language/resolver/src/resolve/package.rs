@@ -176,7 +176,7 @@ impl Resolver {
         specifier: &str,
         ctx: &mut ResolveContext,
     ) -> Result<Option<PathBuf>, ResolveError> {
-        tracing::trace!(?path, specifier, "resolver.load.package.imports");
+        tracing::trace!(?path, ?specifier, "resolver.load.package.imports");
         // find the closest package scope to the directory
         let Some(package_id) = self.find_package_json(path, ctx)? else {
             return Ok(None);
@@ -202,7 +202,7 @@ impl Resolver {
         subpath: &str,
         ctx: &mut ResolveContext,
     ) -> Result<Option<PathBuf>, ResolveError> {
-        tracing::trace!(?path, specifier, package_name, subpath, "resolver.load.modules");
+        tracing::trace!(?path, ?specifier, ?package_name, ?subpath, "resolver.load.modules");
         // check each module directory (node_modules)
         for module_name in &self.options.modules {
             // walk up parent directories
@@ -254,7 +254,7 @@ impl Resolver {
                 let resolved_path = module_dir.normalize_with(specifier);
 
                 // prefer directory
-                if self.options.resolve_to_directory {
+                if self.options.resolve_to_context {
                     return Ok(self
                         .is_directory(&resolved_path, ctx)
                         .then(|| resolved_path.to_path_buf()));
@@ -265,12 +265,12 @@ impl Resolver {
                     if let Some(resolved) = self.load_browser_field_or_alias(&resolved_path, ctx)? {
                         return Ok(Some(resolved));
                     }
-                    if let Some(resolved) = self.load_as_directory(&resolved_path, ctx)? {
+                    if let Some(resolved) = self.load_directory(&resolved_path, ctx)? {
                         return Ok(Some(resolved));
                     }
                 }
                 // load file
-                else if let Some(resolved) = self.load_as_file(&resolved_path, ctx)? {
+                else if let Some(resolved) = self.load_file(&resolved_path, ctx)? {
                     return Ok(Some(resolved));
                 }
 
@@ -393,7 +393,7 @@ impl Resolver {
         ctx: &mut ResolveContext,
     ) -> Result<Option<PathBuf>, ResolveError> {
         // non-compliant ESM can result in a directory, so directory is tried as well
-        if let Some(resolved) = self.load_as_file_or_directory(path, "", ctx)? {
+        if let Some(resolved) = self.load_file_or_directory(path, "", ctx)? {
             Ok(Some(resolved))
         } else {
             Err(ResolveError::NotFound {

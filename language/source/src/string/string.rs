@@ -6,8 +6,20 @@ use std::num::NonZeroU32;
 
 /// Unique identifier for interned strings in a StringPool.
 #[repr(transparent)]
-#[derive(Copy, Clone, Eq, PartialEq, Hash, Debug, Ord, PartialOrd)]
+#[derive(Copy, Clone, Eq, PartialEq, Hash, Ord, PartialOrd)]
 pub struct StringId(pub NonZeroU32);
+
+impl std::fmt::Debug for StringId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "#{}", self.0)
+    }
+}
+
+impl std::fmt::Display for StringId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "#{}", self.0)
+    }
+}
 
 impl StringId {
     #[inline]

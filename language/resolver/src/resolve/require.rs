@@ -43,7 +43,7 @@ impl Resolver {
         specifier: &str,
         ctx: &mut ResolveContext,
     ) -> Result<PathBuf, ResolveError> {
-        tracing::trace!(?path, specifier, "resolver.require");
+        tracing::trace!(?path, ?specifier, "resolver.require");
         ctx.check_depth()?;
 
         // parse query and fragment identifiers
@@ -60,17 +60,17 @@ impl Resolver {
             let base_path = parsed.path();
             let fragment = ctx.fragment.take().unwrap();
             let candidate = format!("{base_path}{fragment}");
-            if let Ok(resolved) = self.require_without_parse(path, &candidate, ctx) {
+            if let Ok(resolved) = self.require_specifier(path, &candidate, ctx) {
                 return Ok(resolved);
             }
             ctx.fragment.replace(fragment);
         }
 
-        self.require_without_parse(path, parsed.path(), ctx)
+        self.require_specifier(path, parsed.path(), ctx)
     }
 
     /// Resolve a specifier without parsing query/fragment (already parsed).
-    fn require_without_parse(
+    fn require_specifier(
         &self,
         path: &Path,
         specifier: &str,
@@ -131,7 +131,7 @@ impl Resolver {
         specifier: &str,
         ctx: &mut ResolveContext,
     ) -> Result<PathBuf, ResolveError> {
-        tracing::trace!(?path, specifier, "resolver.require.absolute");
+        tracing::trace!(?path, ?specifier, "resolver.require.absolute");
         debug_assert!(
             Path::new(specifier)
                 .components()
@@ -154,7 +154,7 @@ impl Resolver {
 
         // try to load as file or directory
         let specifier_path = Path::new(specifier).to_path_buf();
-        if let Some(resolved) = self.load_as_file_or_directory(&specifier_path, specifier, ctx)? {
+        if let Some(resolved) = self.load_file_or_directory(&specifier_path, specifier, ctx)? {
             return Ok(resolved);
         }
 
@@ -171,7 +171,7 @@ impl Resolver {
         specifier: &str,
         ctx: &mut ResolveContext,
     ) -> Result<PathBuf, ResolveError> {
-        tracing::trace!(?path, specifier, "resolver.require.relative");
+        tracing::trace!(?path, ?specifier, "resolver.require.relative");
         debug_assert!(
             Path::new(specifier)
                 .components()
@@ -184,7 +184,7 @@ impl Resolver {
         let path_with_specifier = path.normalize_with(specifier);
 
         // load as file or directory
-        if let Some(resolved) = self.load_as_file_or_directory(
+        if let Some(resolved) = self.load_file_or_directory(
             &path_with_specifier,
             // ensure resolve directory only when specifier is `.`
             if specifier == "." { "./" } else { specifier },
@@ -206,7 +206,7 @@ impl Resolver {
         specifier: &str,
         ctx: &mut ResolveContext,
     ) -> Result<PathBuf, ResolveError> {
-        tracing::trace!(?path, specifier, "resolver.require.hash");
+        tracing::trace!(?path, ?specifier, "resolver.require.hash");
         debug_assert_eq!(specifier.chars().next(), Some('#'));
 
         self.load_package_imports(path, specifier, ctx)?
@@ -223,7 +223,7 @@ impl Resolver {
         specifier: &str,
         ctx: &mut ResolveContext,
     ) -> Result<PathBuf, ResolveError> {
-        tracing::trace!(?path, specifier, "resolver.require.bare");
+        tracing::trace!(?path, ?specifier, "resolver.require.bare");
         debug_assert!(
             Path::new(specifier)
                 .components()

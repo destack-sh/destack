@@ -12,9 +12,29 @@ use super::path::PathExt;
 use super::system::FileMetadata;
 
 /// Memory file system implementation. THREAD-SAFE.
-#[derive(Debug, Default, Clone)]
+#[derive(Default, Clone)]
 pub struct MemoryFileSystem {
     inner: Arc<RwLock<MemoryFileSystemState>>,
+}
+
+impl std::fmt::Debug for MemoryFileSystem {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let inenr = self.inner.read();
+        let files_uris = inenr
+            .files
+            .keys()
+            .map(|path| path.to_string_lossy())
+            .collect::<Vec<_>>();
+        let directories = inenr
+            .directories
+            .iter()
+            .map(|path| path.to_string_lossy())
+            .collect::<Vec<_>>();
+        f.debug_struct("MemoryFileSystem")
+            .field("files", &files_uris)
+            .field("directories", &directories)
+            .finish()
+    }
 }
 
 /// State of the MemoryFileSystem.

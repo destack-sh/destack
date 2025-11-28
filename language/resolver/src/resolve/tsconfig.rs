@@ -68,7 +68,11 @@ impl Resolver {
     }
 
     /// Load and parse a `tsconfig.json` file recursively.
-    #[tracing::instrument(name = "resolver.load_tsconfig", level = "trace", skip(self, references, ctx))]
+    #[tracing::instrument(
+        name = "resolver.load_tsconfig",
+        level = "trace",
+        skip(self, references, ctx)
+    )]
     pub(crate) fn load_tsconfig(
         &self,
         is_root: bool,
@@ -299,7 +303,7 @@ impl Resolver {
                 &mut TypeScriptOptionsResolveContext::default(),
             )?,
             Some(TypeScriptOptionsDiscovery::Automatic) => {
-                let Some(tsconfig_id) = self.find_tsconfig(path, ctx)? else {
+                let Some(tsconfig_id) = self.find_tsconfig_json(path, ctx)? else {
                     return Ok(None);
                 };
                 tsconfig_id
@@ -309,7 +313,7 @@ impl Resolver {
         let tsconfig = self.get_tsconfig(tsconfig_id);
         let paths = tsconfig.resolve(path, specifier, &self.program.tsconfigs);
         for resolved in paths {
-            if let Some(resolution) = self.load_as_file_or_directory(&resolved, ".", ctx)? {
+            if let Some(resolution) = self.load_file_or_directory(&resolved, ".", ctx)? {
                 return Ok(Some(resolution));
             }
         }
@@ -317,13 +321,13 @@ impl Resolver {
     }
 
     /// Find tsconfig.json by traversing parent directories.
-    #[tracing::instrument(name = "resolver.find_tsconfig", level = "trace", skip(self, ctx))]
-    pub(crate) fn find_tsconfig(
+    #[tracing::instrument(name = "resolver.tsconfig.find", level = "trace", skip(self, ctx))]
+    pub(crate) fn find_tsconfig_json(
         &self,
         path: &Path,
         ctx: &mut ResolveContext,
     ) -> Result<Option<TsConfigId>, ResolveError> {
-        tracing::trace!(?path, "resolver.find_tsconfig");
+        tracing::trace!(?path, "resolver.tsconfig.find");
         // don't discover tsconfig for paths inside node_modules
         if is_inside_modules(path) {
             return Ok(None);

@@ -45,7 +45,7 @@ pub struct ResolveOptions {
     pub modules: Vec<String>,
 
     /// Resolve to a context instead of a file.
-    pub resolve_to_directory: bool,
+    pub resolve_to_context: bool,
 
     /// Prefer to resolve module requests as relative requests instead of using modules from node_modules directories.
     pub prefer_relative: bool,
@@ -94,7 +94,7 @@ impl ResolveOptions {
             skip_extension: false,
             main_files: vec![],
             modules: vec![],
-            resolve_to_directory: false,
+            resolve_to_context: false,
             prefer_relative: false,
             prefer_absolute: false,
             restrictions: vec![],
@@ -163,9 +163,9 @@ impl ResolveOptions {
         self
     }
 
-    /// Set the resolve to directory.
-    pub fn with_resolve_to_directory(mut self, resolve_to_directory: bool) -> Self {
-        self.resolve_to_directory = resolve_to_directory;
+    /// Set the resolve to context.
+    pub fn with_resolve_to_context(mut self, resolve_to_context: bool) -> Self {
+        self.resolve_to_context = resolve_to_context;
         self
     }
 
@@ -210,6 +210,7 @@ impl Default for ResolveOptions {
             enforce_extension: EnforceExtension::Automatic,
             extension_alias: IndexMap::new(),
             extensions: vec![
+                ".ds".into(),
                 ".tsx".into(),
                 ".ts".into(),
                 ".jsx".into(),
@@ -223,7 +224,7 @@ impl Default for ResolveOptions {
             skip_extension: false,
             main_files: vec!["index".into()],
             modules: vec!["node_modules".into()],
-            resolve_to_directory: false,
+            resolve_to_context: false,
             prefer_relative: false,
             prefer_absolute: false,
             restrictions: vec![],
@@ -265,8 +266,8 @@ impl fmt::Display for ResolveOptions {
         if !self.modules.is_empty() {
             write!(f, "modules:{:?},", self.modules)?;
         }
-        if self.resolve_to_directory {
-            write!(f, "resolve_directory:{:?},", self.resolve_to_directory)?;
+        if self.resolve_to_context {
+            write!(f, "resolve_directory:{:?},", self.resolve_to_context)?;
         }
         if self.prefer_relative {
             write!(f, "prefer_relative:{:?},", self.prefer_relative)?;

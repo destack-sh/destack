@@ -18,8 +18,20 @@ const TEMPLATE_VARIABLE: &str = "${configDir}";
 
 /// Unique identifier for TsConfigs.
 #[repr(transparent)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct TsConfigId(pub u32);
+
+impl std::fmt::Debug for TsConfigId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "#{}", self.0)
+    }
+}
+
+impl std::fmt::Display for TsConfigId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "#{}", self.0)
+    }
+}
 
 impl TsConfigId {
     /// Wrap an id as a TsConfigId.

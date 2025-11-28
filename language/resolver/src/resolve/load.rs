@@ -9,7 +9,7 @@ use crate::{ResolveContext, ResolveError, Resolver};
 impl Resolver {
     /// Try to resolve a path as a file with optional extension adding.
     #[tracing::instrument(name = "resolver.load.file", level = "trace", skip(self, ctx))]
-    pub(crate) fn load_as_file(
+    pub(crate) fn load_file(
         &self,
         path: &Path,
         ctx: &mut ResolveContext,
@@ -37,7 +37,7 @@ impl Resolver {
 
     /// Try to resolve a path as a directory via main files or index files.
     #[tracing::instrument(name = "resolver.load.directory", level = "trace", skip(self, ctx))]
-    pub(crate) fn load_as_directory(
+    pub(crate) fn load_directory(
         &self,
         path: &Path,
         ctx: &mut ResolveContext,
@@ -57,7 +57,7 @@ impl Resolver {
                 let main_path = path.normalize_with(main_field.as_ref());
 
                 // try to load as file
-                if let Some(resolved) = self.load_as_file(&main_path, ctx)? {
+                if let Some(resolved) = self.load_file(&main_path, ctx)? {
                     return Ok(Some(resolved));
                 }
 
@@ -80,26 +80,26 @@ impl Resolver {
     }
 
     /// Try to resolve a path as either a file or a directory.
-    pub(crate) fn load_as_file_or_directory(
+    pub(crate) fn load_file_or_directory(
         &self,
         path: &Path,
         specifier: &str,
         ctx: &mut ResolveContext,
     ) -> Result<Option<PathBuf>, ResolveError> {
-        // special mode: resolve to directory itself
-        if self.options.resolve_to_directory && self.is_directory(path, ctx) {
+        // special mode: resolve to context itself
+        if self.options.resolve_to_context && self.is_directory(path, ctx) {
             return Ok(Some(path.to_path_buf()));
         }
 
         // try as file (unless specifier ends with `/`)
         if !specifier.ends_with('/')
-            && let Some(resolved) = self.load_as_file(path, ctx)?
+            && let Some(resolved) = self.load_file(path, ctx)?
         {
             Ok(Some(resolved))
         }
         // try as directory
         else if self.is_directory(path, ctx)
-            && let Some(resolved) = self.load_as_directory(path, ctx)?
+            && let Some(resolved) = self.load_directory(path, ctx)?
         {
             Ok(Some(resolved))
         }

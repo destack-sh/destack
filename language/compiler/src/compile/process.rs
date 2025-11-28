@@ -103,7 +103,7 @@ impl Compiler {
             }
             TaskOutcome::Yield { dependency } => {
                 let event = format!("{}.{}.yield", phase.name(), name);
-                tracing::trace!(%event, %args, ?task_id);
+                tracing::debug!(%event, %args, ?task_id);
                 self.queue.set_status(
                     task_id,
                     TaskStatus::Yielded {
@@ -133,7 +133,7 @@ impl Compiler {
                         }
                         TaskStatus::Failed { .. } => {
                             // dependency failed, fail the waiter with fallback error
-                            self.fail_waiter_with_fallback(waiter_id, dependency);
+                            self.fail_waiter(waiter_id, dependency);
                             return;
                         }
                         _ => {}
@@ -158,6 +158,25 @@ impl Compiler {
         }
     }
 
+    /// Check if a dependency is satisfied.
+    fn is_dependency_satisfied(&self, dependency: &TaskDependency) -> bool {
+        match dependency {
+            TaskDependency::Complete { task, .. } => {
+                // find the task and check if complete
+                matches!(
+                    self.queue.find_task_status(task),
+                    Some(TaskStatus::Complete { .. })
+                )
+            }
+            TaskDependency::CompleteAll { dependencies } => dependencies
+                .iter()
+                .all(|dependency| self.is_dependency_satisfied(dependency)),
+            TaskDependency::CompleteAny { dependencies } => dependencies
+                .iter()
+                .any(|dependency| self.is_dependency_satisfied(dependency)),
+        }
+    }
+
     /// Wake all tasks waiting for the completed task.
     fn wake_waiters(&self, completed_id: TaskId) {
         let waiters = self.queue.take_waiters(completed_id);
@@ -177,62 +196,14 @@ impl Compiler {
         let waiters = self.queue.take_waiters(failed_id);
         for waiter_id in waiters {
             if let Some(TaskStatus::Yielded { dependency }) = self.queue.get_status(waiter_id) {
-                self.fail_waiter_with_fallback(waiter_id, &dependency);
+                self.fail_waiter(waiter_id, &dependency);
             }
         }
     }
-
     /// Fail a waiter using the fallback error from its dependency.
-    fn fail_waiter_with_fallback(&self, waiter_id: TaskId, dependency: &TaskDependency) {
-        let error: TaskError = Self::get_fallback_error(dependency).unwrap_or_else(|| {
-            let task = self.queue.get_task(waiter_id);
-            match task.phase() {
-                Phase::Import => ImportError::YieldFailed {
-                    dependency: dependency.clone(),
-                }
-                .into(),
-                Phase::Bind => BindError::YieldFailed {
-                    dependency: dependency.clone(),
-                }
-                .into(),
-                Phase::Resolve => ResolveError::YieldFailed {
-                    dependency: dependency.clone(),
-                }
-                .into(),
-                Phase::Validate => ValidateError::YieldFailed {
-                    dependency: dependency.clone(),
-                }
-                .into(),
-                Phase::Elaborate => ElaborateError::YieldFailed {
-                    dependency: dependency.clone(),
-                }
-                .into(),
-                Phase::Lower => LowerError::YieldFailed {
-                    dependency: dependency.clone(),
-                }
-                .into(),
-                Phase::Analyze => AnalyzeError::YieldFailed {
-                    dependency: dependency.clone(),
-                }
-                .into(),
-                Phase::Optimize => OptimizeError::YieldFailed {
-                    dependency: dependency.clone(),
-                }
-                .into(),
-                Phase::Execute => ExecuteError::YieldFailed {
-                    dependency: dependency.clone(),
-                }
-                .into(),
-                Phase::Build => BuildError::YieldFailed {
-                    dependency: dependency.clone(),
-                }
-                .into(),
-                Phase::Link => LinkError::YieldFailed {
-                    dependency: dependency.clone(),
-                }
-                .into(),
-            }
-        });
+    fn fail_waiter(&self, waiter_id: TaskId, dependency: &TaskDependency) {
+        let error: TaskError = Self::get_fallback_error(dependency)
+            .unwrap_or_else(|| self.get_yield_failed_error(waiter_id, dependency));
         self.queue.set_status(
             waiter_id,
             TaskStatus::Failed {
@@ -261,22 +232,54 @@ impl Compiler {
         }
     }
 
-    /// Check if a dependency is satisfied.
-    fn is_dependency_satisfied(&self, dependency: &TaskDependency) -> bool {
-        match dependency {
-            TaskDependency::Complete { task, .. } => {
-                // find the task and check if complete
-                matches!(
-                    self.queue.find_task_status(task),
-                    Some(TaskStatus::Complete { .. })
-                )
+    /// Create a YieldFailed variant of TaskError for the given waiter and dependency.
+    fn get_yield_failed_error(&self, waiter_id: TaskId, dependency: &TaskDependency) -> TaskError {
+        let task = self.queue.get_task(waiter_id);
+        match task.phase() {
+            Phase::Import => ImportError::YieldFailed {
+                dependency: dependency.clone(),
             }
-            TaskDependency::CompleteAll { dependencies } => dependencies
-                .iter()
-                .all(|dependency| self.is_dependency_satisfied(dependency)),
-            TaskDependency::CompleteAny { dependencies } => dependencies
-                .iter()
-                .any(|dependency| self.is_dependency_satisfied(dependency)),
+            .into(),
+            Phase::Bind => BindError::YieldFailed {
+                dependency: dependency.clone(),
+            }
+            .into(),
+            Phase::Resolve => ResolveError::YieldFailed {
+                dependency: dependency.clone(),
+            }
+            .into(),
+            Phase::Validate => ValidateError::YieldFailed {
+                dependency: dependency.clone(),
+            }
+            .into(),
+            Phase::Elaborate => ElaborateError::YieldFailed {
+                dependency: dependency.clone(),
+            }
+            .into(),
+            Phase::Lower => LowerError::YieldFailed {
+                dependency: dependency.clone(),
+            }
+            .into(),
+            Phase::Analyze => AnalyzeError::YieldFailed {
+                dependency: dependency.clone(),
+            }
+            .into(),
+            Phase::Optimize => OptimizeError::YieldFailed {
+                dependency: dependency.clone(),
+            }
+            .into(),
+            Phase::Execute => ExecuteError::YieldFailed {
+                dependency: dependency.clone(),
+            }
+            .into(),
+            Phase::Build => BuildError::YieldFailed {
+                dependency: dependency.clone(),
+            }
+            .into(),
+            Phase::Link => LinkError::YieldFailed {
+                dependency: dependency.clone(),
+            }
+            .into(),
         }
     }
 }
