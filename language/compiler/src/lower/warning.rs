@@ -1,6 +1,6 @@
 use dyst_dir::{GlobalNodeIdAny, Program};
 
-use crate::{CompileWarning, Phase};
+use crate::{TaskWarning, Phase};
 
 /// Warning when optimizing something.
 #[derive(Debug, Clone, PartialEq)]
@@ -53,8 +53,8 @@ impl std::fmt::Display for LowerWarning {
     }
 }
 
-impl From<LowerWarning> for CompileWarning {
+impl From<LowerWarning> for TaskWarning {
     fn from(warning: LowerWarning) -> Self {
-        CompileWarning::Lower(warning)
+        TaskWarning::Lower(warning)
     }
 }

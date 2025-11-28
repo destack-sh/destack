@@ -1,4 +1,4 @@
-use crate::{CompileWarning, TaskError};
+use crate::{TaskWarning, TaskError};
 use dyst_dir::{GlobalNodeIdAny, Program};
 use dyst_source::{Diagnostic, DiagnosticSeverity, LabeledSpan};
 
@@ -8,7 +8,7 @@ pub enum CompileDiagnostic {
     /// Error.
     Error(TaskError),
     /// Warning.
-    Warning(CompileWarning),
+    Warning(TaskWarning),
 }
 
 impl From<TaskError> for CompileDiagnostic {
@@ -17,8 +17,8 @@ impl From<TaskError> for CompileDiagnostic {
     }
 }
 
-impl From<CompileWarning> for CompileDiagnostic {
-    fn from(warning: CompileWarning) -> Self {
+impl From<TaskWarning> for CompileDiagnostic {
+    fn from(warning: TaskWarning) -> Self {
         Self::Warning(warning)
     }
 }

@@ -403,7 +403,6 @@ impl TaskOutcome {
 }
 
 /// Task dependency to wait for.
-/// // nocheckin: merge TaskDependencies/Yields (like in resolve)
 #[derive(Debug, Clone, PartialEq)]
 pub enum TaskDependency {
     /// Wait for a single task dependency to complete.
@@ -481,4 +480,63 @@ pub enum TaskOutput {
     Build(BuildOutput),
     /// Output of a link task.
     Link(LinkOutput),
+}
+
+/// Collector for coalescing task dependencies from multiple operations.
+/// Accumulates Yield errors and lets non-yield errors pass through for handling.
+#[derive(Debug, Default)]
+pub struct TaskResultCollector {
+    dependencies: Vec<TaskDependency>,
+}
+
+impl TaskResultCollector {
+    /// Create a new empty collector.
+    pub fn new() -> Self {
+        Self {
+            dependencies: Vec::new(),
+        }
+    }
+
+    /// Collect a result as a TaskDependency (error if not a yield).
+    pub fn try_collect<T, E>(&mut self, result: Result<T, E>) -> Option<E>
+    where
+        E: TryInto<TaskDependency, Error = E>,
+    {
+        match result {
+            Ok(_) => None,
+            Err(error) => match error.try_into() {
+                Ok(dependency) => {
+                    self.dependencies.push(dependency);
+                    None
+                }
+                Err(error) => Some(error),
+            },
+        }
+    }
+
+    /// Check if any dependencies were collected.
+    pub fn has_dependencies(&self) -> bool {
+        !self.dependencies.is_empty()
+    }
+
+    /// Finish collection and return a combined CompleteAny dependency if any were collected.
+    pub fn try_into_yield_any(self) -> Option<TaskDependency> {
+        match self.dependencies.len() {
+            0 => None,
+            1 => Some(self.dependencies.into_iter().next().unwrap()),
+            _ => Some(TaskDependency::CompleteAny {
+                dependencies: self.dependencies.into_iter().map(Box::new).collect(),
+            }),
+        }
+    }
+
+    /// Finish collection and return a combined CompleteAll dependency if any were collected.
+    pub fn try_into_yield_all(self) -> Option<TaskDependency> {
+        match self.dependencies.len() {
+            0 => None,
+            _ => Some(TaskDependency::CompleteAll {
+                dependencies: self.dependencies.into_iter().map(Box::new).collect(),
+            }),
+        }
+    }
 }

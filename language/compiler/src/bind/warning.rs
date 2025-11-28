@@ -1,6 +1,6 @@
 use dyst_dir::{GlobalNodeIdAny, Program};
 
-use crate::{CompileWarning, Phase};
+use crate::{TaskWarning, Phase};
 
 /// Warning when binding something.
 #[derive(Debug, Clone, PartialEq)]
@@ -58,8 +58,8 @@ impl std::fmt::Display for BindWarning {
     }
 }
 
-impl From<BindWarning> for CompileWarning {
+impl From<BindWarning> for TaskWarning {
     fn from(warning: BindWarning) -> Self {
-        CompileWarning::Bind(warning)
+        TaskWarning::Bind(warning)
     }
 }

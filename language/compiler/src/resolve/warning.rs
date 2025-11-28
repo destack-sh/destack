@@ -1,6 +1,6 @@
 use dyst_dir::{GlobalNodeIdAny, Program};
 
-use crate::{CompileWarning, Phase};
+use crate::{TaskWarning, Phase};
 
 /// Warning when evaluating something statically.
 #[derive(Debug, Clone, PartialEq)]
@@ -55,8 +55,8 @@ impl std::fmt::Display for ResolveWarning {
     }
 }
 
-impl From<ResolveWarning> for CompileWarning {
+impl From<ResolveWarning> for TaskWarning {
     fn from(warning: ResolveWarning) -> Self {
-        CompileWarning::Resolve(warning)
+        TaskWarning::Resolve(warning)
     }
 }
