@@ -12,6 +12,8 @@ use parking_lot::RwLock;
 
 use crate::{CompileOptions, Compiler, Task};
 
+use super::tracing::init_tracing;
+
 /// A test file system.
 #[derive(Debug, Clone)]
 pub enum TestFileSystem {
@@ -48,6 +50,7 @@ pub struct TestProgram {
 impl TestProgram {
     /// Create a new blank TestProgram.
     pub fn memory() -> Self {
+        init_tracing();
         let fs = TestFileSystem::Memory {
             fs: Arc::new(MemoryFileSystem::new()),
         };
@@ -67,6 +70,7 @@ impl TestProgram {
 
     /// Create a new TestProgram from a physical fixture.
     pub fn physical(root_directory: &str) -> Self {
+        init_tracing();
         let root_directory = PathBuf::from(root_directory);
         let fs = TestFileSystem::Physical {
             root_directory: root_directory.clone(),

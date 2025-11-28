@@ -1,7 +1,7 @@
 mod assert;
 mod resolve;
 mod tests;
+mod tracing;
 
-#[cfg(test)]
-#[allow(unused_imports)]
 pub use tests::*;
+pub use tracing::init_tracing;
