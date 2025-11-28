@@ -7,6 +7,15 @@ use super::file::append_extension;
 use crate::{ResolveContext, ResolveError, Resolver};
 
 impl Resolver {
+    /// Check if a path already ends with a known extension from our extensions list.
+    fn has_known_extension(&self, path: &Path) -> bool {
+        let path_str = path.as_os_str().to_string_lossy();
+        self.options
+            .extensions
+            .iter()
+            .any(|ext| path_str.ends_with(ext.as_str()))
+    }
+
     /// Try to resolve a path as a file with optional extension adding.
     #[tracing::instrument(name = "resolver.load.file", level = "trace", skip(self, ctx))]
     pub(crate) fn load_file(
@@ -25,8 +34,10 @@ impl Resolver {
         {
             Ok(Some(resolved))
         }
-        // try extensions (like .js, .json, .node, etc.)
-        else if let Some(resolved) = self.load_extensions(path, &self.options.extensions, ctx)? {
+        // try appending extensions (skip if path already has a known extension)
+        else if !self.has_known_extension(path)
+            && let Some(resolved) = self.load_extensions(path, &self.options.extensions, ctx)?
+        {
             Ok(Some(resolved))
         }
         // not found
