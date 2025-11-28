@@ -403,6 +403,7 @@ impl TaskOutcome {
 }
 
 /// Task dependency to wait for.
+/// // nocheckin: merge TaskDependencies/Yields (like in resolve)
 #[derive(Debug, Clone, PartialEq)]
 pub enum TaskDependency {
     /// Wait for a single task dependency to complete.

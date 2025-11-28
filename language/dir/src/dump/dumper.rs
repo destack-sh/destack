@@ -193,7 +193,7 @@ impl<'a> Dumper<'a> {
 pub struct StructDumper<'d, 'p> {
     dumper: &'d mut Dumper<'p>,
     node_id: Option<u32>,
-    parent_id: Option<u32>,
+    _parent_id: Option<u32>,
     has_fields: bool,
 }
 
@@ -209,7 +209,7 @@ impl<'d, 'p> StructDumper<'d, 'p> {
         Self {
             dumper,
             node_id,
-            parent_id,
+            _parent_id: parent_id,
             has_fields: false,
         }
     }
@@ -248,16 +248,8 @@ impl<'d, 'p> StructDumper<'d, 'p> {
             self.dumper.write_str(" }", Some(Color::White));
         }
         if let Some(node_id) = self.node_id {
-            if let Some(parent_id) = self.parent_id {
-                self.dumper.write_str(
-                    format!(" :{node_id}->{parent_id}").as_str(),
-                    Some(Color::White),
-                );
-            } else {
-                self.dumper
-                    .write_str(format!(" :{node_id}").as_str(), Some(Color::White));
-            }
-
+            self.dumper
+                .write_str(format!(" :{node_id}").as_str(), Some(Color::White));
             self.dumper.write_str("\n", Some(Color::White));
         }
         self
