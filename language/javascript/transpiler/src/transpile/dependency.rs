@@ -45,7 +45,7 @@ impl Transpiler {
                     name,
                     alias,
                     target: _,
-                    module: _,
+                    target_module: _,
                     symbol: _,
                 } => {
                     let mode = self.transpile_dependency_mode(*mode);
@@ -129,7 +129,7 @@ impl Transpiler {
                     name,
                     alias,
                     target: _,
-                    module: _,
+                    target_module: _,
                     symbol: _,
                     target_symbol: _,
                 } => {

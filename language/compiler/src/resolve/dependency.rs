@@ -15,7 +15,7 @@ impl Compiler {
         target_str.starts_with("./") || target_str.starts_with("../")
     }
 
-    /// Try to resolve an import (relative or any other target).
+    /// Try to resolve an import of some target specifier.
     /// Returns the resolved module id if successful, otherwise returns the yield.
     pub(super) fn resolve_import(
         &self,
@@ -90,7 +90,7 @@ impl Compiler {
                 kind,
                 alias,
                 target,
-                module: _,
+                target_module: _,
                 symbol,
             } => {
                 let remote_module_id = self.resolve_import(
@@ -107,16 +107,24 @@ impl Compiler {
                     DependencyMode::Item => {
                         // resolve symbol in the remote module for item mode
                         let remote_scope = remote_symbols.get_scope(item_id, tree);
-                        let key = SymbolKey::Name(
-                            name.unwrap_or_else(|| panic!("name is required for item")),
-                        );
+                        let key =
+                            name.map(SymbolKey::Name)
+                                .ok_or(ResolveError::UnsupportedNode {
+                                    node: item_id.into_global_any(module.id),
+                                })?;
                         self.resolve_absolute_symbol(
                             module,
                             item_id.into_global_any(module.id),
                             remote_scope,
                             key,
                             &remote_symbols,
-                        )?
+                        )
+                        .map_err(|_| ResolveError::MissingSymbol {
+                            node: item_id.into_global_any(module.id),
+                            scope: remote_scope.0.id.into_global(remote_module_id),
+                            via_module: Some(remote_module_id),
+                            key,
+                        })?
                     }
                     DependencyMode::Default => remote_module.default_symbol,
                     DependencyMode::Namespace => remote_module.namespace_symbol,
@@ -127,7 +135,7 @@ impl Compiler {
                     name: *name,
                     alias: *alias,
                     target: *target,
-                    module: remote_module_id,
+                    target_module: remote_module_id,
                     symbol: *symbol,
                     target_symbol: target_symbol_id.into_global(remote_module_id),
                 }
@@ -155,9 +163,8 @@ impl Compiler {
                     target_symbol: target_symbol_id,
                 }
             }
-            DependencyItem::Value { .. }
-            | DependencyItem::Local { .. }
-            | DependencyItem::Remote { .. } => {
+
+            _ => {
                 // nothing to do
                 return Ok(());
             }

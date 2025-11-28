@@ -3,10 +3,10 @@
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use dyst_dir::{Module, Program};
+use dyst_dir::{DumperOptions, Module, Program};
 use dyst_source::{
-    File, FileRegistry, FileSystem, FileType, LanguageOptions, MemoryFileSystem,
-    PhysicalFileSystem, Uri,
+    DiagnosticSeverity, File, FileRegistry, FileSystem, FileType, LanguageOptions,
+    MemoryFileSystem, PhysicalFileSystem, PrintOptions, Uri, print_diagnostics,
 };
 use parking_lot::RwLock;
 
@@ -45,6 +45,8 @@ pub struct TestProgram {
     pub program: Arc<Program>,
     /// The compiler.
     pub compiler: Arc<Compiler>,
+    /// The dumper options.
+    pub dumper_options: DumperOptions,
 }
 
 impl TestProgram {
@@ -65,6 +67,7 @@ impl TestProgram {
             fs,
             program,
             compiler,
+            dumper_options: DumperOptions::default(),
         }
     }
 
@@ -87,6 +90,7 @@ impl TestProgram {
             fs,
             program,
             compiler,
+            dumper_options: DumperOptions::default(),
         }
     }
 
@@ -124,6 +128,40 @@ impl TestProgram {
     /// Compile the program.
     pub fn compile(&self) {
         self.compiler.compile();
+    }
+
+    /// Check no diagnostics of at least the given severity.
+    ///
+    /// If any diagnostics meet the threshold, all diagnostics are printed before panicking.
+    pub fn check_no_diagnostic(&self, min_severity: DiagnosticSeverity) {
+        let diagnostics = self.program.diagnostics.collect();
+        let highest = diagnostics.highest_severity();
+        if let Some(highest) = highest
+            && highest >= min_severity
+        {
+            let options = PrintOptions::new()
+                .with_line_width(self.program.language.formatting.line_width as u32)
+                .with_module_count(self.program.modules.len());
+            print_diagnostics(&self.program.files, &diagnostics, options);
+            let severity_name = min_severity.family_name().to_ascii_lowercase();
+            panic!(
+                "program has {} unexpected {}s",
+                diagnostics.len(),
+                severity_name
+            );
+        }
+    }
+
+    /// Check no errors (convenience wrapper for check_no_diagnostic).
+    pub fn check_no_errors(&self) {
+        self.check_no_diagnostic(DiagnosticSeverity::Error);
+    }
+
+    /// Helper to compile, dump and check no diagnostics.
+    pub fn compile_dump_clean(&self) {
+        self.compile();
+        self.dump();
+        self.check_no_diagnostic(DiagnosticSeverity::Note);
     }
 
     /// Get a module by URI.

@@ -35,6 +35,7 @@ impl Compiler {
         Err(ResolveError::MissingSymbol {
             node,
             scope: scope.0.id.into_global(module.id),
+            via_module: None,
             key,
         })
     }
@@ -62,6 +63,7 @@ impl Compiler {
                 return Err(ResolveError::MissingSymbol {
                     node,
                     scope: scope.id.into_global(module.id),
+                    via_module: None,
                     key,
                 });
             }
@@ -194,7 +196,7 @@ let z = y;
 "#,
         );
         test.enqueue(ImportTask::ImportModuleFromFile { file: file.id });
-        test.compile();
+        test.compile_dump_clean();
 
         let module = test.module_for_file(&file);
         let module = module.read();
@@ -251,7 +253,7 @@ export let B = A + 1;
             "#,
         );
         test.enqueue(ImportTask::ImportModuleFromFile { file: file_b.id });
-        test.compile();
+        test.compile_dump_clean();
 
         let module_a = test.module_for_file(&file_a);
         let module_a = module_a.read();

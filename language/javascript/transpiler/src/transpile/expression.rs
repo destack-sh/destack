@@ -106,7 +106,7 @@ impl Transpiler {
             | dir::Expression::Import {
                 kind,
                 target,
-                module: _,
+                target_module: _,
                 items,
                 arguments,
             } => {
@@ -152,7 +152,7 @@ impl Transpiler {
             | dir::Expression::ReExport {
                 kind,
                 target,
-                module: _,
+                target_module: _,
                 items,
             } => {
                 let target = unit.strings.intern_from(&module.ast_strings, *target);
