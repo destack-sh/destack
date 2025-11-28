@@ -12,13 +12,9 @@ export struct Form3D {
 
 /// A Shape2D is a 2D geometric shape.
 @entity
-export struct Shape2D {
-    ...Entity2D
-}
+export struct Shape2D extends Entity2D { }
 
 /// A Shape3D is a 3D geometric shape.
 @entity
-export struct Shape3D {
-    ...Entity3D
-}
+export struct Shape3D extends Entity3D { }
 

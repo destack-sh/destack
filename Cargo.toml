@@ -19,15 +19,16 @@ members = [
 	"language/test",
 	"language/unicode",
 	"language/workspace",
-	# extension
-	"extension/cli",
-	"extension/lsp",
-	"extension/napi",
-	"extension/vscode",
+	# platform
+	"platform/cli",
+	"platform/lsp",
+	"platform/vscode",
+	# library
+	"library/napi",
 ]
 
 [workspace.package]
-version = "2025.11.25-0"
+version = "2025.11.28-0"
 edition = "2024"
 authors = ["Symbol Industries"]
 license = "proprietary"
@@ -53,11 +54,13 @@ dyst_test = { path = "language/test" }
 dyst_unicode = { path = "language/unicode" }
 dyst_workspace = { path = "language/workspace" }
 
-# extension
-destack_cli = { path = "extension/cli" }
-destack_lsp = { path = "extension/lsp" }
-destack_vscode = { path = "extension/vscode" }
-destack_napi = { path = "extension/napi" }
+# platform
+destack_cli = { path = "platform/cli" }
+destack_lsp = { path = "platform/lsp" }
+destack_vscode = { path = "platform/vscode" }
+
+# library
+destack_napi = { path = "library/napi" }
 
 # general
 cfg-if = "1.0.4"

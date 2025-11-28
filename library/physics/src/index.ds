@@ -1,5 +1,3 @@
-/// The Destack Physics Module.
-
 export * from "./body"
 export * from "./collider"
 export * from "./joint"

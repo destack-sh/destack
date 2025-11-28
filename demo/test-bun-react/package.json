@@ -1,6 +1,6 @@
 {
     "name": "@destack/test-bun-react",
-	"version": "2025.11.25.0",
+	"version": "2025.11.28.0",
     "private": true,
     "type": "module",
     "scripts": {
