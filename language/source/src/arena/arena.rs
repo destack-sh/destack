@@ -1,6 +1,6 @@
 use std::fmt::Debug;
 
-// TODO #Performance: tune Arena capacity/chunk size (usage side)
+// NOTE #Performance: tune Arena capacity/chunk size (usage side)
 
 /// The default capacity of the arena.
 const DEFAULT_CAPACITY: usize = 512;
