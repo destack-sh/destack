@@ -3,7 +3,9 @@ use dyst_compiler::{CompileOptions, Compiler, ImportTask};
 use dyst_dir::{Dumper, DumperOptions, NodeVisitor};
 use dyst_source::DiagnosticOptions;
 
-use crate::command::{DiagnosticArgs, ProgramArgs, SourceArg, get_string_or_file, print_diagnostics};
+use crate::command::{
+    DiagnosticArgs, ProgramArgs, SourceArg, get_string_or_file, print_diagnostics,
+};
 use crate::console;
 
 /// The format to dump the compiled DIR.

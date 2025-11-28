@@ -1296,7 +1296,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .field("scope", scope)
                     .end();
             }
-            Declaration::Implement {
+            Declaration::Extension {
                 descriptor,
                 generics,
                 target_type: _,

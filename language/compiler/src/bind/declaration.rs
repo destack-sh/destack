@@ -302,7 +302,7 @@ impl Compiler {
                     properties,
                 }
             }
-            ast::Declaration::Implement {
+            ast::Declaration::Extension {
                 descriptor,
                 generics,
                 target_type,
@@ -357,7 +357,7 @@ impl Compiler {
                         )
                     })
                     .collect();
-                Declaration::Implement {
+                Declaration::Extension {
                     descriptor,
                     generics,
                     target_type,

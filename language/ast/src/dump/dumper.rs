@@ -1122,7 +1122,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .field("descriptor", descriptor)
                     .end();
             }
-            Declaration::Implement {
+            Declaration::Extension {
                 descriptor,
                 generics: _,
                 target_type: _,

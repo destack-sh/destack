@@ -63,7 +63,7 @@ impl Parser {
             Keyword::Enum => Ok(TypeLiteral::Composite(DeclarationType::Enum)),
             Keyword::Union => Ok(TypeLiteral::Composite(DeclarationType::Union)),
             Keyword::Interface => Ok(TypeLiteral::Composite(DeclarationType::Interface)),
-            Keyword::Implement => Ok(TypeLiteral::Composite(DeclarationType::Extension)),
+            Keyword::Extension => Ok(TypeLiteral::Composite(DeclarationType::Extension)),
             Keyword::Function => Ok(TypeLiteral::Composite(DeclarationType::Function)),
             _ => Err(ParseError::unexpected(self.peek()?.span)),
         }

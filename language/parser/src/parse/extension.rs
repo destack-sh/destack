@@ -7,34 +7,34 @@ use dyst_ast::{
 };
 
 impl Parser {
-    /// Eat an implement (incl. `implement` keyword).
+    /// Eat an extension (incl. `extension` keyword).
     ///
     /// Examples:
     /// ```
-    /// implement Foo {
+    /// extension Foo {
     ///     ...
     /// }
     ///
-    /// implement Foo<int32> {
+    /// extension Foo<int32> {
     ///     ...
     /// }
     ///
-    /// implement Bar<int32> implements Baz {
+    /// extension Bar<int32> implements Baz {
     ///     ...
     /// }
     ///
-    /// implement<T> Bar<T> implements Baz {
+    /// extension<T> Bar<T> implements Baz {
     ///     ...
     /// }
     /// ```
-    pub fn eat_implement(
+    pub fn eat_extension(
         &mut self,
         descriptor: DeclarationDescriptor,
     ) -> ParseResult<LocalNodeId<Declaration>> {
         let start = self.mark();
 
         // keyword
-        self.eat_keyword(Keyword::Implement)?;
+        self.eat_keyword(Keyword::Extension)?;
 
         // static parameters
         let static_parameters = self.eat_static_parameters_maybe()?;
@@ -61,11 +61,11 @@ impl Parser {
         let properties = self.eat_properties()?;
         self.eat_token(TokenType::CloseBrace)?;
 
-        // implement
+        // extension
         let generics = Generics::new(static_parameters, with_clauses, where_clauses);
         let heritage = Heritage::new(None, implements_types);
-        let implement_id = self.tree.insert(
-            Declaration::Implement {
+        let extension_id = self.tree.insert(
+            Declaration::Extension {
                 descriptor,
                 generics,
                 target_type,
@@ -74,7 +74,7 @@ impl Parser {
             },
             self.get_span_from(start),
         );
-        Ok(implement_id)
+        Ok(extension_id)
     }
 }
 
@@ -88,20 +88,20 @@ mod tests {
     use crate::{TestParser, assert_expression_path, assert_node, assert_path, assert_string};
 
     #[test]
-    fn test_parse_implement_simple() {
+    fn test_parse_extension_simple() {
         let mut test = TestParser::new(
             r###"
-implement Foo {
+extension Foo {
 }
 "###,
         );
         let mut parser = test.prepare();
         parser.eat_newline().unwrap();
 
-        let implement_id = parser
-            .eat_implement(DeclarationDescriptor::default())
+        let extension_id = parser
+            .eat_extension(DeclarationDescriptor::default())
             .unwrap();
-        assert_node!(parser.tree, implement_id, Declaration::Implement { descriptor, generics, heritage, target_type, .. } => {
+        assert_node!(parser.tree, extension_id, Declaration::Extension { descriptor, generics, heritage, target_type, .. } => {
             assert_eq!(descriptor.kind, DeclarationKind::Definition);
             assert!(generics.is_empty());
             assert!(heritage.is_empty());
@@ -114,20 +114,20 @@ implement Foo {
     }
 
     #[test]
-    fn test_parse_implement_with_static_arguments() {
+    fn test_parse_extension_with_static_arguments() {
         let mut test = TestParser::new(
             r###"
-implement Foo<int32> {
+extension Foo<int32> {
 }
 "###,
         );
         let mut parser = test.prepare();
         parser.eat_newline().unwrap();
 
-        let implement_id = parser
-            .eat_implement(DeclarationDescriptor::default())
+        let extension_id = parser
+            .eat_extension(DeclarationDescriptor::default())
             .unwrap();
-        assert_node!(parser.tree, implement_id, Declaration::Implement { descriptor, generics, heritage, target_type, .. } => {
+        assert_node!(parser.tree, extension_id, Declaration::Extension { descriptor, generics, heritage, target_type, .. } => {
             assert_eq!(descriptor.kind, DeclarationKind::Definition);
             assert!(generics.is_empty());
             assert!(heritage.is_empty());
@@ -150,20 +150,20 @@ implement Foo<int32> {
     }
 
     #[test]
-    fn test_parse_implement_with_implements_type() {
+    fn test_parse_extension_with_implements_type() {
         let mut test = TestParser::new(
             r###"
-implement Bar<int32> implements Baz {
+extension Bar<int32> implements Baz {
 }
 "###,
         );
         let mut parser = test.prepare();
         parser.eat_newline().unwrap();
 
-        let implement_id = parser
-            .eat_implement(DeclarationDescriptor::default())
+        let extension_id = parser
+            .eat_extension(DeclarationDescriptor::default())
             .unwrap();
-        assert_node!(parser.tree, implement_id, Declaration::Implement { descriptor, generics, heritage, target_type, .. } => {
+        assert_node!(parser.tree, extension_id, Declaration::Extension { descriptor, generics, heritage, target_type, .. } => {
             assert_eq!(descriptor.kind, DeclarationKind::Definition);
             assert!(generics.is_empty());
             assert!(!heritage.is_empty());
@@ -195,24 +195,24 @@ implement Bar<int32> implements Baz {
     }
 
     #[test]
-    fn test_parse_implement_with_static_parameters() {
+    fn test_parse_extension_with_static_parameters() {
         let mut test = TestParser::new(
             r###"
-implement<U> Bar<T> implements Baz<T> {
+extension<U> Bar<T> implements Baz<T> {
 }
 "###,
         );
         let mut parser = test.prepare();
         parser.eat_newline().unwrap();
 
-        let implement_id = parser
-            .eat_implement(DeclarationDescriptor::default())
+        let extension_id = parser
+            .eat_extension(DeclarationDescriptor::default())
             .unwrap();
-        assert_node!(parser.tree, implement_id, Declaration::Implement { descriptor, generics, heritage, target_type, .. } => {
+        assert_node!(parser.tree, extension_id, Declaration::Extension { descriptor, generics, heritage, target_type, .. } => {
             assert_eq!(descriptor.kind, DeclarationKind::Definition);
             assert!(!generics.is_empty());
 
-            // implement<U>
+            // extension<U>
             let static_parameters = generics
                 .static_parameters
                 .as_ref()
@@ -261,20 +261,20 @@ implement<U> Bar<T> implements Baz<T> {
     }
 
     #[test]
-    fn test_parse_implement_with_with_and_where() {
+    fn test_parse_extension_with_with_and_where() {
         let mut test = TestParser::new(
             r###"
-implement Foo with Context where Guard > Limit {
+extension Foo with Context where Guard > Limit {
 }
 "###,
         );
         let mut parser = test.prepare();
         parser.eat_newline().unwrap();
 
-        let implement_id = parser
-            .eat_implement(DeclarationDescriptor::default())
+        let extension_id = parser
+            .eat_extension(DeclarationDescriptor::default())
             .unwrap();
-        assert_node!(parser.tree, implement_id, Declaration::Implement { descriptor, generics, target_type, .. } => {
+        assert_node!(parser.tree, extension_id, Declaration::Extension { descriptor, generics, target_type, .. } => {
             assert_eq!(descriptor.kind, DeclarationKind::Definition);
             assert!(!generics.is_empty());
 

@@ -3,11 +3,11 @@ use dyst_dir::{Dumper, NodeVisitor};
 use crate::TestProgram;
 
 impl TestProgram {
-	/// Dump the program.
-	pub fn dump(&self) {
-		self.dump_nodes();
-		self.dump_symbols();
-	}
+    /// Dump the program.
+    pub fn dump(&self) {
+        self.dump_nodes();
+        self.dump_symbols();
+    }
 
     /// Dump the node representation of the program.
     pub fn dump_nodes(&self) {
