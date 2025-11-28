@@ -20,7 +20,7 @@ impl Compiler {
         module: &Module,
         expression_id: LocalNodeId<Expression>,
         tree: &mut NodeTree,
-        symbols: &SymbolTable,
+        symbols: &mut SymbolTable,
     ) -> ResolveResult<()> {
         let scope = symbols.get_scope(expression_id, tree);
         let expression = tree.get(expression_id);
@@ -32,24 +32,19 @@ impl Compiler {
                 items,
                 arguments,
             } => {
-                // resolve to remote import
-                if let Some(remote_module_id) = symbols.get_resolved_import(*target) {
-                    Expression::Import {
-                        kind: *kind,
-                        target: *target,
-                        module: remote_module_id,
-                        items: items.clone(),
-                        arguments: arguments.clone(),
-                    }
-                }
-                // target not ready yet, wait for import task
-                else {
-                    return Err(self.resolve_wait_for_import(
-                        module,
-                        expression_id.into_global_any(module.id),
-                        DependencySource::ImportStatement,
-                        *target,
-                    ));
+                let remote_module_id = self.resolve_import(
+                    module,
+                    expression_id.into_global_any(module.id),
+                    DependencySource::ImportStatement,
+                    *target,
+                    symbols,
+                )?;
+                Expression::Import {
+                    kind: *kind,
+                    target: *target,
+                    module: remote_module_id,
+                    items: items.clone(),
+                    arguments: arguments.clone(),
                 }
             }
 

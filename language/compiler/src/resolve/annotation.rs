@@ -9,7 +9,7 @@ impl Compiler {
         _module: &Module,
         annotation_id: LocalNodeId<Annotation>,
         tree: &mut NodeTree,
-        _symbols: &SymbolTable,
+        _symbols: &mut SymbolTable,
     ) -> ResolveResult<()> {
         let _annotation = tree.get(annotation_id);
         // todo!("resolve_annotation({annotation:?})");

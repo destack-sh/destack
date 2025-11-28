@@ -59,7 +59,7 @@ impl Compiler {
         module: &Module,
         node: LocalNodeIdAny,
         tree: &mut NodeTree,
-        symbols: &SymbolTable,
+        symbols: &mut SymbolTable,
     ) -> ResolveResult<()> {
         match node.ty {
             NodeType::Expression => {
@@ -89,11 +89,11 @@ impl Compiler {
         let module = self.program.modules.get(module_id);
         let module = module.read();
         let mut tree = module.tree.write();
-        let symbols = module.symbols.read();
+        let mut symbols = module.symbols.write();
 
         // resolve roots
         for expression_id in tree.iter_node_ids_of_type::<Expression>() {
-            self.resolve_expression(&module, expression_id, &mut tree, &symbols)?;
+            self.resolve_expression(&module, expression_id, &mut tree, &mut symbols)?;
         }
 
         Ok(())

@@ -38,6 +38,8 @@ impl Default for TaskQueue {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
+#[allow(dead_code)]
 impl TaskQueue {
     /// Create a new compiler task queue.
     pub fn new() -> Self {
@@ -53,9 +55,8 @@ impl TaskQueue {
     /// Enqueue a task, returns the TaskId.
     /// If the task already exists, returns the existing TaskId (noop).
     pub(super) fn enqueue(&self, task: Task) -> (TaskId, bool) {
+        // find existing task
         let mut tasks = self.tasks.lock();
-
-        // linear search for existing task
         for handle in tasks.iter() {
             if handle.task == task {
                 return (handle.id, false);
@@ -143,12 +144,34 @@ impl TaskQueue {
         self.notify_workers();
     }
 
+    /// Find a task by its content.
+    pub(super) fn find_task_handle(&self, task: &Task) -> Option<TaskHandle> {
+        let tasks = self.tasks.lock();
+        for handle in tasks.iter() {
+            if &handle.task == task {
+                return Some(handle.clone());
+            }
+        }
+        None
+    }
+
     /// Find a task by its content and return its status.
     pub(super) fn find_task_status(&self, task: &Task) -> Option<TaskStatus> {
         let tasks = self.tasks.lock();
         for handle in tasks.iter() {
             if &handle.task == task {
                 return Some(handle.status.clone());
+            }
+        }
+        None
+    }
+
+    /// Find a task by its content and return its outcome.
+    pub(super) fn find_task_outcome(&self, task: &Task) -> Option<TaskOutcome> {
+        let tasks = self.tasks.lock();
+        for handle in tasks.iter() {
+            if &handle.task == task {
+                return handle.last_outcome.clone();
             }
         }
         None

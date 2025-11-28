@@ -13,7 +13,7 @@ impl Compiler {
         module: &Module,
         ty_id: LocalTypeId,
         tree: &mut NodeTree,
-        symbols: &SymbolTable,
+        symbols: &mut SymbolTable,
         types: &mut TypeTable,
     ) -> ResolveResult<()> {
         let expression_id = {
@@ -39,7 +39,7 @@ impl Compiler {
         module: &Module,
         expression_id: LocalNodeId<Expression>,
         tree: &mut NodeTree,
-        symbols: &SymbolTable,
+        symbols: &mut SymbolTable,
         types: &mut TypeTable,
     ) -> ResolveResult<LocalTypeId> {
         let ty =
@@ -54,7 +54,7 @@ impl Compiler {
         module: &Module,
         expression_id: LocalNodeId<Expression>,
         tree: &mut NodeTree,
-        symbols: &SymbolTable,
+        symbols: &mut SymbolTable,
         types: &mut TypeTable,
     ) -> ResolveResult<Type> {
         let ty = self
@@ -69,7 +69,7 @@ impl Compiler {
         module: &Module,
         expression_id: LocalNodeId<Expression>,
         tree: &mut NodeTree,
-        symbols: &SymbolTable,
+        symbols: &mut SymbolTable,
         types: &mut TypeTable,
     ) -> ResolveResult<Option<Type>> {
         let expression = tree.get(expression_id);

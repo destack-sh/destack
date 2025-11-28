@@ -9,7 +9,7 @@ impl Compiler {
         module: &Module,
         pattern_field_id: LocalNodeId<PatternField>,
         _tree: &mut NodeTree,
-        _symbols: &SymbolTable,
+        _symbols: &mut SymbolTable,
     ) -> ResolveResult<()> {
         Err(ResolveError::UnsupportedNode {
             node: pattern_field_id.into_global_any(module.id),
