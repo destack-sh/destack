@@ -21,7 +21,7 @@ pub enum ImportTask {
     ImportModuleFromSpecifier {
         target: StringId,
         ty: Option<FileType>,
-        module: ModuleId,
+        module: Option<ModuleId>,
         source: DependencySource,
     },
 }
@@ -60,9 +60,13 @@ impl TaskDebug for ImportTask {
             }
             ImportTask::ImportModuleFromSpecifier { target, module, .. } => {
                 let specifier = program.strings.get(*target).to_string();
-                let module = program.modules.get(*module);
-                let module_uri = module.read().uri.clone().to_string();
-                format!(r#"specifier="{specifier}" module="{module_uri}""#)
+                if let Some(module) = module {
+                    let module = program.modules.get(*module);
+                    let module_uri = module.read().uri.clone().to_string();
+                    format!(r#"specifier="{specifier}" module="{module_uri}""#)
+                } else {
+                    format!(r#"specifier="{specifier}""#)
+                }
             }
         }
     }
@@ -109,20 +113,20 @@ impl Compiler {
         let resolver: Resolver = Resolver::new(self.program.clone(), resolver_options);
 
         // read file
-        let file: Arc<File> = match task {
-            ImportTask::ImportModuleFromFile { file: file_id } => self.program.files.get(file_id),
+        let file: Arc<File> = match &task {
+            ImportTask::ImportModuleFromFile { file: file_id } => self.program.files.get(*file_id),
             ImportTask::ImportModuleFromPath { path, ty } => {
-                self.import_file_from_path(path, ty, &resolver)?
+                self.import_file_from_path(path.clone(), *ty, &resolver)?
             }
             ImportTask::ImportModuleFromUri { uri, ty } => {
-                self.import_file_from_uri(uri, ty, &resolver)?
+                self.import_file_from_uri(uri.clone(), *ty, &resolver)?
             }
             ImportTask::ImportModuleFromSpecifier {
                 target,
                 module: module_id,
                 ty,
                 source,
-            } => self.import_file_from_specifier(module_id, target, ty, source, &resolver)?,
+            } => self.import_file_from_specifier(*module_id, *target, *ty, *source, &resolver)?,
         };
 
         // find package
@@ -152,6 +156,30 @@ impl Compiler {
             parser.strings,
         );
         self.program.modules.insert(module);
+        tracing::trace!(?module_id, ?file.uri, "import.module.resolve");
+
+        // resolve import if needed
+        if let ImportTask::ImportModuleFromSpecifier {
+            target,
+            module: source_module_id,
+            ..
+        } = &task
+        {
+            // resolve relative import
+            if let &Some(source_module_id) = source_module_id {
+                let source_module = self.program.modules.get(source_module_id);
+                let source_module = source_module.read();
+                let mut symbols = source_module.symbols.write();
+                symbols.resolve_import(Some(source_module_id), *target, module_id);
+            }
+            // resolve global import
+            else {
+                let global_module = self.program.modules.get(self.program.root_module_id);
+                let global_module = global_module.read();
+                let mut symbols = global_module.symbols.write();
+                symbols.resolve_import(None, *target, module_id);
+            }
+        }
 
         // next task: bind module
         self.enqueue(BindTask::BindModule { module: module_id });
@@ -217,30 +245,36 @@ impl Compiler {
     /// Import a file from a specifier.
     pub(super) fn import_file_from_specifier(
         &self,
-        module_id: ModuleId,
+        module_id: Option<ModuleId>,
         target: StringId,
         ty: Option<FileType>,
         _source: DependencySource,
         resolver: &Resolver,
     ) -> ImportResult<Arc<File>> {
         // prepare context
-        let module = self.program.modules.get(module_id);
-        let module_file = self.program.files.get(module.read().file_id);
-        let module_directory = module_file
-            .uri
-            .to_path_buf()
-            .and_then(|path| path.parent().map(|p| p.to_path_buf()))
-            .unwrap_or_else(|| self.program.cwd.clone());
-        let specifier = self.program.strings.get(target).to_string();
+        let directory = {
+            if let Some(module_id) = module_id {
+                let module = self.program.modules.get(module_id);
+                let module_file = self.program.files.get(module.read().file_id);
+                module_file
+                    .uri
+                    .to_path_buf()
+                    .and_then(|path| path.parent().map(|p| p.to_path_buf()))
+                    .unwrap_or_else(|| self.program.cwd.clone())
+            } else {
+                self.program.cwd.clone()
+            }
+        };
 
         // resolve
-        let resolution = resolver
-            .resolve(&module_directory, &specifier)
-            .map_err(|error| ImportError::ModuleNotFound {
+        let specifier = self.program.strings.get(target).to_string();
+        let resolution = resolver.resolve(&directory, &specifier).map_err(|error| {
+            ImportError::ModuleNotFound {
                 node: self.program.root_node_id,
                 target,
                 error: Some(error),
-            })?;
+            }
+        })?;
 
         // import file
         self.import_file_from_path(resolution.path.clone(), ty, resolver)

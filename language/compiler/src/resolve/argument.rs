@@ -9,7 +9,7 @@ impl Compiler {
         module: &Module,
         argument_id: LocalNodeId<Argument>,
         tree: &mut NodeTree,
-        _symbols: &SymbolTable,
+        _symbols: &mut SymbolTable,
     ) -> ResolveResult<()> {
         let _argument = tree.get(argument_id);
         Err(ResolveError::UnsupportedNode {

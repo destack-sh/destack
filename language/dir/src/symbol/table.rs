@@ -24,7 +24,7 @@ pub struct SymbolTable {
     pub(crate) scopes: Arena<Scope>,
 
     /// The resolved modules by target.
-    pub(crate) imported_module_by_target: IndexMap<StringId, ModuleId>,
+    pub(crate) imported_module_by_target: IndexMap<(Option<ModuleId>, StringId), ModuleId>,
     /// The exported symbol by key.
     pub(crate) exported_symbol_by_key: IndexMap<(SymbolSpace, SymbolKey), LocalSymbolId>,
 }
@@ -158,16 +158,28 @@ impl SymbolTable {
         self.scopes.get_mut(scope_id.0)
     }
 
-    /// Set a resolved import for a target.
+    /// Set a resolved import for a target (relative to a module if relative).
     #[inline]
-    pub fn resolve_import(&mut self, target: StringId, module_id: ModuleId) {
-        self.imported_module_by_target.insert(target, module_id);
+    pub fn resolve_import(
+        &mut self,
+        module: Option<ModuleId>,
+        target: StringId,
+        target_module: ModuleId,
+    ) {
+        self.imported_module_by_target
+            .insert((module, target), target_module);
     }
 
-    /// Get a resolved import for a target.
+    /// Get a resolved import for a target (relative to a module if relative).
     #[inline]
-    pub fn get_resolved_import(&self, target: StringId) -> Option<ModuleId> {
-        self.imported_module_by_target.get(&target).cloned()
+    pub fn get_resolved_import(
+        &self,
+        module: Option<ModuleId>,
+        target: StringId,
+    ) -> Option<ModuleId> {
+        self.imported_module_by_target
+            .get(&(module, target))
+            .cloned()
     }
 
     /// Set an exported symbol for a key.

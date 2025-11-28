@@ -3,7 +3,8 @@ use std::thread;
 use crate::{
     AnalyzeError, BindError, BuildError, Compiler, ElaborateError, ExecuteError, ImportError,
     InternalError, LinkError, LowerError, OptimizeError, Phase, ResolveError, Task, TaskDebug,
-    TaskDependency, TaskError, TaskHandle, TaskId, TaskOutcome, TaskStatus, ValidateError,
+    TaskDependency, TaskError, TaskHandle, TaskId, TaskOutcome, TaskOutput, TaskStatus,
+    ValidateError,
 };
 
 /// Maximum number of yields allowed per task before treating it as an (internal) bug.
@@ -58,6 +59,29 @@ impl Compiler {
         (task_id, is_new)
     }
 
+    /// Get the status of a task.
+    pub fn get_status<T: Into<Task>>(&self, task: T) -> Option<TaskStatus> {
+        let task: Task = task.into();
+        self.queue.find_task_status(&task)
+    }
+
+    /// Get the outcome of a task.
+    pub fn get_outcome<T: Into<Task>>(&self, task: T) -> Option<TaskOutcome> {
+        let task: Task = task.into();
+        self.queue.find_task_outcome(&task)
+    }
+
+    /// Get the output of a task
+    pub fn get_output<T: Into<Task>>(&self, task: T) -> Option<TaskOutput> {
+        let task: Task = task.into();
+        self.queue
+            .find_task_outcome(&task)
+            .and_then(|outcome| match outcome {
+                TaskOutcome::Complete { output } => Some(output),
+                _ => None,
+            })
+    }
+
     /// Process a compiler task and return the outcome.
     fn process_task(&self, handle: &TaskHandle) -> TaskOutcome {
         // trace
@@ -97,8 +121,12 @@ impl Compiler {
             TaskOutcome::Complete { output } => {
                 let event = format!("{}.{}.complete", handle.phase().name(), handle.task.name());
                 tracing::debug!(%event, %args, ?task_id);
-                self.queue
-                    .set_status(task_id, TaskStatus::Complete { output: output.clone() });
+                self.queue.set_status(
+                    task_id,
+                    TaskStatus::Complete {
+                        output: output.clone(),
+                    },
+                );
                 self.wake_waiters(task_id);
             }
             // error and fail waiters
@@ -143,7 +171,7 @@ impl Compiler {
                 self.register_dependency(task_id, dependency);
             }
         }
-        // remember outcome 
+        // remember outcome
         self.queue.set_last_outcome(task_id, outcome);
     }
 
@@ -182,6 +210,7 @@ impl Compiler {
     /// Register dependencies for a yielded task.
     fn register_dependency(&self, waiter_id: TaskId, dependency: &TaskDependency) {
         match dependency {
+            // register for a single dependency
             TaskDependency::Complete { task, .. } => {
                 // enqueue the dependency task (might already exist)
                 let (dependency_id, _) = self.enqueue(task.clone());
@@ -207,14 +236,14 @@ impl Compiler {
                 // register as waiter
                 self.queue.add_waiter(dependency_id, waiter_id);
             }
+            // register for all dependencies
             TaskDependency::CompleteAll { dependencies } => {
-                // register for all dependencies
                 for dependency in dependencies {
                     self.register_dependency(waiter_id, dependency);
                 }
             }
+            // register for all dependencies (first to complete will wake)
             TaskDependency::CompleteAny { dependencies } => {
-                // register for all dependencies (first to complete will wake)
                 for dependency in dependencies {
                     self.register_dependency(waiter_id, dependency);
                 }
@@ -226,7 +255,6 @@ impl Compiler {
     fn is_dependency_satisfied(&self, dependency: &TaskDependency) -> bool {
         match dependency {
             TaskDependency::Complete { task, .. } => {
-                // find the task and check if complete
                 matches!(
                     self.queue.find_task_status(task),
                     Some(TaskStatus::Complete { .. })
