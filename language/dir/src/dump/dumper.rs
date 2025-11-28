@@ -817,14 +817,14 @@ impl<'a> NodeVisitor for Dumper<'a> {
             Expression::Import {
                 kind,
                 target,
-                module,
+                target_module,
                 items: _,
                 arguments: _,
             } => {
                 self.node("Expression::Import", id.id)
                     .field("kind", kind)
                     .field("target", target)
-                    .field("module", module)
+                    .field("target_module", target_module)
                     .end();
             }
             Expression::UnresolvedReExport {
@@ -839,14 +839,14 @@ impl<'a> NodeVisitor for Dumper<'a> {
             }
             Expression::ReExport {
                 target,
-                module,
+                target_module,
                 kind,
                 items: _,
             } => {
                 self.node("Expression::ReExport", id.id)
                     .field("kind", kind)
                     .field("target", target)
-                    .field("module", module)
+                    .field("target_module", target_module)
                     .end();
             }
             Expression::Export { kind, items: _ } => {
@@ -1430,7 +1430,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 name,
                 alias,
                 target,
-                module,
+                target_module: module,
                 symbol,
             } => {
                 self.node("DependencyItem::UnresolvedRemote", id.id)
@@ -1485,7 +1485,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 name,
                 alias,
                 target,
-                module,
+                target_module,
                 symbol,
                 target_symbol,
             } => {
@@ -1495,7 +1495,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .field("name", name)
                     .field_optional("alias", alias)
                     .field("target", target)
-                    .field("module", module)
+                    .field("target_module", target_module)
                     .field("symbol", symbol)
                     .field("target_symbol", target_symbol)
                     .end();

@@ -85,7 +85,7 @@ impl Compiler {
                 name,
                 alias,
                 target,
-                module: None,
+                target_module: None,
                 symbol: symbol_id,
             };
             tree.insert(item_id, item)

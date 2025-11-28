@@ -1,5 +1,7 @@
 use crate::{Phase, TaskDependency, TaskError};
-use dyst_dir::{GlobalNodeIdAny, GlobalScopeId, GlobalSymbolId, Program, StringId, SymbolKey};
+use dyst_dir::{
+    GlobalNodeIdAny, GlobalScopeId, GlobalSymbolId, ModuleId, Program, StringId, SymbolKey,
+};
 
 /// Error when evaluating something statically.
 #[derive(Debug, Clone, PartialEq)]
@@ -26,6 +28,7 @@ pub enum ResolveError {
     MissingSymbol {
         node: GlobalNodeIdAny,
         scope: GlobalScopeId,
+        via_module: Option<ModuleId>,
         key: SymbolKey,
     },
     /// Use of ambiguous symbol.
@@ -94,11 +97,18 @@ impl ResolveError {
             Self::CircularDependency { .. } => "circular dependency".to_string(),
             Self::UndeclaredSymbol { key, .. } => {
                 let key = key.debug_string(program);
-                format!("undeclared symbol {key}")
-            }
-            Self::MissingSymbol { key, .. } => {
-                let key = key.debug_string(program);
                 format!("missing symbol {key}")
+            }
+            Self::MissingSymbol {
+                key, via_module, ..
+            } => {
+                let key = key.debug_string(program);
+                if let &Some(via_module) = via_module {
+                    let via_module = program.modules.get(via_module).read().uri.to_string();
+                    format!("missing symbol {key} in '{via_module}'")
+                } else {
+                    format!("missing symbol {key}")
+                }
             }
             Self::AmbiguousSymbol { key, .. } => {
                 let key = key.debug_string(program);

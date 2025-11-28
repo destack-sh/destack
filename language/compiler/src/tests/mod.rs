@@ -1,4 +1,5 @@
 mod assert;
+mod dumper;
 mod resolve;
 mod tests;
 mod tracing;

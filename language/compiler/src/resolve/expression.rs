@@ -42,7 +42,7 @@ impl Compiler {
                 Expression::Import {
                     kind: *kind,
                     target: *target,
-                    module: remote_module_id,
+                    target_module: remote_module_id,
                     items: items.clone(),
                     arguments: arguments.clone(),
                 }

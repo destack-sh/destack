@@ -48,7 +48,7 @@ pub enum DependencyItem {
         name: Option<StringId>,
         alias: Option<StringId>,
         target: StringId,
-        module: Option<ModuleId>, // item may remain unresolved even if we can resolve the target module
+        target_module: Option<ModuleId>, // item may remain unresolved even if we can resolve the target module
         symbol: LocalSymbolId,
     },
     /// Unresolved local item from the module.
@@ -77,7 +77,7 @@ pub enum DependencyItem {
         name: Option<StringId>,
         alias: Option<StringId>,
         target: StringId,
-        module: ModuleId,
+        target_module: ModuleId,
         symbol: LocalSymbolId,
         target_symbol: GlobalSymbolId,
     },

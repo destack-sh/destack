@@ -196,7 +196,7 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
         Expression::Import {
             kind: _,
             target: _,
-            module: _,
+            target_module: _,
             items,
             arguments,
         } => {
@@ -223,7 +223,7 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
         }
         Expression::ReExport {
             target: _,
-            module: _,
+            target_module: _,
             kind: _,
             items,
         } => {
@@ -913,7 +913,7 @@ pub fn walk_dependency_item<V: NodeVisitor + ?Sized>(
             name: _,
             alias: _,
             target: _,
-            module: _,
+            target_module: _,
             symbol: _,
         } => {
             // nothing to do
@@ -947,7 +947,7 @@ pub fn walk_dependency_item<V: NodeVisitor + ?Sized>(
             name: _,
             alias: _,
             target: _,
-            module: _,
+            target_module: _,
             symbol: _,
             target_symbol: _,
         } => {
