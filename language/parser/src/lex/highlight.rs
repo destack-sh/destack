@@ -89,4 +89,3 @@ mod tests {
         assert!(colorized.contains("42"));
     }
 }
-
