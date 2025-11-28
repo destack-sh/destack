@@ -15,7 +15,7 @@ impl Parser {
     ///     ...
     /// }
     ///
-    /// extension Foo<int32> {
+    /// extension MyExt: Foo<int32> {
     ///     ...
     /// }
     ///
@@ -23,13 +23,13 @@ impl Parser {
     ///     ...
     /// }
     ///
-    /// extension<T> Bar<T> implements Baz {
+    /// extension<T> MyExt: Bar<T> implements Baz {
     ///     ...
     /// }
     /// ```
     pub fn eat_extension(
         &mut self,
-        descriptor: DeclarationDescriptor,
+        mut descriptor: DeclarationDescriptor,
     ) -> ParseResult<LocalNodeId<Declaration>> {
         let start = self.mark();
 
@@ -38,6 +38,17 @@ impl Parser {
 
         // static parameters
         let static_parameters = self.eat_static_parameters_maybe()?;
+
+        // name
+        descriptor.name =
+            if self.peek_name().is_ok() && self.peek_next_token(TokenType::Colon).is_ok() {
+                let name = self.eat_name()?;
+                self.bump(); // eat colon
+                self.eat_newlines_maybe()?;
+                Some(name)
+            } else {
+                None
+            };
 
         // target type
         let target_type = self.with_options(
@@ -114,10 +125,10 @@ extension Foo {
     }
 
     #[test]
-    fn test_parse_extension_with_static_arguments() {
+    fn test_parse_extension_with_static_arguments_and_alias() {
         let mut test = TestParser::new(
             r###"
-extension Foo<int32> {
+extension MyExt: Foo<int32> {
 }
 "###,
         );
@@ -129,6 +140,7 @@ extension Foo<int32> {
             .unwrap();
         assert_node!(parser.tree, extension_id, Declaration::Extension { descriptor, generics, heritage, target_type, .. } => {
             assert_eq!(descriptor.kind, DeclarationKind::Definition);
+            assert_string!(parser, descriptor.name.unwrap().string(), "MyExt");
             assert!(generics.is_empty());
             assert!(heritage.is_empty());
 
@@ -261,7 +273,7 @@ extension<U> Bar<T> implements Baz<T> {
     }
 
     #[test]
-    fn test_parse_extension_with_with_and_where() {
+    fn test_parse_extension_with_path_name_and_with_and_where() {
         let mut test = TestParser::new(
             r###"
 extension Foo with Context where Guard > Limit {
