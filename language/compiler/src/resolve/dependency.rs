@@ -1,7 +1,7 @@
 use dyst_ast::StringId;
 use dyst_dir::{
-    DependencyItem, DependencyMode, DependencySource, GlobalNodeIdAny, LocalNodeId, Module,
-    ModuleId, NodeTree, SymbolKey, SymbolTable,
+    DependencyItem, DependencyMode, DependencySource, GlobalNodeIdAny, LocalNodeId, LocalScopeMark,
+    Module, ModuleId, NodeTree, SymbolKey, SymbolTable,
 };
 
 use crate::{
@@ -81,7 +81,6 @@ impl Compiler {
         symbols: &mut SymbolTable,
     ) -> ResolveResult<()> {
         let item = tree.get(item_id);
-        let scope = symbols.get_scope(item_id, tree);
         let resolved_item: DependencyItem = match item {
             DependencyItem::UnresolvedRemote {
                 source,
@@ -106,7 +105,8 @@ impl Compiler {
                 let target_symbol_id = match mode {
                     DependencyMode::Item => {
                         // resolve symbol in the remote module for item mode
-                        let remote_scope = remote_symbols.get_scope(item_id, tree);
+                        let remote_scope =
+                            remote_symbols.get_scope_by_id(remote_module.namespace_scope);
                         let key =
                             name.map(SymbolKey::Name)
                                 .ok_or(ResolveError::UnsupportedNode {
@@ -115,13 +115,13 @@ impl Compiler {
                         self.resolve_absolute_symbol(
                             module,
                             item_id.into_global_any(module.id),
-                            remote_scope,
+                            (remote_scope, LocalScopeMark::end()),
                             key,
                             &remote_symbols,
                         )
                         .map_err(|_| ResolveError::MissingSymbol {
                             node: item_id.into_global_any(module.id),
-                            scope: remote_scope.0.id.into_global(remote_module_id),
+                            scope: remote_module.namespace_scope.into_global(remote_module_id),
                             via_module: Some(remote_module_id),
                             key,
                         })?
@@ -147,6 +147,7 @@ impl Compiler {
                 alias,
                 symbol,
             } => {
+                let scope = symbols.get_scope(item_id, tree);
                 let target_symbol_id = self.resolve_absolute_symbol(
                     module,
                     item_id.into_global_any(module.id),
@@ -160,7 +161,7 @@ impl Compiler {
                     name: *name,
                     alias: *alias,
                     symbol: *symbol,
-                    target_symbol: target_symbol_id,
+                    target_symbol: target_symbol_id.into_global(module.id),
                 }
             }
 
@@ -169,6 +170,15 @@ impl Compiler {
                 return Ok(());
             }
         };
+
+        // update the target symbol of our symbol
+        if let Some(symbol_id) = resolved_item.symbol()
+            && let Some(target_symbol) = resolved_item.target_symbol()
+        {
+            symbols
+                .get_symbol_mut(symbol_id)
+                .resolve_to(target_symbol);
+        }
 
         *tree.get_mut(item_id) = resolved_item;
         Ok(())

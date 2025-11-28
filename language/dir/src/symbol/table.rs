@@ -77,6 +77,7 @@ impl SymbolTable {
             primary_declaration: None,
             secondary_declarations: None,
             target_symbol: None,
+            final_symbol: None,
         };
         self.symbols.allocate(symbol);
         let mark = self.scopes.get_mut(scope.0.0).append(key, symbol_id);

@@ -68,7 +68,7 @@ pub enum DependencyItem {
         name: StringId,
         alias: Option<StringId>,
         symbol: LocalSymbolId,
-        target_symbol: LocalSymbolId,
+        target_symbol: GlobalSymbolId,
     },
     /// Remote to the module (i.e., imports and re-exports).
     Remote {
@@ -105,6 +105,17 @@ impl DependencyItem {
             DependencyItem::Value { .. } => None,
             DependencyItem::Local { symbol, .. } => Some(*symbol),
             DependencyItem::Remote { symbol, .. } => Some(*symbol),
+        }
+    }
+
+    /// Get the target symbol of the dependency item.
+    pub fn target_symbol(&self) -> Option<GlobalSymbolId> {
+        match self {
+            DependencyItem::UnresolvedRemote { .. } => None,
+            DependencyItem::UnresolvedLocal { .. } => None,
+            DependencyItem::Value { .. } => None,
+            DependencyItem::Local { target_symbol, .. } => Some(*target_symbol),
+            DependencyItem::Remote { target_symbol, .. } => Some(*target_symbol),
         }
     }
 }

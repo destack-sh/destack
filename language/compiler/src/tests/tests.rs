@@ -4,7 +4,7 @@ use std::env::current_dir;
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use dyst_dir::{DumperOptions, Module, Program};
+use dyst_dir::{DumperOptions, GlobalSymbolId, Module, Program, Symbol};
 use dyst_source::{
     DiagnosticSeverity, File, FileRegistry, FileSystem, FileType, LanguageOptions,
     MemoryFileSystem, PhysicalFileSystem, PrintOptions, Uri, print_diagnostics,
@@ -209,5 +209,13 @@ impl TestProgram {
             .modules
             .get_by_uri(&file.uri)
             .unwrap_or_else(|| panic!("module not found for file: '{}'", file.uri))
+    }
+
+    /// Get a symbol by id.
+    pub fn symbol_by_id(&self, symbol_id: GlobalSymbolId) -> Symbol {
+        let module = self.program.modules.get(symbol_id.module_id);
+        let module = module.read();
+        let symbols = module.symbols.read();
+        symbols.get_symbol(symbol_id.into_local()).clone()
     }
 }
