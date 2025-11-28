@@ -200,7 +200,7 @@ impl<'ast> Format<DystFormatContext<'ast>> for DeclarationType {
             DeclarationType::Enum => write!(f, [Keyword::Enum]),
             DeclarationType::Union => write!(f, [Keyword::Union]),
             DeclarationType::Interface => write!(f, [Keyword::Interface]),
-            DeclarationType::Extension => write!(f, [Keyword::Implement]),
+            DeclarationType::Extension => write!(f, [Keyword::Extension]),
             DeclarationType::Function => write!(f, [Keyword::Function]),
         }
     }

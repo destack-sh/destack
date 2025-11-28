@@ -1,4 +1,4 @@
-use crate::{Compiler, ExecuteResult, Task, TaskOutput, TaskDebug};
+use crate::{Compiler, ExecuteResult, Task, TaskDebug, TaskOutput};
 
 use dyst_dir::{LocalNodeIdAny, Program};
 

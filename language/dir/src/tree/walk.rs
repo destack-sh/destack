@@ -763,7 +763,7 @@ pub fn walk_declaration<V: NodeVisitor + ?Sized>(
                 visitor.visit_expression(tree, *body, body_expression);
             }
         }
-        Declaration::Implement {
+        Declaration::Extension {
             descriptor: _,
             generics,
             target_type,

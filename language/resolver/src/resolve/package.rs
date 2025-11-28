@@ -169,7 +169,11 @@ impl Resolver {
     }
 
     /// Resolve a `#`-prefixed import specifier against package.json imports field.
-    #[tracing::instrument(name = "resolver.load.package.imports", level = "trace", skip(self, ctx))]
+    #[tracing::instrument(
+        name = "resolver.load.package.imports",
+        level = "trace",
+        skip(self, ctx)
+    )]
     pub(crate) fn load_package_imports(
         &self,
         path: &Path,
@@ -202,7 +206,13 @@ impl Resolver {
         subpath: &str,
         ctx: &mut ResolveContext,
     ) -> Result<Option<PathBuf>, ResolveError> {
-        tracing::trace!(?path, ?specifier, ?package_name, ?subpath, "resolver.load.modules");
+        tracing::trace!(
+            ?path,
+            ?specifier,
+            ?package_name,
+            ?subpath,
+            "resolver.load.modules"
+        );
         // check each module directory (node_modules)
         for module_name in &self.options.modules {
             // walk up parent directories
@@ -306,7 +316,11 @@ impl Resolver {
     }
 
     /// Try to resolve a specifier via package.json exports field.
-    #[tracing::instrument(name = "resolver.load.package.exports", level = "trace", skip(self, ctx))]
+    #[tracing::instrument(
+        name = "resolver.load.package.exports",
+        level = "trace",
+        skip(self, ctx)
+    )]
     pub(crate) fn load_package_exports(
         &self,
         specifier: &str,

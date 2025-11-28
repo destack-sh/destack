@@ -18,7 +18,7 @@ pub static DECLARATION_KEYWORDS: [Keyword; 21] = [
     Keyword::Enum,
     Keyword::Union,
     Keyword::Function,
-    Keyword::Implement,
+    Keyword::Extension,
     Keyword::Interface,
     Keyword::Type,
     Keyword::Newtype,
@@ -676,13 +676,13 @@ impl Parser {
                     self.get_span_from(start),
                 )
             }
-            // implement
-            else if keyword == Some(Keyword::Implement)
+            // extension
+            else if keyword == Some(Keyword::Extension)
                 && DECLARATION_START_TOKENS.contains(&next_token_type)
             {
-                let implement_id = self.eat_implement(descriptor)?;
+                let extension_id = self.eat_extension(descriptor)?;
                 self.tree.insert(
-                    Expression::Declaration(implement_id),
+                    Expression::Declaration(extension_id),
                     self.get_span_from(start),
                 )
             }

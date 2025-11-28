@@ -413,8 +413,8 @@ impl<'ast> FormatNode<'ast, Declaration> for Declaration {
                 write!(f, [hard_line_break(), token("}")])?;
             }
 
-            // implement
-            Declaration::Implement {
+            // extension
+            Declaration::Extension {
                 descriptor,
                 generics,
                 target_type,
@@ -432,7 +432,7 @@ impl<'ast> FormatNode<'ast, Declaration> for Declaration {
                 }
 
                 // keyword
-                write!(f, [Keyword::Implement])?;
+                write!(f, [Keyword::Extension])?;
 
                 // static arguments
                 if let Some(static_arguments) = generics.static_parameters.as_ref()

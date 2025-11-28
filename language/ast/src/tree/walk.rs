@@ -758,7 +758,7 @@ pub fn walk_declaration<V: NodeVisitor + ?Sized>(
                 visitor.visit_property(tree, *property_id, property);
             }
         }
-        Declaration::Implement {
+        Declaration::Extension {
             descriptor,
             generics,
             target_type,

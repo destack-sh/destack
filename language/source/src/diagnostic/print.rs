@@ -106,4 +106,3 @@ pub fn print_diagnostics(
         }
     }
 }
-

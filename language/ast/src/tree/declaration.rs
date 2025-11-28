@@ -266,29 +266,29 @@ pub enum Declaration {
         properties: Vec<LocalNodeId<Property>>,
     },
 
-    /// An Implement defines the implementation of a concrete type, optionally for some specific super types.
-    /// There may be multiple Implements for the same type, and even implements for different modules.
-    /// (To add a module's implementation to your own just use the corresponding module.)
+    /// An Extension defines the implementation of a concrete type, optionally for some specific super types.
+    /// There may be multiple Extensions for the same type, and even extensions for different modules.
+    /// (To add a module's extension to your own just use the corresponding module.)
     ///
     /// Examples:
     /// ```
-    /// implement Foo {
+    /// extension Foo {
     ///     ...
     /// }
     ///
-    /// implement Foo<int32> {
+    /// extension Foo<int32> {
     ///     ...
     /// }
     ///
-    /// implement Bar<int32> extends Baz {
+    /// extension Bar<int32> extends Baz {
     ///     ...
     /// }
     ///
-    /// implement<T> Bar<T> extends Baz {
+    /// extension<T> Bar<T> extends Baz {
     ///     ...
     /// }
     /// ```
-    Implement {
+    Extension {
         descriptor: DeclarationDescriptor,
         generics: Generics,
         target_type: LocalNodeId<Expression>,
@@ -371,7 +371,7 @@ impl Declaration {
             Declaration::Struct { descriptor, .. } => descriptor,
             Declaration::Enum { descriptor, .. } => descriptor,
             Declaration::Interface { descriptor, .. } => descriptor,
-            Declaration::Implement { descriptor, .. } => descriptor,
+            Declaration::Extension { descriptor, .. } => descriptor,
             Declaration::Function { descriptor, .. } => descriptor,
         }
     }

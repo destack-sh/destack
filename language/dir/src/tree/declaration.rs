@@ -70,8 +70,8 @@ pub enum Declaration {
         scope: LocalScopeId,
         body: Option<LocalNodeId<Expression>>,
     },
-    /// Implement declaration.
-    Implement {
+    /// Extension declaration.
+    Extension {
         descriptor: DeclarationDescriptor,
         generics: Generics,
         target_type: LocalNodeId<Expression>,
@@ -99,7 +99,7 @@ impl Declaration {
             Declaration::Enum { .. } => "enum",
             Declaration::Interface { .. } => "interface",
             Declaration::Function { .. } => "function",
-            Declaration::Implement { .. } => "implement",
+            Declaration::Extension { .. } => "extension",
         }
     }
 
@@ -111,7 +111,7 @@ impl Declaration {
             Declaration::Enum { descriptor, .. } => descriptor,
             Declaration::Interface { descriptor, .. } => descriptor,
             Declaration::Function { descriptor, .. } => descriptor,
-            Declaration::Implement { descriptor, .. } => descriptor,
+            Declaration::Extension { descriptor, .. } => descriptor,
         }
     }
 
@@ -128,7 +128,7 @@ impl Declaration {
             Declaration::Enum { scope, .. } => *scope,
             Declaration::Interface { scope, .. } => *scope,
             Declaration::Function { scope, .. } => *scope,
-            Declaration::Implement { scope, .. } => *scope,
+            Declaration::Extension { scope, .. } => *scope,
         }
     }
 }
