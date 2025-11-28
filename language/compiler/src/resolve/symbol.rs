@@ -180,6 +180,7 @@ impl Compiler {
 #[cfg(test)]
 mod tests {
     use dyst_dir::{Expression, Pattern, ScalarLiteral};
+    use dyst_source::Uri;
 
     use crate::{ImportTask, TestProgram, assert_node};
 
@@ -284,5 +285,63 @@ export let B = A + 1;
                 assert_node!(tree_b, *right, Expression::ScalarLiteral { value: ScalarLiteral::Integer(1) });
             })
         });
+    }
+
+    /// Stress test: resolve symbols across N modules with overlapping imports.
+    /// Module i imports from all modules 1..i, creating many concurrent imports to the same files.
+    #[test]
+    fn test_resolve_symbol_across_n_modules() {
+        const N: usize = 20;
+        let test = TestProgram::memory_parallel();
+
+        // create module 1: export let M1 = 1;
+        test.file(
+            "m1.ds",
+            r#"
+export let M1 = 1;
+"#,
+        );
+
+        // create modules 2..N, each importing from all previous modules
+        for i in 2..=N {
+            let mut imports = String::new();
+            let mut sum_parts_str = Vec::new();
+
+            // build imports string
+            for j in 1..i {
+                imports.push_str(&format!("import {{ M{j} }} from \"./m{j}.ds\";\n"));
+                sum_parts_str.push(format!("M{j}"));
+            }
+
+            // build sum expression string
+            let sum_expression_str = if sum_parts_str.is_empty() {
+                "0".to_string()
+            } else {
+                sum_parts_str.join(" + ")
+            };
+
+            // build module content
+            let content = format!(
+                r#"
+{imports}
+export let M{i} = {sum_expression_str} + 1;
+"#
+            );
+            test.file(&format!("m{i}.ds"), &content);
+        }
+
+        // enqueue the last module (will trigger imports of all others)
+        let last_module_uri = format!("m{N}.ds");
+        let last_file = test
+            .program
+            .files
+            .get_by_uri(&Uri::from_string(&last_module_uri))
+            .expect("last module file not found");
+        test.enqueue(ImportTask::ImportModuleFromFile { file: last_file.id });
+        test.compile_dump_clean();
+
+        // verify all N modules were created (no duplicates from race conditions)
+        let module_count = test.program.modules.len();
+        assert_eq!(module_count, N + 1,); // (+1 for the implicit root module)
     }
 }
