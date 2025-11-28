@@ -55,7 +55,9 @@ impl TaskDebug for ImportTask {
                 format!(r#"file="{uri}""#)
             }
             ImportTask::ImportModuleFromUri { uri, .. } => format!(r#"uri="{uri}""#),
-            ImportTask::ImportModuleFromPath { path, .. } => format!(r#"path="{}""#, path.display()),
+            ImportTask::ImportModuleFromPath { path, .. } => {
+                format!(r#"path="{}""#, path.display())
+            }
             ImportTask::ImportModuleFromSpecifier { target, module, .. } => {
                 let specifier = program.strings.get(*target).to_string();
                 let module = program.modules.get(*module);
@@ -92,6 +94,17 @@ impl Compiler {
             .import
             .resolve
             .clone()
+            .with_extensions(vec![
+                ".ds".into(),
+                ".tsx".into(),
+                ".ts".into(),
+                ".jsx".into(),
+                ".js".into(),
+                ".mjs".into(),
+                ".cjs".into(),
+                ".json".into(),
+                ".node".into(),
+            ])
             .with_conditions(vec!["types".to_string(), "import".to_string()]);
         let resolver: Resolver = Resolver::new(self.program.clone(), resolver_options);
 
@@ -216,6 +229,7 @@ impl Compiler {
         let module_directory = module_file
             .uri
             .to_path_buf()
+            .and_then(|path| path.parent().map(|p| p.to_path_buf()))
             .unwrap_or_else(|| self.program.cwd.clone());
         let specifier = self.program.strings.get(target).to_string();
 

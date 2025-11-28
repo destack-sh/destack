@@ -176,7 +176,7 @@ fn test_resolve_prefer_relative() {
 fn test_resolve_directory() {
     let f = fixture();
     let resolver = Resolver::blank(ResolveOptions {
-        resolve_to_directory: true,
+        resolve_to_context: true,
         ..ResolveOptions::default()
     });
 
@@ -880,7 +880,7 @@ fn test_resolve_fully_specified_paths() {
                 ("alias2".into(), vec![AliasValue::from("/a")]),
             ],
             skip_extension: true,
-            resolve_to_directory: true,
+            resolve_to_context: true,
             ..ResolveOptions::default()
         },
     );

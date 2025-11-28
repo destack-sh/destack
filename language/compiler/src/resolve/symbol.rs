@@ -246,7 +246,7 @@ export let A = 1;
         let file_b = test.file(
             "b.ds",
             r#"
-import { A } from "a.ds";
+import { A } from "./a.ds";
 export let B = A + 1;
             "#,
         );
