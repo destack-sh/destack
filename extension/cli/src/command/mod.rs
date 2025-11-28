@@ -9,7 +9,7 @@ pub mod tracing;
 pub mod transpile;
 pub mod version;
 
-pub(crate) use diagnostic::{DiagnosticOptionsArgs, print_diagnostics};
-pub(crate) use program::{ProgramArgs, WorkerOptionsArgs};
+pub(crate) use diagnostic::{DiagnosticArgs, print_diagnostics};
+pub(crate) use program::ProgramArgs;
 pub(crate) use source::{SourceArg, get_string_or_file};
 pub(crate) use tracing::TracingArgs;

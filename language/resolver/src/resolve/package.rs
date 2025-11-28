@@ -20,13 +20,13 @@ fn is_path_invalid_exports_target(path: &Path) -> bool {
 #[allow(clippy::too_many_arguments)]
 impl Resolver {
     /// Load a package.json from a directory, registering it in the program.
-    #[tracing::instrument(name = "resolver.load_package", level = "trace", skip(self, ctx))]
+    #[tracing::instrument(name = "resolver.load.package", level = "trace", skip(self, ctx))]
     pub(crate) fn load_package(
         &self,
         path: &Path,
         ctx: &mut ResolveContext,
     ) -> Result<Option<PackageId>, ResolveError> {
-        tracing::trace!(?path, "resolver.load_package");
+        tracing::trace!(?path, "resolver.load.package");
         let package_json_path = path.join("package.json");
 
         // check if already in registry
@@ -92,13 +92,13 @@ impl Resolver {
     }
 
     /// Find the nearest package.json by traversing parent directories.
-    #[tracing::instrument(name = "resolver.find_package_json", level = "trace", skip(self, ctx))]
+    #[tracing::instrument(name = "resolver.package.find", level = "trace", skip(self, ctx))]
     pub(crate) fn find_package_json(
         &self,
         path: &Path,
         ctx: &mut ResolveContext,
     ) -> Result<Option<PackageId>, ResolveError> {
-        tracing::trace!(?path, "resolver.find_package_json");
+        tracing::trace!(?path, "resolver.package.find");
         let mut current = path.to_path_buf();
 
         // go up directories when the querying path is not a directory
@@ -169,12 +169,14 @@ impl Resolver {
     }
 
     /// Resolve a `#`-prefixed import specifier against package.json imports field.
+    #[tracing::instrument(name = "resolver.load.package.imports", level = "trace", skip(self, ctx))]
     pub(crate) fn load_package_imports(
         &self,
         path: &Path,
         specifier: &str,
         ctx: &mut ResolveContext,
     ) -> Result<Option<PathBuf>, ResolveError> {
+        tracing::trace!(?path, specifier, "resolver.load.package.imports");
         // find the closest package scope to the directory
         let Some(package_id) = self.find_package_json(path, ctx)? else {
             return Ok(None);
@@ -191,7 +193,7 @@ impl Resolver {
     }
 
     /// Search node_modules directories walking up from the given path.
-    #[tracing::instrument(name = "resolver.load_modules", level = "trace", skip(self, ctx))]
+    #[tracing::instrument(name = "resolver.load.modules", level = "trace", skip(self, ctx))]
     pub(crate) fn load_modules(
         &self,
         path: &Path,
@@ -200,7 +202,7 @@ impl Resolver {
         subpath: &str,
         ctx: &mut ResolveContext,
     ) -> Result<Option<PathBuf>, ResolveError> {
-        tracing::trace!(?path, specifier, package_name, subpath, "resolver.load_modules");
+        tracing::trace!(?path, specifier, package_name, subpath, "resolver.load.modules");
         // check each module directory (node_modules)
         for module_name in &self.options.modules {
             // walk up parent directories
@@ -304,6 +306,7 @@ impl Resolver {
     }
 
     /// Try to resolve a specifier via package.json exports field.
+    #[tracing::instrument(name = "resolver.load.package.exports", level = "trace", skip(self, ctx))]
     pub(crate) fn load_package_exports(
         &self,
         specifier: &str,
@@ -311,6 +314,7 @@ impl Resolver {
         path: &Path,
         ctx: &mut ResolveContext,
     ) -> Result<Option<PathBuf>, ResolveError> {
+        tracing::trace!(?specifier, ?subpath, ?path, "resolver.load.package.exports");
         // check if package.json exists
         let Some(package_id) = self.load_package(path, ctx)? else {
             return Ok(None);
@@ -330,12 +334,14 @@ impl Resolver {
     }
 
     /// Try to resolve a self-reference (package importing itself).
+    #[tracing::instrument(name = "resolver.load.package.self", level = "trace", skip(self, ctx))]
     pub(crate) fn load_package_self(
         &self,
         path: &Path,
         specifier: &str,
         ctx: &mut ResolveContext,
     ) -> Result<Option<PathBuf>, ResolveError> {
+        tracing::trace!(?specifier, ?path, "resolver.load.package.self");
         // find the closest package scope to the directory
         let Some(package_id) = self.find_package_json(path, ctx)? else {
             return Ok(None);
@@ -397,12 +403,14 @@ impl Resolver {
     }
 
     /// Resolve a bare package specifier by searching modules directories.
+    #[tracing::instrument(name = "resolver.package.resolve", level = "trace", skip(self, ctx))]
     pub(crate) fn package_resolve(
         &self,
         path: &Path,
         specifier: &str,
         ctx: &mut ResolveContext,
     ) -> Result<Option<PathBuf>, ResolveError> {
+        tracing::trace!(?specifier, ?path, "resolver.package.resolve");
         let (package_name, subpath) = Self::parse_package_specifier(specifier);
 
         // iterate over all possible modules directories

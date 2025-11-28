@@ -29,8 +29,8 @@ impl TaskDebug for BuildTask {
         match self {
             Self::Build { module } => {
                 let module = program.modules.get(*module);
-                let uri = module.read().uri.clone();
-                format!("module={uri}")
+                let uri = module.read().uri.clone().to_string();
+                format!(r#"module="{uri}""#)
             }
         }
     }

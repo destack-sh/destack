@@ -1,25 +1,17 @@
-use std::num::NonZero;
 use std::thread;
 
 use crate::{
     AnalyzeError, BindError, BuildError, Compiler, ElaborateError, ExecuteError, ImportError,
-    LinkError, LowerError, OptimizeError, Phase, ResolveError, Task, TaskDependency, TaskError,
-    TaskId, TaskOutcome, TaskStatus, TaskDebug, ValidateError,
+    LinkError, LowerError, OptimizeError, Phase, ResolveError, Task, TaskDebug, TaskDependency,
+    TaskError, TaskHandle, TaskId, TaskOutcome, TaskStatus, ValidateError,
 };
 
 impl Compiler {
     /// Runs the compiler loop until there is nothing left to do.
     pub fn compile(&self) {
-        // determine thread count
-        let thread_count = self.options.workers.unwrap_or_else(|| {
-            thread::available_parallelism()
-                .unwrap_or(NonZero::new(1).unwrap())
-                .get() as u16
-        });
-
         // spawn worker threads
         thread::scope(|scope| {
-            for _ in 0..thread_count {
+            for _ in 0..self.options.workers {
                 scope.spawn(|| self.worker_loop());
             }
         });
@@ -44,7 +36,7 @@ impl Compiler {
             let handle = self.queue.get_task(task_id);
             self.queue.begin_work();
             self.queue.set_status(task_id, TaskStatus::Running);
-            let outcome = self.process_task(&handle.task);
+            let outcome = self.process_task(&handle);
             self.handle_outcome(task_id, outcome);
             self.queue.end_work();
         }
@@ -56,15 +48,18 @@ impl Compiler {
         let task: Task = task.into();
         let event = format!("{}.{}.enqueue", task.phase().name(), task.name());
         let args = task.trace_args(&self.program);
-        tracing::trace!(%event, %args);
-        self.queue.enqueue(task)
+        let task_id = self.queue.enqueue(task);
+        tracing::trace!(%event, %args, ?task_id, "compile.enqueue");
+        task_id
     }
 
     /// Process a compiler task and return the outcome.
-    fn process_task(&self, task: &Task) -> TaskOutcome {
-        let event = format!("{}.{}.start", task.phase().name(), task.name());
+    fn process_task(&self, handle: &TaskHandle) -> TaskOutcome {
+        let task = &handle.task;
+        let task_id = handle.id;
         let args = task.trace_args(&self.program);
-        tracing::debug!(%event, %args);
+        let event = format!("{}.{}.start", task.phase().name(), task.name());
+        tracing::debug!(%event, %args, ?task_id);
         match task.clone() {
             Task::Import(import_task) => self.process_import(import_task).into(),
             Task::Bind(bind_task) => self.process_bind(bind_task).into(),
@@ -89,14 +84,14 @@ impl Compiler {
         match outcome {
             TaskOutcome::Complete { output } => {
                 let event = format!("{}.{}.complete", phase.name(), name);
-                tracing::debug!(%event, %args);
+                tracing::debug!(%event, %args, ?task_id);
                 self.queue
                     .set_status(task_id, TaskStatus::Complete { output });
                 self.wake_waiters(task_id);
             }
             TaskOutcome::Error { error } => {
                 let event = format!("{}.{}.error", phase.name(), name);
-                tracing::debug!(%event, %args);
+                tracing::debug!(%event, %args, ?task_id);
                 self.queue.set_status(
                     task_id,
                     TaskStatus::Failed {
@@ -108,7 +103,7 @@ impl Compiler {
             }
             TaskOutcome::Yield { dependency } => {
                 let event = format!("{}.{}.yield", phase.name(), name);
-                tracing::trace!(%event, %args);
+                tracing::trace!(%event, %args, ?task_id);
                 self.queue.set_status(
                     task_id,
                     TaskStatus::Yielded {

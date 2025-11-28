@@ -1,5 +1,7 @@
+use std::num::NonZero;
 use std::path::PathBuf;
 use std::sync::Arc;
+use std::thread;
 
 use clap::{Args, ValueEnum};
 use dyst_dir::Program;
@@ -7,6 +9,13 @@ use dyst_source::{
     FileRegistry, FileSystem, FormattingOptions, IndentStyle, LanguageMode, LanguageOptions,
     LineEnding, MemoryFileSystem, PhysicalFileSystem,
 };
+
+/// Get the default number of worker threads (available parallelism, or 1 if unknown).
+pub fn default_workers() -> u16 {
+    thread::available_parallelism()
+        .unwrap_or(NonZero::new(1).unwrap())
+        .get() as u16
+}
 
 /// The file system type to use.
 #[derive(Clone, Copy, Debug, Default, ValueEnum)]
@@ -78,14 +87,6 @@ impl From<LineEndingArg> for LineEnding {
     }
 }
 
-/// Arguments for configuring worker threads.
-#[derive(Args, Debug, Clone, Default)]
-pub struct WorkerOptionsArgs {
-    /// The number of worker threads to use (default: number of CPU cores).
-    #[arg(long = "workers", short = 'j')]
-    pub workers: Option<u16>,
-}
-
 /// Arguments for configuring language options.
 #[derive(Args, Debug, Clone)]
 pub struct LanguageOptionsArgs {
@@ -148,6 +149,11 @@ pub struct ProgramArgs {
     #[arg(long = "fs", value_enum)]
     pub file_system: Option<FileSystemArg>,
 
+    /// The number of worker threads to use (default: number of CPU cores).
+    #[arg(long = "workers", short = 'j', default_value_t = default_workers())]
+    pub workers: u16,
+
+    /// The language options.
     #[command(flatten)]
     pub language: LanguageOptionsArgs,
 }
@@ -166,7 +172,7 @@ impl ProgramArgs {
             FileSystemArg::Physical => Arc::new(PhysicalFileSystem::new()),
             FileSystemArg::Memory => Arc::new(MemoryFileSystem::new()),
         };
-
+        tracing::trace!(?cwd, ?fs_type, workers = self.workers, "program.setup");
         let program = Program::new(language_options, cwd, fs, files);
         Arc::new(program)
     }

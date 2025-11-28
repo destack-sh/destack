@@ -35,6 +35,7 @@ pub struct ResolveArgs {
     #[arg(long)]
     pub resolve_directory: bool,
 
+    /// The program options.
     #[command(flatten)]
     pub program: ProgramArgs,
 }

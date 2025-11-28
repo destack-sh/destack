@@ -7,7 +7,7 @@ use dyst_source::{
 use clap::Args;
 
 #[derive(Args, Debug, Clone)]
-pub struct DiagnosticOptionsArgs {
+pub struct DiagnosticArgs {
     /// Error on the given warning codes (like W001).
     #[arg(long, value_delimiter = ',', value_name = "CODES")]
     pub error_warnings: Vec<String>,
@@ -21,8 +21,8 @@ pub struct DiagnosticOptionsArgs {
     pub suppress_warnings: Vec<String>,
 }
 
-impl From<DiagnosticOptionsArgs> for DiagnosticOptions {
-    fn from(args: DiagnosticOptionsArgs) -> Self {
+impl From<DiagnosticArgs> for DiagnosticOptions {
+    fn from(args: DiagnosticArgs) -> Self {
         DiagnosticOptions {
             error_warnings: args.error_warnings,
             suppress_errors: args.suppress_errors,

@@ -72,16 +72,16 @@ impl FileSystem for MemoryFileSystem {
         Self::default()
     }
 
-    #[tracing::instrument(name = "memfs.exists", level = "trace", skip(self))]
+    #[tracing::instrument(name = "fs.memory.exists", level = "trace", skip(self))]
     fn exists(&self, path: &Path) -> io::Result<bool> {
-        tracing::trace!(?path, "memfs.exists");
+        tracing::trace!(?path, "fs.memory.exists");
         let inner = self.inner.read();
         Ok(inner.files.contains_key(path) || inner.directories.contains(path))
     }
 
-    #[tracing::instrument(name = "memfs.metadata", level = "trace", skip(self))]
+    #[tracing::instrument(name = "fs.memory.metadata", level = "trace", skip(self))]
     fn metadata(&self, path: &Path) -> io::Result<FileMetadata> {
-        tracing::trace!(?path, "memfs.metadata");
+        tracing::trace!(?path, "fs.memory.metadata");
         let inner = self.inner.read();
         if inner.directories.contains(path) {
             Ok(FileMetadata::new(false, true, false))
@@ -95,18 +95,18 @@ impl FileSystem for MemoryFileSystem {
         }
     }
 
-    #[tracing::instrument(name = "memfs.resolve_symlink", level = "trace", skip(self))]
+    #[tracing::instrument(name = "fs.memory.resolve_symlink", level = "trace", skip(self))]
     fn resolve_symlink(&self, path: &Path) -> io::Result<PathBuf> {
-        tracing::trace!(?path, "memfs.resolve_symlink");
+        tracing::trace!(?path, "fs.memory.resolve_symlink");
         Err(io::Error::new(
             io::ErrorKind::NotFound,
             path.display().to_string(),
         ))
     }
 
-    #[tracing::instrument(name = "memfs.canonicalize", level = "trace", skip(self))]
+    #[tracing::instrument(name = "fs.memory.canonicalize", level = "trace", skip(self))]
     fn canonicalize(&self, path: &Path) -> io::Result<PathBuf> {
-        tracing::trace!(?path, "memfs.canonicalize");
+        tracing::trace!(?path, "fs.memory.canonicalize");
         let metadata = self.metadata(path)?;
         if metadata.is_directory || metadata.is_file {
             return Ok(path.normalize());
@@ -117,9 +117,9 @@ impl FileSystem for MemoryFileSystem {
         ))
     }
 
-    #[tracing::instrument(name = "memfs.read", level = "trace", skip(self))]
+    #[tracing::instrument(name = "fs.memory.read", level = "trace", skip(self))]
     fn read(&self, path: &Path) -> io::Result<Vec<u8>> {
-        tracing::trace!(?path, "memfs.read");
+        tracing::trace!(?path, "fs.memory.read");
         let inner = self.inner.read();
         inner
             .files
@@ -128,9 +128,9 @@ impl FileSystem for MemoryFileSystem {
             .ok_or_else(|| io::Error::new(io::ErrorKind::NotFound, path.display().to_string()))
     }
 
-    #[tracing::instrument(name = "memfs.read_dir", level = "trace", skip(self))]
+    #[tracing::instrument(name = "fs.memory.read_dir", level = "trace", skip(self))]
     fn read_dir(&self, path: &Path) -> io::Result<Vec<PathBuf>> {
-        tracing::trace!(?path, "memfs.read_dir");
+        tracing::trace!(?path, "fs.memory.read_dir");
         let inner = self.inner.read();
         if !inner.directories.contains(path) {
             return Err(io::Error::new(
@@ -153,16 +153,16 @@ impl FileSystem for MemoryFileSystem {
         Ok(entries)
     }
 
-    #[tracing::instrument(name = "memfs.read_to_string", level = "trace", skip(self))]
+    #[tracing::instrument(name = "fs.memory.read_to_string", level = "trace", skip(self))]
     fn read_to_string(&self, path: &Path) -> io::Result<String> {
-        tracing::trace!(?path, "memfs.read_to_string");
+        tracing::trace!(?path, "fs.memory.read_to_string");
         let bytes = self.read(path)?;
         validate_utf8_string(bytes)
     }
 
-    #[tracing::instrument(name = "memfs.symlink_metadata", level = "trace", skip(self))]
+    #[tracing::instrument(name = "fs.memory.symlink_metadata", level = "trace", skip(self))]
     fn symlink_metadata(&self, path: &Path) -> io::Result<FileMetadata> {
-        tracing::trace!(?path, "memfs.symlink_metadata");
+        tracing::trace!(?path, "fs.memory.symlink_metadata");
         self.metadata(path)
     }
 }

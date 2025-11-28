@@ -3,10 +3,7 @@ use dyst_compiler::{CompileOptions, Compiler, ImportTask};
 use dyst_dir::{Dumper, DumperOptions, NodeVisitor};
 use dyst_source::DiagnosticOptions;
 
-use crate::command::{
-    DiagnosticOptionsArgs, ProgramArgs, SourceArg, WorkerOptionsArgs, get_string_or_file,
-    print_diagnostics,
-};
+use crate::command::{DiagnosticArgs, ProgramArgs, SourceArg, get_string_or_file, print_diagnostics};
 use crate::console;
 
 /// The format to dump the compiled DIR.
@@ -71,14 +68,13 @@ pub struct CompileArgs {
     #[arg(long)]
     pub silent: bool,
 
+    /// The program options.
     #[command(flatten)]
     pub program: ProgramArgs,
 
+    /// The diagnostic options.
     #[command(flatten)]
-    pub diagnostics: DiagnosticOptionsArgs,
-
-    #[command(flatten)]
-    pub workers: WorkerOptionsArgs,
+    pub diagnostics: DiagnosticArgs,
 }
 
 /// Compile source into its final DIR.
@@ -109,7 +105,7 @@ pub fn run(args: &CompileArgs) -> i32 {
         program.clone(),
         CompileOptions {
             diagnostic: diagnostic_options.clone(),
-            workers: args.workers.workers,
+            workers: args.program.workers,
             ..Default::default()
         },
     );

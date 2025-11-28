@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use crate::{BindTask, Compiler, ImportError, ImportResult, Task, TaskOutput, TaskDebug};
+use crate::{BindTask, Compiler, ImportError, ImportResult, Task, TaskDebug, TaskOutput};
 
 use dyst_dir::{DependencySource, Module, ModuleId, Program};
 use dyst_parser::Parser;
@@ -51,16 +51,16 @@ impl TaskDebug for ImportTask {
     fn trace_args(&self, program: &Program) -> String {
         match self {
             ImportTask::ImportModuleFromFile { file } => {
-                let uri = &program.files.get(*file).uri;
-                format!("file={uri}")
+                let uri = &program.files.get(*file).uri.to_string();
+                format!(r#"file="{uri}""#)
             }
-            ImportTask::ImportModuleFromUri { uri, .. } => format!("uri={uri}"),
-            ImportTask::ImportModuleFromPath { path, .. } => format!("path={}", path.display()),
+            ImportTask::ImportModuleFromUri { uri, .. } => format!(r#"uri="{uri}""#),
+            ImportTask::ImportModuleFromPath { path, .. } => format!(r#"path="{}""#, path.display()),
             ImportTask::ImportModuleFromSpecifier { target, module, .. } => {
                 let specifier = program.strings.get(*target).to_string();
                 let module = program.modules.get(*module);
-                let module_uri = module.read().uri.clone();
-                format!("specifier={specifier} from={module_uri}")
+                let module_uri = module.read().uri.clone().to_string();
+                format!(r#"specifier="{specifier}" module="{module_uri}""#)
             }
         }
     }

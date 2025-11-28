@@ -4,7 +4,7 @@ use dyst_parser::Parser;
 use dyst_source::DiagnosticOptions;
 
 use crate::command::{
-    DiagnosticOptionsArgs, ProgramArgs, SourceArg, get_string_or_file, print_diagnostics,
+    DiagnosticArgs, ProgramArgs, SourceArg, get_string_or_file, print_diagnostics,
 };
 use crate::console;
 
@@ -32,11 +32,13 @@ pub struct ParseArgs {
     #[arg(long)]
     pub silent: bool,
 
+    /// The program options.
     #[command(flatten)]
     pub program: ProgramArgs,
 
+    /// The diagnostic options.
     #[command(flatten)]
-    pub diagnostics: DiagnosticOptionsArgs,
+    pub diagnostics: DiagnosticArgs,
 }
 
 /// Parse source into an AST and dump the statements.
