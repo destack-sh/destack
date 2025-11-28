@@ -452,6 +452,11 @@ impl<'ast> FormatNode<'ast, Declaration> for Declaration {
                     )?;
                 }
 
+                // name / key
+                if let Some(name) = descriptor.name {
+                    write!(f, [space(), name, token(":")])?;
+                }
+
                 // target type
                 write!(f, [space(), target_type])?;
 

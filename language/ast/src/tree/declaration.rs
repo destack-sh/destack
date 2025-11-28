@@ -268,7 +268,7 @@ pub enum Declaration {
 
     /// An Extension defines the implementation of a concrete type, optionally for some specific super types.
     /// There may be multiple Extensions for the same type, and even extensions for different modules.
-    /// (To add a module's extension to your own just use the corresponding module.)
+    /// Extensions are anonymous by default, but may be named like `extension MyExt: Type { .. }`.
     ///
     /// Examples:
     /// ```
@@ -276,7 +276,7 @@ pub enum Declaration {
     ///     ...
     /// }
     ///
-    /// extension Foo<int32> {
+    /// extension MyExt: Foo<int32> {
     ///     ...
     /// }
     ///
@@ -284,7 +284,7 @@ pub enum Declaration {
     ///     ...
     /// }
     ///
-    /// extension<T> Bar<T> extends Baz {
+    /// extension<T> MyExt: Bar<T> extends Baz {
     ///     ...
     /// }
     /// ```
