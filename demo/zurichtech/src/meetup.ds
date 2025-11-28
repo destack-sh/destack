@@ -1,4 +1,4 @@
-import { entity, Entity, Reference } from "@destack";
+import { entity, Entity, Reference } from "destack";
 import { DateTime } from "@destack/time";
 
 /// The status of a Meetup.

@@ -83,8 +83,8 @@ impl TestProgram {
         }
     }
 
-    /// Create a new blank TestProgram with multiple workers.
-    pub fn memory_multithreaded() -> Self {
+    /// Create a new blank TestProgram with in-memory file system and multiple workers.
+    pub fn memory_parallel() -> Self {
         Self::new(
             TestFileSystem::Memory {
                 fs: Arc::new(MemoryFileSystem::new()),
@@ -93,14 +93,35 @@ impl TestProgram {
         )
     }
 
-    /// Create a new TestProgram from a physical fixture with multiple workers.
-    pub fn physical_multithreaded(root_directory: &str) -> Self {
+    /// Create a new blank TestProgram with in-memory file system and a single worker.
+    pub fn memory_sequential() -> Self {
+        Self::new(
+            TestFileSystem::Memory {
+                fs: Arc::new(MemoryFileSystem::new()),
+            },
+            1,
+        )
+    }
+
+    /// Create a new blank TestProgram with physical file system and multiple workers.
+    pub fn physical_parallel(root_directory: &str) -> Self {
         Self::new(
             TestFileSystem::Physical {
                 root_directory: PathBuf::from(root_directory),
                 fs: Arc::new(PhysicalFileSystem::new()),
             },
             default_workers(),
+        )
+    }
+
+    /// Create a new blank TestProgram with physical file system and a single worker.
+    pub fn physical_sequential(root_directory: &str) -> Self {
+        Self::new(
+            TestFileSystem::Physical {
+                root_directory: PathBuf::from(root_directory),
+                fs: Arc::new(PhysicalFileSystem::new()),
+            },
+            1,
         )
     }
 

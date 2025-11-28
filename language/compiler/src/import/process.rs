@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use crate::{BindTask, Compiler, ImportError, ImportResult, Task, TaskDebug, TaskOutput};
+use crate::{Compiler, ImportError, ImportResult, Task, TaskDebug, TaskOutput};
 
 use dyst_dir::{DependencySource, Module, ModuleId, Program};
 use dyst_parser::Parser;
@@ -112,7 +112,7 @@ impl Compiler {
             .with_conditions(vec!["types".to_string(), "import".to_string()]);
         let resolver: Resolver = Resolver::new(self.program.clone(), resolver_options);
 
-        // read file
+        // find and read file
         let file: Arc<File> = match &task {
             ImportTask::ImportModuleFromFile { file: file_id } => self.program.files.get(*file_id),
             ImportTask::ImportModuleFromPath { path, ty } => {
@@ -128,6 +128,12 @@ impl Compiler {
                 source,
             } => self.import_file_from_specifier(*module_id, *target, *ty, *source, &resolver)?,
         };
+
+        // if we already have a module for the file, just return it
+        if let Some(module_id) = self.program.modules.get_id_by_uri(&file.uri) {
+            // nocheckin: this seems like asking for a race condition?
+            return Ok(ImportOutput { module: module_id });
+        }
 
         // find package
         let package_id = {
@@ -158,7 +164,11 @@ impl Compiler {
         self.program.modules.insert(module);
         tracing::trace!(?module_id, ?file.uri, "import.module.resolve");
 
-        // resolve import if needed
+        // immediately bind module
+        // (bind is conceptually a stage, but we do it immediately during import)
+        self.bind_module(module_id);
+
+        // resolve import
         if let ImportTask::ImportModuleFromSpecifier {
             target,
             module: source_module_id,
@@ -180,9 +190,6 @@ impl Compiler {
                 symbols.resolve_import(None, *target, module_id);
             }
         }
-
-        // next task: bind module
-        self.enqueue(BindTask::BindModule { module: module_id });
 
         Ok(ImportOutput { module: module_id })
     }

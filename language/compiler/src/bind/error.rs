@@ -34,11 +34,6 @@ pub enum BindError {
         name: Option<StringId>,
         module: ModuleId,
     },
-    /// Unnamed export that needs a name.
-    UnnamedExport {
-        node: GlobalNodeIdAny,
-        module: ModuleId,
-    },
 }
 
 impl TryFrom<BindError> for TaskDependency {
@@ -72,7 +67,6 @@ impl BindError {
             Self::ConflictingBinding { .. } => 3,
             Self::ConflictingExport { .. } => 4,
             Self::ConflictingDefaultExport { .. } => 5,
-            Self::UnnamedExport { .. } => 6,
         }
     }
 
@@ -85,7 +79,6 @@ impl BindError {
             Self::ConflictingBinding { node, .. } => *node,
             Self::ConflictingExport { node, .. } => *node,
             Self::ConflictingDefaultExport { node, .. } => *node,
-            Self::UnnamedExport { node, .. } => *node,
         }
     }
 
@@ -125,7 +118,6 @@ impl BindError {
                     "conflicting default export".to_string()
                 }
             }
-            Self::UnnamedExport { .. } => "unnamed export needs a name".to_string(),
         }
     }
 }
