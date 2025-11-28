@@ -175,9 +175,7 @@ impl Compiler {
         if let Some(symbol_id) = resolved_item.symbol()
             && let Some(target_symbol) = resolved_item.target_symbol()
         {
-            symbols
-                .get_symbol_mut(symbol_id)
-                .resolve_to(target_symbol);
+            symbols.get_symbol_mut(symbol_id).resolve_to(target_symbol);
         }
 
         *tree.get_mut(item_id) = resolved_item;

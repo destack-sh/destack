@@ -31,17 +31,23 @@ impl DumpFormat {
 
     /// Whether the format includes the file representation.
     pub fn includes_file(&self) -> bool {
-        self.kinds.iter().any(|k| matches!(k, DumpKind::File | DumpKind::All))
+        self.kinds
+            .iter()
+            .any(|k| matches!(k, DumpKind::File | DumpKind::All))
     }
 
     /// Whether the format includes the node representation.
     pub fn includes_node(&self) -> bool {
-        self.kinds.iter().any(|k| matches!(k, DumpKind::Node | DumpKind::All))
+        self.kinds
+            .iter()
+            .any(|k| matches!(k, DumpKind::Node | DumpKind::All))
     }
 
     /// Whether the format includes the symbol representation.
     pub fn includes_symbol(&self) -> bool {
-        self.kinds.iter().any(|k| matches!(k, DumpKind::Symbol | DumpKind::All))
+        self.kinds
+            .iter()
+            .any(|k| matches!(k, DumpKind::Symbol | DumpKind::All))
     }
 }
 
