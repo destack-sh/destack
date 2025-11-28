@@ -7,35 +7,22 @@ use crate::{BindError, BindResult, Compiler, ResolveTask, Task, TaskDebug, TaskO
 
 /// Task to bind AST into DIR.
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
-pub enum BindTask {
-    /// Bind a module.
-    BindModule { module: ModuleId },
-}
+pub enum BindTask {/* Bind is conceptually a stage, but we do it as part of import. */}
 
 impl BindTask {
     /// Get the sub code for the task.
     pub fn sub_code(&self) -> u8 {
-        match self {
-            BindTask::BindModule { .. } => 1,
-        }
+        unreachable!("bind is not a real task {self:?}");
     }
 }
 
 impl TaskDebug for BindTask {
     fn name(&self) -> &'static str {
-        match self {
-            BindTask::BindModule { .. } => "module",
-        }
+        unreachable!("bind is not a real task {self:?}");
     }
 
-    fn trace_args(&self, program: &Program) -> String {
-        match self {
-            BindTask::BindModule { module } => {
-                let module = program.modules.get(*module);
-                let uri = module.read().uri.clone().to_string();
-                format!(r#"module="{uri}""#)
-            }
-        }
+    fn trace_args(&self, _program: &Program) -> String {
+        unreachable!("bind is not a real task {self:?}");
     }
 }
 
@@ -59,30 +46,26 @@ impl From<BindOutput> for TaskOutput {
 impl Compiler {
     /// Process a bind task.
     pub fn process_bind(&self, task: BindTask) -> BindResult<BindOutput> {
-        match task {
-            BindTask::BindModule { module } => self.bind_module(module),
-        }
+        unreachable!("bind is not a real task {task:?}");
     }
 
     /// Bind a module.
-    pub(super) fn bind_module(&self, module_id: ModuleId) -> BindResult<BindOutput> {
+    pub(crate) fn bind_module(&self, module_id: ModuleId) {
         // bind AST into DIR
-        self.bind_module_roots(module_id)?;
+        self.bind_module_roots(module_id);
 
         // bind module exports
-        self.bind_module_exports(module_id)?;
+        self.bind_module_exports(module_id);
 
         // check for conflicting symbols in scopes
-        self.bind_check_scopes(module_id)?;
+        self.bind_check_scopes(module_id);
 
         // next task: resolve module
         self.enqueue(ResolveTask::ResolveModule { module: module_id });
-
-        Ok(BindOutput {})
     }
 
     /// Bind the AST root expressions for a module.
-    fn bind_module_roots(&self, module_id: ModuleId) -> BindResult<()> {
+    fn bind_module_roots(&self, module_id: ModuleId) {
         let module = self.program.modules.get(module_id);
         let roots: Vec<LocalNodeId<Expression>> = {
             let module = module.read();
@@ -109,11 +92,10 @@ impl Compiler {
                 .collect()
         };
         module.write().roots.extend(roots);
-        Ok(())
     }
 
     /// Bind module exports and resolve conflicts.
-    fn bind_module_exports(&self, module_id: ModuleId) -> BindResult<()> {
+    fn bind_module_exports(&self, module_id: ModuleId) {
         let module = self.program.modules.get(module_id);
         let module = module.read();
         let mut symbols = module.symbols.write();
@@ -146,11 +128,10 @@ impl Compiler {
             // override if already exported (we error conflicting exports in a separate check)
             symbols.resolve_export((space, key), *symbol_id);
         }
-        Ok(())
     }
 
     /// Check for conflicting item symbols in module scopes and report errors.
-    fn bind_check_scopes(&self, module_id: ModuleId) -> BindResult<()> {
+    fn bind_check_scopes(&self, module_id: ModuleId) {
         let module = self.program.modules.get(module_id);
         let module = module.read();
         let symbols = module.symbols.read();
@@ -196,6 +177,5 @@ impl Compiler {
                 }
             }
         }
-        Ok(())
     }
 }
