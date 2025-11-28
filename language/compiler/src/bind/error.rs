@@ -7,10 +7,6 @@ use crate::{Phase, TaskDependency, TaskError};
 #[derive(Debug, Clone, PartialEq)]
 #[repr(u8)]
 pub enum BindError {
-    /// Wait for task dependency.
-    Yield { dependency: TaskDependency },
-    /// Yield dependency has failed.
-    YieldFailed { dependency: TaskDependency },
     /// Unsupported node.
     UnsupportedNode { node: GlobalNodeIdAny },
     /// Conflicting symbol binding.
@@ -40,10 +36,8 @@ impl TryFrom<BindError> for TaskDependency {
     type Error = BindError;
 
     fn try_from(error: BindError) -> Result<Self, Self::Error> {
-        match error {
-            BindError::Yield { dependency } => Ok(dependency),
-            _ => Err(error),
-        }
+        // interface required for tasks but binds cannot yield (because imports cannot yield)
+        Err(error)
     }
 }
 
@@ -61,8 +55,6 @@ impl BindError {
     #[inline]
     pub fn sub_code(&self) -> u8 {
         match self {
-            Self::Yield { .. } => 0,
-            Self::YieldFailed { .. } => 1,
             Self::UnsupportedNode { .. } => 2,
             Self::ConflictingBinding { .. } => 3,
             Self::ConflictingExport { .. } => 4,
@@ -73,8 +65,6 @@ impl BindError {
     /// Get the node id of the error.
     pub fn node(&self) -> GlobalNodeIdAny {
         match self {
-            Self::Yield { dependency } => dependency.node(),
-            Self::YieldFailed { dependency } => dependency.node(),
             Self::UnsupportedNode { node } => *node,
             Self::ConflictingBinding { node, .. } => *node,
             Self::ConflictingExport { node, .. } => *node,
@@ -85,8 +75,6 @@ impl BindError {
     /// Get the message of the error.
     pub fn message(&self, program: &Program) -> String {
         match self {
-            Self::Yield { .. } => "pending dependency".to_string(),
-            Self::YieldFailed { .. } => "unsatisfied dependency".to_string(),
             Self::UnsupportedNode { .. } => "unsupported node".to_string(),
             Self::ConflictingBinding { name, .. } => {
                 let name = name

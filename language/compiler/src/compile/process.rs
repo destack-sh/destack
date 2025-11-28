@@ -1,9 +1,9 @@
 use std::thread;
 
 use crate::{
-    AnalyzeError, BindError, BuildError, Compiler, ElaborateError, ExecuteError, InternalError,
-    LinkError, LowerError, OptimizeError, Phase, ResolveError, Task, TaskDebug, TaskDependency,
-    TaskError, TaskHandle, TaskId, TaskOutcome, TaskOutput, TaskStatus, ValidateError,
+    AnalyzeError, BuildError, Compiler, ElaborateError, ExecuteError, InternalError, LinkError,
+    LowerError, OptimizeError, Phase, ResolveError, Task, TaskDebug, TaskDependency, TaskError,
+    TaskHandle, TaskId, TaskOutcome, TaskOutput, TaskStatus, ValidateError,
 };
 
 /// Maximum number of yields allowed per task before treating it as an (internal) bug.
@@ -330,10 +330,9 @@ impl Compiler {
             Phase::Import => {
                 panic!("import tasks cannot yield {waiter_id} for dependency {dependency:?}")
             }
-            Phase::Bind => BindError::YieldFailed {
-                dependency: dependency.clone(),
+            Phase::Bind => {
+                panic!("bind tasks cannot yield {waiter_id} for dependency {dependency:?}")
             }
-            .into(),
             Phase::Resolve => ResolveError::YieldFailed {
                 dependency: dependency.clone(),
             }
