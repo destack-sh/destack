@@ -1,6 +1,6 @@
 use dyst_dir::{GlobalNodeIdAny, Program};
 
-use crate::{CompileWarning, Phase};
+use crate::{TaskWarning, Phase};
 
 /// Warning when building something.
 #[derive(Debug, Clone, PartialEq)]
@@ -58,8 +58,8 @@ impl std::fmt::Display for BuildWarning {
     }
 }
 
-impl From<BuildWarning> for CompileWarning {
+impl From<BuildWarning> for TaskWarning {
     fn from(warning: BuildWarning) -> Self {
-        CompileWarning::Build(warning)
+        TaskWarning::Build(warning)
     }
 }

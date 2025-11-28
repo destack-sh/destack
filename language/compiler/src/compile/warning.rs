@@ -6,8 +6,8 @@ use crate::{
 };
 
 /// Warning during compilation.
-#[derive(Debug, Clone)]
-pub enum CompileWarning {
+#[derive(Debug, Clone, PartialEq)]
+pub enum TaskWarning {
     /// Warning during importing.
     Import(ImportWarning),
     /// Warning during binding.
@@ -34,7 +34,7 @@ pub enum CompileWarning {
     Link(LinkWarning),
 }
 
-impl CompileWarning {
+impl TaskWarning {
     /// Get the phase of the warning.
     pub fn phase(&self) -> Phase {
         match self {

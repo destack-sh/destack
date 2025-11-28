@@ -1,6 +1,6 @@
 use dyst_dir::{GlobalNodeIdAny, Program};
 
-use crate::{CompileWarning, Phase};
+use crate::{TaskWarning, Phase};
 
 /// Warning when validating something.
 #[derive(Debug, Clone, PartialEq)]
@@ -45,8 +45,8 @@ impl std::fmt::Display for ElaborateWarning {
     }
 }
 
-impl From<ElaborateWarning> for CompileWarning {
+impl From<ElaborateWarning> for TaskWarning {
     fn from(warning: ElaborateWarning) -> Self {
-        CompileWarning::Elaborate(warning)
+        TaskWarning::Elaborate(warning)
     }
 }

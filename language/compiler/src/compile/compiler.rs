@@ -8,8 +8,9 @@ use dyst_source::{DiagnosticCollector, DiagnosticOptions, Uri};
 use parking_lot::Mutex;
 
 use crate::{
-    BuildOptions, CompileDiagnostic, CompileWarning, ExecuteOptions, ImportOptions, LinkOptions,
-    LowerOptions, OptimizeOptions, ResolveOptions, TaskError, TaskQueue, ValidateOptions,
+    BuildOptions, CompileDiagnostic, ExecuteOptions, ImportOptions, LinkOptions, LowerOptions,
+    OptimizeOptions, ResolveOptions, TaskDependency, TaskError, TaskQueue, TaskResultCollector,
+    TaskWarning, ValidateOptions,
 };
 
 /// Get the default number of worker threads (available parallelism, or 1 if unknown).
@@ -67,7 +68,11 @@ pub struct Compiler {
     pub program: Arc<Program>,
     /// The options for compiling.
     pub options: CompileOptions,
-    /// The pending compiler diagnostics.
+    /// Seen errors for deduplication.
+    seen_errors: Mutex<Vec<TaskError>>,
+    /// Seen warnings for deduplication.
+    seen_warnings: Mutex<Vec<TaskWarning>>,
+    /// The pending compiler diagnostics (transient).
     pub pending_diagnostics: DiagnosticCollector,
     /// The queue of compiler tasks.
     pub(super) queue: TaskQueue,
@@ -92,6 +97,8 @@ impl Compiler {
         Self {
             program,
             options,
+            seen_errors: Mutex::new(Vec::new()),
+            seen_warnings: Mutex::new(Vec::new()),
             pending_diagnostics: DiagnosticCollector::new(),
             queue: TaskQueue::new(),
             import_locks: DashMap::new(),
@@ -113,27 +120,42 @@ impl Compiler {
             .clone()
     }
 
-    /// Add an error to the compiler.
+    /// Add an error to the compiler (deduplicated).
     pub fn error<T: Into<TaskError>>(&self, error: T) {
         let error: TaskError = error.into();
+        let mut seen = self.seen_errors.lock();
+        if seen.contains(&error) {
+            return;
+        }
+        seen.push(error.clone());
+        drop(seen);
         let diagnostic: CompileDiagnostic = error.into();
         let diagnostic = diagnostic.to_diagnostic(&self.program);
         self.pending_diagnostics.insert(diagnostic);
     }
 
-    /// Add a warning to the compiler.
-    pub fn warning<T: Into<CompileWarning>>(&self, warning: T) {
-        let warning: CompileWarning = warning.into();
+    /// Add a warning to the compiler (deduplicated).
+    pub fn warning<T: Into<TaskWarning>>(&self, warning: T) {
+        let warning: TaskWarning = warning.into();
+        let mut seen = self.seen_warnings.lock();
+        if seen.contains(&warning) {
+            return;
+        }
+        seen.push(warning.clone());
+        drop(seen);
         let diagnostic: CompileDiagnostic = warning.into();
         let diagnostic = diagnostic.to_diagnostic(&self.program);
         self.pending_diagnostics.insert(diagnostic);
     }
 
-    /// Add a diagnostic to the compiler.
-    pub fn diagnostic<T: Into<CompileDiagnostic>>(&self, diagnostic: T) {
-        let diagnostic: CompileDiagnostic = diagnostic.into();
-        let diagnostic = diagnostic.to_diagnostic(&self.program);
-        self.pending_diagnostics.insert(diagnostic);
+    /// Collect a result into a TaskResultCollector, reporting non-yield errors.
+    pub fn collect<T, E>(&self, collector: &mut TaskResultCollector, result: Result<T, E>)
+    where
+        E: TryInto<TaskDependency, Error = E> + Into<TaskError>,
+    {
+        if let Some(error) = collector.try_collect(result) {
+            self.error(error);
+        }
     }
 
     /// Flush pending diagnostics into the program.

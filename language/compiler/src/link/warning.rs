@@ -1,6 +1,6 @@
 use dyst_dir::{GlobalNodeIdAny, Program};
 
-use crate::{CompileWarning, Phase};
+use crate::{TaskWarning, Phase};
 
 /// Warning when linking something.
 #[derive(Debug, Clone, PartialEq)]
@@ -58,8 +58,8 @@ impl std::fmt::Display for LinkWarning {
     }
 }
 
-impl From<LinkWarning> for CompileWarning {
+impl From<LinkWarning> for TaskWarning {
     fn from(warning: LinkWarning) -> Self {
-        CompileWarning::Link(warning)
+        TaskWarning::Link(warning)
     }
 }

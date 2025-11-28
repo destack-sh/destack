@@ -1,4 +1,4 @@
-use crate::{Compiler, ResolveResult};
+use crate::{Compiler, ResolveError, ResolveResult, TaskResultCollector};
 use dyst_dir::{
     Annotation, Argument, Block, Declaration, DependencyItem, EnumField, Expression,
     LocalNodeIdAny, MatchCase, ModuleId, Node, NodeTree, NodeType, Parameter, Pattern,
@@ -59,28 +59,49 @@ impl Compiler {
         let module = module.read();
         let mut tree = module.tree.write();
         let mut symbols = module.symbols.write();
+        let mut collector = TaskResultCollector::new();
 
         // resolve expressions
         for expression_id in tree.iter_node_ids_of_type::<Expression>() {
-            self.resolve_expression(&module, expression_id, &mut tree, &mut symbols)?;
+            self.collect(
+                &mut collector,
+                self.resolve_expression(&module, expression_id, &mut tree, &mut symbols),
+            );
         }
 
         // resolve dependency items
         for item_id in tree.iter_node_ids_of_type::<DependencyItem>() {
-            self.resolve_dependency_item(&module, item_id, &mut tree, &mut symbols)?;
+            self.collect(
+                &mut collector,
+                self.resolve_dependency_item(&module, item_id, &mut tree, &mut symbols),
+            );
         }
 
         // resolve patterns
         for pattern_id in tree.iter_node_ids_of_type::<Pattern>() {
-            self.resolve_pattern(&module, pattern_id, &mut tree, &mut symbols)?;
+            self.collect(
+                &mut collector,
+                self.resolve_pattern(&module, pattern_id, &mut tree, &mut symbols),
+            );
         }
         for pattern_field_id in tree.iter_node_ids_of_type::<PatternField>() {
-            self.resolve_pattern_field(&module, pattern_field_id, &mut tree, &mut symbols)?;
+            self.collect(
+                &mut collector,
+                self.resolve_pattern_field(&module, pattern_field_id, &mut tree, &mut symbols),
+            );
         }
 
         // resolve arguments
         for argument_id in tree.iter_node_ids_of_type::<Argument>() {
-            self.resolve_argument(&module, argument_id, &mut tree, &mut symbols)?;
+            self.collect(
+                &mut collector,
+                self.resolve_argument(&module, argument_id, &mut tree, &mut symbols),
+            );
+        }
+
+        // return combined any yield
+        if let Some(dependency) = collector.try_into_yield_any() {
+            return Err(ResolveError::Yield { dependency });
         }
 
         Ok(())
