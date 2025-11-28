@@ -1,9 +1,8 @@
 use dyst_dir::{
-    Expression, GlobalNodeIdAny, LocalNodeId, LocalSymbolId, ModuleId, Program, SymbolKey,
-    SymbolKind,
+    Expression, GlobalNodeIdAny, LocalNodeId, LocalSymbolId, Module, Program, SymbolKey, SymbolKind,
 };
 
-use crate::{BindError, BindResult, Compiler, ResolveTask, Task, TaskDebug, TaskOutput};
+use crate::{BindError, BindResult, Compiler, Task, TaskDebug, TaskOutput};
 
 /// Task to bind AST into DIR.
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
@@ -51,57 +50,50 @@ impl Compiler {
 
     /// Bind a module.
     #[tracing::instrument(name = "bind.module", skip(self), fields(module_id))]
-    pub(crate) fn bind_module(&self, module_id: ModuleId) {
-        let module = self.program.modules.get(module_id).read().uri.to_string();
-        tracing::debug!(?module, "bind.module.start");
+    pub(crate) fn bind_module(&self, module: &mut Module) {
+        let module_uri = module.uri.to_string();
+        tracing::debug!(?module_uri, "bind.module.start");
+
         // bind AST into DIR
-        self.bind_module_roots(module_id);
+        self.bind_module_roots(module);
 
         // bind module exports
-        self.bind_module_exports(module_id);
+        self.bind_module_exports(module);
 
         // check for conflicting symbols in scopes
-        self.bind_check_scopes(module_id);
+        self.bind_check_scopes(module);
 
-        // next task: resolve module
-        self.enqueue(ResolveTask::ResolveModule { module: module_id });
         tracing::debug!(?module, "bind.module.complete");
     }
 
     /// Bind the AST root expressions for a module.
-    fn bind_module_roots(&self, module_id: ModuleId) {
-        let module = self.program.modules.get(module_id);
-        let roots: Vec<LocalNodeId<Expression>> = {
-            let module = module.read();
-            let mut tree = module.tree.write();
-            let mut symbols = module.symbols.write();
-            let mut types = module.types.write();
-            module
-                .ast_roots
-                .iter()
-                .map(|expression| {
-                    self.bind_expression(
-                        &module,
-                        (
-                            module.namespace_scope,
-                            symbols.get_scope_mark(module.namespace_scope),
-                        ),
-                        *expression,
-                        None,
-                        &mut tree,
-                        &mut symbols,
-                        &mut types,
-                    )
-                })
-                .collect()
-        };
-        module.write().roots.extend(roots);
+    fn bind_module_roots(&self, module: &mut Module) {
+        let mut tree = module.tree.write();
+        let mut symbols = module.symbols.write();
+        let mut types = module.types.write();
+        let roots: Vec<LocalNodeId<Expression>> = module
+            .ast_roots
+            .iter()
+            .map(|expression| {
+                self.bind_expression(
+                    module,
+                    (
+                        module.namespace_scope,
+                        symbols.get_scope_mark(module.namespace_scope),
+                    ),
+                    *expression,
+                    None,
+                    &mut tree,
+                    &mut symbols,
+                    &mut types,
+                )
+            })
+            .collect();
+        module.roots.extend(roots);
     }
 
     /// Bind module exports and resolve conflicts.
-    fn bind_module_exports(&self, module_id: ModuleId) {
-        let module = self.program.modules.get(module_id);
-        let module = module.read();
+    fn bind_module_exports(&self, module: &mut Module) {
         let mut symbols = module.symbols.write();
 
         // collect exported symbols
@@ -135,9 +127,7 @@ impl Compiler {
     }
 
     /// Check for conflicting item symbols in module scopes and report errors.
-    fn bind_check_scopes(&self, module_id: ModuleId) {
-        let module = self.program.modules.get(module_id);
-        let module = module.read();
+    fn bind_check_scopes(&self, module: &mut Module) {
         let symbols = module.symbols.read();
         for scope in symbols.scopes() {
             for (key, symbol_id) in scope.named_symbols.iter() {
@@ -165,14 +155,14 @@ impl Compiler {
                             BindError::ConflictingExport {
                                 node: primary_declaration,
                                 other_node: other_primary_declaration,
-                                module: module_id,
+                                module: module.id,
                                 name: Some(*key),
                             }
                         } else {
                             BindError::ConflictingBinding {
                                 node: primary_declaration,
                                 other_node: other_primary_declaration,
-                                scope: scope.id.into_global(module_id),
+                                scope: scope.id.into_global(module.id),
                                 name: Some(*key),
                             }
                         };

@@ -2,8 +2,10 @@ use std::num::NonZero;
 use std::sync::Arc;
 use std::thread;
 
-use dyst_dir::Program;
-use dyst_source::{DiagnosticCollector, DiagnosticOptions};
+use dashmap::DashMap;
+use dyst_dir::{ModuleId, Program};
+use dyst_source::{DiagnosticCollector, DiagnosticOptions, Uri};
+use parking_lot::Mutex;
 
 use crate::{
     BuildOptions, CompileDiagnostic, CompileWarning, ExecuteOptions, ImportOptions, LinkOptions,
@@ -60,7 +62,6 @@ impl Default for CompileOptions {
 }
 
 /// Compile files and sources into something (via DIR).
-#[derive(Debug)]
 pub struct Compiler {
     /// The program.
     pub program: Arc<Program>,
@@ -70,6 +71,18 @@ pub struct Compiler {
     pub pending_diagnostics: DiagnosticCollector,
     /// The queue of compiler tasks.
     pub(super) queue: TaskQueue,
+    /// Locks for serializing module creation per URI (to lock the File->Module import/bind race)
+    import_locks: DashMap<Uri, Arc<Mutex<Option<ModuleId>>>>,
+}
+
+impl std::fmt::Debug for Compiler {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Compiler")
+            .field("program", &self.program)
+            .field("options", &self.options)
+            .field("queue", &self.queue)
+            .finish()
+    }
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -81,7 +94,23 @@ impl Compiler {
             options,
             pending_diagnostics: DiagnosticCollector::new(),
             queue: TaskQueue::new(),
+            import_locks: DashMap::new(),
         }
+    }
+
+    /// Get the import lock for a URI.
+    /// Used to serialize module creation and prevent race conditions when multiple import tasks
+    /// resolve to the same file.
+    ///
+    /// Usage pattern:
+    /// 1. Acquire lock: `let lock = compiler.get_import_lock(&uri); let mut guard = lock.lock();`
+    /// 2. Check value: if `Some(module_id)`, module already exists, use it
+    /// 3. If `None`: create module, set `*guard = Some(module_id)`, then drop guard
+    pub(crate) fn get_import_lock(&self, uri: &Uri) -> Arc<Mutex<Option<ModuleId>>> {
+        self.import_locks
+            .entry(uri.clone())
+            .or_insert_with(|| Arc::new(Mutex::new(None)))
+            .clone()
     }
 
     /// Add an error to the compiler.

@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use crate::{Compiler, ImportError, ImportResult, Task, TaskDebug, TaskOutput};
+use crate::{Compiler, ImportError, ImportResult, ResolveTask, Task, TaskDebug, TaskOutput};
 
 use dyst_dir::{DependencySource, Module, ModuleId, Program};
 use dyst_parser::Parser;
@@ -129,9 +129,21 @@ impl Compiler {
             } => self.import_file_from_specifier(*module_id, *target, *ty, *source, &resolver)?,
         };
 
-        // if we already have a module for the file, just return it
-        if let Some(module_id) = self.program.modules.get_id_by_uri(&file.uri) {
-            // nocheckin: this seems like asking for a race condition?
+        // lock module creation to prevent race conditions when imports resolve to the same file
+        let import_lock = self.get_import_lock(&file.uri);
+        let mut import_guard = import_lock.lock();
+
+        // check if another task completed while we were waiting for the lock
+        if let Some(module_id) = *import_guard {
+            drop(import_guard);
+            self.resolve_import_specifier(&task, module_id);
+            return Ok(ImportOutput { module: module_id });
+        }
+        // also check registry (belt and suspenders)
+        else if let Some(module_id) = self.program.modules.get_id_by_uri(&file.uri) {
+            *import_guard = Some(module_id);
+            drop(import_guard);
+            self.resolve_import_specifier(&task, module_id);
             return Ok(ImportOutput { module: module_id });
         }
 
@@ -149,7 +161,7 @@ impl Compiler {
         let expressions = parser.parse();
         self.program.diagnostics.merge_from(&parser.diagnostics);
 
-        // insert module
+        // create and insert module (must insert before bind so diagnostics can reference it)
         let module_id = self.program.modules.next_id();
         let module = Module::new(
             module_id,
@@ -165,15 +177,33 @@ impl Compiler {
         tracing::trace!(?module_id, ?file.uri, "import.module.resolve");
 
         // immediately bind module
-        // (bind is conceptually a stage, but we do it immediately during import)
-        self.bind_module(module_id);
+        // (bind is conceptually a stage, but we bind immediately during import to avoid race conditions)
+        {
+            let module_arc = self.program.modules.get(module_id);
+            let mut module_guard = module_arc.write();
+            self.bind_module(&mut module_guard);
+        }
 
-        // resolve import
+        // mark import as complete so waiting tasks can proceed
+        *import_guard = Some(module_id);
+        drop(import_guard);
+
+        // resolve import specifier in symbol table
+        self.resolve_import_specifier(&task, module_id);
+
+        // next task: resolve module
+        self.enqueue(ResolveTask::ResolveModule { module: module_id });
+
+        Ok(ImportOutput { module: module_id })
+    }
+
+    /// Resolve import specifier in symbol table (if this is a specifier import).
+    fn resolve_import_specifier(&self, task: &ImportTask, module_id: ModuleId) {
         if let ImportTask::ImportModuleFromSpecifier {
             target,
             module: source_module_id,
             ..
-        } = &task
+        } = task
         {
             // resolve relative import
             if let &Some(source_module_id) = source_module_id {
@@ -190,8 +220,6 @@ impl Compiler {
                 symbols.resolve_import(None, *target, module_id);
             }
         }
-
-        Ok(ImportOutput { module: module_id })
     }
 
     /// Import a file from a URI.
