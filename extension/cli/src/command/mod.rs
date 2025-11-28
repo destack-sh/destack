@@ -1,5 +1,6 @@
 pub mod compile;
 pub mod diagnostic;
+pub mod dump;
 pub mod lex;
 pub mod parse;
 pub mod program;
@@ -10,6 +11,7 @@ pub mod transpile;
 pub mod version;
 
 pub(crate) use diagnostic::{DiagnosticArgs, print_diagnostics};
+pub(crate) use dump::{DumpFormat, DumpKind};
 pub(crate) use program::ProgramArgs;
 pub(crate) use source::{SourceArg, get_string_or_file};
 pub(crate) use tracing::TracingArgs;

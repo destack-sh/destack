@@ -1,38 +1,14 @@
-use clap::{ArgGroup, Args, ValueEnum};
+use clap::{ArgGroup, Args};
 use dyst_compiler::{CompileOptions, Compiler, ImportTask};
 use dyst_dir::{Dumper, DumperOptions, NodeVisitor};
+use dyst_parser::colorize_source;
 use dyst_source::DiagnosticOptions;
 
 use crate::command::{
-    DiagnosticArgs, ProgramArgs, SourceArg, get_string_or_file, print_diagnostics,
+    DiagnosticArgs, DumpFormat, DumpKind, ProgramArgs, SourceArg, get_string_or_file,
+    print_diagnostics,
 };
 use crate::console;
-
-/// The format to dump the compiled DIR.
-#[derive(Clone, Copy, Debug, ValueEnum)]
-pub enum DumpFormatArg {
-    /// Dump the node representation.
-    #[value(alias = "n")]
-    Node,
-    /// Dump the symbol representation.
-    #[value(alias = "s")]
-    Symbol,
-    /// Dump both the node and symbol representations.
-    #[value(alias = "a")]
-    All,
-}
-
-impl DumpFormatArg {
-    /// Whether the format includes the node representation.
-    pub fn includes_node(self) -> bool {
-        matches!(self, Self::Node | Self::All)
-    }
-
-    /// Whether the format includes the symbol representation.
-    pub fn includes_symbol(self) -> bool {
-        matches!(self, Self::Symbol | Self::All)
-    }
-}
 
 #[derive(Args, Debug, Clone)]
 #[command(group(
@@ -62,9 +38,9 @@ pub struct CompileArgs {
     #[arg(long = "type", alias = "format", value_name = "FORMAT")]
     pub format: Option<String>,
 
-    /// Dump the compiled DIR in the given format (node|symbol|all, default: node).
-    #[arg(long, default_value_t = DumpFormatArg::All, value_enum)]
-    pub dump: DumpFormatArg,
+    /// Dump output format(s): file|f, node|n, symbol|s, all|a (comma-separated).
+    #[arg(long, value_delimiter = ',', default_value = "all")]
+    pub dump: Vec<DumpKind>,
 
     /// Don't print anything to the console (except errors).
     #[arg(long)]
@@ -82,7 +58,7 @@ pub struct CompileArgs {
 /// Compile source into its final DIR.
 pub fn run(args: &CompileArgs) -> i32 {
     let silent = args.silent;
-    let dump = args.dump;
+    let dump = DumpFormat::from(args.dump.clone());
     let diagnostic_options: DiagnosticOptions = args.diagnostics.clone().into();
     let program = args.program.setup();
 
@@ -115,14 +91,25 @@ pub fn run(args: &CompileArgs) -> i32 {
     compiler.compile();
     drop(compiler);
 
-    // dump DIR to output
+    // dump DIR to output (iterate per module, dump all requested representations)
     if !silent {
         let dump_options = DumperOptions::default();
         let strings = program.strings.clone().into_immutable();
-        // dump node representation
-        if dump.includes_node() {
-            for module in program.modules.iter() {
-                let module = module.read();
+
+        for module in program.modules.iter() {
+            let module = module.read();
+
+            // dump file representation
+            if dump.includes_file() {
+                let file = program.files.get(module.file_id);
+                console::info("=".repeat(80).as_str());
+                console::info(format!("{} [FILE]", module.uri).as_str());
+                console::info("=".repeat(80).as_str());
+                console::info(&colorize_source(&file));
+            }
+
+            // dump node representation
+            if dump.includes_node() {
                 let tree = module.tree.read();
                 let mut dumper = Dumper::new(&strings, &tree, dump_options);
                 console::info("=".repeat(80).as_str());
@@ -134,11 +121,9 @@ pub fn run(args: &CompileArgs) -> i32 {
                 }
                 console::info(&dumper.finish());
             }
-        }
-        // dump symbol representation
-        if dump.includes_symbol() {
-            for module in program.modules.iter() {
-                let module = module.read();
+
+            // dump symbol representation
+            if dump.includes_symbol() {
                 let tree = module.tree.read();
                 let symbols = module.symbols.read();
                 let mut dumper = Dumper::new(&strings, &tree, dump_options);
