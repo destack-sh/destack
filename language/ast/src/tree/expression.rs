@@ -7,7 +7,7 @@ use crate::{
     TypeBinaryOperator, TypeLiteral, TypeUnaryOperator, UnaryOperator,
 };
 
-// TODO #Performance: reduce Expression size to <=64B
+// NOTE #Performance: reduce Expression size to <=64B
 
 /// An Expression is a generic container for all constructs.
 /// Unlike most languages, we don't differentiate "statements" and "expressions" up-front.

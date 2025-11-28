@@ -1,0 +1,15 @@
+{
+	"name": "@destack/web",
+	"version": "2025.11.28.0",
+	"license": "MIT",
+	"type": "module",
+	"sideEffects": false,
+	"scripts": {
+		"dev": "bun --hot src/index.ds",
+		"start": "NODE_ENV=production bun src/index.ds"
+	},
+	"dependencies": {},
+	"devDependencies": {
+		"@types/bun": "latest"
+	}
+}

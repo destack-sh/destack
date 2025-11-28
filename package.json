@@ -10,7 +10,19 @@
             "demo/zurichtech",
             "platform/bun",
             "platform/vscode",
-            "library/napi"
+            "library/ai",
+            "library/auth",
+            "library/entity",
+            "library/finance",
+            "library/gpu",
+            "library/mobile",
+            "library/napi",
+            "library/physics",
+            "library/telemetry",
+            "library/test",
+            "library/ui",
+            "library/universe",
+            "library/web"
         ]
     },
     "scripts": {
