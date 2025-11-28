@@ -120,6 +120,10 @@ where
         let level = *event.metadata().level();
         write!(writer, "{} ", format_level(level))?;
 
+        // thread id (dim)
+        let thread_id = std::thread::current().id().as_u64().get();
+        write!(writer, "\x1b[2mT{thread_id:02}\x1b[0m ")?;
+
         // message (first string field)
         let mut message_visitor = MessageVisitor::default();
         event.record(&mut message_visitor);
