@@ -1,4 +1,6 @@
+use std::num::NonZero;
 use std::sync::Arc;
+use std::thread;
 
 use dyst_dir::Program;
 use dyst_source::{DiagnosticCollector, DiagnosticOptions};
@@ -8,13 +10,20 @@ use crate::{
     LowerOptions, OptimizeOptions, ResolveOptions, TaskError, TaskQueue, ValidateOptions,
 };
 
+/// Get the default number of worker threads (available parallelism, or 1 if unknown).
+pub fn default_workers() -> u16 {
+    thread::available_parallelism()
+        .unwrap_or(NonZero::new(1).unwrap())
+        .get() as u16
+}
+
 /// The options for compiling a Workspace.
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone)]
 pub struct CompileOptions {
     /// The diagnostic options.
     pub diagnostic: DiagnosticOptions,
     /// The number of worker threads to use.
-    pub workers: Option<u16>,
+    pub workers: u16,
     /// The options for importing.
     pub import: ImportOptions,
     /// The options for evaluating.
@@ -31,6 +40,23 @@ pub struct CompileOptions {
     pub build: BuildOptions,
     /// The options for linking.
     pub link: LinkOptions,
+}
+
+impl Default for CompileOptions {
+    fn default() -> Self {
+        Self {
+            diagnostic: DiagnosticOptions::default(),
+            workers: default_workers(),
+            import: ImportOptions::default(),
+            resolve: ResolveOptions::default(),
+            validate: ValidateOptions::default(),
+            lower: LowerOptions::default(),
+            execute: ExecuteOptions::default(),
+            optimize: OptimizeOptions::default(),
+            build: BuildOptions::default(),
+            link: LinkOptions::default(),
+        }
+    }
 }
 
 /// Compile files and sources into something (via DIR).

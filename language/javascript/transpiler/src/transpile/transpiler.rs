@@ -1,4 +1,6 @@
+use std::num::NonZero;
 use std::sync::Arc;
+use std::thread;
 
 use dashmap::DashMap;
 use dyst_dir as dir;
@@ -10,6 +12,13 @@ use crate::{
     TranspilerArtifact, TranspilerUnit,
 };
 
+/// Get the default number of worker threads (available parallelism, or 1 if unknown).
+pub fn default_workers() -> u16 {
+    thread::available_parallelism()
+        .unwrap_or(NonZero::new(1).unwrap())
+        .get() as u16
+}
+
 /// The transpilation mode.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum TranspilerMode {
@@ -20,22 +29,36 @@ pub enum TranspilerMode {
 }
 
 /// The options for transpiling.
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Clone)]
 pub struct TranspileOptions {
     /// The diagnostic options.
     pub diagnostic: DiagnosticOptions,
     /// The number of worker threads to use.
-    pub workers: Option<u16>,
+    pub workers: u16,
     /// The transpilation mode.
-    pub mode: TranspilerMode = TranspilerMode::Retained,
+    pub mode: TranspilerMode,
     /// The target language.
-    pub target: TranspileTarget = TranspileTarget::TypeScript,
+    pub target: TranspileTarget,
     /// The ECMAScript level.
-    pub es_version: EcmaScriptVersion = EcmaScriptVersion::ES2022,
+    pub es_version: EcmaScriptVersion,
     /// The TypeScript version.
-    pub ts_version: TypeScriptVersion = TypeScriptVersion::TS5_0,
+    pub ts_version: TypeScriptVersion,
     /// The formatting options.
     pub formatting: JavaScriptFormatOptions,
+}
+
+impl Default for TranspileOptions {
+    fn default() -> Self {
+        Self {
+            diagnostic: DiagnosticOptions::default(),
+            workers: default_workers(),
+            mode: TranspilerMode::Retained,
+            target: TranspileTarget::TypeScript,
+            es_version: EcmaScriptVersion::ES2022,
+            ts_version: TypeScriptVersion::TS5_0,
+            formatting: JavaScriptFormatOptions::default(),
+        }
+    }
 }
 
 /// The transpiler target for transpiling.

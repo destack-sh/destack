@@ -69,7 +69,6 @@ impl TracingArgs {
     }
 }
 
-/// Custom log format: [time] [level] [message] [target] [fields]
 struct CustomFormat;
 
 impl CustomFormat {

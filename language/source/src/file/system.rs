@@ -175,9 +175,9 @@ impl FileSystem for PhysicalFileSystem {
         Self
     }
 
-    #[tracing::instrument(name = "fs.exists", level = "trace", skip(self))]
+    #[tracing::instrument(name = "fs.physical.exists", level = "trace", skip(self))]
     fn exists(&self, path: &Path) -> io::Result<bool> {
-        tracing::trace!(?path, "fs.exists");
+        tracing::trace!(?path, "fs.physical.exists");
         match self.metadata(path) {
             Ok(_) => Ok(true),
             Err(err) if err.kind() == io::ErrorKind::NotFound => Ok(false),
@@ -185,33 +185,33 @@ impl FileSystem for PhysicalFileSystem {
         }
     }
 
-    #[tracing::instrument(name = "fs.metadata", level = "trace", skip(self))]
+    #[tracing::instrument(name = "fs.physical.metadata", level = "trace", skip(self))]
     fn metadata(&self, path: &Path) -> io::Result<FileMetadata> {
-        tracing::trace!(?path, "fs.metadata");
+        tracing::trace!(?path, "fs.physical.metadata");
         Self::metadata(path)
     }
 
-    #[tracing::instrument(name = "fs.resolve_symlink", level = "trace", skip(self))]
+    #[tracing::instrument(name = "fs.physical.resolve_symlink", level = "trace", skip(self))]
     fn resolve_symlink(&self, path: &Path) -> io::Result<PathBuf> {
-        tracing::trace!(?path, "fs.resolve_symlink");
+        tracing::trace!(?path, "fs.physical.resolve_symlink");
         Self::read_link(path)
     }
 
-    #[tracing::instrument(name = "fs.canonicalize", level = "trace", skip(self))]
+    #[tracing::instrument(name = "fs.physical.canonicalize", level = "trace", skip(self))]
     fn canonicalize(&self, path: &Path) -> io::Result<PathBuf> {
-        tracing::trace!(?path, "fs.canonicalize");
+        tracing::trace!(?path, "fs.physical.canonicalize");
         Self::canonicalize(path)
     }
 
-    #[tracing::instrument(name = "fs.read", level = "trace", skip(self))]
+    #[tracing::instrument(name = "fs.physical.read", level = "trace", skip(self))]
     fn read(&self, path: &Path) -> io::Result<Vec<u8>> {
-        tracing::trace!(?path, "fs.read");
+        tracing::trace!(?path, "fs.physical.read");
         fs::read(path)
     }
 
-    #[tracing::instrument(name = "fs.read_dir", level = "trace", skip(self))]
+    #[tracing::instrument(name = "fs.physical.read_dir", level = "trace", skip(self))]
     fn read_dir(&self, path: &Path) -> io::Result<Vec<PathBuf>> {
-        tracing::trace!(?path, "fs.read_dir");
+        tracing::trace!(?path, "fs.physical.read_dir");
         let mut entries = Vec::new();
         for entry in fs::read_dir(path)? {
             entries.push(entry?.path());
@@ -219,16 +219,16 @@ impl FileSystem for PhysicalFileSystem {
         Ok(entries)
     }
 
-    #[tracing::instrument(name = "fs.read_to_string", level = "trace", skip(self))]
+    #[tracing::instrument(name = "fs.physical.read_to_string", level = "trace", skip(self))]
     fn read_to_string(&self, path: &Path) -> io::Result<String> {
-        tracing::trace!(?path, "fs.read_to_string");
+        tracing::trace!(?path, "fs.physical.read_to_string");
         let bytes = self.read(path)?;
         validate_utf8_string(bytes)
     }
 
-    #[tracing::instrument(name = "fs.symlink_metadata", level = "trace", skip(self))]
+    #[tracing::instrument(name = "fs.physical.symlink_metadata", level = "trace", skip(self))]
     fn symlink_metadata(&self, path: &Path) -> io::Result<FileMetadata> {
-        tracing::trace!(?path, "fs.symlink_metadata");
+        tracing::trace!(?path, "fs.physical.symlink_metadata");
         Self::symlink_metadata(path)
     }
 }

@@ -1,4 +1,4 @@
-use crate::{AnalyzeResult, Compiler, Task, TaskOutput, TaskDebug};
+use crate::{AnalyzeResult, Compiler, Task, TaskDebug, TaskOutput};
 
 use dyst_dir::{ModuleId, Program};
 
@@ -29,8 +29,8 @@ impl TaskDebug for AnalyzeTask {
         match self {
             Self::Analyze { module } => {
                 let module = program.modules.get(*module);
-                let uri = module.read().uri.clone();
-                format!("module={uri}")
+                let uri = module.read().uri.clone().to_string();
+                format!(r#"module="{uri}""#)
             }
         }
     }

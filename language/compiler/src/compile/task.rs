@@ -12,7 +12,7 @@ pub trait TaskDebug {
     /// Get the task variant name (e.g., "file", "module", "specifier").
     fn name(&self) -> &'static str;
 
-    /// Format the task arguments for tracing, resolving IDs to readable values.
+    /// Format the task arguments for tracing (resolving ids, making the arguments readable, etc.).
     fn trace_args(&self, program: &Program) -> String;
 }
 

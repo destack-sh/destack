@@ -39,6 +39,7 @@ pub struct LexArgs {
     #[arg(long, default_value_t = 80)]
     pub max_lexeme: usize,
 
+    /// The program options.
     #[command(flatten)]
     pub program: ProgramArgs,
 }
