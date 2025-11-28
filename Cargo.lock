@@ -3000,6 +3000,7 @@ dependencies = [
  "serde_json",
  "smallvec",
  "tracing",
+ "tracing-subscriber",
 ]
 
 [[package]]
