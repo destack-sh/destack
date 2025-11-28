@@ -2724,7 +2724,7 @@ dependencies = [
 
 [[package]]
 name = "destack_cli"
-version = "2025.11.25-0"
+version = "2025.11.28-0"
 dependencies = [
  "clap",
  "dyst_ast",
@@ -2745,7 +2745,7 @@ dependencies = [
 
 [[package]]
 name = "destack_lsp"
-version = "2025.11.25-0"
+version = "2025.11.28-0"
 dependencies = [
  "dyst_ast",
  "dyst_dir",
@@ -2761,7 +2761,7 @@ dependencies = [
 
 [[package]]
 name = "destack_napi"
-version = "2025.11.25-0"
+version = "2025.11.28-0"
 dependencies = [
  "dyst_compiler",
  "dyst_javascript_ast",
@@ -2775,7 +2775,7 @@ dependencies = [
 
 [[package]]
 name = "destack_vscode"
-version = "2025.11.25-0"
+version = "2025.11.28-0"
 
 [[package]]
 name = "diff"
@@ -2971,7 +2971,7 @@ checksum = "d0881ea181b1df73ff77ffaaf9c7544ecc11e82fba9b5f27b262a3c73a332555"
 
 [[package]]
 name = "dyst_ast"
-version = "2025.11.25-0"
+version = "2025.11.28-0"
 dependencies = [
  "criterion",
  "dyst_fir",
@@ -2983,7 +2983,7 @@ dependencies = [
 
 [[package]]
 name = "dyst_compiler"
-version = "2025.11.25-0"
+version = "2025.11.28-0"
 dependencies = [
  "crossbeam-deque",
  "dashmap 6.1.0",
@@ -3005,7 +3005,7 @@ dependencies = [
 
 [[package]]
 name = "dyst_dir"
-version = "2025.11.25-0"
+version = "2025.11.28-0"
 dependencies = [
  "dashmap 6.1.0",
  "dyst_ast",
@@ -3023,7 +3023,7 @@ dependencies = [
 
 [[package]]
 name = "dyst_fir"
-version = "2025.11.25-0"
+version = "2025.11.28-0"
 dependencies = [
  "dyst_source",
  "dyst_unicode",
@@ -3031,7 +3031,7 @@ dependencies = [
 
 [[package]]
 name = "dyst_formatter"
-version = "2025.11.25-0"
+version = "2025.11.28-0"
 dependencies = [
  "dyst_ast",
  "dyst_fir",
@@ -3042,7 +3042,7 @@ dependencies = [
 
 [[package]]
 name = "dyst_javascript_ast"
-version = "2025.11.25-0"
+version = "2025.11.28-0"
 dependencies = [
  "dyst_dir",
  "dyst_source",
@@ -3052,7 +3052,7 @@ dependencies = [
 
 [[package]]
 name = "dyst_javascript_machine"
-version = "2025.11.25-0"
+version = "2025.11.28-0"
 dependencies = [
  "deno_runtime",
  "dyst_ast",
@@ -3066,7 +3066,7 @@ dependencies = [
 
 [[package]]
 name = "dyst_javascript_transpiler"
-version = "2025.11.25-0"
+version = "2025.11.28-0"
 dependencies = [
  "dashmap 6.1.0",
  "dyst_ast",
@@ -3086,7 +3086,7 @@ dependencies = [
 
 [[package]]
 name = "dyst_linter"
-version = "2025.11.25-0"
+version = "2025.11.28-0"
 dependencies = [
  "dyst_ast",
  "dyst_dir",
@@ -3096,7 +3096,7 @@ dependencies = [
 
 [[package]]
 name = "dyst_machine"
-version = "2025.11.25-0"
+version = "2025.11.28-0"
 dependencies = [
  "dyst_ast",
  "dyst_dir",
@@ -3108,7 +3108,7 @@ dependencies = [
 
 [[package]]
 name = "dyst_mir"
-version = "2025.11.25-0"
+version = "2025.11.28-0"
 dependencies = [
  "dyst_ast",
  "dyst_dir",
@@ -3119,7 +3119,7 @@ dependencies = [
 
 [[package]]
 name = "dyst_parser"
-version = "2025.11.25-0"
+version = "2025.11.28-0"
 dependencies = [
  "criterion",
  "dyst_ast",
@@ -3132,7 +3132,7 @@ dependencies = [
 
 [[package]]
 name = "dyst_resolver"
-version = "2025.11.25-0"
+version = "2025.11.28-0"
 dependencies = [
  "cfg-if",
  "crossbeam-deque",
@@ -3154,7 +3154,7 @@ dependencies = [
 
 [[package]]
 name = "dyst_source"
-version = "2025.11.25-0"
+version = "2025.11.28-0"
 dependencies = [
  "cfg-if",
  "dashmap 6.1.0",
@@ -3169,15 +3169,15 @@ dependencies = [
 
 [[package]]
 name = "dyst_test"
-version = "2025.11.25-0"
+version = "2025.11.28-0"
 
 [[package]]
 name = "dyst_unicode"
-version = "2025.11.25-0"
+version = "2025.11.28-0"
 
 [[package]]
 name = "dyst_workspace"
-version = "2025.11.25-0"
+version = "2025.11.28-0"
 dependencies = [
  "dyst_ast",
  "dyst_compiler",

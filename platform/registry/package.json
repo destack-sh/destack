@@ -1,8 +1,9 @@
 {
-	"name": "@destack/console",
-	"version": "2025.11.25.0",
+	"name": "@destack/registry",
+	"version": "2025.11.28.0",
 	"license": "MIT",
 	"type": "module",
+	"sideEffects": false,
 	"scripts": {
 		"dev": "bun --hot src/index.ds",
 		"start": "NODE_ENV=production bun src/index.ds"

@@ -1,18 +1,7 @@
 # Repository Guidelines
 
-Destack is a development platform powered by Dyst, our custom programming language (`.ds`).
-Dyst modules are mostly backed by Rust currently, but can have bindings to and from other languages.
-
-## Project Structure & Module Organization
-Destack is primarily a Rust & Dyst workspace (see `Cargo.toml`) with these top-level areas:
-- `client/` - Client SDKs (TypeScript, Python, ...)
-- `demo/` - Example applications
-- `development/` - Development and deployment utilities
-- `extension/` - Various bridges and integration (LSP server + VS Code extension)
-- `language/` - Compiler front- and back-ends for Dyst
-- `library/` - Standard library
-- `platform/` - Platform targets
-- `test/` - Full-stack simulation tests
+Destack is a full-stack software "stack" powered by our custom language (`.ds`).
+It's a fully integrated language, library and platform ecosystem.
 
 ## Comments
 Inline comments SHOULD be short and begin with a lowercase letter.
@@ -115,22 +104,3 @@ Avoid using as any or similar casts.
 ### Commands
 - `bun install` then `bun run build` inside `client/destack_ts` compiles the TypeScript SDK; use `bun run test` for JS tests.
 - `bun run vscode:compile` from the repo root produces the VS Code extension bundle.
-
-## Python
-Always type everything properly.
-Use modern lowercase type annotations like `list[str] | None`.
-Prefer Sequence/Mapping/.. and such as return annotation.
-Avoid getattr/hasattr.
-Imports should go to the top of the file.
-Don't import anything from __future__.
-When documenting with a multi-line string the first line should start on a newline:
-"""
-This is a long documentation.
-More explanation here.
-"""
-Asserts should have format strings:
-```
-assert a == b, f"a != b: {a!r} != {b!r}"
-```
-Match enum-like things exhaustively with assert_never on the else.
-

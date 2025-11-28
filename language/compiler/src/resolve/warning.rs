@@ -1,6 +1,6 @@
 use dyst_dir::{GlobalNodeIdAny, Program};
 
-use crate::{TaskWarning, Phase};
+use crate::{Phase, TaskWarning};
 
 /// Warning when evaluating something statically.
 #[derive(Debug, Clone, PartialEq)]

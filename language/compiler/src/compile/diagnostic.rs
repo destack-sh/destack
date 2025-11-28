@@ -1,4 +1,4 @@
-use crate::{TaskWarning, TaskError};
+use crate::{TaskError, TaskWarning};
 use dyst_dir::{GlobalNodeIdAny, Program};
 use dyst_source::{Diagnostic, DiagnosticSeverity, LabeledSpan};
 

@@ -1,6 +1,6 @@
 {
 	"name": "@destack/entity",
-	"version": "2025.11.25.0",
+	"version": "2025.11.28.0",
 	"license": "MIT",
 	"type": "module",
 	"scripts": {
