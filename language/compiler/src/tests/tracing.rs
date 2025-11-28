@@ -16,7 +16,7 @@ pub fn init_tracing() {
             fmt::layer()
                 .with_test_writer()
                 .event_format(TestFormat)
-                .fmt_fields(TestFieldFormatter),
+                .fmt_fields(TestFieldFormat),
         )
         .try_init();
 }
@@ -65,6 +65,10 @@ where
         let level = *event.metadata().level();
         write!(writer, "{} ", format_level(level))?;
 
+        // thread id (dim)
+        let thread_id = std::thread::current().id().as_u64().get();
+        write!(writer, "\x1b[2mT{thread_id:02}\x1b[0m ")?;
+
         // collect message and fields
         let mut visitor = TestFieldVisitor {
             message: None,
@@ -86,9 +90,9 @@ where
     }
 }
 
-struct TestFieldFormatter;
+struct TestFieldFormat;
 
-impl<'w> FormatFields<'w> for TestFieldFormatter {
+impl<'w> FormatFields<'w> for TestFieldFormat {
     fn format_fields<R: tracing_subscriber::field::RecordFields>(
         &self,
         mut writer: Writer<'w>,

@@ -1,5 +1,6 @@
 #![allow(dead_code)]
 
+use std::env::current_dir;
 use std::path::PathBuf;
 use std::sync::Arc;
 
@@ -10,7 +11,7 @@ use dyst_source::{
 };
 use parking_lot::RwLock;
 
-use crate::{CompileOptions, Compiler, Task};
+use crate::{CompileOptions, Compiler, Task, default_workers};
 
 use super::tracing::init_tracing;
 
@@ -50,19 +51,30 @@ pub struct TestProgram {
 }
 
 impl TestProgram {
-    /// Create a new blank TestProgram.
-    pub fn memory() -> Self {
+    /// Create a new TestProgram with the given TestFileSystem and worker count.
+    fn new(fs: TestFileSystem, workers: u16) -> Self {
+        // context
         init_tracing();
-        let fs = TestFileSystem::Memory {
-            fs: Arc::new(MemoryFileSystem::new()),
+        let root_directory = match &fs {
+            TestFileSystem::Memory { .. } => current_dir().unwrap(),
+            TestFileSystem::Physical { root_directory, .. } => root_directory.clone(),
         };
+
+        // program
         let program = Arc::new(Program::new(
             LanguageOptions::default(),
-            PathBuf::new(),
+            root_directory,
             fs.fs(),
             Arc::new(FileRegistry::new()),
         ));
-        let compiler = Arc::new(Compiler::new(program.clone(), CompileOptions::default()));
+
+        // compiler options
+        let compiler_options = CompileOptions {
+            workers,
+            ..CompileOptions::default()
+        };
+        let compiler = Arc::new(Compiler::new(program.clone(), compiler_options));
+
         Self {
             fs,
             program,
@@ -71,27 +83,25 @@ impl TestProgram {
         }
     }
 
-    /// Create a new TestProgram from a physical fixture.
-    pub fn physical(root_directory: &str) -> Self {
-        init_tracing();
-        let root_directory = PathBuf::from(root_directory);
-        let fs = TestFileSystem::Physical {
-            root_directory: root_directory.clone(),
-            fs: Arc::new(PhysicalFileSystem::new()),
-        };
-        let program = Arc::new(Program::new(
-            LanguageOptions::default(),
-            root_directory.clone(),
-            fs.fs(),
-            Arc::new(FileRegistry::new()),
-        ));
-        let compiler = Arc::new(Compiler::new(program.clone(), CompileOptions::default()));
-        Self {
-            fs,
-            program,
-            compiler,
-            dumper_options: DumperOptions::default(),
-        }
+    /// Create a new blank TestProgram with multiple workers.
+    pub fn memory_multithreaded() -> Self {
+        Self::new(
+            TestFileSystem::Memory {
+                fs: Arc::new(MemoryFileSystem::new()),
+            },
+            default_workers(),
+        )
+    }
+
+    /// Create a new TestProgram from a physical fixture with multiple workers.
+    pub fn physical_multithreaded(root_directory: &str) -> Self {
+        Self::new(
+            TestFileSystem::Physical {
+                root_directory: PathBuf::from(root_directory),
+                fs: Arc::new(PhysicalFileSystem::new()),
+            },
+            default_workers(),
+        )
     }
 
     /// Create a new source file.

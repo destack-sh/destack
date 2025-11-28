@@ -186,7 +186,7 @@ mod tests {
     /// Resolve symbols at top level in a single module.
     #[test]
     fn test_resolve_symbol_in_single_module() {
-        let test = TestProgram::memory();
+        let test = TestProgram::memory_multithreaded();
         let file = test.file(
             "test.ds",
             r#"
@@ -238,7 +238,7 @@ let z = y;
     /// Resolve symbols across two modules.
     #[test]
     fn test_resolve_symbol_across_two_modules() {
-        let test = TestProgram::memory();
+        let test = TestProgram::memory_multithreaded();
         let file_a = test.file(
             "a.ds",
             r#"
