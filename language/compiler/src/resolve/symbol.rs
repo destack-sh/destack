@@ -277,8 +277,9 @@ export let B = A + 1;
             .into_typed::<Expression>();
         assert_node!(tree_b, b_node, Expression::Let { value: Some(value), ..} => {
             assert_node!(tree_b, *value, Expression::Binary { left, right, .. } => {
-                assert_node!(tree_b, *left, Expression::ModuleReference { target_symbol, .. } => {
-                    assert_eq!(*target_symbol, a_symbol_id);
+                assert_node!(tree_b, *left, Expression::ModuleReference { target_symbol: target_symbol_id, .. } => {
+                    let target_symbol = test.symbol_by_id(*target_symbol_id);
+                    assert_eq!(target_symbol.target_symbol, Some(a_symbol_id));
                 });
                 assert_node!(tree_b, *right, Expression::ScalarLiteral { value: ScalarLiteral::Integer(1) });
             })

@@ -50,7 +50,10 @@ impl Compiler {
     }
 
     /// Bind a module.
+    #[tracing::instrument(name = "bind.module", skip(self), fields(module_id))]
     pub(crate) fn bind_module(&self, module_id: ModuleId) {
+        let module = self.program.modules.get(module_id).read().uri.to_string();
+        tracing::debug!(?module, "bind.module.start");
         // bind AST into DIR
         self.bind_module_roots(module_id);
 
@@ -62,6 +65,7 @@ impl Compiler {
 
         // next task: resolve module
         self.enqueue(ResolveTask::ResolveModule { module: module_id });
+        tracing::debug!(?module, "bind.module.complete");
     }
 
     /// Bind the AST root expressions for a module.

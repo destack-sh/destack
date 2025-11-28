@@ -138,6 +138,8 @@ pub struct Symbol {
     pub secondary_declarations: Option<Box<Vec<GlobalNodeIdAny>>>,
     /// Forward to another remote symbol (like for imports, pattern bindings, etc.).
     pub target_symbol: Option<GlobalSymbolId>,
+    /// Final remote symbol in the chain (end of target-symbol chain).
+    pub final_symbol: Option<GlobalSymbolId>,
 }
 
 impl Symbol {

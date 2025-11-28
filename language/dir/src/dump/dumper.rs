@@ -1926,7 +1926,7 @@ impl Dump for LocalScopeMark {
 impl Dump for GlobalSymbolId {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
         dumper.write_str(
-            format!("#{}/{}/", self.module_id.0, self.local_id.0),
+            format!("#{}/{}", self.module_id.0, self.local_id.0),
             Some(Color::Green),
         );
     }
