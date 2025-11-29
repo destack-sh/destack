@@ -2,11 +2,10 @@ use destack_source::{FileType, Uri};
 use std::str::FromStr;
 use tower_lsp_server::lsp_types as lsp;
 
-pub const TRACKED_FILE_TYPES: [FileType; 4] = [
+pub const TRACKED_FILE_TYPES: [FileType; 3] = [
     FileType::Destack,
     FileType::DestackText,
     FileType::DestackBinary,
-    FileType::DestackExecutable,
 ];
 
 /// Convert an LSP URI to a URI.

@@ -29,9 +29,7 @@
         "destack.json",
         "destack.tmLanguage.json",
         "destack.tmTheme.json",
-        "package.json",
-        "README.md",
-        "LICENSE.txt"
+        "package.json"
     ],
     "contributes": {
         "configuration": {
