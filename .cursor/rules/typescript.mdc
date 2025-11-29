@@ -1,7 +1,8 @@
 ---
-description:
-globs: *.ts,*.tsx,*.js,*.jsx
+globs: "*.ts,*.tsx,*.js,*.jsx,*.ds,*.d.ds"
 alwaysApply: false
 ---
-Always type everything properly.
-Avoid using as any or similar casts.
+TypeScript/Destack-specific rules (see AGENTS.md for general guidelines):
+
+- Always type everything properly
+- Avoid `as any` or similar casts

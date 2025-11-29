@@ -1,0 +1,32 @@
+set shell := ["bash", "-cu"]
+
+_default:
+    @just --list --unsorted
+
+# build the CLI
+cli:
+    cargo build --release -p destack_cli
+
+# build the LSP server
+lsp:
+    cargo build --release -p destack_lsp
+
+# build the VSCode extension
+vscode:
+    cargo build --release -p destack_vscode
+
+# build all platform Rust crates
+build:
+    cargo build --release -p destack_cli -p destack_lsp -p destack_vscode -p destack_daemon
+
+# run platform tests
+test:
+    cargo test -p destack_cli -p destack_lsp -p destack_vscode -p destack_daemon
+
+# format code
+fmt:
+    cargo fmt -p destack_cli -p destack_lsp -p destack_vscode -p destack_daemon
+
+# lint code
+lint:
+    cargo clippy -p destack_cli -p destack_lsp -p destack_vscode -p destack_daemon

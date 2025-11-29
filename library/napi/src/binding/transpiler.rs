@@ -347,10 +347,7 @@ fn transpile_file_impl(
 
     // collect any diagnostics
     let diagnostic_list = program.diagnostics.iter();
-    let diagnostics: Vec<String> = diagnostic_list
-        .iter()
-        .map(|d| d.message.clone())
-        .collect();
+    let diagnostics: Vec<String> = diagnostic_list.iter().map(|d| d.message.clone()).collect();
 
     // check for errors
     let has_errors = program
@@ -377,7 +374,7 @@ fn transpile_file_impl(
             _ => {
                 return Err(napi::Error::from_reason(
                     "Artifact is not text content".to_string(),
-                ))
+                ));
             }
         },
         None => {
@@ -389,13 +386,13 @@ fn transpile_file_impl(
                     _ => {
                         return Err(napi::Error::from_reason(
                             "Artifact is not text content".to_string(),
-                        ))
+                        ));
                     }
                 },
                 None => {
                     return Err(napi::Error::from_reason(
                         "No transpiled artifact found".to_string(),
-                    ))
+                    ));
                 }
             }
         }

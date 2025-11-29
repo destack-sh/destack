@@ -1,24 +1,22 @@
 set shell := ["bash", "-cu"]
 
 _default:
-  @just --list --unsorted
-
-alias t := test
+    @just --list --unsorted
 
 # install workspace js deps
 install:
-  pnpm install
+    pnpm install
 
 # install fixture-local deps with their own .pnpm trees
-install_fixtures:
-  set -euo pipefail
-  for dir in fixtures/pnpm fixtures/pnpm-workspace; do \
-    if [ -f "$dir/package.json" ]; then \
-      (cd "$dir" && pnpm install --ignore-workspace); \
-    fi; \
-  done
+install-fixtures:
+    set -euo pipefail
+    for dir in fixtures/pnpm fixtures/pnpm-workspace; do \
+        if [ -f "$dir/package.json" ]; then \
+            (cd "$dir" && pnpm install --ignore-workspace); \
+        fi; \
+    done
 
-# run the release-mode resolver tests
+# run resolver tests
 test:
-  cargo test --release -p dyst_resolver
+    cargo test --release -p destack_resolver
 

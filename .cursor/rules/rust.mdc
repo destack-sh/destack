@@ -1,33 +1,12 @@
 ---
-description:
-globs: *.rs
+globs: "*.rs"
 alwaysApply: false
 ---
-Performance is very important.
+Rust-specific rules (see AGENTS.md for general guidelines):
 
-Imports SHOULD Be up top, then relative references within the file wherever possible (NO `crate::X` within functions).
-
-Rust tests SHOULD go in the bottom of the file in a `tests` mod.
-
-Import common stuff and use the inner name like:
-```
-use std::time::Instant;
-
-fn foo() {
-    let now = Instant::now();
-}
-``
-
-Inline variables directly in format!-style macros:
-`format!("my name is {name}")`
-
-Never use expect or unwrap (outside of tests).
-Try to avoid panics, if unavoidable, make it explicit with:
-`unwrap_or_else(|_| panic!("..."))`
-
-Public and complex function documentation SHOULD list out individual arguments / return.
-
-Comments go above attributes.
-
-Spell out variable names and methods, we're not character-constrained.
- (i, idx, x, etc. are fine where obvious).
+- Imports at top, use inner names: `use std::time::Instant`
+- No `crate::X` in functions, use relative references
+- Tests in trailing `mod tests`
+- Inline in format macros: `format!("name is {name}")`
+- No `unwrap`/`expect` outside tests
+- Comments go above attributes

@@ -1,8 +1,0 @@
----
-alwaysApply: true
----
-Tests should start with `test_` and state their content as a sentence/verb.
-(e.g., test_roundtrip_duration, test_send_recv_message).
-Tests should elaborate desired behavior in the first line or a 1-2 line docstring.
-(Do not mention "test", just say what we're doing / what should happen in present tense.)
-Wherever possible we like property-based testing, roundtrip testing and such. 

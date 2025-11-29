@@ -76,7 +76,7 @@ pub struct Compiler {
     pub pending_diagnostics: DiagnosticCollector,
     /// The queue of compiler tasks.
     pub(super) queue: TaskQueue,
-    /// Locks for serializing module creation per URI (to lock the File->Module import/bind race)
+    /// Locks for serializing module creation per URI (to lock the File->Module import/bind race).
     import_locks: DashMap<Uri, Arc<Mutex<Option<ModuleId>>>>,
 }
 

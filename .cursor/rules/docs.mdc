@@ -1,8 +1,0 @@
----
-description: 
-globs: 
-alwaysApply: true
----
-Non-trivial or non-private methods SHOULD be documented, but we don't document every parameter/error/....
-Go multiline if there is more than one sentence to say.
-For methods, documentation should be imperative, starting with a verb ("Send a message to XYZ").

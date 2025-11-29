@@ -1,4 +1,0 @@
----
-alwaysApply: true
----
-We program for adults and generally usually members should be public or at least module/crate public.

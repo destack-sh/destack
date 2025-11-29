@@ -1,0 +1,17 @@
+{
+	"name": "zurichtech",
+	"version": "2025.11.29.1",
+	"license": "MIT",
+	"type": "module",
+	"scripts": {
+		"dev": "bun --hot src/index.ds",
+		"start": "NODE_ENV=production bun src/index.ds"
+	},
+	"dependencies": {
+		"zod": "^4.1.12"
+	},
+	"devDependencies": {
+		"@destack/bun": "workspace:*",
+		"@types/bun": "latest"
+	}
+}

@@ -2724,7 +2724,7 @@ dependencies = [
 
 [[package]]
 name = "destack_ast"
-version = "2025.11.29-0"
+version = "2025.11.29-1"
 dependencies = [
  "criterion",
  "destack_fir",
@@ -2736,7 +2736,7 @@ dependencies = [
 
 [[package]]
 name = "destack_cli"
-version = "2025.11.29-0"
+version = "2025.11.29-1"
 dependencies = [
  "clap",
  "destack_ast",
@@ -2760,7 +2760,7 @@ dependencies = [
 
 [[package]]
 name = "destack_compiler"
-version = "2025.11.29-0"
+version = "2025.11.29-1"
 dependencies = [
  "crossbeam-deque",
  "dashmap 6.1.0",
@@ -2782,7 +2782,7 @@ dependencies = [
 
 [[package]]
 name = "destack_daemon"
-version = "2025.11.29-0"
+version = "2025.11.29-1"
 dependencies = [
  "crossbeam-deque",
  "dashmap 6.1.0",
@@ -2806,7 +2806,7 @@ dependencies = [
 
 [[package]]
 name = "destack_dir"
-version = "2025.11.29-0"
+version = "2025.11.29-1"
 dependencies = [
  "dashmap 6.1.0",
  "destack_ast",
@@ -2824,7 +2824,7 @@ dependencies = [
 
 [[package]]
 name = "destack_fir"
-version = "2025.11.29-0"
+version = "2025.11.29-1"
 dependencies = [
  "destack_source",
  "destack_unicode",
@@ -2832,7 +2832,7 @@ dependencies = [
 
 [[package]]
 name = "destack_formatter"
-version = "2025.11.29-0"
+version = "2025.11.29-1"
 dependencies = [
  "destack_ast",
  "destack_fir",
@@ -2843,7 +2843,7 @@ dependencies = [
 
 [[package]]
 name = "destack_javascript_ast"
-version = "2025.11.29-0"
+version = "2025.11.29-1"
 dependencies = [
  "destack_dir",
  "destack_source",
@@ -2853,7 +2853,7 @@ dependencies = [
 
 [[package]]
 name = "destack_javascript_machine"
-version = "2025.11.29-0"
+version = "2025.11.29-1"
 dependencies = [
  "deno_runtime",
  "destack_ast",
@@ -2867,7 +2867,7 @@ dependencies = [
 
 [[package]]
 name = "destack_javascript_transpiler"
-version = "2025.11.29-0"
+version = "2025.11.29-1"
 dependencies = [
  "dashmap 6.1.0",
  "destack_ast",
@@ -2887,7 +2887,7 @@ dependencies = [
 
 [[package]]
 name = "destack_linter"
-version = "2025.11.29-0"
+version = "2025.11.29-1"
 dependencies = [
  "destack_ast",
  "destack_dir",
@@ -2897,7 +2897,7 @@ dependencies = [
 
 [[package]]
 name = "destack_lsp"
-version = "2025.11.29-0"
+version = "2025.11.29-1"
 dependencies = [
  "destack_ast",
  "destack_dir",
@@ -2913,7 +2913,7 @@ dependencies = [
 
 [[package]]
 name = "destack_machine"
-version = "2025.11.29-0"
+version = "2025.11.29-1"
 dependencies = [
  "destack_ast",
  "destack_dir",
@@ -2925,7 +2925,7 @@ dependencies = [
 
 [[package]]
 name = "destack_mir"
-version = "2025.11.29-0"
+version = "2025.11.29-1"
 dependencies = [
  "destack_ast",
  "destack_dir",
@@ -2936,7 +2936,7 @@ dependencies = [
 
 [[package]]
 name = "destack_napi"
-version = "2025.11.29-0"
+version = "2025.11.29-1"
 dependencies = [
  "destack_compiler",
  "destack_daemon",
@@ -2955,7 +2955,7 @@ dependencies = [
 
 [[package]]
 name = "destack_parser"
-version = "2025.11.29-0"
+version = "2025.11.29-1"
 dependencies = [
  "criterion",
  "destack_ast",
@@ -2968,7 +2968,7 @@ dependencies = [
 
 [[package]]
 name = "destack_resolver"
-version = "2025.11.29-0"
+version = "2025.11.29-1"
 dependencies = [
  "cfg-if",
  "crossbeam-deque",
@@ -2990,7 +2990,7 @@ dependencies = [
 
 [[package]]
 name = "destack_source"
-version = "2025.11.29-0"
+version = "2025.11.29-1"
 dependencies = [
  "cfg-if",
  "dashmap 6.1.0",
@@ -3005,19 +3005,19 @@ dependencies = [
 
 [[package]]
 name = "destack_test"
-version = "2025.11.29-0"
+version = "2025.11.29-1"
 
 [[package]]
 name = "destack_unicode"
-version = "2025.11.29-0"
+version = "2025.11.29-1"
 
 [[package]]
 name = "destack_vscode"
-version = "2025.11.29-0"
+version = "2025.11.29-1"
 
 [[package]]
 name = "destack_workspace"
-version = "2025.11.29-0"
+version = "2025.11.29-1"
 dependencies = [
  "crossbeam-deque",
  "dashmap 6.1.0",

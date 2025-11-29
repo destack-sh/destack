@@ -1,0 +1,32 @@
+set shell := ["bash", "-cu"]
+
+_default:
+    @just --list --unsorted
+
+# build napi bindings
+napi:
+    bun run --cwd napi build
+
+# type check all packages
+check:
+    bun x tsc --noEmit -p library/napi/tsconfig.json
+
+# run all tests
+test:
+    bun test
+
+# format code
+fmt:
+    bun run biome format --write .
+
+# check formatting
+fmt-check:
+    bun run biome format .
+
+# lint code
+lint:
+    bun run biome lint .
+
+# clean build artifacts
+clean:
+    rm -rf node_modules

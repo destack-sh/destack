@@ -1,106 +1,105 @@
-# Repository Guidelines
+# Destack Guidelines
 
-Destack is a full-stack software "stack" powered by our custom language (`.ds`).
-It's a fully integrated language, library and platform ecosystem.
+Destack is a full-stack software stack powered by our custom language (`.ds`).
+A TypeScript superset with integrated language, library, and platform ecosystem.
 
-## Comments
-Inline comments SHOULD be short and begin with a lowercase letter.
-Inline comments SHOULD be above a related code block (these blocks are usually 2-10 lines).
-Most comments are <1 sentence and SHOULD not include a . at the end.
-Function, module, class, .. documentation must be proper sentences with punctuation. 
+## Code Style
 
-Comments MAY start with certain keywords:
- - NOTE: call out something important that should not be missed when reading this code.
- - TODO: something is missing / slow / imperfect about this code, should be addressed eventually.
- - n o c h e c k i n (without the spaces): this is temporary and should not be committed / checked in.
- (Do not use lowercase Note:, always NOTE)
-Comments like that SHOULD also include one or more tags like:
- - NOTE @Performance: this clones the string, use custom alloc (?)
- - TODO @Cleanup: this seems unnecessarily confusing
- The allowable tags are:
- - @Performance: could be faster or more efficient
- - @Robustness: this might be flaky in some cases
- - @Broken: doesn't do what it should in likely cases
- - @Cleanup: could be simpler or better structured
- - @Incomplete: obvious/implicit feature is missing
- - @Security: should be hardened / may allow more access then intended
- - @Architecture: something larger than per-class/file code design to reconsider 
+### Comments
 
-NOTE ALL "Note" comments MUST begin on a new line with uppercase NOTE and SHOULD have an @tag.
-Sentences SHOULD start on their own line (except *very* short ones).
-Prefer more specific verbs ("gets" or "computes" over plain "returns").
+Inline comments should be short and begin with a lowercase letter.
+Place them above a related code block (usually 2-10 lines).
+Most comments are <1 sentence and should not include a period at the end.
 
-Custom types SHOULD be referred by their properly capiztalized names (like `Parse a Token.`).
-
-## Documentation
-Non-trivial or non-private methods SHOULD be documented, but we don't document every parameter/error/....
-Go multiline if there is more than one sentence to say.
+Function, module, and class documentation must be proper sentences with punctuation.
+Go multiline if there is more than one sentence.
 For methods, documentation should be imperative, starting with a verb ("Send a message to XYZ").
 
-## Logic
-Long methods are allowed and encouraged if the logic isn't extractable.
-Otherwise, smaller functions are great especially in compiled languages.
-Avoid nesting function/class definitions (though it's fine if needed).
+Comments may start with keywords:
+- `NOTE`: call out something important
+- `TODO`: something to address eventually
+- `nocheckin`: temporary, should not be committed
 
-Most methods/functions should have at least a one-line documentation.
+Keywords should include tags:
+- `#Performance`: could be faster or more efficient
+- `#Robustness`: might be flaky in some cases
+- `#Broken`: doesn't work in likely cases
+- `#Cleanup`: could be simpler or better structured
+- `#Incomplete`: obvious feature is missing
+- `#Security`: may allow more access than intended
+- `#Architecture`: larger design to reconsider
 
+Example: `NOTE #Performance: avoid cloning string in parser`
+
+### Naming
+
+Names should be obvious, clear, and idiomatic to the language.
+Avoid single-letter variables unless obvious (`i`, `x`, `Vector.x` are fine).
+Booleans should start with `is_` unless already clear.
+
+### Logic
+
+Long methods are allowed if the logic isn't extractable.
 Prefer pure(ish) functions.
+Break larger code blocks into logical chunks with whitespace and/or preamble comments.
 
 For exhaustive matching, prefer if/else over match.
-If we're checking anything that should cover all cases use some variant of assert_never in an else branch.
+Use `assert_never` in else branches for exhaustive checks.
 
-Larger code blocks - regardless of branching - should be broken up into logical chunks
- (demarcate with whitespace and/or preamble comments like `# parse HH:MM remainder`).
+Use temporary variables for non-trivial operations:
 
-When calling functions or returning results any non-trivial operation gets a temporary variable.
-Variables should be full words wherever possible and no obvious abbreviation exists.
-Like:
-```
+```rust
 let first_digit = (dt_bytes[0] - b'0') as i64;
 let second_digit = (dt_bytes[1] - b'0') as i64;
-let number = 10 * second_digit + first_digit;
-Ok(number);
+let number = 10 * first_digit + second_digit;
 ```
 
-Prefer multiline strings for longer strings (raw strings in Rust, """\ in Python.)
+### Testing
 
-## Naming
-Naming should be obvious and clear (and idiomatic to the language), though not overly verbose.
-Avoid single or few letter variables, method and function names unlress absolutely clear.
- (`i`, `x` and `Vector.x` are fine.)
-Booleans should start with `is_` unless they're obvious.
+Tests should start with `test_` and state their content as a verb.
+Example: `test_roundtrip_duration`, `test_send_recv_message`.
 
-## Performance
-Performance is critical across the board.
-Don't over-optimize when it makes code harder to read, but consideration up-front is important.
-
-## Testing
-Tests should start with `test_` and state their content as a sentence/verb.
-(e.g., test_roundtrip_duration, test_send_recv_message).
-Tests should elaborate desired behavior in the first line or a 1-2 line docstring.
-(Do not mention "test" in the comment, just say what we're doing / what should happen in present tense.)
-Wherever possible we like property-based testing, roundtrip testing and such. 
-
-## Commits & PRs
-Follow `type(scope): summary` (≤72 chars, imperative) such as `feat(language): add error spans`. PRs should explain motivation, list touched crates/workspaces, attach key `cargo`/`bun` outputs, link issues, and include UI evidence when demos or editor UX change.
+The first line or docstring should describe desired behavior (don't mention "test").
+Prefer property-based testing and roundtrip testing where possible.
 
 ## Rust
-- Toolchain: `nightly-2025-08-14`.
-- Place imports up top and prefer direct `use std::time::Instant` patterns.
-- Avoid `unwrap`/`expect` outside tests; fail explicitly instead.
-- Keep tests in a trailing `mod tests` and rely on inline capture formatting (`format!("tick {tick}")`).
+
+Toolchain: `nightly-2025-11-27` (see `rust-toolchain.toml`)
+
+- Place imports at the top, prefer `use std::time::Instant` patterns
+- No `crate::X` within functions, use relative references
+- Avoid `unwrap`/`expect` outside tests; fail explicitly
+- Tests go in a trailing `mod tests`
+- Inline variables in format macros: `format!("name is {name}")`
+- Public and complex function docs should list arguments and return values
+- Prefer multiline raw strings for longer strings
 
 ### Commands
-- `cargo check --workspace` quickly validates all Rust crates.
-- `cargo build --workspace --release` produces optimized artifacts (web builds reside in `platform/web/target`).
-- `cargo test --workspace --all-targets` runs unit and integration suites; add `--features ...` for feature-specific coverage.
-- `cargo clippy --workspace --all-targets --all-features` must pass lint gates.
-- `cargo fmt --all` applies the repo-level `rustfmt.toml`.
 
-## TypeScript
-Always type everything properly.
-Avoid using as any or similar casts.
+```sh
+just language/check    # cargo check --workspace
+just language/build    # cargo build --workspace --release
+just language/test     # cargo test --workspace --all-targets
+just language/lint     # cargo clippy --workspace --all-targets --all-features
+just language/fmt      # cargo fmt --all
+```
+
+## TypeScript / Destack
+
+- Always type everything properly
+- Avoid `as any` or similar casts
+- Use Bun as the runtime
 
 ### Commands
-- `bun install` then `bun run build` inside `client/destack_ts` compiles the TypeScript SDK; use `bun run test` for JS tests.
-- `bun run vscode:compile` from the repo root produces the VS Code extension bundle.
+
+```sh
+just install           # bun install
+just library/napi      # build napi bindings
+bun test               # run tests
+```
+
+## Commits
+
+Follow `type(scope): summary` (≤100 chars, imperative).
+Example: `feat(language): add error spans`
+Types: `feat`, `fix`, `refactor`, `docs`, `test`, `chore`

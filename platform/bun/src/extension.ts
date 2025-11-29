@@ -2,10 +2,10 @@ import fs from "node:fs";
 import path from "node:path";
 import {
     defaultTranspileOptions,
+    type TranspileOptions,
     TranspileTarget,
     transpileFile,
     Workspace,
-    type TranspileOptions,
 } from "@destack/napi";
 import type { BunPlugin, PluginBuilder } from "bun";
 
