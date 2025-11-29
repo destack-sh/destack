@@ -24,17 +24,14 @@ impl fmt::Debug for Resolver {
 impl Resolver {
     /// Create a new resolver with options in an existing program.
     pub fn new(program: Arc<Program>, options: ResolveOptions) -> Self {
-        Self {
-            program,
-            options: options.sanitize(),
-        }
+        Self { program, options }
     }
 
     /// Clone the resolver with new options.
     pub fn with_options(&self, options: ResolveOptions) -> Self {
         Self {
             program: self.program.clone(),
-            options: options.sanitize(),
+            options,
         }
     }
 

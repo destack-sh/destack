@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 use destack_source::PathExt;
 
 use super::file::append_extension;
-use crate::{ResolveContext, ResolveError, Resolver};
+use crate::{EnforceExtension, ResolveContext, ResolveError, Resolver};
 
 impl Resolver {
     /// Check if a path already ends with a known extension from our extensions list.
@@ -29,7 +29,7 @@ impl Resolver {
             Ok(Some(resolved))
         }
         // if the path is a file, load it as its file extension format
-        else if self.options.enforce_extension.is_disabled()
+        else if self.options.enforce_extension == EnforceExtension::Disabled
             && let Some(resolved) = self.load_alias_or_file(path, ctx)?
         {
             Ok(Some(resolved))
@@ -127,7 +127,7 @@ impl Resolver {
         extensions: &[String],
         ctx: &mut ResolveContext,
     ) -> Result<Option<PathBuf>, ResolveError> {
-        if ctx.skip_extension {
+        if ctx.is_fully_specified {
             return Ok(None);
         }
         for extension in extensions {
@@ -150,7 +150,7 @@ impl Resolver {
             let resolved_path = path.normalize_with(main_file);
 
             // try loading directly
-            if self.options.enforce_extension.is_disabled()
+            if self.options.enforce_extension == EnforceExtension::Disabled
                 && let Some(resolved) = self.load_browser_field_or_alias(&resolved_path, ctx)?
                 && self.check_restrictions(&resolved)
             {
