@@ -18,7 +18,6 @@ members = [
 	"language/source",
 	"language/test",
 	"language/unicode",
-	"language/workspace",
 	# library
 	"library/napi",
 	# platform
@@ -52,7 +51,6 @@ destack_resolver = { path = "language/resolver" }
 destack_source = { path = "language/source" }
 destack_test = { path = "language/test" }
 destack_unicode = { path = "language/unicode" }
-destack_workspace = { path = "language/workspace" }
 
 # library
 destack_napi = { path = "library/napi" }
