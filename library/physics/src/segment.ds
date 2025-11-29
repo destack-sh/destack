@@ -1,28 +1,13 @@
-import * as ds from "destack"
+import { Segment2D, Segment3D } from "@destack/math"
+import { Shape2D, Shape3D } from "./shape.ds"
 
-/// A Segment is a line between two points.
-export struct Segment2D {
-    startOffset: Vector2
-    endOffset: Vector2
-
-    ...Form2D
-}
-
-/// A SegmentShape is a shape that represents a line between two points.
+/// A SegmentShape2D is a collision shape representing a line segment in 2D.
 @entity
 export struct SegmentShape2D extends Shape2D {
     ...Segment2D
 }
 
-/// A Segment3D is a line between two points in 3D space.
-export struct Segment3D {
-    startOffset: Vector3
-    endOffset: Vector3
-
-    ...Form3D
-}
-
-/// A SegmentShape3D is a shape that represents a line between two points in 3D.
+/// A SegmentShape3D is a collision shape representing a line segment in 3D.
 @entity
 export struct SegmentShape3D extends Shape3D {
     ...Segment3D

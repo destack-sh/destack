@@ -1,0 +1,40 @@
+// core math types
+export {
+    clampScalar,
+    Vector2,
+    Vector3,
+    Vector4,
+    Vector2i,
+    Vector3i,
+    Vector4i,
+} from "./vector.ds"
+
+export { Quaternion } from "./quaternion.ds"
+export { Transform2D, Transform3D } from "./transform.ds"
+
+// geometry
+export {
+    Point2D,
+    Point3D,
+    Segment2D,
+    Segment3D,
+    Rectangle2D,
+    Box3D,
+    Circle2D,
+    Sphere3D,
+    Ellipse2D,
+    Ellipsoid3D,
+    Capsule2D,
+    Capsule3D,
+    Cone3D,
+    Cylinder3D,
+    Halfspace2D,
+    Plane3D,
+    Path2D,
+    Polyline3D,
+    Mesh2D,
+    Mesh3D,
+    ConvexPolygon2D,
+    ConvexHull3D,
+} from "./geometry/index.ds"
+

@@ -1,0 +1,18 @@
+import { Vector2, Vector3 } from "../vector.ds"
+
+/// A capsule (stadium) in 2D: a segment with hemicircular ends.
+export struct Capsule2D {
+    position: Vector2 = Vector2.Zero
+    centerA: Vector2 = Vector2.Zero
+    centerB: Vector2 = Vector2.Zero
+    radius: float32 = 0.0
+}
+
+/// A capsule in 3D: a segment with hemispherical ends.
+export struct Capsule3D {
+    position: Vector3 = Vector3.Zero
+    centerA: Vector3 = Vector3.Zero
+    centerB: Vector3 = Vector3.Zero
+    radius: float32 = 0.0
+}
+

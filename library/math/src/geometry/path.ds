@@ -1,0 +1,14 @@
+import { Vector2, Vector3 } from "../vector.ds"
+
+/// A polyline (path) in 2D defined by a sequence of points.
+export struct Path2D {
+    points: Vector2[]
+    isClosed: boolean = false
+}
+
+/// A polyline in 3D defined by a sequence of points.
+export struct Polyline3D {
+    points: Vector3[]
+    isClosed: boolean = false
+}
+

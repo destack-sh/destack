@@ -1,0 +1,14 @@
+import { Vector2, Vector3 } from "../vector.ds"
+
+/// A line segment between two points in 2D space.
+export struct Segment2D {
+    start: Vector2 = Vector2.Zero
+    end: Vector2 = Vector2.Zero
+}
+
+/// A line segment between two points in 3D space.
+export struct Segment3D {
+    start: Vector3 = Vector3.Zero
+    end: Vector3 = Vector3.Zero
+}
+

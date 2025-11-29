@@ -1,78 +1,57 @@
-import { Vector2, Vector3 } from "@destack/geometry"
+import { Vector2, Vector3 } from "@destack/math"
+import { Body2D, Body3D } from "./body.ds"
 
-/// Motion mode of a rigid body
+/// Motion mode of a rigid body.
 export enum RigidMotionMode {
     Static = 1
     Kinematic = 2
     Dynamic = 3
 }
 
-/// Kinematic properties for a 2D rigid body
+/// Kinematic properties for a 2D rigid body.
 export struct Kinematic2D {
-    /// Linear velocity of the Body
-    velocity: Vector2
-    /// Angular velocity of the Body
+    velocity: Vector2 = Vector2.Zero
     angularVelocity: float32 = 0.0
-    /// Linear damping of the Body
     linearDamping: float32 = 0.0
-    /// Angular damping of the Body
     angularDamping: float32 = 0.0
-    /// Gravity scale of the Body
     gravityScale: float32 = 1.0
 }
 
-/// Mass properties for a 2D rigid body
+/// Mass properties for a 2D rigid body.
 export struct Mass2D {
-    /// Mass of the Body
     mass: float32 = 1.0
-    /// Center of mass of the Body
     centerOfMass: Vector2?
-    /// Inertia of the Body
     inertia: float32 = 0.0
 }
 
-/// A solid simulated Body in 2D space
+/// A solid simulated rigid body in 2D space.
 @entity
-export struct RigidBody2D {
-    /// The motion mode of the Body
+export struct RigidBody2D extends Body2D {
     mode: RigidMotionMode = RigidMotionMode.Dynamic
-
-    ...Body2D
     ...Kinematic2D
     ...Mass2D
 }
 
-/// Kinematic properties for a 3D rigid body
+/// Kinematic properties for a 3D rigid body.
 export struct Kinematic3D {
-    /// Linear velocity of the Body
-    velocity: Vector3
-    /// Angular velocity of the Body
-    angularVelocity: Vector3
-    /// Linear damping of the Body
+    velocity: Vector3 = Vector3.Zero
+    angularVelocity: Vector3 = Vector3.Zero
     linearDamping: float32 = 0.0
-    /// Angular damping of the Body
     angularDamping: float32 = 0.0
-    /// Gravity scale of the Body
     gravityScale: float32 = 1.0
 }
 
-/// Mass properties for a 3D rigid body
+/// Mass properties for a 3D rigid body.
 export struct Mass3D {
-    /// Mass of the Body
     mass: float32 = 1.0
-    /// Center of mass of the Body
     centerOfMass: Vector3?
-    /// Inertia of the Body
-    inertia: Vector3
+    inertia: Vector3 = Vector3.Zero
 }
 
-// A solid simulated Body in 2D space
+/// A solid simulated rigid body in 3D space.
 @entity
-export struct RigidBody2D {
-    /// The motion mode of the Body
+export struct RigidBody3D extends Body3D {
     mode: RigidMotionMode = RigidMotionMode.Dynamic
-
-    ...Body3D
     ...Kinematic3D
     ...Mass3D
 }

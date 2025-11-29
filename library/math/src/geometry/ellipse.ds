@@ -1,0 +1,18 @@
+import { Vector2, Vector3 } from "../vector.ds"
+
+/// An ellipse in 2D space with independent x and y radii and optional rotation.
+export struct Ellipse2D {
+    position: Vector2 = Vector2.Zero
+    radiusX: float32 = 0.0
+    radiusY: float32 = 0.0
+    rotation: float32 = 0.0
+}
+
+/// An ellipsoid in 3D space with independent radii along each axis.
+export struct Ellipsoid3D {
+    position: Vector3 = Vector3.Zero
+    radiusX: float32 = 0.0
+    radiusY: float32 = 0.0
+    radiusZ: float32 = 0.0
+}
+

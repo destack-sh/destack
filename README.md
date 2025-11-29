@@ -58,4 +58,4 @@ See [AGENTS.md](AGENTS.md) for code style guidelines.
 ## License
 
 Apache-2.0. See [LICENSE.txt](LICENSE.txt).
-The Destack language, toolchain, standard library and core platform are fully open source.
+The Destack language, toolchain, library and core platform are fully open source.

@@ -1,6 +1,5 @@
-# physics
+# @destack/physics
 
-Physics simulation primitives.
-Rigid bodies, soft bodies, colliders, and joints.
+Physics simulation components including rigid bodies, soft bodies, colliders, joints, and collision shapes.
 
-TODO #Incomplete: @destack/physics
+Depends on `@destack/math` for vector, quaternion, and geometric primitives.

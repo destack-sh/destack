@@ -580,9 +580,6 @@ extension Vector4 implements (
             w: this.w / other,
         }
     }
-
-    // Note: Divide<Vector4> should be implemented for completeness, but
-    // omitted here since the surrounding code does not provide it. Add if needed.
 }
 
 /// A 2-dimensional vector with int32 components.
@@ -1108,3 +1105,4 @@ extension Vector4i implements (
         }
     }
 }
+

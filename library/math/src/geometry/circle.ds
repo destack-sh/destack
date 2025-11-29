@@ -1,0 +1,14 @@
+import { Vector2, Vector3 } from "../vector.ds"
+
+/// A circle in 2D space centered at a point with a radius.
+export struct Circle2D {
+    position: Vector2 = Vector2.Zero
+    radius: float32 = 0.0
+}
+
+/// A sphere in 3D space centered at a point with a radius.
+export struct Sphere3D {
+    position: Vector3 = Vector3.Zero
+    radius: float32 = 0.0
+}
+

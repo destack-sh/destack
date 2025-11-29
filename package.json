@@ -17,6 +17,7 @@
             "library/entity",
             "library/finance",
             "library/gpu",
+            "library/math",
             "library/mobile",
             "library/napi",
             "library/physics",

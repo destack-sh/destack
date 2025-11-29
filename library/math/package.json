@@ -1,5 +1,5 @@
 {
-    "name": "@destack/physics",
+    "name": "@destack/math",
     "version": "2025.11.29.1",
     "license": "MIT",
     "type": "module",
@@ -7,10 +7,9 @@
         "dev": "bun --hot src/index.ds",
         "start": "NODE_ENV=production bun src/index.ds"
     },
-    "dependencies": {
-        "@destack/math": "workspace:*"
-    },
+    "dependencies": {},
     "devDependencies": {
         "@types/bun": "latest"
     }
 }
+
