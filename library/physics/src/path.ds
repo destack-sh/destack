@@ -1,28 +1,13 @@
-import * as ds from "destack"
+import { Path2D, Polyline3D } from "@destack/math"
+import { Shape2D, Shape3D } from "./shape.ds"
 
-/// A Path is a polyline of multiple points.
-export struct Path2D {
-    points: List<Vector2>
-    isClosed: boolean
-
-    ...Form2D
-}
-
-/// A PathShape is a shape that represents a polyline of multiple points.
+/// A PathShape2D is a collision shape representing a polyline in 2D.
 @entity
 export struct PathShape2D extends Shape2D {
     ...Path2D
 }
 
-/// A Polyline3D is a polygonal chain in 3D space.
-export struct Polyline3D {
-    points: List<Vector3>
-    isClosed: boolean
-
-    ...Form3D
-}
-
-/// A PolylineShape3D represents a polygonal chain in 3D space.
+/// A PolylineShape3D is a collision shape representing a polyline in 3D.
 @entity
 export struct PolylineShape3D extends Shape3D {
     ...Polyline3D

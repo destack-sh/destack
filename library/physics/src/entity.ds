@@ -1,32 +1,12 @@
-import * as ds from "destack"
+import { Vector2, Vector3, Quaternion, Transform2D, Transform3D } from "@destack/math"
 
-/// A Transform2D is a 2D geometric transform.
-export struct Transform2D {
-    /// The position of the Entity in 2D space.
-    position: Vector2,
-    /// The scale of the Entity in 2D space.
-    scale: Vector2,
-    /// The rotation of the Entity in 2D space.
-    rotation: float32,
-}
-
-/// A Transform3D is a 3D geometric transform.
-export struct Transform3D {
-    /// The position of the Entity in 3D space.
-    position: Vector3,
-    /// The scale of the Entity in 3D space.
-    scale: Vector3,
-    /// The rotation of the Entity in 3D space.
-    rotation: Quaternion,
-}
-
-/// An Entity2D is a 2D geometric Entity.
+/// An Entity2D is a 2D entity with transform properties.
 @entity
 export struct Entity2D {
     ...Transform2D
 }
 
-/// An Entity3D is a 3D geometric Entity.
+/// An Entity3D is a 3D entity with transform properties.
 @entity
 export struct Entity3D {
     ...Transform3D

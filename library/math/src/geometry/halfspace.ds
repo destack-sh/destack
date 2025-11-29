@@ -1,0 +1,14 @@
+import { Vector2, Vector3 } from "../vector.ds"
+
+/// A half-space in 2D defined by a line (normal and distance from origin).
+export struct Halfspace2D {
+    normal: Vector2 = Vector2.UnitY
+    distance: float32 = 0.0
+}
+
+/// A half-space in 3D defined by a plane (normal and distance from origin).
+export struct Plane3D {
+    normal: Vector3 = Vector3.UnitY
+    distance: float32 = 0.0
+}
+

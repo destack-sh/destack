@@ -1,27 +1,13 @@
-import * as ds from "destack"
+import { Rectangle2D, Box3D } from "@destack/math"
+import { Shape2D, Shape3D } from "./shape.ds"
 
-/// A Rectangle is a rectangle.
-export struct Rectangle2D {
-    width: float32
-    height: float32
-
-    ...Form2D
-}
-
-/// A RectangleShape is a shape that represents a rectangle.
+/// A RectangleShape2D is a collision shape representing a rectangle.
 @entity
 export struct RectangleShape2D extends Shape2D {
     ...Rectangle2D
 }
 
-/// A Box is an axis-aligned box defined by width, height and depth.
-export struct Box3D extends Form3D {
-    width: float32
-    height: float32
-    depth: float32
-}
-
-/// A BoxShape3D is a shape that represents an axis-aligned box.
+/// A BoxShape3D is a collision shape representing an axis-aligned box.
 @entity
 export struct BoxShape3D extends Shape3D {
     ...Box3D

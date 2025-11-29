@@ -1,0 +1,17 @@
+import { Vector2, Vector3 } from "../vector.ds"
+
+/// An axis-aligned rectangle in 2D space.
+export struct Rectangle2D {
+    position: Vector2 = Vector2.Zero
+    width: float32 = 0.0
+    height: float32 = 0.0
+}
+
+/// An axis-aligned box in 3D space.
+export struct Box3D {
+    position: Vector3 = Vector3.Zero
+    width: float32 = 0.0
+    height: float32 = 0.0
+    depth: float32 = 0.0
+}
+

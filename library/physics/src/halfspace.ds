@@ -1,28 +1,13 @@
-import * as ds from "destack"
+import { Halfspace2D, Plane3D } from "@destack/math"
+import { Shape2D, Shape3D } from "./shape.ds"
 
-/// A Halfspace2D splits 2D space by a line with normal and distance from origin.
-export struct Halfspace2D {
-    normal: Vector2
-    distance: float32
-
-    ...Form2D
-}
-
-/// A HalfspaceShape2D represents a half-space in 2D defined by a line.
+/// A HalfspaceShape2D is a collision shape representing a half-space in 2D.
 @entity
 export struct HalfspaceShape2D extends Shape2D {
     ...Halfspace2D
 }
 
-/// A Plane3D splits 3D space by a plane with normal and distance from origin.
-export struct Plane3D {
-    normal: Vector3
-    distance: float32
-
-    ...Form3D
-}
-
-/// A PlaneShape3D represents a half-space in 3D defined by a plane.
+/// A PlaneShape3D is a collision shape representing a half-space in 3D.
 @entity
 export struct PlaneShape3D extends Shape3D {
     ...Plane3D

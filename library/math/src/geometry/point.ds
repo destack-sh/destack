@@ -1,0 +1,12 @@
+import { Vector2, Vector3 } from "../vector.ds"
+
+/// A point in 2D space.
+export struct Point2D {
+    position: Vector2 = Vector2.Zero
+}
+
+/// A point in 3D space.
+export struct Point3D {
+    position: Vector3 = Vector3.Zero
+}
+

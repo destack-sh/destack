@@ -1,24 +1,13 @@
-import * as ds from "destack"
+import { Mesh2D, Mesh3D } from "@destack/math"
+import { Shape2D, Shape3D } from "./shape.ds"
 
-/// A Mesh2D is defined by vertices and triangle indices.
-export struct Mesh2D {
-    vertices: Vector2[]
-    triangles: uint32[]
-}
-
-/// A Mesh3D is defined by vertices and triangle indices.
-export struct Mesh3D {
-    vertices: Vector3[]
-    triangles: uint32[]
-}
-
-/// A MeshShape2D represents a triangle mesh.
+/// A MeshShape2D is a collision shape representing a triangle mesh in 2D.
 @entity
 export struct MeshShape2D extends Shape2D {
     ...Mesh2D
 }
 
-/// A MeshShape3D represents a triangle mesh.
+/// A MeshShape3D is a collision shape representing a triangle mesh in 3D.
 @entity
 export struct MeshShape3D extends Shape3D {
     ...Mesh3D

@@ -1,0 +1,26 @@
+// 2D geometry
+export { Point2D } from "./point.ds"
+export { Segment2D } from "./segment.ds"
+export { Rectangle2D } from "./rectangle.ds"
+export { Circle2D } from "./circle.ds"
+export { Ellipse2D } from "./ellipse.ds"
+export { Capsule2D } from "./capsule.ds"
+export { Halfspace2D } from "./halfspace.ds"
+export { Path2D } from "./path.ds"
+export { Mesh2D } from "./mesh.ds"
+export { ConvexPolygon2D } from "./convex.ds"
+
+// 3D geometry
+export { Point3D } from "./point.ds"
+export { Segment3D } from "./segment.ds"
+export { Box3D } from "./rectangle.ds"
+export { Sphere3D } from "./circle.ds"
+export { Ellipsoid3D } from "./ellipse.ds"
+export { Capsule3D } from "./capsule.ds"
+export { Cone3D } from "./cone.ds"
+export { Cylinder3D } from "./cylinder.ds"
+export { Plane3D } from "./halfspace.ds"
+export { Polyline3D } from "./path.ds"
+export { Mesh3D } from "./mesh.ds"
+export { ConvexHull3D } from "./convex.ds"
+
