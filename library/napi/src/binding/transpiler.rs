@@ -1,3 +1,5 @@
+#![allow(clippy::derivable_impls)]
+
 use napi_derive::napi;
 
 use super::source::{IndentStyle, LineEnding};
@@ -239,6 +241,8 @@ impl Default for TranspileOptions {
 impl From<TranspileOptions> for destack_javascript_transpiler::TranspileOptions {
     fn from(options: TranspileOptions) -> Self {
         Self {
+            diagnostic: destack_source::DiagnosticOptions::default(),
+            workers: destack_javascript_transpiler::default_workers(),
             mode: options.mode.into(),
             target: options.target.into(),
             es_version: options.es_version.into(),
@@ -252,4 +256,154 @@ impl From<TranspileOptions> for destack_javascript_transpiler::TranspileOptions 
 #[napi(js_name = "defaultTranspileOptions")]
 pub fn default_transpiler_options() -> TranspileOptions {
     TranspileOptions::default()
+}
+
+/// The result of transpiling a file.
+#[napi(object)]
+#[derive(Debug, Clone)]
+pub struct TranspileResult {
+    /// The transpiled code.
+    pub code: String,
+    /// The source map (if generated).
+    pub source_map: Option<String>,
+    /// Any diagnostics/warnings.
+    pub diagnostics: Vec<String>,
+}
+
+/// Transpile Destack source code to TypeScript/JavaScript.
+/// This is a stateless function for simple one-off transpilation.
+#[napi(js_name = "transpileSource")]
+pub fn transpile_source(
+    content: String,
+    options: Option<TranspileOptions>,
+) -> napi::Result<TranspileResult> {
+    transpile_file_impl("<source>".to_string(), content, options)
+}
+
+/// Transpile a Destack file to TypeScript/JavaScript.
+/// This is a stateless function for simple one-off transpilation.
+#[napi(js_name = "transpileFile")]
+pub fn transpile_file(
+    path: String,
+    content: String,
+    options: Option<TranspileOptions>,
+) -> napi::Result<TranspileResult> {
+    transpile_file_impl(path, content, options)
+}
+
+/// Internal implementation of file transpilation.
+/// TODO #Architecture: use a persistent daemon/workspace across transpile files?
+fn transpile_file_impl(
+    path: String,
+    content: String,
+    options: Option<TranspileOptions>,
+) -> napi::Result<TranspileResult> {
+    use std::path::PathBuf;
+    use std::sync::Arc;
+
+    use destack_compiler::{CompileOptions, Compiler, ImportTask};
+    use destack_dir::Program;
+    use destack_javascript_transpiler::Transpiler;
+    use destack_source::{
+        DiagnosticSeverity, File, FileRegistry, FileType, LanguageOptions, PhysicalFileSystem, Uri,
+    };
+
+    let options = options.unwrap_or_default();
+    let transpile_options: destack_javascript_transpiler::TranspileOptions = options.into();
+
+    // set up the program with a single file
+    let cwd = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
+    let fs: Arc<dyn destack_source::FileSystem> = Arc::new(PhysicalFileSystem);
+    let files = Arc::new(FileRegistry::new());
+    let program = Arc::new(Program::new(
+        LanguageOptions::default(),
+        cwd,
+        fs,
+        files.clone(),
+    ));
+
+    // create and register the file
+    let file_id = files.next_id();
+    let uri = Uri::from_string(&path);
+    let file = File::from_text(
+        file_id,
+        path.clone(),
+        uri.clone(),
+        None,
+        FileType::Destack,
+        content,
+    );
+    files.insert(file);
+
+    // compile the file
+    let compile_options = CompileOptions::default();
+    let compiler = Compiler::new(program.clone(), compile_options);
+
+    // enqueue the import task for the file
+    compiler.enqueue(ImportTask::ImportModuleFromFile { file: file_id });
+
+    // run the compiler
+    compiler.compile();
+
+    // collect any diagnostics
+    let diagnostic_list = program.diagnostics.iter();
+    let diagnostics: Vec<String> = diagnostic_list
+        .iter()
+        .map(|d| d.message.clone())
+        .collect();
+
+    // check for errors
+    let has_errors = program
+        .diagnostics
+        .has_diagnostics_of_severity(DiagnosticSeverity::Error);
+    if has_errors {
+        return Err(napi::Error::from_reason(format!(
+            "compilation failed with {} error(s): {}",
+            diagnostics.len(),
+            diagnostics.join("; ")
+        )));
+    }
+
+    // create the transpiler and transpile
+    let transpiler = Transpiler::new(program.clone(), transpile_options);
+    transpiler.transpile();
+
+    // get the artifact for our file
+    let artifact_uri = uri.without_extension().with_extension("ts");
+    let artifact = transpiler.artifacts.get(&artifact_uri);
+    let code = match artifact {
+        Some(artifact) => match &artifact.content {
+            destack_source::FileContent::Text { content } => content.clone(),
+            _ => {
+                return Err(napi::Error::from_reason(
+                    "Artifact is not text content".to_string(),
+                ))
+            }
+        },
+        None => {
+            // try without extension change for combined mode
+            let artifact = transpiler.artifacts.iter().next();
+            match artifact {
+                Some(entry) => match &entry.value().content {
+                    destack_source::FileContent::Text { content } => content.clone(),
+                    _ => {
+                        return Err(napi::Error::from_reason(
+                            "Artifact is not text content".to_string(),
+                        ))
+                    }
+                },
+                None => {
+                    return Err(napi::Error::from_reason(
+                        "No transpiled artifact found".to_string(),
+                    ))
+                }
+            }
+        }
+    };
+
+    Ok(TranspileResult {
+        code,
+        source_map: None,
+        diagnostics,
+    })
 }

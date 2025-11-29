@@ -2,40 +2,38 @@ import fs from "node:fs";
 import path from "node:path";
 import {
     defaultTranspileOptions,
-    TranspilerLanguage,
-    type TranspileOptions,
     TranspileTarget,
+    transpileFile,
+    Workspace,
+    type TranspileOptions,
 } from "@destack/napi";
 import type { BunPlugin, PluginBuilder } from "bun";
 
-// nocheckin: bun plugin
+/// Options for the Destack Bun plugin.
+export interface DestackPluginOptions {
+    /// The transpile options to use.
+    transpileOptions?: Partial<TranspileOptions>;
+}
 
-/// Destack & Destack Bun plugin.
-export const destackPlugin: BunPlugin = {
+/// Destack Bun plugin for transpiling files.
+export const destackPlugin = (options: DestackPluginOptions = {}): BunPlugin => ({
     name: "destack",
     setup(build: PluginBuilder) {
-        console.debug("setup");
+        // merge user options with defaults
+        const transpileOptions: TranspileOptions = {
+            ...defaultTranspileOptions(),
+            target: TranspileTarget.TypeScript,
+            ...options.transpileOptions,
+        };
 
-        // prepare the session
-        let session = new Session({
-            options: LanguageOptions.default(),
-            files: [],
+        // create "persistent" workspace for resolution
+        const workspace = new Workspace({
+            cwd: process.cwd(),
         });
+        workspace.addRoot(process.cwd());
 
-        // re-transpile everything on start
-        // TODO #Incomplete: support HMR properly
-        build.onStart(() => {
-            console.debug("onStart");
-            transpiler = new Transpiler({
-                ...defaultTranspileOptions(),
-                target: TranspileTarget.TypeScript,
-            });
-            transpiler.transpile();
-        });
-
-        // resolve extensionless (`.ds`, `.d.ds`, `index.ds`, or `index.d.ds`)
+        // resolve extensionless imports (`.ds`, `.d.ds`, `index.ds`, or `index.d.ds`)
         build.onResolve({ filter: /^[^.].*$|^\.\.?($|\/)/ }, (args) => {
-            console.debug("onResolve", args.path);
             // only handle relative or absolute specifiers without an explicit extension
             if (!args.path.startsWith(".") && !path.isAbsolute(args.path)) {
                 return; // let Bun resolve bare specifiers/packages
@@ -57,19 +55,26 @@ export const destackPlugin: BunPlugin = {
             const dsPath = candidates.find((p) => fs.existsSync(p));
             if (dsPath != null) {
                 return { path: dsPath };
-            } else {
-                return; // delegate back to Bun for normal files
             }
+            // delegate back to Bun for normal files
+            return;
         });
 
         // load .ds and .d.ds files
         build.onLoad({ filter: /\.(ds|d\.ds)$/ }, async (args: { path: string }) => {
-            console.debug("onLoad", args.path);
-            const content = transpiler.getTranspiled(args.path, TranspilerLanguage.TypeScript);
+            // read file content
+            const content = await fs.promises.readFile(args.path, "utf-8");
+
+            // transpile to TypeScript
+            const result = transpileFile(args.path, content, transpileOptions);
+
             return {
-                contents: content ?? "",
+                contents: result.code,
                 loader: "ts",
             };
         });
     },
-};
+});
+
+// default export for convenience
+export default destackPlugin;

@@ -14,12 +14,19 @@ path = "src/lib.rs"
 [dependencies]
 # language
 destack_compiler = { workspace = true }
+destack_dir = { workspace = true }
 destack_javascript_ast = { workspace = true }
 destack_javascript_machine = { workspace = true }
 destack_javascript_transpiler = { workspace = true }
+destack_resolver = { workspace = true }
 destack_source = { workspace = true }
+destack_workspace = { workspace = true }
+
+# platform
+destack_daemon = { workspace = true }
 
 # general
+indexmap = { workspace = true }
 napi = { version = "3", features = ["napi8"] }
 napi-derive = "3"
 
