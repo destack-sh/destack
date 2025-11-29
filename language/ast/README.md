@@ -5,10 +5,8 @@ Defines all node types produced by the parser for representing Destack source co
 
 ## Layout
 
-```
-src/
-├── token/       Token types, identifiers, spans
-├── tree/        AST node definitions (expressions, declarations, patterns, etc.)
-└── dump/        AST dumping utilities
-```
-
+| Path | Purpose | Description |
+| --- | --- | --- |
+| `token/` | Tokens | Token types, identifiers, and spans. |
+| `tree/` | Nodes | AST node definitions for expressions, declarations, patterns, etc. |
+| `dump/` | Dumping | AST dumping utilities. |

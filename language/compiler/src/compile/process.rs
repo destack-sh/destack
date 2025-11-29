@@ -323,7 +323,7 @@ impl Compiler {
         }
     }
 
-    /// Create a YieldFailed variant of TaskError for the given waiter and dependency.
+    /// Create a UnsatisfiedDependency variant of TaskError for the given waiter and dependency.
     fn get_yield_failed_error(&self, waiter_id: TaskId, dependency: &TaskDependency) -> TaskError {
         let task = self.queue.get_task(waiter_id);
         match task.phase() {
@@ -333,39 +333,39 @@ impl Compiler {
             Phase::Bind => {
                 panic!("bind tasks cannot yield {waiter_id} for dependency {dependency:?}")
             }
-            Phase::Resolve => ResolveError::YieldFailed {
+            Phase::Resolve => ResolveError::UnsatisfiedDependency {
                 dependency: dependency.clone(),
             }
             .into(),
-            Phase::Validate => ValidateError::YieldFailed {
+            Phase::Validate => ValidateError::UnsatisfiedDependency {
                 dependency: dependency.clone(),
             }
             .into(),
-            Phase::Elaborate => ElaborateError::YieldFailed {
+            Phase::Elaborate => ElaborateError::UnsatisfiedDependency {
                 dependency: dependency.clone(),
             }
             .into(),
-            Phase::Lower => LowerError::YieldFailed {
+            Phase::Lower => LowerError::UnsatisfiedDependency {
                 dependency: dependency.clone(),
             }
             .into(),
-            Phase::Analyze => AnalyzeError::YieldFailed {
+            Phase::Analyze => AnalyzeError::UnsatisfiedDependency {
                 dependency: dependency.clone(),
             }
             .into(),
-            Phase::Optimize => OptimizeError::YieldFailed {
+            Phase::Optimize => OptimizeError::UnsatisfiedDependency {
                 dependency: dependency.clone(),
             }
             .into(),
-            Phase::Execute => ExecuteError::YieldFailed {
+            Phase::Execute => ExecuteError::UnsatisfiedDependency {
                 dependency: dependency.clone(),
             }
             .into(),
-            Phase::Build => BuildError::YieldFailed {
+            Phase::Build => BuildError::UnsatisfiedDependency {
                 dependency: dependency.clone(),
             }
             .into(),
-            Phase::Link => LinkError::YieldFailed {
+            Phase::Link => LinkError::UnsatisfiedDependency {
                 dependency: dependency.clone(),
             }
             .into(),

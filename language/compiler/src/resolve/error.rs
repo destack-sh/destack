@@ -10,7 +10,7 @@ pub enum ResolveError {
     /// Wait for task dependency.
     Yield { dependency: TaskDependency },
     /// Yield dependency has failed.
-    YieldFailed { dependency: TaskDependency },
+    UnsatisfiedDependency { dependency: TaskDependency },
     /// Unsupported node.
     UnsupportedNode { node: GlobalNodeIdAny },
     /// Circular dependency.
@@ -62,7 +62,7 @@ impl ResolveError {
     pub fn sub_code(&self) -> u8 {
         match self {
             Self::Yield { .. } => 0,
-            Self::YieldFailed { .. } => 1,
+            Self::UnsatisfiedDependency { .. } => 1,
             Self::UnsupportedNode { .. } => 2,
             Self::CircularDependency { .. } => 3,
             Self::UndeclaredSymbol { .. } => 4,
@@ -76,7 +76,7 @@ impl ResolveError {
     pub fn node(&self) -> GlobalNodeIdAny {
         match self {
             Self::Yield { dependency } => dependency.node(),
-            Self::YieldFailed { dependency } => dependency.node(),
+            Self::UnsatisfiedDependency { dependency } => dependency.node(),
             Self::UnsupportedNode { node, .. } => *node,
             Self::CircularDependency { node, .. } => *node,
             Self::UndeclaredSymbol { node, .. } => *node,
@@ -90,7 +90,7 @@ impl ResolveError {
     pub fn message(&self, program: &Program) -> String {
         match self {
             Self::Yield { .. } => "pending dependency".to_string(),
-            Self::YieldFailed { .. } => "unsatisfied dependency".to_string(),
+            Self::UnsatisfiedDependency { .. } => "unsatisfied dependency".to_string(),
             Self::UnsupportedNode { node, .. } => {
                 format!("unsupported {}", node.local_id.ty.name())
             }

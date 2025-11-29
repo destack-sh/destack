@@ -25,15 +25,6 @@ impl FileId {
     }
 }
 
-/// The source of a File.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum FileSource {
-    /// The file is read from the system.
-    System,
-    /// The file is read from memory.
-    Memory,
-}
-
 /// File with content.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct File {

@@ -11,6 +11,7 @@ impl Compiler {
         tree: &mut NodeTree,
         _symbols: &mut SymbolTable,
     ) -> ResolveResult<()> {
+        // TODO #Incomplete: resolve arguments
         let _argument = tree.get(argument_id);
         Err(ResolveError::UnsupportedNode {
             node: argument_id.into_global_any(module.id),

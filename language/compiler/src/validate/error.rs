@@ -11,7 +11,7 @@ pub enum ValidateError {
     /// Wait for task dependency.
     Yield { dependency: TaskDependency },
     /// Yield dependency has failed.
-    YieldFailed { dependency: TaskDependency },
+    UnsatisfiedDependency { dependency: TaskDependency },
     /// Missing type for an expression.
     MissingType { node: GlobalNodeIdAny },
     /// Type is not assignable to the expected type.
@@ -73,7 +73,7 @@ impl ValidateError {
     pub fn sub_code(&self) -> u8 {
         match self {
             Self::Yield { .. } => 0,
-            Self::YieldFailed { .. } => 1,
+            Self::UnsatisfiedDependency { .. } => 1,
             Self::MissingType { .. } => 2,
             Self::TypeMismatch { .. } => 3,
             Self::InaccessibleSymbol { .. } => 4,
@@ -93,7 +93,7 @@ impl ValidateError {
     pub fn node(&self) -> GlobalNodeIdAny {
         match self {
             Self::Yield { dependency } => dependency.node(),
-            Self::YieldFailed { dependency } => dependency.node(),
+            Self::UnsatisfiedDependency { dependency } => dependency.node(),
             Self::MissingType { node, .. } => *node,
             Self::TypeMismatch { node, .. } => *node,
             Self::InaccessibleSymbol { node, .. } => *node,
@@ -113,7 +113,7 @@ impl ValidateError {
     pub fn message(&self, _program: &Program) -> String {
         match self {
             Self::Yield { .. } => "pending dependency".to_string(),
-            Self::YieldFailed { .. } => "unsatisfied dependency".to_string(),
+            Self::UnsatisfiedDependency { .. } => "unsatisfied dependency".to_string(),
             Self::MissingType { .. } => "missing type".to_string(),
             Self::TypeMismatch { .. } => "type mismatch".to_string(),
             Self::InaccessibleSymbol { .. } => "inaccessible symbol".to_string(),

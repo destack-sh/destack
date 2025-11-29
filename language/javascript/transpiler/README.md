@@ -5,11 +5,9 @@ Transforms DIR into JavaScript/TypeScript source code.
 
 ## Layout
 
-```
-src/
-├── transpile/   DIR → JS AST transformation
-├── format/      JS AST → source text formatting
-├── diagnostic/  Transpiler errors and warnings
-└── tests/       Transpiler tests
-```
-
+| Path | Purpose | Description |
+| --- | --- | --- |
+| `transpile/` | Transform | DIR → JS AST transformation. |
+| `format/` | Formatting | JS AST → source text formatting. |
+| `diagnostic/` | Diagnostics | Transpiler errors and warnings. |
+| `tests/` | Tests | Transpiler tests. |

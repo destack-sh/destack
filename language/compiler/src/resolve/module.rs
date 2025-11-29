@@ -1,4 +1,4 @@
-use crate::{Compiler, ResolveError, ResolveResult, TaskResultCollector};
+use crate::{Compiler, ResolveError, ResolveResult, TaskResultCollector, ValidateTask};
 use destack_dir::{
     Annotation, Argument, Block, Declaration, DependencyItem, EnumField, Expression,
     LocalNodeIdAny, MatchCase, ModuleId, Node, NodeTree, NodeType, Parameter, Pattern,
@@ -103,6 +103,9 @@ impl Compiler {
         if let Some(dependency) = collector.try_into_yield_any() {
             return Err(ResolveError::Yield { dependency });
         }
+
+        // next task: validate module
+        self.enqueue(ValidateTask::Validate { module: module_id });
 
         Ok(())
     }

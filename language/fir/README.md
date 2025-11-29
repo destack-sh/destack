@@ -5,13 +5,11 @@ A document model for pretty-printing code with configurable line width and inden
 
 ## Layout
 
-```
-src/
-├── format/      Document building (groups, labels, spacing)
-└── print/       Document printing and line fitting
-```
+| Path | Purpose | Description |
+| --- | --- | --- |
+| `format/` | Building | Document building with groups, labels, and spacing. |
+| `print/` | Printing | Document printing and line fitting. |
 
 ---
 
 Based on [Ruff's formatter IR](https://github.com/astral-sh/ruff) (MIT).
-

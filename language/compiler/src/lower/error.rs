@@ -9,7 +9,7 @@ pub enum LowerError {
     /// Wait for task dependency.
     Yield { dependency: TaskDependency } = 0,
     /// Yield dependency has failed.
-    YieldFailed { dependency: TaskDependency } = 1,
+    UnsatisfiedDependency { dependency: TaskDependency } = 1,
     /// Unsupported node.
     UnsupportedNode { node: GlobalNodeIdAny } = 2,
 }
@@ -31,7 +31,7 @@ impl LowerError {
     pub fn sub_code(&self) -> u8 {
         match self {
             Self::Yield { .. } => 0,
-            Self::YieldFailed { .. } => 1,
+            Self::UnsatisfiedDependency { .. } => 1,
             Self::UnsupportedNode { .. } => 2,
         }
     }
@@ -40,7 +40,7 @@ impl LowerError {
     pub fn node(&self) -> GlobalNodeIdAny {
         match self {
             Self::Yield { dependency } => dependency.node(),
-            Self::YieldFailed { dependency } => dependency.node(),
+            Self::UnsatisfiedDependency { dependency } => dependency.node(),
             Self::UnsupportedNode { node, .. } => *node,
         }
     }
@@ -49,7 +49,7 @@ impl LowerError {
     pub fn message(&self, _program: &Program) -> String {
         match self {
             Self::Yield { .. } => "pending dependency".to_string(),
-            Self::YieldFailed { .. } => "unsatisfied dependency".to_string(),
+            Self::UnsatisfiedDependency { .. } => "unsatisfied dependency".to_string(),
             Self::UnsupportedNode { .. } => "unsupported node".to_string(),
         }
     }

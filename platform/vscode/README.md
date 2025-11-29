@@ -5,11 +5,10 @@ Syntax highlighting, themes, and LSP client integration.
 
 ## Layout
 
-```
-├── src/lib.rs              Extension build logic
-├── typescript/extension.ts TypeScript client
-├── destack.tmLanguage.json TextMate grammar
-├── destack.tmTheme.json    Color theme
-└── destack.json            Language configuration
-```
-
+| Path | Purpose | Description |
+| --- | --- | --- |
+| `src/lib.rs` | Build | Extension build logic. |
+| `typescript/extension.ts` | Client | TypeScript LSP client. |
+| `destack.tmLanguage.json` | Grammar | TextMate grammar for syntax highlighting. |
+| `destack.tmTheme.json` | Theme | Color theme. |
+| `destack.json` | Config | Language configuration. |

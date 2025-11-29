@@ -5,14 +5,12 @@ Represents compiled programs with resolved types, symbols, and module structure.
 
 ## Layout
 
-```
-src/
-├── program/     Program, module, and package definitions
-├── tree/        DIR node definitions
-├── symbol/      Symbol tables and scopes
-├── type/        Type definitions and tables
-├── analyze/     Analysis tables
-├── formatter/   DIR formatting
-└── dump/        DIR dumping utilities
-```
-
+| Path | Purpose | Description |
+| --- | --- | --- |
+| `program/` | Program | Program, module, and package definitions. |
+| `tree/` | Nodes | DIR node definitions. |
+| `symbol/` | Symbols | Symbol tables and scopes. |
+| `type/` | Types | Type definitions and tables. |
+| `analyze/` | Analysis | Analysis tables. |
+| `formatter/` | Formatting | DIR formatting. |
+| `dump/` | Dumping | DIR dumping utilities. |
