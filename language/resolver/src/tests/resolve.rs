@@ -814,7 +814,7 @@ fn test_resolve_fully_specified_paths() {
                 ("alias1".into(), vec![AliasValue::from("/a/abc")]),
                 ("alias2".into(), vec![AliasValue::from("/a")]),
             ],
-            skip_extension: true,
+            is_fully_specified: true,
             ..ResolveOptions::default()
         },
     );
@@ -879,7 +879,7 @@ fn test_resolve_fully_specified_paths() {
                 ("alias1".into(), vec![AliasValue::from("/a/abc")]),
                 ("alias2".into(), vec![AliasValue::from("/a")]),
             ],
-            skip_extension: true,
+            is_fully_specified: true,
             resolve_to_context: true,
             ..ResolveOptions::default()
         },

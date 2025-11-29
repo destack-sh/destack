@@ -131,7 +131,7 @@ impl Resolver {
     ) -> Result<PathBuf, ResolveError> {
         let (package_name, subpath) = Self::parse_package_specifier(specifier);
         if subpath.is_empty() {
-            ctx.skip_extension = false;
+            ctx.is_fully_specified = false;
         }
 
         // try to load from the package itself
@@ -473,7 +473,7 @@ impl Resolver {
 
                     // resolve subpath
                     let subpath_spec = format!(".{subpath}");
-                    ctx.skip_extension = false;
+                    ctx.is_fully_specified = false;
                     return self.require(&package_path, &subpath_spec, ctx).map(Some);
                 }
                 current = current_path.parent().map(|p| p.to_path_buf());

@@ -23,7 +23,6 @@ pub struct ResolveOptions {
     pub conditions: Vec<String>,
 
     /// Whether and how to enforce file extensions.
-    /// <https://github.com/webpack/enhanced-resolve/pull/285>.
     pub enforce_extension: EnforceExtension,
 
     /// Extension aliases (e.g., `(".js", [".ts", ".tsx"])`).
@@ -32,8 +31,8 @@ pub struct ResolveOptions {
     /// Attempt to resolve these extensions in order (e.g., `[".js", ".json", ".node"]`).
     pub extensions: Vec<String>,
 
-    /// Request passed to resolve is already fully specified (ignore extensions, originally `is_fully_specified`).
-    pub skip_extension: bool,
+    /// Request passed to resolve is already fully specified.
+    pub is_fully_specified: bool,
 
     /// Redirect module requests when normal resolving fails.
     pub fallback: Alias,
@@ -65,21 +64,41 @@ pub struct ResolveOptions {
     pub canonicalize_symlinks: bool,
 }
 
-impl ResolveOptions {
-    /// Sanitize the options.
-    pub fn sanitize(mut self) -> Self {
-        // set `enforceExtension` to `true` when [ResolveOptions::extensions] contains an empty string
-        // See <https://github.com/webpack/enhanced-resolve/pull/285>
-        if self.enforce_extension == EnforceExtension::Automatic {
-            if !self.extensions.is_empty() && self.extensions.iter().any(String::is_empty) {
-                self.enforce_extension = EnforceExtension::Enabled;
-            } else {
-                self.enforce_extension = EnforceExtension::Disabled;
-            }
+impl Default for ResolveOptions {
+    fn default() -> Self {
+        Self {
+            cwd: None,
+            tsconfig: None,
+            alias: vec![],
+            conditions: vec![],
+            enforce_extension: EnforceExtension::Disabled,
+            extension_alias: IndexMap::new(),
+            extensions: vec![
+                ".ds".into(),
+                ".tsx".into(),
+                ".ts".into(),
+                ".jsx".into(),
+                ".js".into(),
+                ".mjs".into(),
+                ".cjs".into(),
+                ".json".into(),
+                ".node".into(),
+            ],
+            fallback: vec![],
+            is_fully_specified: false,
+            main_files: vec!["index".into()],
+            modules: vec!["node_modules".into()],
+            resolve_to_context: false,
+            prefer_relative: false,
+            prefer_absolute: false,
+            restrictions: vec![],
+            roots: vec![],
+            canonicalize_symlinks: true,
         }
-        self
     }
+}
 
+impl ResolveOptions {
     /// Create a new blank resolve options.
     pub fn blank() -> Self {
         Self {
@@ -87,11 +106,11 @@ impl ResolveOptions {
             tsconfig: None,
             alias: vec![],
             conditions: vec![],
-            enforce_extension: EnforceExtension::Automatic,
+            enforce_extension: EnforceExtension::Disabled,
             extension_alias: IndexMap::new(),
             extensions: vec![],
             fallback: vec![],
-            skip_extension: false,
+            is_fully_specified: false,
             main_files: vec![],
             modules: vec![],
             resolve_to_context: false,
@@ -146,8 +165,8 @@ impl ResolveOptions {
     }
 
     /// Set the skip extension.
-    pub fn with_skip_extension(mut self, skip_extension: bool) -> Self {
-        self.skip_extension = skip_extension;
+    pub fn with_is_fully_specified(mut self, is_fully_specified: bool) -> Self {
+        self.is_fully_specified = is_fully_specified;
         self
     }
 
@@ -200,40 +219,6 @@ impl ResolveOptions {
     }
 }
 
-impl Default for ResolveOptions {
-    fn default() -> Self {
-        Self {
-            cwd: None,
-            tsconfig: None,
-            alias: vec![],
-            conditions: vec![],
-            enforce_extension: EnforceExtension::Automatic,
-            extension_alias: IndexMap::new(),
-            extensions: vec![
-                ".ds".into(),
-                ".tsx".into(),
-                ".ts".into(),
-                ".jsx".into(),
-                ".js".into(),
-                ".mjs".into(),
-                ".cjs".into(),
-                ".json".into(),
-                ".node".into(),
-            ],
-            fallback: vec![],
-            skip_extension: false,
-            main_files: vec!["index".into()],
-            modules: vec!["node_modules".into()],
-            resolve_to_context: false,
-            prefer_relative: false,
-            prefer_absolute: false,
-            restrictions: vec![],
-            roots: vec![],
-            canonicalize_symlinks: true,
-        }
-    }
-}
-
 impl fmt::Display for ResolveOptions {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if let Some(tsconfig) = &self.tsconfig {
@@ -245,7 +230,7 @@ impl fmt::Display for ResolveOptions {
         if !self.conditions.is_empty() {
             write!(f, "condition_names:{:?},", self.conditions)?;
         }
-        if self.enforce_extension.is_enabled() {
+        if self.enforce_extension == EnforceExtension::Enabled {
             write!(f, "enforce_extension:{:?},", self.enforce_extension)?;
         }
         if !self.extension_alias.is_empty() {
@@ -257,8 +242,8 @@ impl fmt::Display for ResolveOptions {
         if !self.fallback.is_empty() {
             write!(f, "fallback:{:?},", self.fallback)?;
         }
-        if self.skip_extension {
-            write!(f, "fully_specified:{:?},", self.skip_extension)?;
+        if self.is_fully_specified {
+            write!(f, "fully_specified:{:?},", self.is_fully_specified)?;
         }
         if !self.main_files.is_empty() {
             write!(f, "main_files:{:?},", self.main_files)?;
@@ -289,37 +274,13 @@ impl fmt::Display for ResolveOptions {
 }
 
 /// How to enforce file extensions.
-#[derive(Debug, Clone, Copy, Eq, PartialEq)]
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Default)]
 pub enum EnforceExtension {
-    /// Automatically determine whether to enforce file extensions based on the list of extensions.
-    Automatic,
-    /// Enforce file extensions.
+    /// Enforce file extensions (path must include extension).
     Enabled,
-    /// Do not enforce file extensions.
+    /// Do not enforce file extensions (resolve tries appending extensions from the list).
+    #[default]
     Disabled,
-}
-
-impl Default for EnforceExtension {
-    fn default() -> Self {
-        Self::Automatic
-    }
-}
-
-impl EnforceExtension {
-    /// Check if the enforce extension is automatic.
-    pub const fn is_auto(self) -> bool {
-        matches!(self, Self::Automatic)
-    }
-
-    /// Check if the enforce extension is enabled.
-    pub const fn is_enabled(self) -> bool {
-        matches!(self, Self::Enabled)
-    }
-
-    /// Check if the enforce extension is disabled.
-    pub const fn is_disabled(self) -> bool {
-        matches!(self, Self::Disabled)
-    }
 }
 
 /// Alias for [ResolveOptions::alias] and [ResolveOptions::fallback]

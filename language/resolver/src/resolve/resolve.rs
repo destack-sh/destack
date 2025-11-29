@@ -59,7 +59,7 @@ impl Resolver {
         specifier: &str,
         ctx: &mut ResolveContext,
     ) -> Result<Resolution, ResolveError> {
-        ctx.skip_extension = self.options.skip_extension;
+        ctx.is_fully_specified = self.options.is_fully_specified;
 
         let resolved_path = self.require(path, specifier, ctx)?;
         let path = self.load_realpath(&resolved_path)?;
