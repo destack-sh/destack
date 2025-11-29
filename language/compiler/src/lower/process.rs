@@ -1,6 +1,6 @@
 use crate::{Compiler, LowerResult, Task, TaskDebug, TaskOutput};
 
-use dyst_dir::{ModuleId, Program};
+use destack_dir::{ModuleId, Program};
 
 /// Task to lower a DIR into MIR.
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]

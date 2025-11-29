@@ -1,14 +1,14 @@
-use crate::{DystFormatter, FormatNode};
-use dyst_ast::{EnumField, LocalNodeId};
-use dyst_fir::format::FormatResult;
-use dyst_fir::prelude::*;
-use dyst_fir::write;
+use crate::{DestackFormatter, FormatNode};
+use destack_ast::{EnumField, LocalNodeId};
+use destack_fir::format::FormatResult;
+use destack_fir::prelude::*;
+use destack_fir::write;
 
 impl<'ast> FormatNode<'ast, EnumField> for EnumField {
     fn format_node(
         &self,
         node_id: LocalNodeId<EnumField>,
-        f: &mut DystFormatter<'ast, '_>,
+        f: &mut DestackFormatter<'ast, '_>,
     ) -> FormatResult<()> {
         write!(f, [f.context().any_prefix_annotations(node_id)])?;
 
@@ -27,8 +27,8 @@ impl<'ast> FormatNode<'ast, EnumField> for EnumField {
 
 #[cfg(test)]
 mod tests {
-    use crate::{DystFormatOptions, TestFormatter, assert_format};
-    use dyst_ast::DeclarationDescriptor;
+    use crate::{DestackFormatOptions, TestFormatter, assert_format};
+    use destack_ast::DeclarationDescriptor;
 
     #[test]
     fn test_format_enum_empty() {
@@ -36,7 +36,7 @@ mod tests {
             "enum { }",
             "enum { }",
             |p| p.eat_enum(DeclarationDescriptor::default()),
-            DystFormatOptions::default()
+            DestackFormatOptions::default()
         );
     }
 
@@ -46,7 +46,7 @@ mod tests {
             "enum { A, B }",
             "enum {\n\tA\n\tB\n}",
             |p| p.eat_enum(DeclarationDescriptor::default()),
-            DystFormatOptions::default_tab()
+            DestackFormatOptions::default_tab()
         );
     }
 
@@ -56,7 +56,7 @@ mod tests {
             "enum { A }",
             "enum {\n\tA\n}",
             |p| p.eat_enum(DeclarationDescriptor::default()),
-            DystFormatOptions::default_tab()
+            DestackFormatOptions::default_tab()
         );
     }
 
@@ -72,7 +72,7 @@ mod tests {
             source,
             source,
             |p| p.eat_enum(DeclarationDescriptor::default()),
-            DystFormatOptions::default()
+            DestackFormatOptions::default()
         );
     }
 }

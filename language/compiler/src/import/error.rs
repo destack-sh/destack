@@ -1,6 +1,6 @@
-use dyst_dir::{GlobalNodeIdAny, Program};
-use dyst_parser::ParseError;
-use dyst_source::StringId;
+use destack_dir::{GlobalNodeIdAny, Program};
+use destack_parser::ParseError;
+use destack_source::StringId;
 
 use crate::{Phase, TaskDependency, TaskError};
 
@@ -12,7 +12,7 @@ pub enum ImportError {
     ModuleNotFound {
         node: GlobalNodeIdAny,
         target: StringId,
-        error: Option<dyst_resolver::ResolveError>,
+        error: Option<destack_resolver::ResolveError>,
     },
     /// Failed to parse a module.
     ParseError {

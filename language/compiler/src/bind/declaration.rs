@@ -1,6 +1,6 @@
 use crate::Compiler;
-use dyst_ast as ast;
-use dyst_dir::{
+use destack_ast as ast;
+use destack_dir::{
     BindingAnchor, Declaration, DeclarationDescriptor, DeclarationKind, EnumField, LocalNodeId,
     LocalNodeIdAny, LocalScopeId, LocalScopeMark, Module, NodeTree, NodeType, ScopeKind,
     StructKind, SymbolKey, SymbolKind, SymbolSpace, SymbolTable, TypeTable,

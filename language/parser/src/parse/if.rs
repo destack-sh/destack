@@ -1,5 +1,5 @@
 use crate::{ParseResult, Parser};
-use dyst_ast::{Block, BlockFormat, Expression, IfKind, Keyword, LocalNodeId};
+use destack_ast::{Block, BlockFormat, Expression, IfKind, Keyword, LocalNodeId};
 
 impl Parser {
     /// Eat something as a block (if it's not a block expression OR an if, wrap in a block expression).
@@ -107,7 +107,7 @@ impl Parser {
 
 #[cfg(test)]
 mod tests {
-    use dyst_ast::{BinaryOperator, Block, Expression, ScalarLiteral};
+    use destack_ast::{BinaryOperator, Block, Expression, ScalarLiteral};
 
     use crate::{TestParser, assert_expression_path, assert_node, assert_path};
 

@@ -1,7 +1,7 @@
-use dyst_fir::format::FormatResult;
-use dyst_fir::prelude::*;
-use dyst_fir::write;
-use dyst_javascript_ast::{LocalNodeId, Mutability, Pattern, PatternField};
+use destack_fir::format::FormatResult;
+use destack_fir::prelude::*;
+use destack_fir::write;
+use destack_javascript_ast::{LocalNodeId, Mutability, Pattern, PatternField};
 
 use crate::format::argument::list_like;
 use crate::{FormatNode, JavaScriptFormatter};

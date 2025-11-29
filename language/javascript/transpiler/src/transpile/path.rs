@@ -1,6 +1,6 @@
-use dyst_ast::StringId;
-use dyst_dir::{self as dir, Module};
-use dyst_javascript_ast::Path;
+use destack_ast::StringId;
+use destack_dir::{self as dir, Module};
+use destack_javascript_ast::Path;
 use smallvec::SmallVec;
 
 use crate::{TranspileResult, Transpiler, TranspilerUnit};

@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod tests {
-    use crate::{DystFormatOptions, TestFormatter, assert_format};
-    use dyst_ast::DeclarationDescriptor;
+    use crate::{DestackFormatOptions, TestFormatter, assert_format};
+    use destack_ast::DeclarationDescriptor;
 
     #[test]
     fn test_format_let_with_value() {
@@ -15,7 +15,7 @@ mod tests {
             "const veryLongIdentifierName = veryLongIdentifierNameWithManyWords\n",
             "const veryLongIdentifierName =\n\tveryLongIdentifierNameWithManyWords\n",
             |p| p.eat_let(DeclarationDescriptor::default()),
-            DystFormatOptions::default_tab().with_line_width(40)
+            DestackFormatOptions::default_tab().with_line_width(40)
         );
     }
 
@@ -31,7 +31,7 @@ mod tests {
             source,
             source,
             |p| p.eat_let(DeclarationDescriptor::default()),
-            DystFormatOptions::default_with_line_width(40)
+            DestackFormatOptions::default_with_line_width(40)
         );
     }
 
@@ -46,7 +46,7 @@ mod tests {
     TetrisPieceShape.O,
 )",
             |p| p.eat_let(DeclarationDescriptor::default()),
-            DystFormatOptions::default_with_line_width(40)
+            DestackFormatOptions::default_with_line_width(40)
         );
     }
 
@@ -62,7 +62,7 @@ mod tests {
             source,
             source,
             |p| p.eat_let(DeclarationDescriptor::default()),
-            DystFormatOptions::default_with_line_width(40)
+            DestackFormatOptions::default_with_line_width(40)
         );
     }
 
@@ -77,7 +77,7 @@ mod tests {
     TetrisPieceShape.O,
 ]",
             |p| p.eat_let(DeclarationDescriptor::default()),
-            DystFormatOptions::default_with_line_width(40)
+            DestackFormatOptions::default_with_line_width(40)
         );
     }
 
@@ -95,7 +95,7 @@ mod tests {
             source,
             source,
             |p| p.eat_let(DeclarationDescriptor::default()),
-            DystFormatOptions::default_with_line_width(40)
+            DestackFormatOptions::default_with_line_width(40)
         );
     }
 }

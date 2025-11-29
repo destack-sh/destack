@@ -1,8 +1,8 @@
 use std::path::Path;
 use std::sync::Arc;
 
-use dyst_dir::Program;
-use dyst_source::{File, FileType, Uri};
+use destack_dir::Program;
+use destack_source::{File, FileType, Uri};
 
 /// Input arguments describing a source file or inline string.
 pub(crate) struct SourceArg<'a> {

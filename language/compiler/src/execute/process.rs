@@ -1,6 +1,6 @@
 use crate::{Compiler, ExecuteResult, Task, TaskDebug, TaskOutput};
 
-use dyst_dir::{LocalNodeIdAny, Program};
+use destack_dir::{LocalNodeIdAny, Program};
 
 /// Task to execute something at compile time.
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]

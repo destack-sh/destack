@@ -88,7 +88,7 @@ macro_rules! assert_path {
 macro_rules! assert_expression_path {
     ($program:expr, $expr:expr, $expected:expr) => {{
         match $expr {
-            ::dyst_dir::Expression::Path {
+            ::destack_dir::Expression::Path {
                 path,
                 static_arguments: _,
             } => {

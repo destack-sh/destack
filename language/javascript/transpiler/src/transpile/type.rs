@@ -1,5 +1,5 @@
-use dyst_dir::{self as dir, Module, NodeTree, SymbolTable, TypeTable};
-use dyst_javascript_ast::{
+use destack_dir::{self as dir, Module, NodeTree, SymbolTable, TypeTable};
+use destack_javascript_ast::{
     Expression, Generics, Heritage, LocalNodeId, Mutability, PrimitiveType, Type,
     TypeBinaryOperator, TypeLiteral, TypeUnaryOperator,
 };

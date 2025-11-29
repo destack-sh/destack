@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use clap::Args;
-use dyst_resolver::{ResolveOptions, Resolver};
+use destack_resolver::{ResolveOptions, Resolver};
 
 use crate::command::ProgramArgs;
 use crate::console;

@@ -1,7 +1,7 @@
 use std::num::NonZeroU32;
 use std::sync::atomic::Ordering;
 
-use dyst_source::{File, FileType};
+use destack_source::{File, FileType};
 
 use crate::format::{FormatOptions, GroupId, SimpleFormatOptions};
 
@@ -78,10 +78,10 @@ impl SimpleFormatContext {
     }
 
     /// Create an empty SimpleFormatContext.
-    pub fn empty_dyst() -> Self {
+    pub fn empty_destack() -> Self {
         Self {
             options: SimpleFormatOptions::default(),
-            file: File::empty_text_with_type(FileType::Dyst),
+            file: File::empty_text_with_type(FileType::Destack),
         }
     }
 }

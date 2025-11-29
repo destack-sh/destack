@@ -1,5 +1,5 @@
-use dyst_ast as ast;
-use dyst_dir::{
+use destack_ast as ast;
+use destack_dir::{
     LocalNodeId, LocalNodeIdAny, LocalScopeId, LocalScopeMark, Module, NodeTree, NodeType,
     SymbolTable, TypeTable, WithClause,
 };

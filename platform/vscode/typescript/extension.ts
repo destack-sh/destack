@@ -136,7 +136,7 @@ export async function activate(ctx: vscode.ExtensionContext) {
 
     const clientOptions: LanguageClientOptions = {
         documentSelector: [
-            { language: "dyst" },
+            { language: "destack" },
             { language: "dst" },
             { language: "dsb" },
             { language: "dsx" },

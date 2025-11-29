@@ -1,6 +1,6 @@
 {
 	"name": "@destack/telemetry",
-	"version": "2025.11.28.0",
+	"version": "2025.11.29.0",
 	"license": "MIT",
 	"type": "module",
 	"sideEffects": false,

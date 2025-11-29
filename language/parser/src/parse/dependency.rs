@@ -1,11 +1,11 @@
 use crate::parse::prelude::*;
 use crate::{ParseResult, Parser};
 
-use dyst_ast::{
+use destack_ast::{
     DependencyItem, DependencyKind, DependencyMode, Expression, Keyword, LocalNodeId,
     ScalarLiteral, TokenType,
 };
-use dyst_source::StringId;
+use destack_source::StringId;
 
 #[allow(clippy::type_complexity)]
 impl Parser {
@@ -370,7 +370,7 @@ impl Parser {
 
 #[cfg(test)]
 mod tests {
-    use dyst_ast::{
+    use destack_ast::{
         Argument, DependencyItem, DependencyKind, DependencyMode, Expression, ScalarLiteral,
     };
 
@@ -378,8 +378,8 @@ mod tests {
 
     #[test]
     fn test_parse_import_simple() {
-        // import dyst
-        let mut test = TestParser::new("import \"dyst\"");
+        // import destack
+        let mut test = TestParser::new("import \"destack\"");
         let mut parser = test.prepare();
         let import_id = parser.eat_import().unwrap();
 
@@ -387,7 +387,7 @@ mod tests {
         assert_node!(parser.tree, import_id, Expression::Import { kind, target, items, .. } => {
             assert_eq!(*kind, DependencyKind::Value);
             assert_eq!(items.len(), 0);
-            assert_string!(parser, *target, "dyst");
+            assert_string!(parser, *target, "destack");
         });
     }
 
@@ -411,16 +411,16 @@ mod tests {
 
     #[test]
     fn test_parse_import_path_with_arguments() {
-        let mut test = TestParser::new("import \"dyst.geometry\" with { bar: true }");
+        let mut test = TestParser::new("import \"destack.geometry\" with { bar: true }");
         let mut parser = test.prepare();
         let import_id = parser.eat_import().unwrap();
 
-        // import dyst.geometry with { bar: true }
+        // import destack.geometry with { bar: true }
         assert_node!(parser.tree, import_id, Expression::Import { kind, target, items, arguments, .. } => {
-            // dyst.geometry
+            // destack.geometry
             assert_eq!(*kind, DependencyKind::Value);
             assert_eq!(items.len(), 0);
-            assert_string!(parser, *target, "dyst.geometry");
+            assert_string!(parser, *target, "destack.geometry");
             // with { bar: true }
             let arguments = arguments.as_ref().expect("expected arguments");
             assert_eq!(arguments.len(), 1);

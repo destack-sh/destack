@@ -1,15 +1,15 @@
 use std::marker::PhantomData;
 
-use dyst_fir::format::{BestFittingMode, FormatResult};
-use dyst_javascript_ast::{Argument, LocalNodeId, Node, NodeTree, NodeTreeImpl, Parameter};
+use destack_fir::format::{BestFittingMode, FormatResult};
+use destack_javascript_ast::{Argument, LocalNodeId, Node, NodeTree, NodeTreeImpl, Parameter};
 
 use crate::format::property::{
     format_binding_modifiers_postfix_maybe, format_binding_modifiers_prefix_maybe,
 };
 use crate::{FormatNode, JavaScriptFormatContext, JavaScriptFormatter};
 
-use dyst_fir::prelude::*;
-use dyst_fir::{best_fitting, format_args, write};
+use destack_fir::prelude::*;
+use destack_fir::{best_fitting, format_args, write};
 
 /// List like thing infix annotations.
 #[derive(Debug, Clone, PartialEq)]

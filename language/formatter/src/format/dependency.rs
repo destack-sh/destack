@@ -1,14 +1,14 @@
-use crate::{DystFormatter, FormatNode};
-use dyst_ast::{DependencyItem, DependencyKind, DependencyMode, Keyword, LocalNodeId};
-use dyst_fir::format::FormatResult;
-use dyst_fir::prelude::*;
-use dyst_fir::write;
+use crate::{DestackFormatter, FormatNode};
+use destack_ast::{DependencyItem, DependencyKind, DependencyMode, Keyword, LocalNodeId};
+use destack_fir::format::FormatResult;
+use destack_fir::prelude::*;
+use destack_fir::write;
 
 impl<'ast> FormatNode<'ast, DependencyItem> for DependencyItem {
     fn format_node(
         &self,
         node_id: LocalNodeId<DependencyItem>,
-        f: &mut DystFormatter<'ast, '_>,
+        f: &mut DestackFormatter<'ast, '_>,
     ) -> FormatResult<()> {
         write!(f, [f.context().any_prefix_annotations(node_id)])?;
 
@@ -43,7 +43,7 @@ impl<'ast> FormatNode<'ast, DependencyItem> for DependencyItem {
 
 #[cfg(test)]
 mod tests {
-    use crate::{DystFormatOptions, TestFormatter, assert_format};
+    use crate::{DestackFormatOptions, TestFormatter, assert_format};
 
     #[test]
     fn test_format_import() {
@@ -51,7 +51,7 @@ mod tests {
             "import \"foo\"",
             "import \"foo\"",
             |p| p.eat_expression(),
-            DystFormatOptions::default()
+            DestackFormatOptions::default()
         );
     }
 
@@ -61,7 +61,7 @@ mod tests {
             "import * as foo from \"foo\"",
             "import * as foo from \"foo\"",
             |p| p.eat_expression(),
-            DystFormatOptions::default()
+            DestackFormatOptions::default()
         );
     }
 
@@ -71,7 +71,7 @@ mod tests {
             "import {bar, baz} from \"foo\"",
             "import { bar, baz } from \"foo\"",
             |p| p.eat_expression(),
-            DystFormatOptions::default_with_line_width(60)
+            DestackFormatOptions::default_with_line_width(60)
         );
     }
 
@@ -87,7 +87,7 @@ mod tests {
             source,
             source,
             |p| p.eat_expression(),
-            DystFormatOptions::default_with_line_width(60)
+            DestackFormatOptions::default_with_line_width(60)
         );
     }
 
@@ -97,7 +97,7 @@ mod tests {
             r#"export * from "./foo""#,
             r#"export * from "./foo""#,
             |p| p.eat_expression(),
-            DystFormatOptions::default()
+            DestackFormatOptions::default()
         );
     }
 
@@ -107,7 +107,7 @@ mod tests {
             "import Default, { type Item } from \"foo\"",
             "import Default, { type Item } from \"foo\"",
             |p| p.eat_expression(),
-            DystFormatOptions::default()
+            DestackFormatOptions::default()
         );
     }
 
@@ -117,7 +117,7 @@ mod tests {
             "export { default, default as bar, foo } from \"foo\"",
             "export { default, default as bar, foo } from \"foo\"",
             |p| p.eat_expression(),
-            DystFormatOptions::default()
+            DestackFormatOptions::default()
         );
     }
 }

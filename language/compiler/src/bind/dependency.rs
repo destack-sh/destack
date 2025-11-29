@@ -1,10 +1,10 @@
-use dyst_ast::{self as ast};
-use dyst_dir::{
+use destack_ast::{self as ast};
+use destack_dir::{
     DependencyItem, DependencyKind, DependencyMode, DependencySource, LocalNodeId, LocalNodeIdAny,
     LocalScopeId, LocalScopeMark, Module, NodeTree, NodeType, SymbolKey, SymbolSpace, SymbolTable,
     TypeTable,
 };
-use dyst_source::StringId;
+use destack_source::StringId;
 
 use crate::Compiler;
 

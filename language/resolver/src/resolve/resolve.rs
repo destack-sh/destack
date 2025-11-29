@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use dyst_dir::{PackageId, TsConfigId};
+use destack_dir::{PackageId, TsConfigId};
 
 use crate::{Resolution, ResolveContext, ResolveError, Resolver};
 

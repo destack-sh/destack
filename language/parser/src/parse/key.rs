@@ -1,6 +1,6 @@
 use crate::{ParseError, ParseResult, Parser};
-use dyst_ast::{Key, LiteralType, Name, TokenSpan, TokenType};
-use dyst_source::StringId;
+use destack_ast::{Key, LiteralType, Name, TokenSpan, TokenType};
+use destack_source::StringId;
 
 impl Parser {
     /// Peek an identifier.

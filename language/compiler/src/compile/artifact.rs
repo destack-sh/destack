@@ -1,4 +1,4 @@
-use dyst_source::{FileId, FileType};
+use destack_source::{FileId, FileType};
 
 #[derive(Debug, Clone)]
 pub struct CompilerArtifact {

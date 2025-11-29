@@ -1,5 +1,5 @@
 use crate::{Compiler, ResolveError, ResolveResult};
-use dyst_dir::{
+use destack_dir::{
     Expression, FloatType, IntType, LocalNodeId, LocalTypeId, Module, NodeTree, PrimitiveType,
     SymbolTable, Type, TypeLiteral, TypeTable, TypeUnaryOperator, UnaryOperator,
 };

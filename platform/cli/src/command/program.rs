@@ -4,8 +4,8 @@ use std::sync::Arc;
 use std::thread;
 
 use clap::{Args, ValueEnum};
-use dyst_dir::Program;
-use dyst_source::{
+use destack_dir::Program;
+use destack_source::{
     FileRegistry, FileSystem, FormattingOptions, IndentStyle, LanguageMode, LanguageOptions,
     LineEnding, MemoryFileSystem, PhysicalFileSystem,
 };

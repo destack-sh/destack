@@ -1,4 +1,4 @@
-use dyst_source::StringId;
+use destack_source::StringId;
 
 use crate::{Expression, GlobalSymbolId, LocalNodeId, LocalSymbolId, ModuleId, Node, NodeType};
 

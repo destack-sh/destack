@@ -1,13 +1,12 @@
-use dyst_parser::Lexer;
-use dyst_source::{FileId, LanguageOptions, glob};
-
 use criterion::{BenchmarkId, Criterion, Throughput, black_box, criterion_group, criterion_main};
+use destack_parser::Parser;
+use destack_source::{File, FileId, FileType, LanguageOptions, Uri, glob};
 use pprof::criterion::{Output, PProfProfiler};
-
 use std::fs;
 use std::path::PathBuf;
+use std::sync::Arc;
 
-fn bench_lex(c: &mut Criterion) {
+fn bench_parse(c: &mut Criterion) {
     // find workspace root by walking up until we find a known repo marker
     let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     let workspace_root_path = manifest_dir
@@ -31,9 +30,8 @@ fn bench_lex(c: &mut Criterion) {
     let mut ds_str: String = String::with_capacity(total_capacity);
     for path in ds_files.iter() {
         assert!(
-            path.extension().is_some()
-                && (path.extension().unwrap() == "ds" || path.extension().unwrap() == "d.ds"),
-            "path does not end with .ds or .d.ds: {path:?}"
+            path.extension().is_some() && path.extension().unwrap() == "ds",
+            "path does not end with .ds: {path:?}"
         );
         let content = fs::read_to_string(path).unwrap_or_default();
         if !content.is_empty() {
@@ -44,16 +42,26 @@ fn bench_lex(c: &mut Criterion) {
             }
         }
     }
+    let file = File::from_text(
+        FileId::new(0),
+        "<string>".to_string(),
+        Uri::from_string("<string>"),
+        None,
+        FileType::Destack,
+        ds_str,
+    );
+    let file = Arc::new(file);
 
     // single benchmark over the whole workspace content
-    let mut group = c.benchmark_group("dyst_lex");
-    let line_count = ds_str.lines().count() as u64;
+    let mut group = c.benchmark_group("destack_ast");
+    let line_count = file.text().lines().count() as u64;
     group.throughput(Throughput::Elements(line_count));
-    group.bench_with_input(BenchmarkId::new("lex", "all"), &ds_str, |b, input| {
+    group.bench_with_input(BenchmarkId::new("parse", "all"), &file, |b, file| {
         b.iter(|| {
             let language = LanguageOptions::default();
-            let (tokens, _) = Lexer::lex(FileId::new(0), input, language);
-            black_box(tokens);
+            let mut parser = Parser::lex_file(file.clone(), language);
+            parser.parse();
+            black_box(parser);
         });
     });
     group.finish();
@@ -67,6 +75,6 @@ fn profiler() -> Criterion {
 criterion_group! {
     name = benches;
     config = profiler();
-    targets = bench_lex
+    targets = bench_parse
 }
 criterion_main!(benches);

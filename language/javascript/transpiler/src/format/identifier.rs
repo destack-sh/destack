@@ -1,8 +1,8 @@
-use dyst_fir::format::{Format, FormatResult, text};
-use dyst_fir::prelude::*;
-use dyst_fir::write;
-use dyst_javascript_ast::{Keyword, Name};
-use dyst_source::StringId;
+use destack_fir::format::{Format, FormatResult, text};
+use destack_fir::prelude::*;
+use destack_fir::write;
+use destack_javascript_ast::{Keyword, Name};
+use destack_source::StringId;
 
 use crate::{JavaScriptFormatContext, JavaScriptFormatter};
 

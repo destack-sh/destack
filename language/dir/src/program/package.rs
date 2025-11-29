@@ -4,7 +4,7 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicU32, Ordering};
 
 use dashmap::DashMap;
-use dyst_source::{File, FileContent, FileId, Uri};
+use destack_source::{File, FileContent, FileId, Uri};
 use parking_lot::RwLock;
 use serde::Deserialize;
 use serde_json::{Map, Value};

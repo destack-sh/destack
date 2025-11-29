@@ -1,6 +1,6 @@
 [package]
-name = "dyst_ast"
-description = "Dyst AST"
+name = "destack_ast"
+description = "Destack AST"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
@@ -12,9 +12,9 @@ path = "src/lib.rs"
 doctest = false
 
 [dependencies]
-dyst_fir = { workspace = true }
-dyst_source = { workspace = true }
-dyst_unicode = { workspace = true }
+destack_fir = { workspace = true }
+destack_source = { workspace = true }
+destack_unicode = { workspace = true }
 
 smallvec = { workspace = true }
 

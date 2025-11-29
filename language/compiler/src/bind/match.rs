@@ -1,5 +1,5 @@
-use dyst_ast::{self as ast};
-use dyst_dir::{
+use destack_ast::{self as ast};
+use destack_dir::{
     LocalNodeId, LocalNodeIdAny, LocalScopeId, LocalScopeMark, MatchCase, Module, NodeTree,
     NodeType, ScopeKind, SymbolTable, TypeTable,
 };

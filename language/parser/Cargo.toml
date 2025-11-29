@@ -1,6 +1,6 @@
 [package]
-name = "dyst_parser"
-description = "Dyst Parser"
+name = "destack_parser"
+description = "Destack Parser"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
@@ -12,9 +12,9 @@ path = "src/lib.rs"
 doctest = false
 
 [dependencies]
-dyst_ast = { workspace = true }
-dyst_source = { workspace = true }
-dyst_unicode = { workspace = true }
+destack_ast = { workspace = true }
+destack_source = { workspace = true }
+destack_unicode = { workspace = true }
 smallvec = { workspace = true }
 tracing = { workspace = true }
 

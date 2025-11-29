@@ -564,7 +564,7 @@ export namespace JSC {
        */
       endColumn: number;
       /**
-       * Determines whether this script is a user implement script.
+       * Determines whether this script is a user extension script.
        */
       isContentScript?: boolean | undefined;
       /**

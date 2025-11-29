@@ -1,4 +1,4 @@
-use dyst_dir::{LocalNodeId, Module, NodeTree, Pattern, PatternField, SymbolTable};
+use destack_dir::{LocalNodeId, Module, NodeTree, Pattern, PatternField, SymbolTable};
 
 use crate::{Compiler, ResolveError, ResolveResult};
 

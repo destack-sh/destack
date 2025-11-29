@@ -3,7 +3,7 @@ import * as ds from "destack"
 /// An Entity Epoch.
 export newtype Epoch = number;
 
-implement Epoch {
+extension Epoch {
     static Zero: Epoch = Epoch(0)
 }
 
@@ -81,7 +81,7 @@ export struct Entity {
     /// The key of the `Entity` (for reconciliation and querying).
     key: string?,
 
-    /// The implement flags of the `Entity`.
+    /// The extension flags of the `Entity`.
     extensibility: ExtensionFlag,
     /// The Script of the `Entity`.
     script: Reference<Script>?,

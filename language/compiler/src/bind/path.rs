@@ -1,6 +1,6 @@
 use crate::Compiler;
-use dyst_ast::{self as ast, StringId};
-use dyst_dir::{Module, Path};
+use destack_ast::{self as ast, StringId};
+use destack_dir::{Module, Path};
 use smallvec::SmallVec;
 
 #[allow(clippy::too_many_arguments)]

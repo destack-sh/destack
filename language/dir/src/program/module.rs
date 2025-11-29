@@ -5,8 +5,8 @@ use std::sync::atomic::{AtomicU32, Ordering};
 use dashmap::DashMap;
 use parking_lot::RwLock;
 
-use dyst_ast::{self as ast, StringPool};
-use dyst_source::{FileId, Uri};
+use destack_ast::{self as ast, StringPool};
+use destack_source::{FileId, Uri};
 
 use crate::{
     AnalysisTable, DependencyMode, Expression, LocalNodeId, LocalScopeId, LocalScopeMark,

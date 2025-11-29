@@ -1,7 +1,7 @@
 use crate::parse::prelude::*;
 use crate::{ParseResult, Parser};
 
-use dyst_ast::{Expression, LocalNodeId, NodeType, Pattern, PatternField, TokenType};
+use destack_ast::{Expression, LocalNodeId, NodeType, Pattern, PatternField, TokenType};
 
 impl Parser {
     /// Eat a pattern.
@@ -390,7 +390,7 @@ impl Parser {
 
 #[cfg(test)]
 mod tests {
-    use dyst_ast::{Expression, Mutability, Pattern, PatternField, ScalarLiteral};
+    use destack_ast::{Expression, Mutability, Pattern, PatternField, ScalarLiteral};
 
     use crate::{
         TestParser, assert_expression_path, assert_name, assert_node, assert_path, assert_string,

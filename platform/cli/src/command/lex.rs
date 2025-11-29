@@ -1,7 +1,7 @@
 use clap::{ArgGroup, Args};
-use dyst_ast::{SemanticType, TokenSpan, TokenType};
-use dyst_parser::{Lexer, is_semantic};
-use dyst_source::File;
+use destack_ast::{SemanticType, TokenSpan, TokenType};
+use destack_parser::{Lexer, is_semantic};
+use destack_source::File;
 
 use crate::command::{ProgramArgs, SourceArg, get_string_or_file};
 use crate::console;

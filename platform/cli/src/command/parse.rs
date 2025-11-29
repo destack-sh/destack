@@ -1,7 +1,7 @@
 use clap::{ArgGroup, Args};
-use dyst_ast::{Dumper, DumperOptions, NodeVisitor};
-use dyst_parser::{Parser, colorize_source};
-use dyst_source::DiagnosticOptions;
+use destack_ast::{Dumper, DumperOptions, NodeVisitor};
+use destack_parser::{Parser, colorize_source};
+use destack_source::DiagnosticOptions;
 
 use crate::command::{
     DiagnosticArgs, DumpFormat, DumpKind, ProgramArgs, SourceArg, get_string_or_file,

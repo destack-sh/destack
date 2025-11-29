@@ -1,7 +1,7 @@
 //! Parse use and where declarations.
 use crate::{ParseResult, Parser};
 
-use dyst_ast::{Keyword, LocalNodeId, TokenType, WhereClause};
+use destack_ast::{Keyword, LocalNodeId, TokenType, WhereClause};
 
 impl Parser {
     /// Eat a where context declaration or assignment maybe.
@@ -116,7 +116,9 @@ impl Parser {
 
 #[cfg(test)]
 mod tests {
-    use dyst_ast::{BinaryOperator, Expression, IntType, TypeLiteral, UnaryOperator, WhereClause};
+    use destack_ast::{
+        BinaryOperator, Expression, IntType, TypeLiteral, UnaryOperator, WhereClause,
+    };
 
     use crate::{TestParser, assert_expression_path, assert_node, assert_path, assert_string};
 

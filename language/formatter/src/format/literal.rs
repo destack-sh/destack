@@ -1,22 +1,22 @@
 use std::borrow::Cow;
 
-use crate::{DystFormatContext, DystFormatter};
+use crate::{DestackFormatContext, DestackFormatter};
 
-use dyst_ast::{
+use destack_ast::{
     Argument, DeclarationType, FloatType, IntType, Keyword, LocalNodeId, ScalarLiteral,
     TemplateLiteral, TypeLiteral,
 };
-use dyst_fir::format::{Format, FormatResult, text, token};
-use dyst_fir::prelude::*;
-use dyst_fir::{format_args, write};
-use dyst_source::{Span, StringId};
+use destack_fir::format::{Format, FormatResult, text, token};
+use destack_fir::prelude::*;
+use destack_fir::{format_args, write};
+use destack_source::{Span, StringId};
 
 /// Format a scalar literal.
 /// (This is a separate function because it's not a node but we need the span for normalization.)
 pub(crate) fn format_scalar_literal<'ast>(
     scalar: &ScalarLiteral,
     span: Span,
-    f: &mut DystFormatter<'ast, '_>,
+    f: &mut DestackFormatter<'ast, '_>,
 ) -> FormatResult<()> {
     let span_str = f.context().file.get_span_str(span).unwrap_or_default();
     match scalar {
@@ -76,7 +76,7 @@ pub(crate) fn format_scalar_literal<'ast>(
 fn format_interpolated_template_literal<'ast>(
     strings: &[StringId],
     arguments: &[LocalNodeId<Argument>],
-    f: &mut DystFormatter<'ast, '_>,
+    f: &mut DestackFormatter<'ast, '_>,
 ) -> FormatResult<()> {
     debug_assert_eq!(strings.len(), arguments.len().saturating_add(1));
 
@@ -109,7 +109,7 @@ fn format_interpolated_template_literal<'ast>(
 pub(crate) fn format_template_literal<'ast>(
     template: &TemplateLiteral,
     _span: Span,
-    f: &mut DystFormatter<'ast, '_>,
+    f: &mut DestackFormatter<'ast, '_>,
 ) -> FormatResult<()> {
     match template {
         TemplateLiteral::String { string } => {
@@ -123,8 +123,8 @@ pub(crate) fn format_template_literal<'ast>(
     Ok(())
 }
 
-impl<'ast> Format<DystFormatContext<'ast>> for TypeLiteral {
-    fn format(&self, f: &mut DystFormatter<'ast, '_>) -> FormatResult<()> {
+impl<'ast> Format<DestackFormatContext<'ast>> for TypeLiteral {
+    fn format(&self, f: &mut DestackFormatter<'ast, '_>) -> FormatResult<()> {
         match self {
             TypeLiteral::Never => write!(f, [token("never")]),
             TypeLiteral::Any => write!(f, [token("any")]),
@@ -149,8 +149,8 @@ impl<'ast> Format<DystFormatContext<'ast>> for TypeLiteral {
     }
 }
 
-impl<'ast> Format<DystFormatContext<'ast>> for IntType {
-    fn format(&self, f: &mut Formatter<'_, DystFormatContext<'ast>>) -> FormatResult<()> {
+impl<'ast> Format<DestackFormatContext<'ast>> for IntType {
+    fn format(&self, f: &mut Formatter<'_, DestackFormatContext<'ast>>) -> FormatResult<()> {
         match self {
             IntType::Pointer { is_signed } => {
                 if *is_signed {
@@ -180,8 +180,8 @@ impl<'ast> Format<DystFormatContext<'ast>> for IntType {
     }
 }
 
-impl<'ast> Format<DystFormatContext<'ast>> for FloatType {
-    fn format(&self, f: &mut Formatter<'_, DystFormatContext<'ast>>) -> FormatResult<()> {
+impl<'ast> Format<DestackFormatContext<'ast>> for FloatType {
+    fn format(&self, f: &mut Formatter<'_, DestackFormatContext<'ast>>) -> FormatResult<()> {
         if let Some(width) = self.width {
             write!(f, [token("float"), text(&width.to_string())])
         } else {
@@ -190,8 +190,8 @@ impl<'ast> Format<DystFormatContext<'ast>> for FloatType {
     }
 }
 
-impl<'ast> Format<DystFormatContext<'ast>> for DeclarationType {
-    fn format(&self, f: &mut Formatter<'_, DystFormatContext<'ast>>) -> FormatResult<()> {
+impl<'ast> Format<DestackFormatContext<'ast>> for DeclarationType {
+    fn format(&self, f: &mut Formatter<'_, DestackFormatContext<'ast>>) -> FormatResult<()> {
         match self {
             DeclarationType::Type => write!(f, [Keyword::Type]),
             DeclarationType::Namespace => write!(f, [Keyword::Namespace]),
@@ -324,7 +324,7 @@ fn normalize_float(input: &str) -> Cow<'_, str> {
 
 #[cfg(test)]
 mod tests {
-    use crate::{DystFormatOptions, TestFormatter, assert_format};
+    use crate::{DestackFormatOptions, TestFormatter, assert_format};
 
     /// Strings parsed with single quotes should be rewritten with double quotes.
     #[test]

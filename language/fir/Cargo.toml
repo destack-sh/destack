@@ -1,6 +1,6 @@
 [package]
-name = "dyst_fir"
-description = "Dyst Formatting IR"
+name = "destack_fir"
+description = "Destack Formatting IR"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
@@ -12,8 +12,8 @@ path = "src/lib.rs"
 doctest = false
 
 [dependencies]
-dyst_source = { workspace = true }
-dyst_unicode = { workspace = true }
+destack_source = { workspace = true }
+destack_unicode = { workspace = true }
 
 [dev-dependencies]
 

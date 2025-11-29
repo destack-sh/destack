@@ -1,4 +1,4 @@
-use dyst_dir::{GlobalNodeIdAny, Program};
+use destack_dir::{GlobalNodeIdAny, Program};
 
 use crate::{
     AnalyzeOutput, AnalyzeTask, BindOutput, BindTask, BuildOutput, BuildTask, ElaborateOutput,

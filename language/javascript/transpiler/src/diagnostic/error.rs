@@ -1,5 +1,5 @@
-use dyst_dir::{self as dir, Program};
-use dyst_javascript_ast::{LocalNodeId, LocalNodeIdAny, Node, NodeType};
+use destack_dir::{self as dir, Program};
+use destack_javascript_ast::{LocalNodeId, LocalNodeIdAny, Node, NodeType};
 
 use crate::{TranspileDiagnostic, TranspileWarning, TranspilerUnit};
 

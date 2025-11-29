@@ -1,4 +1,4 @@
-use dyst_dir::{
+use destack_dir::{
     GlobalNodeIdAny, GlobalSymbolId, LocalNodeId, LocalScopeMark, LocalSymbolId, Node, Scope,
     SymbolKey, SymbolTable,
 };

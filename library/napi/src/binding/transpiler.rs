@@ -18,11 +18,11 @@ impl Default for TranspilerMode {
     }
 }
 
-impl From<TranspilerMode> for dyst_javascript_transpiler::TranspilerMode {
+impl From<TranspilerMode> for destack_javascript_transpiler::TranspilerMode {
     fn from(mode: TranspilerMode) -> Self {
         match mode {
-            TranspilerMode::Retained => dyst_javascript_transpiler::TranspilerMode::Retained,
-            TranspilerMode::Combined => dyst_javascript_transpiler::TranspilerMode::Combined,
+            TranspilerMode::Retained => destack_javascript_transpiler::TranspilerMode::Retained,
+            TranspilerMode::Combined => destack_javascript_transpiler::TranspilerMode::Combined,
         }
     }
 }
@@ -45,13 +45,17 @@ impl Default for TranspileTarget {
     }
 }
 
-impl From<TranspileTarget> for dyst_javascript_transpiler::TranspileTarget {
+impl From<TranspileTarget> for destack_javascript_transpiler::TranspileTarget {
     fn from(target: TranspileTarget) -> Self {
         match target {
-            TranspileTarget::JavaScript => dyst_javascript_transpiler::TranspileTarget::JavaScript,
-            TranspileTarget::TypeScript => dyst_javascript_transpiler::TranspileTarget::TypeScript,
+            TranspileTarget::JavaScript => {
+                destack_javascript_transpiler::TranspileTarget::JavaScript
+            }
+            TranspileTarget::TypeScript => {
+                destack_javascript_transpiler::TranspileTarget::TypeScript
+            }
             TranspileTarget::JavaScriptWithTypeScriptDeclarations => {
-                dyst_javascript_transpiler::TranspileTarget::JavaScriptWithTypeScriptDeclarations
+                destack_javascript_transpiler::TranspileTarget::JavaScriptWithTypeScriptDeclarations
             }
         }
     }
@@ -75,17 +79,17 @@ impl Default for TranspilerLanguage {
     }
 }
 
-impl From<TranspilerLanguage> for dyst_javascript_transpiler::TranspilerLanguage {
+impl From<TranspilerLanguage> for destack_javascript_transpiler::TranspilerLanguage {
     fn from(language: TranspilerLanguage) -> Self {
         match language {
             TranspilerLanguage::JavaScript => {
-                dyst_javascript_transpiler::TranspilerLanguage::JavaScript
+                destack_javascript_transpiler::TranspilerLanguage::JavaScript
             }
             TranspilerLanguage::TypeScript => {
-                dyst_javascript_transpiler::TranspilerLanguage::TypeScript
+                destack_javascript_transpiler::TranspilerLanguage::TypeScript
             }
             TranspilerLanguage::TypeScriptDeclaration => {
-                dyst_javascript_transpiler::TranspilerLanguage::TypeScriptDeclaration
+                destack_javascript_transpiler::TranspilerLanguage::TypeScriptDeclaration
             }
         }
     }
@@ -105,10 +109,10 @@ impl Default for EcmaScriptVersion {
     }
 }
 
-impl From<EcmaScriptVersion> for dyst_javascript_transpiler::EcmaScriptVersion {
+impl From<EcmaScriptVersion> for destack_javascript_transpiler::EcmaScriptVersion {
     fn from(version: EcmaScriptVersion) -> Self {
         match version {
-            EcmaScriptVersion::ES2022 => dyst_javascript_transpiler::EcmaScriptVersion::ES2022,
+            EcmaScriptVersion::ES2022 => destack_javascript_transpiler::EcmaScriptVersion::ES2022,
         }
     }
 }
@@ -127,10 +131,10 @@ impl Default for TypeScriptVersion {
     }
 }
 
-impl From<TypeScriptVersion> for dyst_javascript_transpiler::TypeScriptVersion {
+impl From<TypeScriptVersion> for destack_javascript_transpiler::TypeScriptVersion {
     fn from(version: TypeScriptVersion) -> Self {
         match version {
-            TypeScriptVersion::TS5_0 => dyst_javascript_transpiler::TypeScriptVersion::TS5_0,
+            TypeScriptVersion::TS5_0 => destack_javascript_transpiler::TypeScriptVersion::TS5_0,
         }
     }
 }
@@ -151,11 +155,11 @@ impl Default for FormatMode {
     }
 }
 
-impl From<FormatMode> for dyst_javascript_transpiler::FormatMode {
+impl From<FormatMode> for destack_javascript_transpiler::FormatMode {
     fn from(mode: FormatMode) -> Self {
         match mode {
-            FormatMode::Pretty => dyst_javascript_transpiler::FormatMode::Pretty,
-            FormatMode::Minimal => dyst_javascript_transpiler::FormatMode::Minimal,
+            FormatMode::Pretty => destack_javascript_transpiler::FormatMode::Pretty,
+            FormatMode::Minimal => destack_javascript_transpiler::FormatMode::Minimal,
         }
     }
 }
@@ -191,7 +195,7 @@ impl Default for FormatOptions {
     }
 }
 
-impl From<FormatOptions> for dyst_javascript_transpiler::JavaScriptFormatOptions {
+impl From<FormatOptions> for destack_javascript_transpiler::JavaScriptFormatOptions {
     fn from(options: FormatOptions) -> Self {
         Self {
             mode: options.mode.into(),
@@ -232,7 +236,7 @@ impl Default for TranspileOptions {
     }
 }
 
-impl From<TranspileOptions> for dyst_javascript_transpiler::TranspileOptions {
+impl From<TranspileOptions> for destack_javascript_transpiler::TranspileOptions {
     fn from(options: TranspileOptions) -> Self {
         Self {
             mode: options.mode.into(),

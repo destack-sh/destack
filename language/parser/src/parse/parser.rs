@@ -3,8 +3,8 @@ use std::fmt::Debug;
 use std::sync::Arc;
 
 use crate::{Lexer, is_semantic};
-use dyst_ast::{BlockFormat, Expression, LocalNodeId, NodeTree, NodeType, TokenSpan, TokenType};
-use dyst_source::{
+use destack_ast::{BlockFormat, Expression, LocalNodeId, NodeTree, NodeType, TokenSpan, TokenType};
+use destack_source::{
     DiagnosticCollector, EnclosingSpan, File, FileId, LanguageOptions, MultiSpan, NodeSearch, Span,
     StringPool,
 };
@@ -216,7 +216,7 @@ impl ParserOptions {
     }
 }
 
-/// A parser for a single Dyst source's AST.
+/// A parser for a single Destack source's AST.
 ///
 /// The Parser works on "semantic" undifferentiated Tokens (keywords are just identifiers).
 /// Whitespace and regular line comments are completely ignored; newline is significant (see ASI rules).

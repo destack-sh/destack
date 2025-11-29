@@ -1,7 +1,7 @@
 //! Parse use and with declarations.
 use crate::{ParseResult, Parser};
 
-use dyst_ast::{Expression, Keyword, LocalNodeId, TokenType, WithClause};
+use destack_ast::{Expression, Keyword, LocalNodeId, TokenType, WithClause};
 
 impl Parser {
     /// Eat a with context declaration or assignment maybe (including the `with` keyword and an optional body).
@@ -157,7 +157,7 @@ impl Parser {
 
 #[cfg(test)]
 mod tests {
-    use dyst_ast::{Expression, UnaryOperator, WithClause};
+    use destack_ast::{Expression, UnaryOperator, WithClause};
 
     use crate::{TestParser, assert_expression_path, assert_node, assert_path, assert_string};
 

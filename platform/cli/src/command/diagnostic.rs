@@ -1,5 +1,5 @@
-use dyst_dir::Program;
-use dyst_source::{
+use destack_dir::Program;
+use destack_source::{
     DiagnosticCollection, DiagnosticOptions, PrintOptions,
     print_diagnostics as print_diagnostics_impl,
 };

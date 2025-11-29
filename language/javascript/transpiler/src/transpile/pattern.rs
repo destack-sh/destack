@@ -1,7 +1,7 @@
 use crate::{TranspileError, TranspileResult, TranspileResultExt, Transpiler, TranspilerUnit};
-use dyst_dir as dir;
-use dyst_dir::{Module, NodeTree, SymbolTable, TypeTable};
-use dyst_javascript_ast::{Expression, LocalNodeId, Pattern, PatternField};
+use destack_dir as dir;
+use destack_dir::{Module, NodeTree, SymbolTable, TypeTable};
+use destack_javascript_ast::{Expression, LocalNodeId, Pattern, PatternField};
 
 impl Transpiler {
     /// Transpile a pattern from DIR into JS AST.

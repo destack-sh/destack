@@ -1,6 +1,6 @@
 [package]
-name = "dyst_formatter"
-description = "Dyst Formatter"
+name = "destack_formatter"
+description = "Destack Formatter"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
@@ -12,10 +12,10 @@ path = "src/lib.rs"
 doctest = false
 
 [dependencies]
-dyst_ast = { workspace = true }
-dyst_fir = { workspace = true }
-dyst_parser = { workspace = true }
-dyst_source = { workspace = true }
+destack_ast = { workspace = true }
+destack_fir = { workspace = true }
+destack_parser = { workspace = true }
+destack_source = { workspace = true }
 smallvec = { workspace = true }
 
 [dev-dependencies]

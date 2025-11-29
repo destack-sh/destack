@@ -10,7 +10,7 @@ import type { BunPlugin, PluginBuilder } from "bun";
 
 // nocheckin: bun plugin
 
-/// Destack & Dyst Bun plugin.
+/// Destack & Destack Bun plugin.
 export const destackPlugin: BunPlugin = {
     name: "destack",
     setup(build: PluginBuilder) {
@@ -53,7 +53,7 @@ export const destackPlugin: BunPlugin = {
                 path.join(base, "index.d.ds"),
             ];
 
-            // find the Dyst file
+            // find the Destack file
             const dsPath = candidates.find((p) => fs.existsSync(p));
             if (dsPath != null) {
                 return { path: dsPath };

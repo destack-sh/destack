@@ -1,6 +1,6 @@
 use crate::{Compiler, ResolveResult, Task, TaskDebug, TaskOutput};
 
-use dyst_dir::{ModuleId, Program};
+use destack_dir::{ModuleId, Program};
 
 /// Task to statically resolve something in-place.
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]

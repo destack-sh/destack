@@ -16,17 +16,17 @@ name = "destack_cli"
 path = "src/main.rs"
 
 [dependencies]
-dyst_ast = { workspace = true }
-dyst_compiler = { workspace = true }
-dyst_dir = { workspace = true }
-dyst_fir = { workspace = true }
-dyst_formatter = { workspace = true }
-dyst_javascript_ast = { workspace = true }
-dyst_javascript_transpiler = { workspace = true }
-dyst_javascript_machine = { workspace = true, optional = true }
-dyst_parser = { workspace = true }
-dyst_source = { workspace = true }
-dyst_resolver.workspace = true
+destack_ast = { workspace = true }
+destack_compiler = { workspace = true }
+destack_dir = { workspace = true }
+destack_fir = { workspace = true }
+destack_formatter = { workspace = true }
+destack_javascript_ast = { workspace = true }
+destack_javascript_transpiler = { workspace = true }
+destack_javascript_machine = { workspace = true, optional = true }
+destack_parser = { workspace = true }
+destack_source = { workspace = true }
+destack_resolver.workspace = true
 
 clap = { version = "4.5.4", features = ["derive"] }
 tracing = { workspace = true }

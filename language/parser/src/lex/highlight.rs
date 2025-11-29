@@ -1,5 +1,5 @@
-use dyst_ast::SemanticType;
-use dyst_source::{Color, File};
+use destack_ast::SemanticType;
+use destack_source::{Color, File};
 
 use super::Lexer;
 
@@ -69,16 +69,16 @@ pub fn colorize_source(file: &File) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use dyst_source::{FileType, Uri};
+    use destack_source::{FileType, Uri};
 
     #[test]
     fn test_colorize_source_simple() {
         let file = File::from_text(
-            dyst_source::FileId::new(0),
+            destack_source::FileId::new(0),
             "test.ds".to_string(),
             Uri::from_string("test.ds"),
             None,
-            FileType::Dyst,
+            FileType::Destack,
             "let x = 42;".to_string(),
         );
         let colorized = colorize_source(&file);

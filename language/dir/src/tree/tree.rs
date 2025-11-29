@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::fmt::{Debug, Formatter};
 
-use dyst_ast as ast;
+use destack_ast as ast;
 
 use crate::{
     Annotation, Arena, Argument, Block, Declaration, DependencyItem, EnumField, Expression,

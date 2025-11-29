@@ -2,13 +2,13 @@ use std::str::FromStr;
 
 use super::html_entities::HTML_NAMED_ENTITIES;
 use super::lexer::{EOF_CHAR, Lexer};
-use dyst_ast::{
+use destack_ast::{
     Keyword, LiteralType, NumberBase, RawStringError, Token, TokenSpan, TokenType,
     is_identifier_continue, is_identifier_start, is_whitespace,
 };
 
-use dyst_source::{FileId, LanguageOptions, Span};
-use dyst_unicode::UnicodeEmoji;
+use destack_source::{FileId, LanguageOptions, Span};
+use destack_unicode::UnicodeEmoji;
 
 /// Result of parsing a single-quoted literal.
 enum SingleQuotedLiteral {

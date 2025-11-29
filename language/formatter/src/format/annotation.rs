@@ -1,14 +1,14 @@
-use dyst_fir::format::{Format, FormatResult, hard_line_break};
-use dyst_fir::prelude::*;
-use dyst_fir::{format_args, write};
+use destack_fir::format::{Format, FormatResult, hard_line_break};
+use destack_fir::prelude::*;
+use destack_fir::{format_args, write};
 
-use crate::{DystFormatContext, DystFormatter, FormatNode};
-use dyst_ast::{
+use crate::{DestackFormatContext, DestackFormatter, FormatNode};
+use destack_ast::{
     Annotation, AnnotationPosition, Blank, Comment, CommentStyle, Decorator, Doc, DocStyle,
     LocalNodeId, Node, NodeTree, NodeTreeImpl, NodeType, Tag,
 };
 
-impl<'ast> DystFormatContext<'ast> {
+impl<'ast> DestackFormatContext<'ast> {
     /// Format the block infix annotations for a node.
     #[inline]
     pub fn block_infix_annotations<T: Node>(&self, node_id: LocalNodeId<T>) -> Annotations<T> {
@@ -120,12 +120,12 @@ pub struct Annotations<T: Node> {
     node_id: LocalNodeId<T>,
 }
 
-impl<'ast, T> Format<DystFormatContext<'ast>> for Annotations<T>
+impl<'ast, T> Format<DestackFormatContext<'ast>> for Annotations<T>
 where
     T: Node + Clone,
     NodeTree: NodeTreeImpl<T>,
 {
-    fn format(&self, f: &mut DystFormatter<'ast, '_>) -> FormatResult<()> {
+    fn format(&self, f: &mut DestackFormatter<'ast, '_>) -> FormatResult<()> {
         let Some(annotations) = f.context().get_annotations(self.node_id) else {
             return Ok(());
         };
@@ -221,7 +221,7 @@ impl<'ast> FormatNode<'ast, Annotation> for Annotation {
     fn format_node(
         &self,
         node_id: LocalNodeId<Annotation>,
-        f: &mut DystFormatter<'ast, '_>,
+        f: &mut DestackFormatter<'ast, '_>,
     ) -> FormatResult<()> {
         match self {
             Annotation::Blank { node, .. } => {
@@ -252,7 +252,7 @@ impl<'ast> FormatNode<'ast, Blank> for Blank {
     fn format_node(
         &self,
         _node_id: LocalNodeId<Blank>,
-        f: &mut DystFormatter<'ast, '_>,
+        f: &mut DestackFormatter<'ast, '_>,
     ) -> FormatResult<()> {
         // reduce any number of blank lines to a single one
         write!(f, [empty_line()])?;
@@ -264,7 +264,7 @@ impl<'ast> FormatNode<'ast, Doc> for Doc {
     fn format_node(
         &self,
         _node_id: LocalNodeId<Doc>,
-        f: &mut DystFormatter<'ast, '_>,
+        f: &mut DestackFormatter<'ast, '_>,
     ) -> FormatResult<()> {
         let string = f.context().strings.get(self.string);
         let is_multi_line = string.contains('\n');
@@ -316,7 +316,7 @@ impl<'ast> FormatNode<'ast, Comment> for Comment {
     fn format_node(
         &self,
         _node_id: LocalNodeId<Comment>,
-        f: &mut DystFormatter<'ast, '_>,
+        f: &mut DestackFormatter<'ast, '_>,
     ) -> FormatResult<()> {
         let string = f.context().strings.get(self.string);
         let is_multi_line = string.contains('\n');
@@ -362,7 +362,7 @@ impl<'ast> FormatNode<'ast, Tag> for Tag {
     fn format_node(
         &self,
         _node_id: LocalNodeId<Tag>,
-        f: &mut DystFormatter<'ast, '_>,
+        f: &mut DestackFormatter<'ast, '_>,
     ) -> FormatResult<()> {
         write!(f, [token("#"), self.left])?;
         if let Some(arguments) = &self.arguments
@@ -388,7 +388,7 @@ impl<'ast> FormatNode<'ast, Decorator> for Decorator {
     fn format_node(
         &self,
         _node_id: LocalNodeId<Decorator>,
-        f: &mut DystFormatter<'ast, '_>,
+        f: &mut DestackFormatter<'ast, '_>,
     ) -> FormatResult<()> {
         write!(f, [token("@"), self.left])?;
         if let Some(arguments) = &self.arguments
@@ -412,8 +412,8 @@ impl<'ast> FormatNode<'ast, Decorator> for Decorator {
 
 #[cfg(test)]
 mod tests {
-    use crate::{DystFormatOptions, TestFormatter, assert_format};
-    use dyst_ast::DeclarationDescriptor;
+    use crate::{DestackFormatOptions, TestFormatter, assert_format};
+    use destack_ast::DeclarationDescriptor;
 
     /// Block comments should retain all their newlines (including leading and trailing newlines).
     #[test]
@@ -435,7 +435,7 @@ mod tests {
             source,
             source,
             |p| p.eat_block(),
-            DystFormatOptions::default()
+            DestackFormatOptions::default()
         );
     }
 
@@ -453,7 +453,7 @@ mod tests {
             source,
             source,
             |p| p.eat_struct(DeclarationDescriptor::default()),
-            DystFormatOptions::default()
+            DestackFormatOptions::default()
         );
     }
 
@@ -473,7 +473,7 @@ mod tests {
             source,
             source,
             |p| p.eat_block(),
-            DystFormatOptions::default()
+            DestackFormatOptions::default()
         );
     }
 
@@ -491,7 +491,7 @@ mod tests {
             source,
             source,
             |p| p.eat_block(),
-            DystFormatOptions::default()
+            DestackFormatOptions::default()
         );
     }
 
@@ -502,7 +502,7 @@ mod tests {
             "#A struct #B Test #C { #D } #E",
             "#A struct Test {\n\t#B\n\t#C\n\t#D\n} #E\n",
             |p| p.eat_struct(DeclarationDescriptor::default()),
-            DystFormatOptions::default_tab()
+            DestackFormatOptions::default_tab()
         );
     }
 
@@ -533,7 +533,7 @@ mod tests {
             source,
             source,
             |p| p.eat_block(),
-            DystFormatOptions::default()
+            DestackFormatOptions::default()
         );
     }
 
@@ -544,7 +544,7 @@ mod tests {
             "/* Pre-X comment */const X=/* Pre-A comment */A/* A comment */&&B/* B comment */",
             "/* Pre-X comment */ const X = /* Pre-A comment */ A /* A comment */ && B /* B comment */",
             |p| p.eat_expression(),
-            DystFormatOptions::default_with_line_width(200)
+            DestackFormatOptions::default_with_line_width(200)
         );
     }
 
@@ -565,7 +565,7 @@ mod tests {
     const X = 1;
 }",
             |p| p.eat_block(),
-            DystFormatOptions::default()
+            DestackFormatOptions::default()
         );
     }
 
@@ -583,7 +583,7 @@ mod tests {
      * over multiple lines yo */
 }",
             |p| p.eat_block(),
-            DystFormatOptions::default()
+            DestackFormatOptions::default()
         );
     }
 
@@ -602,7 +602,7 @@ mod tests {
             source,
             source,
             |p| p.eat_block(),
-            DystFormatOptions::default()
+            DestackFormatOptions::default()
         );
     }
 }

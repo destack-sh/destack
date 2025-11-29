@@ -1,7 +1,7 @@
 import type { Plugin } from "vite";
 import { createFilter } from "vite";
 
-/// Destack & Dyst Vite plugin.
+/// Destack & Destack Vite plugin.
 export default function destackPlugin(opts?: {
     include?: string | RegExp | (string | RegExp)[];
     exclude?: string | RegExp | (string | RegExp)[];

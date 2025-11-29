@@ -1,18 +1,18 @@
 use crate::argument::list_like;
 use crate::r#where::format_where_clause;
 use crate::with::format_with_clause;
-use crate::{DystFormatter, FormatNode};
-use dyst_ast::{
+use crate::{DestackFormatter, FormatNode};
+use destack_ast::{
     Asynchrony, BindingAnchor, BindingKind, BindingModifier, BindingOperator, FunctionAbstraction,
     FunctionCardinality, Keyword, LocalNodeId, Mutability, Property,
 };
-use dyst_fir::format::FormatResult;
-use dyst_fir::prelude::*;
-use dyst_fir::write;
+use destack_fir::format::FormatResult;
+use destack_fir::prelude::*;
+use destack_fir::write;
 
 #[inline]
 pub(crate) fn format_binding_modifiers_prefix<'ast>(
-    f: &mut DystFormatter<'ast, '_>,
+    f: &mut DestackFormatter<'ast, '_>,
     modifiers: BindingModifier,
 ) -> FormatResult<()> {
     // visibility
@@ -36,7 +36,7 @@ pub(crate) fn format_binding_modifiers_prefix<'ast>(
 
 #[inline]
 pub(crate) fn format_binding_modifiers_prefix_maybe<'ast>(
-    f: &mut DystFormatter<'ast, '_>,
+    f: &mut DestackFormatter<'ast, '_>,
     modifiers: Option<BindingModifier>,
 ) -> FormatResult<()> {
     if let Some(modifiers) = modifiers {
@@ -47,7 +47,7 @@ pub(crate) fn format_binding_modifiers_prefix_maybe<'ast>(
 
 #[inline]
 pub(crate) fn format_binding_modifiers_postfix<'ast>(
-    f: &mut DystFormatter<'ast, '_>,
+    f: &mut DestackFormatter<'ast, '_>,
     modifiers: BindingModifier,
 ) -> FormatResult<()> {
     // kind
@@ -59,7 +59,7 @@ pub(crate) fn format_binding_modifiers_postfix<'ast>(
 
 #[inline]
 pub(crate) fn format_binding_modifiers_postfix_maybe<'ast>(
-    f: &mut DystFormatter<'ast, '_>,
+    f: &mut DestackFormatter<'ast, '_>,
     modifiers: Option<BindingModifier>,
 ) -> FormatResult<()> {
     if let Some(modifiers) = modifiers {
@@ -70,7 +70,7 @@ pub(crate) fn format_binding_modifiers_postfix_maybe<'ast>(
 
 /// Format a block of properties (with appropriate empty annotations)
 pub(crate) fn format_block_of_properties<'ast>(
-    f: &mut DystFormatter<'ast, '_>,
+    f: &mut DestackFormatter<'ast, '_>,
     properties: &[LocalNodeId<Property>],
 ) -> FormatResult<()> {
     for (i, &property_id) in properties.iter().enumerate() {
@@ -87,7 +87,7 @@ impl<'ast> FormatNode<'ast, Property> for Property {
     fn format_node(
         &self,
         node_id: LocalNodeId<Property>,
-        f: &mut DystFormatter<'ast, '_>,
+        f: &mut DestackFormatter<'ast, '_>,
     ) -> FormatResult<()> {
         write!(f, [f.context().any_prefix_annotations(node_id)])?;
 
@@ -224,8 +224,8 @@ impl<'ast> FormatNode<'ast, Property> for Property {
 
 #[cfg(test)]
 mod tests {
-    use crate::{DystFormatOptions, TestFormatter, assert_format};
-    use dyst_ast::DeclarationDescriptor;
+    use crate::{DestackFormatOptions, TestFormatter, assert_format};
+    use destack_ast::DeclarationDescriptor;
 
     #[test]
     fn test_format_struct_empty() {
@@ -233,7 +233,7 @@ mod tests {
             "struct { }",
             "struct { }",
             |p| p.eat_struct(DeclarationDescriptor::default()),
-            DystFormatOptions::default()
+            DestackFormatOptions::default()
         );
     }
 
@@ -243,7 +243,7 @@ mod tests {
             "struct { a: int32, b: boolean }",
             "struct {\n\ta: int32\n\tb: boolean\n}",
             |p| p.eat_struct(DeclarationDescriptor::default()),
-            DystFormatOptions::default_tab()
+            DestackFormatOptions::default_tab()
         );
     }
 
@@ -253,7 +253,7 @@ mod tests {
             "struct { readonly a: int32, private b: boolean }",
             "struct {\n\treadonly a: int32\n\tprivate b: boolean\n}",
             |p| p.eat_struct(DeclarationDescriptor::default()),
-            DystFormatOptions::default_tab()
+            DestackFormatOptions::default_tab()
         );
     }
 
@@ -263,7 +263,7 @@ mod tests {
             "struct Foo { a: int32 }",
             "struct Foo {\n\ta: int32\n}",
             |p| p.eat_struct(DeclarationDescriptor::default()),
-            DystFormatOptions::default_tab()
+            DestackFormatOptions::default_tab()
         );
     }
 
@@ -273,7 +273,7 @@ mod tests {
             "struct { a?: int32 = 42, b: boolean? }",
             "struct {\n\ta?: int32 = 42\n\tb: boolean?\n}",
             |p| p.eat_struct(DeclarationDescriptor::default()),
-            DystFormatOptions::default_tab()
+            DestackFormatOptions::default_tab()
         );
     }
 
@@ -283,7 +283,7 @@ mod tests {
             "struct Foo<T: Numeric> extends Bar implements Baz { }",
             "struct Foo<T: Numeric> extends Bar implements Baz { }",
             |p| p.eat_struct(DeclarationDescriptor::default()),
-            DystFormatOptions::default()
+            DestackFormatOptions::default()
         );
     }
 }

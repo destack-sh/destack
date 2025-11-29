@@ -1,5 +1,5 @@
 use crate::{ParseResult, Parser};
-use dyst_ast::{Expression, Keyword, LocalNodeId};
+use destack_ast::{Expression, Keyword, LocalNodeId};
 
 impl Parser {
     /// Eat a try statement.
@@ -115,7 +115,7 @@ impl Parser {
 
 #[cfg(test)]
 mod tests {
-    use dyst_ast::{Block, Expression, Pattern};
+    use destack_ast::{Block, Expression, Pattern};
 
     use crate::{TestParser, assert_expression_path, assert_node, assert_path, assert_string};
 

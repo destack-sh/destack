@@ -1,6 +1,6 @@
 [package]
-name = "dyst_javascript_transpiler"
-description = "Dyst JavaScript Compiler"
+name = "destack_javascript_transpiler"
+description = "Destack JavaScript Compiler"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
@@ -12,15 +12,15 @@ path = "src/lib.rs"
 doctest = false
 
 [dependencies]
-dyst_ast = { workspace = true }
-dyst_compiler = { workspace = true }
-dyst_dir = { workspace = true }
-dyst_fir = { workspace = true }
-dyst_javascript_ast = { workspace = true }
-dyst_mir = { workspace = true }
-dyst_parser = { workspace = true }
-dyst_source = { workspace = true }
-dyst_unicode = { workspace = true }
+destack_ast = { workspace = true }
+destack_compiler = { workspace = true }
+destack_dir = { workspace = true }
+destack_fir = { workspace = true }
+destack_javascript_ast = { workspace = true }
+destack_mir = { workspace = true }
+destack_parser = { workspace = true }
+destack_source = { workspace = true }
+destack_unicode = { workspace = true }
 
 dashmap = { workspace = true }
 rayon = { workspace = true }

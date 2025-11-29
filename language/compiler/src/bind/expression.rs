@@ -1,5 +1,5 @@
-use dyst_ast::{self as ast};
-use dyst_dir::{
+use destack_ast::{self as ast};
+use destack_dir::{
     DependencySource, Expression, ForEachKind, IfKind, LocalNodeId, LocalNodeIdAny, LocalScopeId,
     LocalScopeMark, LoopKind, MatchSource, Module, NodeTree, NodeType, ScopeKind, SymbolKind,
     SymbolTable, TypeTable, YieldCardinality,

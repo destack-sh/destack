@@ -1,6 +1,6 @@
 //! Parse calls, static calls, dynamic calls, etc.
 
-use dyst_ast::{Argument, Expression, Keyword, LocalNodeId, PostfixPosition, TokenType};
+use destack_ast::{Argument, Expression, Keyword, LocalNodeId, PostfixPosition, TokenType};
 
 use crate::{ParseResult, Parser};
 
@@ -162,7 +162,9 @@ impl Parser {
 
 #[cfg(test)]
 mod tests {
-    use dyst_ast::{Argument, Expression, LocalNodeId, Name, Path, PostfixPosition, ScalarLiteral};
+    use destack_ast::{
+        Argument, Expression, LocalNodeId, Name, Path, PostfixPosition, ScalarLiteral,
+    };
     use smallvec::smallvec;
 
     use crate::{

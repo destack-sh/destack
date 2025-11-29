@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
-use dyst_dir::{Dumper, Module, NodeVisitor};
-use dyst_parser::colorize_source;
+use destack_dir::{Dumper, Module, NodeVisitor};
+use destack_parser::colorize_source;
 use parking_lot::RwLock;
 
 use crate::TestProgram;

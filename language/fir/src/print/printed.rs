@@ -1,4 +1,4 @@
-use dyst_source::{FileId, Span};
+use destack_source::{FileId, Span};
 
 use crate::format::{FileMarker, TextLen};
 

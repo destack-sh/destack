@@ -1,7 +1,7 @@
 use core::fmt;
 
-use dyst_ast::{NodeType, TokenSpan, TokenType};
-use dyst_source::{Diagnostic, DiagnosticSeverity, File, LabeledSpan, Span};
+use destack_ast::{NodeType, TokenSpan, TokenType};
+use destack_source::{Diagnostic, DiagnosticSeverity, File, LabeledSpan, Span};
 
 /// Error when parsing the AST.
 #[derive(Debug, Clone, PartialEq)]

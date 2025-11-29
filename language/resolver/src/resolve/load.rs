@@ -1,7 +1,7 @@
 use std::borrow::Cow;
 use std::path::{Path, PathBuf};
 
-use dyst_source::PathExt;
+use destack_source::PathExt;
 
 use super::file::append_extension;
 use crate::{ResolveContext, ResolveError, Resolver};

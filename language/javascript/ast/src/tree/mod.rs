@@ -24,7 +24,7 @@ pub use argument::*;
 pub use block::*;
 pub use declaration::*;
 pub use dependency::*;
-pub use dyst_source::{Arena, File, FileId, StringId, StringPool};
+pub use destack_source::{Arena, File, FileId, StringId, StringPool};
 pub use expression::*;
 pub use function::*;
 pub use key::*;

@@ -1,6 +1,6 @@
 use crate::{ParseError, ParseResult, Parser};
 
-use dyst_ast::{
+use destack_ast::{
     DeclarationDescriptor, DeclarationType, Expression, FloatType, IntType, Keyword, LocalNodeId,
     Mutability, TokenType, TypeKind, TypeLiteral, TypeUnaryOperator, UnaryOperator, VarianceBound,
 };
@@ -378,7 +378,7 @@ impl Parser {
 
 #[cfg(test)]
 mod tests {
-    use dyst_ast::{
+    use destack_ast::{
         BinaryOperator, Expression, IntType, ScalarLiteral, TypeLiteral, TypeUnaryOperator,
     };
 

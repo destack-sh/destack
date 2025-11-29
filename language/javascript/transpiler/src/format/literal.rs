@@ -1,7 +1,7 @@
-use dyst_fir::format::{Format, FormatResult, token};
-use dyst_fir::prelude::*;
-use dyst_fir::write;
-use dyst_javascript_ast::{ScalarLiteral, TemplateLiteral};
+use destack_fir::format::{Format, FormatResult, token};
+use destack_fir::prelude::*;
+use destack_fir::write;
+use destack_javascript_ast::{ScalarLiteral, TemplateLiteral};
 
 use crate::{JavaScriptFormatContext, JavaScriptFormatter};
 

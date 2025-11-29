@@ -13,7 +13,7 @@
 //! ## Usage
 //!
 //! ```ignore
-//! use dyst_resolver::{Resolver, ResolveOptions};
+//! use destack_resolver::{Resolver, ResolveOptions};
 //!
 //! let resolver = Resolver::blank(ResolveOptions::default());
 //! let resolution = resolver.resolve("/project/src", "./utils");

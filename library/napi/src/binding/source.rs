@@ -10,11 +10,11 @@ pub enum IndentStyle {
     Space,
 }
 
-impl From<IndentStyle> for dyst_source::IndentStyle {
+impl From<IndentStyle> for destack_source::IndentStyle {
     fn from(style: IndentStyle) -> Self {
         match style {
-            IndentStyle::Tab => dyst_source::IndentStyle::Tab,
-            IndentStyle::Space => dyst_source::IndentStyle::Space,
+            IndentStyle::Tab => destack_source::IndentStyle::Tab,
+            IndentStyle::Space => destack_source::IndentStyle::Space,
         }
     }
 }
@@ -31,12 +31,14 @@ pub enum LineEnding {
     CarriageReturn,
 }
 
-impl From<LineEnding> for dyst_source::LineEnding {
+impl From<LineEnding> for destack_source::LineEnding {
     fn from(ending: LineEnding) -> Self {
         match ending {
-            LineEnding::LineFeed => dyst_source::LineEnding::LineFeed,
-            LineEnding::CarriageReturnLineFeed => dyst_source::LineEnding::CarriageReturnLineFeed,
-            LineEnding::CarriageReturn => dyst_source::LineEnding::CarriageReturn,
+            LineEnding::LineFeed => destack_source::LineEnding::LineFeed,
+            LineEnding::CarriageReturnLineFeed => {
+                destack_source::LineEnding::CarriageReturnLineFeed
+            }
+            LineEnding::CarriageReturn => destack_source::LineEnding::CarriageReturn,
         }
     }
 }

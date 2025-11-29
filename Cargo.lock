@@ -2723,35 +2723,160 @@ dependencies = [
 ]
 
 [[package]]
+name = "destack_ast"
+version = "2025.11.29-0"
+dependencies = [
+ "criterion",
+ "destack_fir",
+ "destack_source",
+ "destack_unicode",
+ "pprof",
+ "smallvec",
+]
+
+[[package]]
 name = "destack_cli"
-version = "2025.11.28-0"
+version = "2025.11.29-0"
 dependencies = [
  "clap",
- "dyst_ast",
- "dyst_compiler",
- "dyst_dir",
- "dyst_fir",
- "dyst_formatter",
- "dyst_javascript_ast",
- "dyst_javascript_machine",
- "dyst_javascript_transpiler",
- "dyst_parser",
- "dyst_resolver",
- "dyst_source",
+ "destack_ast",
+ "destack_compiler",
+ "destack_dir",
+ "destack_fir",
+ "destack_formatter",
+ "destack_javascript_ast",
+ "destack_javascript_machine",
+ "destack_javascript_transpiler",
+ "destack_parser",
+ "destack_resolver",
+ "destack_source",
  "tokio",
  "tracing",
  "tracing-subscriber",
 ]
 
 [[package]]
-name = "destack_lsp"
-version = "2025.11.28-0"
+name = "destack_compiler"
+version = "2025.11.29-0"
 dependencies = [
- "dyst_ast",
- "dyst_dir",
- "dyst_fir",
- "dyst_parser",
- "dyst_source",
+ "crossbeam-deque",
+ "dashmap 6.1.0",
+ "destack_ast",
+ "destack_dir",
+ "destack_fir",
+ "destack_mir",
+ "destack_parser",
+ "destack_resolver",
+ "destack_source",
+ "parking_lot",
+ "rayon",
+ "serde",
+ "serde_json",
+ "smallvec",
+ "tracing",
+ "tracing-subscriber",
+]
+
+[[package]]
+name = "destack_dir"
+version = "2025.11.29-0"
+dependencies = [
+ "dashmap 6.1.0",
+ "destack_ast",
+ "destack_fir",
+ "destack_source",
+ "destack_unicode",
+ "indexmap 2.12.0",
+ "parking_lot",
+ "rustc-hash 2.1.1",
+ "serde",
+ "serde_json",
+ "smallvec",
+ "tracing",
+]
+
+[[package]]
+name = "destack_fir"
+version = "2025.11.29-0"
+dependencies = [
+ "destack_source",
+ "destack_unicode",
+]
+
+[[package]]
+name = "destack_formatter"
+version = "2025.11.29-0"
+dependencies = [
+ "destack_ast",
+ "destack_fir",
+ "destack_parser",
+ "destack_source",
+ "smallvec",
+]
+
+[[package]]
+name = "destack_javascript_ast"
+version = "2025.11.29-0"
+dependencies = [
+ "destack_dir",
+ "destack_source",
+ "destack_unicode",
+ "smallvec",
+]
+
+[[package]]
+name = "destack_javascript_machine"
+version = "2025.11.29-0"
+dependencies = [
+ "deno_runtime",
+ "destack_ast",
+ "destack_dir",
+ "destack_fir",
+ "destack_mir",
+ "destack_source",
+ "destack_unicode",
+ "v8 142.0.0",
+]
+
+[[package]]
+name = "destack_javascript_transpiler"
+version = "2025.11.29-0"
+dependencies = [
+ "dashmap 6.1.0",
+ "destack_ast",
+ "destack_compiler",
+ "destack_dir",
+ "destack_fir",
+ "destack_javascript_ast",
+ "destack_mir",
+ "destack_parser",
+ "destack_source",
+ "destack_unicode",
+ "parking_lot",
+ "rayon",
+ "smallvec",
+ "tracing",
+]
+
+[[package]]
+name = "destack_linter"
+version = "2025.11.29-0"
+dependencies = [
+ "destack_ast",
+ "destack_dir",
+ "destack_source",
+ "destack_unicode",
+]
+
+[[package]]
+name = "destack_lsp"
+version = "2025.11.29-0"
+dependencies = [
+ "destack_ast",
+ "destack_dir",
+ "destack_fir",
+ "destack_parser",
+ "destack_source",
  "libc",
  "serde",
  "serde_json",
@@ -2760,22 +2885,118 @@ dependencies = [
 ]
 
 [[package]]
-name = "destack_napi"
-version = "2025.11.28-0"
+name = "destack_machine"
+version = "2025.11.29-0"
 dependencies = [
- "dyst_compiler",
- "dyst_javascript_ast",
- "dyst_javascript_machine",
- "dyst_javascript_transpiler",
- "dyst_source",
+ "destack_ast",
+ "destack_dir",
+ "destack_fir",
+ "destack_mir",
+ "destack_source",
+ "destack_unicode",
+]
+
+[[package]]
+name = "destack_mir"
+version = "2025.11.29-0"
+dependencies = [
+ "destack_ast",
+ "destack_dir",
+ "destack_fir",
+ "destack_source",
+ "destack_unicode",
+]
+
+[[package]]
+name = "destack_napi"
+version = "2025.11.29-0"
+dependencies = [
+ "destack_compiler",
+ "destack_javascript_ast",
+ "destack_javascript_machine",
+ "destack_javascript_transpiler",
+ "destack_source",
  "napi",
  "napi-build",
  "napi-derive",
 ]
 
 [[package]]
+name = "destack_parser"
+version = "2025.11.29-0"
+dependencies = [
+ "criterion",
+ "destack_ast",
+ "destack_source",
+ "destack_unicode",
+ "pprof",
+ "smallvec",
+ "tracing",
+]
+
+[[package]]
+name = "destack_resolver"
+version = "2025.11.29-0"
+dependencies = [
+ "cfg-if",
+ "crossbeam-deque",
+ "destack_ast",
+ "destack_dir",
+ "destack_parser",
+ "destack_source",
+ "destack_unicode",
+ "fancy-regex",
+ "indexmap 2.12.0",
+ "papaya",
+ "rustc-hash 2.1.1",
+ "rustix 1.1.2",
+ "serde",
+ "serde_json",
+ "tracing",
+ "url",
+]
+
+[[package]]
+name = "destack_source"
+version = "2025.11.29-0"
+dependencies = [
+ "cfg-if",
+ "dashmap 6.1.0",
+ "parking_lot",
+ "rustix 1.1.2",
+ "serde",
+ "serde_json",
+ "simdutf8",
+ "smallvec",
+ "tracing",
+]
+
+[[package]]
+name = "destack_test"
+version = "2025.11.29-0"
+
+[[package]]
+name = "destack_unicode"
+version = "2025.11.29-0"
+
+[[package]]
 name = "destack_vscode"
-version = "2025.11.28-0"
+version = "2025.11.29-0"
+
+[[package]]
+name = "destack_workspace"
+version = "2025.11.29-0"
+dependencies = [
+ "destack_ast",
+ "destack_compiler",
+ "destack_dir",
+ "destack_fir",
+ "destack_javascript_transpiler",
+ "destack_mir",
+ "destack_parser",
+ "destack_source",
+ "destack_unicode",
+]
 
 [[package]]
 name = "diff"
@@ -2968,227 +3189,6 @@ name = "dyn-clone"
 version = "1.0.20"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d0881ea181b1df73ff77ffaaf9c7544ecc11e82fba9b5f27b262a3c73a332555"
-
-[[package]]
-name = "dyst_ast"
-version = "2025.11.28-0"
-dependencies = [
- "criterion",
- "dyst_fir",
- "dyst_source",
- "dyst_unicode",
- "pprof",
- "smallvec",
-]
-
-[[package]]
-name = "dyst_compiler"
-version = "2025.11.28-0"
-dependencies = [
- "crossbeam-deque",
- "dashmap 6.1.0",
- "dyst_ast",
- "dyst_dir",
- "dyst_fir",
- "dyst_mir",
- "dyst_parser",
- "dyst_resolver",
- "dyst_source",
- "parking_lot",
- "rayon",
- "serde",
- "serde_json",
- "smallvec",
- "tracing",
- "tracing-subscriber",
-]
-
-[[package]]
-name = "dyst_dir"
-version = "2025.11.28-0"
-dependencies = [
- "dashmap 6.1.0",
- "dyst_ast",
- "dyst_fir",
- "dyst_source",
- "dyst_unicode",
- "indexmap 2.12.0",
- "parking_lot",
- "rustc-hash 2.1.1",
- "serde",
- "serde_json",
- "smallvec",
- "tracing",
-]
-
-[[package]]
-name = "dyst_fir"
-version = "2025.11.28-0"
-dependencies = [
- "dyst_source",
- "dyst_unicode",
-]
-
-[[package]]
-name = "dyst_formatter"
-version = "2025.11.28-0"
-dependencies = [
- "dyst_ast",
- "dyst_fir",
- "dyst_parser",
- "dyst_source",
- "smallvec",
-]
-
-[[package]]
-name = "dyst_javascript_ast"
-version = "2025.11.28-0"
-dependencies = [
- "dyst_dir",
- "dyst_source",
- "dyst_unicode",
- "smallvec",
-]
-
-[[package]]
-name = "dyst_javascript_machine"
-version = "2025.11.28-0"
-dependencies = [
- "deno_runtime",
- "dyst_ast",
- "dyst_dir",
- "dyst_fir",
- "dyst_mir",
- "dyst_source",
- "dyst_unicode",
- "v8 142.0.0",
-]
-
-[[package]]
-name = "dyst_javascript_transpiler"
-version = "2025.11.28-0"
-dependencies = [
- "dashmap 6.1.0",
- "dyst_ast",
- "dyst_compiler",
- "dyst_dir",
- "dyst_fir",
- "dyst_javascript_ast",
- "dyst_mir",
- "dyst_parser",
- "dyst_source",
- "dyst_unicode",
- "parking_lot",
- "rayon",
- "smallvec",
- "tracing",
-]
-
-[[package]]
-name = "dyst_linter"
-version = "2025.11.28-0"
-dependencies = [
- "dyst_ast",
- "dyst_dir",
- "dyst_source",
- "dyst_unicode",
-]
-
-[[package]]
-name = "dyst_machine"
-version = "2025.11.28-0"
-dependencies = [
- "dyst_ast",
- "dyst_dir",
- "dyst_fir",
- "dyst_mir",
- "dyst_source",
- "dyst_unicode",
-]
-
-[[package]]
-name = "dyst_mir"
-version = "2025.11.28-0"
-dependencies = [
- "dyst_ast",
- "dyst_dir",
- "dyst_fir",
- "dyst_source",
- "dyst_unicode",
-]
-
-[[package]]
-name = "dyst_parser"
-version = "2025.11.28-0"
-dependencies = [
- "criterion",
- "dyst_ast",
- "dyst_source",
- "dyst_unicode",
- "pprof",
- "smallvec",
- "tracing",
-]
-
-[[package]]
-name = "dyst_resolver"
-version = "2025.11.28-0"
-dependencies = [
- "cfg-if",
- "crossbeam-deque",
- "dyst_ast",
- "dyst_dir",
- "dyst_parser",
- "dyst_source",
- "dyst_unicode",
- "fancy-regex",
- "indexmap 2.12.0",
- "papaya",
- "rustc-hash 2.1.1",
- "rustix 1.1.2",
- "serde",
- "serde_json",
- "tracing",
- "url",
-]
-
-[[package]]
-name = "dyst_source"
-version = "2025.11.28-0"
-dependencies = [
- "cfg-if",
- "dashmap 6.1.0",
- "parking_lot",
- "rustix 1.1.2",
- "serde",
- "serde_json",
- "simdutf8",
- "smallvec",
- "tracing",
-]
-
-[[package]]
-name = "dyst_test"
-version = "2025.11.28-0"
-
-[[package]]
-name = "dyst_unicode"
-version = "2025.11.28-0"
-
-[[package]]
-name = "dyst_workspace"
-version = "2025.11.28-0"
-dependencies = [
- "dyst_ast",
- "dyst_compiler",
- "dyst_dir",
- "dyst_fir",
- "dyst_javascript_transpiler",
- "dyst_mir",
- "dyst_parser",
- "dyst_source",
- "dyst_unicode",
-]
 
 [[package]]
 name = "ecb"

@@ -1,6 +1,6 @@
 [package]
-name = "dyst_unicode"
-description = "Dyst Unicode"
+name = "destack_unicode"
+description = "Destack Unicode"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true

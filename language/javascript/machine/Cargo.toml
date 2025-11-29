@@ -1,6 +1,6 @@
 [package]
-name = "dyst_javascript_machine"
-description = "Dyst JavaScript Virtual Machine"
+name = "destack_javascript_machine"
+description = "Destack JavaScript Virtual Machine"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
@@ -12,13 +12,13 @@ path = "src/lib.rs"
 doctest = false
 
 [dependencies]
-dyst_source = { workspace = true }
-dyst_ast = { workspace = true }
-dyst_fir = { workspace = true }
-dyst_dir = { workspace = true }
-dyst_mir = { workspace = true }
+destack_source = { workspace = true }
+destack_ast = { workspace = true }
+destack_fir = { workspace = true }
+destack_dir = { workspace = true }
+destack_mir = { workspace = true }
 
-dyst_unicode = { workspace = true }
+destack_unicode = { workspace = true }
 
 v8 = { version = "142.0.0", optional = true }
 deno_runtime = { version = "0.229.0", optional = true }

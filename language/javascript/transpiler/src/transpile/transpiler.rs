@@ -3,8 +3,8 @@ use std::sync::Arc;
 use std::thread;
 
 use dashmap::DashMap;
-use dyst_dir as dir;
-use dyst_source::{DiagnosticCollector, DiagnosticOptions, Uri};
+use destack_dir as dir;
+use destack_source::{DiagnosticCollector, DiagnosticOptions, Uri};
 use smallvec::{SmallVec, smallvec};
 
 use crate::{
@@ -118,7 +118,7 @@ pub enum TypeScriptVersion {
     TS5_0,
 }
 
-/// A transpiler for a Dyst package containing related Dyst sources.
+/// A transpiler for a Destack package containing related Destack sources.
 #[derive(Debug)]
 pub struct Transpiler {
     /// The program.

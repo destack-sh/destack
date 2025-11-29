@@ -1,13 +1,13 @@
-use dyst_ast::{
+use destack_ast::{
     AssignOperator, BinaryOperator, TypeBinaryOperator, TypeUnaryOperator, UnaryOperator,
 };
-use dyst_fir::prelude::*;
-use dyst_fir::write;
+use destack_fir::prelude::*;
+use destack_fir::write;
 
-use crate::{DystFormatContext, DystFormatter};
+use crate::{DestackFormatContext, DestackFormatter};
 
-impl<'ast> Format<DystFormatContext<'ast>> for UnaryOperator {
-    fn format(&self, f: &mut DystFormatter<'ast, '_>) -> FormatResult<()> {
+impl<'ast> Format<DestackFormatContext<'ast>> for UnaryOperator {
+    fn format(&self, f: &mut DestackFormatter<'ast, '_>) -> FormatResult<()> {
         let token = match self {
             UnaryOperator::PostIncrement => token("++"),
             UnaryOperator::PostDecrement => token("--"),
@@ -25,8 +25,8 @@ impl<'ast> Format<DystFormatContext<'ast>> for UnaryOperator {
     }
 }
 
-impl<'ast> Format<DystFormatContext<'ast>> for TypeUnaryOperator {
-    fn format(&self, f: &mut DystFormatter<'ast, '_>) -> FormatResult<()> {
+impl<'ast> Format<DestackFormatContext<'ast>> for TypeUnaryOperator {
+    fn format(&self, f: &mut DestackFormatter<'ast, '_>) -> FormatResult<()> {
         let token = match self {
             TypeUnaryOperator::Newtype => token("newtype"),
             TypeUnaryOperator::Type => token("type"),
@@ -41,8 +41,8 @@ impl<'ast> Format<DystFormatContext<'ast>> for TypeUnaryOperator {
     }
 }
 
-impl<'ast> Format<DystFormatContext<'ast>> for BinaryOperator {
-    fn format(&self, f: &mut DystFormatter<'ast, '_>) -> FormatResult<()> {
+impl<'ast> Format<DestackFormatContext<'ast>> for BinaryOperator {
+    fn format(&self, f: &mut DestackFormatter<'ast, '_>) -> FormatResult<()> {
         let token = match self {
             // multiplication
             BinaryOperator::Multiply => token("*"),
@@ -95,8 +95,8 @@ impl<'ast> Format<DystFormatContext<'ast>> for BinaryOperator {
     }
 }
 
-impl<'ast> Format<DystFormatContext<'ast>> for TypeBinaryOperator {
-    fn format(&self, f: &mut DystFormatter<'ast, '_>) -> FormatResult<()> {
+impl<'ast> Format<DestackFormatContext<'ast>> for TypeBinaryOperator {
+    fn format(&self, f: &mut DestackFormatter<'ast, '_>) -> FormatResult<()> {
         let token = match self {
             TypeBinaryOperator::Cast => token("as"),
             TypeBinaryOperator::Is => token("is"),
@@ -109,8 +109,8 @@ impl<'ast> Format<DystFormatContext<'ast>> for TypeBinaryOperator {
     }
 }
 
-impl<'ast> Format<DystFormatContext<'ast>> for AssignOperator {
-    fn format(&self, f: &mut DystFormatter<'ast, '_>) -> FormatResult<()> {
+impl<'ast> Format<DestackFormatContext<'ast>> for AssignOperator {
+    fn format(&self, f: &mut DestackFormatter<'ast, '_>) -> FormatResult<()> {
         let token = token(match self {
             AssignOperator::Assign => "=",
 

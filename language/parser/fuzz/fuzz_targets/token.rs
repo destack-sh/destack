@@ -1,6 +1,6 @@
 #![no_main]
 
-use dyst_ast::{render_tokens, tokenize};
+use destack_ast::{render_tokens, tokenize};
 use libfuzzer_sys::fuzz_target;
 
 /// Tokenize an input string in a roundtrip.

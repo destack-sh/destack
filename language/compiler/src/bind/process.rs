@@ -1,4 +1,4 @@
-use dyst_dir::{
+use destack_dir::{
     Expression, GlobalNodeIdAny, LocalNodeId, LocalSymbolId, Module, Program, SymbolKey, SymbolKind,
 };
 

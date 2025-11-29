@@ -1,4 +1,4 @@
-use dyst_ast::{
+use destack_ast::{
     Block, BlockFormat, Expression, Keyword, LocalNodeId, NodeType, TokenType, YieldCardinality,
 };
 
@@ -357,7 +357,7 @@ impl Parser {
 
 #[cfg(test)]
 mod tests {
-    use dyst_ast::{Expression, ScalarLiteral, YieldCardinality};
+    use destack_ast::{Expression, ScalarLiteral, YieldCardinality};
 
     use crate::{TestParser, assert_expression_path, assert_node, assert_path, assert_string};
 

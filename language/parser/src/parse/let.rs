@@ -1,6 +1,6 @@
 use crate::{ParseError, ParseResult, Parser};
 
-use dyst_ast::{DeclarationDescriptor, Expression, Keyword, LocalNodeId, Mutability, TokenType};
+use destack_ast::{DeclarationDescriptor, Expression, Keyword, LocalNodeId, Mutability, TokenType};
 
 impl Parser {
     /// Peek a mutability modifier.
@@ -141,7 +141,7 @@ impl Parser {
 
 #[cfg(test)]
 mod tests {
-    use dyst_ast::{
+    use destack_ast::{
         Argument, DeclarationDescriptor, Expression, IntType, Key, Mutability, Name, Pattern,
         PatternField, Property, ScalarLiteral, TypeLiteral,
     };

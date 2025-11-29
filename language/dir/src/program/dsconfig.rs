@@ -6,7 +6,7 @@ use std::sync::atomic::{AtomicU32, Ordering};
 use indexmap::IndexMap;
 use parking_lot::{Mutex, RwLock};
 
-use dyst_source::FileId;
+use destack_source::FileId;
 use serde::Deserialize;
 
 /// Unique identifier for DsConfigs.
@@ -21,7 +21,7 @@ impl DsConfigId {
     }
 }
 
-/// Dyst configuration (usually from `dsconfig.json`).
+/// Destack configuration (usually from `dsconfig.json`).
 #[derive(Debug, Clone)]
 pub struct DsConfig {
     /// The id of the DsConfig.
@@ -62,12 +62,12 @@ pub enum DsConfigExtendsField {
     Multiple(Vec<String>),
 }
 
-/// Dyst configuration compiler options.
+/// Destack configuration compiler options.
 #[derive(Debug, Default, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct DsConfigCompilerOptionsJson {}
 
-/// Dyst target.
+/// Destack target.
 #[derive(Debug, Default, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct DsConfigTargetJson {
@@ -81,7 +81,7 @@ pub struct DsConfigTargetJson {
     pub shrink_level: Option<u8>,
 }
 
-/// Dyst configuration registry.
+/// Destack configuration registry.
 #[derive(Debug)]
 pub struct DsConfigRegistry {
     /// The dsconfigs by id.

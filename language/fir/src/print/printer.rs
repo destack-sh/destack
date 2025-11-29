@@ -1,7 +1,7 @@
 use crate::format::sizing::CharWidth;
 use crate::print::{PrintOptions, Printed};
 
-use dyst_source::{File, Span};
+use destack_source::{File, Span};
 
 use super::bomb::DebugDropBomb;
 use crate::format::{
@@ -1516,7 +1516,7 @@ enum Text<'a> {
 
 #[cfg(test)]
 mod tests {
-    use dyst_source::{File, FileType};
+    use destack_source::{File, FileType};
 
     use crate::format::{Document, FormatState, IndentStyle, LineEnding, VecBuffer};
     use crate::prelude::*;
@@ -1531,9 +1531,9 @@ mod tests {
         root: &dyn Format<SimpleFormatContext>,
         options: PrintOptions,
     ) -> Printed {
-        let formatted = crate::format!(SimpleFormatContext::empty_dyst(), [root]).unwrap();
+        let formatted = crate::format!(SimpleFormatContext::empty_destack(), [root]).unwrap();
 
-        Printer::new(&File::empty_text_with_type(FileType::Dyst), options)
+        Printer::new(&File::empty_text_with_type(FileType::Destack), options)
             .print(formatted.document())
             .expect("Document to be valid")
     }
@@ -1739,7 +1739,7 @@ two lines`,
     /// Fill should break items optimally based on line width.
     #[test]
     fn test_fill_breaks() {
-        let mut state = FormatState::new(SimpleFormatContext::empty_dyst());
+        let mut state = FormatState::new(SimpleFormatContext::empty_destack());
         let mut buffer = VecBuffer::new(&mut state);
         let mut formatter = Formatter::new(&mut buffer);
 
@@ -1787,7 +1787,7 @@ two lines`,
         let document = Document::from(buffer.into_vec());
 
         let printed = Printer::new(
-            &File::empty_text_with_type(FileType::Dyst),
+            &File::empty_text_with_type(FileType::Destack),
             PrintOptions::default().with_line_width(10),
         )
         .print(&document)

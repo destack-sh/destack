@@ -21,7 +21,7 @@
         "RUST_LOG": "trace"
     },
     "editor.semanticHighlighting.enabled": true,
-    "[dyst]": {
+    "[destack]": {
         "editor.tabSize": 4,
         "editor.insertSpaces": true,
         "editor.detectIndentation": false
