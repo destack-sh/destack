@@ -1,6 +1,6 @@
 [package]
-name = "destack_compiler"
-description = "Destack Compiler"
+name = "destack_workspace"
+description = "Destack Workspace"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
@@ -13,13 +13,12 @@ doctest = false
 
 [dependencies]
 # language
-destack_ast = { workspace = true }
+destack_compiler = { workspace = true }
 destack_dir = { workspace = true }
-destack_fir = { workspace = true }
 destack_mir = { workspace = true }
 destack_parser = { workspace = true }
-destack_source = { workspace = true }
 destack_resolver = { workspace = true }
+destack_source = { workspace = true }
 
 # general
 crossbeam-deque = { workspace = true }

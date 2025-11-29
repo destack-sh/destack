@@ -12,11 +12,11 @@ path = "src/lib.rs"
 doctest = false
 
 [dependencies]
+# language
 destack_ast = { workspace = true }
 destack_dir = { workspace = true }
 destack_fir = { workspace = true }
 destack_source = { workspace = true }
-
 destack_unicode = { workspace = true }
 
 [dev-dependencies]

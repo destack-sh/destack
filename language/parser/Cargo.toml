@@ -12,15 +12,18 @@ path = "src/lib.rs"
 doctest = false
 
 [dependencies]
+# language
 destack_ast = { workspace = true }
 destack_source = { workspace = true }
 destack_unicode = { workspace = true }
+
+# general
 smallvec = { workspace = true }
 tracing = { workspace = true }
 
 [dev-dependencies]
-pprof = { workspace = true }
 criterion = { workspace = true }
+pprof = { workspace = true }
 
 [lints]
 workspace = true

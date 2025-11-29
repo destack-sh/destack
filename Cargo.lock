@@ -2741,15 +2741,18 @@ dependencies = [
  "clap",
  "destack_ast",
  "destack_compiler",
+ "destack_daemon",
  "destack_dir",
  "destack_fir",
  "destack_formatter",
  "destack_javascript_ast",
  "destack_javascript_machine",
  "destack_javascript_transpiler",
+ "destack_lsp",
  "destack_parser",
  "destack_resolver",
  "destack_source",
+ "destack_workspace",
  "tokio",
  "tracing",
  "tracing-subscriber",
@@ -2768,6 +2771,30 @@ dependencies = [
  "destack_parser",
  "destack_resolver",
  "destack_source",
+ "parking_lot",
+ "rayon",
+ "serde",
+ "serde_json",
+ "smallvec",
+ "tracing",
+ "tracing-subscriber",
+]
+
+[[package]]
+name = "destack_daemon"
+version = "2025.11.29-0"
+dependencies = [
+ "crossbeam-deque",
+ "dashmap 6.1.0",
+ "destack_ast",
+ "destack_compiler",
+ "destack_dir",
+ "destack_fir",
+ "destack_mir",
+ "destack_parser",
+ "destack_resolver",
+ "destack_source",
+ "destack_workspace",
  "parking_lot",
  "rayon",
  "serde",
@@ -2982,6 +3009,27 @@ version = "2025.11.29-0"
 [[package]]
 name = "destack_vscode"
 version = "2025.11.29-0"
+
+[[package]]
+name = "destack_workspace"
+version = "2025.11.29-0"
+dependencies = [
+ "crossbeam-deque",
+ "dashmap 6.1.0",
+ "destack_compiler",
+ "destack_dir",
+ "destack_mir",
+ "destack_parser",
+ "destack_resolver",
+ "destack_source",
+ "parking_lot",
+ "rayon",
+ "serde",
+ "serde_json",
+ "smallvec",
+ "tracing",
+ "tracing-subscriber",
+]
 
 [[package]]
 name = "diff"

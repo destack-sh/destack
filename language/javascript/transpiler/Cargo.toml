@@ -12,6 +12,7 @@ path = "src/lib.rs"
 doctest = false
 
 [dependencies]
+# language
 destack_ast = { workspace = true }
 destack_compiler = { workspace = true }
 destack_dir = { workspace = true }
@@ -22,9 +23,10 @@ destack_parser = { workspace = true }
 destack_source = { workspace = true }
 destack_unicode = { workspace = true }
 
+# general
 dashmap = { workspace = true }
-rayon = { workspace = true }
 parking_lot = { workspace = true }
+rayon = { workspace = true }
 smallvec = { workspace = true }
 tracing = { workspace = true }
 
