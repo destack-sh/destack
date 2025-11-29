@@ -12,10 +12,10 @@ pub enum LanguageMode {
 /// The type of language.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum LanguageType {
-    /// The Dyst language (like `.ds`, `.dst`).
-    Dyst,
-    /// The Dyst data language (like `.d.ds`).
-    DystDeclaration,
+    /// The Destack language (like `.ds`, `.dst`).
+    Destack,
+    /// The Destack data language (like `.d.ds`).
+    DestackDeclaration,
     /// JavaScript (like `.js`).
     JavaScript,
     /// JavaScript XML (like `.jsx`).
@@ -75,12 +75,12 @@ pub enum LanguageVersion {
     V1,
 }
 
-/// The options for working with the Dyst language.
+/// The options for working with the Destack language.
 #[derive(Debug, Copy, Clone, Default)]
 pub struct LanguageOptions {
     /// The version of the language.
     pub version: LanguageVersion = LanguageVersion::V1,
-    /// The mode we're operating Dyst in.
+    /// The mode we're operating Destack in.
     pub mode: LanguageMode = LanguageMode::Lenient,
     /// The compatibility mode.
     pub compatibility: Option<LanguageCompatibility> = None,

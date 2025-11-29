@@ -597,7 +597,7 @@ mod tests {
     /// Writes a [`crate::FormatNode`] into this buffer, returning whether the write succeeded.
     #[test]
     fn test_buffer_write_node() {
-        let mut state = FormatState::new(SimpleFormatContext::empty_dyst());
+        let mut state = FormatState::new(SimpleFormatContext::empty_destack());
         let mut buffer = VecBuffer::new(&mut state);
 
         buffer.write_node(FormatNode::Token { text: "test" });
@@ -608,7 +608,7 @@ mod tests {
     /// Glue for usage of the [`write!`] macro with implementers of this trait.
     #[test]
     fn test_buffer_write_format() {
-        let mut state = FormatState::new(SimpleFormatContext::empty_dyst());
+        let mut state = FormatState::new(SimpleFormatContext::empty_destack());
         let mut buffer = VecBuffer::new(&mut state);
 
         buffer
@@ -627,7 +627,7 @@ mod tests {
     #[test]
     fn test_remove_soft_lines_buffer() {
         let formatted = format!(
-            SimpleFormatContext::empty_dyst(),
+            SimpleFormatContext::empty_destack(),
             [format_with(|f| {
                 let mut buffer = RemoveSoftLinesBuffer::new(f);
                 write!(
@@ -655,7 +655,7 @@ mod tests {
     #[test]
     fn test_buffer_start_recording() {
         let formatted = format!(
-            SimpleFormatContext::empty_dyst(),
+            SimpleFormatContext::empty_destack(),
             [format_with(|f| {
                 let mut recording = f.start_recording();
 

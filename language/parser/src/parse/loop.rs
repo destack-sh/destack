@@ -1,6 +1,8 @@
 //! Parse loops, for, while, etc.
 
-use dyst_ast::{Asynchrony, Expression, ForEachKind, Keyword, LocalNodeId, TokenType, WhileKind};
+use destack_ast::{
+    Asynchrony, Expression, ForEachKind, Keyword, LocalNodeId, TokenType, WhileKind,
+};
 
 use crate::{ParseResult, Parser};
 
@@ -256,7 +258,7 @@ impl Parser {
 
 #[cfg(test)]
 mod tests {
-    use dyst_ast::{
+    use destack_ast::{
         Asynchrony, BinaryOperator, Block, Expression, ForEachKind, Mutability, Pattern,
         ScalarLiteral, UnaryOperator, WhileKind,
     };

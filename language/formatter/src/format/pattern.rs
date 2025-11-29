@@ -1,13 +1,13 @@
-use dyst_fir::format::FormatResult;
+use destack_fir::format::FormatResult;
 
 use crate::argument::list_like;
-use crate::{DystFormatContext, DystFormatter, FormatNode};
-use dyst_ast::{LocalNodeId, Mutability, Pattern, PatternField};
-use dyst_fir::prelude::*;
-use dyst_fir::{format_args, write};
+use crate::{DestackFormatContext, DestackFormatter, FormatNode};
+use destack_ast::{LocalNodeId, Mutability, Pattern, PatternField};
+use destack_fir::prelude::*;
+use destack_fir::{format_args, write};
 
-impl<'ast> Format<DystFormatContext<'ast>> for Mutability {
-    fn format(&self, f: &mut DystFormatter<'ast, '_>) -> FormatResult<()> {
+impl<'ast> Format<DestackFormatContext<'ast>> for Mutability {
+    fn format(&self, f: &mut DestackFormatter<'ast, '_>) -> FormatResult<()> {
         match self {
             Mutability::Immutable => write!(f, [token("const")]),
             Mutability::Mutable => write!(f, [token("var")]),
@@ -19,7 +19,7 @@ impl<'ast> FormatNode<'ast, Pattern> for Pattern {
     fn format_node(
         &self,
         node_id: LocalNodeId<Pattern>,
-        f: &mut DystFormatter<'ast, '_>,
+        f: &mut DestackFormatter<'ast, '_>,
     ) -> FormatResult<()> {
         write!(f, [f.context().any_prefix_annotations(node_id)])?;
 
@@ -95,7 +95,7 @@ impl<'ast> FormatNode<'ast, PatternField> for PatternField {
     fn format_node(
         &self,
         node_id: LocalNodeId<PatternField>,
-        f: &mut DystFormatter<'ast, '_>,
+        f: &mut DestackFormatter<'ast, '_>,
     ) -> FormatResult<()> {
         write!(f, [f.context().any_prefix_annotations(node_id)])?;
 
@@ -143,7 +143,7 @@ impl<'ast> FormatNode<'ast, PatternField> for PatternField {
 
 #[cfg(test)]
 mod tests {
-    use crate::{DystFormatOptions, TestFormatter, assert_format};
+    use crate::{DestackFormatOptions, TestFormatter, assert_format};
 
     #[test]
     fn test_format_pattern_wildcard() {

@@ -3,7 +3,7 @@ use std::str::FromStr;
 use crate::parse::prelude::*;
 use crate::{ParseError, ParseResult, Parser, ParserMark};
 
-use dyst_ast::{
+use destack_ast::{
     Argument, AssignOperator, BinaryOperator, BindingAnchor, DeclarationDescriptor,
     DeclarationKind, DependencyMode, Expression, IfKind, InfixOperator, Keyword, LocalNodeId,
     NodeType, PostfixPosition, TokenSpan, TokenType, TypeBinaryOperator, TypeUnaryOperator,
@@ -1271,7 +1271,7 @@ impl Parser {
 
 #[cfg(test)]
 mod tests {
-    use dyst_ast::{
+    use destack_ast::{
         Argument, AssignOperator, BinaryOperator, Block, Declaration, DeclarationDescriptor,
         DeclarationType, DependencyItem, DependencyKind, DependencyMode, Expression, FunctionKind,
         IntType, Key, Mutability, Name, Parameter, Pattern, PatternField, PostfixPosition,

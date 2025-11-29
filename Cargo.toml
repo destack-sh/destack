@@ -19,16 +19,16 @@ members = [
 	"language/test",
 	"language/unicode",
 	"language/workspace",
+	# library
+	"library/napi",
 	# platform
 	"platform/cli",
 	"platform/lsp",
 	"platform/vscode",
-	# library
-	"library/napi",
 ]
 
 [workspace.package]
-version = "2025.11.28-0"
+version = "2025.11.29-0"
 edition = "2024"
 authors = ["Symbol Industries"]
 license = "proprietary"
@@ -36,31 +36,31 @@ rust-version = "1.88.0"
 
 [workspace.dependencies]
 # language
-dyst_ast = { path = "language/ast" }
-dyst_compiler = { path = "language/compiler" }
-dyst_dir = { path = "language/dir" }
-dyst_fir = { path = "language/fir" }
-dyst_formatter = { path = "language/formatter" }
-dyst_javascript_ast = { path = "language/javascript/ast" }
-dyst_javascript_machine = { path = "language/javascript/machine" }
-dyst_javascript_transpiler = { path = "language/javascript/transpiler" }
-dyst_linter = { path = "language/linter" }
-dyst_machine = { path = "language/machine" }
-dyst_mir = { path = "language/mir" }
-dyst_parser = { path = "language/parser" }
-dyst_resolver = { path = "language/resolver" }
-dyst_source = { path = "language/source" }
-dyst_test = { path = "language/test" }
-dyst_unicode = { path = "language/unicode" }
-dyst_workspace = { path = "language/workspace" }
+destack_ast = { path = "language/ast" }
+destack_compiler = { path = "language/compiler" }
+destack_dir = { path = "language/dir" }
+destack_fir = { path = "language/fir" }
+destack_formatter = { path = "language/formatter" }
+destack_javascript_ast = { path = "language/javascript/ast" }
+destack_javascript_machine = { path = "language/javascript/machine" }
+destack_javascript_transpiler = { path = "language/javascript/transpiler" }
+destack_linter = { path = "language/linter" }
+destack_machine = { path = "language/machine" }
+destack_mir = { path = "language/mir" }
+destack_parser = { path = "language/parser" }
+destack_resolver = { path = "language/resolver" }
+destack_source = { path = "language/source" }
+destack_test = { path = "language/test" }
+destack_unicode = { path = "language/unicode" }
+destack_workspace = { path = "language/workspace" }
+
+# library
+destack_napi = { path = "library/napi" }
 
 # platform
 destack_cli = { path = "platform/cli" }
 destack_lsp = { path = "platform/lsp" }
 destack_vscode = { path = "platform/vscode" }
-
-# library
-destack_napi = { path = "library/napi" }
 
 # general
 cfg-if = "1.0.4"

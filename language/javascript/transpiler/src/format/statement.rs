@@ -1,10 +1,10 @@
 use crate::format::argument::list_like;
 use crate::format::dependency::{format_export_binding, format_import_binding};
 use crate::{FormatNode, JavaScriptFormatter};
-use dyst_fir::format::FormatResult;
-use dyst_fir::prelude::*;
-use dyst_fir::{format_args, write};
-use dyst_javascript_ast::{
+use destack_fir::format::FormatResult;
+use destack_fir::prelude::*;
+use destack_fir::{format_args, write};
+use destack_javascript_ast::{
     DeclarationKind, DependencyKind, Keyword, LocalNodeId, Mutability, Statement,
 };
 

@@ -4,5 +4,5 @@ pub struct ImportOptions {
     /// Whether to follow imports automatically.
     pub follow_imports: bool = true,
     /// Options for resolving imports.
-    pub resolve: dyst_resolver::ResolveOptions,
+    pub resolve: destack_resolver::ResolveOptions,
 }

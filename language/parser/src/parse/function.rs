@@ -1,7 +1,7 @@
 use crate::parse::prelude::*;
 use crate::{ParseResult, Parser};
 
-use dyst_ast::{
+use destack_ast::{
     Asynchrony, Declaration, DeclarationDescriptor, FunctionAbstraction, FunctionCardinality,
     FunctionKind, FunctionMode, FunctionSignature, Generics, Keyword, LocalNodeId, NodeType,
     Parameter, TokenType,
@@ -303,7 +303,7 @@ impl Parser {
 
 #[cfg(test)]
 mod tests {
-    use dyst_ast::{
+    use destack_ast::{
         Asynchrony, BinaryOperator, Declaration, DeclarationDescriptor, Expression,
         FunctionCardinality, FunctionKind, FunctionMode, IntType, Parameter, TypeLiteral,
         WhereClause, WithClause,

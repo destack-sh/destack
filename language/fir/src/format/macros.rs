@@ -79,7 +79,7 @@ macro_rules! best_fitting {
 
 #[cfg(test)]
 mod tests {
-    use dyst_source::FileType;
+    use destack_source::FileType;
 
     use crate::format::{
         BestFittingMode, FormatState, Formatted, IndentStyle, SimpleFormatOptions, VecBuffer,
@@ -97,7 +97,7 @@ mod tests {
     /// Write a single format node to buffer.
     #[test]
     fn test_single_node() {
-        let mut state = FormatState::new(SimpleFormatContext::empty_dyst());
+        let mut state = FormatState::new(SimpleFormatContext::empty_destack());
         let mut buffer = VecBuffer::new(&mut state);
 
         write![&mut buffer, [TestFormat]].unwrap();
@@ -108,7 +108,7 @@ mod tests {
     /// Write multiple format nodes to buffer.
     #[test]
     fn test_multiple_nodes() {
-        let mut state = FormatState::new(SimpleFormatContext::empty_dyst());
+        let mut state = FormatState::new(SimpleFormatContext::empty_destack());
         let mut buffer = VecBuffer::new(&mut state);
 
         write![
@@ -133,7 +133,7 @@ mod tests {
     #[test]
     fn test_format_args_basic() {
         let formatted = format!(
-            SimpleFormatContext::empty_dyst(),
+            SimpleFormatContext::empty_destack(),
             [format_args!(token("Hello World"))]
         )
         .unwrap();
@@ -144,7 +144,7 @@ mod tests {
     /// Write macro accepts buffer and format arguments.
     #[test]
     fn test_write_macro_basic() {
-        let mut state = FormatState::new(SimpleFormatContext::empty_dyst());
+        let mut state = FormatState::new(SimpleFormatContext::empty_destack());
         let mut buffer = VecBuffer::new(&mut state);
 
         write!(&mut buffer, [token("Hello"), space()]).unwrap();
@@ -163,7 +163,7 @@ mod tests {
     /// Format macro creates formatted document from arguments.
     #[test]
     fn test_format_macro_basic() {
-        let formatted = format!(SimpleFormatContext::empty_dyst(), [token("test")]).unwrap();
+        let formatted = format!(SimpleFormatContext::empty_destack(), [token("test")]).unwrap();
 
         assert_eq!("test", formatted.print().unwrap().as_str());
     }
@@ -176,7 +176,8 @@ mod tests {
             line_width: 10,
             ..SimpleFormatOptions::default()
         };
-        let context = SimpleFormatContext::new(options, File::empty_text_with_type(FileType::Dyst));
+        let context =
+            SimpleFormatContext::new(options, File::empty_text_with_type(FileType::Destack));
 
         let formatted = format!(
             context,
@@ -207,7 +208,7 @@ mod tests {
                     line_width: 80,
                     ..SimpleFormatOptions::default()
                 },
-                File::empty_text_with_type(FileType::Dyst)
+                File::empty_text_with_type(FileType::Destack)
             ),
             [
                 token("aVeryLongIdentifier"),
@@ -240,7 +241,7 @@ mod tests {
                     line_width: 50,
                     ..SimpleFormatOptions::default()
                 },
-                File::empty_text_with_type(FileType::Dyst),
+                File::empty_text_with_type(FileType::Destack),
             ),
         )
         .print()
@@ -256,7 +257,7 @@ mod tests {
                     line_width: 20,
                     ..SimpleFormatOptions::default()
                 },
-                File::empty_text_with_type(FileType::Dyst),
+                File::empty_text_with_type(FileType::Destack),
             ),
         )
         .print()
@@ -271,7 +272,7 @@ mod tests {
     #[test]
     fn test_best_fitting_with_three_variants_in_first_line_mode() {
         let formatted = format!(
-            SimpleFormatContext::empty_dyst(),
+            SimpleFormatContext::empty_destack(),
             [
                 token("aVeryLongIdentifier"),
                 best_fitting!(
@@ -333,7 +334,7 @@ mod tests {
                         line_width: 80,
                         ..SimpleFormatOptions::default()
                     },
-                    File::empty_text_with_type(FileType::Dyst)
+                    File::empty_text_with_type(FileType::Destack)
                 )
             )
             .print()
@@ -353,7 +354,7 @@ mod tests {
                         line_width: 21,
                         ..SimpleFormatOptions::default()
                     },
-                    File::empty_text_with_type(FileType::Dyst)
+                    File::empty_text_with_type(FileType::Destack)
                 )
             )
             .print()
@@ -372,7 +373,7 @@ mod tests {
                         line_width: 20,
                         ..SimpleFormatOptions::default()
                     },
-                    File::empty_text_with_type(FileType::Dyst)
+                    File::empty_text_with_type(FileType::Destack)
                 )
             )
             .print()
@@ -458,7 +459,7 @@ mod tests {
                     line_width: 40,
                     ..SimpleFormatOptions::default()
                 },
-                File::empty_text_with_type(FileType::Dyst)
+                File::empty_text_with_type(FileType::Destack)
             ),
             [document.clone()]
         )
@@ -477,7 +478,7 @@ mod tests {
                     line_width: 23,
                     ..SimpleFormatOptions::default()
                 },
-                File::empty_text_with_type(FileType::Dyst)
+                File::empty_text_with_type(FileType::Destack)
             ),
             [document.clone()]
         )
@@ -495,7 +496,7 @@ mod tests {
                     line_width: 22,
                     ..SimpleFormatOptions::default()
                 },
-                File::empty_text_with_type(FileType::Dyst)
+                File::empty_text_with_type(FileType::Destack)
             ),
             [document.clone()]
         )
@@ -516,7 +517,7 @@ mod tests {
                     line_width: 80,
                     ..SimpleFormatOptions::default()
                 },
-                File::empty_text_with_type(FileType::Dyst),
+                File::empty_text_with_type(FileType::Destack),
             ),
             [best_fitting!(
                 // first variant - method call on line but break array
@@ -569,7 +570,7 @@ mod tests {
                     line_width: 80,
                     ..SimpleFormatOptions::default()
                 },
-                File::empty_text_with_type(FileType::Dyst),
+                File::empty_text_with_type(FileType::Destack),
             ),
         )
         .print()
@@ -583,7 +584,7 @@ mod tests {
     fn test_best_fitting_selects_variant_by_width() {
         // the second variant below should be selected when printing at a width of 30
         let formatted_best_fitting = format!(
-            SimpleFormatContext::empty_dyst(),
+            SimpleFormatContext::empty_destack(),
             [
                 token("aVeryLongIdentifier"),
                 soft_line_break_or_space(),
@@ -635,7 +636,7 @@ mod tests {
                     line_width: 30,
                     ..SimpleFormatOptions::default()
                 },
-                File::empty_text_with_type(FileType::Dyst),
+                File::empty_text_with_type(FileType::Destack),
             ),
         )
         .print()
@@ -654,7 +655,7 @@ mod tests {
     fn test_best_fitting_prints_like_normal_format_args() {
         // create a best fitting with multiple variants
         let formatted_best_fitting = format!(
-            SimpleFormatContext::empty_dyst(),
+            SimpleFormatContext::empty_destack(),
             [
                 token("aVeryLongIdentifier"),
                 soft_line_break_or_space(),
@@ -701,7 +702,7 @@ mod tests {
         // this matches the IR above except that the `best_fitting` was replaced with
         // the contents of its second variant
         let formatted_normal_list = format!(
-            SimpleFormatContext::empty_dyst(),
+            SimpleFormatContext::empty_destack(),
             [
                 token("aVeryLongIdentifier"),
                 soft_line_break_or_space(),
@@ -744,7 +745,7 @@ mod tests {
                     line_width: 30,
                     ..SimpleFormatOptions::default()
                 },
-                File::empty_text_with_type(FileType::Dyst),
+                File::empty_text_with_type(FileType::Destack),
             ),
         )
         .print()
@@ -760,7 +761,7 @@ mod tests {
                     line_width: 30,
                     ..SimpleFormatOptions::default()
                 },
-                File::empty_text_with_type(FileType::Dyst),
+                File::empty_text_with_type(FileType::Destack),
             ),
         )
         .print()

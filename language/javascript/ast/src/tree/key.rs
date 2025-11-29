@@ -1,5 +1,5 @@
 use crate::{Expression, LocalNodeId};
-use dyst_source::StringId;
+use destack_source::StringId;
 
 /// A Name is a regular or string identifier.
 #[derive(Debug, Clone, Copy, PartialEq)]

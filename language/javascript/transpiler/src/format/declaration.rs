@@ -1,11 +1,11 @@
-use dyst_fir::format::FormatResult;
-use dyst_javascript_ast::{
+use destack_fir::format::FormatResult;
+use destack_javascript_ast::{
     Asynchrony, Declaration, DeclarationKind, DependencyMode, EnumField, FunctionCardinality,
     Keyword, LocalNodeId, Type, Visibility,
 };
 
-use dyst_fir::prelude::*;
-use dyst_fir::{format_args, write};
+use destack_fir::prelude::*;
+use destack_fir::{format_args, write};
 
 use crate::format::argument::list_like;
 use crate::format::block::format_block_of_statements;

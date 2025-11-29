@@ -1,5 +1,5 @@
-use dyst_dir::{GlobalNodeIdAny, Program};
-use dyst_source::{Diagnostic, DiagnosticSeverity, LabeledSpan};
+use destack_dir::{GlobalNodeIdAny, Program};
+use destack_source::{Diagnostic, DiagnosticSeverity, LabeledSpan};
 
 use crate::{TranspileError, TranspileWarning};
 
@@ -45,7 +45,7 @@ impl TranspileDiagnostic {
         }
     }
 
-    /// Turn the diagnostic into a full Dyst diagnostic.
+    /// Turn the diagnostic into a full Destack diagnostic.
     pub fn to_diagnostic(&self, program: &Program) -> Diagnostic {
         // get source information
         let node_id = self.node_id();

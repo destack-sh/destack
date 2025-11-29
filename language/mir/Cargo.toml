@@ -1,6 +1,6 @@
 [package]
-name = "dyst_mir"
-description = "Dyst Machine IR"
+name = "destack_mir"
+description = "Destack Machine IR"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
@@ -12,12 +12,12 @@ path = "src/lib.rs"
 doctest = false
 
 [dependencies]
-dyst_ast = { workspace = true }
-dyst_dir = { workspace = true }
-dyst_fir = { workspace = true }
-dyst_source = { workspace = true }
+destack_ast = { workspace = true }
+destack_dir = { workspace = true }
+destack_fir = { workspace = true }
+destack_source = { workspace = true }
 
-dyst_unicode = { workspace = true }
+destack_unicode = { workspace = true }
 
 [dev-dependencies]
 

@@ -1,11 +1,13 @@
 use std::sync::Arc;
 
-use crate::{DystFormatContext, DystFormatOptions};
-use dyst_ast::{NodeParentIndex, NodeTree, TokenSpan};
-use dyst_fir::format;
-use dyst_fir::format::Format;
-use dyst_parser::{ParseResult, Parser};
-use dyst_source::{File, FileId, FileType, ImmutableStringPool, LanguageOptions, MultiSpan, Uri};
+use crate::{DestackFormatContext, DestackFormatOptions};
+use destack_ast::{NodeParentIndex, NodeTree, TokenSpan};
+use destack_fir::format;
+use destack_fir::format::Format;
+use destack_parser::{ParseResult, Parser};
+use destack_source::{
+    File, FileId, FileType, ImmutableStringPool, LanguageOptions, MultiSpan, Uri,
+};
 
 /// A test wrapper for Formatter.
 #[derive(Debug)]
@@ -31,7 +33,7 @@ impl TestFormatter {
             "<string>".to_string(),
             Uri::from_string("<string>"),
             None,
-            FileType::Dyst,
+            FileType::Destack,
             input.to_string(),
         );
         let file = Arc::new(file);
@@ -65,11 +67,11 @@ impl TestFormatter {
     }
 
     /// Format a node from the parse tree.
-    pub(crate) fn format<'a, N>(&'a self, n: &N, options: DystFormatOptions) -> String
+    pub(crate) fn format<'a, N>(&'a self, n: &N, options: DestackFormatOptions) -> String
     where
-        N: Format<DystFormatContext<'a>>,
+        N: Format<DestackFormatContext<'a>>,
     {
-        let context = DystFormatContext {
+        let context = DestackFormatContext {
             options,
             file: &self.file,
             tree: &self.tree,
@@ -98,7 +100,7 @@ impl TestFormatter {
 /// assert_format!(
 ///     "a(b)",
 ///     "a(b)",
-///     DystFormatOptions::default().with_indent_style(IndentStyle::Tab)
+///     DestackFormatOptions::default().with_indent_style(IndentStyle::Tab)
 /// );
 ///
 /// // arbitrary node
@@ -107,7 +109,7 @@ impl TestFormatter {
 ///     "a.b",
 ///     |p| p.eat_path(),
 ///     |_, n| n,
-///     DystFormatOptions::default()
+///     DestackFormatOptions::default()
 /// );
 /// ```
 #[macro_export]
@@ -115,14 +117,14 @@ macro_rules! assert_format {
     // Format a statement.
     ($input:expr, $output:expr) => {
         let (test, stmt_id) = TestFormatter::parse($input, |p| p.eat_statement()).unwrap();
-        let formatted = test.format(&stmt_id, DystFormatOptions::default());
+        let formatted = test.format(&stmt_id, DestackFormatOptions::default());
         assert_eq!(formatted, $output);
     };
 
     // Format an arbitrary node.
     ($input:expr, $output:expr, $parse_fn:expr) => {
         let (test, node_id) = TestFormatter::parse($input, $parse_fn).unwrap();
-        let formatted = test.format(&node_id, DystFormatOptions::default());
+        let formatted = test.format(&node_id, DestackFormatOptions::default());
         assert_eq!(formatted, $output);
     };
 

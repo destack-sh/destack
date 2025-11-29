@@ -1,4 +1,4 @@
-use dyst_dir::{
+use destack_dir::{
     Argument, Expression, GlobalNodeIdAny, LocalNodeId, LocalScopeMark, LocalSymbolId, Module,
     Path, Scope, ScopeKind, Symbol, SymbolKey, SymbolTable,
 };
@@ -179,8 +179,8 @@ impl Compiler {
 
 #[cfg(test)]
 mod tests {
-    use dyst_dir::{Expression, Pattern, ScalarLiteral};
-    use dyst_source::Uri;
+    use destack_dir::{Expression, Pattern, ScalarLiteral};
+    use destack_source::Uri;
 
     use crate::{ImportTask, TestProgram, assert_node};
 

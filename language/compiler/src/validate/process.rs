@@ -1,6 +1,6 @@
 use crate::{Compiler, Task, TaskDebug, TaskOutput, ValidateResult};
 
-use dyst_dir::{ModuleId, Program};
+use destack_dir::{ModuleId, Program};
 
 /// Task to validate something.
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]

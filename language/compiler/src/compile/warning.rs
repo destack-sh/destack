@@ -1,4 +1,4 @@
-use dyst_dir::{GlobalNodeIdAny, Program};
+use destack_dir::{GlobalNodeIdAny, Program};
 
 use crate::{
     AnalyzeWarning, BindWarning, BuildWarning, ElaborateWarning, ExecuteWarning, ImportWarning,

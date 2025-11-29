@@ -1,6 +1,6 @@
 use crate::{TranspileError, TranspileResult, TranspileResultExt, Transpiler, TranspilerUnit};
-use dyst_dir::{self as dir, Module, NodeTree, SymbolTable, TypeTable};
-use dyst_javascript_ast::{Block, LocalNodeId, Statement};
+use destack_dir::{self as dir, Module, NodeTree, SymbolTable, TypeTable};
+use destack_javascript_ast::{Block, LocalNodeId, Statement};
 
 impl Transpiler {
     /// Transpile a block from DIR into JS AST.

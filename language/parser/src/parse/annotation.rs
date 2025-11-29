@@ -2,11 +2,11 @@
 
 use crate::parse::prelude::*;
 use crate::{ParseResult, Parser};
-use dyst_ast::{
+use destack_ast::{
     ANNOTATION_NODE_TYPES, Annotation, AnnotationPosition, Blank, Comment, CommentStyle, Decorator,
     Doc, DocStyle, LocalNodeId, NodeType, Tag, TokenSpan, TokenType,
 };
-use dyst_source::{MultiSpan, NodeSearch, Span};
+use destack_source::{MultiSpan, NodeSearch, Span};
 
 const ANNOTATION_TOKEN_TYPES: [TokenType; 5] = [
     TokenType::Newline,
@@ -763,7 +763,7 @@ impl Parser {
 
 #[cfg(test)]
 mod tests {
-    use dyst_ast::{
+    use destack_ast::{
         Annotation, AnnotationPosition, Argument, BinaryOperator, Blank, Block, BlockFormat,
         Comment, CommentStyle, Declaration, DeclarationDescriptor, Decorator, Doc, DocStyle,
         Expression, Key, Name, Property, ScalarLiteral, Tag,
@@ -822,9 +822,9 @@ let y;
         let mut test = TestParser::new(
             r#"
 /// Test doc
-#dyst.BeginGroup("MyGroup", length: 1)
+#destack.BeginGroup("MyGroup", length: 1)
 struct Test {}
-#dyst.EndGroup
+#destack.EndGroup
 "#,
         );
         let mut parser = test.prepare();
@@ -847,7 +847,7 @@ struct Test {}
         assert_node!(parser.tree, annotations[1], Annotation::Tag { node, position } => {
             assert_eq!(*position, AnnotationPosition::BlockPrefix);
             assert_node!(parser.tree, *node, Tag { left, arguments } => {
-                assert_path!(parser, *left, "dyst.BeginGroup");
+                assert_path!(parser, *left, "destack.BeginGroup");
                 assert!(arguments.is_some());
                 assert_eq!(arguments.as_ref().unwrap().len(), 2);
                 // "MyGroup"
@@ -868,7 +868,7 @@ struct Test {}
         assert_node!(parser.tree, annotations[2], Annotation::Tag { node, position } => {
             assert_eq!(*position, AnnotationPosition::BlockPostfix);
             assert_node!(parser.tree, *node, Tag { left, arguments } => {
-                assert_path!(parser, *left, "dyst.EndGroup");
+                assert_path!(parser, *left, "destack.EndGroup");
                 assert!(arguments.is_none());
             });
         });

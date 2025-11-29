@@ -3,8 +3,8 @@ use std::sync::Arc;
 use std::thread;
 
 use dashmap::DashMap;
-use dyst_dir::{ModuleId, Program};
-use dyst_source::{DiagnosticCollector, DiagnosticOptions, Uri};
+use destack_dir::{ModuleId, Program};
+use destack_source::{DiagnosticCollector, DiagnosticOptions, Uri};
 use parking_lot::Mutex;
 
 use crate::{

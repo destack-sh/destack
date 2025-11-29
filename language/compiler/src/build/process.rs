@@ -1,6 +1,6 @@
 use crate::{BuildResult, Compiler, Task, TaskDebug, TaskOutput};
 
-use dyst_dir::{ModuleId, Program};
+use destack_dir::{ModuleId, Program};
 
 /// task to build something into an artifact.
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]

@@ -1,6 +1,6 @@
 [package]
-name = "dyst_test"
-description = "Dyst Test"
+name = "destack_test"
+description = "Destack Test"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true

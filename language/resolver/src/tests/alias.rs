@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 
 use indexmap::IndexMap;
 
-use dyst_source::{MemoryFileSystem, PathExt};
+use destack_source::{MemoryFileSystem, PathExt};
 
 use crate::{AliasValue, Resolution, ResolveContext, ResolveError, ResolveOptions, Resolver};
 

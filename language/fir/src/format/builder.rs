@@ -1,4 +1,4 @@
-use dyst_source::Span;
+use destack_source::Span;
 use std::cell::Cell;
 use std::marker::PhantomData;
 
@@ -1127,7 +1127,7 @@ impl<Context> Format<Context> for BestFitting<'_, Context> {
 
 #[cfg(test)]
 mod tests {
-    use dyst_source::FileType;
+    use destack_source::FileType;
 
     use crate::format::{IndentStyle, SimpleFormatContext, SimpleFormatOptions};
     use crate::prelude::*;
@@ -1137,7 +1137,7 @@ mod tests {
     #[test]
     fn test_soft_line_break_fits_on_single_line() {
         let nodes = format!(
-            SimpleFormatContext::empty_dyst(),
+            SimpleFormatContext::empty_destack(),
             [group(&format_args![
                 token("a,"),
                 soft_line_break(),
@@ -1157,7 +1157,7 @@ mod tests {
                 line_width: 10,
                 ..SimpleFormatOptions::default()
             },
-            File::empty_text_with_type(FileType::Dyst),
+            File::empty_text_with_type(FileType::Destack),
         );
 
         let nodes = format!(
@@ -1180,7 +1180,7 @@ mod tests {
     #[test]
     fn test_hard_line_break_always_breaks() {
         let nodes = format!(
-            SimpleFormatContext::empty_dyst(),
+            SimpleFormatContext::empty_destack(),
             [group(&format_args![
                 token("a,"),
                 hard_line_break(),
@@ -1197,7 +1197,7 @@ mod tests {
     #[test]
     fn test_empty_line_separates_nodes() {
         let nodes = format!(
-            SimpleFormatContext::empty_dyst(),
+            SimpleFormatContext::empty_destack(),
             [group(&format_args![
                 token("a,"),
                 empty_line(),
@@ -1214,7 +1214,7 @@ mod tests {
     #[test]
     fn test_soft_line_break_or_space_fits_on_line() {
         let nodes = format!(
-            SimpleFormatContext::empty_dyst(),
+            SimpleFormatContext::empty_destack(),
             [group(&format_args![
                 token("a,"),
                 soft_line_break_or_space(),
@@ -1234,7 +1234,7 @@ mod tests {
                 line_width: 10,
                 ..SimpleFormatOptions::default()
             },
-            File::empty_text_with_type(FileType::Dyst),
+            File::empty_text_with_type(FileType::Destack),
         );
 
         let nodes = format!(
@@ -1256,7 +1256,7 @@ mod tests {
     /// Token writes content as-is to output
     #[test]
     fn test_token_writes_content() {
-        let nodes = format!(SimpleFormatContext::empty_dyst(), [token("Hello World")]).unwrap();
+        let nodes = format!(SimpleFormatContext::empty_destack(), [token("Hello World")]).unwrap();
 
         assert_eq!("Hello World", nodes.print().unwrap().as_str());
     }
@@ -1265,7 +1265,7 @@ mod tests {
     #[test]
     fn test_token_handles_escaped_strings() {
         let nodes = format!(
-            SimpleFormatContext::empty_dyst(),
+            SimpleFormatContext::empty_destack(),
             [token("\"Hello\\tWorld\"")]
         )
         .unwrap();
@@ -1277,7 +1277,7 @@ mod tests {
     #[test]
     fn test_line_postfix_pushes_to_end() {
         let nodes = format!(
-            SimpleFormatContext::empty_dyst(),
+            SimpleFormatContext::empty_destack(),
             [token("a"), line_postfix(&token("c"), 0), token("b")]
         )
         .unwrap();
@@ -1293,7 +1293,7 @@ mod tests {
                 line_width: 10,
                 ..SimpleFormatOptions::default()
             },
-            File::empty_text_with_type(FileType::Dyst),
+            File::empty_text_with_type(FileType::Destack),
         );
 
         let nodes = format!(
@@ -1331,7 +1331,7 @@ mod tests {
     #[test]
     fn test_line_postfix_boundary_forces_printing() {
         let nodes = format!(
-            SimpleFormatContext::empty_dyst(),
+            SimpleFormatContext::empty_destack(),
             [
                 token("a"),
                 line_postfix(&token("c"), 0),
@@ -1349,7 +1349,7 @@ mod tests {
     #[test]
     fn test_space_separates_tokens() {
         let nodes = format!(
-            SimpleFormatContext::empty_dyst(),
+            SimpleFormatContext::empty_destack(),
             [token("a"), space(), token("b")]
         )
         .unwrap();
@@ -1361,7 +1361,7 @@ mod tests {
     #[test]
     fn test_indent_adds_indentation_level() {
         let block = format!(
-            SimpleFormatContext::empty_dyst(),
+            SimpleFormatContext::empty_destack(),
             [
                 token("switch {"),
                 block_indent(&format_args![
@@ -1383,7 +1383,7 @@ mod tests {
     #[test]
     fn test_block_indent_adds_indentation_and_breaks() {
         let formatted = format!(
-            SimpleFormatContext::empty_dyst(),
+            SimpleFormatContext::empty_destack(),
             [
                 token("switch {"),
                 block_indent(&format_args![
@@ -1405,7 +1405,7 @@ mod tests {
     #[test]
     fn test_soft_block_indent_adds_soft_breaks() {
         let formatted = format!(
-            SimpleFormatContext::empty_dyst(),
+            SimpleFormatContext::empty_destack(),
             [
                 token("switch {"),
                 soft_block_indent(&format_args![
@@ -1432,7 +1432,7 @@ mod tests {
                 line_width: 10,
                 ..SimpleFormatOptions::default()
             },
-            File::empty_text_with_type(FileType::Dyst),
+            File::empty_text_with_type(FileType::Destack),
         );
 
         let formatted = format!(
@@ -1462,7 +1462,7 @@ mod tests {
     #[test]
     fn test_if_group_fits_on_line_shows_when_fitting() {
         let formatted = format!(
-            SimpleFormatContext::empty_dyst(),
+            SimpleFormatContext::empty_destack(),
             [group(&format_args![
                 token("["),
                 soft_block_indent(&format_args![
@@ -1515,7 +1515,7 @@ mod tests {
                 line_width: 20,
                 ..SimpleFormatOptions::default()
             },
-            File::empty_text_with_type(FileType::Dyst),
+            File::empty_text_with_type(FileType::Destack),
         );
 
         let formatted = format!(context, [content]).unwrap();
@@ -1563,7 +1563,7 @@ mod tests {
                     line_width: 21,
                     ..SimpleFormatOptions::default()
                 },
-                File::empty_text_with_type(FileType::Dyst),
+                File::empty_text_with_type(FileType::Destack),
             ),
             [content]
         )
@@ -1579,7 +1579,7 @@ mod tests {
     #[test]
     fn test_text_creates_dynamic_content() {
         let dynamic_text = "Hello World";
-        let nodes = format!(SimpleFormatContext::empty_dyst(), [text(dynamic_text)]).unwrap();
+        let nodes = format!(SimpleFormatContext::empty_destack(), [text(dynamic_text)]).unwrap();
 
         assert_eq!("Hello World", nodes.print().unwrap().as_str());
     }
@@ -1615,7 +1615,7 @@ mod tests {
                     line_width: 20,
                     ..SimpleFormatOptions::default()
                 },
-                File::empty_text_with_type(FileType::Dyst)
+                File::empty_text_with_type(FileType::Destack)
             ),
             [document.clone()]
         )
@@ -1631,7 +1631,7 @@ mod tests {
                     line_width: 8,
                     ..SimpleFormatOptions::default()
                 },
-                File::empty_text_with_type(FileType::Dyst)
+                File::empty_text_with_type(FileType::Destack)
             ),
             [document]
         )
@@ -1644,7 +1644,7 @@ mod tests {
     #[test]
     fn test_best_fit_parenthesize_content_fits() {
         let formatted = format!(
-            SimpleFormatContext::empty_dyst(),
+            SimpleFormatContext::empty_destack(),
             [format_with(|f| {
                 write!(
                     f,
@@ -1669,7 +1669,7 @@ mod tests {
         let formatted = format!(
             SimpleFormatContext::new(
                 SimpleFormatOptions::default().with_line_width(80),
-                File::empty_text_with_type(FileType::Dyst)
+                File::empty_text_with_type(FileType::Destack)
             ),
             [format_with(|f| {
                 write!(
@@ -1697,7 +1697,7 @@ mod tests {
         let formatted = format!(
             SimpleFormatContext::new(
                 SimpleFormatOptions::default().with_line_width(80),
-                File::empty_text_with_type(FileType::Dyst)
+                File::empty_text_with_type(FileType::Destack)
             ),
             [format_with(|f| {
                 write!(

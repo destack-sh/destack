@@ -1,5 +1,5 @@
-use dyst_ast::StringId;
-use dyst_dir::{GlobalNodeIdAny, GlobalScopeId, ModuleId, Program, SymbolKey};
+use destack_ast::StringId;
+use destack_dir::{GlobalNodeIdAny, GlobalScopeId, ModuleId, Program, SymbolKey};
 
 use crate::{Phase, TaskDependency, TaskError};
 

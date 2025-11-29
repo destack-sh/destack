@@ -2,15 +2,15 @@
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum FileType {
     /// `.ds`
-    Dyst,
+    Destack,
     /// `.d.ds`
-    DystDeclaration,
+    DestackDeclaration,
     /// `.dst`
-    DystText,
+    DestackText,
     /// `.dsb`
-    DystBinary,
+    DestackBinary,
     /// `.dsx`
-    DystExecutable,
+    DestackExecutable,
 
     /// `.js`
     JavaScript,
@@ -44,11 +44,11 @@ impl FileType {
     /// Get a source format from a file extension.
     pub fn from_extension(s: &str) -> Option<Self> {
         let ty = match s {
-            "ds" => FileType::Dyst,
-            "d.ds" => FileType::DystDeclaration,
-            "dst" => FileType::DystText,
-            "dsb" => FileType::DystBinary,
-            "dsx" => FileType::DystExecutable,
+            "ds" => FileType::Destack,
+            "d.ds" => FileType::DestackDeclaration,
+            "dst" => FileType::DestackText,
+            "dsb" => FileType::DestackBinary,
+            "dsx" => FileType::DestackExecutable,
 
             "js" => FileType::JavaScript,
             "jsx" => FileType::JavaScriptXml,
@@ -79,11 +79,11 @@ impl FileType {
     /// Get the file extension for a source format.
     pub fn extension(&self) -> Option<&str> {
         let extension = match self {
-            FileType::Dyst => "ds",
-            FileType::DystDeclaration => "d.ds",
-            FileType::DystText => "dst",
-            FileType::DystBinary => "dsb",
-            FileType::DystExecutable => "dsx",
+            FileType::Destack => "ds",
+            FileType::DestackDeclaration => "d.ds",
+            FileType::DestackText => "dst",
+            FileType::DestackBinary => "dsb",
+            FileType::DestackExecutable => "dsx",
 
             FileType::JavaScript => "js",
             FileType::JavaScriptXml => "jsx",
@@ -106,11 +106,11 @@ impl FileType {
     /// Get the glob pattern for a source format.
     pub fn glob(&self) -> Option<&str> {
         let extension = match self {
-            FileType::Dyst => "**/*.ds",
-            FileType::DystDeclaration => "**/*.d.ds",
-            FileType::DystText => "**/*.dst",
-            FileType::DystBinary => "**/*.dsb",
-            FileType::DystExecutable => "**/*.dsx",
+            FileType::Destack => "**/*.ds",
+            FileType::DestackDeclaration => "**/*.d.ds",
+            FileType::DestackText => "**/*.dst",
+            FileType::DestackBinary => "**/*.dsb",
+            FileType::DestackExecutable => "**/*.dsx",
 
             FileType::JavaScript => "**/*.js",
             FileType::JavaScriptXml => "**/*.jsx",

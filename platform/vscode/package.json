@@ -1,8 +1,8 @@
 {
     "name": "destack-vscode",
-    "displayName": "Destack & Dyst",
-    "description": "Destack & Dyst for VSCode (.ds, .d.ds, .dst, .dsb)",
-    "version": "2025.11.28-0",
+    "displayName": "Destack",
+    "description": "Destack for VSCode (.ds, .d.ds, .dst)",
+    "version": "2025.11.29-0",
     "license": "proprietary",
     "engines": {
         "vscode": "^1.90.0"
@@ -26,9 +26,9 @@
     "main": "./out/extension.js",
     "files": [
         "out/extension.js",
-        "dyst.json",
-        "dyst.tmLanguage.json",
-        "dyst.tmTheme.json",
+        "destack.json",
+        "destack.tmLanguage.json",
+        "destack.tmTheme.json",
         "package.json",
         "README.md",
         "LICENSE.txt"
@@ -65,16 +65,16 @@
         ],
         "languages": [
             {
-                "id": "dyst",
+                "id": "destack",
                 "aliases": [
-                    "Dyst",
+                    "Destack",
                     "ds"
                 ],
                 "extensions": [
                     ".ds",
                     ".d.ds"
                 ],
-                "configuration": "./dyst.json"
+                "configuration": "./destack.json"
             },
             {
                 "id": "dst",
@@ -84,7 +84,7 @@
                 "extensions": [
                     ".dst"
                 ],
-                "configuration": "./dyst.json"
+                "configuration": "./destack.json"
             },
             {
                 "id": "dsb",
@@ -98,14 +98,14 @@
         ],
         "grammars": [
             {
-                "language": "dyst",
+                "language": "destack",
                 "scopeName": "source.ds",
-                "path": "./dyst.tmLanguage.json"
+                "path": "./destack.tmLanguage.json"
             },
             {
                 "language": "dst",
                 "scopeName": "source.ds",
-                "path": "./dyst.tmLanguage.json"
+                "path": "./destack.tmLanguage.json"
             }
         ]
     },
@@ -113,7 +113,7 @@
         "bundle": "esbuild typescript/extension.ts --bundle --platform=node --format=cjs --legal-comments=none --minify --outfile=out/extension.js --external:vscode",
         "vscode:prepublish": "bun run bundle",
         "package": "bunx --bun @vscode/vsce@latest package --no-dependencies",
-        "test:grammar": "bunx vscode-tmgrammar-test --grammar dyst.tmLanguage.json \"typescript/tests/*.txt\""
+        "test:grammar": "bunx vscode-tmgrammar-test --grammar destack.tmLanguage.json \"typescript/tests/*.txt\""
     },
     "dependencies": {},
     "devDependencies": {

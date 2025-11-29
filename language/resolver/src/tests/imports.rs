@@ -1,6 +1,6 @@
 //! https://github.com/webpack/enhanced-resolve/blob/main/test/importsField.test.js
 
-use dyst_source::{MemoryFileSystem, PathExt};
+use destack_source::{MemoryFileSystem, PathExt};
 use std::path::Path;
 use std::sync::Arc;
 

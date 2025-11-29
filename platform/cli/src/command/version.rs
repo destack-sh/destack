@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use std::process::Command;
 
 use clap::Subcommand;
-use dyst_source::glob;
+use destack_source::glob;
 
 use crate::console;
 

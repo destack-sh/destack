@@ -1,8 +1,8 @@
 use std::borrow::Cow;
 use std::path::{Path, PathBuf};
 
-use dyst_dir::{TsConfig, TsConfigId, TsConfigProjectReferences};
-use dyst_source::{File, FileType, PathExt, Uri};
+use destack_dir::{TsConfig, TsConfigId, TsConfigProjectReferences};
+use destack_source::{File, FileType, PathExt, Uri};
 
 use super::file::is_inside_modules;
 use crate::{

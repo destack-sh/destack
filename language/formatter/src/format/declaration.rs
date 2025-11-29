@@ -3,18 +3,20 @@ use crate::block::format_block_of_statements;
 use crate::property::format_block_of_properties;
 use crate::r#where::format_where_clause;
 use crate::with::format_with_clause;
-use crate::{DystFormatContext, DystFormatter, FormatNode, empty_block_with_infix_annotations};
-use dyst_ast::{
+use crate::{
+    DestackFormatContext, DestackFormatter, FormatNode, empty_block_with_infix_annotations,
+};
+use destack_ast::{
     Asynchrony, Declaration, DeclarationKind, DependencyMode, Expression, FunctionAbstraction,
     FunctionCardinality, FunctionKind, FunctionMode, Keyword, LocalNodeId, StructKind, Visibility,
 };
-use dyst_fir::format::FormatResult;
-use dyst_fir::prelude::*;
-use dyst_fir::{format_args, write};
+use destack_fir::format::FormatResult;
+use destack_fir::prelude::*;
+use destack_fir::{format_args, write};
 
 /// Format a super type clause.
 pub(crate) fn format_super_type_clause<'ast>(
-    f: &mut DystFormatter<'ast, '_>,
+    f: &mut DestackFormatter<'ast, '_>,
     keyword: Keyword,
     types: &[LocalNodeId<Expression>],
 ) -> FormatResult<()> {
@@ -41,8 +43,8 @@ pub(crate) fn format_super_type_clause<'ast>(
     )
 }
 
-impl<'ast> Format<DystFormatContext<'ast>> for Visibility {
-    fn format(&self, f: &mut DystFormatter<'ast, '_>) -> FormatResult<()> {
+impl<'ast> Format<DestackFormatContext<'ast>> for Visibility {
+    fn format(&self, f: &mut DestackFormatter<'ast, '_>) -> FormatResult<()> {
         match self {
             Visibility::Public => write!(f, [Keyword::Public]),
             Visibility::Protected => write!(f, [Keyword::Protected]),
@@ -51,8 +53,8 @@ impl<'ast> Format<DystFormatContext<'ast>> for Visibility {
     }
 }
 
-impl<'ast> Format<DystFormatContext<'ast>> for DependencyMode {
-    fn format(&self, f: &mut DystFormatter<'ast, '_>) -> FormatResult<()> {
+impl<'ast> Format<DestackFormatContext<'ast>> for DependencyMode {
+    fn format(&self, f: &mut DestackFormatter<'ast, '_>) -> FormatResult<()> {
         match self {
             DependencyMode::Item => write!(f, [Keyword::Export]),
             DependencyMode::Default => write!(f, [Keyword::Export, space(), Keyword::Default]),
@@ -65,7 +67,7 @@ impl<'ast> FormatNode<'ast, Declaration> for Declaration {
     fn format_node(
         &self,
         node_id: LocalNodeId<Declaration>,
-        f: &mut DystFormatter<'ast, '_>,
+        f: &mut DestackFormatter<'ast, '_>,
     ) -> FormatResult<()> {
         write!(f, [f.context().any_prefix_annotations(node_id)])?;
 

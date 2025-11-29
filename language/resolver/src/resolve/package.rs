@@ -2,8 +2,8 @@ use std::borrow::Cow;
 use std::cmp::Ordering;
 use std::path::{Component, Path, PathBuf};
 
-use dyst_dir::{ModuleSpecifier, Package, PackageConfig, PackageId};
-use dyst_source::{File, FileType, PathExt, Uri};
+use destack_dir::{ModuleSpecifier, Package, PackageConfig, PackageId};
+use destack_source::{File, FileType, PathExt, Uri};
 
 use crate::{ResolveContext, ResolveError, Resolver};
 
@@ -80,7 +80,7 @@ impl Resolver {
             ty: package_options
                 .content
                 .ty
-                .unwrap_or(dyst_dir::PackageType::CommonJs),
+                .unwrap_or(destack_dir::PackageType::CommonJs),
             config: package_options,
             main_tsconfig_id: None,
             main_dsconfig_id: None,

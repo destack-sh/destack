@@ -1,6 +1,6 @@
 [package]
-name = "dyst_compiler"
-description = "Dyst Compiler"
+name = "destack_compiler"
+description = "Destack Compiler"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
@@ -12,13 +12,13 @@ path = "src/lib.rs"
 doctest = false
 
 [dependencies]
-dyst_ast = { workspace = true }
-dyst_dir = { workspace = true }
-dyst_fir = { workspace = true }
-dyst_mir = { workspace = true }
-dyst_parser = { workspace = true }
-dyst_source = { workspace = true }
-dyst_resolver = { workspace = true }
+destack_ast = { workspace = true }
+destack_dir = { workspace = true }
+destack_fir = { workspace = true }
+destack_mir = { workspace = true }
+destack_parser = { workspace = true }
+destack_source = { workspace = true }
+destack_resolver = { workspace = true }
 
 crossbeam-deque = { workspace = true }
 rayon = { workspace = true }

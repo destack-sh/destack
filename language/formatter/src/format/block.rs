@@ -1,12 +1,12 @@
-use dyst_fir::format::FormatResult;
+use destack_fir::format::FormatResult;
 
 use crate::expression::format_expression;
-use crate::{DystFormatContext, DystFormatter, FormatNode};
-use dyst_ast::{
+use crate::{DestackFormatContext, DestackFormatter, FormatNode};
+use destack_ast::{
     Block, Expression, LocalNodeId, LocalNodeIdAny, Node, NodeTree, NodeTreeImpl, NodeType,
 };
-use dyst_fir::prelude::*;
-use dyst_fir::{format_args, write};
+use destack_fir::prelude::*;
+use destack_fir::{format_args, write};
 
 /// Empty block with infix annotations.
 #[derive(Debug, Clone, PartialEq)]
@@ -14,13 +14,13 @@ pub struct EmptyBlockWithInfixAnnotations<T: Node> {
     node_id: LocalNodeId<T>,
 }
 
-impl<'ast, T> Format<DystFormatContext<'ast>> for EmptyBlockWithInfixAnnotations<T>
+impl<'ast, T> Format<DestackFormatContext<'ast>> for EmptyBlockWithInfixAnnotations<T>
 where
     T: Node + Clone,
     NodeTree: NodeTreeImpl<T>,
 {
     #[inline]
-    fn format(&self, f: &mut Formatter<'_, DystFormatContext<'ast>>) -> FormatResult<()> {
+    fn format(&self, f: &mut Formatter<'_, DestackFormatContext<'ast>>) -> FormatResult<()> {
         write!(
             f,
             [group(&format_args![
@@ -52,7 +52,7 @@ pub fn empty_block_with_infix_annotations<T: Node>(
 /// Format a block inline with zero or one expression (including label and infix annotations).
 #[inline]
 pub(crate) fn format_block_body_narrow<'ast>(
-    f: &mut DystFormatter<'ast, '_>,
+    f: &mut DestackFormatter<'ast, '_>,
     block_id: LocalNodeId<Block>,
 ) -> FormatResult<()> {
     let block = f.context().tree.get(block_id);
@@ -87,7 +87,7 @@ pub(crate) fn format_block_body_narrow<'ast>(
 /// Format a block multiline with multiple expressions (including label and infix annotations).
 #[inline]
 pub(crate) fn format_block_body_wide<'ast>(
-    f: &mut DystFormatter<'ast, '_>,
+    f: &mut DestackFormatter<'ast, '_>,
     block_id: LocalNodeId<Block>,
 ) -> FormatResult<()> {
     let block = f.context().tree.get(block_id);
@@ -116,7 +116,7 @@ pub(crate) fn format_block_body_wide<'ast>(
 /// Format a block of expression statements (with appropriate empty annotations).
 /// Automatically inserts semicolons for value-ignored non-statement expressions.
 pub(crate) fn format_block_of_statements<'ast>(
-    f: &mut DystFormatter<'ast, '_>,
+    f: &mut DestackFormatter<'ast, '_>,
     scope_id: LocalNodeIdAny,
     expressions: &[LocalNodeId<Expression>],
 ) -> FormatResult<()> {
@@ -162,7 +162,7 @@ pub(crate) fn format_block_of_statements<'ast>(
 
 #[inline]
 pub(crate) fn should_inline_block<'ast>(
-    f: &mut DystFormatter<'ast, '_>,
+    f: &mut DestackFormatter<'ast, '_>,
     block_id: LocalNodeId<Block>,
 ) -> bool {
     let block = f.context().tree.get(block_id);
@@ -205,7 +205,7 @@ pub(crate) fn should_inline_block<'ast>(
 
 /// Format a block (without a nested group!).
 pub fn format_block<'ast>(
-    f: &mut DystFormatter<'ast, '_>,
+    f: &mut DestackFormatter<'ast, '_>,
     node_id: LocalNodeId<Block>,
 ) -> FormatResult<()> {
     write!(f, [f.context().any_prefix_annotations(node_id)])?;
@@ -222,7 +222,7 @@ impl<'ast> FormatNode<'ast, Block> for Block {
     fn format_node(
         &self,
         node_id: LocalNodeId<Block>,
-        f: &mut DystFormatter<'ast, '_>,
+        f: &mut DestackFormatter<'ast, '_>,
     ) -> FormatResult<()> {
         write!(f, [f.context().any_prefix_annotations(node_id)])?;
         if should_inline_block(f, node_id) {
@@ -245,7 +245,7 @@ impl<'ast> FormatNode<'ast, Block> for Block {
 
 #[cfg(test)]
 mod tests {
-    use crate::{DystFormatOptions, TestFormatter, assert_format};
+    use crate::{DestackFormatOptions, TestFormatter, assert_format};
 
     /// Semicolons should be automatically inserted for every value-ignored expression.
     /// Control flow forms like if and let only get semicolons if used as statements.
@@ -309,7 +309,7 @@ mod tests {
     return 5;
 }"#,
             |p| p.eat_block(),
-            DystFormatOptions::default()
+            DestackFormatOptions::default()
         );
     }
 
@@ -322,7 +322,7 @@ mod tests {
             source,
             source,
             |p| p.eat_block(),
-            DystFormatOptions::default()
+            DestackFormatOptions::default()
         );
     }
 
@@ -337,7 +337,7 @@ mod tests {
             source,
             source,
             |p| p.eat_block(),
-            DystFormatOptions::default()
+            DestackFormatOptions::default()
         );
     }
 
@@ -352,7 +352,7 @@ mod tests {
             source,
             source,
             |p| p.eat_block(),
-            DystFormatOptions::default()
+            DestackFormatOptions::default()
         );
     }
 
@@ -367,7 +367,7 @@ mod tests {
             source,
             source,
             |p| p.eat_block(),
-            DystFormatOptions::default()
+            DestackFormatOptions::default()
         );
     }
 
@@ -379,7 +379,7 @@ mod tests {
             source,
             source,
             |p| p.eat_expression(),
-            DystFormatOptions::default_tab()
+            DestackFormatOptions::default_tab()
         );
     }
 
@@ -389,7 +389,7 @@ mod tests {
             "if y { z } else { w; }",
             "if y {\n\tz\n} else {\n\tw;\n}",
             |p| p.eat_if(),
-            DystFormatOptions::default_tab()
+            DestackFormatOptions::default_tab()
         );
     }
 
@@ -401,7 +401,7 @@ mod tests {
             source,
             source,
             |p| p.eat_block(),
-            DystFormatOptions::default_tab()
+            DestackFormatOptions::default_tab()
         );
     }
 }

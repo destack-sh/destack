@@ -1,21 +1,21 @@
-use crate::{DystFormatContext, DystFormatter};
-use dyst_ast::{Key, Keyword, Name};
-use dyst_fir::format::text;
-use dyst_fir::prelude::*;
-use dyst_fir::write;
-use dyst_source::StringId;
+use crate::{DestackFormatContext, DestackFormatter};
+use destack_ast::{Key, Keyword, Name};
+use destack_fir::format::text;
+use destack_fir::prelude::*;
+use destack_fir::write;
+use destack_source::StringId;
 
-impl<'ast> Format<DystFormatContext<'ast>> for StringId {
+impl<'ast> Format<DestackFormatContext<'ast>> for StringId {
     #[inline]
-    fn format(&self, f: &mut DystFormatter<'ast, '_>) -> FormatResult<()> {
+    fn format(&self, f: &mut DestackFormatter<'ast, '_>) -> FormatResult<()> {
         let string = f.context().strings.get(*self);
         write!(f, [text(string)])
     }
 }
 
-impl<'ast> Format<DystFormatContext<'ast>> for Name {
+impl<'ast> Format<DestackFormatContext<'ast>> for Name {
     #[inline]
-    fn format(&self, f: &mut DystFormatter<'ast, '_>) -> FormatResult<()> {
+    fn format(&self, f: &mut DestackFormatter<'ast, '_>) -> FormatResult<()> {
         match self {
             Name::Identifier(string) => string.format(f),
             Name::String(string) => write!(f, [token("\""), string, token("\"")]),
@@ -23,9 +23,9 @@ impl<'ast> Format<DystFormatContext<'ast>> for Name {
     }
 }
 
-impl<'ast> Format<DystFormatContext<'ast>> for Key {
+impl<'ast> Format<DestackFormatContext<'ast>> for Key {
     #[inline]
-    fn format(&self, f: &mut DystFormatter<'ast, '_>) -> FormatResult<()> {
+    fn format(&self, f: &mut DestackFormatter<'ast, '_>) -> FormatResult<()> {
         match self {
             Key::Name(name) => {
                 write!(f, [name])?;
@@ -48,9 +48,9 @@ impl<'ast> Format<DystFormatContext<'ast>> for Key {
     }
 }
 
-impl<'ast> Format<DystFormatContext<'ast>> for Keyword {
+impl<'ast> Format<DestackFormatContext<'ast>> for Keyword {
     #[inline]
-    fn format(&self, f: &mut DystFormatter<'ast, '_>) -> FormatResult<()> {
+    fn format(&self, f: &mut DestackFormatter<'ast, '_>) -> FormatResult<()> {
         write!(f, [text(self.as_str())])
     }
 }

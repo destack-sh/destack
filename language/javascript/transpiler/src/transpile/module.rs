@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
-use dyst_dir::{self as dir, ModuleId, NodeTree, Program, SymbolTable, TypeTable};
-use dyst_javascript_ast::{self as ast, LocalNodeIdAny};
-use dyst_source::{DiagnosticCollector, StringPool, Uri};
+use destack_dir::{self as dir, ModuleId, NodeTree, Program, SymbolTable, TypeTable};
+use destack_javascript_ast::{self as ast, LocalNodeIdAny};
+use destack_source::{DiagnosticCollector, StringPool, Uri};
 
 use crate::{TranspileDiagnostic, TranspileError, TranspileOptions, TranspileWarning, Transpiler};
 

@@ -1,5 +1,5 @@
 use crate::{ParseError, ParseResult, Parser};
-use dyst_ast::{Keyword, TokenType, Visibility};
+use destack_ast::{Keyword, TokenType, Visibility};
 
 // NOTE: we support parsing `#name` as alias for `private name` for #Compatibility
 // (only works in compatibility mode since #name is pre-parsed as a tag)

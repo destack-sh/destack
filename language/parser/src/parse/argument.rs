@@ -1,4 +1,4 @@
-use dyst_ast::{
+use destack_ast::{
     Argument, BindingAnchor, BindingKind, BindingModifier, BindingOperator, Expression, Keyword,
     LocalNodeId, Mutability, Name, NodeType, Parameter, Pattern, ScalarLiteral, StringId,
     TokenType,
@@ -617,7 +617,7 @@ impl Parser {
 
 #[cfg(test)]
 mod tests {
-    use dyst_ast::{
+    use destack_ast::{
         Argument, BindingKind, BindingOperator, Expression, IntType, Mutability, Name, Parameter,
         Pattern, PatternField, ScalarLiteral, TypeLiteral, Visibility,
     };

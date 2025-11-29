@@ -1,9 +1,9 @@
 use std::sync::Arc;
 
-use dyst_ast::StringPool;
-use dyst_dir::{ModuleRegistry, Program};
-use dyst_javascript_ast as ast;
-use dyst_source::{DiagnosticCollector, FileId, Uri};
+use destack_ast::StringPool;
+use destack_dir::{ModuleRegistry, Program};
+use destack_javascript_ast as ast;
+use destack_source::{DiagnosticCollector, FileId, Uri};
 
 use crate::{TranspileOptions, Transpiler, TranspilerMode, TranspilerUnit, TranspilerUnitId};
 

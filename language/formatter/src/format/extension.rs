@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod tests {
-    use crate::{DystFormatOptions, TestFormatter, assert_format};
-    use dyst_ast::DeclarationDescriptor;
+    use crate::{DestackFormatOptions, TestFormatter, assert_format};
+    use destack_ast::DeclarationDescriptor;
 
     #[test]
     fn test_format_extension_empty() {
@@ -9,7 +9,7 @@ mod tests {
             "extension Foo {}",
             "extension Foo { }",
             |p| p.eat_extension(DeclarationDescriptor::default()),
-            DystFormatOptions::default()
+            DestackFormatOptions::default()
         );
     }
 
@@ -19,7 +19,7 @@ mod tests {
             "extension Foo implements Bar { static X = 1 }",
             "extension Foo implements Bar {\n\tstatic X = 1\n}",
             |p| p.eat_extension(DeclarationDescriptor::default()),
-            DystFormatOptions::default_tab()
+            DestackFormatOptions::default_tab()
         );
     }
 
@@ -29,7 +29,7 @@ mod tests {
             "extension<T> Foo<T> { }",
             "extension<T> Foo<T> { }",
             |p| p.eat_extension(DeclarationDescriptor::default()),
-            DystFormatOptions::default()
+            DestackFormatOptions::default()
         );
     }
 }

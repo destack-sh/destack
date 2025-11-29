@@ -1,7 +1,7 @@
 use crate::{Transpiler, TranspilerUnit};
 
-use dyst_dir::{self as dir, Module};
-use dyst_javascript_ast::ScalarLiteral;
+use destack_dir::{self as dir, Module};
+use destack_javascript_ast::ScalarLiteral;
 
 impl Transpiler {
     /// Transpile a scalar literal from DIR into JS AST.

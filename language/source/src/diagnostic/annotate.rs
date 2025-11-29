@@ -486,7 +486,7 @@ mod tests {
             "<test>".to_string(),
             Uri::from_string("<test>"),
             None,
-            FileType::Dyst,
+            FileType::Destack,
             content.clone(),
         );
         let start = content.find("variable").unwrap();
@@ -528,7 +528,7 @@ mod tests {
             "<test>".to_string(),
             Uri::from_string("<test>"),
             None,
-            FileType::Dyst,
+            FileType::Destack,
             content.to_string(),
         );
         let start = 150usize;

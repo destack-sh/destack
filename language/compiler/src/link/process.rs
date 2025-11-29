@@ -1,6 +1,6 @@
 use crate::{Compiler, LinkResult, Task, TaskDebug, TaskOutput};
 
-use dyst_dir::{ModuleId, Program};
+use destack_dir::{ModuleId, Program};
 
 /// Task to link something.
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]

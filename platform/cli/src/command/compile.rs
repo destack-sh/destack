@@ -1,8 +1,8 @@
 use clap::{ArgGroup, Args};
-use dyst_compiler::{CompileOptions, Compiler, ImportTask};
-use dyst_dir::{Dumper, DumperOptions, NodeVisitor};
-use dyst_parser::colorize_source;
-use dyst_source::DiagnosticOptions;
+use destack_compiler::{CompileOptions, Compiler, ImportTask};
+use destack_dir::{Dumper, DumperOptions, NodeVisitor};
+use destack_parser::colorize_source;
+use destack_source::DiagnosticOptions;
 
 use crate::command::{
     DiagnosticArgs, DumpFormat, DumpKind, ProgramArgs, SourceArg, get_string_or_file,

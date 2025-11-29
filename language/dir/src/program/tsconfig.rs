@@ -10,7 +10,7 @@ use parking_lot::RwLock;
 use rustc_hash::FxHasher;
 use serde::Deserialize;
 
-use dyst_source::{File, FileContent, FileId, PathExt, Uri};
+use destack_source::{File, FileContent, FileId, PathExt, Uri};
 
 /// Template variable for the config directory path (e.g. `${configDir}`).
 /// <https://github.com/microsoft/TypeScript/pull/58042>
@@ -830,7 +830,7 @@ mod tests {
     use std::path::PathBuf;
     use std::sync::Arc;
 
-    use dyst_source::{File, FileId, FileType, Uri};
+    use destack_source::{File, FileId, FileType, Uri};
 
     use crate::{TsConfig, TsConfigId};
 

@@ -1,4 +1,4 @@
-use dyst_dir::{
+use destack_dir::{
     FunctionAbstraction, GlobalNodeIdAny, GlobalSymbolId, GlobalTypeId, Program, Visibility,
 };
 

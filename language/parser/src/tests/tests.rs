@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use dyst_source::{File, FileId, FileType, LanguageOptions, Uri};
+use destack_source::{File, FileId, FileType, LanguageOptions, Uri};
 
 use crate::Parser;
 
@@ -25,7 +25,7 @@ impl TestParser {
             "<string>".to_string(),
             Uri::from_string("<string>"),
             None,
-            FileType::Dyst,
+            FileType::Destack,
             input.to_string(),
         );
         Self {
@@ -128,7 +128,7 @@ macro_rules! assert_path {
 macro_rules! assert_expression_path {
     ($parser:expr, $expr:expr, $expected:expr) => {{
         match $expr {
-            ::dyst_ast::Expression::Path {
+            ::destack_ast::Expression::Path {
                 path,
                 static_arguments: _,
             } => {
@@ -146,8 +146,8 @@ mod tests {
     use std::path::PathBuf;
     use std::sync::Arc;
 
-    use dyst_ast::{BlockFormat, TokenType};
-    use dyst_source::{DiagnosticCollector, File, FileId, FileType, LanguageOptions, Uri, glob};
+    use destack_ast::{BlockFormat, TokenType};
+    use destack_source::{DiagnosticCollector, File, FileId, FileType, LanguageOptions, Uri, glob};
 
     use crate::Parser;
 
@@ -184,7 +184,7 @@ mod tests {
                 name,
                 Uri::from_string(&path),
                 Some(std::path::PathBuf::from(&path)),
-                FileType::Dyst,
+                FileType::Destack,
                 fs::read_to_string(ds_file).unwrap(),
             );
             let file = Arc::new(file);
@@ -203,10 +203,10 @@ mod tests {
         if !diagnostics.is_empty() {
             for diagnostic in diagnostics.iter() {
                 let file = files.get(&diagnostic.file_id).unwrap();
-                let annotated = dyst_source::annotate_file(
+                let annotated = destack_source::annotate_file(
                     file,
                     &diagnostic.primary_span,
-                    dyst_source::AnnotateOptions::default(),
+                    destack_source::AnnotateOptions::default(),
                 );
                 let diagnostic_header = format!("{}: {}", diagnostic.code, diagnostic.message);
                 eprintln!("{diagnostic_header}");

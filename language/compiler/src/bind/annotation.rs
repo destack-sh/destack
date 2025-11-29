@@ -1,6 +1,6 @@
 use crate::Compiler;
-use dyst_ast::{self as ast};
-use dyst_dir::{
+use destack_ast::{self as ast};
+use destack_dir::{
     Annotation, AnnotationPosition, LocalNodeId, LocalNodeIdAny, LocalScopeId, LocalScopeMark,
     Module, NodeTree, NodeType, SymbolTable, TypeTable,
 };

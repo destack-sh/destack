@@ -1,4 +1,4 @@
-use dyst_source::FileRegistry;
+use destack_source::FileRegistry;
 
 /// Workspace for interacting with the language.
 #[derive(Debug)]

@@ -21,7 +21,7 @@ impl<Context> Clone for Argument<'_, Context> {
 impl<Context> Copy for Argument<'_, Context> {}
 
 impl<'fmt, Context> Argument<'fmt, Context> {
-    /// Called by the [dyst_fir::format_args] macro.
+    /// Called by the [destack_fir::format_args] macro.
     #[doc(hidden)]
     #[inline]
     pub const fn new<F: Format<Context>>(value: &'fmt F) -> Self {
@@ -92,7 +92,7 @@ mod tests {
     /// Format nested arguments and verify the output structure.
     #[test]
     fn test_nesting() {
-        let mut context = FormatState::new(SimpleFormatContext::empty_dyst());
+        let mut context = FormatState::new(SimpleFormatContext::empty_destack());
         let mut buffer = VecBuffer::new(&mut context);
 
         write!(

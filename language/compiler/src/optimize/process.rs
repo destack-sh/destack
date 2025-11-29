@@ -1,6 +1,6 @@
 use crate::{Compiler, OptimizeResult, Task, TaskDebug, TaskOutput};
 
-use dyst_dir::{ModuleId, Program};
+use destack_dir::{ModuleId, Program};
 
 /// Task to optimize something.
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]

@@ -1,12 +1,12 @@
-use dyst_fir::format::{Format, FormatContext, FormatOptions, FormatResult, Formatter};
-use dyst_fir::prelude::*;
-use dyst_fir::print::PrintOptions;
-use dyst_javascript_ast::{
+use destack_fir::format::{Format, FormatContext, FormatOptions, FormatResult, Formatter};
+use destack_fir::prelude::*;
+use destack_fir::print::PrintOptions;
+use destack_javascript_ast::{
     Annotation, Argument, Block, Declaration, DependencyItem, EnumField, Expression, LocalNodeId,
     LocalNodeIdAny, Node, NodeTree, NodeTreeImpl, NodeType, Parameter, Pattern, PatternField,
     Property, Statement, SwitchCase, Type, TypeField,
 };
-use dyst_source::{File, ImmutableStringPool, IndentStyle, LineEnding};
+use destack_source::{File, ImmutableStringPool, IndentStyle, LineEnding};
 
 use crate::{TranspilerLanguage, TranspilerUnit};
 

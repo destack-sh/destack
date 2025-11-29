@@ -1,8 +1,8 @@
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use dyst_ast as ast;
-use dyst_source::{
+use destack_ast as ast;
+use destack_source::{
     DiagnosticCollector, File, FileId, FileRegistry, FileSystem, FileType, LanguageOptions,
     StringPool, Uri,
 };
@@ -102,7 +102,7 @@ impl Program {
             "<root>".to_string(),
             Uri::from_string("<root>"),
             None,
-            FileType::Dyst,
+            FileType::Destack,
             r#"/* root program */"#.to_string(),
         );
         files.insert(root_file);

@@ -4,7 +4,7 @@ use std::borrow::Cow;
 use std::path::Path;
 use std::sync::Arc;
 
-use dyst_source::{MemoryFileSystem, PathExt};
+use destack_source::{MemoryFileSystem, PathExt};
 use indexmap::IndexMap;
 use serde_json::json;
 

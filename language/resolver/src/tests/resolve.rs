@@ -1,4 +1,4 @@
-use dyst_source::MemoryFileSystem;
+use destack_source::MemoryFileSystem;
 use indexmap::IndexMap;
 
 use super::{fixture, fixture_root};
@@ -589,7 +589,7 @@ fn test_resolve_package_json_with_bom() {
 #[cfg(windows)]
 #[test]
 fn test_resolve_normalized_on_windows() {
-    use dyst_source::PathExt;
+    use destack_source::PathExt;
 
     let f = fixture();
     let absolute = f.join("./foo/index.js").normalize();
@@ -923,7 +923,7 @@ fn test_resolve_fully_specified_paths() {
 #[cfg(not(target_os = "windows"))] // MemoryFS's path separator is always `/` so the test will not pass in windows.
 mod windows {
     use crate::{ResolveOptions, Resolver};
-    use dyst_source::MemoryFileSystem;
+    use destack_source::MemoryFileSystem;
 
     #[test]
     fn test_resolve_no_package() {

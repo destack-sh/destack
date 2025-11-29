@@ -1,5 +1,5 @@
-use dyst_ast::StringId;
-use dyst_dir::{
+use destack_ast::StringId;
+use destack_dir::{
     DependencyItem, DependencyMode, DependencySource, GlobalNodeIdAny, LocalNodeId, LocalScopeMark,
     Module, ModuleId, NodeTree, SymbolKey, SymbolTable,
 };

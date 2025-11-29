@@ -1,7 +1,7 @@
 use crate::parse::prelude::*;
 use crate::{ParseResult, Parser};
 
-use dyst_ast::{
+use destack_ast::{
     Block, BlockFormat, Expression, Keyword, LocalNodeId, MatchCase, MatchKind, NodeType, Pattern,
     TokenType,
 };
@@ -246,7 +246,7 @@ impl Parser {
 
 #[cfg(test)]
 mod tests {
-    use dyst_ast::{Block, Expression, MatchCase, MatchKind, Pattern, ScalarLiteral};
+    use destack_ast::{Block, Expression, MatchCase, MatchKind, Pattern, ScalarLiteral};
 
     use crate::{TestParser, assert_expression_path, assert_node, assert_path, assert_string};
 

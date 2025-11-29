@@ -4,7 +4,7 @@ use crate::lex::decode_html_entity;
 use crate::parse::prelude::*;
 use crate::{ParseError, ParseResult, Parser};
 
-use dyst_ast::{
+use destack_ast::{
     Argument, Expression, LiteralType, LocalNodeId, NodeType, NumberBase, Path, Property,
     ScalarLiteral, StringId, TemplateLiteral, TokenSpan, TokenType,
 };
@@ -602,7 +602,7 @@ impl Parser {
 
 #[cfg(test)]
 mod tests {
-    use dyst_ast::{
+    use destack_ast::{
         Argument, Block, Expression, FloatType, IntType, Name, ScalarLiteral, TemplateLiteral,
         TypeLiteral,
     };

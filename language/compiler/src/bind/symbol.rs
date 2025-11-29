@@ -1,4 +1,4 @@
-use dyst_dir::{
+use destack_dir::{
     DependencyMode, LocalScopeId, LocalScopeMark, LocalSymbolId, Module, ScopeKind, SymbolKey,
     SymbolKind, SymbolSpace, SymbolTable,
 };

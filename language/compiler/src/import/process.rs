@@ -3,10 +3,10 @@ use std::sync::Arc;
 
 use crate::{Compiler, ImportError, ImportResult, ResolveTask, Task, TaskDebug, TaskOutput};
 
-use dyst_dir::{DependencySource, Module, ModuleId, Program};
-use dyst_parser::Parser;
-use dyst_resolver::Resolver;
-use dyst_source::{File, FileId, FileType, StringId, Uri};
+use destack_dir::{DependencySource, Module, ModuleId, Program};
+use destack_parser::Parser;
+use destack_resolver::Resolver;
+use destack_source::{File, FileId, FileType, StringId, Uri};
 
 /// Task to import a file into the compiler.
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]

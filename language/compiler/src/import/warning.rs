@@ -1,4 +1,4 @@
-use dyst_dir::{GlobalNodeIdAny, ModuleId, Program};
+use destack_dir::{GlobalNodeIdAny, ModuleId, Program};
 
 use crate::Phase;
 

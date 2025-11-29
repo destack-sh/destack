@@ -1,10 +1,10 @@
-use crate::{DystFormatContext, DystFormatter};
-use dyst_ast::Path;
-use dyst_fir::prelude::*;
-use dyst_fir::write;
+use crate::{DestackFormatContext, DestackFormatter};
+use destack_ast::Path;
+use destack_fir::prelude::*;
+use destack_fir::write;
 
-impl<'ast> Format<DystFormatContext<'ast>> for Path {
-    fn format(&self, f: &mut DystFormatter<'ast, '_>) -> FormatResult<()> {
+impl<'ast> Format<DestackFormatContext<'ast>> for Path {
+    fn format(&self, f: &mut DestackFormatter<'ast, '_>) -> FormatResult<()> {
         // a.b.c
         write!(
             f,
@@ -18,7 +18,7 @@ impl<'ast> Format<DystFormatContext<'ast>> for Path {
 
 #[cfg(test)]
 mod tests {
-    use crate::{DystFormatOptions, TestFormatter, assert_format};
+    use crate::{DestackFormatOptions, TestFormatter, assert_format};
 
     #[test]
     fn test_format_path_short() {
@@ -26,7 +26,7 @@ mod tests {
             "destack",
             "destack",
             |p| p.eat_path(),
-            DystFormatOptions::default()
+            DestackFormatOptions::default()
         );
     }
 
@@ -36,7 +36,7 @@ mod tests {
             "destack.geometry.math",
             "destack.geometry.math",
             |p| p.eat_path(),
-            DystFormatOptions::default()
+            DestackFormatOptions::default()
         );
     }
 
@@ -46,7 +46,7 @@ mod tests {
             "destack.geometry.math.vector.point",
             "destack.geometry.math.vector.point",
             |p| p.eat_path(),
-            DystFormatOptions::default().with_line_width(20)
+            DestackFormatOptions::default().with_line_width(20)
         );
     }
 }

@@ -1,7 +1,7 @@
 use crate::parse::prelude::*;
 use crate::{ParseError, ParseResult, Parser};
 
-use dyst_ast::{
+use destack_ast::{
     Declaration, DeclarationDescriptor, EnumField, Generics, Heritage, Keyword, LocalNodeId,
     NodeType, Property, TokenType,
 };
@@ -176,7 +176,7 @@ impl Parser {
 
 #[cfg(test)]
 mod tests {
-    use dyst_ast::{
+    use destack_ast::{
         Declaration, DeclarationDescriptor, DeclarationKind, EnumField, Expression, Parameter,
         ScalarLiteral, WhereClause, WithClause,
     };

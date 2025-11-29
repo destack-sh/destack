@@ -1,6 +1,6 @@
 [package]
-name = "dyst_source"
-description = "Dyst Span"
+name = "destack_source"
+description = "Destack Span"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true

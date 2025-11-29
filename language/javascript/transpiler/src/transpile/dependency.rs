@@ -1,6 +1,6 @@
 use crate::{TranspileResult, TranspileResultExt, Transpiler, TranspilerUnit};
-use dyst_dir::{self as dir, Module, NodeTree, SymbolTable, TypeTable};
-use dyst_javascript_ast::{
+use destack_dir::{self as dir, Module, NodeTree, SymbolTable, TypeTable};
+use destack_javascript_ast::{
     DependencyItem, DependencyKind, DependencyMode, Expression, LocalNodeId,
 };
 

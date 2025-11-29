@@ -1,6 +1,6 @@
 [package]
-name = "dyst_linter"
-description = "Dyst Linter"
+name = "destack_linter"
+description = "Destack Linter"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
@@ -12,10 +12,10 @@ path = "src/lib.rs"
 doctest = false
 
 [dependencies]
-dyst_source = { workspace = true }
-dyst_ast = { workspace = true }
-dyst_dir = { workspace = true }
-dyst_unicode = { workspace = true }
+destack_source = { workspace = true }
+destack_ast = { workspace = true }
+destack_dir = { workspace = true }
+destack_unicode = { workspace = true }
 
 [dev-dependencies]
 

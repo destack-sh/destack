@@ -15,11 +15,11 @@ name = "destack_lsp"
 path = "src/main.rs"
 
 [dependencies]
-dyst_ast = { workspace = true }
-dyst_dir = { workspace = true }
-dyst_fir = { workspace = true }
-dyst_parser = { workspace = true }
-dyst_source = { workspace = true }
+destack_ast = { workspace = true }
+destack_dir = { workspace = true }
+destack_fir = { workspace = true }
+destack_parser = { workspace = true }
+destack_source = { workspace = true }
 
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"

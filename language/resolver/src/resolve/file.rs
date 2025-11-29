@@ -3,7 +3,7 @@ use std::collections::HashSet;
 use std::hash::{BuildHasherDefault, Hash, Hasher};
 use std::path::{Component, Path, PathBuf};
 
-use dyst_source::{FileSystem, PathExt};
+use destack_source::{FileSystem, PathExt};
 
 use crate::{ResolveContext, ResolveError, Resolver, Restriction};
 

@@ -1,6 +1,6 @@
 use crate::Compiler;
-use dyst_ast as ast;
-use dyst_dir::{AssignOperator, TypeBinaryOperator, TypeUnaryOperator, UnaryOperator};
+use destack_ast as ast;
+use destack_dir::{AssignOperator, TypeBinaryOperator, TypeUnaryOperator, UnaryOperator};
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
@@ -42,56 +42,66 @@ impl Compiler {
     pub(super) fn bind_binary_operator(
         &self,
         binary_operator: ast::BinaryOperator,
-    ) -> dyst_dir::BinaryOperator {
+    ) -> destack_dir::BinaryOperator {
         match binary_operator {
             // multiplication
-            ast::BinaryOperator::Multiply => dyst_dir::BinaryOperator::Multiply,
-            ast::BinaryOperator::WrappingMultiply => dyst_dir::BinaryOperator::WrappingMultiply,
-            ast::BinaryOperator::SaturatingMultiply => dyst_dir::BinaryOperator::SaturatingMultiply,
-            ast::BinaryOperator::Exponent => dyst_dir::BinaryOperator::Exponent,
-            ast::BinaryOperator::WrappingExponent => dyst_dir::BinaryOperator::WrappingExponent,
-            ast::BinaryOperator::SaturatingExponent => dyst_dir::BinaryOperator::SaturatingExponent,
-            ast::BinaryOperator::Divide => dyst_dir::BinaryOperator::Divide,
-            ast::BinaryOperator::Remainder => dyst_dir::BinaryOperator::Remainder,
+            ast::BinaryOperator::Multiply => destack_dir::BinaryOperator::Multiply,
+            ast::BinaryOperator::WrappingMultiply => destack_dir::BinaryOperator::WrappingMultiply,
+            ast::BinaryOperator::SaturatingMultiply => {
+                destack_dir::BinaryOperator::SaturatingMultiply
+            }
+            ast::BinaryOperator::Exponent => destack_dir::BinaryOperator::Exponent,
+            ast::BinaryOperator::WrappingExponent => destack_dir::BinaryOperator::WrappingExponent,
+            ast::BinaryOperator::SaturatingExponent => {
+                destack_dir::BinaryOperator::SaturatingExponent
+            }
+            ast::BinaryOperator::Divide => destack_dir::BinaryOperator::Divide,
+            ast::BinaryOperator::Remainder => destack_dir::BinaryOperator::Remainder,
 
             // addition
-            ast::BinaryOperator::Add => dyst_dir::BinaryOperator::Add,
-            ast::BinaryOperator::WrappingAdd => dyst_dir::BinaryOperator::WrappingAdd,
-            ast::BinaryOperator::SaturatingAdd => dyst_dir::BinaryOperator::SaturatingAdd,
-            ast::BinaryOperator::Subtract => dyst_dir::BinaryOperator::Subtract,
-            ast::BinaryOperator::WrappingSubtract => dyst_dir::BinaryOperator::WrappingSubtract,
-            ast::BinaryOperator::SaturatingSubtract => dyst_dir::BinaryOperator::SaturatingSubtract,
+            ast::BinaryOperator::Add => destack_dir::BinaryOperator::Add,
+            ast::BinaryOperator::WrappingAdd => destack_dir::BinaryOperator::WrappingAdd,
+            ast::BinaryOperator::SaturatingAdd => destack_dir::BinaryOperator::SaturatingAdd,
+            ast::BinaryOperator::Subtract => destack_dir::BinaryOperator::Subtract,
+            ast::BinaryOperator::WrappingSubtract => destack_dir::BinaryOperator::WrappingSubtract,
+            ast::BinaryOperator::SaturatingSubtract => {
+                destack_dir::BinaryOperator::SaturatingSubtract
+            }
 
             // shift
-            ast::BinaryOperator::ShiftLeft => dyst_dir::BinaryOperator::ShiftLeft,
+            ast::BinaryOperator::ShiftLeft => destack_dir::BinaryOperator::ShiftLeft,
             ast::BinaryOperator::SaturatingShiftLeft => {
-                dyst_dir::BinaryOperator::SaturatingShiftLeft
+                destack_dir::BinaryOperator::SaturatingShiftLeft
             }
-            ast::BinaryOperator::ShiftRight => dyst_dir::BinaryOperator::ShiftRight,
-            ast::BinaryOperator::UnsignedShiftRight => dyst_dir::BinaryOperator::UnsignedShiftRight,
+            ast::BinaryOperator::ShiftRight => destack_dir::BinaryOperator::ShiftRight,
+            ast::BinaryOperator::UnsignedShiftRight => {
+                destack_dir::BinaryOperator::UnsignedShiftRight
+            }
 
             // elementwise
-            ast::BinaryOperator::ElementwiseAnd => dyst_dir::BinaryOperator::ElementwiseAnd,
-            ast::BinaryOperator::ElementwiseXor => dyst_dir::BinaryOperator::ElementwiseXor,
-            ast::BinaryOperator::ElementwiseOr => dyst_dir::BinaryOperator::ElementwiseOr,
+            ast::BinaryOperator::ElementwiseAnd => destack_dir::BinaryOperator::ElementwiseAnd,
+            ast::BinaryOperator::ElementwiseXor => destack_dir::BinaryOperator::ElementwiseXor,
+            ast::BinaryOperator::ElementwiseOr => destack_dir::BinaryOperator::ElementwiseOr,
 
             // comparison
-            ast::BinaryOperator::Equal => dyst_dir::BinaryOperator::Equal,
-            ast::BinaryOperator::NotEqual => dyst_dir::BinaryOperator::NotEqual,
-            ast::BinaryOperator::EqualStrict => dyst_dir::BinaryOperator::EqualStrict,
-            ast::BinaryOperator::NotEqualStrict => dyst_dir::BinaryOperator::NotEqualStrict,
-            ast::BinaryOperator::LessThan => dyst_dir::BinaryOperator::LessThan,
-            ast::BinaryOperator::LessThanOrEqual => dyst_dir::BinaryOperator::LessThanOrEqual,
-            ast::BinaryOperator::GreaterThan => dyst_dir::BinaryOperator::GreaterThan,
-            ast::BinaryOperator::GreaterThanOrEqual => dyst_dir::BinaryOperator::GreaterThanOrEqual,
+            ast::BinaryOperator::Equal => destack_dir::BinaryOperator::Equal,
+            ast::BinaryOperator::NotEqual => destack_dir::BinaryOperator::NotEqual,
+            ast::BinaryOperator::EqualStrict => destack_dir::BinaryOperator::EqualStrict,
+            ast::BinaryOperator::NotEqualStrict => destack_dir::BinaryOperator::NotEqualStrict,
+            ast::BinaryOperator::LessThan => destack_dir::BinaryOperator::LessThan,
+            ast::BinaryOperator::LessThanOrEqual => destack_dir::BinaryOperator::LessThanOrEqual,
+            ast::BinaryOperator::GreaterThan => destack_dir::BinaryOperator::GreaterThan,
+            ast::BinaryOperator::GreaterThanOrEqual => {
+                destack_dir::BinaryOperator::GreaterThanOrEqual
+            }
 
             // logical
-            ast::BinaryOperator::And => dyst_dir::BinaryOperator::And,
-            ast::BinaryOperator::Or => dyst_dir::BinaryOperator::Or,
-            ast::BinaryOperator::Coalesce => dyst_dir::BinaryOperator::Coalesce,
+            ast::BinaryOperator::And => destack_dir::BinaryOperator::And,
+            ast::BinaryOperator::Or => destack_dir::BinaryOperator::Or,
+            ast::BinaryOperator::Coalesce => destack_dir::BinaryOperator::Coalesce,
 
             // container
-            ast::BinaryOperator::In => dyst_dir::BinaryOperator::In,
+            ast::BinaryOperator::In => destack_dir::BinaryOperator::In,
         }
     }
 

@@ -1,6 +1,6 @@
 [package]
-name = "dyst_resolver"
-description = "Dyst Resolver"
+name = "destack_resolver"
+description = "Destack Resolver"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
@@ -12,11 +12,11 @@ path = "src/lib.rs"
 doctest = false
 
 [dependencies]
-dyst_ast = { workspace = true }
-dyst_dir = { workspace = true }
-dyst_source = { workspace = true }
-dyst_parser = { workspace = true }
-dyst_unicode = { workspace = true }
+destack_ast = { workspace = true }
+destack_dir = { workspace = true }
+destack_source = { workspace = true }
+destack_parser = { workspace = true }
+destack_unicode = { workspace = true }
 
 crossbeam-deque = { workspace = true }
 cfg-if = { workspace = true }

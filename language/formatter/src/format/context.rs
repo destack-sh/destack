@@ -1,21 +1,21 @@
-use dyst_ast::{
+use destack_ast::{
     Annotation, AnnotationPosition, Argument, Blank, Block, Comment, Declaration, Decorator,
     DependencyItem, Doc, EnumField, Expression, LocalNodeId, LocalNodeIdAny, MatchCase, Node,
     NodeParentIndex, NodeTree, NodeTreeImpl, NodeType, Parameter, Pattern, PatternField, Property,
     Tag, TokenSpan, TokenType, WhereClause, WithClause,
 };
-use dyst_fir::format::{Format, FormatContext, FormatOptions, FormatResult, Formatter};
-use dyst_fir::print::PrintOptions;
-use dyst_source::{
+use destack_fir::format::{Format, FormatContext, FormatOptions, FormatResult, Formatter};
+use destack_fir::print::PrintOptions;
+use destack_source::{
     File, FileSourceMap, ImmutableStringPool, IndentStyle, LanguageCompatibility, LanguageOptions,
     LineEnding, MultiSpan, Span,
 };
 
-pub type DystFormatter<'ast, 'buf> = Formatter<'buf, DystFormatContext<'ast>>;
+pub type DestackFormatter<'ast, 'buf> = Formatter<'buf, DestackFormatContext<'ast>>;
 
-/// Dyst format options.
+/// Destack format options.
 #[derive(Debug, Default, PartialEq, Clone)]
-pub struct DystFormatOptions {
+pub struct DestackFormatOptions {
     /// The compatibility mode.
     pub compatibility: Option<LanguageCompatibility>,
     /// The type of line ending to apply to the printed input.  
@@ -28,7 +28,7 @@ pub struct DystFormatOptions {
     pub line_width: u8 = 100,
 }
 
-impl From<LanguageOptions> for DystFormatOptions {
+impl From<LanguageOptions> for DestackFormatOptions {
     #[inline]
     fn from(options: LanguageOptions) -> Self {
         Self {
@@ -41,7 +41,7 @@ impl From<LanguageOptions> for DystFormatOptions {
     }
 }
 
-impl DystFormatOptions {
+impl DestackFormatOptions {
     /// Default options with a given line width.
     pub fn default_with_line_width(line_width: u8) -> Self {
         Self {
@@ -102,7 +102,7 @@ impl DystFormatOptions {
     }
 }
 
-impl FormatOptions for DystFormatOptions {
+impl FormatOptions for DestackFormatOptions {
     #[inline]
     fn indent_style(&self) -> IndentStyle {
         self.indent_style
@@ -124,11 +124,11 @@ impl FormatOptions for DystFormatOptions {
     }
 }
 
-/// Dyst format context.
+/// Destack format context.
 #[derive(Debug, Clone)]
-pub struct DystFormatContext<'a> {
+pub struct DestackFormatContext<'a> {
     /// The format options.
-    pub options: DystFormatOptions,
+    pub options: DestackFormatOptions,
     /// The file.
     pub file: &'a File,
     /// The main tokens.
@@ -147,7 +147,7 @@ pub struct DystFormatContext<'a> {
     pub strings: &'a ImmutableStringPool,
 }
 
-impl<'a> DystFormatContext<'a> {
+impl<'a> DestackFormatContext<'a> {
     /// Gets the str source backing a Span.
     #[inline]
     pub fn get_span_str(&self, span: Span) -> &'a str {
@@ -407,8 +407,8 @@ impl<'a> DystFormatContext<'a> {
     }
 }
 
-impl FormatContext for DystFormatContext<'_> {
-    type Options = DystFormatOptions;
+impl FormatContext for DestackFormatContext<'_> {
+    type Options = DestackFormatOptions;
 
     #[inline]
     fn options(&self) -> &Self::Options {
@@ -424,25 +424,25 @@ impl FormatContext for DystFormatContext<'_> {
 /// Format Nodes with more information.
 pub(crate) trait FormatNode<'a, T: Node>
 where
-    DystFormatContext<'a>: FormatContext,
+    DestackFormatContext<'a>: FormatContext,
 {
     /// Format a node.
     fn format_node(
         &self,
         node_id: LocalNodeId<T>,
-        f: &mut DystFormatter<'a, '_>,
+        f: &mut DestackFormatter<'a, '_>,
     ) -> FormatResult<()>;
 }
 
 /// Implement Format for FormatNode for NodeIds.
-impl<'a, T: Node> Format<DystFormatContext<'a>> for LocalNodeId<T>
+impl<'a, T: Node> Format<DestackFormatContext<'a>> for LocalNodeId<T>
 where
     T: Node + Clone,
     NodeTree: NodeTreeImpl<T>,
     T: FormatNode<'a, T>,
 {
     #[inline]
-    fn format(&self, f: &mut DystFormatter<'a, '_>) -> FormatResult<()> {
+    fn format(&self, f: &mut DestackFormatter<'a, '_>) -> FormatResult<()> {
         let context = f.context();
         let node = context.tree.get(*self);
         node.format_node(*self, f)
@@ -450,9 +450,9 @@ where
 }
 
 /// Implement Format for FormatNode for NodeIdsAny.
-impl<'a> Format<DystFormatContext<'a>> for LocalNodeIdAny {
+impl<'a> Format<DestackFormatContext<'a>> for LocalNodeIdAny {
     #[inline]
-    fn format(&self, f: &mut DystFormatter<'a, '_>) -> FormatResult<()> {
+    fn format(&self, f: &mut DestackFormatter<'a, '_>) -> FormatResult<()> {
         let context = f.context();
         match self.ty {
             NodeType::Expression => {

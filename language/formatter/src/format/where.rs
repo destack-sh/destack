@@ -1,12 +1,12 @@
-use dyst_fir::format::FormatResult;
+use destack_fir::format::FormatResult;
 
-use crate::{DystFormatter, FormatNode};
-use dyst_ast::{Keyword, LocalNodeId, WhereClause};
-use dyst_fir::prelude::*;
-use dyst_fir::{format_args, write};
+use crate::{DestackFormatter, FormatNode};
+use destack_ast::{Keyword, LocalNodeId, WhereClause};
+use destack_fir::prelude::*;
+use destack_fir::{format_args, write};
 
 pub(crate) fn format_where_clause<'ast>(
-    f: &mut DystFormatter<'ast, '_>,
+    f: &mut DestackFormatter<'ast, '_>,
     clauses: &[LocalNodeId<WhereClause>],
 ) -> FormatResult<()> {
     // keyword
@@ -33,7 +33,7 @@ impl<'ast> FormatNode<'ast, WhereClause> for WhereClause {
     fn format_node(
         &self,
         node_id: LocalNodeId<WhereClause>,
-        f: &mut DystFormatter<'ast, '_>,
+        f: &mut DestackFormatter<'ast, '_>,
     ) -> FormatResult<()> {
         write!(f, [f.context().any_prefix_annotations(node_id)])?;
 

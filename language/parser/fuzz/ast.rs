@@ -1,7 +1,7 @@
 #![no_main]
 
-use dyst_ast::{BlockFormat, Parser};
-use dyst_source::{File, FileId};
+use destack_ast::{BlockFormat, Parser};
+use destack_source::{File, FileId};
 use crate::TokenType;
 use libfuzzer_sys::fuzz_target;
 

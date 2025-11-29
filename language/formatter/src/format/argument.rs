@@ -1,14 +1,14 @@
 use std::marker::PhantomData;
 
-use dyst_fir::format::{BestFittingMode, FormatResult};
+use destack_fir::format::{BestFittingMode, FormatResult};
 
 use crate::property::{
     format_binding_modifiers_postfix_maybe, format_binding_modifiers_prefix_maybe,
 };
-use crate::{DystFormatContext, DystFormatter, FormatNode};
-use dyst_ast::{Argument, LocalNodeId, Node, NodeTree, NodeTreeImpl, Parameter};
-use dyst_fir::prelude::*;
-use dyst_fir::{best_fitting, format_args, write};
+use crate::{DestackFormatContext, DestackFormatter, FormatNode};
+use destack_ast::{Argument, LocalNodeId, Node, NodeTree, NodeTreeImpl, Parameter};
+use destack_fir::prelude::*;
+use destack_fir::{best_fitting, format_args, write};
 
 /// List like thing infix annotations.
 #[derive(Debug, Clone, PartialEq)]
@@ -55,13 +55,13 @@ where
     }
 }
 
-impl<'ast, 'e, T> Format<DystFormatContext<'ast>> for ListLike<'ast, 'e, T>
+impl<'ast, 'e, T> Format<DestackFormatContext<'ast>> for ListLike<'ast, 'e, T>
 where
     T: Node + Clone + FormatNode<'ast, T>,
     NodeTree: NodeTreeImpl<T>,
 {
     #[inline]
-    fn format(&self, f: &mut Formatter<'_, DystFormatContext<'ast>>) -> FormatResult<()> {
+    fn format(&self, f: &mut Formatter<'_, DestackFormatContext<'ast>>) -> FormatResult<()> {
         let body = &format_with(|f| {
             // leading space
             if self.include_space {
@@ -158,7 +158,7 @@ impl<'ast> FormatNode<'ast, Parameter> for Parameter {
     fn format_node(
         &self,
         node_id: LocalNodeId<Parameter>,
-        f: &mut DystFormatter<'ast, '_>,
+        f: &mut DestackFormatter<'ast, '_>,
     ) -> FormatResult<()> {
         write!(f, [f.context().any_prefix_annotations(node_id)])?;
 
@@ -233,7 +233,7 @@ impl<'ast> FormatNode<'ast, Argument> for Argument {
     fn format_node(
         &self,
         node_id: LocalNodeId<Argument>,
-        f: &mut DystFormatter<'ast, '_>,
+        f: &mut DestackFormatter<'ast, '_>,
     ) -> FormatResult<()> {
         write!(f, [f.context().any_prefix_annotations(node_id)])?;
 
@@ -295,7 +295,7 @@ impl<'ast> FormatNode<'ast, Argument> for Argument {
 
 #[cfg(test)]
 mod tests {
-    use crate::{DystFormatOptions, TestFormatter, assert_format};
+    use crate::{DestackFormatOptions, TestFormatter, assert_format};
 
     #[test]
     fn test_format_parameter() {
@@ -303,7 +303,7 @@ mod tests {
             "x: int32",
             "x: int32",
             |p| p.eat_parameter(),
-            DystFormatOptions::default()
+            DestackFormatOptions::default()
         );
     }
 
@@ -313,7 +313,7 @@ mod tests {
             "x: int32 = 1",
             "x: int32 = 1",
             |p| p.eat_parameter(),
-            DystFormatOptions::default()
+            DestackFormatOptions::default()
         );
     }
 
@@ -323,17 +323,27 @@ mod tests {
             "x: 1",
             "x: 1",
             |p| p.eat_argument(),
-            DystFormatOptions::default()
+            DestackFormatOptions::default()
         );
     }
 
     #[test]
     fn test_format_argument_named_shorthand() {
-        assert_format!("x", "x", |p| p.eat_argument(), DystFormatOptions::default());
+        assert_format!(
+            "x",
+            "x",
+            |p| p.eat_argument(),
+            DestackFormatOptions::default()
+        );
     }
 
     #[test]
     fn test_format_argument_positional() {
-        assert_format!("1", "1", |p| p.eat_argument(), DystFormatOptions::default());
+        assert_format!(
+            "1",
+            "1",
+            |p| p.eat_argument(),
+            DestackFormatOptions::default()
+        );
     }
 }

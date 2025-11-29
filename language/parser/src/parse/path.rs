@@ -1,8 +1,8 @@
-use dyst_source::StringId;
+use destack_source::StringId;
 use smallvec::SmallVec;
 
 use crate::{ParseResult, Parser};
-use dyst_ast::{Path, TokenType};
+use destack_ast::{Path, TokenType};
 
 impl Parser {
     /// Eat a Path.
@@ -45,7 +45,7 @@ impl Parser {
 
 #[cfg(test)]
 mod tests {
-    use dyst_ast::TokenType;
+    use destack_ast::TokenType;
 
     use crate::{TestParser, assert_path};
 

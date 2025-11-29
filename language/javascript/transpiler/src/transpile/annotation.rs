@@ -1,5 +1,5 @@
-use dyst_dir::{self as dir, Module, NodeTree};
-use dyst_javascript_ast::{Annotation, AnnotationPosition, LocalNodeId};
+use destack_dir::{self as dir, Module, NodeTree};
+use destack_javascript_ast::{Annotation, AnnotationPosition, LocalNodeId};
 
 use crate::{TranspileResult, Transpiler, TranspilerUnit};
 

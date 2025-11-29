@@ -119,7 +119,7 @@ export struct Vector2 {
     }
 }
 
-implement Vector2 implements Numeric<float32> {
+extension Vector2 implements Numeric<float32> {
     add(other: float32): Vector2 {
         Vector2 {
             x: this.x + other,
@@ -149,7 +149,7 @@ implement Vector2 implements Numeric<float32> {
     }
 }
 
-implement Vector2 implements Numeric<Vector2> {
+extension Vector2 implements Numeric<Vector2> {
     add(other: Vector2): Vector2 {
         Vector2 {
             x: this.x + other.x,
@@ -304,7 +304,7 @@ export struct Vector3 {
     }
 }
 
-implement Vector3 implements (
+extension Vector3 implements (
     Add<float32>,
     Subtract<float32>,
     Multiply<float32>,
@@ -509,7 +509,7 @@ export struct Vector4 {
     }
 }
 
-implement Vector4 implements (
+extension Vector4 implements (
     Add<float32>,
     Add<Vector4>,
     Subtract<float32>,
@@ -678,7 +678,7 @@ export struct Vector2i {
     }
 }
 
-implement Vector2i implements (
+extension Vector2i implements (
     Add<int32>,
     Add<Vector2i>,
     Subtract<int32>,
@@ -845,7 +845,7 @@ export struct Vector3i {
     }
 }
 
-implement Vector3i implements (
+extension Vector3i implements (
     Add<int32>,
     Add<Vector3i>,
     Subtract<int32>,
@@ -919,7 +919,7 @@ export struct Vector4i {
     w: int32
 }
 
-implement Vector4i {
+extension Vector4i {
     /// The zero Vector4i (0, 0, 0, 0).
     static Zero: Vector4i = Vector4i { x: 0, y: 0, z: 0, w: 0 }
     /// The one Vector4i (1, 1, 1, 1).
@@ -1036,7 +1036,7 @@ implement Vector4i {
     }
 }
 
-implement Vector4i implements (
+extension Vector4i implements (
     Add<int32>,
     Add<Vector4i>,
     Subtract<int32>,

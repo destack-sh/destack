@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod tests {
-    use crate::{DystFormatOptions, TestFormatter, assert_format};
-    use dyst_ast::DeclarationDescriptor;
+    use crate::{DestackFormatOptions, TestFormatter, assert_format};
+    use destack_ast::DeclarationDescriptor;
 
     #[test]
     fn test_format_function_lambda_empty() {
@@ -39,7 +39,7 @@ mod tests {
             "function bar(x: int32, y: boolean, z: string) {}",
             "function bar(\n\tx: int32,\n\ty: boolean,\n\tz: string,\n) { }",
             |p| p.eat_function(DeclarationDescriptor::default(), false, false),
-            DystFormatOptions::default_tab_with_line_width(40)
+            DestackFormatOptions::default_tab_with_line_width(40)
         );
     }
 
@@ -67,7 +67,7 @@ mod tests {
             "function foo() with Time, Place, Something, Foo, Baz {}",
             "function foo() with (\n\tTime,\n\tPlace,\n\tSomething,\n\tFoo,\n\tBaz\n) { }",
             |p| p.eat_function(DeclarationDescriptor::default(), false, false),
-            DystFormatOptions::default_tab_with_line_width(40)
+            DestackFormatOptions::default_tab_with_line_width(40)
         );
     }
 

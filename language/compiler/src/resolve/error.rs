@@ -1,5 +1,5 @@
 use crate::{Phase, TaskDependency, TaskError};
-use dyst_dir::{
+use destack_dir::{
     GlobalNodeIdAny, GlobalScopeId, GlobalSymbolId, ModuleId, Program, StringId, SymbolKey,
 };
 

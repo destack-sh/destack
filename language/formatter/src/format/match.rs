@@ -1,15 +1,15 @@
-use dyst_fir::format::FormatResult;
+use destack_fir::format::FormatResult;
 
-use crate::{DystFormatter, FormatNode};
-use dyst_ast::{Keyword, LocalNodeId, MatchCase};
-use dyst_fir::prelude::*;
-use dyst_fir::write;
+use crate::{DestackFormatter, FormatNode};
+use destack_ast::{Keyword, LocalNodeId, MatchCase};
+use destack_fir::prelude::*;
+use destack_fir::write;
 
 impl<'ast> FormatNode<'ast, MatchCase> for MatchCase {
     fn format_node(
         &self,
         node_id: LocalNodeId<MatchCase>,
-        f: &mut DystFormatter<'ast, '_>,
+        f: &mut DestackFormatter<'ast, '_>,
     ) -> FormatResult<()> {
         write!(f, [f.context().any_prefix_annotations(node_id)])?;
 
@@ -48,7 +48,7 @@ impl<'ast> FormatNode<'ast, MatchCase> for MatchCase {
 
 #[cfg(test)]
 mod tests {
-    use crate::{DystFormatOptions, TestFormatter, assert_format};
+    use crate::{DestackFormatOptions, TestFormatter, assert_format};
 
     #[test]
     fn test_format_match_expression_cases() {
@@ -56,7 +56,7 @@ mod tests {
             "match x { 1 => 2; 3 => 4 }",
             "match x {\n\t1 => 2\n\t3 => 4\n}",
             |p| p.eat_match(),
-            DystFormatOptions::default_tab()
+            DestackFormatOptions::default_tab()
         );
     }
 
@@ -66,7 +66,7 @@ mod tests {
             "match value { Pattern if cond => { const X = 1; } }",
             "match value {\n\tPattern if cond => {\n\t\tconst X = 1;\n\t}\n}",
             |p| p.eat_match(),
-            DystFormatOptions::default_tab()
+            DestackFormatOptions::default_tab()
         );
     }
 }

@@ -94,4 +94,4 @@ impl Default for Indentation {
     }
 }
 
-pub use dyst_source::{IndentStyle, LineEnding};
+pub use destack_source::{IndentStyle, LineEnding};

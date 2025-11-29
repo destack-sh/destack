@@ -1,6 +1,6 @@
 [package]
-name = "dyst_dir"
-description = "Dyst Data IR"
+name = "destack_dir"
+description = "Destack Data IR"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
@@ -12,10 +12,10 @@ path = "src/lib.rs"
 doctest = false
 
 [dependencies]
-dyst_ast = { workspace = true }
-dyst_fir = { workspace = true }
-dyst_source = { workspace = true }
-dyst_unicode = { workspace = true }
+destack_ast = { workspace = true }
+destack_fir = { workspace = true }
+destack_source = { workspace = true }
+destack_unicode = { workspace = true }
 smallvec = { workspace = true }
 
 dashmap = { workspace = true }

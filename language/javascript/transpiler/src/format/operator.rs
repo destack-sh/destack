@@ -1,7 +1,7 @@
-use dyst_fir::prelude::*;
-use dyst_fir::write;
+use destack_fir::prelude::*;
+use destack_fir::write;
 
-use dyst_javascript_ast::{
+use destack_javascript_ast::{
     AssignOperator, BinaryOperator, TypeBinaryOperator, TypeUnaryOperator, UnaryOperator,
 };
 

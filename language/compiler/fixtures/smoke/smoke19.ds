@@ -503,7 +503,7 @@ function genCSSModulesCode(
 ): [importCode: string, nameMap: Record<string, string>] {
   const styleVar = `style${index}`
   const exposedName = typeof moduleName === 'string' ? moduleName : '$style'
-  // inject `.module` before implement so vite handles it as css module
+  // inject `.module` before extension so vite handles it as css module
   const moduleRequest = request.replace(/\.(\w+)$/, '.module.$1')
   return [
     `\nimport ${styleVar} from ${JSON.stringify(moduleRequest)}`,

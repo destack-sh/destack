@@ -1,4 +1,4 @@
-use dyst_source::StringId;
+use destack_source::StringId;
 
 use crate::{
     Argument, AssignOperator, Asynchrony, BinaryOperator, Block, Declaration,

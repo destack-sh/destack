@@ -608,7 +608,7 @@ declare var Loader: {
   /**
    * ESM module registry
    *
-   * This lets you implement live reload in Bun. If you
+   * This lets you extension live reload in Bun. If you
    * delete a module specifier from this map, the next time it's imported, it
    * will be re-transpiled and loaded again.
    *

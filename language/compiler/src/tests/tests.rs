@@ -4,8 +4,8 @@ use std::env::current_dir;
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use dyst_dir::{DumperOptions, GlobalSymbolId, Module, Program, Symbol};
-use dyst_source::{
+use destack_dir::{DumperOptions, GlobalSymbolId, Module, Program, Symbol};
+use destack_source::{
     DiagnosticSeverity, File, FileRegistry, FileSystem, FileType, LanguageOptions,
     MemoryFileSystem, PhysicalFileSystem, PrintOptions, Uri, print_diagnostics,
 };
@@ -134,7 +134,7 @@ impl TestProgram {
             path.to_string(),
             uri.clone(),
             uri.to_path_buf(),
-            FileType::Dyst,
+            FileType::Destack,
             content.to_string(),
         );
         self.program.files.insert(file);

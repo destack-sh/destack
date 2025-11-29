@@ -1,6 +1,6 @@
 #![allow(clippy::type_complexity)]
 
-use dyst_ast::{
+use destack_ast::{
     Asynchrony, FunctionAbstraction, FunctionCardinality, FunctionKind, FunctionMode,
     FunctionSignature, Generics, Keyword, LocalNodeId, NodeType, Property, TokenType,
 };
@@ -386,11 +386,11 @@ impl Parser {
 
 #[cfg(test)]
 mod tests {
-    use dyst_ast::{
+    use destack_ast::{
         Expression, FunctionMode, IntType, Key, Name, Parameter, Property, ScalarLiteral,
         TypeLiteral, Visibility,
     };
-    use dyst_source::{LanguageCompatibility, LanguageOptions};
+    use destack_source::{LanguageCompatibility, LanguageOptions};
 
     use crate::tests::TestParser;
     use crate::{assert_expression_path, assert_node, assert_path, assert_string};
