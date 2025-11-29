@@ -9,6 +9,7 @@
             "demo/tetris",
             "demo/zurichtech",
             "platform/bun",
+            "platform/vite",
             "platform/vscode",
             "library/ai",
             "library/auth",

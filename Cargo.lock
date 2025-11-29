@@ -2939,10 +2939,15 @@ name = "destack_napi"
 version = "2025.11.29-0"
 dependencies = [
  "destack_compiler",
+ "destack_daemon",
+ "destack_dir",
  "destack_javascript_ast",
  "destack_javascript_machine",
  "destack_javascript_transpiler",
+ "destack_resolver",
  "destack_source",
+ "destack_workspace",
+ "indexmap 2.12.0",
  "napi",
  "napi-build",
  "napi-derive",
