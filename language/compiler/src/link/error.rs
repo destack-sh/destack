@@ -9,7 +9,7 @@ pub enum LinkError {
     /// Wait for task dependency.
     Yield { dependency: TaskDependency },
     /// Yield dependency has failed.
-    YieldFailed { dependency: TaskDependency },
+    UnsatisfiedDependency { dependency: TaskDependency },
     /// Missing target for a symbol.
     MissingTarget {
         node: GlobalNodeIdAny,
@@ -44,7 +44,7 @@ impl LinkError {
     pub fn sub_code(&self) -> u8 {
         match self {
             Self::Yield { .. } => 0,
-            Self::YieldFailed { .. } => 1,
+            Self::UnsatisfiedDependency { .. } => 1,
             Self::MissingTarget { .. } => 2,
             Self::UnresolvedSymbol { .. } => 3,
             Self::ConflictingSymbol { .. } => 4,
@@ -55,7 +55,7 @@ impl LinkError {
     pub fn node(&self) -> GlobalNodeIdAny {
         match self {
             Self::Yield { dependency } => dependency.node(),
-            Self::YieldFailed { dependency } => dependency.node(),
+            Self::UnsatisfiedDependency { dependency } => dependency.node(),
             Self::MissingTarget { node, .. } => *node,
             Self::UnresolvedSymbol { node, .. } => *node,
             Self::ConflictingSymbol { node, .. } => *node,
@@ -66,7 +66,7 @@ impl LinkError {
     pub fn message(&self, _program: &Program) -> String {
         match self {
             Self::Yield { .. } => "pending dependency".to_string(),
-            Self::YieldFailed { .. } => "unsatisfied dependency".to_string(),
+            Self::UnsatisfiedDependency { .. } => "unsatisfied dependency".to_string(),
             Self::MissingTarget { .. } => "missing target".to_string(),
             Self::UnresolvedSymbol { .. } => "unresolved symbol".to_string(),
             Self::ConflictingSymbol { .. } => "conflicting symbol".to_string(),

@@ -1,6 +1,5 @@
 mod annotation;
 mod argument;
-mod block;
 mod dependency;
 mod error;
 mod expression;

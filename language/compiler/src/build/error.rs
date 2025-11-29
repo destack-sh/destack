@@ -9,7 +9,7 @@ pub enum BuildError {
     /// Wait for task dependency.
     Yield { dependency: TaskDependency },
     /// Yield dependency has failed.
-    YieldFailed { dependency: TaskDependency },
+    UnsatisfiedDependency { dependency: TaskDependency },
     /// Target is not available.
     TargetNotAvailable { node: GlobalNodeIdAny },
     /// Unsupported target triple / architecture / ABI.
@@ -68,7 +68,7 @@ impl BuildError {
     pub fn sub_code(&self) -> u8 {
         match self {
             Self::Yield { .. } => 0,
-            Self::YieldFailed { .. } => 1,
+            Self::UnsatisfiedDependency { .. } => 1,
             Self::TargetNotAvailable { .. } => 2,
             Self::UnsupportedTarget { .. } => 3,
             Self::MissingEntryPoint { .. } => 4,
@@ -85,7 +85,7 @@ impl BuildError {
     pub fn node(&self) -> GlobalNodeIdAny {
         match self {
             Self::Yield { dependency } => dependency.node(),
-            Self::YieldFailed { dependency } => dependency.node(),
+            Self::UnsatisfiedDependency { dependency } => dependency.node(),
             Self::TargetNotAvailable { node, .. } => *node,
             Self::UnsupportedTarget { node, .. } => *node,
             Self::MissingEntryPoint { node, .. } => *node,
@@ -102,7 +102,7 @@ impl BuildError {
     pub fn message(&self, _program: &Program) -> String {
         match self {
             Self::Yield { .. } => "pending dependency".to_string(),
-            Self::YieldFailed { .. } => "unsatisfied dependency".to_string(),
+            Self::UnsatisfiedDependency { .. } => "unsatisfied dependency".to_string(),
             Self::TargetNotAvailable { .. } => "target is not available".to_string(),
             Self::UnsupportedTarget { .. } => "unsupported target".to_string(),
             Self::MissingEntryPoint { .. } => "missing entry point".to_string(),

@@ -10,22 +10,23 @@ Everything is absurdly integrated to enable rapid end-to-end development of *fan
 
 ## Structure
 
-This is the fully open source monorepo of Destack containing the language, library and core platform tools:
-```
-language/    Language toolchain (parser, compiler, formatter, LSP, etc.)
-library/     Standard library (entity, telemetry)
-platform/    Platform features (CLI, IDE integrations, build plugins, etc.)
-examples/    Example projects
-templates/   Project templates for `destack new`
-```
+This is the fully open source monorepo of Destack containing the language, library, and core platform tools:
+
+| Directory    | Description                                             |
+|--------------|--------------------------------------------------------|
+| `language/`  | Language toolchain (parser, compiler, formatter, LSP, etc.) |
+| `library/`   | Standard library (entity, telemetry) |
+| `platform/`  | Platform features (CLI, IDE integrations, build plugins, etc.) |
+| `examples/`  | Example projects |
+| `templates/` | Project templates for `destack new` |
 
 ## Prerequisites
 
-Destack is built using Rust and TypeScript:
-- [Rust](https://rustup.rs/) (nightly-2025-11-27)
-- [Bun](https://bun.sh/) (≥1.0)
-- [just](https://github.com/casey/just) (command runner)
-- [Python 3](https://python.org/) (optional, for code generation)
+Destack is *developed* using Rust and TypeScript:
+- [Bun](https://bun.sh/): JavaScript runtime and package management
+- [Rust](https://rustup.rs/): Rust compiler (`nightly-2025-11-27`, see `rust-toolchain.toml`)
+- [just](https://github.com/casey/just): Scripts and command runner
+- [Python 3](https://python.org/): Scripts and codegen utilities (optional)
 
 ## Quick Start
 

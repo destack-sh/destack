@@ -9,7 +9,7 @@ pub enum OptimizeError {
     /// Wait for task dependency.
     Yield { dependency: TaskDependency },
     /// Yield dependency has failed.
-    YieldFailed { dependency: TaskDependency },
+    UnsatisfiedDependency { dependency: TaskDependency },
     /// Optimization is impossible for this node.
     UnsupportedNode { node: GlobalNodeIdAny },
     /// Unsupported optimization.
@@ -38,7 +38,7 @@ impl OptimizeError {
     pub fn sub_code(&self) -> u8 {
         match self {
             Self::Yield { .. } => 0,
-            Self::YieldFailed { .. } => 1,
+            Self::UnsatisfiedDependency { .. } => 1,
             Self::UnsupportedNode { .. } => 2,
             Self::UnsupportedOptimization { .. } => 3,
             Self::PossibleUndefinedBehavior { .. } => 4,
@@ -49,7 +49,7 @@ impl OptimizeError {
     pub fn node(&self) -> GlobalNodeIdAny {
         match self {
             Self::Yield { dependency } => dependency.node(),
-            Self::YieldFailed { dependency } => dependency.node(),
+            Self::UnsatisfiedDependency { dependency } => dependency.node(),
             Self::UnsupportedNode { node, .. } => *node,
             Self::UnsupportedOptimization { node, .. } => *node,
             Self::PossibleUndefinedBehavior { node, .. } => *node,
@@ -60,7 +60,7 @@ impl OptimizeError {
     pub fn message(&self, _program: &Program) -> String {
         match self {
             Self::Yield { .. } => "pending dependency".to_string(),
-            Self::YieldFailed { .. } => "unsatisfied dependency".to_string(),
+            Self::UnsatisfiedDependency { .. } => "unsatisfied dependency".to_string(),
             Self::UnsupportedNode { .. } => "unsupported node".to_string(),
             Self::UnsupportedOptimization { .. } => "unsupported optimization".to_string(),
             Self::PossibleUndefinedBehavior { .. } => "possible undefined behavior".to_string(),

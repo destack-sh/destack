@@ -1,18 +1,19 @@
 use destack_dir::{Annotation, LocalNodeId, Module, NodeTree, SymbolTable};
 
-use crate::{Compiler, ResolveResult};
+use crate::{Compiler, ResolveError, ResolveResult};
 
 impl Compiler {
     /// Resolve an Annotation.
     pub fn resolve_annotation(
         &self,
-        _module: &Module,
+        module: &Module,
         annotation_id: LocalNodeId<Annotation>,
-        tree: &mut NodeTree,
+        _tree: &mut NodeTree,
         _symbols: &mut SymbolTable,
     ) -> ResolveResult<()> {
-        let _annotation = tree.get(annotation_id);
-        // todo!("resolve_annotation({annotation:?})");
-        Ok(())
+        // TODO #Incomplete: resolve annotations
+        Err(ResolveError::UnsupportedNode {
+            node: annotation_id.into_global_any(module.id),
+        })
     }
 }

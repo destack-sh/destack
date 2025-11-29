@@ -5,9 +5,7 @@ Output format for the Destack → JavaScript transpiler.
 
 ## Layout
 
-```
-src/
-├── tree/        JS AST node definitions
-└── dumper/      AST dumping utilities
-```
-
+| Path | Purpose | Description |
+| --- | --- | --- |
+| `tree/` | Nodes | JS AST node definitions. |
+| `dumper/` | Dumping | AST dumping utilities. |

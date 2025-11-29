@@ -1,7 +1,7 @@
 # Destack Guidelines
 
-Destack is a full-stack software stack powered by our custom language (`.ds`).
-A TypeScript superset with integrated language, library, and platform ecosystem.
+Destack is a full-stack software stack powered by our custom "TypeScript++" language (`.ds`).
+The Destack language, library, and platform ecosystem are fully integrated for fantastic software development.
 
 ## Code Style
 
@@ -15,10 +15,10 @@ Function, module, and class documentation must be proper sentences with punctuat
 Go multiline if there is more than one sentence.
 For methods, documentation should be imperative, starting with a verb ("Send a message to XYZ").
 
-Comments may start with keywords:
-- `NOTE`: call out something important
-- `TODO`: something to address eventually
-- `nocheckin`: temporary, should not be committed
+Comments may start with keywords (without the spaces):
+- `N O T E`: call out something important
+- `T O D O`: something to address eventually
+- `n o c h e c k i n`: temporary, should not be committed
 
 Keywords should include tags:
 - `#Performance`: could be faster or more efficient
@@ -28,8 +28,6 @@ Keywords should include tags:
 - `#Incomplete`: obvious feature is missing
 - `#Security`: may allow more access than intended
 - `#Architecture`: larger design to reconsider
-
-Example: `NOTE #Performance: avoid cloning string in parser`
 
 ### Naming
 

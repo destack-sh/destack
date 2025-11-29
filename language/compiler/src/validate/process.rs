@@ -1,4 +1,4 @@
-use crate::{Compiler, Task, TaskDebug, TaskOutput, ValidateResult};
+use crate::{Compiler, Task, TaskDebug, TaskOutput, TaskResultCollector, ValidateResult};
 
 use destack_dir::{ModuleId, Program};
 
@@ -55,6 +55,23 @@ impl From<ValidateOutput> for TaskOutput {
 impl Compiler {
     /// Process a validate task.
     pub fn process_validate(&self, task: ValidateTask) -> ValidateResult<ValidateOutput> {
-        todo!("process_validate({task:?})")
+        match task {
+            ValidateTask::Validate { module } => self.validate_module(module)?,
+        }
+        Ok(ValidateOutput {})
+    }
+
+    /// Validate a module.
+    pub fn validate_module(&self, module_id: ModuleId) -> ValidateResult<()> {
+        let module = self.program.modules.get(module_id);
+        let module = module.read();
+        let tree = module.tree.read();
+        let symbols = module.symbols.read();
+        let mut types = module.types.read();
+        let mut collector = TaskResultCollector::new();
+
+        // TODO #Incomplete: validate module
+
+        Ok(())
     }
 }
