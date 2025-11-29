@@ -1,15 +1,15 @@
 {
-	"name": "@destack/view",
-	"version": "2025.11.29.0",
-	"license": "MIT",
-	"type": "module",
-	"sideEffects": false,
-	"scripts": {
-		"dev": "bun --hot src/index.ds",
-		"start": "NODE_ENV=production bun src/index.ds"
-	},
-	"dependencies": {},
-	"devDependencies": {
-		"@types/bun": "latest"
-	}
+    "name": "@destack/view",
+    "version": "2025.11.29.1",
+    "license": "MIT",
+    "type": "module",
+    "sideEffects": false,
+    "scripts": {
+        "dev": "bun --hot src/index.ds",
+        "start": "NODE_ENV=production bun src/index.ds"
+    },
+    "dependencies": {},
+    "devDependencies": {
+        "@types/bun": "latest"
+    }
 }

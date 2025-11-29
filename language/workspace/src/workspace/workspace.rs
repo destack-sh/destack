@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use dashmap::DashMap;
 use destack_dir::Program;
-use destack_resolver::{ResolveOptions, Resolution, ResolveError, Resolver};
+use destack_resolver::{Resolution, ResolveError, ResolveOptions, Resolver};
 use destack_source::{FileRegistry, FileSystem, LanguageOptions, PhysicalFileSystem};
 
 /// A workspace containing multiple program roots.

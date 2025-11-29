@@ -5,14 +5,14 @@
     "": {
       "name": "destack-monorepo",
     },
-    "demo/tetris": {
+    "examples/tetris": {
       "name": "@destack/tetris",
       "devDependencies": {
         "@destack/bun": "workspace:*",
         "@types/bun": "latest",
       },
     },
-    "demo/zurichtech": {
+    "examples/zurichtech": {
       "name": "zurichtech",
       "dependencies": {
         "zod": "^4.1.12",
@@ -109,6 +109,12 @@
         "@types/bun": "latest",
       },
     },
+    "platform/editor": {
+      "name": "@destack/editor",
+      "devDependencies": {
+        "@types/bun": "latest",
+      },
+    },
     "platform/vite": {
       "name": "@destack/vite",
       "dependencies": {
@@ -123,7 +129,7 @@
     },
     "platform/vscode": {
       "name": "@destack/vscode",
-      "version": "2025.11.29-0",
+      "version": "2025.11.29-1",
       "devDependencies": {
         "@types/node": "^20.11.25",
         "@types/vscode": "^1.90.0",
@@ -178,6 +184,8 @@
 
     "@destack/bun": ["@destack/bun@workspace:platform/bun"],
 
+    "@destack/editor": ["@destack/editor@workspace:platform/editor"],
+
     "@destack/entity": ["@destack/entity@workspace:library/entity"],
 
     "@destack/finance": ["@destack/finance@workspace:library/finance"],
@@ -192,7 +200,7 @@
 
     "@destack/test": ["@destack/test@workspace:library/test"],
 
-    "@destack/tetris": ["@destack/tetris@workspace:demo/tetris"],
+    "@destack/tetris": ["@destack/tetris@workspace:examples/tetris"],
 
     "@destack/universe": ["@destack/universe@workspace:library/universe"],
 
@@ -842,7 +850,7 @@
 
     "zod": ["zod@4.1.12", "", {}, "sha512-JInaHOamG8pt5+Ey8kGmdcAcg3OL9reK8ltczgHTAwNhMys/6ThXHityHxVV2p3fkw/c+MAvBHFVYHFZDmjMCQ=="],
 
-    "zurichtech": ["zurichtech@workspace:demo/zurichtech"],
+    "zurichtech": ["zurichtech@workspace:examples/zurichtech"],
 
     "@inquirer/core/mute-stream": ["mute-stream@3.0.0", "", {}, "sha512-dkEJPVvun4FryqBmZ5KhDo0K9iDXAwn08tMLDinNdRBNPcYEDiWYysLcc6k3mjTMlbP9KyylvRpd4wFtwrT9rw=="],
 

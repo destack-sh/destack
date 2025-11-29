@@ -1,0 +1,50 @@
+set shell := ["bash", "-cu"]
+
+_default:
+    @just --list --unsorted
+
+# install test fixtures (resolver pnpm deps)
+install-fixtures:
+    just resolver/install-fixtures
+
+# check all crates
+check:
+    cargo check --workspace
+
+# build all crates (release)
+build:
+    cargo build --workspace --release
+
+# run all tests
+test:
+    cargo test --workspace --all-targets
+
+# format all code
+fmt:
+    cargo fmt --all
+
+# check formatting
+fmt-check:
+    cargo fmt --all --check
+
+# run clippy
+lint:
+    cargo clippy --workspace --all-targets --all-features
+
+# run clippy and fix
+lint-fix:
+    cargo clippy --workspace --all-targets --all-features --fix --allow-dirty
+
+# generate docs
+doc:
+    cargo doc --workspace --no-deps
+
+# clean build artifacts
+clean:
+    cargo clean
+
+# regenerate code (unicode tables, html entities)
+generate:
+    cd unicode && python3 src/generate.py
+    cd parser/src/lex && python3 generate.py
+

@@ -1,14 +1,15 @@
 {
     "name": "@destack/monorepo",
-    "version": "2025.11.29.0",
-    "license": "proprietary",
+    "version": "2025.11.29.1",
+    "license": "Apache-2.0",
     "private": true,
     "type": "module",
     "workspaces": {
         "packages": [
-            "demo/tetris",
-            "demo/zurichtech",
+            "examples/tetris",
+            "examples/zurichtech",
             "platform/bun",
+            "platform/editor",
             "platform/vite",
             "platform/vscode",
             "library/ai",

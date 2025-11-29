@@ -99,4 +99,3 @@ impl Workspace {
 pub fn default_workspace_options() -> WorkspaceOptions {
     WorkspaceOptions::default()
 }
-

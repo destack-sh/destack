@@ -2,334 +2,341 @@
 /* eslint-disable */
 /** A workspace containing multiple program roots. */
 export declare class Workspace {
-  /** Create a new Workspace. */
-  constructor(options: WorkspaceOptions)
-  /**
-   * Add a root to the workspace.
-   * Creates a new Program for the given root path.
-   */
-  addRoot(root: string): void
-  /** Get the current working directory. */
-  get cwd(): string
-  /** Get the number of programs in the workspace. */
-  get programCount(): number
-  /** Resolve a specifier from a directory. */
-  resolve(from: string, specifier: string, options?: ResolveOptions | undefined | null): Resolution
-  /**
-   * Transpile a single file.
-   * Returns the transpiled TypeScript/JavaScript code.
-   */
-  transpileFile(path: string, content: string, options?: TranspileOptions | undefined | null): string
+    /** Create a new Workspace. */
+    constructor(options: WorkspaceOptions);
+    /**
+     * Add a root to the workspace.
+     * Creates a new Program for the given root path.
+     */
+    addRoot(root: string): void;
+    /** Get the current working directory. */
+    get cwd(): string;
+    /** Get the number of programs in the workspace. */
+    get programCount(): number;
+    /** Resolve a specifier from a directory. */
+    resolve(
+        from: string,
+        specifier: string,
+        options?: ResolveOptions | undefined | null,
+    ): Resolution;
+    /**
+     * Transpile a single file.
+     * Returns the transpiled TypeScript/JavaScript code.
+     */
+    transpileFile(
+        path: string,
+        content: string,
+        options?: TranspileOptions | undefined | null,
+    ): string;
 }
 
 /** An alias entry mapping a pattern to target values. */
 export interface AliasEntry {
-  /** The pattern to match (e.g., "@/*"). */
-  pattern: string
-  /** The target values to alias to. */
-  targets: Array<AliasValue>
+    /** The pattern to match (e.g., "@/*"). */
+    pattern: string;
+    /** The target values to alias to. */
+    targets: Array<AliasValue>;
 }
 
 /** Alias value for module resolution. */
 export interface AliasValue {
-  /** The path to alias to (None means ignore/false). */
-  path?: string
+    /** The path to alias to (None means ignore/false). */
+    path?: string;
 }
 
 /** The options for building. */
 export interface BuildOptions {
-  /** Whether to generate source maps. */
-  sourceMap: boolean
+    /** Whether to generate source maps. */
+    sourceMap: boolean;
 }
 
 /** The options for compiling a workspace. */
 export interface CompileOptions {
-  /** The diagnostic options. */
-  diagnostic: DiagnosticOptions
-  /** The number of worker threads to use. */
-  workers: number
-  /** The options for importing. */
-  import: ImportOptions
-  /** The options for type resolution. */
-  resolve: TypeResolveOptions
-  /** The options for validating. */
-  validate: ValidateOptions
-  /** The options for lowering. */
-  lower: LowerOptions
-  /** The options for executing. */
-  execute: ExecuteOptions
-  /** The options for optimizing. */
-  optimize: OptimizeOptions
-  /** The options for building. */
-  build: BuildOptions
-  /** The options for linking. */
-  link: LinkOptions
+    /** The diagnostic options. */
+    diagnostic: DiagnosticOptions;
+    /** The number of worker threads to use. */
+    workers: number;
+    /** The options for importing. */
+    import: ImportOptions;
+    /** The options for type resolution. */
+    resolve: TypeResolveOptions;
+    /** The options for validating. */
+    validate: ValidateOptions;
+    /** The options for lowering. */
+    lower: LowerOptions;
+    /** The options for executing. */
+    execute: ExecuteOptions;
+    /** The options for optimizing. */
+    optimize: OptimizeOptions;
+    /** The options for building. */
+    build: BuildOptions;
+    /** The options for linking. */
+    link: LinkOptions;
 }
 
 /** Get the default compiler options. */
-export declare function defaultCompileOptions(): CompileOptions
+export declare function defaultCompileOptions(): CompileOptions;
 
 /** Get the default resolve options. */
-export declare function defaultResolveOptions(): ResolveOptions
+export declare function defaultResolveOptions(): ResolveOptions;
 
 /** Get the default transpiler options. */
-export declare function defaultTranspileOptions(): TranspileOptions
+export declare function defaultTranspileOptions(): TranspileOptions;
 
 /** Get the default workspace options. */
-export declare function defaultWorkspaceOptions(): WorkspaceOptions
+export declare function defaultWorkspaceOptions(): WorkspaceOptions;
 
 /** Diagnostic options for re-mapping errors and warnings. */
 export interface DiagnosticOptions {
-  /** Which warning codes to error on (as errors). */
-  errorWarnings: Array<string>
-  /** Which error codes to suppress (as warnings). */
-  suppressErrors: Array<string>
-  /** Which warning codes to suppress. */
-  suppressWarnings: Array<string>
+    /** Which warning codes to error on (as errors). */
+    errorWarnings: Array<string>;
+    /** Which error codes to suppress (as warnings). */
+    suppressErrors: Array<string>;
+    /** Which warning codes to suppress. */
+    suppressWarnings: Array<string>;
 }
 
 /** The ECMAScript level. */
 export declare const enum EcmaScriptVersion {
-  /** ECMAScript 2022. */
-  ES2022 = 0
+    /** ECMAScript 2022. */
+    ES2022 = 0,
 }
 
 /** How to enforce file extensions. */
 export declare const enum EnforceExtension {
-  /** Enforce file extensions (path must include extension). */
-  Enabled = 0,
-  /** Do not enforce file extensions (resolve tries appending extensions from the list). */
-  Disabled = 1
+    /** Enforce file extensions (path must include extension). */
+    Enabled = 0,
+    /** Do not enforce file extensions (resolve tries appending extensions from the list). */
+    Disabled = 1,
 }
 
 /** The options for executing static expressions. */
 export interface ExecuteOptions {
-  /** Whether to fold constants. */
-  foldConstants: boolean
-  /** Whether to execute static expressions. */
-  executeStatic: boolean
+    /** Whether to fold constants. */
+    foldConstants: boolean;
+    /** Whether to execute static expressions. */
+    executeStatic: boolean;
 }
 
 /** The formatting mode. */
 export declare const enum FormatMode {
-  /** Pretty. */
-  Pretty = 0,
-  /** Minimal. */
-  Minimal = 1
+    /** Pretty. */
+    Pretty = 0,
+    /** Minimal. */
+    Minimal = 1,
 }
 
 /** The JavaScript format options. */
 export interface FormatOptions {
-  /** The formatting mode. */
-  mode: FormatMode
-  /** The language target. */
-  language: TranspilerLanguage
-  /** The type of line ending to apply to the printed input. */
-  lineEnding: LineEnding
-  /** The indent style. */
-  indentStyle: IndentStyle
-  /** Spaces per indent. */
-  indentWidth: number
-  /** Maximum line length (best effort). */
-  lineWidth: number
+    /** The formatting mode. */
+    mode: FormatMode;
+    /** The language target. */
+    language: TranspilerLanguage;
+    /** The type of line ending to apply to the printed input. */
+    lineEnding: LineEnding;
+    /** The indent style. */
+    indentStyle: IndentStyle;
+    /** Spaces per indent. */
+    indentWidth: number;
+    /** Maximum line length (best effort). */
+    lineWidth: number;
 }
 
 /** The options for importing modules. */
 export interface ImportOptions {
-  /** Whether to follow imports automatically. */
-  followImports: boolean
+    /** Whether to follow imports automatically. */
+    followImports: boolean;
 }
 
 /** The indent style. */
 export declare const enum IndentStyle {
-  /** Use tabs to indent. */
-  Tab = 0,
-  /** Use spaces to indent. */
-  Space = 1
+    /** Use tabs to indent. */
+    Tab = 0,
+    /** Use spaces to indent. */
+    Space = 1,
 }
 
 /** The type of line ending to apply to the printed input. */
 export declare const enum LineEnding {
-  /** Line feed only (
+    /** Line feed only (
   ), common on Linux and macOS as well as inside git repos. */
-  LineFeed = 0,
-  /** Carriage return + line feed characters (\r
+    LineFeed = 0,
+    /** Carriage return + line feed characters (\r
   ), common on Windows. */
-  CarriageReturnLineFeed = 1,
-  /** Carriage return character only (\r), used very rarely. */
-  CarriageReturn = 2
+    CarriageReturnLineFeed = 1,
+    /** Carriage return character only (\r), used very rarely. */
+    CarriageReturn = 2,
 }
 
 /** The options for linking. */
-export interface LinkOptions {
-
-}
+export interface LinkOptions {}
 
 /** The options for lowering. */
-export interface LowerOptions {
-
-}
+export interface LowerOptions {}
 
 /** The options for optimizing. */
-export interface OptimizeOptions {
-
-}
+export interface OptimizeOptions {}
 
 /** The result of a successful module resolution. */
 export interface Resolution {
-  /** The resolved path. */
-  path: string
-  /** Optional query string (e.g., "?foo"). */
-  query?: string
-  /** Optional fragment (e.g., "#bar"). */
-  fragment?: string
+    /** The resolved path. */
+    path: string;
+    /** Optional query string (e.g., "?foo"). */
+    query?: string;
+    /** Optional fragment (e.g., "#bar"). */
+    fragment?: string;
 }
 
 /** Resolution options for module resolution. */
 export interface ResolveOptions {
-  /** Current working directory to start from. */
-  cwd?: string
-  /** TypeScript configuration options. */
-  tsconfig: TypeScriptOptions
-  /** Aliases to import or require certain modules more easily. */
-  alias: Array<AliasEntry>
-  /** Condition names for exports field which defines entry points of a package. */
-  conditions: Array<string>
-  /** Whether and how to enforce file extensions. */
-  enforceExtension: EnforceExtension
-  /** Attempt to resolve these extensions in order. */
-  extensions: Array<string>
-  /** Request passed to resolve is already fully specified. */
-  isFullySpecified: boolean
-  /** Redirect module requests when normal resolving fails. */
-  fallback: Array<AliasEntry>
-  /** Main files in description files (e.g., ["index"]). */
-  mainFiles: Array<string>
-  /** Directories to resolve modules from (e.g., ["node_modules"]). */
-  modules: Array<string>
-  /** Resolve to a context instead of a file. */
-  resolveToContext: boolean
-  /** Prefer to resolve module requests as relative requests. */
-  preferRelative: boolean
-  /** Prefer to resolve server-relative urls as absolute paths. */
-  preferAbsolute: boolean
-  /** A list of directories where requests of server-relative URLs are resolved. */
-  roots: Array<string>
-  /** Whether to resolve symlinks to their symlinked location. */
-  canonicalizeSymlinks: boolean
+    /** Current working directory to start from. */
+    cwd?: string;
+    /** TypeScript configuration options. */
+    tsconfig: TypeScriptOptions;
+    /** Aliases to import or require certain modules more easily. */
+    alias: Array<AliasEntry>;
+    /** Condition names for exports field which defines entry points of a package. */
+    conditions: Array<string>;
+    /** Whether and how to enforce file extensions. */
+    enforceExtension: EnforceExtension;
+    /** Attempt to resolve these extensions in order. */
+    extensions: Array<string>;
+    /** Request passed to resolve is already fully specified. */
+    isFullySpecified: boolean;
+    /** Redirect module requests when normal resolving fails. */
+    fallback: Array<AliasEntry>;
+    /** Main files in description files (e.g., ["index"]). */
+    mainFiles: Array<string>;
+    /** Directories to resolve modules from (e.g., ["node_modules"]). */
+    modules: Array<string>;
+    /** Resolve to a context instead of a file. */
+    resolveToContext: boolean;
+    /** Prefer to resolve module requests as relative requests. */
+    preferRelative: boolean;
+    /** Prefer to resolve server-relative urls as absolute paths. */
+    preferAbsolute: boolean;
+    /** A list of directories where requests of server-relative URLs are resolved. */
+    roots: Array<string>;
+    /** Whether to resolve symlinks to their symlinked location. */
+    canonicalizeSymlinks: boolean;
 }
 
 /**
  * Transpile a Destack file to TypeScript/JavaScript.
  * This is a stateless function for simple one-off transpilation.
  */
-export declare function transpileFile(path: string, content: string, options?: TranspileOptions | undefined | null): TranspileResult
+export declare function transpileFile(
+    path: string,
+    content: string,
+    options?: TranspileOptions | undefined | null,
+): TranspileResult;
 
 /** The transpilation options. */
 export interface TranspileOptions {
-  /** The transpilation mode. */
-  mode: TranspilerMode
-  /** The target language. */
-  target: TranspileTarget
-  /** The ECMAScript level. */
-  esVersion: EcmaScriptVersion
-  /** The TypeScript version. */
-  tsVersion: TypeScriptVersion
-  /** The formatting options. */
-  formatting: FormatOptions
+    /** The transpilation mode. */
+    mode: TranspilerMode;
+    /** The target language. */
+    target: TranspileTarget;
+    /** The ECMAScript level. */
+    esVersion: EcmaScriptVersion;
+    /** The TypeScript version. */
+    tsVersion: TypeScriptVersion;
+    /** The formatting options. */
+    formatting: FormatOptions;
 }
 
 /** The result of transpiling a file. */
 export interface TranspileResult {
-  /** The transpiled code. */
-  code: string
-  /** The source map (if generated). */
-  sourceMap?: string
-  /** Any diagnostics/warnings. */
-  diagnostics: Array<string>
+    /** The transpiled code. */
+    code: string;
+    /** The source map (if generated). */
+    sourceMap?: string;
+    /** Any diagnostics/warnings. */
+    diagnostics: Array<string>;
 }
 
 /** The target language for transpiling. */
 export declare const enum TranspilerLanguage {
-  /** Plain JavaScript (like `.js`). */
-  JavaScript = 0,
-  /** TypeScript (like `.ts`). */
-  TypeScript = 1,
-  /** TypeScript declarations (like `.d.ts`). */
-  TypeScriptDeclaration = 2
+    /** Plain JavaScript (like `.js`). */
+    JavaScript = 0,
+    /** TypeScript (like `.ts`). */
+    TypeScript = 1,
+    /** TypeScript declarations (like `.d.ts`). */
+    TypeScriptDeclaration = 2,
 }
 
 /** The transpilation mode. */
 export declare const enum TranspilerMode {
-  /** Retain the original file structure. */
-  Retained = 0,
-  /** Combine all files. */
-  Combined = 1
+    /** Retain the original file structure. */
+    Retained = 0,
+    /** Combine all files. */
+    Combined = 1,
 }
 
 /**
  * Transpile Destack source code to TypeScript/JavaScript.
  * This is a stateless function for simple one-off transpilation.
  */
-export declare function transpileSource(content: string, options?: TranspileOptions | undefined | null): TranspileResult
+export declare function transpileSource(
+    content: string,
+    options?: TranspileOptions | undefined | null,
+): TranspileResult;
 
 /** The target language for transpiling. */
 export declare const enum TranspileTarget {
-  /** Plain JavaScript (`.js`). */
-  JavaScript = 0,
-  /** TypeScript (`.ts`). */
-  TypeScript = 1,
-  /** Plain JavaScript with TypeScript declarations (.js and .d.ts). */
-  JavaScriptWithTypeScriptDeclarations = 2
+    /** Plain JavaScript (`.js`). */
+    JavaScript = 0,
+    /** TypeScript (`.ts`). */
+    TypeScript = 1,
+    /** Plain JavaScript with TypeScript declarations (.js and .d.ts). */
+    JavaScriptWithTypeScriptDeclarations = 2,
 }
 
 /** The options for type resolution. */
 export interface TypeResolveOptions {
-  /** Default integer width (if not specified). */
-  defaultIntWidth: number
-  /** Default float width (if not specified). */
-  defaultFloatWidth: number
+    /** Default integer width (if not specified). */
+    defaultIntWidth: number;
+    /** Default float width (if not specified). */
+    defaultFloatWidth: number;
 }
 
 /** How to discover the TypeScript configuration file. */
 export declare const enum TypeScriptDiscovery {
-  /** Disable TypeScript configuration discovery. */
-  Disabled = 0,
-  /** Auto-discover the TypeScript configuration file. */
-  Automatic = 1
+    /** Disable TypeScript configuration discovery. */
+    Disabled = 0,
+    /** Auto-discover the TypeScript configuration file. */
+    Automatic = 1,
 }
 
 /** TypeScript configuration options. */
 export interface TypeScriptOptions {
-  /** How to discover the TypeScript configuration file. */
-  discovery: TypeScriptDiscovery
-  /** Path to a specific tsconfig.json file (used when discovery is Disabled). */
-  configFile?: string
-  /** How to handle references. */
-  references: TypeScriptReferences
+    /** How to discover the TypeScript configuration file. */
+    discovery: TypeScriptDiscovery;
+    /** Path to a specific tsconfig.json file (used when discovery is Disabled). */
+    configFile?: string;
+    /** How to handle references. */
+    references: TypeScriptReferences;
 }
 
 /** How to handle TypeScript project references. */
 export declare const enum TypeScriptReferences {
-  /** Disable references. */
-  Disabled = 0,
-  /** Auto-discover references from tsconfig.json. */
-  Automatic = 1
+    /** Disable references. */
+    Disabled = 0,
+    /** Auto-discover references from tsconfig.json. */
+    Automatic = 1,
 }
 
 /** The TypeScript version. */
 export declare const enum TypeScriptVersion {
-  /** TypeScript 5.0. */
-  TS5_0 = 0
+    /** TypeScript 5.0. */
+    TS5_0 = 0,
 }
 
 /** The options for validating. */
-export interface ValidateOptions {
-
-}
+export interface ValidateOptions {}
 
 /** Options for creating a Workspace. */
 export interface WorkspaceOptions {
-  /** The current working directory. */
-  cwd: string
+    /** The current working directory. */
+    cwd: string;
 }
