@@ -12,12 +12,14 @@ crate-type = ["cdylib"]
 path = "src/lib.rs"
 
 [dependencies]
-destack_source = { workspace = true }
+# language
 destack_compiler = { workspace = true }
 destack_javascript_ast = { workspace = true }
-destack_javascript_transpiler = { workspace = true }
 destack_javascript_machine = { workspace = true }
+destack_javascript_transpiler = { workspace = true }
+destack_source = { workspace = true }
 
+# general
 napi = { version = "3", features = ["napi8"] }
 napi-derive = "3"
 

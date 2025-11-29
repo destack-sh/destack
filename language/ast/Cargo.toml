@@ -12,10 +12,12 @@ path = "src/lib.rs"
 doctest = false
 
 [dependencies]
+# language
 destack_fir = { workspace = true }
 destack_source = { workspace = true }
 destack_unicode = { workspace = true }
 
+# general
 smallvec = { workspace = true }
 
 [dev-dependencies]

@@ -12,14 +12,16 @@ path = "src/lib.rs"
 doctest = false
 
 [dependencies]
+# language
 destack_ast = { workspace = true }
 destack_dir = { workspace = true }
-destack_source = { workspace = true }
 destack_parser = { workspace = true }
+destack_source = { workspace = true }
 destack_unicode = { workspace = true }
 
-crossbeam-deque = { workspace = true }
+# general
 cfg-if = { workspace = true }
+crossbeam-deque = { workspace = true }
 indexmap = { workspace = true, features = ["serde"] }
 papaya = { workspace = true }
 rustc-hash = { workspace = true }

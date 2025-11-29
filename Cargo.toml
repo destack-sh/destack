@@ -18,10 +18,12 @@ members = [
 	"language/source",
 	"language/test",
 	"language/unicode",
+	"language/workspace",
 	# library
 	"library/napi",
 	# platform
 	"platform/cli",
+	"platform/daemon",
 	"platform/lsp",
 	"platform/vscode",
 ]
@@ -51,12 +53,14 @@ destack_resolver = { path = "language/resolver" }
 destack_source = { path = "language/source" }
 destack_test = { path = "language/test" }
 destack_unicode = { path = "language/unicode" }
+destack_workspace = { path = "language/workspace" }
 
 # library
 destack_napi = { path = "library/napi" }
 
 # platform
 destack_cli = { path = "platform/cli" }
+destack_daemon = { path = "platform/daemon" }
 destack_lsp = { path = "platform/lsp" }
 destack_vscode = { path = "platform/vscode" }
 

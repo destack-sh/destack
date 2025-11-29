@@ -12,18 +12,20 @@ path = "src/lib.rs"
 doctest = false
 
 [dependencies]
+# language
 destack_ast = { workspace = true }
 destack_fir = { workspace = true }
 destack_source = { workspace = true }
 destack_unicode = { workspace = true }
-smallvec = { workspace = true }
 
+# general
 dashmap = { workspace = true }
-parking_lot = { workspace = true }
 indexmap = { workspace = true, features = ["serde"] }
+parking_lot = { workspace = true }
 rustc-hash = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
+smallvec = { workspace = true }
 tracing = { workspace = true }
 
 [dev-dependencies]

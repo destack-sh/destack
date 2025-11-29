@@ -16,6 +16,7 @@ name = "destack_cli"
 path = "src/main.rs"
 
 [dependencies]
+# language
 destack_ast = { workspace = true }
 destack_compiler = { workspace = true }
 destack_dir = { workspace = true }
@@ -26,12 +27,18 @@ destack_javascript_transpiler = { workspace = true }
 destack_javascript_machine = { workspace = true, optional = true }
 destack_parser = { workspace = true }
 destack_source = { workspace = true }
-destack_resolver.workspace = true
+destack_resolver = { workspace = true }
+destack_workspace = { workspace = true }
 
+# platform
+destack_daemon = { workspace = true }
+destack_lsp = { workspace = true }
+
+# general
 clap = { version = "4.5.4", features = ["derive"] }
+tokio = { version = "1.47.1" }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
-tokio = { version = "1.47.1" }
 
 [dev-dependencies]
 

@@ -1,5 +1,5 @@
 {
-    "name": "destack-vscode",
+    "name": "@destack/vscode",
     "displayName": "Destack",
     "description": "Destack for VSCode (.ds, .d.ds, .dst)",
     "version": "2025.11.29-0",
@@ -9,11 +9,14 @@
     },
     "publisher": "symbol-industries",
     "categories": [
-        "Programming Languages",
+        "AI",
+        "Debuggers",
+        "Formatters",
         "Language Packs",
         "Languages",
         "Linters",
-        "Formatters",
+        "Programming Languages",
+        "Testing",
         "Visualization"
     ],
     "repository": {
