@@ -9,8 +9,6 @@ pub enum FileType {
     DestackText,
     /// `.dsb`
     DestackBinary,
-    /// `.dsx`
-    DestackExecutable,
 
     /// `.js`
     JavaScript,
@@ -35,6 +33,8 @@ pub enum FileType {
     Html,
     /// Wasm.
     Wasm,
+    /// Node.
+    Node,
 
     /// Unknown.
     Unknown,
@@ -48,9 +48,10 @@ impl FileType {
             "d.ds" => FileType::DestackDeclaration,
             "dst" => FileType::DestackText,
             "dsb" => FileType::DestackBinary,
-            "dsx" => FileType::DestackExecutable,
 
             "js" => FileType::JavaScript,
+            "mjs" => FileType::JavaScript,
+            "cjs" => FileType::JavaScript,
             "jsx" => FileType::JavaScriptXml,
             "ts" => FileType::TypeScript,
             "tsx" => FileType::TypeScriptXml,
@@ -62,6 +63,7 @@ impl FileType {
             "json" => FileType::Json,
             "html" => FileType::Html,
             "wasm" => FileType::Wasm,
+            "node" => FileType::Node,
 
             _ => return None,
         };
@@ -83,7 +85,6 @@ impl FileType {
             FileType::DestackDeclaration => "d.ds",
             FileType::DestackText => "dst",
             FileType::DestackBinary => "dsb",
-            FileType::DestackExecutable => "dsx",
 
             FileType::JavaScript => "js",
             FileType::JavaScriptXml => "jsx",
@@ -97,6 +98,7 @@ impl FileType {
             FileType::Json => "json",
             FileType::Html => "html",
             FileType::Wasm => "wasm",
+            FileType::Node => "node",
 
             FileType::Unknown => return None,
         };
@@ -110,7 +112,6 @@ impl FileType {
             FileType::DestackDeclaration => "**/*.d.ds",
             FileType::DestackText => "**/*.dst",
             FileType::DestackBinary => "**/*.dsb",
-            FileType::DestackExecutable => "**/*.dsx",
 
             FileType::JavaScript => "**/*.js",
             FileType::JavaScriptXml => "**/*.jsx",
@@ -124,6 +125,7 @@ impl FileType {
             FileType::Json => "**/*.json",
             FileType::Html => "**/*.html",
             FileType::Wasm => "**/*.wasm",
+            FileType::Node => "**/*.node",
 
             FileType::Unknown => return None,
         };
