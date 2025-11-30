@@ -14,7 +14,6 @@ mod path;
 mod pattern;
 mod property;
 mod tree;
-mod r#type;
 mod visit;
 mod walk;
 
@@ -35,6 +34,5 @@ pub use path::*;
 pub use pattern::*;
 pub use property::*;
 pub use tree::*;
-pub use r#type::*;
 pub use visit::*;
 pub use walk::*;
