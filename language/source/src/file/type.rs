@@ -31,6 +31,8 @@ pub enum FileType {
     Json,
     /// Html.
     Html,
+    /// Markdown.
+    Markdown,
     /// Wasm.
     Wasm,
     /// Node.
@@ -97,6 +99,7 @@ impl FileType {
             FileType::Yaml => "yaml",
             FileType::Json => "json",
             FileType::Html => "html",
+            FileType::Markdown => "md",
             FileType::Wasm => "wasm",
             FileType::Node => "node",
 
@@ -124,6 +127,7 @@ impl FileType {
             FileType::Yaml => "**/*.yaml",
             FileType::Json => "**/*.json",
             FileType::Html => "**/*.html",
+            FileType::Markdown => "**/*.md",
             FileType::Wasm => "**/*.wasm",
             FileType::Node => "**/*.node",
 
