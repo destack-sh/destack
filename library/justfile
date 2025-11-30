@@ -5,28 +5,24 @@ _default:
 
 # build napi bindings
 napi:
-    bun run --cwd napi build
+    cargo build --release -p destack_napi
+    cd napi && bun run build
 
-# type check all packages
+# check
 check:
-    bun x tsc --noEmit -p library/napi/tsconfig.json
+    cargo clippy --release -p destack_napi
+    bun x tsc --noEmit -p napi/tsconfig.json
+    bun run biome lint .
 
-# run all tests
+# test
 test:
+    cargo test --release -p destack_napi
     bun test
 
-# format code
+# format
 fmt:
     bun run biome format --write .
 
-# check formatting
-fmt-check:
-    bun run biome format .
-
-# lint code
-lint:
-    bun run biome lint .
-
-# clean build artifacts
+# clean
 clean:
     rm -rf node_modules

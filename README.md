@@ -15,7 +15,11 @@ Batteries included, but not required.
  And the platform to connect and integrate Destack software together.
 
 **Destack is designed as an integrated system**, **but you *can* pick and choose any pieces you like.**
-You can just use regular TypeScript (nothing wrong with that!), pick only some of the libraries, or plug into the platform from another system entirely.
+You are free to use standard TypeScript, pick only some of the libraries, or plug into the platform from a different system entirely.
+
+## Examples
+
+ - TODO #Incomplete: examples
 
 ## Getting Started
 
@@ -27,21 +31,21 @@ You can just use regular TypeScript (nothing wrong with that!), pick only some o
 We're very early in software as an industry.
 Software is broken, slow, and hard to build right.
 Computers are now orders of magnitude faster, yet software feels even slower.
-Destack wants to make building correct, optimal, integrated software the standard.
+Destack aims to make building correct, optimal, integrated software the obvious default.
 
-TypeScript is a language that describes *what data looks like*.
+TypeScript is a language for describing *what data looks like*.
 Destack is a system for describing *how software behaves*.
-Think of `.ds` as extending TypeScript for entire software systems, much like `.tsx` extends TypeScript for UI-shaped problems.
+With a tightly integrated `.ds` language, library and platform we can extend the TypeScript phiolosphy for entire software systems, much like `.tsx` has extended TypeScript for UI-shaped problems.
 
 The best programing language is the one that fits the problem.
-And this "language" encompasses its supporting libraries, platform and ecosystem.
-The more we can express in the language, the more the toolchain can verify, optimize, and assist.
-Higher-order software is raises the level of abstraction on what software systems can express *reliably*.
+And this "language" encompasses supporting libraries, the platform and its ecosystem.
+The more we can express in one unified system, the more the toolchain can verify, optimize, and assist.
+Higher-order software raises the level of abstraction of what software can express *reliably*.
 
 # Development
 
 Destack is in very active development with a singular focus: a fully integrated software stack for optimal, correct, integrated software. 
-We welcome feedback and issues, but please check in for larger changes 
+We welcome feedback, issues, ideas, and small fixes, but please reach out for any larger contributions (see [Contributing](CONTRIBUTING.md)).
 
 ## Structure
 

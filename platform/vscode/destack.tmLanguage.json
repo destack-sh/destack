@@ -117,7 +117,7 @@
         },
         {
           "name": "keyword.declaration.type.ds",
-          "match": "\\b(?:const|let|var|namespace|module|type|struct|class|enum|union|interface|function|implement|declare|constructor)\\b"
+          "match": "\\b(?:const|let|var|namespace|module|type|struct|class|enum|union|interface|function|extension|implement|declare|constructor)\\b"
         },
         {
           "name": "keyword.operator.new.ds",
