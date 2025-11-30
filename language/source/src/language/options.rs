@@ -1,9 +1,10 @@
-use crate::{FormattingOptions, IndentStyle, LineEnding};
+use crate::{FormattingOptions, IndentStyle, LanguageFeature, LanguageFeatureSet, LineEnding};
 
 /// The mode we're working in.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub enum LanguageMode {
     /// Lenient mode with relaxed checking, conversion, cloning, boxing and more.
+    #[default]
     Lenient,
     /// Strict mode with explicit context, defaults, typing, behavior and more.
     Strict,
@@ -84,8 +85,10 @@ pub struct LanguageOptions {
     pub mode: LanguageMode = LanguageMode::Lenient,
     /// The compatibility mode.
     pub compatibility: Option<LanguageCompatibility> = None,
+    /// The enabled language features.
+    pub features: LanguageFeatureSet = LanguageFeatureSet::all(),
     /// The formatting options.
-    pub formatting: FormattingOptions,
+    pub formatting: FormattingOptions = FormattingOptions::DEFAULT,
 }
 
 impl LanguageOptions {
@@ -174,5 +177,29 @@ impl LanguageOptions {
     pub fn with_line_width(mut self, line_width: u8) -> Self {
         self.formatting.line_width = line_width;
         self
+    }
+
+    /// Set the enabled features.
+    pub fn with_features(mut self, features: LanguageFeatureSet) -> Self {
+        self.features = features;
+        self
+    }
+
+    /// Enable a specific feature.
+    pub fn with_feature(mut self, feature: LanguageFeature) -> Self {
+        self.features.enable(feature);
+        self
+    }
+
+    /// Disable a specific feature.
+    pub fn without_feature(mut self, feature: LanguageFeature) -> Self {
+        self.features.disable(feature);
+        self
+    }
+
+    /// Check if a feature is enabled.
+    #[inline]
+    pub fn is_feature_enabled(&self, feature: LanguageFeature) -> bool {
+        self.features.is_enabled(feature)
     }
 }

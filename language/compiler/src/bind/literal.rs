@@ -159,11 +159,8 @@ impl Compiler {
     /// Bind a float type to a DIR float type.
     pub(super) fn bind_float_type(&self, float_type: &ast::FloatType) -> FloatType {
         match float_type {
-            ast::FloatType { width: Some(16) } => FloatType::Float16,
             ast::FloatType { width: Some(32) } => FloatType::Float32,
             ast::FloatType { width: Some(64) } => FloatType::Float64,
-            ast::FloatType { width: Some(80) } => FloatType::Float80,
-            ast::FloatType { width: Some(128) } => FloatType::Float128,
             ast::FloatType { width: None } => FloatType::Arbitrary {
                 width: self.options.resolve.default_float_width,
             },

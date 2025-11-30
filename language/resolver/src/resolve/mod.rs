@@ -1,5 +1,6 @@
 mod alias;
 mod context;
+mod dsconfig;
 mod error;
 mod file;
 mod load;
