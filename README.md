@@ -45,7 +45,7 @@ Higher-order software raises the level of abstraction of what software can expre
 # Development
 
 Destack is in very active development with a singular focus: a fully integrated software stack for optimal, correct, integrated software. 
-We welcome feedback, issues, ideas, and small fixes, but please reach out for any larger contributions (see [Contributing](CONTRIBUTING.md)).
+We welcome feedback, issues, ideas, and small fixes, but please reach out for any non-trivial contributions (see [Contributing](CONTRIBUTING.md)).
 
 ## Structure
 

@@ -50,3 +50,14 @@ pub enum VarianceBound {
     /// Super a type (such that X is a supertype of Y, i.e. X >: Y).
     Super,
 }
+
+/// The subtyping relation.
+#[derive(Debug, Copy, Clone, PartialEq)]
+pub enum SubtypingMode {
+    /// Contravariant (such that X is a subtype of Y, i.e. X <: Y).
+    Contravariant,
+    /// Covariant (such that X is a supertype of Y, i.e. X >: Y).
+    Covariant,
+    /// Invariant (such that X is not a subtype of Y, i.e. X !<: Y).
+    Invariant,
+}

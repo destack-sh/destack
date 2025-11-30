@@ -202,16 +202,10 @@ impl IntType {
 /// A FloatType represents IEEE-754 float.
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum FloatType {
-    /// 16-bit IEEE-754 float.
-    Float16,
     /// 32-bit IEEE-754 float.
     Float32,
     /// 64-bit IEEE-754 float.
     Float64,
-    /// 80-bit IEEE-754 float.
-    Float80,
-    /// 128-bit IEEE-754 float.
-    Float128,
     /// Arbitrary width IEEE-754 float.
     Arbitrary { width: u16 },
 }
@@ -221,11 +215,8 @@ impl FloatType {
     pub fn try_simplify(&self) -> Option<FloatType> {
         match self {
             &FloatType::Arbitrary { width } => match width {
-                16 => Some(FloatType::Float16),
                 32 => Some(FloatType::Float32),
                 64 => Some(FloatType::Float64),
-                80 => Some(FloatType::Float80),
-                128 => Some(FloatType::Float128),
                 _ => None,
             },
             _ => None,
@@ -243,11 +234,8 @@ impl FloatType {
     /// Get the width of the float type.
     pub fn width(&self) -> u16 {
         match self {
-            FloatType::Float16 => 16,
             FloatType::Float32 => 32,
             FloatType::Float64 => 64,
-            FloatType::Float80 => 80,
-            FloatType::Float128 => 128,
             FloatType::Arbitrary { width } => *width,
         }
     }
@@ -256,11 +244,8 @@ impl FloatType {
     #[inline]
     pub fn as_str(self) -> String {
         match self {
-            FloatType::Float16 => "float16".to_string(),
             FloatType::Float32 => "float32".to_string(),
             FloatType::Float64 => "float64".to_string(),
-            FloatType::Float80 => "float80".to_string(),
-            FloatType::Float128 => "float128".to_string(),
             FloatType::Arbitrary { width } => format!("float{width}"),
         }
     }
