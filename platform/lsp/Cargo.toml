@@ -9,6 +9,7 @@ rust-version.workspace = true
 
 [lib]
 path = "src/lib.rs"
+doctest = false
 
 [[bin]]
 name = "destack_lsp"
