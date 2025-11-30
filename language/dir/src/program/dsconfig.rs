@@ -247,10 +247,7 @@ pub struct DsConfigCompilerOptionsJson {
 }
 
 impl DsConfigCompilerOptionsJson {
-    /// Apply feature flags from JSON to a feature set.
-    ///
-    /// Starts with the given feature set and modifies it based on explicit
-    /// settings in the JSON. Unset options leave features unchanged.
+    /// Apply feature flags from options to a feature set.
     pub fn apply_features(&self, features: &mut LanguageFeatureSet) {
         if let Some(enabled) = self.allow_overloading {
             features.set(LanguageFeature::Overloading, enabled);

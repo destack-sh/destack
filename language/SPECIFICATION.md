@@ -1,28 +1,10 @@
-# Destack Language
+# Destack Language Specification
 
 Destack is TypeScript++ for building better full-stack software systems.
 This document describes the syntax and semantics of **`.ds` files**.
 `.ts` and `.js` files work exactly the same as before. 
 Even **copy-pasting from `.js` or `.ts` into `.ds` works**: 
-
-**Valid JavaScript is valid Destack.
-Valid TypeScript is valid Destack.**
-
-Where Destack looks like TypeScript (e.g., `interface`, `class`, `async`/`await`), it behaves like TypeScript, because it *is* TypeScript++.
-Unlike in `C++`, our `C` (JS/TS) still works perfectly in Destack, and all `++` features are opt-in and complementary:
-
-- **Expressions as values**: `if`, `match`, blocks are values
-- **Types as values**: type annotations *are* values (available at runtime)
-- **Decorators and tags**: richer annotations for metaprogramming (available at runtime) 
-- **Precise primitives**: `int32`, `float64` instead of just `number`
-- **Pattern matching**: patterns with `match` expressions
-- **Mutability and references**: explicit `&T`, `^T` and `&mut T` 
-- **Value types and structs**: value-oriented data types with `struct`
-- **Constraints**: more precise types with `where` guards 
-- **Effects**: context declaration and management `with` clauses
-- **Extensions**: extend types and organize complex implementations
-- **Operator overloading**: opt-in via extensions and interfaces
-- **Function overloading**: opt-in function overloading without clumsy types
+See [DESIGN.md](DESIGN.md) for design and motivation.
 
 ## Literals
 
@@ -197,8 +179,8 @@ In addition `string`, Destack supports a single `character`:
 Type aliases work like TypeScript, with Destack adding `newtype` for nominal (distinct) types:
 
 ```
-type Point = { x: float32, y: float32 }   // structural (TypeScript)
-newtype UserId = int64                     // nominal (distinct type)
+type Point = { x: float32, y: float32 };   // structural (TypeScript)
+newtype UserId = int64;                     // nominal (distinct type)
 ```
 
 A `newtype` creates a distinct type—`UserId` and `OrderId` won't mix even if both are `int64`.
@@ -248,7 +230,7 @@ function myFunction(a: int, b: int) {
     ...
 }
 
-myFunction(a: 2, b: 3)
+myFunction(a: 2, b: 3);
 ```
 
 ### Static Parameterisation ("Generics")
@@ -276,7 +258,7 @@ function compute<Foo: boolean>(data: uint8[]) {
     ...
 }
 
-compute<Foo: true> // static parameters may also be named
+compute<Foo: true>(); // static parameters may also be named
 ```
 
 ### Where Clauses
@@ -423,7 +405,7 @@ extension Vector2 {
     }
     
     normalized(): Vector2 {
-        const m = this.magnitude()
+        const m = this.magnitude();
         Vector2 { x: this.x / m, y: this.y / m }
     }
 }
@@ -436,12 +418,12 @@ The same mechanism works for newtypes and even precise primitives:
 ```
 newtype UserId = int;
 extension UserId {
-    isValid(): boolean { this > 0 }
+    isValid(): boolean { this > 0; }
 }
 
 // anonymous extension to foreign type (only reachable in same scope)
 extension int32 {
-    abs(): int32 { if this < 0 { -this } else { this } }
+    abs(): int32 { if this < 0 { -this } else { this }; }
 }
 ```
 
@@ -522,7 +504,7 @@ Async functions work like TypeScript:
 
 ```
 async function fetchData(url: string): Promise<Response> {
-    const response = await fetch(url)
+    const response = await fetch(url);
     response
 }
 ```
@@ -539,10 +521,10 @@ function* range(start: int32, end: int32): Generator<int32> {
 }
 
 function* fibonacci(): Generator<int32> {
-    let (a, b) = (0, 1)
+    let (a, b) = (0, 1);
     loop {
-        yield a
-        (a, b) = (b, a + b)
+        yield a;
+        (a, b) = (b, a + b);
     }
 }
 ```
@@ -601,9 +583,9 @@ struct Vector2 {
 }
 
 // calling methods
-const v = Vector2 { x: 3, y: 4 }
-v.magnitude()        // 5.0
-Vector2.zero()       // static call
+const v = Vector2 { x: 3, y: 4 };
+v.magnitude();        // 5.0
+Vector2.zero();       // static call
 ```
 
 Methods can also be added to any type via extensions, including primitives and foreign types.
@@ -649,10 +631,10 @@ function sum(...numbers: int32[]): int32 {
     numbers.reduce((a, b) => a + b, 0)
 }
 
-sum(1, 2, 3, 4, 5)
+sum(1, 2, 3, 4, 5);
 
-const args = [1, 2, 3]
-sum(...args)
+const args = [1, 2, 3];
+sum(...args);
 ```
 
 ### Namespace
@@ -683,11 +665,11 @@ protected field: int32
 Blocks, `if`, `match` all return values:
 
 ```
-const result = if x > 0 { "positive" } else { "negative" }
+const result = if x > 0 { "positive" } else { "negative" };
 const label = match state {
-    Ready => "go"
-    Loading => "wait"
-}
+    Ready => "go",
+    Loading => "wait",
+};
 ```
 
 ### Bindings
@@ -695,20 +677,20 @@ const label = match state {
 Variable bindings work like TypeScript, with Destack adding tuple destructuring syntax:
 
 ```
-const x = 1              // immutable
-const x: int32 = 1       // with type
-let y = 2                // mutable
+const x = 1;              // immutable
+const x: int32 = 1;       // with type
+let y = 2;                // mutable
 
-const [a, b] = getTuple()
-const { x, y } = getPoint()
-const (a, _) = getTuple()  // Destack tuple syntax
+const [a, b] = getTuple();
+const { x, y } = getPoint();
+const (a, _) = getTuple();  // Destack tuple syntax
 ```
 
 Unlike JavaScript/TypeScript, bindings can be re-declared in the same scope with a different type (like Rust):
 
 ```
-const x = "hello"        // x is string
-const x = x.length       // x is now int (shadowing)
+const x = "hello";        // x is string
+const x = x.length;       // x is now int (shadowing)
 ```
 
 ### Blocks
@@ -718,10 +700,10 @@ Blocks are enclosed in `{ }` and can optionally have labels:
 
 ```
 const result = {
-    const x = compute()
-    const y = transform(x)
+    const x = compute();
+    const y = transform(x);
     x + y                    // last expression is the block's value
-}
+};
 ```
 
 Labeled blocks allow breaking with values:
@@ -730,17 +712,17 @@ Labeled blocks allow breaking with values:
 const value = outer: {
     for i in 0..100 {
         if condition(i) {
-            break outer i    // return i from the block
+            break outer i;    // return i from the block
         }
     }
     -1                       // default if no break
-}
+};
 ```
 
 For disambiguation (e.g., after `if` or `match`), use `do`:
 
 ```
-const x = if flag { do { compute() } } else { 0 }
+const x = if flag { do { compute() } } else { 0 };
 ```
 
 ### Conditionals
@@ -750,24 +732,24 @@ Unlike TypeScript, `if` is an expression that returns a value:
 
 ```
 // statement form (both valid)
-if (x > 0) { process() }
-if x > 0 { process() }
+if (x > 0) { process(); }
+if x > 0 { process(); }
 
 // if/else
 if x > 0 {
-    print("positive")
+    print("positive");
 } else if x < 0 {
-    print("negative")
+    print("negative");
 } else {
-    print("zero")
+    print("zero");
 }
 
 // as expression - returns a value
-const sign = if x > 0 { 1 } else if x < 0 { -1 } else { 0 }
-const message = if ready { "go" } else { "wait" }
+const sign = if x > 0 { 1 } else if x < 0 { -1 } else { 0 };
+const message = if ready { "go" } else { "wait" };
 
 // ternary (same as TypeScript)
-const sign = x > 0 ? 1 : x < 0 ? -1 : 0
+const sign = x > 0 ? 1 : x < 0 ? -1 : 0;
 ```
 
 ### Match
@@ -778,33 +760,33 @@ Like `if`, `match` is an expression that returns a value:
 ```
 // match as expression - returns the matched arm's value
 const label = match state {
-    Ready => "go"
-    Loading => "wait"
-    Error(e) => `failed: ${e}`
-}
+    Ready => "go",
+    Loading => "wait",
+    Error(e) => `failed: ${e}`,
+};
 
 // match on values
 match value {
-    0 => "zero"
-    1 | 2 | 3 => "small"
-    n if n < 0 => "negative"
-    _ => "other"
-}
+    0 => "zero",
+    1 | 2 | 3 => "small",
+    n if n < 0 => "negative",
+    _ => "other",
+};
 
 // match with destructuring
 match point {
-    (0, 0) => "origin"
-    (x, 0) => `x-axis at ${x}`
-    (0, y) => `y-axis at ${y}`
-    (x, y) => `at (${x}, ${y})`
-}
+    (0, 0) => "origin",
+    (x, 0) => `x-axis at ${x}`,
+    (0, y) => `y-axis at ${y}`,
+    (x, y) => `at (${x}, ${y})`,
+};
 
 // match with guards
 match user {
-    User { age } if age >= 18 => "adult"
-    User { age } if age >= 13 => "teen"
-    _ => "child"
-}
+    User { age } if age >= 18 => "adult",
+    User { age } if age >= 13 => "teen",
+    _ => "child",
+};
 ```
 
 Match must be exhaustive—all possible values must be handled, or use `_` as a catch-all.
@@ -871,11 +853,11 @@ Infinite loop that can be exited only with `break`:
 
 ```
 loop {
-    const input = readInput()
+    const input = readInput();
     if input == "quit" {
-        break
+        break;
     }
-    process(input)
+    process(input);
 }
 ```
 
@@ -1033,12 +1015,12 @@ const result = riskyOperation()?;   // propagate to next outer scope
 This is useful for cleanup or other logic that must happen in any case:
 
 ```
-defer file.close()                 // single expression
+defer file.close();                 // single expression
 
 defer {                            // block form
-    cleanup()
-    log("done")
-}
+    cleanup();
+    log("done");
+};
 ```
 
 Deferred expressions run in reverse order of declaration (LIFO), so resources are cleaned up in the opposite order they were acquired.
@@ -1073,12 +1055,12 @@ Destack adds explicit overflow control for integer types:
 - **Saturating** (`|`): overflow clamps to min/max
 
 ```
-const a: uint8 = 250
-const b: uint8 = 10
+const a: uint8 = 250;
+const b: uint8 = 10;
 
-a + b          // default overflow behavior
-a +% b         // wrapping: 250 + 10 = 4 (wraps around 256)
-a +| b         // saturating: 250 + 10 = 255 (clamped to max)
+a + b;          // default overflow behavior
+a +% b;         // wrapping: 250 + 10 = 4 (wraps around 256)
+a +| b;         // saturating: 250 + 10 = 255 (clamped to max)
 ```
 
 ### Comparison
@@ -1168,7 +1150,7 @@ Imports work exactly like JavaScript/TypeScript.
 Import a module for its side effects only:
 
 ```
-import "module"
+import "module";
 ```
 
 #### Named Imports
@@ -1176,7 +1158,7 @@ import "module"
 Import specific exports by name:
 
 ```
-import { foo, bar } from "module"
+import { foo, bar } from "module";
 ```
 
 #### Aliased Import
@@ -1184,7 +1166,7 @@ import { foo, bar } from "module"
 Rename an import locally:
 
 ```
-import { foo as f } from "module"
+import { foo as f } from "module";
 ```
 
 #### Namespace Import
@@ -1192,10 +1174,10 @@ import { foo as f } from "module"
 Import all exports as a namespace object:
 
 ```
-import * as mod from "module"
+import * as mod from "module";
 
-mod.foo()
-mod.bar
+mod.foo();
+mod.bar;
 ```
 
 #### Default Import
@@ -1203,7 +1185,7 @@ mod.bar
 Import the default export:
 
 ```
-import Default from "module"
+import Default from "module";
 ```
 
 #### Combined Import
@@ -1211,7 +1193,7 @@ import Default from "module"
 Import default and named together:
 
 ```
-import Default, { foo, bar } from "module"
+import Default, { foo, bar } from "module";
 ```
 
 #### Type-Only Import
@@ -1219,8 +1201,8 @@ import Default, { foo, bar } from "module"
 Import only types (erased at runtime):
 
 ```
-import type { MyType } from "module"
-import { type MyType, myValue } from "module"
+import type { MyType } from "module";
+import { type MyType, myValue } from "module";
 ```
 
 ### Exports
@@ -1232,7 +1214,7 @@ Exports work exactly like JavaScript/TypeScript.
 Export declarations directly:
 
 ```
-export const value = 42
+export const value = 42;
 export function foo() { }
 export struct Point { x: float32, y: float32 }
 ```
@@ -1242,10 +1224,10 @@ export struct Point { x: float32, y: float32 }
 Export previously declared items:
 
 ```
-const a = 1
-const b = 2
+const a = 1;
+const b = 2;
 
-export { a, b }
+export { a, b };
 ```
 
 #### Aliased Export
@@ -1253,8 +1235,8 @@ export { a, b }
 Export with a different name:
 
 ```
-export { internal as public }
-export { foo as default }     // as default export
+export { internal as public };
+export { foo as default };     // as default export
 ```
 
 #### Default Export
@@ -1264,7 +1246,7 @@ Export a single default value:
 ```
 export default function handler() { }
 export default class MyClass { }
-export default expression
+export default expression;
 ```
 
 #### Re-Export
@@ -1272,9 +1254,9 @@ export default expression
 Forward exports from other modules:
 
 ```
-export { foo, bar } from "module"    // specific items
-export * from "module"               // all exports
-export * as ns from "module"         // as namespace
+export { foo, bar } from "module";    // specific items
+export * from "module";               // all exports
+export * as ns from "module";         // as namespace
 ```
 
 #### Type-Only Export
@@ -1282,8 +1264,8 @@ export * as ns from "module"         // as namespace
 Export only types (erased at runtime):
 
 ```
-export type { MyType }
-export { type MyType, myValue }
+export type { MyType };
+export { type MyType, myValue };
 ```
 
 ### Module Resolution
