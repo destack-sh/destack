@@ -1,32 +1,24 @@
 set shell := ["bash", "-cu"]
 
+# all platform crates
+packages := "-p destack_cli -p destack_lsp -p destack_vscode -p destack_daemon"
+
 _default:
     @just --list --unsorted
 
-# build the CLI
-cli:
-    cargo build --release -p destack_cli
+# check
+check:
+    cargo clippy --release {{ packages }}
 
-# build the LSP server
-lsp:
-    cargo build --release -p destack_lsp
-
-# build the VSCode extension
-vscode:
-    cargo build --release -p destack_vscode
-
-# build all platform Rust crates
+# build
 build:
-    cargo build --release -p destack_cli -p destack_lsp -p destack_vscode -p destack_daemon
+    cargo build --release {{ packages }}
 
-# run platform tests
+# test
 test:
-    cargo test -p destack_cli -p destack_lsp -p destack_vscode -p destack_daemon
+    cargo test --release {{ packages }}
+    cd vscode && bun run test:grammar
 
-# format code
+# format
 fmt:
-    cargo fmt -p destack_cli -p destack_lsp -p destack_vscode -p destack_daemon
-
-# lint code
-lint:
-    cargo clippy -p destack_cli -p destack_lsp -p destack_vscode -p destack_daemon
+    cargo fmt {{ packages }}

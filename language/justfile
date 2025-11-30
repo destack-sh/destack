@@ -1,50 +1,40 @@
 set shell := ["bash", "-cu"]
 
+# all language crates
+packages := "-p destack_ast -p destack_compiler -p destack_dir -p destack_fir -p destack_formatter -p destack_javascript_ast -p destack_javascript_machine -p destack_javascript_transpiler -p destack_linter -p destack_machine -p destack_mir -p destack_parser -p destack_resolver -p destack_source -p destack_test -p destack_unicode -p destack_workspace"
+
 _default:
     @just --list --unsorted
 
-# install test fixtures (resolver pnpm deps)
+# install test fixtures
 install-fixtures:
     just resolver/install-fixtures
 
-# check all crates
+# check
 check:
-    cargo check --workspace
+    cargo clippy --release {{ packages }}
 
-# build all crates (release)
+# build
 build:
-    cargo build --workspace --release
+    cargo build --release {{ packages }}
 
-# run all tests
+# test
 test:
-    cargo test --workspace --all-targets
+    cargo test --release {{ packages }}
 
-# format all code
+# format
 fmt:
-    cargo fmt --all
-
-# check formatting
-fmt-check:
-    cargo fmt --all --check
-
-# run clippy
-lint:
-    cargo clippy --workspace --all-targets --all-features
-
-# run clippy and fix
-lint-fix:
-    cargo clippy --workspace --all-targets --all-features --fix --allow-dirty
+    cargo fmt {{ packages }}
 
 # generate docs
 doc:
-    cargo doc --workspace --no-deps
+    cargo doc --release {{ packages }} --no-deps
 
-# clean build artifacts
+# clean
 clean:
     cargo clean
 
-# regenerate code (unicode tables, html entities)
+# regenerate generated code
 generate:
     cd unicode && python3 src/generate.py
     cd parser/src/lex && python3 generate.py
-
