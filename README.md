@@ -1,34 +1,51 @@
 # Destack
 
 Destack is a universal software engine for building correct, optimal, integrated full-stack systems.
-Build with TypeScript and the web ecosystem in one unified open source toolchain, stack and platform.
-Own your software and run it anywhere, free of vendor lock-in with one integrated stack:
+Build with TypeScript and the web ecosystem with a unified open source toolchain, stack and platform.
+Own your software and run it anywhere in one integrated stack:
 
- - **Destack Language**: TypeScript extended for correctness, ergonomics, and performance (`.ds`, like `.tsx`; Valid TypeScript is valid Destack).
-See [language/DESIGN.md](language/DESIGN.md) for language design and [language/SPECIFICATION.md](language/SPECIFICATION.md) for specifics.
+ - **Destack Language**: TypeScript++ for correctness, ergonomics, and performance (with `.ds` much like `.tsx`). 
+ Valid TypeScript is valid Destack.
+See [language/DESIGN.md](language/DESIGN.md) and [language/SPECIFICATION.md](language/SPECIFICATION.md).
 
- - **Destack Library**: Standard unified modules for everything software applications need across the stack entities, telemetry, math, physics, UI, and more.
+ - **Destack Library**: Standard unified modules for everything software needs across the stack from APIs and UIs to DBs and telemetry.
 Batteries included, but not required.
 
- - **Platform**: The support software for your software - the CLI, IDE integrations, build plugins, debugging, analytics, tools. And the platform to connect and integrate Destack software, all working together.
+ - **Destack Platform**: The support system around your software - the CLI, IDE integrations, build plugins, debugging, analytics, tools. 
+ And the platform to connect and integrate Destack software together.
+
+**Destack is designed as an integrated system**, **but you *can* pick and choose any pieces you like.**
+You can just use regular TypeScript (nothing wrong with that!), pick only some of the libraries, or plug into the platform from another system entirely.
+
+## Getting Started
+
+ - TODO #Incomplete: getting started (`bun i destack`, `curl destack.sh/install`, ..)
+ - Join the [Discord](https://discord.gg/xUFQ45TWYd)
 
 ## Higher-Order Software
 
 We're very early in software as an industry.
-We could do so much more—software is embarrassingly broken and slow.
-Building correct, optimal, integrated software should be simple and fast.
+Software is broken, slow, and hard to build right.
+Computers are now orders of magnitude faster, yet software feels even slower.
+Destack wants to make building correct, optimal, integrated software the standard.
 
 TypeScript is a language that describes *what data looks like*.
-Destack is a system for describing *how software behaves* - all on top of TypeScript.
-Think of it as TypeScript for entire systems (similar to how `.tsx` works).
+Destack is a system for describing *how software behaves*.
+Think of `.ds` as extending TypeScript for entire software systems, much like `.tsx` extends TypeScript for UI-shaped problems.
 
+The best programing language is the one that fits the problem.
+And this "language" encompasses its supporting libraries, platform and ecosystem.
 The more we can express in the language, the more the toolchain can verify, optimize, and assist.
-The best programing language is the one that fits your domain, and the whole Destack system is designed to enable *domain languages*.
-That's what we mean by "higher-order software": raising the level of abstraction on what software systems can *reliably* express without losing the details.
+Higher-order software is raises the level of abstraction on what software systems can express *reliably*.
+
+# Development
+
+Destack is in very active development with a singular focus: a fully integrated software stack for optimal, correct, integrated software. 
+We welcome feedback and issues, but please check in for larger changes 
 
 ## Structure
 
-This is the fully open source monorepo containing the language, library, and core platform:
+This is the open source monorepo containing the language, library, and core platform:
 
 | Directory    | Description                                                    |
 |--------------|----------------------------------------------------------------|
@@ -38,7 +55,7 @@ This is the fully open source monorepo containing the language, library, and cor
 | `examples/`  | Example projects                                               |
 | `templates/` | Project templates for `destack new`                            |
 
-## Prerequisites
+## Setup
 
 Destack is *developed* using Rust and TypeScript:
 
@@ -46,22 +63,6 @@ Destack is *developed* using Rust and TypeScript:
 - [Rust](https://rustup.rs/): Rust compiler (`nightly-2025-11-27`, see `rust-toolchain.toml`)
 - [just](https://github.com/casey/just): Scripts and command runner
 - [Python 3](https://python.org/): Scripts and codegen utilities (optional)
-
-## Quick Start
-
-```sh
-# install dependencies
-just install
-
-# build everything
-just build
-
-# run tests
-just test
-
-# see all commands
-just
-```
 
 ## Development
 
@@ -72,8 +73,6 @@ just lint           # lint all code
 just language/test  # run only Rust tests
 just library/test   # run only TS tests
 ```
-
-See [AGENTS.md](AGENTS.md) for code style guidelines.
 
 ## License
 
