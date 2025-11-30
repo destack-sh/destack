@@ -57,8 +57,10 @@ pub struct TsConfig {
     pub directory: PathBuf,
     /// Base directory from which to resolve path aliases.
     pub paths_base: PathBuf,
-    /// The content of the `tsconfig.json` file.
+    /// The raw JSON content of the `tsconfig.json` file.
     pub content: TsConfigJson,
+    /// The normalized/resolved configuration options.
+    pub options: TsConfigOptions,
 }
 
 impl TsConfig {
@@ -90,6 +92,9 @@ impl TsConfig {
             .expect("tsconfig.json must have a parent directory")
             .to_path_buf();
 
+        // create initial options from JSON
+        let options = TsConfigOptions::from(&tsconfig_json);
+
         let tsconfig = Self {
             id,
             file_id: file.id,
@@ -99,6 +104,7 @@ impl TsConfig {
             directory: directory.clone(),
             paths_base: directory,
             content: tsconfig_json,
+            options,
         };
         Ok(tsconfig)
     }
@@ -823,6 +829,544 @@ pub enum TsConfigExtendsField {
 pub struct TsConfigProjectReferences {
     /// Path to the tsconfig.json file (relative to containing tsconfig).
     pub path: PathBuf,
+}
+
+/// JSX transformation mode.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+pub enum JsxMode {
+    /// Preserve JSX as-is in output.
+    #[default]
+    Preserve,
+    /// Transform to React.createElement calls.
+    React,
+    /// Transform to React 17+ JSX runtime (automatic import).
+    ReactJsx,
+    /// Transform to React 17+ JSX runtime (development mode).
+    ReactJsxDev,
+    /// Transform to h() calls (Preact, etc.).
+    ReactNative,
+}
+
+impl JsxMode {
+    /// Parse from a string value.
+    pub fn parse(s: &str) -> Option<Self> {
+        match s.to_lowercase().as_str() {
+            "preserve" => Some(Self::Preserve),
+            "react" => Some(Self::React),
+            "react-jsx" => Some(Self::ReactJsx),
+            "react-jsxdev" => Some(Self::ReactJsxDev),
+            "react-native" => Some(Self::ReactNative),
+            _ => None,
+        }
+    }
+}
+
+/// Module resolution strategy.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+pub enum ModuleResolution {
+    /// Classic TypeScript resolution (deprecated).
+    Classic,
+    /// Node.js resolution (CommonJS).
+    Node,
+    /// Node.js 16+ resolution (ESM).
+    Node16,
+    /// Node.js Next resolution (ESM).
+    NodeNext,
+    /// Bundler-style resolution.
+    #[default]
+    Bundler,
+}
+
+impl ModuleResolution {
+    /// Parse from a string value.
+    pub fn parse(s: &str) -> Option<Self> {
+        match s.to_lowercase().as_str() {
+            "classic" => Some(Self::Classic),
+            "node" | "node10" => Some(Self::Node),
+            "node16" => Some(Self::Node16),
+            "nodenext" => Some(Self::NodeNext),
+            "bundler" => Some(Self::Bundler),
+            _ => None,
+        }
+    }
+}
+
+/// Module format.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+pub enum ModuleKind {
+    /// CommonJS modules.
+    CommonJs,
+    /// AMD modules.
+    Amd,
+    /// UMD modules.
+    Umd,
+    /// SystemJS modules.
+    System,
+    /// ES2015 modules.
+    Es2015,
+    /// ES2020 modules.
+    Es2020,
+    /// ES2022 modules.
+    Es2022,
+    /// ESNext modules.
+    #[default]
+    EsNext,
+    /// Node16 modules.
+    Node16,
+    /// NodeNext modules.
+    NodeNext,
+    /// Preserve original module syntax.
+    Preserve,
+    /// No module system.
+    None,
+}
+
+impl ModuleKind {
+    /// Parse from a string value.
+    pub fn parse(s: &str) -> Option<Self> {
+        match s.to_lowercase().as_str() {
+            "commonjs" => Some(Self::CommonJs),
+            "amd" => Some(Self::Amd),
+            "umd" => Some(Self::Umd),
+            "system" => Some(Self::System),
+            "es2015" | "es6" => Some(Self::Es2015),
+            "es2020" => Some(Self::Es2020),
+            "es2022" => Some(Self::Es2022),
+            "esnext" => Some(Self::EsNext),
+            "node16" => Some(Self::Node16),
+            "nodenext" => Some(Self::NodeNext),
+            "preserve" => Some(Self::Preserve),
+            "none" => Some(Self::None),
+            _ => None,
+        }
+    }
+
+    /// Whether this module kind is ESM-based.
+    pub fn is_esm(&self) -> bool {
+        matches!(
+            self,
+            Self::Es2015
+                | Self::Es2020
+                | Self::Es2022
+                | Self::EsNext
+                | Self::Node16
+                | Self::NodeNext
+                | Self::Preserve
+        )
+    }
+}
+
+/// ECMAScript target version.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+pub enum EsTarget {
+    /// ES3 (legacy).
+    Es3,
+    /// ES5.
+    Es5,
+    /// ES2015 (ES6).
+    Es2015,
+    /// ES2016.
+    Es2016,
+    /// ES2017.
+    Es2017,
+    /// ES2018.
+    Es2018,
+    /// ES2019.
+    Es2019,
+    /// ES2020.
+    Es2020,
+    /// ES2021.
+    Es2021,
+    /// ES2022.
+    Es2022,
+    /// ES2023.
+    Es2023,
+    /// ES2024.
+    Es2024,
+    /// ESNext (latest).
+    #[default]
+    EsNext,
+}
+
+impl EsTarget {
+    /// Parse from a string value.
+    pub fn parse(s: &str) -> Option<Self> {
+        match s.to_lowercase().as_str() {
+            "es3" => Some(Self::Es3),
+            "es5" => Some(Self::Es5),
+            "es2015" | "es6" => Some(Self::Es2015),
+            "es2016" => Some(Self::Es2016),
+            "es2017" => Some(Self::Es2017),
+            "es2018" => Some(Self::Es2018),
+            "es2019" => Some(Self::Es2019),
+            "es2020" => Some(Self::Es2020),
+            "es2021" => Some(Self::Es2021),
+            "es2022" => Some(Self::Es2022),
+            "es2023" => Some(Self::Es2023),
+            "es2024" => Some(Self::Es2024),
+            "esnext" => Some(Self::EsNext),
+            _ => None,
+        }
+    }
+}
+
+/// How to detect module vs script files.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+pub enum ModuleDetection {
+    /// Auto-detect based on imports/exports.
+    #[default]
+    Auto,
+    /// Legacy detection (TypeScript <4.7).
+    Legacy,
+    /// Force all files to be modules.
+    Force,
+}
+
+impl ModuleDetection {
+    /// Parse from a string value.
+    pub fn parse(s: &str) -> Option<Self> {
+        match s.to_lowercase().as_str() {
+            "auto" => Some(Self::Auto),
+            "legacy" => Some(Self::Legacy),
+            "force" => Some(Self::Force),
+            _ => None,
+        }
+    }
+}
+
+/// How to handle type-only imports.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+pub enum ImportsNotUsedAsValues {
+    /// Remove unused imports.
+    #[default]
+    Remove,
+    /// Preserve all imports.
+    Preserve,
+    /// Error on unused imports.
+    Error,
+}
+
+impl ImportsNotUsedAsValues {
+    /// Parse from a string value.
+    pub fn parse(s: &str) -> Option<Self> {
+        match s.to_lowercase().as_str() {
+            "remove" => Some(Self::Remove),
+            "preserve" => Some(Self::Preserve),
+            "error" => Some(Self::Error),
+            _ => None,
+        }
+    }
+}
+
+/// Path alias mapping (resolved from tsconfig paths).
+pub type PathAliases = IndexMap<String, Vec<String>, BuildHasherDefault<FxHasher>>;
+
+/// Normalized TypeScript configuration options (from `tsconfig.json`).
+#[derive(Debug, Clone, Default)]
+pub struct TsConfigOptions {
+    /// Specific files to include in the project.
+    pub files: Vec<String>,
+    /// Glob patterns for files to include.
+    pub include: Vec<String>,
+    /// Glob patterns for files to exclude.
+    pub exclude: Vec<String>,
+    /// Compiler options.
+    pub compiler: TsConfigCompilerOptions,
+}
+
+impl From<&TsConfigJson> for TsConfigOptions {
+    fn from(json: &TsConfigJson) -> Self {
+        Self {
+            files: json.files.clone().unwrap_or_default(),
+            include: json.include.clone().unwrap_or_default(),
+            exclude: json.exclude.clone().unwrap_or_default(),
+            compiler: TsConfigCompilerOptions::from(&json.compiler_options),
+        }
+    }
+}
+
+/// Normalized TypeScript compiler options.
+#[derive(Debug, Clone)]
+pub struct TsConfigCompilerOptions {
+    // module resolution
+    /// Base URL for resolving non-relative module names.
+    pub base_url: Option<PathBuf>,
+    /// Path alias mappings.
+    pub paths: Option<PathAliases>,
+    /// Module resolution strategy.
+    pub module_resolution: ModuleResolution,
+    /// Allow arbitrary file extensions in imports.
+    pub allow_arbitrary_extensions: bool,
+    /// Allow importing TypeScript files directly.
+    pub allow_importing_ts_extensions: bool,
+    /// Resolve JSON modules.
+    pub resolve_json_module: bool,
+    /// Use package.json exports field.
+    pub resolve_package_json_exports: bool,
+    /// Use package.json imports field.
+    pub resolve_package_json_imports: bool,
+    /// Custom conditions for package exports.
+    pub custom_conditions: Vec<String>,
+
+    // module & target
+    /// Module format.
+    pub module: ModuleKind,
+    /// ECMAScript target.
+    pub target: EsTarget,
+    /// How to detect modules vs scripts.
+    pub module_detection: ModuleDetection,
+
+    // jsx
+    /// JSX transformation mode.
+    pub jsx: JsxMode,
+    /// JSX factory function (e.g., "React.createElement").
+    pub jsx_factory: Option<String>,
+    /// JSX fragment factory (e.g., "React.Fragment").
+    pub jsx_fragment_factory: Option<String>,
+    /// JSX import source (e.g., "react").
+    pub jsx_import_source: Option<String>,
+
+    // decorators
+    /// Enable legacy experimental decorators.
+    pub experimental_decorators: bool,
+    /// Emit decorator metadata.
+    pub emit_decorator_metadata: bool,
+
+    // class fields
+    /// Use define semantics for class fields.
+    pub use_define_for_class_fields: bool,
+
+    // import handling
+    /// Verbatim module syntax (no import elision).
+    pub verbatim_module_syntax: bool,
+    /// Preserve value imports (deprecated).
+    pub preserve_value_imports: bool,
+    /// How to handle type-only imports.
+    pub imports_not_used_as_values: ImportsNotUsedAsValues,
+    /// Rewrite relative import extensions.
+    pub rewrite_relative_import_extensions: bool,
+
+    // strict mode flags
+    /// Enable all strict type-checking options.
+    pub strict: bool,
+    /// Parse in strict mode.
+    pub always_strict: bool,
+    /// Error on implicit any.
+    pub no_implicit_any: bool,
+    /// Error on implicit this.
+    pub no_implicit_this: bool,
+    /// Strict null checks.
+    pub strict_null_checks: bool,
+    /// Strict function types.
+    pub strict_function_types: bool,
+    /// Strict bind/call/apply.
+    pub strict_bind_call_apply: bool,
+    /// Strict property initialization.
+    pub strict_property_initialization: bool,
+    /// Use unknown in catch variables.
+    pub use_unknown_in_catch_variables: bool,
+
+    // checking flags
+    /// Allow unreachable code.
+    pub allow_unreachable_code: bool,
+    /// Allow unused labels.
+    pub allow_unused_labels: bool,
+    /// Exact optional property types.
+    pub exact_optional_property_types: bool,
+    /// No fallthrough in switch.
+    pub no_fallthrough_cases_in_switch: bool,
+    /// Require override keyword.
+    pub no_implicit_override: bool,
+    /// Require explicit returns.
+    pub no_implicit_returns: bool,
+    /// No unchecked indexed access.
+    pub no_unchecked_indexed_access: bool,
+    /// No unused locals.
+    pub no_unused_locals: bool,
+    /// No unused parameters.
+    pub no_unused_parameters: bool,
+    /// No property access from index signature.
+    pub no_property_access_from_index_signature: bool,
+
+    // library
+    /// Built-in library types to include.
+    pub lib: Vec<String>,
+    /// Type roots.
+    pub type_roots: Vec<String>,
+    /// Types to include.
+    pub types: Vec<String>,
+    /// Skip lib check.
+    pub skip_lib_check: bool,
+    /// No lib.
+    pub no_lib: bool,
+
+    // javascript
+    /// Allow JavaScript files.
+    pub allow_js: bool,
+    /// Check JavaScript files.
+    pub check_js: bool,
+}
+
+impl Default for TsConfigCompilerOptions {
+    fn default() -> Self {
+        Self {
+            base_url: None,
+            paths: None,
+            module_resolution: ModuleResolution::default(),
+            allow_arbitrary_extensions: false,
+            allow_importing_ts_extensions: false,
+            resolve_json_module: false,
+            resolve_package_json_exports: true,
+            resolve_package_json_imports: true,
+            custom_conditions: Vec::new(),
+
+            module: ModuleKind::default(),
+            target: EsTarget::default(),
+            module_detection: ModuleDetection::default(),
+
+            jsx: JsxMode::default(),
+            jsx_factory: None,
+            jsx_fragment_factory: None,
+            jsx_import_source: None,
+
+            experimental_decorators: false,
+            emit_decorator_metadata: false,
+
+            use_define_for_class_fields: true,
+
+            verbatim_module_syntax: false,
+            preserve_value_imports: false,
+            imports_not_used_as_values: ImportsNotUsedAsValues::default(),
+            rewrite_relative_import_extensions: false,
+
+            strict: false,
+            always_strict: false,
+            no_implicit_any: false,
+            no_implicit_this: false,
+            strict_null_checks: false,
+            strict_function_types: false,
+            strict_bind_call_apply: false,
+            strict_property_initialization: false,
+            use_unknown_in_catch_variables: false,
+
+            allow_unreachable_code: false,
+            allow_unused_labels: false,
+            exact_optional_property_types: false,
+            no_fallthrough_cases_in_switch: false,
+            no_implicit_override: false,
+            no_implicit_returns: false,
+            no_unchecked_indexed_access: false,
+            no_unused_locals: false,
+            no_unused_parameters: false,
+            no_property_access_from_index_signature: false,
+
+            lib: Vec::new(),
+            type_roots: Vec::new(),
+            types: Vec::new(),
+            skip_lib_check: false,
+            no_lib: false,
+
+            allow_js: false,
+            check_js: false,
+        }
+    }
+}
+
+impl From<&TsConfigCompilerOptionsJson> for TsConfigCompilerOptions {
+    fn from(json: &TsConfigCompilerOptionsJson) -> Self {
+        // determine if strict mode is enabled
+        let strict = json.strict.unwrap_or(false);
+
+        Self {
+            base_url: json.base_url.clone(),
+            paths: json.paths.clone(),
+            module_resolution: json
+                .module_resolution
+                .as_deref()
+                .and_then(ModuleResolution::parse)
+                .unwrap_or_default(),
+            allow_arbitrary_extensions: json.allow_arbitrary_extensions.unwrap_or(false),
+            allow_importing_ts_extensions: json.allow_importing_ts_extensions.unwrap_or(false),
+            resolve_json_module: json.resolve_json_module.unwrap_or(false),
+            resolve_package_json_exports: json.resolve_package_json_exports.unwrap_or(true),
+            resolve_package_json_imports: json.resolve_package_json_imports.unwrap_or(true),
+            custom_conditions: json.custom_conditions.clone().unwrap_or_default(),
+
+            module: json
+                .module
+                .as_deref()
+                .and_then(ModuleKind::parse)
+                .unwrap_or_default(),
+            target: json
+                .target
+                .as_deref()
+                .and_then(EsTarget::parse)
+                .unwrap_or_default(),
+            module_detection: json
+                .module_detection
+                .as_deref()
+                .and_then(ModuleDetection::parse)
+                .unwrap_or_default(),
+
+            jsx: json
+                .jsx
+                .as_deref()
+                .and_then(JsxMode::parse)
+                .unwrap_or_default(),
+            jsx_factory: json.jsx_factory.clone(),
+            jsx_fragment_factory: json.jsx_fragment_factory.clone(),
+            jsx_import_source: json.jsx_import_source.clone(),
+
+            experimental_decorators: json.experimental_decorators.unwrap_or(false),
+            emit_decorator_metadata: json.emit_decorator_metadata.unwrap_or(false),
+
+            use_define_for_class_fields: json.use_define_for_class_fields.unwrap_or(true),
+
+            verbatim_module_syntax: json.verbatim_module_syntax.unwrap_or(false),
+            preserve_value_imports: json.preserve_value_imports.unwrap_or(false),
+            imports_not_used_as_values: json
+                .imports_not_used_as_values
+                .as_deref()
+                .and_then(ImportsNotUsedAsValues::parse)
+                .unwrap_or_default(),
+            rewrite_relative_import_extensions: json
+                .rewrite_relative_import_extensions
+                .unwrap_or(false),
+
+            // strict mode implies several sub-flags
+            strict,
+            always_strict: json.always_strict.unwrap_or(strict),
+            no_implicit_any: json.no_implicit_any.unwrap_or(strict),
+            no_implicit_this: json.no_implicit_this.unwrap_or(strict),
+            strict_null_checks: json.strict_null_checks.unwrap_or(strict),
+            strict_function_types: json.strict_function_types.unwrap_or(strict),
+            strict_bind_call_apply: json.strict_bind_call_apply.unwrap_or(strict),
+            strict_property_initialization: json.strict_property_initialization.unwrap_or(strict),
+            use_unknown_in_catch_variables: json.use_unknown_in_catch_variables.unwrap_or(strict),
+
+            allow_unreachable_code: json.allow_unreachable_code.unwrap_or(false),
+            allow_unused_labels: json.allow_unused_labels.unwrap_or(false),
+            exact_optional_property_types: json.exact_optional_property_types.unwrap_or(false),
+            no_fallthrough_cases_in_switch: json.no_fallthrough_cases_in_switch.unwrap_or(false),
+            no_implicit_override: json.no_implicit_override.unwrap_or(false),
+            no_implicit_returns: json.no_implicit_returns.unwrap_or(false),
+            no_unchecked_indexed_access: json.no_unchecked_indexed_access.unwrap_or(false),
+            no_unused_locals: json.no_unused_locals.unwrap_or(false),
+            no_unused_parameters: json.no_unused_parameters.unwrap_or(false),
+            no_property_access_from_index_signature: json
+                .no_property_access_from_index_signature
+                .unwrap_or(false),
+
+            lib: json.lib.clone().unwrap_or_default(),
+            type_roots: json.type_roots.clone().unwrap_or_default(),
+            types: json.types.clone().unwrap_or_default(),
+            skip_lib_check: json.skip_lib_check.unwrap_or(false),
+            no_lib: json.no_lib.unwrap_or(false),
+
+            allow_js: json.allow_js.unwrap_or(false),
+            check_js: json.check_js.unwrap_or(false),
+        }
+    }
 }
 
 #[cfg(test)]

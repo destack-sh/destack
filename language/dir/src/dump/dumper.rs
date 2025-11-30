@@ -554,11 +554,8 @@ impl Dump for IntType {
 impl Dump for FloatType {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
         match self {
-            FloatType::Float16 => dumper.object("FloatType::Float16").end(),
             FloatType::Float32 => dumper.object("FloatType::Float32").end(),
             FloatType::Float64 => dumper.object("FloatType::Float64").end(),
-            FloatType::Float80 => dumper.object("FloatType::Float80").end(),
-            FloatType::Float128 => dumper.object("FloatType::Float128").end(),
             FloatType::Arbitrary { width } => dumper
                 .object("FloatType::Arbitrary")
                 .field("width", width)

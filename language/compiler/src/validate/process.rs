@@ -65,10 +65,10 @@ impl Compiler {
     pub fn validate_module(&self, module_id: ModuleId) -> ValidateResult<()> {
         let module = self.program.modules.get(module_id);
         let module = module.read();
-        let tree = module.tree.read();
-        let symbols = module.symbols.read();
-        let mut types = module.types.read();
-        let mut collector = TaskResultCollector::new();
+        let _tree = module.tree.read();
+        let _symbols = module.symbols.read();
+        let _types = module.types.read();
+        let _collector = TaskResultCollector::new();
 
         // TODO #Incomplete: validate module
 

@@ -31,6 +31,15 @@ pub enum ResolveError {
     /// Circular tsconfig extends.
     TsConfigCircular { paths: Vec<PathBuf> },
 
+    /// DsConfig not found.
+    DsConfigNotFound { path: PathBuf },
+
+    /// Invalid dsconfig.
+    DsConfigInvalid { path: PathBuf },
+
+    /// Circular dsconfig extends.
+    DsConfigCircular { paths: Vec<PathBuf> },
+
     /// IO error.
     IoError { path: PathBuf, kind: io::ErrorKind },
 
@@ -106,6 +115,9 @@ impl ResolveError {
             Self::TsConfigInvalid { .. } => 5,
             Self::TsConfigSelfReference { .. } => 5,
             Self::TsConfigCircular { .. } => 6,
+            Self::DsConfigNotFound { .. } => 21,
+            Self::DsConfigInvalid { .. } => 22,
+            Self::DsConfigCircular { .. } => 23,
             Self::IoError { .. } => 7,
             Self::UnsupportedPath { .. } => 8,
             Self::ExtensionAliasNotFound { .. } => 10,
@@ -137,6 +149,11 @@ impl ResolveError {
             }
             Self::TsConfigCircular { paths } => {
                 format!("tsconfig extends configs circularly: {paths:?}")
+            }
+            Self::DsConfigNotFound { path } => format!("dsconfig '{path:?}' not found"),
+            Self::DsConfigInvalid { path } => format!("invalid dsconfig '{path:?}'"),
+            Self::DsConfigCircular { paths } => {
+                format!("dsconfig extends configs circularly: {paths:?}")
             }
             Self::IoError { path, kind } => format!("IO error at {path:?}: {kind}"),
             Self::UnsupportedPath { path } => {

@@ -12,6 +12,14 @@ pub struct FormattingOptions {
 }
 
 impl FormattingOptions {
+    /// The default formatting options.
+    pub const DEFAULT: Self = Self {
+        line_ending: LineEnding::LineFeed,
+        indent_style: IndentStyle::Space,
+        indent_width: 4,
+        line_width: 100,
+    };
+
     /// Set the line ending type.
     pub fn with_line_ending(mut self, line_ending: LineEnding) -> Self {
         self.line_ending = line_ending;
