@@ -16,7 +16,7 @@ check:
 
 # test
 test:
-    cargo test --release -p destack_napi
+    cargo test --release --all-targets -p destack_napi
     bun test
 
 # format

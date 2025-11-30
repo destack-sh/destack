@@ -10,6 +10,7 @@ default-run = "destack_cli"
 
 [lib]
 path = "src/lib.rs"
+doctest = false
 
 [[bin]]
 name = "destack_cli"

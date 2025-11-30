@@ -20,7 +20,7 @@ build:
 
 # test
 test:
-    cargo test --release {{ packages }}
+    cargo test --release --all-targets {{ packages }}
 
 # format
 fmt:
