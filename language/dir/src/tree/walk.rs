@@ -251,22 +251,6 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
                 visitor.visit_expression(tree, *value_id, value);
             }
         }
-        Expression::LetType {
-            descriptor: _,
-            kind: _,
-            mutability: _,
-            static_parameters,
-            value,
-        } => {
-            if let Some(static_parameters) = static_parameters {
-                for parameter_id in static_parameters {
-                    let parameter = tree.get(*parameter_id);
-                    visitor.visit_parameter(tree, *parameter_id, parameter);
-                }
-            }
-            let value_expression = tree.get(*value);
-            visitor.visit_expression(tree, *value, value_expression);
-        }
         Expression::Unary { operator: _, right }
         | Expression::ValueOf {
             mutability: _,
@@ -702,6 +686,22 @@ pub fn walk_declaration<V: NodeVisitor + ?Sized>(
                 let expression = tree.get(*expression_id);
                 visitor.visit_expression(tree, *expression_id, expression);
             }
+        }
+        Declaration::Type {
+            descriptor: _,
+            kind: _,
+            mutability: _,
+            static_parameters,
+            value,
+        } => {
+            if let Some(static_parameters) = static_parameters {
+                for parameter_id in static_parameters {
+                    let parameter = tree.get(*parameter_id);
+                    visitor.visit_parameter(tree, *parameter_id, parameter);
+                }
+            }
+            let value_expression = tree.get(*value);
+            visitor.visit_expression(tree, *value, value_expression);
         }
         Declaration::Struct {
             descriptor: _,

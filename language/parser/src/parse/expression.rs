@@ -1522,9 +1522,11 @@ type = type * 2
         let mut test = TestParser::new("export type NonNullValue = Something");
         let mut parser = test.prepare();
         let expression_id = parser.eat_expression().unwrap();
-        assert_node!(parser.tree, expression_id, Expression::LetType { descriptor: DeclarationDescriptor { name, export, .. }, .. } => {
-            assert_string!(parser, name.unwrap().string(), "NonNullValue");
-            assert!(export.is_some());
+        assert_node!(parser.tree, expression_id, Expression::Declaration(decl_id) => {
+            assert_node!(parser.tree, *decl_id, Declaration::Type { descriptor: DeclarationDescriptor { name, export, .. }, .. } => {
+                assert_string!(parser, name.unwrap().string(), "NonNullValue");
+                assert!(export.is_some());
+            });
         });
     }
 
@@ -2835,22 +2837,24 @@ type Value =
         parser.eat_newline().unwrap();
         let expr_id = parser.eat_expression().unwrap();
         // type Value = | string | number | boolean
-        assert_node!(parser.tree, expr_id, Expression::LetType { descriptor: DeclarationDescriptor { name, .. }, value, .. } => {
-            // value
-            assert_string!(parser, name.unwrap().string(), "Value");
-            // | string | number | boolean
-            assert_node!(parser.tree, *value, Expression::Binary { left, operator, right, .. } => {
-                assert_eq!(*operator, BinaryOperator::ElementwiseOr);
-                // string | number
-                assert_node!(parser.tree, *left, Expression::Binary { left, operator, right, .. } => {
+        assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
+            assert_node!(parser.tree, *decl_id, Declaration::Type { descriptor: DeclarationDescriptor { name, .. }, value, .. } => {
+                // value
+                assert_string!(parser, name.unwrap().string(), "Value");
+                // | string | number | boolean
+                assert_node!(parser.tree, *value, Expression::Binary { left, operator, right, .. } => {
                     assert_eq!(*operator, BinaryOperator::ElementwiseOr);
-                    // string
-                    assert_node!(parser.tree, *left, Expression::TypeLiteral(TypeLiteral::String));
-                    // number
-                    assert_node!(parser.tree, *right, Expression::TypeLiteral(TypeLiteral::Number));
+                    // string | number
+                    assert_node!(parser.tree, *left, Expression::Binary { left, operator, right, .. } => {
+                        assert_eq!(*operator, BinaryOperator::ElementwiseOr);
+                        // string
+                        assert_node!(parser.tree, *left, Expression::TypeLiteral(TypeLiteral::String));
+                        // number
+                        assert_node!(parser.tree, *right, Expression::TypeLiteral(TypeLiteral::Number));
+                    });
+                    // boolean
+                    assert_node!(parser.tree, *right, Expression::TypeLiteral(TypeLiteral::Boolean));
                 });
-                // boolean
-                assert_node!(parser.tree, *right, Expression::TypeLiteral(TypeLiteral::Boolean));
             });
         });
     }

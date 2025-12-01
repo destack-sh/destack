@@ -208,23 +208,6 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             }
         }
 
-        Expression::LetType {
-            kind: _,
-            mutability: _,
-            descriptor: _,
-            static_parameters,
-            value,
-        } => {
-            if let Some(static_parameters) = static_parameters {
-                for parameter_id in static_parameters {
-                    let parameter = tree.get(*parameter_id);
-                    visitor.visit_parameter(tree, *parameter_id, parameter);
-                }
-            }
-            let value_expr = tree.get(*value);
-            visitor.visit_expression(tree, *value, value_expr);
-        }
-
         Expression::If {
             kind: _,
             condition,
@@ -709,6 +692,23 @@ pub fn walk_declaration<V: NodeVisitor + ?Sized>(
                 let statement = tree.get(*statement_id);
                 visitor.visit_expression(tree, *statement_id, statement);
             }
+        }
+        Declaration::Type {
+            descriptor,
+            kind: _,
+            mutability: _,
+            static_parameters,
+            value,
+        } => {
+            walk_declaration_descriptor(visitor, tree, descriptor);
+            if let Some(static_parameters) = static_parameters {
+                for parameter_id in static_parameters {
+                    let parameter = tree.get(*parameter_id);
+                    visitor.visit_parameter(tree, *parameter_id, parameter);
+                }
+            }
+            let value_expr = tree.get(*value);
+            visitor.visit_expression(tree, *value, value_expr);
         }
         Declaration::Struct {
             descriptor,

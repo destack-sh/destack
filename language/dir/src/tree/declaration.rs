@@ -1,6 +1,7 @@
 use crate::{
     BindingAnchor, DependencyMode, Expression, FunctionSignature, Generics, GlobalSymbolId,
-    Heritage, LocalNodeId, LocalScopeId, LocalSymbolId, Node, NodeType, Property, StringId,
+    Heritage, LocalNodeId, LocalScopeId, LocalSymbolId, Mutability, Node, NodeType, Parameter,
+    Property, StringId, TypeKind,
 };
 
 /// The kind of declaration.
@@ -36,6 +37,14 @@ pub enum Declaration {
         generics: Generics,
         scope: LocalScopeId,
         expressions: Vec<LocalNodeId<Expression>>,
+    },
+    /// Type alias declaration.
+    Type {
+        descriptor: DeclarationDescriptor,
+        kind: TypeKind,
+        mutability: Option<Mutability>,
+        static_parameters: Option<Vec<LocalNodeId<Parameter>>>,
+        value: LocalNodeId<Expression>,
     },
     /// Struct or class declaration.
     Struct {
@@ -95,6 +104,7 @@ impl Declaration {
     pub fn kind_name(&self) -> &'static str {
         match self {
             Declaration::Namespace { .. } => "namespace",
+            Declaration::Type { .. } => "type",
             Declaration::Struct { .. } => "struct",
             Declaration::Enum { .. } => "enum",
             Declaration::Interface { .. } => "interface",
@@ -107,6 +117,7 @@ impl Declaration {
     pub fn descriptor(&self) -> &DeclarationDescriptor {
         match self {
             Declaration::Namespace { descriptor, .. } => descriptor,
+            Declaration::Type { descriptor, .. } => descriptor,
             Declaration::Struct { descriptor, .. } => descriptor,
             Declaration::Enum { descriptor, .. } => descriptor,
             Declaration::Interface { descriptor, .. } => descriptor,
@@ -121,14 +132,16 @@ impl Declaration {
     }
 
     /// Get the scope of the declaration.
-    pub fn scope(&self) -> LocalScopeId {
+    /// Returns None for Declaration::Type which has no scope.
+    pub fn scope(&self) -> Option<LocalScopeId> {
         match self {
-            Declaration::Namespace { scope, .. } => *scope,
-            Declaration::Struct { scope, .. } => *scope,
-            Declaration::Enum { scope, .. } => *scope,
-            Declaration::Interface { scope, .. } => *scope,
-            Declaration::Function { scope, .. } => *scope,
-            Declaration::Extension { scope, .. } => *scope,
+            Declaration::Namespace { scope, .. } => Some(*scope),
+            Declaration::Type { .. } => None,
+            Declaration::Struct { scope, .. } => Some(*scope),
+            Declaration::Enum { scope, .. } => Some(*scope),
+            Declaration::Interface { scope, .. } => Some(*scope),
+            Declaration::Function { scope, .. } => Some(*scope),
+            Declaration::Extension { scope, .. } => Some(*scope),
         }
     }
 }

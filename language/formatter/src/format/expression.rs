@@ -1,6 +1,6 @@
 use destack_ast::{
     Argument, Asynchrony, DependencyItem, DependencyKind, DependencyMode, Expression, ForEachKind,
-    IfKind, Keyword, LocalNodeId, Mutability, NodeTree, PostfixPosition, Property, TypeKind,
+    IfKind, Keyword, LocalNodeId, Mutability, NodeTree, PostfixPosition, Property,
     TypeUnaryOperator, WhileKind, YieldCardinality,
 };
 use destack_fir::format::{BestFittingMode, FormatError};
@@ -1139,79 +1139,6 @@ pub(crate) fn format_expression<'ast>(
                     .format(f)?;
             } else {
                 best_fitting![format_inline, format_indented].format(f)?;
-            }
-        }
-
-        // type
-        Expression::LetType {
-            kind,
-            mutability,
-            descriptor,
-            static_parameters,
-            value: value_id,
-        } => {
-            let header = format_with(|f| {
-                // export
-                if let Some(export) = descriptor.export {
-                    write!(f, [export, space()])?;
-                }
-                // keyword
-                if *mutability == Some(Mutability::Immutable) {
-                    // for readonly type expression
-                    write!(f, [Keyword::Readonly])?;
-                } else if *kind == TypeKind::Structural {
-                    write!(f, [Keyword::Type])?;
-                } else {
-                    write!(f, [Keyword::Newtype])?;
-                }
-                // name
-                if let Some(name) = descriptor.name {
-                    write!(f, [space(), name])?;
-                }
-                // static parameters
-                if let Some(static_parameters) = static_parameters {
-                    write!(f, [list_like("<", ">", ",", static_parameters)])?;
-                }
-                Ok(())
-            });
-
-            // prefer keeping the value on a single line
-            let format_inline = format_with(|f| {
-                write!(f, [header, space(), token("="), space(), *value_id])?;
-                Ok(())
-            });
-            // expand inline if breakable (like let x = [\n ... ])
-            let format_inline_expanded = format_with(|f| {
-                write!(
-                    f,
-                    [
-                        header,
-                        space(),
-                        token("="),
-                        space(),
-                        fits_expanded(&group(value_id).should_expand(true)),
-                    ]
-                )
-            });
-            // expand and indent the value
-            let format_indented = format_with(|f| {
-                group(&format_args![
-                    header,
-                    space(),
-                    token("="),
-                    block_indent(value_id)
-                ])
-                .format(f)
-            });
-
-            if is_expression_breakable(tree, tree.get(*value_id)) {
-                best_fitting![format_inline, format_inline_expanded, format_indented]
-                    .with_mode(BestFittingMode::AllLines)
-                    .format(f)?;
-            } else {
-                best_fitting![format_inline, format_indented]
-                    .with_mode(BestFittingMode::AllLines)
-                    .format(f)?;
             }
         }
 

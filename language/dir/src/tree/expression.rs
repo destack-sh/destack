@@ -4,8 +4,8 @@ use crate::{
     Argument, AssignOperator, Asynchrony, BinaryOperator, Block, Declaration,
     DeclarationDescriptor, DependencyItem, DependencyKind, GlobalSymbolId, LocalNodeId,
     LocalScopeId, LocalSymbolId, MatchCase, MatchSource, ModuleId, Mutability, Node, NodeType,
-    Parameter, Path, Pattern, Property, ScalarLiteral, TemplateLiteral, TypeBinaryOperator,
-    TypeKind, TypeLiteral, TypeUnaryOperator, UnaryOperator, VarianceBound,
+    Path, Pattern, Property, ScalarLiteral, TemplateLiteral, TypeBinaryOperator, TypeLiteral,
+    TypeUnaryOperator, UnaryOperator, VarianceBound,
 };
 
 /// An Expression is a generic container for all constructs.
@@ -69,14 +69,6 @@ pub enum Expression {
         mutability: Mutability,
         pattern: LocalNodeId<Pattern>,
         value: Option<LocalNodeId<Expression>>,
-    },
-    /// Type alias binding.
-    LetType {
-        descriptor: DeclarationDescriptor,
-        kind: TypeKind,
-        mutability: Option<Mutability>,
-        static_parameters: Option<Vec<LocalNodeId<Parameter>>>,
-        value: LocalNodeId<Expression>,
     },
 
     /// Type unary operation.
@@ -354,7 +346,6 @@ impl Expression {
             Expression::Statement { .. } => "statement",
 
             Expression::Let { .. } => "let",
-            Expression::LetType { .. } => "let type",
 
             Expression::TypeUnary { .. } => "type unary",
             Expression::TypeBinary { .. } => "type binary",
@@ -443,7 +434,6 @@ impl Expression {
     pub fn symbol(&self) -> Option<LocalSymbolId> {
         match self {
             Expression::Let { descriptor, .. } => Some(descriptor.symbol),
-            Expression::LetType { descriptor, .. } => Some(descriptor.symbol),
             _ => None,
         }
     }

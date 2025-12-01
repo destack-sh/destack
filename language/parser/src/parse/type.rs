@@ -1,8 +1,9 @@
 use crate::{ParseError, ParseResult, Parser};
 
 use destack_ast::{
-    DeclarationDescriptor, DeclarationType, Expression, FloatType, IntType, Keyword, LocalNodeId,
-    Mutability, TokenType, TypeKind, TypeLiteral, TypeUnaryOperator, UnaryOperator, VarianceBound,
+    Declaration, DeclarationDescriptor, DeclarationType, Expression, FloatType, IntType, Keyword,
+    LocalNodeId, Mutability, TokenType, TypeKind, TypeLiteral, TypeUnaryOperator, UnaryOperator,
+    VarianceBound,
 };
 
 impl Parser {
@@ -250,14 +251,16 @@ impl Parser {
                     .with_options(self.options.not_in_position().in_type(), |parser| {
                         parser.eat_expression()
                     })?;
-                // type
-                let expression = Expression::LetType {
+                // type declaration wrapped in expression
+                let declaration = Declaration::Type {
                     kind,
                     mutability,
                     descriptor,
                     static_parameters,
                     value: value_id,
                 };
+                let declaration_id = self.tree.insert(declaration, self.get_span_from(start));
+                let expression = Expression::Declaration(declaration_id);
                 Ok(self.tree.insert(expression, self.get_span_from(start)))
             }
             // otherwise it's a type expression with static arguments
@@ -379,7 +382,8 @@ impl Parser {
 #[cfg(test)]
 mod tests {
     use destack_ast::{
-        BinaryOperator, Expression, IntType, ScalarLiteral, TypeLiteral, TypeUnaryOperator,
+        BinaryOperator, Declaration, Expression, IntType, ScalarLiteral, TypeLiteral,
+        TypeUnaryOperator,
     };
 
     use crate::{TestParser, assert_node, assert_path, assert_string};
@@ -390,9 +394,11 @@ mod tests {
         let mut parser = test.prepare();
         let expr_id = parser.eat_expression().unwrap();
         // type T = int32
-        assert_node!(parser.tree, expr_id, Expression::LetType { descriptor, value, .. } => {
-            assert_string!(parser, descriptor.name.unwrap().string(), "T");
-            assert_node!(parser.tree, *value, Expression::TypeLiteral(TypeLiteral::Int(IntType::Arbitrary { width: Some(32), is_signed: true })));
+        assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
+            assert_node!(parser.tree, *decl_id, Declaration::Type { descriptor, value, .. } => {
+                assert_string!(parser, descriptor.name.unwrap().string(), "T");
+                assert_node!(parser.tree, *value, Expression::TypeLiteral(TypeLiteral::Int(IntType::Arbitrary { width: Some(32), is_signed: true })));
+            });
         });
     }
 
@@ -402,11 +408,13 @@ mod tests {
         let mut parser = test.prepare();
         let expr_id = parser.eat_expression().unwrap();
         // type T<A, B> = int32
-        assert_node!(parser.tree, expr_id, Expression::LetType { descriptor, value, static_parameters, .. } => {
-            assert_string!(parser, descriptor.name.unwrap().string(), "T");
-            assert_node!(parser.tree, *value, Expression::TypeLiteral(TypeLiteral::Int(IntType::Pointer { is_signed: true })));
-            assert!(static_parameters.is_some());
-            assert_eq!(static_parameters.as_ref().unwrap().len(), 2);
+        assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
+            assert_node!(parser.tree, *decl_id, Declaration::Type { descriptor, value, static_parameters, .. } => {
+                assert_string!(parser, descriptor.name.unwrap().string(), "T");
+                assert_node!(parser.tree, *value, Expression::TypeLiteral(TypeLiteral::Int(IntType::Pointer { is_signed: true })));
+                assert!(static_parameters.is_some());
+                assert_eq!(static_parameters.as_ref().unwrap().len(), 2);
+            });
         });
     }
 
@@ -465,9 +473,11 @@ mod tests {
         let mut parser = test.prepare();
         let expr_id = parser.eat_expression().unwrap();
         // newtype T = int32
-        assert_node!(parser.tree, expr_id, Expression::LetType { descriptor, value, .. } => {
-            assert_string!(parser, descriptor.name.unwrap().string(), "T");
-            assert_node!(parser.tree, *value, Expression::TypeLiteral(TypeLiteral::Int(IntType::Arbitrary { width: Some(32), is_signed: true })));
+        assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
+            assert_node!(parser.tree, *decl_id, Declaration::Type { descriptor, value, .. } => {
+                assert_string!(parser, descriptor.name.unwrap().string(), "T");
+                assert_node!(parser.tree, *value, Expression::TypeLiteral(TypeLiteral::Int(IntType::Arbitrary { width: Some(32), is_signed: true })));
+            });
         });
     }
 }

@@ -1,7 +1,7 @@
 use destack_dir::{self as dir, Module, NodeTree, SymbolTable, TypeTable};
 use destack_javascript_ast::{
     BindingAnchor, Block, Declaration, DeclarationDescriptor, DeclarationKind, DependencyMode,
-    EnumField, Expression, LocalNodeId, Statement, Visibility,
+    EnumField, Expression, LocalNodeId, Statement, Type, Visibility,
 };
 
 use crate::{TranspileError, TranspileResult, TranspileResultExt, Transpiler, TranspilerUnit};
@@ -101,6 +101,41 @@ impl Transpiler {
                 Declaration::Namespace {
                     descriptor,
                     statements,
+                }
+            }
+            dir::Declaration::Type {
+                descriptor,
+                kind: _,
+                mutability: _,
+                static_parameters,
+                value,
+            } => {
+                let descriptor = self.transpile_declaration_descriptor(
+                    module, tree, symbols, types, descriptor, unit,
+                );
+                let static_parameters = static_parameters
+                    .as_ref()
+                    .map(|params| {
+                        params
+                            .iter()
+                            .map(|param| {
+                                self.transpile_parameter(module, tree, symbols, types, *param, unit)
+                            })
+                            .collect::<Result<Vec<_>, TranspileError>>()
+                    })
+                    .transpose()?;
+                let value_expression = self
+                    .transpile_expression(module, tree, symbols, types, *value, unit)
+                    .expect_node::<Expression>(value.into_global_any(module.id), unit)?;
+                let value = unit.ast.insert_from_source_any(
+                    Type::Expression(value_expression),
+                    module.id,
+                    value.into_any(),
+                );
+                Declaration::Type {
+                    descriptor,
+                    static_parameters,
+                    value,
                 }
             }
             dir::Declaration::Struct {

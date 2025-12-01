@@ -1,6 +1,6 @@
 use crate::{
-    BindingAnchor, DependencyMode, Expression, FunctionSignature, LocalNodeId, Name, Node,
-    NodeType, Parameter, Property, WhereClause, WithClause,
+    BindingAnchor, DependencyMode, Expression, FunctionSignature, LocalNodeId, Mutability, Name,
+    Node, NodeType, Parameter, Property, TypeKind, WhereClause, WithClause,
 };
 
 /// The kind of declaration.
@@ -100,7 +100,6 @@ impl Generics {
 }
 
 /// The polymoprhic relations.
-/// // TODO #Incomplete: implement heritage (use proper unresolved state somehow?)
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct Heritage {
     /// The extends types of the declaration.
@@ -143,6 +142,28 @@ pub enum Declaration {
         descriptor: DeclarationDescriptor,
         generics: Generics,
         expressions: Vec<LocalNodeId<Expression>>,
+    },
+
+    /// A Type is a type declaration.
+    /// Types may be parameterized and constrained.
+    ///
+    /// Examples:
+    /// ```
+    /// type T = int32
+    /// type T = foo()
+    /// type T = { a: int32, b: boolean } | true
+    /// type 1 | 2 | 3
+    /// readonly T
+    /// newtype T = int32
+    /// newtype Foo<T> = Baz<T> | null
+    /// newtype T = { a: int32, b: boolean } | true
+    /// ```
+    Type {
+        descriptor: DeclarationDescriptor,
+        kind: TypeKind,
+        mutability: Option<Mutability>,
+        static_parameters: Option<Vec<LocalNodeId<Parameter>>>,
+        value: LocalNodeId<Expression>,
     },
 
     /// A Struct is struct or class declaration.
@@ -369,6 +390,7 @@ impl Declaration {
     pub fn descriptor(&self) -> &DeclarationDescriptor {
         match self {
             Declaration::Namespace { descriptor, .. } => descriptor,
+            Declaration::Type { descriptor, .. } => descriptor,
             Declaration::Struct { descriptor, .. } => descriptor,
             Declaration::Enum { descriptor, .. } => descriptor,
             Declaration::Interface { descriptor, .. } => descriptor,

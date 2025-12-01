@@ -102,6 +102,42 @@ impl<'ast> FormatNode<'ast, Declaration> for Declaration {
                     ]
                 )?;
             }
+            Declaration::Type {
+                descriptor,
+                static_parameters,
+                value,
+            } => {
+                // export
+                if let Some(export) = descriptor.export {
+                    write!(f, [export, space()])?;
+                }
+
+                // keyword
+                write!(f, [Keyword::Type])?;
+
+                // name / key
+                if let Some(name) = descriptor.name {
+                    write!(f, [space(), name])?;
+                }
+
+                // static parameters
+                if let Some(static_parameters) = static_parameters {
+                    write!(
+                        f,
+                        [
+                            token("<"),
+                            format_with(|f| f
+                                .join_with(&format_args![&token(","), space()])
+                                .entries(static_parameters)
+                                .finish()),
+                            token(">")
+                        ]
+                    )?;
+                }
+
+                // value
+                write!(f, [space(), token("="), space(), *value])?;
+            }
             Declaration::Class {
                 descriptor,
                 generics,

@@ -3,7 +3,7 @@ use crate::format::dependency::{format_export_binding, format_import_binding};
 use crate::{FormatNode, JavaScriptFormatter};
 use destack_fir::format::FormatResult;
 use destack_fir::prelude::*;
-use destack_fir::{format_args, write};
+use destack_fir::write;
 use destack_javascript_ast::{
     DeclarationKind, DependencyKind, Keyword, LocalNodeId, Mutability, Statement,
 };
@@ -96,42 +96,6 @@ impl<'ast> FormatNode<'ast, Statement> for Statement {
                 if let Some(value) = value {
                     write!(f, [space(), token("="), space(), *value])?;
                 }
-            }
-            Statement::LetType {
-                descriptor,
-                static_parameters,
-                value,
-            } => {
-                // export
-                if let Some(export) = descriptor.export {
-                    write!(f, [export, space()])?;
-                }
-
-                // keyword
-                write!(f, [Keyword::Type])?;
-
-                // name / key
-                if let Some(name) = descriptor.name {
-                    write!(f, [space(), name])?;
-                }
-
-                // static parameters
-                if let Some(static_parameters) = static_parameters {
-                    write!(
-                        f,
-                        [
-                            token("<"),
-                            format_with(|f| f
-                                .join_with(&format_args![&token(","), space()])
-                                .entries(static_parameters)
-                                .finish()),
-                            token(">")
-                        ]
-                    )?;
-                }
-
-                // value
-                write!(f, [space(), token("="), space(), *value])?;
             }
             Statement::Assign {
                 left,
