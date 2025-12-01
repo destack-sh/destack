@@ -20,6 +20,13 @@ pub enum AnalyzeWarning {
     UnusedSymbol { node: GlobalNodeIdAny },
     /// Ignored return value.
     IgnoredReturnValue { node: GlobalNodeIdAny },
+    /// Large dispatch table (performance warning).
+    ComplexDynamicDispatch { node: GlobalNodeIdAny, size: usize },
+    /// Shadowed overload: an earlier overload always matches, so this one is never reached.
+    ShadowedOverload {
+        node: GlobalNodeIdAny,
+        shadowed_by: GlobalNodeIdAny,
+    },
 }
 
 impl AnalyzeWarning {
@@ -34,6 +41,8 @@ impl AnalyzeWarning {
             Self::SuspiciousNarrowing { .. } => 6,
             Self::UnusedSymbol { .. } => 7,
             Self::IgnoredReturnValue { .. } => 8,
+            Self::ComplexDynamicDispatch { .. } => 9,
+            Self::ShadowedOverload { .. } => 10,
         }
     }
 
@@ -47,6 +56,8 @@ impl AnalyzeWarning {
             Self::SuspiciousNarrowing { node, .. } => *node,
             Self::UnusedSymbol { node, .. } => *node,
             Self::IgnoredReturnValue { node, .. } => *node,
+            Self::ComplexDynamicDispatch { node, .. } => *node,
+            Self::ShadowedOverload { node, .. } => *node,
         }
     }
 
@@ -60,6 +71,12 @@ impl AnalyzeWarning {
             Self::SuspiciousNarrowing { .. } => "suspicious narrowing".to_string(),
             Self::UnusedSymbol { .. } => "unused symbol".to_string(),
             Self::IgnoredReturnValue { .. } => "ignored return value".to_string(),
+            Self::ComplexDynamicDispatch { size, .. } => {
+                format!("complex dynamic dispatch ({size} candidates)")
+            }
+            Self::ShadowedOverload { .. } => {
+                "overload is shadowed by an earlier declaration".to_string()
+            }
         }
     }
 }

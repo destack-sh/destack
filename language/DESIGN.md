@@ -212,8 +212,8 @@ TypeScript's declaration merging is global and can cause conflicts.
 
 ## Overloading
 
-TypeScript has limited overloading via type-only declarations that all share one implementation.
-Destack supports real function and operator overloading with separate implementations:
+TypeScript has limited function overloading via type-only declarations that all share one implementation, and no operator overloading.
+Destack supports real function and operator overloading with distinct implementations:
 
 ```
 function parse(input: string): int32 { parseInt(input) }
@@ -229,6 +229,10 @@ The compiler picks the right implementation based on argument types and Destack 
 
 For operators, Destack uses **receiver-based dispatch**: `a + b` desugars to `a.add(b)`, so the left operand's type determines which implementation is called.
 This matches TypeScript's method dispatch semantics and keeps overload resolution simple and predictable.
+
+For function overloads, Destack uses **declaration order**: the first matching overload wins.
+This matches TypeScript's overload resolution and means more specific overloads should be declared before general ones.
+The compiler warns if an overload is shadowed by an earlier declaration that always matches first.
 
 ## Patterns
 

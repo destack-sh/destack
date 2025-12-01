@@ -54,6 +54,22 @@ pub enum AnalyzeError {
         from_ty: GlobalTypeId,
         to_ty: GlobalTypeId,
     },
+    /// No overload found for operator/method with given types.
+    NoOverload {
+        node: GlobalNodeIdAny,
+        receiver_ty: GlobalTypeId,
+        arg_tys: Vec<GlobalTypeId>,
+    },
+    /// Ambiguous overload: multiple candidates match equally well.
+    AmbiguousOverload {
+        node: GlobalNodeIdAny,
+        candidates: Vec<GlobalSymbolId>,
+    },
+    /// Operator not supported for type.
+    UnsupportedOperator {
+        node: GlobalNodeIdAny,
+        ty: GlobalTypeId,
+    },
 }
 
 impl TryFrom<AnalyzeError> for TaskDependency {
@@ -86,6 +102,9 @@ impl AnalyzeError {
             Self::MissingReturn { .. } => 11,
             Self::UninitializedVariable { .. } => 12,
             Self::IllegalCast { .. } => 13,
+            Self::NoOverload { .. } => 14,
+            Self::AmbiguousOverload { .. } => 15,
+            Self::UnsupportedOperator { .. } => 16,
         }
     }
 
@@ -106,6 +125,9 @@ impl AnalyzeError {
             Self::MissingReturn { node, .. } => *node,
             Self::UninitializedVariable { node, .. } => *node,
             Self::IllegalCast { node, .. } => *node,
+            Self::NoOverload { node, .. } => *node,
+            Self::AmbiguousOverload { node, .. } => *node,
+            Self::UnsupportedOperator { node, .. } => *node,
         }
     }
 
@@ -128,6 +150,9 @@ impl AnalyzeError {
             Self::MissingReturn { .. } => "missing return".to_string(),
             Self::UninitializedVariable { .. } => "uninitialized variable".to_string(),
             Self::IllegalCast { .. } => "illegal cast".to_string(),
+            Self::NoOverload { .. } => "no matching overload".to_string(),
+            Self::AmbiguousOverload { .. } => "ambiguous overload".to_string(),
+            Self::UnsupportedOperator { .. } => "unsupported operator for type".to_string(),
         }
     }
 }
