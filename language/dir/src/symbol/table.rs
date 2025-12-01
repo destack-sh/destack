@@ -67,7 +67,6 @@ impl SymbolTable {
         let symbol_id = LocalSymbolId::new(self.next_symbol_id);
         self.next_symbol_id += 1;
         let symbol = Symbol {
-            id: symbol_id,
             kind,
             space,
             key,
@@ -94,7 +93,6 @@ impl SymbolTable {
         let scope_id = LocalScopeId::new(self.next_scope_id);
         self.next_scope_id += 1;
         let scope = Scope {
-            id: scope_id,
             kind,
             owner_id: owner,
             parent,
@@ -134,10 +132,10 @@ impl SymbolTable {
         &'a self,
         node_id: LocalNodeId<T>,
         tree: &NodeTree,
-    ) -> (&'a Scope, LocalScopeMark) {
+    ) -> (LocalScopeId, &'a Scope, LocalScopeMark) {
         let (scope_id, mark) = tree.get_scope(node_id);
         let scope = self.scopes.get(scope_id.0);
-        (scope, mark)
+        (scope_id, scope, mark)
     }
 
     /// Get the scope for a symbol id.

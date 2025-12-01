@@ -118,8 +118,6 @@ impl From<GlobalSymbolId> for LocalSymbolId {
 /// A Symbol is a bindable item or local in a scope (which may also declare a scope).
 #[derive(Debug, Clone, PartialEq)]
 pub struct Symbol {
-    /// The id of the symbol.
-    pub id: LocalSymbolId,
     /// The kind of the symbol.
     pub kind: SymbolKind,
     /// The "space" of the symbol.

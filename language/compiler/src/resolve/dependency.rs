@@ -105,8 +105,8 @@ impl Compiler {
                 let target_symbol_id = match mode {
                     DependencyMode::Item => {
                         // resolve symbol in the remote module for item mode
-                        let remote_scope =
-                            remote_symbols.get_scope_by_id(remote_module.namespace_scope);
+                        let remote_scope_id = remote_module.namespace_scope;
+                        let remote_scope = remote_symbols.get_scope_by_id(remote_scope_id);
                         let key =
                             name.map(SymbolKey::Name)
                                 .ok_or(ResolveError::UnsupportedNode {
@@ -115,13 +115,13 @@ impl Compiler {
                         self.resolve_absolute_symbol(
                             module,
                             item_id.into_global_any(module.id),
-                            (remote_scope, LocalScopeMark::end()),
+                            (remote_scope_id, remote_scope, LocalScopeMark::end()),
                             key,
                             &remote_symbols,
                         )
                         .map_err(|_| ResolveError::MissingSymbol {
                             node: item_id.into_global_any(module.id),
-                            scope: remote_module.namespace_scope.into_global(remote_module_id),
+                            scope: remote_scope_id.into_global(remote_module_id),
                             via_module: Some(remote_module_id),
                             key,
                         })?
@@ -147,11 +147,11 @@ impl Compiler {
                 alias,
                 symbol,
             } => {
-                let scope = symbols.get_scope(item_id, tree);
+                let (scope_id, scope, mark) = symbols.get_scope(item_id, tree);
                 let target_symbol_id = self.resolve_absolute_symbol(
                     module,
                     item_id.into_global_any(module.id),
-                    scope,
+                    (scope_id, scope, mark),
                     SymbolKey::Name(*name),
                     symbols,
                 )?;

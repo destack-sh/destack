@@ -79,11 +79,10 @@ impl Compiler {
                 remaining_path,
                 static_arguments,
             } => {
-                let target_symbol = symbols.get_symbol(*target_symbol);
                 self.resolve_relative_path(
                     module,
                     expression_id.into_global_any(module.id),
-                    target_symbol,
+                    *target_symbol,
                     path,
                     remaining_path,
                     static_arguments.clone(),

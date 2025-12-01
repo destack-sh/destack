@@ -1,6 +1,6 @@
 use destack_dir::{
-    Argument, Expression, GlobalNodeIdAny, LocalNodeId, LocalScopeMark, LocalSymbolId, Module,
-    Path, Scope, ScopeKind, Symbol, SymbolKey, SymbolTable,
+    Argument, Expression, GlobalNodeIdAny, LocalNodeId, LocalScopeId, LocalScopeMark,
+    LocalSymbolId, Module, Path, Scope, ScopeKind, SymbolKey, SymbolTable,
 };
 
 use crate::{Compiler, ResolveError, ResolveResult};
@@ -12,19 +12,23 @@ impl Compiler {
         &self,
         module: &Module,
         node: GlobalNodeIdAny,
-        scope: (&Scope, LocalScopeMark),
+        scope: (LocalScopeId, &Scope, LocalScopeMark),
         key: SymbolKey,
         symbols: &SymbolTable,
     ) -> ResolveResult<LocalSymbolId> {
         let mut scope = scope;
         loop {
             // find symbol
-            if let Some(symbol_id) = scope.0.find_up_to(key, scope.1) {
+            if let Some(symbol_id) = scope.1.find_up_to(key, scope.2) {
                 return Ok(symbol_id);
             }
             // go to parent scope
-            else if let Some((parent_scope_id, parent_mark)) = scope.0.parent {
-                scope = (symbols.get_scope_by_id(parent_scope_id), parent_mark);
+            else if let Some((parent_scope_id, parent_mark)) = scope.1.parent {
+                scope = (
+                    parent_scope_id,
+                    symbols.get_scope_by_id(parent_scope_id),
+                    parent_mark,
+                );
             }
             // no more scopes
             else {
@@ -34,7 +38,7 @@ impl Compiler {
 
         Err(ResolveError::MissingSymbol {
             node,
-            scope: scope.0.id.into_global(module.id),
+            scope: scope.0.into_global(module.id),
             via_module: None,
             key,
         })
@@ -49,20 +53,20 @@ impl Compiler {
         path: &Path,
         symbols: &SymbolTable,
     ) -> ResolveResult<(LocalSymbolId, Option<Path>)> {
-        let mut symbol = symbols.get_symbol(symbol_id);
-        let mut scope = symbols.get_scope_by_symbol(symbol.id);
+        let mut current_symbol_id = symbol_id;
         let mut remaining_path = path.clone();
 
         // resolve path segments
         while let Some(segment) = remaining_path.segments.pop() {
             let key = SymbolKey::Name(segment);
-            if let Some(symbol_id) = scope.find(key) {
-                symbol = symbols.get_symbol(symbol_id);
-                scope = symbols.get_scope_by_symbol(symbol.id);
+            let symbol = symbols.get_symbol(current_symbol_id);
+            let scope = symbols.get_scope_by_id(symbol.scope.0);
+            if let Some(found_symbol_id) = scope.find(key) {
+                current_symbol_id = found_symbol_id;
             } else {
                 return Err(ResolveError::MissingSymbol {
                     node,
-                    scope: scope.id.into_global(module.id),
+                    scope: symbol.scope.0.into_global(module.id),
                     via_module: None,
                     key,
                 });
@@ -71,9 +75,9 @@ impl Compiler {
 
         // return symbol and remainder (if any)
         if remaining_path.segments.is_empty() {
-            Ok((symbol.id, None))
+            Ok((current_symbol_id, None))
         } else {
-            Ok((symbol.id, Some(remaining_path)))
+            Ok((current_symbol_id, Some(remaining_path)))
         }
     }
 
@@ -82,7 +86,7 @@ impl Compiler {
         &self,
         module: &Module,
         node: GlobalNodeIdAny,
-        scope: (&Scope, LocalScopeMark),
+        scope: (LocalScopeId, &Scope, LocalScopeMark),
         path: &Path,
         static_arguments: Option<Vec<LocalNodeId<Argument>>>,
         symbols: &SymbolTable,
@@ -110,8 +114,14 @@ impl Compiler {
                 static_arguments,
             })
         } else {
-            let symbol = symbols.get_symbol(symbol_id);
-            self.resolve_symbol_to_expression(module, node, symbol, path, static_arguments, symbols)
+            self.resolve_symbol_to_expression(
+                module,
+                node,
+                symbol_id,
+                path,
+                static_arguments,
+                symbols,
+            )
         }
     }
 
@@ -120,7 +130,7 @@ impl Compiler {
         &self,
         module: &Module,
         node: GlobalNodeIdAny,
-        symbol: &Symbol,
+        symbol_id: LocalSymbolId,
         path: &Path,
         remaining_path: &Path,
         static_arguments: Option<Vec<LocalNodeId<Argument>>>,
@@ -128,7 +138,7 @@ impl Compiler {
     ) -> ResolveResult<Expression> {
         // resolve relative symbol
         let (symbol_id, remaining_path) =
-            self.resolve_relative_symbol(module, node, symbol.id, remaining_path, symbols)?;
+            self.resolve_relative_symbol(module, node, symbol_id, remaining_path, symbols)?;
         if let Some(remaining_path) = remaining_path {
             Ok(Expression::UnresolvedRelativePath {
                 path: path.clone(),
@@ -137,8 +147,14 @@ impl Compiler {
                 static_arguments,
             })
         } else {
-            let symbol = symbols.get_symbol(symbol_id);
-            self.resolve_symbol_to_expression(module, node, symbol, path, static_arguments, symbols)
+            self.resolve_symbol_to_expression(
+                module,
+                node,
+                symbol_id,
+                path,
+                static_arguments,
+                symbols,
+            )
         }
     }
 
@@ -147,31 +163,32 @@ impl Compiler {
         &self,
         module: &Module,
         _node: GlobalNodeIdAny,
-        symbol: &Symbol,
+        symbol_id: LocalSymbolId,
         path: &Path,
         static_arguments: Option<Vec<LocalNodeId<Argument>>>,
         symbols: &SymbolTable,
     ) -> ResolveResult<Expression> {
-        let scope = symbols.get_scope_by_symbol(symbol.id);
+        let symbol = symbols.get_symbol(symbol_id);
+        let scope = symbols.get_scope_by_id(symbol.scope.0);
         if symbol.module_id == module.id {
             if scope.kind == ScopeKind::Block {
                 Ok(Expression::LocalReference {
                     path: path.clone(),
                     static_arguments,
-                    target_symbol: symbol.id.into_global(module.id),
+                    target_symbol: symbol_id.into_global(module.id),
                 })
             } else {
                 Ok(Expression::ModuleReference {
                     path: path.clone(),
                     static_arguments,
-                    target_symbol: symbol.id.into_global(module.id),
+                    target_symbol: symbol_id.into_global(module.id),
                 })
             }
         } else {
             Ok(Expression::GlobalReference {
                 path: path.clone(),
                 static_arguments,
-                target_symbol: symbol.id.into_global(module.id),
+                target_symbol: symbol_id.into_global(module.id),
             })
         }
     }

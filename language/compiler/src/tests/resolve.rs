@@ -96,21 +96,23 @@ impl TestProgram {
         symbol_id: LocalSymbolId,
         path_segments: &[&str],
     ) -> Option<GlobalSymbolId> {
-        let mut symbol = symbols.get_symbol(symbol_id);
-        let mut scope = symbols.get_scope_by_symbol(symbol.id);
+        let mut current_symbol_id = symbol_id;
+        let mut symbol = symbols.get_symbol(current_symbol_id);
+        let mut scope = symbols.get_scope_by_id(symbol.scope.0);
 
         // resolve path segments
         for segment in path_segments {
             let segment_id = self.program.strings.intern(*segment);
             let key = SymbolKey::Name(segment_id);
             if let Some(next_symbol_id) = scope.find(key) {
-                symbol = symbols.get_symbol(next_symbol_id);
-                scope = symbols.get_scope_by_symbol(symbol.id);
+                current_symbol_id = next_symbol_id;
+                symbol = symbols.get_symbol(current_symbol_id);
+                scope = symbols.get_scope_by_id(symbol.scope.0);
             } else {
                 return None;
             }
         }
 
-        Some(symbol.id.into_global(symbols.module_id))
+        Some(current_symbol_id.into_global(symbols.module_id))
     }
 }
