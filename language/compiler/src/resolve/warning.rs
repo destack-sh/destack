@@ -1,6 +1,6 @@
 use destack_dir::{GlobalNodeIdAny, Program};
 
-use crate::{Phase, TaskWarning};
+use crate::{TaskPhase, TaskWarning};
 
 /// Warning when evaluating something statically.
 #[derive(Debug, Clone, PartialEq)]
@@ -49,7 +49,7 @@ impl std::fmt::Display for ResolveWarning {
         f.debug_struct("ResolveWarning")
             .field(
                 "code",
-                &format!("W{}{:03}", Phase::Resolve.letter(), self.sub_code()),
+                &format!("W{}{:03}", TaskPhase::Resolve.letter(), self.sub_code()),
             )
             .finish()
     }

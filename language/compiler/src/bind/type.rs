@@ -27,7 +27,7 @@ impl Compiler {
             symbols,
             types,
         );
-        types.insert_from(Type::UnresolvedExpression(expression_id), expression_id)
+        types.insert_from(Type::Unresolved(expression_id), expression_id)
     }
 
     /// Bind mutability into a DIR mutability.

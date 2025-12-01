@@ -67,7 +67,8 @@ impl Compiler {
         let module = module.read();
         let _tree = module.tree.read();
         let _symbols = module.symbols.read();
-        let _types = module.types.read();
+        let mut _types = module.types.write();
+        let mut _instances = module.instances.write();
         let _collector = TaskResultCollector::new();
 
         // TODO #Incomplete: validate module

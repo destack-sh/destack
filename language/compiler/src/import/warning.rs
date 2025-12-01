@@ -1,6 +1,6 @@
 use destack_dir::{GlobalNodeIdAny, ModuleId, Program};
 
-use crate::Phase;
+use crate::TaskPhase;
 
 /// Warning when importing something.
 #[derive(Debug, Clone, PartialEq)]
@@ -43,7 +43,7 @@ impl std::fmt::Display for ImportWarning {
         f.debug_struct("ImportWarning")
             .field(
                 "code",
-                &format!("W{}{:03}", Phase::Import.letter(), self.sub_code()),
+                &format!("W{}{:03}", TaskPhase::Import.letter(), self.sub_code()),
             )
             .finish()
     }

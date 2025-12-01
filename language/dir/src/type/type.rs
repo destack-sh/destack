@@ -40,7 +40,7 @@ pub enum Type {
     /// Redirect to symbol type.
     Symbol(LocalSymbolId),
     /// Unresolved expression type.
-    UnresolvedExpression(LocalNodeId<Expression>),
+    Unresolved(LocalNodeId<Expression>),
 
     /// Type unary operator.
     Unary {

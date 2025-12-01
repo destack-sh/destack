@@ -18,7 +18,7 @@ pub trait TaskDebug {
 
 /// Region of the compiler.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum Region {
+pub enum TaskRegion {
     /// Front-end (import, bind, resolve, validate, elaborate).
     Front,
     /// Middle-end (lower, analyze, optimize).
@@ -27,7 +27,7 @@ pub enum Region {
     Back,
 }
 
-impl Region {
+impl TaskRegion {
     /// Get the name of the region.
     pub fn name(&self) -> &str {
         match self {
@@ -41,7 +41,7 @@ impl Region {
 /// Phase of the compiler.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[repr(u8)]
-pub enum Phase {
+pub enum TaskPhase {
     /// Import and parse source into AST.
     Import = 1,
     /// Bind, lower and declare AST source into DIR.
@@ -68,26 +68,26 @@ pub enum Phase {
     Link = 11,
 }
 
-impl std::fmt::Display for Phase {
+impl std::fmt::Display for TaskPhase {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.letter())
     }
 }
 
-impl Phase {
+impl TaskPhase {
     /// Get the numeric code of the phase.
     pub fn code(&self) -> u8 {
         *self as u8
     }
 
     /// Get the region of the phase.
-    pub fn region(&self) -> Region {
+    pub fn region(&self) -> TaskRegion {
         match self {
             Self::Import | Self::Bind | Self::Resolve | Self::Validate | Self::Elaborate => {
-                Region::Front
+                TaskRegion::Front
             }
-            Self::Lower | Self::Analyze | Self::Optimize => Region::Middle,
-            Self::Execute | Self::Build | Self::Link => Region::Back,
+            Self::Lower | Self::Analyze | Self::Optimize => TaskRegion::Middle,
+            Self::Execute | Self::Build | Self::Link => TaskRegion::Back,
         }
     }
 
@@ -174,24 +174,24 @@ pub enum Task {
 
 impl Task {
     /// Get the phase of the task.
-    pub fn phase(&self) -> Phase {
+    pub fn phase(&self) -> TaskPhase {
         match self {
-            Self::Import(_) => Phase::Import,
-            Self::Bind(_) => Phase::Bind,
-            Self::Resolve(_) => Phase::Resolve,
-            Self::Validate(_) => Phase::Validate,
-            Self::Elaborate(_) => Phase::Elaborate,
-            Self::Lower(_) => Phase::Lower,
-            Self::Analyze(_) => Phase::Analyze,
-            Self::Optimize(_) => Phase::Optimize,
-            Self::Execute(_) => Phase::Execute,
-            Self::Build(_) => Phase::Build,
-            Self::Link(_) => Phase::Link,
+            Self::Import(_) => TaskPhase::Import,
+            Self::Bind(_) => TaskPhase::Bind,
+            Self::Resolve(_) => TaskPhase::Resolve,
+            Self::Validate(_) => TaskPhase::Validate,
+            Self::Elaborate(_) => TaskPhase::Elaborate,
+            Self::Lower(_) => TaskPhase::Lower,
+            Self::Analyze(_) => TaskPhase::Analyze,
+            Self::Optimize(_) => TaskPhase::Optimize,
+            Self::Execute(_) => TaskPhase::Execute,
+            Self::Build(_) => TaskPhase::Build,
+            Self::Link(_) => TaskPhase::Link,
         }
     }
 
     /// Get the region of the task.
-    pub fn region(&self) -> Region {
+    pub fn region(&self) -> TaskRegion {
         self.phase().region()
     }
 
@@ -349,12 +349,12 @@ impl TaskHandle {
     }
 
     /// Get the phase of the task.
-    pub fn phase(&self) -> Phase {
+    pub fn phase(&self) -> TaskPhase {
         self.task.phase()
     }
 
     /// Get the region of the task.
-    pub fn region(&self) -> Region {
+    pub fn region(&self) -> TaskRegion {
         self.task.region()
     }
 }

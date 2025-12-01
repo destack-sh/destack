@@ -2,7 +2,9 @@ use std::fmt::Display;
 
 use destack_source::StringId;
 
-use crate::{GlobalSymbolId, LocalTypeId, ModuleId, ScalarLiteral, SymbolKey};
+use crate::{
+    Expression, GlobalSymbolId, LocalNodeId, LocalTypeId, ModuleId, ScalarLiteral, SymbolKey,
+};
 
 /// Unique identifier for Instances.
 #[repr(transparent)]
@@ -74,6 +76,8 @@ pub struct Instance {
 /// Static form of an expression.
 #[derive(Debug, Clone, PartialEq)]
 pub enum StaticExpression {
+    /// Unresolved expression.
+    Unresolved { node_id: LocalNodeId<Expression> },
     /// Type expression.
     Type { type_id: LocalTypeId },
     /// Scalar literal.

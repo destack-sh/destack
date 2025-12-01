@@ -2,7 +2,7 @@ use destack_dir::{
     FunctionAbstraction, GlobalNodeIdAny, GlobalSymbolId, GlobalTypeId, Program, Visibility,
 };
 
-use crate::{Phase, TaskDependency, TaskError};
+use crate::{TaskPhase, TaskDependency, TaskError};
 
 /// Error when validateing something into the compiler.
 #[derive(Debug, Clone, PartialEq)]
@@ -137,7 +137,7 @@ impl std::fmt::Display for ValidateError {
         f.debug_struct("ValidateError")
             .field(
                 "code",
-                &format!("E{}{:03}", Phase::Validate.letter(), self.sub_code()),
+                &format!("E{}{:03}", TaskPhase::Validate.letter(), self.sub_code()),
             )
             .finish()
     }

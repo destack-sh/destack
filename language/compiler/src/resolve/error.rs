@@ -1,4 +1,4 @@
-use crate::{Phase, TaskDependency, TaskError};
+use crate::{TaskPhase, TaskDependency, TaskError};
 use destack_dir::{
     GlobalNodeIdAny, GlobalScopeId, GlobalSymbolId, ModuleId, Program, StringId, SymbolKey,
 };
@@ -127,7 +127,7 @@ impl std::fmt::Display for ResolveError {
         f.debug_struct("ResolveError")
             .field(
                 "code",
-                &format!("E{}{:03}", Phase::Resolve.letter(), self.sub_code()),
+                &format!("E{}{:03}", TaskPhase::Resolve.letter(), self.sub_code()),
             )
             .finish()
     }

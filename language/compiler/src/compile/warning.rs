@@ -2,7 +2,7 @@ use destack_dir::{GlobalNodeIdAny, Program};
 
 use crate::{
     AnalyzeWarning, BindWarning, BuildWarning, ElaborateWarning, ExecuteWarning, ImportWarning,
-    LinkWarning, LowerWarning, OptimizeWarning, Phase, ResolveWarning, ValidateWarning,
+    LinkWarning, LowerWarning, OptimizeWarning, TaskPhase, ResolveWarning, ValidateWarning,
 };
 
 /// Warning during compilation.
@@ -36,19 +36,19 @@ pub enum TaskWarning {
 
 impl TaskWarning {
     /// Get the phase of the warning.
-    pub fn phase(&self) -> Phase {
+    pub fn phase(&self) -> TaskPhase {
         match self {
-            Self::Import(_) => Phase::Import,
-            Self::Bind(_) => Phase::Bind,
-            Self::Resolve(_) => Phase::Resolve,
-            Self::Validate(_) => Phase::Validate,
-            Self::Elaborate(_) => Phase::Elaborate,
-            Self::Lower(_) => Phase::Lower,
-            Self::Analyze(_) => Phase::Analyze,
-            Self::Optimize(_) => Phase::Optimize,
-            Self::Execute(_) => Phase::Execute,
-            Self::Build(_) => Phase::Build,
-            Self::Link(_) => Phase::Link,
+            Self::Import(_) => TaskPhase::Import,
+            Self::Bind(_) => TaskPhase::Bind,
+            Self::Resolve(_) => TaskPhase::Resolve,
+            Self::Validate(_) => TaskPhase::Validate,
+            Self::Elaborate(_) => TaskPhase::Elaborate,
+            Self::Lower(_) => TaskPhase::Lower,
+            Self::Analyze(_) => TaskPhase::Analyze,
+            Self::Optimize(_) => TaskPhase::Optimize,
+            Self::Execute(_) => TaskPhase::Execute,
+            Self::Build(_) => TaskPhase::Build,
+            Self::Link(_) => TaskPhase::Link,
         }
     }
 

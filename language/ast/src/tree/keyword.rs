@@ -44,8 +44,6 @@ pub enum Keyword {
     Export,
     /// From expression.
     From,
-    /// With expression to declare use of items for a scope.
-    With,
 
     // ------------------------------------------------------------
     // Declarations
@@ -122,6 +120,10 @@ pub enum Keyword {
     In,
     /// Of expression.
     Of,
+    /// Using clause for generics or type context
+    Using,
+    /// Provides clause for generics or type context
+    Provides,
 
     // ------------------------------------------------------------
     // Branching
@@ -192,6 +194,8 @@ pub enum Keyword {
     Set,
     /// Move values.
     Move,
+    /// With expression to declare use of items for a scope.
+    With,
 }
 
 impl Keyword {
@@ -246,7 +250,6 @@ impl Keyword {
             Keyword::Import => "import",
             Keyword::Export => "export",
             Keyword::From => "from",
-            Keyword::With => "with",
 
             // declarations
             Keyword::Const => "const",
@@ -285,6 +288,8 @@ impl Keyword {
             Keyword::Is => "is",
             Keyword::In => "in",
             Keyword::Of => "of",
+            Keyword::Using => "using",
+            Keyword::Provides => "provides",
 
             // branching
             Keyword::If => "if",
@@ -320,6 +325,7 @@ impl Keyword {
             Keyword::Get => "get",
             Keyword::Set => "set",
             Keyword::Move => "move",
+            Keyword::With => "with",
         }
     }
 }
@@ -349,8 +355,7 @@ impl FromStr for Keyword {
             "import" => Ok(Keyword::Import),
             "export" => Ok(Keyword::Export),
             "from" => Ok(Keyword::From),
-            "with" => Ok(Keyword::With),
-
+            
             // declarations
             "const" => Ok(Keyword::Const),
             "let" => Ok(Keyword::Let),
@@ -388,6 +393,8 @@ impl FromStr for Keyword {
             "is" => Ok(Keyword::Is),
             "in" => Ok(Keyword::In),
             "of" => Ok(Keyword::Of),
+            "using" => Ok(Keyword::Using),
+            "provides" => Ok(Keyword::Provides),
 
             // branching
             "if" => Ok(Keyword::If),
@@ -423,6 +430,7 @@ impl FromStr for Keyword {
             "get" => Ok(Keyword::Get),
             "set" => Ok(Keyword::Set),
             "move" => Ok(Keyword::Move),
+            "with" => Ok(Keyword::With),
 
             _ => Err(()),
         }

@@ -2,7 +2,7 @@ use std::thread;
 
 use crate::{
     AnalyzeError, BuildError, Compiler, ElaborateError, ExecuteError, InternalError, LinkError,
-    LowerError, OptimizeError, Phase, ResolveError, Task, TaskDebug, TaskDependency, TaskError,
+    LowerError, OptimizeError, TaskPhase, ResolveError, Task, TaskDebug, TaskDependency, TaskError,
     TaskHandle, TaskId, TaskOutcome, TaskOutput, TaskStatus, ValidateError,
 };
 
@@ -327,45 +327,45 @@ impl Compiler {
     fn get_yield_failed_error(&self, waiter_id: TaskId, dependency: &TaskDependency) -> TaskError {
         let task = self.queue.get_task(waiter_id);
         match task.phase() {
-            Phase::Import => {
+            TaskPhase::Import => {
                 panic!("import tasks cannot yield {waiter_id} for dependency {dependency:?}")
             }
-            Phase::Bind => {
+            TaskPhase::Bind => {
                 panic!("bind tasks cannot yield {waiter_id} for dependency {dependency:?}")
             }
-            Phase::Resolve => ResolveError::UnsatisfiedDependency {
+            TaskPhase::Resolve => ResolveError::UnsatisfiedDependency {
                 dependency: dependency.clone(),
             }
             .into(),
-            Phase::Validate => ValidateError::UnsatisfiedDependency {
+            TaskPhase::Validate => ValidateError::UnsatisfiedDependency {
                 dependency: dependency.clone(),
             }
             .into(),
-            Phase::Elaborate => ElaborateError::UnsatisfiedDependency {
+            TaskPhase::Elaborate => ElaborateError::UnsatisfiedDependency {
                 dependency: dependency.clone(),
             }
             .into(),
-            Phase::Lower => LowerError::UnsatisfiedDependency {
+            TaskPhase::Lower => LowerError::UnsatisfiedDependency {
                 dependency: dependency.clone(),
             }
             .into(),
-            Phase::Analyze => AnalyzeError::UnsatisfiedDependency {
+            TaskPhase::Analyze => AnalyzeError::UnsatisfiedDependency {
                 dependency: dependency.clone(),
             }
             .into(),
-            Phase::Optimize => OptimizeError::UnsatisfiedDependency {
+            TaskPhase::Optimize => OptimizeError::UnsatisfiedDependency {
                 dependency: dependency.clone(),
             }
             .into(),
-            Phase::Execute => ExecuteError::UnsatisfiedDependency {
+            TaskPhase::Execute => ExecuteError::UnsatisfiedDependency {
                 dependency: dependency.clone(),
             }
             .into(),
-            Phase::Build => BuildError::UnsatisfiedDependency {
+            TaskPhase::Build => BuildError::UnsatisfiedDependency {
                 dependency: dependency.clone(),
             }
             .into(),
-            Phase::Link => LinkError::UnsatisfiedDependency {
+            TaskPhase::Link => LinkError::UnsatisfiedDependency {
                 dependency: dependency.clone(),
             }
             .into(),

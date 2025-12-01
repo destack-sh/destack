@@ -1,6 +1,6 @@
 use destack_dir::{GlobalNodeIdAny, Program};
 
-use crate::{Phase, TaskDependency, TaskError};
+use crate::{TaskPhase, TaskDependency, TaskError};
 
 /// Error when linking something into the compiler.
 #[derive(Debug, Clone, PartialEq)]
@@ -79,7 +79,7 @@ impl std::fmt::Display for LinkError {
         f.debug_struct("LinkError")
             .field(
                 "code",
-                &format!("E{}{:03}", Phase::Link.letter(), self.sub_code()),
+                &format!("E{}{:03}", TaskPhase::Link.letter(), self.sub_code()),
             )
             .finish()
     }
