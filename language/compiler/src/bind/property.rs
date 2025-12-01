@@ -2,7 +2,7 @@ use crate::Compiler;
 use destack_ast as ast;
 use destack_dir::{
     LocalNodeId, LocalNodeIdAny, LocalScopeId, LocalScopeMark, Module, NodeTree, NodeType,
-    Property, SymbolTable, TypeTable,
+    Property, SymbolSpace, SymbolTable, TypeTable,
 };
 
 #[allow(clippy::too_many_arguments)]
@@ -55,11 +55,14 @@ impl Compiler {
                         types,
                     )
                 });
-                Property::Field {
+                let (symbol_id, _) =
+                    self.bind_anonymous_item(module, SymbolSpace::Value, scope, None, symbols);
+                Property::UnresolvedNamed {
                     modifiers,
                     key,
                     value,
                     default,
+                    symbol: symbol_id,
                 }
             }
             ast::Property::Method {
@@ -93,11 +96,14 @@ impl Compiler {
                         types,
                     )
                 });
-                Property::Method {
+                let (symbol_id, _) =
+                    self.bind_anonymous_item(module, SymbolSpace::Value, scope, None, symbols);
+                Property::UnresolvedMethod {
                     modifiers,
                     key,
                     signature,
                     body,
+                    symbol: symbol_id,
                 }
             }
             ast::Property::Spread { modifiers, value } => {
@@ -112,7 +118,13 @@ impl Compiler {
                     symbols,
                     types,
                 );
-                Property::Spread { modifiers, value }
+                let (symbol_id, _) =
+                    self.bind_anonymous_item(module, SymbolSpace::Value, scope, None, symbols);
+                Property::UnresolvedSpread {
+                    modifiers,
+                    value,
+                    symbol: symbol_id,
+                }
             }
         };
         tree.insert(property_id, property)

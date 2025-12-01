@@ -1013,10 +1013,8 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .end();
             }
 
-            Expression::Type { symbol } => {
-                self.node("Expression::Type", id.id)
-                    .field("symbol", symbol)
-                    .end();
+            Expression::Type { ty: _ } => {
+                self.node("Expression::Type", id.id).end();
             }
             Expression::ScalarLiteral { value } => {
                 self.node("Expression::ScalarLiteral", id.id)
@@ -1196,6 +1194,53 @@ impl<'a> NodeVisitor for Dumper<'a> {
         });
     }
 
+    fn visit_static_expression(
+        &mut self,
+        tree: &NodeTree,
+        id: LocalNodeId<StaticExpression>,
+        static_expression: &StaticExpression,
+    ) {
+        match static_expression {
+            StaticExpression::Unresolved { node: _ } => {
+                self.node("StaticExpression::Unresolved", id.id).end();
+            }
+            StaticExpression::Type { ty: _ } => {
+                self.node("StaticExpression::Type", id.id).end();
+            }
+            StaticExpression::TypeLiteral { value } => {
+                self.node("StaticExpression::TypeLiteral", id.id)
+                    .field("value", value)
+                    .end();
+            }
+            StaticExpression::ScalarLiteral { value } => {
+                self.node("StaticExpression::ScalarLiteral", id.id)
+                    .field("value", value)
+                    .end();
+            }
+            StaticExpression::RangeLiteral {
+                start: _,
+                end: _,
+                is_inclusive,
+            } => {
+                self.node("StaticExpression::RangeLiteral", id.id)
+                    .field("is_inclusive", is_inclusive)
+                    .end();
+            }
+            StaticExpression::ArrayLiteral { elements: _ } => {
+                self.node("StaticExpression::ArrayLiteral", id.id).end();
+            }
+            StaticExpression::TupleLiteral { elements: _ } => {
+                self.node("StaticExpression::TupleLiteral", id.id).end();
+            }
+            StaticExpression::StructLiteral { properties: _ } => {
+                self.node("StaticExpression::StructLiteral", id.id).end();
+            }
+        }
+        self.with_depth(|dumper| {
+            walk_static_expression(dumper, tree, id, static_expression);
+        });
+    }
+
     fn visit_block(&mut self, tree: &NodeTree, id: LocalNodeId<Block>, block: &Block) {
         self.node("Block", id.id).end();
         self.with_depth(|dumper| {
@@ -1317,15 +1362,56 @@ impl<'a> NodeVisitor for Dumper<'a> {
 
     fn visit_property(&mut self, tree: &NodeTree, id: LocalNodeId<Property>, property: &Property) {
         match property {
+            Property::UnresolvedNamed {
+                modifiers,
+                key,
+                value: _,
+                default: _,
+                symbol,
+            } => {
+                self.node("Property::UnresolvedNamed", id.id)
+                    .field_optional("modifiers", modifiers)
+                    .field_optional("key", key)
+                    .field("symbol", symbol)
+                    .end();
+            }
+            Property::UnresolvedMethod {
+                modifiers,
+                key,
+                signature,
+                body: _,
+                symbol,
+            } => {
+                self.node("Property::UnresolvedMethod", id.id)
+                    .field_optional("modifiers", modifiers)
+                    .field_optional("key", key)
+                    .field("signature", signature)
+                    .field("symbol", symbol)
+                    .end();
+            }
+            Property::UnresolvedSpread {
+                modifiers,
+                value: _,
+                symbol,
+            } => {
+                self.node("Property::UnresolvedSpread", id.id)
+                    .field_optional("modifiers", modifiers)
+                    .field("symbol", symbol)
+                    .end();
+            }
             Property::Field {
                 modifiers,
                 key,
                 value: _,
                 default: _,
+                symbol,
+                target_symbol,
             } => {
                 self.node("Property::Field", id.id)
                     .field_optional("modifiers", modifiers)
                     .field_optional("key", key)
+                    .field("symbol", symbol)
+                    .field("target_symbol", target_symbol)
                     .end();
             }
             Property::Method {
@@ -1333,24 +1419,79 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 key,
                 signature,
                 body: _,
+                symbol,
+                target_symbol,
             } => {
                 self.node("Property::Method", id.id)
                     .field_optional("modifiers", modifiers)
                     .field_optional("key", key)
                     .field("signature", signature)
+                    .field("symbol", symbol)
+                    .field("target_symbol", target_symbol)
                     .end();
             }
             Property::Spread {
                 modifiers,
                 value: _,
+                symbol,
+                target_symbol,
             } => {
                 self.node("Property::Spread", id.id)
                     .field_optional("modifiers", modifiers)
+                    .field("symbol", symbol)
+                    .field("target_symbol", target_symbol)
                     .end();
             }
         }
         self.with_depth(|dumper| {
             walk_property(dumper, tree, id, property);
+        });
+    }
+
+    fn visit_static_property(
+        &mut self,
+        tree: &NodeTree,
+        id: LocalNodeId<StaticProperty>,
+        static_property: &StaticProperty,
+    ) {
+        match static_property {
+            StaticProperty::Unresolved { node: _ } => {
+                self.node("StaticProperty::Unresolved", id.id).end();
+            }
+            StaticProperty::Field {
+                modifiers,
+                key,
+                value: _,
+                default: _,
+                symbol,
+                target_symbol,
+            } => {
+                self.node("StaticProperty::Field", id.id)
+                    .field_optional("modifiers", modifiers)
+                    .field_optional("key", key)
+                    .field("symbol", symbol)
+                    .field("target_symbol", target_symbol)
+                    .end();
+            }
+            StaticProperty::Method {
+                modifiers,
+                key,
+                signature,
+                body: _,
+                symbol,
+                target_symbol,
+            } => {
+                self.node("StaticProperty::Method", id.id)
+                    .field_optional("modifiers", modifiers)
+                    .field_optional("key", key)
+                    .field("signature", signature)
+                    .field("symbol", symbol)
+                    .field("target_symbol", target_symbol)
+                    .end();
+            }
+        }
+        self.with_depth(|dumper| {
+            walk_static_property(dumper, tree, id, static_property);
         });
     }
 
@@ -1592,6 +1733,65 @@ impl<'a> NodeVisitor for Dumper<'a> {
         });
     }
 
+    fn visit_static_argument(
+        &mut self,
+        tree: &NodeTree,
+        id: LocalNodeId<StaticArgument>,
+        static_argument: &StaticArgument,
+    ) {
+        match static_argument {
+            StaticArgument::Unresolved { node: _ } => {
+                self.node("StaticArgument::Unresolved", id.id).end();
+            }
+            StaticArgument::Direct {
+                name,
+                target_symbol,
+                value: _,
+            } => {
+                self.node("StaticArgument::Direct", id.id)
+                    .field("name", name)
+                    .field("target_symbol", target_symbol)
+                    .end();
+            }
+        }
+        self.with_depth(|dumper| {
+            walk_static_argument(dumper, tree, id, static_argument);
+        });
+    }
+
+    fn visit_match_case(
+        &mut self,
+        tree: &NodeTree,
+        id: LocalNodeId<MatchCase>,
+        match_case: &MatchCase,
+    ) {
+        match match_case {
+            MatchCase::Expression {
+                pattern: _,
+                body: _,
+                guard: _,
+                scope,
+            } => {
+                self.node("MatchCase::Expression", id.id)
+                    .field("scope", scope)
+                    .end();
+            }
+            MatchCase::Block {
+                pattern: _,
+                body: _,
+                guard: _,
+                scope,
+            } => {
+                self.node("MatchCase::Block", id.id)
+                    .field("scope", scope)
+                    .end();
+            }
+        }
+        self.with_depth(|dumper| {
+            walk_match_case(dumper, tree, id, match_case);
+        });
+    }
+
     fn visit_pattern(&mut self, tree: &NodeTree, id: LocalNodeId<Pattern>, pattern: &Pattern) {
         match pattern {
             Pattern::Wildcard => {
@@ -1753,39 +1953,6 @@ impl<'a> NodeVisitor for Dumper<'a> {
         }
         self.with_depth(|dumper| {
             walk_pattern_field(dumper, tree, id, pattern_field);
-        });
-    }
-
-    fn visit_match_case(
-        &mut self,
-        tree: &NodeTree,
-        id: LocalNodeId<MatchCase>,
-        match_case: &MatchCase,
-    ) {
-        match match_case {
-            MatchCase::Expression {
-                pattern: _,
-                body: _,
-                guard: _,
-                scope,
-            } => {
-                self.node("MatchCase::Expression", id.id)
-                    .field("scope", scope)
-                    .end();
-            }
-            MatchCase::Block {
-                pattern: _,
-                body: _,
-                guard: _,
-                scope,
-            } => {
-                self.node("MatchCase::Block", id.id)
-                    .field("scope", scope)
-                    .end();
-            }
-        }
-        self.with_depth(|dumper| {
-            walk_match_case(dumper, tree, id, match_case);
         });
     }
 

@@ -1,6 +1,6 @@
 use crate::{
     BindingModifier, Expression, GlobalSymbolId, LocalNodeId, LocalSymbolId, Node, NodeType,
-    Pattern, StringId,
+    Pattern, StaticExpression, StringId,
 };
 
 /// A Parameter is a parameter to some construct.
@@ -95,5 +95,28 @@ impl Node for Argument {
 
     fn is_resolved(&self) -> bool {
         matches!(self, Argument::Direct { .. } | Argument::Spread { .. })
+    }
+}
+
+/// Static argument in some static context.
+/// Static evaluation supports all constructs, this is for the resulting static value.
+#[derive(Debug, Clone, PartialEq)]
+pub enum StaticArgument {
+    /// Unresolved dynamic argument.
+    Unresolved { node: LocalNodeId<Argument> },
+
+    /// Named static argument.
+    Direct {
+        name: StringId,
+        target_symbol: GlobalSymbolId,
+        value: LocalNodeId<StaticExpression>,
+    },
+}
+
+impl Node for StaticArgument {
+    const TYPE: NodeType = NodeType::StaticArgument;
+
+    fn is_resolved(&self) -> bool {
+        !matches!(self, StaticArgument::Unresolved { .. })
     }
 }

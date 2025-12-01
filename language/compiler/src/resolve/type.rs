@@ -1,7 +1,7 @@
 use crate::{Compiler, ResolveError, ResolveResult};
 use destack_dir::{
     Expression, FloatType, IntType, LocalNodeId, LocalTypeId, Module, NodeTree, PrimitiveType,
-    SymbolTable, Type, TypeLiteral, TypeTable, TypeUnaryOperator, UnaryOperator,
+    StaticExpression, SymbolTable, Type, TypeLiteral, TypeTable, TypeUnaryOperator, UnaryOperator,
 };
 
 #[allow(clippy::too_many_arguments)]
@@ -205,7 +205,7 @@ impl Compiler {
                         self.try_resolve_expression_to_type(module, left, tree, symbols, types)?;
                     Type::ArraySized {
                         element: left_id,
-                        count: right,
+                        count: StaticExpression::Unresolved { node: right },
                     }
                 }
                 // slice

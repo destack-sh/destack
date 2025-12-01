@@ -1,5 +1,6 @@
 use crate::{
-    Expression, FunctionSignature, Key, LocalNodeId, Mutability, Node, NodeType, Visibility,
+    Expression, FunctionSignature, GlobalSymbolId, Key, LocalNodeId, LocalSymbolId, Mutability,
+    Node, NodeType, StaticExpression, Visibility,
 };
 
 /// The type of a binding.
@@ -79,24 +80,53 @@ pub enum FunctionMode {
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub enum Property {
-    /// Named field (like `x: int32`).
-    Field {
+    /// Unresolved named field (like `x: int32`).
+    UnresolvedNamed {
         modifiers: Option<BindingModifier>,
         key: Option<Key>,
         value: Option<LocalNodeId<Expression>>,
         default: Option<LocalNodeId<Expression>>,
+        symbol: LocalSymbolId,
+    },
+    /// Unresolved named member function (like `foo()` or `<T>(): T`).
+    UnresolvedMethod {
+        modifiers: Option<BindingModifier>,
+        key: Option<Key>,
+        signature: FunctionSignature,
+        body: Option<LocalNodeId<Expression>>,
+        symbol: LocalSymbolId,
+    },
+    /// Unresolved spread property (like `...a`).
+    UnresolvedSpread {
+        modifiers: Option<BindingModifier>,
+        value: LocalNodeId<Expression>,
+        symbol: LocalSymbolId,
+    },
+
+    /// Named field (like `x: int32`).
+    Field {
+        modifiers: Option<BindingModifier>,
+        key: Option<Key>,
+        value: LocalNodeId<Expression>,
+        default: LocalNodeId<Expression>,
+        symbol: LocalSymbolId,
+        target_symbol: GlobalSymbolId,
     },
     /// Named member function (like `foo()` or `<T>(): T`).
     Method {
         modifiers: Option<BindingModifier>,
         key: Option<Key>,
         signature: FunctionSignature,
-        body: Option<LocalNodeId<Expression>>,
+        body: LocalNodeId<Expression>,
+        symbol: LocalSymbolId,
+        target_symbol: GlobalSymbolId,
     },
     /// Spread property (like `...a`).
     Spread {
         modifiers: Option<BindingModifier>,
         value: LocalNodeId<Expression>,
+        symbol: LocalSymbolId,
+        target_symbol: GlobalSymbolId,
     },
 }
 
@@ -104,6 +134,44 @@ impl Node for Property {
     const TYPE: NodeType = NodeType::Property;
 
     fn is_resolved(&self) -> bool {
-        true
+        matches!(
+            self,
+            Property::Field { .. } | Property::Method { .. } | Property::Spread { .. }
+        )
+    }
+}
+
+/// Static property in some static context.
+/// Static evaluation supports all constructs, this is for the resulting static value.
+#[derive(Debug, Clone, PartialEq)]
+pub enum StaticProperty {
+    /// Unresolved dynamic property.
+    Unresolved { node: LocalNodeId<Property> },
+
+    /// Named static field (like `x: int32`).
+    Field {
+        modifiers: Option<BindingModifier>,
+        key: Option<Key>,
+        value: LocalNodeId<StaticExpression>,
+        default: LocalNodeId<StaticExpression>,
+        symbol: LocalSymbolId,
+        target_symbol: GlobalSymbolId,
+    },
+    /// Named static member function (like `foo()` or `<T>(): T`).
+    Method {
+        modifiers: Option<BindingModifier>,
+        key: Option<Key>,
+        signature: FunctionSignature,
+        body: LocalNodeId<StaticExpression>,
+        symbol: LocalSymbolId,
+        target_symbol: GlobalSymbolId,
+    },
+}
+
+impl Node for StaticProperty {
+    const TYPE: NodeType = NodeType::StaticProperty;
+
+    fn is_resolved(&self) -> bool {
+        !matches!(self, StaticProperty::Unresolved { .. })
     }
 }

@@ -1,8 +1,8 @@
 use crate::{
     Annotation, Argument, Block, Declaration, DependencyItem, EnumField, Expression,
     FunctionSignature, Generics, Heritage, Key, LocalNodeId, MatchCase, NodeTree, NodeType,
-    NodeVisitor, Parameter, Pattern, PatternField, Property, TemplateLiteral, WhereClause,
-    WithClause,
+    NodeVisitor, Parameter, Pattern, PatternField, Property, StaticArgument, StaticExpression,
+    StaticProperty, TemplateLiteral, WhereClause, WithClause,
 };
 
 /// Walk any node.
@@ -18,6 +18,10 @@ pub fn walk_any<V: NodeVisitor + ?Sized>(
             let expression = tree.expressions.get(local_idx);
             walk_expression(visitor, tree, LocalNodeId::new(node_id), expression);
         }
+        NodeType::StaticExpression => {
+            let static_expression = tree.static_expressions.get(local_idx);
+            walk_static_expression(visitor, tree, LocalNodeId::new(node_id), static_expression);
+        }
         NodeType::Block => {
             let block = tree.blocks.get(local_idx);
             walk_block(visitor, tree, LocalNodeId::new(node_id), block);
@@ -29,6 +33,10 @@ pub fn walk_any<V: NodeVisitor + ?Sized>(
         NodeType::Property => {
             let property = tree.properties.get(local_idx);
             walk_property(visitor, tree, LocalNodeId::new(node_id), property);
+        }
+        NodeType::StaticProperty => {
+            let static_property = tree.static_properties.get(local_idx);
+            walk_static_property(visitor, tree, LocalNodeId::new(node_id), static_property);
         }
         NodeType::EnumField => {
             let enum_field = tree.enum_fields.get(local_idx);
@@ -54,6 +62,14 @@ pub fn walk_any<V: NodeVisitor + ?Sized>(
             let argument = tree.arguments.get(local_idx);
             walk_argument(visitor, tree, LocalNodeId::new(node_id), argument);
         }
+        NodeType::StaticArgument => {
+            let static_argument = tree.static_arguments.get(local_idx);
+            walk_static_argument(visitor, tree, LocalNodeId::new(node_id), static_argument);
+        }
+        NodeType::MatchCase => {
+            let match_case = tree.match_cases.get(local_idx);
+            walk_match_case(visitor, tree, LocalNodeId::new(node_id), match_case);
+        }
         NodeType::Pattern => {
             let pattern = tree.patterns.get(local_idx);
             walk_pattern(visitor, tree, LocalNodeId::new(node_id), pattern);
@@ -61,10 +77,6 @@ pub fn walk_any<V: NodeVisitor + ?Sized>(
         NodeType::PatternField => {
             let pattern_field = tree.pattern_fields.get(local_idx);
             walk_pattern_field(visitor, tree, LocalNodeId::new(node_id), pattern_field);
-        }
-        NodeType::MatchCase => {
-            let match_case = tree.match_cases.get(local_idx);
-            walk_match_case(visitor, tree, LocalNodeId::new(node_id), match_case);
         }
         NodeType::Annotation => {
             let annotation = tree.annotations.get(local_idx);
@@ -408,7 +420,7 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             }
         }
 
-        Expression::Type { symbol: _ } => {
+        Expression::Type { ty: _ } => {
             // nothing to do
         }
         Expression::ScalarLiteral { value: _ } => {
@@ -808,11 +820,12 @@ pub fn walk_property<V: NodeVisitor + ?Sized>(
 ) {
     visitor.visit_any(tree, NodeType::Property, id.id);
     match property {
-        Property::Field {
+        Property::UnresolvedNamed {
             modifiers: _,
             key,
             value,
             default,
+            symbol: _,
         } => {
             if let Some(key) = key {
                 walk_key(visitor, tree, key);
@@ -826,11 +839,12 @@ pub fn walk_property<V: NodeVisitor + ?Sized>(
                 visitor.visit_expression(tree, *default, default_expr);
             }
         }
-        Property::Method {
+        Property::UnresolvedMethod {
             modifiers: _,
             key,
             signature,
             body,
+            symbol: _,
         } => {
             if let Some(key) = key {
                 walk_key(visitor, tree, key);
@@ -841,9 +855,50 @@ pub fn walk_property<V: NodeVisitor + ?Sized>(
                 visitor.visit_expression(tree, *body, body_expr);
             }
         }
+        Property::UnresolvedSpread {
+            modifiers: _,
+            value,
+            symbol: _,
+        } => {
+            let value_expr = tree.get(*value);
+            visitor.visit_expression(tree, *value, value_expr);
+        }
+        Property::Field {
+            modifiers: _,
+            key,
+            value,
+            default,
+            symbol: _,
+            target_symbol: _,
+        } => {
+            if let Some(key) = key {
+                walk_key(visitor, tree, key);
+            }
+            let value_expr = tree.get(*value);
+            visitor.visit_expression(tree, *value, value_expr);
+            let default_expr = tree.get(*default);
+            visitor.visit_expression(tree, *default, default_expr);
+        }
+        Property::Method {
+            modifiers: _,
+            key,
+            signature,
+            body,
+            symbol: _,
+            target_symbol: _,
+        } => {
+            if let Some(key) = key {
+                walk_key(visitor, tree, key);
+            }
+            walk_function_signature(visitor, tree, signature);
+            let body_expr = tree.get(*body);
+            visitor.visit_expression(tree, *body, body_expr);
+        }
         Property::Spread {
             modifiers: _,
             value,
+            symbol: _,
+            target_symbol: _,
         } => {
             let value_expr = tree.get(*value);
             visitor.visit_expression(tree, *value, value_expr);
@@ -1042,6 +1097,130 @@ pub fn walk_argument<V: NodeVisitor + ?Sized>(
             visitor.visit_expression(tree, *key, key_expression);
             let value_expression = tree.get(*value);
             visitor.visit_expression(tree, *value, value_expression);
+        }
+    }
+}
+
+/// Walk the StaticArgument.
+pub fn walk_static_argument<V: NodeVisitor + ?Sized>(
+    visitor: &mut V,
+    tree: &NodeTree,
+    id: LocalNodeId<StaticArgument>,
+    static_argument: &StaticArgument,
+) {
+    visitor.visit_any(tree, NodeType::StaticArgument, id.id);
+    match static_argument {
+        StaticArgument::Unresolved { node } => {
+            let argument = tree.get(*node);
+            visitor.visit_argument(tree, *node, argument);
+        }
+        StaticArgument::Direct {
+            name: _,
+            target_symbol: _,
+            value,
+        } => {
+            let value_expression = tree.get(*value);
+            visitor.visit_static_expression(tree, *value, value_expression);
+        }
+    }
+}
+
+/// Walk the StaticExpression.
+pub fn walk_static_expression<V: NodeVisitor + ?Sized>(
+    visitor: &mut V,
+    tree: &NodeTree,
+    id: LocalNodeId<StaticExpression>,
+    static_expression: &StaticExpression,
+) {
+    visitor.visit_any(tree, NodeType::StaticExpression, id.id);
+    match static_expression {
+        StaticExpression::Unresolved { node } => {
+            let expression = tree.get(*node);
+            visitor.visit_expression(tree, *node, expression);
+        }
+        StaticExpression::Type { ty: _ } => {
+            // nothing to do
+        }
+        StaticExpression::TypeLiteral { value: _ } => {
+            // nothing to do
+        }
+        StaticExpression::ScalarLiteral { value: _ } => {
+            // nothing to do
+        }
+        StaticExpression::RangeLiteral {
+            start,
+            end,
+            is_inclusive: _,
+        } => {
+            let start_expression = tree.get(*start);
+            visitor.visit_static_expression(tree, *start, start_expression);
+            let end_expression = tree.get(*end);
+            visitor.visit_static_expression(tree, *end, end_expression);
+        }
+        StaticExpression::ArrayLiteral { elements } => {
+            for element_id in elements {
+                let element = tree.get(*element_id);
+                visitor.visit_static_expression(tree, *element_id, element);
+            }
+        }
+        StaticExpression::TupleLiteral { elements } => {
+            for element_id in elements {
+                let element = tree.get(*element_id);
+                visitor.visit_static_expression(tree, *element_id, element);
+            }
+        }
+        StaticExpression::StructLiteral { properties } => {
+            for property_id in properties {
+                let property = tree.get(*property_id);
+                visitor.visit_static_property(tree, *property_id, property);
+            }
+        }
+    }
+}
+
+/// Walk the StaticProperty.
+pub fn walk_static_property<V: NodeVisitor + ?Sized>(
+    visitor: &mut V,
+    tree: &NodeTree,
+    id: LocalNodeId<StaticProperty>,
+    static_property: &StaticProperty,
+) {
+    visitor.visit_any(tree, NodeType::StaticProperty, id.id);
+    match static_property {
+        StaticProperty::Unresolved { node } => {
+            let property = tree.get(*node);
+            visitor.visit_property(tree, *node, property);
+        }
+        StaticProperty::Field {
+            modifiers: _,
+            key,
+            value,
+            default,
+            symbol: _,
+            target_symbol: _,
+        } => {
+            if let Some(key) = key {
+                walk_key(visitor, tree, key);
+            }
+            let value_expression = tree.get(*value);
+            visitor.visit_static_expression(tree, *value, value_expression);
+            let default_expression = tree.get(*default);
+            visitor.visit_static_expression(tree, *default, default_expression);
+        }
+        StaticProperty::Method {
+            modifiers: _,
+            key,
+            signature,
+            body,
+            symbol: _,
+            target_symbol: _,
+        } => {
+            if let Some(key) = key {
+                walk_key(visitor, tree, key);
+            }
+            walk_function_signature(visitor, tree, signature);
+            let body_expression = tree.get(*body);
+            visitor.visit_static_expression(tree, *body, body_expression);
         }
     }
 }

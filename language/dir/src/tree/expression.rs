@@ -3,9 +3,9 @@ use destack_ast::StringId;
 use crate::{
     Argument, AssignOperator, Asynchrony, BinaryOperator, Block, Declaration,
     DeclarationDescriptor, DependencyItem, DependencyKind, GlobalSymbolId, LocalNodeId,
-    LocalScopeId, LocalSymbolId, MatchCase, MatchSource, ModuleId, Mutability, Node, NodeType,
-    Path, Pattern, Property, ScalarLiteral, TemplateLiteral, TypeBinaryOperator, TypeLiteral,
-    TypeUnaryOperator, UnaryOperator, VarianceBound,
+    LocalScopeId, LocalSymbolId, LocalTypeId, MatchCase, MatchSource, ModuleId, Mutability, Node,
+    NodeType, Path, Pattern, Property, ScalarLiteral, StaticProperty, TemplateLiteral,
+    TypeBinaryOperator, TypeLiteral, TypeUnaryOperator, UnaryOperator, VarianceBound,
 };
 
 /// An Expression is a generic container for all constructs.
@@ -190,7 +190,7 @@ pub enum Expression {
     },
 
     /// Type as a value.
-    Type { symbol: LocalSymbolId },
+    Type { ty: LocalTypeId },
     /// Scalar literal value.
     ScalarLiteral { value: ScalarLiteral },
     /// Template literal value.
@@ -436,6 +436,49 @@ impl Expression {
             Expression::Let { descriptor, .. } => Some(descriptor.symbol),
             _ => None,
         }
+    }
+}
+
+/// Static value form of an expression in some static context.
+/// Static evaluation supports all constructs, this is for the resulting static value.
+#[derive(Debug, Clone, PartialEq)]
+pub enum StaticExpression {
+    /// Unresolved dynamic expression.
+    Unresolved { node: LocalNodeId<Expression> },
+
+    
+    /// Type.
+    Type { ty: LocalTypeId },
+
+    /// Type literal.
+    TypeLiteral { value: TypeLiteral },
+    /// Scalar literal.
+    ScalarLiteral { value: ScalarLiteral },
+    /// Range literal.
+    RangeLiteral {
+        start: LocalNodeId<StaticExpression>,
+        end: LocalNodeId<StaticExpression>,
+        is_inclusive: bool,
+    },
+    /// Array literal.
+    ArrayLiteral {
+        elements: Vec<LocalNodeId<StaticExpression>>,
+    },
+    /// Tuple literal.
+    TupleLiteral {
+        elements: Vec<LocalNodeId<StaticExpression>>,
+    },
+    /// Struct literal.
+    StructLiteral {
+        properties: Vec<LocalNodeId<StaticProperty>>,
+    },
+}
+
+impl Node for StaticExpression {
+    const TYPE: NodeType = NodeType::StaticExpression;
+
+    fn is_resolved(&self) -> bool {
+        !matches!(self, StaticExpression::Unresolved { .. })
     }
 }
 
