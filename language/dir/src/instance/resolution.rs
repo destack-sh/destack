@@ -58,16 +58,7 @@ impl std::fmt::Display for LocalResolutionId {
 
 /// Resolution of an overload/method/operator at some usage site.
 #[derive(Debug, Clone, PartialEq)]
-pub struct Resolution {
-    /// The id of the Resolution.
-    pub id: LocalResolutionId,
-    /// The kind of resolution.
-    pub kind: ResolutionKind,
-}
-
-/// The kind of resolution.
-#[derive(Debug, Clone, PartialEq)]
-pub enum ResolutionKind {
+pub enum Resolution {
     /// Resolution failed: we tried to resolve but couldn't find a valid target.
     Unresolved {
         ty: LocalTypeId,

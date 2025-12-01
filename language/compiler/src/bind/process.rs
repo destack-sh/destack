@@ -162,7 +162,7 @@ impl Compiler {
                             BindError::ConflictingBinding {
                                 node: primary_declaration,
                                 other_node: other_primary_declaration,
-                                scope: scope.id.into_global(module.id),
+                                scope: symbol.scope.0.into_global(module.id),
                                 name: Some(*key),
                             }
                         };

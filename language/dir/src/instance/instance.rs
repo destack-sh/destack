@@ -65,8 +65,6 @@ impl Display for LocalInstanceId {
 /// An Instance is an instantiation of a statically parameterized type.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Instance {
-    /// The id of the Instance.
-    pub id: LocalInstanceId,
     /// The symbol we're instantiating.
     pub symbol_id: GlobalSymbolId,
     /// The static arguments to the instance.

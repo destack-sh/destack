@@ -95,8 +95,6 @@ impl LocalScopeMark {
 /// A Scope is a container for symbols.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Scope {
-    /// The id of the scope.
-    pub id: LocalScopeId,
     /// The kind of the scope.
     pub kind: ScopeKind,
     /// The parent scope.
