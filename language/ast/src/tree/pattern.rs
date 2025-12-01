@@ -53,18 +53,26 @@ pub enum Pattern {
         end: Option<LocalNodeId<Pattern>>,
         is_inclusive: bool,
     },
-    /// Tuple pattern (like `(x, 0)` or `Result.Success(_)`).
+    /// Tuple pattern (like `(x, 0)`).
     Tuple {
-        ty: Option<LocalNodeId<Expression>>,
+        fields: Vec<LocalNodeId<PatternField>>,
+    },
+    /// Tagged tuple pattern (like `Result.Success(_)` or `Point(x, y)`).
+    TaggedTuple {
+        ty: LocalNodeId<Expression>,
         fields: Vec<LocalNodeId<PatternField>>,
     },
     /// Array or slice pattern (like `[1, 2, x]` or `[1, y, ..]`).
     Slice {
         fields: Vec<LocalNodeId<PatternField>>,
     },
-    /// Struct pattern (like `Vector2 { x: 0, y, z: zed  }` or `{ a: 2 }`).
-    Struct {
-        ty: Option<LocalNodeId<Expression>>,
+    /// Object pattern (like `{ x, y }`).
+    Object {
+        fields: Vec<LocalNodeId<PatternField>>,
+    },
+    /// Tagged object pattern (like `Vector2 { x: 0, y, z: zed }`).
+    TaggedObject {
+        ty: LocalNodeId<Expression>,
         fields: Vec<LocalNodeId<PatternField>>,
     },
     /// Union pattern (like `1 | 2 | 3`).

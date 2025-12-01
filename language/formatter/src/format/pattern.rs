@@ -61,19 +61,19 @@ impl<'ast> FormatNode<'ast, Pattern> for Pattern {
             }
             Pattern::Expression { value } => write!(f, [value])?,
             Pattern::Range { start, end, .. } => write!(f, [start, token(".."), end,])?,
-            Pattern::Tuple { ty, fields } => {
-                if let Some(ty) = ty {
-                    write!(f, [ty])?
-                }
+            Pattern::Tuple { fields } => write!(f, [list_like("(", ")", ",", fields)])?,
+            Pattern::TaggedTuple { ty, fields } => {
+                write!(f, [ty])?;
                 write!(f, [list_like("(", ")", ",", fields)])?
             }
             Pattern::Slice { fields } => {
                 write!(f, [list_like("[", "]", ",", fields)])?;
             }
-            Pattern::Struct { ty, fields } => {
-                if let Some(ty) = ty {
-                    write!(f, [ty, space()])?;
-                }
+            Pattern::Object { fields } => {
+                write!(f, [list_like("{", "}", ",", fields).include_space()])?;
+            }
+            Pattern::TaggedObject { ty, fields } => {
+                write!(f, [ty, space()])?;
                 write!(f, [list_like("{", "}", ",", fields).include_space()])?;
             }
             Pattern::Union { patterns } => write!(

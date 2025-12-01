@@ -2022,7 +2022,7 @@ const shapes = (
                 // { x, y }: T
                 assert_node!(parser.tree, signature.dynamic_parameters[1], Parameter::Pattern { pattern, ty, .. } => {
                     // { x, y }
-                    assert_node!(parser.tree, *pattern, Pattern::Struct { fields, .. } => {
+                    assert_node!(parser.tree, *pattern, Pattern::Object { fields, .. } => {
                         assert_eq!(fields.len(), 2);
                         // x
                         assert_node!(parser.tree, fields[0], PatternField::Named { name, mutability: None, pattern: None, default: None } => {

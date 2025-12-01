@@ -101,8 +101,6 @@ impl DispatchKey {
 }
 
 /// Resolution of a symbol lookup at some usage site.
-///
-/// Used for:
 /// - **Member access**: `a.foo` → resolves to the member symbol
 /// - **Field access**: `{ x }` pattern → resolves to the field symbol  
 /// - **Call/operator dispatch**: `a + b` or `foo(x)` → resolves to overload(s)

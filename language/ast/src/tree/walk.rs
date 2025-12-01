@@ -1072,11 +1072,15 @@ pub fn walk_pattern<V: NodeVisitor + ?Sized>(
                 visitor.visit_pattern(tree, *end_pattern, end_node);
             }
         }
-        Pattern::Tuple { ty, fields } => {
-            if let Some(ty_id) = ty {
-                let ty_expression = tree.get(*ty_id);
-                visitor.visit_expression(tree, *ty_id, ty_expression);
+        Pattern::Tuple { fields } => {
+            for field_id in fields {
+                let field = tree.get(*field_id);
+                visitor.visit_pattern_field(tree, *field_id, field);
             }
+        }
+        Pattern::TaggedTuple { ty, fields } => {
+            let ty_expression = tree.get(*ty);
+            visitor.visit_expression(tree, *ty, ty_expression);
             for field_id in fields {
                 let field = tree.get(*field_id);
                 visitor.visit_pattern_field(tree, *field_id, field);
@@ -1088,11 +1092,15 @@ pub fn walk_pattern<V: NodeVisitor + ?Sized>(
                 visitor.visit_pattern_field(tree, *field_id, field);
             }
         }
-        Pattern::Struct { ty, fields } => {
-            if let Some(type_id) = ty {
-                let type_node = tree.get(*type_id);
-                visitor.visit_expression(tree, *type_id, type_node);
+        Pattern::Object { fields } => {
+            for field_id in fields {
+                let field = tree.get(*field_id);
+                visitor.visit_pattern_field(tree, *field_id, field);
             }
+        }
+        Pattern::TaggedObject { ty, fields } => {
+            let type_node = tree.get(*ty);
+            visitor.visit_expression(tree, *ty, type_node);
             for field_id in fields {
                 let field = tree.get(*field_id);
                 visitor.visit_pattern_field(tree, *field_id, field);
