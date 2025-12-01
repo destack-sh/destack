@@ -587,6 +587,43 @@ parse("42")   // calls first
 parse(42)     // calls second
 ```
 
+##### Overload Resolution
+
+Overloads are resolved using **declaration order**: the first matching overload wins.
+This matches TypeScript's overload resolution semantics.
+
+```
+// Good: specific overloads before general ones
+function format(x: "json"): JsonFormatter;
+function format(x: "xml"): XmlFormatter;
+function format(x: string): Formatter;
+
+format("json")    // calls first overload
+format("xml")     // calls second overload
+format("csv")     // calls third overload
+```
+
+```
+// Bad: general overload shadows specific ones
+function format(x: string): Formatter;
+function format(x: "json"): JsonFormatter;  // warning: shadowed by first overload
+
+format("json")    // calls first overload (not second!)
+```
+
+The compiler warns when an overload is shadowed by an "earlier" declaration that always matches first.
+For union argument types, each union member is matched against the overloads:
+
+```
+function handle(x: string): string;
+function handle(x: number): number;
+
+const y: string | number = getValue();
+// both overloads may be called at runtime
+// returns: `string | number`
+handle(y);  
+```
+
 #### Methods
 
 Methods are functions declared inside types (structs, classes, enums, interfaces, extensions).
