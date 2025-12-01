@@ -1,10 +1,6 @@
 use std::fmt::Display;
 
-use destack_source::StringId;
-
-use crate::{
-    Expression, GlobalSymbolId, LocalNodeId, LocalTypeId, ModuleId, ScalarLiteral, SymbolKey,
-};
+use crate::{GlobalSymbolId, LocalNodeId, ModuleId, StaticArgument};
 
 /// Unique identifier for Instances.
 #[repr(transparent)]
@@ -68,44 +64,5 @@ pub struct Instance {
     /// The symbol we're instantiating.
     pub symbol_id: GlobalSymbolId,
     /// The static arguments to the instance.
-    pub static_arguments: Vec<StaticArgument>,
-}
-
-/// Static form of an expression.
-#[derive(Debug, Clone, PartialEq)]
-pub enum StaticExpression {
-    /// Unresolved expression.
-    Unresolved { node_id: LocalNodeId<Expression> },
-    /// Type expression.
-    Type { type_id: LocalTypeId },
-    /// Scalar literal.
-    ScalarLiteral { value: ScalarLiteral },
-    /// Range literal.
-    RangeLiteral {
-        start: Box<StaticExpression>,
-        end: Box<StaticExpression>,
-        is_inclusive: bool,
-    },
-    /// Array literal.
-    ArrayLiteral { elements: Vec<Box<StaticArgument>> },
-    /// Tuple literal.
-    TupleLiteral { elements: Vec<Box<StaticArgument>> },
-}
-
-/// Static argument.
-#[derive(Debug, Clone, PartialEq)]
-pub struct StaticArgument {
-    /// The name.
-    pub name: Option<StringId>,
-    /// The target symbol.
-    pub target_symbol: GlobalSymbolId,
-    /// The static expression.
-    pub value: Box<StaticExpression>,
-}
-
-/// Static property.
-#[derive(Debug, Clone, PartialEq)]
-pub struct StaticProperty {
-    /// The name.
-    pub key: SymbolKey,
+    pub static_arguments: Vec<LocalNodeId<StaticArgument>>,
 }

@@ -119,6 +119,7 @@ pub enum TypeScriptVersion {
 }
 
 /// A transpiler for a Destack package containing related Destack sources.
+/// nocheckin: plug Transpiler into Generate phase of Compiler? (per unit TranspileTask?)
 #[derive(Debug)]
 pub struct Transpiler {
     /// The program.

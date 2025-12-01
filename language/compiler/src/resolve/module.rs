@@ -2,7 +2,8 @@ use crate::{AnalyzeTask, Compiler, ResolveError, ResolveResult, TaskResultCollec
 use destack_dir::{
     Annotation, Argument, Block, Declaration, DependencyItem, EnumField, Expression,
     LocalNodeIdAny, MatchCase, ModuleId, Node, NodeTree, NodeType, Parameter, Pattern,
-    PatternField, Property, WhereClause, WithClause,
+    PatternField, Property, StaticArgument, StaticExpression, StaticProperty, WhereClause,
+    WithClause,
 };
 
 #[allow(dead_code)]
@@ -13,12 +14,18 @@ impl Compiler {
             NodeType::Expression => tree
                 .get::<Expression>(node_id.try_into().unwrap())
                 .is_resolved(),
+            NodeType::StaticExpression => tree
+                .get::<StaticExpression>(node_id.try_into().unwrap())
+                .is_resolved(),
             NodeType::Block => tree.get::<Block>(node_id.try_into().unwrap()).is_resolved(),
             NodeType::Declaration => tree
                 .get::<Declaration>(node_id.try_into().unwrap())
                 .is_resolved(),
             NodeType::Property => tree
                 .get::<Property>(node_id.try_into().unwrap())
+                .is_resolved(),
+            NodeType::StaticProperty => tree
+                .get::<StaticProperty>(node_id.try_into().unwrap())
                 .is_resolved(),
             NodeType::EnumField => tree
                 .get::<EnumField>(node_id.try_into().unwrap())
@@ -37,6 +44,9 @@ impl Compiler {
                 .is_resolved(),
             NodeType::Argument => tree
                 .get::<Argument>(node_id.try_into().unwrap())
+                .is_resolved(),
+            NodeType::StaticArgument => tree
+                .get::<StaticArgument>(node_id.try_into().unwrap())
                 .is_resolved(),
             NodeType::MatchCase => tree
                 .get::<MatchCase>(node_id.try_into().unwrap())
