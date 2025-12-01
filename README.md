@@ -1,8 +1,8 @@
-# Destack: Universal All-in-One Software Engine
+# Destack: Universal Software Engine
 
 Destack is a universal software engine for building correct, optimal, integrated full-stack systems.
 Build on TypeScript and the web ecosystem with a unified open source toolchain, stack and platform.
-Own your software and run it anywhere in one integrated stack:
+Own your software and run it anywhere in one integrated open source stack:
 
  - **Destack Language**: TypeScript++ for correctness, ergonomics, and performance (with `.ds` much like `.tsx`). 
  Valid TypeScript is valid Destack, so adopting `.ds` is fully incremental.
@@ -30,7 +30,7 @@ You are free to use standard TypeScript, pick only some of the libraries, or plu
 
 We're very early in software as an industry.
 Software is broken, slow, and hard to build right.
-Computers are now orders of magnitude faster, yet software feels even slower.
+Computers are miraculously fast, yet software feels slow and clunky.
 Destack aims to make building correct, optimal, integrated software the obvious default.
 
 TypeScript is a language for describing *what data looks like*.
@@ -42,12 +42,32 @@ And this "language" encompasses supporting libraries, the platform and its ecosy
 The more we can express in one unified system, the more the toolchain can verify, optimize, and assist.
 Higher-order software raises the level of abstraction of what software can express *reliably*.
 
-# Development: How To Contribute
+## Development
+
+> **You don't need to do any of this to *use* Destack!** Go to [Getting Started](#getting-started) to install and run Destack.
 
 Destack is in very active development with a singular focus: a fully integrated software stack for optimal, correct, integrated software. 
 We welcome feedback, issues, ideas, and small fixes, but please reach out for any non-trivial contributions (see [Contributing](CONTRIBUTING.md)).
 
-## Structure
+### Setup
+
+Destack is *developed* using Rust and TypeScript. 
+To build it locally you will need at least `bun`, `cargo` and `just`:
+
+- [Rust](https://rustup.rs/): Rust compiler (`nightly-2025-11-27`, see `rust-toolchain.toml`)
+- [Bun](https://bun.sh/): JavaScript runtime and package management
+- [Python](https://python.org/): Scripts and codegen utilities (optional)
+- [just](https://github.com/casey/just): Scripts and command runner
+
+We use `justfile`s: 
+```sh
+just install 		# setup everything
+just check          # check & lint everything
+just fmt            # format all code
+just lint           # lint all code
+```
+
+### Structure
 
 This is the open source monorepo containing the language, library, and platform core:
 
@@ -59,25 +79,8 @@ This is the open source monorepo containing the language, library, and platform 
 | `examples/`  | Example projects                                               | [examples/README](examples/README.md)  |
 | `templates/` | Project templates for `destack new`                            | [templates/README](templates/README.md) |
 
-## Setup
-
-Destack is *developed* using Rust and TypeScript. 
-To build it locally you will need at least `bun`, `cargo` and `just`:
-
-- [Bun](https://bun.sh/): JavaScript runtime and package management
-- [Rust](https://rustup.rs/): Rust compiler (`nightly-2025-11-27`, see `rust-toolchain.toml`)
-- [just](https://github.com/casey/just): Scripts and command runner
-- [Python](https://python.org/): Scripts and codegen utilities (optional)
-
-We use `justfile`s: 
-```sh
-just install 		# setup everything
-just check          # check & lint everything
-just fmt            # format all code
-just lint           # lint all code
-```
 
 ## License
 
-MIT License. See [LICENSE.txt](LICENSE.txt).
+**MIT license**. See [LICENSE.txt](LICENSE.txt) for details.
 The Destack language, toolchain, library and platform core are fully open source.

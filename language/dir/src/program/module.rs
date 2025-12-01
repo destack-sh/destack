@@ -9,9 +9,8 @@ use destack_ast::{self as ast, StringPool};
 use destack_source::{FileId, Uri};
 
 use crate::{
-    AnalysisTable, DependencyMode, Expression, InstanceTable, LocalNodeId, LocalScopeId,
-    LocalScopeMark, LocalSymbolId, NodeTree, PackageId, ScopeKind, SymbolKind, SymbolSpace,
-    SymbolTable, TypeTable,
+    DependencyMode, Expression, InstanceTable, LocalNodeId, LocalScopeId, LocalScopeMark,
+    LocalSymbolId, NodeTree, PackageId, ScopeKind, SymbolKind, SymbolSpace, SymbolTable, TypeTable,
 };
 
 /// Unique identifier for Modules.
@@ -86,8 +85,6 @@ pub struct Module {
     pub types: RwLock<TypeTable>,
     /// The instance side table of the Module.
     pub instances: RwLock<InstanceTable>,
-    /// The analysis side table of the Module.
-    pub analysis: RwLock<AnalysisTable>,
     /// The top-level expressions of the Module.
     pub roots: Vec<LocalNodeId<Expression>>,
 }
@@ -146,7 +143,6 @@ impl Module {
             symbols: RwLock::new(symbols),
             types: RwLock::new(TypeTable::new(id)),
             instances: RwLock::new(InstanceTable::new(id)),
-            analysis: RwLock::new(AnalysisTable::new(id)),
             roots: Vec::new(),
         }
     }

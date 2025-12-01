@@ -432,6 +432,12 @@ extension int32 {
 Extensions can implement interfaces, enabling operator overloading:
 
 ```
+interface Add<T, U = T> {
+    add(other: T): U;
+}
+```
+
+```
 extension Vector2 implements Add<Vector2> {
     add(other: Vector2): Vector2 {
         Vector2 { x: this.x + other.x, y: this.y + other.y }
@@ -440,6 +446,26 @@ extension Vector2 implements Add<Vector2> {
 
 // now you can use: v1 + v2
 ```
+
+Multiple overloads for the same operator are supported via multiple interface implementations:
+
+```
+extension Vector2 implements Add<Vector2>, Add<float> {
+    add(other: Vector2): Vector2 {
+        Vector2 { x: this.x + other.x, y: this.y + other.y }
+    }
+    
+    add(other: float): Vector2 {
+        Vector2 { x: this.x + other, y: this.y + other }
+    }
+}
+
+// now you can use both: v1 + v2 and v1 + 2.0
+```
+
+Operator overloading uses **receiver-based dispatch**: `v1 + v2` desugars to `v1.add(v2)`.
+The left operand's type determines which implementation "family" is used, then the right operand's type selects the specific overload.
+This keeps overload resolution simple and matches TypeScript's method dispatch semantics.
 
 #### Foreign Extensions
 
@@ -1028,19 +1054,26 @@ Deferred expressions run in reverse order of declaration (LIFO), so resources ar
 ## Operators
 
 Destack operators match TypeScript with additional precision for integer arithmetic.
-All operators are overloadable via extensions implementing the corresponding interface (e.g., `Add`, `Subtract`, `Multiply`).
+Many operators can be overloaded via extensions implementing the corresponding interface.
+Operators with an interface in the table below desugar to method calls on the left operand (receiver-based dispatch).
+
+The receiver type determines which implementation "family" to look at, and the right operand type selects the specific overload within that family.
+For example, `Vector2` can implement both `Add<Vector2>` and `Add<float>` for vector addition and scalar addition respectively.
 
 ### Arithmetic
 
-Standard arithmetic operators work like TypeScript:
+Standard arithmetic operators, all overloadable:
 
-| Op | Description | Assignment |
-|----|-------------|------------|
-| `+` | Add | `+=` |
-| `-` | Subtract | `-=` |
-| `*` | Multiply | `*=` |
-| `/` | Divide | `/=` |
-| `%` | Remainder | `%=` |
+| Operator | Description | Interface | Assignment |
+|----------|-------------|-----------|------------|
+| `+` | Add | `Add<T, U = T>` | `+=` |
+| `-` | Subtract | `Subtract<T, U = T>` | `-=` |
+| `*` | Multiply | `Multiply<T, U = T>` | `*=` |
+| `/` | Divide | `Divide<T, U = T>` | `/=` |
+| `%` | Remainder | `Remainder<T, U = T>` | `%=` |
+| `**` | Power | `Power<T, U = T>` | — |
+| `-a` | Negate (unary) | `Negate<U = Self>` | — |
+| `+a` | Plus (unary) | `Plus<U = Self>` | — |
 
 Destack adds explicit overflow control for integer types:
 
@@ -1065,77 +1098,97 @@ a +| b;         // saturating: 250 + 10 = 255 (clamped to max)
 
 ### Comparison
 
-Comparison operators work like TypeScript:
+Comparison operators for equality and ordering:
 
-| Op | Description |
-|----|-------------|
-| `==` | Equal |
-| `!=` | Not equal |
-| `===` | Strict equal |
-| `!==` | Strict not equal |
-| `<` | Less than |
-| `<=` | Less than or equal |
-| `>` | Greater than |
-| `>=` | Greater than or equal |
+| Operator | Description | Interface |
+|----------|-------------|-----------|
+| `==` | Equal | `Equal<T>` |
+| `!=` | Not equal | `Equal<T>` |
+| `<` | Less than | `Compare<T>` |
+| `<=` | Less than or equal | `Compare<T>` |
+| `>` | Greater than | `Compare<T>` |
+| `>=` | Greater than or equal | `Compare<T>` |
+| `===` | Strict equal | — |
+| `!==` | Strict not equal | — |
+
+Strict equality (`===`, `!==`) is not overloadable to preserve JavaScript's identity semantics.
 
 ### Logical
 
-Logical operators work like TypeScript:
+Logical operators with short-circuit evaluation (not overloadable):
 
-| Op | Description |
-|----|-------------|
-| `&&` | Logical and |
-| `\|\|` | Logical or |
-| `??` | Nullish coalescing |
-| `!` | Logical not |
+| Operator | Description | Interface |
+|----------|-------------|-----------|
+| `&&` | Logical and | — |
+| `\|\|` | Logical or | — |
+| `!` | Logical not | — |
+| `??` | Nullish coalescing | — |
 
-### Bitwise
+### Elementwise
 
-Bitwise operators work like TypeScript:
+Elementwise operators for bitwise operations on integers, overloadable for other types (sets, boolean arrays, SIMD vectors):
 
-| Op | Description | Assignment |
-|----|-------------|------------|
-| `&` | Bitwise and | `&=` |
-| `\|` | Bitwise or | `\|=` |
-| `^` | Bitwise xor | `^=` |
-| `~` | Bitwise not | |
-| `<<` | Shift left | `<<=` |
-| `>>` | Shift right | `>>=` |
-| `>>>` | Unsigned shift right | `>>>=` |
+| Operator | Description | Interface | Assignment |
+|----------|-------------|-----------|------------|
+| `&` | Elementwise and | `And<T, U = T>` | `&=` |
+| `\|` | Elementwise or | `Or<T, U = T>` | `\|=` |
+| `^` | Elementwise xor | `Xor<T, U = T>` | `^=` |
+| `~` | Elementwise not | `Not<U = Self>` | — |
+| `<<` | Shift left | `ShiftLeft<T, U = T>` | `<<=` |
+| `>>` | Shift right | `ShiftRight<T, U = T>` | `>>=` |
+| `>>>` | Unsigned shift right | `ShiftRightUnsigned<T, U = T>` | `>>>=` |
+| `<<\|` | Saturating shift left | `ShiftLeftSaturating<T, U = T>` | `<<\|=` |
 
-Destack adds saturating shift:
+### Indexing
 
-| Op | Description | Assignment |
-|----|-------------|------------|
-| `<<\|` | Saturating shift left | `<<\|=` |
+Index operators for subscript access and assignment (like Python's `__getitem__`/`__setitem__` or Rust's `Index`/`IndexMut`):
+
+| Operator | Description | Interface |
+|----------|-------------|-----------|
+| `a[i]` | Index access | `Index<I, O>` |
+| `a[i] = v` | Index assignment | `SetIndex<I, V>` |
 
 ### Type Operators
 
-Destack supports TypeScript's type operators and adds more:
+Type-level operators (not overloadable):
 
-| Op | Description |
-|----|-------------|
-| `as` | Type cast |
-| `is` | Type guard |
-| `instanceof` | Instance check |
-| `satisfies` | Type satisfaction |
-| `typeof` | Get type |
-| `keyof` | Get keys |
-| `extends` | Subtype check |
-| `implements` | Interface check |
+| Operator | Description | Interface |
+|----------|-------------|-----------|
+| `as` | Type cast | — |
+| `is` | Type guard | — |
+| `instanceof` | Instance check | — |
+| `satisfies` | Type satisfaction | — |
+| `typeof` | Get type | — |
+| `keyof` | Get keys | — |
+| `extends` | Subtype check | — |
+| `implements` | Interface check | — |
 
 ### Other Operators
 
-Additional operators:
+Additional operators (not overloadable):
 
-| Op | Description |
-|----|-------------|
-| `?` | Optional chaining / unwrap |
-| `!` | Force unwrap (non-null assertion) |
-| `?.` | Optional member access |
-| `??` | Nullish coalescing |
-| `...` | Spread / rest |
-| `++` / `--` | Increment / decrement |
+| Operator | Description | Interface |
+|----------|-------------|-----------|
+| `?.` | Optional member access | — |
+| `?` | Optional unwrap | — |
+| `!` | Non-null assertion | — |
+| `...` | Spread / rest | — |
+| `++` / `--` | Increment / decrement | — |
+
+### Builtin Overloading
+
+Builtin primitive types (`number`, `int32`, `string`, etc.) have implicit operator implementations.
+Destack also provides (optional) operator overloading for standard library types via `.d.ds` declarations:
+
+| Type | Operators | Notes |
+|------|-----------|-------|
+| `Date` | `<`, `>`, `<=`, `>=`, `==` | Date comparison |
+| `Set<T>` | `&` (intersection), `\|` (union), `-` (difference) | Set algebra |
+| `Array<T>` | `+` (concatenation) | Replaces string coercion |
+| `TypedArray` | `+`, `-`, `*`, `/` (elementwise) | SIMD-style operations |
+| `Map<K,V>` | `\|` (merge) | Map merging |
+
+These overloads transpile to explicit method calls in the generated TypeScript.
 
 ## Modules
 
