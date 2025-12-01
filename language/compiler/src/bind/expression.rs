@@ -500,7 +500,7 @@ impl Compiler {
                         })
                         .collect()
                 });
-                Expression::UnresolvedMember {
+                Expression::Member {
                     left,
                     name,
                     static_arguments,

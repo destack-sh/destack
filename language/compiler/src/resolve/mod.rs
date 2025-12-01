@@ -1,11 +1,9 @@
 mod annotation;
-mod argument;
 mod dependency;
 mod error;
 mod expression;
 mod module;
 mod options;
-mod pattern;
 mod process;
 mod symbol;
 mod r#type;

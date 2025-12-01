@@ -1,6 +1,6 @@
 use crate::{
-    Expression, FunctionSignature, GlobalSymbolId, Key, LocalNodeId, LocalSymbolId, Mutability,
-    Node, NodeType, StaticExpression, Visibility,
+    Expression, FunctionSignature, Key, LocalNodeId, LocalSymbolId, Mutability, Node, NodeType,
+    StaticExpression, Visibility,
 };
 
 /// The type of a binding.
@@ -59,9 +59,11 @@ pub enum FunctionMode {
 }
 
 /// A Property is a property of a variant type (may be a field or method).
+/// `symbol` is the declaration symbol for this property.
+/// For object literals, field resolution (to expected type's field) is in ResolutionTable.
 ///
 /// Examples:
-/// ```
+/// ```text
 /// // field
 /// x: int32
 /// x
@@ -80,53 +82,27 @@ pub enum FunctionMode {
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub enum Property {
-    /// Unresolved named field (like `x: int32`).
-    UnresolvedNamed {
+    /// Named field (like `x: int32`).
+    Field {
         modifiers: Option<BindingModifier>,
         key: Option<Key>,
         value: Option<LocalNodeId<Expression>>,
         default: Option<LocalNodeId<Expression>>,
         symbol: LocalSymbolId,
     },
-    /// Unresolved named member function (like `foo()` or `<T>(): T`).
-    UnresolvedMethod {
+    /// Named member function (like `foo()` or `<T>(): T`).
+    Method {
         modifiers: Option<BindingModifier>,
         key: Option<Key>,
         signature: FunctionSignature,
         body: Option<LocalNodeId<Expression>>,
         symbol: LocalSymbolId,
     },
-    /// Unresolved spread property (like `...a`).
-    UnresolvedSpread {
-        modifiers: Option<BindingModifier>,
-        value: LocalNodeId<Expression>,
-        symbol: LocalSymbolId,
-    },
-
-    /// Named field (like `x: int32`).
-    Field {
-        modifiers: Option<BindingModifier>,
-        key: Option<Key>,
-        value: LocalNodeId<Expression>,
-        default: LocalNodeId<Expression>,
-        symbol: LocalSymbolId,
-        target_symbol: GlobalSymbolId,
-    },
-    /// Named member function (like `foo()` or `<T>(): T`).
-    Method {
-        modifiers: Option<BindingModifier>,
-        key: Option<Key>,
-        signature: FunctionSignature,
-        body: LocalNodeId<Expression>,
-        symbol: LocalSymbolId,
-        target_symbol: GlobalSymbolId,
-    },
     /// Spread property (like `...a`).
     Spread {
         modifiers: Option<BindingModifier>,
         value: LocalNodeId<Expression>,
         symbol: LocalSymbolId,
-        target_symbol: GlobalSymbolId,
     },
 }
 
@@ -134,10 +110,7 @@ impl Node for Property {
     const TYPE: NodeType = NodeType::Property;
 
     fn is_resolved(&self) -> bool {
-        matches!(
-            self,
-            Property::Field { .. } | Property::Method { .. } | Property::Spread { .. }
-        )
+        true // properties are always "resolved" - field mapping is in ResolutionTable
     }
 }
 
@@ -145,26 +118,24 @@ impl Node for Property {
 /// Static evaluation supports all constructs, this is for the resulting static value.
 #[derive(Debug, Clone, PartialEq)]
 pub enum StaticProperty {
-    /// Unresolved dynamic property.
-    Unresolved { node: LocalNodeId<Property> },
+    /// Unevaluated property (needs compile-time evaluation).
+    Unevaluated { node: LocalNodeId<Property> },
 
-    /// Named static field (like `x: int32`).
+    /// Evaluated static field (like `x: int32`).
     Field {
         modifiers: Option<BindingModifier>,
         key: Option<Key>,
         value: LocalNodeId<StaticExpression>,
-        default: LocalNodeId<StaticExpression>,
+        default: Option<LocalNodeId<StaticExpression>>,
         symbol: LocalSymbolId,
-        target_symbol: GlobalSymbolId,
     },
-    /// Named static member function (like `foo()` or `<T>(): T`).
+    /// Evaluated static member function (like `foo()` or `<T>(): T`).
     Method {
         modifiers: Option<BindingModifier>,
         key: Option<Key>,
         signature: FunctionSignature,
         body: LocalNodeId<StaticExpression>,
         symbol: LocalSymbolId,
-        target_symbol: GlobalSymbolId,
     },
 }
 
@@ -172,6 +143,6 @@ impl Node for StaticProperty {
     const TYPE: NodeType = NodeType::StaticProperty;
 
     fn is_resolved(&self) -> bool {
-        !matches!(self, StaticProperty::Unresolved { .. })
+        !matches!(self, StaticProperty::Unevaluated { .. })
     }
 }

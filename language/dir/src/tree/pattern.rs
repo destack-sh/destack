@@ -1,5 +1,5 @@
 use crate::{
-    Expression, GlobalSymbolId, LocalNodeId, LocalSymbolId, Mutability, Node, NodeType, StringId,
+    Expression, LocalNodeId, LocalSymbolId, Mutability, Node, NodeType, StringId,
 };
 
 /// A Pattern is a pattern to match something and unwrap it.
@@ -36,28 +36,22 @@ pub enum Pattern {
         end: Option<LocalNodeId<Pattern>>,
         is_inclusive: bool,
     },
-    /// Unresolved tuple pattern (like `Result.Success(_)`).
-    UnresolvedTuple {
-        ty: LocalNodeId<Expression>,
-        fields: Vec<LocalNodeId<PatternField>>,
-    },
     /// Tuple pattern (like `(x, 0)` or `Result.Success(_)`).
+    /// If `ty` is present, it's a variant/newtype pattern; if None, it's anonymous.
+    /// Type resolution is via the `ty` expression (which resolves to a Reference).
     Tuple {
-        target_symbol: Option<GlobalSymbolId>,
+        ty: Option<LocalNodeId<Expression>>,
         fields: Vec<LocalNodeId<PatternField>>,
     },
     /// Array or slice pattern (like `[1, 2, x]` or `[1, y, ..]`).
     Slice {
         fields: Vec<LocalNodeId<PatternField>>,
     },
-    /// Unresolved struct pattern (like `Vector2 { x: 0, y, z: zedso  }`).
-    UnresolvedStruct {
-        ty: LocalNodeId<Expression>,
-        fields: Vec<LocalNodeId<PatternField>>,
-    },
-    /// Struct pattern (like `Vector2 { x: 0, y, z: zedso  }`).
+    /// Struct pattern (like `{ x, y }` or `Vector2 { x: 0, y }`).
+    /// If `ty` is present, it's a typed struct pattern; if None, it's anonymous.
+    /// Type resolution is via the `ty` expression (which resolves to a Reference).
     Struct {
-        target_symbol: Option<GlobalSymbolId>,
+        ty: Option<LocalNodeId<Expression>>,
         fields: Vec<LocalNodeId<PatternField>>,
     },
     /// Union pattern (like `1 | 2 | 3`).
@@ -83,43 +77,26 @@ impl Pattern {
 }
 
 /// A PatternField is a field in a pattern (tuple, struct, union, etc.).
+/// Field resolution (which struct field it maps to) is in ResolutionTable.
 #[derive(Debug, Clone, PartialEq)]
 pub enum PatternField {
     /// Named field, maybe with a pattern (like `x` or `x: 4` or `x: int32`).
-    UnresolvedNamed {
-        mutability: Option<Mutability>,
-        name: StringId,
-        pattern: Option<LocalNodeId<Pattern>>,
-        default: Option<LocalNodeId<Expression>>,
-        symbol: LocalSymbolId,
-    },
-    /// Named field with an alias (like `x: y`).
-    UnresolvedAlias {
-        mutability: Option<Mutability>,
-        name: StringId,
-        alias: StringId,
-        default: Option<LocalNodeId<Expression>>,
-        symbol: LocalSymbolId,
-    },
-    /// Positional field with just a pattern (like `4` or `int32`).
-    UnresolvedPositional { pattern: LocalNodeId<Pattern> },
-    /// Named field, maybe with a pattern (like `x` or `x: 4` or `x: int32`).
+    /// `symbol` is the LOCAL binding created by this field.
     Named {
         mutability: Option<Mutability>,
         name: StringId,
         pattern: Option<LocalNodeId<Pattern>>,
         default: Option<LocalNodeId<Expression>>,
         symbol: LocalSymbolId,
-        target_symbol: GlobalSymbolId,
     },
-    /// Named field with an alias (like `x: y`).
+    /// Named field with an alias (like `x: y` where `x` is the field name, `y` is the binding).
+    /// `symbol` is the LOCAL binding created by the alias.
     Alias {
         mutability: Option<Mutability>,
         name: StringId,
         alias: StringId,
         default: Option<LocalNodeId<Expression>>,
         symbol: LocalSymbolId,
-        target_symbol: GlobalSymbolId,
     },
     /// Positional field with just a pattern (like `4` or `int32`).
     Positional { pattern: LocalNodeId<Pattern> },
@@ -129,22 +106,14 @@ impl Node for PatternField {
     const TYPE: NodeType = NodeType::PatternField;
 
     fn is_resolved(&self) -> bool {
-        matches!(
-            self,
-            PatternField::Named { .. }
-                | PatternField::Alias { .. }
-                | PatternField::Positional { .. }
-        )
+        true // field resolution is in ResolutionTable
     }
 }
 
 impl PatternField {
-    /// Get the symbol of the pattern field.
+    /// Get the symbol of the pattern field (the local binding it creates).
     pub fn symbol(&self) -> Option<LocalSymbolId> {
         match self {
-            PatternField::UnresolvedNamed { symbol, .. } => Some(*symbol),
-            PatternField::UnresolvedAlias { symbol, .. } => Some(*symbol),
-            PatternField::UnresolvedPositional { .. } => None,
             PatternField::Named { symbol, .. } => Some(*symbol),
             PatternField::Alias { symbol, .. } => Some(*symbol),
             PatternField::Positional { .. } => None,

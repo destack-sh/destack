@@ -418,7 +418,6 @@ impl Transpiler {
             dir::Expression::Member {
                 left,
                 name,
-                symbol: _,
                 static_arguments,
             } => {
                 let left_id = self

@@ -214,7 +214,7 @@ The same mechanism works for all types: structs, enums, newtypes, even foreign t
 
 ### Unions and Intersections
 
-Combinator types work like in TypeScript:
+Structural combinator types work like in TypeScript:
 
 ```
 int32 | string | null      // union
@@ -224,7 +224,7 @@ A & B                      // intersection
 #### Discriminated Unions
 
 Destack uses TypeScript-style discriminated unions for sum types.
-Combined with structs, this enables idiomatic Result types:
+Combined with structs, this enables more explicit union types:
 
 ```
 struct Ok<T> { kind: 'ok' = 'ok', value: T }

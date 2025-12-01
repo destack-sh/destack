@@ -109,35 +109,19 @@ impl Transpiler {
     ) -> TranspileResult<LocalNodeId<Argument>> {
         let argument = tree.get(argument_id);
         let argument = match argument {
-            dir::Argument::UnresolvedNamed { name: _, value }
-            | dir::Argument::UnresolvedPositional { value }
-            | dir::Argument::Direct {
-                name: _,
-                target_symbol: _,
-                value,
-            } => {
+            dir::Argument::Named { name: _, value } | dir::Argument::Positional { value } => {
                 let value = self
                     .transpile_expression(module, tree, symbols, types, *value, unit)
                     .expect_node::<Expression>(value.into_global_any(module.id), unit)?;
                 Argument::Positional { value }
             }
-            dir::Argument::UnresolvedSpread { value }
-            | dir::Argument::Spread {
-                name: _,
-                target_symbol: _,
-                value,
-            } => {
+            dir::Argument::Spread { value } => {
                 let value = self
                     .transpile_expression(module, tree, symbols, types, *value, unit)
                     .expect_node::<Expression>(value.into_global_any(module.id), unit)?;
                 Argument::Spread { value }
             }
-            dir::Argument::UnresolvedDynamic { key, value }
-            | dir::Argument::Dynamic {
-                key,
-                value,
-                target_symbol: _,
-            } => {
+            dir::Argument::Dynamic { key, value } => {
                 let key = self
                     .transpile_expression(module, tree, symbols, types, *key, unit)
                     .expect_node::<Expression>(key.into_global_any(module.id), unit)?;

@@ -1,6 +1,6 @@
 use crate::{
-    BindingModifier, Expression, GlobalSymbolId, LocalNodeId, LocalSymbolId, Node, NodeType,
-    Pattern, StaticExpression, StringId,
+    BindingModifier, Expression, LocalNodeId, LocalSymbolId, Node, NodeType, Pattern,
+    StaticExpression, StringId,
 };
 
 /// A Parameter is a parameter to some construct.
@@ -36,40 +36,22 @@ impl Node for Parameter {
     }
 }
 
-/// An Argument is a named or positional argument.
-/// Named arguments are only valid in tree literals (JSX-like attributes).
+/// An Argument is a named, positional, spread, or dynamic argument.
+/// Parameter mapping (which parameter an argument maps to) is resolved
+/// as part of call resolution, not stored here.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Argument {
-    /// Unresolved named argument (tree literals only).
-    UnresolvedNamed {
+    /// Named argument (like `foo: 42` in tree literals or named function args).
+    Named {
         name: StringId,
         value: LocalNodeId<Expression>,
     },
-    /// Unresolved positional argument.
-    UnresolvedPositional { value: LocalNodeId<Expression> },
-    /// Unresolved spread argument.
-    UnresolvedSpread { value: LocalNodeId<Expression> },
-    /// Unresolved dynamic argument.
-    UnresolvedDynamic {
-        key: LocalNodeId<Expression>,
-        value: LocalNodeId<Expression>,
-    },
-
-    /// Direct argument (named or positional).
-    Direct {
-        name: StringId,
-        target_symbol: GlobalSymbolId,
-        value: LocalNodeId<Expression>,
-    },
-    /// Spread argument.
-    Spread {
-        name: StringId,
-        target_symbol: GlobalSymbolId,
-        value: LocalNodeId<Expression>,
-    },
-    /// Dynamic argument.
+    /// Positional argument (like `42` in `foo(42)`).
+    Positional { value: LocalNodeId<Expression> },
+    /// Spread argument (like `...args`).
+    Spread { value: LocalNodeId<Expression> },
+    /// Dynamic/computed argument (like `[key]: value`).
     Dynamic {
-        target_symbol: GlobalSymbolId,
         key: LocalNodeId<Expression>,
         value: LocalNodeId<Expression>,
     },
@@ -79,11 +61,8 @@ impl Argument {
     /// Get the value of the Argument.
     pub fn value(&self) -> LocalNodeId<Expression> {
         match self {
-            Argument::UnresolvedNamed { value, .. } => *value,
-            Argument::UnresolvedPositional { value, .. } => *value,
-            Argument::UnresolvedSpread { value, .. } => *value,
-            Argument::UnresolvedDynamic { value, .. } => *value,
-            Argument::Direct { value, .. } => *value,
+            Argument::Named { value, .. } => *value,
+            Argument::Positional { value, .. } => *value,
             Argument::Spread { value, .. } => *value,
             Argument::Dynamic { value, .. } => *value,
         }
@@ -94,7 +73,7 @@ impl Node for Argument {
     const TYPE: NodeType = NodeType::Argument;
 
     fn is_resolved(&self) -> bool {
-        matches!(self, Argument::Direct { .. } | Argument::Spread { .. })
+        true // arguments are always "resolved" - parameter mapping is in ResolutionTable
     }
 }
 
@@ -102,13 +81,12 @@ impl Node for Argument {
 /// Static evaluation supports all constructs, this is for the resulting static value.
 #[derive(Debug, Clone, PartialEq)]
 pub enum StaticArgument {
-    /// Unresolved dynamic argument.
-    Unresolved { node: LocalNodeId<Argument> },
+    /// Unevaluated argument (needs compile-time evaluation).
+    Unevaluated { node: LocalNodeId<Argument> },
 
-    /// Named static argument.
-    Direct {
-        name: StringId,
-        target_symbol: GlobalSymbolId,
+    /// Evaluated static argument.
+    Evaluated {
+        name: Option<StringId>,
         value: LocalNodeId<StaticExpression>,
     },
 }
@@ -117,6 +95,6 @@ impl Node for StaticArgument {
     const TYPE: NodeType = NodeType::StaticArgument;
 
     fn is_resolved(&self) -> bool {
-        !matches!(self, StaticArgument::Unresolved { .. })
+        !matches!(self, StaticArgument::Unevaluated { .. })
     }
 }

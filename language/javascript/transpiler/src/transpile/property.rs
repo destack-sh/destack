@@ -51,7 +51,7 @@ impl Transpiler {
     ) -> TranspileResult<LocalNodeId<Property>> {
         let property = tree.get(property_id);
         let property = match property {
-            dir::Property::UnresolvedNamed {
+            dir::Property::Field {
                 modifiers,
                 key,
                 value,
@@ -86,35 +86,7 @@ impl Transpiler {
                     default,
                 }
             }
-            dir::Property::Field {
-                modifiers,
-                key,
-                value,
-                default,
-                symbol: _,
-                target_symbol: _,
-            } => {
-                let modifiers = modifiers
-                    .map(|modifiers| self.transpile_binding_modifier(module, modifiers, unit))
-                    .transpose()?;
-                let key = key
-                    .as_ref()
-                    .map(|key| self.transpile_key(module, tree, symbols, types, *key, unit))
-                    .transpose()?;
-                let value = self
-                    .transpile_expression(module, tree, symbols, types, *value, unit)
-                    .expect_node::<Expression>(value.into_global_any(module.id), unit)?;
-                let default = self
-                    .transpile_expression(module, tree, symbols, types, *default, unit)
-                    .expect_node::<Expression>(default.into_global_any(module.id), unit)?;
-                Property::Field {
-                    modifiers,
-                    key,
-                    value: Some(value),
-                    default: Some(default),
-                }
-            }
-            dir::Property::UnresolvedMethod {
+            dir::Property::Method {
                 modifiers,
                 key,
                 signature,
@@ -144,51 +116,10 @@ impl Transpiler {
                     body,
                 }
             }
-            dir::Property::Method {
-                modifiers,
-                key,
-                signature,
-                body,
-                symbol: _,
-                target_symbol: _,
-            } => {
-                let modifiers = modifiers
-                    .map(|modifiers| self.transpile_binding_modifier(module, modifiers, unit))
-                    .transpose()?;
-                let key = key
-                    .as_ref()
-                    .map(|key| self.transpile_key(module, tree, symbols, types, *key, unit))
-                    .transpose()?;
-                let signature = self
-                    .transpile_function_signature(module, tree, symbols, types, signature, unit)?;
-                let body = self
-                    .transpile_expression(module, tree, symbols, types, *body, unit)
-                    .expect_node::<Expression>(body.into_global_any(module.id), unit)?;
-                Property::Method {
-                    modifiers,
-                    key,
-                    signature,
-                    body: Some(body),
-                }
-            }
-            dir::Property::UnresolvedSpread {
-                modifiers,
-                value,
-                symbol: _,
-            } => {
-                let modifiers = modifiers
-                    .map(|modifiers| self.transpile_binding_modifier(module, modifiers, unit))
-                    .transpose()?;
-                let value = self
-                    .transpile_expression(module, tree, symbols, types, *value, unit)
-                    .expect_node::<Expression>(value.into_global_any(module.id), unit)?;
-                Property::Spread { modifiers, value }
-            }
             dir::Property::Spread {
                 modifiers,
                 value,
                 symbol: _,
-                target_symbol: _,
             } => {
                 let modifiers = modifiers
                     .map(|modifiers| self.transpile_binding_modifier(module, modifiers, unit))

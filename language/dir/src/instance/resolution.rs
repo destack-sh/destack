@@ -56,13 +56,16 @@ impl std::fmt::Display for LocalResolutionId {
     }
 }
 
-/// Dispatch key for runtime type-based selection.
-/// Captures the types we check at runtime to select an overload.
+/// Dispatch key for runtime type-based overload selection.
+///
+/// Used when multiple overloads exist and the specific implementation
+/// must be selected based on argument types (potentially at runtime for unions).
+/// For simple lookups (member access, field access), no dispatch key is needed.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum DispatchKey {
-    /// Single type dispatch (for a single variable).
+    /// Single type dispatch (e.g., `a + b` dispatches on type of `b`).
     Single { ty: LocalTypeId },
-    /// Multiple type dispatch (for multiple variables).
+    /// Multiple type dispatch (e.g., `foo(x, y)` dispatches on types of both args).
     Multiple { types: Vec<LocalTypeId> },
 }
 
@@ -97,37 +100,45 @@ impl DispatchKey {
     }
 }
 
-/// Resolution of an overload/method/operator at some usage site.
-/// - **Static part**: The receiver type (if any) that selected the "family" of overloads.
-/// - **Dynamic part**: The dispatch key(s) for runtime selection within that family.
+/// Resolution of a symbol lookup at some usage site.
+///
+/// Used for:
+/// - **Member access**: `a.foo` → resolves to the member symbol
+/// - **Field access**: `{ x }` pattern → resolves to the field symbol  
+/// - **Call/operator dispatch**: `a + b` or `foo(x)` → resolves to overload(s)
+///
+/// The `receiver` type (if any) identifies the "family" of implementations.
+/// For dispatch cases, candidates have dispatch keys for runtime selection.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Resolution {
-    /// Resolution failed: some or all type combinations had no valid overload.
+    /// Resolution failed: couldn't find a valid target.
     Unresolved {
-        /// The receiver type (None for free functions).
+        /// The receiver type (None for free functions/lookups).
         receiver: Option<LocalTypeId>,
-        /// Keys we couldn't find overloads for.
+        /// Dispatch keys we couldn't find overloads for (empty for simple lookups).
         missing_keys: Vec<DispatchKey>,
         /// Candidates we did find (for "did you mean?" suggestions).
         candidates: Vec<ResolutionCandidate>,
     },
-    /// Builtin primitive operation (no symbol needed, built-in handles it).
+    /// Builtin primitive operation (no symbol needed, codegen handles it).
     Builtin {
-        /// The receiver type (None for free functions).
+        /// The receiver type.
         receiver: Option<LocalTypeId>,
     },
     /// Static resolution: exactly one target, known at compile time.
+    /// Used for both simple lookups (member, field) and single-overload calls.
     Static {
-        /// The receiver type (None for free functions).
+        /// The receiver type (None for free functions/lookups).
         receiver: Option<LocalTypeId>,
         /// The resolved candidate.
         candidate: ResolutionCandidate,
     },
-    /// Dynamic resolution: runtime dispatch needed based on types.
+    /// Dynamic resolution: runtime dispatch needed based on argument types.
+    /// Only used when the receiver is a union and different implementations apply.
     Dynamic {
-        /// The receiver type (None for free functions).
+        /// The receiver type (the union type).
         receiver: Option<LocalTypeId>,
-        /// The candidates to dispatch between.
+        /// The candidates to dispatch between at runtime.
         candidates: Vec<ResolutionCandidate>,
     },
 }
@@ -144,15 +155,16 @@ impl Resolution {
     }
 }
 
-/// Candidate for dispatch resolution.
+/// A resolved target symbol, optionally with dispatch information.
 #[derive(Debug, Clone, PartialEq)]
 pub struct ResolutionCandidate {
-    /// The dispatch key that selects this candidate at runtime.
-    /// For `a + b` where `b: number`, key is `Single { number }`.
-    /// For `foo(x, y)` where `x: string, y: int`, key is `Multiple { [string, int] }`.
-    pub key: DispatchKey,
-    /// The resolved symbol for this candidate.
-    pub symbol: GlobalSymbolId,
-    /// The instance of the symbol, if it was generically instantiated.
+    /// The dispatch key for runtime overload selection.
+    /// - `None` for simple lookups (member access, field access)
+    /// - `Some(Single { ty })` for single-argument dispatch (e.g., `a + b` on `b`'s type)
+    /// - `Some(Multiple { types })` for multi-argument dispatch
+    pub key: Option<DispatchKey>,
+    /// The resolved target symbol.
+    pub target_symbol: GlobalSymbolId,
+    /// The instance of the symbol, if generically instantiated.
     pub instance: Option<LocalInstanceId>,
 }

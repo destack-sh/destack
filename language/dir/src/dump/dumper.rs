@@ -913,24 +913,13 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .field("operator", operator)
                     .end();
             }
-            Expression::UnresolvedMember {
-                left: _,
-                name,
-                static_arguments: _,
-            } => {
-                self.node("Expression::UnresolvedMember", id.id)
-                    .field("name", name)
-                    .end();
-            }
             Expression::Member {
                 left: _,
                 name,
-                symbol,
                 static_arguments: _,
             } => {
                 self.node("Expression::Member", id.id)
                     .field("name", name)
-                    .field("symbol", symbol)
                     .end();
             }
             Expression::Call {
@@ -1209,8 +1198,8 @@ impl<'a> NodeVisitor for Dumper<'a> {
         static_expression: &StaticExpression,
     ) {
         match static_expression {
-            StaticExpression::Unresolved { node: _ } => {
-                self.node("StaticExpression::Unresolved", id.id).end();
+            StaticExpression::Unevaluated { node: _ } => {
+                self.node("StaticExpression::Unevaluated", id.id).end();
             }
 
             StaticExpression::Declaration {
@@ -1390,56 +1379,17 @@ impl<'a> NodeVisitor for Dumper<'a> {
 
     fn visit_property(&mut self, tree: &NodeTree, id: LocalNodeId<Property>, property: &Property) {
         match property {
-            Property::UnresolvedNamed {
-                modifiers,
-                key,
-                value: _,
-                default: _,
-                symbol,
-            } => {
-                self.node("Property::UnresolvedNamed", id.id)
-                    .field_optional("modifiers", modifiers)
-                    .field_optional("key", key)
-                    .field("symbol", symbol)
-                    .end();
-            }
-            Property::UnresolvedMethod {
-                modifiers,
-                key,
-                signature,
-                body: _,
-                symbol,
-            } => {
-                self.node("Property::UnresolvedMethod", id.id)
-                    .field_optional("modifiers", modifiers)
-                    .field_optional("key", key)
-                    .field("signature", signature)
-                    .field("symbol", symbol)
-                    .end();
-            }
-            Property::UnresolvedSpread {
-                modifiers,
-                value: _,
-                symbol,
-            } => {
-                self.node("Property::UnresolvedSpread", id.id)
-                    .field_optional("modifiers", modifiers)
-                    .field("symbol", symbol)
-                    .end();
-            }
             Property::Field {
                 modifiers,
                 key,
                 value: _,
                 default: _,
                 symbol,
-                target_symbol,
             } => {
                 self.node("Property::Field", id.id)
                     .field_optional("modifiers", modifiers)
                     .field_optional("key", key)
                     .field("symbol", symbol)
-                    .field("target_symbol", target_symbol)
                     .end();
             }
             Property::Method {
@@ -1448,26 +1398,22 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 signature,
                 body: _,
                 symbol,
-                target_symbol,
             } => {
                 self.node("Property::Method", id.id)
                     .field_optional("modifiers", modifiers)
                     .field_optional("key", key)
                     .field("signature", signature)
                     .field("symbol", symbol)
-                    .field("target_symbol", target_symbol)
                     .end();
             }
             Property::Spread {
                 modifiers,
                 value: _,
                 symbol,
-                target_symbol,
             } => {
                 self.node("Property::Spread", id.id)
                     .field_optional("modifiers", modifiers)
                     .field("symbol", symbol)
-                    .field("target_symbol", target_symbol)
                     .end();
             }
         }
@@ -1483,8 +1429,8 @@ impl<'a> NodeVisitor for Dumper<'a> {
         static_property: &StaticProperty,
     ) {
         match static_property {
-            StaticProperty::Unresolved { node: _ } => {
-                self.node("StaticProperty::Unresolved", id.id).end();
+            StaticProperty::Unevaluated { node: _ } => {
+                self.node("StaticProperty::Unevaluated", id.id).end();
             }
             StaticProperty::Field {
                 modifiers,
@@ -1492,13 +1438,11 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 value: _,
                 default: _,
                 symbol,
-                target_symbol,
             } => {
                 self.node("StaticProperty::Field", id.id)
                     .field_optional("modifiers", modifiers)
                     .field_optional("key", key)
                     .field("symbol", symbol)
-                    .field("target_symbol", target_symbol)
                     .end();
             }
             StaticProperty::Method {
@@ -1507,14 +1451,12 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 signature,
                 body: _,
                 symbol,
-                target_symbol,
             } => {
                 self.node("StaticProperty::Method", id.id)
                     .field_optional("modifiers", modifiers)
                     .field_optional("key", key)
                     .field("signature", signature)
                     .field("symbol", symbol)
-                    .field("target_symbol", target_symbol)
                     .end();
             }
         }
@@ -1712,48 +1654,19 @@ impl<'a> NodeVisitor for Dumper<'a> {
 
     fn visit_argument(&mut self, tree: &NodeTree, id: LocalNodeId<Argument>, argument: &Argument) {
         match argument {
-            Argument::UnresolvedNamed { name, value: _ } => {
-                self.node("Argument::UnresolvedNamed", id.id)
+            Argument::Named { name, value: _ } => {
+                self.node("Argument::Named", id.id)
                     .field("name", name)
                     .end();
             }
-            Argument::UnresolvedPositional { value: _ } => {
-                self.node("Argument::UnresolvedPositional", id.id).end();
+            Argument::Positional { value: _ } => {
+                self.node("Argument::Positional", id.id).end();
             }
-            Argument::UnresolvedSpread { value: _ } => {
-                self.node("Argument::UnresolvedSpread", id.id).end();
+            Argument::Spread { value: _ } => {
+                self.node("Argument::Spread", id.id).end();
             }
-            Argument::UnresolvedDynamic { key: _, value: _ } => {
-                self.node("Argument::UnresolvedDynamic", id.id).end();
-            }
-            Argument::Direct {
-                name,
-                target_symbol,
-                value: _,
-            } => {
-                self.node("Argument::Direct", id.id)
-                    .field("name", name)
-                    .field("target_symbol", target_symbol)
-                    .end();
-            }
-            Argument::Spread {
-                name,
-                target_symbol,
-                value: _,
-            } => {
-                self.node("Argument::Spread", id.id)
-                    .field("name", name)
-                    .field("target_symbol", target_symbol)
-                    .end();
-            }
-            Argument::Dynamic {
-                key: _,
-                target_symbol,
-                value: _,
-            } => {
-                self.node("Argument::Dynamic", id.id)
-                    .field("target_symbol", target_symbol)
-                    .end();
+            Argument::Dynamic { key: _, value: _ } => {
+                self.node("Argument::Dynamic", id.id).end();
             }
         }
         self.with_depth(|dumper| {
@@ -1768,17 +1681,12 @@ impl<'a> NodeVisitor for Dumper<'a> {
         static_argument: &StaticArgument,
     ) {
         match static_argument {
-            StaticArgument::Unresolved { node: _ } => {
-                self.node("StaticArgument::Unresolved", id.id).end();
+            StaticArgument::Unevaluated { node: _ } => {
+                self.node("StaticArgument::Unevaluated", id.id).end();
             }
-            StaticArgument::Direct {
-                name,
-                target_symbol,
-                value: _,
-            } => {
-                self.node("StaticArgument::Direct", id.id)
-                    .field("name", name)
-                    .field("target_symbol", target_symbol)
+            StaticArgument::Evaluated { name, value: _ } => {
+                self.node("StaticArgument::Evaluated", id.id)
+                    .field_optional("name", name)
                     .end();
             }
         }
@@ -1873,30 +1781,14 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .field("is_inclusive", is_inclusive)
                     .end();
             }
-            Pattern::UnresolvedTuple { ty: _, fields: _ } => {
-                self.node("Pattern::UnresolvedTuple", id.id).end();
-            }
-            Pattern::Tuple {
-                target_symbol,
-                fields: _,
-            } => {
-                self.node("Pattern::Tuple", id.id)
-                    .field("target_symbol", target_symbol)
-                    .end();
+            Pattern::Tuple { ty: _, fields: _ } => {
+                self.node("Pattern::Tuple", id.id).end();
             }
             Pattern::Slice { fields: _ } => {
                 self.node("Pattern::Slice", id.id).end();
             }
-            Pattern::UnresolvedStruct { ty: _, fields: _ } => {
-                self.node("Pattern::UnresolvedStruct", id.id).end();
-            }
-            Pattern::Struct {
-                target_symbol,
-                fields: _,
-            } => {
-                self.node("Pattern::Struct", id.id)
-                    .field("target_symbol", target_symbol)
-                    .end();
+            Pattern::Struct { ty: _, fields: _ } => {
+                self.node("Pattern::Struct", id.id).end();
             }
             Pattern::Union { patterns: _ } => {
                 self.node("Pattern::Union", id.id).end();
@@ -1914,49 +1806,17 @@ impl<'a> NodeVisitor for Dumper<'a> {
         pattern_field: &PatternField,
     ) {
         match pattern_field {
-            PatternField::UnresolvedNamed {
-                mutability,
-                name,
-                default: _,
-                pattern: _,
-                symbol,
-            } => {
-                self.node("PatternField::Named", id.id)
-                    .field("name", name)
-                    .field_optional("mutability", mutability)
-                    .field("symbol", symbol)
-                    .end();
-            }
-            PatternField::UnresolvedAlias {
-                mutability,
-                name,
-                alias,
-                default: _,
-                symbol,
-            } => {
-                self.node("PatternField::Alias", id.id)
-                    .field("name", name)
-                    .field("alias", alias)
-                    .field_optional("mutability", mutability)
-                    .field("symbol", symbol)
-                    .end();
-            }
-            PatternField::UnresolvedPositional { pattern: _ } => {
-                self.node("PatternField::Positional", id.id).end();
-            }
             PatternField::Named {
                 mutability,
                 name,
-                pattern: _,
                 default: _,
+                pattern: _,
                 symbol,
-                target_symbol,
             } => {
                 self.node("PatternField::Named", id.id)
                     .field("name", name)
                     .field_optional("mutability", mutability)
                     .field("symbol", symbol)
-                    .field("target_symbol", target_symbol)
                     .end();
             }
             PatternField::Alias {
@@ -1965,14 +1825,12 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 alias,
                 default: _,
                 symbol,
-                target_symbol,
             } => {
                 self.node("PatternField::Alias", id.id)
                     .field("name", name)
                     .field("alias", alias)
                     .field_optional("mutability", mutability)
                     .field("symbol", symbol)
-                    .field("target_symbol", target_symbol)
                     .end();
             }
             PatternField::Positional { pattern: _ } => {

@@ -57,7 +57,7 @@ impl Compiler {
                 });
                 let (symbol_id, _) =
                     self.bind_anonymous_item(module, SymbolSpace::Value, scope, None, symbols);
-                Property::UnresolvedNamed {
+                Property::Field {
                     modifiers,
                     key,
                     value,
@@ -98,7 +98,7 @@ impl Compiler {
                 });
                 let (symbol_id, _) =
                     self.bind_anonymous_item(module, SymbolSpace::Value, scope, None, symbols);
-                Property::UnresolvedMethod {
+                Property::Method {
                     modifiers,
                     key,
                     signature,
@@ -120,7 +120,7 @@ impl Compiler {
                 );
                 let (symbol_id, _) =
                     self.bind_anonymous_item(module, SymbolSpace::Value, scope, None, symbols);
-                Property::UnresolvedSpread {
+                Property::Spread {
                     modifiers,
                     value,
                     symbol: symbol_id,
