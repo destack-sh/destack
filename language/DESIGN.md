@@ -225,12 +225,15 @@ extension Vector2 implements Add<Vector2> {
 ```
 
 Real overloading reduces boilerplate and enables natural mathematical notation.
-The compiler picks the right implementation based on argument types.
+The compiler picks the right implementation based on argument types and Destack errors obviously if resolution is not possible or sensible.
+
+For operators, Destack uses **receiver-based dispatch**: `a + b` desugars to `a.add(b)`, so the left operand's type determines which implementation is called.
+This matches TypeScript's method dispatch semantics and keeps overload resolution simple and predictable.
 
 ## Patterns
 
-TypeScript's `switch` is limited to value equality with no destructuring.
-Destack adds `match` with full pattern matching:
+TypeScript's `switch` comes from C tradition and is limited to value equality with no destructuring.
+Destack adds modern `match` with full pattern matching:
 
 ```
 match result {
