@@ -4,7 +4,7 @@ use crate::{
     Arena, GlobalNodeIdAny, LocalNodeId, LocalNodeIdAny, LocalTypeId, ModuleId, Node, Type,
 };
 
-/// A TypeTable is a side table for a node. NOT THREAD-SAFE.
+/// A TypeTable is a side table for type information. NOT THREAD-SAFE.
 #[derive(Debug, Clone)]
 pub struct TypeTable {
     /// The module id of the type table.

@@ -2,16 +2,18 @@
 #![feature(if_let_guard)]
 #![feature(str_as_str)]
 
-pub mod analyze;
-pub mod dump;
-pub mod formatter;
-pub mod program;
-pub mod symbol;
-pub mod tree;
-pub mod r#type;
+mod analyze;
+mod dump;
+mod formatter;
+mod instance;
+mod program;
+mod symbol;
+mod tree;
+mod r#type;
 
 pub use analyze::*;
 pub use dump::*;
+pub use instance::*;
 pub use program::*;
 pub use symbol::*;
 pub use tree::*;
