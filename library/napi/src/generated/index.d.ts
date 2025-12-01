@@ -44,8 +44,8 @@ export interface AliasValue {
     path?: string;
 }
 
-/** The options for building. */
-export interface BuildOptions {
+/** The options for code generation. */
+export interface GenerateOptions {
     /** Whether to generate source maps. */
     sourceMap: boolean;
 }
@@ -60,16 +60,16 @@ export interface CompileOptions {
     import: ImportOptions;
     /** The options for type resolution. */
     resolve: TypeResolveOptions;
-    /** The options for validating. */
-    validate: ValidateOptions;
+    /** The options for analyzing. */
+    analyze: AnalyzeOptions;
     /** The options for lowering. */
     lower: LowerOptions;
     /** The options for executing. */
     execute: ExecuteOptions;
     /** The options for optimizing. */
     optimize: OptimizeOptions;
-    /** The options for building. */
-    build: BuildOptions;
+    /** The options for code generation. */
+    generate: GenerateOptions;
     /** The options for linking. */
     link: LinkOptions;
 }
@@ -332,8 +332,8 @@ export declare const enum TypeScriptVersion {
     TS5_0 = 0,
 }
 
-/** The options for validating. */
-export interface ValidateOptions {}
+/** The options for analyzing. */
+export interface AnalyzeOptions {}
 
 /** Options for creating a Workspace. */
 export interface WorkspaceOptions {

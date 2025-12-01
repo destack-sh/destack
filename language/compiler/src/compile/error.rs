@@ -1,8 +1,8 @@
 use destack_dir::{GlobalNodeIdAny, Program};
 
 use crate::{
-    AnalyzeError, BindError, BuildError, ElaborateError, ExecuteError, ImportError, LinkError,
-    LowerError, OptimizeError, TaskPhase, ResolveError, TaskDependency, TaskId, ValidateError,
+    VerifyError, BindError, GenerateError, ElaborateError, ExecuteError, ImportError, LinkError,
+    LowerError, OptimizeError, TaskPhase, ResolveError, TaskDependency, TaskId, AnalyzeError,
 };
 
 /// Error during compilation.
@@ -14,22 +14,22 @@ pub enum TaskError {
     Bind(BindError),
     /// Error during resolution.
     Resolve(ResolveError),
-    /// Error during validation.
-    Validate(ValidateError),
+    /// Error during analysis.
+    Analyze(AnalyzeError),
     /// Error during elaboration.
     Elaborate(ElaborateError),
     // --------------------------------------------------
     /// Error during lower.
     Lower(LowerError),
-    /// Error during analysis.
-    Analyze(AnalyzeError),
+    /// Error during verification.
+    Verify(VerifyError),
     /// Error during optimization.
     Optimize(OptimizeError),
     // --------------------------------------------------
     /// Error during execution.
     Execute(ExecuteError),
-    /// Error during building.
-    Build(BuildError),
+    /// Error during generateing.
+    Generate(GenerateError),
     /// Error during linking.
     Link(LinkError),
     // --------------------------------------------------
@@ -125,13 +125,13 @@ impl TaskError {
             Self::Import(_) => Some(TaskPhase::Import),
             Self::Bind(_) => Some(TaskPhase::Bind),
             Self::Resolve(_) => Some(TaskPhase::Resolve),
-            Self::Validate(_) => Some(TaskPhase::Validate),
+            Self::Analyze(_) => Some(TaskPhase::Analyze),
             Self::Elaborate(_) => Some(TaskPhase::Elaborate),
             Self::Lower(_) => Some(TaskPhase::Lower),
-            Self::Analyze(_) => Some(TaskPhase::Analyze),
+            Self::Verify(_) => Some(TaskPhase::Verify),
             Self::Optimize(_) => Some(TaskPhase::Optimize),
             Self::Execute(_) => Some(TaskPhase::Execute),
-            Self::Build(_) => Some(TaskPhase::Build),
+            Self::Generate(_) => Some(TaskPhase::Generate),
             Self::Link(_) => Some(TaskPhase::Link),
             Self::Internal(_) => None,
         }
@@ -152,13 +152,13 @@ impl TaskError {
             Self::Import(error) => error.sub_code(),
             Self::Bind(error) => error.sub_code(),
             Self::Resolve(error) => error.sub_code(),
-            Self::Validate(error) => error.sub_code(),
+            Self::Analyze(error) => error.sub_code(),
             Self::Elaborate(error) => error.sub_code(),
             Self::Lower(error) => error.sub_code(),
-            Self::Analyze(error) => error.sub_code(),
+            Self::Verify(error) => error.sub_code(),
             Self::Optimize(error) => error.sub_code(),
             Self::Execute(error) => error.sub_code(),
-            Self::Build(error) => error.sub_code(),
+            Self::Generate(error) => error.sub_code(),
             Self::Link(error) => error.sub_code(),
             Self::Internal(error) => error.sub_code(),
         }
@@ -170,13 +170,13 @@ impl TaskError {
             Self::Import(error) => error.node(),
             Self::Bind(error) => error.node(),
             Self::Resolve(error) => error.node(),
-            Self::Validate(error) => error.node(),
+            Self::Analyze(error) => error.node(),
             Self::Elaborate(error) => error.node(),
             Self::Lower(error) => error.node(),
-            Self::Analyze(error) => error.node(),
+            Self::Verify(error) => error.node(),
             Self::Optimize(error) => error.node(),
             Self::Execute(error) => error.node(),
-            Self::Build(error) => error.node(),
+            Self::Generate(error) => error.node(),
             Self::Link(error) => error.node(),
             Self::Internal(error) => error.node(),
         }
@@ -188,13 +188,13 @@ impl TaskError {
             Self::Import(error) => error.message(program),
             Self::Bind(error) => error.message(program),
             Self::Resolve(error) => error.message(program),
-            Self::Validate(error) => error.message(program),
+            Self::Analyze(error) => error.message(program),
             Self::Elaborate(error) => error.message(program),
             Self::Lower(error) => error.message(program),
-            Self::Analyze(error) => error.message(program),
+            Self::Verify(error) => error.message(program),
             Self::Optimize(error) => error.message(program),
             Self::Execute(error) => error.message(program),
-            Self::Build(error) => error.message(program),
+            Self::Generate(error) => error.message(program),
             Self::Link(error) => error.message(program),
             Self::Internal(error) => error.message(program),
         }

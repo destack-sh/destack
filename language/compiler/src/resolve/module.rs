@@ -1,4 +1,4 @@
-use crate::{Compiler, ResolveError, ResolveResult, TaskResultCollector, ValidateTask};
+use crate::{Compiler, ResolveError, ResolveResult, TaskResultCollector, AnalyzeTask};
 use destack_dir::{
     Annotation, Argument, Block, Declaration, DependencyItem, EnumField, Expression,
     LocalNodeIdAny, MatchCase, ModuleId, Node, NodeTree, NodeType, Parameter, Pattern,
@@ -104,8 +104,8 @@ impl Compiler {
             return Err(ResolveError::Yield { dependency });
         }
 
-        // next task: validate module
-        self.enqueue(ValidateTask::Validate { module: module_id });
+        // next task: analyze module
+        self.enqueue(AnalyzeTask::Analyze { module: module_id });
 
         Ok(())
     }

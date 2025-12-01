@@ -81,15 +81,15 @@ impl From<TypeResolveOptions> for destack_compiler::ResolveOptions {
     }
 }
 
-// -- Validate Options --
+// -- Analyze Options --
 
-/// The options for validating.
+/// The options for analyzing.
 #[napi(object)]
 #[derive(Debug, Clone, Copy, Default)]
-pub struct ValidateOptions {}
+pub struct AnalyzeOptions {}
 
-impl From<ValidateOptions> for destack_compiler::ValidateOptions {
-    fn from(_options: ValidateOptions) -> Self {
+impl From<AnalyzeOptions> for destack_compiler::AnalyzeOptions {
+    fn from(_options: AnalyzeOptions) -> Self {
         Self {}
     }
 }
@@ -150,24 +150,24 @@ impl From<OptimizeOptions> for destack_compiler::OptimizeOptions {
     }
 }
 
-// -- Build Options --
+// -- Generate Options --
 
-/// The options for building.
+/// The options for code generation.
 #[napi(object)]
 #[derive(Debug, Clone, Copy)]
-pub struct BuildOptions {
+pub struct GenerateOptions {
     /// Whether to generate source maps.
     pub source_map: bool,
 }
 
-impl Default for BuildOptions {
+impl Default for GenerateOptions {
     fn default() -> Self {
         Self { source_map: true }
     }
 }
 
-impl From<BuildOptions> for destack_compiler::BuildOptions {
-    fn from(options: BuildOptions) -> Self {
+impl From<GenerateOptions> for destack_compiler::GenerateOptions {
+    fn from(options: GenerateOptions) -> Self {
         Self {
             source_map: options.source_map,
         }
@@ -201,16 +201,16 @@ pub struct CompileOptions {
     pub import: ImportOptions,
     /// The options for type resolution.
     pub resolve: TypeResolveOptions,
-    /// The options for validating.
-    pub validate: ValidateOptions,
+    /// The options for analyzing.
+    pub analyze: AnalyzeOptions,
     /// The options for lowering.
     pub lower: LowerOptions,
     /// The options for executing.
     pub execute: ExecuteOptions,
     /// The options for optimizing.
     pub optimize: OptimizeOptions,
-    /// The options for building.
-    pub build: BuildOptions,
+    /// The options for code generation.
+    pub generate: GenerateOptions,
     /// The options for linking.
     pub link: LinkOptions,
 }
@@ -222,11 +222,11 @@ impl Default for CompileOptions {
             workers: destack_compiler::default_workers(),
             import: ImportOptions::default(),
             resolve: TypeResolveOptions::default(),
-            validate: ValidateOptions::default(),
+            analyze: AnalyzeOptions::default(),
             lower: LowerOptions::default(),
             execute: ExecuteOptions::default(),
             optimize: OptimizeOptions::default(),
-            build: BuildOptions::default(),
+            generate: GenerateOptions::default(),
             link: LinkOptions::default(),
         }
     }
@@ -239,11 +239,11 @@ impl From<CompileOptions> for destack_compiler::CompileOptions {
             workers: options.workers,
             import: options.import.into(),
             resolve: options.resolve.into(),
-            validate: options.validate.into(),
+            analyze: options.analyze.into(),
             lower: options.lower.into(),
             execute: options.execute.into(),
             optimize: options.optimize.into(),
-            build: options.build.into(),
+            generate: options.generate.into(),
             link: options.link.into(),
         }
     }

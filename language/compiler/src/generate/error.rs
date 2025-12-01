@@ -2,10 +2,10 @@ use destack_dir::{GlobalNodeIdAny, Program};
 
 use crate::{TaskPhase, TaskDependency, TaskError};
 
-/// Error when building something into the compiler.
+/// Error when generateing something into the compiler.
 #[derive(Debug, Clone, PartialEq)]
 #[repr(u8)]
-pub enum BuildError {
+pub enum GenerateError {
     /// Wait for task dependency.
     Yield { dependency: TaskDependency },
     /// Yield dependency has failed.
@@ -42,27 +42,27 @@ pub enum BuildError {
     },
 }
 
-impl TryFrom<BuildError> for TaskDependency {
-    type Error = BuildError;
+impl TryFrom<GenerateError> for TaskDependency {
+    type Error = GenerateError;
 
-    fn try_from(error: BuildError) -> Result<Self, Self::Error> {
+    fn try_from(error: GenerateError) -> Result<Self, Self::Error> {
         match error {
-            BuildError::Yield { dependency } => Ok(dependency),
+            GenerateError::Yield { dependency } => Ok(dependency),
             _ => Err(error),
         }
     }
 }
 
-pub type BuildResult<T> = Result<T, BuildError>;
+pub type GenerateResult<T> = Result<T, GenerateError>;
 
-impl From<BuildError> for TaskError {
+impl From<GenerateError> for TaskError {
     #[inline]
-    fn from(error: BuildError) -> Self {
-        TaskError::Build(error)
+    fn from(error: GenerateError) -> Self {
+        TaskError::Generate(error)
     }
 }
 
-impl BuildError {
+impl GenerateError {
     /// Get the numeric sub-code of the error.
     #[inline]
     pub fn sub_code(&self) -> u8 {
@@ -116,12 +116,12 @@ impl BuildError {
     }
 }
 
-impl std::fmt::Display for BuildError {
+impl std::fmt::Display for GenerateError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("BuildError")
+        f.debug_struct("GenerateError")
             .field(
                 "code",
-                &format!("E{}{:03}", TaskPhase::Build.letter(), self.sub_code()),
+                &format!("E{}{:03}", TaskPhase::Generate.letter(), self.sub_code()),
             )
             .finish()
     }

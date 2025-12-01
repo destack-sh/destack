@@ -1,8 +1,8 @@
 use destack_dir::{GlobalNodeIdAny, Program};
 
 use crate::{
-    AnalyzeWarning, BindWarning, BuildWarning, ElaborateWarning, ExecuteWarning, ImportWarning,
-    LinkWarning, LowerWarning, OptimizeWarning, TaskPhase, ResolveWarning, ValidateWarning,
+    VerifyWarning, BindWarning, GenerateWarning, ElaborateWarning, ExecuteWarning, ImportWarning,
+    LinkWarning, LowerWarning, OptimizeWarning, TaskPhase, ResolveWarning, AnalyzeWarning,
 };
 
 /// Warning during compilation.
@@ -14,22 +14,22 @@ pub enum TaskWarning {
     Bind(BindWarning),
     /// Warning during resolution.
     Resolve(ResolveWarning),
-    /// Warning during validation.
-    Validate(ValidateWarning),
+    /// Warning during analysis.
+    Analyze(AnalyzeWarning),
     /// Warning during elaboration.
     Elaborate(ElaborateWarning),
     // --------------------------------------------------
     /// Warning during lower.
     Lower(LowerWarning),
-    /// Warning during analysis.
-    Analyze(AnalyzeWarning),
+    /// Warning during verification.
+    Verify(VerifyWarning),
     /// Warning during optimization.
     Optimize(OptimizeWarning),
     // --------------------------------------------------
     /// Warning during execution.
     Execute(ExecuteWarning),
-    /// Warning during building.
-    Build(BuildWarning),
+    /// Warning during generateing.
+    Generate(GenerateWarning),
     /// Warning during linking.
     Link(LinkWarning),
 }
@@ -41,13 +41,13 @@ impl TaskWarning {
             Self::Import(_) => TaskPhase::Import,
             Self::Bind(_) => TaskPhase::Bind,
             Self::Resolve(_) => TaskPhase::Resolve,
-            Self::Validate(_) => TaskPhase::Validate,
+            Self::Analyze(_) => TaskPhase::Analyze,
             Self::Elaborate(_) => TaskPhase::Elaborate,
             Self::Lower(_) => TaskPhase::Lower,
-            Self::Analyze(_) => TaskPhase::Analyze,
+            Self::Verify(_) => TaskPhase::Verify,
             Self::Optimize(_) => TaskPhase::Optimize,
             Self::Execute(_) => TaskPhase::Execute,
-            Self::Build(_) => TaskPhase::Build,
+            Self::Generate(_) => TaskPhase::Generate,
             Self::Link(_) => TaskPhase::Link,
         }
     }
@@ -64,13 +64,13 @@ impl TaskWarning {
             Self::Import(warning) => warning.sub_code(),
             Self::Bind(warning) => warning.sub_code(),
             Self::Resolve(warning) => warning.sub_code(),
-            Self::Validate(warning) => warning.sub_code(),
+            Self::Analyze(warning) => warning.sub_code(),
             Self::Elaborate(warning) => warning.sub_code(),
             Self::Lower(warning) => warning.sub_code(),
-            Self::Analyze(warning) => warning.sub_code(),
+            Self::Verify(warning) => warning.sub_code(),
             Self::Optimize(warning) => warning.sub_code(),
             Self::Execute(warning) => warning.sub_code(),
-            Self::Build(warning) => warning.sub_code(),
+            Self::Generate(warning) => warning.sub_code(),
             Self::Link(warning) => warning.sub_code(),
         }
     }
@@ -87,13 +87,13 @@ impl TaskWarning {
             Self::Import(warning) => warning.node(),
             Self::Bind(warning) => warning.node(),
             Self::Resolve(warning) => warning.node(),
-            Self::Validate(warning) => warning.node(),
+            Self::Analyze(warning) => warning.node(),
             Self::Elaborate(warning) => warning.node(),
             Self::Lower(warning) => warning.node(),
-            Self::Analyze(warning) => warning.node(),
+            Self::Verify(warning) => warning.node(),
             Self::Execute(warning) => warning.node(),
             Self::Optimize(warning) => warning.node(),
-            Self::Build(warning) => warning.node(),
+            Self::Generate(warning) => warning.node(),
             Self::Link(warning) => warning.node(),
         }
     }
@@ -104,13 +104,13 @@ impl TaskWarning {
             Self::Import(warning) => warning.message(program),
             Self::Bind(warning) => warning.message(program),
             Self::Resolve(warning) => warning.message(program),
-            Self::Validate(warning) => warning.message(program),
+            Self::Analyze(warning) => warning.message(program),
             Self::Elaborate(warning) => warning.message(program),
             Self::Lower(warning) => warning.message(program),
-            Self::Analyze(warning) => warning.message(program),
+            Self::Verify(warning) => warning.message(program),
             Self::Execute(warning) => warning.message(program),
             Self::Optimize(warning) => warning.message(program),
-            Self::Build(warning) => warning.message(program),
+            Self::Generate(warning) => warning.message(program),
             Self::Link(warning) => warning.message(program),
         }
     }
