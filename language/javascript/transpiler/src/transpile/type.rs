@@ -207,7 +207,7 @@ impl Transpiler {
                 let ty = Type::Scalar(literal);
                 unit.ast.insert_from_source_any(ty, module.id, source_id)
             }
-            dir::Type::Unresolved(expression) => {
+            dir::Type::Unevaluated(expression) => {
                 let expression = self
                     .transpile_expression(module, tree, symbols, types, *expression, unit)
                     .expect_node::<Expression>(expression.into_global_any(module.id), unit)?;

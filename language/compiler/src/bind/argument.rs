@@ -233,7 +233,7 @@ impl Compiler {
                     symbols,
                     types,
                 );
-                tree.insert(argument_id, Argument::UnresolvedNamed { name, value })
+                tree.insert(argument_id, Argument::Named { name, value })
             }
             ast::Argument::Positional { value } => {
                 let value = self.bind_expression(
@@ -245,7 +245,7 @@ impl Compiler {
                     symbols,
                     types,
                 );
-                tree.insert(argument_id, Argument::UnresolvedPositional { value })
+                tree.insert(argument_id, Argument::Positional { value })
             }
             ast::Argument::Spread { value } => {
                 let value = self.bind_expression(
@@ -257,7 +257,7 @@ impl Compiler {
                     symbols,
                     types,
                 );
-                tree.insert(argument_id, Argument::UnresolvedSpread { value })
+                tree.insert(argument_id, Argument::Spread { value })
             }
         }
     }

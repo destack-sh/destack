@@ -18,7 +18,7 @@ impl Compiler {
     ) -> ResolveResult<()> {
         let expression_id = {
             let ty = types.get(ty_id);
-            let Type::Unresolved(expression_id) = *ty else {
+            let Type::Unevaluated(expression_id) = *ty else {
                 return Ok(());
             };
             expression_id
@@ -48,7 +48,7 @@ impl Compiler {
     }
 
     /// Try to Resolve an Expression as a Type.
-    /// Returns the resolved Type value, or a Type::UnresolvedExpression if it fails.
+    /// Returns the resolved Type value, or a Type::Unevaluated if it fails.
     fn try_resolve_expression_to_type_value(
         &self,
         module: &Module,
@@ -59,7 +59,7 @@ impl Compiler {
     ) -> ResolveResult<Type> {
         let ty = self
             .resolve_expression_to_type(module, expression_id, tree, symbols, types)?
-            .unwrap_or(Type::Unresolved(expression_id));
+            .unwrap_or(Type::Unevaluated(expression_id));
         Ok(ty)
     }
 
@@ -205,7 +205,7 @@ impl Compiler {
                         self.try_resolve_expression_to_type(module, left, tree, symbols, types)?;
                     Type::ArraySized {
                         element: left_id,
-                        count: StaticExpression::Unresolved { node: right },
+                        count: StaticExpression::Unevaluated { node: right },
                     }
                 }
                 // slice

@@ -173,14 +173,7 @@ impl Compiler {
                         )
                     })
                     .collect();
-                if let Some(ty) = ty {
-                    Pattern::UnresolvedTuple { ty, fields }
-                } else {
-                    Pattern::Tuple {
-                        target_symbol: None,
-                        fields,
-                    }
-                }
+                Pattern::Tuple { ty, fields }
             }
             ast::Pattern::Slice { fields } => {
                 let fields = fields
@@ -219,14 +212,7 @@ impl Compiler {
                         )
                     })
                     .collect();
-                if let Some(ty) = ty {
-                    Pattern::UnresolvedStruct { ty, fields }
-                } else {
-                    Pattern::Struct {
-                        target_symbol: None,
-                        fields,
-                    }
-                }
+                Pattern::Struct { ty, fields }
             }
             ast::Pattern::Union { patterns } => {
                 let patterns = patterns
@@ -322,7 +308,7 @@ impl Compiler {
                     export,
                     symbols,
                 );
-                PatternField::UnresolvedNamed {
+                PatternField::Named {
                     mutability,
                     name,
                     pattern,
@@ -364,7 +350,7 @@ impl Compiler {
                     export,
                     symbols,
                 );
-                PatternField::UnresolvedAlias {
+                PatternField::Alias {
                     mutability,
                     name,
                     alias,
@@ -385,7 +371,7 @@ impl Compiler {
                     symbols,
                     types,
                 );
-                PatternField::UnresolvedPositional { pattern }
+                PatternField::Positional { pattern }
             }
         };
 

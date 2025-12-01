@@ -118,17 +118,10 @@ pub enum Expression {
         right: LocalNodeId<Expression>,
     },
 
-    /// Member access.
-    UnresolvedMember {
-        left: LocalNodeId<Expression>,
-        name: StringId,
-        static_arguments: Option<Vec<LocalNodeId<Argument>>>,
-    },
-    /// Member access.
+    /// Member access (like `a.foo` or `a.foo<T>`).
     Member {
         left: LocalNodeId<Expression>,
         name: StringId,
-        symbol: LocalSymbolId,
         static_arguments: Option<Vec<LocalNodeId<Argument>>>,
     },
     /// Call to a function.
@@ -371,7 +364,6 @@ impl Expression {
             Expression::Binary { .. } => "binary",
             Expression::Assign { .. } => "assign",
             Expression::AssignBinary { .. } => "assign binary",
-            Expression::UnresolvedMember { .. } => "unresolved member",
             Expression::Member { .. } => "member",
             Expression::Call { .. } => "call",
             Expression::Index { .. } => "index",
@@ -427,7 +419,6 @@ impl Expression {
             self,
             Expression::UnresolvedImport { .. }
                 | Expression::UnresolvedReExport { .. }
-                | Expression::UnresolvedMember { .. }
                 | Expression::UnresolvedAbsolutePath { .. }
                 | Expression::UnresolvedRelativePath { .. }
                 | Expression::UnresolvedBreak { .. }
@@ -461,8 +452,8 @@ impl Expression {
 /// Static evaluation supports all constructs, this is for the resulting static value.
 #[derive(Debug, Clone, PartialEq)]
 pub enum StaticExpression {
-    /// Unresolved dynamic expression.
-    Unresolved { node: LocalNodeId<Expression> },
+    /// Unevaluated expression (needs compile-time evaluation).
+    Unevaluated { node: LocalNodeId<Expression> },
 
     /// Scalar literal.
     ScalarLiteral { value: ScalarLiteral },
@@ -500,7 +491,7 @@ impl Node for StaticExpression {
     const TYPE: NodeType = NodeType::StaticExpression;
 
     fn is_resolved(&self) -> bool {
-        !matches!(self, StaticExpression::Unresolved { .. })
+        !matches!(self, StaticExpression::Unevaluated { .. })
     }
 }
 
