@@ -23,7 +23,7 @@ pub enum TaskRegion {
     Front,
     /// Middle-end (lower, verify, optimize).
     Middle,
-    /// Back-end (execute, generate, link).
+    /// Back-end (generate, link, execute).
     Back,
 }
 
@@ -60,12 +60,12 @@ pub enum TaskPhase {
     /// Optimize the MIR.
     Optimize = 8,
     // --------------------------------------------------
-    /// Execute MIR statically.
-    Execute = 9,
     /// Generate the MIR into some artifact.
-    Generate = 10,
+    Generate = 9,
     /// Link generated artifacts into final output.
-    Link = 11,
+    Link = 10,
+    /// Execute MIR or generated artifact.
+    Execute = 11,
 }
 
 impl std::fmt::Display for TaskPhase {
@@ -87,7 +87,7 @@ impl TaskPhase {
                 TaskRegion::Front
             }
             Self::Lower | Self::Verify | Self::Optimize => TaskRegion::Middle,
-            Self::Execute | Self::Generate | Self::Link => TaskRegion::Back,
+            Self::Generate | Self::Link | Self::Execute => TaskRegion::Back,
         }
     }
 
@@ -102,9 +102,9 @@ impl TaskPhase {
             Self::Lower => "lower",
             Self::Verify => "verify",
             Self::Optimize => "optimize",
-            Self::Execute => "execute",
             Self::Generate => "generate",
             Self::Link => "link",
+            Self::Execute => "execute",
         }
     }
 
@@ -119,9 +119,9 @@ impl TaskPhase {
             Self::Lower => "lower the DIR into MIR",
             Self::Verify => "verify and flow-check MIR",
             Self::Optimize => "optimize the MIR",
-            Self::Execute => "execute MIR statically",
             Self::Generate => "generate the MIR into some artifact",
             Self::Link => "link generated artifacts into final output",
+            Self::Execute => "execute MIR or generated artifact",
         }
     }
 
@@ -136,9 +136,9 @@ impl TaskPhase {
             Self::Lower => 'L',
             Self::Verify => 'V',
             Self::Optimize => 'O',
-            Self::Execute => 'X',
             Self::Generate => 'G',
             Self::Link => 'K',
+            Self::Execute => 'X',
         }
     }
 }
@@ -164,12 +164,12 @@ pub enum Task {
     /// Optimize the MIR.
     Optimize(OptimizeTask),
     // --------------------------------------------------
-    /// Execute MIR statically.
-    Execute(ExecuteTask),
     /// Generate the MIR into some artifact.
     Generate(GenerateTask),
     /// Link generated artifacts into final output.
     Link(LinkTask),
+    /// Execute MIR or generated artifact.
+    Execute(ExecuteTask),
 }
 
 impl Task {
@@ -184,9 +184,9 @@ impl Task {
             Self::Lower(_) => TaskPhase::Lower,
             Self::Verify(_) => TaskPhase::Verify,
             Self::Optimize(_) => TaskPhase::Optimize,
-            Self::Execute(_) => TaskPhase::Execute,
             Self::Generate(_) => TaskPhase::Generate,
             Self::Link(_) => TaskPhase::Link,
+            Self::Execute(_) => TaskPhase::Execute,
         }
     }
 
@@ -206,9 +206,9 @@ impl Task {
             Self::Lower(task) => task.sub_code(),
             Self::Verify(task) => task.sub_code(),
             Self::Optimize(task) => task.sub_code(),
-            Self::Execute(task) => task.sub_code(),
             Self::Generate(task) => task.sub_code(),
             Self::Link(task) => task.sub_code(),
+            Self::Execute(task) => task.sub_code(),
         }
     }
 
@@ -229,9 +229,9 @@ impl TaskDebug for Task {
             Self::Lower(task) => task.name(),
             Self::Verify(task) => task.name(),
             Self::Optimize(task) => task.name(),
-            Self::Execute(task) => task.name(),
             Self::Generate(task) => task.name(),
             Self::Link(task) => task.name(),
+            Self::Execute(task) => task.name(),
         }
     }
 
@@ -245,9 +245,9 @@ impl TaskDebug for Task {
             Self::Lower(task) => task.trace_args(program),
             Self::Verify(task) => task.trace_args(program),
             Self::Optimize(task) => task.trace_args(program),
-            Self::Execute(task) => task.trace_args(program),
             Self::Generate(task) => task.trace_args(program),
             Self::Link(task) => task.trace_args(program),
+            Self::Execute(task) => task.trace_args(program),
         }
     }
 }
@@ -462,24 +462,24 @@ pub enum TaskOutput {
     Bind(BindOutput),
     /// Output of a resolve task.
     Resolve(ResolveOutput),
-    /// Output of a analyze task.
+    /// Output of an analyze task.
     Analyze(AnalyzeOutput),
     /// Output of an elaborate task.
     Elaborate(ElaborateOutput),
     // --------------------------------------------------
     /// Output of a lower task.
     Lower(LowerOutput),
-    /// Output of an verify task.
+    /// Output of a verify task.
     Verify(VerifyOutput),
     /// Output of an optimize task.
     Optimize(OptimizeOutput),
     // --------------------------------------------------
-    /// Output of an execute task.
-    Execute(ExecuteOutput),
     /// Output of a generate task.
     Generate(GenerateOutput),
     /// Output of a link task.
     Link(LinkOutput),
+    /// Output of an execute task.
+    Execute(ExecuteOutput),
 }
 
 /// Collector for coalescing task dependencies from multiple operations.
