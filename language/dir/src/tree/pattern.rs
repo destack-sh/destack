@@ -1,6 +1,4 @@
-use crate::{
-    Expression, LocalNodeId, LocalSymbolId, Mutability, Node, NodeType, StringId,
-};
+use crate::{Expression, LocalNodeId, LocalSymbolId, Mutability, Node, NodeType, StringId};
 
 /// A Pattern is a pattern to match something and unwrap it.
 #[derive(Debug, Clone, PartialEq)]
@@ -36,22 +34,26 @@ pub enum Pattern {
         end: Option<LocalNodeId<Pattern>>,
         is_inclusive: bool,
     },
-    /// Tuple pattern (like `(x, 0)` or `Result.Success(_)`).
-    /// If `ty` is present, it's a variant/newtype pattern; if None, it's anonymous.
-    /// Type resolution is via the `ty` expression (which resolves to a Reference).
+    /// Anonymous tuple pattern (like `(x, 0)`).
     Tuple {
-        ty: Option<LocalNodeId<Expression>>,
+        fields: Vec<LocalNodeId<PatternField>>,
+    },
+    /// Tagged tuple pattern (like `Result.Success(_)`).
+    TaggedTuple {
+        ty: LocalNodeId<Expression>,
         fields: Vec<LocalNodeId<PatternField>>,
     },
     /// Array or slice pattern (like `[1, 2, x]` or `[1, y, ..]`).
     Slice {
         fields: Vec<LocalNodeId<PatternField>>,
     },
-    /// Struct pattern (like `{ x, y }` or `Vector2 { x: 0, y }`).
-    /// If `ty` is present, it's a typed struct pattern; if None, it's anonymous.
-    /// Type resolution is via the `ty` expression (which resolves to a Reference).
-    Struct {
-        ty: Option<LocalNodeId<Expression>>,
+    /// Anonymous object pattern (like `{ x, y }`).
+    Object {
+        fields: Vec<LocalNodeId<PatternField>>,
+    },
+    /// Tagged object pattern (like `Vector2 { x: 0, y }`).
+    TaggedObject {
+        ty: LocalNodeId<Expression>,
         fields: Vec<LocalNodeId<PatternField>>,
     },
     /// Union pattern (like `1 | 2 | 3`).

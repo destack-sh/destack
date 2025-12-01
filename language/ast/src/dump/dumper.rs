@@ -1402,14 +1402,20 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .field("is_inclusive", is_inclusive)
                     .end();
             }
-            Pattern::Tuple { ty: _, fields: _ } => {
+            Pattern::Tuple { fields: _ } => {
                 self.node("Pattern::Tuple", _id.id).end();
+            }
+            Pattern::TaggedTuple { ty: _, fields: _ } => {
+                self.node("Pattern::TaggedTuple", _id.id).end();
             }
             Pattern::Slice { fields: _ } => {
                 self.node("Pattern::Slice", _id.id).end();
             }
-            Pattern::Struct { ty: _, fields: _ } => {
-                self.node("Pattern::Struct", _id.id).end();
+            Pattern::Object { fields: _ } => {
+                self.node("Pattern::Object", _id.id).end();
+            }
+            Pattern::TaggedObject { ty: _, fields: _ } => {
+                self.node("Pattern::TaggedObject", _id.id).end();
             }
             Pattern::Union { patterns: _ } => {
                 self.node("Pattern::Union", _id.id).end();

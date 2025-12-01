@@ -83,7 +83,7 @@ impl Parser {
                         parser.eat_pattern_field_list(TokenType::Comma, TokenType::CloseParenthesis)
                     })
                     .for_node_type(NodeType::Pattern)?;
-                let pattern = Pattern::Tuple { ty: None, fields };
+                let pattern = Pattern::Tuple { fields };
                 self.eat_token(TokenType::CloseParenthesis)?;
                 self.tree.insert(pattern, self.get_span_from(start))
             }
@@ -96,7 +96,7 @@ impl Parser {
                         parser.eat_pattern_field_list(TokenType::Comma, TokenType::CloseBrace)
                     })
                     .for_node_type(NodeType::Pattern)?;
-                let pattern = Pattern::Struct { ty: None, fields };
+                let pattern = Pattern::Object { fields };
                 self.eat_token(TokenType::CloseBrace)?;
                 self.tree.insert(pattern, self.get_span_from(start))
             }
@@ -167,8 +167,8 @@ impl Parser {
                         },
                         self.get_span_from(start),
                     );
-                    let pattern = Pattern::Tuple {
-                        ty: Some(expression_id),
+                    let pattern = Pattern::TaggedTuple {
+                        ty: expression_id,
                         fields,
                     };
                     self.eat_token(TokenType::CloseParenthesis)?;
@@ -190,10 +190,7 @@ impl Parser {
                         },
                         self.get_span_from(start),
                     );
-                    let pattern = Pattern::Struct {
-                        ty: Some(ty_id),
-                        fields,
-                    };
+                    let pattern = Pattern::TaggedObject { ty: ty_id, fields };
                     self.eat_token(TokenType::CloseBrace)?;
                     self.tree.insert(pattern, self.get_span_from(start))
                 }
@@ -539,9 +536,9 @@ mod tests {
         let pattern_id = parser.eat_pattern().unwrap();
 
         // Result.Success(_, ..)
-        assert_node!(parser.tree, pattern_id, Pattern::Tuple { ty, fields } => {
+        assert_node!(parser.tree, pattern_id, Pattern::TaggedTuple { ty, fields } => {
             // Result.Success
-            assert!(ty.is_some());
+            let _ = ty; // ty is required for TaggedTuple
             assert_eq!(fields.len(), 2);
 
             // _
@@ -629,8 +626,7 @@ mod tests {
         let mut parser = test.prepare();
         let pattern_id = parser.eat_pattern().unwrap();
 
-        assert_node!(parser.tree, pattern_id, Pattern::Struct { ty, fields } => {
-            assert!(ty.is_none());
+        assert_node!(parser.tree, pattern_id, Pattern::Object { fields } => {
             assert_eq!(fields.len(), 5);
 
             // x: 1
@@ -674,9 +670,8 @@ mod tests {
         let mut parser = test.prepare();
         let pattern_id = parser.eat_pattern().unwrap();
 
-        assert_node!(parser.tree, pattern_id, Pattern::Struct { ty, fields } => {
-            let ty = ty.expect("expected struct type");
-            assert_node!(parser.tree, ty, Expression::Path { path, static_arguments: None } => {
+        assert_node!(parser.tree, pattern_id, Pattern::TaggedObject { ty, fields } => {
+            assert_node!(parser.tree, *ty, Expression::Path { path, static_arguments: None } => {
                 assert_path!(parser, *path, "Vector2");
             });
             assert_eq!(fields.len(), 2);

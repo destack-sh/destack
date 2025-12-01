@@ -685,7 +685,7 @@ mod tests {
         let parameter_id = parser.eat_parameter().unwrap();
         assert_node!(parser.tree, parameter_id, Parameter::Pattern { modifiers: _, pattern, ty: Some(ty), default: Some(default) } => {
             // { x = 4 }
-            assert_node!(parser.tree, *pattern, Pattern::Struct { ty: None, fields } => {
+            assert_node!(parser.tree, *pattern, Pattern::Object { fields } => {
                 assert_node!(parser.tree, fields[0], PatternField::Named { mutability: None, name, pattern: None, default: Some(default) } => {
                     // x
                     assert_name!(parser, *name, "x");

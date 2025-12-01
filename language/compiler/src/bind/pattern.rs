@@ -154,10 +154,7 @@ impl Compiler {
                     is_inclusive: *is_inclusive,
                 }
             }
-            ast::Pattern::Tuple { ty, fields } => {
-                let ty = ty.as_ref().map(|ty| {
-                    self.bind_expression(module, scope, *ty, Some(pattern_id), tree, symbols, types)
-                });
+            ast::Pattern::Tuple { fields } => {
                 let fields = fields
                     .iter()
                     .map(|field| {
@@ -173,7 +170,34 @@ impl Compiler {
                         )
                     })
                     .collect();
-                Pattern::Tuple { ty, fields }
+                Pattern::Tuple { fields }
+            }
+            ast::Pattern::TaggedTuple { ty, fields } => {
+                let ty = self.bind_expression(
+                    module,
+                    scope,
+                    *ty,
+                    Some(pattern_id),
+                    tree,
+                    symbols,
+                    types,
+                );
+                let fields = fields
+                    .iter()
+                    .map(|field| {
+                        self.bind_pattern_field(
+                            module,
+                            scope,
+                            export,
+                            *field,
+                            Some(pattern_id),
+                            tree,
+                            symbols,
+                            types,
+                        )
+                    })
+                    .collect();
+                Pattern::TaggedTuple { ty, fields }
             }
             ast::Pattern::Slice { fields } => {
                 let fields = fields
@@ -193,10 +217,7 @@ impl Compiler {
                     .collect();
                 Pattern::Slice { fields }
             }
-            ast::Pattern::Struct { ty, fields } => {
-                let ty = ty.map(|ty| {
-                    self.bind_expression(module, scope, ty, Some(pattern_id), tree, symbols, types)
-                });
+            ast::Pattern::Object { fields } => {
                 let fields = fields
                     .iter()
                     .map(|field| {
@@ -212,7 +233,34 @@ impl Compiler {
                         )
                     })
                     .collect();
-                Pattern::Struct { ty, fields }
+                Pattern::Object { fields }
+            }
+            ast::Pattern::TaggedObject { ty, fields } => {
+                let ty = self.bind_expression(
+                    module,
+                    scope,
+                    *ty,
+                    Some(pattern_id),
+                    tree,
+                    symbols,
+                    types,
+                );
+                let fields = fields
+                    .iter()
+                    .map(|field| {
+                        self.bind_pattern_field(
+                            module,
+                            scope,
+                            export,
+                            *field,
+                            Some(pattern_id),
+                            tree,
+                            symbols,
+                            types,
+                        )
+                    })
+                    .collect();
+                Pattern::TaggedObject { ty, fields }
             }
             ast::Pattern::Union { patterns } => {
                 let patterns = patterns

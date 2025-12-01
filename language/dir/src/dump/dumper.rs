@@ -1781,14 +1781,20 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .field("is_inclusive", is_inclusive)
                     .end();
             }
-            Pattern::Tuple { ty: _, fields: _ } => {
+            Pattern::Tuple { fields: _ } => {
                 self.node("Pattern::Tuple", id.id).end();
+            }
+            Pattern::TaggedTuple { ty: _, fields: _ } => {
+                self.node("Pattern::TaggedTuple", id.id).end();
             }
             Pattern::Slice { fields: _ } => {
                 self.node("Pattern::Slice", id.id).end();
             }
-            Pattern::Struct { ty: _, fields: _ } => {
-                self.node("Pattern::Struct", id.id).end();
+            Pattern::Object { fields: _ } => {
+                self.node("Pattern::Object", id.id).end();
+            }
+            Pattern::TaggedObject { ty: _, fields: _ } => {
+                self.node("Pattern::TaggedObject", id.id).end();
             }
             Pattern::Union { patterns: _ } => {
                 self.node("Pattern::Union", id.id).end();

@@ -1079,15 +1079,15 @@ Matches tuple structure:
 (first, ...rest)     // rest pattern
 ```
 
-#### Struct
+#### Object
 
-Matches struct/object fields:
+Matches object/struct properties:
 
 ```
 { x, y }             // shorthand
 { x: a, y: b }       // rename bindings
 { x, ...rest }       // rest pattern
-Point { x: 0, y }    // typed with literal field
+Point { x: 0, y }    // tagged with literal field
 ```
 
 #### Array/Slice
