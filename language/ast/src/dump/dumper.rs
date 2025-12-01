@@ -444,7 +444,6 @@ impl_dump_display! {
     PostfixPosition,
     ReferenceType,
     Runtime,
-    StructKind,
     TypeBinaryOperator,
     TypeUnaryOperator,
     UnaryOperator,
@@ -890,13 +889,13 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .value(value)
                     .end();
             }
-            Expression::TemplateLiteral { value } => {
-                self.node("Expression::TemplateLiteral", _id.id)
+            Expression::TemplateExpression { value } => {
+                self.node("Expression::TemplateExpression", _id.id)
                     .value(value)
                     .end();
             }
-            Expression::TaggedTemplateLiteral { tag: _, value } => {
-                self.node("Expression::TaggedTemplateLiteral", _id.id)
+            Expression::TaggedTemplateExpression { tag: _, value } => {
+                self.node("Expression::TaggedTemplateExpression", _id.id)
                     .value(value)
                     .end();
             }
@@ -905,33 +904,33 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .value(value)
                     .end();
             }
-            Expression::RangeLiteral {
+            Expression::RangeExpression {
                 start: _,
                 end: _,
                 is_inclusive,
             } => {
-                self.node("Expression::RangeLiteral", _id.id)
+                self.node("Expression::RangeExpression", _id.id)
                     .field("is_inclusive", is_inclusive)
                     .end();
             }
-            Expression::ArrayLiteral { elements: _ } => {
-                self.node("Expression::ArrayLiteral", _id.id).end();
+            Expression::ArrayExpression { elements: _ } => {
+                self.node("Expression::ArrayExpression", _id.id).end();
             }
-            Expression::TupleLiteral { elements: _ } => {
-                self.node("Expression::TupleLiteral", _id.id).end();
+            Expression::TupleExpression { elements: _ } => {
+                self.node("Expression::TupleExpression", _id.id).end();
             }
-            Expression::StructLiteral {
+            Expression::ObjectExpression {
                 ty: _,
                 properties: _,
             } => {
-                self.node("Expression::StructLiteral", _id.id).end();
+                self.node("Expression::ObjectExpression", _id.id).end();
             }
-            Expression::TreeLiteral {
+            Expression::TreeExpression {
                 left: _,
                 arguments: _,
                 elements: _,
             } => {
-                self.node("Expression::TreeLiteral", _id.id).end();
+                self.node("Expression::TreeExpression", _id.id).end();
             }
             Expression::Parenthesized { expression: _ } => {
                 self.node("Expression::Parenthesized", _id.id).end();
@@ -1091,14 +1090,22 @@ impl<'a> NodeVisitor for Dumper<'a> {
             }
             Declaration::Struct {
                 descriptor,
-                kind,
                 generics: _,
                 heritage: _,
                 properties: _,
             } => {
                 self.node("Declaration::Struct", id.id)
                     .field("descriptor", descriptor)
-                    .field("kind", kind)
+                    .end();
+            }
+            Declaration::Class {
+                descriptor,
+                generics: _,
+                heritage: _,
+                properties: _,
+            } => {
+                self.node("Declaration::Class", id.id)
+                    .field("descriptor", descriptor)
                     .end();
             }
             Declaration::Enum {

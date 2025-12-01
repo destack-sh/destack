@@ -263,7 +263,8 @@ impl Transpiler {
                     .insert_from_source(expression, module.id, expression_id)
                     .into_any()
             }
-            dir::Expression::TupleLiteral { ty: _, elements } => {
+            dir::Expression::TupleExpression { elements }
+            | dir::Expression::TaggedTupleExpression { ty: _, elements } => {
                 let elements = elements
                     .iter()
                     .map(|element_id| {
@@ -284,7 +285,7 @@ impl Transpiler {
                     .insert_from_source(expression, module.id, expression_id)
                     .into_any()
             }
-            dir::Expression::ArrayLiteral { elements } => {
+            dir::Expression::ArrayExpression { elements } => {
                 let elements = elements
                     .iter()
                     .map(|element_id| {
@@ -305,7 +306,8 @@ impl Transpiler {
                     .insert_from_source(expression, module.id, expression_id)
                     .into_any()
             }
-            dir::Expression::StructLiteral { ty: _, properties } => {
+            dir::Expression::ObjectExpression { properties }
+            | dir::Expression::TaggedObjectExpression { ty: _, properties } => {
                 let properties = properties
                     .iter()
                     .map(|property_id| {
@@ -316,6 +318,10 @@ impl Transpiler {
                 unit.ast
                     .insert_from_source(expression, module.id, expression_id)
                     .into_any()
+            }
+            dir::Expression::TaggedScalarExpression { ty: _, value } => {
+                // newtype wrapping a scalar - just emit the inner value
+                self.transpile_expression(module, tree, symbols, types, *value, unit)?
             }
 
             dir::Expression::TypeUnary { operator, right } => self

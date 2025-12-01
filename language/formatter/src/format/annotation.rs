@@ -452,7 +452,7 @@ mod tests {
         assert_format!(
             source,
             source,
-            |p| p.eat_struct(DeclarationDescriptor::default()),
+            |p| p.eat_struct_or_class(DeclarationDescriptor::default()),
             DestackFormatOptions::default()
         );
     }
@@ -501,7 +501,7 @@ mod tests {
         assert_format!(
             "#A struct #B Test #C { #D } #E",
             "#A struct Test {\n\t#B\n\t#C\n\t#D\n} #E\n",
-            |p| p.eat_struct(DeclarationDescriptor::default()),
+            |p| p.eat_struct_or_class(DeclarationDescriptor::default()),
             DestackFormatOptions::default_tab()
         );
     }

@@ -369,7 +369,7 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             // no child nodes to visit
         }
 
-        Expression::TemplateLiteral { value } => match value {
+        Expression::TemplateExpression { value } => match value {
             TemplateLiteral::String { .. } => {}
             TemplateLiteral::InterpolatedString { arguments, .. } => {
                 for argument_id in arguments {
@@ -378,7 +378,7 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
                 }
             }
         },
-        Expression::TaggedTemplateLiteral { tag, value } => {
+        Expression::TaggedTemplateExpression { tag, value } => {
             let tag_expr = tree.get(*tag);
             visitor.visit_expression(tree, *tag, tag_expr);
             match value {
@@ -396,7 +396,7 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             // no child nodes to visit
         }
 
-        Expression::RangeLiteral {
+        Expression::RangeExpression {
             start,
             end,
             is_inclusive: _,
@@ -407,21 +407,21 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             visitor.visit_expression(tree, *end, end_expr);
         }
 
-        Expression::ArrayLiteral { elements } => {
+        Expression::ArrayExpression { elements } => {
             for argument_id in elements {
                 let argument = tree.get(*argument_id);
                 visitor.visit_argument(tree, *argument_id, argument);
             }
         }
 
-        Expression::TupleLiteral { elements } => {
+        Expression::TupleExpression { elements } => {
             for argument_id in elements {
                 let argument = tree.get(*argument_id);
                 visitor.visit_argument(tree, *argument_id, argument);
             }
         }
 
-        Expression::StructLiteral { ty, properties } => {
+        Expression::ObjectExpression { ty, properties } => {
             if let Some(type_id) = ty {
                 let type_expr = tree.get(*type_id);
                 visitor.visit_expression(tree, *type_id, type_expr);
@@ -432,7 +432,7 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             }
         }
 
-        Expression::TreeLiteral {
+        Expression::TreeExpression {
             left,
             arguments,
             elements,
@@ -712,7 +712,20 @@ pub fn walk_declaration<V: NodeVisitor + ?Sized>(
         }
         Declaration::Struct {
             descriptor,
-            kind: _,
+            generics,
+            heritage,
+            properties,
+        } => {
+            walk_declaration_descriptor(visitor, tree, descriptor);
+            walk_generics(visitor, tree, generics);
+            walk_heritage(visitor, tree, heritage);
+            for property_id in properties {
+                let property = tree.get(*property_id);
+                visitor.visit_property(tree, *property_id, property);
+            }
+        }
+        Declaration::Class {
+            descriptor,
             generics,
             heritage,
             properties,

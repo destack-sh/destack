@@ -503,7 +503,7 @@ impl Parser {
                     if self.peek_token(TokenType::CloseParenthesis).is_ok() {
                         self.bump(); // eat closing parenthesis
                         self.tree.insert(
-                            Expression::TupleLiteral { elements: vec![] },
+                            Expression::TupleExpression { elements: vec![] },
                             self.get_span_from(start),
                         )
                     }
@@ -517,7 +517,7 @@ impl Parser {
                         self.eat_newlines_maybe()?;
                         self.eat_token(TokenType::CloseParenthesis)?;
                         self.tree.insert(
-                            Expression::TupleLiteral {
+                            Expression::TupleExpression {
                                 elements: tuple_elements,
                             },
                             self.get_span_from(start),
@@ -535,7 +535,7 @@ impl Parser {
                         match self.tree.get(expression_id) {
                             // if it was a tuple starting here, expand it to cover the entire span
                             //  (except if that tuple has its own parenthesis already when nesting)
-                            Expression::TupleLiteral { .. }
+                            Expression::TupleExpression { .. }
                                 if self.tokens[inner_start as usize].token.ty
                                     != TokenType::OpenParenthesis =>
                             {
@@ -652,7 +652,7 @@ impl Parser {
             else if (keyword == Some(Keyword::Struct) || keyword == Some(Keyword::Class))
                 && DECLARATION_START_TOKENS.contains(&next_token_type)
             {
-                let struct_id = self.eat_struct(descriptor)?;
+                let struct_id = self.eat_struct_or_class(descriptor)?;
                 self.tree.insert(
                     Expression::Declaration(struct_id),
                     self.get_span_from(start),
@@ -842,7 +842,7 @@ impl Parser {
                     parser.eat_array_literal()
                 })?;
                 self.tree.insert(
-                    Expression::ArrayLiteral { elements },
+                    Expression::ArrayExpression { elements },
                     self.get_span_from(start),
                 )
             }
@@ -852,7 +852,7 @@ impl Parser {
                     parser.eat_struct_literal()
                 })?;
                 self.tree.insert(
-                    Expression::StructLiteral {
+                    Expression::ObjectExpression {
                         ty: None,
                         properties,
                     },
@@ -878,7 +878,7 @@ impl Parser {
             else if self.peek_template_literal().is_ok() {
                 let template_literal = self.eat_template_literal()?;
                 self.tree.insert(
-                    Expression::TemplateLiteral {
+                    Expression::TemplateExpression {
                         value: template_literal,
                     },
                     self.get_span_from(start),
@@ -964,7 +964,7 @@ impl Parser {
         {
             let properties = self.eat_struct_literal()?;
             left_expression_id = self.tree.insert(
-                Expression::StructLiteral {
+                Expression::ObjectExpression {
                     ty: Some(left_expression_id),
                     properties,
                 },
@@ -975,7 +975,7 @@ impl Parser {
         else if self.peek_template_literal().is_ok() {
             let template_literal = self.eat_template_literal()?;
             left_expression_id = self.tree.insert(
-                Expression::TaggedTemplateLiteral {
+                Expression::TaggedTemplateExpression {
                     tag: left_expression_id,
                     value: template_literal,
                 },
@@ -1024,7 +1024,7 @@ impl Parser {
                         parser.eat_expression()
                     })?;
                 left_expression_id = self.tree.insert(
-                    Expression::RangeLiteral {
+                    Expression::RangeExpression {
                         start: left_expression_id,
                         end: right_expression_id,
                         is_inclusive,
@@ -1203,7 +1203,7 @@ impl Parser {
                     })?;
                 // build tuple literal
                 left_expression_id = self.tree.insert(
-                    Expression::TupleLiteral {
+                    Expression::TupleExpression {
                         elements: tuple_elements,
                     },
                     self.get_span_from(start),
@@ -1643,7 +1643,7 @@ type = type * 2
         let mut test = TestParser::new("()");
         let mut parser = test.prepare();
         let expr_id = parser.eat_expression().unwrap();
-        assert_node!(parser.tree, expr_id, Expression::TupleLiteral { elements, .. } => {
+        assert_node!(parser.tree, expr_id, Expression::TupleExpression { elements, .. } => {
             assert_eq!(elements.len(), 0);
         });
     }
@@ -1657,7 +1657,7 @@ type = type * 2
         assert_node!(
             parser.tree,
             expr_id,
-            Expression::TupleLiteral { elements, .. } => {
+            Expression::TupleExpression { elements, .. } => {
                 assert_eq!(elements.len(), 2);
                 // 1
                 assert_node!(
@@ -1709,7 +1709,7 @@ const shapes = (
                 assert_string!(parser, *name, "shapes");
             });
             // (...)
-            assert_node!(parser.tree, value.unwrap(), Expression::TupleLiteral { elements, .. } => {
+            assert_node!(parser.tree, value.unwrap(), Expression::TupleExpression { elements, .. } => {
                 assert_eq!(elements.len(), 5);
                 // TetrisPieceShape.I
                 assert_node!(parser.tree, elements[0], Argument::Positional { value } => {
@@ -1725,7 +1725,7 @@ const shapes = (
         let mut test = TestParser::new("1..3");
         let mut parser = test.prepare();
         let expr_id = parser.eat_expression().unwrap();
-        assert_node!(parser.tree, expr_id, Expression::RangeLiteral { start, end, .. } => {
+        assert_node!(parser.tree, expr_id, Expression::RangeExpression { start, end, .. } => {
             assert_node!(parser.tree, *start, Expression::ScalarLiteral(ScalarLiteral::Integer(val)) => {
                 assert_eq!(*val, 1);
             });
@@ -1766,7 +1766,7 @@ const shapes = (
         let mut parser = test.prepare();
         let expr_id = parser.eat_expression().unwrap();
         assert_node!(parser.tree, expr_id, Expression::Parenthesized { expression } => {
-            assert_node!(parser.tree, *expression, Expression::StructLiteral { ty: None, properties, .. } => {
+            assert_node!(parser.tree, *expression, Expression::ObjectExpression { ty: None, properties, .. } => {
                 assert_eq!(properties.len(), 2);
                 assert_node!(parser.tree, properties[0], Property::Field { modifiers: _, key: Some(Key::Name(Name::Identifier(name))), value: Some(value), default: None, .. } => {
                     assert_string!(parser, *name, "x");
@@ -1840,10 +1840,10 @@ const shapes = (
             assert_node!(parser.tree, *condition, Expression::Path { path, .. } => {
                 assert_path!(parser, *path, "x");
             });
-            assert_node!(parser.tree, *then_expression, Expression::TupleLiteral { elements, .. } => {
+            assert_node!(parser.tree, *then_expression, Expression::TupleExpression { elements, .. } => {
                 assert_eq!(elements.len(), 0);
             });
-            assert_node!(parser.tree, else_expression.unwrap(), Expression::TupleLiteral { elements, .. } => {
+            assert_node!(parser.tree, else_expression.unwrap(), Expression::TupleExpression { elements, .. } => {
                 assert_eq!(elements.len(), 0);
             });
         });
@@ -1859,10 +1859,10 @@ const shapes = (
             assert_node!(parser.tree, *condition, Expression::Path { path, .. } => {
                 assert_path!(parser, *path, "x");
             });
-            assert_node!(parser.tree, *then_expression, Expression::ArrayLiteral { elements } => {
+            assert_node!(parser.tree, *then_expression, Expression::ArrayExpression { elements } => {
                 assert_eq!(elements.len(), 0);
             });
-            assert_node!(parser.tree, else_expression.unwrap(), Expression::ArrayLiteral { elements } => {
+            assert_node!(parser.tree, else_expression.unwrap(), Expression::ArrayExpression { elements } => {
                 assert_eq!(elements.len(), 0);
             });
         });
@@ -1878,10 +1878,10 @@ const shapes = (
             assert_node!(parser.tree, *condition, Expression::Path { path, .. } => {
                 assert_path!(parser, *path, "x");
             });
-            assert_node!(parser.tree, *then_expression, Expression::StructLiteral { ty: None, properties, .. } => {
+            assert_node!(parser.tree, *then_expression, Expression::ObjectExpression { ty: None, properties, .. } => {
                 assert_eq!(properties.len(), 0);
             });
-            assert_node!(parser.tree, else_expression.unwrap(), Expression::StructLiteral { ty: None, properties, .. } => {
+            assert_node!(parser.tree, else_expression.unwrap(), Expression::ObjectExpression { ty: None, properties, .. } => {
                 assert_eq!(properties.len(), 0);
             });
         });
@@ -2074,7 +2074,7 @@ const shapes = (
         assert_node!(
             parser.tree,
             expr_id,
-            Expression::StructLiteral { ty: Some(ty), properties, .. } => {
+            Expression::ObjectExpression { ty: Some(ty), properties, .. } => {
                 // geom.Vector2
                 assert_node!(
                     parser.tree,
@@ -2127,7 +2127,7 @@ geom.Mesh<2, 4> {
         assert_node!(
             parser.tree,
             expr_id,
-            Expression::StructLiteral { ty: Some(ty), properties, .. } => {
+            Expression::ObjectExpression { ty: Some(ty), properties, .. } => {
                 assert_node!(
                     parser.tree,
                     *ty,
@@ -2148,7 +2148,7 @@ geom.Mesh<2, 4> {
                         assert_node!(
                             parser.tree,
                             *value,
-                            Expression::ArrayLiteral { .. }
+                            Expression::ArrayExpression { .. }
                         );
                     }
                 );

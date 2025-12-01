@@ -9,8 +9,8 @@ use crate::{
 };
 use destack_ast::{
     Asynchrony, Declaration, DeclarationKind, DependencyMode, Expression, FunctionAbstraction,
-    FunctionCardinality, FunctionKind, FunctionMode, Keyword, LocalNodeId, Mutability, StructKind,
-    TypeKind, Visibility,
+    FunctionCardinality, FunctionKind, FunctionMode, Keyword, LocalNodeId, Mutability, TypeKind,
+    Visibility,
 };
 use destack_fir::format::{BestFittingMode, FormatResult};
 use destack_fir::prelude::*;
@@ -212,14 +212,21 @@ impl<'ast> FormatNode<'ast, Declaration> for Declaration {
                 }
             }
 
-            // struct
+            // struct or class
             Declaration::Struct {
                 descriptor,
-                kind,
+                generics,
+                heritage,
+                properties,
+            }
+            | Declaration::Class {
+                descriptor,
                 generics,
                 heritage,
                 properties,
             } => {
+                let is_class = matches!(self, Declaration::Class { .. });
+
                 // export
                 if let Some(export) = descriptor.export {
                     write!(f, [export, space()])?;
@@ -231,9 +238,10 @@ impl<'ast> FormatNode<'ast, Declaration> for Declaration {
                 }
 
                 // keyword
-                match kind {
-                    StructKind::Struct => write!(f, [Keyword::Struct])?,
-                    StructKind::Class => write!(f, [Keyword::Class])?,
+                if is_class {
+                    write!(f, [Keyword::Class])?;
+                } else {
+                    write!(f, [Keyword::Struct])?;
                 }
 
                 // name / key

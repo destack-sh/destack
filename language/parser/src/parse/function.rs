@@ -609,7 +609,7 @@ function onResolve(
                         // { .. } | void
                         assert_node!(parser.tree, signature.return_type.unwrap(), Expression::Binary { operator, left, right } => {
                             // { .. }
-                            assert_node!(parser.tree, *left, Expression::StructLiteral { ty: None, properties } => {
+                            assert_node!(parser.tree, *left, Expression::ObjectExpression { ty: None, properties } => {
                                 assert_eq!(properties.len(), 2);
                             });
                             // |

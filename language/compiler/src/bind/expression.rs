@@ -701,7 +701,7 @@ impl Compiler {
                 let value = self.bind_scalar_literal(module, value);
                 Expression::ScalarLiteral { value }
             }
-            ast::Expression::TemplateLiteral { value } => {
+            ast::Expression::TemplateExpression { value } => {
                 let value = self.bind_template_literal(
                     module,
                     scope,
@@ -711,9 +711,9 @@ impl Compiler {
                     symbols,
                     types,
                 );
-                Expression::TemplateLiteral { value }
+                Expression::TemplateExpression { value }
             }
-            ast::Expression::TaggedTemplateLiteral { tag, value } => {
+            ast::Expression::TaggedTemplateExpression { tag, value } => {
                 let tag = self.bind_expression(
                     module,
                     scope,
@@ -732,13 +732,13 @@ impl Compiler {
                     symbols,
                     types,
                 );
-                Expression::TaggedTemplateLiteral { tag, value }
+                Expression::TaggedTemplateExpression { tag, value }
             }
             ast::Expression::TypeLiteral(value) => {
                 let value = self.bind_type_literal(value);
                 Expression::TypeLiteral { value }
             }
-            ast::Expression::RangeLiteral {
+            ast::Expression::RangeExpression {
                 start,
                 end,
                 is_inclusive,
@@ -761,24 +761,13 @@ impl Compiler {
                     symbols,
                     types,
                 );
-                Expression::RangeLiteral {
+                Expression::RangeExpression {
                     start,
                     end,
                     is_inclusive: *is_inclusive,
                 }
             }
-            ast::Expression::StructLiteral { ty, properties } => {
-                let ty = ty.map(|ty| {
-                    self.bind_expression(
-                        module,
-                        scope,
-                        ty,
-                        Some(expression_id),
-                        tree,
-                        symbols,
-                        types,
-                    )
-                });
+            ast::Expression::ObjectExpression { ty, properties } => {
                 let properties = properties
                     .iter()
                     .map(|property| {
@@ -793,9 +782,22 @@ impl Compiler {
                         )
                     })
                     .collect();
-                Expression::StructLiteral { ty, properties }
+                if let Some(ty_id) = ty {
+                    let ty = self.bind_expression(
+                        module,
+                        scope,
+                        *ty_id,
+                        Some(expression_id),
+                        tree,
+                        symbols,
+                        types,
+                    );
+                    Expression::TaggedObjectExpression { ty, properties }
+                } else {
+                    Expression::ObjectExpression { properties }
+                }
             }
-            ast::Expression::TupleLiteral { elements } => {
+            ast::Expression::TupleExpression { elements } => {
                 let elements = elements
                     .iter()
                     .map(|element| {
@@ -810,9 +812,9 @@ impl Compiler {
                         )
                     })
                     .collect();
-                Expression::TupleLiteral { ty: None, elements }
+                Expression::TupleExpression { elements }
             }
-            ast::Expression::ArrayLiteral { elements } => {
+            ast::Expression::ArrayExpression { elements } => {
                 let elements = elements
                     .iter()
                     .map(|element| {
@@ -827,9 +829,9 @@ impl Compiler {
                         )
                     })
                     .collect();
-                Expression::ArrayLiteral { elements }
+                Expression::ArrayExpression { elements }
             }
-            ast::Expression::TreeLiteral {
+            ast::Expression::TreeExpression {
                 left,
                 arguments,
                 elements,
@@ -877,7 +879,7 @@ impl Compiler {
                         })
                         .collect()
                 });
-                Expression::TreeLiteral {
+                Expression::TreeExpression {
                     left,
                     arguments,
                     elements,
