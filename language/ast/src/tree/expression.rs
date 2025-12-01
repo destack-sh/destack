@@ -3,8 +3,8 @@ use destack_source::StringId;
 use crate::{
     Argument, AssignOperator, Asynchrony, BinaryOperator, Block, Declaration,
     DeclarationDescriptor, DependencyItem, DependencyKind, Keyword, LocalNodeId, Mutability, Node,
-    NodeType, Parameter, Path, Pattern, Property, ScalarLiteral, TemplateLiteral,
-    TypeBinaryOperator, TypeLiteral, TypeUnaryOperator, UnaryOperator,
+    NodeType, Path, Pattern, Property, ScalarLiteral, TemplateLiteral, TypeBinaryOperator,
+    TypeLiteral, TypeUnaryOperator, UnaryOperator,
 };
 
 // NOTE #Performance: reduce Expression size to <=64B
@@ -107,27 +107,6 @@ pub enum Expression {
         pattern: LocalNodeId<Pattern>,
         ty: Option<LocalNodeId<Expression>>,
         value: Option<LocalNodeId<Expression>>,
-    },
-
-    /// Type alias binding, may be statically parameterised.
-    ///
-    /// Examples:
-    /// ```
-    /// type T = int32
-    /// type T = foo()
-    /// type T = { a: int32, b: boolean } | true
-    /// type 1 | 2 | 3
-    /// readonly T
-    /// newtype T = int32
-    /// newtype Foo<T> = Baz<T> | null
-    /// newtype T = { a: int32, b: boolean } | true
-    /// ```
-    LetType {
-        descriptor: DeclarationDescriptor,
-        kind: TypeKind,
-        mutability: Option<Mutability>,
-        static_parameters: Option<Vec<LocalNodeId<Parameter>>>,
-        value: LocalNodeId<Expression>,
     },
 
     /// If/then/else expression.
@@ -746,10 +725,7 @@ impl Expression {
     pub fn is_statement_like_at_root(&self) -> bool {
         matches!(
             self,
-            Expression::Let { .. }
-                | Expression::LetType { .. }
-                | Expression::Delete { .. }
-                | Expression::Assign { .. }
+            Expression::Let { .. } | Expression::Delete { .. } | Expression::Assign { .. }
         )
     }
 

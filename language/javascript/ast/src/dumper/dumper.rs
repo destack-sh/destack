@@ -692,15 +692,6 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .field("mutability", mutability)
                     .end();
             }
-            Statement::LetType {
-                descriptor,
-                static_parameters: _,
-                value: _,
-            } => {
-                self.node("Statement::LetType", id.id)
-                    .field("descriptor", descriptor)
-                    .end();
-            }
             Statement::Assign {
                 operator,
                 left: _,
@@ -949,6 +940,15 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 statements: _,
             } => {
                 self.node("Declaration::Namespace", id.id)
+                    .field("descriptor", descriptor)
+                    .end();
+            }
+            Declaration::Type {
+                descriptor,
+                static_parameters: _,
+                value: _,
+            } => {
+                self.node("Declaration::Type", id.id)
                     .field("descriptor", descriptor)
                     .end();
             }

@@ -121,6 +121,60 @@ impl Compiler {
                     expressions,
                 }
             }
+            ast::Declaration::Type {
+                descriptor,
+                kind,
+                mutability,
+                static_parameters,
+                value,
+            } => {
+                let symbol_kind = if descriptor.export.is_some() {
+                    SymbolKind::Item
+                } else {
+                    SymbolKind::Local
+                };
+                let (descriptor, _scope_id) = self.bind_declaration_descriptor(
+                    module,
+                    scope,
+                    descriptor,
+                    symbol_kind,
+                    symbols,
+                );
+                let kind = self.bind_type_kind(*kind);
+                let mutability = mutability.map(|mutability| self.bind_mutability(mutability));
+                let static_parameters = static_parameters.as_ref().map(|params| {
+                    params
+                        .iter()
+                        .map(|param| {
+                            self.bind_parameter(
+                                module,
+                                scope,
+                                *param,
+                                Some(declaration_id),
+                                tree,
+                                symbols,
+                                types,
+                            )
+                        })
+                        .collect()
+                });
+                let value = self.bind_expression(
+                    module,
+                    scope,
+                    *value,
+                    Some(declaration_id),
+                    tree,
+                    symbols,
+                    types,
+                );
+                Declaration::Type {
+                    descriptor,
+                    kind,
+                    mutability,
+                    static_parameters,
+                    value,
+                }
+            }
             ast::Declaration::Struct {
                 descriptor,
                 kind,

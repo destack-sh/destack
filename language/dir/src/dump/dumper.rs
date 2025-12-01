@@ -854,20 +854,6 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .field("mutability", mutability)
                     .end();
             }
-            Expression::LetType {
-                descriptor,
-                kind,
-                mutability,
-                static_parameters: _,
-                value: _,
-            } => {
-                self.node("Expression::LetType", id.id)
-                    .field("descriptor", descriptor)
-                    .field("kind", kind)
-                    .field_optional("mutability", mutability)
-                    .end();
-            }
-
             Expression::Unary { operator, right: _ } => {
                 self.node("Expression::Unary", id.id)
                     .field("operator", operator)
@@ -1234,6 +1220,19 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .field("descriptor", descriptor)
                     .field("generics", generics)
                     .field("scope", scope)
+                    .end();
+            }
+            Declaration::Type {
+                descriptor,
+                kind,
+                mutability,
+                static_parameters: _,
+                value: _,
+            } => {
+                self.node("Declaration::Type", id.id)
+                    .field("descriptor", descriptor)
+                    .field("kind", kind)
+                    .field_optional("mutability", mutability)
                     .end();
             }
             Declaration::Struct {

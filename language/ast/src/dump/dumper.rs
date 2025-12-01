@@ -790,19 +790,6 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .field("descriptor", descriptor)
                     .end();
             }
-            Expression::LetType {
-                kind,
-                mutability,
-                descriptor,
-                static_parameters: _,
-                value: _,
-            } => {
-                self.node("Expression::LetType", _id.id)
-                    .field("kind", kind)
-                    .field_optional("mutability", mutability)
-                    .field("descriptor", descriptor)
-                    .end();
-            }
             Expression::If {
                 kind,
                 condition: _,
@@ -1087,6 +1074,19 @@ impl<'a> NodeVisitor for Dumper<'a> {
             } => {
                 self.node("Declaration::Namespace", id.id)
                     .field("descriptor", descriptor)
+                    .end();
+            }
+            Declaration::Type {
+                descriptor,
+                kind,
+                mutability,
+                static_parameters: _,
+                value: _,
+            } => {
+                self.node("Declaration::Type", id.id)
+                    .field("descriptor", descriptor)
+                    .field("kind", kind)
+                    .field_optional("mutability", mutability)
                     .end();
             }
             Declaration::Struct {

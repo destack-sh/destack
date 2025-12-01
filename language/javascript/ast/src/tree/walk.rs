@@ -163,20 +163,6 @@ pub fn walk_statement<V: NodeVisitor + ?Sized>(
                 visitor.visit_expression(tree, *value_id, expression);
             }
         }
-        Statement::LetType {
-            descriptor: _,
-            static_parameters,
-            value,
-        } => {
-            if let Some(parameters) = static_parameters {
-                for parameter_id in parameters {
-                    let parameter = tree.get(*parameter_id);
-                    visitor.visit_parameter(tree, *parameter_id, parameter);
-                }
-            }
-            let ty = tree.get(*value);
-            visitor.visit_type(tree, *value, ty);
-        }
         Statement::Assign {
             left,
             operator: _,
@@ -573,6 +559,21 @@ pub fn walk_declaration<V: NodeVisitor + ?Sized>(
                 let statement = tree.get(*statement_id);
                 visitor.visit_statement(tree, *statement_id, statement);
             }
+        }
+        Declaration::Type {
+            descriptor,
+            static_parameters,
+            value,
+        } => {
+            walk_declaration_descriptor(visitor, tree, descriptor);
+            if let Some(parameters) = static_parameters {
+                for parameter_id in parameters {
+                    let parameter = tree.get(*parameter_id);
+                    visitor.visit_parameter(tree, *parameter_id, parameter);
+                }
+            }
+            let ty = tree.get(*value);
+            visitor.visit_type(tree, *value, ty);
         }
         Declaration::Class {
             descriptor,

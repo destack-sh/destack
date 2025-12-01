@@ -1,6 +1,6 @@
 use crate::{
     BindingAnchor, Block, DependencyMode, Expression, FunctionSignature, Generics, Heritage,
-    LocalNodeId, Name, Node, NodeType, Property, Statement, StringId,
+    LocalNodeId, Name, Node, NodeType, Parameter, Property, Statement, StringId, Type,
 };
 
 /// The kind of declaration.
@@ -28,10 +28,16 @@ pub struct DeclarationDescriptor {
 /// A Declaration is a declaration in some namespace.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Declaration {
-    /// Namespace declaration (TS-only).
+    /// Namespace declaration.
     Namespace {
         descriptor: DeclarationDescriptor,
         statements: Vec<LocalNodeId<Statement>>,
+    },
+    /// Type alias declaration.
+    Type {
+        descriptor: DeclarationDescriptor,
+        static_parameters: Option<Vec<LocalNodeId<Parameter>>>,
+        value: LocalNodeId<Type>,
     },
     /// Class declaration.
     Class {
