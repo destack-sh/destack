@@ -1,10 +1,10 @@
 use destack_dir::{GlobalNodeIdAny, Program};
 
 use crate::{
-    AnalyzeOutput, AnalyzeTask, BindOutput, BindTask, BuildOutput, BuildTask, ElaborateOutput,
+    VerifyOutput, VerifyTask, BindOutput, BindTask, GenerateOutput, GenerateTask, ElaborateOutput,
     ElaborateTask, ExecuteOutput, ExecuteTask, ImportOutput, ImportTask, LinkOutput, LinkTask,
     LowerOutput, LowerTask, OptimizeOutput, OptimizeTask, ResolveOutput, ResolveTask, TaskError,
-    ValidateOutput, ValidateTask,
+    AnalyzeOutput, AnalyzeTask,
 };
 
 /// Trait for formatting task information.
@@ -19,11 +19,11 @@ pub trait TaskDebug {
 /// Region of the compiler.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum TaskRegion {
-    /// Front-end (import, bind, resolve, validate, elaborate).
+    /// Front-end (import, bind, resolve, analyze, elaborate).
     Front,
-    /// Middle-end (lower, analyze, optimize).
+    /// Middle-end (lower, verify, optimize).
     Middle,
-    /// Back-end (execute, build, link).
+    /// Back-end (execute, generate, link).
     Back,
 }
 
@@ -48,23 +48,23 @@ pub enum TaskPhase {
     Bind = 2,
     /// Resolve symbols, scopes and types in DIR.
     Resolve = 3,
-    /// Validate and type-check DIR.
-    Validate = 4,
+    /// Analyze and type-check DIR.
+    Analyze = 4,
     /// Elaborate, desugar and monomorphize DIR.
     Elaborate = 5,
     // --------------------------------------------------
     /// Lower the DIR into MIR.
     Lower = 6,
-    /// Analyze and flow-check MIR.
-    Analyze = 7,
+    /// Verify and flow-check MIR.
+    Verify = 7,
     /// Optimize the MIR.
     Optimize = 8,
     // --------------------------------------------------
     /// Execute MIR statically.
     Execute = 9,
-    /// Build the MIR into some artifact.
-    Build = 10,
-    /// Link built artifacts into final output.
+    /// Generate the MIR into some artifact.
+    Generate = 10,
+    /// Link generated artifacts into final output.
     Link = 11,
 }
 
@@ -83,11 +83,11 @@ impl TaskPhase {
     /// Get the region of the phase.
     pub fn region(&self) -> TaskRegion {
         match self {
-            Self::Import | Self::Bind | Self::Resolve | Self::Validate | Self::Elaborate => {
+            Self::Import | Self::Bind | Self::Resolve | Self::Analyze | Self::Elaborate => {
                 TaskRegion::Front
             }
-            Self::Lower | Self::Analyze | Self::Optimize => TaskRegion::Middle,
-            Self::Execute | Self::Build | Self::Link => TaskRegion::Back,
+            Self::Lower | Self::Verify | Self::Optimize => TaskRegion::Middle,
+            Self::Execute | Self::Generate | Self::Link => TaskRegion::Back,
         }
     }
 
@@ -97,13 +97,13 @@ impl TaskPhase {
             Self::Import => "import",
             Self::Bind => "bind",
             Self::Resolve => "resolve",
-            Self::Validate => "validate",
+            Self::Analyze => "analyze",
             Self::Elaborate => "elaborate",
             Self::Lower => "lower",
-            Self::Analyze => "analyze",
+            Self::Verify => "verify",
             Self::Optimize => "optimize",
             Self::Execute => "execute",
-            Self::Build => "build",
+            Self::Generate => "generate",
             Self::Link => "link",
         }
     }
@@ -114,14 +114,14 @@ impl TaskPhase {
             Self::Import => "import and parse source into AST",
             Self::Bind => "bind, lower and declare AST source into DIR",
             Self::Resolve => "resolve symbols, scopes and types in DIR",
-            Self::Validate => "validate and check DIR",
+            Self::Analyze => "analyze and check DIR",
             Self::Elaborate => "elaborate and monomorphize DIR",
             Self::Lower => "lower the DIR into MIR",
-            Self::Analyze => "analyze and flow-check MIR",
+            Self::Verify => "verify and flow-check MIR",
             Self::Optimize => "optimize the MIR",
             Self::Execute => "execute MIR statically",
-            Self::Build => "build the MIR into some artifact",
-            Self::Link => "link built artifacts into final output",
+            Self::Generate => "generate the MIR into some artifact",
+            Self::Link => "link generated artifacts into final output",
         }
     }
 
@@ -129,16 +129,16 @@ impl TaskPhase {
     pub fn letter(&self) -> char {
         match self {
             Self::Import => 'I',
-            Self::Bind => 'D',
+            Self::Bind => 'B',
             Self::Resolve => 'R',
-            Self::Validate => 'V',
-            Self::Elaborate => 'E',
-            Self::Lower => 'M',
             Self::Analyze => 'A',
+            Self::Elaborate => 'E',
+            Self::Lower => 'L',
+            Self::Verify => 'V',
             Self::Optimize => 'O',
             Self::Execute => 'X',
-            Self::Build => 'B',
-            Self::Link => 'L',
+            Self::Generate => 'G',
+            Self::Link => 'K',
         }
     }
 }
@@ -152,23 +152,23 @@ pub enum Task {
     Bind(BindTask),
     /// Resolve symbols, scopes and types in DIR.
     Resolve(ResolveTask),
-    /// Validate and check DIR.
-    Validate(ValidateTask),
+    /// Analyze and check DIR.
+    Analyze(AnalyzeTask),
     /// Elaborate and monomorphize DIR.
     Elaborate(ElaborateTask),
     // --------------------------------------------------
     /// Lower the DIR into MIR.
     Lower(LowerTask),
-    /// Analyze and flow-check MIR.
-    Analyze(AnalyzeTask),
+    /// Verify and flow-check MIR.
+    Verify(VerifyTask),
     /// Optimize the MIR.
     Optimize(OptimizeTask),
     // --------------------------------------------------
     /// Execute MIR statically.
     Execute(ExecuteTask),
-    /// Build the MIR into some artifact.
-    Build(BuildTask),
-    /// Link built artifacts into final output.
+    /// Generate the MIR into some artifact.
+    Generate(GenerateTask),
+    /// Link generated artifacts into final output.
     Link(LinkTask),
 }
 
@@ -179,13 +179,13 @@ impl Task {
             Self::Import(_) => TaskPhase::Import,
             Self::Bind(_) => TaskPhase::Bind,
             Self::Resolve(_) => TaskPhase::Resolve,
-            Self::Validate(_) => TaskPhase::Validate,
+            Self::Analyze(_) => TaskPhase::Analyze,
             Self::Elaborate(_) => TaskPhase::Elaborate,
             Self::Lower(_) => TaskPhase::Lower,
-            Self::Analyze(_) => TaskPhase::Analyze,
+            Self::Verify(_) => TaskPhase::Verify,
             Self::Optimize(_) => TaskPhase::Optimize,
             Self::Execute(_) => TaskPhase::Execute,
-            Self::Build(_) => TaskPhase::Build,
+            Self::Generate(_) => TaskPhase::Generate,
             Self::Link(_) => TaskPhase::Link,
         }
     }
@@ -201,13 +201,13 @@ impl Task {
             Self::Import(task) => task.sub_code(),
             Self::Bind(task) => task.sub_code(),
             Self::Resolve(task) => task.sub_code(),
-            Self::Validate(task) => task.sub_code(),
+            Self::Analyze(task) => task.sub_code(),
             Self::Elaborate(task) => task.sub_code(),
             Self::Lower(task) => task.sub_code(),
-            Self::Analyze(task) => task.sub_code(),
+            Self::Verify(task) => task.sub_code(),
             Self::Optimize(task) => task.sub_code(),
             Self::Execute(task) => task.sub_code(),
-            Self::Build(task) => task.sub_code(),
+            Self::Generate(task) => task.sub_code(),
             Self::Link(task) => task.sub_code(),
         }
     }
@@ -224,13 +224,13 @@ impl TaskDebug for Task {
             Self::Import(task) => task.name(),
             Self::Bind(task) => task.name(),
             Self::Resolve(task) => task.name(),
-            Self::Validate(task) => task.name(),
+            Self::Analyze(task) => task.name(),
             Self::Elaborate(task) => task.name(),
             Self::Lower(task) => task.name(),
-            Self::Analyze(task) => task.name(),
+            Self::Verify(task) => task.name(),
             Self::Optimize(task) => task.name(),
             Self::Execute(task) => task.name(),
-            Self::Build(task) => task.name(),
+            Self::Generate(task) => task.name(),
             Self::Link(task) => task.name(),
         }
     }
@@ -240,13 +240,13 @@ impl TaskDebug for Task {
             Self::Import(task) => task.trace_args(program),
             Self::Bind(task) => task.trace_args(program),
             Self::Resolve(task) => task.trace_args(program),
-            Self::Validate(task) => task.trace_args(program),
+            Self::Analyze(task) => task.trace_args(program),
             Self::Elaborate(task) => task.trace_args(program),
             Self::Lower(task) => task.trace_args(program),
-            Self::Analyze(task) => task.trace_args(program),
+            Self::Verify(task) => task.trace_args(program),
             Self::Optimize(task) => task.trace_args(program),
             Self::Execute(task) => task.trace_args(program),
-            Self::Build(task) => task.trace_args(program),
+            Self::Generate(task) => task.trace_args(program),
             Self::Link(task) => task.trace_args(program),
         }
     }
@@ -462,22 +462,22 @@ pub enum TaskOutput {
     Bind(BindOutput),
     /// Output of a resolve task.
     Resolve(ResolveOutput),
-    /// Output of a validate task.
-    Validate(ValidateOutput),
+    /// Output of a analyze task.
+    Analyze(AnalyzeOutput),
     /// Output of an elaborate task.
     Elaborate(ElaborateOutput),
     // --------------------------------------------------
     /// Output of a lower task.
     Lower(LowerOutput),
-    /// Output of an analyze task.
-    Analyze(AnalyzeOutput),
+    /// Output of an verify task.
+    Verify(VerifyOutput),
     /// Output of an optimize task.
     Optimize(OptimizeOutput),
     // --------------------------------------------------
     /// Output of an execute task.
     Execute(ExecuteOutput),
-    /// Output of a build task.
-    Build(BuildOutput),
+    /// Output of a generate task.
+    Generate(GenerateOutput),
     /// Output of a link task.
     Link(LinkOutput),
 }

@@ -1,4 +1,4 @@
-use crate::{AnalyzeResult, Compiler, Task, TaskDebug, TaskOutput};
+use crate::{Compiler, Task, TaskDebug, TaskOutput, TaskResultCollector, AnalyzeResult};
 
 use destack_dir::{ModuleId, Program};
 
@@ -42,7 +42,7 @@ impl From<AnalyzeTask> for Task {
     }
 }
 
-/// Output of an analyze task.
+/// Output of a analyze task.
 #[derive(Debug, Clone, PartialEq)]
 pub struct AnalyzeOutput {}
 
@@ -55,6 +55,24 @@ impl From<AnalyzeOutput> for TaskOutput {
 impl Compiler {
     /// Process a analyze task.
     pub fn process_analyze(&self, task: AnalyzeTask) -> AnalyzeResult<AnalyzeOutput> {
-        todo!("process_analyze({task:?})")
+        match task {
+            AnalyzeTask::Analyze { module } => self.analyze_module(module)?,
+        }
+        Ok(AnalyzeOutput {})
+    }
+
+    /// Analyze a module.
+    pub fn analyze_module(&self, module_id: ModuleId) -> AnalyzeResult<()> {
+        let module = self.program.modules.get(module_id);
+        let module = module.read();
+        let _tree = module.tree.read();
+        let _symbols = module.symbols.read();
+        let mut _types = module.types.write();
+        let mut _instances = module.instances.write();
+        let _collector = TaskResultCollector::new();
+
+        // TODO #Incomplete: analyze module
+
+        Ok(())
     }
 }

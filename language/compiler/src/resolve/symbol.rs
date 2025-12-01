@@ -307,20 +307,20 @@ export let M1 = 1;
             let mut imports = String::new();
             let mut sum_parts_str = Vec::new();
 
-            // build imports string
+            // generate imports string
             for j in 1..i {
                 imports.push_str(&format!("import {{ M{j} }} from \"./m{j}.ds\";\n"));
                 sum_parts_str.push(format!("M{j}"));
             }
 
-            // build sum expression string
+            // generate sum expression string
             let sum_expression_str = if sum_parts_str.is_empty() {
                 "0".to_string()
             } else {
                 sum_parts_str.join(" + ")
             };
 
-            // build module content
+            // generate module content
             let content = format!(
                 r#"
 {imports}

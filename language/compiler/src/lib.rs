@@ -5,7 +5,7 @@
 
 mod analyze;
 mod bind;
-mod build;
+mod generate;
 mod compile;
 mod elaborate;
 mod execute;
@@ -14,11 +14,11 @@ mod link;
 mod lower;
 mod optimize;
 mod resolve;
-mod validate;
+mod verify;
 
 pub use analyze::*;
 pub use bind::*;
-pub use build::*;
+pub use generate::*;
 pub use compile::*;
 pub use elaborate::*;
 pub use execute::*;
@@ -27,7 +27,7 @@ pub use link::*;
 pub use lower::*;
 pub use optimize::*;
 pub use resolve::*;
-pub use validate::*;
+pub use verify::*;
 
 #[cfg(test)]
 mod tests;

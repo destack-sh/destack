@@ -1,9 +1,9 @@
 use std::thread;
 
 use crate::{
-    AnalyzeError, BuildError, Compiler, ElaborateError, ExecuteError, InternalError, LinkError,
+    VerifyError, GenerateError, Compiler, ElaborateError, ExecuteError, InternalError, LinkError,
     LowerError, OptimizeError, TaskPhase, ResolveError, Task, TaskDebug, TaskDependency, TaskError,
-    TaskHandle, TaskId, TaskOutcome, TaskOutput, TaskStatus, ValidateError,
+    TaskHandle, TaskId, TaskOutcome, TaskOutput, TaskStatus, AnalyzeError,
 };
 
 /// Maximum number of yields allowed per task before treating it as an (internal) bug.
@@ -100,13 +100,13 @@ impl Compiler {
             Task::Import(import_task) => self.process_import(import_task).into(),
             Task::Bind(bind_task) => self.process_bind(bind_task).into(),
             Task::Resolve(resolve_task) => self.process_resolve(resolve_task).into(),
-            Task::Validate(validate_task) => self.process_validate(validate_task).into(),
+            Task::Analyze(analyze_task) => self.process_analyze(analyze_task).into(),
             Task::Elaborate(elaborate_task) => self.process_elaborate(elaborate_task).into(),
             Task::Lower(lower_task) => self.process_lower(lower_task).into(),
-            Task::Analyze(analyze_task) => self.process_analyze(analyze_task).into(),
+            Task::Verify(verify_task) => self.process_verify(verify_task).into(),
             Task::Execute(execute_task) => self.process_execute(execute_task).into(),
             Task::Optimize(optimize_task) => self.process_optimize(optimize_task).into(),
-            Task::Build(build_task) => self.process_build(build_task).into(),
+            Task::Generate(generate_task) => self.process_generate(generate_task).into(),
             Task::Link(link_task) => self.process_link(link_task).into(),
         }
     }
@@ -337,7 +337,7 @@ impl Compiler {
                 dependency: dependency.clone(),
             }
             .into(),
-            TaskPhase::Validate => ValidateError::UnsatisfiedDependency {
+            TaskPhase::Analyze => AnalyzeError::UnsatisfiedDependency {
                 dependency: dependency.clone(),
             }
             .into(),
@@ -349,7 +349,7 @@ impl Compiler {
                 dependency: dependency.clone(),
             }
             .into(),
-            TaskPhase::Analyze => AnalyzeError::UnsatisfiedDependency {
+            TaskPhase::Verify => VerifyError::UnsatisfiedDependency {
                 dependency: dependency.clone(),
             }
             .into(),
@@ -361,7 +361,7 @@ impl Compiler {
                 dependency: dependency.clone(),
             }
             .into(),
-            TaskPhase::Build => BuildError::UnsatisfiedDependency {
+            TaskPhase::Generate => GenerateError::UnsatisfiedDependency {
                 dependency: dependency.clone(),
             }
             .into(),
