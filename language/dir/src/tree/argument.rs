@@ -36,52 +36,39 @@ impl Node for Parameter {
     }
 }
 
-/// An Argument is a named or positional argument to a function or method call.
+/// An Argument is a named or positional argument.
+/// Named arguments are only valid in tree literals (JSX-like attributes).
 #[derive(Debug, Clone, PartialEq)]
 pub enum Argument {
-    /// Unresolved named argument.
+    /// Unresolved named argument (tree literals only).
     UnresolvedNamed {
-        modifiers: Option<BindingModifier>,
         name: StringId,
         value: LocalNodeId<Expression>,
     },
     /// Unresolved positional argument.
-    UnresolvedPositional {
-        modifiers: Option<BindingModifier>,
-        value: LocalNodeId<Expression>,
-    },
-    /// Unresolved positional spread argument.
-    UnresolvedSpread {
-        modifiers: Option<BindingModifier>,
-        name: Option<StringId>,
-        value: LocalNodeId<Expression>,
-    },
+    UnresolvedPositional { value: LocalNodeId<Expression> },
+    /// Unresolved spread argument.
+    UnresolvedSpread { value: LocalNodeId<Expression> },
     /// Unresolved dynamic argument.
     UnresolvedDynamic {
-        modifiers: Option<BindingModifier>,
-        name: Option<StringId>,
         key: LocalNodeId<Expression>,
         value: LocalNodeId<Expression>,
     },
 
     /// Direct argument (named or positional).
     Direct {
-        modifiers: Option<BindingModifier>,
         name: StringId,
         target_symbol: GlobalSymbolId,
         value: LocalNodeId<Expression>,
     },
     /// Spread argument.
     Spread {
-        modifiers: Option<BindingModifier>,
         name: StringId,
         target_symbol: GlobalSymbolId,
         value: LocalNodeId<Expression>,
     },
     /// Dynamic argument.
     Dynamic {
-        modifiers: Option<BindingModifier>,
-        name: Option<StringId>,
         target_symbol: GlobalSymbolId,
         key: LocalNodeId<Expression>,
         value: LocalNodeId<Expression>,

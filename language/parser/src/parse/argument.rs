@@ -327,21 +327,41 @@ impl Parser {
         Ok(parameters)
     }
 
-    /// Eat an argument name (like `name:` prefix) if it exists.
-    pub(crate) fn eat_argument_name_maybe(&mut self) -> ParseResult<Option<StringId>> {
-        if self.peek_token(TokenType::Identifier).is_ok()
-            && self.peek_next_token(TokenType::Colon).is_ok()
-        {
-            let name = self.eat_identifier()?;
-            self.bump(); // eat colon
-            Ok(Some(name))
-        } else {
-            Ok(None)
+    /// Eat a positional argument (positional or spread only, no named arguments).
+    /// Used for dynamic arguments, static arguments, and tuple literals.
+    ///
+    /// Examples:
+    /// ```
+    /// 2
+    /// foo()
+    /// ...args
+    /// ```
+    #[inline]
+    pub fn eat_positional_argument(&mut self) -> ParseResult<LocalNodeId<Argument>> {
+        let start = self.mark();
+        // spread argument
+        if self.peek_token(TokenType::Spread).is_ok() {
+            self.bump(); // eat spread
+            let value = self.with_options(self.options.not_in_position(), |parser| {
+                parser.eat_expression()
+            })?;
+            let argument_id = self
+                .tree
+                .insert(Argument::Spread { value }, self.get_span_from(start));
+            Ok(argument_id)
+        }
+        // positional argument
+        else {
+            let value = self.eat_expression()?;
+            let argument_id = self
+                .tree
+                .insert(Argument::Positional { value }, self.get_span_from(start));
+            Ok(argument_id)
         }
     }
 
     /// Eat an argument (e.g., `x: 1` or `y`).
-    /// Does not support named shorthand arguments.
+    /// Supports named arguments (for tree literal children and import with syntax).
     ///
     /// Examples:
     /// ```
@@ -350,14 +370,10 @@ impl Parser {
     /// 2
     /// ...args
     /// "Content-Type": "application/json"
-    /// [x: string]: any
-    /// [string]: woof
-    /// [var] = "hello"
     /// ```
     #[inline]
-    pub fn eat_argument(&mut self) -> ParseResult<LocalNodeId<Argument>> {
+    pub fn eat_named_argument(&mut self) -> ParseResult<LocalNodeId<Argument>> {
         let start = self.mark();
-        let modifiers = self.eat_binding_modifiers_prefix_maybe()?;
         // named argument
         if self.peek_name().is_ok() && self.peek_next_token(TokenType::Colon).is_ok() {
             let name = self.eat_name().for_node_type(NodeType::Argument)?;
@@ -367,70 +383,33 @@ impl Parser {
             let value = self.with_options(self.options.not_in_position(), |parser| {
                 parser.eat_expression()
             })?;
-            let argument_id = self.tree.insert(
-                Argument::Named {
-                    modifiers,
-                    name,
-                    value,
-                },
-                self.get_span_from(start),
-            );
-            Ok(argument_id)
-        }
-        // named maybe argument
-        else if self.peek_name().is_ok()
-            && self.peek_next_token(TokenType::Maybe).is_ok()
-            && self.peek_next_next_token(TokenType::Colon).is_ok()
-        {
-            // name
-            let name = self.eat_name()?;
-            let modifiers = self.eat_binding_modifiers_postfix(modifiers)?;
-            self.bump(); // eat colon
-            self.eat_newlines_maybe()?;
-            // value
-            let value = self.with_options(self.options.not_in_position(), |parser| {
-                parser.eat_expression()
-            })?;
-            let argument_id = self.tree.insert(
-                Argument::Named {
-                    modifiers,
-                    name,
-                    value,
-                },
-                self.get_span_from(start),
-            );
+            let argument_id = self
+                .tree
+                .insert(Argument::Named { name, value }, self.get_span_from(start));
             Ok(argument_id)
         }
         // spread argument
         else if self.peek_token(TokenType::Spread).is_ok() {
-            self.bump(); // eat range
-            let name = self.eat_argument_name_maybe()?;
+            self.bump(); // eat spread
             let value = self.with_options(self.options.not_in_position(), |parser| {
                 parser.eat_expression()
             })?;
-            let argument_id = self.tree.insert(
-                Argument::Spread {
-                    modifiers,
-                    name,
-                    value,
-                },
-                self.get_span_from(start),
-            );
+            let argument_id = self
+                .tree
+                .insert(Argument::Spread { value }, self.get_span_from(start));
             Ok(argument_id)
         }
         // positional argument
         else {
             let value = self.eat_expression()?;
-            let argument_id = self.tree.insert(
-                Argument::Positional { modifiers, value },
-                self.get_span_from(start),
-            );
+            let argument_id = self
+                .tree
+                .insert(Argument::Positional { value }, self.get_span_from(start));
             Ok(argument_id)
         }
     }
 
     /// Eat a tree literal argument (e.g., `x=1` or `long-name=2` or `flag-is-set`).
-    /// Does not support named shorthand arguments.
     ///
     /// Examples:
     /// ```
@@ -442,22 +421,15 @@ impl Parser {
     #[inline]
     pub fn eat_tree_literal_argument(&mut self) -> ParseResult<LocalNodeId<Argument>> {
         let start = self.mark();
-        let modifiers: Option<BindingModifier> = None;
         // spread argument
         if self.peek_token(TokenType::Spread).is_ok() {
-            self.bump(); // eat range
-            let name = self.eat_argument_name_maybe()?;
+            self.bump(); // eat spread
             let value = self.with_options(self.options.in_statement_position(), |parser| {
                 parser.eat_expression()
             })?;
-            let argument_id = self.tree.insert(
-                Argument::Spread {
-                    modifiers,
-                    name,
-                    value,
-                },
-                self.get_span_from(start),
-            );
+            let argument_id = self
+                .tree
+                .insert(Argument::Spread { value }, self.get_span_from(start));
             Ok(argument_id)
         }
         // nested spread argument (like {...b} in tree literals for #Compatibility)
@@ -466,20 +438,14 @@ impl Parser {
             && self.peek_next_next_token(TokenType::Identifier).is_ok()
         {
             self.bump(); // eat open brace
-            self.bump(); // eat range
-            let name = self.eat_argument_name_maybe()?;
+            self.bump(); // eat spread
             let value = self.with_options(self.options.in_statement_position(), |parser| {
                 parser.eat_expression()
             })?;
             self.eat_token(TokenType::CloseBrace)?;
-            let argument_id = self.tree.insert(
-                Argument::Spread {
-                    modifiers,
-                    name,
-                    value,
-                },
-                self.get_span_from(start),
-            );
+            let argument_id = self
+                .tree
+                .insert(Argument::Spread { value }, self.get_span_from(start));
             Ok(argument_id)
         }
         // named argument
@@ -506,7 +472,6 @@ impl Parser {
 
             let argument_id = self.tree.insert(
                 Argument::Named {
-                    modifiers,
                     name: Name::Identifier(name),
                     value,
                 },
@@ -527,6 +492,7 @@ impl Parser {
     }
 
     /// Eat static arguments (including the `<` and `>` tokens).
+    /// Only positional and spread arguments are allowed (no named arguments).
     pub fn eat_static_arguments(&mut self) -> ParseResult<Vec<LocalNodeId<Argument>>> {
         self.eat_token(TokenType::LessThan)?;
         self.eat_newlines_maybe()?;
@@ -537,9 +503,9 @@ impl Parser {
             return Ok(vec![]);
         }
 
-        // regular static arguments
+        // regular static arguments (positional/spread only)
         let static_arguments = self.with_options(self.options.nested().in_static(), |parser| {
-            parser.eat_arguments_body(TokenType::GreaterThan)
+            parser.eat_positional_arguments_body(TokenType::GreaterThan)
         })?;
 
         self.eat_newlines_maybe()?;
@@ -558,6 +524,7 @@ impl Parser {
     }
 
     /// Eat dynamic arguments (including the `(` and `)` tokens).
+    /// Only positional and spread arguments are allowed (no named arguments).
     pub fn eat_dynamic_arguments(&mut self) -> ParseResult<Vec<LocalNodeId<Argument>>> {
         self.eat_token(TokenType::OpenParenthesis)?;
         self.eat_newlines_maybe()?;
@@ -568,9 +535,9 @@ impl Parser {
             return Ok(vec![]);
         }
 
-        // regular dynamic arguments
+        // regular dynamic arguments (positional/spread only)
         let dynamic_arguments = self.with_options(self.options.nested(), |parser| {
-            parser.eat_arguments_body(TokenType::CloseParenthesis)
+            parser.eat_positional_arguments_body(TokenType::CloseParenthesis)
         })?;
 
         self.eat_newlines_maybe()?;
@@ -579,17 +546,45 @@ impl Parser {
         Ok(dynamic_arguments)
     }
 
-    /// Eat an argument list. May be comma or newline separated.
-    /// Empty arguments are an error.
+    /// Eat a call argument list (positional/spread only). May be comma or newline separated.
     ///
     /// Examples:
     /// ```
-    /// x: 1, y: 2
+    /// 1, 2
+    /// foo()
+    /// ...args
+    /// ```
+    #[inline]
+    pub fn eat_positional_arguments_body(
+        &mut self,
+        terminator: TokenType,
+    ) -> ParseResult<Vec<LocalNodeId<Argument>>> {
+        let mut arguments: Vec<LocalNodeId<Argument>> = Vec::new();
+        self.eat_newlines_maybe()?;
+        while self.peek().is_ok() {
+            if self.peek_token(terminator).is_ok() {
+                break;
+            }
+            let argument_id = self.eat_positional_argument()?;
+            arguments.push(argument_id);
+            self.eat_newlines_maybe()?;
+            if self.peek_item_stop().is_ok() {
+                self.eat_item_stop_with_newlines()?;
+            } else {
+                break;
+            }
+        }
+        Ok(arguments)
+    }
+
+    /// Eat an argument list (including named). May be comma or newline separated.
+    /// Used for tree literal children and import assertions where named arguments are allowed.
     ///
-    /// 3 // positional
-    ///
-    /// y: 2 // multiline
-    /// z
+    /// Examples:
+    /// ```
+    /// T: SomeType
+    /// 3
+    /// T: SomeType, U: OtherType
     /// ```
     #[inline]
     pub fn eat_arguments_body(
@@ -602,7 +597,7 @@ impl Parser {
             if self.peek_token(terminator).is_ok() {
                 break;
             }
-            let argument_id = self.eat_argument()?;
+            let argument_id = self.eat_named_argument()?;
             arguments.push(argument_id);
             self.eat_newlines_maybe()?;
             if self.peek_item_stop().is_ok() {
@@ -622,9 +617,7 @@ mod tests {
         Pattern, PatternField, ScalarLiteral, TypeLiteral, Visibility,
     };
 
-    use crate::{
-        TestParser, assert_expression_path, assert_name, assert_node, assert_path, assert_string,
-    };
+    use crate::{TestParser, assert_name, assert_node, assert_path, assert_string};
 
     #[test]
     fn test_parse_parameter_type_only() {
@@ -759,13 +752,15 @@ mod tests {
         });
     }
 
+    // named arguments (only valid for tree literals, not dynamic or static arguments)
+
     #[test]
-    fn test_parse_argument_named() {
+    fn test_parse_named_argument() {
         // x: 1
         let mut test = TestParser::new("x: 1");
         let mut parser = test.prepare();
-        let argument_id = parser.eat_argument().unwrap();
-        assert_node!(parser.tree, argument_id, Argument::Named { modifiers: _, name: Name::Identifier(name), value } => {
+        let argument_id = parser.eat_named_argument().unwrap();
+        assert_node!(parser.tree, argument_id, Argument::Named { name: Name::Identifier(name), value } => {
             // x
             assert_string!(parser, *name, "x");
             // 1
@@ -773,86 +768,32 @@ mod tests {
         });
     }
 
-    #[test]
-    fn test_parse_argument_named_multiline() {
-        // x: 1
-        let mut test = TestParser::new("x:\n\t1");
-        let mut parser = test.prepare();
-        let argument_id = parser.eat_argument().unwrap();
-        assert_node!(parser.tree, argument_id, Argument::Named { modifiers: _, name: Name::Identifier(name), value } => {
-            assert_string!(parser, *name, "x");
-            assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
-        });
-    }
+    // positional arguments (for dynamic args, static args, tuples)
 
     #[test]
-    fn test_parse_argument_named_string() {
-        // "Content-Type": "application/json"
-        let mut test = TestParser::new(r#""Content-Type": "application/json""#);
-        let mut parser = test.prepare();
-        let argument_id = parser.eat_argument().unwrap();
-
-        assert_node!(parser.tree, argument_id, Argument::Named { modifiers: _, name: Name::String(name), value } => {
-            // "Content-Type"
-            assert_string!(parser, *name, "Content-Type");
-            // "application/json"
-            assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::String(string_id)) => {
-                assert_string!(parser, *string_id, "application/json");
-            });
-        });
-    }
-
-    #[test]
-    fn test_parse_argument_positional() {
+    fn test_parse_positional_argument() {
         // 3
         let mut test = TestParser::new("3");
         let mut parser = test.prepare();
-        let argument_id = parser.eat_argument().unwrap();
+        let argument_id = parser.eat_positional_argument().unwrap();
 
-        assert_node!(parser.tree, argument_id, Argument::Positional { modifiers: _, value } => {
+        assert_node!(parser.tree, argument_id, Argument::Positional { value } => {
             // 3
             assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(3)));
         });
     }
 
     #[test]
-    fn test_parse_argument_spread() {
+    fn test_parse_spread_argument() {
         // ...args
         let mut test = TestParser::new("...args");
         let mut parser = test.prepare();
-        let argument_id = parser.eat_argument().unwrap();
-        assert_node!(parser.tree, argument_id, Argument::Spread { modifiers: _, name: None, value } => {
+        let argument_id = parser.eat_positional_argument().unwrap();
+        assert_node!(parser.tree, argument_id, Argument::Spread { value } => {
             // ...args
             assert_node!(parser.tree, *value, Expression::Path { path, .. } => {
                 assert_path!(parser, *path, "args");
             });
-        });
-    }
-
-    #[test]
-    fn test_parse_argument_spread_with_name() {
-        // ...args
-        let mut test = TestParser::new("...args: x");
-        let mut parser = test.prepare();
-        let argument_id = parser.eat_argument().unwrap();
-        assert_node!(parser.tree, argument_id, Argument::Spread { modifiers: _, name: Some(name), value } => {
-            // ...args
-            assert_string!(parser, *name, "args");
-            // x
-            assert_expression_path!(parser, parser.tree.get(*value), "x");
-        });
-    }
-
-    #[test]
-    fn test_parse_argument_with_modifiers() {
-        // private readonly const x: 1
-        let mut test = TestParser::new("private readonly const x: 1");
-        let mut parser = test.prepare();
-        let argument_id = parser.eat_argument().unwrap();
-        assert_node!(parser.tree, argument_id, Argument::Named { modifiers: Some(modifiers), .. } => {
-            assert_eq!(modifiers.visibility, Some(Visibility::Private));
-            assert_eq!(modifiers.mutability, Some(Mutability::Immutable));
-            assert_eq!(modifiers.operator, Some(BindingOperator::AsConst));
         });
     }
 }

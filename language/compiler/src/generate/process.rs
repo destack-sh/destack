@@ -1,4 +1,4 @@
-use crate::{GenerateResult, Compiler, Task, TaskDebug, TaskOutput};
+use crate::{Compiler, GenerateResult, Task, TaskDebug, TaskOutput};
 
 use destack_dir::{ModuleId, Program};
 

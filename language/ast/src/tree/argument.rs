@@ -45,48 +45,27 @@ impl Node for Parameter {
 }
 
 /// An Argument is an argument to some construct.
-/// It may be named or positional. Named shorthands are only supported in struct-like literals.
-/// Can be used in static and dynamic contexts (e.g. in [..] or (..)).
+/// Named arguments are only valid in tree literals (JSX-like attributes).
+/// All other arguments (dynamic arguments, static arguments, tuples) must be positional or spread.
 ///
 /// Examples:
 /// ```
-/// x: 1
-/// x?: 1
-/// y: foo()
-/// y
-/// false
-/// ...args
-/// ...args: int32[]
-/// foo()
-/// ["Content-Type"]: "application/json"
-/// [x: string]: any
-/// [string]: woof
-/// [var] = "hello"
+/// false                              // positional
+/// foo()                              // positional
+/// ...args                            // spread
+/// <Component name="foo" />           // named in tree literal only
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub enum Argument {
-    /// Named argument (like `x: 1` or `y: foo()`).
+    /// Named argument (only valid in tree literals for JSX-like attributes).
     Named {
-        modifiers: Option<BindingModifier>,
         name: Name,
         value: LocalNodeId<Expression>,
     },
-    /// Named shorthand argument (like `y`, only in certain contexts like struct literals).
-    Shorthand {
-        modifiers: Option<BindingModifier>,
-        name: StringId,
-    },
     /// Positional argument (like `1` or `foo()`).
-    Positional {
-        modifiers: Option<BindingModifier>,
-        value: LocalNodeId<Expression>,
-    },
-    /// Spread argument (like `...args` or `...args: int32[]`).
-    Spread {
-        modifiers: Option<BindingModifier>,
-        name: Option<StringId>,
-        value: LocalNodeId<Expression>,
-    },
+    Positional { value: LocalNodeId<Expression> },
+    /// Spread argument (like `...args`).
+    Spread { value: LocalNodeId<Expression> },
 }
 
 impl Node for Argument {

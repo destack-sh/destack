@@ -8,9 +8,9 @@ use destack_source::{DiagnosticCollector, DiagnosticOptions, Uri};
 use parking_lot::Mutex;
 
 use crate::{
-    GenerateOptions, CompileDiagnostic, ExecuteOptions, ImportOptions, LinkOptions, LowerOptions,
-    OptimizeOptions, ResolveOptions, TaskDependency, TaskError, TaskQueue, TaskResultCollector,
-    TaskWarning, AnalyzeOptions,
+    AnalyzeOptions, CompileDiagnostic, ExecuteOptions, GenerateOptions, ImportOptions, LinkOptions,
+    LowerOptions, OptimizeOptions, ResolveOptions, TaskDependency, TaskError, TaskQueue,
+    TaskResultCollector, TaskWarning,
 };
 
 /// Get the default number of worker threads (available parallelism, or 1 if unknown).

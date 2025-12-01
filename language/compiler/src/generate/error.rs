@@ -1,6 +1,6 @@
 use destack_dir::{GlobalNodeIdAny, Program};
 
-use crate::{TaskPhase, TaskDependency, TaskError};
+use crate::{TaskDependency, TaskError, TaskPhase};
 
 /// Error when generateing something into the compiler.
 #[derive(Debug, Clone, PartialEq)]

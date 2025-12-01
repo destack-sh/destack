@@ -5,10 +5,10 @@
 
 mod analyze;
 mod bind;
-mod generate;
 mod compile;
 mod elaborate;
 mod execute;
+mod generate;
 mod import;
 mod link;
 mod lower;
@@ -18,10 +18,10 @@ mod verify;
 
 pub use analyze::*;
 pub use bind::*;
-pub use generate::*;
 pub use compile::*;
 pub use elaborate::*;
 pub use execute::*;
+pub use generate::*;
 pub use import::*;
 pub use link::*;
 pub use lower::*;

@@ -162,14 +162,10 @@ impl Parser {
 
 #[cfg(test)]
 mod tests {
-    use destack_ast::{
-        Argument, Expression, LocalNodeId, Name, Path, PostfixPosition, ScalarLiteral,
-    };
+    use destack_ast::{Argument, Expression, LocalNodeId, Path, PostfixPosition, ScalarLiteral};
     use smallvec::smallvec;
 
-    use crate::{
-        Parser, TestParser, assert_expression_path, assert_node, assert_path, assert_string,
-    };
+    use crate::{Parser, TestParser, assert_expression_path, assert_node, assert_path};
 
     fn make_receiver(parser: &mut Parser) -> LocalNodeId<Expression> {
         let receiver_str = parser.strings.intern("receiver");
@@ -202,8 +198,8 @@ mod tests {
 
     #[test]
     fn test_parse_call_postfix() {
-        // (1, x: 2)
-        let mut test = TestParser::new("(1, x: 2)");
+        // (1, 2)
+        let mut test = TestParser::new("(1, 2)");
         let mut parser = test.prepare();
         let recv = make_receiver(&mut parser);
         let call_id = parser
@@ -214,17 +210,16 @@ mod tests {
             assert_eq!(*position, PostfixPosition::Direct);
             assert_eq!(*left, recv);
 
-            // (1, x: 2)
+            // (1, 2)
             assert_eq!(dynamic_arguments.len(), 2);
 
             // 1
-            assert_node!(parser.tree, dynamic_arguments[0], Argument::Positional { modifiers: _, value } => {
+            assert_node!(parser.tree, dynamic_arguments[0], Argument::Positional { value } => {
                 assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
             });
 
-            // x: 2
-            assert_node!(parser.tree, dynamic_arguments[1], Argument::Named { modifiers: _, name: Name::Identifier(name), value } => {
-                assert_string!(parser, *name, "x");
+            // 2
+            assert_node!(parser.tree, dynamic_arguments[1], Argument::Positional { value } => {
                 assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(2)));
             });
         });
@@ -232,28 +227,27 @@ mod tests {
 
     #[test]
     fn test_parse_call_expression_with_static_arguments() {
-        // foo<int32>(1, x: 2)
-        let mut test = TestParser::new("foo<T>(1, x: 2)");
+        // foo<T>(1, 2)
+        let mut test = TestParser::new("foo<T>(1, 2)");
         let mut parser = test.prepare();
         let expression_id = parser.eat_expression().unwrap();
 
-        // foo<int32>(1, x: 2)
+        // foo<T>(1, 2)
         assert_node!(parser.tree, expression_id, Expression::Call { position, left, static_arguments: Some(static_arguments), dynamic_arguments } => {
             assert_eq!(*position, PostfixPosition::Direct);
             // foo
             assert_expression_path!(parser, parser.tree.get(*left), "foo");
             // <T>
             assert_eq!(static_arguments.len(), 1);
-            assert_node!(parser.tree, static_arguments[0], Argument::Positional { modifiers: _, value } => {
+            assert_node!(parser.tree, static_arguments[0], Argument::Positional { value } => {
                 assert_expression_path!(parser, parser.tree.get(*value), "T");
             });
-            // (1, x: 2)
+            // (1, 2)
             assert_eq!(dynamic_arguments.len(), 2);
-            assert_node!(parser.tree, dynamic_arguments[0], Argument::Positional { modifiers: _, value } => {
+            assert_node!(parser.tree, dynamic_arguments[0], Argument::Positional { value } => {
                 assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
             });
-            assert_node!(parser.tree, dynamic_arguments[1], Argument::Named { modifiers: _, name: Name::Identifier(name), value } => {
-                assert_string!(parser, *name, "x");
+            assert_node!(parser.tree, dynamic_arguments[1], Argument::Positional { value } => {
                 assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(2)));
             });
         });

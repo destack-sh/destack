@@ -151,7 +151,7 @@ extension MyExt: Foo<int32> {
                 let static_args = static_arguments.as_ref().expect("expected static arguments");
                 assert_eq!(static_args.len(), 1);
                 // int32
-                assert_node!(parser.tree, static_args[0], Argument::Positional { modifiers: None, value } => {
+                assert_node!(parser.tree, static_args[0], Argument::Positional { value } => {
                     assert_node!(parser.tree, *value, Expression::TypeLiteral(TypeLiteral::Int(IntType::Arbitrary { width, is_signed })) => {
                         assert_eq!(*width, Some(32));
                         assert!(*is_signed);
@@ -187,7 +187,7 @@ extension Bar<int32> implements Baz {
                 let static_args = static_arguments.as_ref().expect("expected static arguments");
                 assert_eq!(static_args.len(), 1);
                 // int32
-                assert_node!(parser.tree, static_args[0], Argument::Positional { modifiers: None, value } => {
+                assert_node!(parser.tree, static_args[0], Argument::Positional { value } => {
                     assert_node!(parser.tree, *value, Expression::TypeLiteral(TypeLiteral::Int(IntType::Arbitrary { width, is_signed })) => {
                         assert_eq!(*width, Some(32));
                         assert!(*is_signed);
@@ -243,7 +243,7 @@ extension<U> Bar<T> implements Baz<T> {
                 // <T>
                 let static_arguments = static_arguments.as_ref().expect("expected static arguments");
                 assert_eq!(static_arguments.len(), 1);
-                assert_node!(parser.tree, static_arguments[0], Argument::Positional { modifiers: None, value } => {
+                assert_node!(parser.tree, static_arguments[0], Argument::Positional { value } => {
                     assert_node!(parser.tree, *value, Expression::Path { path, static_arguments: _ } => {
                         assert_path!(parser, *path, "T");
                     });
@@ -263,7 +263,7 @@ extension<U> Bar<T> implements Baz<T> {
                 // <T>
                 let static_arguments = static_arguments.as_ref().expect("expected static arguments");
                 assert_eq!(static_arguments.len(), 1);
-                assert_node!(parser.tree, static_arguments[0], Argument::Positional { modifiers: None, value } => {
+                assert_node!(parser.tree, static_arguments[0], Argument::Positional { value } => {
                     assert_node!(parser.tree, *value, Expression::Path { path, static_arguments: _ } => {
                         assert_path!(parser, *path, "T");
                     });

@@ -1,8 +1,8 @@
 use destack_dir::{GlobalNodeIdAny, Program};
 
 use crate::{
-    VerifyError, BindError, GenerateError, ElaborateError, ExecuteError, ImportError, LinkError,
-    LowerError, OptimizeError, TaskPhase, ResolveError, TaskDependency, TaskId, AnalyzeError,
+    AnalyzeError, BindError, ElaborateError, ExecuteError, GenerateError, ImportError, LinkError,
+    LowerError, OptimizeError, ResolveError, TaskDependency, TaskId, TaskPhase, VerifyError,
 };
 
 /// Error during compilation.

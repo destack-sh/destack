@@ -78,17 +78,15 @@ impl Compiler {
                 target_symbol,
                 remaining_path,
                 static_arguments,
-            } => {
-                self.resolve_relative_path(
-                    module,
-                    expression_id.into_global_any(module.id),
-                    *target_symbol,
-                    path,
-                    remaining_path,
-                    static_arguments.clone(),
-                    symbols,
-                )?
-            }
+            } => self.resolve_relative_path(
+                module,
+                expression_id.into_global_any(module.id),
+                *target_symbol,
+                path,
+                remaining_path,
+                static_arguments.clone(),
+                symbols,
+            )?,
             _ => return Ok(()),
         };
         *tree.get_mut(expression_id) = expression;

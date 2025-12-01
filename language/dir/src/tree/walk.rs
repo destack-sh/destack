@@ -1008,42 +1008,24 @@ pub fn walk_argument<V: NodeVisitor + ?Sized>(
 ) {
     visitor.visit_any(tree, NodeType::Argument, id.id);
     match argument {
-        Argument::UnresolvedNamed {
-            modifiers: _,
-            name: _,
-            value,
-        }
-        | Argument::UnresolvedPositional {
-            modifiers: _,
-            value,
-        }
-        | Argument::UnresolvedSpread {
-            modifiers: _,
-            name: _,
-            value,
-        } => {
+        Argument::UnresolvedNamed { name: _, value }
+        | Argument::UnresolvedPositional { value }
+        | Argument::UnresolvedSpread { value } => {
             let value_expression = tree.get(*value);
             visitor.visit_expression(tree, *value, value_expression);
         }
-        Argument::UnresolvedDynamic {
-            modifiers: _,
-            name: _,
-            key,
-            value,
-        } => {
+        Argument::UnresolvedDynamic { key, value } => {
             let key_expression = tree.get(*key);
             visitor.visit_expression(tree, *key, key_expression);
             let value_expression = tree.get(*value);
             visitor.visit_expression(tree, *value, value_expression);
         }
         Argument::Direct {
-            modifiers: _,
             name: _,
             target_symbol: _,
             value,
         }
         | Argument::Spread {
-            modifiers: _,
             name: _,
             target_symbol: _,
             value,
@@ -1052,8 +1034,6 @@ pub fn walk_argument<V: NodeVisitor + ?Sized>(
             visitor.visit_expression(tree, *value, value_expression);
         }
         Argument::Dynamic {
-            modifiers: _,
-            name: _,
             target_symbol: _,
             key,
             value,

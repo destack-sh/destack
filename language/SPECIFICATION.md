@@ -223,14 +223,14 @@ T            // automatic (TypeScript behavior)
 ### Dynamic Parameterisation
 
 Functions and methods work exactly like in JavaScript and TypeScript.
-In Destack, you can also pass named function arguments:
+Function calls use positional arguments:
 
 ```
 function myFunction(a: int, b: int) {
     ...
 }
 
-myFunction(a: 2, b: 3);
+myFunction(2, 3);
 ```
 
 ### Static Parameterisation ("Generics")
@@ -258,7 +258,7 @@ function compute<Foo: boolean>(data: uint8[]) {
     ...
 }
 
-compute<Foo: true>(); // static parameters may also be named
+compute<true>(); // pass the static argument positionally
 ```
 
 ### Where Clauses
