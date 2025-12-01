@@ -385,28 +385,6 @@ pub enum Expression {
     /// ```
     ScalarLiteral(ScalarLiteral),
 
-    /// Template literal value. Might include interpolation arguments.
-    ///
-    /// Examples:
-    /// ```
-    /// `hello`
-    /// `hello ${name}`
-    /// ```
-    TemplateLiteral { value: TemplateLiteral },
-
-    /// Tagged template literal value. Might include interpolation arguments.
-    ///
-    /// Examples:
-    /// ```
-    /// sql`SELECT * FROM users`
-    /// sql`${stmt}`
-    /// (sql.expr)`SELECT * FROM users WHERE name = ${name}` AND age > ${group.age()} LIMIT 10`
-    /// ```
-    TaggedTemplateLiteral {
-        tag: LocalNodeId<Expression>,
-        value: TemplateLiteral,
-    },
-
     /// Type literal.
     ///
     /// Examples:
@@ -424,7 +402,29 @@ pub enum Expression {
     /// ```
     TypeLiteral(TypeLiteral),
 
-    /// A RangeLiteral is range of values.
+    /// Template expression. May include interpolation arguments.
+    ///
+    /// Examples:
+    /// ```
+    /// `hello`
+    /// `hello ${name}`
+    /// ```
+    TemplateExpression { value: TemplateLiteral },
+
+    /// Tagged template expression. May include interpolation arguments.
+    ///
+    /// Examples:
+    /// ```
+    /// sql`SELECT * FROM users`
+    /// sql`${stmt}`
+    /// (sql.expr)`SELECT * FROM users WHERE name = ${name}` AND age > ${group.age()} LIMIT 10`
+    /// ```
+    TaggedTemplateExpression {
+        tag: LocalNodeId<Expression>,
+        value: TemplateLiteral,
+    },
+
+    /// A RangeExpression constructs a range of values.
     ///
     /// Examples:
     /// ```
@@ -432,13 +432,13 @@ pub enum Expression {
     /// 1..n // exclusive
     /// 1..=n // inclusive
     /// ```
-    RangeLiteral {
+    RangeExpression {
         start: LocalNodeId<Expression>,
         end: LocalNodeId<Expression>,
         is_inclusive: bool,
     },
 
-    /// An ArrayLiteral is literal array of homogeneous elements.
+    /// An ArrayExpression constructs an array of homogeneous elements.
     ///
     /// Examples:
     /// ```
@@ -451,12 +451,12 @@ pub enum Expression {
     /// ]
     /// [10, false, "Hi"] // hetereogenous array is valid in some contexts
     /// ```
-    ArrayLiteral {
+    ArrayExpression {
         elements: Vec<LocalNodeId<Argument>>,
     },
 
-    /// A TupleLiteral is an anonymous tuple of heterogeneous elements.
-    /// For named tuple "literals", see Call.
+    /// A TupleExpression constructs an anonymous tuple of heterogeneous elements.
+    /// For typed tuple expressions (newtype construction), see Call.
     ///
     /// Examples:
     /// ```
@@ -464,12 +464,12 @@ pub enum Expression {
     /// (1.0, 2.0, 3.0)
     /// (x: int32, y: boolean)
     /// ```
-    TupleLiteral {
+    TupleExpression {
         elements: Vec<LocalNodeId<Argument>>,
     },
 
-    /// A StructLiteral is literal struct of heterogeneous fields.
-    /// Struct literals always have an explicit type prefix (unlike tuple literals).
+    /// An ObjectExpression constructs an object with heterogeneous fields.
+    /// May have an optional type prefix for nominal struct construction.
     ///
     /// Examples:
     /// ```
@@ -477,12 +477,12 @@ pub enum Expression {
     /// Vector2 { x: 1, y: 2 }
     /// some_module.MyUnion.OptionB { a: true }
     /// ```
-    StructLiteral {
+    ObjectExpression {
         ty: Option<LocalNodeId<Expression>>,
         properties: Vec<LocalNodeId<Property>>,
     },
 
-    /// A TreeLiteral is literal tree fragment with arguments (similar to JSX).
+    /// A TreeExpression constructs a tree fragment with arguments (similar to JSX).
     /// The contents of the tree are normal expressions (no implicit text, but full language features).
     /// Like other language constructs, trees are customizable via traits and context.
     ///
@@ -496,7 +496,7 @@ pub enum Expression {
     ///     ..someChildren.map(child => <Entity name={child.name} />)
     /// </Level>
     /// ```
-    TreeLiteral {
+    TreeExpression {
         left: Option<LocalNodeId<Expression>>,
         arguments: Option<Vec<LocalNodeId<Argument>>>,
         elements: Option<Vec<LocalNodeId<Argument>>>,

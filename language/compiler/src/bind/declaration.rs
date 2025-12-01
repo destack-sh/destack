@@ -2,8 +2,8 @@ use crate::Compiler;
 use destack_ast as ast;
 use destack_dir::{
     BindingAnchor, Declaration, DeclarationDescriptor, DeclarationKind, EnumField, LocalNodeId,
-    LocalNodeIdAny, LocalScopeId, LocalScopeMark, Module, NodeTree, NodeType, ScopeKind,
-    StructKind, SymbolKey, SymbolKind, SymbolSpace, SymbolTable, TypeTable,
+    LocalNodeIdAny, LocalScopeId, LocalScopeMark, Module, NodeTree, NodeType, ScopeKind, SymbolKey,
+    SymbolKind, SymbolSpace, SymbolTable, TypeTable,
 };
 
 #[allow(clippy::too_many_arguments)]
@@ -177,7 +177,6 @@ impl Compiler {
             }
             ast::Declaration::Struct {
                 descriptor,
-                kind,
                 generics,
                 heritage,
                 properties,
@@ -189,10 +188,6 @@ impl Compiler {
                     SymbolKind::Item,
                     symbols,
                 );
-                let kind = match kind {
-                    ast::StructKind::Struct => StructKind::Struct,
-                    ast::StructKind::Class => StructKind::Class,
-                };
                 let generics = self.bind_generics(
                     module,
                     (scope_id, symbols.get_scope_mark(scope_id)),
@@ -227,7 +222,59 @@ impl Compiler {
                     .collect();
                 Declaration::Struct {
                     descriptor,
-                    kind,
+                    generics,
+                    heritage,
+                    scope: scope_id,
+                    properties,
+                }
+            }
+            ast::Declaration::Class {
+                descriptor,
+                generics,
+                heritage,
+                properties,
+            } => {
+                let (descriptor, scope_id) = self.bind_declaration_descriptor(
+                    module,
+                    scope,
+                    descriptor,
+                    SymbolKind::Item,
+                    symbols,
+                );
+                let generics = self.bind_generics(
+                    module,
+                    (scope_id, symbols.get_scope_mark(scope_id)),
+                    generics,
+                    Some(declaration_id),
+                    tree,
+                    symbols,
+                    types,
+                );
+                let heritage = self.bind_heritage(
+                    module,
+                    (scope_id, symbols.get_scope_mark(scope_id)),
+                    heritage,
+                    Some(declaration_id),
+                    tree,
+                    symbols,
+                    types,
+                );
+                let properties = properties
+                    .iter()
+                    .map(|property| {
+                        self.bind_property(
+                            module,
+                            (scope_id, symbols.get_scope_mark(scope_id)),
+                            *property,
+                            Some(declaration_id),
+                            tree,
+                            symbols,
+                            types,
+                        )
+                    })
+                    .collect();
+                Declaration::Class {
+                    descriptor,
                     generics,
                     heritage,
                     scope: scope_id,

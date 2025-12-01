@@ -141,7 +141,6 @@ impl Transpiler {
             dir::Declaration::Struct {
                 descriptor,
                 scope: _,
-                kind: _,
                 generics,
                 heritage,
                 properties,
@@ -159,7 +158,34 @@ impl Transpiler {
                         self.transpile_property(module, tree, symbols, types, *property, unit)
                     })
                     .collect::<Result<Vec<_>, TranspileError>>()?;
-                // TODO #Broken: struct declarations should become just JS types + namespaces?
+                // TODO #Incomplete: struct declarations should become just JS types + namespaces?
+                Declaration::Class {
+                    descriptor,
+                    generics,
+                    heritage,
+                    properties,
+                }
+            }
+            dir::Declaration::Class {
+                descriptor,
+                scope: _,
+                generics,
+                heritage,
+                properties,
+            } => {
+                let descriptor = self.transpile_declaration_descriptor(
+                    module, tree, symbols, types, descriptor, unit,
+                );
+                let generics =
+                    self.transpile_generics(module, tree, symbols, types, generics, unit)?;
+                let heritage =
+                    self.transpile_heritage(module, tree, symbols, types, heritage, unit)?;
+                let properties = properties
+                    .iter()
+                    .map(|property| {
+                        self.transpile_property(module, tree, symbols, types, *property, unit)
+                    })
+                    .collect::<Result<Vec<_>, TranspileError>>()?;
                 Declaration::Class {
                     descriptor,
                     generics,

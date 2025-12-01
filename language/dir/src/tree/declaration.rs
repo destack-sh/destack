@@ -46,10 +46,17 @@ pub enum Declaration {
         static_parameters: Option<Vec<LocalNodeId<Parameter>>>,
         value: LocalNodeId<Expression>,
     },
-    /// Struct or class declaration.
+    /// Struct declaration with value semantics.
     Struct {
         descriptor: DeclarationDescriptor,
-        kind: StructKind,
+        generics: Generics,
+        heritage: Heritage,
+        scope: LocalScopeId,
+        properties: Vec<LocalNodeId<Property>>,
+    },
+    /// Class declaration with reference semantics.
+    Class {
+        descriptor: DeclarationDescriptor,
         generics: Generics,
         heritage: Heritage,
         scope: LocalScopeId,
@@ -106,6 +113,7 @@ impl Declaration {
             Declaration::Namespace { .. } => "namespace",
             Declaration::Type { .. } => "type",
             Declaration::Struct { .. } => "struct",
+            Declaration::Class { .. } => "class",
             Declaration::Enum { .. } => "enum",
             Declaration::Interface { .. } => "interface",
             Declaration::Function { .. } => "function",
@@ -119,6 +127,7 @@ impl Declaration {
             Declaration::Namespace { descriptor, .. } => descriptor,
             Declaration::Type { descriptor, .. } => descriptor,
             Declaration::Struct { descriptor, .. } => descriptor,
+            Declaration::Class { descriptor, .. } => descriptor,
             Declaration::Enum { descriptor, .. } => descriptor,
             Declaration::Interface { descriptor, .. } => descriptor,
             Declaration::Function { descriptor, .. } => descriptor,
@@ -138,21 +147,13 @@ impl Declaration {
             Declaration::Namespace { scope, .. } => Some(*scope),
             Declaration::Type { .. } => None,
             Declaration::Struct { scope, .. } => Some(*scope),
+            Declaration::Class { scope, .. } => Some(*scope),
             Declaration::Enum { scope, .. } => Some(*scope),
             Declaration::Interface { scope, .. } => Some(*scope),
             Declaration::Function { scope, .. } => Some(*scope),
             Declaration::Extension { scope, .. } => Some(*scope),
         }
     }
-}
-
-/// The style of a struct or class.
-#[derive(Debug, Copy, Clone, PartialEq)]
-pub enum StructKind {
-    /// Struct.
-    Struct,
-    /// Class.
-    Class,
 }
 
 /// An enum field is a named field of an enum declaration.

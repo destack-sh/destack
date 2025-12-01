@@ -169,7 +169,7 @@ impl Compiler {
             }
 
             // range
-            &Expression::RangeLiteral {
+            &Expression::RangeExpression {
                 start,
                 end,
                 is_inclusive,
@@ -184,14 +184,14 @@ impl Compiler {
                     is_inclusive,
                 }
             }
-            // tuple
-            Expression::TupleLiteral { ty, .. } if ty.is_none() => {
+            // tuple (anonymous)
+            Expression::TupleExpression { .. } => {
                 return Err(ResolveError::UnsupportedNode {
                     node: expression_id.into_global_any(module.id),
                 });
             }
-            // struct
-            Expression::StructLiteral { ty, .. } if ty.is_none() => {
+            // object (anonymous)
+            Expression::ObjectExpression { .. } => {
                 return Err(ResolveError::UnsupportedNode {
                     node: expression_id.into_global_any(module.id),
                 });

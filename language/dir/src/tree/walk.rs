@@ -426,7 +426,7 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
         Expression::ScalarLiteral { value: _ } => {
             // nothing to do
         }
-        Expression::TemplateLiteral { value } => {
+        Expression::TemplateExpression { value } => {
             match value {
                 TemplateLiteral::String { .. } => {
                     // nothing to do
@@ -439,7 +439,7 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
                 }
             }
         }
-        Expression::TaggedTemplateLiteral { tag, value } => {
+        Expression::TaggedTemplateExpression { tag, value } => {
             let tag_expression = tree.get(*tag);
             visitor.visit_expression(tree, *tag, tag_expression);
             match value {
@@ -457,7 +457,7 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
         Expression::TypeLiteral { value: _ } => {
             // nothing to do
         }
-        Expression::RangeLiteral {
+        Expression::RangeExpression {
             start,
             end,
             is_inclusive: _,
@@ -467,33 +467,25 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             let end_expression = tree.get(*end);
             visitor.visit_expression(tree, *end, end_expression);
         }
-        Expression::ArrayLiteral { elements } => {
+        Expression::ArrayExpression { elements } => {
             for element_id in elements {
                 let element = tree.get(*element_id);
                 visitor.visit_argument(tree, *element_id, element);
             }
         }
-        Expression::TupleLiteral { ty, elements } => {
-            if let Some(ty_id) = ty {
-                let ty_node = tree.get(*ty_id);
-                visitor.visit_expression(tree, *ty_id, ty_node);
-            }
+        Expression::TupleExpression { elements } => {
             for argument_id in elements {
                 let argument = tree.get(*argument_id);
                 visitor.visit_argument(tree, *argument_id, argument);
             }
         }
-        Expression::StructLiteral { ty, properties } => {
-            if let Some(ty_id) = ty {
-                let ty_node = tree.get(*ty_id);
-                visitor.visit_expression(tree, *ty_id, ty_node);
-            }
+        Expression::ObjectExpression { properties } => {
             for property_id in properties {
                 let property = tree.get(*property_id);
                 visitor.visit_property(tree, *property_id, property);
             }
         }
-        Expression::TreeLiteral {
+        Expression::TreeExpression {
             left,
             arguments,
             elements,
@@ -513,6 +505,28 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
                     let element = tree.get(*element_id);
                     visitor.visit_argument(tree, *element_id, element);
                 }
+            }
+        }
+        Expression::TaggedScalarExpression { ty, value } => {
+            let ty_node = tree.get(*ty);
+            visitor.visit_expression(tree, *ty, ty_node);
+            let value_node = tree.get(*value);
+            visitor.visit_expression(tree, *value, value_node);
+        }
+        Expression::TaggedTupleExpression { ty, elements } => {
+            let ty_node = tree.get(*ty);
+            visitor.visit_expression(tree, *ty, ty_node);
+            for argument_id in elements {
+                let argument = tree.get(*argument_id);
+                visitor.visit_argument(tree, *argument_id, argument);
+            }
+        }
+        Expression::TaggedObjectExpression { ty, properties } => {
+            let ty_node = tree.get(*ty);
+            visitor.visit_expression(tree, *ty, ty_node);
+            for property_id in properties {
+                let property = tree.get(*property_id);
+                visitor.visit_property(tree, *property_id, property);
             }
         }
         Expression::Parenthesized { expression } => {
@@ -717,7 +731,20 @@ pub fn walk_declaration<V: NodeVisitor + ?Sized>(
         }
         Declaration::Struct {
             descriptor: _,
-            kind: _,
+            generics,
+            heritage,
+            properties,
+            scope: _,
+        } => {
+            walk_generics(visitor, tree, generics);
+            walk_heritage(visitor, tree, heritage);
+            for property_id in properties {
+                let property = tree.get(*property_id);
+                visitor.visit_property(tree, *property_id, property);
+            }
+        }
+        Declaration::Class {
+            descriptor: _,
             generics,
             heritage,
             properties,
@@ -1138,16 +1165,31 @@ pub fn walk_static_expression<V: NodeVisitor + ?Sized>(
             let expression = tree.get(*node);
             visitor.visit_expression(tree, *node, expression);
         }
+
+        StaticExpression::Declaration {
+            declaration,
+            static_arguments,
+        } => {
+            let declaration_node = tree.get(*declaration);
+            visitor.visit_declaration(tree, *declaration, declaration_node);
+            if let Some(static_arguments) = static_arguments {
+                for static_argument_id in static_arguments {
+                    let static_argument = tree.get(*static_argument_id);
+                    visitor.visit_static_argument(tree, *static_argument_id, static_argument);
+                }
+            }
+        }
         StaticExpression::Type { ty: _ } => {
             // nothing to do
         }
+
         StaticExpression::TypeLiteral { value: _ } => {
             // nothing to do
         }
         StaticExpression::ScalarLiteral { value: _ } => {
             // nothing to do
         }
-        StaticExpression::RangeLiteral {
+        StaticExpression::RangeExpression {
             start,
             end,
             is_inclusive: _,
@@ -1157,19 +1199,19 @@ pub fn walk_static_expression<V: NodeVisitor + ?Sized>(
             let end_expression = tree.get(*end);
             visitor.visit_static_expression(tree, *end, end_expression);
         }
-        StaticExpression::ArrayLiteral { elements } => {
+        StaticExpression::ArrayExpression { elements } => {
             for element_id in elements {
                 let element = tree.get(*element_id);
                 visitor.visit_static_expression(tree, *element_id, element);
             }
         }
-        StaticExpression::TupleLiteral { elements } => {
+        StaticExpression::TupleExpression { elements } => {
             for element_id in elements {
                 let element = tree.get(*element_id);
                 visitor.visit_static_expression(tree, *element_id, element);
             }
         }
-        StaticExpression::StructLiteral { properties } => {
+        StaticExpression::ObjectExpression { properties } => {
             for property_id in properties {
                 let property = tree.get(*property_id);
                 visitor.visit_static_property(tree, *property_id, property);

@@ -157,6 +157,8 @@ pub enum Declaration {
     /// newtype T = int32
     /// newtype Foo<T> = Baz<T> | null
     /// newtype T = { a: int32, b: boolean } | true
+    /// newtype Point = (float32, float32)
+    /// type Result<T, E> = Ok<T> | Err<E>  // discriminated union pattern
     /// ```
     Type {
         descriptor: DeclarationDescriptor,
@@ -166,7 +168,7 @@ pub enum Declaration {
         value: LocalNodeId<Expression>,
     },
 
-    /// A Struct is struct or class declaration.
+    /// A Struct is a struct declaration with value semantics.
     /// The ',' separator is optional if newline-delimited.
     /// Structs may `use` other structs to include them (just like interfaces).
     /// Structs may also extend other structs as semantic sugar for `use`-ing them.
@@ -202,7 +204,30 @@ pub enum Declaration {
     /// ```
     Struct {
         descriptor: DeclarationDescriptor,
-        kind: StructKind,
+        generics: Generics,
+        heritage: Heritage,
+        properties: Vec<LocalNodeId<Property>>,
+    },
+
+    /// A Class is a class declaration with reference semantics.
+    /// Classes have constructors, prototype-based inheritance, and `this` binding.
+    ///
+    /// Examples:
+    /// ```
+    /// class Foo {
+    ///     myField: int32
+    ///
+    ///     constructor(value: int32) {
+    ///         this.myField = value
+    ///     }
+    /// }
+    ///
+    /// class Bar extends Foo {
+    ///     otherField: boolean
+    /// }
+    /// ```
+    Class {
+        descriptor: DeclarationDescriptor,
         generics: Generics,
         heritage: Heritage,
         properties: Vec<LocalNodeId<Property>>,
@@ -392,6 +417,7 @@ impl Declaration {
             Declaration::Namespace { descriptor, .. } => descriptor,
             Declaration::Type { descriptor, .. } => descriptor,
             Declaration::Struct { descriptor, .. } => descriptor,
+            Declaration::Class { descriptor, .. } => descriptor,
             Declaration::Enum { descriptor, .. } => descriptor,
             Declaration::Interface { descriptor, .. } => descriptor,
             Declaration::Extension { descriptor, .. } => descriptor,
@@ -404,15 +430,6 @@ impl Declaration {
     pub fn name(&self) -> Option<Name> {
         self.descriptor().name
     }
-}
-
-/// The kind of a struct.
-#[derive(Debug, Copy, Clone, PartialEq)]
-pub enum StructKind {
-    /// Struct.
-    Struct,
-    /// Class.
-    Class,
 }
 
 /// A EnumField is a enum field declaration.

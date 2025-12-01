@@ -4,8 +4,9 @@ use crate::{
     Argument, AssignOperator, Asynchrony, BinaryOperator, Block, Declaration,
     DeclarationDescriptor, DependencyItem, DependencyKind, GlobalSymbolId, LocalNodeId,
     LocalScopeId, LocalSymbolId, LocalTypeId, MatchCase, MatchSource, ModuleId, Mutability, Node,
-    NodeType, Path, Pattern, Property, ScalarLiteral, StaticProperty, TemplateLiteral,
-    TypeBinaryOperator, TypeLiteral, TypeUnaryOperator, UnaryOperator, VarianceBound,
+    NodeType, Path, Pattern, Property, ScalarLiteral, StaticArgument, StaticProperty,
+    TemplateLiteral, TypeBinaryOperator, TypeLiteral, TypeUnaryOperator, UnaryOperator,
+    VarianceBound,
 };
 
 /// An Expression is a generic container for all constructs.
@@ -189,44 +190,58 @@ pub enum Expression {
         target_symbol: GlobalSymbolId,
     },
 
-    /// Type as a value.
-    Type { ty: LocalTypeId },
     /// Scalar literal value.
     ScalarLiteral { value: ScalarLiteral },
-    /// Template literal value.
-    TemplateLiteral { value: TemplateLiteral },
-    /// Tagged template literal value.
-    TaggedTemplateLiteral {
+    /// Type literal value.
+    TypeLiteral { value: TypeLiteral },
+
+    /// Type as a value.
+    Type { ty: LocalTypeId },
+    /// Template expression.
+    TemplateExpression { value: TemplateLiteral },
+    /// Tagged template expression.
+    TaggedTemplateExpression {
         tag: LocalNodeId<Expression>,
         value: TemplateLiteral,
     },
-    /// Type literal value.
-    TypeLiteral { value: TypeLiteral },
-    /// Range literal value.
-    RangeLiteral {
+    /// Range expression.
+    RangeExpression {
         start: LocalNodeId<Expression>,
         end: LocalNodeId<Expression>,
         is_inclusive: bool,
     },
-    /// Array creation.
-    ArrayLiteral {
+    /// Array expression (anonymous).
+    ArrayExpression {
         elements: Vec<LocalNodeId<Argument>>,
     },
-    /// Tuple creation.
-    TupleLiteral {
-        ty: Option<LocalNodeId<Expression>>,
+    /// Tuple expression (anonymous).
+    TupleExpression {
         elements: Vec<LocalNodeId<Argument>>,
     },
-    /// Struct creation.
-    StructLiteral {
-        ty: Option<LocalNodeId<Expression>>,
+    /// Object expression (anonymous).
+    ObjectExpression {
         properties: Vec<LocalNodeId<Property>>,
     },
-    /// Tree creation.
-    TreeLiteral {
+    /// Tree expression.
+    TreeExpression {
         left: Option<LocalNodeId<Expression>>,
         arguments: Option<Vec<LocalNodeId<Argument>>>,
         elements: Option<Vec<LocalNodeId<Argument>>>,
+    },
+    /// Tagged scalar expression (newtype construction like `UserId(20)`).
+    TaggedScalarExpression {
+        ty: LocalNodeId<Expression>,
+        value: LocalNodeId<Expression>,
+    },
+    /// Tagged tuple expression (newtype construction like `Point(1, 2)`).
+    TaggedTupleExpression {
+        ty: LocalNodeId<Expression>,
+        elements: Vec<LocalNodeId<Argument>>,
+    },
+    /// Tagged object expression (nominal struct like `Vector3 { x: 1, y: 2 }`).
+    TaggedObjectExpression {
+        ty: LocalNodeId<Expression>,
+        properties: Vec<LocalNodeId<Property>>,
     },
     /// Parenthesized expression.
     Parenthesized { expression: LocalNodeId<Expression> },
@@ -373,14 +388,17 @@ impl Expression {
 
             Expression::Type { .. } => "type",
             Expression::ScalarLiteral { .. } => "scalar literal",
-            Expression::TemplateLiteral { .. } => "template literal",
-            Expression::TaggedTemplateLiteral { .. } => "tagged template literal",
+            Expression::TemplateExpression { .. } => "template expression",
+            Expression::TaggedTemplateExpression { .. } => "tagged template expression",
             Expression::TypeLiteral { .. } => "type literal",
-            Expression::RangeLiteral { .. } => "range literal",
-            Expression::ArrayLiteral { .. } => "array literal",
-            Expression::TupleLiteral { .. } => "tuple literal",
-            Expression::StructLiteral { .. } => "struct literal",
-            Expression::TreeLiteral { .. } => "tree literal",
+            Expression::RangeExpression { .. } => "range expression",
+            Expression::ArrayExpression { .. } => "array expression",
+            Expression::TupleExpression { .. } => "tuple expression",
+            Expression::ObjectExpression { .. } => "object expression",
+            Expression::TreeExpression { .. } => "tree expression",
+            Expression::TaggedScalarExpression { .. } => "tagged scalar expression",
+            Expression::TaggedTupleExpression { .. } => "tagged tuple expression",
+            Expression::TaggedObjectExpression { .. } => "tagged object expression",
             Expression::Parenthesized { .. } => "parenthesized",
 
             Expression::If { .. } => "if",
@@ -446,30 +464,34 @@ pub enum StaticExpression {
     /// Unresolved dynamic expression.
     Unresolved { node: LocalNodeId<Expression> },
 
-    
-    /// Type.
-    Type { ty: LocalTypeId },
-
-    /// Type literal.
-    TypeLiteral { value: TypeLiteral },
     /// Scalar literal.
     ScalarLiteral { value: ScalarLiteral },
-    /// Range literal.
-    RangeLiteral {
+    /// Type literal.
+    TypeLiteral { value: TypeLiteral },
+
+    /// Declaration.
+    Declaration {
+        declaration: LocalNodeId<Declaration>,
+        static_arguments: Option<Vec<LocalNodeId<StaticArgument>>>,
+    },
+    /// Type.
+    Type { ty: LocalTypeId },
+    /// Range expression.
+    RangeExpression {
         start: LocalNodeId<StaticExpression>,
         end: LocalNodeId<StaticExpression>,
         is_inclusive: bool,
     },
-    /// Array literal.
-    ArrayLiteral {
+    /// Array expression.
+    ArrayExpression {
         elements: Vec<LocalNodeId<StaticExpression>>,
     },
-    /// Tuple literal.
-    TupleLiteral {
+    /// Tuple expression.
+    TupleExpression {
         elements: Vec<LocalNodeId<StaticExpression>>,
     },
-    /// Struct literal.
-    StructLiteral {
+    /// Object expression.
+    ObjectExpression {
         properties: Vec<LocalNodeId<StaticProperty>>,
     },
 }

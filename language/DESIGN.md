@@ -148,6 +148,37 @@ newtype OrderId = int64;
 ```
 
 Newtypes prevent entire categories of bugs by making semantically different values incompatible at compile time.
+Newtypes can wrap scalars, tuples, or structs, with constructor syntax matching the underlying type:
+
+```
+newtype UserId = int64;
+newtype Point = (float32, float32);
+newtype Config = { debug: boolean, level: int };
+
+const id = UserId(42);           // scalar newtype
+const p = Point(1.0, 2.0);       // tuple newtype
+const c = Config { debug: true, level: 5 }; // struct newtype
+```
+
+Newtypes combined with structs and discriminated unions enable idiomatic Result types:
+
+```
+struct Ok<T> { kind: 'ok' = 'ok', value: T }
+struct Err<E> { kind: 'err' = 'err', error: E }
+type Result<T, E> = Ok<T> | Err<E>
+
+// construction
+const success: Result<int, string> = Ok { value: 42 };
+const failure: Result<int, string> = Err { error: "oops" };
+
+// pattern matching
+match result {
+    Ok { value } => process(value)
+    Err { error } => handle(error)
+}
+```
+
+This pattern is TypeScript-idiomatic (discriminated unions), fully interoperable, and works seamlessly with Destack's pattern matching.
 As a bonus, because types are first-class citizens in Destack, we get to associate methods and constants with newtypes (or any other types) using `extension` (see below).
 
 ## Structs
@@ -160,8 +191,7 @@ struct Point { x: float32, y: float32 }
 
 Structs are simpler and more predictable than classes for plain data.
 Unlike classes, structs are passed by value (copied) by default and have no constructor ceremony.
-This is like Rust structs or C structs.
-TypeScript only has classes and interfaces, both reference-based.
+Structs are essentially newtypes around `type MyStruct = { .. }` with associated methods and constants.
 
 ## Ownership
 

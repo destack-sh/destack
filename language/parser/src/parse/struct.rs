@@ -5,7 +5,7 @@ use crate::{ParseResult, Parser};
 
 use destack_ast::{
     Declaration, DeclarationDescriptor, Generics, Heritage, Keyword, LocalNodeId, NodeType,
-    StructKind, TokenType,
+    TokenType,
 };
 
 impl Parser {
@@ -39,7 +39,7 @@ impl Parser {
     ///     }
     /// }
     /// ```
-    pub fn eat_struct(
+    pub fn eat_struct_or_class(
         &mut self,
         mut descriptor: DeclarationDescriptor,
     ) -> ParseResult<LocalNodeId<Declaration>> {
@@ -49,11 +49,7 @@ impl Parser {
         let keyword = self
             .eat_keyword_in(&[Keyword::Struct, Keyword::Class])
             .for_node_type(NodeType::Declaration)?;
-        let kind = match keyword {
-            Keyword::Struct => StructKind::Struct,
-            Keyword::Class => StructKind::Class,
-            _ => unreachable!(),
-        };
+        let is_class = keyword == Keyword::Class;
 
         // optional name / key
         descriptor = descriptor.with_name_maybe(self.eat_name_maybe()?);
@@ -94,21 +90,27 @@ impl Parser {
         self.eat_token(TokenType::CloseBrace)
             .for_node_type(NodeType::Declaration)?;
 
-        // struct
+        // struct or class
         let generics = Generics::new(static_parameters, with_clauses, where_clauses);
         let heritage = Heritage::new(extends_types, implements_types);
-        let struct_id = self.tree.insert(
-            Declaration::Struct {
+        let declaration = if is_class {
+            Declaration::Class {
                 descriptor,
-                kind,
                 generics,
                 heritage,
                 properties,
-            },
-            self.get_span_from(start),
-        );
+            }
+        } else {
+            Declaration::Struct {
+                descriptor,
+                generics,
+                heritage,
+                properties,
+            }
+        };
+        let declaration_id = self.tree.insert(declaration, self.get_span_from(start));
 
-        Ok(struct_id)
+        Ok(declaration_id)
     }
 }
 
@@ -134,7 +136,9 @@ struct { public x: int32, readonly y: boolean
         parser.eat_newline().unwrap();
 
         // struct { x: int32, y: boolean }
-        let struct_id = parser.eat_struct(DeclarationDescriptor::default()).unwrap();
+        let struct_id = parser
+            .eat_struct_or_class(DeclarationDescriptor::default())
+            .unwrap();
         assert_node!(parser.tree, struct_id, Declaration::Struct { descriptor, generics, properties, .. } => {
             assert_eq!(descriptor.kind, DeclarationKind::Definition);
             assert!(descriptor.name.is_none());
@@ -169,7 +173,9 @@ struct Foo extends Bar {}
         let mut parser = test.prepare();
         parser.eat_newline().unwrap();
 
-        let struct_id = parser.eat_struct(DeclarationDescriptor::default()).unwrap();
+        let struct_id = parser
+            .eat_struct_or_class(DeclarationDescriptor::default())
+            .unwrap();
         assert_node!(parser.tree, struct_id, Declaration::Struct { descriptor, heritage, properties, .. } => {
             assert_eq!(descriptor.kind, DeclarationKind::Definition);
             assert_string!(parser, descriptor.name.unwrap().string(), "Foo");
@@ -203,7 +209,9 @@ struct Foo<T: Numeric> extends Boz implements Quux {
         let mut parser = test.prepare();
         parser.eat_newline().unwrap();
 
-        let struct_id = parser.eat_struct(DeclarationDescriptor::default()).unwrap();
+        let struct_id = parser
+            .eat_struct_or_class(DeclarationDescriptor::default())
+            .unwrap();
         assert_node!(parser.tree, struct_id, Declaration::Struct { descriptor, generics, heritage, properties, .. } => {
             assert_eq!(descriptor.kind, DeclarationKind::Definition);
             assert_string!(parser, descriptor.name.unwrap().string(), "Foo");
@@ -295,7 +303,9 @@ struct Foo with Context where Guard > Limit {
         let mut parser = test.prepare();
         parser.eat_newline().unwrap();
 
-        let struct_id = parser.eat_struct(DeclarationDescriptor::default()).unwrap();
+        let struct_id = parser
+            .eat_struct_or_class(DeclarationDescriptor::default())
+            .unwrap();
         assert_node!(parser.tree, struct_id, Declaration::Struct { descriptor, generics, properties, .. } => {
             assert_eq!(descriptor.kind, DeclarationKind::Definition);
             assert!(properties.is_empty());
@@ -337,7 +347,9 @@ struct Foo {
         let mut parser = test.prepare();
         parser.eat_newline().unwrap();
 
-        let struct_id = parser.eat_struct(DeclarationDescriptor::default()).unwrap();
+        let struct_id = parser
+            .eat_struct_or_class(DeclarationDescriptor::default())
+            .unwrap();
         assert_node!(parser.tree, struct_id, Declaration::Struct { descriptor, properties, .. } => {
             assert_eq!(descriptor.kind, DeclarationKind::Definition);
             assert_eq!(properties.len(), 1);

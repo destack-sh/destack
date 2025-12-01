@@ -184,6 +184,31 @@ newtype UserId = int64;                     // nominal (distinct type)
 ```
 
 A `newtype` creates a distinct type—`UserId` and `OrderId` won't mix even if both are `int64`.
+Newtypes can wrap scalars, tuples, or structs:
+
+```
+newtype UserId = int64;                    // wraps scalar
+newtype Point = (float32, float32);        // wraps tuple
+newtype Config = { debug: boolean };       // wraps struct
+```
+
+Construction syntax matches the underlying type:
+
+```
+const id = UserId(42);                     // scalar: Name(value)
+const p = Point(1.0, 2.0);                 // tuple: Name(elements...)
+const c = Config { debug: true };          // struct: Name { fields... }
+```
+
+Pattern matching also works with newtype constructors:
+
+```
+match id {
+    UserId(0) => "system"
+    UserId(n) => `user ${n}`
+}
+```
+
 Newtypes can have methods via extensions (see Extensions below).
 The same mechanism works for all types: structs, enums, newtypes, even foreign types and builtin primitives like `int32` or `Date`.
 
@@ -194,6 +219,45 @@ Combinator types work like in TypeScript:
 ```
 int32 | string | null      // union
 A & B                      // intersection
+```
+
+#### Discriminated Unions
+
+Destack uses TypeScript-style discriminated unions for sum types.
+Combined with structs, this enables idiomatic Result types:
+
+```
+struct Ok<T> { kind: 'ok' = 'ok', value: T }
+struct Err<E> { kind: 'err' = 'err', error: E }
+type Result<T, E> = Ok<T> | Err<E>
+```
+
+Usage with construction and pattern matching:
+
+```
+function divide(a: int, b: int): Result<int, string> {
+    if b == 0 {
+        Err { error: "division by zero" }
+    } else {
+        Ok { value: a / b }
+    }
+}
+
+match divide(10, 2) {
+    Ok { value } => print(`result: ${value}`);
+    Err { error } => print(`error: ${error}`);
+}
+```
+
+This pattern is fully TypeScript-interoperable and works seamlessly with Destack's exhaustive pattern matching. It basically desugars down to the equivalent:
+
+```
+const result = divide(10, 2);
+if (result.kind == 'ok') { 
+    print(`result: ${value}`);
+} else if (result.kind == 'error') {
+    print(`error: ${error}`);
+}
 ```
 
 ### Arrays and Tuples
@@ -260,6 +324,28 @@ function compute<Foo: boolean>(data: uint8[]) {
 
 compute<true>(); // pass the static argument positionally
 ```
+
+#### Nested Static Parameterisation
+
+When a generic type contains generic methods, the inner context inherits parameters from the outer:
+
+```
+struct Container<T> {
+    value: T
+    
+    // map<U> inherits T from Container, adds its own U
+    map<U>(f: (T) => U): Container<U> {
+        Container { value: f(this.value) }
+    }
+}
+
+let c: Container<int32> = Container { value: 42 };
+c.map<string>((x) => x.toString())  // T=int32, U=string
+```
+
+Internally, each instantiation is **flattened**: inherited arguments come first, then own arguments.
+So `Container<int32>.map<string>` has arguments `[int32, string]` where `int32` is inherited from `Container` and `string` is `map`'s own parameter.
+This matches how TypeScript handles generic method calls on generic classes, and follows the same monomorphization model as Rust and C++.
 
 ### Where Clauses
 

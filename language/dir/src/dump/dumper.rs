@@ -430,7 +430,6 @@ impl_dump_display! {
     Mutability,
     ReferenceType,
     Runtime,
-    StructKind,
     TypeBinaryOperator,
     TypeUnaryOperator,
     UnaryOperator,
@@ -1021,13 +1020,13 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .field("value", value)
                     .end();
             }
-            Expression::TaggedTemplateLiteral { tag: _, value } => {
-                self.node("Expression::TaggedTemplateLiteral", id.id)
+            Expression::TaggedTemplateExpression { tag: _, value } => {
+                self.node("Expression::TaggedTemplateExpression", id.id)
                     .field("value", value)
                     .end();
             }
-            Expression::TemplateLiteral { value } => {
-                self.node("Expression::TemplateLiteral", id.id)
+            Expression::TemplateExpression { value } => {
+                self.node("Expression::TemplateExpression", id.id)
                     .field("value", value)
                     .end();
             }
@@ -1036,33 +1035,42 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .field("value", value)
                     .end();
             }
-            Expression::RangeLiteral {
+            Expression::RangeExpression {
                 start: _,
                 end: _,
                 is_inclusive,
             } => {
-                self.node("Expression::RangeLiteral", id.id)
+                self.node("Expression::RangeExpression", id.id)
                     .field("is_inclusive", is_inclusive)
                     .end();
             }
-            Expression::ArrayLiteral { elements: _ } => {
-                self.node("Expression::ArrayLiteral", id.id).end();
+            Expression::ArrayExpression { elements: _ } => {
+                self.node("Expression::ArrayExpression", id.id).end();
             }
-            Expression::TupleLiteral { ty: _, elements: _ } => {
-                self.node("Expression::TupleLiteral", id.id).end();
+            Expression::TupleExpression { elements: _ } => {
+                self.node("Expression::TupleExpression", id.id).end();
             }
-            Expression::StructLiteral {
-                ty: _,
-                properties: _,
-            } => {
-                self.node("Expression::StructLiteral", id.id).end();
+            Expression::ObjectExpression { properties: _ } => {
+                self.node("Expression::ObjectExpression", id.id).end();
             }
-            Expression::TreeLiteral {
+            Expression::TreeExpression {
                 left: _,
                 arguments: _,
                 elements: _,
             } => {
-                self.node("Expression::TreeLiteral", id.id).end();
+                self.node("Expression::TreeExpression", id.id).end();
+            }
+            Expression::TaggedScalarExpression { ty: _, value: _ } => {
+                self.node("Expression::TaggedScalarExpression", id.id).end();
+            }
+            Expression::TaggedTupleExpression { ty: _, elements: _ } => {
+                self.node("Expression::TaggedTupleExpression", id.id).end();
+            }
+            Expression::TaggedObjectExpression {
+                ty: _,
+                properties: _,
+            } => {
+                self.node("Expression::TaggedObjectExpression", id.id).end();
             }
             Expression::Parenthesized { expression: _ } => {
                 self.node("Expression::Parenthesized", id.id).end();
@@ -1204,9 +1212,17 @@ impl<'a> NodeVisitor for Dumper<'a> {
             StaticExpression::Unresolved { node: _ } => {
                 self.node("StaticExpression::Unresolved", id.id).end();
             }
+
+            StaticExpression::Declaration {
+                declaration: _,
+                static_arguments: _,
+            } => {
+                self.node("StaticExpression::Declaration", id.id).end();
+            }
             StaticExpression::Type { ty: _ } => {
                 self.node("StaticExpression::Type", id.id).end();
             }
+
             StaticExpression::TypeLiteral { value } => {
                 self.node("StaticExpression::TypeLiteral", id.id)
                     .field("value", value)
@@ -1217,23 +1233,23 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .field("value", value)
                     .end();
             }
-            StaticExpression::RangeLiteral {
+            StaticExpression::RangeExpression {
                 start: _,
                 end: _,
                 is_inclusive,
             } => {
-                self.node("StaticExpression::RangeLiteral", id.id)
+                self.node("StaticExpression::RangeExpression", id.id)
                     .field("is_inclusive", is_inclusive)
                     .end();
             }
-            StaticExpression::ArrayLiteral { elements: _ } => {
-                self.node("StaticExpression::ArrayLiteral", id.id).end();
+            StaticExpression::ArrayExpression { elements: _ } => {
+                self.node("StaticExpression::ArrayExpression", id.id).end();
             }
-            StaticExpression::TupleLiteral { elements: _ } => {
-                self.node("StaticExpression::TupleLiteral", id.id).end();
+            StaticExpression::TupleExpression { elements: _ } => {
+                self.node("StaticExpression::TupleExpression", id.id).end();
             }
-            StaticExpression::StructLiteral { properties: _ } => {
-                self.node("StaticExpression::StructLiteral", id.id).end();
+            StaticExpression::ObjectExpression { properties: _ } => {
+                self.node("StaticExpression::ObjectExpression", id.id).end();
             }
         }
         self.with_depth(|dumper| {
@@ -1282,7 +1298,6 @@ impl<'a> NodeVisitor for Dumper<'a> {
             }
             Declaration::Struct {
                 descriptor,
-                kind,
                 generics,
                 heritage,
                 properties: _,
@@ -1290,7 +1305,20 @@ impl<'a> NodeVisitor for Dumper<'a> {
             } => {
                 self.node("Declaration::Struct", id.id)
                     .field("descriptor", descriptor)
-                    .field("kind", kind)
+                    .field("generics", generics)
+                    .field("heritage", heritage)
+                    .field("scope", scope)
+                    .end();
+            }
+            Declaration::Class {
+                descriptor,
+                generics,
+                heritage,
+                properties: _,
+                scope,
+            } => {
+                self.node("Declaration::Class", id.id)
+                    .field("descriptor", descriptor)
                     .field("generics", generics)
                     .field("heritage", heritage)
                     .field("scope", scope)

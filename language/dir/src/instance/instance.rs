@@ -1,6 +1,6 @@
 use std::fmt::Display;
 
-use crate::{GlobalSymbolId, LocalNodeId, ModuleId, StaticArgument};
+use crate::{GlobalSymbolId, ModuleId, StaticArgument};
 
 /// Unique identifier for Instances.
 #[repr(transparent)]
@@ -58,11 +58,57 @@ impl Display for LocalInstanceId {
     }
 }
 
-/// An Instance is an instantiation of a statically parameterized type.
+/// An Instance is a concrete instantiation of a statically parameterized ("generic") declaration.
+///
+/// Arguments are stored **flattened**: inherited arguments first (from enclosing generic
+/// contexts), then own arguments (declared by this symbol).
+/// This matches how Rust and C++ handle monomorphization, where each instance
+///  is self-contained with all type arguments it needs.
+///
+/// ### Example
+///
+/// ```text
+/// struct Container<T> {
+///     value: T
+///     map<U>(f: (T) => U): Container<U> { ... }
+/// }
+///
+/// let c: Container<int32> = ...;
+/// c.map<string>(f)
+/// ```
+///
+/// The instances created are:
+/// - `Container<int32>` → `{ symbol: Container, arguments: [int32] }`
+/// - `Container<int32>.map<string>` → `{ symbol: map, arguments: [int32, string] }`
+///
+/// For `map`, `int32` is inherited from `Container<T>` and `string` is `map`'s own `U`.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Instance {
-    /// The symbol we're instantiating.
+    /// The symbol being instantiated.
     pub symbol_id: GlobalSymbolId,
-    /// The static arguments to the instance.
-    pub static_arguments: Vec<LocalNodeId<StaticArgument>>,
+    /// Static arguments, flattened: `[inherited..., own...]`.
+    pub static_arguments: Vec<StaticArgument>,
+}
+
+impl Instance {
+    /// Create a new instance with the given symbol and arguments.
+    pub fn new(symbol_id: GlobalSymbolId, arguments: Vec<StaticArgument>) -> Self {
+        Self {
+            symbol_id,
+            static_arguments: arguments,
+        }
+    }
+
+    /// Split arguments into inherited and own, given the count of own parameters.
+    /// Returns `(inherited, own)`.
+    pub fn split_arguments(
+        &self,
+        own_param_count: usize,
+    ) -> (&[StaticArgument], &[StaticArgument]) {
+        let split = self.static_arguments.len().saturating_sub(own_param_count);
+        (
+            &self.static_arguments[..split],
+            &self.static_arguments[split..],
+        )
+    }
 }

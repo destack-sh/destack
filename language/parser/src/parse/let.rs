@@ -337,7 +337,7 @@ const registry: Map<
                         assert_path!(parser, *path, "Set");
                         // <{count: number}>
                         assert_node!(parser.tree, static_arguments.as_ref().unwrap()[0], Argument::Positional { value } => {
-                            assert_node!(parser.tree, *value, Expression::StructLiteral { ty: None, properties, .. } => {
+                            assert_node!(parser.tree, *value, Expression::ObjectExpression { ty: None, properties, .. } => {
                                 assert_eq!(properties.len(), 1);
                                 assert_node!(parser.tree, properties[0], Property::Field { key: Some(Key::Name(Name::Identifier(name))), .. } => {
                                     assert_string!(parser, *name, "count");
