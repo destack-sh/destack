@@ -1,7 +1,7 @@
 use destack_ast::StringId;
 use destack_dir::{GlobalNodeIdAny, GlobalScopeId, ModuleId, Program, SymbolKey};
 
-use crate::{Phase, TaskDependency, TaskError};
+use crate::{TaskPhase, TaskDependency, TaskError};
 
 /// Error when binding something into the compiler.
 #[derive(Debug, Clone, PartialEq)]
@@ -115,7 +115,7 @@ impl std::fmt::Display for BindError {
         f.debug_struct("BindError")
             .field(
                 "code",
-                &format!("E{}{:03}", Phase::Bind.letter(), self.sub_code()),
+                &format!("E{}{:03}", TaskPhase::Bind.letter(), self.sub_code()),
             )
             .finish()
     }

@@ -2,7 +2,7 @@ use destack_dir::{GlobalNodeIdAny, Program};
 
 use crate::{
     AnalyzeError, BindError, BuildError, ElaborateError, ExecuteError, ImportError, LinkError,
-    LowerError, OptimizeError, Phase, ResolveError, TaskDependency, TaskId, ValidateError,
+    LowerError, OptimizeError, TaskPhase, ResolveError, TaskDependency, TaskId, ValidateError,
 };
 
 /// Error during compilation.
@@ -120,19 +120,19 @@ impl From<InternalError> for TaskError {
 
 impl TaskError {
     /// Get the phase of the error, if applicable.
-    pub fn phase(&self) -> Option<Phase> {
+    pub fn phase(&self) -> Option<TaskPhase> {
         match self {
-            Self::Import(_) => Some(Phase::Import),
-            Self::Bind(_) => Some(Phase::Bind),
-            Self::Resolve(_) => Some(Phase::Resolve),
-            Self::Validate(_) => Some(Phase::Validate),
-            Self::Elaborate(_) => Some(Phase::Elaborate),
-            Self::Lower(_) => Some(Phase::Lower),
-            Self::Analyze(_) => Some(Phase::Analyze),
-            Self::Optimize(_) => Some(Phase::Optimize),
-            Self::Execute(_) => Some(Phase::Execute),
-            Self::Build(_) => Some(Phase::Build),
-            Self::Link(_) => Some(Phase::Link),
+            Self::Import(_) => Some(TaskPhase::Import),
+            Self::Bind(_) => Some(TaskPhase::Bind),
+            Self::Resolve(_) => Some(TaskPhase::Resolve),
+            Self::Validate(_) => Some(TaskPhase::Validate),
+            Self::Elaborate(_) => Some(TaskPhase::Elaborate),
+            Self::Lower(_) => Some(TaskPhase::Lower),
+            Self::Analyze(_) => Some(TaskPhase::Analyze),
+            Self::Optimize(_) => Some(TaskPhase::Optimize),
+            Self::Execute(_) => Some(TaskPhase::Execute),
+            Self::Build(_) => Some(TaskPhase::Build),
+            Self::Link(_) => Some(TaskPhase::Link),
             Self::Internal(_) => None,
         }
     }

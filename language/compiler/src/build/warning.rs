@@ -1,6 +1,6 @@
 use destack_dir::{GlobalNodeIdAny, Program};
 
-use crate::{Phase, TaskWarning};
+use crate::{TaskPhase, TaskWarning};
 
 /// Warning when building something.
 #[derive(Debug, Clone, PartialEq)]
@@ -52,7 +52,7 @@ impl std::fmt::Display for BuildWarning {
         f.debug_struct("BuildWarning")
             .field(
                 "code",
-                &format!("W{}{:03}", Phase::Build.letter(), self.sub_code()),
+                &format!("W{}{:03}", TaskPhase::Build.letter(), self.sub_code()),
             )
             .finish()
     }

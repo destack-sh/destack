@@ -1,6 +1,6 @@
 use destack_dir::{GlobalNodeIdAny, Program};
 
-use crate::{Phase, TaskWarning};
+use crate::{TaskPhase, TaskWarning};
 
 /// Warning when validating something.
 #[derive(Debug, Clone, PartialEq)]
@@ -39,7 +39,7 @@ impl std::fmt::Display for ElaborateWarning {
         f.debug_struct("ElaborateWarning")
             .field(
                 "code",
-                &format!("W{}{:03}", Phase::Elaborate.letter(), self.sub_code()),
+                &format!("W{}{:03}", TaskPhase::Elaborate.letter(), self.sub_code()),
             )
             .finish()
     }

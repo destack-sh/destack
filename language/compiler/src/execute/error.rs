@@ -1,6 +1,6 @@
 use destack_dir::{GlobalNodeIdAny, Program};
 
-use crate::{Phase, TaskDependency, TaskError};
+use crate::{TaskPhase, TaskDependency, TaskError};
 
 /// Error when evaluating something statically.
 #[derive(Debug, Clone, PartialEq)]
@@ -60,7 +60,7 @@ impl std::fmt::Display for ExecuteError {
         f.debug_struct("ExecuteError")
             .field(
                 "code",
-                &format!("E{}{:03}", Phase::Execute.letter(), self.sub_code()),
+                &format!("E{}{:03}", TaskPhase::Execute.letter(), self.sub_code()),
             )
             .finish()
     }

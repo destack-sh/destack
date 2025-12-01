@@ -1,6 +1,6 @@
 use destack_dir::{GlobalNodeIdAny, Program};
 
-use crate::{Phase, TaskWarning};
+use crate::{TaskPhase, TaskWarning};
 
 /// Warning when executing something.
 #[derive(Debug, Clone, PartialEq)]
@@ -44,7 +44,7 @@ impl std::fmt::Display for ExecuteWarning {
         f.debug_struct("ExecuteWarning")
             .field(
                 "code",
-                &format!("W{}{:03}", Phase::Execute.letter(), self.sub_code()),
+                &format!("W{}{:03}", TaskPhase::Execute.letter(), self.sub_code()),
             )
             .finish()
     }

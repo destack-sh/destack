@@ -1,6 +1,6 @@
 use destack_dir::{GlobalNodeIdAny, Program};
 
-use crate::{Phase, TaskDependency, TaskError};
+use crate::{TaskPhase, TaskDependency, TaskError};
 
 /// Error when optimizing something into the compiler.
 #[derive(Debug, Clone, PartialEq)]
@@ -73,7 +73,7 @@ impl std::fmt::Display for OptimizeError {
         f.debug_struct("OptimizeError")
             .field(
                 "code",
-                &format!("E{}{:03}", Phase::Optimize.letter(), self.sub_code()),
+                &format!("E{}{:03}", TaskPhase::Optimize.letter(), self.sub_code()),
             )
             .finish()
     }

@@ -1,6 +1,6 @@
 use destack_dir::{GlobalNodeIdAny, Program};
 
-use crate::{Phase, TaskDependency, TaskError};
+use crate::{TaskPhase, TaskDependency, TaskError};
 
 /// Error when analyzeing something into the compiler.
 #[derive(Debug, Clone, PartialEq)]
@@ -60,7 +60,7 @@ impl std::fmt::Display for AnalyzeError {
         f.debug_struct("AnalyzeError")
             .field(
                 "code",
-                &format!("E{}{:03}", Phase::Analyze.letter(), self.sub_code()),
+                &format!("E{}{:03}", TaskPhase::Analyze.letter(), self.sub_code()),
             )
             .finish()
     }

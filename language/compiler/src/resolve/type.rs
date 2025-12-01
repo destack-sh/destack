@@ -18,7 +18,7 @@ impl Compiler {
     ) -> ResolveResult<()> {
         let expression_id = {
             let ty = types.get(ty_id);
-            let Type::UnresolvedExpression(expression_id) = *ty else {
+            let Type::Unresolved(expression_id) = *ty else {
                 return Ok(());
             };
             expression_id
@@ -59,7 +59,7 @@ impl Compiler {
     ) -> ResolveResult<Type> {
         let ty = self
             .resolve_expression_to_type(module, expression_id, tree, symbols, types)?
-            .unwrap_or(Type::UnresolvedExpression(expression_id));
+            .unwrap_or(Type::Unresolved(expression_id));
         Ok(ty)
     }
 
