@@ -1,9 +1,9 @@
 use std::thread;
 
 use crate::{
-    VerifyError, GenerateError, Compiler, ElaborateError, ExecuteError, InternalError, LinkError,
-    LowerError, OptimizeError, TaskPhase, ResolveError, Task, TaskDebug, TaskDependency, TaskError,
-    TaskHandle, TaskId, TaskOutcome, TaskOutput, TaskStatus, AnalyzeError,
+    AnalyzeError, Compiler, ElaborateError, ExecuteError, GenerateError, InternalError, LinkError,
+    LowerError, OptimizeError, ResolveError, Task, TaskDebug, TaskDependency, TaskError,
+    TaskHandle, TaskId, TaskOutcome, TaskOutput, TaskPhase, TaskStatus, VerifyError,
 };
 
 /// Maximum number of yields allowed per task before treating it as an (internal) bug.
@@ -167,7 +167,7 @@ impl Compiler {
                         dependency: dependency.clone(),
                     },
                 );
-                self.register_dependency(task_id, dependency);
+                self.yield_dependency(task_id, dependency);
             }
         }
         // remember outcome
@@ -206,7 +206,24 @@ impl Compiler {
         None
     }
 
-    /// Register dependencies for a yielded task.
+    /// Yield to a dependency, register waiters for all sub-dependencies, and check if already satisfied.
+    fn yield_dependency(&self, waiter_id: TaskId, dependency: &TaskDependency) {
+        // first, register all sub-dependencies (recursively)
+        self.register_dependency(waiter_id, dependency);
+
+        // then check if the full dependency is already satisfied
+        if self.is_dependency_satisfied(dependency) {
+            self.queue.try_requeue_yielded(waiter_id);
+            return;
+        }
+
+        // check if any dependency has failed
+        if self.is_dependency_failed(dependency) {
+            self.fail_waiter(waiter_id, dependency);
+        }
+    }
+
+    /// Register waiters for all sub-dependencies without re-queuing.
     fn register_dependency(&self, waiter_id: TaskId, dependency: &TaskDependency) {
         match dependency {
             // register for a single dependency
@@ -214,22 +231,11 @@ impl Compiler {
                 // enqueue the dependency task (might already exist)
                 let (dependency_id, _) = self.enqueue(task.clone());
 
-                // check if already complete
-                if let Some(status) = self.queue.get_status(dependency_id) {
-                    match status {
-                        TaskStatus::Complete { .. } => {
-                            // dependency already done, re-queue the waiter
-                            self.queue.set_status(waiter_id, TaskStatus::Queued);
-                            self.queue.push_ready(waiter_id);
-                            return;
-                        }
-                        TaskStatus::Failed { .. } => {
-                            // dependency failed, fail the waiter with fallback error
-                            self.fail_waiter(waiter_id, dependency);
-                            return;
-                        }
-                        _ => {}
-                    }
+                // only register as waiter if not already complete or failed
+                if let Some(status) = self.queue.get_status(dependency_id)
+                    && status.is_final()
+                {
+                    return;
                 }
 
                 // register as waiter
@@ -241,11 +247,32 @@ impl Compiler {
                     self.register_dependency(waiter_id, dependency);
                 }
             }
-            // register for all dependencies (first to complete will wake)
+            // register for any dependency (first to complete will wake)
             TaskDependency::CompleteAny { dependencies } => {
                 for dependency in dependencies {
                     self.register_dependency(waiter_id, dependency);
                 }
+            }
+        }
+    }
+
+    /// Check if any dependency in the tree has failed.
+    fn is_dependency_failed(&self, dependency: &TaskDependency) -> bool {
+        match dependency {
+            TaskDependency::Complete { task, .. } => {
+                matches!(
+                    self.queue.find_task_status(task),
+                    Some(TaskStatus::Failed { .. })
+                )
+            }
+            TaskDependency::CompleteAll { dependencies } => dependencies
+                .iter()
+                .any(|dependency| self.is_dependency_failed(dependency)),
+            TaskDependency::CompleteAny { dependencies } => {
+                // for CompleteAny, only fail if ALL have failed
+                dependencies
+                    .iter()
+                    .all(|dependency| self.is_dependency_failed(dependency))
             }
         }
     }
@@ -272,12 +299,10 @@ impl Compiler {
     fn wake_waiters(&self, completed_id: TaskId) {
         let waiters = self.queue.take_waiters(completed_id);
         for waiter_id in waiters {
-            // check if waiter can be re-queued
             if let Some(TaskStatus::Yielded { dependency }) = self.queue.get_status(waiter_id)
                 && self.is_dependency_satisfied(&dependency)
             {
-                self.queue.set_status(waiter_id, TaskStatus::Queued);
-                self.queue.push_ready(waiter_id);
+                self.queue.try_requeue_yielded(waiter_id);
             }
         }
     }

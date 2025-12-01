@@ -116,6 +116,19 @@ impl TaskQueue {
         }
     }
 
+    /// Atomically transition a task from Yielded to Queued and push to ready queue.
+    /// No-op if the task is not in Yielded state (e.g., already woken by another thread).
+    pub(super) fn try_requeue_yielded(&self, task_id: TaskId) {
+        let mut tasks = self.tasks.lock();
+        if let Some(handle) = tasks.get_mut(task_id.0 as usize)
+            && matches!(handle.status, TaskStatus::Yielded { .. })
+        {
+            handle.status = TaskStatus::Queued;
+            drop(tasks); // release lock before pushing
+            self.push_ready(task_id);
+        }
+    }
+
     /// Get the status of a task.
     pub(super) fn get_status(&self, task_id: TaskId) -> Option<TaskStatus> {
         let tasks = self.tasks.lock();
