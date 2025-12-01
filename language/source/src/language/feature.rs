@@ -8,7 +8,6 @@ use std::fmt;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[repr(u16)]
 pub enum LanguageFeature {
-    // primitives & literals
     /// Precise numeric types, raw strings, byte literals (`int32`, `r#"..."#`, `b"..."`).
     Primitives = 1 << 0,
     /// Range literals (`1..10`, `1..=10`).
@@ -17,8 +16,6 @@ pub enum LanguageFeature {
     Tuples = 1 << 2,
     /// Tree literals (`<Node>...</Node>`).
     Trees = 1 << 3,
-
-    // type system
     /// Nominal (distinct) types with `newtype`.
     Newtypes = 1 << 4,
     /// Struct declarations for value-oriented data types.
@@ -27,14 +24,10 @@ pub enum LanguageFeature {
     Ownership = 1 << 6,
     /// Constraint guards with `where` clauses.
     Constraints = 1 << 7,
-
-    // organization
     /// Type extensions for organizing implementations.
     Extensions = 1 << 8,
     /// Function and operator overloading.
     Overloading = 1 << 9,
-
-    // control flow
     /// Pattern matching with `match` expressions.
     Patterns = 1 << 10,
     /// Effect declarations with `with` clauses.
@@ -62,7 +55,7 @@ impl LanguageFeature {
     ];
 
     /// The config key for this feature (e.g., `"allowOverloading"`).
-    pub fn config_key(&self) -> &'static str {
+    pub fn options_key(&self) -> &'static str {
         match self {
             Self::Primitives => "allowPrimitives",
             Self::Ranges => "allowRanges",
@@ -96,25 +89,6 @@ impl LanguageFeature {
             Self::Patterns => "patterns",
             Self::Effects => "effects",
             Self::Defer => "defer",
-        }
-    }
-
-    /// Documentation hint for this feature.
-    pub fn docs_hint(&self) -> &'static str {
-        match self {
-            Self::Primitives => "Enable with `allowPrimitives: true` in dsconfig.json",
-            Self::Ranges => "Enable with `allowRanges: true` in dsconfig.json",
-            Self::Tuples => "Enable with `allowTuples: true` in dsconfig.json",
-            Self::Trees => "Enable with `allowTrees: true` in dsconfig.json",
-            Self::Newtypes => "Enable with `allowNewtypes: true` in dsconfig.json",
-            Self::Structs => "Enable with `allowStructs: true` in dsconfig.json",
-            Self::Ownership => "Enable with `allowOwnership: true` in dsconfig.json",
-            Self::Constraints => "Enable with `allowConstraints: true` in dsconfig.json",
-            Self::Extensions => "Enable with `allowExtensions: true` in dsconfig.json",
-            Self::Overloading => "Enable with `allowOverloading: true` in dsconfig.json",
-            Self::Patterns => "Enable with `allowPatterns: true` in dsconfig.json",
-            Self::Effects => "Enable with `allowEffects: true` in dsconfig.json",
-            Self::Defer => "Enable with `allowDefer: true` in dsconfig.json",
         }
     }
 
@@ -329,9 +303,9 @@ mod tests {
     #[test]
     fn test_feature_config_keys() {
         assert_eq!(
-            LanguageFeature::Overloading.config_key(),
+            LanguageFeature::Overloading.options_key(),
             "allowOverloading"
         );
-        assert_eq!(LanguageFeature::Ownership.config_key(), "allowOwnership");
+        assert_eq!(LanguageFeature::Ownership.options_key(), "allowOwnership");
     }
 }

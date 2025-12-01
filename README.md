@@ -1,21 +1,21 @@
-# Destack
+# Destack: Universal All-in-One Software Engine
 
 Destack is a universal software engine for building correct, optimal, integrated full-stack systems.
-Build with TypeScript and the web ecosystem with a unified open source toolchain, stack and platform.
+Build on TypeScript and the web ecosystem with a unified open source toolchain, stack and platform.
 Own your software and run it anywhere in one integrated stack:
 
  - **Destack Language**: TypeScript++ for correctness, ergonomics, and performance (with `.ds` much like `.tsx`). 
- Valid TypeScript is valid Destack.
+ Valid TypeScript is valid Destack, so adopting `.ds` is fully incremental.
 See [language/DESIGN.md](language/DESIGN.md) and [language/SPECIFICATION.md](language/SPECIFICATION.md).
 
- - **Destack Library**: Standard unified modules for everything software needs across the stack from APIs and UIs to DBs and telemetry.
-Batteries included, but not required.
+ - **Destack Library**: Standard unified modules for most thigns most software needs across the stack from APIs and UIs to DBs and telemetry.
+Batteries included, all nicely integrated with each other, the language, and platform.
 
  - **Destack Platform**: The support system around your software - the CLI, IDE integrations, build plugins, debugging, analytics, tools. 
- And the platform to connect and integrate Destack software together.
+ And the platform to connect and integrate Destack systems together, all integrated with the same language and tools.
 
 **Destack is designed as an integrated system**, **but you *can* pick and choose any pieces you like.**
-You are free to use standard TypeScript, pick only some of the libraries, or plug into the platform from a different system entirely.
+You are free to use standard TypeScript, pick only some of the libraries, or plug into the platform from a different language and system entirely.
 
 ## Examples
 
@@ -42,43 +42,42 @@ And this "language" encompasses supporting libraries, the platform and its ecosy
 The more we can express in one unified system, the more the toolchain can verify, optimize, and assist.
 Higher-order software raises the level of abstraction of what software can express *reliably*.
 
-# Development
+# Development: How To Contribute
 
 Destack is in very active development with a singular focus: a fully integrated software stack for optimal, correct, integrated software. 
 We welcome feedback, issues, ideas, and small fixes, but please reach out for any non-trivial contributions (see [Contributing](CONTRIBUTING.md)).
 
 ## Structure
 
-This is the open source monorepo containing the language, library, and core platform:
+This is the open source monorepo containing the language, library, and platform core:
 
-| Directory    | Description                                                    |
-|--------------|----------------------------------------------------------------|
-| `language/`  | Language toolchain (parser, compiler, formatter, LSP, etc.)    |
-| `library/`   | Standard library (entity, telemetry, math, physics, UI, etc.)  |
-| `platform/`  | Platform features (CLI, IDE integrations, build plugins, etc.) |
-| `examples/`  | Example projects                                               |
-| `templates/` | Project templates for `destack new`                            |
+| Directory | Description | README |
+|--------------|----------------------------------------------------------------|-------------------------------|
+| `language/`  | Language toolchain (parser, compiler, formatter, LSP, etc.)    | [language/README](language/README.md)  |
+| `library/`   | Standard library (entity, telemetry, math, physics, UI, etc.)  | [library/README](library/README.md)   |
+| `platform/`  | Platform features (CLI, IDE integrations, build plugins, etc.) | [platform/README](platform/README.md)  |
+| `examples/`  | Example projects                                               | [examples/README](examples/README.md)  |
+| `templates/` | Project templates for `destack new`                            | [templates/README](templates/README.md) |
 
 ## Setup
 
-Destack is *developed* using Rust and TypeScript:
+Destack is *developed* using Rust and TypeScript. 
+To build it locally you will need at least `bun`, `cargo` and `just`:
 
 - [Bun](https://bun.sh/): JavaScript runtime and package management
 - [Rust](https://rustup.rs/): Rust compiler (`nightly-2025-11-27`, see `rust-toolchain.toml`)
 - [just](https://github.com/casey/just): Scripts and command runner
-- [Python 3](https://python.org/): Scripts and codegen utilities (optional)
+- [Python](https://python.org/): Scripts and codegen utilities (optional)
 
-## Development
-
+We use `justfile`s: 
 ```sh
-just check          # check / lint everything
+just install 		# setup everything
+just check          # check & lint everything
 just fmt            # format all code
 just lint           # lint all code
-just language/test  # run only Rust tests
-just library/test   # run only TS tests
 ```
 
 ## License
 
-Apache-2.0. See [LICENSE.txt](LICENSE.txt).
-The Destack language, toolchain, library and core platform are fully open source.
+MIT License. See [LICENSE.txt](LICENSE.txt).
+The Destack language, toolchain, library and platform core are fully open source.

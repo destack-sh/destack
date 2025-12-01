@@ -178,9 +178,7 @@ pub enum DsConfigExtendsField {
 #[derive(Debug, Default, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct DsConfigCompilerOptionsJson {
-    // language features (all enabled by default)
-
-    // primitives & literals
+    // features
     /// Allow precise numeric types, raw strings, byte literals.
     pub allow_primitives: Option<bool>,
     /// Allow range literals (`1..10`, `1..=10`).
@@ -189,8 +187,6 @@ pub struct DsConfigCompilerOptionsJson {
     pub allow_tuples: Option<bool>,
     /// Allow tree literals (`<Node>...</Node>`).
     pub allow_trees: Option<bool>,
-
-    // type system
     /// Allow nominal (distinct) types with `newtype`.
     pub allow_newtypes: Option<bool>,
     /// Allow struct declarations for value-oriented data types.
@@ -199,14 +195,10 @@ pub struct DsConfigCompilerOptionsJson {
     pub allow_ownership: Option<bool>,
     /// Allow constraint guards with `where` clauses.
     pub allow_constraints: Option<bool>,
-
-    // organization
     /// Allow type extensions for organizing implementations.
     pub allow_extensions: Option<bool>,
     /// Allow function and operator overloading.
     pub allow_overloading: Option<bool>,
-
-    // control flow
     /// Allow pattern matching with `match` expressions.
     pub allow_patterns: Option<bool>,
     /// Allow effect declarations with `with` clauses.
@@ -215,7 +207,6 @@ pub struct DsConfigCompilerOptionsJson {
     pub allow_defer: Option<bool>,
 
     // path resolution
-
     /// Base URL for resolving non-relative module names.
     pub base_url: Option<String>,
     /// Path alias mappings (like tsconfig paths).
@@ -226,14 +217,12 @@ pub struct DsConfigCompilerOptionsJson {
     pub out_dir: Option<String>,
 
     // module & target
-
     /// Module format for output (e.g., "esnext", "commonjs").
     pub module: Option<String>,
     /// ECMAScript target version (e.g., "es2022", "esnext").
     pub target: Option<String>,
 
     // typescript/javascript interop
-
     /// Path to tsconfig.json to inherit settings from.
     pub tsconfig: Option<String>,
     /// Allow TypeScript files (.ts, .tsx) in the project.
@@ -534,33 +523,33 @@ impl From<&DsConfigCompilerOptionsJson> for DsConfigCompilerOptions {
 pub enum OptimizeLevel {
     /// No optimization (O0).
     #[default]
-    None,
+    O0,
     /// Basic optimization (O1).
-    Basic,
+    O1,
     /// Standard optimization (O2).
-    Standard,
+    O2,
     /// Aggressive optimization (O3).
-    Aggressive,
+    O3,
 }
 
 impl OptimizeLevel {
     /// Create from a numeric level (0-3).
     pub fn from_level(level: u8) -> Self {
         match level {
-            0 => Self::None,
-            1 => Self::Basic,
-            2 => Self::Standard,
-            _ => Self::Aggressive,
+            0 => Self::O0,
+            1 => Self::O1,
+            2 => Self::O2,
+            _ => Self::O3,
         }
     }
 
     /// Get the numeric level.
     pub fn as_level(&self) -> u8 {
         match self {
-            Self::None => 0,
-            Self::Basic => 1,
-            Self::Standard => 2,
-            Self::Aggressive => 3,
+            Self::O0 => 0,
+            Self::O1 => 1,
+            Self::O2 => 2,
+            Self::O3 => 3,
         }
     }
 }
@@ -570,33 +559,33 @@ impl OptimizeLevel {
 pub enum ShrinkLevel {
     /// No shrinking (S0).
     #[default]
-    None,
+    S0,
     /// Basic shrinking (S1).
-    Basic,
+    S1,
     /// Standard shrinking (S2).
-    Standard,
+    S2,
     /// Aggressive shrinking (S3).
-    Aggressive,
+    S3,
 }
 
 impl ShrinkLevel {
     /// Create from a numeric level (0-3).
     pub fn from_level(level: u8) -> Self {
         match level {
-            0 => Self::None,
-            1 => Self::Basic,
-            2 => Self::Standard,
-            _ => Self::Aggressive,
+            0 => Self::S0,
+            1 => Self::S1,
+            2 => Self::S2,
+            _ => Self::S3,
         }
     }
 
     /// Get the numeric level.
     pub fn as_level(&self) -> u8 {
         match self {
-            Self::None => 0,
-            Self::Basic => 1,
-            Self::Standard => 2,
-            Self::Aggressive => 3,
+            Self::S0 => 0,
+            Self::S1 => 1,
+            Self::S2 => 2,
+            Self::S3 => 3,
         }
     }
 }
@@ -619,8 +608,8 @@ impl Default for DsConfigTargetOptions {
         Self {
             debug: true,
             optimize: false,
-            optimize_level: OptimizeLevel::None,
-            shrink_level: ShrinkLevel::None,
+            optimize_level: OptimizeLevel::O0,
+            shrink_level: ShrinkLevel::S0,
         }
     }
 }
