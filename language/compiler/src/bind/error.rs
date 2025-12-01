@@ -1,7 +1,7 @@
 use destack_ast::StringId;
 use destack_dir::{GlobalNodeIdAny, GlobalScopeId, ModuleId, Program, SymbolKey};
 
-use crate::{TaskPhase, TaskDependency, TaskError};
+use crate::{TaskDependency, TaskError, TaskPhase};
 
 /// Error when binding something into the compiler.
 #[derive(Debug, Clone, PartialEq)]

@@ -1,8 +1,8 @@
 use destack_dir::{GlobalNodeIdAny, Program};
 
 use crate::{
-    VerifyWarning, BindWarning, GenerateWarning, ElaborateWarning, ExecuteWarning, ImportWarning,
-    LinkWarning, LowerWarning, OptimizeWarning, TaskPhase, ResolveWarning, AnalyzeWarning,
+    AnalyzeWarning, BindWarning, ElaborateWarning, ExecuteWarning, GenerateWarning, ImportWarning,
+    LinkWarning, LowerWarning, OptimizeWarning, ResolveWarning, TaskPhase, VerifyWarning,
 };
 
 /// Warning during compilation.

@@ -109,17 +109,9 @@ impl Transpiler {
     ) -> TranspileResult<LocalNodeId<Argument>> {
         let argument = tree.get(argument_id);
         let argument = match argument {
-            dir::Argument::UnresolvedNamed {
-                modifiers: _,
-                name: _,
-                value,
-            }
-            | dir::Argument::UnresolvedPositional {
-                modifiers: _,
-                value,
-            }
+            dir::Argument::UnresolvedNamed { name: _, value }
+            | dir::Argument::UnresolvedPositional { value }
             | dir::Argument::Direct {
-                modifiers: _,
                 name: _,
                 target_symbol: _,
                 value,
@@ -129,13 +121,8 @@ impl Transpiler {
                     .expect_node::<Expression>(value.into_global_any(module.id), unit)?;
                 Argument::Positional { value }
             }
-            dir::Argument::UnresolvedSpread {
-                modifiers: _,
-                name: _,
-                value,
-            }
+            dir::Argument::UnresolvedSpread { value }
             | dir::Argument::Spread {
-                modifiers: _,
                 name: _,
                 target_symbol: _,
                 value,
@@ -145,15 +132,8 @@ impl Transpiler {
                     .expect_node::<Expression>(value.into_global_any(module.id), unit)?;
                 Argument::Spread { value }
             }
-            dir::Argument::UnresolvedDynamic {
-                modifiers: _,
-                name: _,
-                key,
-                value,
-            }
+            dir::Argument::UnresolvedDynamic { key, value }
             | dir::Argument::Dynamic {
-                modifiers: _,
-                name: _,
                 key,
                 value,
                 target_symbol: _,

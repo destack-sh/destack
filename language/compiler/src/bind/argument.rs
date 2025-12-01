@@ -1,11 +1,10 @@
 use crate::Compiler;
 use destack_ast as ast;
 use destack_dir::{
-    Argument, BindingAnchor, BindingKind, BindingModifier, BindingOperator, Expression,
-    LocalNodeId, LocalNodeIdAny, LocalScopeId, LocalScopeMark, Module, Mutability, NodeTree,
-    NodeType, Parameter, Path, SymbolKey, SymbolSpace, SymbolTable, TypeTable, Visibility,
+    Argument, BindingAnchor, BindingKind, BindingModifier, BindingOperator, LocalNodeId,
+    LocalNodeIdAny, LocalScopeId, LocalScopeMark, Module, Mutability, NodeTree, NodeType,
+    Parameter, SymbolKey, SymbolSpace, SymbolTable, TypeTable, Visibility,
 };
-use smallvec::smallvec;
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
@@ -220,13 +219,7 @@ impl Compiler {
         let argument_id =
             tree.reserve_from_source(NodeType::Argument, ast_argument_id, scope, parent_id);
         match ast_argument {
-            ast::Argument::Named {
-                modifiers,
-                name,
-                value,
-            } => {
-                let modifiers =
-                    modifiers.map(|modifiers| self.bind_binding_modifier(module, modifiers));
+            ast::Argument::Named { name, value } => {
                 let name = self
                     .program
                     .strings
@@ -240,48 +233,9 @@ impl Compiler {
                     symbols,
                     types,
                 );
-                tree.insert(
-                    argument_id,
-                    Argument::UnresolvedNamed {
-                        modifiers,
-                        name,
-                        value,
-                    },
-                )
+                tree.insert(argument_id, Argument::UnresolvedNamed { name, value })
             }
-            ast::Argument::Shorthand { modifiers, name } => {
-                let modifiers =
-                    modifiers.map(|modifiers| self.bind_binding_modifier(module, modifiers));
-                let name = self.program.strings.intern_from(&module.ast_strings, *name);
-                let path = Path {
-                    segments: smallvec![name],
-                };
-                // synthetic expression for the shorthand value
-                let value_id = tree.reserve_from_source(
-                    NodeType::Expression,
-                    ast_argument_id,
-                    scope,
-                    Some(argument_id),
-                );
-                let value = tree.insert(
-                    value_id,
-                    Expression::UnresolvedAbsolutePath {
-                        path,
-                        static_arguments: None,
-                    },
-                );
-                tree.insert(
-                    argument_id,
-                    Argument::UnresolvedNamed {
-                        modifiers,
-                        name,
-                        value,
-                    },
-                )
-            }
-            ast::Argument::Positional { modifiers, value } => {
-                let modifiers =
-                    modifiers.map(|modifiers| self.bind_binding_modifier(module, modifiers));
+            ast::Argument::Positional { value } => {
                 let value = self.bind_expression(
                     module,
                     scope,
@@ -291,20 +245,9 @@ impl Compiler {
                     symbols,
                     types,
                 );
-                tree.insert(
-                    argument_id,
-                    Argument::UnresolvedPositional { modifiers, value },
-                )
+                tree.insert(argument_id, Argument::UnresolvedPositional { value })
             }
-            ast::Argument::Spread {
-                modifiers,
-                name,
-                value,
-            } => {
-                let modifiers =
-                    modifiers.map(|modifiers| self.bind_binding_modifier(module, modifiers));
-                let name =
-                    name.map(|name| self.program.strings.intern_from(&module.ast_strings, name));
+            ast::Argument::Spread { value } => {
                 let value = self.bind_expression(
                     module,
                     scope,
@@ -314,14 +257,7 @@ impl Compiler {
                     symbols,
                     types,
                 );
-                tree.insert(
-                    argument_id,
-                    Argument::UnresolvedSpread {
-                        modifiers,
-                        name,
-                        value,
-                    },
-                )
+                tree.insert(argument_id, Argument::UnresolvedSpread { value })
             }
         }
     }

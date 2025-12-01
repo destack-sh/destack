@@ -72,7 +72,9 @@ impl DispatchKey {
         if types.len() == 1 {
             Self::Single { ty: types[0] }
         } else {
-            Self::Multiple { types: types.to_vec() }
+            Self::Multiple {
+                types: types.to_vec(),
+            }
         }
     }
 
@@ -96,8 +98,6 @@ impl DispatchKey {
 }
 
 /// Resolution of an overload/method/operator at some usage site.
-///
-/// Each variant captures:
 /// - **Static part**: The receiver type (if any) that selected the "family" of overloads.
 /// - **Dynamic part**: The dispatch key(s) for runtime selection within that family.
 #[derive(Debug, Clone, PartialEq)]
@@ -109,7 +109,7 @@ pub enum Resolution {
         /// Keys we couldn't find overloads for.
         missing_keys: Vec<DispatchKey>,
         /// Candidates we did find (for "did you mean?" suggestions).
-        found_candidates: Vec<ResolutionCandidate>,
+        candidates: Vec<ResolutionCandidate>,
     },
     /// Builtin primitive operation (no symbol needed, built-in handles it).
     Builtin {
@@ -130,6 +130,18 @@ pub enum Resolution {
         /// The candidates to dispatch between.
         candidates: Vec<ResolutionCandidate>,
     },
+}
+
+impl Resolution {
+    /// Get the receiver type.
+    pub fn receiver(&self) -> Option<LocalTypeId> {
+        match self {
+            Resolution::Unresolved { receiver, .. } => *receiver,
+            Resolution::Builtin { receiver, .. } => *receiver,
+            Resolution::Static { receiver, .. } => *receiver,
+            Resolution::Dynamic { receiver, .. } => *receiver,
+        }
+    }
 }
 
 /// Candidate for dispatch resolution.

@@ -1543,79 +1543,46 @@ impl<'a> NodeVisitor for Dumper<'a> {
 
     fn visit_argument(&mut self, tree: &NodeTree, id: LocalNodeId<Argument>, argument: &Argument) {
         match argument {
-            Argument::UnresolvedNamed {
-                modifiers,
-                name,
-                value: _,
-            } => {
+            Argument::UnresolvedNamed { name, value: _ } => {
                 self.node("Argument::UnresolvedNamed", id.id)
-                    .field_optional("modifiers", modifiers)
                     .field("name", name)
                     .end();
             }
-            Argument::UnresolvedPositional {
-                modifiers,
-                value: _,
-            } => {
-                self.node("Argument::UnresolvedPositional", id.id)
-                    .field_optional("modifiers", modifiers)
-                    .end();
+            Argument::UnresolvedPositional { value: _ } => {
+                self.node("Argument::UnresolvedPositional", id.id).end();
             }
-            Argument::UnresolvedSpread {
-                modifiers,
-                name,
-                value: _,
-            } => {
-                self.node("Argument::UnresolvedSpread", id.id)
-                    .field_optional("modifiers", modifiers)
-                    .field_optional("name", name)
-                    .end();
+            Argument::UnresolvedSpread { value: _ } => {
+                self.node("Argument::UnresolvedSpread", id.id).end();
             }
-            Argument::UnresolvedDynamic {
-                modifiers,
-                name,
-                key: _,
-                value: _,
-            } => {
-                self.node("Argument::UnresolvedDynamic", id.id)
-                    .field_optional("modifiers", modifiers)
-                    .field_optional("name", name)
-                    .end();
+            Argument::UnresolvedDynamic { key: _, value: _ } => {
+                self.node("Argument::UnresolvedDynamic", id.id).end();
             }
             Argument::Direct {
-                modifiers,
                 name,
                 target_symbol,
                 value: _,
             } => {
                 self.node("Argument::Direct", id.id)
-                    .field_optional("modifiers", modifiers)
                     .field("name", name)
                     .field("target_symbol", target_symbol)
                     .end();
             }
             Argument::Spread {
-                modifiers,
                 name,
                 target_symbol,
                 value: _,
             } => {
                 self.node("Argument::Spread", id.id)
-                    .field_optional("modifiers", modifiers)
                     .field("name", name)
                     .field("target_symbol", target_symbol)
                     .end();
             }
             Argument::Dynamic {
-                modifiers,
-                name,
                 key: _,
                 target_symbol,
                 value: _,
             } => {
                 self.node("Argument::Dynamic", id.id)
-                    .field_optional("modifiers", modifiers)
-                    .field_optional("name", name)
                     .field("target_symbol", target_symbol)
                     .end();
             }

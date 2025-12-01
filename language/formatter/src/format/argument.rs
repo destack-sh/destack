@@ -238,51 +238,19 @@ impl<'ast> FormatNode<'ast, Argument> for Argument {
         write!(f, [f.context().any_prefix_annotations(node_id)])?;
 
         match self {
-            Argument::Named {
-                modifiers,
-                name,
-                value,
-            } => {
-                // modifiers
-                format_binding_modifiers_prefix_maybe(f, *modifiers)?;
+            Argument::Named { name, value } => {
                 // name
                 write!(f, [name])?;
-                // modifiers
-                format_binding_modifiers_postfix_maybe(f, *modifiers)?;
                 // value
                 write!(f, [token(":"), space(), value])?;
             }
-            Argument::Shorthand { modifiers, name } => {
-                // modifiers
-                format_binding_modifiers_prefix_maybe(f, *modifiers)?;
-                // name
-                write!(f, [name])?;
-                // modifiers
-                format_binding_modifiers_postfix_maybe(f, *modifiers)?;
-            }
-            Argument::Positional { modifiers, value } => {
-                // modifiers
-                format_binding_modifiers_prefix_maybe(f, *modifiers)?;
+            Argument::Positional { value } => {
                 // value
                 write!(f, [value])?;
-                // modifiers
-                format_binding_modifiers_postfix_maybe(f, *modifiers)?;
             }
-            Argument::Spread {
-                modifiers,
-                name,
-                value,
-            } => {
-                // modifiers
-                format_binding_modifiers_prefix_maybe(f, *modifiers)?;
+            Argument::Spread { value } => {
                 // keyword
                 write!(f, [token("...")])?;
-                // name
-                if let Some(name) = name {
-                    write!(f, [name, token(":"), space()])?;
-                }
-                // modifiers
-                format_binding_modifiers_postfix_maybe(f, *modifiers)?;
                 write!(f, [value])?;
             }
         }
@@ -322,7 +290,7 @@ mod tests {
         assert_format!(
             "x: 1",
             "x: 1",
-            |p| p.eat_argument(),
+            |p| p.eat_named_argument(),
             DestackFormatOptions::default()
         );
     }
@@ -332,7 +300,7 @@ mod tests {
         assert_format!(
             "x",
             "x",
-            |p| p.eat_argument(),
+            |p| p.eat_named_argument(),
             DestackFormatOptions::default()
         );
     }
@@ -342,7 +310,7 @@ mod tests {
         assert_format!(
             "1",
             "1",
-            |p| p.eat_argument(),
+            |p| p.eat_named_argument(),
             DestackFormatOptions::default()
         );
     }

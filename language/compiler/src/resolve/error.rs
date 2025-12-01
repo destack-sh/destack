@@ -1,4 +1,4 @@
-use crate::{TaskPhase, TaskDependency, TaskError};
+use crate::{TaskDependency, TaskError, TaskPhase};
 use destack_dir::{
     GlobalNodeIdAny, GlobalScopeId, GlobalSymbolId, ModuleId, Program, StringId, SymbolKey,
 };

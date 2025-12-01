@@ -1,10 +1,10 @@
 use destack_dir::{GlobalNodeIdAny, Program};
 
 use crate::{
-    VerifyOutput, VerifyTask, BindOutput, BindTask, GenerateOutput, GenerateTask, ElaborateOutput,
-    ElaborateTask, ExecuteOutput, ExecuteTask, ImportOutput, ImportTask, LinkOutput, LinkTask,
-    LowerOutput, LowerTask, OptimizeOutput, OptimizeTask, ResolveOutput, ResolveTask, TaskError,
-    AnalyzeOutput, AnalyzeTask,
+    AnalyzeOutput, AnalyzeTask, BindOutput, BindTask, ElaborateOutput, ElaborateTask,
+    ExecuteOutput, ExecuteTask, GenerateOutput, GenerateTask, ImportOutput, ImportTask, LinkOutput,
+    LinkTask, LowerOutput, LowerTask, OptimizeOutput, OptimizeTask, ResolveOutput, ResolveTask,
+    TaskError, VerifyOutput, VerifyTask,
 };
 
 /// Trait for formatting task information.

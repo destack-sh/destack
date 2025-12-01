@@ -2,7 +2,7 @@ use destack_dir::{
     FunctionAbstraction, GlobalNodeIdAny, GlobalSymbolId, GlobalTypeId, Program, Visibility,
 };
 
-use crate::{TaskPhase, TaskDependency, TaskError};
+use crate::{TaskDependency, TaskError, TaskPhase};
 
 /// Error when analyzeing something into the compiler.
 #[derive(Debug, Clone, PartialEq)]

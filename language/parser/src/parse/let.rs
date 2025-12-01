@@ -327,16 +327,16 @@ const registry: Map<
                 assert_path!(parser, *path, "Map");
                 // <string, Set<{count: number}>>
                 // string
-                assert_node!(parser.tree, static_arguments.as_ref().unwrap()[0], Argument::Positional { modifiers: _, value } => {
+                assert_node!(parser.tree, static_arguments.as_ref().unwrap()[0], Argument::Positional { value } => {
                     assert_node!(parser.tree, *value, Expression::TypeLiteral(TypeLiteral::String));
                 });
                 // Set<{count: number}>
-                assert_node!(parser.tree, static_arguments.as_ref().unwrap()[1], Argument::Positional { modifiers: _, value } => {
+                assert_node!(parser.tree, static_arguments.as_ref().unwrap()[1], Argument::Positional { value } => {
                     assert_node!(parser.tree, *value, Expression::Path { path, static_arguments } => {
                         // Set
                         assert_path!(parser, *path, "Set");
                         // <{count: number}>
-                        assert_node!(parser.tree, static_arguments.as_ref().unwrap()[0], Argument::Positional { modifiers: _, value } => {
+                        assert_node!(parser.tree, static_arguments.as_ref().unwrap()[0], Argument::Positional { value } => {
                             assert_node!(parser.tree, *value, Expression::StructLiteral { ty: None, properties, .. } => {
                                 assert_eq!(properties.len(), 1);
                                 assert_node!(parser.tree, properties[0], Property::Field { key: Some(Key::Name(Name::Identifier(name))), .. } => {

@@ -1,4 +1,4 @@
-use crate::{Compiler, ResolveError, ResolveResult, TaskResultCollector, AnalyzeTask};
+use crate::{AnalyzeTask, Compiler, ResolveError, ResolveResult, TaskResultCollector};
 use destack_dir::{
     Annotation, Argument, Block, Declaration, DependencyItem, EnumField, Expression,
     LocalNodeIdAny, MatchCase, ModuleId, Node, NodeTree, NodeType, Parameter, Pattern,

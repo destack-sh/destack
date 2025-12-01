@@ -28,33 +28,17 @@ impl<'ast> Format<DestackFormatContext<'ast>> for TreeLiteralArgument {
 
         let argument = f.context().tree.get(self.argument_id);
         match argument {
-            Argument::Named {
-                modifiers: _,
-                name,
-                value,
-            } => {
+            Argument::Named { name, value } => {
                 // name
                 write!(f, [name])?;
                 // value
                 write!(f, [token("="), value])?;
             }
-
-            Argument::Shorthand { modifiers: _, name } => {
-                // name
-                write!(f, [name])?;
-            }
-            Argument::Positional {
-                modifiers: _,
-                value,
-            } => {
+            Argument::Positional { value } => {
                 // value
                 write!(f, [value])?;
             }
-            Argument::Spread {
-                modifiers: _,
-                name: _,
-                value,
-            } => {
+            Argument::Spread { value } => {
                 // keyword
                 write!(f, [token("...")])?;
                 // value
@@ -712,9 +696,8 @@ pub fn is_complex_expression(_tree: &NodeTree, expression: &Expression) -> bool 
 pub fn is_trivial_argument(tree: &NodeTree, argument: &Argument) -> bool {
     match argument {
         Argument::Named { name: _, value, .. } => is_trivial_expression(tree, tree.get(*value)),
-        Argument::Shorthand { name: _, .. } => true,
         Argument::Positional { value, .. } => is_trivial_expression(tree, tree.get(*value)),
-        Argument::Spread { name: _, value, .. } => is_trivial_expression(tree, tree.get(*value)),
+        Argument::Spread { value, .. } => is_trivial_expression(tree, tree.get(*value)),
     }
 }
 
@@ -736,9 +719,8 @@ pub fn is_trivial_property(tree: &NodeTree, property: &Property) -> bool {
 pub fn is_complex_argument(tree: &NodeTree, argument: &Argument) -> bool {
     match argument {
         Argument::Named { name: _, value, .. } => is_complex_expression(tree, tree.get(*value)),
-        Argument::Shorthand { name: _, .. } => false,
         Argument::Positional { value, .. } => is_complex_expression(tree, tree.get(*value)),
-        Argument::Spread { name: _, value, .. } => is_complex_expression(tree, tree.get(*value)),
+        Argument::Spread { value, .. } => is_complex_expression(tree, tree.get(*value)),
     }
 }
 

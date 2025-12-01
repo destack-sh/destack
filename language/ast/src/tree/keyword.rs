@@ -355,7 +355,7 @@ impl FromStr for Keyword {
             "import" => Ok(Keyword::Import),
             "export" => Ok(Keyword::Export),
             "from" => Ok(Keyword::From),
-            
+
             // declarations
             "const" => Ok(Keyword::Const),
             "let" => Ok(Keyword::Let),

@@ -1300,39 +1300,16 @@ impl<'a> NodeVisitor for Dumper<'a> {
 
     fn visit_argument(&mut self, _tree: &NodeTree, _id: LocalNodeId<Argument>, arg: &Argument) {
         match arg {
-            Argument::Named {
-                modifiers,
-                name,
-                value: _,
-            } => {
+            Argument::Named { name, value: _ } => {
                 self.node("Argument::Named", _id.id)
-                    .field_optional("modifiers", modifiers)
                     .field("name", name)
                     .end();
             }
-            Argument::Shorthand { modifiers, name } => {
-                self.node("Argument::Shorthand", _id.id)
-                    .field_optional("modifiers", modifiers)
-                    .field("name", name)
-                    .end();
+            Argument::Positional { value: _ } => {
+                self.node("Argument::Positional", _id.id).end();
             }
-            Argument::Positional {
-                modifiers,
-                value: _,
-            } => {
-                self.node("Argument::Positional", _id.id)
-                    .field_optional("modifiers", modifiers)
-                    .end();
-            }
-            Argument::Spread {
-                modifiers,
-                name,
-                value: _,
-            } => {
-                self.node("Argument::Spread", _id.id)
-                    .field_optional("modifiers", modifiers)
-                    .field_optional("name", name)
-                    .end();
+            Argument::Spread { value: _ } => {
+                self.node("Argument::Spread", _id.id).end();
             }
         }
         self.with_depth(|dumper| {

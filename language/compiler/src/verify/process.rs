@@ -1,4 +1,4 @@
-use crate::{VerifyResult, Compiler, Task, TaskDebug, TaskOutput};
+use crate::{Compiler, Task, TaskDebug, TaskOutput, VerifyResult};
 
 use destack_dir::{ModuleId, Program};
 

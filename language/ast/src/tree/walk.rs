@@ -983,34 +983,13 @@ pub fn walk_argument<V: NodeVisitor + ?Sized>(
 ) {
     visitor.visit_any(tree, NodeType::Argument, id.id);
     match argument {
-        Argument::Named {
-            modifiers: _,
-            name: _,
-            value,
-        } => {
+        Argument::Named { name: _, value } => {
             let value_expr = tree.get(*value);
             visitor.visit_expression(tree, *value, value_expr);
         }
-        Argument::Shorthand {
-            modifiers: _,
-            name: _,
-        } => {
-            // no child nodes to visit
-        }
-        Argument::Positional {
-            modifiers: _,
-            value,
-        } => {
+        Argument::Positional { value } | Argument::Spread { value } => {
             let value_expr = tree.get(*value);
             visitor.visit_expression(tree, *value, value_expr);
-        }
-        Argument::Spread {
-            modifiers: _,
-            name: _,
-            value,
-        } => {
-            let value_expression = tree.get(*value);
-            visitor.visit_expression(tree, *value, value_expression);
         }
     }
 }
