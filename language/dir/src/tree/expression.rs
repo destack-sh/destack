@@ -343,7 +343,15 @@ impl Node for Expression {
     const TYPE: NodeType = NodeType::Expression;
 
     fn is_resolved(&self) -> bool {
-        true
+        !matches!(
+            self,
+            Expression::UnresolvedImport { .. }
+                | Expression::UnresolvedReExport { .. }
+                | Expression::UnresolvedAbsolutePath { .. }
+                | Expression::UnresolvedRelativePath { .. }
+                | Expression::UnresolvedBreak { .. }
+                | Expression::UnresolvedContinue { .. }
+        )
     }
 }
 
@@ -422,19 +430,6 @@ impl Expression {
         }
     }
 
-    /// Whether the expression is resolved (ignoring child nodes).
-    pub fn is_resolved(&self) -> bool {
-        !matches!(
-            self,
-            Expression::UnresolvedImport { .. }
-                | Expression::UnresolvedReExport { .. }
-                | Expression::UnresolvedAbsolutePath { .. }
-                | Expression::UnresolvedRelativePath { .. }
-                | Expression::UnresolvedBreak { .. }
-                | Expression::UnresolvedContinue { .. }
-        )
-    }
-
     /// Get the scope of the expression.
     pub fn scope(&self) -> Option<LocalScopeId> {
         match self {
@@ -499,7 +494,7 @@ pub enum StaticExpression {
 impl Node for StaticExpression {
     const TYPE: NodeType = NodeType::StaticExpression;
 
-    fn is_resolved(&self) -> bool {
+    fn is_evaluated(&self) -> bool {
         !matches!(self, StaticExpression::Unevaluated { .. })
     }
 }
@@ -562,10 +557,6 @@ pub struct WithClause {
 
 impl Node for WithClause {
     const TYPE: NodeType = NodeType::WithClause;
-
-    fn is_resolved(&self) -> bool {
-        true
-    }
 }
 
 /// A WhereClause is a single clause in a where type declaration.
@@ -587,8 +578,4 @@ pub enum WhereClause {
 
 impl Node for WhereClause {
     const TYPE: NodeType = NodeType::WhereClause;
-
-    fn is_resolved(&self) -> bool {
-        true
-    }
 }

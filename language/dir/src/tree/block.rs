@@ -12,8 +12,4 @@ pub struct Block {
 
 impl Node for Block {
     const TYPE: NodeType = NodeType::Block;
-
-    fn is_resolved(&self) -> bool {
-        true
-    }
 }

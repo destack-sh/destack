@@ -24,8 +24,8 @@ We want to make correct, optimal, integrated full-stack software systems simple 
 But that requires unifying all the disparate pieces: one language, one type system, one way of thinking about code from UI to servers to simulations.
 
 TypeScript is the closest thing we have to a unified software foundation today.
-JavaScript runs everywhere, everyone knows it, and it has a massive ecosystem.
-Unlike Python, which is the #2 language, the TypeScript ecosystem has a solid answer to 1) building frontends, 2) deploying everywhere and 3) running fast(ish). 
+JavaScript runs everywhere, everyone knows it, and it has a massive ecosystem and install base.
+Unlike Python, the TypeScript ecosystem also has a good answer to rich frontends and is a much more optimizable language (especially in strict TypeScript). 
 
 Where Destack looks like TypeScript (e.g., `interface`, `class`, `async`/`await`), it behaves like TypeScript, because it *is* TypeScript(++).
 Unlike with C++, our "C" - both JavaScript and TypeScript -- still work perfectly in Destack, and all `++` features are opt-in and complementary.

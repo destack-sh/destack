@@ -108,10 +108,6 @@ pub enum Property {
 
 impl Node for Property {
     const TYPE: NodeType = NodeType::Property;
-
-    fn is_resolved(&self) -> bool {
-        true // properties are always "resolved" - field mapping is in ResolutionTable
-    }
 }
 
 /// Static property in some static context.
@@ -142,7 +138,7 @@ pub enum StaticProperty {
 impl Node for StaticProperty {
     const TYPE: NodeType = NodeType::StaticProperty;
 
-    fn is_resolved(&self) -> bool {
+    fn is_evaluated(&self) -> bool {
         !matches!(self, StaticProperty::Unevaluated { .. })
     }
 }

@@ -1,4 +1,4 @@
-use destack_dir::{self as dir, Module, NodeTree, SymbolTable, TypeTable};
+use destack_dir::{self as dir, Module, Node, NodeTree, SymbolTable, TypeTable};
 use destack_javascript_ast::{
     Expression, LocalNodeId, LocalNodeIdAny, NodeType, PostfixPosition, Statement,
 };
