@@ -5,7 +5,7 @@ The Destack compiler takes JavaScript, TypeScript and Destack sources and transl
 ## Pipeline
 
 Like most compilers, the Destack compiler has three main regions: 
- 1. Front-end (source → typed DIR)
+ 1. Front-end (`.(ds|ts|tsx|js|jsx)` → typed DIR)
  2. Middle-end (DIR → optimized MIR)
  3. Back-end (DIR/MIR → artifacts).
 (For JS/TS targets, the middle-end may be skipped entirely.)
