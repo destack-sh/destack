@@ -1,7 +1,12 @@
+mod check;
 mod error;
+mod evaluate;
+mod flow;
+mod infer;
 mod options;
+mod pattern;
 mod process;
-mod r#type;
+mod resolve;
 mod warning;
 
 pub use error::*;
