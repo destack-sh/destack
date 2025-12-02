@@ -88,8 +88,6 @@ impl TestProgram {
     }
 
     /// Resolve a relative symbol path within a scope.
-    ///
-    /// This takes a symbol and resolves path segments within its associated scope.
     fn resolve_relative_symbol(
         &self,
         symbols: &SymbolTable,

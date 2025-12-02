@@ -1,6 +1,6 @@
 use crate::{
     Asynchrony, BindingModifier, Expression, FunctionCardinality, FunctionSignature, Key,
-    LocalNodeId, LocalSymbolId, Mutability, ScalarLiteral, StaticExpression, VarianceBound,
+    LocalNodeId, LocalSymbolId, Mutability, ScalarLiteral, VarianceBound,
 };
 
 use super::{DeclarationType, PrimitiveType, TypeBinaryOperator, TypeUnaryOperator};
@@ -81,7 +81,7 @@ pub enum Type {
     /// Array type with fixed size (like `T[N]`).
     ArraySized {
         element: LocalTypeId,
-        count: LocalNodeId<StaticExpression>,
+        count: LocalNodeId<Expression>,
     },
     /// Array type with dynamically sized elements (like `T[]`).
     Array { element: Option<LocalTypeId> },
