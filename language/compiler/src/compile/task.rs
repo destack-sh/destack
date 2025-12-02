@@ -44,27 +44,27 @@ impl TaskRegion {
 pub enum TaskPhase {
     /// Import and parse source into AST.
     Import = 1,
-    /// Bind, lower and declare AST source into DIR.
+    /// Bind and declare AST into DIR.
     Bind = 2,
-    /// Resolve symbols, scopes and types in DIR.
+    /// Resolve symbol references in DIR.
     Resolve = 3,
-    /// Analyze and type-check DIR.
+    /// Type inference, checking, and overload resolution.
     Analyze = 4,
-    /// Elaborate, desugar and monomorphize DIR.
+    /// Monomorphize, evaluate comptime, and desugar DIR.
     Elaborate = 5,
     // --------------------------------------------------
-    /// Lower the DIR into MIR.
+    /// Lower DIR into MIR.
     Lower = 6,
     /// Verify and flow-check MIR.
     Verify = 7,
-    /// Optimize the MIR.
+    /// Optimize MIR.
     Optimize = 8,
     // --------------------------------------------------
-    /// Generate the MIR into some artifact.
+    /// Generate DIR or MIR into artifacts.
     Generate = 9,
-    /// Link generated artifacts into final output.
+    /// Link artifacts into final output.
     Link = 10,
-    /// Execute MIR or generated artifact.
+    /// Execute output.
     Execute = 11,
 }
 
@@ -112,16 +112,16 @@ impl TaskPhase {
     pub fn description(&self) -> &str {
         match self {
             Self::Import => "import and parse source into AST",
-            Self::Bind => "bind, lower and declare AST source into DIR",
-            Self::Resolve => "resolve symbols, scopes and types in DIR",
-            Self::Analyze => "analyze and check DIR",
-            Self::Elaborate => "elaborate and monomorphize DIR",
-            Self::Lower => "lower the DIR into MIR",
+            Self::Bind => "bind and declare AST into DIR",
+            Self::Resolve => "resolve symbol references in DIR",
+            Self::Analyze => "type inference, checking, and overload resolution",
+            Self::Elaborate => "monomorphize, evaluate comptime, and desugar DIR",
+            Self::Lower => "lower DIR into MIR",
             Self::Verify => "verify and flow-check MIR",
-            Self::Optimize => "optimize the MIR",
-            Self::Generate => "generate the MIR into some artifact",
-            Self::Link => "link generated artifacts into final output",
-            Self::Execute => "execute MIR or generated artifact",
+            Self::Optimize => "optimize MIR",
+            Self::Generate => "generate DIR or MIR into artifacts",
+            Self::Link => "link artifacts into final output",
+            Self::Execute => "execute output",
         }
     }
 
@@ -148,27 +148,27 @@ impl TaskPhase {
 pub enum Task {
     /// Import and parse source into AST.
     Import(ImportTask),
-    /// Bind, lower and declare AST source into DIR.
+    /// Bind and declare AST into DIR.
     Bind(BindTask),
-    /// Resolve symbols, scopes and types in DIR.
+    /// Resolve symbol references in DIR.
     Resolve(ResolveTask),
-    /// Analyze and check DIR.
+    /// Type inference, checking, and overload resolution.
     Analyze(AnalyzeTask),
-    /// Elaborate and monomorphize DIR.
+    /// Monomorphize, evaluate comptime, and desugar DIR.
     Elaborate(ElaborateTask),
     // --------------------------------------------------
-    /// Lower the DIR into MIR.
+    /// Lower DIR into MIR.
     Lower(LowerTask),
     /// Verify and flow-check MIR.
     Verify(VerifyTask),
-    /// Optimize the MIR.
+    /// Optimize MIR.
     Optimize(OptimizeTask),
     // --------------------------------------------------
-    /// Generate the MIR into some artifact.
+    /// Generate DIR or MIR into artifacts.
     Generate(GenerateTask),
-    /// Link generated artifacts into final output.
+    /// Link artifacts into final output.
     Link(LinkTask),
-    /// Execute MIR or generated artifact.
+    /// Execute output.
     Execute(ExecuteTask),
 }
 

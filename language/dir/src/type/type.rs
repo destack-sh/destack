@@ -37,6 +37,7 @@ pub enum TypeLiteral {
 pub enum Type {
     /// Scalar type literal.
     Scalar(TypeLiteral),
+    
     /// Redirect to symbol type.
     Symbol(LocalSymbolId),
     /// Unevaluated expression that resolves to a type (needs compile-time evaluation).
@@ -80,7 +81,7 @@ pub enum Type {
     /// Array type with fixed size (like `T[N]`).
     ArraySized {
         element: LocalTypeId,
-        count: StaticExpression,
+        count: LocalNodeId<StaticExpression>,
     },
     /// Array type with dynamically sized elements (like `T[]`).
     Array { element: Option<LocalTypeId> },

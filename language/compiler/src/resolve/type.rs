@@ -4,7 +4,7 @@ use destack_dir::{
     StaticExpression, SymbolTable, Type, TypeLiteral, TypeTable, TypeUnaryOperator, UnaryOperator,
 };
 
-// nocheckin: change type "resolution" to evaluation
+// nocheckin: change type "resolution" to "evaluation"
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
