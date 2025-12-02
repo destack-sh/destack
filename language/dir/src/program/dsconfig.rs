@@ -179,32 +179,18 @@ pub enum DsConfigExtendsField {
 #[serde(rename_all = "camelCase")]
 pub struct DsConfigCompilerOptionsJson {
     // features
-    /// Allow precise numeric types, raw strings, byte literals.
-    pub allow_primitives: Option<bool>,
-    /// Allow range literals (`1..10`, `1..=10`).
-    pub allow_ranges: Option<bool>,
-    /// Allow tuple types and literals.
-    pub allow_tuples: Option<bool>,
-    /// Allow tree literals (`<Node>...</Node>`).
-    pub allow_trees: Option<bool>,
-    /// Allow nominal (distinct) types with `newtype`.
-    pub allow_newtypes: Option<bool>,
-    /// Allow struct declarations for value-oriented data types.
-    pub allow_structs: Option<bool>,
-    /// Allow explicit ownership and reference semantics (`&T`, `&mut T`, `^T`).
+    /// Allow expression-oriented features: implicit returns, `loop`, `defer`, ranges, tuples, patterns, trees.
+    pub allow_expressions: Option<bool>,
+    /// Allow type system extensions: runtime types, newtypes, primitives, structs, constraints.
+    pub allow_types: Option<bool>,
+    /// Allow polymorphism: extensions and overloading.
+    pub allow_polymorphism: Option<bool>,
+    /// Allow annotations: tags (`#`) and extended decorators (`@`).
+    pub allow_annotations: Option<bool>,
+    /// Allow context: effect declarations with `with` clauses.
+    pub allow_context: Option<bool>,
+    /// Allow ownership: value ownership (`&T`, `^T`), mutability (`var`), and dispatch behavior.
     pub allow_ownership: Option<bool>,
-    /// Allow constraint guards with `where` clauses.
-    pub allow_constraints: Option<bool>,
-    /// Allow type extensions for organizing implementations.
-    pub allow_extensions: Option<bool>,
-    /// Allow function and operator overloading.
-    pub allow_overloading: Option<bool>,
-    /// Allow pattern matching with `match` expressions.
-    pub allow_patterns: Option<bool>,
-    /// Allow effect declarations with `with` clauses.
-    pub allow_effects: Option<bool>,
-    /// Allow defer statements for cleanup (`defer file.close()`).
-    pub allow_defer: Option<bool>,
 
     // path resolution
     /// Base URL for resolving non-relative module names.
@@ -238,44 +224,23 @@ pub struct DsConfigCompilerOptionsJson {
 impl DsConfigCompilerOptionsJson {
     /// Apply feature flags from options to a feature set.
     pub fn apply_features(&self, features: &mut LanguageFeatureSet) {
-        if let Some(enabled) = self.allow_overloading {
-            features.set(LanguageFeature::Overloading, enabled);
+        if let Some(enabled) = self.allow_expressions {
+            features.set(LanguageFeature::Expressions, enabled);
         }
-        if let Some(enabled) = self.allow_newtypes {
-            features.set(LanguageFeature::Newtypes, enabled);
+        if let Some(enabled) = self.allow_types {
+            features.set(LanguageFeature::Types, enabled);
         }
-        if let Some(enabled) = self.allow_primitives {
-            features.set(LanguageFeature::Primitives, enabled);
+        if let Some(enabled) = self.allow_polymorphism {
+            features.set(LanguageFeature::Polymorphism, enabled);
         }
-        if let Some(enabled) = self.allow_patterns {
-            features.set(LanguageFeature::Patterns, enabled);
+        if let Some(enabled) = self.allow_annotations {
+            features.set(LanguageFeature::Annotations, enabled);
         }
-        if let Some(enabled) = self.allow_effects {
-            features.set(LanguageFeature::Effects, enabled);
-        }
-        if let Some(enabled) = self.allow_extensions {
-            features.set(LanguageFeature::Extensions, enabled);
+        if let Some(enabled) = self.allow_context {
+            features.set(LanguageFeature::Context, enabled);
         }
         if let Some(enabled) = self.allow_ownership {
             features.set(LanguageFeature::Ownership, enabled);
-        }
-        if let Some(enabled) = self.allow_structs {
-            features.set(LanguageFeature::Structs, enabled);
-        }
-        if let Some(enabled) = self.allow_constraints {
-            features.set(LanguageFeature::Constraints, enabled);
-        }
-        if let Some(enabled) = self.allow_ranges {
-            features.set(LanguageFeature::Ranges, enabled);
-        }
-        if let Some(enabled) = self.allow_tuples {
-            features.set(LanguageFeature::Tuples, enabled);
-        }
-        if let Some(enabled) = self.allow_defer {
-            features.set(LanguageFeature::Defer, enabled);
-        }
-        if let Some(enabled) = self.allow_trees {
-            features.set(LanguageFeature::Trees, enabled);
         }
     }
 }

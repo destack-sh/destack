@@ -36,95 +36,60 @@ Technically, you can even use none at all, and then Destack is just TypeScript.
 
 | Feature | Description |
 |---------|-------------|
-| [Types](#types) | Type annotations are values (at runtime) |
-| [Expressions](#expressions) | `if`, `match`, blocks are values |
-| [Primitives](#primitives) | `int`, `int32`, `float` to refine `number` |
-| [Ranges](#ranges) | Range literals like `0..10` or `n..=m` |
-| [Tuples](#tuples) | Value-oriented tuple types with `(T, T)` |
-| [Trees](#trees) | TSX-like syntax for any tree-shaped data |
-| [Newtypes](#newtypes) | Nominal (distinct) types |
-| [Structs](#structs) | Value-oriented data types |
-| [Ownership](#ownership) | Explicit `&T`, `^T` and `&var T` |
-| [Constraints](#constraints) | Type guards with `where` clauses |
-| [Extensions](#extensions) | Extend types and organize implementations |
-| [Overloading](#overloading) | Function and operator overloading |
-| [Patterns](#patterns) | Pattern matching with `match` expressions |
-| [Effects](#effects) | Context declaration with `with` clauses |
-| [Defer](#defer) | Cleanup with `defer` statements |
-
-## Types
-
-In TypeScript, types are erased at runtime and cannot affect runtime behavior.
-Type erasure was instrumental to TypeScript's adoption, but it restricts what the language can be:
-no runtime type information, no operator overloading, no function overloading based on types.
-
-In Destack, type annotations are values you can inspect and use at runtime.
-This enables runtime validation, automatic serialization, generic factories that know their type parameters, and reflection without separate metadata systems.
-TypeScript can't do this without breaking its "types don't affect emit" principle, which is core to its design.
+| [Expressions](#expressions) | Everything is an expression: ranges, tuples, patterns, trees, `loop`, `defer` |
+| [Types](#types) | Type system: runtime types, newtypes, primitives, structs, constraints |
+| [Polymorphism](#polymorphism) | Code organization: extensions and overloading |
+| [Annotations](#annotations) | Metadata: tags (`#`) and extended decorators (`@`) |
+| [Context](#context) | Capabilities: effect declarations with `with` clauses |
+| [Ownership](#ownership) | Value ownership (`&T`, `^T`), mutability (`var`), and dispatch behavior |
 
 ## Expressions
 
 In TypeScript, `if` is a statement—you need a ternary or temporary to get a value.
-In Destack, everything is an expression:
+In Destack, everything is an expression.
+The last non-statement expression (no trailing `;`) becomes the value.
 
 ```
 const result = if condition { computeA() } else { computeB() };
-const label = match state { 
-    State.Ready => "go", 
-    State.Loading => "wait" 
-};
 
 function add(a: int, b: int): int {
-    a + b // -> return a + b;
+    a + b // implicit return
 }
 ```
 
-The last non-statement expression (no trailing `;`) becomes the value of the expression.
-Expressions as values reduce temporary variables and can make data flow more explicit.
-Of course, this is optional, and you can still use `return` and all other control flow just as before.
+### Ranges
 
-## Primitives
-
-TypeScript's `number` is always a 64-bit float.
-Destack adds precise types (`int32`, `uint64`, `float32`) as opt-in alternatives, plus raw strings and byte literals.
-
-```
-const id: uint64 = 12345;
-const data: uint8[] = b"binary";
-const raw = r#"no \n escaping"#;
-```
-
-Precise types improve correctness for IDs, indices, and binary protocols, and enable eventual native compilation.
-Use `number` when precision doesn't matter, precise types when it does.
-This is like Rust's numeric types. TypeScript can't add new primitive types without JavaScript support.
-
-## Ranges
-
-Destack adds range literals for iteration and slicing:
+Range literals for iteration and slicing:
 
 ```
 for i in 0..10 { }      // exclusive
 for i in 0..=10 { }     // inclusive
 ```
 
-Ranges make loops cleaner and more explicit.
+### Tuples
 
-## Tuples
-
-Destack adds explicit tuple syntax and destructuring with parentheses:
+Explicit tuple syntax with parentheses (clearer than TypeScript's `[T, U]` array syntax):
 
 ```
 const point: (int32, int32) = (1, 2);
 const (x, _) = getPoint();
 ```
 
-Explicit tuple syntax improves clarity when working with fixed-size heterogeneous data.
-TypeScript has tuples via array syntax `[number, number]`, but the syntax conflates tuples with arrays.
+### Patterns
 
-## Trees
+Modern `match` with full pattern matching and exhaustiveness checking:
 
-TSX brought declarative tree syntax to React, and it has been massively successful.
-Destack generalizes it so `<element />`-style syntax works with any tree-shaped problem:
+```
+match result {
+    Ok(value) => process(value)
+    Err(e) if e.retryable => retry()
+    Err(e) => fail(e)
+}
+```
+
+### Trees
+
+TSX-like syntax generalized for any tree-shaped data:
 
 ```
 <Prompt>
@@ -133,88 +98,71 @@ Destack generalizes it so `<element />`-style syntax works with any tree-shaped 
 </Prompt>
 ```
 
-Entity trees, prompt structures, scene graphs, configuration—all with the same syntax, within the same file.
+### Loop and Defer
 
-## Newtypes
+Infinite loops with `loop`, cleanup with `defer`:
 
-TypeScript's type aliases are structural — two aliases for `string` are interchangeable.
-There are many ways to "brand" types in TypeScript, but they're all a little clumsy.
-Destack adds `newtype` for nominal (distinct) types:
+```
+loop {
+    const input = readInput();
+    if input == "quit" { break }
+    process(input);
+}
+
+const file = open(path);
+defer file.close();
+// file.close() runs when this scope exits
+```
+
+## Types
+
+In TypeScript, types are erased at runtime and cannot affect runtime behavior.
+In Destack, type annotations are values you can inspect and use at runtime.
+This enables runtime validation, automatic serialization, generic factories that know their type parameters, and reflection without separate metadata systems.
+
+### Primitives
+
+Precise numeric types beyond TypeScript's `number`, plus raw strings and byte literals:
+
+```
+const id: uint64 = 12345;
+const data: uint8[] = b"binary";
+const raw = r#"no \n escaping"#;
+```
+
+### Newtypes
+
+Nominal (distinct) types that prevent mixing semantically different values:
 
 ```
 newtype UserId = int64;
 newtype OrderId = int64;
 // UserId and OrderId don't mix, even though both are int64
-```
-
-Newtypes prevent entire categories of bugs by making semantically different values incompatible at compile time.
-Newtypes can wrap scalars, tuples, or structs, with constructor syntax matching the underlying type:
-
-```
-newtype UserId = int64;
-newtype Point = (float32, float32);
-newtype Config = { debug: boolean, level: int };
 
 const id = UserId(42);           // scalar newtype
 const p = Point(1.0, 2.0);       // tuple newtype
-const c = Config { debug: true, level: 5 }; // struct newtype
+const c = Config { debug: true }; // struct newtype
 ```
 
-Newtypes combined with structs and discriminated unions enable idiomatic Result types:
+Newtypes combined with structs enable idiomatic Result types:
 
 ```
 struct Ok<T> { kind: 'ok' = 'ok', value: T }
 struct Err<E> { kind: 'err' = 'err', error: E }
 type Result<T, E> = Ok<T> | Err<E>
-
-// construction
-const success: Result<int, string> = Ok { value: 42 };
-const failure: Result<int, string> = Err { error: "oops" };
-
-// pattern matching
-match result {
-    Ok { value } => process(value)
-    Err { error } => handle(error)
-}
 ```
 
-This pattern is TypeScript-idiomatic (discriminated unions), fully interoperable, and works seamlessly with Destack's pattern matching.
-As a bonus, because types are first-class citizens in Destack, we get to associate methods and constants with newtypes (or any other types) using `extension` (see below).
+### Structs
 
-## Structs
-
-Destack adds `struct` for data-oriented types with value semantics:
+Data-oriented types with value semantics (simpler than classes for plain data):
 
 ```
 struct Point { x: float32, y: float32 }
 ```
 
-Structs are simpler and more predictable than classes for plain data.
-Unlike classes, structs are passed by value (copied) by default and have no constructor ceremony.
-Structs are essentially newtypes around `type MyStruct = { .. }` with associated methods and constants.
+### Constraints
 
-## Ownership
-
-TypeScript doesn't distinguish references from values—everything is implicitly reference-counted or copied based on type.
-Destack adds opt-in explicit control for certain situations:
-
-```
-T            // automatic value or reference (just like before)
-&T           // immutable reference
-&var T       // mutable reference
-^T           // value ("copy semantics")
-^var T       // mutable value ("move semantics")
-```
-
-Explicit ownership enables manual memory management patterns and clearer reasoning about mutation and aliasing.
-This is like Rust's references, though without the full borrow checker (for now).
-TypeScript can't express reference vs. value semantics in its type system.
-
-## Constraints
-
-TypeScript's generic constraints use inline `extends` syntax, which can get a bit clumsy.
-Destack treats static parameters as "real" parameters instead of just polymorphic typing, 
- and Destack additionally supports `where` clauses for refining constraints:
+`where` clauses for readable generic constraints:
 
 ```
 function merge<T: int, U>(): T where (
@@ -222,13 +170,15 @@ function merge<T: int, U>(): T where (
 ) { }
 ```
 
-Where clauses keep function signatures readable when constraints are complex.
-This is like Rust's `where` clauses or Swift's generic constraints.
-
-## Extensions
+## Polymorphism
 
 TypeScript extends types via prototype mutation or declaration merging, both with footguns.
-Destack adds scoped, type-safe extensions:
+TypeScript has limited function overloading via type-only declarations that all share one implementation.
+Destack adds proper extensions and real overloading.
+
+### Extensions
+
+Scoped, type-safe extensions for any type:
 
 ```
 extension Vector2 {
@@ -237,13 +187,10 @@ extension Vector2 {
 ```
 
 Extensions let you add methods to any type—structs, enums, even primitives and foreign types—without modifying the original and without global side effects.
-This is like Rust's `impl` blocks or Swift's extensions.
-TypeScript's declaration merging is global and can cause conflicts.
 
-## Overloading
+### Overloading
 
-TypeScript has limited function overloading via type-only declarations that all share one implementation, and no operator overloading.
-Destack supports real function and operator overloading with distinct implementations:
+Real function and operator overloading with distinct implementations:
 
 ```
 function parse(input: string): int32 { parseInt(input) }
@@ -254,33 +201,38 @@ extension Vector2 implements Add<Vector2> {
 }
 ```
 
-Real overloading reduces boilerplate and enables natural mathematical notation.
-The compiler picks the right implementation based on argument types and Destack errors obviously if resolution is not possible or sensible.
-
-For operators, Destack uses **receiver-based dispatch**: `a + b` desugars to `a.add(b)`, so the left operand's type determines which implementation is called.
-This matches TypeScript's method dispatch semantics and keeps overload resolution simple and predictable.
-
+For operators, Destack uses **receiver-based dispatch**: `a + b` desugars to `a.add(b)`.
 For function overloads, Destack uses **declaration order**: the first matching overload wins.
-This matches TypeScript's overload resolution and means more specific overloads should be declared before general ones.
-The compiler warns if an overload is shadowed by an earlier declaration that always matches first.
 
-## Patterns
+## Annotations
 
-TypeScript's `switch` comes from C tradition and is limited to value equality with no destructuring.
-Destack adds modern `match` with full pattern matching:
+Destack adds tags (`#`) for structured metadata and extends decorators (`@`) to work on any declaration.
+
+### Tags
+
+Compile-time metadata attached to declarations:
 
 ```
-match result {
-    Ok(value) => process(value)
-    Err(e) if e.retryable => retry()
-    Err(e) => fail(e)
-}
+#Performance
+#deprecated("use newAPI instead")
+function oldAPI() { }
 ```
 
-Pattern matching eliminates entire classes of bugs through exhaustiveness checking and makes complex conditionals more readable.
-Destack's `match` compiles to a clean switch and/or if-else construct in TypeScript.
+Tags are structured and queryable, unlike comments.
 
-## Effects
+### Decorators
+
+TypeScript decorators extended to work on any declaration (functions, variables, structs), not just class members:
+
+```
+@memoize
+@route("/api/users")
+function getUsers() { }
+```
+
+TypeScript decorators copy-pasted into Destack work as expected.
+
+## Context
 
 TypeScript functions don't declare their side effects—any function might do I/O, allocate, or throw.
 Destack adds optional `with` clauses for effect tracking:
@@ -291,20 +243,43 @@ function pure<T>(x: T): T with !Allocation { }
 ```
 
 Effect tracking makes function capabilities explicit and enables the compiler to enforce purity constraints.
-Declare what a function can do, or explicitly forbid effects.
 This is like algebraic effects in research languages, but pragmatic and opt-in.
-TypeScript has no way to express or enforce effect constraints.
 
-## Defer
+## Ownership
 
-Destack adds optional `defer` for cleanup that runs when scope exits:
+TypeScript doesn't distinguish references from values—everything is implicitly reference-counted or copied based on type.
+Destack adds opt-in explicit control over three orthogonal aspects of ownership:
+
+### Value Ownership
+
+Control whether data is passed by reference or by value:
 
 ```
-const file = open(path);
-defer file.close();
-// file.close() runs when this scope exits, however it exits
+T            // automatic (TypeScript behavior)
+&T           // reference (shared access)
+^T           // value (copy semantics)
 ```
 
-Defer ensures cleanup happens regardless of how a function exits, without try/finally boilerplate.
-This is like Go's `defer` or Swift's `defer`.
-TypeScript requires try/finally or explicit cleanup, which is verbose and easy to forget.
+### Mutability Ownership
+
+Control whether bindings can be mutated:
+
+```
+&T           // immutable reference
+&var T       // mutable reference
+^T           // immutable value
+^var T       // mutable value
+```
+
+### Dispatch Behavior
+
+Control how polymorphic calls are dispatched:
+
+```
+&T             // automatic dispatch
+&implements T  // explicit dynamic interface dispatch
+&extends T     // explicit dynamic class dispatch
+```
+
+Explicit dispatch enables devirtualization and other optimizations when the compiler can prove static dispatch is safe.
+It's closer to Mojo's approach: explicit control when you need it, automatic behavior when you don't.
