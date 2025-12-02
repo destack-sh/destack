@@ -2,12 +2,10 @@
 
 use crate::{
     Annotation, Argument, Block, Declaration, DependencyItem, EnumField, Expression, LocalNodeId,
-    MatchCase, NodeTree, NodeType, Parameter, Pattern, PatternField, Property, StaticArgument,
-    StaticExpression, StaticProperty, WhereClause, WithClause, walk_annotation, walk_argument,
-    walk_block, walk_declaration, walk_dependency_item, walk_enum_field, walk_expression,
-    walk_match_case, walk_parameter, walk_pattern, walk_pattern_field, walk_property,
-    walk_static_argument, walk_static_expression, walk_static_property, walk_where_clause,
-    walk_with_clause,
+    MatchCase, NodeTree, NodeType, Parameter, Pattern, PatternField, Property, WhereClause,
+    WithClause, walk_annotation, walk_argument, walk_block, walk_declaration, walk_dependency_item,
+    walk_enum_field, walk_expression, walk_match_case, walk_parameter, walk_pattern,
+    walk_pattern_field, walk_property, walk_where_clause, walk_with_clause,
 };
 
 #[derive(Debug, Clone, Default)]
@@ -33,16 +31,6 @@ pub trait NodeVisitor {
         walk_expression(self, tree, id, expression);
     }
 
-    /// Visit a StaticExpression.
-    fn visit_static_expression(
-        &mut self,
-        tree: &NodeTree,
-        id: LocalNodeId<StaticExpression>,
-        static_expression: &StaticExpression,
-    ) {
-        walk_static_expression(self, tree, id, static_expression);
-    }
-
     /// Visit a Block.
     fn visit_block(&mut self, tree: &NodeTree, id: LocalNodeId<Block>, block: &Block) {
         walk_block(self, tree, id, block);
@@ -61,16 +49,6 @@ pub trait NodeVisitor {
     /// Visit a Property.
     fn visit_property(&mut self, tree: &NodeTree, id: LocalNodeId<Property>, property: &Property) {
         walk_property(self, tree, id, property);
-    }
-
-    /// Visit a StaticProperty.
-    fn visit_static_property(
-        &mut self,
-        tree: &NodeTree,
-        id: LocalNodeId<StaticProperty>,
-        static_property: &StaticProperty,
-    ) {
-        walk_static_property(self, tree, id, static_property);
     }
 
     /// Visit an EnumField.
@@ -126,16 +104,6 @@ pub trait NodeVisitor {
     /// Visit an Argument.
     fn visit_argument(&mut self, tree: &NodeTree, id: LocalNodeId<Argument>, argument: &Argument) {
         walk_argument(self, tree, id, argument);
-    }
-
-    /// Visit a StaticArgument.
-    fn visit_static_argument(
-        &mut self,
-        tree: &NodeTree,
-        id: LocalNodeId<StaticArgument>,
-        static_argument: &StaticArgument,
-    ) {
-        walk_static_argument(self, tree, id, static_argument);
     }
 
     /// Visit a MatchCase.
@@ -217,15 +185,6 @@ impl NodeVisitor for CapturingNodeVisitor {
         self.visit_any(tree, NodeType::Expression, id.id);
     }
 
-    fn visit_static_expression(
-        &mut self,
-        tree: &NodeTree,
-        id: LocalNodeId<StaticExpression>,
-        _static_expression: &StaticExpression,
-    ) {
-        self.visit_any(tree, NodeType::StaticExpression, id.id);
-    }
-
     fn visit_block(&mut self, tree: &NodeTree, id: LocalNodeId<Block>, _block: &Block) {
         self.visit_any(tree, NodeType::Block, id.id);
     }
@@ -241,15 +200,6 @@ impl NodeVisitor for CapturingNodeVisitor {
 
     fn visit_property(&mut self, tree: &NodeTree, id: LocalNodeId<Property>, _property: &Property) {
         self.visit_any(tree, NodeType::Property, id.id);
-    }
-
-    fn visit_static_property(
-        &mut self,
-        tree: &NodeTree,
-        id: LocalNodeId<StaticProperty>,
-        _static_property: &StaticProperty,
-    ) {
-        self.visit_any(tree, NodeType::StaticProperty, id.id);
     }
 
     fn visit_enum_field(
@@ -299,15 +249,6 @@ impl NodeVisitor for CapturingNodeVisitor {
 
     fn visit_argument(&mut self, tree: &NodeTree, id: LocalNodeId<Argument>, _argument: &Argument) {
         self.visit_any(tree, NodeType::Argument, id.id);
-    }
-
-    fn visit_static_argument(
-        &mut self,
-        tree: &NodeTree,
-        id: LocalNodeId<StaticArgument>,
-        _static_argument: &StaticArgument,
-    ) {
-        self.visit_any(tree, NodeType::StaticArgument, id.id);
     }
 
     fn visit_match_case(

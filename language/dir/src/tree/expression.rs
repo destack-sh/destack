@@ -454,6 +454,7 @@ impl Expression {
 
 /// Static value form of an expression in some static context.
 /// Static evaluation supports all constructs, this is for the resulting static value.
+/// This is a plain value type, not a tree node so we can pass it around freely.
 #[derive(Debug, Clone, PartialEq)]
 pub enum StaticExpression {
     /// Unevaluated expression (needs compile-time evaluation).
@@ -464,38 +465,54 @@ pub enum StaticExpression {
     /// Type literal.
     TypeLiteral { value: TypeLiteral },
 
-    /// Declaration.
+    /// Declaration reference with optional static arguments.
     Declaration {
         declaration: LocalNodeId<Declaration>,
-        static_arguments: Option<Vec<LocalNodeId<StaticArgument>>>,
+        static_arguments: Option<Vec<StaticArgument>>,
     },
     /// Type.
     Type { ty: LocalTypeId },
     /// Range expression.
     RangeExpression {
-        start: LocalNodeId<StaticExpression>,
-        end: LocalNodeId<StaticExpression>,
+        start: Box<StaticExpression>,
+        end: Box<StaticExpression>,
         is_inclusive: bool,
     },
     /// Array expression.
-    ArrayExpression {
-        elements: Vec<LocalNodeId<StaticExpression>>,
-    },
+    ArrayExpression { elements: Vec<StaticExpression> },
     /// Tuple expression.
-    TupleExpression {
-        elements: Vec<LocalNodeId<StaticExpression>>,
-    },
+    TupleExpression { elements: Vec<StaticExpression> },
     /// Object expression.
-    ObjectExpression {
-        properties: Vec<LocalNodeId<StaticProperty>>,
-    },
+    ObjectExpression { properties: Vec<StaticProperty> },
 }
 
-impl Node for StaticExpression {
-    const TYPE: NodeType = NodeType::StaticExpression;
-
-    fn is_evaluated(&self) -> bool {
-        !matches!(self, StaticExpression::Unevaluated { .. })
+impl StaticExpression {
+    /// Check if the static expression and all its children have been evaluated.
+    pub fn is_evaluated(&self) -> bool {
+        match self {
+            StaticExpression::Unevaluated { .. } => false,
+            StaticExpression::ScalarLiteral { .. } => true,
+            StaticExpression::TypeLiteral { .. } => true,
+            StaticExpression::Type { .. } => true,
+            StaticExpression::Declaration {
+                static_arguments, ..
+            } => static_arguments
+                .as_ref()
+                .map(|args| args.iter().all(StaticArgument::is_evaluated))
+                .unwrap_or(true),
+            StaticExpression::RangeExpression { start, end, .. } => {
+                start.is_evaluated() && end.is_evaluated()
+            }
+            StaticExpression::ArrayExpression { elements } => {
+                elements.iter().all(StaticExpression::is_evaluated)
+            }
+            StaticExpression::TupleExpression { elements } => {
+                elements.iter().all(StaticExpression::is_evaluated)
+            }
+            StaticExpression::ObjectExpression { properties } => {
+                properties.iter().all(StaticProperty::is_evaluated)
+            }
+        }
     }
 }
 

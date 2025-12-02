@@ -1191,61 +1191,6 @@ impl<'a> NodeVisitor for Dumper<'a> {
         });
     }
 
-    fn visit_static_expression(
-        &mut self,
-        tree: &NodeTree,
-        id: LocalNodeId<StaticExpression>,
-        static_expression: &StaticExpression,
-    ) {
-        match static_expression {
-            StaticExpression::Unevaluated { node: _ } => {
-                self.node("StaticExpression::Unevaluated", id.id).end();
-            }
-
-            StaticExpression::Declaration {
-                declaration: _,
-                static_arguments: _,
-            } => {
-                self.node("StaticExpression::Declaration", id.id).end();
-            }
-            StaticExpression::Type { ty: _ } => {
-                self.node("StaticExpression::Type", id.id).end();
-            }
-
-            StaticExpression::TypeLiteral { value } => {
-                self.node("StaticExpression::TypeLiteral", id.id)
-                    .field("value", value)
-                    .end();
-            }
-            StaticExpression::ScalarLiteral { value } => {
-                self.node("StaticExpression::ScalarLiteral", id.id)
-                    .field("value", value)
-                    .end();
-            }
-            StaticExpression::RangeExpression {
-                start: _,
-                end: _,
-                is_inclusive,
-            } => {
-                self.node("StaticExpression::RangeExpression", id.id)
-                    .field("is_inclusive", is_inclusive)
-                    .end();
-            }
-            StaticExpression::ArrayExpression { elements: _ } => {
-                self.node("StaticExpression::ArrayExpression", id.id).end();
-            }
-            StaticExpression::TupleExpression { elements: _ } => {
-                self.node("StaticExpression::TupleExpression", id.id).end();
-            }
-            StaticExpression::ObjectExpression { properties: _ } => {
-                self.node("StaticExpression::ObjectExpression", id.id).end();
-            }
-        }
-        self.with_depth(|dumper| {
-            walk_static_expression(dumper, tree, id, static_expression);
-        });
-    }
-
     fn visit_block(&mut self, tree: &NodeTree, id: LocalNodeId<Block>, block: &Block) {
         self.node("Block", id.id).end();
         self.with_depth(|dumper| {
@@ -1419,49 +1364,6 @@ impl<'a> NodeVisitor for Dumper<'a> {
         }
         self.with_depth(|dumper| {
             walk_property(dumper, tree, id, property);
-        });
-    }
-
-    fn visit_static_property(
-        &mut self,
-        tree: &NodeTree,
-        id: LocalNodeId<StaticProperty>,
-        static_property: &StaticProperty,
-    ) {
-        match static_property {
-            StaticProperty::Unevaluated { node: _ } => {
-                self.node("StaticProperty::Unevaluated", id.id).end();
-            }
-            StaticProperty::Field {
-                modifiers,
-                key,
-                value: _,
-                default: _,
-                symbol,
-            } => {
-                self.node("StaticProperty::Field", id.id)
-                    .field_optional("modifiers", modifiers)
-                    .field_optional("key", key)
-                    .field("symbol", symbol)
-                    .end();
-            }
-            StaticProperty::Method {
-                modifiers,
-                key,
-                signature,
-                body: _,
-                symbol,
-            } => {
-                self.node("StaticProperty::Method", id.id)
-                    .field_optional("modifiers", modifiers)
-                    .field_optional("key", key)
-                    .field("signature", signature)
-                    .field("symbol", symbol)
-                    .end();
-            }
-        }
-        self.with_depth(|dumper| {
-            walk_static_property(dumper, tree, id, static_property);
         });
     }
 
@@ -1671,27 +1573,6 @@ impl<'a> NodeVisitor for Dumper<'a> {
         }
         self.with_depth(|dumper| {
             walk_argument(dumper, tree, id, argument);
-        });
-    }
-
-    fn visit_static_argument(
-        &mut self,
-        tree: &NodeTree,
-        id: LocalNodeId<StaticArgument>,
-        static_argument: &StaticArgument,
-    ) {
-        match static_argument {
-            StaticArgument::Unevaluated { node: _ } => {
-                self.node("StaticArgument::Unevaluated", id.id).end();
-            }
-            StaticArgument::Evaluated { name, value: _ } => {
-                self.node("StaticArgument::Evaluated", id.id)
-                    .field_optional("name", name)
-                    .end();
-            }
-        }
-        self.with_depth(|dumper| {
-            walk_static_argument(dumper, tree, id, static_argument);
         });
     }
 

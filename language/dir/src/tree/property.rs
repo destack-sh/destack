@@ -3,6 +3,45 @@ use crate::{
     StaticExpression, Visibility,
 };
 
+/// Static property in some static context.
+/// Static evaluation supports all constructs, this is for the resulting static value.
+/// This is a plain value type, not a tree node, so that we can pass it around directly.
+#[derive(Debug, Clone, PartialEq)]
+pub enum StaticProperty {
+    /// Unevaluated property (needs compile-time evaluation).
+    Unevaluated { node: LocalNodeId<Property> },
+
+    /// Evaluated static field (like `x: int32`).
+    Field {
+        modifiers: Option<BindingModifier>,
+        key: Option<Key>,
+        value: StaticExpression,
+        default: Option<StaticExpression>,
+        symbol: LocalSymbolId,
+    },
+    /// Evaluated static member function (like `foo()` or `<T>(): T`).
+    Method {
+        modifiers: Option<BindingModifier>,
+        key: Option<Key>,
+        signature: FunctionSignature,
+        body: StaticExpression,
+        symbol: LocalSymbolId,
+    },
+}
+
+impl StaticProperty {
+    /// Check if the static property and its values have been evaluated.
+    pub fn is_evaluated(&self) -> bool {
+        match self {
+            StaticProperty::Unevaluated { .. } => false,
+            StaticProperty::Field { value, default, .. } => {
+                value.is_evaluated() && default.as_ref().is_none_or(|d| d.is_evaluated())
+            }
+            StaticProperty::Method { body, .. } => body.is_evaluated(),
+        }
+    }
+}
+
 /// The type of a binding.
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum BindingKind {
@@ -108,37 +147,4 @@ pub enum Property {
 
 impl Node for Property {
     const TYPE: NodeType = NodeType::Property;
-}
-
-/// Static property in some static context.
-/// Static evaluation supports all constructs, this is for the resulting static value.
-#[derive(Debug, Clone, PartialEq)]
-pub enum StaticProperty {
-    /// Unevaluated property (needs compile-time evaluation).
-    Unevaluated { node: LocalNodeId<Property> },
-
-    /// Evaluated static field (like `x: int32`).
-    Field {
-        modifiers: Option<BindingModifier>,
-        key: Option<Key>,
-        value: LocalNodeId<StaticExpression>,
-        default: Option<LocalNodeId<StaticExpression>>,
-        symbol: LocalSymbolId,
-    },
-    /// Evaluated static member function (like `foo()` or `<T>(): T`).
-    Method {
-        modifiers: Option<BindingModifier>,
-        key: Option<Key>,
-        signature: FunctionSignature,
-        body: LocalNodeId<StaticExpression>,
-        symbol: LocalSymbolId,
-    },
-}
-
-impl Node for StaticProperty {
-    const TYPE: NodeType = NodeType::StaticProperty;
-
-    fn is_evaluated(&self) -> bool {
-        !matches!(self, StaticProperty::Unevaluated { .. })
-    }
 }

@@ -178,21 +178,11 @@ impl Compiler {
                 }
             }
 
-            // range
-            &Expression::RangeExpression {
-                start,
-                end,
-                is_inclusive,
-            } => {
-                let start_id =
-                    self.try_evaluate_expression_to_type(module, start, tree, symbols, types)?;
-                let end_id =
-                    self.try_evaluate_expression_to_type(module, end, tree, symbols, types)?;
-                Type::Range {
-                    start: start_id,
-                    end: end_id,
-                    is_inclusive,
-                }
+            // range (not supported as a type expression for now)
+            Expression::RangeExpression { .. } => {
+                return Err(AnalyzeError::UnsupportedNode {
+                    node: expression_id.into_global_any(module.id),
+                });
             }
             // tuple (anonymous)
             Expression::TupleExpression { .. } => {
