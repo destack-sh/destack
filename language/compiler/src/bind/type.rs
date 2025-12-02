@@ -27,7 +27,7 @@ impl Compiler {
             symbols,
             types,
         );
-        types.insert_type(Type::Unevaluated(expression_id), expression_id)
+        types.insert_type_from(Type::Unevaluated(expression_id), expression_id)
     }
 
     /// Bind mutability into a DIR mutability.

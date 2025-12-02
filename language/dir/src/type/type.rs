@@ -38,6 +38,9 @@ pub enum Type {
     /// Scalar type literal.
     Scalar(TypeLiteral),
 
+    /// Type-as-value: a runtime type descriptor.
+    Value { of: LocalTypeId },
+
     /// Reference to a declared type (with optional type arguments for generics).
     Reference {
         symbol: GlobalSymbolId,

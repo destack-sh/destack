@@ -70,7 +70,7 @@ impl Compiler {
             symbols,
             types,
         )?;
-        Ok(types.insert_type(ty, expression_id))
+        Ok(types.insert_type_from(ty, expression_id))
     }
 
     /// Evaluate an Expression into a Type.

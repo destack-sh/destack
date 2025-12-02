@@ -325,28 +325,6 @@ function compute<Foo: boolean>(data: uint8[]) {
 compute<true>(); // pass the static argument positionally
 ```
 
-#### Nested Static Parameterisation
-
-When a generic type contains generic methods, the inner context inherits parameters from the outer:
-
-```
-struct Container<T> {
-    value: T
-    
-    // map<U> inherits T from Container, adds its own U
-    map<U>(f: (T) => U): Container<U> {
-        Container { value: f(this.value) }
-    }
-}
-
-let c: Container<int32> = Container { value: 42 };
-c.map<string>((x) => x.toString())  // T=int32, U=string
-```
-
-Internally, each instantiation is **flattened**: inherited arguments come first, then own arguments.
-So `Container<int32>.map<string>` has arguments `[int32, string]` where `int32` is inherited from `Container` and `string` is `map`'s own parameter.
-This matches how TypeScript handles generic method calls on generic classes, and follows the same monomorphization model as Rust and C++.
-
 ### Where Clauses
 
 Destack adds `where` clauses for type constraints beyond TypeScript's inline syntax:
@@ -361,6 +339,145 @@ function merge<T, U>(): T where (
     U: Comparable
 ) {
     // ...
+}
+```
+
+### Refinements
+
+Refinements add constraints and metadata to types.
+The compiler checks provided refinements at compile time where provable; runtime validation is opt-in via the `@destack/schema` library.
+
+```
+int.min(0)                           // int >= 0
+int.max(100)                         // int <= 100  
+int.min(0).max(100)                  // int in [0, 100]
+string.minLength(1)                  // non-empty string
+string.describe("User's full name")  // with metadata
+uint[].nonEmpty()                    // non-empty array
+```
+
+Refinements are implemented as extensions, so user can define domain-specific ones.
+That is exactly how the `@destack/schema` ones work (there is no privileged magic here).
+
+```
+extension DateTime {
+    /// Refine to dates in the future.
+    future(): DateTime {
+        // ...
+    }
+}
+
+// Now usable as a type refinement:
+struct Event {
+    scheduledAt: DateTime.future().describe("When the event occurs"),
+}
+```
+
+#### Standard Library Refinements
+
+Refinements are defined via extensions on types (just like any `extension` on any type).
+The standard library bundles many useful refinements commonly used in schema libraries: 
+
+**Numeric types** (`int`, `uint`, `float`, and sized variants):
+
+| Refinement | Meaning |
+|------------|---------|
+| `.min(n)` | Value ≥ n |
+| `.max(n)` | Value ≤ n |
+| `.positive()` | Value > 0 |
+| `.negative()` | Value < 0 |
+| `.nonZero()` | Value ≠ 0 |
+
+**String type**:
+
+| Refinement | Meaning |
+|------------|---------|
+| `.minLength(n)` | Length ≥ n |
+| `.maxLength(n)` | Length ≤ n |
+| `.nonEmpty()` | Length ≥ 1 |
+| `.length(n)` | Length = n |
+
+**Array-like types**:
+
+| Refinement | Meaning |
+|------------|---------|
+| `.minLength(n)` | Length ≥ n |
+| `.maxLength(n)` | Length ≤ n |
+| `.nonEmpty()` | Length ≥ 1 |
+
+**All types**:
+
+| Refinement | Meaning |
+|------------|---------|
+| `.describe(text)` | Attach description metadata |
+
+#### Refinement Composition
+
+Types are values, refinements refine those values, and refined types can be composed:
+```
+// variables
+const percentage: float.min(0).max(100) = 75.5;
+
+// functions
+function clamp(x: int, min: int, max: int): int.min(min).max(max);
+
+// composites
+struct User {
+    name: string.minLength(1).maxLength(100).describe("Display name"),
+    age: uint.max(150),
+}
+
+// aliases
+type Percentage = float.min(0).max(100);
+type NonEmptyString = string.nonEmpty();
+```
+
+Refined types propagate through assignments and narrowing:
+```
+function process(x: int.min(0).max(100)) {
+    // x is known to be in [0, 100]
+    
+    if x > 50 {
+        // x is narrowed to int.min(51).max(100)
+    }
+}
+
+const a: int.min(10) = 15;
+const b: int.min(0) = a;    // ok: min(10) implies min(0)
+const c: int.min(20) = a;   // error: min(10) doesn't imply min(20)
+```
+
+#### Refinement Validation
+
+The compiler checks refinements at compile time when values are provable:
+
+```
+function setAge(age: uint.max(150)) { }
+
+setAge(30);      // ok: 30 ≤ 150
+setAge(200);     // compile error: 200 > 150
+
+const x = 25;
+setAge(x);       // ok: x is known to be 25
+
+let y = getInput();
+setAge(y);       // compile error: can't prove y ≤ 150
+```
+
+When the compiler can't prove a refinement, it's a **compile error**, and you need to coerce or dynamically check.
+For the standard library `@destack/schema`, we provide convenient checks:
+
+```
+import { parse, safeParse } from "@destack/schema";
+
+let y = getInput();
+const validated = parse(uint.max(150), y);  // throws if y > 150
+setAge(validated);                           // ok: validated has refined type
+
+// Or without throwing:
+const result = safeParse(uint.max(150), y);
+if (result.ok) {
+    setAge(result.value);
 }
 ```
 
