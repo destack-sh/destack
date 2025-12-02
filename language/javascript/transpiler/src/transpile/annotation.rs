@@ -1,7 +1,7 @@
 use destack_dir::{self as dir, Module, NodeTree};
 use destack_javascript_ast::{Annotation, AnnotationPosition, LocalNodeId};
 
-use crate::{TranspileResult, Transpiler, TranspilerUnit};
+use crate::{TranspileError, TranspileResult, Transpiler, TranspilerUnit};
 
 impl Transpiler {
     /// Transpile a DIR annotation position into a JS annotation position.
@@ -38,21 +38,15 @@ impl Transpiler {
                 Annotation::Comment { position, string }
             }
 
-            // transpile tag/decorator annotations to plain comments
-            // (since there is no real equivalent in JS for remaining unresolved tags/decorators)
-            dir::Annotation::Tag {
+            // transpile tag annotations to plain comments
+            // (tags become metadata comments in JS since there's no native equivalent)
+            dir::Annotation::UnevaluatedTag {
                 position,
-                left,
-                target_symbol: _,
-                arguments: _,
-            }
-            | dir::Annotation::UnresolvedTag {
-                position,
-                left,
+                path,
                 arguments: _,
             } => {
                 let position = self.transpile_annotation_position(*position);
-                let receiver = self.transpile_path(module, scope_id, left, unit)?;
+                let receiver = self.transpile_path(module, scope_id, path, unit)?;
                 let receiver_str = format!("#{}", self.render_path(&receiver, unit));
                 let receiver_str = unit.strings.intern(receiver_str);
                 Annotation::Comment {
@@ -60,25 +54,26 @@ impl Transpiler {
                     string: receiver_str,
                 }
             }
-            dir::Annotation::Decorator {
-                position,
-                left,
-                target_symbol: _,
-                arguments: _,
+            dir::Annotation::Tag {
+                position: _,
+                value: _,
+            } => {
+                // TODO #Incomplete: properly transpile tags to JS metadata
+                return Err(TranspileError::UnsupportedNode {
+                    node: annotation_id.into_global_any(module.id),
+                    message: None,
+                });
             }
-            | dir::Annotation::UnresolvedDecorator {
-                position,
-                left,
+            dir::Annotation::Decorator {
+                position: _,
+                left: _,
                 arguments: _,
             } => {
-                let position = self.transpile_annotation_position(*position);
-                let receiver = self.transpile_path(module, scope_id, left, unit)?;
-                let receiver_str = format!("@{}", self.render_path(&receiver, unit));
-                let receiver_str = unit.strings.intern(receiver_str);
-                Annotation::Comment {
-                    position,
-                    string: receiver_str,
-                }
+                // TODO #Incomplete: properly transpile decorators to JS decorator syntax
+                return Err(TranspileError::UnsupportedNode {
+                    node: annotation_id.into_global_any(module.id),
+                    message: None,
+                });
             }
         };
         let annotation_id = unit

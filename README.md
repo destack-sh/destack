@@ -4,18 +4,18 @@ Destack is a universal software engine for building correct, optimal, integrated
 Build on TypeScript and the web ecosystem with a unified open source toolchain, stack and platform.
 Own your software and run it anywhere in one integrated open source stack:
 
- - **Destack Language**: TypeScript++ for correctness, ergonomics, and performance (with `.ds` much like `.tsx`). 
+ - **Destack Language**: TypeScript++ with opt-in extensions for correctness, ergonomics, and performance (with optional `.ds` files like we have `.tsx`). 
  Valid TypeScript is valid Destack, so adopting `.ds` is fully incremental.
 See [language/DESIGN.md](language/DESIGN.md) and [language/SPECIFICATION.md](language/SPECIFICATION.md).
 
- - **Destack Library**: Standard unified modules for most thigns most software needs across the stack from APIs and UIs to DBs and telemetry.
+ - **Destack Library**: Standard unified modules for most things most software needs across the stack for every layer of the stack and every part of the software lifecycle.
 Batteries included, all nicely integrated with each other, the language, and platform.
 
- - **Destack Platform**: The support system around your software - the CLI, IDE integrations, build plugins, debugging, analytics, tools. 
+ - **Destack Platform**: Support system around your software - the CLI, IDE integrations, build plugins, debugging, analytics, deployment tools. 
  And the platform to connect and integrate Destack systems together, all integrated with the same language and tools.
 
 **Destack is designed as an integrated system**, **but you *can* pick and choose any pieces you like.**
-You are free to use standard TypeScript, pick only some of the libraries, or plug into the platform from a different language and system entirely.
+You are free to use plain TypeScript, pick any of the libraries, or plug into the platform from a different system entirely.
 
 ## Examples
 

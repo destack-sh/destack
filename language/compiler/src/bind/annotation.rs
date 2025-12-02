@@ -1,8 +1,8 @@
 use crate::Compiler;
 use destack_ast::{self as ast};
 use destack_dir::{
-    Annotation, AnnotationPosition, LocalNodeId, LocalNodeIdAny, LocalScopeId, LocalScopeMark,
-    Module, NodeTree, NodeType, SymbolTable, TypeTable,
+    Annotation, AnnotationPosition, Expression, LocalNodeId, LocalNodeIdAny, LocalScopeId,
+    LocalScopeMark, Module, NodeTree, NodeType, SymbolTable, TypeTable,
 };
 
 #[allow(clippy::too_many_arguments)]
@@ -105,7 +105,7 @@ impl Compiler {
             ast::Annotation::Tag { node, position } => {
                 let tag = module.ast.get(*node);
                 let position = self.bind_annotation_position(*position);
-                let left = self.bind_path(module, &tag.left);
+                let path = self.bind_path(module, &tag.left);
                 let arguments = tag.arguments.as_ref().map(|arguments| {
                     arguments
                         .iter()
@@ -122,16 +122,33 @@ impl Compiler {
                         })
                         .collect()
                 });
-                Annotation::UnresolvedTag {
+                Annotation::UnevaluatedTag {
                     position,
-                    left,
+                    path,
                     arguments,
                 }
             }
             ast::Annotation::Decorator { node, position } => {
                 let decorator = module.ast.get(*node);
                 let position = self.bind_annotation_position(*position);
-                let left = self.bind_path(module, &decorator.left);
+
+                // bind the path as a Path expression
+                let path = self.bind_path(module, &decorator.left);
+                let left_id = tree.reserve_from_source(
+                    NodeType::Expression,
+                    *node, // use decorator node as source
+                    scope,
+                    Some(annotation_id),
+                );
+                tree.insert(
+                    left_id,
+                    Expression::UnresolvedAbsolutePath {
+                        path,
+                        static_arguments: None,
+                    },
+                );
+                let left = LocalNodeId::new(left_id.id);
+
                 let arguments = decorator.arguments.as_ref().map(|arguments| {
                     arguments
                         .iter()
@@ -148,7 +165,7 @@ impl Compiler {
                         })
                         .collect()
                 });
-                Annotation::UnresolvedDecorator {
+                Annotation::Decorator {
                     position,
                     left,
                     arguments,

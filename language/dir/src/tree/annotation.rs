@@ -1,4 +1,4 @@
-use crate::{Argument, GlobalSymbolId, LocalNodeId, Node, NodeType, Path, StringId};
+use crate::{Argument, Expression, LocalNodeId, Node, NodeType, Path, StaticExpression, StringId};
 
 /// The position of an annotation.
 #[derive(Debug, Copy, Clone, PartialEq)]
@@ -11,7 +11,9 @@ pub enum AnnotationPosition {
     Postfix,
 }
 
-/// An annotation to a DIR node (like a comment or doc comment).
+/// An annotation attached to a DIR node.
+///
+/// Annotations include documentation, comments, tags (metadata), and decorators (transformations).
 #[derive(Debug, Clone, PartialEq)]
 pub enum Annotation {
     /// Doc annotation (like `///` or `/**`).
@@ -24,30 +26,48 @@ pub enum Annotation {
         position: AnnotationPosition,
         string: StringId,
     },
-    /// Unresolved tag annotation (like `#Foo` or `#Foo(x: 1)`).
-    UnresolvedTag {
+
+    /// Unevaluated tag annotation (like `#Foo` or `#Foo(1, 2)`).
+    ///
+    /// Tags are metadata attached to declarations. The tag path must resolve to a newtype
+    /// or a function that returns a static value. After type analysis and elaboration,
+    /// this becomes a `Tag` with the evaluated value.
+    ///
+    /// Examples:
+    /// - `#Performance` - unit newtype tag
+    /// - `#deprecated("use new API")` - scalar newtype tag
+    /// - `#version(1, 2, 3)` - tuple newtype tag
+    UnevaluatedTag {
         position: AnnotationPosition,
-        left: Path,
+        path: Path,
         arguments: Option<Vec<LocalNodeId<Argument>>>,
     },
-    /// Unresolved decorator annotation (like `@foo` or `@foo(1, 2, 3)`).
-    UnresolvedDecorator {
-        position: AnnotationPosition,
-        left: Path,
-        arguments: Option<Vec<LocalNodeId<Argument>>>,
-    },
-    /// Tag annotation (like `#Foo` or `#Foo(x: 1)`).
+
+    /// Evaluated tag annotation with its computed static value.
+    /// Created during the elaborate phase after type analysis.
     Tag {
         position: AnnotationPosition,
-        left: Path,
-        target_symbol: GlobalSymbolId,
-        arguments: Option<Vec<LocalNodeId<Argument>>>,
+        value: LocalNodeId<StaticExpression>,
     },
-    /// Decorator annotation (like `@foo` or `@foo(1, 2, 3)`).
+
+    /// Decorator annotation (like `@foo`, `@foo()`, or `@obj.method(args)`).
+    ///
+    /// Decorators have the same structure as Call expressions - `left` can be any
+    /// expression (Path, MemberAccess, etc.) and `arguments` are the decorator's
+    /// own arguments (for factory patterns).
+    ///
+    /// Semantics at runtime:
+    /// - `@foo` (no args) → `foo(target)`
+    /// - `@foo(x)` (with args) → `foo(x)(target)` (factory pattern)
+    /// - `@obj.method` → `obj.method(ta rget)`
+    ///
+    /// Examples:
+    /// - `@memoize` - simple decorator
+    /// - `@route("/api")` - decorator factory
+    /// - `@service.middleware` - member access decorator
     Decorator {
         position: AnnotationPosition,
-        left: Path,
-        target_symbol: GlobalSymbolId,
+        left: LocalNodeId<Expression>,
         arguments: Option<Vec<LocalNodeId<Argument>>>,
     },
 }
@@ -56,6 +76,9 @@ impl Node for Annotation {
     const TYPE: NodeType = NodeType::Annotation;
 
     fn is_resolved(&self) -> bool {
+        // Doc, Comment, and Decorator are always "resolved" (no further name resolution needed)
+        // UnevaluatedTag needs elaboration to become Tag
+        // Tag is fully resolved
         matches!(
             self,
             Annotation::Doc { .. }
@@ -72,10 +95,16 @@ impl Annotation {
         match self {
             Annotation::Doc { position, .. } => *position,
             Annotation::Comment { position, .. } => *position,
-            Annotation::UnresolvedTag { position, .. } => *position,
-            Annotation::UnresolvedDecorator { position, .. } => *position,
+            Annotation::UnevaluatedTag { position, .. } => *position,
             Annotation::Tag { position, .. } => *position,
             Annotation::Decorator { position, .. } => *position,
         }
+    }
+
+    /// Whether the annotation has been fully evaluated.
+    ///
+    /// Returns false for `UnevaluatedTag` which needs elaboration.
+    pub fn is_evaluated(&self) -> bool {
+        !matches!(self, Annotation::UnevaluatedTag { .. })
     }
 }
