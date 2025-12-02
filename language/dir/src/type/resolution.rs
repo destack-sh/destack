@@ -166,3 +166,4 @@ pub struct ResolutionCandidate {
     /// The instance of the symbol, if generically instantiated.
     pub instance: Option<LocalInstanceId>,
 }
+

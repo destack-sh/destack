@@ -17,7 +17,7 @@ impl Compiler {
         types: &mut TypeTable,
     ) -> AnalyzeResult<()> {
         let expression_id = {
-            let ty = types.get(ty_id);
+            let ty = types.get_type(ty_id);
             let Type::Unevaluated(expression_id) = *ty else {
                 return Ok(());
             };
@@ -32,7 +32,7 @@ impl Compiler {
             symbols,
             types,
         )?;
-        let ty = types.get_mut(ty_id);
+        let ty = types.get_type_mut(ty_id);
         *ty = evaluated_ty;
 
         Ok(())
@@ -54,7 +54,7 @@ impl Compiler {
             symbols,
             types,
         )?;
-        Ok(types.insert_from(ty, expression_id))
+        Ok(types.insert_type(ty, expression_id))
     }
 
     /// Try to evaluate an Expression as a Type.

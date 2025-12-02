@@ -4,14 +4,12 @@
 
 mod dump;
 mod formatter;
-mod instance;
 mod program;
 mod symbol;
 mod tree;
 mod r#type;
 
 pub use dump::*;
-pub use instance::*;
 pub use program::*;
 pub use symbol::*;
 pub use tree::*;
