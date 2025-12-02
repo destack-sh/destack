@@ -25,7 +25,6 @@ impl std::fmt::Debug for TaskQueue {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("TaskQueue")
             .field("tasks", &self.tasks)
-            .field("ready", &"Injector<TaskId>")
             .field("waiters", &self.waiters)
             .field("active_count", &self.active_count)
             .finish()
