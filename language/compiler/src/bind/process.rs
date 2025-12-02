@@ -63,7 +63,7 @@ impl Compiler {
         // check for conflicting symbols in scopes
         self.bind_check_scopes(module);
 
-        tracing::debug!(?module, "bind.module.complete");
+        tracing::debug!(?module_uri, "bind.module.complete");
     }
 
     /// Bind the AST root expressions for a module.

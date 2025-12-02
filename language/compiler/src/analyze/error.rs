@@ -15,7 +15,7 @@ pub enum AnalyzeError {
     /// Missing type for an expression.
     MissingType { node: GlobalNodeIdAny },
     /// Type is not assignable to the expected type.
-    TypeMismatch {
+    UnassignableType {
         node: GlobalNodeIdAny,
         expected_ty: GlobalTypeId,
         actual_ty: GlobalTypeId,
@@ -91,7 +91,7 @@ impl AnalyzeError {
             Self::Yield { .. } => 0,
             Self::UnsatisfiedDependency { .. } => 1,
             Self::MissingType { .. } => 2,
-            Self::TypeMismatch { .. } => 3,
+            Self::UnassignableType { .. } => 3,
             Self::InaccessibleSymbol { .. } => 4,
             Self::InconsistentFunctionOverride { .. } => 5,
             Self::NonCallable { .. } => 6,
@@ -114,7 +114,7 @@ impl AnalyzeError {
             Self::Yield { dependency } => dependency.node(),
             Self::UnsatisfiedDependency { dependency } => dependency.node(),
             Self::MissingType { node, .. } => *node,
-            Self::TypeMismatch { node, .. } => *node,
+            Self::UnassignableType { node, .. } => *node,
             Self::InaccessibleSymbol { node, .. } => *node,
             Self::InconsistentFunctionOverride { node, .. } => *node,
             Self::NonCallable { node, .. } => *node,
@@ -137,7 +137,7 @@ impl AnalyzeError {
             Self::Yield { .. } => "pending dependency".to_string(),
             Self::UnsatisfiedDependency { .. } => "unsatisfied dependency".to_string(),
             Self::MissingType { .. } => "missing type".to_string(),
-            Self::TypeMismatch { .. } => "type mismatch".to_string(),
+            Self::UnassignableType { .. } => "unassignable type".to_string(),
             Self::InaccessibleSymbol { .. } => "inaccessible symbol".to_string(),
             Self::InconsistentFunctionOverride { .. } => {
                 "inconsistent function override".to_string()

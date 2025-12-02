@@ -6,96 +6,61 @@ use std::fmt;
 /// By default in `.ds` files, all features are enabled.
 /// In `.ts`/`.js` files, features are disabled unless explicitly enabled.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-#[repr(u16)]
+#[repr(u8)]
 pub enum LanguageFeature {
-    /// Precise numeric types, raw strings, byte literals (`int32`, `r#"..."#`, `b"..."`).
-    Primitives = 1 << 0,
-    /// Range literals (`1..10`, `1..=10`).
-    Ranges = 1 << 1,
-    /// Tuple types and literals (`(a, b, c)`).
-    Tuples = 1 << 2,
-    /// Tree literals (`<Node>...</Node>`).
-    Trees = 1 << 3,
-    /// Nominal (distinct) types with `newtype`.
-    Newtypes = 1 << 4,
-    /// Struct declarations for value-oriented data types.
-    Structs = 1 << 5,
-    /// Explicit ownership and reference semantics (`&T`, `&mut T`, `^T`).
-    Ownership = 1 << 6,
-    /// Constraint guards with `where` clauses.
-    Constraints = 1 << 7,
-    /// Type extensions for organizing implementations.
-    Extensions = 1 << 8,
-    /// Function and operator overloading.
-    Overloading = 1 << 9,
-    /// Pattern matching with `match` expressions.
-    Patterns = 1 << 10,
-    /// Effect declarations with `with` clauses.
-    Effects = 1 << 11,
-    /// Defer statements for cleanup (`defer file.close()`).
-    Defer = 1 << 12,
+    /// Expression-oriented language: implicit returns, `loop`, `defer`, ranges, tuples, patterns, trees.
+    Expressions = 1 << 0,
+    /// Type system extensions: runtime types, newtypes, primitives, structs, constraints.
+    Types = 1 << 1,
+    /// Polymorphism: extensions and overloading.
+    Polymorphism = 1 << 2,
+    /// Annotations: tags (`#`) and extended decorators (`@`).
+    Annotations = 1 << 3,
+    /// Context: effect declarations with `with` clauses.
+    Context = 1 << 4,
+    /// Ownership: value ownership (`&T`, `^T`), mutability (`var`), and dispatch behavior.
+    Ownership = 1 << 5,
 }
 
 impl LanguageFeature {
     /// All language features.
     pub const ALL: &[LanguageFeature] = &[
-        Self::Primitives,
-        Self::Ranges,
-        Self::Tuples,
-        Self::Trees,
-        Self::Newtypes,
-        Self::Structs,
+        Self::Expressions,
+        Self::Types,
+        Self::Polymorphism,
+        Self::Annotations,
+        Self::Context,
         Self::Ownership,
-        Self::Constraints,
-        Self::Extensions,
-        Self::Overloading,
-        Self::Patterns,
-        Self::Effects,
-        Self::Defer,
     ];
 
-    /// The config key for this feature (e.g., `"allowOverloading"`).
+    /// The config key for this feature (e.g., `"allowPolymorphism"`).
     pub fn options_key(&self) -> &'static str {
         match self {
-            Self::Primitives => "allowPrimitives",
-            Self::Ranges => "allowRanges",
-            Self::Tuples => "allowTuples",
-            Self::Trees => "allowTrees",
-            Self::Newtypes => "allowNewtypes",
-            Self::Structs => "allowStructs",
+            Self::Expressions => "allowExpressions",
+            Self::Types => "allowTypes",
+            Self::Polymorphism => "allowPolymorphism",
+            Self::Annotations => "allowAnnotations",
+            Self::Context => "allowContext",
             Self::Ownership => "allowOwnership",
-            Self::Constraints => "allowConstraints",
-            Self::Extensions => "allowExtensions",
-            Self::Overloading => "allowOverloading",
-            Self::Patterns => "allowPatterns",
-            Self::Effects => "allowEffects",
-            Self::Defer => "allowDefer",
         }
     }
 
     /// Human-readable name for error messages.
     pub fn display_name(&self) -> &'static str {
         match self {
-            Self::Primitives => "primitives",
-            Self::Ranges => "ranges",
-            Self::Tuples => "tuples",
-            Self::Trees => "trees",
-            Self::Newtypes => "newtypes",
-            Self::Structs => "structs",
+            Self::Expressions => "expressions",
+            Self::Types => "types",
+            Self::Polymorphism => "polymorphism",
+            Self::Annotations => "annotations",
+            Self::Context => "context",
             Self::Ownership => "ownership",
-            Self::Constraints => "constraints",
-            Self::Extensions => "extensions",
-            Self::Overloading => "overloading",
-            Self::Patterns => "patterns",
-            Self::Effects => "effects",
-            Self::Defer => "defer",
         }
     }
 
     /// Convert to bitmask value.
     #[inline]
-    pub const fn as_bit(&self) -> u16 {
-        *self as u16
+    pub const fn as_bit(&self) -> u8 {
+        *self as u8
     }
 }
 
@@ -108,7 +73,7 @@ impl fmt::Display for LanguageFeature {
 /// A set of enabled language features, stored as a bitset.
 #[derive(Clone, Copy, PartialEq, Eq, Hash)]
 pub struct LanguageFeatureSet {
-    bits: u16,
+    bits: u8,
 }
 
 impl fmt::Debug for LanguageFeatureSet {
@@ -133,7 +98,7 @@ impl LanguageFeatureSet {
     /// Create a feature set with all features enabled.
     #[inline]
     pub const fn all() -> Self {
-        let mut bits = 0u16;
+        let mut bits = 0u8;
         let mut i = 0;
         while i < LanguageFeature::ALL.len() {
             bits |= LanguageFeature::ALL[i].as_bit();
@@ -152,13 +117,13 @@ impl LanguageFeatureSet {
 
     /// Create a feature set from raw bits.
     #[inline]
-    pub const fn from_bits(bits: u16) -> Self {
+    pub const fn from_bits(bits: u8) -> Self {
         Self { bits }
     }
 
     /// Get the raw bits.
     #[inline]
-    pub const fn bits(&self) -> u16 {
+    pub const fn bits(&self) -> u8 {
         self.bits
     }
 
@@ -271,14 +236,14 @@ mod tests {
     fn test_feature_set_operations() {
         let mut set = LanguageFeatureSet::none();
         assert!(set.is_none());
-        assert!(!set.is_enabled(LanguageFeature::Ownership));
+        assert!(!set.is_enabled(LanguageFeature::Types));
 
-        set.enable(LanguageFeature::Ownership);
-        assert!(set.is_enabled(LanguageFeature::Ownership));
-        assert!(!set.is_enabled(LanguageFeature::Effects));
+        set.enable(LanguageFeature::Types);
+        assert!(set.is_enabled(LanguageFeature::Types));
+        assert!(!set.is_enabled(LanguageFeature::Context));
 
-        set.disable(LanguageFeature::Ownership);
-        assert!(!set.is_enabled(LanguageFeature::Ownership));
+        set.disable(LanguageFeature::Types);
+        assert!(!set.is_enabled(LanguageFeature::Types));
     }
 
     #[test]
@@ -292,20 +257,11 @@ mod tests {
     #[test]
     fn test_feature_set_builder() {
         let set = LanguageFeatureSet::none()
-            .with(LanguageFeature::Ownership)
-            .with(LanguageFeature::Patterns);
+            .with(LanguageFeature::Types)
+            .with(LanguageFeature::Polymorphism);
 
-        assert!(set.is_enabled(LanguageFeature::Ownership));
-        assert!(set.is_enabled(LanguageFeature::Patterns));
-        assert!(!set.is_enabled(LanguageFeature::Effects));
-    }
-
-    #[test]
-    fn test_feature_config_keys() {
-        assert_eq!(
-            LanguageFeature::Overloading.options_key(),
-            "allowOverloading"
-        );
-        assert_eq!(LanguageFeature::Ownership.options_key(), "allowOwnership");
+        assert!(set.is_enabled(LanguageFeature::Types));
+        assert!(set.is_enabled(LanguageFeature::Polymorphism));
+        assert!(!set.is_enabled(LanguageFeature::Context));
     }
 }
