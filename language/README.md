@@ -3,7 +3,7 @@
 The Destack language toolchain, written in Rust (for now).
 See [DESIGN.md](DESIGN.md) for design philosophy and [SPECIFICATION.md](SPECIFICATION.md) for precise syntax and semantics.
 
-Destack takes source files (`.ds`, `.ts`/`.tsx`, `.js`/`.jsx`) and compiles through several intermediate representations (AST->DIR->MIR). See [compiler/README.md](compiler/README.md) for the full pipeline.
+The Destack compiler takes source files from a supported language (`.ds`, `.ts`/`.tsx`, `.js`/`.jsx`) and compiles them to some final output via several intermediate representations (AST->DIR->MIR). See [compiler/README.md](compiler/README.md) for the full pipeline.
 
 ## Crates
 
