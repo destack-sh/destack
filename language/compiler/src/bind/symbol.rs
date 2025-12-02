@@ -1,5 +1,5 @@
 use destack_dir::{
-    DependencyMode, LocalScopeId, LocalScopeMark, LocalSymbolId, Module, ScopeKind, SymbolKey,
+    DependencyMode, LocalScopeId, LocalScopeMark, LocalSymbolId, Module, ScopeKind, StaticKey,
     SymbolKind, SymbolSpace, SymbolTable,
 };
 
@@ -14,7 +14,7 @@ impl Compiler {
         &self,
         _module: &Module,
         space: SymbolSpace,
-        key: SymbolKey,
+        key: StaticKey,
         scope: (LocalScopeId, LocalScopeMark),
         export: Option<DependencyMode>,
         symbols: &mut SymbolTable,
@@ -28,7 +28,7 @@ impl Compiler {
         &self,
         _module: &Module,
         space: SymbolSpace,
-        key: SymbolKey,
+        key: StaticKey,
         kind: ScopeKind,
         scope: (LocalScopeId, LocalScopeMark),
         export: Option<DependencyMode>,
@@ -75,7 +75,7 @@ impl Compiler {
         &self,
         _module: &Module,
         space: SymbolSpace,
-        key: SymbolKey,
+        key: StaticKey,
         scope: (LocalScopeId, LocalScopeMark),
         symbols: &mut SymbolTable,
     ) -> (LocalSymbolId, LocalScopeMark) {
@@ -88,7 +88,7 @@ impl Compiler {
         &self,
         _module: &Module,
         space: SymbolSpace,
-        key: SymbolKey,
+        key: StaticKey,
         kind: ScopeKind,
         scope: (LocalScopeId, LocalScopeMark),
         symbols: &mut SymbolTable,
@@ -132,7 +132,7 @@ impl Compiler {
         &self,
         module: &Module,
         space: SymbolSpace,
-        key: SymbolKey,
+        key: StaticKey,
         scope: (LocalScopeId, LocalScopeMark),
         export: Option<DependencyMode>,
         symbols: &mut SymbolTable,

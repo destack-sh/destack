@@ -1,48 +1,7 @@
 use crate::{
-    DependencyMode, GlobalNodeIdAny, LocalNodeId, LocalNodeIdAny, LocalScopeId, LocalScopeMark,
-    ModuleId, Node, Program, StringId,
+    DependencyMode, GlobalNodeIdAny, LocalNodeId, LocalScopeId, LocalScopeMark, ModuleId, Node,
+    StaticKey, StringId,
 };
-
-/// Key for a symbol.
-#[derive(Debug, Clone, Copy, PartialEq, Hash, PartialOrd, Eq)]
-pub enum SymbolKey {
-    /// Regular name key (like `x` or `"weird identifier"`).
-    Name(StringId),
-    /// Unique symbol expression (like `const x = Symbol("x");`).
-    UniqueSymbol(LocalNodeIdAny),
-    /// Global symbol key (like `Symbol.iterator`).
-    GlobalSymbol(StringId),
-}
-
-impl From<StringId> for SymbolKey {
-    fn from(name: StringId) -> Self {
-        SymbolKey::Name(name)
-    }
-}
-
-impl SymbolKey {
-    /// Get the name of the symbol key.
-    pub fn name(&self) -> Option<StringId> {
-        match self {
-            SymbolKey::Name(name) => Some(*name),
-            SymbolKey::UniqueSymbol(..) => None,
-            SymbolKey::GlobalSymbol(name) => Some(*name),
-        }
-    }
-
-    /// Get the debug string in a given program.
-    pub fn debug_string(&self, program: &Program) -> String {
-        match self {
-            SymbolKey::Name(name) => {
-                format!("'{}'", program.strings.get(*name).as_str()).to_string()
-            }
-            SymbolKey::UniqueSymbol(..) => "<unique symbol>".to_string(),
-            SymbolKey::GlobalSymbol(name) => {
-                format!("'{}'", program.strings.get(*name).as_str()).to_string()
-            }
-        }
-    }
-}
 
 /// The space of a symbol.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
@@ -123,7 +82,7 @@ pub struct Symbol {
     /// The "space" of the symbol.
     pub space: SymbolSpace,
     /// The key of the symbol.
-    pub key: Option<SymbolKey>,
+    pub key: Option<StaticKey>,
     /// The scope that introduces the symbol.
     pub scope: (LocalScopeId, LocalScopeMark),
     /// The module id of the scope.
@@ -145,7 +104,7 @@ impl Symbol {
     #[inline]
     pub fn name(&self) -> Option<StringId> {
         match self.key {
-            Some(SymbolKey::Name(name)) => Some(name),
+            Some(StaticKey::Name(name)) => Some(name),
             _ => None,
         }
     }

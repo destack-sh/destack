@@ -1,6 +1,6 @@
 use destack_dir::{
     GlobalNodeIdAny, GlobalSymbolId, LocalNodeId, LocalScopeMark, LocalSymbolId, Node, Scope,
-    SymbolKey, SymbolTable,
+    StaticKey, SymbolTable,
 };
 
 use crate::TestProgram;
@@ -24,7 +24,7 @@ impl TestProgram {
         let symbol_id = self.resolve_absolute_symbol(
             &symbols,
             (namespace_scope, LocalScopeMark::end()),
-            SymbolKey::Name(first_segment),
+            StaticKey::Name(first_segment),
         )?;
 
         // resolve remaining segments as relative
@@ -67,7 +67,7 @@ impl TestProgram {
         &self,
         symbols: &SymbolTable,
         scope: (&Scope, LocalScopeMark),
-        key: SymbolKey,
+        key: StaticKey,
     ) -> Option<GlobalSymbolId> {
         let mut scope = scope;
         loop {
@@ -101,7 +101,7 @@ impl TestProgram {
         // resolve path segments
         for segment in path_segments {
             let segment_id = self.program.strings.intern(*segment);
-            let key = SymbolKey::Name(segment_id);
+            let key = StaticKey::Name(segment_id);
             if let Some(next_symbol_id) = scope.find(key) {
                 current_symbol_id = next_symbol_id;
                 symbol = symbols.get_symbol(current_symbol_id);

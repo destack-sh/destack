@@ -1,5 +1,5 @@
 use destack_ast::StringId;
-use destack_dir::{GlobalNodeIdAny, GlobalScopeId, ModuleId, Program, SymbolKey};
+use destack_dir::{GlobalNodeIdAny, GlobalScopeId, ModuleId, Program, StaticKey};
 
 use crate::{TaskDependency, TaskError, TaskPhase};
 
@@ -14,14 +14,14 @@ pub enum BindError {
         node: GlobalNodeIdAny,
         other_node: GlobalNodeIdAny,
         scope: GlobalScopeId,
-        name: Option<SymbolKey>,
+        name: Option<StaticKey>,
     },
     /// Conflicting export name in the same module.
     ConflictingExport {
         node: GlobalNodeIdAny,
         other_node: GlobalNodeIdAny,
         module: ModuleId,
-        name: Option<SymbolKey>,
+        name: Option<StaticKey>,
     },
     /// Conflicting default export.
     ConflictingDefaultExport {

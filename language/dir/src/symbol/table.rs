@@ -3,7 +3,7 @@ use indexmap::IndexMap;
 
 use crate::{
     Arena, DependencyMode, LocalNodeId, LocalScopeId, LocalScopeMark, LocalSymbolId, ModuleId,
-    Node, NodeTree, Scope, ScopeKind, Symbol, SymbolKey, SymbolKind, SymbolSpace,
+    Node, NodeTree, Scope, ScopeKind, Symbol, StaticKey, SymbolKind, SymbolSpace,
 };
 use std::fmt::Debug;
 
@@ -26,7 +26,7 @@ pub struct SymbolTable {
     /// The resolved modules by target.
     pub(crate) imported_module_by_target: IndexMap<(Option<ModuleId>, StringId), ModuleId>,
     /// The exported symbol by key.
-    pub(crate) exported_symbol_by_key: IndexMap<(SymbolSpace, SymbolKey), LocalSymbolId>,
+    pub(crate) exported_symbol_by_key: IndexMap<(SymbolSpace, StaticKey), LocalSymbolId>,
 }
 
 impl SymbolTable {
@@ -60,7 +60,7 @@ impl SymbolTable {
         &mut self,
         kind: SymbolKind,
         space: SymbolSpace,
-        key: Option<SymbolKey>,
+        key: Option<StaticKey>,
         scope: (LocalScopeId, LocalScopeMark),
         export: Option<DependencyMode>,
     ) -> (LocalSymbolId, LocalScopeMark) {
@@ -183,13 +183,13 @@ impl SymbolTable {
 
     /// Set an exported symbol for a key.
     #[inline]
-    pub fn resolve_export(&mut self, key: (SymbolSpace, SymbolKey), symbol_id: LocalSymbolId) {
+    pub fn resolve_export(&mut self, key: (SymbolSpace, StaticKey), symbol_id: LocalSymbolId) {
         self.exported_symbol_by_key.insert(key, symbol_id);
     }
 
     /// Get an exported symbol for a key.
     #[inline]
-    pub fn get_exported_symbol(&self, key: (SymbolSpace, SymbolKey)) -> Option<LocalSymbolId> {
+    pub fn get_exported_symbol(&self, key: (SymbolSpace, StaticKey)) -> Option<LocalSymbolId> {
         self.exported_symbol_by_key.get(&key).cloned()
     }
 }

@@ -2,7 +2,7 @@ use crate::{Expression, LocalNodeId, StringId};
 
 /// A Key is a name or a dynamic key.
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub enum Key {
+pub enum DynamicKey {
     /// Name (like `x` or `someThing`).
     Name(StringId),
     /// Dynamic key (like `["Content-Type"]`).

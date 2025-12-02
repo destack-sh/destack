@@ -1,7 +1,7 @@
 use destack_ast::{self as ast};
 use destack_dir::{
     DependencyItem, DependencyKind, DependencyMode, DependencySource, LocalNodeId, LocalNodeIdAny,
-    LocalScopeId, LocalScopeMark, Module, NodeTree, NodeType, SymbolKey, SymbolSpace, SymbolTable,
+    LocalScopeId, LocalScopeMark, Module, NodeTree, NodeType, StaticKey, SymbolSpace, SymbolTable,
     TypeTable,
 };
 use destack_source::StringId;
@@ -63,7 +63,7 @@ impl Compiler {
             self.bind_named_item(
                 module,
                 SymbolSpace::Value,
-                SymbolKey::Name(name),
+                StaticKey::Name(name),
                 scope,
                 if is_export { Some(mode) } else { None },
                 symbols,

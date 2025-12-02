@@ -1,6 +1,6 @@
 use destack_dir::{
     Argument, Expression, GlobalNodeIdAny, LocalNodeId, LocalScopeId, LocalScopeMark,
-    LocalSymbolId, Module, Path, Scope, ScopeKind, SymbolKey, SymbolTable,
+    LocalSymbolId, Module, Path, Scope, ScopeKind, StaticKey, SymbolTable,
 };
 
 use crate::{Compiler, ResolveError, ResolveResult};
@@ -13,7 +13,7 @@ impl Compiler {
         module: &Module,
         node: GlobalNodeIdAny,
         scope: (LocalScopeId, &Scope, LocalScopeMark),
-        key: SymbolKey,
+        key: StaticKey,
         symbols: &SymbolTable,
     ) -> ResolveResult<LocalSymbolId> {
         let mut scope = scope;
@@ -58,7 +58,7 @@ impl Compiler {
 
         // resolve path segments
         while let Some(segment) = remaining_path.segments.pop() {
-            let key = SymbolKey::Name(segment);
+            let key = StaticKey::Name(segment);
             let symbol = symbols.get_symbol(current_symbol_id);
             let scope = symbols.get_scope_by_id(symbol.scope.0);
             if let Some(found_symbol_id) = scope.find(key) {
@@ -98,7 +98,7 @@ impl Compiler {
             module,
             node,
             scope,
-            SymbolKey::Name(first_segment),
+            StaticKey::Name(first_segment),
             symbols,
         )?;
         let remaining_path = path.slice(1..);

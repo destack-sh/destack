@@ -1,6 +1,6 @@
 use crate::{TaskDependency, TaskError, TaskPhase};
 use destack_dir::{
-    GlobalNodeIdAny, GlobalScopeId, GlobalSymbolId, ModuleId, Program, StringId, SymbolKey,
+    GlobalNodeIdAny, GlobalScopeId, GlobalSymbolId, ModuleId, Program, StringId, StaticKey,
 };
 
 /// Error when evaluating something statically.
@@ -22,21 +22,21 @@ pub enum ResolveError {
     UndeclaredSymbol {
         node: GlobalNodeIdAny,
         scope: GlobalScopeId,
-        key: SymbolKey,
+        key: StaticKey,
     },
     /// Use of missing symbol.
     MissingSymbol {
         node: GlobalNodeIdAny,
         scope: GlobalScopeId,
         via_module: Option<ModuleId>,
-        key: SymbolKey,
+        key: StaticKey,
     },
     /// Use of ambiguous symbol.
     AmbiguousSymbol {
         node: GlobalNodeIdAny,
         scope: GlobalScopeId,
         symbol: GlobalSymbolId,
-        key: SymbolKey,
+        key: StaticKey,
     },
     /// Unresolved module.
     UnresolvedModule {

@@ -1,7 +1,7 @@
 use crate::Compiler;
 use destack_ast as ast;
 use destack_dir::{
-    Key, LocalNodeIdAny, LocalScopeId, LocalScopeMark, Module, NodeTree, SymbolTable, TypeTable,
+    DynamicKey, LocalNodeIdAny, LocalScopeId, LocalScopeMark, Module, NodeTree, SymbolTable, TypeTable,
 };
 
 #[allow(clippy::too_many_arguments)]
@@ -16,24 +16,24 @@ impl Compiler {
         tree: &mut NodeTree,
         symbols: &mut SymbolTable,
         types: &mut TypeTable,
-    ) -> Key {
+    ) -> DynamicKey {
         match key {
             ast::Key::Name(name) => {
                 let name = self
                     .program
                     .strings
                     .intern_from(&module.ast_strings, name.string());
-                Key::Name(name)
+                DynamicKey::Name(name)
             }
             ast::Key::Expression(expression) => {
                 let expression = self
                     .bind_expression(module, scope, expression, parent_id, tree, symbols, types);
-                Key::Expression(expression)
+                DynamicKey::Expression(expression)
             }
             ast::Key::NamedExpression { name, key } => {
                 let name = self.program.strings.intern_from(&module.ast_strings, name);
                 let key = self.bind_expression(module, scope, key, parent_id, tree, symbols, types);
-                Key::NamedExpression { name, key }
+                DynamicKey::NamedExpression { name, key }
             }
         }
     }

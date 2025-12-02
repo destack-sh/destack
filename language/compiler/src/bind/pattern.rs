@@ -2,7 +2,7 @@ use crate::Compiler;
 use destack_ast as ast;
 use destack_dir::{
     DependencyMode, LocalNodeId, LocalNodeIdAny, LocalScopeId, LocalScopeMark, Module, NodeTree,
-    NodeType, Pattern, PatternField, SymbolKey, SymbolSpace, SymbolTable, TypeTable,
+    NodeType, Pattern, PatternField, StaticKey, SymbolSpace, SymbolTable, TypeTable,
 };
 
 #[allow(clippy::too_many_arguments)]
@@ -95,7 +95,7 @@ impl Compiler {
                 let (symbol, _) = self.bind_named_symbol(
                     module,
                     SymbolSpace::Value,
-                    SymbolKey::Name(name),
+                    StaticKey::Name(name),
                     scope,
                     export,
                     symbols,
@@ -351,7 +351,7 @@ impl Compiler {
                 let (symbol, _) = self.bind_named_symbol(
                     module,
                     SymbolSpace::Value,
-                    SymbolKey::Name(name),
+                    StaticKey::Name(name),
                     scope,
                     export,
                     symbols,
@@ -393,7 +393,7 @@ impl Compiler {
                 let (symbol, _) = self.bind_named_symbol(
                     module,
                     SymbolSpace::Value,
-                    SymbolKey::Name(name),
+                    StaticKey::Name(name),
                     scope,
                     export,
                     symbols,
