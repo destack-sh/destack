@@ -211,23 +211,28 @@ impl TaskQueue {
     /// Returns true if work might be available, false if all work is done.
     pub(super) fn wait_for_work(&self) -> bool {
         let (lock, condvar) = &self.work_available;
-        let guard = lock.lock();
-        // check if done before waiting
-        if self.is_done() {
-            return false;
+        let mut guard = lock.lock();
+
+        // condvar wait loop: re-check conditions after each wakeup
+        loop {
+            // check if all work is done
+            if self.is_done() {
+                return false;
+            }
+            // check if work is available in ready queue
+            if !self.ready.is_empty() {
+                return true;
+            }
+            // wait for notification (handles spurious wakeups via loop)
+            condvar.wait(&mut guard);
         }
-        // check if work is available
-        if !self.ready.is_empty() {
-            return true;
-        }
-        // wait for notification
-        condvar.wait(&mut { guard });
-        !self.is_done()
     }
 
     /// Notify all waiting workers.
+    /// NOTE: Must acquire the mutex before notifying to prevent lost wakeups.
     fn notify_workers(&self) {
-        let (_, condvar) = &self.work_available;
+        let (lock, condvar) = &self.work_available;
+        let _guard = lock.lock();
         condvar.notify_all();
     }
 }
