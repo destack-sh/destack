@@ -37,7 +37,7 @@ pub enum TypeLiteral {
 pub enum Type {
     /// Scalar type literal.
     Scalar(TypeLiteral),
-    
+
     /// Redirect to symbol type.
     Symbol(LocalSymbolId),
     /// Unevaluated expression that resolves to a type (needs compile-time evaluation).

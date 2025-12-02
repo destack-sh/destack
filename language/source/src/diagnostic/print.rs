@@ -1,12 +1,28 @@
-use crate::{AnnotateOptions, DiagnosticCollection, FileRegistry, annotate_file, pluralize};
+use std::fmt;
+
+use crate::{
+    AnnotateOptions, DiagnosticCollection, FileRegistry, SourceColorizer, annotate_file, pluralize,
+};
 
 /// Options for printing diagnostics.
-#[derive(Debug, Clone, Default)]
+#[derive(Clone, Default)]
 pub struct PrintOptions {
     /// Maximum line width for annotations.
     pub line_width: u32 = 100,
     /// Number of modules (for summary).
     pub module_count: Option<usize> = None,
+    /// Optional syntax colorizer for source code.
+    pub colorizer: Option<SourceColorizer> = None,
+}
+
+impl fmt::Debug for PrintOptions {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("PrintOptions")
+            .field("line_width", &self.line_width)
+            .field("module_count", &self.module_count)
+            .field("colorizer", &self.colorizer.as_ref().map(|_| "..."))
+            .finish()
+    }
 }
 
 impl PrintOptions {
@@ -26,6 +42,12 @@ impl PrintOptions {
         self.module_count = Some(module_count);
         self
     }
+
+    /// Set the source colorizer for syntax highlighting.
+    pub fn with_colorizer(mut self, colorizer: SourceColorizer) -> Self {
+        self.colorizer = Some(colorizer);
+        self
+    }
 }
 
 /// Print diagnostics to stdout.
@@ -36,12 +58,17 @@ pub fn print_diagnostics(
     diagnostics: &DiagnosticCollection,
     options: PrintOptions,
 ) {
-    let annotate_options = AnnotateOptions::default().with_line_width(options.line_width);
+    let mut annotate_options = AnnotateOptions::default().with_line_width(options.line_width);
+    if let Some(colorizer) = options.colorizer {
+        annotate_options = annotate_options.with_colorizer(colorizer);
+    }
 
     // individual diagnostics
     for diagnostic in diagnostics.iter() {
         let file = files.get(diagnostic.file_id);
-        let annotate_options = annotate_options.with_highlight_color(diagnostic.severity.color());
+        let annotate_options = annotate_options
+            .clone()
+            .with_highlight_color(diagnostic.severity.color());
 
         // header preamble (severity + code)
         let header_preamble = annotate_options.color_highlight.apply_bold(&format!(
@@ -57,8 +84,9 @@ pub fn print_diagnostics(
                 && let Some(original_severity) = diagnostic.original_severity
                 && (*original_code != diagnostic.code || original_severity != diagnostic.severity)
             {
-                let original_options =
-                    annotate_options.with_highlight_color(original_severity.color());
+                let original_options = annotate_options
+                    .clone()
+                    .with_highlight_color(original_severity.color());
                 let header_preamble_original = original_options
                     .color_highlight
                     .apply_bold(&original_code.to_string());

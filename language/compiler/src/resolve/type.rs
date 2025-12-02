@@ -230,7 +230,9 @@ string;
         let tree = module.tree.read();
         let roots = &module.roots;
 
-        let (string_symbol_id, _) = test.resolve_to_node::<destack_dir::Pattern>("test.ds", "string").unwrap();
+        let (string_symbol_id, _) = test
+            .resolve_to_node::<destack_dir::Pattern>("test.ds", "string")
+            .unwrap();
         // second root: `string;` should resolve to the variable, not the builtin
         assert_node!(tree, roots[1], Expression::Statement { statement } => {
             assert_node!(tree, *statement, Expression::ModuleReference { target_symbol, .. } => {

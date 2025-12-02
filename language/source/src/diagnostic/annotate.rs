@@ -1,5 +1,8 @@
 #![allow(clippy::too_many_arguments)]
 
+use std::fmt;
+use std::sync::Arc;
+
 use crate::{Color, File, LabeledSpan, Span};
 
 const HEADER_PREFIX: &str = "==>";
@@ -7,8 +10,14 @@ const BODY_PREFIX: &str = " | ";
 const HIGHLIGHT: char = '^';
 const ELIDE: &str = "..";
 
+/// A function that colorizes a slice of source code.
+///
+/// Takes a file, byte range (start, end), and a brightness flag. When `bright`
+/// is true, use full brightness colors; when false, use dimmed colors.
+pub type SourceColorizer = Arc<dyn Fn(&File, u32, u32, bool) -> String + Send + Sync>;
+
 /// Options controlling how annotation is rendered.
-#[derive(Debug, Clone, Copy, Default)]
+#[derive(Clone, Default)]
 pub struct AnnotateOptions {
     /// Maximum number of characters to show from a source line. 0 disables clipping.
     pub line_width: u32 = 100,
@@ -26,6 +35,8 @@ pub struct AnnotateOptions {
     pub color_meta: Color = Color::BrightMagenta,
     /// Color for highlights and labels (default: BrightYellow).
     pub color_highlight: Color = Color::BrightYellow,
+    /// Optional syntax colorizer for source code.
+    pub colorizer: Option<SourceColorizer> = None,
 }
 
 impl AnnotateOptions {
@@ -51,6 +62,28 @@ impl AnnotateOptions {
         self.prefix_lines = prefix_lines;
         self.suffix_lines = suffix_lines;
         self
+    }
+
+    /// Set the source colorizer for syntax highlighting.
+    pub fn with_colorizer(mut self, colorizer: SourceColorizer) -> Self {
+        self.colorizer = Some(colorizer);
+        self
+    }
+}
+
+impl fmt::Debug for AnnotateOptions {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("AnnotateOptions")
+            .field("line_width", &self.line_width)
+            .field("prefix_lines", &self.prefix_lines)
+            .field("suffix_lines", &self.suffix_lines)
+            .field("use_color", &self.use_color)
+            .field("color_normal", &self.color_normal)
+            .field("color_dim", &self.color_dim)
+            .field("color_meta", &self.color_meta)
+            .field("color_highlight", &self.color_highlight)
+            .field("colorizer", &self.colorizer.as_ref().map(|_| "..."))
+            .finish()
     }
 }
 
@@ -121,16 +154,15 @@ pub fn annotate_file(source: &File, span: &LabeledSpan, options: AnnotateOptions
         let is_in_span = line >= span_start_line && line <= span_end_line;
         write_source_line(
             &mut buffer,
+            source,
             line,
             width,
             line_str,
+            bounds,
             is_in_span,
             truncate_left,
             truncate_right,
-            options.use_color,
-            options.color_normal,
-            options.color_dim,
-            options.color_meta,
+            &options,
         );
         if is_in_span {
             let (offset_spaces, highlight_count, left_trunc, right_trunc) =
@@ -209,56 +241,68 @@ fn write_body_separator(buffer: &mut String, use_color: bool, color_meta: Color)
 #[inline]
 fn write_source_line(
     buffer: &mut String,
+    source: &File,
     line: u32,
     width: u32,
     line_str: &str,
+    bounds: (u32, u32, u32, u32),
     is_in_span: bool,
     truncate_left: bool,
     truncate_right: bool,
-    use_color: bool,
-    color_normal: Color,
-    color_dim: Color,
-    color_meta: Color,
+    options: &AnnotateOptions,
 ) {
+    let (absolute_visible_start, absolute_visible_end, _, _) = bounds;
+
     // prefix
-    if use_color {
-        buffer.push_str(&color_meta.apply(BODY_PREFIX));
+    if options.use_color {
+        buffer.push_str(&options.color_meta.apply(BODY_PREFIX));
     } else {
         buffer.push_str(BODY_PREFIX);
     }
-    let line = line.saturating_add(1).to_string();
-    for _ in 0..(width - line.len() as u32) {
+    let line_num = line.saturating_add(1).to_string();
+    for _ in 0..(width - line_num.len() as u32) {
         buffer.push(' ');
     }
+
     // line number
-    if use_color {
+    if options.use_color {
         if is_in_span {
-            buffer.push_str(&color_meta.apply(&line));
+            buffer.push_str(&options.color_meta.apply(&line_num));
         } else {
-            buffer.push_str(&color_dim.apply(&line));
+            buffer.push_str(&options.color_dim.apply(&line_num));
         }
-        buffer.push_str(&color_meta.apply(" | "));
+        buffer.push_str(&options.color_meta.apply(" | "));
     } else {
-        buffer.push_str(&line);
+        buffer.push_str(&line_num);
         buffer.push_str(" | ");
     }
+
     // content with elision markers
-    let mut content = String::new();
     if truncate_left {
-        content.push_str(ELIDE);
+        buffer.push_str(ELIDE);
     }
-    content.push_str(line_str);
-    if truncate_right {
-        content.push_str(ELIDE);
-    }
-    if use_color {
-        if is_in_span {
-            buffer.push_str(&color_normal.apply(&content));
+
+    // colorize source (highlighted lines are bright, context lines are dimmed)
+    if options.use_color {
+        if let Some(colorizer) = &options.colorizer {
+            let colorized = colorizer(
+                source,
+                absolute_visible_start,
+                absolute_visible_end,
+                is_in_span,
+            );
+            buffer.push_str(&colorized);
+        } else if is_in_span {
+            buffer.push_str(&options.color_normal.apply(line_str));
         } else {
-            buffer.push_str(&color_dim.apply(&content));
+            buffer.push_str(&options.color_dim.apply(line_str));
         }
     } else {
-        buffer.push_str(&content);
+        buffer.push_str(line_str);
+    }
+
+    if truncate_right {
+        buffer.push_str(ELIDE);
     }
     buffer.push('\n');
 }
@@ -504,6 +548,7 @@ mod tests {
             color_dim: Color::White,
             color_meta: Color::BrightMagenta,
             color_highlight: Color::BrightYellow,
+            colorizer: None,
         };
         let annotated = annotate_file(&source, &span, options);
 
@@ -546,6 +591,7 @@ mod tests {
             color_dim: Color::White,
             color_meta: Color::BrightMagenta,
             color_highlight: Color::BrightYellow,
+            colorizer: None,
         };
         let annotated = annotate_file(&source, &span, options);
 
