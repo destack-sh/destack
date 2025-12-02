@@ -12,6 +12,8 @@ pub enum AnalyzeError {
     Yield { dependency: TaskDependency },
     /// Yield dependency has failed.
     UnsatisfiedDependency { dependency: TaskDependency },
+    /// Unsupported node for type evaluation.
+    UnsupportedNode { node: GlobalNodeIdAny },
     /// Missing type for an expression.
     MissingType { node: GlobalNodeIdAny },
     /// Type is not assignable to the expected type.
@@ -90,21 +92,22 @@ impl AnalyzeError {
         match self {
             Self::Yield { .. } => 0,
             Self::UnsatisfiedDependency { .. } => 1,
-            Self::MissingType { .. } => 2,
-            Self::UnassignableType { .. } => 3,
-            Self::InaccessibleSymbol { .. } => 4,
-            Self::InconsistentFunctionOverride { .. } => 5,
-            Self::NonCallable { .. } => 6,
-            Self::NonIndexable { .. } => 7,
-            Self::NonExhaustiveMatch { .. } => 8,
-            Self::IncompletePattern { .. } => 9,
-            Self::ConflictingPattern { .. } => 10,
-            Self::MissingReturn { .. } => 11,
-            Self::UninitializedVariable { .. } => 12,
-            Self::IllegalCast { .. } => 13,
-            Self::NoOverload { .. } => 14,
-            Self::AmbiguousOverload { .. } => 15,
-            Self::UnsupportedOperator { .. } => 16,
+            Self::UnsupportedNode { .. } => 2,
+            Self::MissingType { .. } => 3,
+            Self::UnassignableType { .. } => 4,
+            Self::InaccessibleSymbol { .. } => 5,
+            Self::InconsistentFunctionOverride { .. } => 6,
+            Self::NonCallable { .. } => 7,
+            Self::NonIndexable { .. } => 8,
+            Self::NonExhaustiveMatch { .. } => 9,
+            Self::IncompletePattern { .. } => 10,
+            Self::ConflictingPattern { .. } => 11,
+            Self::MissingReturn { .. } => 12,
+            Self::UninitializedVariable { .. } => 13,
+            Self::IllegalCast { .. } => 14,
+            Self::NoOverload { .. } => 15,
+            Self::AmbiguousOverload { .. } => 16,
+            Self::UnsupportedOperator { .. } => 17,
         }
     }
 
@@ -113,6 +116,7 @@ impl AnalyzeError {
         match self {
             Self::Yield { dependency } => dependency.node(),
             Self::UnsatisfiedDependency { dependency } => dependency.node(),
+            Self::UnsupportedNode { node, .. } => *node,
             Self::MissingType { node, .. } => *node,
             Self::UnassignableType { node, .. } => *node,
             Self::InaccessibleSymbol { node, .. } => *node,
@@ -136,6 +140,7 @@ impl AnalyzeError {
         match self {
             Self::Yield { .. } => "pending dependency".to_string(),
             Self::UnsatisfiedDependency { .. } => "unsatisfied dependency".to_string(),
+            Self::UnsupportedNode { .. } => "unsupported node for type evaluation".to_string(),
             Self::MissingType { .. } => "missing type".to_string(),
             Self::UnassignableType { .. } => "unassignable type".to_string(),
             Self::InaccessibleSymbol { .. } => "inaccessible symbol".to_string(),

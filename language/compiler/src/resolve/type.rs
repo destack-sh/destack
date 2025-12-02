@@ -1,230 +1,8 @@
-use crate::{Compiler, ResolveError, ResolveResult};
-use destack_dir::{
-    Expression, FloatType, IntType, LocalNodeId, LocalTypeId, Module, NodeTree, PrimitiveType,
-    StaticExpression, SymbolTable, Type, TypeLiteral, TypeTable, TypeUnaryOperator, UnaryOperator,
-};
+use crate::Compiler;
+use destack_dir::{FloatType, IntType, PrimitiveType, TypeLiteral};
 
-// nocheckin: change type "resolution" to "evaluation"
-
-#[allow(clippy::too_many_arguments)]
+/// Builtin type name resolution.
 impl Compiler {
-    /// Resolve a Type (in-place).
-    pub(super) fn resolve_type(
-        &self,
-        module: &Module,
-        ty_id: LocalTypeId,
-        tree: &mut NodeTree,
-        symbols: &mut SymbolTable,
-        types: &mut TypeTable,
-    ) -> ResolveResult<()> {
-        let expression_id = {
-            let ty = types.get(ty_id);
-            let Type::Unevaluated(expression_id) = *ty else {
-                return Ok(());
-            };
-            expression_id
-        };
-
-        // resolve and update in-place
-        let resolved_ty =
-            self.try_resolve_expression_to_type_value(module, expression_id, tree, symbols, types)?;
-        let ty = types.get_mut(ty_id);
-        *ty = resolved_ty;
-
-        Ok(())
-    }
-
-    /// Try to Resolve an Expression as a Type id.
-    fn try_resolve_expression_to_type(
-        &self,
-        module: &Module,
-        expression_id: LocalNodeId<Expression>,
-        tree: &mut NodeTree,
-        symbols: &mut SymbolTable,
-        types: &mut TypeTable,
-    ) -> ResolveResult<LocalTypeId> {
-        let ty =
-            self.try_resolve_expression_to_type_value(module, expression_id, tree, symbols, types)?;
-        Ok(types.insert_from(ty, expression_id))
-    }
-
-    /// Try to Resolve an Expression as a Type.
-    /// Returns the resolved Type value, or a Type::Unevaluated if it fails.
-    fn try_resolve_expression_to_type_value(
-        &self,
-        module: &Module,
-        expression_id: LocalNodeId<Expression>,
-        tree: &mut NodeTree,
-        symbols: &mut SymbolTable,
-        types: &mut TypeTable,
-    ) -> ResolveResult<Type> {
-        let ty = self
-            .resolve_expression_to_type(module, expression_id, tree, symbols, types)?
-            .unwrap_or(Type::Unevaluated(expression_id));
-        Ok(ty)
-    }
-
-    /// Resolve an Expression into a Type (in-place).
-    fn resolve_expression_to_type(
-        &self,
-        module: &Module,
-        expression_id: LocalNodeId<Expression>,
-        tree: &mut NodeTree,
-        symbols: &mut SymbolTable,
-        types: &mut TypeTable,
-    ) -> ResolveResult<Option<Type>> {
-        let expression = tree.get(expression_id);
-
-        let ty = match expression {
-            Expression::ScalarLiteral { value } => {
-                Type::Scalar(TypeLiteral::ScalarLiteral(value.clone()))
-            }
-            Expression::TypeLiteral { value } => Type::Scalar(value.clone()),
-
-            // not
-            Expression::Unary {
-                operator: UnaryOperator::Not,
-                right,
-            } => {
-                let type_id =
-                    self.try_resolve_expression_to_type(module, *right, tree, symbols, types)?;
-                Type::Unary {
-                    operator: TypeUnaryOperator::Not,
-                    right: type_id,
-                }
-            }
-            // maybe
-            Expression::Maybe { left } => {
-                let type_id =
-                    self.try_resolve_expression_to_type(module, *left, tree, symbols, types)?;
-                Type::Unary {
-                    operator: TypeUnaryOperator::Maybe,
-                    right: type_id,
-                }
-            }
-            // must
-            Expression::Must { left } => {
-                let type_id =
-                    self.try_resolve_expression_to_type(module, *left, tree, symbols, types)?;
-                Type::Unary {
-                    operator: TypeUnaryOperator::Must,
-                    right: type_id,
-                }
-            }
-            // value
-            Expression::ValueOf {
-                mutability,
-                variance,
-                right,
-            } => {
-                let mutability = *mutability;
-                let variance = *variance;
-                let type_id =
-                    self.try_resolve_expression_to_type(module, *right, tree, symbols, types)?;
-                Type::ValueOf {
-                    mutability,
-                    variance,
-                    right: type_id,
-                }
-            }
-            // reference
-            Expression::ReferenceOf {
-                mutability,
-                variance,
-                right,
-            } => {
-                let mutability = *mutability;
-                let variance = *variance;
-                let type_id =
-                    self.try_resolve_expression_to_type(module, *right, tree, symbols, types)?;
-                Type::ReferenceOf {
-                    mutability,
-                    variance,
-                    right: type_id,
-                }
-            }
-            // unary
-            &Expression::TypeUnary { operator, right } => {
-                let right_id =
-                    self.try_resolve_expression_to_type(module, right, tree, symbols, types)?;
-                Type::Unary {
-                    operator,
-                    right: right_id,
-                }
-            }
-            // binary
-            &Expression::TypeBinary {
-                left,
-                operator,
-                right,
-            } => {
-                let left_id =
-                    self.try_resolve_expression_to_type(module, left, tree, symbols, types)?;
-                let right_id =
-                    self.try_resolve_expression_to_type(module, right, tree, symbols, types)?;
-                Type::Binary {
-                    left: left_id,
-                    operator,
-                    right: right_id,
-                }
-            }
-
-            // range
-            &Expression::RangeExpression {
-                start,
-                end,
-                is_inclusive,
-            } => {
-                let start_id =
-                    self.try_resolve_expression_to_type(module, start, tree, symbols, types)?;
-                let end_id =
-                    self.try_resolve_expression_to_type(module, end, tree, symbols, types)?;
-                Type::Range {
-                    start: start_id,
-                    end: end_id,
-                    is_inclusive,
-                }
-            }
-            // tuple (anonymous)
-            Expression::TupleExpression { .. } => {
-                return Err(ResolveError::UnsupportedNode {
-                    node: expression_id.into_global_any(module.id),
-                });
-            }
-            // object (anonymous)
-            Expression::ObjectExpression { .. } => {
-                return Err(ResolveError::UnsupportedNode {
-                    node: expression_id.into_global_any(module.id),
-                });
-            }
-
-            // array or slice
-            &Expression::Index { left, right } => {
-                // array with static length
-                if let Some(right) = right {
-                    let left_id =
-                        self.try_resolve_expression_to_type(module, left, tree, symbols, types)?;
-                    Type::ArraySized {
-                        element: left_id,
-                        count: StaticExpression::Unevaluated { node: right },
-                    }
-                }
-                // slice
-                else {
-                    let left_id =
-                        self.try_resolve_expression_to_type(module, left, tree, symbols, types)?;
-                    Type::Array {
-                        element: Some(left_id),
-                    }
-                }
-            }
-
-            _ => return Ok(None),
-        };
-
-        Ok(Some(ty))
-    }
-
     /// Whether the token string encodes a type literal with an explicit width.
     fn is_type_with_width(&self, prefix: &'static str, target: &str) -> Option<u16> {
         if let Some(target) = target.strip_prefix(prefix) {
@@ -234,7 +12,7 @@ impl Compiler {
         }
     }
 
-    /// Resolve an expression string into a DIR type literal.
+    /// Resolve an identifier string to a builtin type literal.
     pub(super) fn resolve_string_to_type(&self, string: &str) -> Option<TypeLiteral> {
         match string {
             // undefined
@@ -321,5 +99,143 @@ impl Compiler {
             // composite type
             _ => None,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use destack_dir::{Expression, FloatType, IntType, PrimitiveType, TypeLiteral};
+
+    use crate::{ImportTask, TestProgram, assert_node};
+
+    /// Test that builtin type names resolve to TypeLiteral expressions in value position.
+    #[test]
+    fn test_resolve_builtin_types_in_value_position() {
+        let test = TestProgram::memory_sequential();
+        let file = test.file(
+            "test.ds",
+            r#"
+int;
+int32;
+int64;
+int68;
+uint;
+uint8;
+uint16;
+float;
+float32;
+float64;
+boolean;
+string;
+"#,
+        );
+        test.enqueue(ImportTask::ImportModuleFromFile { file: file.id });
+        test.compile_dump_clean();
+
+        let module = test.module_for_file(&file);
+        let module = module.read();
+        let tree = module.tree.read();
+        let roots = &module.roots;
+
+        // int (defaults to int32)
+        assert_node!(tree, roots[0], Expression::Statement { statement } => {
+            assert_node!(tree, *statement, Expression::TypeLiteral { value } => {
+                assert!(matches!(value, TypeLiteral::Primitive(PrimitiveType::Int(IntType::Int32))));
+            });
+        });
+        // int32
+        assert_node!(tree, roots[1], Expression::Statement { statement } => {
+            assert_node!(tree, *statement, Expression::TypeLiteral { value } => {
+                assert!(matches!(value, TypeLiteral::Primitive(PrimitiveType::Int(IntType::Int32))));
+            });
+        });
+        // int64
+        assert_node!(tree, roots[2], Expression::Statement { statement } => {
+            assert_node!(tree, *statement, Expression::TypeLiteral { value } => {
+                assert!(matches!(value, TypeLiteral::Primitive(PrimitiveType::Int(IntType::Int64))));
+            });
+        });
+        // int68 (arbitrary width)
+        assert_node!(tree, roots[3], Expression::Statement { statement } => {
+            assert_node!(tree, *statement, Expression::TypeLiteral { value } => {
+                assert!(matches!(value, TypeLiteral::Primitive(PrimitiveType::Int(IntType::Arbitrary { width: 68, is_signed: true }))));
+            });
+        });
+        // uint (defaults to uint32)
+        assert_node!(tree, roots[4], Expression::Statement { statement } => {
+            assert_node!(tree, *statement, Expression::TypeLiteral { value } => {
+                assert!(matches!(value, TypeLiteral::Primitive(PrimitiveType::Int(IntType::Uint32))));
+            });
+        });
+        // uint8
+        assert_node!(tree, roots[5], Expression::Statement { statement } => {
+            assert_node!(tree, *statement, Expression::TypeLiteral { value } => {
+                assert!(matches!(value, TypeLiteral::Primitive(PrimitiveType::Int(IntType::Uint8))));
+            });
+        });
+        // uint16
+        assert_node!(tree, roots[6], Expression::Statement { statement } => {
+            assert_node!(tree, *statement, Expression::TypeLiteral { value } => {
+                assert!(matches!(value, TypeLiteral::Primitive(PrimitiveType::Int(IntType::Uint16))));
+            });
+        });
+        // float (defaults to float64)
+        assert_node!(tree, roots[7], Expression::Statement { statement } => {
+            assert_node!(tree, *statement, Expression::TypeLiteral { value } => {
+                assert!(matches!(value, TypeLiteral::Primitive(PrimitiveType::Float(FloatType::Float64))));
+            });
+        });
+        // float32
+        assert_node!(tree, roots[8], Expression::Statement { statement } => {
+            assert_node!(tree, *statement, Expression::TypeLiteral { value } => {
+                assert!(matches!(value, TypeLiteral::Primitive(PrimitiveType::Float(FloatType::Float32))));
+            });
+        });
+        // float64
+        assert_node!(tree, roots[9], Expression::Statement { statement } => {
+            assert_node!(tree, *statement, Expression::TypeLiteral { value } => {
+                assert!(matches!(value, TypeLiteral::Primitive(PrimitiveType::Float(FloatType::Float64))));
+            });
+        });
+        // boolean
+        assert_node!(tree, roots[10], Expression::Statement { statement } => {
+            assert_node!(tree, *statement, Expression::TypeLiteral { value } => {
+                assert!(matches!(value, TypeLiteral::Primitive(PrimitiveType::Boolean)));
+            });
+        });
+        // string
+        assert_node!(tree, roots[11], Expression::Statement { statement } => {
+            assert_node!(tree, *statement, Expression::TypeLiteral { value } => {
+                assert!(matches!(value, TypeLiteral::Primitive(PrimitiveType::String)));
+            });
+        });
+    }
+
+    /// Test that a variable shadows a builtin type name.
+    #[test]
+    fn test_variable_shadows_builtin_type() {
+        let test = TestProgram::memory_sequential();
+        let file = test.file(
+            "test.ds",
+            r#"
+let string: string = "hello";
+string;
+"#,
+        );
+        test.enqueue(ImportTask::ImportModuleFromFile { file: file.id });
+        test.compile_dump_clean();
+
+        let module = test.module_for_file(&file);
+        let module = module.read();
+        let tree = module.tree.read();
+        let roots = &module.roots;
+
+        let (string_symbol_id, _) = test.resolve_to_node::<destack_dir::Pattern>("test.ds", "string").unwrap();
+        // second root: `string;` should resolve to the variable, not the builtin
+        assert_node!(tree, roots[1], Expression::Statement { statement } => {
+            assert_node!(tree, *statement, Expression::ModuleReference { target_symbol, .. } => {
+                assert_eq!(*target_symbol, string_symbol_id);
+            });
+        });
     }
 }

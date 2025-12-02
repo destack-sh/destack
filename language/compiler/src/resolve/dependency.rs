@@ -10,13 +10,13 @@ use crate::{
 
 impl Compiler {
     /// Whether the target is a relative import.
-    pub(super) fn is_relative_import(&self, target: StringId) -> bool {
+    pub(super) fn is_import_relative(&self, target: StringId) -> bool {
         let target_str = self.program.strings.get(target);
         target_str.starts_with("./") || target_str.starts_with("../")
     }
 
     /// Try to resolve an import of some target specifier.
-    /// Returns the resolved module id if successful, otherwise returns the yield.
+    /// Returns the resolved module id if successful, otherwise returns the yield "error".
     pub(super) fn resolve_import(
         &self,
         module: &Module,
@@ -25,7 +25,7 @@ impl Compiler {
         target: StringId,
         symbols: &mut SymbolTable,
     ) -> ResolveResult<ModuleId> {
-        let is_relative = self.is_relative_import(target);
+        let is_relative = self.is_import_relative(target);
         let relative_module = if is_relative { Some(module.id) } else { None };
 
         // get locally resolved import
