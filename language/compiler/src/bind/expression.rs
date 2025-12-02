@@ -297,7 +297,7 @@ impl Compiler {
                     symbols
                         .get_symbol_mut(symbol_id)
                         .declare_primary(expression_id);
-                    types.declare_type(expression_id.into_global_any(module.id), ty);
+                    types.set_declared_type(expression_id.into_global_any(module.id), ty);
                     return expression_id;
                 }
                 expression

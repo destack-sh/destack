@@ -105,7 +105,7 @@ impl Compiler {
                         symbols,
                         types,
                     );
-                    types.declare_type(parameter_id.into_global_any(module.id), ty);
+                    types.set_declared_type(parameter_id.into_global_any(module.id), ty);
                 }
                 parameter_id
             }
@@ -159,7 +159,7 @@ impl Compiler {
                         symbols,
                         types,
                     );
-                    types.declare_type(parameter_id.into_global_any(module.id), ty);
+                    types.set_declared_type(parameter_id.into_global_any(module.id), ty);
                 }
                 parameter_id
             }
@@ -197,7 +197,7 @@ impl Compiler {
                         symbols,
                         types,
                     );
-                    types.declare_type(parameter_id.into_global_any(module.id), ty);
+                    types.set_declared_type(parameter_id.into_global_any(module.id), ty);
                 }
                 parameter_id
             }
