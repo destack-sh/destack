@@ -1457,16 +1457,21 @@ All annotations are preserved in the AST and available to tooling.
 
 ### Tags
 
-Tags are structured metadata attached to any node.
-Tags can receive arguments in optional parentheses (just like methods), which may also be overloaded. 
-Everything is type-checked and queryable by tooling:
+Tags are metadata attached to declarations. A tag is effectively a newtype instantiation:
 
 ```
-#deprecated                        // simple tag
-#Performance                       // categorization
-#todo(priority: high)              // tag with arguments
-#version(1, 2, 3)                  // version annotation
+newtype Performance = void         // unit tag
+newtype deprecated = string        // scalar tag
+newtype version = (int, int, int)  // tuple tag
+
+#Performance                       // unit tag (no arguments)
+#deprecated("use new API")         // scalar tag
+#version(1, 2, 3)                  // tuple tag
 ```
+
+Tags are evaluated at compile time and produce static values. 
+The tag type must be a newtype; the arguments (if any) must match the newtype's inner type. 
+Tags can be queried by tooling and even at runtime.
 
 Tags can appear in comments for compatibility with existing conventions:
 
@@ -1477,18 +1482,35 @@ Tags can appear in comments for compatibility with existing conventions:
 
 ### Decorators
 
-Decorators are "compile-time" transformations applied to declarations.
-Like tags, decorators can receive arguments (in optional parentheses).
-Decorators must be applied to "block-scoped" expressions like functions, properties or types.
+Decorators are functions that transform declarations. 
+They generalize TypeScript decorator semantics: Destack decorators work on any declaration (functions, classes, structs, variables), not just on class members.
 
 ```
-@memoize                           // caches function results
-@deprecated("use newFunction")     // deprecation with message
-@entity                            // marks an entity type
-@route("/api/users")
+@memoize                           // decorator: memoize(target)
+@route("/api/users")               // factory: route("/api/users")(target)
+@service.middleware                // member access: service.middleware(target)
 ```
 
-Unlike tags (which are passive metadata), decorators actively transform or augment the decorated declaration.
+The decorator LHS-expression can be any expression (path, member access, call). Semantics:
+- `@foo` → calls `foo(target)`
+- `@foo(args)` → calls `foo(args)(target)` (factory pattern)
+- `@obj.method` → calls `obj.method(target)`
+
+Flexible decorators are more expressive and convenient in certain scenarios.
+They enable patterns known from the Python world like:
+
+```
+const api = createAPI();
+
+@api.route("/users")
+function getUsers() { ... }
+
+@api.middleware
+function authenticate() { ... }
+```
+
+As with everything Destack, TypeScript decorators copy-pasted into Destack work as expected. 
+Unlike tags (which are passive metadata), decorators actively transform the decorated declaration at definition time.
 
 ### Comments
 

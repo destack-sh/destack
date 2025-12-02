@@ -1397,28 +1397,29 @@ pub fn walk_annotation<V: NodeVisitor + ?Sized>(
             position: _,
             string: _,
         } => {}
-        Annotation::Tag {
+        Annotation::UnevaluatedTag {
             position: _,
-            left: _,
-            target_symbol: _,
-            arguments,
-        }
-        | Annotation::UnresolvedTag {
-            position: _,
-            left: _,
-            arguments,
-        }
-        | Annotation::Decorator {
-            position: _,
-            left: _,
-            target_symbol: _,
-            arguments,
-        }
-        | Annotation::UnresolvedDecorator {
-            position: _,
-            left: _,
+            path: _,
             arguments,
         } => {
+            if let Some(arguments) = arguments {
+                for argument_id in arguments {
+                    let argument = tree.get(*argument_id);
+                    visitor.visit_argument(tree, *argument_id, argument);
+                }
+            }
+        }
+        Annotation::Tag { position: _, value } => {
+            let value_node = tree.get(*value);
+            visitor.visit_static_expression(tree, *value, value_node);
+        }
+        Annotation::Decorator {
+            position: _,
+            left,
+            arguments,
+        } => {
+            let left_node = tree.get(*left);
+            visitor.visit_expression(tree, *left, left_node);
             if let Some(arguments) = arguments {
                 for argument_id in arguments {
                     let argument = tree.get(*argument_id);

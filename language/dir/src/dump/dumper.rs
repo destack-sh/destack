@@ -1867,48 +1867,29 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .field("string", string)
                     .end();
             }
-            Annotation::UnresolvedTag {
+            Annotation::UnevaluatedTag {
                 position,
-                left,
+                path,
                 arguments: _,
             } => {
-                self.node("Annotation::Tag", id.id)
+                self.node("Annotation::UnevaluatedTag", id.id)
                     .field("position", position)
-                    .field("left", left)
+                    .field("path", path)
                     .end();
             }
-            Annotation::UnresolvedDecorator {
-                position,
-                left,
-                arguments: _,
-            } => {
-                self.node("Annotation::Decorator", id.id)
-                    .field("position", position)
-                    .field("left", left)
-                    .end();
-            }
-            Annotation::Tag {
-                position,
-                left,
-                target_symbol,
-                arguments: _,
-            } => {
+            Annotation::Tag { position, value: _ } => {
                 self.node("Annotation::Tag", id.id)
                     .field("position", position)
-                    .field("left", left)
-                    .field("target_symbol", target_symbol)
                     .end();
             }
             Annotation::Decorator {
                 position,
                 left,
-                target_symbol,
                 arguments: _,
             } => {
                 self.node("Annotation::Decorator", id.id)
                     .field("position", position)
-                    .field("left", left)
-                    .field("target_symbol", target_symbol)
+                    .field("left", &left.id)
                     .end();
             }
         }

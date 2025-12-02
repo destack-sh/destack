@@ -27,8 +27,8 @@ TypeScript is the closest thing we have to a unified software foundation today.
 JavaScript runs everywhere, everyone knows it, and it has a massive ecosystem.
 Unlike Python, which is the #2 language, the TypeScript ecosystem has a solid answer to 1) building frontends, 2) deploying everywhere and 3) running fast(ish). 
 
-Where Destack looks like TypeScript (e.g., `interface`, `class`, `async`/`await`), it behaves like TypeScript, because it *is* TypeScript++.
-Unlike in `C++`, our "C" - both JavaScript and TypeScript still work perfectly in Destack, and all `++` features are opt-in and complementary.
+Where Destack looks like TypeScript (e.g., `interface`, `class`, `async`/`await`), it behaves like TypeScript, because it *is* TypeScript(++).
+Unlike with C++, our "C" - both JavaScript and TypeScript -- still work perfectly in Destack, and all `++` features are opt-in and complementary.
 
 Each feature below is independently useful, composes well with others, and can be adopted incrementally.
 You can use just the features you need, and they all transpile to clean, idiomatic TypeScript.
@@ -38,7 +38,7 @@ Technically, you can even use none at all, and then Destack is just TypeScript.
 |---------|-------------|
 | [Types](#types) | Type annotations are values (at runtime) |
 | [Expressions](#expressions) | `if`, `match`, blocks are values |
-| [Primitives](#primitives) | `int`, `int32`, `float` to refine just `number` |
+| [Primitives](#primitives) | `int`, `int32`, `float` to refine `number` |
 | [Ranges](#ranges) | Range literals like `0..10` or `n..=m` |
 | [Tuples](#tuples) | Value-oriented tuple types with `(T, T)` |
 | [Trees](#trees) | TSX-like syntax for any tree-shaped data |

@@ -221,17 +221,26 @@ pub enum Expression {
         arguments: Option<Vec<LocalNodeId<Argument>>>,
         elements: Option<Vec<LocalNodeId<Argument>>>,
     },
-    /// Tagged scalar expression (newtype construction like `UserId(20)`).
+    /// Tagged scalar expression for newtype construction (e.g., `UserId(20)`).
+    ///
+    /// Created during the **elaborate phase** when a `Call` expression is determined
+    /// to be a scalar newtype instantiation based on type analysis.
     TaggedScalarExpression {
         ty: LocalNodeId<Expression>,
         value: LocalNodeId<Expression>,
     },
-    /// Tagged tuple expression (newtype construction like `Point(1, 2)`).
+    /// Tagged tuple expression for newtype construction (e.g., `Point(1, 2)`).
+    ///
+    /// Created during the **elaborate phase** when a `Call` expression is determined
+    /// to be a tuple newtype instantiation based on type analysis.
     TaggedTupleExpression {
         ty: LocalNodeId<Expression>,
         elements: Vec<LocalNodeId<Argument>>,
     },
-    /// Tagged object expression (nominal struct like `Vector3 { x: 1, y: 2 }`).
+    /// Tagged object expression for nominal struct construction (e.g., `Vector3 { x: 1, y: 2 }`).
+    ///
+    /// Created during the **elaborate phase** when an `ObjectExpression` with a type
+    /// prefix is determined to be a nominal struct instantiation based on type analysis.
     TaggedObjectExpression {
         ty: LocalNodeId<Expression>,
         properties: Vec<LocalNodeId<Property>>,
