@@ -127,11 +127,7 @@ impl Compiler {
         if seen.contains(&error) {
             return;
         }
-        seen.push(error.clone());
-        drop(seen);
-        let diagnostic: CompileDiagnostic = error.into();
-        let diagnostic = diagnostic.to_diagnostic(&self.program);
-        self.pending_diagnostics.insert(diagnostic);
+        seen.push(error);
     }
 
     /// Add a warning to the compiler (deduplicated).
@@ -141,11 +137,7 @@ impl Compiler {
         if seen.contains(&warning) {
             return;
         }
-        seen.push(warning.clone());
-        drop(seen);
-        let diagnostic: CompileDiagnostic = warning.into();
-        let diagnostic = diagnostic.to_diagnostic(&self.program);
-        self.pending_diagnostics.insert(diagnostic);
+        seen.push(warning);
     }
 
     /// Collect a result into a TaskResultCollector, reporting non-yield errors.
@@ -159,7 +151,31 @@ impl Compiler {
     }
 
     /// Flush pending diagnostics into the program.
+    /// Converts all stored errors/warnings to diagnostics.
     pub fn flush_diagnostics(&self) {
+        // convert errors to diagnostics
+        let errors = {
+            let mut seen = self.seen_errors.lock();
+            std::mem::take(&mut *seen)
+        };
+        for error in errors {
+            let diagnostic: CompileDiagnostic = error.into();
+            let diagnostic = diagnostic.to_diagnostic(&self.program);
+            self.pending_diagnostics.insert(diagnostic);
+        }
+
+        // convert warnings to diagnostics
+        let warnings = {
+            let mut seen = self.seen_warnings.lock();
+            std::mem::take(&mut *seen)
+        };
+        for warning in warnings {
+            let diagnostic: CompileDiagnostic = warning.into();
+            let diagnostic = diagnostic.to_diagnostic(&self.program);
+            self.pending_diagnostics.insert(diagnostic);
+        }
+
+        // flush to program
         self.program
             .diagnostics
             .take_from(&self.pending_diagnostics);

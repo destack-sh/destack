@@ -105,6 +105,13 @@ pub enum Type {
     Error,
 }
 
+impl Type {
+    /// Whether the type is evaluated.
+    pub fn is_evaluated(&self) -> bool {
+        !matches!(self, Type::Unevaluated { .. })
+    }
+}
+
 /// The type of an attribute (like a property or field).
 #[derive(Debug, Clone, PartialEq)]
 pub enum TypeField {
