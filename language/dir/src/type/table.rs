@@ -5,14 +5,7 @@ use crate::{
     LocalResolutionId, LocalTypeId, ModuleId, Node, Resolution, Type,
 };
 
-/// TypeTable stores all type-related analysis results for a module.
-///
-/// This includes:
-/// - Types (declared and inferred)
-/// - Instances (generic instantiations)
-/// - Resolutions (overload resolution results)
-///
-/// NOT THREAD-SAFE.
+/// TypeTable stores all type-related analysis results for a module. NOT THREAD-SAFE.
 #[derive(Debug, Clone)]
 pub struct TypeTable {
     /// The module id of the type table.

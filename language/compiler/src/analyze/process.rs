@@ -94,9 +94,7 @@ impl Compiler {
     // ─────────────────────────────────────────────────────────────────────────────
 
     /// Evaluate all declared types from type annotations.
-    /// Processes `let x: T`, function parameters, return types, etc.
-    /// Stores results in `types.declared_type_by_node_id`.
-    fn evaluate_declared_types(
+    pub(super) fn evaluate_declared_types(
         &self,
         _tree: &NodeTree,
         _symbols: &SymbolTable,
@@ -106,15 +104,8 @@ impl Compiler {
         Ok(())
     }
 
-    // ─────────────────────────────────────────────────────────────────────────────
-    // Step 2: Infer expression types
-    // ─────────────────────────────────────────────────────────────────────────────
-
     /// Infer the type of an expression.
-    /// This is interleaved with overload resolution - to infer the type of `a + b`,
-    /// we need to resolve which `+` overload is called.
-    /// Stores results in `types.inferred_type_by_node_id`.
-    fn infer_expression(
+    pub(super) fn infer_expression(
         &self,
         _tree: &NodeTree,
         _symbols: &SymbolTable,
@@ -125,15 +116,8 @@ impl Compiler {
         Ok(())
     }
 
-    // ─────────────────────────────────────────────────────────────────────────────
-    // Step 3: Resolve overloads
-    // ─────────────────────────────────────────────────────────────────────────────
-
     /// Resolve which overload is called for a call/operator expression.
-    /// Matches receiver type to find the overload family, then argument types to select.
-    /// Creates Resolution and stores in `types.resolution_by_node_id`.
-    /// Creates Instance if generic, stores in `types`.
-    fn resolve_overload(
+    pub(super) fn resolve_overload(
         &self,
         _tree: &NodeTree,
         _symbols: &SymbolTable,
@@ -145,8 +129,7 @@ impl Compiler {
     }
 
     /// Resolve member access (like `a.foo`).
-    /// Looks up the member on the receiver type.
-    fn resolve_member(
+    pub(super) fn resolve_member(
         &self,
         _tree: &NodeTree,
         _symbols: &SymbolTable,
@@ -156,18 +139,4 @@ impl Compiler {
         // TODO #Incomplete: resolve member
         Ok(())
     }
-
-    // ─────────────────────────────────────────────────────────────────────────────
-    // Step 4: Check compatibility (future)
-    // ─────────────────────────────────────────────────────────────────────────────
-
-    // fn check_compatibility(
-    //     &self,
-    //     _tree: &NodeTree,
-    //     _symbols: &SymbolTable,
-    //     _types: &TypeTable,
-    // ) -> AnalyzeResult<()> {
-    //     // TODO #Incomplete: check type compatibility
-    //     Ok(())
-    // }
 }

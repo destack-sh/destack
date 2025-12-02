@@ -123,7 +123,7 @@ impl Transpiler {
                 TypeLiteral::ScalarLiteral(scalar_literal)
             }
             _ => {
-                let source_id = types.get_source(ty_id);
+                let source_id = types.get_type_source(ty_id);
                 return Err(TranspileError::UnsupportedNode {
                     node: source_id.into_global(module.id),
                     message: None,
@@ -149,7 +149,7 @@ impl Transpiler {
             dir::TypeUnaryOperator::Must => TypeUnaryOperator::Must,
             dir::TypeUnaryOperator::Type => TypeUnaryOperator::Type,
             dir::TypeUnaryOperator::Newtype => {
-                let source_id = types.get_source(ty_id);
+                let source_id = types.get_type_source(ty_id);
                 return Err(TranspileError::UnsupportedNode {
                     node: source_id.into_global(module.id),
                     message: None,
@@ -197,8 +197,8 @@ impl Transpiler {
         ty_id: dir::LocalTypeId,
         unit: &mut TranspilerUnit,
     ) -> TranspileResult<LocalNodeId<Type>> {
-        let source_id = types.get_source(ty_id);
-        let ty = types.get(ty_id);
+        let source_id = types.get_type_source(ty_id);
+        let ty = types.get_type(ty_id);
 
         let ty_id = match ty {
             dir::Type::Scalar(scalar) => {
