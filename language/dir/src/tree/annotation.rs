@@ -47,7 +47,7 @@ pub enum Annotation {
     /// Created during the elaborate phase after type analysis.
     Tag {
         position: AnnotationPosition,
-        value: LocalNodeId<StaticExpression>,
+        value: Box<StaticExpression>,
     },
 
     /// Decorator annotation (like `@foo`, `@foo()`, or `@obj.method(args)`).
@@ -76,7 +76,11 @@ impl Node for Annotation {
     const TYPE: NodeType = NodeType::Annotation;
 
     fn is_evaluated(&self) -> bool {
-        !matches!(self, Annotation::UnevaluatedTag { .. })
+        match self {
+            Annotation::UnevaluatedTag { .. } => false,
+            Annotation::Tag { value, .. } => value.is_evaluated(),
+            _ => true,
+        }
     }
 }
 

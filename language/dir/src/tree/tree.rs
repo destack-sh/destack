@@ -6,8 +6,7 @@ use destack_ast as ast;
 use crate::{
     Annotation, Arena, Argument, Block, Declaration, DependencyItem, EnumField, Expression,
     LocalNodeId, LocalNodeIdAny, LocalScopeId, LocalScopeMark, MatchCase, ModuleId, Node, NodeType,
-    Parameter, Pattern, PatternField, Property, StaticArgument, StaticExpression, StaticProperty,
-    WhereClause, WithClause,
+    Parameter, Pattern, PatternField, Property, WhereClause, WithClause,
 };
 
 /// Mutable DIR Node tree across a set of related source units. NOT THREAD-SAFE.
@@ -26,18 +25,15 @@ pub struct NodeTree {
 
     // node arenas
     pub(crate) expressions: Arena<Expression>,
-    pub(crate) static_expressions: Arena<StaticExpression>,
     pub(crate) blocks: Arena<Block>,
     pub(crate) declarations: Arena<Declaration>,
     pub(crate) properties: Arena<Property>,
-    pub(crate) static_properties: Arena<StaticProperty>,
     pub(crate) enum_fields: Arena<EnumField>,
     pub(crate) where_clauses: Arena<WhereClause>,
     pub(crate) with_clauses: Arena<WithClause>,
     pub(crate) dependency_items: Arena<DependencyItem>,
     pub(crate) parameters: Arena<Parameter>,
     pub(crate) arguments: Arena<Argument>,
-    pub(crate) static_arguments: Arena<StaticArgument>,
     pub(crate) match_cases: Arena<MatchCase>,
     pub(crate) patterns: Arena<Pattern>,
     pub(crate) pattern_fields: Arena<PatternField>,
@@ -84,18 +80,15 @@ impl NodeTree {
             node_type_by_node_id: Vec::with_capacity(capacity),
 
             expressions: Arena::new(),
-            static_expressions: Arena::new(),
             blocks: Arena::new(),
             declarations: Arena::new(),
             properties: Arena::new(),
-            static_properties: Arena::new(),
             enum_fields: Arena::new(),
             where_clauses: Arena::new(),
             with_clauses: Arena::new(),
             dependency_items: Arena::new(),
             parameters: Arena::new(),
             arguments: Arena::new(),
-            static_arguments: Arena::new(),
             match_cases: Arena::new(),
             patterns: Arena::new(),
             pattern_fields: Arena::new(),
@@ -369,18 +362,15 @@ macro_rules! impl_node_tree_stores {
 // usage
 impl_node_tree_stores! {
     Expression => expressions,
-    StaticExpression => static_expressions,
     Block => blocks,
     Declaration => declarations,
     Property => properties,
-    StaticProperty => static_properties,
     EnumField => enum_fields,
     WhereClause => where_clauses,
     WithClause => with_clauses,
     DependencyItem => dependency_items,
     Parameter => parameters,
     Argument => arguments,
-    StaticArgument => static_arguments,
     MatchCase => match_cases,
     Pattern => patterns,
     PatternField => pattern_fields,

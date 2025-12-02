@@ -25,7 +25,7 @@ Like most compilers, the Destack compiler has three main regions:
 │                                                                             │
 │                   Lower ───────► Verify ───────► Optimize                   │
 │                     │              │                │                       │
-│                    MIR           Flows          Better MIR                  │
+│                    MIR            CFG           Better MIR                  │
 │                                                                             │
 │              (may be skipped for some targets like JS/TS)                   │
 └─────────────────────────────────────────────────────────────────────────────┘
@@ -36,7 +36,7 @@ Like most compilers, the Destack compiler has three main regions:
 │                                                                             │
 │                  Generate ───────► Link ───────► Execute                    │
 │                      │               │              │                       │
-│                  artifacts        linked         output                     │
+│                 "Artifacts"      "Linked"       "Output"                    │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 

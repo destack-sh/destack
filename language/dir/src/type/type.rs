@@ -1,6 +1,6 @@
 use crate::{
-    Asynchrony, BindingModifier, Expression, FunctionCardinality, FunctionSignature, Key,
-    LocalNodeId, LocalSymbolId, Mutability, ScalarLiteral, VarianceBound,
+    Asynchrony, BindingModifier, Expression, FunctionCardinality, FunctionSignature,
+    GlobalSymbolId, Key, LocalNodeId, Mutability, ScalarLiteral, StaticArgument, VarianceBound,
 };
 
 use super::{DeclarationType, PrimitiveType, TypeBinaryOperator, TypeUnaryOperator};
@@ -32,14 +32,17 @@ pub enum TypeLiteral {
     ScalarLiteral(ScalarLiteral),
 }
 
-/// An Type in the type system.
+/// A Type in the type system.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Type {
     /// Scalar type literal.
     Scalar(TypeLiteral),
 
-    /// Redirect to symbol type.
-    Symbol(LocalSymbolId),
+    /// Reference to a declared type (with optional type arguments for generics).
+    Reference {
+        symbol: GlobalSymbolId,
+        static_arguments: Option<Vec<StaticArgument>>,
+    },
     /// Unevaluated expression that resolves to a type (needs compile-time evaluation).
     Unevaluated(LocalNodeId<Expression>),
 
@@ -72,12 +75,6 @@ pub enum Type {
         right: LocalTypeId,
     },
 
-    /// Range type `T..T` (or `T..=T` for inclusive range).
-    Range {
-        start: LocalTypeId,
-        end: LocalTypeId,
-        is_inclusive: bool,
-    },
     /// Array type with fixed size (like `T[N]`).
     ArraySized {
         element: LocalTypeId,
@@ -85,14 +82,10 @@ pub enum Type {
     },
     /// Array type with dynamically sized elements (like `T[]`).
     Array { element: Option<LocalTypeId> },
-    /// Tuple type `[T1, T2, ...]`.
+    /// Tuple type `(T1, T2, ...)`.
     Tuple { elements: Vec<LocalTypeId> },
-    /// Struct type `{ a: T1, b: T2, ... }`.
-    Struct { fields: Vec<TypeField> },
-    /// Union type `A | B | C`.
-    Union { elements: Vec<LocalTypeId> },
-    /// Intersection type `A & B & C`.
-    Intersection { elements: Vec<LocalTypeId> },
+    /// Object type `{ a: T1, b: T2, ... }`.
+    Object { fields: Vec<TypeField> },
     /// Function type `(T1, T2, ...) -> T`.
     Function {
         asynchrony: Asynchrony,
@@ -101,6 +94,12 @@ pub enum Type {
         dynamic_parameters: Vec<LocalTypeId>,
         return_type: Option<LocalTypeId>,
     },
+
+    // combinators
+    /// Union type `A | B | C`.
+    Union { elements: Vec<LocalTypeId> },
+    /// Intersection type `A & B & C`.
+    Intersection { elements: Vec<LocalTypeId> },
 
     /// Error type that could not be resolved.
     Error,
