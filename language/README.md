@@ -1,30 +1,9 @@
 # Language
 
 The Destack language toolchain, written in Rust (for now).
-See [DESIGN.md](DESIGN.md) for language design and [SPECIFICATION.md](SPECIFICATION.md) for syntax/semantics.
+See [DESIGN.md](DESIGN.md) for design philosophy and [SPECIFICATION.md](SPECIFICATION.md) for precise syntax and semantics.
 
-## Compilation
-
-Destack source (`.ds`, `.ts`, `.js`) compiles through several intermediate representations:
-
-```
-Source ───► AST ───► DIR ───► JS/TS
-             │        │
-             │        └───► MIR ───► WASM/Native (future)
-             │
-        (syntax)    (typed, semantic)    (low-level)
-```
-
-Each representation serves a different purpose in the compilation pipeline:
-
-| Representation | Description |
-|----------------|-------------|
-| AST | Abstract Syntax Tree - untyped syntax, close to source |
-| DIR | Data-level IR (Destack IR) - typed semantic representation with symbols and scopes |
-| MIR | Machine-level IR - low-level representation for native codegen |
-
-For JS/TS targets, compilation may skip the middle-end and go directly from DIR to output (no MIR needed).
-See [compiler/README.md](compiler/README.md) for the full pipeline.
+Destack takes source files (`.ds`, `.ts`/`.tsx`, `.js`/`.jsx`) and compiles through several intermediate representations (AST->DIR->MIR). See [compiler/README.md](compiler/README.md) for the full pipeline.
 
 ## Crates
 
@@ -32,16 +11,16 @@ The language toolchain is split into several crates, each handling a specific pa
 
 | Crate | Description | Link |
 |-------|-------------|------|
-| `ast` | Destack AST definition | [ast/](ast/) |
-| `dir` | Destack DIR and program definition | [dir/](dir/) |
-| `parser` | Destack lexer and parser (source → AST) | [parser/](parser/) |
-| `compiler` | Destack compiler (AST → DIR → MIR) | [compiler/README](compiler/README.md) |
-| `resolver` | Destack module resolution | [resolver/](resolver/) |
-| `formatter` | Destack formatter (for `.ds`) | [formatter/](formatter/) |
-| `linter` | Destack linter | [linter/](linter/) |
-| `source` | Destack source handling | [source/](source/) |
+| `ast` | AST definition | [ast/](ast/) |
+| `dir` | DIR and program definition | [dir/](dir/) |
+| `parser` | Lexer and parser (`.(js|jsx|ts|tsx|ds)` → AST) | [parser/](parser/) |
+| `compiler` | End-to-end compiler (AST → DIR → MIR) | [compiler/README](compiler/README.md) |
+| `resolver` | JS/TS-style module resolution | [resolver/](resolver/) |
+| `formatter` | Source formatter (for `.ds` only) | [formatter/](formatter/) |
+| `linter` | Linter rules and linter interface| [linter/](linter/) |
+| `source` | Source, files, diagnostics | [source/](source/) |
 | `unicode` | Unicode property tables and utilities | [unicode/](unicode/) |
-| `workspace` | Destack multi-program workspaces | [workspace/](workspace/) |
+| `workspace` | Stateful, multi-program workspaces | [workspace/](workspace/) |
 
 ### JavaScript
 
