@@ -1,7 +1,7 @@
 use indexmap::IndexMap;
 
 use crate::{
-    Arena, GlobalNodeIdAny, Instance, LocalInstanceId, LocalNodeId, LocalNodeIdAny,
+    Arena, GlobalNodeIdAny, GlobalSymbolId, Instance, LocalInstanceId, LocalNodeId, LocalNodeIdAny,
     LocalResolutionId, LocalTypeId, ModuleId, Node, Resolution, Type,
 };
 
@@ -18,10 +18,12 @@ pub struct TypeTable {
     pub(crate) types: Arena<Type>,
     /// The source ids of all types. Index is the type id.
     pub(crate) source_id_by_type_id: Vec<LocalNodeIdAny>,
-    /// The declared type by node id.
+    /// The declared type by node id (type annotations live on nodes).
     pub(crate) declared_type_by_node_id: IndexMap<GlobalNodeIdAny, LocalTypeId>,
-    /// The inferred type by node id.
+    /// The inferred type by node id (expression types at specific locations).
     pub(crate) inferred_type_by_node_id: IndexMap<GlobalNodeIdAny, LocalTypeId>,
+    /// The inferred type by symbol id (convenient lookup for "what type is this binding?").
+    pub(crate) inferred_type_by_symbol_id: IndexMap<GlobalSymbolId, LocalTypeId>,
 
     // instances
     /// The next instance id to allocate.
@@ -51,6 +53,7 @@ impl TypeTable {
             source_id_by_type_id: Vec::new(),
             declared_type_by_node_id: IndexMap::new(),
             inferred_type_by_node_id: IndexMap::new(),
+            inferred_type_by_symbol_id: IndexMap::new(),
             // instances
             next_instance_id: 0,
             instances: Arena::new(),
@@ -95,14 +98,14 @@ impl TypeTable {
         self.source_id_by_type_id[type_id.0 as usize]
     }
 
-    /// Set the declared type for a node.
-    pub fn set_declared_type(&mut self, node_id: GlobalNodeIdAny, ty: LocalTypeId) {
-        self.declared_type_by_node_id.insert(node_id, ty);
+    /// Get the number of types in the table.
+    pub fn type_count(&self) -> u32 {
+        self.next_type_id
     }
 
-    /// Set the inferred type for a node.
-    pub fn set_inferred_type(&mut self, node_id: GlobalNodeIdAny, ty: LocalTypeId) {
-        self.inferred_type_by_node_id.insert(node_id, ty);
+    /// Set the declared type for a node (from type annotation).
+    pub fn set_declared_type(&mut self, node_id: GlobalNodeIdAny, ty: LocalTypeId) {
+        self.declared_type_by_node_id.insert(node_id, ty);
     }
 
     /// Get the declared type for a node.
@@ -117,16 +120,41 @@ impl TypeTable {
         self.declared_type_by_node_id.get(&node_id).copied()
     }
 
+    /// Set the inferred type for a node (expression type at this location).
+    pub fn set_inferred_type_for_node(&mut self, node_id: GlobalNodeIdAny, ty: LocalTypeId) {
+        self.inferred_type_by_node_id.insert(node_id, ty);
+    }
+
     /// Get the inferred type for a node.
-    pub fn get_inferred_type(&self, node_id: GlobalNodeIdAny) -> Option<&Type> {
+    pub fn get_inferred_type_for_node(&self, node_id: GlobalNodeIdAny) -> Option<&Type> {
         self.inferred_type_by_node_id
             .get(&node_id)
             .map(|ty| self.types.get(ty.0))
     }
 
     /// Get the inferred type id for a node.
-    pub fn get_inferred_type_id(&self, node_id: GlobalNodeIdAny) -> Option<LocalTypeId> {
+    pub fn get_inferred_type_id_for_node(&self, node_id: GlobalNodeIdAny) -> Option<LocalTypeId> {
         self.inferred_type_by_node_id.get(&node_id).copied()
+    }
+
+    /// Set the inferred type for a symbol (convenient binding type lookup).
+    pub fn set_inferred_type_for_symbol(&mut self, symbol_id: GlobalSymbolId, ty: LocalTypeId) {
+        self.inferred_type_by_symbol_id.insert(symbol_id, ty);
+    }
+
+    /// Get the inferred type for a symbol.
+    pub fn get_inferred_type_for_symbol(&self, symbol_id: GlobalSymbolId) -> Option<&Type> {
+        self.inferred_type_by_symbol_id
+            .get(&symbol_id)
+            .map(|ty| self.types.get(ty.0))
+    }
+
+    /// Get the inferred type id for a symbol.
+    pub fn get_inferred_type_id_for_symbol(
+        &self,
+        symbol_id: GlobalSymbolId,
+    ) -> Option<LocalTypeId> {
+        self.inferred_type_by_symbol_id.get(&symbol_id).copied()
     }
 
     /// Insert a new instance.

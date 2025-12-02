@@ -281,16 +281,16 @@ export let B = A + 1;
         let tree_b = module_b.tree.read();
 
         // export let A = 1;
-        let (a_symbol_id, a_node) = test.resolve_to_node::<Pattern>("a.ds", "A").unwrap();
+        let (a_symbol_id, a_node_id) = test.resolve_to_node::<Pattern>("a.ds", "A").unwrap();
         let _a_node = tree_a
-            .get_parent(a_node.id)
+            .get_parent(a_node_id.id)
             .unwrap()
             .into_typed::<Expression>();
 
         // export let B = A + 1;
-        let (_b_symbol_id, b_node) = test.resolve_to_node::<Pattern>("b.ds", "B").unwrap();
+        let (_b_symbol_id, b_node_id) = test.resolve_to_node::<Pattern>("b.ds", "B").unwrap();
         let b_node = tree_b
-            .get_parent(b_node.id)
+            .get_parent(b_node_id.id)
             .unwrap()
             .into_typed::<Expression>();
         assert_node!(tree_b, b_node, Expression::Let { value: Some(value), ..} => {

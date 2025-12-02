@@ -38,6 +38,22 @@ impl Compiler {
         Ok(())
     }
 
+    /// Try to evaluate an Expression as a Type.
+    /// Returns the evaluated Type value, or a Type::Unevaluated if it fails.
+    fn try_evaluate_expression_to_type_value(
+        &self,
+        module: &Module,
+        expression_id: LocalNodeId<Expression>,
+        tree: &mut NodeTree,
+        symbols: &mut SymbolTable,
+        types: &mut TypeTable,
+    ) -> AnalyzeResult<Type> {
+        let ty = self
+            .evaluate_expression_to_type(module, expression_id, tree, symbols, types)?
+            .unwrap_or(Type::Unevaluated(expression_id));
+        Ok(ty)
+    }
+
     /// Try to evaluate an Expression as a Type id.
     fn try_evaluate_expression_to_type(
         &self,
@@ -55,22 +71,6 @@ impl Compiler {
             types,
         )?;
         Ok(types.insert_type(ty, expression_id))
-    }
-
-    /// Try to evaluate an Expression as a Type.
-    /// Returns the evaluated Type value, or a Type::Unevaluated if it fails.
-    fn try_evaluate_expression_to_type_value(
-        &self,
-        module: &Module,
-        expression_id: LocalNodeId<Expression>,
-        tree: &mut NodeTree,
-        symbols: &mut SymbolTable,
-        types: &mut TypeTable,
-    ) -> AnalyzeResult<Type> {
-        let ty = self
-            .evaluate_expression_to_type(module, expression_id, tree, symbols, types)?
-            .unwrap_or(Type::Unevaluated(expression_id));
-        Ok(ty)
     }
 
     /// Evaluate an Expression into a Type.
@@ -178,12 +178,6 @@ impl Compiler {
                 }
             }
 
-            // range (not supported as a type expression for now)
-            Expression::RangeExpression { .. } => {
-                return Err(AnalyzeError::UnsupportedNode {
-                    node: expression_id.into_global_any(module.id),
-                });
-            }
             // tuple (anonymous)
             Expression::TupleExpression { .. } => {
                 return Err(AnalyzeError::UnsupportedNode {
@@ -222,5 +216,34 @@ impl Compiler {
         };
 
         Ok(Some(ty))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use destack_dir::{PrimitiveType, Type, TypeLiteral};
+
+    use crate::{ImportTask, TestProgram};
+
+    #[test]
+    fn test_analyze_declared_type_on_let_expression() {
+        let test = TestProgram::memory_sequential();
+        let file = test.file("test.ds", "declare let x: number");
+        test.enqueue(ImportTask::ImportModuleFromFile { file: file.id });
+        test.compile_dump_clean();
+
+        let module = test.module_for_file(&file);
+        let module = module.read();
+        let types = module.types.read();
+
+        let let_expr_id = module.roots[0];
+        let let_ty = types
+            .get_declared_type(let_expr_id.into_global_any(module.id))
+            .unwrap();
+
+        assert_eq!(
+            *let_ty,
+            Type::Scalar(TypeLiteral::Primitive(PrimitiveType::Number))
+        );
     }
 }

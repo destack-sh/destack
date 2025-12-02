@@ -1,6 +1,6 @@
-use crate::{AnalyzeResult, Compiler, Task, TaskDebug, TaskOutput, TaskResultCollector};
+use crate::{AnalyzeError, AnalyzeResult, Compiler, Task, TaskDebug, TaskOutput, TaskResultCollector};
 
-use destack_dir::{Expression, LocalNodeId, ModuleId, NodeTree, Program, SymbolTable, TypeTable};
+use destack_dir::{LocalTypeId, ModuleId, Program};
 
 /// Task to analyze something.
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
@@ -62,81 +62,35 @@ impl Compiler {
     }
 
     /// Analyze a module.
-    ///
-    /// This is the main entry point for type analysis. It processes the module in order:
-    /// 1. Evaluate declared types (from annotations)
-    /// 2. Infer expression types (interleaved with overload resolution)
-    /// 3. Check type compatibility (future)
     pub fn analyze_module(&self, module_id: ModuleId) -> AnalyzeResult<()> {
         let module = self.program.modules.get(module_id);
         let module = module.read();
-        let tree = module.tree.read();
-        let symbols = module.symbols.read();
+        let mut tree = module.tree.write();
+        let mut symbols = module.symbols.write();
         let mut types = module.types.write();
-        let _collector = TaskResultCollector::new();
+        let mut collector = TaskResultCollector::new();
 
-        // step 1: evaluate declared types from annotations
-        self.evaluate_declared_types(&tree, &symbols, &mut types)?;
-
-        // step 2: infer expression types (interleaved with overload resolution)
-        for &root in &module.roots {
-            self.infer_expression(&tree, &symbols, &mut types, root)?;
+        // step 1: evaluate declared types
+        let type_count = types.type_count();
+        for i in 0..type_count {
+            let ty_id = LocalTypeId::new(i);
+            self.collect(
+                &mut collector,
+                self.evaluate_type(&module, ty_id, &mut tree, &mut symbols, &mut types),
+            );
         }
 
-        // step 3: check type compatibility (future)
-        // self.check_compatibility(&tree, &symbols, &types)?;
+        // step 2: infer types, instances & resolutions
+        // ...
 
-        Ok(())
-    }
+        // step 3: check types
+        // ...
 
-    // ─────────────────────────────────────────────────────────────────────────────
-    // Step 1: Evaluate declared types
-    // ─────────────────────────────────────────────────────────────────────────────
+        // yield on any yield
+        if let Some(dependency) = collector.try_into_yield_any() {
+            return Err(AnalyzeError::Yield { dependency });
+        }
 
-    /// Evaluate all declared types from type annotations.
-    pub(super) fn evaluate_declared_types(
-        &self,
-        _tree: &NodeTree,
-        _symbols: &SymbolTable,
-        _types: &mut TypeTable,
-    ) -> AnalyzeResult<()> {
-        // TODO #Incomplete: evaluate declared types
-        Ok(())
-    }
-
-    /// Infer the type of an expression.
-    pub(super) fn infer_expression(
-        &self,
-        _tree: &NodeTree,
-        _symbols: &SymbolTable,
-        _types: &mut TypeTable,
-        _expression: LocalNodeId<Expression>,
-    ) -> AnalyzeResult<()> {
-        // TODO #Incomplete: infer expression type
-        Ok(())
-    }
-
-    /// Resolve which overload is called for a call/operator expression.
-    pub(super) fn resolve_overload(
-        &self,
-        _tree: &NodeTree,
-        _symbols: &SymbolTable,
-        _types: &mut TypeTable,
-        _expression: LocalNodeId<Expression>,
-    ) -> AnalyzeResult<()> {
-        // TODO #Incomplete: resolve overload
-        Ok(())
-    }
-
-    /// Resolve member access (like `a.foo`).
-    pub(super) fn resolve_member(
-        &self,
-        _tree: &NodeTree,
-        _symbols: &SymbolTable,
-        _types: &mut TypeTable,
-        _expression: LocalNodeId<Expression>,
-    ) -> AnalyzeResult<()> {
-        // TODO #Incomplete: resolve member
         Ok(())
     }
 }
