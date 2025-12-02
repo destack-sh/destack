@@ -22,8 +22,10 @@ pub struct TypeTable {
     pub(crate) declared_type_by_node_id: IndexMap<GlobalNodeIdAny, LocalTypeId>,
     /// The inferred type by node id (expression types at specific locations).
     pub(crate) inferred_type_by_node_id: IndexMap<GlobalNodeIdAny, LocalTypeId>,
-    /// The inferred type by symbol id (convenient lookup for "what type is this binding?").
-    pub(crate) inferred_type_by_symbol_id: IndexMap<GlobalSymbolId, LocalTypeId>,
+    /// The instance type by symbol id (for type declarations: the shape of instances).
+    pub(crate) instance_type_by_symbol_id: IndexMap<GlobalSymbolId, LocalTypeId>,
+    /// The value type by symbol id (the type when used as a value).
+    pub(crate) value_type_by_symbol_id: IndexMap<GlobalSymbolId, LocalTypeId>,
 
     // instances
     /// The next instance id to allocate.
@@ -53,7 +55,8 @@ impl TypeTable {
             source_id_by_type_id: Vec::new(),
             declared_type_by_node_id: IndexMap::new(),
             inferred_type_by_node_id: IndexMap::new(),
-            inferred_type_by_symbol_id: IndexMap::new(),
+            instance_type_by_symbol_id: IndexMap::new(),
+            value_type_by_symbol_id: IndexMap::new(),
             // instances
             next_instance_id: 0,
             instances: Arena::new(),
@@ -66,7 +69,7 @@ impl TypeTable {
     }
 
     /// Insert a type derived from some source node.
-    pub fn insert_type<T: Node>(&mut self, ty: Type, node_id: LocalNodeId<T>) -> LocalTypeId {
+    pub fn insert_type_from<T: Node>(&mut self, ty: Type, node_id: LocalNodeId<T>) -> LocalTypeId {
         let type_id = LocalTypeId::new(self.next_type_id);
         self.next_type_id += 1;
         self.types.allocate(ty);
@@ -137,24 +140,38 @@ impl TypeTable {
         self.inferred_type_by_node_id.get(&node_id).copied()
     }
 
-    /// Set the inferred type for a symbol (convenient binding type lookup).
-    pub fn set_inferred_type_for_symbol(&mut self, symbol_id: GlobalSymbolId, ty: LocalTypeId) {
-        self.inferred_type_by_symbol_id.insert(symbol_id, ty);
+    /// Set the instance type for a symbol.
+    pub fn set_instance_type(&mut self, symbol_id: GlobalSymbolId, ty: LocalTypeId) {
+        self.instance_type_by_symbol_id.insert(symbol_id, ty);
     }
 
-    /// Get the inferred type for a symbol.
-    pub fn get_inferred_type_for_symbol(&self, symbol_id: GlobalSymbolId) -> Option<&Type> {
-        self.inferred_type_by_symbol_id
+    /// Get the instance type for a symbol.
+    pub fn get_instance_type(&self, symbol_id: GlobalSymbolId) -> Option<&Type> {
+        self.instance_type_by_symbol_id
             .get(&symbol_id)
             .map(|ty| self.types.get(ty.0))
     }
 
-    /// Get the inferred type id for a symbol.
-    pub fn get_inferred_type_id_for_symbol(
-        &self,
-        symbol_id: GlobalSymbolId,
-    ) -> Option<LocalTypeId> {
-        self.inferred_type_by_symbol_id.get(&symbol_id).copied()
+    /// Get the instance type id for a symbol.
+    pub fn get_instance_type_id(&self, symbol_id: GlobalSymbolId) -> Option<LocalTypeId> {
+        self.instance_type_by_symbol_id.get(&symbol_id).copied()
+    }
+
+    /// Set the value type for a symbol.
+    pub fn set_value_type(&mut self, symbol_id: GlobalSymbolId, ty: LocalTypeId) {
+        self.value_type_by_symbol_id.insert(symbol_id, ty);
+    }
+
+    /// Get the value type for a symbol.
+    pub fn get_value_type(&self, symbol_id: GlobalSymbolId) -> Option<&Type> {
+        self.value_type_by_symbol_id
+            .get(&symbol_id)
+            .map(|ty| self.types.get(ty.0))
+    }
+
+    /// Get the value type id for a symbol.
+    pub fn get_value_type_id(&self, symbol_id: GlobalSymbolId) -> Option<LocalTypeId> {
+        self.value_type_by_symbol_id.get(&symbol_id).copied()
     }
 
     /// Insert a new instance.

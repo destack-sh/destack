@@ -170,6 +170,38 @@ function merge<T: int, U>(): T where (
 ) { }
 ```
 
+### Refinements
+
+Types are values and can be manipulated as expressions - at compile time and at runtime.
+This enables refinements of types, like is commonly used in schema libraries, without extra ceremony:
+
+```
+struct User {
+    name: string.minLength(1).maxLength(100),
+    age: uint.max(150),
+    email: string.describe("Contact email"),
+}
+```
+
+Refinements build on types-as-values and extensions: every type exists at runtime as a descriptor, and refinement methods attach constraints to these descriptors.
+The compiler checks refinements when provable:
+
+```
+User { name: "", age: 200, ... }   // compile error: "" too short, 200 > max
+User { name: "Alice", age: 30, ... }  // ok
+```
+
+The additional refinements and runtime validation are provided opt-in via the standard library `@destack/schema`.
+Foreign and "unproven" data can be explicitly coerced or dynamically checked:
+
+```
+import { parse } from "@destack/schema";
+
+const data = await fetchUser();
+const user = parse(User, data);    // explicit runtime validation
+const user = User.parse(data);     // shorthand explicit runtime validation
+```
+
 ## Polymorphism
 
 TypeScript extends types via prototype mutation or declaration merging, both with footguns.
