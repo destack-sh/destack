@@ -106,6 +106,9 @@ impl DsConfig {
     }
 
     /// Inherits settings from the given dsconfig into `self`.
+    ///
+    /// Type checking options use "most restrictive wins" semantics:
+    /// if parent is stricter, child inherits it unless explicitly overridden.
     pub fn extend_from(&mut self, dsconfig: &Self) {
         let parent = &dsconfig.options;
 
@@ -122,31 +125,63 @@ impl DsConfig {
 
         // extend compiler options
         let parent_compiler = &parent.compiler;
+        let compiler = &mut self.options.compiler;
 
         // inherit features from parent
         for feature in LanguageFeature::ALL {
             if parent_compiler.features.is_enabled(*feature) {
-                self.options.compiler.features.enable(*feature);
+                compiler.features.enable(*feature);
             }
         }
 
         // inherit path resolution (child overrides if set)
-        if self.options.compiler.base_url.is_none() {
-            self.options.compiler.base_url = parent_compiler.base_url.clone();
+        if compiler.base_url.is_none() {
+            compiler.base_url = parent_compiler.base_url.clone();
         }
-        if self.options.compiler.paths.is_none() {
-            self.options.compiler.paths = parent_compiler.paths.clone();
+        if compiler.paths.is_none() {
+            compiler.paths = parent_compiler.paths.clone();
         }
-        if self.options.compiler.root_dir.is_none() {
-            self.options.compiler.root_dir = parent_compiler.root_dir.clone();
+        if compiler.root_dir.is_none() {
+            compiler.root_dir = parent_compiler.root_dir.clone();
         }
-        if self.options.compiler.out_dir.is_none() {
-            self.options.compiler.out_dir = parent_compiler.out_dir.clone();
+        if compiler.out_dir.is_none() {
+            compiler.out_dir = parent_compiler.out_dir.clone();
         }
 
-        // inherit tsconfig path if not set
-        if self.options.compiler.tsconfig.is_none() {
-            self.options.compiler.tsconfig = parent_compiler.tsconfig.clone();
+        // inherit checking options (stricter wins)
+        compiler.strict = compiler.strict || parent_compiler.strict;
+        compiler.no_implicit_any = compiler.no_implicit_any || parent_compiler.no_implicit_any;
+        compiler.strict_null_checks =
+            compiler.strict_null_checks || parent_compiler.strict_null_checks;
+        compiler.no_implicit_this = compiler.no_implicit_this || parent_compiler.no_implicit_this;
+        compiler.strict_function_types =
+            compiler.strict_function_types || parent_compiler.strict_function_types;
+        compiler.strict_bind_call_apply =
+            compiler.strict_bind_call_apply || parent_compiler.strict_bind_call_apply;
+        compiler.strict_property_initialization =
+            compiler.strict_property_initialization || parent_compiler.strict_property_initialization;
+        compiler.use_unknown_in_catch_variables =
+            compiler.use_unknown_in_catch_variables || parent_compiler.use_unknown_in_catch_variables;
+        compiler.no_unused_locals = compiler.no_unused_locals || parent_compiler.no_unused_locals;
+        compiler.no_unused_parameters =
+            compiler.no_unused_parameters || parent_compiler.no_unused_parameters;
+        compiler.no_implicit_returns =
+            compiler.no_implicit_returns || parent_compiler.no_implicit_returns;
+        // allow_unreachable_code: false is stricter (disallows), so AND them
+        compiler.allow_unreachable_code =
+            compiler.allow_unreachable_code && parent_compiler.allow_unreachable_code;
+        compiler.no_implicit_override =
+            compiler.no_implicit_override || parent_compiler.no_implicit_override;
+        compiler.no_fallthrough_cases_in_switch =
+            compiler.no_fallthrough_cases_in_switch || parent_compiler.no_fallthrough_cases_in_switch;
+        compiler.exact_optional_property_types =
+            compiler.exact_optional_property_types || parent_compiler.exact_optional_property_types;
+        compiler.no_unchecked_indexed_access =
+            compiler.no_unchecked_indexed_access || parent_compiler.no_unchecked_indexed_access;
+
+        // inherit interop settings (child overrides if set)
+        if compiler.tsconfig.is_none() {
+            compiler.tsconfig = parent_compiler.tsconfig.clone();
         }
 
         // extend targets (add missing targets from parent)
@@ -208,7 +243,41 @@ pub struct DsConfigCompilerOptionsJson {
     /// ECMAScript target version (e.g., "es2022", "esnext").
     pub target: Option<String>,
 
-    // typescript/javascript interop
+    // checking
+    /// Enable all strict type-checking options. Default: true for .ds files.
+    pub strict: Option<bool>,
+    /// Error on expressions and declarations with implied `any` type.
+    pub no_implicit_any: Option<bool>,
+    /// Enable strict null checks (`null` and `undefined` are distinct types).
+    pub strict_null_checks: Option<bool>,
+    /// Error on `this` expressions with implied `any` type.
+    pub no_implicit_this: Option<bool>,
+    /// Enable strict checking of function types (contravariant parameters).
+    pub strict_function_types: Option<bool>,
+    /// Enable strict checking of `bind`, `call`, and `apply` methods.
+    pub strict_bind_call_apply: Option<bool>,
+    /// Require class properties to be initialized in constructor.
+    pub strict_property_initialization: Option<bool>,
+    /// Use `unknown` instead of `any` for catch clause variables.
+    pub use_unknown_in_catch_variables: Option<bool>,
+    /// Report errors on unused local variables.
+    pub no_unused_locals: Option<bool>,
+    /// Report errors on unused function parameters.
+    pub no_unused_parameters: Option<bool>,
+    /// Report error when not all code paths return a value.
+    pub no_implicit_returns: Option<bool>,
+    /// Allow unreachable code (disables dead code warnings).
+    pub allow_unreachable_code: Option<bool>,
+    /// Require `override` keyword when overriding class members.
+    pub no_implicit_override: Option<bool>,
+    /// Report errors for fallthrough cases in switch statements.
+    pub no_fallthrough_cases_in_switch: Option<bool>,
+    /// Interpret optional property types as written (no implicit `undefined`).
+    pub exact_optional_property_types: Option<bool>,
+    /// Add `undefined` to index signature results (safer array access).
+    pub no_unchecked_indexed_access: Option<bool>,
+
+    // interop
     /// Path to tsconfig.json to inherit settings from.
     pub tsconfig: Option<String>,
     /// Allow TypeScript files (.ts, .tsx) in the project.
@@ -219,6 +288,8 @@ pub struct DsConfigCompilerOptionsJson {
     pub allow_js: Option<bool>,
     /// Type-check JavaScript files.
     pub check_js: Option<bool>,
+    /// Skip type checking of declaration files (.d.ts, .d.ds).
+    pub skip_lib_check: Option<bool>,
 }
 
 impl DsConfigCompilerOptionsJson {
@@ -394,8 +465,9 @@ pub type DsPathAliases = IndexMap<String, Vec<String>>;
 
 /// Normalized Destack compiler options.
 ///
-/// **By default, all language features are enabled.** Set `allow*: false` in
-/// `dsconfig.json` to disable specific features.
+/// **By default, all language features are enabled and strict mode is ON.**
+/// Set `allow*: false` in `dsconfig.json` to disable specific features.
+/// Destack defaults to stricter type checking than TypeScript.
 #[derive(Debug, Clone)]
 pub struct DsConfigCompilerOptions {
     // language features
@@ -418,7 +490,41 @@ pub struct DsConfigCompilerOptions {
     /// ECMAScript target version.
     pub target: EsTarget,
 
-    // typescript/javascript interop
+    // checking
+    /// Enable all strict type-checking options.
+    pub strict: bool,
+    /// Error on implicit `any`.
+    pub no_implicit_any: bool,
+    /// Strict null checks.
+    pub strict_null_checks: bool,
+    /// Error on implicit `this`.
+    pub no_implicit_this: bool,
+    /// Strict function types.
+    pub strict_function_types: bool,
+    /// Strict bind/call/apply.
+    pub strict_bind_call_apply: bool,
+    /// Strict property initialization.
+    pub strict_property_initialization: bool,
+    /// Use `unknown` in catch variables.
+    pub use_unknown_in_catch_variables: bool,
+    /// Report errors on unused locals.
+    pub no_unused_locals: bool,
+    /// Report errors on unused parameters.
+    pub no_unused_parameters: bool,
+    /// Require explicit returns.
+    pub no_implicit_returns: bool,
+    /// Allow unreachable code.
+    pub allow_unreachable_code: bool,
+    /// Require `override` keyword.
+    pub no_implicit_override: bool,
+    /// No switch fallthrough.
+    pub no_fallthrough_cases_in_switch: bool,
+    /// Exact optional property types.
+    pub exact_optional_property_types: bool,
+    /// Add `undefined` to index access.
+    pub no_unchecked_indexed_access: bool,
+
+    // interop
     /// Path to tsconfig.json to inherit settings from.
     pub tsconfig: Option<PathBuf>,
     /// Allow TypeScript files (.ts, .tsx) in the project.
@@ -429,10 +535,14 @@ pub struct DsConfigCompilerOptions {
     pub allow_js: bool,
     /// Type-check JavaScript files.
     pub check_js: bool,
+    /// Skip type checking of declaration files.
+    pub skip_lib_check: bool,
 }
 
 impl Default for DsConfigCompilerOptions {
     fn default() -> Self {
+        // defaults to strict mode ON (stricter than TypeScript)
+        let strict = true;
         Self {
             features: LanguageFeatureSet::all(),
             base_url: None,
@@ -441,11 +551,32 @@ impl Default for DsConfigCompilerOptions {
             out_dir: None,
             module: ModuleKind::default(),
             target: EsTarget::default(),
+
+            // checking
+            strict: true,
+            no_implicit_any: strict,
+            strict_null_checks: strict,
+            no_implicit_this: strict,
+            strict_function_types: strict,
+            strict_bind_call_apply: strict,
+            strict_property_initialization: strict,
+            use_unknown_in_catch_variables: strict,
+            no_unused_locals: false,
+            no_unused_parameters: false,
+            no_implicit_returns: true,
+            allow_unreachable_code: false,
+            no_implicit_override: true,
+            no_fallthrough_cases_in_switch: true,
+            exact_optional_property_types: false,
+            no_unchecked_indexed_access: false,
+
+            // interop
             tsconfig: None,
             allow_ts: true,
             check_ts: false,
             allow_js: true,
             check_js: false,
+            skip_lib_check: false,
         }
     }
 }
@@ -458,6 +589,7 @@ impl From<&DsConfigCompilerOptionsJson> for DsConfigCompilerOptions {
         // apply feature flags from JSON (only explicit false disables)
         json.apply_features(&mut features);
 
+        let strict = json.strict.unwrap_or(true);
         Self {
             features,
             base_url: json.base_url.as_ref().map(PathBuf::from),
@@ -474,11 +606,32 @@ impl From<&DsConfigCompilerOptionsJson> for DsConfigCompilerOptions {
                 .as_deref()
                 .and_then(EsTarget::parse)
                 .unwrap_or_default(),
+
+            // checking
+            strict,
+            no_implicit_any: json.no_implicit_any.unwrap_or(strict),
+            strict_null_checks: json.strict_null_checks.unwrap_or(strict),
+            no_implicit_this: json.no_implicit_this.unwrap_or(strict),
+            strict_function_types: json.strict_function_types.unwrap_or(strict),
+            strict_bind_call_apply: json.strict_bind_call_apply.unwrap_or(strict),
+            strict_property_initialization: json.strict_property_initialization.unwrap_or(strict),
+            use_unknown_in_catch_variables: json.use_unknown_in_catch_variables.unwrap_or(strict),
+            no_unused_locals: json.no_unused_locals.unwrap_or(false),
+            no_unused_parameters: json.no_unused_parameters.unwrap_or(false),
+            no_implicit_returns: json.no_implicit_returns.unwrap_or(true),
+            allow_unreachable_code: json.allow_unreachable_code.unwrap_or(false),
+            no_implicit_override: json.no_implicit_override.unwrap_or(true),
+            no_fallthrough_cases_in_switch: json.no_fallthrough_cases_in_switch.unwrap_or(true),
+            exact_optional_property_types: json.exact_optional_property_types.unwrap_or(false),
+            no_unchecked_indexed_access: json.no_unchecked_indexed_access.unwrap_or(false),
+
+            // interop
             tsconfig: json.tsconfig.as_ref().map(PathBuf::from),
             allow_ts: json.allow_ts.unwrap_or(true),
             check_ts: json.check_ts.unwrap_or(false),
             allow_js: json.allow_js.unwrap_or(true),
             check_js: json.check_js.unwrap_or(false),
+            skip_lib_check: json.skip_lib_check.unwrap_or(false),
         }
     }
 }
