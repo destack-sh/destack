@@ -100,10 +100,6 @@ pub enum Declaration {
 
 impl Node for Declaration {
     const TYPE: NodeType = NodeType::Declaration;
-
-    fn is_resolved(&self) -> bool {
-        true
-    }
 }
 
 impl Declaration {
@@ -169,8 +165,4 @@ pub struct EnumField {
 
 impl Node for EnumField {
     const TYPE: NodeType = NodeType::EnumField;
-
-    fn is_resolved(&self) -> bool {
-        true
-    }
 }

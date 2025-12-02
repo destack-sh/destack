@@ -35,8 +35,4 @@ pub enum MatchCase {
 
 impl Node for MatchCase {
     const TYPE: NodeType = NodeType::MatchCase;
-
-    fn is_resolved(&self) -> bool {
-        true
-    }
 }

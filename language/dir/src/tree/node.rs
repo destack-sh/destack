@@ -349,8 +349,23 @@ impl From<GlobalNodeIdAny> for LocalNodeIdAny {
 pub trait Node: Sized {
     const TYPE: NodeType;
 
-    /// Whether this node is resolved (ignoring child nodes).
-    fn is_resolved(&self) -> bool;
+    /// Whether this node is lexically resolved (ignoring child nodes).
+    ///
+    /// Resolution is name resolution - binding names to symbols. A node is resolved
+    /// when all its name references have been bound to their target symbols.
+    /// For example, `UnresolvedAbsolutePath` becomes `LocalReference` after resolution.
+    fn is_resolved(&self) -> bool {
+        true // most nodes don't need resolution
+    }
+
+    /// Whether this node has been fully evaluated (ignoring child nodes).
+    ///
+    /// Evaluation is type-dependent transformation that happens after resolution.
+    /// For example, `UnevaluatedTag` becomes `Tag` after evaluation, and `Call`
+    /// may become `TaggedScalarExpression` if the callee is a newtype.
+    fn is_evaluated(&self) -> bool {
+        true // most nodes don't need evaluation
+    }
 }
 
 /// A Visibility is the visibility of an item.

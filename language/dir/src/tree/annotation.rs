@@ -75,17 +75,8 @@ pub enum Annotation {
 impl Node for Annotation {
     const TYPE: NodeType = NodeType::Annotation;
 
-    fn is_resolved(&self) -> bool {
-        // Doc, Comment, and Decorator are always "resolved" (no further name resolution needed)
-        // UnevaluatedTag needs elaboration to become Tag
-        // Tag is fully resolved
-        matches!(
-            self,
-            Annotation::Doc { .. }
-                | Annotation::Comment { .. }
-                | Annotation::Tag { .. }
-                | Annotation::Decorator { .. }
-        )
+    fn is_evaluated(&self) -> bool {
+        !matches!(self, Annotation::UnevaluatedTag { .. })
     }
 }
 
@@ -99,12 +90,5 @@ impl Annotation {
             Annotation::Tag { position, .. } => *position,
             Annotation::Decorator { position, .. } => *position,
         }
-    }
-
-    /// Whether the annotation has been fully evaluated.
-    ///
-    /// Returns false for `UnevaluatedTag` which needs elaboration.
-    pub fn is_evaluated(&self) -> bool {
-        !matches!(self, Annotation::UnevaluatedTag { .. })
     }
 }

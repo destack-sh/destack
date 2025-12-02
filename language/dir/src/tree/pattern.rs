@@ -62,10 +62,6 @@ pub enum Pattern {
 
 impl Node for Pattern {
     const TYPE: NodeType = NodeType::Pattern;
-
-    fn is_resolved(&self) -> bool {
-        true
-    }
 }
 
 impl Pattern {
@@ -106,10 +102,6 @@ pub enum PatternField {
 
 impl Node for PatternField {
     const TYPE: NodeType = NodeType::PatternField;
-
-    fn is_resolved(&self) -> bool {
-        true // field resolution is in ResolutionTable
-    }
 }
 
 impl PatternField {

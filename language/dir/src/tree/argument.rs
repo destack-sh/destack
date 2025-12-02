@@ -30,10 +30,6 @@ pub enum Parameter {
 
 impl Node for Parameter {
     const TYPE: NodeType = NodeType::Parameter;
-
-    fn is_resolved(&self) -> bool {
-        true
-    }
 }
 
 /// An Argument is a named, positional, spread, or dynamic argument.
@@ -71,10 +67,6 @@ impl Argument {
 
 impl Node for Argument {
     const TYPE: NodeType = NodeType::Argument;
-
-    fn is_resolved(&self) -> bool {
-        true // arguments are always "resolved" - parameter mapping is in ResolutionTable
-    }
 }
 
 /// Static argument in some static context.
@@ -94,7 +86,7 @@ pub enum StaticArgument {
 impl Node for StaticArgument {
     const TYPE: NodeType = NodeType::StaticArgument;
 
-    fn is_resolved(&self) -> bool {
+    fn is_evaluated(&self) -> bool {
         !matches!(self, StaticArgument::Unevaluated { .. })
     }
 }
