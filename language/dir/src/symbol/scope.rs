@@ -1,6 +1,6 @@
 use std::fmt::Display;
 
-use crate::{LocalSymbolId, ModuleId, SymbolKey};
+use crate::{LocalSymbolId, ModuleId, StaticKey};
 
 /// The kind of a scope.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
@@ -104,7 +104,7 @@ pub struct Scope {
     /// The owner of the scope.
     pub owner_id: Option<LocalSymbolId>,
     /// The symbols in the scope.
-    pub named_symbols: Vec<(SymbolKey, LocalSymbolId)>,
+    pub named_symbols: Vec<(StaticKey, LocalSymbolId)>,
     /// THe anonymous symbols in the scope.
     pub anonymous_symbols: Vec<LocalSymbolId>,
     /// The children scopes.
@@ -124,7 +124,7 @@ impl Scope {
     }
 
     /// Insert a symbol into the scope.
-    pub fn append(&mut self, key: Option<SymbolKey>, symbol_id: LocalSymbolId) -> LocalScopeMark {
+    pub fn append(&mut self, key: Option<StaticKey>, symbol_id: LocalSymbolId) -> LocalScopeMark {
         let mark = LocalScopeMark(self.named_symbols.len() as u32);
         match key {
             Some(key) => {
@@ -138,7 +138,7 @@ impl Scope {
     }
 
     /// Get a symbol from the scope by its key.
-    pub fn find(&self, key: SymbolKey) -> Option<LocalSymbolId> {
+    pub fn find(&self, key: StaticKey) -> Option<LocalSymbolId> {
         for (candidate_key, id) in self.named_symbols.iter().rev() {
             if *candidate_key == key {
                 return Some(*id);
@@ -148,7 +148,7 @@ impl Scope {
     }
 
     /// Get a symbol from the scope by its id up to a given mark.
-    pub fn find_up_to(&self, key: SymbolKey, mark: LocalScopeMark) -> Option<LocalSymbolId> {
+    pub fn find_up_to(&self, key: StaticKey, mark: LocalScopeMark) -> Option<LocalSymbolId> {
         let limit = mark.0 as usize;
         for (candidate_key, id) in self.named_symbols.iter().take(limit).rev() {
             if *candidate_key == key {

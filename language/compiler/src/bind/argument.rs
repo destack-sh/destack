@@ -3,7 +3,7 @@ use destack_ast as ast;
 use destack_dir::{
     Argument, BindingAnchor, BindingKind, BindingModifier, BindingOperator, LocalNodeId,
     LocalNodeIdAny, LocalScopeId, LocalScopeMark, Module, Mutability, NodeTree, NodeType,
-    Parameter, SymbolKey, SymbolSpace, SymbolTable, TypeTable, Visibility,
+    Parameter, StaticKey, SymbolSpace, SymbolTable, TypeTable, Visibility,
 };
 
 #[allow(clippy::too_many_arguments)]
@@ -81,7 +81,7 @@ impl Compiler {
                 let (symbol_id, _) = self.bind_named_item(
                     module,
                     SymbolSpace::Value,
-                    SymbolKey::Name(name),
+                    StaticKey::Name(name),
                     scope,
                     None,
                     symbols,
@@ -174,7 +174,7 @@ impl Compiler {
                 let (symbol_id, _) = self.bind_named_item(
                     module,
                     SymbolSpace::Value,
-                    SymbolKey::Name(name),
+                    StaticKey::Name(name),
                     scope,
                     None,
                     symbols,

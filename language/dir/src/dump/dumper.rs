@@ -468,16 +468,16 @@ impl Dump for DeclarationDescriptor {
 }
 
 /// Dump a Key as a structured representation.
-impl Dump for Key {
+impl Dump for DynamicKey {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
         match self {
-            Key::Name(name) => {
+            DynamicKey::Name(name) => {
                 dumper.object("Key::Name").value(name).end();
             }
-            Key::Expression(_) => {
+            DynamicKey::Expression(_) => {
                 dumper.object("Key::Expression").end();
             }
-            Key::NamedExpression { name, key: _ } => {
+            DynamicKey::NamedExpression { name, key: _ } => {
                 dumper
                     .object("Key::NamedExpression")
                     .field("name", name)
@@ -1831,21 +1831,21 @@ impl Dump for GlobalScopeId {
     }
 }
 
-impl Dump for SymbolKey {
+impl Dump for StaticKey {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
         match self {
-            SymbolKey::Name(name) => {
-                dumper.object("SymbolKey::Name").value(name).end();
+            StaticKey::Name(name) => {
+                dumper.object("StaticKey::Name").value(name).end();
             }
-            SymbolKey::UniqueSymbol(unique_symbol) => {
+            StaticKey::UniqueSymbol(unique_symbol) => {
                 dumper
-                    .object("SymbolKey::UniqueSymbol")
+                    .object("StaticKey::UniqueSymbol")
                     .value(&unique_symbol.id)
                     .end();
             }
-            SymbolKey::GlobalSymbol(global_symbol) => {
+            StaticKey::GlobalSymbol(global_symbol) => {
                 dumper
-                    .object("SymbolKey::GlobalSymbol")
+                    .object("StaticKey::GlobalSymbol")
                     .value(global_symbol)
                     .end();
             }

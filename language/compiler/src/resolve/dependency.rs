@@ -1,7 +1,7 @@
 use destack_ast::StringId;
 use destack_dir::{
     DependencyItem, DependencyMode, DependencySource, GlobalNodeIdAny, LocalNodeId, LocalScopeMark,
-    Module, ModuleId, NodeTree, SymbolKey, SymbolTable,
+    Module, ModuleId, NodeTree, StaticKey, SymbolTable,
 };
 
 use crate::{
@@ -108,7 +108,7 @@ impl Compiler {
                         let remote_scope_id = remote_module.namespace_scope;
                         let remote_scope = remote_symbols.get_scope_by_id(remote_scope_id);
                         let key =
-                            name.map(SymbolKey::Name)
+                            name.map(StaticKey::Name)
                                 .ok_or(ResolveError::UnsupportedNode {
                                     node: item_id.into_global_any(module.id),
                                 })?;
@@ -152,7 +152,7 @@ impl Compiler {
                     module,
                     item_id.into_global_any(module.id),
                     (scope_id, scope, mark),
-                    SymbolKey::Name(*name),
+                    StaticKey::Name(*name),
                     symbols,
                 )?;
                 DependencyItem::Local {

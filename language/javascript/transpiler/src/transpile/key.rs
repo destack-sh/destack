@@ -28,21 +28,21 @@ impl Transpiler {
         tree: &NodeTree,
         symbols: &SymbolTable,
         types: &TypeTable,
-        key: dir::Key,
+        key: dir::DynamicKey,
         unit: &mut TranspilerUnit,
     ) -> TranspileResult<Key> {
         let key = match key {
-            dir::Key::Name(name) => {
+            dir::DynamicKey::Name(name) => {
                 let name = self.transpile_string_to_name(module, name, unit);
                 Key::Name(name)
             }
-            dir::Key::Expression(expression_id) => {
+            dir::DynamicKey::Expression(expression_id) => {
                 let expression_id = self
                     .transpile_expression(module, tree, symbols, types, expression_id, unit)
                     .expect_node::<Expression>(expression_id.into_global_any(module.id), unit)?;
                 Key::Expression(expression_id)
             }
-            dir::Key::NamedExpression { name, key } => {
+            dir::DynamicKey::NamedExpression { name, key } => {
                 let name = self.transpile_string_to_name(module, name, unit);
                 let key = self
                     .transpile_expression(module, tree, symbols, types, key, unit)

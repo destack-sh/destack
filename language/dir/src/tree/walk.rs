@@ -1,6 +1,6 @@
 use crate::{
     Annotation, Argument, Block, Declaration, DependencyItem, EnumField, Expression,
-    FunctionSignature, Generics, Heritage, Key, LocalNodeId, MatchCase, NodeTree, NodeType,
+    FunctionSignature, Generics, Heritage, DynamicKey, LocalNodeId, MatchCase, NodeTree, NodeType,
     NodeVisitor, Parameter, Pattern, PatternField, Property, TemplateLiteral, WhereClause,
     WithClause,
 };
@@ -806,14 +806,14 @@ pub fn walk_declaration<V: NodeVisitor + ?Sized>(
 }
 
 /// Walk the Key.
-pub fn walk_key<V: NodeVisitor + ?Sized>(visitor: &mut V, tree: &NodeTree, key: &Key) {
+pub fn walk_key<V: NodeVisitor + ?Sized>(visitor: &mut V, tree: &NodeTree, key: &DynamicKey) {
     match key {
-        Key::Name(_) => {}
-        Key::Expression(expression) => {
+        DynamicKey::Name(_) => {}
+        DynamicKey::Expression(expression) => {
             let expression_expr = tree.get(*expression);
             visitor.visit_expression(tree, *expression, expression_expr);
         }
-        Key::NamedExpression { name: _, key } => {
+        DynamicKey::NamedExpression { name: _, key } => {
             let key_expr = tree.get(*key);
             visitor.visit_expression(tree, *key, key_expr);
         }

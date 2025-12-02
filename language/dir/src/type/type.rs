@@ -1,6 +1,6 @@
 use crate::{
-    Asynchrony, BindingModifier, Expression, FunctionCardinality, FunctionSignature,
-    GlobalSymbolId, Key, LocalNodeId, Mutability, ScalarLiteral, StaticArgument, VarianceBound,
+    Asynchrony, Expression, FunctionCardinality, GlobalSymbolId, LocalNodeId, Mutability,
+    ScalarLiteral, StaticArgument, StaticKey, VarianceBound,
 };
 
 use super::{DeclarationType, PrimitiveType, TypeBinaryOperator, TypeUnaryOperator};
@@ -112,20 +112,18 @@ impl Type {
     }
 }
 
-/// The type of an attribute (like a property or field).
+/// Type fields in an object-like type.
+/// Methods are represented as fields whose `ty` is a `Type::Function`.
 #[derive(Debug, Clone, PartialEq)]
-pub enum TypeField {
-    /// Named field (like `a: T`).
-    Field {
-        modifiers: Option<BindingModifier>,
-        key: Option<Key>,
-    },
-    /// Named method (like `foo(): T`).
-    Method {
-        modifiers: Option<BindingModifier>,
-        key: Option<Key>,
-        signature: FunctionSignature,
-    },
+pub struct TypeField {
+    /// The key of the field.
+    pub key: StaticKey,
+    /// The type of the field.
+    pub ty: LocalTypeId,
+    /// Whether the field is optional.
+    pub is_optional: bool,
+    /// Whether the field is readonly.
+    pub is_readonly: bool,
 }
 
 /// A TypeKind determines nominal vs. structural typing.

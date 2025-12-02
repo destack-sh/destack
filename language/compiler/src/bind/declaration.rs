@@ -2,7 +2,7 @@ use crate::Compiler;
 use destack_ast as ast;
 use destack_dir::{
     BindingAnchor, Declaration, DeclarationDescriptor, DeclarationKind, EnumField, LocalNodeId,
-    LocalNodeIdAny, LocalScopeId, LocalScopeMark, Module, NodeTree, NodeType, ScopeKind, SymbolKey,
+    LocalNodeIdAny, LocalScopeId, LocalScopeMark, Module, NodeTree, NodeType, ScopeKind, StaticKey,
     SymbolKind, SymbolSpace, SymbolTable, TypeTable,
 };
 
@@ -45,7 +45,7 @@ impl Compiler {
             let (symbol_id, _) = symbols.insert_symbol(
                 kind,
                 SymbolSpace::Value,
-                name.map(SymbolKey::Name),
+                name.map(StaticKey::Name),
                 scope,
                 export,
             );
@@ -540,7 +540,7 @@ impl Compiler {
         let (symbol_id, _) = self.bind_named_item(
             module,
             SymbolSpace::Value,
-            SymbolKey::Name(name),
+            StaticKey::Name(name),
             scope,
             None,
             symbols,

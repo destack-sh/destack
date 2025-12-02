@@ -1,5 +1,5 @@
 use crate::{
-    Expression, FunctionSignature, Key, LocalNodeId, LocalSymbolId, Mutability, Node, NodeType,
+    Expression, FunctionSignature, DynamicKey, LocalNodeId, LocalSymbolId, Mutability, Node, NodeType,
     StaticExpression, Visibility,
 };
 
@@ -14,7 +14,7 @@ pub enum StaticProperty {
     /// Evaluated static field (like `x: int32`).
     Field {
         modifiers: Option<BindingModifier>,
-        key: Option<Key>,
+        key: Option<DynamicKey>,
         value: StaticExpression,
         default: Option<StaticExpression>,
         symbol: LocalSymbolId,
@@ -22,7 +22,7 @@ pub enum StaticProperty {
     /// Evaluated static member function (like `foo()` or `<T>(): T`).
     Method {
         modifiers: Option<BindingModifier>,
-        key: Option<Key>,
+        key: Option<DynamicKey>,
         signature: FunctionSignature,
         body: StaticExpression,
         symbol: LocalSymbolId,
@@ -124,7 +124,7 @@ pub enum Property {
     /// Named field (like `x: int32`).
     Field {
         modifiers: Option<BindingModifier>,
-        key: Option<Key>,
+        key: Option<DynamicKey>,
         value: Option<LocalNodeId<Expression>>,
         default: Option<LocalNodeId<Expression>>,
         symbol: LocalSymbolId,
@@ -132,7 +132,7 @@ pub enum Property {
     /// Named member function (like `foo()` or `<T>(): T`).
     Method {
         modifiers: Option<BindingModifier>,
-        key: Option<Key>,
+        key: Option<DynamicKey>,
         signature: FunctionSignature,
         body: Option<LocalNodeId<Expression>>,
         symbol: LocalSymbolId,

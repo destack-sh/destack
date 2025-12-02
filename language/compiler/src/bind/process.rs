@@ -1,5 +1,5 @@
 use destack_dir::{
-    Expression, GlobalNodeIdAny, LocalNodeId, LocalSymbolId, Module, Program, SymbolKey, SymbolKind,
+    Expression, GlobalNodeIdAny, LocalNodeId, LocalSymbolId, Module, Program, StaticKey, SymbolKind,
 };
 
 use crate::{BindError, BindResult, Compiler, Task, TaskDebug, TaskOutput};
@@ -120,7 +120,7 @@ impl Compiler {
             let Some(key) = symbol.name() else {
                 continue; // should have a name but fine
             };
-            let key = SymbolKey::Name(key);
+            let key = StaticKey::Name(key);
             // override if already exported (we error conflicting exports in a separate check)
             symbols.resolve_export((space, key), *symbol_id);
         }
