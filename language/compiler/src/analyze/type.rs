@@ -1,7 +1,7 @@
 use crate::{AnalyzeError, AnalyzeResult, Compiler};
 use destack_dir::{
     Expression, LocalNodeId, LocalTypeId, Module, NodeTree, SymbolTable, Type, TypeLiteral,
-    TypeUnaryOperator, TypeTable, UnaryOperator,
+    TypeTable, TypeUnaryOperator, UnaryOperator,
 };
 
 #[allow(clippy::too_many_arguments)]
@@ -25,8 +25,13 @@ impl Compiler {
         };
 
         // evaluate and update in-place
-        let evaluated_ty =
-            self.try_evaluate_expression_to_type_value(module, expression_id, tree, symbols, types)?;
+        let evaluated_ty = self.try_evaluate_expression_to_type_value(
+            module,
+            expression_id,
+            tree,
+            symbols,
+            types,
+        )?;
         let ty = types.get_mut(ty_id);
         *ty = evaluated_ty;
 
@@ -42,8 +47,13 @@ impl Compiler {
         symbols: &mut SymbolTable,
         types: &mut TypeTable,
     ) -> AnalyzeResult<LocalTypeId> {
-        let ty =
-            self.try_evaluate_expression_to_type_value(module, expression_id, tree, symbols, types)?;
+        let ty = self.try_evaluate_expression_to_type_value(
+            module,
+            expression_id,
+            tree,
+            symbols,
+            types,
+        )?;
         Ok(types.insert_from(ty, expression_id))
     }
 
@@ -224,4 +234,3 @@ impl Compiler {
         Ok(Some(ty))
     }
 }
-

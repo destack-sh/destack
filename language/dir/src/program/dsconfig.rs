@@ -158,10 +158,10 @@ impl DsConfig {
             compiler.strict_function_types || parent_compiler.strict_function_types;
         compiler.strict_bind_call_apply =
             compiler.strict_bind_call_apply || parent_compiler.strict_bind_call_apply;
-        compiler.strict_property_initialization =
-            compiler.strict_property_initialization || parent_compiler.strict_property_initialization;
-        compiler.use_unknown_in_catch_variables =
-            compiler.use_unknown_in_catch_variables || parent_compiler.use_unknown_in_catch_variables;
+        compiler.strict_property_initialization = compiler.strict_property_initialization
+            || parent_compiler.strict_property_initialization;
+        compiler.use_unknown_in_catch_variables = compiler.use_unknown_in_catch_variables
+            || parent_compiler.use_unknown_in_catch_variables;
         compiler.no_unused_locals = compiler.no_unused_locals || parent_compiler.no_unused_locals;
         compiler.no_unused_parameters =
             compiler.no_unused_parameters || parent_compiler.no_unused_parameters;
@@ -172,8 +172,8 @@ impl DsConfig {
             compiler.allow_unreachable_code && parent_compiler.allow_unreachable_code;
         compiler.no_implicit_override =
             compiler.no_implicit_override || parent_compiler.no_implicit_override;
-        compiler.no_fallthrough_cases_in_switch =
-            compiler.no_fallthrough_cases_in_switch || parent_compiler.no_fallthrough_cases_in_switch;
+        compiler.no_fallthrough_cases_in_switch = compiler.no_fallthrough_cases_in_switch
+            || parent_compiler.no_fallthrough_cases_in_switch;
         compiler.exact_optional_property_types =
             compiler.exact_optional_property_types || parent_compiler.exact_optional_property_types;
         compiler.no_unchecked_indexed_access =

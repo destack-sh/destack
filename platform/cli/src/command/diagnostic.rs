@@ -1,4 +1,5 @@
 use destack_dir::Program;
+use destack_parser::source_colorizer;
 use destack_source::{
     DiagnosticCollection, DiagnosticOptions, PrintOptions,
     print_diagnostics as print_diagnostics_impl,
@@ -35,6 +36,7 @@ impl From<DiagnosticArgs> for DiagnosticOptions {
 pub(crate) fn print_diagnostics(program: &Program, diagnostics: &DiagnosticCollection) {
     let options = PrintOptions::new()
         .with_line_width(program.language.formatting.line_width as u32)
-        .with_module_count(program.modules.len());
+        .with_module_count(program.modules.len())
+        .with_colorizer(source_colorizer());
     print_diagnostics_impl(&program.files, diagnostics, options);
 }
