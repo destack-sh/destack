@@ -188,56 +188,6 @@ impl Parser {
         Ok(continue_id)
     }
 
-    /// Eat a defer expression.
-    ///
-    /// Examples:
-    /// ```
-    /// defer someFunction()
-    ///
-    /// defer {
-    ///     someFunction()
-    ///     someOtherFunction()
-    /// }
-    ///
-    /// defer label: {
-    ///     someOtherFunction()
-    /// }
-    /// ```
-    pub fn eat_defer(&mut self) -> ParseResult<LocalNodeId<Expression>> {
-        let start = self.mark();
-
-        // keyword
-        self.eat_keyword(Keyword::Defer)?;
-
-        // block
-        if self.peek_block().is_ok() {
-            let block_id = self.eat_block()?;
-            let block_id = self
-                .tree
-                .insert(Expression::Block(block_id), self.get_span_from(start));
-            let defer_id = self.tree.insert(
-                Expression::Defer {
-                    expression: block_id,
-                },
-                self.get_span_from(start),
-            );
-            Ok(defer_id)
-        }
-        // expression
-        else {
-            let expression_id = self.with_options(self.options.not_in_position(), |parser| {
-                parser.eat_expression()
-            })?;
-            let defer_id = self.tree.insert(
-                Expression::Defer {
-                    expression: expression_id,
-                },
-                self.get_span_from(start),
-            );
-            Ok(defer_id)
-        }
-    }
-
     /// Eat an await expression.
     ///
     /// Examples:
@@ -444,19 +394,6 @@ mod tests {
         let continue_id = parser.eat_continue().unwrap();
         assert_node!(parser.tree, continue_id, Expression::Continue { label } => {
             assert_string!(parser, label.unwrap(), "label");
-        });
-    }
-
-    #[test]
-    fn test_defer_expression() {
-        let mut test = TestParser::new("defer someFunction()");
-        let mut parser = test.prepare();
-        let defer_id = parser.eat_defer().unwrap();
-        assert_node!(parser.tree, defer_id, Expression::Defer { expression } => {
-            assert_node!(parser.tree, *expression, Expression::Call { position: _, left, static_arguments: None, dynamic_arguments } => {
-                assert_expression_path!(parser, parser.tree.get(*left), "someFunction");
-                assert!(dynamic_arguments.is_empty());
-            });
         });
     }
 

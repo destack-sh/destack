@@ -1,10 +1,10 @@
 use std::str::FromStr;
 
 use super::html_entities::HTML_NAMED_ENTITIES;
-use super::lexer::{EOF_CHAR, Lexer};
+use super::lexer::Lexer;
 use destack_ast::{
-    Keyword, LiteralType, NumberBase, RawStringError, Token, TokenSpan, TokenType,
-    is_identifier_continue, is_identifier_start, is_whitespace,
+    Keyword, LiteralType, NumberBase, Token, TokenSpan, TokenType, is_identifier_continue,
+    is_identifier_start, is_whitespace,
 };
 
 use destack_source::{FileId, LanguageOptions, Span};
@@ -210,65 +210,6 @@ impl Lexer<'_> {
                             (TokenType::Divide, None)
                         }
                     }
-                }
-            }
-
-            // raw string literal, or identifier starting with 'r'
-            'r' => match (self.peek(), self.peek_next()) {
-                // raw string literal
-                ('#', _) | ('"', _) => {
-                    let raw_dq_string = self.eat_raw_double_quoted_string(1);
-                    let literal = LiteralType::RawString {
-                        hashes: raw_dq_string.ok(),
-                    };
-                    (TokenType::Literal, Some(literal))
-                }
-                // identifier fallback
-                _ => self.eat_identifier_or_such('r'),
-            },
-
-            // byte literal, byte string literal, or identifier starting with 'b'
-            'b' => {
-                let this = &mut *self;
-                match (this.peek(), this.peek_next()) {
-                    // b'
-                    // single-quoted byte literal
-                    ('\'', _) => {
-                        this.eat();
-                        let parsed = this.eat_single_quoted_string();
-                        let is_terminated = match parsed {
-                            SingleQuotedLiteral::Character { is_terminated }
-                            | SingleQuotedLiteral::String { is_terminated } => is_terminated,
-                        };
-                        (
-                            TokenType::Literal,
-                            Some(LiteralType::Byte { is_terminated }),
-                        )
-                    }
-                    // b"
-                    // double-quoted byte string literal
-                    ('"', _) => {
-                        this.eat();
-                        let is_terminated = this.eat_double_quoted_string();
-                        (
-                            TokenType::Literal,
-                            Some(LiteralType::ByteString { is_terminated }),
-                        )
-                    }
-                    // br" or br#
-                    // raw double-quoted byte string literal
-                    ('r', '"') | ('r', '#') => {
-                        this.eat();
-                        let raw_dq_string = this.eat_raw_double_quoted_string(2);
-                        (
-                            TokenType::Literal,
-                            Some(LiteralType::RawByteString {
-                                hashes: raw_dq_string.ok(),
-                            }),
-                        )
-                    }
-                    // identifier fallback (starting with 'b')
-                    _ => this.eat_identifier_or_such('b'),
                 }
             }
 
@@ -1116,88 +1057,6 @@ impl Lexer<'_> {
             }
         }
         false
-    }
-
-    /// Parses a raw double-quoted string (with hashes, excluding first `b`).
-    /// Returns the number of hashes.
-    pub(crate) fn eat_raw_double_quoted_string(
-        &mut self,
-        prefix_len: u32,
-    ) -> Result<u8, RawStringError> {
-        // wrap the actual function to handle the error with too many hashes
-        // this way, it eats the whole raw string
-        // (only up to 255 `#`s are allowed in raw strings)
-        let n_hashes = self.eat_raw_string(prefix_len)?;
-        match u8::try_from(n_hashes) {
-            Ok(num) => Ok(num),
-            Err(_) => Err(RawStringError::TooManyDelimiters {
-                found_hashes: n_hashes,
-            }),
-        }
-    }
-
-    /// Parses a raw string (with hashes, excluding first `r`).
-    /// Returns the number of hashes.
-    pub(crate) fn eat_raw_string(&mut self, prefix_len: u32) -> Result<u32, RawStringError> {
-        debug_assert!(self.prev() == 'r');
-        let start_pos = self.get_pos_within_token();
-        let mut possible_terminator_offset: Option<u32> = None;
-        let mut max_hashes = 0;
-
-        // count opening '#' symbols
-        let mut eaten = 0;
-        while self.peek() == '#' {
-            eaten += 1;
-            self.eat();
-        }
-        let n_start_hashes = eaten;
-
-        // check that string is started
-        match self.eat() {
-            Some('"') => (),
-            c => {
-                let c = c.unwrap_or(EOF_CHAR);
-                return Err(RawStringError::InvalidStarter { bad_char: c });
-            }
-        }
-
-        // skip the string contents and on each '#' character met
-        // check if this is a raw string termination
-        loop {
-            self.eat_until(b'"');
-
-            if self.is_end() {
-                return Err(RawStringError::NoTerminator {
-                    expected_hashes: n_start_hashes,
-                    found_hashes: max_hashes,
-                    possible_terminator_offset,
-                });
-            }
-
-            // eat closing double quote
-            self.eat();
-
-            // check that amount of closing '#' symbols
-            // is equal to the amount of opening ones
-            // note that this will not consume extra trailing `#` characters:
-            // `r###"abcde"####` is lexed as a `RawStr { n_hashes: 3 }`
-            // followed by a `#` token
-            let mut n_end_hashes = 0;
-            while self.peek() == '#' && n_end_hashes < n_start_hashes {
-                n_end_hashes += 1;
-                self.eat();
-            }
-
-            if n_end_hashes == n_start_hashes {
-                return Ok(n_start_hashes);
-            } else if n_end_hashes > max_hashes {
-                // keep track of possible terminators to give a hint about
-                // where there might be a missing terminator
-                possible_terminator_offset =
-                    Some(self.get_pos_within_token() - start_pos - n_end_hashes + prefix_len);
-                max_hashes = n_end_hashes;
-            }
-        }
     }
 
     /// Parses decimal digits.

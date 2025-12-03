@@ -260,7 +260,7 @@ mod tests {
     let y = 2
     y
 
-    if x {
+    if (x) {
         y
     } else {
         print("foo")
@@ -272,7 +272,7 @@ mod tests {
     }
 
     let x = z()
-    let x = if let y = 1 {
+    let x = if (let y = 1) {
         z()
     } else {
         w()
@@ -288,7 +288,7 @@ mod tests {
     let y = 2;
     y;
 
-    if x {
+    if (x) {
         y
     } else {
         print("foo");
@@ -300,7 +300,7 @@ mod tests {
     }
 
     let x = z();
-    let x = if let y = 1 {
+    let x = if (let y = 1) {
         z()
     } else {
         w()
@@ -374,7 +374,7 @@ mod tests {
     /// Block shouldn't break if the expression is used inline.
     #[test]
     fn test_format_block_inline() {
-        let source = "const x = if y { z } else { w }";
+        let source = "const x = if (y) { z } else { w }";
         assert_format!(
             source,
             source,
@@ -386,8 +386,8 @@ mod tests {
     #[test]
     fn test_format_block_statement_like() {
         assert_format!(
-            "if y { z } else { w; }",
-            "if y {\n\tz\n} else {\n\tw;\n}",
+            "if (y) { z } else { w; }",
+            "if (y) {\n\tz\n} else {\n\tw;\n}",
             |p| p.eat_if(),
             DestackFormatOptions::default_tab()
         );

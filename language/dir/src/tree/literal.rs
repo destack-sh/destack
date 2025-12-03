@@ -5,8 +5,6 @@ use crate::{Argument, LocalNodeId, StringId};
 pub enum ScalarLiteral {
     /// Boolean value.
     Boolean(bool),
-    /// Byte value.
-    Byte(u8),
     /// Integer value.
     Integer(i64),
     /// Bigint value.
@@ -22,8 +20,6 @@ pub enum ScalarLiteral {
         content: StringId,
         flags: Option<StringId>,
     },
-    /// Byte string value.
-    ByteString(Vec<u8>),
 }
 
 /// A TemplateLiteral is literal template value.

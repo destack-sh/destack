@@ -385,7 +385,6 @@ impl<'ast> FormatNode<'ast, Decorator> for Decorator {
 #[cfg(test)]
 mod tests {
     use crate::{DestackFormatOptions, TestFormatter, assert_format};
-    use destack_ast::DeclarationDescriptor;
 
     /// Block comments should retain all their newlines (including leading and trailing newlines).
     #[test]

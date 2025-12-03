@@ -97,21 +97,21 @@ pub enum Expression {
     /// cond ? a : b
     ///
     /// // if
-    /// if x > 0 {
+    /// if (x > 0) {
     ///     print("positive")
     /// }
     ///
     /// // if else
-    /// if x > 0 {
+    /// if (x > 0) {
     ///     print("positive")
     /// } else {
     ///     print("not positive")
     /// }
     ///
     /// // if else if
-    /// if x > 0 {
+    /// if (x > 0) {
     ///     print("positive")
-    /// } else if x == 0 {
+    /// } else if (x == 0) {
     ///     print("zero")
     /// } else {
     ///     print("negative")
@@ -128,11 +128,11 @@ pub enum Expression {
     ///
     /// Examples:
     /// ```
-    /// while x > 1 {
+    /// while (x > 1) {
     ///     y = 2
     /// }
     ///
-    /// while y < 10 l: {
+    /// while (y < 10) l: {
     ///     y = 2
     ///     break :l
     /// }
@@ -147,11 +147,11 @@ pub enum Expression {
     ///
     /// Examples:
     /// ```
-    /// for x in 1..10 {
+    /// for (const x in 1..10) {
     ///     y = 2
     /// }
     ///
-    /// for x in 1..10 a: {
+    /// for (const x in 1..10) a: {
     ///     if y > 5 {
     ///         continue :a
     ///     }
@@ -171,7 +171,7 @@ pub enum Expression {
     /// Examples:
     /// ```
     /// for (;;) {}
-    /// for (var x = 0; x < 10; x++) {
+    /// for (let x = 0; x < 10; x++) {
     ///     y = 2
     /// }
     /// ```
@@ -277,23 +277,6 @@ pub enum Expression {
     /// continue :label
     /// ```
     Continue { label: Option<StringId> },
-
-    /// Defer expression until scope exit.
-    ///
-    /// Examples:
-    /// ```
-    /// defer someFunction()
-    ///
-    /// defer {
-    ///     someFunction()
-    ///     someOtherFunction()
-    /// }
-    ///
-    /// defer :label {
-    ///     someOtherFunction()
-    /// }
-    /// ```
-    Defer { expression: LocalNodeId<Expression> },
 
     /// Await an expression.
     /// This is more similar to `go` than classic `await`, but the meaning is context & runtime specific.
@@ -727,7 +710,6 @@ impl Expression {
                 | Expression::Match { .. }
                 | Expression::Break { .. }
                 | Expression::Continue { .. }
-                | Expression::Defer { .. }
                 | Expression::Return { .. }
                 | Expression::Assign { .. }
         )

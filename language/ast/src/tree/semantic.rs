@@ -71,12 +71,8 @@ impl SemanticType {
                         LiteralType::Int { .. } => SemanticType::LiteralNumbery,
                         LiteralType::Float { .. } => SemanticType::LiteralNumbery,
                         LiteralType::Character { .. } => SemanticType::LiteralStringy,
-                        LiteralType::Byte { .. } => SemanticType::LiteralStringy,
                         LiteralType::String { .. } => SemanticType::LiteralStringy,
-                        LiteralType::ByteString { .. } => SemanticType::LiteralStringy,
                         LiteralType::RegexString { .. } => SemanticType::LiteralStringy,
-                        LiteralType::RawString { .. } => SemanticType::LiteralStringy,
-                        LiteralType::RawByteString { .. } => SemanticType::LiteralStringy,
                     }
                 } else {
                     SemanticType::LiteralStringy
@@ -295,7 +291,6 @@ impl<'a> NodeVisitor for SemanticTokenIndex<'a> {
             Expression::ScalarLiteral(
                 ScalarLiteral::Character(_)
                 | ScalarLiteral::String(_)
-                | ScalarLiteral::ByteString(_)
                 | ScalarLiteral::RegexString { .. },
             ) => {
                 self.set_semantic_span(tree, id, SemanticType::LiteralStringy);

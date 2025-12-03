@@ -175,29 +175,6 @@ impl Parser {
                 }
             }
 
-            // byte character literal (ignore quotes)
-            LiteralType::Byte { is_terminated } => {
-                if !is_terminated {
-                    return Err(ParseError::expected_for(
-                        literal_span.span,
-                        TokenType::Literal,
-                        NodeType::Expression,
-                    ));
-                }
-                let content = literal_str.trim_start_matches("b'").trim_end_matches('\'');
-                content
-                    .chars()
-                    .next()
-                    .map(|ch| ScalarLiteral::Byte(ch as u8))
-                    .ok_or_else(|| {
-                        ParseError::expected_for(
-                            literal_span.span,
-                            TokenType::Literal,
-                            NodeType::Expression,
-                        )
-                    })
-            }
-
             // string literal (ignore quotes)
             // supports both '...' and "..." delimited string literals
             LiteralType::String { is_terminated } => {
@@ -248,62 +225,6 @@ impl Parser {
                         flags: Some(flags_id),
                     })
                 }
-            }
-
-            // raw string literal (ignore quotes and hashes)
-            LiteralType::RawString { hashes } => {
-                let Some(hashes) = hashes else {
-                    return Err(ParseError::expected_for(
-                        literal_span.span,
-                        TokenType::Literal,
-                        NodeType::Expression,
-                    ));
-                };
-                let num_hashes = hashes as usize;
-                let prefix_len = 1 /* r */ + num_hashes + 1 /* opening " */;
-                let suffix_len = 1 /* closing " */ + num_hashes;
-                if literal_str.len() < prefix_len + suffix_len {
-                    return Err(ParseError::expected(literal_span.span, TokenType::Literal));
-                }
-                let content = &literal_str[prefix_len..literal_str.len() - suffix_len];
-                let string_id = self.strings.intern(content);
-                Ok(ScalarLiteral::String(string_id))
-            }
-
-            // byte string literal (ignore quotes)
-            LiteralType::ByteString { is_terminated } => {
-                if !is_terminated {
-                    return Err(ParseError::expected_for(
-                        literal_span.span,
-                        TokenType::Literal,
-                        NodeType::Expression,
-                    ));
-                }
-                let content = literal_str.trim_start_matches("b\"").trim_end_matches('"');
-                Ok(ScalarLiteral::ByteString(content.as_bytes().to_vec()))
-            }
-
-            // raw byte string literal (ignore quotes and hashes)
-            LiteralType::RawByteString { hashes } => {
-                let Some(hashes) = hashes else {
-                    return Err(ParseError::expected_for(
-                        literal_span.span,
-                        TokenType::Literal,
-                        NodeType::Expression,
-                    ));
-                };
-                let num_hashes = hashes as usize;
-                let prefix_len = 2 /* br */ + num_hashes + 1 /* opening " */;
-                let suffix_len = 1 /* closing " */ + num_hashes;
-                if literal_str.len() < prefix_len + suffix_len {
-                    return Err(ParseError::expected_for(
-                        literal_span.span,
-                        TokenType::Literal,
-                        NodeType::Expression,
-                    ));
-                }
-                let content = &literal_str[prefix_len..literal_str.len() - suffix_len];
-                Ok(ScalarLiteral::ByteString(content.as_bytes().to_vec()))
             }
         }
     }
@@ -671,7 +592,7 @@ mod tests {
     /// Parse string literal.
     #[test]
     fn test_parse_string_literal() {
-        let mut test = TestParser::new(r#""hello" 'hi there' b"abc""#);
+        let mut test = TestParser::new(r#""hello" 'hi there'"#);
         let mut parser = test.prepare();
 
         let literal = parser.eat_scalar_literal().unwrap();
@@ -693,12 +614,6 @@ mod tests {
             },
             "hi there"
         );
-
-        let literal = parser.eat_scalar_literal().unwrap();
-        match literal {
-            ScalarLiteral::ByteString(bytes) => assert_eq!(bytes, b"abc"),
-            other => panic!("expected byte string literal, got {other:?}"),
-        }
     }
 
     /// Parse a regex string literal.

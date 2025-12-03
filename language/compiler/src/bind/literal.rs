@@ -15,7 +15,6 @@ impl Compiler {
     ) -> ScalarLiteral {
         match scalar_literal {
             ast::ScalarLiteral::Boolean(boolean) => ScalarLiteral::Boolean(*boolean),
-            ast::ScalarLiteral::Byte(byte) => ScalarLiteral::Byte(*byte),
             ast::ScalarLiteral::Integer(integer) => ScalarLiteral::Integer(*integer),
             ast::ScalarLiteral::Bigint(bigint) => ScalarLiteral::Bigint(*bigint),
             ast::ScalarLiteral::Float(float) => ScalarLiteral::Float(*float),
@@ -35,9 +34,6 @@ impl Compiler {
                 let flags =
                     flags.map(|flag| self.program.strings.intern_from(&module.ast_strings, flag));
                 ScalarLiteral::RegexString { content, flags }
-            }
-            ast::ScalarLiteral::ByteString(byte_string) => {
-                ScalarLiteral::ByteString(byte_string.clone())
             }
         }
     }

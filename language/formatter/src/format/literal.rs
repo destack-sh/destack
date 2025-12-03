@@ -39,9 +39,6 @@ pub(crate) fn format_scalar_literal<'ast>(
                 [token("'"), text(value.to_string().as_str()), token("'")]
             )?;
         }
-        ScalarLiteral::Byte(value) => {
-            write!(f, [token("b'"), text(&value.to_string()), token("'")])?;
-        }
         ScalarLiteral::String(_) => {
             let normalized_str =
                 if span_str.len() >= 2 && span_str.starts_with('\'') && span_str.ends_with('\'') {
@@ -62,9 +59,6 @@ pub(crate) fn format_scalar_literal<'ast>(
             } else {
                 write!(f, [token("/"), content, token("/")])?;
             }
-        }
-        ScalarLiteral::ByteString(_) => {
-            write!(f, [text(span_str)])?;
         }
     }
 

@@ -34,21 +34,21 @@ impl Parser {
     /// cond ? a : b
     ///
     /// // if
-    /// if x > 0 {
+    /// if (x > 0) {
     ///     print("positive")
     /// }
     ///
     /// // if else
-    /// if x > 0 {
+    /// if (x > 0) {
     ///     print("positive")
     /// } else {
     ///     print("not positive")
     /// }
     ///
     /// // if else if
-    /// if x > 0 {
+    /// if (x > 0) {
     ///     print("positive")
-    /// } else if x == 0 {
+    /// } else if (x == 0) {
     ///     print("zero")
     /// } else {
     ///     print("negative")
@@ -65,7 +65,7 @@ impl Parser {
         // condition
         let condition_id = self
             .with_options(self.options.nested().in_before_block(), |parser| {
-                parser.eat_expression()
+                parser.eat_expression_parenthesized_maybe()
             })?;
         self.eat_newlines_maybe()?;
 
@@ -165,10 +165,8 @@ mod tests {
         // if (cond) { a } else { b }
         let if_id = parser.eat_if().unwrap();
         assert_node!(parser.tree, if_id, Expression::If { condition, then_expression, else_expression, .. } => {
-            // (cond)
-            assert_node!(parser.tree, *condition, Expression::Parenthesized { expression } => {
-                assert_expression_path!(parser, parser.tree.get(*expression), "cond");
-            });
+            // cond
+            assert_expression_path!(parser, parser.tree.get(*condition), "cond");
             // { a }
             assert_node!(parser.tree, *then_expression, Expression::Block(block_id) => {
                 assert_node!(parser.tree, *block_id, Block { format: _, expressions, label } => {
@@ -216,10 +214,8 @@ if cond {
                     assert_eq!(expressions.len(), 1);
                     // if (cond) { a } else { b }
                     assert_node!(parser.tree, expressions[0], Expression::If { condition: inner_condition, then_expression: inner_then, else_expression: inner_else, .. } => {
-                        // (cond)
-                        assert_node!(parser.tree, *inner_condition, Expression::Parenthesized { expression } => {
-                            assert_expression_path!(parser, parser.tree.get(*expression), "cond");
-                        });
+                        // cond
+                        assert_expression_path!(parser, parser.tree.get(*inner_condition), "cond");
                         // { a }
                         assert_node!(parser.tree, *inner_then, Expression::Block(inner_block_id) => {
                             assert_node!(parser.tree, *inner_block_id, Block { format: _, expressions, label } => {
@@ -424,7 +420,7 @@ else { v }
     fn test_parse_if_with_expression_condition() {
         let mut test = TestParser::new(
             r###"
-if x > y {
+if (x > y) {
     print("positive")
 }
 "###,

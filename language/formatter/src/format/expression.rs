@@ -74,7 +74,17 @@ pub(crate) fn format_if_else_chain<'ast>(
                 else_expression: else_expression_id,
             } => {
                 // if <condition>
-                write!(f, [Keyword::If, space(), condition, space()])?;
+                write!(
+                    f,
+                    [
+                        Keyword::If,
+                        space(),
+                        token("("),
+                        condition,
+                        token(")"),
+                        space()
+                    ]
+                )?;
 
                 // then block
                 let then_expression = f.context().tree.get(*then_expression_id);
@@ -1142,7 +1152,18 @@ pub(crate) fn format_expression<'ast>(
             body,
         } => match *kind {
             WhileKind::While => {
-                write!(f, [Keyword::While, space(), condition, space(), body])?;
+                write!(
+                    f,
+                    [
+                        Keyword::While,
+                        space(),
+                        token("("),
+                        condition,
+                        token(")"),
+                        space(),
+                        body
+                    ]
+                )?;
             }
             WhileKind::DoWhile => {
                 write!(
@@ -1154,7 +1175,9 @@ pub(crate) fn format_expression<'ast>(
                         space(),
                         Keyword::While,
                         space(),
-                        condition
+                        token("("),
+                        condition,
+                        token(")"),
                     ]
                 )?;
             }
@@ -1176,8 +1199,19 @@ pub(crate) fn format_expression<'ast>(
                 ForEachKind::In => Keyword::In,
                 ForEachKind::Of => Keyword::Of,
             };
-            write!(f, [pattern, space(), keyword, space()])?;
-            write!(f, [iterator, space()])?;
+            write!(
+                f,
+                [
+                    token("("),
+                    pattern,
+                    space(),
+                    keyword,
+                    space(),
+                    iterator,
+                    token(")"),
+                    space()
+                ]
+            )?;
             write!(f, [body])?;
         }
 
@@ -1260,11 +1294,6 @@ pub(crate) fn format_expression<'ast>(
             if let Some(label) = label {
                 write!(f, [space(), token(":"), label])?;
             }
-        }
-
-        // defer
-        Expression::Defer { expression } => {
-            write!(f, [Keyword::Defer, space(), expression])?;
         }
 
         // await
