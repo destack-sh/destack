@@ -1,5 +1,5 @@
 {
-	"name": "@destack/vite",
+	"name": "destack-vite",
 	"version": "0.45.11",
 	"license": "MIT",
 	"type": "module",
@@ -9,7 +9,7 @@
 		"publish:live": "npm publish --access public"
 	},
 	"dependencies": {
-		"@destack/napi": "workspace:*"
+		"destack-napi": "workspace:*"
 	},
 	"peerDependencies": {
 		"vite": "^7.0.0"

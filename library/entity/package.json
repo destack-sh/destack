@@ -1,5 +1,5 @@
 {
-    "name": "@destack/entity",
+    "name": "destack-entity",
     "version": "0.45.11",
     "license": "MIT",
     "type": "module",

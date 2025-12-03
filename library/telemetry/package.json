@@ -1,5 +1,5 @@
 {
-    "name": "@destack/telemetry",
+    "name": "destack-telemetry",
     "version": "0.45.11",
     "license": "MIT",
     "type": "module",

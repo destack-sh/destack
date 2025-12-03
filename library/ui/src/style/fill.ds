@@ -1,4 +1,4 @@
-import { Color, Gradient, Image, Style } from "@destack/ui";
+import { Color, Gradient, Image, Style } from "destack-ui";
 
 /// Type of Fill.
 export enum FillType {

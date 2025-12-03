@@ -1,5 +1,5 @@
 {
-    "name": "@destack/universe",
+    "name": "destack-universe",
     "version": "0.45.11",
     "license": "MIT",
     "type": "module",

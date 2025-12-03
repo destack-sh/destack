@@ -200,11 +200,11 @@ The compiler checks refinements when provable:
 { name: "Alice", age: 30, ... } satisfies User  // ok
 ```
 
-The additional refinements and runtime validation are provided opt-in via the standard library `@destack/schema`.
+The additional refinements and runtime validation are provided opt-in via the standard library `destack-schema`.
 Foreign and "unproven" data can be explicitly coerced or dynamically checked:
 
 ```
-import { parse } from "@destack/schema";
+import { parse } from "destack-schema";
 
 const data = await fetchUser();
 const user = parse(User, data);    // explicit runtime validation
