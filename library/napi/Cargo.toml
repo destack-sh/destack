@@ -14,11 +14,9 @@ doctest = false
 
 [dependencies]
 # language
+destack_codegen_js = { workspace = true }
 destack_compiler = { workspace = true }
 destack_dir = { workspace = true }
-destack_javascript_ast = { workspace = true }
-destack_javascript_machine = { workspace = true }
-destack_javascript_transpiler = { workspace = true }
 destack_resolver = { workspace = true }
 destack_source = { workspace = true }
 destack_workspace = { workspace = true }

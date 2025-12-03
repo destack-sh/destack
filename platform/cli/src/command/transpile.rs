@@ -1,6 +1,6 @@
 use clap::{ArgGroup, Args, ValueEnum};
+use destack_codegen_js::{TranspileOptions, TranspileTarget, Transpiler};
 use destack_compiler::{CompileOptions, Compiler, ImportTask};
-use destack_javascript_transpiler::{TranspileOptions, TranspileTarget, Transpiler};
 use destack_source::{DiagnosticOptions, DiagnosticSeverity, FileContent};
 
 use crate::command::{

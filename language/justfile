@@ -1,7 +1,7 @@
 set shell := ["bash", "-cu"]
 
 # all language crates
-packages := "-p destack_ast -p destack_compiler -p destack_dir -p destack_fir -p destack_formatter -p destack_javascript_ast -p destack_javascript_machine -p destack_javascript_transpiler -p destack_linter -p destack_machine -p destack_mir -p destack_parser -p destack_resolver -p destack_source -p destack_test -p destack_unicode -p destack_workspace"
+packages := "-p destack_ast -p destack_codegen_js -p destack_compiler -p destack_dir -p destack_fir -p destack_formatter -p destack_linter -p destack_machine -p destack_mir -p destack_parser -p destack_resolver -p destack_source -p destack_test -p destack_unicode -p destack_workspace"
 
 _default:
     @just --list --unsorted
