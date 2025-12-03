@@ -36,10 +36,11 @@ Technically, you can even use none at all, and then Destack is just TypeScript.
 
 | Feature | Description |
 |---------|-------------|
-| [Expressions](#expressions) | Expression extensions: ranges, tuples, patterns, trees, `loop`, `defer` |
+| [Expressions](#expressions) | Expression extensions: ranges, tuples, patterns, `loop`, `defer` |
+| [Trees](#trees) | Tree literals: TSX-like syntax generalized for any tree-shaped data |
+| [Annotations](#annotations) | Annotations: tags (`#`) and extended decorators (`@`) |
 | [Types](#types) | Type system extensions: runtime types, newtypes, primitives, structs, constraints |
 | [Polymorphism](#polymorphism) | Polymorphism: extensions and overloading |
-| [Annotations](#annotations) | Annotations: tags (`#`) and extended decorators (`@`) |
 | [Ownership](#ownership) | Ownership: Value ownership (`&T`, `^T`), mutability (`const`/`var`), and explicit dispatch |
 
 ## Expressions
@@ -86,17 +87,6 @@ match result {
 }
 ```
 
-### Trees
-
-TSX-like syntax generalized for any tree-shaped data:
-
-```
-<Prompt>
-    <System>You are helpful.</System>
-    <User>{message}</User>
-</Prompt>
-```
-
 ### Loop and Defer
 
 Infinite loops with `loop`, cleanup with `defer`:
@@ -112,6 +102,48 @@ const file = open(path);
 defer file.close();
 // file.close() runs when this scope exits
 ```
+
+## Trees
+
+TSX-like syntax generalized for any tree-shaped data:
+
+```
+<Prompt>
+    <System>You are helpful.</System>
+    <User>{message}</User>
+</Prompt>
+```
+
+Tree literals work with any type that implements the tree construction protocol, not just React components.
+This enables domain-specific trees for AI prompts, game entities, UI components, and more.
+
+## Annotations
+
+Destack adds tags (`#`) for structured metadata and extends decorators (`@`) to work on any declaration.
+
+### Tags
+
+Compile-time metadata attached to declarations:
+
+```
+#Performance
+#deprecated("use newAPI instead")
+function oldAPI() { }
+```
+
+Tags are structured and queryable, unlike comments.
+
+### Decorators
+
+TypeScript decorators extended to work on any declaration (functions, variables, structs), not just class members:
+
+```
+@memoize
+@route("/api/users")
+function getUsers() { }
+```
+
+TypeScript decorators copy-pasted into Destack work as expected.
 
 ## Types
 
@@ -243,34 +275,6 @@ extension Vector2 implements Add<Vector2> {
 
 For operators, Destack uses **receiver-based dispatch**: `a + b` desugars to `a.add(b)`.
 For function overloads, Destack uses **declaration order**: the first matching overload wins.
-
-## Annotations
-
-Destack adds tags (`#`) for structured metadata and extends decorators (`@`) to work on any declaration.
-
-### Tags
-
-Compile-time metadata attached to declarations:
-
-```
-#Performance
-#deprecated("use newAPI instead")
-function oldAPI() { }
-```
-
-Tags are structured and queryable, unlike comments.
-
-### Decorators
-
-TypeScript decorators extended to work on any declaration (functions, variables, structs), not just class members:
-
-```
-@memoize
-@route("/api/users")
-function getUsers() { }
-```
-
-TypeScript decorators copy-pasted into Destack work as expected.
 
 ## Ownership
 
