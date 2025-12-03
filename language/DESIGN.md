@@ -154,10 +154,19 @@ type Result<T, E> = Ok<T> | Err<E>
 
 ### Structs
 
-Data-oriented types with value semantics (simpler than classes for plain data):
+Data-oriented types with fixed layout, value semantics (simpler than classes for plain data objects with more guarantees).
+Conceptually, Destack structs are similar to the TC39 struct proposal with additional "systems-level" features.
 
 ```
 struct Point { x: float32, y: float32 }
+```
+
+Structs are nominal (like newtypes), so they must be created or coerced explicity:
+
+```
+let x: Point = new Point(x, y) // ok
+let x: Point = Point { x, y }  // ok
+let x: Point = { x, y }        // error
 ```
 
 ### Constraints
@@ -218,7 +227,7 @@ extension Vector2 {
 }
 ```
 
-Extensions let you add methods to any type—structs, enums, even primitives and foreign types—without modifying the original and without global side effects.
+Extensions let you add methods to any type: structs, enums, even primitives and foreign types—without modifying the original and without global side effects.
 
 ### Overloading
 

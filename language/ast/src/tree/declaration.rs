@@ -168,7 +168,7 @@ pub enum Declaration {
         value: LocalNodeId<Expression>,
     },
 
-    /// A Struct is a struct declaration with value semantics.
+    /// A Struct is a nominal object type with value semantics and fixed layout.
     /// The ',' separator is optional if newline-delimited.
     /// Structs may `use` other structs to include them (just like interfaces).
     /// Structs may also extend other structs as semantic sugar for `use`-ing them.
