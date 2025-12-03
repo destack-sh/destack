@@ -5,14 +5,13 @@ Build on TypeScript and the web ecosystem with a unified open source toolchain, 
 Own your software and run it anywhere in one integrated open source stack:
 
  - **Destack Language**: TypeScript++ with opt-in extensions for correctness, ergonomics, and performance (with optional `.ds` files like we have `.tsx`). 
- Valid TypeScript is valid Destack, so adopting `.ds` is fully incremental.
+ Valid TypeScript is valid Destack, so adopting `.ds` is opt-in and incremental.
 See [language/DESIGN.md](language/DESIGN.md) and [language/SPECIFICATION.md](language/SPECIFICATION.md).
 
- - **Destack Library**: Standard unified modules for most things most software needs across the stack for every layer of the stack and every part of the software lifecycle.
-Batteries included, all nicely integrated with each other, the language, and platform.
+ - **Destack Library**: Standard library for most things most software needs. Fully integrated, batteries-included components across the stack for every layer of the stack and every part of the software lifecycle.
 
- - **Destack Platform**: Support system around your software - the CLI, IDE integrations, build plugins, debugging, analytics, deployment tools. 
- And the platform to connect and integrate Destack systems together, all integrated with the same language and tools.
+ - **Destack Platform**: Integrated platform to support your software - the CLI, IDE integrations, build plugins, debugging, analytics, deployment tools. 
+ And the platform to integrate Destack software, fully integrated with the same language and tools.
 
 **Destack is designed as an integrated system**, **but you *can* pick and choose any pieces you like.**
 You are free to use plain TypeScript, pick any of the libraries, or plug into the platform from a different system entirely.
@@ -33,9 +32,10 @@ Software is broken, slow, and hard to build right.
 Computers are miraculously fast, yet software feels slow and clunky.
 Destack aims to make building correct, optimal, integrated software the obvious default.
 
-TypeScript is a language for describing *what data looks like*.
-Destack is a system for describing *how software behaves*.
-With a tightly integrated `.ds` language, library and platform we can extend the TypeScript phiolosphy for entire software systems, much like `.tsx` has extended TypeScript for UI-shaped problems.
+TypeScript is a language for describing *the shape of datae*.
+Destack is a system for describing *the shape of software*.
+TypeScript has `.ts`, `.d.ts`, and `.tsx`, Destack brings `.ds` and `.d.ds` into the same codebase.
+The fully integrated library and platform let us extend the TypeScript phiolosphy for entire software systems. 
 
 The best programing language is the one that fits the problem.
 And this "language" encompasses supporting libraries, the platform and its ecosystem.

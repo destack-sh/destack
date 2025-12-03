@@ -62,8 +62,7 @@ impl TypeContext {
         else if other.is_unreachable {
             // keep self's state
         }
-        // both reachable - keep only narrowings that exist in both
-        // TODO #Incomplete: should compute intersection of types
+        // both reachable -> keep only narrowings that exist in both
         else {
             self.narrowings
                 .retain(|k, v| other.narrowings.get(k) == Some(v));

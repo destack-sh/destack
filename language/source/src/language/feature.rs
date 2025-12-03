@@ -8,7 +8,7 @@ use std::fmt;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[repr(u8)]
 pub enum LanguageFeature {
-    /// Expression-oriented language: implicit returns, `loop`, `defer`, ranges, tuples, patterns, trees.
+    /// Expression extensions: implicit returns, `loop`, `defer`, ranges, tuples, patterns, trees.
     Expressions = 1 << 0,
     /// Type system extensions: runtime types, newtypes, primitives, structs, constraints.
     Types = 1 << 1,
@@ -18,7 +18,7 @@ pub enum LanguageFeature {
     Annotations = 1 << 3,
     /// Context: effect declarations with `with` clauses.
     Context = 1 << 4,
-    /// Ownership: value ownership (`&T`, `^T`), mutability (`var`), and dispatch behavior.
+    /// Ownership: value ownership (`&T`, `^T`), mutability (`const`/`var`), and dispatch behavior.
     Ownership = 1 << 5,
 }
 

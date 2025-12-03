@@ -36,10 +36,10 @@ pub enum TypeLiteral {
 #[derive(Debug, Clone, PartialEq)]
 pub enum Type {
     /// Scalar type literal.
-    Scalar(TypeLiteral),
+    TypeLiteral { value: TypeLiteral },
 
-    /// Type-as-value: a runtime type descriptor.
-    Value { of: LocalTypeId },
+    /// Type-as-value: a runtime type.
+    Value { ty: LocalTypeId },
 
     /// Reference to a declared type (with optional type arguments for generics).
     Reference {

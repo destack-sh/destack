@@ -36,12 +36,12 @@ Technically, you can even use none at all, and then Destack is just TypeScript.
 
 | Feature | Description |
 |---------|-------------|
-| [Expressions](#expressions) | Everything is an expression: ranges, tuples, patterns, trees, `loop`, `defer` |
-| [Types](#types) | Type system: runtime types, newtypes, primitives, structs, constraints |
-| [Polymorphism](#polymorphism) | Code organization: extensions and overloading |
-| [Annotations](#annotations) | Metadata: tags (`#`) and extended decorators (`@`) |
-| [Context](#context) | Capabilities: effect declarations with `with` clauses |
-| [Ownership](#ownership) | Value ownership (`&T`, `^T`), mutability (`var`), and dispatch behavior |
+| [Expressions](#expressions) | Expression extensions: ranges, tuples, patterns, trees, `loop`, `defer` |
+| [Types](#types) | Type system extensions: runtime types, newtypes, primitives, structs, constraints |
+| [Polymorphism](#polymorphism) | Polymorphism: extensions and overloading |
+| [Annotations](#annotations) | Annotations: tags (`#`) and extended decorators (`@`) |
+| [Context](#context) | Context: effect declarations with `with` clauses |
+| [Ownership](#ownership) | Ownership: Value ownership (`&T`, `^T`), mutability (`const`/`var`), and dispatch behavior |
 
 ## Expressions
 
@@ -176,7 +176,7 @@ Types are values and can be manipulated as expressions - at compile time and at 
 This enables refinements of types, like is commonly used in schema libraries, without extra ceremony:
 
 ```
-struct User {
+type User = {
     name: string.minLength(1).maxLength(100),
     age: uint.max(150),
     email: string.describe("Contact email"),
@@ -187,8 +187,8 @@ Refinements build on types-as-values and extensions: every type exists at runtim
 The compiler checks refinements when provable:
 
 ```
-User { name: "", age: 200, ... }   // compile error: "" too short, 200 > max
-User { name: "Alice", age: 30, ... }  // ok
+{ name: "", age: 200, ... } satisfies User      // compile error: "" too short, 200 > max
+{ name: "Alice", age: 30, ... } satisfies User  // ok
 ```
 
 The additional refinements and runtime validation are provided opt-in via the standard library `@destack/schema`.
@@ -297,9 +297,9 @@ T            // automatic (TypeScript behavior)
 Control whether bindings can be mutated:
 
 ```
-&T           // immutable reference
+&const T     // immutable reference
 &var T       // mutable reference
-^T           // immutable value
+^const T     // immutable value
 ^var T       // mutable value
 ```
 

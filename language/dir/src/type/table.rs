@@ -124,23 +124,23 @@ impl TypeTable {
     }
 
     /// Set the inferred type for a node (expression type at this location).
-    pub fn set_inferred_type_for_node(&mut self, node_id: GlobalNodeIdAny, ty: LocalTypeId) {
+    pub fn set_inferred_type(&mut self, node_id: GlobalNodeIdAny, ty: LocalTypeId) {
         self.inferred_type_by_node_id.insert(node_id, ty);
     }
 
     /// Get the inferred type for a node.
-    pub fn get_inferred_type_for_node(&self, node_id: GlobalNodeIdAny) -> Option<&Type> {
+    pub fn get_inferred_type(&self, node_id: GlobalNodeIdAny) -> Option<&Type> {
         self.inferred_type_by_node_id
             .get(&node_id)
             .map(|ty| self.types.get(ty.0))
     }
 
     /// Get the inferred type id for a node.
-    pub fn get_inferred_type_id_for_node(&self, node_id: GlobalNodeIdAny) -> Option<LocalTypeId> {
+    pub fn get_inferred_type_id(&self, node_id: GlobalNodeIdAny) -> Option<LocalTypeId> {
         self.inferred_type_by_node_id.get(&node_id).copied()
     }
 
-    /// Set the instance type for a symbol.
+    /// Set the instance type for a symbol (what type instances of this type have).
     pub fn set_instance_type(&mut self, symbol_id: GlobalSymbolId, ty: LocalTypeId) {
         self.instance_type_by_symbol_id.insert(symbol_id, ty);
     }
@@ -157,7 +157,7 @@ impl TypeTable {
         self.instance_type_by_symbol_id.get(&symbol_id).copied()
     }
 
-    /// Set the value type for a symbol.
+    /// Set the value type for a symbol (what type this symbol has when used as a value).
     pub fn set_value_type(&mut self, symbol_id: GlobalSymbolId, ty: LocalTypeId) {
         self.value_type_by_symbol_id.insert(symbol_id, ty);
     }
