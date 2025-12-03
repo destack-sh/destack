@@ -195,6 +195,12 @@ impl TestProgram {
         self.check_no_diagnostic(DiagnosticSeverity::Note);
     }
 
+    /// Helper to compile, dump and ignore diagnostics.
+    pub fn compile_dump_ignore(&self) {
+        self.compile();
+        self.dump();
+    }
+
     /// Get a module by URI.
     pub fn module(&self, module_uri: &str) -> Arc<RwLock<Module>> {
         self.program
