@@ -123,11 +123,11 @@ export struct Grid2 {
     /// Number of rows in the grid
     rows: int16
     /// Fixed width for columns
-    columnWidth: Length?
+    columnWidth?: Length
     /// Minimum width for columns
-    columnMinWidth: Length?
+    columnMinWidth?: Length
     /// Fixed height for rows
-    rowHeight: Length?
+    rowHeight?: Length
 }
 
 /// A 2-dimensional grid span value

@@ -79,7 +79,7 @@ export struct Entity {
     /// The name of the `Entity`.
     name: string,
     /// The key of the `Entity` (for reconciliation and querying).
-    key: string?,
+    key?: string,
 
     /// The extension flags of the `Entity`.
     extensibility: ExtensionFlag,

@@ -12,8 +12,8 @@ export struct SpanEvent {
     /// Duration of the span.
     duration: Duration
     /// Optional parent Span.
-    parentSpan: SpanEvent?
+    parentSpan?: SpanEvent
     /// Optional Action associated with the Span.
-    action: Action?
+    action?: Action
 }
 

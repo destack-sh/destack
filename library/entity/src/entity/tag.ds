@@ -7,7 +7,7 @@ export struct TagDefinition {
     /// The Tag name.
     name: string
     /// The Tag description.
-    description: string?
+    description?: string
     /// Whether self Tag is internal.
     isInternal: boolean
 }
@@ -16,5 +16,5 @@ export struct TagDefinition {
 @entity
 export struct Tag {
     /// The designated Type for Values associated with self Tag. Any if unset.
-    type: Type?
+    type?: Type
 }

@@ -62,16 +62,16 @@ export struct Run {
     /// The current Run status.
     status: RunStatus
     /// Duration from first attempt start to last attempt termination.
-    duration: Duration?
+    duration?: Duration
     /// When the Run is scheduled to start.
-    scheduledAt: Timestamp?
+    scheduledAt?: Timestamp
     /// When the Run first started.
-    startedAt: Timestamp?
+    startedAt?: Timestamp
     /// When the Run was last active.
-    seenAt: Timestamp?
+    seenAt?: Timestamp
     /// When the Run was interrupted.
-    interruptedAt: Timestamp?
+    interruptedAt?: Timestamp
     /// When the Run was last terminated.
-    terminatedAt: Timestamp?
+    terminatedAt?: Timestamp
 }
 
