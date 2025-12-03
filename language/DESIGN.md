@@ -38,7 +38,8 @@ Technically, you can even use none at all, and then Destack is just TypeScript.
 |---------|-------------|
 | [Expressions](#expressions) | Expression extensions: ranges, tuples, patterns, `loop`, `defer` |
 | [Trees](#trees) | Tree literals: TSX-like syntax generalized for any tree-shaped data |
-| [Annotations](#annotations) | Annotations: tags (`#`) and extended decorators (`@`) |
+| [Annotations](#annotations) | Annotations: decorators (`@`) for
+ any expression |
 | [Types](#types) | Type system extensions: runtime types, newtypes, primitives, structs, constraints |
 | [Polymorphism](#polymorphism) | Polymorphism: extensions and overloading |
 | [Ownership](#ownership) | Ownership: Value ownership (`&T`, `^T`), mutability (`const`/`var`), and explicit dispatch |
@@ -119,29 +120,22 @@ This enables domain-specific trees for AI prompts, game entities, UI components,
 
 ## Annotations
 
-Destack adds tags (`#`) for structured metadata and extends decorators (`@`) to work on any declaration.
-
-### Tags
-
-Compile-time metadata attached to declarations:
+Destack extends decorators (`@`) to work on any declaration, statement, or expression—not just class members.
 
 ```
-#Performance
-#deprecated("use newAPI instead")
+@deprecated("use newAPI instead")
 function oldAPI() { }
-```
 
-Tags are structured and queryable, unlike comments.
-
-### Decorators
-
-TypeScript decorators extended to work on any declaration (functions, variables, structs), not just class members:
-
-```
 @memoize
-@route("/api/users")
-function getUsers() { }
+function expensive() { }
+
+@unroll
+for (let i = 0; i < 4; i++) { }
 ```
+
+Decorator behavior depends on what it resolves to:
+- **Function**: Transforms the target (standard decorator semantics)
+- **Newtype**: Compile-time metadata, stripped in output (for hints like `@unroll`, `@inline`)
 
 TypeScript decorators copy-pasted into Destack work as expected.
 

@@ -3,10 +3,10 @@
 use crate::{
     Annotation, Argument, Blank, Block, Comment, Declaration, Decorator, DependencyItem, Doc,
     EnumField, Expression, LocalNodeId, MatchCase, NodeTree, NodeType, Parameter, Pattern,
-    PatternField, Property, Tag, WhereClause, walk_annotation, walk_argument, walk_blank,
+    PatternField, Property, WhereClause, walk_annotation, walk_argument, walk_blank,
     walk_block, walk_comment, walk_declaration, walk_decorator, walk_dependency_item, walk_doc,
     walk_enum_field, walk_expression, walk_match_case, walk_parameter, walk_pattern,
-    walk_pattern_field, walk_property, walk_tag, walk_where_clause,
+    walk_pattern_field, walk_property, walk_where_clause,
 };
 
 #[derive(Debug, Clone, Default)]
@@ -145,11 +145,6 @@ pub trait NodeVisitor {
     /// Visit a Comment.
     fn visit_comment(&mut self, tree: &NodeTree, id: LocalNodeId<Comment>, comment: &Comment) {
         walk_comment(self, tree, id, comment);
-    }
-
-    /// Visit a Tag.
-    fn visit_tag(&mut self, tree: &NodeTree, id: LocalNodeId<Tag>, tag: &Tag) {
-        walk_tag(self, tree, id, tag);
     }
 
     /// Visit a Decorator.
@@ -295,10 +290,6 @@ impl NodeVisitor for CapturingNodeVisitor {
 
     fn visit_comment(&mut self, tree: &NodeTree, id: LocalNodeId<Comment>, comment: &Comment) {
         self.visit_any(tree, NodeType::Comment, id.id);
-    }
-
-    fn visit_tag(&mut self, tree: &NodeTree, id: LocalNodeId<Tag>, tag: &Tag) {
-        self.visit_any(tree, NodeType::Tag, id.id);
     }
 
     fn visit_decorator(

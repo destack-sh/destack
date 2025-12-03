@@ -2,7 +2,7 @@ use crate::{
     Annotation, Argument, Blank, Block, Comment, Declaration, DeclarationDescriptor, Decorator,
     DependencyItem, Doc, EnumField, Expression, FunctionSignature, Generics, Heritage, Key,
     LocalNodeId, MatchCase, NodeTree, NodeType, NodeVisitor, Parameter, Pattern, PatternField,
-    Property, Tag, TemplateLiteral, WhereClause,
+    Property, TemplateLiteral, WhereClause,
 };
 
 /// Walk any node.
@@ -95,10 +95,6 @@ pub fn walk_any<V: NodeVisitor + ?Sized>(
         NodeType::Comment => {
             let comment = tree.comments.get(local_idx);
             walk_comment(visitor, tree, LocalNodeId::new(node_id), comment);
-        }
-        NodeType::Tag => {
-            let tag = tree.tags.get(local_idx);
-            walk_tag(visitor, tree, LocalNodeId::new(node_id), tag);
         }
         NodeType::Decorator => {
             let decorator = tree.decorators.get(local_idx);
@@ -1186,9 +1182,6 @@ pub fn walk_annotation<V: NodeVisitor + ?Sized>(
         Annotation::Comment { node, position: _ } => {
             visitor.visit_comment(tree, *node, tree.get(*node));
         }
-        Annotation::Tag { node, position: _ } => {
-            visitor.visit_tag(tree, *node, tree.get(*node));
-        }
         Annotation::Decorator { node, position: _ } => {
             visitor.visit_decorator(tree, *node, tree.get(*node));
         }
@@ -1223,22 +1216,6 @@ pub fn walk_comment<V: NodeVisitor + ?Sized>(
     _comment: &Comment,
 ) {
     visitor.visit_any(tree, NodeType::Comment, id.id);
-}
-
-/// Walk the Tag.
-pub fn walk_tag<V: NodeVisitor + ?Sized>(
-    visitor: &mut V,
-    tree: &NodeTree,
-    id: LocalNodeId<Tag>,
-    tag: &Tag,
-) {
-    visitor.visit_any(tree, NodeType::Tag, id.id);
-    if let Some(arguments) = &tag.arguments {
-        for argument in arguments {
-            let argument_node = tree.get(*argument);
-            visitor.visit_argument(tree, *argument, argument_node);
-        }
-    }
 }
 
 /// Walk the Decorator.

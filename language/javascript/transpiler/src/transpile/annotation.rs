@@ -21,7 +21,7 @@ impl Transpiler {
         &self,
         module: &Module,
         tree: &NodeTree,
-        scope_id: dir::LocalNodeIdAny,
+        _scope_id: dir::LocalNodeIdAny,
         annotation_id: dir::LocalNodeId<dir::Annotation>,
         unit: &mut TranspilerUnit,
     ) -> TranspileResult<LocalNodeId<Annotation>> {
@@ -38,32 +38,6 @@ impl Transpiler {
                 Annotation::Comment { position, string }
             }
 
-            // transpile tag annotations to plain comments
-            // (tags become metadata comments in JS since there's no native equivalent)
-            dir::Annotation::UnevaluatedTag {
-                position,
-                path,
-                arguments: _,
-            } => {
-                let position = self.transpile_annotation_position(*position);
-                let receiver = self.transpile_path(module, scope_id, path, unit)?;
-                let receiver_str = format!("#{}", self.render_path(&receiver, unit));
-                let receiver_str = unit.strings.intern(receiver_str);
-                Annotation::Comment {
-                    position,
-                    string: receiver_str,
-                }
-            }
-            dir::Annotation::Tag {
-                position: _,
-                value: _,
-            } => {
-                // NOTE #Incomplete: properly transpile tags to JS metadata
-                return Err(TranspileError::UnsupportedNode {
-                    node: annotation_id.into_global_any(module.id),
-                    message: None,
-                });
-            }
             dir::Annotation::Decorator {
                 position: _,
                 left: _,

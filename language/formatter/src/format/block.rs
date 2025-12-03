@@ -359,9 +359,9 @@ mod tests {
     #[test]
     fn test_format_mixed_block_with_postfix_annotations_mixed() {
         let source = "{
-    const X = 1; #x // this is my X
-    const Y = 2; #y // this is my Y
-    const Z = 3; #z // this is my Z
+    const X = 1; // this is my X
+    const Y = 2; // this is my Y
+    const Z = 3; // this is my Z
 }";
         assert_format!(
             source,

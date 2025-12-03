@@ -1,9 +1,6 @@
 use crate::{ParseError, ParseResult, Parser};
 use destack_ast::{Keyword, TokenType, Visibility};
 
-// NOTE: we support parsing `#name` as alias for `private name` for #Compatibility
-// (only works in compatibility mode since #name is pre-parsed as a tag)
-
 impl Parser {
     /// Peek a visibility.
     #[inline]
@@ -13,8 +10,8 @@ impl Parser {
         } else if self.peek_keyword(Keyword::Protected).is_ok() {
             Ok(Some(Visibility::Protected))
         } else if self.peek_keyword(Keyword::Private).is_ok()
-            // `#field` for #Compatibility
-            || self.peek_token(TokenType::Tag).is_ok()
+            // `#field` for private fields (TypeScript syntax)
+            || self.peek_token(TokenType::Hash).is_ok()
         {
             Ok(Some(Visibility::Private))
         } else {

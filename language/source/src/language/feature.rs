@@ -12,7 +12,7 @@ pub enum LanguageFeature {
     Expressions = 1 << 0,
     /// Tree literals: TSX-like syntax generalized for any tree-shaped data.
     Trees = 1 << 1,
-    /// Annotations: tags (`#`) and extended decorators (`@`).
+    /// Annotations: decorators (`@`) extended to any expression.
     Annotations = 1 << 2,
     /// Type system extensions: runtime types, newtypes, primitives, structs, constraints.
     Types = 1 << 3,

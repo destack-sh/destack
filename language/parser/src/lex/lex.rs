@@ -309,7 +309,7 @@ impl Lexer<'_> {
                 }
             }
             '@' => (TokenType::At, None),
-            '#' => (TokenType::Tag, None),
+            '#' => (TokenType::Hash, None),
             '~' => (TokenType::ElementwiseNot, None),
             '?' => {
                 // ??

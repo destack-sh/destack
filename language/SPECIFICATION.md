@@ -1545,39 +1545,13 @@ Destack also follows `tsconfig.json` configuration (incl. re-mapping).
 
 ## Annotations
 
-Destack has four kinds of annotations: comments, documentation, tags, and decorators.
+Destack has three kinds of annotations: comments, documentation, and decorators.
 All annotations are preserved in the AST and available to tooling.
 (The Destack AST is a superset of the TypeScript AST that also contains whitespace and concrete info like a traditional CST).
 
-### Tags
-
-Tags are metadata attached to declarations. A tag is effectively a newtype instantiation:
-
-```
-newtype Performance = void;         // unit tag
-newtype deprecated = string;        // scalar tag
-newtype version = (int, int, int);  // tuple tag
-
-#Performance                       // unit tag (no arguments)
-#deprecated("use new API")         // scalar tag
-#version(1, 2, 3)                  // tuple tag
-```
-
-Tags are evaluated at compile time and produce static values. 
-The tag type must be a newtype; the arguments (if any) must match the newtype's inner type. 
-Tags can be queried by tooling and even at runtime.
-
-Tags can appear in comments for compatibility with existing conventions:
-
-```
-// NOTE #Performance: this could be optimized
-// TODO #Cleanup: refactor this
-```
-
 ### Decorators
 
-Decorators are functions that transform declarations. 
-They generalize TypeScript decorator semantics: Destack decorators work on any declaration (functions, classes, structs, variables), not just on class members.
+Decorators generalize TypeScript decorator semantics to enable decorators both as metadata and as transforms on any declaration, statement, or expression (not just classes and class members).
 
 ```
 @memoize                           // decorator: memoize(target)
@@ -1585,26 +1559,48 @@ They generalize TypeScript decorator semantics: Destack decorators work on any d
 @service.middleware                // member access: service.middleware(target)
 ```
 
-The decorator LHS-expression can be any expression (path, member access, call). Semantics:
+The decorator LHS-expression can be any expression (path, member access, call):
 - `@foo` → calls `foo(target)`
 - `@foo(args)` → calls `foo(args)(target)` (factory pattern)
 - `@obj.method` → calls `obj.method(target)`
 
-Flexible decorators are more expressive and convenient in certain scenarios.
-They enable patterns known from the Python world like:
+Decorators can be applied to declarations, statements, and expressions:
 
 ```
-const api = createAPI();
+// on declarations (incl. outside of types)
+@deprecated("use newAPI")
+function oldAPI() { }
 
-@api.route("/users")
-function getUsers() { ... }
+// on statements
+@unroll
+for (let i = 0; i < 4; i++) { }
 
-@api.middleware
-function authenticate() { ... }
+// on expressions
+const x = @inline computeSomething();
 ```
 
-As with everything Destack, TypeScript decorators copy-pasted into Destack work as expected. 
-Unlike tags (which are passive metadata), decorators actively transform the decorated declaration at definition time.
+#### Compile-Time vs Runtime Decorators
+
+Decorator behavior depends on what the decorator resolves to:
+
+| Resolves to | Behavior |
+|-------------|----------|
+| **Function** | Transforms target at runtime (standard decorator semantics) |
+| **Newtype** | Compile-time metadata only, stripped in output |
+
+Newtype-based decorators enable compiler hints without runtime overhead:
+
+```
+newtype unroll = void;
+newtype inline = void;
+newtype deprecated = string;
+
+@unroll                    // hint to compiler, stripped in JS output
+for (let i = 0; i < 4; i++) { }
+
+@deprecated("use newAPI")  // compile-time warning, stripped in JS output
+function oldAPI() { }
+```
 
 ### Comments
 

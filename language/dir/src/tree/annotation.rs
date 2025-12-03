@@ -1,4 +1,4 @@
-use crate::{Argument, Expression, LocalNodeId, Node, NodeType, Path, StaticExpression, StringId};
+use crate::{Argument, Expression, LocalNodeId, Node, NodeType, StringId};
 
 /// The position of an annotation.
 #[derive(Debug, Copy, Clone, PartialEq)]
@@ -13,7 +13,7 @@ pub enum AnnotationPosition {
 
 /// An annotation attached to a DIR node.
 ///
-/// Annotations include documentation, comments, tags (metadata), and decorators (transformations).
+/// Annotations include documentation, comments, and decorators (metadata/transformations).
 #[derive(Debug, Clone, PartialEq)]
 pub enum Annotation {
     /// Doc annotation (like `///` or `/**`).
@@ -27,44 +27,27 @@ pub enum Annotation {
         string: StringId,
     },
 
-    /// Unevaluated tag annotation (like `#Foo` or `#Foo(1, 2)`).
-    ///
-    /// Tags are metadata attached to declarations. The tag path must resolve to a newtype
-    /// or a function that returns a static value. After type analysis and elaboration,
-    /// this becomes a `Tag` with the evaluated value.
-    ///
-    /// Examples:
-    /// - `#Performance` - unit newtype tag
-    /// - `#deprecated("use new API")` - scalar newtype tag
-    /// - `#version(1, 2, 3)` - tuple newtype tag
-    UnevaluatedTag {
-        position: AnnotationPosition,
-        path: Path,
-        arguments: Option<Vec<LocalNodeId<Argument>>>,
-    },
-
-    /// Evaluated tag annotation with its computed static value.
-    /// Created during the elaborate phase after type analysis.
-    Tag {
-        position: AnnotationPosition,
-        value: Box<StaticExpression>,
-    },
-
     /// Decorator annotation (like `@foo`, `@foo()`, or `@obj.method(args)`).
     ///
-    /// Decorators have the same structure as Call expressions - `left` can be any
-    /// expression (Path, MemberAccess, etc.) and `arguments` are the decorator's
-    /// own arguments (for factory patterns).
+    /// Decorators serve both as metadata (when resolving to a newtype) and
+    /// transformations (when resolving to a function).
     ///
-    /// Semantics at runtime:
+    /// `left` can be any expression (Path, MemberAccess, etc.) and `arguments`
+    /// are the decorator's own arguments (for factory patterns or metadata values).
+    ///
+    /// Semantics at runtime (when decorator resolves to a function):
     /// - `@foo` (no args) → `foo(target)`
     /// - `@foo(x)` (with args) → `foo(x)(target)` (factory pattern)
-    /// - `@obj.method` → `obj.method(ta rget)`
+    /// - `@obj.method` → `obj.method(target)`
+    ///
+    /// When decorator resolves to a newtype, it becomes compile-time metadata
+    /// that is stripped in the TS/JS output but available for reflection.
     ///
     /// Examples:
-    /// - `@memoize` - simple decorator
-    /// - `@route("/api")` - decorator factory
-    /// - `@service.middleware` - member access decorator
+    /// - `@memoize` - simple decorator (transformation)
+    /// - `@route("/api")` - decorator factory (transformation)
+    /// - `@deprecated("use new API")` - metadata decorator
+    /// - `@internal` - metadata decorator (stripped from output)
     Decorator {
         position: AnnotationPosition,
         left: LocalNodeId<Expression>,
@@ -74,14 +57,6 @@ pub enum Annotation {
 
 impl Node for Annotation {
     const TYPE: NodeType = NodeType::Annotation;
-
-    fn is_evaluated(&self) -> bool {
-        match self {
-            Annotation::UnevaluatedTag { .. } => false,
-            Annotation::Tag { value, .. } => value.is_evaluated(),
-            _ => true,
-        }
-    }
 }
 
 impl Annotation {
@@ -90,8 +65,6 @@ impl Annotation {
         match self {
             Annotation::Doc { position, .. } => *position,
             Annotation::Comment { position, .. } => *position,
-            Annotation::UnevaluatedTag { position, .. } => *position,
-            Annotation::Tag { position, .. } => *position,
             Annotation::Decorator { position, .. } => *position,
         }
     }

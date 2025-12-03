@@ -302,12 +302,11 @@ impl Parser {
         parser
     }
 
-    /// Get the span of all side annotations.
+    /// Get the span of all side annotations (decorators).
     #[inline]
     pub fn compute_side_span(&self) -> MultiSpan {
-        let tag_spans = self.tree.get_spans_for(NodeType::Tag);
         let decorator_spans = self.tree.get_spans_for(NodeType::Decorator);
-        MultiSpan::new(tag_spans.into_iter().chain(decorator_spans).collect())
+        MultiSpan::new(decorator_spans)
     }
 
     /// Reset the parser.
