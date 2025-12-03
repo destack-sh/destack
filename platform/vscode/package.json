@@ -1,5 +1,5 @@
 {
-    "name": "@destack/vscode",
+    "name": "destack-vscode",
     "displayName": "Destack",
     "description": "Destack for VSCode (.ds, .d.ds, .dst)",
     "version": "0.45.11",

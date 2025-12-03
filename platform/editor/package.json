@@ -1,5 +1,5 @@
 {
-	"name": "@destack/editor",
+	"name": "destack-editor",
 	"version": "0.45.11",
 	"license": "MIT",
 	"type": "module",

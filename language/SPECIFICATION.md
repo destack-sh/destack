@@ -346,7 +346,7 @@ function merge<T, U>(): T where (
 ### Refinements
 
 Refinements add constraints and metadata to types.
-The compiler checks provided refinements at compile time where provable; runtime validation is opt-in via the `@destack/schema` library.
+The compiler checks provided refinements at compile time where provable; runtime validation is opt-in via the `destack-schema` library.
 
 ```
 int.min(0)                           // int >= 0
@@ -358,7 +358,7 @@ uint[].nonEmpty()                    // non-empty array
 ```
 
 Refinements are implemented as extensions, so user can define domain-specific ones.
-That is exactly how the `@destack/schema` ones work (there is no privileged magic here).
+That is exactly how the `destack-schema` ones work (there is no privileged magic here).
 
 #### Standard Library Refinements
 
@@ -452,10 +452,10 @@ setAge(y);       // compile error: can't prove y ≤ 150
 ```
 
 When the compiler can't prove a refinement, it's a **compile error**, and you need to coerce or dynamically check.
-For the standard library `@destack/schema`, we provide convenient checks:
+For the standard library `destack-schema`, we provide convenient checks:
 
 ```
-import { parse, safeParse } from "@destack/schema";
+import { parse, safeParse } from "destack-schema";
 
 let y = getInput();
 const validated = parse(uint.max(150), y);  // throws if y > 150

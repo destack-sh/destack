@@ -11,7 +11,7 @@
 		"zod": "^4.1.12"
 	},
 	"devDependencies": {
-		"@destack/bun": "workspace:*",
+		"destack-bun": "workspace:*",
 		"@types/bun": "latest"
 	}
 }

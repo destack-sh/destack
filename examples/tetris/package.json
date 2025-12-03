@@ -1,5 +1,5 @@
 {
-	"name": "@destack/tetris",
+	"name": "destack-tetris",
 	"version": "0.45.11",
 	"license": "MIT",
 	"type": "module",
@@ -9,7 +9,7 @@
 	},
 	"dependencies": {},
 	"devDependencies": {
-		"@destack/bun": "workspace:*",
+		"destack-bun": "workspace:*",
 		"@types/bun": "latest"
 	}
 }

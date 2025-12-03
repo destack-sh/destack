@@ -10,7 +10,7 @@ var __exportStar = (this && this.__exportStar) || function(m, exports) {
     for (var p in m) if (p !== "default" && !exports.hasOwnProperty(p)) __createBinding(exports, m, p);
 };
 exports.__esModule = true;
-var bun_1 = require("@destack/bun");
+var bun_1 = require("destack-bun");
 var bun_2 = require("bun");
 bun_2.plugin(bun_1.destackPlugin);
 // @ts-ignore

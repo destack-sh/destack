@@ -1,3 +1,3 @@
-# @destack/entity
+# destack-entity
 
 Core entity system.
