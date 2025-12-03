@@ -86,17 +86,6 @@ impl Transpiler {
                 statement_id.into_any()
             }
 
-            dir::Expression::With {
-                clauses: _,
-                body: _,
-                scope: _,
-                symbol: _,
-            } => {
-                return Err(TranspileError::UnsupportedNode {
-                    node: expression_id.into_global_any(module.id),
-                    message: None,
-                });
-            }
             dir::Expression::UnresolvedImport {
                 kind,
                 target,

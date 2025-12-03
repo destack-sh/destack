@@ -2,7 +2,7 @@ use destack_ast::{
     Annotation, AnnotationPosition, Argument, Blank, Block, Comment, Declaration, Decorator,
     DependencyItem, Doc, EnumField, Expression, LocalNodeId, LocalNodeIdAny, MatchCase, Node,
     NodeParentIndex, NodeTree, NodeTreeImpl, NodeType, Parameter, Pattern, PatternField, Property,
-    Tag, TokenSpan, TokenType, WhereClause, WithClause,
+    Tag, TokenSpan, TokenType, WhereClause,
 };
 use destack_fir::format::{Format, FormatContext, FormatOptions, FormatResult, Formatter};
 use destack_fir::print::PrintOptions;
@@ -477,11 +477,6 @@ impl<'a> Format<DestackFormatContext<'a>> for LocalNodeIdAny {
             }
             NodeType::EnumField => {
                 let node_id = LocalNodeId::<EnumField>::new(self.id);
-                let node = context.tree.get(node_id);
-                node.format_node(node_id, f)
-            }
-            NodeType::WithClause => {
-                let node_id = LocalNodeId::<WithClause>::new(self.id);
                 let node = context.tree.get(node_id);
                 node.format_node(node_id, f)
             }

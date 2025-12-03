@@ -86,22 +86,6 @@ impl Compiler {
                     })
                     .collect()
             });
-        let with_clauses = generics.with_clauses.as_ref().map(|with_clauses| {
-            with_clauses
-                .iter()
-                .map(|with_clause| {
-                    self.bind_with_clause(
-                        module,
-                        scope,
-                        *with_clause,
-                        parent_id,
-                        tree,
-                        symbols,
-                        types,
-                    )
-                })
-                .collect()
-        });
         let where_clauses = generics.where_clauses.as_ref().map(|where_clauses| {
             where_clauses
                 .iter()
@@ -120,7 +104,6 @@ impl Compiler {
         });
         Generics {
             static_parameters,
-            with_clauses,
             where_clauses,
         }
     }

@@ -22,27 +22,6 @@ pub enum Expression {
     /// Statement expression (explicit statement with a `;` terminator).
     Statement(LocalNodeId<Expression>),
 
-    /// A With is a with declaration for context management.
-    /// With can declare the use of an item in a scope and refine type bounds.
-    ///
-    /// Examples:
-    /// ```
-    /// with T: int32
-    /// with Foo
-    /// with Foo as Bar
-    /// with Foo, Bar
-    /// with Foo.Bar
-    /// with (
-    ///    !Bar,
-    ///    Time<F> // optional comma
-    ///    F: Numeric
-    /// )
-    /// ```
-    With {
-        clauses: Vec<LocalNodeId<WithClause>>,
-        body: Option<LocalNodeId<Block>>,
-    },
-
     /// An Import is an import declaration for dependency management.
     ///
     /// Examples:
@@ -699,7 +678,6 @@ impl Expression {
             Expression::Block(_) => true,
             Expression::Declaration(_) => true,
             Expression::Statement(_) => true,
-            Expression::With { .. } => true,
             Expression::If { .. } => true,
             Expression::While { .. } => true,
             Expression::ForEach { .. } => true,
@@ -742,7 +720,6 @@ impl Expression {
             self,
             Expression::Statement { .. }
                 | Expression::Declaration { .. }
-                | Expression::With { .. }
                 | Expression::Import { .. }
                 | Expression::Let { .. }
                 | Expression::While { .. }
@@ -831,30 +808,6 @@ pub enum YieldCardinality {
     Scalar,
     /// Generator.
     Generator,
-}
-
-/// A WithClause is a single clause in a with Context declaration or declaration.
-/// It can declare the use of a Context or assign it.
-/// The type must resolve to a type with the Context trait.
-/// NOTE: in the AST we can't disambiguate between with declaration and with assignment.
-///  (The right side might also be a `foo` of type `Foo`, and we check that later.)
-///
-/// Examples:
-/// ```
-/// Foo
-/// !Foo
-/// T: Foo
-/// ```
-#[derive(Debug, Clone, PartialEq)]
-pub struct WithClause {
-    /// The name of the declaration (the `T` in `T: Foo`).
-    pub alias: Option<StringId>,
-    /// The type of the declaration (the `Foo` in `T: Foo` or `!Foo`).
-    pub right: LocalNodeId<Expression>,
-}
-
-impl Node for WithClause {
-    const TYPE: NodeType = NodeType::WithClause;
 }
 
 /// A WhereClause is a single clause in a where type declaration.

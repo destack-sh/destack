@@ -23,13 +23,6 @@ pub enum Expression {
     /// Statement expression (explicit statement with a `;` terminator).
     Statement { statement: LocalNodeId<Expression> },
 
-    /// With context declaration (like `with Foo, Bar` for `with Foo.Bar`).
-    With {
-        clauses: Vec<LocalNodeId<WithClause>>,
-        scope: LocalScopeId,
-        symbol: LocalSymbolId,
-        body: Option<LocalNodeId<Block>>,
-    },
     /// Unresolved import dependency declaration (like `import "foo"`).
     UnresolvedImport {
         kind: DependencyKind,
@@ -351,7 +344,6 @@ impl Expression {
     pub fn kind_name(&self) -> &'static str {
         match self {
             Expression::Declaration { .. } => "declaration",
-            Expression::With { .. } => "with",
             Expression::UnresolvedImport { .. } => "unresolved import",
             Expression::UnresolvedReExport { .. } => "unresolved re-export",
             Expression::Import { .. } => "import",
@@ -424,7 +416,6 @@ impl Expression {
     /// Get the scope of the expression.
     pub fn scope(&self) -> Option<LocalScopeId> {
         match self {
-            Expression::With { scope, .. } => Some(*scope),
             Expression::Loop { scope, .. } => Some(*scope),
             Expression::ForEach { scope, .. } => Some(*scope),
             Expression::For { scope, .. } => Some(*scope),
@@ -552,19 +543,6 @@ pub enum YieldCardinality {
     Generator,
     /// Scalar yield expression.
     Scalar,
-}
-
-/// A WithClause is a single clause in a with Context declaration or declaration.
-#[derive(Debug, Clone, PartialEq)]
-pub struct WithClause {
-    /// The name of the declaration (the `T` in `T: Foo`).
-    pub alias: Option<StringId>,
-    /// The type of the declaration (the `Foo` in `T: Foo` or `!Foo`).
-    pub right: LocalNodeId<Expression>,
-}
-
-impl Node for WithClause {
-    const TYPE: NodeType = NodeType::WithClause;
 }
 
 /// A WhereClause is a single clause in a where type declaration.

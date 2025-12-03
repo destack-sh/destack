@@ -260,14 +260,10 @@ impl Parser {
                 None
             };
 
-            // with clauses
-            let with_clauses = self.eat_with_header_maybe()?;
-
             // where clauses
             let where_clauses = self.eat_where_maybe()?;
 
-            let generics =
-                Generics::new(static_parameters, with_clauses, where_clauses).into_option();
+            let generics = Generics::new(static_parameters, where_clauses).into_option();
 
             // body
             let body = if self.peek_token(TokenType::OpenBrace).is_ok() {

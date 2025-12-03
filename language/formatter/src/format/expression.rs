@@ -761,7 +761,6 @@ pub fn is_expression_breakable(tree: &NodeTree, expression: &Expression) -> bool
         | Expression::ForEach { .. }
         | Expression::For { .. }
         | Expression::While { .. }
-        | Expression::With { .. }
         | Expression::Import { .. }
         | Expression::Export { .. } => true,
         Expression::Binary { .. } | Expression::TypeBinary { .. } => true,
@@ -914,31 +913,6 @@ pub(crate) fn format_expression<'ast>(
         // statement
         Expression::Statement(node) => {
             write!(f, [*node, token(";")])?;
-        }
-
-        // with
-        Expression::With { clauses, body } => {
-            // keyword
-            write!(f, [Keyword::With])?;
-            if clauses.is_empty() {
-                return Ok(());
-            }
-            write!(f, [space()])?;
-
-            // clauses
-            write!(
-                f,
-                [best_fit_parenthesize(&format_with(|f| {
-                    f.join_with(&format_args![&token(","), soft_line_break_or_space()])
-                        .entries(clauses)
-                        .finish()
-                }))]
-            )?;
-
-            // scoped body
-            if let Some(body) = body {
-                write!(f, [space(), body])?;
-            }
         }
 
         // import

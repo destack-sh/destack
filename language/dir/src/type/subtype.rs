@@ -1,14 +1,10 @@
-use crate::{Expression, LocalNodeId, Parameter, WhereClause, WithClause};
+use crate::{Expression, LocalNodeId, Parameter, WhereClause};
 
 /// The polymorphism of some type or declaration.
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct Generics {
     /// The static parameters of the declaration.
     pub static_parameters: Option<Vec<LocalNodeId<Parameter>>> = None,
-    /// The with clauses of the declaration.
-    pub with_clauses: Option<Vec<LocalNodeId<WithClause>>> = None,
-    // nocheckin TODO #Architecture: split where Context from Generics,
-    //  (turn into (separate) using / provides clauses?)
     /// The where clauses of the declaration.
     pub where_clauses: Option<Vec<LocalNodeId<WhereClause>>> = None,
 }
@@ -16,9 +12,7 @@ pub struct Generics {
 impl Generics {
     /// Check whether the generics contain any clauses.
     pub fn is_empty(&self) -> bool {
-        self.static_parameters.is_none()
-            && self.with_clauses.is_none()
-            && self.where_clauses.is_none()
+        self.static_parameters.is_none() && self.where_clauses.is_none()
     }
 }
 

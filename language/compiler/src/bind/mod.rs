@@ -19,7 +19,6 @@ mod symbol;
 mod r#type;
 mod warning;
 mod r#where;
-mod with;
 
 pub use error::*;
 pub use options::*;

@@ -6,7 +6,7 @@ use destack_ast as ast;
 use crate::{
     Annotation, Arena, Argument, Block, Declaration, DependencyItem, EnumField, Expression,
     LocalNodeId, LocalNodeIdAny, LocalScopeId, LocalScopeMark, MatchCase, ModuleId, Node, NodeType,
-    Parameter, Pattern, PatternField, Property, WhereClause, WithClause,
+    Parameter, Pattern, PatternField, Property, WhereClause,
 };
 
 /// Mutable DIR Node tree across a set of related source units. NOT THREAD-SAFE.
@@ -30,7 +30,6 @@ pub struct NodeTree {
     pub(crate) properties: Arena<Property>,
     pub(crate) enum_fields: Arena<EnumField>,
     pub(crate) where_clauses: Arena<WhereClause>,
-    pub(crate) with_clauses: Arena<WithClause>,
     pub(crate) dependency_items: Arena<DependencyItem>,
     pub(crate) parameters: Arena<Parameter>,
     pub(crate) arguments: Arena<Argument>,
@@ -85,7 +84,6 @@ impl NodeTree {
             properties: Arena::new(),
             enum_fields: Arena::new(),
             where_clauses: Arena::new(),
-            with_clauses: Arena::new(),
             dependency_items: Arena::new(),
             parameters: Arena::new(),
             arguments: Arena::new(),
@@ -367,7 +365,6 @@ impl_node_tree_stores! {
     Property => properties,
     EnumField => enum_fields,
     WhereClause => where_clauses,
-    WithClause => with_clauses,
     DependencyItem => dependency_items,
     Parameter => parameters,
     Argument => arguments,

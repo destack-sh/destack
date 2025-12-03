@@ -62,29 +62,10 @@ mod tests {
     }
 
     #[test]
-    fn test_format_function_with_with_clause_overflow() {
-        assert_format!(
-            "function foo() with Time, Place, Something, Foo, Baz {}",
-            "function foo() with (\n\tTime,\n\tPlace,\n\tSomething,\n\tFoo,\n\tBaz\n) { }",
-            |p| p.eat_function(DeclarationDescriptor::default(), false, false),
-            DestackFormatOptions::default_tab_with_line_width(40)
-        );
-    }
-
-    #[test]
     fn test_format_function_declaration() {
         assert_format!(
             "function external(): int32",
             "function external(): int32",
-            |p| p.eat_function(DeclarationDescriptor::default(), false, false)
-        );
-    }
-
-    #[test]
-    fn test_format_function_with_with_and_return() {
-        assert_format!(
-            "function foo(): int32 with Disk {}",
-            "function foo(): int32 with Disk { }",
             |p| p.eat_function(DeclarationDescriptor::default(), false, false)
         );
     }

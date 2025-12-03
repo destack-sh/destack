@@ -780,17 +780,6 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 self.node("Expression::Statement", id.id).end();
             }
 
-            Expression::With {
-                clauses: _,
-                scope,
-                symbol,
-                body: _,
-            } => {
-                self.node("Expression::With", id.id)
-                    .field("scope", scope)
-                    .field("symbol", symbol)
-                    .end();
-            }
             Expression::UnresolvedImport {
                 kind,
                 target,
@@ -1400,20 +1389,6 @@ impl<'a> NodeVisitor for Dumper<'a> {
         }
         self.with_depth(|dumper| {
             walk_where_clause(dumper, tree, id, where_clause);
-        });
-    }
-
-    fn visit_with_clause(
-        &mut self,
-        tree: &NodeTree,
-        id: LocalNodeId<WithClause>,
-        with_clause: &WithClause,
-    ) {
-        self.node("WithClause", id.id)
-            .field_optional("alias", &with_clause.alias)
-            .end();
-        self.with_depth(|dumper| {
-            walk_with_clause(dumper, tree, id, with_clause);
         });
     }
 

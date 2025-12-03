@@ -20,7 +20,6 @@ pub mod pattern;
 pub mod property;
 pub mod r#try;
 pub mod r#where;
-pub mod with;
 
 pub use block::{EmptyBlockWithInfixAnnotations, empty_block_with_infix_annotations};
 pub use context::*;

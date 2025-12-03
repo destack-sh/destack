@@ -64,11 +64,6 @@ impl Parser {
             .eat_implements_types_maybe()
             .for_node_type(NodeType::Declaration)?;
 
-        // with
-        let with_clauses = self
-            .eat_with_header_maybe()
-            .for_node_type(NodeType::Declaration)?;
-
         // where
         let where_clauses = self
             .eat_where_maybe()
@@ -81,7 +76,7 @@ impl Parser {
         let (fields, properties) = self.eat_enum_body().for_node_type(NodeType::Declaration)?;
         self.eat_token(TokenType::CloseBrace)?;
 
-        let generics = Generics::new(static_parameters, with_clauses, where_clauses);
+        let generics = Generics::new(static_parameters, where_clauses);
         let heritage = Heritage::new(extends_types, implements_types);
         let enum_id = self.tree.insert(
             Declaration::Enum {
@@ -178,7 +173,7 @@ impl Parser {
 mod tests {
     use destack_ast::{
         Declaration, DeclarationDescriptor, DeclarationKind, EnumField, Expression, Parameter,
-        ScalarLiteral, WhereClause, WithClause,
+        ScalarLiteral, WhereClause,
     };
 
     use crate::{TestParser, assert_node, assert_path, assert_string};
@@ -332,10 +327,10 @@ enum Machine<T: int32 = 3, IsSomething: boolean = true> {
     }
 
     #[test]
-    fn test_parse_enum_with_with_and_where() {
+    fn test_parse_enum_with_where_clause() {
         let mut test = TestParser::new(
             r###"
-enum Foo with Context where Requirement: Interface {
+enum Foo where Requirement: Interface {
     Value
 }
 "###,
@@ -346,16 +341,7 @@ enum Foo with Context where Requirement: Interface {
         let enum_id = parser.eat_enum(DeclarationDescriptor::default()).unwrap();
         assert_node!(parser.tree, enum_id, Declaration::Enum { descriptor, generics, fields, .. } => {
             assert_eq!(descriptor.kind, DeclarationKind::Definition);
-            // with Context
             assert!(!generics.is_empty());
-            let with_clauses = generics.with_clauses.as_ref().expect("expected with clauses");
-            assert_eq!(with_clauses.len(), 1);
-            assert_node!(parser.tree, with_clauses[0], WithClause { alias: _, right } => {
-                assert_node!(parser.tree, *right, Expression::Path { path, static_arguments } => {
-                    assert_path!(parser, *path, "Context");
-                    assert!(static_arguments.is_none());
-                });
-            });
 
             // where Requirement: Interface
             let where_clauses = generics.where_clauses.as_ref().expect("expected where clauses");

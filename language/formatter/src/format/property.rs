@@ -1,6 +1,5 @@
 use crate::argument::list_like;
 use crate::r#where::format_where_clause;
-use crate::with::format_with_clause;
 use crate::{DestackFormatter, FormatNode};
 use destack_ast::{
     Asynchrony, BindingAnchor, BindingKind, BindingModifier, BindingOperator, FunctionAbstraction,
@@ -179,15 +178,6 @@ impl<'ast> FormatNode<'ast, Property> for Property {
                 // return type
                 if let Some(return_type) = signature.return_type {
                     write!(f, [token(":"), space(), return_type])?;
-                }
-
-                // with clauses
-                if let Some(with_clauses) =
-                    generics.and_then(|generics| generics.with_clauses.as_ref())
-                    && !with_clauses.is_empty()
-                {
-                    write!(f, [space()])?;
-                    format_with_clause(f, with_clauses)?;
                 }
 
                 // where clauses
