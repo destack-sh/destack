@@ -1001,7 +1001,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .end();
             }
 
-            Expression::Type { ty: _ } => {
+            Expression::Type { value: _ } => {
                 self.node("Expression::Type", id.id).end();
             }
             Expression::ScalarLiteral { value } => {

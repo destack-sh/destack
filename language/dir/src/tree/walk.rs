@@ -402,7 +402,7 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             }
         }
 
-        Expression::Type { ty: _ } => {
+        Expression::Type { value: _ } => {
             // nothing to do
         }
         Expression::ScalarLiteral { value: _ } => {

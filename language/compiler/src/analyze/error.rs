@@ -12,7 +12,7 @@ pub enum AnalyzeError {
     Yield { dependency: TaskDependency },
     /// Yield dependency has failed.
     UnsatisfiedDependency { dependency: TaskDependency },
-    /// Unsupported node for analysis.
+    /// Unsupported node.
     UnsupportedNode { node: GlobalNodeIdAny },
     /// Missing type for an expression.
     MissingType { node: GlobalNodeIdAny },
@@ -60,7 +60,6 @@ pub enum AnalyzeError {
     NoOverload {
         node: GlobalNodeIdAny,
         receiver_ty: GlobalTypeId,
-        arg_tys: Vec<GlobalTypeId>,
     },
     /// Ambiguous overload: multiple candidates match equally well.
     AmbiguousOverload {
@@ -140,7 +139,7 @@ impl AnalyzeError {
         match self {
             Self::Yield { .. } => "pending dependency".to_string(),
             Self::UnsatisfiedDependency { .. } => "unsatisfied dependency".to_string(),
-            Self::UnsupportedNode { .. } => "unsupported node for analysis".to_string(),
+            Self::UnsupportedNode { .. } => "unsupported node".to_string(),
             Self::MissingType { .. } => "missing type".to_string(),
             Self::UnassignableType { .. } => "unassignable type".to_string(),
             Self::InaccessibleSymbol { .. } => "inaccessible symbol".to_string(),

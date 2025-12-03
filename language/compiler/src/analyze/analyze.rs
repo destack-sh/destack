@@ -1,9 +1,9 @@
 use crate::{AnalyzeError, AnalyzeResult, Compiler, TypeContext};
 use destack_dir::{
-    BinaryOperator, Declaration, EnumField, Expression, FunctionSignature, Generics, Heritage,
-    LocalNodeId, LocalTypeId, Module, NodeTree, Parameter, Pattern, PrimitiveType, Property,
-    ScalarLiteral, SymbolTable, Type, TypeLiteral, TypeTable, UnaryOperator, WhereClause,
-    WithClause,
+    Argument, BinaryOperator, Block, Declaration, DependencyItem, EnumField, Expression,
+    FunctionSignature, Generics, Heritage, LocalNodeId, LocalTypeId, Module, Mutability, NodeTree,
+    Parameter, Pattern, PrimitiveType, Property, ScalarLiteral, SymbolTable, Type, TypeKind,
+    TypeLiteral, TypeTable, UnaryOperator, VarianceBound, WhereClause, WithClause,
 };
 
 #[allow(clippy::too_many_arguments)]
@@ -23,16 +23,249 @@ impl Compiler {
         }
 
         let expression = tree.get(expression_id);
-
         let ty_id: LocalTypeId = match expression {
-            // scalar literal: derive type from value
-            Expression::ScalarLiteral { value } => {
+            // declaration -> analyze the declaration
+            Expression::Declaration { declaration } => {
+                self.analyze_declaration(module, *declaration, tree, symbols, types, ctx)?;
                 let ty = Type::TypeLiteral {
-                    value: analyze_scalar_literal(value),
+                    value: TypeLiteral::Void,
                 };
                 types.insert_type_from(ty, expression_id)
             }
-            // type literal
+
+            // block -> analyze the block
+            Expression::Block { block } => {
+                self.analyze_block(module, *block, tree, symbols, types, ctx)?
+            }
+
+            // statement -> analyze the statement
+            Expression::Statement { statement } => {
+                self.analyze_expression(module, *statement, tree, symbols, types, ctx)?;
+                let ty = Type::TypeLiteral {
+                    value: TypeLiteral::Void,
+                };
+                types.insert_type_from(ty, expression_id)
+            }
+
+            // with
+            Expression::With {
+                clauses,
+                scope: _,
+                symbol: _,
+                body,
+            } => {
+                for clause_id in clauses {
+                    self.analyze_with_clause(module, *clause_id, tree, symbols, types, ctx)?;
+                }
+                if let Some(body_id) = body {
+                    self.analyze_block(module, *body_id, tree, symbols, types, ctx)?;
+                }
+                let ty = Type::TypeLiteral {
+                    value: TypeLiteral::Void,
+                };
+                types.insert_type_from(ty, expression_id)
+            }
+            // import / exports
+            Expression::Import {
+                kind: _,
+                target: _,
+                target_module: _,
+                items,
+                arguments,
+            }
+            | Expression::UnresolvedImport {
+                kind: _,
+                target: _,
+                items,
+                arguments,
+            } => {
+                for item_id in items {
+                    self.analyze_dependency_item(module, *item_id, tree, symbols, types, ctx)?;
+                }
+                if let Some(arguments) = arguments {
+                    for argument_id in arguments {
+                        self.analyze_argument(module, *argument_id, tree, symbols, types, ctx)?;
+                    }
+                }
+                let ty = Type::TypeLiteral {
+                    value: TypeLiteral::Void,
+                };
+                types.insert_type_from(ty, expression_id)
+            }
+            Expression::ReExport {
+                target: _,
+                target_module: _,
+                kind: _,
+                items,
+            }
+            | Expression::Export { kind: _, items }
+            | Expression::UnresolvedReExport {
+                target: _,
+                kind: _,
+                items,
+            } => {
+                for item_id in items {
+                    self.analyze_dependency_item(module, *item_id, tree, symbols, types, ctx)?;
+                }
+                let ty = Type::TypeLiteral {
+                    value: TypeLiteral::Void,
+                };
+                types.insert_type_from(ty, expression_id)
+            }
+
+            // let
+            Expression::Let {
+                descriptor: _,
+                mutability: _,
+                pattern,
+                value,
+            } => {
+                self.analyze_pattern(module, *pattern, tree, symbols, types, ctx)?;
+                if let Some(value) = value {
+                    self.analyze_expression(module, *value, tree, symbols, types, ctx)?;
+                }
+                let ty = Type::TypeLiteral {
+                    value: TypeLiteral::Void,
+                };
+                types.insert_type_from(ty, expression_id)
+            }
+
+            // unary operations -> compound type
+            // NOTE #Incomplete: resolve unary operator overloads
+            Expression::Unary { operator, right } => {
+                let right_ty_id =
+                    self.analyze_expression(module, *right, tree, symbols, types, ctx)?;
+                let ty = self.analyze_unary_operation(operator, types.get_type(right_ty_id));
+                types.insert_type_from(ty, expression_id)
+            }
+            // value of operation -> value of type
+            Expression::ValueOf {
+                mutability,
+                variance,
+                right,
+            } => {
+                let right_ty_id =
+                    self.analyze_expression(module, *right, tree, symbols, types, ctx)?;
+                let ty = self.analyze_value_of_operation(
+                    *mutability,
+                    *variance,
+                    types.get_type(right_ty_id),
+                );
+                types.insert_type_from(ty, expression_id)
+            }
+            // reference of operation -> reference of type
+            Expression::ReferenceOf {
+                mutability,
+                variance,
+                right,
+            } => {
+                let right_ty_id =
+                    self.analyze_expression(module, *right, tree, symbols, types, ctx)?;
+                let ty = self.analyze_reference_of_operation(
+                    *mutability,
+                    *variance,
+                    types.get_type(right_ty_id),
+                );
+                types.insert_type_from(ty, expression_id)
+            }
+            // binary operations -> compound type
+            // NOTE #Incomplete: resolve binary operator overloads
+            Expression::Binary {
+                left,
+                operator,
+                right,
+            } => {
+                let left_ty_id =
+                    self.analyze_expression(module, *left, tree, symbols, types, ctx)?;
+                let right_ty_id =
+                    self.analyze_expression(module, *right, tree, symbols, types, ctx)?;
+
+                let ty = self.analyze_binary_operation(
+                    operator,
+                    types.get_type(left_ty_id),
+                    types.get_type(right_ty_id),
+                );
+                types.insert_type_from(ty, expression_id)
+            }
+            // assignment operations -> void
+            Expression::Assign { left, right } => {
+                let _left_ty_id =
+                    self.analyze_expression(module, *left, tree, symbols, types, ctx)?;
+                let _right_ty_id =
+                    self.analyze_expression(module, *right, tree, symbols, types, ctx)?;
+                let ty = Type::TypeLiteral {
+                    value: TypeLiteral::Void,
+                };
+                types.insert_type_from(ty, expression_id)
+            }
+            Expression::AssignBinary {
+                left,
+                operator: _,
+                right,
+            } => {
+                let _left_ty_id =
+                    self.analyze_expression(module, *left, tree, symbols, types, ctx)?;
+                let _right_ty_id =
+                    self.analyze_expression(module, *right, tree, symbols, types, ctx)?;
+                let ty = Type::TypeLiteral {
+                    value: TypeLiteral::Void,
+                };
+                types.insert_type_from(ty, expression_id)
+            }
+
+            // delete operation -> void
+            Expression::Delete { value } => {
+                let _value_ty_id =
+                    self.analyze_expression(module, *value, tree, symbols, types, ctx)?;
+                let ty = Type::TypeLiteral {
+                    value: TypeLiteral::Void,
+                };
+                types.insert_type_from(ty, expression_id)
+            }
+
+            // references -> look up symbol type
+            // NOTE #Incomplete: instantiate with static arguments
+            Expression::LocalReference {
+                path: _,
+                target_symbol,
+                static_arguments: _,
+            }
+            | Expression::ModuleReference {
+                path: _,
+                target_symbol,
+                static_arguments: _,
+            }
+            | Expression::GlobalReference {
+                path: _,
+                target_symbol,
+                static_arguments: _,
+            } => {
+                // TODO #Broken: resolve symbol type across modules
+                // narrow symbol type in context
+                if let Some(narrowed_ty_id) = ctx.get_narrowed(*target_symbol) {
+                    narrowed_ty_id
+                }
+                // symbol value type
+                else if let Some(value_ty_id) = types.get_value_type_id(*target_symbol) {
+                    value_ty_id
+                }
+                // unknown type
+                else {
+                    let ty = Type::TypeLiteral {
+                        value: TypeLiteral::Unknown,
+                    };
+                    types.insert_type_from(ty, expression_id)
+                }
+            }
+
+            // scalar literal -> derive type from value
+            Expression::ScalarLiteral { value } => {
+                let ty = Type::TypeLiteral {
+                    value: self.analyze_scalar_literal(value),
+                };
+                types.insert_type_from(ty, expression_id)
+            }
+            // type literal -> use the given type literal?
             Expression::TypeLiteral { value } => {
                 let ty = Type::TypeLiteral {
                     value: value.clone(),
@@ -44,63 +277,6 @@ impl Compiler {
             Expression::Parenthesized {
                 expression: inner_id,
             } => self.analyze_expression(module, *inner_id, tree, symbols, types, ctx)?,
-
-            // references -> look up symbol type
-            // TODO #Incomplete: instantiate generics with type arguments
-            Expression::LocalReference { target_symbol, .. }
-            | Expression::ModuleReference { target_symbol, .. }
-            | Expression::GlobalReference { target_symbol, .. } => {
-                let symbol = symbols.get_symbol(target_symbol.into_local());
-                // check for narrowed type in context
-                if let Some(narrowed_ty_id) = ctx.get_narrowed(*target_symbol) {
-                    narrowed_ty_id
-                }
-                // check if symbol has value type
-                else if let Some(value_ty_id) = types.get_value_type_id(*target_symbol) {
-                    value_ty_id
-                }
-                // check if symbol has declared type (from its declaration node)
-                else if let Some(primary_declaration_id) = symbol.primary_declaration
-                    && let Some(ty_id) = types.get_declared_type_id(primary_declaration_id)
-                {
-                    ty_id
-                }
-                // unknown type
-                else {
-                    let ty = Type::TypeLiteral {
-                        value: TypeLiteral::Unknown,
-                    };
-                    types.insert_type_from(ty, expression_id)
-                }
-            }
-
-            // binary operations
-            // TODO #Incomplete: resolve operator overloads
-            Expression::Binary {
-                left,
-                operator,
-                right,
-            } => {
-                let left_ty_id =
-                    self.analyze_expression(module, *left, tree, symbols, types, ctx)?;
-                let right_ty_id =
-                    self.analyze_expression(module, *right, tree, symbols, types, ctx)?;
-
-                let ty = analyze_binary_operation(
-                    operator,
-                    types.get_type(left_ty_id),
-                    types.get_type(right_ty_id),
-                );
-                types.insert_type_from(ty, expression_id)
-            }
-
-            // unary operations
-            Expression::Unary { operator, right } => {
-                let right_ty_id =
-                    self.analyze_expression(module, *right, tree, symbols, types, ctx)?;
-                let ty = analyze_unary_operation(operator, types.get_type(right_ty_id));
-                types.insert_type_from(ty, expression_id)
-            }
 
             // fallback
             _ => {
@@ -115,7 +291,41 @@ impl Compiler {
         Ok(ty_id)
     }
 
-    /// Analyze a declaration: walk nested expressions and set the symbol's type.
+    /// Analyze a block.
+    fn analyze_block(
+        &self,
+        module: &Module,
+        block_id: LocalNodeId<Block>,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+        ctx: &mut TypeContext,
+    ) -> AnalyzeResult<LocalTypeId> {
+        if let Some(ty_id) = types.get_inferred_type_id(block_id.into_global_any(module.id)) {
+            return Ok(ty_id);
+        }
+
+        let block = tree.get(block_id);
+        for expression_id in &block.expressions {
+            self.analyze_expression(module, *expression_id, tree, symbols, types, ctx)?;
+        }
+
+        // type is last expression type
+        let ty_id = if let Some(last_expression_id) = block.expressions.last() {
+            self.analyze_expression(module, *last_expression_id, tree, symbols, types, ctx)?
+        } else {
+            let ty = Type::TypeLiteral {
+                value: TypeLiteral::Void,
+            };
+            types.insert_type_from(ty, block_id)
+        };
+
+        types.set_inferred_type(block_id.into_global_any(module.id), ty_id);
+
+        Ok(ty_id)
+    }
+
+    /// Analyze a declaration.
     fn analyze_declaration(
         &self,
         module: &Module,
@@ -128,27 +338,116 @@ impl Compiler {
         let declaration = tree.get(declaration_id);
 
         match declaration {
+            // namespace
+            Declaration::Namespace {
+                descriptor: _,
+                generics,
+                scope: _,
+                expressions,
+            } => {
+                // walk
+                self.analyze_generics(module, generics, tree, symbols, types, ctx)?;
+                for expression_id in expressions {
+                    self.analyze_expression(module, *expression_id, tree, symbols, types, ctx)?;
+                }
+            }
+
             // type alias
             Declaration::Type {
                 descriptor,
-                kind: _,
+                kind,
                 mutability: _,
                 static_parameters,
                 value,
             } => {
-                // walk static parameters
+                // walk
                 if let Some(parameters) = static_parameters {
                     for parameter_id in parameters {
                         self.analyze_parameter(module, *parameter_id, tree, symbols, types, ctx)?;
                     }
                 }
 
-                // the aliased type is the instance type
+                // type instance type -> type value
                 let instance_ty_id =
                     self.analyze_expression(module, *value, tree, symbols, types, ctx)?;
+                match *kind {
+                    TypeKind::Structural => {
+                        types.set_instance_type(
+                            descriptor.symbol.into_global(module.id),
+                            instance_ty_id,
+                        );
+                    }
+                    TypeKind::Nominal => {
+                        let ty = Type::Reference {
+                            symbol: descriptor.symbol.into_global(module.id),
+                            static_arguments: None,
+                        };
+                        let ty_id = types.insert_type_from(ty, declaration_id);
+                        types.set_instance_type(descriptor.symbol.into_global(module.id), ty_id);
+                    }
+                }
+
+                // type value type -> type metatype
+                let value_ty = Type::Value { ty: instance_ty_id };
+                let value_ty_id = types.insert_type_from(value_ty, declaration_id);
+                types.set_value_type(descriptor.symbol.into_global(module.id), value_ty_id);
+            }
+
+            // struct
+            Declaration::Struct {
+                descriptor,
+                generics,
+                heritage,
+                scope: _,
+                properties,
+            } => {
+                // walk
+                self.analyze_generics(module, generics, tree, symbols, types, ctx)?;
+                self.analyze_heritage(module, heritage, tree, symbols, types, ctx)?;
+                for property_id in properties {
+                    self.analyze_property(module, *property_id, tree, symbols, types, ctx)?;
+                }
+
+                // struct instance type -> object type
+                let instance_ty = Type::Object { fields: vec![] }; // nocheckin ???
+                let instance_ty_id = types.insert_type_from(instance_ty, declaration_id);
                 types.set_instance_type(descriptor.symbol.into_global(module.id), instance_ty_id);
 
-                // value type is the metatype
+                // struct instance type -> struct value type
+                let value_ty = Type::Value { ty: instance_ty_id };
+                let value_ty_id = types.insert_type_from(value_ty, declaration_id);
+                types.set_instance_type(descriptor.symbol.into_global(module.id), value_ty_id);
+            }
+
+            // enum
+            Declaration::Enum {
+                descriptor,
+                generics,
+                heritage,
+                scope: _,
+                fields,
+                properties,
+            } => {
+                // walk
+                self.analyze_generics(module, generics, tree, symbols, types, ctx)?;
+                self.analyze_heritage(module, heritage, tree, symbols, types, ctx)?;
+                for field_id in fields {
+                    self.analyze_enum_field(module, *field_id, tree, symbols, types, ctx)?;
+                }
+                for property_id in properties {
+                    self.analyze_property(module, *property_id, tree, symbols, types, ctx)?;
+                }
+
+                // enum instance type -> enum value type
+                // nocheckin ???
+                let instance_ty = Type::Reference {
+                    symbol: descriptor.symbol.into_global(module.id),
+                    static_arguments: None,
+                };
+                let instance_ty_id = types.insert_type_from(instance_ty, declaration_id);
+                types.set_instance_type(descriptor.symbol.into_global(module.id), instance_ty_id);
+
+                // enum instance type -> enum value type
                 let value_ty = Type::Value { ty: instance_ty_id };
                 let value_ty_id = types.insert_type_from(value_ty, declaration_id);
                 types.set_value_type(descriptor.symbol.into_global(module.id), value_ty_id);
@@ -164,6 +463,7 @@ impl Compiler {
                 scope: _,
                 properties,
             } => {
+                // walk
                 self.analyze_generics(module, generics, tree, symbols, types, ctx)?;
                 self.analyze_expression(module, *target_type, tree, symbols, types, ctx)?;
                 self.analyze_heritage(module, heritage, tree, symbols, types, ctx)?;
@@ -307,29 +607,89 @@ impl Compiler {
     ) -> AnalyzeResult<()> {
         let parameter = tree.get(parameter_id);
         match parameter {
-            Parameter::Named { default, .. } => {
+            Parameter::Named {
+                modifiers: _,
+                name: _,
+                default,
+                symbol: _,
+            } => {
                 if let Some(default) = default {
                     self.analyze_expression(module, *default, tree, symbols, types, ctx)?;
                 }
             }
             Parameter::Pattern {
-                pattern, default, ..
+                modifiers: _,
+                pattern,
+                default,
+                symbol: _,
             } => {
+                self.analyze_pattern(module, *pattern, tree, symbols, types, ctx)?;
                 if let Some(default) = default {
-                    let default_ty_id =
-                        self.analyze_expression(module, *default, tree, symbols, types, ctx)?;
-                    self.analyze_pattern(
-                        module,
-                        *pattern,
-                        default_ty_id,
-                        tree,
-                        symbols,
-                        types,
-                        ctx,
-                    )?;
+                    self.analyze_expression(module, *default, tree, symbols, types, ctx)?;
                 }
             }
-            Parameter::Variadic { .. } => {}
+            Parameter::Variadic {
+                modifiers: _,
+                name: _,
+                symbol: _,
+            } => {
+                // nothing to do
+            }
+        }
+        Ok(())
+    }
+
+    /// Analyze an argument.
+    fn analyze_argument(
+        &self,
+        module: &Module,
+        argument_id: LocalNodeId<Argument>,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+        ctx: &mut TypeContext,
+    ) -> AnalyzeResult<()> {
+        let argument = tree.get(argument_id);
+        match argument {
+            Argument::Positional { value } => {
+                self.analyze_expression(module, *value, tree, symbols, types, ctx)?;
+            }
+            _ => {
+                return Err(AnalyzeError::UnsupportedNode {
+                    node: argument_id.into_global_any(module.id),
+                });
+            }
+        }
+        Ok(())
+    }
+
+    /// Analyze a dependency item.
+    fn analyze_dependency_item(
+        &self,
+        _module: &Module,
+        item_id: LocalNodeId<DependencyItem>,
+        tree: &NodeTree,
+        _symbols: &SymbolTable,
+        _types: &mut TypeTable,
+        _ctx: &mut TypeContext,
+    ) -> AnalyzeResult<()> {
+        let item = tree.get(item_id);
+        match item {
+            DependencyItem::UnresolvedRemote { .. } => {
+                // nothing to do
+            }
+            DependencyItem::UnresolvedLocal { .. } => {
+                // nothing to do
+            }
+            DependencyItem::Value { .. } => {
+                // nothing to do
+            }
+            DependencyItem::Local { .. } => {
+                // nothing to do
+            }
+            DependencyItem::Remote { .. } => {
+                // nothing to do
+            }
         }
         Ok(())
     }
@@ -393,32 +753,21 @@ impl Compiler {
         &self,
         module: &Module,
         pattern_id: LocalNodeId<Pattern>,
-        value_ty_id: LocalTypeId,
         tree: &NodeTree,
-        _symbols: &SymbolTable,
+        symbols: &SymbolTable,
         types: &mut TypeTable,
-        _ctx: &mut TypeContext,
+        ctx: &mut TypeContext,
     ) -> AnalyzeResult<()> {
         let pattern = tree.get(pattern_id);
         match pattern {
-            // simple binding: x = value
-            Pattern::Binding { symbol, .. } => {
-                types.set_value_type(symbol.into_global(module.id), value_ty_id);
-            }
-
-            // tuple destructuring: (a, b) = value
-            Pattern::Tuple { fields } => {
-                let value_ty = types.get_type(value_ty_id);
-                if let Type::Tuple { elements } = value_ty {
-                    let elements = elements.clone();
-                    for (i, field_id) in fields.iter().enumerate() {
-                        if let Some(elem_ty_id) = elements.get(i) {
-                            let field = tree.get(*field_id);
-                            if let Some(symbol) = field.symbol() {
-                                types.set_value_type(symbol.into_global(module.id), *elem_ty_id);
-                            }
-                        }
-                    }
+            Pattern::Binding {
+                mutability: _,
+                name: _,
+                pattern,
+                symbol: _,
+            } => {
+                if let Some(pattern) = pattern {
+                    self.analyze_pattern(module, *pattern, tree, symbols, types, ctx)?;
                 }
             }
 
@@ -431,57 +780,84 @@ impl Compiler {
 
         Ok(())
     }
-}
 
-/// Convert a scalar literal to a type literal.
-fn analyze_scalar_literal(value: &ScalarLiteral) -> TypeLiteral {
-    match value {
-        ScalarLiteral::Boolean(_) => TypeLiteral::Primitive(PrimitiveType::Boolean),
-        ScalarLiteral::Byte(_) | ScalarLiteral::Integer(_) | ScalarLiteral::Float(_) => {
-            TypeLiteral::Primitive(PrimitiveType::Number)
+    /// Infer the result type of a scalar literal.
+    fn analyze_scalar_literal(&self, value: &ScalarLiteral) -> TypeLiteral {
+        match value {
+            ScalarLiteral::Boolean(_) => TypeLiteral::Primitive(PrimitiveType::Boolean),
+            ScalarLiteral::Byte(_) | ScalarLiteral::Integer(_) | ScalarLiteral::Float(_) => {
+                TypeLiteral::Primitive(PrimitiveType::Number)
+            }
+            ScalarLiteral::String(_) | ScalarLiteral::RegexString { .. } => {
+                TypeLiteral::Primitive(PrimitiveType::String)
+            }
+            ScalarLiteral::ByteString(_) => TypeLiteral::Primitive(PrimitiveType::String),
+            ScalarLiteral::Bigint(_) => TypeLiteral::Primitive(PrimitiveType::Bigint),
+            ScalarLiteral::Character(_) => TypeLiteral::Primitive(PrimitiveType::Character),
         }
-        ScalarLiteral::String(_) | ScalarLiteral::RegexString { .. } => {
-            TypeLiteral::Primitive(PrimitiveType::String)
+    }
+
+    /// Infer the result type of a binary operation.
+    fn analyze_binary_operation(
+        &self,
+        operator: &BinaryOperator,
+        left: &Type,
+        _right: &Type,
+    ) -> Type {
+        match operator {
+            // comparison operators always return boolean
+            BinaryOperator::Equal
+            | BinaryOperator::NotEqual
+            | BinaryOperator::EqualStrict
+            | BinaryOperator::NotEqualStrict
+            | BinaryOperator::LessThan
+            | BinaryOperator::LessThanOrEqual
+            | BinaryOperator::GreaterThan
+            | BinaryOperator::GreaterThanOrEqual
+            | BinaryOperator::In
+            | BinaryOperator::InstanceOf => Type::TypeLiteral {
+                value: TypeLiteral::Primitive(PrimitiveType::Boolean),
+            },
+
+            // logical operators return boolean
+            BinaryOperator::And | BinaryOperator::Or => Type::TypeLiteral {
+                value: TypeLiteral::Primitive(PrimitiveType::Boolean),
+            },
+
+            _ => left.clone(),
         }
-        ScalarLiteral::ByteString(_) => TypeLiteral::Primitive(PrimitiveType::String),
-        ScalarLiteral::Bigint(_) => TypeLiteral::Primitive(PrimitiveType::Bigint),
-        ScalarLiteral::Character(_) => TypeLiteral::Primitive(PrimitiveType::Character),
     }
-}
 
-/// Infer the result type of a binary operation.
-fn analyze_binary_operation(operator: &BinaryOperator, left: &Type, _right: &Type) -> Type {
-    match operator {
-        // comparison operators always return boolean
-        BinaryOperator::Equal
-        | BinaryOperator::NotEqual
-        | BinaryOperator::EqualStrict
-        | BinaryOperator::NotEqualStrict
-        | BinaryOperator::LessThan
-        | BinaryOperator::LessThanOrEqual
-        | BinaryOperator::GreaterThan
-        | BinaryOperator::GreaterThanOrEqual
-        | BinaryOperator::In
-        | BinaryOperator::InstanceOf => Type::TypeLiteral {
-            value: TypeLiteral::Primitive(PrimitiveType::Boolean),
-        },
-
-        // logical operators return boolean
-        BinaryOperator::And | BinaryOperator::Or => Type::TypeLiteral {
-            value: TypeLiteral::Primitive(PrimitiveType::Boolean),
-        },
-
-        _ => left.clone(),
+    /// Infer the result type of a unary operation.
+    fn analyze_unary_operation(&self, operator: &UnaryOperator, right: &Type) -> Type {
+        match operator {
+            UnaryOperator::Not => Type::TypeLiteral {
+                value: TypeLiteral::Primitive(PrimitiveType::Boolean),
+            },
+            _ => right.clone(),
+        }
     }
-}
 
-/// Infer the result type of a unary operation.
-fn analyze_unary_operation(operator: &UnaryOperator, right: &Type) -> Type {
-    match operator {
-        UnaryOperator::Not => Type::TypeLiteral {
-            value: TypeLiteral::Primitive(PrimitiveType::Boolean),
-        },
-        _ => right.clone(),
+    /// Infer the result type of a value of operation.
+    /// NOTE #Incomplete: resolve value of operation type
+    fn analyze_value_of_operation(
+        &self,
+        _mutability: Option<Mutability>,
+        _variance: Option<VarianceBound>,
+        right: &Type,
+    ) -> Type {
+        right.clone()
+    }
+
+    /// Infer the result type of a reference of operation.
+    /// NOTE #Incomplete: resolve reference of operation type
+    fn analyze_reference_of_operation(
+        &self,
+        _mutability: Option<Mutability>,
+        _variance: Option<VarianceBound>,
+        right: &Type,
+    ) -> Type {
+        right.clone()
     }
 }
 
@@ -612,7 +988,7 @@ mod tests {
     }
 
     #[test]
-    fn test_analyze_let_propagates_to_symbol() {
+    fn test_analyze_let_expression_infer_type() {
         let test = TestProgram::memory_sequential();
         let file = test.file("test.ds", "let x = 42");
         test.enqueue(ImportTask::ImportModuleFromFile { file: file.id });
@@ -634,7 +1010,7 @@ mod tests {
     }
 
     #[test]
-    fn test_analyze_with_declared_type() {
+    fn test_analyze_let_expression_declare_type() {
         let test = TestProgram::memory_sequential();
         let file = test.file("test.ds", "let x: string = 42");
         test.enqueue(ImportTask::ImportModuleFromFile { file: file.id });
