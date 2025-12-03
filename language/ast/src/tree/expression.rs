@@ -675,7 +675,7 @@ pub enum Expression {
         right: LocalNodeId<Expression>,
     },
 
-    // TODO #Incomplete: pattern assign expression (without let, see JS/TS)
+    // NOTE #Incomplete: pattern assign expression (without let, see JS/TS)
     /// Assignment operation.
     Assign {
         left: LocalNodeId<Expression>,

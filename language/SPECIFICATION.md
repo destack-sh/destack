@@ -184,12 +184,12 @@ newtype UserId = int64;                     // nominal (distinct type)
 ```
 
 A `newtype` creates a distinct type—`UserId` and `OrderId` won't mix even if both are `int64`.
-Newtypes can wrap scalars, tuples, or structs:
+Newtypes can wrap scalars, tuples, or objects:
 
 ```
 newtype UserId = int64;                    // wraps scalar
 newtype Point = (float32, float32);        // wraps tuple
-newtype Config = { debug: boolean };       // wraps struct
+newtype Config = { debug: boolean };       // wraps object
 ```
 
 Construction syntax matches the underlying type:
@@ -224,7 +224,7 @@ A & B                      // intersection
 #### Discriminated Unions
 
 Destack uses TypeScript-style discriminated unions for sum types.
-Combined with structs, this enables more explicit union types:
+Combined with nominal structs, discriminated unions enables more explicit union types:
 
 ```
 struct Ok<T> { kind: 'ok' = 'ok', value: T }
@@ -249,7 +249,8 @@ match divide(10, 2) {
 }
 ```
 
-This pattern is fully TypeScript-interoperable and works seamlessly with Destack's exhaustive pattern matching. It basically desugars down to the equivalent:
+This pattern is fully TypeScript-interoperable and works seamlessly with Destack's pattern matching. 
+Matching basically desugars down to the equivalent if-else (or switch-case):
 
 ```
 const result = divide(10, 2);
@@ -358,20 +359,6 @@ uint[].nonEmpty()                    // non-empty array
 
 Refinements are implemented as extensions, so user can define domain-specific ones.
 That is exactly how the `@destack/schema` ones work (there is no privileged magic here).
-
-```
-extension DateTime {
-    /// Refine to dates in the future.
-    future(): DateTime {
-        // ...
-    }
-}
-
-// Now usable as a type refinement:
-struct Event {
-    scheduledAt: DateTime.future().describe("When the event occurs"),
-}
-```
 
 #### Standard Library Refinements
 
@@ -539,7 +526,7 @@ class MyClass {
 
 ### Struct
 
-Destack adds `struct` for data-oriented types with value semantics and no constructor.
+Destack adds `struct` for nominal object types with value semantics, fixed layout, and simple constructor.
 Structs may be embedded in other types (like structs or classes).
 
 ```
@@ -554,8 +541,16 @@ class MyEntity extends Entity {
 }
 ```
 
+Structs are nominal (like newtypes), so they must be explicitly constructed:
+
+```
+let p: Point = Point { x: 1, y: 2 }  // ok: explicit construction
+let p: Point = new Point(1, 2)       // ok: compatible with class constructors
+let p: Point = { x: 1, y: 2 }        // error: object literal is not Point
+```
+
 Unlike classes, structs are passed by value (i.e., copied) by default.
-And also unlike classes, a struct at runtime is just another "object" - its type disappears. 
+At runtime, a struct is just another object—its nominal type is erased.
 
 ### Enum
 
