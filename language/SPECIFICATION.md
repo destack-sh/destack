@@ -1238,7 +1238,7 @@ const result = riskyOperation()?;   // propagate to next outer scope
 ```
 
 ### Using
-// nocheckin actually support using
+NOTE #Incomplete: support using expressions
 
 `using` declares a resource that will be disposed when the current scope exits, following the TC39 Explicit Resource Management proposal.
 Resources must implement `Disposable` (sync) or `AsyncDisposable` (async):

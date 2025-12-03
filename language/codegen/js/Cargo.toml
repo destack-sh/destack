@@ -1,0 +1,32 @@
+[package]
+name = "destack_codegen_js"
+description = "Destack Codegen for JavaScript"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[lib]
+path = "src/lib.rs"
+doctest = false
+
+[dependencies]
+# language
+destack_ast = { workspace = true }
+destack_dir = { workspace = true }
+destack_fir = { workspace = true }
+destack_mir = { workspace = true }
+destack_source = { workspace = true }
+
+# general
+dashmap = { workspace = true }
+parking_lot = { workspace = true }
+rayon = { workspace = true }
+smallvec = { workspace = true }
+tracing = { workspace = true }
+
+[dev-dependencies]
+
+[lints]
+workspace = true

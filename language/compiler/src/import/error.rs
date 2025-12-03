@@ -4,6 +4,10 @@ use destack_source::StringId;
 
 use crate::{TaskDependency, TaskError, TaskPhase};
 
+// nocheckin: use pull-based compiler task model
+// nocheckin: then make import not a phase anymore, becomes push-based "task"
+//  (it's the only non-node based task, we don't need global root node then either)
+
 /// Error when importing something into the compiler.
 #[derive(Debug, Clone, PartialEq)]
 #[repr(u8)]

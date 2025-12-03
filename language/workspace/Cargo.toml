@@ -13,7 +13,6 @@ doctest = false
 
 [dependencies]
 # language
-destack_compiler = { workspace = true }
 destack_dir = { workspace = true }
 destack_mir = { workspace = true }
 destack_parser = { workspace = true }

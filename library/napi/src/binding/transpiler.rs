@@ -20,11 +20,11 @@ impl Default for TranspilerMode {
     }
 }
 
-impl From<TranspilerMode> for destack_javascript_transpiler::TranspilerMode {
+impl From<TranspilerMode> for destack_codegen_js::TranspilerMode {
     fn from(mode: TranspilerMode) -> Self {
         match mode {
-            TranspilerMode::Retained => destack_javascript_transpiler::TranspilerMode::Retained,
-            TranspilerMode::Combined => destack_javascript_transpiler::TranspilerMode::Combined,
+            TranspilerMode::Retained => destack_codegen_js::TranspilerMode::Retained,
+            TranspilerMode::Combined => destack_codegen_js::TranspilerMode::Combined,
         }
     }
 }
@@ -47,17 +47,13 @@ impl Default for TranspileTarget {
     }
 }
 
-impl From<TranspileTarget> for destack_javascript_transpiler::TranspileTarget {
+impl From<TranspileTarget> for destack_codegen_js::TranspileTarget {
     fn from(target: TranspileTarget) -> Self {
         match target {
-            TranspileTarget::JavaScript => {
-                destack_javascript_transpiler::TranspileTarget::JavaScript
-            }
-            TranspileTarget::TypeScript => {
-                destack_javascript_transpiler::TranspileTarget::TypeScript
-            }
+            TranspileTarget::JavaScript => destack_codegen_js::TranspileTarget::JavaScript,
+            TranspileTarget::TypeScript => destack_codegen_js::TranspileTarget::TypeScript,
             TranspileTarget::JavaScriptWithTypeScriptDeclarations => {
-                destack_javascript_transpiler::TranspileTarget::JavaScriptWithTypeScriptDeclarations
+                destack_codegen_js::TranspileTarget::JavaScriptWithTypeScriptDeclarations
             }
         }
     }
@@ -81,17 +77,13 @@ impl Default for TranspilerLanguage {
     }
 }
 
-impl From<TranspilerLanguage> for destack_javascript_transpiler::TranspilerLanguage {
+impl From<TranspilerLanguage> for destack_codegen_js::TranspilerLanguage {
     fn from(language: TranspilerLanguage) -> Self {
         match language {
-            TranspilerLanguage::JavaScript => {
-                destack_javascript_transpiler::TranspilerLanguage::JavaScript
-            }
-            TranspilerLanguage::TypeScript => {
-                destack_javascript_transpiler::TranspilerLanguage::TypeScript
-            }
+            TranspilerLanguage::JavaScript => destack_codegen_js::TranspilerLanguage::JavaScript,
+            TranspilerLanguage::TypeScript => destack_codegen_js::TranspilerLanguage::TypeScript,
             TranspilerLanguage::TypeScriptDeclaration => {
-                destack_javascript_transpiler::TranspilerLanguage::TypeScriptDeclaration
+                destack_codegen_js::TranspilerLanguage::TypeScriptDeclaration
             }
         }
     }
@@ -111,10 +103,10 @@ impl Default for EcmaScriptVersion {
     }
 }
 
-impl From<EcmaScriptVersion> for destack_javascript_transpiler::EcmaScriptVersion {
+impl From<EcmaScriptVersion> for destack_codegen_js::EcmaScriptVersion {
     fn from(version: EcmaScriptVersion) -> Self {
         match version {
-            EcmaScriptVersion::ES2022 => destack_javascript_transpiler::EcmaScriptVersion::ES2022,
+            EcmaScriptVersion::ES2022 => destack_codegen_js::EcmaScriptVersion::ES2022,
         }
     }
 }
@@ -133,10 +125,10 @@ impl Default for TypeScriptVersion {
     }
 }
 
-impl From<TypeScriptVersion> for destack_javascript_transpiler::TypeScriptVersion {
+impl From<TypeScriptVersion> for destack_codegen_js::TypeScriptVersion {
     fn from(version: TypeScriptVersion) -> Self {
         match version {
-            TypeScriptVersion::TS5_0 => destack_javascript_transpiler::TypeScriptVersion::TS5_0,
+            TypeScriptVersion::TS5_0 => destack_codegen_js::TypeScriptVersion::TS5_0,
         }
     }
 }
@@ -157,11 +149,11 @@ impl Default for FormatMode {
     }
 }
 
-impl From<FormatMode> for destack_javascript_transpiler::FormatMode {
+impl From<FormatMode> for destack_codegen_js::FormatMode {
     fn from(mode: FormatMode) -> Self {
         match mode {
-            FormatMode::Pretty => destack_javascript_transpiler::FormatMode::Pretty,
-            FormatMode::Minimal => destack_javascript_transpiler::FormatMode::Minimal,
+            FormatMode::Pretty => destack_codegen_js::FormatMode::Pretty,
+            FormatMode::Minimal => destack_codegen_js::FormatMode::Minimal,
         }
     }
 }
@@ -197,7 +189,7 @@ impl Default for FormatOptions {
     }
 }
 
-impl From<FormatOptions> for destack_javascript_transpiler::JavaScriptFormatOptions {
+impl From<FormatOptions> for destack_codegen_js::JavaScriptFormatOptions {
     fn from(options: FormatOptions) -> Self {
         Self {
             mode: options.mode.into(),
@@ -238,11 +230,11 @@ impl Default for TranspileOptions {
     }
 }
 
-impl From<TranspileOptions> for destack_javascript_transpiler::TranspileOptions {
+impl From<TranspileOptions> for destack_codegen_js::TranspileOptions {
     fn from(options: TranspileOptions) -> Self {
         Self {
             diagnostic: destack_source::DiagnosticOptions::default(),
-            workers: destack_javascript_transpiler::default_workers(),
+            workers: destack_codegen_js::default_workers(),
             mode: options.mode.into(),
             target: options.target.into(),
             es_version: options.es_version.into(),
@@ -301,15 +293,15 @@ fn transpile_file_impl(
     use std::path::PathBuf;
     use std::sync::Arc;
 
+    use destack_codegen_js::Transpiler;
     use destack_compiler::{CompileOptions, Compiler, ImportTask};
     use destack_dir::Program;
-    use destack_javascript_transpiler::Transpiler;
     use destack_source::{
         DiagnosticSeverity, File, FileRegistry, FileType, LanguageOptions, PhysicalFileSystem, Uri,
     };
 
     let options = options.unwrap_or_default();
-    let transpile_options: destack_javascript_transpiler::TranspileOptions = options.into();
+    let transpile_options: destack_codegen_js::TranspileOptions = options.into();
 
     // set up the program with a single file
     let cwd = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));

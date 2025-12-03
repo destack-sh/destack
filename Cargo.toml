@@ -3,13 +3,11 @@ resolver = "2"
 members = [
 	# language
 	"language/ast",
+	"language/codegen/js",
 	"language/compiler",
 	"language/dir",
 	"language/fir",
 	"language/formatter",
-	"language/javascript/ast",
-	"language/javascript/machine",
-	"language/javascript/transpiler",
 	"language/linter",
 	"language/machine",
 	"language/mir",
@@ -29,7 +27,7 @@ members = [
 ]
 
 [workspace.package]
-version = "0.47.0"
+version = "0.47.1"
 edition = "2024"
 authors = ["Symbol Industries"]
 license = "Apache-2.0"
@@ -38,13 +36,11 @@ rust-version = "1.88.0"
 [workspace.dependencies]
 # language
 destack_ast = { path = "language/ast" }
+destack_codegen_js = { path = "language/codegen/js" }
 destack_compiler = { path = "language/compiler" }
 destack_dir = { path = "language/dir" }
 destack_fir = { path = "language/fir" }
 destack_formatter = { path = "language/formatter" }
-destack_javascript_ast = { path = "language/javascript/ast" }
-destack_javascript_machine = { path = "language/javascript/machine" }
-destack_javascript_transpiler = { path = "language/javascript/transpiler" }
 destack_linter = { path = "language/linter" }
 destack_machine = { path = "language/machine" }
 destack_mir = { path = "language/mir" }
