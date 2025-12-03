@@ -2,8 +2,8 @@ use crate::{AnalyzeError, AnalyzeResult, Compiler, TypeContext};
 use destack_dir::{
     Argument, BinaryOperator, Block, Declaration, DependencyItem, EnumField, Expression,
     FunctionSignature, Generics, Heritage, LocalNodeId, LocalTypeId, Module, Mutability, NodeTree,
-    Parameter, Pattern, PrimitiveType, Property, ScalarLiteral, SymbolTable, Type, TypeKind,
-    TypeLiteral, TypeTable, UnaryOperator, VarianceBound, WhereClause, WithClause,
+    Parameter, Pattern, PatternField, PrimitiveType, Property, ScalarLiteral, SymbolTable, Type,
+    TypeKind, TypeLiteral, TypeTable, UnaryOperator, VarianceBound, WhereClause, WithClause,
 };
 
 #[allow(clippy::too_many_arguments)]
@@ -120,10 +120,18 @@ impl Compiler {
                 pattern,
                 value,
             } => {
-                self.analyze_pattern(module, *pattern, tree, symbols, types, ctx)?;
-                if let Some(value) = value {
-                    self.analyze_expression(module, *value, tree, symbols, types, ctx)?;
-                }
+                // infer type from value or annotation
+                let declared_ty_id =
+                    types.get_declared_type_id(expression_id.into_global_any(module.id));
+                let inferred_ty_id = if let Some(value) = value {
+                    Some(self.analyze_expression(module, *value, tree, symbols, types, ctx)?)
+                } else {
+                    None
+                };
+                let binding_ty_id = declared_ty_id.or(inferred_ty_id);
+
+                self.analyze_pattern(module, *pattern, binding_ty_id, tree, types, ctx)?;
+
                 let ty = Type::TypeLiteral {
                     value: TypeLiteral::Void,
                 };
@@ -623,10 +631,13 @@ impl Compiler {
                 default,
                 symbol: _,
             } => {
-                self.analyze_pattern(module, *pattern, tree, symbols, types, ctx)?;
-                if let Some(default) = default {
-                    self.analyze_expression(module, *default, tree, symbols, types, ctx)?;
-                }
+                // infer type from default if present
+                let default_ty_id = if let Some(default) = default {
+                    Some(self.analyze_expression(module, *default, tree, symbols, types, ctx)?)
+                } else {
+                    None
+                };
+                self.analyze_pattern(module, *pattern, default_ty_id, tree, types, ctx)?;
             }
             Parameter::Variadic {
                 modifiers: _,
@@ -748,26 +759,27 @@ impl Compiler {
         Ok(())
     }
 
-    /// Analyze a pattern.
+    /// Analyze a pattern and propagate type to bound symbols.
     fn analyze_pattern(
         &self,
         module: &Module,
         pattern_id: LocalNodeId<Pattern>,
+        ty_id: Option<LocalTypeId>,
         tree: &NodeTree,
-        symbols: &SymbolTable,
         types: &mut TypeTable,
-        ctx: &mut TypeContext,
+        _ctx: &mut TypeContext,
     ) -> AnalyzeResult<()> {
         let pattern = tree.get(pattern_id);
         match pattern {
+            // binding -> type from annotation (if any)
             Pattern::Binding {
-                mutability: _,
-                name: _,
-                pattern,
-                symbol: _,
+                symbol, pattern, ..
             } => {
-                if let Some(pattern) = pattern {
-                    self.analyze_pattern(module, *pattern, tree, symbols, types, ctx)?;
+                if let Some(ty_id) = ty_id {
+                    types.set_value_type(symbol.into_global(module.id), ty_id);
+                }
+                if let Some(inner_pattern_id) = pattern {
+                    self.analyze_pattern(module, *inner_pattern_id, ty_id, tree, types, _ctx)?;
                 }
             }
 
@@ -778,6 +790,40 @@ impl Compiler {
             }
         }
 
+        Ok(())
+    }
+
+    /// Analyze a pattern field and propagate type to bound symbol.
+    fn analyze_pattern_field(
+        &self,
+        module: &Module,
+        field_id: LocalNodeId<PatternField>,
+        ty_id: Option<LocalTypeId>,
+        tree: &NodeTree,
+        types: &mut TypeTable,
+        ctx: &mut TypeContext,
+    ) -> AnalyzeResult<()> {
+        let field = tree.get(field_id);
+        match field {
+            PatternField::Named {
+                symbol, pattern, ..
+            } => {
+                if let Some(ty_id) = ty_id {
+                    types.set_value_type(symbol.into_global(module.id), ty_id);
+                }
+                if let Some(inner_pattern_id) = pattern {
+                    self.analyze_pattern(module, *inner_pattern_id, ty_id, tree, types, ctx)?;
+                }
+            }
+            PatternField::Alias { symbol, .. } => {
+                if let Some(ty_id) = ty_id {
+                    types.set_value_type(symbol.into_global(module.id), ty_id);
+                }
+            }
+            PatternField::Positional { pattern } => {
+                self.analyze_pattern(module, *pattern, ty_id, tree, types, ctx)?;
+            }
+        }
         Ok(())
     }
 
@@ -998,15 +1044,27 @@ mod tests {
         let module = module.read();
         let types = module.types.read();
 
+        let let_expr_id = module.roots[0];
         let x_symbol = test.resolve_to_symbol("test.ds", "x").unwrap();
-        let ty = types.get_value_type(x_symbol).unwrap();
 
+        // no declared type
+        assert!(
+            types
+                .get_declared_type(let_expr_id.into_global_any(module.id))
+                .is_none()
+        );
+
+        // value_type[x] = number
+        let value_ty = types.get_value_type(x_symbol).unwrap();
         assert_eq!(
-            *ty,
+            *value_ty,
             Type::TypeLiteral {
                 value: TypeLiteral::Primitive(PrimitiveType::Number)
             }
         );
+
+        // instance_type[x] = undefined
+        assert!(types.get_instance_type(x_symbol).is_none());
     }
 
     #[test]
@@ -1020,10 +1078,12 @@ mod tests {
         let module = module.read();
         let types = module.types.read();
 
-        // declared type on Let expression
-        let let_expression_id = module.roots[0];
+        let let_expr_id = module.roots[0];
+        let x_symbol = test.resolve_to_symbol("test.ds", "x").unwrap();
+
+        // declared_type[let_expr] = string
         let declared = types
-            .get_declared_type(let_expression_id.into_global_any(module.id))
+            .get_declared_type(let_expr_id.into_global_any(module.id))
             .unwrap();
         assert_eq!(
             *declared,
@@ -1032,14 +1092,16 @@ mod tests {
             }
         );
 
-        // value type from inference
-        let x_symbol = test.resolve_to_symbol("test.ds", "x").unwrap();
+        // value_type[x] = string
         let value_ty = types.get_value_type(x_symbol).unwrap();
         assert_eq!(
             *value_ty,
             Type::TypeLiteral {
-                value: TypeLiteral::Primitive(PrimitiveType::Number)
+                value: TypeLiteral::Primitive(PrimitiveType::String)
             }
         );
+
+        // instance_type[x] = undefined
+        assert!(types.get_instance_type(x_symbol).is_none());
     }
 }
