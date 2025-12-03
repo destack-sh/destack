@@ -4,8 +4,8 @@ import * as ds from "destack"
 @entity
 export struct Layer {
     /// Whether the layer is visible
-    isVisible: boolean?
+    isVisible?: boolean
     /// Layer opacity
-    opacity: float32?
+    opacity?: float32
 }
 

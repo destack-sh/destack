@@ -6,20 +6,20 @@ export struct Client {
     /// The client type.
     type: ClientType
     /// The access token, if any.
-    accessToken: string?
+    accessToken?: string
     /// When the client was last seen.
-    seenAt: Timestamp?
+    seenAt?: Timestamp
     /// When the client last logged in.
-    loggedInAt: Timestamp?
+    loggedInAt?: Timestamp
     /// The device type.
-    deviceType: string?
+    deviceType?: string
     /// The device name.
-    deviceName: string?
+    deviceName?: string
     /// The operating system name.
-    operatingSystem: string?
+    operatingSystem?: string
     /// The browser name.
-    browserName: string?
+    browserName?: string
     /// The browser version.
-    browserVersion: string?
+    browserVersion?: string
 }
 

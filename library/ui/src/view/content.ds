@@ -8,10 +8,10 @@ export struct ContentView2D extends View2D { }
 @entity
 export struct TextView2D extends ContentView2D {
     /// The text to display
-    text: Text?
+    text?: Text
     /// The font to use for the text
-    font: Font?
+    font?: Font
     /// The color of the text
-    color: Fill?
+    color?: Fill
 }
 

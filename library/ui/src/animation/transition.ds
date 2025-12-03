@@ -15,27 +15,27 @@ export enum SpringType {
 /// A transition value
 export struct Transition {
     type: TransitionType = TransitionType.Tween
-    template: TransitionTemplate?
-    delay: float32?
-    duration: float32?
+    template?: TransitionTemplate
+    delay?: float32
+    duration?: float32
     ease: float32[]
-    stiffness: float32?
-    damping: float32?
-    mass: float32?
-    bounce: float32?
-    springType: SpringType?
+    stiffness?: float32
+    damping?: float32
+    mass?: float32
+    bounce?: float32
+    springType?: SpringType
 }
 
 /// A transition templatecle
 @entity
 export struct TransitionTemplate {
     type: TransitionType = TransitionType.Tween
-    delay: float32?
-    duration: float32?
+    delay?: float32
+    duration?: float32
     ease: float32[]
-    stiffness: float32?
-    damping: float32?
-    mass: float32?
-    bounce: float32?
-    springType: SpringType?
+    stiffness?: float32
+    damping?: float32
+    mass?: float32
+    bounce?: float32
+    springType?: SpringType
 }

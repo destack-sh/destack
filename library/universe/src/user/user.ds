@@ -6,8 +6,8 @@ export struct User {
     /// The URL-friendly slug of the User.
     slug: string
     /// When the User last logged in.
-    lastLoggedInAt: Timestamp?
+    lastLoggedInAt?: Timestamp
     /// The email address of the User.
-    email: string?
+    email?: string
 }
 
