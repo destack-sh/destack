@@ -4,7 +4,6 @@ mod error;
 mod evaluate;
 mod analyze;
 mod options;
-mod pattern;
 mod process;
 mod warning;
 

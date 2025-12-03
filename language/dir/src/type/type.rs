@@ -38,7 +38,7 @@ pub enum Type {
     /// Scalar type literal.
     TypeLiteral { value: TypeLiteral },
 
-    /// Type-as-value: a runtime type.
+    /// Type-as-value: runtime representation of a type.
     Value { ty: LocalTypeId },
 
     /// Reference to a declared type (with optional type arguments for generics).

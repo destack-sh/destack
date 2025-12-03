@@ -7,7 +7,8 @@ pub struct Generics {
     pub static_parameters: Option<Vec<LocalNodeId<Parameter>>> = None,
     /// The with clauses of the declaration.
     pub with_clauses: Option<Vec<LocalNodeId<WithClause>>> = None,
-    // nocheckin TODO #Architecture: split where context from Generics, turn into (separate) using / provides clauses? 
+    // nocheckin TODO #Architecture: split where Context from Generics,
+    //  (turn into (separate) using / provides clauses?)
     /// The where clauses of the declaration.
     pub where_clauses: Option<Vec<LocalNodeId<WhereClause>>> = None,
 }
