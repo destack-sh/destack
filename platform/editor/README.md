@@ -1,5 +1,3 @@
-# editor
+# @destack/editor
 
-Destack visual editor.
-
-TODO #Incomplete: @destack/editor
+Destack integrated editor.

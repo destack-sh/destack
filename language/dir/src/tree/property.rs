@@ -1,6 +1,6 @@
 use crate::{
-    Expression, FunctionSignature, DynamicKey, LocalNodeId, LocalSymbolId, Mutability, Node, NodeType,
-    StaticExpression, Visibility,
+    DynamicKey, Expression, FunctionSignature, LocalNodeId, LocalSymbolId, Mutability, Node,
+    NodeType, StaticExpression, Visibility,
 };
 
 /// Static property in some static context.

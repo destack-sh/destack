@@ -1,5 +1,3 @@
-# test
+# @destack/test
 
-Testing utilities for Destack.
-
-TODO #Incomplete: @destack/test
+Testing framework for Destack.

@@ -1,5 +1,5 @@
 {
-    "name": "@destack/ui",
+    "name": "@destack/schema",
     "version": "0.45.11",
     "license": "MIT",
     "type": "module",

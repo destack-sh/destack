@@ -1,9 +1,0 @@
-import { Vector3 } from "../vector.ds"
-
-/// A cylinder in 3D space with a radius and height along the local z axis.
-export struct Cylinder3D {
-    position: Vector3 = Vector3.Zero
-    radius: float32 = 0.0
-    height: float32 = 0.0
-}
-
