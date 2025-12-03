@@ -47,24 +47,6 @@ html`<div>${content}</div>`       // another tagged template
 
 Tagged templates call a function with the string parts and interpolated values, enabling DSLs for SQL, HTML, CSS, GraphQL, and more.
 
-### Raw Strings
-
-Destack adds raw strings disable escape sequence processing (like Rust):
-
-```
-r#"raw string with "quotes" and \n literally"#
-r##"can use multiple # for nesting"##
-```
-
-### Byte Literals
-
-Destack adds byte literals for working with raw bytes:
-
-```
-b'a'                 // byte (u8)
-b"abc"               // byte string (sequence of u8)
-```
-
 ### Regex Literals
 
 Regex literals work exactly like JavaScript/TypeScript:
@@ -203,7 +185,7 @@ const c = Config { debug: true };          // struct: Name { fields... }
 Pattern matching also works with newtype constructors:
 
 ```
-match id {
+match (id) {
     UserId(0) => "system"
     UserId(n) => `user ${n}`
 }
@@ -236,14 +218,14 @@ Usage with construction and pattern matching:
 
 ```
 function divide(a: int, b: int): Result<int, string> {
-    if b == 0 {
+    if (b == 0) {
         Err { error: "division by zero" }
     } else {
         Ok { value: a / b }
     }
 }
 
-match divide(10, 2) {
+match (divide(10, 2)) {
     Ok { value } => print(`result: ${value}`);
     Err { error } => print(`error: ${error}`);
 }
@@ -560,7 +542,7 @@ enum Priority {
     }
     
     label(): string {
-        match this {
+        match (this) {
             Active => "Active"
             Inactive => "Inactive"
             Pending => "Pending..."
@@ -603,7 +585,7 @@ extension UserId {
 
 // anonymous extension to foreign type (only reachable in same scope)
 extension int32 {
-    abs(): int32 { if this < 0 { -this } else { this }; }
+    abs(): int32 { if (this < 0) { -this } else { this }; }
 }
 ```
 
@@ -970,26 +952,25 @@ const x = if flag { do { compute() } } else { 0 };
 
 ### Conditionals
 
-Control flow with `if` works like TypeScript, with optional parentheses.
+Control flow with `if` works like TypeScript.
 Unlike TypeScript, `if` is an expression that returns a value:
 
 ```
-// statement form (both valid)
+// statement form
 if (x > 0) { process(); }
-if x > 0 { process(); }
 
 // if/else
-if x > 0 {
+if (x > 0) {
     print("positive");
-} else if x < 0 {
+} else if (x < 0) {
     print("negative");
 } else {
     print("zero");
 }
 
 // as expression - returns a value
-const sign = if x > 0 { 1 } else if x < 0 { -1 } else { 0 };
-const message = if ready { "go" } else { "wait" };
+const sign = if (x > 0) { 1 } else if (x < 0) { -1 } else { 0 };
+const message = if (ready) { "go" } else { "wait" };
 
 // ternary (same as TypeScript)
 const sign = x > 0 ? 1 : x < 0 ? -1 : 0;
@@ -1002,14 +983,14 @@ Like `if`, `match` is an expression that returns a value:
 
 ```
 // match as expression - returns the matched arm's value
-const label = match state {
+const label = match (state) {
     Ready => "go",
     Loading => "wait",
     Error(e) => `failed: ${e}`,
 };
 
 // match on values
-match value {
+match (value) {
     0 => "zero",
     1 | 2 | 3 => "small",
     n if n < 0 => "negative",
@@ -1017,7 +998,7 @@ match value {
 };
 
 // match with destructuring
-match point {
+match (point) {
     (0, 0) => "origin",
     (x, 0) => `x-axis at ${x}`,
     (0, y) => `y-axis at ${y}`,
@@ -1025,7 +1006,7 @@ match point {
 };
 
 // match with guards
-match user {
+match (user) {
     User { age } if age >= 18 => "adult",
     User { age } if age >= 13 => "teen",
     _ => "child",
@@ -1049,28 +1030,32 @@ switch (value) {
 
 ### Loops
 
-Destack supports all TypeScript loop forms plus `for-in` and `loop`.
+Destack supports all TypeScript loop forms plus `loop`.
 
-#### For-In
+#### For-Of and For-In
 
-Iterate over iterables with `for-in`, which works with arrays, ranges, and any iterable:
+Iterate over iterables with `for...of` (values) or `for...in` (keys), matching TypeScript exactly:
 
 ```
-for item in items {
+for (const item of items) {
     process(item)
 }
 
+for (const key in object) {
+    print(key)
+}
+
 // with range literals
-for i in 0..10 {
+for (const i of 0..10) {
     print(i)          // 0, 1, 2, ..., 9
 }
 
-for i in 0..=10 {
+for (const i of 0..=10) {
     print(i)          // 0, 1, 2, ..., 10 (inclusive)
 }
 
 // with destructuring
-for (key, value) in map {
+for (const [key, value] of map) {
     print(`${key}: ${value}`)
 }
 ```
@@ -1080,14 +1065,14 @@ for (key, value) in map {
 Standard while loops work like TypeScript:
 
 ```
-while condition {
+while (condition) {
     process()
 }
 
 // do-while
 do {
     process()
-} while condition
+} while (condition)
 ```
 
 #### Loop
@@ -1097,7 +1082,7 @@ Infinite loop that can be exited only with `break`:
 ```
 loop {
     const input = readInput();
-    if input == "quit" {
+    if (input == "quit") {
         break;
     }
     process(input);
@@ -1119,12 +1104,12 @@ for (let i = 0; i < 10; i++) {
 All loop forms support labeled breaks and continues:
 
 ```
-outer: for i in 0..10 {
-    for j in 0..10 {
-        if condition {
+outer: for (const i of 0..10) {
+    for (const j of 0..10) {
+        if (condition) {
             break outer      // exits outer loop
         }
-        if other {
+        if (other) {
             continue outer   // continues outer loop
         }
     }
@@ -1252,21 +1237,25 @@ Destack adds propagation operators:
 const result = riskyOperation()?;   // propagate to next outer scope
 ```
 
-### Defer
+### Using
+// nocheckin actually support using
 
-`defer` schedules an expression to run when the current scope exits, regardless of how it exits (normal return, early return, or error).
-This is useful for cleanup or other logic that must happen in any case:
+`using` declares a resource that will be disposed when the current scope exits, following the TC39 Explicit Resource Management proposal.
+Resources must implement `Disposable` (sync) or `AsyncDisposable` (async):
 
 ```
-defer file.close();                 // single expression
-
-defer {                            // block form
-    cleanup();
-    log("done");
-};
+using file = openFile(path);        // sync disposal
+await using conn = openConnection(); // async disposal
+// file[Symbol.dispose]() called when scope exits
 ```
 
-Deferred expressions run in reverse order of declaration (LIFO), so resources are cleaned up in the opposite order they were acquired.
+Multiple resources are disposed in reverse order of declaration (LIFO):
+
+```
+using a = getResourceA();
+using b = getResourceB();
+// when scope exits: b disposed first, then a
+```
 
 ## Operators
 

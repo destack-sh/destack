@@ -1236,18 +1236,6 @@ impl Compiler {
                 });
                 Expression::Return { value }
             }
-            ast::Expression::Defer { expression } => {
-                let expression = self.bind_expression(
-                    module,
-                    scope,
-                    *expression,
-                    Some(expression_id),
-                    tree,
-                    symbols,
-                    types,
-                );
-                Expression::Defer { expression }
-            }
             ast::Expression::Await { expression } => {
                 let expression = self.bind_expression(
                     module,

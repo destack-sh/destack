@@ -3,8 +3,8 @@
 use crate::{
     Annotation, Argument, Blank, Block, Comment, Declaration, Decorator, DependencyItem, Doc,
     EnumField, Expression, LocalNodeId, MatchCase, NodeTree, NodeType, Parameter, Pattern,
-    PatternField, Property, WhereClause, walk_annotation, walk_argument, walk_blank,
-    walk_block, walk_comment, walk_declaration, walk_decorator, walk_dependency_item, walk_doc,
+    PatternField, Property, WhereClause, walk_annotation, walk_argument, walk_blank, walk_block,
+    walk_comment, walk_declaration, walk_decorator, walk_dependency_item, walk_doc,
     walk_enum_field, walk_expression, walk_match_case, walk_parameter, walk_pattern,
     walk_pattern_field, walk_property, walk_where_clause,
 };

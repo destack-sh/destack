@@ -331,6 +331,20 @@ impl Parser {
         }
     }
 
+    /// Eat an expression that might be paranthesized (skip the parenthesis if present).
+    pub fn eat_expression_parenthesized_maybe(&mut self) -> ParseResult<LocalNodeId<Expression>> {
+        let start = self.mark();
+        if self.peek_token(TokenType::OpenParenthesis).is_ok() {
+            self.bump(); // eat open parenthesis
+            let expression_id = self.eat_expression()?;
+            self.eat_token(TokenType::CloseParenthesis)?;
+            self.tree.set_span(expression_id, self.get_span_from(start));
+            Ok(expression_id)
+        } else {
+            self.eat_expression()
+        }
+    }
+
     /// Eat an expression.
     pub fn eat_expression(&mut self) -> ParseResult<LocalNodeId<Expression>> {
         let start = self.mark();
@@ -804,10 +818,6 @@ impl Parser {
             // continue
             else if keyword == Some(Keyword::Continue) {
                 self.eat_continue()?
-            }
-            // defer
-            else if keyword == Some(Keyword::Defer) {
-                self.eat_defer()?
             }
             // await
             else if keyword == Some(Keyword::Await)
@@ -1401,14 +1411,11 @@ type = type * 2
 
         assert_node!(parser.tree, expression_id, Expression::If { condition, then_expression, else_expression, .. } => {
             assert!(else_expression.is_none());
-            // (T instanceof class)
-            assert_node!(parser.tree, *condition, Expression::Parenthesized { expression } => {
-                // T instanceof class
-                assert_node!(parser.tree, *expression, Expression::TypeBinary { left, operator, right } => {
-                    assert_expression_path!(parser, parser.tree.get(*left), "T");
-                    assert_eq!(*operator, TypeBinaryOperator::InstanceOf);
-                    assert_node!(parser.tree, *right, Expression::TypeLiteral(TypeLiteral::Composite(DeclarationType::Class)));
-                });
+            // T instanceof class
+            assert_node!(parser.tree, *condition, Expression::TypeBinary { left, operator, right } => {
+                assert_expression_path!(parser, parser.tree.get(*left), "T");
+                assert_eq!(*operator, TypeBinaryOperator::InstanceOf);
+                assert_node!(parser.tree, *right, Expression::TypeLiteral(TypeLiteral::Composite(DeclarationType::Class)));
             });
             // { value }
             assert_node!(parser.tree, *then_expression, Expression::Block(block_id) => {

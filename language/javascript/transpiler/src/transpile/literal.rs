@@ -13,7 +13,6 @@ impl Transpiler {
     ) -> ScalarLiteral {
         match literal {
             dir::ScalarLiteral::Boolean(boolean) => ScalarLiteral::Boolean(*boolean),
-            dir::ScalarLiteral::Byte(byte) => ScalarLiteral::Number(*byte as f64),
             dir::ScalarLiteral::Integer(integer) => ScalarLiteral::Number(*integer as f64),
             dir::ScalarLiteral::Bigint(bigint) => ScalarLiteral::Number(*bigint as f64),
             dir::ScalarLiteral::Float(float) => ScalarLiteral::Number(*float),
@@ -29,10 +28,6 @@ impl Transpiler {
                 let content = unit.strings.intern_from(&self.program.strings, *content);
                 let flags = flags.map(|flag| unit.strings.intern_from(&self.program.strings, flag));
                 ScalarLiteral::RegexString { content, flags }
-            }
-            dir::ScalarLiteral::ByteString(byte_string) => {
-                let string = unit.strings.intern(String::from_utf8_lossy(byte_string));
-                ScalarLiteral::String(string)
             }
         }
     }

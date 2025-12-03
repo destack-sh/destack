@@ -36,10 +36,9 @@ Technically, you can even use none at all, and then Destack is just TypeScript.
 
 | Feature | Description |
 |---------|-------------|
-| [Expressions](#expressions) | Expression extensions: ranges, tuples, patterns, `loop`, `defer` |
+| [Expressions](#expressions) | Expression extensions: ranges, tuples, patterns, `loop`, `using` |
 | [Trees](#trees) | Tree literals: TSX-like syntax generalized for any tree-shaped data |
-| [Annotations](#annotations) | Annotations: decorators (`@`) for
- any expression |
+| [Annotations](#annotations) | Annotations: decorators (`@`) for any expression |
 | [Types](#types) | Type system extensions: runtime types, newtypes, primitives, structs, constraints |
 | [Polymorphism](#polymorphism) | Polymorphism: extensions and overloading |
 | [Ownership](#ownership) | Ownership: Value ownership (`&T`, `^T`), mutability (`const`/`var`), and explicit dispatch |
@@ -51,7 +50,7 @@ In Destack, everything is an expression.
 The last non-statement expression (no trailing `;`) becomes the value.
 
 ```
-const result = if condition { computeA() } else { computeB() };
+const result = if (condition) { computeA() } else { computeB() };
 
 function add(a: int, b: int): int {
     a + b // implicit return
@@ -63,8 +62,8 @@ function add(a: int, b: int): int {
 Range literals for iteration and slicing:
 
 ```
-for i in 0..10 { }      // exclusive
-for i in 0..=10 { }     // inclusive
+for (const i of 0..10) { }      // exclusive
+for (const i of 0..=10) { }     // inclusive
 ```
 
 ### Tuples
@@ -81,27 +80,23 @@ const (x, _) = getPoint();
 Modern `match` with full pattern matching and exhaustiveness checking:
 
 ```
-match result {
+match (result) {
     Ok(value) => process(value)
-    Err(e) if e.retryable => retry()
+    Err(e) if (e.retryable) => retry()
     Err(e) => fail(e)
 }
 ```
 
-### Loop and Defer
+### Loops
 
-Infinite loops with `loop`, cleanup with `defer`:
+Infinite loops with `loop`.
 
 ```
 loop {
     const input = readInput();
-    if input == "quit" { break }
+    if (input == "quit") { break }
     process(input);
 }
-
-const file = open(path);
-defer file.close();
-// file.close() runs when this scope exits
 ```
 
 ## Trees
@@ -147,12 +142,11 @@ This enables runtime validation, automatic serialization, generic factories that
 
 ### Primitives
 
-Precise numeric types beyond TypeScript's `number`, plus raw strings and byte literals:
+Precise numeric types beyond TypeScript's `number`:
 
 ```
 const id: uint64 = 12345;
-const data: uint8[] = b"binary";
-const raw = r#"no \n escaping"#;
+const balance: float32 = 100.50;
 ```
 
 ### Newtypes

@@ -39,22 +39,22 @@ impl Parser {
     ///
     /// Examples:
     /// ```
-    /// for item in items {
+    /// for (const item in items) {
     ///     item
     /// }
     ///
-    /// @for x in 1..10 {
+    /// for (const x in 1..10) {
     ///     y = 2
     /// }
     ///
-    /// for x in zeds.iter() a: {
+    /// for (const x in zeds.iter()) a: {
     ///     if y > 5 {
     ///         continue :a
     ///     }
     ///     y = 2
     /// }
     ///
-    /// for (var x = 0; x < 10; x++) {
+    /// for (let x = 0; x < 10; x++) {
     ///     y = 2
     /// }
     /// ```
@@ -185,18 +185,18 @@ impl Parser {
     ///
     /// Examples:
     /// ```
-    /// @while x > 1 {
+    /// while (x > 1) {
     ///     y = 2
     /// }
     ///
-    /// while y < 10 l: {
+    /// while (y < 10) l: {
     ///     y = 2
     ///     break :l
     /// }
     ///
     /// do {
     ///     y = 2
-    /// } while x > 1
+    /// } while (x > 1)
     /// ```
     pub fn eat_while(&mut self) -> ParseResult<LocalNodeId<Expression>> {
         let start = self.mark();
@@ -214,7 +214,7 @@ impl Parser {
 
             // condition
             let condition_id = self.with_options(self.options.not_in_position(), |parser| {
-                parser.eat_expression()
+                parser.eat_expression_parenthesized_maybe()
             })?;
 
             // while
@@ -236,7 +236,7 @@ impl Parser {
             // condition
             let condition_id = self
                 .with_options(self.options.not_in_position().in_before_block(), |parser| {
-                    parser.eat_expression()
+                    parser.eat_expression_parenthesized_maybe()
                 })?;
 
             // body
@@ -287,7 +287,7 @@ loop {
     fn test_parse_for_loop() {
         let mut test = TestParser::new(
             r###"
-for item in items {
+for (const item in items) {
     x
 }
 "###,
@@ -298,7 +298,8 @@ for item in items {
         let for_id = parser.eat_for().unwrap();
         assert_node!(parser.tree, for_id, Expression::ForEach { pattern, iterator, body: _, .. } => {
             // item
-            assert_node!(parser.tree, *pattern, Pattern::Binding { mutability: None, name, pattern: None } => {
+            assert_node!(parser.tree, *pattern, Pattern::Binding { mutability: Some(mutability), name, pattern: None } => {
+                assert_eq!(*mutability, Mutability::Immutable);
                 assert_string!(parser, *name, "item");
             });
             // items
@@ -310,7 +311,7 @@ for item in items {
     fn test_parse_for_each_loop_in_parentheses() {
         let mut test = TestParser::new(
             r###"
-for (item in items) {
+for (const item in items) {
     x
 }
 "###,
@@ -322,7 +323,8 @@ for (item in items) {
         assert_node!(parser.tree, for_id, Expression::ForEach { asynchrony, pattern, iterator, body: _, .. } => {
             assert_eq!(*asynchrony, Asynchrony::Sync);
             // item
-            assert_node!(parser.tree, *pattern, Pattern::Binding { mutability: None, name, pattern: None } => {
+            assert_node!(parser.tree, *pattern, Pattern::Binding { mutability: Some(mutability), name, pattern: None } => {
+                assert_eq!(*mutability, Mutability::Immutable);
                 assert_string!(parser, *name, "item");
             });
             // items
@@ -334,7 +336,7 @@ for (item in items) {
     fn test_parse_for_loop_with_async_in_parentheses() {
         let mut test = TestParser::new(
             r###"
-for await (item of items) {
+for await (const item of items) {
     x
 }
 "###,
@@ -347,7 +349,8 @@ for await (item of items) {
             assert_eq!(*asynchrony, Asynchrony::Async);
             assert_eq!(*kind, ForEachKind::Of);
             // item
-            assert_node!(parser.tree, *pattern, Pattern::Binding { mutability: None, name, pattern: None } => {
+            assert_node!(parser.tree, *pattern, Pattern::Binding { mutability: Some(mutability), name, pattern: None } => {
+                assert_eq!(*mutability, Mutability::Immutable);
                 assert_string!(parser, *name, "item");
             });
             // items
@@ -359,7 +362,7 @@ for await (item of items) {
     fn test_parse_for_loop_with_label() {
         let mut test = TestParser::new(
             r###"
-for const item in items outer: {
+for (const item in items) outer: {
     x
 }
 "###,
@@ -441,7 +444,7 @@ for (var x = 0; x < 10; x++) {
     fn test_parse_while_loop() {
         let mut test = TestParser::new(
             r###"
-while x {}
+while (x) {}
 "###,
         );
         let mut parser = test.prepare();
@@ -457,7 +460,7 @@ while x {}
     fn test_parse_while_loop_nested() {
         let mut test = TestParser::new(
             r###"
-while x > y {
+while (x > y) {
     while a < b {
         inner_work()
     }
@@ -505,7 +508,7 @@ while x > y {
     fn test_parse_do_while_loop() {
         let mut test = TestParser::new(
             r###"
-do { x } while true
+do { x } while (true)
 "###,
         );
 

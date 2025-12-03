@@ -160,8 +160,6 @@ pub enum Keyword {
     Break,
     /// Continue expression.
     Continue,
-    /// Defer expression.
-    Defer,
     /// Return expression.
     Return,
     /// Yield expression.
@@ -205,7 +203,6 @@ impl Keyword {
             Keyword::Assert
                 | Keyword::Break
                 | Keyword::Continue
-                | Keyword::Defer
                 | Keyword::Return
                 | Keyword::Yield
                 | Keyword::If
@@ -308,7 +305,6 @@ impl Keyword {
             Keyword::Assert => "assert",
             Keyword::Break => "break",
             Keyword::Continue => "continue",
-            Keyword::Defer => "defer",
             Keyword::Return => "return",
             Keyword::Yield => "yield",
             Keyword::Goto => "goto",
@@ -413,7 +409,6 @@ impl FromStr for Keyword {
             "assert" => Ok(Keyword::Assert),
             "break" => Ok(Keyword::Break),
             "continue" => Ok(Keyword::Continue),
-            "defer" => Ok(Keyword::Defer),
             "return" => Ok(Keyword::Return),
             "yield" => Ok(Keyword::Yield),
             "goto" => Ok(Keyword::Goto),

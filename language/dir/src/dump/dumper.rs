@@ -687,9 +687,6 @@ impl Dump for ScalarLiteral {
             ScalarLiteral::Boolean(value) => {
                 dumper.object("ScalarLiteral::Boolean").value(value).end();
             }
-            ScalarLiteral::Byte(value) => {
-                dumper.object("ScalarLiteral::Byte").value(value).end();
-            }
             ScalarLiteral::Integer(value) => {
                 dumper.object("ScalarLiteral::Integer").value(value).end();
             }
@@ -710,12 +707,6 @@ impl Dump for ScalarLiteral {
                     .object("ScalarLiteral::RegexString")
                     .value(content)
                     .field_optional("flags", flags)
-                    .end();
-            }
-            ScalarLiteral::ByteString(value) => {
-                dumper
-                    .object("ScalarLiteral::ByteString")
-                    .field("value", value)
                     .end();
             }
         }
@@ -1149,9 +1140,6 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 self.node("Expression::Continue", id.id)
                     .field("target", target)
                     .end();
-            }
-            Expression::Defer { expression: _ } => {
-                self.node("Expression::Defer", id.id).end();
             }
             Expression::Throw { value: _ } => {
                 self.node("Expression::Throw", id.id).end();

@@ -5,8 +5,8 @@ mod tests {
     #[test]
     fn test_format_if_with_body() {
         assert_format!(
-            "if cond { const X = 1 } else { const Y = 2 }",
-            "if cond {\n\tconst X = 1;\n} else {\n\tconst Y = 2;\n}",
+            "if (cond) { const X = 1 } else { const Y = 2 }",
+            "if (cond) {\n\tconst X = 1;\n} else {\n\tconst Y = 2;\n}",
             |p| p.eat_if(),
             DestackFormatOptions::default_tab()
         );
@@ -15,7 +15,7 @@ mod tests {
     /// All clauses of an if/else should break if any breaks.
     #[test]
     fn test_format_if_else_breaks_together() {
-        let source = r"if cond1 {
+        let source = r"if (cond1) {
     // comment inside cond1
     const X = 1;
 } else {
@@ -31,12 +31,12 @@ mod tests {
 
     #[test]
     fn test_format_if_else_if_with_comments() {
-        let source = r"if cond1 {
+        let source = r"if (cond1) {
     // comment inside cond1
     const X = 1;
 }
 // comment before cond2
-else if cond2 {
+else if (cond2) {
     const Y = 2; // comment trailing Y
 }
 // comment before else
@@ -53,10 +53,10 @@ else {
 
     #[test]
     fn test_format_if_let() {
-        let source = r"if const Some(piece) = self.currentPiece {
+        let source = r"if (const Some(piece) = self.currentPiece) {
     const absolutePositions = piece.getAbsolutePositions(pos);
-    for blockPos in absolutePositions {
-        if self.board.isFilled(blockPos) {
+    for (const blockPos in absolutePositions) {
+        if (self.board.isFilled(blockPos)) {
             return true;
         }
     }

@@ -465,35 +465,10 @@ pub enum LiteralType {
         is_terminated: bool,
         is_html_entity: bool,
     },
-    /// Byte string (b'a', b'\\', b''', b';)
-    Byte { is_terminated: bool },
     /// String ("abc", "abc")
     String { is_terminated: bool },
-    /// Raw string (r"abc", r#"abc"#, r####"ab"###"c"####, r#"a")
-    RawString { hashes: Option<u8> },
     /// Regex string (`/abc/`, `/abc/g`, `/abc/i`, `/abc/gi`)
     RegexString { has_flags: bool },
-    /// Byte string (b"abc", b"abc")
-    ByteString { is_terminated: bool },
-    /// Raw byte string (br"abc", br#"abc"#, br####"ab"###"c"####, br#"a")
-    RawByteString { hashes: Option<u8> },
-}
-
-/// An error from parsing a raw string.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub enum RawStringError {
-    /// Non `#` characters exist between `r` and `"`, e.g. `r##~"abcde"##`
-    InvalidStarter { bad_char: char },
-    /// The string was not terminated, e.g. `r###"abcde"##`.
-    /// `possible_terminator_offset` is the number of characters after `r` or
-    /// `br` where they may have intended to terminate it.
-    NoTerminator {
-        expected_hashes: u32,
-        found_hashes: u32,
-        possible_terminator_offset: Option<u32>,
-    },
-    /// More than max_hashes `#`s exist.
-    TooManyDelimiters { found_hashes: u32 },
 }
 
 /// Numeric literal base (according to its prefix).

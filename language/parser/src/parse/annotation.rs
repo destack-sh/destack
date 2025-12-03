@@ -679,9 +679,9 @@ impl Parser {
 #[cfg(test)]
 mod tests {
     use destack_ast::{
-        Annotation, AnnotationPosition, BinaryOperator, Blank, Block, BlockFormat,
-        Comment, CommentStyle, Declaration, DeclarationDescriptor, Decorator, Doc, DocStyle,
-        Expression, Key, Name, Property,
+        Annotation, AnnotationPosition, BinaryOperator, Blank, Block, BlockFormat, Comment,
+        CommentStyle, Declaration, DeclarationDescriptor, Decorator, Doc, DocStyle, Expression,
+        Key, Name, Property,
     };
 
     use crate::{TestParser, assert_node, assert_path, assert_string};

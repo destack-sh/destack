@@ -83,7 +83,7 @@ mod tests {
 
     #[test]
     fn test_format_let_multiline_if_else() {
-        let source = r"const shapes = if self.nextPiece {
+        let source = r"const shapes = if (self.nextPiece) {
     const nextShape = next.shape;
     self.nextPiece = TetrisPiece.new();
     nextShape

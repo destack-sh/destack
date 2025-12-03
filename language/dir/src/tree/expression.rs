@@ -301,8 +301,6 @@ pub enum Expression {
     UnresolvedContinue { target: Option<StringId> },
     /// Continue expression.
     Continue { target: LocalScopeId },
-    /// Defer expression.
-    Defer { expression: LocalNodeId<Expression> },
     /// Throw expression.
     Throw {
         value: Option<LocalNodeId<Expression>>,
@@ -403,7 +401,6 @@ impl Expression {
             Expression::Break { .. } => "break",
             Expression::UnresolvedContinue { .. } => "unresolved continue",
             Expression::Continue { .. } => "continue",
-            Expression::Defer { .. } => "defer",
             Expression::Throw { .. } => "throw",
             Expression::Await { .. } => "await",
             Expression::Yield { .. } => "yield",

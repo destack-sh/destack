@@ -793,13 +793,12 @@ impl Compiler {
     fn analyze_scalar_literal(&self, value: &ScalarLiteral) -> TypeLiteral {
         match value {
             ScalarLiteral::Boolean(_) => TypeLiteral::Primitive(PrimitiveType::Boolean),
-            ScalarLiteral::Byte(_) | ScalarLiteral::Integer(_) | ScalarLiteral::Float(_) => {
+            ScalarLiteral::Integer(_) | ScalarLiteral::Float(_) => {
                 TypeLiteral::Primitive(PrimitiveType::Number)
             }
             ScalarLiteral::String(_) | ScalarLiteral::RegexString { .. } => {
                 TypeLiteral::Primitive(PrimitiveType::String)
             }
-            ScalarLiteral::ByteString(_) => TypeLiteral::Primitive(PrimitiveType::String),
             ScalarLiteral::Bigint(_) => TypeLiteral::Primitive(PrimitiveType::Bigint),
             ScalarLiteral::Character(_) => TypeLiteral::Primitive(PrimitiveType::Character),
         }
