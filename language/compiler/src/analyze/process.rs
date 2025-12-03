@@ -3,7 +3,7 @@ use crate::{
     TypeContext,
 };
 
-use destack_dir::{Expression, LocalNodeId, LocalTypeId, ModuleId, Program};
+use destack_dir::{LocalTypeId, ModuleId, Program};
 
 /// Task to analyze something.
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
@@ -86,15 +86,14 @@ impl Compiler {
         // step 2: analyze types (infer, instantiate, resolve)
         let mut ctx = TypeContext::new();
         for root_id in module.roots.iter() {
-            let root: LocalNodeId<Expression> = LocalNodeId::new(root_id.id);
             self.collect(
                 &mut collector,
-                self.analyze_expression(&module, root, &tree, &symbols, &mut types, &mut ctx),
+                self.analyze_expression(&module, *root_id, &tree, &symbols, &mut types, &mut ctx),
             );
         }
 
         // step 3: check types (type compatibility, assignability, etc.)
-        // TODO #Incomplete: implement type checking
+        // TODO #Incomplete: check analyzed types, overloads, ..
 
         // yield on any yield
         if let Some(dependency) = collector.try_into_yield_any() {

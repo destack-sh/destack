@@ -12,7 +12,7 @@ pub enum AnalyzeError {
     Yield { dependency: TaskDependency },
     /// Yield dependency has failed.
     UnsatisfiedDependency { dependency: TaskDependency },
-    /// Unsupported node for type evaluation.
+    /// Unsupported node for analysis.
     UnsupportedNode { node: GlobalNodeIdAny },
     /// Missing type for an expression.
     MissingType { node: GlobalNodeIdAny },
@@ -140,7 +140,7 @@ impl AnalyzeError {
         match self {
             Self::Yield { .. } => "pending dependency".to_string(),
             Self::UnsatisfiedDependency { .. } => "unsatisfied dependency".to_string(),
-            Self::UnsupportedNode { .. } => "unsupported node for type evaluation".to_string(),
+            Self::UnsupportedNode { .. } => "unsupported node for analysis".to_string(),
             Self::MissingType { .. } => "missing type".to_string(),
             Self::UnassignableType { .. } => "unassignable type".to_string(),
             Self::InaccessibleSymbol { .. } => "inaccessible symbol".to_string(),

@@ -2,12 +2,10 @@ mod check;
 mod context;
 mod error;
 mod evaluate;
-mod flow;
-mod infer;
+mod analyze;
 mod options;
 mod pattern;
 mod process;
-mod resolve;
 mod warning;
 
 pub use context::*;

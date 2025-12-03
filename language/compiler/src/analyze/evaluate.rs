@@ -85,10 +85,12 @@ impl Compiler {
         let expression = tree.get(expression_id);
 
         let ty = match expression {
-            Expression::ScalarLiteral { value } => {
-                Type::Scalar(TypeLiteral::ScalarLiteral(value.clone()))
-            }
-            Expression::TypeLiteral { value } => Type::Scalar(value.clone()),
+            Expression::ScalarLiteral { value } => Type::TypeLiteral {
+                value: TypeLiteral::ScalarLiteral(value.clone()),
+            },
+            Expression::TypeLiteral { value } => Type::TypeLiteral {
+                value: value.clone(),
+            },
 
             // not
             Expression::Unary {
@@ -243,7 +245,9 @@ mod tests {
 
         assert_eq!(
             *let_ty,
-            Type::Scalar(TypeLiteral::Primitive(PrimitiveType::Number))
+            Type::TypeLiteral {
+                value: TypeLiteral::Primitive(PrimitiveType::Number)
+            }
         );
     }
 }

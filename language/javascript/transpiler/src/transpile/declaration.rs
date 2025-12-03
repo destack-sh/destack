@@ -158,7 +158,7 @@ impl Transpiler {
                         self.transpile_property(module, tree, symbols, types, *property, unit)
                     })
                     .collect::<Result<Vec<_>, TranspileError>>()?;
-                // TODO #Incomplete: struct declarations should become just JS types + namespaces?
+                // NOTE #Incomplete: struct declarations should become just JS types + namespaces?
                 Declaration::Class {
                     descriptor,
                     generics,

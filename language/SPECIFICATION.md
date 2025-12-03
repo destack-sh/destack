@@ -1570,7 +1570,7 @@ Destack also follows `tsconfig.json` configuration (incl. re-mapping).
 
 Destack has four kinds of annotations: comments, documentation, tags, and decorators.
 All annotations are preserved in the AST and available to tooling.
-(The Destack AST is a superset of the TypeScript AST but also contains whitespace and concrete info like a traditional CST).
+(The Destack AST is a superset of the TypeScript AST that also contains whitespace and concrete info like a traditional CST).
 
 ### Tags
 

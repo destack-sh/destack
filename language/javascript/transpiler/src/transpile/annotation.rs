@@ -58,7 +58,7 @@ impl Transpiler {
                 position: _,
                 value: _,
             } => {
-                // TODO #Incomplete: properly transpile tags to JS metadata
+                // NOTE #Incomplete: properly transpile tags to JS metadata
                 return Err(TranspileError::UnsupportedNode {
                     node: annotation_id.into_global_any(module.id),
                     message: None,
@@ -69,7 +69,7 @@ impl Transpiler {
                 left: _,
                 arguments: _,
             } => {
-                // TODO #Incomplete: properly transpile decorators to JS decorator syntax
+                // NOTE #Incomplete: properly transpile decorators to JS decorator syntax
                 return Err(TranspileError::UnsupportedNode {
                     node: annotation_id.into_global_any(module.id),
                     message: None,

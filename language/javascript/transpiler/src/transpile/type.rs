@@ -201,7 +201,7 @@ impl Transpiler {
         let ty = types.get_type(ty_id);
 
         let ty_id = match ty {
-            dir::Type::Scalar(scalar) => {
+            dir::Type::TypeLiteral { value: scalar } => {
                 let literal =
                     self.transpile_type_literal(module, tree, symbols, types, ty_id, scalar, unit)?;
                 let ty = Type::Scalar(literal);
