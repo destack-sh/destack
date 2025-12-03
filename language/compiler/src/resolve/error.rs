@@ -1,6 +1,6 @@
 use crate::{TaskDependency, TaskError, TaskPhase};
 use destack_dir::{
-    GlobalNodeIdAny, GlobalScopeId, GlobalSymbolId, ModuleId, Program, StringId, StaticKey,
+    GlobalNodeIdAny, GlobalScopeId, GlobalSymbolId, ModuleId, Program, StaticKey, StringId,
 };
 
 /// Error when evaluating something statically.

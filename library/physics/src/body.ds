@@ -1,9 +1,0 @@
-import { Entity2D, Entity3D } from "./entity.ds"
-
-/// A Body in 2D space.
-@entity
-export struct Body2D extends Entity2D { }
-
-/// A Body in 3D space.
-@entity
-export struct Body3D extends Entity3D { }

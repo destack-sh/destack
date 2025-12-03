@@ -1,6 +1,5 @@
-use std::fs;
 use std::path::PathBuf;
-use std::process::Command;
+use std::{fmt, fs};
 
 use clap::Subcommand;
 use destack_source::glob;
@@ -19,53 +18,110 @@ const FILE_GLOBS_TO_IGNORE: &[&str] = &["language/resolver/fixtures/"];
 
 #[derive(Subcommand, Clone, Debug)]
 pub enum VersionCommands {
-    /// Bump CalVer (YYYY.MM.DD.R).
-    Bump,
+    /// Bump major version (X.0.0) - breaking changes.
+    Major,
+    /// Bump minor version (x.Y.0) - new features, backwards compatible.
+    Minor,
+    /// Bump patch version (x.y.Z) - bug fixes only.
+    Patch,
+    /// Show current version.
+    Show,
 }
 
-/// Bump the version use CalVer format.
+/// Semantic version with major.minor.patch format.
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct SemVer {
+    major: u32,
+    minor: u32,
+    patch: u32,
+}
+
+impl SemVer {
+    fn parse(s: &str) -> Option<Self> {
+        let parts: Vec<&str> = s.trim().split('.').collect();
+        if parts.len() != 3 {
+            return None;
+        }
+        Some(Self {
+            major: parts[0].parse().ok()?,
+            minor: parts[1].parse().ok()?,
+            patch: parts[2].parse().ok()?,
+        })
+    }
+
+    fn bump_major(&self) -> Self {
+        Self {
+            major: self.major + 1,
+            minor: 0,
+            patch: 0,
+        }
+    }
+
+    fn bump_minor(&self) -> Self {
+        Self {
+            major: self.major,
+            minor: self.minor + 1,
+            patch: 0,
+        }
+    }
+
+    fn bump_patch(&self) -> Self {
+        Self {
+            major: self.major,
+            minor: self.minor,
+            patch: self.patch + 1,
+        }
+    }
+}
+
+impl fmt::Display for SemVer {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}.{}.{}", self.major, self.minor, self.patch)
+    }
+}
+
+/// Show the current version.
+pub fn show() -> i32 {
+    match read_current_version() {
+        Some(v) => {
+            console::print(&v);
+            0
+        }
+        None => {
+            console::error("version file not found");
+            1
+        }
+    }
+}
+
+/// Bump the version using SemVer format.
 ///
-/// Increments the revision number if the date is the same, otherwise resets to 0.
 /// Updates all relevant files with the new version.
-pub fn bump() -> i32 {
-    let current_version =
-        read_current_version().unwrap_or_else(|| panic!("version file not found"));
+pub fn bump(kind: &VersionCommands) -> i32 {
+    let current_str = read_current_version().unwrap_or_else(|| panic!("version file not found"));
+    let current = SemVer::parse(&current_str)
+        .unwrap_or_else(|| panic!("invalid version format: {current_str} (expected X.Y.Z)"));
 
-    // extract date and revision from current version
-    let current_date = current_version
-        .split('.')
-        .take(3)
-        .collect::<Vec<_>>()
-        .join(".");
-    let current_rev: i32 = current_version
-        .split('.')
-        .nth(3)
-        .and_then(|s| s.parse().ok())
-        .unwrap_or(0);
-    let current_semver = to_semver(&current_version);
-
-    // make new version
-    let today = today_calver();
-    let new_rev = if today == current_date {
-        current_rev + 1
-    } else {
-        0
+    let new = match kind {
+        VersionCommands::Major => current.bump_major(),
+        VersionCommands::Minor => current.bump_minor(),
+        VersionCommands::Patch => current.bump_patch(),
+        VersionCommands::Show => unreachable!(),
     };
-    let new_version = format!("{today}.{new_rev}");
-    let new_semver = to_semver(&new_version);
+
+    let current_version = current.to_string();
+    let new_version = new.to_string();
 
     console::print(&format!("Version: {current_version} -> {new_version}"));
-    console::print(&"=".repeat(100));
+    console::print(&"=".repeat(80));
 
     // read and validate all files before making changes
     let mut files: Vec<(PathBuf, String)> = Vec::new();
     for glob_path in FILE_GLOBS_TO_UPDATE {
-        let paths = {
-            if glob_path.contains("*") {
-                glob(glob_path)
-            } else {
-                vec![PathBuf::from(glob_path)]
-            }
+        let paths = if glob_path.contains('*') {
+            glob(glob_path)
+        } else {
+            vec![PathBuf::from(glob_path)]
         };
         for path in paths {
             if FILE_GLOBS_TO_IGNORE
@@ -74,38 +130,26 @@ pub fn bump() -> i32 {
             {
                 continue;
             }
-            console::print(&path.to_string_lossy());
+            console::print(&format!("  {}", path.display()));
             match fs::read_to_string(&path) {
                 Ok(text) => {
-                    if !text.contains(&current_version) && !text.contains(&current_semver) {
-                        console::error(&format!(
-                            "error: {current_version} or {current_semver} not found in {path:?} (from \"{glob_path}\")"
-                        ));
+                    if !text.contains(&current_version) {
+                        console::error(&format!("error: {current_version} not found in {path:?}"));
                         return 1;
                     }
                     files.push((path, text));
                 }
                 Err(e) => {
-                    console::error(&format!(
-                        "error: {path:?} not found ({e}) from \"{glob_path}\""
-                    ));
+                    console::error(&format!("error: {path:?} not found ({e})"));
                     return 1;
                 }
             }
         }
     }
 
-    // write new version to version file
-    if let Err(e) = fs::write("version.txt", &new_version) {
-        console::error(&format!("error: failed to write version file ({e})"));
-        return 1;
-    }
-
     // update all files with new version
     for (p, text) in files.into_iter() {
-        let updated = text
-            .replace(&current_version, &new_version)
-            .replace(&current_semver, &new_semver);
+        let updated = text.replace(&current_version, &new_version);
         if let Err(e) = fs::write(&p, updated) {
             console::error(&format!("error: failed to write {} ({e})", p.display()));
             return 1;
@@ -115,24 +159,6 @@ pub fn bump() -> i32 {
     0
 }
 
-/// Convert CalVer format to SemVer format.
-///
-/// Transforms YYYY.MM.DD.R to Y.M.D-R by removing leading zeros.
-fn to_semver(calver: &str) -> String {
-    let parts: Vec<&str> = calver.split('.').collect();
-    if parts.len() != 4 {
-        return calver.to_string();
-    }
-    let year = parts[0].trim_start_matches('0');
-    let year = if year.is_empty() { "0" } else { year };
-    let month = parts[1].trim_start_matches('0');
-    let month = if month.is_empty() { "0" } else { month };
-    let day = parts[2].trim_start_matches('0');
-    let day = if day.is_empty() { "0" } else { day };
-    let rev = parts[3];
-    format!("{year}.{month}.{day}-{rev}")
-}
-
 /// Read the current version from the version file.
 fn read_current_version() -> Option<String> {
     fs::read_to_string("version.txt")
@@ -140,14 +166,53 @@ fn read_current_version() -> Option<String> {
         .map(|s| s.trim().to_string())
 }
 
-/// Get today's date in CalVer format (YYYY.MM.DD).
-fn today_calver() -> String {
-    let out = Command::new("date").arg("+%Y.%m.%d").output();
-    if let Ok(o) = out
-        && o.status.success()
-        && let Ok(s) = String::from_utf8(o.stdout)
-    {
-        return s.trim().to_string();
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_parse_valid_semver() {
+        let v = SemVer::parse("1.2.3").unwrap();
+        assert_eq!(v.major, 1);
+        assert_eq!(v.minor, 2);
+        assert_eq!(v.patch, 3);
     }
-    panic!("failed to get today's date");
+
+    #[test]
+    fn test_parse_invalid_semver() {
+        assert!(SemVer::parse("1.2").is_none());
+        assert!(SemVer::parse("1.2.3.4").is_none());
+        assert!(SemVer::parse("a.b.c").is_none());
+    }
+
+    #[test]
+    fn test_bump_major() {
+        let v = SemVer::parse("1.2.3").unwrap();
+        let bumped = v.bump_major();
+        assert_eq!(bumped.to_string(), "2.0.0");
+    }
+
+    #[test]
+    fn test_bump_minor() {
+        let v = SemVer::parse("1.2.3").unwrap();
+        let bumped = v.bump_minor();
+        assert_eq!(bumped.to_string(), "1.3.0");
+    }
+
+    #[test]
+    fn test_bump_patch() {
+        let v = SemVer::parse("1.2.3").unwrap();
+        let bumped = v.bump_patch();
+        assert_eq!(bumped.to_string(), "1.2.4");
+    }
+
+    #[test]
+    fn test_display() {
+        let v = SemVer {
+            major: 0,
+            minor: 2,
+            patch: 1,
+        };
+        assert_eq!(v.to_string(), "0.2.1");
+    }
 }

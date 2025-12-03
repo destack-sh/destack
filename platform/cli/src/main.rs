@@ -14,7 +14,8 @@ fn main() {
         Command::Compile(args) => compile::run(&args),
         Command::Transpile(args) => transpile::run(&args),
         Command::Version { subcommand } => match subcommand {
-            VersionCommands::Bump => version::bump(),
+            VersionCommands::Show => version::show(),
+            cmd => version::bump(&cmd),
         },
     };
     std::process::exit(exit_code);

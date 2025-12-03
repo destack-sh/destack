@@ -1,4 +1,4 @@
-# vscode
+# @destack/vscode
 
 VS Code extension for Destack.
 Syntax highlighting, themes, and LSP client integration.

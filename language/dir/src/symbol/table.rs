@@ -3,7 +3,7 @@ use indexmap::IndexMap;
 
 use crate::{
     Arena, DependencyMode, LocalNodeId, LocalScopeId, LocalScopeMark, LocalSymbolId, ModuleId,
-    Node, NodeTree, Scope, ScopeKind, Symbol, StaticKey, SymbolKind, SymbolSpace,
+    Node, NodeTree, Scope, ScopeKind, StaticKey, Symbol, SymbolKind, SymbolSpace,
 };
 use std::fmt::Debug;
 

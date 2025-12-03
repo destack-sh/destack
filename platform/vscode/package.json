@@ -2,7 +2,7 @@
     "name": "@destack/vscode",
     "displayName": "Destack",
     "description": "Destack for VSCode (.ds, .d.ds, .dst)",
-    "version": "2025.11.29-1",
+    "version": "0.45.11",
     "license": "proprietary",
     "engines": {
         "vscode": "^1.90.0"
@@ -114,6 +114,7 @@
         "bundle": "esbuild typescript/extension.ts --bundle --platform=node --format=cjs --legal-comments=none --minify --outfile=out/extension.js --external:vscode",
         "vscode:prepublish": "bun run bundle",
         "package": "bunx --bun @vscode/vsce@latest package --no-dependencies",
+        "publish:live": "bunx --bun @vscode/vsce@latest publish",
         "test:grammar": "bunx vscode-tmgrammar-test --grammar destack.tmLanguage.json \"typescript/tests/*.txt\""
     },
     "dependencies": {},

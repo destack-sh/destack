@@ -1,9 +1,0 @@
-import * as ds from "destack"
-
-/// Definition of a builtin Permission for a builtin Node.
-export struct PermissionDefinition { }
-
-/// A Permission for something.
-@entity
-export struct Permission { }
-

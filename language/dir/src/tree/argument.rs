@@ -93,4 +93,3 @@ impl Argument {
 impl Node for Argument {
     const TYPE: NodeType = NodeType::Argument;
 }
-

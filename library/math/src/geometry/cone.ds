@@ -1,9 +1,0 @@
-import { Vector3 } from "../vector.ds"
-
-/// A cone in 3D space with a base radius and height along the local z axis.
-export struct Cone3D {
-    position: Vector3 = Vector3.Zero
-    radius: float32 = 0.0
-    height: float32 = 0.0
-}
-
