@@ -214,16 +214,16 @@ pub enum DsConfigExtendsField {
 #[serde(rename_all = "camelCase")]
 pub struct DsConfigCompilerOptionsJson {
     // features
-    /// Allow expression-oriented features: implicit returns, `loop`, `defer`, ranges, tuples, patterns, trees.
+    /// Allow expression-oriented features: implicit returns, `loop`, `defer`, ranges, tuples, patterns.
     pub allow_expressions: Option<bool>,
+    /// Allow tree literals: TSX-like syntax generalized for any tree-shaped data.
+    pub allow_trees: Option<bool>,
+    /// Allow annotations: tags (`#`) and extended decorators (`@`).
+    pub allow_annotations: Option<bool>,
     /// Allow type system extensions: runtime types, newtypes, primitives, structs, constraints.
     pub allow_types: Option<bool>,
     /// Allow polymorphism: extensions and overloading.
     pub allow_polymorphism: Option<bool>,
-    /// Allow annotations: tags (`#`) and extended decorators (`@`).
-    pub allow_annotations: Option<bool>,
-    /// Allow context: effect declarations with `with` clauses.
-    pub allow_context: Option<bool>,
     /// Allow ownership: value ownership (`&T`, `^T`), mutability (`var`), and dispatch behavior.
     pub allow_ownership: Option<bool>,
 
@@ -298,17 +298,17 @@ impl DsConfigCompilerOptionsJson {
         if let Some(enabled) = self.allow_expressions {
             features.set(LanguageFeature::Expressions, enabled);
         }
+        if let Some(enabled) = self.allow_trees {
+            features.set(LanguageFeature::Trees, enabled);
+        }
+        if let Some(enabled) = self.allow_annotations {
+            features.set(LanguageFeature::Annotations, enabled);
+        }
         if let Some(enabled) = self.allow_types {
             features.set(LanguageFeature::Types, enabled);
         }
         if let Some(enabled) = self.allow_polymorphism {
             features.set(LanguageFeature::Polymorphism, enabled);
-        }
-        if let Some(enabled) = self.allow_annotations {
-            features.set(LanguageFeature::Annotations, enabled);
-        }
-        if let Some(enabled) = self.allow_context {
-            features.set(LanguageFeature::Context, enabled);
         }
         if let Some(enabled) = self.allow_ownership {
             features.set(LanguageFeature::Ownership, enabled);

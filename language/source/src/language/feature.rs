@@ -8,16 +8,16 @@ use std::fmt;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[repr(u8)]
 pub enum LanguageFeature {
-    /// Expression extensions: implicit returns, `loop`, `defer`, ranges, tuples, patterns, trees.
+    /// Expression extensions: implicit returns, `loop`, `defer`, ranges, tuples, patterns.
     Expressions = 1 << 0,
-    /// Type system extensions: runtime types, newtypes, primitives, structs, constraints.
-    Types = 1 << 1,
-    /// Polymorphism: extensions and overloading.
-    Polymorphism = 1 << 2,
+    /// Tree literals: TSX-like syntax generalized for any tree-shaped data.
+    Trees = 1 << 1,
     /// Annotations: tags (`#`) and extended decorators (`@`).
-    Annotations = 1 << 3,
-    /// Context: effect declarations with `with` clauses.
-    Context = 1 << 4,
+    Annotations = 1 << 2,
+    /// Type system extensions: runtime types, newtypes, primitives, structs, constraints.
+    Types = 1 << 3,
+    /// Polymorphism: extensions and overloading.
+    Polymorphism = 1 << 4,
     /// Ownership: value ownership (`&T`, `^T`), mutability (`const`/`var`), and dispatch behavior.
     Ownership = 1 << 5,
 }
@@ -26,10 +26,10 @@ impl LanguageFeature {
     /// All language features.
     pub const ALL: &[LanguageFeature] = &[
         Self::Expressions,
+        Self::Trees,
+        Self::Annotations,
         Self::Types,
         Self::Polymorphism,
-        Self::Annotations,
-        Self::Context,
         Self::Ownership,
     ];
 
@@ -37,10 +37,10 @@ impl LanguageFeature {
     pub fn options_key(&self) -> &'static str {
         match self {
             Self::Expressions => "allowExpressions",
+            Self::Trees => "allowTrees",
+            Self::Annotations => "allowAnnotations",
             Self::Types => "allowTypes",
             Self::Polymorphism => "allowPolymorphism",
-            Self::Annotations => "allowAnnotations",
-            Self::Context => "allowContext",
             Self::Ownership => "allowOwnership",
         }
     }
@@ -49,10 +49,10 @@ impl LanguageFeature {
     pub fn display_name(&self) -> &'static str {
         match self {
             Self::Expressions => "expressions",
+            Self::Trees => "trees",
+            Self::Annotations => "annotations",
             Self::Types => "types",
             Self::Polymorphism => "polymorphism",
-            Self::Annotations => "annotations",
-            Self::Context => "context",
             Self::Ownership => "ownership",
         }
     }
@@ -240,7 +240,7 @@ mod tests {
 
         set.enable(LanguageFeature::Types);
         assert!(set.is_enabled(LanguageFeature::Types));
-        assert!(!set.is_enabled(LanguageFeature::Context));
+        assert!(!set.is_enabled(LanguageFeature::Ownership));
 
         set.disable(LanguageFeature::Types);
         assert!(!set.is_enabled(LanguageFeature::Types));
@@ -262,6 +262,6 @@ mod tests {
 
         assert!(set.is_enabled(LanguageFeature::Types));
         assert!(set.is_enabled(LanguageFeature::Polymorphism));
-        assert!(!set.is_enabled(LanguageFeature::Context));
+        assert!(!set.is_enabled(LanguageFeature::Ownership));
     }
 }
