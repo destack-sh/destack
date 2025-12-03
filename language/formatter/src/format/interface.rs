@@ -24,16 +24,6 @@ mod tests {
     }
 
     #[test]
-    fn test_format_interface_with_with() {
-        assert_format!(
-            "interface Foo with Bar { }",
-            "interface Foo with Bar { }",
-            |p| p.eat_interface(DeclarationDescriptor::default()),
-            DestackFormatOptions::default()
-        );
-    }
-
-    #[test]
     fn test_format_interface_with_body() {
         assert_format!(
             "interface Foo { static X = 1 }",

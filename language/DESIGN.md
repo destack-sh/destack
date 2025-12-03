@@ -40,8 +40,7 @@ Technically, you can even use none at all, and then Destack is just TypeScript.
 | [Types](#types) | Type system extensions: runtime types, newtypes, primitives, structs, constraints |
 | [Polymorphism](#polymorphism) | Polymorphism: extensions and overloading |
 | [Annotations](#annotations) | Annotations: tags (`#`) and extended decorators (`@`) |
-| [Context](#context) | Context: effect declarations with `with` clauses |
-| [Ownership](#ownership) | Ownership: Value ownership (`&T`, `^T`), mutability (`const`/`var`), and dispatch behavior |
+| [Ownership](#ownership) | Ownership: Value ownership (`&T`, `^T`), mutability (`const`/`var`), and explicit dispatch |
 
 ## Expressions
 
@@ -272,19 +271,6 @@ function getUsers() { }
 ```
 
 TypeScript decorators copy-pasted into Destack work as expected.
-
-## Context
-
-TypeScript functions don't declare their side effects—any function might do I/O, allocate, or throw.
-Destack adds optional `with` clauses for effect tracking:
-
-```
-function readFile(path: string): string with FileSystem { }
-function pure<T>(x: T): T with !Allocation { }
-```
-
-Effect tracking makes function capabilities explicit and enables the compiler to enforce purity constraints.
-This is like algebraic effects in research languages, but pragmatic and opt-in.
 
 ## Ownership
 

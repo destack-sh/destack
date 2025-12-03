@@ -2,7 +2,7 @@ use crate::{
     Annotation, Argument, Blank, Block, Comment, Declaration, DeclarationDescriptor, Decorator,
     DependencyItem, Doc, EnumField, Expression, FunctionSignature, Generics, Heritage, Key,
     LocalNodeId, MatchCase, NodeTree, NodeType, NodeVisitor, Parameter, Pattern, PatternField,
-    Property, Tag, TemplateLiteral, WhereClause, WithClause,
+    Property, Tag, TemplateLiteral, WhereClause,
 };
 
 /// Walk any node.
@@ -43,10 +43,6 @@ pub fn walk_any<V: NodeVisitor + ?Sized>(
         // --------------------------------------------------------------------
         // Context
         // --------------------------------------------------------------------
-        NodeType::WithClause => {
-            let with_clause = tree.with_clauses.get(local_idx);
-            walk_with_clause(visitor, tree, LocalNodeId::new(node_id), with_clause);
-        }
         NodeType::WhereClause => {
             let where_clause = tree.where_clauses.get(local_idx);
             walk_where_clause(visitor, tree, LocalNodeId::new(node_id), where_clause);
@@ -147,17 +143,6 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
         Expression::Statement(statement_id) => {
             let statement = tree.get(*statement_id);
             visitor.visit_expression(tree, *statement_id, statement);
-        }
-
-        Expression::With { clauses, body } => {
-            for clause_id in clauses {
-                let clause = tree.get(*clause_id);
-                visitor.visit_with_clause(tree, *clause_id, clause);
-            }
-            if let Some(body_id) = body {
-                let block = tree.get(*body_id);
-                visitor.visit_block(tree, *body_id, block);
-            }
         }
 
         Expression::Import {
@@ -622,12 +607,6 @@ fn walk_generics<V: NodeVisitor + ?Sized>(visitor: &mut V, tree: &NodeTree, gene
             visitor.visit_parameter(tree, *parameter_id, parameter);
         }
     }
-    if let Some(with_clauses) = generics.with_clauses.as_ref() {
-        for clause_id in with_clauses.iter() {
-            let clause = tree.get(*clause_id);
-            visitor.visit_with_clause(tree, *clause_id, clause);
-        }
-    }
     if let Some(where_clauses) = generics.where_clauses.as_ref() {
         for clause_id in where_clauses.iter() {
             let clause = tree.get(*clause_id);
@@ -884,18 +863,6 @@ pub fn walk_enum_field<V: NodeVisitor + ?Sized>(
         let expression = tree.get(*value);
         visitor.visit_expression(tree, *value, expression);
     }
-}
-
-/// Walk the WithClause.
-pub fn walk_with_clause<V: NodeVisitor + ?Sized>(
-    visitor: &mut V,
-    tree: &NodeTree,
-    id: LocalNodeId<WithClause>,
-    with_clause: &WithClause,
-) {
-    visitor.visit_any(tree, NodeType::WithClause, id.id);
-    let right = tree.get(with_clause.right);
-    visitor.visit_expression(tree, with_clause.right, right);
 }
 
 /// Walk the WhereClause.

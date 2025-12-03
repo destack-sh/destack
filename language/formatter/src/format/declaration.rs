@@ -3,7 +3,6 @@ use crate::block::format_block_of_statements;
 use crate::expression::is_expression_breakable;
 use crate::property::format_block_of_properties;
 use crate::r#where::format_where_clause;
-use crate::with::format_with_clause;
 use crate::{
     DestackFormatContext, DestackFormatter, FormatNode, empty_block_with_infix_annotations,
 };
@@ -96,14 +95,6 @@ impl<'ast> FormatNode<'ast, Declaration> for Declaration {
                 // name / key
                 if let Some(name) = descriptor.name {
                     write!(f, [space(), name])?;
-                }
-
-                // with
-                if let Some(with_clauses) = generics.with_clauses.as_ref()
-                    && !with_clauses.is_empty()
-                {
-                    write!(f, [space()])?;
-                    format_with_clause(f, with_clauses)?;
                 }
 
                 // where
@@ -270,14 +261,6 @@ impl<'ast> FormatNode<'ast, Declaration> for Declaration {
                     format_super_type_clause(f, Keyword::Implements, implements_types)?;
                 }
 
-                // with clauses
-                if let Some(with_clauses) = generics.with_clauses.as_ref()
-                    && !with_clauses.is_empty()
-                {
-                    write!(f, [space()])?;
-                    format_with_clause(f, with_clauses)?;
-                }
-
                 // where clauses
                 if let Some(where_clauses) = generics.where_clauses.as_ref()
                     && !where_clauses.is_empty()
@@ -358,14 +341,6 @@ impl<'ast> FormatNode<'ast, Declaration> for Declaration {
                     && !implements_types.is_empty()
                 {
                     format_super_type_clause(f, Keyword::Implements, implements_types)?;
-                }
-
-                // with
-                if let Some(with) = generics.with_clauses.as_ref()
-                    && !with.is_empty()
-                {
-                    write!(f, [space()])?;
-                    format_with_clause(f, with)?;
                 }
 
                 // where
@@ -453,14 +428,6 @@ impl<'ast> FormatNode<'ast, Declaration> for Declaration {
                     && !extends_types.is_empty()
                 {
                     format_super_type_clause(f, Keyword::Extends, extends_types)?;
-                }
-
-                // with clauses
-                if let Some(with) = generics.with_clauses.as_ref()
-                    && !with.is_empty()
-                {
-                    write!(f, [space()])?;
-                    format_with_clause(f, with)?;
                 }
 
                 // where clauses
@@ -551,14 +518,6 @@ impl<'ast> FormatNode<'ast, Declaration> for Declaration {
                     && !implements_types.is_empty()
                 {
                     format_super_type_clause(f, Keyword::Implements, implements_types)?;
-                }
-
-                // with
-                if let Some(with) = generics.with_clauses.as_ref()
-                    && !with.is_empty()
-                {
-                    write!(f, [space()])?;
-                    format_with_clause(f, with)?;
                 }
 
                 // where
@@ -691,14 +650,6 @@ impl<'ast> FormatNode<'ast, Declaration> for Declaration {
                     } else {
                         write!(f, [token(":"), space(), return_type])?;
                     }
-                }
-
-                // with clause
-                if let Some(with) = generics.and_then(|generics| generics.with_clauses.as_ref())
-                    && !with.is_empty()
-                {
-                    write!(f, [space()])?;
-                    format_with_clause(f, with)?;
                 }
 
                 // where clause

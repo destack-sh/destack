@@ -56,9 +56,6 @@ impl Parser {
         // optional extends types
         let extends_types = self.eat_extends_types_maybe()?;
 
-        // with
-        let with_clauses = self.eat_with_header_maybe()?;
-
         // where
         let where_clauses = self.eat_where_maybe()?;
 
@@ -75,7 +72,7 @@ impl Parser {
             .for_node_type(NodeType::Declaration)?;
 
         // interface
-        let generics = Generics::new(static_parameters, with_clauses, where_clauses);
+        let generics = Generics::new(static_parameters, where_clauses);
         let heritage = Heritage::new(extends_types, None);
         let interface_id = self.tree.insert(
             Declaration::Interface {
@@ -95,7 +92,7 @@ mod tests {
     use destack_ast::{
         BindingKind, Declaration, DeclarationDescriptor, DeclarationKind, Expression, FunctionMode,
         IntType, Key, Mutability, Name, Parameter, Property, ScalarLiteral, TypeLiteral,
-        WhereClause, WithClause,
+        WhereClause,
     };
 
     use crate::{TestParser, assert_expression_path, assert_node, assert_path, assert_string};
@@ -207,10 +204,10 @@ interface Foo extends Baz {
     }
 
     #[test]
-    fn test_parse_interface_with_clause() {
+    fn test_parse_interface_with_where_clause() {
         let mut test = TestParser::new(
             r###"
-interface Baz<T> with T: Copy where Requirement: Interface {
+interface Baz<T> where Requirement: Interface {
 }
 "###,
         );
@@ -230,15 +227,6 @@ interface Baz<T> with T: Copy where Requirement: Interface {
                 .expect("expected static params");
             assert_eq!(params.len(), 1);
 
-            // with T: Copy
-            let with_items = generics.with_clauses.as_ref().expect("expected with clauses");
-            assert_eq!(with_items.len(), 1);
-            assert_node!(parser.tree, with_items[0], WithClause { alias, right } => {
-                assert_string!(parser, alias.unwrap(), "T");
-                assert_node!(parser.tree, *right, Expression::Path { path, .. } => {
-                    assert_path!(parser, *path, "Copy");
-                });
-            });
             // where Requirement: Interface
             let where_items = generics.where_clauses.as_ref().expect("expected where clauses");
             assert_eq!(where_items.len(), 1);

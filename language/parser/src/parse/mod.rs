@@ -29,7 +29,6 @@ mod r#try;
 mod r#type;
 mod visibility;
 mod r#where;
-mod with;
 
 pub use expression::{
     COMPOSITE_TYPE_KEYWORDS, DECLARATION_KEYWORDS, DECLARATION_START_TOKENS, PATTERN_START_TOKENS,

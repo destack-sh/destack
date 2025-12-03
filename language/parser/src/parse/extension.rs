@@ -59,9 +59,6 @@ impl Parser {
         // implements types
         let implements_types = self.eat_implements_types_maybe()?;
 
-        // with
-        let with_clauses = self.eat_with_header_maybe()?;
-
         // where
         let where_clauses = self.eat_where_maybe()?;
 
@@ -73,7 +70,7 @@ impl Parser {
         self.eat_token(TokenType::CloseBrace)?;
 
         // extension
-        let generics = Generics::new(static_parameters, with_clauses, where_clauses);
+        let generics = Generics::new(static_parameters, where_clauses);
         let heritage = Heritage::new(None, implements_types);
         let extension_id = self.tree.insert(
             Declaration::Extension {
@@ -93,7 +90,7 @@ impl Parser {
 mod tests {
     use destack_ast::{
         Argument, BinaryOperator, Declaration, DeclarationDescriptor, DeclarationKind, Expression,
-        IntType, Parameter, TypeLiteral, WhereClause, WithClause,
+        IntType, Parameter, TypeLiteral, WhereClause,
     };
 
     use crate::{TestParser, assert_expression_path, assert_node, assert_path, assert_string};
@@ -273,10 +270,10 @@ extension<U> Bar<T> implements Baz<T> {
     }
 
     #[test]
-    fn test_parse_extension_with_path_name_and_with_and_where() {
+    fn test_parse_extension_with_path_name_and_where() {
         let mut test = TestParser::new(
             r###"
-extension Foo with Context where Guard > Limit {
+extension Foo where Guard > Limit {
 }
 "###,
         );
@@ -290,15 +287,6 @@ extension Foo with Context where Guard > Limit {
             assert_eq!(descriptor.kind, DeclarationKind::Definition);
             assert!(!generics.is_empty());
 
-            // with Context
-            let with_items = generics.with_clauses.as_ref().expect("expected with clauses");
-            assert_eq!(with_items.len(), 1);
-            assert_node!(parser.tree, with_items[0], WithClause { alias: _, right } => {
-                assert_node!(parser.tree, *right, Expression::Path { path, static_arguments } => {
-                    assert_path!(parser, *path, "Context");
-                    assert!(static_arguments.is_none());
-                });
-            });
             // where Guard > Limit
             let where_items = generics.where_clauses.as_ref().expect("expected where clauses");
             assert_eq!(where_items.len(), 1);

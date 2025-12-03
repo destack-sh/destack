@@ -468,24 +468,6 @@ if (result.ok) {
 }
 ```
 
-## Context and Effects
-
-Destack adds effect tracking to declare and manage what a function can do.
-
-### With Clauses
-
-`with` clauses declare which effects or contexts a function requires:
-
-```
-function readFile(path: string): string with FileSystem {
-    // ...
-}
-
-function pure<T>(x: T): T with !Allocation {
-    // must not allocate
-}
-```
-
 ## Declarations
 
 Declaration forms in Destack match TypeScript, with the addition of richer static parameterisation and our concept of nominal typing (like with `newtype` behavior for `enum`s).
@@ -1572,9 +1554,9 @@ All annotations are preserved in the AST and available to tooling.
 Tags are metadata attached to declarations. A tag is effectively a newtype instantiation:
 
 ```
-newtype Performance = void         // unit tag
-newtype deprecated = string        // scalar tag
-newtype version = (int, int, int)  // tuple tag
+newtype Performance = void;         // unit tag
+newtype deprecated = string;        // scalar tag
+newtype version = (int, int, int);  // tuple tag
 
 #Performance                       // unit tag (no arguments)
 #deprecated("use new API")         // scalar tag

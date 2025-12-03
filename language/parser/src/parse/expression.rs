@@ -726,10 +726,6 @@ impl Parser {
             else if keyword == Some(Keyword::Delete) && next_token_type == TokenType::Identifier {
                 self.eat_delete()?
             }
-            // with
-            else if keyword == Some(Keyword::With) {
-                self.eat_with()?
-            }
             // import
             else if keyword == Some(Keyword::Import)
                 && [
@@ -1275,7 +1271,7 @@ mod tests {
         DeclarationType, DependencyItem, DependencyKind, DependencyMode, Expression, FunctionKind,
         IntType, Key, Mutability, Name, Parameter, Pattern, PatternField, PostfixPosition,
         Property, ScalarLiteral, TypeBinaryOperator, TypeLiteral, TypeUnaryOperator, UnaryOperator,
-        VarianceBound, WithClause,
+        VarianceBound,
     };
 
     use crate::{
@@ -1950,7 +1946,7 @@ const shapes = (
     /// Parse a lambda function type with parameters and return type.
     #[test]
     fn test_parse_lambda_function_type() {
-        let mut test = TestParser::new("(a: int32) => int32 with Time");
+        let mut test = TestParser::new("(a: int32) => int32");
         let mut parser = test.prepare();
         let expr_id = parser
             .with_options(parser.options.in_type(), |parser| parser.eat_expression())
@@ -1965,15 +1961,6 @@ const shapes = (
                 });
                 // int32
                 assert_node!(parser.tree, signature.return_type.unwrap(), Expression::TypeLiteral(TypeLiteral::Int(IntType::Arbitrary { width: Some(32), is_signed: true })));
-                // with Time
-                let with_clauses = signature
-                    .generics
-                    .as_ref()
-                    .and_then(|generics| generics.with_clauses.as_ref())
-                    .expect("expected with clauses");
-                assert_node!(parser.tree, with_clauses[0], WithClause { right, .. } => {
-                    assert_expression_path!(parser, parser.tree.get(*right), "Time");
-                });
             });
         });
     }

@@ -3,7 +3,7 @@ use destack_dir::{
     Argument, BinaryOperator, Block, Declaration, DependencyItem, EnumField, Expression,
     FunctionSignature, Generics, Heritage, LocalNodeId, LocalTypeId, Module, Mutability, NodeTree,
     Parameter, Pattern, PatternField, PrimitiveType, Property, ScalarLiteral, SymbolTable, Type,
-    TypeKind, TypeLiteral, TypeTable, UnaryOperator, VarianceBound, WhereClause, WithClause,
+    TypeKind, TypeLiteral, TypeTable, UnaryOperator, VarianceBound, WhereClause,
 };
 
 #[allow(clippy::too_many_arguments)]
@@ -47,24 +47,6 @@ impl Compiler {
                 types.insert_type_from(ty, expression_id)
             }
 
-            // with
-            Expression::With {
-                clauses,
-                scope: _,
-                symbol: _,
-                body,
-            } => {
-                for clause_id in clauses {
-                    self.analyze_with_clause(module, *clause_id, tree, symbols, types, ctx)?;
-                }
-                if let Some(body_id) = body {
-                    self.analyze_block(module, *body_id, tree, symbols, types, ctx)?;
-                }
-                let ty = Type::TypeLiteral {
-                    value: TypeLiteral::Void,
-                };
-                types.insert_type_from(ty, expression_id)
-            }
             // import / exports
             Expression::Import {
                 kind: _,
@@ -537,11 +519,6 @@ impl Compiler {
                 self.analyze_parameter(module, *parameter_id, tree, symbols, types, ctx)?;
             }
         }
-        if let Some(clauses) = &generics.with_clauses {
-            for clause_id in clauses {
-                self.analyze_with_clause(module, *clause_id, tree, symbols, types, ctx)?;
-            }
-        }
         if let Some(clauses) = &generics.where_clauses {
             for clause_id in clauses {
                 self.analyze_where_clause(module, *clause_id, tree, symbols, types, ctx)?;
@@ -702,21 +679,6 @@ impl Compiler {
                 // nothing to do
             }
         }
-        Ok(())
-    }
-
-    /// Analyze a with clause.
-    fn analyze_with_clause(
-        &self,
-        module: &Module,
-        clause_id: LocalNodeId<WithClause>,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
-        ctx: &mut TypeContext,
-    ) -> AnalyzeResult<()> {
-        let clause = tree.get(clause_id);
-        self.analyze_expression(module, clause.right, tree, symbols, types, ctx)?;
         Ok(())
     }
 

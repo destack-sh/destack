@@ -1,6 +1,6 @@
 use crate::{
     BindingAnchor, DependencyMode, Expression, FunctionSignature, LocalNodeId, Mutability, Name,
-    Node, NodeType, Parameter, Property, TypeKind, WhereClause, WithClause,
+    Node, NodeType, Parameter, Property, TypeKind, WhereClause,
 };
 
 /// The kind of declaration.
@@ -57,8 +57,6 @@ impl DeclarationDescriptor {
 pub struct Generics {
     /// The static parameters of the declaration.
     pub static_parameters: Option<Vec<LocalNodeId<Parameter>>> = None,
-    /// The with clauses of the declaration.
-    pub with_clauses: Option<Vec<LocalNodeId<WithClause>>> = None,
     /// The where clauses of the declaration.
     pub where_clauses: Option<Vec<LocalNodeId<WhereClause>>> = None,
 }
@@ -67,21 +65,17 @@ impl Generics {
     /// Create generics from the provided parts.
     pub fn new(
         static_parameters: Option<Vec<LocalNodeId<Parameter>>>,
-        with_clauses: Option<Vec<LocalNodeId<WithClause>>>,
         where_clauses: Option<Vec<LocalNodeId<WhereClause>>>,
     ) -> Self {
         Self {
             static_parameters,
-            with_clauses,
             where_clauses,
         }
     }
 
     /// Check whether the generics are empty.
     pub fn is_empty(&self) -> bool {
-        self.static_parameters.is_none()
-            && self.with_clauses.is_none()
-            && self.where_clauses.is_none()
+        self.static_parameters.is_none() && self.where_clauses.is_none()
     }
 
     /// Convert the generics into an Option, dropping empty instances.
@@ -93,7 +87,6 @@ impl Generics {
     pub fn from_static_parameters(static_parameters: Option<Vec<LocalNodeId<Parameter>>>) -> Self {
         Self {
             static_parameters,
-            with_clauses: None,
             where_clauses: None,
         }
     }
@@ -372,13 +365,6 @@ pub enum Declaration {
     ///    U: Numeric
     /// ) {
     ///    print("Hello, world!")
-    /// }
-    ///
-    /// function baz(a: int32, b: boolean) => (
-    ///    MyStruct,
-    ///    boolean
-    /// ) with Disk, Time { // with can be on next line
-    ///    ...
     /// }
     ///
     /// // optional , if newline-delimited

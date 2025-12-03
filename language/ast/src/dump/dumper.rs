@@ -750,12 +750,6 @@ impl<'a> NodeVisitor for Dumper<'a> {
             Expression::Statement(_) => {
                 self.node("Expression::Statement", _id.id).end();
             }
-            Expression::With {
-                clauses: _,
-                body: _,
-            } => {
-                self.node("Expression::With", _id.id).end();
-            }
             Expression::Import {
                 kind,
                 target,
@@ -1206,20 +1200,6 @@ impl<'a> NodeVisitor for Dumper<'a> {
             .end();
         self.with_depth(|dumper| {
             walk_enum_field(dumper, _tree, _id, field);
-        });
-    }
-
-    fn visit_with_clause(
-        &mut self,
-        _tree: &NodeTree,
-        _id: LocalNodeId<WithClause>,
-        clause: &WithClause,
-    ) {
-        self.node("WithClause", _id.id)
-            .field_optional("alias", &clause.alias)
-            .end();
-        self.with_depth(|dumper| {
-            walk_with_clause(dumper, _tree, _id, clause);
         });
     }
 

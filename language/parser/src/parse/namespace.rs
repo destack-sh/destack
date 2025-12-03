@@ -20,14 +20,11 @@ impl Parser {
         // name
         descriptor = descriptor.with_name_maybe(self.eat_name_maybe()?);
 
-        // with
-        let with_clauses = self.eat_with_header_maybe()?;
-
         // where
         let where_clauses = self.eat_where_maybe()?;
 
         // body
-        let generics = Generics::new(None, with_clauses, where_clauses);
+        let generics = Generics::new(None, where_clauses);
         let namespace = {
             let expressions = if self.peek_token(TokenType::OpenBrace).is_ok() {
                 self.eat_token(TokenType::OpenBrace)?; // eat open brace
@@ -56,7 +53,7 @@ impl Parser {
 mod tests {
     use destack_ast::{
         BinaryOperator, Declaration, DeclarationDescriptor, DeclarationKind, Expression,
-        WhereClause, WithClause,
+        WhereClause,
     };
 
     use crate::{TestParser, assert_expression_path, assert_node, assert_path, assert_string};
@@ -78,17 +75,16 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_inline_namespace_with_with_and_where() {
+    fn test_parse_inline_namespace_with_where() {
         let mut test = TestParser::new(
             r###"
-namespace Foo with Context where Guard > Limit {
+namespace Foo where Guard > Limit {
 }
 "###,
         );
         let mut parser = test.prepare();
         parser.eat_newline().unwrap();
 
-        // namespace Foo with Context where Guard > Limit { }
         let namespace_id = parser
             .eat_namespace(DeclarationDescriptor::default())
             .unwrap();
@@ -98,16 +94,6 @@ namespace Foo with Context where Guard > Limit {
             assert!(descriptor.export.is_none());
             assert!(expressions.is_empty());
             assert!(!generics.is_empty());
-            let with_items = generics.with_clauses.as_ref().expect("expected with clauses");
-            assert_eq!(with_items.len(), 1);
-
-            // with Context
-            assert_node!(parser.tree, with_items[0], WithClause { alias: _, right } => {
-                assert_node!(parser.tree, *right, Expression::Path { path, static_arguments } => {
-                    assert_path!(parser, *path, "Context");
-                    assert!(static_arguments.is_none());
-                });
-            });
             let where_items = generics.where_clauses.as_ref().expect("expected where clauses");
             assert_eq!(where_items.len(), 1);
 
@@ -123,9 +109,8 @@ namespace Foo with Context where Guard > Limit {
     }
 
     #[test]
-    fn test_parse_forward_namespace_with_with_and_where() {
-        let mut test =
-            TestParser::new("namespace Foo with Context where Requirement: Interface { }");
+    fn test_parse_forward_namespace_with_where() {
+        let mut test = TestParser::new("namespace Foo where Requirement: Interface { }");
         let mut parser = test.prepare();
         let namespace_id = parser
             .eat_namespace(DeclarationDescriptor::default())
@@ -137,16 +122,6 @@ namespace Foo with Context where Guard > Limit {
             assert!(descriptor.export.is_none());
             assert!(expressions.is_empty());
             assert!(!generics.is_empty());
-            let with_items = generics.with_clauses.as_ref().expect("expected with clauses");
-            assert_eq!(with_items.len(), 1);
-
-            // with Context
-            assert_node!(parser.tree, with_items[0], WithClause { alias: _, right } => {
-                assert_node!(parser.tree, *right, Expression::Path { path, static_arguments } => {
-                    assert_path!(parser, *path, "Context");
-                    assert!(static_arguments.is_none());
-                });
-            });
             let where_items = generics.where_clauses.as_ref().expect("expected where clauses");
             assert_eq!(where_items.len(), 1);
 

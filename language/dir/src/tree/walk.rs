@@ -1,7 +1,7 @@
 use crate::{
     Annotation, Argument, Block, Declaration, DependencyItem, DynamicKey, EnumField, Expression,
     FunctionSignature, Generics, Heritage, LocalNodeId, MatchCase, NodeTree, NodeType, NodeVisitor,
-    Parameter, Pattern, PatternField, Property, TemplateLiteral, WhereClause, WithClause,
+    Parameter, Pattern, PatternField, Property, TemplateLiteral, WhereClause,
 };
 
 /// Walk any node.
@@ -36,10 +36,6 @@ pub fn walk_any<V: NodeVisitor + ?Sized>(
         NodeType::WhereClause => {
             let where_clause = tree.where_clauses.get(local_idx);
             walk_where_clause(visitor, tree, LocalNodeId::new(node_id), where_clause);
-        }
-        NodeType::WithClause => {
-            let with_clause = tree.with_clauses.get(local_idx);
-            walk_with_clause(visitor, tree, LocalNodeId::new(node_id), with_clause);
         }
         NodeType::DependencyItem => {
             let dependency_item = tree.dependency_items.get(local_idx);
@@ -78,12 +74,6 @@ fn walk_generics<V: NodeVisitor + ?Sized>(visitor: &mut V, tree: &NodeTree, gene
         for parameter_id in static_parameters.iter() {
             let parameter = tree.get(*parameter_id);
             visitor.visit_parameter(tree, *parameter_id, parameter);
-        }
-    }
-    if let Some(with_clauses) = generics.with_clauses.as_ref() {
-        for clause_id in with_clauses.iter() {
-            let clause = tree.get(*clause_id);
-            visitor.visit_with_clause(tree, *clause_id, clause);
         }
     }
     if let Some(where_clauses) = generics.where_clauses.as_ref() {
@@ -159,21 +149,6 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
         } => {
             let statement = tree.get(*statement_id);
             visitor.visit_expression(tree, *statement_id, statement);
-        }
-        Expression::With {
-            clauses,
-            body,
-            scope: _,
-            symbol: _,
-        } => {
-            for clause_id in clauses {
-                let clause = tree.get(*clause_id);
-                visitor.visit_with_clause(tree, *clause_id, clause);
-            }
-            if let Some(body_id) = body {
-                let block = tree.get(*body_id);
-                visitor.visit_block(tree, *body_id, block);
-            }
         }
         Expression::UnresolvedImport {
             kind: _,
@@ -906,18 +881,6 @@ pub fn walk_where_clause<V: NodeVisitor + ?Sized>(
             visitor.visit_expression(tree, *guard, guard_expression);
         }
     }
-}
-
-/// Walk the WithClause.
-pub fn walk_with_clause<V: NodeVisitor + ?Sized>(
-    visitor: &mut V,
-    tree: &NodeTree,
-    id: LocalNodeId<WithClause>,
-    with_clause: &WithClause,
-) {
-    visitor.visit_any(tree, NodeType::WithClause, id.id);
-    let right_expression = tree.get(with_clause.right);
-    visitor.visit_expression(tree, with_clause.right, right_expression);
 }
 
 /// Walk the DependencyItem.

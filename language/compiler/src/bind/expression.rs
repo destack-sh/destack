@@ -76,46 +76,6 @@ impl Compiler {
                 }
             }
 
-            ast::Expression::With { clauses, body } => {
-                let (symbol_id, scope_id) = self.bind_anonymous_item_with_scope(
-                    module,
-                    ScopeKind::Block,
-                    scope,
-                    None,
-                    symbols,
-                );
-                let clauses = clauses
-                    .iter()
-                    .map(|clause| {
-                        self.bind_with_clause(
-                            module,
-                            (scope_id, symbols.get_scope_mark(scope_id)),
-                            *clause,
-                            Some(expression_id),
-                            tree,
-                            symbols,
-                            types,
-                        )
-                    })
-                    .collect();
-                let body = body.map(|body| {
-                    self.bind_block(
-                        module,
-                        (scope_id, symbols.get_scope_mark(scope_id)),
-                        body,
-                        Some(expression_id),
-                        tree,
-                        symbols,
-                        types,
-                    )
-                });
-                Expression::With {
-                    clauses,
-                    body,
-                    scope: scope_id,
-                    symbol: symbol_id,
-                }
-            }
             ast::Expression::Import {
                 kind,
                 target,

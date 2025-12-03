@@ -48,13 +48,6 @@ impl Parser {
     ///    print("Hello, world!")
     /// }
     ///
-    /// function baz(a: int32, b: boolean) => (
-    ///    MyStruct,
-    ///    boolean
-    /// ) with Disk, Time { // with can be on next line
-    ///    ...
-    /// }
-    ///
     /// // optional , if newline-delimited
     /// function longBar<Validate: boolean>(
     ///   /// doc comment for `a`
@@ -180,9 +173,9 @@ impl Parser {
             }
         };
 
-        // return type info (including with/where)
+        // return type info (including where)
         // only for functions or lambda types
-        let (return_type, with_clauses, where_clauses) = {
+        let (return_type, where_clauses) = {
             // lambda with explicit return type
             if kind == FunctionKind::Lambda
                 && (self.peek_colon().is_ok() || self.options.in_type && self.peek_arrow().is_ok())
@@ -195,13 +188,10 @@ impl Parser {
                     parser.eat_expression()
                 })?;
 
-                // with
-                let with_clauses = self.eat_with_header_maybe()?;
-
                 // where
                 let where_clauses = self.eat_where_maybe()?;
 
-                (Some(return_type), with_clauses, where_clauses)
+                (Some(return_type), where_clauses)
             }
             // regular function with return type or lambda type
             else if kind == FunctionKind::Function || self.options.in_type {
@@ -218,17 +208,14 @@ impl Parser {
                     None
                 };
 
-                // with
-                let with_clauses = self.eat_with_header_maybe()?;
-
                 // where
                 let where_clauses = self.eat_where_maybe()?;
 
-                (return_type, with_clauses, where_clauses)
+                (return_type, where_clauses)
             }
             // nothing
             else {
-                (None, None, None)
+                (None, None)
             }
         };
 
@@ -268,7 +255,7 @@ impl Parser {
         };
 
         // function
-        let generics = Generics::new(static_parameters, with_clauses, where_clauses).into_option();
+        let generics = Generics::new(static_parameters, where_clauses).into_option();
         let asynchrony = if is_async {
             Asynchrony::Async
         } else {
@@ -306,7 +293,7 @@ mod tests {
     use destack_ast::{
         Asynchrony, BinaryOperator, Declaration, DeclarationDescriptor, Expression,
         FunctionCardinality, FunctionKind, FunctionMode, IntType, Parameter, TypeLiteral,
-        WhereClause, WithClause,
+        WhereClause,
     };
 
     use crate::{TestParser, assert_expression_path, assert_node, assert_path, assert_string};
@@ -421,13 +408,10 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_function_with_clause() {
+    fn test_parse_function_with_where_clause() {
         let mut test = TestParser::new(
             r###"
-function foo() => int32 with (
-  Time,
-  F: Numeric,
-) where Guard > Limit {
+function foo() => int32 where Guard > Limit {
 }
 "###,
         );
@@ -441,24 +425,6 @@ function foo() => int32 with (
             // function name
             assert_string!(parser, descriptor.name.unwrap().string(), "foo");
             let generics = signature.generics.as_ref().expect("expected generics");
-            let with_clauses = generics.with_clauses.as_ref().unwrap();
-            assert_eq!(with_clauses.len(), 2);
-
-            // Time
-            assert_node!(parser.tree, with_clauses[0], WithClause { alias: _, right } => {
-                assert_node!(parser.tree, *right, Expression::Path { path, static_arguments } => {
-                    assert_path!(parser, *path, "Time");
-                    assert!(static_arguments.is_none());
-                });
-            });
-
-            // F: Numeric
-            assert_node!(parser.tree, with_clauses[1], WithClause { alias, right } => {
-                assert_string!(parser, alias.unwrap(), "F");
-                assert_node!(parser.tree, *right, Expression::Path { path, .. } => {
-                    assert_path!(parser, *path, "Numeric");
-                });
-            });
             // where Guard > Limit
             let where_clauses = generics.where_clauses.as_ref().expect("expected where clauses");
             assert_eq!(where_clauses.len(), 1);
