@@ -218,7 +218,7 @@ pub struct DsConfigCompilerOptionsJson {
     pub allow_expressions: Option<bool>,
     /// Allow tree literals: TSX-like syntax generalized for any tree-shaped data.
     pub allow_trees: Option<bool>,
-    /// Allow annotations: tags (`#`) and extended decorators (`@`).
+    /// Allow annotations: decorators (`@`) extended to any expression.
     pub allow_annotations: Option<bool>,
     /// Allow type system extensions: runtime types, newtypes, primitives, structs, constraints.
     pub allow_types: Option<bool>,

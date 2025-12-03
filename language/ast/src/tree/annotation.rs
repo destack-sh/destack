@@ -34,11 +34,6 @@ pub enum Annotation {
         node: LocalNodeId<Comment>,
         position: AnnotationPosition,
     },
-    /// A tag annotation (like `#Foo` or `#Foo(x: 1)`).
-    Tag {
-        node: LocalNodeId<Tag>,
-        position: AnnotationPosition,
-    },
     /// A decorator annotation (like `@foo` or `@foo(1, 2, 3)`).
     Decorator {
         node: LocalNodeId<Decorator>,
@@ -56,7 +51,6 @@ impl Annotation {
             Annotation::Blank { position, .. } => *position,
             Annotation::Doc { position, .. } => *position,
             Annotation::Comment { position, .. } => *position,
-            Annotation::Tag { position, .. } => *position,
             Annotation::Decorator { position, .. } => *position,
         }
     }
@@ -133,25 +127,6 @@ pub struct Comment {
 
 impl Node for Comment {
     const TYPE: NodeType = NodeType::Comment;
-}
-
-/// A Tag is a block or line-scoped tag annotation.
-///
-/// Examples:
-/// ```
-/// #Foo
-/// #Foo(x: 1)
-/// ```
-#[derive(Debug, Clone, PartialEq)]
-pub struct Tag {
-    /// The tag name / path.
-    pub left: Path,
-    /// The arguments (if any).
-    pub arguments: Option<Vec<LocalNodeId<Argument>>>,
-}
-
-impl Node for Tag {
-    const TYPE: NodeType = NodeType::Tag;
 }
 
 /// A Decorator is a block-scoped decorator annotation.

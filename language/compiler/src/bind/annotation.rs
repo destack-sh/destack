@@ -102,32 +102,6 @@ impl Compiler {
                     .intern_from(&module.ast_strings, comment.string);
                 Annotation::Comment { position, string }
             }
-            ast::Annotation::Tag { node, position } => {
-                let tag = module.ast.get(*node);
-                let position = self.bind_annotation_position(*position);
-                let path = self.bind_path(module, &tag.left);
-                let arguments = tag.arguments.as_ref().map(|arguments| {
-                    arguments
-                        .iter()
-                        .map(|argument| {
-                            self.bind_argument(
-                                module,
-                                scope,
-                                *argument,
-                                Some(annotation_id),
-                                tree,
-                                symbols,
-                                types,
-                            )
-                        })
-                        .collect()
-                });
-                Annotation::UnevaluatedTag {
-                    position,
-                    path,
-                    arguments,
-                }
-            }
             ast::Annotation::Decorator { node, position } => {
                 let decorator = module.ast.get(*node);
                 let position = self.bind_annotation_position(*position);

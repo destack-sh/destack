@@ -4,7 +4,7 @@ use crate::parse::prelude::*;
 use crate::{ParseResult, Parser};
 use destack_ast::{
     ANNOTATION_NODE_TYPES, Annotation, AnnotationPosition, Blank, Comment, CommentStyle, Decorator,
-    Doc, DocStyle, LocalNodeId, NodeType, Tag, TokenSpan, TokenType,
+    Doc, DocStyle, LocalNodeId, NodeType, TokenSpan, TokenType,
 };
 use destack_source::{MultiSpan, NodeSearch, Span};
 
@@ -19,24 +19,14 @@ const ANNOTATION_TOKEN_TYPES: [TokenType; 5] = [
 const STATIC_BLOCK_KEYWORDS_STR: [&str; 3] = ["loop", "for", "while"];
 
 impl Parser {
-    /// Eat all side annotations (like Tags).
+    /// Eat all side annotations (decorators).
     /// NOTE: One full pass, consuming the entire Parser.
     pub(crate) fn eat_side_annotations(&mut self) {
         // parse out all the side annotations
         while let Ok(token) = self.peek() {
-            // #
-            // tags are line and block scoped
-            if token.token.ty == TokenType::Tag && self.language.compatibility.is_none() {
-                let _ = self.with_recovery(
-                    self.mark(),
-                    |parser| parser.eat_tag().map(Some),
-                    None,
-                    TokenType::Newline,
-                );
-            }
             // @
             // decorators are block scoped only
-            else if token.token.ty == TokenType::At
+            if token.token.ty == TokenType::At
                 // must be block scoped
                 && (self.prev().is_none()
                     || self.prev().unwrap().token.ty == TokenType::Newline)
@@ -67,56 +57,6 @@ impl Parser {
                 self.bump();
             }
         }
-    }
-
-    /// Eat a tag.
-    /// Tags are basically just free-floating typed (struct/tuple) annotations.
-    ///
-    /// Examples:
-    /// ```
-    /// #Foo
-    /// #Foo(x: 1)
-    /// ```
-    fn eat_tag(&mut self) -> ParseResult<LocalNodeId<Tag>> {
-        let start = self.mark();
-
-        // #
-        self.eat_token(TokenType::Tag)?;
-
-        // receiver
-        let receiver = self.eat_path().for_node_type(NodeType::Tag)?;
-
-        // arguments
-        let arguments = if self.peek_token(TokenType::OpenParenthesis).is_ok() {
-            self.bump(); // eat open parenthesis
-            self.eat_newlines_maybe()?;
-            // empty parentheses
-            if self.peek_token(TokenType::CloseParenthesis).is_ok() {
-                self.bump(); // eat close parenthesis
-                None
-            }
-            // non-empty parentheses (positional only)
-            else {
-                let arguments = self
-                    .eat_positional_arguments_body(TokenType::CloseParenthesis)
-                    .for_node_type(NodeType::Tag)?;
-                self.eat_token(TokenType::CloseParenthesis)
-                    .for_node_type(NodeType::Tag)?;
-                Some(arguments)
-            }
-        } else {
-            None
-        };
-
-        // tag
-        let tag = self.tree.insert(
-            Tag {
-                left: receiver,
-                arguments,
-            },
-            self.get_span_from(start),
-        );
-        Ok(tag)
     }
 
     /// Eat a decorator.
@@ -253,33 +193,8 @@ impl Parser {
         }
     }
 
-    /// Attach the side Tag annotations to relevant nodes.
+    /// Attach decorator annotations to relevant nodes.
     fn attach_main_annotations(&mut self, tokens: &[TokenSpan], ignore_span: &MultiSpan) {
-        // attach Tags
-        for tag_id in self.tree.get_nodes::<Tag>() {
-            let span = self.tree.get_span(tag_id);
-
-            // find the annotation position
-            let Some((position, target_node_id)) =
-                self.find_main_annotation_target(tokens, ignore_span, false, span)
-            else {
-                // error if no position found
-                let error = ParseError::unexpected_for(span, NodeType::Tag);
-                self.error(&error);
-                continue;
-            };
-
-            // attach the annotation
-            let annotation_id = self.tree.insert(
-                Annotation::Tag {
-                    node: tag_id,
-                    position,
-                },
-                span,
-            );
-            self.tree.append_annotation(target_node_id, annotation_id);
-        }
-
         // attach Decorators
         for decorator_id in self.tree.get_nodes::<Decorator>() {
             let span = self.tree.get_span(decorator_id);
@@ -764,9 +679,9 @@ impl Parser {
 #[cfg(test)]
 mod tests {
     use destack_ast::{
-        Annotation, AnnotationPosition, Argument, BinaryOperator, Blank, Block, BlockFormat,
+        Annotation, AnnotationPosition, BinaryOperator, Blank, Block, BlockFormat,
         Comment, CommentStyle, Declaration, DeclarationDescriptor, Decorator, Doc, DocStyle,
-        Expression, Key, Name, Property, ScalarLiteral, Tag,
+        Expression, Key, Name, Property,
     };
 
     use crate::{TestParser, assert_node, assert_path, assert_string};
@@ -816,63 +731,6 @@ let y;
         });
     }
 
-    /// Tag annotations should be parsed around a struct.
-    #[test]
-    fn test_attach_tag_annotations_surrounding_struct() {
-        let mut test = TestParser::new(
-            r#"
-/// Test doc
-#destack.BeginGroup("MyGroup", 1)
-struct Test {}
-#destack.EndGroup
-"#,
-        );
-        let mut parser = test.prepare();
-        let expressions = parser.parse();
-
-        assert_eq!(expressions.len(), 1);
-        let annotations = parser.tree.get_annotations(expressions[0].id);
-        assert_eq!(annotations.len(), 3);
-        // doc block prefix
-        // /// Test doc
-        assert_node!(parser.tree, annotations[0], Annotation::Doc { node, position } => {
-            assert_eq!(*position, AnnotationPosition::BlockPrefix);
-            assert_node!(parser.tree, *node, Doc { string, style } => {
-                assert_string!(parser, *string, "Test doc");
-                assert_eq!(*style, DocStyle::Slash);
-            });
-        });
-        // tag block prefix
-        // #BeginGroup("MyGroup", 1)
-        assert_node!(parser.tree, annotations[1], Annotation::Tag { node, position } => {
-            assert_eq!(*position, AnnotationPosition::BlockPrefix);
-            assert_node!(parser.tree, *node, Tag { left, arguments } => {
-                assert_path!(parser, *left, "destack.BeginGroup");
-                assert!(arguments.is_some());
-                assert_eq!(arguments.as_ref().unwrap().len(), 2);
-                // "MyGroup"
-                assert_node!(parser.tree, arguments.as_ref().unwrap()[0], Argument::Positional { value } => {
-                    assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::String(string_id)) => {
-                        assert_string!(parser, *string_id, "MyGroup");
-                    });
-                });
-                // 1
-                assert_node!(parser.tree, arguments.as_ref().unwrap()[1], Argument::Positional { value } => {
-                    assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
-                });
-            });
-        });
-        // tag block postfix
-        // #EndGroup
-        assert_node!(parser.tree, annotations[2], Annotation::Tag { node, position } => {
-            assert_eq!(*position, AnnotationPosition::BlockPostfix);
-            assert_node!(parser.tree, *node, Tag { left, arguments } => {
-                assert_path!(parser, *left, "destack.EndGroup");
-                assert!(arguments.is_none());
-            });
-        });
-    }
-
     /// Decorator annotations should be parsed around any block.
     #[test]
     fn test_attach_decorator_to_function() {
@@ -889,81 +747,6 @@ struct Test {}
             assert_node!(parser.tree, *node, Decorator { left, arguments } => {
                 assert_path!(parser, *left, "foo");
                 assert!(arguments.is_none());
-            });
-        });
-    }
-
-    /// Annotations should default to infix within source if no other position is found.
-    #[test]
-    fn test_attach_annotations_fallback_to_infix() {
-        // C and D are not in "valid" positions and should fall back to infix
-        let mut test = TestParser::new("#A\n#B struct #C Test #D { #E } #F\n#G");
-        let mut parser = test.prepare();
-        let expressions = parser.parse();
-
-        assert_eq!(expressions.len(), 1);
-        let annotations = parser.tree.get_annotations(expressions[0].id);
-        assert_eq!(annotations.len(), 4);
-        // A: block prefix
-        assert_node!(parser.tree, annotations[0], Annotation::Tag { node, position } => {
-            assert_eq!(*position, AnnotationPosition::BlockPrefix);
-            assert_node!(parser.tree, *node, Tag { left, arguments } => {
-                assert_path!(parser, *left, "A");
-                assert!(arguments.is_none());
-            });
-        });
-        // B: line prefix
-        assert_node!(parser.tree, annotations[1], Annotation::Tag { node, position } => {
-            assert_eq!(*position, AnnotationPosition::LinePrefix);
-            assert_node!(parser.tree, *node, Tag { left, arguments } => {
-                assert_path!(parser, *left, "B");
-                assert!(arguments.is_none());
-            });
-        });
-        // F: line postfix boundary
-        assert_node!(parser.tree, annotations[2], Annotation::Tag { node, position } => {
-            assert_eq!(*position, AnnotationPosition::LinePostfixBoundary);
-            assert_node!(parser.tree, *node, Tag { left, arguments } => {
-                assert_path!(parser, *left, "F");
-                assert!(arguments.is_none());
-            });
-        });
-        // G: block postfix
-        assert_node!(parser.tree, annotations[3], Annotation::Tag { node, position } => {
-            assert_eq!(*position, AnnotationPosition::BlockPostfix);
-            assert_node!(parser.tree, *node, Tag { left, arguments } => {
-                assert_path!(parser, *left, "G");
-                assert!(arguments.is_none());
-            });
-        });
-
-        // block infix to innermost node (Declaration::Struct)
-        assert_node!(parser.tree, expressions[0], Expression::Declaration(node) => {
-            let annotations = parser.tree.get_annotations(node.id);
-            assert_eq!(annotations.len(), 3);
-            // C: block infix
-            assert_node!(parser.tree, annotations[0], Annotation::Tag { node, position } => {
-                assert_eq!(*position, AnnotationPosition::BlockInfix);
-                assert_node!(parser.tree, *node, Tag { left, arguments } => {
-                    assert_path!(parser, *left, "C");
-                    assert!(arguments.is_none());
-                });
-            });
-            // D: block infix
-            assert_node!(parser.tree, annotations[1], Annotation::Tag { node, position } => {
-                assert_eq!(*position, AnnotationPosition::BlockInfix);
-                assert_node!(parser.tree, *node, Tag { left, arguments } => {
-                    assert_path!(parser, *left, "D");
-                    assert!(arguments.is_none());
-                });
-            });
-            // E: block infix
-            assert_node!(parser.tree, annotations[2], Annotation::Tag { node, position } => {
-                assert_eq!(*position, AnnotationPosition::BlockInfix);
-                assert_node!(parser.tree, *node, Tag { left, arguments } => {
-                    assert_path!(parser, *left, "E");
-                    assert!(arguments.is_none());
-                });
             });
         });
     }

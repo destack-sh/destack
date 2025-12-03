@@ -1467,11 +1467,6 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .field("position", position)
                     .end();
             }
-            Annotation::Tag { node: _, position } => {
-                self.node("Annotation::Tag", _id.id)
-                    .field("position", position)
-                    .end();
-            }
             Annotation::Decorator { node: _, position } => {
                 self.node("Annotation::Decorator", _id.id)
                     .field("position", position)
@@ -1511,13 +1506,6 @@ impl<'a> NodeVisitor for Dumper<'a> {
             .end();
         self.with_depth(|dumper| {
             walk_comment(dumper, _tree, _id, comment);
-        });
-    }
-
-    fn visit_tag(&mut self, _tree: &NodeTree, _id: LocalNodeId<Tag>, tag: &Tag) {
-        self.node("Tag", _id.id).field("left", &tag.left).end();
-        self.with_depth(|dumper| {
-            walk_tag(dumper, _tree, _id, tag);
         });
     }
 

@@ -65,7 +65,7 @@ impl Token {
             // Misc
             // --------------------------------------------------
             TokenType::At => "@".to_string(),
-            TokenType::Tag => "#".to_string(),
+            TokenType::Hash => "#".to_string(),
 
             // --------------------------------------------------
             // Elementwise / Logical / Dynamic prefixes

@@ -1212,24 +1212,6 @@ pub fn walk_annotation<V: NodeVisitor + ?Sized>(
             position: _,
             string: _,
         } => {}
-        Annotation::UnevaluatedTag {
-            position: _,
-            path: _,
-            arguments,
-        } => {
-            if let Some(arguments) = arguments {
-                for argument_id in arguments {
-                    let argument = tree.get(*argument_id);
-                    visitor.visit_argument(tree, *argument_id, argument);
-                }
-            }
-        }
-        Annotation::Tag {
-            position: _,
-            value: _,
-        } => {
-            // nothing to do
-        }
         Annotation::Decorator {
             position: _,
             left,

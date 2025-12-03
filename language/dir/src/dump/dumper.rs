@@ -1723,21 +1723,6 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .field("string", string)
                     .end();
             }
-            Annotation::UnevaluatedTag {
-                position,
-                path,
-                arguments: _,
-            } => {
-                self.node("Annotation::UnevaluatedTag", id.id)
-                    .field("position", position)
-                    .field("path", path)
-                    .end();
-            }
-            Annotation::Tag { position, value: _ } => {
-                self.node("Annotation::Tag", id.id)
-                    .field("position", position)
-                    .end();
-            }
             Annotation::Decorator {
                 position,
                 left,

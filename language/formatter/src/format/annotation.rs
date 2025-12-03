@@ -5,7 +5,7 @@ use destack_fir::{format_args, write};
 use crate::{DestackFormatContext, DestackFormatter, FormatNode};
 use destack_ast::{
     Annotation, AnnotationPosition, Blank, Comment, CommentStyle, Decorator, Doc, DocStyle,
-    LocalNodeId, Node, NodeTree, NodeTreeImpl, NodeType, Tag,
+    LocalNodeId, Node, NodeTree, NodeTreeImpl, NodeType,
 };
 
 impl<'ast> DestackFormatContext<'ast> {
@@ -137,7 +137,6 @@ where
                 Annotation::Blank { position, .. } => (NodeType::Blank, *position),
                 Annotation::Doc { position, .. } => (NodeType::Doc, *position),
                 Annotation::Comment { position, .. } => (NodeType::Comment, *position),
-                Annotation::Tag { position, .. } => (NodeType::Tag, *position),
                 Annotation::Decorator { position, .. } => (NodeType::Decorator, *position),
             };
 
@@ -242,7 +241,6 @@ impl<'ast> FormatNode<'ast, Annotation> for Annotation {
             }
             Annotation::Doc { node, .. } => node.format(f),
             Annotation::Comment { node, .. } => node.format(f),
-            Annotation::Tag { node, .. } => node.format(f),
             Annotation::Decorator { node, .. } => node.format(f),
         }
     }
@@ -358,32 +356,6 @@ impl<'ast> FormatNode<'ast, Comment> for Comment {
     }
 }
 
-impl<'ast> FormatNode<'ast, Tag> for Tag {
-    fn format_node(
-        &self,
-        _node_id: LocalNodeId<Tag>,
-        f: &mut DestackFormatter<'ast, '_>,
-    ) -> FormatResult<()> {
-        write!(f, [token("#"), self.left])?;
-        if let Some(arguments) = &self.arguments
-            && !arguments.is_empty()
-        {
-            write!(
-                f,
-                [group(&format_args![
-                    token("("),
-                    soft_block_indent(&format_with(|f| f
-                        .join_with(&format_args![&token(","), soft_line_break_or_space()])
-                        .entries(arguments)
-                        .finish())),
-                    token(")")
-                ])]
-            )?;
-        }
-        Ok(())
-    }
-}
-
 impl<'ast> FormatNode<'ast, Decorator> for Decorator {
     fn format_node(
         &self,
@@ -439,24 +411,6 @@ mod tests {
         );
     }
 
-    /// Tags should be preserved in order.
-    #[test]
-    fn test_format_tags_around_declaration() {
-        let source = r#"struct Entity {
-    /// name
-    #BeginGroup(17)
-    #internal #something name: String #name
-    numBananas: int32 #bananas
-    #EndGroup
-}"#;
-        assert_format!(
-            source,
-            source,
-            |p| p.eat_struct_or_class(DeclarationDescriptor::default()),
-            DestackFormatOptions::default()
-        );
-    }
-
     /// Decorators should be preserved in order with other annotations.
     #[test]
     fn test_format_decorators_on_struct() {
@@ -492,17 +446,6 @@ mod tests {
             source,
             |p| p.eat_block(),
             DestackFormatOptions::default()
-        );
-    }
-
-    /// Annotations should default to infix within source if no other position is found.
-    #[test]
-    fn test_format_annotations_fallback_to_infix() {
-        assert_format!(
-            "#A struct #B Test #C { #D } #E",
-            "#A struct Test {\n\t#B\n\t#C\n\t#D\n} #E\n",
-            |p| p.eat_struct_or_class(DeclarationDescriptor::default()),
-            DestackFormatOptions::default_tab()
         );
     }
 

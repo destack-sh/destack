@@ -6,7 +6,7 @@ use destack_source::{FileSourceMap, Span};
 use crate::{
     Annotation, AnnotationPosition, Arena, Argument, Blank, Block, Comment, Declaration, Decorator,
     DependencyItem, Doc, EnumField, Expression, LocalNodeId, MatchCase, Node, NodeType, Parameter,
-    Pattern, PatternField, Property, Tag, WhereClause,
+    Pattern, PatternField, Property, WhereClause,
 };
 
 /// Mutable AST Node tree for a single source unit. NOT THREAD-SAFE.
@@ -40,7 +40,6 @@ pub struct NodeTree {
     pub(crate) blanks: Arena<Blank>,
     pub(crate) docs: Arena<Doc>,
     pub(crate) comments: Arena<Comment>,
-    pub(crate) tags: Arena<Tag>,
     pub(crate) decorators: Arena<Decorator>,
 }
 
@@ -89,7 +88,6 @@ impl NodeTree {
             blanks: Arena::new(),
             docs: Arena::new(),
             comments: Arena::new(),
-            tags: Arena::new(),
             decorators: Arena::new(),
         }
     }
@@ -374,6 +372,5 @@ impl_node_tree_stores! {
     Blank => blanks,
     Doc => docs,
     Comment => comments,
-    Tag => tags,
     Decorator => decorators,
 }

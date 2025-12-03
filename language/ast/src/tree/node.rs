@@ -22,7 +22,6 @@ pub enum NodeType {
     Blank,
     Doc,
     Comment,
-    Tag,
     Decorator,
 }
 
@@ -47,19 +46,17 @@ impl NodeType {
             NodeType::Blank => "blank",
             NodeType::Doc => "doc",
             NodeType::Comment => "comment",
-            NodeType::Tag => "tag",
             NodeType::Decorator => "decorator",
         }
     }
 }
 
 /// Node types that are annotations.
-pub const ANNOTATION_NODE_TYPES: [NodeType; 6] = [
+pub const ANNOTATION_NODE_TYPES: [NodeType; 5] = [
     NodeType::Annotation,
     NodeType::Blank,
     NodeType::Doc,
     NodeType::Comment,
-    NodeType::Tag,
     NodeType::Decorator,
 ];
 

@@ -100,7 +100,7 @@ impl SemanticType {
             TokenType::Arrow => SemanticType::Operator,
             TokenType::ArrowWide => SemanticType::Operator,
             TokenType::At => SemanticType::Operator,
-            TokenType::Tag => SemanticType::Operator,
+            TokenType::Hash => SemanticType::Operator,
 
             // --------------------------------------------------
             // Elementwise / Logical / Dynamic prefixes

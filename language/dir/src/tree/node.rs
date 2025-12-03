@@ -353,8 +353,6 @@ pub trait Node: Sized {
     /// Whether this node has been fully evaluated (ignoring child nodes).
     ///
     /// Evaluation is type-dependent transformation that happens after resolution.
-    /// For example, `UnevaluatedTag` becomes `Tag` after evaluation, and `Call`
-    /// may become `TaggedScalarExpression` if the callee is a newtype.
     fn is_evaluated(&self) -> bool {
         true // most nodes don't need evaluation
     }
