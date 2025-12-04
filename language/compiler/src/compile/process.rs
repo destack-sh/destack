@@ -1,3 +1,4 @@
+use std::cell::Cell;
 use std::thread;
 
 use crate::{
@@ -9,42 +10,12 @@ use crate::{
 /// Maximum number of yields allowed per task before treating it as an (internal) bug.
 const MAX_TOTAL_YIELD_COUNT: u32 = 100;
 
+thread_local! {
+    /// Flag to detect if we're inside a worker loop (to prevent nested run_task calls).
+    static IN_WORKER_LOOP: Cell<bool> = const { Cell::new(false) };
+}
+
 impl Compiler {
-    /// Runs the compiler loop until there is nothing left to do.
-    pub fn compile(&self) {
-        // spawn worker threads
-        thread::scope(|scope| {
-            for _ in 0..self.options.workers {
-                scope.spawn(|| self.worker_loop());
-            }
-        });
-
-        // flush remaining diagnostics
-        self.flush_diagnostics();
-    }
-
-    /// Worker loop that processes tasks from the ready queue.
-    fn worker_loop(&self) {
-        loop {
-            // try to pop a task from the ready queue
-            let Some(task_id) = self.queue.pop_ready() else {
-                // no task available, wait for work or completion
-                if !self.queue.wait_for_work() {
-                    break;
-                }
-                continue;
-            };
-
-            // get the task handle and run it
-            let handle = self.queue.get_task(task_id);
-            self.queue.begin_work();
-            self.queue.set_status(task_id, TaskStatus::Running);
-            let outcome = self.process_task(&handle);
-            self.handle_outcome(task_id, outcome);
-            self.queue.end_work();
-        }
-    }
-
     /// Enqueue a task to the compiler.
     /// Noop if we already have the same task queued, returns the existing TaskId.
     pub fn enqueue<T: Into<Task>>(&self, task: T) -> (TaskId, bool) {
@@ -73,12 +44,86 @@ impl Compiler {
     /// Get the output of a task
     pub fn get_output<T: Into<Task>>(&self, task: T) -> Option<TaskOutput> {
         let task: Task = task.into();
-        self.queue
-            .find_task_outcome(&task)
-            .and_then(|outcome| match outcome {
-                TaskOutcome::Complete { output } => Some(output),
-                _ => None,
-            })
+        self.queue.find_task_output(&task)
+    }
+
+    /// Runs the compiler loop until there is nothing left to do.
+    pub fn compile(&self) {
+        // spawn worker threads
+        thread::scope(|scope| {
+            for _ in 0..self.options.workers {
+                scope.spawn(|| self.run_loop());
+            }
+        });
+
+        // flush remaining diagnostics
+        self.flush_diagnostics();
+    }
+
+    /// Worker loop that processes tasks from the ready queue.
+    fn run_loop(&self) {
+        IN_WORKER_LOOP.set(true);
+        loop {
+            // try to pop a task from the ready queue
+            let Some(task_id) = self.queue.pop_ready() else {
+                // no task available, wait for work or completion
+                if !self.queue.wait_for_work() {
+                    break;
+                }
+                continue;
+            };
+            self.step_task(task_id);
+        }
+        IN_WORKER_LOOP.set(false);
+    }
+
+    /// Run a task and its dependencies until it is final (Complete or Error).
+    /// If the task would yield with no progress possible, converts to Error.
+    ///
+    /// # Panics
+    /// Panics if called from within `worker_loop`. Use yielding instead.
+    pub fn run_task<T: Into<Task>>(&self, task: T) -> TaskOutcome {
+        assert!(
+            !IN_WORKER_LOOP.get(),
+            "run_task_loop cannot be called from within worker_loop"
+        );
+        let (target_id, _) = self.enqueue(task);
+        loop {
+            // check if target reached a final state
+            if let Some(status) = self.queue.get_status(target_id) {
+                match status {
+                    TaskStatus::Complete { output } => {
+                        return TaskOutcome::Complete { output };
+                    }
+                    TaskStatus::Failed { error } => {
+                        return TaskOutcome::Error { error };
+                    }
+                    _ => {}
+                }
+            }
+
+            // try to pop and run a ready task (non-blocking)
+            let Some(next_id) = self.queue.pop_ready() else {
+                // no ready tasks; if target is yielded, convert to error (deadlock)
+                if let Some(TaskStatus::Yielded { dependency }) = self.queue.get_status(target_id) {
+                    return TaskOutcome::Error {
+                        error: self.get_yield_failed_error(target_id, &dependency),
+                    };
+                }
+                panic!("task {target_id:?} did not reach a final state");
+            };
+            self.step_task(next_id);
+        }
+    }
+
+    /// Process a single task 'step' (run until outcome, not final state).
+    fn step_task(&self, task_id: TaskId) {
+        let handle = self.queue.get_task(task_id);
+        self.queue.begin_work();
+        self.queue.set_status(task_id, TaskStatus::Running);
+        let outcome = self.process_task(&handle);
+        self.handle_outcome(task_id, outcome);
+        self.queue.end_work();
     }
 
     /// Process a compiler task and return the outcome.

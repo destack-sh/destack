@@ -392,6 +392,14 @@ where
 }
 
 impl TaskOutcome {
+    /// Unwrap the outcome as a complete output.
+    pub fn unwrap_complete(self) -> TaskOutput {
+        match self {
+            Self::Complete { output } => output,
+            _ => panic!("outcome is not complete"),
+        }
+    }
+
     /// Check if the outcome is final (i.e., will not change).
     pub fn is_final(&self) -> bool {
         match self {
