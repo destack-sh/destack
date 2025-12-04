@@ -335,7 +335,7 @@ int.min(0)                           // int >= 0
 int.max(100)                         // int <= 100  
 int.min(0).max(100)                  // int in [0, 100]
 string.minLength(1)                  // non-empty string
-string.describe("User's full name")  // with metadata
+string.tag("myTag")      // with metadata
 uint[].nonEmpty()                    // non-empty array
 ```
 
@@ -374,13 +374,7 @@ The standard library bundles many useful refinements commonly used in schema lib
 | `.maxLength(n)` | Length ≤ n |
 | `.nonEmpty()` | Length ≥ 1 |
 
-**All types**:
-
-| Refinement | Meaning |
-|------------|---------|
-| `.describe(text)` | Attach description metadata |
-
-#### Refinement Composition
+#### Composing Refinements
 
 Types are values, refinements refine those values, and refined types can be composed:
 ```
@@ -392,7 +386,7 @@ function clamp(x: int, min: int, max: int): int.min(min).max(max);
 
 // composites
 struct User {
-    name: string.minLength(1).maxLength(100).describe("Display name"),
+    name: string.minLength(1).maxLength(100),
     age: uint.max(150),
 }
 

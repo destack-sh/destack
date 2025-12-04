@@ -279,26 +279,26 @@ const user = parse(User, data);    // runtime validation with errors
 const user = User.parse(data);     // shorthand (schema extends Type<T>)
 ```
 
-This is similar to how Zod works, but without the schema/type duplication:
+This is similar to how schema libraries work, but without the schema/type duplication:
 
 ```typescript
-// Zod: define schema, derive type
-const UserSchema = z.object({ name: z.string().min(1) });
-type User = z.infer<typeof UserSchema>;
+// Typescript: define schema, derive type
+const UserSchema = t.object({ name: z.string().min(1) });
+type User = t.infer<typeof UserSchema>;
 
 // Destack: define type, validation is automatic
-struct User { name: string.minLength(1) }
+type User = { name: string.minLength(1) }
 parse(User, data);  // User IS the schema
 ```
 
 ## Dispatch
 
-TypeScript has parametric polymorphism ("generics") but essentially no support for type-based dispatch (by design).
-Destack adds type extensions and real overloading for type-based dispatch.
+TypeScript has parametric polymorphism ("generics") but does not support type-based dispatch (by design).
+Destack adds type extensions and real overloading for type-based dispatch and operator overloading.
 
 ### Extensions
 
-Scoped, type-safe extensions for any type:
+Destack introdues extensions to add methods and static constants for any type:
 
 ```
 extension Vector2 {

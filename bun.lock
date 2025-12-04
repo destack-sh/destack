@@ -5,120 +5,119 @@
     "": {
       "name": "destack-monorepo",
     },
-    "examples/tetris": {
-      "name": "@destack/tetris",
+    "examples/destack.sh": {
+      "name": "@destack-sh/destack-sh",
+      "version": "0.47.3",
+      "dependencies": {
+        "@destack-sh/schema": "workspace:*",
+        "@destack-sh/ui": "workspace:*",
+      },
       "devDependencies": {
-        "@destack/bun": "workspace:*",
+        "@destack-sh/bun": "workspace:*",
         "@types/bun": "latest",
       },
     },
-    "examples/zurichtech": {
-      "name": "zurichtech",
+    "examples/tetris": {
+      "name": "@destack-sh/tetris",
+      "version": "0.47.3",
+      "devDependencies": {
+        "@destack-sh/bun": "workspace:*",
+        "@types/bun": "latest",
+      },
+    },
+    "examples/zurich.tech": {
+      "name": "zurich.tech",
+      "version": "0.47.3",
       "dependencies": {
         "zod": "^4.1.12",
       },
       "devDependencies": {
-        "@destack/bun": "workspace:*",
-        "@types/bun": "latest",
-      },
-    },
-    "library/ai": {
-      "name": "@destack/ai",
-      "devDependencies": {
-        "@types/bun": "latest",
-      },
-    },
-    "library/auth": {
-      "name": "@destack/auth",
-      "devDependencies": {
+        "@destack-sh/bun": "workspace:*",
         "@types/bun": "latest",
       },
     },
     "library/entity": {
-      "name": "@destack/entity",
-      "devDependencies": {
-        "@types/bun": "latest",
-      },
-    },
-    "library/finance": {
-      "name": "@destack/finance",
-      "devDependencies": {
-        "@types/bun": "latest",
-      },
-    },
-    "library/gpu": {
-      "name": "@destack/gpu",
-      "devDependencies": {
-        "@types/bun": "latest",
-      },
-    },
-    "library/mobile": {
-      "name": "@destack/mobile",
+      "name": "@destack-sh/entity",
+      "version": "0.47.3",
       "devDependencies": {
         "@types/bun": "latest",
       },
     },
     "library/napi": {
-      "name": "@destack/napi",
+      "name": "@destack-sh/napi",
+      "version": "0.47.3",
       "devDependencies": {
         "@napi-rs/cli": "^3.4.1",
       },
     },
-    "library/physics": {
-      "name": "@destack/animation",
+    "library/schema": {
+      "name": "@destack-sh/schema",
+      "version": "0.47.3",
       "devDependencies": {
         "@types/bun": "latest",
       },
     },
     "library/telemetry": {
-      "name": "@destack/telemetry",
+      "name": "@destack-sh/telemetry",
+      "version": "0.47.3",
       "devDependencies": {
         "@types/bun": "latest",
       },
     },
     "library/test": {
-      "name": "@destack/test",
+      "name": "@destack-sh/test",
+      "version": "0.47.3",
       "devDependencies": {
         "@types/bun": "latest",
       },
     },
     "library/ui": {
-      "name": "@destack/view",
+      "name": "@destack-sh/ui",
+      "version": "0.47.3",
       "devDependencies": {
         "@types/bun": "latest",
       },
     },
     "library/universe": {
-      "name": "@destack/universe",
+      "name": "@destack-sh/universe",
+      "version": "0.47.3",
       "devDependencies": {
         "@types/bun": "latest",
       },
     },
     "library/web": {
-      "name": "@destack/web",
+      "name": "@destack-sh/web",
+      "version": "0.47.3",
       "devDependencies": {
         "@types/bun": "latest",
       },
     },
     "platform/bun": {
-      "name": "@destack/bun",
+      "name": "@destack-sh/bun",
+      "version": "0.47.3",
       "dependencies": {
-        "@destack/napi": "workspace:*",
+        "@destack-sh/napi": "workspace:*",
       },
       "devDependencies": {
         "@types/bun": "latest",
       },
     },
     "platform/editor": {
-      "name": "@destack/editor",
+      "name": "@destack-sh/editor",
+      "version": "0.47.3",
+      "dependencies": {
+        "@destack-sh/schema": "workspace:*",
+        "@destack-sh/ui": "workspace:*",
+      },
       "devDependencies": {
         "@types/bun": "latest",
       },
     },
     "platform/vite": {
-      "name": "@destack/vite",
+      "name": "@destack-sh/vite",
+      "version": "0.47.3",
       "dependencies": {
-        "@destack/napi": "workspace:*",
+        "@destack-sh/napi": "workspace:*",
       },
       "devDependencies": {
         "vite": "^7.0.0",
@@ -128,8 +127,8 @@
       },
     },
     "platform/vscode": {
-      "name": "@destack/vscode",
-      "version": "2025.11.29-1",
+      "name": "destack",
+      "version": "0.47.3",
       "devDependencies": {
         "@types/node": "^20.11.25",
         "@types/vscode": "^1.90.0",
@@ -143,7 +142,7 @@
     },
   },
   "catalog": {
-    "@destack/napi": "workspace:*",
+    "@destack-sh/napi": "workspace:*",
     "temporal-polyfill": "^0.3.0",
   },
   "catalogs": {
@@ -176,41 +175,31 @@
     },
   },
   "packages": {
-    "@destack/ai": ["@destack/ai@workspace:library/ai"],
+    "@destack-sh/bun": ["@destack-sh/bun@workspace:platform/bun"],
 
-    "@destack/animation": ["@destack/animation@workspace:library/physics"],
+    "@destack-sh/destack-sh": ["@destack-sh/destack-sh@workspace:examples/destack.sh"],
 
-    "@destack/auth": ["@destack/auth@workspace:library/auth"],
+    "@destack-sh/editor": ["@destack-sh/editor@workspace:platform/editor"],
 
-    "@destack/bun": ["@destack/bun@workspace:platform/bun"],
+    "@destack-sh/entity": ["@destack-sh/entity@workspace:library/entity"],
 
-    "@destack/editor": ["@destack/editor@workspace:platform/editor"],
+    "@destack-sh/napi": ["@destack-sh/napi@workspace:library/napi"],
 
-    "@destack/entity": ["@destack/entity@workspace:library/entity"],
+    "@destack-sh/schema": ["@destack-sh/schema@workspace:library/schema"],
 
-    "@destack/finance": ["@destack/finance@workspace:library/finance"],
+    "@destack-sh/telemetry": ["@destack-sh/telemetry@workspace:library/telemetry"],
 
-    "@destack/gpu": ["@destack/gpu@workspace:library/gpu"],
+    "@destack-sh/test": ["@destack-sh/test@workspace:library/test"],
 
-    "@destack/mobile": ["@destack/mobile@workspace:library/mobile"],
+    "@destack-sh/tetris": ["@destack-sh/tetris@workspace:examples/tetris"],
 
-    "@destack/napi": ["@destack/napi@workspace:library/napi"],
+    "@destack-sh/ui": ["@destack-sh/ui@workspace:library/ui"],
 
-    "@destack/telemetry": ["@destack/telemetry@workspace:library/telemetry"],
+    "@destack-sh/universe": ["@destack-sh/universe@workspace:library/universe"],
 
-    "@destack/test": ["@destack/test@workspace:library/test"],
+    "@destack-sh/vite": ["@destack-sh/vite@workspace:platform/vite"],
 
-    "@destack/tetris": ["@destack/tetris@workspace:examples/tetris"],
-
-    "@destack/universe": ["@destack/universe@workspace:library/universe"],
-
-    "@destack/view": ["@destack/view@workspace:library/ui"],
-
-    "@destack/vite": ["@destack/vite@workspace:platform/vite"],
-
-    "@destack/vscode": ["@destack/vscode@workspace:platform/vscode"],
-
-    "@destack/web": ["@destack/web@workspace:library/web"],
+    "@destack-sh/web": ["@destack-sh/web@workspace:library/web"],
 
     "@emnapi/core": ["@emnapi/core@1.7.0", "", { "dependencies": { "@emnapi/wasi-threads": "1.1.0", "tslib": "^2.4.0" } }, "sha512-pJdKGq/1iquWYtv1RRSljZklxHCOCAJFJrImO5ZLKPJVJlVUcs8yFwNQlqS0Lo8xT1VAXXTCZocF9n26FWEKsw=="],
 
@@ -558,6 +547,8 @@
 
     "deep-extend": ["deep-extend@0.6.0", "", {}, "sha512-LOHxIOaPYdHlJRtCQfDIVZtfw/ufM8+rVj649RIHzcm/vGwQRXFt6OPqIFWsm2XEMrNIEtWR64sY1LEKD2vAOA=="],
 
+    "destack": ["destack@workspace:platform/vscode"],
+
     "detect-libc": ["detect-libc@2.0.4", "", {}, "sha512-3UDv+G9CsCKO1WKMGw9fwq/SWJYbI0c5Y7LU1AXYoDdbhE2AHQ6N6Nb34sG8Fj7T5APy8qXDCKuuIHd1BR0tVA=="],
 
     "diff": ["diff@4.0.2", "", {}, "sha512-58lmxKSA4BNyLz+HHMUzlOEpg09FV+ev6ZMe3vJihgdxzgcwZ8VoEEPmALCZG9LmqfVoNMMKpttIYTVG6uDY7A=="],
@@ -850,7 +841,7 @@
 
     "zod": ["zod@4.1.12", "", {}, "sha512-JInaHOamG8pt5+Ey8kGmdcAcg3OL9reK8ltczgHTAwNhMys/6ThXHityHxVV2p3fkw/c+MAvBHFVYHFZDmjMCQ=="],
 
-    "zurichtech": ["zurichtech@workspace:examples/zurichtech"],
+    "zurich.tech": ["zurich.tech@workspace:examples/zurich.tech"],
 
     "@inquirer/core/mute-stream": ["mute-stream@3.0.0", "", {}, "sha512-dkEJPVvun4FryqBmZ5KhDo0K9iDXAwn08tMLDinNdRBNPcYEDiWYysLcc6k3mjTMlbP9KyylvRpd4wFtwrT9rw=="],
 
