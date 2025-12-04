@@ -1,6 +1,6 @@
 {
-    "name": "destack-schema",
-    "version": "0.47.1",
+    "name": "@destack-sh/schema",
+    "version": "0.47.2",
     "license": "MIT",
     "type": "module",
     "sideEffects": false,

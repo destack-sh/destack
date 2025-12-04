@@ -77,9 +77,9 @@ function requireNative() {
                 loadErrors.push(e);
             }
             try {
-                const binding = require("destack-napi-android-arm64");
+                const binding = require("@destack-sh/napi-android-arm64");
                 const bindingPackageVersion =
-                    require("destack-napi-android-arm64/package.json").version;
+                    require("@destack-sh/napi-android-arm64/package.json").version;
                 if (
                     bindingPackageVersion !== "2025.11.29.0" &&
                     process.env.NAPI_RS_ENFORCE_VERSION_CHECK &&
@@ -100,9 +100,9 @@ function requireNative() {
                 loadErrors.push(e);
             }
             try {
-                const binding = require("destack-napi-android-arm-eabi");
+                const binding = require("@destack-sh/napi-android-arm-eabi");
                 const bindingPackageVersion =
-                    require("destack-napi-android-arm-eabi/package.json").version;
+                    require("@destack-sh/napi-android-arm-eabi/package.json").version;
                 if (
                     bindingPackageVersion !== "2025.11.29.0" &&
                     process.env.NAPI_RS_ENFORCE_VERSION_CHECK &&
@@ -131,9 +131,9 @@ function requireNative() {
                     loadErrors.push(e);
                 }
                 try {
-                    const binding = require("destack-napi-win32-x64-gnu");
+                    const binding = require("@destack-sh/napi-win32-x64-gnu");
                     const bindingPackageVersion =
-                        require("destack-napi-win32-x64-gnu/package.json").version;
+                        require("@destack-sh/napi-win32-x64-gnu/package.json").version;
                     if (
                         bindingPackageVersion !== "2025.11.29.0" &&
                         process.env.NAPI_RS_ENFORCE_VERSION_CHECK &&
@@ -154,9 +154,9 @@ function requireNative() {
                     loadErrors.push(e);
                 }
                 try {
-                    const binding = require("destack-napi-win32-x64-msvc");
+                    const binding = require("@destack-sh/napi-win32-x64-msvc");
                     const bindingPackageVersion =
-                        require("destack-napi-win32-x64-msvc/package.json").version;
+                        require("@destack-sh/napi-win32-x64-msvc/package.json").version;
                     if (
                         bindingPackageVersion !== "2025.11.29.0" &&
                         process.env.NAPI_RS_ENFORCE_VERSION_CHECK &&
@@ -178,9 +178,9 @@ function requireNative() {
                 loadErrors.push(e);
             }
             try {
-                const binding = require("destack-napi-win32-ia32-msvc");
+                const binding = require("@destack-sh/napi-win32-ia32-msvc");
                 const bindingPackageVersion =
-                    require("destack-napi-win32-ia32-msvc/package.json").version;
+                    require("@destack-sh/napi-win32-ia32-msvc/package.json").version;
                 if (
                     bindingPackageVersion !== "2025.11.29.0" &&
                     process.env.NAPI_RS_ENFORCE_VERSION_CHECK &&
@@ -201,9 +201,9 @@ function requireNative() {
                 loadErrors.push(e);
             }
             try {
-                const binding = require("destack-napi-win32-arm64-msvc");
+                const binding = require("@destack-sh/napi-win32-arm64-msvc");
                 const bindingPackageVersion =
-                    require("destack-napi-win32-arm64-msvc/package.json").version;
+                    require("@destack-sh/napi-win32-arm64-msvc/package.json").version;
                 if (
                     bindingPackageVersion !== "2025.11.29.0" &&
                     process.env.NAPI_RS_ENFORCE_VERSION_CHECK &&
@@ -227,9 +227,9 @@ function requireNative() {
             loadErrors.push(e);
         }
         try {
-            const binding = require("destack-napi-darwin-universal");
+            const binding = require("@destack-sh/napi-darwin-universal");
             const bindingPackageVersion =
-                require("destack-napi-darwin-universal/package.json").version;
+                require("@destack-sh/napi-darwin-universal/package.json").version;
             if (
                 bindingPackageVersion !== "2025.11.29.0" &&
                 process.env.NAPI_RS_ENFORCE_VERSION_CHECK &&
@@ -250,9 +250,9 @@ function requireNative() {
                 loadErrors.push(e);
             }
             try {
-                const binding = require("destack-napi-darwin-x64");
+                const binding = require("@destack-sh/napi-darwin-x64");
                 const bindingPackageVersion =
-                    require("destack-napi-darwin-x64/package.json").version;
+                    require("@destack-sh/napi-darwin-x64/package.json").version;
                 if (
                     bindingPackageVersion !== "2025.11.29.0" &&
                     process.env.NAPI_RS_ENFORCE_VERSION_CHECK &&
@@ -273,9 +273,9 @@ function requireNative() {
                 loadErrors.push(e);
             }
             try {
-                const binding = require("destack-napi-darwin-arm64");
+                const binding = require("@destack-sh/napi-darwin-arm64");
                 const bindingPackageVersion =
-                    require("destack-napi-darwin-arm64/package.json").version;
+                    require("@destack-sh/napi-darwin-arm64/package.json").version;
                 if (
                     bindingPackageVersion !== "2025.11.29.0" &&
                     process.env.NAPI_RS_ENFORCE_VERSION_CHECK &&
@@ -300,9 +300,9 @@ function requireNative() {
                 loadErrors.push(e);
             }
             try {
-                const binding = require("destack-napi-freebsd-x64");
+                const binding = require("@destack-sh/napi-freebsd-x64");
                 const bindingPackageVersion =
-                    require("destack-napi-freebsd-x64/package.json").version;
+                    require("@destack-sh/napi-freebsd-x64/package.json").version;
                 if (
                     bindingPackageVersion !== "2025.11.29.0" &&
                     process.env.NAPI_RS_ENFORCE_VERSION_CHECK &&
@@ -323,9 +323,9 @@ function requireNative() {
                 loadErrors.push(e);
             }
             try {
-                const binding = require("destack-napi-freebsd-arm64");
+                const binding = require("@destack-sh/napi-freebsd-arm64");
                 const bindingPackageVersion =
-                    require("destack-napi-freebsd-arm64/package.json").version;
+                    require("@destack-sh/napi-freebsd-arm64/package.json").version;
                 if (
                     bindingPackageVersion !== "2025.11.29.0" &&
                     process.env.NAPI_RS_ENFORCE_VERSION_CHECK &&
@@ -351,9 +351,9 @@ function requireNative() {
                     loadErrors.push(e);
                 }
                 try {
-                    const binding = require("destack-napi-linux-x64-musl");
+                    const binding = require("@destack-sh/napi-linux-x64-musl");
                     const bindingPackageVersion =
-                        require("destack-napi-linux-x64-musl/package.json").version;
+                        require("@destack-sh/napi-linux-x64-musl/package.json").version;
                     if (
                         bindingPackageVersion !== "2025.11.29.0" &&
                         process.env.NAPI_RS_ENFORCE_VERSION_CHECK &&
@@ -374,9 +374,9 @@ function requireNative() {
                     loadErrors.push(e);
                 }
                 try {
-                    const binding = require("destack-napi-linux-x64-gnu");
+                    const binding = require("@destack-sh/napi-linux-x64-gnu");
                     const bindingPackageVersion =
-                        require("destack-napi-linux-x64-gnu/package.json").version;
+                        require("@destack-sh/napi-linux-x64-gnu/package.json").version;
                     if (
                         bindingPackageVersion !== "2025.11.29.0" &&
                         process.env.NAPI_RS_ENFORCE_VERSION_CHECK &&
@@ -399,9 +399,9 @@ function requireNative() {
                     loadErrors.push(e);
                 }
                 try {
-                    const binding = require("destack-napi-linux-arm64-musl");
+                    const binding = require("@destack-sh/napi-linux-arm64-musl");
                     const bindingPackageVersion =
-                        require("destack-napi-linux-arm64-musl/package.json").version;
+                        require("@destack-sh/napi-linux-arm64-musl/package.json").version;
                     if (
                         bindingPackageVersion !== "2025.11.29.0" &&
                         process.env.NAPI_RS_ENFORCE_VERSION_CHECK &&
@@ -422,9 +422,9 @@ function requireNative() {
                     loadErrors.push(e);
                 }
                 try {
-                    const binding = require("destack-napi-linux-arm64-gnu");
+                    const binding = require("@destack-sh/napi-linux-arm64-gnu");
                     const bindingPackageVersion =
-                        require("destack-napi-linux-arm64-gnu/package.json").version;
+                        require("@destack-sh/napi-linux-arm64-gnu/package.json").version;
                     if (
                         bindingPackageVersion !== "2025.11.29.0" &&
                         process.env.NAPI_RS_ENFORCE_VERSION_CHECK &&
@@ -447,9 +447,9 @@ function requireNative() {
                     loadErrors.push(e);
                 }
                 try {
-                    const binding = require("destack-napi-linux-arm-musleabihf");
+                    const binding = require("@destack-sh/napi-linux-arm-musleabihf");
                     const bindingPackageVersion =
-                        require("destack-napi-linux-arm-musleabihf/package.json").version;
+                        require("@destack-sh/napi-linux-arm-musleabihf/package.json").version;
                     if (
                         bindingPackageVersion !== "2025.11.29.0" &&
                         process.env.NAPI_RS_ENFORCE_VERSION_CHECK &&
@@ -470,9 +470,9 @@ function requireNative() {
                     loadErrors.push(e);
                 }
                 try {
-                    const binding = require("destack-napi-linux-arm-gnueabihf");
+                    const binding = require("@destack-sh/napi-linux-arm-gnueabihf");
                     const bindingPackageVersion =
-                        require("destack-napi-linux-arm-gnueabihf/package.json").version;
+                        require("@destack-sh/napi-linux-arm-gnueabihf/package.json").version;
                     if (
                         bindingPackageVersion !== "2025.11.29.0" &&
                         process.env.NAPI_RS_ENFORCE_VERSION_CHECK &&
@@ -495,9 +495,9 @@ function requireNative() {
                     loadErrors.push(e);
                 }
                 try {
-                    const binding = require("destack-napi-linux-loong64-musl");
+                    const binding = require("@destack-sh/napi-linux-loong64-musl");
                     const bindingPackageVersion =
-                        require("destack-napi-linux-loong64-musl/package.json").version;
+                        require("@destack-sh/napi-linux-loong64-musl/package.json").version;
                     if (
                         bindingPackageVersion !== "2025.11.29.0" &&
                         process.env.NAPI_RS_ENFORCE_VERSION_CHECK &&
@@ -518,9 +518,9 @@ function requireNative() {
                     loadErrors.push(e);
                 }
                 try {
-                    const binding = require("destack-napi-linux-loong64-gnu");
+                    const binding = require("@destack-sh/napi-linux-loong64-gnu");
                     const bindingPackageVersion =
-                        require("destack-napi-linux-loong64-gnu/package.json").version;
+                        require("@destack-sh/napi-linux-loong64-gnu/package.json").version;
                     if (
                         bindingPackageVersion !== "2025.11.29.0" &&
                         process.env.NAPI_RS_ENFORCE_VERSION_CHECK &&
@@ -543,9 +543,9 @@ function requireNative() {
                     loadErrors.push(e);
                 }
                 try {
-                    const binding = require("destack-napi-linux-riscv64-musl");
+                    const binding = require("@destack-sh/napi-linux-riscv64-musl");
                     const bindingPackageVersion =
-                        require("destack-napi-linux-riscv64-musl/package.json").version;
+                        require("@destack-sh/napi-linux-riscv64-musl/package.json").version;
                     if (
                         bindingPackageVersion !== "2025.11.29.0" &&
                         process.env.NAPI_RS_ENFORCE_VERSION_CHECK &&
@@ -566,9 +566,9 @@ function requireNative() {
                     loadErrors.push(e);
                 }
                 try {
-                    const binding = require("destack-napi-linux-riscv64-gnu");
+                    const binding = require("@destack-sh/napi-linux-riscv64-gnu");
                     const bindingPackageVersion =
-                        require("destack-napi-linux-riscv64-gnu/package.json").version;
+                        require("@destack-sh/napi-linux-riscv64-gnu/package.json").version;
                     if (
                         bindingPackageVersion !== "2025.11.29.0" &&
                         process.env.NAPI_RS_ENFORCE_VERSION_CHECK &&
@@ -590,9 +590,9 @@ function requireNative() {
                 loadErrors.push(e);
             }
             try {
-                const binding = require("destack-napi-linux-ppc64-gnu");
+                const binding = require("@destack-sh/napi-linux-ppc64-gnu");
                 const bindingPackageVersion =
-                    require("destack-napi-linux-ppc64-gnu/package.json").version;
+                    require("@destack-sh/napi-linux-ppc64-gnu/package.json").version;
                 if (
                     bindingPackageVersion !== "2025.11.29.0" &&
                     process.env.NAPI_RS_ENFORCE_VERSION_CHECK &&
@@ -613,9 +613,9 @@ function requireNative() {
                 loadErrors.push(e);
             }
             try {
-                const binding = require("destack-napi-linux-s390x-gnu");
+                const binding = require("@destack-sh/napi-linux-s390x-gnu");
                 const bindingPackageVersion =
-                    require("destack-napi-linux-s390x-gnu/package.json").version;
+                    require("@destack-sh/napi-linux-s390x-gnu/package.json").version;
                 if (
                     bindingPackageVersion !== "2025.11.29.0" &&
                     process.env.NAPI_RS_ENFORCE_VERSION_CHECK &&
@@ -640,9 +640,9 @@ function requireNative() {
                 loadErrors.push(e);
             }
             try {
-                const binding = require("destack-napi-openharmony-arm64");
+                const binding = require("@destack-sh/napi-openharmony-arm64");
                 const bindingPackageVersion =
-                    require("destack-napi-openharmony-arm64/package.json").version;
+                    require("@destack-sh/napi-openharmony-arm64/package.json").version;
                 if (
                     bindingPackageVersion !== "2025.11.29.0" &&
                     process.env.NAPI_RS_ENFORCE_VERSION_CHECK &&
@@ -663,9 +663,9 @@ function requireNative() {
                 loadErrors.push(e);
             }
             try {
-                const binding = require("destack-napi-openharmony-x64");
+                const binding = require("@destack-sh/napi-openharmony-x64");
                 const bindingPackageVersion =
-                    require("destack-napi-openharmony-x64/package.json").version;
+                    require("@destack-sh/napi-openharmony-x64/package.json").version;
                 if (
                     bindingPackageVersion !== "2025.11.29.0" &&
                     process.env.NAPI_RS_ENFORCE_VERSION_CHECK &&
@@ -686,9 +686,9 @@ function requireNative() {
                 loadErrors.push(e);
             }
             try {
-                const binding = require("destack-napi-openharmony-arm");
+                const binding = require("@destack-sh/napi-openharmony-arm");
                 const bindingPackageVersion =
-                    require("destack-napi-openharmony-arm/package.json").version;
+                    require("@destack-sh/napi-openharmony-arm/package.json").version;
                 if (
                     bindingPackageVersion !== "2025.11.29.0" &&
                     process.env.NAPI_RS_ENFORCE_VERSION_CHECK &&
@@ -727,7 +727,7 @@ if (!nativeBinding || process.env.NAPI_RS_FORCE_WASI) {
     }
     if (!nativeBinding) {
         try {
-            wasiBinding = require("destack-napi-wasm32-wasi");
+            wasiBinding = require("@destack-sh/napi-wasm32-wasi");
             nativeBinding = wasiBinding;
         } catch (err) {
             if (process.env.NAPI_RS_FORCE_WASI) {

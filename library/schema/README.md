@@ -1,2 +1,2 @@
-# destack-schema
+# @destack-sh/schema
 

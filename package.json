@@ -1,6 +1,6 @@
 {
-    "name": "destack-monorepo",
-    "version": "0.47.1",
+    "name": "@destack-sh/monorepo",
+    "version": "0.47.2",
     "license": "Apache-2.0",
     "private": true,
     "type": "module",
@@ -27,7 +27,7 @@
         "build:napi": "bun run --cwd library/napi build"
     },
     "catalog": {
-        "destack-napi": "workspace:*",
+        "@destack-sh/napi": "workspace:*",
         "temporal-polyfill": "^0.3.0"
     },
     "catalogs": {

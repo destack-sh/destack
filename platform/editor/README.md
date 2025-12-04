@@ -1,3 +1,3 @@
-# destack-editor
+# @destack-sh/editor
 
 Destack integrated editor.

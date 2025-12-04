@@ -1,4 +1,4 @@
-import { destackPlugin } from "destack-bun";
+import { destackPlugin } from "@destack-sh/bun";
 import { plugin } from "bun";
 
 plugin(destackPlugin);

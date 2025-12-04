@@ -4,7 +4,7 @@ import {
     TranspileTarget,
     transpileFile,
     Workspace,
-} from "destack-napi";
+} from "@destack-sh/napi";
 import type { HmrContext, Plugin } from "vite";
 import { createFilter } from "vite";
 

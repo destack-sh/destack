@@ -6,7 +6,7 @@ import {
     TranspileTarget,
     transpileFile,
     Workspace,
-} from "destack-napi";
+} from "@destack-sh/napi";
 import type { BunPlugin, PluginBuilder } from "bun";
 
 /// Options for the Destack Bun plugin.
