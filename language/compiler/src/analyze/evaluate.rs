@@ -236,9 +236,15 @@ mod tests {
 
         let module = test.module_for_file(&file);
         let module = module.read();
+        let tree = module.tree.read();
         let types = module.types.read();
 
         let let_expr_id = module.roots[0];
+        let expression = tree.get(let_expr_id);
+        let &destack_dir::Expression::Statement { statement: let_expr_id } = expression else {
+            panic!("expected statement");
+        };
+
         let let_ty = types
             .get_declared_type(let_expr_id.into_global_any(module.id))
             .unwrap();
