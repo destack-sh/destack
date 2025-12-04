@@ -10,7 +10,6 @@ Integrated packages for building full-stack applications with Destack.
 | `entity` | Core entity system, events, and paths |
 | `telemetry` | Logging, metrics, and tracing |
 | `ui` | UI primitives, input handling, styling |
-| `universe` | Spaces, users, social features |
 | `web` | Web platform utilities |
 | `test` | Testing utilities |
 | `napi` | N-API bindings exposing Rust toolchain to JS |

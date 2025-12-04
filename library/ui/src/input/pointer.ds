@@ -2,46 +2,46 @@ import * as ds from "destack"
 
 /// A Pointer is a user input device that can be used to interact with the UI
 @entity
-export struct Pointer2D {
+export class Pointer2D {
     ...Body2D
 }
 
 /// Base pointer event with position, pressure and modifiers
 @event
-export struct PointerEvent extends InputEvent {
-    position: Vector2
-    pressure?: float32
-    shiftKey: boolean
-    altKey: boolean
-    ctrlKey: boolean
-    metaKey: boolean
+export class PointerEvent extends InputEvent {
+    position: Vector2,
+    pressure?: float32,
+    shiftKey: boolean,
+    altKey: boolean,
+    ctrlKey: boolean,
+    metaKey: boolean,
 }
 
 /// A PointerEvent when a pointer is pressed down
 @event
-export struct PointerDownEvent extends PointerEvent { }
+export class PointerDownEvent extends PointerEvent { }
 
 /// A PointerEvent when a pointer is released
 @event
-export struct PointerUpEvent extends PointerEvent { }
+export class PointerUpEvent extends PointerEvent { }
 
 /// A PointerEvent when a pointer is moved
 @event
-export struct PointerMoveEvent extends PointerEvent { }
+export class PointerMoveEvent extends PointerEvent { }
 
 /// A PointerEvent when a pointer enters an element
 @event
-export struct PointerEnterEvent extends PointerEvent { }
+export class PointerEnterEvent extends PointerEvent { }
 
 /// A PointerEvent when a pointer is over an element
 @event
-export struct PointerOverEvent extends PointerEvent { }
+export class PointerOverEvent extends PointerEvent { }
 
 /// A PointerEvent when a pointer leaves an element
 @event
-export struct PointerLeaveEvent extends PointerEvent { }
+export class PointerLeaveEvent extends PointerEvent { }
 
 /// A PointerEvent when a pointer is pressed and held
 @event
-export struct PointerLongPressEvent extends PointerEvent { }
+export class PointerLongPressEvent extends PointerEvent { }
 

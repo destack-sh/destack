@@ -2,5 +2,5 @@ import * as ds from "destack"
 
 /// A frame View is a bare ContainerView
 @entity
-export struct FrameView2D extends LayoutView2D { }
+export class FrameView2D extends LayoutView2D { }
 

@@ -2,14 +2,14 @@ import * as ds from "destack"
 
 /// Base type for scene events.
 @event
-export struct SceneEvent {
+export class SceneEvent {
     /// The Scene the event pertains to.
-    scene: Reference<Scene>
+    scene: Reference<Scene>,
 }
 
 /// A Scene contains some interactive part of a Stage.
 @entity
-export struct Scene {
+export class Scene {
     /// The root View of the Scene.
-    rootView: Reference<LayoutView2D>?
+    rootView: Reference<LayoutView2D>?,
 }

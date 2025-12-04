@@ -20,6 +20,9 @@ impl<'ast> FormatNode<'ast, EnumField> for EnumField {
             write!(f, [space(), token("="), space(), value])?;
         }
 
+        // comma after field
+        write!(f, [token(",")])?;
+
         write!(f, [f.context().any_infix_or_postfix_annotations(node_id)])?;
         Ok(())
     }

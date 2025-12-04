@@ -18,7 +18,7 @@ export enum MeetupStatus {
 
 /// A Series of related Meetups (with a common prefix).
 @entity
-export struct MeetupSeries {
+export class MeetupSeries {
     @description("The name of the Meetup Series.")
     name: string,
 
@@ -35,7 +35,7 @@ export enum MeetupLanguage {
 }
 
 @entity
-export struct Meetup {
+export class Meetup {
     @description("When the Meetup is happening.")
     date: DateTime,
     
@@ -56,7 +56,7 @@ export struct Meetup {
 }
 
 @entity
-export struct MeetupRegistration {
+export class MeetupRegistration {
     @description("The Meetup this registration is for.")
     meetup: Meetup,
     @description("The person registering.")

@@ -1,43 +1,44 @@
 /// Gradient fill type.
 export enum GradientType {
-    Linear = 10
-    Radial = 11
-    Conic = 12
-    Diamond = 13
+    Linear = 10,
+    Radial = 11,
+    Conic = 12,
+    Diamond = 13,
 }
 
 /// A gradient stop with color and position.
 export struct GradientStop {
     /// Color of the gradient stop.
-    color?: Color
+    color?: Color,
     /// Position of the stop (0.0 - 1.0).
-    position: float32
+    position: float32,
 }
 
 /// A gradient value.
 export struct Gradient {
     /// Type of the gradient.
-    type: GradientType
+    type: GradientType,
     /// Reference to a reusable gradient style.
-    template?: GradientStyle
+    template?: GradientStyle,
     /// The angle for linear/conic gradients.
-    angle?: float32
+    angle?: float32,
     /// Array of gradient stops.
-    stops: GradientStop[]
+    stops: GradientStop[],
     /// Gradient's center anchor (for radial/conic).
-    centerAnchor?: Axis2
+    centerAnchor?: Axis2,
 }
 
 /// A reusable gradient style.
-export struct GradientStyle extends Style {
+@entity
+export class GradientStyle extends Style {
     /// Type of the gradient.
-    type: GradientType
+    type: GradientType,
     /// The angle for linear/conic gradients.
-    angle?: float32
+    angle?: float32,
     /// Array of gradient stops.
-    stops: GradientStop[]
+    stops: GradientStop[],
     /// Gradient's center anchor (for radial/conic).
-    centerAnchor?: Axis2
+    centerAnchor?: Axis2,
     /// Dark mode override for this gradient.
-    dark?: Gradient
+    dark?: Gradient,
 }

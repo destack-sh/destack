@@ -2,62 +2,62 @@ import { Color, Gradient, Image, Style } from "@destack-sh/ui";
 
 /// Type of Fill.
 export enum FillType {
-    Solid = 10
-    Gradient = 11
-    Image = 12
+    Solid = 10,
+    Gradient = 11,
+    Image = 12,
 }
 
 /// Position for an image or gradient fill.
 export enum FillPosition {
-    TopLeft = 1
-    TopCenter = 2
-    TopRight = 3
-    Left = 10
-    Center = 11
-    Right = 12
-    BottomLeft = 20
-    BottomCenter = 21
-    BottomRight = 22
+    TopLeft = 1,
+    TopCenter = 2,
+    TopRight = 3,
+    Left = 10,
+    Center = 11,
+    Right = 12,
+    BottomLeft = 20,
+    BottomCenter = 21,
+    BottomRight = 22,
 }
 
 /// Render size for an image or gradient fill.
 export enum FillSize {
-    Fill = 1
-    Stretch = 2
-    Fit = 3
-    Tile = 4
+    Fill = 1,
+    Stretch = 2,
+    Fit = 3,
+    Tile = 4,
 }
 
 /// A fill value for a styled surface.
 export struct Fill {
     /// The fill type (solid, gradient, image).
-    type: FillType
+    type: FillType,
     /// Template for this fill, if referenced.
-    template?: FillStyle
+    template?: FillStyle,
     /// Fill color.
-    color?: Color
+    color?: Color,
     /// Gradient fill.
-    gradient?: Gradient
+    gradient?: Gradient,
     /// Image fill.
-    image?: Image
+    image?: Image,
     /// Fill position.
-    position?: FillPosition
+    position?: FillPosition,
     /// Fill sizing.
-    size?: FillSize
+    size?: FillSize,
 }
 
 /// A reusable fill style.
 export struct FillStyle extends Style {
     /// Fill type.
-    type: FillType
+    type: FillType,
     /// Fill color.
-    color?: Color
+    color?: Color,
     /// Gradient fill.
-    gradient?: Gradient
+    gradient?: Gradient,
     /// Image fill.
-    image?: Image
+    image?: Image,
     /// Fill position.
-    position?: FillPosition
+    position?: FillPosition,
     /// Fill sizing.
-    size?: FillSize
+    size?: FillSize,
 }

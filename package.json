@@ -19,7 +19,6 @@
             "library/telemetry",
             "library/test",
             "library/ui",
-            "library/universe",
             "library/web"
         ]
     },

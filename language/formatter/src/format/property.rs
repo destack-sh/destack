@@ -73,11 +73,16 @@ pub(crate) fn format_block_of_properties<'ast>(
     properties: &[LocalNodeId<Property>],
 ) -> FormatResult<()> {
     for (i, &property_id) in properties.iter().enumerate() {
+        let property = f.context().tree.get(property_id);
         // blank line between properties
         if i > 0 {
             write!(f, [hard_line_break()])?;
         }
         property_id.format(f)?;
+        // comma after field properties
+        if matches!(property, Property::Field { .. }) {
+            write!(f, [token(",")])?;
+        }
     }
     Ok(())
 }

@@ -1,10 +1,9 @@
 import * as ds from "destack"
 
 export struct Path {
-    segments: List<PathSegment>
+    segments: PathSegment[],
 }
 
 export struct PathSegment {
-    name: string
+    name: string,
 }
-
