@@ -28,7 +28,7 @@ export struct Position {
 @entity
 export struct Cell {
     isFilled: boolean,
-    color: Color?,
+    color?: Color,
 }
 
 /// The Tetris game board.
@@ -97,9 +97,9 @@ export struct Board {
 @entity
 export struct TetrisGame {
     board: Board,
-    currentPiece: TetrisPiece?,
+    currentPiece?: TetrisPiece,
     currentPosition: Position,
-    nextPiece: TetrisPiece?,
+    nextPiece?: TetrisPiece,
     score: int32 = 0,
     level: int32 = 1,
     linesCleared: int32 = 0,

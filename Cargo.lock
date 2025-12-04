@@ -423,6 +423,8 @@ dependencies = [
  "destack_resolver",
  "destack_source",
  "destack_workspace",
+ "serde",
+ "serde_json",
  "tokio",
  "tracing",
  "tracing-subscriber",

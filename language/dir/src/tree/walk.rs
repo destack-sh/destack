@@ -1146,7 +1146,11 @@ pub fn walk_pattern_field<V: NodeVisitor + ?Sized>(
             let pattern_node = tree.get(*pattern);
             visitor.visit_pattern(tree, *pattern, pattern_node);
         }
-        PatternField::Spread { mutability: _, name: _, symbol: _ } => {
+        PatternField::Spread {
+            mutability: _,
+            name: _,
+            symbol: _,
+        } => {
             // nothing to do
         }
     }
