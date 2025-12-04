@@ -20,7 +20,7 @@ pub struct TypeTable {
     pub(crate) source_id_by_type_id: Vec<LocalNodeIdAny>,
     /// The declared type by node id (type annotations live on nodes).
     pub(crate) declared_type_by_node_id: IndexMap<GlobalNodeIdAny, LocalTypeId>,
-    /// The inferred type by node id (expression types at specific locations).
+    /// The inferred type by node id (expression-like types at specific locations).
     pub(crate) inferred_type_by_node_id: IndexMap<GlobalNodeIdAny, LocalTypeId>,
     /// The instance type by symbol id (for type declarations: the shape of instances).
     pub(crate) instance_type_by_symbol_id: IndexMap<GlobalSymbolId, LocalTypeId>,

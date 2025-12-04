@@ -39,9 +39,10 @@ Technically, you can even use none at all, and then Destack is just TypeScript.
 | [Expressions](#expressions) | Expression extensions: ranges, tuples, patterns, `loop`, `using` |
 | [Trees](#trees) | Tree literals: TSX-like syntax generalized for any tree-shaped data |
 | [Annotations](#annotations) | Annotations: decorators (`@`) for any expression |
-| [Types](#types) | Type system extensions: runtime types, newtypes, primitives, structs, constraints |
-| [Polymorphism](#polymorphism) | Polymorphism: extensions and overloading |
-| [Ownership](#ownership) | Ownership: Value ownership (`&T`, `^T`), mutability (`const`/`var`), and explicit dispatch |
+| [Types](#types) | Type system extensions: newtypes, primitives, structs, constraints |
+| [Reflection](#reflection) | Types as values, runtime type descriptors, refinements, schema validation |
+| [Dispatch](#dispatch) | Type-based dispatch: extensions and overloading |
+| [Ownership](#ownership) | Value ownership (`&T`, `^T`), mutability (`const`/`var`), and explicit dispatch |
 
 ## Expressions
 
@@ -136,9 +137,7 @@ TypeScript decorators copy-pasted into Destack work as expected.
 
 ## Types
 
-In TypeScript, types are erased at runtime and cannot affect runtime behavior.
-In Destack, type annotations are values you can inspect and use at runtime.
-This enables runtime validation, automatic serialization, generic factories that know their type parameters, and reflection without separate metadata systems.
+Destack extends TypeScript's type system with precise primitives, nominal types, and readable constraints.
 
 ### Primitives
 
@@ -198,10 +197,57 @@ function merge<T: int, U>(): T where (
 ) { }
 ```
 
+## Reflection
+
+In TypeScript, types are erased at runtime—you can't inspect a generic parameter, validate untrusted data against a type, or access decorator metadata without external libraries and configuration.
+Destack makes types first-class runtime values, enabling reflection without separate metadata systems.
+
+### Types as Values
+
+Every type `T` in Destack has a corresponding runtime value of type `Type<T>`:
+
+```
+struct User { name: string, age: uint }
+
+// User in type position: the type
+let u: User = User { name: "Alice", age: 30 };
+
+// User in value position: the type descriptor
+const UserType = User;              // UserType: Type<User>
+UserType.name                       // "User"
+UserType.fields                     // [{ name: "name", type: string }, ...]
+```
+
+Types being values enables patterns that require runtime type information:
+
+```
+// Generic factory that knows its type parameter
+function create<T>(type: Type<T>, data: object): T {
+    return type.create(data);
+}
+const user = create(User, { name: "Alice", age: 30 });
+
+// Runtime type checking
+if (User.is(value)) {
+    // value is User
+}
+```
+
+### Decorator Metadata
+
+Decorator information is accessible at runtime:
+
+```
+@deprecated("use newAPI")
+function oldAPI() { }
+
+oldAPI.decorators       // [{ name: "deprecated", arguments: ["use newAPI"] }]
+```
+
 ### Refinements
 
-Types are values and can be manipulated as expressions - at compile time and at runtime.
-This enables refinements of types, like is commonly used in schema libraries, without extra ceremony:
+Refinements add constraints to types that are checked both at compile time (when provable) and at runtime (via validation).
+Refinement methods are defined via extensions on types:
 
 ```
 type User = {
@@ -211,30 +257,44 @@ type User = {
 }
 ```
 
-Refinements build on types-as-values and extensions: every type exists at runtime as a descriptor, and refinement methods attach constraints to these descriptors.
-The compiler checks refinements when provable:
+The compiler checks refinements when values are provable:
 
 ```
 { name: "", age: 200, ... } satisfies User      // compile error: "" too short, 200 > max
 { name: "Alice", age: 30, ... } satisfies User  // ok
 ```
 
-The additional refinements and runtime validation are provided opt-in via the standard library `@destack-sh/schema`.
-Foreign and "unproven" data can be explicitly coerced or dynamically checked:
+### Standard Library Schema
+
+The language provides the reflection primitives; the standard library `@destack-sh/schema` provides validation utilities:
+
+1. **Built-in (no imports)**: `Type<T>`, `.name`, `.fields`, `.is()`, decorator access
+2. **Standard library**: `parse()`, `safeParse()`, refinements `.min()`, `.max()`
 
 ```
 import { parse } from "@destack-sh/schema";
 
 const data = await fetchUser();
-const user = parse(User, data);    // explicit runtime validation
-const user = User.parse(data);     // shorthand explicit runtime validation
+const user = parse(User, data);    // runtime validation with errors
+const user = User.parse(data);     // shorthand (schema extends Type<T>)
 ```
 
-## Polymorphism
+This is similar to how Zod works, but without the schema/type duplication:
 
-TypeScript extends types via prototype mutation or declaration merging, both with footguns.
-TypeScript has limited function overloading via type-only declarations that all share one implementation.
-Destack adds proper extensions and real overloading.
+```typescript
+// Zod: define schema, derive type
+const UserSchema = z.object({ name: z.string().min(1) });
+type User = z.infer<typeof UserSchema>;
+
+// Destack: define type, validation is automatic
+struct User { name: string.minLength(1) }
+parse(User, data);  // User IS the schema
+```
+
+## Dispatch
+
+TypeScript has parametric polymorphism ("generics") but essentially no support for type-based dispatch (by design).
+Destack adds type extensions and real overloading for type-based dispatch.
 
 ### Extensions
 
@@ -266,7 +326,7 @@ For function overloads, Destack uses **declaration order**: the first matching o
 
 ## Ownership
 
-TypeScript doesn't distinguish references from values—everything is implicitly reference-counted or copied based on type.
+TypeScript doesn't distinguish references from values—everything is implicitly reference-counted _or_ copied purely based on type.
 Destack adds opt-in explicit control over three orthogonal aspects of ownership:
 
 ### Value Ownership

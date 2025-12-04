@@ -2,7 +2,7 @@
     "name": "@destack-sh/vscode",
     "displayName": "Destack",
     "description": "Destack for VSCode (.ds, .d.ds, .dst)",
-    "version": "0.47.2",
+    "version": "0.47.3",
     "license": "proprietary",
     "engines": {
         "vscode": "^1.90.0"
