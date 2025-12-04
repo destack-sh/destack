@@ -14,8 +14,6 @@ pub enum Pattern {
     Object {
         fields: Vec<LocalNodeId<PatternField>>,
     },
-    /// Rest pattern (like `...x` or `...rest`).
-    Rest { name: Option<StringId> },
     /// Hole pattern (like the empty in `, ,`).
     Hole,
 }
@@ -43,6 +41,11 @@ pub enum PatternField {
     },
     /// Positional field with just a pattern (like `4` or `int32`).
     Positional { pattern: LocalNodeId<Pattern> },
+    /// Spread field (like `...x`).
+    Spread {
+        mutability: Option<Mutability>,
+        name: Option<StringId>,
+    },
 }
 
 impl Node for PatternField {

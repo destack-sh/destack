@@ -98,3 +98,55 @@ macro_rules! assert_expression_path {
         }
     }};
 }
+
+/// Assert that `types.get_type(id)` matches `$pat`.
+/// If a body is provided (`=> { ... }`), it runs with the pattern bindings.
+///
+/// Examples:
+/// ```
+/// assert_type!(types, type_id, Type::Unknown);
+/// assert_type!(types, type_id, Type::Tuple { elements } => {
+///     assert_eq!(elements.len(), 2);
+/// });
+/// // Or with an already-resolved type:
+/// assert_type!(*ty_ref, Type::Tuple { elements } => { ... });
+/// ```
+#[macro_export]
+macro_rules! assert_type {
+    // `types.get_type(id)` matches a pattern, no body.
+    // e.g., `assert_type!(types, type_id, Type::Unknown);`
+    ($types:expr, $id:expr, $pat:pat_param) => {{
+        #[allow(unreachable_patterns)]
+        match $types.get_type($id) {
+            $pat => {}
+            other => panic!("expected `{}`, got {other:?}", stringify!($pat)),
+        }
+    }};
+    // `types.get_type(id)` matches a pattern, then run a block with the bindings.
+    // e.g., `assert_type!(types, type_id, Type::Tuple { elements } => { /* ... */ });`
+    ($types:expr, $id:expr, $pat:pat_param => $body:block) => {{
+        #[allow(unreachable_patterns)]
+        match $types.get_type($id) {
+            $pat => $body,
+            other => panic!("expected `{}`, got {other:?}", stringify!($pat)),
+        }
+    }};
+    // Already-resolved type matches a pattern, run a block.
+    // e.g., `assert_type!(*ty_ref, Type::Tuple { elements } => { /* ... */ });`
+    ($ty:expr, $pat:pat_param => $body:block) => {{
+        #[allow(unreachable_patterns)]
+        match $ty {
+            $pat => $body,
+            other => panic!("expected `{}`, got {other:?}", stringify!($pat)),
+        }
+    }};
+    // Already-resolved type matches a pattern, no body.
+    // e.g., `assert_type!(*ty_ref, Type::Unknown);`
+    ($ty:expr, $pat:pat_param) => {{
+        #[allow(unreachable_patterns)]
+        match $ty {
+            $pat => {}
+            other => panic!("expected `{}`, got {other:?}", stringify!($pat)),
+        }
+    }};
+}

@@ -25,12 +25,6 @@ impl<'ast> FormatNode<'ast, Pattern> for Pattern {
 
         match self {
             Pattern::Wildcard => write!(f, [token("_")])?,
-            Pattern::Rest { name } => {
-                write!(f, [token("...")])?;
-                if let Some(name) = name {
-                    write!(f, [name])?;
-                }
-            }
             Pattern::Maybe(unwrap) => write!(f, [unwrap, token("?")])?,
             Pattern::ReferenceOf { right, mutability } => {
                 write!(f, [token("&")])?;
@@ -66,7 +60,7 @@ impl<'ast> FormatNode<'ast, Pattern> for Pattern {
                 write!(f, [ty])?;
                 write!(f, [list_like("(", ")", ",", fields)])?
             }
-            Pattern::Slice { fields } => {
+            Pattern::Array { fields } => {
                 write!(f, [list_like("[", "]", ",", fields)])?;
             }
             Pattern::Object { fields } => {
@@ -133,6 +127,15 @@ impl<'ast> FormatNode<'ast, PatternField> for PatternField {
                 }
             }
             PatternField::Positional { pattern } => write!(f, [pattern])?,
+            PatternField::Spread { mutability, name } => {
+                if let Some(mutability) = mutability {
+                    write!(f, [mutability, space()])?;
+                }
+                write!(f, [token("...")])?;
+                if let Some(name) = name {
+                    write!(f, [name])?;
+                }
+            }
         }
 
         write!(f, [f.context().any_infix_or_postfix_annotations(node_id)])?;
@@ -148,11 +151,6 @@ mod tests {
     #[test]
     fn test_format_pattern_wildcard() {
         assert_format!("_", "_", |p| p.eat_pattern());
-    }
-
-    #[test]
-    fn test_format_pattern_rest() {
-        assert_format!("...", "...", |p| p.eat_pattern());
     }
 
     #[test]

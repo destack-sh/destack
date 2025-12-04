@@ -24,26 +24,6 @@ impl Compiler {
             tree.reserve_from_source(NodeType::Pattern, ast_pattern_id, scope, parent_id);
         let pattern = match ast_pattern {
             ast::Pattern::Wildcard => Pattern::Wildcard,
-            ast::Pattern::Rest { name } => {
-                let name =
-                    name.map(|name| self.program.strings.intern_from(&module.ast_strings, name));
-                let symbol = if let Some(name) = name {
-                    let (symbol, _) = self.bind_named_symbol(
-                        module,
-                        SymbolSpace::Value,
-                        StaticKey::Name(name),
-                        scope,
-                        export,
-                        symbols,
-                    );
-                    symbol
-                } else {
-                    let (symbol, _) =
-                        self.bind_anonymous_local(module, SymbolSpace::Value, scope, symbols);
-                    symbol
-                };
-                Pattern::Rest { name, symbol }
-            }
             ast::Pattern::Maybe(ast_pattern_id) => Pattern::Maybe(self.bind_pattern(
                 module,
                 scope,
@@ -214,7 +194,7 @@ impl Compiler {
                     .collect();
                 Pattern::TaggedTuple { ty, fields }
             }
-            ast::Pattern::Slice { fields } => {
+            ast::Pattern::Array { fields } => {
                 let fields = fields
                     .iter()
                     .map(|field| {
@@ -230,7 +210,7 @@ impl Compiler {
                         )
                     })
                     .collect();
-                Pattern::Slice { fields }
+                Pattern::Array { fields }
             }
             ast::Pattern::Object { fields } => {
                 let fields = fields
@@ -435,6 +415,34 @@ impl Compiler {
                     types,
                 );
                 PatternField::Positional { pattern }
+            }
+            ast::PatternField::Spread { mutability, name } => {
+                let mutability = mutability.map(|mutability| self.bind_mutability(mutability));
+                let name = name.map(|name| {
+                    self.program
+                        .strings
+                        .intern_from(&module.ast_strings, name.string())
+                });
+                let symbol = if let Some(name) = name {
+                    let (symbol, _) = self.bind_named_symbol(
+                        module,
+                        SymbolSpace::Value,
+                        StaticKey::Name(name),
+                        scope,
+                        export,
+                        symbols,
+                    );
+                    symbol
+                } else {
+                    let (symbol, _) =
+                        self.bind_anonymous_local(module, SymbolSpace::Value, scope, symbols);
+                    symbol
+                };
+                PatternField::Spread {
+                    mutability,
+                    name,
+                    symbol,
+                }
             }
         };
 

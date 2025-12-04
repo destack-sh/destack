@@ -5,11 +5,6 @@ use crate::{Expression, LocalNodeId, LocalSymbolId, Mutability, Node, NodeType, 
 pub enum Pattern {
     /// Wildcard scalar pattern (`_`).
     Wildcard,
-    /// Wildcard rest pattern (`..` or `..rest`).
-    Rest {
-        name: Option<StringId>,
-        symbol: LocalSymbolId,
-    },
     /// Maybe pattern (like `T?`).
     Maybe(LocalNodeId<Pattern>),
     /// Reference pattern (like `&x`).
@@ -46,8 +41,8 @@ pub enum Pattern {
         ty: LocalNodeId<Expression>,
         fields: Vec<LocalNodeId<PatternField>>,
     },
-    /// Array or slice pattern (like `[1, 2, x]` or `[1, y, ..]`).
-    Slice {
+    /// Array pattern (like `[1, 2, x]` or `[1, y, ..]`).
+    Array {
         fields: Vec<LocalNodeId<PatternField>>,
     },
     /// Anonymous object pattern (like `{ x, y }`).
@@ -101,6 +96,12 @@ pub enum PatternField {
     },
     /// Positional field with just a pattern (like `4` or `int32`).
     Positional { pattern: LocalNodeId<Pattern> },
+    /// Spread field (like `...x`).
+    Spread {
+        mutability: Option<Mutability>,
+        name: Option<StringId>,
+        symbol: LocalSymbolId,
+    },
 }
 
 impl Node for PatternField {
@@ -114,6 +115,7 @@ impl PatternField {
             PatternField::Named { symbol, .. } => Some(*symbol),
             PatternField::Alias { symbol, .. } => Some(*symbol),
             PatternField::Positional { .. } => None,
+            PatternField::Spread { symbol, .. } => Some(*symbol),
         }
     }
 }

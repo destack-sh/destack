@@ -833,7 +833,6 @@ pub fn walk_pattern<V: NodeVisitor + ?Sized>(
             mutability: _,
             name: _,
         } => {}
-        Pattern::Rest { name: _ } => {}
         Pattern::Hole => {}
         Pattern::Array { elements } => {
             for element_id in elements {
@@ -889,6 +888,12 @@ pub fn walk_pattern_field<V: NodeVisitor + ?Sized>(
         PatternField::Positional { pattern } => {
             let pattern_node = tree.get(*pattern);
             visitor.visit_pattern(tree, *pattern, pattern_node);
+        }
+        PatternField::Spread {
+            mutability: _,
+            name: _,
+        } => {
+            // nothing to do
         }
     }
 }

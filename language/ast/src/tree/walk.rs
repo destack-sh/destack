@@ -981,9 +981,6 @@ pub fn walk_pattern<V: NodeVisitor + ?Sized>(
         Pattern::Wildcard => {
             // no child nodes to visit
         }
-        Pattern::Rest { name: _ } => {
-            // no child nodes to visit
-        }
         Pattern::Maybe(unwrap) => {
             let unwrap_pattern = tree.get(*unwrap);
             visitor.visit_pattern(tree, *unwrap, unwrap_pattern);
@@ -1044,7 +1041,7 @@ pub fn walk_pattern<V: NodeVisitor + ?Sized>(
                 visitor.visit_pattern_field(tree, *field_id, field);
             }
         }
-        Pattern::Slice { fields } => {
+        Pattern::Array { fields } => {
             for field_id in fields {
                 let field = tree.get(*field_id);
                 visitor.visit_pattern_field(tree, *field_id, field);
@@ -1111,6 +1108,9 @@ pub fn walk_pattern_field<V: NodeVisitor + ?Sized>(
         PatternField::Positional { pattern } => {
             let pattern_node = tree.get(*pattern);
             visitor.visit_pattern(tree, *pattern, pattern_node);
+        }
+        PatternField::Spread { mutability: _, name: _ } => {
+            // nothing to visit
         }
     }
 }

@@ -1150,11 +1150,6 @@ impl<'a> NodeVisitor for Dumper<'a> {
             Pattern::Object { fields: _ } => {
                 self.node("Pattern::Object", id.id).end();
             }
-            Pattern::Rest { name } => {
-                self.node("Pattern::Rest", id.id)
-                    .field_optional("name", name)
-                    .end();
-            }
             Pattern::Hole => {
                 self.node("Pattern::Hole", id.id).end();
             }
@@ -1196,6 +1191,12 @@ impl<'a> NodeVisitor for Dumper<'a> {
             }
             PatternField::Positional { pattern: _ } => {
                 self.node("PatternField::Positional", id.id).end();
+            }
+            PatternField::Spread { mutability, name } => {
+                self.node("PatternField::Spread", id.id)
+                    .field_optional("mutability", mutability)
+                    .field_optional("name", name)
+                    .end();
             }
         }
         self.with_depth(|dumper| {
