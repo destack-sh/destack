@@ -961,44 +961,46 @@ over multiple lines with trailing space    */",
         assert_eq!(expressions.len(), 1);
 
         // A && B
-        assert_node!(parser.tree, expressions[0], Expression::Let { value, .. } => {
-            assert_node!(parser.tree, value.unwrap(), Expression::Binary { left, right, operator } => {
-                assert_eq!(*operator, BinaryOperator::And);
-                // A
-                assert_node!(parser.tree, *left, Expression::Path { path, static_arguments: _ } => {
-                    assert_path!(parser, *path, "A");
-                });
-                let annotations = parser.tree.get_annotations(left.id);
-                // line prefix, pre-A comment
-                assert_eq!(annotations.len(), 2);
-                assert_node!(parser.tree, annotations[0], Annotation::Comment { node, position } => {
-                    assert_eq!(*position, AnnotationPosition::LinePrefix);
-                    assert_node!(parser.tree, *node, Comment { string, style } => {
-                        assert_string!(parser, *string, "Pre-A comment");
-                        assert_eq!(*style, CommentStyle::Star);
+        assert_node!(parser.tree, expressions[0], Expression::Statement(statement_id) => {
+            assert_node!(parser.tree, *statement_id, Expression::Let { value, .. } => {
+                assert_node!(parser.tree, value.unwrap(), Expression::Binary { left, right, operator } => {
+                    assert_eq!(*operator, BinaryOperator::And);
+                    // A
+                    assert_node!(parser.tree, *left, Expression::Path { path, static_arguments: _ } => {
+                        assert_path!(parser, *path, "A");
                     });
-                });
-                // line postfix, A comment
-                assert_node!(parser.tree, annotations[1], Annotation::Comment { node, position } => {
-                    assert_eq!(*position, AnnotationPosition::LinePostfix);
-                    assert_node!(parser.tree, *node, Comment { string, style } => {
-                        assert_string!(parser, *string, "A comment");
-                        assert_eq!(*style, CommentStyle::Star);
+                    let annotations = parser.tree.get_annotations(left.id);
+                    // line prefix, pre-A comment
+                    assert_eq!(annotations.len(), 2);
+                    assert_node!(parser.tree, annotations[0], Annotation::Comment { node, position } => {
+                        assert_eq!(*position, AnnotationPosition::LinePrefix);
+                        assert_node!(parser.tree, *node, Comment { string, style } => {
+                            assert_string!(parser, *string, "Pre-A comment");
+                            assert_eq!(*style, CommentStyle::Star);
+                        });
                     });
-                });
+                    // line postfix, A comment
+                    assert_node!(parser.tree, annotations[1], Annotation::Comment { node, position } => {
+                        assert_eq!(*position, AnnotationPosition::LinePostfix);
+                        assert_node!(parser.tree, *node, Comment { string, style } => {
+                            assert_string!(parser, *string, "A comment");
+                            assert_eq!(*style, CommentStyle::Star);
+                        });
+                    });
 
-                // B
-                assert_node!(parser.tree, *right, Expression::Path { path, static_arguments: _ } => {
-                    assert_path!(parser, *path, "B");
-                });
-                // line postfix boundary, B comment
-                let annotations = parser.tree.get_annotations(right.id);
-                assert_eq!(annotations.len(), 1);
-                assert_node!(parser.tree, annotations[0], Annotation::Comment { node, position } => {
-                    assert_eq!(*position, AnnotationPosition::LinePostfixBoundary);
-                    assert_node!(parser.tree, *node, Comment { string, style } => {
-                        assert_string!(parser, *string, "B comment");
-                        assert_eq!(*style, CommentStyle::Star);
+                    // B
+                    assert_node!(parser.tree, *right, Expression::Path { path, static_arguments: _ } => {
+                        assert_path!(parser, *path, "B");
+                    });
+                    // line postfix boundary, B comment
+                    let annotations = parser.tree.get_annotations(right.id);
+                    assert_eq!(annotations.len(), 1);
+                    assert_node!(parser.tree, annotations[0], Annotation::Comment { node, position } => {
+                        assert_eq!(*position, AnnotationPosition::LinePostfixBoundary);
+                        assert_node!(parser.tree, *node, Comment { string, style } => {
+                            assert_string!(parser, *string, "B comment");
+                            assert_eq!(*style, CommentStyle::Star);
+                        });
                     });
                 });
             });

@@ -58,7 +58,7 @@ impl Parser {
                 else {
                     let catch_pattern = self.with_options(
                         self.options.not_in_position().in_before_block(),
-                        |parser| parser.eat_pattern(),
+                        |parser| parser.eat_pattern_parenthesized_maybe(),
                     )?;
                     let catch_expression = self.with_options(
                         self.options.not_in_position().in_statement_position(),

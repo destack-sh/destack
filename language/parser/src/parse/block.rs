@@ -135,7 +135,7 @@ impl Parser {
                 statements.push(expression_id);
             }
             // wrap other expressions in statements (except last)
-            else if i < expression_count - 1 && format == BlockFormat::Explicit {
+            else if i < expression_count - 1 || format == BlockFormat::Implicit {
                 let statement_id = self.tree.insert(
                     Expression::Statement(expression_id),
                     self.tree.get_span(expression_id),
