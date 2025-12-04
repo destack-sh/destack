@@ -1577,9 +1577,10 @@ impl<'a> NodeVisitor for Dumper<'a> {
             Pattern::Wildcard => {
                 self.node("Pattern::Wildcard", id.id).end();
             }
-            Pattern::Rest { name } => {
+            Pattern::Rest { name, symbol } => {
                 self.node("Pattern::Rest", id.id)
                     .field_optional("name", name)
+                    .field("symbol", symbol)
                     .end();
             }
             Pattern::Maybe(_) => {

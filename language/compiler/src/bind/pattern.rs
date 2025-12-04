@@ -27,7 +27,22 @@ impl Compiler {
             ast::Pattern::Rest { name } => {
                 let name =
                     name.map(|name| self.program.strings.intern_from(&module.ast_strings, name));
-                Pattern::Rest { name }
+                let symbol = if let Some(name) = name {
+                    let (symbol, _) = self.bind_named_symbol(
+                        module,
+                        SymbolSpace::Value,
+                        StaticKey::Name(name),
+                        scope,
+                        export,
+                        symbols,
+                    );
+                    symbol
+                } else {
+                    let (symbol, _) =
+                        self.bind_anonymous_local(module, SymbolSpace::Value, scope, symbols);
+                    symbol
+                };
+                Pattern::Rest { name, symbol }
             }
             ast::Pattern::Maybe(ast_pattern_id) => Pattern::Maybe(self.bind_pattern(
                 module,

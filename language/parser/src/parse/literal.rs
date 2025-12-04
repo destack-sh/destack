@@ -351,14 +351,14 @@ impl Parser {
         Ok(elements)
     }
 
-    /// Eat a struct literal (including the surrounding braces, excluding any prefix type).
+    /// Eat an object literal (including the surrounding braces).
     ///
     /// Examples:
     /// ```
     /// { }
     /// { a: 1, b }
     /// { a(x): void }
-    pub fn eat_struct_literal(&mut self) -> ParseResult<Vec<LocalNodeId<Property>>> {
+    pub fn eat_object_literal(&mut self) -> ParseResult<Vec<LocalNodeId<Property>>> {
         self.eat_token(TokenType::OpenBrace)?;
         self.eat_newlines_maybe()?;
         let properties = self.eat_properties()?;
@@ -386,7 +386,7 @@ impl Parser {
     /// <Entity />
     /// <Entity a=1 test />
     /// <Level level=1>
-    ///     player: <Entity name="Alfred" />
+    ///     <Entity name="Alfred" />
     ///     <Entity>2</Entity>
     ///     "some text"
     ///     ..someChildren.map(child => <Entity name={child.name} />)

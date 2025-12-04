@@ -39,7 +39,7 @@ pub enum Type {
     TypeLiteral { value: TypeLiteral },
 
     /// Type-as-value: runtime representation of a type.
-    Value { ty: LocalTypeId },
+    Value { value: LocalTypeId },
 
     /// Reference to a declared type (with optional type arguments for generics).
     Reference {
