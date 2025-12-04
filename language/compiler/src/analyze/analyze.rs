@@ -1221,7 +1221,7 @@ impl Compiler {
 
 #[cfg(test)]
 mod tests {
-    use destack_dir::{PrimitiveType, Type, TypeLiteral};
+    use destack_dir::{Expression, PrimitiveType, Type, TypeLiteral};
 
     use crate::{ImportTask, TestProgram, assert_type};
 
@@ -1234,9 +1234,17 @@ mod tests {
 
         let module = test.module_for_file(&file);
         let module = module.read();
+        let tree = module.tree.read();
         let types = module.types.read();
 
         let expression_id = module.roots[0];
+        let expression = tree.get(expression_id);
+        let &Expression::Statement {
+            statement: expression_id,
+        } = expression
+        else {
+            panic!("expected statement");
+        };
         let ty = types
             .get_inferred_type(expression_id.into_global_any(module.id))
             .unwrap();
@@ -1258,9 +1266,17 @@ mod tests {
 
         let module = test.module_for_file(&file);
         let module = module.read();
+        let tree = module.tree.read();
         let types = module.types.read();
 
         let expression_id = module.roots[0];
+        let expression = tree.get(expression_id);
+        let &Expression::Statement {
+            statement: expression_id,
+        } = expression
+        else {
+            panic!("expected statement");
+        };
         let ty = types
             .get_inferred_type(expression_id.into_global_any(module.id))
             .unwrap();
@@ -1282,9 +1298,17 @@ mod tests {
 
         let module = test.module_for_file(&file);
         let module = module.read();
+        let tree = module.tree.read();
         let types = module.types.read();
 
         let expression_id = module.roots[0];
+        let expression = tree.get(expression_id);
+        let &Expression::Statement {
+            statement: expression_id,
+        } = expression
+        else {
+            panic!("expected statement");
+        };
         let ty = types
             .get_inferred_type(expression_id.into_global_any(module.id))
             .unwrap();
@@ -1306,9 +1330,17 @@ mod tests {
 
         let module = test.module_for_file(&file);
         let module = module.read();
+        let tree = module.tree.read();
         let types = module.types.read();
 
         let expression_id = module.roots[0];
+        let expression = tree.get(expression_id);
+        let &Expression::Statement {
+            statement: expression_id,
+        } = expression
+        else {
+            panic!("expected statement");
+        };
         let ty = types
             .get_inferred_type(expression_id.into_global_any(module.id))
             .unwrap();
@@ -1330,9 +1362,17 @@ mod tests {
 
         let module = test.module_for_file(&file);
         let module = module.read();
+        let tree = module.tree.read();
         let types = module.types.read();
 
         let expression_id = module.roots[0];
+        let expression = tree.get(expression_id);
+        let &Expression::Statement {
+            statement: expression_id,
+        } = expression
+        else {
+            panic!("expected statement");
+        };
         let ty = types
             .get_inferred_type(expression_id.into_global_any(module.id))
             .unwrap();
@@ -1388,14 +1428,22 @@ mod tests {
 
         let module = test.module_for_file(&file);
         let module = module.read();
+        let tree = module.tree.read();
         let types = module.types.read();
 
-        let let_expr_id = module.roots[0];
+        let expression_id = module.roots[0];
+        let expression = tree.get(expression_id);
+        let &Expression::Statement {
+            statement: expression_id,
+        } = expression
+        else {
+            panic!("expected statement");
+        };
         let x_symbol = test.resolve_to_symbol("test.ds", "x").unwrap();
 
         // declared_type[let_expr] = string
         let declared = types
-            .get_declared_type(let_expr_id.into_global_any(module.id))
+            .get_declared_type(expression_id.into_global_any(module.id))
             .unwrap();
         assert_eq!(
             *declared,
