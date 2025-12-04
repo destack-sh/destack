@@ -64,7 +64,7 @@ export class MeetupRegistration {
 }
 
 @description("Register for a Meetup.")
-@action(commit: true)
+@action
 export async function register(
     meetup: Meetup,
     user: User,

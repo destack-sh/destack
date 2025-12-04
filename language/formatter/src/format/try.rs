@@ -26,7 +26,7 @@ mod tests {
     fn test_format_try_expression_with_catch_match() {
         let source = r"try {
     foo()
-} catch match e {
+} catch match (e) {
     Error(err) => err
 }";
         assert_format!(
@@ -41,7 +41,7 @@ mod tests {
     fn test_format_try_expression_with_catch_pattern_and_finally() {
         let source = r"try {
     foo()
-} catch e {
+} catch (e) {
     bar()
 } finally {
     baz()

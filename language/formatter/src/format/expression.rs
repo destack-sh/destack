@@ -1261,7 +1261,7 @@ pub(crate) fn format_expression<'ast>(
             if let Some(catch) = catch_expression {
                 write!(f, [space(), Keyword::Catch, space()])?;
                 if let Some(catch_pattern) = catch_pattern {
-                    write!(f, [catch_pattern, space()])?;
+                    write!(f, [token("("), catch_pattern, token(")"), space()])?;
                 }
                 write!(f, [catch])?;
             }

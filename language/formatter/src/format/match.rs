@@ -22,7 +22,17 @@ impl<'ast> FormatNode<'ast, MatchCase> for MatchCase {
                 // pattern and optional guard before expression body
                 write!(f, [*pattern])?;
                 if let Some(guard) = guard {
-                    write!(f, [space(), Keyword::If, space(), *guard])?;
+                    write!(
+                        f,
+                        [
+                            space(),
+                            Keyword::If,
+                            space(),
+                            token("("),
+                            *guard,
+                            token(")")
+                        ]
+                    )?;
                 }
                 write!(f, [space(), token("=>"), space(), *body])?;
             }
@@ -34,7 +44,17 @@ impl<'ast> FormatNode<'ast, MatchCase> for MatchCase {
                 // format pattern, guard, and block body
                 write!(f, [*pattern])?;
                 if let Some(guard) = guard {
-                    write!(f, [space(), Keyword::If, space(), *guard])?;
+                    write!(
+                        f,
+                        [
+                            space(),
+                            Keyword::If,
+                            space(),
+                            token("("),
+                            *guard,
+                            token(")")
+                        ]
+                    )?;
                 }
                 write!(f, [space(), token("=>"), space(), *body])?;
             }
@@ -53,8 +73,8 @@ mod tests {
     #[test]
     fn test_format_match_expression_cases() {
         assert_format!(
-            "match x { 1 => 2; 3 => 4 }",
-            "match x {\n\t1 => 2\n\t3 => 4\n}",
+            "match (x) { 1 => 2; 3 => 4 }",
+            "match (x) {\n\t1 => 2\n\t3 => 4\n}",
             |p| p.eat_match(),
             DestackFormatOptions::default_tab()
         );
@@ -63,8 +83,8 @@ mod tests {
     #[test]
     fn test_format_match_with_block_case_and_guard() {
         assert_format!(
-            "match value { Pattern if cond => { const X = 1; } }",
-            "match value {\n\tPattern if cond => {\n\t\tconst X = 1;\n\t}\n}",
+            "match (value) { Pattern if (cond) => { const X = 1; } }",
+            "match (value) {\n\tPattern if (cond) => {\n\t\tconst X = 1;\n\t}\n}",
             |p| p.eat_match(),
             DestackFormatOptions::default_tab()
         );

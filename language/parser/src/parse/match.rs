@@ -41,7 +41,7 @@ impl Parser {
 
         // value
         let value_id = self.with_options(self.options.in_before_block(), |parser| {
-            parser.try_eat_expression(TokenType::OpenBrace)
+            parser.eat_expression_parenthesized_maybe()
         })?;
 
         // cases
@@ -150,7 +150,7 @@ impl Parser {
                                 in_before_block: true,
                                 ..Default::default()
                             },
-                            |parser| parser.try_eat_expression(TokenType::ArrowWide),
+                            |parser| parser.eat_expression_parenthesized_maybe(),
                         )?;
                         Some(guard)
                     } else {
