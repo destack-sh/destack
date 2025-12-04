@@ -284,7 +284,7 @@ impl Compiler {
                 types.insert_type_from(ty, expression_id)
             }
             // type literal -> use the given type literal?
-            // nocheckin ???
+            // NOTE #Suspicious: using the type literal type itself as its type is strange
             Expression::TypeLiteral { value } => {
                 let ty = Type::TypeLiteral {
                     value: value.clone(),
@@ -453,7 +453,10 @@ impl Compiler {
                 }
 
                 // struct instance type -> object type
-                let instance_ty = Type::Object { fields: vec![] }; // nocheckin ???
+                let instance_ty = Type::Reference {
+                    symbol: descriptor.symbol.into_global(module.id),
+                    static_arguments: None,
+                };
                 let instance_ty_id = types.insert_type_from(instance_ty, declaration_id);
                 types.set_instance_type(descriptor.symbol.into_global(module.id), instance_ty_id);
 
@@ -462,7 +465,38 @@ impl Compiler {
                     value: instance_ty_id,
                 };
                 let value_ty_id = types.insert_type_from(value_ty, declaration_id);
-                types.set_instance_type(descriptor.symbol.into_global(module.id), value_ty_id);
+                types.set_value_type(descriptor.symbol.into_global(module.id), value_ty_id);
+            }
+
+            // class
+            Declaration::Class {
+                descriptor,
+                generics,
+                heritage,
+                scope: _,
+                properties,
+            } => {
+                // walk
+                self.analyze_generics(module, generics, tree, symbols, types, ctx)?;
+                self.analyze_heritage(module, heritage, tree, symbols, types, ctx)?;
+                for property_id in properties {
+                    self.analyze_property(module, *property_id, tree, symbols, types, ctx)?;
+                }
+
+                // class instance type -> object type
+                let instance_ty = Type::Reference {
+                    symbol: descriptor.symbol.into_global(module.id),
+                    static_arguments: None,
+                };
+                let instance_ty_id = types.insert_type_from(instance_ty, declaration_id);
+                types.set_instance_type(descriptor.symbol.into_global(module.id), instance_ty_id);
+
+                // class instance type -> class value type
+                let value_ty = Type::Value {
+                    value: instance_ty_id,
+                };
+                let value_ty_id = types.insert_type_from(value_ty, declaration_id);
+                types.set_value_type(descriptor.symbol.into_global(module.id), value_ty_id);
             }
 
             // enum
@@ -517,6 +551,30 @@ impl Compiler {
                 for property_id in properties {
                     self.analyze_property(module, *property_id, tree, symbols, types, ctx)?;
                 }
+            }
+
+            // interface
+            Declaration::Interface {
+                descriptor,
+                generics,
+                heritage,
+                scope: _,
+                properties,
+            } => {
+                // walk
+                self.analyze_generics(module, generics, tree, symbols, types, ctx)?;
+                self.analyze_heritage(module, heritage, tree, symbols, types, ctx)?;
+                for property_id in properties {
+                    self.analyze_property(module, *property_id, tree, symbols, types, ctx)?;
+                }
+
+                // interface instance type -> interface value type
+                let instance_ty = Type::Reference {
+                    symbol: descriptor.symbol.into_global(module.id),
+                    static_arguments: None,
+                };
+                let instance_ty_id = types.insert_type_from(instance_ty, declaration_id);
+                types.set_instance_type(descriptor.symbol.into_global(module.id), instance_ty_id);
             }
 
             _ => {
@@ -621,7 +679,7 @@ impl Compiler {
         symbols: &SymbolTable,
         types: &mut TypeTable,
         ctx: &mut TypeContext,
-    ) -> AnalyzeResult<()> {
+    ) -> AnalyzeResult<LocalTypeId> {
         // walk generics in signature
         if let Some(generics) = &signature.generics {
             self.analyze_generics(module, generics, tree, symbols, types, ctx)?;

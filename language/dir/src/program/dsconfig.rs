@@ -220,11 +220,13 @@ pub struct DsConfigCompilerOptionsJson {
     pub allow_trees: Option<bool>,
     /// Allow annotations: decorators (`@`) extended to any expression.
     pub allow_annotations: Option<bool>,
-    /// Allow type system extensions: runtime types, newtypes, primitives, structs, constraints.
+    /// Allow type system extensions: newtypes, primitives, structs, constraints.
     pub allow_types: Option<bool>,
-    /// Allow polymorphism: extensions and overloading.
-    pub allow_polymorphism: Option<bool>,
-    /// Allow ownership: value ownership (`&T`, `^T`), mutability (`var`), and dispatch behavior.
+    /// Allow reflection: types as values, runtime type descriptors, decorator metadata.
+    pub allow_reflection: Option<bool>,
+    /// Allow dispatch: extensions and overloading (type-based method/function dispatch).
+    pub allow_dispatch: Option<bool>,
+    /// Allow ownership: value ownership (`&T`, `^T`), mutability (`var`), and explicit dispatch.
     pub allow_ownership: Option<bool>,
 
     // path resolution
@@ -307,8 +309,11 @@ impl DsConfigCompilerOptionsJson {
         if let Some(enabled) = self.allow_types {
             features.set(LanguageFeature::Types, enabled);
         }
-        if let Some(enabled) = self.allow_polymorphism {
-            features.set(LanguageFeature::Polymorphism, enabled);
+        if let Some(enabled) = self.allow_reflection {
+            features.set(LanguageFeature::Reflection, enabled);
+        }
+        if let Some(enabled) = self.allow_dispatch {
+            features.set(LanguageFeature::Dispatch, enabled);
         }
         if let Some(enabled) = self.allow_ownership {
             features.set(LanguageFeature::Ownership, enabled);

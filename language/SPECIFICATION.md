@@ -450,6 +450,58 @@ if (result.ok) {
 }
 ```
 
+## Reflection
+
+Destack makes types first-class runtime values, enabling reflection without separate metadata systems or configuration.
+This section specifies the built-in reflection capabilities; the standard library `@destack-sh/schema` extends these with validation utilities.
+
+### Type Descriptors
+
+Every type `T` has a corresponding runtime value of type `Type<T>`.
+Using a type name in value position evaluates to its descriptor:
+
+```
+struct Point { x: float32, y: float32 }
+
+const t = Point;              // t: Type<Point>
+const t: Type<Point> = Point; // explicit annotation
+```
+
+The `typeOf` function returns a descriptor for a value's type (unlike `typeof`, which returns a coarse-grained string like `"object"`):
+
+```
+const p = Point { x: 1, y: 2 };
+const t = typeOf(p);          // Type<Point>
+```
+
+### Decorator Metadata
+
+Decorator information is accessible at runtime on-demand:
+
+```
+@deprecated("use newAPI")
+function myOldMethod() { }
+
+myOldMethod.decorators  // [{ name: "deprecated", args: ["use newAPI"] }]
+```
+
+### Standard Library
+
+The built-in `Type<T>` interface provides basic reflection.
+The standard library `@destack-sh/schema` extends it for general schema use:
+
+```
+// Built-in (always available with Reflection feature)
+Point.name        // "Point"
+Point.fields      // [{ name: "x", ... }, { name: "y", ... }]
+Point.is(value)   // type guard
+
+// Standard library (requires import)
+import { parse } from "@destack-sh/schema";
+parse(Point, data)      // runtime validation
+Point.parse(data)       // shorthand via extension
+```
+
 ## Declarations
 
 Declaration forms in Destack match TypeScript, with the addition of richer static parameterisation and our concept of nominal typing (like with `newtype` behavior for `enum`s).

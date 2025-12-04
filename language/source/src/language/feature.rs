@@ -14,12 +14,14 @@ pub enum LanguageFeature {
     Trees = 1 << 1,
     /// Annotations: decorators (`@`) extended to any expression.
     Annotations = 1 << 2,
-    /// Type system extensions: runtime types, newtypes, primitives, structs, constraints.
+    /// Type system extensions: newtypes, primitives, structs, constraints.
     Types = 1 << 3,
-    /// Polymorphism: extensions and overloading.
-    Polymorphism = 1 << 4,
-    /// Ownership: value ownership (`&T`, `^T`), mutability (`const`/`var`), and dispatch behavior.
-    Ownership = 1 << 5,
+    /// Reflection: types as values, runtime type descriptors, decorator metadata.
+    Reflection = 1 << 4,
+    /// Dispatch: extensions and overloading (type-based method/function dispatch).
+    Dispatch = 1 << 5,
+    /// Ownership: value ownership (`&T`, `^T`), mutability (`const`/`var`), and explicit dispatch.
+    Ownership = 1 << 6,
 }
 
 impl LanguageFeature {
@@ -29,18 +31,20 @@ impl LanguageFeature {
         Self::Trees,
         Self::Annotations,
         Self::Types,
-        Self::Polymorphism,
+        Self::Reflection,
+        Self::Dispatch,
         Self::Ownership,
     ];
 
-    /// The config key for this feature (e.g., `"allowPolymorphism"`).
+    /// The config key for this feature (e.g., `"allowDispatch"`).
     pub fn options_key(&self) -> &'static str {
         match self {
             Self::Expressions => "allowExpressions",
             Self::Trees => "allowTrees",
             Self::Annotations => "allowAnnotations",
             Self::Types => "allowTypes",
-            Self::Polymorphism => "allowPolymorphism",
+            Self::Reflection => "allowReflection",
+            Self::Dispatch => "allowDispatch",
             Self::Ownership => "allowOwnership",
         }
     }
@@ -52,7 +56,8 @@ impl LanguageFeature {
             Self::Trees => "trees",
             Self::Annotations => "annotations",
             Self::Types => "types",
-            Self::Polymorphism => "polymorphism",
+            Self::Reflection => "reflection",
+            Self::Dispatch => "dispatch",
             Self::Ownership => "ownership",
         }
     }
@@ -258,10 +263,10 @@ mod tests {
     fn test_feature_set_builder() {
         let set = LanguageFeatureSet::none()
             .with(LanguageFeature::Types)
-            .with(LanguageFeature::Polymorphism);
+            .with(LanguageFeature::Dispatch);
 
         assert!(set.is_enabled(LanguageFeature::Types));
-        assert!(set.is_enabled(LanguageFeature::Polymorphism));
+        assert!(set.is_enabled(LanguageFeature::Dispatch));
         assert!(!set.is_enabled(LanguageFeature::Ownership));
     }
 }
