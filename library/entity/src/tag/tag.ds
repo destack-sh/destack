@@ -1,4 +1,4 @@
-import * as ds from "destack"
+import * as ds from "destack";
 
 @description("A Tag to tag an Entity with.")
 @entity

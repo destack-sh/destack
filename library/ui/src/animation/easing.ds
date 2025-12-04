@@ -1,4 +1,4 @@
-import * as ds from "destack"
+import * as ds from "destack";
 
 /// Built-in easing types
 export enum Easing {

@@ -1,4 +1,4 @@
-import * as ds from "destack"
+import * as ds from "destack";
 
 /// Base type for scene events.
 @event

@@ -504,7 +504,7 @@ mod tests {
     /** some multiline
      * doc comment
      * over multiple lines */
-    const X = 1;
+    const X = 1
 }",
             |p| p.eat_block(),
             DestackFormatOptions::default()
@@ -520,7 +520,7 @@ mod tests {
     * over multiple lines yo       */
 }",
             "{
-    const X = 1;
+    const X = 1
     /* some comment
      * over multiple lines yo */
 }",
