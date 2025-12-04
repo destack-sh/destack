@@ -2,6 +2,7 @@ use clap::Parser;
 
 use crate::command::TracingArgs;
 use crate::command::compile::CompileArgs;
+use crate::command::format::FormatArgs;
 use crate::command::lex::LexArgs;
 use crate::command::parse::ParseArgs;
 use crate::command::resolve::ResolveArgs;
@@ -30,6 +31,9 @@ pub enum Command {
     Compile(CompileArgs),
     /// Transpile source into its final JavaScript.
     Transpile(TranspileArgs),
+    /// Format source files.
+    #[command(alias = "fmt")]
+    Format(FormatArgs),
     /// Mark new versions.
     Version {
         #[command(subcommand)]

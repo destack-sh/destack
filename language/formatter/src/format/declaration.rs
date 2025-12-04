@@ -367,7 +367,7 @@ impl<'ast> FormatNode<'ast, Declaration> for Declaration {
                 write!(
                     f,
                     [group(&format_args![block_indent(&format_with(|f| f
-                        .join_with(hard_line_break())
+                        .join_with(&format_args![&hard_line_break()])
                         .entries(fields)
                         .finish())),])]
                 )?;

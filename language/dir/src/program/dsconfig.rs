@@ -7,7 +7,10 @@ use indexmap::IndexMap;
 use parking_lot::{Mutex, RwLock};
 use serde::Deserialize;
 
-use destack_source::{File, FileContent, FileId, LanguageFeature, LanguageFeatureSet};
+use destack_source::{
+    File, FileContent, FileId, FormattingOptions, IndentStyle, LanguageFeature, LanguageFeatureSet,
+    LineEnding,
+};
 
 use super::tsconfig::{EsTarget, ModuleKind};
 
@@ -184,6 +187,22 @@ impl DsConfig {
             compiler.tsconfig = parent_compiler.tsconfig.clone();
         }
 
+        // inherit formatting options (child overrides if explicitly set in JSON)
+        // we check against defaults to see if child set them
+        let child_json = &self.content.compiler_options.formatting;
+        if child_json.line_ending.is_none() {
+            compiler.formatting.line_ending = parent_compiler.formatting.line_ending;
+        }
+        if child_json.indent_style.is_none() {
+            compiler.formatting.indent_style = parent_compiler.formatting.indent_style;
+        }
+        if child_json.indent_width.is_none() {
+            compiler.formatting.indent_width = parent_compiler.formatting.indent_width;
+        }
+        if child_json.line_width.is_none() {
+            compiler.formatting.line_width = parent_compiler.formatting.line_width;
+        }
+
         // extend targets (add missing targets from parent)
         for (name, target) in &parent.targets {
             if !self.options.targets.contains_key(name) {
@@ -292,6 +311,11 @@ pub struct DsConfigCompilerOptionsJson {
     pub check_js: Option<bool>,
     /// Skip type checking of declaration files (.d.ts, .d.ds).
     pub skip_lib_check: Option<bool>,
+
+    // formatting
+    /// Formatting options (lineEnding, indentStyle, indentWidth, lineWidth).
+    #[serde(default)]
+    pub formatting: DsConfigFormattingJson,
 }
 
 impl DsConfigCompilerOptionsJson {
@@ -333,6 +357,79 @@ pub struct DsConfigTargetJson {
     pub optimize_level: Option<u8>,
     /// Shrink levels (0-3).
     pub shrink_level: Option<u8>,
+}
+
+/// Line ending style for JSON deserialization.
+#[derive(Debug, Clone, Copy, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum LineEndingJson {
+    #[serde(alias = "lf")]
+    LineFeed,
+    #[serde(alias = "crlf")]
+    CarriageReturnLineFeed,
+    #[serde(alias = "cr")]
+    CarriageReturn,
+}
+
+impl From<LineEndingJson> for LineEnding {
+    fn from(value: LineEndingJson) -> Self {
+        match value {
+            LineEndingJson::LineFeed => LineEnding::LineFeed,
+            LineEndingJson::CarriageReturnLineFeed => LineEnding::CarriageReturnLineFeed,
+            LineEndingJson::CarriageReturn => LineEnding::CarriageReturn,
+        }
+    }
+}
+
+/// Indent style for JSON deserialization.
+#[derive(Debug, Clone, Copy, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum IndentStyleJson {
+    #[serde(alias = "tabs")]
+    Tab,
+    #[serde(alias = "spaces")]
+    Space,
+}
+
+impl From<IndentStyleJson> for IndentStyle {
+    fn from(value: IndentStyleJson) -> Self {
+        match value {
+            IndentStyleJson::Tab => IndentStyle::Tab,
+            IndentStyleJson::Space => IndentStyle::Space,
+        }
+    }
+}
+
+/// Destack formatting options (JSON representation).
+#[derive(Debug, Default, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct DsConfigFormattingJson {
+    /// Line ending style: "lf", "crlf", or "cr".
+    pub line_ending: Option<LineEndingJson>,
+    /// Indent style: "tab" or "space".
+    pub indent_style: Option<IndentStyleJson>,
+    /// Number of spaces per indent (when using spaces).
+    pub indent_width: Option<u8>,
+    /// Maximum line width (best effort).
+    pub line_width: Option<u8>,
+}
+
+impl DsConfigFormattingJson {
+    /// Apply formatting options to a FormattingOptions struct.
+    pub fn apply(&self, options: &mut FormattingOptions) {
+        if let Some(line_ending) = self.line_ending {
+            options.line_ending = line_ending.into();
+        }
+        if let Some(indent_style) = self.indent_style {
+            options.indent_style = indent_style.into();
+        }
+        if let Some(indent_width) = self.indent_width {
+            options.indent_width = indent_width;
+        }
+        if let Some(line_width) = self.line_width {
+            options.line_width = line_width;
+        }
+    }
 }
 
 /// Destack configuration registry.
@@ -542,6 +639,10 @@ pub struct DsConfigCompilerOptions {
     pub check_js: bool,
     /// Skip type checking of declaration files.
     pub skip_lib_check: bool,
+
+    // formatting
+    /// Formatting options.
+    pub formatting: FormattingOptions,
 }
 
 impl Default for DsConfigCompilerOptions {
@@ -582,6 +683,9 @@ impl Default for DsConfigCompilerOptions {
             allow_js: true,
             check_js: false,
             skip_lib_check: false,
+
+            // formatting
+            formatting: FormattingOptions::default(),
         }
     }
 }
@@ -637,6 +741,13 @@ impl From<&DsConfigCompilerOptionsJson> for DsConfigCompilerOptions {
             allow_js: json.allow_js.unwrap_or(true),
             check_js: json.check_js.unwrap_or(false),
             skip_lib_check: json.skip_lib_check.unwrap_or(false),
+
+            // formatting (apply JSON options on top of defaults)
+            formatting: {
+                let mut formatting = FormattingOptions::default();
+                json.formatting.apply(&mut formatting);
+                formatting
+            },
         }
     }
 }

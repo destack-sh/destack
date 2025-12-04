@@ -1,6 +1,7 @@
 pub mod compile;
 pub mod diagnostic;
 pub mod dump;
+pub mod format;
 pub mod lex;
 pub mod parse;
 pub mod program;

@@ -88,7 +88,7 @@ pub struct LanguageOptions {
     /// The enabled language features.
     pub features: LanguageFeatureSet = LanguageFeatureSet::all(),
     /// The formatting options.
-    pub formatting: FormattingOptions = FormattingOptions::DEFAULT,
+    pub formatting: FormattingOptions,
 }
 
 impl LanguageOptions {
