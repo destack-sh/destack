@@ -228,7 +228,7 @@ mod tests {
     use crate::{ImportTask, TestProgram};
 
     #[test]
-    fn test_analyze_declared_type_on_let_expression() {
+    fn test_analyze_evaluate_type_on_let_expression() {
         let test = TestProgram::memory_sequential();
         let file = test.file("test.ds", "declare let x: number");
         test.enqueue(ImportTask::ImportModuleFromFile { file: file.id });

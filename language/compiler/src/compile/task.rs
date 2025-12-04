@@ -402,6 +402,8 @@ impl TaskOutcome {
     }
 }
 
+// nocheckin: use pull-based compiler task model
+
 /// Task dependency to wait for.
 #[derive(Debug, Clone, PartialEq)]
 pub enum TaskDependency {
