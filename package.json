@@ -6,13 +6,13 @@
     "type": "module",
     "workspaces": {
         "packages": [
+            "examples/destack.sh",
             "examples/tetris",
-            "examples/zurichtech",
+            "examples/zurich.tech",
             "platform/bun",
             "platform/editor",
             "platform/vite",
             "platform/vscode",
-            "library/ai",
             "library/entity",
             "library/napi",
             "library/schema",

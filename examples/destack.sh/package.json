@@ -1,9 +1,8 @@
 {
-	"name": "@destack-sh/editor",
+	"name": "@destack-sh/destack-sh",
 	"version": "0.47.3",
 	"license": "MIT",
 	"type": "module",
-	"sideEffects": false,
 	"scripts": {
 		"dev": "bun --hot src/index.ds",
 		"start": "NODE_ENV=production bun src/index.ds"
@@ -13,6 +12,7 @@
 		"@destack-sh/ui": "workspace:*"
 	},
 	"devDependencies": {
+		"@destack-sh/bun": "workspace:*",
 		"@types/bun": "latest"
 	}
 }
