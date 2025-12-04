@@ -855,7 +855,7 @@ impl Parser {
             // anonymous struct literal
             else if token_type == TokenType::OpenBrace && !self.options.in_statement_position {
                 let properties = self.with_options(self.options.not_in_position(), |parser| {
-                    parser.eat_struct_literal()
+                    parser.eat_object_literal()
                 })?;
                 self.tree.insert(
                     Expression::ObjectExpression {
@@ -968,7 +968,7 @@ impl Parser {
             && self.peek_token(TokenType::OpenBrace).is_ok()
             && !self.options.in_before_block
         {
-            let properties = self.eat_struct_literal()?;
+            let properties = self.eat_object_literal()?;
             left_expression_id = self.tree.insert(
                 Expression::ObjectExpression {
                     ty: Some(left_expression_id),

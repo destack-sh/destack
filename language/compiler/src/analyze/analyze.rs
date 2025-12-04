@@ -66,7 +66,15 @@ impl Compiler {
                 }
                 if let Some(arguments) = arguments {
                     for argument_id in arguments {
-                        self.analyze_argument(module, *argument_id, tree, symbols, types, ctx)?;
+                        self.analyze_argument(
+                            module,
+                            *argument_id,
+                            None,
+                            tree,
+                            symbols,
+                            types,
+                            ctx,
+                        )?;
                     }
                 }
                 let ty = Type::TypeLiteral {
@@ -112,7 +120,7 @@ impl Compiler {
                 };
                 let binding_ty_id = declared_ty_id.or(inferred_ty_id);
 
-                self.analyze_pattern(module, *pattern, binding_ty_id, tree, types, ctx)?;
+                self.analyze_pattern(module, *pattern, binding_ty_id, tree, symbols, types, ctx)?;
 
                 let ty = Type::TypeLiteral {
                     value: TypeLiteral::Void,
@@ -214,6 +222,26 @@ impl Compiler {
             }
 
             // references -> look up symbol type
+            Expression::UnresolvedAbsolutePath {
+                path: _,
+                static_arguments: _,
+            } => {
+                let ty = Type::TypeLiteral {
+                    value: TypeLiteral::Unknown,
+                };
+                types.insert_type_from(ty, expression_id)
+            }
+            Expression::UnresolvedRelativePath {
+                path: _,
+                target_symbol: _,
+                remaining_path: _,
+                static_arguments: _,
+            } => {
+                let ty = Type::TypeLiteral {
+                    value: TypeLiteral::Unknown,
+                };
+                types.insert_type_from(ty, expression_id)
+            }
             // NOTE #Incomplete: instantiate with static arguments
             Expression::LocalReference {
                 path: _,
@@ -256,6 +284,7 @@ impl Compiler {
                 types.insert_type_from(ty, expression_id)
             }
             // type literal -> use the given type literal?
+            // nocheckin ???
             Expression::TypeLiteral { value } => {
                 let ty = Type::TypeLiteral {
                     value: value.clone(),
@@ -263,6 +292,47 @@ impl Compiler {
                 types.insert_type_from(ty, expression_id)
             }
 
+            // type as a value -> type
+            Expression::Type { value } => {
+                let ty = Type::Value { value: *value };
+                types.insert_type_from(ty, expression_id)
+            }
+            // array expression -> array type over each element
+            Expression::ArrayExpression { elements } => {
+                for element_id in elements {
+                    self.analyze_argument(module, *element_id, None, tree, symbols, types, ctx)?;
+                }
+                let last_element_ty_id = elements
+                    .last()
+                    .map(|element_id| {
+                        let element = tree.get(*element_id);
+                        let element_id = element.value();
+                        self.analyze_expression(module, element_id, tree, symbols, types, ctx)
+                    })
+                    .transpose()?;
+                let ty = Type::Array {
+                    element: last_element_ty_id,
+                };
+                types.insert_type_from(ty, expression_id)
+            }
+            // tuple expression -> tuple type for each element
+            Expression::TupleExpression { elements } => {
+                for element_id in elements {
+                    self.analyze_argument(module, *element_id, None, tree, symbols, types, ctx)?;
+                }
+                let element_tys: Vec<LocalTypeId> = elements
+                    .iter()
+                    .map(|element_id| {
+                        let element = tree.get(*element_id);
+                        let element_id = element.value();
+                        self.analyze_expression(module, element_id, tree, symbols, types, ctx)
+                    })
+                    .collect::<Result<Vec<_>, AnalyzeError>>()?;
+                let ty = Type::Tuple {
+                    elements: element_tys,
+                };
+                types.insert_type_from(ty, expression_id)
+            }
             // parenthesized -> same type as inner
             Expression::Parenthesized {
                 expression: inner_id,
@@ -378,7 +448,9 @@ impl Compiler {
                 }
 
                 // type value type -> type metatype
-                let value_ty = Type::Value { ty: instance_ty_id };
+                let value_ty = Type::Value {
+                    value: instance_ty_id,
+                };
                 let value_ty_id = types.insert_type_from(value_ty, declaration_id);
                 types.set_value_type(descriptor.symbol.into_global(module.id), value_ty_id);
             }
@@ -404,7 +476,9 @@ impl Compiler {
                 types.set_instance_type(descriptor.symbol.into_global(module.id), instance_ty_id);
 
                 // struct instance type -> struct value type
-                let value_ty = Type::Value { ty: instance_ty_id };
+                let value_ty = Type::Value {
+                    value: instance_ty_id,
+                };
                 let value_ty_id = types.insert_type_from(value_ty, declaration_id);
                 types.set_instance_type(descriptor.symbol.into_global(module.id), value_ty_id);
             }
@@ -438,7 +512,9 @@ impl Compiler {
                 types.set_instance_type(descriptor.symbol.into_global(module.id), instance_ty_id);
 
                 // enum instance type -> enum value type
-                let value_ty = Type::Value { ty: instance_ty_id };
+                let value_ty = Type::Value {
+                    value: instance_ty_id,
+                };
                 let value_ty_id = types.insert_type_from(value_ty, declaration_id);
                 types.set_value_type(descriptor.symbol.into_global(module.id), value_ty_id);
             }
@@ -614,7 +690,7 @@ impl Compiler {
                 } else {
                     None
                 };
-                self.analyze_pattern(module, *pattern, default_ty_id, tree, types, ctx)?;
+                self.analyze_pattern(module, *pattern, default_ty_id, tree, symbols, types, ctx)?;
             }
             Parameter::Variadic {
                 modifiers: _,
@@ -632,6 +708,7 @@ impl Compiler {
         &self,
         module: &Module,
         argument_id: LocalNodeId<Argument>,
+        _binding_ty_id: Option<LocalTypeId>,
         tree: &NodeTree,
         symbols: &SymbolTable,
         types: &mut TypeTable,
@@ -642,10 +719,15 @@ impl Compiler {
             Argument::Positional { value } => {
                 self.analyze_expression(module, *value, tree, symbols, types, ctx)?;
             }
-            _ => {
-                return Err(AnalyzeError::UnsupportedNode {
-                    node: argument_id.into_global_any(module.id),
-                });
+            Argument::Named { name: _, value } => {
+                self.analyze_expression(module, *value, tree, symbols, types, ctx)?;
+            }
+            Argument::Spread { value } => {
+                self.analyze_expression(module, *value, tree, symbols, types, ctx)?;
+            }
+            Argument::Dynamic { key, value } => {
+                self.analyze_expression(module, *key, tree, symbols, types, ctx)?;
+                self.analyze_expression(module, *value, tree, symbols, types, ctx)?;
             }
         }
         Ok(())
@@ -721,34 +803,181 @@ impl Compiler {
         Ok(())
     }
 
-    /// Analyze a pattern and propagate type to bound symbols.
+    /// Analyze a pattern, given an optional binding type of the pattern.
     fn analyze_pattern(
         &self,
         module: &Module,
         pattern_id: LocalNodeId<Pattern>,
-        ty_id: Option<LocalTypeId>,
+        binding_ty_id: Option<LocalTypeId>,
         tree: &NodeTree,
+        symbols: &SymbolTable,
         types: &mut TypeTable,
-        _ctx: &mut TypeContext,
+        ctx: &mut TypeContext,
     ) -> AnalyzeResult<()> {
         let pattern = tree.get(pattern_id);
         match pattern {
-            // binding -> type from annotation (if any)
-            Pattern::Binding {
-                symbol, pattern, ..
-            } => {
-                if let Some(ty_id) = ty_id {
+            Pattern::Wildcard => {
+                // nothing to do
+            }
+            Pattern::Rest { name: _, symbol } => {
+                if let Some(ty_id) = binding_ty_id {
                     types.set_value_type(symbol.into_global(module.id), ty_id);
                 }
-                if let Some(inner_pattern_id) = pattern {
-                    self.analyze_pattern(module, *inner_pattern_id, ty_id, tree, types, _ctx)?;
+            }
+            Pattern::Maybe(pattern_id) => {
+                self.analyze_pattern(
+                    module,
+                    *pattern_id,
+                    binding_ty_id,
+                    tree,
+                    symbols,
+                    types,
+                    ctx,
+                )?;
+            }
+            Pattern::ReferenceOf {
+                mutability: _,
+                right,
+            } => {
+                self.analyze_pattern(module, *right, binding_ty_id, tree, symbols, types, ctx)?;
+            }
+            Pattern::ValueOf {
+                mutability: _,
+                right,
+            } => {
+                self.analyze_pattern(module, *right, binding_ty_id, tree, symbols, types, ctx)?;
+            }
+            Pattern::Binding {
+                mutability: _,
+                name: _,
+                symbol,
+                pattern,
+            } => {
+                if let Some(ty_id) = binding_ty_id {
+                    types.set_value_type(symbol.into_global(module.id), ty_id);
+                }
+                if let Some(pattern_id) = pattern {
+                    self.analyze_pattern(
+                        module,
+                        *pattern_id,
+                        binding_ty_id,
+                        tree,
+                        symbols,
+                        types,
+                        ctx,
+                    )?;
                 }
             }
-
-            _ => {
-                return Err(AnalyzeError::UnsupportedNode {
-                    node: pattern_id.into_global_any(module.id),
-                });
+            Pattern::Expression { value } => {
+                self.analyze_expression(module, *value, tree, symbols, types, ctx)?;
+            }
+            Pattern::Range {
+                start,
+                end,
+                is_inclusive: _,
+            } => {
+                if let Some(start_pattern_id) = start {
+                    self.analyze_pattern(
+                        module,
+                        *start_pattern_id,
+                        binding_ty_id,
+                        tree,
+                        symbols,
+                        types,
+                        ctx,
+                    )?;
+                }
+                if let Some(end_pattern_id) = end {
+                    self.analyze_pattern(
+                        module,
+                        *end_pattern_id,
+                        binding_ty_id,
+                        tree,
+                        symbols,
+                        types,
+                        ctx,
+                    )?;
+                }
+            }
+            Pattern::Tuple { fields } => {
+                for field_id in fields {
+                    self.analyze_pattern_field(
+                        module,
+                        *field_id,
+                        binding_ty_id,
+                        tree,
+                        symbols,
+                        types,
+                        ctx,
+                    )?;
+                }
+            }
+            Pattern::TaggedTuple { ty, fields } => {
+                self.analyze_expression(module, *ty, tree, symbols, types, ctx)?;
+                for field_id in fields {
+                    self.analyze_pattern_field(
+                        module,
+                        *field_id,
+                        binding_ty_id,
+                        tree,
+                        symbols,
+                        types,
+                        ctx,
+                    )?;
+                }
+            }
+            Pattern::Slice { fields } => {
+                for field_id in fields {
+                    self.analyze_pattern_field(
+                        module,
+                        *field_id,
+                        binding_ty_id,
+                        tree,
+                        symbols,
+                        types,
+                        ctx,
+                    )?;
+                }
+            }
+            Pattern::Object { fields } => {
+                for field_id in fields {
+                    self.analyze_pattern_field(
+                        module,
+                        *field_id,
+                        binding_ty_id,
+                        tree,
+                        symbols,
+                        types,
+                        ctx,
+                    )?;
+                }
+            }
+            Pattern::TaggedObject { ty, fields } => {
+                self.analyze_expression(module, *ty, tree, symbols, types, ctx)?;
+                for field_id in fields {
+                    self.analyze_pattern_field(
+                        module,
+                        *field_id,
+                        binding_ty_id,
+                        tree,
+                        symbols,
+                        types,
+                        ctx,
+                    )?;
+                }
+            }
+            Pattern::Union { patterns } => {
+                for pattern_id in patterns {
+                    self.analyze_pattern(
+                        module,
+                        *pattern_id,
+                        binding_ty_id,
+                        tree,
+                        symbols,
+                        types,
+                        ctx,
+                    )?;
+                }
             }
         }
 
@@ -760,30 +989,52 @@ impl Compiler {
         &self,
         module: &Module,
         field_id: LocalNodeId<PatternField>,
-        ty_id: Option<LocalTypeId>,
+        binding_ty_id: Option<LocalTypeId>,
         tree: &NodeTree,
+        symbols: &SymbolTable,
         types: &mut TypeTable,
         ctx: &mut TypeContext,
     ) -> AnalyzeResult<()> {
         let field = tree.get(field_id);
         match field {
             PatternField::Named {
-                symbol, pattern, ..
+                mutability: _,
+                name: _,
+                default: _,
+                symbol,
+                pattern,
             } => {
-                if let Some(ty_id) = ty_id {
+                if let Some(ty_id) = binding_ty_id {
                     types.set_value_type(symbol.into_global(module.id), ty_id);
                 }
-                if let Some(inner_pattern_id) = pattern {
-                    self.analyze_pattern(module, *inner_pattern_id, ty_id, tree, types, ctx)?;
+                if let Some(pattern_id) = pattern {
+                    self.analyze_pattern(
+                        module,
+                        *pattern_id,
+                        binding_ty_id,
+                        tree,
+                        symbols,
+                        types,
+                        ctx,
+                    )?;
                 }
             }
-            PatternField::Alias { symbol, .. } => {
-                if let Some(ty_id) = ty_id {
+            PatternField::Alias {
+                mutability: _,
+                name: _,
+                alias: _,
+                default,
+                symbol,
+            } => {
+                if let Some(ty_id) = binding_ty_id {
                     types.set_value_type(symbol.into_global(module.id), ty_id);
+                }
+                if let Some(default) = default {
+                    self.analyze_expression(module, *default, tree, symbols, types, ctx)?;
                 }
             }
             PatternField::Positional { pattern } => {
-                self.analyze_pattern(module, *pattern, ty_id, tree, types, ctx)?;
+                self.analyze_pattern(module, *pattern, binding_ty_id, tree, symbols, types, ctx)?;
             }
         }
         Ok(())
@@ -947,7 +1198,7 @@ mod tests {
     }
 
     #[test]
-    fn test_analyze_binary_add_numbers() {
+    fn test_analyze_binary_number_operation() {
         let test = TestProgram::memory_sequential();
         let file = test.file("test.ds", "1 + 2");
         test.enqueue(ImportTask::ImportModuleFromFile { file: file.id });
@@ -971,7 +1222,7 @@ mod tests {
     }
 
     #[test]
-    fn test_analyze_comparison_returns_boolean() {
+    fn test_analyze_binary_number_comparison() {
         let test = TestProgram::memory_sequential();
         let file = test.file("test.ds", "1 < 2");
         test.enqueue(ImportTask::ImportModuleFromFile { file: file.id });
@@ -1064,5 +1315,53 @@ mod tests {
 
         // instance_type[x] = undefined
         assert!(types.get_instance_type(x_symbol).is_none());
+    }
+
+    #[test]
+    fn test_analyze_let_expression_infer_tuple_type_with_pattern() {
+        let test = TestProgram::memory_sequential();
+        let file = test.file(
+            "test.ds",
+            r#"
+let (x, y, ...rest) = (123, 'abc', true);
+"#,
+        );
+        test.enqueue(ImportTask::ImportModuleFromFile { file: file.id });
+        test.compile_dump_clean();
+
+        let module = test.module_for_file(&file);
+        let module = module.read();
+        let types = module.types.read();
+
+        let x_symbol = test.resolve_to_symbol("test.ds", "x").unwrap();
+        let y_symbol = test.resolve_to_symbol("test.ds", "y").unwrap();
+        let rest_symbol = test.resolve_to_symbol("test.ds", "rest").unwrap();
+    
+        // value_type[x] = number
+        let value_ty = types.get_value_type(x_symbol).unwrap();
+        assert_eq!(
+            *value_ty,
+            Type::TypeLiteral {
+                value: TypeLiteral::Primitive(PrimitiveType::Number)
+            }
+        );
+        
+        // value_type[y] = string
+        let value_ty = types.get_value_type(y_symbol).unwrap();
+        assert_eq!(
+            *value_ty,
+            Type::TypeLiteral {
+                value: TypeLiteral::Primitive(PrimitiveType::String)
+            }
+        );
+
+        // value_type[rest] = (boolean,)
+        let value_ty = types.get_value_type(rest_symbol).unwrap();
+        assert_eq!(
+            *value_ty,
+            Type::TypeLiteral {
+                value: TypeLiteral::Primitive(PrimitiveType::Boolean)
+            }
+        );
     }
 }

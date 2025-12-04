@@ -26,7 +26,7 @@ impl Transpiler {
                 };
                 unit.ast.insert_from_source(pattern, module.id, pattern_id)
             }
-            dir::Pattern::Rest { name } => {
+            dir::Pattern::Rest { name, symbol: _ } => {
                 let name = name.map(|name| unit.strings.intern_from(&self.program.strings, name));
                 let pattern = Pattern::Rest { name };
                 unit.ast.insert_from_source(pattern, module.id, pattern_id)

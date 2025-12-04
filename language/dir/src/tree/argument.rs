@@ -62,7 +62,7 @@ impl Node for Parameter {
 /// as part of call resolution, not stored here.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Argument {
-    /// Named argument (like `foo: 42` in tree literals or named function args).
+    /// Named argument (like `foo: 42` in tree literals).
     Named {
         name: StringId,
         value: LocalNodeId<Expression>,
