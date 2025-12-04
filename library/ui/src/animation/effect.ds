@@ -2,34 +2,34 @@ import * as ds from "destack";
 
 /// When the effect fires.
 export enum EffectType {
-    Appear = 10,
-    Enter = 11,
-    Exit = 12,
-    Hover = 20,
-    Press = 21,
-    Drag = 22,
-    Focus = 23,
-    Loop = 30,
+    Appear,
+    Enter,
+    Exit,
+    Hover,
+    Press,
+    Drag,
+    Focus,
+    Loop,
 }
 
 /// How a repeating animation behaves.
 export enum RepeatType {
-    Loop = 1,
-    Reverse = 2,
-    Mirror = 3,
+    Loop,
+    Reverse,
+    Mirror,
 }
 
 /// How to split text for per-part effects.
 export enum TextSplitType {
-    Char = 1,
-    Word = 2,
-    Line = 3,
+    Char,
+    Word,
+    Line,
 }
 
 /// What happens when the element is offscreen.
 export enum OffscreenBehavior {
-    Play = 1,
-    Pause = 2,
+    Play,
+    Pause,
 }
 
 /// An effect value.

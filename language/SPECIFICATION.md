@@ -937,9 +937,9 @@ Blocks, `if`, `match` all return values:
 
 ```
 const result = if x > 0 { "positive" } else { "negative" };
-const label = match state {
-    Ready => "go",
-    Loading => "wait",
+const label = match (state) {
+    Ready => "go"
+    Loading => "wait"
 };
 ```
 
@@ -1030,33 +1030,33 @@ Like `if`, `match` is an expression that returns a value:
 ```
 // match as expression - returns the matched arm's value
 const label = match (state) {
-    Ready => "go",
-    Loading => "wait",
-    Error(e) => `failed: ${e}`,
+    Ready => "go"
+    Loading => "wait"
+    Error(e) => `failed: ${e}`
 };
 
 // match on values
 match (value) {
-    0 => "zero",
-    1 | 2 | 3 => "small",
-    n if n < 0 => "negative",
-    _ => "other",
-};
+    0 => "zero"
+    1 | 2 | 3 => "small"
+    n if n < 0 => "negative"
+    _ => "other"
+}
 
 // match with destructuring
 match (point) {
-    (0, 0) => "origin",
-    (x, 0) => `x-axis at ${x}`,
-    (0, y) => `y-axis at ${y}`,
-    (x, y) => `at (${x}, ${y})`,
-};
+    (0, 0) => "origin"
+    (x, 0) => `x-axis at ${x}`
+    (0, y) => `y-axis at ${y}`
+    (x, y) => `at (${x}, ${y})`
+}
 
 // match with guards
 match (user) {
-    User { age } if age >= 18 => "adult",
-    User { age } if age >= 13 => "teen",
-    _ => "child",
-};
+    User { age } if age >= 18 => "adult"
+    User { age } if age >= 13 => "teen"
+    _ => "child"
+}
 ```
 
 Match must be exhaustive—all possible values must be handled, or use `_` as a catch-all.

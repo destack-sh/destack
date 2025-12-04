@@ -83,10 +83,10 @@ LazyGuardDispatcher['useMemoCache'] = (count: number) => {
 };
 
 enum GuardKind {
-  PushGuardContext = 0,
-  PopGuardContext = 1,
-  PushExpectHook = 2,
-  PopExpectHook = 3,
+  PushGuardContext,
+  PopGuardContext,
+  PushExpectHook,
+  PopExpectHook,
 }
 
 function setCurrent(newDispatcher: any) {

@@ -2,30 +2,30 @@ import { Color, Gradient, Image, Style } from "@destack-sh/ui";
 
 /// Type of Fill.
 export enum FillType {
-    Solid = 10,
-    Gradient = 11,
-    Image = 12,
+    Solid,
+    Gradient,
+    Image,
 }
 
 /// Position for an image or gradient fill.
 export enum FillPosition {
-    TopLeft = 1,
-    TopCenter = 2,
-    TopRight = 3,
-    Left = 10,
-    Center = 11,
-    Right = 12,
-    BottomLeft = 20,
-    BottomCenter = 21,
-    BottomRight = 22,
+    TopLeft,
+    TopCenter,
+    TopRight,
+    Left,
+    Center,
+    Right,
+    BottomLeft,
+    BottomCenter,
+    BottomRight,
 }
 
 /// Render size for an image or gradient fill.
 export enum FillSize {
-    Fill = 1,
-    Stretch = 2,
-    Fit = 3,
-    Tile = 4,
+    Fill,
+    Stretch,
+    Fit,
+    Tile,
 }
 
 /// A fill value for a styled surface.
