@@ -26,14 +26,14 @@ export struct Position {
 
 /// A cell on the Tetris board.
 @entity
-export struct Cell {
+export class Cell {
     isFilled: boolean,
     color?: Color,
 }
 
 /// The Tetris game board.
 @entity
-export struct Board {
+export class Board {
     width: int32 = 10,
     height: int32 = 20,
     cells: Cell[][],
@@ -95,7 +95,7 @@ export struct Board {
 }
 
 @entity
-export struct TetrisGame {
+export class TetrisGame {
     board: Board,
     currentPiece?: TetrisPiece,
     currentPosition: Position,

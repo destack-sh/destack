@@ -451,7 +451,7 @@ impl<'ast> FormatNode<'ast, Declaration> for Declaration {
                 // body
                 write!(f, [token("{"), hard_line_break()])?;
 
-                // expressions
+                // properties
                 if !properties.is_empty() {
                     write!(
                         f,

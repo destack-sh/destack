@@ -2,12 +2,12 @@ import * as ds from "destack"
 
 /// Base focus event
 @event
-export struct FocusEvent extends InputEvent { }
+export class FocusEvent extends InputEvent { }
 
 /// Focus gained
 @event
-export struct FocusInEvent extends FocusEvent { }
+export class FocusInEvent extends FocusEvent { }
 
 /// Focus lost
 @event
-export struct FocusOutEvent extends FocusEvent { }
+export class FocusOutEvent extends FocusEvent { }

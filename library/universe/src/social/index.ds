@@ -1,7 +1,0 @@
-/// Basics Social Module.
-
-import follow
-import notification
-import reaction
-import star
-

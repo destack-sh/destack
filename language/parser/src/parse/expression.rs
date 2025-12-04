@@ -277,6 +277,9 @@ impl Parser {
         }
     }
 
+    // nocheckin: automatically coerce expressions into statements in relevant positions?
+    // (basically ASI rules, but at parse level, see the current formatting logic for this)
+
     /// Try to eat a statement expression (return Expression::Error if error and recovery is possible).
     /// Wraps semicolon expressions in a Statement expression, otherwise just returns the expression.
     #[inline]

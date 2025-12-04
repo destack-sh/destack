@@ -1,49 +1,49 @@
 /// Built-in shadow types.
 export enum ShadowType {
-    Box = 10
-    Realistic = 11
+    Box = 10,
+    Realistic = 11,
 }
 
 /// Built-in shadow positions.
 export enum ShadowPosition {
-    Outside = 1
-    Inside = 2
+    Outside = 1,
+    Inside = 2,
 }
 
 /// A shadow value for a styled surface.
 export struct Shadow {
     /// The shadow type (box, realistic).
-    type: ShadowType
+    type: ShadowType,
     /// Template for this shadow, if referenced.
-    template?: ShadowStyle
+    template?: ShadowStyle,
     /// Shadow color.
-    color?: Color
+    color?: Color,
     /// Shadow position (inside or outside).
-    position?: ShadowPosition
+    position?: ShadowPosition,
     /// Shadow offset (x, y).
-    offset?: Axis2
+    offset?: Axis2,
     /// Shadow blur radius.
-    blur?: float32
+    blur?: float32,
     /// Shadow spread.
-    spread?: float32
+    spread?: float32,
     /// Shadow diffusion softness.
-    diffusion?: float32
+    diffusion?: float32,
 }
 
 /// A reusable shadow style.
 export struct ShadowStyle extends Style {
     /// The shadow type (box, realistic).
-    type: ShadowType
+    type: ShadowType,
     /// Shadow color.
-    color?: Color
+    color?: Color,
     /// Shadow position (inside or outside).
-    position?: ShadowPosition
+    position?: ShadowPosition,
     /// Shadow offset (x, y).
-    offset?: Axis2
+    offset?: Axis2,
     /// Shadow blur radius.
-    blur?: float32
+    blur?: float32,
     /// Shadow spread.
-    spread?: float32
+    spread?: float32,
     /// Shadow diffusion softness.
-    diffusion?: float32
+    diffusion?: float32,
 }

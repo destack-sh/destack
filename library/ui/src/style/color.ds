@@ -1,91 +1,91 @@
 /// Built-in color formats.
 export enum ColorType {
-    Rgb = 10
-    Hsl = 11
-    P3 = 12
+    Rgb = 10,
+    Hsl = 11,
+    P3 = 12,
 }
 
 /// Built-in color hues similar to SwiftUI or Tailwind.
 export enum ColorHue {
-    Gray = 30
-    Red = 31
-    Orange = 32
-    Amber = 33
-    Yellow = 34
-    Lime = 35
-    Green = 36
-    Emerald = 37
-    Teal = 38
-    Cyan = 39
-    Sky = 40
-    Blue = 41
-    Indigo = 42
-    Violet = 43
-    Purple = 44
-    Fuchsia = 45
-    Pink = 46
-    Rose = 47
+    Gray = 30,
+    Red = 31,
+    Orange = 32,
+    Amber = 33,
+    Yellow = 34,
+    Lime = 35,
+    Green = 36,
+    Emerald = 37,
+    Teal = 38,
+    Cyan = 39,
+    Sky = 40,
+    Blue = 41,
+    Indigo = 42,
+    Violet = 43,
+    Purple = 44,
+    Fuchsia = 45,
+    Pink = 46,
+    Rose = 47,
 }
 
 /// Built-in color shades a la Tailwind.
 export enum ColorShade {
-    S25 = 25
-    S50 = 50
-    S100 = 100
-    S200 = 200
-    S300 = 300
-    S400 = 400
-    S500 = 500
-    S600 = 600
-    S700 = 700
-    S800 = 800
-    S900 = 900
-    S950 = 950
+    S25 = 25,
+    S50 = 50,
+    S100 = 100,
+    S200 = 200,
+    S300 = 300,
+    S400 = 400,
+    S500 = 500,
+    S600 = 600,
+    S700 = 700,
+    S800 = 800,
+    S900 = 900,
+    S950 = 950,
 }
 
 /// Built-in color intents for semantic meaning.
 export enum ColorIntent {
-    Primary = 1
-    Secondary = 2
-    Neutral = 3
-    Muted = 4
-    Success = 10
-    Info = 11
-    Warning = 12
-    Error = 13
-    Critical = 14
+    Primary = 1,
+    Secondary = 2,
+    Neutral = 3,
+    Muted = 4,
+    Success = 10,
+    Info = 11,
+    Warning = 12,
+    Error = 13,
+    Critical = 14,
 }
 
 /// A color value (linear floats).
 export struct Color {
     /// Red, 0.0 - 1.0 (linear).
-    r: float32
+    r: float32,
     /// Green, 0.0 - 1.0 (linear).
-    g: float32
+    g: float32,
     /// Blue, 0.0 - 1.0 (linear).
-    b: float32
+    b: float32,
     /// Alpha, 0.0 - 1.0 (linear).
-    a: float32
+    a: float32,
 }
 
 /// A color style, with an optional dark variant.
 export struct ColorStyle extends Style {
     /// Color format (rgb, hsl, p3).
-    type: ColorType
+    type: ColorType,
     /// Reference hue, if set.
-    hue?: ColorHue
+    hue?: ColorHue,
     /// Reference shade, if set.
-    shade?: ColorShade
+    shade?: ColorShade,
     /// Semantic intent, if any.
-    intent?: ColorIntent
+    intent?: ColorIntent,
     /// Red channel (linear).
-    r: float32
+    r: float32,
     /// Green channel (linear).
-    g: float32
+    g: float32,
     /// Blue channel (linear).
-    b: float32
+    b: float32,
     /// Alpha channel.
-    a: float32
+    a: float32,
 }
 
 /// Convert hex color string to linear-space RGB floats with optional alpha.

@@ -4,7 +4,7 @@ import * as ds from "destack"
 export newtype Epoch = number;
 
 extension Epoch {
-    static Zero: Epoch = Epoch(0)
+    static Zero: Epoch = Epoch(0),
 }
 
 /// The materialization level of an Entity.
@@ -26,11 +26,10 @@ export enum ProcessFlag {
 }
 
 /// How an Entity can be extended.
-@flag
 export enum ExtensionFlag {
     Default = 0,
     Instantiable,
-    Extensible
+    Extensible,
 }
 
 /// A reference to an Entity.

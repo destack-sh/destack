@@ -2,17 +2,17 @@ import * as ds from "destack"
 
 /// Clipboard base event
 @event
-export struct ClipboardEvent extends InputEvent { }
+export class ClipboardEvent extends InputEvent { }
 
 /// Copy event
 @event
-export struct CopyEvent extends ClipboardEvent { }
+export class CopyEvent extends ClipboardEvent { }
 
 /// Cut event
 @event
-export struct CutEvent extends ClipboardEvent { }
+export class CutEvent extends ClipboardEvent { }
 
 /// Paste event
 @event
-export struct PasteEvent extends ClipboardEvent { }
+export class PasteEvent extends ClipboardEvent { }
 

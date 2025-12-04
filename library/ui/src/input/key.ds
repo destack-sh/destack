@@ -1,36 +1,36 @@
 import * as ds from "destack"
 
 export enum KeyModifier {
-    Shift
-    Alt
-    Ctrl
-    Meta
+    Shift,
+    Alt,
+    Ctrl,
+    Meta,
 }
 
 /// Keyboard base event
 @event
-export struct KeyEvent extends InputEvent {
+export class KeyEvent extends InputEvent {
     /// The character pressed (e.g. 'a', 'B', '1', 'Enter')
-    key: string
+    key: string,
     /// The unaltered code (e.g. 'KeyA', 'KeyB', 'Digit1', 'Enter')
-    code: string
+    code: string,
     /// Whether the key is being held down
-    isRepeat: boolean
+    isRepeat: boolean,
     /// Whether the key was masked (security/privacy)
-    isRedacted: boolean
+    isRedacted: boolean,
     /// Modifiers
-    modifiers: KeyModifier
+    modifiers: KeyModifier,
 }
 
 /// Key pressed down
 @event
-export struct KeyDownEvent extends KeyEvent { }
+export class KeyDownEvent extends KeyEvent { }
 
 /// Key released
 @event
-export struct KeyUpEvent extends KeyEvent { }
+export class KeyUpEvent extends KeyEvent { }
 
 /// Key pressed
 @event
-export struct KeyPressEvent extends KeyEvent { }
+export class KeyPressEvent extends KeyEvent { }
 

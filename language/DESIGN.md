@@ -162,18 +162,10 @@ const p = Point(1.0, 2.0);       // tuple newtype
 const c = Config { debug: true }; // struct newtype
 ```
 
-Newtypes combined with structs enable idiomatic Result types:
-
-```
-struct Ok<T> { kind: 'ok' = 'ok', value: T }
-struct Err<E> { kind: 'err' = 'err', error: E }
-type Result<T, E> = Ok<T> | Err<E>
-```
-
 ### Structs
 
-Data-oriented types with fixed layout, value semantics (simpler than classes for plain data objects with more guarantees).
-Conceptually, Destack structs are similar to the TC39 struct proposal with additional "systems-level" features.
+Structs are data-oriented object types with fixed layout and value semantics.
+Basically, structs are simpler classes for plain data objects with stricter guarantees and control.
 
 ```
 struct Point { x: float32, y: float32 }
@@ -199,8 +191,9 @@ function merge<T: int, U>(): T where (
 
 ## Reflection
 
-In TypeScript, types are erased at runtime—you can't inspect a generic parameter, validate untrusted data against a type, or access decorator metadata without external libraries and configuration.
-Destack makes types first-class runtime values, enabling reflection without separate metadata systems.
+In TypeScript, types are - by design - erased at runtime.
+This was critical for early adoption, but it also means you can't easily perform runtime type checks or any meaningful reflection (without additional libraries or build steps).
+Destack makes types first-class runtime values in one integrated system, enabling reflection with one well-defined and well-documented system.
 
 ### Types as Values
 
@@ -306,7 +299,7 @@ extension Vector2 {
 }
 ```
 
-Extensions let you add methods to any type: structs, enums, even primitives and foreign types—without modifying the original and without global side effects.
+Extensions let you add methods to any type: classes, structs, enums, even primitives and foreign types without modifying the original definition and without (hidden) global side effects.
 
 ### Overloading
 

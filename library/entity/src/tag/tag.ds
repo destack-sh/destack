@@ -1,0 +1,8 @@
+import * as ds from "destack"
+
+@description("A Tag to tag an Entity with.")
+@entity
+export class Tag {
+    @description("The designated Type for Values associated with the Tag. Any if unset.")
+    type?: Type,
+}

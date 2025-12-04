@@ -1,35 +1,35 @@
 /// Built-in border types.
 export enum BorderType {
     /// A border style (refer to template)
-    Style = 2
+    Style = 2,
     /// Solid border
-    Solid = 10
+    Solid = 10,
     /// Dashed border
-    Dashed = 11
+    Dashed = 11,
     /// Dotted border
-    Dotted = 12
+    Dotted = 12,
     /// Double border
-    Double = 13
+    Double = 13,
 }
 
 /// A border value for a styled surface.
 export struct Border {
     /// The border type.
-    type: BorderType
+    type: BorderType,
     /// Reference to a reusable border style.
-    template?: BorderStyle
+    template?: BorderStyle,
     /// The color of the border.
-    color?: Color
+    color?: Color,
     /// The border thickness (all sides or per-side).
-    width?: Inset2
+    width?: Inset2,
 }
 
 /// A reusable border style.
 export struct BorderStyle extends Style {
     /// The border type.
-    type: BorderType
+    type: BorderType,
     /// The color of the border.
-    color?: Color
+    color?: Color,
     /// The border thickness (all sides or per-side).
-    width?: Inset2
+    width?: Inset2,
 }

@@ -1,9 +1,0 @@
-import * as ds from "destack"
-
-/// A Team with Users and Teams.
-@entity
-export struct Team {
-    /// The URL-friendly slug of the Team.
-    slug: string
-}
-

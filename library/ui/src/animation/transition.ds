@@ -2,40 +2,40 @@ import * as ds from "destack"
 
 /// Built-in transition types
 export enum TransitionType {
-    Tween = 10
-    Spring = 11
+    Tween = 10,
+    Spring = 11,
 }
 
 /// Built-in spring types
 export enum SpringType {
-    Time = 1
-    Physical = 2
+    Time = 1,
+    Physical = 2,
 }
 
 /// A transition value
 export struct Transition {
-    type: TransitionType = TransitionType.Tween
-    template?: TransitionTemplate
-    delay?: float32
-    duration?: float32
-    ease: float32[]
-    stiffness?: float32
-    damping?: float32
-    mass?: float32
-    bounce?: float32
-    springType?: SpringType
+    type: TransitionType = TransitionType.Tween,
+    template?: TransitionTemplate,
+    delay?: float32,
+    duration?: float32,
+    ease: float32[],
+    stiffness?: float32,
+    damping?: float32,
+    mass?: float32,
+    bounce?: float32,
+    springType?: SpringType,
 }
 
 /// A transition templatecle
 @entity
-export struct TransitionTemplate {
-    type: TransitionType = TransitionType.Tween
-    delay?: float32
-    duration?: float32
-    ease: float32[]
-    stiffness?: float32
-    damping?: float32
-    mass?: float32
-    bounce?: float32
-    springType?: SpringType
+export class TransitionTemplate {
+    type: TransitionType = TransitionType.Tween,
+    delay?: float32,
+    duration?: float32,
+    ease: float32[],
+    stiffness?: float32,
+    damping?: float32,
+    mass?: float32,
+    bounce?: float32,
+    springType?: SpringType,
 }

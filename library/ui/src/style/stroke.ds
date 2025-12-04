@@ -1,87 +1,87 @@
 /// Type of stroke.
 export enum StrokeType {
-    Solid = 10
-    Dashed = 11
-    Dotted = 12
-    Freehand = 13
+    Solid = 10,
+    Dashed = 11,
+    Dotted = 12,
+    Freehand = 13,
 }
 
 /// A stroke cap value.
 export struct StrokeCap {
     /// Whether to cap the stroke.
-    cap?: boolean
+    cap?: boolean,
     /// Whether to taper the stroke.
-    taper?: boolean
+    taper?: boolean,
     /// The easing function for taper.
-    easing?: Easing
+    easing?: Easing,
 }
 
 /// A computed point in a stroke.
 export struct StrokePoint {
     /// The adjusted point position.
-    point: Vector2
+    point: Vector2,
     /// The original input point.
-    originalPoint: Vector2
+    originalPoint: Vector2,
     /// The pressure value at this point (0-1).
-    pressure: float32
+    pressure: float32,
     /// The normalized direction vector from previous point.
-    direction: Vector2
+    direction: Vector2,
     /// Distance from the previous point.
-    distance: float32
+    distance: float32,
     /// Total distance from stroke start.
-    runningLength: float32
+    runningLength: float32,
     /// The computed radius at this point.
-    radius: float32
+    radius: float32,
 }
 
 /// A stroke path.
 export struct StrokePath {
     /// List of computed stroke points.
-    points: StrokePoint[]
+    points: StrokePoint[],
 }
 
 /// A stroke value for a styled surface.
 export struct Stroke {
     /// The stroke type (solid, dashed, ...).
-    type: StrokeType
+    type: StrokeType,
     /// Template for this stroke, if referenced.
-    template?: StrokeStyle
+    template?: StrokeStyle,
     /// The stroke size/width.
-    size: uint8
+    size: uint8,
     /// The amount of pressure-based thinning (0-1).
-    thinning: float32
+    thinning: float32,
     /// The amount of path smoothing (0-1).
-    smoothing: float32
+    smoothing: float32,
     /// The amount of streamlining applied to path (0-1).
-    streamline: float32
+    streamline: float32,
     /// The easing function for pressure mapping.
-    easing?: Easing
+    easing?: Easing,
     /// The stroke color.
-    color?: Color
+    color?: Color,
     /// The start cap configuration.
-    start?: StrokeCap
+    start?: StrokeCap,
     /// The end cap configuration.
-    end?: StrokeCap
+    end?: StrokeCap,
 }
 
 /// A reusable stroke style.
 export struct StrokeStyle extends Style {
     /// The stroke type (solid, dashed, ...).
-    type: StrokeType
+    type: StrokeType,
     /// The stroke size/width.
-    size: uint8
+    size: uint8,
     /// The amount of pressure-based thinning (0-1).
-    thinning: float32
+    thinning: float32,
     /// The amount of path smoothing (0-1).
-    smoothing: float32
+    smoothing: float32,
     /// The amount of streamlining applied to path (0-1).
-    streamline: float32
+    streamline: float32,
     /// The easing function for pressure mapping.
-    easing?: Easing
+    easing?: Easing,
     /// The stroke color.
-    color?: Color
+    color?: Color,
     /// The start cap configuration.
-    start?: StrokeCap
+    start?: StrokeCap,
     /// The end cap configuration.
-    end?: StrokeCap
+    end?: StrokeCap,
 }
