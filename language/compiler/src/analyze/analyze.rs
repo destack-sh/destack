@@ -297,26 +297,8 @@ impl Compiler {
                 let ty = Type::Value { value: *value };
                 types.insert_type_from(ty, expression_id)
             }
-            // array expression -> array type over each element
-            Expression::ArrayExpression { elements } => {
-                for element_id in elements {
-                    self.analyze_argument(module, *element_id, None, tree, symbols, types, ctx)?;
-                }
-                let last_element_ty_id = elements
-                    .last()
-                    .map(|element_id| {
-                        let element = tree.get(*element_id);
-                        let element_id = element.value();
-                        self.analyze_expression(module, element_id, tree, symbols, types, ctx)
-                    })
-                    .transpose()?;
-                let ty = Type::Array {
-                    element: last_element_ty_id,
-                };
-                types.insert_type_from(ty, expression_id)
-            }
-            // tuple expression -> tuple type for each element
-            Expression::TupleExpression { elements } => {
+            // array / tuple expression -> precise tuple type for each element
+            Expression::ArrayExpression { elements } | Expression::TupleExpression { elements } => {
                 for element_id in elements {
                     self.analyze_argument(module, *element_id, None, tree, symbols, types, ctx)?;
                 }
@@ -1430,12 +1412,12 @@ let (x, y, ...rest, z) = (123, 'abc', true, 456);
     }
 
     #[test]
-    fn test_analyze_let_expression_infer_array_type_with_pattern() {
+    fn test_analyze_let_expression_infer_array_tuple_type_with_pattern() {
         let test = TestProgram::memory_sequential();
         let file = test.file(
             "test.ds",
             r#"
-let [x, y, ...rest, z] = [123, 'abc', true, 456];
+let [x, y, ...rest, z] = [123, 'abc', true, 456]; // array used as a tuple
 "#,
         );
         test.enqueue(ImportTask::ImportModuleFromFile { file: file.id });
