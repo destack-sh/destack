@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 use crossbeam_deque::{Injector, Steal};
@@ -6,11 +7,17 @@ use parking_lot::{Condvar, Mutex};
 
 use crate::{Task, TaskHandle, TaskId, TaskOutcome, TaskStatus};
 
+#[derive(Debug, Default)]
+struct TaskIndex {
+    /// All tasks ever seen (index = TaskId).
+    handles: Vec<TaskHandle>,
+    /// Fast lookup from task content to its id for deduplication.
+    ids: HashMap<Task, TaskId>,
+}
+
 /// Queue of compiler tasks with dependency tracking.
 pub struct TaskQueue {
-    /// All tasks ever seen (index = TaskId).
-    /// NOTE @Performance: linear search for deduplication since task count is small.
-    tasks: Mutex<Vec<TaskHandle>>,
+    tasks: Mutex<TaskIndex>,
     /// Ready queue (concurrent FIFO).
     ready: Injector<TaskId>,
     /// Dependency tracking: when task X completes, wake these waiting tasks.
@@ -43,7 +50,7 @@ impl TaskQueue {
     /// Create a new compiler task queue.
     pub fn new() -> Self {
         Self {
-            tasks: Mutex::new(Vec::new()),
+            tasks: Mutex::new(TaskIndex::default()),
             ready: Injector::new(),
             waiters: DashMap::new(),
             active_count: AtomicUsize::new(0),
@@ -54,18 +61,15 @@ impl TaskQueue {
     /// Enqueue a task, returns the TaskId.
     /// If the task already exists, returns the existing TaskId (noop).
     pub(super) fn enqueue(&self, task: Task) -> (TaskId, bool) {
-        // find existing task
         let mut tasks = self.tasks.lock();
-        for handle in tasks.iter() {
-            if handle.task == task {
-                return (handle.id, false);
-            }
+        if let Some(&task_id) = tasks.ids.get(&task) {
+            return (task_id, false);
         }
 
-        // create new task
-        let task_id = TaskId::new(tasks.len() as u32);
-        let handle = TaskHandle::new(task_id, task);
-        tasks.push(handle);
+        let task_id = TaskId::new(tasks.handles.len() as u32);
+        let handle = TaskHandle::new(task_id, task.clone());
+        tasks.handles.push(handle);
+        tasks.ids.insert(task, task_id);
         drop(tasks);
 
         // add to ready queue and notify workers
@@ -91,7 +95,11 @@ impl TaskQueue {
     /// Panics if the task id is not found.
     pub(super) fn get_task(&self, task_id: TaskId) -> TaskHandle {
         let tasks = self.tasks.lock();
-        tasks.get(task_id.0 as usize).cloned().unwrap_or_else(|| {
+        tasks
+            .handles
+            .get(task_id.0 as usize)
+            .cloned()
+            .unwrap_or_else(|| {
             panic!("task id not found: {}", task_id.0);
         })
     }
@@ -99,7 +107,7 @@ impl TaskQueue {
     /// Update the outcome of a task.
     pub(super) fn set_last_outcome(&self, task_id: TaskId, outcome: TaskOutcome) {
         let mut tasks = self.tasks.lock();
-        if let Some(handle) = tasks.get_mut(task_id.0 as usize) {
+        if let Some(handle) = tasks.handles.get_mut(task_id.0 as usize) {
             handle.last_outcome = Some(outcome);
         }
     }
@@ -107,7 +115,7 @@ impl TaskQueue {
     /// Update the status of a task.
     pub(super) fn set_status(&self, task_id: TaskId, status: TaskStatus) {
         let mut tasks = self.tasks.lock();
-        if let Some(handle) = tasks.get_mut(task_id.0 as usize) {
+        if let Some(handle) = tasks.handles.get_mut(task_id.0 as usize) {
             if matches!(status, TaskStatus::Yielded { .. }) {
                 handle.yield_count += 1;
             }
@@ -119,7 +127,7 @@ impl TaskQueue {
     /// No-op if the task is not in Yielded state (e.g., already woken by another thread).
     pub(super) fn try_requeue_yielded(&self, task_id: TaskId) {
         let mut tasks = self.tasks.lock();
-        if let Some(handle) = tasks.get_mut(task_id.0 as usize)
+        if let Some(handle) = tasks.handles.get_mut(task_id.0 as usize)
             && matches!(handle.status, TaskStatus::Yielded { .. })
         {
             handle.status = TaskStatus::Queued;
@@ -131,7 +139,10 @@ impl TaskQueue {
     /// Get the status of a task.
     pub(super) fn get_status(&self, task_id: TaskId) -> Option<TaskStatus> {
         let tasks = self.tasks.lock();
-        tasks.get(task_id.0 as usize).map(|h| h.status.clone())
+        tasks
+            .handles
+            .get(task_id.0 as usize)
+            .map(|h| h.status.clone())
     }
 
     /// Register a waiter: when `dependency_id` completes, `waiter_id` should be notified.
@@ -159,34 +170,30 @@ impl TaskQueue {
     /// Find a task by its content.
     pub(super) fn find_task_handle(&self, task: &Task) -> Option<TaskHandle> {
         let tasks = self.tasks.lock();
-        for handle in tasks.iter() {
-            if &handle.task == task {
-                return Some(handle.clone());
-            }
-        }
-        None
+        tasks
+            .ids
+            .get(task)
+            .and_then(|task_id| tasks.handles.get(task_id.0 as usize).cloned())
     }
 
     /// Find a task by its content and return its status.
     pub(super) fn find_task_status(&self, task: &Task) -> Option<TaskStatus> {
         let tasks = self.tasks.lock();
-        for handle in tasks.iter() {
-            if &handle.task == task {
-                return Some(handle.status.clone());
-            }
-        }
-        None
+        tasks
+            .ids
+            .get(task)
+            .and_then(|task_id| tasks.handles.get(task_id.0 as usize))
+            .map(|handle| handle.status.clone())
     }
 
     /// Find a task by its content and return its outcome.
     pub(super) fn find_task_outcome(&self, task: &Task) -> Option<TaskOutcome> {
         let tasks = self.tasks.lock();
-        for handle in tasks.iter() {
-            if &handle.task == task {
-                return handle.last_outcome.clone();
-            }
-        }
-        None
+        tasks
+            .ids
+            .get(task)
+            .and_then(|task_id| tasks.handles.get(task_id.0 as usize))
+            .and_then(|handle| handle.last_outcome.clone())
     }
 
     /// Increment active task count (called when a worker starts processing).
