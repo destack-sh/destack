@@ -17,7 +17,7 @@ mod tests {
     fn test_format_extension_with_implements() {
         assert_format!(
             "extension Foo implements Bar { static X = 1 }",
-            "extension Foo implements Bar {\n\tstatic X = 1\n}",
+            "extension Foo implements Bar {\n\tstatic X = 1,\n}",
             |p| p.eat_extension(DeclarationDescriptor::default()),
             DestackFormatOptions::default_tab()
         );

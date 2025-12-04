@@ -1,4 +1,4 @@
-import * as ds from "destack"
+import * as ds from "destack";
 
 /// An Entity Epoch.
 export newtype Epoch = number;

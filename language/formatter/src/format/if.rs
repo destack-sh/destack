@@ -6,7 +6,7 @@ mod tests {
     fn test_format_if_with_body() {
         assert_format!(
             "if (cond) { const X = 1 } else { const Y = 2 }",
-            "if (cond) {\n\tconst X = 1;\n} else {\n\tconst Y = 2;\n}",
+            "if (cond) {\n\tconst X = 1\n} else {\n\tconst Y = 2\n}",
             |p| p.eat_if(),
             DestackFormatOptions::default_tab()
         );

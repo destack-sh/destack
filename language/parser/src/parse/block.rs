@@ -92,13 +92,14 @@ impl Parser {
         Ok(block_id)
     }
 
-    /// Eat a block of expressions (without the label, `{`, and `}`)
+    /// Eat a block of expressions (without the label, `{`, and `}`).
+    /// ASI rules apply such that expressions are automatically coerced into statements in relevant positions.
     pub fn eat_block_body(
         &mut self,
         format: BlockFormat,
     ) -> ParseResult<Vec<LocalNodeId<Expression>>> {
+        // parse expressions
         let mut expressions: Vec<LocalNodeId<Expression>> = Vec::new();
-
         while self.peek().is_ok() {
             // break if we're at the end of the block
             if self.peek().is_err()
@@ -123,7 +124,63 @@ impl Parser {
             }
         }
 
-        Ok(expressions)
+        // wrap expressions
+        let mut statements: Vec<LocalNodeId<Expression>> = Vec::new();
+        let expression_count = expressions.len();
+        for (i, expression_id) in expressions.into_iter().enumerate() {
+            let expression = self.tree.get(expression_id);
+            // keep existing statements
+            if matches!(expression, Expression::Statement(_)) || expression.is_top_level_statement()
+            {
+                statements.push(expression_id);
+            }
+            // wrap other expressions in statements (except last)
+            else if i < expression_count - 1 && format == BlockFormat::Explicit {
+                let statement_id = self.tree.insert(
+                    Expression::Statement(expression_id),
+                    self.tree.get_span(expression_id),
+                );
+                statements.push(statement_id);
+            }
+            // keep as expression
+            else {
+                statements.push(expression_id);
+            }
+        }
+        Ok(statements)
+    }
+
+    /// Try to eat a statement expression (return Expression::Error if error and recovery is possible).
+    /// Wraps semicolon expressions in a Statement expression, otherwise just returns the expression.
+    #[inline]
+    pub fn try_eat_statement_expression(&mut self) -> ParseResult<LocalNodeId<Expression>> {
+        let start = self.mark();
+        match self.with_options(self.options.in_statement_position(), |parser| {
+            parser.eat_expression()
+        }) {
+            Ok(expression_id) => {
+                if self.peek_token(TokenType::Semicolon).is_ok() {
+                    self.bump(); // eat semicolon
+                    let expression_id = self.tree.insert(
+                        Expression::Statement(expression_id),
+                        self.get_span_from(start),
+                    );
+                    Ok(expression_id)
+                } else {
+                    Ok(expression_id)
+                }
+            }
+            Err(err) => {
+                let err = err.for_node_type(NodeType::Expression);
+                let span = err.leaf_span();
+                let start = ParserMark::new(span.start as usize);
+                self.try_recover(start, TokenType::Newline, Some(err))?;
+                let error_id = self
+                    .tree
+                    .insert(Expression::Error, self.get_span_from(start));
+                Ok(error_id)
+            }
+        }
     }
 
     /// Eat a break expression.

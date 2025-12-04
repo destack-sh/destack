@@ -277,42 +277,6 @@ impl Parser {
         }
     }
 
-    // nocheckin: automatically coerce expressions into statements in relevant positions?
-    // (basically ASI rules, but at parse level, see the current formatting logic for this)
-
-    /// Try to eat a statement expression (return Expression::Error if error and recovery is possible).
-    /// Wraps semicolon expressions in a Statement expression, otherwise just returns the expression.
-    #[inline]
-    pub fn try_eat_statement_expression(&mut self) -> ParseResult<LocalNodeId<Expression>> {
-        let start = self.mark();
-        match self.with_options(self.options.in_statement_position(), |parser| {
-            parser.eat_expression()
-        }) {
-            Ok(expression_id) => {
-                if self.peek_token(TokenType::Semicolon).is_ok() {
-                    self.bump(); // eat semicolon
-                    let expression_id = self.tree.insert(
-                        Expression::Statement(expression_id),
-                        self.get_span_from(start),
-                    );
-                    Ok(expression_id)
-                } else {
-                    Ok(expression_id)
-                }
-            }
-            Err(err) => {
-                let err = err.for_node_type(NodeType::Expression);
-                let span = err.leaf_span();
-                let start = ParserMark::new(span.start as usize);
-                self.try_recover(start, TokenType::Newline, Some(err))?;
-                let error_id = self
-                    .tree
-                    .insert(Expression::Error, self.get_span_from(start));
-                Ok(error_id)
-            }
-        }
-    }
-
     /// Peek a member access of the given token type.
     /// Returns the total distance to eat (including the newlines, dot, and token).
     #[inline]

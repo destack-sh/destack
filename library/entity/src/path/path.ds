@@ -1,4 +1,4 @@
-import * as ds from "destack"
+import * as ds from "destack";
 
 export struct Path {
     segments: PathSegment[],

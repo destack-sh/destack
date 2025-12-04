@@ -654,9 +654,9 @@ impl Node for Expression {
 }
 
 impl Expression {
-    /// Whether the expression is like a statement.
+    /// Whether the expression is like a statement at the top level of a block.
     #[inline]
-    pub fn is_statement_like(&self) -> bool {
+    pub fn is_top_level_statement(&self) -> bool {
         match self {
             Expression::Block(_) => true,
             Expression::Declaration(_) => true,
@@ -664,6 +664,8 @@ impl Expression {
             Expression::If { .. } => true,
             Expression::While { .. } => true,
             Expression::ForEach { .. } => true,
+            Expression::For { .. } => true,
+            Expression::Loop { .. } => true,
             Expression::Try {
                 try_expression: _,
                 catch_expression,
@@ -671,23 +673,12 @@ impl Expression {
                 finally_expression,
             } => {
                 catch_expression.is_some()
-                    || catch_pattern.is_some()
-                    || finally_expression.is_some()
+                || catch_pattern.is_some()
+                || finally_expression.is_some()
             }
-            Expression::For { .. } => true,
-            Expression::Loop { .. } => true,
             Expression::Match { .. } => true,
             _ => false,
         }
-    }
-
-    /// Whether the expression is an implicit statement always at root.
-    #[inline]
-    pub fn is_statement_like_at_root(&self) -> bool {
-        matches!(
-            self,
-            Expression::Let { .. } | Expression::Delete { .. } | Expression::Assign { .. }
-        )
     }
 
     /// Whether the expression may be inlined into a statement.

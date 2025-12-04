@@ -114,16 +114,11 @@ pub(crate) fn format_block_body_wide<'ast>(
 }
 
 /// Format a block of expression statements (with appropriate empty annotations).
-/// Automatically inserts semicolons for value-ignored non-statement expressions.
 pub(crate) fn format_block_of_statements<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
-    scope_id: LocalNodeIdAny,
+    _scope_id: LocalNodeIdAny,
     expressions: &[LocalNodeId<Expression>],
 ) -> FormatResult<()> {
-    let is_root_like = f
-        .context()
-        .get_parent_by_id(scope_id.id)
-        .is_none_or(|(_, parent_type)| parent_type == NodeType::Declaration);
     for (i, &expression_id) in expressions.iter().enumerate() {
         let expression = f.context().tree.get(expression_id);
 
@@ -143,13 +138,6 @@ pub(crate) fn format_block_of_statements<'ast>(
         // expression itself (with prefix annotations)
         write!(f, [f.context().any_prefix_annotations(expression_id)])?;
         format_expression(f, expression_id, expression)?;
-
-        // insert semicolon for value-ignored non-statement expressions
-        if !expression.is_statement_like() && (i < expressions.len() - 1 || is_root_like)
-            || expression.is_statement_like_at_root()
-        {
-            write!(f, [token(";")])?;
-        }
 
         // postfix annotations
         write!(
