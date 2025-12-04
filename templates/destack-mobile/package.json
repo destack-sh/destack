@@ -1,6 +1,6 @@
 {
-	"name": "destack-template-mobile",
-	"version": "0.47.1",
+	"name": "@destack-sh/template-mobile",
+	"version": "0.47.2",
 	"license": "MIT",
 	"type": "module",
 	"scripts": {
@@ -8,7 +8,7 @@
 		"start": "NODE_ENV=production bun src/index.ds"
 	},
 	"dependencies": {
-		"destack-bun": "workspace:*"
+		"@destack-sh/bun": "workspace:*"
 	},
 	"devDependencies": {
 		"@types/bun": "latest"

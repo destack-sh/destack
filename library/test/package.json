@@ -1,6 +1,6 @@
 {
-    "name": "destack-test",
-    "version": "0.47.1",
+    "name": "@destack-sh/test",
+    "version": "0.47.2",
     "license": "MIT",
     "type": "module",
     "sideEffects": false,

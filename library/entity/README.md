@@ -1,3 +1,3 @@
-# destack-entity
+# @destack-sh/entity
 
 Core entity system.

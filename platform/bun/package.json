@@ -1,6 +1,6 @@
 {
-	"name": "destack-bun",
-	"version": "0.47.1",
+	"name": "@destack-sh/bun",
+	"version": "0.47.2",
 	"license": "MIT",
 	"type": "module",
 	"main": "./src/index.ts",
@@ -9,7 +9,7 @@
 		"publish:live": "npm publish --access public"
 	},
 	"dependencies": {
-		"destack-napi": "workspace:*"
+		"@destack-sh/napi": "workspace:*"
 	},
 	"devDependencies": {
 		"@types/bun": "latest"

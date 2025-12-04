@@ -1,6 +1,6 @@
 {
 	"name": "zurichtech",
-	"version": "0.47.1",
+	"version": "0.47.2",
 	"license": "MIT",
 	"type": "module",
 	"scripts": {
@@ -11,7 +11,7 @@
 		"zod": "^4.1.12"
 	},
 	"devDependencies": {
-		"destack-bun": "workspace:*",
+		"@destack-sh/bun": "workspace:*",
 		"@types/bun": "latest"
 	}
 }

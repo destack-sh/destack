@@ -1,6 +1,6 @@
 {
-	"name": "destack-tetris",
-	"version": "0.47.1",
+	"name": "@destack-sh/tetris",
+	"version": "0.47.2",
 	"license": "MIT",
 	"type": "module",
 	"scripts": {
@@ -9,7 +9,7 @@
 	},
 	"dependencies": {},
 	"devDependencies": {
-		"destack-bun": "workspace:*",
+		"@destack-sh/bun": "workspace:*",
 		"@types/bun": "latest"
 	}
 }
