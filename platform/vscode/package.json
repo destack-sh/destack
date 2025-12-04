@@ -1,9 +1,9 @@
 {
-    "name": "@destack-sh/vscode",
+    "name": "destack",
     "displayName": "Destack",
     "description": "Destack for VSCode (.ds, .d.ds, .dst)",
     "version": "0.47.3",
-    "license": "proprietary",
+    "license": "MIT",
     "engines": {
         "vscode": "^1.90.0"
     },
@@ -32,7 +32,8 @@
         "destack.json",
         "destack.tmLanguage.json",
         "destack.tmTheme.json",
-        "package.json"
+        "package.json",
+        "LICENSE.txt"
     ],
     "contributes": {
         "configuration": {

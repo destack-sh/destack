@@ -1,9 +1,9 @@
 use crate::{AnalyzeError, AnalyzeResult, Compiler, TypeContext};
 use destack_dir::{
     Argument, BinaryOperator, Block, Declaration, DependencyItem, EnumField, Expression,
-    FunctionSignature, Generics, Heritage, LocalNodeId, LocalTypeId, Module, Mutability, NodeTree,
-    Parameter, Pattern, PatternField, PrimitiveType, Property, ScalarLiteral, SymbolTable, Type,
-    TypeKind, TypeLiteral, TypeTable, UnaryOperator, VarianceBound, WhereClause,
+    FunctionSignature, Generics, Heritage, LocalNodeId, LocalNodeIdAny, LocalTypeId, Module,
+    Mutability, NodeTree, Parameter, Pattern, PatternField, PrimitiveType, Property, ScalarLiteral,
+    SymbolTable, Type, TypeKind, TypeLiteral, TypeTable, UnaryOperator, VarianceBound, WhereClause,
 };
 
 #[allow(clippy::too_many_arguments)]
@@ -674,25 +674,34 @@ impl Compiler {
     fn analyze_signature(
         &self,
         module: &Module,
+        node_id: LocalNodeIdAny,
         signature: &FunctionSignature,
         tree: &NodeTree,
         symbols: &SymbolTable,
         types: &mut TypeTable,
         ctx: &mut TypeContext,
     ) -> AnalyzeResult<LocalTypeId> {
-        // walk generics in signature
+        // walk
         if let Some(generics) = &signature.generics {
             self.analyze_generics(module, generics, tree, symbols, types, ctx)?;
         }
-        // walk dynamic parameters
         for parameter_id in &signature.dynamic_parameters {
             self.analyze_parameter(module, *parameter_id, tree, symbols, types, ctx)?;
         }
-        // walk return type
         if let Some(return_type_id) = signature.return_type {
             self.analyze_expression(module, return_type_id, tree, symbols, types, ctx)?;
         }
-        Ok(())
+
+        let ty = Type::Function {
+            asynchrony: signature.asynchrony,
+            cardinality: signature.cardinality,
+            dynamic_parameters: Vec::new(),
+            static_parameters: Vec::new(),
+            return_type: None,
+        };
+        let ty_id = types.insert_type_from_any(ty, node_id);
+
+        Ok(ty_id)
     }
 
     /// Analyze a parameter.
