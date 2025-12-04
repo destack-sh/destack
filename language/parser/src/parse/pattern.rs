@@ -13,11 +13,11 @@ impl Parser {
     /// 1
     /// 2 | 3
     /// 4..6
-    /// (x, 0, ..)
+    /// (x, 0, ...)
     /// { a: 2 }
     /// Success(_)
     /// Vector2 { x: 0, y, z: zed }
-    /// geom.Mesh<2, float32> { vertices: [2, ..] }
+    /// geom.Mesh<2, float32> { vertices: [2, ...] }
     /// ```
     pub fn eat_pattern(&mut self) -> ParseResult<LocalNodeId<Pattern>> {
         let start = self.mark();
@@ -34,17 +34,6 @@ impl Parser {
                 self.bump(); // eat wildcard
                 self.tree
                     .insert(Pattern::Wildcard, self.get_span_from(start))
-            }
-            // rest
-            else if self.peek_token(TokenType::Spread).is_ok() {
-                self.bump(); // eat range
-                let name = if self.peek_identifier().is_ok() {
-                    Some(self.eat_identifier()?)
-                } else {
-                    None
-                };
-                self.tree
-                    .insert(Pattern::Rest { name }, self.get_span_from(start))
             }
             // reference of
             else if self.peek_token(TokenType::Multiply).is_ok()
@@ -112,7 +101,7 @@ impl Parser {
                 self.eat_newlines_maybe()?;
                 self.eat_token(TokenType::CloseBracket)?;
                 self.tree
-                    .insert(Pattern::Slice { fields }, self.get_span_from(start))
+                    .insert(Pattern::Array { fields }, self.get_span_from(start))
             }
             // literal expression
             else if self.peek_scalar_literal().is_ok() {
@@ -287,16 +276,29 @@ impl Parser {
             // field
             let field_start = self.mark();
             let pattern_field = {
-                // named or named alias
-                if self.peek_name().is_ok() || self.peek_mutability().is_ok() {
+                // named or named alias or spread
+                if self.peek_name().is_ok()
+                    || self.peek_mutability().is_ok()
+                    || self.peek_token(TokenType::Spread).is_ok()
+                {
                     // mutability
                     let mutability = self.eat_mutability_maybe()?;
 
-                    // name
-                    let name = self.eat_name()?;
-
+                    // spread
+                    if self.peek_token(TokenType::Spread).is_ok() {
+                        self.bump(); // eat spread
+                        let name = if self.peek_name().is_ok() {
+                            Some(self.eat_name()?)
+                        } else {
+                            None
+                        };
+                        PatternField::Spread { mutability, name }
+                    }
                     // alias or pattern
-                    if self.peek_colon().is_ok() {
+                    else if self.peek_name().is_ok()
+                        && self.peek_next_token(TokenType::Colon).is_ok()
+                    {
+                        let name = self.eat_name()?;
                         self.bump(); // eat colon
                         // named alias
                         if self.peek_identifier().is_ok() {
@@ -343,6 +345,7 @@ impl Parser {
                     }
                     // named without pattern
                     else {
+                        let name = self.eat_name()?;
                         // default
                         let default = if self.peek_token(TokenType::Assign).is_ok() {
                             self.bump(); // eat assign
@@ -400,26 +403,6 @@ mod tests {
         let mut parser = test.prepare();
         let pattern_id = parser.eat_pattern().unwrap();
         assert_node!(parser.tree, pattern_id, Pattern::Wildcard);
-    }
-
-    #[test]
-    fn test_parse_pattern_rest() {
-        // ..
-        let mut test = TestParser::new("...");
-        let mut parser = test.prepare();
-        let pattern_id = parser.eat_pattern().unwrap();
-        assert_node!(parser.tree, pattern_id, Pattern::Rest { name: None });
-    }
-
-    #[test]
-    fn test_parse_pattern_rest_with_name() {
-        // ...rest
-        let mut test = TestParser::new("...rest");
-        let mut parser = test.prepare();
-        let pattern_id = parser.eat_pattern().unwrap();
-        assert_node!(parser.tree, pattern_id, Pattern::Rest { name: Some(name) } => {
-            assert_string!(parser, *name, "rest");
-        });
     }
 
     #[test]
@@ -522,9 +505,8 @@ mod tests {
                 assert_eq!(*mutability, Mutability::Immutable);
             });
 
-            // ..
-            assert_node!(parser.tree, fields[4], PatternField::Positional { pattern } => {
-                assert_node!(parser.tree, *pattern, Pattern::Rest { name: None });
+            // ...
+            assert_node!(parser.tree, fields[4], PatternField::Spread { mutability: None, name: None } => {
             });
         });
     }
@@ -547,8 +529,7 @@ mod tests {
             });
 
             // ..
-            assert_node!(parser.tree, fields[1], PatternField::Positional { pattern } => {
-                assert_node!(parser.tree, *pattern, Pattern::Rest { name: None });
+            assert_node!(parser.tree, fields[1], PatternField::Spread { mutability: None, name: None } => {
             });
         });
     }
@@ -587,8 +568,7 @@ mod tests {
             });
 
             // ..
-            assert_node!(parser.tree, fields[2], PatternField::Positional { pattern } => {
-                assert_node!(parser.tree, *pattern, Pattern::Rest { name: None });
+            assert_node!(parser.tree, fields[2], PatternField::Spread { mutability: None, name: None } => {
             });
         });
     }
@@ -658,8 +638,7 @@ mod tests {
             });
 
             // ..
-            assert_node!(parser.tree, fields[4], PatternField::Positional { pattern } => {
-                assert_node!(parser.tree, *pattern, Pattern::Rest { name: None });
+            assert_node!(parser.tree, fields[4], PatternField::Spread { mutability: None, name: None } => {
             });
         });
     }
@@ -697,7 +676,7 @@ mod tests {
         let mut parser = test.prepare();
         let pattern_id = parser.eat_pattern().unwrap();
 
-        assert_node!(parser.tree, pattern_id, Pattern::Slice { fields } => {
+        assert_node!(parser.tree, pattern_id, Pattern::Array { fields } => {
             assert_eq!(fields.len(), 2);
 
             // 1
@@ -707,9 +686,8 @@ mod tests {
                 });
             });
 
-            // ..
-            assert_node!(parser.tree, fields[1], PatternField::Positional { pattern } => {
-                assert_node!(parser.tree, *pattern, Pattern::Rest { name: None });
+            // ...
+            assert_node!(parser.tree, fields[1], PatternField::Spread { mutability: None, name: None } => {
             });
         });
     }

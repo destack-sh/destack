@@ -26,11 +26,6 @@ impl Transpiler {
                 };
                 unit.ast.insert_from_source(pattern, module.id, pattern_id)
             }
-            dir::Pattern::Rest { name, symbol: _ } => {
-                let name = name.map(|name| unit.strings.intern_from(&self.program.strings, name));
-                let pattern = Pattern::Rest { name };
-                unit.ast.insert_from_source(pattern, module.id, pattern_id)
-            }
             _ => {
                 return Err(TranspileError::UnsupportedNode {
                     node: pattern_id.into_global_any(module.id),
@@ -111,6 +106,17 @@ impl Transpiler {
                 let pattern =
                     self.transpile_pattern(module, tree, symbols, types, *pattern, unit)?;
                 let pattern_field = PatternField::Positional { pattern };
+                unit.ast
+                    .insert_from_source(pattern_field, module.id, pattern_field_id)
+            }
+            dir::PatternField::Spread {
+                mutability,
+                name,
+                symbol: _,
+            } => {
+                let mutability = mutability.map(|mutability| self.transpile_mutability(mutability));
+                let name = name.map(|name| unit.strings.intern_from(&self.program.strings, name));
+                let pattern_field = PatternField::Spread { mutability, name };
                 unit.ast
                     .insert_from_source(pattern_field, module.id, pattern_field_id)
             }

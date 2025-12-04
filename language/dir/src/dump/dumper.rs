@@ -1577,12 +1577,6 @@ impl<'a> NodeVisitor for Dumper<'a> {
             Pattern::Wildcard => {
                 self.node("Pattern::Wildcard", id.id).end();
             }
-            Pattern::Rest { name, symbol } => {
-                self.node("Pattern::Rest", id.id)
-                    .field_optional("name", name)
-                    .field("symbol", symbol)
-                    .end();
-            }
             Pattern::Maybe(_) => {
                 self.node("Pattern::Maybe", id.id).end();
             }
@@ -1632,8 +1626,8 @@ impl<'a> NodeVisitor for Dumper<'a> {
             Pattern::TaggedTuple { ty: _, fields: _ } => {
                 self.node("Pattern::TaggedTuple", id.id).end();
             }
-            Pattern::Slice { fields: _ } => {
-                self.node("Pattern::Slice", id.id).end();
+            Pattern::Array { fields: _ } => {
+                self.node("Pattern::Array", id.id).end();
             }
             Pattern::Object { fields: _ } => {
                 self.node("Pattern::Object", id.id).end();
@@ -1686,6 +1680,17 @@ impl<'a> NodeVisitor for Dumper<'a> {
             }
             PatternField::Positional { pattern: _ } => {
                 self.node("PatternField::Positional", id.id).end();
+            }
+            PatternField::Spread {
+                mutability,
+                name,
+                symbol,
+            } => {
+                self.node("PatternField::Spread", id.id)
+                    .field_optional("mutability", mutability)
+                    .field_optional("name", name)
+                    .field("symbol", symbol)
+                    .end();
             }
         }
         self.with_depth(|dumper| {

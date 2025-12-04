@@ -503,7 +503,6 @@ impl Compiler {
                 }
 
                 // enum instance type -> enum value type
-                // nocheckin ???
                 let instance_ty = Type::Reference {
                     symbol: descriptor.symbol.into_global(module.id),
                     static_arguments: None,
@@ -819,11 +818,6 @@ impl Compiler {
             Pattern::Wildcard => {
                 // nothing to do
             }
-            Pattern::Rest { name: _, symbol } => {
-                if let Some(ty_id) = binding_ty_id {
-                    types.set_value_type(symbol.into_global(module.id), ty_id);
-                }
-            }
             Pattern::Maybe(pattern_id) => {
                 self.analyze_pattern(
                     module,
@@ -900,44 +894,47 @@ impl Compiler {
                 }
             }
             Pattern::Tuple { fields } => {
-                for field_id in fields {
-                    self.analyze_pattern_field(
-                        module,
-                        *field_id,
-                        binding_ty_id,
-                        tree,
-                        symbols,
-                        types,
-                        ctx,
-                    )?;
-                }
+                self.analyze_pattern_sequence(
+                    module,
+                    fields,
+                    binding_ty_id,
+                    |rest_types| Type::Tuple {
+                        elements: rest_types,
+                    },
+                    tree,
+                    symbols,
+                    types,
+                    ctx,
+                )?;
             }
             Pattern::TaggedTuple { ty, fields } => {
-                self.analyze_expression(module, *ty, tree, symbols, types, ctx)?;
-                for field_id in fields {
-                    self.analyze_pattern_field(
-                        module,
-                        *field_id,
-                        binding_ty_id,
-                        tree,
-                        symbols,
-                        types,
-                        ctx,
-                    )?;
-                }
+                let ty_id = self.analyze_expression(module, *ty, tree, symbols, types, ctx)?;
+                self.analyze_pattern_sequence(
+                    module,
+                    fields,
+                    Some(ty_id),
+                    |rest_types| Type::Tuple {
+                        elements: rest_types,
+                    },
+                    tree,
+                    symbols,
+                    types,
+                    ctx,
+                )?;
             }
-            Pattern::Slice { fields } => {
-                for field_id in fields {
-                    self.analyze_pattern_field(
-                        module,
-                        *field_id,
-                        binding_ty_id,
-                        tree,
-                        symbols,
-                        types,
-                        ctx,
-                    )?;
-                }
+            Pattern::Array { fields } => {
+                self.analyze_pattern_sequence(
+                    module,
+                    fields,
+                    binding_ty_id,
+                    |rest_types| Type::Array {
+                        element: rest_types.first().cloned(),
+                    },
+                    tree,
+                    symbols,
+                    types,
+                    ctx,
+                )?;
             }
             Pattern::Object { fields } => {
                 for field_id in fields {
@@ -953,12 +950,12 @@ impl Compiler {
                 }
             }
             Pattern::TaggedObject { ty, fields } => {
-                self.analyze_expression(module, *ty, tree, symbols, types, ctx)?;
+                let ty_id = self.analyze_expression(module, *ty, tree, symbols, types, ctx)?;
                 for field_id in fields {
                     self.analyze_pattern_field(
                         module,
                         *field_id,
-                        binding_ty_id,
+                        Some(ty_id),
                         tree,
                         symbols,
                         types,
@@ -981,6 +978,51 @@ impl Compiler {
             }
         }
 
+        Ok(())
+    }
+
+    /// Analyze a sequence of pattern fields (with spread syntax support).
+    fn analyze_pattern_sequence(
+        &self,
+        module: &Module,
+        fields: &Vec<LocalNodeId<PatternField>>,
+        binding_ty_id: Option<LocalTypeId>,
+        to_rest_type: impl Fn(Vec<LocalTypeId>) -> Type,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+        ctx: &mut TypeContext,
+    ) -> AnalyzeResult<()> {
+        let binding_ty_fields = binding_ty_id
+            .and_then(|ty_id| match types.get_type(ty_id) {
+                Type::Tuple { elements } => Some(elements.clone()),
+                _ => None,
+            })
+            .unwrap_or_default();
+        let spread_len = binding_ty_fields.len().saturating_sub(fields.len() - 1);
+        let mut ty_idx = 0;
+        for field_id in fields {
+            let field = tree.get(*field_id);
+            let field_ty = match field {
+                PatternField::Named { .. }
+                | PatternField::Alias { .. }
+                | PatternField::Positional { .. } => {
+                    let ty = binding_ty_fields.get(ty_idx).cloned();
+                    ty_idx += 1;
+                    ty
+                }
+                PatternField::Spread { .. } => {
+                    let rest_types = binding_ty_fields
+                        .get(ty_idx..ty_idx + spread_len)
+                        .map(|s| s.to_vec())
+                        .unwrap_or_default();
+                    ty_idx += spread_len;
+                    let rest_ty = to_rest_type(rest_types);
+                    Some(types.insert_type_from(rest_ty, *field_id))
+                }
+            };
+            self.analyze_pattern_field(module, *field_id, field_ty, tree, symbols, types, ctx)?;
+        }
         Ok(())
     }
 
@@ -1035,6 +1077,15 @@ impl Compiler {
             }
             PatternField::Positional { pattern } => {
                 self.analyze_pattern(module, *pattern, binding_ty_id, tree, symbols, types, ctx)?;
+            }
+            PatternField::Spread {
+                mutability: _,
+                name: _,
+                symbol,
+            } => {
+                if let Some(ty_id) = binding_ty_id {
+                    types.set_value_type(symbol.into_global(module.id), ty_id);
+                }
             }
         }
         Ok(())
@@ -1123,7 +1174,7 @@ impl Compiler {
 mod tests {
     use destack_dir::{PrimitiveType, Type, TypeLiteral};
 
-    use crate::{ImportTask, TestProgram};
+    use crate::{ImportTask, TestProgram, assert_type};
 
     #[test]
     fn test_analyze_number_literal() {
@@ -1267,9 +1318,9 @@ mod tests {
         );
 
         // value_type[x] = number
-        let value_ty = types.get_value_type(x_symbol).unwrap();
+        let x_ty = types.get_value_type(x_symbol).unwrap();
         assert_eq!(
-            *value_ty,
+            *x_ty,
             Type::TypeLiteral {
                 value: TypeLiteral::Primitive(PrimitiveType::Number)
             }
@@ -1305,9 +1356,9 @@ mod tests {
         );
 
         // value_type[x] = string
-        let value_ty = types.get_value_type(x_symbol).unwrap();
+        let x_ty = types.get_value_type(x_symbol).unwrap();
         assert_eq!(
-            *value_ty,
+            *x_ty,
             Type::TypeLiteral {
                 value: TypeLiteral::Primitive(PrimitiveType::String)
             }
@@ -1323,7 +1374,7 @@ mod tests {
         let file = test.file(
             "test.ds",
             r#"
-let (x, y, ...rest) = (123, 'abc', true);
+let (x, y, ...rest, z) = (123, 'abc', true, 456);
 "#,
         );
         test.enqueue(ImportTask::ImportModuleFromFile { file: file.id });
@@ -1336,31 +1387,104 @@ let (x, y, ...rest) = (123, 'abc', true);
         let x_symbol = test.resolve_to_symbol("test.ds", "x").unwrap();
         let y_symbol = test.resolve_to_symbol("test.ds", "y").unwrap();
         let rest_symbol = test.resolve_to_symbol("test.ds", "rest").unwrap();
-    
+        let z_symbol = test.resolve_to_symbol("test.ds", "z").unwrap();
+
         // value_type[x] = number
-        let value_ty = types.get_value_type(x_symbol).unwrap();
-        assert_eq!(
-            *value_ty,
+        let x_ty_id = types.get_value_type_id(x_symbol).unwrap();
+        assert_type!(
+            types,
+            x_ty_id,
             Type::TypeLiteral {
                 value: TypeLiteral::Primitive(PrimitiveType::Number)
             }
         );
-        
+
         // value_type[y] = string
-        let value_ty = types.get_value_type(y_symbol).unwrap();
-        assert_eq!(
-            *value_ty,
+        let y_ty_id = types.get_value_type_id(y_symbol).unwrap();
+        assert_type!(
+            types,
+            y_ty_id,
             Type::TypeLiteral {
                 value: TypeLiteral::Primitive(PrimitiveType::String)
             }
         );
 
         // value_type[rest] = (boolean,)
-        let value_ty = types.get_value_type(rest_symbol).unwrap();
-        assert_eq!(
-            *value_ty,
-            Type::TypeLiteral {
+        let rest_ty_id = types.get_value_type_id(rest_symbol).unwrap();
+        assert_type!(types, rest_ty_id, Type::Tuple { elements } => {
+            assert_eq!(elements.len(), 1);
+            assert_type!(types, elements[0], Type::TypeLiteral {
                 value: TypeLiteral::Primitive(PrimitiveType::Boolean)
+            });
+        });
+
+        // value_type[z] = number
+        let z_ty_id = types.get_value_type_id(z_symbol).unwrap();
+        assert_type!(
+            types,
+            z_ty_id,
+            Type::TypeLiteral {
+                value: TypeLiteral::Primitive(PrimitiveType::Number)
+            }
+        );
+    }
+
+    #[test]
+    fn test_analyze_let_expression_infer_array_type_with_pattern() {
+        let test = TestProgram::memory_sequential();
+        let file = test.file(
+            "test.ds",
+            r#"
+let [x, y, ...rest, z] = [123, 'abc', true, 456];
+"#,
+        );
+        test.enqueue(ImportTask::ImportModuleFromFile { file: file.id });
+        test.compile_dump_clean();
+
+        let module = test.module_for_file(&file);
+        let module = module.read();
+        let types = module.types.read();
+
+        let x_symbol = test.resolve_to_symbol("test.ds", "x").unwrap();
+        let y_symbol = test.resolve_to_symbol("test.ds", "y").unwrap();
+        let rest_symbol = test.resolve_to_symbol("test.ds", "rest").unwrap();
+        let z_symbol = test.resolve_to_symbol("test.ds", "z").unwrap();
+
+        // value_type[x] = number
+        let x_ty_id = types.get_value_type_id(x_symbol).unwrap();
+        assert_type!(
+            types,
+            x_ty_id,
+            Type::TypeLiteral {
+                value: TypeLiteral::Primitive(PrimitiveType::Number)
+            }
+        );
+
+        // value_type[y] = string
+        let y_ty_id = types.get_value_type_id(y_symbol).unwrap();
+        assert_type!(
+            types,
+            y_ty_id,
+            Type::TypeLiteral {
+                value: TypeLiteral::Primitive(PrimitiveType::String)
+            }
+        );
+
+        // value_type[rest] = boolean[]
+        let rest_ty_id = types.get_value_type_id(rest_symbol).unwrap();
+        assert_type!(types, rest_ty_id, Type::Array { element: Some(element_id) } => {
+            assert_type!(types, *element_id, Type::TypeLiteral {
+                value: TypeLiteral::Primitive(PrimitiveType::Boolean)
+            });
+        });
+
+        // value_type[z] = number
+        let z_ty_id = types.get_value_type_id(z_symbol).unwrap();
+        assert_type!(
+            types,
+            z_ty_id,
+            Type::TypeLiteral {
+                value: TypeLiteral::Primitive(PrimitiveType::Number)
             }
         );
     }

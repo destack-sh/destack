@@ -27,12 +27,6 @@ impl<'ast> FormatNode<'ast, Pattern> for Pattern {
             Pattern::Object { fields } => {
                 write!(f, [list_like("{", "}", ",", fields)])?;
             }
-            Pattern::Rest { name } => {
-                write!(f, [token("...")])?;
-                if let Some(name) = name {
-                    write!(f, [name])?;
-                }
-            }
             Pattern::Hole => {
                 write!(f, [token(",")])?;
             }
@@ -85,6 +79,15 @@ impl<'ast> FormatNode<'ast, PatternField> for PatternField {
             }
             PatternField::Positional { pattern } => {
                 write!(f, [pattern])?;
+            }
+            PatternField::Spread {
+                mutability: _,
+                name,
+            } => {
+                write!(f, [token("...")])?;
+                if let Some(name) = name {
+                    write!(f, [name])?;
+                }
             }
         }
         Ok(())
