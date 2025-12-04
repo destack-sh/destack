@@ -1,9 +1,9 @@
 /// Gradient fill type.
 export enum GradientType {
-    Linear = 10,
-    Radial = 11,
-    Conic = 12,
-    Diamond = 13,
+    Linear,
+    Radial,
+    Conic,
+    Diamond,
 }
 
 /// A gradient stop with color and position.

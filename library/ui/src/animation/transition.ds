@@ -2,14 +2,14 @@ import * as ds from "destack";
 
 /// Built-in transition types
 export enum TransitionType {
-    Tween = 10,
-    Spring = 11,
+    Tween,
+    Spring,
 }
 
 /// Built-in spring types
 export enum SpringType {
-    Time = 1,
-    Physical = 2,
+    Time,
+    Physical,
 }
 
 /// A transition value

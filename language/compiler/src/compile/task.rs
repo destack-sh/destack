@@ -288,7 +288,7 @@ pub enum TaskStatus {
     Queued,
     /// The task is running.
     Running,
-    /// The task is wait for a dependency.
+    /// The task is waiting for a dependency.
     Yielded { dependency: TaskDependency },
     /// The task is complete.
     Complete { output: TaskOutput },

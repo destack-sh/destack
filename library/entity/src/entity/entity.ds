@@ -18,7 +18,7 @@ export enum Materialization {
 /// How an Entity should be treated for processing by the system.
 @flag
 export enum ProcessFlag {
-    Default = 0,
+    Default,
     Deleted,
     Inactive,
     InactiveInput,
@@ -27,7 +27,7 @@ export enum ProcessFlag {
 
 /// How an Entity can be extended.
 export enum ExtensionFlag {
-    Default = 0,
+    Default,
     Instantiable,
     Extensible,
 }

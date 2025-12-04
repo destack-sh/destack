@@ -627,7 +627,7 @@ pub(crate) fn format_match<'ast>(
         write!(f, [Keyword::Match, space()])?;
     }
 
-    write!(f, [value])?;
+    write!(f, [token("("), value, token(")")])?;
 
     // empty match body
     if cases.is_empty() {

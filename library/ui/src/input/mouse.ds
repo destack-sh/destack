@@ -6,9 +6,9 @@ export class Mouse2D extends Pointer2D { }
 
 /// Mouse buttons
 export enum MouseButton {
-    Left = 1,
-    Right = 2,
-    Middle = 3,
+    Left,
+    Right,
+    Middle,
 }
 
 /// Mouse-derived event with a button

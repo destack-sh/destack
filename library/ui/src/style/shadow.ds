@@ -1,13 +1,13 @@
 /// Built-in shadow types.
 export enum ShadowType {
-    Box = 10,
-    Realistic = 11,
+    Box,
+    Realistic,
 }
 
 /// Built-in shadow positions.
 export enum ShadowPosition {
-    Outside = 1,
-    Inside = 2,
+    Outside,
+    Inside,
 }
 
 /// A shadow value for a styled surface.

@@ -4,7 +4,7 @@ import { entity, Entity, Reference } from "destack";
 export enum MeetupStatus {
     @default 
     @description("The Meetup is a draft.")
-    Draft = 1,
+    Draft,
     
     @description("The Meetup is upcoming.")
     Upcoming,

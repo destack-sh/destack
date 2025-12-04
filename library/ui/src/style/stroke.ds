@@ -1,9 +1,9 @@
 /// Type of stroke.
 export enum StrokeType {
-    Solid = 10,
-    Dashed = 11,
-    Dotted = 12,
-    Freehand = 13,
+    Solid,
+    Dashed,
+    Dotted,
+    Freehand,
 }
 
 /// A stroke cap value.

@@ -133,7 +133,7 @@ export struct TetrisPiece {
 
     /// Get the color of the Tetris piece.
     getColor(): Color {
-        match this.shape {
+        match (this.shape) {
             TetrisPieceShape.I => Color.Blue
             TetrisPieceShape.J => Color.Red
             TetrisPieceShape.L => Color.Orange
@@ -147,7 +147,7 @@ export struct TetrisPiece {
     /// Get block positions for a shape and rotation.
     getBlocksForShape(shape: TetrisPieceShape, rotation: int32): Position[] {
         const normalizedRotation = rotation % 4;
-        match shape {
+        match (shape) {
             TetrisPieceShape.I => if (normalizedRotation == 0 || normalizedRotation == 2) {
                 [
                     <Position x=0 y=0 />,
@@ -169,7 +169,7 @@ export struct TetrisPiece {
                 Position { x: 0, y: 1 },
                 Position { x: 1, y: 1 },
             ]
-            TetrisPieceShape.T => match normalizedRotation {
+            TetrisPieceShape.T => match (normalizedRotation) {
                 0 => [
                     Position { x: 1, y: 0 },
                     Position { x: 0, y: 1 },
@@ -226,7 +226,7 @@ export struct TetrisPiece {
                     Position { x: 1, y: 2 },
                 ]
             }
-            TetrisPieceShape.J => match normalizedRotation {
+            TetrisPieceShape.J => match (normalizedRotation) {
                 0 => [
                     Position { x: 0, y: 0 },
                     Position { x: 0, y: 1 },
@@ -253,7 +253,7 @@ export struct TetrisPiece {
                 ]
                 _ => []
             }
-            TetrisPieceShape.L => match normalizedRotation {
+            TetrisPieceShape.L => match (normalizedRotation) {
                 0 => [
                     Position { x: 2, y: 0 },
                     Position { x: 0, y: 1 },
@@ -390,7 +390,7 @@ extension TetrisGame {
             const cleared = this.board.clearLines();
             this.linesCleared += cleared;
             // update score based on lines cleared
-            match cleared {
+            match (cleared) {
                 1 => this.score += 100 * this.level
                 2 => this.score += 300 * this.level
                 3 => this.score += 500 * this.level

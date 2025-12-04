@@ -1,15 +1,15 @@
 /// Built-in border types.
 export enum BorderType {
     /// A border style (refer to template)
-    Style = 2,
+    Style,
     /// Solid border
-    Solid = 10,
+    Solid,
     /// Dashed border
-    Dashed = 11,
+    Dashed,
     /// Dotted border
-    Dotted = 12,
+    Dotted,
     /// Double border
-    Double = 13,
+    Double,
 }
 
 /// A border value for a styled surface.
