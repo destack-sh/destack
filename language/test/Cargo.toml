@@ -11,15 +11,31 @@ rust-version.workspace = true
 path = "src/lib.rs"
 doctest = false
 
+[[test]]
+name = "smoke"
+path = "src/smoke/main.rs"
+harness = false
+
+[[test]]
+name = "codegen"
+path = "src/codegen/main.rs"
+harness = false
+
 [dependencies]
+# language
+destack_codegen_js = { workspace = true }
 destack_codegen_lib = { workspace = true }
 destack_compiler = { workspace = true }
 destack_dir = { workspace = true }
 destack_machine = { workspace = true }
 destack_mir = { workspace = true }
+destack_parser = { workspace = true }
 destack_runtime = { workspace = true }
 destack_source = { workspace = true }
 destack_workspace = { workspace = true }
+
+# general
+clap = { version = "4.5", features = ["derive"] }
 
 [dev-dependencies]
 

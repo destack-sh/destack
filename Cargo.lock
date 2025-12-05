@@ -698,11 +698,14 @@ dependencies = [
 name = "destack_test"
 version = "0.47.3"
 dependencies = [
+ "clap",
+ "destack_codegen_js",
  "destack_codegen_lib",
  "destack_compiler",
  "destack_dir",
  "destack_machine",
  "destack_mir",
+ "destack_parser",
  "destack_runtime",
  "destack_source",
  "destack_workspace",

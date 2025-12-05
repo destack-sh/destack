@@ -8,12 +8,13 @@ The Destack language, library, and platform ecosystem are fully integrated for f
 ### Comments
 
 Inline comments should be short and begin with a lowercase letter.
-Place them above a related code block (usually 2-10 lines).
-Most comments are <1 sentence and should not include a period at the end.
-
-Function, module, and class documentation must be proper sentences with punctuation.
-Go multiline if there is more than one sentence.
-For methods, documentation should be imperative, starting with a verb ("Send a message to XYZ").
+ - (This extends to comments in *any* code file, even scripts. I just like lowercase better.)
+ - Place comments above a related code block (usually 2-10 lines).
+ - Most comments are <1 sentence and should not include a period at the end (again, lowercase).
+Documentation comments for functions/types/etc. should be proper sentences with punctuation.
+ - Files should usually have a one-to-few sentences top-level documentation comment.
+ - Go multiline if there is more than one sentence. Only one sentence should begin per line.
+ - For methods, documentation should be imperative, usually starting with a verb (e.g., "Send a message").
 
 Comments may start with keywords (without the spaces):
 - `N O T E`: call out something important
@@ -32,6 +33,7 @@ Keywords should include tags:
 ### Naming
 
 Names should be obvious, clear, and idiomatic to the language.
+Prefer writing out most names and words (even in variable names, `extension` > `ext`, `directory` > `dir`).
 Avoid single-letter variables unless obvious (`i`, `x`, `Vector.x` are fine).
 Booleans should start with `is_` unless already clear.
 
@@ -65,11 +67,10 @@ Prefer property-based testing and roundtrip testing where possible.
 Toolchain: `nightly-2025-11-27` (see `rust-toolchain.toml`)
 
 - Place imports at the top, prefer `use std::time::Instant` patterns
-- No `crate::X` within functions, use relative references
+- No `crate::X` within functions, use relative references (again, imports at the top)
 - Avoid `unwrap`/`expect` outside tests; fail explicitly
-- Tests go in a trailing `mod tests`
-- Inline variables in format macros: `format!("name is {name}")`
-- Public and complex function docs should list arguments and return values
+- Tests go in a trailing `mod tests` or in standalone test modules/crates (contextual)
+- Inline variables in format macros if possible: `format!("name is {name}")`
 - Prefer multiline raw strings for longer strings
 
 ### Commands
@@ -82,25 +83,9 @@ just language/lint     # cargo clippy --workspace --all-targets --all-features
 just language/fmt      # cargo fmt --all
 ```
 
-## TypeScript / Destack
-
-- Always type everything properly
-- Avoid `as any` or similar casts
-- Use Bun as the runtime
-
-### Commands
-
-```sh
-just install           # bun install
-just library/napi      # build napi bindings
-bun test               # run tests
-```
-
 ## Commits
 
-Follow `type(scope): summary` (≤100 chars, imperative).
-Example: `feat(language): add error spans`
-Types: `feat`, `fix`, `refactor`, `docs`, `test`, `chore`
-
-
-##
+Typically, agents aren't supposed to commit code directly, but for reference:
+ - Follow `type(scope): summary` (≤100 chars, imperative).
+ - Example: `feat(language): add error spans`
+ - Types: `feat`, `fix`, `refactor`, `docs`, `test`, `chore`
