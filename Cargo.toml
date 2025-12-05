@@ -3,6 +3,8 @@ resolver = "2"
 members = [
 	# language
 	"language/ast",
+	"language/codegen/cranelift",
+	"language/codegen/lib",
 	"language/codegen/js",
 	"language/compiler",
 	"language/dir",
@@ -36,7 +38,9 @@ rust-version = "1.88.0"
 [workspace.dependencies]
 # language
 destack_ast = { path = "language/ast" }
+destack_codegen_cranelift = { path = "language/codegen/cranelift" }
 destack_codegen_js = { path = "language/codegen/js" }
+destack_codegen_lib = { path = "language/codegen/lib" }
 destack_compiler = { path = "language/compiler" }
 destack_dir = { path = "language/dir" }
 destack_fir = { path = "language/fir" }

@@ -431,7 +431,39 @@ dependencies = [
 ]
 
 [[package]]
+name = "destack_codegen_cranelift"
+version = "0.47.3"
+dependencies = [
+ "dashmap",
+ "destack_ast",
+ "destack_dir",
+ "destack_fir",
+ "destack_mir",
+ "destack_source",
+ "parking_lot",
+ "rayon",
+ "smallvec",
+ "tracing",
+]
+
+[[package]]
 name = "destack_codegen_js"
+version = "0.47.3"
+dependencies = [
+ "dashmap",
+ "destack_ast",
+ "destack_dir",
+ "destack_fir",
+ "destack_mir",
+ "destack_source",
+ "parking_lot",
+ "rayon",
+ "smallvec",
+ "tracing",
+]
+
+[[package]]
+name = "destack_codegen_lib"
 version = "0.47.3"
 dependencies = [
  "dashmap",

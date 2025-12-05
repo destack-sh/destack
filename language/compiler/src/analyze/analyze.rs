@@ -322,7 +322,7 @@ impl Compiler {
 
             // fallback
             _ => {
-                return Err(AnalyzeError::UnsupportedNode {
+                return Err(AnalyzeError::UnsupportedConstruct {
                     node: expression_id.into_global_any(module.id),
                 });
             }
@@ -578,7 +578,7 @@ impl Compiler {
             }
 
             _ => {
-                return Err(AnalyzeError::UnsupportedNode {
+                return Err(AnalyzeError::UnsupportedConstruct {
                     node: declaration_id.into_global_any(module.id),
                 });
             }

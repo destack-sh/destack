@@ -13,7 +13,7 @@ pub enum AnalyzeError {
     /// Yield dependency has failed.
     UnsatisfiedDependency { dependency: TaskDependency },
     /// Unsupported node.
-    UnsupportedNode { node: GlobalNodeIdAny },
+    UnsupportedConstruct { node: GlobalNodeIdAny },
     /// Missing type for an expression.
     MissingType { node: GlobalNodeIdAny },
     /// Type is not assignable to the expected type.
@@ -91,7 +91,7 @@ impl AnalyzeError {
         match self {
             Self::Yield { .. } => 0,
             Self::UnsatisfiedDependency { .. } => 1,
-            Self::UnsupportedNode { .. } => 2,
+            Self::UnsupportedConstruct { .. } => 2,
             Self::MissingType { .. } => 3,
             Self::UnassignableType { .. } => 4,
             Self::InaccessibleSymbol { .. } => 5,
@@ -115,7 +115,7 @@ impl AnalyzeError {
         match self {
             Self::Yield { dependency } => dependency.node(),
             Self::UnsatisfiedDependency { dependency } => dependency.node(),
-            Self::UnsupportedNode { node, .. } => *node,
+            Self::UnsupportedConstruct { node, .. } => *node,
             Self::MissingType { node, .. } => *node,
             Self::UnassignableType { node, .. } => *node,
             Self::InaccessibleSymbol { node, .. } => *node,
@@ -139,7 +139,7 @@ impl AnalyzeError {
         match self {
             Self::Yield { .. } => "pending dependency".to_string(),
             Self::UnsatisfiedDependency { .. } => "unsatisfied dependency".to_string(),
-            Self::UnsupportedNode { .. } => "unsupported node".to_string(),
+            Self::UnsupportedConstruct { .. } => "unsupported construct".to_string(),
             Self::MissingType { .. } => "missing type".to_string(),
             Self::UnassignableType { .. } => "unassignable type".to_string(),
             Self::InaccessibleSymbol { .. } => "inaccessible symbol".to_string(),

@@ -1,8 +1,8 @@
 use destack_dir::{GlobalNodeIdAny, Program};
 
 use crate::{
-    AnalyzeWarning, BindWarning, ElaborateWarning, ExecuteWarning, GenerateWarning, ImportWarning,
-    LinkWarning, LowerWarning, OptimizeWarning, ResolveWarning, TaskPhase, VerifyWarning,
+    AnalyzeWarning, BindWarning, ElaborateWarning, GenerateWarning, ImportWarning, LinkWarning,
+    LowerWarning, OptimizeWarning, ResolveWarning, TaskPhase, VerifyWarning,
 };
 
 /// Warning during compilation.
@@ -26,9 +26,7 @@ pub enum TaskWarning {
     /// Warning during optimization.
     Optimize(OptimizeWarning),
     // --------------------------------------------------
-    /// Warning during execution.
-    Execute(ExecuteWarning),
-    /// Warning during generateing.
+    /// Warning during generating.
     Generate(GenerateWarning),
     /// Warning during linking.
     Link(LinkWarning),
@@ -46,7 +44,6 @@ impl TaskWarning {
             Self::Lower(_) => TaskPhase::Lower,
             Self::Verify(_) => TaskPhase::Verify,
             Self::Optimize(_) => TaskPhase::Optimize,
-            Self::Execute(_) => TaskPhase::Execute,
             Self::Generate(_) => TaskPhase::Generate,
             Self::Link(_) => TaskPhase::Link,
         }
@@ -69,7 +66,6 @@ impl TaskWarning {
             Self::Lower(warning) => warning.sub_code(),
             Self::Verify(warning) => warning.sub_code(),
             Self::Optimize(warning) => warning.sub_code(),
-            Self::Execute(warning) => warning.sub_code(),
             Self::Generate(warning) => warning.sub_code(),
             Self::Link(warning) => warning.sub_code(),
         }
@@ -91,7 +87,6 @@ impl TaskWarning {
             Self::Elaborate(warning) => warning.node(),
             Self::Lower(warning) => warning.node(),
             Self::Verify(warning) => warning.node(),
-            Self::Execute(warning) => warning.node(),
             Self::Optimize(warning) => warning.node(),
             Self::Generate(warning) => warning.node(),
             Self::Link(warning) => warning.node(),
@@ -108,7 +103,6 @@ impl TaskWarning {
             Self::Elaborate(warning) => warning.message(program),
             Self::Lower(warning) => warning.message(program),
             Self::Verify(warning) => warning.message(program),
-            Self::Execute(warning) => warning.message(program),
             Self::Optimize(warning) => warning.message(program),
             Self::Generate(warning) => warning.message(program),
             Self::Link(warning) => warning.message(program),

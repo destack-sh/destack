@@ -2,9 +2,9 @@ use destack_dir::{GlobalNodeIdAny, Program};
 
 use crate::{
     AnalyzeOutput, AnalyzeTask, BindOutput, BindTask, ElaborateOutput, ElaborateTask,
-    ExecuteOutput, ExecuteTask, GenerateOutput, GenerateTask, ImportOutput, ImportTask, LinkOutput,
-    LinkTask, LowerOutput, LowerTask, OptimizeOutput, OptimizeTask, ResolveOutput, ResolveTask,
-    TaskError, VerifyOutput, VerifyTask,
+    GenerateOutput, GenerateTask, ImportOutput, ImportTask, LinkOutput, LinkTask, LowerOutput,
+    LowerTask, OptimizeOutput, OptimizeTask, ResolveOutput, ResolveTask, TaskError, VerifyOutput,
+    VerifyTask,
 };
 
 /// Trait for formatting task information.
@@ -23,7 +23,7 @@ pub enum TaskRegion {
     Front,
     /// Middle-end (lower, verify, optimize).
     Middle,
-    /// Back-end (generate, link, execute).
+    /// Back-end (generate, link).
     Back,
 }
 
@@ -64,8 +64,6 @@ pub enum TaskPhase {
     Generate = 9,
     /// Link artifacts into final output.
     Link = 10,
-    /// Execute output.
-    Execute = 11,
 }
 
 impl std::fmt::Display for TaskPhase {
@@ -87,7 +85,7 @@ impl TaskPhase {
                 TaskRegion::Front
             }
             Self::Lower | Self::Verify | Self::Optimize => TaskRegion::Middle,
-            Self::Generate | Self::Link | Self::Execute => TaskRegion::Back,
+            Self::Generate | Self::Link => TaskRegion::Back,
         }
     }
 
@@ -104,7 +102,6 @@ impl TaskPhase {
             Self::Optimize => "optimize",
             Self::Generate => "generate",
             Self::Link => "link",
-            Self::Execute => "execute",
         }
     }
 
@@ -121,7 +118,6 @@ impl TaskPhase {
             Self::Optimize => "optimize MIR",
             Self::Generate => "generate DIR or MIR into artifacts",
             Self::Link => "link artifacts into final output",
-            Self::Execute => "execute output",
         }
     }
 
@@ -138,7 +134,6 @@ impl TaskPhase {
             Self::Optimize => 'O',
             Self::Generate => 'G',
             Self::Link => 'K',
-            Self::Execute => 'X',
         }
     }
 }
@@ -168,8 +163,6 @@ pub enum Task {
     Generate(GenerateTask),
     /// Link artifacts into final output.
     Link(LinkTask),
-    /// Execute output.
-    Execute(ExecuteTask),
 }
 
 impl Task {
@@ -186,7 +179,6 @@ impl Task {
             Self::Optimize(_) => TaskPhase::Optimize,
             Self::Generate(_) => TaskPhase::Generate,
             Self::Link(_) => TaskPhase::Link,
-            Self::Execute(_) => TaskPhase::Execute,
         }
     }
 
@@ -208,7 +200,6 @@ impl Task {
             Self::Optimize(task) => task.sub_code(),
             Self::Generate(task) => task.sub_code(),
             Self::Link(task) => task.sub_code(),
-            Self::Execute(task) => task.sub_code(),
         }
     }
 
@@ -231,7 +222,6 @@ impl TaskDebug for Task {
             Self::Optimize(task) => task.name(),
             Self::Generate(task) => task.name(),
             Self::Link(task) => task.name(),
-            Self::Execute(task) => task.name(),
         }
     }
 
@@ -247,7 +237,6 @@ impl TaskDebug for Task {
             Self::Optimize(task) => task.trace_args(program),
             Self::Generate(task) => task.trace_args(program),
             Self::Link(task) => task.trace_args(program),
-            Self::Execute(task) => task.trace_args(program),
         }
     }
 }
@@ -488,8 +477,6 @@ pub enum TaskOutput {
     Generate(GenerateOutput),
     /// Output of a link task.
     Link(LinkOutput),
-    /// Output of an execute task.
-    Execute(ExecuteOutput),
 }
 
 /// Collector for coalescing task dependencies from multiple operations.

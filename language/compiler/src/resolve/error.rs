@@ -12,7 +12,7 @@ pub enum ResolveError {
     /// Yield dependency has failed.
     UnsatisfiedDependency { dependency: TaskDependency },
     /// Unsupported node.
-    UnsupportedNode { node: GlobalNodeIdAny },
+    UnsupportedConstruct { node: GlobalNodeIdAny },
     /// Circular dependency.
     CircularDependency {
         node: GlobalNodeIdAny,
@@ -63,7 +63,7 @@ impl ResolveError {
         match self {
             Self::Yield { .. } => 0,
             Self::UnsatisfiedDependency { .. } => 1,
-            Self::UnsupportedNode { .. } => 2,
+            Self::UnsupportedConstruct { .. } => 2,
             Self::CircularDependency { .. } => 3,
             Self::UndeclaredSymbol { .. } => 4,
             Self::MissingSymbol { .. } => 5,
@@ -77,7 +77,7 @@ impl ResolveError {
         match self {
             Self::Yield { dependency } => dependency.node(),
             Self::UnsatisfiedDependency { dependency } => dependency.node(),
-            Self::UnsupportedNode { node, .. } => *node,
+            Self::UnsupportedConstruct { node, .. } => *node,
             Self::CircularDependency { node, .. } => *node,
             Self::UndeclaredSymbol { node, .. } => *node,
             Self::MissingSymbol { node, .. } => *node,
@@ -91,7 +91,7 @@ impl ResolveError {
         match self {
             Self::Yield { .. } => "pending dependency".to_string(),
             Self::UnsatisfiedDependency { .. } => "unsatisfied dependency".to_string(),
-            Self::UnsupportedNode { node, .. } => {
+            Self::UnsupportedConstruct { node, .. } => {
                 format!("unsupported {}", node.local_id.ty.name())
             }
             Self::CircularDependency { .. } => "circular dependency".to_string(),
