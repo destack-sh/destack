@@ -19,6 +19,7 @@ destack_machine = { workspace = true }
 destack_mir = { workspace = true }
 destack_runtime = { workspace = true }
 destack_source = { workspace = true }
+destack_workspace = { workspace = true }
 
 [dev-dependencies]
 
