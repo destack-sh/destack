@@ -1,8 +1,8 @@
 use std::borrow::Cow;
 use std::path::{Path, PathBuf};
 
-use destack_dir::{DsConfig, DsConfigId};
 use destack_source::{File, FileType, PathExt, Uri};
+use destack_workspace::{DsConfig, DsConfigId};
 
 use crate::{ResolveError, Resolver};
 
@@ -96,8 +96,8 @@ impl Resolver {
                 .extends
                 .as_ref()
                 .map(|extends| match extends {
-                    destack_dir::DsConfigExtendsField::Single(s) => vec![s.clone()],
-                    destack_dir::DsConfigExtendsField::Multiple(m) => m.clone(),
+                    destack_workspace::DsConfigExtendsField::Single(s) => vec![s.clone()],
+                    destack_workspace::DsConfigExtendsField::Multiple(m) => m.clone(),
                 })
                 .unwrap_or_default();
             drop(dsconfig); // release the read lock before resolving paths

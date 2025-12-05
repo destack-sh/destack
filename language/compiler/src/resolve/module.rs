@@ -1,5 +1,7 @@
 use crate::{AnalyzeTask, Compiler, ResolveError, ResolveResult, TaskResultCollector};
-use destack_dir::{DependencyItem, Expression, ModuleId};
+use destack_dir::{DependencyItem, Expression};
+
+use destack_source::ModuleId;
 
 impl Compiler {
     /// Resolve an entire module lexically.

@@ -3,8 +3,8 @@ use std::sync::Arc;
 use std::thread;
 
 use dashmap::DashMap;
-use destack_dir as dir;
 use destack_source::{DiagnosticCollector, DiagnosticOptions, Uri};
+use destack_workspace::Program;
 use smallvec::{SmallVec, smallvec};
 
 use crate::{
@@ -123,7 +123,7 @@ pub enum TypeScriptVersion {
 #[derive(Debug)]
 pub struct Transpiler {
     /// The program.
-    pub program: Arc<dir::Program>,
+    pub program: Arc<Program>,
     /// The options for transpiling.
     pub options: TranspileOptions,
     /// The pending transpiler diagnostics.
@@ -136,7 +136,7 @@ pub struct Transpiler {
 
 impl Transpiler {
     /// Create a new Transpiler from a Compiler state.
-    pub fn new(program: Arc<dir::Program>, options: TranspileOptions) -> Self {
+    pub fn new(program: Arc<Program>, options: TranspileOptions) -> Self {
         Self {
             program,
             options,

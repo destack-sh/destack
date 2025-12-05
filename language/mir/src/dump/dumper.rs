@@ -526,10 +526,10 @@ impl<'a> NodeVisitor for Dumper<'a> {
         function: &Function,
     ) {
         // function header
-        self.write_colored("func", Color::BrightBlue);
+        self.write_colored("function", Color::BrightBlue);
         self.write(" @");
-        // TODO: get name from string pool
-        self.write(&format!("func{}", id.id));
+        // nocheckin TODO: get name from string pool
+        self.write(&format!("function{}", id.id));
         self.write("(");
 
         // parameters

@@ -1,8 +1,8 @@
 use std::fmt;
 use std::sync::Arc;
 
-use destack_dir::Program;
 use destack_source::{FileRegistry, FileSystem, LanguageOptions, PhysicalFileSystem};
+use destack_workspace::Program;
 
 use crate::ResolveOptions;
 

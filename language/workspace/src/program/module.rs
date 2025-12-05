@@ -6,36 +6,11 @@ use dashmap::DashMap;
 use parking_lot::RwLock;
 
 use destack_ast::{self as ast, StringPool};
-use destack_source::{FileId, Uri};
-
-use crate::{
+use destack_dir::{
     DependencyMode, Expression, LocalNodeId, LocalScopeId, LocalScopeMark, LocalSymbolId, NodeTree,
-    PackageId, ScopeKind, SymbolKind, SymbolSpace, SymbolTable, TypeTable,
+    ScopeKind, SymbolKind, SymbolSpace, SymbolTable, TypeTable,
 };
-
-/// Unique identifier for Modules.
-#[repr(transparent)]
-#[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct ModuleId(pub u32);
-
-impl std::fmt::Debug for ModuleId {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "#{}", self.0)
-    }
-}
-
-impl std::fmt::Display for ModuleId {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "#{}", self.0)
-    }
-}
-
-impl ModuleId {
-    /// Wrap an id as a ModuleId.
-    pub fn new(id: u32) -> Self {
-        Self(id)
-    }
-}
+use destack_source::{FileId, ModuleId, PackageId, Uri};
 
 /// Module type.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

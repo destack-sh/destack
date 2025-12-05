@@ -1,6 +1,7 @@
 use destack_dir::{
-    FunctionAbstraction, GlobalNodeIdAny, GlobalSymbolId, GlobalTypeId, Program, Visibility,
+    FunctionAbstraction, GlobalNodeIdAny, GlobalSymbolId, GlobalTypeId, Visibility,
 };
+use destack_workspace::Program;
 
 use crate::{TaskDependency, TaskError, TaskPhase};
 

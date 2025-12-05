@@ -1,6 +1,7 @@
 use crate::Path;
 use destack_ast::StringId;
-use destack_dir::{self as dir, Module};
+use destack_dir as dir;
+use destack_workspace::Module;
 use smallvec::SmallVec;
 
 use crate::{TranspileResult, Transpiler, TranspilerUnit};

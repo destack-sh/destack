@@ -2,7 +2,8 @@ use crate::{
     Expression, Generics, Heritage, LocalNodeId, Mutability, PrimitiveType, Type,
     TypeBinaryOperator, TypeLiteral, TypeUnaryOperator,
 };
-use destack_dir::{self as dir, Module, NodeTree, SymbolTable, TypeTable};
+use destack_dir::{self as dir, NodeTree, SymbolTable, TypeTable};
+use destack_workspace::Module;
 
 use crate::{TranspileError, TranspileResult, TranspileResultExt, Transpiler, TranspilerUnit};
 

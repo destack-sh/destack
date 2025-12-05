@@ -1,12 +1,12 @@
 use destack_ast::StringId;
+use destack_source::ModuleId;
 
 use crate::{
     Argument, AssignOperator, Asynchrony, BinaryOperator, Block, Declaration,
     DeclarationDescriptor, DependencyItem, DependencyKind, GlobalSymbolId, LocalNodeId,
-    LocalScopeId, LocalSymbolId, LocalTypeId, MatchCase, MatchSource, ModuleId, Mutability, Node,
-    NodeType, Path, Pattern, Property, ScalarLiteral, StaticArgument, StaticProperty,
-    TemplateLiteral, TypeBinaryOperator, TypeLiteral, TypeUnaryOperator, UnaryOperator,
-    VarianceBound,
+    LocalScopeId, LocalSymbolId, LocalTypeId, MatchCase, MatchSource, Mutability, Node, NodeType,
+    Path, Pattern, Property, ScalarLiteral, StaticArgument, StaticProperty, TemplateLiteral,
+    TypeBinaryOperator, TypeLiteral, TypeUnaryOperator, UnaryOperator, VarianceBound,
 };
 
 /// An Expression is a generic container for all constructs.

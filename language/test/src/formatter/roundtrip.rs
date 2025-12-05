@@ -3,7 +3,7 @@
 use std::sync::Arc;
 
 use destack_ast::NodeParentIndex;
-use destack_dir::Program;
+use destack_workspace::Program;
 use destack_fir::format as fir_format;
 use destack_formatter::{DestackFormatContext, DestackFormatOptions};
 use destack_parser::Parser;

@@ -1,9 +1,10 @@
 use crate::Compiler;
 use destack_ast as ast;
 use destack_dir::{
-    DynamicKey, LocalNodeIdAny, LocalScopeId, LocalScopeMark, Module, NodeTree, SymbolTable,
+    DynamicKey, LocalNodeIdAny, LocalScopeId, LocalScopeMark, NodeTree, SymbolTable,
     TypeTable,
 };
+use destack_workspace::Module;
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {

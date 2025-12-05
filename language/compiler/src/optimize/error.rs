@@ -1,6 +1,8 @@
-use destack_dir::{GlobalNodeIdAny, Program};
+use destack_dir::{GlobalNodeIdAny};
 
 use crate::{TaskDependency, TaskError, TaskPhase};
+
+use destack_workspace::Program;
 
 /// Error when optimizing something into the compiler.
 #[derive(Debug, Clone, PartialEq)]

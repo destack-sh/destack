@@ -2,10 +2,11 @@ use std::collections::HashMap;
 use std::fmt::{Debug, Formatter};
 
 use destack_ast as ast;
+use destack_source::ModuleId;
 
 use crate::{
     Annotation, Arena, Argument, Block, Declaration, DependencyItem, EnumField, Expression,
-    LocalNodeId, LocalNodeIdAny, LocalScopeId, LocalScopeMark, MatchCase, ModuleId, Node, NodeType,
+    LocalNodeId, LocalNodeIdAny, LocalScopeId, LocalScopeMark, MatchCase, Node, NodeType,
     Parameter, Pattern, PatternField, Property, WhereClause,
 };
 

@@ -1,6 +1,6 @@
-use destack_source::StringId;
+use destack_source::{ModuleId, StringId};
 
-use crate::{Expression, GlobalSymbolId, LocalNodeId, LocalSymbolId, ModuleId, Node, NodeType};
+use crate::{Expression, GlobalSymbolId, LocalNodeId, LocalSymbolId, Node, NodeType};
 
 /// The source of a dependency.
 #[derive(Debug, Clone, Copy, PartialEq, Hash, Eq)]

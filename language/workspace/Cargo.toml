@@ -13,17 +13,18 @@ doctest = false
 
 [dependencies]
 # language
+destack_ast = { workspace = true }
 destack_dir = { workspace = true }
 destack_mir = { workspace = true }
-destack_parser = { workspace = true }
-destack_resolver = { workspace = true }
 destack_source = { workspace = true }
 
 # general
 crossbeam-deque = { workspace = true }
 dashmap = { workspace = true }
+indexmap = { workspace = true, features = ["serde"] }
 parking_lot = { workspace = true }
 rayon = { workspace = true }
+rustc-hash = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true, features = ["preserve_order"] }
 smallvec = { workspace = true }

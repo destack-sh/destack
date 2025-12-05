@@ -18,6 +18,7 @@ destack_dir = { workspace = true }
 destack_parser = { workspace = true }
 destack_source = { workspace = true }
 destack_unicode = { workspace = true }
+destack_workspace = { workspace = true }
 
 # general
 cfg-if = { workspace = true }

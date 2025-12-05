@@ -2,9 +2,9 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use dashmap::DashMap;
-use destack_dir::Program;
-use destack_resolver::{Resolution, ResolveError, ResolveOptions, Resolver};
 use destack_source::{FileRegistry, FileSystem, LanguageOptions, PhysicalFileSystem};
+
+use crate::Program;
 
 /// A workspace containing multiple program roots.
 #[derive(Debug)]
@@ -76,23 +76,9 @@ impl Workspace {
         self.add_root(root)
     }
 
-    /// Resolve a specifier from a directory.
-    /// Creates a temporary Resolver on demand (resolver is stateless).
-    pub fn resolve(
-        &self,
-        from: &Path,
-        specifier: &str,
-        options: ResolveOptions,
-    ) -> Result<Resolution, ResolveError> {
-        // find the program that contains this path
-        let program = self.find_program_for_path(from);
-        let resolver = Resolver::new(program, options);
-        resolver.resolve(from, specifier)
-    }
-
     /// Find the program that contains the given path.
     /// Falls back to the cwd-based program if no match is found.
-    fn find_program_for_path(&self, path: &Path) -> Arc<Program> {
+    pub fn find_program_for_path(&self, path: &Path) -> Arc<Program> {
         // look for a program whose root is a prefix of the path
         for entry in self.programs.iter() {
             if path.starts_with(entry.key()) {

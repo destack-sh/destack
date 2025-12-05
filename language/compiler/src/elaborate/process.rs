@@ -1,6 +1,9 @@
 use crate::{Compiler, ElaborateResult, Task, TaskDebug, TaskOutput};
 
-use destack_dir::{ModuleId, Program};
+use destack_source::ModuleId;
+use destack_workspace::Program;
+
+
 
 /// Task to elaborate something.
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]

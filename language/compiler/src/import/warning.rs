@@ -1,6 +1,9 @@
-use destack_dir::{GlobalNodeIdAny, ModuleId, Program};
+use destack_dir::{GlobalNodeIdAny};
 
 use crate::TaskPhase;
+
+use destack_source::ModuleId;
+use destack_workspace::Program;
 
 /// Warning when importing something.
 #[derive(Debug, Clone, PartialEq)]

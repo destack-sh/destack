@@ -1,7 +1,8 @@
 use destack_dir::{
     Argument, Expression, GlobalNodeIdAny, LocalNodeId, LocalScopeId, LocalScopeMark,
-    LocalSymbolId, Module, Path, Scope, ScopeKind, StaticKey, SymbolTable,
+    LocalSymbolId, Path, Scope, ScopeKind, StaticKey, SymbolTable,
 };
+use destack_workspace::Module;
 
 use crate::{Compiler, ResolveError, ResolveResult};
 

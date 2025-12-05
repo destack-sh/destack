@@ -2,7 +2,8 @@ use crate::{
     BindingAnchor, Block, Declaration, DeclarationDescriptor, DeclarationKind, DependencyMode,
     EnumField, Expression, LocalNodeId, Statement, Type, Visibility,
 };
-use destack_dir::{self as dir, Module, NodeTree, SymbolTable, TypeTable};
+use destack_dir::{self as dir, NodeTree, SymbolTable, TypeTable};
+use destack_workspace::Module;
 
 use crate::{TranspileError, TranspileResult, TranspileResultExt, Transpiler, TranspilerUnit};
 

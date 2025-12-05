@@ -1,7 +1,8 @@
 use std::sync::Arc;
 
-use destack_dir::{Dumper, Module, NodeVisitor};
+use destack_dir::{Dumper, NodeVisitor};
 use destack_parser::colorize_source;
+use destack_workspace::Module;
 use parking_lot::RwLock;
 
 use crate::TestProgram;

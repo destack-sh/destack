@@ -1,5 +1,5 @@
-use crate::{LocalNodeIdAny, Program};
-use destack_source::StringId;
+use crate::LocalNodeIdAny;
+use destack_source::{StringId, StringPool};
 
 /// Key for a symbol / some static "identifier".
 #[derive(Debug, Clone, Copy, PartialEq, Hash, PartialOrd, Eq)]
@@ -28,15 +28,15 @@ impl StaticKey {
         }
     }
 
-    /// Get the debug string in a given program.
-    pub fn debug_string(&self, program: &Program) -> String {
+    /// Get the debug string given a mutable string pool.
+    pub fn debug_string(&self, strings: &StringPool) -> String {
         match self {
             StaticKey::Name(name) => {
-                format!("'{}'", program.strings.get(*name).as_str()).to_string()
+                format!("'{}'", &*strings.get(*name))
             }
             StaticKey::UniqueSymbol(..) => "<unique symbol>".to_string(),
             StaticKey::GlobalSymbol(name) => {
-                format!("'{}'", program.strings.get(*name).as_str()).to_string()
+                format!("'{}'", &*strings.get(*name))
             }
         }
     }

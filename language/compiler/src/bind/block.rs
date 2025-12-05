@@ -1,8 +1,9 @@
 use destack_ast::{self as ast};
 use destack_dir::{
-    Block, LocalNodeId, LocalNodeIdAny, LocalScopeId, LocalScopeMark, Module, NodeTree, NodeType,
+    Block, LocalNodeId, LocalNodeIdAny, LocalScopeId, LocalScopeMark, NodeTree, NodeType,
     ScopeKind, SymbolTable, TypeTable,
 };
+use destack_workspace::Module;
 
 use crate::Compiler;
 

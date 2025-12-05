@@ -1,10 +1,11 @@
 use crate::{AnalyzeError, AnalyzeResult, Compiler, TypeContext};
 use destack_dir::{
     Argument, BinaryOperator, Block, Declaration, DependencyItem, EnumField, Expression,
-    FunctionSignature, Generics, Heritage, LocalNodeId, LocalNodeIdAny, LocalTypeId, Module,
+    FunctionSignature, Generics, Heritage, LocalNodeId, LocalNodeIdAny, LocalTypeId,
     Mutability, NodeTree, Parameter, Pattern, PatternField, PrimitiveType, Property, ScalarLiteral,
     SymbolTable, Type, TypeKind, TypeLiteral, TypeTable, UnaryOperator, VarianceBound, WhereClause,
 };
+use destack_workspace::Module;
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {

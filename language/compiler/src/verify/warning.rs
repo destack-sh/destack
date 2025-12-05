@@ -1,6 +1,8 @@
-use destack_dir::{GlobalNodeIdAny, Program};
+use destack_dir::{GlobalNodeIdAny};
 
 use crate::{TaskPhase, TaskWarning};
+
+use destack_workspace::Program;
 
 /// Warning when analyzing something.
 #[derive(Debug, Clone, PartialEq)]

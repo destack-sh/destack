@@ -2,7 +2,7 @@
 
 use std::sync::Arc;
 
-use destack_dir::Program;
+use destack_workspace::Program;
 use destack_parser::Parser;
 use destack_source::{
     File, FileId, FileRegistry, FileSystem, FileType, LanguageOptions, MemoryFileSystem, Uri,

@@ -2,7 +2,8 @@ use crate::{
     Asynchrony, FunctionAbstraction, FunctionCardinality, FunctionKind, FunctionMode,
     FunctionSignature,
 };
-use destack_dir::{self as dir, Module, NodeTree, SymbolTable, TypeTable};
+use destack_dir::{self as dir, NodeTree, SymbolTable, TypeTable};
+use destack_workspace::Module;
 
 use crate::{TranspileError, TranspileResult, Transpiler, TranspilerUnit};
 

@@ -2,7 +2,8 @@ use crate::{
     LocalNodeId, LocalNodeIdAny, Node, NodeType, TranspileDiagnostic, TranspileWarning,
     TranspilerUnit,
 };
-use destack_dir::{self as dir, Program};
+use destack_dir as dir;
+use destack_workspace::Program;
 
 /// Error when transpiling something into JS/TS
 #[derive(Debug, Clone)]

@@ -1,6 +1,8 @@
 use std::fmt::Display;
 
-use crate::{LocalSymbolId, ModuleId, StaticKey};
+use destack_source::ModuleId;
+
+use crate::{LocalSymbolId, StaticKey};
 
 /// The kind of a scope.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]

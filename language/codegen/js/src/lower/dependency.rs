@@ -2,7 +2,8 @@ use crate::{
     DependencyItem, DependencyKind, DependencyMode, Expression, LocalNodeId, TranspileResult,
     TranspileResultExt, Transpiler, TranspilerUnit,
 };
-use destack_dir::{self as dir, Module, NodeTree, SymbolTable, TypeTable};
+use destack_dir::{self as dir, NodeTree, SymbolTable, TypeTable};
+use destack_workspace::Module;
 
 #[allow(clippy::too_many_arguments)]
 impl Transpiler {

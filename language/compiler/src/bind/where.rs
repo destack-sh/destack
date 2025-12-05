@@ -1,10 +1,12 @@
 use destack_ast as ast;
 use destack_dir::{
-    LocalNodeId, LocalNodeIdAny, LocalScopeId, LocalScopeMark, Module, NodeTree, NodeType,
+    LocalNodeId, LocalNodeIdAny, LocalScopeId, LocalScopeMark, NodeTree, NodeType,
     SymbolTable, TypeTable, WhereClause,
 };
 
 use crate::Compiler;
+
+use destack_workspace::Module;
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {

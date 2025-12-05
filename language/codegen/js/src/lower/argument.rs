@@ -1,5 +1,6 @@
 use crate::{Argument, Expression, LocalNodeId, Parameter};
-use destack_dir::{self as dir, Module, NodeTree, SymbolTable, TypeTable};
+use destack_dir::{self as dir, NodeTree, SymbolTable, TypeTable};
+use destack_workspace::Module;
 
 use crate::{TranspileResult, TranspileResultExt, Transpiler, TranspilerUnit};
 

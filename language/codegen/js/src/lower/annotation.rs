@@ -1,5 +1,6 @@
 use crate::{Annotation, AnnotationPosition, LocalNodeId};
-use destack_dir::{self as dir, Module, NodeTree};
+use destack_dir::{self as dir, NodeTree};
+use destack_workspace::Module;
 
 use crate::{TranspileError, TranspileResult, Transpiler, TranspilerUnit};
 

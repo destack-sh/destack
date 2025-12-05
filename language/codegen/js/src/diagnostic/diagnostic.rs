@@ -1,5 +1,6 @@
-use destack_dir::{GlobalNodeIdAny, Program};
+use destack_dir::GlobalNodeIdAny;
 use destack_source::{Diagnostic, DiagnosticSeverity, LabeledSpan};
+use destack_workspace::Program;
 
 use crate::{TranspileError, TranspileWarning};
 

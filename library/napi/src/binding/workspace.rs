@@ -2,7 +2,6 @@ use std::path::PathBuf;
 
 use napi_derive::napi;
 
-use super::resolver::{Resolution, ResolveOptions};
 use super::transpiler::TranspileOptions;
 
 /// Options for creating a Workspace.
@@ -60,23 +59,6 @@ impl Workspace {
     #[napi(getter)]
     pub fn program_count(&self) -> u32 {
         self.inner.programs.len() as u32
-    }
-
-    /// Resolve a specifier from a directory.
-    #[napi]
-    pub fn resolve(
-        &self,
-        from: String,
-        specifier: String,
-        options: Option<ResolveOptions>,
-    ) -> napi::Result<Resolution> {
-        let from_path = PathBuf::from(&from);
-        let resolve_options = options.unwrap_or_default().into();
-
-        self.inner
-            .resolve(&from_path, &specifier, resolve_options)
-            .map(|r| r.into())
-            .map_err(|e| napi::Error::from_reason(format!("Resolution failed: {e:?}")))
     }
 
     /// Transpile a single file.
