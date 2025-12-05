@@ -107,36 +107,6 @@ impl From<LowerOptions> for destack_compiler::LowerOptions {
     }
 }
 
-// -- Execute Options --
-
-/// The options for executing static expressions.
-#[napi(object)]
-#[derive(Debug, Clone, Copy)]
-pub struct ExecuteOptions {
-    /// Whether to fold constants.
-    pub fold_constants: bool,
-    /// Whether to execute static expressions.
-    pub execute_static: bool,
-}
-
-impl Default for ExecuteOptions {
-    fn default() -> Self {
-        Self {
-            fold_constants: true,
-            execute_static: true,
-        }
-    }
-}
-
-impl From<ExecuteOptions> for destack_compiler::ExecuteOptions {
-    fn from(options: ExecuteOptions) -> Self {
-        Self {
-            fold_constants: options.fold_constants,
-            execute_static: options.execute_static,
-        }
-    }
-}
-
 // -- Optimize Options --
 
 /// The options for optimizing.
@@ -205,8 +175,6 @@ pub struct CompileOptions {
     pub analyze: AnalyzeOptions,
     /// The options for lowering.
     pub lower: LowerOptions,
-    /// The options for executing.
-    pub execute: ExecuteOptions,
     /// The options for optimizing.
     pub optimize: OptimizeOptions,
     /// The options for code generation.
@@ -224,7 +192,6 @@ impl Default for CompileOptions {
             resolve: TypeResolveOptions::default(),
             analyze: AnalyzeOptions::default(),
             lower: LowerOptions::default(),
-            execute: ExecuteOptions::default(),
             optimize: OptimizeOptions::default(),
             generate: GenerateOptions::default(),
             link: LinkOptions::default(),
@@ -241,7 +208,6 @@ impl From<CompileOptions> for destack_compiler::CompileOptions {
             resolve: options.resolve.into(),
             analyze: options.analyze.into(),
             lower: options.lower.into(),
-            execute: options.execute.into(),
             optimize: options.optimize.into(),
             generate: options.generate.into(),
             link: options.link.into(),

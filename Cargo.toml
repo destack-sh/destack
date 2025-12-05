@@ -15,6 +15,7 @@ members = [
 	"language/mir",
 	"language/parser",
 	"language/resolver",
+	"language/runtime",
 	"language/source",
 	"language/test",
 	"language/unicode",
@@ -50,6 +51,7 @@ destack_machine = { path = "language/machine" }
 destack_mir = { path = "language/mir" }
 destack_parser = { path = "language/parser" }
 destack_resolver = { path = "language/resolver" }
+destack_runtime = { path = "language/runtime" }
 destack_source = { path = "language/source" }
 destack_test = { path = "language/test" }
 destack_unicode = { path = "language/unicode" }
