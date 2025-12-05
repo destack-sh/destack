@@ -20,7 +20,7 @@ build:
 
 # test all
 test:
-    cargo test --release --all-targets {{ packages }}
+    cargo test --release --all-targets --no-fail-fast {{ packages }}
 
 # test smoke
 test-smoke *ARGS:
