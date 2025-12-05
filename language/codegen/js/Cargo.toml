@@ -1,6 +1,6 @@
 [package]
 name = "destack_codegen_js"
-description = "Destack Codegen for JavaScript"
+description = "Destack Codegen for JavaScript/TypeScript"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true

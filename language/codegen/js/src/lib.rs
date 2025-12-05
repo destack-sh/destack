@@ -3,14 +3,14 @@
 
 mod diagnostic;
 mod dumper;
-mod format;
-mod transpile;
+mod generate;
+mod lower;
 mod tree;
 
 pub use diagnostic::*;
 pub use dumper::*;
-pub use format::*;
-pub use transpile::*;
+pub use generate::*;
+pub use lower::*;
 pub use tree::*;
 
 #[cfg(test)]

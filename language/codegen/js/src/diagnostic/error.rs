@@ -9,7 +9,7 @@ use destack_dir::{self as dir, Program};
 #[repr(u8)]
 pub enum TranspileError {
     /// Unsupported node.
-    UnsupportedNode {
+    UnsupportedConstruct {
         node: dir::GlobalNodeIdAny,
         message: Option<String>,
     },
@@ -35,7 +35,7 @@ impl TranspileError {
     /// Get the message of the error.
     pub fn message(&self, _program: &Program) -> String {
         match self {
-            Self::UnsupportedNode { node, .. } => {
+            Self::UnsupportedConstruct { node, .. } => {
                 format!("unsupported {}", node.local_id.ty.name())
             }
             Self::UnexpectedNode { node, wanted, .. } => {
@@ -59,7 +59,7 @@ impl TranspileError {
     /// Get the number of the error.
     pub fn sub_code(&self) -> u8 {
         match self {
-            Self::UnsupportedNode { .. } => 1,
+            Self::UnsupportedConstruct { .. } => 1,
             Self::UnexpectedNode { .. } => 2,
             Self::UnresolvedNode { .. } => 3,
             Self::MissingType { .. } => 4,
@@ -74,7 +74,7 @@ impl TranspileError {
     /// Get the node id of the error.
     pub fn node_id(&self) -> dir::GlobalNodeIdAny {
         match self {
-            Self::UnsupportedNode { node, .. } => *node,
+            Self::UnsupportedConstruct { node, .. } => *node,
             Self::UnexpectedNode { node, .. } => *node,
             Self::UnresolvedNode { node, .. } => *node,
             Self::MissingType { node, .. } => *node,

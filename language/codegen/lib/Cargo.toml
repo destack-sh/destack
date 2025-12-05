@@ -1,6 +1,6 @@
 [package]
-name = "destack_test"
-description = "Destack Test"
+name = "destack_codegen_lib"
+description = "Destack Codegen Library"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
@@ -12,13 +12,19 @@ path = "src/lib.rs"
 doctest = false
 
 [dependencies]
-destack_codegen_lib = { workspace = true }
-destack_compiler = { workspace = true }
+# language
+destack_ast = { workspace = true }
 destack_dir = { workspace = true }
-destack_machine = { workspace = true }
+destack_fir = { workspace = true }
 destack_mir = { workspace = true }
-destack_runtime = { workspace = true }
 destack_source = { workspace = true }
+
+# general
+dashmap = { workspace = true }
+parking_lot = { workspace = true }
+rayon = { workspace = true }
+smallvec = { workspace = true }
+tracing = { workspace = true }
 
 [dev-dependencies]
 
