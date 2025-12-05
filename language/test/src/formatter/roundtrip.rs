@@ -1,9 +1,4 @@
 //! Formatter roundtrip tests.
-//!
-//! For each `.ds` file in `fixtures/formatter/`:
-//! 1. Parse the file
-//! 2. Format it to a string
-//! 3. Compare to original - pass if identical
 
 use std::sync::Arc;
 
@@ -48,7 +43,7 @@ fn run_roundtrip_test(test: &TestCase) -> TestResult {
         }
     };
 
-    // create file for parsing
+    // create file
     let uri = Uri::from_path(&test.path);
     let file_type = if test.path.to_string_lossy().ends_with(".d.ds") {
         FileType::DestackDeclaration

@@ -577,10 +577,25 @@ impl Compiler {
                 types.set_instance_type(descriptor.symbol.into_global(module.id), instance_ty_id);
             }
 
-            _ => {
-                return Err(AnalyzeError::UnsupportedConstruct {
-                    node: declaration_id.into_global_any(module.id),
-                });
+            // function
+            Declaration::Function {
+                descriptor: _,
+                signature,
+                scope: _,
+                body,
+            } => {
+                self.analyze_signature(
+                    module,
+                    declaration_id.into_any(),
+                    signature,
+                    tree,
+                    symbols,
+                    types,
+                    ctx,
+                )?;
+                if let Some(body) = body {
+                    self.analyze_expression(module, *body, tree, symbols, types, ctx)?;
+                }
             }
         }
 
