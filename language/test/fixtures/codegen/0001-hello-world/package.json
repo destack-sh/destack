@@ -1,0 +1,11 @@
+{
+	"name": "@destack-sh/codegen/0001-hello-world",
+	"version": "0.0.0",
+	"license": "MIT",
+	"type": "module",
+	"sideEffects": false,
+	"dependencies": {},
+	"devDependencies": {
+		"@types/bun": "latest"
+	}
+}

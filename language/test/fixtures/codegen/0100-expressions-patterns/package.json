@@ -1,0 +1,11 @@
+{
+	"name": "@destack-sh/codegen/0100-expressions-patterns",
+	"version": "0.0.0",
+	"license": "MIT",
+	"type": "module",
+	"sideEffects": false,
+	"dependencies": {},
+	"devDependencies": {
+		"@types/bun": "latest"
+	}
+}
