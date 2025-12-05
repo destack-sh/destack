@@ -320,6 +320,14 @@ impl Compiler {
                 expression: inner_id,
             } => self.analyze_expression(module, *inner_id, tree, symbols, types, ctx)?,
 
+            // stub -> nothing to do
+            Expression::Stub => {
+                let ty = Type::TypeLiteral {
+                    value: TypeLiteral::Unknown,
+                };
+                types.insert_type_from(ty, expression_id)
+            }
+
             // fallback
             _ => {
                 return Err(AnalyzeError::UnsupportedConstruct {

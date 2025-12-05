@@ -317,6 +317,9 @@ pub enum Expression {
         value: Option<LocalNodeId<Expression>>,
     },
 
+    /// Stub placeholder for annotation-only files.
+    Stub,
+
     /// Error expression.
     Error,
 }
@@ -406,6 +409,7 @@ impl Expression {
             Expression::Yield { .. } => "yield",
             Expression::Return { .. } => "return",
 
+            Expression::Stub => "stub",
             Expression::Error => "error",
         }
     }

@@ -1602,6 +1602,9 @@ pub(crate) fn format_expression<'ast>(
             write!(f, [operator, space(), right])?;
         }
 
+        // stub (placeholder for annotation-only files)
+        Expression::Stub => {}
+
         // error
         Expression::Error => {
             write!(f, [token("/* ERROR */")])?;

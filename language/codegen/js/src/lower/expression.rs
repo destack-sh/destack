@@ -531,6 +531,13 @@ impl Transpiler {
                     .into_any()
             }
 
+            dir::Expression::Stub => {
+                let expression = Expression::Stub;
+                unit.ast
+                    .insert_from_source(expression, module.id, expression_id)
+                    .into_any()
+            }
+
             dir::Expression::Error => {
                 let expression = Expression::Error;
                 unit.ast

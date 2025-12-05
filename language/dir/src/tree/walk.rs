@@ -626,6 +626,7 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
                 visitor.visit_expression(tree, *value_id, value_expression);
             }
         }
+        Expression::Stub => {}
         Expression::Error => {}
     }
 }

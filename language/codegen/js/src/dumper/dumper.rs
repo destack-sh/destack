@@ -907,6 +907,9 @@ impl<'a> NodeVisitor for Dumper<'a> {
             } => {
                 self.node("Expression::IfTernary", id.id).end();
             }
+            Expression::Stub => {
+                self.node("Expression::Stub", id.id).end();
+            }
             Expression::Error => {
                 self.node("Expression::Error", id.id).end();
             }

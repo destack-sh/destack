@@ -1279,6 +1279,7 @@ impl Compiler {
                 Expression::Throw { value }
             }
 
+            ast::Expression::Stub => Expression::Stub,
             ast::Expression::Error => Expression::Error,
         };
 

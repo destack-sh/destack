@@ -208,6 +208,8 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
                 )?;
             }
 
+            Expression::Stub => {}
+
             Expression::Error => {
                 write!(f, [token("/* ERROR */")])?;
             }
