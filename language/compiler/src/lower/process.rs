@@ -3,8 +3,6 @@ use crate::{Compiler, LowerResult, Task, TaskDebug, TaskOutput};
 use destack_source::ModuleId;
 use destack_workspace::Program;
 
-
-
 /// Task to lower a DIR into MIR.
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub enum LowerTask {

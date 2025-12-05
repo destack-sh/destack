@@ -44,4 +44,3 @@ impl<'a> Format<MirFormatContext<'a>> for Constant {
         }
     }
 }
-

@@ -4,7 +4,9 @@ use destack_fir::format::FormatResult;
 use destack_fir::prelude::*;
 use destack_fir::write;
 
-use crate::{FormatMirNode, Function, LocalNodeId, MirFormatContext, MirFormatter, Mutability, Ownership};
+use crate::{
+    FormatMirNode, Function, LocalNodeId, MirFormatContext, MirFormatter, Mutability, Ownership,
+};
 
 impl<'a> FormatMirNode<'a, Function> for Function {
     fn format_node(
@@ -13,7 +15,10 @@ impl<'a> FormatMirNode<'a, Function> for Function {
         f: &mut MirFormatter<'a, '_>,
     ) -> FormatResult<()> {
         // function signature
-        write!(f, [token("func @"), text(&format!("func{}", id.id)), token("(")])?;
+        write!(
+            f,
+            [token("func @"), text(&format!("func{}", id.id)), token("(")]
+        )?;
 
         // parameters
         for (i, param) in self.parameters.iter().enumerate() {
@@ -23,7 +28,15 @@ impl<'a> FormatMirNode<'a, Function> for Function {
             write!(f, [&param.value, token(": "), param.ty])?;
         }
 
-        write!(f, [token(") -> "), self.return_type, token(" {"), hard_line_break()])?;
+        write!(
+            f,
+            [
+                token(") -> "),
+                self.return_type,
+                token(" {"),
+                hard_line_break()
+            ]
+        )?;
 
         // locals (if any)
         let locals = self.locals.clone();

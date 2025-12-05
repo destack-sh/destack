@@ -8,9 +8,7 @@ use destack_source::{
     ModuleId, StringPool, Uri,
 };
 
-use crate::{
-    DsConfigRegistry, Module, ModuleRegistry, PackageRegistry, TsConfigRegistry,
-};
+use crate::{DsConfigRegistry, Module, ModuleRegistry, PackageRegistry, TsConfigRegistry};
 
 /// A Program.
 #[derive(Debug)]

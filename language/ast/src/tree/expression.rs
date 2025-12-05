@@ -676,8 +676,8 @@ impl Expression {
                 finally_expression,
             } => {
                 catch_expression.is_some()
-                || catch_pattern.is_some()
-                || finally_expression.is_some()
+                    || catch_pattern.is_some()
+                    || finally_expression.is_some()
             }
             Expression::Match { .. } => true,
             _ => false,

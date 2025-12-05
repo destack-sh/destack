@@ -2,8 +2,8 @@ use crate::Compiler;
 use destack_ast as ast;
 use destack_dir::{
     Argument, BindingAnchor, BindingKind, BindingModifier, BindingOperator, LocalNodeId,
-    LocalNodeIdAny, LocalScopeId, LocalScopeMark, Mutability, NodeTree, NodeType,
-    Parameter, StaticKey, SymbolSpace, SymbolTable, TypeTable, Visibility,
+    LocalNodeIdAny, LocalScopeId, LocalScopeMark, Mutability, NodeTree, NodeType, Parameter,
+    StaticKey, SymbolSpace, SymbolTable, TypeTable, Visibility,
 };
 use destack_workspace::Module;
 

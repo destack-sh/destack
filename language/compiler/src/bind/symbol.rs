@@ -1,6 +1,6 @@
 use destack_dir::{
-    DependencyMode, LocalScopeId, LocalScopeMark, LocalSymbolId, ScopeKind, StaticKey,
-    SymbolKind, SymbolSpace, SymbolTable,
+    DependencyMode, LocalScopeId, LocalScopeMark, LocalSymbolId, ScopeKind, StaticKey, SymbolKind,
+    SymbolSpace, SymbolTable,
 };
 
 use crate::Compiler;

@@ -23,4 +23,3 @@ pub(crate) fn fixture() -> PathBuf {
         .join("test")
         .join("fixtures")
 }
-

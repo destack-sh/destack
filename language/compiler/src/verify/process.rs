@@ -3,8 +3,6 @@ use crate::{Compiler, Task, TaskDebug, TaskOutput, VerifyResult};
 use destack_source::ModuleId;
 use destack_workspace::Program;
 
-
-
 /// Task to verify something.
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub enum VerifyTask {

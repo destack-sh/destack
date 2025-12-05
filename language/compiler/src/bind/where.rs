@@ -1,7 +1,7 @@
 use destack_ast as ast;
 use destack_dir::{
-    LocalNodeId, LocalNodeIdAny, LocalScopeId, LocalScopeMark, NodeTree, NodeType,
-    SymbolTable, TypeTable, WhereClause,
+    LocalNodeId, LocalNodeIdAny, LocalScopeId, LocalScopeMark, NodeTree, NodeType, SymbolTable,
+    TypeTable, WhereClause,
 };
 
 use crate::Compiler;

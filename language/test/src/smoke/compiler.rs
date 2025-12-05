@@ -3,13 +3,14 @@
 use std::sync::Arc;
 
 use destack_compiler::{CompileOptions, Compiler, ImportTask};
-use destack_workspace::Program;
 use destack_source::{
     File, FileId, FileRegistry, FileSystem, FileType, LanguageOptions, MemoryFileSystem, Uri,
 };
+use destack_workspace::Program;
 
 use crate::harness::{
-    check_diagnostics, discover_test_files, fixtures_dir, run_tests, TestCase, TestOptions, TestResult,
+    TestCase, TestOptions, TestResult, check_diagnostics, discover_test_files, fixtures_dir,
+    run_tests,
 };
 
 /// Run all compiler smoke tests.

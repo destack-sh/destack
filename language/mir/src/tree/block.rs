@@ -1,4 +1,4 @@
-use smallvec::{smallvec, SmallVec};
+use smallvec::{SmallVec, smallvec};
 
 use crate::{Instruction, LocalNodeId, Node, NodeType, TypedValue, Value};
 

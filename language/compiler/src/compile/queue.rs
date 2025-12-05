@@ -100,8 +100,8 @@ impl TaskQueue {
             .get(task_id.0 as usize)
             .cloned()
             .unwrap_or_else(|| {
-            panic!("task id not found: {}", task_id.0);
-        })
+                panic!("task id not found: {}", task_id.0);
+            })
     }
 
     /// Update the outcome of a task.

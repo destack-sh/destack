@@ -114,9 +114,8 @@ impl Transpiler {
             dir::TypeLiteral::Void => TypeLiteral::Void,
             dir::TypeLiteral::Null => TypeLiteral::Null,
             dir::TypeLiteral::Primitive(primitive) => {
-                let primitive = self.lower_primitive_type(
-                    module, tree, symbols, types, ty_id, *primitive, unit,
-                )?;
+                let primitive = self
+                    .lower_primitive_type(module, tree, symbols, types, ty_id, *primitive, unit)?;
                 TypeLiteral::Primitive(primitive)
             }
             dir::TypeLiteral::ScalarLiteral(scalar_literal) => {
@@ -217,9 +216,8 @@ impl Transpiler {
             }
 
             dir::Type::Unary { operator, right } => {
-                let operator = self.lower_type_unary_operator(
-                    module, tree, symbols, types, ty_id, *operator,
-                )?;
+                let operator =
+                    self.lower_type_unary_operator(module, tree, symbols, types, ty_id, *operator)?;
                 let right = self.lower_type(module, tree, symbols, types, *right, unit)?;
                 let ty = Type::Unary { operator, right };
                 unit.ast.insert_from_source_any(ty, module.id, source_id)
@@ -230,9 +228,8 @@ impl Transpiler {
                 right,
             } => {
                 let left = self.lower_type(module, tree, symbols, types, *left, unit)?;
-                let operator = self.lower_type_binary_operator(
-                    module, tree, symbols, types, ty_id, *operator,
-                )?;
+                let operator = self
+                    .lower_type_binary_operator(module, tree, symbols, types, ty_id, *operator)?;
                 let right = self.lower_type(module, tree, symbols, types, *right, unit)?;
                 let ty = Type::Binary {
                     left,
@@ -252,9 +249,7 @@ impl Transpiler {
             dir::Type::Tuple { elements } => {
                 let elements = elements
                     .iter()
-                    .map(|element| {
-                        self.lower_type(module, tree, symbols, types, *element, unit)
-                    })
+                    .map(|element| self.lower_type(module, tree, symbols, types, *element, unit))
                     .collect::<Result<Vec<_>, TranspileError>>()?;
                 let ty = Type::Tuple { elements };
                 unit.ast.insert_from_source_any(ty, module.id, source_id)
@@ -262,9 +257,7 @@ impl Transpiler {
             dir::Type::Union { elements } => {
                 let elements = elements
                     .iter()
-                    .map(|element| {
-                        self.lower_type(module, tree, symbols, types, *element, unit)
-                    })
+                    .map(|element| self.lower_type(module, tree, symbols, types, *element, unit))
                     .collect::<Result<Vec<_>, TranspileError>>()?;
                 let ty = Type::Union { elements };
                 unit.ast.insert_from_source_any(ty, module.id, source_id)
@@ -272,9 +265,7 @@ impl Transpiler {
             dir::Type::Intersection { elements } => {
                 let elements = elements
                     .iter()
-                    .map(|element| {
-                        self.lower_type(module, tree, symbols, types, *element, unit)
-                    })
+                    .map(|element| self.lower_type(module, tree, symbols, types, *element, unit))
                     .collect::<Result<Vec<_>, TranspileError>>()?;
                 let ty = Type::Intersection { elements };
                 unit.ast.insert_from_source_any(ty, module.id, source_id)

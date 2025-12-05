@@ -5,8 +5,8 @@ use std::num::NonZeroU32;
 use destack_source::StringId;
 
 use crate::{
-    format_mir, BinaryOperator, Block, Constant, Function, Instruction, Local, LocalNodeId,
-    Mutability, NodeTree, Ownership, Terminator, Type, TypedValue, Value,
+    BinaryOperator, Block, Constant, Function, Instruction, Local, LocalNodeId, Mutability,
+    NodeTree, Ownership, Terminator, Type, TypedValue, Value, format_mir,
 };
 
 /// Helper to build MIR for tests.
@@ -21,32 +21,37 @@ impl TreeBuilder {
         }
     }
 
-	/// Insert a type node.
+    /// Insert a type node.
     fn ty(&mut self, ty: Type) -> LocalNodeId<Type> {
         self.tree.insert(ty)
     }
 
-	/// Insert a local node.
-    fn local(&mut self, ty: LocalNodeId<Type>, mutability: Mutability, ownership: Ownership) -> LocalNodeId<Local> {
+    /// Insert a local node.
+    fn local(
+        &mut self,
+        ty: LocalNodeId<Type>,
+        mutability: Mutability,
+        ownership: Ownership,
+    ) -> LocalNodeId<Local> {
         self.tree.insert(Local::new(ty, mutability, ownership))
     }
 
-	/// Insert a block node.
+    /// Insert a block node.
     fn block(&mut self, block: Block) -> LocalNodeId<Block> {
         self.tree.insert(block)
     }
 
-	/// Insert an instruction node.
+    /// Insert an instruction node.
     fn instruction(&mut self, inst: Instruction) -> LocalNodeId<Instruction> {
         self.tree.insert(inst)
     }
 
-	/// Insert a function node.
+    /// Insert a function node.
     fn function(&mut self, func: Function) -> LocalNodeId<Function> {
         self.tree.insert(func)
     }
 
-	/// Finish building the tree.
+    /// Finish building the tree.
     fn finish(self) -> NodeTree {
         self.tree
     }
@@ -78,10 +83,7 @@ fn test_format_simple_add() {
     });
 
     let entry = b.block(Block {
-        parameters: vec![
-            TypedValue::new(v0, i32_ty),
-            TypedValue::new(v1, i32_ty),
-        ],
+        parameters: vec![TypedValue::new(v0, i32_ty), TypedValue::new(v1, i32_ty)],
         instructions: vec![add_inst],
         terminator: Terminator::Return { value: Some(v2) },
     });
@@ -89,10 +91,7 @@ fn test_format_simple_add() {
     // function
     let _func = b.function(Function {
         name: dummy_name(),
-        parameters: vec![
-            TypedValue::new(v0, i32_ty),
-            TypedValue::new(v1, i32_ty),
-        ],
+        parameters: vec![TypedValue::new(v0, i32_ty), TypedValue::new(v1, i32_ty)],
         return_type: void_ty,
         locals: vec![],
         blocks: vec![entry],
@@ -133,10 +132,7 @@ fn test_format_with_locals() {
         value: Constant::int64(42),
     });
 
-    let store_inst = b.instruction(Instruction::LocalSet {
-        local,
-        value: v0,
-    });
+    let store_inst = b.instruction(Instruction::LocalSet { local, value: v0 });
 
     let load_inst = b.instruction(Instruction::LocalGet {
         destination: v1,

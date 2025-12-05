@@ -53,8 +53,7 @@ impl Transpiler {
                 let modifiers = modifiers
                     .map(|modifiers| self.lower_binding_modifier(module, modifiers, unit))
                     .transpose()?;
-                let pattern =
-                    self.lower_pattern(module, tree, symbols, types, *pattern, unit)?;
+                let pattern = self.lower_pattern(module, tree, symbols, types, *pattern, unit)?;
                 let ty = types
                     .get_declared_type_id(parameter_id.into_global_any(module.id))
                     .map(|ty| self.lower_type(module, tree, symbols, types, ty, unit))

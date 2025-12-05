@@ -1,8 +1,8 @@
 use crate::Compiler;
 use destack_ast as ast;
 use destack_dir::{
-    DeclarationType, FloatType, IntType, LocalNodeIdAny, LocalScopeId, LocalScopeMark,
-    NodeTree, PrimitiveType, ScalarLiteral, SymbolTable, TemplateLiteral, TypeLiteral, TypeTable,
+    DeclarationType, FloatType, IntType, LocalNodeIdAny, LocalScopeId, LocalScopeMark, NodeTree,
+    PrimitiveType, ScalarLiteral, SymbolTable, TemplateLiteral, TypeLiteral, TypeTable,
 };
 use destack_workspace::Module;
 

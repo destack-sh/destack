@@ -282,7 +282,10 @@ impl<'a> Dumper<'a> {
                 self.write(&self.fmt_value(*value));
             }
 
-            Instruction::Load { destination, pointer } => {
+            Instruction::Load {
+                destination,
+                pointer,
+            } => {
                 self.write_colored(&self.fmt_value(*destination), Color::Green);
                 self.write(" = load ");
                 self.write(&self.fmt_value(*pointer));
@@ -519,12 +522,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
         &self.visitor_options
     }
 
-    fn visit_function(
-        &mut self,
-        tree: &NodeTree,
-        id: LocalNodeId<Function>,
-        function: &Function,
-    ) {
+    fn visit_function(&mut self, tree: &NodeTree, id: LocalNodeId<Function>, function: &Function) {
         // function header
         self.write_colored("function", Color::BrightBlue);
         self.write(" @");
@@ -637,4 +635,3 @@ pub fn dump(tree: &NodeTree) -> String {
     dumper.dump_all();
     dumper.finish()
 }
-

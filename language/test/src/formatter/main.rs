@@ -11,4 +11,3 @@ fn main() -> ExitCode {
     let options = TestOptions::parse();
     run_formatter_tests(&options)
 }
-

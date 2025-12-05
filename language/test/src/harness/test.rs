@@ -7,7 +7,9 @@ use std::time::Instant;
 
 use destack_source::DiagnosticSeverity;
 
-use super::{filter_tests, print_failures, print_result, print_summary, print_test_list, TestOptions};
+use super::{
+    TestOptions, filter_tests, print_failures, print_result, print_summary, print_test_list,
+};
 
 /// Result of running a single test.
 #[derive(Debug, Clone)]

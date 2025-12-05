@@ -21,4 +21,3 @@ impl ModuleId {
         Self(id)
     }
 }
-

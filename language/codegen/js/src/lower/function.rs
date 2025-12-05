@@ -84,9 +84,7 @@ impl Transpiler {
         let dynamic_parameters = function_signature
             .dynamic_parameters
             .iter()
-            .map(|parameter| {
-                self.lower_parameter(module, tree, symbols, types, *parameter, unit)
-            })
+            .map(|parameter| self.lower_parameter(module, tree, symbols, types, *parameter, unit))
             .collect::<Result<Vec<_>, TranspileError>>()?;
         let return_type = function_signature.return_type.map(|_| {
             todo!("transpile return type");

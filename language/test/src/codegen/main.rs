@@ -11,4 +11,3 @@ fn main() -> ExitCode {
     println!("codegen tests not yet implemented");
     ExitCode::SUCCESS
 }
-
