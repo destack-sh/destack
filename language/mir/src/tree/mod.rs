@@ -1,2 +1,23 @@
-pub mod instruction;
-pub mod node;
+mod block;
+mod function;
+mod instruction;
+mod local;
+mod node;
+mod operator;
+mod tree;
+mod r#type;
+mod value;
+mod visit;
+mod walk;
+
+pub use block::*;
+pub use function::*;
+pub use instruction::*;
+pub use local::*;
+pub use node::*;
+pub use operator::*;
+pub use tree::*;
+pub use r#type::*;
+pub use value::*;
+pub use visit::*;
+pub use walk::*;

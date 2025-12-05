@@ -612,6 +612,7 @@ dependencies = [
  "destack_fir",
  "destack_source",
  "destack_unicode",
+ "smallvec",
 ]
 
 [[package]]
