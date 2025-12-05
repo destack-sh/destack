@@ -15,6 +15,7 @@ use destack_source::{
 use super::tsconfig::{EsTarget, ModuleKind};
 
 /// Codegen target specifying what output format to generate.
+/// We always ship `.ds` and `.d.ds` sources as well, so that's not a separate target.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum CodegenTarget {
@@ -26,7 +27,7 @@ pub enum CodegenTarget {
     #[default]
     #[serde(alias = "js+dts", alias = "jsdts")]
     JsDts,
-    /// WebAssembly via Cranelift (.wasm).
+    /// WebAssembly (.wasm).
     Wasm,
 }
 
@@ -631,6 +632,18 @@ impl OptimizeLevel {
     }
 }
 
+/// Output mode for build targets.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+pub enum OutputMode {
+    /// One output file per source file, preserving directory structure.
+    /// Uses `out_dir` for the output directory.
+    #[default]
+    Directory,
+    /// Single bundled/compiled output file.
+    /// Uses `out_file` for the output path.
+    File,
+}
+
 /// Shrink level for builds (code size reduction).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub enum ShrinkLevel {
@@ -719,6 +732,30 @@ impl Default for DsConfigTargetOptions {
             optimize_level: OptimizeLevel::O0,
             shrink_level: ShrinkLevel::S0,
         }
+    }
+}
+
+impl DsConfigTargetOptions {
+    /// Derive the output mode from the target configuration.
+    pub fn output_mode(&self) -> OutputMode {
+        // out_file is explicitly set or out_dir is *not* set and the codegen target is single-file
+        if self.out_file.is_some() || (self.out_dir.is_none() && self.codegen.is_single_file()) {
+            OutputMode::File
+        }
+        // otherwise, it's a directory output
+        else {
+            OutputMode::Directory
+        }
+    }
+
+    /// Whether this target produces single-file output.
+    pub fn is_out_file(&self) -> bool {
+        self.output_mode() == OutputMode::File
+    }
+
+    /// Whether this target produces directory output (one file per source file).
+    pub fn is_out_dir(&self) -> bool {
+        self.output_mode() == OutputMode::Directory
     }
 }
 
