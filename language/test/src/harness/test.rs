@@ -37,24 +37,35 @@ impl TestResult {
     }
 }
 
+/// Kind of test case (file-based or directory-based).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TestKind {
+    /// Test based on a single file.
+    File,
+    /// Test based on a directory.
+    Directory,
+}
+
 /// A single test case.
 #[derive(Debug, Clone)]
 pub struct TestCase {
-    /// Name of the test (usually the file stem).
+    /// Name of the test (usually the file stem or directory name).
     pub name: String,
     /// Path to the test file or directory.
     pub path: PathBuf,
     /// Category/group of the test.
     pub category: String,
+    /// Kind of test (file or directory).
+    pub kind: TestKind,
     /// Minimum severity that causes test failure (default: Warning).
     pub min_fail_severity: DiagnosticSeverity,
     /// Whether this test is marked as skipped (e.g., prefixed with `_`).
-    pub skipped: bool,
+    pub is_skipped: bool,
 }
 
 impl TestCase {
-    /// Create a new test case with default settings.
-    pub fn new(
+    /// Create a new file-based test case with default settings.
+    pub fn file(
         name: impl Into<String>,
         path: impl Into<PathBuf>,
         category: impl Into<String>,
@@ -63,14 +74,31 @@ impl TestCase {
             name: name.into(),
             path: path.into(),
             category: category.into(),
+            kind: TestKind::File,
             min_fail_severity: DiagnosticSeverity::Warning,
-            skipped: false,
+            is_skipped: false,
+        }
+    }
+
+    /// Create a new directory-based test case with default settings.
+    pub fn directory(
+        name: impl Into<String>,
+        path: impl Into<PathBuf>,
+        category: impl Into<String>,
+    ) -> Self {
+        Self {
+            name: name.into(),
+            path: path.into(),
+            category: category.into(),
+            kind: TestKind::Directory,
+            min_fail_severity: DiagnosticSeverity::Warning,
+            is_skipped: false,
         }
     }
 
     /// Mark this test as skipped.
     pub fn with_skipped(mut self, skipped: bool) -> Self {
-        self.skipped = skipped;
+        self.is_skipped = skipped;
         self
     }
 
@@ -165,7 +193,7 @@ where
         let test_start = Instant::now();
 
         // handle pre-skipped tests
-        let result = if test.skipped {
+        let result = if test.is_skipped {
             TestResult::Skipped {
                 reason: "marked as skipped".to_string(),
             }

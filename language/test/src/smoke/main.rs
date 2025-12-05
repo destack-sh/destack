@@ -39,15 +39,14 @@ fn main() -> ExitCode {
     let run_parser = options.parser || !options.compiler;
     let run_compiler = options.compiler || !options.parser;
 
+    // actually run the tests
     let mut any_failed = false;
-
     if run_parser {
         let result = run_parser_smoke_tests(&options.test);
         if result != ExitCode::SUCCESS {
             any_failed = true;
         }
     }
-
     if run_compiler {
         let result = run_compiler_smoke_tests(&options.test);
         if result != ExitCode::SUCCESS {

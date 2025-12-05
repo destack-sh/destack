@@ -30,6 +30,10 @@ test-smoke *ARGS:
 test-codegen *ARGS:
     cargo test --release --test codegen -- {{ ARGS }}
 
+# test formatter
+test-formatter *ARGS:
+    cargo test --release --test formatter -- {{ ARGS }}
+
 # format
 fmt:
     cargo fmt {{ packages }}

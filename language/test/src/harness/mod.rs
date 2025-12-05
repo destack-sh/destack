@@ -6,7 +6,7 @@
 mod diagnostic;
 mod discover;
 mod options;
-mod print;
+pub mod print;
 mod test;
 
 pub use diagnostic::*;
