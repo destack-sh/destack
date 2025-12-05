@@ -9,7 +9,12 @@ mod tsconfig;
 use std::path::PathBuf;
 
 pub(crate) fn fixture_root() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("fixtures")
+    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .unwrap()
+        .join("test")
+        .join("fixtures")
+        .join("resolver")
 }
 
 pub(crate) fn fixture() -> PathBuf {
@@ -18,3 +23,4 @@ pub(crate) fn fixture() -> PathBuf {
         .join("test")
         .join("fixtures")
 }
+

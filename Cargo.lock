@@ -667,6 +667,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "destack_runtime"
+version = "0.47.3"
+dependencies = [
+ "destack_ast",
+ "destack_dir",
+ "destack_fir",
+ "destack_machine",
+ "destack_mir",
+ "destack_source",
+ "destack_unicode",
+]
+
+[[package]]
 name = "destack_source"
 version = "0.47.3"
 dependencies = [
@@ -684,6 +697,16 @@ dependencies = [
 [[package]]
 name = "destack_test"
 version = "0.47.3"
+dependencies = [
+ "destack_codegen_lib",
+ "destack_compiler",
+ "destack_dir",
+ "destack_machine",
+ "destack_mir",
+ "destack_runtime",
+ "destack_source",
+ "destack_workspace",
+]
 
 [[package]]
 name = "destack_unicode"
