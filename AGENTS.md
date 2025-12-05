@@ -6,6 +6,12 @@ We aim to be a first-class citizen in the web and specifically the TypeScript ec
 
 ## Code Style
 
+### READMEs
+
+We have README.md for every substantial crate/package and even many modules/folders within those crates.
+That's where significant documentation and context should be written.
+We don't like writing information that is redundant and easily out of date (like folder structures or paths).
+
 ### Comments
 
 Inline comments should be short and begin with a lowercase letter.
@@ -13,7 +19,7 @@ Inline comments should be short and begin with a lowercase letter.
  - Place comments above a related code block (usually 2-10 lines).
  - Most comments are <1 sentence and should not include a period at the end (again, lowercase).
 Documentation comments for functions/types/etc. should be proper sentences with punctuation.
- - Files should usually have a one-to-few sentences top-level documentation comment.
+ - Files should NOT have a top-level documentation comments. They always get stale.
  - Go multiline if there is more than one sentence. Only one sentence should begin per line.
  - For methods, documentation should be imperative, usually starting with a verb (e.g., "Send a message").
 

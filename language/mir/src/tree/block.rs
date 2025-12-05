@@ -9,7 +9,6 @@ use crate::{Instruction, LocalNodeId, Node, NodeType, TypedValue, Value};
 #[derive(Debug, Clone, PartialEq)]
 pub struct Block {
     /// Block parameters (SSA values passed from predecessors).
-    /// This replaces phi nodes with a cleaner model.
     pub parameters: Vec<TypedValue>,
     /// Instructions in this block (in order).
     pub instructions: Vec<LocalNodeId<Instruction>>,
