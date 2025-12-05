@@ -295,10 +295,10 @@ fn transpile_file_impl(
 
     use destack_codegen_js::Transpiler;
     use destack_compiler::{CompileOptions, Compiler, ImportTask};
-    use destack_dir::Program;
     use destack_source::{
         DiagnosticSeverity, File, FileRegistry, FileType, LanguageOptions, PhysicalFileSystem, Uri,
     };
+    use destack_workspace::Program;
 
     let options = options.unwrap_or_default();
     let transpile_options: destack_codegen_js::TranspileOptions = options.into();

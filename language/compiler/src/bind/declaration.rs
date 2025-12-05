@@ -2,9 +2,10 @@ use crate::Compiler;
 use destack_ast as ast;
 use destack_dir::{
     BindingAnchor, Declaration, DeclarationDescriptor, DeclarationKind, EnumField, LocalNodeId,
-    LocalNodeIdAny, LocalScopeId, LocalScopeMark, Module, NodeTree, NodeType, ScopeKind, StaticKey,
+    LocalNodeIdAny, LocalScopeId, LocalScopeMark, NodeTree, NodeType, ScopeKind, StaticKey,
     SymbolKind, SymbolSpace, SymbolTable, TypeTable,
 };
+use destack_workspace::Module;
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {

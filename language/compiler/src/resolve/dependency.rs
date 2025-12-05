@@ -1,8 +1,9 @@
 use destack_ast::StringId;
 use destack_dir::{
-    DependencyItem, DependencyMode, DependencySource, GlobalNodeIdAny, LocalNodeId, LocalScopeMark,
-    Module, ModuleId, NodeTree, StaticKey, SymbolTable,
+    DependencyItem, DependencyMode, DependencySource, GlobalNodeIdAny, LocalNodeId, LocalScopeMark, NodeTree, StaticKey, SymbolTable,
 };
+use destack_source::ModuleId;
+use destack_workspace::Module;
 
 use crate::{
     Compiler, ImportOutput, ImportTask, ResolveError, ResolveResult, TaskDependency, TaskOutput,

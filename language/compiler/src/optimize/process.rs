@@ -1,6 +1,9 @@
 use crate::{Compiler, OptimizeResult, Task, TaskDebug, TaskOutput};
 
-use destack_dir::{ModuleId, Program};
+use destack_source::ModuleId;
+use destack_workspace::Program;
+
+
 
 /// Task to optimize something.
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]

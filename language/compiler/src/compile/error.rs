@@ -1,4 +1,5 @@
-use destack_dir::{GlobalNodeIdAny, Program};
+use destack_dir::GlobalNodeIdAny;
+use destack_workspace::Program;
 
 use crate::{
     AnalyzeError, BindError, ElaborateError, GenerateError, ImportError, LinkError, LowerError,

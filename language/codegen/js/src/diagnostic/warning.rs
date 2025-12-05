@@ -1,5 +1,6 @@
 use crate::NodeType;
-use destack_dir::{self as dir, Program};
+use destack_dir as dir;
+use destack_workspace::Program;
 
 use crate::TranspileDiagnostic;
 

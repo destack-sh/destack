@@ -1,8 +1,8 @@
 use std::borrow::Cow;
 use std::path::{Component, Path, PathBuf};
 
-use destack_dir::ModuleSpecifier;
 use destack_source::{PathExt, SLASH_START};
+use destack_workspace::ModuleSpecifier;
 
 use crate::{ResolveContext, ResolveError, Resolver};
 

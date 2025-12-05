@@ -1,7 +1,9 @@
 use crate::{TaskDependency, TaskError, TaskPhase};
 use destack_dir::{
-    GlobalNodeIdAny, GlobalScopeId, GlobalSymbolId, ModuleId, Program, StaticKey, StringId,
+    GlobalNodeIdAny, GlobalScopeId, GlobalSymbolId, StaticKey, StringId,
 };
+use destack_source::ModuleId;
+use destack_workspace::Program;
 
 /// Error when evaluating something statically.
 #[derive(Debug, Clone, PartialEq)]
@@ -96,13 +98,13 @@ impl ResolveError {
             }
             Self::CircularDependency { .. } => "circular dependency".to_string(),
             Self::UndeclaredSymbol { key, .. } => {
-                let key = key.debug_string(program);
+                let key = key.debug_string(&program.strings);
                 format!("missing symbol {key}")
             }
             Self::MissingSymbol {
                 key, via_module, ..
             } => {
-                let key = key.debug_string(program);
+                let key = key.debug_string(&program.strings);
                 if let &Some(via_module) = via_module {
                     let via_module = program.modules.get(via_module).read().uri.to_string();
                     format!("missing symbol {key} in '{via_module}'")
@@ -111,7 +113,7 @@ impl ResolveError {
                 }
             }
             Self::AmbiguousSymbol { key, .. } => {
-                let key = key.debug_string(program);
+                let key = key.debug_string(&program.strings);
                 format!("ambiguous symbol {key}")
             }
             Self::UnresolvedModule { target, .. } => {

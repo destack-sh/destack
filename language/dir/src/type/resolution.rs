@@ -1,4 +1,6 @@
-use crate::{GlobalSymbolId, LocalInstanceId, LocalTypeId, ModuleId};
+use destack_source::ModuleId;
+
+use crate::{GlobalSymbolId, LocalInstanceId, LocalTypeId};
 
 /// Unique identifier for Resolutions.
 #[repr(transparent)]

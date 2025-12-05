@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
 use destack_ast::StringPool;
-use destack_dir::{ModuleRegistry, Program};
 use destack_source::{DiagnosticCollector, FileId, Uri};
+use destack_workspace::{ModuleRegistry, Program};
 
 use crate::{
     TranspileOptions, Transpiler, TranspilerMode, TranspilerUnit, TranspilerUnitId, tree as ast,

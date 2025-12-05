@@ -1,8 +1,10 @@
 use indexmap::IndexMap;
 
+use destack_source::ModuleId;
+
 use crate::{
     Arena, GlobalNodeIdAny, GlobalSymbolId, Instance, LocalInstanceId, LocalNodeId, LocalNodeIdAny,
-    LocalResolutionId, LocalTypeId, ModuleId, Node, Resolution, Type,
+    LocalResolutionId, LocalTypeId, Node, Resolution, Type,
 };
 
 /// TypeTable stores all type-related analysis results for a module. NOT THREAD-SAFE.

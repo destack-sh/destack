@@ -1,8 +1,11 @@
 use destack_dir::{
-    Expression, GlobalNodeIdAny, LocalNodeId, LocalSymbolId, Module, Program, StaticKey, SymbolKind,
+    Expression, GlobalNodeIdAny, LocalNodeId, LocalSymbolId, StaticKey, SymbolKind,
 };
 
 use crate::{BindError, BindResult, Compiler, Task, TaskDebug, TaskOutput};
+
+use destack_workspace::Program;
+use destack_workspace::Module;
 
 /// Task to bind AST into DIR.
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]

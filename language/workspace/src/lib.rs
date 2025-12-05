@@ -3,6 +3,8 @@
 #![feature(str_as_str)]
 #![feature(thread_id_value)]
 
+pub mod program;
 pub mod workspace;
 
+pub use program::*;
 pub use workspace::*;

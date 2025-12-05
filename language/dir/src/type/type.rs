@@ -1,11 +1,11 @@
+use destack_source::ModuleId;
+
 use crate::{
     Asynchrony, Expression, FunctionCardinality, GlobalSymbolId, LocalNodeId, Mutability,
     ScalarLiteral, StaticArgument, StaticKey, VarianceBound,
 };
 
 use super::{DeclarationType, PrimitiveType, TypeBinaryOperator, TypeUnaryOperator};
-
-use crate::ModuleId;
 
 /// A TypeLiteral is a scalar type.
 #[derive(Debug, Clone, PartialEq)]

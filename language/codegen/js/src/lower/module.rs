@@ -1,8 +1,9 @@
 use std::sync::Arc;
 
 use crate::{self as ast, LocalNodeIdAny};
-use destack_dir::{self as dir, ModuleId, NodeTree, Program, SymbolTable, TypeTable};
-use destack_source::{DiagnosticCollector, StringPool, Uri};
+use destack_dir::{NodeTree, SymbolTable, TypeTable};
+use destack_source::{DiagnosticCollector, ModuleId, StringPool, Uri};
+use destack_workspace::{Module, Program};
 
 use crate::{TranspileDiagnostic, TranspileError, TranspileOptions, TranspileWarning, Transpiler};
 
@@ -62,7 +63,7 @@ impl Transpiler {
     /// Lower the modules into AST.
     pub fn lower_module(
         &self,
-        module: &dir::Module,
+        module: &Module,
         tree: &NodeTree,
         symbols: &SymbolTable,
         types: &TypeTable,

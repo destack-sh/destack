@@ -1,6 +1,9 @@
 use crate::{Compiler, Task, TaskDebug, TaskOutput, VerifyResult};
 
-use destack_dir::{ModuleId, Program};
+use destack_source::ModuleId;
+use destack_workspace::Program;
+
+
 
 /// Task to verify something.
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]

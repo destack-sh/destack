@@ -1,8 +1,9 @@
 use crate::{AnalyzeError, AnalyzeResult, Compiler};
 use destack_dir::{
-    Expression, LocalNodeId, LocalTypeId, Module, NodeTree, SymbolTable, Type, TypeLiteral,
+    Expression, LocalNodeId, LocalTypeId, NodeTree, SymbolTable, Type, TypeLiteral,
     TypeTable, TypeUnaryOperator, UnaryOperator,
 };
+use destack_workspace::Module;
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {

@@ -1,6 +1,7 @@
 use std::path::Path;
 
-use destack_dir::{PackageId, TsConfigId};
+use destack_source::PackageId;
+use destack_workspace::TsConfigId;
 
 use crate::{Resolution, ResolveContext, ResolveError, Resolver};
 

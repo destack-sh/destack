@@ -1,9 +1,10 @@
 use destack_ast::StringId;
+use destack_source::ModuleId;
 use indexmap::IndexMap;
 
 use crate::{
-    Arena, DependencyMode, LocalNodeId, LocalScopeId, LocalScopeMark, LocalSymbolId, ModuleId,
-    Node, NodeTree, Scope, ScopeKind, StaticKey, Symbol, SymbolKind, SymbolSpace,
+    Arena, DependencyMode, LocalNodeId, LocalScopeId, LocalScopeMark, LocalSymbolId, Node,
+    NodeTree, Scope, ScopeKind, StaticKey, Symbol, SymbolKind, SymbolSpace,
 };
 use std::fmt::Debug;
 

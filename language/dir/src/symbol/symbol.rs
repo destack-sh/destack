@@ -1,6 +1,8 @@
+use destack_source::ModuleId;
+
 use crate::{
-    DependencyMode, GlobalNodeIdAny, LocalNodeId, LocalScopeId, LocalScopeMark, ModuleId, Node,
-    StaticKey, StringId,
+    DependencyMode, GlobalNodeIdAny, LocalNodeId, LocalScopeId, LocalScopeMark, Node, StaticKey,
+    StringId,
 };
 
 /// The space of a symbol.

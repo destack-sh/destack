@@ -1,8 +1,8 @@
 use std::borrow::Cow;
 use std::path::{Path, PathBuf};
 
-use destack_dir::PackageConfig;
 use destack_source::{PathExt, SLASH_START};
+use destack_workspace::PackageConfig;
 
 use crate::{Alias, AliasValue, ResolveContext, ResolveError, Resolver};
 

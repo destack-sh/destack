@@ -3,7 +3,9 @@ use crate::{
     TypeContext,
 };
 
-use destack_dir::{LocalTypeId, ModuleId, Program};
+use destack_dir::LocalTypeId;
+use destack_source::ModuleId;
+use destack_workspace::Program;
 
 /// Task to analyze something.
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]

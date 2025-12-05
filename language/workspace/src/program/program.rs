@@ -2,14 +2,14 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use destack_ast as ast;
+use destack_dir::{Expression, GlobalNodeIdAny, GlobalScopeId, LocalScopeMark, NodeType};
 use destack_source::{
     DiagnosticCollector, File, FileId, FileRegistry, FileSystem, FileType, LanguageOptions,
-    StringPool, Uri,
+    ModuleId, StringPool, Uri,
 };
 
 use crate::{
-    DsConfigRegistry, Expression, GlobalNodeIdAny, GlobalScopeId, LocalScopeMark, Module, ModuleId,
-    ModuleRegistry, NodeType, PackageRegistry, TsConfigRegistry,
+    DsConfigRegistry, Module, ModuleRegistry, PackageRegistry, TsConfigRegistry,
 };
 
 /// A Program.

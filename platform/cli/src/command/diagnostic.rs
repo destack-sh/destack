@@ -1,5 +1,5 @@
-use destack_dir::Program;
 use destack_parser::source_colorizer;
+use destack_workspace::Program;
 use destack_source::{
     DiagnosticCollection, DiagnosticOptions, PrintOptions,
     print_diagnostics as print_diagnostics_impl,

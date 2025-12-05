@@ -1,6 +1,8 @@
 use std::fmt::Display;
 
-use crate::{GlobalSymbolId, ModuleId, StaticArgument};
+use destack_source::ModuleId;
+
+use crate::{GlobalSymbolId, StaticArgument};
 
 /// Unique identifier for Instances.
 #[repr(transparent)]

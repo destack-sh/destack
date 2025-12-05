@@ -1,6 +1,9 @@
 use crate::{Compiler, GenerateResult, Task, TaskDebug, TaskOutput};
 
-use destack_dir::{ModuleId, Program};
+use destack_source::ModuleId;
+use destack_workspace::Program;
+
+
 
 /// task to generate something into an artifact.
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]

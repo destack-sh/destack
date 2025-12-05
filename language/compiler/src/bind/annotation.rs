@@ -2,8 +2,9 @@ use crate::Compiler;
 use destack_ast::{self as ast};
 use destack_dir::{
     Annotation, AnnotationPosition, Expression, LocalNodeId, LocalNodeIdAny, LocalScopeId,
-    LocalScopeMark, Module, NodeTree, NodeType, SymbolTable, TypeTable,
+    LocalScopeMark, NodeTree, NodeType, SymbolTable, TypeTable,
 };
+use destack_workspace::Module;
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {

@@ -2,8 +2,8 @@ use crate::{
     Expression, LocalNodeId, Pattern, PatternField, TranspileError, TranspileResult,
     TranspileResultExt, Transpiler, TranspilerUnit,
 };
-use destack_dir as dir;
-use destack_dir::{Module, NodeTree, SymbolTable, TypeTable};
+use destack_dir::{self as dir, NodeTree, SymbolTable, TypeTable};
+use destack_workspace::Module;
 
 impl Transpiler {
     /// Lower a pattern from DIR into JS AST.

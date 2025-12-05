@@ -1,8 +1,10 @@
-use destack_dir::{GlobalNodeIdAny, Program};
+use destack_dir::{GlobalNodeIdAny};
 use destack_parser::ParseError;
 use destack_source::StringId;
 
 use crate::{TaskDependency, TaskError, TaskPhase};
+
+use destack_workspace::Program;
 
 /// Error when importing something into the compiler.
 #[derive(Debug, Clone, PartialEq)]

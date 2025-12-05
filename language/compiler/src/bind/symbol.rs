@@ -1,9 +1,11 @@
 use destack_dir::{
-    DependencyMode, LocalScopeId, LocalScopeMark, LocalSymbolId, Module, ScopeKind, StaticKey,
+    DependencyMode, LocalScopeId, LocalScopeMark, LocalSymbolId, ScopeKind, StaticKey,
     SymbolKind, SymbolSpace, SymbolTable,
 };
 
 use crate::Compiler;
+
+use destack_workspace::Module;
 
 #[allow(clippy::too_many_arguments)]
 #[allow(dead_code)]

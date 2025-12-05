@@ -24,6 +24,7 @@ destack_mir = { workspace = true }
 destack_parser = { workspace = true }
 destack_resolver = { workspace = true }
 destack_source = { workspace = true }
+destack_workspace = { workspace = true }
 
 # general
 crossbeam-deque = { workspace = true }

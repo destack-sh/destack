@@ -1,6 +1,8 @@
-use destack_dir::{DependencySource, Expression, LocalNodeId, Module, NodeTree, SymbolTable};
+use destack_dir::{DependencySource, Expression, LocalNodeId, NodeTree, SymbolTable};
 
 use crate::{Compiler, ResolveError, ResolveResult};
+
+use destack_workspace::Module;
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {

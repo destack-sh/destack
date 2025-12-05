@@ -4,11 +4,11 @@ use std::sync::Arc;
 use std::thread;
 
 use clap::{Args, ValueEnum};
-use destack_dir::Program;
 use destack_source::{
     FileRegistry, FileSystem, FormattingOptions, IndentStyle, LanguageMode, LanguageOptions,
     LineEnding, MemoryFileSystem, PhysicalFileSystem,
 };
+use destack_workspace::Program;
 
 /// Get the default number of worker threads (available parallelism, or 1 if unknown).
 pub fn default_workers() -> u16 {
