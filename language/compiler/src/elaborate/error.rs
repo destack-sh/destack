@@ -11,7 +11,7 @@ pub enum ElaborateError {
     /// Yield dependency has failed.
     UnsatisfiedDependency { dependency: TaskDependency },
     /// Unsupported node.
-    UnsupportedNode { node: GlobalNodeIdAny },
+    UnsupportedConstruct { node: GlobalNodeIdAny },
 }
 
 impl TryFrom<ElaborateError> for TaskDependency {
@@ -32,7 +32,7 @@ impl ElaborateError {
         match self {
             Self::Yield { .. } => 0,
             Self::UnsatisfiedDependency { .. } => 1,
-            Self::UnsupportedNode { .. } => 2,
+            Self::UnsupportedConstruct { .. } => 2,
         }
     }
 
@@ -41,7 +41,7 @@ impl ElaborateError {
         match self {
             Self::Yield { dependency } => dependency.node(),
             Self::UnsatisfiedDependency { dependency } => dependency.node(),
-            Self::UnsupportedNode { node, .. } => *node,
+            Self::UnsupportedConstruct { node, .. } => *node,
         }
     }
 
@@ -50,7 +50,7 @@ impl ElaborateError {
         match self {
             Self::Yield { .. } => "pending dependency".to_string(),
             Self::UnsatisfiedDependency { .. } => "unsatisfied dependency".to_string(),
-            Self::UnsupportedNode { .. } => "unsupported node".to_string(),
+            Self::UnsupportedConstruct { .. } => "unsupported construct".to_string(),
         }
     }
 }

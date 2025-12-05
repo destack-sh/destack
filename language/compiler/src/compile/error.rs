@@ -1,8 +1,8 @@
 use destack_dir::{GlobalNodeIdAny, Program};
 
 use crate::{
-    AnalyzeError, BindError, ElaborateError, ExecuteError, GenerateError, ImportError, LinkError,
-    LowerError, OptimizeError, ResolveError, TaskDependency, TaskId, TaskPhase, VerifyError,
+    AnalyzeError, BindError, ElaborateError, GenerateError, ImportError, LinkError, LowerError,
+    OptimizeError, ResolveError, TaskDependency, TaskId, TaskPhase, VerifyError,
 };
 
 /// Error during compilation.
@@ -26,9 +26,7 @@ pub enum TaskError {
     /// Error during optimization.
     Optimize(OptimizeError),
     // --------------------------------------------------
-    /// Error during execution.
-    Execute(ExecuteError),
-    /// Error during generateing.
+    /// Error during generating.
     Generate(GenerateError),
     /// Error during linking.
     Link(LinkError),
@@ -130,7 +128,6 @@ impl TaskError {
             Self::Lower(_) => Some(TaskPhase::Lower),
             Self::Verify(_) => Some(TaskPhase::Verify),
             Self::Optimize(_) => Some(TaskPhase::Optimize),
-            Self::Execute(_) => Some(TaskPhase::Execute),
             Self::Generate(_) => Some(TaskPhase::Generate),
             Self::Link(_) => Some(TaskPhase::Link),
             Self::Internal(_) => None,
@@ -157,7 +154,6 @@ impl TaskError {
             Self::Lower(error) => error.sub_code(),
             Self::Verify(error) => error.sub_code(),
             Self::Optimize(error) => error.sub_code(),
-            Self::Execute(error) => error.sub_code(),
             Self::Generate(error) => error.sub_code(),
             Self::Link(error) => error.sub_code(),
             Self::Internal(error) => error.sub_code(),
@@ -175,7 +171,6 @@ impl TaskError {
             Self::Lower(error) => error.node(),
             Self::Verify(error) => error.node(),
             Self::Optimize(error) => error.node(),
-            Self::Execute(error) => error.node(),
             Self::Generate(error) => error.node(),
             Self::Link(error) => error.node(),
             Self::Internal(error) => error.node(),
@@ -193,7 +188,6 @@ impl TaskError {
             Self::Lower(error) => error.message(program),
             Self::Verify(error) => error.message(program),
             Self::Optimize(error) => error.message(program),
-            Self::Execute(error) => error.message(program),
             Self::Generate(error) => error.message(program),
             Self::Link(error) => error.message(program),
             Self::Internal(error) => error.message(program),

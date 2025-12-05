@@ -8,7 +8,7 @@ use crate::{TaskDependency, TaskError, TaskPhase};
 #[repr(u8)]
 pub enum BindError {
     /// Unsupported node.
-    UnsupportedNode { node: GlobalNodeIdAny },
+    UnsupportedConstruct { node: GlobalNodeIdAny },
     /// Conflicting symbol binding.
     ConflictingBinding {
         node: GlobalNodeIdAny,
@@ -55,7 +55,7 @@ impl BindError {
     #[inline]
     pub fn sub_code(&self) -> u8 {
         match self {
-            Self::UnsupportedNode { .. } => 2,
+            Self::UnsupportedConstruct { .. } => 2,
             Self::ConflictingBinding { .. } => 3,
             Self::ConflictingExport { .. } => 4,
             Self::ConflictingDefaultExport { .. } => 5,
@@ -65,7 +65,7 @@ impl BindError {
     /// Get the node id of the error.
     pub fn node(&self) -> GlobalNodeIdAny {
         match self {
-            Self::UnsupportedNode { node } => *node,
+            Self::UnsupportedConstruct { node } => *node,
             Self::ConflictingBinding { node, .. } => *node,
             Self::ConflictingExport { node, .. } => *node,
             Self::ConflictingDefaultExport { node, .. } => *node,
@@ -75,7 +75,7 @@ impl BindError {
     /// Get the message of the error.
     pub fn message(&self, program: &Program) -> String {
         match self {
-            Self::UnsupportedNode { .. } => "unsupported node".to_string(),
+            Self::UnsupportedConstruct { .. } => "unsupported construct".to_string(),
             Self::ConflictingBinding { name, .. } => {
                 let name = name
                     .map(|name| name.name())

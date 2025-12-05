@@ -11,7 +11,7 @@ pub enum OptimizeError {
     /// Yield dependency has failed.
     UnsatisfiedDependency { dependency: TaskDependency },
     /// Optimization is impossible for this node.
-    UnsupportedNode { node: GlobalNodeIdAny },
+    UnsupportedConstruct { node: GlobalNodeIdAny },
     /// Unsupported optimization.
     UnsupportedOptimization { node: GlobalNodeIdAny },
     /// Undefined behavior possible.
@@ -39,7 +39,7 @@ impl OptimizeError {
         match self {
             Self::Yield { .. } => 0,
             Self::UnsatisfiedDependency { .. } => 1,
-            Self::UnsupportedNode { .. } => 2,
+            Self::UnsupportedConstruct { .. } => 2,
             Self::UnsupportedOptimization { .. } => 3,
             Self::PossibleUndefinedBehavior { .. } => 4,
         }
@@ -50,7 +50,7 @@ impl OptimizeError {
         match self {
             Self::Yield { dependency } => dependency.node(),
             Self::UnsatisfiedDependency { dependency } => dependency.node(),
-            Self::UnsupportedNode { node, .. } => *node,
+            Self::UnsupportedConstruct { node, .. } => *node,
             Self::UnsupportedOptimization { node, .. } => *node,
             Self::PossibleUndefinedBehavior { node, .. } => *node,
         }
@@ -61,7 +61,7 @@ impl OptimizeError {
         match self {
             Self::Yield { .. } => "pending dependency".to_string(),
             Self::UnsatisfiedDependency { .. } => "unsatisfied dependency".to_string(),
-            Self::UnsupportedNode { .. } => "unsupported node".to_string(),
+            Self::UnsupportedConstruct { .. } => "unsupported construct".to_string(),
             Self::UnsupportedOptimization { .. } => "unsupported optimization".to_string(),
             Self::PossibleUndefinedBehavior { .. } => "possible undefined behavior".to_string(),
         }

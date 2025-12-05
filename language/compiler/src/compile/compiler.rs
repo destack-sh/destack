@@ -8,9 +8,9 @@ use destack_source::{DiagnosticCollector, DiagnosticOptions, Uri};
 use parking_lot::Mutex;
 
 use crate::{
-    AnalyzeOptions, CompileDiagnostic, ExecuteOptions, GenerateOptions, ImportOptions, LinkOptions,
-    LowerOptions, OptimizeOptions, ResolveOptions, TaskDependency, TaskError, TaskQueue,
-    TaskResultCollector, TaskWarning,
+    AnalyzeOptions, CompileDiagnostic, GenerateOptions, ImportOptions, LinkOptions, LowerOptions,
+    OptimizeOptions, ResolveOptions, TaskDependency, TaskError, TaskQueue, TaskResultCollector,
+    TaskWarning,
 };
 
 /// Get the default number of worker threads (available parallelism, or 1 if unknown).
@@ -35,8 +35,6 @@ pub struct CompileOptions {
     pub analyze: AnalyzeOptions,
     /// The options for lowering.
     pub lower: LowerOptions,
-    /// The options for executing.
-    pub execute: ExecuteOptions,
     /// The options for optimizing.
     pub optimize: OptimizeOptions,
     /// The options for code generation.
@@ -54,7 +52,6 @@ impl Default for CompileOptions {
             resolve: ResolveOptions::default(),
             analyze: AnalyzeOptions::default(),
             lower: LowerOptions::default(),
-            execute: ExecuteOptions::default(),
             optimize: OptimizeOptions::default(),
             generate: GenerateOptions::default(),
             link: LinkOptions::default(),

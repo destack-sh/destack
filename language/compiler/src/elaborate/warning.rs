@@ -7,7 +7,7 @@ use crate::{TaskPhase, TaskWarning};
 #[repr(u8)]
 pub enum ElaborateWarning {
     /// Unsupported node.
-    UnsupportedNode { node: GlobalNodeIdAny },
+    UnsupportedConstruct { node: GlobalNodeIdAny },
 }
 
 impl ElaborateWarning {
@@ -15,21 +15,21 @@ impl ElaborateWarning {
     #[inline]
     pub fn sub_code(&self) -> u8 {
         match self {
-            Self::UnsupportedNode { .. } => 1,
+            Self::UnsupportedConstruct { .. } => 1,
         }
     }
 
     /// Get the node of the warning.
     pub fn node(&self) -> GlobalNodeIdAny {
         match self {
-            Self::UnsupportedNode { node, .. } => *node,
+            Self::UnsupportedConstruct { node, .. } => *node,
         }
     }
 
     /// Get the message of the warning.
     pub fn message(&self, _program: &Program) -> String {
         match self {
-            Self::UnsupportedNode { .. } => "unsupported node".to_string(),
+            Self::UnsupportedConstruct { .. } => "unsupported construct".to_string(),
         }
     }
 }

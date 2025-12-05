@@ -182,13 +182,13 @@ impl Compiler {
 
             // tuple (anonymous)
             Expression::TupleExpression { .. } => {
-                return Err(AnalyzeError::UnsupportedNode {
+                return Err(AnalyzeError::UnsupportedConstruct {
                     node: expression_id.into_global_any(module.id),
                 });
             }
             // object (anonymous)
             Expression::ObjectExpression { .. } => {
-                return Err(AnalyzeError::UnsupportedNode {
+                return Err(AnalyzeError::UnsupportedConstruct {
                     node: expression_id.into_global_any(module.id),
                 });
             }

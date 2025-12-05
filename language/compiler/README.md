@@ -34,9 +34,9 @@ Like most compilers, the Destack compiler has three main regions:
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                                  BACK-END                                   │
 │                                                                             │
-│                  Generate ───────► Link ───────► Execute                    │
-│                      │               │              │                       │
-│                 "Artifacts"      "Linked"       "Output"                    │
+│                       Generate ────────────► Link                           │
+│                           │                    │                            │
+│                      "Artifacts"           "Output"                         │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -76,7 +76,6 @@ The back-end generates target artifacts from DIR (for JS/TS) or MIR (for native/
 |-------|--------|-------|--------|-------------|
 | Generate | `G` | DIR/MIR | artifacts | Generate target code (JS/TS from DIR, native from MIR) |
 | Link | `K` | artifacts | output | Link artifacts into final output |
-| Execute | `X` | output | result | Execute output (run tests, scripts, etc.) |
 
 ## Representations
 
@@ -105,7 +104,6 @@ The compiler is organized into modules corresponding to each phase.
 | `optimize/` | Optimize MIR | [src/optimize/](src/optimize/) |
 | `generate/` | Generate artifacts from DIR or MIR | [src/generate/](src/generate/) |
 | `link/` | Link artifacts | [src/link/](src/link/) |
-| `execute/` | Execute artifacts | [src/execute/](src/execute/) |
 | `tests/` | Compiler tests | [src/tests/](src/tests/) |
 
 ## Tasks
