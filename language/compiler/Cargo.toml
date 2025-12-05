@@ -14,12 +14,16 @@ doctest = false
 [dependencies]
 # language
 destack_ast = { workspace = true }
+destack_codegen_cranelift = { workspace = true }
+destack_codegen_js = { workspace = true }
+destack_codegen_lib = { workspace = true }
 destack_dir = { workspace = true }
 destack_fir = { workspace = true }
+destack_machine = { workspace = true }
 destack_mir = { workspace = true }
 destack_parser = { workspace = true }
-destack_source = { workspace = true }
 destack_resolver = { workspace = true }
+destack_source = { workspace = true }
 
 # general
 crossbeam-deque = { workspace = true }
