@@ -645,6 +645,9 @@ pub enum Expression {
         right: LocalNodeId<Expression>,
     },
 
+    /// Stub placeholder.
+    Stub,
+
     /// Error placeholder.
     Error,
 }

@@ -123,6 +123,9 @@ pub enum Expression {
         else_expression: Option<LocalNodeId<Expression>>,
     },
 
+    /// Stub placeholder for annotation-only files.
+    Stub,
+
     /// Error placeholder.
     Error,
 }

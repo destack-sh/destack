@@ -686,6 +686,29 @@ mod tests {
 
     use crate::{TestParser, assert_node, assert_path, assert_string};
 
+    /// Empty file with only a line comment should produce a Stub with the comment attached.
+    #[test]
+    fn test_attach_comment_to_stub_in_empty_file() {
+        let mut test = TestParser::new("// just a comment");
+        let mut parser = test.prepare();
+        let expressions = parser.parse();
+
+        // should have one Stub expression
+        assert_eq!(expressions.len(), 1);
+        assert_node!(parser.tree, expressions[0], Expression::Stub => {});
+
+        // the comment should be attached to the Stub as infix (inside the "empty" file)
+        let annotations = parser.tree.get_annotations(expressions[0].id);
+        assert_eq!(annotations.len(), 1);
+        assert_node!(parser.tree, annotations[0], Annotation::Comment { node, position } => {
+            assert_eq!(*position, AnnotationPosition::BlockInfix);
+            assert_node!(parser.tree, *node, Comment { string, style } => {
+                assert_string!(parser, *string, "just a comment");
+                assert_eq!(*style, CommentStyle::Slash);
+            });
+        });
+    }
+
     /// Block comments should retain all their newlines (including leading and trailing newlines).
     #[test]
     fn test_attach_block_comment_retain_newlines() {

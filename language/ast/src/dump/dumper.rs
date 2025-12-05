@@ -1022,6 +1022,9 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .field("operator", operator)
                     .end();
             }
+            Expression::Stub => {
+                self.node("Expression::Stub", _id.id).end();
+            }
             Expression::Error => {
                 self.node("Expression::Error", _id.id).end();
             }

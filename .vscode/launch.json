@@ -43,6 +43,30 @@
             "args": ["resolve", "zod"],
             "cwd": "${workspaceFolder}",
             "console": "integratedTerminal"
+        },
+        {
+            "name": "destack_test_smoke",
+            "type": "lldb",
+            "request": "launch",
+            "cargo": {
+                "args": ["test", "--test", "smoke", "--package", "destack_test", "--no-run"],
+                "filter": { "kind": "test", "name": "smoke" }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}",
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "destack_test_formatter",
+            "type": "lldb",
+            "request": "launch",
+            "cargo": {
+                "args": ["test", "--test", "formatter", "--package", "destack_test", "--no-run"],
+                "filter": { "kind": "test", "name": "formatter" }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}",
+            "console": "integratedTerminal"
         }
     ]
 }

@@ -320,14 +320,40 @@ impl Parser {
     /// Parse everything as an implicit namespace (without creating the namespace).
     #[tracing::instrument(name = "parser.parse", level = "trace", skip_all, fields(file_id = ?self.file_id))]
     pub fn parse(&mut self) -> Vec<LocalNodeId<Expression>> {
-        let expressions = self.with_recovery(
+        let mut expressions = self.with_recovery(
             self.mark(),
             |parser| parser.eat_block_body(BlockFormat::Implicit),
             Vec::new(),
             TokenType::End,
         );
+
+        // insert a stub expression if there are no expressions but there are annotations
+        // (this ensures annotations have something to attach to, e.g. in comment-only files)
+        if expressions.is_empty() && self.has_annotation_tokens() {
+            let stub = self.tree.insert(Expression::Stub, self.file_span());
+            expressions.push(stub);
+        }
+
         self.finish();
         expressions
+    }
+
+    /// Check if there are any annotation tokens (comments, docs) in the side tokens.
+    fn has_annotation_tokens(&self) -> bool {
+        self.side_tokens.iter().any(|token| {
+            matches!(
+                token.token.ty,
+                TokenType::LineComment
+                    | TokenType::DocLineComment
+                    | TokenType::BlockComment
+                    | TokenType::DocBlockComment
+            )
+        })
+    }
+
+    /// Get a span covering the entire file.
+    fn file_span(&self) -> Span {
+        Span::new(self.file_id, 0, self.eof_token.span.end)
     }
 
     /// Finish parsing. You don't need to call this manually if using Parser::parse().
