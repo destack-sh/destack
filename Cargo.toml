@@ -66,6 +66,14 @@ destack_daemon = { path = "platform/daemon" }
 destack_lsp = { path = "platform/lsp" }
 destack_vscode = { path = "platform/vscode" }
 
+# codegen
+cranelift-codegen = "0.126"
+cranelift-frontend = "0.126"
+cranelift-module = "0.126"
+cranelift-native = "0.126"
+cranelift-object = "0.126"
+target-lexicon = "0.13.3"
+
 # general
 cfg-if = "1.0.4"
 crossbeam-deque = "0.8.6"
