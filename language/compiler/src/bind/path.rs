@@ -1,6 +1,6 @@
 use crate::Compiler;
 use destack_ast::{self as ast, StringId};
-use destack_dir::{Path};
+use destack_dir::Path;
 use smallvec::SmallVec;
 
 use destack_workspace::Module;

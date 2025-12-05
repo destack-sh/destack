@@ -5,11 +5,11 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use destack_dir::{DumperOptions, GlobalSymbolId, Symbol};
-use destack_workspace::{Module, Program};
 use destack_source::{
     DiagnosticSeverity, File, FileRegistry, FileSystem, FileType, LanguageOptions,
     MemoryFileSystem, PhysicalFileSystem, PrintOptions, Uri, print_diagnostics,
 };
+use destack_workspace::{Module, Program};
 use parking_lot::RwLock;
 
 use crate::{CompileOptions, Compiler, Task, default_workers};

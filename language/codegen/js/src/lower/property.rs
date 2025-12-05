@@ -101,8 +101,8 @@ impl Transpiler {
                     .as_ref()
                     .map(|key| self.lower_key(module, tree, symbols, types, *key, unit))
                     .transpose()?;
-                let signature = self
-                    .lower_function_signature(module, tree, symbols, types, signature, unit)?;
+                let signature =
+                    self.lower_function_signature(module, tree, symbols, types, signature, unit)?;
                 let body = body
                     .as_ref()
                     .map(|body_id| {

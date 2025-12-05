@@ -1,4 +1,4 @@
-use destack_dir::{GlobalNodeIdAny};
+use destack_dir::GlobalNodeIdAny;
 
 use crate::{TaskDependency, TaskError, TaskPhase};
 

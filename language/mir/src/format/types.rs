@@ -7,7 +7,11 @@ use destack_fir::write;
 use crate::{FormatMirNode, LocalNodeId, MirFormatter, Type};
 
 impl<'a> FormatMirNode<'a, Type> for Type {
-    fn format_node(&self, _id: LocalNodeId<Type>, f: &mut MirFormatter<'a, '_>) -> FormatResult<()> {
+    fn format_node(
+        &self,
+        _id: LocalNodeId<Type>,
+        f: &mut MirFormatter<'a, '_>,
+    ) -> FormatResult<()> {
         match self {
             Type::Void => write!(f, [token("void")]),
             Type::Boolean => write!(f, [token("bool")]),
@@ -22,7 +26,16 @@ impl<'a> FormatMirNode<'a, Type> for Type {
                 write!(f, [token("ptr<"), pointee, token(">")])
             }
             Type::Array { element, length } => {
-                write!(f, [token("["), element, token("; "), text(&length.to_string()), token("]")])
+                write!(
+                    f,
+                    [
+                        token("["),
+                        element,
+                        token("; "),
+                        text(&length.to_string()),
+                        token("]")
+                    ]
+                )
             }
             Type::Tuple { elements } => {
                 write!(f, [token("(")])?;

@@ -100,7 +100,10 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                 )
             }
 
-            Instruction::Load { destination, pointer } => {
+            Instruction::Load {
+                destination,
+                pointer,
+            } => {
                 write!(f, [destination, token(" = load "), pointer])
             }
 

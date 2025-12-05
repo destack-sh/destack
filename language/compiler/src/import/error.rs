@@ -1,4 +1,4 @@
-use destack_dir::{GlobalNodeIdAny};
+use destack_dir::GlobalNodeIdAny;
 use destack_parser::ParseError;
 use destack_source::StringId;
 

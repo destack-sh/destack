@@ -3,13 +3,13 @@
 use std::sync::Arc;
 
 use destack_ast::NodeParentIndex;
-use destack_workspace::Program;
 use destack_fir::format as fir_format;
 use destack_formatter::{DestackFormatContext, DestackFormatOptions};
 use destack_parser::Parser;
 use destack_source::{
     File, FileId, FileRegistry, FileSystem, FileType, LanguageOptions, MemoryFileSystem, Uri,
 };
+use destack_workspace::Program;
 
 use crate::harness::{
     TestCase, TestOptions, TestResult, check_diagnostics, discover_test_files, fixtures_dir,

@@ -58,9 +58,7 @@ impl Transpiler {
                 let mutability = mutability.map(|mutability| self.lower_mutability(mutability));
                 let name = unit.strings.intern_from(&self.program.strings, *name);
                 let pattern = pattern
-                    .map(|pattern| {
-                        self.lower_pattern(module, tree, symbols, types, pattern, unit)
-                    })
+                    .map(|pattern| self.lower_pattern(module, tree, symbols, types, pattern, unit))
                     .transpose()?;
                 let default = default
                     .map(|default| {
@@ -103,8 +101,7 @@ impl Transpiler {
                     .insert_from_source(pattern_field, module.id, pattern_field_id)
             }
             dir::PatternField::Positional { pattern } => {
-                let pattern =
-                    self.lower_pattern(module, tree, symbols, types, *pattern, unit)?;
+                let pattern = self.lower_pattern(module, tree, symbols, types, *pattern, unit)?;
                 let pattern_field = PatternField::Positional { pattern };
                 unit.ast
                     .insert_from_source(pattern_field, module.id, pattern_field_id)

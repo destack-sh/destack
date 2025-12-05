@@ -89,9 +89,8 @@ impl Transpiler {
                 generics: _,
                 expressions,
             } => {
-                let descriptor = self.lower_declaration_descriptor(
-                    module, tree, symbols, types, descriptor, unit,
-                );
+                let descriptor = self
+                    .lower_declaration_descriptor(module, tree, symbols, types, descriptor, unit);
                 let statements = expressions
                     .iter()
                     .map(|expression| {
@@ -111,9 +110,8 @@ impl Transpiler {
                 static_parameters,
                 value,
             } => {
-                let descriptor = self.lower_declaration_descriptor(
-                    module, tree, symbols, types, descriptor, unit,
-                );
+                let descriptor = self
+                    .lower_declaration_descriptor(module, tree, symbols, types, descriptor, unit);
                 let static_parameters = static_parameters
                     .as_ref()
                     .map(|params| {
@@ -146,13 +144,10 @@ impl Transpiler {
                 heritage,
                 properties,
             } => {
-                let descriptor = self.lower_declaration_descriptor(
-                    module, tree, symbols, types, descriptor, unit,
-                );
-                let generics =
-                    self.lower_generics(module, tree, symbols, types, generics, unit)?;
-                let heritage =
-                    self.lower_heritage(module, tree, symbols, types, heritage, unit)?;
+                let descriptor = self
+                    .lower_declaration_descriptor(module, tree, symbols, types, descriptor, unit);
+                let generics = self.lower_generics(module, tree, symbols, types, generics, unit)?;
+                let heritage = self.lower_heritage(module, tree, symbols, types, heritage, unit)?;
                 let properties = properties
                     .iter()
                     .map(|property| {
@@ -174,13 +169,10 @@ impl Transpiler {
                 heritage,
                 properties,
             } => {
-                let descriptor = self.lower_declaration_descriptor(
-                    module, tree, symbols, types, descriptor, unit,
-                );
-                let generics =
-                    self.lower_generics(module, tree, symbols, types, generics, unit)?;
-                let heritage =
-                    self.lower_heritage(module, tree, symbols, types, heritage, unit)?;
+                let descriptor = self
+                    .lower_declaration_descriptor(module, tree, symbols, types, descriptor, unit);
+                let generics = self.lower_generics(module, tree, symbols, types, generics, unit)?;
+                let heritage = self.lower_heritage(module, tree, symbols, types, heritage, unit)?;
                 let properties = properties
                     .iter()
                     .map(|property| {
@@ -201,13 +193,10 @@ impl Transpiler {
                 heritage,
                 properties,
             } => {
-                let descriptor = self.lower_declaration_descriptor(
-                    module, tree, symbols, types, descriptor, unit,
-                );
-                let generics =
-                    self.lower_generics(module, tree, symbols, types, generics, unit)?;
-                let heritage =
-                    self.lower_heritage(module, tree, symbols, types, heritage, unit)?;
+                let descriptor = self
+                    .lower_declaration_descriptor(module, tree, symbols, types, descriptor, unit);
+                let generics = self.lower_generics(module, tree, symbols, types, generics, unit)?;
+                let heritage = self.lower_heritage(module, tree, symbols, types, heritage, unit)?;
                 let properties = properties
                     .iter()
                     .map(|property| {
@@ -229,14 +218,11 @@ impl Transpiler {
                 fields,
                 properties: _,
             } => {
-                let descriptor = self.lower_declaration_descriptor(
-                    module, tree, symbols, types, descriptor, unit,
-                );
+                let descriptor = self
+                    .lower_declaration_descriptor(module, tree, symbols, types, descriptor, unit);
                 let fields = fields
                     .iter()
-                    .map(|field| {
-                        self.lower_enum_field(module, tree, symbols, types, *field, unit)
-                    })
+                    .map(|field| self.lower_enum_field(module, tree, symbols, types, *field, unit))
                     .collect::<Result<Vec<_>, TranspileError>>()?;
                 Declaration::Enum { descriptor, fields }
             }
@@ -246,11 +232,10 @@ impl Transpiler {
                 signature,
                 body,
             } => {
-                let descriptor = self.lower_declaration_descriptor(
-                    module, tree, symbols, types, descriptor, unit,
-                );
-                let signature = self
-                    .lower_function_signature(module, tree, symbols, types, signature, unit)?;
+                let descriptor = self
+                    .lower_declaration_descriptor(module, tree, symbols, types, descriptor, unit);
+                let signature =
+                    self.lower_function_signature(module, tree, symbols, types, signature, unit)?;
                 let body = body
                     .map(|body| {
                         self.lower_expression(module, tree, symbols, types, body, unit)

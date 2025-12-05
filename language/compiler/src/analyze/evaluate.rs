@@ -1,7 +1,7 @@
 use crate::{AnalyzeError, AnalyzeResult, Compiler};
 use destack_dir::{
-    Expression, LocalNodeId, LocalTypeId, NodeTree, SymbolTable, Type, TypeLiteral,
-    TypeTable, TypeUnaryOperator, UnaryOperator,
+    Expression, LocalNodeId, LocalTypeId, NodeTree, SymbolTable, Type, TypeLiteral, TypeTable,
+    TypeUnaryOperator, UnaryOperator,
 };
 use destack_workspace::Module;
 
@@ -242,7 +242,10 @@ mod tests {
 
         let let_expr_id = module.roots[0];
         let expression = tree.get(let_expr_id);
-        let &destack_dir::Expression::Statement { statement: let_expr_id } = expression else {
+        let &destack_dir::Expression::Statement {
+            statement: let_expr_id,
+        } = expression
+        else {
             panic!("expected statement");
         };
 

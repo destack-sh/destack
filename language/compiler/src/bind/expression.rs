@@ -1,8 +1,8 @@
 use destack_ast::{self as ast};
 use destack_dir::{
     DependencySource, Expression, ForEachKind, IfKind, LocalNodeId, LocalNodeIdAny, LocalScopeId,
-    LocalScopeMark, LoopKind, MatchSource, NodeTree, NodeType, ScopeKind, SymbolKind,
-    SymbolTable, TypeTable, YieldCardinality,
+    LocalScopeMark, LoopKind, MatchSource, NodeTree, NodeType, ScopeKind, SymbolKind, SymbolTable,
+    TypeTable, YieldCardinality,
 };
 use destack_workspace::Module;
 

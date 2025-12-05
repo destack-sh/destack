@@ -3,8 +3,6 @@ use crate::{Compiler, LinkResult, Task, TaskDebug, TaskOutput};
 use destack_source::ModuleId;
 use destack_workspace::Program;
 
-
-
 /// Task to link something.
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub enum LinkTask {

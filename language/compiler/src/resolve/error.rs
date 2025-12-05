@@ -1,7 +1,5 @@
 use crate::{TaskDependency, TaskError, TaskPhase};
-use destack_dir::{
-    GlobalNodeIdAny, GlobalScopeId, GlobalSymbolId, StaticKey, StringId,
-};
+use destack_dir::{GlobalNodeIdAny, GlobalScopeId, GlobalSymbolId, StaticKey, StringId};
 use destack_source::ModuleId;
 use destack_workspace::Program;
 

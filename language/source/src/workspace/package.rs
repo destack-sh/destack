@@ -21,4 +21,3 @@ impl PackageId {
         Self(id)
     }
 }
-

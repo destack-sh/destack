@@ -17,7 +17,10 @@ pub enum Type {
     Pointer { pointee: LocalNodeId<Type> },
 
     /// Fixed-size array: `T[N]`.
-    Array { element: LocalNodeId<Type>, length: u64 },
+    Array {
+        element: LocalNodeId<Type>,
+        length: u64,
+    },
     /// Tuple: `(T1, T2, ...)`.
     Tuple { elements: Vec<LocalNodeId<Type>> },
     /// Struct (anonymous, layout-focused).
@@ -35,19 +38,55 @@ impl Node for Type {
 }
 
 impl Type {
-    pub const INT8: Type = Type::Int { width: 8, signed: true };
-    pub const INT16: Type = Type::Int { width: 16, signed: true };
-    pub const INT32: Type = Type::Int { width: 32, signed: true };
-    pub const INT64: Type = Type::Int { width: 64, signed: true };
-    pub const INT128: Type = Type::Int { width: 128, signed: true };
-    pub const INT256: Type = Type::Int { width: 256, signed: true };
+    pub const INT8: Type = Type::Int {
+        width: 8,
+        signed: true,
+    };
+    pub const INT16: Type = Type::Int {
+        width: 16,
+        signed: true,
+    };
+    pub const INT32: Type = Type::Int {
+        width: 32,
+        signed: true,
+    };
+    pub const INT64: Type = Type::Int {
+        width: 64,
+        signed: true,
+    };
+    pub const INT128: Type = Type::Int {
+        width: 128,
+        signed: true,
+    };
+    pub const INT256: Type = Type::Int {
+        width: 256,
+        signed: true,
+    };
 
-    pub const UINT8: Type = Type::Int { width: 8, signed: false };
-    pub const UINT16: Type = Type::Int { width: 16, signed: false };
-    pub const UINT32: Type = Type::Int { width: 32, signed: false };
-    pub const UINT64: Type = Type::Int { width: 64, signed: false };
-    pub const UINT128: Type = Type::Int { width: 128, signed: false };
-    pub const UINT256: Type = Type::Int { width: 256, signed: false };
+    pub const UINT8: Type = Type::Int {
+        width: 8,
+        signed: false,
+    };
+    pub const UINT16: Type = Type::Int {
+        width: 16,
+        signed: false,
+    };
+    pub const UINT32: Type = Type::Int {
+        width: 32,
+        signed: false,
+    };
+    pub const UINT64: Type = Type::Int {
+        width: 64,
+        signed: false,
+    };
+    pub const UINT128: Type = Type::Int {
+        width: 128,
+        signed: false,
+    };
+    pub const UINT256: Type = Type::Int {
+        width: 256,
+        signed: false,
+    };
 
     pub const FLOAT32: Type = Type::Float { width: 32 };
     pub const FLOAT64: Type = Type::Float { width: 64 };

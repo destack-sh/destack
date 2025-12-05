@@ -1,6 +1,7 @@
 use destack_ast::StringId;
 use destack_dir::{
-    DependencyItem, DependencyMode, DependencySource, GlobalNodeIdAny, LocalNodeId, LocalScopeMark, NodeTree, StaticKey, SymbolTable,
+    DependencyItem, DependencyMode, DependencySource, GlobalNodeIdAny, LocalNodeId, LocalScopeMark,
+    NodeTree, StaticKey, SymbolTable,
 };
 use destack_source::ModuleId;
 use destack_workspace::Module;
@@ -108,11 +109,11 @@ impl Compiler {
                         // resolve symbol in the remote module for item mode
                         let remote_scope_id = remote_module.namespace_scope;
                         let remote_scope = remote_symbols.get_scope_by_id(remote_scope_id);
-                        let key =
-                            name.map(StaticKey::Name)
-                                .ok_or(ResolveError::UnsupportedConstruct {
-                                    node: item_id.into_global_any(module.id),
-                                })?;
+                        let key = name.map(StaticKey::Name).ok_or(
+                            ResolveError::UnsupportedConstruct {
+                                node: item_id.into_global_any(module.id),
+                            },
+                        )?;
                         self.resolve_absolute_symbol(
                             module,
                             item_id.into_global_any(module.id),

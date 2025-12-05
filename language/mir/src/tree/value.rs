@@ -42,7 +42,11 @@ pub enum Constant {
     /// Boolean constant.
     Boolean { value: bool },
     /// Integer constant (up to 64 bits).
-    Int { value: i64, width: u8, is_signed: bool },
+    Int {
+        value: i64,
+        width: u8,
+        is_signed: bool,
+    },
     /// Unsigned integer constant (up to 64 bits).
     UInt { value: u64, width: u8 },
     /// Floating point constant.

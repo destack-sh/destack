@@ -114,9 +114,7 @@ impl Transpiler {
                         arguments
                             .iter()
                             .map(|argument| {
-                                self.lower_argument(
-                                    module, tree, symbols, types, *argument, unit,
-                                )
+                                self.lower_argument(module, tree, symbols, types, *argument, unit)
                             })
                             .collect::<Result<Vec<_>, TranspileError>>()
                     })
@@ -190,12 +188,10 @@ impl Transpiler {
                 pattern,
                 value,
             } => {
-                let descriptor = self.lower_declaration_descriptor(
-                    module, tree, symbols, types, descriptor, unit,
-                );
+                let descriptor = self
+                    .lower_declaration_descriptor(module, tree, symbols, types, descriptor, unit);
                 let mutability = self.lower_mutability(*mutability);
-                let pattern =
-                    self.lower_pattern(module, tree, symbols, types, *pattern, unit)?;
+                let pattern = self.lower_pattern(module, tree, symbols, types, *pattern, unit)?;
                 let ty = types
                     .get_declared_type_id(expression_id.into_global_any(module.id))
                     .map(|ty| self.lower_type(module, tree, symbols, types, ty, unit))
@@ -229,9 +225,7 @@ impl Transpiler {
                         arguments
                             .iter()
                             .map(|argument| {
-                                self.lower_argument(
-                                    module, tree, symbols, types, *argument, unit,
-                                )
+                                self.lower_argument(module, tree, symbols, types, *argument, unit)
                             })
                             .collect::<Result<Vec<_>, TranspileError>>()
                     })
@@ -257,15 +251,8 @@ impl Transpiler {
                     .iter()
                     .map(|element_id| {
                         let element = tree.get(*element_id);
-                        self.lower_expression(
-                            module,
-                            tree,
-                            symbols,
-                            types,
-                            element.value(),
-                            unit,
-                        )
-                        .expect_node::<Expression>(element_id.into_global_any(module.id), unit)
+                        self.lower_expression(module, tree, symbols, types, element.value(), unit)
+                            .expect_node::<Expression>(element_id.into_global_any(module.id), unit)
                     })
                     .collect::<Result<Vec<_>, TranspileError>>()?;
                 let expression = Expression::ArrayLiteral { elements };
@@ -278,15 +265,8 @@ impl Transpiler {
                     .iter()
                     .map(|element_id| {
                         let element = tree.get(*element_id);
-                        self.lower_expression(
-                            module,
-                            tree,
-                            symbols,
-                            types,
-                            element.value(),
-                            unit,
-                        )
-                        .expect_node::<Expression>(element_id.into_global_any(module.id), unit)
+                        self.lower_expression(module, tree, symbols, types, element.value(), unit)
+                            .expect_node::<Expression>(element_id.into_global_any(module.id), unit)
                     })
                     .collect::<Result<Vec<_>, TranspileError>>()?;
                 let expression = Expression::ArrayLiteral { elements };
@@ -418,9 +398,7 @@ impl Transpiler {
                         arguments
                             .iter()
                             .map(|argument| {
-                                self.lower_argument(
-                                    module, tree, symbols, types, *argument, unit,
-                                )
+                                self.lower_argument(module, tree, symbols, types, *argument, unit)
                             })
                             .collect::<Result<Vec<_>, TranspileError>>()
                     })
@@ -472,9 +450,7 @@ impl Transpiler {
                         arguments
                             .iter()
                             .map(|argument| {
-                                self.lower_argument(
-                                    module, tree, symbols, types, *argument, unit,
-                                )
+                                self.lower_argument(module, tree, symbols, types, *argument, unit)
                             })
                             .collect::<Result<Vec<_>, TranspileError>>()
                     })
@@ -509,9 +485,7 @@ impl Transpiler {
                         arguments
                             .iter()
                             .map(|argument| {
-                                self.lower_argument(
-                                    module, tree, symbols, types, *argument, unit,
-                                )
+                                self.lower_argument(module, tree, symbols, types, *argument, unit)
                             })
                             .collect::<Result<Vec<_>, TranspileError>>()
                     })
