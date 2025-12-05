@@ -16,8 +16,6 @@ const ANNOTATION_TOKEN_TYPES: [TokenType; 5] = [
     TokenType::DocBlockComment,
 ];
 
-const STATIC_BLOCK_KEYWORDS_STR: [&str; 3] = ["loop", "for", "while"];
-
 impl Parser {
     /// Eat all side annotations (decorators).
     /// NOTE: One full pass, consuming the entire Parser.
@@ -25,14 +23,8 @@ impl Parser {
         // parse out all the side annotations
         while let Ok(token) = self.peek() {
             // @
-            // decorators are block scoped only
             if token.token.ty == TokenType::At
-                // must be block scoped
-                && (self.prev().is_none()
-                    || self.prev().unwrap().token.ty == TokenType::Newline)
                 && let Ok(&next) = self.peek_next()
-                && let next_span_str = self.get_span_str(next.span)
-                && !STATIC_BLOCK_KEYWORDS_STR.contains(&next_span_str)
             {
                 // speculatively parse the decorator
                 let speculative_start = (self.mark(), self.tree.next_id());
@@ -107,13 +99,19 @@ impl Parser {
     /// Attach all annotations to respective AST nodes.
     /// Must be called *after* primary parsing.
     pub(crate) fn attach_annotations(&mut self) {
-        // combine tokens
+        // combine tokens (filtering whitespace so blank lines with trailing spaces still count)
         let mut tokens = Vec::with_capacity(self.tokens.len());
-        tokens.extend(self.tokens.clone());
+        tokens.extend(
+            self.tokens
+                .iter()
+                .filter(|token| token.token.ty != TokenType::Whitespace)
+                .cloned(),
+        );
         tokens.extend(
             self.side_tokens
                 .iter()
-                .filter(|token| token.token.ty != TokenType::Whitespace),
+                .filter(|token| token.token.ty != TokenType::Whitespace)
+                .cloned(),
         );
         tokens.sort_by_key(|token| token.span.start);
         if tokens.is_empty() {
@@ -770,6 +768,86 @@ let y;
             assert_node!(parser.tree, *node, Decorator { left, arguments } => {
                 assert_path!(parser, *left, "foo");
                 assert!(arguments.is_none());
+            });
+        });
+    }
+
+    /// Decorator annotations on enum and its variants should be attached correctly.
+    #[test]
+    fn test_attach_decorators_to_enum_and_variants() {
+        let mut test = TestParser::new(
+            r#"
+@description("The status of an event.")
+export enum EventStatus {
+    @default
+    @description("The event is a draft.")
+    Draft,
+
+    @description("The event is upcoming.")
+    Upcoming,
+
+    @description("The event is cancelled.")
+    Cancelled,
+}"#,
+        );
+        let mut parser = test.prepare();
+        let expressions = parser.parse();
+
+        assert_eq!(expressions.len(), 1);
+
+        // @description
+        let enum_annotations = parser.tree.get_annotations(expressions[0].id);
+        assert_eq!(enum_annotations.len(), 1);
+        assert_node!(parser.tree, enum_annotations[0], Annotation::Decorator { node, position } => {
+            assert_eq!(*position, AnnotationPosition::BlockPrefix);
+            assert_node!(parser.tree, *node, Decorator { left, arguments } => {
+                assert_path!(parser, *left, "description");
+                assert!(arguments.is_some());
+            });
+        });
+
+        // EventStatus
+        assert_node!(parser.tree, expressions[0], Expression::Declaration(decl) => {
+            assert_node!(parser.tree, *decl, Declaration::Enum { fields, .. } => {
+                assert_eq!(fields.len(), 3);
+
+                // Draft: @default, @description
+                let draft_annotations = parser.tree.get_annotations(fields[0].id);
+                assert_eq!(draft_annotations.len(), 2);
+                assert_node!(parser.tree, draft_annotations[0], Annotation::Decorator { node, .. } => {
+                    assert_node!(parser.tree, *node, Decorator { left, arguments } => {
+                        assert_path!(parser, *left, "default");
+                        assert!(arguments.is_none());
+                    });
+                });
+                assert_node!(parser.tree, draft_annotations[1], Annotation::Decorator { node, .. } => {
+                    assert_node!(parser.tree, *node, Decorator { left, arguments } => {
+                        assert_path!(parser, *left, "description");
+                        assert!(arguments.is_some());
+                    });
+                });
+
+                // Upcoming: blank + @description
+                let upcoming_annotations = parser.tree.get_annotations(fields[1].id);
+                assert_eq!(upcoming_annotations.len(), 2);
+                assert_node!(parser.tree, upcoming_annotations[0], Annotation::Blank { .. } => {});
+                assert_node!(parser.tree, upcoming_annotations[1], Annotation::Decorator { node, .. } => {
+                    assert_node!(parser.tree, *node, Decorator { left, arguments } => {
+                        assert_path!(parser, *left, "description");
+                        assert!(arguments.is_some());
+                    });
+                });
+
+                // Cancelled: blank + @description
+                let cancelled_annotations = parser.tree.get_annotations(fields[2].id);
+                assert_eq!(cancelled_annotations.len(), 2);
+                assert_node!(parser.tree, cancelled_annotations[0], Annotation::Blank { .. } => {});
+                assert_node!(parser.tree, cancelled_annotations[1], Annotation::Decorator { node, .. } => {
+                    assert_node!(parser.tree, *node, Decorator { left, arguments } => {
+                        assert_path!(parser, *left, "description");
+                        assert!(arguments.is_some());
+                    });
+                });
             });
         });
     }
