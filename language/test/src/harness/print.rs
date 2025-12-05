@@ -117,7 +117,7 @@ pub fn print_failures(tests: &[(TestCase, TestResult)]) {
 /// Print test list without running.
 pub fn print_test_list(tests: &[TestCase]) {
     for test in tests {
-        let suffix = if test.skipped {
+        let suffix = if test.is_skipped {
             format!(": {} {}", color::yellow("test"), color::dim("(skipped)"))
         } else {
             format!(": {}", color::cyan("test"))
@@ -127,7 +127,7 @@ pub fn print_test_list(tests: &[TestCase]) {
 
     println!();
     let total = color::bold(&format!("{}", tests.len()));
-    let skipped_count = tests.iter().filter(|t| t.skipped).count();
+    let skipped_count = tests.iter().filter(|t| t.is_skipped).count();
     if skipped_count > 0 {
         let skipped = color::yellow(&format!("{skipped_count} skipped"));
         println!("{total} tests ({skipped})");

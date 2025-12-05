@@ -4,6 +4,7 @@
 //! compiler, codegen backends, and runtime.
 
 pub mod codegen;
+pub mod formatter;
 pub mod harness;
 pub mod mdtest;
 pub mod runtime;

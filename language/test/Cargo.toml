@@ -21,12 +21,20 @@ name = "codegen"
 path = "src/codegen/main.rs"
 harness = false
 
+[[test]]
+name = "formatter"
+path = "src/formatter/main.rs"
+harness = false
+
 [dependencies]
 # language
+destack_ast = { workspace = true }
 destack_codegen_js = { workspace = true }
 destack_codegen_lib = { workspace = true }
 destack_compiler = { workspace = true }
 destack_dir = { workspace = true }
+destack_fir = { workspace = true }
+destack_formatter = { workspace = true }
 destack_machine = { workspace = true }
 destack_mir = { workspace = true }
 destack_parser = { workspace = true }

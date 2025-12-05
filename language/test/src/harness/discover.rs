@@ -47,7 +47,7 @@ pub fn discover_test_files(
             (name.to_string(), false)
         };
 
-        let case = TestCase::new(test_name, path.to_path_buf(), category).with_skipped(skipped);
+        let case = TestCase::file(test_name, path.to_path_buf(), category).with_skipped(skipped);
         tests.push(case);
     }
 
@@ -89,7 +89,7 @@ pub fn discover_test_directories(directory: &Path, category: &str) -> io::Result
             (name, false)
         };
 
-        let case = TestCase::new(test_name, path, category).with_skipped(is_skipped);
+        let case = TestCase::directory(test_name, path, category).with_skipped(is_skipped);
         tests.push(case);
     }
 

@@ -1,7 +1,4 @@
 //! Compiler smoke tests.
-//!
-//! For each `.ds` or `.d.ds` file in `fixtures/smoke/compiler/`,
-//! compile it and verify no errors are produced.
 
 use std::sync::Arc;
 
@@ -18,7 +15,7 @@ use crate::harness::{
 /// Run all compiler smoke tests.
 pub fn run_compiler_smoke_tests(options: &TestOptions) -> std::process::ExitCode {
     let smoke_dir = fixtures_dir().join("smoke").join("compiler");
-    let tests = discover_test_files(&smoke_dir, &["ds", ".d.ds"], "destack_test::smoke::compiler")
+    let tests = discover_test_files(&smoke_dir, &["ds"], "destack_test::smoke::compiler")
         .expect("failed to discover tests");
     run_tests(tests, options, run_compiler_test)
 }

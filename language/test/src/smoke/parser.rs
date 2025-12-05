@@ -1,7 +1,4 @@
 //! Parser smoke tests.
-//!
-//! For each `.ds` or `.d.ds` file in `fixtures/smoke/parser/`,
-//! parse it and verify no errors are produced.
 
 use std::sync::Arc;
 
@@ -19,7 +16,7 @@ use crate::harness::{
 /// Run all parser smoke tests.
 pub fn run_parser_smoke_tests(options: &TestOptions) -> std::process::ExitCode {
     let smoke_dir = fixtures_dir().join("smoke").join("parser");
-    let tests = discover_test_files(&smoke_dir, &["ds", ".d.ds"], "destack_test::smoke::parser")
+    let tests = discover_test_files(&smoke_dir, &["ds"], "destack_test::smoke::parser")
         .expect("failed to discover tests");
     run_tests(tests, options, run_parser_test)
 }
@@ -39,7 +36,6 @@ fn run_parser_test(test: &TestCase) -> TestResult {
     } else {
         FileType::Destack
     };
-
     let content = match std::fs::read_to_string(&test.path) {
         Ok(content) => content,
         Err(e) => {
@@ -48,7 +44,6 @@ fn run_parser_test(test: &TestCase) -> TestResult {
             };
         }
     };
-
     let file_id = FileId::new(0);
     let name = test.path.file_name().unwrap().to_string_lossy().to_string();
     let path = Some(test.path.clone());
@@ -59,7 +54,7 @@ fn run_parser_test(test: &TestCase) -> TestResult {
     // parse the file
     let mut parser = Parser::lex_file(file, program.language);
     let _expressions = parser.parse();
-	program.diagnostics.merge_from(&parser.diagnostics);
+    program.diagnostics.merge_from(&parser.diagnostics);
 
     // check for unexpected diagnostics
     check_diagnostics(test, &program.files, &program.diagnostics)
