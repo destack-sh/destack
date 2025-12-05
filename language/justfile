@@ -18,9 +18,17 @@ check:
 build:
     cargo build --release {{ packages }}
 
-# test
+# test all
 test:
     cargo test --release --all-targets {{ packages }}
+
+# test smoke
+test-smoke *ARGS:
+    cargo test --release --test smoke -- {{ ARGS }}
+
+# test codegen
+test-codegen *ARGS:
+    cargo test --release --test codegen -- {{ ARGS }}
 
 # format
 fmt:

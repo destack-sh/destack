@@ -1,32 +1,31 @@
-//! Parser smoke tests.
+//! Compiler smoke tests.
 //!
-//! For each `.ds` or `.d.ds` file in `fixtures/smoke/parser/`,
-//! parse it and verify no errors are produced.
+//! For each `.ds` or `.d.ds` file in `fixtures/smoke/compiler/`,
+//! compile it and verify no errors are produced.
 
 use std::sync::Arc;
 
+use destack_compiler::{CompileOptions, Compiler, ImportTask};
 use destack_dir::Program;
-use destack_parser::Parser;
 use destack_source::{
     File, FileId, FileRegistry, FileSystem, FileType, LanguageOptions, MemoryFileSystem, Uri,
 };
 
 use crate::harness::{
-    TestCase, TestOptions, TestResult, check_diagnostics, discover_test_files, fixtures_dir,
-    run_tests,
+    check_diagnostics, discover_test_files, fixtures_dir, run_tests, TestCase, TestOptions, TestResult,
 };
 
-/// Run all parser smoke tests.
-pub fn run_parser_smoke_tests(options: &TestOptions) -> std::process::ExitCode {
-    let smoke_dir = fixtures_dir().join("smoke").join("parser");
-    let tests = discover_test_files(&smoke_dir, &["ds", ".d.ds"], "destack_test::smoke::parser")
+/// Run all compiler smoke tests.
+pub fn run_compiler_smoke_tests(options: &TestOptions) -> std::process::ExitCode {
+    let smoke_dir = fixtures_dir().join("smoke").join("compiler");
+    let tests = discover_test_files(&smoke_dir, &["ds", ".d.ds"], "destack_test::smoke::compiler")
         .expect("failed to discover tests");
-    run_tests(tests, options, run_parser_test)
+    run_tests(tests, options, run_compiler_test)
 }
 
-/// Run a single parser smoke test.
-fn run_parser_test(test: &TestCase) -> TestResult {
-    // set up a minimal program for diagnostics
+/// Run a single compiler smoke test.
+fn run_compiler_test(test: &TestCase) -> TestResult {
+    // set up a program
     let cwd = test.path.parent().unwrap().to_path_buf();
     let files = Arc::new(FileRegistry::new());
     let fs: Arc<dyn FileSystem> = Arc::new(MemoryFileSystem::new());
@@ -39,7 +38,6 @@ fn run_parser_test(test: &TestCase) -> TestResult {
     } else {
         FileType::Destack
     };
-
     let content = match std::fs::read_to_string(&test.path) {
         Ok(content) => content,
         Err(e) => {
@@ -48,7 +46,6 @@ fn run_parser_test(test: &TestCase) -> TestResult {
             };
         }
     };
-
     let file_id = FileId::new(0);
     let name = test.path.file_name().unwrap().to_string_lossy().to_string();
     let path = Some(test.path.clone());
@@ -56,10 +53,17 @@ fn run_parser_test(test: &TestCase) -> TestResult {
     program.files.insert(file);
     let file = program.files.get(file_id);
 
-    // parse the file
-    let mut parser = Parser::lex_file(file, program.language);
-    let _expressions = parser.parse();
-	program.diagnostics.merge_from(&parser.diagnostics);
+    // compile the file
+    let compiler = Compiler::new(
+        program.clone(),
+        CompileOptions {
+            workers: 1,
+            ..Default::default()
+        },
+    );
+    compiler.enqueue(ImportTask::ImportModuleFromFile { file: file.id });
+    compiler.compile();
+    drop(compiler);
 
     // check for unexpected diagnostics
     check_diagnostics(test, &program.files, &program.diagnostics)
