@@ -2,6 +2,7 @@
 
 Destack is a full-stack software stack powered by our custom "TypeScript++" language (`.ds`).
 The Destack language, library, and platform ecosystem are fully integrated for fantastic software development.
+We aim to be a first-class citizen in the web and specifically the TypeScript ecosystem (with full bi-directional interoperability).
 
 ## Code Style
 
@@ -72,20 +73,21 @@ Toolchain: `nightly-2025-11-27` (see `rust-toolchain.toml`)
 - Tests go in a trailing `mod tests` or in standalone test modules/crates (contextual)
 - Inline variables in format macros if possible: `format!("name is {name}")`
 - Prefer multiline raw strings for longer strings
+- Prefer using `--release` for build, test, check, etc. (it's faster)
 
-### Commands
+## Commands
 
+We use `justfile`s for commands. See `just --list` for all commands:
 ```sh
-just language/check    # cargo check --workspace
-just language/build    # cargo build --workspace --release
-just language/test     # cargo test --workspace --all-targets
-just language/lint     # cargo clippy --workspace --all-targets --all-features
-just language/fmt      # cargo fmt --all
+just check
+just fmt
+just build
+just test
 ```
 
 ## Commits
 
 Typically, agents aren't supposed to commit code directly, but for reference:
  - Follow `type(scope): summary` (≤100 chars, imperative).
- - Example: `feat(language): add error spans`
  - Types: `feat`, `fix`, `refactor`, `docs`, `test`, `chore`
+ - Example: `feat(language): improve error span precision (to sub-token granularity)`

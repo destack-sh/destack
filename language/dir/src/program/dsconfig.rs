@@ -14,6 +14,49 @@ use destack_source::{
 
 use super::tsconfig::{EsTarget, ModuleKind};
 
+/// Codegen target specifying what output format to generate.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum CodegenTarget {
+    /// Plain JavaScript (.js).
+    Js,
+    /// TypeScript (.ts).
+    Ts,
+    /// JavaScript with TypeScript declarations (.js + .d.ts).
+    #[default]
+    #[serde(alias = "js+dts", alias = "jsdts")]
+    JsDts,
+    /// WebAssembly via Cranelift (.wasm).
+    Wasm,
+}
+
+impl CodegenTarget {
+    /// Whether this target produces JavaScript output.
+    pub fn is_js(&self) -> bool {
+        matches!(self, Self::Js | Self::JsDts)
+    }
+
+    /// Whether this target produces TypeScript output.
+    pub fn is_ts(&self) -> bool {
+        matches!(self, Self::Ts)
+    }
+
+    /// Whether this target produces declaration files.
+    pub fn has_declarations(&self) -> bool {
+        matches!(self, Self::JsDts)
+    }
+
+    /// Whether this target produces WebAssembly output.
+    pub fn is_wasm(&self) -> bool {
+        matches!(self, Self::Wasm)
+    }
+
+    /// Whether this target produces a single output file (vs file-per-file).
+    pub fn is_single_file(&self) -> bool {
+        matches!(self, Self::Wasm)
+    }
+}
+
 /// Unique identifier for DsConfigs.
 #[repr(transparent)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
@@ -39,10 +82,10 @@ pub struct DsConfig {
     pub path: PathBuf,
     /// The directory containing the `dsconfig.json` file.
     pub directory: PathBuf,
-    /// The raw JSON content of the `dsconfig.json` file.
-    pub content: DsConfigJson,
     /// The normalized/resolved configuration options.
     pub options: DsConfigOptions,
+    /// The raw JSON content of the `dsconfig.json` file.
+    pub content: DsConfigJson,
 }
 
 /// DsConfig JSON (usually from `dsconfig.json`)
@@ -228,210 +271,6 @@ pub enum DsConfigExtendsField {
     Multiple(Vec<String>),
 }
 
-/// Destack configuration compiler options (JSON representation).
-#[derive(Debug, Default, Deserialize, Clone)]
-#[serde(rename_all = "camelCase")]
-pub struct DsConfigCompilerOptionsJson {
-    // features
-    /// Allow expression-oriented features: implicit returns, `loop`, `defer`, ranges, tuples, patterns.
-    pub allow_expressions: Option<bool>,
-    /// Allow tree literals: TSX-like syntax generalized for any tree-shaped data.
-    pub allow_trees: Option<bool>,
-    /// Allow annotations: decorators (`@`) extended to any expression.
-    pub allow_annotations: Option<bool>,
-    /// Allow type system extensions: newtypes, primitives, structs, constraints.
-    pub allow_types: Option<bool>,
-    /// Allow reflection: types as values, runtime type descriptors, decorator metadata.
-    pub allow_reflection: Option<bool>,
-    /// Allow dispatch: extensions and overloading (type-based method/function dispatch).
-    pub allow_dispatch: Option<bool>,
-    /// Allow ownership: value ownership (`&T`, `^T`), mutability (`var`), and explicit dispatch.
-    pub allow_ownership: Option<bool>,
-
-    // path resolution
-    /// Base URL for resolving non-relative module names.
-    pub base_url: Option<String>,
-    /// Path alias mappings (like tsconfig paths).
-    pub paths: Option<IndexMap<String, Vec<String>>>,
-    /// Root directory of input files.
-    pub root_dir: Option<String>,
-    /// Output directory for compiled files.
-    pub out_dir: Option<String>,
-
-    // module & target
-    /// Module format for output (e.g., "esnext", "commonjs").
-    pub module: Option<String>,
-    /// ECMAScript target version (e.g., "es2022", "esnext").
-    pub target: Option<String>,
-
-    // checking
-    /// Enable all strict type-checking options. Default: true for .ds files.
-    pub strict: Option<bool>,
-    /// Error on expressions and declarations with implied `any` type.
-    pub no_implicit_any: Option<bool>,
-    /// Enable strict null checks (`null` and `undefined` are distinct types).
-    pub strict_null_checks: Option<bool>,
-    /// Error on `this` expressions with implied `any` type.
-    pub no_implicit_this: Option<bool>,
-    /// Enable strict checking of function types (contravariant parameters).
-    pub strict_function_types: Option<bool>,
-    /// Enable strict checking of `bind`, `call`, and `apply` methods.
-    pub strict_bind_call_apply: Option<bool>,
-    /// Require class properties to be initialized in constructor.
-    pub strict_property_initialization: Option<bool>,
-    /// Use `unknown` instead of `any` for catch clause variables.
-    pub use_unknown_in_catch_variables: Option<bool>,
-    /// Report errors on unused local variables.
-    pub no_unused_locals: Option<bool>,
-    /// Report errors on unused function parameters.
-    pub no_unused_parameters: Option<bool>,
-    /// Report error when not all code paths return a value.
-    pub no_implicit_returns: Option<bool>,
-    /// Allow unreachable code (disables dead code warnings).
-    pub allow_unreachable_code: Option<bool>,
-    /// Require `override` keyword when overriding class members.
-    pub no_implicit_override: Option<bool>,
-    /// Report errors for fallthrough cases in switch statements.
-    pub no_fallthrough_cases_in_switch: Option<bool>,
-    /// Interpret optional property types as written (no implicit `undefined`).
-    pub exact_optional_property_types: Option<bool>,
-    /// Add `undefined` to index signature results (safer array access).
-    pub no_unchecked_indexed_access: Option<bool>,
-
-    // interop
-    /// Path to tsconfig.json to inherit settings from.
-    pub tsconfig: Option<String>,
-    /// Allow TypeScript files (.ts, .tsx) in the project.
-    pub allow_ts: Option<bool>,
-    /// Type-check TypeScript files.
-    pub check_ts: Option<bool>,
-    /// Allow JavaScript files (.js, .jsx) in the project.
-    pub allow_js: Option<bool>,
-    /// Type-check JavaScript files.
-    pub check_js: Option<bool>,
-    /// Skip type checking of declaration files (.d.ts, .d.ds).
-    pub skip_lib_check: Option<bool>,
-
-    // formatting
-    /// Formatting options (lineEnding, indentStyle, indentWidth, lineWidth).
-    #[serde(default)]
-    pub formatting: DsConfigFormattingJson,
-}
-
-impl DsConfigCompilerOptionsJson {
-    /// Apply feature flags from options to a feature set.
-    pub fn apply_features(&self, features: &mut LanguageFeatureSet) {
-        if let Some(enabled) = self.allow_expressions {
-            features.set(LanguageFeature::Expressions, enabled);
-        }
-        if let Some(enabled) = self.allow_trees {
-            features.set(LanguageFeature::Trees, enabled);
-        }
-        if let Some(enabled) = self.allow_annotations {
-            features.set(LanguageFeature::Annotations, enabled);
-        }
-        if let Some(enabled) = self.allow_types {
-            features.set(LanguageFeature::Types, enabled);
-        }
-        if let Some(enabled) = self.allow_reflection {
-            features.set(LanguageFeature::Reflection, enabled);
-        }
-        if let Some(enabled) = self.allow_dispatch {
-            features.set(LanguageFeature::Dispatch, enabled);
-        }
-        if let Some(enabled) = self.allow_ownership {
-            features.set(LanguageFeature::Ownership, enabled);
-        }
-    }
-}
-
-/// Destack target.
-#[derive(Debug, Default, Deserialize, Clone)]
-#[serde(rename_all = "camelCase")]
-pub struct DsConfigTargetJson {
-    /// whether this is a debug build.
-    pub debug: bool,
-    /// whether this is an optimized build.
-    pub optimize: bool,
-    /// Optimization level (0-3).
-    pub optimize_level: Option<u8>,
-    /// Shrink levels (0-3).
-    pub shrink_level: Option<u8>,
-}
-
-/// Line ending style for JSON deserialization.
-#[derive(Debug, Clone, Copy, Deserialize)]
-#[serde(rename_all = "lowercase")]
-pub enum LineEndingJson {
-    #[serde(alias = "lf")]
-    LineFeed,
-    #[serde(alias = "crlf")]
-    CarriageReturnLineFeed,
-    #[serde(alias = "cr")]
-    CarriageReturn,
-}
-
-impl From<LineEndingJson> for LineEnding {
-    fn from(value: LineEndingJson) -> Self {
-        match value {
-            LineEndingJson::LineFeed => LineEnding::LineFeed,
-            LineEndingJson::CarriageReturnLineFeed => LineEnding::CarriageReturnLineFeed,
-            LineEndingJson::CarriageReturn => LineEnding::CarriageReturn,
-        }
-    }
-}
-
-/// Indent style for JSON deserialization.
-#[derive(Debug, Clone, Copy, Deserialize)]
-#[serde(rename_all = "lowercase")]
-pub enum IndentStyleJson {
-    #[serde(alias = "tabs")]
-    Tab,
-    #[serde(alias = "spaces")]
-    Space,
-}
-
-impl From<IndentStyleJson> for IndentStyle {
-    fn from(value: IndentStyleJson) -> Self {
-        match value {
-            IndentStyleJson::Tab => IndentStyle::Tab,
-            IndentStyleJson::Space => IndentStyle::Space,
-        }
-    }
-}
-
-/// Destack formatting options (JSON representation).
-#[derive(Debug, Default, Deserialize, Clone)]
-#[serde(rename_all = "camelCase")]
-pub struct DsConfigFormattingJson {
-    /// Line ending style: "lf", "crlf", or "cr".
-    pub line_ending: Option<LineEndingJson>,
-    /// Indent style: "tab" or "space".
-    pub indent_style: Option<IndentStyleJson>,
-    /// Number of spaces per indent (when using spaces).
-    pub indent_width: Option<u8>,
-    /// Maximum line width (best effort).
-    pub line_width: Option<u8>,
-}
-
-impl DsConfigFormattingJson {
-    /// Apply formatting options to a FormattingOptions struct.
-    pub fn apply(&self, options: &mut FormattingOptions) {
-        if let Some(line_ending) = self.line_ending {
-            options.line_ending = line_ending.into();
-        }
-        if let Some(indent_style) = self.indent_style {
-            options.indent_style = indent_style.into();
-        }
-        if let Some(indent_width) = self.indent_width {
-            options.indent_width = indent_width;
-        }
-        if let Some(line_width) = self.line_width {
-            options.line_width = line_width;
-        }
-    }
-}
-
 /// Destack configuration registry.
 #[derive(Debug)]
 pub struct DsConfigRegistry {
@@ -585,6 +424,8 @@ pub struct DsConfigCompilerOptions {
     pub root_dir: Option<PathBuf>,
     /// Output directory for compiled files.
     pub out_dir: Option<PathBuf>,
+    /// Output directory for declaration files. Defaults to out_dir.
+    pub declaration_dir: Option<PathBuf>,
 
     // module & target
     /// Module format for output.
@@ -655,6 +496,7 @@ impl Default for DsConfigCompilerOptions {
             paths: None,
             root_dir: None,
             out_dir: None,
+            declaration_dir: None,
             module: ModuleKind::default(),
             target: EsTarget::default(),
 
@@ -705,6 +547,7 @@ impl From<&DsConfigCompilerOptionsJson> for DsConfigCompilerOptions {
             paths: json.paths.clone(),
             root_dir: json.root_dir.as_ref().map(PathBuf::from),
             out_dir: json.out_dir.as_ref().map(PathBuf::from),
+            declaration_dir: json.declaration_dir.as_ref().map(PathBuf::from),
             module: json
                 .module
                 .as_deref()
@@ -827,6 +670,29 @@ impl ShrinkLevel {
 /// Normalized Destack build target options.
 #[derive(Debug, Clone)]
 pub struct DsConfigTargetOptions {
+    // codegen
+    /// The codegen target.
+    pub codegen: CodegenTarget,
+    /// Glob patterns for files to include in this target.
+    pub include: Vec<String>,
+    /// Glob patterns for files to exclude from this target.
+    pub exclude: Vec<String>,
+
+    // output
+    /// Output directory for this target.
+    pub out_dir: Option<PathBuf>,
+    /// Output file for single-file targets like wasm.
+    pub out_file: Option<PathBuf>,
+    /// Separate directory for declaration files.
+    pub declaration_dir: Option<PathBuf>,
+
+    // JS/TS specific
+    /// Module format for this target.
+    pub module: ModuleKind,
+    /// ECMAScript target for this target.
+    pub es_target: EsTarget,
+
+    // optimization
     /// Whether this is a debug build.
     pub debug: bool,
     /// Whether optimization is enabled.
@@ -840,6 +706,14 @@ pub struct DsConfigTargetOptions {
 impl Default for DsConfigTargetOptions {
     fn default() -> Self {
         Self {
+            codegen: CodegenTarget::default(),
+            include: Vec::new(),
+            exclude: Vec::new(),
+            out_dir: None,
+            out_file: None,
+            declaration_dir: None,
+            module: ModuleKind::default(),
+            es_target: EsTarget::default(),
             debug: true,
             optimize: false,
             optimize_level: OptimizeLevel::O0,
@@ -851,6 +725,22 @@ impl Default for DsConfigTargetOptions {
 impl From<&DsConfigTargetJson> for DsConfigTargetOptions {
     fn from(json: &DsConfigTargetJson) -> Self {
         Self {
+            codegen: json.codegen.unwrap_or_default(),
+            include: json.include.clone().unwrap_or_default(),
+            exclude: json.exclude.clone().unwrap_or_default(),
+            out_dir: json.out_dir.as_ref().map(PathBuf::from),
+            out_file: json.out_file.as_ref().map(PathBuf::from),
+            declaration_dir: json.declaration_dir.as_ref().map(PathBuf::from),
+            module: json
+                .module
+                .as_deref()
+                .and_then(ModuleKind::parse)
+                .unwrap_or_default(),
+            es_target: json
+                .es_target
+                .as_deref()
+                .and_then(EsTarget::parse)
+                .unwrap_or_default(),
             debug: json.debug,
             optimize: json.optimize,
             optimize_level: json
@@ -861,6 +751,236 @@ impl From<&DsConfigTargetJson> for DsConfigTargetOptions {
                 .shrink_level
                 .map(ShrinkLevel::from_level)
                 .unwrap_or_default(),
+        }
+    }
+}
+
+/// Line ending style for JSON deserialization.
+#[derive(Debug, Clone, Copy, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum LineEndingJson {
+    #[serde(alias = "lf")]
+    LineFeed,
+    #[serde(alias = "crlf")]
+    CarriageReturnLineFeed,
+    #[serde(alias = "cr")]
+    CarriageReturn,
+}
+
+impl From<LineEndingJson> for LineEnding {
+    fn from(value: LineEndingJson) -> Self {
+        match value {
+            LineEndingJson::LineFeed => LineEnding::LineFeed,
+            LineEndingJson::CarriageReturnLineFeed => LineEnding::CarriageReturnLineFeed,
+            LineEndingJson::CarriageReturn => LineEnding::CarriageReturn,
+        }
+    }
+}
+
+/// Indent style for JSON deserialization.
+#[derive(Debug, Clone, Copy, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum IndentStyleJson {
+    #[serde(alias = "tabs")]
+    Tab,
+    #[serde(alias = "spaces")]
+    Space,
+}
+
+impl From<IndentStyleJson> for IndentStyle {
+    fn from(value: IndentStyleJson) -> Self {
+        match value {
+            IndentStyleJson::Tab => IndentStyle::Tab,
+            IndentStyleJson::Space => IndentStyle::Space,
+        }
+    }
+}
+/// Destack configuration compiler options (JSON representation).
+#[derive(Debug, Default, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct DsConfigCompilerOptionsJson {
+    // features
+    /// Allow expression-oriented features: implicit returns, `loop`, `defer`, ranges, tuples, patterns.
+    pub allow_expressions: Option<bool>,
+    /// Allow tree literals: TSX-like syntax generalized for any tree-shaped data.
+    pub allow_trees: Option<bool>,
+    /// Allow annotations: decorators (`@`) extended to any expression.
+    pub allow_annotations: Option<bool>,
+    /// Allow type system extensions: newtypes, primitives, structs, constraints.
+    pub allow_types: Option<bool>,
+    /// Allow reflection: types as values, runtime type descriptors, decorator metadata.
+    pub allow_reflection: Option<bool>,
+    /// Allow dispatch: extensions and overloading (type-based method/function dispatch).
+    pub allow_dispatch: Option<bool>,
+    /// Allow ownership: value ownership (`&T`, `^T`), mutability (`var`), and explicit dispatch.
+    pub allow_ownership: Option<bool>,
+
+    // path resolution
+    /// Base URL for resolving non-relative module names.
+    pub base_url: Option<String>,
+    /// Path alias mappings (like tsconfig paths).
+    pub paths: Option<IndexMap<String, Vec<String>>>,
+    /// Root directory of input files.
+    pub root_dir: Option<String>,
+    /// Output directory for compiled files.
+    pub out_dir: Option<String>,
+    /// Output directory for declaration files (.d.ts). Defaults to outDir.
+    pub declaration_dir: Option<String>,
+
+    // module & target
+    /// Module format for output (e.g., "esnext", "commonjs").
+    pub module: Option<String>,
+    /// ECMAScript target version (e.g., "es2022", "esnext").
+    pub target: Option<String>,
+
+    // checking
+    /// Enable all strict type-checking options. Default: true for .ds files.
+    pub strict: Option<bool>,
+    /// Error on expressions and declarations with implied `any` type.
+    pub no_implicit_any: Option<bool>,
+    /// Enable strict null checks (`null` and `undefined` are distinct types).
+    pub strict_null_checks: Option<bool>,
+    /// Error on `this` expressions with implied `any` type.
+    pub no_implicit_this: Option<bool>,
+    /// Enable strict checking of function types (contravariant parameters).
+    pub strict_function_types: Option<bool>,
+    /// Enable strict checking of `bind`, `call`, and `apply` methods.
+    pub strict_bind_call_apply: Option<bool>,
+    /// Require class properties to be initialized in constructor.
+    pub strict_property_initialization: Option<bool>,
+    /// Use `unknown` instead of `any` for catch clause variables.
+    pub use_unknown_in_catch_variables: Option<bool>,
+    /// Report errors on unused local variables.
+    pub no_unused_locals: Option<bool>,
+    /// Report errors on unused function parameters.
+    pub no_unused_parameters: Option<bool>,
+    /// Report error when not all code paths return a value.
+    pub no_implicit_returns: Option<bool>,
+    /// Allow unreachable code (disables dead code warnings).
+    pub allow_unreachable_code: Option<bool>,
+    /// Require `override` keyword when overriding class members.
+    pub no_implicit_override: Option<bool>,
+    /// Report errors for fallthrough cases in switch statements.
+    pub no_fallthrough_cases_in_switch: Option<bool>,
+    /// Interpret optional property types as written (no implicit `undefined`).
+    pub exact_optional_property_types: Option<bool>,
+    /// Add `undefined` to index signature results (safer array access).
+    pub no_unchecked_indexed_access: Option<bool>,
+
+    // interop
+    /// Path to tsconfig.json to inherit settings from.
+    pub tsconfig: Option<String>,
+    /// Allow TypeScript files (.ts, .tsx) in the project.
+    pub allow_ts: Option<bool>,
+    /// Type-check TypeScript files.
+    pub check_ts: Option<bool>,
+    /// Allow JavaScript files (.js, .jsx) in the project.
+    pub allow_js: Option<bool>,
+    /// Type-check JavaScript files.
+    pub check_js: Option<bool>,
+    /// Skip type checking of declaration files (.d.ts, .d.ds).
+    pub skip_lib_check: Option<bool>,
+
+    // formatting
+    /// Formatting options (lineEnding, indentStyle, indentWidth, lineWidth).
+    #[serde(default)]
+    pub formatting: DsConfigFormattingJson,
+}
+
+impl DsConfigCompilerOptionsJson {
+    /// Apply feature flags from options to a feature set.
+    pub fn apply_features(&self, features: &mut LanguageFeatureSet) {
+        if let Some(enabled) = self.allow_expressions {
+            features.set(LanguageFeature::Expressions, enabled);
+        }
+        if let Some(enabled) = self.allow_trees {
+            features.set(LanguageFeature::Trees, enabled);
+        }
+        if let Some(enabled) = self.allow_annotations {
+            features.set(LanguageFeature::Annotations, enabled);
+        }
+        if let Some(enabled) = self.allow_types {
+            features.set(LanguageFeature::Types, enabled);
+        }
+        if let Some(enabled) = self.allow_reflection {
+            features.set(LanguageFeature::Reflection, enabled);
+        }
+        if let Some(enabled) = self.allow_dispatch {
+            features.set(LanguageFeature::Dispatch, enabled);
+        }
+        if let Some(enabled) = self.allow_ownership {
+            features.set(LanguageFeature::Ownership, enabled);
+        }
+    }
+}
+
+/// Destack build target configuration (JSON representation).
+#[derive(Debug, Default, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct DsConfigTargetJson {
+    // codegen
+    /// The codegen target (js, ts, js+dts, wasm). Default: js+dts.
+    pub codegen: Option<CodegenTarget>,
+    /// Glob patterns for files to include in this target.
+    pub include: Option<Vec<String>>,
+    /// Glob patterns for files to exclude from this target.
+    pub exclude: Option<Vec<String>>,
+
+    // output
+    /// Output directory for this target (overrides compilerOptions.outDir).
+    pub out_dir: Option<String>,
+    /// Output file for single-file targets like wasm (e.g., "./dist/core.wasm").
+    pub out_file: Option<String>,
+    /// Separate directory for declaration files (overrides compilerOptions.declarationDir).
+    pub declaration_dir: Option<String>,
+
+    // JS/TS specific
+    /// Module format for this target (overrides compilerOptions.module).
+    pub module: Option<String>,
+    /// ECMAScript target for this target (overrides compilerOptions.target).
+    pub es_target: Option<String>,
+
+    // optimization
+    /// Whether this is a debug build.
+    #[serde(default)]
+    pub debug: bool,
+    /// Whether optimization is enabled.
+    #[serde(default)]
+    pub optimize: bool,
+    /// Optimization level (0-3).
+    pub optimize_level: Option<u8>,
+    /// Shrink level (0-3).
+    pub shrink_level: Option<u8>,
+}
+
+/// Destack formatting options (JSON representation).
+#[derive(Debug, Default, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct DsConfigFormattingJson {
+    /// Line ending style: "lf", "crlf", or "cr".
+    pub line_ending: Option<LineEndingJson>,
+    /// Indent style: "tab" or "space".
+    pub indent_style: Option<IndentStyleJson>,
+    /// Number of spaces per indent (when using spaces).
+    pub indent_width: Option<u8>,
+    /// Maximum line width (best effort).
+    pub line_width: Option<u8>,
+}
+
+impl DsConfigFormattingJson {
+    /// Apply formatting options to a FormattingOptions struct.
+    pub fn apply(&self, options: &mut FormattingOptions) {
+        if let Some(line_ending) = self.line_ending {
+            options.line_ending = line_ending.into();
+        }
+        if let Some(indent_style) = self.indent_style {
+            options.indent_style = indent_style.into();
+        }
+        if let Some(indent_width) = self.indent_width {
+            options.indent_width = indent_width;
+        }
+        if let Some(line_width) = self.line_width {
+            options.line_width = line_width;
         }
     }
 }

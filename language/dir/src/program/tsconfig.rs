@@ -57,10 +57,10 @@ pub struct TsConfig {
     pub directory: PathBuf,
     /// Base directory from which to resolve path aliases.
     pub paths_base: PathBuf,
-    /// The raw JSON content of the `tsconfig.json` file.
-    pub content: TsConfigJson,
     /// The normalized/resolved configuration options.
     pub options: TsConfigOptions,
+    /// The raw JSON content of the `tsconfig.json` file.
+    pub content: TsConfigJson,
 }
 
 impl TsConfig {
@@ -484,342 +484,6 @@ impl TsConfigRegistry {
     pub fn is_empty(&self) -> bool {
         self.tsconfigs_by_id.is_empty()
     }
-}
-
-/// TypeScript JSON (usually from `tsconfig.json`)
-/// <https://www.typescriptlang.org/tsconfig>
-#[derive(Debug, Deserialize, Clone)]
-#[serde(rename_all = "camelCase")]
-pub struct TsConfigJson {
-    /// Specific files to include in the project.
-    /// <https://www.typescriptlang.org/tsconfig/#files>
-    #[serde(default)]
-    pub files: Option<Vec<String>>,
-    /// Files to include in the project.
-    /// <https://www.typescriptlang.org/tsconfig/#include>
-    #[serde(default)]
-    pub include: Option<Vec<String>>,
-    /// Files to exclude from the project.
-    /// <https://www.typescriptlang.org/tsconfig/#exclude>
-    #[serde(default)]
-    pub exclude: Option<Vec<String>>,
-    /// Paths to other tsconfigs to extend.
-    /// <https://www.typescriptlang.org/tsconfig/#extends>
-    #[serde(default)]
-    pub extends: Option<TsConfigExtendsField>,
-    /// Compiler options.
-    /// <https://www.typescriptlang.org/tsconfig/#compilerOptions>
-    #[serde(default)]
-    pub compiler_options: TsConfigCompilerOptionsJson,
-    /// Bubbled up project references with a reference to their tsconfig.
-    /// <https://www.typescriptlang.org/tsconfig/#references>
-    #[serde(default)]
-    pub references: Vec<TsConfigProjectReferences>,
-}
-
-impl TsConfigJson {
-    /// Directory of the `tsconfig.json` file.
-    /// Returns any paths to tsconfigs that should be extended by this tsconfig.
-    pub fn extends(&self) -> impl Iterator<Item = &str> {
-        let specifiers = match &self.extends {
-            Some(TsConfigExtendsField::Single(specifier)) => {
-                vec![specifier.as_str()]
-            }
-            Some(TsConfigExtendsField::Multiple(specifiers)) => {
-                specifiers.iter().map(String::as_str).collect()
-            }
-            None => Vec::new(),
-        };
-        specifiers.into_iter()
-    }
-
-    /// Resolves the given `specifier` within the project configured by this tsconfig.
-    // <https://github.com/parcel-bundler/parcel/blob/b6224fd519f95e68d8b93ba90376fd94c8b76e69/packages/utils/node-resolver-rs/src/tsconfig.rs#L93>
-    pub(super) fn resolve_path_alias(&self, specifier: &str, paths_base: &Path) -> Vec<PathBuf> {
-        if specifier.starts_with('.') {
-            return Vec::new();
-        }
-
-        let compiler_options = &self.compiler_options;
-        let base_url_iter = compiler_options
-            .base_url
-            .as_ref()
-            .map_or_else(Vec::new, |base_url| {
-                vec![base_url.normalize_with(specifier)]
-            });
-
-        let Some(paths_map) = &compiler_options.paths else {
-            return base_url_iter;
-        };
-
-        let paths = paths_map.get(specifier).map_or_else(
-            || {
-                let mut longest_prefix_length = 0;
-                let mut longest_suffix_length = 0;
-                let mut best_key: Option<&String> = None;
-
-                for key in paths_map.keys() {
-                    if let Some((prefix, suffix)) = key.split_once('*')
-                        && (best_key.is_none() || prefix.len() > longest_prefix_length)
-                        && specifier.starts_with(prefix)
-                        && specifier.ends_with(suffix)
-                    {
-                        longest_prefix_length = prefix.len();
-                        longest_suffix_length = suffix.len();
-                        best_key.replace(key);
-                    }
-                }
-
-                best_key
-                    .and_then(|key| paths_map.get(key))
-                    .map_or_else(Vec::new, |paths| {
-                        paths
-                            .iter()
-                            .map(|path| {
-                                path.replace(
-                                    '*',
-                                    &specifier[longest_prefix_length
-                                        ..specifier.len() - longest_suffix_length],
-                                )
-                            })
-                            .collect::<Vec<_>>()
-                    })
-            },
-            Clone::clone,
-        );
-
-        paths
-            .into_iter()
-            .map(|p| paths_base.normalize_with(p))
-            .chain(base_url_iter)
-            .collect()
-    }
-}
-
-/// TypeScript compiler options.
-/// <https://www.typescriptlang.org/tsconfig#compilerOptions>
-#[derive(Debug, Default, Deserialize, Clone)]
-#[serde(rename_all = "camelCase")]
-pub struct TsConfigCompilerOptionsJson {
-    /// Base URL (e.g. `./src`)
-    /// <https://www.typescriptlang.org/tsconfig/#baseUrl>
-    pub base_url: Option<PathBuf>,
-
-    /// Path aliases (e.g. `{ "src/*": ["src/*"] }`)
-    /// <https://www.typescriptlang.org/tsconfig/#paths>
-    pub paths: Option<IndexMap<String, Vec<String>, BuildHasherDefault<FxHasher>>>,
-
-    /// Allow arbitrary non-standard file extensions to be imported.
-    /// <https://www.typescriptlang.org/tsconfig/#allowArbitraryExtensions>
-    pub allow_arbitrary_extensions: Option<bool>,
-
-    /// Allow importing `.ts`, `.tsx`, `.mts`, `.cts` files directly.
-    /// <https://www.typescriptlang.org/tsconfig/#allowImportingTsExtensions>
-    pub allow_importing_ts_extensions: Option<bool>,
-
-    /// Module resolution strategy (e.g. `"node"`, `"classic"`, `"bundler"`, `"node16"`, `"nodenext"`).
-    /// <https://www.typescriptlang.org/tsconfig/#moduleResolution>
-    pub module_resolution: Option<String>,
-
-    /// Resolve `import ... from "./foo.json"` as modules.
-    /// <https://www.typescriptlang.org/tsconfig/#resolveJsonModule>
-    pub resolve_json_module: Option<bool>,
-
-    /// Use the `exports` field in package.json when resolving modules.
-    /// <https://www.typescriptlang.org/tsconfig/#resolvePackageJsonExports>
-    pub resolve_package_json_exports: Option<bool>,
-
-    /// Use the `imports` field in package.json when resolving modules.
-    /// <https://www.typescriptlang.org/tsconfig/#resolvePackageJsonImports>
-    pub resolve_package_json_imports: Option<bool>,
-
-    /// Extra condition strings to consider when resolving packages.
-    /// <https://www.typescriptlang.org/tsconfig/#customConditions>
-    pub custom_conditions: Option<Vec<String>>,
-
-    /// How to detect whether a file is a module (`"auto"`, `"legacy"`, `"force"`).
-    /// <https://www.typescriptlang.org/tsconfig/#moduleDetection>
-    pub module_detection: Option<String>,
-
-    /// Do not report errors on unreachable code.
-    /// <https://www.typescriptlang.org/tsconfig/#allowUnreachableCode>
-    pub allow_unreachable_code: Option<bool>,
-
-    /// Do not report errors on unused labels.
-    /// <https://www.typescriptlang.org/tsconfig/#allowUnusedLabels>
-    pub allow_unused_labels: Option<bool>,
-
-    /// Parse in strict mode and emit `"use strict"` for each source file.
-    /// <https://www.typescriptlang.org/tsconfig/#alwaysStrict>
-    pub always_strict: Option<bool>,
-
-    /// Interpret optional property types as written, not adding `undefined`.
-    /// <https://www.typescriptlang.org/tsconfig/#exactOptionalPropertyTypes>
-    pub exact_optional_property_types: Option<bool>,
-
-    /// Check for fallthrough cases in switch statements.
-    /// <https://www.typescriptlang.org/tsconfig/#noFallthroughCasesInSwitch>
-    pub no_fallthrough_cases_in_switch: Option<bool>,
-
-    /// Raise error on expressions and declarations with an implied `any` type.
-    /// <https://www.typescriptlang.org/tsconfig/#noImplicitAny>
-    pub no_implicit_any: Option<bool>,
-
-    /// Require `override` keyword when overriding class members.
-    /// <https://www.typescriptlang.org/tsconfig/#noImplicitOverride>
-    pub no_implicit_override: Option<bool>,
-
-    /// Report error when not all code paths in function return a value.
-    /// <https://www.typescriptlang.org/tsconfig/#noImplicitReturns>
-    pub no_implicit_returns: Option<bool>,
-
-    /// Raise error on `this` expressions with implied `any` type.
-    /// <https://www.typescriptlang.org/tsconfig/#noImplicitThis>
-    pub no_implicit_this: Option<bool>,
-
-    /// Enforce that indexed accesses are properly checked.
-    /// <https://www.typescriptlang.org/tsconfig/#noUncheckedIndexedAccess>
-    pub no_unchecked_indexed_access: Option<bool>,
-
-    /// Report errors on unused locals.
-    /// <https://www.typescriptlang.org/tsconfig/#noUnusedLocals>
-    pub no_unused_locals: Option<bool>,
-
-    /// Report errors on unused parameters.
-    /// <https://www.typescriptlang.org/tsconfig/#noUnusedParameters>
-    pub no_unused_parameters: Option<bool>,
-
-    /// Disallow property access from index signatures without explicit checks.
-    /// <https://www.typescriptlang.org/tsconfig/#noPropertyAccessFromIndexSignature>
-    pub no_property_access_from_index_signature: Option<bool>,
-
-    /// Enable all strict type-checking options.
-    /// <https://www.typescriptlang.org/tsconfig/#strict>
-    pub strict: Option<bool>,
-
-    /// Enable strict checking of `bind`, `call`, and `apply`.
-    /// <https://www.typescriptlang.org/tsconfig/#strictBindCallApply>
-    pub strict_bind_call_apply: Option<bool>,
-
-    /// Enable strict checking for built-in iterators.
-    /// <https://www.typescriptlang.org/tsconfig/#strictBuiltinIteratorReturn>
-    pub strict_builtin_iterator_return: Option<bool>,
-
-    /// Enable strict checking of function types.
-    /// <https://www.typescriptlang.org/tsconfig/#strictFunctionTypes>
-    pub strict_function_types: Option<bool>,
-
-    /// Enable strict null checks.
-    /// <https://www.typescriptlang.org/tsconfig/#strictNullChecks>
-    pub strict_null_checks: Option<bool>,
-
-    /// Enable strict checking of property initialization in classes.
-    /// <https://www.typescriptlang.org/tsconfig/#strictPropertyInitialization>
-    pub strict_property_initialization: Option<bool>,
-
-    /// Use `unknown` instead of `any` for `catch` clause variables.
-    /// <https://www.typescriptlang.org/tsconfig/#useUnknownInCatchVariables>
-    pub use_unknown_in_catch_variables: Option<bool>,
-
-    /// Experimental decorators (e.g. `true`)
-    /// <https://www.typescriptlang.org/tsconfig/#experimentalDecorators>
-    pub experimental_decorators: Option<bool>,
-
-    /// Emit decorator metadata (e.g. `true`)
-    /// <https://www.typescriptlang.org/tsconfig/#emitDecoratorMetadata>
-    pub emit_decorator_metadata: Option<bool>,
-
-    /// Use define semantics for class fields (e.g. `true`)
-    /// <https://www.typescriptlang.org/tsconfig/#useDefineForClassFields>
-    pub use_define_for_class_fields: Option<bool>,
-
-    /// Rewrite relative import extensions (e.g. `true`)
-    /// <https://www.typescriptlang.org/tsconfig/#rewriteRelativeImportExtensions>
-    pub rewrite_relative_import_extensions: Option<bool>,
-
-    /// JSX (e.g. `"react-jsx"`)
-    /// <https://www.typescriptlang.org/tsconfig/#jsx>
-    pub jsx: Option<String>,
-
-    /// JSX factory (e.g. `"React.createElement"`)
-    /// <https://www.typescriptlang.org/tsconfig/#jsxFactory>
-    pub jsx_factory: Option<String>,
-
-    /// JSX fragment factory (e.g. `"React.Fragment"`)
-    /// <https://www.typescriptlang.org/tsconfig/#jsxFragmentFactory>
-    pub jsx_fragment_factory: Option<String>,
-
-    /// JSX import source (e.g. `"react"`)
-    /// <https://www.typescriptlang.org/tsconfig/#jsxImportSource>
-    pub jsx_import_source: Option<String>,
-
-    /// Verbatim module syntax (e.g. `true`)
-    /// <https://www.typescriptlang.org/tsconfig/#verbatimModuleSyntax>
-    pub verbatim_module_syntax: Option<bool>,
-
-    /// Preserve value imports (e.g. `true`)
-    /// <https://www.typescriptlang.org/tsconfig/#preserveValueImports>
-    pub preserve_value_imports: Option<bool>,
-
-    /// Imports not used as values (e.g. `"error"`)
-    /// <https://www.typescriptlang.org/tsconfig/#importsNotUsedAsValues>
-    pub imports_not_used_as_values: Option<String>,
-
-    /// Target (e.g. `"ES2020"`)
-    /// <https://www.typescriptlang.org/tsconfig/#target>
-    pub target: Option<String>,
-
-    /// Module (e.g. `"ESNext"`, `"NodeNext"`, `"Preserve"`)
-    /// <https://www.typescriptlang.org/tsconfig/#module>
-    pub module: Option<String>,
-
-    /// Built-in library types to include (e.g. `["ES2020", "DOM"]`)
-    /// <https://www.typescriptlang.org/tsconfig/#lib>
-    pub lib: Option<Vec<String>>,
-
-    /// Whether to perform lib replacement (TS 5.7+).
-    /// <https://www.typescriptlang.org/tsconfig/#libReplacement>
-    pub lib_replacement: Option<bool>,
-
-    /// Do not include the default library declarations.
-    /// <https://www.typescriptlang.org/tsconfig/#noLib>
-    pub no_lib: Option<bool>,
-
-    /// Allow JavaScript files (e.g. `true`)
-    /// <https://www.typescriptlang.org/tsconfig/#allowJs>
-    pub allow_js: Option<bool>,
-
-    /// Enable type-checking of JavaScript files.
-    /// <https://www.typescriptlang.org/tsconfig/#checkJs>
-    pub check_js: Option<bool>,
-
-    /// Type roots (e.g. `["src/types"]`)
-    /// <https://www.typescriptlang.org/tsconfig/#typeRoots>
-    pub type_roots: Option<Vec<String>>,
-
-    /// Types (e.g. `["node"]`)
-    /// <https://www.typescriptlang.org/tsconfig/#types>
-    pub types: Option<Vec<String>>,
-
-    /// [Deprecated] Skip type checking of default library declaration files.
-    /// <https://www.typescriptlang.org/tsconfig/#skipDefaultLibCheck>
-    pub skip_default_lib_check: Option<bool>,
-
-    /// Skip type checking of declaration files.
-    /// <https://www.typescriptlang.org/tsconfig/#skipLibCheck>
-    pub skip_lib_check: Option<bool>,
-}
-
-/// Value for the "extends" field.
-///
-/// <https://www.typescriptlang.org/tsconfig/#extends>
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq)]
-#[serde(untagged)]
-pub enum TsConfigExtendsField {
-    /// Extend a single tsconfig.
-    Single(String),
-    /// Extend multiple tsconfigs.
-    Multiple(Vec<String>),
 }
 
 /// Project Reference
@@ -1367,6 +1031,342 @@ impl From<&TsConfigCompilerOptionsJson> for TsConfigCompilerOptions {
             check_js: json.check_js.unwrap_or(false),
         }
     }
+}
+
+/// TypeScript JSON (usually from `tsconfig.json`)
+/// <https://www.typescriptlang.org/tsconfig>
+#[derive(Debug, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct TsConfigJson {
+    /// Specific files to include in the project.
+    /// <https://www.typescriptlang.org/tsconfig/#files>
+    #[serde(default)]
+    pub files: Option<Vec<String>>,
+    /// Files to include in the project.
+    /// <https://www.typescriptlang.org/tsconfig/#include>
+    #[serde(default)]
+    pub include: Option<Vec<String>>,
+    /// Files to exclude from the project.
+    /// <https://www.typescriptlang.org/tsconfig/#exclude>
+    #[serde(default)]
+    pub exclude: Option<Vec<String>>,
+    /// Paths to other tsconfigs to extend.
+    /// <https://www.typescriptlang.org/tsconfig/#extends>
+    #[serde(default)]
+    pub extends: Option<TsConfigExtendsField>,
+    /// Compiler options.
+    /// <https://www.typescriptlang.org/tsconfig/#compilerOptions>
+    #[serde(default)]
+    pub compiler_options: TsConfigCompilerOptionsJson,
+    /// Bubbled up project references with a reference to their tsconfig.
+    /// <https://www.typescriptlang.org/tsconfig/#references>
+    #[serde(default)]
+    pub references: Vec<TsConfigProjectReferences>,
+}
+
+impl TsConfigJson {
+    /// Directory of the `tsconfig.json` file.
+    /// Returns any paths to tsconfigs that should be extended by this tsconfig.
+    pub fn extends(&self) -> impl Iterator<Item = &str> {
+        let specifiers = match &self.extends {
+            Some(TsConfigExtendsField::Single(specifier)) => {
+                vec![specifier.as_str()]
+            }
+            Some(TsConfigExtendsField::Multiple(specifiers)) => {
+                specifiers.iter().map(String::as_str).collect()
+            }
+            None => Vec::new(),
+        };
+        specifiers.into_iter()
+    }
+
+    /// Resolves the given `specifier` within the project configured by this tsconfig.
+    // <https://github.com/parcel-bundler/parcel/blob/b6224fd519f95e68d8b93ba90376fd94c8b76e69/packages/utils/node-resolver-rs/src/tsconfig.rs#L93>
+    pub(super) fn resolve_path_alias(&self, specifier: &str, paths_base: &Path) -> Vec<PathBuf> {
+        if specifier.starts_with('.') {
+            return Vec::new();
+        }
+
+        let compiler_options = &self.compiler_options;
+        let base_url_iter = compiler_options
+            .base_url
+            .as_ref()
+            .map_or_else(Vec::new, |base_url| {
+                vec![base_url.normalize_with(specifier)]
+            });
+
+        let Some(paths_map) = &compiler_options.paths else {
+            return base_url_iter;
+        };
+
+        let paths = paths_map.get(specifier).map_or_else(
+            || {
+                let mut longest_prefix_length = 0;
+                let mut longest_suffix_length = 0;
+                let mut best_key: Option<&String> = None;
+
+                for key in paths_map.keys() {
+                    if let Some((prefix, suffix)) = key.split_once('*')
+                        && (best_key.is_none() || prefix.len() > longest_prefix_length)
+                        && specifier.starts_with(prefix)
+                        && specifier.ends_with(suffix)
+                    {
+                        longest_prefix_length = prefix.len();
+                        longest_suffix_length = suffix.len();
+                        best_key.replace(key);
+                    }
+                }
+
+                best_key
+                    .and_then(|key| paths_map.get(key))
+                    .map_or_else(Vec::new, |paths| {
+                        paths
+                            .iter()
+                            .map(|path| {
+                                path.replace(
+                                    '*',
+                                    &specifier[longest_prefix_length
+                                        ..specifier.len() - longest_suffix_length],
+                                )
+                            })
+                            .collect::<Vec<_>>()
+                    })
+            },
+            Clone::clone,
+        );
+
+        paths
+            .into_iter()
+            .map(|p| paths_base.normalize_with(p))
+            .chain(base_url_iter)
+            .collect()
+    }
+}
+
+/// TypeScript compiler options.
+/// <https://www.typescriptlang.org/tsconfig#compilerOptions>
+#[derive(Debug, Default, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct TsConfigCompilerOptionsJson {
+    /// Base URL (e.g. `./src`)
+    /// <https://www.typescriptlang.org/tsconfig/#baseUrl>
+    pub base_url: Option<PathBuf>,
+
+    /// Path aliases (e.g. `{ "src/*": ["src/*"] }`)
+    /// <https://www.typescriptlang.org/tsconfig/#paths>
+    pub paths: Option<IndexMap<String, Vec<String>, BuildHasherDefault<FxHasher>>>,
+
+    /// Allow arbitrary non-standard file extensions to be imported.
+    /// <https://www.typescriptlang.org/tsconfig/#allowArbitraryExtensions>
+    pub allow_arbitrary_extensions: Option<bool>,
+
+    /// Allow importing `.ts`, `.tsx`, `.mts`, `.cts` files directly.
+    /// <https://www.typescriptlang.org/tsconfig/#allowImportingTsExtensions>
+    pub allow_importing_ts_extensions: Option<bool>,
+
+    /// Module resolution strategy (e.g. `"node"`, `"classic"`, `"bundler"`, `"node16"`, `"nodenext"`).
+    /// <https://www.typescriptlang.org/tsconfig/#moduleResolution>
+    pub module_resolution: Option<String>,
+
+    /// Resolve `import ... from "./foo.json"` as modules.
+    /// <https://www.typescriptlang.org/tsconfig/#resolveJsonModule>
+    pub resolve_json_module: Option<bool>,
+
+    /// Use the `exports` field in package.json when resolving modules.
+    /// <https://www.typescriptlang.org/tsconfig/#resolvePackageJsonExports>
+    pub resolve_package_json_exports: Option<bool>,
+
+    /// Use the `imports` field in package.json when resolving modules.
+    /// <https://www.typescriptlang.org/tsconfig/#resolvePackageJsonImports>
+    pub resolve_package_json_imports: Option<bool>,
+
+    /// Extra condition strings to consider when resolving packages.
+    /// <https://www.typescriptlang.org/tsconfig/#customConditions>
+    pub custom_conditions: Option<Vec<String>>,
+
+    /// How to detect whether a file is a module (`"auto"`, `"legacy"`, `"force"`).
+    /// <https://www.typescriptlang.org/tsconfig/#moduleDetection>
+    pub module_detection: Option<String>,
+
+    /// Do not report errors on unreachable code.
+    /// <https://www.typescriptlang.org/tsconfig/#allowUnreachableCode>
+    pub allow_unreachable_code: Option<bool>,
+
+    /// Do not report errors on unused labels.
+    /// <https://www.typescriptlang.org/tsconfig/#allowUnusedLabels>
+    pub allow_unused_labels: Option<bool>,
+
+    /// Parse in strict mode and emit `"use strict"` for each source file.
+    /// <https://www.typescriptlang.org/tsconfig/#alwaysStrict>
+    pub always_strict: Option<bool>,
+
+    /// Interpret optional property types as written, not adding `undefined`.
+    /// <https://www.typescriptlang.org/tsconfig/#exactOptionalPropertyTypes>
+    pub exact_optional_property_types: Option<bool>,
+
+    /// Check for fallthrough cases in switch statements.
+    /// <https://www.typescriptlang.org/tsconfig/#noFallthroughCasesInSwitch>
+    pub no_fallthrough_cases_in_switch: Option<bool>,
+
+    /// Raise error on expressions and declarations with an implied `any` type.
+    /// <https://www.typescriptlang.org/tsconfig/#noImplicitAny>
+    pub no_implicit_any: Option<bool>,
+
+    /// Require `override` keyword when overriding class members.
+    /// <https://www.typescriptlang.org/tsconfig/#noImplicitOverride>
+    pub no_implicit_override: Option<bool>,
+
+    /// Report error when not all code paths in function return a value.
+    /// <https://www.typescriptlang.org/tsconfig/#noImplicitReturns>
+    pub no_implicit_returns: Option<bool>,
+
+    /// Raise error on `this` expressions with implied `any` type.
+    /// <https://www.typescriptlang.org/tsconfig/#noImplicitThis>
+    pub no_implicit_this: Option<bool>,
+
+    /// Enforce that indexed accesses are properly checked.
+    /// <https://www.typescriptlang.org/tsconfig/#noUncheckedIndexedAccess>
+    pub no_unchecked_indexed_access: Option<bool>,
+
+    /// Report errors on unused locals.
+    /// <https://www.typescriptlang.org/tsconfig/#noUnusedLocals>
+    pub no_unused_locals: Option<bool>,
+
+    /// Report errors on unused parameters.
+    /// <https://www.typescriptlang.org/tsconfig/#noUnusedParameters>
+    pub no_unused_parameters: Option<bool>,
+
+    /// Disallow property access from index signatures without explicit checks.
+    /// <https://www.typescriptlang.org/tsconfig/#noPropertyAccessFromIndexSignature>
+    pub no_property_access_from_index_signature: Option<bool>,
+
+    /// Enable all strict type-checking options.
+    /// <https://www.typescriptlang.org/tsconfig/#strict>
+    pub strict: Option<bool>,
+
+    /// Enable strict checking of `bind`, `call`, and `apply`.
+    /// <https://www.typescriptlang.org/tsconfig/#strictBindCallApply>
+    pub strict_bind_call_apply: Option<bool>,
+
+    /// Enable strict checking for built-in iterators.
+    /// <https://www.typescriptlang.org/tsconfig/#strictBuiltinIteratorReturn>
+    pub strict_builtin_iterator_return: Option<bool>,
+
+    /// Enable strict checking of function types.
+    /// <https://www.typescriptlang.org/tsconfig/#strictFunctionTypes>
+    pub strict_function_types: Option<bool>,
+
+    /// Enable strict null checks.
+    /// <https://www.typescriptlang.org/tsconfig/#strictNullChecks>
+    pub strict_null_checks: Option<bool>,
+
+    /// Enable strict checking of property initialization in classes.
+    /// <https://www.typescriptlang.org/tsconfig/#strictPropertyInitialization>
+    pub strict_property_initialization: Option<bool>,
+
+    /// Use `unknown` instead of `any` for `catch` clause variables.
+    /// <https://www.typescriptlang.org/tsconfig/#useUnknownInCatchVariables>
+    pub use_unknown_in_catch_variables: Option<bool>,
+
+    /// Experimental decorators (e.g. `true`)
+    /// <https://www.typescriptlang.org/tsconfig/#experimentalDecorators>
+    pub experimental_decorators: Option<bool>,
+
+    /// Emit decorator metadata (e.g. `true`)
+    /// <https://www.typescriptlang.org/tsconfig/#emitDecoratorMetadata>
+    pub emit_decorator_metadata: Option<bool>,
+
+    /// Use define semantics for class fields (e.g. `true`)
+    /// <https://www.typescriptlang.org/tsconfig/#useDefineForClassFields>
+    pub use_define_for_class_fields: Option<bool>,
+
+    /// Rewrite relative import extensions (e.g. `true`)
+    /// <https://www.typescriptlang.org/tsconfig/#rewriteRelativeImportExtensions>
+    pub rewrite_relative_import_extensions: Option<bool>,
+
+    /// JSX (e.g. `"react-jsx"`)
+    /// <https://www.typescriptlang.org/tsconfig/#jsx>
+    pub jsx: Option<String>,
+
+    /// JSX factory (e.g. `"React.createElement"`)
+    /// <https://www.typescriptlang.org/tsconfig/#jsxFactory>
+    pub jsx_factory: Option<String>,
+
+    /// JSX fragment factory (e.g. `"React.Fragment"`)
+    /// <https://www.typescriptlang.org/tsconfig/#jsxFragmentFactory>
+    pub jsx_fragment_factory: Option<String>,
+
+    /// JSX import source (e.g. `"react"`)
+    /// <https://www.typescriptlang.org/tsconfig/#jsxImportSource>
+    pub jsx_import_source: Option<String>,
+
+    /// Verbatim module syntax (e.g. `true`)
+    /// <https://www.typescriptlang.org/tsconfig/#verbatimModuleSyntax>
+    pub verbatim_module_syntax: Option<bool>,
+
+    /// Preserve value imports (e.g. `true`)
+    /// <https://www.typescriptlang.org/tsconfig/#preserveValueImports>
+    pub preserve_value_imports: Option<bool>,
+
+    /// Imports not used as values (e.g. `"error"`)
+    /// <https://www.typescriptlang.org/tsconfig/#importsNotUsedAsValues>
+    pub imports_not_used_as_values: Option<String>,
+
+    /// Target (e.g. `"ES2020"`)
+    /// <https://www.typescriptlang.org/tsconfig/#target>
+    pub target: Option<String>,
+
+    /// Module (e.g. `"ESNext"`, `"NodeNext"`, `"Preserve"`)
+    /// <https://www.typescriptlang.org/tsconfig/#module>
+    pub module: Option<String>,
+
+    /// Built-in library types to include (e.g. `["ES2020", "DOM"]`)
+    /// <https://www.typescriptlang.org/tsconfig/#lib>
+    pub lib: Option<Vec<String>>,
+
+    /// Whether to perform lib replacement (TS 5.7+).
+    /// <https://www.typescriptlang.org/tsconfig/#libReplacement>
+    pub lib_replacement: Option<bool>,
+
+    /// Do not include the default library declarations.
+    /// <https://www.typescriptlang.org/tsconfig/#noLib>
+    pub no_lib: Option<bool>,
+
+    /// Allow JavaScript files (e.g. `true`)
+    /// <https://www.typescriptlang.org/tsconfig/#allowJs>
+    pub allow_js: Option<bool>,
+
+    /// Enable type-checking of JavaScript files.
+    /// <https://www.typescriptlang.org/tsconfig/#checkJs>
+    pub check_js: Option<bool>,
+
+    /// Type roots (e.g. `["src/types"]`)
+    /// <https://www.typescriptlang.org/tsconfig/#typeRoots>
+    pub type_roots: Option<Vec<String>>,
+
+    /// Types (e.g. `["node"]`)
+    /// <https://www.typescriptlang.org/tsconfig/#types>
+    pub types: Option<Vec<String>>,
+
+    /// [Deprecated] Skip type checking of default library declaration files.
+    /// <https://www.typescriptlang.org/tsconfig/#skipDefaultLibCheck>
+    pub skip_default_lib_check: Option<bool>,
+
+    /// Skip type checking of declaration files.
+    /// <https://www.typescriptlang.org/tsconfig/#skipLibCheck>
+    pub skip_lib_check: Option<bool>,
+}
+
+/// Value for the "extends" field.
+///
+/// <https://www.typescriptlang.org/tsconfig/#extends>
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq)]
+#[serde(untagged)]
+pub enum TsConfigExtendsField {
+    /// Extend a single tsconfig.
+    Single(String),
+    /// Extend multiple tsconfigs.
+    Multiple(Vec<String>),
 }
 
 #[cfg(test)]
