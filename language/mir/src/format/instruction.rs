@@ -259,7 +259,13 @@ fn format_function_reference<'a>(
 ) -> FormatResult<()> {
     match reference {
         FunctionReference::Local(func_id) => {
-            write!(f, [text(&format!("@function{}", func_id.id))])
+            let func = f.context().tree.get(*func_id);
+            let name = f.context().strings.get(func.name);
+            write!(f, [token("@"), text(name)])
+        }
+        FunctionReference::UnresolvedGlobal(name_id) => {
+            let name = f.context().strings.get(*name_id);
+            write!(f, [token("@"), text(name)])
         }
         FunctionReference::Global(sym_id) => {
             write!(f, [text(&format!("@global({sym_id:?})"))])

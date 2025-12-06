@@ -1,12 +1,11 @@
 //! MIR tree dumper for debugging and visualization.
 
-use destack_source::Color;
-
 use crate::{
     BinaryOperator, Block, CastKind, Constant, Function, FunctionReference, Instruction, Local,
     LocalNodeId, Mutability, NodeTree, NodeVisitor, NodeVisitorOptions, Ownership, SwitchCase,
     Terminator, Type, UnaryOperator, Value,
 };
+use destack_source::{Color, StringPool};
 
 /// Options for the MIR dumper.
 #[derive(Debug, Clone, Copy)]
@@ -29,18 +28,26 @@ impl Default for DumperOptions {
 /// A dumper for MIR trees.
 #[derive(Debug)]
 pub struct Dumper<'a> {
+    /// The node tree.
     tree: &'a NodeTree,
+    /// The string pool.
+    strings: &'a StringPool,
+    /// The dump options.
     options: DumperOptions,
+    /// The visitor options.
     visitor_options: NodeVisitorOptions,
+    /// The buffer we're writing to.
     buffer: String,
+    /// The current indent level.
     indent: usize,
 }
 
 impl<'a> Dumper<'a> {
     /// Create a new dumper.
-    pub fn new(tree: &'a NodeTree, options: DumperOptions) -> Self {
+    pub fn new(tree: &'a NodeTree, strings: &'a StringPool, options: DumperOptions) -> Self {
         Self {
             tree,
+            strings,
             options,
             visitor_options: NodeVisitorOptions::default(),
             buffer: String::new(),
@@ -361,7 +368,11 @@ impl<'a> Dumper<'a> {
                 self.write("call ");
                 match function {
                     FunctionReference::Local(id) => {
-                        self.write(&format!("@func{}", id.id));
+                        self.write(&format!("@function{}", id.id));
+                    }
+                    FunctionReference::UnresolvedGlobal(name_id) => {
+                        let name = self.strings.get(*name_id).to_string();
+                        self.write(&format!("@unresolved({name})"));
                     }
                     FunctionReference::Global(id) => {
                         self.write(&format!("@global({id:?})"));
@@ -626,11 +637,4 @@ impl<'a> NodeVisitor for Dumper<'a> {
     fn visit_type(&mut self, _tree: &NodeTree, _id: LocalNodeId<Type>, _ty: &Type) {
         // nothing to do
     }
-}
-
-/// Dump an MIR tree to a string.
-pub fn dump(tree: &NodeTree) -> String {
-    let mut dumper = Dumper::new(tree, DumperOptions::default());
-    dumper.dump_all();
-    dumper.finish()
 }

@@ -3,8 +3,9 @@
 use std::collections::HashMap;
 
 use crate::{
-    BinaryOperator, Block, CastKind, Constant, Function, Instruction, Local, LocalNodeId,
-    Mutability, NodeTree, Ownership, Terminator, Type, TypedValue, UnaryOperator, Value,
+    BinaryOperator, Block, CastKind, Constant, Function, FunctionReference, Instruction, Local,
+    LocalNodeId, Mutability, NodeTree, Ownership, SwitchCase, Terminator, Type, TypedValue,
+    UnaryOperator, Value,
 };
 use destack_source::{ImmutableStringPool, StringPool};
 
@@ -113,7 +114,7 @@ impl<'a> Parser<'a> {
     }
 
     /// Consume a token if it matches, returning true if consumed.
-    fn consume(&mut self, ty: TokenType) -> bool {
+    fn eat_token_maybe(&mut self, ty: TokenType) -> bool {
         if self.peek_token(ty) {
             self.bump();
             true
@@ -227,7 +228,7 @@ impl<'a> Parser<'a> {
         let mut ownership = Ownership::Owned;
         let mut mutability = Mutability::Immutable;
 
-        if self.consume(TokenType::Semicolon) {
+        if self.eat_token_maybe(TokenType::Semicolon) {
             // ownership
             if self.peek_token(TokenType::Ownership) {
                 let text = self.span_str();
@@ -240,7 +241,7 @@ impl<'a> Parser<'a> {
                 self.bump();
             }
             // mutability
-            if self.consume(TokenType::Comma) && self.consume(TokenType::Var) {
+            if self.eat_token_maybe(TokenType::Comma) && self.eat_token_maybe(TokenType::Var) {
                 mutability = Mutability::Mutable;
             }
         }
@@ -259,7 +260,7 @@ impl<'a> Parser<'a> {
             .ok_or_else(|| ParseError::invalid("block reference", block_token.start))?;
 
         // parameters
-        let parameters = if self.consume(TokenType::OpenParen) {
+        let parameters = if self.eat_token_maybe(TokenType::OpenParen) {
             let params = self.parse_typed_value_list()?;
             self.eat_token(TokenType::CloseParen)?;
             params
@@ -492,15 +493,23 @@ impl<'a> Parser<'a> {
             }
 
             // function calls
-            // nocheckin: TODO: handle properly with function references
             "call" => {
-                return Err(ParseError::new("call not yet supported", opcode.start));
+                let function = self.parse_function_reference()?;
+                let arguments = self.parse_call_arguments()?;
+                Instruction::Call {
+                    destination: Some(destination),
+                    function,
+                    arguments,
+                }
             }
             "call_indirect" => {
-                return Err(ParseError::new(
-                    "call_indirect not yet supported",
-                    opcode.start,
-                ));
+                let callee = self.parse_value()?;
+                let arguments = self.parse_call_arguments()?;
+                Instruction::CallIndirect {
+                    destination: Some(destination),
+                    callee,
+                    arguments,
+                }
             }
 
             _ => {
@@ -534,7 +543,7 @@ impl<'a> Parser<'a> {
             TokenType::Jump => {
                 self.bump();
                 let target = self.parse_block_ref()?;
-                let arguments = if self.consume(TokenType::OpenParen) {
+                let arguments = if self.eat_token_maybe(TokenType::OpenParen) {
                     let args = self.parse_value_list()?;
                     self.eat_token(TokenType::CloseParen)?;
                     args
@@ -549,7 +558,7 @@ impl<'a> Parser<'a> {
                 let condition = self.parse_value()?;
                 self.eat_token(TokenType::Comma)?;
                 let then_target = self.parse_block_ref()?;
-                let then_arguments = if self.consume(TokenType::OpenParen) {
+                let then_arguments = if self.eat_token_maybe(TokenType::OpenParen) {
                     let args = self.parse_value_list()?;
                     self.eat_token(TokenType::CloseParen)?;
                     args
@@ -558,7 +567,7 @@ impl<'a> Parser<'a> {
                 };
                 self.eat_token(TokenType::Comma)?;
                 let else_target = self.parse_block_ref()?;
-                let else_arguments = if self.consume(TokenType::OpenParen) {
+                let else_arguments = if self.eat_token_maybe(TokenType::OpenParen) {
                     let args = self.parse_value_list()?;
                     self.eat_token(TokenType::CloseParen)?;
                     args
@@ -575,10 +584,44 @@ impl<'a> Parser<'a> {
             }
 
             TokenType::Switch => {
-                let start = token.start;
                 self.bump();
-                // nocheckin: TODO: implement switch parsing
-                Err(ParseError::new("switch not yet supported", start))
+                let value = self.parse_value()?;
+                self.eat_token(TokenType::Comma)?;
+                let default = self.parse_block_ref()?;
+                let default_arguments = if self.eat_token_maybe(TokenType::OpenParen) {
+                    let args = self.parse_value_list()?;
+                    self.eat_token(TokenType::CloseParen)?;
+                    args
+                } else {
+                    Vec::new()
+                };
+
+                // parse cases: value => blockN(args), ...
+                let mut cases = Vec::new();
+                while self.eat_token_maybe(TokenType::Comma) {
+                    let case_value = self.parse_int_literal()?;
+                    self.eat_token(TokenType::FatArrow)?;
+                    let target = self.parse_block_ref()?;
+                    let arguments = if self.eat_token_maybe(TokenType::OpenParen) {
+                        let args = self.parse_value_list()?;
+                        self.eat_token(TokenType::CloseParen)?;
+                        args
+                    } else {
+                        Vec::new()
+                    };
+                    cases.push(SwitchCase {
+                        value: case_value,
+                        target,
+                        arguments,
+                    });
+                }
+
+                Ok(Terminator::Switch {
+                    value,
+                    default,
+                    default_arguments,
+                    cases,
+                })
             }
 
             TokenType::Unreachable => {
@@ -634,7 +677,7 @@ impl<'a> Parser<'a> {
                 let mut elements = Vec::new();
                 while !self.peek_token(TokenType::CloseParen) {
                     elements.push(self.parse_type()?);
-                    if !self.consume(TokenType::Comma) {
+                    if !self.eat_token_maybe(TokenType::Comma) {
                         break;
                     }
                 }
@@ -647,7 +690,7 @@ impl<'a> Parser<'a> {
                 let mut parameters = Vec::new();
                 while !self.peek_token(TokenType::CloseParen) {
                     parameters.push(self.parse_type()?);
-                    if !self.consume(TokenType::Comma) {
+                    if !self.eat_token_maybe(TokenType::Comma) {
                         break;
                     }
                 }
@@ -705,12 +748,29 @@ impl<'a> Parser<'a> {
         Ok(LocalNodeId::new(idx))
     }
 
+    /// Parse a function reference (@name).
+    fn parse_function_reference(&mut self) -> ParseResult<FunctionReference> {
+        self.eat_token(TokenType::At)?;
+        let name_token = self.eat_token(TokenType::Identifier)?;
+        let name = name_token.text;
+        let name_id = self.strings.intern(name);
+        Ok(FunctionReference::UnresolvedGlobal(name_id))
+    }
+
+    /// Parse call arguments: (v0, v1, ...).
+    fn parse_call_arguments(&mut self) -> ParseResult<Vec<Value>> {
+        self.eat_token(TokenType::OpenParen)?;
+        let args = self.parse_value_list()?;
+        self.eat_token(TokenType::CloseParen)?;
+        Ok(args)
+    }
+
     /// Parse a comma-separated list of values.
     fn parse_value_list(&mut self) -> ParseResult<Vec<Value>> {
         let mut values = Vec::new();
         while self.peek_token(TokenType::Value) {
             values.push(self.parse_value()?);
-            if !self.consume(TokenType::Comma) {
+            if !self.eat_token_maybe(TokenType::Comma) {
                 break;
             }
         }
@@ -725,7 +785,7 @@ impl<'a> Parser<'a> {
             self.eat_token(TokenType::Colon)?;
             let ty = self.parse_type()?;
             values.push(TypedValue::new(value, ty));
-            if !self.consume(TokenType::Comma) {
+            if !self.eat_token_maybe(TokenType::Comma) {
                 break;
             }
         }
