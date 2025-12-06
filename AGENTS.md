@@ -47,8 +47,8 @@ Booleans should start with `is_` unless already clear.
 
 ### Logic
 
-Long methods are allowed if the logic isn't extractable.
-Prefer pure(ish) functions.
+Long methods are allowed if the logic isn't meaningfully extractable.
+Prefer pure(ish) functions, pass in context explicitly when needed (usually as the last argument).
 Break larger code blocks into logical chunks with whitespace and/or preamble comments.
 
 For exhaustive matching, prefer if/else over match.
@@ -64,7 +64,7 @@ let number = 10 * first_digit + second_digit;
 
 ### Dependencies
 
-Fewer dependencies is better.
+Fewer dependencies is better, but sometimes it's worth it.
 When simple logic is needed, we just implement it ourselves.
 Moderately complex logic is sometimes vendored.
 Complex or dev-only dependencies are sometimes okay.
@@ -98,6 +98,9 @@ Toolchain: `nightly-2025-11-27` (see `rust-toolchain.toml`)
 - Inline variables in format macros if possible: `format!("name is {name}")`
 - Prefer multiline raw strings for longer strings
 - Prefer using `--release` for build, test, check, etc. (it's faster)
+- Just use `pub use submodule::*` for public exports, we use `pub` properly
+- Relatedly, we like to just use `use crate::x` directly (when possible)
+
 
 ## Commands
 

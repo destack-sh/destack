@@ -9,7 +9,7 @@ use super::Variable;
 
 /// Builder for constructing a single MIR function with automatic SSA construction.
 ///
-/// Implements the algorithm from 
+/// Implements the algorithm from
 ///  - "Simple and Efficient Construction of Static Single Assignment Form" (Braun et al., 2013)
 ///    <https://c9x.me/compile/bib/braun13cc.pdf>
 ///  - Cranelift (<https://github.com/bytecodealliance/wasmtime/tree/main/cranelift>)
@@ -87,7 +87,7 @@ impl<'a> FunctionBuilder<'a> {
         // placeholder entry block id (will be set in finish())
         let placeholder_entry = LocalNodeId::new(u32::MAX);
 
-		// blank function
+        // blank function
         let function = Function {
             name,
             parameters,
