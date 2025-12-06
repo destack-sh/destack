@@ -4,12 +4,10 @@ use std::sync::Arc;
 use cranelift_codegen::isa::TargetIsa;
 use cranelift_codegen::settings::{self, Configurable};
 use destack_codegen_lib::CodegenBackend;
-use destack_mir::NodeTree;
-use destack_source::ImmutableStringPool;
-use destack_workspace::{OutputFormat, Target};
+use destack_workspace::{ModuleMir, OutputFormat, Target};
 use target_lexicon::Triple;
 
-use crate::CraneliftError;
+use super::CraneliftError;
 use crate::lower::ModuleLowerer;
 
 /// Cranelift-based code generation backend.
@@ -19,6 +17,7 @@ pub struct CraneliftCodegenBackend {
     /// The target ISA configuration.
     isa: Arc<dyn TargetIsa>,
     /// Whether to include debug info.
+    #[allow(dead_code)]
     debug: bool,
 }
 
@@ -109,31 +108,28 @@ impl CraneliftCodegenBackend {
         self.isa.as_ref()
     }
 
+    /// Get the pointer byte size for this target.
+    pub fn pointer_size_bytes(&self) -> u8 {
+        self.isa.pointer_bytes()
+    }
+
     /// Compile a MIR module to bytes.
     ///
     /// For WASM targets, returns a `.wasm` module.
     /// For native targets, returns an object file.
-    pub fn compile_module(
-        &self,
-        tree: &NodeTree,
-        strings: &ImmutableStringPool,
-    ) -> Result<Vec<u8>, CraneliftError> {
-        let mut context = ModuleLowerer::new(self.isa.as_ref(), strings);
-        context.lower_module(tree)?;
-        context.finish()
+    pub fn compile_module(&self, module: &ModuleMir) -> Result<Vec<u8>, CraneliftError> {
+        let tree = module.tree.read();
+        let mut lowerer = ModuleLowerer::new(self.isa.as_ref(), &module.strings);
+        lowerer.lower_module(&tree)?;
+        lowerer.finish()
     }
 
     /// Compile a MIR module and return Cranelift IR text format.
-    ///
-    /// Useful for debugging and testing.
-    pub fn compile_to_clif(
-        &self,
-        tree: &NodeTree,
-        strings: &ImmutableStringPool,
-    ) -> Result<String, CraneliftError> {
-        let mut context = ModuleLowerer::new(self.isa.as_ref(), strings);
-        context.lower_module(tree)?;
-        context.to_clif_string()
+    pub fn compile_to_clif(&self, module: &ModuleMir) -> Result<String, CraneliftError> {
+        let tree = module.tree.read();
+        let mut lowerer = ModuleLowerer::new(self.isa.as_ref(), &module.strings);
+        lowerer.lower_module(&tree)?;
+        lowerer.as_clif_string()
     }
 }
 
@@ -141,11 +137,7 @@ impl CodegenBackend for CraneliftCodegenBackend {
     type Output = Vec<u8>;
     type Error = CraneliftError;
 
-    fn compile_module(
-        &self,
-        tree: &NodeTree,
-        strings: &ImmutableStringPool,
-    ) -> Result<Self::Output, Self::Error> {
-        CraneliftCodegenBackend::compile_module(self, tree, strings)
+    fn compile(&self, module: &ModuleMir) -> Result<Self::Output, Self::Error> {
+        self.compile_module(module)
     }
 }

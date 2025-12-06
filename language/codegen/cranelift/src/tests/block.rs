@@ -1,131 +1,149 @@
-use destack_mir::ModuleBuilder;
+use super::compile_mir_to_normalized_clif;
 
-use crate::CraneliftCodegenBackend;
-
-/// Test conditional branch.
+/// Conditional branch selects between two target blocks.
+/// The MIR branch becomes a brif instruction in CLIF.
 #[test]
 fn test_conditional_branch() {
-    let mut module = ModuleBuilder::new();
-    let bool_type = module.type_bool();
-    let i32_type = module.type_i32();
+    let mir = r#"
+function @select(v0: bool) -> i32 {
+block0:
+    branch v0, block1, block2
 
-    let mut builder = module.function("select", &[bool_type], i32_type);
+block1:
+    v1 = iconst 1i32
+    return v1
 
-    let entry = builder.create_block();
-    let then_block = builder.create_block();
-    let else_block = builder.create_block();
+block2:
+    v2 = iconst 0i32
+    return v2
+}
+"#;
+    let clif = compile_mir_to_normalized_clif(mir);
 
-    builder.switch_to_block(entry);
-    let condition = builder.function_parameter(0);
-    builder.branch(condition, then_block, else_block);
-    builder.seal_block(entry);
+    let expected = r#"
+function u0:0(i8) -> i32 native {
+block0(v0: i8):
+    brif v0, block1, block2
 
-    builder.switch_to_block(then_block);
-    let one = builder.iconst_i32(1);
-    builder.return_(Some(one));
-    builder.seal_block(then_block);
+block1:
+    v1 = iconst.i32 1
+    return v1
 
-    builder.switch_to_block(else_block);
-    let zero = builder.iconst_i32(0);
-    builder.return_(Some(zero));
-    builder.seal_block(else_block);
-
-    builder.finish();
-
-    let (tree, strings) = module.finish();
-
-    let backend = CraneliftCodegenBackend::native().expect("failed to create backend");
-    let clif = backend
-        .compile_to_clif(&tree, &strings)
-        .expect("failed to compile");
-
-    // should have brif instruction
-    assert!(clif.contains("brif"));
+block2:
+    v2 = iconst.i32 0
+    return v2
+}"#
+    .trim();
+    assert_eq!(clif, expected);
 }
 
-/// Test unconditional jump.
+/// Unconditional jump transfers control to a single target.
+/// The MIR jump becomes a CLIF jump instruction.
 #[test]
 fn test_unconditional_jump() {
-    let mut module = ModuleBuilder::new();
-    let i32_type = module.type_i32();
+    let mir = r#"
+function @jump_test() -> i32 {
 
-    let mut builder = module.function("jump_test", &[], i32_type);
+block0:
+    jump block1
 
-    let entry = builder.create_block();
-    let target = builder.create_block();
+block1:
+    v0 = iconst 42i32
+    return v0
+}
+"#;
+    let clif = compile_mir_to_normalized_clif(mir);
 
-    builder.switch_to_block(entry);
-    builder.jump(target);
-    builder.seal_block(entry);
+    let expected = r#"
+function u0:0() -> i32 native {
+block0:
+    jump block1
 
-    builder.switch_to_block(target);
-    let result = builder.iconst_i32(42);
-    builder.return_(Some(result));
-    builder.seal_block(target);
-
-    builder.finish();
-
-    let (tree, strings) = module.finish();
-
-    let backend = CraneliftCodegenBackend::native().expect("failed to create backend");
-    let clif = backend
-        .compile_to_clif(&tree, &strings)
-        .expect("failed to compile");
-
-    // should have jump instruction
-    assert!(clif.contains("jump"));
+block1:
+    v0 = iconst.i32 42
+    return v0
+}"#
+    .trim();
+    assert_eq!(clif, expected);
 }
 
-/// Test block parameters (phi equivalent).
+/// Block parameters implement phi nodes for control flow merges.
+/// Values are passed as arguments when jumping to a block with parameters.
+/// Cranelift may renumber values, so v1/v2 in MIR may become v2/v3 in CLIF.
 #[test]
 fn test_block_parameters() {
-    let mut module = ModuleBuilder::new();
-    let bool_type = module.type_bool();
-    let i32_type = module.type_i32();
+    let mir = r#"
+function @phi_test(v0: bool) -> i32 {
+block0:
+    branch v0, block1, block2
+block1:
+    v1 = iconst 10i32
+    jump block3(v1)
+block2:
+    v2 = iconst 20i32
+    jump block3(v2)
+block3(v3: i32):
+    return v3
+}
+"#;
+    let clif = compile_mir_to_normalized_clif(mir);
 
-    let mut builder = module.function("phi_test", &[bool_type], i32_type);
+    let expected = r#"
+function u0:0(i8) -> i32 native {
+block0(v0: i8):
+    brif v0, block1, block2
 
-    let entry = builder.create_block();
-    let then_block = builder.create_block();
-    let else_block = builder.create_block();
-    let merge_block = builder.create_block();
+block1:
+    v2 = iconst.i32 10
+    jump block3(v2)
 
-    // create variable for SSA
-    let var = builder.create_variable(i32_type);
+block2:
+    v3 = iconst.i32 20
+    jump block3(v3)
 
-    builder.switch_to_block(entry);
-    let condition = builder.function_parameter(0);
-    let initial = builder.iconst_i32(0);
-    builder.define_variable(var, initial);
-    builder.branch(condition, then_block, else_block);
-    builder.seal_block(entry);
+block3(v1: i32):
+    return v1
+}"#
+    .trim();
+    assert_eq!(clif, expected);
+}
 
-    builder.switch_to_block(then_block);
-    let then_val = builder.iconst_i32(10);
-    builder.define_variable(var, then_val);
-    builder.jump(merge_block);
-    builder.seal_block(then_block);
+/// Values defined in one block can be used in later blocks.
+#[test]
+fn test_sequential_blocks() {
+    let mir = r#"
+function @sequential() -> i32 {
+block0:
+    v0 = iconst 1i32
+    jump block1
+block1:
+    v1 = iconst 2i32
+    v2 = iadd v0, v1
+    jump block2
+block2:
+    v3 = iconst 3i32
+    v4 = iadd v2, v3
+    return v4
+}
+"#;
+    let clif = compile_mir_to_normalized_clif(mir);
 
-    builder.switch_to_block(else_block);
-    let else_val = builder.iconst_i32(20);
-    builder.define_variable(var, else_val);
-    builder.jump(merge_block);
-    builder.seal_block(else_block);
+    let expected = r#"
+function u0:0() -> i32 native {
+block0:
+    v0 = iconst.i32 1
+    jump block1
 
-    builder.switch_to_block(merge_block);
-    let result = builder.use_variable(var);
-    builder.return_(Some(result));
-    builder.seal_block(merge_block);
+block1:
+    v1 = iconst.i32 2
+    v2 = iadd.i32 v0, v1
+    jump block2
 
-    builder.finish();
-
-    let (tree, strings) = module.finish();
-
-    let backend = CraneliftCodegenBackend::native().expect("failed to create backend");
-    let clif = backend
-        .compile_to_clif(&tree, &strings)
-        .expect("failed to compile");
-
-    // the merge block should have block parameters
-    assert!(clif.contains("block"));
+block2:
+    v3 = iconst.i32 3
+    v4 = iadd.i32 v2, v3
+    return v4
+}"#
+    .trim();
+    assert_eq!(clif, expected);
 }

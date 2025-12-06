@@ -1,5 +1,4 @@
-use destack_mir::NodeTree;
-use destack_source::ImmutableStringPool;
+use destack_workspace::ModuleMir;
 
 /// Trait for code generation backends.
 ///
@@ -13,9 +12,5 @@ pub trait CodegenBackend {
     type Error: std::error::Error;
 
     /// Compile a MIR module to the backend's output format.
-    fn compile_module(
-        &self,
-        tree: &NodeTree,
-        strings: &ImmutableStringPool,
-    ) -> Result<Self::Output, Self::Error>;
+    fn compile(&self, module: &ModuleMir) -> Result<Self::Output, Self::Error>;
 }

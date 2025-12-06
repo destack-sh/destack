@@ -3,6 +3,8 @@
 use std::fmt::{Debug, Formatter};
 use std::marker::PhantomData;
 
+use destack_source::ModuleId;
+
 /// The type of a MIR node.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum NodeType {
@@ -181,6 +183,140 @@ impl<T: Node> LocalNodeId<T> {
     #[inline]
     pub fn get(&self) -> usize {
         self.id as usize
+    }
+
+    /// Turn into a GlobalNodeId.
+    #[inline]
+    pub fn into_global(self, module_id: ModuleId) -> GlobalNodeId<T> {
+        GlobalNodeId {
+            module_id,
+            local_id: self,
+        }
+    }
+
+    /// Turn into a GlobalNodeIdAny.
+    #[inline]
+    pub fn into_global_any(self, module_id: ModuleId) -> GlobalNodeIdAny {
+        GlobalNodeIdAny {
+            module_id,
+            local_id: self.into_any(),
+        }
+    }
+}
+
+/// Global node id across modules.
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct GlobalNodeId<T: Node> {
+    /// The module id of the global node.
+    pub module_id: ModuleId,
+    /// The local id of the global node.
+    pub local_id: LocalNodeId<T>,
+}
+
+impl<T: Node> GlobalNodeId<T> {
+    /// Create a new global node id.
+    pub fn new(module_id: ModuleId, local_id: LocalNodeId<T>) -> Self {
+        Self {
+            module_id,
+            local_id,
+        }
+    }
+
+    /// Turn into a GlobalNodeIdAny.
+    #[inline]
+    pub fn into_any(self) -> GlobalNodeIdAny {
+        GlobalNodeIdAny {
+            module_id: self.module_id,
+            local_id: self.local_id.into_any(),
+        }
+    }
+}
+
+impl<T: Node> Debug for GlobalNodeId<T> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("GlobalNodeId")
+            .field("module_id", &self.module_id)
+            .field("local_id", &self.local_id)
+            .finish()
+    }
+}
+
+impl<T: Node> From<GlobalNodeId<T>> for LocalNodeId<T> {
+    fn from(id: GlobalNodeId<T>) -> Self {
+        id.local_id
+    }
+}
+
+/// Global node id across modules (untyped).
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct GlobalNodeIdAny {
+    /// The module id of the global node.
+    pub module_id: ModuleId,
+    /// The local id of the global node.
+    pub local_id: LocalNodeIdAny,
+}
+
+impl GlobalNodeIdAny {
+    /// Create a new global node id.
+    pub fn new(module_id: ModuleId, local_id: LocalNodeIdAny) -> Self {
+        Self {
+            module_id,
+            local_id,
+        }
+    }
+
+    /// Turn into a typed global node id.
+    pub fn try_into_typed<T: Node>(self) -> Result<GlobalNodeId<T>, String> {
+        if self.local_id.ty != T::TYPE {
+            return Err(format!(
+                "expected {}, got {} for {}/{}",
+                T::TYPE.name(),
+                self.local_id.ty.name(),
+                self.module_id,
+                self.local_id.id
+            ));
+        }
+        Ok(GlobalNodeId {
+            module_id: self.module_id,
+            local_id: LocalNodeId::new(self.local_id.id),
+        })
+    }
+
+    /// Turn into a typed global node id.
+    pub fn into_typed<T: Node>(self) -> GlobalNodeId<T> {
+        self.try_into_typed().unwrap()
+    }
+}
+
+impl Debug for GlobalNodeIdAny {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("GlobalNodeIdAny")
+            .field("module_id", &self.module_id)
+            .field("local_id", &self.local_id)
+            .finish()
+    }
+}
+
+impl<T: Node> From<GlobalNodeId<T>> for GlobalNodeIdAny {
+    fn from(id: GlobalNodeId<T>) -> Self {
+        Self {
+            module_id: id.module_id,
+            local_id: id.local_id.into_any(),
+        }
+    }
+}
+
+impl<T: Node> TryFrom<GlobalNodeIdAny> for GlobalNodeId<T> {
+    type Error = String;
+
+    fn try_from(id: GlobalNodeIdAny) -> Result<Self, Self::Error> {
+        id.try_into_typed()
+    }
+}
+
+impl From<GlobalNodeIdAny> for LocalNodeIdAny {
+    fn from(id: GlobalNodeIdAny) -> Self {
+        id.local_id
     }
 }
 
