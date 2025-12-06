@@ -9,7 +9,7 @@ use destack_source::{
 };
 
 use crate::{
-    ModuleAst, DsConfigRegistry, Module, ModuleRegistry, PackageRegistry, TsConfigRegistry,
+    DsConfigRegistry, Module, ModuleAst, ModuleRegistry, PackageRegistry, TsConfigRegistry,
 };
 
 /// A Program.
