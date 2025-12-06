@@ -108,6 +108,47 @@ block3(v1: i32):
     assert_eq!(clif, expected);
 }
 
+/// Switch uses Cranelift's Switch helper for efficient dispatch.
+#[test]
+fn test_switch_simple() {
+    let mir = r#"
+function @dispatch(v0: i32) -> i32 {
+block0:
+    switch v0, block3, 0 => block1, 1 => block2
+block1:
+    v1 = iconst 100i32
+    return v1
+block2:
+    v2 = iconst 200i32
+    return v2
+block3:
+    v3 = iconst 0i32
+    return v3
+}
+"#;
+    let clif = compile_mir_to_normalized_clif(mir);
+
+    let expected = r#"
+function u0:0(i32) -> i32 native {
+block0(v0: i32):
+    br_table v0, block3, [block1, block2]
+
+block1:
+    v1 = iconst.i32 100
+    return v1
+
+block2:
+    v2 = iconst.i32 200
+    return v2
+
+block3:
+    v3 = iconst.i32 0
+    return v3
+}"#
+    .trim();
+    assert_eq!(clif, expected);
+}
+
 /// Values defined in one block can be used in later blocks.
 #[test]
 fn test_sequential_blocks() {

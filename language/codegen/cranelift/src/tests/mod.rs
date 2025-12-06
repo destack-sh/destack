@@ -3,6 +3,7 @@
 mod arithmetic;
 mod block;
 mod function;
+mod memory;
 
 mod tests;
 

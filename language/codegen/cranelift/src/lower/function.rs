@@ -15,6 +15,14 @@
 //! MIR values and Cranelift values (`cir::Value`). When an instruction produces a
 //! result, we record it in the map. When an instruction uses a value, we look it up.
 //!
+//! ## Type Inference
+//!
+//! We also track MIR types for values (`type_map`) to support instructions like
+//! `Load` that need to know what type to load. Types are inferred from:
+//! - Function/block parameters (explicit `TypedValue`)
+//! - Local variables (explicit type on `Local`)
+//! - Instructions (inferred from operands and instruction kind)
+//!
 //! ## Block Parameters
 //!
 //! MIR represents phi nodes explicitly as block parameters. When control flow merges,
@@ -27,7 +35,7 @@ use std::sync::Arc;
 use cranelift_codegen::ir as cir;
 use cranelift_codegen::ir::InstBuilder;
 use cranelift_codegen::isa::TargetIsa;
-use cranelift_frontend::{FunctionBuilder, FunctionBuilderContext};
+use cranelift_frontend::{FunctionBuilder, FunctionBuilderContext, Switch};
 use cranelift_module::FuncId;
 use destack_mir as mir;
 use destack_source::StringPool;
@@ -48,8 +56,11 @@ pub(crate) struct FunctionLowerer<'a> {
     isa: &'a Arc<dyn TargetIsa>,
     /// Function id mapping for calls.
     cl_function_ids: &'a HashMap<mir::LocalNodeId<mir::Function>, FuncId>,
+    /// Pointer size in bytes for this target.
+    pointer_bytes: u8,
 }
 
+#[allow(clippy::too_many_arguments)]
 impl<'a> FunctionLowerer<'a> {
     /// Create a new function lowerer.
     pub(crate) fn new(
@@ -58,6 +69,7 @@ impl<'a> FunctionLowerer<'a> {
         function: &'a mir::Function,
         isa: &'a Arc<dyn TargetIsa>,
         cl_function_ids: &'a HashMap<mir::LocalNodeId<mir::Function>, FuncId>,
+        pointer_bytes: u8,
     ) -> Self {
         Self {
             tree,
@@ -65,6 +77,7 @@ impl<'a> FunctionLowerer<'a> {
             function,
             isa,
             cl_function_ids,
+            pointer_bytes,
         }
     }
 
@@ -78,6 +91,11 @@ impl<'a> FunctionLowerer<'a> {
         let mut value_map: HashMap<mir::Value, cir::Value> = HashMap::new();
         let mut block_map: HashMap<mir::LocalNodeId<mir::Block>, cir::Block> = HashMap::new();
         let mut local_map: HashMap<mir::LocalNodeId<mir::Local>, cir::StackSlot> = HashMap::new();
+        // maps MIR values to their MIR types (for type inference)
+        let mut type_map: HashMap<mir::Value, mir::LocalNodeId<mir::Type>> = HashMap::new();
+
+        // build the type_map map
+        self.infer_type_map(&mut type_map)?;
 
         // phase 1: create stack slots for locals
         self.create_locals(&mut builder, &mut local_map)?;
@@ -93,11 +111,171 @@ impl<'a> FunctionLowerer<'a> {
                 &mut value_map,
                 &block_map,
                 &local_map,
+                &type_map,
             )?;
         }
 
         builder.finalize();
         Ok(())
+    }
+
+    /// Build the type_map map by walking the function:
+    /// - Function parameters (have explicit types)
+    /// - Block parameters (have explicit types)
+    /// - Instructions (infer from instruction kind and operands)
+    fn infer_type_map(
+        &self,
+        type_map: &mut HashMap<mir::Value, mir::LocalNodeId<mir::Type>>,
+    ) -> Result<(), CraneliftError> {
+        // function parameters have explicit types
+        for param in &self.function.parameters {
+            type_map.insert(param.value, param.ty);
+        }
+
+        // block parameters have explicit types
+        for &block_id in &self.function.blocks {
+            let block = self.tree.get(block_id);
+            for param in &block.parameters {
+                type_map.insert(param.value, param.ty);
+            }
+        }
+
+        // infer types from instructions (must be in definition order for SSA)
+        for &block_id in &self.function.blocks {
+            let block = self.tree.get(block_id);
+            for &inst_id in &block.instructions {
+                let instruction = self.tree.get(inst_id);
+                if let Some((dest, ty)) = self.infer_instruction_type(instruction, type_map) {
+                    type_map.insert(dest, ty);
+                }
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Infer the result type of an instruction (None if the instruction does not produce a value).
+    fn infer_instruction_type(
+        &self,
+        instruction: &mir::Instruction,
+        type_map: &HashMap<mir::Value, mir::LocalNodeId<mir::Type>>,
+    ) -> Option<(mir::Value, mir::LocalNodeId<mir::Type>)> {
+        match instruction {
+            // constants: type is embedded in the constant, but we don't have a Type node
+            // we'll handle this specially when lowering
+            mir::Instruction::Constant { .. } => None,
+
+            // binary: result type = operand type (for arithmetic), or bool (for comparisons)
+            mir::Instruction::Binary {
+                destination,
+                operator,
+                left,
+                ..
+            } => {
+                if operator.is_comparison() {
+                    // comparisons produce bool, but we don't have a bool type node
+                    // we'll handle this specially when lowering
+                    None
+                } else {
+                    // arithmetic: result type = operand type
+                    type_map.get(left).map(|ty| (*destination, *ty))
+                }
+            }
+
+            // unary: result type = operand type
+            mir::Instruction::Unary {
+                destination,
+                argument,
+                ..
+            } => type_map.get(argument).map(|ty| (*destination, *ty)),
+
+            // cast: result type is explicit
+            mir::Instruction::Cast {
+                destination,
+                to_type,
+                ..
+            } => Some((*destination, *to_type)),
+
+            // local_get: result type = local's type
+            mir::Instruction::LocalGet { destination, local } => {
+                let local_data = self.tree.get(*local);
+                Some((*destination, local_data.ty))
+            }
+
+            // local_set: no result
+            mir::Instruction::LocalSet { .. } => None,
+
+            // load: result type = pointee of pointer
+            mir::Instruction::Load {
+                destination,
+                pointer,
+            } => {
+                if let Some(ptr_type_id) = type_map.get(pointer) {
+                    let ptr_type = self.tree.get(*ptr_type_id);
+                    if let mir::Type::Pointer { pointee } = ptr_type {
+                        return Some((*destination, *pointee));
+                    }
+                }
+                None
+            }
+
+            // store: no result
+            mir::Instruction::Store { .. } => None,
+
+            // extract_field: type is the field's type
+            mir::Instruction::ExtractField {
+                destination,
+                aggregate,
+                index,
+            } => {
+                if let Some(agg_type_id) = type_map.get(aggregate) {
+                    let agg_type = self.tree.get(*agg_type_id);
+                    match agg_type {
+                        mir::Type::Struct { fields } => {
+                            if let Some(field) = fields.get(*index as usize) {
+                                return Some((*destination, field.ty));
+                            }
+                        }
+                        mir::Type::Tuple { elements } => {
+                            if let Some(&ty) = elements.get(*index as usize) {
+                                return Some((*destination, ty));
+                            }
+                        }
+                        _ => {}
+                    }
+                }
+                None
+            }
+
+            // insert_field: result type = aggregate type
+            mir::Instruction::InsertField {
+                destination,
+                aggregate,
+                ..
+            } => type_map.get(aggregate).map(|ty| (*destination, *ty)),
+
+            // extract_element: type is array element type
+            mir::Instruction::ExtractElement {
+                destination, array, ..
+            } => {
+                if let Some(arr_type_id) = type_map.get(array) {
+                    let arr_type = self.tree.get(*arr_type_id);
+                    if let mir::Type::Array { element, .. } = arr_type {
+                        return Some((*destination, *element));
+                    }
+                }
+                None
+            }
+
+            // insert_element: result type = array type
+            mir::Instruction::InsertElement {
+                destination, array, ..
+            } => type_map.get(array).map(|ty| (*destination, *ty)),
+
+            // call: would need function signature lookup
+            // TODO #Incomplete: implement function signature lookup
+            mir::Instruction::Call { .. } | mir::Instruction::CallIndirect { .. } => None,
+        }
     }
 
     /// Create Cranelift stack slots for MIR locals.
@@ -108,7 +286,7 @@ impl<'a> FunctionLowerer<'a> {
     ) -> Result<(), CraneliftError> {
         for &local_id in &self.function.locals {
             let local = self.tree.get(local_id);
-            let ty = lower_type(self.tree, local.ty)?;
+            let ty = lower_type(self.tree, local.ty, self.pointer_bytes)?;
             let size = ty.bytes();
 
             let slot = builder.create_sized_stack_slot(cir::StackSlotData::new(
@@ -144,7 +322,7 @@ impl<'a> FunctionLowerer<'a> {
 
         // function parameters become entry block parameters in Cranelift
         for param in &self.function.parameters {
-            let ty = lower_type(self.tree, param.ty)?;
+            let ty = lower_type(self.tree, param.ty, self.pointer_bytes)?;
             let value = builder.append_block_param(entry_block, ty);
             value_map.insert(param.value, value);
         }
@@ -156,7 +334,7 @@ impl<'a> FunctionLowerer<'a> {
 
             // add block parameters (these are for phi nodes / join points)
             for param in &mir_block.parameters {
-                let ty = lower_type(self.tree, param.ty)?;
+                let ty = lower_type(self.tree, param.ty, self.pointer_bytes)?;
                 let value = builder.append_block_param(target_block, ty);
                 value_map.insert(param.value, value);
             }
@@ -179,6 +357,7 @@ impl<'a> FunctionLowerer<'a> {
         value_map: &mut HashMap<mir::Value, cir::Value>,
         block_map: &HashMap<mir::LocalNodeId<mir::Block>, cir::Block>,
         local_map: &HashMap<mir::LocalNodeId<mir::Local>, cir::StackSlot>,
+        type_map: &HashMap<mir::Value, mir::LocalNodeId<mir::Type>>,
     ) -> Result<(), CraneliftError> {
         let mir_block = self.tree.get(block_id);
         let target_block = block_map[&block_id];
@@ -191,7 +370,7 @@ impl<'a> FunctionLowerer<'a> {
         // lower instructions
         for &instruction_id in &mir_block.instructions {
             let instruction = self.tree.get(instruction_id);
-            self.lower_instruction(instruction, builder, value_map, local_map)?;
+            self.lower_instruction(instruction, builder, value_map, local_map, type_map)?;
         }
 
         // lower terminator
@@ -213,6 +392,7 @@ impl<'a> FunctionLowerer<'a> {
         builder: &mut FunctionBuilder<'_>,
         value_map: &mut HashMap<mir::Value, cir::Value>,
         local_map: &HashMap<mir::LocalNodeId<mir::Local>, cir::StackSlot>,
+        type_map: &HashMap<mir::Value, mir::LocalNodeId<mir::Type>>,
     ) -> Result<(), CraneliftError> {
         match instruction {
             mir::Instruction::Constant { destination, value } => {
@@ -249,7 +429,7 @@ impl<'a> FunctionLowerer<'a> {
                 to_type,
             } => {
                 let arg_value = value_map[argument];
-                let target_type = lower_type(self.tree, *to_type)?;
+                let target_type = lower_type(self.tree, *to_type, self.pointer_bytes)?;
                 let result = self.lower_cast(*kind, arg_value, target_type, builder)?;
                 value_map.insert(*destination, result);
             }
@@ -257,7 +437,7 @@ impl<'a> FunctionLowerer<'a> {
             mir::Instruction::LocalGet { destination, local } => {
                 let slot = local_map[local];
                 let local_data = self.tree.get(*local);
-                let ty = lower_type(self.tree, local_data.ty)?;
+                let ty = lower_type(self.tree, local_data.ty, self.pointer_bytes)?;
                 let result = builder.ins().stack_load(ty, slot, 0);
                 value_map.insert(*destination, result);
             }
@@ -272,12 +452,19 @@ impl<'a> FunctionLowerer<'a> {
                 destination,
                 pointer,
             } => {
-                // TODO #Incomplete: need to know the loaded type from context
                 let ptr_value = value_map[pointer];
-                let result =
-                    builder
-                        .ins()
-                        .load(cir::types::I64, cir::MemFlags::new(), ptr_value, 0);
+                let type_id = type_map.get(destination).ok_or_else(|| {
+                    CraneliftError::Internal {
+                        message: format!(
+                            "could not infer type for load destination {destination:?} from pointer {pointer:?}"
+                        ),
+                    }
+                })?;
+                let loaded_type = lower_type(self.tree, *type_id, self.pointer_bytes)?;
+
+                let result = builder
+                    .ins()
+                    .load(loaded_type, cir::MemFlags::new(), ptr_value, 0);
                 value_map.insert(*destination, result);
             }
 
@@ -388,49 +575,15 @@ impl<'a> FunctionLowerer<'a> {
                 default_arguments,
                 cases,
             } => {
-                // TODO #Performance: use br_table for better codegen
-                // for now, we lower this as a chain of brif instructions
-                let switch_value = value_map[value];
-                let default_block = block_map[default];
-                let default_args: Vec<cir::BlockArg> = default_arguments
-                    .iter()
-                    .map(|v| cir::BlockArg::from(value_map[v]))
-                    .collect();
-
-                if cases.is_empty() {
-                    builder.ins().jump(default_block, &default_args);
-                } else {
-                    for case in cases {
-                        let case_const = builder.ins().iconst(cir::types::I64, case.value);
-                        let is_match = builder.ins().icmp(
-                            cir::condcodes::IntCC::Equal,
-                            switch_value,
-                            case_const,
-                        );
-
-                        let case_block = block_map[&case.target];
-                        let case_args: Vec<cir::BlockArg> = case
-                            .arguments
-                            .iter()
-                            .map(|v| cir::BlockArg::from(value_map[v]))
-                            .collect();
-
-                        let next_block = builder.create_block();
-                        let empty_args: Vec<cir::BlockArg> = vec![];
-                        builder.ins().brif(
-                            is_match,
-                            case_block,
-                            &case_args,
-                            next_block,
-                            &empty_args,
-                        );
-                        builder.switch_to_block(next_block);
-                        builder.seal_block(next_block);
-                    }
-
-                    // final fallthrough to default
-                    builder.ins().jump(default_block, &default_args);
-                }
+                self.lower_switch(
+                    value_map[value],
+                    block_map[default],
+                    default_arguments,
+                    cases,
+                    builder,
+                    value_map,
+                    block_map,
+                )?;
             }
 
             mir::Terminator::Unreachable => {
@@ -439,6 +592,112 @@ impl<'a> FunctionLowerer<'a> {
         }
 
         Ok(())
+    }
+
+    /// Lower a switch terminator using Cranelift's Switch helper.
+    ///
+    /// The Switch helper generates efficient jump tables when possible,
+    /// falling back to binary search for sparse cases.
+    fn lower_switch(
+        &self,
+        switch_value: cir::Value,
+        default_block: cir::Block,
+        default_arguments: &[mir::Value],
+        cases: &[mir::SwitchCase],
+        builder: &mut FunctionBuilder<'_>,
+        value_map: &HashMap<mir::Value, cir::Value>,
+        block_map: &HashMap<mir::LocalNodeId<mir::Block>, cir::Block>,
+    ) -> Result<(), CraneliftError> {
+        // if no cases, just jump to default
+        if cases.is_empty() {
+            let default_args: Vec<cir::BlockArg> = default_arguments
+                .iter()
+                .map(|v| cir::BlockArg::from(value_map[v]))
+                .collect();
+            builder.ins().jump(default_block, &default_args);
+            return Ok(());
+        }
+
+        // check if any cases have block arguments
+        // Cranelift's Switch doesn't support block arguments directly,
+        // so we need to create intermediate blocks for cases with arguments
+        let has_block_args =
+            !default_arguments.is_empty() || cases.iter().any(|c| !c.arguments.is_empty());
+
+        if has_block_args {
+            // fall back to chain of brif for cases with arguments
+            self.lower_switch_with_args(
+                switch_value,
+                default_block,
+                default_arguments,
+                cases,
+                builder,
+                value_map,
+                block_map,
+            )
+        } else {
+            // use Cranelift's Switch for simple cases (no block arguments)
+            let mut switch = Switch::new();
+            for case in cases {
+                let case_block = block_map[&case.target];
+                switch.set_entry(case.value as u128, case_block);
+            }
+            switch.emit(builder, switch_value, default_block);
+            Ok(())
+        }
+    }
+
+    /// Lower a switch with block arguments using a chain of brif instructions.
+    fn lower_switch_with_args(
+        &self,
+        switch_value: cir::Value,
+        default_block: cir::Block,
+        default_arguments: &[mir::Value],
+        cases: &[mir::SwitchCase],
+        builder: &mut FunctionBuilder<'_>,
+        value_map: &HashMap<mir::Value, cir::Value>,
+        block_map: &HashMap<mir::LocalNodeId<mir::Block>, cir::Block>,
+    ) -> Result<(), CraneliftError> {
+        let default_args: Vec<cir::BlockArg> = default_arguments
+            .iter()
+            .map(|v| cir::BlockArg::from(value_map[v]))
+            .collect();
+
+        for case in cases {
+            let case_const = builder.ins().iconst(self.pointer_type(), case.value);
+            let is_match =
+                builder
+                    .ins()
+                    .icmp(cir::condcodes::IntCC::Equal, switch_value, case_const);
+
+            let case_block = block_map[&case.target];
+            let case_args: Vec<cir::BlockArg> = case
+                .arguments
+                .iter()
+                .map(|v| cir::BlockArg::from(value_map[v]))
+                .collect();
+
+            let next_block = builder.create_block();
+            let empty_args: Vec<cir::BlockArg> = vec![];
+            builder
+                .ins()
+                .brif(is_match, case_block, &case_args, next_block, &empty_args);
+            builder.switch_to_block(next_block);
+            builder.seal_block(next_block);
+        }
+
+        // final fallthrough to default
+        builder.ins().jump(default_block, &default_args);
+        Ok(())
+    }
+
+    /// Get the Cranelift type for pointers on this target.
+    fn pointer_type(&self) -> cir::Type {
+        match self.pointer_bytes {
+            4 => cir::types::I32,
+            8 => cir::types::I64,
+            _ => panic!("unsupported pointer size: {} bytes", self.pointer_bytes),
+        }
     }
 
     /// Lower a constant to Cranelift IR.

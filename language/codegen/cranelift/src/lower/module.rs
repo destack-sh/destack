@@ -40,27 +40,13 @@ pub(crate) struct ModuleLowerer<'a> {
 
 impl<'a> ModuleLowerer<'a> {
     /// Create a new module lowering context.
-    pub(crate) fn new(isa: &'a dyn TargetIsa, strings: &'a StringPool) -> Self {
-        // we need to clone the isa for ObjectBuilder (it takes Arc)
-        // TODO avoid looking up the isa again
-        let isa_arc: Arc<dyn TargetIsa> = isa.triple().clone().pipe(|triple| {
-            let flags = isa.flags().clone();
-            cranelift_codegen::isa::lookup(triple)
-                .expect("isa lookup failed")
-                .finish(flags)
-                .expect("isa finish failed")
-        });
-
-        let builder = ObjectBuilder::new(
-            isa_arc.clone(),
-            "module",
-            cranelift_module::default_libcall_names(),
-        )
-        .expect("failed to create object builder");
+    pub(crate) fn new(isa: Arc<dyn TargetIsa>, strings: &'a StringPool, name: &str) -> Self {
+        let builder =
+            ObjectBuilder::new(isa.clone(), name, cranelift_module::default_libcall_names())
+                .expect("failed to create object builder");
         let module = ObjectModule::new(builder);
-
         Self {
-            isa: isa_arc,
+            isa,
             strings,
             cl_module: module,
             cl_function_ids: HashMap::new(),
@@ -81,8 +67,10 @@ impl<'a> ModuleLowerer<'a> {
 
     /// Declare all functions in the module (first pass).
     fn declare_functions(&mut self, tree: &mir::NodeTree) -> Result<(), CraneliftError> {
+        let pointer_bytes = self.isa.pointer_bytes();
+
         for (function_id, function) in tree.iter_nodes::<mir::Function>() {
-            let signature = self.create_signature(tree, function)?;
+            let signature = self.create_signature(tree, function, pointer_bytes)?;
             let name = self.strings.get(function.name);
 
             // create cranelift function
@@ -97,25 +85,34 @@ impl<'a> ModuleLowerer<'a> {
 
     /// Lower / define all function bodies (second pass after declaration).
     fn lower_functions(&mut self, tree: &mir::NodeTree) -> Result<(), CraneliftError> {
+        let pointer_bytes = self.isa.pointer_bytes();
+
         for (function_id, function) in tree.iter_nodes::<mir::Function>() {
             let cl_function_id = self.cl_function_ids[&function_id];
             let name = self.strings.get(function.name).to_string();
 
             // create cranelift context
             let mut context = Context::new();
-            context.func.signature = self.create_signature(tree, function)?;
+            context.func.signature = self.create_signature(tree, function, pointer_bytes)?;
             context.func.name = cir::UserFuncName::user(0, cl_function_id.as_u32());
 
             // lower the function body
-            let lowerer =
-                FunctionLowerer::new(tree, self.strings, function, &self.isa, &self.cl_function_ids);
+            let lowerer = FunctionLowerer::new(
+                tree,
+                self.strings,
+                function,
+                &self.isa,
+                &self.cl_function_ids,
+                pointer_bytes,
+            );
             lowerer.lower(&mut context.func)?;
 
             // save for CLIF output
             self.cl_functions.push((name, context.func.clone()));
 
             // compile and define
-            self.cl_module.define_function(cl_function_id, &mut context)?;
+            self.cl_module
+                .define_function(cl_function_id, &mut context)?;
         }
 
         Ok(())
@@ -126,19 +123,20 @@ impl<'a> ModuleLowerer<'a> {
         &self,
         tree: &mir::NodeTree,
         function: &mir::Function,
+        pointer_bytes: u8,
     ) -> Result<cir::Signature, CraneliftError> {
         let call_conv = self.isa.default_call_conv();
         let mut signature = cir::Signature::new(call_conv);
 
         // parameters
         for param in &function.parameters {
-            let ty = lower_type(tree, param.ty)?;
+            let ty = lower_type(tree, param.ty, pointer_bytes)?;
             signature.params.push(cir::AbiParam::new(ty));
         }
 
         // return type (if not void)
         if !matches!(tree.get(function.return_type), mir::Type::Void) {
-            let ty = lower_type(tree, function.return_type)?;
+            let ty = lower_type(tree, function.return_type, pointer_bytes)?;
             signature.returns.push(cir::AbiParam::new(ty));
         }
 
@@ -164,15 +162,3 @@ impl<'a> ModuleLowerer<'a> {
         Ok(output)
     }
 }
-
-/// Extension trait for pipe operator.
-trait Pipe: Sized {
-    fn pipe<F, R>(self, f: F) -> R
-    where
-        F: FnOnce(Self) -> R,
-    {
-        f(self)
-    }
-}
-
-impl<T> Pipe for T {}
