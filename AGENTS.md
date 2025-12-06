@@ -18,6 +18,7 @@ Inline comments should be short and begin with a lowercase letter.
  - (This extends to comments in *any* code file, even scripts. I just like lowercase better.)
  - Place comments above a related code block (usually 2-10 lines).
  - Most comments are <1 sentence and should not include a period at the end (again, lowercase).
+ - Avoid using hyphens inside comments, instead prefer colons or commas
 Documentation comments for functions/types/etc. should be proper sentences with punctuation.
  - Files should NOT have a top-level documentation comments. They always get stale.
  - Go multiline if there is more than one sentence. Only one sentence should begin per line.
@@ -76,6 +77,9 @@ Example: `test_roundtrip_duration`, `test_send_recv_message`.
 
 The first line or docstring should describe desired behavior (don't mention "test").
 Prefer property-based testing and roundtrip testing where possible.
+
+If there is an opportunity to test "the entire thing" vs "part of it", prefer complete asserts.
+(For example, if we're generating string output, compare the entire output, not just "contains").
 
 ### Formatting
 

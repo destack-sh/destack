@@ -22,9 +22,7 @@ pub enum Ownership {
     Copy,
 }
 
-/// A local variable (stack slot) in a function.
-///
-/// Used for bindings that:
+/// Local variable (stack slot) in a function.
 /// - May be mutated
 /// - Have their address taken
 /// - Need to persist across basic blocks

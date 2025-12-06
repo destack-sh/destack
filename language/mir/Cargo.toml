@@ -18,6 +18,7 @@ destack_source = { workspace = true }
 destack_unicode = { workspace = true }
 
 # general
+indexmap = { workspace = true }
 smallvec = { workspace = true }
 
 [dev-dependencies]
