@@ -31,7 +31,8 @@ impl<'a> FormatMirNode<'a, Type> for Type {
                     [
                         token("["),
                         element,
-                        token("; "),
+                        token(";"),
+                        space(),
                         text(&length.to_string()),
                         token("]")
                     ]
@@ -41,31 +42,31 @@ impl<'a> FormatMirNode<'a, Type> for Type {
                 write!(f, [token("(")])?;
                 for (i, elem) in elements.iter().enumerate() {
                     if i > 0 {
-                        write!(f, [token(", ")])?;
+                        write!(f, [token(","), space()])?;
                     }
                     write!(f, [elem])?;
                 }
                 write!(f, [token(")")])
             }
             Type::Struct { fields } => {
-                write!(f, [token("struct { ")])?;
+                write!(f, [token("struct"), space(), token("{"), space()])?;
                 for (i, field) in fields.iter().enumerate() {
                     if i > 0 {
-                        write!(f, [token(", ")])?;
+                        write!(f, [token(","), space()])?;
                     }
                     write!(f, [field.ty])?;
                 }
-                write!(f, [token(" }")])
+                write!(f, [space(), token("}")])
             }
             Type::FunctionPointer { parameters, result } => {
                 write!(f, [token("fn(")])?;
                 for (i, param) in parameters.iter().enumerate() {
                     if i > 0 {
-                        write!(f, [token(", ")])?;
+                        write!(f, [token(","), space()])?;
                     }
                     write!(f, [param])?;
                 }
-                write!(f, [token(") -> "), result])
+                write!(f, [token(")"), space(), token("->"), space(), result])
             }
         }
     }

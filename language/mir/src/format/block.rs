@@ -13,16 +13,17 @@ impl<'a> FormatMirNode<'a, Block> for Block {
         f: &mut MirFormatter<'a, '_>,
     ) -> FormatResult<()> {
         // block label
-        write!(f, [text(&format!("block{}", id.id))])?;
+        let block_index = f.context().block_index(id);
+        write!(f, [text(&format!("block{block_index}"))])?;
 
         // block parameters
         if !self.parameters.is_empty() {
             write!(f, [token("(")])?;
             for (i, param) in self.parameters.iter().enumerate() {
                 if i > 0 {
-                    write!(f, [token(", ")])?;
+                    write!(f, [token(","), space()])?;
                 }
-                write!(f, [&param.value, token(": "), param.ty])?;
+                write!(f, [&param.value, token(":"), space(), param.ty])?;
             }
             write!(f, [token(")")])?;
         }
@@ -61,15 +62,19 @@ fn format_terminator<'a>(term: &Terminator, f: &mut MirFormatter<'a, '_>) -> For
         Terminator::Return { value } => {
             write!(f, [token("return")])?;
             if let Some(v) = value {
-                write!(f, [token(" "), v])?;
+                write!(f, [space(), v])?;
             }
             Ok(())
         }
 
         Terminator::Jump { target, arguments } => {
-            write!(f, [token("jump "), text(&format!("block{}", target.id))])?;
+            let block_index = f.context().block_index(*target);
+            write!(
+                f,
+                [token("jump"), space(), text(&format!("block{block_index}"))]
+            )?;
             if !arguments.is_empty() {
-                format_args_list(arguments, f)?;
+                format_value_list(arguments, f)?;
             }
             Ok(())
         }
@@ -81,21 +86,28 @@ fn format_terminator<'a>(term: &Terminator, f: &mut MirFormatter<'a, '_>) -> For
             else_target,
             else_arguments,
         } => {
+            let then_index = f.context().block_index(*then_target);
+            let else_index = f.context().block_index(*else_target);
             write!(
                 f,
                 [
-                    token("brif "),
+                    token("branch"),
+                    space(),
                     condition,
-                    token(", "),
-                    text(&format!("block{}", then_target.id))
+                    token(","),
+                    space(),
+                    text(&format!("block{then_index}"))
                 ]
             )?;
             if !then_arguments.is_empty() {
-                format_args_list(then_arguments, f)?;
+                format_value_list(then_arguments, f)?;
             }
-            write!(f, [token(", "), text(&format!("block{}", else_target.id))])?;
+            write!(
+                f,
+                [token(","), space(), text(&format!("block{else_index}"))]
+            )?;
             if !else_arguments.is_empty() {
-                format_args_list(else_arguments, f)?;
+                format_value_list(else_arguments, f)?;
             }
             Ok(())
         }
@@ -106,48 +118,56 @@ fn format_terminator<'a>(term: &Terminator, f: &mut MirFormatter<'a, '_>) -> For
             default_arguments,
             cases,
         } => {
+            let default_index = f.context().block_index(*default);
             write!(
                 f,
                 [
-                    token("br_table "),
+                    token("switch"),
+                    space(),
                     value,
-                    token(", "),
-                    text(&format!("block{}", default.id))
+                    token(","),
+                    space(),
+                    text(&format!("block{default_index}"))
                 ]
             )?;
             if !default_arguments.is_empty() {
-                format_args_list(default_arguments, f)?;
+                format_value_list(default_arguments, f)?;
             }
             for case in cases {
+                let case_index = f.context().block_index(case.target);
                 write!(
                     f,
                     [
-                        token(", "),
+                        token(","),
+                        space(),
                         text(&case.value.to_string()),
-                        token(" => "),
-                        text(&format!("block{}", case.target.id))
+                        space(),
+                        token("=>"),
+                        space(),
+                        text(&format!("block{case_index}"))
                     ]
                 )?;
                 if !case.arguments.is_empty() {
-                    format_args_list(&case.arguments, f)?;
+                    format_value_list(&case.arguments, f)?;
                 }
             }
             Ok(())
         }
 
         Terminator::Unreachable => {
-            write!(f, [token("trap unreachable")])
+            write!(f, [token("unreachable")])
         }
     }
 }
 
-fn format_args_list<'a>(args: &[Value], f: &mut MirFormatter<'a, '_>) -> FormatResult<()> {
+/// Format a parenthesized, comma-separated list of values.
+fn format_value_list<'a>(values: &[Value], f: &mut MirFormatter<'a, '_>) -> FormatResult<()> {
     write!(f, [token("(")])?;
-    for (i, arg) in args.iter().enumerate() {
+    for (i, val) in values.iter().enumerate() {
         if i > 0 {
-            write!(f, [token(", ")])?;
+            write!(f, [token(","), space()])?;
         }
-        write!(f, [arg])?;
+        write!(f, [val])?;
     }
     write!(f, [token(")")])
 }

@@ -20,12 +20,13 @@ impl Value {
     }
 }
 
-/// A typed value (value + its type).
+/// An SSA value paired with its type.
+/// Used for function/block parameters where type information is needed.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct TypedValue {
-    /// The value.
+    /// The SSA value.
     pub value: Value,
-    /// The type.
+    /// The type of the value.
     pub ty: LocalNodeId<Type>,
 }
 
@@ -36,21 +37,37 @@ impl TypedValue {
     }
 }
 
-/// Constant value in MIR.
+/// A compile-time constant value in MIR.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Constant {
-    /// Boolean constant.
-    Boolean { value: bool },
-    /// Integer constant (up to 64 bits).
+    /// Boolean constant (true or false).
+    Boolean {
+        /// The boolean value.
+        value: bool,
+    },
+    /// Signed integer constant.
     Int {
+        /// The value (sign-extended to 64 bits).
         value: i64,
+        /// The bit width of the integer type.
         width: u8,
+        /// Whether this represents a signed integer type.
         is_signed: bool,
     },
-    /// Unsigned integer constant (up to 64 bits).
-    UInt { value: u64, width: u8 },
+    /// Unsigned integer constant.
+    UInt {
+        /// The value (zero-extended to 64 bits).
+        value: u64,
+        /// The bit width of the integer type.
+        width: u8,
+    },
     /// Floating point constant.
-    Float { bits: u64, width: u8 },
+    Float {
+        /// The value stored as raw bits (use f32::from_bits or f64::from_bits).
+        bits: u64,
+        /// The bit width (32 or 64).
+        width: u8,
+    },
 }
 
 impl Constant {

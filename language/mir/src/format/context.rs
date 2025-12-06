@@ -1,12 +1,14 @@
 //! MIR format context.
 
+use std::collections::HashMap;
+
 use destack_fir::format::{Format, FormatContext, FormatOptions, FormatResult, Formatter};
 use destack_fir::prelude::*;
 use destack_fir::print::PrintOptions;
 use destack_fir::write;
 use destack_source::{File, FileType, IndentStyle, LineEnding};
 
-use crate::{Function, LocalNodeId, Node, NodeTree, NodeTreeImpl};
+use crate::{Block, Function, Local, LocalNodeId, Node, NodeTree, NodeTreeImpl};
 
 pub type MirFormatter<'a, 'buf> = Formatter<'buf, MirFormatContext<'a>>;
 
@@ -72,6 +74,13 @@ pub struct MirFormatContext<'a> {
     pub tree: &'a NodeTree,
     /// Dummy file for FIR compatibility.
     file: File,
+
+	// local context (a little bit hacky but fine for now)
+    /// Map from block ID to its index in the current function's block list.
+    /// Used for formatting block references with stable indices.
+    pub block_indices: HashMap<LocalNodeId<Block>, usize>,
+    /// Map from local ID to its index in the current function's local list.
+    pub local_indices: HashMap<LocalNodeId<Local>, usize>,
 }
 
 impl<'a> std::fmt::Debug for MirFormatContext<'a> {
@@ -89,7 +98,19 @@ impl<'a> MirFormatContext<'a> {
             options,
             tree,
             file: File::empty_text_with_type(FileType::Destack),
+            block_indices: HashMap::new(),
+            local_indices: HashMap::new(),
         }
+    }
+
+    /// Get the index of a block in the current function.
+    pub fn block_index(&self, id: LocalNodeId<Block>) -> usize {
+        self.block_indices.get(&id).copied().unwrap_or(id.id as usize)
+    }
+
+    /// Get the index of a local in the current function.
+    pub fn local_index(&self, id: LocalNodeId<Local>) -> usize {
+        self.local_indices.get(&id).copied().unwrap_or(id.id as usize)
     }
 }
 

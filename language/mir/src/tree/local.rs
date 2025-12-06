@@ -23,16 +23,18 @@ pub enum Ownership {
 }
 
 /// A local variable (stack slot) in a function.
+///
+/// Used for bindings that:
 /// - May be mutated
 /// - Have their address taken
 /// - Need to persist across basic blocks
 #[derive(Debug, Clone, PartialEq)]
 pub struct Local {
-    /// Type of the local.
+    /// The type of the value stored in this slot.
     pub ty: LocalNodeId<Type>,
-    /// Whether the local is mutable.
+    /// Whether this local can be mutated after initialization.
     pub mutability: Mutability,
-    /// Ownership semantics.
+    /// Ownership semantics (owned, borrowed, or copy).
     pub ownership: Ownership,
 }
 
