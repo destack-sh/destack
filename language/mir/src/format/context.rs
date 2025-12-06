@@ -6,7 +6,7 @@ use destack_fir::format::{Format, FormatContext, FormatOptions, FormatResult, Fo
 use destack_fir::prelude::*;
 use destack_fir::print::PrintOptions;
 use destack_fir::write;
-use destack_source::{File, FileType, IndentStyle, LineEnding};
+use destack_source::{File, FileType, ImmutableStringPool, IndentStyle, LineEnding};
 
 use crate::{Block, Function, Local, LocalNodeId, Node, NodeTree, NodeTreeImpl};
 
@@ -72,10 +72,12 @@ pub struct MirFormatContext<'a> {
     pub options: MirFormatOptions,
     /// The MIR tree.
     pub tree: &'a NodeTree,
+    /// The strings.
+    pub strings: &'a ImmutableStringPool,
     /// Dummy file for FIR compatibility.
     file: File,
 
-	// local context (a little bit hacky but fine for now)
+    // local context (a little bit hacky but fine for now)
     /// Map from block ID to its index in the current function's block list.
     /// Used for formatting block references with stable indices.
     pub block_indices: HashMap<LocalNodeId<Block>, usize>,
@@ -93,10 +95,15 @@ impl<'a> std::fmt::Debug for MirFormatContext<'a> {
 
 impl<'a> MirFormatContext<'a> {
     /// Create a new format context.
-    pub fn new(tree: &'a NodeTree, options: MirFormatOptions) -> Self {
+    pub fn new(
+        tree: &'a NodeTree,
+        strings: &'a ImmutableStringPool,
+        options: MirFormatOptions,
+    ) -> Self {
         Self {
             options,
             tree,
+            strings,
             file: File::empty_text_with_type(FileType::Destack),
             block_indices: HashMap::new(),
             local_indices: HashMap::new(),
@@ -105,12 +112,18 @@ impl<'a> MirFormatContext<'a> {
 
     /// Get the index of a block in the current function.
     pub fn block_index(&self, id: LocalNodeId<Block>) -> usize {
-        self.block_indices.get(&id).copied().unwrap_or(id.id as usize)
+        self.block_indices
+            .get(&id)
+            .copied()
+            .unwrap_or(id.id as usize)
     }
 
     /// Get the index of a local in the current function.
     pub fn local_index(&self, id: LocalNodeId<Local>) -> usize {
-        self.local_indices.get(&id).copied().unwrap_or(id.id as usize)
+        self.local_indices
+            .get(&id)
+            .copied()
+            .unwrap_or(id.id as usize)
     }
 }
 
@@ -145,13 +158,12 @@ where
 }
 
 /// Format a MIR tree to a string.
-pub fn format_mir(tree: &NodeTree) -> String {
-    format_mir_with_options(tree, MirFormatOptions::default())
-}
-
-/// Format a MIR tree to a string with options.
-pub fn format_mir_with_options(tree: &NodeTree, options: MirFormatOptions) -> String {
-    let context = MirFormatContext::new(tree, options);
+pub fn format_mir(
+    tree: &NodeTree,
+    strings: &ImmutableStringPool,
+    options: MirFormatOptions,
+) -> String {
+    let context = MirFormatContext::new(tree, strings, options);
 
     // format all functions
     let formatted = destack_fir::format!(context, [FormatAllFunctions]);

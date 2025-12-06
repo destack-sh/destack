@@ -1,24 +1,29 @@
 //! MIR formatter tests.
 
-use std::num::NonZeroU32;
-
-use destack_source::StringId;
+use destack_source::{ImmutableStringPool, StringId, StringPool};
 
 use crate::{
-    BinaryOperator, Block, Constant, Function, Instruction, Local, LocalNodeId, Mutability,
-    NodeTree, Ownership, Terminator, Type, TypedValue, Value, format_mir,
+    BinaryOperator, Block, Constant, Function, Instruction, Local, LocalNodeId, MirFormatOptions,
+    Mutability, NodeTree, Ownership, Terminator, Type, TypedValue, Value, format_mir,
 };
 
 /// Helper to build MIR for tests.
 struct TreeBuilder {
     tree: NodeTree,
+    strings: StringPool,
 }
 
 impl TreeBuilder {
     fn new() -> Self {
         Self {
             tree: NodeTree::new(),
+            strings: StringPool::new(),
         }
+    }
+
+    /// Intern a string and return its ID.
+    fn intern(&self, s: &str) -> StringId {
+        self.strings.intern(s)
     }
 
     /// Insert a type node.
@@ -52,13 +57,9 @@ impl TreeBuilder {
     }
 
     /// Finish building the tree.
-    fn finish(self) -> NodeTree {
-        self.tree
+    fn finish(self) -> (NodeTree, ImmutableStringPool) {
+        (self.tree, self.strings.into_immutable())
     }
-}
-
-fn dummy_name() -> StringId {
-    StringId(NonZeroU32::new(1).unwrap())
 }
 
 /// Build and format a simple add function.
@@ -89,8 +90,9 @@ fn test_format_simple_add() {
     });
 
     // function
+    let name = b.intern("add");
     let _func = b.function(Function {
-        name: dummy_name(),
+        name,
         parameters: vec![TypedValue::new(v0, i32_ty), TypedValue::new(v1, i32_ty)],
         return_type: void_ty,
         locals: vec![],
@@ -99,11 +101,11 @@ fn test_format_simple_add() {
         next_value_id: 3,
     });
 
-    let tree = b.finish();
-    let output = format_mir(&tree);
+    let (tree, strings) = b.finish();
+    let output = format_mir(&tree, &strings, MirFormatOptions::default());
 
     let expected = "\
-function @function0(v0: i32, v1: i32) -> void {
+function @add(v0: i32, v1: i32) -> void {
 block0(v0: i32, v1: i32):
     v2 = iadd v0, v1
     return v2
@@ -146,8 +148,9 @@ fn test_format_with_locals() {
     });
 
     // function
+    let name = b.intern("with_locals");
     let _func = b.function(Function {
-        name: dummy_name(),
+        name,
         parameters: vec![],
         return_type: i64_ty,
         locals: vec![local],
@@ -156,11 +159,11 @@ fn test_format_with_locals() {
         next_value_id: 2,
     });
 
-    let tree = b.finish();
-    let output = format_mir(&tree);
+    let (tree, strings) = b.finish();
+    let output = format_mir(&tree, &strings, MirFormatOptions::default());
 
     let expected = "\
-function @function0() -> i64 {
+function @with_locals() -> i64 {
     local0: i64 ; owned, var
 block0:
     v0 = iconst 42i64
@@ -236,8 +239,9 @@ fn test_format_branch() {
     });
 
     // function (blocks listed in order they appear in output)
+    let name = b.intern("select");
     let _func = b.function(Function {
-        name: dummy_name(),
+        name,
         parameters: vec![TypedValue::new(v0, bool_ty)],
         return_type: i32_ty,
         locals: vec![],
@@ -246,13 +250,13 @@ fn test_format_branch() {
         next_value_id: 4,
     });
 
-    let tree = b.finish();
-    let output = format_mir(&tree);
+    let (tree, strings) = b.finish();
+    let output = format_mir(&tree, &strings, MirFormatOptions::default());
 
     // blocks are numbered by their position in function.blocks:
     // entry=0, then=1, else=2, merge=3
     let expected = "\
-function @function0(v0: bool) -> i32 {
+function @select(v0: bool) -> i32 {
 block0(v0: bool):
     branch v0, block1, block2
 block1:
@@ -281,8 +285,9 @@ fn test_format_void_return() {
         terminator: Terminator::Return { value: None },
     });
 
+    let name = b.intern("noop");
     let _func = b.function(Function {
-        name: dummy_name(),
+        name,
         parameters: vec![],
         return_type: void_ty,
         locals: vec![],
@@ -291,11 +296,11 @@ fn test_format_void_return() {
         next_value_id: 0,
     });
 
-    let tree = b.finish();
-    let output = format_mir(&tree);
+    let (tree, strings) = b.finish();
+    let output = format_mir(&tree, &strings, MirFormatOptions::default());
 
     let expected = "\
-function @function0() -> void {
+function @noop() -> void {
 block0:
     return
 }";

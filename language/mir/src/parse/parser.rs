@@ -1,13 +1,12 @@
 //! MIR parser.
 
 use std::collections::HashMap;
-use std::num::NonZeroU32;
 
 use crate::{
     BinaryOperator, Block, CastKind, Constant, Function, Instruction, Local, LocalNodeId,
     Mutability, NodeTree, Ownership, Terminator, Type, TypedValue, UnaryOperator, Value,
 };
-use destack_source::StringId;
+use destack_source::{ImmutableStringPool, StringPool};
 
 use super::error::{ParseError, ParseResult};
 use super::lexer::Lexer;
@@ -22,6 +21,8 @@ pub struct Parser<'a> {
     pos: usize,
     /// The node tree being built.
     tree: NodeTree,
+    /// The string pool.
+    strings: StringPool,
     /// Map from block names to their ids (for forward references).
     block_map: HashMap<String, LocalNodeId<Block>>,
     /// Map from function names to their ids (for forward references).
@@ -36,16 +37,17 @@ impl<'a> Parser<'a> {
             tokens,
             pos: 0,
             tree: NodeTree::new(),
+            strings: StringPool::new(),
             block_map: HashMap::new(),
             function_map: HashMap::new(),
         }
     }
 
-    /// Parse MIR text into a NodeTree.
-    pub fn parse(source: &str) -> ParseResult<NodeTree> {
+    /// Parse MIR text into a NodeTree and string pool.
+    pub fn parse(source: &str) -> ParseResult<(NodeTree, ImmutableStringPool)> {
         let mut parser = Parser::new(source);
         parser.parse_module()?;
-        Ok(parser.tree)
+        Ok((parser.tree, parser.strings.into_immutable()))
     }
 
     /// Get current position for error reporting.
@@ -193,12 +195,9 @@ impl<'a> Parser<'a> {
 
         let next_value_id = parameters.iter().map(|p| p.value.0 + 1).max().unwrap_or(0);
 
-        // use a dummy StringId (we don't have string pool access during parsing)
-        // nocheckin: use real function name
-        let dummy_name = StringId(NonZeroU32::new(1).unwrap());
-
+        let name_id = self.strings.intern(&name);
         let function = Function {
-            name: dummy_name,
+            name: name_id,
             parameters,
             return_type,
             locals,

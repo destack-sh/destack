@@ -11,7 +11,7 @@ use crate::{
 impl<'a> FormatMirNode<'a, Function> for Function {
     fn format_node(
         &self,
-        id: LocalNodeId<Function>,
+        _id: LocalNodeId<Function>,
         f: &mut MirFormatter<'a, '_>,
     ) -> FormatResult<()> {
         // build block and local index maps for this function
@@ -27,22 +27,11 @@ impl<'a> FormatMirNode<'a, Function> for Function {
             }
         }
 
-        // function signature: function @function0(v0: i32, v1: i32) -> void {
-        // nocheckin: use real function name from string pool
-        let func_index = f
-            .context()
-            .tree
-            .iter_nodes::<Function>()
-            .position(|(fid, _)| fid == id)
-            .unwrap_or(0);
+        // function signature: function @name(v0: i32, v1: i32) -> void {
+        let name = f.context().strings.get(self.name);
         write!(
             f,
-            [
-                token("function"),
-                space(),
-                token("@"),
-                text(&format!("function{func_index}"))
-            ]
+            [token("function"), space(), token("@"), text(name)]
         )?;
 
         // parameters

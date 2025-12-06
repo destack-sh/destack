@@ -163,8 +163,10 @@ impl ModuleDir {
 pub struct ModuleMir {
     /// The id of the Module.
     pub id: ModuleId,
-    /// The MIR of the Module (may be empty).
+    /// The MIR of the Module (may be empty initially).
     pub tree: RwLock<mir::NodeTree>,
+    /// The string pool of the Module's MIR stuff.
+    pub strings: StringPool,
 }
 
 impl ModuleMir {
@@ -173,6 +175,7 @@ impl ModuleMir {
         Self {
             id,
             tree: RwLock::new(mir::NodeTree::new()),
+            strings: StringPool::new(),
         }
     }
 }

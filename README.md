@@ -4,8 +4,8 @@ Destack is a universal software engine for building correct, optimal, integrated
 Build on TypeScript and the web ecosystem with a unified open source toolchain, stack and platform.
 Own your software and run it anywhere in one integrated open source stack:
 
- - **Destack Language**: TypeScript++ with opt-in extensions for correctness, ergonomics, and performance (with optional `.ds` files like we have `.tsx`). 
- Valid TypeScript is valid Destack, so adopting `.ds` is incremental.
+ - **Destack Language**: TypeScript++, but it's just TypeScript with opt-in features for correctness, ergonomics, and performance (with optional `.ds` files like we have `.tsx`). 
+ Valid TypeScript is valid Destack, so adopting `.ds` is incremental and two-way compatible.
 See [language/DESIGN.md](language/DESIGN.md) and [language/SPECIFICATION.md](language/SPECIFICATION.md).
 
  - **Destack Library**: Standard library for most things most software needs. Fully integrated, batteries-included components for every layer of the stack and every part of the software lifecycle.
