@@ -239,6 +239,16 @@ impl Debug for ImmutableStringPool {
 }
 
 impl ImmutableStringPool {
+    /// Create a new immutable string pool from a mutable string pool.
+    pub fn empty() -> Self {
+        Self {
+            inner: StringPoolState {
+                strings: Vec::new(),
+                index: HashMap::new(),
+            },
+        }
+    }
+
     /// Get the string associated with the given StringId.
     pub fn get(&self, id: StringId) -> &str {
         &self.inner.strings[id.as_usize()]
