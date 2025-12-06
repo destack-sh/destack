@@ -48,7 +48,7 @@ impl Compiler {
     ) -> LocalNodeId<DependencyItem> {
         let ast_item = module.ast.tree.get(ast_item_id);
         let item_id =
-            tree.reserve_from_source(NodeType::DependencyItem, ast_item_id, scope, parent_id);
+            tree.reserve_from_source(NodeType::DependencyItem, ast_item_id.id, scope, parent_id);
         let is_export = matches!(
             source,
             DependencySource::ExportStatement | DependencySource::ValueExpression

@@ -14,7 +14,18 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
     ) -> FormatResult<()> {
         match self {
             Instruction::Constant { destination, value } => {
-                write!(f, [destination, space(), token("="), space(), token("iconst"), space(), value])
+                write!(
+                    f,
+                    [
+                        destination,
+                        space(),
+                        token("="),
+                        space(),
+                        token("iconst"),
+                        space(),
+                        value
+                    ]
+                )
             }
 
             Instruction::Binary {
@@ -120,12 +131,23 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
             } => {
                 write!(
                     f,
-                    [destination, space(), token("="), space(), token("load"), space(), pointer]
+                    [
+                        destination,
+                        space(),
+                        token("="),
+                        space(),
+                        token("load"),
+                        space(),
+                        pointer
+                    ]
                 )
             }
 
             Instruction::Store { pointer, value } => {
-                write!(f, [token("store"), space(), pointer, token(","), space(), value])
+                write!(
+                    f,
+                    [token("store"), space(), pointer, token(","), space(), value]
+                )
             }
 
             Instruction::ExtractField {
@@ -258,17 +280,14 @@ fn format_function_reference<'a>(
     f: &mut MirFormatter<'a, '_>,
 ) -> FormatResult<()> {
     match reference {
-        FunctionReference::Local(func_id) => {
-            let func = f.context().tree.get(*func_id);
-            let name = f.context().strings.get(func.name);
+        FunctionReference::Local(function_id) => {
+            let function = f.context().tree.get(*function_id);
+            let name = f.context().strings.get(function.name);
             write!(f, [token("@"), text(name)])
         }
-        FunctionReference::UnresolvedGlobal(name_id) => {
+        FunctionReference::External(name_id) => {
             let name = f.context().strings.get(*name_id);
             write!(f, [token("@"), text(name)])
-        }
-        FunctionReference::Global(sym_id) => {
-            write!(f, [text(&format!("@global({sym_id:?})"))])
         }
     }
 }

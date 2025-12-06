@@ -22,7 +22,7 @@ impl Compiler {
     ) -> LocalNodeId<Pattern> {
         let ast_pattern = module.ast.tree.get(ast_pattern_id);
         let pattern_id =
-            tree.reserve_from_source(NodeType::Pattern, ast_pattern_id, scope, parent_id);
+            tree.reserve_from_source(NodeType::Pattern, ast_pattern_id.id, scope, parent_id);
         let pattern = match ast_pattern {
             ast::Pattern::Wildcard => Pattern::Wildcard,
             ast::Pattern::Maybe(ast_pattern_id) => Pattern::Maybe(self.bind_pattern(
@@ -305,7 +305,7 @@ impl Compiler {
         let ast_pattern_field = module.ast.tree.get(ast_pattern_field_id);
         let pattern_field_id = tree.reserve_from_source(
             NodeType::PatternField,
-            ast_pattern_field_id,
+            ast_pattern_field_id.id,
             scope,
             parent_id,
         );

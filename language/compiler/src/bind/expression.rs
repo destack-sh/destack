@@ -32,7 +32,7 @@ impl Compiler {
     ) -> LocalNodeId<Expression> {
         let ast_expression = module.ast.tree.get(ast_expression_id);
         let expression_id =
-            tree.reserve_from_source(NodeType::Expression, ast_expression_id, scope, parent_id);
+            tree.reserve_from_source(NodeType::Expression, ast_expression_id.id, scope, parent_id);
         let expression = match ast_expression {
             ast::Expression::Block(block_id) => {
                 let block_id = self.bind_block(

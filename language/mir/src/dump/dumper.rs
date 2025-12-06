@@ -370,12 +370,9 @@ impl<'a> Dumper<'a> {
                     FunctionReference::Local(id) => {
                         self.write(&format!("@function{}", id.id));
                     }
-                    FunctionReference::UnresolvedGlobal(name_id) => {
+                    FunctionReference::External(name_id) => {
                         let name = self.strings.get(*name_id).to_string();
-                        self.write(&format!("@unresolved({name})"));
-                    }
-                    FunctionReference::Global(id) => {
-                        self.write(&format!("@global({id:?})"));
+                        self.write(&format!("@{name}"));
                     }
                 }
                 self.write("(");

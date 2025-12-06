@@ -109,7 +109,10 @@ pub enum TokenType {
 impl TokenType {
     /// Whether this token is trivia (whitespace, comments).
     pub fn is_trivia(self) -> bool {
-        matches!(self, TokenType::Whitespace | TokenType::Newline | TokenType::Comment)
+        matches!(
+            self,
+            TokenType::Whitespace | TokenType::Newline | TokenType::Comment
+        )
     }
 }
 
@@ -130,4 +133,3 @@ impl<'a> Token<'a> {
         Self { ty, text, start }
     }
 }
-

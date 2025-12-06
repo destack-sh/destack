@@ -1,7 +1,6 @@
 use std::collections::HashMap;
 use std::fmt::{Debug, Formatter};
 
-use destack_ast as ast;
 use destack_source::ModuleId;
 
 use crate::{
@@ -103,10 +102,10 @@ impl NodeTree {
     }
 
     /// Reserve a new node slot in the tree for a node lowered from an AST node.
-    pub fn reserve_from_source<U: ast::Node>(
+    pub fn reserve_from_source(
         &mut self,
         node_type: NodeType,
-        ast_node_id: ast::LocalNodeId<U>,
+        ast_node_id: u32,
         scope: (LocalScopeId, LocalScopeMark),
         parent_id: Option<LocalNodeIdAny>,
     ) -> LocalNodeIdAny {
@@ -118,9 +117,9 @@ impl NodeTree {
         self.scopes_by_node_id.push(scope);
         self.parent_id_by_node_id
             .push(parent_id.map(|parent_id| parent_id.id));
-        self.source_id_by_node_id.push(ast_node_id.id);
+        self.source_id_by_node_id.push(ast_node_id);
         self.alias_node_id_by_source_id
-            .insert(ast_node_id.id, global_id);
+            .insert(ast_node_id, global_id);
 
         LocalNodeIdAny::new(global_id, node_type)
     }

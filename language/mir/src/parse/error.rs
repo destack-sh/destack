@@ -48,4 +48,3 @@ impl std::error::Error for ParseError {}
 
 /// Result type for MIR parsing.
 pub type ParseResult<T> = Result<T, ParseError>;
-

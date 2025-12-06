@@ -1,6 +1,7 @@
 //! Parser tests.
 
-use crate::{MirFormatOptions, format_mir, parse::Parser};
+use crate::parse::Parser;
+use crate::{MirFormatOptions, format_mir};
 
 /// Test parsing and re-formatting produces the same output.
 fn roundtrip(source: &str) {
@@ -79,4 +80,3 @@ block3:
 }"#,
     );
 }
-

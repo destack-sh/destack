@@ -29,10 +29,7 @@ impl<'a> FormatMirNode<'a, Function> for Function {
 
         // function signature: function @name(v0: i32, v1: i32) -> void {
         let name = f.context().strings.get(self.name);
-        write!(
-            f,
-            [token("function"), space(), token("@"), text(name)]
-        )?;
+        write!(f, [token("function"), space(), token("@"), text(name)])?;
 
         // parameters
         write!(f, [token("(")])?;

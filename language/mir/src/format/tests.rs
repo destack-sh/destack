@@ -91,7 +91,7 @@ fn test_format_simple_add() {
 
     // function
     let name = b.intern("add");
-    let _func = b.function(Function {
+    let _function = b.function(Function {
         name,
         parameters: vec![TypedValue::new(v0, i32_ty), TypedValue::new(v1, i32_ty)],
         return_type: void_ty,
@@ -149,7 +149,7 @@ fn test_format_with_locals() {
 
     // function
     let name = b.intern("with_locals");
-    let _func = b.function(Function {
+    let _function = b.function(Function {
         name,
         parameters: vec![],
         return_type: i64_ty,
@@ -240,7 +240,7 @@ fn test_format_branch() {
 
     // function (blocks listed in order they appear in output)
     let name = b.intern("select");
-    let _func = b.function(Function {
+    let _function = b.function(Function {
         name,
         parameters: vec![TypedValue::new(v0, bool_ty)],
         return_type: i32_ty,
@@ -286,7 +286,7 @@ fn test_format_void_return() {
     });
 
     let name = b.intern("noop");
-    let _func = b.function(Function {
+    let _function = b.function(Function {
         name,
         parameters: vec![],
         return_type: void_ty,

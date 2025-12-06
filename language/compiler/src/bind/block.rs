@@ -25,7 +25,7 @@ impl Compiler {
             self.bind_anonymous_item_with_scope(module, ScopeKind::Block, scope, None, symbols);
         let block_id = tree.reserve_from_source(
             NodeType::Block,
-            ast_block_id,
+            ast_block_id.id,
             (scope_id, LocalScopeMark::end()),
             parent_id,
         );

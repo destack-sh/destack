@@ -315,10 +315,7 @@ impl<'a> Parser<'a> {
 
         fn resolve(idx: LocalNodeId<Block>, mapping: &[LocalNodeId<Block>]) -> LocalNodeId<Block> {
             // idx.id is the source index, look up the actual ID
-            mapping
-                .get(idx.id as usize)
-                .copied()
-                .unwrap_or(idx)
+            mapping.get(idx.id as usize).copied().unwrap_or(idx)
         }
 
         match &mut block.terminator {
@@ -350,10 +347,7 @@ impl<'a> Parser<'a> {
         source_to_actual: &[LocalNodeId<Local>],
     ) {
         fn resolve(idx: LocalNodeId<Local>, mapping: &[LocalNodeId<Local>]) -> LocalNodeId<Local> {
-            mapping
-                .get(idx.id as usize)
-                .copied()
-                .unwrap_or(idx)
+            mapping.get(idx.id as usize).copied().unwrap_or(idx)
         }
 
         let block = self.tree.get(block_id);
@@ -754,7 +748,7 @@ impl<'a> Parser<'a> {
         let name_token = self.eat_token(TokenType::Identifier)?;
         let name = name_token.text;
         let name_id = self.strings.intern(name);
-        Ok(FunctionReference::UnresolvedGlobal(name_id))
+        Ok(FunctionReference::External(name_id))
     }
 
     /// Parse call arguments: (v0, v1, ...).
