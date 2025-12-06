@@ -669,6 +669,7 @@ dependencies = [
  "destack_fir",
  "destack_mir",
  "destack_source",
+ "destack_workspace",
  "parking_lot",
  "rayon",
  "smallvec",

@@ -1,127 +1,165 @@
-use destack_mir::ModuleBuilder;
+//! Arithmetic operation tests.
+//!
+//! Tests for lowering MIR arithmetic and logical instructions to Cranelift IR.
 
-use crate::CraneliftCodegenBackend;
+use super::compile_mir_to_normalized_clif;
 
-/// Test integer arithmetic operations.
+/// Integer arithmetic operations chain correctly.
+/// Each operation uses the result of the previous one, testing SSA value flow.
 #[test]
-fn test_integer_arithmetic() {
-    let mut module = ModuleBuilder::new();
-    let i32_type = module.type_i32();
+fn test_integer_arithmetic_chain() {
+    let mir = r#"
+function @arithmetic(v0: i32, v1: i32) -> i32 {
+block0:
+    v2 = iadd v0, v1
+    v3 = isub v2, v0
+    v4 = imul v3, v1
+    return v4
+}
+"#;
+    let clif = compile_mir_to_normalized_clif(mir);
 
-    let mut builder = module.function("arithmetic", &[i32_type, i32_type], i32_type);
-    let entry = builder.create_block();
-    builder.switch_to_block(entry);
-
-    let a = builder.function_parameter(0);
-    let b = builder.function_parameter(1);
-
-    // chain of operations: ((a + b) - a) * b
-    let add_result = builder.iadd(a, b);
-    let sub_result = builder.isub(add_result, a);
-    let mul_result = builder.imul(sub_result, b);
-
-    builder.return_(Some(mul_result));
-    builder.seal_block(entry);
-    builder.finish();
-
-    let (tree, strings) = module.finish();
-
-    let backend = CraneliftCodegenBackend::native().expect("failed to create backend");
-    let clif = backend
-        .compile_to_clif(&tree, &strings)
-        .expect("failed to compile");
-
-    assert!(clif.contains("iadd"));
-    assert!(clif.contains("isub"));
-    assert!(clif.contains("imul"));
+    let expected = r#"
+function u0:0(i32, i32) -> i32 native {
+block0(v0: i32, v1: i32):
+    v2 = iadd v0, v1
+    v3 = isub v2, v0
+    v4 = imul v3, v1
+    return v4
+}
+"#
+    .trim();
+    assert_eq!(clif, expected);
 }
 
-/// Test integer comparison operations.
+/// Signed division and remainder lower to sdiv and srem.
+/// These are distinct from unsigned variants (udiv, urem).
 #[test]
-fn test_integer_comparison() {
-    let mut module = ModuleBuilder::new();
-    let i32_type = module.type_i32();
-    let bool_type = module.type_bool();
+fn test_signed_division() {
+    let mir = r#"
+function @divide(v0: i32, v1: i32) -> i32 {
+block0:
+    v2 = sdiv v0, v1
+    v3 = srem v0, v1
+    v4 = iadd v2, v3
+    return v4
+}
+"#;
+    let clif = compile_mir_to_normalized_clif(mir);
 
-    let mut builder = module.function("compare", &[i32_type, i32_type], bool_type);
-    let entry = builder.create_block();
-    builder.switch_to_block(entry);
-
-    let a = builder.function_parameter(0);
-    let b = builder.function_parameter(1);
-
-    let cmp_result = builder.icmp_slt(a, b);
-    builder.return_(Some(cmp_result));
-
-    builder.seal_block(entry);
-    builder.finish();
-
-    let (tree, strings) = module.finish();
-
-    let backend = CraneliftCodegenBackend::native().expect("failed to create backend");
-    let clif = backend
-        .compile_to_clif(&tree, &strings)
-        .expect("failed to compile");
-
-    assert!(clif.contains("icmp"));
+    let expected = r#"
+function u0:0(i32, i32) -> i32 native {
+block0(v0: i32, v1: i32):
+    v2 = sdiv v0, v1
+    v3 = srem v0, v1
+    v4 = iadd v2, v3
+    return v4
+}
+"#
+    .trim();
+    assert_eq!(clif, expected);
 }
 
-/// Test bitwise operations.
+/// Bitwise operations: and, or, xor.
+/// These operate on integer bits without signedness concerns.
 #[test]
 fn test_bitwise_operations() {
-    let mut module = ModuleBuilder::new();
-    let i32_type = module.type_i32();
+    let mir = r#"
+function @bitwise(v0: i32, v1: i32) -> i32 {
+block0:
+    v2 = band v0, v1
+    v3 = bor v2, v0
+    v4 = bxor v3, v1
+    return v4
+}
+"#;
+    let clif = compile_mir_to_normalized_clif(mir);
 
-    let mut builder = module.function("bitwise", &[i32_type, i32_type], i32_type);
-    let entry = builder.create_block();
-    builder.switch_to_block(entry);
-
-    let a = builder.function_parameter(0);
-    let b = builder.function_parameter(1);
-
-    let and_result = builder.band(a, b);
-    let or_result = builder.bor(and_result, a);
-    let xor_result = builder.bxor(or_result, b);
-
-    builder.return_(Some(xor_result));
-    builder.seal_block(entry);
-    builder.finish();
-
-    let (tree, strings) = module.finish();
-
-    let backend = CraneliftCodegenBackend::native().expect("failed to create backend");
-    let clif = backend
-        .compile_to_clif(&tree, &strings)
-        .expect("failed to compile");
-
-    assert!(clif.contains("band"));
-    assert!(clif.contains("bor"));
-    assert!(clif.contains("bxor"));
+    let expected = r#"
+function u0:0(i32, i32) -> i32 native {
+block0(v0: i32, v1: i32):
+    v2 = band v0, v1
+    v3 = bor v2, v0
+    v4 = bxor v3, v1
+    return v4
+}
+"#
+    .trim();
+    assert_eq!(clif, expected);
 }
 
-/// Test unary operations.
+/// Signed comparison produces an i8 boolean result.
+/// The icmp instruction specifies the comparison type (slt = signed less than).
 #[test]
-fn test_unary_operations() {
-    let mut module = ModuleBuilder::new();
-    let i32_type = module.type_i32();
+fn test_signed_comparison() {
+    let mir = r#"
+function @compare(v0: i32, v1: i32) -> bool {
+block0:
+    v2 = icmp_slt v0, v1
+    return v2
+}
+"#;
+    let clif = compile_mir_to_normalized_clif(mir);
 
-    let mut builder = module.function("negate", &[i32_type], i32_type);
-    let entry = builder.create_block();
-    builder.switch_to_block(entry);
+    let expected = r#"
+function u0:0(i32, i32) -> i8 native {
+block0(v0: i32, v1: i32):
+    v2 = icmp slt v0, v1
+    return v2
+}
+"#
+    .trim();
+    assert_eq!(clif, expected);
+}
 
-    let a = builder.function_parameter(0);
-    let neg_result = builder.ineg(a);
+/// Unary negation produces the two's complement negative.
+/// The ineg instruction works on signed integers.
+#[test]
+fn test_unary_negation() {
+    let mir = r#"
+function @negate(v0: i32) -> i32 {
+block0:
+    v1 = ineg v0
+    return v1
+}
+"#;
+    let clif = compile_mir_to_normalized_clif(mir);
 
-    builder.return_(Some(neg_result));
-    builder.seal_block(entry);
-    builder.finish();
+    let expected = r#"
+function u0:0(i32) -> i32 native {
+block0(v0: i32):
+    v1 = ineg v0
+    return v1
+}
+"#
+    .trim();
+    assert_eq!(clif, expected);
+}
 
-    let (tree, strings) = module.finish();
+/// Integer constants include type suffixes in CLIF output.
+/// The iconst instruction shows the type (iconst.i32 42).
+#[test]
+fn test_integer_constants() {
+    let mir = r#"
+function @constants() -> i32 {
+block0:
+    v0 = iconst 42i32
+    v1 = iconst 100i32
+    v2 = iadd v0, v1
+    return v2
+}
+"#;
+    let clif = compile_mir_to_normalized_clif(mir);
 
-    let backend = CraneliftCodegenBackend::native().expect("failed to create backend");
-    let clif = backend
-        .compile_to_clif(&tree, &strings)
-        .expect("failed to compile");
-
-    assert!(clif.contains("ineg"));
+    let expected = r#"
+function u0:0() -> i32 native {
+block0:
+    v0 = iconst.i32 42
+    v1 = iconst.i32 100
+    v2 = iadd v0, v1
+    return v2
+}
+"#
+    .trim();
+    assert_eq!(clif, expected);
 }
