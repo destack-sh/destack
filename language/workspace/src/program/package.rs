@@ -9,9 +9,9 @@ use serde_json::{Map, Value};
 
 use crate::{DsConfig, TsConfigId};
 
-/// Type of package based on how it was discovered.
+/// Kind of package based on how it was discovered.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum PackageType {
+pub enum PackageKind {
     /// Physical package on disk with package.json.
     Physical,
     /// Synthetic package for loose files (no package.json found).
@@ -25,8 +25,8 @@ pub enum PackageType {
 pub struct Package {
     /// The id of the Package.
     pub id: PackageId,
-    /// The type of the Package.
-    pub ty: PackageType,
+    /// The kind of the Package.
+    pub kind: PackageKind,
     /// The URI of the package.
     pub uri: Uri,
     /// The path to the package directory (None for ephemeral packages).

@@ -3,7 +3,7 @@ use std::cmp::Ordering;
 use std::path::{Component, Path, PathBuf};
 
 use destack_source::{File, FileType, PackageId, PathExt, Uri};
-use destack_workspace::{ModuleSpecifier, Package, PackageConfig, PackageType};
+use destack_workspace::{ModuleSpecifier, Package, PackageConfig, PackageKind};
 
 use crate::{ResolveContext, ResolveError, Resolver};
 
@@ -75,7 +75,7 @@ impl Resolver {
         let package_id = PackageId::from_path(&package_config.directory);
         let package = Package {
             id: package_id,
-            ty: PackageType::Physical,
+            kind: PackageKind::Physical,
             uri: package_config.uri.clone(),
             path: Some(package_config.directory.clone()),
             name: package_config.content.name.clone(),

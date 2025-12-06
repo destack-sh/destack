@@ -9,7 +9,7 @@ use destack_source::{
 };
 
 use crate::{
-    Module, ModuleAst, ModuleRegistry, Package, PackageRegistry, PackageType, TsConfigRegistry,
+    Module, ModuleAst, ModuleRegistry, Package, PackageRegistry, PackageKind, TsConfigRegistry,
 };
 
 /// A Program.
@@ -98,7 +98,7 @@ impl Program {
         let root_uri = Uri::from_string("<root>");
         let root_package = Package {
             id: root_package_id,
-            ty: PackageType::Ephemeral,
+            kind: PackageKind::Ephemeral,
             uri: root_uri.clone(),
             path: None,
             name: Some("<root>".to_string()),
