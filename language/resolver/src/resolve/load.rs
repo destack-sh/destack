@@ -58,7 +58,7 @@ impl Resolver {
         if let Some(package_id) = self.load_package(path, ctx)? {
             let package = self.program.packages.get(package_id);
             let package = package.read();
-            if let Some(ref config) = package.config {
+            if let Some(ref config) = package.package_config {
                 if let Some(main_field) = config.content.main.as_deref() {
                     let main_field: Cow<'_, str> =
                         if main_field.starts_with("./") || main_field.starts_with("../") {
@@ -180,7 +180,7 @@ impl Resolver {
         if let Some(package_id) = self.find_package_json(path, ctx)? {
             let package = self.program.packages.get(package_id);
             let package = package.read();
-            if let Some(ref config) = package.config
+            if let Some(ref config) = package.package_config
                 && let Some(resolved) = self.load_browser_field(path, None, config, ctx)?
             {
                 return Ok(Some(resolved));

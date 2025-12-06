@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use crate::{fnv1a_32, PackageId};
+use crate::{PackageId, fnv1a_32};
 
 /// Unique identifier for Modules.
 ///

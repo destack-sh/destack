@@ -263,9 +263,9 @@ impl Compiler {
             path: Some(directory.to_path_buf()),
             name: None,
             version: None,
-            config: None,
+            package_config: None,
+            dsconfig: None,
             main_tsconfig_id: None,
-            main_dsconfig_id: None,
         };
         self.program.packages.insert(package);
 

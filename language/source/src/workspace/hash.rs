@@ -60,4 +60,3 @@ mod tests {
         assert_eq!(fnv1a_32(b""), 0x811c9dc5);
     }
 }
-

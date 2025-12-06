@@ -9,8 +9,7 @@ use destack_source::{
 };
 
 use crate::{
-    DsConfigRegistry, Module, ModuleAst, ModuleRegistry, Package, PackageRegistry, PackageType,
-    TsConfigRegistry,
+    Module, ModuleAst, ModuleRegistry, Package, PackageRegistry, PackageType, TsConfigRegistry,
 };
 
 /// A Program.
@@ -31,10 +30,8 @@ pub struct Program {
     pub modules: ModuleRegistry,
     /// The packages.
     pub packages: PackageRegistry,
-    /// The tsconfigs.
+    /// The tsconfigs (separate registry as tsconfigs can be nested within packages).
     pub tsconfigs: TsConfigRegistry,
-    /// The dsconfigs.
-    pub dsconfigs: DsConfigRegistry,
     /// The combined string pool.
     pub strings: StringPool,
     /// The diagnostic collector.
@@ -64,7 +61,6 @@ impl Program {
         let modules = ModuleRegistry::new();
         let packages = PackageRegistry::new();
         let tsconfigs = TsConfigRegistry::new();
-        let dsconfigs = DsConfigRegistry::new();
         let strings = StringPool::new();
         let diagnostics = DiagnosticCollector::new();
 
@@ -81,7 +77,6 @@ impl Program {
             modules,
             packages,
             tsconfigs,
-            dsconfigs,
             strings,
             diagnostics,
 
@@ -108,9 +103,9 @@ impl Program {
             path: None,
             name: Some("<root>".to_string()),
             version: None,
-            config: None,
+            package_config: None,
+            dsconfig: None,
             main_tsconfig_id: None,
-            main_dsconfig_id: None,
         };
         packages.insert(root_package);
 
