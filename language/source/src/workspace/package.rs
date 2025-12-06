@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use crate::{fnv1a_64, Uri};
+use crate::{Uri, fnv1a_64};
 
 /// Unique identifier for Packages.
 ///

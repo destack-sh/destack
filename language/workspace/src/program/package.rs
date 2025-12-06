@@ -7,7 +7,7 @@ use parking_lot::RwLock;
 use serde::Deserialize;
 use serde_json::{Map, Value};
 
-use crate::{DsConfigId, TsConfigId};
+use crate::{DsConfig, TsConfigId};
 
 /// Type of package based on how it was discovered.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -37,11 +37,11 @@ pub struct Package {
     pub version: Option<String>,
 
     /// The package.json config (None for synthetic/ephemeral packages).
-    pub config: Option<PackageConfig>,
-    /// The root tsconfig of the package.
+    pub package_config: Option<PackageConfig>,
+    /// The dsconfig.json config (1:1 with package, None if not specified).
+    pub dsconfig: Option<DsConfig>,
+    /// The root tsconfig of the package (in TsConfigRegistry, supports nesting).
     pub main_tsconfig_id: Option<TsConfigId>,
-    /// The root dsconfig of the package.
-    pub main_dsconfig_id: Option<DsConfigId>,
 }
 
 /// Package config from `package.json`.

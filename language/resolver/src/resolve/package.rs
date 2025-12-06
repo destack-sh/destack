@@ -33,7 +33,7 @@ impl Resolver {
         if let Some(package_id) = self.program.packages.get_id_by_path(path) {
             let package = self.program.packages.get(package_id);
             let package = package.read();
-            if let Some(ref config) = package.config {
+            if let Some(ref config) = package.package_config {
                 ctx.track_found_dependency(&config.path);
             }
             return Ok(Some(package_id));
@@ -80,9 +80,9 @@ impl Resolver {
             path: Some(package_config.directory.clone()),
             name: package_config.content.name.clone(),
             version: package_config.content.version.clone(),
-            config: Some(package_config),
+            package_config: Some(package_config),
+            dsconfig: None, // loaded separately when needed
             main_tsconfig_id: None,
-            main_dsconfig_id: None,
         };
         self.program.packages.insert(package);
 
@@ -188,7 +188,7 @@ impl Resolver {
         let package = package.read();
 
         // check if the package has imports
-        if let Some(ref config) = package.config
+        if let Some(ref config) = package.package_config
             && let Some(resolved) = self.package_imports_resolve(specifier, config, ctx)?
         {
             return self.resolve_esm_match(specifier, &resolved, ctx);
@@ -337,7 +337,7 @@ impl Resolver {
         let package = package.read();
 
         // resolve exports
-        if let Some(ref config) = package.config
+        if let Some(ref config) = package.package_config
             && let Some(exports) = config.content.exports.as_ref()
             && let Some(resolved) =
                 self.package_exports_resolve(path, &format!(".{subpath}"), exports, ctx)?
@@ -365,7 +365,7 @@ impl Resolver {
         let package = package.read();
 
         // check if the package has config
-        let Some(ref config) = package.config else {
+        let Some(ref config) = package.package_config else {
             return Ok(None);
         };
 
@@ -390,8 +390,12 @@ impl Resolver {
                 .to_path_buf();
 
             if let Some(exports) = config.content.exports.as_ref()
-                && let Some(resolved) =
-                    self.package_exports_resolve(&package_url, &format!(".{subpath}"), exports, ctx)?
+                && let Some(resolved) = self.package_exports_resolve(
+                    &package_url,
+                    &format!(".{subpath}"),
+                    exports,
+                    ctx,
+                )?
             {
                 return self.resolve_esm_match(specifier, &resolved, ctx);
             }
@@ -449,7 +453,7 @@ impl Resolver {
                         let package = self.program.packages.get(package_id);
                         let package = package.read();
 
-                        if let Some(config) = &package.config {
+                        if let Some(config) = &package.package_config {
                             // resolve exports
                             if let Some(exports) = config.content.exports.as_ref()
                                 && let Some(resolved) = self.package_exports_resolve(
