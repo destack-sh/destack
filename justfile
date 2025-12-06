@@ -67,7 +67,7 @@ publish-vscode:
     cd platform/vscode && bunx --bun @vscode/vsce@latest publish
 
 # create a new release (bump, commit, tag, push)
-release kind:
+release kind message:
     #!/usr/bin/env bash
     set -euo pipefail
     
@@ -75,9 +75,20 @@ release kind:
     just bump {{ kind }}
     VERSION=$(cat version.txt)
     
+    # check if changelog has entry for this version
+    if ! grep -q "## \[${VERSION}\]" CHANGELOG.md; then
+        echo "Warning: No changelog entry found for version ${VERSION}"
+        read -p "Continue anyway? [y/N] " -n 1 -r
+        echo
+        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+            echo "Aborting release."
+            exit 1
+        fi
+    fi
+    
     # stage and commit
     git add -A
-    git commit -m "chore(*): release v${VERSION}"
+    git commit -m "{{ message }}"
     
     # create tag
     git tag -a "v${VERSION}" -m "Release v${VERSION}"
