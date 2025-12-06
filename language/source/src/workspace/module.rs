@@ -5,7 +5,7 @@ use crate::{PackageId, fnv1a_32};
 /// Unique identifier for Modules.
 ///
 /// ModuleId is hierarchical: it includes the PackageId and a local identifier.
-/// This makes it stable across compiler runs (enables efficient cross-package caching).
+/// This makes ModuleIds stable across compiler runs (for better cross-package caching).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct ModuleId {
     /// The package this module belongs to.

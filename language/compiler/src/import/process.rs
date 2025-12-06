@@ -7,7 +7,7 @@ use destack_dir::DependencySource;
 use destack_parser::Parser;
 use destack_resolver::Resolver;
 use destack_source::{File, FileId, FileType, ModuleId, PackageId, StringId, Uri};
-use destack_workspace::{Module, ModuleAst, Package, PackageType, Program};
+use destack_workspace::{Module, ModuleAst, Package, PackageKind, Program};
 
 /// Task to import a file into the compiler.
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
@@ -258,7 +258,7 @@ impl Compiler {
         // create and insert synthetic package
         let package = Package {
             id: package_id,
-            ty: PackageType::Synthetic,
+            kind: PackageKind::Synthetic,
             uri: Uri::from_path(directory),
             path: Some(directory.to_path_buf()),
             name: None,
