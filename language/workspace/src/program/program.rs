@@ -7,9 +7,10 @@ use destack_source::{
     DiagnosticCollector, File, FileId, FileRegistry, FileSystem, FileType, LanguageOptions,
     ModuleId, PackageId, StringPool, Uri,
 };
+use indexmap::IndexMap;
 
 use crate::{
-    Module, ModuleAst, ModuleRegistry, Package, PackageRegistry, PackageKind, TsConfigRegistry,
+    Module, ModuleAst, ModuleRegistry, Package, PackageKind, PackageRegistry, TsConfigRegistry,
 };
 
 /// A Program.
@@ -106,6 +107,7 @@ impl Program {
             package_config: None,
             dsconfig: None,
             main_tsconfig_id: None,
+            targets: IndexMap::new(),
         };
         packages.insert(root_package);
 

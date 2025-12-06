@@ -9,51 +9,8 @@ use destack_source::{
     LineEnding,
 };
 
+use super::target::{OptimizeLevel, OutputFormat, OutputMode, ShrinkLevel, Target};
 use super::tsconfig::{EsTarget, ModuleKind};
-
-/// Codegen target specifying what output format to generate.
-/// We always ship `.ds` and `.d.ds` sources as well, so that's not a separate target.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Deserialize)]
-#[serde(rename_all = "kebab-case")]
-pub enum CodegenTarget {
-    /// Plain JavaScript (.js).
-    Js,
-    /// TypeScript (.ts).
-    Ts,
-    /// JavaScript with TypeScript declarations (.js + .d.ts).
-    #[default]
-    #[serde(alias = "js+dts", alias = "jsdts")]
-    JsDts,
-    /// WebAssembly (.wasm).
-    Wasm,
-}
-
-impl CodegenTarget {
-    /// Whether this target produces JavaScript output.
-    pub fn is_js(&self) -> bool {
-        matches!(self, Self::Js | Self::JsDts)
-    }
-
-    /// Whether this target produces TypeScript output.
-    pub fn is_ts(&self) -> bool {
-        matches!(self, Self::Ts)
-    }
-
-    /// Whether this target produces declaration files.
-    pub fn has_declarations(&self) -> bool {
-        matches!(self, Self::JsDts)
-    }
-
-    /// Whether this target produces WebAssembly output.
-    pub fn is_wasm(&self) -> bool {
-        matches!(self, Self::Wasm)
-    }
-
-    /// Whether this target produces a single output file (vs file-per-file).
-    pub fn is_single_file(&self) -> bool {
-        matches!(self, Self::Wasm)
-    }
-}
 
 /// Destack configuration (from `dsconfig.json`, 1:1 with Package).
 #[derive(Debug, Clone)]
@@ -476,102 +433,18 @@ impl From<&DsConfigCompilerOptionsJson> for DsConfigCompilerOptions {
     }
 }
 
-/// Optimization level for builds.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
-pub enum OptimizeLevel {
-    /// No optimization (O0).
-    #[default]
-    O0,
-    /// Basic optimization (O1).
-    O1,
-    /// Standard optimization (O2).
-    O2,
-    /// Aggressive optimization (O3).
-    O3,
-}
-
-impl OptimizeLevel {
-    /// Create from a numeric level (0-3).
-    pub fn from_level(level: u8) -> Self {
-        match level {
-            0 => Self::O0,
-            1 => Self::O1,
-            2 => Self::O2,
-            _ => Self::O3,
-        }
-    }
-
-    /// Get the numeric level.
-    pub fn as_level(&self) -> u8 {
-        match self {
-            Self::O0 => 0,
-            Self::O1 => 1,
-            Self::O2 => 2,
-            Self::O3 => 3,
-        }
-    }
-}
-
-/// Output mode for build targets.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
-pub enum OutputMode {
-    /// One output file per source file, preserving directory structure.
-    /// Uses `out_dir` for the output directory.
-    #[default]
-    Directory,
-    /// Single bundled/compiled output file.
-    /// Uses `out_file` for the output path.
-    File,
-}
-
-/// Shrink level for builds (code size reduction).
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
-pub enum ShrinkLevel {
-    /// No shrinking (S0).
-    #[default]
-    S0,
-    /// Basic shrinking (S1).
-    S1,
-    /// Standard shrinking (S2).
-    S2,
-    /// Aggressive shrinking (S3).
-    S3,
-}
-
-impl ShrinkLevel {
-    /// Create from a numeric level (0-3).
-    pub fn from_level(level: u8) -> Self {
-        match level {
-            0 => Self::S0,
-            1 => Self::S1,
-            2 => Self::S2,
-            _ => Self::S3,
-        }
-    }
-
-    /// Get the numeric level.
-    pub fn as_level(&self) -> u8 {
-        match self {
-            Self::S0 => 0,
-            Self::S1 => 1,
-            Self::S2 => 2,
-            Self::S3 => 3,
-        }
-    }
-}
-
-/// Normalized Destack build target options.
+/// Normalized Destack build target options (from dsconfig.json).
 #[derive(Debug, Clone)]
 pub struct DsConfigTargetOptions {
-    // codegen
-    /// The codegen target.
-    pub codegen: CodegenTarget,
-    /// Glob patterns for files to include in this target.
-    pub include: Vec<String>,
-    /// Glob patterns for files to exclude from this target.
-    pub exclude: Vec<String>,
+    // output format
+    /// Output format (js, ts, wasm, native).
+    pub output: OutputFormat,
+    /// Emit declaration files (.d.ts) alongside JS output.
+    pub declaration: bool,
+    /// Emit source maps.
+    pub source_map: bool,
 
-    // output
+    // output paths
     /// Output directory for this target.
     pub out_dir: Option<PathBuf>,
     /// Output file for single-file targets like wasm.
@@ -584,6 +457,12 @@ pub struct DsConfigTargetOptions {
     pub module: ModuleKind,
     /// ECMAScript target for this target.
     pub es_target: EsTarget,
+
+    // filtering
+    /// Glob patterns for files to include in this target.
+    pub include: Vec<String>,
+    /// Glob patterns for files to exclude from this target.
+    pub exclude: Vec<String>,
 
     // optimization
     /// Whether this is a debug build.
@@ -599,14 +478,16 @@ pub struct DsConfigTargetOptions {
 impl Default for DsConfigTargetOptions {
     fn default() -> Self {
         Self {
-            codegen: CodegenTarget::default(),
-            include: Vec::new(),
-            exclude: Vec::new(),
+            output: OutputFormat::default(),
+            declaration: false,
+            source_map: false,
             out_dir: None,
             out_file: None,
             declaration_dir: None,
             module: ModuleKind::default(),
             es_target: EsTarget::default(),
+            include: Vec::new(),
+            exclude: Vec::new(),
             debug: true,
             optimize: false,
             optimize_level: OptimizeLevel::O0,
@@ -618,12 +499,9 @@ impl Default for DsConfigTargetOptions {
 impl DsConfigTargetOptions {
     /// Derive the output mode from the target configuration.
     pub fn output_mode(&self) -> OutputMode {
-        // out_file is explicitly set or out_dir is *not* set and the codegen target is single-file
-        if self.out_file.is_some() || (self.out_dir.is_none() && self.codegen.is_single_file()) {
+        if self.out_file.is_some() || (self.out_dir.is_none() && self.output.is_single_file()) {
             OutputMode::File
-        }
-        // otherwise, it's a directory output
-        else {
+        } else {
             OutputMode::Directory
         }
     }
@@ -637,14 +515,35 @@ impl DsConfigTargetOptions {
     pub fn is_out_dir(&self) -> bool {
         self.output_mode() == OutputMode::Directory
     }
+
+    /// Convert to a standalone Target with the given name.
+    pub fn to_target(&self, name: &str) -> Target {
+        Target {
+            name: name.to_string(),
+            output: self.output,
+            declaration: self.declaration,
+            source_map: self.source_map,
+            out_dir: self.out_dir.clone(),
+            out_file: self.out_file.clone(),
+            declaration_dir: self.declaration_dir.clone(),
+            module: self.module,
+            es_target: self.es_target,
+            include: self.include.clone(),
+            exclude: self.exclude.clone(),
+            debug: self.debug,
+            optimize: self.optimize,
+            optimize_level: self.optimize_level,
+            shrink_level: self.shrink_level,
+        }
+    }
 }
 
 impl From<&DsConfigTargetJson> for DsConfigTargetOptions {
     fn from(json: &DsConfigTargetJson) -> Self {
         Self {
-            codegen: json.codegen.unwrap_or_default(),
-            include: json.include.clone().unwrap_or_default(),
-            exclude: json.exclude.clone().unwrap_or_default(),
+            output: json.output.map(OutputFormat::from).unwrap_or_default(),
+            declaration: json.declaration,
+            source_map: json.source_map,
             out_dir: json.out_dir.as_ref().map(PathBuf::from),
             out_file: json.out_file.as_ref().map(PathBuf::from),
             declaration_dir: json.declaration_dir.as_ref().map(PathBuf::from),
@@ -658,16 +557,44 @@ impl From<&DsConfigTargetJson> for DsConfigTargetOptions {
                 .as_deref()
                 .and_then(EsTarget::parse)
                 .unwrap_or_default(),
+            include: json.include.clone().unwrap_or_default(),
+            exclude: json.exclude.clone().unwrap_or_default(),
             debug: json.debug,
             optimize: json.optimize,
             optimize_level: json
                 .optimize_level
-                .map(OptimizeLevel::from_level)
+                .map(OptimizeLevel::from)
                 .unwrap_or_default(),
-            shrink_level: json
-                .shrink_level
-                .map(ShrinkLevel::from_level)
-                .unwrap_or_default(),
+            shrink_level: json.shrink_level.map(ShrinkLevel::from).unwrap_or_default(),
+        }
+    }
+}
+
+/// Output format for JSON deserialization.
+#[derive(Debug, Clone, Copy, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum OutputFormatJson {
+    /// JavaScript (.js).
+    #[serde(alias = "javascript")]
+    Js,
+    /// TypeScript (.ts).
+    #[serde(alias = "typescript")]
+    Ts,
+    /// WebAssembly (.wasm).
+    #[serde(alias = "webassembly")]
+    Wasm,
+    /// Native binary.
+    #[serde(alias = "binary")]
+    Native,
+}
+
+impl From<OutputFormatJson> for OutputFormat {
+    fn from(value: OutputFormatJson) -> Self {
+        match value {
+            OutputFormatJson::Js => OutputFormat::Js,
+            OutputFormatJson::Ts => OutputFormat::Ts,
+            OutputFormatJson::Wasm => OutputFormat::Wasm,
+            OutputFormatJson::Native => OutputFormat::Native,
         }
     }
 }
@@ -835,15 +762,17 @@ impl DsConfigCompilerOptionsJson {
 #[derive(Debug, Default, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct DsConfigTargetJson {
-    // codegen
-    /// The codegen target (js, ts, js+dts, wasm). Default: js+dts.
-    pub codegen: Option<CodegenTarget>,
-    /// Glob patterns for files to include in this target.
-    pub include: Option<Vec<String>>,
-    /// Glob patterns for files to exclude from this target.
-    pub exclude: Option<Vec<String>>,
+    // output format
+    /// Output format: "js", "ts", "wasm", "native". Default: "js".
+    pub output: Option<OutputFormatJson>,
+    /// Emit declaration files (.d.ts) alongside JS output.
+    #[serde(default)]
+    pub declaration: bool,
+    /// Emit source maps.
+    #[serde(default)]
+    pub source_map: bool,
 
-    // output
+    // output paths
     /// Output directory for this target (overrides compilerOptions.outDir).
     pub out_dir: Option<String>,
     /// Output file for single-file targets like wasm (e.g., "./dist/core.wasm").
@@ -856,6 +785,12 @@ pub struct DsConfigTargetJson {
     pub module: Option<String>,
     /// ECMAScript target for this target (overrides compilerOptions.target).
     pub es_target: Option<String>,
+
+    // filtering
+    /// Glob patterns for files to include in this target.
+    pub include: Option<Vec<String>>,
+    /// Glob patterns for files to exclude from this target.
+    pub exclude: Option<Vec<String>>,
 
     // optimization
     /// Whether this is a debug build.
