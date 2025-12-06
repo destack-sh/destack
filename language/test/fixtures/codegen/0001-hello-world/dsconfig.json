@@ -1,8 +1,9 @@
 {
 	"compilerOptions": {
 		"strict": true,
-		"noImplicitAny": true,
-		"esModuleInterop": true
+		"noImplicitAny": true
 	},
-	"include": ["**/*"]
+	"include": [
+		"**/*"
+	]
 }

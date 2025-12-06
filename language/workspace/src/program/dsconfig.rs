@@ -5,8 +5,8 @@ use indexmap::IndexMap;
 use serde::Deserialize;
 
 use destack_source::{
-    File, FileContent, FileId, FormattingOptions, IndentStyle, LanguageFeature, LanguageFeatureSet,
-    LineEnding,
+    File, FileContent, FileId, FormatterOptions, IndentStyle, LanguageFeature, LanguageFeatureSet,
+    LineEnding, LinterOptions, LinterRules, RuleSeverity,
 };
 
 use super::target::{OptimizeLevel, OutputFormat, OutputMode, ShrinkLevel, Target};
@@ -29,6 +29,7 @@ pub struct DsConfig {
 
 /// DsConfig JSON (usually from `dsconfig.json`)
 #[derive(Debug, Deserialize, Clone, Default)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
 pub struct DsConfigJson {
     /// Extends other dsconfigs or tsconfigs.
@@ -42,6 +43,12 @@ pub struct DsConfigJson {
     /// Compiler options.
     #[serde(default)]
     pub compiler_options: DsConfigCompilerOptionsJson,
+    /// Formatter options.
+    #[serde(default)]
+    pub formatter: DsConfigFormatterJson,
+    /// Linter options.
+    #[serde(default)]
+    pub linter: DsConfigLinterJson,
     /// Build targets.
     pub targets: Option<IndexMap<String, DsConfigTargetJson>>,
 }
@@ -163,20 +170,38 @@ impl DsConfig {
             compiler.tsconfig = parent_compiler.tsconfig.clone();
         }
 
-        // inherit formatting options (child overrides if explicitly set in JSON)
-        // we check against defaults to see if child set them
-        let child_json = &self.content.compiler_options.formatting;
+        // inherit formatter options (child overrides if explicitly set in JSON)
+        let child_json = &self.content.formatter;
         if child_json.line_ending.is_none() {
-            compiler.formatting.line_ending = parent_compiler.formatting.line_ending;
+            self.options.formatter.line_ending = parent.formatter.line_ending;
         }
         if child_json.indent_style.is_none() {
-            compiler.formatting.indent_style = parent_compiler.formatting.indent_style;
+            self.options.formatter.indent_style = parent.formatter.indent_style;
         }
         if child_json.indent_width.is_none() {
-            compiler.formatting.indent_width = parent_compiler.formatting.indent_width;
+            self.options.formatter.indent_width = parent.formatter.indent_width;
         }
         if child_json.line_width.is_none() {
-            compiler.formatting.line_width = parent_compiler.formatting.line_width;
+            self.options.formatter.line_width = parent.formatter.line_width;
+        }
+
+        // inherit linter options (child overrides if explicitly set in JSON)
+        let child_linter_json = &self.content.linter;
+        if child_linter_json.enabled.is_none() {
+            self.options.linter.enabled = parent.linter.enabled;
+        }
+        if child_linter_json.rules.recommended.is_none() {
+            self.options.linter.rules.recommended = parent.linter.rules.recommended;
+        }
+        // merge rule overrides (child takes precedence)
+        for (rule, severity) in &parent.linter.rules.overrides {
+            if !self.options.linter.rules.overrides.contains_key(rule) {
+                self.options
+                    .linter
+                    .rules
+                    .overrides
+                    .insert(rule.clone(), *severity);
+            }
         }
 
         // extend targets (add missing targets from parent)
@@ -196,6 +221,7 @@ impl DsConfig {
 
 /// Value for the "extends" field of a dsconfig.
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(untagged)]
 pub enum DsConfigExtendsField {
     /// Extend a single dsconfig.
@@ -215,17 +241,31 @@ pub struct DsConfigOptions {
     pub exclude: Vec<String>,
     /// Compiler options.
     pub compiler: DsConfigCompilerOptions,
+    /// Formatter options.
+    pub formatter: FormatterOptions,
+    /// Linter options.
+    pub linter: LinterOptions,
     /// Build targets.
     pub targets: IndexMap<String, DsConfigTargetOptions>,
 }
 
 impl From<&DsConfigJson> for DsConfigOptions {
     fn from(json: &DsConfigJson) -> Self {
+        let compiler = DsConfigCompilerOptions::from(&json.compiler_options);
+
+        let mut formatter = FormatterOptions::default();
+        json.formatter.apply(&mut formatter);
+
+        let mut linter = LinterOptions::default();
+        json.linter.apply(&mut linter);
+
         Self {
             files: json.files.clone().unwrap_or_default(),
             include: json.include.clone().unwrap_or_default(),
             exclude: json.exclude.clone().unwrap_or_default(),
-            compiler: DsConfigCompilerOptions::from(&json.compiler_options),
+            compiler,
+            formatter,
+            linter,
             targets: json
                 .targets
                 .as_ref()
@@ -318,10 +358,6 @@ pub struct DsConfigCompilerOptions {
     pub check_js: bool,
     /// Skip type checking of declaration files.
     pub skip_lib_check: bool,
-
-    // formatting
-    /// Formatting options.
-    pub formatting: FormattingOptions,
 }
 
 impl Default for DsConfigCompilerOptions {
@@ -363,9 +399,6 @@ impl Default for DsConfigCompilerOptions {
             allow_js: true,
             check_js: false,
             skip_lib_check: false,
-
-            // formatting
-            formatting: FormattingOptions::default(),
         }
     }
 }
@@ -422,13 +455,6 @@ impl From<&DsConfigCompilerOptionsJson> for DsConfigCompilerOptions {
             allow_js: json.allow_js.unwrap_or(true),
             check_js: json.check_js.unwrap_or(false),
             skip_lib_check: json.skip_lib_check.unwrap_or(false),
-
-            // formatting (apply JSON options on top of defaults)
-            formatting: {
-                let mut formatting = FormattingOptions::default();
-                json.formatting.apply(&mut formatting);
-                formatting
-            },
         }
     }
 }
@@ -572,6 +598,7 @@ impl From<&DsConfigTargetJson> for DsConfigTargetOptions {
 
 /// Output format for JSON deserialization.
 #[derive(Debug, Clone, Copy, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "lowercase")]
 pub enum OutputFormatJson {
     /// JavaScript (.js).
@@ -601,28 +628,32 @@ impl From<OutputFormatJson> for OutputFormat {
 
 /// Line ending style for JSON deserialization.
 #[derive(Debug, Clone, Copy, Deserialize)]
-#[serde(rename_all = "lowercase")]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub enum LineEndingJson {
-    #[serde(alias = "lf")]
-    LineFeed,
-    #[serde(alias = "crlf")]
-    CarriageReturnLineFeed,
-    #[serde(alias = "cr")]
-    CarriageReturn,
+    /// Unix-style line endings (LF).
+    #[serde(rename = "lf")]
+    Lf,
+    /// Windows-style line endings (CRLF).
+    #[serde(rename = "crlf")]
+    Crlf,
+    /// Classic Mac-style line endings (CR).
+    #[serde(rename = "cr")]
+    Cr,
 }
 
 impl From<LineEndingJson> for LineEnding {
     fn from(value: LineEndingJson) -> Self {
         match value {
-            LineEndingJson::LineFeed => LineEnding::LineFeed,
-            LineEndingJson::CarriageReturnLineFeed => LineEnding::CarriageReturnLineFeed,
-            LineEndingJson::CarriageReturn => LineEnding::CarriageReturn,
+            LineEndingJson::Lf => LineEnding::LineFeed,
+            LineEndingJson::Crlf => LineEnding::CarriageReturnLineFeed,
+            LineEndingJson::Cr => LineEnding::CarriageReturn,
         }
     }
 }
 
 /// Indent style for JSON deserialization.
 #[derive(Debug, Clone, Copy, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "lowercase")]
 pub enum IndentStyleJson {
     #[serde(alias = "tabs")]
@@ -639,8 +670,9 @@ impl From<IndentStyleJson> for IndentStyle {
         }
     }
 }
-/// Destack configuration compiler options (JSON representation).
+/// Destack configuration compiler options.
 #[derive(Debug, Default, Deserialize, Clone)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
 pub struct DsConfigCompilerOptionsJson {
     // features
@@ -724,11 +756,6 @@ pub struct DsConfigCompilerOptionsJson {
     pub check_js: Option<bool>,
     /// Skip type checking of declaration files (.d.ts, .d.ds).
     pub skip_lib_check: Option<bool>,
-
-    // formatting
-    /// Formatting options (lineEnding, indentStyle, indentWidth, lineWidth).
-    #[serde(default)]
-    pub formatting: DsConfigFormattingJson,
 }
 
 impl DsConfigCompilerOptionsJson {
@@ -758,8 +785,9 @@ impl DsConfigCompilerOptionsJson {
     }
 }
 
-/// Destack build target configuration (JSON representation).
+/// Destack build target configuration.
 #[derive(Debug, Default, Deserialize, Clone)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
 pub struct DsConfigTargetJson {
     // output format
@@ -805,23 +833,24 @@ pub struct DsConfigTargetJson {
     pub shrink_level: Option<u8>,
 }
 
-/// Destack formatting options (JSON representation).
+/// Formatter options (top-level, like Biome/Deno).
 #[derive(Debug, Default, Deserialize, Clone)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
-pub struct DsConfigFormattingJson {
+pub struct DsConfigFormatterJson {
     /// Line ending style: "lf", "crlf", or "cr".
     pub line_ending: Option<LineEndingJson>,
     /// Indent style: "tab" or "space".
     pub indent_style: Option<IndentStyleJson>,
-    /// Number of spaces per indent (when using spaces).
+    /// Number of spaces per indent (when using spaces). Default: 4.
     pub indent_width: Option<u8>,
-    /// Maximum line width (best effort).
+    /// Maximum line width (best effort). Default: 100.
     pub line_width: Option<u8>,
 }
 
-impl DsConfigFormattingJson {
-    /// Apply formatting options to a FormattingOptions struct.
-    pub fn apply(&self, options: &mut FormattingOptions) {
+impl DsConfigFormatterJson {
+    /// Apply formatter options to a FormatterOptions struct.
+    pub fn apply(&self, options: &mut FormatterOptions) {
         if let Some(line_ending) = self.line_ending {
             options.line_ending = line_ending.into();
         }
@@ -833,6 +862,82 @@ impl DsConfigFormattingJson {
         }
         if let Some(line_width) = self.line_width {
             options.line_width = line_width;
+        }
+    }
+}
+
+/// Linter options (top-level, like Biome/Deno).
+#[derive(Debug, Default, Deserialize, Clone)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "camelCase")]
+pub struct DsConfigLinterJson {
+    /// Whether linting is enabled. Default: true.
+    pub enabled: Option<bool>,
+    /// Rule configuration.
+    #[serde(default)]
+    pub rules: DsConfigLinterRulesJson,
+}
+
+impl DsConfigLinterJson {
+    /// Apply linter options to a LinterOptions struct.
+    pub fn apply(&self, options: &mut LinterOptions) {
+        if let Some(enabled) = self.enabled {
+            options.enabled = enabled;
+        }
+        self.rules.apply(&mut options.rules);
+    }
+}
+
+/// Linter rules configuration.
+#[derive(Debug, Default, Deserialize, Clone)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "camelCase")]
+pub struct DsConfigLinterRulesJson {
+    /// Enable the recommended rule set. Default: true.
+    pub recommended: Option<bool>,
+    /// Enable all rules (stricter than recommended).
+    pub all: Option<bool>,
+    /// Individual rule overrides (rule name -> severity).
+    /// Overrides take precedence over presets.
+    #[serde(flatten)]
+    pub overrides: IndexMap<String, RuleSeverityJson>,
+}
+
+impl DsConfigLinterRulesJson {
+    /// Apply rules configuration to a LinterRules struct.
+    pub fn apply(&self, rules: &mut LinterRules) {
+        if let Some(recommended) = self.recommended {
+            rules.recommended = recommended;
+        }
+        // "all" implies recommended + more
+        if let Some(true) = self.all {
+            rules.recommended = true;
+        }
+        for (rule, severity) in &self.overrides {
+            rules.overrides.insert(rule.clone(), (*severity).into());
+        }
+    }
+}
+
+/// Rule severity for JSON deserialization.
+#[derive(Debug, Clone, Copy, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "lowercase")]
+pub enum RuleSeverityJson {
+    /// Rule is disabled.
+    Off,
+    /// Rule produces warnings.
+    Warn,
+    /// Rule produces errors.
+    Error,
+}
+
+impl From<RuleSeverityJson> for RuleSeverity {
+    fn from(value: RuleSeverityJson) -> Self {
+        match value {
+            RuleSeverityJson::Off => RuleSeverity::Off,
+            RuleSeverityJson::Warn => RuleSeverity::Warn,
+            RuleSeverityJson::Error => RuleSeverity::Error,
         }
     }
 }

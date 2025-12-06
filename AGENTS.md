@@ -61,6 +61,14 @@ let second_digit = (dt_bytes[1] - b'0') as i64;
 let number = 10 * first_digit + second_digit;
 ```
 
+### Dependencies
+
+Fewer dependencies is better.
+When simple logic is needed, we just implement it ourselves.
+Moderately complex logic is sometimes vendored.
+Complex or dev-only dependencies are sometimes okay.
+When adding a dependency, we should try go for the latest stable version.
+
 ### Testing
 
 Tests should start with `test_` and state their content as a verb.

@@ -5,7 +5,7 @@ use std::thread;
 
 use clap::{Args, ValueEnum};
 use destack_source::{
-    FileRegistry, FileSystem, FormattingOptions, IndentStyle, LanguageMode, LanguageOptions,
+    FileRegistry, FileSystem, FormatterOptions, IndentStyle, LanguageMode, LanguageOptions,
     LineEnding, MemoryFileSystem, PhysicalFileSystem,
 };
 use destack_workspace::Program;
@@ -119,7 +119,7 @@ impl From<LanguageOptionsArgs> for LanguageOptions {
             options.mode = mode.into();
         }
 
-        let mut formatting = FormattingOptions::default();
+        let mut formatting = FormatterOptions::default();
         if let Some(style) = args.indent_style {
             formatting.indent_style = style.into();
         }
