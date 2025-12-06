@@ -1,4 +1,3 @@
-
 use super::compile_mir_to_normalized_clif;
 
 /// Void functions produce no return value.

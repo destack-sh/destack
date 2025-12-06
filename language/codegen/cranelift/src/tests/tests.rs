@@ -22,7 +22,9 @@ pub(crate) fn compile_mir_to_clif(source: &str) -> String {
     }
 
     let backend = CraneliftCodegenBackend::native().expect("failed to create backend");
-    backend.compile_to_clif(&module).expect("failed to compile")
+    backend
+        .compile_to_clif(&module, "test")
+        .expect("failed to compile")
 }
 
 /// Normalize CLIF output for cross-platform comparison:

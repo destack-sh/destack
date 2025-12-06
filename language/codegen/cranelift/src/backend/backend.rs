@@ -69,9 +69,8 @@ impl CraneliftCodegenBackend {
 
     /// Create the target ISA from the triple and target configuration.
     fn create_isa(triple: &Triple, target: &Target) -> Result<Arc<dyn TargetIsa>, CraneliftError> {
+        // configure
         let mut flags_builder = settings::builder();
-
-        // configure optimization level
         let opt_level = if target.optimize {
             match target.optimize_level {
                 destack_workspace::OptimizeLevel::O0 => "none",
@@ -87,15 +86,14 @@ impl CraneliftCodegenBackend {
             .map_err(|e| CraneliftError::Internal {
                 message: e.to_string(),
             })?;
-
         let flags = settings::Flags::new(flags_builder);
 
+        // create isa
         let isa_builder = cranelift_codegen::isa::lookup(triple.clone()).map_err(|e| {
             CraneliftError::UnsupportedTarget {
                 triple: e.to_string(),
             }
         })?;
-
         isa_builder
             .finish(flags)
             .map_err(|e| CraneliftError::Internal {
@@ -117,17 +115,25 @@ impl CraneliftCodegenBackend {
     ///
     /// For WASM targets, returns a `.wasm` module.
     /// For native targets, returns an object file.
-    pub fn compile_module(&self, module: &ModuleMir) -> Result<Vec<u8>, CraneliftError> {
+    pub fn compile_module(
+        &self,
+        module: &ModuleMir,
+        name: &str,
+    ) -> Result<Vec<u8>, CraneliftError> {
         let tree = module.tree.read();
-        let mut lowerer = ModuleLowerer::new(self.isa.as_ref(), &module.strings);
+        let mut lowerer = ModuleLowerer::new(self.isa.clone(), &module.strings, name);
         lowerer.lower_module(&tree)?;
         lowerer.finish()
     }
 
     /// Compile a MIR module and return Cranelift IR text format.
-    pub fn compile_to_clif(&self, module: &ModuleMir) -> Result<String, CraneliftError> {
+    pub fn compile_to_clif(
+        &self,
+        module: &ModuleMir,
+        name: &str,
+    ) -> Result<String, CraneliftError> {
         let tree = module.tree.read();
-        let mut lowerer = ModuleLowerer::new(self.isa.as_ref(), &module.strings);
+        let mut lowerer = ModuleLowerer::new(self.isa.clone(), &module.strings, name);
         lowerer.lower_module(&tree)?;
         lowerer.as_clif_string()
     }
@@ -138,6 +144,7 @@ impl CodegenBackend for CraneliftCodegenBackend {
     type Error = CraneliftError;
 
     fn compile(&self, module: &ModuleMir) -> Result<Self::Output, Self::Error> {
-        self.compile_module(module)
+        // use module id as name for the CodegenBackend trait
+        self.compile_module(module, &format!("{}", module.id))
     }
 }

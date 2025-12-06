@@ -11,6 +11,7 @@ use crate::CraneliftError;
 pub(crate) fn lower_type(
     tree: &mir::NodeTree,
     type_id: mir::LocalNodeId<mir::Type>,
+    pointer_bytes: u8,
 ) -> Result<cir::Type, CraneliftError> {
     let mir_type = tree.get(type_id);
     match mir_type {
@@ -41,8 +42,9 @@ pub(crate) fn lower_type(
             ))),
         },
 
-        // TODO #Incomplete: get pointer size from target ISA
-        mir::Type::Pointer { .. } => Ok(cir::types::I64),
+        mir::Type::Pointer { .. } | mir::Type::FunctionPointer { .. } => {
+            Ok(pointer_type(pointer_bytes))
+        }
 
         mir::Type::Array { .. } => Err(CraneliftError::unsupported_type(
             "array types must be lowered to memory operations",
@@ -55,8 +57,14 @@ pub(crate) fn lower_type(
         mir::Type::Struct { .. } => Err(CraneliftError::unsupported_type(
             "struct types must be lowered to memory operations",
         )),
+    }
+}
 
-        // function pointers are just pointers
-        mir::Type::FunctionPointer { .. } => Ok(cir::types::I64),
+/// Get the Cranelift type for a pointer of the given size.
+fn pointer_type(pointer_bytes: u8) -> cir::Type {
+    match pointer_bytes {
+        4 => cir::types::I32,
+        8 => cir::types::I64,
+        _ => panic!("unsupported pointer size: {pointer_bytes} bytes"),
     }
 }
