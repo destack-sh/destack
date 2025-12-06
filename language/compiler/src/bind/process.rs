@@ -68,18 +68,19 @@ impl Compiler {
 
     /// Bind the AST root expressions for a module.
     fn bind_module_roots(&self, module: &mut Module) {
-        let mut tree = module.tree.write();
-        let mut symbols = module.symbols.write();
-        let mut types = module.types.write();
+        let mut tree = module.dir.tree.write();
+        let mut symbols = module.dir.symbols.write();
+        let mut types = module.dir.types.write();
         let roots: Vec<LocalNodeId<Expression>> = module
-            .ast_roots
+            .ast
+            .roots
             .iter()
             .map(|expression| {
                 self.bind_expression(
                     module,
                     (
-                        module.namespace_scope,
-                        symbols.get_scope_mark(module.namespace_scope),
+                        module.dir.namespace_scope,
+                        symbols.get_scope_mark(module.dir.namespace_scope),
                     ),
                     *expression,
                     None,
@@ -89,15 +90,15 @@ impl Compiler {
                 )
             })
             .collect();
-        module.roots.extend(roots);
+        module.dir.roots.extend(roots);
     }
 
     /// Bind module exports and resolve conflicts.
     fn bind_module_exports(&self, module: &mut Module) {
-        let mut symbols = module.symbols.write();
+        let mut symbols = module.dir.symbols.write();
 
         // collect exported symbols
-        let root_scope = symbols.get_scope_by_id(module.namespace_scope);
+        let root_scope = symbols.get_scope_by_id(module.dir.namespace_scope);
         let exported_symbols: Vec<(GlobalNodeIdAny, LocalSymbolId)> = root_scope
             .named_symbols
             .iter()
@@ -128,7 +129,7 @@ impl Compiler {
 
     /// Check for conflicting item symbols in module scopes and report errors.
     fn bind_check_scopes(&self, module: &mut Module) {
-        let symbols = module.symbols.read();
+        let symbols = module.dir.symbols.read();
         for scope in symbols.scopes() {
             for (key, symbol_id) in scope.named_symbols.iter() {
                 let symbol = symbols.get_symbol(*symbol_id);

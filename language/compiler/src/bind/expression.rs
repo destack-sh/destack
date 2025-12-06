@@ -30,7 +30,7 @@ impl Compiler {
         symbols: &mut SymbolTable,
         types: &mut TypeTable,
     ) -> LocalNodeId<Expression> {
-        let ast_expression = module.ast.get(ast_expression_id);
+        let ast_expression = module.ast.tree.get(ast_expression_id);
         let expression_id =
             tree.reserve_from_source(NodeType::Expression, ast_expression_id, scope, parent_id);
         let expression = match ast_expression {
@@ -86,7 +86,7 @@ impl Compiler {
                 let target = self
                     .program
                     .strings
-                    .intern_from(&module.ast_strings, *target);
+                    .intern_from(&module.ast.strings, *target);
                 // items
                 let items: Vec<_> = items
                     .iter()
@@ -139,7 +139,7 @@ impl Compiler {
                 let target = target.map(|target| {
                     self.program
                         .strings
-                        .intern_from(&module.ast_strings, target)
+                        .intern_from(&module.ast.strings, target)
                 });
                 // re-export from import
                 if let Some(target) = target {
@@ -444,7 +444,7 @@ impl Compiler {
                     symbols,
                     types,
                 );
-                let name = self.program.strings.intern_from(&module.ast_strings, *name);
+                let name = self.program.strings.intern_from(&module.ast.strings, *name);
                 let static_arguments = static_arguments.as_ref().map(|arguments| {
                     arguments
                         .iter()
@@ -1201,7 +1201,7 @@ impl Compiler {
 
             ast::Expression::Break { label, value } => {
                 let label =
-                    label.map(|label| self.program.strings.intern_from(&module.ast_strings, label));
+                    label.map(|label| self.program.strings.intern_from(&module.ast.strings, label));
                 let value = value.map(|value| {
                     self.bind_expression(
                         module,
@@ -1220,7 +1220,7 @@ impl Compiler {
             }
             ast::Expression::Continue { label } => {
                 let label =
-                    label.map(|label| self.program.strings.intern_from(&module.ast_strings, label));
+                    label.map(|label| self.program.strings.intern_from(&module.ast.strings, label));
                 Expression::UnresolvedContinue { target: label }
             }
             ast::Expression::Return { value } => {

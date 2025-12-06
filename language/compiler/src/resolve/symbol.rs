@@ -219,7 +219,7 @@ let z = y;
 
         let module = test.module_for_file(&file);
         let module = module.read();
-        let tree = module.tree.read();
+        let tree = module.dir.tree.read();
         let (x_symbol_id, x_node) = test.resolve_to_node::<Pattern>("test.ds", "x").unwrap();
         let x_node = tree
             .get_parent(x_node.id)
@@ -276,10 +276,10 @@ export let B = A + 1;
 
         let module_a = test.module_for_file(&file_a);
         let module_a = module_a.read();
-        let tree_a = module_a.tree.read();
+        let tree_a = module_a.dir.tree.read();
         let module_b = test.module_for_file(&file_b);
         let module_b = module_b.read();
-        let tree_b = module_b.tree.read();
+        let tree_b = module_b.dir.tree.read();
 
         // export let A = 1;
         let (a_symbol_id, a_node_id) = test.resolve_to_node::<Pattern>("a.ds", "A").unwrap();

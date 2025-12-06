@@ -37,7 +37,7 @@ impl Compiler {
         let name = descriptor.name.map(|name| {
             self.program
                 .strings
-                .intern_from(&module.ast_strings, name.string())
+                .intern_from(&module.ast.strings, name.string())
         });
         let export = descriptor
             .export
@@ -76,7 +76,7 @@ impl Compiler {
         symbols: &mut SymbolTable,
         types: &mut TypeTable,
     ) -> LocalNodeId<Declaration> {
-        let ast_declaration = module.ast.get(ast_declaration_id);
+        let ast_declaration = module.ast.tree.get(ast_declaration_id);
         let declaration_id =
             tree.reserve_from_source(NodeType::Declaration, ast_declaration_id, scope, parent_id);
         let declaration = match ast_declaration {
@@ -528,13 +528,13 @@ impl Compiler {
         symbols: &mut SymbolTable,
         types: &mut TypeTable,
     ) -> LocalNodeId<EnumField> {
-        let ast_field = module.ast.get(ast_field_id);
+        let ast_field = module.ast.tree.get(ast_field_id);
         let field_id =
             tree.reserve_from_source(NodeType::EnumField, ast_field_id, scope, parent_id);
         let name = self
             .program
             .strings
-            .intern_from(&module.ast_strings, ast_field.name.string());
+            .intern_from(&module.ast.strings, ast_field.name.string());
         let value = ast_field.value.map(|value| {
             self.bind_expression(module, scope, value, Some(field_id), tree, symbols, types)
         });

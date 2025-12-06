@@ -134,8 +134,8 @@ string;
 
         let module = test.module_for_file(&file);
         let module = module.read();
-        let tree = module.tree.read();
-        let roots = &module.roots;
+        let tree = module.dir.tree.read();
+        let roots = &module.dir.roots;
 
         // int (defaults to int32)
         assert_node!(tree, roots[0], Expression::Statement { statement } => {
@@ -227,8 +227,8 @@ string;
 
         let module = test.module_for_file(&file);
         let module = module.read();
-        let tree = module.tree.read();
-        let roots = &module.roots;
+        let tree = module.dir.tree.read();
+        let roots = &module.dir.roots;
 
         let (string_symbol_id, _) = test
             .resolve_to_node::<destack_dir::Pattern>("test.ds", "string")

@@ -21,12 +21,12 @@ impl Compiler {
         symbols: &mut SymbolTable,
         types: &mut TypeTable,
     ) -> LocalNodeId<WhereClause> {
-        let ast_where_clause = module.ast.get(ast_where_clause_id);
+        let ast_where_clause = module.ast.tree.get(ast_where_clause_id);
         let where_clause_id =
             tree.reserve_from_source(NodeType::WhereClause, ast_where_clause_id, scope, parent_id);
         match ast_where_clause {
             ast::WhereClause::Assertion { left, right } => {
-                let left = self.program.strings.intern_from(&module.ast_strings, *left);
+                let left = self.program.strings.intern_from(&module.ast.strings, *left);
                 let right = self.bind_expression(
                     module,
                     scope,

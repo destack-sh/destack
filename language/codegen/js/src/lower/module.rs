@@ -60,7 +60,7 @@ impl TranspilerUnit {
 }
 
 impl Transpiler {
-    /// Lower the modules into AST.
+    /// Lower the modules into JS AST.
     pub fn lower_module(
         &self,
         module: &Module,
@@ -69,7 +69,7 @@ impl Transpiler {
         types: &TypeTable,
         unit: &mut TranspilerUnit,
     ) {
-        for expression_id in module.roots.iter() {
+        for expression_id in module.dir.roots.iter() {
             match self.lower_expression(module, tree, symbols, types, *expression_id, unit) {
                 Ok(root_id) => unit.roots.push(root_id),
                 Err(error) => unit.error(error),

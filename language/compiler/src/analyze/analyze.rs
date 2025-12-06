@@ -1258,10 +1258,10 @@ mod tests {
 
         let module = test.module_for_file(&file);
         let module = module.read();
-        let tree = module.tree.read();
-        let types = module.types.read();
+        let tree = module.dir.tree.read();
+        let types = module.dir.types.read();
 
-        let expression_id = module.roots[0];
+        let expression_id = module.dir.roots[0];
         let expression = tree.get(expression_id);
         let &Expression::Statement {
             statement: expression_id,
@@ -1290,10 +1290,10 @@ mod tests {
 
         let module = test.module_for_file(&file);
         let module = module.read();
-        let tree = module.tree.read();
-        let types = module.types.read();
+        let tree = module.dir.tree.read();
+        let types = module.dir.types.read();
 
-        let expression_id = module.roots[0];
+        let expression_id = module.dir.roots[0];
         let expression = tree.get(expression_id);
         let &Expression::Statement {
             statement: expression_id,
@@ -1322,10 +1322,10 @@ mod tests {
 
         let module = test.module_for_file(&file);
         let module = module.read();
-        let tree = module.tree.read();
-        let types = module.types.read();
+        let tree = module.dir.tree.read();
+        let types = module.dir.types.read();
 
-        let expression_id = module.roots[0];
+        let expression_id = module.dir.roots[0];
         let expression = tree.get(expression_id);
         let &Expression::Statement {
             statement: expression_id,
@@ -1354,10 +1354,10 @@ mod tests {
 
         let module = test.module_for_file(&file);
         let module = module.read();
-        let tree = module.tree.read();
-        let types = module.types.read();
+        let tree = module.dir.tree.read();
+        let types = module.dir.types.read();
 
-        let expression_id = module.roots[0];
+        let expression_id = module.dir.roots[0];
         let expression = tree.get(expression_id);
         let &Expression::Statement {
             statement: expression_id,
@@ -1386,10 +1386,10 @@ mod tests {
 
         let module = test.module_for_file(&file);
         let module = module.read();
-        let tree = module.tree.read();
-        let types = module.types.read();
+        let tree = module.dir.tree.read();
+        let types = module.dir.types.read();
 
-        let expression_id = module.roots[0];
+        let expression_id = module.dir.roots[0];
         let expression = tree.get(expression_id);
         let &Expression::Statement {
             statement: expression_id,
@@ -1418,9 +1418,9 @@ mod tests {
 
         let module = test.module_for_file(&file);
         let module = module.read();
-        let types = module.types.read();
+        let types = module.dir.types.read();
 
-        let let_expr_id = module.roots[0];
+        let let_expr_id = module.dir.roots[0];
         let x_symbol = test.resolve_to_symbol("test.ds", "x").unwrap();
 
         // no declared type
@@ -1452,10 +1452,10 @@ mod tests {
 
         let module = test.module_for_file(&file);
         let module = module.read();
-        let tree = module.tree.read();
-        let types = module.types.read();
+        let tree = module.dir.tree.read();
+        let types = module.dir.types.read();
 
-        let expression_id = module.roots[0];
+        let expression_id = module.dir.roots[0];
         let expression = tree.get(expression_id);
         let &Expression::Statement {
             statement: expression_id,
@@ -1503,7 +1503,7 @@ let (x, y, ...rest, z) = (123, 'abc', true, 456);
 
         let module = test.module_for_file(&file);
         let module = module.read();
-        let types = module.types.read();
+        let types = module.dir.types.read();
 
         let x_symbol = test.resolve_to_symbol("test.ds", "x").unwrap();
         let y_symbol = test.resolve_to_symbol("test.ds", "y").unwrap();
@@ -1564,7 +1564,7 @@ let [x, y, ...rest, z] = [123, 'abc', true, 456]; // array used as a tuple
 
         let module = test.module_for_file(&file);
         let module = module.read();
-        let types = module.types.read();
+        let types = module.dir.types.read();
 
         let x_symbol = test.resolve_to_symbol("test.ds", "x").unwrap();
         let y_symbol = test.resolve_to_symbol("test.ds", "y").unwrap();

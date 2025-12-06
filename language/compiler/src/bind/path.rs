@@ -16,7 +16,7 @@ impl Compiler {
             .map(|segment| {
                 self.program
                     .strings
-                    .intern_from(&module.ast_strings, *segment)
+                    .intern_from(&module.ast.strings, *segment)
             })
             .collect();
         Path { segments }

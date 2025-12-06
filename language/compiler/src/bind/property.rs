@@ -19,7 +19,7 @@ impl Compiler {
         symbols: &mut SymbolTable,
         types: &mut TypeTable,
     ) -> LocalNodeId<Property> {
-        let ast_property = module.ast.get(ast_property_id);
+        let ast_property = module.ast.tree.get(ast_property_id);
         let property_id =
             tree.reserve_from_source(NodeType::Property, ast_property_id, scope, parent_id);
         let property = match ast_property {

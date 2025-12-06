@@ -50,9 +50,9 @@ impl Transpiler {
                     symbol: _,
                 } => {
                     let mode = self.lower_dependency_mode(*mode);
-                    let name = name.map(|name| unit.strings.intern_from(&module.ast_strings, name));
+                    let name = name.map(|name| unit.strings.intern_from(&module.ast.strings, name));
                     let alias =
-                        alias.map(|alias| unit.strings.intern_from(&module.ast_strings, alias));
+                        alias.map(|alias| unit.strings.intern_from(&module.ast.strings, alias));
                     DependencyItem {
                         mode,
                         kind: if *item_kind != kind {
@@ -73,9 +73,9 @@ impl Transpiler {
                     symbol: _,
                 } => {
                     let mode = self.lower_dependency_mode(*mode);
-                    let name = unit.strings.intern_from(&module.ast_strings, *name);
+                    let name = unit.strings.intern_from(&module.ast.strings, *name);
                     let alias =
-                        alias.map(|alias| unit.strings.intern_from(&module.ast_strings, alias));
+                        alias.map(|alias| unit.strings.intern_from(&module.ast.strings, alias));
                     DependencyItem {
                         mode,
                         kind: if *item_kind != kind {
@@ -109,9 +109,9 @@ impl Transpiler {
                     target_symbol: _,
                 } => {
                     let mode = self.lower_dependency_mode(*mode);
-                    let name = unit.strings.intern_from(&module.ast_strings, *name);
+                    let name = unit.strings.intern_from(&module.ast.strings, *name);
                     let alias =
-                        alias.map(|alias| unit.strings.intern_from(&module.ast_strings, alias));
+                        alias.map(|alias| unit.strings.intern_from(&module.ast.strings, alias));
                     DependencyItem {
                         mode,
                         kind: if *item_kind != kind {
@@ -135,9 +135,9 @@ impl Transpiler {
                     target_symbol: _,
                 } => {
                     let mode = self.lower_dependency_mode(*mode);
-                    let name = name.map(|name| unit.strings.intern_from(&module.ast_strings, name));
+                    let name = name.map(|name| unit.strings.intern_from(&module.ast.strings, name));
                     let alias =
-                        alias.map(|alias| unit.strings.intern_from(&module.ast_strings, alias));
+                        alias.map(|alias| unit.strings.intern_from(&module.ast.strings, alias));
                     DependencyItem {
                         mode,
                         kind: if *item_kind != kind {

@@ -52,12 +52,12 @@ impl TestProgram {
     pub fn dump_module_nodes(&self, module: &Arc<RwLock<Module>>) {
         let strings = self.program.strings.clone().into_immutable();
         let module = module.read();
-        let tree = module.tree.read();
+        let tree = module.dir.tree.read();
         let mut dumper = Dumper::new(&strings, &tree, self.dumper_options);
         println!("{}", "=".repeat(80));
         println!("{} [NODE]", module.uri);
         println!("{}", "=".repeat(80));
-        for expression_id in &module.roots {
+        for expression_id in &module.dir.roots {
             let expression = tree.get(*expression_id);
             dumper.visit_expression(&tree, *expression_id, expression);
         }
@@ -68,14 +68,14 @@ impl TestProgram {
     pub fn dump_module_symbols(&self, module: &Arc<RwLock<Module>>) {
         let strings = self.program.strings.clone().into_immutable();
         let module = module.read();
-        let tree = module.tree.read();
-        let symbols = module.symbols.read();
+        let tree = module.dir.tree.read();
+        let symbols = module.dir.symbols.read();
         let mut dumper = Dumper::new(&strings, &tree, self.dumper_options);
         println!("{}", "=".repeat(80));
         println!("{} [SYMBOL]", module.uri);
         println!("{}", "=".repeat(80));
-        let scope = symbols.get_scope_by_id(module.namespace_scope);
-        dumper.visit_scope(&tree, &symbols, module.namespace_scope, scope);
+        let scope = symbols.get_scope_by_id(module.dir.namespace_scope);
+        dumper.visit_scope(&tree, &symbols, module.dir.namespace_scope, scope);
         println!("{}", dumper.finish());
     }
 }

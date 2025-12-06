@@ -70,9 +70,9 @@ impl Compiler {
     pub fn analyze_module(&self, module_id: ModuleId) -> AnalyzeResult<()> {
         let module = self.program.modules.get(module_id);
         let module = module.read();
-        let mut tree = module.tree.write();
-        let mut symbols = module.symbols.write();
-        let mut types = module.types.write();
+        let mut tree = module.dir.tree.write();
+        let mut symbols = module.dir.symbols.write();
+        let mut types = module.dir.types.write();
         let mut collector = TaskResultCollector::new();
 
         // step 1: evaluate declared types (from annotations)
@@ -87,7 +87,7 @@ impl Compiler {
 
         // step 2: analyze types (infer, instantiate, resolve)
         let mut ctx = TypeContext::new();
-        for root_id in module.roots.iter() {
+        for root_id in module.dir.roots.iter() {
             self.collect(
                 &mut collector,
                 self.analyze_expression(&module, *root_id, &tree, &symbols, &mut types, &mut ctx),

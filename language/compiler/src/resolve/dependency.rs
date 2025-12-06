@@ -39,7 +39,7 @@ impl Compiler {
         if !is_relative {
             let global_module = self.program.modules.get(self.program.root_module_id);
             let global_module = global_module.read();
-            let global_symbols = global_module.symbols.read();
+            let global_symbols = global_module.dir.symbols.read();
             if let Some(remote_module_id) = global_symbols.get_resolved_import(None, target) {
                 symbols.resolve_import(None, target, remote_module_id);
                 return Ok(remote_module_id);
@@ -103,11 +103,11 @@ impl Compiler {
                 )?;
                 let remote_module = self.program.modules.get(remote_module_id);
                 let remote_module = remote_module.read();
-                let remote_symbols = remote_module.symbols.read();
+                let remote_symbols = remote_module.dir.symbols.read();
                 let target_symbol_id = match mode {
                     DependencyMode::Item => {
                         // resolve symbol in the remote module for item mode
-                        let remote_scope_id = remote_module.namespace_scope;
+                        let remote_scope_id = remote_module.dir.namespace_scope;
                         let remote_scope = remote_symbols.get_scope_by_id(remote_scope_id);
                         let key = name.map(StaticKey::Name).ok_or(
                             ResolveError::UnsupportedConstruct {
@@ -128,8 +128,8 @@ impl Compiler {
                             key,
                         })?
                     }
-                    DependencyMode::Default => remote_module.default_symbol,
-                    DependencyMode::Namespace => remote_module.namespace_symbol,
+                    DependencyMode::Default => remote_module.dir.default_symbol,
+                    DependencyMode::Namespace => remote_module.dir.namespace_symbol,
                 };
                 DependencyItem::Remote {
                     mode: *mode,

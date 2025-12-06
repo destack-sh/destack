@@ -110,12 +110,12 @@ pub fn run(args: &CompileArgs) -> i32 {
 
             // dump node representation
             if dump.includes_node() {
-                let tree = module.tree.read();
+                let tree = module.dir.tree.read();
                 let mut dumper = Dumper::new(&strings, &tree, dump_options);
                 console::info("=".repeat(80).as_str());
                 console::info(format!("{} [NODE]", module.uri).as_str());
                 console::info("=".repeat(80).as_str());
-                for expression_id in &module.roots {
+                for expression_id in &module.dir.roots {
                     let expression = tree.get(*expression_id);
                     dumper.visit_expression(&tree, *expression_id, expression);
                 }
@@ -124,14 +124,14 @@ pub fn run(args: &CompileArgs) -> i32 {
 
             // dump symbol representation
             if dump.includes_symbol() {
-                let tree = module.tree.read();
-                let symbols = module.symbols.read();
+                let tree = module.dir.tree.read();
+                let symbols = module.dir.symbols.read();
                 let mut dumper = Dumper::new(&strings, &tree, dump_options);
                 console::info("=".repeat(80).as_str());
                 console::info(format!("{} [SYMBOL]", module.uri).as_str());
                 console::info("=".repeat(80).as_str());
-                let scope = symbols.get_scope_by_id(module.namespace_scope);
-                dumper.visit_scope(&tree, &symbols, module.namespace_scope, scope);
+                let scope = symbols.get_scope_by_id(module.dir.namespace_scope);
+                dumper.visit_scope(&tree, &symbols, module.dir.namespace_scope, scope);
                 console::info(&dumper.finish());
             }
         }

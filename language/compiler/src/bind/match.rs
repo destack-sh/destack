@@ -21,7 +21,7 @@ impl Compiler {
         symbols: &mut SymbolTable,
         types: &mut TypeTable,
     ) -> LocalNodeId<MatchCase> {
-        let ast_match_case = module.ast.get(ast_match_case_id);
+        let ast_match_case = module.ast.tree.get(ast_match_case_id);
         let match_case_id =
             tree.reserve_from_source(NodeType::MatchCase, ast_match_case_id, scope, parent_id);
         let (symbol_id, scope_id) =

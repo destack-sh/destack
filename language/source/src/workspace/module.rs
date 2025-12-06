@@ -1,3 +1,5 @@
+// nocheckin: make ModuleId/ProgramId/PackageId persistent hashes (based on path?)
+
 /// Unique identifier for Modules.
 #[repr(transparent)]
 #[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]

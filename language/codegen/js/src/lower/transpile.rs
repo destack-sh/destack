@@ -72,9 +72,9 @@ impl Transpiler {
                 let source_module = self.program.modules.get(source_module_id);
                 let source_module = source_module.read();
                 tracing::trace!(uri = %source_module.uri, "transpiler.module");
-                let tree = source_module.tree.read();
-                let symbols = source_module.symbols.read();
-                let types = source_module.types.read();
+                let tree = source_module.dir.tree.read();
+                let symbols = source_module.dir.symbols.read();
+                let types = source_module.dir.types.read();
                 self.lower_module(&source_module, &tree, &symbols, &types, unit);
             }
         }

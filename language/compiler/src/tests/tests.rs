@@ -222,7 +222,7 @@ impl TestProgram {
     pub fn symbol_by_id(&self, symbol_id: GlobalSymbolId) -> Symbol {
         let module = self.program.modules.get(symbol_id.module_id);
         let module = module.read();
-        let symbols = module.symbols.read();
+        let symbols = module.dir.symbols.read();
         symbols.get_symbol(symbol_id.into_local()).clone()
     }
 }
