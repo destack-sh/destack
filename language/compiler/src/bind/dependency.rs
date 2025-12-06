@@ -46,7 +46,7 @@ impl Compiler {
         symbols: &mut SymbolTable,
         _types: &mut TypeTable,
     ) -> LocalNodeId<DependencyItem> {
-        let ast_item = module.ast.get(ast_item_id);
+        let ast_item = module.ast.tree.get(ast_item_id);
         let item_id =
             tree.reserve_from_source(NodeType::DependencyItem, ast_item_id, scope, parent_id);
         let is_export = matches!(
@@ -57,10 +57,10 @@ impl Compiler {
         let mode = self.bind_dependency_mode(ast_item.mode);
         let name = ast_item
             .name
-            .map(|name| self.program.strings.intern_from(&module.ast_strings, name));
+            .map(|name| self.program.strings.intern_from(&module.ast.strings, name));
         let alias = ast_item
             .alias
-            .map(|alias| self.program.strings.intern_from(&module.ast_strings, alias));
+            .map(|alias| self.program.strings.intern_from(&module.ast.strings, alias));
         let (symbol_id, _) = if let Some(name) = name {
             self.bind_named_item(
                 module,

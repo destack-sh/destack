@@ -5,21 +5,10 @@ use std::sync::atomic::{AtomicU32, Ordering};
 use dashmap::DashMap;
 use parking_lot::RwLock;
 
-use destack_ast::{self as ast, StringPool};
-use destack_dir::{
-    DependencyMode, Expression, LocalNodeId, LocalScopeId, LocalScopeMark, LocalSymbolId, NodeTree,
-    ScopeKind, SymbolKind, SymbolSpace, SymbolTable, TypeTable,
-};
-use destack_source::{FileId, ModuleId, PackageId, Uri};
-
-/// Module type.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum ModuleType {
-    /// ECMAScript module.
-    EcmaScript,
-    /// CommonJS module.
-    CommonJs,
-}
+use destack_ast::{self as ast};
+use destack_dir::{self as dir};
+use destack_mir::{self as mir};
+use destack_source::{FileId, ModuleId, PackageId, StringPool, Uri};
 
 /// A Module is a single source unit.
 #[derive(Debug)]
@@ -35,87 +24,156 @@ pub struct Module {
     /// The package of the Module.
     pub package_id: Option<PackageId>,
 
-    // ast
-    /// The AST of the Module (may be empty).
-    pub ast: ast::NodeTree,
-    /// THe AST parent index.
-    pub ast_parents: ast::NodeParentIndex,
-    /// The top-level AST expressions of the Module.
-    pub ast_roots: Vec<ast::LocalNodeId<ast::Expression>>,
-    /// The string pool of the Module.
-    pub ast_strings: StringPool,
-
-    // dir
-    /// The symbol of the Module namespace.
-    pub namespace_symbol: LocalSymbolId,
-    /// The scope of the Module.≤
-    pub namespace_scope: LocalScopeId,
-    /// The symbol of the Module default.
-    pub default_symbol: LocalSymbolId,
-    /// The main DIR node tree of the Module.
-    pub tree: RwLock<NodeTree>,
-    /// The symbol side table of the Module.
-    pub symbols: RwLock<SymbolTable>,
-    /// The type side table of the Module (includes types, instances, resolutions).
-    pub types: RwLock<TypeTable>,
-    /// The top-level expressions of the Module.
-    pub roots: Vec<LocalNodeId<Expression>>,
+    /// The AST-level module data.
+    pub ast: ModuleAst,
+    /// The DIR-level module data.
+    pub dir: ModuleDir,
+    /// The MIR-level module data.
+    pub mir: ModuleMir,
 }
 
 #[allow(clippy::too_many_arguments)]
 impl Module {
     /// Create a new Module from an AST.
-    pub fn new(
+    pub fn from_ast(
         id: ModuleId,
         file: FileId,
         uri: Uri,
         path: Option<PathBuf>,
         package: Option<PackageId>,
-        ast: ast::NodeTree,
-        ast_roots: Vec<ast::LocalNodeId<ast::Expression>>,
-        ast_strings: StringPool,
+        ast: ModuleAst,
     ) -> Self {
-        // index AST
-        let ast_parents = ast::NodeParentIndex::from_tree(&ast);
-
-        // set up default namespace and default symbol
-        let mut symbols = SymbolTable::new(id);
-        let namespace_scope_id = symbols.insert_scope(ScopeKind::Namespace, None, None);
-        let (namespace_symbol_id, _) = symbols.insert_symbol(
-            SymbolKind::Namespace,
-            SymbolSpace::Value,
-            None,
-            (namespace_scope_id, LocalScopeMark::end()),
-            Some(DependencyMode::Namespace),
-        );
-        symbols.get_scope_by_id_mut(namespace_scope_id).owner_id = Some(namespace_symbol_id);
-        let (default_symbol_id, _) = symbols.insert_symbol(
-            SymbolKind::Namespace,
-            SymbolSpace::Value,
-            None,
-            (namespace_scope_id, LocalScopeMark::end()),
-            Some(DependencyMode::Default),
-        );
-
+        let dir = ModuleDir::new(id);
+        let mir = ModuleMir::new(id);
         Self {
             id,
             file_id: file,
             uri,
             path,
             package_id: package,
-            // astgit ad
             ast,
-            ast_parents,
-            ast_roots,
-            ast_strings,
-            // dir
+            dir,
+            mir,
+        }
+    }
+}
+
+/// AST-level module data.
+#[derive(Debug)]
+pub struct ModuleAst {
+    /// The id of the Module.
+    pub id: ModuleId,
+    /// The AST of the Module (may be empty).
+    pub tree: ast::NodeTree,
+    /// THe AST parent index.
+    pub parents: ast::NodeParentIndex,
+    /// The top-level AST expressions of the Module.
+    pub roots: Vec<ast::LocalNodeId<ast::Expression>>,
+    /// The string pool of the Module.
+    pub strings: StringPool,
+}
+
+impl ModuleAst {
+    /// Create a new ModuleAst.
+    pub fn new(id: ModuleId) -> Self {
+        Self {
+            id,
+            tree: ast::NodeTree::new(),
+            parents: ast::NodeParentIndex::new(),
+            roots: Vec::new(),
+            strings: StringPool::new(),
+        }
+    }
+
+    /// Create a ModuleAst from a tree.
+    pub fn from_tree(
+        id: ModuleId,
+        tree: ast::NodeTree,
+        roots: Vec<ast::LocalNodeId<ast::Expression>>,
+        strings: StringPool,
+    ) -> Self {
+        let parents = ast::NodeParentIndex::from_tree(&tree);
+        Self {
+            id,
+            tree,
+            parents,
+            roots,
+            strings,
+        }
+    }
+}
+
+/// DIR-level module data.
+#[derive(Debug)]
+pub struct ModuleDir {
+    /// The id of the Module.
+    pub id: ModuleId,
+    /// The symbol of the Module namespace.
+    pub namespace_symbol: dir::LocalSymbolId,
+    /// The scope of the Module.≤
+    pub namespace_scope: dir::LocalScopeId,
+    /// The symbol of the Module default.
+    pub default_symbol: dir::LocalSymbolId,
+    /// The main DIR node tree of the Module.
+    pub tree: RwLock<dir::NodeTree>,
+    /// The symbol side table of the Module.
+    pub symbols: RwLock<dir::SymbolTable>,
+    /// The type side table of the Module (includes types, instances, resolutions).
+    pub types: RwLock<dir::TypeTable>,
+    /// The top-level expressions of the Module.
+    pub roots: Vec<dir::LocalNodeId<dir::Expression>>,
+}
+
+impl ModuleDir {
+    /// Create a new ModuleDir.
+    pub fn new(id: ModuleId) -> Self {
+        // set up default namespace and default symbol
+        let mut symbols = dir::SymbolTable::new(id);
+        let namespace_scope_id = symbols.insert_scope(dir::ScopeKind::Namespace, None, None);
+        let (namespace_symbol_id, _) = symbols.insert_symbol(
+            dir::SymbolKind::Namespace,
+            dir::SymbolSpace::Value,
+            None,
+            (namespace_scope_id, dir::LocalScopeMark::end()),
+            Some(dir::DependencyMode::Namespace),
+        );
+        symbols.get_scope_by_id_mut(namespace_scope_id).owner_id = Some(namespace_symbol_id);
+        let (default_symbol_id, _) = symbols.insert_symbol(
+            dir::SymbolKind::Namespace,
+            dir::SymbolSpace::Value,
+            None,
+            (namespace_scope_id, dir::LocalScopeMark::end()),
+            Some(dir::DependencyMode::Default),
+        );
+
+        Self {
+            id,
             namespace_symbol: namespace_symbol_id,
             namespace_scope: namespace_scope_id,
             default_symbol: default_symbol_id,
-            tree: RwLock::new(NodeTree::new(id)),
+            tree: RwLock::new(dir::NodeTree::new(id)),
             symbols: RwLock::new(symbols),
-            types: RwLock::new(TypeTable::new(id)),
+            types: RwLock::new(dir::TypeTable::new(id)),
             roots: Vec::new(),
+        }
+    }
+}
+
+/// MIR-level module data.
+#[derive(Debug)]
+pub struct ModuleMir {
+    /// The id of the Module.
+    pub id: ModuleId,
+    /// The MIR of the Module (may be empty).
+    pub tree: RwLock<mir::NodeTree>,
+}
+
+impl ModuleMir {
+    /// Create a new ModuleMir.
+    pub fn new(id: ModuleId) -> Self {
+        Self {
+            id,
+            tree: RwLock::new(mir::NodeTree::new()),
         }
     }
 }

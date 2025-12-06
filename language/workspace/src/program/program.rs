@@ -8,7 +8,9 @@ use destack_source::{
     ModuleId, StringPool, Uri,
 };
 
-use crate::{DsConfigRegistry, Module, ModuleRegistry, PackageRegistry, TsConfigRegistry};
+use crate::{
+    ModuleAst, DsConfigRegistry, Module, ModuleRegistry, PackageRegistry, TsConfigRegistry,
+};
 
 /// A Program.
 #[derive(Debug)]
@@ -66,7 +68,7 @@ impl Program {
 
         // create and insert the root module and file
         let (root_file_id, root_module_id, root_scope_id, root_node_id) =
-            Self::new_root(&modules, &files);
+            Self::new_root(&modules, files.clone());
 
         Self {
             language,
@@ -91,7 +93,7 @@ impl Program {
     /// Create and insert the root file, AST, and module. Return root ids.
     fn new_root(
         modules: &ModuleRegistry,
-        files: &Arc<FileRegistry>,
+        files: Arc<FileRegistry>,
     ) -> (FileId, ModuleId, GlobalScopeId, GlobalNodeIdAny) {
         // root file
         let root_file_id = files.next_id();
@@ -112,26 +114,31 @@ impl Program {
 
         // root module
         let root_module_id = modules.next_id();
-        let root_module = Module::new(
+        let root_module_ast = ModuleAst::from_tree(
+            root_module_id,
+            root_ast,
+            vec![ast_root_node_id],
+            StringPool::new(),
+        );
+        let root_module = Module::from_ast(
             root_module_id,
             root_file_id,
             Uri::from_string("<root>"),
             None,
             None,
-            root_ast,
-            vec![ast_root_node_id],
-            StringPool::new(),
+            root_module_ast,
         );
 
         // root scope / node
-        let root_scope_id = root_module.namespace_scope;
-        let dir_root_node_id = root_module.tree.write().reserve_from_source(
+        let root_scope_id = root_module.dir.namespace_scope;
+        let dir_root_node_id = root_module.dir.tree.write().reserve_from_source(
             NodeType::Expression,
             ast_root_node_id,
             (root_scope_id, LocalScopeMark::end()),
             None,
         );
         root_module
+            .dir
             .tree
             .write()
             .insert(dir_root_node_id, Expression::Error);

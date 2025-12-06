@@ -11,6 +11,13 @@ pub struct NodeParentIndex {
 }
 
 impl NodeParentIndex {
+    /// Create a new NodeParentIndex.
+    pub fn new() -> Self {
+        Self {
+            parents_per_node: Vec::new(),
+        }
+    }
+
     /// Create a new NodeParentIndex from a NodeTree.
     pub fn from_tree(tree: &NodeTree) -> Self {
         let mut capturing_visitor = CapturingNodeVisitor::default();

@@ -24,16 +24,16 @@ impl Compiler {
                 let string = self
                     .program
                     .strings
-                    .intern_from(&module.ast_strings, *string);
+                    .intern_from(&module.ast.strings, *string);
                 ScalarLiteral::String(string)
             }
             ast::ScalarLiteral::RegexString { content, flags } => {
                 let content = self
                     .program
                     .strings
-                    .intern_from(&module.ast_strings, *content);
+                    .intern_from(&module.ast.strings, *content);
                 let flags =
-                    flags.map(|flag| self.program.strings.intern_from(&module.ast_strings, flag));
+                    flags.map(|flag| self.program.strings.intern_from(&module.ast.strings, flag));
                 ScalarLiteral::RegexString { content, flags }
             }
         }
@@ -55,7 +55,7 @@ impl Compiler {
                 let string = self
                     .program
                     .strings
-                    .intern_from(&module.ast_strings, *string);
+                    .intern_from(&module.ast.strings, *string);
                 TemplateLiteral::String { string }
             }
             ast::TemplateLiteral::InterpolatedString { strings, arguments } => {
@@ -64,7 +64,7 @@ impl Compiler {
                     .map(|string| {
                         self.program
                             .strings
-                            .intern_from(&module.ast_strings, *string)
+                            .intern_from(&module.ast.strings, *string)
                     })
                     .collect();
                 let arguments = arguments

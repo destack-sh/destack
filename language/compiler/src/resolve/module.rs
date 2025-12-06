@@ -8,8 +8,8 @@ impl Compiler {
     pub(super) fn resolve_module(&self, module_id: ModuleId) -> ResolveResult<()> {
         let module = self.program.modules.get(module_id);
         let module = module.read();
-        let mut tree = module.tree.write();
-        let mut symbols = module.symbols.write();
+        let mut tree = module.dir.tree.write();
+        let mut symbols = module.dir.symbols.write();
         let mut collector = TaskResultCollector::new();
 
         // resolve expressions

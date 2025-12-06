@@ -64,13 +64,13 @@ impl CompileDiagnostic {
         let node_id = self.node();
         let module = program.modules.get(node_id.module_id);
         let module = module.read();
-        let source_node_id = module.tree.read().get_source(node_id.local_id.id);
+        let source_node_id = module.dir.tree.read().get_source(node_id.local_id.id);
 
         // make diagnostic
         let severity = self.severity();
         let message = self.message(program);
         let code = self.full_code();
-        let primary_span = module.ast.get_span_by_id(source_node_id);
+        let primary_span = module.ast.tree.get_span_by_id(source_node_id);
         let primary_span = LabeledSpan {
             span: primary_span,
             label: message.clone(),

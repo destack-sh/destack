@@ -20,7 +20,7 @@ impl Compiler {
         symbols: &mut SymbolTable,
         types: &mut TypeTable,
     ) -> LocalNodeId<Block> {
-        let ast_block = module.ast.get(ast_block_id);
+        let ast_block = module.ast.tree.get(ast_block_id);
         let (symbol_id, scope_id) =
             self.bind_anonymous_item_with_scope(module, ScopeKind::Block, scope, None, symbols);
         let block_id = tree.reserve_from_source(
@@ -31,7 +31,7 @@ impl Compiler {
         );
         let label = ast_block
             .label
-            .map(|label| self.program.strings.intern_from(&module.ast_strings, label));
+            .map(|label| self.program.strings.intern_from(&module.ast.strings, label));
         let expressions = ast_block
             .expressions
             .iter()

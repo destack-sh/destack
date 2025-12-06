@@ -55,7 +55,7 @@ impl Compiler {
         symbols: &mut SymbolTable,
         types: &mut TypeTable,
     ) -> LocalNodeId<Parameter> {
-        let ast_parameter = module.ast.get(ast_parameter_id);
+        let ast_parameter = module.ast.tree.get(ast_parameter_id);
         let parameter_id =
             tree.reserve_from_source(NodeType::Parameter, ast_parameter_id, scope, parent_id);
         match ast_parameter {
@@ -67,7 +67,7 @@ impl Compiler {
             } => {
                 let modifiers =
                     modifiers.map(|modifiers| self.bind_binding_modifier(module, modifiers));
-                let name = self.program.strings.intern_from(&module.ast_strings, *name);
+                let name = self.program.strings.intern_from(&module.ast.strings, *name);
                 let default = default.map(|default| {
                     self.bind_expression(
                         module,
@@ -171,7 +171,7 @@ impl Compiler {
             } => {
                 let modifiers =
                     modifiers.map(|modifiers| self.bind_binding_modifier(module, modifiers));
-                let name = self.program.strings.intern_from(&module.ast_strings, *name);
+                let name = self.program.strings.intern_from(&module.ast.strings, *name);
                 let (symbol_id, _) = self.bind_named_item(
                     module,
                     SymbolSpace::Value,
@@ -216,7 +216,7 @@ impl Compiler {
         symbols: &mut SymbolTable,
         types: &mut TypeTable,
     ) -> LocalNodeId<Argument> {
-        let ast_argument = module.ast.get(ast_argument_id);
+        let ast_argument = module.ast.tree.get(ast_argument_id);
         let argument_id =
             tree.reserve_from_source(NodeType::Argument, ast_argument_id, scope, parent_id);
         match ast_argument {
@@ -224,7 +224,7 @@ impl Compiler {
                 let name = self
                     .program
                     .strings
-                    .intern_from(&module.ast_strings, name.string());
+                    .intern_from(&module.ast.strings, name.string());
                 let value = self.bind_expression(
                     module,
                     scope,

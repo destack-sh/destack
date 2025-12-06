@@ -20,7 +20,7 @@ impl Compiler {
         symbols: &mut SymbolTable,
         types: &mut TypeTable,
     ) -> LocalNodeId<Pattern> {
-        let ast_pattern = module.ast.get(ast_pattern_id);
+        let ast_pattern = module.ast.tree.get(ast_pattern_id);
         let pattern_id =
             tree.reserve_from_source(NodeType::Pattern, ast_pattern_id, scope, parent_id);
         let pattern = match ast_pattern {
@@ -75,7 +75,7 @@ impl Compiler {
                 pattern,
             } => {
                 let mutability = mutability.map(|mutability| self.bind_mutability(mutability));
-                let name = self.program.strings.intern_from(&module.ast_strings, *name);
+                let name = self.program.strings.intern_from(&module.ast.strings, *name);
                 let pattern = pattern.map(|pattern| {
                     self.bind_pattern(
                         module,
@@ -302,7 +302,7 @@ impl Compiler {
         symbols: &mut SymbolTable,
         types: &mut TypeTable,
     ) -> LocalNodeId<PatternField> {
-        let ast_pattern_field = module.ast.get(ast_pattern_field_id);
+        let ast_pattern_field = module.ast.tree.get(ast_pattern_field_id);
         let pattern_field_id = tree.reserve_from_source(
             NodeType::PatternField,
             ast_pattern_field_id,
@@ -320,7 +320,7 @@ impl Compiler {
                 let name = self
                     .program
                     .strings
-                    .intern_from(&module.ast_strings, name.string());
+                    .intern_from(&module.ast.strings, name.string());
                 let pattern = pattern.map(|pattern| {
                     self.bind_pattern(
                         module,
@@ -370,11 +370,11 @@ impl Compiler {
                 let name = self
                     .program
                     .strings
-                    .intern_from(&module.ast_strings, name.string());
+                    .intern_from(&module.ast.strings, name.string());
                 let alias = self
                     .program
                     .strings
-                    .intern_from(&module.ast_strings, *alias);
+                    .intern_from(&module.ast.strings, *alias);
                 let default = default.map(|default| {
                     self.bind_expression(
                         module,
@@ -422,7 +422,7 @@ impl Compiler {
                 let name = name.map(|name| {
                     self.program
                         .strings
-                        .intern_from(&module.ast_strings, name.string())
+                        .intern_from(&module.ast.strings, name.string())
                 });
                 let symbol = if let Some(name) = name {
                     let (symbol, _) = self.bind_named_symbol(

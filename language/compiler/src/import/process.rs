@@ -9,7 +9,7 @@ use destack_resolver::Resolver;
 use destack_source::{File, FileId, FileType, StringId, Uri};
 
 use destack_source::ModuleId;
-use destack_workspace::{Module, Program};
+use destack_workspace::{Module, ModuleAst, Program};
 
 /// Task to import a file into the compiler.
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
@@ -166,15 +166,14 @@ impl Compiler {
 
         // create and insert module (must insert before bind so diagnostics can reference it)
         let module_id = self.program.modules.next_id();
-        let module = Module::new(
+        let module_ast = ModuleAst::from_tree(module_id, parser.tree, expressions, parser.strings);
+        let module = Module::from_ast(
             module_id,
             file.id,
             file.uri.clone(),
             file.path.clone(),
             package_id,
-            parser.tree,
-            expressions,
-            parser.strings,
+            module_ast,
         );
         self.program.modules.insert(module);
         tracing::trace!(?module_id, ?file.uri, "import.module.resolve");
@@ -212,14 +211,14 @@ impl Compiler {
             if let &Some(source_module_id) = source_module_id {
                 let source_module = self.program.modules.get(source_module_id);
                 let source_module = source_module.read();
-                let mut symbols = source_module.symbols.write();
+                let mut symbols = source_module.dir.symbols.write();
                 symbols.resolve_import(Some(source_module_id), *target, module_id);
             }
             // resolve global import
             else {
                 let global_module = self.program.modules.get(self.program.root_module_id);
                 let global_module = global_module.read();
-                let mut symbols = global_module.symbols.write();
+                let mut symbols = global_module.dir.symbols.write();
                 symbols.resolve_import(None, *target, module_id);
             }
         }

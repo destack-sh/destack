@@ -23,7 +23,7 @@ impl Compiler {
                 let name = self
                     .program
                     .strings
-                    .intern_from(&module.ast_strings, name.string());
+                    .intern_from(&module.ast.strings, name.string());
                 DynamicKey::Name(name)
             }
             ast::Key::Expression(expression) => {
@@ -32,7 +32,7 @@ impl Compiler {
                 DynamicKey::Expression(expression)
             }
             ast::Key::NamedExpression { name, key } => {
-                let name = self.program.strings.intern_from(&module.ast_strings, name);
+                let name = self.program.strings.intern_from(&module.ast.strings, name);
                 let key = self.bind_expression(module, scope, key, parent_id, tree, symbols, types);
                 DynamicKey::NamedExpression { name, key }
             }

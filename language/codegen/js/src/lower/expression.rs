@@ -98,7 +98,7 @@ impl Transpiler {
                 items,
                 arguments,
             } => {
-                let target = unit.strings.intern_from(&module.ast_strings, *target);
+                let target = unit.strings.intern_from(&module.ast.strings, *target);
                 let items = self.lower_dependency_items(
                     module,
                     tree,
@@ -141,7 +141,7 @@ impl Transpiler {
                 target_module: _,
                 items,
             } => {
-                let target = unit.strings.intern_from(&module.ast_strings, *target);
+                let target = unit.strings.intern_from(&module.ast.strings, *target);
                 let items = self.lower_dependency_items(
                     module,
                     tree,
@@ -391,7 +391,7 @@ impl Transpiler {
                 let left_id = self
                     .lower_expression(module, tree, symbols, types, *left, unit)
                     .expect_node::<Expression>(left.into_global_any(module.id), unit)?;
-                let name = unit.strings.intern_from(&module.ast_strings, *name);
+                let name = unit.strings.intern_from(&module.ast.strings, *name);
                 let static_arguments = static_arguments
                     .as_ref()
                     .map(|arguments| {
