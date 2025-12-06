@@ -29,8 +29,8 @@ impl Resolver {
         tracing::trace!(?path, "resolver.load.package");
         let package_json_path = path.join("package.json");
 
-        // check if already in registry
-        if let Some(package_id) = self.program.packages.get_id_by_path(&package_json_path) {
+        // check if already in registry (indexed by directory path, not package.json path)
+        if let Some(package_id) = self.program.packages.get_id_by_path(path) {
             let package = self.program.packages.get(package_id);
             let package = package.read();
             if let Some(ref config) = package.config {
@@ -133,7 +133,7 @@ impl Resolver {
             ctx.is_fully_specified = false;
         }
 
-        // try to load from the package itself
+        // try to load from the package itself (also checks browser field)
         if let Some(resolved) = self.load_package_self(path, specifier, ctx)? {
             return Ok(resolved);
         }
@@ -364,38 +364,37 @@ impl Resolver {
         let package = self.program.packages.get(package_id);
         let package = package.read();
 
-        // check if the package has config and name matches the specifier
+        // check if the package has config
         let Some(ref config) = package.config else {
             return Ok(None);
         };
 
-        let Some(subpath) = config
+        // check if the package name matches the specifier (self-reference)
+        if let Some(subpath) = config
             .content
             .name
             .as_ref()
             .and_then(|package_name: &String| {
                 Self::strip_package_name(specifier, package_name.as_str())
             })
-        else {
-            return Ok(None);
-        };
-
-        let package_url = config
-            .path
-            .parent()
-            .unwrap_or_else(|| {
-                panic!(
-                    "package.json path is not in a directory: {}",
-                    config.path.display()
-                )
-            })
-            .to_path_buf();
-
-        if let Some(exports) = config.content.exports.as_ref()
-            && let Some(resolved) =
-                self.package_exports_resolve(&package_url, &format!(".{subpath}"), exports, ctx)?
         {
-            return self.resolve_esm_match(specifier, &resolved, ctx);
+            let package_url = config
+                .path
+                .parent()
+                .unwrap_or_else(|| {
+                    panic!(
+                        "package.json path is not in a directory: {}",
+                        config.path.display()
+                    )
+                })
+                .to_path_buf();
+
+            if let Some(exports) = config.content.exports.as_ref()
+                && let Some(resolved) =
+                    self.package_exports_resolve(&package_url, &format!(".{subpath}"), exports, ctx)?
+            {
+                return self.resolve_esm_match(specifier, &resolved, ctx);
+            }
         }
 
         // fallback to browser field
