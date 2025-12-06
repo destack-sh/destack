@@ -3,6 +3,7 @@
 
 mod dump;
 mod format;
+pub mod parse;
 mod tree;
 
 pub use dump::*;

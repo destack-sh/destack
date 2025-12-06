@@ -8,11 +8,12 @@ use crate::{Instruction, LocalNodeId, Node, NodeType, TypedValue, Value};
 /// - No control flow within the block
 #[derive(Debug, Clone, PartialEq)]
 pub struct Block {
-    /// Block parameters (SSA values passed from predecessors).
+    /// SSA parameters passed from predecessor blocks.
+    /// Replaces traditional phi nodes with a cleaner model.
     pub parameters: Vec<TypedValue>,
-    /// Instructions in this block (in order).
+    /// Instructions in execution order.
     pub instructions: Vec<LocalNodeId<Instruction>>,
-    /// How this block exits.
+    /// How control flow leaves this block.
     pub terminator: Terminator,
 }
 
@@ -50,32 +51,46 @@ impl Default for Block {
 #[derive(Debug, Clone, PartialEq)]
 pub enum Terminator {
     /// Return from the function.
-    Return { value: Option<Value> },
+    Return {
+        /// The value to return, or None for void functions.
+        value: Option<Value>,
+    },
 
     /// Unconditional jump to another block.
     Jump {
+        /// The block to jump to.
         target: LocalNodeId<Block>,
+        /// Arguments to pass to the target block's parameters.
         arguments: Vec<Value>,
     },
 
-    /// Conditional branch.
+    /// Conditional branch (if-then-else).
     Branch {
+        /// The boolean condition to test.
         condition: Value,
+        /// The block to jump to if condition is true.
         then_target: LocalNodeId<Block>,
+        /// Arguments for the then block's parameters.
         then_arguments: Vec<Value>,
+        /// The block to jump to if condition is false.
         else_target: LocalNodeId<Block>,
+        /// Arguments for the else block's parameters.
         else_arguments: Vec<Value>,
     },
 
-    /// Switch on an integer value.
+    /// Switch on an integer value (multi-way branch).
     Switch {
+        /// The integer value to switch on.
         value: Value,
+        /// The block to jump to if no case matches.
         default: LocalNodeId<Block>,
+        /// Arguments for the default block's parameters.
         default_arguments: Vec<Value>,
+        /// The cases to match against.
         cases: Vec<SwitchCase>,
     },
 
-    /// Unreachable (should never execute).
+    /// Unreachable code (triggers undefined behavior if executed).
     Unreachable,
 }
 
@@ -136,10 +151,10 @@ impl Terminator {
 /// A case in a switch terminator.
 #[derive(Debug, Clone, PartialEq)]
 pub struct SwitchCase {
-    /// The value to match.
+    /// The integer constant to match against.
     pub value: i64,
-    /// Target block if matched.
+    /// The block to jump to if this case matches.
     pub target: LocalNodeId<Block>,
-    /// Arguments to pass to target block.
+    /// Arguments for the target block's parameters.
     pub arguments: Vec<Value>,
 }

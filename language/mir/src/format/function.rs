@@ -14,26 +14,56 @@ impl<'a> FormatMirNode<'a, Function> for Function {
         id: LocalNodeId<Function>,
         f: &mut MirFormatter<'a, '_>,
     ) -> FormatResult<()> {
-        // function signature
+        // build block and local index maps for this function
+        {
+            let context = f.context_mut();
+            context.block_indices.clear();
+            context.local_indices.clear();
+            for (i, block_id) in self.blocks.iter().enumerate() {
+                context.block_indices.insert(*block_id, i);
+            }
+            for (i, local_id) in self.locals.iter().enumerate() {
+                context.local_indices.insert(*local_id, i);
+            }
+        }
+
+        // function signature: function @function0(v0: i32, v1: i32) -> void {
+        // nocheckin: use real function name from string pool
+        let func_index = f
+            .context()
+            .tree
+            .iter_nodes::<Function>()
+            .position(|(fid, _)| fid == id)
+            .unwrap_or(0);
         write!(
             f,
-            [token("func @"), text(&format!("func{}", id.id)), token("(")]
+            [
+                token("function"),
+                space(),
+                token("@"),
+                text(&format!("function{func_index}"))
+            ]
         )?;
 
         // parameters
+        write!(f, [token("(")])?;
         for (i, param) in self.parameters.iter().enumerate() {
             if i > 0 {
-                write!(f, [token(", ")])?;
+                write!(f, [token(","), space()])?;
             }
-            write!(f, [&param.value, token(": "), param.ty])?;
+            write!(f, [&param.value, token(":"), space(), param.ty])?;
         }
+        write!(f, [token(")")])?;
 
         write!(
             f,
             [
-                token(") -> "),
+                space(),
+                token("->"),
+                space(),
                 self.return_type,
-                token(" {"),
+                space(),
+                token("{"),
                 hard_line_break()
             ]
         )?;
@@ -47,28 +77,29 @@ impl<'a> FormatMirNode<'a, Function> for Function {
                 f,
                 [block_indent(&format_with(
                     |f: &mut Formatter<'_, MirFormatContext<'a>>| {
-                        let tree = f.context().tree;
-                        for local_id in &locals {
-                            let local = tree.get(*local_id);
+                        for (local_index, local_id) in locals.iter().enumerate() {
+                            let local = f.context().tree.get(*local_id);
                             write!(
                                 f,
                                 [
-                                    text(&format!("local{}", local_id.id)),
-                                    token(": "),
+                                    text(&format!("local{local_index}")),
+                                    token(":"),
+                                    space(),
                                     local.ty
                                 ]
                             )?;
 
                             // ownership annotation
+                            write!(f, [space(), token(";"), space()])?;
                             match local.ownership {
-                                Ownership::Owned => write!(f, [token(" ; owned")])?,
-                                Ownership::Borrowed => write!(f, [token(" ; borrowed")])?,
-                                Ownership::Copy => write!(f, [token(" ; copy")])?,
+                                Ownership::Owned => write!(f, [token("owned")])?,
+                                Ownership::Borrowed => write!(f, [token("borrowed")])?,
+                                Ownership::Copy => write!(f, [token("copy")])?,
                             }
 
                             // mutability annotation
                             if local.mutability == Mutability::Mutable {
-                                write!(f, [token(", var")])?;
+                                write!(f, [token(","), space(), token("var")])?;
                             }
 
                             write!(f, [hard_line_break()])?;
@@ -81,11 +112,8 @@ impl<'a> FormatMirNode<'a, Function> for Function {
         }
 
         // blocks
-        for (i, block_id) in blocks.iter().enumerate() {
-            if i > 0 {
-                write!(f, [hard_line_break()])?;
-            }
-            write!(f, [block_indent(block_id)])?;
+        for block_id in &blocks {
+            write!(f, [block_id, hard_line_break()])?;
         }
 
         write!(f, [token("}")])

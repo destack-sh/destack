@@ -2,27 +2,28 @@ use destack_source::StringId;
 
 use crate::{Block, Local, LocalNodeId, Node, NodeType, Type, TypedValue, Value};
 
-/// Functions are the top-level compilation unit. Each function contains:
-/// - Parameters (SSA values)
-/// - Local variables (stack slots for mutable bindings)
-/// - Basic blocks (control flow graph)
+/// A function in MIR.
+///
+/// Functions are the top-level compilation unit, containing:
+/// - Parameters as SSA values
+/// - Local variables as stack slots
+/// - Basic blocks forming a control flow graph
 #[derive(Debug, Clone, PartialEq)]
 pub struct Function {
-    /// Name of the function.
+    /// The function's name (for linking and debugging).
     pub name: StringId,
-    /// Function parameters (SSA values).
+    /// Function parameters as typed SSA values.
     pub parameters: Vec<TypedValue>,
-    /// Return type.
+    /// The return type.
     pub return_type: LocalNodeId<Type>,
-    /// Local variables (stack slots).
+    /// Local variables (stack-allocated slots for mutable bindings).
     pub locals: Vec<LocalNodeId<Local>>,
-    /// Basic blocks (CFG).
+    /// All basic blocks in this function.
     pub blocks: Vec<LocalNodeId<Block>>,
-    /// Entry block.
+    /// The entry block (execution starts here).
     pub entry: LocalNodeId<Block>,
 
-    // counters for generating unique ids
-    /// Next available SSA value id.
+    /// Counter for allocating unique SSA value IDs.
     pub(crate) next_value_id: u32,
 }
 

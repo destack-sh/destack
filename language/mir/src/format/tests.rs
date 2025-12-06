@@ -103,10 +103,10 @@ fn test_format_simple_add() {
     let output = format_mir(&tree);
 
     let expected = "\
-func @func4(v0: i32, v1: i32) -> void {
-    block3(v0: i32, v1: i32):
-        v2 = iadd v0, v1
-        return v2
+function @function0(v0: i32, v1: i32) -> void {
+block0(v0: i32, v1: i32):
+    v2 = iadd v0, v1
+    return v2
 }";
 
     assert_eq!(output, expected);
@@ -160,13 +160,13 @@ fn test_format_with_locals() {
     let output = format_mir(&tree);
 
     let expected = "\
-func @func6() -> i64 {
-    local1: i64 ; owned, var
-    block5:
-        v0 = iconst 42i64
-        store_local local1, v0
-        v1 = load_local local1
-        return v1
+function @function0() -> i64 {
+    local0: i64 ; owned, var
+block0:
+    v0 = iconst 42i64
+    store_local local0, v0
+    v1 = load_local local0
+    return v1
 }";
 
     assert_eq!(output, expected);
@@ -187,6 +187,13 @@ fn test_format_branch() {
     let v2 = Value::new(2); // else result
     let v3 = Value::new(3); // merged result
 
+    // merge block (created first to get its ID for forward references)
+    let merge_block = b.block(Block {
+        parameters: vec![TypedValue::new(v3, i32_ty)],
+        instructions: vec![],
+        terminator: Terminator::Return { value: Some(v3) },
+    });
+
     // then block
     let then_const = b.instruction(Instruction::Constant {
         destination: v1,
@@ -196,7 +203,7 @@ fn test_format_branch() {
         parameters: vec![],
         instructions: vec![then_const],
         terminator: Terminator::Jump {
-            target: LocalNodeId::new(6), // merge block id
+            target: merge_block,
             arguments: vec![v1],
         },
     });
@@ -210,16 +217,9 @@ fn test_format_branch() {
         parameters: vec![],
         instructions: vec![else_const],
         terminator: Terminator::Jump {
-            target: LocalNodeId::new(6), // merge block id
+            target: merge_block,
             arguments: vec![v2],
         },
-    });
-
-    // merge block
-    let merge_block = b.block(Block {
-        parameters: vec![TypedValue::new(v3, i32_ty)],
-        instructions: vec![],
-        terminator: Terminator::Return { value: Some(v3) },
     });
 
     // entry block
@@ -235,7 +235,7 @@ fn test_format_branch() {
         },
     });
 
-    // function
+    // function (blocks listed in order they appear in output)
     let _func = b.function(Function {
         name: dummy_name(),
         parameters: vec![TypedValue::new(v0, bool_ty)],
@@ -249,18 +249,20 @@ fn test_format_branch() {
     let tree = b.finish();
     let output = format_mir(&tree);
 
+    // blocks are numbered by their position in function.blocks:
+    // entry=0, then=1, else=2, merge=3
     let expected = "\
-func @func8(v0: bool) -> i32 {
-    block7(v0: bool):
-        brif v0, block3, block5
-    block3:
-        v1 = iconst 1i32
-        jump block6(v1)
-    block5:
-        v2 = iconst 0i32
-        jump block6(v2)
-    block6(v3: i32):
-        return v3
+function @function0(v0: bool) -> i32 {
+block0(v0: bool):
+    branch v0, block1, block2
+block1:
+    v1 = iconst 1i32
+    jump block3(v1)
+block2:
+    v2 = iconst 0i32
+    jump block3(v2)
+block3(v3: i32):
+    return v3
 }";
 
     assert_eq!(output, expected);
@@ -293,9 +295,9 @@ fn test_format_void_return() {
     let output = format_mir(&tree);
 
     let expected = "\
-func @func2() -> void {
-    block1:
-        return
+function @function0() -> void {
+block0:
+    return
 }";
 
     assert_eq!(output, expected);
