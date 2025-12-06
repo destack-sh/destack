@@ -1,20 +1,25 @@
 use crate::{Compiler, LinkResult, Task, TaskDebug, TaskOutput};
 
-use destack_source::ModuleId;
+use destack_source::PackageId;
 use destack_workspace::Program;
 
-/// Task to link something.
+/// Task to link generated artifacts.
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub enum LinkTask {
-    /// Link a module.
-    Link { module: ModuleId },
+    /// Link all modules for a target and emit output.
+    LinkTarget {
+        /// The package containing the target.
+        package: PackageId,
+        /// The target name.
+        target: String,
+    },
 }
 
 impl LinkTask {
     /// Get the sub code for the task.
     pub fn sub_code(&self) -> u8 {
         match self {
-            Self::Link { .. } => 1,
+            Self::LinkTarget { .. } => 1,
         }
     }
 }
@@ -22,16 +27,16 @@ impl LinkTask {
 impl TaskDebug for LinkTask {
     fn name(&self) -> &'static str {
         match self {
-            Self::Link { .. } => "module",
+            Self::LinkTarget { .. } => "target",
         }
     }
 
     fn trace_args(&self, program: &Program) -> String {
         match self {
-            Self::Link { module } => {
-                let module = program.modules.get(*module);
-                let uri = module.read().uri.clone().to_string();
-                format!(r#"module="{uri}""#)
+            Self::LinkTarget { package, target } => {
+                let package = program.packages.get(*package);
+                let uri = package.read().uri.clone().to_string();
+                format!(r#"package="{uri}" target="{target}""#)
             }
         }
     }
@@ -56,6 +61,19 @@ impl From<LinkOutput> for TaskOutput {
 impl Compiler {
     /// Process a link task.
     pub fn process_link(&self, task: LinkTask) -> LinkResult<LinkOutput> {
-        todo!("process_link({task:?})")
+        match task {
+            LinkTask::LinkTarget { package, target } => self.link_target(package, &target),
+        }
+    }
+
+    /// Link all modules for a target.
+    fn link_target(&self, package: PackageId, target: &str) -> LinkResult<LinkOutput> {
+        // TODO: implement link_target
+        // 1. find all modules in package that match target's include/exclude
+        // 2. yield to GenerateModule for each module (CompleteAll)
+        // 3. combine artifacts based on output format
+        // 4. write to out_dir/out_file
+        let _ = (package, target);
+        todo!("link_target")
     }
 }

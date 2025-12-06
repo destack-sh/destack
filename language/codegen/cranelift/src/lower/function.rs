@@ -453,14 +453,14 @@ impl<'a> FunctionLowerer<'a> {
                 pointer,
             } => {
                 let ptr_value = value_map[pointer];
-                let type_id = type_map.get(destination).ok_or_else(|| {
+                let loaded_type_id = type_map.get(destination).ok_or_else(|| {
                     CraneliftError::Internal {
                         message: format!(
                             "could not infer type for load destination {destination:?} from pointer {pointer:?}"
                         ),
                     }
                 })?;
-                let loaded_type = lower_type(self.tree, *type_id, self.pointer_bytes)?;
+                let loaded_type = lower_type(self.tree, *loaded_type_id, self.pointer_bytes)?;
 
                 let result = builder
                     .ins()
