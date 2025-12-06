@@ -3,11 +3,12 @@ use std::sync::Arc;
 
 use dashmap::DashMap;
 use destack_source::{File, FileContent, FileId, PackageId, Uri};
+use indexmap::IndexMap;
 use parking_lot::RwLock;
 use serde::Deserialize;
 use serde_json::{Map, Value};
 
-use crate::{DsConfig, TsConfigId};
+use crate::{DsConfig, Target, TsConfigId};
 
 /// Kind of package based on how it was discovered.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -42,6 +43,20 @@ pub struct Package {
     pub dsconfig: Option<DsConfig>,
     /// The root tsconfig of the package (in TsConfigRegistry, supports nesting).
     pub main_tsconfig_id: Option<TsConfigId>,
+    /// Build targets for this package (usually from `dsconfig.json`.targets).
+    pub targets: IndexMap<String, Target>,
+}
+
+impl Package {
+    /// Get a target by name.
+    pub fn target(&self, name: &str) -> Option<&Target> {
+        self.targets.get(name)
+    }
+
+    /// Get the default target (first one, if any).
+    pub fn default_target(&self) -> Option<&Target> {
+        self.targets.values().next()
+    }
 }
 
 /// Package config from `package.json`.

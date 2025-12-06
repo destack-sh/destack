@@ -266,6 +266,7 @@ impl Compiler {
             package_config: None,
             dsconfig: None,
             main_tsconfig_id: None,
+            targets: Default::default(),
         };
         self.program.packages.insert(package);
 

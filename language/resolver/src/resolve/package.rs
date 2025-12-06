@@ -83,6 +83,7 @@ impl Resolver {
             package_config: Some(package_config),
             dsconfig: None, // loaded separately when needed
             main_tsconfig_id: None,
+            targets: Default::default(),
         };
         self.program.packages.insert(package);
 
