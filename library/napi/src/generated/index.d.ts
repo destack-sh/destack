@@ -13,8 +13,6 @@ export declare class Workspace {
   get cwd(): string
   /** Get the number of programs in the workspace. */
   get programCount(): number
-  /** Resolve a specifier from a directory. */
-  resolve(from: string, specifier: string, options?: ResolveOptions | undefined | null): Resolution
   /**
    * Transpile a single file.
    * Returns the transpiled TypeScript/JavaScript code.
@@ -55,8 +53,6 @@ export interface CompileOptions {
   analyze: AnalyzeOptions
   /** The options for lowering. */
   lower: LowerOptions
-  /** The options for executing. */
-  execute: ExecuteOptions
   /** The options for optimizing. */
   optimize: OptimizeOptions
   /** The options for code generation. */
@@ -99,14 +95,6 @@ export declare const enum EnforceExtension {
   Enabled = 0,
   /** Do not enforce file extensions (resolve tries appending extensions from the list). */
   Disabled = 1
-}
-
-/** The options for executing static expressions. */
-export interface ExecuteOptions {
-  /** Whether to fold constants. */
-  foldConstants: boolean
-  /** Whether to execute static expressions. */
-  executeStatic: boolean
 }
 
 /** The formatting mode. */

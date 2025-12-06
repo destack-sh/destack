@@ -1,6 +1,6 @@
-/// The formatting options.
+/// The formatter options.
 #[derive(Debug, Copy, Clone, Default)]
-pub struct FormattingOptions {
+pub struct FormatterOptions {
     /// The type of line ending to apply to the printed input.  
     pub line_ending: LineEnding = LineEnding::LineFeed,
     /// The indent style.
@@ -11,7 +11,7 @@ pub struct FormattingOptions {
     pub line_width: u8 = 100,
 }
 
-impl FormattingOptions {
+impl FormatterOptions {
     /// Set the line ending type.
     pub fn with_line_ending(mut self, line_ending: LineEnding) -> Self {
         self.line_ending = line_ending;

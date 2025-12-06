@@ -17,22 +17,11 @@ check:
 # build
 build:
     cargo build --release {{ packages }}
+    just schema
 
 # test all
 test:
     cargo test --release --all-targets --no-fail-fast {{ packages }}
-
-# test smoke
-test-smoke *ARGS:
-    cargo test --release --test smoke -- {{ ARGS }}
-
-# test codegen
-test-codegen *ARGS:
-    cargo test --release --test codegen -- {{ ARGS }}
-
-# test formatter
-test-formatter *ARGS:
-    cargo test --release --test formatter -- {{ ARGS }}
 
 # format
 fmt:
@@ -50,3 +39,10 @@ clean:
 generate:
     cd unicode && python3 src/generate.py
     cd parser/src/lex && python3 generate.py
+
+# generate JSON schemas
+schema:
+    mkdir -p workspace/generated
+    cargo run -p destack_workspace --features schema --bin generate-schema --release > workspace/generated/dsconfig.schema.json
+    cp workspace/generated/dsconfig.schema.json ../platform/vscode/dsconfig.schema.json
+    @echo "generated workspace/generated/dsconfig.schema.json"

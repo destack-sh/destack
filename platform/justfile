@@ -10,9 +10,14 @@ _default:
 check:
     cargo clippy --release {{ packages }}
 
-# build
+# build all platform packages
 build:
     cargo build --release {{ packages }}
+    just build-vscode
+
+# build vscode extension
+build-vscode:
+    cd vscode && bun run bundle && bun run package
 
 # test
 test:

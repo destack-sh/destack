@@ -1,4 +1,4 @@
-use crate::{FormattingOptions, IndentStyle, LanguageFeature, LanguageFeatureSet, LineEnding};
+use crate::{FormatterOptions, IndentStyle, LanguageFeature, LanguageFeatureSet, LineEnding};
 
 /// The mode we're working in.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
@@ -88,7 +88,7 @@ pub struct LanguageOptions {
     /// The enabled language features.
     pub features: LanguageFeatureSet = LanguageFeatureSet::all(),
     /// The formatting options.
-    pub formatting: FormattingOptions,
+    pub formatting: FormatterOptions,
 }
 
 impl LanguageOptions {
@@ -150,7 +150,7 @@ impl LanguageOptions {
     }
 
     /// Set the formatting options.
-    pub fn with_formatting(mut self, formatting: FormattingOptions) -> Self {
+    pub fn with_formatting(mut self, formatting: FormatterOptions) -> Self {
         self.formatting = formatting;
         self
     }

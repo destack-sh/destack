@@ -15,6 +15,7 @@ doctest = false
 # general
 cfg-if = { workspace = true }
 dashmap = { workspace = true }
+indexmap = { workspace = true }
 parking_lot = { workspace = true }
 rustix = { workspace = true }
 serde = { workspace = true }

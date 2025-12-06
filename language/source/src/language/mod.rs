@@ -1,7 +1,9 @@
 mod feature;
-mod formatting;
+mod formatter;
+mod linter;
 mod options;
 
 pub use feature::*;
-pub use formatting::*;
+pub use formatter::*;
+pub use linter::*;
 pub use options::*;

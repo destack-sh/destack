@@ -8,7 +8,7 @@ Own your software and run it anywhere in one integrated open source stack:
  Valid TypeScript is valid Destack, so adopting `.ds` is incremental.
 See [language/DESIGN.md](language/DESIGN.md) and [language/SPECIFICATION.md](language/SPECIFICATION.md).
 
- - **Destack Library**: Standard library for most things most software needs. Fully integrated, batteries-included components across the stack for every layer of the stack and every part of the software lifecycle.
+ - **Destack Library**: Standard library for most things most software needs. Fully integrated, batteries-included components for every layer of the stack and every part of the software lifecycle.
 
  - **Destack Platform**: Integrated platform to support your software - the CLI, IDE integrations, build plugins, debugging, analytics, deployment tools. 
  And the platform to integrate Destack software, fully integrated with the same language and tools.

@@ -30,7 +30,7 @@ members = [
 ]
 
 [workspace.package]
-version = "0.48.1"
+version = "0.48.2"
 edition = "2024"
 authors = ["Symbol Industries"]
 license = "Apache-2.0"
@@ -98,6 +98,7 @@ libfuzzer-sys = "0.4.10"
 pretty_assertions = "1.4.1"
 quickcheck = "1.0.3"
 quickcheck_macros = "1.1.0"
+schemars = { version = "1.1", features = ["indexmap2"] }
 static_assertions = "1.1.0"
 criterion = { version = "0.5", features = ["html_reports"] }
 pprof = { version = "0.15", features = ["flamegraph", "criterion"] }

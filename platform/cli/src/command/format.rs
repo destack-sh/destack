@@ -7,7 +7,7 @@ use destack_fir::format as fir_format;
 use destack_formatter::{DestackFormatContext, DestackFormatOptions};
 use destack_parser::{Parser, colorize_source};
 use destack_source::{
-    DiagnosticOptions, DiagnosticSeverity, File, FileId, FileType, FormattingOptions, IndentStyle,
+    DiagnosticOptions, DiagnosticSeverity, File, FileId, FileType, FormatterOptions, IndentStyle,
     LanguageOptions, LineEnding, Uri, glob,
 };
 use destack_workspace::Program;
@@ -114,29 +114,21 @@ struct DsConfigFormatting {
     line_width: Option<u8>,
 }
 
-/// Compiler options from dsconfig.json.
-#[derive(Debug, Default, Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct DsConfigCompilerOptions {
-    #[serde(default)]
-    formatting: DsConfigFormatting,
-}
-
 /// Minimal dsconfig.json structure for formatting.
 #[derive(Debug, Default, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct DsConfigJson {
     #[serde(default)]
-    compiler_options: DsConfigCompilerOptions,
+    formatter: DsConfigFormatting,
 }
 
 /// Load formatting options from a dsconfig.json file.
-fn load_dsconfig_formatting(dsconfig_path: &Path) -> Option<FormattingOptions> {
+fn load_dsconfig_formatting(dsconfig_path: &Path) -> Option<FormatterOptions> {
     let content = std::fs::read_to_string(dsconfig_path).ok()?;
     let dsconfig: DsConfigJson = serde_json::from_str(&content).ok()?;
-    let fmt = dsconfig.compiler_options.formatting;
+    let fmt = &dsconfig.formatter;
 
-    let mut options = FormattingOptions::default();
+    let mut options = FormatterOptions::default();
     if let Some(line_ending) = fmt.line_ending {
         options.line_ending = line_ending.into();
     }
@@ -154,7 +146,7 @@ fn load_dsconfig_formatting(dsconfig_path: &Path) -> Option<FormattingOptions> {
 }
 
 /// Get formatting options for a file, checking for dsconfig.json.
-fn get_formatting_options(path: &Path, default: FormattingOptions) -> FormattingOptions {
+fn get_formatting_options(path: &Path, default: FormatterOptions) -> FormatterOptions {
     if let Some(dsconfig_path) = find_dsconfig_json(path)
         && let Some(options) = load_dsconfig_formatting(&dsconfig_path)
     {
