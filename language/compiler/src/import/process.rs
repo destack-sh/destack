@@ -6,10 +6,8 @@ use crate::{Compiler, ImportError, ImportResult, ResolveTask, Task, TaskDebug, T
 use destack_dir::DependencySource;
 use destack_parser::Parser;
 use destack_resolver::Resolver;
-use destack_source::{File, FileId, FileType, StringId, Uri};
-
-use destack_source::ModuleId;
-use destack_workspace::{Module, ModuleAst, Program};
+use destack_source::{File, FileId, FileType, ModuleId, PackageId, StringId, Uri};
+use destack_workspace::{Module, ModuleAst, Package, PackageType, Program};
 
 /// Task to import a file into the compiler.
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
@@ -150,22 +148,20 @@ impl Compiler {
             return Ok(ImportOutput { module: module_id });
         }
 
-        // find package
-        let package_id = {
-            if let Some(path) = file.uri.to_path_buf() {
-                resolver.find_package(&path)
-            } else {
-                None
-            }
-        };
+        // find or create package (every module must belong to a package)
+        let (package_id, package_root) = self.resolve_or_create_package(&file, &resolver);
 
         // parse AST from file
         let mut parser = Parser::lex_file(file.clone(), self.program.language);
         let expressions = parser.parse();
         self.program.diagnostics.merge_from(&parser.diagnostics);
 
-        // create and insert module (must insert before bind so diagnostics can reference it)
-        let module_id = self.program.modules.next_id();
+        // create module with hash-based id from path relative to package
+        let module_id = if let Some(path) = &file.path {
+            ModuleId::from_path(package_id, path, package_root.as_deref())
+        } else {
+            ModuleId::from_relative_path(package_id, std::path::Path::new(file.uri.as_ref()))
+        };
         let module_ast = ModuleAst::from_tree(module_id, parser.tree, expressions, parser.strings);
         let module = Module::from_ast(
             module_id,
@@ -222,6 +218,58 @@ impl Compiler {
                 symbols.resolve_import(None, *target, module_id);
             }
         }
+    }
+
+    /// Resolve or create a package for a file.
+    ///
+    /// Returns (package_id, package_root) where package_root is the directory
+    /// containing package.json for physical packages, or the synthetic directory.
+    ///
+    /// Every module must belong to a package. This method:
+    /// 1. Tries to find a physical package (package.json) by walking up directories
+    /// 2. If not found, creates a synthetic package for the file's directory
+    /// 3. For virtual files (no path), uses the ephemeral package
+    fn resolve_or_create_package(
+        &self,
+        file: &File,
+        resolver: &Resolver,
+    ) -> (PackageId, Option<PathBuf>) {
+        // virtual files use the ephemeral package
+        let Some(path) = &file.path else {
+            return (PackageId::EPHEMERAL, None);
+        };
+
+        // try to find a physical package (package.json)
+        if let Some(package_id) = resolver.find_package(path) {
+            let package = self.program.packages.get(package_id);
+            let package_root = package.read().path.clone();
+            return (package_id, package_root);
+        }
+
+        // create synthetic package for file's directory
+        let directory = path.parent().unwrap_or(path);
+        let package_id = PackageId::from_synthetic_path(directory);
+
+        // check if synthetic package already exists
+        if self.program.packages.contains(package_id) {
+            return (package_id, Some(directory.to_path_buf()));
+        }
+
+        // create and insert synthetic package
+        let package = Package {
+            id: package_id,
+            ty: PackageType::Synthetic,
+            uri: Uri::from_path(directory),
+            path: Some(directory.to_path_buf()),
+            name: None,
+            version: None,
+            config: None,
+            main_tsconfig_id: None,
+            main_dsconfig_id: None,
+        };
+        self.program.packages.insert(package);
+
+        (package_id, Some(directory.to_path_buf()))
     }
 
     /// Import a file from a URI.

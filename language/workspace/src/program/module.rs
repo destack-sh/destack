@@ -1,6 +1,5 @@
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use std::sync::atomic::{AtomicU32, Ordering};
 
 use dashmap::DashMap;
 use parking_lot::RwLock;
@@ -19,10 +18,10 @@ pub struct Module {
     pub file_id: FileId,
     /// The URI of the Module.
     pub uri: Uri,
-    /// THe path to the Module.
+    /// The path to the Module.
     pub path: Option<PathBuf>,
-    /// The package of the Module.
-    pub package_id: Option<PackageId>,
+    /// The package of the Module (every module belongs to a package).
+    pub package_id: PackageId,
 
     /// The AST-level module data.
     pub ast: ModuleAst,
@@ -37,20 +36,20 @@ impl Module {
     /// Create a new Module from an AST.
     pub fn from_ast(
         id: ModuleId,
-        file: FileId,
+        file_id: FileId,
         uri: Uri,
         path: Option<PathBuf>,
-        package: Option<PackageId>,
+        package_id: PackageId,
         ast: ModuleAst,
     ) -> Self {
         let dir = ModuleDir::new(id);
         let mir = ModuleMir::new(id);
         Self {
             id,
-            file_id: file,
+            file_id,
             uri,
             path,
-            package_id: package,
+            package_id,
             ast,
             dir,
             mir,
@@ -110,7 +109,7 @@ pub struct ModuleDir {
     pub id: ModuleId,
     /// The symbol of the Module namespace.
     pub namespace_symbol: dir::LocalSymbolId,
-    /// The scope of the Module.≤
+    /// The scope of the Module.
     pub namespace_scope: dir::LocalScopeId,
     /// The symbol of the Module default.
     pub default_symbol: dir::LocalSymbolId,
@@ -187,8 +186,6 @@ pub struct ModuleRegistry {
     modules_by_uri: DashMap<Uri, ModuleId>,
     /// Path-based index for looking up modules by their path (only for modules with valid paths).
     modules_by_path: DashMap<PathBuf, ModuleId>,
-    /// The next module id.
-    next_module_id: AtomicU32,
 }
 
 impl Default for ModuleRegistry {
@@ -204,14 +201,7 @@ impl ModuleRegistry {
             modules_by_id: DashMap::new(),
             modules_by_uri: DashMap::new(),
             modules_by_path: DashMap::new(),
-            next_module_id: AtomicU32::new(0),
         }
-    }
-
-    /// Get and increment the next module id.
-    pub fn next_id(&self) -> ModuleId {
-        let next_module_id = self.next_module_id.fetch_add(1, Ordering::Relaxed);
-        ModuleId::new(next_module_id)
     }
 
     /// Insert a module into the registry.
@@ -224,6 +214,11 @@ impl ModuleRegistry {
         if let Some(path) = path {
             self.modules_by_path.insert(path, id);
         }
+    }
+
+    /// Check if a module exists by id.
+    pub fn contains(&self, id: ModuleId) -> bool {
+        self.modules_by_id.contains_key(&id)
     }
 
     /// Get a module by module id.

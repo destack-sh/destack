@@ -77,7 +77,7 @@ release kind:
     
     # stage and commit
     git add -A
-    git commit -m "chore: release v${VERSION}"
+    git commit -m "chore(*): release v${VERSION}"
     
     # create tag
     git tag -a "v${VERSION}" -m "Release v${VERSION}"

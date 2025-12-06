@@ -405,7 +405,7 @@ where
 /// Dump a ModuleId as a string.
 impl Dump for ModuleId {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
-        dumper.write_str(self.0.to_string(), Some(Color::White));
+        dumper.write_str(self.to_string(), Some(Color::White));
     }
 }
 
@@ -1769,7 +1769,7 @@ impl Dump for LocalScopeMark {
 impl Dump for GlobalSymbolId {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
         dumper.write_str(
-            format!("#{}/{}", self.module_id.0, self.local_id.0),
+            format!("{}:{}", self.module_id, self.local_id.0),
             Some(Color::Green),
         );
     }
@@ -1784,7 +1784,7 @@ impl Dump for LocalSymbolId {
 impl Dump for GlobalScopeId {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
         dumper.write_str(
-            format!("#{}/#{}", self.module_id.0, self.local_id.0),
+            format!("{}:#{}", self.module_id, self.local_id.0),
             Some(Color::Green),
         );
     }

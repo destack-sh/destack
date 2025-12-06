@@ -5,7 +5,7 @@ Build on TypeScript and the web ecosystem with a unified open source toolchain, 
 Own your software and run it anywhere in one integrated open source stack:
 
  - **Destack Language**: TypeScript++ with opt-in extensions for correctness, ergonomics, and performance (with optional `.ds` files like we have `.tsx`). 
- Valid TypeScript is valid Destack, so adopting `.ds` is opt-in and incremental.
+ Valid TypeScript is valid Destack, so adopting `.ds` is incremental.
 See [language/DESIGN.md](language/DESIGN.md) and [language/SPECIFICATION.md](language/SPECIFICATION.md).
 
  - **Destack Library**: Standard library for most things most software needs. Fully integrated, batteries-included components across the stack for every layer of the stack and every part of the software lifecycle.

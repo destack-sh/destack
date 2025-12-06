@@ -5,11 +5,12 @@ use destack_ast as ast;
 use destack_dir::{Expression, GlobalNodeIdAny, GlobalScopeId, LocalScopeMark, NodeType};
 use destack_source::{
     DiagnosticCollector, File, FileId, FileRegistry, FileSystem, FileType, LanguageOptions,
-    ModuleId, StringPool, Uri,
+    ModuleId, PackageId, StringPool, Uri,
 };
 
 use crate::{
-    DsConfigRegistry, Module, ModuleAst, ModuleRegistry, PackageRegistry, TsConfigRegistry,
+    DsConfigRegistry, Module, ModuleAst, ModuleRegistry, Package, PackageRegistry, PackageType,
+    TsConfigRegistry,
 };
 
 /// A Program.
@@ -40,6 +41,7 @@ pub struct Program {
     pub diagnostics: DiagnosticCollector,
 
     // root
+    // NOTE #Cleanup: remove Program.root_* stuff?
     /// The root file id.
     pub root_file_id: FileId,
     /// The root module.
@@ -66,9 +68,9 @@ impl Program {
         let strings = StringPool::new();
         let diagnostics = DiagnosticCollector::new();
 
-        // create and insert the root module and file
+        // create and insert the root package, module, and file
         let (root_file_id, root_module_id, root_scope_id, root_node_id) =
-            Self::new_root(&modules, files.clone());
+            Self::new_root(&modules, &packages, files.clone());
 
         Self {
             language,
@@ -90,17 +92,34 @@ impl Program {
         }
     }
 
-    /// Create and insert the root file, AST, and module. Return root ids.
+    /// Create and insert the root file, AST, module, and package. Return root ids.
     fn new_root(
         modules: &ModuleRegistry,
+        packages: &PackageRegistry,
         files: Arc<FileRegistry>,
     ) -> (FileId, ModuleId, GlobalScopeId, GlobalNodeIdAny) {
+        // ephemeral package for root
+        let root_package_id = PackageId::EPHEMERAL;
+        let root_uri = Uri::from_string("<root>");
+        let root_package = Package {
+            id: root_package_id,
+            ty: PackageType::Ephemeral,
+            uri: root_uri.clone(),
+            path: None,
+            name: Some("<root>".to_string()),
+            version: None,
+            config: None,
+            main_tsconfig_id: None,
+            main_dsconfig_id: None,
+        };
+        packages.insert(root_package);
+
         // root file
         let root_file_id = files.next_id();
         let root_file = File::from_text(
             root_file_id,
             "<root>".to_string(),
-            Uri::from_string("<root>"),
+            root_uri.clone(),
             None,
             FileType::Destack,
             r#"/* root program */"#.to_string(),
@@ -112,8 +131,8 @@ impl Program {
         let mut root_ast = ast::NodeTree::new();
         let ast_root_node_id = root_ast.insert(ast::Expression::Error, root_file.span());
 
-        // root module
-        let root_module_id = modules.next_id();
+        // root module (uses ephemeral module id)
+        let root_module_id = ModuleId::EPHEMERAL;
         let root_module_ast = ModuleAst::from_tree(
             root_module_id,
             root_ast,
@@ -123,9 +142,9 @@ impl Program {
         let root_module = Module::from_ast(
             root_module_id,
             root_file_id,
-            Uri::from_string("<root>"),
+            root_uri,
             None,
-            None,
+            root_package_id,
             root_module_ast,
         );
 

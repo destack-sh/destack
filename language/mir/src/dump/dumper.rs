@@ -526,7 +526,6 @@ impl<'a> NodeVisitor for Dumper<'a> {
         // function header
         self.write_colored("function", Color::BrightBlue);
         self.write(" @");
-        // nocheckin TODO: get name from string pool
         self.write(&format!("function{}", id.id));
         self.write("(");
 
@@ -621,11 +620,11 @@ impl<'a> NodeVisitor for Dumper<'a> {
     }
 
     fn visit_local(&mut self, _tree: &NodeTree, _id: LocalNodeId<Local>, _local: &Local) {
-        // handled in visit_function
+        // nothing to do
     }
 
     fn visit_type(&mut self, _tree: &NodeTree, _id: LocalNodeId<Type>, _ty: &Type) {
-        // types are formatted inline
+        // nothing to do
     }
 }
 
