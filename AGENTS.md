@@ -69,6 +69,12 @@ Example: `test_roundtrip_duration`, `test_send_recv_message`.
 The first line or docstring should describe desired behavior (don't mention "test").
 Prefer property-based testing and roundtrip testing where possible.
 
+### Formatting
+
+You should always format code before you're "done" with a change.
+Ideally, you should format code *before* running it (via tests or otherwise), so we don't compile twice.
+(Most directories have a `just fmt` or equivalent command, see the context.).
+
 ## Rust
 
 Toolchain: `nightly-2025-11-27` (see `rust-toolchain.toml`)
