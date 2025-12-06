@@ -728,7 +728,6 @@ name = "destack_dir"
 version = "0.48.2"
 dependencies = [
  "dashmap",
- "destack_ast",
  "destack_fir",
  "destack_source",
  "destack_unicode",
@@ -802,8 +801,6 @@ dependencies = [
 name = "destack_mir"
 version = "0.48.2"
 dependencies = [
- "destack_ast",
- "destack_dir",
  "destack_fir",
  "destack_source",
  "destack_unicode",

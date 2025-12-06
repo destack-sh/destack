@@ -21,7 +21,7 @@ impl Compiler {
     ) -> LocalNodeId<Property> {
         let ast_property = module.ast.tree.get(ast_property_id);
         let property_id =
-            tree.reserve_from_source(NodeType::Property, ast_property_id, scope, parent_id);
+            tree.reserve_from_source(NodeType::Property, ast_property_id.id, scope, parent_id);
         let property = match ast_property {
             ast::Property::Field {
                 modifiers,

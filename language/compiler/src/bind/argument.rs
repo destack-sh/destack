@@ -57,7 +57,7 @@ impl Compiler {
     ) -> LocalNodeId<Parameter> {
         let ast_parameter = module.ast.tree.get(ast_parameter_id);
         let parameter_id =
-            tree.reserve_from_source(NodeType::Parameter, ast_parameter_id, scope, parent_id);
+            tree.reserve_from_source(NodeType::Parameter, ast_parameter_id.id, scope, parent_id);
         match ast_parameter {
             ast::Parameter::Named {
                 modifiers,
@@ -218,7 +218,7 @@ impl Compiler {
     ) -> LocalNodeId<Argument> {
         let ast_argument = module.ast.tree.get(ast_argument_id);
         let argument_id =
-            tree.reserve_from_source(NodeType::Argument, ast_argument_id, scope, parent_id);
+            tree.reserve_from_source(NodeType::Argument, ast_argument_id.id, scope, parent_id);
         match ast_argument {
             ast::Argument::Named { name, value } => {
                 let name = self

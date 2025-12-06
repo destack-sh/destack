@@ -1,5 +1,4 @@
-use destack_ast::StringId;
-use destack_source::ModuleId;
+use destack_source::{ModuleId, StringId};
 
 use crate::{
     Argument, AssignOperator, Asynchrony, BinaryOperator, Block, Declaration,

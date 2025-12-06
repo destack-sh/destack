@@ -3,7 +3,6 @@
 use std::fmt;
 use std::str::FromStr;
 
-use destack_dir::GlobalSymbolId;
 use destack_source::StringId;
 use smallvec::{SmallVec, smallvec};
 
@@ -221,10 +220,9 @@ impl Instruction {
 pub enum FunctionReference {
     /// A function defined in the same module.
     Local(LocalNodeId<Function>),
-    /// Unresolved global function reference.
-    UnresolvedGlobal(StringId),
-    /// A function defined in another module (cross-module call).
-    Global(GlobalSymbolId),
+    /// An external function reference (by name).
+    /// Resolution to actual addresses happens at codegen/linking time.
+    External(StringId),
 }
 
 /// Kind of type cast.

@@ -23,7 +23,7 @@ impl Compiler {
     ) -> LocalNodeId<MatchCase> {
         let ast_match_case = module.ast.tree.get(ast_match_case_id);
         let match_case_id =
-            tree.reserve_from_source(NodeType::MatchCase, ast_match_case_id, scope, parent_id);
+            tree.reserve_from_source(NodeType::MatchCase, ast_match_case_id.id, scope, parent_id);
         let (symbol_id, scope_id) =
             self.bind_anonymous_local_with_scope(module, ScopeKind::Block, scope, symbols);
         let match_case = match ast_match_case {

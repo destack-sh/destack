@@ -82,7 +82,7 @@ impl Compiler {
         }
 
         let annotation_id =
-            tree.reserve_from_source(NodeType::Annotation, ast_annotation_id, scope, parent_id);
+            tree.reserve_from_source(NodeType::Annotation, ast_annotation_id.id, scope, parent_id);
         let annotation = match ast_annotation {
             ast::Annotation::Blank { .. } => unreachable!(),
             ast::Annotation::Doc { node, position } => {
@@ -111,7 +111,7 @@ impl Compiler {
                 let path = self.bind_path(module, &decorator.left);
                 let left_id = tree.reserve_from_source(
                     NodeType::Expression,
-                    *node, // use decorator node as source
+                    node.id, // use decorator node as source
                     scope,
                     Some(annotation_id),
                 );

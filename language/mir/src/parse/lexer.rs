@@ -343,7 +343,11 @@ mod tests {
             .collect();
         assert_eq!(
             types,
-            vec![TokenType::BlockRefence, TokenType::BlockRefence, TokenType::End]
+            vec![
+                TokenType::BlockRefence,
+                TokenType::BlockRefence,
+                TokenType::End
+            ]
         );
     }
 }

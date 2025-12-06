@@ -184,11 +184,11 @@ impl<'a> Format<MirFormatContext<'a>> for FormatAllFunctions {
         let tree = f.context().tree;
         let function_ids: Vec<_> = tree.iter_nodes::<Function>().map(|(id, _)| id).collect();
 
-        for (i, func_id) in function_ids.iter().enumerate() {
+        for (i, function_id) in function_ids.iter().enumerate() {
             if i > 0 {
                 write!(f, [hard_line_break(), hard_line_break()])?;
             }
-            write!(f, [func_id])?;
+            write!(f, [function_id])?;
         }
         Ok(())
     }

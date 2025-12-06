@@ -149,7 +149,7 @@ impl Program {
         let root_scope_id = root_module.dir.namespace_scope;
         let dir_root_node_id = root_module.dir.tree.write().reserve_from_source(
             NodeType::Expression,
-            ast_root_node_id,
+            ast_root_node_id.id,
             (root_scope_id, LocalScopeMark::end()),
             None,
         );

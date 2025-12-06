@@ -77,8 +77,12 @@ impl Compiler {
         types: &mut TypeTable,
     ) -> LocalNodeId<Declaration> {
         let ast_declaration = module.ast.tree.get(ast_declaration_id);
-        let declaration_id =
-            tree.reserve_from_source(NodeType::Declaration, ast_declaration_id, scope, parent_id);
+        let declaration_id = tree.reserve_from_source(
+            NodeType::Declaration,
+            ast_declaration_id.id,
+            scope,
+            parent_id,
+        );
         let declaration = match ast_declaration {
             ast::Declaration::Namespace {
                 descriptor,
@@ -530,7 +534,7 @@ impl Compiler {
     ) -> LocalNodeId<EnumField> {
         let ast_field = module.ast.tree.get(ast_field_id);
         let field_id =
-            tree.reserve_from_source(NodeType::EnumField, ast_field_id, scope, parent_id);
+            tree.reserve_from_source(NodeType::EnumField, ast_field_id.id, scope, parent_id);
         let name = self
             .program
             .strings
