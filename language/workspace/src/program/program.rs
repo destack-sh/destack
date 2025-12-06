@@ -10,7 +10,8 @@ use destack_source::{
 use indexmap::IndexMap;
 
 use crate::{
-    Module, ModuleAst, ModuleRegistry, Package, PackageKind, PackageRegistry, TsConfigRegistry,
+    ArtifactRegistry, Module, ModuleAst, ModuleRegistry, Package, PackageKind, PackageRegistry,
+    TsConfigRegistry,
 };
 
 /// A Program.
@@ -33,6 +34,8 @@ pub struct Program {
     pub packages: PackageRegistry,
     /// The tsconfigs (separate registry as tsconfigs can be nested within packages).
     pub tsconfigs: TsConfigRegistry,
+    /// Generated artifacts (from codegen).
+    pub artifacts: ArtifactRegistry,
     /// The combined string pool.
     pub strings: StringPool,
     /// The diagnostic collector.
@@ -62,6 +65,7 @@ impl Program {
         let modules = ModuleRegistry::new();
         let packages = PackageRegistry::new();
         let tsconfigs = TsConfigRegistry::new();
+        let artifacts = ArtifactRegistry::new();
         let strings = StringPool::new();
         let diagnostics = DiagnosticCollector::new();
 
@@ -78,6 +82,7 @@ impl Program {
             modules,
             packages,
             tsconfigs,
+            artifacts,
             strings,
             diagnostics,
 

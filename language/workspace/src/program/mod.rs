@@ -1,3 +1,4 @@
+mod artifact;
 mod dsconfig;
 mod module;
 mod package;
@@ -6,6 +7,7 @@ mod specifier;
 mod target;
 mod tsconfig;
 
+pub use artifact::*;
 pub use dsconfig::*;
 pub use module::*;
 pub use package::*;
