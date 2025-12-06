@@ -250,7 +250,7 @@ impl GlobalNodeIdAny {
                 "expected {}, got {} for {}/{}",
                 T::TYPE.name(),
                 self.local_id.ty.name(),
-                self.module_id.0,
+                self.module_id,
                 self.local_id.id
             ));
         }
@@ -272,7 +272,7 @@ impl GlobalNodeIdAny {
                 "expected {}, got {} for {}/{}",
                 T::TYPE.name(),
                 self.local_id.ty.name(),
-                self.module_id.0,
+                self.module_id,
                 self.local_id.id
             ));
         }
@@ -312,7 +312,7 @@ impl<T: Node> TryFrom<GlobalNodeIdAny> for GlobalNodeId<T> {
                 "expected {}, got {} for {}/{}",
                 T::TYPE.name(),
                 id.local_id.ty.name(),
-                id.module_id.0,
+                id.module_id,
                 id.local_id.id
             ));
         }

@@ -1,7 +1,5 @@
-use core::fmt;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use std::sync::atomic::{AtomicU32, Ordering};
 
 use dashmap::DashMap;
 use destack_source::{File, FileContent, FileId, PackageId, Uri};
@@ -11,51 +9,42 @@ use serde_json::{Map, Value};
 
 use crate::{DsConfigId, TsConfigId};
 
+/// Type of package based on how it was discovered.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum PackageType {
+    /// Physical package on disk with package.json.
+    Physical,
+    /// Synthetic package for loose files (no package.json found).
+    Synthetic,
+    /// Ephemeral package for virtual content (REPL, eval, root module).
+    Ephemeral,
+}
+
 /// A Package is a bundle of modules.
 #[derive(Debug, Clone)]
 pub struct Package {
     /// The id of the Package.
     pub id: PackageId,
+    /// The type of the Package.
+    pub ty: PackageType,
     /// The URI of the package.
     pub uri: Uri,
-    /// The path to the package directory.
-    pub path: PathBuf,
+    /// The path to the package directory (None for ephemeral packages).
+    pub path: Option<PathBuf>,
     /// The name of the package.
     pub name: Option<String>,
     /// The version of the package.
     pub version: Option<String>,
-    /// The type of the package.
-    pub ty: PackageType,
 
-    /// The config file of the package.
-    pub config: PackageConfig,
+    /// The package.json config (None for synthetic/ephemeral packages).
+    pub config: Option<PackageConfig>,
     /// The root tsconfig of the package.
     pub main_tsconfig_id: Option<TsConfigId>,
     /// The root dsconfig of the package.
     pub main_dsconfig_id: Option<DsConfigId>,
 }
 
-/// The package type.
-/// <https://nodejs.org/api/packages.html#type>
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Deserialize)]
-#[serde(rename_all = "lowercase")]
-pub enum PackageType {
-    /// CommonJS package.
-    CommonJs,
-    /// Module package.
-    Module,
-}
-
-impl fmt::Display for PackageType {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::CommonJs => f.write_str("commonjs"),
-            Self::Module => f.write_str("module"),
-        }
-    }
-}
-
-/// Package options.
+/// Package config from `package.json`.
 #[derive(Debug, Clone)]
 pub struct PackageConfig {
     /// The id of the `package.json` file.
@@ -109,7 +98,7 @@ impl PackageConfig {
 }
 
 /// Package JSON (from `package.json`).
-#[derive(Deserialize, Debug, Clone)]
+#[derive(Deserialize, Debug, Clone, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct PackageJson {
     /// Name of the package.
@@ -119,11 +108,6 @@ pub struct PackageJson {
     /// Version of the package.
     /// <https://docs.npmjs.com/cli/v11/configuring-npm/package-json#version>
     pub version: Option<String>,
-
-    /// Package type (Module or CommonJS).
-    /// <https://docs.npmjs.com/cli/v11/configuring-npm/package-json#type>
-    #[serde(rename = "type")]
-    pub ty: Option<PackageType>,
 
     /// The "main" entry point.
     /// <https://docs.npmjs.com/cli/v11/configuring-npm/package-json#main>
@@ -157,8 +141,6 @@ pub struct PackageRegistry {
     packages_by_uri: DashMap<Uri, PackageId>,
     /// Path-based index for looking up packages by their directory path.
     packages_by_path: DashMap<PathBuf, PackageId>,
-    /// The next package id.
-    next_package_id: AtomicU32,
 }
 
 impl Default for PackageRegistry {
@@ -174,14 +156,7 @@ impl PackageRegistry {
             packages_by_id: DashMap::new(),
             packages_by_uri: DashMap::new(),
             packages_by_path: DashMap::new(),
-            next_package_id: AtomicU32::new(0),
         }
-    }
-
-    /// Get and increment the next package id.
-    pub fn next_id(&self) -> PackageId {
-        let next_package_id = self.next_package_id.fetch_add(1, Ordering::Relaxed);
-        PackageId::new(next_package_id)
     }
 
     /// Insert a package into the registry.
@@ -192,7 +167,14 @@ impl PackageRegistry {
         self.packages_by_id
             .insert(id, Arc::new(RwLock::new(package)));
         self.packages_by_uri.insert(uri, id);
-        self.packages_by_path.insert(path, id);
+        if let Some(path) = path {
+            self.packages_by_path.insert(path, id);
+        }
+    }
+
+    /// Check if a package exists by id.
+    pub fn contains(&self, id: PackageId) -> bool {
+        self.packages_by_id.contains_key(&id)
     }
 
     /// Get a package by package id.

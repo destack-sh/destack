@@ -58,31 +58,34 @@ impl Resolver {
         if let Some(package_id) = self.load_package(path, ctx)? {
             let package = self.program.packages.get(package_id);
             let package = package.read();
-            if let Some(main_field) = package.config.content.main.as_deref() {
-                let main_field = if main_field.starts_with("./") || main_field.starts_with("../") {
-                    Cow::Borrowed(main_field)
-                } else {
-                    Cow::Owned(format!("./{main_field}"))
-                };
+            if let Some(ref config) = package.config {
+                if let Some(main_field) = config.content.main.as_deref() {
+                    let main_field: Cow<'_, str> =
+                        if main_field.starts_with("./") || main_field.starts_with("../") {
+                            Cow::Borrowed(main_field)
+                        } else {
+                            Cow::Owned(format!("./{main_field}"))
+                        };
 
-                let main_path = path.normalize_with(main_field.as_ref());
+                    let main_path = path.normalize_with(main_field.as_ref());
 
-                // try to load as file
-                if let Some(resolved) = self.load_file(&main_path, ctx)? {
-                    return Ok(Some(resolved));
+                    // try to load as file
+                    if let Some(resolved) = self.load_file(&main_path, ctx)? {
+                        return Ok(Some(resolved));
+                    }
+
+                    // try to load index file
+                    if let Some(resolved) = self.load_index(&main_path, ctx)? {
+                        return Ok(Some(resolved));
+                    }
                 }
 
-                // try to load index file
-                if let Some(resolved) = self.load_index(&main_path, ctx)? {
+                // allow `exports` field in `require('../directory')`
+                if let Some(exports) = config.content.exports.as_ref()
+                    && let Some(resolved) = self.package_exports_resolve(path, ".", exports, ctx)?
+                {
                     return Ok(Some(resolved));
                 }
-            }
-
-            // allow `exports` field in `require('../directory')`
-            if let Some(exports) = package.config.content.exports.as_ref()
-                && let Some(resolved) = self.package_exports_resolve(path, ".", exports, ctx)?
-            {
-                return Ok(Some(resolved));
             }
         }
 
@@ -177,7 +180,9 @@ impl Resolver {
         if let Some(package_id) = self.find_package_json(path, ctx)? {
             let package = self.program.packages.get(package_id);
             let package = package.read();
-            if let Some(resolved) = self.load_browser_field(path, None, &package.config, ctx)? {
+            if let Some(ref config) = package.config
+                && let Some(resolved) = self.load_browser_field(path, None, config, ctx)?
+            {
                 return Ok(Some(resolved));
             }
         }

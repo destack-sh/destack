@@ -3,7 +3,7 @@ use std::cmp::Ordering;
 use std::path::{Component, Path, PathBuf};
 
 use destack_source::{File, FileType, PackageId, PathExt, Uri};
-use destack_workspace::{ModuleSpecifier, Package, PackageConfig};
+use destack_workspace::{ModuleSpecifier, Package, PackageConfig, PackageType};
 
 use crate::{ResolveContext, ResolveError, Resolver};
 
@@ -33,7 +33,9 @@ impl Resolver {
         if let Some(package_id) = self.program.packages.get_id_by_path(&package_json_path) {
             let package = self.program.packages.get(package_id);
             let package = package.read();
-            ctx.track_found_dependency(&package.config.path);
+            if let Some(ref config) = package.config {
+                ctx.track_found_dependency(&config.path);
+            }
             return Ok(Some(package_id));
         }
 
@@ -64,24 +66,21 @@ impl Resolver {
         let file = self.program.files.get(file_id);
 
         // parse `package.json` from file
-        let package_id = self.program.packages.next_id();
-        let package_options =
+        let package_config =
             PackageConfig::parse(&file, package_json_path.clone()).map_err(|_| {
                 ResolveError::InvalidPackageJson {
                     path: package_json_path.clone(),
                 }
             })?;
+        let package_id = PackageId::from_path(&package_config.directory);
         let package = Package {
             id: package_id,
-            uri: package_options.uri.clone(),
-            path: package_options.directory.clone(),
-            name: package_options.content.name.clone(),
-            version: package_options.content.version.clone(),
-            ty: package_options
-                .content
-                .ty
-                .unwrap_or(destack_workspace::PackageType::CommonJs),
-            config: package_options,
+            ty: PackageType::Physical,
+            uri: package_config.uri.clone(),
+            path: Some(package_config.directory.clone()),
+            name: package_config.content.name.clone(),
+            version: package_config.content.version.clone(),
+            config: Some(package_config),
             main_tsconfig_id: None,
             main_dsconfig_id: None,
         };
@@ -189,11 +188,12 @@ impl Resolver {
         let package = package.read();
 
         // check if the package has imports
-        if let Some(resolved) = self.package_imports_resolve(specifier, &package.config, ctx)? {
-            self.resolve_esm_match(specifier, &resolved, ctx)
-        } else {
-            Ok(None)
+        if let Some(ref config) = package.config
+            && let Some(resolved) = self.package_imports_resolve(specifier, config, ctx)?
+        {
+            return self.resolve_esm_match(specifier, &resolved, ctx);
         }
+        Ok(None)
     }
 
     /// Search node_modules directories walking up from the given path.
@@ -337,7 +337,8 @@ impl Resolver {
         let package = package.read();
 
         // resolve exports
-        if let Some(exports) = package.config.content.exports.as_ref()
+        if let Some(ref config) = package.config
+            && let Some(exports) = config.content.exports.as_ref()
             && let Some(resolved) =
                 self.package_exports_resolve(path, &format!(".{subpath}"), exports, ctx)?
         {
@@ -363,40 +364,42 @@ impl Resolver {
         let package = self.program.packages.get(package_id);
         let package = package.read();
 
-        // check if the package name matches the specifier
-        if let Some(subpath) = package
-            .config
+        // check if the package has config and name matches the specifier
+        let Some(ref config) = package.config else {
+            return Ok(None);
+        };
+
+        let Some(subpath) = config
             .content
             .name
             .as_ref()
-            .and_then(|package_name| Self::strip_package_name(specifier, package_name.as_str()))
-        {
-            let package_url = package
-                .config
-                .path
-                .parent()
-                .unwrap_or_else(|| {
-                    panic!(
-                        "package.json path is not in a directory: {}",
-                        package.config.path.display()
-                    )
-                })
-                .to_path_buf();
+            .and_then(|package_name: &String| {
+                Self::strip_package_name(specifier, package_name.as_str())
+            })
+        else {
+            return Ok(None);
+        };
 
-            if let Some(exports) = package.config.content.exports.as_ref()
-                && let Some(resolved) = self.package_exports_resolve(
-                    &package_url,
-                    &format!(".{subpath}"),
-                    exports,
-                    ctx,
-                )?
-            {
-                return self.resolve_esm_match(specifier, &resolved, ctx);
-            }
+        let package_url = config
+            .path
+            .parent()
+            .unwrap_or_else(|| {
+                panic!(
+                    "package.json path is not in a directory: {}",
+                    config.path.display()
+                )
+            })
+            .to_path_buf();
+
+        if let Some(exports) = config.content.exports.as_ref()
+            && let Some(resolved) =
+                self.package_exports_resolve(&package_url, &format!(".{subpath}"), exports, ctx)?
+        {
+            return self.resolve_esm_match(specifier, &resolved, ctx);
         }
 
         // fallback to browser field
-        self.load_browser_field(path, Some(specifier), &package.config, ctx)
+        self.load_browser_field(path, Some(specifier), config, ctx)
     }
 
     /// Resolve an ESM match by loading as file or directory.
@@ -447,26 +450,29 @@ impl Resolver {
                         let package = self.program.packages.get(package_id);
                         let package = package.read();
 
-                        // resolve exports
-                        if let Some(exports) = package.config.content.exports.as_ref()
-                            && let Some(resolved) = self.package_exports_resolve(
-                                &package_path,
-                                &format!(".{subpath}"),
-                                exports,
-                                ctx,
-                            )?
-                        {
-                            return Ok(Some(resolved));
-                        }
-
-                        // resolve main field
-                        if subpath == "."
-                            && let Some(main_field) = package.config.content.main.as_deref()
-                        {
-                            let main_path = package_path.normalize_with(main_field);
-                            if self.is_file(&main_path, ctx) && self.check_restrictions(&main_path)
+                        if let Some(config) = &package.config {
+                            // resolve exports
+                            if let Some(exports) = config.content.exports.as_ref()
+                                && let Some(resolved) = self.package_exports_resolve(
+                                    &package_path,
+                                    &format!(".{subpath}"),
+                                    exports,
+                                    ctx,
+                                )?
                             {
-                                return Ok(Some(main_path));
+                                return Ok(Some(resolved));
+                            }
+
+                            // resolve main field
+                            if subpath == "."
+                                && let Some(main_field) = config.content.main.as_deref()
+                            {
+                                let main_path = package_path.normalize_with(main_field);
+                                if self.is_file(&main_path, ctx)
+                                    && self.check_restrictions(&main_path)
+                                {
+                                    return Ok(Some(main_path));
+                                }
                             }
                         }
                     }
