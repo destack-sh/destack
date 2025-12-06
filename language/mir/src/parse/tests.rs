@@ -48,3 +48,35 @@ block3(v3: i32):
     );
 }
 
+#[test]
+fn test_roundtrip_call() {
+    roundtrip(
+        r#"function @caller() -> i32 {
+block0:
+    v0 = iconst 1i32
+    v1 = iconst 2i32
+    v2 = call @callee(v0, v1)
+    return v2
+}"#,
+    );
+}
+
+#[test]
+fn test_roundtrip_switch() {
+    roundtrip(
+        r#"function @dispatch(v0: i32) -> i32 {
+block0(v0: i32):
+    switch v0, block3, 0 => block1, 1 => block2
+block1:
+    v1 = iconst 100i32
+    return v1
+block2:
+    v2 = iconst 200i32
+    return v2
+block3:
+    v3 = iconst 0i32
+    return v3
+}"#,
+    );
+}
+
