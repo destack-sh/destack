@@ -8,7 +8,7 @@ use crate::format::argument::list_like;
 use crate::format::property::{
     format_binding_modifiers_postfix_maybe, format_binding_modifiers_prefix_maybe,
 };
-use crate::{FormatNode, CodegenJsFormatContext, CodegenJsFormatter};
+use crate::{CodegenJsFormatContext, CodegenJsFormatter, FormatNode};
 
 impl<'ast> Format<CodegenJsFormatContext<'ast>> for PrimitiveType {
     fn format(&self, f: &mut CodegenJsFormatter<'ast, '_>) -> FormatResult<()> {

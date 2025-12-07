@@ -3,7 +3,7 @@ use destack_fir::format::FormatResult;
 use destack_fir::prelude::*;
 use destack_fir::write;
 
-use crate::{FormatNode, CodegenJsFormatter};
+use crate::{CodegenJsFormatter, FormatNode};
 
 pub(crate) fn format_block_of_statements<'ast>(
     f: &mut CodegenJsFormatter<'ast, '_>,

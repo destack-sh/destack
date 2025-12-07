@@ -4,7 +4,7 @@ use destack_fir::prelude::*;
 use destack_fir::write;
 
 use crate::format::argument::list_like;
-use crate::{FormatNode, CodegenJsFormatter};
+use crate::{CodegenJsFormatter, FormatNode};
 
 impl<'ast> FormatNode<'ast, Pattern> for Pattern {
     fn format_node(

@@ -7,7 +7,7 @@ use destack_fir::format as fir_format;
 use destack_formatter::{DestackFormatContext, DestackFormatOptions};
 use destack_parser::Parser;
 use destack_source::{
-    File, FileId, FileRegistry, FileSystem, FileType, LanguageOptions, MemoryFileSystem, Uri,
+    File, FileRegistry, FileSystem, FileType, LanguageOptions, MemoryFileSystem, Uri,
 };
 use destack_workspace::Program;
 
@@ -50,7 +50,7 @@ fn run_roundtrip_test(test: &TestCase) -> TestResult {
     } else {
         FileType::Destack
     };
-    let file_id = FileId::new(0);
+    let file_id = program.files.next_id();
     let name = test.path.file_name().unwrap().to_string_lossy().to_string();
     let path = Some(test.path.clone());
     let file = Arc::new(File::from_text(

@@ -5,7 +5,7 @@ use destack_fir::write;
 use destack_source::StringId;
 
 use crate::format::argument::list_like;
-use crate::{FormatNode, CodegenJsFormatter};
+use crate::{CodegenJsFormatter, FormatNode};
 
 impl<'ast> FormatNode<'ast, DependencyItem> for DependencyItem {
     fn format_node(

@@ -7,7 +7,7 @@ use destack_fir::prelude::*;
 use destack_fir::write;
 
 use crate::format::argument::list_like;
-use crate::{FormatNode, CodegenJsFormatter};
+use crate::{CodegenJsFormatter, FormatNode};
 
 #[inline]
 pub(crate) fn format_binding_modifiers_prefix<'ast>(

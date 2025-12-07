@@ -4,7 +4,7 @@ use destack_fir::write;
 
 use crate::{Keyword, LocalNodeId, SwitchCase};
 
-use crate::{FormatNode, CodegenJsFormatter};
+use crate::{CodegenJsFormatter, FormatNode};
 
 impl<'ast> FormatNode<'ast, SwitchCase> for SwitchCase {
     fn format_node(
