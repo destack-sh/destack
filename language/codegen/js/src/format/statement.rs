@@ -1,7 +1,7 @@
 use crate::format::argument::list_like;
 use crate::format::dependency::{format_export_binding, format_import_binding};
 use crate::{
-    DeclarationKind, DependencyKind, FormatNode, CodegenJsFormatter, Keyword, LocalNodeId,
+    CodegenJsFormatter, DeclarationKind, DependencyKind, FormatNode, Keyword, LocalNodeId,
     Mutability, Statement,
 };
 use destack_fir::format::FormatResult;

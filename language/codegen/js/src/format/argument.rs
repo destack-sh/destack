@@ -6,7 +6,7 @@ use destack_fir::format::{BestFittingMode, FormatResult};
 use crate::format::property::{
     format_binding_modifiers_postfix_maybe, format_binding_modifiers_prefix_maybe,
 };
-use crate::{FormatNode, CodegenJsFormatContext, CodegenJsFormatter};
+use crate::{CodegenJsFormatContext, CodegenJsFormatter, FormatNode};
 
 use destack_fir::prelude::*;
 use destack_fir::{best_fitting, format_args, write};

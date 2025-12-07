@@ -5,7 +5,7 @@ use destack_fir::write;
 
 use crate::format::argument::list_like;
 use crate::format::literal::{format_scalar_literal, format_template_literal};
-use crate::{FormatNode, CodegenJsFormatter};
+use crate::{CodegenJsFormatter, FormatNode};
 
 impl<'ast> FormatNode<'ast, Expression> for Expression {
     fn format_node(

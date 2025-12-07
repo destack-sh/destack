@@ -9,8 +9,7 @@ use destack_fir::print::PrintOptions;
 use destack_source::{File, FileType, ImmutableStringPool, IndentStyle, LineEnding};
 use destack_workspace::Target;
 
-pub type CodegenJsFormatter<'ast, 'buf> =
-    Formatter<'buf, CodegenJsFormatContext<'ast>>;
+pub type CodegenJsFormatter<'ast, 'buf> = Formatter<'buf, CodegenJsFormatContext<'ast>>;
 
 /// The formatting mode.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]

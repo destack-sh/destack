@@ -9,7 +9,7 @@ use destack_fir::{format_args, write};
 
 use crate::format::argument::list_like;
 use crate::format::block::format_block_of_statements;
-use crate::{FormatNode, CodegenJsFormatContext, CodegenJsFormatter};
+use crate::{CodegenJsFormatContext, CodegenJsFormatter, FormatNode};
 
 /// Format a super type clause.
 pub(crate) fn format_super_type_clause<'ast>(
