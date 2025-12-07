@@ -24,92 +24,90 @@ pub mod trap {
 
 /// Errors from Cranelift code generation.
 #[derive(Debug, Clone)]
-pub enum CraneliftError {
+pub enum CodegenCraneliftError {
     /// Unsupported target triple.
-    UnsupportedTarget { triple: String },
+    UnsupportedTarget {
+        triple: String,
+        message: Option<String>,
+    },
 
     /// Type not supported by Cranelift.
     UnsupportedType {
-        description: String,
-        /// The MIR node that caused the error (if available).
-        node: Option<mir::LocalNodeIdAny>,
+        node: mir::LocalNodeIdAny,
+        message: Option<String>,
+    },
+
+    /// Missing type for an instruction.
+    MissingType {
+        node: mir::LocalNodeIdAny,
+        message: Option<String>,
     },
 
     /// Instruction not yet implemented.
     UnsupportedInstruction {
-        description: String,
-        /// The MIR instruction that caused the error (if available).
-        instruction: Option<mir::LocalNodeId<mir::Instruction>>,
+        node: mir::LocalNodeIdAny,
+        message: Option<String>,
     },
 
     /// Function not found.
-    FunctionNotFound { name: String },
+    FunctionNotFound {
+        name: String,
+        message: Option<String>,
+    },
 
     /// Internal Cranelift error.
     Internal { message: String },
 }
 
-impl CraneliftError {
-    /// Create an unsupported type error.
-    pub fn unsupported_type(description: impl Into<String>) -> Self {
-        Self::UnsupportedType {
-            description: description.into(),
-            node: None,
-        }
-    }
-
+impl CodegenCraneliftError {
     /// Create an unsupported type error with a node location.
-    pub fn unsupported_type_at(description: impl Into<String>, node: mir::LocalNodeIdAny) -> Self {
+    pub fn unsupported_type(message: impl Into<String>, node_id: mir::LocalNodeIdAny) -> Self {
         Self::UnsupportedType {
-            description: description.into(),
-            node: Some(node),
-        }
-    }
-
-    /// Create an unsupported instruction error.
-    pub fn unsupported_instruction(description: impl Into<String>) -> Self {
-        Self::UnsupportedInstruction {
-            description: description.into(),
-            instruction: None,
+            node: node_id,
+            message: Some(message.into()),
         }
     }
 
     /// Create an unsupported instruction error with a node location.
-    pub fn unsupported_instruction_at(
-        description: impl Into<String>,
-        instruction: mir::LocalNodeId<mir::Instruction>,
+    pub fn unsupported_instruction(
+        message: impl Into<String>,
+        node_id: mir::LocalNodeIdAny,
     ) -> Self {
         Self::UnsupportedInstruction {
-            description: description.into(),
-            instruction: Some(instruction),
+            node: node_id,
+            message: Some(message.into()),
         }
     }
 }
 
-impl fmt::Display for CraneliftError {
+impl fmt::Display for CodegenCraneliftError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::UnsupportedTarget { triple } => {
+            Self::UnsupportedTarget { triple, message: _ } => {
                 write!(f, "unsupported target: {triple}")
             }
-            Self::UnsupportedType { description, node } => {
-                if let Some(node) = node {
-                    write!(f, "unsupported type at {node:?}: {description}")
+            Self::UnsupportedType { node: _, message } => {
+                if let Some(message) = message {
+                    write!(f, "unsupported type: {message}")
                 } else {
-                    write!(f, "unsupported type: {description}")
+                    write!(f, "unsupported type")
                 }
             }
-            Self::UnsupportedInstruction {
-                description,
-                instruction,
-            } => {
-                if let Some(inst) = instruction {
-                    write!(f, "unsupported instruction at {inst:?}: {description}")
+            Self::MissingType { node: _, message } => {
+                if let Some(message) = message {
+                    write!(f, "missing type: {message}")
                 } else {
-                    write!(f, "unsupported instruction: {description}")
+                    write!(f, "missing type")
                 }
             }
-            Self::FunctionNotFound { name } => {
+            Self::UnsupportedInstruction { node: _, message } => {
+                if let Some(message) = message {
+                    write!(f, "unsupported instruction: {message}")
+                } else {
+                    write!(f, "unsupported instruction")
+                }
+            }
+            Self::FunctionNotFound { name, message: _ } => {
                 write!(f, "function not found: {name}")
             }
             Self::Internal { message } => {
@@ -119,9 +117,9 @@ impl fmt::Display for CraneliftError {
     }
 }
 
-impl std::error::Error for CraneliftError {}
+impl std::error::Error for CodegenCraneliftError {}
 
-impl From<cranelift_codegen::CodegenError> for CraneliftError {
+impl From<cranelift_codegen::CodegenError> for CodegenCraneliftError {
     fn from(error: cranelift_codegen::CodegenError) -> Self {
         Self::Internal {
             message: error.to_string(),
@@ -129,7 +127,7 @@ impl From<cranelift_codegen::CodegenError> for CraneliftError {
     }
 }
 
-impl From<cranelift_module::ModuleError> for CraneliftError {
+impl From<cranelift_module::ModuleError> for CodegenCraneliftError {
     fn from(error: cranelift_module::ModuleError) -> Self {
         Self::Internal {
             message: error.to_string(),

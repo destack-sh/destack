@@ -4,7 +4,7 @@ use destack_mir as mir;
 use destack_source::{ModuleId, StringId};
 use destack_workspace::ModuleMir;
 
-use crate::CraneliftCodegenBackend;
+use crate::CodegenCraneliftBackend;
 
 /// Helper to compile MIR text to CLIF text.
 pub(crate) fn compile_mir_to_clif(source: &str) -> String {
@@ -21,7 +21,7 @@ pub(crate) fn compile_mir_to_clif(source: &str) -> String {
         module.strings.intern(s);
     }
 
-    let backend = CraneliftCodegenBackend::native().expect("failed to create backend");
+    let backend = CodegenCraneliftBackend::native().expect("failed to create backend");
     backend
         .compile_to_clif(&module, "test")
         .expect("failed to compile")
