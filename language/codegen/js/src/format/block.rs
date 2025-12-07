@@ -3,10 +3,10 @@ use destack_fir::format::FormatResult;
 use destack_fir::prelude::*;
 use destack_fir::write;
 
-use crate::{FormatNode, JavaScriptFormatter};
+use crate::{FormatNode, CodegenJsFormatter};
 
 pub(crate) fn format_block_of_statements<'ast>(
-    f: &mut JavaScriptFormatter<'ast, '_>,
+    f: &mut CodegenJsFormatter<'ast, '_>,
     statements: &Vec<LocalNodeId<Statement>>,
 ) -> FormatResult<()> {
     f.join_with(hard_line_break()).entries(statements).finish()
@@ -16,7 +16,7 @@ impl<'ast> FormatNode<'ast, Block> for Block {
     fn format_node(
         &self,
         _node_id: LocalNodeId<Block>,
-        f: &mut JavaScriptFormatter<'ast, '_>,
+        f: &mut CodegenJsFormatter<'ast, '_>,
     ) -> FormatResult<()> {
         if let Some(label) = &self.label {
             write!(f, [label, token(":"), space()])?;

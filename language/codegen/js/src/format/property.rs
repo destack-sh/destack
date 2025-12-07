@@ -7,11 +7,11 @@ use destack_fir::prelude::*;
 use destack_fir::write;
 
 use crate::format::argument::list_like;
-use crate::{FormatNode, JavaScriptFormatter};
+use crate::{FormatNode, CodegenJsFormatter};
 
 #[inline]
 pub(crate) fn format_binding_modifiers_prefix<'ast>(
-    f: &mut JavaScriptFormatter<'ast, '_>,
+    f: &mut CodegenJsFormatter<'ast, '_>,
     modifiers: BindingModifier,
 ) -> FormatResult<()> {
     // visibility
@@ -35,7 +35,7 @@ pub(crate) fn format_binding_modifiers_prefix<'ast>(
 
 #[inline]
 pub(crate) fn format_binding_modifiers_prefix_maybe<'ast>(
-    f: &mut JavaScriptFormatter<'ast, '_>,
+    f: &mut CodegenJsFormatter<'ast, '_>,
     modifiers: Option<BindingModifier>,
 ) -> FormatResult<()> {
     if let Some(modifiers) = modifiers {
@@ -46,7 +46,7 @@ pub(crate) fn format_binding_modifiers_prefix_maybe<'ast>(
 
 #[inline]
 pub(crate) fn format_binding_modifiers_postfix<'ast>(
-    f: &mut JavaScriptFormatter<'ast, '_>,
+    f: &mut CodegenJsFormatter<'ast, '_>,
     modifiers: BindingModifier,
 ) -> FormatResult<()> {
     // kind
@@ -58,7 +58,7 @@ pub(crate) fn format_binding_modifiers_postfix<'ast>(
 
 #[inline]
 pub(crate) fn format_binding_modifiers_postfix_maybe<'ast>(
-    f: &mut JavaScriptFormatter<'ast, '_>,
+    f: &mut CodegenJsFormatter<'ast, '_>,
     modifiers: Option<BindingModifier>,
 ) -> FormatResult<()> {
     if let Some(modifiers) = modifiers {
@@ -71,7 +71,7 @@ impl<'ast> FormatNode<'ast, Property> for Property {
     fn format_node(
         &self,
         _node_id: LocalNodeId<Property>,
-        f: &mut JavaScriptFormatter<'ast, '_>,
+        f: &mut CodegenJsFormatter<'ast, '_>,
     ) -> FormatResult<()> {
         match self {
             Property::Field {

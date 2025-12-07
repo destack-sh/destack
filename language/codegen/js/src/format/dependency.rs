@@ -5,13 +5,13 @@ use destack_fir::write;
 use destack_source::StringId;
 
 use crate::format::argument::list_like;
-use crate::{FormatNode, JavaScriptFormatter};
+use crate::{FormatNode, CodegenJsFormatter};
 
 impl<'ast> FormatNode<'ast, DependencyItem> for DependencyItem {
     fn format_node(
         &self,
         _node_id: LocalNodeId<DependencyItem>,
-        f: &mut JavaScriptFormatter<'ast, '_>,
+        f: &mut CodegenJsFormatter<'ast, '_>,
     ) -> FormatResult<()> {
         // type
         if self.kind == Some(DependencyKind::Type) {
@@ -40,7 +40,7 @@ impl<'ast> FormatNode<'ast, DependencyItem> for DependencyItem {
 
 /// Format an import binding (like `"foo"` or `{ bar, baz } from "foo"` or `* as foo from "foo"`).
 pub(crate) fn format_import_binding<'ast>(
-    f: &mut JavaScriptFormatter<'ast, '_>,
+    f: &mut CodegenJsFormatter<'ast, '_>,
     target: StringId,
     items: &[LocalNodeId<DependencyItem>],
 ) -> FormatResult<()> {
@@ -88,7 +88,7 @@ pub(crate) fn format_import_binding<'ast>(
 
 /// Format an export binding (like `{ bar, baz }` or `{ bar } from "foo"` or `* from "foo"`).
 pub(crate) fn format_export_binding<'ast>(
-    f: &mut JavaScriptFormatter<'ast, '_>,
+    f: &mut CodegenJsFormatter<'ast, '_>,
     target: Option<StringId>,
     items: &[LocalNodeId<DependencyItem>],
 ) -> FormatResult<()> {

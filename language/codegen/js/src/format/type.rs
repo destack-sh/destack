@@ -8,10 +8,10 @@ use crate::format::argument::list_like;
 use crate::format::property::{
     format_binding_modifiers_postfix_maybe, format_binding_modifiers_prefix_maybe,
 };
-use crate::{FormatNode, JavaScriptFormatContext, JavaScriptFormatter};
+use crate::{FormatNode, CodegenJsFormatContext, CodegenJsFormatter};
 
-impl<'ast> Format<JavaScriptFormatContext<'ast>> for PrimitiveType {
-    fn format(&self, f: &mut JavaScriptFormatter<'ast, '_>) -> FormatResult<()> {
+impl<'ast> Format<CodegenJsFormatContext<'ast>> for PrimitiveType {
+    fn format(&self, f: &mut CodegenJsFormatter<'ast, '_>) -> FormatResult<()> {
         match self {
             PrimitiveType::Boolean => write!(f, [token("boolean")]),
             PrimitiveType::String => write!(f, [token("string")]),
@@ -23,8 +23,8 @@ impl<'ast> Format<JavaScriptFormatContext<'ast>> for PrimitiveType {
     }
 }
 
-impl<'ast> Format<JavaScriptFormatContext<'ast>> for TypeLiteral {
-    fn format(&self, f: &mut JavaScriptFormatter<'ast, '_>) -> FormatResult<()> {
+impl<'ast> Format<CodegenJsFormatContext<'ast>> for TypeLiteral {
+    fn format(&self, f: &mut CodegenJsFormatter<'ast, '_>) -> FormatResult<()> {
         match self {
             TypeLiteral::Never => write!(f, [token("never")]),
             TypeLiteral::Any => write!(f, [token("any")]),
@@ -42,7 +42,7 @@ impl<'ast> FormatNode<'ast, TypeField> for TypeField {
     fn format_node(
         &self,
         _node_id: LocalNodeId<TypeField>,
-        f: &mut JavaScriptFormatter<'ast, '_>,
+        f: &mut CodegenJsFormatter<'ast, '_>,
     ) -> FormatResult<()> {
         match self {
             TypeField::Field { modifiers, key, ty } => {
@@ -98,7 +98,7 @@ impl<'ast> FormatNode<'ast, Type> for Type {
     fn format_node(
         &self,
         _node_id: LocalNodeId<Type>,
-        f: &mut JavaScriptFormatter<'ast, '_>,
+        f: &mut CodegenJsFormatter<'ast, '_>,
     ) -> FormatResult<()> {
         match self {
             Type::Scalar(scalar) => {

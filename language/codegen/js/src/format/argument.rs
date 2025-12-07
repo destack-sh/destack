@@ -6,7 +6,7 @@ use destack_fir::format::{BestFittingMode, FormatResult};
 use crate::format::property::{
     format_binding_modifiers_postfix_maybe, format_binding_modifiers_prefix_maybe,
 };
-use crate::{FormatNode, JavaScriptFormatContext, JavaScriptFormatter};
+use crate::{FormatNode, CodegenJsFormatContext, CodegenJsFormatter};
 
 use destack_fir::prelude::*;
 use destack_fir::{best_fitting, format_args, write};
@@ -56,13 +56,13 @@ where
     }
 }
 
-impl<'ast, 'e, T> Format<JavaScriptFormatContext<'ast>> for ListLike<'ast, 'e, T>
+impl<'ast, 'e, T> Format<CodegenJsFormatContext<'ast>> for ListLike<'ast, 'e, T>
 where
     T: Node + Clone + FormatNode<'ast, T>,
     NodeTree: NodeTreeImpl<T>,
 {
     #[inline]
-    fn format(&self, f: &mut Formatter<'_, JavaScriptFormatContext<'ast>>) -> FormatResult<()> {
+    fn format(&self, f: &mut Formatter<'_, CodegenJsFormatContext<'ast>>) -> FormatResult<()> {
         let body = &format_with(|f| {
             // leading space
             if self.include_space {
@@ -159,7 +159,7 @@ impl<'ast> FormatNode<'ast, Parameter> for Parameter {
     fn format_node(
         &self,
         _node_id: LocalNodeId<Parameter>,
-        f: &mut JavaScriptFormatter<'ast, '_>,
+        f: &mut CodegenJsFormatter<'ast, '_>,
     ) -> FormatResult<()> {
         match self {
             Parameter::Named {
@@ -229,7 +229,7 @@ impl<'ast> FormatNode<'ast, Argument> for Argument {
     fn format_node(
         &self,
         _node_id: LocalNodeId<Argument>,
-        f: &mut JavaScriptFormatter<'ast, '_>,
+        f: &mut CodegenJsFormatter<'ast, '_>,
     ) -> FormatResult<()> {
         match self {
             Argument::Positional { value } => {

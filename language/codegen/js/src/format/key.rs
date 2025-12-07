@@ -3,11 +3,11 @@ use destack_fir::format::{Format, FormatResult};
 use destack_fir::prelude::*;
 use destack_fir::write;
 
-use crate::{JavaScriptFormatContext, JavaScriptFormatter};
+use crate::{CodegenJsFormatContext, CodegenJsFormatter};
 
-impl<'ast> Format<JavaScriptFormatContext<'ast>> for Key {
+impl<'ast> Format<CodegenJsFormatContext<'ast>> for Key {
     #[inline]
-    fn format(&self, f: &mut JavaScriptFormatter<'ast, '_>) -> FormatResult<()> {
+    fn format(&self, f: &mut CodegenJsFormatter<'ast, '_>) -> FormatResult<()> {
         match self {
             Key::Name(name) => {
                 write!(f, [name])?;
