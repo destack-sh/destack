@@ -9,9 +9,9 @@ use destack_workspace::Program;
 use parking_lot::Mutex;
 
 use crate::{
-    AnalyzeOptions, CompileDiagnostic, GenerateOptions, ImportOptions, LinkOptions, LowerOptions,
-    OptimizeOptions, ResolveOptions, Task, TaskDependency, TaskDependencyError, TaskError,
-    TaskQueue, TaskResultCollector, TaskStatus, TaskWarning,
+    AnalyzeOptions, BindOptions, CompileDiagnostic, EmitOptions, GenerateOptions, ImportOptions,
+    LinkOptions, LowerOptions, OptimizeOptions, ResolveOptions, Task, TaskDependency,
+    TaskDependencyError, TaskError, TaskQueue, TaskResultCollector, TaskStatus, TaskWarning,
 };
 
 /// Get the default number of worker threads (available parallelism, or 1 if unknown).
@@ -30,6 +30,8 @@ pub struct CompileOptions {
     pub workers: u16,
     /// The options for importing.
     pub import: ImportOptions,
+    /// The options for binding.
+    pub bind: BindOptions,
     /// The options for evaluating.
     pub resolve: ResolveOptions,
     /// The options for validating.
@@ -42,6 +44,8 @@ pub struct CompileOptions {
     pub generate: GenerateOptions,
     /// The options for linking.
     pub link: LinkOptions,
+    /// The options for emitting.
+    pub emit: EmitOptions,
 }
 
 impl Default for CompileOptions {
@@ -50,12 +54,14 @@ impl Default for CompileOptions {
             diagnostic: DiagnosticOptions::default(),
             workers: default_workers(),
             import: ImportOptions::default(),
+            bind: BindOptions::default(),
             resolve: ResolveOptions::default(),
             analyze: AnalyzeOptions::default(),
             lower: LowerOptions::default(),
             optimize: OptimizeOptions::default(),
             generate: GenerateOptions::default(),
             link: LinkOptions::default(),
+            emit: EmitOptions::default(),
         }
     }
 }
@@ -139,13 +145,27 @@ impl Compiler {
     }
 
     /// Collect a result into a TaskResultCollector, reporting non-yield errors.
-    pub fn collect<T, E>(&self, collector: &mut TaskResultCollector, result: Result<T, E>)
+    ///
+    /// Returns `Some(value)` on success, `None` on error (yield or hard error).
+    /// Yields are collected into the collector, hard errors are reported via `self.error()`.
+    pub fn collect<T, E>(
+        &self,
+        collector: &mut TaskResultCollector,
+        result: Result<T, E>,
+    ) -> Option<T>
     where
         E: TryInto<TaskDependency, Error = E> + Into<TaskError>,
     {
-        if let Some(error) = collector.try_collect(result) {
-            self.error(error);
+        match &result {
+            Ok(_) => {}
+            Err(_) => {
+                if let Some(error) = collector.try_collect(result) {
+                    self.error(error);
+                }
+                return None;
+            }
         }
+        result.ok()
     }
 
     /// Flush pending diagnostics into the program.

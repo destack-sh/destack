@@ -104,7 +104,7 @@ impl<'a> MirFormatContext<'a> {
             options,
             tree,
             strings,
-            file: File::empty_text_with_type(FileType::Destack),
+            file: File::empty_text(FileType::Destack),
             block_indices: HashMap::new(),
             local_indices: HashMap::new(),
         }

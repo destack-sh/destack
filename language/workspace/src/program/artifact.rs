@@ -321,11 +321,38 @@ impl ArtifactRegistry {
             .collect()
     }
 
+    /// Get all artifacts for a module and specific target (across all file types).
+    pub fn get_by_module_target(&self, module: ModuleId, target: &str) -> Vec<Arc<Artifact>> {
+        self.artifacts_by_id
+            .iter()
+            .filter(|r| {
+                r.value().scope == ArtifactScope::Module(module) && r.value().target == target
+            })
+            .map(|r| r.value().clone())
+            .collect()
+    }
+
     /// Get all artifacts for a package (across all targets).
     pub fn get_by_package(&self, package: PackageId) -> Vec<Arc<Artifact>> {
         self.artifacts_by_id
             .iter()
             .filter(|r| r.value().scope.package() == Some(package))
+            .map(|r| r.value().clone())
+            .collect()
+    }
+
+    /// Get all artifacts for a package and specific target (across all file types).
+    pub fn get_by_package_target(&self, package: PackageId, target: &str) -> Vec<Arc<Artifact>> {
+        self.artifacts_by_id
+            .iter()
+            .filter(|r| {
+                let artifact = r.value();
+                artifact.target == target
+                    && match artifact.scope {
+                        ArtifactScope::Module(module_id) => module_id.package == package,
+                        ArtifactScope::Package(pkg_id) => pkg_id == package,
+                    }
+            })
             .map(|r| r.value().clone())
             .collect()
     }

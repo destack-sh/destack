@@ -81,7 +81,7 @@ impl SimpleFormatContext {
     pub fn empty_destack() -> Self {
         Self {
             options: SimpleFormatOptions::default(),
-            file: File::empty_text_with_type(FileType::Destack),
+            file: File::empty_text(FileType::Destack),
         }
     }
 }

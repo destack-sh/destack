@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use super::tsconfig::{EsTarget, ModuleKind};
 
@@ -127,6 +127,9 @@ impl From<ShrinkLevel> for u8 {
     }
 }
 
+/// Default output directory for targets.
+pub const DEFAULT_OUT_DIR: &str = "dist";
+
 /// A build target configuration.
 ///
 /// Can be constructed from dsconfig.json or programmatically.
@@ -145,8 +148,8 @@ pub struct Target {
     pub source_map: bool,
 
     // output paths
-    /// Output directory for this target.
-    pub out_dir: Option<PathBuf>,
+    /// Output directory for this target (relative to package, defaults to "dist").
+    pub out_dir: PathBuf,
     /// Output file for single-file targets.
     pub out_file: Option<PathBuf>,
     /// Separate directory for declaration files.
@@ -182,7 +185,7 @@ impl Default for Target {
             output: OutputFormat::default(),
             declaration: false,
             source_map: false,
-            out_dir: None,
+            out_dir: PathBuf::from(DEFAULT_OUT_DIR),
             out_file: None,
             declaration_dir: None,
             module: ModuleKind::default(),
@@ -239,7 +242,7 @@ impl Target {
 
     /// Derive the output mode from the target configuration.
     pub fn output_mode(&self) -> OutputMode {
-        if self.out_file.is_some() || (self.out_dir.is_none() && self.output.is_single_file()) {
+        if self.out_file.is_some() || self.output.is_single_file() {
             OutputMode::File
         } else {
             OutputMode::Directory
@@ -258,7 +261,7 @@ impl Target {
 
     /// Set the output directory.
     pub fn with_out_dir(mut self, out_dir: impl Into<PathBuf>) -> Self {
-        self.out_dir = Some(out_dir.into());
+        self.out_dir = out_dir.into();
         self
     }
 
@@ -320,5 +323,36 @@ impl Target {
     pub fn with_exclude(mut self, exclude: Vec<String>) -> Self {
         self.exclude = exclude;
         self
+    }
+
+    /// Resolve the absolute output directory for this target.
+    ///
+    /// If out_dir is relative, it's resolved relative to the package directory.
+    /// If out_dir is absolute, it's returned as-is.
+    pub fn resolve_out_dir(&self, package_dir: &Path) -> PathBuf {
+        if self.out_dir.is_absolute() {
+            self.out_dir.clone()
+        } else {
+            package_dir.join(&self.out_dir)
+        }
+    }
+
+    /// Compute the output path for a module artifact.
+    ///
+    /// Takes the module's path, computes its relative position within the package,
+    /// and returns the corresponding output path with the given extension.
+    pub fn resolve_out_file(
+        &self,
+        package_dir: &Path,
+        module_path: &Path,
+        extension: &str,
+    ) -> PathBuf {
+        let out_dir = self.resolve_out_dir(package_dir);
+
+        // compute module's relative path within the package
+        let relative = module_path.strip_prefix(package_dir).unwrap_or(module_path);
+
+        // change extension and join with output directory
+        out_dir.join(relative.with_extension(extension))
     }
 }

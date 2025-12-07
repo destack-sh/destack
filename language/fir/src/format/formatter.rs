@@ -349,7 +349,7 @@ mod tests {
                     line_width: 80,
                     ..Default::default()
                 },
-                File::empty_text_with_type(FileType::Destack)
+                File::empty_text(FileType::Destack)
             ),
             [format_with(|f| {
                 f.fill()
@@ -399,7 +399,7 @@ mod tests {
                     line_width: 80,
                     ..Default::default()
                 },
-                File::empty_text_with_type(FileType::Destack)
+                File::empty_text(FileType::Destack)
             ),
             [format_with(|f| {
                 f.fill()

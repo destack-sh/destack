@@ -1,10 +1,11 @@
 use std::path::PathBuf;
 
 use destack_dir::GlobalNodeIdAny;
+use destack_source::{FileType, Uri};
 
 use crate::{TaskDependency, TaskDependencyError, TaskError, TaskPhase};
 
-use destack_workspace::Program;
+use destack_workspace::{ArtifactId, Program};
 
 /// Error when emitting output.
 #[derive(Debug, Clone, PartialEq)]
@@ -19,8 +20,22 @@ pub enum EmitError {
         node: GlobalNodeIdAny,
         target: String,
     },
+    /// Artifact has invalid or missing output path.
+    InvalidOutputPath {
+        artifact: ArtifactId,
+        node: GlobalNodeIdAny,
+        uri: Uri,
+    },
+    /// Unsupported artifact.
+    UnsupportedArtifact {
+        artifact: ArtifactId,
+        node: GlobalNodeIdAny,
+        uri: Uri,
+        file_type: FileType,
+    },
     /// Failed to write output file.
-    WriteFailed {
+    FailedWrite {
+        artifact: ArtifactId,
         node: GlobalNodeIdAny,
         path: PathBuf,
         message: Option<String>,
@@ -57,7 +72,9 @@ impl EmitError {
             Self::Yield { .. } => 0,
             Self::UnsatisfiedDependency { .. } => 1,
             Self::TargetNotFound { .. } => 2,
-            Self::WriteFailed { .. } => 3,
+            Self::InvalidOutputPath { .. } => 3,
+            Self::UnsupportedArtifact { .. } => 4,
+            Self::FailedWrite { .. } => 5,
         }
     }
 
@@ -67,7 +84,9 @@ impl EmitError {
             Self::Yield { dependency } => dependency.node(),
             Self::UnsatisfiedDependency { dependency } => dependency.node(),
             Self::TargetNotFound { node, .. } => *node,
-            Self::WriteFailed { node, .. } => *node,
+            Self::InvalidOutputPath { node, .. } => *node,
+            Self::UnsupportedArtifact { node, .. } => *node,
+            Self::FailedWrite { node, .. } => *node,
         }
     }
 
@@ -77,7 +96,13 @@ impl EmitError {
             Self::Yield { .. } => "pending dependency".to_string(),
             Self::UnsatisfiedDependency { .. } => "unsatisfied dependency".to_string(),
             Self::TargetNotFound { target, .. } => format!("target not found: {target}"),
-            Self::WriteFailed { path, message, .. } => {
+            Self::InvalidOutputPath { uri, .. } => {
+                format!("artifact has invalid output path: {uri}")
+            }
+            Self::UnsupportedArtifact { uri, file_type, .. } => {
+                format!("unsupported artifact: {uri} (file type: {file_type:?})")
+            }
+            Self::FailedWrite { path, message, .. } => {
                 let base = format!("failed to write file: {}", path.display());
                 if let Some(msg) = message {
                     format!("{base}: {msg}")

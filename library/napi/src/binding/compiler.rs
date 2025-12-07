@@ -51,6 +51,17 @@ impl From<ImportOptions> for destack_compiler::ImportOptions {
     }
 }
 
+/// Options for binding.
+#[napi(object)]
+#[derive(Debug, Clone, Default)]
+pub struct BindOptions {}
+
+impl From<BindOptions> for destack_compiler::BindOptions {
+    fn from(_options: BindOptions) -> Self {
+        Self {}
+    }
+}
+
 // -- Resolve Options (Compiler) --
 
 /// The options for type resolution.
@@ -157,6 +168,40 @@ impl From<LinkOptions> for destack_compiler::LinkOptions {
     }
 }
 
+// -- Emit Options --
+
+/// The options for emitting compiled output.
+#[napi(object)]
+#[derive(Debug, Clone, Copy)]
+pub struct EmitOptions {
+    /// Whether to overwrite existing files.
+    pub overwrite: bool,
+    /// Whether to create parent directories if they don't exist.
+    pub create_dirs: bool,
+    /// Dry run: report what would be written without actually writing.
+    pub dry_run: bool,
+}
+
+impl Default for EmitOptions {
+    fn default() -> Self {
+        Self {
+            overwrite: true,
+            create_dirs: true,
+            dry_run: false,
+        }
+    }
+}
+
+impl From<EmitOptions> for destack_compiler::EmitOptions {
+    fn from(options: EmitOptions) -> Self {
+        Self {
+            overwrite: options.overwrite,
+            create_dirs: options.create_dirs,
+            dry_run: options.dry_run,
+        }
+    }
+}
+
 // -- Compile Options (Top Level) --
 
 /// The options for compiling a workspace.
@@ -169,6 +214,8 @@ pub struct CompileOptions {
     pub workers: u16,
     /// The options for importing.
     pub import: ImportOptions,
+    /// The options for binding.
+    pub bind: BindOptions,
     /// The options for type resolution.
     pub resolve: TypeResolveOptions,
     /// The options for analyzing.
@@ -181,6 +228,8 @@ pub struct CompileOptions {
     pub generate: GenerateOptions,
     /// The options for linking.
     pub link: LinkOptions,
+    /// The options for emitting.
+    pub emit: EmitOptions,
 }
 
 impl Default for CompileOptions {
@@ -189,12 +238,14 @@ impl Default for CompileOptions {
             diagnostic: DiagnosticOptions::default(),
             workers: destack_compiler::default_workers(),
             import: ImportOptions::default(),
+            bind: BindOptions::default(),
             resolve: TypeResolveOptions::default(),
             analyze: AnalyzeOptions::default(),
             lower: LowerOptions::default(),
             optimize: OptimizeOptions::default(),
             generate: GenerateOptions::default(),
             link: LinkOptions::default(),
+            emit: EmitOptions::default(),
         }
     }
 }
@@ -205,12 +256,14 @@ impl From<CompileOptions> for destack_compiler::CompileOptions {
             diagnostic: options.diagnostic.into(),
             workers: options.workers,
             import: options.import.into(),
+            bind: options.bind.into(),
             resolve: options.resolve.into(),
             analyze: options.analyze.into(),
             lower: options.lower.into(),
             optimize: options.optimize.into(),
             generate: options.generate.into(),
             link: options.link.into(),
+            emit: options.emit.into(),
         }
     }
 }
