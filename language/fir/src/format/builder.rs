@@ -1157,7 +1157,7 @@ mod tests {
                 line_width: 10,
                 ..SimpleFormatOptions::default()
             },
-            File::empty_text_with_type(FileType::Destack),
+            File::empty_text(FileType::Destack),
         );
 
         let nodes = format!(
@@ -1234,7 +1234,7 @@ mod tests {
                 line_width: 10,
                 ..SimpleFormatOptions::default()
             },
-            File::empty_text_with_type(FileType::Destack),
+            File::empty_text(FileType::Destack),
         );
 
         let nodes = format!(
@@ -1293,7 +1293,7 @@ mod tests {
                 line_width: 10,
                 ..SimpleFormatOptions::default()
             },
-            File::empty_text_with_type(FileType::Destack),
+            File::empty_text(FileType::Destack),
         );
 
         let nodes = format!(
@@ -1432,7 +1432,7 @@ mod tests {
                 line_width: 10,
                 ..SimpleFormatOptions::default()
             },
-            File::empty_text_with_type(FileType::Destack),
+            File::empty_text(FileType::Destack),
         );
 
         let formatted = format!(
@@ -1515,7 +1515,7 @@ mod tests {
                 line_width: 20,
                 ..SimpleFormatOptions::default()
             },
-            File::empty_text_with_type(FileType::Destack),
+            File::empty_text(FileType::Destack),
         );
 
         let formatted = format!(context, [content]).unwrap();
@@ -1563,7 +1563,7 @@ mod tests {
                     line_width: 21,
                     ..SimpleFormatOptions::default()
                 },
-                File::empty_text_with_type(FileType::Destack),
+                File::empty_text(FileType::Destack),
             ),
             [content]
         )
@@ -1615,7 +1615,7 @@ mod tests {
                     line_width: 20,
                     ..SimpleFormatOptions::default()
                 },
-                File::empty_text_with_type(FileType::Destack)
+                File::empty_text(FileType::Destack)
             ),
             [document.clone()]
         )
@@ -1631,7 +1631,7 @@ mod tests {
                     line_width: 8,
                     ..SimpleFormatOptions::default()
                 },
-                File::empty_text_with_type(FileType::Destack)
+                File::empty_text(FileType::Destack)
             ),
             [document]
         )
@@ -1669,7 +1669,7 @@ mod tests {
         let formatted = format!(
             SimpleFormatContext::new(
                 SimpleFormatOptions::default().with_line_width(80),
-                File::empty_text_with_type(FileType::Destack)
+                File::empty_text(FileType::Destack)
             ),
             [format_with(|f| {
                 write!(
@@ -1697,7 +1697,7 @@ mod tests {
         let formatted = format!(
             SimpleFormatContext::new(
                 SimpleFormatOptions::default().with_line_width(80),
-                File::empty_text_with_type(FileType::Destack)
+                File::empty_text(FileType::Destack)
             ),
             [format_with(|f| {
                 write!(

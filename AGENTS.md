@@ -35,6 +35,7 @@ Keywords should include tags:
 - `#Broken`: doesn't work in likely cases
 - `#Cleanup`: could be simpler or better structured
 - `#Incomplete`: obvious feature is missing
+- `#Suspicious`: something that looks wrong or weird
 - `#Security`: may allow more access than intended
 - `#Architecture`: larger design to reconsider
 
@@ -57,6 +58,11 @@ let first_digit = (dt_bytes[0] - b'0') as i64;
 let second_digit = (dt_bytes[1] - b'0') as i64;
 let number = 10 * first_digit + second_digit;
 ```
+
+### Errors
+
+Always prefer explicit, loud errors through conventional channels. 
+Outside of tests, errors should almost never be suppressed or somehow default to "default values".
 
 ### Dependencies
 
@@ -88,7 +94,7 @@ Ideally, you should format code *before* running it (via tests or otherwise), so
 Toolchain: `nightly-2025-11-27` (see `rust-toolchain.toml`)
 
 - Place imports at the top, prefer `use std::time::Instant` patterns
-- No `crate::X` within functions, use relative references (again, imports at the top)
+- No `crate::X` within functions, prefer relative references (again, imports at the top)
 - Avoid `unwrap`/`expect` outside tests; fail explicitly
 - Tests go in a trailing `mod tests` or in standalone test modules/crates (contextual)
 - Inline variables in format macros if possible: `format!("name is {name}")`
@@ -96,6 +102,8 @@ Toolchain: `nightly-2025-11-27` (see `rust-toolchain.toml`)
 - Prefer using `--release` for build, test, check, etc. (it's faster)
 - Just use `pub use submodule::*` for public exports, we use `pub` properly
 - Relatedly, we like to just use `use crate::x` directly (when possible)
+- Prefer re-defining variables if we're just transforming them about
+  (e.g., `let module = modules.get(); let module = module.read();` is fine)
 
 
 ## Commands

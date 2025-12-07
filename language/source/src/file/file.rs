@@ -84,7 +84,7 @@ impl File {
     }
 
     /// Create an empty source in some format.
-    pub fn empty_text_with_type(ty: FileType) -> Self {
+    pub fn empty_text(ty: FileType) -> Self {
         Self::from_text(
             FileId::new(0),
             "<empty>".to_string(),
@@ -93,15 +93,6 @@ impl File {
             ty,
             String::new(),
         )
-    }
-
-    /// Create an empty source.
-    pub fn empty_text_with_id(ty: FileType, id: FileId, uri: Uri) -> Self {
-        let name = uri
-            .last_segment()
-            .unwrap_or_else(|| uri.as_ref())
-            .to_string();
-        Self::from_text(id, name, uri, None, ty, String::new())
     }
 
     /// Check if this file has content loaded.

@@ -1533,7 +1533,7 @@ mod tests {
     ) -> Printed {
         let formatted = crate::format!(SimpleFormatContext::empty_destack(), [root]).unwrap();
 
-        Printer::new(&File::empty_text_with_type(FileType::Destack), options)
+        Printer::new(&File::empty_text(FileType::Destack), options)
             .print(formatted.document())
             .expect("Document to be valid")
     }
@@ -1787,7 +1787,7 @@ two lines`,
         let document = Document::from(buffer.into_vec());
 
         let printed = Printer::new(
-            &File::empty_text_with_type(FileType::Destack),
+            &File::empty_text(FileType::Destack),
             PrintOptions::default().with_line_width(10),
         )
         .print(&document)

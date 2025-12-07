@@ -6,6 +6,7 @@ use crate::{
     LowerError, OptimizeError, ResolveError, TaskDependency, TaskId, TaskPhase, VerifyError,
 };
 
+// nocheckin: make TaskError/TaskWarning.node optional
 /// Error during compilation.
 #[derive(Debug, Clone, PartialEq)]
 pub enum TaskError {

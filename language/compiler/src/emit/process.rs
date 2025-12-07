@@ -1,7 +1,9 @@
+use std::path::PathBuf;
+
 use crate::{Compiler, EmitResult, Task, TaskDebug, TaskOutput};
 
 use destack_source::{ModuleId, PackageId};
-use destack_workspace::Program;
+use destack_workspace::{ArtifactId, Program};
 
 /// Task to emit compiled output to disk.
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
@@ -72,9 +74,23 @@ impl From<EmitTask> for Task {
     }
 }
 
-/// Output of an emit task.
+/// Record of a single artifact written during emit.
 #[derive(Debug, Clone, PartialEq)]
-pub struct EmitOutput {}
+pub struct EmittedArtifact {
+    /// The artifact that was emitted.
+    pub artifact: ArtifactId,
+    /// The output path where the artifact was written.
+    pub path: PathBuf,
+    /// Size of the written content in bytes.
+    pub size: usize,
+}
+
+/// Output of an emit task.
+#[derive(Debug, Clone, PartialEq, Default)]
+pub struct EmitOutput {
+    /// Artifacts that were written.
+    pub artifacts: Vec<EmittedArtifact>,
+}
 
 impl From<EmitOutput> for TaskOutput {
     fn from(output: EmitOutput) -> Self {
@@ -90,45 +106,5 @@ impl Compiler {
             EmitTask::EmitPackage { package, target } => self.emit_package(package, &target),
             EmitTask::EmitProgram { target } => self.emit_program(&target),
         }
-    }
-
-    /// Emit a single module's output for a target.
-    fn emit_module(&self, module: ModuleId, target: &str) -> EmitResult<EmitOutput> {
-        // get the package for this module
-        let module_arc = self.program.modules.get(module);
-        let module_guard = module_arc.read();
-        let package = module_guard.package_id;
-
-        self.ensure_linked(package, target)?;
-
-        // NOTE #Incomplete: implement emit_module
-        // 1. look up target from package
-        // 2. get the generated artifact for this module
-        // 3. determine output path from target.out_dir + module path
-        // 4. write file to disk
-        let _ = (module, target);
-        Ok(EmitOutput {})
-    }
-
-    /// Emit all outputs for a package target.
-    fn emit_package(&self, package: PackageId, target: &str) -> EmitResult<EmitOutput> {
-        self.ensure_linked(package, target)?;
-
-        // NOTE #Incomplete: implement emit_package
-        // 1. look up target from package
-        // 2. get all linked artifacts for the package
-        // 3. write each file to target.out_dir
-        // 4. if target.is_single_file(), write single output to target.out_file
-        let _ = (package, target);
-        Ok(EmitOutput {})
-    }
-
-    /// Emit all outputs for the entire program.
-    fn emit_program(&self, target: &str) -> EmitResult<EmitOutput> {
-        // NOTE #Incomplete: implement emit_program
-        // 1. collect all packages
-        // 2. emit each package that has this target
-        let _ = target;
-        Ok(EmitOutput {})
     }
 }

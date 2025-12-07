@@ -471,8 +471,8 @@ pub struct DsConfigTargetOptions {
     pub source_map: bool,
 
     // output paths
-    /// Output directory for this target.
-    pub out_dir: Option<PathBuf>,
+    /// Output directory for this target (defaults to "dist").
+    pub out_dir: PathBuf,
     /// Output file for single-file targets like wasm.
     pub out_file: Option<PathBuf>,
     /// Separate directory for declaration files.
@@ -507,7 +507,7 @@ impl Default for DsConfigTargetOptions {
             output: OutputFormat::default(),
             declaration: false,
             source_map: false,
-            out_dir: None,
+            out_dir: PathBuf::from(super::target::DEFAULT_OUT_DIR),
             out_file: None,
             declaration_dir: None,
             module: ModuleKind::default(),
@@ -525,7 +525,7 @@ impl Default for DsConfigTargetOptions {
 impl DsConfigTargetOptions {
     /// Derive the output mode from the target configuration.
     pub fn output_mode(&self) -> OutputMode {
-        if self.out_file.is_some() || (self.out_dir.is_none() && self.output.is_single_file()) {
+        if self.out_file.is_some() || self.output.is_single_file() {
             OutputMode::File
         } else {
             OutputMode::Directory
@@ -570,7 +570,11 @@ impl From<&DsConfigTargetJson> for DsConfigTargetOptions {
             output: json.output.map(OutputFormat::from).unwrap_or_default(),
             declaration: json.declaration,
             source_map: json.source_map,
-            out_dir: json.out_dir.as_ref().map(PathBuf::from),
+            out_dir: json
+                .out_dir
+                .as_ref()
+                .map(PathBuf::from)
+                .unwrap_or_else(|| PathBuf::from(super::target::DEFAULT_OUT_DIR)),
             out_file: json.out_file.as_ref().map(PathBuf::from),
             declaration_dir: json.declaration_dir.as_ref().map(PathBuf::from),
             module: json

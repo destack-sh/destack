@@ -95,13 +95,14 @@ impl<'a> ModuleLowerer<'a> {
     pub fn finish(
         self,
         registry_next_id: impl Fn() -> ArtifactId,
+        package_dir: &std::path::Path,
     ) -> CodegenJsResult<CodegenJsOutput>
     where
         Self: Sized,
     {
         use crate::{CodegenJsFormatContext, CodegenJsFormatOptions};
         use destack_fir::format as fir_format;
-        use destack_source::File;
+        use destack_source::{File, Uri};
 
         let mut artifacts = Vec::new();
 
@@ -123,8 +124,16 @@ impl<'a> ModuleLowerer<'a> {
             }
         };
 
-        // base URI without extension
-        let base_uri = self.module.uri.without_extension();
+        // get module source path for output path computation
+        let fallback_path;
+        let module_path = if let Some(ref path) = self.module.path {
+            path.as_path()
+        } else if let Some(path) = self.module.uri.to_path_buf() {
+            fallback_path = path;
+            fallback_path.as_path()
+        } else {
+            std::path::Path::new("module.ds")
+        };
         let strings = self.strings.clone().into_immutable();
 
         // helper for formatting roots
@@ -141,11 +150,19 @@ impl<'a> ModuleLowerer<'a> {
         }
 
         for file_type in file_types {
-            let extension = file_type.extension().unwrap_or("js");
-            let uri = base_uri.with_extension(extension);
+            // compute output path using target configuration
+            let extension = file_type
+                .extension()
+                .ok_or_else(|| CodegenJsError::Internal {
+                    message: format!("file type has no known extension: {file_type:?}"),
+                })?;
+            let output_path = self
+                .target
+                .resolve_out_file(package_dir, module_path, extension);
+            let uri = Uri::from_path(&output_path);
 
             // create format context
-            let file = File::empty_text_with_type(file_type);
+            let file = File::empty_text(file_type);
             let options = CodegenJsFormatOptions::from_target(self.target, file_type);
             let context = CodegenJsFormatContext {
                 options,
@@ -160,11 +177,19 @@ impl<'a> ModuleLowerer<'a> {
             let formatted = fir_format!(context, [roots_formatter]);
             let formatted = match formatted {
                 Ok(f) => f,
-                Err(_) => continue,
+                Err(error) => {
+                    return Err(CodegenJsError::Internal {
+                        message: format!("failed to format roots: {error}"),
+                    });
+                }
             };
             let printed = match formatted.print() {
                 Ok(p) => p,
-                Err(_) => continue,
+                Err(error) => {
+                    return Err(CodegenJsError::Internal {
+                        message: format!("failed to print formatted: {error}"),
+                    });
+                }
             };
             let code = printed.as_str().to_string();
 
@@ -173,7 +198,11 @@ impl<'a> ModuleLowerer<'a> {
                 FileType::JavaScript => ArtifactContent::javascript(code),
                 FileType::TypeScript => ArtifactContent::typescript(code),
                 FileType::TypeScriptDeclaration => ArtifactContent::declaration(code),
-                _ => continue,
+                _ => {
+                    return Err(CodegenJsError::Internal {
+                        message: format!("unsupported file type: {file_type:?}"),
+                    });
+                }
             };
 
             let artifact = Artifact {
