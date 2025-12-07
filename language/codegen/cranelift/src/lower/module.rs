@@ -20,7 +20,7 @@ use destack_source::StringPool;
 
 use super::FunctionLowerer;
 use super::r#type::lower_type;
-use crate::CodegenCraneliftError;
+use crate::{CodegenCraneliftError, CodegenCraneliftResult};
 
 /// Module context for lowering a MIR module to Cranelift.
 pub(crate) struct ModuleLowerer<'a> {
@@ -53,7 +53,7 @@ impl<'a> ModuleLowerer<'a> {
     }
 
     /// Lower an entire MIR module.
-    pub(crate) fn lower_module(&mut self, tree: &mir::NodeTree) -> Result<(), CodegenCraneliftError> {
+    pub(crate) fn lower_module(&mut self, tree: &mir::NodeTree) -> CodegenCraneliftResult<()> {
         // phase 1: declare all functions
         self.declare_functions(tree)?;
 
@@ -64,7 +64,7 @@ impl<'a> ModuleLowerer<'a> {
     }
 
     /// Declare all functions in the module (first pass).
-    fn declare_functions(&mut self, tree: &mir::NodeTree) -> Result<(), CodegenCraneliftError> {
+    fn declare_functions(&mut self, tree: &mir::NodeTree) -> CodegenCraneliftResult<()> {
         let pointer_bytes = self.isa.pointer_bytes();
 
         for (function_id, function) in tree.iter_nodes::<mir::Function>() {
@@ -82,7 +82,7 @@ impl<'a> ModuleLowerer<'a> {
     }
 
     /// Lower / define all function bodies (second pass after declaration).
-    fn lower_functions(&mut self, tree: &mir::NodeTree) -> Result<(), CodegenCraneliftError> {
+    fn lower_functions(&mut self, tree: &mir::NodeTree) -> CodegenCraneliftResult<()> {
         let pointer_bytes = self.isa.pointer_bytes();
 
         for (function_id, function) in tree.iter_nodes::<mir::Function>() {
@@ -150,7 +150,7 @@ impl<'a> ModuleLowerer<'a> {
     }
 
     /// Get the Cranelift IR text format for all functions.
-    pub(crate) fn as_clif_string(&self) -> Result<String, CodegenCraneliftError> {
+    pub(crate) fn as_clif_string(&self) -> CodegenCraneliftResult<String> {
         let mut output = String::new();
         for (name, func) in &self.cl_functions {
             output.push_str(&format!("; function: {name}\n"));

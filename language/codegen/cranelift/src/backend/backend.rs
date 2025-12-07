@@ -8,6 +8,7 @@ use destack_workspace::{ModuleMir, OutputFormat, Target};
 use target_lexicon::Triple;
 
 use super::CodegenCraneliftError;
+use crate::CodegenCraneliftResult;
 use crate::lower::ModuleLowerer;
 
 /// Cranelift-based code generation backend.
@@ -32,7 +33,7 @@ impl std::fmt::Debug for CodegenCraneliftBackend {
 
 impl CodegenCraneliftBackend {
     /// Create a new backend for the given target configuration.
-    pub fn new(target: &Target) -> Result<Self, CodegenCraneliftError> {
+    pub fn new(target: &Target) -> CodegenCraneliftResult<Self> {
         let triple = Self::target_triple(target)?;
         let isa = Self::create_isa(&triple, target)?;
 
@@ -43,17 +44,17 @@ impl CodegenCraneliftBackend {
     }
 
     /// Create a backend for WebAssembly output.
-    pub fn wasm() -> Result<Self, CodegenCraneliftError> {
+    pub fn wasm() -> CodegenCraneliftResult<Self> {
         Self::new(&Target::wasm("wasm"))
     }
 
     /// Create a backend for native output (host triple).
-    pub fn native() -> Result<Self, CodegenCraneliftError> {
+    pub fn native() -> CodegenCraneliftResult<Self> {
         Self::new(&Target::native("native"))
     }
 
     /// Get the target triple for the given target configuration.
-    fn target_triple(target: &Target) -> Result<Triple, CodegenCraneliftError> {
+    fn target_triple(target: &Target) -> CodegenCraneliftResult<Triple> {
         match target.output {
             OutputFormat::Wasm => Ok(Triple::from_str("wasm32-unknown-unknown").unwrap()),
             OutputFormat::Native => cranelift_native::builder()
@@ -136,7 +137,7 @@ impl CodegenCraneliftBackend {
         &self,
         module: &ModuleMir,
         name: &str,
-    ) -> Result<String, CodegenCraneliftError> {
+    ) -> CodegenCraneliftResult<String> {
         let tree = module.tree.read();
         let mut lowerer = ModuleLowerer::new(self.isa.clone(), &module.strings, name);
         lowerer.lower_module(&tree)?;

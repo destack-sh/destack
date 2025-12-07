@@ -1,7 +1,7 @@
 use cranelift_codegen::ir as cir;
 use destack_mir as mir;
 
-use crate::CodegenCraneliftError;
+use crate::{CodegenCraneliftError, CodegenCraneliftResult};
 
 /// Lower a MIR type to a Cranelift IR type.
 ///
@@ -12,7 +12,7 @@ pub(crate) fn lower_type(
     tree: &mir::NodeTree,
     type_id: mir::LocalNodeId<mir::Type>,
     pointer_bytes: u8,
-) -> Result<cir::Type, CodegenCraneliftError> {
+) -> CodegenCraneliftResult<cir::Type> {
     let mir_type = tree.get(type_id);
     match mir_type {
         mir::Type::Void => {
@@ -45,7 +45,18 @@ pub(crate) fn lower_type(
         },
 
         mir::Type::Pointer { .. } | mir::Type::FunctionPointer { .. } => {
-            Ok(pointer_type(pointer_bytes))
+            // inline pointer_type
+            let ty = match pointer_bytes {
+                4 => cir::types::I32,
+                8 => cir::types::I64,
+                _ => {
+                    return Err(CodegenCraneliftError::unsupported_type(
+                        format!("unsupported pointer size: {pointer_bytes} bytes"),
+                        type_id.into_any(),
+                    ));
+                }
+            };
+            Ok(ty)
         }
 
         mir::Type::Array { .. } => Err(CodegenCraneliftError::unsupported_type(
@@ -62,14 +73,5 @@ pub(crate) fn lower_type(
             "struct types must be lowered to memory operations",
             type_id.into_any(),
         )),
-    }
-}
-
-/// Get the Cranelift type for a pointer of the given size.
-fn pointer_type(pointer_bytes: u8) -> cir::Type {
-    match pointer_bytes {
-        4 => cir::types::I32,
-        8 => cir::types::I64,
-        _ => panic!("unsupported pointer size: {pointer_bytes} bytes"),
     }
 }

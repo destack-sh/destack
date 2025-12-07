@@ -1,6 +1,6 @@
 use crate::{
-    AnalyzeError, AnalyzeResult, Compiler, Task, TaskDebug, TaskOutput, TaskResultCollector,
-    TypeContext,
+    AnalyzeError, AnalyzeResult, Compiler, TaskDependencyError, Task, TaskDebug, TaskOutput,
+    TaskResultCollector, TypeContext,
 };
 
 use destack_dir::LocalTypeId;
@@ -58,12 +58,26 @@ impl From<AnalyzeOutput> for TaskOutput {
 }
 
 impl Compiler {
-    /// Process a analyze task.
+    /// Process an analyze task.
     pub fn process_analyze(&self, task: AnalyzeTask) -> AnalyzeResult<AnalyzeOutput> {
         match task {
-            AnalyzeTask::Analyze { module } => self.analyze_module(module)?,
+            AnalyzeTask::Analyze { module } => {
+                // ensure module is resolved first (pull-based)
+                self.ensure_resolved(module).map_err(|e| match e {
+                    TaskDependencyError::NotReady { dependency } => AnalyzeError::Yield { dependency },
+                    TaskDependencyError::Failed { dependency } => {
+                        AnalyzeError::UnsatisfiedDependency { dependency }
+                    }
+                })?;
+                self.analyze_module(module)?;
+            }
         }
         Ok(AnalyzeOutput {})
+    }
+
+    /// Ensure a module has been analyzed.
+    pub fn ensure_analyzed(&self, module: ModuleId) -> Result<(), TaskDependencyError> {
+        self.require_task(AnalyzeTask::Analyze { module })
     }
 
     /// Analyze a module.

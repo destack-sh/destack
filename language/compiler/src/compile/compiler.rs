@@ -10,8 +10,8 @@ use parking_lot::Mutex;
 
 use crate::{
     AnalyzeOptions, CompileDiagnostic, GenerateOptions, ImportOptions, LinkOptions, LowerOptions,
-    OptimizeOptions, ResolveOptions, TaskDependency, TaskError, TaskQueue, TaskResultCollector,
-    TaskWarning,
+    OptimizeOptions, ResolveOptions, Task, TaskDependency, TaskDependencyError, TaskError,
+    TaskQueue, TaskResultCollector, TaskStatus, TaskWarning,
 };
 
 /// Get the default number of worker threads (available parallelism, or 1 if unknown).
@@ -177,5 +177,30 @@ impl Compiler {
         self.program
             .diagnostics
             .take_from(&self.pending_diagnostics);
+    }
+
+    /// Require a task to be complete, returning an error if it's not ready or has failed.
+    pub fn require_task<T: Into<Task> + Clone>(
+        &self,
+        task: T,
+    ) -> Result<(), TaskDependencyError> {
+        let t: Task = task.clone().into();
+        match self.queue.find_task_status(&t) {
+            Some(TaskStatus::Complete { .. }) => Ok(()),
+            Some(TaskStatus::Failed { error }) => Err(TaskDependencyError::Failed {
+                dependency: TaskDependency::Complete {
+                    node: self.program.root_node_id,
+                    task: t,
+                    error: Some(Box::new(error)),
+                },
+            }),
+            _ => Err(TaskDependencyError::NotReady {
+                dependency: TaskDependency::Complete {
+                    node: self.program.root_node_id,
+                    task: t,
+                    error: None,
+                },
+            }),
+        }
     }
 }

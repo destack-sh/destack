@@ -1,4 +1,4 @@
-use crate::{Compiler, LinkResult, Task, TaskDebug, TaskOutput};
+use crate::{Compiler, LinkResult, TaskDependencyError, Task, TaskDebug, TaskOutput};
 
 use destack_source::PackageId;
 use destack_workspace::Program;
@@ -66,14 +66,21 @@ impl Compiler {
         }
     }
 
+    /// Ensure a target has been linked.
+    pub fn ensure_linked(&self, package: PackageId, target: &str) -> Result<(), TaskDependencyError> {
+        self.require_task(LinkTask::LinkTarget {
+            package,
+            target: target.to_string(),
+        })
+    }
+
     /// Link all modules for a target.
     fn link_target(&self, package: PackageId, target: &str) -> LinkResult<LinkOutput> {
-        // TODO: implement link_target
+        // NOTE #Incomplete: implement link_target
         // 1. find all modules in package that match target's include/exclude
         // 2. yield to GenerateModule for each module (CompleteAll)
         // 3. combine artifacts based on output format
-        // 4. write to out_dir/out_file
         let _ = (package, target);
-        todo!("link_target")
+        Ok(LinkOutput {})
     }
 }

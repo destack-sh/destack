@@ -18,8 +18,8 @@ Like most compilers, the Destack compiler has three main regions:
 │                 │          │           │            │             │         │
 │    Text        AST        DIR       Symbols       Types       Instances     │
 └─────────────────────────────────────────────────────────────────────────────┘
-                                     │
-                                     ▼
+                                    │
+                                    ▼
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                                MIDDLE-END                                   │
 │                                                                             │
@@ -29,14 +29,14 @@ Like most compilers, the Destack compiler has three main regions:
 │                                                                             │
 │              (may be skipped for some targets like JS/TS)                   │
 └─────────────────────────────────────────────────────────────────────────────┘
-                                     │
-                                     ▼
+                                    │
+                                    ▼
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                                  BACK-END                                   │
 │                                                                             │
-│                       Generate ────────────► Link                           │
-│                           │                    │                            │
-│                      "Artifacts"           "Output"                         │
+│              Generate ────────► Link ────────► Emit                         │
+│                  │                │               │                         │
+│             "Artifacts"       "Linked"        "Files"                       │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -75,7 +75,8 @@ The back-end generates target artifacts from DIR (for JS/TS) or MIR (for native/
 | Phase | Letter | Input | Output | Description |
 |-------|--------|-------|--------|-------------|
 | Generate | `G` | DIR/MIR | artifacts | Generate target code (JS/TS from DIR, native from MIR) |
-| Link | `K` | artifacts | output | Link artifacts into final output |
+| Link | `K` | artifacts | linked | Link artifacts into final output |
+| Emit | `M` | linked | files | Write linked output to disk |
 
 ## Representations
 
@@ -104,6 +105,7 @@ The compiler is organized into modules corresponding to each phase.
 | `optimize/` | Optimize MIR | [src/optimize/](src/optimize/) |
 | `generate/` | Generate artifacts from DIR or MIR | [src/generate/](src/generate/) |
 | `link/` | Link artifacts | [src/link/](src/link/) |
+| `emit/` | Write output files to disk | [src/emit/](src/emit/) |
 | `tests/` | Compiler tests | [src/tests/](src/tests/) |
 
 ## Tasks

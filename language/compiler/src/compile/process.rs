@@ -2,9 +2,9 @@ use std::cell::Cell;
 use std::thread;
 
 use crate::{
-    AnalyzeError, Compiler, ElaborateError, GenerateError, InternalError, LinkError, LowerError,
-    OptimizeError, ResolveError, Task, TaskDebug, TaskDependency, TaskError, TaskHandle, TaskId,
-    TaskOutcome, TaskOutput, TaskPhase, TaskStatus, VerifyError,
+    AnalyzeError, Compiler, ElaborateError, EmitError, GenerateError, InternalError, LinkError,
+    LowerError, OptimizeError, ResolveError, Task, TaskDebug, TaskDependency, TaskError,
+    TaskHandle, TaskId, TaskOutcome, TaskOutput, TaskPhase, TaskStatus, VerifyError,
 };
 
 /// Maximum number of yields allowed per task before treating it as an (internal) bug.
@@ -152,6 +152,7 @@ impl Compiler {
             Task::Optimize(optimize_task) => self.process_optimize(optimize_task).into(),
             Task::Generate(generate_task) => self.process_generate(generate_task).into(),
             Task::Link(link_task) => self.process_link(link_task).into(),
+            Task::Emit(emit_task) => self.process_emit(emit_task).into(),
         }
     }
 
@@ -431,6 +432,10 @@ impl Compiler {
             }
             .into(),
             TaskPhase::Link => LinkError::UnsatisfiedDependency {
+                dependency: dependency.clone(),
+            }
+            .into(),
+            TaskPhase::Emit => EmitError::UnsatisfiedDependency {
                 dependency: dependency.clone(),
             }
             .into(),

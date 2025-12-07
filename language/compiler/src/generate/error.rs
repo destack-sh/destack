@@ -12,26 +12,47 @@ pub enum GenerateError {
     Yield { dependency: TaskDependency },
     /// Yield dependency has failed.
     UnsatisfiedDependency { dependency: TaskDependency },
+    /// Unsupported node.
+    UnsupportedConstruct {
+        node: GlobalNodeIdAny,
+        message: Option<String>,
+    },
     /// Target is not available.
-    TargetNotAvailable { node: GlobalNodeIdAny },
+    TargetNotAvailable {
+        node: GlobalNodeIdAny,
+        message: Option<String>,
+    },
     /// Unsupported target triple / architecture / ABI.
     UnsupportedTarget {
         node: GlobalNodeIdAny,
         target: String,
+        message: Option<String>,
     },
     /// Missing entry point (main/_start) when required.
-    MissingEntryPoint { node: GlobalNodeIdAny },
+    MissingEntryPoint {
+        node: GlobalNodeIdAny,
+        message: Option<String>,
+    },
     /// Unresolved external symbol / missing library at link time.
-    UnresolvedSymbol { node: GlobalNodeIdAny },
+    UnresolvedSymbol {
+        node: GlobalNodeIdAny,
+        message: Option<String>,
+    },
     /// Duplicate symbols with incompatible declarations.
-    DuplicateSymbol { node: GlobalNodeIdAny },
+    DuplicateSymbol {
+        node: GlobalNodeIdAny,
+        message: Option<String>,
+    },
     /// Incompatible object formats or library formats.
     IncompatibleFormat {
         node: GlobalNodeIdAny,
         message: Option<String>,
     },
     /// Exceeding target limitations (too large TLS, section > size limit, etc.).
-    TargetLimitExceeded { node: GlobalNodeIdAny },
+    TargetLimitExceeded {
+        node: GlobalNodeIdAny,
+        message: Option<String>,
+    },
     /// Failure to write output file (permissions, disk full, etc.).
     WriteFailure {
         node: GlobalNodeIdAny,
@@ -71,15 +92,16 @@ impl GenerateError {
         match self {
             Self::Yield { .. } => 0,
             Self::UnsatisfiedDependency { .. } => 1,
-            Self::TargetNotAvailable { .. } => 2,
-            Self::UnsupportedTarget { .. } => 3,
-            Self::MissingEntryPoint { .. } => 4,
-            Self::UnresolvedSymbol { .. } => 5,
-            Self::DuplicateSymbol { .. } => 6,
-            Self::IncompatibleFormat { .. } => 7,
-            Self::TargetLimitExceeded { .. } => 8,
-            Self::WriteFailure { .. } => 9,
-            Self::MissingRuntime { .. } => 10,
+            Self::UnsupportedConstruct { .. } => 2,
+            Self::TargetNotAvailable { .. } => 3,
+            Self::UnsupportedTarget { .. } => 4,
+            Self::MissingEntryPoint { .. } => 5,
+            Self::UnresolvedSymbol { .. } => 6,
+            Self::DuplicateSymbol { .. } => 7,
+            Self::IncompatibleFormat { .. } => 8,
+            Self::TargetLimitExceeded { .. } => 9,
+            Self::WriteFailure { .. } => 10,
+            Self::MissingRuntime { .. } => 11,
         }
     }
 
@@ -88,6 +110,7 @@ impl GenerateError {
         match self {
             Self::Yield { dependency } => dependency.node(),
             Self::UnsatisfiedDependency { dependency } => dependency.node(),
+            Self::UnsupportedConstruct { node, .. } => *node,
             Self::TargetNotAvailable { node, .. } => *node,
             Self::UnsupportedTarget { node, .. } => *node,
             Self::MissingEntryPoint { node, .. } => *node,
@@ -105,6 +128,7 @@ impl GenerateError {
         match self {
             Self::Yield { .. } => "pending dependency".to_string(),
             Self::UnsatisfiedDependency { .. } => "unsatisfied dependency".to_string(),
+            Self::UnsupportedConstruct { .. } => "unsupported construct".to_string(),
             Self::TargetNotAvailable { .. } => "target is not available".to_string(),
             Self::UnsupportedTarget { .. } => "unsupported target".to_string(),
             Self::MissingEntryPoint { .. } => "missing entry point".to_string(),

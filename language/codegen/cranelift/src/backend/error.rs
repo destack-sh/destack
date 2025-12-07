@@ -134,3 +134,5 @@ impl From<cranelift_module::ModuleError> for CodegenCraneliftError {
         }
     }
 }
+
+pub type CodegenCraneliftResult<T> = Result<T, CodegenCraneliftError>;

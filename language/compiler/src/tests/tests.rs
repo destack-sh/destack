@@ -12,7 +12,7 @@ use destack_source::{
 use destack_workspace::{Module, Program};
 use parking_lot::RwLock;
 
-use crate::{CompileOptions, Compiler, Task, default_workers};
+use crate::{AnalyzeTask, CompileOptions, Compiler, ResolveTask, Task, default_workers};
 
 use super::tracing::init_tracing;
 
@@ -190,8 +190,27 @@ impl TestProgram {
     }
 
     /// Helper to compile, dump and check no diagnostics.
+    ///
+    /// This schedules Resolve and Analyze for all imported modules to simulate
+    /// a full compilation pipeline in a pull-based model.
     pub fn compile_dump_clean(&self) {
+        // nocheckin #Broken: this is bad and wrong
+        // phase 1: run queued tasks (imports)
         self.compile();
+
+        // phase 2: schedule resolve and analyze for all modules (pull-based simulation)
+        for module in self.program.modules.iter() {
+            let module_id = module.read().id;
+            self.enqueue(ResolveTask::ResolveModule { module: module_id });
+        }
+        self.compile();
+
+        for module in self.program.modules.iter() {
+            let module_id = module.read().id;
+            self.enqueue(AnalyzeTask::Analyze { module: module_id });
+        }
+        self.compile();
+
         self.dump();
         self.check_no_diagnostic(DiagnosticSeverity::Note);
     }

@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use crate::{Compiler, ImportError, ImportResult, ResolveTask, Task, TaskDebug, TaskOutput};
+use crate::{Compiler, ImportError, ImportResult, Task, TaskDebug, TaskOutput};
 
 use destack_dir::DependencySource;
 use destack_parser::Parser;
@@ -188,9 +188,6 @@ impl Compiler {
 
         // resolve import specifier in symbol table
         self.resolve_import_specifier(&task, module_id);
-
-        // next task: resolve module
-        self.enqueue(ResolveTask::ResolveModule { module: module_id });
 
         Ok(ImportOutput { module: module_id })
     }

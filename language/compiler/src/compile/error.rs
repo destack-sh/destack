@@ -2,8 +2,8 @@ use destack_dir::GlobalNodeIdAny;
 use destack_workspace::Program;
 
 use crate::{
-    AnalyzeError, BindError, ElaborateError, GenerateError, ImportError, LinkError, LowerError,
-    OptimizeError, ResolveError, TaskDependency, TaskId, TaskPhase, VerifyError,
+    AnalyzeError, BindError, ElaborateError, EmitError, GenerateError, ImportError, LinkError,
+    LowerError, OptimizeError, ResolveError, TaskDependency, TaskId, TaskPhase, VerifyError,
 };
 
 /// Error during compilation.
@@ -31,6 +31,8 @@ pub enum TaskError {
     Generate(GenerateError),
     /// Error during linking.
     Link(LinkError),
+    /// Error during emitting.
+    Emit(EmitError),
     // --------------------------------------------------
     /// Internal compiler error (bug).
     Internal(InternalError),
@@ -131,6 +133,7 @@ impl TaskError {
             Self::Optimize(_) => Some(TaskPhase::Optimize),
             Self::Generate(_) => Some(TaskPhase::Generate),
             Self::Link(_) => Some(TaskPhase::Link),
+            Self::Emit(_) => Some(TaskPhase::Emit),
             Self::Internal(_) => None,
         }
     }
@@ -157,6 +160,7 @@ impl TaskError {
             Self::Optimize(error) => error.sub_code(),
             Self::Generate(error) => error.sub_code(),
             Self::Link(error) => error.sub_code(),
+            Self::Emit(error) => error.sub_code(),
             Self::Internal(error) => error.sub_code(),
         }
     }
@@ -174,6 +178,7 @@ impl TaskError {
             Self::Optimize(error) => error.node(),
             Self::Generate(error) => error.node(),
             Self::Link(error) => error.node(),
+            Self::Emit(error) => error.node(),
             Self::Internal(error) => error.node(),
         }
     }
@@ -191,6 +196,7 @@ impl TaskError {
             Self::Optimize(error) => error.message(program),
             Self::Generate(error) => error.message(program),
             Self::Link(error) => error.message(program),
+            Self::Emit(error) => error.message(program),
             Self::Internal(error) => error.message(program),
         }
     }
