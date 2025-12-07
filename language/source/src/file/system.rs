@@ -47,6 +47,8 @@ pub trait FileSystem: Send + Sync + Debug {
     where
         Self: Sized;
 
+    // read operations
+
     /// Check whether the path points to an existing entry.
     ///
     /// See [std::path::Path::exists].
@@ -86,6 +88,40 @@ pub trait FileSystem: Send + Sync + Debug {
     ///
     /// See [std::fs::symlink_metadata].
     fn symlink_metadata(&self, path: &Path) -> io::Result<FileMetadata>;
+
+    // write operations
+
+    /// Write bytes to a file, creating it if it doesn't exist, overwriting if it does.
+    ///
+    /// See [std::fs::write].
+    fn write(&self, path: &Path, content: &[u8]) -> io::Result<()>;
+
+    /// Write a string to a file, creating it if it doesn't exist, overwriting if it does.
+    ///
+    /// See [std::fs::write].
+    fn write_string(&self, path: &Path, content: &str) -> io::Result<()> {
+        self.write(path, content.as_bytes())
+    }
+
+    /// Create a directory at the given path.
+    ///
+    /// See [std::fs::create_dir].
+    fn create_dir(&self, path: &Path) -> io::Result<()>;
+
+    /// Create a directory and all of its parent directories if they don't exist.
+    ///
+    /// See [std::fs::create_dir_all].
+    fn create_dir_all(&self, path: &Path) -> io::Result<()>;
+
+    /// Remove a file at the given path.
+    ///
+    /// See [std::fs::remove_file].
+    fn remove_file(&self, path: &Path) -> io::Result<()>;
+
+    /// Remove an empty directory at the given path.
+    ///
+    /// See [std::fs::remove_dir].
+    fn remove_dir(&self, path: &Path) -> io::Result<()>;
 }
 
 #[inline]
@@ -230,5 +266,35 @@ impl FileSystem for PhysicalFileSystem {
     fn symlink_metadata(&self, path: &Path) -> io::Result<FileMetadata> {
         tracing::trace!(?path, "fs.physical.symlink_metadata");
         Self::symlink_metadata(path)
+    }
+
+    #[tracing::instrument(name = "fs.physical.write", level = "trace", skip(self, content))]
+    fn write(&self, path: &Path, content: &[u8]) -> io::Result<()> {
+        tracing::trace!(?path, len = content.len(), "fs.physical.write");
+        fs::write(path, content)
+    }
+
+    #[tracing::instrument(name = "fs.physical.create_dir", level = "trace", skip(self))]
+    fn create_dir(&self, path: &Path) -> io::Result<()> {
+        tracing::trace!(?path, "fs.physical.create_dir");
+        fs::create_dir(path)
+    }
+
+    #[tracing::instrument(name = "fs.physical.create_dir_all", level = "trace", skip(self))]
+    fn create_dir_all(&self, path: &Path) -> io::Result<()> {
+        tracing::trace!(?path, "fs.physical.create_dir_all");
+        fs::create_dir_all(path)
+    }
+
+    #[tracing::instrument(name = "fs.physical.remove_file", level = "trace", skip(self))]
+    fn remove_file(&self, path: &Path) -> io::Result<()> {
+        tracing::trace!(?path, "fs.physical.remove_file");
+        fs::remove_file(path)
+    }
+
+    #[tracing::instrument(name = "fs.physical.remove_dir", level = "trace", skip(self))]
+    fn remove_dir(&self, path: &Path) -> io::Result<()> {
+        tracing::trace!(?path, "fs.physical.remove_dir");
+        fs::remove_dir(path)
     }
 }
