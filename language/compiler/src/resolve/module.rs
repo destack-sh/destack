@@ -1,4 +1,4 @@
-use crate::{AnalyzeTask, Compiler, ResolveError, ResolveResult, TaskResultCollector};
+use crate::{Compiler, ResolveError, ResolveResult, TaskResultCollector};
 use destack_dir::{DependencyItem, Expression};
 
 use destack_source::ModuleId;
@@ -32,9 +32,6 @@ impl Compiler {
         if let Some(dependency) = collector.try_into_yield_any() {
             return Err(ResolveError::Yield { dependency });
         }
-
-        // next task: analyze module
-        self.enqueue(AnalyzeTask::Analyze { module: module_id });
 
         Ok(())
     }

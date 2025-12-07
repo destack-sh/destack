@@ -1,4 +1,4 @@
-use crate::{Compiler, ResolveResult, Task, TaskDebug, TaskOutput};
+use crate::{Compiler, TaskDependencyError, ResolveResult, Task, TaskDebug, TaskOutput};
 
 use destack_source::ModuleId;
 use destack_workspace::Program;
@@ -60,5 +60,10 @@ impl Compiler {
             ResolveTask::ResolveModule { module } => self.resolve_module(module)?,
         }
         Ok(ResolveOutput {})
+    }
+
+    /// Ensure a module has been resolved.
+    pub fn ensure_resolved(&self, module: ModuleId) -> Result<(), TaskDependencyError> {
+        self.require_task(ResolveTask::ResolveModule { module })
     }
 }

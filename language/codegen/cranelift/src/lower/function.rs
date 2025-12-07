@@ -41,7 +41,7 @@ use destack_mir as mir;
 use destack_source::StringPool;
 
 use super::r#type::lower_type;
-use crate::{CodegenCraneliftError, trap};
+use crate::{CodegenCraneliftError, CodegenCraneliftResult, trap};
 
 /// Context for lowering a single MIR function to Cranelift IR.
 #[allow(dead_code)]
@@ -85,7 +85,7 @@ impl<'a> FunctionLowerer<'a> {
     ///
     /// Populates the provided Cranelift function with blocks, instructions,
     /// and control flow based on the MIR function.
-    pub(crate) fn lower(self, target: &mut cir::Function) -> Result<(), CodegenCraneliftError> {
+    pub(crate) fn lower(self, target: &mut cir::Function) -> CodegenCraneliftResult<()> {
         let mut builder_context = FunctionBuilderContext::new();
         let mut builder = FunctionBuilder::new(target, &mut builder_context);
         let mut value_map: HashMap<mir::Value, cir::Value> = HashMap::new();
@@ -125,7 +125,7 @@ impl<'a> FunctionLowerer<'a> {
     fn infer_type_map(
         &self,
         type_map: &mut HashMap<mir::Value, mir::LocalNodeId<mir::Type>>,
-    ) -> Result<(), CodegenCraneliftError> {
+    ) -> CodegenCraneliftResult<()> {
         // function parameters have explicit types
         for param in &self.function.parameters {
             type_map.insert(param.value, param.ty);
@@ -282,7 +282,7 @@ impl<'a> FunctionLowerer<'a> {
         &self,
         builder: &mut FunctionBuilder<'_>,
         local_map: &mut HashMap<mir::LocalNodeId<mir::Local>, cir::StackSlot>,
-    ) -> Result<(), CodegenCraneliftError> {
+    ) -> CodegenCraneliftResult<()> {
         for &local_id in &self.function.locals {
             let local = self.tree.get(local_id);
             let ty = lower_type(self.tree, local.ty, self.pointer_bytes)?;
@@ -309,7 +309,7 @@ impl<'a> FunctionLowerer<'a> {
         builder: &mut FunctionBuilder<'_>,
         value_map: &mut HashMap<mir::Value, cir::Value>,
         block_map: &mut HashMap<mir::LocalNodeId<mir::Block>, cir::Block>,
-    ) -> Result<(), CodegenCraneliftError> {
+    ) -> CodegenCraneliftResult<()> {
         // first, create all blocks
         for &block_id in &self.function.blocks {
             let block = builder.create_block();
@@ -357,7 +357,7 @@ impl<'a> FunctionLowerer<'a> {
         block_map: &HashMap<mir::LocalNodeId<mir::Block>, cir::Block>,
         local_map: &HashMap<mir::LocalNodeId<mir::Local>, cir::StackSlot>,
         type_map: &HashMap<mir::Value, mir::LocalNodeId<mir::Type>>,
-    ) -> Result<(), CodegenCraneliftError> {
+    ) -> CodegenCraneliftResult<()> {
         let mir_block = self.tree.get(block_id);
         let target_block = block_map[&block_id];
 
@@ -391,7 +391,7 @@ impl<'a> FunctionLowerer<'a> {
         value_map: &mut HashMap<mir::Value, cir::Value>,
         local_map: &HashMap<mir::LocalNodeId<mir::Local>, cir::StackSlot>,
         type_map: &HashMap<mir::Value, mir::LocalNodeId<mir::Type>>,
-    ) -> Result<(), CodegenCraneliftError> {
+    ) -> CodegenCraneliftResult<()> {
         let instruction = self.tree.get(instruction_id);
         match instruction {
             mir::Instruction::Constant { destination, value } => {
@@ -533,7 +533,7 @@ impl<'a> FunctionLowerer<'a> {
         builder: &mut FunctionBuilder<'_>,
         value_map: &HashMap<mir::Value, cir::Value>,
         block_map: &HashMap<mir::LocalNodeId<mir::Block>, cir::Block>,
-    ) -> Result<(), CodegenCraneliftError> {
+    ) -> CodegenCraneliftResult<()> {
         match terminator {
             mir::Terminator::Return { value } => {
                 if let Some(value) = value {
@@ -612,7 +612,7 @@ impl<'a> FunctionLowerer<'a> {
         builder: &mut FunctionBuilder<'_>,
         value_map: &HashMap<mir::Value, cir::Value>,
         block_map: &HashMap<mir::LocalNodeId<mir::Block>, cir::Block>,
-    ) -> Result<(), CodegenCraneliftError> {
+    ) -> CodegenCraneliftResult<()> {
         // if no cases, just jump to default
         if cases.is_empty() {
             let default_arguments: Vec<cir::BlockArg> = default_arguments
@@ -662,7 +662,7 @@ impl<'a> FunctionLowerer<'a> {
         builder: &mut FunctionBuilder<'_>,
         value_map: &HashMap<mir::Value, cir::Value>,
         block_map: &HashMap<mir::LocalNodeId<mir::Block>, cir::Block>,
-    ) -> Result<(), CodegenCraneliftError> {
+    ) -> CodegenCraneliftResult<()> {
         let default_arguments: Vec<cir::BlockArg> = default_arguments
             .iter()
             .map(|v| cir::BlockArg::from(value_map[v]))

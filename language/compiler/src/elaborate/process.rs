@@ -1,4 +1,4 @@
-use crate::{Compiler, ElaborateResult, Task, TaskDebug, TaskOutput};
+use crate::{Compiler, ElaborateError, ElaborateResult, TaskDependencyError, Task, TaskDebug, TaskOutput};
 
 use destack_source::ModuleId;
 use destack_workspace::Program;
@@ -54,8 +54,30 @@ impl From<ElaborateOutput> for TaskOutput {
 }
 
 impl Compiler {
-    /// Process a elaborate task.
+    /// Process an elaborate task.
     pub fn process_elaborate(&self, task: ElaborateTask) -> ElaborateResult<ElaborateOutput> {
-        todo!("process_elaborate({task:?})")
+        match task {
+            ElaborateTask::Elaborate { module } => {
+                // ensure module is analyzed first (pull-based)
+                self.ensure_analyzed(module).map_err(|e| match e {
+                    TaskDependencyError::NotReady { dependency } => ElaborateError::Yield { dependency },
+                    TaskDependencyError::Failed { dependency } => {
+                        ElaborateError::UnsatisfiedDependency { dependency }
+                    }
+                })?;
+                self.elaborate_module(module)?;
+            }
+        }
+        Ok(ElaborateOutput {})
+    }
+
+    /// Elaborate a module.
+    fn elaborate_module(&self, _module: ModuleId) -> ElaborateResult<()> {
+        // NOTE #Incomplete: implement elaboration
+        // - monomorphization
+        // - comptime evaluation
+        // - desugaring
+        // - ..?
+        Ok(())
     }
 }

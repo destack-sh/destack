@@ -2,10 +2,10 @@ use destack_dir::GlobalNodeIdAny;
 use destack_workspace::Program;
 
 use crate::{
-    AnalyzeOutput, AnalyzeTask, BindOutput, BindTask, ElaborateOutput, ElaborateTask,
-    GenerateOutput, GenerateTask, ImportOutput, ImportTask, LinkOutput, LinkTask, LowerOutput,
-    LowerTask, OptimizeOutput, OptimizeTask, ResolveOutput, ResolveTask, TaskError, VerifyOutput,
-    VerifyTask,
+    AnalyzeOutput, AnalyzeTask, BindOutput, BindTask, ElaborateOutput, ElaborateTask, EmitOutput,
+    EmitTask, GenerateOutput, GenerateTask, ImportOutput, ImportTask, LinkOutput, LinkTask,
+    LowerOutput, LowerTask, OptimizeOutput, OptimizeTask, ResolveOutput, ResolveTask, TaskError,
+    VerifyOutput, VerifyTask,
 };
 
 /// Trait for formatting task information.
@@ -24,7 +24,7 @@ pub enum TaskRegion {
     Front,
     /// Middle-end (lower, verify, optimize).
     Middle,
-    /// Back-end (generate, link).
+    /// Back-end (generate, link, emit).
     Back,
 }
 
@@ -65,6 +65,8 @@ pub enum TaskPhase {
     Generate = 9,
     /// Link artifacts into final output.
     Link = 10,
+    /// Emit linked output to disk.
+    Emit = 11,
 }
 
 impl std::fmt::Display for TaskPhase {
@@ -86,7 +88,7 @@ impl TaskPhase {
                 TaskRegion::Front
             }
             Self::Lower | Self::Verify | Self::Optimize => TaskRegion::Middle,
-            Self::Generate | Self::Link => TaskRegion::Back,
+            Self::Generate | Self::Link | Self::Emit => TaskRegion::Back,
         }
     }
 
@@ -103,6 +105,7 @@ impl TaskPhase {
             Self::Optimize => "optimize",
             Self::Generate => "generate",
             Self::Link => "link",
+            Self::Emit => "emit",
         }
     }
 
@@ -119,6 +122,7 @@ impl TaskPhase {
             Self::Optimize => "optimize MIR",
             Self::Generate => "generate DIR or MIR into artifacts",
             Self::Link => "link artifacts into final output",
+            Self::Emit => "emit linked output to disk",
         }
     }
 
@@ -135,6 +139,7 @@ impl TaskPhase {
             Self::Optimize => 'O',
             Self::Generate => 'G',
             Self::Link => 'K',
+            Self::Emit => 'M', // eMit
         }
     }
 }
@@ -164,6 +169,8 @@ pub enum Task {
     Generate(GenerateTask),
     /// Link artifacts into final output.
     Link(LinkTask),
+    /// Emit linked output to disk.
+    Emit(EmitTask),
 }
 
 impl Task {
@@ -180,6 +187,7 @@ impl Task {
             Self::Optimize(_) => TaskPhase::Optimize,
             Self::Generate(_) => TaskPhase::Generate,
             Self::Link(_) => TaskPhase::Link,
+            Self::Emit(_) => TaskPhase::Emit,
         }
     }
 
@@ -201,6 +209,7 @@ impl Task {
             Self::Optimize(task) => task.sub_code(),
             Self::Generate(task) => task.sub_code(),
             Self::Link(task) => task.sub_code(),
+            Self::Emit(task) => task.sub_code(),
         }
     }
 
@@ -223,6 +232,7 @@ impl TaskDebug for Task {
             Self::Optimize(task) => task.name(),
             Self::Generate(task) => task.name(),
             Self::Link(task) => task.name(),
+            Self::Emit(task) => task.name(),
         }
     }
 
@@ -238,6 +248,7 @@ impl TaskDebug for Task {
             Self::Optimize(task) => task.trace_args(program),
             Self::Generate(task) => task.trace_args(program),
             Self::Link(task) => task.trace_args(program),
+            Self::Emit(task) => task.trace_args(program),
         }
     }
 }
@@ -478,6 +489,33 @@ pub enum TaskOutput {
     Generate(GenerateOutput),
     /// Output of a link task.
     Link(LinkOutput),
+    /// Output of an emit task.
+    Emit(EmitOutput),
+}
+
+/// Error when a task dependency is not satisfied.
+#[derive(Debug, Clone, PartialEq)]
+pub enum TaskDependencyError {
+    /// Task is not yet complete, need to yield.
+    NotReady { dependency: TaskDependency },
+    /// Task has failed.
+    Failed { dependency: TaskDependency },
+}
+
+impl TaskDependencyError {
+    /// Get the dependency from this error.
+    pub fn dependency(&self) -> &TaskDependency {
+        match self {
+            Self::NotReady { dependency } | Self::Failed { dependency } => dependency,
+        }
+    }
+
+    /// Convert to owned dependency.
+    pub fn into_dependency(self) -> TaskDependency {
+        match self {
+            Self::NotReady { dependency } | Self::Failed { dependency } => dependency,
+        }
+    }
 }
 
 /// Collector for coalescing task dependencies from multiple operations.

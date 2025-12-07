@@ -1,12 +1,3 @@
-//! Artifact storage for generated code.
-//!
-//! Artifacts are the outputs of code generation, stored separately from modules
-//! to keep the Module representation clean and codegen-agnostic.
-//!
-//! Artifacts are keyed by `(scope, target)` where:
-//! - `scope` is either a single module or an entire package
-//! - `target` is the build target name (e.g., "npm", "native")
-
 use std::sync::Arc;
 
 use dashmap::DashMap;
@@ -117,6 +108,13 @@ impl ArtifactKey {
 }
 
 /// Registry of generated artifacts. THREAD-SAFE.
+///
+/// Artifacts are the outputs of code generation, stored separately from modules
+/// to keep the Module representation clean and codegen-agnostic.
+///
+/// Artifacts are keyed by `(scope, target)` where:
+/// - `scope` is either a single module or an entire package
+/// - `target` is the build target name (e.g., "npm", "native")
 #[derive(Debug, Default)]
 pub struct ArtifactRegistry {
     /// Artifacts by (scope, target).
@@ -177,7 +175,7 @@ impl ArtifactRegistry {
             .collect()
     }
 
-    /// Get all artifacts for a module (across all targets).
+    /// Get all artifacts for a module (across all  #targets).
     pub fn get_by_module(&self, module: ModuleId) -> Vec<Arc<Artifact>> {
         self.artifacts
             .iter()

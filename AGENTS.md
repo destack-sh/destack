@@ -51,11 +51,7 @@ Long methods are allowed if the logic isn't meaningfully extractable.
 Prefer pure(ish) functions, pass in context explicitly when needed (usually as the last argument).
 Break larger code blocks into logical chunks with whitespace and/or preamble comments.
 
-For exhaustive matching, prefer if/else over match.
-Use `assert_never` in else branches for exhaustive checks.
-
-Use temporary variables for non-trivial operations:
-
+Use temporary variables for non-trivial operations (yes, it's deliberately verbose):
 ```rust
 let first_digit = (dt_bytes[0] - b'0') as i64;
 let second_digit = (dt_bytes[1] - b'0') as i64;
@@ -72,8 +68,8 @@ When adding a dependency, we should try go for the latest stable version.
 
 ### Testing
 
-Tests should start with `test_` and state their content as a verb.
-Example: `test_roundtrip_duration`, `test_send_recv_message`.
+Tests should start with `test_` (or equivalent) and state their content as a verb.
+Example: `test_roundtrip_duration`, `test_send_receive_message`.
 
 The first line or docstring should describe desired behavior (don't mention "test").
 Prefer property-based testing and roundtrip testing where possible.
@@ -85,7 +81,7 @@ If there is an opportunity to test "the entire thing" vs "part of it", prefer co
 
 You should always format code before you're "done" with a change.
 Ideally, you should format code *before* running it (via tests or otherwise), so we don't compile twice.
-(Most directories have a `just fmt` or equivalent command, see the context.).
+(Most directories have a `just fmt` or equivalent command, see the context.)
 
 ## Rust
 
