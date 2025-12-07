@@ -1,12 +1,10 @@
 use crate::{
-    DependencyItem, DependencyKind, DependencyMode, Expression, LocalNodeId, TranspileResult,
-    TranspileResultExt, Transpiler, TranspilerUnit,
+    CodegenJsResult, CodegenJsResultExt, DependencyItem, DependencyKind, DependencyMode,
+    Expression, LocalNodeId, ModuleLowerer,
 };
-use destack_dir::{self as dir, NodeTree, SymbolTable, TypeTable};
-use destack_workspace::Module;
+use destack_dir as dir;
 
-#[allow(clippy::too_many_arguments)]
-impl Transpiler {
+impl ModuleLowerer<'_> {
     /// Lower a dependency kind from DIR into JS AST.
     pub fn lower_dependency_kind(&self, kind: dir::DependencyKind) -> DependencyKind {
         match kind {
@@ -26,19 +24,14 @@ impl Transpiler {
 
     /// Lower dependency items from DIR into JS AST.
     pub fn lower_dependency_items(
-        &self,
-        module: &Module,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &TypeTable,
+        &mut self,
         kind: dir::DependencyKind,
         item_ids: &[dir::LocalNodeId<dir::DependencyItem>],
-        unit: &mut TranspilerUnit,
-    ) -> TranspileResult<Vec<LocalNodeId<DependencyItem>>> {
-        let mut transpiled_item_ids: Vec<LocalNodeId<DependencyItem>> = Vec::new();
+    ) -> CodegenJsResult<Vec<LocalNodeId<DependencyItem>>> {
+        let mut lowered_item_ids: Vec<LocalNodeId<DependencyItem>> = Vec::new();
         for item_id in item_ids {
-            let item = tree.get(*item_id);
-            let transpiled_item = match item {
+            let item = self.dir_tree.get(*item_id);
+            let lowered_item = match item {
                 dir::DependencyItem::UnresolvedRemote {
                     mode,
                     source: _,
@@ -50,9 +43,10 @@ impl Transpiler {
                     symbol: _,
                 } => {
                     let mode = self.lower_dependency_mode(*mode);
-                    let name = name.map(|name| unit.strings.intern_from(&module.ast.strings, name));
-                    let alias =
-                        alias.map(|alias| unit.strings.intern_from(&module.ast.strings, alias));
+                    let name =
+                        name.map(|name| self.strings.intern_from(&self.module.ast.strings, name));
+                    let alias = alias
+                        .map(|alias| self.strings.intern_from(&self.module.ast.strings, alias));
                     DependencyItem {
                         mode,
                         kind: if *item_kind != kind {
@@ -73,9 +67,9 @@ impl Transpiler {
                     symbol: _,
                 } => {
                     let mode = self.lower_dependency_mode(*mode);
-                    let name = unit.strings.intern_from(&module.ast.strings, *name);
-                    let alias =
-                        alias.map(|alias| unit.strings.intern_from(&module.ast.strings, alias));
+                    let name = self.strings.intern_from(&self.module.ast.strings, *name);
+                    let alias = alias
+                        .map(|alias| self.strings.intern_from(&self.module.ast.strings, alias));
                     DependencyItem {
                         mode,
                         kind: if *item_kind != kind {
@@ -90,8 +84,8 @@ impl Transpiler {
                 }
                 dir::DependencyItem::Value { value } => {
                     let value_id = self
-                        .lower_expression(module, tree, symbols, types, *value, unit)
-                        .expect_node::<Expression>(value.into_global_any(module.id), unit)?;
+                        .lower_expression(*value)
+                        .expect_node::<Expression>(value.into_global_any(self.module.id), self)?;
                     DependencyItem {
                         mode: DependencyMode::Namespace,
                         kind: None,
@@ -109,9 +103,9 @@ impl Transpiler {
                     target_symbol: _,
                 } => {
                     let mode = self.lower_dependency_mode(*mode);
-                    let name = unit.strings.intern_from(&module.ast.strings, *name);
-                    let alias =
-                        alias.map(|alias| unit.strings.intern_from(&module.ast.strings, alias));
+                    let name = self.strings.intern_from(&self.module.ast.strings, *name);
+                    let alias = alias
+                        .map(|alias| self.strings.intern_from(&self.module.ast.strings, alias));
                     DependencyItem {
                         mode,
                         kind: if *item_kind != kind {
@@ -135,9 +129,10 @@ impl Transpiler {
                     target_symbol: _,
                 } => {
                     let mode = self.lower_dependency_mode(*mode);
-                    let name = name.map(|name| unit.strings.intern_from(&module.ast.strings, name));
-                    let alias =
-                        alias.map(|alias| unit.strings.intern_from(&module.ast.strings, alias));
+                    let name =
+                        name.map(|name| self.strings.intern_from(&self.module.ast.strings, name));
+                    let alias = alias
+                        .map(|alias| self.strings.intern_from(&self.module.ast.strings, alias));
                     DependencyItem {
                         mode,
                         kind: if *item_kind != kind {
@@ -151,11 +146,11 @@ impl Transpiler {
                     }
                 }
             };
-            let item_id = unit
-                .ast
-                .insert_from_source(transpiled_item, module.id, *item_id);
-            transpiled_item_ids.push(item_id);
+            let item_id = self
+                .tree
+                .insert_from_source(lowered_item, self.module.id, *item_id);
+            lowered_item_ids.push(item_id);
         }
-        Ok(transpiled_item_ids)
+        Ok(lowered_item_ids)
     }
 }

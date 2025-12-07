@@ -22,7 +22,7 @@ pub mod trap {
     pub const DIVISION_BY_ZERO: TrapCode = TrapCode::unwrap_user(5);
 }
 
-/// Errors from Cranelift code generation.
+/// Error during Cranelift code generation.
 #[derive(Debug, Clone)]
 pub enum CodegenCraneliftError {
     /// Unsupported target triple.
@@ -30,31 +30,26 @@ pub enum CodegenCraneliftError {
         triple: String,
         message: Option<String>,
     },
-
     /// Type not supported by Cranelift.
     UnsupportedType {
         node: mir::LocalNodeIdAny,
         message: Option<String>,
     },
-
     /// Missing type for an instruction.
     MissingType {
         node: mir::LocalNodeIdAny,
         message: Option<String>,
     },
-
     /// Instruction not yet implemented.
     UnsupportedInstruction {
         node: mir::LocalNodeIdAny,
         message: Option<String>,
     },
-
     /// Function not found.
     FunctionNotFound {
         name: String,
         message: Option<String>,
     },
-
     /// Internal Cranelift error.
     Internal { message: String },
 }
@@ -83,32 +78,40 @@ impl CodegenCraneliftError {
 impl fmt::Display for CodegenCraneliftError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::UnsupportedTarget { triple, message: _ } => {
-                write!(f, "unsupported target: {triple}")
+            Self::UnsupportedTarget { triple, message } => {
+                write!(f, "unsupported target: {triple}")?;
+                if let Some(msg) = message {
+                    write!(f, " ({msg})")?;
+                }
+                Ok(())
             }
-            Self::UnsupportedType { node: _, message } => {
+            Self::UnsupportedType { message, .. } => {
                 if let Some(message) = message {
                     write!(f, "unsupported type: {message}")
                 } else {
                     write!(f, "unsupported type")
                 }
             }
-            Self::MissingType { node: _, message } => {
+            Self::MissingType { message, .. } => {
                 if let Some(message) = message {
                     write!(f, "missing type: {message}")
                 } else {
                     write!(f, "missing type")
                 }
             }
-            Self::UnsupportedInstruction { node: _, message } => {
+            Self::UnsupportedInstruction { message, .. } => {
                 if let Some(message) = message {
                     write!(f, "unsupported instruction: {message}")
                 } else {
                     write!(f, "unsupported instruction")
                 }
             }
-            Self::FunctionNotFound { name, message: _ } => {
-                write!(f, "function not found: {name}")
+            Self::FunctionNotFound { name, message } => {
+                write!(f, "function not found: {name}")?;
+                if let Some(msg) = message {
+                    write!(f, " ({msg})")?;
+                }
+                Ok(())
             }
             Self::Internal { message } => {
                 write!(f, "internal error: {message}")
@@ -135,4 +138,5 @@ impl From<cranelift_module::ModuleError> for CodegenCraneliftError {
     }
 }
 
+/// Result type for Cranelift codegen operations.
 pub type CodegenCraneliftResult<T> = Result<T, CodegenCraneliftError>;

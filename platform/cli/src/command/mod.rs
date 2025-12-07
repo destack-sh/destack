@@ -8,7 +8,6 @@ pub mod program;
 pub mod resolve;
 pub mod source;
 pub mod tracing;
-pub mod transpile;
 pub mod version;
 
 pub(crate) use diagnostic::{DiagnosticArgs, print_diagnostics};

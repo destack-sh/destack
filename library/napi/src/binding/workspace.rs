@@ -2,8 +2,6 @@ use std::path::PathBuf;
 
 use napi_derive::napi;
 
-use super::transpiler::TranspileOptions;
-
 /// Options for creating a Workspace.
 #[napi(object)]
 #[derive(Debug, Clone)]
@@ -59,20 +57,6 @@ impl Workspace {
     #[napi(getter)]
     pub fn program_count(&self) -> u32 {
         self.inner.programs.len() as u32
-    }
-
-    /// Transpile a single file.
-    /// Returns the transpiled TypeScript/JavaScript code.
-    #[napi]
-    pub fn transpile_file(
-        &self,
-        path: String,
-        content: String,
-        options: Option<TranspileOptions>,
-    ) -> napi::Result<String> {
-        // delegate to the stateless transpile function
-        let result = super::transpiler::transpile_file(path, content, options)?;
-        Ok(result.code)
     }
 }
 

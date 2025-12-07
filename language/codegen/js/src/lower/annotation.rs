@@ -1,10 +1,9 @@
-use crate::{Annotation, AnnotationPosition, LocalNodeId};
-use destack_dir::{self as dir, NodeTree};
-use destack_workspace::Module;
+use crate::{
+    Annotation, AnnotationPosition, CodegenJsError, CodegenJsResult, LocalNodeId, ModuleLowerer,
+};
+use destack_dir as dir;
 
-use crate::{TranspileError, TranspileResult, Transpiler, TranspilerUnit};
-
-impl Transpiler {
+impl ModuleLowerer<'_> {
     /// Lower a DIR annotation position into a JS annotation position.
     pub fn lower_annotation_position(
         &self,
@@ -19,41 +18,37 @@ impl Transpiler {
 
     /// Lower an annotation from DIR into JS AST.
     pub fn lower_annotation(
-        &self,
-        module: &Module,
-        tree: &NodeTree,
+        &mut self,
         _scope_id: dir::LocalNodeIdAny,
         annotation_id: dir::LocalNodeId<dir::Annotation>,
-        unit: &mut TranspilerUnit,
-    ) -> TranspileResult<LocalNodeId<Annotation>> {
-        let annotation = tree.get(annotation_id);
+    ) -> CodegenJsResult<LocalNodeId<Annotation>> {
+        let annotation = self.dir_tree.get(annotation_id);
         let annotation = match annotation {
             dir::Annotation::Doc { position, string } => {
                 let position = self.lower_annotation_position(*position);
-                let string = unit.strings.intern_from(&self.program.strings, *string);
+                let string = self.strings.intern_from(&self.program.strings, *string);
                 Annotation::Doc { position, string }
             }
             dir::Annotation::Comment { position, string } => {
                 let position = self.lower_annotation_position(*position);
-                let string = unit.strings.intern_from(&self.program.strings, *string);
+                let string = self.strings.intern_from(&self.program.strings, *string);
                 Annotation::Comment { position, string }
             }
-
             dir::Annotation::Decorator {
                 position: _,
                 left: _,
                 arguments: _,
             } => {
-                // NOTE #Incomplete: properly transpile decorators to JS decorator syntax
-                return Err(TranspileError::UnsupportedConstruct {
-                    node: annotation_id.into_global_any(module.id),
+                // NOTE #Incomplete: properly generate decorators to JS decorator syntax
+                return Err(CodegenJsError::UnsupportedConstruct {
+                    node: annotation_id.into_global_any(self.module.id),
                     message: None,
                 });
             }
         };
-        let annotation_id = unit
-            .ast
-            .insert_from_source(annotation, module.id, annotation_id);
+        let annotation_id = self
+            .tree
+            .insert_from_source(annotation, self.module.id, annotation_id);
         Ok(annotation_id)
     }
 }

@@ -1,7 +1,7 @@
 use clap::Parser;
 use destack_cli::cli::{Cli, Command};
 use destack_cli::command::version::VersionCommands;
-use destack_cli::{compile, format, lex, parse, resolve, transpile, version};
+use destack_cli::{compile, format, lex, parse, resolve, version};
 
 fn main() {
     let cli = Cli::parse();
@@ -12,7 +12,6 @@ fn main() {
         Command::Parse(args) => parse::run(&args),
         Command::Resolve(args) => resolve::run(&args),
         Command::Compile(args) => compile::run(&args),
-        Command::Transpile(args) => transpile::run(&args),
         Command::Format(args) => format::run(&args),
         Command::Version { subcommand } => match subcommand {
             VersionCommands::Show => version::show(),

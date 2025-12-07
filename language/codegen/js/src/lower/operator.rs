@@ -1,44 +1,35 @@
 use crate::{
-    AssignOperator, BinaryOperator, Expression, LocalNodeId, TypeBinaryOperator, TypeUnaryOperator,
-    UnaryOperator,
+    AssignOperator, BinaryOperator, CodegenJsError, CodegenJsResult, CodegenJsResultExt,
+    Expression, LocalNodeId, ModuleLowerer, TypeBinaryOperator, TypeUnaryOperator, UnaryOperator,
 };
-use destack_dir::{self as dir, NodeTree, SymbolTable, TypeTable};
-use destack_workspace::Module;
+use destack_dir as dir;
 
-use crate::{TranspileError, TranspileResult, TranspileResultExt, Transpiler, TranspilerUnit};
-
-#[allow(clippy::too_many_arguments)]
-impl Transpiler {
+impl ModuleLowerer<'_> {
     /// Lower a DIR type unary operator to a JS type unary operator.
     pub fn lower_type_unary_expression(
-        &self,
-        module: &Module,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &TypeTable,
+        &mut self,
         expression_id: dir::LocalNodeId<dir::Expression>,
         operator: dir::TypeUnaryOperator,
         right_id: dir::LocalNodeId<dir::Expression>,
-        unit: &mut TranspilerUnit,
-    ) -> TranspileResult<LocalNodeId<Expression>> {
+    ) -> CodegenJsResult<LocalNodeId<Expression>> {
         let right_id = self
-            .lower_expression(module, tree, symbols, types, right_id, unit)
-            .expect_node::<Expression>(right_id.into_global_any(module.id), unit)?;
+            .lower_expression(right_id)
+            .expect_node::<Expression>(right_id.into_global_any(self.module.id), self)?;
 
-        // transpile a trivial unary expression to a JS unary expression
+        // lower a trivial unary expression to a JS unary expression
         let mut unary = |operator: TypeUnaryOperator| -> LocalNodeId<Expression> {
             let expression = Expression::TypeUnary {
                 operator,
                 right: right_id,
             };
-            unit.ast
-                .insert_from_source(expression, module.id, expression_id)
+            self.tree
+                .insert_from_source(expression, self.module.id, expression_id)
         };
 
         let expression_id = match operator {
             dir::TypeUnaryOperator::Newtype => {
-                return Err(TranspileError::UnsupportedConstruct {
-                    node: expression_id.into_global_any(module.id),
+                return Err(CodegenJsError::UnsupportedConstruct {
+                    node: expression_id.into_global_any(self.module.id),
                     message: None,
                 });
             }
@@ -59,23 +50,18 @@ impl Transpiler {
 
     /// Lower a DIR type binary expression to a JS type binary expression.
     pub fn lower_type_binary_expression(
-        &self,
-        module: &Module,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &TypeTable,
+        &mut self,
         expression_id: dir::LocalNodeId<dir::Expression>,
         left_id: dir::LocalNodeId<dir::Expression>,
         operator: dir::TypeBinaryOperator,
         right_id: dir::LocalNodeId<dir::Expression>,
-        unit: &mut TranspilerUnit,
-    ) -> TranspileResult<LocalNodeId<Expression>> {
+    ) -> CodegenJsResult<LocalNodeId<Expression>> {
         let left_id = self
-            .lower_expression(module, tree, symbols, types, left_id, unit)
-            .expect_node::<Expression>(left_id.into_global_any(module.id), unit)?;
+            .lower_expression(left_id)
+            .expect_node::<Expression>(left_id.into_global_any(self.module.id), self)?;
         let right_id = self
-            .lower_expression(module, tree, symbols, types, right_id, unit)
-            .expect_node::<Expression>(right_id.into_global_any(module.id), unit)?;
+            .lower_expression(right_id)
+            .expect_node::<Expression>(right_id.into_global_any(self.module.id), self)?;
         let operator = match operator {
             dir::TypeBinaryOperator::Cast => TypeBinaryOperator::Cast,
             dir::TypeBinaryOperator::In => TypeBinaryOperator::In,
@@ -90,36 +76,31 @@ impl Transpiler {
             operator,
             right: right_id,
         };
-        let expression_id = unit
-            .ast
-            .insert_from_source(expression, module.id, expression_id);
+        let expression_id = self
+            .tree
+            .insert_from_source(expression, self.module.id, expression_id);
         Ok(expression_id)
     }
 
     /// Lower a DIR unary expression to a JS unary expression.
     pub fn lower_unary_expression(
-        &self,
-        module: &Module,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &TypeTable,
+        &mut self,
         expression_id: dir::LocalNodeId<dir::Expression>,
         operator: dir::UnaryOperator,
         right_id: dir::LocalNodeId<dir::Expression>,
-        unit: &mut TranspilerUnit,
-    ) -> TranspileResult<LocalNodeId<Expression>> {
+    ) -> CodegenJsResult<LocalNodeId<Expression>> {
         let right_id = self
-            .lower_expression(module, tree, symbols, types, right_id, unit)
-            .expect_node::<Expression>(right_id.into_global_any(module.id), unit)?;
+            .lower_expression(right_id)
+            .expect_node::<Expression>(right_id.into_global_any(self.module.id), self)?;
 
-        // transpile a trivial unary expression to a JS unary expression
+        // lower a trivial unary expression to a JS unary expression
         let mut unary = |operator: UnaryOperator| -> LocalNodeId<Expression> {
             let expression = Expression::Unary {
                 operator,
                 right: right_id,
             };
-            unit.ast
-                .insert_from_source(expression, module.id, expression_id)
+            self.tree
+                .insert_from_source(expression, self.module.id, expression_id)
         };
 
         let expression_id = match operator {
@@ -131,8 +112,8 @@ impl Transpiler {
             dir::UnaryOperator::Plus => unary(UnaryOperator::Plus),
             dir::UnaryOperator::Negate => unary(UnaryOperator::Negate),
             dir::UnaryOperator::WrappingNegate => {
-                return Err(TranspileError::UnsupportedConstruct {
-                    node: expression_id.into_global_any(module.id),
+                return Err(CodegenJsError::UnsupportedConstruct {
+                    node: expression_id.into_global_any(self.module.id),
                     message: None,
                 });
             }
@@ -142,8 +123,8 @@ impl Transpiler {
                 right_id
             }
             dir::UnaryOperator::Spread => {
-                return Err(TranspileError::UnsupportedConstruct {
-                    node: expression_id.into_global_any(module.id),
+                return Err(CodegenJsError::UnsupportedConstruct {
+                    node: expression_id.into_global_any(self.module.id),
                     message: None,
                 });
             }
@@ -154,23 +135,18 @@ impl Transpiler {
 
     /// Lower a DIR binary expression to a JS binary expression.
     pub fn lower_binary_expression(
-        &self,
-        module: &Module,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &TypeTable,
+        &mut self,
         expression_id: dir::LocalNodeId<dir::Expression>,
         left_id: dir::LocalNodeId<dir::Expression>,
         operator: dir::BinaryOperator,
         right_id: dir::LocalNodeId<dir::Expression>,
-        unit: &mut TranspilerUnit,
-    ) -> TranspileResult<LocalNodeId<Expression>> {
+    ) -> CodegenJsResult<LocalNodeId<Expression>> {
         let left_id = self
-            .lower_expression(module, tree, symbols, types, left_id, unit)
-            .expect_node::<Expression>(left_id.into_global_any(module.id), unit)?;
+            .lower_expression(left_id)
+            .expect_node::<Expression>(left_id.into_global_any(self.module.id), self)?;
         let right_id = self
-            .lower_expression(module, tree, symbols, types, right_id, unit)
-            .expect_node::<Expression>(right_id.into_global_any(module.id), unit)?;
+            .lower_expression(right_id)
+            .expect_node::<Expression>(right_id.into_global_any(self.module.id), self)?;
 
         let mut binary = |operator: BinaryOperator| -> LocalNodeId<Expression> {
             let expression = Expression::Binary {
@@ -178,8 +154,8 @@ impl Transpiler {
                 operator,
                 right: right_id,
             };
-            unit.ast
-                .insert_from_source(expression, module.id, expression_id)
+            self.tree
+                .insert_from_source(expression, self.module.id, expression_id)
         };
 
         let expression_id = match operator {
@@ -223,8 +199,8 @@ impl Transpiler {
             dir::BinaryOperator::InstanceOf => binary(BinaryOperator::InstanceOf),
 
             _ => {
-                return Err(TranspileError::UnsupportedConstruct {
-                    node: expression_id.into_global_any(module.id),
+                return Err(CodegenJsError::UnsupportedConstruct {
+                    node: expression_id.into_global_any(self.module.id),
                     message: None,
                 });
             }
@@ -235,33 +211,28 @@ impl Transpiler {
 
     /// Lower a DIR assign binary expression to a JS assign binary expression.
     pub fn lower_assign_binary_expression(
-        &self,
-        module: &Module,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &TypeTable,
+        &mut self,
         expression_id: dir::LocalNodeId<dir::Expression>,
         left_id: dir::LocalNodeId<dir::Expression>,
         operator: dir::AssignOperator,
         right_id: dir::LocalNodeId<dir::Expression>,
-        unit: &mut TranspilerUnit,
-    ) -> TranspileResult<LocalNodeId<Expression>> {
+    ) -> CodegenJsResult<LocalNodeId<Expression>> {
         let left_id = self
-            .lower_expression(module, tree, symbols, types, left_id, unit)
-            .expect_node::<Expression>(left_id.into_global_any(module.id), unit)?;
+            .lower_expression(left_id)
+            .expect_node::<Expression>(left_id.into_global_any(self.module.id), self)?;
         let right_id = self
-            .lower_expression(module, tree, symbols, types, right_id, unit)
-            .expect_node::<Expression>(right_id.into_global_any(module.id), unit)?;
+            .lower_expression(right_id)
+            .expect_node::<Expression>(right_id.into_global_any(self.module.id), self)?;
 
-        // transpile a trivial assign binary expression to a JS assign binary expression
+        // lower a trivial assign binary expression to a JS assign binary expression
         let mut assign_binary = |operator: AssignOperator| -> LocalNodeId<Expression> {
             let expression = Expression::AssignBinary {
                 left: left_id,
                 operator,
                 right: right_id,
             };
-            unit.ast
-                .insert_from_source(expression, module.id, expression_id)
+            self.tree
+                .insert_from_source(expression, self.module.id, expression_id)
         };
 
         let expression_id = match operator {
@@ -301,8 +272,8 @@ impl Transpiler {
             dir::AssignOperator::CoalesceAssign => assign_binary(AssignOperator::CoalesceAssign),
 
             _ => {
-                return Err(TranspileError::UnsupportedConstruct {
-                    node: expression_id.into_global_any(module.id),
+                return Err(CodegenJsError::UnsupportedConstruct {
+                    node: expression_id.into_global_any(self.module.id),
                     message: None,
                 });
             }

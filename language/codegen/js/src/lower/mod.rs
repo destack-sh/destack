@@ -1,6 +1,5 @@
 mod annotation;
 mod argument;
-mod artifact;
 mod block;
 mod declaration;
 mod dependency;
@@ -8,15 +7,11 @@ mod expression;
 mod function;
 mod key;
 mod literal;
-mod module;
+mod lowerer;
 mod operator;
 mod path;
 mod pattern;
 mod property;
-mod transpile;
-mod transpiler;
 mod r#type;
 
-pub use artifact::*;
-pub use module::*;
-pub use transpiler::*;
+pub use lowerer::*;

@@ -19,27 +19,11 @@ pub enum EmitError {
         node: GlobalNodeIdAny,
         target: String,
     },
-    /// No output path configured for target.
-    NoOutputPath {
-        node: GlobalNodeIdAny,
-        target: String,
-    },
-    /// Failed to create output directory.
-    CreateDirectoryFailed {
-        node: GlobalNodeIdAny,
-        path: PathBuf,
-        message: Option<String>,
-    },
     /// Failed to write output file.
     WriteFailed {
         node: GlobalNodeIdAny,
         path: PathBuf,
         message: Option<String>,
-    },
-    /// Permission denied when writing output.
-    PermissionDenied {
-        node: GlobalNodeIdAny,
-        path: PathBuf,
     },
 }
 
@@ -73,10 +57,7 @@ impl EmitError {
             Self::Yield { .. } => 0,
             Self::UnsatisfiedDependency { .. } => 1,
             Self::TargetNotFound { .. } => 2,
-            Self::NoOutputPath { .. } => 3,
-            Self::CreateDirectoryFailed { .. } => 4,
-            Self::WriteFailed { .. } => 5,
-            Self::PermissionDenied { .. } => 6,
+            Self::WriteFailed { .. } => 3,
         }
     }
 
@@ -86,10 +67,7 @@ impl EmitError {
             Self::Yield { dependency } => dependency.node(),
             Self::UnsatisfiedDependency { dependency } => dependency.node(),
             Self::TargetNotFound { node, .. } => *node,
-            Self::NoOutputPath { node, .. } => *node,
-            Self::CreateDirectoryFailed { node, .. } => *node,
             Self::WriteFailed { node, .. } => *node,
-            Self::PermissionDenied { node, .. } => *node,
         }
     }
 
@@ -99,17 +77,6 @@ impl EmitError {
             Self::Yield { .. } => "pending dependency".to_string(),
             Self::UnsatisfiedDependency { .. } => "unsatisfied dependency".to_string(),
             Self::TargetNotFound { target, .. } => format!("target not found: {target}"),
-            Self::NoOutputPath { target, .. } => {
-                format!("no output path configured for target: {target}")
-            }
-            Self::CreateDirectoryFailed { path, message, .. } => {
-                let base = format!("failed to create directory: {}", path.display());
-                if let Some(msg) = message {
-                    format!("{base}: {msg}")
-                } else {
-                    base
-                }
-            }
             Self::WriteFailed { path, message, .. } => {
                 let base = format!("failed to write file: {}", path.display());
                 if let Some(msg) = message {
@@ -117,9 +84,6 @@ impl EmitError {
                 } else {
                     base
                 }
-            }
-            Self::PermissionDenied { path, .. } => {
-                format!("permission denied: {}", path.display())
             }
         }
     }

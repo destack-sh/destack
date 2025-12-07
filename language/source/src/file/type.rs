@@ -38,6 +38,11 @@ pub enum FileType {
     /// Node.
     Node,
 
+    /// Source map (.map).
+    SourceMap,
+    /// Object file (.o).
+    Object,
+
     /// Unknown.
     Unknown,
 }
@@ -66,6 +71,8 @@ impl FileType {
             "html" => FileType::Html,
             "wasm" => FileType::Wasm,
             "node" => FileType::Node,
+            "map" => FileType::SourceMap,
+            "o" => FileType::Object,
 
             _ => return None,
         };
@@ -102,6 +109,8 @@ impl FileType {
             FileType::Markdown => "md",
             FileType::Wasm => "wasm",
             FileType::Node => "node",
+            FileType::SourceMap => "map",
+            FileType::Object => "o",
 
             FileType::Unknown => return None,
         };
@@ -130,6 +139,8 @@ impl FileType {
             FileType::Markdown => "**/*.md",
             FileType::Wasm => "**/*.wasm",
             FileType::Node => "**/*.node",
+            FileType::SourceMap => "**/*.map",
+            FileType::Object => "**/*.o",
 
             FileType::Unknown => return None,
         };

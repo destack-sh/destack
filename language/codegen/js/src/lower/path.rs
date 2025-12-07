@@ -1,20 +1,15 @@
-use crate::Path;
+use crate::{CodegenJsResult, ModuleLowerer, Path};
 use destack_ast::StringId;
 use destack_dir as dir;
-use destack_workspace::Module;
 use smallvec::SmallVec;
 
-use crate::{TranspileResult, Transpiler, TranspilerUnit};
-
-impl Transpiler {
+impl ModuleLowerer<'_> {
     /// Lower a DIR path into a JS path.
     pub fn lower_path(
-        &self,
-        _module: &Module,
+        &mut self,
         _scope_id: dir::LocalNodeIdAny,
         path: &dir::Path,
-        _unit: &mut TranspilerUnit,
-    ) -> TranspileResult<Path> {
+    ) -> CodegenJsResult<Path> {
         let segments: SmallVec<[StringId; 3]> = path
             .segments
             .iter()
@@ -29,11 +24,10 @@ impl Transpiler {
     }
 
     /// Render a JS path to a single string.
-    pub fn render_path(&self, path: &Path, unit: &TranspilerUnit) -> String {
-        // manually build a vector of &str using a loop because as_ref isn't directly usable with collect
+    pub fn render_path(&self, path: &Path) -> String {
         let mut path_str = String::new();
         for (i, segment) in path.segments.iter().enumerate() {
-            let segment = unit.strings.get(*segment);
+            let segment = self.strings.get(*segment);
             path_str.push_str(segment.as_ref());
             if i + 1 < path.segments.len() {
                 path_str.push('.');

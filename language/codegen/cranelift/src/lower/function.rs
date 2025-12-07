@@ -477,7 +477,6 @@ impl<'a> FunctionLowerer<'a> {
             }
 
             // TODO #Incomplete: implement codegen for field / element / call instructions
-
             mir::Instruction::ExtractField { .. } => {
                 return Err(CodegenCraneliftError::unsupported_instruction(
                     "ExtractField not yet implemented",
@@ -572,9 +571,13 @@ impl<'a> FunctionLowerer<'a> {
                     .map(|v| cir::BlockArg::from(value_map[v]))
                     .collect();
 
-                builder
-                    .ins()
-                    .brif(cond_value, then_block, &then_arguments, else_block, &else_arguments);
+                builder.ins().brif(
+                    cond_value,
+                    then_block,
+                    &then_arguments,
+                    else_block,
+                    &else_arguments,
+                );
             }
 
             mir::Terminator::Switch {
@@ -684,9 +687,13 @@ impl<'a> FunctionLowerer<'a> {
 
             let next_block = builder.create_block();
             let empty_arguments: Vec<cir::BlockArg> = vec![];
-            builder
-                .ins()
-                .brif(is_match, case_block, &case_arguments, next_block, &empty_arguments);
+            builder.ins().brif(
+                is_match,
+                case_block,
+                &case_arguments,
+                next_block,
+                &empty_arguments,
+            );
             builder.switch_to_block(next_block);
             builder.seal_block(next_block);
         }

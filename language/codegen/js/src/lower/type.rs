@@ -1,14 +1,11 @@
 use crate::{
-    Expression, Generics, Heritage, LocalNodeId, Mutability, PrimitiveType, Type,
-    TypeBinaryOperator, TypeLiteral, TypeUnaryOperator,
+    CodegenJsError, CodegenJsResult, CodegenJsResultExt, Expression, Generics, Heritage,
+    LocalNodeId, ModuleLowerer, Mutability, PrimitiveType, Type, TypeBinaryOperator, TypeLiteral,
+    TypeUnaryOperator,
 };
-use destack_dir::{self as dir, NodeTree, SymbolTable, TypeTable};
-use destack_workspace::Module;
+use destack_dir as dir;
 
-use crate::{TranspileError, TranspileResult, TranspileResultExt, Transpiler, TranspilerUnit};
-
-#[allow(clippy::too_many_arguments)]
-impl Transpiler {
+impl ModuleLowerer<'_> {
     /// Lower a mutability from DIR into JS AST.
     pub fn lower_mutability(&self, mutability: dir::Mutability) -> Mutability {
         match mutability {
@@ -18,25 +15,15 @@ impl Transpiler {
     }
 
     /// Lower Generics from DIR into JS AST.
-    pub fn lower_generics(
-        &self,
-        module: &Module,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &TypeTable,
-        generics: &dir::Generics,
-        unit: &mut TranspilerUnit,
-    ) -> TranspileResult<Generics> {
+    pub fn lower_generics(&mut self, generics: &dir::Generics) -> CodegenJsResult<Generics> {
         let static_parameters = generics
             .static_parameters
             .as_ref()
             .map(|static_parameters| {
                 static_parameters
                     .iter()
-                    .map(|parameter| {
-                        self.lower_parameter(module, tree, symbols, types, *parameter, unit)
-                    })
-                    .collect::<Result<Vec<_>, TranspileError>>()
+                    .map(|parameter| self.lower_parameter(*parameter))
+                    .collect::<Result<Vec<_>, CodegenJsError>>()
             })
             .transpose()?;
         let generics = Generics { static_parameters };
@@ -44,15 +31,7 @@ impl Transpiler {
     }
 
     /// Lower Heritage from DIR into JS AST.
-    pub fn lower_heritage(
-        &self,
-        _module: &Module,
-        _tree: &NodeTree,
-        _symbols: &SymbolTable,
-        _types: &TypeTable,
-        heritage: &dir::Heritage,
-        _unit: &mut TranspilerUnit,
-    ) -> TranspileResult<Heritage> {
+    pub fn lower_heritage(&mut self, heritage: &dir::Heritage) -> CodegenJsResult<Heritage> {
         let extends_types = heritage
             .extends_types
             .as_ref()
@@ -72,15 +51,10 @@ impl Transpiler {
 
     /// Lower a primitive type from DIR into JS AST.
     pub fn lower_primitive_type(
-        &self,
-        _module: &Module,
-        _tree: &NodeTree,
-        _symbols: &SymbolTable,
-        _types: &TypeTable,
+        &mut self,
         _ty_id: dir::LocalTypeId,
         primitive: dir::PrimitiveType,
-        _unit: &mut TranspilerUnit,
-    ) -> TranspileResult<PrimitiveType> {
+    ) -> CodegenJsResult<PrimitiveType> {
         let primitive = match primitive {
             dir::PrimitiveType::Boolean => PrimitiveType::Boolean,
             dir::PrimitiveType::Character => PrimitiveType::String,
@@ -97,15 +71,10 @@ impl Transpiler {
 
     /// Lower a type literal from DIR into JS AST.
     pub fn lower_type_literal(
-        &self,
-        module: &Module,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &TypeTable,
+        &mut self,
         ty_id: dir::LocalTypeId,
         literal: &dir::TypeLiteral,
-        unit: &mut TranspilerUnit,
-    ) -> TranspileResult<TypeLiteral> {
+    ) -> CodegenJsResult<TypeLiteral> {
         let literal = match literal {
             dir::TypeLiteral::Never => TypeLiteral::Never,
             dir::TypeLiteral::Any => TypeLiteral::Any,
@@ -114,18 +83,17 @@ impl Transpiler {
             dir::TypeLiteral::Void => TypeLiteral::Void,
             dir::TypeLiteral::Null => TypeLiteral::Null,
             dir::TypeLiteral::Primitive(primitive) => {
-                let primitive = self
-                    .lower_primitive_type(module, tree, symbols, types, ty_id, *primitive, unit)?;
+                let primitive = self.lower_primitive_type(ty_id, *primitive)?;
                 TypeLiteral::Primitive(primitive)
             }
             dir::TypeLiteral::ScalarLiteral(scalar_literal) => {
-                let scalar_literal = self.lower_scalar_literal(module, scalar_literal, unit);
+                let scalar_literal = self.lower_scalar_literal(scalar_literal);
                 TypeLiteral::ScalarLiteral(scalar_literal)
             }
             _ => {
-                let source_id = types.get_type_source(ty_id);
-                return Err(TranspileError::UnsupportedConstruct {
-                    node: source_id.into_global(module.id),
+                let source_id = self.types.get_type_source(ty_id);
+                return Err(CodegenJsError::UnsupportedConstruct {
+                    node: source_id.into_global(self.module.id),
                     message: None,
                 });
             }
@@ -136,22 +104,18 @@ impl Transpiler {
     /// Lower a type unary operator from DIR into JS AST.
     pub fn lower_type_unary_operator(
         &self,
-        module: &Module,
-        _tree: &NodeTree,
-        _symbols: &SymbolTable,
-        types: &TypeTable,
         ty_id: dir::LocalTypeId,
         operator: dir::TypeUnaryOperator,
-    ) -> TranspileResult<TypeUnaryOperator> {
+    ) -> CodegenJsResult<TypeUnaryOperator> {
         let operator = match operator {
             dir::TypeUnaryOperator::Not => TypeUnaryOperator::Not,
             dir::TypeUnaryOperator::Maybe => TypeUnaryOperator::Maybe,
             dir::TypeUnaryOperator::Must => TypeUnaryOperator::Must,
             dir::TypeUnaryOperator::Type => TypeUnaryOperator::Type,
             dir::TypeUnaryOperator::Newtype => {
-                let source_id = types.get_type_source(ty_id);
-                return Err(TranspileError::UnsupportedConstruct {
-                    node: source_id.into_global(module.id),
+                let source_id = self.types.get_type_source(ty_id);
+                return Err(CodegenJsError::UnsupportedConstruct {
+                    node: source_id.into_global(self.module.id),
                     message: None,
                 });
             }
@@ -168,13 +132,9 @@ impl Transpiler {
     /// Lower a type binary operator from DIR into JS AST.
     pub fn lower_type_binary_operator(
         &self,
-        _module: &Module,
-        _tree: &NodeTree,
-        _symbols: &SymbolTable,
-        _types: &TypeTable,
         _ty_id: dir::LocalTypeId,
         operator: dir::TypeBinaryOperator,
-    ) -> TranspileResult<TypeBinaryOperator> {
+    ) -> CodegenJsResult<TypeBinaryOperator> {
         let operator = match operator {
             dir::TypeBinaryOperator::Cast => TypeBinaryOperator::Cast,
             dir::TypeBinaryOperator::In => TypeBinaryOperator::In,
@@ -188,96 +148,88 @@ impl Transpiler {
     }
 
     /// Lower a type from DIR into JS AST.
-    pub fn lower_type(
-        &self,
-        module: &Module,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &TypeTable,
-        ty_id: dir::LocalTypeId,
-        unit: &mut TranspilerUnit,
-    ) -> TranspileResult<LocalNodeId<Type>> {
-        let source_id = types.get_type_source(ty_id);
-        let ty = types.get_type(ty_id);
+    pub fn lower_type(&mut self, ty_id: dir::LocalTypeId) -> CodegenJsResult<LocalNodeId<Type>> {
+        let source_id = self.types.get_type_source(ty_id);
+        let ty = self.types.get_type(ty_id);
 
         let ty_id = match ty {
             dir::Type::TypeLiteral { value: scalar } => {
-                let literal =
-                    self.lower_type_literal(module, tree, symbols, types, ty_id, scalar, unit)?;
+                let literal = self.lower_type_literal(ty_id, scalar)?;
                 let ty = Type::Scalar(literal);
-                unit.ast.insert_from_source_any(ty, module.id, source_id)
+                self.tree
+                    .insert_from_source_any(ty, self.module.id, source_id)
             }
             dir::Type::Unevaluated(expression) => {
                 let expression = self
-                    .lower_expression(module, tree, symbols, types, *expression, unit)
-                    .expect_node::<Expression>(expression.into_global_any(module.id), unit)?;
+                    .lower_expression(*expression)
+                    .expect_node::<Expression>(expression.into_global_any(self.module.id), self)?;
                 let ty = Type::Expression(expression);
-                unit.ast.insert_from_source_any(ty, module.id, source_id)
+                self.tree
+                    .insert_from_source_any(ty, self.module.id, source_id)
             }
 
             dir::Type::Unary { operator, right } => {
-                let operator =
-                    self.lower_type_unary_operator(module, tree, symbols, types, ty_id, *operator)?;
-                let right = self.lower_type(module, tree, symbols, types, *right, unit)?;
+                let operator = self.lower_type_unary_operator(ty_id, *operator)?;
+                let right = self.lower_type(*right)?;
                 let ty = Type::Unary { operator, right };
-                unit.ast.insert_from_source_any(ty, module.id, source_id)
+                self.tree
+                    .insert_from_source_any(ty, self.module.id, source_id)
             }
             dir::Type::Binary {
                 left,
                 operator,
                 right,
             } => {
-                let left = self.lower_type(module, tree, symbols, types, *left, unit)?;
-                let operator = self
-                    .lower_type_binary_operator(module, tree, symbols, types, ty_id, *operator)?;
-                let right = self.lower_type(module, tree, symbols, types, *right, unit)?;
+                let left = self.lower_type(*left)?;
+                let operator = self.lower_type_binary_operator(ty_id, *operator)?;
+                let right = self.lower_type(*right)?;
                 let ty = Type::Binary {
                     left,
                     operator,
                     right,
                 };
-                unit.ast.insert_from_source_any(ty, module.id, source_id)
+                self.tree
+                    .insert_from_source_any(ty, self.module.id, source_id)
             }
 
             dir::Type::Array { element } => {
                 let element = element
-                    .map(|element| self.lower_type(module, tree, symbols, types, element, unit))
+                    .map(|element| self.lower_type(element))
                     .transpose()?;
                 let ty = Type::Array { element };
-                unit.ast.insert_from_source_any(ty, module.id, source_id)
+                self.tree
+                    .insert_from_source_any(ty, self.module.id, source_id)
             }
             dir::Type::Tuple { elements } => {
                 let elements = elements
                     .iter()
-                    .map(|element| self.lower_type(module, tree, symbols, types, *element, unit))
-                    .collect::<Result<Vec<_>, TranspileError>>()?;
+                    .map(|element| self.lower_type(*element))
+                    .collect::<Result<Vec<_>, CodegenJsError>>()?;
                 let ty = Type::Tuple { elements };
-                unit.ast.insert_from_source_any(ty, module.id, source_id)
+                self.tree
+                    .insert_from_source_any(ty, self.module.id, source_id)
             }
             dir::Type::Union { elements } => {
                 let elements = elements
                     .iter()
-                    .map(|element| self.lower_type(module, tree, symbols, types, *element, unit))
-                    .collect::<Result<Vec<_>, TranspileError>>()?;
+                    .map(|element| self.lower_type(*element))
+                    .collect::<Result<Vec<_>, CodegenJsError>>()?;
                 let ty = Type::Union { elements };
-                unit.ast.insert_from_source_any(ty, module.id, source_id)
+                self.tree
+                    .insert_from_source_any(ty, self.module.id, source_id)
             }
             dir::Type::Intersection { elements } => {
                 let elements = elements
                     .iter()
-                    .map(|element| self.lower_type(module, tree, symbols, types, *element, unit))
-                    .collect::<Result<Vec<_>, TranspileError>>()?;
+                    .map(|element| self.lower_type(*element))
+                    .collect::<Result<Vec<_>, CodegenJsError>>()?;
                 let ty = Type::Intersection { elements };
-                unit.ast.insert_from_source_any(ty, module.id, source_id)
+                self.tree
+                    .insert_from_source_any(ty, self.module.id, source_id)
             }
-            // dir::Type::Function { signature } => {
-            //     let signature = self.lower_function_signature(module, tree, symbols, types, signature, unit)?;
-            //     let ty = Type::Function { signature };
-            //     unit.ast.insert_from_source(ty, module.id, ty_id)
-            // }
             _ => {
-                return Err(TranspileError::UnsupportedConstruct {
-                    node: source_id.into_global(module.id),
+                return Err(CodegenJsError::UnsupportedConstruct {
+                    node: source_id.into_global(self.module.id),
                     message: None,
                 });
             }

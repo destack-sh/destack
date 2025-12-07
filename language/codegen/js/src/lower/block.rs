@@ -1,34 +1,30 @@
 use crate::{
-    Block, LocalNodeId, Statement, TranspileError, TranspileResult, TranspileResultExt, Transpiler,
-    TranspilerUnit,
+    Block, CodegenJsError, CodegenJsResult, CodegenJsResultExt, LocalNodeId, ModuleLowerer,
+    Statement,
 };
-use destack_dir::{self as dir, NodeTree, SymbolTable, TypeTable};
-use destack_workspace::Module;
+use destack_dir as dir;
 
-impl Transpiler {
+impl ModuleLowerer<'_> {
     /// Lower a block from DIR into JS AST.
     pub fn lower_block(
-        &self,
-        module: &Module,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &TypeTable,
+        &mut self,
         block_id: dir::LocalNodeId<dir::Block>,
-        unit: &mut TranspilerUnit,
-    ) -> TranspileResult<LocalNodeId<Block>> {
-        let block = tree.get(block_id);
+    ) -> CodegenJsResult<LocalNodeId<Block>> {
+        let block = self.dir_tree.get(block_id);
         let label = block
             .label
-            .map(|label| unit.strings.intern_from(&self.program.strings, label));
+            .map(|label| self.strings.intern_from(&self.program.strings, label));
         let statements = block
             .expressions
             .iter()
             .map(|statement| {
-                self.lower_expression(module, tree, symbols, types, *statement, unit)
-                    .expect_node::<Statement>(statement.into_global_any(module.id), unit)
+                self.lower_expression(*statement)
+                    .expect_node::<Statement>(statement.into_global_any(self.module.id), self)
             })
-            .collect::<Result<Vec<_>, TranspileError>>()?;
+            .collect::<Result<Vec<_>, CodegenJsError>>()?;
         let block = Block { label, statements };
-        Ok(unit.ast.insert_from_source(block, module.id, block_id))
+        Ok(self
+            .tree
+            .insert_from_source(block, self.module.id, block_id))
     }
 }

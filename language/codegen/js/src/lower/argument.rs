@@ -1,21 +1,16 @@
-use crate::{Argument, Expression, LocalNodeId, Parameter};
-use destack_dir::{self as dir, NodeTree, SymbolTable, TypeTable};
-use destack_workspace::Module;
+use crate::{
+    Argument, CodegenJsResult, CodegenJsResultExt, Expression, LocalNodeId, ModuleLowerer,
+    Parameter,
+};
+use destack_dir as dir;
 
-use crate::{TranspileResult, TranspileResultExt, Transpiler, TranspilerUnit};
-
-impl Transpiler {
+impl ModuleLowerer<'_> {
     /// Lower a parameter from DIR into JS AST.
     pub fn lower_parameter(
-        &self,
-        module: &Module,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &TypeTable,
+        &mut self,
         parameter_id: dir::LocalNodeId<dir::Parameter>,
-        unit: &mut TranspilerUnit,
-    ) -> TranspileResult<LocalNodeId<Parameter>> {
-        let parameter = tree.get(parameter_id);
+    ) -> CodegenJsResult<LocalNodeId<Parameter>> {
+        let parameter = self.dir_tree.get(parameter_id);
         let parameter = match parameter {
             dir::Parameter::Named {
                 modifiers,
@@ -24,17 +19,20 @@ impl Transpiler {
                 symbol: _,
             } => {
                 let modifiers = modifiers
-                    .map(|modifiers| self.lower_binding_modifier(module, modifiers, unit))
+                    .map(|modifiers| self.lower_binding_modifier(modifiers))
                     .transpose()?;
-                let name = unit.strings.intern_from(&module.ast.strings, *name);
-                let ty = types
-                    .get_declared_type_id(parameter_id.into_global_any(module.id))
-                    .map(|ty| self.lower_type(module, tree, symbols, types, ty, unit))
+                let name = self.strings.intern_from(&self.module.ast.strings, *name);
+                let ty = self
+                    .types
+                    .get_declared_type_id(parameter_id.into_global_any(self.module.id))
+                    .map(|ty| self.lower_type(ty))
                     .transpose()?;
                 let default = default
                     .map(|default| {
-                        self.lower_expression(module, tree, symbols, types, default, unit)
-                            .expect_node::<Expression>(default.into_global_any(module.id), unit)
+                        self.lower_expression(default).expect_node::<Expression>(
+                            default.into_global_any(self.module.id),
+                            self,
+                        )
                     })
                     .transpose()?;
                 Parameter::Named {
@@ -51,17 +49,20 @@ impl Transpiler {
                 symbol: _,
             } => {
                 let modifiers = modifiers
-                    .map(|modifiers| self.lower_binding_modifier(module, modifiers, unit))
+                    .map(|modifiers| self.lower_binding_modifier(modifiers))
                     .transpose()?;
-                let pattern = self.lower_pattern(module, tree, symbols, types, *pattern, unit)?;
-                let ty = types
-                    .get_declared_type_id(parameter_id.into_global_any(module.id))
-                    .map(|ty| self.lower_type(module, tree, symbols, types, ty, unit))
+                let pattern = self.lower_pattern(*pattern)?;
+                let ty = self
+                    .types
+                    .get_declared_type_id(parameter_id.into_global_any(self.module.id))
+                    .map(|ty| self.lower_type(ty))
                     .transpose()?;
                 let default = default
                     .map(|default| {
-                        self.lower_expression(module, tree, symbols, types, default, unit)
-                            .expect_node::<Expression>(default.into_global_any(module.id), unit)
+                        self.lower_expression(default).expect_node::<Expression>(
+                            default.into_global_any(self.module.id),
+                            self,
+                        )
                     })
                     .transpose()?;
                 Parameter::Pattern {
@@ -77,12 +78,13 @@ impl Transpiler {
                 symbol: _,
             } => {
                 let modifiers = modifiers
-                    .map(|modifiers| self.lower_binding_modifier(module, modifiers, unit))
+                    .map(|modifiers| self.lower_binding_modifier(modifiers))
                     .transpose()?;
-                let name = unit.strings.intern_from(&module.ast.strings, *name);
-                let ty = types
-                    .get_declared_type_id(parameter_id.into_global_any(module.id))
-                    .map(|ty| self.lower_type(module, tree, symbols, types, ty, unit))
+                let name = self.strings.intern_from(&self.module.ast.strings, *name);
+                let ty = self
+                    .types
+                    .get_declared_type_id(parameter_id.into_global_any(self.module.id))
+                    .map(|ty| self.lower_type(ty))
                     .transpose()?;
                 Parameter::Variadic {
                     modifiers,
@@ -91,49 +93,44 @@ impl Transpiler {
                 }
             }
         };
-        let parameter_id = unit
-            .ast
-            .insert_from_source(parameter, module.id, parameter_id);
+        let parameter_id = self
+            .tree
+            .insert_from_source(parameter, self.module.id, parameter_id);
         Ok(parameter_id)
     }
 
     /// Lower a argument from DIR into JS AST.
     pub fn lower_argument(
-        &self,
-        module: &Module,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &TypeTable,
+        &mut self,
         argument_id: dir::LocalNodeId<dir::Argument>,
-        unit: &mut TranspilerUnit,
-    ) -> TranspileResult<LocalNodeId<Argument>> {
-        let argument = tree.get(argument_id);
+    ) -> CodegenJsResult<LocalNodeId<Argument>> {
+        let argument = self.dir_tree.get(argument_id);
         let argument = match argument {
             dir::Argument::Named { name: _, value } | dir::Argument::Positional { value } => {
                 let value = self
-                    .lower_expression(module, tree, symbols, types, *value, unit)
-                    .expect_node::<Expression>(value.into_global_any(module.id), unit)?;
+                    .lower_expression(*value)
+                    .expect_node::<Expression>(value.into_global_any(self.module.id), self)?;
                 Argument::Positional { value }
             }
             dir::Argument::Spread { value } => {
                 let value = self
-                    .lower_expression(module, tree, symbols, types, *value, unit)
-                    .expect_node::<Expression>(value.into_global_any(module.id), unit)?;
+                    .lower_expression(*value)
+                    .expect_node::<Expression>(value.into_global_any(self.module.id), self)?;
                 Argument::Spread { value }
             }
             dir::Argument::Dynamic { key, value } => {
                 let key = self
-                    .lower_expression(module, tree, symbols, types, *key, unit)
-                    .expect_node::<Expression>(key.into_global_any(module.id), unit)?;
+                    .lower_expression(*key)
+                    .expect_node::<Expression>(key.into_global_any(self.module.id), self)?;
                 let value = self
-                    .lower_expression(module, tree, symbols, types, *value, unit)
-                    .expect_node::<Expression>(value.into_global_any(module.id), unit)?;
+                    .lower_expression(*value)
+                    .expect_node::<Expression>(value.into_global_any(self.module.id), self)?;
                 Argument::Dynamic { key, value }
             }
         };
-        let argument_id = unit
-            .ast
-            .insert_from_source(argument, module.id, argument_id);
+        let argument_id = self
+            .tree
+            .insert_from_source(argument, self.module.id, argument_id);
         Ok(argument_id)
     }
 }

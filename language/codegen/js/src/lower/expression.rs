@@ -1,21 +1,14 @@
-use crate::{Expression, LocalNodeId, LocalNodeIdAny, NodeType, PostfixPosition, Statement};
-use destack_dir::{self as dir, Node, NodeTree, SymbolTable, TypeTable};
-use destack_workspace::Module;
-
 use crate::{
-    TranspileError, TranspileResult, TranspileResultExt, TranspileWarning, Transpiler,
-    TranspilerUnit,
+    CodegenJsError, CodegenJsResult, CodegenJsResultExt, CodegenJsWarning, Expression, LocalNodeId,
+    LocalNodeIdAny, ModuleLowerer, NodeType, PostfixPosition, Statement,
 };
+use destack_dir::{self as dir, Node};
 
-impl Transpiler {
+impl ModuleLowerer<'_> {
     /// Get the position of a postfix expression.
-    fn get_postfix_expression_position(
-        &self,
-        left_id: LocalNodeId<Expression>,
-        unit: &TranspilerUnit,
-    ) -> PostfixPosition {
+    fn get_postfix_expression_position(&self, left_id: LocalNodeId<Expression>) -> PostfixPosition {
         if matches!(
-            unit.ast.get(left_id),
+            self.tree.get(left_id),
             Expression::Maybe { .. } | Expression::Must { .. }
         ) {
             PostfixPosition::Indirect
@@ -24,64 +17,57 @@ impl Transpiler {
         }
     }
 
-    /// Lower a expression from DIR into JS AST.
+    /// Lower an expression from DIR into JS AST.
     pub fn lower_expression(
-        &self,
-        module: &Module,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &TypeTable,
+        &mut self,
         expression_id: dir::LocalNodeId<dir::Expression>,
-        unit: &mut TranspilerUnit,
-    ) -> TranspileResult<LocalNodeIdAny> {
-        let expression = tree.get(expression_id);
+    ) -> CodegenJsResult<LocalNodeIdAny> {
+        let expression = self.dir_tree.get(expression_id);
 
         // report unresolved warning
         if !expression.is_resolved() {
-            unit.error(TranspileError::UnresolvedNode {
-                node: expression_id.into_global_any(module.id),
+            self.error(CodegenJsError::UnresolvedNode {
+                node: expression_id.into_global_any(self.module.id),
                 message: Some(expression.kind_name().to_string()),
             });
         }
 
-        let transpiled_id = match expression {
+        let lowered_id = match expression {
             dir::Expression::Declaration { declaration } => {
-                let declaration =
-                    self.lower_declaration(module, tree, symbols, types, *declaration, unit)?;
+                let declaration = self.lower_declaration(*declaration)?;
                 let expression = Expression::Declaration { declaration };
-                unit.ast
-                    .insert_from_source(expression, module.id, expression_id)
+                self.tree
+                    .insert_from_source(expression, self.module.id, expression_id)
                     .into_any()
             }
             dir::Expression::Block { block } => {
-                let block_id = self.lower_block(module, tree, symbols, types, *block, unit)?;
-                unit.ast.alias_from(expression_id.id, block_id);
+                let block_id = self.lower_block(*block)?;
+                self.tree.alias_from(expression_id.id, block_id);
                 block_id.into_any()
             }
             dir::Expression::Statement { statement } => {
-                let transpiled_id =
-                    self.lower_expression(module, tree, symbols, types, *statement, unit)?;
-                let statement_id: LocalNodeId<Statement> = match transpiled_id.ty {
+                let lowered_id = self.lower_expression(*statement)?;
+                let statement_id: LocalNodeId<Statement> = match lowered_id.ty {
                     // wrap expression in statement
                     NodeType::Expression => {
-                        unit.warning(TranspileWarning::ExpectedStatement {
-                            node: expression_id.into_global_any(module.id),
+                        self.warning(CodegenJsWarning::ExpectedStatement {
+                            node: expression_id.into_global_any(self.module.id),
                         });
                         let statement = Statement::Expression {
-                            expression: transpiled_id.try_into().unwrap(),
+                            expression: lowered_id.try_into().unwrap(),
                         };
-                        unit.ast
-                            .insert_from_source(statement, module.id, expression_id)
+                        self.tree
+                            .insert_from_source(statement, self.module.id, expression_id)
                     }
-                    NodeType::Statement => transpiled_id.try_into().unwrap(),
+                    NodeType::Statement => lowered_id.try_into().unwrap(),
                     _ => {
-                        return Err(TranspileError::UnsupportedConstruct {
-                            node: expression_id.into_global_any(module.id),
+                        return Err(CodegenJsError::UnsupportedConstruct {
+                            node: expression_id.into_global_any(self.module.id),
                             message: None,
                         });
                     }
                 };
-                unit.ast.alias_from(transpiled_id.id, statement_id);
+                self.tree.alias_from(lowered_id.id, statement_id);
                 statement_id.into_any()
             }
 
@@ -98,25 +84,15 @@ impl Transpiler {
                 items,
                 arguments,
             } => {
-                let target = unit.strings.intern_from(&module.ast.strings, *target);
-                let items = self.lower_dependency_items(
-                    module,
-                    tree,
-                    symbols,
-                    types,
-                    *kind,
-                    items.as_slice(),
-                    unit,
-                )?;
+                let target = self.strings.intern_from(&self.module.ast.strings, *target);
+                let items = self.lower_dependency_items(*kind, items.as_slice())?;
                 let arguments = arguments
                     .as_ref()
                     .map(|arguments| {
                         arguments
                             .iter()
-                            .map(|argument| {
-                                self.lower_argument(module, tree, symbols, types, *argument, unit)
-                            })
-                            .collect::<Result<Vec<_>, TranspileError>>()
+                            .map(|argument| self.lower_argument(*argument))
+                            .collect::<Result<Vec<_>, CodegenJsError>>()
                     })
                     .transpose()?;
                 let kind = self.lower_dependency_kind(*kind);
@@ -126,8 +102,8 @@ impl Transpiler {
                     items,
                     arguments,
                 };
-                unit.ast
-                    .insert_from_source(statement, module.id, expression_id)
+                self.tree
+                    .insert_from_source(statement, self.module.id, expression_id)
                     .into_any()
             }
             dir::Expression::UnresolvedReExport {
@@ -141,44 +117,28 @@ impl Transpiler {
                 target_module: _,
                 items,
             } => {
-                let target = unit.strings.intern_from(&module.ast.strings, *target);
-                let items = self.lower_dependency_items(
-                    module,
-                    tree,
-                    symbols,
-                    types,
-                    *kind,
-                    items.as_slice(),
-                    unit,
-                )?;
+                let target = self.strings.intern_from(&self.module.ast.strings, *target);
+                let items = self.lower_dependency_items(*kind, items.as_slice())?;
                 let kind = self.lower_dependency_kind(*kind);
                 let statement = Statement::Export {
                     kind,
                     target: Some(target),
                     items,
                 };
-                unit.ast
-                    .insert_from_source(statement, module.id, expression_id)
+                self.tree
+                    .insert_from_source(statement, self.module.id, expression_id)
                     .into_any()
             }
             dir::Expression::Export { kind, items } => {
-                let items = self.lower_dependency_items(
-                    module,
-                    tree,
-                    symbols,
-                    types,
-                    *kind,
-                    items.as_slice(),
-                    unit,
-                )?;
+                let items = self.lower_dependency_items(*kind, items.as_slice())?;
                 let kind = self.lower_dependency_kind(*kind);
                 let statement = Statement::Export {
                     kind,
                     target: None,
                     items,
                 };
-                unit.ast
-                    .insert_from_source(statement, module.id, expression_id)
+                self.tree
+                    .insert_from_source(statement, self.module.id, expression_id)
                     .into_any()
             }
 
@@ -188,18 +148,18 @@ impl Transpiler {
                 pattern,
                 value,
             } => {
-                let descriptor = self
-                    .lower_declaration_descriptor(module, tree, symbols, types, descriptor, unit);
+                let descriptor = self.lower_declaration_descriptor(descriptor);
                 let mutability = self.lower_mutability(*mutability);
-                let pattern = self.lower_pattern(module, tree, symbols, types, *pattern, unit)?;
-                let ty = types
-                    .get_declared_type_id(expression_id.into_global_any(module.id))
-                    .map(|ty| self.lower_type(module, tree, symbols, types, ty, unit))
+                let pattern = self.lower_pattern(*pattern)?;
+                let ty = self
+                    .types
+                    .get_declared_type_id(expression_id.into_global_any(self.module.id))
+                    .map(|ty| self.lower_type(ty))
                     .transpose()?;
                 let value = value
                     .map(|value| {
-                        self.lower_expression(module, tree, symbols, types, value, unit)
-                            .expect_node::<Expression>(value.into_global_any(module.id), unit)
+                        self.lower_expression(value)
+                            .expect_node::<Expression>(value.into_global_any(self.module.id), self)
                     })
                     .transpose()?;
                 let statement = Statement::Let {
@@ -209,8 +169,8 @@ impl Transpiler {
                     ty,
                     value,
                 };
-                unit.ast
-                    .insert_from_source(statement, module.id, expression_id)
+                self.tree
+                    .insert_from_source(statement, self.module.id, expression_id)
                     .into_any()
             }
 
@@ -218,31 +178,29 @@ impl Transpiler {
                 path,
                 static_arguments,
             } => {
-                let path = self.lower_path(module, expression_id.into_any(), path, unit)?;
+                let path = self.lower_path(expression_id.into_any(), path)?;
                 let static_arguments = static_arguments
                     .as_ref()
                     .map(|arguments| {
                         arguments
                             .iter()
-                            .map(|argument| {
-                                self.lower_argument(module, tree, symbols, types, *argument, unit)
-                            })
-                            .collect::<Result<Vec<_>, TranspileError>>()
+                            .map(|argument| self.lower_argument(*argument))
+                            .collect::<Result<Vec<_>, CodegenJsError>>()
                     })
                     .transpose()?;
                 let expression = Expression::Path {
                     path,
                     static_arguments,
                 };
-                unit.ast
-                    .insert_from_source(expression, module.id, expression_id)
+                self.tree
+                    .insert_from_source(expression, self.module.id, expression_id)
                     .into_any()
             }
             dir::Expression::ScalarLiteral { value } => {
-                let value = self.lower_scalar_literal(module, value, unit);
+                let value = self.lower_scalar_literal(value);
                 let expression = Expression::ScalarLiteral { value };
-                unit.ast
-                    .insert_from_source(expression, module.id, expression_id)
+                self.tree
+                    .insert_from_source(expression, self.module.id, expression_id)
                     .into_any()
             }
             dir::Expression::TupleExpression { elements }
@@ -250,119 +208,85 @@ impl Transpiler {
                 let elements = elements
                     .iter()
                     .map(|element_id| {
-                        let element = tree.get(*element_id);
-                        self.lower_expression(module, tree, symbols, types, element.value(), unit)
-                            .expect_node::<Expression>(element_id.into_global_any(module.id), unit)
+                        let element = self.dir_tree.get(*element_id);
+                        self.lower_expression(element.value())
+                            .expect_node::<Expression>(
+                                element_id.into_global_any(self.module.id),
+                                self,
+                            )
                     })
-                    .collect::<Result<Vec<_>, TranspileError>>()?;
+                    .collect::<Result<Vec<_>, CodegenJsError>>()?;
                 let expression = Expression::ArrayLiteral { elements };
-                unit.ast
-                    .insert_from_source(expression, module.id, expression_id)
+                self.tree
+                    .insert_from_source(expression, self.module.id, expression_id)
                     .into_any()
             }
             dir::Expression::ArrayExpression { elements } => {
                 let elements = elements
                     .iter()
                     .map(|element_id| {
-                        let element = tree.get(*element_id);
-                        self.lower_expression(module, tree, symbols, types, element.value(), unit)
-                            .expect_node::<Expression>(element_id.into_global_any(module.id), unit)
+                        let element = self.dir_tree.get(*element_id);
+                        self.lower_expression(element.value())
+                            .expect_node::<Expression>(
+                                element_id.into_global_any(self.module.id),
+                                self,
+                            )
                     })
-                    .collect::<Result<Vec<_>, TranspileError>>()?;
+                    .collect::<Result<Vec<_>, CodegenJsError>>()?;
                 let expression = Expression::ArrayLiteral { elements };
-                unit.ast
-                    .insert_from_source(expression, module.id, expression_id)
+                self.tree
+                    .insert_from_source(expression, self.module.id, expression_id)
                     .into_any()
             }
             dir::Expression::ObjectExpression { properties }
             | dir::Expression::TaggedObjectExpression { ty: _, properties } => {
                 let properties = properties
                     .iter()
-                    .map(|property_id| {
-                        self.lower_property(module, tree, symbols, types, *property_id, unit)
-                    })
-                    .collect::<Result<Vec<_>, TranspileError>>()?;
+                    .map(|property_id| self.lower_property(*property_id))
+                    .collect::<Result<Vec<_>, CodegenJsError>>()?;
                 let expression = Expression::ObjectLiteral { properties };
-                unit.ast
-                    .insert_from_source(expression, module.id, expression_id)
+                self.tree
+                    .insert_from_source(expression, self.module.id, expression_id)
                     .into_any()
             }
             dir::Expression::TaggedScalarExpression { ty: _, value } => {
-                // newtype wrapping a scalar - just emit the inner value
-                self.lower_expression(module, tree, symbols, types, *value, unit)?
+                // newtype wrapping a scalar: just emit the inner value
+                self.lower_expression(*value)?
             }
 
             dir::Expression::TypeUnary { operator, right } => self
-                .lower_type_unary_expression(
-                    module,
-                    tree,
-                    symbols,
-                    types,
-                    expression_id,
-                    *operator,
-                    *right,
-                    unit,
-                )?
+                .lower_type_unary_expression(expression_id, *operator, *right)?
                 .into_any(),
             dir::Expression::TypeBinary {
                 left,
                 operator,
                 right,
             } => self
-                .lower_type_binary_expression(
-                    module,
-                    tree,
-                    symbols,
-                    types,
-                    expression_id,
-                    *left,
-                    *operator,
-                    *right,
-                    unit,
-                )?
+                .lower_type_binary_expression(expression_id, *left, *operator, *right)?
                 .into_any(),
             dir::Expression::Unary { operator, right } => self
-                .lower_unary_expression(
-                    module,
-                    tree,
-                    symbols,
-                    types,
-                    expression_id,
-                    *operator,
-                    *right,
-                    unit,
-                )?
+                .lower_unary_expression(expression_id, *operator, *right)?
                 .into_any(),
             dir::Expression::Binary {
                 left,
                 operator,
                 right,
             } => self
-                .lower_binary_expression(
-                    module,
-                    tree,
-                    symbols,
-                    types,
-                    expression_id,
-                    *left,
-                    *operator,
-                    *right,
-                    unit,
-                )?
+                .lower_binary_expression(expression_id, *left, *operator, *right)?
                 .into_any(),
             dir::Expression::Assign { left, right } => {
                 let left_id = self
-                    .lower_expression(module, tree, symbols, types, *left, unit)
-                    .expect_node::<Expression>(left.into_global_any(module.id), unit)?;
+                    .lower_expression(*left)
+                    .expect_node::<Expression>(left.into_global_any(self.module.id), self)?;
                 let right_id = self
-                    .lower_expression(module, tree, symbols, types, *right, unit)
-                    .expect_node::<Expression>(right.into_global_any(module.id), unit)?;
+                    .lower_expression(*right)
+                    .expect_node::<Expression>(right.into_global_any(self.module.id), self)?;
                 let expression = Expression::Assign {
                     left: left_id,
                     right: right_id,
                 };
-                unit.ast
-                    .insert_from_source(expression, module.id, expression_id)
+                self.tree
+                    .insert_from_source(expression, self.module.id, expression_id)
                     .into_any()
             }
             dir::Expression::AssignBinary {
@@ -370,17 +294,7 @@ impl Transpiler {
                 operator,
                 right,
             } => self
-                .lower_assign_binary_expression(
-                    module,
-                    tree,
-                    symbols,
-                    types,
-                    expression_id,
-                    *left,
-                    *operator,
-                    *right,
-                    unit,
-                )?
+                .lower_assign_binary_expression(expression_id, *left, *operator, *right)?
                 .into_any(),
 
             dir::Expression::Member {
@@ -389,18 +303,16 @@ impl Transpiler {
                 static_arguments,
             } => {
                 let left_id = self
-                    .lower_expression(module, tree, symbols, types, *left, unit)
-                    .expect_node::<Expression>(left.into_global_any(module.id), unit)?;
-                let name = unit.strings.intern_from(&module.ast.strings, *name);
+                    .lower_expression(*left)
+                    .expect_node::<Expression>(left.into_global_any(self.module.id), self)?;
+                let name = self.strings.intern_from(&self.module.ast.strings, *name);
                 let static_arguments = static_arguments
                     .as_ref()
                     .map(|arguments| {
                         arguments
                             .iter()
-                            .map(|argument| {
-                                self.lower_argument(module, tree, symbols, types, *argument, unit)
-                            })
-                            .collect::<Result<Vec<_>, TranspileError>>()
+                            .map(|argument| self.lower_argument(*argument))
+                            .collect::<Result<Vec<_>, CodegenJsError>>()
                     })
                     .transpose()?;
                 let expression = Expression::Member {
@@ -408,31 +320,31 @@ impl Transpiler {
                     name,
                     static_arguments,
                 };
-                unit.ast
-                    .insert_from_source(expression, module.id, expression_id)
+                self.tree
+                    .insert_from_source(expression, self.module.id, expression_id)
                     .into_any()
             }
             dir::Expression::Index { left, right } => {
                 let left_id = self
-                    .lower_expression(module, tree, symbols, types, *left, unit)
-                    .expect_node::<Expression>(left.into_global_any(module.id), unit)?;
-                let position = self.get_postfix_expression_position(left_id, unit);
+                    .lower_expression(*left)
+                    .expect_node::<Expression>(left.into_global_any(self.module.id), self)?;
+                let position = self.get_postfix_expression_position(left_id);
                 let &Some(right) = right else {
-                    return Err(TranspileError::UnsupportedConstruct {
-                        node: expression_id.into_global_any(module.id),
+                    return Err(CodegenJsError::UnsupportedConstruct {
+                        node: expression_id.into_global_any(self.module.id),
                         message: None,
                     });
                 };
                 let right_id = self
-                    .lower_expression(module, tree, symbols, types, right, unit)
-                    .expect_node::<Expression>(right.into_global_any(module.id), unit)?;
+                    .lower_expression(right)
+                    .expect_node::<Expression>(right.into_global_any(self.module.id), self)?;
                 let expression = Expression::Index {
                     position,
                     left: left_id,
                     right: right_id,
                 };
-                unit.ast
-                    .insert_from_source(expression, module.id, expression_id)
+                self.tree
+                    .insert_from_source(expression, self.module.id, expression_id)
                     .into_any()
             }
             dir::Expression::Call {
@@ -441,34 +353,30 @@ impl Transpiler {
                 dynamic_arguments,
             } => {
                 let left_id = self
-                    .lower_expression(module, tree, symbols, types, *left, unit)
-                    .expect_node::<Expression>(left.into_global_any(module.id), unit)?;
-                let position = self.get_postfix_expression_position(left_id, unit);
+                    .lower_expression(*left)
+                    .expect_node::<Expression>(left.into_global_any(self.module.id), self)?;
+                let position = self.get_postfix_expression_position(left_id);
                 let static_arguments = static_arguments
                     .as_ref()
                     .map(|arguments| {
                         arguments
                             .iter()
-                            .map(|argument| {
-                                self.lower_argument(module, tree, symbols, types, *argument, unit)
-                            })
-                            .collect::<Result<Vec<_>, TranspileError>>()
+                            .map(|argument| self.lower_argument(*argument))
+                            .collect::<Result<Vec<_>, CodegenJsError>>()
                     })
                     .transpose()?;
                 let dynamic_arguments = dynamic_arguments
                     .iter()
-                    .map(|argument| {
-                        self.lower_argument(module, tree, symbols, types, *argument, unit)
-                    })
-                    .collect::<Result<Vec<_>, TranspileError>>()?;
+                    .map(|argument| self.lower_argument(*argument))
+                    .collect::<Result<Vec<_>, CodegenJsError>>()?;
                 let expression = Expression::Call {
                     position,
                     left: left_id,
                     static_arguments,
                     dynamic_arguments,
                 };
-                unit.ast
-                    .insert_from_source(expression, module.id, expression_id)
+                self.tree
+                    .insert_from_source(expression, self.module.id, expression_id)
                     .into_any()
             }
             dir::Expression::New {
@@ -477,57 +385,53 @@ impl Transpiler {
                 dynamic_arguments,
             } => {
                 let left_id = self
-                    .lower_expression(module, tree, symbols, types, *left, unit)
-                    .expect_node::<Expression>(left.into_global_any(module.id), unit)?;
+                    .lower_expression(*left)
+                    .expect_node::<Expression>(left.into_global_any(self.module.id), self)?;
                 let static_arguments = static_arguments
                     .as_ref()
                     .map(|arguments| {
                         arguments
                             .iter()
-                            .map(|argument| {
-                                self.lower_argument(module, tree, symbols, types, *argument, unit)
-                            })
-                            .collect::<Result<Vec<_>, TranspileError>>()
+                            .map(|argument| self.lower_argument(*argument))
+                            .collect::<Result<Vec<_>, CodegenJsError>>()
                     })
                     .transpose()?;
                 let dynamic_arguments = dynamic_arguments
                     .iter()
-                    .map(|argument| {
-                        self.lower_argument(module, tree, symbols, types, *argument, unit)
-                    })
-                    .collect::<Result<Vec<_>, TranspileError>>()?;
+                    .map(|argument| self.lower_argument(*argument))
+                    .collect::<Result<Vec<_>, CodegenJsError>>()?;
                 let expression = Expression::New {
                     left: left_id,
                     static_arguments,
                     dynamic_arguments,
                 };
-                unit.ast
-                    .insert_from_source(expression, module.id, expression_id)
+                self.tree
+                    .insert_from_source(expression, self.module.id, expression_id)
                     .into_any()
             }
 
             dir::Expression::Stub => {
                 let expression = Expression::Stub;
-                unit.ast
-                    .insert_from_source(expression, module.id, expression_id)
+                self.tree
+                    .insert_from_source(expression, self.module.id, expression_id)
                     .into_any()
             }
 
             dir::Expression::Error => {
                 let expression = Expression::Error;
-                unit.ast
-                    .insert_from_source(expression, module.id, expression_id)
+                self.tree
+                    .insert_from_source(expression, self.module.id, expression_id)
                     .into_any()
             }
 
             _ => {
-                return Err(TranspileError::UnsupportedConstruct {
-                    node: expression_id.into_global_any(module.id),
+                return Err(CodegenJsError::UnsupportedConstruct {
+                    node: expression_id.into_global_any(self.module.id),
                     message: None,
                 });
             }
         };
 
-        Ok(transpiled_id)
+        Ok(lowered_id)
     }
 }

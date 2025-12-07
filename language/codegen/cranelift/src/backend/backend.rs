@@ -4,12 +4,14 @@ use std::sync::Arc;
 use cranelift_codegen::isa::TargetIsa;
 use cranelift_codegen::settings::{self, Configurable};
 use destack_codegen_lib::CodegenBackend;
-use destack_workspace::{ModuleMir, OutputFormat, Target};
+use destack_source::{FileType, ModuleId};
+use destack_workspace::{
+    Artifact, ArtifactContent, ArtifactId, ArtifactScope, ModuleMir, OutputFormat, Program, Target,
+};
 use target_lexicon::Triple;
 
-use super::CodegenCraneliftError;
-use crate::CodegenCraneliftResult;
 use crate::lower::ModuleLowerer;
+use crate::{CodegenCraneliftError, CodegenCraneliftResult};
 
 /// Cranelift-based code generation backend.
 ///
@@ -146,11 +148,65 @@ impl CodegenCraneliftBackend {
 }
 
 impl CodegenBackend for CodegenCraneliftBackend {
-    type Output = Vec<u8>;
-    type Error = CodegenCraneliftError;
-
-    fn compile(&self, module: &ModuleMir) -> Result<Self::Output, Self::Error> {
-        // use module id as name for the CodegenBackend trait
-        self.compile_module(module, &format!("{}", module.id))
+    fn name(&self) -> &'static str {
+        "cranelift"
     }
+
+    fn supports_target(&self, target: &Target) -> bool {
+        matches!(target.output, OutputFormat::Wasm | OutputFormat::Native)
+    }
+}
+
+/// Generate artifacts for a module using Cranelift.
+///
+/// This is the main entry point for native/WASM code generation from the compiler.
+/// Note: This requires the module's MIR to be ready (i.e., through the Optimize phase).
+pub fn generate_module(
+    program: Arc<Program>,
+    module_id: ModuleId,
+    target: &Target,
+    registry_next_id: impl Fn() -> ArtifactId,
+) -> CodegenCraneliftResult<Vec<Artifact>> {
+    // validate target
+    match target.output {
+        OutputFormat::Wasm | OutputFormat::Native => {}
+        other => {
+            return Err(CodegenCraneliftError::UnsupportedTarget {
+                triple: format!("{other:?}"),
+                message: Some("expected Wasm or Native".to_string()),
+            });
+        }
+    }
+
+    // create backend
+    let backend = CodegenCraneliftBackend::new(target)?;
+
+    // get module and its MIR
+    let module_ref = program.modules.get(module_id);
+    let module = module_ref.read();
+
+    // compile
+    let name = module.uri.last_segment().unwrap_or("module");
+    let bytes = backend.compile_module(&module.mir, name)?;
+
+    // determine file type and create artifact
+    let (file_type, content) = match target.output {
+        OutputFormat::Wasm => (FileType::Wasm, ArtifactContent::wasm(bytes)),
+        OutputFormat::Native => (FileType::Object, ArtifactContent::object(bytes)),
+        _ => unreachable!(),
+    };
+
+    let extension = file_type.extension().unwrap_or("o");
+    let uri = module.uri.without_extension().with_extension(extension);
+
+    let artifact = Artifact {
+        id: registry_next_id(),
+        scope: ArtifactScope::Module(module_id),
+        target: target.name.clone(),
+        uri,
+        content,
+        source: None,
+    };
+
+    Ok(vec![artifact])
 }

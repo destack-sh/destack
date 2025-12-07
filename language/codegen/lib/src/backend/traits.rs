@@ -1,16 +1,14 @@
-use destack_workspace::ModuleMir;
+use destack_workspace::Target;
 
-/// Trait for code generation backends.
-///
-/// Each backend (Cranelift, JS, etc.) implements this to produce output from MIR.
-/// The trait is intentionally minimal - backends may expose additional methods
-/// for target-specific functionality.
+/// Marker trait for code generation backends.
+/// Backends implement this to provide metadata about their capabilities.
+/// This trait is intentionally minimal:
+/// - JS backend: generates from DIR (elaborated), doesn't need middle-end
+/// - Cranelift backend: generates from MIR (optimized), needs full pipeline
 pub trait CodegenBackend {
-    /// The output type produced by this backend.
-    type Output;
-    /// The error type for this backend.
-    type Error: std::error::Error;
+    /// Name of this backend (e.g., "js", "cranelift").
+    fn name(&self) -> &'static str;
 
-    /// Compile a MIR module to the backend's output format.
-    fn compile(&self, module: &ModuleMir) -> Result<Self::Output, Self::Error>;
+    /// Check if this backend supports the given target configuration.
+    fn supports_target(&self, target: &Target) -> bool;
 }
