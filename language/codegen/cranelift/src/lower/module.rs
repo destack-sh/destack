@@ -1,12 +1,12 @@
 //! Module-level lowering from MIR to Cranelift IR.
 //!
-//! Module lowering works in two passes:
+//! Module lowering works in two phases:
 //!
-//! 1. **Declaration pass**: Declare all functions with their signatures.
+//! 1. **Declaration phase**: Declare all functions with their signatures.
 //!    This allows functions to call each other regardless of definition order.
 //!
-//! 2. **Definition pass**: Lower each function body using `FunctionLowerer`.
-//!    The function id map from pass 1 is used to resolve call targets.
+//! 2. **Definition phase**: Lower each function body using `FunctionLowerer`.
+//!    The function id map from phase 1 is used to resolve call targets.
 
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -20,15 +20,13 @@ use destack_source::StringPool;
 
 use super::FunctionLowerer;
 use super::r#type::lower_type;
-use crate::CraneliftError;
+use crate::CodegenCraneliftError;
 
-/// Lowers an entire MIR module to Cranelift.
-///
-/// Manages the Cranelift module, function declarations, and lowering state.
+/// Module context for lowering a MIR module to Cranelift.
 pub(crate) struct ModuleLowerer<'a> {
     /// The target ISA.
     isa: Arc<dyn TargetIsa>,
-    /// String pool for resolving names.
+    /// String pool for interned names.
     strings: &'a StringPool,
     /// The Cranelift object module.
     cl_module: ObjectModule,
@@ -55,18 +53,18 @@ impl<'a> ModuleLowerer<'a> {
     }
 
     /// Lower an entire MIR module.
-    pub(crate) fn lower_module(&mut self, tree: &mir::NodeTree) -> Result<(), CraneliftError> {
-        // first pass: declare all functions
+    pub(crate) fn lower_module(&mut self, tree: &mir::NodeTree) -> Result<(), CodegenCraneliftError> {
+        // phase 1: declare all functions
         self.declare_functions(tree)?;
 
-        // second pass: lower function bodies
+        // phase 2: lower function bodies
         self.lower_functions(tree)?;
 
         Ok(())
     }
 
     /// Declare all functions in the module (first pass).
-    fn declare_functions(&mut self, tree: &mir::NodeTree) -> Result<(), CraneliftError> {
+    fn declare_functions(&mut self, tree: &mir::NodeTree) -> Result<(), CodegenCraneliftError> {
         let pointer_bytes = self.isa.pointer_bytes();
 
         for (function_id, function) in tree.iter_nodes::<mir::Function>() {
@@ -84,7 +82,7 @@ impl<'a> ModuleLowerer<'a> {
     }
 
     /// Lower / define all function bodies (second pass after declaration).
-    fn lower_functions(&mut self, tree: &mir::NodeTree) -> Result<(), CraneliftError> {
+    fn lower_functions(&mut self, tree: &mir::NodeTree) -> Result<(), CodegenCraneliftError> {
         let pointer_bytes = self.isa.pointer_bytes();
 
         for (function_id, function) in tree.iter_nodes::<mir::Function>() {
@@ -124,7 +122,7 @@ impl<'a> ModuleLowerer<'a> {
         tree: &mir::NodeTree,
         function: &mir::Function,
         pointer_bytes: u8,
-    ) -> Result<cir::Signature, CraneliftError> {
+    ) -> Result<cir::Signature, CodegenCraneliftError> {
         let call_conv = self.isa.default_call_conv();
         let mut signature = cir::Signature::new(call_conv);
 
@@ -144,15 +142,15 @@ impl<'a> ModuleLowerer<'a> {
     }
 
     /// Finish lowering and produce the output bytes.
-    pub(crate) fn finish(self) -> Result<Vec<u8>, CraneliftError> {
+    pub(crate) fn finish(self) -> Result<Vec<u8>, CodegenCraneliftError> {
         let product = self.cl_module.finish();
-        product.emit().map_err(|e| CraneliftError::Internal {
+        product.emit().map_err(|e| CodegenCraneliftError::Internal {
             message: e.to_string(),
         })
     }
 
     /// Get the Cranelift IR text format for all functions.
-    pub(crate) fn as_clif_string(&self) -> Result<String, CraneliftError> {
+    pub(crate) fn as_clif_string(&self) -> Result<String, CodegenCraneliftError> {
         let mut output = String::new();
         for (name, func) in &self.cl_functions {
             output.push_str(&format!("; function: {name}\n"));

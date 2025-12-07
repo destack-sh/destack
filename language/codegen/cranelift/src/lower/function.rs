@@ -41,7 +41,7 @@ use destack_mir as mir;
 use destack_source::StringPool;
 
 use super::r#type::lower_type;
-use crate::{CraneliftError, trap};
+use crate::{CodegenCraneliftError, trap};
 
 /// Context for lowering a single MIR function to Cranelift IR.
 #[allow(dead_code)]
@@ -85,16 +85,15 @@ impl<'a> FunctionLowerer<'a> {
     ///
     /// Populates the provided Cranelift function with blocks, instructions,
     /// and control flow based on the MIR function.
-    pub(crate) fn lower(self, target: &mut cir::Function) -> Result<(), CraneliftError> {
+    pub(crate) fn lower(self, target: &mut cir::Function) -> Result<(), CodegenCraneliftError> {
         let mut builder_context = FunctionBuilderContext::new();
         let mut builder = FunctionBuilder::new(target, &mut builder_context);
         let mut value_map: HashMap<mir::Value, cir::Value> = HashMap::new();
         let mut block_map: HashMap<mir::LocalNodeId<mir::Block>, cir::Block> = HashMap::new();
         let mut local_map: HashMap<mir::LocalNodeId<mir::Local>, cir::StackSlot> = HashMap::new();
-        // maps MIR values to their MIR types (for type inference)
         let mut type_map: HashMap<mir::Value, mir::LocalNodeId<mir::Type>> = HashMap::new();
 
-        // build the type_map map
+        // phase 0: infer types
         self.infer_type_map(&mut type_map)?;
 
         // phase 1: create stack slots for locals
@@ -126,7 +125,7 @@ impl<'a> FunctionLowerer<'a> {
     fn infer_type_map(
         &self,
         type_map: &mut HashMap<mir::Value, mir::LocalNodeId<mir::Type>>,
-    ) -> Result<(), CraneliftError> {
+    ) -> Result<(), CodegenCraneliftError> {
         // function parameters have explicit types
         for param in &self.function.parameters {
             type_map.insert(param.value, param.ty);
@@ -283,7 +282,7 @@ impl<'a> FunctionLowerer<'a> {
         &self,
         builder: &mut FunctionBuilder<'_>,
         local_map: &mut HashMap<mir::LocalNodeId<mir::Local>, cir::StackSlot>,
-    ) -> Result<(), CraneliftError> {
+    ) -> Result<(), CodegenCraneliftError> {
         for &local_id in &self.function.locals {
             let local = self.tree.get(local_id);
             let ty = lower_type(self.tree, local.ty, self.pointer_bytes)?;
@@ -310,7 +309,7 @@ impl<'a> FunctionLowerer<'a> {
         builder: &mut FunctionBuilder<'_>,
         value_map: &mut HashMap<mir::Value, cir::Value>,
         block_map: &mut HashMap<mir::LocalNodeId<mir::Block>, cir::Block>,
-    ) -> Result<(), CraneliftError> {
+    ) -> Result<(), CodegenCraneliftError> {
         // first, create all blocks
         for &block_id in &self.function.blocks {
             let block = builder.create_block();
@@ -358,7 +357,7 @@ impl<'a> FunctionLowerer<'a> {
         block_map: &HashMap<mir::LocalNodeId<mir::Block>, cir::Block>,
         local_map: &HashMap<mir::LocalNodeId<mir::Local>, cir::StackSlot>,
         type_map: &HashMap<mir::Value, mir::LocalNodeId<mir::Type>>,
-    ) -> Result<(), CraneliftError> {
+    ) -> Result<(), CodegenCraneliftError> {
         let mir_block = self.tree.get(block_id);
         let target_block = block_map[&block_id];
 
@@ -369,8 +368,7 @@ impl<'a> FunctionLowerer<'a> {
 
         // lower instructions
         for &instruction_id in &mir_block.instructions {
-            let instruction = self.tree.get(instruction_id);
-            self.lower_instruction(instruction, builder, value_map, local_map, type_map)?;
+            self.lower_instruction(instruction_id, builder, value_map, local_map, type_map)?;
         }
 
         // lower terminator
@@ -388,15 +386,16 @@ impl<'a> FunctionLowerer<'a> {
     /// Instructions that consume values look them up in `value_map`.
     fn lower_instruction(
         &self,
-        instruction: &mir::Instruction,
+        instruction_id: mir::LocalNodeId<mir::Instruction>,
         builder: &mut FunctionBuilder<'_>,
         value_map: &mut HashMap<mir::Value, cir::Value>,
         local_map: &HashMap<mir::LocalNodeId<mir::Local>, cir::StackSlot>,
         type_map: &HashMap<mir::Value, mir::LocalNodeId<mir::Type>>,
-    ) -> Result<(), CraneliftError> {
+    ) -> Result<(), CodegenCraneliftError> {
+        let instruction = self.tree.get(instruction_id);
         match instruction {
             mir::Instruction::Constant { destination, value } => {
-                let result = self.lower_constant(value, builder)?;
+                let result = self.lower_constant(instruction_id.into_any(), value, builder)?;
                 value_map.insert(*destination, result);
             }
 
@@ -454,10 +453,11 @@ impl<'a> FunctionLowerer<'a> {
             } => {
                 let ptr_value = value_map[pointer];
                 let loaded_type_id = type_map.get(destination).ok_or_else(|| {
-                    CraneliftError::Internal {
-                        message: format!(
+                    CodegenCraneliftError::MissingType {
+                        node: instruction_id.into_any(),
+                        message: Some(format!(
                             "could not infer type for load destination {destination:?} from pointer {pointer:?}"
-                        ),
+                        )),
                     }
                 })?;
                 let loaded_type = lower_type(self.tree, *loaded_type_id, self.pointer_bytes)?;
@@ -476,39 +476,47 @@ impl<'a> FunctionLowerer<'a> {
                     .store(cir::MemFlags::new(), store_value, ptr_value, 0);
             }
 
+            // TODO #Incomplete: implement codegen for field / element / call instructions
+
             mir::Instruction::ExtractField { .. } => {
-                return Err(CraneliftError::unsupported_instruction(
+                return Err(CodegenCraneliftError::unsupported_instruction(
                     "ExtractField not yet implemented",
+                    instruction_id.into_any(),
                 ));
             }
 
             mir::Instruction::InsertField { .. } => {
-                return Err(CraneliftError::unsupported_instruction(
+                return Err(CodegenCraneliftError::unsupported_instruction(
                     "InsertField not yet implemented",
+                    instruction_id.into_any(),
                 ));
             }
 
             mir::Instruction::ExtractElement { .. } => {
-                return Err(CraneliftError::unsupported_instruction(
+                return Err(CodegenCraneliftError::unsupported_instruction(
                     "ExtractElement not yet implemented",
+                    instruction_id.into_any(),
                 ));
             }
 
             mir::Instruction::InsertElement { .. } => {
-                return Err(CraneliftError::unsupported_instruction(
+                return Err(CodegenCraneliftError::unsupported_instruction(
                     "InsertElement not yet implemented",
+                    instruction_id.into_any(),
                 ));
             }
 
             mir::Instruction::Call { .. } => {
-                return Err(CraneliftError::unsupported_instruction(
+                return Err(CodegenCraneliftError::unsupported_instruction(
                     "Call not yet implemented",
+                    instruction_id.into_any(),
                 ));
             }
 
             mir::Instruction::CallIndirect { .. } => {
-                return Err(CraneliftError::unsupported_instruction(
+                return Err(CodegenCraneliftError::unsupported_instruction(
                     "CallIndirect not yet implemented",
+                    instruction_id.into_any(),
                 ));
             }
         }
@@ -525,7 +533,7 @@ impl<'a> FunctionLowerer<'a> {
         builder: &mut FunctionBuilder<'_>,
         value_map: &HashMap<mir::Value, cir::Value>,
         block_map: &HashMap<mir::LocalNodeId<mir::Block>, cir::Block>,
-    ) -> Result<(), CraneliftError> {
+    ) -> Result<(), CodegenCraneliftError> {
         match terminator {
             mir::Terminator::Return { value } => {
                 if let Some(value) = value {
@@ -538,11 +546,11 @@ impl<'a> FunctionLowerer<'a> {
 
             mir::Terminator::Jump { target, arguments } => {
                 let target_block = block_map[target];
-                let args: Vec<cir::BlockArg> = arguments
+                let arguments: Vec<cir::BlockArg> = arguments
                     .iter()
                     .map(|v| cir::BlockArg::from(value_map[v]))
                     .collect();
-                builder.ins().jump(target_block, &args);
+                builder.ins().jump(target_block, &arguments);
             }
 
             mir::Terminator::Branch {
@@ -555,18 +563,18 @@ impl<'a> FunctionLowerer<'a> {
                 let cond_value = value_map[condition];
                 let then_block = block_map[then_target];
                 let else_block = block_map[else_target];
-                let then_args: Vec<cir::BlockArg> = then_arguments
+                let then_arguments: Vec<cir::BlockArg> = then_arguments
                     .iter()
                     .map(|v| cir::BlockArg::from(value_map[v]))
                     .collect();
-                let else_args: Vec<cir::BlockArg> = else_arguments
+                let else_arguments: Vec<cir::BlockArg> = else_arguments
                     .iter()
                     .map(|v| cir::BlockArg::from(value_map[v]))
                     .collect();
 
                 builder
                     .ins()
-                    .brif(cond_value, then_block, &then_args, else_block, &else_args);
+                    .brif(cond_value, then_block, &then_arguments, else_block, &else_arguments);
             }
 
             mir::Terminator::Switch {
@@ -595,9 +603,6 @@ impl<'a> FunctionLowerer<'a> {
     }
 
     /// Lower a switch terminator using Cranelift's Switch helper.
-    ///
-    /// The Switch helper generates efficient jump tables when possible,
-    /// falling back to binary search for sparse cases.
     fn lower_switch(
         &self,
         switch_value: cir::Value,
@@ -607,26 +612,26 @@ impl<'a> FunctionLowerer<'a> {
         builder: &mut FunctionBuilder<'_>,
         value_map: &HashMap<mir::Value, cir::Value>,
         block_map: &HashMap<mir::LocalNodeId<mir::Block>, cir::Block>,
-    ) -> Result<(), CraneliftError> {
+    ) -> Result<(), CodegenCraneliftError> {
         // if no cases, just jump to default
         if cases.is_empty() {
-            let default_args: Vec<cir::BlockArg> = default_arguments
+            let default_arguments: Vec<cir::BlockArg> = default_arguments
                 .iter()
                 .map(|v| cir::BlockArg::from(value_map[v]))
                 .collect();
-            builder.ins().jump(default_block, &default_args);
+            builder.ins().jump(default_block, &default_arguments);
             return Ok(());
         }
 
         // check if any cases have block arguments
         // Cranelift's Switch doesn't support block arguments directly,
         // so we need to create intermediate blocks for cases with arguments
-        let has_block_args =
+        let has_block_arguments =
             !default_arguments.is_empty() || cases.iter().any(|c| !c.arguments.is_empty());
 
-        if has_block_args {
+        if has_block_arguments {
             // fall back to chain of brif for cases with arguments
-            self.lower_switch_with_args(
+            self.lower_switch_with_arguments(
                 switch_value,
                 default_block,
                 default_arguments,
@@ -648,7 +653,7 @@ impl<'a> FunctionLowerer<'a> {
     }
 
     /// Lower a switch with block arguments using a chain of brif instructions.
-    fn lower_switch_with_args(
+    fn lower_switch_with_arguments(
         &self,
         switch_value: cir::Value,
         default_block: cir::Block,
@@ -657,8 +662,8 @@ impl<'a> FunctionLowerer<'a> {
         builder: &mut FunctionBuilder<'_>,
         value_map: &HashMap<mir::Value, cir::Value>,
         block_map: &HashMap<mir::LocalNodeId<mir::Block>, cir::Block>,
-    ) -> Result<(), CraneliftError> {
-        let default_args: Vec<cir::BlockArg> = default_arguments
+    ) -> Result<(), CodegenCraneliftError> {
+        let default_arguments: Vec<cir::BlockArg> = default_arguments
             .iter()
             .map(|v| cir::BlockArg::from(value_map[v]))
             .collect();
@@ -671,23 +676,23 @@ impl<'a> FunctionLowerer<'a> {
                     .icmp(cir::condcodes::IntCC::Equal, switch_value, case_const);
 
             let case_block = block_map[&case.target];
-            let case_args: Vec<cir::BlockArg> = case
+            let case_arguments: Vec<cir::BlockArg> = case
                 .arguments
                 .iter()
                 .map(|v| cir::BlockArg::from(value_map[v]))
                 .collect();
 
             let next_block = builder.create_block();
-            let empty_args: Vec<cir::BlockArg> = vec![];
+            let empty_arguments: Vec<cir::BlockArg> = vec![];
             builder
                 .ins()
-                .brif(is_match, case_block, &case_args, next_block, &empty_args);
+                .brif(is_match, case_block, &case_arguments, next_block, &empty_arguments);
             builder.switch_to_block(next_block);
             builder.seal_block(next_block);
         }
 
         // final fallthrough to default
-        builder.ins().jump(default_block, &default_args);
+        builder.ins().jump(default_block, &default_arguments);
         Ok(())
     }
 
@@ -703,9 +708,10 @@ impl<'a> FunctionLowerer<'a> {
     /// Lower a constant to Cranelift IR.
     fn lower_constant(
         &self,
+        node_id: mir::LocalNodeIdAny,
         constant: &mir::Constant,
         builder: &mut FunctionBuilder<'_>,
-    ) -> Result<cir::Value, CraneliftError> {
+    ) -> Result<cir::Value, CodegenCraneliftError> {
         match constant {
             mir::Constant::Boolean { value } => {
                 let int_value = if *value { 1i64 } else { 0i64 };
@@ -723,9 +729,10 @@ impl<'a> FunctionLowerer<'a> {
                     32 => cir::types::I32,
                     64 => cir::types::I64,
                     _ => {
-                        return Err(CraneliftError::unsupported_type(format!(
-                            "integer width {width}"
-                        )));
+                        return Err(CodegenCraneliftError::unsupported_type(
+                            format!("integer width {width}",),
+                            node_id,
+                        ));
                     }
                 };
                 Ok(builder.ins().iconst(ty, *value))
@@ -738,9 +745,10 @@ impl<'a> FunctionLowerer<'a> {
                     32 => cir::types::I32,
                     64 => cir::types::I64,
                     _ => {
-                        return Err(CraneliftError::unsupported_type(format!(
-                            "unsigned integer width {width}"
-                        )));
+                        return Err(CodegenCraneliftError::unsupported_type(
+                            format!("unsigned integer width {width}",),
+                            node_id,
+                        ));
                     }
                 };
                 Ok(builder.ins().iconst(ty, *value as i64))
@@ -753,9 +761,10 @@ impl<'a> FunctionLowerer<'a> {
                 64 => Ok(builder
                     .ins()
                     .f64const(cir::immediates::Ieee64::with_bits(*bits))),
-                _ => Err(CraneliftError::unsupported_type(format!(
-                    "float width {width}"
-                ))),
+                _ => Err(CodegenCraneliftError::unsupported_type(
+                    format!("float width {width} not supported",),
+                    node_id,
+                )),
             },
         }
     }
@@ -767,7 +776,7 @@ impl<'a> FunctionLowerer<'a> {
         left: cir::Value,
         right: cir::Value,
         builder: &mut FunctionBuilder<'_>,
-    ) -> Result<cir::Value, CraneliftError> {
+    ) -> Result<cir::Value, CodegenCraneliftError> {
         use cir::condcodes::{FloatCC, IntCC};
 
         let ins = builder.ins();
@@ -840,7 +849,7 @@ impl<'a> FunctionLowerer<'a> {
         operator: mir::UnaryOperator,
         argument: cir::Value,
         builder: &mut FunctionBuilder<'_>,
-    ) -> Result<cir::Value, CraneliftError> {
+    ) -> Result<cir::Value, CodegenCraneliftError> {
         let ins = builder.ins();
 
         let result = match operator {
@@ -859,7 +868,7 @@ impl<'a> FunctionLowerer<'a> {
         argument: cir::Value,
         to_type: cir::Type,
         builder: &mut FunctionBuilder<'_>,
-    ) -> Result<cir::Value, CraneliftError> {
+    ) -> Result<cir::Value, CodegenCraneliftError> {
         let ins = builder.ins();
 
         let result = match kind {

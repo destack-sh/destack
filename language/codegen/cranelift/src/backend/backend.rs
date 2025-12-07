@@ -7,13 +7,13 @@ use destack_codegen_lib::CodegenBackend;
 use destack_workspace::{ModuleMir, OutputFormat, Target};
 use target_lexicon::Triple;
 
-use super::CraneliftError;
+use super::CodegenCraneliftError;
 use crate::lower::ModuleLowerer;
 
 /// Cranelift-based code generation backend.
 ///
 /// Compiles MIR to native code or WebAssembly using Cranelift.
-pub struct CraneliftCodegenBackend {
+pub struct CodegenCraneliftBackend {
     /// The target ISA configuration.
     isa: Arc<dyn TargetIsa>,
     /// Whether to include debug info.
@@ -21,7 +21,7 @@ pub struct CraneliftCodegenBackend {
     debug: bool,
 }
 
-impl std::fmt::Debug for CraneliftCodegenBackend {
+impl std::fmt::Debug for CodegenCraneliftBackend {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("CraneliftCodegenBackend")
             .field("isa", &self.isa.name())
@@ -30,9 +30,9 @@ impl std::fmt::Debug for CraneliftCodegenBackend {
     }
 }
 
-impl CraneliftCodegenBackend {
+impl CodegenCraneliftBackend {
     /// Create a new backend for the given target configuration.
-    pub fn new(target: &Target) -> Result<Self, CraneliftError> {
+    pub fn new(target: &Target) -> Result<Self, CodegenCraneliftError> {
         let triple = Self::target_triple(target)?;
         let isa = Self::create_isa(&triple, target)?;
 
@@ -43,32 +43,36 @@ impl CraneliftCodegenBackend {
     }
 
     /// Create a backend for WebAssembly output.
-    pub fn wasm() -> Result<Self, CraneliftError> {
+    pub fn wasm() -> Result<Self, CodegenCraneliftError> {
         Self::new(&Target::wasm("wasm"))
     }
 
     /// Create a backend for native output (host triple).
-    pub fn native() -> Result<Self, CraneliftError> {
+    pub fn native() -> Result<Self, CodegenCraneliftError> {
         Self::new(&Target::native("native"))
     }
 
     /// Get the target triple for the given target configuration.
-    fn target_triple(target: &Target) -> Result<Triple, CraneliftError> {
+    fn target_triple(target: &Target) -> Result<Triple, CodegenCraneliftError> {
         match target.output {
             OutputFormat::Wasm => Ok(Triple::from_str("wasm32-unknown-unknown").unwrap()),
             OutputFormat::Native => cranelift_native::builder()
                 .map(|b| b.triple().clone())
-                .map_err(|e| CraneliftError::Internal {
+                .map_err(|e| CodegenCraneliftError::Internal {
                     message: e.to_string(),
                 }),
-            _ => Err(CraneliftError::UnsupportedTarget {
+            _ => Err(CodegenCraneliftError::UnsupportedTarget {
                 triple: format!("{:?}", target.output),
+                message: None,
             }),
         }
     }
 
     /// Create the target ISA from the triple and target configuration.
-    fn create_isa(triple: &Triple, target: &Target) -> Result<Arc<dyn TargetIsa>, CraneliftError> {
+    fn create_isa(
+        triple: &Triple,
+        target: &Target,
+    ) -> Result<Arc<dyn TargetIsa>, CodegenCraneliftError> {
         // configure
         let mut flags_builder = settings::builder();
         let opt_level = if target.optimize {
@@ -83,20 +87,21 @@ impl CraneliftCodegenBackend {
         };
         flags_builder
             .set("opt_level", opt_level)
-            .map_err(|e| CraneliftError::Internal {
+            .map_err(|e| CodegenCraneliftError::Internal {
                 message: e.to_string(),
             })?;
         let flags = settings::Flags::new(flags_builder);
 
         // create isa
         let isa_builder = cranelift_codegen::isa::lookup(triple.clone()).map_err(|e| {
-            CraneliftError::UnsupportedTarget {
+            CodegenCraneliftError::UnsupportedTarget {
                 triple: e.to_string(),
+                message: None,
             }
         })?;
         isa_builder
             .finish(flags)
-            .map_err(|e| CraneliftError::Internal {
+            .map_err(|e| CodegenCraneliftError::Internal {
                 message: e.to_string(),
             })
     }
@@ -119,7 +124,7 @@ impl CraneliftCodegenBackend {
         &self,
         module: &ModuleMir,
         name: &str,
-    ) -> Result<Vec<u8>, CraneliftError> {
+    ) -> Result<Vec<u8>, CodegenCraneliftError> {
         let tree = module.tree.read();
         let mut lowerer = ModuleLowerer::new(self.isa.clone(), &module.strings, name);
         lowerer.lower_module(&tree)?;
@@ -131,7 +136,7 @@ impl CraneliftCodegenBackend {
         &self,
         module: &ModuleMir,
         name: &str,
-    ) -> Result<String, CraneliftError> {
+    ) -> Result<String, CodegenCraneliftError> {
         let tree = module.tree.read();
         let mut lowerer = ModuleLowerer::new(self.isa.clone(), &module.strings, name);
         lowerer.lower_module(&tree)?;
@@ -139,9 +144,9 @@ impl CraneliftCodegenBackend {
     }
 }
 
-impl CodegenBackend for CraneliftCodegenBackend {
+impl CodegenBackend for CodegenCraneliftBackend {
     type Output = Vec<u8>;
-    type Error = CraneliftError;
+    type Error = CodegenCraneliftError;
 
     fn compile(&self, module: &ModuleMir) -> Result<Self::Output, Self::Error> {
         // use module id as name for the CodegenBackend trait
