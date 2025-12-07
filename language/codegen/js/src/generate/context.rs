@@ -6,29 +6,29 @@ use crate::{
 use destack_fir::format::{Format, FormatContext, FormatOptions, FormatResult, Formatter};
 use destack_fir::prelude::*;
 use destack_fir::print::PrintOptions;
-use destack_source::{File, ImmutableStringPool, IndentStyle, LineEnding};
-
-use crate::{TranspilerLanguage, TranspilerUnit};
+use destack_source::{File, FileType, ImmutableStringPool, IndentStyle, LineEnding};
+use destack_workspace::Target;
 
 pub type JavaScriptFormatter<'ast, 'buf> = Formatter<'buf, JavaScriptFormatContext<'ast>>;
 
 /// The formatting mode.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub enum FormatMode {
     /// Pretty.
+    #[default]
     Pretty,
     /// Minimal.
     Minimal,
 }
 
-/// JS/TS format options (mostly for testing).
+/// JS/TS format options.
 #[derive(Debug, Default, Clone, Copy, PartialEq)]
 pub struct JavaScriptFormatOptions {
     /// The formatting mode.
     pub mode: FormatMode = FormatMode::Pretty,
-    /// The language target.
-    pub language: TranspilerLanguage = TranspilerLanguage::TypeScript,
-    /// The type of line ending to apply to the printed input.  
+    /// The output file type (determines whether to emit types).
+    pub file_type: FileType = FileType::TypeScript,
+    /// The type of line ending to apply to the printed input.
     pub line_ending: LineEnding = LineEnding::LineFeed,
     /// The indent style.
     pub indent_style: IndentStyle = IndentStyle::Space,
@@ -39,6 +39,16 @@ pub struct JavaScriptFormatOptions {
 }
 
 impl JavaScriptFormatOptions {
+    /// Create options from a Target and the specific file type being generated.
+    pub fn from_target(_target: &Target, file_type: FileType) -> Self {
+        // TODO: use target settings for formatting options
+        Self {
+            mode: FormatMode::Pretty,
+            file_type,
+            ..Self::default()
+        }
+    }
+
     /// Pretty options.
     pub fn pretty() -> Self {
         Self {
@@ -92,9 +102,9 @@ impl JavaScriptFormatOptions {
         }
     }
 
-    /// Set the language target.
-    pub fn with_language(mut self, language: TranspilerLanguage) -> Self {
-        self.language = language;
+    /// Set the file type.
+    pub fn with_file_type(mut self, file_type: FileType) -> Self {
+        self.file_type = file_type;
         self
     }
 
@@ -137,18 +147,24 @@ impl JavaScriptFormatOptions {
     #[inline]
     pub fn include_types(&self) -> bool {
         matches!(
-            self.language,
-            TranspilerLanguage::TypeScript | TranspilerLanguage::TypeScriptDeclaration
+            self.file_type,
+            FileType::TypeScript | FileType::TypeScriptXml | FileType::TypeScriptDeclaration
         )
     }
 
-    /// Whether we need annotations.
+    /// Whether we need annotations/decorators.
     #[inline]
     pub fn include_annotations(&self) -> bool {
         matches!(
-            self.language,
-            TranspilerLanguage::TypeScript | TranspilerLanguage::TypeScriptDeclaration
+            self.file_type,
+            FileType::TypeScript | FileType::TypeScriptXml | FileType::TypeScriptDeclaration
         )
+    }
+
+    /// Whether this is generating declarations only (.d.ts).
+    #[inline]
+    pub fn is_declaration(&self) -> bool {
+        matches!(self.file_type, FileType::TypeScriptDeclaration)
     }
 }
 
@@ -179,12 +195,12 @@ impl FormatOptions for JavaScriptFormatOptions {
 pub struct JavaScriptFormatContext<'a> {
     /// The format options.
     pub options: JavaScriptFormatOptions,
-    /// The file.
+    /// The file (for span information).
     pub file: &'a File,
-    /// The unit.
-    pub unit: &'a TranspilerUnit,
-    /// The tree.
+    /// The JS AST tree.
     pub tree: &'a NodeTree,
+    /// Root nodes to format.
+    pub roots: &'a [LocalNodeIdAny],
     /// The string pool.
     pub strings: &'a ImmutableStringPool,
 }
@@ -193,19 +209,13 @@ impl<'ast> JavaScriptFormatContext<'ast> {
     /// Whether we need type annotations.
     #[inline]
     pub fn include_types(&self) -> bool {
-        matches!(
-            self.options.language,
-            TranspilerLanguage::TypeScript | TranspilerLanguage::TypeScriptDeclaration
-        )
+        self.options.include_types()
     }
 
     /// Whether we need annotations.
     #[inline]
     pub fn include_annotations(&self) -> bool {
-        matches!(
-            self.options.language,
-            TranspilerLanguage::TypeScript | TranspilerLanguage::TypeScriptDeclaration
-        )
+        self.options.include_annotations()
     }
 }
 
@@ -336,11 +346,12 @@ impl<'a> Format<JavaScriptFormatContext<'a>> for LocalNodeIdAny {
     }
 }
 
-impl<'a> Format<JavaScriptFormatContext<'a>> for TranspilerUnit {
+/// Implement Format for the context itself (formats all roots).
+impl<'a> Format<JavaScriptFormatContext<'a>> for JavaScriptFormatContext<'a> {
     #[inline]
     fn format(&self, f: &mut JavaScriptFormatter<'a, '_>) -> FormatResult<()> {
         f.join_with(hard_line_break())
-            .entries(&self.roots)
+            .entries(self.roots)
             .finish()?;
         Ok(())
     }

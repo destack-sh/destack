@@ -1,13 +1,11 @@
 use crate::{
-    BindingAnchor, Block, Declaration, DeclarationDescriptor, DeclarationKind, DependencyMode,
-    EnumField, Expression, LocalNodeId, Statement, Type, Visibility,
+    BindingAnchor, Block, CodegenJsError, CodegenJsResult, CodegenJsResultExt, Declaration,
+    DeclarationDescriptor, DeclarationKind, DependencyMode, EnumField, Expression, LocalNodeId,
+    ModuleLowerer, Statement, Type, Visibility,
 };
-use destack_dir::{self as dir, NodeTree, SymbolTable, TypeTable};
-use destack_workspace::Module;
+use destack_dir as dir;
 
-use crate::{TranspileError, TranspileResult, TranspileResultExt, Transpiler, TranspilerUnit};
-
-impl Transpiler {
+impl ModuleLowerer<'_> {
     /// Lower visibility from DIR into JS AST.
     pub fn lower_visibility(&self, visibility: dir::Visibility) -> Visibility {
         match visibility {
@@ -47,19 +45,12 @@ impl Transpiler {
 
     /// Lower a declaration descriptor from DIR into JS AST.
     pub fn lower_declaration_descriptor(
-        &self,
-        module: &Module,
-        _tree: &NodeTree,
-        _symbols: &SymbolTable,
-        _types: &TypeTable,
+        &mut self,
         descriptor: &dir::DeclarationDescriptor,
-        unit: &mut TranspilerUnit,
     ) -> DeclarationDescriptor {
         let kind = self.lower_declaration_kind(descriptor.kind);
         let anchor = self.lower_binding_anchor(descriptor.anchor);
-        let name = descriptor
-            .name
-            .map(|name| self.lower_string_to_name(module, name, unit));
+        let name = descriptor.name.map(|name| self.lower_string_to_name(name));
         let export = descriptor
             .export
             .map(|export| self.lower_export_type(export));
@@ -73,15 +64,10 @@ impl Transpiler {
 
     /// Lower a declaration from DIR into JS AST.
     pub fn lower_declaration(
-        &self,
-        module: &Module,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &TypeTable,
+        &mut self,
         declaration_id: dir::LocalNodeId<dir::Declaration>,
-        unit: &mut TranspilerUnit,
-    ) -> TranspileResult<LocalNodeId<Declaration>> {
-        let declaration = tree.get(declaration_id);
+    ) -> CodegenJsResult<LocalNodeId<Declaration>> {
+        let declaration = self.dir_tree.get(declaration_id);
         let declaration = match declaration {
             dir::Declaration::Namespace {
                 descriptor,
@@ -89,15 +75,16 @@ impl Transpiler {
                 generics: _,
                 expressions,
             } => {
-                let descriptor = self
-                    .lower_declaration_descriptor(module, tree, symbols, types, descriptor, unit);
+                let descriptor = self.lower_declaration_descriptor(descriptor);
                 let statements = expressions
                     .iter()
                     .map(|expression| {
-                        self.lower_expression(module, tree, symbols, types, *expression, unit)
-                            .expect_node::<Statement>(expression.into_global_any(module.id), unit)
+                        self.lower_expression(*expression).expect_node::<Statement>(
+                            expression.into_global_any(self.module.id),
+                            self,
+                        )
                     })
-                    .collect::<Result<Vec<_>, TranspileError>>()?;
+                    .collect::<Result<Vec<_>, CodegenJsError>>()?;
                 Declaration::Namespace {
                     descriptor,
                     statements,
@@ -110,25 +97,22 @@ impl Transpiler {
                 static_parameters,
                 value,
             } => {
-                let descriptor = self
-                    .lower_declaration_descriptor(module, tree, symbols, types, descriptor, unit);
+                let descriptor = self.lower_declaration_descriptor(descriptor);
                 let static_parameters = static_parameters
                     .as_ref()
                     .map(|params| {
                         params
                             .iter()
-                            .map(|param| {
-                                self.lower_parameter(module, tree, symbols, types, *param, unit)
-                            })
-                            .collect::<Result<Vec<_>, TranspileError>>()
+                            .map(|param| self.lower_parameter(*param))
+                            .collect::<Result<Vec<_>, CodegenJsError>>()
                     })
                     .transpose()?;
                 let value_expression = self
-                    .lower_expression(module, tree, symbols, types, *value, unit)
-                    .expect_node::<Expression>(value.into_global_any(module.id), unit)?;
-                let value = unit.ast.insert_from_source_any(
+                    .lower_expression(*value)
+                    .expect_node::<Expression>(value.into_global_any(self.module.id), self)?;
+                let value = self.tree.insert_from_source_any(
                     Type::Expression(value_expression),
-                    module.id,
+                    self.module.id,
                     value.into_any(),
                 );
                 Declaration::Type {
@@ -144,16 +128,13 @@ impl Transpiler {
                 heritage,
                 properties,
             } => {
-                let descriptor = self
-                    .lower_declaration_descriptor(module, tree, symbols, types, descriptor, unit);
-                let generics = self.lower_generics(module, tree, symbols, types, generics, unit)?;
-                let heritage = self.lower_heritage(module, tree, symbols, types, heritage, unit)?;
+                let descriptor = self.lower_declaration_descriptor(descriptor);
+                let generics = self.lower_generics(generics)?;
+                let heritage = self.lower_heritage(heritage)?;
                 let properties = properties
                     .iter()
-                    .map(|property| {
-                        self.lower_property(module, tree, symbols, types, *property, unit)
-                    })
-                    .collect::<Result<Vec<_>, TranspileError>>()?;
+                    .map(|property| self.lower_property(*property))
+                    .collect::<Result<Vec<_>, CodegenJsError>>()?;
                 // NOTE #Incomplete: struct declarations should become just JS types + namespaces?
                 Declaration::Class {
                     descriptor,
@@ -169,16 +150,13 @@ impl Transpiler {
                 heritage,
                 properties,
             } => {
-                let descriptor = self
-                    .lower_declaration_descriptor(module, tree, symbols, types, descriptor, unit);
-                let generics = self.lower_generics(module, tree, symbols, types, generics, unit)?;
-                let heritage = self.lower_heritage(module, tree, symbols, types, heritage, unit)?;
+                let descriptor = self.lower_declaration_descriptor(descriptor);
+                let generics = self.lower_generics(generics)?;
+                let heritage = self.lower_heritage(heritage)?;
                 let properties = properties
                     .iter()
-                    .map(|property| {
-                        self.lower_property(module, tree, symbols, types, *property, unit)
-                    })
-                    .collect::<Result<Vec<_>, TranspileError>>()?;
+                    .map(|property| self.lower_property(*property))
+                    .collect::<Result<Vec<_>, CodegenJsError>>()?;
                 Declaration::Class {
                     descriptor,
                     generics,
@@ -193,16 +171,13 @@ impl Transpiler {
                 heritage,
                 properties,
             } => {
-                let descriptor = self
-                    .lower_declaration_descriptor(module, tree, symbols, types, descriptor, unit);
-                let generics = self.lower_generics(module, tree, symbols, types, generics, unit)?;
-                let heritage = self.lower_heritage(module, tree, symbols, types, heritage, unit)?;
+                let descriptor = self.lower_declaration_descriptor(descriptor);
+                let generics = self.lower_generics(generics)?;
+                let heritage = self.lower_heritage(heritage)?;
                 let properties = properties
                     .iter()
-                    .map(|property| {
-                        self.lower_property(module, tree, symbols, types, *property, unit)
-                    })
-                    .collect::<Result<Vec<_>, TranspileError>>()?;
+                    .map(|property| self.lower_property(*property))
+                    .collect::<Result<Vec<_>, CodegenJsError>>()?;
                 Declaration::Interface {
                     descriptor,
                     generics,
@@ -218,12 +193,11 @@ impl Transpiler {
                 fields,
                 properties: _,
             } => {
-                let descriptor = self
-                    .lower_declaration_descriptor(module, tree, symbols, types, descriptor, unit);
+                let descriptor = self.lower_declaration_descriptor(descriptor);
                 let fields = fields
                     .iter()
-                    .map(|field| self.lower_enum_field(module, tree, symbols, types, *field, unit))
-                    .collect::<Result<Vec<_>, TranspileError>>()?;
+                    .map(|field| self.lower_enum_field(*field))
+                    .collect::<Result<Vec<_>, CodegenJsError>>()?;
                 Declaration::Enum { descriptor, fields }
             }
             dir::Declaration::Function {
@@ -232,14 +206,12 @@ impl Transpiler {
                 signature,
                 body,
             } => {
-                let descriptor = self
-                    .lower_declaration_descriptor(module, tree, symbols, types, descriptor, unit);
-                let signature =
-                    self.lower_function_signature(module, tree, symbols, types, signature, unit)?;
+                let descriptor = self.lower_declaration_descriptor(descriptor);
+                let signature = self.lower_function_signature(signature)?;
                 let body = body
                     .map(|body| {
-                        self.lower_expression(module, tree, symbols, types, body, unit)
-                            .expect_node::<Block>(body.into_global_any(module.id), unit)
+                        self.lower_expression(body)
+                            .expect_node::<Block>(body.into_global_any(self.module.id), self)
                     })
                     .transpose()?;
                 Declaration::Function {
@@ -249,40 +221,39 @@ impl Transpiler {
                 }
             }
             _ => {
-                return Err(TranspileError::UnsupportedConstruct {
-                    node: declaration_id.into_global_any(module.id),
+                return Err(CodegenJsError::UnsupportedConstruct {
+                    node: declaration_id.into_global_any(self.module.id),
                     message: None,
                 });
             }
         };
-        let declaration_id = unit
-            .ast
-            .insert_from_source(declaration, module.id, declaration_id);
+        let declaration_id =
+            self.tree
+                .insert_from_source(declaration, self.module.id, declaration_id);
         Ok(declaration_id)
     }
 
     /// Lower an enum field from DIR into JS AST.
     pub fn lower_enum_field(
-        &self,
-        module: &Module,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &TypeTable,
+        &mut self,
         field_id: dir::LocalNodeId<dir::EnumField>,
-        unit: &mut TranspilerUnit,
-    ) -> TranspileResult<LocalNodeId<EnumField>> {
-        let field = tree.get(field_id);
-        let name = unit.strings.intern_from(&module.ast.strings, field.name);
+    ) -> CodegenJsResult<LocalNodeId<EnumField>> {
+        let field = self.dir_tree.get(field_id);
+        let name = self
+            .strings
+            .intern_from(&self.module.ast.strings, field.name);
         let value = field
             .value
             .as_ref()
             .map(|value_id| {
-                self.lower_expression(module, tree, symbols, types, *value_id, unit)
-                    .expect_node::<Expression>(value_id.into_global_any(module.id), unit)
+                self.lower_expression(*value_id)
+                    .expect_node::<Expression>(value_id.into_global_any(self.module.id), self)
             })
             .transpose()?;
         let field = EnumField { name, value };
-        let field_id = unit.ast.insert_from_source(field, module.id, field_id);
+        let field_id = self
+            .tree
+            .insert_from_source(field, self.module.id, field_id);
         Ok(field_id)
     }
 }

@@ -1,34 +1,29 @@
 use crate::{
-    Expression, LocalNodeId, Pattern, PatternField, TranspileError, TranspileResult,
-    TranspileResultExt, Transpiler, TranspilerUnit,
+    CodegenJsError, CodegenJsResult, CodegenJsResultExt, Expression, LocalNodeId, ModuleLowerer,
+    Pattern, PatternField,
 };
-use destack_dir::{self as dir, NodeTree, SymbolTable, TypeTable};
-use destack_workspace::Module;
+use destack_dir as dir;
 
-impl Transpiler {
+impl ModuleLowerer<'_> {
     /// Lower a pattern from DIR into JS AST.
     pub fn lower_pattern(
-        &self,
-        module: &Module,
-        tree: &NodeTree,
-        _symbols: &SymbolTable,
-        _types: &TypeTable,
+        &mut self,
         pattern_id: dir::LocalNodeId<dir::Pattern>,
-        unit: &mut TranspilerUnit,
-    ) -> TranspileResult<LocalNodeId<Pattern>> {
-        let pattern = tree.get(pattern_id);
+    ) -> CodegenJsResult<LocalNodeId<Pattern>> {
+        let pattern = self.dir_tree.get(pattern_id);
         let pattern_id = match pattern {
             dir::Pattern::Wildcard => {
-                let name = unit.strings.intern("_");
+                let name = self.strings.intern("_");
                 let pattern = Pattern::Binding {
                     mutability: None,
                     name,
                 };
-                unit.ast.insert_from_source(pattern, module.id, pattern_id)
+                self.tree
+                    .insert_from_source(pattern, self.module.id, pattern_id)
             }
             _ => {
-                return Err(TranspileError::UnsupportedConstruct {
-                    node: pattern_id.into_global_any(module.id),
+                return Err(CodegenJsError::UnsupportedConstruct {
+                    node: pattern_id.into_global_any(self.module.id),
                     message: None,
                 });
             }
@@ -38,15 +33,10 @@ impl Transpiler {
 
     /// Lower a pattern field from DIR into JS AST.
     pub fn lower_pattern_field(
-        &self,
-        module: &Module,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &TypeTable,
+        &mut self,
         pattern_field_id: dir::LocalNodeId<dir::PatternField>,
-        unit: &mut TranspilerUnit,
-    ) -> TranspileResult<LocalNodeId<PatternField>> {
-        let pattern_field = tree.get(pattern_field_id);
+    ) -> CodegenJsResult<LocalNodeId<PatternField>> {
+        let pattern_field = self.dir_tree.get(pattern_field_id);
         let pattern_field_id = match pattern_field {
             dir::PatternField::Named {
                 mutability,
@@ -56,14 +46,16 @@ impl Transpiler {
                 symbol: _,
             } => {
                 let mutability = mutability.map(|mutability| self.lower_mutability(mutability));
-                let name = unit.strings.intern_from(&self.program.strings, *name);
+                let name = self.strings.intern_from(&self.program.strings, *name);
                 let pattern = pattern
-                    .map(|pattern| self.lower_pattern(module, tree, symbols, types, pattern, unit))
+                    .map(|pattern| self.lower_pattern(pattern))
                     .transpose()?;
                 let default = default
                     .map(|default| {
-                        self.lower_expression(module, tree, symbols, types, default, unit)
-                            .expect_node::<Expression>(default.into_global_any(module.id), unit)
+                        self.lower_expression(default).expect_node::<Expression>(
+                            default.into_global_any(self.module.id),
+                            self,
+                        )
                     })
                     .transpose()?;
                 let pattern_field = PatternField::Named {
@@ -72,8 +64,8 @@ impl Transpiler {
                     pattern,
                     default,
                 };
-                unit.ast
-                    .insert_from_source(pattern_field, module.id, pattern_field_id)
+                self.tree
+                    .insert_from_source(pattern_field, self.module.id, pattern_field_id)
             }
             dir::PatternField::Alias {
                 mutability,
@@ -83,12 +75,14 @@ impl Transpiler {
                 symbol: _,
             } => {
                 let mutability = mutability.map(|mutability| self.lower_mutability(mutability));
-                let name = unit.strings.intern_from(&self.program.strings, *name);
-                let alias = unit.strings.intern_from(&self.program.strings, *alias);
+                let name = self.strings.intern_from(&self.program.strings, *name);
+                let alias = self.strings.intern_from(&self.program.strings, *alias);
                 let default = default
                     .map(|default| {
-                        self.lower_expression(module, tree, symbols, types, default, unit)
-                            .expect_node::<Expression>(default.into_global_any(module.id), unit)
+                        self.lower_expression(default).expect_node::<Expression>(
+                            default.into_global_any(self.module.id),
+                            self,
+                        )
                     })
                     .transpose()?;
                 let pattern_field = PatternField::Alias {
@@ -97,14 +91,14 @@ impl Transpiler {
                     alias,
                     default,
                 };
-                unit.ast
-                    .insert_from_source(pattern_field, module.id, pattern_field_id)
+                self.tree
+                    .insert_from_source(pattern_field, self.module.id, pattern_field_id)
             }
             dir::PatternField::Positional { pattern } => {
-                let pattern = self.lower_pattern(module, tree, symbols, types, *pattern, unit)?;
+                let pattern = self.lower_pattern(*pattern)?;
                 let pattern_field = PatternField::Positional { pattern };
-                unit.ast
-                    .insert_from_source(pattern_field, module.id, pattern_field_id)
+                self.tree
+                    .insert_from_source(pattern_field, self.module.id, pattern_field_id)
             }
             dir::PatternField::Spread {
                 mutability,
@@ -112,10 +106,10 @@ impl Transpiler {
                 symbol: _,
             } => {
                 let mutability = mutability.map(|mutability| self.lower_mutability(mutability));
-                let name = name.map(|name| unit.strings.intern_from(&self.program.strings, name));
+                let name = name.map(|name| self.strings.intern_from(&self.program.strings, name));
                 let pattern_field = PatternField::Spread { mutability, name };
-                unit.ast
-                    .insert_from_source(pattern_field, module.id, pattern_field_id)
+                self.tree
+                    .insert_from_source(pattern_field, self.module.id, pattern_field_id)
             }
         };
         Ok(pattern_field_id)

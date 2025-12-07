@@ -1,13 +1,10 @@
 use crate::{
-    Asynchrony, FunctionAbstraction, FunctionCardinality, FunctionKind, FunctionMode,
-    FunctionSignature,
+    Asynchrony, CodegenJsError, CodegenJsResult, FunctionAbstraction, FunctionCardinality,
+    FunctionKind, FunctionMode, FunctionSignature, ModuleLowerer,
 };
-use destack_dir::{self as dir, NodeTree, SymbolTable, TypeTable};
-use destack_workspace::Module;
+use destack_dir as dir;
 
-use crate::{TranspileError, TranspileResult, Transpiler, TranspilerUnit};
-
-impl Transpiler {
+impl ModuleLowerer<'_> {
     /// Lower asynchrony from DIR into JS AST.
     pub fn lower_asynchrony(&self, asynchrony: dir::Asynchrony) -> Asynchrony {
         match asynchrony {
@@ -61,14 +58,9 @@ impl Transpiler {
 
     /// Lower a function signature from DIR into JS AST.
     pub fn lower_function_signature(
-        &self,
-        module: &Module,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &TypeTable,
+        &mut self,
         function_signature: &dir::FunctionSignature,
-        unit: &mut TranspilerUnit,
-    ) -> TranspileResult<FunctionSignature> {
+    ) -> CodegenJsResult<FunctionSignature> {
         let abstraction = self.lower_function_abstraction(function_signature.abstraction);
         let asynchrony = self.lower_asynchrony(function_signature.asynchrony);
         let cardinality = self.lower_function_cardinality(function_signature.cardinality);
@@ -79,15 +71,15 @@ impl Transpiler {
         let generics = function_signature
             .generics
             .as_ref()
-            .map(|generics| self.lower_generics(module, tree, symbols, types, generics, unit))
+            .map(|generics| self.lower_generics(generics))
             .transpose()?;
         let dynamic_parameters = function_signature
             .dynamic_parameters
             .iter()
-            .map(|parameter| self.lower_parameter(module, tree, symbols, types, *parameter, unit))
-            .collect::<Result<Vec<_>, TranspileError>>()?;
+            .map(|parameter| self.lower_parameter(*parameter))
+            .collect::<Result<Vec<_>, CodegenJsError>>()?;
         let return_type = function_signature.return_type.map(|_| {
-            todo!("transpile return type");
+            todo!("generate return type");
         });
         Ok(FunctionSignature {
             abstraction,

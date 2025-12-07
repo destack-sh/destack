@@ -63,6 +63,11 @@ pub enum GenerateError {
         node: GlobalNodeIdAny,
         message: Option<String>,
     },
+    /// Internal codegen error.
+    Internal {
+        node: GlobalNodeIdAny,
+        message: String,
+    },
 }
 
 impl TryFrom<GenerateError> for TaskDependency {
@@ -102,6 +107,7 @@ impl GenerateError {
             Self::TargetLimitExceeded { .. } => 9,
             Self::WriteFailure { .. } => 10,
             Self::MissingRuntime { .. } => 11,
+            Self::Internal { .. } => 12,
         }
     }
 
@@ -120,6 +126,7 @@ impl GenerateError {
             Self::TargetLimitExceeded { node, .. } => *node,
             Self::WriteFailure { node, .. } => *node,
             Self::MissingRuntime { node, .. } => *node,
+            Self::Internal { node, .. } => *node,
         }
     }
 
@@ -138,6 +145,7 @@ impl GenerateError {
             Self::TargetLimitExceeded { .. } => "target limit exceeded".to_string(),
             Self::WriteFailure { .. } => "write failure".to_string(),
             Self::MissingRuntime { .. } => "missing runtime".to_string(),
+            Self::Internal { message, .. } => format!("internal error: {message}"),
         }
     }
 }

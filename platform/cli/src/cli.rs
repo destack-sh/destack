@@ -6,7 +6,6 @@ use crate::command::format::FormatArgs;
 use crate::command::lex::LexArgs;
 use crate::command::parse::ParseArgs;
 use crate::command::resolve::ResolveArgs;
-use crate::command::transpile::TranspileArgs;
 use crate::command::version::VersionCommands;
 
 #[derive(Parser, Debug)]
@@ -29,8 +28,6 @@ pub enum Command {
     Resolve(ResolveArgs),
     /// Compile source into its final DIR.
     Compile(CompileArgs),
-    /// Transpile source into its final JavaScript.
-    Transpile(TranspileArgs),
     /// Format source files.
     #[command(alias = "fmt")]
     Format(FormatArgs),

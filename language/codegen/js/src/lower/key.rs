@@ -1,19 +1,11 @@
-use crate::{Expression, Key, Name};
+use crate::{CodegenJsResult, CodegenJsResultExt, Expression, Key, ModuleLowerer, Name};
 use destack_ast::{StringId, is_identifier};
-use destack_dir::{self as dir, NodeTree, SymbolTable, TypeTable};
-use destack_workspace::Module;
+use destack_dir as dir;
 
-use crate::{TranspileResult, TranspileResultExt, Transpiler, TranspilerUnit};
-
-impl Transpiler {
+impl ModuleLowerer<'_> {
     /// Lower a string to a name.
-    pub fn lower_string_to_name(
-        &self,
-        _module: &Module,
-        string_id: StringId,
-        unit: &mut TranspilerUnit,
-    ) -> Name {
-        let string_id = unit.strings.intern_from(&self.program.strings, string_id);
+    pub fn lower_string_to_name(&mut self, string_id: StringId) -> Name {
+        let string_id = self.strings.intern_from(&self.program.strings, string_id);
         let string = self.program.strings.get(string_id);
         if is_identifier(string.as_ref()) {
             Name::Identifier(string_id)
@@ -23,31 +15,26 @@ impl Transpiler {
     }
 
     /// Lower a key from DIR into JS AST.
-    pub fn lower_key(
-        &self,
-        module: &Module,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &TypeTable,
-        key: dir::DynamicKey,
-        unit: &mut TranspilerUnit,
-    ) -> TranspileResult<Key> {
+    pub fn lower_key(&mut self, key: dir::DynamicKey) -> CodegenJsResult<Key> {
         let key = match key {
             dir::DynamicKey::Name(name) => {
-                let name = self.lower_string_to_name(module, name, unit);
+                let name = self.lower_string_to_name(name);
                 Key::Name(name)
             }
             dir::DynamicKey::Expression(expression_id) => {
                 let expression_id = self
-                    .lower_expression(module, tree, symbols, types, expression_id, unit)
-                    .expect_node::<Expression>(expression_id.into_global_any(module.id), unit)?;
+                    .lower_expression(expression_id)
+                    .expect_node::<Expression>(
+                        expression_id.into_global_any(self.module.id),
+                        self,
+                    )?;
                 Key::Expression(expression_id)
             }
             dir::DynamicKey::NamedExpression { name, key } => {
-                let name = self.lower_string_to_name(module, name, unit);
+                let name = self.lower_string_to_name(name);
                 let key = self
-                    .lower_expression(module, tree, symbols, types, key, unit)
-                    .expect_node::<Expression>(key.into_global_any(module.id), unit)?;
+                    .lower_expression(key)
+                    .expect_node::<Expression>(key.into_global_any(self.module.id), self)?;
                 Key::NamedExpression { name, key }
             }
         };
