@@ -1,4 +1,4 @@
-use crate::{Compiler, TaskDependencyError, ResolveResult, Task, TaskDebug, TaskOutput};
+use crate::{Compiler, ResolveResult, Task, TaskDebug, TaskDependencyError, TaskOutput};
 
 use destack_source::ModuleId;
 use destack_workspace::Program;
@@ -57,7 +57,10 @@ impl Compiler {
     /// Process a resolve task.
     pub fn process_resolve(&self, task: ResolveTask) -> ResolveResult<ResolveOutput> {
         match task {
-            ResolveTask::ResolveModule { module } => self.resolve_module(module)?,
+            ResolveTask::ResolveModule { module } => {
+                self.ensure_bound(module)?;
+                self.resolve_module(module)?;
+            }
         }
         Ok(ResolveOutput {})
     }

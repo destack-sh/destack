@@ -1247,16 +1247,16 @@ impl Compiler {
 mod tests {
     use destack_dir::{Expression, PrimitiveType, Type, TypeLiteral};
 
-    use crate::{ImportTask, TestProgram, assert_type};
+    use crate::{TestProgram, assert_type};
 
     #[test]
     fn test_analyze_number_literal() {
         let test = TestProgram::memory_sequential();
-        let file = test.file("test.ds", "42");
-        test.enqueue(ImportTask::ImportModuleFromFile { file: file.id });
+        let module_id = test.register_module("test.ds", "42");
+        test.analyze_module(module_id);
         test.compile_dump_clean();
 
-        let module = test.module_for_file(&file);
+        let module = test.program.modules.get(module_id);
         let module = module.read();
         let tree = module.dir.tree.read();
         let types = module.dir.types.read();
@@ -1284,11 +1284,11 @@ mod tests {
     #[test]
     fn test_analyze_string_literal() {
         let test = TestProgram::memory_sequential();
-        let file = test.file("test.ds", r#""hello""#);
-        test.enqueue(ImportTask::ImportModuleFromFile { file: file.id });
+        let module_id = test.register_module("test.ds", r#""hello""#);
+        test.analyze_module(module_id);
         test.compile_dump_clean();
 
-        let module = test.module_for_file(&file);
+        let module = test.program.modules.get(module_id);
         let module = module.read();
         let tree = module.dir.tree.read();
         let types = module.dir.types.read();
@@ -1316,11 +1316,11 @@ mod tests {
     #[test]
     fn test_analyze_boolean_literal() {
         let test = TestProgram::memory_sequential();
-        let file = test.file("test.ds", "true");
-        test.enqueue(ImportTask::ImportModuleFromFile { file: file.id });
+        let module_id = test.register_module("test.ds", "true");
+        test.analyze_module(module_id);
         test.compile_dump_clean();
 
-        let module = test.module_for_file(&file);
+        let module = test.program.modules.get(module_id);
         let module = module.read();
         let tree = module.dir.tree.read();
         let types = module.dir.types.read();
@@ -1348,11 +1348,11 @@ mod tests {
     #[test]
     fn test_analyze_binary_number_operation() {
         let test = TestProgram::memory_sequential();
-        let file = test.file("test.ds", "1 + 2");
-        test.enqueue(ImportTask::ImportModuleFromFile { file: file.id });
+        let module_id = test.register_module("test.ds", "1 + 2");
+        test.analyze_module(module_id);
         test.compile_dump_clean();
 
-        let module = test.module_for_file(&file);
+        let module = test.program.modules.get(module_id);
         let module = module.read();
         let tree = module.dir.tree.read();
         let types = module.dir.types.read();
@@ -1380,11 +1380,11 @@ mod tests {
     #[test]
     fn test_analyze_binary_number_comparison() {
         let test = TestProgram::memory_sequential();
-        let file = test.file("test.ds", "1 < 2");
-        test.enqueue(ImportTask::ImportModuleFromFile { file: file.id });
+        let module_id = test.register_module("test.ds", "1 < 2");
+        test.analyze_module(module_id);
         test.compile_dump_clean();
 
-        let module = test.module_for_file(&file);
+        let module = test.program.modules.get(module_id);
         let module = module.read();
         let tree = module.dir.tree.read();
         let types = module.dir.types.read();
@@ -1412,11 +1412,11 @@ mod tests {
     #[test]
     fn test_analyze_let_expression_infer_type() {
         let test = TestProgram::memory_sequential();
-        let file = test.file("test.ds", "let x = 42");
-        test.enqueue(ImportTask::ImportModuleFromFile { file: file.id });
+        let module_id = test.register_module("test.ds", "let x = 42");
+        test.analyze_module(module_id);
         test.compile_dump_clean();
 
-        let module = test.module_for_file(&file);
+        let module = test.program.modules.get(module_id);
         let module = module.read();
         let types = module.dir.types.read();
 
@@ -1446,11 +1446,11 @@ mod tests {
     #[test]
     fn test_analyze_let_expression_declare_type() {
         let test = TestProgram::memory_sequential();
-        let file = test.file("test.ds", "let x: string = 42");
-        test.enqueue(ImportTask::ImportModuleFromFile { file: file.id });
+        let module_id = test.register_module("test.ds", "let x: string = 42");
+        test.analyze_module(module_id);
         test.compile_dump_clean();
 
-        let module = test.module_for_file(&file);
+        let module = test.program.modules.get(module_id);
         let module = module.read();
         let tree = module.dir.tree.read();
         let types = module.dir.types.read();
@@ -1492,16 +1492,16 @@ mod tests {
     #[test]
     fn test_analyze_let_expression_infer_tuple_type_with_pattern() {
         let test = TestProgram::memory_sequential();
-        let file = test.file(
+        let module_id = test.register_module(
             "test.ds",
             r#"
 let (x, y, ...rest, z) = (123, 'abc', true, 456);
 "#,
         );
-        test.enqueue(ImportTask::ImportModuleFromFile { file: file.id });
+        test.analyze_module(module_id);
         test.compile_dump_clean();
 
-        let module = test.module_for_file(&file);
+        let module = test.program.modules.get(module_id);
         let module = module.read();
         let types = module.dir.types.read();
 
@@ -1553,16 +1553,16 @@ let (x, y, ...rest, z) = (123, 'abc', true, 456);
     #[test]
     fn test_analyze_let_expression_infer_array_tuple_type_with_pattern() {
         let test = TestProgram::memory_sequential();
-        let file = test.file(
+        let module_id = test.register_module(
             "test.ds",
             r#"
 let [x, y, ...rest, z] = [123, 'abc', true, 456]; // array used as a tuple
 "#,
         );
-        test.enqueue(ImportTask::ImportModuleFromFile { file: file.id });
+        test.analyze_module(module_id);
         test.compile_dump_clean();
 
-        let module = test.module_for_file(&file);
+        let module = test.program.modules.get(module_id);
         let module = module.read();
         let types = module.dir.types.read();
 

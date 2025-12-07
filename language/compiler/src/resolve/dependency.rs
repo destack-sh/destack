@@ -6,9 +6,7 @@ use destack_dir::{
 use destack_source::ModuleId;
 use destack_workspace::Module;
 
-use crate::{
-    Compiler, ImportOutput, ImportTask, ResolveError, ResolveResult, TaskDependency, TaskOutput,
-};
+use crate::{Compiler, ResolveError, ResolveResult, TaskDependencyError};
 
 impl Compiler {
     /// Whether the target is a relative import.
@@ -17,25 +15,24 @@ impl Compiler {
         target_str.starts_with("./") || target_str.starts_with("../")
     }
 
-    /// Try to resolve an import of some target specifier.
-    /// Returns the resolved module id if successful, otherwise returns the yield "error".
+    /// Try to resolve an import of some target specifier synchronously.
     pub(super) fn resolve_import(
         &self,
         module: &Module,
         node: GlobalNodeIdAny,
-        source: DependencySource,
+        _source: DependencySource,
         target: StringId,
         symbols: &mut SymbolTable,
     ) -> ResolveResult<ModuleId> {
         let is_relative = self.is_import_relative(target);
         let relative_module = if is_relative { Some(module.id) } else { None };
 
-        // get locally resolved import
+        // check if already resolved locally
         if let Some(remote_module_id) = symbols.get_resolved_import(relative_module, target) {
             return Ok(remote_module_id);
         }
 
-        // get globally resolved import
+        // check if already resolved globally
         if !is_relative {
             let global_module = self.program.modules.get(self.program.root_module_id);
             let global_module = global_module.read();
@@ -46,32 +43,20 @@ impl Compiler {
             }
         }
 
-        // not resolved yet, prepare import task
-        let import_task = ImportTask::ImportModuleFromSpecifier {
-            source,
-            target,
-            ty: None,
-            module: relative_module,
-        };
+        // resolve specifier to module id (synchronous)
+        let remote_module_id = self
+            .resolve_specifier_to_module(target, relative_module)
+            .map_err(|_| ResolveError::UnresolvedModule { node, target })?;
 
-        // skip yield if import task now has an output
-        if let Some(output) = self.get_output(import_task.clone())
-            && let TaskOutput::Import(ImportOutput {
-                module: remote_module_id,
-            }) = output
-        {
-            symbols.resolve_import(relative_module, target, remote_module_id);
-            return Ok(remote_module_id);
-        }
+        // ensure the target module is bound (may yield)
+        self.ensure_bound(remote_module_id).map_err(|e| match e {
+            TaskDependencyError::NotReady { dependency } => ResolveError::Yield { dependency },
+            TaskDependencyError::Failed { .. } => ResolveError::UnresolvedModule { node, target },
+        })?;
 
-        // yield to import task
-        let error = ResolveError::UnresolvedModule { node, target };
-        let dependency = TaskDependency::Complete {
-            node,
-            task: import_task.into(),
-            error: Some(Box::new(error.into())),
-        };
-        Err(ResolveError::Yield { dependency })
+        // record the resolved import
+        symbols.resolve_import(relative_module, target, remote_module_id);
+        Ok(remote_module_id)
     }
 
     /// Resolve a DependencyItem.

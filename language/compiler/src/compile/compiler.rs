@@ -180,10 +180,7 @@ impl Compiler {
     }
 
     /// Require a task to be complete, returning an error if it's not ready or has failed.
-    pub fn require_task<T: Into<Task> + Clone>(
-        &self,
-        task: T,
-    ) -> Result<(), TaskDependencyError> {
+    pub fn require_task<T: Into<Task> + Clone>(&self, task: T) -> Result<(), TaskDependencyError> {
         let t: Task = task.clone().into();
         match self.queue.find_task_status(&t) {
             Some(TaskStatus::Complete { .. }) => Ok(()),

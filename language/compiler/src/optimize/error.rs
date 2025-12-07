@@ -1,6 +1,6 @@
 use destack_dir::GlobalNodeIdAny;
 
-use crate::{TaskDependency, TaskError, TaskPhase};
+use crate::{TaskDependency, TaskDependencyError, TaskError, TaskPhase};
 
 use destack_workspace::Program;
 
@@ -21,6 +21,17 @@ pub enum OptimizeError {
         node: GlobalNodeIdAny,
         behavior: String,
     },
+}
+
+impl From<TaskDependencyError> for OptimizeError {
+    fn from(e: TaskDependencyError) -> Self {
+        match e {
+            TaskDependencyError::NotReady { dependency } => Self::Yield { dependency },
+            TaskDependencyError::Failed { dependency } => {
+                Self::UnsatisfiedDependency { dependency }
+            }
+        }
+    }
 }
 
 impl TryFrom<OptimizeError> for TaskDependency {

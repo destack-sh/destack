@@ -98,6 +98,12 @@ impl NodeTree {
         self.next_global_id
     }
 
+    /// Check if the tree is empty (no nodes).
+    #[inline]
+    pub fn is_empty(&self) -> bool {
+        self.next_global_id == 0
+    }
+
     /// Allocate a new node in the tree.
     ///
     /// Returns a stable NodeId that can be used to retrieve the node later.

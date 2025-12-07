@@ -1,11 +1,11 @@
+use std::path::Path;
+
 use clap::{ArgGroup, Args, ValueEnum};
 use destack_codegen_js::{TranspileOptions, TranspileTarget, Transpiler};
 use destack_compiler::{CompileOptions, Compiler, ImportTask};
-use destack_source::{DiagnosticOptions, DiagnosticSeverity, FileContent};
+use destack_source::{DiagnosticOptions, DiagnosticSeverity, FileContent, FileType, Uri};
 
-use crate::command::{
-    DiagnosticArgs, ProgramArgs, SourceArg, get_string_or_file, print_diagnostics,
-};
+use crate::command::{DiagnosticArgs, ProgramArgs, print_diagnostics};
 use crate::console;
 
 /// The target language to transpile to.
@@ -70,23 +70,7 @@ pub fn run(args: &TranspileArgs) -> i32 {
     let diagnostic_options: DiagnosticOptions = args.diagnostics.clone().into();
     let program = args.program.setup();
 
-    // read input source
-    let file = match get_string_or_file(
-        &program,
-        SourceArg {
-            file: args.file.as_deref(),
-            string: args.string.as_deref(),
-            format: None,
-        },
-    ) {
-        Ok(file) => file,
-        Err(e) => {
-            console::error(&format!("error: {e}"));
-            return 1;
-        }
-    };
-
-    // compile source
+    // create compiler
     let compiler = Compiler::new(
         program.clone(),
         CompileOptions {
@@ -95,7 +79,29 @@ pub fn run(args: &TranspileArgs) -> i32 {
             ..Default::default()
         },
     );
-    compiler.enqueue(ImportTask::ImportModuleFromFile { file: file.id });
+
+    // resolve input source to module
+    let module_id = if let Some(ref path_str) = args.file {
+        // file input: resolve path to module
+        let path = Path::new(path_str);
+        match compiler.resolve_path_to_module(&path.to_path_buf()) {
+            Ok(id) => id,
+            Err(e) => {
+                console::error(&format!("error: {e:?}"));
+                return 1;
+            }
+        }
+    } else if let Some(ref string) = args.string {
+        // string input: register inline module on program
+        let uri = Uri::from_string("<string>");
+        program.register_inline_module(uri, string.clone(), FileType::Destack)
+    } else {
+        console::error("error: no source input provided");
+        return 1;
+    };
+
+    // compile (import phase)
+    compiler.enqueue(ImportTask::ImportModule { module: module_id });
     compiler.compile();
     drop(compiler);
 

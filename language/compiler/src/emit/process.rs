@@ -1,4 +1,4 @@
-use crate::{Compiler, EmitError, EmitResult, Task, TaskDebug, TaskDependencyError, TaskOutput};
+use crate::{Compiler, EmitResult, Task, TaskDebug, TaskOutput};
 
 use destack_source::{ModuleId, PackageId};
 use destack_workspace::Program;
@@ -99,13 +99,7 @@ impl Compiler {
         let module_guard = module_arc.read();
         let package = module_guard.package_id;
 
-        // ensure link is complete
-        self.ensure_linked(package, target).map_err(|e| match e {
-            TaskDependencyError::NotReady { dependency } => EmitError::Yield { dependency },
-            TaskDependencyError::Failed { dependency } => {
-                EmitError::UnsatisfiedDependency { dependency }
-            }
-        })?;
+        self.ensure_linked(package, target)?;
 
         // NOTE #Incomplete: implement emit_module
         // 1. look up target from package
@@ -118,13 +112,7 @@ impl Compiler {
 
     /// Emit all outputs for a package target.
     fn emit_package(&self, package: PackageId, target: &str) -> EmitResult<EmitOutput> {
-        // ensure link is complete
-        self.ensure_linked(package, target).map_err(|e| match e {
-            TaskDependencyError::NotReady { dependency } => EmitError::Yield { dependency },
-            TaskDependencyError::Failed { dependency } => {
-                EmitError::UnsatisfiedDependency { dependency }
-            }
-        })?;
+        self.ensure_linked(package, target)?;
 
         // NOTE #Incomplete: implement emit_package
         // 1. look up target from package

@@ -63,6 +63,26 @@ pub enum FileContent {
 }
 
 impl File {
+    /// Create a blank unloaded File (content not yet loaded).
+    pub fn unloaded(
+        id: FileId,
+        name: String,
+        uri: Uri,
+        path: Option<PathBuf>,
+        ty: FileType,
+    ) -> Self {
+        Self {
+            id,
+            name,
+            uri,
+            path,
+            ty,
+            len: 0,
+            content: FileContent::Unloaded,
+            line_start_offsets: None,
+        }
+    }
+
     /// Create an empty source in some format.
     pub fn empty_text_with_type(ty: FileType) -> Self {
         Self::from_text(
@@ -82,6 +102,11 @@ impl File {
             .unwrap_or_else(|| uri.as_ref())
             .to_string();
         Self::from_text(id, name, uri, None, ty, String::new())
+    }
+
+    /// Check if this file has content loaded.
+    pub fn is_loaded(&self) -> bool {
+        !matches!(self.content, FileContent::Unloaded)
     }
 
     /// Precompute line start byte offsets for O(1) line.

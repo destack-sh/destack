@@ -1,3 +1,5 @@
+//! Source input handling for CLI commands.
+
 use std::path::Path;
 use std::sync::Arc;
 
@@ -15,6 +17,7 @@ pub(crate) struct SourceArg<'a> {
 }
 
 /// Read a source either from a file or inline string argument.
+/// This creates a File and inserts it into the program's file registry.
 pub(crate) fn get_string_or_file(
     program: &Program,
     source: SourceArg<'_>,

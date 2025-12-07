@@ -1,13 +1,12 @@
+use std::path::Path;
+
 use clap::{ArgGroup, Args};
-use destack_compiler::{CompileOptions, Compiler, ImportTask};
+use destack_compiler::{AnalyzeTask, CompileOptions, Compiler};
 use destack_dir::{Dumper, DumperOptions, NodeVisitor};
 use destack_parser::colorize_source;
-use destack_source::DiagnosticOptions;
+use destack_source::{DiagnosticOptions, FileType, Uri};
 
-use crate::command::{
-    DiagnosticArgs, DumpFormat, DumpKind, ProgramArgs, SourceArg, get_string_or_file,
-    print_diagnostics,
-};
+use crate::command::{DiagnosticArgs, DumpFormat, DumpKind, ProgramArgs, print_diagnostics};
 use crate::console;
 
 #[derive(Args, Debug, Clone)]
@@ -62,23 +61,7 @@ pub fn run(args: &CompileArgs) -> i32 {
     let diagnostic_options: DiagnosticOptions = args.diagnostics.clone().into();
     let program = args.program.setup();
 
-    // read input source
-    let file = match get_string_or_file(
-        &program,
-        SourceArg {
-            file: args.file.as_deref(),
-            string: args.string.as_deref(),
-            format: args.format.as_deref(),
-        },
-    ) {
-        Ok(file) => file,
-        Err(e) => {
-            console::error(&format!("error: {e}"));
-            return 1;
-        }
-    };
-
-    // compile source
+    // create compiler
     let compiler = Compiler::new(
         program.clone(),
         CompileOptions {
@@ -87,7 +70,33 @@ pub fn run(args: &CompileArgs) -> i32 {
             ..Default::default()
         },
     );
-    compiler.enqueue(ImportTask::ImportModuleFromFile { file: file.id });
+
+    // determine file type
+    let format_name = args.format.as_deref().unwrap_or("ds");
+    let file_type = FileType::from_extension_or_unknown(format_name);
+
+    // resolve input source to module
+    let module_id = if let Some(ref path_str) = args.file {
+        // file input: resolve path to module
+        let path = Path::new(path_str);
+        match compiler.resolve_path_to_module(&path.to_path_buf()) {
+            Ok(id) => id,
+            Err(e) => {
+                console::error(&format!("error: {e:?}"));
+                return 1;
+            }
+        }
+    } else if let Some(ref string) = args.string {
+        // string input: register inline module on program
+        let uri = Uri::from_string("<string>");
+        program.register_inline_module(uri, string.clone(), file_type)
+    } else {
+        console::error("error: no source input provided");
+        return 1;
+    };
+
+    // compile (import phase)
+    compiler.enqueue(AnalyzeTask::AnalyzeModule { module: module_id });
     compiler.compile();
     drop(compiler);
 
