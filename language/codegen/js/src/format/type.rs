@@ -4,8 +4,8 @@ use destack_fir::format::FormatResult;
 use destack_fir::prelude::*;
 use destack_fir::write;
 
-use crate::generate::argument::list_like;
-use crate::generate::property::{
+use crate::format::argument::list_like;
+use crate::format::property::{
     format_binding_modifiers_postfix_maybe, format_binding_modifiers_prefix_maybe,
 };
 use crate::{FormatNode, JavaScriptFormatContext, JavaScriptFormatter};

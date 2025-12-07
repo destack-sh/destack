@@ -13,7 +13,7 @@ impl ModuleLowerer<'_> {
         let block = self.dir_tree.get(block_id);
         let label = block
             .label
-            .map(|label| self.strings.intern_from(&self.program.strings, label));
+            .map(|label| self.strings.intern_from(&self.module.ast.strings, label));
         let statements = block
             .expressions
             .iter()

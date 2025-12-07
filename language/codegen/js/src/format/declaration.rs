@@ -7,8 +7,8 @@ use destack_fir::format::FormatResult;
 use destack_fir::prelude::*;
 use destack_fir::{format_args, write};
 
-use crate::generate::argument::list_like;
-use crate::generate::block::format_block_of_statements;
+use crate::format::argument::list_like;
+use crate::format::block::format_block_of_statements;
 use crate::{FormatNode, JavaScriptFormatContext, JavaScriptFormatter};
 
 /// Format a super type clause.

@@ -4,21 +4,26 @@
 //! This is the JS codegen entry point, used for JS/TS targets.
 
 use destack_dir::{NodeTree as DirTree, SymbolTable, TypeTable};
-use destack_source::{
-    Diagnostic, DiagnosticCollector, DiagnosticSeverity, FileType, LabeledSpan, StringPool,
-};
+use destack_source::{FileType, StringPool};
 use destack_workspace::{
-    Artifact, ArtifactContent, ArtifactId, ArtifactScope, Module, OutputFormat, Program, Target,
+    Artifact, ArtifactContent, ArtifactId, ArtifactScope, Module, OutputFormat, Target,
 };
 
 use crate::tree::NodeTree as JsTree;
 use crate::{CodegenJsError, CodegenJsResult, CodegenJsWarning, LocalNodeIdAny};
 
+/// Output from JS code generation.
+#[derive(Debug)]
+pub struct CodegenJsOutput {
+    /// Generated artifacts.
+    pub artifacts: Vec<Artifact>,
+    /// Warnings encountered during generation.
+    pub warnings: Vec<CodegenJsWarning>,
+}
+
 /// Context for lowering a DIR module to JS AST.
 #[derive(Debug)]
 pub struct ModuleLowerer<'a> {
-    /// The program.
-    pub(crate) program: &'a Program,
     /// The source module.
     pub(crate) module: &'a Module,
     /// The DIR tree.
@@ -36,14 +41,15 @@ pub struct ModuleLowerer<'a> {
     pub(crate) roots: Vec<LocalNodeIdAny>,
     /// String pool for the output.
     pub(crate) strings: StringPool,
-    /// Collected diagnostics.
-    pub(crate) diagnostics: DiagnosticCollector,
+    /// Collected warnings.
+    pub(crate) warnings: Vec<CodegenJsWarning>,
+    /// Collected non-fatal errors (treated as warnings for continued processing).
+    pub(crate) errors: Vec<CodegenJsError>,
 }
 
 impl<'a> ModuleLowerer<'a> {
     /// Create a new module lowerer.
     pub fn new(
-        program: &'a Program,
         module: &'a Module,
         dir_tree: &'a DirTree,
         symbols: &'a SymbolTable,
@@ -51,7 +57,6 @@ impl<'a> ModuleLowerer<'a> {
         target: &'a Target,
     ) -> Self {
         Self {
-            program,
             module,
             dir_tree,
             symbols,
@@ -60,59 +65,23 @@ impl<'a> ModuleLowerer<'a> {
             tree: JsTree::new(),
             roots: Vec::new(),
             strings: StringPool::new(),
-            diagnostics: DiagnosticCollector::new(),
+            warnings: Vec::new(),
+            errors: Vec::new(),
         }
     }
 
-    /// Create a diagnostic from an error or warning.
-    fn make_diagnostic(
-        &self,
-        severity: DiagnosticSeverity,
-        node_id: destack_dir::GlobalNodeIdAny,
-        message: String,
-    ) -> Diagnostic {
-        let module = self.program.modules.get(node_id.module_id);
-        let module = module.read();
-        let source_node_id = module.dir.tree.read().get_source(node_id.local_id.id);
-        let primary_span = module.ast.tree.get_span_by_id(source_node_id);
-        let primary_span = LabeledSpan {
-            span: primary_span,
-            label: message.clone(),
-        };
-
-        Diagnostic {
-            code: String::new(),
-            original_code: None,
-            severity,
-            original_severity: None,
-            message,
-            file_id: module.file_id,
-            primary_span,
-            primary_highlight_spans: None,
-            secondary_spans: None,
-            suggestions: None,
-        }
+    /// Record a non-fatal error (allows lowering to continue).
+    pub(crate) fn error(&mut self, error: CodegenJsError) {
+        self.errors.push(error);
     }
 
-    /// Add an error diagnostic.
-    pub(crate) fn error(&self, error: CodegenJsError) {
-        let diagnostic =
-            self.make_diagnostic(DiagnosticSeverity::Error, error.node_id(), error.message());
-        self.diagnostics.insert(diagnostic);
-    }
-
-    /// Add a warning diagnostic.
-    pub(crate) fn warning(&self, warning: CodegenJsWarning) {
-        let diagnostic = self.make_diagnostic(
-            DiagnosticSeverity::Warning,
-            warning.node_id(),
-            warning.message(),
-        );
-        self.diagnostics.insert(diagnostic);
+    /// Record a warning.
+    pub(crate) fn warning(&mut self, warning: CodegenJsWarning) {
+        self.warnings.push(warning);
     }
 
     /// Lower the module to JS AST.
-    pub fn lower(&mut self) -> CodegenJsResult<()> {
+    pub fn lower_module(&mut self) -> CodegenJsResult<()> {
         for expression_id in self.module.dir.roots.iter() {
             match self.lower_expression(*expression_id) {
                 Ok(root_id) => self.roots.push(root_id),
@@ -122,8 +91,11 @@ impl<'a> ModuleLowerer<'a> {
         Ok(())
     }
 
-    /// Finish lowering and produce artifacts.
-    pub fn finish(self, registry_next_id: impl Fn() -> ArtifactId) -> CodegenJsResult<Vec<Artifact>>
+    /// Finish lowering and produce output.
+    pub fn finish(
+        self,
+        registry_next_id: impl Fn() -> ArtifactId,
+    ) -> CodegenJsResult<CodegenJsOutput>
     where
         Self: Sized,
     {
@@ -143,7 +115,12 @@ impl<'a> ModuleLowerer<'a> {
                 types
             }
             OutputFormat::Ts => vec![FileType::TypeScript],
-            _ => return Ok(artifacts),
+            _ => {
+                return Ok(CodegenJsOutput {
+                    artifacts,
+                    warnings: self.warnings,
+                });
+            }
         };
 
         // base URI without extension
@@ -210,9 +187,9 @@ impl<'a> ModuleLowerer<'a> {
             artifacts.push(artifact);
         }
 
-        // flush diagnostics to program
-        self.program.diagnostics.take_from(&self.diagnostics);
-
-        Ok(artifacts)
+        Ok(CodegenJsOutput {
+            artifacts,
+            warnings: self.warnings,
+        })
     }
 }

@@ -20,7 +20,16 @@ use destack_source::StringPool;
 
 use super::FunctionLowerer;
 use super::r#type::lower_type;
-use crate::{CodegenCraneliftError, CodegenCraneliftResult};
+use crate::{CodegenCraneliftError, CodegenCraneliftResult, CodegenCraneliftWarning};
+
+/// Internal output from module lowering (bytes + warnings).
+#[derive(Debug)]
+pub(crate) struct ModuleLowerOutput {
+    /// Generated binary output (object file or wasm).
+    pub bytes: Vec<u8>,
+    /// Warnings encountered during generation.
+    pub warnings: Vec<CodegenCraneliftWarning>,
+}
 
 /// Module context for lowering a MIR module to Cranelift.
 pub(crate) struct ModuleLowerer<'a> {
@@ -34,6 +43,8 @@ pub(crate) struct ModuleLowerer<'a> {
     cl_function_ids: HashMap<mir::LocalNodeId<mir::Function>, FuncId>,
     /// Compiled Cranelift functions (for CLIF output).
     cl_functions: Vec<(String, cir::Function)>,
+    /// Collected warnings.
+    warnings: Vec<CodegenCraneliftWarning>,
 }
 
 impl<'a> ModuleLowerer<'a> {
@@ -49,7 +60,14 @@ impl<'a> ModuleLowerer<'a> {
             cl_module: module,
             cl_function_ids: HashMap::new(),
             cl_functions: Vec::new(),
+            warnings: Vec::new(),
         }
+    }
+
+    /// Record a warning.
+    #[allow(dead_code)]
+    pub(crate) fn warning(&mut self, warning: CodegenCraneliftWarning) {
+        self.warnings.push(warning);
     }
 
     /// Lower an entire MIR module.
@@ -141,11 +159,18 @@ impl<'a> ModuleLowerer<'a> {
         Ok(signature)
     }
 
-    /// Finish lowering and produce the output bytes.
-    pub(crate) fn finish(self) -> Result<Vec<u8>, CodegenCraneliftError> {
+    /// Finish lowering and produce output.
+    pub(crate) fn finish(self) -> Result<ModuleLowerOutput, CodegenCraneliftError> {
         let product = self.cl_module.finish();
-        product.emit().map_err(|e| CodegenCraneliftError::Internal {
-            message: e.to_string(),
+        let bytes = product
+            .emit()
+            .map_err(|e| CodegenCraneliftError::Internal {
+                message: e.to_string(),
+            })?;
+
+        Ok(ModuleLowerOutput {
+            bytes,
+            warnings: self.warnings,
         })
     }
 

@@ -1,5 +1,5 @@
-use crate::generate::argument::list_like;
-use crate::generate::dependency::{format_export_binding, format_import_binding};
+use crate::format::argument::list_like;
+use crate::format::dependency::{format_export_binding, format_import_binding};
 use crate::{
     DeclarationKind, DependencyKind, FormatNode, JavaScriptFormatter, Keyword, LocalNodeId,
     Mutability, Statement,
