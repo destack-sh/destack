@@ -4,10 +4,10 @@ use destack_fir::format::FormatResult;
 use destack_fir::prelude::*;
 use destack_fir::write;
 
-use crate::{JavaScriptFormatContext, JavaScriptFormatter};
+use crate::{CodegenJsFormatContext, CodegenJsFormatter};
 
-impl<'ast> Format<JavaScriptFormatContext<'ast>> for Path {
-    fn format(&self, f: &mut JavaScriptFormatter<'ast, '_>) -> FormatResult<()> {
+impl<'ast> Format<CodegenJsFormatContext<'ast>> for Path {
+    fn format(&self, f: &mut CodegenJsFormatter<'ast, '_>) -> FormatResult<()> {
         // a.b.c
         write!(
             f,

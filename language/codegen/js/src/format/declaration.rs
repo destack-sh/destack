@@ -9,11 +9,11 @@ use destack_fir::{format_args, write};
 
 use crate::format::argument::list_like;
 use crate::format::block::format_block_of_statements;
-use crate::{FormatNode, JavaScriptFormatContext, JavaScriptFormatter};
+use crate::{FormatNode, CodegenJsFormatContext, CodegenJsFormatter};
 
 /// Format a super type clause.
 pub(crate) fn format_super_type_clause<'ast>(
-    f: &mut JavaScriptFormatter<'ast, '_>,
+    f: &mut CodegenJsFormatter<'ast, '_>,
     keyword: Keyword,
     types: &[LocalNodeId<Type>],
 ) -> FormatResult<()> {
@@ -40,8 +40,8 @@ pub(crate) fn format_super_type_clause<'ast>(
     )
 }
 
-impl<'ast> Format<JavaScriptFormatContext<'ast>> for Visibility {
-    fn format(&self, f: &mut JavaScriptFormatter<'ast, '_>) -> FormatResult<()> {
+impl<'ast> Format<CodegenJsFormatContext<'ast>> for Visibility {
+    fn format(&self, f: &mut CodegenJsFormatter<'ast, '_>) -> FormatResult<()> {
         match self {
             Visibility::Public => write!(f, [Keyword::Public]),
             Visibility::Protected => write!(f, [Keyword::Protected]),
@@ -50,8 +50,8 @@ impl<'ast> Format<JavaScriptFormatContext<'ast>> for Visibility {
     }
 }
 
-impl<'ast> Format<JavaScriptFormatContext<'ast>> for DependencyMode {
-    fn format(&self, f: &mut JavaScriptFormatter<'ast, '_>) -> FormatResult<()> {
+impl<'ast> Format<CodegenJsFormatContext<'ast>> for DependencyMode {
+    fn format(&self, f: &mut CodegenJsFormatter<'ast, '_>) -> FormatResult<()> {
         match self {
             DependencyMode::Item => write!(f, [Keyword::Export]),
             DependencyMode::Default => write!(f, [Keyword::Export, space(), Keyword::Default]),
@@ -64,7 +64,7 @@ impl<'ast> FormatNode<'ast, Declaration> for Declaration {
     fn format_node(
         &self,
         _node_id: LocalNodeId<Declaration>,
-        f: &mut JavaScriptFormatter<'ast, '_>,
+        f: &mut CodegenJsFormatter<'ast, '_>,
     ) -> FormatResult<()> {
         match self {
             Declaration::Namespace {
@@ -341,7 +341,7 @@ impl<'ast> FormatNode<'ast, EnumField> for EnumField {
     fn format_node(
         &self,
         _node_id: LocalNodeId<EnumField>,
-        f: &mut JavaScriptFormatter<'ast, '_>,
+        f: &mut CodegenJsFormatter<'ast, '_>,
     ) -> FormatResult<()> {
         write!(f, [self.name])?;
         if let Some(value) = self.value {

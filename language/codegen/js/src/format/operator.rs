@@ -3,10 +3,10 @@ use destack_fir::write;
 
 use crate::{AssignOperator, BinaryOperator, TypeBinaryOperator, TypeUnaryOperator, UnaryOperator};
 
-use crate::{JavaScriptFormatContext, JavaScriptFormatter};
+use crate::{CodegenJsFormatContext, CodegenJsFormatter};
 
-impl<'ast> Format<JavaScriptFormatContext<'ast>> for UnaryOperator {
-    fn format(&self, f: &mut JavaScriptFormatter<'ast, '_>) -> FormatResult<()> {
+impl<'ast> Format<CodegenJsFormatContext<'ast>> for UnaryOperator {
+    fn format(&self, f: &mut CodegenJsFormatter<'ast, '_>) -> FormatResult<()> {
         let token = match self {
             UnaryOperator::PostIncrement => token("++"),
             UnaryOperator::PostDecrement => token("--"),
@@ -21,8 +21,8 @@ impl<'ast> Format<JavaScriptFormatContext<'ast>> for UnaryOperator {
     }
 }
 
-impl<'ast> Format<JavaScriptFormatContext<'ast>> for BinaryOperator {
-    fn format(&self, f: &mut JavaScriptFormatter<'ast, '_>) -> FormatResult<()> {
+impl<'ast> Format<CodegenJsFormatContext<'ast>> for BinaryOperator {
+    fn format(&self, f: &mut CodegenJsFormatter<'ast, '_>) -> FormatResult<()> {
         let token = match self {
             // multiplication
             BinaryOperator::Multiply => token("*"),
@@ -67,8 +67,8 @@ impl<'ast> Format<JavaScriptFormatContext<'ast>> for BinaryOperator {
     }
 }
 
-impl<'ast> Format<JavaScriptFormatContext<'ast>> for TypeUnaryOperator {
-    fn format(&self, f: &mut JavaScriptFormatter<'ast, '_>) -> FormatResult<()> {
+impl<'ast> Format<CodegenJsFormatContext<'ast>> for TypeUnaryOperator {
+    fn format(&self, f: &mut CodegenJsFormatter<'ast, '_>) -> FormatResult<()> {
         let token = match self {
             TypeUnaryOperator::Type => token("type"),
             TypeUnaryOperator::Readonly => token("readonly"),
@@ -85,8 +85,8 @@ impl<'ast> Format<JavaScriptFormatContext<'ast>> for TypeUnaryOperator {
     }
 }
 
-impl<'ast> Format<JavaScriptFormatContext<'ast>> for TypeBinaryOperator {
-    fn format(&self, f: &mut JavaScriptFormatter<'ast, '_>) -> FormatResult<()> {
+impl<'ast> Format<CodegenJsFormatContext<'ast>> for TypeBinaryOperator {
+    fn format(&self, f: &mut CodegenJsFormatter<'ast, '_>) -> FormatResult<()> {
         let token = match self {
             TypeBinaryOperator::Cast => token("as"),
             TypeBinaryOperator::Is => token("is"),
@@ -100,8 +100,8 @@ impl<'ast> Format<JavaScriptFormatContext<'ast>> for TypeBinaryOperator {
     }
 }
 
-impl<'ast> Format<JavaScriptFormatContext<'ast>> for AssignOperator {
-    fn format(&self, f: &mut JavaScriptFormatter<'ast, '_>) -> FormatResult<()> {
+impl<'ast> Format<CodegenJsFormatContext<'ast>> for AssignOperator {
+    fn format(&self, f: &mut CodegenJsFormatter<'ast, '_>) -> FormatResult<()> {
         let token = token(match self {
             // addition
             AssignOperator::AddAssign => "+=",

@@ -5,13 +5,13 @@ use destack_fir::write;
 
 use crate::format::argument::list_like;
 use crate::format::literal::{format_scalar_literal, format_template_literal};
-use crate::{FormatNode, JavaScriptFormatter};
+use crate::{FormatNode, CodegenJsFormatter};
 
 impl<'ast> FormatNode<'ast, Expression> for Expression {
     fn format_node(
         &self,
         _node_id: LocalNodeId<Expression>,
-        f: &mut JavaScriptFormatter<'ast, '_>,
+        f: &mut CodegenJsFormatter<'ast, '_>,
     ) -> FormatResult<()> {
         match self {
             Expression::Declaration { declaration } => {

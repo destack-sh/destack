@@ -9,7 +9,8 @@ use destack_fir::print::PrintOptions;
 use destack_source::{File, FileType, ImmutableStringPool, IndentStyle, LineEnding};
 use destack_workspace::Target;
 
-pub type JavaScriptFormatter<'ast, 'buf> = Formatter<'buf, JavaScriptFormatContext<'ast>>;
+pub type CodegenJsFormatter<'ast, 'buf> =
+    Formatter<'buf, CodegenJsFormatContext<'ast>>;
 
 /// The formatting mode.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
@@ -23,7 +24,7 @@ pub enum FormatMode {
 
 /// JS/TS format options.
 #[derive(Debug, Default, Clone, Copy, PartialEq)]
-pub struct JavaScriptFormatOptions {
+pub struct CodegenJsFormatOptions {
     /// The formatting mode.
     pub mode: FormatMode = FormatMode::Pretty,
     /// The output file type (determines whether to emit types).
@@ -38,7 +39,7 @@ pub struct JavaScriptFormatOptions {
     pub line_width: u8 = 100,
 }
 
-impl JavaScriptFormatOptions {
+impl CodegenJsFormatOptions {
     /// Create options from a Target and the specific file type being generated.
     pub fn from_target(_target: &Target, file_type: FileType) -> Self {
         // TODO: use target settings for formatting options
@@ -168,7 +169,7 @@ impl JavaScriptFormatOptions {
     }
 }
 
-impl FormatOptions for JavaScriptFormatOptions {
+impl FormatOptions for CodegenJsFormatOptions {
     #[inline]
     fn indent_style(&self) -> IndentStyle {
         self.indent_style
@@ -192,9 +193,9 @@ impl FormatOptions for JavaScriptFormatOptions {
 
 /// JS/TS format context.
 #[derive(Debug)]
-pub struct JavaScriptFormatContext<'a> {
+pub struct CodegenJsFormatContext<'a> {
     /// The format options.
-    pub options: JavaScriptFormatOptions,
+    pub options: CodegenJsFormatOptions,
     /// The file (for span information).
     pub file: &'a File,
     /// The JS AST tree.
@@ -205,7 +206,7 @@ pub struct JavaScriptFormatContext<'a> {
     pub strings: &'a ImmutableStringPool,
 }
 
-impl<'ast> JavaScriptFormatContext<'ast> {
+impl<'ast> CodegenJsFormatContext<'ast> {
     /// Whether we need type annotations.
     #[inline]
     pub fn include_types(&self) -> bool {
@@ -219,8 +220,8 @@ impl<'ast> JavaScriptFormatContext<'ast> {
     }
 }
 
-impl<'a> FormatContext for JavaScriptFormatContext<'a> {
-    type Options = JavaScriptFormatOptions;
+impl<'a> FormatContext for CodegenJsFormatContext<'a> {
+    type Options = CodegenJsFormatOptions;
 
     #[inline]
     fn options(&self) -> &Self::Options {
@@ -236,25 +237,25 @@ impl<'a> FormatContext for JavaScriptFormatContext<'a> {
 /// Format Nodes with more information.
 pub(crate) trait FormatNode<'a, T: Node>
 where
-    JavaScriptFormatContext<'a>: FormatContext,
+    CodegenJsFormatContext<'a>: FormatContext,
 {
     /// Format a node.
     fn format_node(
         &self,
         node_id: LocalNodeId<T>,
-        f: &mut JavaScriptFormatter<'a, '_>,
+        f: &mut CodegenJsFormatter<'a, '_>,
     ) -> FormatResult<()>;
 }
 
 /// Implement Format for FormatNode for NodeIds.
-impl<'a, T: Node> Format<JavaScriptFormatContext<'a>> for LocalNodeId<T>
+impl<'a, T: Node> Format<CodegenJsFormatContext<'a>> for LocalNodeId<T>
 where
     T: Node + Clone,
     NodeTree: NodeTreeImpl<T>,
     T: FormatNode<'a, T>,
 {
     #[inline]
-    fn format(&self, f: &mut JavaScriptFormatter<'a, '_>) -> FormatResult<()> {
+    fn format(&self, f: &mut CodegenJsFormatter<'a, '_>) -> FormatResult<()> {
         let context = f.context();
         let node = context.tree.get(*self);
         node.format_node(*self, f)
@@ -262,9 +263,9 @@ where
 }
 
 /// Implement Format for FormatNode for NodeIdsAny.
-impl<'a> Format<JavaScriptFormatContext<'a>> for LocalNodeIdAny {
+impl<'a> Format<CodegenJsFormatContext<'a>> for LocalNodeIdAny {
     #[inline]
-    fn format(&self, f: &mut JavaScriptFormatter<'a, '_>) -> FormatResult<()> {
+    fn format(&self, f: &mut CodegenJsFormatter<'a, '_>) -> FormatResult<()> {
         let context = f.context();
         match self.ty {
             NodeType::Block => {
@@ -347,9 +348,9 @@ impl<'a> Format<JavaScriptFormatContext<'a>> for LocalNodeIdAny {
 }
 
 /// Implement Format for the context itself (formats all roots).
-impl<'a> Format<JavaScriptFormatContext<'a>> for JavaScriptFormatContext<'a> {
+impl<'a> Format<CodegenJsFormatContext<'a>> for CodegenJsFormatContext<'a> {
     #[inline]
-    fn format(&self, f: &mut JavaScriptFormatter<'a, '_>) -> FormatResult<()> {
+    fn format(&self, f: &mut CodegenJsFormatter<'a, '_>) -> FormatResult<()> {
         f.join_with(hard_line_break())
             .entries(self.roots)
             .finish()?;

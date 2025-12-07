@@ -4,28 +4,28 @@ use destack_fir::prelude::*;
 use destack_fir::write;
 use destack_source::StringId;
 
-use crate::{JavaScriptFormatContext, JavaScriptFormatter};
+use crate::{CodegenJsFormatContext, CodegenJsFormatter};
 
-impl<'ast> Format<JavaScriptFormatContext<'ast>> for StringId {
+impl<'ast> Format<CodegenJsFormatContext<'ast>> for StringId {
     #[inline]
-    fn format(&self, f: &mut JavaScriptFormatter<'ast, '_>) -> FormatResult<()> {
+    fn format(&self, f: &mut CodegenJsFormatter<'ast, '_>) -> FormatResult<()> {
         let string = f.context().strings.get(*self);
         write!(f, [text(string)])
     }
 }
 
-impl<'ast> Format<JavaScriptFormatContext<'ast>> for Name {
+impl<'ast> Format<CodegenJsFormatContext<'ast>> for Name {
     #[inline]
-    fn format(&self, f: &mut JavaScriptFormatter<'ast, '_>) -> FormatResult<()> {
+    fn format(&self, f: &mut CodegenJsFormatter<'ast, '_>) -> FormatResult<()> {
         match self {
             Name::Identifier(string) => string.format(f),
             Name::String(string) => write!(f, [token("\""), string, token("\"")]),
         }
     }
 }
-impl<'ast> Format<JavaScriptFormatContext<'ast>> for Keyword {
+impl<'ast> Format<CodegenJsFormatContext<'ast>> for Keyword {
     #[inline]
-    fn format(&self, f: &mut JavaScriptFormatter<'ast, '_>) -> FormatResult<()> {
+    fn format(&self, f: &mut CodegenJsFormatter<'ast, '_>) -> FormatResult<()> {
         write!(f, [text(self.as_str())])
     }
 }

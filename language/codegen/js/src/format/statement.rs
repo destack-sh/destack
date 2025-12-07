@@ -1,7 +1,7 @@
 use crate::format::argument::list_like;
 use crate::format::dependency::{format_export_binding, format_import_binding};
 use crate::{
-    DeclarationKind, DependencyKind, FormatNode, JavaScriptFormatter, Keyword, LocalNodeId,
+    DeclarationKind, DependencyKind, FormatNode, CodegenJsFormatter, Keyword, LocalNodeId,
     Mutability, Statement,
 };
 use destack_fir::format::FormatResult;
@@ -12,7 +12,7 @@ impl<'ast> FormatNode<'ast, Statement> for Statement {
     fn format_node(
         &self,
         _node_id: LocalNodeId<Statement>,
-        f: &mut JavaScriptFormatter<'ast, '_>,
+        f: &mut CodegenJsFormatter<'ast, '_>,
     ) -> FormatResult<()> {
         match self {
             Statement::Import {

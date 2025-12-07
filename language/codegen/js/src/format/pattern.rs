@@ -4,13 +4,13 @@ use destack_fir::prelude::*;
 use destack_fir::write;
 
 use crate::format::argument::list_like;
-use crate::{FormatNode, JavaScriptFormatter};
+use crate::{FormatNode, CodegenJsFormatter};
 
 impl<'ast> FormatNode<'ast, Pattern> for Pattern {
     fn format_node(
         &self,
         _node_id: LocalNodeId<Pattern>,
-        f: &mut JavaScriptFormatter<'ast, '_>,
+        f: &mut CodegenJsFormatter<'ast, '_>,
     ) -> FormatResult<()> {
         match self {
             Pattern::Binding { mutability, name } => {
@@ -39,7 +39,7 @@ impl<'ast> FormatNode<'ast, PatternField> for PatternField {
     fn format_node(
         &self,
         _node_id: LocalNodeId<PatternField>,
-        f: &mut JavaScriptFormatter<'ast, '_>,
+        f: &mut CodegenJsFormatter<'ast, '_>,
     ) -> FormatResult<()> {
         match self {
             PatternField::Named {

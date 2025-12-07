@@ -99,7 +99,7 @@ impl<'a> ModuleLowerer<'a> {
     where
         Self: Sized,
     {
-        use crate::{JavaScriptFormatContext, JavaScriptFormatOptions};
+        use crate::{CodegenJsFormatContext, CodegenJsFormatOptions};
         use destack_fir::format as fir_format;
         use destack_source::File;
 
@@ -129,10 +129,10 @@ impl<'a> ModuleLowerer<'a> {
 
         // helper for formatting roots
         struct RootsFormatter<'a>(&'a [LocalNodeIdAny]);
-        impl<'a> destack_fir::format::Format<JavaScriptFormatContext<'a>> for RootsFormatter<'a> {
+        impl<'a> destack_fir::format::Format<CodegenJsFormatContext<'a>> for RootsFormatter<'a> {
             fn format(
                 &self,
-                f: &mut destack_fir::format::Formatter<'_, JavaScriptFormatContext<'a>>,
+                f: &mut destack_fir::format::Formatter<'_, CodegenJsFormatContext<'a>>,
             ) -> destack_fir::format::FormatResult<()> {
                 use destack_fir::prelude::*;
                 f.join_with(hard_line_break()).entries(self.0).finish()?;
@@ -146,8 +146,8 @@ impl<'a> ModuleLowerer<'a> {
 
             // create format context
             let file = File::empty_text_with_type(file_type);
-            let options = JavaScriptFormatOptions::from_target(self.target, file_type);
-            let context = JavaScriptFormatContext {
+            let options = CodegenJsFormatOptions::from_target(self.target, file_type);
+            let context = CodegenJsFormatContext {
                 options,
                 file: &file,
                 tree: &self.tree,
