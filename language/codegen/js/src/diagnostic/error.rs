@@ -4,6 +4,11 @@ use destack_dir as dir;
 /// Error during JS code generation.
 #[derive(Debug, Clone)]
 pub enum CodegenJsError {
+    /// Unsupported target/output format.
+    UnsupportedTarget {
+        format: String,
+        message: Option<String>,
+    },
     /// Unsupported construct.
     UnsupportedConstruct {
         node: dir::GlobalNodeIdAny,
@@ -25,22 +30,29 @@ pub enum CodegenJsError {
         node: dir::GlobalNodeIdAny,
         message: Option<String>,
     },
+    /// Internal error.
+    Internal { message: String },
 }
 
 impl CodegenJsError {
-    /// Get the node id of the error.
-    pub fn node_id(&self) -> dir::GlobalNodeIdAny {
+    /// Get the node id of the error, if available.
+    pub fn node_id(&self) -> Option<dir::GlobalNodeIdAny> {
         match self {
-            Self::UnsupportedConstruct { node, .. } => *node,
-            Self::UnexpectedNode { node, .. } => *node,
-            Self::UnresolvedNode { node, .. } => *node,
-            Self::MissingType { node, .. } => *node,
+            Self::UnsupportedTarget { .. } => None,
+            Self::UnsupportedConstruct { node, .. } => Some(*node),
+            Self::UnexpectedNode { node, .. } => Some(*node),
+            Self::UnresolvedNode { node, .. } => Some(*node),
+            Self::MissingType { node, .. } => Some(*node),
+            Self::Internal { .. } => None,
         }
     }
 
     /// Get the error message.
     pub fn message(&self) -> String {
         match self {
+            Self::UnsupportedTarget { format, message } => message
+                .clone()
+                .unwrap_or_else(|| format!("unsupported target: {format}")),
             Self::UnsupportedConstruct { node, message } => message
                 .clone()
                 .unwrap_or_else(|| format!("unsupported {}", node.local_id.ty.name())),
@@ -61,6 +73,7 @@ impl CodegenJsError {
             Self::MissingType { message, .. } => message
                 .clone()
                 .unwrap_or_else(|| "missing type".to_string()),
+            Self::Internal { message } => format!("internal error: {message}"),
         }
     }
 }

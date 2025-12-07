@@ -5,8 +5,10 @@ use destack_dir as dir;
 impl ModuleLowerer<'_> {
     /// Lower a string to a name.
     pub fn lower_string_to_name(&mut self, string_id: StringId) -> Name {
-        let string_id = self.strings.intern_from(&self.program.strings, string_id);
-        let string = self.program.strings.get(string_id);
+        let string_id = self
+            .strings
+            .intern_from(&self.module.ast.strings, string_id);
+        let string = self.module.ast.strings.get(string_id);
         if is_identifier(string.as_ref()) {
             Name::Identifier(string_id)
         } else {

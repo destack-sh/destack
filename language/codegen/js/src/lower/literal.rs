@@ -14,12 +14,13 @@ impl ModuleLowerer<'_> {
                 ScalarLiteral::String(string)
             }
             dir::ScalarLiteral::String(string) => {
-                let string = self.strings.intern_from(&self.program.strings, *string);
+                let string = self.strings.intern_from(&self.module.ast.strings, *string);
                 ScalarLiteral::String(string)
             }
             dir::ScalarLiteral::RegexString { content, flags } => {
-                let content = self.strings.intern_from(&self.program.strings, *content);
-                let flags = flags.map(|flag| self.strings.intern_from(&self.program.strings, flag));
+                let content = self.strings.intern_from(&self.module.ast.strings, *content);
+                let flags =
+                    flags.map(|flag| self.strings.intern_from(&self.module.ast.strings, flag));
                 ScalarLiteral::RegexString { content, flags }
             }
         }

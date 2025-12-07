@@ -4,10 +4,10 @@ use std::sync::Arc;
 
 use destack_codegen_lib::CodegenBackend;
 use destack_source::ModuleId;
-use destack_workspace::{Artifact, ArtifactId, OutputFormat, Program, Target};
+use destack_workspace::{OutputFormat, Program, Target};
 
-use crate::CodegenJsResult;
-use crate::lower::ModuleLowerer;
+use crate::lower::{CodegenJsOutput, ModuleLowerer};
+use crate::{CodegenJsError, CodegenJsResult};
 
 /// JavaScript/TypeScript codegen backend.
 #[derive(Debug, Default)]
@@ -23,26 +23,20 @@ impl CodegenBackend for JsBackend {
     }
 }
 
-/// Generate artifacts for a module.
+/// Generate code for a module.
 ///
 /// This is the main entry point for JS/TS code generation from the compiler.
+/// Returns artifacts and any warnings encountered during generation.
 pub fn generate_module(
     program: Arc<Program>,
     module_id: ModuleId,
     target: &Target,
-    registry_next_id: impl Fn() -> ArtifactId,
-) -> CodegenJsResult<Vec<Artifact>> {
+) -> CodegenJsResult<CodegenJsOutput> {
     // validate target
     if !matches!(target.output, OutputFormat::Js | OutputFormat::Ts) {
-        return Err(crate::CodegenJsError::UnsupportedConstruct {
-            node: destack_dir::GlobalNodeIdAny::new(
-                module_id,
-                destack_dir::LocalNodeIdAny {
-                    id: 0,
-                    ty: destack_dir::NodeType::Expression,
-                },
-            ),
-            message: Some(format!("unsupported output format: {:?}", target.output)),
+        return Err(CodegenJsError::UnsupportedTarget {
+            format: format!("{:?}", target.output),
+            message: Some("expected Js or Ts".to_string()),
         });
     }
 
@@ -54,7 +48,10 @@ pub fn generate_module(
     let types = module.dir.types.read();
 
     // create lowerer and process
-    let mut lowerer = ModuleLowerer::new(&program, &module, &dir_tree, &symbols, &types, target);
-    lowerer.lower()?;
+    let mut lowerer = ModuleLowerer::new(&module, &dir_tree, &symbols, &types, target);
+    lowerer.lower_module()?;
+
+    // finish and get artifacts + warnings
+    let registry_next_id = || program.artifacts.next_id();
     lowerer.finish(registry_next_id)
 }

@@ -3,8 +3,8 @@ use destack_fir::format::FormatResult;
 use destack_fir::prelude::*;
 use destack_fir::write;
 
-use crate::generate::argument::list_like;
-use crate::generate::literal::{format_scalar_literal, format_template_literal};
+use crate::format::argument::list_like;
+use crate::format::literal::{format_scalar_literal, format_template_literal};
 use crate::{FormatNode, JavaScriptFormatter};
 
 impl<'ast> FormatNode<'ast, Expression> for Expression {

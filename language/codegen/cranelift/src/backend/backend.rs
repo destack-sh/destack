@@ -10,8 +10,17 @@ use destack_workspace::{
 };
 use target_lexicon::Triple;
 
-use crate::lower::ModuleLowerer;
-use crate::{CodegenCraneliftError, CodegenCraneliftResult};
+use crate::lower::{ModuleLowerOutput, ModuleLowerer};
+use crate::{CodegenCraneliftError, CodegenCraneliftResult, CodegenCraneliftWarning};
+
+/// Output from Cranelift code generation.
+#[derive(Debug)]
+pub struct CodegenCraneliftOutput {
+    /// Generated artifacts.
+    pub artifacts: Vec<Artifact>,
+    /// Warnings encountered during generation.
+    pub warnings: Vec<CodegenCraneliftWarning>,
+}
 
 /// Cranelift-based code generation backend.
 ///
@@ -119,15 +128,15 @@ impl CodegenCraneliftBackend {
         self.isa.pointer_bytes()
     }
 
-    /// Compile a MIR module to bytes.
+    /// Compile a MIR module to bytes and warnings.
     ///
     /// For WASM targets, returns a `.wasm` module.
     /// For native targets, returns an object file.
-    pub fn compile_module(
+    pub(crate) fn compile_module(
         &self,
         module: &ModuleMir,
         name: &str,
-    ) -> Result<Vec<u8>, CodegenCraneliftError> {
+    ) -> Result<ModuleLowerOutput, CodegenCraneliftError> {
         let tree = module.tree.read();
         let mut lowerer = ModuleLowerer::new(self.isa.clone(), &module.strings, name);
         lowerer.lower_module(&tree)?;
@@ -157,16 +166,16 @@ impl CodegenBackend for CodegenCraneliftBackend {
     }
 }
 
-/// Generate artifacts for a module using Cranelift.
+/// Generate code for a module using Cranelift.
 ///
 /// This is the main entry point for native/WASM code generation from the compiler.
-/// Note: This requires the module's MIR to be ready (i.e., through the Optimize phase).
+/// Returns artifacts and any warnings encountered during generation.
 pub fn generate_module(
     program: Arc<Program>,
     module_id: ModuleId,
     target: &Target,
     registry_next_id: impl Fn() -> ArtifactId,
-) -> CodegenCraneliftResult<Vec<Artifact>> {
+) -> CodegenCraneliftResult<CodegenCraneliftOutput> {
     // validate target
     match target.output {
         OutputFormat::Wasm | OutputFormat::Native => {}
@@ -187,12 +196,15 @@ pub fn generate_module(
 
     // compile
     let name = module.uri.last_segment().unwrap_or("module");
-    let bytes = backend.compile_module(&module.mir, name)?;
+    let compile_output = backend.compile_module(&module.mir, name)?;
 
     // determine file type and create artifact
     let (file_type, content) = match target.output {
-        OutputFormat::Wasm => (FileType::Wasm, ArtifactContent::wasm(bytes)),
-        OutputFormat::Native => (FileType::Object, ArtifactContent::object(bytes)),
+        OutputFormat::Wasm => (FileType::Wasm, ArtifactContent::wasm(compile_output.bytes)),
+        OutputFormat::Native => (
+            FileType::Object,
+            ArtifactContent::object(compile_output.bytes),
+        ),
         _ => unreachable!(),
     };
 
@@ -208,5 +220,8 @@ pub fn generate_module(
         source: None,
     };
 
-    Ok(vec![artifact])
+    Ok(CodegenCraneliftOutput {
+        artifacts: vec![artifact],
+        warnings: compile_output.warnings,
+    })
 }

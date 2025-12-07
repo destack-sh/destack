@@ -4,19 +4,14 @@ use crate::{TaskPhase, TaskWarning};
 
 use destack_workspace::Program;
 
-/// Warning when generateing something.
+/// Warning during code generation.
 #[derive(Debug, Clone, PartialEq)]
 #[repr(u8)]
 pub enum GenerateWarning {
-    /// Use of deprecated target / CPU / ABI.
-    DeprecatedTarget { node: GlobalNodeIdAny },
-    /// Weak/duplicate symbol but one chosen deterministically (e.g. ODR violation that's survivable).
-    WeakSymbol {
-        node: GlobalNodeIdAny,
-        symbol: String,
-    },
-    /// Large binary / large static data section ("binary size exceeded X MB").
-    LargeBinary { node: GlobalNodeIdAny, size_mb: u64 },
+    /// Imprecise type (loss of precision in codegen).
+    ImpreciseType { node: GlobalNodeIdAny },
+    /// Unexpected construct (recoverable).
+    UnexpectedConstruct { node: GlobalNodeIdAny },
 }
 
 impl GenerateWarning {
@@ -24,27 +19,24 @@ impl GenerateWarning {
     #[inline]
     pub fn sub_code(&self) -> u8 {
         match self {
-            Self::DeprecatedTarget { .. } => 1,
-            Self::WeakSymbol { .. } => 2,
-            Self::LargeBinary { .. } => 3,
+            Self::ImpreciseType { .. } => 1,
+            Self::UnexpectedConstruct { .. } => 2,
         }
     }
 
     /// Get the node of the warning.
     pub fn node(&self) -> GlobalNodeIdAny {
         match self {
-            Self::DeprecatedTarget { node, .. } => *node,
-            Self::WeakSymbol { node, .. } => *node,
-            Self::LargeBinary { node, .. } => *node,
+            Self::ImpreciseType { node, .. } => *node,
+            Self::UnexpectedConstruct { node, .. } => *node,
         }
     }
 
     /// Get the message of the warning.
     pub fn message(&self, _program: &Program) -> String {
         match self {
-            Self::DeprecatedTarget { .. } => "deprecated target".to_string(),
-            Self::WeakSymbol { .. } => "weak symbol".to_string(),
-            Self::LargeBinary { .. } => "large binary".to_string(),
+            Self::ImpreciseType { .. } => "imprecise type".to_string(),
+            Self::UnexpectedConstruct { .. } => "unexpected construct".to_string(),
         }
     }
 }

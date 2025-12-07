@@ -3,7 +3,7 @@ use std::marker::PhantomData;
 use crate::{Argument, LocalNodeId, Node, NodeTree, NodeTreeImpl, Parameter};
 use destack_fir::format::{BestFittingMode, FormatResult};
 
-use crate::generate::property::{
+use crate::format::property::{
     format_binding_modifiers_postfix_maybe, format_binding_modifiers_prefix_maybe,
 };
 use crate::{FormatNode, JavaScriptFormatContext, JavaScriptFormatter};

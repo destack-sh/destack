@@ -4,7 +4,7 @@ use destack_fir::prelude::*;
 use destack_fir::write;
 use destack_source::StringId;
 
-use crate::generate::argument::list_like;
+use crate::format::argument::list_like;
 use crate::{FormatNode, JavaScriptFormatter};
 
 impl<'ast> FormatNode<'ast, DependencyItem> for DependencyItem {

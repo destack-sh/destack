@@ -13,11 +13,7 @@ impl ModuleLowerer<'_> {
         let segments: SmallVec<[StringId; 3]> = path
             .segments
             .iter()
-            .map(|segment| {
-                self.program
-                    .strings
-                    .intern_from(&self.program.strings, *segment)
-            })
+            .map(|segment| self.strings.intern_from(&self.module.ast.strings, *segment))
             .collect();
         let path = Path { segments };
         Ok(path)

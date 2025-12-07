@@ -1,5 +1,6 @@
 use crate::{
-    Compiler, GenerateError, GenerateResult, Task, TaskDebug, TaskDependencyError, TaskOutput,
+    Compiler, GenerateError, GenerateResult, GenerateWarning, Task, TaskDebug, TaskDependencyError,
+    TaskOutput,
 };
 
 use destack_dir::{GlobalNodeIdAny, LocalNodeIdAny, NodeType};
@@ -64,17 +65,6 @@ impl From<GenerateOutput> for TaskOutput {
     }
 }
 
-impl From<TaskDependencyError> for GenerateError {
-    fn from(e: TaskDependencyError) -> Self {
-        match e {
-            TaskDependencyError::NotReady { dependency } => Self::Yield { dependency },
-            TaskDependencyError::Failed { dependency } => {
-                Self::UnsatisfiedDependency { dependency }
-            }
-        }
-    }
-}
-
 impl Compiler {
     /// Process a generate task.
     pub fn process_generate(&self, task: GenerateTask) -> GenerateResult<GenerateOutput> {
@@ -120,20 +110,18 @@ impl Compiler {
         self.ensure_elaborated(module_id)?;
 
         // dispatch to JS codegen
-        let registry_next_id = || self.program.artifacts.next_id();
-        let artifacts = destack_codegen_js::generate_module(
-            self.program.clone(),
-            module_id,
-            target,
-            registry_next_id,
-        )
-        .map_err(|e| GenerateError::Internal {
-            node: Self::placeholder_node(module_id),
-            message: e.to_string(),
-        })?;
+        let output = destack_codegen_js::generate_module(self.program.clone(), module_id, target)
+            .map_err(|e| Self::map_js_error(module_id, e))?;
+
+        // map and report warnings
+        for warning in output.warnings {
+            let warning = Self::map_js_warning(warning);
+            self.warning(warning);
+        }
 
         // store artifacts in registry
-        let artifact_ids: Vec<ArtifactId> = artifacts
+        let artifact_ids: Vec<ArtifactId> = output
+            .artifacts
             .into_iter()
             .map(|artifact| self.program.artifacts.insert(artifact))
             .collect();
@@ -154,19 +142,23 @@ impl Compiler {
 
         // dispatch to Cranelift codegen
         let registry_next_id = || self.program.artifacts.next_id();
-        let artifacts = destack_codegen_cranelift::generate_module(
+        let output = destack_codegen_cranelift::generate_module(
             self.program.clone(),
             module_id,
             target,
             registry_next_id,
         )
-        .map_err(|e| GenerateError::Internal {
-            node: Self::placeholder_node(module_id),
-            message: e.to_string(),
-        })?;
+        .map_err(|e| Self::map_cranelift_error(module_id, e))?;
+
+        // map and report warnings
+        for warning in output.warnings {
+            let warning = Self::map_cranelift_warning(module_id, warning);
+            self.warning(warning);
+        }
 
         // store artifacts in registry
-        let artifact_ids: Vec<ArtifactId> = artifacts
+        let artifact_ids: Vec<ArtifactId> = output
+            .artifacts
             .into_iter()
             .map(|artifact| self.program.artifacts.insert(artifact))
             .collect();
@@ -176,7 +168,124 @@ impl Compiler {
         })
     }
 
-    /// Create a placeholder node for error reporting.
+    /// Map a JS codegen error to a GenerateError.
+    fn map_js_error(
+        module_id: ModuleId,
+        error: destack_codegen_js::CodegenJsError,
+    ) -> GenerateError {
+        use destack_codegen_js::CodegenJsError;
+
+        match error {
+            CodegenJsError::UnsupportedTarget { format, .. } => GenerateError::UnsupportedTarget {
+                node: Self::placeholder_node(module_id),
+                target: format,
+            },
+            CodegenJsError::UnsupportedConstruct { node, .. } => {
+                GenerateError::UnsupportedConstruct { node }
+            }
+            CodegenJsError::UnexpectedNode { node, .. } => {
+                GenerateError::UnexpectedConstruct { node }
+            }
+            CodegenJsError::UnresolvedNode { node, .. } => {
+                GenerateError::UnresolvedConstruct { node }
+            }
+            CodegenJsError::MissingType { node, .. } => GenerateError::MissingType { node },
+            CodegenJsError::Internal { message } => GenerateError::Internal {
+                node: Self::placeholder_node(module_id),
+                message,
+            },
+        }
+    }
+
+    /// Map a Cranelift codegen error to a GenerateError.
+    fn map_cranelift_error(
+        module_id: ModuleId,
+        error: destack_codegen_cranelift::CodegenCraneliftError,
+    ) -> GenerateError {
+        use destack_codegen_cranelift::CodegenCraneliftError;
+
+        match error {
+            CodegenCraneliftError::UnsupportedTarget { triple, .. } => {
+                GenerateError::UnsupportedTarget {
+                    node: Self::placeholder_node(module_id),
+                    target: triple,
+                }
+            }
+            CodegenCraneliftError::UnsupportedType { node, .. } => GenerateError::UnsupportedType {
+                node: Self::mir_to_global_node(module_id, node),
+            },
+            CodegenCraneliftError::MissingType { node, .. } => GenerateError::MissingType {
+                node: Self::mir_to_global_node(module_id, node),
+            },
+            CodegenCraneliftError::UnsupportedInstruction { node, .. } => {
+                GenerateError::UnsupportedConstruct {
+                    node: Self::mir_to_global_node(module_id, node),
+                }
+            }
+            CodegenCraneliftError::FunctionNotFound { name, .. } => {
+                GenerateError::UnresolvedFunction {
+                    node: Self::placeholder_node(module_id),
+                    name,
+                }
+            }
+            CodegenCraneliftError::Internal { message } => GenerateError::Internal {
+                node: Self::placeholder_node(module_id),
+                message,
+            },
+        }
+    }
+
+    /// Map a JS codegen warning to a GenerateWarning.
+    fn map_js_warning(warning: destack_codegen_js::CodegenJsWarning) -> GenerateWarning {
+        use destack_codegen_js::CodegenJsWarning;
+
+        match warning {
+            CodegenJsWarning::ImpreciseType { node } => GenerateWarning::ImpreciseType { node },
+            CodegenJsWarning::UnexpectedNode { node, .. } => {
+                GenerateWarning::UnexpectedConstruct { node }
+            }
+            CodegenJsWarning::ExpectedStatement { node } => {
+                GenerateWarning::UnexpectedConstruct { node }
+            }
+        }
+    }
+
+    /// Map a Cranelift codegen warning to a GenerateWarning.
+    ///
+    /// Currently Cranelift warnings don't map to any GenerateWarning variants,
+    /// so we map them to UnexpectedConstruct as a catch-all.
+    fn map_cranelift_warning(
+        module_id: ModuleId,
+        warning: destack_codegen_cranelift::CodegenCraneliftWarning,
+    ) -> GenerateWarning {
+        use destack_codegen_cranelift::CodegenCraneliftWarning;
+
+        match warning {
+            CodegenCraneliftWarning::UnoptimizedCodePath { node, .. }
+            | CodegenCraneliftWarning::PerformanceHint { node, .. } => {
+                GenerateWarning::UnexpectedConstruct {
+                    node: Self::mir_to_global_node(module_id, node),
+                }
+            }
+        }
+    }
+
+    /// Convert a MIR local node id to a global node id.
+    fn mir_to_global_node(
+        module_id: ModuleId,
+        node: destack_mir::LocalNodeIdAny,
+    ) -> GlobalNodeIdAny {
+        // MIR node types don't map 1:1 to DIR, use Expression as fallback
+        GlobalNodeIdAny::new(
+            module_id,
+            LocalNodeIdAny {
+                id: node.id,
+                ty: NodeType::Expression,
+            },
+        )
+    }
+
+    /// Create a placeholder node for errors without a specific location.
     fn placeholder_node(module_id: ModuleId) -> GlobalNodeIdAny {
         GlobalNodeIdAny::new(
             module_id,
