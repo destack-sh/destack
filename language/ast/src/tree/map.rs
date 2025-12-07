@@ -10,6 +10,12 @@ pub struct NodeParentIndex {
     parents_per_node: Vec<Option<u32>>,
 }
 
+impl Default for NodeParentIndex {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl NodeParentIndex {
     /// Create a new NodeParentIndex.
     pub fn new() -> Self {

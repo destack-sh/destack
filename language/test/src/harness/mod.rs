@@ -4,6 +4,7 @@
 //! from fixture directories, with proper CLI argument handling and output formatting.
 
 mod diagnostic;
+pub mod diff;
 mod discover;
 mod options;
 pub mod print;
