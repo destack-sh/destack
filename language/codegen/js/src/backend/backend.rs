@@ -47,10 +47,14 @@ pub fn generate_module(
     let symbols = module.dir.symbols.read();
     let types = module.dir.types.read();
 
-    // get package path for output path resolution
-    let package_ref = program.packages.get(module.package_id);
-    let package = package_ref.read();
+    // get package path and root_dir for output path resolution
+    let package = program.packages.get(module.package_id);
+    let package = package.read();
     let package_dir = package.path.clone().unwrap_or_else(|| program.cwd.clone());
+    let root_dir = package
+        .dsconfig
+        .as_ref()
+        .and_then(|c| c.options.compiler.root_dir.clone());
     drop(package);
 
     // create lowerer and process
@@ -59,5 +63,5 @@ pub fn generate_module(
 
     // finish and get artifacts + warnings
     let registry_next_id = || program.artifacts.next_id();
-    lowerer.finish(registry_next_id, &package_dir)
+    lowerer.finish(registry_next_id, &package_dir, root_dir.as_deref())
 }

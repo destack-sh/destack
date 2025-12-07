@@ -341,9 +341,14 @@ impl Target {
     ///
     /// Takes the module's path, computes its relative position within the package,
     /// and returns the corresponding output path with the given extension.
+    /// Resolve the output file path for a module.
+    ///
+    /// The `root_dir` parameter (from compilerOptions) specifies the root of source files.
+    /// Output structure mirrors source structure minus the root_dir prefix.
     pub fn resolve_out_file(
         &self,
         package_dir: &Path,
+        root_dir: Option<&Path>,
         module_path: &Path,
         extension: &str,
     ) -> PathBuf {
@@ -351,6 +356,13 @@ impl Target {
 
         // compute module's relative path within the package
         let relative = module_path.strip_prefix(package_dir).unwrap_or(module_path);
+
+        // strip root_dir prefix if specified (e.g., "src/" → "")
+        let relative = if let Some(root_dir) = root_dir {
+            relative.strip_prefix(root_dir).unwrap_or(relative)
+        } else {
+            relative
+        };
 
         // change extension and join with output directory
         out_dir.join(relative.with_extension(extension))

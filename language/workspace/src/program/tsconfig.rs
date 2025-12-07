@@ -869,6 +869,28 @@ pub struct TsConfigCompilerOptions {
     pub allow_js: bool,
     /// Check JavaScript files.
     pub check_js: bool,
+
+    // emit
+    /// Root directory of source files.
+    pub root_dir: Option<PathBuf>,
+    /// Output directory for compiled files.
+    pub out_dir: Option<PathBuf>,
+    /// Output file for bundled output.
+    pub out_file: Option<PathBuf>,
+    /// Output directory for declaration files.
+    pub declaration_dir: Option<PathBuf>,
+    /// Generate declaration files.
+    pub declaration: bool,
+    /// Generate source maps.
+    pub source_map: bool,
+    /// Generate inline source maps.
+    pub inline_source_map: bool,
+    /// Include source content in source maps.
+    pub inline_sources: bool,
+    /// Generate declaration maps.
+    pub declaration_map: bool,
+    /// Emit output files.
+    pub no_emit: bool,
 }
 
 impl Default for TsConfigCompilerOptions {
@@ -932,6 +954,17 @@ impl Default for TsConfigCompilerOptions {
 
             allow_js: false,
             check_js: false,
+
+            root_dir: None,
+            out_dir: None,
+            out_file: None,
+            declaration_dir: None,
+            declaration: false,
+            source_map: false,
+            inline_source_map: false,
+            inline_sources: false,
+            declaration_map: false,
+            no_emit: false,
         }
     }
 }
@@ -1029,6 +1062,17 @@ impl From<&TsConfigCompilerOptionsJson> for TsConfigCompilerOptions {
 
             allow_js: json.allow_js.unwrap_or(false),
             check_js: json.check_js.unwrap_or(false),
+
+            root_dir: json.root_dir.clone(),
+            out_dir: json.out_dir.clone(),
+            out_file: json.out_file.clone(),
+            declaration_dir: json.declaration_dir.clone(),
+            declaration: json.declaration.unwrap_or(false),
+            source_map: json.source_map.unwrap_or(false),
+            inline_source_map: json.inline_source_map.unwrap_or(false),
+            inline_sources: json.inline_sources.unwrap_or(false),
+            declaration_map: json.declaration_map.unwrap_or(false),
+            no_emit: json.no_emit.unwrap_or(false),
         }
     }
 }
@@ -1355,6 +1399,38 @@ pub struct TsConfigCompilerOptionsJson {
     /// Skip type checking of declaration files.
     /// <https://www.typescriptlang.org/tsconfig/#skipLibCheck>
     pub skip_lib_check: Option<bool>,
+
+    // emit options
+    /// Root directory of source files.
+    /// <https://www.typescriptlang.org/tsconfig/#rootDir>
+    pub root_dir: Option<PathBuf>,
+    /// Output directory for compiled files.
+    /// <https://www.typescriptlang.org/tsconfig/#outDir>
+    pub out_dir: Option<PathBuf>,
+    /// Output file for bundled output (rarely used).
+    /// <https://www.typescriptlang.org/tsconfig/#outFile>
+    pub out_file: Option<PathBuf>,
+    /// Output directory for declaration files.
+    /// <https://www.typescriptlang.org/tsconfig/#declarationDir>
+    pub declaration_dir: Option<PathBuf>,
+    /// Generate declaration files (.d.ts).
+    /// <https://www.typescriptlang.org/tsconfig/#declaration>
+    pub declaration: Option<bool>,
+    /// Generate source maps (.js.map).
+    /// <https://www.typescriptlang.org/tsconfig/#sourceMap>
+    pub source_map: Option<bool>,
+    /// Embed source maps inline in output files.
+    /// <https://www.typescriptlang.org/tsconfig/#inlineSourceMap>
+    pub inline_source_map: Option<bool>,
+    /// Include source content in source maps.
+    /// <https://www.typescriptlang.org/tsconfig/#inlineSources>
+    pub inline_sources: Option<bool>,
+    /// Generate declaration maps (.d.ts.map).
+    /// <https://www.typescriptlang.org/tsconfig/#declarationMap>
+    pub declaration_map: Option<bool>,
+    /// Do not emit output files.
+    /// <https://www.typescriptlang.org/tsconfig/#noEmit>
+    pub no_emit: Option<bool>,
 }
 
 /// Value for the "extends" field.

@@ -1,5 +1,5 @@
 //! Formatter roundtrip tests.
 
-mod roundtrip;
+mod runner;
 
-pub use roundtrip::run_formatter_tests;
+pub use runner::run_formatter_tests;

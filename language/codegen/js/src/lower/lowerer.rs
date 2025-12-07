@@ -96,6 +96,7 @@ impl<'a> ModuleLowerer<'a> {
         self,
         registry_next_id: impl Fn() -> ArtifactId,
         package_dir: &std::path::Path,
+        root_dir: Option<&std::path::Path>,
     ) -> CodegenJsResult<CodegenJsOutput>
     where
         Self: Sized,
@@ -156,9 +157,9 @@ impl<'a> ModuleLowerer<'a> {
                 .ok_or_else(|| CodegenJsError::Internal {
                     message: format!("file type has no known extension: {file_type:?}"),
                 })?;
-            let output_path = self
-                .target
-                .resolve_out_file(package_dir, module_path, extension);
+            let output_path =
+                self.target
+                    .resolve_out_file(package_dir, root_dir, module_path, extension);
             let uri = Uri::from_path(&output_path);
 
             // create format context
