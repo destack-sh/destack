@@ -2,8 +2,8 @@ use std::cell::Cell;
 use std::thread;
 
 use crate::{
-    AnalyzeError, Compiler, ElaborateError, EmitError, GenerateError, InternalError, LinkError,
-    LowerError, OptimizeError, ResolveError, Task, TaskDebug, TaskDependency, TaskError,
+    AnalyzeError, BindError, Compiler, ElaborateError, EmitError, GenerateError, InternalError,
+    LinkError, LowerError, OptimizeError, ResolveError, Task, TaskDebug, TaskDependency, TaskError,
     TaskHandle, TaskId, TaskOutcome, TaskOutput, TaskPhase, TaskStatus, VerifyError,
 };
 
@@ -400,9 +400,10 @@ impl Compiler {
             TaskPhase::Import => {
                 panic!("import tasks cannot yield {waiter_id} for dependency {dependency:?}")
             }
-            TaskPhase::Bind => {
-                panic!("bind tasks cannot yield {waiter_id} for dependency {dependency:?}")
+            TaskPhase::Bind => BindError::UnsatisfiedDependency {
+                dependency: dependency.clone(),
             }
+            .into(),
             TaskPhase::Resolve => ResolveError::UnsatisfiedDependency {
                 dependency: dependency.clone(),
             }

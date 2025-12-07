@@ -43,13 +43,37 @@ impl FileRegistry {
         FileId::new(next_file_id)
     }
 
-    /// Insert a file into the registry.
+    /// Insert a new file into the registry.
+    ///
+    /// # Panics
+    /// Panics if a file with the same id already exists.
     pub fn insert(&self, file: File) {
         let id = file.id;
+        assert!(
+            !self.files_by_id.contains_key(&id),
+            "file already exists for id: {id:?}"
+        );
         self.files_by_uri.insert(file.uri.clone(), id);
         if let Some(path) = &file.path {
             self.files_by_path.insert(path.clone(), id);
         }
+        self.files_by_id.insert(id, Arc::new(file));
+    }
+
+    /// Replace an existing file in the registry.
+    ///
+    /// The file id, uri, and path must match the existing file.
+    /// This is used to replace a blank/unloaded file with its loaded content.
+    ///
+    /// # Panics
+    /// Panics if no file with the given id exists.
+    pub fn replace(&self, file: File) {
+        let id = file.id;
+        assert!(
+            self.files_by_id.contains_key(&id),
+            "file does not exist for id: {id:?}"
+        );
+        // uri/path mappings stay the same, just update the file content
         self.files_by_id.insert(id, Arc::new(file));
     }
 

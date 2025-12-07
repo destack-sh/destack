@@ -3,12 +3,16 @@ use destack_dir::{GlobalNodeIdAny, GlobalScopeId, StaticKey};
 use destack_source::ModuleId;
 use destack_workspace::Program;
 
-use crate::{TaskDependency, TaskError, TaskPhase};
+use crate::{TaskDependency, TaskDependencyError, TaskError, TaskPhase};
 
 /// Error when binding something into the compiler.
 #[derive(Debug, Clone, PartialEq)]
 #[repr(u8)]
 pub enum BindError {
+    /// Yield to a dependency.
+    Yield { dependency: TaskDependency },
+    /// Unsatisfied dependency (dependency failed).
+    UnsatisfiedDependency { dependency: TaskDependency },
     /// Unsupported node.
     UnsupportedConstruct { node: GlobalNodeIdAny },
     /// Conflicting symbol binding.
@@ -34,12 +38,25 @@ pub enum BindError {
     },
 }
 
+impl From<TaskDependencyError> for BindError {
+    fn from(e: TaskDependencyError) -> Self {
+        match e {
+            TaskDependencyError::NotReady { dependency } => Self::Yield { dependency },
+            TaskDependencyError::Failed { dependency } => {
+                Self::UnsatisfiedDependency { dependency }
+            }
+        }
+    }
+}
+
 impl TryFrom<BindError> for TaskDependency {
     type Error = BindError;
 
     fn try_from(error: BindError) -> Result<Self, Self::Error> {
-        // interface required for tasks but binds cannot yield (because imports cannot yield)
-        Err(error)
+        match error {
+            BindError::Yield { dependency } => Ok(dependency),
+            other => Err(other),
+        }
     }
 }
 
@@ -57,16 +74,20 @@ impl BindError {
     #[inline]
     pub fn sub_code(&self) -> u8 {
         match self {
-            Self::UnsupportedConstruct { .. } => 2,
-            Self::ConflictingBinding { .. } => 3,
-            Self::ConflictingExport { .. } => 4,
-            Self::ConflictingDefaultExport { .. } => 5,
+            Self::Yield { .. } => 1,
+            Self::UnsatisfiedDependency { .. } => 2,
+            Self::UnsupportedConstruct { .. } => 3,
+            Self::ConflictingBinding { .. } => 4,
+            Self::ConflictingExport { .. } => 5,
+            Self::ConflictingDefaultExport { .. } => 6,
         }
     }
 
     /// Get the node id of the error.
     pub fn node(&self) -> GlobalNodeIdAny {
         match self {
+            Self::Yield { dependency } => dependency.node(),
+            Self::UnsatisfiedDependency { dependency } => dependency.node(),
             Self::UnsupportedConstruct { node } => *node,
             Self::ConflictingBinding { node, .. } => *node,
             Self::ConflictingExport { node, .. } => *node,
@@ -77,6 +98,8 @@ impl BindError {
     /// Get the message of the error.
     pub fn message(&self, program: &Program) -> String {
         match self {
+            Self::Yield { .. } => "bind task yielded".to_string(),
+            Self::UnsatisfiedDependency { .. } => "unsatisfied dependency".to_string(),
             Self::UnsupportedConstruct { .. } => "unsupported construct".to_string(),
             Self::ConflictingBinding { name, .. } => {
                 let name = name

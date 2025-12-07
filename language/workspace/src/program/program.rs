@@ -173,4 +173,30 @@ impl Program {
             dir_root_node_id.into_global(root_module_id),
         )
     }
+
+    /// Register a module with inline content (pre-loaded, no filesystem read needed).
+    pub fn register_inline_module(&self, uri: Uri, content: String, ty: FileType) -> ModuleId {
+        // check if module already exists
+        if let Some(module_id) = self.modules.get_id_by_uri(&uri) {
+            return module_id;
+        }
+
+        // create a loaded file (not blank)
+        let file_id = self.files.next_id();
+        let name = uri
+            .to_path()
+            .and_then(|p| p.file_name().map(|n| n.to_string_lossy().into_owned()))
+            .unwrap_or_else(|| "<string>".to_string());
+        let file = File::from_text(file_id, name, uri.clone(), None, ty, content);
+        self.files.insert(file);
+
+        // use ephemeral package for inline content
+        let package_id = PackageId::EPHEMERAL;
+        let module_id =
+            ModuleId::from_relative_path(package_id, std::path::Path::new(uri.as_ref()));
+        let module = Module::blank(module_id, file_id, uri, None, package_id);
+        self.modules.insert(module);
+
+        module_id
+    }
 }

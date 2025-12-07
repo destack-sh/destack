@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use destack_dir::GlobalNodeIdAny;
 
-use crate::{TaskDependency, TaskError, TaskPhase};
+use crate::{TaskDependency, TaskDependencyError, TaskError, TaskPhase};
 
 use destack_workspace::Program;
 
@@ -41,6 +41,17 @@ pub enum EmitError {
         node: GlobalNodeIdAny,
         path: PathBuf,
     },
+}
+
+impl From<TaskDependencyError> for EmitError {
+    fn from(e: TaskDependencyError) -> Self {
+        match e {
+            TaskDependencyError::NotReady { dependency } => Self::Yield { dependency },
+            TaskDependencyError::Failed { dependency } => {
+                Self::UnsatisfiedDependency { dependency }
+            }
+        }
+    }
 }
 
 impl TryFrom<EmitError> for TaskDependency {

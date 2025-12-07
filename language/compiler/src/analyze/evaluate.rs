@@ -226,16 +226,16 @@ impl Compiler {
 mod tests {
     use destack_dir::{PrimitiveType, Type, TypeLiteral};
 
-    use crate::{ImportTask, TestProgram};
+    use crate::TestProgram;
 
     #[test]
     fn test_analyze_evaluate_type_on_let_expression() {
         let test = TestProgram::memory_sequential();
-        let file = test.file("test.ds", "declare let x: number");
-        test.enqueue(ImportTask::ImportModuleFromFile { file: file.id });
+        let module_id = test.register_module("test.ds", "declare let x: number");
+        test.analyze_module(module_id);
         test.compile_dump_clean();
 
-        let module = test.module_for_file(&file);
+        let module = test.program.modules.get(module_id);
         let module = module.read();
         let tree = module.dir.tree.read();
         let types = module.dir.types.read();

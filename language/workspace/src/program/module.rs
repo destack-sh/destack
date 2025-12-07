@@ -33,6 +33,26 @@ pub struct Module {
 
 #[allow(clippy::too_many_arguments)]
 impl Module {
+    /// Create a new blank Module (no AST yet, will be populated by Import).
+    pub fn blank(
+        id: ModuleId,
+        file_id: FileId,
+        uri: Uri,
+        path: Option<PathBuf>,
+        package_id: PackageId,
+    ) -> Self {
+        Self {
+            id,
+            file_id,
+            uri,
+            path,
+            package_id,
+            ast: ModuleAst::new(id),
+            dir: ModuleDir::new(id),
+            mir: ModuleMir::new(id),
+        }
+    }
+
     /// Create a new Module from an AST.
     pub fn from_ast(
         id: ModuleId,
@@ -54,6 +74,11 @@ impl Module {
             dir,
             mir,
         }
+    }
+
+    /// Check if this module has been parsed (has AST content).
+    pub fn is_parsed(&self) -> bool {
+        !self.ast.roots.is_empty() || !self.ast.tree.is_empty()
     }
 }
 

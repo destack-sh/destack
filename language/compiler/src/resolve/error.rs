@@ -1,4 +1,4 @@
-use crate::{TaskDependency, TaskError, TaskPhase};
+use crate::{TaskDependency, TaskDependencyError, TaskError, TaskPhase};
 use destack_dir::{GlobalNodeIdAny, GlobalScopeId, GlobalSymbolId, StaticKey, StringId};
 use destack_source::ModuleId;
 use destack_workspace::Program;
@@ -43,6 +43,17 @@ pub enum ResolveError {
         node: GlobalNodeIdAny,
         target: StringId,
     },
+}
+
+impl From<TaskDependencyError> for ResolveError {
+    fn from(e: TaskDependencyError) -> Self {
+        match e {
+            TaskDependencyError::NotReady { dependency } => Self::Yield { dependency },
+            TaskDependencyError::Failed { dependency } => {
+                Self::UnsatisfiedDependency { dependency }
+            }
+        }
+    }
 }
 
 impl TryFrom<ResolveError> for TaskDependency {

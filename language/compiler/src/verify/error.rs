@@ -1,6 +1,6 @@
 use destack_dir::GlobalNodeIdAny;
 
-use crate::{TaskDependency, TaskError, TaskPhase};
+use crate::{TaskDependency, TaskDependencyError, TaskError, TaskPhase};
 
 use destack_workspace::Program;
 
@@ -14,6 +14,17 @@ pub enum VerifyError {
     UnsatisfiedDependency { dependency: TaskDependency },
     /// Unsupported node.
     UnsupportedConstruct { node: GlobalNodeIdAny },
+}
+
+impl From<TaskDependencyError> for VerifyError {
+    fn from(e: TaskDependencyError) -> Self {
+        match e {
+            TaskDependencyError::NotReady { dependency } => Self::Yield { dependency },
+            TaskDependencyError::Failed { dependency } => {
+                Self::UnsatisfiedDependency { dependency }
+            }
+        }
+    }
 }
 
 impl TryFrom<VerifyError> for TaskDependency {

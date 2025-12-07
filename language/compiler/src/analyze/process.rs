@@ -1,5 +1,5 @@
 use crate::{
-    AnalyzeError, AnalyzeResult, Compiler, TaskDependencyError, Task, TaskDebug, TaskOutput,
+    AnalyzeError, AnalyzeResult, Compiler, Task, TaskDebug, TaskDependencyError, TaskOutput,
     TaskResultCollector, TypeContext,
 };
 
@@ -11,14 +11,14 @@ use destack_workspace::Program;
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub enum AnalyzeTask {
     /// Analyze a module.
-    Analyze { module: ModuleId },
+    AnalyzeModule { module: ModuleId },
 }
 
 impl AnalyzeTask {
     /// Get the sub code for the task.
     pub fn sub_code(&self) -> u8 {
         match self {
-            Self::Analyze { .. } => 1,
+            Self::AnalyzeModule { .. } => 1,
         }
     }
 }
@@ -26,13 +26,13 @@ impl AnalyzeTask {
 impl TaskDebug for AnalyzeTask {
     fn name(&self) -> &'static str {
         match self {
-            Self::Analyze { .. } => "module",
+            Self::AnalyzeModule { .. } => "analyze module",
         }
     }
 
     fn trace_args(&self, program: &Program) -> String {
         match self {
-            Self::Analyze { module } => {
+            Self::AnalyzeModule { module } => {
                 let module = program.modules.get(*module);
                 let uri = module.read().uri.clone().to_string();
                 format!(r#"module="{uri}""#)
@@ -61,14 +61,8 @@ impl Compiler {
     /// Process an analyze task.
     pub fn process_analyze(&self, task: AnalyzeTask) -> AnalyzeResult<AnalyzeOutput> {
         match task {
-            AnalyzeTask::Analyze { module } => {
-                // ensure module is resolved first (pull-based)
-                self.ensure_resolved(module).map_err(|e| match e {
-                    TaskDependencyError::NotReady { dependency } => AnalyzeError::Yield { dependency },
-                    TaskDependencyError::Failed { dependency } => {
-                        AnalyzeError::UnsatisfiedDependency { dependency }
-                    }
-                })?;
+            AnalyzeTask::AnalyzeModule { module } => {
+                self.ensure_resolved(module)?;
                 self.analyze_module(module)?;
             }
         }
@@ -77,7 +71,7 @@ impl Compiler {
 
     /// Ensure a module has been analyzed.
     pub fn ensure_analyzed(&self, module: ModuleId) -> Result<(), TaskDependencyError> {
-        self.require_task(AnalyzeTask::Analyze { module })
+        self.require_task(AnalyzeTask::AnalyzeModule { module })
     }
 
     /// Analyze a module.

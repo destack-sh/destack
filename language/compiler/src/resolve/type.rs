@@ -106,13 +106,13 @@ impl Compiler {
 mod tests {
     use destack_dir::{Expression, FloatType, IntType, PrimitiveType, TypeLiteral};
 
-    use crate::{ImportTask, TestProgram, assert_node};
+    use crate::{TestProgram, assert_node};
 
     /// Test that builtin type names resolve to TypeLiteral expressions in value position.
     #[test]
     fn test_resolve_builtin_types_in_value_position() {
         let test = TestProgram::memory_sequential();
-        let file = test.file(
+        let module_id = test.register_module(
             "test.ds",
             r#"
 int;
@@ -129,10 +129,10 @@ boolean;
 string;
 "#,
         );
-        test.enqueue(ImportTask::ImportModuleFromFile { file: file.id });
+        test.resolve_module(module_id);
         test.compile_dump_clean();
 
-        let module = test.module_for_file(&file);
+        let module = test.program.modules.get(module_id);
         let module = module.read();
         let tree = module.dir.tree.read();
         let roots = &module.dir.roots;
@@ -215,17 +215,17 @@ string;
     #[test]
     fn test_variable_shadows_builtin_type() {
         let test = TestProgram::memory_sequential();
-        let file = test.file(
+        let module_id = test.register_module(
             "test.ds",
             r#"
 let string: string = "hello";
 string;
 "#,
         );
-        test.enqueue(ImportTask::ImportModuleFromFile { file: file.id });
+        test.resolve_module(module_id);
         test.compile_dump_clean();
 
-        let module = test.module_for_file(&file);
+        let module = test.program.modules.get(module_id);
         let module = module.read();
         let tree = module.dir.tree.read();
         let roots = &module.dir.roots;

@@ -296,14 +296,14 @@ fn transpile_file_impl(
     use destack_codegen_js::Transpiler;
     use destack_compiler::{CompileOptions, Compiler, ImportTask};
     use destack_source::{
-        DiagnosticSeverity, File, FileRegistry, FileType, LanguageOptions, PhysicalFileSystem, Uri,
+        DiagnosticSeverity, FileRegistry, FileType, LanguageOptions, PhysicalFileSystem, Uri,
     };
     use destack_workspace::Program;
 
     let options = options.unwrap_or_default();
     let transpile_options: destack_codegen_js::TranspileOptions = options.into();
 
-    // set up the program with a single file
+    // set up the program
     let cwd = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
     let fs: Arc<dyn destack_source::FileSystem> = Arc::new(PhysicalFileSystem);
     let files = Arc::new(FileRegistry::new());
@@ -314,27 +314,14 @@ fn transpile_file_impl(
         files.clone(),
     ));
 
-    // create and register the file
-    let file_id = files.next_id();
+    // register module with inline content on program
     let uri = Uri::from_string(&path);
-    let file = File::from_text(
-        file_id,
-        path.clone(),
-        uri.clone(),
-        None,
-        FileType::Destack,
-        content,
-    );
-    files.insert(file);
+    let module_id = program.register_inline_module(uri.clone(), content, FileType::Destack);
 
     // compile the file
     let compile_options = CompileOptions::default();
     let compiler = Compiler::new(program.clone(), compile_options);
-
-    // enqueue the import task for the file
-    compiler.enqueue(ImportTask::ImportModuleFromFile { file: file_id });
-
-    // run the compiler
+    compiler.enqueue(ImportTask::ImportModule { module: module_id });
     compiler.compile();
 
     // collect any diagnostics

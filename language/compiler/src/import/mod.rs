@@ -1,6 +1,7 @@
 mod error;
 mod options;
 mod process;
+mod resolve;
 mod source;
 mod warning;
 

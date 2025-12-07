@@ -6,13 +6,15 @@ use std::sync::Arc;
 
 use destack_dir::{DumperOptions, GlobalSymbolId, Symbol};
 use destack_source::{
-    DiagnosticSeverity, File, FileRegistry, FileSystem, FileType, LanguageOptions,
-    MemoryFileSystem, PhysicalFileSystem, PrintOptions, Uri, print_diagnostics,
+    DiagnosticSeverity, File, FileRegistry, FileSystem, LanguageOptions, MemoryFileSystem,
+    ModuleId, PhysicalFileSystem, PrintOptions, Uri, print_diagnostics,
 };
 use destack_workspace::{Module, Program};
 use parking_lot::RwLock;
 
-use crate::{AnalyzeTask, CompileOptions, Compiler, ResolveTask, Task, default_workers};
+use crate::{
+    AnalyzeTask, BindTask, CompileOptions, Compiler, ImportTask, ResolveTask, Task, default_workers,
+};
 
 use super::tracing::init_tracing;
 
@@ -54,14 +56,12 @@ pub struct TestProgram {
 impl TestProgram {
     /// Create a new TestProgram with the given TestFileSystem and worker count.
     fn new(fs: TestFileSystem, workers: u16) -> Self {
-        // context
         init_tracing();
         let root_directory = match &fs {
             TestFileSystem::Memory { .. } => current_dir().unwrap(),
             TestFileSystem::Physical { root_directory, .. } => root_directory.clone(),
         };
 
-        // program
         let program = Arc::new(Program::new(
             LanguageOptions::default(),
             root_directory,
@@ -69,7 +69,6 @@ impl TestProgram {
             Arc::new(FileRegistry::new()),
         ));
 
-        // compiler options
         let compiler_options = CompileOptions {
             workers,
             ..CompileOptions::default()
@@ -126,19 +125,14 @@ impl TestProgram {
         )
     }
 
-    /// Create a new source file.
-    pub fn file(&self, path: &str, content: &str) -> Arc<File> {
-        let file_id = self.program.files.next_id();
-        let uri = Uri::from_string(path);
-        let file = File::from_text(
-            file_id,
-            path.to_string(),
-            uri.clone(),
-            uri.to_path_buf(),
-            FileType::Destack,
-            content.to_string(),
-        );
-        self.program.files.insert(file);
+    // -------------------------------------------------------------------------
+    // File helpers
+    // -------------------------------------------------------------------------
+
+    /// Add a file to the memory filesystem (without creating a Module).
+    ///
+    /// Use this for files that will be transitively imported.
+    pub fn add_file(&self, path: &str, content: &str) {
         match &self.fs {
             TestFileSystem::Memory { fs } => {
                 fs.add_file(path, content.as_bytes()).unwrap_or_else(|_| {
@@ -149,22 +143,53 @@ impl TestProgram {
                 panic!("cannot add test file '{path}' to physical file system");
             }
         }
-        self.program.files.get(file_id)
     }
 
-    /// Enqueue a compile task.
+    /// Add a file and register a blank module for it (no import/parsing yet).
+    pub fn register_module(&self, path: &str, content: &str) -> ModuleId {
+        self.add_file(path, content);
+        self.compiler
+            .resolve_path_to_module(&PathBuf::from(path))
+            .unwrap_or_else(|e| panic!("failed to register module: {e:?}"))
+    }
+
+    /// Enqueue Import task for a module.
+    pub fn import_module(&self, module: ModuleId) {
+        self.enqueue(ImportTask::ImportModule { module });
+    }
+
+    /// Enqueue Bind task for a module.
+    pub fn bind_module(&self, module: ModuleId) {
+        self.enqueue(BindTask::BindModule { module });
+    }
+
+    /// Enqueue Resolve task for a module.
+    pub fn resolve_module(&self, module: ModuleId) {
+        self.enqueue(ResolveTask::ResolveModule { module });
+    }
+
+    /// Enqueue Analyze task for a module.
+    pub fn analyze_module(&self, module: ModuleId) {
+        self.enqueue(AnalyzeTask::AnalyzeModule { module });
+    }
+
+    /// Enqueue a task (does not run it).
     pub fn enqueue<T: Into<Task>>(&self, task: T) {
         self.compiler.enqueue(task);
     }
 
-    /// Compile the program.
+    /// Run all queued tasks to completion.
     pub fn compile(&self) {
         self.compiler.compile();
     }
 
+    /// Enqueue a task and run to completion.
+    pub fn run<T: Into<Task>>(&self, task: T) {
+        self.enqueue(task);
+        self.compile();
+    }
+
     /// Check no diagnostics of at least the given severity.
-    ///
-    /// If any diagnostics meet the threshold, all diagnostics are printed before panicking.
     pub fn check_no_diagnostic(&self, min_severity: DiagnosticSeverity) {
         let diagnostics = self.program.diagnostics.collect();
         let highest = diagnostics.highest_severity();
@@ -184,41 +209,31 @@ impl TestProgram {
         }
     }
 
-    /// Check no errors (convenience wrapper for check_no_diagnostic).
+    /// Check no errors.
     pub fn check_no_errors(&self) {
         self.check_no_diagnostic(DiagnosticSeverity::Error);
     }
 
-    /// Helper to compile, dump and check no diagnostics.
+    /// Compile, dump and check no diagnostics.
     ///
-    /// This schedules Resolve and Analyze for all imported modules to simulate
-    /// a full compilation pipeline in a pull-based model.
+    /// Runs all queued tasks to completion, dumps output, and asserts no diagnostics.
+    /// Tests should enqueue their target tasks before calling this.
     pub fn compile_dump_clean(&self) {
-        // nocheckin #Broken: this is bad and wrong
-        // phase 1: run queued tasks (imports)
         self.compile();
-
-        // phase 2: schedule resolve and analyze for all modules (pull-based simulation)
-        for module in self.program.modules.iter() {
-            let module_id = module.read().id;
-            self.enqueue(ResolveTask::ResolveModule { module: module_id });
-        }
-        self.compile();
-
-        for module in self.program.modules.iter() {
-            let module_id = module.read().id;
-            self.enqueue(AnalyzeTask::Analyze { module: module_id });
-        }
-        self.compile();
-
         self.dump();
         self.check_no_diagnostic(DiagnosticSeverity::Note);
     }
 
-    /// Helper to compile, dump and ignore diagnostics.
+    /// Compile, dump and ignore diagnostics.
     pub fn compile_dump_ignore(&self) {
         self.compile();
         self.dump();
+    }
+
+    /// Get the file for a module.
+    pub fn file(&self, module: ModuleId) -> Arc<File> {
+        let module = self.program.modules.get(module);
+        self.program.files.get(module.read().file_id)
     }
 
     /// Get a module by URI.
@@ -229,7 +244,7 @@ impl TestProgram {
             .unwrap_or_else(|| panic!("module not found for '{module_uri}'"))
     }
 
-    /// Get a module by file id.
+    /// Get a module by file.
     pub fn module_for_file(&self, file: &File) -> Arc<RwLock<Module>> {
         self.program
             .modules

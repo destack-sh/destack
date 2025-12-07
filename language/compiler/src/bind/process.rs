@@ -1,27 +1,41 @@
 use destack_dir::{Expression, GlobalNodeIdAny, LocalNodeId, LocalSymbolId, StaticKey, SymbolKind};
+use destack_source::ModuleId;
 
-use crate::{BindError, BindResult, Compiler, Task, TaskDebug, TaskOutput};
+use crate::{BindError, BindResult, Compiler, Task, TaskDebug, TaskDependencyError, TaskOutput};
 
 use destack_workspace::{Module, Program};
 
 /// Task to bind AST into DIR.
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
-pub enum BindTask {/* Bind is conceptually a stage, but we do it as part of import. */}
+pub enum BindTask {
+    /// Bind a module's AST into DIR.
+    BindModule { module: ModuleId },
+}
 
 impl BindTask {
     /// Get the sub code for the task.
     pub fn sub_code(&self) -> u8 {
-        unreachable!("bind is not a real task {self:?}");
+        match self {
+            BindTask::BindModule { .. } => 1,
+        }
     }
 }
 
 impl TaskDebug for BindTask {
     fn name(&self) -> &'static str {
-        unreachable!("bind is not a real task {self:?}");
+        match self {
+            BindTask::BindModule { .. } => "module",
+        }
     }
 
-    fn trace_args(&self, _program: &Program) -> String {
-        unreachable!("bind is not a real task {self:?}");
+    fn trace_args(&self, program: &Program) -> String {
+        match self {
+            BindTask::BindModule { module } => {
+                let module = program.modules.get(*module);
+                let uri = module.read().uri.clone().to_string();
+                format!(r#"module="{uri}""#)
+            }
+        }
     }
 }
 
@@ -45,7 +59,20 @@ impl From<BindOutput> for TaskOutput {
 impl Compiler {
     /// Process a bind task.
     pub fn process_bind(&self, task: BindTask) -> BindResult<BindOutput> {
-        unreachable!("bind is not a real task {task:?}");
+        match task {
+            BindTask::BindModule { module } => {
+                self.ensure_imported(module)?;
+                let module_arc = self.program.modules.get(module);
+                let mut module_guard = module_arc.write();
+                self.bind_module(&mut module_guard);
+            }
+        }
+        Ok(BindOutput {})
+    }
+
+    /// Ensure a module has been bound.
+    pub fn ensure_bound(&self, module: ModuleId) -> Result<(), TaskDependencyError> {
+        self.require_task(BindTask::BindModule { module })
     }
 
     /// Bind a module.

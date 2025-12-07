@@ -1,4 +1,4 @@
-use crate::{Compiler, LinkResult, TaskDependencyError, Task, TaskDebug, TaskOutput};
+use crate::{Compiler, LinkResult, Task, TaskDebug, TaskDependencyError, TaskOutput};
 
 use destack_source::PackageId;
 use destack_workspace::Program;
@@ -67,7 +67,11 @@ impl Compiler {
     }
 
     /// Ensure a target has been linked.
-    pub fn ensure_linked(&self, package: PackageId, target: &str) -> Result<(), TaskDependencyError> {
+    pub fn ensure_linked(
+        &self,
+        package: PackageId,
+        target: &str,
+    ) -> Result<(), TaskDependencyError> {
         self.require_task(LinkTask::LinkTarget {
             package,
             target: target.to_string(),

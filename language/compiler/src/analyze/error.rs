@@ -1,7 +1,7 @@
 use destack_dir::{FunctionAbstraction, GlobalNodeIdAny, GlobalSymbolId, GlobalTypeId, Visibility};
 use destack_workspace::Program;
 
-use crate::{TaskDependency, TaskError, TaskPhase};
+use crate::{TaskDependency, TaskDependencyError, TaskError, TaskPhase};
 
 /// Error when analyzeing something into the compiler.
 #[derive(Debug, Clone, PartialEq)]
@@ -70,6 +70,17 @@ pub enum AnalyzeError {
         node: GlobalNodeIdAny,
         ty: GlobalTypeId,
     },
+}
+
+impl From<TaskDependencyError> for AnalyzeError {
+    fn from(e: TaskDependencyError) -> Self {
+        match e {
+            TaskDependencyError::NotReady { dependency } => Self::Yield { dependency },
+            TaskDependencyError::Failed { dependency } => {
+                Self::UnsatisfiedDependency { dependency }
+            }
+        }
+    }
 }
 
 impl TryFrom<AnalyzeError> for TaskDependency {

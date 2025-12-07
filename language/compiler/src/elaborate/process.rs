@@ -1,4 +1,4 @@
-use crate::{Compiler, ElaborateError, ElaborateResult, TaskDependencyError, Task, TaskDebug, TaskOutput};
+use crate::{Compiler, ElaborateResult, Task, TaskDebug, TaskDependencyError, TaskOutput};
 
 use destack_source::ModuleId;
 use destack_workspace::Program;
@@ -7,14 +7,14 @@ use destack_workspace::Program;
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub enum ElaborateTask {
     /// Elaborate a module.
-    Elaborate { module: ModuleId },
+    ElaborateModule { module: ModuleId },
 }
 
 impl ElaborateTask {
     /// Get the sub code for the task.
     pub fn sub_code(&self) -> u8 {
         match self {
-            Self::Elaborate { .. } => 1,
+            Self::ElaborateModule { .. } => 1,
         }
     }
 }
@@ -22,13 +22,13 @@ impl ElaborateTask {
 impl TaskDebug for ElaborateTask {
     fn name(&self) -> &'static str {
         match self {
-            Self::Elaborate { .. } => "module",
+            Self::ElaborateModule { .. } => "elaborate module",
         }
     }
 
     fn trace_args(&self, program: &Program) -> String {
         match self {
-            Self::Elaborate { module } => {
+            Self::ElaborateModule { module } => {
                 let module = program.modules.get(*module);
                 let uri = module.read().uri.clone().to_string();
                 format!(r#"module="{uri}""#)
@@ -57,14 +57,8 @@ impl Compiler {
     /// Process an elaborate task.
     pub fn process_elaborate(&self, task: ElaborateTask) -> ElaborateResult<ElaborateOutput> {
         match task {
-            ElaborateTask::Elaborate { module } => {
-                // ensure module is analyzed first (pull-based)
-                self.ensure_analyzed(module).map_err(|e| match e {
-                    TaskDependencyError::NotReady { dependency } => ElaborateError::Yield { dependency },
-                    TaskDependencyError::Failed { dependency } => {
-                        ElaborateError::UnsatisfiedDependency { dependency }
-                    }
-                })?;
+            ElaborateTask::ElaborateModule { module } => {
+                self.ensure_analyzed(module)?;
                 self.elaborate_module(module)?;
             }
         }
@@ -79,5 +73,10 @@ impl Compiler {
         // - desugaring
         // - ..?
         Ok(())
+    }
+
+    /// Ensure a module has been elaborated.
+    pub fn ensure_elaborated(&self, module: ModuleId) -> Result<(), TaskDependencyError> {
+        self.require_task(ElaborateTask::ElaborateModule { module })
     }
 }

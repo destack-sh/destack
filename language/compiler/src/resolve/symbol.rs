@@ -198,15 +198,14 @@ impl Compiler {
 #[cfg(test)]
 mod tests {
     use destack_dir::{Expression, Pattern, ScalarLiteral};
-    use destack_source::Uri;
 
-    use crate::{ImportTask, TestProgram, assert_node};
+    use crate::{TestProgram, assert_node};
 
     /// Resolve symbols at top level in a single module.
     #[test]
     fn test_resolve_symbol_in_single_module() {
         let test = TestProgram::memory_sequential();
-        let file = test.file(
+        let module_id = test.register_module(
             "test.ds",
             r#"
 let x = 0;
@@ -214,10 +213,10 @@ let y = x;
 let z = y;
 "#,
         );
-        test.enqueue(ImportTask::ImportModuleFromFile { file: file.id });
+        test.resolve_module(module_id);
         test.compile_dump_clean();
 
-        let module = test.module_for_file(&file);
+        let module = test.program.modules.get(module_id);
         let module = module.read();
         let tree = module.dir.tree.read();
         let (x_symbol_id, x_node) = test.resolve_to_node::<Pattern>("test.ds", "x").unwrap();
@@ -258,26 +257,27 @@ let z = y;
     #[test]
     fn test_resolve_symbol_across_two_modules() {
         let test = TestProgram::memory_parallel();
-        let file_a = test.file(
+        // add file_a to memory fs (will be imported transitively from file_b)
+        test.add_file(
             "a.ds",
             r#"
 export let A = 1;
             "#,
         );
-        let file_b = test.file(
+        let module_b_id = test.register_module(
             "b.ds",
             r#"
 import { A } from "./a.ds";
 export let B = A + 1;
             "#,
         );
-        test.enqueue(ImportTask::ImportModuleFromFile { file: file_b.id });
+        test.resolve_module(module_b_id);
         test.compile_dump_clean();
 
-        let module_a = test.module_for_file(&file_a);
+        let module_a = test.module("a.ds");
         let module_a = module_a.read();
         let tree_a = module_a.dir.tree.read();
-        let module_b = test.module_for_file(&file_b);
+        let module_b = test.program.modules.get(module_b_id);
         let module_b = module_b.read();
         let tree_b = module_b.dir.tree.read();
 
@@ -312,16 +312,16 @@ export let B = A + 1;
         const N: usize = 20;
         let test = TestProgram::memory_parallel();
 
-        // create module 1: export let M1 = 1;
-        test.file(
+        // add module 1 to fs: export let M1 = 1;
+        test.add_file(
             "m1.ds",
             r#"
 export let M1 = 1;
 "#,
         );
 
-        // create modules 2..N, each importing from all previous modules
-        for i in 2..=N {
+        // add modules 2..N-1 to fs, each importing from all previous modules
+        for i in 2..N {
             let mut imports = String::new();
             let mut sum_parts_str = Vec::new();
 
@@ -345,17 +345,27 @@ export let M1 = 1;
 export let M{i} = {sum_expression_str} + 1;
 "#
             );
-            test.file(&format!("m{i}.ds"), &content);
+            test.add_file(&format!("m{i}.ds"), &content);
         }
 
-        // enqueue the last module (will trigger imports of all others)
-        let last_module_uri = format!("m{N}.ds");
-        let last_file = test
-            .program
-            .files
-            .get_by_uri(&Uri::from_string(&last_module_uri))
-            .expect("last module file not found");
-        test.enqueue(ImportTask::ImportModuleFromFile { file: last_file.id });
+        // create and import module N (the last one, will trigger imports of all others)
+        {
+            let mut imports = String::new();
+            let mut sum_parts_str = Vec::new();
+            for j in 1..N {
+                imports.push_str(&format!("import {{ M{j} }} from \"./m{j}.ds\";\n"));
+                sum_parts_str.push(format!("M{j}"));
+            }
+            let sum_expression_str = sum_parts_str.join(" + ");
+            let content = format!(
+                r#"
+{imports}
+export let M{N} = {sum_expression_str} + 1;
+"#
+            );
+            let module_id = test.register_module(&format!("m{N}.ds"), &content);
+            test.resolve_module(module_id);
+        }
         test.compile_dump_clean();
 
         // verify all N modules were created (no duplicates from race conditions)
