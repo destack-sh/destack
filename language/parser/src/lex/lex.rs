@@ -1,7 +1,7 @@
 use std::str::FromStr;
 
 use super::html_entities::HTML_NAMED_ENTITIES;
-use super::lexer::{Lexer, TreeExpressionENtry, TreeState};
+use super::lexer::{Lexer, TreeExpressionEntry, TreeState};
 use destack_ast::{
     Keyword, LiteralType, NumberBase, Token, TokenSpan, TokenType, is_identifier_continue,
     is_identifier_start, is_whitespace,
@@ -47,13 +47,16 @@ pub const EXPRESSION_START_TOKEN_TYPES: [TokenType; 15] = [
 /// - No Newline (after newline in interface body, `<T>` is a generic)
 /// - No Semicolon (same reason)
 /// - Only clear expression-start positions
-pub const TREE_OPENING_TOKEN_TYPES: [TokenType; 6] = [
+pub const TREE_OPENING_TOKEN_TYPES: [TokenType; 9] = [
     TokenType::Assign,          // x = <div/>
     TokenType::OpenParenthesis, // (<div/>)
     TokenType::OpenBracket,     // [<div/>]
     TokenType::Comma,           // f(a, <div/>)
     TokenType::ArrowWide,       // () => <div/>
     TokenType::Colon,           // {foo: <div/>} or ternary ? <a/> : <b/>
+    TokenType::LogicalAnd,      // {condition && <div/>}
+    TokenType::LogicalOr,       // {condition || <div/>}
+    TokenType::Maybe,           // {condition ? <div/> : null}
 ];
 
 #[inline]
@@ -325,9 +328,21 @@ impl Lexer<'_> {
                     // leave content mode (will return when } is matched)
                     self.pop_tree_state();
                     // track the depth and tree level so we know when to return to content mode
-                    self.options.tree_expression_stack.push(TreeExpressionENtry {
+                    self.options.tree_expression_stack.push(TreeExpressionEntry {
                         parentheses_depth: self.options.parentheses_depth,
                         tree_depth: self.options.tree_state_stack.len(),
+                        from_content: true,
+                    });
+                }
+                // in tree opening tag mode, { starts an attribute expression container
+                // (e.g., <Component attr={<NestedJSX />} />)
+                else if self.tree_state() == TreeState::OpeningTag {
+                    // don't pop OpeningTag - we're still parsing attributes
+                    // but track the expression so nested JSX is recognized
+                    self.options.tree_expression_stack.push(TreeExpressionEntry {
+                        parentheses_depth: self.options.parentheses_depth,
+                        tree_depth: self.options.tree_state_stack.len(),
+                        from_content: false,
                     });
                 }
                 self.options.parentheses_depth += 1;
@@ -359,9 +374,13 @@ impl Lexer<'_> {
                     && entry.parentheses_depth == self.options.parentheses_depth
                     && entry.tree_depth == self.options.tree_state_stack.len()
                 {
+                    let from_content = entry.from_content;
                     self.options.tree_expression_stack.pop();
-                    // return to content mode
-                    self.push_tree_state(TreeState::Content);
+                    // only return to content mode if we came from content mode
+                    // (not for attribute expression containers in OpeningTag mode)
+                    if from_content {
+                        self.push_tree_state(TreeState::Content);
+                    }
                     (TokenType::CloseBrace, None)
                 } else {
                     (TokenType::CloseBrace, None)
@@ -1349,8 +1368,8 @@ impl Lexer<'_> {
             i += 1;
         }
 
-        // skip whitespace
-        while i < bytes.len() && is_whitespace(bytes[i] as char) && bytes[i] != b'\n' {
+        // skip whitespace AND newlines (TSX allows multiline opening tags)
+        while i < bytes.len() && (is_whitespace(bytes[i] as char) || bytes[i] == b'\n') {
             i += 1;
         }
 
@@ -1375,8 +1394,6 @@ impl Lexer<'_> {
             }
             // Destack type annotation: <T : X> is generic
             ':' => false,
-            // newline before > could be generic parameter list
-            '\n' => false,
             // anything else (including >, /, space+attr): likely tree
             _ => true,
         }

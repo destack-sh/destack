@@ -22,11 +22,14 @@ pub(super) enum TreeState {
 
 /// Entry tracking where a tree expression container started.
 #[derive(Debug, Clone, Copy)]
-pub(super) struct TreeExpressionENtry {
+pub(super) struct TreeExpressionEntry {
     /// The parentheses depth when this expression container started.
     pub parentheses_depth: i32,
     /// The tree state stack depth when this expression container started.
     pub tree_depth: usize,
+    /// Whether this expression container came from Content mode (vs OpeningTag mode).
+    /// When `}` closes this container, we only restore Content state if this is true.
+    pub from_content: bool,
 }
 
 /// The options for the lexer.
@@ -40,7 +43,7 @@ pub(super) struct LexerOptions {
     pub(super) tree_state_stack: Vec<TreeState>,
     /// Stack of entries tracking where tree expression containers started.
     /// When `}` is seen at the matching depth and tree level, we return to TreeState::Content.
-    pub(super) tree_expression_stack: Vec<TreeExpressionENtry>,
+    pub(super) tree_expression_stack: Vec<TreeExpressionEntry>,
 }
 
 /// Lexer over a source string.

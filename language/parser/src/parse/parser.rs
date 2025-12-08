@@ -209,6 +209,16 @@ impl ParserOptions {
         }
     }
 
+    /// Clear `left_precedence` to allow all operators.
+    /// Use this when entering a new expression context (e.g., expression containers in tree literals).
+    #[inline]
+    pub(crate) fn fresh_expression(self) -> Self {
+        Self {
+            left_precedence: None,
+            ..self
+        }
+    }
+
     /// Not previous position.
     #[inline]
     pub(crate) fn not_in_position(self) -> Self {

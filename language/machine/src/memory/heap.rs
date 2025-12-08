@@ -2,8 +2,8 @@ use super::value::{HeapHandle, Value};
 
 /// A managed heap for interpreter allocations.
 ///
-/// Uses a slab allocator for O(1) access. Freed slots are tracked
-/// in a free list for reuse.
+/// Uses a slab allocator for O(1) access. 
+/// Freed slots are tracked in a free list for reuse.
 #[derive(Debug, Default)]
 pub struct Heap {
     /// Allocated cells. Index 0 is reserved (null handle).
