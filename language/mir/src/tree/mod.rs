@@ -1,5 +1,6 @@
 mod block;
 mod function;
+mod global;
 mod instruction;
 mod local;
 mod node;
@@ -12,6 +13,7 @@ mod walk;
 
 pub use block::*;
 pub use function::*;
+pub use global::*;
 pub use instruction::*;
 pub use local::*;
 pub use node::*;

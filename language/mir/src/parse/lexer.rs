@@ -141,7 +141,9 @@ impl<'a> Lexer<'a> {
 
         // check for keywords
         match text {
+            "extern" => TokenType::Extern,
             "function" => TokenType::Function,
+            "global" => TokenType::Global,
             "return" => TokenType::Return,
             "jump" => TokenType::Jump,
             "branch" => TokenType::Branch,
@@ -155,6 +157,7 @@ impl<'a> Lexer<'a> {
             "true" | "false" => TokenType::BoolLiteral,
             "owned" | "borrowed" | "copy" => TokenType::Ownership,
             "var" => TokenType::Var,
+            "const" => TokenType::Const,
             _ => {
                 // value
                 if let Some(rest) = text.strip_prefix('v')

@@ -87,8 +87,8 @@ function @with_local() -> i64 {
     local0: i64 ; owned, var
 block0:
     v0 = iconst 42i64
-    store_local local0, v0
-    v1 = load_local local0
+    local_set local0, v0
+    v1 = local_get local0
     return v1
 }";
     assert_eq!(output, expected);

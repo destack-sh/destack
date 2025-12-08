@@ -18,11 +18,11 @@ You are free to use plain TypeScript, pick any of the libraries, or plug into th
 
 ## Examples
 
- - TODO #Incomplete: examples
+ - NOTE #Incomplete: examples
 
 ## Getting Started
 
- - TODO #Incomplete: getting started (`bun i destack`, `curl destack.sh/install`, ..)
+ - NOTE #Incomplete: getting started (`bun i destack`, `curl destack.sh/install`, ..)
  - Join the [Discord](https://discord.gg/xUFQ45TWYd)
 
 ## Higher-Order Software

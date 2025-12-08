@@ -1,9 +1,9 @@
 //! MIR tree dumper for debugging and visualization.
 
 use crate::{
-    BinaryOperator, Block, CastKind, Constant, Function, FunctionReference, Instruction, Local,
-    LocalNodeId, Mutability, NodeTree, NodeVisitor, NodeVisitorOptions, Ownership, SwitchCase,
-    Terminator, Type, UnaryOperator, Value,
+    BinaryOperator, Block, CastKind, Constant, Function, Global, GlobalInitializer, Instruction,
+    Local, LocalNodeId, Mutability, NodeTree, NodeVisitor, NodeVisitorOptions, Ownership,
+    SwitchCase, Terminator, Type, UnaryOperator, Value,
 };
 use destack_source::{Color, StringPool};
 
@@ -55,8 +55,13 @@ impl<'a> Dumper<'a> {
         }
     }
 
-    /// Dump all functions in the tree.
+    /// Dump all globals and functions in the tree.
     pub fn dump_all(&mut self) {
+        // dump globals first
+        for (id, global) in self.tree.iter_nodes::<Global>() {
+            self.visit_global(self.tree, id, global);
+        }
+        // then functions
         for (id, function) in self.tree.iter_nodes::<Function>() {
             self.visit_function(self.tree, id, function);
         }
@@ -97,24 +102,36 @@ impl<'a> Dumper<'a> {
 
     // === value formatting ===
 
-    fn fmt_value(&self, v: Value) -> String {
+    fn format_value(&self, v: Value) -> String {
         format!("v{}", v.0)
     }
 
-    fn fmt_block_id(&self, id: LocalNodeId<Block>) -> String {
+    fn format_block_id(&self, id: LocalNodeId<Block>) -> String {
         format!("block{}", id.id)
     }
 
-    fn fmt_local_id(&self, id: LocalNodeId<Local>) -> String {
+    fn format_local_id(&self, id: LocalNodeId<Local>) -> String {
         format!("local{}", id.id)
     }
 
-    fn fmt_type_id(&self, id: LocalNodeId<Type>) -> String {
-        let ty = self.tree.get(id);
-        self.fmt_type(ty)
+    fn format_global_id(&self, id: LocalNodeId<Global>) -> String {
+        let global = self.tree.get(id);
+        let name = self.strings.get(global.name).to_string();
+        format!("@{name}")
     }
 
-    fn fmt_type(&self, ty: &Type) -> String {
+    fn format_function_id(&self, id: LocalNodeId<Function>) -> String {
+        let function = self.tree.get(id);
+        let name = self.strings.get(function.name).to_string();
+        format!("@{name}")
+    }
+
+    fn format_type_id(&self, id: LocalNodeId<Type>) -> String {
+        let ty = self.tree.get(id);
+        self.format_type(ty)
+    }
+
+    fn format_type(&self, ty: &Type) -> String {
         match ty {
             Type::Void => "void".to_string(),
             Type::Boolean => "bool".to_string(),
@@ -134,7 +151,7 @@ impl<'a> Dumper<'a> {
         }
     }
 
-    fn fmt_constant(&self, c: &Constant) -> String {
+    fn format_constant(&self, c: &Constant) -> String {
         match c {
             Constant::Boolean { value } => format!("{value}"),
             Constant::Int {
@@ -159,7 +176,7 @@ impl<'a> Dumper<'a> {
         }
     }
 
-    fn fmt_binary_op(&self, op: BinaryOperator) -> &'static str {
+    fn format_binary_op(&self, op: BinaryOperator) -> &'static str {
         match op {
             BinaryOperator::Add => "add",
             BinaryOperator::Subtract => "sub",
@@ -197,7 +214,7 @@ impl<'a> Dumper<'a> {
         }
     }
 
-    fn fmt_unary_op(&self, op: UnaryOperator) -> &'static str {
+    fn format_unary_op(&self, op: UnaryOperator) -> &'static str {
         match op {
             UnaryOperator::Negate => "neg",
             UnaryOperator::FloatNegate => "fneg",
@@ -205,7 +222,7 @@ impl<'a> Dumper<'a> {
         }
     }
 
-    fn fmt_cast_kind(&self, kind: CastKind) -> &'static str {
+    fn format_cast_kind(&self, kind: CastKind) -> &'static str {
         match kind {
             CastKind::Bitcast => "bitcast",
             CastKind::Truncate => "trunc",
@@ -229,9 +246,9 @@ impl<'a> Dumper<'a> {
 
         match inst {
             Instruction::Constant { destination, value } => {
-                self.write_colored(&self.fmt_value(*destination), Color::Green);
+                self.write_colored(&self.format_value(*destination), Color::Green);
                 self.write(" = const ");
-                self.write_colored(&self.fmt_constant(value), Color::Yellow);
+                self.write_colored(&self.format_constant(value), Color::Yellow);
             }
 
             Instruction::Binary {
@@ -240,13 +257,13 @@ impl<'a> Dumper<'a> {
                 left,
                 right,
             } => {
-                self.write_colored(&self.fmt_value(*destination), Color::Green);
+                self.write_colored(&self.format_value(*destination), Color::Green);
                 self.write(" = ");
-                self.write_colored(self.fmt_binary_op(*operator), Color::Cyan);
+                self.write_colored(self.format_binary_op(*operator), Color::Cyan);
                 self.write(" ");
-                self.write(&self.fmt_value(*left));
+                self.write(&self.format_value(*left));
                 self.write(", ");
-                self.write(&self.fmt_value(*right));
+                self.write(&self.format_value(*right));
             }
 
             Instruction::Unary {
@@ -254,11 +271,11 @@ impl<'a> Dumper<'a> {
                 operator,
                 argument,
             } => {
-                self.write_colored(&self.fmt_value(*destination), Color::Green);
+                self.write_colored(&self.format_value(*destination), Color::Green);
                 self.write(" = ");
-                self.write_colored(self.fmt_unary_op(*operator), Color::Cyan);
+                self.write_colored(self.format_unary_op(*operator), Color::Cyan);
                 self.write(" ");
-                self.write(&self.fmt_value(*argument));
+                self.write(&self.format_value(*argument));
             }
 
             Instruction::Cast {
@@ -267,42 +284,58 @@ impl<'a> Dumper<'a> {
                 argument,
                 to_type,
             } => {
-                self.write_colored(&self.fmt_value(*destination), Color::Green);
+                self.write_colored(&self.format_value(*destination), Color::Green);
                 self.write(" = ");
-                self.write_colored(self.fmt_cast_kind(*kind), Color::Cyan);
+                self.write_colored(self.format_cast_kind(*kind), Color::Cyan);
                 self.write(" ");
-                self.write(&self.fmt_value(*argument));
+                self.write(&self.format_value(*argument));
                 self.write(" to ");
-                self.write_colored(&self.fmt_type_id(*to_type), Color::Magenta);
+                self.write_colored(&self.format_type_id(*to_type), Color::Magenta);
             }
 
             Instruction::LocalGet { destination, local } => {
-                self.write_colored(&self.fmt_value(*destination), Color::Green);
-                self.write(" = load ");
-                self.write(&self.fmt_local_id(*local));
+                self.write_colored(&self.format_value(*destination), Color::Green);
+                self.write(" = local_get ");
+                self.write(&self.format_local_id(*local));
             }
 
             Instruction::LocalSet { local, value } => {
-                self.write("store ");
-                self.write(&self.fmt_local_id(*local));
+                self.write("local_set ");
+                self.write(&self.format_local_id(*local));
                 self.write(", ");
-                self.write(&self.fmt_value(*value));
+                self.write(&self.format_value(*value));
+            }
+
+            Instruction::GlobalGet {
+                destination,
+                global,
+            } => {
+                self.write_colored(&self.format_value(*destination), Color::Green);
+                self.write(" = global_get ");
+                self.write(&self.format_global_id(*global));
+            }
+
+            Instruction::GlobalSet { global, value } => {
+                self.write("global_set ");
+                self.write(&self.format_global_id(*global));
+                self.write(", ");
+                self.write(&self.format_value(*value));
             }
 
             Instruction::Load {
                 destination,
                 pointer,
             } => {
-                self.write_colored(&self.fmt_value(*destination), Color::Green);
+                self.write_colored(&self.format_value(*destination), Color::Green);
                 self.write(" = load ");
-                self.write(&self.fmt_value(*pointer));
+                self.write(&self.format_value(*pointer));
             }
 
             Instruction::Store { pointer, value } => {
                 self.write("store ");
-                self.write(&self.fmt_value(*pointer));
+                self.write(&self.format_value(*pointer));
                 self.write(", ");
-                self.write(&self.fmt_value(*value));
+                self.write(&self.format_value(*value));
             }
 
             Instruction::ExtractField {
@@ -310,9 +343,9 @@ impl<'a> Dumper<'a> {
                 aggregate,
                 index,
             } => {
-                self.write_colored(&self.fmt_value(*destination), Color::Green);
+                self.write_colored(&self.format_value(*destination), Color::Green);
                 self.write(" = extractfield ");
-                self.write(&self.fmt_value(*aggregate));
+                self.write(&self.format_value(*aggregate));
                 self.write(&format!(", {index}"));
             }
 
@@ -322,11 +355,11 @@ impl<'a> Dumper<'a> {
                 index,
                 value,
             } => {
-                self.write_colored(&self.fmt_value(*destination), Color::Green);
+                self.write_colored(&self.format_value(*destination), Color::Green);
                 self.write(" = insertfield ");
-                self.write(&self.fmt_value(*aggregate));
+                self.write(&self.format_value(*aggregate));
                 self.write(&format!(", {index}, "));
-                self.write(&self.fmt_value(*value));
+                self.write(&self.format_value(*value));
             }
 
             Instruction::ExtractElement {
@@ -334,11 +367,11 @@ impl<'a> Dumper<'a> {
                 array,
                 index,
             } => {
-                self.write_colored(&self.fmt_value(*destination), Color::Green);
+                self.write_colored(&self.format_value(*destination), Color::Green);
                 self.write(" = extractelement ");
-                self.write(&self.fmt_value(*array));
+                self.write(&self.format_value(*array));
                 self.write(", ");
-                self.write(&self.fmt_value(*index));
+                self.write(&self.format_value(*index));
             }
 
             Instruction::InsertElement {
@@ -347,13 +380,13 @@ impl<'a> Dumper<'a> {
                 index,
                 value,
             } => {
-                self.write_colored(&self.fmt_value(*destination), Color::Green);
+                self.write_colored(&self.format_value(*destination), Color::Green);
                 self.write(" = insertelement ");
-                self.write(&self.fmt_value(*array));
+                self.write(&self.format_value(*array));
                 self.write(", ");
-                self.write(&self.fmt_value(*index));
+                self.write(&self.format_value(*index));
                 self.write(", ");
-                self.write(&self.fmt_value(*value));
+                self.write(&self.format_value(*value));
             }
 
             Instruction::Call {
@@ -362,25 +395,17 @@ impl<'a> Dumper<'a> {
                 arguments,
             } => {
                 if let Some(dst) = destination {
-                    self.write_colored(&self.fmt_value(*dst), Color::Green);
+                    self.write_colored(&self.format_value(*dst), Color::Green);
                     self.write(" = ");
                 }
                 self.write("call ");
-                match function {
-                    FunctionReference::Local(id) => {
-                        self.write(&format!("@function{}", id.id));
-                    }
-                    FunctionReference::External(name_id) => {
-                        let name = self.strings.get(*name_id).to_string();
-                        self.write(&format!("@{name}"));
-                    }
-                }
+                self.write(&self.format_function_id(*function));
                 self.write("(");
                 for (i, arg) in arguments.iter().enumerate() {
                     if i > 0 {
                         self.write(", ");
                     }
-                    self.write(&self.fmt_value(*arg));
+                    self.write(&self.format_value(*arg));
                 }
                 self.write(")");
             }
@@ -391,17 +416,17 @@ impl<'a> Dumper<'a> {
                 arguments,
             } => {
                 if let Some(dst) = destination {
-                    self.write_colored(&self.fmt_value(*dst), Color::Green);
+                    self.write_colored(&self.format_value(*dst), Color::Green);
                     self.write(" = ");
                 }
                 self.write("call_indirect ");
-                self.write(&self.fmt_value(*callee));
+                self.write(&self.format_value(*callee));
                 self.write("(");
                 for (i, arg) in arguments.iter().enumerate() {
                     if i > 0 {
                         self.write(", ");
                     }
-                    self.write(&self.fmt_value(*arg));
+                    self.write(&self.format_value(*arg));
                 }
                 self.write(")");
             }
@@ -419,21 +444,21 @@ impl<'a> Dumper<'a> {
                 self.write_colored("return", Color::Red);
                 if let Some(v) = value {
                     self.write(" ");
-                    self.write(&self.fmt_value(*v));
+                    self.write(&self.format_value(*v));
                 }
             }
 
             Terminator::Jump { target, arguments } => {
                 self.write_colored("jump", Color::Red);
                 self.write(" ");
-                self.write(&self.fmt_block_id(*target));
+                self.write(&self.format_block_id(*target));
                 if !arguments.is_empty() {
                     self.write("(");
                     for (i, arg) in arguments.iter().enumerate() {
                         if i > 0 {
                             self.write(", ");
                         }
-                        self.write(&self.fmt_value(*arg));
+                        self.write(&self.format_value(*arg));
                     }
                     self.write(")");
                 }
@@ -448,28 +473,28 @@ impl<'a> Dumper<'a> {
             } => {
                 self.write_colored("branch", Color::Red);
                 self.write(" ");
-                self.write(&self.fmt_value(*condition));
+                self.write(&self.format_value(*condition));
                 self.write(", ");
-                self.write(&self.fmt_block_id(*then_target));
+                self.write(&self.format_block_id(*then_target));
                 if !then_arguments.is_empty() {
                     self.write("(");
                     for (i, arg) in then_arguments.iter().enumerate() {
                         if i > 0 {
                             self.write(", ");
                         }
-                        self.write(&self.fmt_value(*arg));
+                        self.write(&self.format_value(*arg));
                     }
                     self.write(")");
                 }
                 self.write(", ");
-                self.write(&self.fmt_block_id(*else_target));
+                self.write(&self.format_block_id(*else_target));
                 if !else_arguments.is_empty() {
                     self.write("(");
                     for (i, arg) in else_arguments.iter().enumerate() {
                         if i > 0 {
                             self.write(", ");
                         }
-                        self.write(&self.fmt_value(*arg));
+                        self.write(&self.format_value(*arg));
                     }
                     self.write(")");
                 }
@@ -483,16 +508,16 @@ impl<'a> Dumper<'a> {
             } => {
                 self.write_colored("switch", Color::Red);
                 self.write(" ");
-                self.write(&self.fmt_value(*value));
+                self.write(&self.format_value(*value));
                 self.write(", default ");
-                self.write(&self.fmt_block_id(*default));
+                self.write(&self.format_block_id(*default));
                 if !default_arguments.is_empty() {
                     self.write("(");
                     for (i, arg) in default_arguments.iter().enumerate() {
                         if i > 0 {
                             self.write(", ");
                         }
-                        self.write(&self.fmt_value(*arg));
+                        self.write(&self.format_value(*arg));
                     }
                     self.write(")");
                 }
@@ -503,14 +528,14 @@ impl<'a> Dumper<'a> {
                 } in cases
                 {
                     self.write(&format!(", {case_val} => "));
-                    self.write(&self.fmt_block_id(*target));
+                    self.write(&self.format_block_id(*target));
                     if !arguments.is_empty() {
                         self.write("(");
                         for (i, arg) in arguments.iter().enumerate() {
                             if i > 0 {
                                 self.write(", ");
                             }
-                            self.write(&self.fmt_value(*arg));
+                            self.write(&self.format_value(*arg));
                         }
                         self.write(")");
                     }
@@ -542,12 +567,12 @@ impl<'a> NodeVisitor for Dumper<'a> {
             if i > 0 {
                 self.write(", ");
             }
-            self.write(&self.fmt_value(param.value));
+            self.write(&self.format_value(param.value));
             self.write(": ");
-            self.write_colored(&self.fmt_type_id(param.ty), Color::Magenta);
+            self.write_colored(&self.format_type_id(param.ty), Color::Magenta);
         }
         self.write(") -> ");
-        self.write_colored(&self.fmt_type_id(function.return_type), Color::Magenta);
+        self.write_colored(&self.format_type_id(function.return_type), Color::Magenta);
         self.write(" {\n");
 
         self.indent();
@@ -557,9 +582,9 @@ impl<'a> NodeVisitor for Dumper<'a> {
             for local_id in &function.locals {
                 let local = tree.get(*local_id);
                 self.write_indent();
-                self.write(&self.fmt_local_id(*local_id));
+                self.write(&self.format_local_id(*local_id));
                 self.write(": ");
-                self.write_colored(&self.fmt_type_id(local.ty), Color::Magenta);
+                self.write_colored(&self.format_type_id(local.ty), Color::Magenta);
                 match local.mutability {
                     Mutability::Mutable => self.write(" (var)"),
                     Mutability::Immutable => self.write(" (const)"),
@@ -587,7 +612,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
     fn visit_block(&mut self, tree: &NodeTree, id: LocalNodeId<Block>, block: &Block) {
         // block label
         self.write_indent();
-        self.write_colored(&self.fmt_block_id(id), Color::Yellow);
+        self.write_colored(&self.format_block_id(id), Color::Yellow);
 
         // block parameters
         if !block.parameters.is_empty() {
@@ -596,9 +621,9 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 if i > 0 {
                     self.write(", ");
                 }
-                self.write(&self.fmt_value(param.value));
+                self.write(&self.format_value(param.value));
                 self.write(": ");
-                self.write_colored(&self.fmt_type_id(param.ty), Color::Magenta);
+                self.write_colored(&self.format_type_id(param.ty), Color::Magenta);
             }
             self.write(")");
         }
@@ -633,5 +658,52 @@ impl<'a> NodeVisitor for Dumper<'a> {
 
     fn visit_type(&mut self, _tree: &NodeTree, _id: LocalNodeId<Type>, _ty: &Type) {
         // nothing to do
+    }
+
+    fn visit_global(&mut self, _tree: &NodeTree, id: LocalNodeId<Global>, global: &Global) {
+        if global.is_external {
+            self.write_colored("extern ", Color::BrightBlue);
+        }
+        self.write_colored("global", Color::BrightBlue);
+        self.write(" @");
+        self.write(&format!("global{}", id.id));
+        self.write(": ");
+        self.write_colored(&self.format_type_id(global.ty), Color::Magenta);
+        if let Some(init) = &global.initializer {
+            self.write(" = ");
+            self.dump_data_init(init);
+        }
+        match global.mutability {
+            Mutability::Mutable => self.write(" ; var"),
+            Mutability::Immutable => self.write(" ; const"),
+        }
+        self.write("\n");
+    }
+}
+
+impl<'a> Dumper<'a> {
+    /// Dump a data initializer.
+    fn dump_data_init(&mut self, init: &GlobalInitializer) {
+        match init {
+            GlobalInitializer::Zero => self.write("zeroinit"),
+            GlobalInitializer::Scalar(constant) => self.write(&self.format_constant(constant)),
+            GlobalInitializer::Bytes(bytes) => {
+                self.write("\"");
+                for byte in bytes {
+                    self.write(&format!("\\x{byte:02x}"));
+                }
+                self.write("\"");
+            }
+            GlobalInitializer::Aggregate(elements) => {
+                self.write("{");
+                for (i, elem) in elements.iter().enumerate() {
+                    if i > 0 {
+                        self.write(", ");
+                    }
+                    self.dump_data_init(elem);
+                }
+                self.write("}");
+            }
+        }
     }
 }

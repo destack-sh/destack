@@ -4,8 +4,12 @@
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TokenType {
     // keywords
+    /// `extern`
+    Extern,
     /// `function`
     Function,
+    /// `global`
+    Global,
     /// `block`
     Block,
     /// `local`
@@ -90,6 +94,8 @@ pub enum TokenType {
     Ownership,
     /// `var`
     Var,
+    /// `const`
+    Const,
 
     // trivia
     /// Whitespace (space, tab)

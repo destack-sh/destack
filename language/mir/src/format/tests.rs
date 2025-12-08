@@ -1,4 +1,4 @@
-use crate::{MirFormatOptions, ModuleBuilder, Mutability, format_mir};
+use crate::{Constant, GlobalInitializer, MirFormatOptions, ModuleBuilder, Mutability, format_mir};
 
 /// Simple add function with two parameters.
 #[test]
@@ -58,8 +58,8 @@ function @with_locals() -> i64 {
     local0: i64 ; owned, var
 block0:
     v0 = iconst 42i64
-    store_local local0, v0
-    v1 = load_local local0
+    local_set local0, v0
+    v1 = local_get local0
     return v1
 }";
     assert_eq!(output, expected);
@@ -179,6 +179,82 @@ fn test_format_ssa_variable() {
 function @var_test() -> i32 {
 block0:
     v0 = iconst 10i32
+    return v0
+}";
+    assert_eq!(output, expected);
+}
+
+/// Module with global variable.
+#[test]
+fn test_format_global_variable() {
+    // setup
+    let mut module = ModuleBuilder::new();
+    let i32_type = module.type_i32();
+    let void_type = module.type_void();
+
+    // create a mutable global
+    let counter = module.global_variable("counter", i32_type, GlobalInitializer::zero());
+
+    // build function that increments the global
+    let mut builder = module.function("increment", &[], void_type);
+    let entry_block = builder.create_block();
+    builder.switch_to_block(entry_block);
+    let value = builder.global_get(counter);
+    let one = builder.iconst_i32(1);
+    let new_value = builder.iadd(value, one);
+    builder.global_set(counter, new_value);
+    builder.return_(None);
+    builder.seal_block(entry_block);
+    builder.finish();
+
+    // verify formatted output
+    let (tree, strings) = module.finish();
+    let output = format_mir(&tree, &strings, MirFormatOptions::default());
+    let expected = "\
+global @counter: i32 = zeroinit ; var
+function @increment() -> void {
+block0:
+    v0 = global_get @counter
+    v1 = iconst 1i32
+    v2 = iadd v0, v1
+    global_set @counter, v2
+    return
+}";
+    assert_eq!(output, expected);
+}
+
+/// Module with immutable global constant.
+#[test]
+fn test_format_global_constant() {
+    // setup
+    let mut module = ModuleBuilder::new();
+    let i64_type = module.type_i64();
+
+    // create an immutable global with scalar init
+    let init = Constant::Int {
+        value: 42,
+        width: 64,
+        is_signed: true,
+    };
+    let magic = module.global_constant("MAGIC", i64_type, GlobalInitializer::scalar(init));
+
+    // build function that reads the constant
+    let mut builder = module.function("get_magic", &[], i64_type);
+    let entry_block = builder.create_block();
+    builder.switch_to_block(entry_block);
+    let value = builder.global_get(magic);
+    builder.return_(Some(value));
+    builder.seal_block(entry_block);
+    builder.finish();
+
+    // verify formatted output
+    let (tree, strings) = module.finish();
+    let output = format_mir(&tree, &strings, MirFormatOptions::default());
+    let expected = "\
+global @MAGIC: i64 = 42i64 ; const
+function @get_magic() -> i64 {
+block0:
+    v0 = global_get @MAGIC
     return v0
 }";
     assert_eq!(output, expected);

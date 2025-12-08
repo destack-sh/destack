@@ -4,7 +4,7 @@ use destack_fir::format::FormatResult;
 use destack_fir::prelude::*;
 use destack_fir::write;
 
-use crate::{FormatMirNode, FunctionReference, Instruction, LocalNodeId, MirFormatter, Value};
+use crate::{FormatMirNode, Function, Global, Instruction, LocalNodeId, MirFormatter, Value};
 
 impl<'a> FormatMirNode<'a, Instruction> for Instruction {
     fn format_node(
@@ -103,7 +103,7 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                         space(),
                         token("="),
                         space(),
-                        token("load_local"),
+                        token("local_get"),
                         space(),
                         text(&format!("local{local_index}"))
                     ]
@@ -115,7 +115,7 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                 write!(
                     f,
                     [
-                        token("store_local"),
+                        token("local_set"),
                         space(),
                         text(&format!("local{local_index}")),
                         token(","),
@@ -123,6 +123,30 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                         value
                     ]
                 )
+            }
+
+            Instruction::GlobalGet {
+                destination,
+                global,
+            } => {
+                write!(
+                    f,
+                    [
+                        destination,
+                        space(),
+                        token("="),
+                        space(),
+                        token("global_get"),
+                        space()
+                    ]
+                )?;
+                format_global_reference(*global, f)
+            }
+
+            Instruction::GlobalSet { global, value } => {
+                write!(f, [token("global_set"), space()])?;
+                format_global_reference(*global, f)?;
+                write!(f, [token(","), space(), value])
             }
 
             Instruction::Load {
@@ -255,7 +279,7 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                     write!(f, [dst, space(), token("="), space()])?;
                 }
                 write!(f, [token("call"), space()])?;
-                format_function_reference(function, f)?;
+                format_function_reference(*function, f)?;
                 format_value_list(arguments, f)
             }
 
@@ -276,20 +300,22 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
 
 /// Format a function reference.
 fn format_function_reference<'a>(
-    reference: &FunctionReference,
+    function_id: LocalNodeId<Function>,
     f: &mut MirFormatter<'a, '_>,
 ) -> FormatResult<()> {
-    match reference {
-        FunctionReference::Local(function_id) => {
-            let function = f.context().tree.get(*function_id);
-            let name = f.context().strings.get(function.name);
-            write!(f, [token("@"), text(name)])
-        }
-        FunctionReference::External(name_id) => {
-            let name = f.context().strings.get(*name_id);
-            write!(f, [token("@"), text(name)])
-        }
-    }
+    let function = f.context().tree.get(function_id);
+    let name = f.context().strings.get(function.name);
+    write!(f, [token("@"), text(name)])
+}
+
+/// Format a global reference.
+fn format_global_reference<'a>(
+    global_id: LocalNodeId<Global>,
+    f: &mut MirFormatter<'a, '_>,
+) -> FormatResult<()> {
+    let global = f.context().tree.get(global_id);
+    let name = f.context().strings.get(global.name);
+    write!(f, [token("@"), text(name)])
 }
 
 /// Format a parenthesized, comma-separated list of values.

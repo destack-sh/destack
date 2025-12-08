@@ -3,6 +3,7 @@
 mod block;
 mod context;
 mod function;
+mod global;
 mod instruction;
 mod types;
 mod value;

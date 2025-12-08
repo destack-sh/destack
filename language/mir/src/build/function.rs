@@ -1,8 +1,8 @@
 use indexmap::{IndexMap, IndexSet};
 
 use crate::{
-    BinaryOperator, Block, Constant, Function, FunctionReference, Instruction, Local, LocalNodeId,
-    Mutability, NodeTree, Ownership, Terminator, Type, TypedValue, UnaryOperator, Value,
+    BinaryOperator, Block, Constant, Function, Global, Instruction, Local, LocalNodeId, Mutability,
+    NodeTree, Ownership, Terminator, Type, TypedValue, UnaryOperator, Value,
 };
 
 use super::Variable;
@@ -84,17 +84,15 @@ impl<'a> FunctionBuilder<'a> {
             })
             .collect();
 
-        // placeholder entry block id (will be set in finish())
-        let placeholder_entry = LocalNodeId::new(u32::MAX);
-
-        // blank function
+        // blank function (entry will be set in finish())
         let function = Function {
             name,
             parameters,
             return_type,
+            is_external: false,
             locals: Vec::new(),
             blocks: Vec::new(),
-            entry: placeholder_entry,
+            entry: None,
             next_value_id,
         };
         let function_id = tree.insert(function);
@@ -588,6 +586,21 @@ impl<'a> FunctionBuilder<'a> {
         self.insert_instruction(Instruction::LocalSet { local, value });
     }
 
+    /// Load from a global variable.
+    pub fn global_get(&mut self, global: LocalNodeId<Global>) -> Value {
+        let destination = self.allocate_value();
+        self.insert_instruction(Instruction::GlobalGet {
+            destination,
+            global,
+        });
+        destination
+    }
+
+    /// Store to a global variable.
+    pub fn global_set(&mut self, global: LocalNodeId<Global>, value: Value) {
+        self.insert_instruction(Instruction::GlobalSet { global, value });
+    }
+
     /// Load from a pointer.
     pub fn load(&mut self, pointer_value: Value) -> Value {
         let destination = self.allocate_value();
@@ -611,7 +624,7 @@ impl<'a> FunctionBuilder<'a> {
     /// Call a function.
     pub fn call(
         &mut self,
-        function: FunctionReference,
+        function: LocalNodeId<Function>,
         argument_values: Vec<Value>,
     ) -> Option<Value> {
         let destination = self.allocate_value();
@@ -624,7 +637,7 @@ impl<'a> FunctionBuilder<'a> {
     }
 
     /// Call a function with no return value.
-    pub fn call_void(&mut self, function: FunctionReference, argument_values: Vec<Value>) {
+    pub fn call_void(&mut self, function: LocalNodeId<Function>, argument_values: Vec<Value>) {
         self.insert_instruction(Instruction::Call {
             destination: None,
             function,
@@ -694,7 +707,7 @@ impl<'a> FunctionBuilder<'a> {
 
         // update function
         let function = self.tree.get_mut(self.function_id);
-        function.entry = entry_block;
+        function.entry = Some(entry_block);
         function.blocks = self.blocks;
         function.next_value_id = self.next_value_id;
 
