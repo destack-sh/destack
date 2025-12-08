@@ -13,6 +13,9 @@ pub mod diagnostic;
 pub mod interpreter;
 pub mod memory;
 
+#[cfg(test)]
+mod tests;
+
 pub use diagnostic::*;
 pub use interpreter::*;
 pub use memory::*;

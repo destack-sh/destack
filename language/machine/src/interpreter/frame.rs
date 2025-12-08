@@ -1,11 +1,7 @@
-//! Call frame for the interpreter.
-
-use std::collections::HashMap;
-
 use destack_mir as mir;
 
-use crate::diagnostic::{Error, Result};
-use crate::memory::Value;
+use crate::diagnostic::{Error, RuntimeError, RuntimeResult};
+use crate::memory::{HeapHandle, Value};
 
 /// A call frame in the interpreter.
 ///
@@ -15,12 +11,21 @@ use crate::memory::Value;
 pub struct Frame {
     /// The function being executed.
     pub function: mir::LocalNodeId<mir::Function>,
+    /// The entry block of the function.
+    pub entry_block: mir::LocalNodeId<mir::Block>,
     /// The current block being executed.
     pub current_block: mir::LocalNodeId<mir::Block>,
-    /// Values in this frame (SSA values).
-    values: HashMap<mir::Value, Value>,
+    /// Current instruction index within the block (for resuming after calls).
+    pub instruction_index: usize,
+    /// SSA values in this frame, indexed by value id.
+    /// Uses Vec for O(1) access since mir::Value is a sequential u32.
+    values: Vec<Option<Value>>,
     /// Local variables (stack slots).
-    locals: HashMap<mir::LocalNodeId<mir::Local>, Value>,
+    /// Linear search is fine since functions typically have few locals.
+    locals: Vec<(mir::LocalNodeId<mir::Local>, Value)>,
+    /// Where to store the return value when this frame's callee returns.
+    /// Set by the caller before pushing a new frame.
+    pub return_destination: Option<mir::Value>,
 }
 
 impl Frame {
@@ -31,47 +36,89 @@ impl Frame {
     ) -> Self {
         Self {
             function,
+            entry_block,
             current_block: entry_block,
-            values: HashMap::new(),
-            locals: HashMap::new(),
+            instruction_index: 0,
+            values: Vec::new(),
+            locals: Vec::new(),
+            return_destination: None,
         }
     }
 
     /// Get a value from this frame.
-    pub fn get_value(&self, value: mir::Value) -> Result<Value> {
+    #[inline]
+    pub fn get_value(&self, value: mir::Value) -> RuntimeResult<Value> {
+        let index = value.0 as usize;
         self.values
-            .get(&value)
-            .cloned()
-            .ok_or(Error::UndefinedValue { value })
+            .get(index)
+            .and_then(|opt| opt.clone())
+            .ok_or_else(|| RuntimeError::new(Error::UndefinedValue { value }))
     }
 
     /// Set a value in this frame.
+    #[inline]
     pub fn set_value(&mut self, value: mir::Value, val: Value) {
-        self.values.insert(value, val);
+        let index = value.0 as usize;
+        // grow vec if needed
+        if index >= self.values.len() {
+            self.values.resize(index + 1, None);
+        }
+        self.values[index] = Some(val);
     }
 
     /// Get a local variable.
-    pub fn get_local(&self, local: mir::LocalNodeId<mir::Local>) -> Result<Value> {
+    pub fn get_local(&self, local: mir::LocalNodeId<mir::Local>) -> RuntimeResult<Value> {
         self.locals
-            .get(&local)
-            .cloned()
-            .ok_or_else(|| Error::UndefinedValue {
-                value: mir::Value::new(local.id),
-            })
+            .iter()
+            .find(|(id, _)| *id == local)
+            .map(|(_, v)| v.clone())
+            .ok_or_else(|| RuntimeError::new(Error::UndefinedLocal { local }))
     }
 
     /// Set a local variable.
     pub fn set_local(&mut self, local: mir::LocalNodeId<mir::Local>, value: Value) {
-        self.locals.insert(local, value);
+        // check if local already exists
+        if let Some((_, existing)) = self.locals.iter_mut().find(|(id, _)| *id == local) {
+            *existing = value;
+        } else {
+            self.locals.push((local, value));
+        }
     }
 
     /// Check if a value is defined in this frame.
+    #[inline]
     pub fn has_value(&self, value: mir::Value) -> bool {
-        self.values.contains_key(&value)
+        let index = value.0 as usize;
+        self.values.get(index).is_some_and(|opt| opt.is_some())
     }
 
     /// Clear all values (but keep locals).
     pub fn clear_values(&mut self) {
         self.values.clear();
+    }
+
+    /// Collect all heap handles from this frame for GC roots.
+    pub fn collect_roots(&self, roots: &mut Vec<HeapHandle>) {
+        for value in self.values.iter().flatten() {
+            Self::collect_handles_from_value(value, roots);
+        }
+        for (_, value) in &self.locals {
+            Self::collect_handles_from_value(value, roots);
+        }
+    }
+
+    /// Recursively collect heap handles from a value.
+    fn collect_handles_from_value(value: &Value, roots: &mut Vec<HeapHandle>) {
+        match value {
+            Value::ManagedReference(handle) => {
+                roots.push(*handle);
+            }
+            Value::Aggregate(fields) => {
+                for field in fields {
+                    Self::collect_handles_from_value(field, roots);
+                }
+            }
+            _ => {}
+        }
     }
 }
