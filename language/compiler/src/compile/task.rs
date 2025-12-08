@@ -1,5 +1,6 @@
-use destack_dir::GlobalNodeIdAny;
 use destack_workspace::Program;
+
+use crate::DiagnosticAnchor;
 
 use crate::{
     AnalyzeOutput, AnalyzeTask, BindOutput, BindTask, ElaborateOutput, ElaborateTask, EmitOutput,
@@ -416,7 +417,7 @@ impl TaskOutcome {
 pub enum TaskDependency {
     /// Wait for a single task dependency to complete.
     Complete {
-        node: GlobalNodeIdAny,
+        anchor: DiagnosticAnchor,
         task: Task,
         error: Option<Box<TaskError>>,
     },
@@ -431,32 +432,32 @@ pub enum TaskDependency {
 }
 
 impl TaskDependency {
-    /// Get the first node involved in the wait.
-    pub fn node(&self) -> GlobalNodeIdAny {
+    /// Get the anchor for this dependency.
+    pub fn anchor(&self) -> DiagnosticAnchor {
         match self {
-            Self::Complete { node, .. } => *node,
+            Self::Complete { anchor, .. } => *anchor,
             Self::CompleteAll { dependencies } => dependencies
                 .first()
-                .map(|dependency| dependency.node())
-                .unwrap(),
+                .map(|dependency| dependency.anchor())
+                .unwrap_or(DiagnosticAnchor::Global),
             Self::CompleteAny { dependencies } => dependencies
                 .first()
-                .map(|dependency| dependency.node())
-                .unwrap(),
+                .map(|dependency| dependency.anchor())
+                .unwrap_or(DiagnosticAnchor::Global),
         }
     }
 
-    /// Get the nodes involved in the wait.
-    pub fn nodes(&self) -> Vec<GlobalNodeIdAny> {
+    /// Get all anchors involved in this dependency.
+    pub fn anchors(&self) -> Vec<DiagnosticAnchor> {
         match self {
-            Self::Complete { node, .. } => vec![*node],
+            Self::Complete { anchor, .. } => vec![*anchor],
             Self::CompleteAll { dependencies } => dependencies
                 .iter()
-                .flat_map(|dependency| dependency.nodes())
+                .flat_map(|dependency| dependency.anchors())
                 .collect(),
             Self::CompleteAny { dependencies } => dependencies
                 .iter()
-                .flat_map(|dependency| dependency.nodes())
+                .flat_map(|dependency| dependency.anchors())
                 .collect(),
         }
     }

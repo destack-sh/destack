@@ -14,7 +14,7 @@ impl Compiler {
         let package_dir = package_path
             .as_ref()
             .ok_or_else(|| LinkError::InvalidTarget {
-                node: self.program.root_node_id,
+                package: package_id,
                 target: target.name.clone(),
                 message: "entry-based discovery requires package path".to_string(),
             })?;
@@ -36,7 +36,7 @@ impl Compiler {
                 }
             } else {
                 return Err(LinkError::Internal {
-                    node: self.program.root_node_id,
+                    package: package_id,
                     message: format!("entry point not found: {}", entry_path.display()),
                 });
             }

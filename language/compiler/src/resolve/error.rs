@@ -1,4 +1,4 @@
-use crate::{TaskDependency, TaskDependencyError, TaskError, TaskPhase};
+use crate::{DiagnosticAnchor, TaskDependency, TaskDependencyError, TaskError, TaskPhase};
 use destack_dir::{GlobalNodeIdAny, GlobalScopeId, GlobalSymbolId, StaticKey, StringId};
 use destack_source::ModuleId;
 use destack_workspace::Program;
@@ -83,17 +83,17 @@ impl ResolveError {
         }
     }
 
-    /// Get the node of the error.
-    pub fn node(&self) -> GlobalNodeIdAny {
+    /// Get the anchor of the error.
+    pub fn anchor(&self) -> DiagnosticAnchor {
         match self {
-            Self::Yield { dependency } => dependency.node(),
-            Self::UnsatisfiedDependency { dependency } => dependency.node(),
-            Self::UnsupportedConstruct { node, .. } => *node,
-            Self::CircularDependency { node, .. } => *node,
-            Self::UndeclaredSymbol { node, .. } => *node,
-            Self::MissingSymbol { node, .. } => *node,
-            Self::AmbiguousSymbol { node, .. } => *node,
-            Self::UnresolvedModule { node, .. } => *node,
+            Self::Yield { dependency } => dependency.anchor(),
+            Self::UnsatisfiedDependency { dependency } => dependency.anchor(),
+            Self::UnsupportedConstruct { node, .. } => DiagnosticAnchor::Node(*node),
+            Self::CircularDependency { node, .. } => DiagnosticAnchor::Node(*node),
+            Self::UndeclaredSymbol { node, .. } => DiagnosticAnchor::Node(*node),
+            Self::MissingSymbol { node, .. } => DiagnosticAnchor::Node(*node),
+            Self::AmbiguousSymbol { node, .. } => DiagnosticAnchor::Node(*node),
+            Self::UnresolvedModule { node, .. } => DiagnosticAnchor::Node(*node),
         }
     }
 

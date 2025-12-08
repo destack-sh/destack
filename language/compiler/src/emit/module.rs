@@ -26,7 +26,7 @@ impl Compiler {
         };
         if !has_target {
             return Err(EmitError::TargetNotFound {
-                node: self.program.root_node_id,
+                package: package_id,
                 target: target_name.to_string(),
             });
         }
@@ -46,7 +46,6 @@ impl Compiler {
                     .to_path_buf()
                     .ok_or_else(|| EmitError::InvalidOutputPath {
                         artifact: artifact.id,
-                        node: self.program.root_node_id,
                         uri: artifact.uri.clone(),
                     })?;
 

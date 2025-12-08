@@ -1,6 +1,6 @@
 use destack_dir::GlobalNodeIdAny;
 
-use crate::{TaskPhase, TaskWarning};
+use crate::{DiagnosticAnchor, TaskPhase, TaskWarning};
 
 use destack_workspace::Program;
 
@@ -21,10 +21,10 @@ impl VerifyWarning {
         }
     }
 
-    /// Get the node of the warning.
-    pub fn node(&self) -> GlobalNodeIdAny {
+    /// Get the anchor of the warning.
+    pub fn anchor(&self) -> DiagnosticAnchor {
         match self {
-            Self::UnsupportedConstruct { node, .. } => *node,
+            Self::UnsupportedConstruct { node, .. } => DiagnosticAnchor::Node(*node),
         }
     }
 

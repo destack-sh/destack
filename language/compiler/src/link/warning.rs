@@ -1,6 +1,6 @@
 use destack_dir::GlobalNodeIdAny;
 
-use crate::{TaskPhase, TaskWarning};
+use crate::{DiagnosticAnchor, TaskPhase, TaskWarning};
 
 use destack_workspace::Program;
 
@@ -30,12 +30,12 @@ impl LinkWarning {
         }
     }
 
-    /// Get the node of the warning.
-    pub fn node(&self) -> GlobalNodeIdAny {
+    /// Get the anchor of the warning.
+    pub fn anchor(&self) -> DiagnosticAnchor {
         match self {
-            Self::MissingTarget { node, .. } => *node,
-            Self::WeakSymbol { node, .. } => *node,
-            Self::LargeBinary { node, .. } => *node,
+            Self::MissingTarget { node, .. } => DiagnosticAnchor::Node(*node),
+            Self::WeakSymbol { node, .. } => DiagnosticAnchor::Node(*node),
+            Self::LargeBinary { node, .. } => DiagnosticAnchor::Node(*node),
         }
     }
 

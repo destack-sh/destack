@@ -1,6 +1,6 @@
 use destack_dir::GlobalNodeIdAny;
 
-use crate::{TaskDependency, TaskDependencyError, TaskError, TaskPhase};
+use crate::{DiagnosticAnchor, TaskDependency, TaskDependencyError, TaskError, TaskPhase};
 
 use destack_workspace::Program;
 
@@ -85,19 +85,19 @@ impl GenerateError {
         }
     }
 
-    /// Get the node of the error.
-    pub fn node(&self) -> GlobalNodeIdAny {
+    /// Get the anchor of the error.
+    pub fn anchor(&self) -> DiagnosticAnchor {
         match self {
-            Self::Yield { dependency } => dependency.node(),
-            Self::UnsatisfiedDependency { dependency } => dependency.node(),
-            Self::UnsupportedTarget { node, .. } => *node,
-            Self::UnsupportedConstruct { node, .. } => *node,
-            Self::UnsupportedType { node, .. } => *node,
-            Self::UnexpectedConstruct { node, .. } => *node,
-            Self::UnresolvedConstruct { node, .. } => *node,
-            Self::UnresolvedFunction { node, .. } => *node,
-            Self::MissingType { node, .. } => *node,
-            Self::Internal { node, .. } => *node,
+            Self::Yield { dependency } => dependency.anchor(),
+            Self::UnsatisfiedDependency { dependency } => dependency.anchor(),
+            Self::UnsupportedTarget { node, .. } => DiagnosticAnchor::Node(*node),
+            Self::UnsupportedConstruct { node, .. } => DiagnosticAnchor::Node(*node),
+            Self::UnsupportedType { node, .. } => DiagnosticAnchor::Node(*node),
+            Self::UnexpectedConstruct { node, .. } => DiagnosticAnchor::Node(*node),
+            Self::UnresolvedConstruct { node, .. } => DiagnosticAnchor::Node(*node),
+            Self::UnresolvedFunction { node, .. } => DiagnosticAnchor::Node(*node),
+            Self::MissingType { node, .. } => DiagnosticAnchor::Node(*node),
+            Self::Internal { node, .. } => DiagnosticAnchor::Node(*node),
         }
     }
 

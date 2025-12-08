@@ -1,6 +1,4 @@
-use destack_dir::GlobalNodeIdAny;
-
-use crate::TaskPhase;
+use crate::{DiagnosticAnchor, TaskPhase};
 
 use destack_source::ModuleId;
 use destack_workspace::Program;
@@ -10,11 +8,7 @@ use destack_workspace::Program;
 #[repr(u8)]
 pub enum ImportWarning {
     /// Huge file.
-    VeryLargeFile {
-        node: GlobalNodeIdAny,
-        module: ModuleId,
-        len: usize,
-    },
+    OversizedFile { module: ModuleId, len: usize },
 }
 
 impl ImportWarning {
@@ -22,21 +16,21 @@ impl ImportWarning {
     #[inline]
     pub fn sub_code(&self) -> u8 {
         match self {
-            Self::VeryLargeFile { .. } => 1,
+            Self::OversizedFile { .. } => 1,
         }
     }
 
-    /// Get the node of the warning.
-    pub fn node(&self) -> GlobalNodeIdAny {
+    /// Get the anchor of the warning.
+    pub fn anchor(&self) -> DiagnosticAnchor {
         match self {
-            Self::VeryLargeFile { node, .. } => *node,
+            Self::OversizedFile { module, .. } => DiagnosticAnchor::Module(*module),
         }
     }
 
     /// Get the message of the warning.
     pub fn message(&self, _program: &Program) -> String {
         match self {
-            Self::VeryLargeFile { len, .. } => format!("very large file ({len} bytes)"),
+            Self::OversizedFile { len, .. } => format!("oversized file ({len} bytes)"),
         }
     }
 }

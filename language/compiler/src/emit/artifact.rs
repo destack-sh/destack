@@ -34,7 +34,6 @@ impl Compiler {
                 .create_dir_all(parent)
                 .map_err(|e| EmitError::FailedWrite {
                     artifact: artifact.id,
-                    node: self.program.root_node_id,
                     path: parent.to_path_buf(),
                     message: Some(e.to_string()),
                 })?;
@@ -46,7 +45,6 @@ impl Compiler {
         {
             return Err(EmitError::FailedWrite {
                 artifact: artifact.id,
-                node: self.program.root_node_id,
                 path: path.to_path_buf(),
                 message: Some("file already exists and overwrite is disabled".to_string()),
             });
@@ -60,7 +58,6 @@ impl Compiler {
                     .write_string(path, code)
                     .map_err(|e| EmitError::FailedWrite {
                         artifact: artifact.id,
-                        node: self.program.root_node_id,
                         path: path.to_path_buf(),
                         message: Some(e.to_string()),
                     })?;
@@ -70,7 +67,6 @@ impl Compiler {
                 self.program.fs.write_string(path, content).map_err(|e| {
                     EmitError::FailedWrite {
                         artifact: artifact.id,
-                        node: self.program.root_node_id,
                         path: path.to_path_buf(),
                         message: Some(e.to_string()),
                     }
@@ -83,7 +79,6 @@ impl Compiler {
                     .write(path, bytes)
                     .map_err(|e| EmitError::FailedWrite {
                         artifact: artifact.id,
-                        node: self.program.root_node_id,
                         path: path.to_path_buf(),
                         message: Some(e.to_string()),
                     })?;

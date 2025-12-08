@@ -9,9 +9,10 @@ use destack_workspace::Program;
 use parking_lot::Mutex;
 
 use crate::{
-    AnalyzeOptions, BindOptions, CompileDiagnostic, EmitOptions, GenerateOptions, ImportOptions,
-    LinkOptions, LowerOptions, OptimizeOptions, ResolveOptions, Task, TaskDependency,
-    TaskDependencyError, TaskError, TaskQueue, TaskResultCollector, TaskStatus, TaskWarning,
+    AnalyzeOptions, BindOptions, CompileDiagnostic, DiagnosticAnchor, EmitOptions, GenerateOptions,
+    ImportOptions, LinkOptions, LowerOptions, OptimizeOptions, ResolveOptions, Task,
+    TaskDependency, TaskDependencyError, TaskError, TaskQueue, TaskResultCollector, TaskStatus,
+    TaskWarning,
 };
 
 /// Get the default number of worker threads (available parallelism, or 1 if unknown).
@@ -178,8 +179,8 @@ impl Compiler {
         };
         for error in errors {
             let diagnostic: CompileDiagnostic = error.into();
-            let diagnostic = diagnostic.to_diagnostic(&self.program);
-            self.pending_diagnostics.insert(diagnostic);
+            self.pending_diagnostics
+                .insert(diagnostic.to_diagnostic(&self.program));
         }
 
         // convert warnings to diagnostics
@@ -189,8 +190,8 @@ impl Compiler {
         };
         for warning in warnings {
             let diagnostic: CompileDiagnostic = warning.into();
-            let diagnostic = diagnostic.to_diagnostic(&self.program);
-            self.pending_diagnostics.insert(diagnostic);
+            self.pending_diagnostics
+                .insert(diagnostic.to_diagnostic(&self.program));
         }
 
         // flush to program
@@ -206,14 +207,14 @@ impl Compiler {
             Some(TaskStatus::Complete { .. }) => Ok(()),
             Some(TaskStatus::Failed { error }) => Err(TaskDependencyError::Failed {
                 dependency: TaskDependency::Complete {
-                    node: self.program.root_node_id,
+                    anchor: DiagnosticAnchor::Global,
                     task: t,
                     error: Some(Box::new(error)),
                 },
             }),
             _ => Err(TaskDependencyError::NotReady {
                 dependency: TaskDependency::Complete {
-                    node: self.program.root_node_id,
+                    anchor: DiagnosticAnchor::Global,
                     task: t,
                     error: None,
                 },

@@ -1,6 +1,6 @@
 use destack_dir::GlobalNodeIdAny;
 
-use crate::{TaskPhase, TaskWarning};
+use crate::{DiagnosticAnchor, TaskPhase, TaskWarning};
 
 use destack_workspace::Program;
 
@@ -24,11 +24,11 @@ impl GenerateWarning {
         }
     }
 
-    /// Get the node of the warning.
-    pub fn node(&self) -> GlobalNodeIdAny {
+    /// Get the anchor of the warning.
+    pub fn anchor(&self) -> DiagnosticAnchor {
         match self {
-            Self::ImpreciseType { node, .. } => *node,
-            Self::UnexpectedConstruct { node, .. } => *node,
+            Self::ImpreciseType { node, .. } => DiagnosticAnchor::Node(*node),
+            Self::UnexpectedConstruct { node, .. } => DiagnosticAnchor::Node(*node),
         }
     }
 

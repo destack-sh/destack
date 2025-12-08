@@ -27,7 +27,6 @@ impl Compiler {
         let resolution = resolver
             .resolve(&directory, &specifier_str)
             .map_err(|error| ImportError::ModuleNotFound {
-                node: self.program.root_node_id,
                 target: specifier,
                 error: Some(error),
             })?;
@@ -62,7 +61,6 @@ impl Compiler {
         }
 
         let path = uri.to_path().ok_or_else(|| ImportError::ModuleNotFound {
-            node: self.program.root_node_id,
             target: self.program.strings.intern(uri),
             error: None,
         })?;

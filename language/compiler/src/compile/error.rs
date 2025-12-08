@@ -1,12 +1,10 @@
-use destack_dir::GlobalNodeIdAny;
 use destack_workspace::Program;
 
 use crate::{
-    AnalyzeError, BindError, ElaborateError, EmitError, GenerateError, ImportError, LinkError,
-    LowerError, OptimizeError, ResolveError, TaskDependency, TaskId, TaskPhase, VerifyError,
+    AnalyzeError, BindError, DiagnosticAnchor, ElaborateError, EmitError, GenerateError,
+    ImportError, LinkError, LowerError, OptimizeError, ResolveError, TaskDependency, TaskId,
+    TaskPhase, VerifyError,
 };
-
-// nocheckin: make TaskError/TaskWarning.node optional
 /// Error during compilation.
 #[derive(Debug, Clone, PartialEq)]
 pub enum TaskError {
@@ -44,22 +42,13 @@ pub enum TaskError {
 pub enum InternalError {
     /// Task yielded to the same dependency twice in a row.
     SuspiciousYield {
-        node: GlobalNodeIdAny,
         task_id: TaskId,
         dependency: TaskDependency,
     },
     /// Task exceeded maximum yield count.
-    ExcessiveYield {
-        node: GlobalNodeIdAny,
-        task_id: TaskId,
-        yield_count: u32,
-    },
+    ExcessiveYield { task_id: TaskId, yield_count: u32 },
     /// Circular dependency detected in task graph.
-    CircularDependency {
-        node: GlobalNodeIdAny,
-        task_id: TaskId,
-        cycle: Vec<TaskId>,
-    },
+    CircularDependency { task_id: TaskId, cycle: Vec<TaskId> },
 }
 
 impl InternalError {
@@ -73,13 +62,10 @@ impl InternalError {
         }
     }
 
-    /// Get the node of the error.
-    pub fn node(&self) -> GlobalNodeIdAny {
-        match self {
-            Self::SuspiciousYield { node, .. }
-            | Self::ExcessiveYield { node, .. }
-            | Self::CircularDependency { node, .. } => *node,
-        }
+    /// Get the anchor of the error.
+    pub fn anchor(&self) -> DiagnosticAnchor {
+        // internal errors are global, not tied to specific source
+        DiagnosticAnchor::Global
     }
 
     /// Get the message of the error.
@@ -166,21 +152,21 @@ impl TaskError {
         }
     }
 
-    /// Get the node of the error.
-    pub fn node(&self) -> GlobalNodeIdAny {
+    /// Get the anchor of the error.
+    pub fn anchor(&self) -> DiagnosticAnchor {
         match self {
-            Self::Import(error) => error.node(),
-            Self::Bind(error) => error.node(),
-            Self::Resolve(error) => error.node(),
-            Self::Analyze(error) => error.node(),
-            Self::Elaborate(error) => error.node(),
-            Self::Lower(error) => error.node(),
-            Self::Verify(error) => error.node(),
-            Self::Optimize(error) => error.node(),
-            Self::Generate(error) => error.node(),
-            Self::Link(error) => error.node(),
-            Self::Emit(error) => error.node(),
-            Self::Internal(error) => error.node(),
+            Self::Import(error) => error.anchor(),
+            Self::Bind(error) => error.anchor(),
+            Self::Resolve(error) => error.anchor(),
+            Self::Analyze(error) => error.anchor(),
+            Self::Elaborate(error) => error.anchor(),
+            Self::Lower(error) => error.anchor(),
+            Self::Verify(error) => error.anchor(),
+            Self::Optimize(error) => error.anchor(),
+            Self::Generate(error) => error.anchor(),
+            Self::Link(error) => error.anchor(),
+            Self::Emit(error) => error.anchor(),
+            Self::Internal(error) => error.anchor(),
         }
     }
 

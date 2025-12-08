@@ -233,7 +233,6 @@ impl Compiler {
             && *previous_dependency == *dependency
         {
             return Some(InternalError::SuspiciousYield {
-                node: dependency.node(),
                 task_id,
                 dependency: dependency.clone(),
             });
@@ -242,7 +241,6 @@ impl Compiler {
         // check for excessive yields
         if handle.yield_count >= MAX_TOTAL_YIELD_COUNT {
             return Some(InternalError::ExcessiveYield {
-                node: dependency.node(),
                 task_id,
                 yield_count: handle.yield_count,
             });
