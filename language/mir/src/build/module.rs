@@ -1,6 +1,9 @@
 use destack_source::{ImmutableStringPool, StringId, StringPool};
 
-use crate::{Field, LocalNodeId, NodeTree, Type};
+use crate::{
+    Field, Function, Global, GlobalInitializer, LocalNodeId, Mutability, NodeTree, Type,
+    TypedValue, Value,
+};
 
 use super::FunctionBuilder;
 
@@ -125,6 +128,55 @@ impl ModuleBuilder {
             .insert(Type::FunctionPointer { parameters, result })
     }
 
+    // global building
+
+    /// Create a global variable (mutable).
+    pub fn global_variable(
+        &mut self,
+        name: &str,
+        ty: LocalNodeId<Type>,
+        init: GlobalInitializer,
+    ) -> LocalNodeId<Global> {
+        let name_id = self.strings.intern(name);
+        self.tree
+            .insert(Global::new(name_id, ty, Mutability::Mutable, init))
+    }
+
+    /// Create a global constant (immutable).
+    pub fn global_constant(
+        &mut self,
+        name: &str,
+        ty: LocalNodeId<Type>,
+        init: GlobalInitializer,
+    ) -> LocalNodeId<Global> {
+        let name_id = self.strings.intern(name);
+        self.tree
+            .insert(Global::new(name_id, ty, Mutability::Immutable, init))
+    }
+
+    /// Create a global with explicit mutability.
+    pub fn global(
+        &mut self,
+        name: &str,
+        ty: LocalNodeId<Type>,
+        mutability: Mutability,
+        init: GlobalInitializer,
+    ) -> LocalNodeId<Global> {
+        let name_id = self.strings.intern(name);
+        self.tree.insert(Global::new(name_id, ty, mutability, init))
+    }
+
+    /// Declare an external global (defined elsewhere).
+    pub fn extern_global(
+        &mut self,
+        name: &str,
+        ty: LocalNodeId<Type>,
+        mutability: Mutability,
+    ) -> LocalNodeId<Global> {
+        let name_id = self.strings.intern(name);
+        self.tree.insert(Global::external(name_id, ty, mutability))
+    }
+
     // function building
 
     /// Start building a new function.
@@ -138,6 +190,27 @@ impl ModuleBuilder {
     ) -> FunctionBuilder<'_> {
         let name_id = self.strings.intern(name);
         FunctionBuilder::new(&mut self.tree, name_id, parameter_types, return_type)
+    }
+
+    /// Declare an external function (defined elsewhere).
+    pub fn extern_function(
+        &mut self,
+        name: &str,
+        parameter_types: &[LocalNodeId<Type>],
+        return_type: LocalNodeId<Type>,
+    ) -> LocalNodeId<Function> {
+        let name_id = self.strings.intern(name);
+        // create typed parameters (external functions still need typed params for signature)
+        let parameters: Vec<TypedValue> = parameter_types
+            .iter()
+            .enumerate()
+            .map(|(i, &ty)| TypedValue {
+                value: Value::new(i as u32),
+                ty,
+            })
+            .collect();
+        self.tree
+            .insert(Function::external(name_id, parameters, return_type))
     }
 
     /// Finish building the module.

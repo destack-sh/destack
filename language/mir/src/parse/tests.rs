@@ -52,7 +52,8 @@ block3(v3: i32):
 #[test]
 fn test_roundtrip_call() {
     roundtrip(
-        r#"function @caller() -> i32 {
+        r#"extern function @callee(i32, i32) -> i32
+function @caller() -> i32 {
 block0:
     v0 = iconst 1i32
     v1 = iconst 2i32

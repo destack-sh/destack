@@ -3,12 +3,11 @@
 use std::fmt;
 use std::str::FromStr;
 
-use destack_source::StringId;
 use smallvec::{SmallVec, smallvec};
 
 use crate::{
-    BinaryOperator, Constant, Function, Local, LocalNodeId, Node, NodeType, Type, UnaryOperator,
-    Value,
+    BinaryOperator, Constant, Function, Global, Local, LocalNodeId, Node, NodeType, Type,
+    UnaryOperator, Value,
 };
 
 /// Instructions produce SSA values and perform operations.
@@ -71,6 +70,22 @@ pub enum Instruction {
     LocalSet {
         /// The local variable to store to.
         local: LocalNodeId<Local>,
+        /// The value to store.
+        value: Value,
+    },
+
+    // global variables
+    /// Load from a global variable.
+    GlobalGet {
+        /// The SSA value to define with the loaded value.
+        destination: Value,
+        /// The global variable to load from.
+        global: LocalNodeId<Global>,
+    },
+    /// Store to a global variable.
+    GlobalSet {
+        /// The global variable to store to.
+        global: LocalNodeId<Global>,
         /// The value to store.
         value: Value,
     },
@@ -141,7 +156,7 @@ pub enum Instruction {
         /// The SSA value to define with the return value, if any.
         destination: Option<Value>,
         /// The function to call.
-        function: FunctionReference,
+        function: LocalNodeId<Function>,
         /// The arguments to pass.
         arguments: Vec<Value>,
     },
@@ -170,6 +185,8 @@ impl Instruction {
             Instruction::Cast { destination, .. } => Some(*destination),
             Instruction::LocalGet { destination, .. } => Some(*destination),
             Instruction::LocalSet { .. } => None,
+            Instruction::GlobalGet { destination, .. } => Some(*destination),
+            Instruction::GlobalSet { .. } => None,
             Instruction::Load { destination, .. } => Some(*destination),
             Instruction::Store { .. } => None,
             Instruction::ExtractField { destination, .. } => Some(*destination),
@@ -190,6 +207,8 @@ impl Instruction {
             Instruction::Cast { argument, .. } => smallvec![*argument],
             Instruction::LocalGet { .. } => smallvec![],
             Instruction::LocalSet { value, .. } => smallvec![*value],
+            Instruction::GlobalGet { .. } => smallvec![],
+            Instruction::GlobalSet { value, .. } => smallvec![*value],
             Instruction::Load { pointer, .. } => smallvec![*pointer],
             Instruction::Store { pointer, value, .. } => smallvec![*pointer, *value],
             Instruction::ExtractField { aggregate, .. } => smallvec![*aggregate],
@@ -213,16 +232,6 @@ impl Instruction {
             }
         }
     }
-}
-
-/// Reference to a function for call instructions.
-#[derive(Debug, Clone, PartialEq)]
-pub enum FunctionReference {
-    /// A function defined in the same module.
-    Local(LocalNodeId<Function>),
-    /// An external function reference (by name).
-    /// Resolution to actual addresses happens at codegen/linking time.
-    External(StringId),
 }
 
 /// Kind of type cast.

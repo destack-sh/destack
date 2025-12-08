@@ -8,7 +8,7 @@ use destack_fir::print::PrintOptions;
 use destack_fir::write;
 use destack_source::{File, FileType, ImmutableStringPool, IndentStyle, LineEnding};
 
-use crate::{Block, Function, Local, LocalNodeId, Node, NodeTree, NodeTreeImpl};
+use crate::{Block, Function, Global, Local, LocalNodeId, Node, NodeTree, NodeTreeImpl};
 
 pub type MirFormatter<'a, 'buf> = Formatter<'buf, MirFormatContext<'a>>;
 
@@ -165,8 +165,8 @@ pub fn format_mir(
 ) -> String {
     let context = MirFormatContext::new(tree, strings, options);
 
-    // format all functions
-    let formatted = destack_fir::format!(context, [FormatAllFunctions]);
+    // format all globals and functions
+    let formatted = destack_fir::format!(context, [FormatAllItems]);
     match formatted {
         Ok(doc) => match doc.print() {
             Ok(printed) => printed.as_str().to_string(),
@@ -176,18 +176,31 @@ pub fn format_mir(
     }
 }
 
-/// Helper to format all functions.
-struct FormatAllFunctions;
+/// Helper to format all module items (globals and functions).
+struct FormatAllItems;
 
-impl<'a> Format<MirFormatContext<'a>> for FormatAllFunctions {
+impl<'a> Format<MirFormatContext<'a>> for FormatAllItems {
     fn format(&self, f: &mut MirFormatter<'a, '_>) -> FormatResult<()> {
         let tree = f.context().tree;
+        let global_ids: Vec<_> = tree.iter_nodes::<Global>().map(|(id, _)| id).collect();
         let function_ids: Vec<_> = tree.iter_nodes::<Function>().map(|(id, _)| id).collect();
+        let mut first = true;
 
-        for (i, function_id) in function_ids.iter().enumerate() {
-            if i > 0 {
-                write!(f, [hard_line_break(), hard_line_break()])?;
+        // format globals first
+        for global_id in &global_ids {
+            if !first {
+                write!(f, [hard_line_break()])?;
             }
+            first = false;
+            write!(f, [global_id, hard_line_break()])?;
+        }
+
+        // format functions
+        for function_id in &function_ids {
+            if !first {
+                write!(f, [hard_line_break()])?;
+            }
+            first = false;
             write!(f, [function_id])?;
         }
         Ok(())

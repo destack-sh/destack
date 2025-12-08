@@ -14,6 +14,35 @@ impl<'a> FormatMirNode<'a, Function> for Function {
         _id: LocalNodeId<Function>,
         f: &mut MirFormatter<'a, '_>,
     ) -> FormatResult<()> {
+        let name = f.context().strings.get(self.name);
+
+        // external function: extern function @name(i32, i32) -> void
+        if self.is_external {
+            write!(
+                f,
+                [
+                    token("extern"),
+                    space(),
+                    token("function"),
+                    space(),
+                    token("@"),
+                    text(name)
+                ]
+            )?;
+
+            // parameters (just types for extern)
+            write!(f, [token("(")])?;
+            for (i, param) in self.parameters.iter().enumerate() {
+                if i > 0 {
+                    write!(f, [token(","), space()])?;
+                }
+                write!(f, [param.ty])?;
+            }
+            write!(f, [token(")")])?;
+
+            return write!(f, [space(), token("->"), space(), self.return_type]);
+        }
+
         // build block and local index maps for this function
         {
             let context = f.context_mut();
@@ -28,7 +57,6 @@ impl<'a> FormatMirNode<'a, Function> for Function {
         }
 
         // function signature: function @name(v0: i32, v1: i32) -> void {
-        let name = f.context().strings.get(self.name);
         write!(f, [token("function"), space(), token("@"), text(name)])?;
 
         // parameters

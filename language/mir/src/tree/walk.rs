@@ -1,7 +1,7 @@
 //! MIR tree walking functions.
 
 use crate::{
-    Block, Function, Instruction, Local, LocalNodeId, NodeTree, NodeType, NodeVisitor, Type,
+    Block, Function, Global, Instruction, Local, LocalNodeId, NodeTree, NodeType, NodeVisitor, Type,
 };
 
 /// Walk any node by its type and id.
@@ -36,6 +36,11 @@ pub fn walk_any<V: NodeVisitor + ?Sized>(
             let id = LocalNodeId::new(node_id);
             let ty = tree.get(id);
             visitor.visit_type(tree, id, ty);
+        }
+        NodeType::Global => {
+            let id = LocalNodeId::new(node_id);
+            let global = tree.get(id);
+            visitor.visit_global(tree, id, global);
         }
     }
 }
@@ -143,4 +148,14 @@ pub fn walk_type<V: NodeVisitor + ?Sized>(
         // primitive types have no children
         Type::Void | Type::Boolean | Type::Int { .. } | Type::Float { .. } => {}
     }
+}
+
+/// Walk a Global (leaf node, references a type but doesn't own child nodes).
+pub fn walk_global<V: NodeVisitor + ?Sized>(
+    visitor: &mut V,
+    tree: &NodeTree,
+    id: LocalNodeId<Global>,
+    _global: &Global,
+) {
+    visitor.visit_any(tree, NodeType::Global, id.id);
 }

@@ -2,7 +2,7 @@ use destack_source::StringId;
 
 use crate::{Block, Local, LocalNodeId, Node, NodeType, Type, TypedValue, Value};
 
-/// A function in MIR.
+/// A function in MIR (may be external).
 ///
 /// Functions are the top-level compilation unit, containing:
 /// - Parameters as SSA values
@@ -16,12 +16,17 @@ pub struct Function {
     pub parameters: Vec<TypedValue>,
     /// The return type.
     pub return_type: LocalNodeId<Type>,
+    /// Whether this function is external (declared but not defined here).
+    pub is_external: bool,
     /// Local variables (stack-allocated slots for mutable bindings).
+    /// Empty for external functions.
     pub locals: Vec<LocalNodeId<Local>>,
     /// All basic blocks in this function.
+    /// Empty for external functions.
     pub blocks: Vec<LocalNodeId<Block>>,
     /// The entry block (execution starts here).
-    pub entry: LocalNodeId<Block>,
+    /// None for external functions.
+    pub entry: Option<LocalNodeId<Block>>,
 
     /// Counter for allocating unique SSA value IDs.
     pub(crate) next_value_id: u32,
@@ -46,10 +51,29 @@ impl Function {
             name,
             parameters,
             return_type,
+            is_external: false,
             locals: Vec::new(),
             blocks: Vec::new(),
-            entry,
+            entry: Some(entry),
             next_value_id,
+        }
+    }
+
+    /// Create an external function declaration (no body).
+    pub fn external(
+        name: StringId,
+        parameters: Vec<TypedValue>,
+        return_type: LocalNodeId<Type>,
+    ) -> Self {
+        Self {
+            name,
+            parameters,
+            return_type,
+            is_external: true,
+            locals: Vec::new(),
+            blocks: Vec::new(),
+            entry: None,
+            next_value_id: 0,
         }
     }
 
