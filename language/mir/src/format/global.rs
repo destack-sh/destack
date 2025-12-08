@@ -120,5 +120,11 @@ fn format_constant<'a>(constant: &Constant, f: &mut MirFormatter<'a, '_>) -> For
             };
             write!(f, [text(&format!("{value}f{width}"))])
         }
+        Constant::String { value } => {
+            write!(f, [text(&format!("{value:?}"))])
+        }
+        Constant::Char { value } => {
+            write!(f, [text(&format!("{value:?}"))])
+        }
     }
 }

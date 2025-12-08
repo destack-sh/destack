@@ -90,6 +90,10 @@ pub enum TokenType {
     FloatLiteral,
     /// Boolean literal: `true`, `false`
     BoolLiteral,
+    /// String literal: `"hello"`
+    StringLiteral,
+    /// Character literal: `'a'`
+    CharLiteral,
     /// Type name: `i32`, `u64`, `f32`, etc.
     TypeName,
 

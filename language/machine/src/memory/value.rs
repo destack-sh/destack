@@ -22,6 +22,15 @@ pub enum Value {
     /// 64-bit floating point.
     Float64(f64),
 
+    /// String value (UTF-8 encoded internally).
+    ///
+    /// Note: JS/TS strings are UTF-16 code units. Use the helper methods
+    /// for JS-compatible length and indexing operations.
+    String(String),
+
+    /// Character value (Unicode codepoint).
+    Char(char),
+
     /// Raw pointer (as integer address).
     RawPointer(u64),
 
@@ -60,6 +69,8 @@ impl From<&mir::Constant> for Value {
                 Value::Float32(f32::from_bits(*bits as u32))
             }
             mir::Constant::Float { bits, width: _ } => Value::Float64(f64::from_bits(*bits)),
+            mir::Constant::String { value } => Value::String(value.clone()),
+            mir::Constant::Char { value } => Value::Char(*value),
         }
     }
 }
@@ -74,6 +85,8 @@ impl Value {
             Value::UInt { value, .. } => *value != 0,
             Value::Float32(f) => *f != 0.0,
             Value::Float64(f) => *f != 0.0,
+            Value::String(s) => !s.is_empty(),
+            Value::Char(_) => true, // all chars are truthy (even '\0')
             Value::RawPointer(p) => *p != 0,
             Value::ManagedReference(h) => !h.is_null(),
             Value::Aggregate(_) => true,
@@ -102,6 +115,42 @@ impl Value {
         match self {
             Value::UInt { value, .. } => Some(*value),
             Value::Int { value, .. } => Some(*value as u64),
+            _ => None,
+        }
+    }
+
+    /// Get this value as a string, if applicable.
+    pub fn as_str(&self) -> Option<&str> {
+        match self {
+            Value::String(s) => Some(s),
+            _ => None,
+        }
+    }
+
+    /// Get this value as a char, if applicable.
+    pub fn as_char(&self) -> Option<char> {
+        match self {
+            Value::Char(c) => Some(*c),
+            _ => None,
+        }
+    }
+
+    /// Get the JS-compatible string length (UTF-16 code units).
+    ///
+    /// In JavaScript, `"😀".length` is 2 (surrogate pair), not 1.
+    pub fn js_string_length(&self) -> Option<usize> {
+        match self {
+            Value::String(s) => Some(s.encode_utf16().count()),
+            _ => None,
+        }
+    }
+
+    /// Get a character at a JS-compatible index (UTF-16 code unit index).
+    ///
+    /// Returns the UTF-16 code unit as a u16, or None if out of bounds.
+    pub fn js_char_code_at(&self, index: usize) -> Option<u16> {
+        match self {
+            Value::String(s) => s.encode_utf16().nth(index),
             _ => None,
         }
     }
