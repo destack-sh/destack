@@ -16,11 +16,7 @@ fn create_interpreter(mir_text: &str) -> Interpreter {
 }
 
 /// Run a MIR function by name with the given arguments.
-fn run_mir(
-    mir: &str,
-    function: &str,
-    arguments: &[Value],
-) -> RuntimeResult<ExecutionOutput> {
+fn run_mir(mir: &str, function: &str, arguments: &[Value]) -> RuntimeResult<ExecutionOutput> {
     let mut interpreter = create_interpreter(mir);
     interpreter.run_function_by_name(function, arguments)
 }

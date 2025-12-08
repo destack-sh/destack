@@ -547,7 +547,10 @@ fn test_managed_reference_types() {
     let (tree, _strings) = module.finish();
     assert!(matches!(
         tree.get(ref_type),
-        Type::ManagedReference { nullable: false, .. }
+        Type::ManagedReference {
+            nullable: false,
+            ..
+        }
     ));
     assert!(matches!(
         tree.get(ref_nullable_type),

@@ -70,8 +70,14 @@ fn test_gc_handles_cycles() {
     let b = heap.allocate();
 
     // set up the cycle
-    heap.get_mut(a).unwrap().slots.push(Value::ManagedReference(b));
-    heap.get_mut(b).unwrap().slots.push(Value::ManagedReference(a));
+    heap.get_mut(a)
+        .unwrap()
+        .slots
+        .push(Value::ManagedReference(b));
+    heap.get_mut(b)
+        .unwrap()
+        .slots
+        .push(Value::ManagedReference(a));
 
     // create unreachable cells
     let _unreachable1 = heap.allocate();

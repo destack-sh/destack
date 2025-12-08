@@ -203,9 +203,22 @@ fn test_lex_characters() {
 }
 
 #[test]
-fn test_lex_html_entities() {
+fn test_lex_html_entities_outside_tree_not_decoded() {
     assert_tokenize_eq_roundtrip!(
-        "&nbsp; &#160; &#xA0; &amp;",
+        "&nbsp;",
+        Token::new(TokenType::ElementwiseAnd, 1, None),
+        Token::new(TokenType::Identifier, 4, None),
+        Token::new(TokenType::Semicolon, 1, None),
+    );
+}
+
+#[test]
+fn test_lex_html_entities_inside_tree_content() {
+    assert_tokenize_eq_roundtrip!(
+        "<div>&nbsp;</div>",
+        Token::new(TokenType::LessThan, 1, None),    // <
+        Token::new(TokenType::Identifier, 3, None),  // div
+        Token::new(TokenType::GreaterThan, 1, None), // >
         Token::new(
             TokenType::Literal,
             6,
@@ -213,8 +226,21 @@ fn test_lex_html_entities() {
                 is_terminated: true,
                 is_html_entity: true,
             })
-        ),
-        Token::new(TokenType::Whitespace, 1, None),
+        ), // &nbsp;
+        Token::new(TokenType::LessThan, 1, None),    // <
+        Token::new(TokenType::Divide, 1, None),      // /
+        Token::new(TokenType::Identifier, 3, None),  // div
+        Token::new(TokenType::GreaterThan, 1, None), // >
+    );
+}
+
+#[test]
+fn test_lex_html_entities_various_inside_tree() {
+    assert_tokenize_eq_roundtrip!(
+        "<p>&#160;&#xA0;&amp;</p>",
+        Token::new(TokenType::LessThan, 1, None),    // <
+        Token::new(TokenType::Identifier, 1, None),  // p
+        Token::new(TokenType::GreaterThan, 1, None), // >
         Token::new(
             TokenType::Literal,
             6,
@@ -222,8 +248,7 @@ fn test_lex_html_entities() {
                 is_terminated: true,
                 is_html_entity: true,
             })
-        ),
-        Token::new(TokenType::Whitespace, 1, None),
+        ), // &#160;
         Token::new(
             TokenType::Literal,
             6,
@@ -231,8 +256,7 @@ fn test_lex_html_entities() {
                 is_terminated: true,
                 is_html_entity: true,
             })
-        ),
-        Token::new(TokenType::Whitespace, 1, None),
+        ), // &#xA0;
         Token::new(
             TokenType::Literal,
             5,
@@ -240,7 +264,11 @@ fn test_lex_html_entities() {
                 is_terminated: true,
                 is_html_entity: true,
             })
-        ),
+        ), // &amp;
+        Token::new(TokenType::LessThan, 1, None),    // <
+        Token::new(TokenType::Divide, 1, None),      // /
+        Token::new(TokenType::Identifier, 1, None),  // p
+        Token::new(TokenType::GreaterThan, 1, None), // >
     );
 }
 
@@ -903,30 +931,30 @@ fn test_lex_tree_text_with_colon() {
 fn test_lex_tree_nested_with_attr_expression() {
     assert_tokenize_eq_roundtrip!(
         "<div key={index}><h4>Tool: {x}</h4></div>",
-        Token::new(TokenType::LessThan, 1, None),      // <
-        Token::new(TokenType::Identifier, 3, None),    // div
-        Token::new(TokenType::Whitespace, 1, None),    // (space)
-        Token::new(TokenType::Identifier, 3, None),    // key
-        Token::new(TokenType::Assign, 1, None),        // =
-        Token::new(TokenType::OpenBrace, 1, None),     // {
-        Token::new(TokenType::Identifier, 5, None),    // index
-        Token::new(TokenType::CloseBrace, 1, None),    // }
-        Token::new(TokenType::GreaterThan, 1, None),   // >
-        Token::new(TokenType::LessThan, 1, None),      // <
-        Token::new(TokenType::Identifier, 2, None),    // h4
-        Token::new(TokenType::GreaterThan, 1, None),   // >
+        Token::new(TokenType::LessThan, 1, None),    // <
+        Token::new(TokenType::Identifier, 3, None),  // div
+        Token::new(TokenType::Whitespace, 1, None),  // (space)
+        Token::new(TokenType::Identifier, 3, None),  // key
+        Token::new(TokenType::Assign, 1, None),      // =
+        Token::new(TokenType::OpenBrace, 1, None),   // {
+        Token::new(TokenType::Identifier, 5, None),  // index
+        Token::new(TokenType::CloseBrace, 1, None),  // }
+        Token::new(TokenType::GreaterThan, 1, None), // >
+        Token::new(TokenType::LessThan, 1, None),    // <
+        Token::new(TokenType::Identifier, 2, None),  // h4
+        Token::new(TokenType::GreaterThan, 1, None), // >
         Token::new(TokenType::Literal, 6, Some(LiteralType::TreeString)), // "Tool: "
-        Token::new(TokenType::OpenBrace, 1, None),     // {
-        Token::new(TokenType::Identifier, 1, None),    // x
-        Token::new(TokenType::CloseBrace, 1, None),    // }
-        Token::new(TokenType::LessThan, 1, None),      // <
-        Token::new(TokenType::Divide, 1, None),        // /
-        Token::new(TokenType::Identifier, 2, None),    // h4
-        Token::new(TokenType::GreaterThan, 1, None),   // >
-        Token::new(TokenType::LessThan, 1, None),      // <
-        Token::new(TokenType::Divide, 1, None),        // /
-        Token::new(TokenType::Identifier, 3, None),    // div
-        Token::new(TokenType::GreaterThan, 1, None),   // >
+        Token::new(TokenType::OpenBrace, 1, None),   // {
+        Token::new(TokenType::Identifier, 1, None),  // x
+        Token::new(TokenType::CloseBrace, 1, None),  // }
+        Token::new(TokenType::LessThan, 1, None),    // <
+        Token::new(TokenType::Divide, 1, None),      // /
+        Token::new(TokenType::Identifier, 2, None),  // h4
+        Token::new(TokenType::GreaterThan, 1, None), // >
+        Token::new(TokenType::LessThan, 1, None),    // <
+        Token::new(TokenType::Divide, 1, None),      // /
+        Token::new(TokenType::Identifier, 3, None),  // div
+        Token::new(TokenType::GreaterThan, 1, None), // >
     );
 }
 
@@ -948,10 +976,7 @@ fn test_lex_tree_in_nested_callbacks() {
         .filter(|t| t.token.ty == TokenType::CloseParenthesis)
         .count();
 
-    assert_eq!(
-        open_parens, close_parens,
-        "parentheses should be balanced"
-    );
+    assert_eq!(open_parens, close_parens, "parentheses should be balanced");
 }
 
 /// Complex nested tree literal pattern with multiline code.
@@ -1000,16 +1025,16 @@ fn test_lex_tree_nested_multiline_with_text() {
 fn test_lex_tree_with_comment_container() {
     assert_tokenize_eq_roundtrip!(
         "<div>{/* comment */}</div>",
-        Token::new(TokenType::LessThan, 1, None),       // <
-        Token::new(TokenType::Identifier, 3, None),     // div
-        Token::new(TokenType::GreaterThan, 1, None),    // >
-        Token::new(TokenType::OpenBrace, 1, None),      // {
-        Token::new(TokenType::BlockComment, 13, None),  // /* comment */
-        Token::new(TokenType::CloseBrace, 1, None),     // }
-        Token::new(TokenType::LessThan, 1, None),       // <
-        Token::new(TokenType::Divide, 1, None),         // /
-        Token::new(TokenType::Identifier, 3, None),     // div
-        Token::new(TokenType::GreaterThan, 1, None),    // >
+        Token::new(TokenType::LessThan, 1, None),      // <
+        Token::new(TokenType::Identifier, 3, None),    // div
+        Token::new(TokenType::GreaterThan, 1, None),   // >
+        Token::new(TokenType::OpenBrace, 1, None),     // {
+        Token::new(TokenType::BlockComment, 13, None), // /* comment */
+        Token::new(TokenType::CloseBrace, 1, None),    // }
+        Token::new(TokenType::LessThan, 1, None),      // <
+        Token::new(TokenType::Divide, 1, None),        // /
+        Token::new(TokenType::Identifier, 3, None),    // div
+        Token::new(TokenType::GreaterThan, 1, None),   // >
     );
 }
 
@@ -1028,9 +1053,7 @@ fn test_lex_tree_sibling_after_expr_container() {
 
     // The `<form` should be recognized as a tree opening
     let form_start = input.find("<form").unwrap();
-    let token_at_form = tokens
-        .iter()
-        .find(|t| t.span.start as usize == form_start);
+    let token_at_form = tokens.iter().find(|t| t.span.start as usize == form_start);
 
     assert_eq!(
         token_at_form.map(|t| t.token.ty),
@@ -1049,9 +1072,7 @@ fn test_lex_tree_sibling_after_expr_container_tabs() {
 
     // The `<form` should be recognized as a tree opening
     let form_start = input.find("<form").unwrap();
-    let token_at_form = tokens
-        .iter()
-        .find(|t| t.span.start as usize == form_start);
+    let token_at_form = tokens.iter().find(|t| t.span.start as usize == form_start);
 
     assert_eq!(
         token_at_form.map(|t| t.token.ty),
@@ -1070,9 +1091,7 @@ fn test_lex_multiline_form_after_expr_container() {
 
     // The `<form` should be recognized as a tree opening
     let form_start = input.find("<form").unwrap();
-    let token_at_form = tokens
-        .iter()
-        .find(|t| t.span.start as usize == form_start);
+    let token_at_form = tokens.iter().find(|t| t.span.start as usize == form_start);
 
     assert_eq!(
         token_at_form.map(|t| t.token.ty),

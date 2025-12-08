@@ -73,14 +73,18 @@ impl Interpreter {
                 value: a.wrapping_add(*b),
                 width: *width,
             },
-            (Subtract, Value::UInt { value: a, width }, Value::UInt { value: b, .. }) => Value::UInt {
-                value: a.wrapping_sub(*b),
-                width: *width,
-            },
-            (Multiply, Value::UInt { value: a, width }, Value::UInt { value: b, .. }) => Value::UInt {
-                value: a.wrapping_mul(*b),
-                width: *width,
-            },
+            (Subtract, Value::UInt { value: a, width }, Value::UInt { value: b, .. }) => {
+                Value::UInt {
+                    value: a.wrapping_sub(*b),
+                    width: *width,
+                }
+            }
+            (Multiply, Value::UInt { value: a, width }, Value::UInt { value: b, .. }) => {
+                Value::UInt {
+                    value: a.wrapping_mul(*b),
+                    width: *width,
+                }
+            }
 
             // integer comparison
             (Equal, Value::Int { value: a, .. }, Value::Int { value: b, .. }) => {
@@ -132,10 +136,12 @@ impl Interpreter {
                 value: a ^ b,
                 width: *width,
             },
-            (ShiftLeft, Value::Int { value: a, width }, Value::Int { value: b, .. }) => Value::Int {
-                value: a.wrapping_shl(*b as u32),
-                width: *width,
-            },
+            (ShiftLeft, Value::Int { value: a, width }, Value::Int { value: b, .. }) => {
+                Value::Int {
+                    value: a.wrapping_shl(*b as u32),
+                    width: *width,
+                }
+            }
             (ArithmeticShiftRight, Value::Int { value: a, width }, Value::Int { value: b, .. }) => {
                 Value::Int {
                     value: a.wrapping_shr(*b as u32),
@@ -180,11 +186,7 @@ impl Interpreter {
     }
 
     /// Execute a unary operation.
-    pub(super) fn execute_unary(
-        &self,
-        op: mir::UnaryOperator,
-        arg: Value,
-    ) -> RuntimeResult<Value> {
+    pub(super) fn execute_unary(&self, op: mir::UnaryOperator, arg: Value) -> RuntimeResult<Value> {
         use mir::UnaryOperator::*;
 
         let result = match (op, &arg) {
@@ -211,11 +213,7 @@ impl Interpreter {
     }
 
     /// Execute a cast operation.
-    pub(super) fn execute_cast(
-        &self,
-        kind: mir::CastKind,
-        arg: Value,
-    ) -> RuntimeResult<Value> {
+    pub(super) fn execute_cast(&self, kind: mir::CastKind, arg: Value) -> RuntimeResult<Value> {
         use mir::CastKind::*;
 
         let result = match kind {
@@ -282,7 +280,10 @@ impl Interpreter {
             }
             PointerToInt => {
                 if let Value::RawPointer(p) = arg {
-                    Value::UInt { value: p, width: 64 }
+                    Value::UInt {
+                        value: p,
+                        width: 64,
+                    }
                 } else {
                     arg
                 }
