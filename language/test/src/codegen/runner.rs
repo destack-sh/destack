@@ -136,7 +136,7 @@ fn run_codegen_test(test: &TestCase) -> TestResult {
         };
     }
 
-    // emit: enqueue EmitPackage for each target
+    // emit
     for (target_name, _) in &targets {
         compiler.enqueue(EmitTask::EmitPackage {
             package: package_id,
@@ -146,9 +146,9 @@ fn run_codegen_test(test: &TestCase) -> TestResult {
     compiler.compile();
 
     // check for errors
-    let diag_result = check_diagnostics(test, &program.files, &program.diagnostics);
-    if diag_result.is_failed() {
-        return diag_result;
+    let result = check_diagnostics(test, &program.files, &program.diagnostics);
+    if result.is_failed() {
+        return result;
     }
     drop(compiler);
 

@@ -3,13 +3,13 @@
 Destack extends TypeScript for building correct, optimal, integrated full-stack systems.
 You can think of Destack like "TypeScript++", except we're still fully interoperable both ways.
 This document describes the motivation and tradeoffs in choosing TypeScript and why what was added.
-Destack adds features to TypeScript that wouldn't fit in TypeScript itself (like `.tsx` or `.svelte` do) without splintering the ecosystem.
+Destack adds features to TypeScript that wouldn't fit in TypeScript itself (like `.tsx` or `.svelte` do).
 
 > ---
 > - **Valid JavaScript is valid Destack.**
 > - **Valid TypeScript is valid Destack.**
+> - **Valid TSX/JSX is valid Destack.**
 > - **Destack transpiles to idiomatic TypeScript.**
-> - **JavaScript, TypeScript, and Destack coexist.**
 > ---
 
 Yes, other languages with some similar features also have tried this before. 
@@ -111,7 +111,8 @@ TSX-like syntax generalized for any tree-shaped data:
 </Prompt>
 ```
 
-Tree literals work with any type that implements the tree construction protocol, not just React components.
+Tree literals are fully TSX-compatible: copy-paste from `.tsx` files just works.
+They work with any tree-compatible type or function, not just React or React-like components.
 This enables domain-specific trees for AI prompts, game entities, UI components, and more.
 
 ## Annotations

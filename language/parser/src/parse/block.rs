@@ -204,7 +204,9 @@ impl Parser {
         };
         // value (if not at a expression stop)
         let value_id = if self.peek().is_ok() && self.peek_statement_stop().is_err() {
-            let value_id = self.eat_expression()?;
+            let value_id = self.with_options(self.options.not_in_position(), |parser| {
+                parser.eat_expression()
+            })?;
             Some(value_id)
         } else {
             None
@@ -348,7 +350,11 @@ impl Parser {
         self.eat_keyword(Keyword::Return)?;
         // value
         let value_id = if self.peek().is_ok() && self.peek_statement_stop().is_err() {
-            let value_id = self.eat_expression().for_node_type(NodeType::Expression)?;
+            let value_id = self
+                .with_options(self.options.not_in_position(), |parser| {
+                    parser.eat_expression()
+                })
+                .for_node_type(NodeType::Expression)?;
             Some(value_id)
         } else {
             None

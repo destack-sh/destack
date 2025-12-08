@@ -469,6 +469,9 @@ pub enum LiteralType {
     String { is_terminated: bool },
     /// Regex string (`/abc/`, `/abc/g`, `/abc/i`, `/abc/gi`)
     RegexString { has_flags: bool },
+    /// Text content inside tree literals (TSX-compatible).
+    /// Raw text between `>` and `</` or `{`, like "Hello" in `<div>Hello</div>`.
+    TreeString, // NOTE #Cleanup: does TreeString need to be a separate literal type?
 }
 
 /// Numeric literal base (according to its prefix).

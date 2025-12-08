@@ -85,7 +85,8 @@ start..end           // variable ranges
 
 ### Tree Literals
 
-Tree literals use TSX-like syntax for hierarchical data structures.
+Tree literals use TSX syntax for hierarchical data structures.
+Destack is fully TSX-compatible: copy-paste from `.tsx` files just works.
 Unlike TSX which is specific to React, Destack's tree literals work with any tree-shaped data:
 
 ```
@@ -103,6 +104,16 @@ Unlike TSX which is specific to React, Destack's tree literals work with any tre
     <Player position={spawn} />
     {enemies.map(e => <Enemy {...e} />)}
 </Level>
+```
+
+Expression containers `{expr}` inside tree literals follow TSX semantics: they contain a single expression.
+For multi-statement blocks, use `do { }`:
+
+```
+<Component
+    simple={computeValue()}
+    complex={do { let x = prepare(); transform(x) }}
+/>
 ```
 
 The tree literal syntax is customizable via traits, so your domain types can define how they're constructed from tree syntax.

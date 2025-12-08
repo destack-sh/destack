@@ -226,6 +226,12 @@ impl Parser {
                     })
                 }
             }
+
+            // tree text content (raw text inside tree literals, like JSX text)
+            LiteralType::TreeString => {
+                let string_id = self.strings.intern(literal_str);
+                Ok(ScalarLiteral::String(string_id))
+            }
         }
     }
 
@@ -445,11 +451,14 @@ impl Parser {
             // fragment with children (>)
             else {
                 self.eat_token(TokenType::GreaterThan)?; // eat >
-                self.eat_newlines_maybe()?;
+                self.skip_tree_whitespace()?; // skip whitespace-only tree content
 
                 // eat children until closing fragment
                 let mut elements: Vec<LocalNodeId<Argument>> = vec![];
                 while self.peek().is_ok() {
+                    // skip whitespace before checking for closing tag
+                    self.skip_tree_whitespace()?;
+
                     // stop at closing fragment (</)
                     if self.peek_token(TokenType::LessThan).is_ok()
                         && self.peek_next_token(TokenType::Divide).is_ok()
@@ -490,15 +499,16 @@ impl Parser {
                     }
 
                     // keep eating child elements
+                    // NOTE: uses statement position so {expr} parses as block (expression container)
                     let element = self.with_options(
                         self.options
                             .not_in_position()
                             .in_tree_literal()
                             .in_statement_position(),
-                        |parser| parser.eat_named_argument(),
+                        |parser| parser.eat_tree_argument(),
                     )?;
                     elements.push(element);
-                    self.eat_newlines_maybe()?;
+                    self.skip_tree_whitespace()?; // skip whitespace-only tree content
                 }
 
                 Some(elements)
@@ -527,8 +537,7 @@ impl Parser {
 #[cfg(test)]
 mod tests {
     use destack_ast::{
-        Argument, Block, Expression, FloatType, IntType, Name, ScalarLiteral, TemplateLiteral,
-        TypeLiteral,
+        Argument, Expression, FloatType, IntType, Name, ScalarLiteral, TemplateLiteral, TypeLiteral,
     };
 
     use crate::{TestParser, assert_expression_path, assert_node, assert_path, assert_string};
@@ -841,30 +850,29 @@ mod tests {
 
     #[test]
     fn test_parse_tree_fragment_with_arguments() {
-        let mut test = TestParser::new("<A a=1 annoying-bee=2 c=3 flag />");
+        // pure TSX: numeric values need {}, boolean flags are implicit true
+        let mut test = TestParser::new("<A a={1} annoying-bee={2} c={3} flag />");
         let mut parser = test.prepare();
         let expression = parser.eat_tree_literal().unwrap();
-        // <A a=1 annoying-b=2 c=3 />
         assert_node!(parser.tree, expression, Expression::TreeExpression { left: Some(left), arguments, elements } => {
-            // A
             assert_expression_path!(parser, parser.tree.get(*left), "A");
             assert_eq!(arguments.as_ref().unwrap().len(), 4);
-            // a=1
+            // a={1}
             assert_node!(parser.tree, arguments.as_ref().unwrap()[0], Argument::Named { name: Name::Identifier(name), value } => {
                 assert_string!(parser, *name, "a");
                 assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
             });
-            // annoying-b=2
+            // annoying-bee={2}
             assert_node!(parser.tree, arguments.as_ref().unwrap()[1], Argument::Named { name: Name::Identifier(name), value } => {
                 assert_string!(parser, *name, "annoyingBee");
                 assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(2)));
             });
-            // c=3
+            // c={3}
             assert_node!(parser.tree, arguments.as_ref().unwrap()[2], Argument::Named { name: Name::Identifier(name), value } => {
                 assert_string!(parser, *name, "c");
                 assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(3)));
             });
-            // flag
+            // flag (implicit true)
             assert_node!(parser.tree, arguments.as_ref().unwrap()[3], Argument::Named { name: Name::Identifier(name), value } => {
                 assert_string!(parser, *name, "flag");
                 assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Boolean(true)));
@@ -876,10 +884,11 @@ mod tests {
 
     #[test]
     fn test_parse_tree_fragment_with_arguments_and_child() {
+        // pure TSX syntax
         let mut test = TestParser::new(
             r"
 <Tooltip
-    title=true
+    title={true}
     flag
     something-else={false}
 >
@@ -890,53 +899,43 @@ mod tests {
         let mut parser = test.prepare();
         parser.eat_newline().unwrap();
         let expression = parser.eat_tree_literal().unwrap();
-        // <Tooltip>
         assert_node!(parser.tree, expression, Expression::TreeExpression { left: Some(left), arguments, elements } => {
             assert_expression_path!(parser, parser.tree.get(*left), "Tooltip");
             assert_eq!(arguments.as_ref().unwrap().len(), 3);
-            // title=true
+            // title={true}
             assert_node!(parser.tree, arguments.as_ref().unwrap()[0], Argument::Named { name: Name::Identifier(name), value } => {
                 assert_string!(parser, *name, "title");
                 assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Boolean(true)));
             });
-            // flag
+            // flag (implicit true)
             assert_node!(parser.tree, arguments.as_ref().unwrap()[1], Argument::Named { name: Name::Identifier(name), value } => {
                 assert_string!(parser, *name, "flag");
                 assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Boolean(true)));
             });
-            // something-else=false
+            // something-else={false}
             assert_node!(parser.tree, arguments.as_ref().unwrap()[2], Argument::Named { name: Name::Identifier(name), value } => {
                 assert_string!(parser, *name, "somethingElse");
-                assert_node!(parser.tree, *value, Expression::Block(block_id) => {
-                    assert_node!(parser.tree, *block_id, Block { expressions, .. } => {
-                        assert_eq!(expressions.len(), 1);
-                        assert_node!(parser.tree, expressions[0], Expression::ScalarLiteral(ScalarLiteral::Boolean(false)));
-                    });
-                })
+                assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Boolean(false)));
             });
 
             assert!(elements.is_some());
-            // {true}
+            // {true} child expression
             assert_node!(parser.tree, elements.as_ref().unwrap()[0], Argument::Positional { value } => {
-                assert_node!(parser.tree, *value, Expression::Block(block_id) => {
-                    assert_node!(parser.tree, *block_id, Block { expressions, .. } => {
-                        assert_eq!(expressions.len(), 1);
-                        assert_node!(parser.tree, expressions[0], Expression::ScalarLiteral(ScalarLiteral::Boolean(true)));
-                    });
-                })
+                assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Boolean(true)));
             });
         });
     }
 
     #[test]
     fn test_parse_tree_nested_deep() {
+        // pure TSX: children must be elements or {expression}
         let mut test = TestParser::new(
             r"
 <A>
     <B>
         <C>
             <D/>
-            2
+            {2}
         </C>
     </B>
 </A>
@@ -945,7 +944,6 @@ mod tests {
         let mut parser = test.prepare();
         parser.eat_newline().unwrap();
         let expression = parser.eat_tree_literal().unwrap();
-        // <A>
         assert_node!(parser.tree, expression, Expression::TreeExpression { left: Some(left), arguments, elements } => {
             assert_expression_path!(parser, parser.tree.get(*left), "A");
             assert!(arguments.is_none());
@@ -970,7 +968,7 @@ mod tests {
                                     assert!(elements.is_none());
                                 });
                             });
-                            // 2
+                            // {2}
                             assert_node!(parser.tree, elements.as_ref().unwrap()[1], Argument::Positional { value } => {
                                 assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(2)));
                             });
@@ -990,7 +988,6 @@ mod tests {
         <Link subtle to={1}>
             {2}
         </Link>
-        header: "Hello"
     </div>
 )
         "#,
@@ -1015,8 +1012,8 @@ mod tests {
                 });
 
                 assert!(elements.is_some());
-                assert_eq!(elements.as_ref().unwrap().len(), 2);
-                // <Link subtle to={urls.annotation(annotation.id)}>
+                assert_eq!(elements.as_ref().unwrap().len(), 1);
+                // <Link subtle to={1}>
                 assert_node!(parser.tree, elements.as_ref().unwrap()[0], Argument::Positional { value } => {
                     assert_node!(parser.tree, *value, Expression::TreeExpression { left: Some(left), arguments, elements } => {
                         // Link
@@ -1028,35 +1025,18 @@ mod tests {
                             assert_string!(parser, *name, "subtle");
                             assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Boolean(true)));
                         });
-                        // to={1}
+                        // to={1} - TSX: {} is expression container, value is just 1
                         assert_node!(parser.tree, arguments.as_ref().unwrap()[1], Argument::Named { name: Name::Identifier(name), value } => {
                             assert_string!(parser, *name, "to");
-                            assert_node!(parser.tree, *value, Expression::Block(block_id) => {
-                                assert_node!(parser.tree, *block_id, Block { expressions, .. } => {
-                                    assert_eq!(expressions.len(), 1);
-                                    assert_node!(parser.tree, expressions[0], Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
-                                });
-                            });
+                            assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
                         });
 
                         assert!(elements.is_some());
                         assert_eq!(elements.as_ref().unwrap().len(), 1);
-                        // {2}
+                        // {2} - TSX: {} is expression container, value is just 2
                         assert_node!(parser.tree, elements.as_ref().unwrap()[0], Argument::Positional { value } => {
-                            assert_node!(parser.tree, *value, Expression::Block(block_id) => {
-                                assert_node!(parser.tree, *block_id, Block { expressions, .. } => {
-                                    assert_eq!(expressions.len(), 1);
-                                    assert_node!(parser.tree, expressions[0], Expression::ScalarLiteral(ScalarLiteral::Integer(2)));
-                                });
-                            });
+                            assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(2)));
                         });
-                    });
-                });
-                // header="Hello"
-                assert_node!(parser.tree, elements.as_ref().unwrap()[1], Argument::Named { name: Name::Identifier(name), value } => {
-                    assert_string!(parser, *name, "header");
-                    assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::String(string_id)) => {
-                        assert_string!(parser, *string_id, "Hello");
                     });
                 });
             });

@@ -260,7 +260,7 @@ export const mutateSomething = mutation({
 	},
 });
 
-{
+const annotationColumn = {
 	title: 'Annotation',
 	key: 'annotation',
 	width: '30%',
@@ -277,7 +277,7 @@ export const mutateSomething = mutation({
 			</div>
 		);
 	},
-}
+};
 
 const userId = await ctx.db.insert('users', { name: 'Michael Jordan' });
 
@@ -325,7 +325,7 @@ const { text } = await generateText({
 	prompt: 'What is love?',
 });
 
-{
+const agentOptions = {
 	prepareStep: (x: {
 		model;
 		stepNumber;
@@ -344,8 +344,8 @@ const { text } = await generateText({
 		}
 
 		return {};
-	};
-}
+	},
+};
 
 let step = 0;
 const maxSteps = 10;

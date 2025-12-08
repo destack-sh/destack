@@ -290,7 +290,7 @@ mod tests {
         assert_format!(
             "x: 1",
             "x: 1",
-            |p| p.eat_named_argument(),
+            |p| p.eat_tree_argument(),
             DestackFormatOptions::default()
         );
     }
@@ -300,7 +300,7 @@ mod tests {
         assert_format!(
             "x",
             "x",
-            |p| p.eat_named_argument(),
+            |p| p.eat_tree_argument(),
             DestackFormatOptions::default()
         );
     }
@@ -310,7 +310,7 @@ mod tests {
         assert_format!(
             "1",
             "1",
-            |p| p.eat_named_argument(),
+            |p| p.eat_tree_argument(),
             DestackFormatOptions::default()
         );
     }

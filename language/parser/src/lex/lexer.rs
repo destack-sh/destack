@@ -6,6 +6,21 @@ use destack_source::{FileId, LanguageOptions, Span};
 
 use super::memchr::find_byte;
 
+/// Tree literal lexer state for contextual parsing (TSX-compatible).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub(super) enum TreeState {
+    /// Normal code context (not in a tree literal).
+    #[default]
+    None,
+    /// Inside a tree literal opening tag (after `<Identifier`, before `>` or `/>`).
+    OpeningTag,
+    /// Inside a tree literal closing tag (after `</`, before `>`).
+    ClosingTag,
+    /// Inside tree literal content (after `>`, before `</` or `{`).
+    Content,
+}
+
+
 /// The options for the lexer.
 #[derive(Debug, Default, Clone)]
 pub(super) struct LexerOptions {
@@ -13,6 +28,11 @@ pub(super) struct LexerOptions {
     pub(super) template_string_stack: Vec<i32>,
     /// The depth of nested template string parentheses.
     pub(super) parentheses_depth: i32 = 0,
+    /// Stack of tree literal states for nested tree elements (TSX-compatible).
+    pub(super) tree_state_stack: Vec<TreeState>,
+    /// Stack of parentheses depths where tree expression containers started.
+    /// When `}` is seen at this depth, we return to TreeState::Content.
+    pub(super) tree_expression_stack: Vec<i32>,
 }
 
 /// Lexer over a source string.
@@ -162,5 +182,45 @@ impl<'a> Lexer<'a> {
                 self.pos = self.source.len();
             }
         }
+    }
+
+    /// Gets the current tree literal state (top of stack or None).
+    #[inline]
+    pub(super) fn tree_state(&self) -> TreeState {
+        self.options
+            .tree_state_stack
+            .last()
+            .copied()
+            .unwrap_or(TreeState::None)
+    }
+
+    /// Pushes a new tree literal state onto the stack.
+    #[inline]
+    pub(super) fn push_tree_state(&mut self, state: TreeState) {
+        self.options.tree_state_stack.push(state);
+    }
+
+    /// Pops the current tree literal state from the stack.
+    #[inline]
+    pub(super) fn pop_tree_state(&mut self) -> TreeState {
+        self.options.tree_state_stack.pop().unwrap_or(TreeState::None)
+    }
+
+    /// Checks if we're currently inside tree literal content.
+    /// Returns false if we're inside a tree expression container (after `{`).
+    #[inline]
+    pub(super) fn in_tree_content(&self) -> bool {
+        // not in content mode at all
+        if self.tree_state() != TreeState::Content {
+            return false;
+        }
+        // check if we're inside a tree expression container
+        // if so, we're not in "true" content mode (we're lexing code)
+        if let Some(&expr_depth) = self.options.tree_expression_stack.last() {
+            if self.options.parentheses_depth > expr_depth {
+                return false;
+            }
+        }
+        true
     }
 }
