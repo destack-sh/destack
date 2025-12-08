@@ -204,6 +204,18 @@ impl<'a> FunctionLowerer<'a> {
             // local_set: no result
             mir::Instruction::LocalSet { .. } => None,
 
+            // global_get: result type = global's type
+            mir::Instruction::GlobalGet {
+                destination,
+                global,
+            } => {
+                let global_data = self.tree.get(*global);
+                Some((*destination, global_data.ty))
+            }
+
+            // global_set: no result
+            mir::Instruction::GlobalSet { .. } => None,
+
             // load: result type = pointee of pointer
             mir::Instruction::Load {
                 destination,
@@ -317,7 +329,13 @@ impl<'a> FunctionLowerer<'a> {
         }
 
         // set entry block and add function parameters as entry block parameters
-        let entry_block = block_map[&self.function.entry];
+        let entry_block_id = self
+            .function
+            .entry
+            .ok_or_else(|| CodegenCraneliftError::Internal {
+                message: "cannot lower external function without entry block".to_string(),
+            })?;
+        let entry_block = block_map[&entry_block_id];
 
         // function parameters become entry block parameters in Cranelift
         for param in &self.function.parameters {
@@ -445,6 +463,20 @@ impl<'a> FunctionLowerer<'a> {
                 let slot = local_map[local];
                 let store_value = value_map[value];
                 builder.ins().stack_store(store_value, slot, 0);
+            }
+
+            mir::Instruction::GlobalGet { .. } => {
+                return Err(CodegenCraneliftError::unsupported_instruction(
+                    "GlobalGet not yet implemented",
+                    instruction_id.into_any(),
+                ));
+            }
+
+            mir::Instruction::GlobalSet { .. } => {
+                return Err(CodegenCraneliftError::unsupported_instruction(
+                    "GlobalSet not yet implemented",
+                    instruction_id.into_any(),
+                ));
             }
 
             mir::Instruction::Load {
