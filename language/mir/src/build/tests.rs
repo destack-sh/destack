@@ -453,7 +453,7 @@ fn test_type_construction() {
     let i64_type = module.type_i64();
     let f32_type = module.type_f32();
     let f64_type = module.type_f64();
-    let pointer_type = module.type_pointer(i32_type);
+    let pointer_type = module.type_raw_pointer(i32_type);
     let array_type = module.type_array(i32_type, 10);
     let tuple_type = module.type_tuple(vec![i32_type, i64_type]);
     let function_pointer_type = module.type_function_pointer(vec![i32_type], i32_type);
@@ -478,7 +478,7 @@ fn test_type_construction() {
     ));
     assert!(matches!(tree.get(f32_type), Type::Float { width: 32 }));
     assert!(matches!(tree.get(f64_type), Type::Float { width: 64 }));
-    assert!(matches!(tree.get(pointer_type), Type::Pointer { .. }));
+    assert!(matches!(tree.get(pointer_type), Type::RawPointer { .. }));
     assert!(matches!(
         tree.get(array_type),
         Type::Array { length: 10, .. }
@@ -525,6 +525,191 @@ block0:
 block1:
     jump block2
 block2:
+    return
+}";
+    assert_eq!(output, expected);
+}
+
+/// ManagedReference type construction.
+#[test]
+fn test_managed_reference_types() {
+    use crate::Type;
+
+    // setup
+    let mut module = ModuleBuilder::new();
+
+    // create managed reference types
+    let i32_type = module.type_i32();
+    let ref_type = module.type_managed_reference(i32_type);
+    let ref_nullable_type = module.type_managed_reference_nullable(i32_type);
+
+    // verify types
+    let (tree, _strings) = module.finish();
+    assert!(matches!(
+        tree.get(ref_type),
+        Type::ManagedReference { nullable: false, .. }
+    ));
+    assert!(matches!(
+        tree.get(ref_nullable_type),
+        Type::ManagedReference { nullable: true, .. }
+    ));
+}
+
+/// Allocation instruction: managed_allocate.
+#[test]
+fn test_build_managed_allocate() {
+    // setup
+    let mut module = ModuleBuilder::new();
+    let i32_type = module.type_i32();
+    let ref_type = module.type_managed_reference(i32_type);
+
+    // build function with managed_allocate
+    let mut builder = module.function("alloc_test", &[], ref_type);
+    let entry_block = builder.create_block();
+    builder.switch_to_block(entry_block);
+    let allocated_value = builder.managed_allocate(i32_type);
+    builder.return_(Some(allocated_value));
+    builder.seal_block(entry_block);
+    builder.finish();
+
+    // verify output
+    let (tree, strings) = module.finish();
+    let output = format_mir(&tree, &strings, MirFormatOptions::default());
+    let expected = "\
+function @alloc_test() -> ref<i32> {
+block0:
+    v0 = managed_allocate i32
+    return v0
+}";
+    assert_eq!(output, expected);
+}
+
+/// Allocation instruction: managed_allocate_array.
+#[test]
+fn test_build_managed_allocate_array() {
+    // setup
+    let mut module = ModuleBuilder::new();
+    let i32_type = module.type_i32();
+    let i64_type = module.type_i64();
+    let array_ref_type = module.type_managed_reference(i32_type);
+
+    // build function with managed_allocate_array
+    let mut builder = module.function("alloc_array_test", &[i64_type], array_ref_type);
+    let entry_block = builder.create_block();
+    builder.switch_to_block(entry_block);
+    let length_value = builder.function_parameter(0);
+    let allocated_value = builder.managed_allocate_array(i32_type, length_value);
+    builder.return_(Some(allocated_value));
+    builder.seal_block(entry_block);
+    builder.finish();
+
+    // verify output
+    let (tree, strings) = module.finish();
+    let output = format_mir(&tree, &strings, MirFormatOptions::default());
+    let expected = "\
+function @alloc_array_test(v0: i64) -> ref<i32> {
+block0:
+    v1 = managed_allocate_array i32, v0
+    return v1
+}";
+    assert_eq!(output, expected);
+}
+
+/// Allocation instruction: raw_allocate and raw_free.
+#[test]
+fn test_build_raw_allocate_and_free() {
+    // setup
+    let mut module = ModuleBuilder::new();
+    let i32_type = module.type_i32();
+    let void_type = module.type_void();
+    let rawptr_type = module.type_raw_pointer(i32_type);
+
+    // build function with raw_allocate and raw_free
+    let mut builder = module.function("raw_alloc_test", &[], void_type);
+    let entry_block = builder.create_block();
+    builder.switch_to_block(entry_block);
+    let allocated_value = builder.raw_allocate(i32_type);
+    // use the allocation
+    let const_val = builder.iconst_i32(42);
+    builder.store(allocated_value, const_val);
+    // free the allocation
+    builder.raw_free(allocated_value);
+    builder.return_(None);
+    builder.seal_block(entry_block);
+    builder.finish();
+
+    // verify output
+    let (tree, strings) = module.finish();
+    let output = format_mir(&tree, &strings, MirFormatOptions::default());
+    let expected = "\
+function @raw_alloc_test() -> void {
+block0:
+    v0 = raw_allocate i32
+    v1 = iconst 42i32
+    store v0, v1
+    raw_free v0
+    return
+}";
+    // Note: rawptr_type was created but not used in output
+    let _ = rawptr_type;
+    assert_eq!(output, expected);
+}
+
+/// Allocation instruction: stack_allocate.
+#[test]
+fn test_build_stack_allocate() {
+    // setup
+    let mut module = ModuleBuilder::new();
+    let i32_type = module.type_i32();
+    let rawptr_type = module.type_raw_pointer(i32_type);
+
+    // build function with stack_allocate
+    let mut builder = module.function("stack_alloc_test", &[], rawptr_type);
+    let entry_block = builder.create_block();
+    builder.switch_to_block(entry_block);
+    let allocated_value = builder.stack_allocate(i32_type);
+    builder.return_(Some(allocated_value));
+    builder.seal_block(entry_block);
+    builder.finish();
+
+    // verify output
+    let (tree, strings) = module.finish();
+    let output = format_mir(&tree, &strings, MirFormatOptions::default());
+    let expected = "\
+function @stack_alloc_test() -> rawptr<i32> {
+block0:
+    v0 = stack_allocate i32
+    return v0
+}";
+    assert_eq!(output, expected);
+}
+
+/// Instruction: drop.
+#[test]
+fn test_build_drop() {
+    // setup
+    let mut module = ModuleBuilder::new();
+    let i32_type = module.type_i32();
+    let ref_type = module.type_managed_reference(i32_type);
+    let void_type = module.type_void();
+
+    // build function with drop
+    let mut builder = module.function("drop_test", &[ref_type], void_type);
+    let entry_block = builder.create_block();
+    builder.switch_to_block(entry_block);
+    let ref_value = builder.function_parameter(0);
+    builder.drop_value(ref_value);
+    builder.return_(None);
+    builder.seal_block(entry_block);
+    builder.finish();
+
+    // verify output
+    let (tree, strings) = module.finish();
+    let output = format_mir(&tree, &strings, MirFormatOptions::default());
+    let expected = "\
+function @drop_test(v0: ref<i32>) -> void {
+block0:
+    drop v0
     return
 }";
     assert_eq!(output, expected);

@@ -2,6 +2,34 @@ use destack_source::StringId;
 
 use crate::{Block, Local, LocalNodeId, Node, NodeType, Type, TypedValue, Value};
 
+/// Memory allocation restrictions for a function.
+///
+/// This allows marking functions as realtime-safe (no managed allocations)
+/// or embedded-safe (stack only).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+pub enum AllocationMode {
+    /// No restrictions on allocation.
+    #[default]
+    Any,
+    /// Managed allocation forbidden (realtime-safe).
+    /// Only `RawAllocate`, `RawFree`, and `StackAllocate` are allowed.
+    NoManaged,
+    /// No heap allocation at all (stack only, embedded-safe).
+    /// Only `StackAllocate` is allowed.
+    StackOnly,
+}
+
+impl AllocationMode {
+    /// Text representation for formatting/parsing.
+    pub fn to_str(self) -> &'static str {
+        match self {
+            AllocationMode::Any => "any",
+            AllocationMode::NoManaged => "no_managed",
+            AllocationMode::StackOnly => "stack_only",
+        }
+    }
+}
+
 /// A function in MIR (may be external).
 ///
 /// Functions are the top-level compilation unit, containing:
@@ -18,6 +46,8 @@ pub struct Function {
     pub return_type: LocalNodeId<Type>,
     /// Whether this function is external (declared but not defined here).
     pub is_external: bool,
+    /// Memory allocation restrictions for this function.
+    pub allocation_mode: AllocationMode,
     /// Local variables (stack-allocated slots for mutable bindings).
     /// Empty for external functions.
     pub locals: Vec<LocalNodeId<Local>>,
@@ -52,6 +82,7 @@ impl Function {
             parameters,
             return_type,
             is_external: false,
+            allocation_mode: AllocationMode::Any,
             locals: Vec::new(),
             blocks: Vec::new(),
             entry: Some(entry),
@@ -70,6 +101,7 @@ impl Function {
             parameters,
             return_type,
             is_external: true,
+            allocation_mode: AllocationMode::Any,
             locals: Vec::new(),
             blocks: Vec::new(),
             entry: None,

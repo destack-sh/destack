@@ -98,9 +98,28 @@ impl ModuleBuilder {
         self.type_float(64)
     }
 
-    /// Create a pointer type.
-    pub fn type_pointer(&mut self, pointee: LocalNodeId<Type>) -> LocalNodeId<Type> {
-        self.tree.insert(Type::Pointer { pointee })
+    /// Create a raw pointer type (manual memory management).
+    pub fn type_raw_pointer(&mut self, pointee: LocalNodeId<Type>) -> LocalNodeId<Type> {
+        self.tree.insert(Type::RawPointer { pointee })
+    }
+
+    /// Create a managed reference type (runtime-tracked).
+    pub fn type_managed_reference(&mut self, pointee: LocalNodeId<Type>) -> LocalNodeId<Type> {
+        self.tree.insert(Type::ManagedReference {
+            pointee,
+            nullable: false,
+        })
+    }
+
+    /// Create a nullable managed reference type.
+    pub fn type_managed_reference_nullable(
+        &mut self,
+        pointee: LocalNodeId<Type>,
+    ) -> LocalNodeId<Type> {
+        self.tree.insert(Type::ManagedReference {
+            pointee,
+            nullable: true,
+        })
     }
 
     /// Create an array type.

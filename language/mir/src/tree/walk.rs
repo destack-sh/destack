@@ -117,7 +117,11 @@ pub fn walk_type<V: NodeVisitor + ?Sized>(
 
     // recursively visit nested types
     match ty {
-        Type::Pointer { pointee } => {
+        Type::RawPointer { pointee } => {
+            let pointee_ty = tree.get(*pointee);
+            visitor.visit_type(tree, *pointee, pointee_ty);
+        }
+        Type::ManagedReference { pointee, .. } => {
             let pointee_ty = tree.get(*pointee);
             visitor.visit_type(tree, *pointee, pointee_ty);
         }
