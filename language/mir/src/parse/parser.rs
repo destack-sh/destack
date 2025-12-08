@@ -282,6 +282,22 @@ impl<'a> Parser<'a> {
         self.eat_token(TokenType::Arrow)?;
         let return_type = self.parse_type()?;
 
+        // pre-register the function so it can reference itself (recursion)
+        let name_id = self.strings.intern(&name);
+        let placeholder = Function {
+            name: name_id,
+            parameters: parameters.clone(),
+            return_type,
+            is_external: false,
+            allocation_mode: crate::AllocationMode::Any,
+            locals: Vec::new(),
+            blocks: Vec::new(),
+            entry: None,
+            next_value_id: 0,
+        };
+        let id = self.tree.insert(placeholder);
+        self.function_map.insert(name, id);
+
         // body
         self.eat_token(TokenType::OpenBrace)?;
 
@@ -316,7 +332,7 @@ impl<'a> Parser<'a> {
 
         self.eat_token(TokenType::CloseBrace)?;
 
-        // create function
+        // update the function with the parsed body
         let entry = blocks
             .first()
             .copied()
@@ -324,21 +340,12 @@ impl<'a> Parser<'a> {
 
         let next_value_id = parameters.iter().map(|p| p.value.0 + 1).max().unwrap_or(0);
 
-        let name_id = self.strings.intern(&name);
-        let function = Function {
-            name: name_id,
-            parameters,
-            return_type,
-            is_external: false,
-            allocation_mode: crate::AllocationMode::Any,
-            locals,
-            blocks,
-            entry: Some(entry),
-            next_value_id,
-        };
+        let function = self.tree.get_mut(id);
+        function.locals = locals;
+        function.blocks = blocks;
+        function.entry = Some(entry);
+        function.next_value_id = next_value_id;
 
-        let id = self.tree.insert(function);
-        self.function_map.insert(name, id);
         Ok(id)
     }
 

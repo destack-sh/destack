@@ -8,7 +8,7 @@ pub enum Value {
     Void,
 
     /// Boolean value.
-    Boolean(bool),
+    Bool(bool),
 
     /// Signed integer (up to 64-bit).
     Int { value: i64, width: u16 },
@@ -24,8 +24,8 @@ pub enum Value {
 
     /// String value (UTF-8 encoded internally).
     ///
-    /// Note: JS/TS strings are UTF-16 code units. Use the helper methods
-    /// for JS-compatible length and indexing operations.
+    /// NOTE: JS/TS strings are UTF-16 code units, but Rust uses UTF-8 internally. 
+    /// (Use the helper methods for JS-compatible length and indexing operations.)
     String(String),
 
     /// Character value (Unicode codepoint).
@@ -44,7 +44,7 @@ pub enum Value {
 impl From<&mir::Constant> for Value {
     fn from(constant: &mir::Constant) -> Self {
         match constant {
-            mir::Constant::Boolean { value } => Value::Boolean(*value),
+            mir::Constant::Boolean { value } => Value::Bool(*value),
             mir::Constant::Int {
                 value,
                 width,
@@ -76,11 +76,49 @@ impl From<&mir::Constant> for Value {
 }
 
 impl Value {
+    // constructors for testing convenience
+
+    /// Create a signed 32-bit integer value.
+    pub fn int32(value: i32) -> Self {
+        Self::Int {
+            value: value as i64,
+            width: 32,
+        }
+    }
+
+    /// Create a signed 64-bit integer value.
+    pub fn int64(value: i64) -> Self {
+        Self::Int { value, width: 64 }
+    }
+
+    /// Create an unsigned 32-bit integer value.
+    pub fn uint32(value: u32) -> Self {
+        Self::UInt {
+            value: value as u64,
+            width: 32,
+        }
+    }
+
+    /// Create an unsigned 64-bit integer value.
+    pub fn uint64(value: u64) -> Self {
+        Self::UInt { value, width: 64 }
+    }
+
+    /// Create a 64-bit float value.
+    pub fn float64(value: f64) -> Self {
+        Self::Float64(value)
+    }
+
+    /// Create a 32-bit float value.
+    pub fn float32(value: f32) -> Self {
+        Self::Float32(value)
+    }
+
     /// Check if this value is truthy (for branch conditions).
     pub fn is_truthy(&self) -> bool {
         match self {
             Value::Void => false,
-            Value::Boolean(b) => *b,
+            Value::Bool(b) => *b,
             Value::Int { value, .. } => *value != 0,
             Value::UInt { value, .. } => *value != 0,
             Value::Float32(f) => *f != 0.0,
@@ -96,7 +134,7 @@ impl Value {
     /// Get this value as a boolean, if applicable.
     pub fn as_bool(&self) -> Option<bool> {
         match self {
-            Value::Boolean(b) => Some(*b),
+            Value::Bool(b) => Some(*b),
             _ => None,
         }
     }
@@ -136,7 +174,6 @@ impl Value {
     }
 
     /// Get the JS-compatible string length (UTF-16 code units).
-    ///
     /// In JavaScript, `"😀".length` is 2 (surrogate pair), not 1.
     pub fn js_string_length(&self) -> Option<usize> {
         match self {

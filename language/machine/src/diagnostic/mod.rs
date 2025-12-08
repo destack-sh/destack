@@ -2,4 +2,4 @@
 
 mod error;
 
-pub use error::{Error, Result};
+pub use error::{DiagnosticAnchor, Error, FrameInfo, Result, RuntimeError, RuntimeResult};
