@@ -17,3 +17,4 @@ mod switch;
 mod r#type;
 
 pub use context::*;
+pub use statement::format_statements;

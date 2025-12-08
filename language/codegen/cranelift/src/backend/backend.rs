@@ -20,6 +20,8 @@ pub struct CodegenCraneliftOutput {
     pub artifacts: Vec<Artifact>,
     /// Warnings encountered during generation.
     pub warnings: Vec<CodegenCraneliftWarning>,
+    /// Non-fatal errors encountered during generation.
+    pub errors: Vec<CodegenCraneliftError>,
 }
 
 /// Cranelift-based code generation backend.
@@ -223,5 +225,6 @@ pub fn generate_module(
     Ok(CodegenCraneliftOutput {
         artifacts: vec![artifact],
         warnings: compile_output.warnings,
+        errors: compile_output.errors,
     })
 }

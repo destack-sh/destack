@@ -21,6 +21,18 @@ impl ModuleLowerer<'_> {
                 self.tree
                     .insert_from_source(pattern, self.module.id, pattern_id)
             }
+            dir::Pattern::Binding {
+                mutability,
+                name,
+                pattern: _,
+                symbol: _,
+            } => {
+                let mutability = mutability.map(|m| self.lower_mutability(m));
+                let name = self.strings.intern_from(&self.module.ast.strings, *name);
+                let pattern = Pattern::Binding { mutability, name };
+                self.tree
+                    .insert_from_source(pattern, self.module.id, pattern_id)
+            }
             _ => {
                 return Err(CodegenJsError::UnsupportedConstruct {
                     node: pattern_id.into_global_any(self.module.id),

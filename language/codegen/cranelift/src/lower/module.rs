@@ -29,6 +29,8 @@ pub(crate) struct ModuleLowerOutput {
     pub bytes: Vec<u8>,
     /// Warnings encountered during generation.
     pub warnings: Vec<CodegenCraneliftWarning>,
+    /// Non-fatal errors encountered during generation.
+    pub errors: Vec<CodegenCraneliftError>,
 }
 
 /// Module context for lowering a MIR module to Cranelift.
@@ -45,6 +47,8 @@ pub(crate) struct ModuleLowerer<'a> {
     cl_functions: Vec<(String, cir::Function)>,
     /// Collected warnings.
     warnings: Vec<CodegenCraneliftWarning>,
+    /// Collected non-fatal errors (treated as warnings for continued processing).
+    errors: Vec<CodegenCraneliftError>,
 }
 
 impl<'a> ModuleLowerer<'a> {
@@ -61,6 +65,7 @@ impl<'a> ModuleLowerer<'a> {
             cl_function_ids: HashMap::new(),
             cl_functions: Vec::new(),
             warnings: Vec::new(),
+            errors: Vec::new(),
         }
     }
 
@@ -171,6 +176,7 @@ impl<'a> ModuleLowerer<'a> {
         Ok(ModuleLowerOutput {
             bytes,
             warnings: self.warnings,
+            errors: self.errors,
         })
     }
 

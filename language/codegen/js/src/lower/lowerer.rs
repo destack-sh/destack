@@ -10,7 +10,7 @@ use destack_workspace::{
 };
 
 use crate::tree::NodeTree as JsTree;
-use crate::{CodegenJsError, CodegenJsResult, CodegenJsWarning, LocalNodeIdAny};
+use crate::{CodegenJsError, CodegenJsResult, CodegenJsWarning, LocalNodeIdAny, format_statements};
 
 /// Output from JS code generation.
 #[derive(Debug)]
@@ -19,6 +19,8 @@ pub struct CodegenJsOutput {
     pub artifacts: Vec<Artifact>,
     /// Warnings encountered during generation.
     pub warnings: Vec<CodegenJsWarning>,
+    /// Non-fatal errors encountered during generation.
+    pub errors: Vec<CodegenJsError>,
 }
 
 /// Context for lowering a DIR module to JS AST.
@@ -103,6 +105,7 @@ impl<'a> ModuleLowerer<'a> {
     {
         use crate::{CodegenJsFormatContext, CodegenJsFormatOptions};
         use destack_fir::format as fir_format;
+        use destack_fir::prelude::format_with;
         use destack_source::{File, Uri};
 
         let mut artifacts = Vec::new();
@@ -121,6 +124,7 @@ impl<'a> ModuleLowerer<'a> {
                 return Ok(CodegenJsOutput {
                     artifacts,
                     warnings: self.warnings,
+                    errors: self.errors,
                 });
             }
         };
@@ -136,19 +140,6 @@ impl<'a> ModuleLowerer<'a> {
             std::path::Path::new("module.ds")
         };
         let strings = self.strings.clone().into_immutable();
-
-        // helper for formatting roots
-        struct RootsFormatter<'a>(&'a [LocalNodeIdAny]);
-        impl<'a> destack_fir::format::Format<CodegenJsFormatContext<'a>> for RootsFormatter<'a> {
-            fn format(
-                &self,
-                f: &mut destack_fir::format::Formatter<'_, CodegenJsFormatContext<'a>>,
-            ) -> destack_fir::format::FormatResult<()> {
-                use destack_fir::prelude::*;
-                f.join_with(hard_line_break()).entries(self.0).finish()?;
-                Ok(())
-            }
-        }
 
         for file_type in file_types {
             // compute output path using target configuration
@@ -172,10 +163,9 @@ impl<'a> ModuleLowerer<'a> {
                 roots: &self.roots,
                 strings: &strings,
             };
-            let roots_formatter = RootsFormatter(&self.roots);
-
             // format to string
-            let formatted = fir_format!(context, [roots_formatter]);
+            let roots = &self.roots;
+            let formatted = fir_format!(context, [format_with(|f| format_statements(f, roots))]);
             let formatted = match formatted {
                 Ok(f) => f,
                 Err(error) => {
@@ -220,6 +210,7 @@ impl<'a> ModuleLowerer<'a> {
         Ok(CodegenJsOutput {
             artifacts,
             warnings: self.warnings,
+            errors: self.errors,
         })
     }
 }

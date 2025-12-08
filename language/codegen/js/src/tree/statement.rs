@@ -103,3 +103,36 @@ pub enum Statement {
 impl Node for Statement {
     const TYPE: NodeType = NodeType::Statement;
 }
+
+impl Statement {
+    /// Returns true if this statement needs a trailing semicolon.
+    pub fn needs_semicolon(&self) -> bool {
+        match self {
+            // block-based statements don't need semicolons
+            Statement::If { .. }
+            | Statement::While { .. }
+            | Statement::For { .. }
+            | Statement::ForIn { .. }
+            | Statement::ForOf { .. }
+            | Statement::Try { .. }
+            | Statement::Block { .. } => false,
+
+            // declarations (function, class, etc.) typically don't need semicolons
+            Statement::Declaration { .. } => false,
+
+            // all other statements need semicolons
+            Statement::Import { .. }
+            | Statement::Export { .. }
+            | Statement::ExportValue { .. }
+            | Statement::Let { .. }
+            | Statement::Assign { .. }
+            | Statement::Expression { .. }
+            | Statement::Await { .. }
+            | Statement::Yield { .. }
+            | Statement::Throw { .. }
+            | Statement::Continue { .. }
+            | Statement::Break { .. }
+            | Statement::Return { .. } => true,
+        }
+    }
+}
