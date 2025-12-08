@@ -20,7 +20,6 @@ pub(super) enum TreeState {
     Content,
 }
 
-
 /// The options for the lexer.
 #[derive(Debug, Default, Clone)]
 pub(super) struct LexerOptions {
@@ -203,7 +202,10 @@ impl<'a> Lexer<'a> {
     /// Pops the current tree literal state from the stack.
     #[inline]
     pub(super) fn pop_tree_state(&mut self) -> TreeState {
-        self.options.tree_state_stack.pop().unwrap_or(TreeState::None)
+        self.options
+            .tree_state_stack
+            .pop()
+            .unwrap_or(TreeState::None)
     }
 
     /// Checks if we're currently inside tree literal content.

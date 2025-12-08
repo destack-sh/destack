@@ -329,12 +329,12 @@ impl<'a> FunctionLowerer<'a> {
         }
 
         // set entry block and add function parameters as entry block parameters
-        let entry_block_id = self
-            .function
-            .entry
-            .ok_or_else(|| CodegenCraneliftError::Internal {
-                message: "cannot lower external function without entry block".to_string(),
-            })?;
+        let entry_block_id =
+            self.function
+                .entry
+                .ok_or_else(|| CodegenCraneliftError::Internal {
+                    message: "cannot lower external function without entry block".to_string(),
+                })?;
         let entry_block = block_map[&entry_block_id];
 
         // function parameters become entry block parameters in Cranelift
