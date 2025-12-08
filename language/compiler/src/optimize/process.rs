@@ -58,7 +58,7 @@ impl Compiler {
     pub fn process_optimize(&self, task: OptimizeTask) -> OptimizeResult<OptimizeOutput> {
         match task {
             OptimizeTask::OptimizeModule { module } => {
-                self.ensure_verified(module)?;
+                self.require_verify(module)?;
                 self.optimize_module(module)?;
             }
         }
@@ -67,7 +67,7 @@ impl Compiler {
 
     /// Optimize a module's MIR.
     fn optimize_module(&self, _module: ModuleId) -> OptimizeResult<()> {
-        // NOTE #Incomplete: implement MIR optimization
+        // NOTE #Incomplete: implement optimize
         // - dead code elimination
         // - constant folding
         // - inlining
@@ -75,7 +75,7 @@ impl Compiler {
     }
 
     /// Ensure a module has been optimized.
-    pub fn ensure_optimized(&self, module: ModuleId) -> Result<(), TaskDependencyError> {
+    pub fn require_optimize(&self, module: ModuleId) -> Result<(), TaskDependencyError> {
         self.require_task(OptimizeTask::OptimizeModule { module })
     }
 }

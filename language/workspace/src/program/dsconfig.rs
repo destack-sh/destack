@@ -9,7 +9,9 @@ use destack_source::{
     LineEnding, LinterOptions, LinterRules, RuleSeverity,
 };
 
-use super::target::{OptimizeLevel, OutputFormat, OutputMode, ShrinkLevel, Target};
+use super::target::{
+    OptimizeLevel, OutputFormat, OutputMode, ShrinkLevel, Target, TargetDiscovery,
+};
 use super::tsconfig::{EsTarget, ModuleKind};
 
 /// Destack configuration (from `dsconfig.json`, 1:1 with Package).
@@ -462,6 +464,16 @@ impl From<&DsConfigCompilerOptionsJson> for DsConfigCompilerOptions {
 /// Normalized Destack build target options (from dsconfig.json).
 #[derive(Debug, Clone)]
 pub struct DsConfigTargetOptions {
+    // discovery
+    /// How modules are discovered for this target.
+    pub discovery: TargetDiscovery,
+    /// Entry points for entry-based discovery.
+    pub entry: Vec<PathBuf>,
+    /// Glob patterns for files to include (for include-based discovery).
+    pub include: Vec<String>,
+    /// Glob patterns for files to exclude.
+    pub exclude: Vec<String>,
+
     // output format
     /// Output format (js, ts, wasm, native).
     pub output: OutputFormat,
@@ -484,12 +496,6 @@ pub struct DsConfigTargetOptions {
     /// ECMAScript target for this target.
     pub es_target: EsTarget,
 
-    // filtering
-    /// Glob patterns for files to include in this target.
-    pub include: Vec<String>,
-    /// Glob patterns for files to exclude from this target.
-    pub exclude: Vec<String>,
-
     // optimization
     /// Whether this is a debug build.
     pub debug: bool,
@@ -504,6 +510,10 @@ pub struct DsConfigTargetOptions {
 impl Default for DsConfigTargetOptions {
     fn default() -> Self {
         Self {
+            discovery: TargetDiscovery::default(),
+            entry: Vec::new(),
+            include: Vec::new(),
+            exclude: Vec::new(),
             output: OutputFormat::default(),
             declaration: false,
             source_map: false,
@@ -512,8 +522,6 @@ impl Default for DsConfigTargetOptions {
             declaration_dir: None,
             module: ModuleKind::default(),
             es_target: EsTarget::default(),
-            include: Vec::new(),
-            exclude: Vec::new(),
             debug: true,
             optimize: false,
             optimize_level: OptimizeLevel::O0,
@@ -546,6 +554,10 @@ impl DsConfigTargetOptions {
     pub fn to_target(&self, name: &str) -> Target {
         Target {
             name: name.to_string(),
+            discovery: self.discovery,
+            entry: self.entry.clone(),
+            include: self.include.clone(),
+            exclude: self.exclude.clone(),
             output: self.output,
             declaration: self.declaration,
             source_map: self.source_map,
@@ -554,8 +566,6 @@ impl DsConfigTargetOptions {
             declaration_dir: self.declaration_dir.clone(),
             module: self.module,
             es_target: self.es_target,
-            include: self.include.clone(),
-            exclude: self.exclude.clone(),
             debug: self.debug,
             optimize: self.optimize,
             optimize_level: self.optimize_level,
@@ -566,7 +576,24 @@ impl DsConfigTargetOptions {
 
 impl From<&DsConfigTargetJson> for DsConfigTargetOptions {
     fn from(json: &DsConfigTargetJson) -> Self {
+        let entry: Vec<PathBuf> = json
+            .entry
+            .as_ref()
+            .map(|e| e.iter().map(PathBuf::from).collect())
+            .unwrap_or_default();
+
+        // derive discovery mode: Entry if entry points are set, otherwise Include
+        let discovery = if !entry.is_empty() {
+            TargetDiscovery::Entry
+        } else {
+            TargetDiscovery::Include
+        };
+
         Self {
+            discovery,
+            entry,
+            include: json.include.clone().unwrap_or_default(),
+            exclude: json.exclude.clone().unwrap_or_default(),
             output: json.output.map(OutputFormat::from).unwrap_or_default(),
             declaration: json.declaration,
             source_map: json.source_map,
@@ -587,8 +614,6 @@ impl From<&DsConfigTargetJson> for DsConfigTargetOptions {
                 .as_deref()
                 .and_then(EsTarget::parse)
                 .unwrap_or_default(),
-            include: json.include.clone().unwrap_or_default(),
-            exclude: json.exclude.clone().unwrap_or_default(),
             debug: json.debug,
             optimize: json.optimize,
             optimize_level: json
@@ -794,6 +819,15 @@ impl DsConfigCompilerOptionsJson {
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
 pub struct DsConfigTargetJson {
+    // discovery
+    /// Entry points for entry-based discovery (bundled/executable targets).
+    /// If set, discovery mode is Entry; otherwise it's Include.
+    pub entry: Option<Vec<String>>,
+    /// Glob patterns for files to include (for include-based discovery).
+    pub include: Option<Vec<String>>,
+    /// Glob patterns for files to exclude.
+    pub exclude: Option<Vec<String>>,
+
     // output format
     /// Output format: "js", "ts", "wasm", "native". Default: "js".
     pub output: Option<OutputFormatJson>,
@@ -817,12 +851,6 @@ pub struct DsConfigTargetJson {
     pub module: Option<String>,
     /// ECMAScript target for this target (overrides compilerOptions.target).
     pub es_target: Option<String>,
-
-    // filtering
-    /// Glob patterns for files to include in this target.
-    pub include: Option<Vec<String>>,
-    /// Glob patterns for files to exclude from this target.
-    pub exclude: Option<Vec<String>>,
 
     // optimization
     /// Whether this is a debug build.

@@ -13,11 +13,6 @@ export declare class Workspace {
   get cwd(): string
   /** Get the number of programs in the workspace. */
   get programCount(): number
-  /**
-   * Transpile a single file.
-   * Returns the transpiled TypeScript/JavaScript code.
-   */
-  transpileFile(path: string, content: string, options?: TranspileOptions | undefined | null): string
 }
 
 /** An alias entry mapping a pattern to target values. */
@@ -39,6 +34,11 @@ export interface AnalyzeOptions {
 
 }
 
+/** Options for binding. */
+export interface BindOptions {
+
+}
+
 /** The options for compiling a workspace. */
 export interface CompileOptions {
   /** The diagnostic options. */
@@ -47,6 +47,8 @@ export interface CompileOptions {
   workers: number
   /** The options for importing. */
   import: ImportOptions
+  /** The options for binding. */
+  bind: BindOptions
   /** The options for type resolution. */
   resolve: TypeResolveOptions
   /** The options for analyzing. */
@@ -59,6 +61,8 @@ export interface CompileOptions {
   generate: GenerateOptions
   /** The options for linking. */
   link: LinkOptions
+  /** The options for emitting. */
+  emit: EmitOptions
 }
 
 /** Get the default compiler options. */
@@ -66,9 +70,6 @@ export declare function defaultCompileOptions(): CompileOptions
 
 /** Get the default resolve options. */
 export declare function defaultResolveOptions(): ResolveOptions
-
-/** Get the default transpiler options. */
-export declare function defaultTranspileOptions(): TranspileOptions
 
 /** Get the default workspace options. */
 export declare function defaultWorkspaceOptions(): WorkspaceOptions
@@ -83,10 +84,14 @@ export interface DiagnosticOptions {
   suppressWarnings: Array<string>
 }
 
-/** The ECMAScript level. */
-export declare const enum EcmaScriptVersion {
-  /** ECMAScript 2022. */
-  ES2022 = 0
+/** The options for emitting compiled output. */
+export interface EmitOptions {
+  /** Whether to overwrite existing files. */
+  overwrite: boolean
+  /** Whether to create parent directories if they don't exist. */
+  createDirs: boolean
+  /** Dry run: report what would be written without actually writing. */
+  dryRun: boolean
 }
 
 /** How to enforce file extensions. */
@@ -95,30 +100,6 @@ export declare const enum EnforceExtension {
   Enabled = 0,
   /** Do not enforce file extensions (resolve tries appending extensions from the list). */
   Disabled = 1
-}
-
-/** The formatting mode. */
-export declare const enum FormatMode {
-  /** Pretty. */
-  Pretty = 0,
-  /** Minimal. */
-  Minimal = 1
-}
-
-/** The JavaScript format options. */
-export interface FormatOptions {
-  /** The formatting mode. */
-  mode: FormatMode
-  /** The language target. */
-  language: TranspilerLanguage
-  /** The type of line ending to apply to the printed input. */
-  lineEnding: LineEnding
-  /** The indent style. */
-  indentStyle: IndentStyle
-  /** Spaces per indent. */
-  indentWidth: number
-  /** Maximum line length (best effort). */
-  lineWidth: number
 }
 
 /** The options for code generation. */
@@ -212,70 +193,6 @@ export interface ResolveOptions {
   canonicalizeSymlinks: boolean
 }
 
-/**
- * Transpile a Destack file to TypeScript/JavaScript.
- * This is a stateless function for simple one-off transpilation.
- */
-export declare function transpileFile(path: string, content: string, options?: TranspileOptions | undefined | null): TranspileResult
-
-/** The transpilation options. */
-export interface TranspileOptions {
-  /** The transpilation mode. */
-  mode: TranspilerMode
-  /** The target language. */
-  target: TranspileTarget
-  /** The ECMAScript level. */
-  esVersion: EcmaScriptVersion
-  /** The TypeScript version. */
-  tsVersion: TypeScriptVersion
-  /** The formatting options. */
-  formatting: FormatOptions
-}
-
-/** The result of transpiling a file. */
-export interface TranspileResult {
-  /** The transpiled code. */
-  code: string
-  /** The source map (if generated). */
-  sourceMap?: string
-  /** Any diagnostics/warnings. */
-  diagnostics: Array<string>
-}
-
-/** The target language for transpiling. */
-export declare const enum TranspilerLanguage {
-  /** Plain JavaScript (like `.js`). */
-  JavaScript = 0,
-  /** TypeScript (like `.ts`). */
-  TypeScript = 1,
-  /** TypeScript declarations (like `.d.ts`). */
-  TypeScriptDeclaration = 2
-}
-
-/** The transpilation mode. */
-export declare const enum TranspilerMode {
-  /** Retain the original file structure. */
-  Retained = 0,
-  /** Combine all files. */
-  Combined = 1
-}
-
-/**
- * Transpile Destack source code to TypeScript/JavaScript.
- * This is a stateless function for simple one-off transpilation.
- */
-export declare function transpileSource(content: string, options?: TranspileOptions | undefined | null): TranspileResult
-
-/** The target language for transpiling. */
-export declare const enum TranspileTarget {
-  /** Plain JavaScript (`.js`). */
-  JavaScript = 0,
-  /** TypeScript (`.ts`). */
-  TypeScript = 1,
-  /** Plain JavaScript with TypeScript declarations (.js and .d.ts). */
-  JavaScriptWithTypeScriptDeclarations = 2
-}
-
 /** The options for type resolution. */
 export interface TypeResolveOptions {
   /** Default integer width (if not specified). */
@@ -308,12 +225,6 @@ export declare const enum TypeScriptReferences {
   Disabled = 0,
   /** Auto-discover references from tsconfig.json. */
   Automatic = 1
-}
-
-/** The TypeScript version. */
-export declare const enum TypeScriptVersion {
-  /** TypeScript 5.0. */
-  TS5_0 = 0
 }
 
 /** Options for creating a Workspace. */

@@ -58,7 +58,7 @@ impl Compiler {
     pub fn process_resolve(&self, task: ResolveTask) -> ResolveResult<ResolveOutput> {
         match task {
             ResolveTask::ResolveModule { module } => {
-                self.ensure_bound(module)?;
+                self.require_bind(module)?;
                 self.resolve_module(module)?;
             }
         }
@@ -66,7 +66,7 @@ impl Compiler {
     }
 
     /// Ensure a module has been resolved.
-    pub fn ensure_resolved(&self, module: ModuleId) -> Result<(), TaskDependencyError> {
+    pub fn require_resolve(&self, module: ModuleId) -> Result<(), TaskDependencyError> {
         self.require_task(ResolveTask::ResolveModule { module })
     }
 }

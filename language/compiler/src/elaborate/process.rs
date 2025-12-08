@@ -58,7 +58,7 @@ impl Compiler {
     pub fn process_elaborate(&self, task: ElaborateTask) -> ElaborateResult<ElaborateOutput> {
         match task {
             ElaborateTask::ElaborateModule { module } => {
-                self.ensure_analyzed(module)?;
+                self.require_analyze(module)?;
                 self.elaborate_module(module)?;
             }
         }
@@ -67,16 +67,16 @@ impl Compiler {
 
     /// Elaborate a module.
     fn elaborate_module(&self, _module: ModuleId) -> ElaborateResult<()> {
-        // NOTE #Incomplete: implement elaboration
-        // - monomorphization
-        // - comptime evaluation
+        // NOTE #Incomplete: implement elaborate
+        // - monomorphization?
+        // - comptime evaluation (add execute and ExecuteExpression phase?)
         // - desugaring
         // - ..?
         Ok(())
     }
 
     /// Ensure a module has been elaborated.
-    pub fn ensure_elaborated(&self, module: ModuleId) -> Result<(), TaskDependencyError> {
+    pub fn require_elaborate(&self, module: ModuleId) -> Result<(), TaskDependencyError> {
         self.require_task(ElaborateTask::ElaborateModule { module })
     }
 }

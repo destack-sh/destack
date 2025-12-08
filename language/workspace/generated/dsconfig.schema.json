@@ -489,6 +489,36 @@
       "description": "Destack build target configuration.",
       "type": "object",
       "properties": {
+        "entry": {
+          "description": "Entry points for entry-based discovery (bundled/executable targets).\nIf set, discovery mode is Entry; otherwise it's Include.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "include": {
+          "description": "Glob patterns for files to include (for include-based discovery).",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "exclude": {
+          "description": "Glob patterns for files to exclude.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
         "output": {
           "description": "Output format: \"js\", \"ts\", \"wasm\", \"native\". Default: \"js\".",
           "anyOf": [
@@ -544,26 +574,6 @@
             "string",
             "null"
           ]
-        },
-        "include": {
-          "description": "Glob patterns for files to include in this target.",
-          "type": [
-            "array",
-            "null"
-          ],
-          "items": {
-            "type": "string"
-          }
-        },
-        "exclude": {
-          "description": "Glob patterns for files to exclude from this target.",
-          "type": [
-            "array",
-            "null"
-          ],
-          "items": {
-            "type": "string"
-          }
         },
         "debug": {
           "description": "Whether this is a debug build.",

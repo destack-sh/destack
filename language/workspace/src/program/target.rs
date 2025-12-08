@@ -2,6 +2,18 @@ use std::path::{Path, PathBuf};
 
 use super::tsconfig::{EsTarget, ModuleKind};
 
+/// How modules are discovered for a build target.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+pub enum TargetDiscovery {
+    /// Start from entry points and follow imports.
+    /// Requires `entry` to be set. Used for bundles/executables.
+    Entry,
+    /// Compile all files matching `include` patterns.
+    /// Each file becomes a separate output. Used for libraries.
+    #[default]
+    Include,
+}
+
 /// Output format for a build target.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub enum OutputFormat {
@@ -139,6 +151,16 @@ pub struct Target {
     /// Target name (e.g., "npm", "wasm", "dev").
     pub name: String,
 
+    // discovery
+    /// How modules are discovered for this target.
+    pub discovery: TargetDiscovery,
+    /// Entry points for entry-based discovery (bundled/executable targets).
+    pub entry: Vec<PathBuf>,
+    /// Glob patterns for files to include (for include-based discovery).
+    pub include: Vec<String>,
+    /// Glob patterns for files to exclude.
+    pub exclude: Vec<String>,
+
     // output format
     /// Output format (js, ts, wasm, native).
     pub output: OutputFormat,
@@ -161,12 +183,6 @@ pub struct Target {
     /// ECMAScript target version.
     pub es_target: EsTarget,
 
-    // filtering
-    /// Glob patterns for files to include in this target.
-    pub include: Vec<String>,
-    /// Glob patterns for files to exclude from this target.
-    pub exclude: Vec<String>,
-
     // optimization
     /// Whether this is a debug build.
     pub debug: bool,
@@ -182,6 +198,8 @@ impl Default for Target {
     fn default() -> Self {
         Self {
             name: String::new(),
+            discovery: TargetDiscovery::default(),
+            entry: Vec::new(),
             output: OutputFormat::default(),
             declaration: false,
             source_map: false,
@@ -322,6 +340,21 @@ impl Target {
     /// Set exclude patterns.
     pub fn with_exclude(mut self, exclude: Vec<String>) -> Self {
         self.exclude = exclude;
+        self
+    }
+
+    /// Set the discovery mode.
+    pub fn with_discovery(mut self, discovery: TargetDiscovery) -> Self {
+        self.discovery = discovery;
+        self
+    }
+
+    /// Set entry points (also sets discovery mode to Entry).
+    pub fn with_entry(mut self, entry: Vec<PathBuf>) -> Self {
+        self.entry = entry;
+        if !self.entry.is_empty() {
+            self.discovery = TargetDiscovery::Entry;
+        }
         self
     }
 

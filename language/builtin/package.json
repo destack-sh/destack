@@ -1,6 +1,6 @@
 {
     "name": "@destack-sh/builtin",
-    "version": "0.48.2",
+    "version": "0.48.3",
     "license": "MIT",
     "private": true,
     "type": "module",
