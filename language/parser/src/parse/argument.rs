@@ -360,9 +360,10 @@ impl Parser {
             let label = self.eat_identifier()?;
             self.bump(); // eat colon
             let value = self.eat_expression()?;
-            let argument_id = self
-                .tree
-                .insert(Argument::Labeled { label, value }, self.get_span_from(start));
+            let argument_id = self.tree.insert(
+                Argument::Labeled { label, value },
+                self.get_span_from(start),
+            );
             Ok(argument_id)
         }
         // positional argument

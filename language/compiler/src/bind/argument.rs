@@ -261,7 +261,10 @@ impl Compiler {
                 tree.insert(argument_id, Argument::Spread { value })
             }
             ast::Argument::Labeled { label, value } => {
-                let label = self.program.strings.intern_from(&module.ast.strings, *label);
+                let label = self
+                    .program
+                    .strings
+                    .intern_from(&module.ast.strings, *label);
                 let value = self.bind_expression(
                     module,
                     scope,

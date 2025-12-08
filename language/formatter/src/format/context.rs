@@ -244,22 +244,8 @@ impl<'a> DestackFormatContext<'a> {
     /// Whether the given span has a newline.
     #[inline]
     pub fn has_newline(&self, span: Span) -> bool {
-        let Some(mut token_idx) = self
-            .tokens
-            .iter()
-            .position(|token| token.span.start == span.start)
-        else {
-            return false;
-        };
-        while let Some(token) = self.tokens.get(token_idx)
-            && token.span.end < span.end
-        {
-            if token.token.ty == TokenType::Newline {
-                return true;
-            }
-            token_idx += 1;
-        }
-        false
+        let span_str = self.get_span_str(span);
+        span_str.contains('\n')
     }
 
     /// Whether the given node is at a line start.

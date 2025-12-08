@@ -712,7 +712,9 @@ pub fn is_complex_expression(_tree: &NodeTree, expression: &Expression) -> bool 
 pub fn is_trivial_argument(tree: &NodeTree, argument: &Argument) -> bool {
     match argument {
         Argument::Named { name: _, value, .. }
-        | Argument::Labeled { label: _, value, .. }
+        | Argument::Labeled {
+            label: _, value, ..
+        }
         | Argument::Positional { value, .. }
         | Argument::Spread { value, .. } => is_trivial_expression(tree, tree.get(*value)),
     }
@@ -736,7 +738,9 @@ pub fn is_trivial_property(tree: &NodeTree, property: &Property) -> bool {
 pub fn is_complex_argument(tree: &NodeTree, argument: &Argument) -> bool {
     match argument {
         Argument::Named { name: _, value, .. }
-        | Argument::Labeled { label: _, value, .. }
+        | Argument::Labeled {
+            label: _, value, ..
+        }
         | Argument::Positional { value, .. }
         | Argument::Spread { value, .. } => is_complex_expression(tree, tree.get(*value)),
     }
