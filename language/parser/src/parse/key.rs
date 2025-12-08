@@ -179,9 +179,27 @@ impl Parser {
             Ok(Key::Name(self.eat_name()?))
         } else if self.peek_token(TokenType::OpenBracket).is_ok() {
             self.bump(); // eat open bracket
-            let key = self.eat_expression()?;
-            self.eat_token(TokenType::CloseBracket)?;
-            Ok(Key::Expression(key))
+            // name: type
+            if self.peek_token(TokenType::Identifier).is_ok()
+                && self.peek_next_token(TokenType::Colon).is_ok()
+            {
+                let name = self.eat_identifier()?;
+                self.bump(); // eat colon
+                let key_type = self.with_options(self.options.in_type(), |parser| {
+                    parser.eat_expression()
+                })?;
+                self.eat_token(TokenType::CloseBracket)?;
+                Ok(Key::NamedExpression {
+                    name,
+                    key: key_type,
+                })
+            } 
+            // expression
+            else {
+                let key = self.eat_expression()?;
+                self.eat_token(TokenType::CloseBracket)?;
+                Ok(Key::Expression(key))
+            }
         } else {
             Err(ParseError::unexpected(self.peek()?.span))
         }

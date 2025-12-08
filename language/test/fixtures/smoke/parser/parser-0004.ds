@@ -2960,7 +2960,7 @@ declare namespace "bun" {
      */
     zdiff(
       numkeys: number,
-      ...args: [prefix: string, ...keys: RedisClient.KeyLike[], withscores: "WITHSCORES"]
+      ...args: [string, ...RedisClient.KeyLike[], "WITHSCORES"]
     ): Promise<[string, number][]>;
 
     /**
@@ -3048,7 +3048,7 @@ declare namespace "bun" {
      */
     zinter(
       numkeys: number,
-      ...args: [...args: (string | number)[], withscores: "WITHSCORES"]
+      ...args: [...(string | number)[], "WITHSCORES"]
     ): Promise<[string, number][]>;
 
     /**
@@ -3210,7 +3210,7 @@ declare namespace "bun" {
      */
     zunion(
       numkeys: number,
-      ...args: [...args: (string | number)[], withscores: "WITHSCORES"]
+      ...args: [...(string | number)[], "WITHSCORES"]
     ): Promise<[string, number][]>;
 
     /**

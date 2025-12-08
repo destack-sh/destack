@@ -380,6 +380,13 @@ impl Parser {
                 || self.peek_next_token(TokenType::Divide).is_ok()
                 || self.peek_next_token(TokenType::Identifier).is_ok())
         {
+            // Exclude generic arrow function disambiguation: <T,>(...)
+            // In TSX, `<T,>` with trailing comma is a generic arrow function, not JSX.
+            if self.peek_next_token(TokenType::Identifier).is_ok()
+                && self.peek_next_next_token(TokenType::Comma).is_ok()
+            {
+                return Err(ParseError::unexpected(self.peek()?.span));
+            }
             return Ok(());
         }
         Err(ParseError::unexpected(self.peek()?.span))

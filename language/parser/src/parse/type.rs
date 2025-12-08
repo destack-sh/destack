@@ -480,4 +480,66 @@ mod tests {
             });
         });
     }
+
+    #[test]
+    fn test_parse_conditional_type_with_inline_object() {
+        let mut test = TestParser::new("type T = A extends B ? {} : { a: string | undefined }");
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression().unwrap();
+
+        // type T = A extends B ? {} : { a: string | undefined }
+        assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
+            assert_node!(parser.tree, *decl_id, Declaration::Type { value, .. } => {
+                assert_node!(parser.tree, *value, Expression::TypeBinary { right, .. } => {
+                    assert_node!(parser.tree, *right, Expression::If { then_expression, else_expression, .. } => {
+                        assert_node!(parser.tree, *then_expression, Expression::ObjectExpression { properties, .. } => {
+                            assert!(properties.is_empty());
+                        });
+                        assert_node!(parser.tree, else_expression.unwrap(), Expression::ObjectExpression { properties, .. } => {
+                            assert_eq!(properties.len(), 1);
+                        });
+                    });
+                });
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_conditional_type_with_semicolon_terminated_properties() { 
+        let mut test =
+            TestParser::new("type T = X extends Y ? {} : { a: string | undefined; b: number; }");
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression().unwrap();
+
+        // type T = X extends Y ? {} : { a: string | undefined; b: number; }
+        assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
+            assert_node!(parser.tree, *decl_id, Declaration::Type { value, .. } => {
+                assert_node!(parser.tree, *value, Expression::TypeBinary { right, .. } => {
+                    assert_node!(parser.tree, *right, Expression::If { else_expression, .. } => {
+                        assert_node!(parser.tree, else_expression.unwrap(), Expression::ObjectExpression { properties, .. } => {
+                            assert_eq!(properties.len(), 2, "Expected 2 properties but got {}", properties.len());
+                        });
+                    });
+                });
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_type_intersection_with_inline_object() {
+        let mut test = TestParser::new("type T = Z & { a: string | undefined }");
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression().unwrap();
+
+        // type T = Z & { a: string | undefined }
+        assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
+            assert_node!(parser.tree, *decl_id, Declaration::Type { value, .. } => {
+                assert_node!(parser.tree, *value, Expression::Binary { right, .. } => {
+                    assert_node!(parser.tree, *right, Expression::ObjectExpression { properties, .. } => {
+                        assert_eq!(properties.len(), 1);
+                    });
+                });
+            });
+        });
+    }
 }

@@ -20,7 +20,7 @@ import { getDefaultTransition } from "../utils/default-transitions"
 import { isTransitionDefined } from "../utils/is-transition-defined"
 
 export const animateMotionValue =
-    <V extends AnyResolvedKeyframe>(
+    <V,>(
         name: string,
         value: MotionValue<V>,
         target: V | UnresolvedKeyframes<V>,

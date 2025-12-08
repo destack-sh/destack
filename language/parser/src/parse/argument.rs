@@ -419,7 +419,7 @@ impl Parser {
                 self.options
                     .not_in_position()
                     .not_in_tree_literal()
-                    .fresh_expression(),
+                    .not_in_left_precedence(),
                 |parser| parser.eat_expression(),
             )?;
             self.eat_newlines_maybe()?;
@@ -498,7 +498,7 @@ impl Parser {
                         self.options
                             .not_in_position()
                             .not_in_tree_literal()
-                            .fresh_expression(),
+                            .not_in_left_precedence(),
                         |parser| parser.eat_expression(),
                     )?;
                     self.eat_newlines_maybe()?;

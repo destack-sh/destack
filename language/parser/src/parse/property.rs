@@ -225,12 +225,14 @@ impl Parser {
             let value = if self.peek_colon().is_ok() {
                 self.bump(); // eat colon
                 self.eat_newlines_maybe()?;
-                let value = if self.options.in_variant {
-                    self.with_options(self.options.not_in_position().in_type(), |parser| {
-                        parser.eat_expression()
-                    })?
+                // keep in type / in variant (for `type x = { .. }` expressions)
+                let value = if self.options.in_variant || self.options.in_type {
+                    self.with_options(
+                        self.options.not_in_position().not_in_left_precedence().in_type(),
+                        |parser| parser.eat_expression(),
+                    )?
                 } else {
-                    self.with_options(self.options.not_in_position(), |parser| {
+                    self.with_options(self.options.not_in_position().not_in_left_precedence(), |parser| {
                         parser.eat_expression()
                     })?
                 };
@@ -242,6 +244,7 @@ impl Parser {
             // default
             let default = if self.peek_token(TokenType::Assign).is_ok() {
                 self.bump(); // eat assign
+                self.eat_newlines_maybe()?;
                 let default = self.with_options(self.options.not_in_position(), |parser| {
                     parser.eat_expression()
                 })?;

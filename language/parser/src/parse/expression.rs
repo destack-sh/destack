@@ -849,6 +849,17 @@ impl Parser {
                     parser.eat_tree_literal()
                 })?
             }
+            // disambiguated statically parameterized lambda <T,>(...)
+            else if token_type == TokenType::LessThan
+                && self.peek_next_token(TokenType::Identifier).is_ok()
+                && self.peek_next_next_token(TokenType::Comma).is_ok()
+            {
+                let function_id = self.eat_function(descriptor, false, false)?;
+                self.tree.insert(
+                    Expression::Declaration(function_id),
+                    self.get_span_from(start),
+                )
+            }
             // template literal
             else if self.peek_template_literal().is_ok() {
                 let template_literal = self.eat_template_literal()?;

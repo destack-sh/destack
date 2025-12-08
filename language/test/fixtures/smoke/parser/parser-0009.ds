@@ -34,9 +34,7 @@ export const c = typeof React.__COMPILER_RUNTIME?.c === "function"
         }, [])
     }
 
-const LazyGuardDispatcher: {
-    [key: string]: (...args: Array<any>) => any,
-} = { }
+const LazyGuardDispatcher: Record<string, (...args: Array<any>) => any> = { }
 [
     "readContext",
     "useCallback",

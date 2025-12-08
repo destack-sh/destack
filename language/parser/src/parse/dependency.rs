@@ -279,8 +279,10 @@ impl Parser {
             while self.peek_token(TokenType::CloseBrace).is_err() {
                 let item = self.eat_dependency_item()?;
                 items.push(item);
-                if self.peek_item_stop().is_ok() {
+                if self.peek_comma().is_ok() {
                     self.eat_item_stop_with_newlines()?;
+                } else {
+                    self.eat_newlines_maybe()?;
                 }
             }
             self.eat_newlines_maybe()?;
