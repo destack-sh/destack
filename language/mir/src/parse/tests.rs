@@ -148,3 +148,47 @@ block0:
 }"#,
     );
 }
+
+#[test]
+fn test_roundtrip_string_constant() {
+    roundtrip(
+        r#"function @string_test() -> void {
+block0:
+    v0 = iconst "hello world"
+    return
+}"#,
+    );
+}
+
+#[test]
+fn test_roundtrip_string_with_escapes() {
+    roundtrip(
+        r#"function @escape_test() -> void {
+block0:
+    v0 = iconst "hello\nworld"
+    return
+}"#,
+    );
+}
+
+#[test]
+fn test_roundtrip_char_constant() {
+    roundtrip(
+        r#"function @char_test() -> void {
+block0:
+    v0 = iconst 'a'
+    return
+}"#,
+    );
+}
+
+#[test]
+fn test_roundtrip_char_escape() {
+    roundtrip(
+        r#"function @char_escape_test() -> void {
+block0:
+    v0 = iconst '\n'
+    return
+}"#,
+    );
+}

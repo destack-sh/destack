@@ -120,6 +120,12 @@ impl<'a> Lexer<'a> {
                 TokenType::Arrow
             }
 
+            // string literal
+            '"' => self.eat_string(),
+
+            // char literal
+            '\'' => self.eat_char(),
+
             // identifier or keyword
             c if is_ident_start(c) => self.eat_identifier(start),
 
@@ -195,6 +201,58 @@ impl<'a> Lexer<'a> {
                     TokenType::Identifier
                 }
             }
+        }
+    }
+
+    /// Lex a string literal.
+    fn eat_string(&mut self) -> TokenType {
+        // opening " already consumed
+        loop {
+            match self.peek() {
+                Some('"') => {
+                    self.advance();
+                    return TokenType::StringLiteral;
+                }
+                Some('\\') => {
+                    // escape sequence - consume backslash and next char
+                    self.advance();
+                    self.advance();
+                }
+                Some('\n') | None => {
+                    // unterminated string
+                    return TokenType::Unknown;
+                }
+                Some(_) => {
+                    self.advance();
+                }
+            }
+        }
+    }
+
+    /// Lex a character literal.
+    fn eat_char(&mut self) -> TokenType {
+        // opening ' already consumed
+        match self.peek() {
+            Some('\\') => {
+                // escape sequence
+                self.advance();
+                self.advance();
+            }
+            Some('\'') | Some('\n') | None => {
+                // empty char or unterminated
+                return TokenType::Unknown;
+            }
+            Some(_) => {
+                self.advance();
+            }
+        }
+
+        // expect closing '
+        if self.peek() == Some('\'') {
+            self.advance();
+            TokenType::CharLiteral
+        } else {
+            TokenType::Unknown
         }
     }
 
@@ -358,6 +416,64 @@ mod tests {
             vec![
                 TokenType::BlockRefence,
                 TokenType::BlockRefence,
+                TokenType::End
+            ]
+        );
+    }
+
+    #[test]
+    fn test_lex_string_literal() {
+        let source = r#""hello" "world""#;
+        let tokens = Lexer::lex(source);
+        let types: Vec<_> = tokens
+            .iter()
+            .filter(|t| !t.ty.is_trivia())
+            .map(|t| t.ty)
+            .collect();
+        assert_eq!(
+            types,
+            vec![
+                TokenType::StringLiteral,
+                TokenType::StringLiteral,
+                TokenType::End
+            ]
+        );
+    }
+
+    #[test]
+    fn test_lex_string_with_escapes() {
+        let source = r#""hello\nworld" "tab\there""#;
+        let tokens = Lexer::lex(source);
+        let types: Vec<_> = tokens
+            .iter()
+            .filter(|t| !t.ty.is_trivia())
+            .map(|t| t.ty)
+            .collect();
+        assert_eq!(
+            types,
+            vec![
+                TokenType::StringLiteral,
+                TokenType::StringLiteral,
+                TokenType::End
+            ]
+        );
+    }
+
+    #[test]
+    fn test_lex_char_literal() {
+        let source = "'a' 'b' '\\n'";
+        let tokens = Lexer::lex(source);
+        let types: Vec<_> = tokens
+            .iter()
+            .filter(|t| !t.ty.is_trivia())
+            .map(|t| t.ty)
+            .collect();
+        assert_eq!(
+            types,
+            vec![
+                TokenType::CharLiteral,
+                TokenType::CharLiteral,
+                TokenType::CharLiteral,
                 TokenType::End
             ]
         );

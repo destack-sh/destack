@@ -772,6 +772,16 @@ impl<'a> FunctionLowerer<'a> {
                     node_id,
                 )),
             },
+
+            mir::Constant::String { .. } => Err(CodegenCraneliftError::unsupported_type(
+                "string constants".to_string(),
+                node_id,
+            )),
+
+            mir::Constant::Char { .. } => Err(CodegenCraneliftError::unsupported_type(
+                "char constants".to_string(),
+                node_id,
+            )),
         }
     }
 

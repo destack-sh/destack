@@ -235,11 +235,14 @@ impl<'a> Parser<'a> {
                 Ok(GlobalInitializer::Zero)
             }
             // scalar constant
-            TokenType::BoolLiteral | TokenType::IntLiteral | TokenType::FloatLiteral => {
+            TokenType::BoolLiteral
+            | TokenType::IntLiteral
+            | TokenType::FloatLiteral
+            | TokenType::StringLiteral
+            | TokenType::CharLiteral => {
                 let constant = self.parse_constant()?;
                 Ok(GlobalInitializer::Scalar(constant))
             }
-            // bytes (string literal would go here, but we don't have string tokens yet)
             // aggregate: { init, init, ... }
             TokenType::OpenBrace => {
                 self.bump();
@@ -1151,6 +1154,20 @@ impl<'a> Parser<'a> {
                     ParseError::invalid(&format!("float constant '{token_text}'"), token_start)
                 })
             }
+            TokenType::StringLiteral => {
+                self.bump();
+                let value = parse_string_literal(&token_text).ok_or_else(|| {
+                    ParseError::invalid(&format!("string literal '{token_text}'"), token_start)
+                })?;
+                Ok(Constant::String { value })
+            }
+            TokenType::CharLiteral => {
+                self.bump();
+                let value = parse_char_literal(&token_text).ok_or_else(|| {
+                    ParseError::invalid(&format!("char literal '{token_text}'"), token_start)
+                })?;
+                Ok(Constant::Char { value })
+            }
             _ => Err(ParseError::unexpected("constant", token_ty, token_start)),
         }
     }
@@ -1268,4 +1285,75 @@ fn parse_float_constant(s: &str) -> Option<Constant> {
             width,
         })
     }
+}
+
+/// Parse a string literal, handling escape sequences.
+fn parse_string_literal(s: &str) -> Option<String> {
+    // Strip surrounding quotes
+    let inner = s.strip_prefix('"')?.strip_suffix('"')?;
+    parse_escape_sequences(inner)
+}
+
+/// Parse a char literal, handling escape sequences.
+fn parse_char_literal(s: &str) -> Option<char> {
+    // Strip surrounding quotes
+    let inner = s.strip_prefix('\'')?.strip_suffix('\'')?;
+    let unescaped = parse_escape_sequences(inner)?;
+    let mut chars = unescaped.chars();
+    let c = chars.next()?;
+    // Ensure only one character
+    if chars.next().is_some() {
+        return None;
+    }
+    Some(c)
+}
+
+/// Parse escape sequences in a string.
+fn parse_escape_sequences(s: &str) -> Option<String> {
+    let mut result = String::new();
+    let mut chars = s.chars().peekable();
+
+    while let Some(c) = chars.next() {
+        if c == '\\' {
+            let escaped = chars.next()?;
+            let replacement = match escaped {
+                'n' => '\n',
+                'r' => '\r',
+                't' => '\t',
+                '\\' => '\\',
+                '"' => '"',
+                '\'' => '\'',
+                '0' => '\0',
+                'x' => {
+                    // \xHH - two hex digits
+                    let h1 = chars.next()?.to_digit(16)?;
+                    let h2 = chars.next()?.to_digit(16)?;
+                    char::from_u32(h1 * 16 + h2)?
+                }
+                'u' => {
+                    // \u{HHHH} - Unicode escape
+                    if chars.next()? != '{' {
+                        return None;
+                    }
+                    let mut value = 0u32;
+                    loop {
+                        match chars.next()? {
+                            '}' => break,
+                            c => {
+                                let digit = c.to_digit(16)?;
+                                value = value * 16 + digit;
+                            }
+                        }
+                    }
+                    char::from_u32(value)?
+                }
+                _ => return None,
+            };
+            result.push(replacement);
+        } else {
+            result.push(c);
+        }
+    }
+
+    Some(result)
 }

@@ -41,6 +41,13 @@ impl<'a> Format<MirFormatContext<'a>> for Constant {
                 };
                 write!(f, [text(&value_str)])
             }
+            Constant::String { value } => {
+                // Escape special characters for display
+                write!(f, [text(&format!("{value:?}"))])
+            }
+            Constant::Char { value } => {
+                write!(f, [text(&format!("{value:?}"))])
+            }
         }
     }
 }

@@ -175,6 +175,8 @@ impl<'a> Dumper<'a> {
                     format!("{}f64", f64::from_bits(*bits))
                 }
             }
+            Constant::String { value } => format!("{value:?}"),
+            Constant::Char { value } => format!("{value:?}"),
         }
     }
 
