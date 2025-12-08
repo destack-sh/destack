@@ -505,7 +505,7 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_conditional_type_with_semicolon_terminated_properties() { 
+    fn test_parse_conditional_type_with_semicolon_terminated_properties() {
         let mut test =
             TestParser::new("type T = X extends Y ? {} : { a: string | undefined; b: number; }");
         let mut parser = test.prepare();

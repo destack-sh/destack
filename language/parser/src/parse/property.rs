@@ -228,13 +228,17 @@ impl Parser {
                 // keep in type / in variant (for `type x = { .. }` expressions)
                 let value = if self.options.in_variant || self.options.in_type {
                     self.with_options(
-                        self.options.not_in_position().not_in_left_precedence().in_type(),
+                        self.options
+                            .not_in_position()
+                            .not_in_left_precedence()
+                            .in_type(),
                         |parser| parser.eat_expression(),
                     )?
                 } else {
-                    self.with_options(self.options.not_in_position().not_in_left_precedence(), |parser| {
-                        parser.eat_expression()
-                    })?
+                    self.with_options(
+                        self.options.not_in_position().not_in_left_precedence(),
+                        |parser| parser.eat_expression(),
+                    )?
                 };
                 Some(value)
             } else {
