@@ -414,7 +414,7 @@ impl Parser {
                 return Ok(argument_id);
             }
             let value = self
-                .with_options(self.options.not_in_position().not_in_tree_literal(), |parser| {
+                .with_options(self.options.not_in_position().not_in_tree_literal().fresh_expression(), |parser| {
                     parser.eat_expression()
                 })?;
             self.eat_newlines_maybe()?;
@@ -490,7 +490,7 @@ impl Parser {
                     self.bump(); // eat {
                     self.eat_newlines_maybe()?;
                     let value = self.with_options(
-                        self.options.not_in_position().not_in_tree_literal(),
+                        self.options.not_in_position().not_in_tree_literal().fresh_expression(),
                         |parser| parser.eat_expression(),
                     )?;
                     self.eat_newlines_maybe()?;

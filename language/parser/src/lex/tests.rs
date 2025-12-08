@@ -848,22 +848,11 @@ fn test_lex_tree_deeply_nested() {
     let language = LanguageOptions::default();
     let (tokens, _) = Lexer::lex(file_id, input, language);
 
-    // print tokens for debugging
-    for token in &tokens {
-        eprintln!(
-            "{:3}-{:3}: {:?} {:?}",
-            token.span.start, token.span.end, token.token.ty, token.token.literal
-        );
-    }
-
-    // basic sanity check:
-    // - 7 `<` tokens: 4 opening (<A, <B, <C, <D) + 3 closing (</C, </B, </A)
-    // - 4 `/` tokens: 1 self-close (<D/>) + 3 closing (</C, </B, </A)
-    let less_thans: Vec<_> = tokens
+    let opens: Vec<_> = tokens
         .iter()
         .filter(|t| t.token.ty == TokenType::LessThan)
         .collect();
-    assert_eq!(less_thans.len(), 7, "should have 7 < tokens");
+    assert_eq!(opens.len(), 7, "should have 7 < tokens");
 
     let divides: Vec<_> = tokens
         .iter()
@@ -1021,5 +1010,152 @@ fn test_lex_tree_with_comment_container() {
         Token::new(TokenType::Divide, 1, None),         // /
         Token::new(TokenType::Identifier, 3, None),     // div
         Token::new(TokenType::GreaterThan, 1, None),    // >
+    );
+}
+
+/// Tree sibling after expression container closes.
+#[test]
+fn test_lex_tree_sibling_after_expr_container() {
+    let file_id = FileId::new(0);
+    let input = r#"return (
+    <div>
+        {x.map(() => (<p></p>))}
+        <form></form>
+    </div>
+)"#;
+    let language = LanguageOptions::default();
+    let (tokens, _) = Lexer::lex(file_id, input, language);
+
+    // The `<form` should be recognized as a tree opening
+    let form_start = input.find("<form").unwrap();
+    let token_at_form = tokens
+        .iter()
+        .find(|t| t.span.start as usize == form_start);
+
+    assert_eq!(
+        token_at_form.map(|t| t.token.ty),
+        Some(TokenType::LessThan),
+        "< before form should be tree opening"
+    );
+}
+
+/// Tree sibling after expression container closes - with tabs.
+#[test]
+fn test_lex_tree_sibling_after_expr_container_tabs() {
+    let file_id = FileId::new(0);
+    let input = "return (\n\t<div>\n\t\t{x.map(() => (<p></p>))}\n\t\t<form></form>\n\t</div>\n)";
+    let language = LanguageOptions::default();
+    let (tokens, _) = Lexer::lex(file_id, input, language);
+
+    // The `<form` should be recognized as a tree opening
+    let form_start = input.find("<form").unwrap();
+    let token_at_form = tokens
+        .iter()
+        .find(|t| t.span.start as usize == form_start);
+
+    assert_eq!(
+        token_at_form.map(|t| t.token.ty),
+        Some(TokenType::LessThan),
+        "< before form should be tree opening"
+    );
+}
+
+/// Multiline form element after expression container.
+#[test]
+fn test_lex_multiline_form_after_expr_container() {
+    let file_id = FileId::new(0);
+    let input = "<div>\n\t{x}\n\t<form\n\t\tonClick={() => {}}\n\t>\n\t</form>\n</div>";
+    let language = LanguageOptions::default();
+    let (tokens, _) = Lexer::lex(file_id, input, language);
+
+    // The `<form` should be recognized as a tree opening
+    let form_start = input.find("<form").unwrap();
+    let token_at_form = tokens
+        .iter()
+        .find(|t| t.span.start as usize == form_start);
+
+    assert_eq!(
+        token_at_form.map(|t| t.token.ty),
+        Some(TokenType::LessThan),
+        "< in <form should be tree opening"
+    );
+}
+
+/// Two spread patterns with nested JSX.
+#[test]
+fn test_lex_two_spreads_failing_pattern() {
+    let file_id = FileId::new(0);
+    let input = r#"const labels = [
+        ...(a
+            ? [
+                  <>
+                      <span className="flex items-center">
+                          <Tooltip
+                              title={`text`}
+                          >
+                              <Icon />
+                          </Tooltip>
+                      </span>
+                  </>,
+              ]
+            : []),
+        ...(b
+            ? [
+                  <>
+                      {y && <E />}
+                  </>,
+              ]
+            : []),
+    ]"#;
+    let language = LanguageOptions::default();
+    let (tokens, _) = Lexer::lex(file_id, input, language);
+
+    // The <E after && should be LessThan (tree opening), not a comparison
+    let e_start = input.find("<E").unwrap();
+    let token_at_e = tokens.iter().find(|t| t.span.start as usize == e_start);
+    assert_eq!(
+        token_at_e.map(|t| t.token.ty),
+        Some(TokenType::LessThan),
+        "< before E should be tree opening"
+    );
+}
+
+/// Ternary expression with tree literal - verifies ? is recognized as tree-opening position.
+#[test]
+fn test_lex_ternary_tree_pattern() {
+    let input = r#"a == b ? <>{y && <E />}</> : null"#;
+    let file_id = FileId::new(0);
+    let language = LanguageOptions::default();
+    let (tokens, _) = Lexer::lex(file_id, input, language);
+
+    // Check that <> is recognized as tree fragment opening
+    let fragment_start = input.find("<>").unwrap();
+    let token_at_fragment = tokens
+        .iter()
+        .find(|t| t.span.start as usize == fragment_start);
+    assert_eq!(
+        token_at_fragment.map(|t| t.token.ty),
+        Some(TokenType::LessThan),
+        "<> should be recognized as tree opening"
+    );
+}
+
+/// Nested tree literal in attribute position - verifies deeply nested JSX in attrs works.
+#[test]
+fn test_lex_nested_tree_in_attr() {
+    let input = r#"<Outer title={<div><LemonButton icon={<IconLink />} /></div>} />"#;
+    let file_id = FileId::new(0);
+    let language = LanguageOptions::default();
+    let (tokens, _) = Lexer::lex(file_id, input, language);
+
+    // After <IconLink />, the } should be CloseBrace (not TreeString)
+    let close_brace_after_icon = tokens
+        .iter()
+        .find(|t| t.span.start == 50)
+        .map(|t| t.token.ty);
+    assert_eq!(
+        close_brace_after_icon,
+        Some(TokenType::CloseBrace),
+        "}} after <IconLink /> should be CloseBrace, not TreeString"
     );
 }

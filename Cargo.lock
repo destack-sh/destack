@@ -795,6 +795,7 @@ version = "0.48.3"
 dependencies = [
  "destack_mir",
  "destack_source",
+ "smallvec",
 ]
 
 [[package]]
