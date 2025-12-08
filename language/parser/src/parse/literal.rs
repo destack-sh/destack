@@ -1053,7 +1053,7 @@ mod tests {
             assert!(arguments.is_none());
             assert!(elements.is_some());
             assert_eq!(elements.as_ref().unwrap().len(), 2);
-            // Tool: 
+            // Tool:
             assert_node!(parser.tree, elements.as_ref().unwrap()[0], Argument::Positional { value } => {
                 assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::String(_)));
             });
@@ -1063,5 +1063,131 @@ mod tests {
                 Argument::Positional { .. }
             ));
         });
+    }
+
+    #[test]
+    fn test_parse_nested_tree_with_text_content() {
+        // <div><h4>Tool: {x}</h4></div>
+        let mut test = TestParser::new(r#"<div><h4>Tool: {x}</h4></div>"#);
+        let mut parser = test.prepare();
+        let expression = parser.eat_tree_literal().unwrap();
+        assert_node!(parser.tree, expression, Expression::TreeExpression { left: Some(left), arguments, elements } => {
+            assert_expression_path!(parser, parser.tree.get(*left), "div");
+            assert!(arguments.is_none());
+            assert!(elements.is_some());
+            assert_eq!(elements.as_ref().unwrap().len(), 1);
+            // nested <h4>...</h4>
+            assert_node!(parser.tree, elements.as_ref().unwrap()[0], Argument::Positional { value } => {
+                assert_node!(parser.tree, *value, Expression::TreeExpression { .. });
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_tree_with_attribute_and_children() {
+        // <div key={index}><h4>Tool: {x}</h4></div>
+        let mut test = TestParser::new(r#"<div key={index}><h4>Tool: {x}</h4></div>"#);
+        let mut parser = test.prepare();
+        let expression = parser.eat_tree_literal().unwrap();
+        assert_node!(parser.tree, expression, Expression::TreeExpression { left: Some(left), arguments, elements } => {
+            assert_expression_path!(parser, parser.tree.get(*left), "div");
+            assert!(arguments.is_some());
+            assert_eq!(arguments.as_ref().unwrap().len(), 1);
+            assert!(elements.is_some());
+            assert_eq!(elements.as_ref().unwrap().len(), 1);
+        });
+    }
+
+    /// Tree fragment containing a callback that returns nested tree literals.
+    #[test]
+    fn test_parse_tree_fragment_with_nested_callback() {
+        let mut test = TestParser::new(r#"<>{x.map(() => (<div><h4>T: {y}</h4></div>))}</>"#);
+        let mut parser = test.prepare();
+        let expression = parser.eat_tree_literal().unwrap();
+        assert_node!(parser.tree, expression, Expression::TreeExpression { left: None, arguments, elements } => {
+            assert!(arguments.is_none());
+            assert!(elements.is_some());
+            assert_eq!(elements.as_ref().unwrap().len(), 1);
+        });
+    }
+
+    /// Tree literal with JSX comment syntax {/* */}.
+    /// The comment is filtered out, leaving an empty expression container.
+    #[test]
+    fn test_parse_tree_with_comment_container() {
+        let mut test = TestParser::new(r#"<div>{/* comment */}</div>"#);
+        let mut parser = test.prepare();
+        let expression = parser.eat_tree_literal().unwrap();
+        assert_node!(parser.tree, expression, Expression::TreeExpression { left: Some(_), arguments, elements } => {
+            assert!(arguments.is_none());
+            assert!(elements.is_some());
+        });
+    }
+
+    /// Arrow function returning parenthesized tree literal.
+    #[test]
+    fn test_parse_arrow_returning_tree() {
+        let mut test = TestParser::new(r#"x.map(() => (<div/>))"#);
+        let mut parser = test.prepare();
+        let expressions = parser.parse();
+        assert!(parser.diagnostics.is_empty(), "{:?}", parser.diagnostics);
+        assert!(!expressions.is_empty());
+    }
+
+    /// Arrow function with block body containing switch that returns tree literal.
+    #[test]
+    fn test_parse_arrow_with_switch_returning_tree() {
+        let code = r#"x.map(() => { switch (y) { case 'a': return (<div/>); } })"#;
+        let mut test = TestParser::new(code);
+        let mut parser = test.prepare();
+        let expressions = parser.parse();
+        assert!(parser.diagnostics.is_empty(), "{:?}", parser.diagnostics);
+        assert!(!expressions.is_empty());
+    }
+
+    /// Nested tree literals with non-self-closing elements inside expression containers.
+    #[test]
+    fn test_parse_tree_nested_non_self_closing() {
+        let code = r#"x.map((m) => (<>{y.map((p) => { switch (p) { case 'a': return (<div></div>); } })}</>))"#;
+        let mut test = TestParser::new(code);
+        let mut parser = test.prepare();
+        let expressions = parser.parse();
+        assert!(parser.diagnostics.is_empty(), "{:?}", parser.diagnostics);
+        assert!(!expressions.is_empty());
+    }
+
+    /// Deeply nested tree literal with text content containing special characters.
+    #[test]
+    fn test_parse_tree_nested_with_text_content() {
+        let code = r#"x.map((m) => (<>{y.map((p) => { switch (p) { case 'a': return (<div><h4>Tool: {z}</h4></div>); } })}</>))"#;
+        let mut test = TestParser::new(code);
+        let mut parser = test.prepare();
+        let expressions = parser.parse();
+        assert!(parser.diagnostics.is_empty(), "{:?}", parser.diagnostics);
+        assert!(!expressions.is_empty());
+    }
+
+    /// Full complex pattern with multiline code, attributes, and nested trees.
+    #[test]
+    fn test_parse_tree_complex_nested_pattern() {
+        let code = r#"messages.map((message) => (
+	<>
+		{message.parts.map((part, index) => {
+			switch (part.type) {
+				case 'dynamic-tool':
+					return (
+						<div key={index}>
+							<h4>Tool: {part.toolName}</h4>
+						</div>
+					);
+			}
+		})}
+	</>
+))"#;
+        let mut test = TestParser::new(code);
+        let mut parser = test.prepare();
+        let expressions = parser.parse();
+        assert!(parser.diagnostics.is_empty(), "{:?}", parser.diagnostics);
+        assert!(!expressions.is_empty());
     }
 }

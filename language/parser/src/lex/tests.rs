@@ -888,3 +888,138 @@ fn test_lex_tree_deeply_nested() {
         .collect();
     assert_eq!(close_braces.len(), 1, "should have 1 close brace token");
 }
+
+#[test]
+fn test_lex_tree_text_with_colon() {
+    // <h4>Tool: {x}</h4> - text containing colon should be lexed as TreeString
+    assert_tokenize_eq_roundtrip!(
+        "<h4>Tool: {x}</h4>",
+        Token::new(TokenType::LessThan, 1, None),    // <
+        Token::new(TokenType::Identifier, 2, None),  // h4
+        Token::new(TokenType::GreaterThan, 1, None), // >
+        Token::new(TokenType::Literal, 6, Some(LiteralType::TreeString)), // "Tool: "
+        Token::new(TokenType::OpenBrace, 1, None),   // {
+        Token::new(TokenType::Identifier, 1, None),  // x
+        Token::new(TokenType::CloseBrace, 1, None),  // }
+        Token::new(TokenType::LessThan, 1, None),    // <
+        Token::new(TokenType::Divide, 1, None),      // /
+        Token::new(TokenType::Identifier, 2, None),  // h4
+        Token::new(TokenType::GreaterThan, 1, None), // >
+    );
+}
+
+/// Tree literal with attribute expression container and nested children.
+/// Verifies text content is lexed as TreeString after attribute expressions.
+#[test]
+fn test_lex_tree_nested_with_attr_expression() {
+    assert_tokenize_eq_roundtrip!(
+        "<div key={index}><h4>Tool: {x}</h4></div>",
+        Token::new(TokenType::LessThan, 1, None),      // <
+        Token::new(TokenType::Identifier, 3, None),    // div
+        Token::new(TokenType::Whitespace, 1, None),    // (space)
+        Token::new(TokenType::Identifier, 3, None),    // key
+        Token::new(TokenType::Assign, 1, None),        // =
+        Token::new(TokenType::OpenBrace, 1, None),     // {
+        Token::new(TokenType::Identifier, 5, None),    // index
+        Token::new(TokenType::CloseBrace, 1, None),    // }
+        Token::new(TokenType::GreaterThan, 1, None),   // >
+        Token::new(TokenType::LessThan, 1, None),      // <
+        Token::new(TokenType::Identifier, 2, None),    // h4
+        Token::new(TokenType::GreaterThan, 1, None),   // >
+        Token::new(TokenType::Literal, 6, Some(LiteralType::TreeString)), // "Tool: "
+        Token::new(TokenType::OpenBrace, 1, None),     // {
+        Token::new(TokenType::Identifier, 1, None),    // x
+        Token::new(TokenType::CloseBrace, 1, None),    // }
+        Token::new(TokenType::LessThan, 1, None),      // <
+        Token::new(TokenType::Divide, 1, None),        // /
+        Token::new(TokenType::Identifier, 2, None),    // h4
+        Token::new(TokenType::GreaterThan, 1, None),   // >
+        Token::new(TokenType::LessThan, 1, None),      // <
+        Token::new(TokenType::Divide, 1, None),        // /
+        Token::new(TokenType::Identifier, 3, None),    // div
+        Token::new(TokenType::GreaterThan, 1, None),   // >
+    );
+}
+
+/// Tree literal inside nested callbacks with non-self-closing elements.
+/// Regression test for parentheses balance when closing tags are inside expression containers.
+#[test]
+fn test_lex_tree_in_nested_callbacks() {
+    let file_id = FileId::new(0);
+    let input = r#"x.map((m) => (<>{y.map((p) => { switch (p) { case 'a': return (<div></div>); } })}</>))"#;
+    let language = LanguageOptions::default();
+    let (tokens, _) = Lexer::lex(file_id, input, language);
+
+    let open_parens = tokens
+        .iter()
+        .filter(|t| t.token.ty == TokenType::OpenParenthesis)
+        .count();
+    let close_parens = tokens
+        .iter()
+        .filter(|t| t.token.ty == TokenType::CloseParenthesis)
+        .count();
+
+    assert_eq!(
+        open_parens, close_parens,
+        "parentheses should be balanced"
+    );
+}
+
+/// Complex nested tree literal pattern with multiline code.
+#[test]
+fn test_lex_tree_nested_multiline_with_text() {
+    let file_id = FileId::new(0);
+    let input = r#"x.map((m) => (
+	<>
+		{y.map((p, i) => {
+			switch (p.type) {
+				case 'a':
+					return (
+						<div key={i}>
+							<h4>Tool: {p.name}</h4>
+						</div>
+					);
+			}
+		})}
+	</>
+))"#;
+    let language = LanguageOptions::default();
+    let (tokens, _) = Lexer::lex(file_id, input, language);
+
+    // verify "Tool: " is lexed as TreeString
+    let has_tool_tree_string = tokens.iter().any(|t| {
+        t.token.literal == Some(LiteralType::TreeString)
+            && input[t.span.start as usize..t.span.end as usize].contains("Tool:")
+    });
+    assert!(has_tool_tree_string, "expected 'Tool: ' to be a TreeString");
+
+    // verify parentheses are balanced
+    let open_parens = tokens
+        .iter()
+        .filter(|t| t.token.ty == TokenType::OpenParenthesis)
+        .count();
+    let close_parens = tokens
+        .iter()
+        .filter(|t| t.token.ty == TokenType::CloseParenthesis)
+        .count();
+    assert_eq!(open_parens, close_parens, "parentheses should be balanced");
+}
+
+/// Tree literal with JSX comment syntax {/* */}.
+/// Comments inside expression containers should produce BlockComment tokens.
+#[test]
+fn test_lex_tree_with_comment_container() {
+    assert_tokenize_eq_roundtrip!(
+        "<div>{/* comment */}</div>",
+        Token::new(TokenType::LessThan, 1, None),       // <
+        Token::new(TokenType::Identifier, 3, None),     // div
+        Token::new(TokenType::GreaterThan, 1, None),    // >
+        Token::new(TokenType::OpenBrace, 1, None),      // {
+        Token::new(TokenType::BlockComment, 13, None),  // /* comment */
+        Token::new(TokenType::CloseBrace, 1, None),     // }
+        Token::new(TokenType::LessThan, 1, None),       // <
+        Token::new(TokenType::Divide, 1, None),         // /
+        Token::new(TokenType::Identifier, 3, None),     // div
+        Token::new(TokenType::GreaterThan, 1, None),    // >
+    );
+}

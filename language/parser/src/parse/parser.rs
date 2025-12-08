@@ -155,11 +155,20 @@ impl ParserOptions {
         }
     }
 
-    /// Set `in_tree_literal=true` and `in_parenthesis=false`.
+    /// Set `in_tree_literal=true`.
     #[inline]
     pub(crate) fn in_tree_literal(self) -> Self {
         Self {
             in_tree_literal: true,
+            ..self
+        }
+    }
+
+    /// Set `in_tree_literal=false`.
+    #[inline]
+    pub(crate) fn not_in_tree_literal(self) -> Self {
+        Self {
+            in_tree_literal: false,
             ..self
         }
     }

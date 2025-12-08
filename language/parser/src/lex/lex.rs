@@ -1,7 +1,7 @@
 use std::str::FromStr;
 
 use super::html_entities::HTML_NAMED_ENTITIES;
-use super::lexer::{Lexer, TreeState};
+use super::lexer::{Lexer, TreeExpressionENtry, TreeState};
 use destack_ast::{
     Keyword, LiteralType, NumberBase, Token, TokenSpan, TokenType, is_identifier_continue,
     is_identifier_start, is_whitespace,
@@ -324,10 +324,11 @@ impl Lexer<'_> {
                 if self.in_tree_content() {
                     // leave content mode (will return when } is matched)
                     self.pop_tree_state();
-                    // track the depth so we know when to return to content mode
-                    self.options
-                        .tree_expression_stack
-                        .push(self.options.parentheses_depth);
+                    // track the depth and tree level so we know when to return to content mode
+                    self.options.tree_expression_stack.push(TreeExpressionENtry {
+                        parentheses_depth: self.options.parentheses_depth,
+                        tree_depth: self.options.tree_state_stack.len(),
+                    });
                 }
                 self.options.parentheses_depth += 1;
                 (TokenType::OpenBrace, None)
@@ -354,8 +355,9 @@ impl Lexer<'_> {
                     }
                 }
                 // we're at the end of a tree expression container
-                else if self.options.tree_expression_stack.last()
-                    == Some(&self.options.parentheses_depth)
+                else if let Some(entry) = self.options.tree_expression_stack.last()
+                    && entry.parentheses_depth == self.options.parentheses_depth
+                    && entry.tree_depth == self.options.tree_state_stack.len()
                 {
                     self.options.tree_expression_stack.pop();
                     // return to content mode
@@ -550,8 +552,11 @@ impl Lexer<'_> {
                     self.eat();
                     (TokenType::LessThanOrEqual, None)
                 }
-                // </ - tree closing tag (when in content mode)
-                else if self.in_tree_content() && self.peek() == '/' {
+                // </ - tree closing tag (when tree state is Content)
+                // NOTE: we check tree_state() directly, not in_tree_content()
+                // (because in_tree_content() returns false inside expression containers
+                //  but we still need to recognize </tag> for nested tree literals)
+                else if self.tree_state() == TreeState::Content && self.peek() == '/' {
                     // pop from content mode (closing tag will finish with >)
                     self.pop_tree_state();
                     // push closing tag mode
@@ -1270,12 +1275,17 @@ impl Lexer<'_> {
             return true;
         }
 
-        // check previous non-whitespace token
+        // check previous non-whitespace/newline token
         let prev = self
             .tokens
             .iter()
             .rev()
-            .find(|token| token.token.ty != TokenType::Whitespace);
+            .find(|token| {
+                !matches!(
+                    token.token.ty,
+                    TokenType::Whitespace | TokenType::Newline
+                )
+            });
 
         match prev {
             // start of file: tree is allowed (top-level JSX expression)
