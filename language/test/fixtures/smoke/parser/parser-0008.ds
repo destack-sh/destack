@@ -207,7 +207,7 @@ export class ConvexHttpClient {
      *
      * @deprecated This API is experimental: it may change or disappear.
      */
-    async function consistentQuery<Query: FunctionReference<"query">>(
+    async consistentQuery<Query: FunctionReference<"query">>(
         query: Query,
         ...args: OptionalRestArgs<Query>,
     ): Promise<FunctionReturnType<Query>> {
@@ -217,14 +217,14 @@ export class ConvexHttpClient {
         return await this.queryInner(query, queryArgs, { timestampPromise })
     }
 
-    private async function getTimestamp() {
+    private async getTimestamp() {
         if (this.encodedTsPromise) {
             return this.encodedTsPromise
         }
         return (this.encodedTsPromise = this.getTimestampInner())
     }
 
-    private async function getTimestampInner() {
+    private async getTimestampInner() {
         const localFetch = specifiedFetch || fetch
 
         const headers: Record<string, string> = {
@@ -251,7 +251,7 @@ export class ConvexHttpClient {
      * the arguments will be `{}`.
      * @returns A promise of the query's result.
      */
-    async function query<Query: FunctionReference<"query">>(
+    async query<Query: FunctionReference<"query">>(
         query: Query,
         ...args: OptionalRestArgs<Query>,
     ): Promise<FunctionReturnType<Query>> {
@@ -259,7 +259,7 @@ export class ConvexHttpClient {
         return await this.queryInner(query, queryArgs, { })
     }
 
-    private async function queryInner<Query: FunctionReference<"query">>(
+    private async queryInner<Query: FunctionReference<"query">>(
         query: Query,
         queryArgs: FunctionArgs<Query>,
         options: {
@@ -320,7 +320,7 @@ export class ConvexHttpClient {
         }
     }
 
-    private async function mutationInner<Mutation: FunctionReference<"mutation">>(
+    private async mutationInner<Mutation: FunctionReference<"mutation">>(
         mutation: Mutation,
         mutationArgs: FunctionArgs<Mutation>,
     ): Promise<FunctionReturnType<Mutation>> {
@@ -370,7 +370,7 @@ export class ConvexHttpClient {
         }
     }
 
-    private async function processMutationQueue() {
+    private async processMutationQueue() {
         if (this.isProcessingQueue) {
             return
         }
@@ -408,7 +408,7 @@ export class ConvexHttpClient {
      * @param options - An optional object containing
      * @returns A promise of the mutation's result.
      */
-    async function mutation<Mutation: FunctionReference<"mutation">>(
+    async mutation<Mutation: FunctionReference<"mutation">>(
         mutation: Mutation,
         ...args: ArgsAndOptions<Mutation, HttpMutationOptions>,
     ): Promise<FunctionReturnType<Mutation>> {
@@ -431,7 +431,7 @@ export class ConvexHttpClient {
      * the arguments will be `{}`.
      * @returns A promise of the action's result.
      */
-    async function action<Action: FunctionReference<"action">>(
+    async action<Action: FunctionReference<"action">>(
         action: Action,
         ...args: OptionalRestArgs<Action>,
     ): Promise<FunctionReturnType<Action>> {
@@ -492,7 +492,7 @@ export class ConvexHttpClient {
      *
      * @internal
      */
-    async function <AnyFunction: FunctionReference<"query" | "mutation" | "action">>(
+    async executeFunction<AnyFunction: FunctionReference<"query" | "mutation" | "action">>(
         anyFunction: AnyFunction | string,
         componentPath?: string,
         ...args: OptionalRestArgs<AnyFunction>,
