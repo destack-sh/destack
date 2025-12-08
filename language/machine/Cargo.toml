@@ -1,6 +1,6 @@
 [package]
 name = "destack_machine"
-description = "Destack Virtual Machine (DVM)"
+description = "Destack Machine - MIR interpreter and JIT execution engine"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
@@ -13,12 +13,9 @@ doctest = false
 
 [dependencies]
 # language
-destack_ast = { workspace = true }
-destack_dir = { workspace = true }
-destack_fir = { workspace = true }
 destack_mir = { workspace = true }
 destack_source = { workspace = true }
-destack_unicode = { workspace = true }
+
 
 [dev-dependencies]
 
