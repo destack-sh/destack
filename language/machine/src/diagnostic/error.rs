@@ -44,9 +44,7 @@ pub enum Error {
     UndefinedValue { value: mir::Value } = 1,
 
     /// Attempted to jump to an undefined block.
-    UndefinedBlock {
-        block: mir::LocalNodeId<mir::Block>,
-    } = 2,
+    UndefinedBlock { block: mir::LocalNodeId<mir::Block> } = 2,
 
     /// Type mismatch during execution.
     TypeMismatch { expected: String, actual: String } = 3,
@@ -85,9 +83,7 @@ pub enum Error {
     StepLimitExceeded = 14,
 
     /// Attempted to access an undefined local variable.
-    UndefinedLocal {
-        local: mir::LocalNodeId<mir::Local>,
-    } = 15,
+    UndefinedLocal { local: mir::LocalNodeId<mir::Local> } = 15,
 
     /// Invalid field access (index out of bounds for struct/tuple).
     InvalidFieldAccess { index: u32, field_count: usize } = 16,
@@ -206,10 +202,7 @@ impl RuntimeError {
 
         let mut trace = String::from("\nStack trace:\n");
         for (i, frame) in self.call_stack.iter().rev().enumerate() {
-            let name = frame
-                .function_name
-                .as_deref()
-                .unwrap_or("<anonymous>");
+            let name = frame.function_name.as_deref().unwrap_or("<anonymous>");
             trace.push_str(&format!("  {i}: {name} (block {:?})\n", frame.block));
         }
         trace

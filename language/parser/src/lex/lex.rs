@@ -328,22 +328,26 @@ impl Lexer<'_> {
                     // leave content mode (will return when } is matched)
                     self.pop_tree_state();
                     // track the depth and tree level so we know when to return to content mode
-                    self.options.tree_expression_stack.push(TreeExpressionEntry {
-                        parentheses_depth: self.options.parentheses_depth,
-                        tree_depth: self.options.tree_state_stack.len(),
-                        from_content: true,
-                    });
+                    self.options
+                        .tree_expression_stack
+                        .push(TreeExpressionEntry {
+                            parentheses_depth: self.options.parentheses_depth,
+                            tree_depth: self.options.tree_state_stack.len(),
+                            from_content: true,
+                        });
                 }
                 // in tree opening tag mode, { starts an attribute expression container
                 // (e.g., <Component attr={<NestedJSX />} />)
                 else if self.tree_state() == TreeState::OpeningTag {
                     // don't pop OpeningTag - we're still parsing attributes
                     // but track the expression so nested JSX is recognized
-                    self.options.tree_expression_stack.push(TreeExpressionEntry {
-                        parentheses_depth: self.options.parentheses_depth,
-                        tree_depth: self.options.tree_state_stack.len(),
-                        from_content: false,
-                    });
+                    self.options
+                        .tree_expression_stack
+                        .push(TreeExpressionEntry {
+                            parentheses_depth: self.options.parentheses_depth,
+                            tree_depth: self.options.tree_state_stack.len(),
+                            from_content: false,
+                        });
                 }
                 self.options.parentheses_depth += 1;
                 (TokenType::OpenBrace, None)
@@ -459,7 +463,10 @@ impl Lexer<'_> {
 
             // elementwise and, logical and and their assignments
             '&' => {
-                if let Some(html_entity_token) = self.try_eat_html_entity() {
+                // only decode html entities inside tree content
+                if self.in_tree_content()
+                    && let Some(html_entity_token) = self.try_eat_html_entity()
+                {
                     html_entity_token
                 }
                 // &&
@@ -1250,13 +1257,14 @@ impl Lexer<'_> {
 
     /// Tries to eat tree literal text content (TSX-compatible).
     /// Returns a Literal token with TreeString type if there's text content.
-    /// Text content ends at `<` or `{`.
+    /// Text content ends at `<`, `{`, or `&` (for HTML entities).
     fn try_eat_tree_text(&mut self) -> Option<Token> {
         // peek at what's coming - don't eat yet
         let first = self.peek();
 
         // these characters start other tokens, not text
-        if matches!(first, '<' | '{' | '\0') {
+        // `&` may start an HTML entity, so let advance() handle it
+        if matches!(first, '<' | '{' | '&' | '\0') {
             return None;
         }
 
@@ -1266,8 +1274,8 @@ impl Lexer<'_> {
         while !self.is_end() {
             let c = self.peek();
             match c {
-                // boundaries: start of tag or expression container
-                '<' | '{' => break,
+                // boundaries: start of tag, expression container, or potential html entity
+                '<' | '{' | '&' => break,
                 _ => {
                     self.eat();
                 }
@@ -1295,15 +1303,9 @@ impl Lexer<'_> {
         }
 
         // check previous non-whitespace/newline token
-        let prev = self
-            .tokens
-            .iter()
-            .rev()
-            .find(|token| {
-                !matches!(
-                    token.token.ty,
-                    TokenType::Whitespace | TokenType::Newline
-                )
+        let prev =
+            self.tokens.iter().rev().find(|token| {
+                !matches!(token.token.ty, TokenType::Whitespace | TokenType::Newline)
             });
 
         match prev {

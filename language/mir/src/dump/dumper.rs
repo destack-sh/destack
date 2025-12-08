@@ -144,7 +144,9 @@ impl<'a> Dumper<'a> {
             }
             Type::Float { width } => format!("f{width}"),
             Type::RawPointer { .. } => "rawptr".to_string(),
-            Type::ManagedReference { nullable: false, .. } => "ref".to_string(),
+            Type::ManagedReference {
+                nullable: false, ..
+            } => "ref".to_string(),
             Type::ManagedReference { nullable: true, .. } => "ref?".to_string(),
             Type::Array { length, .. } => format!("[_; {length}]"),
             Type::Tuple { elements } => format!("({})", elements.len()),

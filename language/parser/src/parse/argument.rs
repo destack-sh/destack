@@ -407,16 +407,21 @@ impl Parser {
             if self.peek_token(TokenType::CloseBrace).is_ok() {
                 self.bump(); // eat }
                 // insert a stub expression for empty container
-                let value = self.tree.insert(Expression::Stub, self.get_span_from(start));
+                let value = self
+                    .tree
+                    .insert(Expression::Stub, self.get_span_from(start));
                 let argument_id = self
                     .tree
                     .insert(Argument::Positional { value }, self.get_span_from(start));
                 return Ok(argument_id);
             }
-            let value = self
-                .with_options(self.options.not_in_position().not_in_tree_literal().fresh_expression(), |parser| {
-                    parser.eat_expression()
-                })?;
+            let value = self.with_options(
+                self.options
+                    .not_in_position()
+                    .not_in_tree_literal()
+                    .fresh_expression(),
+                |parser| parser.eat_expression(),
+            )?;
             self.eat_newlines_maybe()?;
             self.eat_token(TokenType::CloseBrace)?;
             let argument_id = self
@@ -490,7 +495,10 @@ impl Parser {
                     self.bump(); // eat {
                     self.eat_newlines_maybe()?;
                     let value = self.with_options(
-                        self.options.not_in_position().not_in_tree_literal().fresh_expression(),
+                        self.options
+                            .not_in_position()
+                            .not_in_tree_literal()
+                            .fresh_expression(),
                         |parser| parser.eat_expression(),
                     )?;
                     self.eat_newlines_maybe()?;

@@ -1183,7 +1183,8 @@ mod tests {
     /// Regression test for from_content fix with multiple nesting levels.
     #[test]
     fn test_parse_deeply_nested_tree_in_attr() {
-        let mut test = TestParser::new(r#"<Outer title={<div><Button icon={<Icon />} /></div>} />"#);
+        let mut test =
+            TestParser::new(r#"<Outer title={<div><Button icon={<Icon />} /></div>} />"#);
         let mut parser = test.prepare();
         let expr = parser.eat_tree_literal().unwrap();
         assert_node!(parser.tree, expr, Expression::TreeExpression { left: Some(left), arguments, elements } => {

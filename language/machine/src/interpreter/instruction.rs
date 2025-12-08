@@ -92,10 +92,15 @@ impl Interpreter {
                 frame.set_local(*local, val);
             }
 
-            mir::Instruction::GlobalGet { destination, global } => {
+            mir::Instruction::GlobalGet {
+                destination,
+                global,
+            } => {
                 let _ = (destination, global);
                 return Err(self.make_error_at(
-                    Error::UnsupportedInstruction { name: "global_get".to_string() },
+                    Error::UnsupportedInstruction {
+                        name: "global_get".to_string(),
+                    },
                     inst_id,
                 ));
             }
@@ -103,12 +108,17 @@ impl Interpreter {
             mir::Instruction::GlobalSet { global, value } => {
                 let _ = (global, value);
                 return Err(self.make_error_at(
-                    Error::UnsupportedInstruction { name: "global_set".to_string() },
+                    Error::UnsupportedInstruction {
+                        name: "global_set".to_string(),
+                    },
                     inst_id,
                 ));
             }
 
-            mir::Instruction::Load { destination, pointer } => {
+            mir::Instruction::Load {
+                destination,
+                pointer,
+            } => {
                 let ptr = {
                     let frame = self.current_frame()?;
                     frame.get_value(*pointer)?
@@ -305,7 +315,10 @@ impl Interpreter {
                 frame.set_value(*destination, result);
             }
 
-            mir::Instruction::ManagedAllocate { destination, layout: _ } => {
+            mir::Instruction::ManagedAllocate {
+                destination,
+                layout: _,
+            } => {
                 if self.heap.cell_count() >= self.options.max_heap_cells {
                     return Err(self.make_error(Error::AllocationFailed));
                 }
@@ -347,11 +360,12 @@ impl Interpreter {
             | mir::Instruction::StackAllocate { .. }
             | mir::Instruction::CallIndirect { .. } => {
                 let name = format!("{instruction:?}");
-                let name = name.split_whitespace().next().unwrap_or("unknown").to_string();
-                return Err(self.make_error_at(
-                    Error::UnsupportedInstruction { name },
-                    inst_id,
-                ));
+                let name = name
+                    .split_whitespace()
+                    .next()
+                    .unwrap_or("unknown")
+                    .to_string();
+                return Err(self.make_error_at(Error::UnsupportedInstruction { name }, inst_id));
             }
         }
 

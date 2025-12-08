@@ -50,7 +50,7 @@ impl From<&mir::Constant> for Value {
                 is_signed: true,
             } => Value::Int {
                 value: *value,
-                width: *width as u8,
+                width: *width,
             },
             mir::Constant::Int {
                 value,
@@ -58,11 +58,11 @@ impl From<&mir::Constant> for Value {
                 is_signed: false,
             } => Value::UInt {
                 value: *value as u64,
-                width: *width as u8,
+                width: *width,
             },
             mir::Constant::UInt { value, width } => Value::UInt {
                 value: *value,
-                width: *width as u8,
+                width: *width,
             },
             mir::Constant::Float { bits, width: 32 } => {
                 Value::Float32(f32::from_bits(*bits as u32))

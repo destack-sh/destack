@@ -11,7 +11,12 @@ block0(v0: i32, v1: i32):
     return v2
 }
 "#;
-    expect_evaluate_mir(mir, "add", &[Value::int32(1), Value::int32(2)], Value::int32(3));
+    expect_evaluate_mir(
+        mir,
+        "add",
+        &[Value::int32(1), Value::int32(2)],
+        Value::int32(3),
+    );
 }
 
 /// Integer subtraction produces the difference of two i32 values.
@@ -24,7 +29,12 @@ block0(v0: i32, v1: i32):
     return v2
 }
 "#;
-    expect_evaluate_mir(mir, "sub", &[Value::int32(10), Value::int32(3)], Value::int32(7));
+    expect_evaluate_mir(
+        mir,
+        "sub",
+        &[Value::int32(10), Value::int32(3)],
+        Value::int32(7),
+    );
 }
 
 /// Integer multiplication produces the product of two i32 values.
@@ -37,7 +47,12 @@ block0(v0: i32, v1: i32):
     return v2
 }
 "#;
-    expect_evaluate_mir(mir, "mul", &[Value::int32(6), Value::int32(7)], Value::int32(42));
+    expect_evaluate_mir(
+        mir,
+        "mul",
+        &[Value::int32(6), Value::int32(7)],
+        Value::int32(42),
+    );
 }
 
 /// Signed integer division produces the quotient of two i32 values.
@@ -50,7 +65,12 @@ block0(v0: i32, v1: i32):
     return v2
 }
 "#;
-    expect_evaluate_mir(mir, "div", &[Value::int32(20), Value::int32(4)], Value::int32(5));
+    expect_evaluate_mir(
+        mir,
+        "div",
+        &[Value::int32(20), Value::int32(4)],
+        Value::int32(5),
+    );
 }
 
 /// Integer negation produces the two's complement negation.
@@ -76,8 +96,18 @@ block0(v0: i32, v1: i32):
     return v2
 }
 "#;
-    expect_evaluate_mir(mir, "eq", &[Value::int32(5), Value::int32(5)], Value::Bool(true));
-    expect_evaluate_mir(mir, "eq", &[Value::int32(5), Value::int32(3)], Value::Bool(false));
+    expect_evaluate_mir(
+        mir,
+        "eq",
+        &[Value::int32(5), Value::int32(5)],
+        Value::Bool(true),
+    );
+    expect_evaluate_mir(
+        mir,
+        "eq",
+        &[Value::int32(5), Value::int32(3)],
+        Value::Bool(false),
+    );
 }
 
 /// Signed less-than comparison returns true when left is smaller.
@@ -90,8 +120,18 @@ block0(v0: i32, v1: i32):
     return v2
 }
 "#;
-    expect_evaluate_mir(mir, "lt", &[Value::int32(3), Value::int32(5)], Value::Bool(true));
-    expect_evaluate_mir(mir, "lt", &[Value::int32(5), Value::int32(3)], Value::Bool(false));
+    expect_evaluate_mir(
+        mir,
+        "lt",
+        &[Value::int32(3), Value::int32(5)],
+        Value::Bool(true),
+    );
+    expect_evaluate_mir(
+        mir,
+        "lt",
+        &[Value::int32(5), Value::int32(3)],
+        Value::Bool(false),
+    );
 }
 
 /// Integer constants are loaded correctly.
@@ -143,8 +183,18 @@ block0(v0: bool, v1: bool):
     return v2
 }
 "#;
-    expect_evaluate_mir(mir, "and", &[Value::Bool(true), Value::Bool(true)], Value::Bool(true));
-    expect_evaluate_mir(mir, "and", &[Value::Bool(true), Value::Bool(false)], Value::Bool(false));
+    expect_evaluate_mir(
+        mir,
+        "and",
+        &[Value::Bool(true), Value::Bool(true)],
+        Value::Bool(true),
+    );
+    expect_evaluate_mir(
+        mir,
+        "and",
+        &[Value::Bool(true), Value::Bool(false)],
+        Value::Bool(false),
+    );
 }
 
 /// Bitwise OR on booleans produces logical OR.
@@ -157,8 +207,18 @@ block0(v0: bool, v1: bool):
     return v2
 }
 "#;
-    expect_evaluate_mir(mir, "or", &[Value::Bool(false), Value::Bool(true)], Value::Bool(true));
-    expect_evaluate_mir(mir, "or", &[Value::Bool(false), Value::Bool(false)], Value::Bool(false));
+    expect_evaluate_mir(
+        mir,
+        "or",
+        &[Value::Bool(false), Value::Bool(true)],
+        Value::Bool(true),
+    );
+    expect_evaluate_mir(
+        mir,
+        "or",
+        &[Value::Bool(false), Value::Bool(false)],
+        Value::Bool(false),
+    );
 }
 
 /// Bitwise NOT on booleans produces logical NOT.
@@ -185,5 +245,10 @@ block0(v0: f64, v1: f64):
     return v2
 }
 "#;
-    expect_evaluate_mir(mir, "fadd", &[Value::float64(1.5), Value::float64(2.5)], Value::float64(4.0));
+    expect_evaluate_mir(
+        mir,
+        "fadd",
+        &[Value::float64(1.5), Value::float64(2.5)],
+        Value::float64(4.0),
+    );
 }

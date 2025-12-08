@@ -91,10 +91,27 @@ block0(v0: [i32; 3], v1: i64):
     return v2
 }
 "#;
-    let array = Value::Aggregate(vec![Value::int32(10), Value::int32(20), Value::int32(30)].into_boxed_slice());
-    expect_evaluate_mir(mir, "get_elem", &[array.clone(), Value::uint64(0)], Value::int32(10));
-    expect_evaluate_mir(mir, "get_elem", &[array.clone(), Value::uint64(1)], Value::int32(20));
-    expect_evaluate_mir(mir, "get_elem", &[array, Value::uint64(2)], Value::int32(30));
+    let array = Value::Aggregate(
+        vec![Value::int32(10), Value::int32(20), Value::int32(30)].into_boxed_slice(),
+    );
+    expect_evaluate_mir(
+        mir,
+        "get_elem",
+        &[array.clone(), Value::uint64(0)],
+        Value::int32(10),
+    );
+    expect_evaluate_mir(
+        mir,
+        "get_elem",
+        &[array.clone(), Value::uint64(1)],
+        Value::int32(20),
+    );
+    expect_evaluate_mir(
+        mir,
+        "get_elem",
+        &[array, Value::uint64(2)],
+        Value::int32(30),
+    );
 }
 
 /// Insert element creates a new array with one element replaced.
@@ -107,11 +124,19 @@ block0(v0: [i32; 3], v1: i64, v2: i32):
     return v3
 }
 "#;
-    let array = Value::Aggregate(vec![Value::int32(10), Value::int32(20), Value::int32(30)].into_boxed_slice());
-    let result = run_mir_ok(mir, "set_elem", &[array, Value::uint64(1), Value::int32(99)]);
+    let array = Value::Aggregate(
+        vec![Value::int32(10), Value::int32(20), Value::int32(30)].into_boxed_slice(),
+    );
+    let result = run_mir_ok(
+        mir,
+        "set_elem",
+        &[array, Value::uint64(1), Value::int32(99)],
+    );
     assert_eq!(
         result.value,
-        Value::Aggregate(vec![Value::int32(10), Value::int32(99), Value::int32(30)].into_boxed_slice())
+        Value::Aggregate(
+            vec![Value::int32(10), Value::int32(99), Value::int32(30)].into_boxed_slice()
+        )
     );
 }
 
@@ -158,7 +183,9 @@ block0(v0: [i32; 3], v1: i64):
     return v2
 }
 "#;
-    let array = Value::Aggregate(vec![Value::int32(10), Value::int32(20), Value::int32(30)].into_boxed_slice());
+    let array = Value::Aggregate(
+        vec![Value::int32(10), Value::int32(20), Value::int32(30)].into_boxed_slice(),
+    );
     let result = run_mir(mir, "bad_elem", &[array, Value::uint64(100)]);
     assert!(result.is_err());
     let err = result.unwrap_err();
