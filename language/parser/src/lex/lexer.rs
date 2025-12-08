@@ -20,6 +20,15 @@ pub(super) enum TreeState {
     Content,
 }
 
+/// Entry tracking where a tree expression container started.
+#[derive(Debug, Clone, Copy)]
+pub(super) struct TreeExpressionENtry {
+    /// The parentheses depth when this expression container started.
+    pub parentheses_depth: i32,
+    /// The tree state stack depth when this expression container started.
+    pub tree_depth: usize,
+}
+
 /// The options for the lexer.
 #[derive(Debug, Default, Clone)]
 pub(super) struct LexerOptions {
@@ -29,9 +38,9 @@ pub(super) struct LexerOptions {
     pub(super) parentheses_depth: i32 = 0,
     /// Stack of tree literal states for nested tree elements (TSX-compatible).
     pub(super) tree_state_stack: Vec<TreeState>,
-    /// Stack of parentheses depths where tree expression containers started.
-    /// When `}` is seen at this depth, we return to TreeState::Content.
-    pub(super) tree_expression_stack: Vec<i32>,
+    /// Stack of entries tracking where tree expression containers started.
+    /// When `}` is seen at the matching depth and tree level, we return to TreeState::Content.
+    pub(super) tree_expression_stack: Vec<TreeExpressionENtry>,
 }
 
 /// Lexer over a source string.
@@ -218,10 +227,17 @@ impl<'a> Lexer<'a> {
         }
         // check if we're inside a tree expression container
         // if so, we're not in "true" content mode (we're lexing code)
-        if let Some(&expr_depth) = self.options.tree_expression_stack.last()
-            && self.options.parentheses_depth > expr_depth
-        {
-            return false;
+        if let Some(entry) = self.options.tree_expression_stack.last() {
+            // If we're at a deeper tree level than when the expression container started,
+            // we're in a nested tree and should lex tree content
+            let current_tree_depth = self.options.tree_state_stack.len();
+            if current_tree_depth > entry.tree_depth {
+                return true;
+            }
+            // We're at the same tree level, so check if we're inside the expression
+            if self.options.parentheses_depth > entry.parentheses_depth {
+                return false;
+            }
         }
         true
     }

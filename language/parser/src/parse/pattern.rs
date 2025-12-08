@@ -9,7 +9,9 @@ impl Parser {
         let start = self.mark();
         if self.peek_token(TokenType::OpenParenthesis).is_ok() {
             self.bump(); // eat open parenthesis
+            self.eat_newlines_maybe()?;
             let pattern_id = self.eat_pattern()?;
+            self.eat_newlines_maybe()?;
             self.eat_token(TokenType::CloseParenthesis)?;
             self.tree.set_span(pattern_id, self.get_span_from(start));
             Ok(pattern_id)

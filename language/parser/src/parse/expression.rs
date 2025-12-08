@@ -303,7 +303,9 @@ impl Parser {
         let start = self.mark();
         if self.peek_token(TokenType::OpenParenthesis).is_ok() {
             self.bump(); // eat open parenthesis
+            self.eat_newlines_maybe()?;
             let expression_id = self.eat_expression()?;
+            self.eat_newlines_maybe()?;
             self.eat_token(TokenType::CloseParenthesis)?;
             self.tree.set_span(expression_id, self.get_span_from(start));
             Ok(expression_id)

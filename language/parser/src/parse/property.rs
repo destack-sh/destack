@@ -224,6 +224,7 @@ impl Parser {
             // value
             let value = if self.peek_colon().is_ok() {
                 self.bump(); // eat colon
+                self.eat_newlines_maybe()?;
                 let value = if self.options.in_variant {
                     self.with_options(self.options.not_in_position().in_type(), |parser| {
                         parser.eat_expression()
