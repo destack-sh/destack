@@ -372,9 +372,9 @@ impl Parser {
     /// "Content-Type": "application/json"
     /// ```
     #[inline]
-    pub fn eat_named_argument(&mut self) -> ParseResult<LocalNodeId<Argument>> {
+    pub fn eat_tree_argument(&mut self) -> ParseResult<LocalNodeId<Argument>> {
         let start = self.mark();
-        // named argument
+        // named argument (name: value)
         if self.peek_name().is_ok() && self.peek_next_token(TokenType::Colon).is_ok() {
             let name = self.eat_name().for_node_type(NodeType::Argument)?;
             self.bump(); // eat colon
@@ -388,7 +388,7 @@ impl Parser {
                 .insert(Argument::Named { name, value }, self.get_span_from(start));
             Ok(argument_id)
         }
-        // spread argument
+        // spread argument (...expr)
         else if self.peek_token(TokenType::Spread).is_ok() {
             self.bump(); // eat spread
             let value = self.with_options(self.options.not_in_position(), |parser| {
@@ -399,9 +399,25 @@ impl Parser {
                 .insert(Argument::Spread { value }, self.get_span_from(start));
             Ok(argument_id)
         }
-        // positional argument
+        // expression container ({expr}) - TSX syntax where {} are delimiters, not part of expr
+        else if self.peek_token(TokenType::OpenBrace).is_ok() {
+            self.bump(); // eat {
+            self.eat_newlines_maybe()?;
+            let value = self.with_options(self.options.not_in_position(), |parser| {
+                parser.eat_expression()
+            })?;
+            self.eat_newlines_maybe()?;
+            self.eat_token(TokenType::CloseBrace)?;
+            let argument_id = self
+                .tree
+                .insert(Argument::Positional { value }, self.get_span_from(start));
+            Ok(argument_id)
+        }
+        // positional argument (bare expression like nested <Element />)
         else {
-            let value = self.eat_expression()?;
+            let value = self.with_options(self.options.not_in_position(), |parser| {
+                parser.eat_expression()
+            })?;
             let argument_id = self
                 .tree
                 .insert(Argument::Positional { value }, self.get_span_from(start));
@@ -458,9 +474,22 @@ impl Parser {
             {
                 self.bump(); // eat colon or assign
                 self.eat_newlines_maybe()?;
-                self.with_options(self.options.in_statement_position(), |parser| {
-                    parser.eat_expression()
-                })?
+                // TSX expression container: attr={expr} - braces are delimiters
+                if self.peek_token(TokenType::OpenBrace).is_ok() {
+                    self.bump(); // eat {
+                    self.eat_newlines_maybe()?;
+                    let value = self.with_options(self.options.not_in_position(), |parser| {
+                        parser.eat_expression()
+                    })?;
+                    self.eat_newlines_maybe()?;
+                    self.eat_token(TokenType::CloseBrace)?;
+                    value
+                } else {
+                    // bare expression (like attr="string" or attr=true)
+                    self.with_options(self.options.not_in_position(), |parser| {
+                        parser.eat_expression()
+                    })?
+                }
             }
             // implicit boolean true
             else {
@@ -597,7 +626,7 @@ impl Parser {
             if self.peek_token(terminator).is_ok() {
                 break;
             }
-            let argument_id = self.eat_named_argument()?;
+            let argument_id = self.eat_tree_argument()?;
             arguments.push(argument_id);
             self.eat_newlines_maybe()?;
             if self.peek_item_stop().is_ok() {
@@ -759,7 +788,7 @@ mod tests {
         // x: 1
         let mut test = TestParser::new("x: 1");
         let mut parser = test.prepare();
-        let argument_id = parser.eat_named_argument().unwrap();
+        let argument_id = parser.eat_tree_argument().unwrap();
         assert_node!(parser.tree, argument_id, Argument::Named { name: Name::Identifier(name), value } => {
             // x
             assert_string!(parser, *name, "x");

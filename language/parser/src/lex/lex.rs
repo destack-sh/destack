@@ -1,7 +1,7 @@
 use std::str::FromStr;
 
 use super::html_entities::HTML_NAMED_ENTITIES;
-use super::lexer::Lexer;
+use super::lexer::{Lexer, TreeState};
 use destack_ast::{
     Keyword, LiteralType, NumberBase, Token, TokenSpan, TokenType, is_identifier_continue,
     is_identifier_start, is_whitespace,
@@ -40,6 +40,20 @@ pub const EXPRESSION_START_TOKEN_TYPES: [TokenType; 15] = [
     TokenType::LogicalOrAssign,
     TokenType::OpenParenthesis,
     TokenType::OpenBracket,
+];
+
+/// Token types after which `<` can start a tree literal (TSX-compatible).
+/// More restrictive than EXPRESSION_START_TOKEN_TYPES:
+/// - No Newline (after newline in interface body, `<T>` is a generic)
+/// - No Semicolon (same reason)
+/// - Only clear expression-start positions
+pub const TREE_OPENING_TOKEN_TYPES: [TokenType; 6] = [
+    TokenType::Assign,          // x = <div/>
+    TokenType::OpenParenthesis, // (<div/>)
+    TokenType::OpenBracket,     // [<div/>]
+    TokenType::Comma,           // f(a, <div/>)
+    TokenType::ArrowWide,       // () => <div/>
+    TokenType::Colon,           // {foo: <div/>} or ternary ? <a/> : <b/>
 ];
 
 #[inline]
@@ -93,6 +107,13 @@ impl Lexer<'_> {
 
     /// Parses a token from the input string.
     fn advance(&mut self) -> Token {
+        // if we're in tree content mode, try to eat tree text
+        if self.in_tree_content()
+            && let Some(token) = self.try_eat_tree_text()
+        {
+            return token;
+        }
+
         // eat first character until nothing is left (=EOF)
         let Some(first_char) = self.eat() else {
             return Token::new(TokenType::End, 0, None);
@@ -109,105 +130,116 @@ impl Lexer<'_> {
                 }
             }
 
-            // slash, comments, regex or divide ops
+            // slash, comments, regex, divide ops, or tree self-closing
             '/' => {
-                let bytes = self.as_str().as_bytes();
-                let next = bytes.first().copied();
-                match next {
-                    // //
-                    Some(b'/') => {
-                        // doc line comment if exactly three slashes and the fourth is not '/'
-                        let third_is_slash = bytes.get(1).copied() == Some(b'/');
-                        let fourth_is_slash = bytes.get(2).copied() == Some(b'/');
-                        let is_doc_line = third_is_slash && !fourth_is_slash;
-                        self.eat_until(b'\n');
-                        if is_doc_line {
-                            (TokenType::DocLineComment, None)
-                        } else {
-                            (TokenType::LineComment, None)
-                        }
-                    }
-                    // /*
-                    // block comments starting with '/*' (with nesting)
-                    Some(b'*') => {
-                        // detect doc block comment for exactly '/**' (not '/***')
-                        let third_is_star = bytes.get(1).copied() == Some(b'*');
-                        let fourth_is_star = bytes.get(2).copied() == Some(b'*');
-                        let is_doc_block = third_is_star && !fourth_is_star;
-                        // consume the initial '*'
-                        self.eat();
-                        self.eat_block_comment();
-                        if is_doc_block {
-                            (TokenType::DocBlockComment, None)
-                        } else {
-                            (TokenType::BlockComment, None)
-                        }
-                    }
-                    // regex or divide
-                    _ => {
-                        // /regex/ if we're in a "start" context
-                        let prev_non_whitespace_token = {
-                            self.tokens
-                                .iter()
-                                .rev()
-                                .find(|token| token.token.ty != TokenType::Whitespace)
-                        };
-                        let is_expression_start = {
-                            if let Some(prev_non_whitespace_token) = prev_non_whitespace_token {
-                                EXPRESSION_START_TOKEN_TYPES
-                                    .contains(&prev_non_whitespace_token.token.ty)
-                                    || prev_non_whitespace_token.token.ty == TokenType::Identifier
-                                        && Keyword::from_str(
-                                            self.get_span_str(prev_non_whitespace_token.span),
-                                        )
-                                        .map(|k| k.is_control())
-                                        .unwrap_or(false)
+                // in tree opening tag mode, / is part of self-closing tag
+                // don't pop state here - let > handler do it
+                if self.tree_state() == TreeState::OpeningTag && self.peek() == '>' {
+                    (TokenType::Divide, None)
+                }
+                // in tree closing tag (after </), just treat as divide
+                else if self.tree_state() == TreeState::ClosingTag {
+                    (TokenType::Divide, None)
+                } else {
+                    let bytes = self.as_str().as_bytes();
+                    let next = bytes.first().copied();
+                    match next {
+                        // //
+                        Some(b'/') => {
+                            // doc line comment if exactly three slashes and the fourth is not '/'
+                            let third_is_slash = bytes.get(1).copied() == Some(b'/');
+                            let fourth_is_slash = bytes.get(2).copied() == Some(b'/');
+                            let is_doc_line = third_is_slash && !fourth_is_slash;
+                            self.eat_until(b'\n');
+                            if is_doc_line {
+                                (TokenType::DocLineComment, None)
                             } else {
-                                true
+                                (TokenType::LineComment, None)
                             }
-                        };
-                        // check it's not a closing tag
-                        // (`/>` without a closing `/` on the same line)
-                        let is_regex_start = {
-                            // not an expression start, not a regex
-                            if !is_expression_start {
-                                false
-                            }
-                            // not a closing tag, definitely a regex
-                            else if self.peek() != '>' {
-                                true
-                            }
-                            // might be a regex iff we find a closing `/` on the line
-                            else {
-                                let mut found_closing_slash_on_line = false;
-                                for c in self.as_str().chars() {
-                                    if c == '/' {
-                                        found_closing_slash_on_line = true;
-                                        break;
-                                    } else if c == '\n' {
-                                        break;
-                                    }
-                                }
-                                found_closing_slash_on_line
-                            }
-                        };
-
-                        // regex
-                        if is_regex_start {
-                            let has_flags = self.eat_regex_string();
-                            (
-                                TokenType::Literal,
-                                Some(LiteralType::RegexString { has_flags }),
-                            )
                         }
-                        // /=
-                        else if self.peek() == '=' {
+                        // /*
+                        // block comments starting with '/*' (with nesting)
+                        Some(b'*') => {
+                            // detect doc block comment for exactly '/**' (not '/***')
+                            let third_is_star = bytes.get(1).copied() == Some(b'*');
+                            let fourth_is_star = bytes.get(2).copied() == Some(b'*');
+                            let is_doc_block = third_is_star && !fourth_is_star;
+                            // consume the initial '*'
                             self.eat();
-                            (TokenType::DivideAssign, None)
+                            self.eat_block_comment();
+                            if is_doc_block {
+                                (TokenType::DocBlockComment, None)
+                            } else {
+                                (TokenType::BlockComment, None)
+                            }
                         }
-                        // /
-                        else {
-                            (TokenType::Divide, None)
+                        // regex or divide
+                        _ => {
+                            // /regex/ if we're in a "start" context
+                            let prev_non_whitespace_token = {
+                                self.tokens
+                                    .iter()
+                                    .rev()
+                                    .find(|token| token.token.ty != TokenType::Whitespace)
+                            };
+                            let is_expression_start = {
+                                if let Some(prev_non_whitespace_token) = prev_non_whitespace_token {
+                                    EXPRESSION_START_TOKEN_TYPES
+                                        .contains(&prev_non_whitespace_token.token.ty)
+                                        || prev_non_whitespace_token.token.ty
+                                            == TokenType::Identifier
+                                            && Keyword::from_str(
+                                                self.get_span_str(prev_non_whitespace_token.span),
+                                            )
+                                            .map(|k| k.is_control())
+                                            .unwrap_or(false)
+                                } else {
+                                    true
+                                }
+                            };
+                            // check it's not a closing tag
+                            // (`/>` without a closing `/` on the same line)
+                            let is_regex_start = {
+                                // not an expression start, not a regex
+                                if !is_expression_start {
+                                    false
+                                }
+                                // not a closing tag, definitely a regex
+                                else if self.peek() != '>' {
+                                    true
+                                }
+                                // might be a regex iff we find a closing `/` on the line
+                                else {
+                                    let mut found_closing_slash_on_line = false;
+                                    for c in self.as_str().chars() {
+                                        if c == '/' {
+                                            found_closing_slash_on_line = true;
+                                            break;
+                                        } else if c == '\n' {
+                                            break;
+                                        }
+                                    }
+                                    found_closing_slash_on_line
+                                }
+                            };
+
+                            // regex
+                            if is_regex_start {
+                                let has_flags = self.eat_regex_string();
+                                (
+                                    TokenType::Literal,
+                                    Some(LiteralType::RegexString { has_flags }),
+                                )
+                            }
+                            // /=
+                            else if self.peek() == '=' {
+                                self.eat();
+                                (TokenType::DivideAssign, None)
+                            }
+                            // /
+                            else {
+                                (TokenType::Divide, None)
+                            }
                         }
                     }
                 }
@@ -291,6 +323,15 @@ impl Lexer<'_> {
                 (TokenType::CloseBracket, None)
             }
             '{' => {
+                // in tree content mode, { starts an expression container
+                if self.in_tree_content() {
+                    // leave content mode (will return when } is matched)
+                    self.pop_tree_state();
+                    // track the depth so we know when to return to content mode
+                    self.options
+                        .tree_expression_stack
+                        .push(self.options.parentheses_depth);
+                }
                 self.options.parentheses_depth += 1;
                 (TokenType::OpenBrace, None)
             }
@@ -298,7 +339,7 @@ impl Lexer<'_> {
             '}' => {
                 self.options.parentheses_depth -= 1;
 
-                // we're at the end of an interpolation, continue or end
+                // we're at the end of a template string interpolation
                 if self.options.template_string_stack.last()
                     == Some(&self.options.parentheses_depth)
                 {
@@ -314,6 +355,15 @@ impl Lexer<'_> {
                         self.options.parentheses_depth += 1; // for the opening `{` (again)
                         (TokenType::TemplateStringMiddle, None)
                     }
+                }
+                // we're at the end of a tree expression container
+                else if self.options.tree_expression_stack.last()
+                    == Some(&self.options.parentheses_depth)
+                {
+                    self.options.tree_expression_stack.pop();
+                    // return to content mode
+                    self.push_tree_state(TreeState::Content);
+                    (TokenType::CloseBrace, None)
                 } else {
                     (TokenType::CloseBrace, None)
                 }
@@ -470,7 +520,7 @@ impl Lexer<'_> {
                 }
             }
 
-            // less than or shift left
+            // less than, shift left, or tree literal opening
             '<' => {
                 // <<
                 if self.peek() == '<' {
@@ -503,16 +553,54 @@ impl Lexer<'_> {
                     self.eat();
                     (TokenType::LessThanOrEqual, None)
                 }
-                // <
+                // </ - tree closing tag (when in content mode)
+                else if self.in_tree_content() && self.peek() == '/' {
+                    // pop from content mode (closing tag will finish with >)
+                    self.pop_tree_state();
+                    // push closing tag mode
+                    self.push_tree_state(TreeState::ClosingTag);
+                    (TokenType::LessThan, None)
+                }
+                // <Ident - tree opening tag (only in expression-start position)
+                else if self.is_tree_opening_position() && self.peek_tree_tag_start() {
+                    self.push_tree_state(TreeState::OpeningTag);
+                    (TokenType::LessThan, None)
+                }
+                // < - plain less than
                 else {
                     (TokenType::LessThan, None)
                 }
             }
 
-            // greater than or shift right
+            // greater than, shift right, or tree tag close
             '>' => {
+                // in tree opening tag mode, > ends the tag
+                if self.tree_state() == TreeState::OpeningTag {
+                    // check if previous token was / (self-closing tag)
+                    let prev_is_divide = self
+                        .tokens
+                        .last()
+                        .map(|t| t.token.ty == TokenType::Divide)
+                        .unwrap_or(false);
+
+                    if prev_is_divide {
+                        // self-closing: just pop, no content mode
+                        self.pop_tree_state();
+                    } else {
+                        // regular opening: transition to content mode
+                        self.pop_tree_state();
+                        self.push_tree_state(TreeState::Content);
+                    }
+                    (TokenType::GreaterThan, None)
+                }
+                // in tree closing tag mode, > ends the closing tag
+                else if self.tree_state() == TreeState::ClosingTag {
+                    // just pop closing tag mode, return to parent context
+                    self.pop_tree_state();
+                    (TokenType::GreaterThan, None)
+                }
                 // >>=
-                if self.peek() == '>' && self.peek_next() == '=' {
+                else if self.peek() == '>' && self.peek_next() == '=' {
                     self.eat(); // >
                     self.eat(); // =
                     (TokenType::ShiftRightAssign, None)
@@ -1136,6 +1224,155 @@ impl Lexer<'_> {
             }
             // consume a single character and continue
             let _ = self.eat();
+        }
+    }
+
+    /// Tries to eat tree literal text content (TSX-compatible).
+    /// Returns a Literal token with TreeString type if there's text content.
+    /// Text content ends at `<` or `{`.
+    fn try_eat_tree_text(&mut self) -> Option<Token> {
+        // peek at what's coming - don't eat yet
+        let first = self.peek();
+
+        // these characters start other tokens, not text
+        if matches!(first, '<' | '{' | '\0') {
+            return None;
+        }
+
+        // eat characters until we hit a boundary
+        self.eat(); // consume first character
+
+        while !self.is_end() {
+            let c = self.peek();
+            match c {
+                // boundaries: start of tag or expression container
+                '<' | '{' => break,
+                _ => {
+                    self.eat();
+                }
+            }
+        }
+
+        // always produce a token for consumed text
+        // (the parser will normalize/trim whitespace as needed per TSX rules)
+        let token = Token::new(
+            TokenType::Literal,
+            self.get_pos_within_token(),
+            Some(LiteralType::TreeString),
+        );
+        self.reset_pos_within_token();
+        Some(token)
+    }
+
+    /// Checks if we're in a position where `<` could start a tree literal.
+    /// This uses the same logic as regex detection: `<` starts a tree when
+    /// after operators, keywords, or opening brackets (not after values).
+    fn is_tree_opening_position(&self) -> bool {
+        // if we're already in tree content, nested trees are always allowed
+        if self.in_tree_content() {
+            return true;
+        }
+
+        // check previous non-whitespace token
+        let prev = self
+            .tokens
+            .iter()
+            .rev()
+            .find(|token| token.token.ty != TokenType::Whitespace);
+
+        match prev {
+            // start of file: tree is allowed (top-level JSX expression)
+            None => true,
+            Some(prev_token) => {
+                // after tree-opening tokens: tree is allowed
+                if TREE_OPENING_TOKEN_TYPES.contains(&prev_token.token.ty) {
+                    return true;
+                }
+                // after control keywords (return, if, etc.): tree is allowed
+                if prev_token.token.ty == TokenType::Identifier
+                    && let Ok(kw) = Keyword::from_str(self.get_span_str(prev_token.span))
+                    && kw.is_control()
+                {
+                    return true;
+                }
+                // after open brace only if we're in tree content (expression container)
+                // not for interface/block bodies
+                if prev_token.token.ty == TokenType::OpenBrace {
+                    // check if we're inside a tree expression container
+                    if !self.options.tree_expression_stack.is_empty() {
+                        return true;
+                    }
+                }
+                // otherwise: it's a comparison operator or generic
+                false
+            }
+        }
+    }
+
+    /// Checks if the next characters look like a tree tag start, NOT a generic.
+    /// Uses TSX disambiguation rules:
+    /// - `<>` → fragment (tree)
+    /// - `<Ident>` → tree element
+    /// - `<Ident,>` → generic (trailing comma)
+    /// - `<Ident =` → generic (default)
+    /// - `<Ident extends` → generic (constraint)
+    /// - `<Ident :` → generic (Destack type annotation)
+    fn peek_tree_tag_start(&self) -> bool {
+        let s = self.as_str();
+        let bytes = s.as_bytes();
+        if bytes.is_empty() {
+            return false;
+        }
+
+        let first = bytes[0] as char;
+
+        // `<>` is a fragment
+        if first == '>' {
+            return true;
+        }
+
+        // must start with identifier for element name
+        if !is_identifier_start(first) {
+            return false;
+        }
+
+        // skip the identifier to see what comes after
+        let mut i = 1;
+        while i < bytes.len() && is_identifier_continue(bytes[i] as char) {
+            i += 1;
+        }
+
+        // skip whitespace
+        while i < bytes.len() && is_whitespace(bytes[i] as char) && bytes[i] != b'\n' {
+            i += 1;
+        }
+
+        if i >= bytes.len() {
+            return false;
+        }
+
+        // check for generic indicators (NOT tree)
+        let after_ident = bytes[i] as char;
+        match after_ident {
+            // trailing comma: <T,> is generic
+            ',' => false,
+            // default value: <T = X> is generic
+            '=' => false,
+            // constraint: <T extends X> is generic
+            'e' => {
+                // check if it's "extends"
+                let remaining = &s[i..];
+                if remaining.starts_with("extends") {
+                    return false;
+                }
+                true
+            }
+            // Destack type annotation: <T : X> is generic
+            ':' => false,
+            // newline before > could be generic parameter list
+            '\n' => false,
+            // anything else (including >, /, space+attr): likely tree
+            _ => true,
         }
     }
 }

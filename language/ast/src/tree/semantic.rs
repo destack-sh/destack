@@ -73,6 +73,7 @@ impl SemanticType {
                         LiteralType::Character { .. } => SemanticType::LiteralStringy,
                         LiteralType::String { .. } => SemanticType::LiteralStringy,
                         LiteralType::RegexString { .. } => SemanticType::LiteralStringy,
+                        LiteralType::TreeString => SemanticType::LiteralStringy,
                     }
                 } else {
                     SemanticType::LiteralStringy

@@ -669,3 +669,219 @@ fn test_lex_logical_assignments() {
         Token::new(TokenType::Identifier, 1, None),
     );
 }
+
+// tree literals (TSX-compatible)
+
+#[test]
+fn test_lex_tree_self_closing() {
+    // <A/> - self-closing tree tag
+    assert_tokenize_eq_roundtrip!(
+        "<A/>",
+        Token::new(TokenType::LessThan, 1, None),  // <
+        Token::new(TokenType::Identifier, 1, None), // A
+        Token::new(TokenType::Divide, 1, None),     // /
+        Token::new(TokenType::GreaterThan, 1, None), // >
+    );
+}
+
+#[test]
+fn test_lex_tree_with_text_content() {
+    // <div>Hello</div> - tag with text content
+    assert_tokenize_eq_roundtrip!(
+        "<div>Hello</div>",
+        Token::new(TokenType::LessThan, 1, None),   // <
+        Token::new(TokenType::Identifier, 3, None), // div
+        Token::new(TokenType::GreaterThan, 1, None), // >
+        Token::new(TokenType::Literal, 5, Some(LiteralType::TreeString)), // Hello
+        Token::new(TokenType::LessThan, 1, None),   // <
+        Token::new(TokenType::Divide, 1, None),     // /
+        Token::new(TokenType::Identifier, 3, None), // div
+        Token::new(TokenType::GreaterThan, 1, None), // >
+    );
+}
+
+#[test]
+fn test_lex_tree_with_expression_container() {
+    // <div>{x}</div> - tag with expression container
+    assert_tokenize_eq_roundtrip!(
+        "<div>{x}</div>",
+        Token::new(TokenType::LessThan, 1, None),   // <
+        Token::new(TokenType::Identifier, 3, None), // div
+        Token::new(TokenType::GreaterThan, 1, None), // >
+        Token::new(TokenType::OpenBrace, 1, None),  // {
+        Token::new(TokenType::Identifier, 1, None), // x
+        Token::new(TokenType::CloseBrace, 1, None), // }
+        Token::new(TokenType::LessThan, 1, None),   // <
+        Token::new(TokenType::Divide, 1, None),     // /
+        Token::new(TokenType::Identifier, 3, None), // div
+        Token::new(TokenType::GreaterThan, 1, None), // >
+    );
+}
+
+#[test]
+fn test_lex_tree_with_text_and_expression() {
+    // <div>Hello {name}!</div> - mixed text and expression
+    assert_tokenize_eq_roundtrip!(
+        "<div>Hello {name}!</div>",
+        Token::new(TokenType::LessThan, 1, None),   // <
+        Token::new(TokenType::Identifier, 3, None), // div
+        Token::new(TokenType::GreaterThan, 1, None), // >
+        Token::new(TokenType::Literal, 6, Some(LiteralType::TreeString)), // "Hello "
+        Token::new(TokenType::OpenBrace, 1, None),  // {
+        Token::new(TokenType::Identifier, 4, None), // name
+        Token::new(TokenType::CloseBrace, 1, None), // }
+        Token::new(TokenType::Literal, 1, Some(LiteralType::TreeString)), // "!"
+        Token::new(TokenType::LessThan, 1, None),   // <
+        Token::new(TokenType::Divide, 1, None),     // /
+        Token::new(TokenType::Identifier, 3, None), // div
+        Token::new(TokenType::GreaterThan, 1, None), // >
+    );
+}
+
+#[test]
+fn test_lex_comparison_not_tree() {
+    // a < b should be comparison, not tree opening
+    assert_tokenize_eq_roundtrip!(
+        "a < b",
+        Token::new(TokenType::Identifier, 1, None), // a
+        Token::new(TokenType::Whitespace, 1, None),
+        Token::new(TokenType::LessThan, 1, None),   // <
+        Token::new(TokenType::Whitespace, 1, None),
+        Token::new(TokenType::Identifier, 1, None), // b
+    );
+}
+
+#[test]
+fn test_lex_tree_after_return() {
+    // return <A/> - tree after keyword
+    assert_tokenize_eq_roundtrip!(
+        "return <A/>",
+        Token::new(TokenType::Identifier, 6, None), // return
+        Token::new(TokenType::Whitespace, 1, None),
+        Token::new(TokenType::LessThan, 1, None),   // <
+        Token::new(TokenType::Identifier, 1, None), // A
+        Token::new(TokenType::Divide, 1, None),     // /
+        Token::new(TokenType::GreaterThan, 1, None), // >
+    );
+}
+
+#[test]
+fn test_lex_tree_after_open_paren() {
+    // (<A/>) - tree in parentheses
+    assert_tokenize_eq_roundtrip!(
+        "(<A/>)",
+        Token::new(TokenType::OpenParenthesis, 1, None), // (
+        Token::new(TokenType::LessThan, 1, None),   // <
+        Token::new(TokenType::Identifier, 1, None), // A
+        Token::new(TokenType::Divide, 1, None),     // /
+        Token::new(TokenType::GreaterThan, 1, None), // >
+        Token::new(TokenType::CloseParenthesis, 1, None), // )
+    );
+}
+
+#[test]
+fn test_lex_tree_fragment() {
+    // <></> - empty fragment
+    assert_tokenize_eq_roundtrip!(
+        "<></>",
+        Token::new(TokenType::LessThan, 1, None),   // <
+        Token::new(TokenType::GreaterThan, 1, None), // >
+        Token::new(TokenType::LessThan, 1, None),   // <
+        Token::new(TokenType::Divide, 1, None),     // /
+        Token::new(TokenType::GreaterThan, 1, None), // >
+    );
+}
+
+#[test]
+fn test_lex_tree_nested() {
+    // <A><B/></A> - nested tree element
+    assert_tokenize_eq_roundtrip!(
+        "<A><B/></A>",
+        Token::new(TokenType::LessThan, 1, None),   // <
+        Token::new(TokenType::Identifier, 1, None), // A
+        Token::new(TokenType::GreaterThan, 1, None), // >
+        Token::new(TokenType::LessThan, 1, None),   // <
+        Token::new(TokenType::Identifier, 1, None), // B
+        Token::new(TokenType::Divide, 1, None),     // /
+        Token::new(TokenType::GreaterThan, 1, None), // >
+        Token::new(TokenType::LessThan, 1, None),   // <
+        Token::new(TokenType::Divide, 1, None),     // /
+        Token::new(TokenType::Identifier, 1, None), // A
+        Token::new(TokenType::GreaterThan, 1, None), // >
+    );
+}
+
+#[test]
+fn test_lex_tree_nested_with_whitespace() {
+    // nested with whitespace
+    assert_tokenize_eq_roundtrip!(
+        "<A>\n    <B/>\n</A>",
+        Token::new(TokenType::LessThan, 1, None),   // <
+        Token::new(TokenType::Identifier, 1, None), // A
+        Token::new(TokenType::GreaterThan, 1, None), // >
+        Token::new(TokenType::Literal, 5, Some(LiteralType::TreeString)), // "\n    " (whitespace)
+        Token::new(TokenType::LessThan, 1, None),   // <
+        Token::new(TokenType::Identifier, 1, None), // B
+        Token::new(TokenType::Divide, 1, None),     // /
+        Token::new(TokenType::GreaterThan, 1, None), // >
+        Token::new(TokenType::Literal, 1, Some(LiteralType::TreeString)), // "\n" (whitespace)
+        Token::new(TokenType::LessThan, 1, None),   // <
+        Token::new(TokenType::Divide, 1, None),     // /
+        Token::new(TokenType::Identifier, 1, None), // A
+        Token::new(TokenType::GreaterThan, 1, None), // >
+    );
+}
+
+#[test]
+fn test_lex_tree_deeply_nested() {
+    // deeply nested with expression container - matches parser test
+    let file_id = FileId::new(0);
+    let input = r"
+<A>
+    <B>
+        <C>
+            <D/>
+            {2}
+        </C>
+    </B>
+</A>
+";
+    let language = LanguageOptions::default();
+    let (tokens, _) = Lexer::lex(file_id, input, language);
+
+    // print tokens for debugging
+    for token in &tokens {
+        eprintln!(
+            "{:3}-{:3}: {:?} {:?}",
+            token.span.start, token.span.end, token.token.ty, token.token.literal
+        );
+    }
+
+    // basic sanity check:
+    // - 7 `<` tokens: 4 opening (<A, <B, <C, <D) + 3 closing (</C, </B, </A)
+    // - 4 `/` tokens: 1 self-close (<D/>) + 3 closing (</C, </B, </A)
+    let less_thans: Vec<_> = tokens
+        .iter()
+        .filter(|t| t.token.ty == TokenType::LessThan)
+        .collect();
+    assert_eq!(less_thans.len(), 7, "should have 7 < tokens");
+
+    let divides: Vec<_> = tokens
+        .iter()
+        .filter(|t| t.token.ty == TokenType::Divide)
+        .collect();
+    assert_eq!(divides.len(), 4, "should have 4 / tokens (1 self-close + 3 closing)");
+
+    // verify expression container tokens exist
+    let open_braces: Vec<_> = tokens
+        .iter()
+        .filter(|t| t.token.ty == TokenType::OpenBrace)
+        .collect();
+    assert_eq!(open_braces.len(), 1, "should have 1 open brace token");
+
+    let close_braces: Vec<_> = tokens
+        .iter()
+        .filter(|t| t.token.ty == TokenType::CloseBrace)
+        .collect();
+    assert_eq!(close_braces.len(), 1, "should have 1 close brace token");
+}
