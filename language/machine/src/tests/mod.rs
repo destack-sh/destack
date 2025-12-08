@@ -12,17 +12,17 @@ use crate::memory::Value;
 /// Parse MIR text and create an interpreter.
 fn create_interpreter(mir_text: &str) -> Interpreter {
     let (tree, strings) = Parser::parse(mir_text).expect("failed to parse MIR");
-    Interpreter::with_options(tree, strings, MachineOptions::for_testing())
+    Interpreter::with_options(tree, strings, MachineOptions::test())
 }
 
 /// Run a MIR function by name with the given arguments.
 fn run_mir(
-    mir_text: &str,
+    mir: &str,
     function: &str,
-    args: &[Value],
+    arguments: &[Value],
 ) -> RuntimeResult<ExecutionOutput> {
-    let mut interpreter = create_interpreter(mir_text);
-    interpreter.call_by_name(function, args)
+    let mut interpreter = create_interpreter(mir);
+    interpreter.run_function_by_name(function, arguments)
 }
 
 /// Run MIR and expect success, returning the output.

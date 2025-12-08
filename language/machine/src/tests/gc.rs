@@ -132,10 +132,9 @@ fn test_gc_handles_aggregates() {
 
     let child = heap.allocate();
     // put a reference inside an aggregate value
-    let parent = heap.allocate_with_values(vec![Value::Aggregate(vec![
-        Value::int32(42),
-        Value::ManagedReference(child),
-    ])]);
+    let parent = heap.allocate_with_values(vec![Value::Aggregate(
+        vec![Value::int32(42), Value::ManagedReference(child)].into_boxed_slice(),
+    )]);
 
     let _unreachable = heap.allocate();
 

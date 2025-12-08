@@ -1,6 +1,8 @@
 use destack_mir as mir;
 
 /// A runtime value in the machine.
+///
+/// Optimized for size: heap-allocated types use `Box` to keep the enum small.
 #[derive(Debug, Clone, PartialEq, Default)]
 pub enum Value {
     /// No value (void/unit).
@@ -11,10 +13,10 @@ pub enum Value {
     Bool(bool),
 
     /// Signed integer (up to 64-bit).
-    Int { value: i64, width: u16 },
+    Int { value: i64, width: u8 },
 
     /// Unsigned integer (up to 64-bit).
-    UInt { value: u64, width: u16 },
+    UInt { value: u64, width: u8 },
 
     /// 32-bit floating point.
     Float32(f32),
@@ -22,11 +24,8 @@ pub enum Value {
     /// 64-bit floating point.
     Float64(f64),
 
-    /// String value (UTF-8 encoded internally).
-    ///
-    /// NOTE: JS/TS strings are UTF-16 code units, but Rust uses UTF-8 internally. 
-    /// (Use the helper methods for JS-compatible length and indexing operations.)
-    String(String),
+    /// String value (UTF-8 encoded, immutable).
+    String(Box<str>),
 
     /// Character value (Unicode codepoint).
     Char(char),
@@ -38,7 +37,7 @@ pub enum Value {
     ManagedReference(HeapHandle),
 
     /// Aggregate value (struct, tuple, array).
-    Aggregate(Vec<Value>),
+    Aggregate(Box<[Value]>),
 }
 
 impl From<&mir::Constant> for Value {
@@ -51,7 +50,7 @@ impl From<&mir::Constant> for Value {
                 is_signed: true,
             } => Value::Int {
                 value: *value,
-                width: *width as u16,
+                width: *width as u8,
             },
             mir::Constant::Int {
                 value,
@@ -59,17 +58,17 @@ impl From<&mir::Constant> for Value {
                 is_signed: false,
             } => Value::UInt {
                 value: *value as u64,
-                width: *width as u16,
+                width: *width as u8,
             },
             mir::Constant::UInt { value, width } => Value::UInt {
                 value: *value,
-                width: *width as u16,
+                width: *width as u8,
             },
             mir::Constant::Float { bits, width: 32 } => {
                 Value::Float32(f32::from_bits(*bits as u32))
             }
             mir::Constant::Float { bits, width: _ } => Value::Float64(f64::from_bits(*bits)),
-            mir::Constant::String { value } => Value::String(value.clone()),
+            mir::Constant::String { value } => Value::String(value.clone().into_boxed_str()),
             mir::Constant::Char { value } => Value::Char(*value),
         }
     }
@@ -216,4 +215,3 @@ impl HeapHandle {
         self.0
     }
 }
-

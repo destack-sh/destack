@@ -1,12 +1,22 @@
 use destack_mir as mir;
+use smallvec::SmallVec;
 
 use crate::diagnostic::{Error, RuntimeError, RuntimeResult};
 use crate::memory::{HeapHandle, Value};
+
+/// Inline capacity for SSA values (covers most small functions).
+const VALUES_INLINE_CAP: usize = 8;
+
+/// Inline capacity for local variables (most functions have 0-4 locals).
+const LOCALS_INLINE_CAP: usize = 4;
 
 /// A call frame in the interpreter.
 ///
 /// Each function call creates a new frame that holds the local values
 /// and tracks the current execution position.
+///
+/// Uses SmallVec for inline storage of small functions, avoiding
+/// heap allocations for typical cases.
 #[derive(Debug)]
 pub struct Frame {
     /// The function being executed.
@@ -18,11 +28,11 @@ pub struct Frame {
     /// Current instruction index within the block (for resuming after calls).
     pub instruction_index: usize,
     /// SSA values in this frame, indexed by value id.
-    /// Uses Vec for O(1) access since mir::Value is a sequential u32.
-    values: Vec<Option<Value>>,
+    /// Uses SmallVec for inline storage of small functions.
+    values: SmallVec<[Option<Value>; VALUES_INLINE_CAP]>,
     /// Local variables (stack slots).
     /// Linear search is fine since functions typically have few locals.
-    locals: Vec<(mir::LocalNodeId<mir::Local>, Value)>,
+    locals: SmallVec<[(mir::LocalNodeId<mir::Local>, Value); LOCALS_INLINE_CAP]>,
     /// Where to store the return value when this frame's callee returns.
     /// Set by the caller before pushing a new frame.
     pub return_destination: Option<mir::Value>,
@@ -39,8 +49,8 @@ impl Frame {
             entry_block,
             current_block: entry_block,
             instruction_index: 0,
-            values: Vec::new(),
-            locals: Vec::new(),
+            values: SmallVec::new(),
+            locals: SmallVec::new(),
             return_destination: None,
         }
     }
