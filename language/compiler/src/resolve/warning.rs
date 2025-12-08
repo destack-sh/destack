@@ -1,6 +1,6 @@
 use destack_dir::GlobalNodeIdAny;
 
-use crate::{TaskPhase, TaskWarning};
+use crate::{DiagnosticAnchor, TaskPhase, TaskWarning};
 
 use destack_workspace::Program;
 
@@ -27,12 +27,12 @@ impl ResolveWarning {
         }
     }
 
-    /// Get the node of the warning.
-    pub fn node(&self) -> GlobalNodeIdAny {
+    /// Get the anchor of the warning.
+    pub fn anchor(&self) -> DiagnosticAnchor {
         match self {
-            Self::UnknownImport { node, .. } => *node,
-            Self::UnusedImport { node, .. } => *node,
-            Self::SideEffectOnlyImport { node, .. } => *node,
+            Self::UnknownImport { node, .. } => DiagnosticAnchor::Node(*node),
+            Self::UnusedImport { node, .. } => DiagnosticAnchor::Node(*node),
+            Self::SideEffectOnlyImport { node, .. } => DiagnosticAnchor::Node(*node),
         }
     }
 

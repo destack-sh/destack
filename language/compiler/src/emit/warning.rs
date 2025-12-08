@@ -1,24 +1,17 @@
 use std::path::PathBuf;
 
-use destack_dir::GlobalNodeIdAny;
 use destack_workspace::Program;
 
-use crate::TaskPhase;
+use crate::{DiagnosticAnchor, TaskPhase};
 
 /// Warning when emitting output.
 #[derive(Debug, Clone, PartialEq)]
 #[repr(u8)]
 pub enum EmitWarning {
     /// Overwriting an existing file.
-    OverwritingFile {
-        node: GlobalNodeIdAny,
-        path: PathBuf,
-    },
+    OverwritingFile { path: PathBuf },
     /// Output file is unchanged from previous emit.
-    FileUnchanged {
-        node: GlobalNodeIdAny,
-        path: PathBuf,
-    },
+    FileUnchanged { path: PathBuf },
 }
 
 impl EmitWarning {
@@ -31,12 +24,10 @@ impl EmitWarning {
         }
     }
 
-    /// Get the node of the warning.
-    pub fn node(&self) -> GlobalNodeIdAny {
-        match self {
-            Self::OverwritingFile { node, .. } => *node,
-            Self::FileUnchanged { node, .. } => *node,
-        }
+    /// Get the anchor of the warning.
+    pub fn anchor(&self) -> DiagnosticAnchor {
+        // emit warnings are file-system related, not tied to source
+        DiagnosticAnchor::Global
     }
 
     /// Get the message of the warning.

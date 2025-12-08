@@ -1,7 +1,7 @@
 use destack_dir::GlobalNodeIdAny;
 use destack_workspace::Program;
 
-use crate::{TaskPhase, TaskWarning};
+use crate::{DiagnosticAnchor, TaskPhase, TaskWarning};
 
 /// Warning when validating something.
 #[derive(Debug, Clone, PartialEq)]
@@ -47,18 +47,18 @@ impl AnalyzeWarning {
         }
     }
 
-    /// Get the node of the warning.
-    pub fn node(&self) -> GlobalNodeIdAny {
+    /// Get the anchor of the warning.
+    pub fn anchor(&self) -> DiagnosticAnchor {
         match self {
-            Self::NonExhaustiveMatch { node, .. } => *node,
-            Self::UnreachableCode { node, .. } => *node,
-            Self::ConstantValueCondition { node, .. } => *node,
-            Self::RedundantPattern { node, .. } => *node,
-            Self::SuspiciousNarrowing { node, .. } => *node,
-            Self::UnusedSymbol { node, .. } => *node,
-            Self::IgnoredReturnValue { node, .. } => *node,
-            Self::ComplexDynamicDispatch { node, .. } => *node,
-            Self::ShadowedOverload { node, .. } => *node,
+            Self::NonExhaustiveMatch { node, .. } => DiagnosticAnchor::Node(*node),
+            Self::UnreachableCode { node, .. } => DiagnosticAnchor::Node(*node),
+            Self::ConstantValueCondition { node, .. } => DiagnosticAnchor::Node(*node),
+            Self::RedundantPattern { node, .. } => DiagnosticAnchor::Node(*node),
+            Self::SuspiciousNarrowing { node, .. } => DiagnosticAnchor::Node(*node),
+            Self::UnusedSymbol { node, .. } => DiagnosticAnchor::Node(*node),
+            Self::IgnoredReturnValue { node, .. } => DiagnosticAnchor::Node(*node),
+            Self::ComplexDynamicDispatch { node, .. } => DiagnosticAnchor::Node(*node),
+            Self::ShadowedOverload { node, .. } => DiagnosticAnchor::Node(*node),
         }
     }
 

@@ -1,6 +1,6 @@
 use destack_dir::GlobalNodeIdAny;
 
-use crate::{TaskPhase, TaskWarning};
+use crate::{DiagnosticAnchor, TaskPhase, TaskWarning};
 
 use destack_workspace::Program;
 
@@ -33,12 +33,12 @@ impl OptimizeWarning {
         }
     }
 
-    /// Get the node of the warning.
-    pub fn node(&self) -> GlobalNodeIdAny {
+    /// Get the anchor of the warning.
+    pub fn anchor(&self) -> DiagnosticAnchor {
         match self {
-            Self::InscrutableType { node, .. } => *node,
-            Self::IgnoredHint { node, .. } => *node,
-            Self::SkippedOptimization { node, .. } => *node,
+            Self::InscrutableType { node, .. } => DiagnosticAnchor::Node(*node),
+            Self::IgnoredHint { node, .. } => DiagnosticAnchor::Node(*node),
+            Self::SkippedOptimization { node, .. } => DiagnosticAnchor::Node(*node),
         }
     }
 

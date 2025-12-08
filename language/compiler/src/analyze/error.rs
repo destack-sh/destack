@@ -1,7 +1,7 @@
 use destack_dir::{FunctionAbstraction, GlobalNodeIdAny, GlobalSymbolId, GlobalTypeId, Visibility};
 use destack_workspace::Program;
 
-use crate::{TaskDependency, TaskDependencyError, TaskError, TaskPhase};
+use crate::{DiagnosticAnchor, TaskDependency, TaskDependencyError, TaskError, TaskPhase};
 
 /// Error when analyzeing something into the compiler.
 #[derive(Debug, Clone, PartialEq)]
@@ -120,27 +120,27 @@ impl AnalyzeError {
         }
     }
 
-    /// Get the node of the error.
-    pub fn node(&self) -> GlobalNodeIdAny {
+    /// Get the anchor of the error.
+    pub fn anchor(&self) -> DiagnosticAnchor {
         match self {
-            Self::Yield { dependency } => dependency.node(),
-            Self::UnsatisfiedDependency { dependency } => dependency.node(),
-            Self::UnsupportedConstruct { node, .. } => *node,
-            Self::MissingType { node, .. } => *node,
-            Self::UnassignableType { node, .. } => *node,
-            Self::InaccessibleSymbol { node, .. } => *node,
-            Self::InconsistentFunctionOverride { node, .. } => *node,
-            Self::NonCallable { node, .. } => *node,
-            Self::NonIndexable { node, .. } => *node,
-            Self::NonExhaustiveMatch { node, .. } => *node,
-            Self::IncompletePattern { node, .. } => *node,
-            Self::ConflictingPattern { node, .. } => *node,
-            Self::MissingReturn { node, .. } => *node,
-            Self::UninitializedVariable { node, .. } => *node,
-            Self::IllegalCast { node, .. } => *node,
-            Self::NoOverload { node, .. } => *node,
-            Self::AmbiguousOverload { node, .. } => *node,
-            Self::UnsupportedOperator { node, .. } => *node,
+            Self::Yield { dependency } => dependency.anchor(),
+            Self::UnsatisfiedDependency { dependency } => dependency.anchor(),
+            Self::UnsupportedConstruct { node, .. } => DiagnosticAnchor::Node(*node),
+            Self::MissingType { node, .. } => DiagnosticAnchor::Node(*node),
+            Self::UnassignableType { node, .. } => DiagnosticAnchor::Node(*node),
+            Self::InaccessibleSymbol { node, .. } => DiagnosticAnchor::Node(*node),
+            Self::InconsistentFunctionOverride { node, .. } => DiagnosticAnchor::Node(*node),
+            Self::NonCallable { node, .. } => DiagnosticAnchor::Node(*node),
+            Self::NonIndexable { node, .. } => DiagnosticAnchor::Node(*node),
+            Self::NonExhaustiveMatch { node, .. } => DiagnosticAnchor::Node(*node),
+            Self::IncompletePattern { node, .. } => DiagnosticAnchor::Node(*node),
+            Self::ConflictingPattern { node, .. } => DiagnosticAnchor::Node(*node),
+            Self::MissingReturn { node, .. } => DiagnosticAnchor::Node(*node),
+            Self::UninitializedVariable { node, .. } => DiagnosticAnchor::Node(*node),
+            Self::IllegalCast { node, .. } => DiagnosticAnchor::Node(*node),
+            Self::NoOverload { node, .. } => DiagnosticAnchor::Node(*node),
+            Self::AmbiguousOverload { node, .. } => DiagnosticAnchor::Node(*node),
+            Self::UnsupportedOperator { node, .. } => DiagnosticAnchor::Node(*node),
         }
     }
 

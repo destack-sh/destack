@@ -93,13 +93,11 @@ impl Compiler {
             } else {
                 // read from filesystem
                 let path = path.ok_or_else(|| ImportError::ModuleNotFound {
-                    node: self.program.root_node_id,
                     target: self.program.strings.intern(&uri),
                     error: None,
                 })?;
                 let content = self.program.fs.read_to_string(&path).map_err(|_| {
                     ImportError::ModuleNotFound {
-                        node: self.program.root_node_id,
                         target: self.program.strings.intern(path.to_string_lossy()),
                         error: None,
                     }

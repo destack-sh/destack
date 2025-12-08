@@ -1,9 +1,8 @@
 use std::path::PathBuf;
 
-use destack_dir::GlobalNodeIdAny;
-use destack_source::{FileType, Uri};
+use destack_source::{FileType, PackageId, Uri};
 
-use crate::{TaskDependency, TaskDependencyError, TaskError, TaskPhase};
+use crate::{DiagnosticAnchor, TaskDependency, TaskDependencyError, TaskError, TaskPhase};
 
 use destack_workspace::{ArtifactId, Program};
 
@@ -16,27 +15,18 @@ pub enum EmitError {
     /// Yield dependency has failed.
     UnsatisfiedDependency { dependency: TaskDependency },
     /// Target not found in package.
-    TargetNotFound {
-        node: GlobalNodeIdAny,
-        target: String,
-    },
+    TargetNotFound { package: PackageId, target: String },
     /// Artifact has invalid or missing output path.
-    InvalidOutputPath {
-        artifact: ArtifactId,
-        node: GlobalNodeIdAny,
-        uri: Uri,
-    },
+    InvalidOutputPath { artifact: ArtifactId, uri: Uri },
     /// Unsupported artifact.
     UnsupportedArtifact {
         artifact: ArtifactId,
-        node: GlobalNodeIdAny,
         uri: Uri,
         file_type: FileType,
     },
     /// Failed to write output file.
     FailedWrite {
         artifact: ArtifactId,
-        node: GlobalNodeIdAny,
         path: PathBuf,
         message: Option<String>,
     },
@@ -78,15 +68,15 @@ impl EmitError {
         }
     }
 
-    /// Get the node of the error.
-    pub fn node(&self) -> GlobalNodeIdAny {
+    /// Get the anchor of the error.
+    pub fn anchor(&self) -> DiagnosticAnchor {
         match self {
-            Self::Yield { dependency } => dependency.node(),
-            Self::UnsatisfiedDependency { dependency } => dependency.node(),
-            Self::TargetNotFound { node, .. } => *node,
-            Self::InvalidOutputPath { node, .. } => *node,
-            Self::UnsupportedArtifact { node, .. } => *node,
-            Self::FailedWrite { node, .. } => *node,
+            Self::Yield { dependency } => dependency.anchor(),
+            Self::UnsatisfiedDependency { dependency } => dependency.anchor(),
+            Self::TargetNotFound { package, .. } => DiagnosticAnchor::Package(*package),
+            Self::InvalidOutputPath { .. } => DiagnosticAnchor::Global,
+            Self::UnsupportedArtifact { .. } => DiagnosticAnchor::Global,
+            Self::FailedWrite { .. } => DiagnosticAnchor::Global,
         }
     }
 

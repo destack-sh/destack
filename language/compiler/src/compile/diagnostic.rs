@@ -1,6 +1,5 @@
-use crate::{TaskError, TaskWarning};
-use destack_dir::GlobalNodeIdAny;
-use destack_source::{Diagnostic, DiagnosticSeverity, LabeledSpan};
+use crate::{DiagnosticAnchor, TaskError, TaskWarning};
+use destack_source::{Diagnostic, DiagnosticSeverity, LabeledSpan, Span};
 
 use destack_workspace::Program;
 
@@ -42,11 +41,11 @@ impl CompileDiagnostic {
         }
     }
 
-    /// Get the node of the diagnostic.
-    pub fn node(&self) -> GlobalNodeIdAny {
+    /// Get the anchor of the diagnostic.
+    pub fn anchor(&self) -> DiagnosticAnchor {
         match self {
-            Self::Error(error) => error.node(),
-            Self::Warning(warning) => warning.node(),
+            Self::Error(error) => error.anchor(),
+            Self::Warning(warning) => warning.anchor(),
         }
     }
 
@@ -60,19 +59,19 @@ impl CompileDiagnostic {
 
     /// Turn the diagnostic into a full Destack diagnostic.
     pub fn to_diagnostic(&self, program: &Program) -> Diagnostic {
-        // get source information
-        let node_id = self.node();
-        let module = program.modules.get(node_id.module_id);
-        let module = module.read();
-        let source_node_id = module.dir.tree.read().get_source(node_id.local_id.id);
-
-        // make diagnostic
+        let anchor = self.anchor();
         let severity = self.severity();
         let message = self.message(program);
         let code = self.full_code();
-        let primary_span = module.ast.tree.get_span_by_id(source_node_id);
+
+        // get file and span from anchor, falling back to program's fallback file
+        let (file_id, span) = anchor.to_file_span(program).unwrap_or_else(|| {
+            let fallback = program.fallback_file_id;
+            (fallback, Span::empty(fallback))
+        });
+
         let primary_span = LabeledSpan {
-            span: primary_span,
+            span,
             label: message.clone(),
         };
 
@@ -82,7 +81,7 @@ impl CompileDiagnostic {
             severity,
             original_severity: None,
             message,
-            file_id: module.file_id,
+            file_id,
             primary_span,
             primary_highlight_spans: None,
             secondary_spans: None,

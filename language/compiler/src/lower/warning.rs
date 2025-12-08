@@ -1,6 +1,6 @@
 use destack_dir::GlobalNodeIdAny;
 
-use crate::{TaskPhase, TaskWarning};
+use crate::{DiagnosticAnchor, TaskPhase, TaskWarning};
 
 use destack_workspace::Program;
 
@@ -27,11 +27,11 @@ impl LowerWarning {
         }
     }
 
-    /// Get the node of the warning.
-    pub fn node(&self) -> GlobalNodeIdAny {
+    /// Get the anchor of the warning.
+    pub fn anchor(&self) -> DiagnosticAnchor {
         match self {
-            Self::ComplexType { node, .. } => *node,
-            Self::SlowEmulation { node, .. } => *node,
+            Self::ComplexType { node, .. } => DiagnosticAnchor::Node(*node),
+            Self::SlowEmulation { node, .. } => DiagnosticAnchor::Node(*node),
         }
     }
 

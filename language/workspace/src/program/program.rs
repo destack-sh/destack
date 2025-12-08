@@ -2,7 +2,6 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use destack_ast as ast;
-use destack_dir::{Expression, GlobalNodeIdAny, GlobalScopeId, LocalScopeMark, NodeType};
 use destack_source::{
     DiagnosticCollector, File, FileId, FileRegistry, FileSystem, FileType, LanguageOptions,
     ModuleId, PackageId, StringPool, Uri,
@@ -41,16 +40,11 @@ pub struct Program {
     /// The diagnostic collector.
     pub diagnostics: DiagnosticCollector,
 
-    // root
-    // NOTE #Cleanup: remove Program.root_* stuff?
-    /// The root file id.
-    pub root_file_id: FileId,
-    /// The root module.
+    // root module for global caching
+    /// The root module id (ephemeral module used for caching).
     pub root_module_id: ModuleId,
-    /// The root scope (in the root module).
-    pub root_scope_id: GlobalScopeId,
-    /// The root node (in the root module).
-    pub root_node_id: GlobalNodeIdAny,
+    /// Fallback file for diagnostics without source anchors.
+    pub fallback_file_id: FileId,
 }
 
 impl Program {
@@ -69,9 +63,8 @@ impl Program {
         let strings = StringPool::new();
         let diagnostics = DiagnosticCollector::new();
 
-        // create and insert the root package, module, and file
-        let (root_file_id, root_module_id, root_scope_id, root_node_id) =
-            Self::new_root(&modules, &packages, files.clone());
+        // create and insert the root package and module (for global caching)
+        let (root_module_id, fallback_file_id) = Self::new_root(&modules, &packages, files.clone());
 
         Self {
             language,
@@ -86,19 +79,17 @@ impl Program {
             strings,
             diagnostics,
 
-            root_file_id,
             root_module_id,
-            root_scope_id,
-            root_node_id,
+            fallback_file_id,
         }
     }
 
-    /// Create and insert the root file, AST, module, and package. Return root ids.
+    /// Create and insert the root file, AST, module, and package for caching.
     fn new_root(
         modules: &ModuleRegistry,
         packages: &PackageRegistry,
         files: Arc<FileRegistry>,
-    ) -> (FileId, ModuleId, GlobalScopeId, GlobalNodeIdAny) {
+    ) -> (ModuleId, FileId) {
         // ephemeral package for root
         let root_package_id = PackageId::EPHEMERAL;
         let root_uri = Uri::from_string("<root>");
@@ -120,27 +111,21 @@ impl Program {
         let root_file_id = files.next_id();
         let root_file = File::from_text(
             root_file_id,
-            "<root>".to_string(),
+            "<destack>".to_string(),
             root_uri.clone(),
             None,
             FileType::Destack,
-            r#"/* root program */"#.to_string(),
+            String::new(),
         );
         files.insert(root_file);
-        let root_file = files.get(root_file_id);
 
-        // root AST
-        let mut root_ast = ast::NodeTree::new();
-        let ast_root_node_id = root_ast.insert(ast::Expression::Error, root_file.span());
+        // root AST (empty)
+        let root_ast = ast::NodeTree::new();
 
         // root module (uses ephemeral module id)
         let root_module_id = ModuleId::EPHEMERAL;
-        let root_module_ast = ModuleAst::from_tree(
-            root_module_id,
-            root_ast,
-            vec![ast_root_node_id],
-            StringPool::new(),
-        );
+        let root_module_ast =
+            ModuleAst::from_tree(root_module_id, root_ast, Vec::new(), StringPool::new());
         let root_module = Module::from_ast(
             root_module_id,
             root_file_id,
@@ -150,28 +135,8 @@ impl Program {
             root_module_ast,
         );
 
-        // root scope / node
-        let root_scope_id = root_module.dir.namespace_scope;
-        let dir_root_node_id = root_module.dir.tree.write().reserve_from_source(
-            NodeType::Expression,
-            ast_root_node_id.id,
-            (root_scope_id, LocalScopeMark::end()),
-            None,
-        );
-        root_module
-            .dir
-            .tree
-            .write()
-            .insert(dir_root_node_id, Expression::Error);
-
         modules.insert(root_module);
-
-        (
-            root_file_id,
-            root_module_id,
-            root_scope_id.into_global(root_module_id),
-            dir_root_node_id.into_global(root_module_id),
-        )
+        (root_module_id, root_file_id)
     }
 
     /// Register a module with inline content (pre-loaded, no filesystem read needed).

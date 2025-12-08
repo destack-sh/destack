@@ -1,6 +1,6 @@
 use destack_dir::GlobalNodeIdAny;
 
-use crate::{TaskDependency, TaskDependencyError, TaskError, TaskPhase};
+use crate::{DiagnosticAnchor, TaskDependency, TaskDependencyError, TaskError, TaskPhase};
 
 use destack_workspace::Program;
 
@@ -49,12 +49,12 @@ impl ElaborateError {
         }
     }
 
-    /// Get the node of the error.
-    pub fn node(&self) -> GlobalNodeIdAny {
+    /// Get the anchor of the error.
+    pub fn anchor(&self) -> DiagnosticAnchor {
         match self {
-            Self::Yield { dependency } => dependency.node(),
-            Self::UnsatisfiedDependency { dependency } => dependency.node(),
-            Self::UnsupportedConstruct { node, .. } => *node,
+            Self::Yield { dependency } => dependency.anchor(),
+            Self::UnsatisfiedDependency { dependency } => dependency.anchor(),
+            Self::UnsupportedConstruct { node, .. } => DiagnosticAnchor::Node(*node),
         }
     }
 

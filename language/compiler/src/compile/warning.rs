@@ -1,9 +1,9 @@
-use destack_dir::GlobalNodeIdAny;
 use destack_workspace::Program;
 
 use crate::{
-    AnalyzeWarning, BindWarning, ElaborateWarning, GenerateWarning, ImportWarning, LinkWarning,
-    LowerWarning, OptimizeWarning, ResolveWarning, TaskPhase, VerifyWarning,
+    AnalyzeWarning, BindWarning, DiagnosticAnchor, ElaborateWarning, GenerateWarning,
+    ImportWarning, LinkWarning, LowerWarning, OptimizeWarning, ResolveWarning, TaskPhase,
+    VerifyWarning,
 };
 
 /// Warning during compilation.
@@ -78,19 +78,19 @@ impl TaskWarning {
         format!("W{}{:03}", self.phase_letter(), self.sub_code())
     }
 
-    /// Get the node of the warning.
-    pub fn node(&self) -> GlobalNodeIdAny {
+    /// Get the anchor of the warning.
+    pub fn anchor(&self) -> DiagnosticAnchor {
         match self {
-            Self::Import(warning) => warning.node(),
-            Self::Bind(warning) => warning.node(),
-            Self::Resolve(warning) => warning.node(),
-            Self::Analyze(warning) => warning.node(),
-            Self::Elaborate(warning) => warning.node(),
-            Self::Lower(warning) => warning.node(),
-            Self::Verify(warning) => warning.node(),
-            Self::Optimize(warning) => warning.node(),
-            Self::Generate(warning) => warning.node(),
-            Self::Link(warning) => warning.node(),
+            Self::Import(warning) => warning.anchor(),
+            Self::Bind(warning) => warning.anchor(),
+            Self::Resolve(warning) => warning.anchor(),
+            Self::Analyze(warning) => warning.anchor(),
+            Self::Elaborate(warning) => warning.anchor(),
+            Self::Lower(warning) => warning.anchor(),
+            Self::Verify(warning) => warning.anchor(),
+            Self::Optimize(warning) => warning.anchor(),
+            Self::Generate(warning) => warning.anchor(),
+            Self::Link(warning) => warning.anchor(),
         }
     }
 

@@ -2,7 +2,7 @@ use destack_dir::GlobalNodeIdAny;
 use destack_parser::ParseError;
 use destack_source::StringId;
 
-use crate::{TaskDependency, TaskError, TaskPhase};
+use crate::{DiagnosticAnchor, TaskDependency, TaskError, TaskPhase};
 
 use destack_workspace::Program;
 
@@ -10,9 +10,8 @@ use destack_workspace::Program;
 #[derive(Debug, Clone, PartialEq)]
 #[repr(u8)]
 pub enum ImportError {
-    /// Module could not be resolved.
+    /// Module could not be resolved (filesystem or specifier resolution).
     ModuleNotFound {
-        node: GlobalNodeIdAny,
         target: StringId,
         error: Option<destack_resolver::ResolveError>,
     },
@@ -42,11 +41,13 @@ impl ImportError {
         }
     }
 
-    /// Get the node of the error.
-    pub fn node(&self) -> GlobalNodeIdAny {
+    /// Get the anchor of the error.
+    pub fn anchor(&self) -> DiagnosticAnchor {
         match self {
-            Self::ModuleNotFound { node, .. } => *node,
-            Self::ParseError { node, .. } => *node,
+            // module resolution is global (not tied to a specific source location)
+            Self::ModuleNotFound { .. } => DiagnosticAnchor::Global,
+            // parse errors are tied to the parse node
+            Self::ParseError { node, .. } => DiagnosticAnchor::Node(*node),
         }
     }
 

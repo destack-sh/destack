@@ -1,6 +1,6 @@
-use destack_dir::GlobalNodeIdAny;
+use destack_source::PackageId;
 
-use crate::{TaskDependency, TaskError, TaskPhase};
+use crate::{DiagnosticAnchor, TaskDependency, TaskError, TaskPhase};
 
 use destack_workspace::Program;
 
@@ -13,21 +13,15 @@ pub enum LinkError {
     /// Yield dependency has failed.
     UnsatisfiedDependency { dependency: TaskDependency },
     /// Missing target.
-    MissingTarget {
-        node: GlobalNodeIdAny,
-        target: String,
-    },
+    MissingTarget { package: PackageId, target: String },
     /// Invalid target configuration.
     InvalidTarget {
-        node: GlobalNodeIdAny,
+        package: PackageId,
         target: String,
         message: String,
     },
     /// Internal error during linking.
-    Internal {
-        node: GlobalNodeIdAny,
-        message: String,
-    },
+    Internal { package: PackageId, message: String },
 }
 
 impl TryFrom<LinkError> for TaskDependency {
@@ -54,14 +48,14 @@ impl LinkError {
         }
     }
 
-    /// Get the node of the error.
-    pub fn node(&self) -> GlobalNodeIdAny {
+    /// Get the anchor of the error.
+    pub fn anchor(&self) -> DiagnosticAnchor {
         match self {
-            Self::Yield { dependency } => dependency.node(),
-            Self::UnsatisfiedDependency { dependency } => dependency.node(),
-            Self::MissingTarget { node, .. } => *node,
-            Self::InvalidTarget { node, .. } => *node,
-            Self::Internal { node, .. } => *node,
+            Self::Yield { dependency } => dependency.anchor(),
+            Self::UnsatisfiedDependency { dependency } => dependency.anchor(),
+            Self::MissingTarget { package, .. } => DiagnosticAnchor::Package(*package),
+            Self::InvalidTarget { package, .. } => DiagnosticAnchor::Package(*package),
+            Self::Internal { package, .. } => DiagnosticAnchor::Package(*package),
         }
     }
 

@@ -20,7 +20,7 @@ impl Compiler {
                 .get(target_name)
                 .cloned()
                 .ok_or_else(|| LinkError::MissingTarget {
-                    node: self.program.root_node_id,
+                    package: package_id,
                     target: target_name.to_string(),
                 })?;
 
@@ -57,8 +57,14 @@ impl Compiler {
             return Err(LinkError::Yield { dependency });
         }
 
-        // TODO #Incomplete: for single-file targets, combine artifacts here
-        // currently we just mark link as complete after all modules are generated
+        // TODO #Incomplete: single-file targets require combining artifacts
+        if target.is_single_file() {
+            return Err(LinkError::Internal {
+                package: package_id,
+                message: "single-file target linking not yet implemented".to_string(),
+            });
+        }
+
         Ok(LinkOutput {})
     }
 }
