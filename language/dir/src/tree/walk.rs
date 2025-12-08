@@ -992,6 +992,7 @@ pub fn walk_argument<V: NodeVisitor + ?Sized>(
     visitor.visit_any(tree, NodeType::Argument, id.id);
     match argument {
         Argument::Named { name: _, value }
+        | Argument::Labeled { label: _, value }
         | Argument::Positional { value }
         | Argument::Spread { value } => {
             let value_expression = tree.get(*value);

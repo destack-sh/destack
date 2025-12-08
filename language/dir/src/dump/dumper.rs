@@ -1538,6 +1538,11 @@ impl<'a> NodeVisitor for Dumper<'a> {
             Argument::Dynamic { key: _, value: _ } => {
                 self.node("Argument::Dynamic", id.id).end();
             }
+            Argument::Labeled { label, value: _ } => {
+                self.node("Argument::Labeled", id.id)
+                    .field("label", label)
+                    .end();
+            }
         }
         self.with_depth(|dumper| {
             walk_argument(dumper, tree, id, argument);

@@ -106,7 +106,9 @@ impl ModuleLowerer<'_> {
     ) -> CodegenJsResult<LocalNodeId<Argument>> {
         let argument = self.dir_tree.get(argument_id);
         let argument = match argument {
-            dir::Argument::Named { name: _, value } | dir::Argument::Positional { value } => {
+            dir::Argument::Named { name: _, value }
+            | dir::Argument::Labeled { label: _, value }
+            | dir::Argument::Positional { value } => {
                 let value = self
                     .lower_expression(*value)
                     .expect_node::<Expression>(value.into_global_any(self.module.id), self)?;

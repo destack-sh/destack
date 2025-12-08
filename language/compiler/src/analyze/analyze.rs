@@ -794,6 +794,9 @@ impl Compiler {
             Argument::Named { name: _, value } => {
                 self.analyze_expression(module, *value, tree, symbols, types, ctx)?;
             }
+            Argument::Labeled { label: _, value } => {
+                self.analyze_expression(module, *value, tree, symbols, types, ctx)?;
+            }
             Argument::Spread { value } => {
                 self.analyze_expression(module, *value, tree, symbols, types, ctx)?;
             }

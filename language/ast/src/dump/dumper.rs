@@ -1283,6 +1283,11 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .field("name", name)
                     .end();
             }
+            Argument::Labeled { label, value: _ } => {
+                self.node("Argument::Labeled", _id.id)
+                    .field("label", label)
+                    .end();
+            }
             Argument::Positional { value: _ } => {
                 self.node("Argument::Positional", _id.id).end();
             }

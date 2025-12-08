@@ -57,7 +57,7 @@ impl Node for Parameter {
     const TYPE: NodeType = NodeType::Parameter;
 }
 
-/// An Argument is a named, positional, spread, or dynamic argument.
+/// An Argument is a named, positional, spread, labeled, or dynamic argument.
 /// Parameter mapping (which parameter an argument maps to) is resolved
 /// as part of call resolution, not stored here.
 #[derive(Debug, Clone, PartialEq)]
@@ -65,6 +65,12 @@ pub enum Argument {
     /// Named argument (like `foo: 42` in tree literals).
     Named {
         name: StringId,
+        value: LocalNodeId<Expression>,
+    },
+    /// Labeled tuple element (like `start: number` in `[start: number, end: number]`).
+    /// (Labels are purely for documentation/tooling and don't affect type checking directly.)
+    Labeled {
+        label: StringId,
         value: LocalNodeId<Expression>,
     },
     /// Positional argument (like `42` in `foo(42)`).
@@ -83,6 +89,7 @@ impl Argument {
     pub fn value(&self) -> LocalNodeId<Expression> {
         match self {
             Argument::Named { value, .. } => *value,
+            Argument::Labeled { value, .. } => *value,
             Argument::Positional { value, .. } => *value,
             Argument::Spread { value, .. } => *value,
             Argument::Dynamic { value, .. } => *value,
