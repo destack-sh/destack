@@ -119,6 +119,12 @@ impl Compiler {
             self.warning(warning);
         }
 
+        // map and report errors (may be suppressed)
+        for error in output.errors {
+            let error = Self::map_js_error(module_id, error);
+            self.error(error);
+        }
+
         // store artifacts in registry
         let artifact_ids: Vec<ArtifactId> = output
             .artifacts
@@ -154,6 +160,12 @@ impl Compiler {
         for warning in output.warnings {
             let warning = Self::map_cranelift_warning(module_id, warning);
             self.warning(warning);
+        }
+
+        // map and report errors (may be suppressed)
+        for error in output.errors {
+            let error = Self::map_cranelift_error(module_id, error);
+            self.error(error);
         }
 
         // store artifacts in registry

@@ -1,12 +1,41 @@
 use crate::format::argument::list_like;
 use crate::format::dependency::{format_export_binding, format_import_binding};
 use crate::{
-    CodegenJsFormatter, DeclarationKind, DependencyKind, FormatNode, Keyword, LocalNodeId,
-    Mutability, Statement,
+    CodegenJsFormatContext, CodegenJsFormatter, DeclarationKind, DependencyKind, FormatNode,
+    Keyword, LocalNodeId, LocalNodeIdAny, Mutability, NodeType, Statement,
 };
-use destack_fir::format::FormatResult;
+use destack_fir::format::{Format, FormatResult, Formatter};
 use destack_fir::prelude::*;
 use destack_fir::write;
+
+/// Format root-level statements with semicolons and trailing newline.
+pub fn format_statements(
+    f: &mut Formatter<'_, CodegenJsFormatContext<'_>>,
+    roots: &[LocalNodeIdAny],
+) -> FormatResult<()> {
+    for (i, root) in roots.iter().enumerate() {
+        if i > 0 {
+            write!(f, [hard_line_break()])?;
+        }
+        write!(f, [root])?;
+
+        // add semicolon if this is a statement that needs one
+        if root.ty == NodeType::Statement {
+            let statement_id = LocalNodeId::<Statement>::new(root.id);
+            let statement = f.context().tree.get(statement_id);
+            if statement.needs_semicolon() {
+                write!(f, [token(";")])?;
+            }
+        }
+    }
+
+    // trailing newline
+    if !roots.is_empty() {
+        write!(f, [hard_line_break()])?;
+    }
+
+    Ok(())
+}
 
 impl<'ast> FormatNode<'ast, Statement> for Statement {
     fn format_node(
@@ -83,7 +112,7 @@ impl<'ast> FormatNode<'ast, Statement> for Statement {
                 }
 
                 // pattern
-                write!(f, [pattern])?;
+                write!(f, [space(), pattern])?;
 
                 // type
                 if f.context().include_types()
