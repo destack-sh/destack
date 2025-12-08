@@ -108,7 +108,7 @@ function @local_test(v0: i32) -> i32 {
     local0: i32
 
 block0:
-    v1 = load_local local0
+    v1 = local_get local0
     v2 = iadd v0, v1
     return v2
 }
@@ -138,9 +138,9 @@ function @multi_local_test(v0: i32) -> i64 {
     local1: i64
 
 block0:
-    v1 = load_local local0
+    v1 = local_get local0
     v2 = uextend v1 -> i64
-    v3 = load_local local1
+    v3 = local_get local1
     v4 = iadd v2, v3
     return v4
 }
