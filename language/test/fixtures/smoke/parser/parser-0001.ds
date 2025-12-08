@@ -368,9 +368,9 @@ while (step < maxSteps) {
 	step++;
 }
 
-// function trackChange(ctx: MutationCtx, type: "addItem" | "removeItem") {
-//   await ctx.db.insert("changes", { type });
-// }
+function trackChange(ctx: MutationCtx, type: "addItem" | "removeItem") {
+  await ctx.db.insert("changes", { type });
+}
 
 interface T<A> {
 	readonly a?: string;

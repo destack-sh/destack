@@ -834,7 +834,6 @@ fn test_lex_tree_nested_with_whitespace() {
 
 #[test]
 fn test_lex_tree_deeply_nested() {
-    // deeply nested with expression container - matches parser test
     let file_id = FileId::new(0);
     let input = r"
 <A>
