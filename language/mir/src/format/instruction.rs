@@ -294,6 +294,90 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                 write!(f, [token("call_indirect"), space(), callee])?;
                 format_value_list(arguments, f)
             }
+
+            Instruction::ManagedAllocate {
+                destination,
+                layout,
+            } => {
+                write!(
+                    f,
+                    [
+                        destination,
+                        space(),
+                        token("="),
+                        space(),
+                        token("managed_allocate"),
+                        space(),
+                        layout
+                    ]
+                )
+            }
+
+            Instruction::ManagedAllocateArray {
+                destination,
+                element,
+                length,
+            } => {
+                write!(
+                    f,
+                    [
+                        destination,
+                        space(),
+                        token("="),
+                        space(),
+                        token("managed_allocate_array"),
+                        space(),
+                        element,
+                        token(","),
+                        space(),
+                        length
+                    ]
+                )
+            }
+
+            Instruction::RawAllocate {
+                destination,
+                layout,
+            } => {
+                write!(
+                    f,
+                    [
+                        destination,
+                        space(),
+                        token("="),
+                        space(),
+                        token("raw_allocate"),
+                        space(),
+                        layout
+                    ]
+                )
+            }
+
+            Instruction::RawFree { pointer } => {
+                write!(f, [token("raw_free"), space(), pointer])
+            }
+
+            Instruction::StackAllocate {
+                destination,
+                layout,
+            } => {
+                write!(
+                    f,
+                    [
+                        destination,
+                        space(),
+                        token("="),
+                        space(),
+                        token("stack_allocate"),
+                        space(),
+                        layout
+                    ]
+                )
+            }
+
+            Instruction::Drop { value } => {
+                write!(f, [token("drop"), space(), value])
+            }
         }
     }
 }

@@ -81,3 +81,70 @@ block3:
 }"#,
     );
 }
+
+#[test]
+fn test_roundtrip_managed_allocate() {
+    roundtrip(
+        r#"function @alloc_test() -> ref<i32> {
+block0:
+    v0 = managed_allocate i32
+    return v0
+}"#,
+    );
+}
+
+#[test]
+fn test_roundtrip_managed_allocate_array() {
+    roundtrip(
+        r#"function @array_alloc(v0: i64) -> ref<i32> {
+block0(v0: i64):
+    v1 = managed_allocate_array i32, v0
+    return v1
+}"#,
+    );
+}
+
+#[test]
+fn test_roundtrip_raw_allocate_and_free() {
+    roundtrip(
+        r#"function @raw_alloc() -> void {
+block0:
+    v0 = raw_allocate i32
+    raw_free v0
+    return
+}"#,
+    );
+}
+
+#[test]
+fn test_roundtrip_stack_allocate() {
+    roundtrip(
+        r#"function @stack_alloc() -> rawptr<i32> {
+block0:
+    v0 = stack_allocate i32
+    return v0
+}"#,
+    );
+}
+
+#[test]
+fn test_roundtrip_drop() {
+    roundtrip(
+        r#"function @drop_test(v0: ref<i32>) -> void {
+block0(v0: ref<i32>):
+    drop v0
+    return
+}"#,
+    );
+}
+
+#[test]
+fn test_roundtrip_nullable_ref() {
+    roundtrip(
+        r#"function @nullable_test() -> ref?<i32> {
+block0:
+    v0 = managed_allocate i32
+    return v0
+}"#,
+    );
+}

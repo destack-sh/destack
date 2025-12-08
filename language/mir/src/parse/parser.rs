@@ -327,6 +327,7 @@ impl<'a> Parser<'a> {
             parameters,
             return_type,
             is_external: false,
+            allocation_mode: crate::AllocationMode::Any,
             locals,
             blocks,
             entry: Some(entry),
@@ -698,6 +699,39 @@ impl<'a> Parser<'a> {
                 }
             }
 
+            // allocation operations
+            "managed_allocate" => {
+                let layout = self.parse_type()?;
+                Instruction::ManagedAllocate {
+                    destination,
+                    layout,
+                }
+            }
+            "managed_allocate_array" => {
+                let element = self.parse_type()?;
+                self.eat_token(TokenType::Comma)?;
+                let length = self.parse_value()?;
+                Instruction::ManagedAllocateArray {
+                    destination,
+                    element,
+                    length,
+                }
+            }
+            "raw_allocate" => {
+                let layout = self.parse_type()?;
+                Instruction::RawAllocate {
+                    destination,
+                    layout,
+                }
+            }
+            "stack_allocate" => {
+                let layout = self.parse_type()?;
+                Instruction::StackAllocate {
+                    destination,
+                    layout,
+                }
+            }
+
             _ => {
                 return Err(ParseError::invalid(
                     &format!("instruction '{opcode_text}'"),
@@ -757,6 +791,16 @@ impl<'a> Parser<'a> {
                     callee,
                     arguments,
                 }
+            }
+
+            // allocation operations (no destination)
+            "raw_free" => {
+                let pointer = self.parse_value()?;
+                Instruction::RawFree { pointer }
+            }
+            "drop" => {
+                let value = self.parse_value()?;
+                Instruction::Drop { value }
             }
 
             _ => {
@@ -904,12 +948,32 @@ impl<'a> Parser<'a> {
                     ParseError::invalid(&format!("type '{token_text}'"), token_start)
                 })?
             }
-            TokenType::Ptr => {
+            TokenType::RawPtr => {
                 self.bump();
                 self.eat_token(TokenType::LessThan)?;
                 let pointee = self.parse_type()?;
                 self.eat_token(TokenType::GreaterThan)?;
-                Type::Pointer { pointee }
+                Type::RawPointer { pointee }
+            }
+            TokenType::Ref => {
+                self.bump();
+                self.eat_token(TokenType::LessThan)?;
+                let pointee = self.parse_type()?;
+                self.eat_token(TokenType::GreaterThan)?;
+                Type::ManagedReference {
+                    pointee,
+                    nullable: false,
+                }
+            }
+            TokenType::RefNullable => {
+                self.bump();
+                self.eat_token(TokenType::LessThan)?;
+                let pointee = self.parse_type()?;
+                self.eat_token(TokenType::GreaterThan)?;
+                Type::ManagedReference {
+                    pointee,
+                    nullable: true,
+                }
             }
             TokenType::OpenBracket => {
                 self.bump();

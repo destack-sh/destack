@@ -143,7 +143,9 @@ impl<'a> Dumper<'a> {
                 }
             }
             Type::Float { width } => format!("f{width}"),
-            Type::Pointer { .. } => "ptr".to_string(),
+            Type::RawPointer { .. } => "rawptr".to_string(),
+            Type::ManagedReference { nullable: false, .. } => "ref".to_string(),
+            Type::ManagedReference { nullable: true, .. } => "ref?".to_string(),
             Type::Array { length, .. } => format!("[_; {length}]"),
             Type::Tuple { elements } => format!("({})", elements.len()),
             Type::Struct { fields } => format!("struct{{{}}}", fields.len()),
@@ -429,6 +431,55 @@ impl<'a> Dumper<'a> {
                     self.write(&self.format_value(*arg));
                 }
                 self.write(")");
+            }
+
+            Instruction::ManagedAllocate {
+                destination,
+                layout,
+            } => {
+                self.write_colored(&self.format_value(*destination), Color::Green);
+                self.write(" = managed_allocate ");
+                self.write_colored(&self.format_type_id(*layout), Color::Magenta);
+            }
+
+            Instruction::ManagedAllocateArray {
+                destination,
+                element,
+                length,
+            } => {
+                self.write_colored(&self.format_value(*destination), Color::Green);
+                self.write(" = managed_allocate_array ");
+                self.write_colored(&self.format_type_id(*element), Color::Magenta);
+                self.write(", ");
+                self.write(&self.format_value(*length));
+            }
+
+            Instruction::RawAllocate {
+                destination,
+                layout,
+            } => {
+                self.write_colored(&self.format_value(*destination), Color::Green);
+                self.write(" = raw_allocate ");
+                self.write_colored(&self.format_type_id(*layout), Color::Magenta);
+            }
+
+            Instruction::RawFree { pointer } => {
+                self.write("raw_free ");
+                self.write(&self.format_value(*pointer));
+            }
+
+            Instruction::StackAllocate {
+                destination,
+                layout,
+            } => {
+                self.write_colored(&self.format_value(*destination), Color::Green);
+                self.write(" = stack_allocate ");
+                self.write_colored(&self.format_type_id(*layout), Color::Magenta);
+            }
+
+            Instruction::Drop { value } => {
+                self.write("drop ");
+                self.write(&self.format_value(*value));
             }
         }
 

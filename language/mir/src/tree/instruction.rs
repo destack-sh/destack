@@ -169,6 +169,54 @@ pub enum Instruction {
         /// The arguments to pass.
         arguments: Vec<Value>,
     },
+
+    // allocation
+    /// Allocate a managed (runtime-tracked) struct.
+    /// Returns a `ManagedReference<T>`.
+    ManagedAllocate {
+        /// The SSA value to define with the allocated reference.
+        destination: Value,
+        /// The type of the struct to allocate.
+        layout: LocalNodeId<Type>,
+    },
+    /// Allocate a managed array.
+    /// Returns a `ManagedReference<[T]>`.
+    ManagedAllocateArray {
+        /// The SSA value to define with the allocated reference.
+        destination: Value,
+        /// The element type of the array.
+        element: LocalNodeId<Type>,
+        /// The number of elements (runtime value).
+        length: Value,
+    },
+    /// Allocate raw memory on the heap.
+    /// Returns a `RawPointer<T>`. Caller must free with `RawFree`.
+    RawAllocate {
+        /// The SSA value to define with the allocated pointer.
+        destination: Value,
+        /// The type of the value to allocate.
+        layout: LocalNodeId<Type>,
+    },
+    /// Free raw heap memory previously allocated with `RawAllocate`.
+    RawFree {
+        /// The pointer to free.
+        pointer: Value,
+    },
+    /// Allocate on the stack (lives until function returns).
+    /// Returns a `RawPointer<T>`.
+    StackAllocate {
+        /// The SSA value to define with the stack pointer.
+        destination: Value,
+        /// The type of the value to allocate.
+        layout: LocalNodeId<Type>,
+    },
+
+    // lifecycle
+    /// Call destructor/drop glue for a value.
+    Drop {
+        /// The value to drop.
+        value: Value,
+    },
 }
 
 impl Node for Instruction {
@@ -195,6 +243,12 @@ impl Instruction {
             Instruction::InsertElement { destination, .. } => Some(*destination),
             Instruction::Call { destination, .. } => *destination,
             Instruction::CallIndirect { destination, .. } => *destination,
+            Instruction::ManagedAllocate { destination, .. } => Some(*destination),
+            Instruction::ManagedAllocateArray { destination, .. } => Some(*destination),
+            Instruction::RawAllocate { destination, .. } => Some(*destination),
+            Instruction::RawFree { .. } => None,
+            Instruction::StackAllocate { destination, .. } => Some(*destination),
+            Instruction::Drop { .. } => None,
         }
     }
 
@@ -230,6 +284,12 @@ impl Instruction {
                 uses.extend(arguments.iter().copied());
                 uses
             }
+            Instruction::ManagedAllocate { .. } => smallvec![],
+            Instruction::ManagedAllocateArray { length, .. } => smallvec![*length],
+            Instruction::RawAllocate { .. } => smallvec![],
+            Instruction::RawFree { pointer } => smallvec![*pointer],
+            Instruction::StackAllocate { .. } => smallvec![],
+            Instruction::Drop { value } => smallvec![*value],
         }
     }
 }

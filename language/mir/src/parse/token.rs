@@ -30,8 +30,12 @@ pub enum TokenType {
     Void,
     /// `bool`
     Bool,
-    /// `ptr`
-    Ptr,
+    /// `rawptr`
+    RawPtr,
+    /// `ref`
+    Ref,
+    /// `ref?`
+    RefNullable,
     /// `fn`
     Fn,
     /// `struct`

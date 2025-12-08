@@ -22,8 +22,15 @@ impl<'a> FormatMirNode<'a, Type> for Type {
             Type::Float { width } => {
                 write!(f, [text(&format!("f{width}"))])
             }
-            Type::Pointer { pointee } => {
-                write!(f, [token("ptr<"), pointee, token(">")])
+            Type::RawPointer { pointee } => {
+                write!(f, [token("rawptr<"), pointee, token(">")])
+            }
+            Type::ManagedReference { pointee, nullable } => {
+                if *nullable {
+                    write!(f, [token("ref?<"), pointee, token(">")])
+                } else {
+                    write!(f, [token("ref<"), pointee, token(">")])
+                }
             }
             Type::Array { element, length } => {
                 write!(

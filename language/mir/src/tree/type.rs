@@ -13,8 +13,18 @@ pub enum Type {
     Int { width: u16, signed: bool },
     /// Floating point with explicit width (32 or 64).
     Float { width: u16 },
-    /// Raw pointer (pointer-sized). Used for both owned and borrowed references.
-    Pointer { pointee: LocalNodeId<Type> },
+
+    /// Raw pointer (manual memory management).
+    /// The caller is responsible for allocation and deallocation.
+    RawPointer { pointee: LocalNodeId<Type> },
+
+    /// Managed reference (runtime-tracked lifetime).
+    /// The runtime (GC, refcount, arena, etc.) manages the memory.
+    ManagedReference {
+        pointee: LocalNodeId<Type>,
+        /// Whether the reference can be null.
+        nullable: bool,
+    },
 
     /// Fixed-size array: `T[N]`.
     Array {
@@ -99,13 +109,27 @@ impl Type {
                 | Type::Boolean
                 | Type::Int { .. }
                 | Type::Float { .. }
-                | Type::Pointer { .. }
+                | Type::RawPointer { .. }
+                | Type::ManagedReference { .. }
         )
     }
 
-    /// Whether this type is a pointer.
-    pub fn is_pointer(&self) -> bool {
-        matches!(self, Type::Pointer { .. })
+    /// Whether this type is a raw pointer.
+    pub fn is_raw_pointer(&self) -> bool {
+        matches!(self, Type::RawPointer { .. })
+    }
+
+    /// Whether this type is a managed reference.
+    pub fn is_managed_reference(&self) -> bool {
+        matches!(self, Type::ManagedReference { .. })
+    }
+
+    /// Whether this type is any kind of pointer or reference.
+    pub fn is_pointer_like(&self) -> bool {
+        matches!(
+            self,
+            Type::RawPointer { .. } | Type::ManagedReference { .. }
+        )
     }
 }
 

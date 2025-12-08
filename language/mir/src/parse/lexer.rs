@@ -151,7 +151,16 @@ impl<'a> Lexer<'a> {
             "unreachable" => TokenType::Unreachable,
             "void" => TokenType::Void,
             "bool" => TokenType::Bool,
-            "ptr" => TokenType::Ptr,
+            "rawptr" => TokenType::RawPtr,
+            "ref" => {
+                // check for ref? (nullable reference)
+                if self.peek() == Some('?') {
+                    self.advance();
+                    TokenType::RefNullable
+                } else {
+                    TokenType::Ref
+                }
+            }
             "fn" => TokenType::Fn,
             "struct" => TokenType::Struct,
             "true" | "false" => TokenType::BoolLiteral,
