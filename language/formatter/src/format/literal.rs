@@ -42,13 +42,18 @@ pub(crate) fn format_scalar_literal<'ast>(
         ScalarLiteral::String(_) => {
             let normalized_str =
                 if span_str.len() >= 2 && span_str.starts_with('\'') && span_str.ends_with('\'') {
+                    // single-quoted string -> convert to double quotes
                     let mut normalized = String::with_capacity(span_str.len());
                     normalized.push('"');
                     normalized.push_str(&span_str[1..span_str.len() - 1]);
                     normalized.push('"');
                     Cow::Owned(normalized)
-                } else {
+                } else if span_str.starts_with('"') || span_str.starts_with('\'') {
+                    // quoted string -> use as-is
                     Cow::Borrowed(span_str)
+                } else {
+                    // JSX text content (unquoted) -> trim whitespace
+                    Cow::Borrowed(span_str.trim())
                 };
 
             write!(f, [text(normalized_str.as_ref())])?;

@@ -545,7 +545,6 @@ mod tests {
 
     #[test]
     fn test_parse_array_tuple_type() {
-        // Array/bracket tuple type syntax: [T, U]
         let mut test = TestParser::new("type T = [string, number]");
         let mut parser = test.prepare();
         let expr_id = parser.eat_expression().unwrap();
@@ -570,10 +569,6 @@ mod tests {
 
     #[test]
     fn test_parse_tuple_type() {
-        // Native/parenthesis tuple type syntax: (T, U)
-        // Note: Inside parenthesized tuple expressions, the parser resets context
-        // so `string` and `number` are parsed as paths, not type literals.
-        // The type checker will resolve these paths to the built-in types.
         let mut test = TestParser::new("type T = (string, number)");
         let mut parser = test.prepare();
         let expr_id = parser.eat_expression().unwrap();
@@ -598,7 +593,6 @@ mod tests {
 
     #[test]
     fn test_parse_labeled_tuple_type() {
-        // TypeScript 4.0+ labeled tuple elements
         let mut test = TestParser::new("type T = [start: number, end: number]");
         let mut parser = test.prepare();
         let expr_id = parser.eat_expression().unwrap();
@@ -625,8 +619,8 @@ mod tests {
 
     #[test]
     fn test_parse_labeled_tuple_type_complex() {
-        // Complex labeled tuple with generic type
-        let mut test = TestParser::new("type T = [importCode: string, nameMap: Record<string, string>]");
+        let mut test =
+            TestParser::new("type T = [importCode: string, nameMap: Record<string, string>]");
         let mut parser = test.prepare();
         let expr_id = parser.eat_expression().unwrap();
 
