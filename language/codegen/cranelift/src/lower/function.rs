@@ -223,7 +223,9 @@ impl<'a> FunctionLowerer<'a> {
             } => {
                 if let Some(ptr_type_id) = type_map.get(pointer) {
                     let ptr_type = self.tree.get(*ptr_type_id);
-                    if let mir::Type::Pointer { pointee } = ptr_type {
+                    if let mir::Type::RawPointer { pointee } = ptr_type {
+                        return Some((*destination, *pointee));
+                    } else if let mir::Type::ManagedReference { pointee, .. } = ptr_type {
                         return Some((*destination, *pointee));
                     }
                 }
@@ -285,7 +287,7 @@ impl<'a> FunctionLowerer<'a> {
 
             // call: would need function signature lookup
             // TODO #Incomplete: implement function signature lookup
-            mir::Instruction::Call { .. } | mir::Instruction::CallIndirect { .. } => None,
+            _ => None,
         }
     }
 
@@ -508,45 +510,10 @@ impl<'a> FunctionLowerer<'a> {
                     .store(cir::MemFlags::new(), store_value, ptr_value, 0);
             }
 
-            // TODO #Incomplete: implement codegen for field / element / call instructions
-            mir::Instruction::ExtractField { .. } => {
+            // TODO #Incomplete: implement codegen for field / element / call / alloc instructions
+            _ => {
                 return Err(CodegenCraneliftError::unsupported_instruction(
                     "ExtractField not yet implemented",
-                    instruction_id.into_any(),
-                ));
-            }
-
-            mir::Instruction::InsertField { .. } => {
-                return Err(CodegenCraneliftError::unsupported_instruction(
-                    "InsertField not yet implemented",
-                    instruction_id.into_any(),
-                ));
-            }
-
-            mir::Instruction::ExtractElement { .. } => {
-                return Err(CodegenCraneliftError::unsupported_instruction(
-                    "ExtractElement not yet implemented",
-                    instruction_id.into_any(),
-                ));
-            }
-
-            mir::Instruction::InsertElement { .. } => {
-                return Err(CodegenCraneliftError::unsupported_instruction(
-                    "InsertElement not yet implemented",
-                    instruction_id.into_any(),
-                ));
-            }
-
-            mir::Instruction::Call { .. } => {
-                return Err(CodegenCraneliftError::unsupported_instruction(
-                    "Call not yet implemented",
-                    instruction_id.into_any(),
-                ));
-            }
-
-            mir::Instruction::CallIndirect { .. } => {
-                return Err(CodegenCraneliftError::unsupported_instruction(
-                    "CallIndirect not yet implemented",
                     instruction_id.into_any(),
                 ));
             }

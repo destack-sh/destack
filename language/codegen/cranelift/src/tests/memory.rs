@@ -10,7 +10,7 @@ use super::compile_mir_to_normalized_clif;
 #[test]
 fn test_load_from_pointer() {
     let mir = r#"
-function @read_ptr(v0: ptr<i32>) -> i32 {
+function @read_ptr(v0: rawptr<i32>) -> i32 {
 block0:
     v1 = load v0
     return v1
@@ -33,7 +33,7 @@ block0(v0: i64):
 #[test]
 fn test_load_double_indirection() {
     let mir = r#"
-function @read_ptr_ptr(v0: ptr<ptr<i32>>) -> i32 {
+function @read_ptr_ptr(v0: rawptr<rawptr<i32>>) -> i32 {
 block0:
     v1 = load v0
     v2 = load v1
@@ -58,7 +58,7 @@ block0(v0: i64):
 #[test]
 fn test_load_i64() {
     let mir = r#"
-function @read_ptr64(v0: ptr<i64>) -> i64 {
+function @read_ptr64(v0: rawptr<i64>) -> i64 {
 block0:
     v1 = load v0
     return v1
@@ -81,7 +81,7 @@ block0(v0: i64):
 #[test]
 fn test_load_bool() {
     let mir = r#"
-function @read_bool(v0: ptr<bool>) -> bool {
+function @read_bool(v0: rawptr<bool>) -> bool {
 block0:
     v1 = load v0
     return v1
@@ -168,7 +168,7 @@ block0(v0: i32):
 #[test]
 fn test_load_float() {
     let mir = r#"
-function @read_float(v0: ptr<f32>) -> f32 {
+function @read_float(v0: rawptr<f32>) -> f32 {
 block0:
     v1 = load v0
     return v1
