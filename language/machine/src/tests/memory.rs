@@ -59,7 +59,7 @@ block0(v0: (i32, i32)):
     return v1
 }
 "#;
-    let aggregate = Value::Aggregate(vec![Value::int32(10), Value::int32(20)]);
+    let aggregate = Value::Aggregate(vec![Value::int32(10), Value::int32(20)].into_boxed_slice());
     expect_evaluate_mir(mir, "get_first", &[aggregate], Value::int32(10));
 }
 
@@ -73,11 +73,11 @@ block0(v0: (i32, i32), v1: i32):
     return v2
 }
 "#;
-    let aggregate = Value::Aggregate(vec![Value::int32(10), Value::int32(20)]);
+    let aggregate = Value::Aggregate(vec![Value::int32(10), Value::int32(20)].into_boxed_slice());
     let result = run_mir_ok(mir, "set_first", &[aggregate, Value::int32(99)]);
     assert_eq!(
         result.value,
-        Value::Aggregate(vec![Value::int32(99), Value::int32(20)])
+        Value::Aggregate(vec![Value::int32(99), Value::int32(20)].into_boxed_slice())
     );
 }
 
@@ -91,7 +91,7 @@ block0(v0: [i32; 3], v1: i64):
     return v2
 }
 "#;
-    let array = Value::Aggregate(vec![Value::int32(10), Value::int32(20), Value::int32(30)]);
+    let array = Value::Aggregate(vec![Value::int32(10), Value::int32(20), Value::int32(30)].into_boxed_slice());
     expect_evaluate_mir(mir, "get_elem", &[array.clone(), Value::uint64(0)], Value::int32(10));
     expect_evaluate_mir(mir, "get_elem", &[array.clone(), Value::uint64(1)], Value::int32(20));
     expect_evaluate_mir(mir, "get_elem", &[array, Value::uint64(2)], Value::int32(30));
@@ -107,11 +107,11 @@ block0(v0: [i32; 3], v1: i64, v2: i32):
     return v3
 }
 "#;
-    let array = Value::Aggregate(vec![Value::int32(10), Value::int32(20), Value::int32(30)]);
+    let array = Value::Aggregate(vec![Value::int32(10), Value::int32(20), Value::int32(30)].into_boxed_slice());
     let result = run_mir_ok(mir, "set_elem", &[array, Value::uint64(1), Value::int32(99)]);
     assert_eq!(
         result.value,
-        Value::Aggregate(vec![Value::int32(10), Value::int32(99), Value::int32(30)])
+        Value::Aggregate(vec![Value::int32(10), Value::int32(99), Value::int32(30)].into_boxed_slice())
     );
 }
 
@@ -141,7 +141,7 @@ block0(v0: (i32,)):
     return v1
 }
 "#;
-    let aggregate = Value::Aggregate(vec![Value::int32(10)]);
+    let aggregate = Value::Aggregate(vec![Value::int32(10)].into_boxed_slice());
     let result = run_mir(mir, "bad_field", &[aggregate]);
     assert!(result.is_err());
     let err = result.unwrap_err();
@@ -158,7 +158,7 @@ block0(v0: [i32; 3], v1: i64):
     return v2
 }
 "#;
-    let array = Value::Aggregate(vec![Value::int32(10), Value::int32(20), Value::int32(30)]);
+    let array = Value::Aggregate(vec![Value::int32(10), Value::int32(20), Value::int32(30)].into_boxed_slice());
     let result = run_mir(mir, "bad_elem", &[array, Value::uint64(100)]);
     assert!(result.is_err());
     let err = result.unwrap_err();

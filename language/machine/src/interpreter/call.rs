@@ -17,10 +17,10 @@ enum TerminatorResult {
 
 impl Interpreter {
     /// Execute a function by name.
-    pub fn call_by_name(
+    pub fn run_function_by_name(
         &mut self,
         name: &str,
-        args: &[Value],
+        arguments: &[Value],
     ) -> RuntimeResult<ExecutionOutput> {
         let func_id = self
             .tree
@@ -33,14 +33,14 @@ impl Interpreter {
                 })
             })?;
 
-        self.call(func_id, args)
+        self.run_function(func_id, arguments)
     }
 
     /// Execute a function by id.
-    pub fn call(
+    pub fn run_function(
         &mut self,
         func_id: mir::LocalNodeId<mir::Function>,
-        args: &[Value],
+        arguments: &[Value],
     ) -> RuntimeResult<ExecutionOutput> {
         // reset statistics for this call
         self.statistics.reset();
@@ -55,7 +55,7 @@ impl Interpreter {
                 .get(&name)
                 .ok_or_else(|| self.make_error(Error::ExternalFunctionNotFound { name }))?;
 
-            let value = handler(args).map_err(|e| self.make_error(e))?;
+            let value = handler(arguments).map_err(|e| self.make_error(e))?;
             return Ok(ExecutionOutput {
                 value,
                 statistics: self.statistics.clone(),
@@ -74,7 +74,7 @@ impl Interpreter {
 
         // bind parameters
         for (i, param) in function.parameters.iter().enumerate() {
-            let value = args.get(i).cloned().unwrap_or(Value::Void);
+            let value = arguments.get(i).cloned().unwrap_or(Value::Void);
             frame.set_value(param.value, value);
         }
 
@@ -84,7 +84,7 @@ impl Interpreter {
         self.update_max_stack_depth();
 
         // execute until we get a return value
-        let result = self.run_until_return();
+        let result = self.run();
 
         // pop frame
         self.call_stack.pop();
@@ -101,10 +101,10 @@ impl Interpreter {
     }
 
     /// Run the interpreter until the top frame returns.
-    fn run_until_return(&mut self) -> RuntimeResult<ExecutionOutput> {
+    fn run(&mut self) -> RuntimeResult<ExecutionOutput> {
         loop {
             // check step limit
-            if let Some(max) = self.options.max_steps
+            if let Some(max) = self.options.max_instructions
                 && self.statistics.instructions_executed >= max
             {
                 return Err(self.make_error(Error::StepLimitExceeded));
@@ -132,7 +132,7 @@ impl Interpreter {
                 self.statistics.instructions_executed += 1;
 
                 // check step limit
-                if let Some(max) = self.options.max_steps
+                if let Some(max) = self.options.max_instructions
                     && self.statistics.instructions_executed >= max
                 {
                     return Err(self.make_error(Error::StepLimitExceeded));
@@ -315,7 +315,7 @@ impl Interpreter {
         arguments: &[mir::Value],
     ) -> RuntimeResult<()> {
         // collect arguments from current frame
-        let args = {
+        let arguments = {
             let frame = self.current_frame()?;
             arguments
                 .iter()
@@ -331,11 +331,11 @@ impl Interpreter {
             let external_handler = self.externals.get(&name).ok_or_else(|| {
                 self.make_error(Error::ExternalFunctionNotFound { name: name.clone() })
             })?;
-            let result = external_handler(&args).map_err(|e| self.make_error(e))?;
+            let result = external_handler(&arguments).map_err(|e| self.make_error(e))?;
 
-            if let Some(dest) = destination {
+            if let Some(destination) = destination {
                 let frame = self.current_frame_mut()?;
-                frame.set_value(dest, result);
+                frame.set_value(destination, result);
             }
             return Ok(());
         }
@@ -359,9 +359,9 @@ impl Interpreter {
         let mut new_frame = Frame::new(function, entry_block);
 
         // bind parameters
-        for (i, param) in func.parameters.iter().enumerate() {
-            let value = args.get(i).cloned().unwrap_or(Value::Void);
-            new_frame.set_value(param.value, value);
+        for (i, parameter) in func.parameters.iter().enumerate() {
+            let value = arguments.get(i).cloned().unwrap_or(Value::Void);
+            new_frame.set_value(parameter.value, value);
         }
 
         // push new frame and update statistics
