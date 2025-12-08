@@ -218,10 +218,10 @@ impl<'a> Lexer<'a> {
         }
         // check if we're inside a tree expression container
         // if so, we're not in "true" content mode (we're lexing code)
-        if let Some(&expr_depth) = self.options.tree_expression_stack.last() {
-            if self.options.parentheses_depth > expr_depth {
-                return false;
-            }
+        if let Some(&expr_depth) = self.options.tree_expression_stack.last()
+            && self.options.parentheses_depth > expr_depth
+        {
+            return false;
         }
         true
     }

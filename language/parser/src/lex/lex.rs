@@ -133,12 +133,9 @@ impl Lexer<'_> {
             // slash, comments, regex, divide ops, or tree self-closing
             '/' => {
                 // in tree opening tag mode, / is part of self-closing tag
-                // don't pop state here - let > handler do it
-                if self.tree_state() == TreeState::OpeningTag && self.peek() == '>' {
-                    (TokenType::Divide, None)
-                }
-                // in tree closing tag (after </), just treat as divide
-                else if self.tree_state() == TreeState::ClosingTag {
+                if self.tree_state() == TreeState::OpeningTag && self.peek() == '>'
+                    || self.tree_state() == TreeState::ClosingTag
+                {
                     (TokenType::Divide, None)
                 } else {
                     let bytes = self.as_str().as_bytes();
@@ -1351,9 +1348,8 @@ impl Lexer<'_> {
             return false;
         }
 
-        // check for generic indicators (NOT tree)
-        let after_ident = bytes[i] as char;
-        match after_ident {
+        // check for generic indicators (i.e., NOT tree)
+        match bytes[i] as char {
             // trailing comma: <T,> is generic
             ',' => false,
             // default value: <T = X> is generic

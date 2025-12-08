@@ -1042,4 +1042,26 @@ mod tests {
             });
         });
     }
+
+    #[test]
+    fn test_parse_tree_with_text_content() {
+        let mut test = TestParser::new(r#"<h4>Tool: {part.toolName}</h4>"#);
+        let mut parser = test.prepare();
+        let expression = parser.eat_tree_literal().unwrap();
+        assert_node!(parser.tree, expression, Expression::TreeExpression { left: Some(left), arguments, elements } => {
+            assert_expression_path!(parser, parser.tree.get(*left), "h4");
+            assert!(arguments.is_none());
+            assert!(elements.is_some());
+            assert_eq!(elements.as_ref().unwrap().len(), 2);
+            // Tool: 
+            assert_node!(parser.tree, elements.as_ref().unwrap()[0], Argument::Positional { value } => {
+                assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::String(_)));
+            });
+            // {part.toolName}
+            assert!(matches!(
+                parser.tree.get(elements.as_ref().unwrap()[1]),
+                Argument::Positional { .. }
+            ));
+        });
+    }
 }
