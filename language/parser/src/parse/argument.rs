@@ -327,7 +327,7 @@ impl Parser {
         Ok(parameters)
     }
 
-    /// Eat a positional argument (positional or spread only, no named arguments).
+    /// Eat a positional argument (positional, spread, or labeled tuple element).
     /// Used for dynamic arguments, static arguments, and tuple literals.
     ///
     /// Examples:
@@ -335,6 +335,7 @@ impl Parser {
     /// 2
     /// foo()
     /// ...args
+    /// start: number    // labeled tuple element (type context only)
     /// ```
     #[inline]
     pub fn eat_positional_argument(&mut self) -> ParseResult<LocalNodeId<Argument>> {
@@ -348,6 +349,20 @@ impl Parser {
             let argument_id = self
                 .tree
                 .insert(Argument::Spread { value }, self.get_span_from(start));
+            Ok(argument_id)
+        }
+        // labeled tuple element (only in type context): label: type
+        // TypeScript 4.0+ syntax: [start: number, end: number]
+        else if self.options.in_type
+            && self.peek_token(TokenType::Identifier).is_ok()
+            && self.peek_next_token(TokenType::Colon).is_ok()
+        {
+            let label = self.eat_identifier()?;
+            self.bump(); // eat colon
+            let value = self.eat_expression()?;
+            let argument_id = self
+                .tree
+                .insert(Argument::Labeled { label, value }, self.get_span_from(start));
             Ok(argument_id)
         }
         // positional argument

@@ -46,6 +46,7 @@ impl Node for Parameter {
 
 /// An Argument is an argument to some construct.
 /// Named arguments are only valid in tree literals (JSX-like attributes).
+/// Labeled arguments are only valid in tuple types (TypeScript labeled tuple elements).
 /// All other arguments (dynamic arguments, static arguments, tuples) must be positional or spread.
 ///
 /// Examples:
@@ -54,12 +55,19 @@ impl Node for Parameter {
 /// foo()                              // positional
 /// ...args                            // spread
 /// <Component name="foo" />           // named in tree literal only
+/// [start: number, end: number]       // labeled in tuple type only
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub enum Argument {
     /// Named argument (only valid in tree literals for JSX-like attributes).
     Named {
         name: Name,
+        value: LocalNodeId<Expression>,
+    },
+    /// Labeled tuple element (only valid in tuple types, e.g., `[start: number, end: number]`).
+    /// (Labels are purely for documentation/tooling and don't affect type checking directly.)
+    Labeled {
+        label: StringId,
         value: LocalNodeId<Expression>,
     },
     /// Positional argument (like `1` or `foo()`).

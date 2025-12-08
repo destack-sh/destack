@@ -382,11 +382,11 @@ impl Parser {
 #[cfg(test)]
 mod tests {
     use destack_ast::{
-        BinaryOperator, Declaration, Expression, IntType, ScalarLiteral, TypeLiteral,
+        Argument, BinaryOperator, Declaration, Expression, IntType, ScalarLiteral, TypeLiteral,
         TypeUnaryOperator,
     };
 
-    use crate::{TestParser, assert_node, assert_path, assert_string};
+    use crate::{TestParser, assert_expression_path, assert_node, assert_path, assert_string};
 
     #[test]
     fn test_parse_type_alias() {
@@ -537,6 +537,111 @@ mod tests {
                 assert_node!(parser.tree, *value, Expression::Binary { right, .. } => {
                     assert_node!(parser.tree, *right, Expression::ObjectExpression { properties, .. } => {
                         assert_eq!(properties.len(), 1);
+                    });
+                });
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_array_tuple_type() {
+        // Array/bracket tuple type syntax: [T, U]
+        let mut test = TestParser::new("type T = [string, number]");
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression().unwrap();
+
+        // type T = [string, number]
+        assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
+            assert_node!(parser.tree, *decl_id, Declaration::Type { value, .. } => {
+                assert_node!(parser.tree, *value, Expression::ArrayExpression { elements } => {
+                    assert_eq!(elements.len(), 2);
+                    // first element: string (positional)
+                    assert_node!(parser.tree, elements[0], Argument::Positional { value } => {
+                        assert_node!(parser.tree, *value, Expression::TypeLiteral(TypeLiteral::String));
+                    });
+                    // second element: number (positional)
+                    assert_node!(parser.tree, elements[1], Argument::Positional { value } => {
+                        assert_node!(parser.tree, *value, Expression::TypeLiteral(TypeLiteral::Number));
+                    });
+                });
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_tuple_type() {
+        // Native/parenthesis tuple type syntax: (T, U)
+        // Note: Inside parenthesized tuple expressions, the parser resets context
+        // so `string` and `number` are parsed as paths, not type literals.
+        // The type checker will resolve these paths to the built-in types.
+        let mut test = TestParser::new("type T = (string, number)");
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression().unwrap();
+
+        // type T = (string, number)
+        assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
+            assert_node!(parser.tree, *decl_id, Declaration::Type { value, .. } => {
+                assert_node!(parser.tree, *value, Expression::TupleExpression { elements } => {
+                    assert_eq!(elements.len(), 2);
+                    // string
+                    assert_node!(parser.tree, elements[0], Argument::Positional { value } => {
+                        assert_expression_path!(parser, parser.tree.get(*value), "string");
+                    });
+                    // number
+                    assert_node!(parser.tree, elements[1], Argument::Positional { value } => {
+                        assert_expression_path!(parser, parser.tree.get(*value), "number");
+                    });
+                });
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_labeled_tuple_type() {
+        // TypeScript 4.0+ labeled tuple elements
+        let mut test = TestParser::new("type T = [start: number, end: number]");
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression().unwrap();
+
+        // type T = [start: number, end: number]
+        assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
+            assert_node!(parser.tree, *decl_id, Declaration::Type { value, .. } => {
+                assert_node!(parser.tree, *value, Expression::ArrayExpression { elements } => {
+                    assert_eq!(elements.len(), 2);
+                    // start: number
+                    assert_node!(parser.tree, elements[0], Argument::Labeled { label, value } => {
+                        assert_string!(parser, *label, "start");
+                        assert_node!(parser.tree, *value, Expression::TypeLiteral(TypeLiteral::Number));
+                    });
+                    // end: number
+                    assert_node!(parser.tree, elements[1], Argument::Labeled { label, value } => {
+                        assert_string!(parser, *label, "end");
+                        assert_node!(parser.tree, *value, Expression::TypeLiteral(TypeLiteral::Number));
+                    });
+                });
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_labeled_tuple_type_complex() {
+        // Complex labeled tuple with generic type
+        let mut test = TestParser::new("type T = [importCode: string, nameMap: Record<string, string>]");
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression().unwrap();
+
+        // type T = [importCode: string, nameMap: Record<string, string>]
+        assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
+            assert_node!(parser.tree, *decl_id, Declaration::Type { value, .. } => {
+                assert_node!(parser.tree, *value, Expression::ArrayExpression { elements } => {
+                    assert_eq!(elements.len(), 2);
+                    // importCode: string
+                    assert_node!(parser.tree, elements[0], Argument::Labeled { label, .. } => {
+                        assert_string!(parser, *label, "importCode");
+                    });
+                    // nameMap: Record<string, string>
+                    assert_node!(parser.tree, elements[1], Argument::Labeled { label, .. } => {
+                        assert_string!(parser, *label, "nameMap");
                     });
                 });
             });

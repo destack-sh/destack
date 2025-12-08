@@ -34,6 +34,12 @@ impl<'ast> Format<DestackFormatContext<'ast>> for TreeExpressionArgument {
                 // value
                 write!(f, [token("="), value])?;
             }
+            Argument::Labeled { label, value } => {
+                // label
+                write!(f, [label])?;
+                // value
+                write!(f, [token(":"), space(), value])?;
+            }
             Argument::Positional { value } => {
                 // value
                 write!(f, [value])?;
@@ -705,9 +711,10 @@ pub fn is_complex_expression(_tree: &NodeTree, expression: &Expression) -> bool 
 /// Whether an argument is "trivial" (prefers to be inline).
 pub fn is_trivial_argument(tree: &NodeTree, argument: &Argument) -> bool {
     match argument {
-        Argument::Named { name: _, value, .. } => is_trivial_expression(tree, tree.get(*value)),
-        Argument::Positional { value, .. } => is_trivial_expression(tree, tree.get(*value)),
-        Argument::Spread { value, .. } => is_trivial_expression(tree, tree.get(*value)),
+        Argument::Named { name: _, value, .. }
+        | Argument::Labeled { label: _, value, .. }
+        | Argument::Positional { value, .. }
+        | Argument::Spread { value, .. } => is_trivial_expression(tree, tree.get(*value)),
     }
 }
 
@@ -728,9 +735,10 @@ pub fn is_trivial_property(tree: &NodeTree, property: &Property) -> bool {
 /// Whether an argument is "complex" (prefers to be multiline).
 pub fn is_complex_argument(tree: &NodeTree, argument: &Argument) -> bool {
     match argument {
-        Argument::Named { name: _, value, .. } => is_complex_expression(tree, tree.get(*value)),
-        Argument::Positional { value, .. } => is_complex_expression(tree, tree.get(*value)),
-        Argument::Spread { value, .. } => is_complex_expression(tree, tree.get(*value)),
+        Argument::Named { name: _, value, .. }
+        | Argument::Labeled { label: _, value, .. }
+        | Argument::Positional { value, .. }
+        | Argument::Spread { value, .. } => is_complex_expression(tree, tree.get(*value)),
     }
 }
 

@@ -244,6 +244,12 @@ impl<'ast> FormatNode<'ast, Argument> for Argument {
                 // value
                 write!(f, [token(":"), space(), value])?;
             }
+            Argument::Labeled { label, value } => {
+                // label
+                write!(f, [label])?;
+                // value
+                write!(f, [token(":"), space(), value])?;
+            }
             Argument::Positional { value } => {
                 // value
                 write!(f, [value])?;
