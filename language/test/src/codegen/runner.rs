@@ -4,7 +4,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use destack_compiler::{CompileOptions, Compiler, EmitTask, GenerateTask};
+use destack_compiler::{CompileOptions, Compiler, EmitTask};
 use destack_source::{
     File, FileRegistry, FileSystem, FileType, LanguageOptions, PhysicalFileSystem, Uri,
 };
@@ -136,28 +136,13 @@ fn run_codegen_test(test: &TestCase) -> TestResult {
         };
     }
 
-    // compile
-    // nocheckin TODO #Incomplete: EmitPackage should cascade to GenerateModule via LinkTarget
-    // currently LinkTarget is incomplete and doesn't yield to GenerateModule, so we manually
-    // enqueue GenerateModule for each module. once LinkTarget is implemented, we should just
-    // enqueue EmitPackage and let the dependency system handle the rest.
-    for module_id in &module_ids {
-        for (target_name, _) in &targets {
-            compiler.enqueue(GenerateTask::GenerateModule {
-                module: *module_id,
-                target: target_name.clone(),
-            });
-        }
-    }
-    compiler.compile();
-    // emit artifacts for each target
+    // emit: enqueue EmitPackage for each target
     for (target_name, _) in &targets {
         compiler.enqueue(EmitTask::EmitPackage {
             package: package_id,
             target: target_name.clone(),
         });
     }
-    // run emit
     compiler.compile();
 
     // check for errors

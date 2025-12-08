@@ -12,20 +12,21 @@ pub enum LinkError {
     Yield { dependency: TaskDependency },
     /// Yield dependency has failed.
     UnsatisfiedDependency { dependency: TaskDependency },
-    /// Missing target for a symbol.
+    /// Missing target.
     MissingTarget {
         node: GlobalNodeIdAny,
-        symbol: String,
+        target: String,
     },
-    /// Unresolved external symbol.
-    UnresolvedSymbol {
+    /// Invalid target configuration.
+    InvalidTarget {
         node: GlobalNodeIdAny,
-        symbol: String,
+        target: String,
+        message: String,
     },
-    /// Duplicate symbols with incompatible declarations.
-    ConflictingSymbol {
+    /// Internal error during linking.
+    Internal {
         node: GlobalNodeIdAny,
-        symbol: String,
+        message: String,
     },
 }
 
@@ -47,9 +48,9 @@ impl LinkError {
         match self {
             Self::Yield { .. } => 0,
             Self::UnsatisfiedDependency { .. } => 1,
-            Self::MissingTarget { .. } => 2,
-            Self::UnresolvedSymbol { .. } => 3,
-            Self::ConflictingSymbol { .. } => 4,
+            Self::MissingTarget { .. } => 3,
+            Self::InvalidTarget { .. } => 4,
+            Self::Internal { .. } => 2,
         }
     }
 
@@ -59,8 +60,8 @@ impl LinkError {
             Self::Yield { dependency } => dependency.node(),
             Self::UnsatisfiedDependency { dependency } => dependency.node(),
             Self::MissingTarget { node, .. } => *node,
-            Self::UnresolvedSymbol { node, .. } => *node,
-            Self::ConflictingSymbol { node, .. } => *node,
+            Self::InvalidTarget { node, .. } => *node,
+            Self::Internal { node, .. } => *node,
         }
     }
 
@@ -69,9 +70,13 @@ impl LinkError {
         match self {
             Self::Yield { .. } => "pending dependency".to_string(),
             Self::UnsatisfiedDependency { .. } => "unsatisfied dependency".to_string(),
-            Self::MissingTarget { .. } => "missing target".to_string(),
-            Self::UnresolvedSymbol { .. } => "unresolved symbol".to_string(),
-            Self::ConflictingSymbol { .. } => "conflicting symbol".to_string(),
+            Self::MissingTarget { target, .. } => format!("missing target: {target}"),
+            Self::InvalidTarget {
+                target, message, ..
+            } => {
+                format!("invalid target: {target}: {message}")
+            }
+            Self::Internal { message, .. } => message.clone(),
         }
     }
 }

@@ -1,4 +1,6 @@
-use crate::{Compiler, ImportError, ImportResult, Task, TaskDebug, TaskOutput};
+use crate::{
+    Compiler, ImportError, ImportResult, Task, TaskDebug, TaskDependencyError, TaskOutput,
+};
 
 use destack_parser::Parser;
 use destack_source::{File, ModuleId};
@@ -132,7 +134,7 @@ impl Compiler {
     }
 
     /// Ensure a module has been imported (loaded and parsed).
-    pub fn ensure_imported(&self, module: ModuleId) -> Result<(), crate::TaskDependencyError> {
+    pub fn require_import(&self, module: ModuleId) -> Result<(), TaskDependencyError> {
         self.require_task(ImportTask::ImportModule { module })
     }
 }

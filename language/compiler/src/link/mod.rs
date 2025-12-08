@@ -1,6 +1,8 @@
+mod discover;
 mod error;
 mod options;
 mod process;
+mod target;
 mod warning;
 
 pub use error::*;

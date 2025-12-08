@@ -516,6 +516,17 @@ impl TaskDependencyError {
     }
 }
 
+impl TryFrom<TaskDependencyError> for TaskDependency {
+    type Error = TaskDependencyError;
+
+    fn try_from(error: TaskDependencyError) -> Result<Self, Self::Error> {
+        match error {
+            TaskDependencyError::NotReady { dependency } => Ok(dependency),
+            TaskDependencyError::Failed { .. } => Err(error),
+        }
+    }
+}
+
 /// Collector for coalescing task dependencies from multiple operations.
 /// Accumulates Yield errors and lets non-yield errors pass through for handling.
 #[derive(Debug, Default)]

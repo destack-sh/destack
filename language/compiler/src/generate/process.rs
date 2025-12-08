@@ -83,10 +83,10 @@ impl Compiler {
     ) -> GenerateResult<GenerateOutput> {
         // look up target from module's package
         let target = {
-            let module_ref = self.program.modules.get(module_id);
-            let module = module_ref.read();
-            let package_ref = self.program.packages.get(module.package_id);
-            let package = package_ref.read();
+            let module = self.program.modules.get(module_id);
+            let module = module.read();
+            let package = self.program.packages.get(module.package_id);
+            let package = package.read();
             package.targets.get(target_name).cloned()
         };
 
@@ -107,7 +107,7 @@ impl Compiler {
     /// Generate JS/TS code for a module.
     fn generate_js(&self, module_id: ModuleId, target: &Target) -> GenerateResult<GenerateOutput> {
         // yield to Elaborate if not ready
-        self.ensure_elaborated(module_id)?;
+        self.require_elaborate(module_id)?;
 
         // dispatch to JS codegen
         let output = destack_codegen_js::generate_module(self.program.clone(), module_id, target)
@@ -138,7 +138,7 @@ impl Compiler {
         target: &Target,
     ) -> GenerateResult<GenerateOutput> {
         // yield to Optimize if not ready
-        self.ensure_optimized(module_id)?;
+        self.require_optimize(module_id)?;
 
         // dispatch to Cranelift codegen
         let registry_next_id = || self.program.artifacts.next_id();
@@ -297,7 +297,7 @@ impl Compiler {
     }
 
     /// Ensure a module has been generated.
-    pub fn ensure_generated(
+    pub fn require_generate(
         &self,
         module: ModuleId,
         target: &str,

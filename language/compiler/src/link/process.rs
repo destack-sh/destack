@@ -67,7 +67,7 @@ impl Compiler {
     }
 
     /// Ensure a target has been linked.
-    pub fn ensure_linked(
+    pub fn require_link(
         &self,
         package: PackageId,
         target: &str,
@@ -76,15 +76,5 @@ impl Compiler {
             package,
             target: target.to_string(),
         })
-    }
-
-    /// Link all modules for a target.
-    fn link_target(&self, package: PackageId, target: &str) -> LinkResult<LinkOutput> {
-        // NOTE #Incomplete: implement link_target
-        // 1. find all modules in package that match target's include/exclude
-        // 2. yield to GenerateModule for each module (CompleteAll)
-        // 3. combine artifacts based on output format
-        let _ = (package, target);
-        Ok(LinkOutput {})
     }
 }

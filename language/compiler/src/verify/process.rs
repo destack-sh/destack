@@ -58,7 +58,7 @@ impl Compiler {
     pub fn process_verify(&self, task: VerifyTask) -> VerifyResult<VerifyOutput> {
         match task {
             VerifyTask::VerifyModule { module } => {
-                self.ensure_lowered(module)?;
+                self.require_lower(module)?;
                 self.verify_module(module)?;
             }
         }
@@ -67,14 +67,15 @@ impl Compiler {
 
     /// Verify a module's MIR.
     fn verify_module(&self, _module: ModuleId) -> VerifyResult<()> {
-        // NOTE #Incomplete: implement MIR verification
+        // NOTE #Incomplete: implement verify
         // - ownership/borrow checking
-        // - type checking at MIR level
+        // - type checking at MIR level?
+        // - ..?
         Ok(())
     }
 
     /// Ensure a module has been verified.
-    pub fn ensure_verified(&self, module: ModuleId) -> Result<(), TaskDependencyError> {
+    pub fn require_verify(&self, module: ModuleId) -> Result<(), TaskDependencyError> {
         self.require_task(VerifyTask::VerifyModule { module })
     }
 }
