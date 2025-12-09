@@ -122,18 +122,12 @@ impl DsConfig {
             }
         }
 
-        // inherit path resolution (child overrides if set)
+        // inherit module resolution (child overrides if set)
         if compiler.base_url.is_none() {
             compiler.base_url = parent_compiler.base_url.clone();
         }
         if compiler.paths.is_none() {
             compiler.paths = parent_compiler.paths.clone();
-        }
-        if compiler.root_dir.is_none() {
-            compiler.root_dir = parent_compiler.root_dir.clone();
-        }
-        if compiler.out_dir.is_none() {
-            compiler.out_dir = parent_compiler.out_dir.clone();
         }
 
         // inherit checking options (stricter wins)
@@ -166,6 +160,17 @@ impl DsConfig {
             compiler.exact_optional_property_types || parent_compiler.exact_optional_property_types;
         compiler.no_unchecked_indexed_access =
             compiler.no_unchecked_indexed_access || parent_compiler.no_unchecked_indexed_access;
+
+        // inherit emit settings (child overrides if set)
+        if compiler.root_dir.is_none() {
+            compiler.root_dir = parent_compiler.root_dir.clone();
+        }
+        if compiler.out_dir.is_none() {
+            compiler.out_dir = parent_compiler.out_dir.clone();
+        }
+        if compiler.declaration_dir.is_none() {
+            compiler.declaration_dir = parent_compiler.declaration_dir.clone();
+        }
 
         // inherit interop settings (child overrides if set)
         if compiler.tsconfig.is_none() {
@@ -295,17 +300,11 @@ pub struct DsConfigCompilerOptions {
     /// Enabled language features. All features are enabled by default.
     pub features: LanguageFeatureSet,
 
-    // path resolution
+    // module resolution
     /// Base URL for resolving non-relative module names.
     pub base_url: Option<PathBuf>,
-    /// Path alias mappings.
+    /// Path alias mappings (resolved relative to baseUrl).
     pub paths: Option<DsPathAliases>,
-    /// Root directory of input files.
-    pub root_dir: Option<PathBuf>,
-    /// Output directory for compiled files.
-    pub out_dir: Option<PathBuf>,
-    /// Output directory for declaration files. Defaults to out_dir.
-    pub declaration_dir: Option<PathBuf>,
 
     // module & target
     /// Module format for output.
@@ -316,6 +315,8 @@ pub struct DsConfigCompilerOptions {
     // checking
     /// Enable all strict type-checking options.
     pub strict: bool,
+    /// Error on implicit managed `T` (instead of `^T` or `&T` where not provable).
+    pub no_implicit_managed: bool,
     /// Error on implicit `any`.
     pub no_implicit_any: bool,
     /// Strict null checks.
@@ -347,6 +348,14 @@ pub struct DsConfigCompilerOptions {
     /// Add `undefined` to index access.
     pub no_unchecked_indexed_access: bool,
 
+    // emit
+    /// Root directory of source files (controls output directory structure, not module resolution).
+    pub root_dir: Option<PathBuf>,
+    /// Output directory for compiled files.
+    pub out_dir: Option<PathBuf>,
+    /// Output directory for declaration files. Defaults to out_dir.
+    pub declaration_dir: Option<PathBuf>,
+
     // interop
     /// Path to tsconfig.json to inherit settings from.
     pub tsconfig: Option<PathBuf>,
@@ -370,14 +379,12 @@ impl Default for DsConfigCompilerOptions {
             features: LanguageFeatureSet::all(),
             base_url: None,
             paths: None,
-            root_dir: None,
-            out_dir: None,
-            declaration_dir: None,
             module: ModuleKind::default(),
             target: EsTarget::default(),
 
             // checking
             strict: true,
+            no_implicit_managed: strict,
             no_implicit_any: strict,
             strict_null_checks: strict,
             no_implicit_this: strict,
@@ -393,6 +400,11 @@ impl Default for DsConfigCompilerOptions {
             no_fallthrough_cases_in_switch: true,
             exact_optional_property_types: false,
             no_unchecked_indexed_access: false,
+
+            // emit
+            root_dir: None,
+            out_dir: None,
+            declaration_dir: None,
 
             // interop
             tsconfig: None,
@@ -418,9 +430,6 @@ impl From<&DsConfigCompilerOptionsJson> for DsConfigCompilerOptions {
             features,
             base_url: json.base_url.as_ref().map(PathBuf::from),
             paths: json.paths.clone(),
-            root_dir: json.root_dir.as_ref().map(PathBuf::from),
-            out_dir: json.out_dir.as_ref().map(PathBuf::from),
-            declaration_dir: json.declaration_dir.as_ref().map(PathBuf::from),
             module: json
                 .module
                 .as_deref()
@@ -434,6 +443,7 @@ impl From<&DsConfigCompilerOptionsJson> for DsConfigCompilerOptions {
 
             // checking
             strict,
+            no_implicit_managed: json.no_implicit_managed.unwrap_or(false),
             no_implicit_any: json.no_implicit_any.unwrap_or(strict),
             strict_null_checks: json.strict_null_checks.unwrap_or(strict),
             no_implicit_this: json.no_implicit_this.unwrap_or(strict),
@@ -449,6 +459,11 @@ impl From<&DsConfigCompilerOptionsJson> for DsConfigCompilerOptions {
             no_fallthrough_cases_in_switch: json.no_fallthrough_cases_in_switch.unwrap_or(true),
             exact_optional_property_types: json.exact_optional_property_types.unwrap_or(false),
             no_unchecked_indexed_access: json.no_unchecked_indexed_access.unwrap_or(false),
+
+            // emit
+            root_dir: json.root_dir.as_ref().map(PathBuf::from),
+            out_dir: json.out_dir.as_ref().map(PathBuf::from),
+            declaration_dir: json.declaration_dir.as_ref().map(PathBuf::from),
 
             // interop
             tsconfig: json.tsconfig.as_ref().map(PathBuf::from),
@@ -720,17 +735,11 @@ pub struct DsConfigCompilerOptionsJson {
     /// Allow ownership: value ownership (`&T`, `^T`), mutability (`var`), and explicit dispatch.
     pub allow_ownership: Option<bool>,
 
-    // path resolution
+    // module resolution
     /// Base URL for resolving non-relative module names.
     pub base_url: Option<String>,
-    /// Path alias mappings (like tsconfig paths).
+    /// Path alias mappings (resolved relative to baseUrl, like tsconfig paths).
     pub paths: Option<IndexMap<String, Vec<String>>>,
-    /// Root directory of input files.
-    pub root_dir: Option<String>,
-    /// Output directory for compiled files.
-    pub out_dir: Option<String>,
-    /// Output directory for declaration files (.d.ts). Defaults to outDir.
-    pub declaration_dir: Option<String>,
 
     // module & target
     /// Module format for output (e.g., "esnext", "commonjs").
@@ -741,6 +750,8 @@ pub struct DsConfigCompilerOptionsJson {
     // checking
     /// Enable all strict type-checking options. Default: true for .ds files.
     pub strict: Option<bool>,
+    /// Error on implicit managed `T` (instead of `^T` or `&T` where not provable).
+    pub no_implicit_managed: Option<bool>,
     /// Error on expressions and declarations with implied `any` type.
     pub no_implicit_any: Option<bool>,
     /// Enable strict null checks (`null` and `undefined` are distinct types).
@@ -771,6 +782,14 @@ pub struct DsConfigCompilerOptionsJson {
     pub exact_optional_property_types: Option<bool>,
     /// Add `undefined` to index signature results (safer array access).
     pub no_unchecked_indexed_access: Option<bool>,
+
+    // emit
+    /// Root directory of source files (controls output directory structure, not module resolution).
+    pub root_dir: Option<String>,
+    /// Output directory for compiled files.
+    pub out_dir: Option<String>,
+    /// Output directory for declaration files (.d.ts). Defaults to outDir.
+    pub declaration_dir: Option<String>,
 
     // interop
     /// Path to tsconfig.json to inherit settings from.

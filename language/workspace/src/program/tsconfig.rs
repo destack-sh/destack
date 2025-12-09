@@ -1400,7 +1400,7 @@ pub struct TsConfigCompilerOptionsJson {
     /// <https://www.typescriptlang.org/tsconfig/#skipLibCheck>
     pub skip_lib_check: Option<bool>,
 
-    // emit options
+    // emit
     /// Root directory of source files.
     /// <https://www.typescriptlang.org/tsconfig/#rootDir>
     pub root_dir: Option<PathBuf>,
