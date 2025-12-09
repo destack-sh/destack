@@ -4,7 +4,7 @@ use destack_mir::parse::Parser;
 use crate::diagnostic::Error;
 use crate::interpreter::{Interpreter, MachineOptions};
 use crate::memory::Value;
-use crate::tests::{run_mir_expect, run_mir};
+use crate::tests::{run_mir, run_mir_expect};
 
 /// Branch instruction takes the true path when condition is true.
 #[test]
@@ -266,4 +266,63 @@ block0(v0: fn(i32) -> i32, v1: i32):
     assert!(result.is_err());
     let err = result.unwrap_err();
     assert!(matches!(err.error, Error::TypeMismatch { .. }));
+}
+
+/// Block parameters are correctly passed via jump.
+#[test]
+fn test_block_parameters_jump() {
+    let mir = r#"
+function @block_params() -> i32 {
+block0:
+    v0 = iconst 10i32
+    v1 = iconst 20i32
+    jump block1(v0, v1)
+block1(v2: i32, v3: i32):
+    v4 = iadd v2, v3
+    return v4
+}
+"#;
+    run_mir_expect(mir, "block_params", &[], Value::int32(30));
+}
+
+/// Block parameters are correctly passed via branch.
+#[test]
+fn test_block_parameters_branch() {
+    let mir = r#"
+function @branch_params(v0: bool) -> i32 {
+block0(v0: bool):
+    v1 = iconst 100i32
+    v2 = iconst 200i32
+    branch v0, block1(v1), block1(v2)
+block1(v3: i32):
+    return v3
+}
+"#;
+    run_mir_expect(
+        mir,
+        "branch_params",
+        &[Value::Bool(true)],
+        Value::int32(100),
+    );
+    run_mir_expect(
+        mir,
+        "branch_params",
+        &[Value::Bool(false)],
+        Value::int32(200),
+    );
+}
+
+/// Unreachable terminator produces an error.
+#[test]
+fn test_unreachable() {
+    let mir = r#"
+function @unreachable_fn() -> i32 {
+block0:
+    unreachable
+}
+"#;
+    let result = run_mir(mir, "unreachable_fn", &[]);
+    assert!(result.is_err());
+    let err = result.unwrap_err();
+    assert!(matches!(err.error, Error::Unreachable));
 }

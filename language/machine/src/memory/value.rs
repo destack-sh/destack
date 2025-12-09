@@ -259,7 +259,7 @@ pub struct StackPointer {
 
 impl StackPointer {
     /// Create a new stack pointer.
-    pub fn new(frame_depth: usize, slot: usize) -> Self {
-        Self { frame_idx: frame_depth, slot }
+    pub fn new(frame_idx: usize, slot: usize) -> Self {
+        Self { frame_idx, slot }
     }
 }
