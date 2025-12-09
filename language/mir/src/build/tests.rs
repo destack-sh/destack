@@ -87,8 +87,8 @@ function @with_local() -> i64 {
     local0: i64 ; owned, var
 block0:
     v0 = iconst 42i64
-    local_set local0, v0
-    v1 = local_get local0
+    local.set local0, v0
+    v1 = local.get local0
     return v1
 }";
     assert_eq!(output, expected);
@@ -558,19 +558,19 @@ fn test_managed_reference_types() {
     ));
 }
 
-/// Allocation instruction: managed_allocate.
+/// Allocation instruction: managed.alloc.
 #[test]
-fn test_build_managed_allocate() {
+fn test_build_managed_alloc() {
     // setup
     let mut module = ModuleBuilder::new();
     let i32_type = module.type_i32();
     let ref_type = module.type_managed_reference(i32_type);
 
-    // build function with managed_allocate
+    // build function with managed.alloc
     let mut builder = module.function("alloc_test", &[], ref_type);
     let entry_block = builder.create_block();
     builder.switch_to_block(entry_block);
-    let allocated_value = builder.managed_allocate(i32_type);
+    let allocated_value = builder.managed_alloc(i32_type);
     builder.return_(Some(allocated_value));
     builder.seal_block(entry_block);
     builder.finish();
@@ -581,27 +581,27 @@ fn test_build_managed_allocate() {
     let expected = "\
 function @alloc_test() -> ref<i32> {
 block0:
-    v0 = managed_allocate i32
+    v0 = managed.alloc i32
     return v0
 }";
     assert_eq!(output, expected);
 }
 
-/// Allocation instruction: managed_allocate_array.
+/// Allocation instruction: managed.alloc_array.
 #[test]
-fn test_build_managed_allocate_array() {
+fn test_build_managed_alloc_array() {
     // setup
     let mut module = ModuleBuilder::new();
     let i32_type = module.type_i32();
     let i64_type = module.type_i64();
     let array_ref_type = module.type_managed_reference(i32_type);
 
-    // build function with managed_allocate_array
+    // build function with managed.alloc_array
     let mut builder = module.function("alloc_array_test", &[i64_type], array_ref_type);
     let entry_block = builder.create_block();
     builder.switch_to_block(entry_block);
     let length_value = builder.function_parameter(0);
-    let allocated_value = builder.managed_allocate_array(i32_type, length_value);
+    let allocated_value = builder.managed_alloc_array(i32_type, length_value);
     builder.return_(Some(allocated_value));
     builder.seal_block(entry_block);
     builder.finish();
@@ -612,26 +612,26 @@ fn test_build_managed_allocate_array() {
     let expected = "\
 function @alloc_array_test(v0: i64) -> ref<i32> {
 block0:
-    v1 = managed_allocate_array i32, v0
+    v1 = managed.alloc_array i32, v0
     return v1
 }";
     assert_eq!(output, expected);
 }
 
-/// Allocation instruction: raw_allocate and raw_free.
+/// Allocation instruction: raw.alloc and raw.free.
 #[test]
-fn test_build_raw_allocate_and_free() {
+fn test_build_raw_alloc_and_free() {
     // setup
     let mut module = ModuleBuilder::new();
     let i32_type = module.type_i32();
     let void_type = module.type_void();
     let rawptr_type = module.type_raw_pointer(i32_type);
 
-    // build function with raw_allocate and raw_free
+    // build function with raw.alloc and raw.free
     let mut builder = module.function("raw_alloc_test", &[], void_type);
     let entry_block = builder.create_block();
     builder.switch_to_block(entry_block);
-    let allocated_value = builder.raw_allocate(i32_type);
+    let allocated_value = builder.raw_alloc(i32_type);
     // use the allocation
     let const_val = builder.iconst_i32(42);
     builder.store(allocated_value, const_val);
@@ -647,10 +647,10 @@ fn test_build_raw_allocate_and_free() {
     let expected = "\
 function @raw_alloc_test() -> void {
 block0:
-    v0 = raw_allocate i32
+    v0 = raw.alloc i32
     v1 = iconst 42i32
     store v0, v1
-    raw_free v0
+    raw.free v0
     return
 }";
     // Note: rawptr_type was created but not used in output
@@ -658,19 +658,19 @@ block0:
     assert_eq!(output, expected);
 }
 
-/// Allocation instruction: stack_allocate.
+/// Allocation instruction: stack.alloc.
 #[test]
-fn test_build_stack_allocate() {
+fn test_build_stack_alloc() {
     // setup
     let mut module = ModuleBuilder::new();
     let i32_type = module.type_i32();
     let rawptr_type = module.type_raw_pointer(i32_type);
 
-    // build function with stack_allocate
+    // build function with stack.alloc
     let mut builder = module.function("stack_alloc_test", &[], rawptr_type);
     let entry_block = builder.create_block();
     builder.switch_to_block(entry_block);
-    let allocated_value = builder.stack_allocate(i32_type);
+    let allocated_value = builder.stack_alloc(i32_type);
     builder.return_(Some(allocated_value));
     builder.seal_block(entry_block);
     builder.finish();
@@ -681,39 +681,8 @@ fn test_build_stack_allocate() {
     let expected = "\
 function @stack_alloc_test() -> rawptr<i32> {
 block0:
-    v0 = stack_allocate i32
+    v0 = stack.alloc i32
     return v0
-}";
-    assert_eq!(output, expected);
-}
-
-/// Instruction: drop.
-#[test]
-fn test_build_drop() {
-    // setup
-    let mut module = ModuleBuilder::new();
-    let i32_type = module.type_i32();
-    let ref_type = module.type_managed_reference(i32_type);
-    let void_type = module.type_void();
-
-    // build function with drop
-    let mut builder = module.function("drop_test", &[ref_type], void_type);
-    let entry_block = builder.create_block();
-    builder.switch_to_block(entry_block);
-    let ref_value = builder.function_parameter(0);
-    builder.drop_value(ref_value);
-    builder.return_(None);
-    builder.seal_block(entry_block);
-    builder.finish();
-
-    // verify output
-    let (tree, strings) = module.finish();
-    let output = format_mir(&tree, &strings, MirFormatOptions::default());
-    let expected = "\
-function @drop_test(v0: ref<i32>) -> void {
-block0:
-    drop v0
-    return
 }";
     assert_eq!(output, expected);
 }

@@ -58,7 +58,7 @@ pub enum Instruction {
         to_type: LocalNodeId<Type>,
     },
 
-    // local variables
+    // local variables (local.get, local.set)
     /// Load from a local variable (stack slot).
     LocalGet {
         /// The SSA value to define with the loaded value.
@@ -74,7 +74,7 @@ pub enum Instruction {
         value: Value,
     },
 
-    // global variables
+    // global variables (global.get, global.set)
     /// Load from a global variable.
     GlobalGet {
         /// The SSA value to define with the loaded value.
@@ -106,9 +106,9 @@ pub enum Instruction {
         value: Value,
     },
 
-    // aggregate operations
-    /// Extract a field from a struct or tuple.
-    ExtractField {
+    // aggregate operations (field.get, field.set, element.get, element.set)
+    /// Extract a field from a struct or tuple (field.get).
+    FieldGet {
         /// The SSA value to define with the extracted field.
         destination: Value,
         /// The aggregate value to extract from.
@@ -116,9 +116,9 @@ pub enum Instruction {
         /// The zero-based field index.
         index: u32,
     },
-    /// Insert a value into a struct or tuple field.
-    /// Semantically creates a new aggregate; backends optimize to in-place mutation when possible.
-    InsertField {
+    /// Insert a value into a struct or tuple field (field.set).
+    /// (Semantically creates a new aggregate; backends optimize to in-place mutation when possible.)
+    FieldSet {
         /// The SSA value to define with the new aggregate.
         destination: Value,
         /// The original aggregate value.
@@ -128,8 +128,8 @@ pub enum Instruction {
         /// The value to insert at the field.
         value: Value,
     },
-    /// Extract an element from an array.
-    ExtractElement {
+    /// Extract an element from an array (element.get).
+    ElementGet {
         /// The SSA value to define with the extracted element.
         destination: Value,
         /// The array value to extract from.
@@ -137,9 +137,9 @@ pub enum Instruction {
         /// The index of the element (runtime value).
         index: Value,
     },
-    /// Insert a value into an array element.
-    /// Semantically creates a new array; backends optimize to in-place mutation when possible.
-    InsertElement {
+    /// Insert a value into an array element (element.set).
+    /// (Semantically creates a new array; backends optimize to in-place mutation when possible.)
+    ElementSet {
         /// The SSA value to define with the new array.
         destination: Value,
         /// The original array value.
@@ -150,7 +150,7 @@ pub enum Instruction {
         value: Value,
     },
 
-    // function calls
+    // function calls (call, call.indirect)
     /// Call a function directly.
     Call {
         /// The SSA value to define with the return value, if any.
@@ -160,7 +160,7 @@ pub enum Instruction {
         /// The arguments to pass.
         arguments: Vec<Value>,
     },
-    /// Call through a function pointer (indirect/dynamic dispatch).
+    /// Call through a function pointer (call.indirect).
     CallIndirect {
         /// The SSA value to define with the return value, if any.
         destination: Option<Value>,
@@ -170,18 +170,18 @@ pub enum Instruction {
         arguments: Vec<Value>,
     },
 
-    // allocation (managed - runtime tracks memory)
-    /// Allocate a managed (runtime-tracked) struct.
+    // allocation (managed - runtime tracks memory: managed.alloc, managed.alloc_array)
+    /// Allocate a managed (runtime-tracked) struct (managed.alloc).
     /// Returns a `ManagedReference<T>`.
-    ManagedAllocate {
+    ManagedAlloc {
         /// The SSA value to define with the allocated reference.
         destination: Value,
         /// The type of the struct to allocate.
         layout: LocalNodeId<Type>,
     },
-    /// Allocate a managed array.
+    /// Allocate a managed array (managed.alloc_array).
     /// Returns a `ManagedReference<[T]>`.
-    ManagedAllocateArray {
+    ManagedAllocArray {
         /// The SSA value to define with the allocated reference.
         destination: Value,
         /// The element type of the array.
@@ -190,36 +190,29 @@ pub enum Instruction {
         length: Value,
     },
 
-    // allocation (raw - manual memory management)
-    /// Allocate raw memory on the heap.
-    /// Returns a `RawPointer<T>`. Caller must free with `RawFree`.
-    RawAllocate {
+    // allocation (raw - manual memory management: raw.alloc, raw.free)
+    /// Allocate raw memory on the heap (raw.alloc).
+    /// Returns a `RawPointer<T>`. Caller must free with `raw.free`.
+    RawAlloc {
         /// The SSA value to define with the allocated pointer.
         destination: Value,
         /// The type of the value to allocate.
         layout: LocalNodeId<Type>,
     },
-    /// Free raw heap memory previously allocated with `RawAllocate`.
+    /// Free raw heap memory previously allocated with `raw.alloc` (raw.free).
     RawFree {
         /// The pointer to free.
         pointer: Value,
     },
 
-    // allocation (stack - automatic, scoped to function)
-    /// Allocate on the stack (lives until function returns).
+    // allocation (stack - automatic, scoped to function: stack.alloc)
+    /// Allocate on the stack (lives until function returns) (stack.alloc).
     /// Returns a `RawPointer<T>`. Cannot free explicitly.
-    StackAllocate {
+    StackAlloc {
         /// The SSA value to define with the stack pointer.
         destination: Value,
         /// The type of the value to allocate.
         layout: LocalNodeId<Type>,
-    },
-
-    // lifecycle (destructor/cleanup)
-    /// Call destructor/drop for a value.
-    Drop {
-        /// The value to drop.
-        value: Value,
     },
 }
 
@@ -241,18 +234,17 @@ impl Instruction {
             Instruction::GlobalSet { .. } => None,
             Instruction::Load { destination, .. } => Some(*destination),
             Instruction::Store { .. } => None,
-            Instruction::ExtractField { destination, .. } => Some(*destination),
-            Instruction::InsertField { destination, .. } => Some(*destination),
-            Instruction::ExtractElement { destination, .. } => Some(*destination),
-            Instruction::InsertElement { destination, .. } => Some(*destination),
+            Instruction::FieldGet { destination, .. } => Some(*destination),
+            Instruction::FieldSet { destination, .. } => Some(*destination),
+            Instruction::ElementGet { destination, .. } => Some(*destination),
+            Instruction::ElementSet { destination, .. } => Some(*destination),
             Instruction::Call { destination, .. } => *destination,
             Instruction::CallIndirect { destination, .. } => *destination,
-            Instruction::ManagedAllocate { destination, .. } => Some(*destination),
-            Instruction::ManagedAllocateArray { destination, .. } => Some(*destination),
-            Instruction::RawAllocate { destination, .. } => Some(*destination),
+            Instruction::ManagedAlloc { destination, .. } => Some(*destination),
+            Instruction::ManagedAllocArray { destination, .. } => Some(*destination),
+            Instruction::RawAlloc { destination, .. } => Some(*destination),
             Instruction::RawFree { .. } => None,
-            Instruction::StackAllocate { destination, .. } => Some(*destination),
-            Instruction::Drop { .. } => None,
+            Instruction::StackAlloc { destination, .. } => Some(*destination),
         }
     }
 
@@ -269,12 +261,12 @@ impl Instruction {
             Instruction::GlobalSet { value, .. } => smallvec![*value],
             Instruction::Load { pointer, .. } => smallvec![*pointer],
             Instruction::Store { pointer, value, .. } => smallvec![*pointer, *value],
-            Instruction::ExtractField { aggregate, .. } => smallvec![*aggregate],
-            Instruction::InsertField {
+            Instruction::FieldGet { aggregate, .. } => smallvec![*aggregate],
+            Instruction::FieldSet {
                 aggregate, value, ..
             } => smallvec![*aggregate, *value],
-            Instruction::ExtractElement { array, index, .. } => smallvec![*array, *index],
-            Instruction::InsertElement {
+            Instruction::ElementGet { array, index, .. } => smallvec![*array, *index],
+            Instruction::ElementSet {
                 array,
                 index,
                 value,
@@ -288,12 +280,11 @@ impl Instruction {
                 uses.extend(arguments.iter().copied());
                 uses
             }
-            Instruction::ManagedAllocate { .. } => smallvec![],
-            Instruction::ManagedAllocateArray { length, .. } => smallvec![*length],
-            Instruction::RawAllocate { .. } => smallvec![],
+            Instruction::ManagedAlloc { .. } => smallvec![],
+            Instruction::ManagedAllocArray { length, .. } => smallvec![*length],
+            Instruction::RawAlloc { .. } => smallvec![],
             Instruction::RawFree { pointer } => smallvec![*pointer],
-            Instruction::StackAllocate { .. } => smallvec![],
-            Instruction::Drop { value } => smallvec![*value],
+            Instruction::StackAlloc { .. } => smallvec![],
         }
     }
 }

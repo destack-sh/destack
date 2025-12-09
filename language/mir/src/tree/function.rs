@@ -12,10 +12,10 @@ pub enum AllocationMode {
     #[default]
     Any,
     /// Managed allocation forbidden (realtime-safe).
-    /// Only `RawAllocate`, `RawFree`, and `StackAllocate` are allowed.
+    /// Only `RawAlloc`, `RawFree`, and `StackAlloc` are allowed.
     NoManaged,
     /// No heap allocation at all (stack only, embedded-safe).
-    /// Only `StackAllocate` is allowed.
+    /// Only `StackAlloc` is allowed.
     StackOnly,
 }
 
@@ -74,9 +74,7 @@ impl Function {
         return_type: LocalNodeId<Type>,
         entry: LocalNodeId<Block>,
     ) -> Self {
-        // count the values used by params
         let next_value_id = parameters.iter().map(|p| p.value.0 + 1).max().unwrap_or(0);
-
         Self {
             name,
             parameters,

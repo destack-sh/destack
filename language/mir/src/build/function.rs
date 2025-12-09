@@ -625,9 +625,9 @@ impl<'a> FunctionBuilder<'a> {
 
     /// Allocate a managed (runtime-tracked) struct.
     /// Returns a `ManagedReference<T>`.
-    pub fn managed_allocate(&mut self, layout: LocalNodeId<Type>) -> Value {
+    pub fn managed_alloc(&mut self, layout: LocalNodeId<Type>) -> Value {
         let destination = self.allocate_value();
-        self.insert_instruction(Instruction::ManagedAllocate {
+        self.insert_instruction(Instruction::ManagedAlloc {
             destination,
             layout,
         });
@@ -636,9 +636,9 @@ impl<'a> FunctionBuilder<'a> {
 
     /// Allocate a managed array.
     /// Returns a `ManagedReference<[T]>`.
-    pub fn managed_allocate_array(&mut self, element: LocalNodeId<Type>, length: Value) -> Value {
+    pub fn managed_alloc_array(&mut self, element: LocalNodeId<Type>, length: Value) -> Value {
         let destination = self.allocate_value();
-        self.insert_instruction(Instruction::ManagedAllocateArray {
+        self.insert_instruction(Instruction::ManagedAllocArray {
             destination,
             element,
             length,
@@ -647,35 +647,30 @@ impl<'a> FunctionBuilder<'a> {
     }
 
     /// Allocate raw memory on the heap.
-    /// Returns a `RawPointer<T>`. Caller must free with `raw_free`.
-    pub fn raw_allocate(&mut self, layout: LocalNodeId<Type>) -> Value {
+    /// Returns a `RawPointer<T>`. Caller must free with `raw.free`.
+    pub fn raw_alloc(&mut self, layout: LocalNodeId<Type>) -> Value {
         let destination = self.allocate_value();
-        self.insert_instruction(Instruction::RawAllocate {
+        self.insert_instruction(Instruction::RawAlloc {
             destination,
             layout,
         });
         destination
     }
 
-    /// Free raw heap memory previously allocated with `raw_allocate`.
+    /// Free raw heap memory previously allocated with `raw.alloc`.
     pub fn raw_free(&mut self, pointer: Value) {
         self.insert_instruction(Instruction::RawFree { pointer });
     }
 
     /// Allocate on the stack (lives until function returns).
     /// Returns a `RawPointer<T>`.
-    pub fn stack_allocate(&mut self, layout: LocalNodeId<Type>) -> Value {
+    pub fn stack_alloc(&mut self, layout: LocalNodeId<Type>) -> Value {
         let destination = self.allocate_value();
-        self.insert_instruction(Instruction::StackAllocate {
+        self.insert_instruction(Instruction::StackAlloc {
             destination,
             layout,
         });
         destination
-    }
-
-    /// Call destructor/drop glue for a value.
-    pub fn drop_value(&mut self, value: Value) {
-        self.insert_instruction(Instruction::Drop { value });
     }
 
     // instruction builders: function calls

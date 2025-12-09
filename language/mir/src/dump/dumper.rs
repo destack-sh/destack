@@ -301,12 +301,12 @@ impl<'a> Dumper<'a> {
 
             Instruction::LocalGet { destination, local } => {
                 self.write_colored(&self.format_value(*destination), Color::Green);
-                self.write(" = local_get ");
+                self.write(" = local.get ");
                 self.write(&self.format_local_id(*local));
             }
 
             Instruction::LocalSet { local, value } => {
-                self.write("local_set ");
+                self.write("local.set ");
                 self.write(&self.format_local_id(*local));
                 self.write(", ");
                 self.write(&self.format_value(*value));
@@ -317,12 +317,12 @@ impl<'a> Dumper<'a> {
                 global,
             } => {
                 self.write_colored(&self.format_value(*destination), Color::Green);
-                self.write(" = global_get ");
+                self.write(" = global.get ");
                 self.write(&self.format_global_id(*global));
             }
 
             Instruction::GlobalSet { global, value } => {
-                self.write("global_set ");
+                self.write("global.set ");
                 self.write(&self.format_global_id(*global));
                 self.write(", ");
                 self.write(&self.format_value(*value));
@@ -344,50 +344,50 @@ impl<'a> Dumper<'a> {
                 self.write(&self.format_value(*value));
             }
 
-            Instruction::ExtractField {
+            Instruction::FieldGet {
                 destination,
                 aggregate,
                 index,
             } => {
                 self.write_colored(&self.format_value(*destination), Color::Green);
-                self.write(" = extractfield ");
+                self.write(" = field.get ");
                 self.write(&self.format_value(*aggregate));
                 self.write(&format!(", {index}"));
             }
 
-            Instruction::InsertField {
+            Instruction::FieldSet {
                 destination,
                 aggregate,
                 index,
                 value,
             } => {
                 self.write_colored(&self.format_value(*destination), Color::Green);
-                self.write(" = insertfield ");
+                self.write(" = field.set ");
                 self.write(&self.format_value(*aggregate));
                 self.write(&format!(", {index}, "));
                 self.write(&self.format_value(*value));
             }
 
-            Instruction::ExtractElement {
+            Instruction::ElementGet {
                 destination,
                 array,
                 index,
             } => {
                 self.write_colored(&self.format_value(*destination), Color::Green);
-                self.write(" = extractelement ");
+                self.write(" = element.get ");
                 self.write(&self.format_value(*array));
                 self.write(", ");
                 self.write(&self.format_value(*index));
             }
 
-            Instruction::InsertElement {
+            Instruction::ElementSet {
                 destination,
                 array,
                 index,
                 value,
             } => {
                 self.write_colored(&self.format_value(*destination), Color::Green);
-                self.write(" = insertelement ");
+                self.write(" = element.set ");
                 self.write(&self.format_value(*array));
                 self.write(", ");
                 self.write(&self.format_value(*index));
@@ -425,7 +425,7 @@ impl<'a> Dumper<'a> {
                     self.write_colored(&self.format_value(*dst), Color::Green);
                     self.write(" = ");
                 }
-                self.write("call_indirect ");
+                self.write("call.indirect ");
                 self.write(&self.format_value(*callee));
                 self.write("(");
                 for (i, arg) in arguments.iter().enumerate() {
@@ -437,53 +437,48 @@ impl<'a> Dumper<'a> {
                 self.write(")");
             }
 
-            Instruction::ManagedAllocate {
+            Instruction::ManagedAlloc {
                 destination,
                 layout,
             } => {
                 self.write_colored(&self.format_value(*destination), Color::Green);
-                self.write(" = managed_allocate ");
+                self.write(" = managed.alloc ");
                 self.write_colored(&self.format_type_id(*layout), Color::Magenta);
             }
 
-            Instruction::ManagedAllocateArray {
+            Instruction::ManagedAllocArray {
                 destination,
                 element,
                 length,
             } => {
                 self.write_colored(&self.format_value(*destination), Color::Green);
-                self.write(" = managed_allocate_array ");
+                self.write(" = managed.alloc_array ");
                 self.write_colored(&self.format_type_id(*element), Color::Magenta);
                 self.write(", ");
                 self.write(&self.format_value(*length));
             }
 
-            Instruction::RawAllocate {
+            Instruction::RawAlloc {
                 destination,
                 layout,
             } => {
                 self.write_colored(&self.format_value(*destination), Color::Green);
-                self.write(" = raw_allocate ");
+                self.write(" = raw.alloc ");
                 self.write_colored(&self.format_type_id(*layout), Color::Magenta);
             }
 
             Instruction::RawFree { pointer } => {
-                self.write("raw_free ");
+                self.write("raw.free ");
                 self.write(&self.format_value(*pointer));
             }
 
-            Instruction::StackAllocate {
+            Instruction::StackAlloc {
                 destination,
                 layout,
             } => {
                 self.write_colored(&self.format_value(*destination), Color::Green);
-                self.write(" = stack_allocate ");
+                self.write(" = stack.alloc ");
                 self.write_colored(&self.format_type_id(*layout), Color::Magenta);
-            }
-
-            Instruction::Drop { value } => {
-                self.write("drop ");
-                self.write(&self.format_value(*value));
             }
         }
 

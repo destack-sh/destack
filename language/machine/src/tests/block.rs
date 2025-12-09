@@ -222,7 +222,7 @@ block0(v0: i32):
 
 function @caller(v0: fn(i32) -> i32, v1: i32) -> i32 {
 block0(v0: fn(i32) -> i32, v1: i32):
-    v2 = call_indirect v0(v1)
+    v2 = call.indirect v0(v1)
     return v2
 }
 "#;
@@ -254,7 +254,7 @@ fn test_call_indirect_type_mismatch() {
     let mir_text = r#"
 function @caller(v0: fn(i32) -> i32, v1: i32) -> i32 {
 block0(v0: fn(i32) -> i32, v1: i32):
-    v2 = call_indirect v0(v1)
+    v2 = call.indirect v0(v1)
     return v2
 }
 "#;

@@ -58,8 +58,8 @@ function @with_locals() -> i64 {
     local0: i64 ; owned, var
 block0:
     v0 = iconst 42i64
-    local_set local0, v0
-    v1 = local_get local0
+    local.set local0, v0
+    v1 = local.get local0
     return v1
 }";
     assert_eq!(output, expected);
@@ -214,10 +214,10 @@ fn test_format_global_variable() {
 global @counter: i32 = zeroinit ; var
 function @increment() -> void {
 block0:
-    v0 = global_get @counter
+    v0 = global.get @counter
     v1 = iconst 1i32
     v2 = iadd v0, v1
-    global_set @counter, v2
+    global.set @counter, v2
     return
 }";
     assert_eq!(output, expected);
@@ -254,7 +254,7 @@ fn test_format_global_constant() {
 global @MAGIC: i64 = 42i64 ; const
 function @get_magic() -> i64 {
 block0:
-    v0 = global_get @MAGIC
+    v0 = global.get @MAGIC
     return v0
 }";
     assert_eq!(output, expected);
