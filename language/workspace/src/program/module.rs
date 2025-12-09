@@ -148,8 +148,11 @@ pub struct ModuleDir {
     /// The top-level expressions of the Module.
     pub roots: Vec<dir::LocalNodeId<dir::Expression>>,
     /// Namespace exports: modules whose exports are re-exported via `export * from "..."`.
-    /// These are populated during the resolve phase.
-    pub namespace_exports: RwLock<Vec<ModuleId>>, // nocheckin #Suspicious
+    pub namespace_exports: RwLock<Vec<ModuleId>>,
+    /// Resolved import specifiers to module ids (keyed by (relative_module, specifier)).
+    pub imported_modules: RwLock<IndexMap<(Option<ModuleId>, StringId), ModuleId>>,
+    /// Exported symbols by key (space, name).
+    pub exported_symbols: RwLock<IndexMap<(dir::SymbolSpace, dir::StaticKey), dir::LocalSymbolId>>,
 }
 
 impl ModuleDir {
@@ -184,6 +187,8 @@ impl ModuleDir {
             types: RwLock::new(dir::TypeTable::new(id)),
             roots: Vec::new(),
             namespace_exports: RwLock::new(Vec::new()),
+            imported_modules: RwLock::new(IndexMap::new()),
+            exported_symbols: RwLock::new(IndexMap::new()),
         }
     }
 }

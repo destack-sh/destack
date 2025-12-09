@@ -1,5 +1,4 @@
-use destack_source::{ModuleId, StringId};
-use indexmap::IndexMap;
+use destack_source::ModuleId;
 
 use crate::{
     Arena, DependencyMode, LocalNodeId, LocalScopeId, LocalScopeMark, LocalSymbolId, Node,
@@ -22,11 +21,6 @@ pub struct SymbolTable {
     pub(crate) symbols: Arena<Symbol>,
     /// The scopes in the table.
     pub(crate) scopes: Arena<Scope>,
-
-    /// The resolved modules by target.
-    pub(crate) imported_module_by_target: IndexMap<(Option<ModuleId>, StringId), ModuleId>,
-    /// The exported symbol by key.
-    pub(crate) exported_symbol_by_key: IndexMap<(SymbolSpace, StaticKey), LocalSymbolId>,
 }
 
 impl SymbolTable {
@@ -38,8 +32,6 @@ impl SymbolTable {
             next_scope_id: 0,
             symbols: Arena::new(),
             scopes: Arena::new(),
-            imported_module_by_target: IndexMap::new(),
-            exported_symbol_by_key: IndexMap::new(),
         }
     }
 
@@ -161,41 +153,5 @@ impl SymbolTable {
     #[inline]
     pub fn get_scope_by_id_mut(&mut self, scope_id: LocalScopeId) -> &mut Scope {
         self.scopes.get_mut(scope_id.0)
-    }
-
-    /// Set a resolved import for a target (relative to a module if relative).
-    #[inline]
-    pub fn resolve_import(
-        &mut self,
-        module: Option<ModuleId>,
-        target: StringId,
-        target_module: ModuleId,
-    ) {
-        self.imported_module_by_target
-            .insert((module, target), target_module);
-    }
-
-    /// Get a resolved import for a target (relative to a module if relative).
-    #[inline]
-    pub fn get_resolved_import(
-        &self,
-        module: Option<ModuleId>,
-        target: StringId,
-    ) -> Option<ModuleId> {
-        self.imported_module_by_target
-            .get(&(module, target))
-            .cloned()
-    }
-
-    /// Set an exported symbol for a key.
-    #[inline]
-    pub fn resolve_export(&mut self, key: (SymbolSpace, StaticKey), symbol_id: LocalSymbolId) {
-        self.exported_symbol_by_key.insert(key, symbol_id);
-    }
-
-    /// Get an exported symbol for a key.
-    #[inline]
-    pub fn get_exported_symbol(&self, key: (SymbolSpace, StaticKey)) -> Option<LocalSymbolId> {
-        self.exported_symbol_by_key.get(&key).cloned()
     }
 }
