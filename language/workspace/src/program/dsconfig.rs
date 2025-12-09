@@ -508,12 +508,8 @@ impl From<&DsConfigCompilerOptionsJson> for DsConfigCompilerOptions {
             no_unchecked_indexed_access: json.no_unchecked_indexed_access.unwrap_or(false),
 
             // Destack-specific checking
-            no_implicit_managed_type: json
-                .no_implicit_managed_type
-                .unwrap_or(strict_unmanaged),
-            no_implicit_managed_value: json
-                .no_implicit_managed_value
-                .unwrap_or(strict_unmanaged),
+            no_implicit_managed_type: json.no_implicit_managed_type.unwrap_or(strict_unmanaged),
+            no_implicit_managed_value: json.no_implicit_managed_value.unwrap_or(strict_unmanaged),
             no_implicit_self: json.no_implicit_self.unwrap_or(false),
 
             // emit

@@ -184,6 +184,8 @@ fn normalize_error(s: &str) -> String {
     s.trim().to_lowercase()
 }
 
+// TODO #Incomplete: run and check mdtests properly (satisfies, precise errors, .. see below)
+
 /// Check if an expected error matches an actual error.
 /// Uses substring matching to be flexible with error message formatting.
 fn error_matches(expected: &str, actual: &str) -> bool {

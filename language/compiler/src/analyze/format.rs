@@ -283,7 +283,7 @@ impl Compiler {
     }
 
     /// Format a StaticKey.
-    fn format_static_key(&self, key: &StaticKey) -> String {
+    pub(super) fn format_static_key(&self, key: &StaticKey) -> String {
         match key {
             StaticKey::Name(name_id) => self.program.strings.get(*name_id).to_string(),
             StaticKey::UniqueSymbol(_) => "<unique symbol>".to_string(),
