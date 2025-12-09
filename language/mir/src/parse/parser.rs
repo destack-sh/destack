@@ -4,8 +4,8 @@ use std::collections::HashMap;
 
 use crate::{
     BinaryOperator, Block, CastKind, Constant, Function, Global, GlobalInitializer, Instruction,
-    Local, LocalNodeId, Mutability, NodeTree, Ownership, SwitchCase, Terminator, Type, TypedValue,
-    UnaryOperator, Value,
+    Linkage, Local, LocalNodeId, Mutability, NodeTree, Ownership, SwitchCase, Terminator, Type,
+    TypedValue, UnaryOperator, Value,
 };
 use destack_source::{ImmutableStringPool, StringPool};
 
@@ -134,31 +134,34 @@ impl<'a> Parser<'a> {
     /// Parse a module (list of globals and functions).
     fn parse_module(&mut self) -> ParseResult<()> {
         while !self.peek_token(TokenType::End) {
-            if self.peek_token(TokenType::Extern) {
-                // extern function or extern global
+            // parse optional linkage prefix: extern or export
+            let linkage = if self.peek_token(TokenType::Extern) {
                 self.bump();
-                if self.peek_token(TokenType::Function) {
-                    self.parse_extern_function()?;
-                } else if self.peek_token(TokenType::Global) {
-                    self.parse_extern_global()?;
-                } else {
-                    return Err(ParseError::new(
-                        "expected 'function' or 'global' after 'extern'",
-                        self.pos(),
-                    ));
-                }
-            } else if self.peek_token(TokenType::Global) {
-                self.parse_global()?;
+                Linkage::Import
+            } else if self.peek_token(TokenType::Export) {
+                self.bump();
+                Linkage::Export
             } else {
-                self.parse_function()?;
+                Linkage::Local // default
+            };
+
+            if self.peek_token(TokenType::Global) {
+                self.parse_global(linkage)?;
+            } else if self.peek_token(TokenType::Function) {
+                self.parse_function(linkage)?;
+            } else {
+                return Err(ParseError::new(
+                    "expected 'function' or 'global'",
+                    self.pos(),
+                ));
             }
         }
         Ok(())
     }
 
-    /// Parse an extern global declaration.
-    /// Syntax: `extern global @name: type ; var` or `extern global @name: type ; const`
-    fn parse_extern_global(&mut self) -> ParseResult<LocalNodeId<Global>> {
+    /// Parse a global definition or declaration.
+    /// Syntax: `[export|extern] global @name: type [= init] ; var|const`
+    fn parse_global(&mut self, linkage: Linkage) -> ParseResult<LocalNodeId<Global>> {
         self.eat_token(TokenType::Global)?;
         self.eat_token(TokenType::At)?;
 
@@ -169,6 +172,14 @@ impl<'a> Parser<'a> {
         // type
         self.eat_token(TokenType::Colon)?;
         let ty = self.parse_type()?;
+
+        // initializer (required for defined globals, absent for imports)
+        let initializer = if linkage.is_import() {
+            None
+        } else {
+            self.eat_token(TokenType::Equals)?;
+            Some(self.parse_data_init()?)
+        };
 
         // mutability annotation: ; var or ; const
         let mut mutability = Mutability::Immutable;
@@ -181,42 +192,13 @@ impl<'a> Parser<'a> {
         }
 
         let name_id = self.strings.intern(&name);
-        let global = Global::external(name_id, ty, mutability);
-        let id = self.tree.insert(global);
-        self.global_map.insert(name, id);
-        Ok(id)
-    }
-
-    /// Parse a global definition.
-    /// Syntax: `global @name: type = init ; var` or `global @name: type = init ; const`
-    fn parse_global(&mut self) -> ParseResult<LocalNodeId<Global>> {
-        self.eat_token(TokenType::Global)?;
-        self.eat_token(TokenType::At)?;
-
-        // global name
-        let name_token = self.eat_token(TokenType::Identifier)?;
-        let name = name_token.text.to_string();
-
-        // type
-        self.eat_token(TokenType::Colon)?;
-        let ty = self.parse_type()?;
-
-        // initializer
-        self.eat_token(TokenType::Equals)?;
-        let init = self.parse_data_init()?;
-
-        // mutability annotation: ; var or ; const
-        let mut mutability = Mutability::Immutable;
-        if self.eat_token_maybe(TokenType::Semicolon) {
-            if self.eat_token_maybe(TokenType::Var) {
-                mutability = Mutability::Mutable;
-            } else if self.eat_token_maybe(TokenType::Const) {
-                mutability = Mutability::Immutable;
-            }
-        }
-
-        let name_id = self.strings.intern(&name);
-        let global = Global::new(name_id, ty, mutability, init);
+        let global = Global {
+            name: name_id,
+            ty,
+            mutability,
+            linkage,
+            initializer,
+        };
         let id = self.tree.insert(global);
         self.global_map.insert(name, id);
         Ok(id)
@@ -273,8 +255,9 @@ impl<'a> Parser<'a> {
         }
     }
 
-    /// Parse a function.
-    fn parse_function(&mut self) -> ParseResult<LocalNodeId<Function>> {
+    /// Parse a function definition or declaration.
+    /// Syntax: `[export|extern] function @name(params) -> type { body }`
+    fn parse_function(&mut self, linkage: Linkage) -> ParseResult<LocalNodeId<Function>> {
         self.eat_token(TokenType::Function)?;
         self.eat_token(TokenType::At)?;
 
@@ -282,14 +265,38 @@ impl<'a> Parser<'a> {
         let name_token = self.eat_token(TokenType::Identifier)?;
         let name = name_token.text.to_string();
 
-        // parameters
+        // parameters (with types for imports, typed values for definitions)
         self.eat_token(TokenType::OpenParen)?;
-        let parameters = self.parse_typed_value_list()?;
+        let parameters = if linkage.is_import() {
+            // extern functions only have types, no value names
+            self.parse_extern_parameter_list()?
+        } else {
+            self.parse_typed_value_list()?
+        };
         self.eat_token(TokenType::CloseParen)?;
 
         // return type
         self.eat_token(TokenType::Arrow)?;
         let return_type = self.parse_type()?;
+
+        // imports have no body
+        if linkage.is_import() {
+            let name_id = self.strings.intern(&name);
+            let function = Function {
+                name: name_id,
+                parameters,
+                return_type,
+                linkage,
+                allocation_mode: crate::AllocationMode::Any,
+                locals: Vec::new(),
+                blocks: Vec::new(),
+                entry: None,
+                next_value_id: 0,
+            };
+            let id = self.tree.insert(function);
+            self.function_map.insert(name, id);
+            return Ok(id);
+        }
 
         // pre-register the function so it can reference itself (recursion)
         let name_id = self.strings.intern(&name);
@@ -297,7 +304,7 @@ impl<'a> Parser<'a> {
             name: name_id,
             parameters: parameters.clone(),
             return_type,
-            is_external: false,
+            linkage,
             allocation_mode: crate::AllocationMode::Any,
             locals: Vec::new(),
             blocks: Vec::new(),
@@ -358,18 +365,9 @@ impl<'a> Parser<'a> {
         Ok(id)
     }
 
-    /// Parse an extern function declaration.
-    /// Syntax: `extern function @name(type, type) -> type`
-    fn parse_extern_function(&mut self) -> ParseResult<LocalNodeId<Function>> {
-        self.eat_token(TokenType::Function)?;
-        self.eat_token(TokenType::At)?;
-
-        // function name
-        let name_token = self.eat_token(TokenType::Identifier)?;
-        let name = name_token.text.to_string();
-
-        // parameter types (no names, just types)
-        self.eat_token(TokenType::OpenParen)?;
+    /// Parse extern function parameter list (types only, no value names).
+    /// Returns TypedValue with synthetic value IDs.
+    fn parse_extern_parameter_list(&mut self) -> ParseResult<Vec<TypedValue>> {
         let mut parameter_types = Vec::new();
         while !self.peek_token(TokenType::CloseParen) {
             let ty = self.parse_type()?;
@@ -378,28 +376,15 @@ impl<'a> Parser<'a> {
                 break;
             }
         }
-        self.eat_token(TokenType::CloseParen)?;
-
-        // return type
-        self.eat_token(TokenType::Arrow)?;
-        let return_type = self.parse_type()?;
-
         // create typed parameters (with synthetic values)
-        let parameters: Vec<TypedValue> = parameter_types
+        Ok(parameter_types
             .iter()
             .enumerate()
             .map(|(i, &ty)| TypedValue {
                 value: Value::new(i as u32),
                 ty,
             })
-            .collect();
-
-        let name_id = self.strings.intern(&name);
-        let function = Function::external(name_id, parameters, return_type);
-
-        let id = self.tree.insert(function);
-        self.function_map.insert(name, id);
-        Ok(id)
+            .collect())
     }
 
     /// Parse a local variable declaration.

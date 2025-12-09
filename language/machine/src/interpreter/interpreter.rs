@@ -93,8 +93,8 @@ impl Interpreter {
         let mut globals = GlobalStorage::new();
 
         for (id, global) in tree.iter_nodes::<mir::Global>() {
-            // skip external globals (they need separate registration)
-            if global.is_external {
+            // skip imported globals (they need separate registration)
+            if global.is_import() {
                 continue;
             }
 

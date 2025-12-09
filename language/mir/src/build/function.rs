@@ -1,7 +1,7 @@
 use indexmap::{IndexMap, IndexSet};
 
 use crate::{
-    AllocationMode, BinaryOperator, Block, Constant, Function, Global, Instruction, Local,
+    AllocationMode, BinaryOperator, Block, Constant, Function, Global, Instruction, Linkage, Local,
     LocalNodeId, Mutability, NodeTree, Ownership, Terminator, Type, TypedValue, UnaryOperator,
     Value,
 };
@@ -90,7 +90,7 @@ impl<'a> FunctionBuilder<'a> {
             name,
             parameters,
             return_type,
-            is_external: false,
+            linkage: Linkage::Local,
             allocation_mode: AllocationMode::Any,
             locals: Vec::new(),
             blocks: Vec::new(),

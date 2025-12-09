@@ -715,8 +715,10 @@ impl<'a> NodeVisitor for Dumper<'a> {
     }
 
     fn visit_global(&mut self, _tree: &NodeTree, id: LocalNodeId<Global>, global: &Global) {
-        if global.is_external {
+        if global.linkage.is_import() {
             self.write_colored("extern ", Color::BrightBlue);
+        } else if global.linkage.is_exported() {
+            self.write_colored("export ", Color::BrightBlue);
         }
         self.write_colored("global", Color::BrightBlue);
         self.write(" @");

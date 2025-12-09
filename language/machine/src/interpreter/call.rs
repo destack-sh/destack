@@ -47,8 +47,8 @@ impl Interpreter {
 
         let function = self.tree.get(func_id);
 
-        // check for external function
-        if function.is_external {
+        // check for imported function
+        if function.is_import() {
             let name = self.strings.get(function.name).to_string();
             let handler = self
                 .externals
@@ -327,8 +327,8 @@ impl Interpreter {
 
         let func = self.tree.get(function);
 
-        // execute external function
-        if func.is_external {
+        // execute imported function
+        if func.is_import() {
             let name = self.strings.get(func.name).to_string();
             let external_handler = self.externals.get(&name).ok_or_else(|| {
                 self.make_error(Error::ExternalFunctionNotFound { name: name.clone() })

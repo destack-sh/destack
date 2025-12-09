@@ -1,6 +1,6 @@
 use destack_source::StringId;
 
-use crate::{Block, Local, LocalNodeId, Node, NodeType, Type, TypedValue, Value};
+use crate::{Block, Linkage, Local, LocalNodeId, Node, NodeType, Type, TypedValue, Value};
 
 /// Memory allocation restrictions for a function.
 ///
@@ -30,7 +30,7 @@ impl AllocationMode {
     }
 }
 
-/// A function in MIR (may be external).
+/// A function in MIR.
 ///
 /// Functions are the top-level compilation unit, containing:
 /// - Parameters as SSA values
@@ -44,18 +44,18 @@ pub struct Function {
     pub parameters: Vec<TypedValue>,
     /// The return type.
     pub return_type: LocalNodeId<Type>,
-    /// Whether this function is external (declared but not defined here).
-    pub is_external: bool,
+    /// Linkage (local, export, or import).
+    pub linkage: Linkage,
     /// Memory allocation restrictions for this function.
     pub allocation_mode: AllocationMode,
     /// Local variables (stack-allocated slots for mutable bindings).
-    /// Empty for external functions.
+    /// Empty for imported functions.
     pub locals: Vec<LocalNodeId<Local>>,
     /// All basic blocks in this function.
-    /// Empty for external functions.
+    /// Empty for imported functions.
     pub blocks: Vec<LocalNodeId<Block>>,
     /// The entry block (execution starts here).
-    /// None for external functions.
+    /// None for imported functions.
     pub entry: Option<LocalNodeId<Block>>,
 
     /// Counter for allocating unique SSA value IDs.
@@ -67,7 +67,7 @@ impl Node for Function {
 }
 
 impl Function {
-    /// Create a new function with the given signature.
+    /// Create a new local (private) function with the given signature.
     pub fn new(
         name: StringId,
         parameters: Vec<TypedValue>,
@@ -79,7 +79,7 @@ impl Function {
             name,
             parameters,
             return_type,
-            is_external: false,
+            linkage: Linkage::Local,
             allocation_mode: AllocationMode::Any,
             locals: Vec::new(),
             blocks: Vec::new(),
@@ -88,8 +88,8 @@ impl Function {
         }
     }
 
-    /// Create an external function declaration (no body).
-    pub fn external(
+    /// Create an imported function declaration (no body).
+    pub fn import(
         name: StringId,
         parameters: Vec<TypedValue>,
         return_type: LocalNodeId<Type>,
@@ -98,13 +98,24 @@ impl Function {
             name,
             parameters,
             return_type,
-            is_external: true,
+            linkage: Linkage::Import,
             allocation_mode: AllocationMode::Any,
             locals: Vec::new(),
             blocks: Vec::new(),
             entry: None,
             next_value_id: 0,
         }
+    }
+
+    /// Set the linkage and return self (builder pattern).
+    pub fn with_linkage(mut self, linkage: Linkage) -> Self {
+        self.linkage = linkage;
+        self
+    }
+
+    /// Check if this function is imported (defined elsewhere).
+    pub fn is_import(&self) -> bool {
+        self.linkage.is_import()
     }
 
     /// Allocate a new SSA value.
