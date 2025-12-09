@@ -61,11 +61,14 @@ impl Compiler {
         let alias = ast_item
             .alias
             .map(|alias| self.program.strings.intern_from(&module.ast.strings, alias));
-        let (symbol_id, _) = if let Some(name) = name {
+        // the symbol key is the alias if present, otherwise the name
+        // (e.g., `import { foo as bar }` has key `bar`, `import * as baz` has key `baz`)
+        let key = alias.or(name);
+        let (symbol_id, _) = if let Some(key) = key {
             self.bind_named_item(
                 module,
                 SymbolSpace::Value,
-                StaticKey::Name(name),
+                StaticKey::Name(key),
                 scope,
                 if is_export { Some(mode) } else { None },
                 symbols,
@@ -79,7 +82,7 @@ impl Compiler {
                 symbols,
             )
         };
-        if let Some(target) = target {
+        let item_id = if let Some(target) = target {
             let item = DependencyItem::UnresolvedRemote {
                 source,
                 mode,
@@ -100,6 +103,11 @@ impl Compiler {
                 symbol: symbol_id,
             };
             tree.insert(item_id, item)
-        }
+        };
+
+        // set primary declaration for the symbol
+        symbols.get_symbol_mut(symbol_id).declare_primary(item_id);
+
+        item_id
     }
 }

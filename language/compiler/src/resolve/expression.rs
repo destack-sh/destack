@@ -1,4 +1,4 @@
-use destack_dir::{DependencySource, Expression, LocalNodeId, NodeTree, SymbolTable};
+use destack_dir::{DependencySource, Expression, LocalNodeId, NodeTree, Path, SymbolTable};
 
 use crate::{Compiler, ResolveError, ResolveResult};
 
@@ -14,6 +14,24 @@ impl Compiler {
         // type expression
         let ty = self.resolve_string_to_type(string.as_str())?;
         Some(Expression::TypeLiteral { value: ty })
+    }
+
+    /// Try to resolve `Self` type to an expression referencing the enclosing type.
+    pub(super) fn resolve_self_expression(
+        &self,
+        module: &Module,
+        scope: (destack_dir::LocalScopeId, &destack_dir::Scope, destack_dir::LocalScopeMark),
+        path: &Path,
+        static_arguments: Option<Vec<LocalNodeId<destack_dir::Argument>>>,
+        symbols: &SymbolTable,
+    ) -> Option<Expression> {
+        let owner_symbol_id = self.resolve_self_type(scope, symbols)?;
+        // Self always refers to a type in the same module
+        Some(Expression::ModuleReference {
+            path: path.clone(),
+            static_arguments,
+            target_symbol: owner_symbol_id.into_global(module.id),
+        })
     }
 
     /// Resolve an Expression.
@@ -50,6 +68,26 @@ impl Compiler {
                 }
             }
 
+            Expression::UnresolvedReExport {
+                target,
+                kind,
+                items,
+            } => {
+                let remote_module_id = self.resolve_import(
+                    module,
+                    expression_id.into_global_any(module.id),
+                    DependencySource::ExportStatement,
+                    *target,
+                    symbols,
+                )?;
+                Expression::ReExport {
+                    target: *target,
+                    target_module: remote_module_id,
+                    kind: *kind,
+                    items: items.clone(),
+                }
+            }
+
             Expression::UnresolvedAbsolutePath {
                 path,
                 static_arguments,
@@ -67,10 +105,24 @@ impl Compiler {
                         if matches!(error, ResolveError::MissingSymbol { .. })
                             && path.segments.len() == 1 =>
                     {
-                        // try resolving simple terms as builtin expression
+                        // try resolving simple terms as builtin expression or Self type
                         let string = self.program.strings.get(path.segments[0]);
-                        self.resolve_string_to_builtin_expression_maybe(string.as_str())
-                            .ok_or(error)?
+                        if string == "Self" {
+                            // try to resolve Self type from enclosing type scope
+                            self.resolve_self_expression(
+                                module,
+                                scope,
+                                path,
+                                static_arguments.clone(),
+                                symbols,
+                            )
+                            .ok_or(ResolveError::MissingSelf {
+                                node: expression_id.into_global_any(module.id),
+                            })?
+                        } else {
+                            self.resolve_string_to_builtin_expression_maybe(string.as_str())
+                                .ok_or(error)?
+                        }
                     }
                     Err(error) => return Err(error),
                 }

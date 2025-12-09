@@ -1,8 +1,42 @@
 use crate::Compiler;
-use destack_dir::{FloatType, IntType, PrimitiveType, TypeLiteral};
+use destack_dir::{
+    FloatType, IntType, LocalScopeId, LocalScopeMark, LocalSymbolId, PrimitiveType, Scope,
+    SymbolKind, SymbolTable, TypeLiteral,
+};
 
 /// Builtin type name resolution.
 impl Compiler {
+    /// Resolve the `Self` type by walking up the scope chain to find the enclosing type.
+    /// Returns the symbol id of the enclosing class/struct/enum, or None if not inside a type.
+    pub(super) fn resolve_self_type(
+        &self,
+        scope: (LocalScopeId, &Scope, LocalScopeMark),
+        symbols: &SymbolTable,
+    ) -> Option<LocalSymbolId> {
+        let mut current_scope = scope;
+        loop {
+            // check if this scope has an owner that is an Item (class/struct/enum)
+            if let Some(owner_id) = current_scope.1.owner_id {
+                let owner_symbol = symbols.get_symbol(owner_id);
+                // Item kind symbols are types (struct/class/enum), Local is for variables
+                if owner_symbol.kind == SymbolKind::Item {
+                    return Some(owner_id);
+                }
+            }
+            // go to parent scope
+            if let Some((parent_scope_id, parent_mark)) = current_scope.1.parent {
+                current_scope = (
+                    parent_scope_id,
+                    symbols.get_scope_by_id(parent_scope_id),
+                    parent_mark,
+                );
+            } else {
+                break;
+            }
+        }
+        None
+    }
+
     /// Whether the token string encodes a type literal with an explicit width.
     fn is_type_with_width(&self, prefix: &'static str, target: &str) -> Option<u16> {
         if let Some(target) = target.strip_prefix(prefix) {
@@ -37,8 +71,8 @@ impl Compiler {
             "bigint" => Some(TypeLiteral::Primitive(PrimitiveType::Bigint)),
             // number
             "number" => Some(TypeLiteral::Primitive(PrimitiveType::Number)),
-            // Self
-            "Self" => panic!("self type can't be resolved"),
+            // Self - handled specially in resolve_expression, not as a builtin type
+            "Self" => None,
             // int (followed by number or nothing)
             "int" => Some(TypeLiteral::Primitive(PrimitiveType::Int(
                 IntType::Arbitrary {
@@ -105,6 +139,7 @@ impl Compiler {
 #[cfg(test)]
 mod tests {
     use destack_dir::{Expression, FloatType, IntType, PrimitiveType, TypeLiteral};
+    use destack_source::DiagnosticSeverity;
 
     use crate::{TestProgram, assert_node};
 
@@ -239,5 +274,75 @@ string;
                 assert_eq!(*target_symbol, string_symbol_id);
             });
         });
+    }
+
+    /// Test that Self resolves to the enclosing struct.
+    #[test]
+    fn test_self_type_in_struct() {
+        let test = TestProgram::memory_sequential();
+        let module_id = test.register_module(
+            "test.ds",
+            r#"
+struct Foo {
+    create(): Self {
+        return new Self()
+    }
+}
+"#,
+        );
+        test.resolve_module(module_id);
+        test.compile_dump_clean();
+
+        // get the Foo symbol
+        let foo_symbol_id = test.resolve_to_symbol("test.ds", "Foo").unwrap();
+
+        // verify that Self in return type resolves to Foo
+        let module = test.program.modules.get(module_id);
+        let module = module.read();
+        let tree = module.dir.tree.read();
+
+        // find the Self reference in the function return type
+        let mut found_self_reference = false;
+        for expr_id in tree.iter_node_ids_of_type::<Expression>() {
+            if let Expression::ModuleReference {
+                target_symbol,
+                path,
+                ..
+            } = tree.get(expr_id)
+            {
+                // check if this is a Self reference that points to Foo
+                let first_segment = test.program.strings.get(path.segments[0]);
+                if first_segment == "Self" && *target_symbol == foo_symbol_id {
+                    found_self_reference = true;
+                    break;
+                }
+            }
+        }
+        assert!(found_self_reference, "Self should resolve to Foo struct");
+    }
+
+    /// Test that Self outside a type context produces an error.
+    #[test]
+    fn test_self_type_outside_type_errors() {
+        let test = TestProgram::memory_sequential();
+        let module_id = test.register_module(
+            "test.ds",
+            r#"
+let x: Self = 1;
+"#,
+        );
+        test.resolve_module(module_id);
+        test.compile();
+
+        // check that we get an error
+        let diagnostics = test.program.diagnostics.collect();
+        let has_error = diagnostics
+            .highest_severity()
+            .map(|s| s >= DiagnosticSeverity::Error)
+            .unwrap_or(false);
+        assert!(
+            has_error,
+            "Self outside type context should produce an error"
+        );
     }
 }

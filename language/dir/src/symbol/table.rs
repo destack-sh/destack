@@ -49,6 +49,12 @@ impl SymbolTable {
         self.symbols.iter()
     }
 
+    /// Get the number of symbols.
+    #[inline]
+    pub fn symbol_count(&self) -> u32 {
+        self.next_symbol_id
+    }
+
     /// Get the scopes.
     #[inline]
     pub fn scopes(&self) -> impl Iterator<Item = &Scope> {

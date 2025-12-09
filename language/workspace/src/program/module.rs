@@ -146,6 +146,9 @@ pub struct ModuleDir {
     pub types: RwLock<dir::TypeTable>,
     /// The top-level expressions of the Module.
     pub roots: Vec<dir::LocalNodeId<dir::Expression>>,
+    /// Namespace exports: modules whose exports are re-exported via `export * from "..."`.
+    /// These are populated during the resolve phase.
+    pub namespace_exports: RwLock<Vec<ModuleId>>, // nocheckin #Suspicious
 }
 
 impl ModuleDir {
@@ -179,6 +182,7 @@ impl ModuleDir {
             symbols: RwLock::new(symbols),
             types: RwLock::new(dir::TypeTable::new(id)),
             roots: Vec::new(),
+            namespace_exports: RwLock::new(Vec::new()),
         }
     }
 }

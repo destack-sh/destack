@@ -215,17 +215,21 @@ impl TestProgram {
     }
 
     /// Compile, dump and check no diagnostics.
-    ///
-    /// Runs all queued tasks to completion, dumps output, and asserts no diagnostics.
-    /// Tests should enqueue their target tasks before calling this.
     pub fn compile_dump_clean(&self) {
         self.compile();
         self.dump();
         self.check_no_diagnostic(DiagnosticSeverity::Note);
     }
 
+    /// Compile, check no diagnostics and dump output.
+    pub fn compile_dump_check(&self) {
+        self.compile();
+        self.check_no_diagnostic(DiagnosticSeverity::Note);
+        self.dump();
+    }
+
     /// Compile, dump and ignore diagnostics.
-    pub fn compile_dump_ignore(&self) {
+    pub fn compile_dump(&self) {
         self.compile();
         self.dump();
     }
