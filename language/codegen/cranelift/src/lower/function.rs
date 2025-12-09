@@ -364,7 +364,8 @@ impl<'a> FunctionLowerer<'a> {
                     let aggregate_type = self.tree.get(*aggregate_type_id);
                     match aggregate_type {
                         mir::Type::Struct { fields } => {
-                            if let Some(field) = fields.get(*index as usize) {
+                            if let Some(field_id) = fields.get(*index as usize) {
+                                let field = self.tree.get(*field_id);
                                 return Some((*destination, field.ty));
                             }
                         }
@@ -698,13 +699,14 @@ impl<'a> FunctionLowerer<'a> {
                 // field offset and type
                 let (field_offset, field_type_id) = match aggregate_type {
                     mir::Type::Struct { fields } => {
-                        let field = fields.get(*index as usize).ok_or_else(|| {
+                        let field_id = fields.get(*index as usize).ok_or_else(|| {
                             CodegenCraneliftError::out_of_bounds(
                                 instruction_id.into_any(),
                                 *index,
                                 fields.len(),
                             )
                         })?;
+                        let field = self.tree.get(*field_id);
                         (field.offset, field.ty)
                     }
                     mir::Type::Tuple { elements } => {
@@ -764,13 +766,14 @@ impl<'a> FunctionLowerer<'a> {
                 // field
                 let field_offset = match aggregate_type {
                     mir::Type::Struct { fields } => {
-                        let field = fields.get(*index as usize).ok_or_else(|| {
+                        let field_id = fields.get(*index as usize).ok_or_else(|| {
                             CodegenCraneliftError::out_of_bounds(
                                 instruction_id.into_any(),
                                 *index,
                                 fields.len(),
                             )
                         })?;
+                        let field = self.tree.get(*field_id);
                         field.offset
                     }
                     mir::Type::Tuple { elements } => compute_tuple_element_offset(
@@ -939,8 +942,8 @@ impl<'a> FunctionLowerer<'a> {
                 // signature
                 let call_conv = self.isa.default_call_conv();
                 let mut signature = cir::Signature::new(call_conv);
-                for param_ty in params {
-                    let ty = lower_type(self.tree, *param_ty, self.pointer_bytes)?;
+                for parameter_ty in params {
+                    let ty = lower_type(self.tree, *parameter_ty, self.pointer_bytes)?;
                     signature.params.push(cir::AbiParam::new(ty));
                 }
                 let result_type = self.tree.get(result);

@@ -25,7 +25,7 @@ impl<'a> FormatMirNode<'a, Type> for Type {
             Type::RawPointer { pointee } => {
                 write!(f, [token("rawptr<"), pointee, token(">")])
             }
-            Type::ManagedReference { pointee, nullable } => {
+            Type::ManagedReference { pointee, is_nullable: nullable } => {
                 if *nullable {
                     write!(f, [token("ref?<"), pointee, token(">")])
                 } else {
@@ -57,10 +57,11 @@ impl<'a> FormatMirNode<'a, Type> for Type {
             }
             Type::Struct { fields } => {
                 write!(f, [token("struct"), space(), token("{"), space()])?;
-                for (i, field) in fields.iter().enumerate() {
+                for (i, field_id) in fields.iter().enumerate() {
                     if i > 0 {
                         write!(f, [token(","), space()])?;
                     }
+                    let field = f.context().tree.get(*field_id);
                     write!(f, [field.ty])?;
                 }
                 write!(f, [space(), token("}")])

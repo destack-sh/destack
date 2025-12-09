@@ -1,7 +1,8 @@
 //! MIR tree walking functions.
 
 use crate::{
-    Block, Function, Global, Instruction, Local, LocalNodeId, NodeTree, NodeType, NodeVisitor, Type,
+    Block, Field, Function, Global, Instruction, Local, LocalNodeId, NodeTree, NodeType,
+    NodeVisitor, Type,
 };
 
 /// Walk any node by its type and id.
@@ -36,6 +37,11 @@ pub fn walk_any<V: NodeVisitor + ?Sized>(
             let id = LocalNodeId::new(node_id);
             let ty = tree.get(id);
             visitor.visit_type(tree, id, ty);
+        }
+        NodeType::Field => {
+            let id = LocalNodeId::new(node_id);
+            let field = tree.get(id);
+            visitor.visit_field(tree, id, field);
         }
         NodeType::Global => {
             let id = LocalNodeId::new(node_id);
@@ -136,15 +142,15 @@ pub fn walk_type<V: NodeVisitor + ?Sized>(
             }
         }
         Type::Struct { fields } => {
-            for field in fields {
-                let field_ty = tree.get(field.ty);
-                visitor.visit_type(tree, field.ty, field_ty);
+            for field_id in fields {
+                let field = tree.get(*field_id);
+                visitor.visit_field(tree, *field_id, field);
             }
         }
         Type::FunctionPointer { parameters, result } => {
-            for param_id in parameters {
-                let param_ty = tree.get(*param_id);
-                visitor.visit_type(tree, *param_id, param_ty);
+            for parameter_id in parameters {
+                let parameter_ty = tree.get(*parameter_id);
+                visitor.visit_type(tree, *parameter_id, parameter_ty);
             }
             let result_ty = tree.get(*result);
             visitor.visit_type(tree, *result, result_ty);
@@ -152,6 +158,18 @@ pub fn walk_type<V: NodeVisitor + ?Sized>(
         // primitive types have no children
         Type::Void | Type::Boolean | Type::Int { .. } | Type::Float { .. } => {}
     }
+}
+
+/// Walk a Field.
+pub fn walk_field<V: NodeVisitor + ?Sized>(
+    visitor: &mut V,
+    tree: &NodeTree,
+    id: LocalNodeId<Field>,
+    field: &Field,
+) {
+    visitor.visit_any(tree, NodeType::Field, id.id);
+    let field_ty = tree.get(field.ty);
+    visitor.visit_type(tree, field.ty, field_ty);
 }
 
 /// Walk a Global (leaf node, references a type but doesn't own child nodes).

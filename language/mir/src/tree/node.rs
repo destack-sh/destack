@@ -18,6 +18,8 @@ pub enum NodeType {
     Local,
     /// A type.
     Type,
+    /// A struct field.
+    Field,
     /// A global variable or constant.
     Global,
 }
@@ -32,6 +34,7 @@ impl NodeType {
             NodeType::Instruction => "instruction",
             NodeType::Local => "local",
             NodeType::Type => "type",
+            NodeType::Field => "field",
             NodeType::Global => "global",
         }
     }

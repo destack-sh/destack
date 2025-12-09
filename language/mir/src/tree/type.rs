@@ -23,22 +23,29 @@ pub enum Type {
     ManagedReference {
         pointee: LocalNodeId<Type>,
         /// Whether the reference can be null.
-        nullable: bool,
+        is_nullable: bool,
     },
 
     /// Fixed-size array: `T[N]`.
     Array {
+        /// The element type of the array.
         element: LocalNodeId<Type>,
+        /// The number of elements in the array.
         length: u64,
     },
     /// Tuple: `(T1, T2, ...)`.
     Tuple { elements: Vec<LocalNodeId<Type>> },
     /// Struct (anonymous, layout-focused).
-    Struct { fields: Vec<Field> },
+    Struct {
+        /// The fields of the struct.
+        fields: Vec<LocalNodeId<Field>>,
+    },
 
     /// Function pointer type.
     FunctionPointer {
+        /// The parameters of the function.
         parameters: Vec<LocalNodeId<Type>>,
+        /// The result type of the function.
         result: LocalNodeId<Type>,
     },
 }
@@ -136,10 +143,14 @@ impl Type {
 /// A field in a struct type.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Field {
-    /// Optional name (for debugging / error messages).
+    /// Name (optional).
     pub name: Option<StringId>,
     /// Type of the field.
     pub ty: LocalNodeId<Type>,
     /// Byte offset within the struct.
     pub offset: u32,
+}
+
+impl Node for Field {
+    const TYPE: NodeType = NodeType::Field;
 }

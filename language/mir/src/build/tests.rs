@@ -548,13 +548,13 @@ fn test_managed_reference_types() {
     assert!(matches!(
         tree.get(ref_type),
         Type::ManagedReference {
-            nullable: false,
+            is_nullable: false,
             ..
         }
     ));
     assert!(matches!(
         tree.get(ref_nullable_type),
-        Type::ManagedReference { nullable: true, .. }
+        Type::ManagedReference { is_nullable: true, .. }
     ));
 }
 

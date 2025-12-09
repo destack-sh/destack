@@ -361,10 +361,10 @@ impl<'a> Parser<'a> {
 
         // parameter types (no names, just types)
         self.eat_token(TokenType::OpenParen)?;
-        let mut param_types = Vec::new();
+        let mut parameter_types = Vec::new();
         while !self.peek_token(TokenType::CloseParen) {
             let ty = self.parse_type()?;
-            param_types.push(ty);
+            parameter_types.push(ty);
             if !self.eat_token_maybe(TokenType::Comma) {
                 break;
             }
@@ -376,7 +376,7 @@ impl<'a> Parser<'a> {
         let return_type = self.parse_type()?;
 
         // create typed parameters (with synthetic values)
-        let parameters: Vec<TypedValue> = param_types
+        let parameters: Vec<TypedValue> = parameter_types
             .iter()
             .enumerate()
             .map(|(i, &ty)| TypedValue {
@@ -972,7 +972,7 @@ impl<'a> Parser<'a> {
                 self.eat_token(TokenType::GreaterThan)?;
                 Type::ManagedReference {
                     pointee,
-                    nullable: false,
+                    is_nullable: false,
                 }
             }
             TokenType::RefNullable => {
@@ -982,7 +982,7 @@ impl<'a> Parser<'a> {
                 self.eat_token(TokenType::GreaterThan)?;
                 Type::ManagedReference {
                     pointee,
-                    nullable: true,
+                    is_nullable: true,
                 }
             }
             TokenType::OpenBracket => {
