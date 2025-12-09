@@ -15,11 +15,13 @@ impl Interpreter {
         instruction: &mir::Instruction,
     ) -> RuntimeResult<()> {
         match instruction {
+            // dest = constant value
             mir::Instruction::Constant { destination, value } => {
                 let frame = self.current_frame_mut()?;
                 frame.set_value(*destination, value.into());
             }
 
+            // dest = left op right
             mir::Instruction::Binary {
                 destination,
                 operator,
@@ -37,6 +39,7 @@ impl Interpreter {
                 frame.set_value(*destination, result);
             }
 
+            // dest = op argument
             mir::Instruction::Unary {
                 destination,
                 operator,
@@ -51,21 +54,23 @@ impl Interpreter {
                 frame.set_value(*destination, result);
             }
 
+            // dest = argument as to_type
             mir::Instruction::Cast {
                 destination,
                 kind,
                 argument,
-                to_type: _,
+                to_type,
             } => {
                 let arg = {
                     let frame = self.current_frame()?;
                     frame.get_value(*argument)?
                 };
-                let result = self.execute_cast(*kind, arg)?;
+                let result = self.execute_cast(*kind, arg, *to_type)?;
                 let frame = self.current_frame_mut()?;
                 frame.set_value(*destination, result);
             }
 
+            // dest = function(arguments...)
             mir::Instruction::Call {
                 destination,
                 function,
@@ -73,6 +78,8 @@ impl Interpreter {
             } => {
                 self.execute_call(*destination, *function, arguments)?;
             }
+
+            // dest = callee(arguments...) where callee is a function pointer
             mir::Instruction::CallIndirect {
                 destination,
                 callee,
@@ -99,6 +106,7 @@ impl Interpreter {
                 self.execute_call(*destination, function, arguments)?;
             }
 
+            // dest = local variable
             mir::Instruction::LocalGet { destination, local } => {
                 let value = {
                     let frame = self.current_frame()?;
@@ -107,6 +115,8 @@ impl Interpreter {
                 let frame = self.current_frame_mut()?;
                 frame.set_value(*destination, value);
             }
+
+            // local variable = value
             mir::Instruction::LocalSet { local, value } => {
                 let val = {
                     let frame = self.current_frame()?;
@@ -116,7 +126,7 @@ impl Interpreter {
                 frame.set_local(*local, val);
             }
 
-            // NOTE #Incomplete: global get/set
+            // dest = global variable (NOTE #Incomplete: global get/set)
             mir::Instruction::GlobalGet {
                 destination,
                 global,
@@ -129,6 +139,8 @@ impl Interpreter {
                     inst_id,
                 ));
             }
+
+            // global variable = value (NOTE #Incomplete: global get/set)
             mir::Instruction::GlobalSet { global, value } => {
                 let _ = (global, value);
                 return Err(self.make_error_at(
@@ -139,6 +151,7 @@ impl Interpreter {
                 ));
             }
 
+            // dest = *pointer
             mir::Instruction::Load {
                 destination,
                 pointer,
@@ -150,6 +163,9 @@ impl Interpreter {
 
                 let value = match ptr {
                     Value::ManagedReference(handle) => {
+                        if handle.is_null() {
+                            return Err(self.make_error(Error::NullPointerDereference));
+                        }
                         if let Some(cell) = self.managed_heap.get(handle) {
                             cell.slots.first().cloned().unwrap_or(Value::Void)
                         } else {
@@ -157,6 +173,9 @@ impl Interpreter {
                         }
                     }
                     Value::RawPointer(ptr) => {
+                        if ptr.is_null() {
+                            return Err(self.make_error(Error::NullPointerDereference));
+                        }
                         if let Some(cell) = self.raw_heap.get(ptr) {
                             cell.slots.first().cloned().unwrap_or(Value::Void)
                         } else {
@@ -166,8 +185,8 @@ impl Interpreter {
                     Value::StackPointer(sp) => self.load_stack_slot(sp, 0)?,
                     _ => {
                         return Err(self.make_error(Error::InvalidPointerType {
-                            actual: format!("{:?}", ptr),
-                        }))
+                            actual: format!("{ptr:?}"),
+                        }));
                     }
                 };
 
@@ -175,6 +194,7 @@ impl Interpreter {
                 frame.set_value(*destination, value);
             }
 
+            // *pointer = value
             mir::Instruction::Store { pointer, value } => {
                 let (ptr, val) = {
                     let frame = self.current_frame()?;
@@ -185,6 +205,9 @@ impl Interpreter {
 
                 match ptr {
                     Value::ManagedReference(handle) => {
+                        if handle.is_null() {
+                            return Err(self.make_error(Error::NullPointerDereference));
+                        }
                         if let Some(cell) = self.managed_heap.get_mut(handle) {
                             if cell.slots.is_empty() {
                                 cell.slots.push(val);
@@ -196,6 +219,9 @@ impl Interpreter {
                         }
                     }
                     Value::RawPointer(ptr) => {
+                        if ptr.is_null() {
+                            return Err(self.make_error(Error::NullPointerDereference));
+                        }
                         if let Some(cell) = self.raw_heap.get_mut(ptr) {
                             if cell.slots.is_empty() {
                                 cell.slots.push(val);
@@ -211,12 +237,13 @@ impl Interpreter {
                     }
                     _ => {
                         return Err(self.make_error(Error::InvalidPointerType {
-                            actual: format!("{:?}", ptr),
-                        }))
+                            actual: format!("{ptr:?}"),
+                        }));
                     }
                 }
             }
 
+            // dest = aggregate.field[index]
             mir::Instruction::FieldGet {
                 destination,
                 aggregate,
@@ -227,7 +254,7 @@ impl Interpreter {
                     frame.get_value(*aggregate)?
                 };
 
-                // extract value from aggregate
+                // extract field from aggregate or heap cell
                 let value = match aggregate {
                     Value::Aggregate(fields) => {
                         fields.get(*index as usize).cloned().ok_or_else(|| {
@@ -238,6 +265,9 @@ impl Interpreter {
                         })?
                     }
                     Value::ManagedReference(handle) => {
+                        if handle.is_null() {
+                            return Err(self.make_error(Error::NullPointerDereference));
+                        }
                         if let Some(cell) = self.managed_heap.get(handle) {
                             cell.slots.get(*index as usize).cloned().ok_or_else(|| {
                                 self.make_error(Error::InvalidFieldAccess {
@@ -250,6 +280,9 @@ impl Interpreter {
                         }
                     }
                     Value::RawPointer(ptr) => {
+                        if ptr.is_null() {
+                            return Err(self.make_error(Error::NullPointerDereference));
+                        }
                         if let Some(cell) = self.raw_heap.get(ptr) {
                             cell.slots.get(*index as usize).cloned().ok_or_else(|| {
                                 self.make_error(Error::InvalidFieldAccess {
@@ -274,6 +307,7 @@ impl Interpreter {
                 frame.set_value(*destination, value);
             }
 
+            // dest = aggregate with field[index] = value
             mir::Instruction::FieldSet {
                 destination,
                 aggregate,
@@ -287,7 +321,7 @@ impl Interpreter {
                     (agg, val)
                 };
 
-                // insert value into aggregate
+                // create new aggregate with one field replaced
                 let result = match aggregate {
                     Value::Aggregate(mut fields) => {
                         if (*index as usize) < fields.len() {
@@ -312,6 +346,7 @@ impl Interpreter {
                 frame.set_value(*destination, result);
             }
 
+            // dest = array[index]
             mir::Instruction::ElementGet {
                 destination,
                 array,
@@ -325,7 +360,7 @@ impl Interpreter {
                 };
                 let idx_val = idx.as_uint().unwrap_or(0);
 
-                // extract value from array
+                // extract element at dynamic index
                 let value = match arr {
                     Value::Aggregate(elements) => {
                         elements.get(idx_val as usize).cloned().ok_or_else(|| {
@@ -347,6 +382,7 @@ impl Interpreter {
                 frame.set_value(*destination, value);
             }
 
+            // dest = array with [index] = value
             mir::Instruction::ElementSet {
                 destination,
                 array,
@@ -362,7 +398,7 @@ impl Interpreter {
                 };
                 let idx_val = idx.as_uint().unwrap_or(0);
 
-                // insert value into array
+                // create new array with one element replaced
                 let result = match array {
                     Value::Aggregate(mut elements) => {
                         if (idx_val as usize) < elements.len() {
@@ -387,6 +423,7 @@ impl Interpreter {
                 frame.set_value(*destination, result);
             }
 
+            // dest = new gc-managed heap cell
             mir::Instruction::ManagedAlloc {
                 destination,
                 layout: _,
@@ -395,12 +432,13 @@ impl Interpreter {
                     return Err(self.make_error(Error::AllocationFailed));
                 }
 
-                // allocate on managed heap
                 let handle = self.managed_heap.allocate();
                 self.statistics.heap_allocations += 1;
                 let frame = self.current_frame_mut()?;
                 frame.set_value(*destination, Value::ManagedReference(handle));
             }
+
+            // dest = new gc-managed array with length slots
             mir::Instruction::ManagedAllocArray {
                 destination,
                 element: _,
@@ -410,20 +448,19 @@ impl Interpreter {
                     return Err(self.make_error(Error::AllocationFailed));
                 }
 
-                // length
                 let length = {
                     let frame = self.current_frame()?;
                     let len = frame.get_value(*length)?;
                     len.as_uint().unwrap_or(0) as usize
                 };
 
-                // allocate on managed heap
                 let handle = self.managed_heap.allocate_with_slots(length);
                 self.statistics.heap_allocations += 1;
                 let frame = self.current_frame_mut()?;
                 frame.set_value(*destination, Value::ManagedReference(handle));
             }
 
+            // dest = new manually-managed heap cell (raw pointer)
             mir::Instruction::RawAlloc {
                 destination,
                 layout: _,
@@ -432,19 +469,19 @@ impl Interpreter {
                     return Err(self.make_error(Error::AllocationFailed));
                 }
 
-                // allocate on raw heap
                 let ptr = self.raw_heap.allocate();
                 self.statistics.heap_allocations += 1;
                 let frame = self.current_frame_mut()?;
                 frame.set_value(*destination, Value::RawPointer(ptr));
             }
+
+            // deallocate raw pointer
             mir::Instruction::RawFree { pointer } => {
                 let ptr = {
                     let frame = self.current_frame()?;
                     frame.get_value(*pointer)?
                 };
 
-                // free on raw heap
                 if let Value::RawPointer(p) = ptr {
                     if !self.raw_heap.free(p) {
                         return Err(self.make_error(Error::InvalidHeapHandle));
@@ -457,12 +494,12 @@ impl Interpreter {
                 }
             }
 
+            // dest = stack-allocated cell (frame-local storage)
             mir::Instruction::StackAlloc {
                 destination,
                 layout: _,
             } => {
                 let frame_depth = self.call_stack.len() - 1;
-                // allocate on stack
                 let slot = {
                     let frame = self.current_frame_mut()?;
                     frame.allocate_stack_cell()
@@ -471,7 +508,6 @@ impl Interpreter {
                 let frame = self.current_frame_mut()?;
                 frame.set_value(*destination, Value::StackPointer(sp));
             }
-
         }
 
         Ok(())

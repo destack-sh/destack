@@ -1,6 +1,6 @@
 use crate::diagnostic::Error;
-use crate::memory::Value;
-use crate::tests::{run_mir_expect, run_mir, run_mir_ok};
+use crate::memory::{RawPointer, Value};
+use crate::tests::{run_mir, run_mir_expect, run_mir_ok};
 
 /// Managed allocation creates a heap cell and returns a reference.
 #[test]
@@ -301,4 +301,60 @@ block0:
 }
 "#;
     run_mir_expect(mir, "stack_struct", &[], Value::int32(10));
+}
+
+/// Null raw pointer dereference produces an error.
+#[test]
+fn test_null_pointer_load() {
+    let mir = r#"
+function @null_load(v0: rawptr<i32>) -> i32 {
+block0(v0: rawptr<i32>):
+    v1 = load v0
+    return v1
+}
+"#;
+    let result = run_mir(mir, "null_load", &[Value::RawPointer(RawPointer::NULL)]);
+    assert!(result.is_err());
+    let err = result.unwrap_err();
+    assert!(matches!(err.error, Error::NullPointerDereference));
+}
+
+/// Null raw pointer store produces an error.
+#[test]
+fn test_null_pointer_store() {
+    let mir = r#"
+function @null_store(v0: rawptr<i32>, v1: i32) -> void {
+block0(v0: rawptr<i32>, v1: i32):
+    store v0, v1
+    return
+}
+"#;
+    let result = run_mir(
+        mir,
+        "null_store",
+        &[Value::RawPointer(RawPointer::NULL), Value::int32(42)],
+    );
+    assert!(result.is_err());
+    let err = result.unwrap_err();
+    assert!(matches!(err.error, Error::NullPointerDereference));
+}
+
+/// Use-after-free on raw pointer produces an error.
+#[test]
+fn test_use_after_free() {
+    let mir = r#"
+function @use_after_free() -> i32 {
+block0:
+    v0 = raw.alloc i32
+    v1 = iconst 42i32
+    store v0, v1
+    raw.free v0
+    v2 = load v0
+    return v2
+}
+"#;
+    let result = run_mir(mir, "use_after_free", &[]);
+    assert!(result.is_err());
+    let err = result.unwrap_err();
+    assert!(matches!(err.error, Error::InvalidHeapHandle));
 }

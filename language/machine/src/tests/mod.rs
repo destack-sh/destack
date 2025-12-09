@@ -1,5 +1,6 @@
 mod arithmetic;
 mod block;
+mod cast;
 mod gc;
 mod memory;
 
