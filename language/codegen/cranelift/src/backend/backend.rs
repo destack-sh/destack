@@ -146,13 +146,17 @@ impl CodegenCraneliftBackend {
     }
 
     /// Compile a MIR module and return Cranelift IR text format.
+    /// Skips actual compilation to machine code (only generates IR).
     pub fn compile_to_clif(
         &self,
         module: &ModuleMir,
         name: &str,
     ) -> CodegenCraneliftResult<String> {
         let tree = module.tree.read();
-        let mut lowerer = ModuleLowerer::new(self.isa.clone(), &module.strings, name);
+        // skip machine code generation - we only need CLIF IR text, and define_function
+        // can fail with platform-specific relocation errors (e.g. Aarch64AdrPrelPgHi21)
+        let mut lowerer =
+            ModuleLowerer::new_with_options(self.isa.clone(), &module.strings, name, true);
         lowerer.lower_module(&tree)?;
         lowerer.as_clif_string()
     }
@@ -207,7 +211,12 @@ pub fn generate_module(
             FileType::Object,
             ArtifactContent::object(compile_output.bytes),
         ),
-        _ => unreachable!(),
+        _ => {
+            return Err(CodegenCraneliftError::UnsupportedTarget {
+                triple: format!("{:?}", target.output),
+                message: Some("expected Wasm or Native".to_string()),
+            });
+        }
     };
 
     let extension = file_type.extension().unwrap_or("o");

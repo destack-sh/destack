@@ -25,7 +25,10 @@ impl<'a> FormatMirNode<'a, Type> for Type {
             Type::RawPointer { pointee } => {
                 write!(f, [token("rawptr<"), pointee, token(">")])
             }
-            Type::ManagedReference { pointee, is_nullable: nullable } => {
+            Type::ManagedReference {
+                pointee,
+                is_nullable: nullable,
+            } => {
                 if *nullable {
                     write!(f, [token("ref?<"), pointee, token(">")])
                 } else {

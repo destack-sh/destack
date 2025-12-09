@@ -36,7 +36,7 @@ use cranelift_codegen::ir as cir;
 use cranelift_codegen::ir::InstBuilder;
 use cranelift_codegen::isa::TargetIsa;
 use cranelift_frontend::{FunctionBuilder, FunctionBuilderContext, Switch};
-use cranelift_module::{FuncId, Module};
+use cranelift_module::{DataId, FuncId, Module};
 use cranelift_object::ObjectModule;
 use destack_mir as mir;
 use destack_source::StringPool;
@@ -60,8 +60,12 @@ pub(crate) struct FunctionLowerer<'a> {
     cl_module: &'a mut ObjectModule,
     /// Function id mapping for calls.
     cl_function_ids: &'a HashMap<mir::LocalNodeId<mir::Function>, FuncId>,
+    /// Global data id mapping (MIR global -> Cranelift DataId).
+    cl_global_data_ids: &'a HashMap<mir::LocalNodeId<mir::Global>, DataId>,
     /// Map from MIR function id to Cranelift FuncRef (populated during lowering).
     function_ref_map: HashMap<mir::LocalNodeId<mir::Function>, cir::FuncRef>,
+    /// Map from MIR global id to Cranelift GlobalValue (populated during lowering).
+    global_map: HashMap<mir::LocalNodeId<mir::Global>, cir::GlobalValue>,
     /// Pointer size in bytes for this target.
     pointer_bytes: u8,
 }
@@ -76,6 +80,7 @@ impl<'a> FunctionLowerer<'a> {
         isa: &'a Arc<dyn TargetIsa>,
         cl_module: &'a mut ObjectModule,
         cl_function_ids: &'a HashMap<mir::LocalNodeId<mir::Function>, FuncId>,
+        cl_global_data_ids: &'a HashMap<mir::LocalNodeId<mir::Global>, DataId>,
         pointer_bytes: u8,
     ) -> Self {
         Self {
@@ -85,7 +90,9 @@ impl<'a> FunctionLowerer<'a> {
             isa,
             cl_module,
             cl_function_ids,
+            cl_global_data_ids,
             function_ref_map: HashMap::new(),
+            global_map: HashMap::new(),
             pointer_bytes,
         }
     }
@@ -232,14 +239,14 @@ impl<'a> FunctionLowerer<'a> {
         pointer_pointee_map: &mut HashMap<mir::Value, mir::LocalNodeId<mir::Type>>,
     ) {
         match instruction {
-            // stack_allocate produces rawptr<layout>
+            // stack_allocate -> rawptr<layout>
             mir::Instruction::StackAlloc {
                 destination,
                 layout,
             } => {
                 pointer_pointee_map.insert(*destination, *layout);
             }
-            // raw_allocate produces rawptr<layout>
+            // raw_allocate -> rawptr<layout>
             mir::Instruction::RawAlloc {
                 destination,
                 layout,
@@ -247,20 +254,29 @@ impl<'a> FunctionLowerer<'a> {
             } => {
                 pointer_pointee_map.insert(*destination, *layout);
             }
-            // managed_allocate produces managed ref to layout
+            // managed_allocate -> managed ref to layout
             mir::Instruction::ManagedAlloc {
                 destination,
                 layout,
             } => {
                 pointer_pointee_map.insert(*destination, *layout);
             }
+            // managed_allocate_array -> array pointer -> element type
             mir::Instruction::ManagedAllocArray {
                 destination,
                 element,
                 ..
             } => {
-                // This is a pointer to an array, but we track the element type
+                // array pointer -> element type
                 pointer_pointee_map.insert(*destination, *element);
+            }
+            // global_addr -> rawptr<global's type>
+            mir::Instruction::GlobalAddr {
+                destination,
+                global,
+            } => {
+                let global_data = self.tree.get(*global);
+                pointer_pointee_map.insert(*destination, global_data.ty);
             }
             _ => {}
         }
@@ -530,7 +546,7 @@ impl<'a> FunctionLowerer<'a> {
 
     /// Lower a single block's instructions and terminator.
     fn lower_block(
-        &self,
+        &mut self,
         builder: &mut FunctionBuilder<'_>,
         block_id: mir::LocalNodeId<mir::Block>,
         value_map: &mut HashMap<mir::Value, cir::Value>,
@@ -562,7 +578,7 @@ impl<'a> FunctionLowerer<'a> {
     /// Each instruction that produces a value records its result in `value_map`.
     /// Instructions that consume values look them up in `value_map`.
     fn lower_instruction(
-        &self,
+        &mut self,
         instruction_id: mir::LocalNodeId<mir::Instruction>,
         builder: &mut FunctionBuilder<'_>,
         value_map: &mut HashMap<mir::Value, cir::Value>,
@@ -630,20 +646,29 @@ impl<'a> FunctionLowerer<'a> {
                 builder.ins().stack_store(store_value, slot, 0);
             }
 
-            // global_addr -> symbol_value (get address of global)
-            mir::Instruction::GlobalAddr { .. } => {
-                return Err(CodegenCraneliftError::unsupported_instruction(
-                    "GlobalAddr not yet implemented",
-                    instruction_id.into_any(),
-                ));
+            // global_addr -> symbol_value (get address of mutable global)
+            mir::Instruction::GlobalAddr {
+                destination,
+                global,
+            } => {
+                let global_value = self.get_or_declare_global(*global, builder)?;
+                let ptr = builder.ins().global_value(self.pointer_type(), global_value);
+                value_map.insert(*destination, ptr);
             }
 
-            // global_const -> load constant value from global (for immutable globals)
-            mir::Instruction::GlobalConst { .. } => {
-                return Err(CodegenCraneliftError::unsupported_instruction(
-                    "GlobalConst not yet implemented",
-                    instruction_id.into_any(),
-                ));
+            // global_const -> symbol_value + load (for immutable globals)
+            mir::Instruction::GlobalConst {
+                destination,
+                global,
+            } => {
+                let global_data = self.tree.get(*global);
+                let global_value = self.get_or_declare_global(*global, builder)?;
+                let ptr = builder.ins().global_value(self.pointer_type(), global_value);
+
+                // load the value from the global
+                let result_type = lower_type(self.tree, global_data.ty, self.pointer_bytes)?;
+                let result = builder.ins().load(result_type, cir::MemFlags::trusted(), ptr, 0);
+                value_map.insert(*destination, result);
             }
 
             // load -> load (memory read through pointer)
@@ -1204,9 +1229,30 @@ impl<'a> FunctionLowerer<'a> {
         }
     }
 
+    /// Get or declare a global value reference for use in this function.
+    fn get_or_declare_global(
+        &mut self,
+        global_id: mir::LocalNodeId<mir::Global>,
+        builder: &mut FunctionBuilder<'_>,
+    ) -> CodegenCraneliftResult<cir::GlobalValue> {
+        if let Some(&gv) = self.global_map.get(&global_id) {
+            return Ok(gv);
+        }
+
+        let data_id = self.cl_global_data_ids.get(&global_id).ok_or_else(|| {
+            CodegenCraneliftError::Internal {
+                message: format!("global {global_id:?} not found in data id map"),
+            }
+        })?;
+
+        let gv = self.cl_module.declare_data_in_func(*data_id, builder.func);
+        self.global_map.insert(global_id, gv);
+        Ok(gv)
+    }
+
     /// Lower a constant to Cranelift IR.
     fn lower_constant(
-        &self,
+        &mut self,
         node_id: mir::LocalNodeIdAny,
         constant: &mir::Constant,
         builder: &mut FunctionBuilder<'_>,
@@ -1266,17 +1312,16 @@ impl<'a> FunctionLowerer<'a> {
                 )),
             },
 
-            // NOTE #Incomplete: cranelift string constants
+            // string constants should be lowered as globals with GlobalInitializer::Bytes
             mir::Constant::String { .. } => Err(CodegenCraneliftError::unsupported_type(
-                "string constants".to_string(),
+                "inline string constants not supported; use global with Bytes initializer".to_string(),
                 node_id,
             )),
 
-            // NOTE #Incomplete: cranelift char constants
-            mir::Constant::Char { .. } => Err(CodegenCraneliftError::unsupported_type(
-                "char constants".to_string(),
-                node_id,
-            )),
+            // char constant: unicode codepoint as i32
+            mir::Constant::Char { value } => {
+                Ok(builder.ins().iconst(cir::types::I32, *value as i64))
+            }
         }
     }
 

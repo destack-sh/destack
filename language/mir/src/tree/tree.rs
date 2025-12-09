@@ -2,7 +2,9 @@ use std::fmt::{Debug, Formatter};
 
 use destack_source::Arena;
 
-use crate::{Block, Field, Function, Global, Instruction, Local, LocalNodeId, Node, NodeType, Type};
+use crate::{
+    Block, Field, Function, Global, Instruction, Local, LocalNodeId, Node, NodeType, Type,
+};
 
 /// MIR node tree for a single module.
 ///

@@ -234,11 +234,20 @@ impl<'a> Parser<'a> {
                 self.bump();
                 Ok(GlobalInitializer::Zero)
             }
+            // string literal -> bytes (UTF-8)
+            TokenType::StringLiteral => {
+                let token_text = token.text.to_string();
+                let token_start = token.start;
+                self.bump();
+                let value = parse_string_literal(&token_text).ok_or_else(|| {
+                    ParseError::invalid(&format!("string literal '{token_text}'"), token_start)
+                })?;
+                Ok(GlobalInitializer::Bytes(value.into_bytes()))
+            }
             // scalar constant
             TokenType::BoolLiteral
             | TokenType::IntLiteral
             | TokenType::FloatLiteral
-            | TokenType::StringLiteral
             | TokenType::CharLiteral => {
                 let constant = self.parse_constant()?;
                 Ok(GlobalInitializer::Scalar(constant))

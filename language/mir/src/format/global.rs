@@ -76,10 +76,24 @@ fn format_data_init<'a>(
         GlobalInitializer::Zero => write!(f, [token("zeroinit")]),
         GlobalInitializer::Scalar(constant) => format_constant(constant, f),
         GlobalInitializer::Bytes(bytes) => {
-            // format as hex string for now
+            // format as quoted string, escaping non-printable bytes
             write!(f, [token("\"")])?;
-            for byte in bytes {
-                write!(f, [text(&format!("\\x{byte:02x}"))])?;
+            for &byte in bytes {
+                if byte == b'"' {
+                    write!(f, [text("\\\"")])?;
+                } else if byte == b'\\' {
+                    write!(f, [text("\\\\")])?;
+                } else if byte == b'\n' {
+                    write!(f, [text("\\n")])?;
+                } else if byte == b'\r' {
+                    write!(f, [text("\\r")])?;
+                } else if byte == b'\t' {
+                    write!(f, [text("\\t")])?;
+                } else if byte.is_ascii_graphic() || byte == b' ' {
+                    write!(f, [text(&String::from(byte as char))])?;
+                } else {
+                    write!(f, [text(&format!("\\x{byte:02x}"))])?;
+                }
             }
             write!(f, [token("\"")])
         }

@@ -147,7 +147,9 @@ impl<'a> Dumper<'a> {
             Type::ManagedReference {
                 is_nullable: false, ..
             } => "ref".to_string(),
-            Type::ManagedReference { is_nullable: true, .. } => "ref?".to_string(),
+            Type::ManagedReference {
+                is_nullable: true, ..
+            } => "ref?".to_string(),
             Type::Array { length, .. } => format!("[_; {length}]"),
             Type::Tuple { elements } => format!("({})", elements.len()),
             Type::Struct { fields } => format!("struct{{{}}}", fields.len()),

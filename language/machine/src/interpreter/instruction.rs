@@ -141,11 +141,10 @@ impl Interpreter {
                 destination,
                 global,
             } => {
-                let value = self
-                    .globals
-                    .get(*global)
-                    .cloned()
-                    .ok_or_else(|| self.make_error(Error::UndefinedGlobal { global: *global }))?;
+                let value =
+                    self.globals.get(*global).cloned().ok_or_else(|| {
+                        self.make_error(Error::UndefinedGlobal { global: *global })
+                    })?;
                 let frame = self.current_frame_mut()?;
                 frame.set_value(*destination, value);
             }
@@ -243,9 +242,7 @@ impl Interpreter {
                         // check mutability
                         let global_def = self.tree.get(global);
                         if !global_def.is_mutable() {
-                            return Err(
-                                self.make_error(Error::ImmutableGlobalWrite { global })
-                            );
+                            return Err(self.make_error(Error::ImmutableGlobalWrite { global }));
                         }
                         self.globals.set(global, val);
                     }
