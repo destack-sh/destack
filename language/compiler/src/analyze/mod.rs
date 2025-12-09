@@ -5,6 +5,7 @@ mod error;
 mod evaluate;
 mod options;
 mod process;
+mod r#type;
 mod warning;
 
 pub use check::*;
