@@ -146,7 +146,7 @@
           ]
         },
         "paths": {
-          "description": "Path alias mappings (like tsconfig paths).",
+          "description": "Path alias mappings (resolved relative to baseUrl, like tsconfig paths).",
           "type": [
             "object",
             "null"
@@ -157,27 +157,6 @@
               "type": "string"
             }
           }
-        },
-        "rootDir": {
-          "description": "Root directory of input files.",
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "outDir": {
-          "description": "Output directory for compiled files.",
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "declarationDir": {
-          "description": "Output directory for declaration files (.d.ts). Defaults to outDir.",
-          "type": [
-            "string",
-            "null"
-          ]
         },
         "module": {
           "description": "Module format for output (e.g., \"esnext\", \"commonjs\").",
@@ -195,6 +174,13 @@
         },
         "strict": {
           "description": "Enable all strict type-checking options. Default: true for .ds files.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "noImplicitManaged": {
+          "description": "Error on implicit managed `T` (instead of `^T` or `&T` where not provable).",
           "type": [
             "boolean",
             "null"
@@ -302,6 +288,27 @@
           "description": "Add `undefined` to index signature results (safer array access).",
           "type": [
             "boolean",
+            "null"
+          ]
+        },
+        "rootDir": {
+          "description": "Root directory of source files (controls output directory structure, not module resolution).",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "outDir": {
+          "description": "Output directory for compiled files.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "declarationDir": {
+          "description": "Output directory for declaration files (.d.ts). Defaults to outDir.",
+          "type": [
+            "string",
             "null"
           ]
         },
