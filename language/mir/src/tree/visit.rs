@@ -3,8 +3,8 @@
 #![allow(unused_variables)]
 
 use crate::{
-    Block, Function, Global, Instruction, Local, LocalNodeId, NodeTree, NodeType, Type, walk_block,
-    walk_function, walk_global, walk_instruction, walk_local, walk_type,
+    Block, Field, Function, Global, Instruction, Local, LocalNodeId, NodeTree, NodeType, Type,
+    walk_block, walk_field, walk_function, walk_global, walk_instruction, walk_local, walk_type,
 };
 
 /// Options for the NodeVisitor.
@@ -50,6 +50,11 @@ pub trait NodeVisitor {
     /// Visit a Type.
     fn visit_type(&mut self, tree: &NodeTree, id: LocalNodeId<Type>, ty: &Type) {
         walk_type(self, tree, id, ty);
+    }
+
+    /// Visit a Field.
+    fn visit_field(&mut self, tree: &NodeTree, id: LocalNodeId<Field>, field: &Field) {
+        walk_field(self, tree, id, field);
     }
 
     /// Visit a Global.

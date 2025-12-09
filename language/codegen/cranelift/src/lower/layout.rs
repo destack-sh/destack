@@ -110,17 +110,17 @@ fn compute_tuple_layout(
     }
 
     // compute layout
-    let mut offset = 0u32;
+    let mut max_end = 0u32;
     let mut max_alignment = 1u32;
     for &element_type_id in elements {
         // element type layout
         let element_layout = compute_type_layout(tree, element_type_id, pointer_bytes)?;
 
         // align to element's alignment
-        offset = element_layout.align_offset(offset);
+        max_end = element_layout.align_offset(max_end);
 
         // advance past the element
-        offset += element_layout.size;
+        max_end += element_layout.size;
 
         // track max alignment
         max_alignment = max_alignment.max(element_layout.alignment);
@@ -128,10 +128,10 @@ fn compute_tuple_layout(
 
     // final size is padded to alignment
     let final_size = if max_alignment > 0 {
-        let padded = TypeLayout::new(0, max_alignment).align_offset(offset);
-        padded.max(offset)
+        let padded = TypeLayout::new(0, max_alignment).align_offset(max_end);
+        padded.max(max_end)
     } else {
-        offset
+        max_end
     };
 
     Ok(TypeLayout::new(final_size, max_alignment))
@@ -140,7 +140,7 @@ fn compute_tuple_layout(
 /// Compute the layout of a struct type.
 fn compute_struct_layout(
     tree: &mir::NodeTree,
-    fields: &[mir::Field],
+    fields: &[mir::LocalNodeId<mir::Field>],
     pointer_bytes: u8,
 ) -> CodegenCraneliftResult<TypeLayout> {
     if fields.is_empty() {
@@ -150,7 +150,8 @@ fn compute_struct_layout(
     // compute layout
     let mut max_end = 0u32;
     let mut max_alignment = 1u32;
-    for field in fields {
+    for field_id in fields {
+        let field = tree.get(*field_id);
         let field_layout = compute_type_layout(tree, field.ty, pointer_bytes)?;
 
         // end of this field

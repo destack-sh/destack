@@ -107,7 +107,7 @@ impl ModuleBuilder {
     pub fn type_managed_reference(&mut self, pointee: LocalNodeId<Type>) -> LocalNodeId<Type> {
         self.tree.insert(Type::ManagedReference {
             pointee,
-            nullable: false,
+            is_nullable: false,
         })
     }
 
@@ -118,7 +118,7 @@ impl ModuleBuilder {
     ) -> LocalNodeId<Type> {
         self.tree.insert(Type::ManagedReference {
             pointee,
-            nullable: true,
+            is_nullable: true,
         })
     }
 
@@ -132,8 +132,8 @@ impl ModuleBuilder {
         self.tree.insert(Type::Tuple { elements })
     }
 
-    /// Create a struct type.
-    pub fn type_struct(&mut self, fields: Vec<Field>) -> LocalNodeId<Type> {
+    /// Create a struct type from field definitions.
+    pub fn type_struct(&mut self, fields: Vec<LocalNodeId<Field>>) -> LocalNodeId<Type> {
         self.tree.insert(Type::Struct { fields })
     }
 
