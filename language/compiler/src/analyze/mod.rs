@@ -3,6 +3,7 @@ mod check;
 mod context;
 mod error;
 mod evaluate;
+mod format;
 mod options;
 mod process;
 mod r#type;

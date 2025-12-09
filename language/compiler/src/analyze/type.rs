@@ -32,12 +32,11 @@ impl Compiler {
             | BinaryOperator::LessThan
             | BinaryOperator::LessThanOrEqual
             | BinaryOperator::GreaterThan
-            | BinaryOperator::GreaterThanOrEqual => {
-                self.try_fold_comparison(operator, left, right)
-                    .unwrap_or_else(|| Type::TypeLiteral {
-                        value: TypeLiteral::Primitive(PrimitiveType::Boolean),
-                    })
-            }
+            | BinaryOperator::GreaterThanOrEqual => self
+                .try_fold_comparison(operator, left, right)
+                .unwrap_or(Type::TypeLiteral {
+                    value: TypeLiteral::Primitive(PrimitiveType::Boolean),
+                }),
 
             // in/instanceof always return boolean (no constant folding)
             BinaryOperator::In | BinaryOperator::InstanceOf => Type::TypeLiteral {
@@ -45,12 +44,11 @@ impl Compiler {
             },
 
             // logical operators: try constant folding, else return boolean
-            BinaryOperator::And | BinaryOperator::Or => {
-                self.try_fold_logical(operator, left, right)
-                    .unwrap_or_else(|| Type::TypeLiteral {
-                        value: TypeLiteral::Primitive(PrimitiveType::Boolean),
-                    })
-            }
+            BinaryOperator::And | BinaryOperator::Or => self
+                .try_fold_logical(operator, left, right)
+                .unwrap_or(Type::TypeLiteral {
+                    value: TypeLiteral::Primitive(PrimitiveType::Boolean),
+                }),
 
             // arithmetic operators: try constant folding, else widen types
             BinaryOperator::Add
@@ -236,10 +234,8 @@ impl Compiler {
     /// Widen two numeric types to a common type.
     /// Used when constant folding fails (e.g., `x + 1` where x is a variable).
     fn widen_numeric_types(&self, left: &Type, right: &Type) -> Type {
-        // extract the primitive types (or literal's underlying primitive)
         let left_prim = Self::to_numeric_primitive(left);
         let right_prim = Self::to_numeric_primitive(right);
-
         match (left_prim, right_prim) {
             // if both are known primitives, return the wider one
             (Some(l), Some(r)) => Type::TypeLiteral {
@@ -261,7 +257,7 @@ impl Compiler {
         match ty {
             Type::TypeLiteral {
                 value: TypeLiteral::Primitive(p),
-            } if Self::is_numeric_primitive(p) => Some(p.clone()),
+            } if Self::is_numeric_primitive(p) => Some(*p),
             Type::TypeLiteral {
                 value: TypeLiteral::ScalarLiteral(ScalarLiteral::Integer(_)),
             } => Some(PrimitiveType::Number),
@@ -327,7 +323,7 @@ impl Compiler {
     pub(super) fn infer_unary_operation(&self, operator: &UnaryOperator, right: &Type) -> Type {
         match operator {
             // constant folding for logical not
-            UnaryOperator::Not => self.try_fold_not(right).unwrap_or_else(|| Type::TypeLiteral {
+            UnaryOperator::Not => self.try_fold_not(right).unwrap_or(Type::TypeLiteral {
                 value: TypeLiteral::Primitive(PrimitiveType::Boolean),
             }),
             // constant folding for numeric negation

@@ -135,6 +135,8 @@ impl Compiler {
                             module_id: module.id,
                             local_id: inferred,
                         },
+                        expected_ty_string: self.format_type(types.get_type(declared), types),
+                        actual_ty_string: self.format_type(types.get_type(inferred), types),
                     });
                 }
 
@@ -225,6 +227,8 @@ impl Compiler {
                             module_id: module.id,
                             local_id: right_ty_id,
                         },
+                        expected_ty_string: self.format_type(types.get_type(left_ty_id), types),
+                        actual_ty_string: self.format_type(types.get_type(right_ty_id), types),
                     });
                 }
 
@@ -434,6 +438,10 @@ impl Compiler {
                                         module_id: module.id,
                                         local_id: *argument_ty_id,
                                     },
+                                    expected_ty_string: self
+                                        .format_type(types.get_type(*param_ty_id), types),
+                                    actual_ty_string: self
+                                        .format_type(types.get_type(*argument_ty_id), types),
                                 });
                             }
                         }

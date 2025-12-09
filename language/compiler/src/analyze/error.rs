@@ -20,6 +20,8 @@ pub enum AnalyzeError {
         node: GlobalNodeIdAny,
         expected_ty: GlobalTypeId,
         actual_ty: GlobalTypeId,
+        expected_ty_string: String,
+        actual_ty_string: String,
     },
     /// Inaccessible symbol (private/internal/module boundaries).
     InaccessibleSymbol {
@@ -54,11 +56,14 @@ pub enum AnalyzeError {
         node: GlobalNodeIdAny,
         from_ty: GlobalTypeId,
         to_ty: GlobalTypeId,
+        from_ty_str: String,
+        to_ty_str: String,
     },
     /// No overload found for operator/method with given types.
     NoOverload {
         node: GlobalNodeIdAny,
         receiver_ty: GlobalTypeId,
+        receiver_ty_str: String,
     },
     /// Ambiguous overload: multiple candidates match equally well.
     AmbiguousOverload {
@@ -69,6 +74,7 @@ pub enum AnalyzeError {
     UnsupportedOperator {
         node: GlobalNodeIdAny,
         ty: GlobalTypeId,
+        ty_str: String,
     },
 }
 
@@ -151,7 +157,13 @@ impl AnalyzeError {
             Self::UnsatisfiedDependency { .. } => "unsatisfied dependency".to_string(),
             Self::UnsupportedConstruct { .. } => "unsupported construct".to_string(),
             Self::MissingType { .. } => "missing type".to_string(),
-            Self::UnassignableType { .. } => "unassignable type".to_string(),
+            Self::UnassignableType {
+                expected_ty_string,
+                actual_ty_string,
+                ..
+            } => {
+                format!("type {actual_ty_string} is not assignable to type {expected_ty_string}")
+            }
             Self::InaccessibleSymbol { .. } => "inaccessible symbol".to_string(),
             Self::InconsistentFunctionOverride { .. } => {
                 "inconsistent function override".to_string()
@@ -163,10 +175,22 @@ impl AnalyzeError {
             Self::ConflictingPattern { .. } => "conflicting pattern".to_string(),
             Self::MissingReturn { .. } => "missing return".to_string(),
             Self::UninitializedVariable { .. } => "uninitialized variable".to_string(),
-            Self::IllegalCast { .. } => "illegal cast".to_string(),
-            Self::NoOverload { .. } => "no matching overload".to_string(),
+            Self::IllegalCast {
+                from_ty_str,
+                to_ty_str,
+                ..
+            } => {
+                format!("cannot cast type {from_ty_str} to {to_ty_str}")
+            }
+            Self::NoOverload {
+                receiver_ty_str, ..
+            } => {
+                format!("no matching overload for type {receiver_ty_str}")
+            }
             Self::AmbiguousOverload { .. } => "ambiguous overload".to_string(),
-            Self::UnsupportedOperator { .. } => "unsupported operator for type".to_string(),
+            Self::UnsupportedOperator { ty_str, .. } => {
+                format!("unsupported operator for type {ty_str}")
+            }
         }
     }
 }
