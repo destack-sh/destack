@@ -6,6 +6,8 @@ pub enum TokenType {
     // keywords
     /// `extern`
     Extern,
+    /// `export`
+    Export,
     /// `function`
     Function,
     /// `global`

@@ -93,6 +93,15 @@ impl<'a> ModuleLowerer<'a> {
         Ok(())
     }
 
+    /// Convert MIR linkage to Cranelift linkage.
+    fn convert_linkage(&self, linkage: mir::Linkage) -> Linkage {
+        match linkage {
+            mir::Linkage::Local => Linkage::Local,
+            mir::Linkage::Export => Linkage::Export,
+            mir::Linkage::Import => Linkage::Import,
+        }
+    }
+
     /// Declare all functions in the module (first pass).
     fn declare_functions(&mut self, tree: &mir::NodeTree) -> CodegenCraneliftResult<()> {
         let pointer_bytes = self.isa.pointer_bytes();
@@ -101,10 +110,13 @@ impl<'a> ModuleLowerer<'a> {
             let signature = self.create_signature(tree, function, pointer_bytes)?;
             let name = self.strings.get(function.name);
 
+            // convert MIR linkage to Cranelift linkage
+            let linkage = self.convert_linkage(function.linkage);
+
             // create cranelift function
-            let cl_function_id =
-                self.cl_module
-                    .declare_function(&name, Linkage::Export, &signature)?;
+            let cl_function_id = self
+                .cl_module
+                .declare_function(&name, linkage, &signature)?;
             self.cl_function_ids.insert(function_id, cl_function_id);
         }
 
@@ -118,13 +130,8 @@ impl<'a> ModuleLowerer<'a> {
         for (global_id, global) in tree.iter_nodes::<mir::Global>() {
             let name = self.strings.get(global.name);
 
-            // determine linkage: private names (starting with . or _) are local
-            // TODO #Suspicious: make private names for globals explicit?
-            let linkage = if name.starts_with('.') || name.starts_with('_') {
-                Linkage::Local
-            } else {
-                Linkage::Export
-            };
+            // convert MIR linkage to Cranelift linkage
+            let linkage = self.convert_linkage(global.linkage);
 
             // declare the data section
             let writable = global.is_mutable();
@@ -132,7 +139,7 @@ impl<'a> ModuleLowerer<'a> {
                 .cl_module
                 .declare_data(&name, linkage, writable, false)?;
 
-            // define the data if we have an initializer
+            // define the data if we have an initializer (not for imports)
             if let Some(ref init) = global.initializer {
                 let bytes = self.lower_initializer(tree, init, global.ty, pointer_bytes)?;
                 let mut data_description = cranelift_module::DataDescription::new();
@@ -264,6 +271,11 @@ impl<'a> ModuleLowerer<'a> {
         let pointer_bytes = self.isa.pointer_bytes();
 
         for (function_id, function) in tree.iter_nodes::<mir::Function>() {
+            // skip imported functions (they have no body to define)
+            if function.is_import() {
+                continue;
+            }
+
             let cl_function_id = self.cl_function_ids[&function_id];
             let name = self.strings.get(function.name).to_string();
 

@@ -5,7 +5,8 @@ use destack_fir::prelude::*;
 use destack_fir::write;
 
 use crate::{
-    FormatMirNode, Function, LocalNodeId, MirFormatContext, MirFormatter, Mutability, Ownership,
+    FormatMirNode, Function, Linkage, LocalNodeId, MirFormatContext, MirFormatter, Mutability,
+    Ownership,
 };
 
 impl<'a> FormatMirNode<'a, Function> for Function {
@@ -16,8 +17,8 @@ impl<'a> FormatMirNode<'a, Function> for Function {
     ) -> FormatResult<()> {
         let name = f.context().strings.get(self.name);
 
-        // external function: extern function @name(i32, i32) -> void
-        if self.is_external {
+        // imported function: extern function @name(i32, i32) -> void
+        if self.linkage.is_import() {
             write!(
                 f,
                 [
@@ -41,6 +42,11 @@ impl<'a> FormatMirNode<'a, Function> for Function {
             write!(f, [token(")")])?;
 
             return write!(f, [space(), token("->"), space(), self.return_type]);
+        }
+
+        // linkage prefix for exported functions
+        if self.linkage == Linkage::Export {
+            write!(f, [token("export"), space()])?;
         }
 
         // build block and local index maps for this function

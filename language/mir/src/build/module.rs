@@ -193,7 +193,7 @@ impl ModuleBuilder {
         mutability: Mutability,
     ) -> LocalNodeId<Global> {
         let name_id = self.strings.intern(name);
-        self.tree.insert(Global::external(name_id, ty, mutability))
+        self.tree.insert(Global::import(name_id, ty, mutability))
     }
 
     // function building
@@ -229,7 +229,7 @@ impl ModuleBuilder {
             })
             .collect();
         self.tree
-            .insert(Function::external(name_id, parameters, return_type))
+            .insert(Function::import(name_id, parameters, return_type))
     }
 
     /// Finish building the module.

@@ -148,6 +148,7 @@ impl<'a> Lexer<'a> {
         // check for keywords
         match text {
             "extern" => TokenType::Extern,
+            "export" => TokenType::Export,
             "function" => TokenType::Function,
             "global" => TokenType::Global,
             "return" => TokenType::Return,

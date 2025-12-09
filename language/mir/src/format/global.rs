@@ -5,7 +5,8 @@ use destack_fir::prelude::*;
 use destack_fir::write;
 
 use crate::{
-    Constant, FormatMirNode, Global, GlobalInitializer, LocalNodeId, MirFormatter, Mutability,
+    Constant, FormatMirNode, Global, GlobalInitializer, Linkage, LocalNodeId, MirFormatter,
+    Mutability,
 };
 
 impl<'a> FormatMirNode<'a, Global> for Global {
@@ -16,8 +17,8 @@ impl<'a> FormatMirNode<'a, Global> for Global {
     ) -> FormatResult<()> {
         let name = f.context().strings.get(self.name);
 
-        // external globals: extern global @name: type ; var
-        if self.is_external {
+        // imported globals: extern global @name: type ; var
+        if self.linkage.is_import() {
             write!(
                 f,
                 [
@@ -33,7 +34,12 @@ impl<'a> FormatMirNode<'a, Global> for Global {
                 ]
             )?;
         } else {
-            // local globals: global @name: type = init ; var
+            // linkage prefix for exported globals
+            if self.linkage == Linkage::Export {
+                write!(f, [token("export"), space()])?;
+            }
+
+            // local/exported globals: [export] global @name: type = init ; var
             write!(
                 f,
                 [
