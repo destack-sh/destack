@@ -96,6 +96,9 @@ pub enum Error {
 
     /// Unsupported instruction for comptime evaluation.
     UnsupportedInstruction { name: String } = 19,
+
+    /// Attempted to use a non-pointer value as a pointer (in Load/Store).
+    InvalidPointerType { actual: String } = 20,
 }
 
 impl Error {
@@ -148,6 +151,9 @@ impl Error {
             Self::InvalidHeapHandle => "invalid heap handle (dangling reference)".to_string(),
             Self::UnsupportedInstruction { name } => {
                 format!("unsupported instruction for comptime: {name}")
+            }
+            Self::InvalidPointerType { actual } => {
+                format!("invalid pointer type: expected pointer, got {actual}")
             }
         }
     }
