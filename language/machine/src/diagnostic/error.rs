@@ -99,6 +99,16 @@ pub enum Error {
 
     /// Attempted to use a non-pointer value as a pointer (in Load/Store).
     InvalidPointerType { actual: String } = 20,
+
+    /// Attempted to access an undefined global variable.
+    UndefinedGlobal {
+        global: mir::LocalNodeId<mir::Global>,
+    } = 21,
+
+    /// Attempted to write to an immutable global.
+    ImmutableGlobalWrite {
+        global: mir::LocalNodeId<mir::Global>,
+    } = 22,
 }
 
 impl Error {
@@ -154,6 +164,12 @@ impl Error {
             }
             Self::InvalidPointerType { actual } => {
                 format!("invalid pointer type: expected pointer, got {actual}")
+            }
+            Self::UndefinedGlobal { global } => {
+                format!("undefined global variable: {global:?}")
+            }
+            Self::ImmutableGlobalWrite { global } => {
+                format!("cannot write to immutable global: {global:?}")
             }
         }
     }

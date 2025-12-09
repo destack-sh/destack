@@ -2,6 +2,7 @@ mod arithmetic;
 mod block;
 mod cast;
 mod gc;
+mod global;
 mod memory;
 
 use destack_mir::parse::Parser;

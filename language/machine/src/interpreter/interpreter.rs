@@ -8,7 +8,7 @@ use destack_source::ImmutableStringPool;
 use crate::diagnostic::{DiagnosticAnchor, Error, FrameInfo, RuntimeError, RuntimeResult};
 use crate::memory::{ManagedHeap, RawHeap, Value};
 
-use super::{Frame, MachineOptions, Statistics};
+use super::{Frame, GlobalStorage, MachineOptions, Statistics};
 
 /// External function type.
 pub type ExternalFn = Box<dyn Fn(&[Value]) -> Result<Value, Error> + Send + Sync>;
@@ -36,6 +36,8 @@ pub struct Interpreter {
     pub(super) managed_heap: ManagedHeap,
     /// The raw heap (manually managed allocations).
     pub(super) raw_heap: RawHeap,
+    /// Global variable storage.
+    pub(super) globals: GlobalStorage,
     /// External function handlers.
     pub(super) externals: HashMap<String, ExternalFn>,
     /// Configuration options.
@@ -51,6 +53,7 @@ impl std::fmt::Debug for Interpreter {
         f.debug_struct("Interpreter")
             .field("managed_heap", &self.managed_heap)
             .field("raw_heap", &self.raw_heap)
+            .field("globals", &format!("<{} globals>", self.globals.len()))
             .field("externals", &format!("<{} handlers>", self.externals.len()))
             .field("options", &self.options)
             .field("call_stack_depth", &self.call_stack.len())
@@ -71,15 +74,108 @@ impl Interpreter {
         strings: ImmutableStringPool,
         options: MachineOptions,
     ) -> Self {
+        let globals = Self::initialize_globals(&tree);
         Self {
             tree,
             strings,
             managed_heap: ManagedHeap::new(),
             raw_heap: RawHeap::new(),
+            globals,
             externals: HashMap::new(),
             options,
             call_stack: Vec::new(),
             statistics: Statistics::new(),
+        }
+    }
+
+    /// Initialize global variables from the MIR tree.
+    fn initialize_globals(tree: &mir::NodeTree) -> GlobalStorage {
+        let mut globals = GlobalStorage::new();
+
+        for (id, global) in tree.iter_nodes::<mir::Global>() {
+            // skip external globals (they need separate registration)
+            if global.is_external {
+                continue;
+            }
+
+            let value = match &global.initializer {
+                Some(init) => Self::convert_initializer(tree, init, global.ty),
+                None => Value::Void,
+            };
+            globals.set(id, value);
+        }
+
+        globals
+    }
+
+    /// Convert a global initializer to a runtime value.
+    fn convert_initializer(
+        tree: &mir::NodeTree,
+        init: &mir::GlobalInitializer,
+        ty: mir::LocalNodeId<mir::Type>,
+    ) -> Value {
+        match init {
+            mir::GlobalInitializer::Zero => Self::zero_value(tree, ty),
+            mir::GlobalInitializer::Scalar(constant) => constant.into(),
+            mir::GlobalInitializer::Bytes(bytes) => {
+                // convert bytes to an aggregate of u8 values
+                let values: Vec<Value> = bytes
+                    .iter()
+                    .map(|&b| Value::UInt {
+                        value: b as u64,
+                        width: 8,
+                    })
+                    .collect();
+                Value::Aggregate(values.into_boxed_slice())
+            }
+            mir::GlobalInitializer::Aggregate(elements) => {
+                // recursively convert each element
+                let values: Vec<Value> = elements
+                    .iter()
+                    .map(|e| Self::convert_initializer(tree, e, ty))
+                    .collect();
+                Value::Aggregate(values.into_boxed_slice())
+            }
+        }
+    }
+
+    /// Create a zero value for a given type.
+    fn zero_value(tree: &mir::NodeTree, ty: mir::LocalNodeId<mir::Type>) -> Value {
+        let ty_node = tree.get(ty);
+        match ty_node {
+            mir::Type::Int { width, signed } => {
+                if *signed {
+                    Value::Int {
+                        value: 0,
+                        width: *width as u8,
+                    }
+                } else {
+                    Value::UInt {
+                        value: 0,
+                        width: *width as u8,
+                    }
+                }
+            }
+            mir::Type::Float { width } => {
+                if *width == 32 {
+                    Value::Float32(0.0)
+                } else {
+                    Value::Float64(0.0)
+                }
+            }
+            mir::Type::Boolean => Value::Bool(false),
+            mir::Type::Tuple { elements } => {
+                let values: Vec<Value> =
+                    elements.iter().map(|e| Self::zero_value(tree, *e)).collect();
+                Value::Aggregate(values.into_boxed_slice())
+            }
+            mir::Type::Array { element, length } => {
+                let elem_zero = Self::zero_value(tree, *element);
+                let values: Vec<Value> = (0..*length).map(|_| elem_zero.clone()).collect();
+                Value::Aggregate(values.into_boxed_slice())
+            }
+            // for other types (pointers, functions, void, etc.), just use Void
+            _ => Value::Void,
         }
     }
 
@@ -111,6 +207,7 @@ impl Interpreter {
     }
 
     /// Create an error with instruction anchor.
+    #[allow(dead_code)]
     pub(super) fn make_error_at(
         &self,
         error: Error,
