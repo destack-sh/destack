@@ -123,6 +123,7 @@ impl<'a> ModuleLowerer<'a> {
                 self.strings,
                 function,
                 &self.isa,
+                &mut self.cl_module,
                 &self.cl_function_ids,
                 pointer_bytes,
             );

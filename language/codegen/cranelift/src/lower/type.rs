@@ -4,10 +4,6 @@ use destack_mir as mir;
 use crate::{CodegenCraneliftError, CodegenCraneliftResult};
 
 /// Lower a MIR type to a Cranelift IR type.
-///
-/// Maps MIR types to Cranelift's type system, which is more limited:
-/// it only has scalar types (integers, floats, pointers).
-/// Aggregate types (structs, arrays, tuples) must be lowered to memory operations.
 pub(crate) fn lower_type(
     tree: &mir::NodeTree,
     type_id: mir::LocalNodeId<mir::Type>,

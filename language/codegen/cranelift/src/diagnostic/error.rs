@@ -50,6 +50,12 @@ pub enum CodegenCraneliftError {
         name: String,
         message: Option<String>,
     },
+    /// Out of bounds access (tuple/array element index).
+    OutOfBounds {
+        node: mir::LocalNodeIdAny,
+        index: u32,
+        len: usize,
+    },
     /// Internal Cranelift error.
     Internal { message: String },
 }
@@ -71,6 +77,15 @@ impl CodegenCraneliftError {
         Self::UnsupportedInstruction {
             node: node_id,
             message: Some(message.into()),
+        }
+    }
+
+    /// Create an out of bounds error.
+    pub fn out_of_bounds(node_id: mir::LocalNodeIdAny, index: u32, len: usize) -> Self {
+        Self::OutOfBounds {
+            node: node_id,
+            index,
+            len,
         }
     }
 }
@@ -112,6 +127,9 @@ impl fmt::Display for CodegenCraneliftError {
                     write!(f, " ({msg})")?;
                 }
                 Ok(())
+            }
+            Self::OutOfBounds { index, len, .. } => {
+                write!(f, "index {index} out of bounds (len {len})")
             }
             Self::Internal { message } => {
                 write!(f, "internal error: {message}")

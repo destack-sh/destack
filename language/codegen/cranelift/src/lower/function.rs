@@ -36,10 +36,12 @@ use cranelift_codegen::ir as cir;
 use cranelift_codegen::ir::InstBuilder;
 use cranelift_codegen::isa::TargetIsa;
 use cranelift_frontend::{FunctionBuilder, FunctionBuilderContext, Switch};
-use cranelift_module::FuncId;
+use cranelift_module::{FuncId, Module};
+use cranelift_object::ObjectModule;
 use destack_mir as mir;
 use destack_source::StringPool;
 
+use super::layout::compute_tuple_element_offset;
 use super::r#type::lower_type;
 use crate::{CodegenCraneliftError, CodegenCraneliftResult, trap};
 
@@ -54,8 +56,12 @@ pub(crate) struct FunctionLowerer<'a> {
     function: &'a mir::Function,
     /// The target ISA.
     isa: &'a Arc<dyn TargetIsa>,
+    /// The target Cranelift module.
+    cl_module: &'a mut ObjectModule,
     /// Function id mapping for calls.
     cl_function_ids: &'a HashMap<mir::LocalNodeId<mir::Function>, FuncId>,
+    /// Map from MIR function id to Cranelift FuncRef (populated during lowering).
+    function_ref_map: HashMap<mir::LocalNodeId<mir::Function>, cir::FuncRef>,
     /// Pointer size in bytes for this target.
     pointer_bytes: u8,
 }
@@ -68,6 +74,7 @@ impl<'a> FunctionLowerer<'a> {
         strings: &'a StringPool,
         function: &'a mir::Function,
         isa: &'a Arc<dyn TargetIsa>,
+        cl_module: &'a mut ObjectModule,
         cl_function_ids: &'a HashMap<mir::LocalNodeId<mir::Function>, FuncId>,
         pointer_bytes: u8,
     ) -> Self {
@@ -76,7 +83,9 @@ impl<'a> FunctionLowerer<'a> {
             strings,
             function,
             isa,
+            cl_module,
             cl_function_ids,
+            function_ref_map: HashMap::new(),
             pointer_bytes,
         }
     }
@@ -85,9 +94,7 @@ impl<'a> FunctionLowerer<'a> {
     ///
     /// Populates the provided Cranelift function with blocks, instructions,
     /// and control flow based on the MIR function.
-    pub(crate) fn lower(self, target: &mut cir::Function) -> CodegenCraneliftResult<()> {
-        let mut builder_context = FunctionBuilderContext::new();
-        let mut builder = FunctionBuilder::new(target, &mut builder_context);
+    pub(crate) fn lower(mut self, target: &mut cir::Function) -> CodegenCraneliftResult<()> {
         let mut value_map: HashMap<mir::Value, cir::Value> = HashMap::new();
         let mut block_map: HashMap<mir::LocalNodeId<mir::Block>, cir::Block> = HashMap::new();
         let mut local_map: HashMap<mir::LocalNodeId<mir::Local>, cir::StackSlot> = HashMap::new();
@@ -96,6 +103,13 @@ impl<'a> FunctionLowerer<'a> {
         // phase 0: infer types
         self.infer_type_map(&mut type_map)?;
 
+        // phase 0.5: pre-declare all called functions in the current function
+        // (must be done before creating the FunctionBuilder)
+        self.declare_called_functions(target)?;
+
+        let mut builder_context = FunctionBuilderContext::new();
+        let mut builder = FunctionBuilder::new(target, &mut builder_context);
+
         // phase 1: create stack slots for locals
         self.create_locals(&mut builder, &mut local_map)?;
 
@@ -103,6 +117,7 @@ impl<'a> FunctionLowerer<'a> {
         self.create_blocks(&mut builder, &mut value_map, &mut block_map)?;
 
         // phase 3+4: lower each block's instructions and terminator
+        let entry_block_id = self.function.entry;
         for &block_id in &self.function.blocks {
             self.lower_block(
                 &mut builder,
@@ -112,9 +127,46 @@ impl<'a> FunctionLowerer<'a> {
                 &local_map,
                 &type_map,
             )?;
+
+            // seal non-entry blocks (entry block was already sealed in create_blocks)
+            if entry_block_id != Some(block_id) {
+                let target_block = block_map[&block_id];
+                builder.seal_block(target_block);
+            }
         }
 
         builder.finalize();
+        Ok(())
+    }
+
+    /// Pre-declare all functions that this function calls.
+    /// Populates `self.function_ref_map` with the mapping.
+    fn declare_called_functions(
+        &mut self,
+        target: &mut cir::Function,
+    ) -> CodegenCraneliftResult<()> {
+        // scan all blocks for Call instructions
+        for &block_id in &self.function.blocks {
+            let block = self.tree.get(block_id);
+            for &inst_id in &block.instructions {
+                let inst = self.tree.get(inst_id);
+                if let mir::Instruction::Call { function, .. } = inst
+                    && !self.function_ref_map.contains_key(function)
+                {
+                    let callee_function_id =
+                        self.cl_function_ids.get(function).ok_or_else(|| {
+                            CodegenCraneliftError::Internal {
+                                message: format!("unknown function {function:?}"),
+                            }
+                        })?;
+                    let function_ref = self
+                        .cl_module
+                        .declare_func_in_func(*callee_function_id, target);
+                    self.function_ref_map.insert(*function, function_ref);
+                }
+            }
+        }
+
         Ok(())
     }
 
@@ -126,9 +178,19 @@ impl<'a> FunctionLowerer<'a> {
         &self,
         type_map: &mut HashMap<mir::Value, mir::LocalNodeId<mir::Type>>,
     ) -> CodegenCraneliftResult<()> {
+        let mut pointer_pointee_map: HashMap<mir::Value, mir::LocalNodeId<mir::Type>> =
+            HashMap::new();
+
         // function parameters have explicit types
         for param in &self.function.parameters {
             type_map.insert(param.value, param.ty);
+            // if param is a pointer type, record its pointee
+            let ty = self.tree.get(param.ty);
+            if let mir::Type::RawPointer { pointee } | mir::Type::ManagedReference { pointee, .. } =
+                ty
+            {
+                pointer_pointee_map.insert(param.value, *pointee);
+            }
         }
 
         // block parameters have explicit types
@@ -136,6 +198,13 @@ impl<'a> FunctionLowerer<'a> {
             let block = self.tree.get(block_id);
             for param in &block.parameters {
                 type_map.insert(param.value, param.ty);
+                // If param is a pointer type, record its pointee
+                let ty = self.tree.get(param.ty);
+                if let mir::Type::RawPointer { pointee }
+                | mir::Type::ManagedReference { pointee, .. } = ty
+                {
+                    pointer_pointee_map.insert(param.value, *pointee);
+                }
             }
         }
 
@@ -144,7 +213,10 @@ impl<'a> FunctionLowerer<'a> {
             let block = self.tree.get(block_id);
             for &inst_id in &block.instructions {
                 let instruction = self.tree.get(inst_id);
-                if let Some((dest, ty)) = self.infer_instruction_type(instruction, type_map) {
+                self.infer_pointer_pointee(instruction, &mut pointer_pointee_map);
+                if let Some((dest, ty)) =
+                    self.infer_instruction_type(instruction, type_map, &pointer_pointee_map)
+                {
                     type_map.insert(dest, ty);
                 }
             }
@@ -153,15 +225,57 @@ impl<'a> FunctionLowerer<'a> {
         Ok(())
     }
 
+    /// Record pointee types for pointer-producing instructions.
+    fn infer_pointer_pointee(
+        &self,
+        instruction: &mir::Instruction,
+        pointer_pointee_map: &mut HashMap<mir::Value, mir::LocalNodeId<mir::Type>>,
+    ) {
+        match instruction {
+            // stack_allocate produces rawptr<layout>
+            mir::Instruction::StackAllocate {
+                destination,
+                layout,
+            } => {
+                pointer_pointee_map.insert(*destination, *layout);
+            }
+            // raw_allocate produces rawptr<layout>
+            mir::Instruction::RawAllocate {
+                destination,
+                layout,
+                ..
+            } => {
+                pointer_pointee_map.insert(*destination, *layout);
+            }
+            // managed_allocate produces managed ref to layout
+            mir::Instruction::ManagedAllocate {
+                destination,
+                layout,
+            } => {
+                pointer_pointee_map.insert(*destination, *layout);
+            }
+            mir::Instruction::ManagedAllocateArray {
+                destination,
+                element,
+                ..
+            } => {
+                // This is a pointer to an array, but we track the element type
+                pointer_pointee_map.insert(*destination, *element);
+            }
+            _ => {}
+        }
+    }
+
     /// Infer the result type of an instruction (None if the instruction does not produce a value).
     fn infer_instruction_type(
         &self,
         instruction: &mir::Instruction,
         type_map: &HashMap<mir::Value, mir::LocalNodeId<mir::Type>>,
+        pointer_pointee_map: &HashMap<mir::Value, mir::LocalNodeId<mir::Type>>,
     ) -> Option<(mir::Value, mir::LocalNodeId<mir::Type>)> {
         match instruction {
             // constants: type is embedded in the constant, but we don't have a Type node
-            // we'll handle this specially when lowering
+            // (we'll handle this specially when lowering instructions)
             mir::Instruction::Constant { .. } => None,
 
             // binary: result type = operand type (for arithmetic), or bool (for comparisons)
@@ -173,7 +287,7 @@ impl<'a> FunctionLowerer<'a> {
             } => {
                 if operator.is_comparison() {
                     // comparisons produce bool, but we don't have a bool type node
-                    // we'll handle this specially when lowering
+                    // (we'll handle this specially when lowering instructions)
                     None
                 } else {
                     // arithmetic: result type = operand type
@@ -221,6 +335,11 @@ impl<'a> FunctionLowerer<'a> {
                 destination,
                 pointer,
             } => {
+                // try pointer_pointee_map (for stack_allocate, etc.)
+                if let Some(&pointee) = pointer_pointee_map.get(pointer) {
+                    return Some((*destination, pointee));
+                }
+                // fallback to extracting from pointer type
                 if let Some(ptr_type_id) = type_map.get(pointer) {
                     let ptr_type = self.tree.get(*ptr_type_id);
                     if let mir::Type::RawPointer { pointee } = ptr_type {
@@ -241,9 +360,9 @@ impl<'a> FunctionLowerer<'a> {
                 aggregate,
                 index,
             } => {
-                if let Some(agg_type_id) = type_map.get(aggregate) {
-                    let agg_type = self.tree.get(*agg_type_id);
-                    match agg_type {
+                if let Some(aggregate_type_id) = type_map.get(aggregate) {
+                    let aggregate_type = self.tree.get(*aggregate_type_id);
+                    match aggregate_type {
                         mir::Type::Struct { fields } => {
                             if let Some(field) = fields.get(*index as usize) {
                                 return Some((*destination, field.ty));
@@ -271,9 +390,9 @@ impl<'a> FunctionLowerer<'a> {
             mir::Instruction::ExtractElement {
                 destination, array, ..
             } => {
-                if let Some(arr_type_id) = type_map.get(array) {
-                    let arr_type = self.tree.get(*arr_type_id);
-                    if let mir::Type::Array { element, .. } = arr_type {
+                if let Some(array_type_id) = type_map.get(array) {
+                    let array_type = self.tree.get(*array_type_id);
+                    if let mir::Type::Array { element, .. } = array_type {
                         return Some((*destination, *element));
                     }
                 }
@@ -285,9 +404,50 @@ impl<'a> FunctionLowerer<'a> {
                 destination, array, ..
             } => type_map.get(array).map(|ty| (*destination, *ty)),
 
-            // call: would need function signature lookup
-            // TODO #Incomplete: implement function signature lookup
-            _ => None,
+            // call: look up the callee's return type
+            mir::Instruction::Call {
+                destination,
+                function,
+                ..
+            } => {
+                if let Some(dest) = destination {
+                    let callee = self.tree.get(*function);
+                    Some((*dest, callee.return_type))
+                } else {
+                    None
+                }
+            }
+
+            // call_indirect: look up return type from function pointer type
+            mir::Instruction::CallIndirect {
+                destination,
+                callee,
+                ..
+            } => {
+                if let Some(dest) = destination
+                    && let Some(callee_type_id) = type_map.get(callee)
+                {
+                    let callee_type = self.tree.get(*callee_type_id);
+                    if let mir::Type::FunctionPointer { result, .. } = callee_type {
+                        return Some((*dest, *result));
+                    }
+                }
+                None
+            }
+
+            // stack_allocate: result type is rawptr<layout>
+            mir::Instruction::StackAllocate { .. } => None,
+
+            // managed_allocate: result type is managed reference
+            mir::Instruction::ManagedAllocate { .. } => None,
+            mir::Instruction::ManagedAllocateArray { .. } => None,
+
+            // raw_allocate: result type is rawptr
+            mir::Instruction::RawAllocate { .. } => None,
+
+            // these don't produce values
+            mir::Instruction::RawFree { .. } => None,
+            mir::Instruction::Drop { .. } => None,
         }
     }
 
@@ -394,9 +554,6 @@ impl<'a> FunctionLowerer<'a> {
         // lower terminator
         self.lower_terminator(&mir_block.terminator, builder, value_map, block_map)?;
 
-        // seal the block (all predecessors are now known)
-        builder.seal_block(target_block);
-
         Ok(())
     }
 
@@ -414,11 +571,13 @@ impl<'a> FunctionLowerer<'a> {
     ) -> CodegenCraneliftResult<()> {
         let instruction = self.tree.get(instruction_id);
         match instruction {
+            // constant -> iconst/fconst (type-specific immediate load)
             mir::Instruction::Constant { destination, value } => {
                 let result = self.lower_constant(instruction_id.into_any(), value, builder)?;
                 value_map.insert(*destination, result);
             }
 
+            // binary -> iadd/isub/imul/etc (arithmetic) or icmp (comparison)
             mir::Instruction::Binary {
                 destination,
                 operator,
@@ -431,28 +590,31 @@ impl<'a> FunctionLowerer<'a> {
                 value_map.insert(*destination, result);
             }
 
+            // unary -> ineg/fneg/bnot (type-specific unary operation)
             mir::Instruction::Unary {
                 destination,
                 operator,
                 argument,
             } => {
-                let arg_value = value_map[argument];
-                let result = self.lower_unary_op(*operator, arg_value, builder)?;
+                let argument_value = value_map[argument];
+                let result = self.lower_unary_op(*operator, argument_value, builder)?;
                 value_map.insert(*destination, result);
             }
 
+            // cast -> sextend/uextend/ireduce/bitcast/etc (type conversion)
             mir::Instruction::Cast {
                 destination,
                 kind,
                 argument,
                 to_type,
             } => {
-                let arg_value = value_map[argument];
+                let argument_value = value_map[argument];
                 let target_type = lower_type(self.tree, *to_type, self.pointer_bytes)?;
-                let result = self.lower_cast(*kind, arg_value, target_type, builder)?;
+                let result = self.lower_cast(*kind, argument_value, target_type, builder)?;
                 value_map.insert(*destination, result);
             }
 
+            // local_get -> stack_load (load from stack slot)
             mir::Instruction::LocalGet { destination, local } => {
                 let slot = local_map[local];
                 let local_data = self.tree.get(*local);
@@ -461,12 +623,14 @@ impl<'a> FunctionLowerer<'a> {
                 value_map.insert(*destination, result);
             }
 
+            // local_set -> stack_store (store to stack slot)
             mir::Instruction::LocalSet { local, value } => {
                 let slot = local_map[local];
                 let store_value = value_map[value];
                 builder.ins().stack_store(store_value, slot, 0);
             }
 
+            // global_get -> symbol_value + load (not yet implemented)
             mir::Instruction::GlobalGet { .. } => {
                 return Err(CodegenCraneliftError::unsupported_instruction(
                     "GlobalGet not yet implemented",
@@ -474,6 +638,7 @@ impl<'a> FunctionLowerer<'a> {
                 ));
             }
 
+            // global_set -> symbol_value + store (not yet implemented)
             mir::Instruction::GlobalSet { .. } => {
                 return Err(CodegenCraneliftError::unsupported_instruction(
                     "GlobalSet not yet implemented",
@@ -481,6 +646,7 @@ impl<'a> FunctionLowerer<'a> {
                 ));
             }
 
+            // load -> load (memory read through pointer)
             mir::Instruction::Load {
                 destination,
                 pointer,
@@ -502,6 +668,7 @@ impl<'a> FunctionLowerer<'a> {
                 value_map.insert(*destination, result);
             }
 
+            // store -> store (memory write through pointer)
             mir::Instruction::Store { pointer, value } => {
                 let ptr_value = value_map[pointer];
                 let store_value = value_map[value];
@@ -510,10 +677,330 @@ impl<'a> FunctionLowerer<'a> {
                     .store(cir::MemFlags::new(), store_value, ptr_value, 0);
             }
 
-            // TODO #Incomplete: implement codegen for field / element / call / alloc instructions
-            _ => {
+            // extract_field -> load at computed offset (struct/tuple field read)
+            mir::Instruction::ExtractField {
+                destination,
+                aggregate,
+                index,
+            } => {
+                // aggregate type
+                let aggregate_type_id =
+                    type_map
+                        .get(aggregate)
+                        .ok_or_else(|| CodegenCraneliftError::MissingType {
+                            node: instruction_id.into_any(),
+                            message: Some(
+                                "could not infer type for aggregate in ExtractField".into(),
+                            ),
+                        })?;
+                let aggregate_type = self.tree.get(*aggregate_type_id);
+
+                // field offset and type
+                let (field_offset, field_type_id) = match aggregate_type {
+                    mir::Type::Struct { fields } => {
+                        let field = fields.get(*index as usize).ok_or_else(|| {
+                            CodegenCraneliftError::out_of_bounds(
+                                instruction_id.into_any(),
+                                *index,
+                                fields.len(),
+                            )
+                        })?;
+                        (field.offset, field.ty)
+                    }
+                    mir::Type::Tuple { elements } => {
+                        let element_type_id = elements.get(*index as usize).ok_or_else(|| {
+                            CodegenCraneliftError::out_of_bounds(
+                                instruction_id.into_any(),
+                                *index,
+                                elements.len(),
+                            )
+                        })?;
+                        let offset = compute_tuple_element_offset(
+                            self.tree,
+                            elements,
+                            *index,
+                            self.pointer_bytes,
+                        )?;
+                        (offset, *element_type_id)
+                    }
+                    _ => {
+                        return Err(CodegenCraneliftError::Internal {
+                            message: "ExtractField on non-aggregate type".into(),
+                        });
+                    }
+                };
+
+                // load from aggregate_ptr + offset
+                let field_type = lower_type(self.tree, field_type_id, self.pointer_bytes)?;
+                let aggregate_ptr = value_map[aggregate];
+                let result = builder.ins().load(
+                    field_type,
+                    cir::MemFlags::new(),
+                    aggregate_ptr,
+                    field_offset as i32,
+                );
+                value_map.insert(*destination, result);
+            }
+
+            // insert_field -> store at computed offset (struct/tuple field write)
+            mir::Instruction::InsertField {
+                destination,
+                aggregate,
+                index,
+                value,
+            } => {
+                // aggregate type
+                let aggregate_type_id =
+                    type_map
+                        .get(aggregate)
+                        .ok_or_else(|| CodegenCraneliftError::MissingType {
+                            node: instruction_id.into_any(),
+                            message: Some(
+                                "could not infer type for aggregate in InsertField".into(),
+                            ),
+                        })?;
+                let aggregate_type = self.tree.get(*aggregate_type_id);
+
+                // field
+                let field_offset = match aggregate_type {
+                    mir::Type::Struct { fields } => {
+                        let field = fields.get(*index as usize).ok_or_else(|| {
+                            CodegenCraneliftError::out_of_bounds(
+                                instruction_id.into_any(),
+                                *index,
+                                fields.len(),
+                            )
+                        })?;
+                        field.offset
+                    }
+                    mir::Type::Tuple { elements } => compute_tuple_element_offset(
+                        self.tree,
+                        elements,
+                        *index,
+                        self.pointer_bytes,
+                    )?,
+                    _ => {
+                        return Err(CodegenCraneliftError::Internal {
+                            message: "InsertField on non-aggregate type".into(),
+                        });
+                    }
+                };
+
+                // store to aggregate_ptr + offset
+                let aggregate_ptr = value_map[aggregate];
+                let store_value = value_map[value];
+                builder.ins().store(
+                    cir::MemFlags::new(),
+                    store_value,
+                    aggregate_ptr,
+                    field_offset as i32,
+                );
+                // the result is the aggregate pointer (in-place mutation)
+                value_map.insert(*destination, aggregate_ptr);
+            }
+
+            // extract_element -> load at ptr + index * elem_size (array element read)
+            mir::Instruction::ExtractElement {
+                destination,
+                array,
+                index,
+            } => {
+                // array type
+                let array_type_id =
+                    type_map
+                        .get(array)
+                        .ok_or_else(|| CodegenCraneliftError::MissingType {
+                            node: instruction_id.into_any(),
+                            message: Some(
+                                "could not infer type for array in ExtractElement".into(),
+                            ),
+                        })?;
+                let array_type = self.tree.get(*array_type_id);
+
+                // element type
+                let element_type_id = match array_type {
+                    mir::Type::Array { element, .. } => *element,
+                    _ => {
+                        return Err(CodegenCraneliftError::Internal {
+                            message: "ExtractElement on non-array type".into(),
+                        });
+                    }
+                };
+                let element_type = lower_type(self.tree, element_type_id, self.pointer_bytes)?;
+                let element_size = element_type.bytes() as i64;
+
+                // array pointer + index * element_size
+                let array_ptr = value_map[array];
+                let idx_value = value_map[index];
+                let offset = builder.ins().imul_imm(idx_value, element_size);
+                let element_ptr = builder.ins().iadd(array_ptr, offset);
+                let result = builder
+                    .ins()
+                    .load(element_type, cir::MemFlags::new(), element_ptr, 0);
+                value_map.insert(*destination, result);
+            }
+
+            // insert_element -> store at ptr + index * elem_size (array element write)
+            mir::Instruction::InsertElement {
+                destination,
+                array,
+                index,
+                value,
+            } => {
+                // array type
+                let array_type_id =
+                    type_map
+                        .get(array)
+                        .ok_or_else(|| CodegenCraneliftError::MissingType {
+                            node: instruction_id.into_any(),
+                            message: Some("could not infer type for array in InsertElement".into()),
+                        })?;
+                let array_type = self.tree.get(*array_type_id);
+
+                // element type
+                let element_type_id = match array_type {
+                    mir::Type::Array { element, .. } => *element,
+                    _ => {
+                        return Err(CodegenCraneliftError::Internal {
+                            message: "InsertElement on non-array type".into(),
+                        });
+                    }
+                };
+                let element_type = lower_type(self.tree, element_type_id, self.pointer_bytes)?;
+                let element_size = element_type.bytes() as i64;
+
+                // array pointer + index * element_size
+                let array_ptr = value_map[array];
+                let idx_value = value_map[index];
+                let store_value = value_map[value];
+                let offset = builder.ins().imul_imm(idx_value, element_size);
+                let element_ptr = builder.ins().iadd(array_ptr, offset);
+                builder
+                    .ins()
+                    .store(cir::MemFlags::new(), store_value, element_ptr, 0);
+                // the result is the array pointer itself
+                value_map.insert(*destination, array_ptr);
+            }
+
+            // call -> call (direct function call via pre-declared FuncRef)
+            mir::Instruction::Call {
+                destination,
+                function,
+                arguments,
+            } => {
+                let function_ref = self.function_ref_map.get(function).ok_or_else(|| {
+                    CodegenCraneliftError::Internal {
+                        message: format!("function {function:?} not declared"),
+                    }
+                })?;
+
+                // gather argument values
+                let argument_values: Vec<cir::Value> =
+                    arguments.iter().map(|v| value_map[v]).collect();
+
+                // make the call
+                let call_instruction = builder.ins().call(*function_ref, &argument_values);
+
+                // get return value if any
+                if let Some(dest) = destination {
+                    let results = builder.inst_results(call_instruction);
+                    if !results.is_empty() {
+                        value_map.insert(*dest, results[0]);
+                    }
+                }
+            }
+
+            // call_indirect -> call_indirect (indirect call through function pointer)
+            mir::Instruction::CallIndirect {
+                destination,
+                callee,
+                arguments,
+            } => {
+                // callee type
+                let callee_type_id =
+                    type_map
+                        .get(callee)
+                        .ok_or_else(|| CodegenCraneliftError::MissingType {
+                            node: instruction_id.into_any(),
+                            message: Some("could not infer type for indirect call callee".into()),
+                        })?;
+                let callee_type = self.tree.get(*callee_type_id);
+
+                // function pointer type
+                let (params, result) = match callee_type {
+                    mir::Type::FunctionPointer { parameters, result } => (parameters, *result),
+                    _ => {
+                        return Err(CodegenCraneliftError::Internal {
+                            message: "CallIndirect callee is not a function pointer".into(),
+                        });
+                    }
+                };
+
+                // signature
+                let call_conv = self.isa.default_call_conv();
+                let mut signature = cir::Signature::new(call_conv);
+                for param_ty in params {
+                    let ty = lower_type(self.tree, *param_ty, self.pointer_bytes)?;
+                    signature.params.push(cir::AbiParam::new(ty));
+                }
+                let result_type = self.tree.get(result);
+                if !matches!(result_type, mir::Type::Void) {
+                    let ty = lower_type(self.tree, result, self.pointer_bytes)?;
+                    signature.returns.push(cir::AbiParam::new(ty));
+                }
+                let sig_ref = builder.import_signature(signature);
+                let callee_value = value_map[callee];
+                let argument_values: Vec<cir::Value> =
+                    arguments.iter().map(|v| value_map[v]).collect();
+
+                // make the call
+                let call_inst =
+                    builder
+                        .ins()
+                        .call_indirect(sig_ref, callee_value, &argument_values);
+
+                // get return value if any
+                if let Some(dest) = destination {
+                    let results = builder.inst_results(call_inst);
+                    if !results.is_empty() {
+                        value_map.insert(*dest, results[0]);
+                    }
+                }
+            }
+
+            // stack_allocate -> create_sized_stack_slot + stack_addr (alloca equivalent)
+            mir::Instruction::StackAllocate {
+                destination,
+                layout,
+            } => {
+                let ty = lower_type(self.tree, *layout, self.pointer_bytes)?;
+                let size = ty.bytes();
+
+                let slot = builder.create_sized_stack_slot(cir::StackSlotData::new(
+                    cir::StackSlotKind::ExplicitSlot,
+                    size,
+                    0,
+                ));
+
+                let address = builder.ins().stack_addr(self.pointer_type(), slot, 0);
+                value_map.insert(*destination, address);
+            }
+
+            // managed_allocate -> requires GC runtime, not supported
+            mir::Instruction::ManagedAllocate { .. }
+            | mir::Instruction::ManagedAllocateArray { .. } => {
                 return Err(CodegenCraneliftError::unsupported_instruction(
-                    "ExtractField not yet implemented",
+                    "require runtime support",
+                    instruction_id.into_any(),
+                ));
+            }
+
+            // raw_allocate, raw_free, drop -> all require runtime/external support, not implemented
+            mir::Instruction::RawAllocate { .. }
+            | mir::Instruction::RawFree { .. }
+            | mir::Instruction::Drop { .. } => {
+                return Err(CodegenCraneliftError::unsupported_instruction(
+                    "require allocator support",
                     instruction_id.into_any(),
                 ));
             }
@@ -533,6 +1020,7 @@ impl<'a> FunctionLowerer<'a> {
         block_map: &HashMap<mir::LocalNodeId<mir::Block>, cir::Block>,
     ) -> CodegenCraneliftResult<()> {
         match terminator {
+            // return -> return (function exit with optional value)
             mir::Terminator::Return { value } => {
                 if let Some(value) = value {
                     let return_value = value_map[value];
@@ -542,6 +1030,7 @@ impl<'a> FunctionLowerer<'a> {
                 }
             }
 
+            // jump -> jump (unconditional branch with block args)
             mir::Terminator::Jump { target, arguments } => {
                 let target_block = block_map[target];
                 let arguments: Vec<cir::BlockArg> = arguments
@@ -551,6 +1040,7 @@ impl<'a> FunctionLowerer<'a> {
                 builder.ins().jump(target_block, &arguments);
             }
 
+            // branch -> brif (conditional branch with block args)
             mir::Terminator::Branch {
                 condition,
                 then_target,
@@ -579,6 +1069,7 @@ impl<'a> FunctionLowerer<'a> {
                 );
             }
 
+            // switch -> br_table or brif chain (multi-way branch)
             mir::Terminator::Switch {
                 value,
                 default,
@@ -596,6 +1087,7 @@ impl<'a> FunctionLowerer<'a> {
                 )?;
             }
 
+            // unreachable -> trap (program abort for impossible paths)
             mir::Terminator::Unreachable => {
                 builder.ins().trap(trap::UNREACHABLE);
             }
@@ -626,13 +1118,12 @@ impl<'a> FunctionLowerer<'a> {
         }
 
         // check if any cases have block arguments
-        // Cranelift's Switch doesn't support block arguments directly,
-        // so we need to create intermediate blocks for cases with arguments
+        // (Cranelift's Switch doesn't support block arguments directly,
+        //  so we need to create intermediate blocks for cases with arguments)
         let has_block_arguments =
             !default_arguments.is_empty() || cases.iter().any(|c| !c.arguments.is_empty());
-
+        // fall back to chain of brif for cases with arguments
         if has_block_arguments {
-            // fall back to chain of brif for cases with arguments
             self.lower_switch_with_arguments(
                 switch_value,
                 default_block,
@@ -642,8 +1133,9 @@ impl<'a> FunctionLowerer<'a> {
                 value_map,
                 block_map,
             )
-        } else {
-            // use Cranelift's Switch for simple cases (no block arguments)
+        }
+        // use Cranelift's Switch for simple cases (no block arguments)
+        else {
             let mut switch = Switch::new();
             for case in cases {
                 let case_block = block_map[&case.target];
@@ -671,12 +1163,12 @@ impl<'a> FunctionLowerer<'a> {
             .collect();
 
         for case in cases {
+            // case condition
             let case_const = builder.ins().iconst(self.pointer_type(), case.value);
             let is_match =
                 builder
                     .ins()
                     .icmp(cir::condcodes::IntCC::Equal, switch_value, case_const);
-
             let case_block = block_map[&case.target];
             let case_arguments: Vec<cir::BlockArg> = case
                 .arguments
@@ -684,6 +1176,7 @@ impl<'a> FunctionLowerer<'a> {
                 .map(|v| cir::BlockArg::from(value_map[v]))
                 .collect();
 
+            // case block
             let next_block = builder.create_block();
             let empty_arguments: Vec<cir::BlockArg> = vec![];
             builder.ins().brif(
@@ -773,11 +1266,13 @@ impl<'a> FunctionLowerer<'a> {
                 )),
             },
 
+            // NOTE #Incomplete: cranelift string constants
             mir::Constant::String { .. } => Err(CodegenCraneliftError::unsupported_type(
                 "string constants".to_string(),
                 node_id,
             )),
 
+            // NOTE #Incomplete: cranelift char constants
             mir::Constant::Char { .. } => Err(CodegenCraneliftError::unsupported_type(
                 "char constants".to_string(),
                 node_id,
