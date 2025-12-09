@@ -1,10 +1,8 @@
-// Destack Type Reflection Built-ins
-// NOTE #Incomplete: built-in types are just a placeholder for now
-// These types are implicitly available when Reflection feature is enabled.
-
 /// Get the type descriptor for a value.
 /// Unlike JavaScript's `typeof` (which returns a string), this returns `Type<T>`.
 declare function typeOf<T>(value: T): Type<T>;
+
+// TODO #Incomplete: Type reflection
 
 /// The kind of a type descriptor.
 type TypeKind =
@@ -33,7 +31,6 @@ interface Variant {
 }
 
 /// Type descriptor - runtime representation of a type.
-/// Available when Reflection feature is enabled.
 interface Type<T> {
     /// The name of the type.
     readonly name: string,
