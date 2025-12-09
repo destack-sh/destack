@@ -27,10 +27,7 @@ fn run_mir_ok(mir_text: &str, function: &str, args: &[Value]) -> ExecutionOutput
 }
 
 /// Run MIR and expect a specific return value.
-fn expect_evaluate_call(mir_text: &str, function: &str, args: &[Value], expected: Value) {
+fn run_mir_expect(mir_text: &str, function: &str, args: &[Value], expected: Value) {
     let output = run_mir_ok(mir_text, function, args);
     assert_eq!(output.value, expected, "unexpected return value");
 }
-
-// Alias for backwards compatibility
-use expect_evaluate_call as expect_evaluate_mir;

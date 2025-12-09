@@ -1,6 +1,6 @@
 use crate::diagnostic::Error;
 use crate::memory::Value;
-use crate::tests::{expect_evaluate_mir, run_mir, run_mir_ok};
+use crate::tests::{run_mir_expect, run_mir, run_mir_ok};
 
 /// Managed allocation creates a heap cell and returns a reference.
 #[test]
@@ -30,7 +30,7 @@ block0:
     return v2
 }
 "#;
-    expect_evaluate_mir(mir, "load_store", &[], Value::int32(42));
+    run_mir_expect(mir, "load_store", &[], Value::int32(42));
 }
 
 /// Array allocation creates a heap cell with multiple slots.
@@ -60,7 +60,7 @@ block0(v0: (i32, i32)):
 }
 "#;
     let aggregate = Value::Aggregate(vec![Value::int32(10), Value::int32(20)].into_boxed_slice());
-    expect_evaluate_mir(mir, "get_first", &[aggregate], Value::int32(10));
+    run_mir_expect(mir, "get_first", &[aggregate], Value::int32(10));
 }
 
 /// Insert field creates a new tuple with one component replaced.
@@ -94,19 +94,19 @@ block0(v0: [i32; 3], v1: i64):
     let array = Value::Aggregate(
         vec![Value::int32(10), Value::int32(20), Value::int32(30)].into_boxed_slice(),
     );
-    expect_evaluate_mir(
+    run_mir_expect(
         mir,
         "get_elem",
         &[array.clone(), Value::uint64(0)],
         Value::int32(10),
     );
-    expect_evaluate_mir(
+    run_mir_expect(
         mir,
         "get_elem",
         &[array.clone(), Value::uint64(1)],
         Value::int32(20),
     );
-    expect_evaluate_mir(
+    run_mir_expect(
         mir,
         "get_elem",
         &[array, Value::uint64(2)],
@@ -153,7 +153,7 @@ block0:
     return v2
 }
 "#;
-    expect_evaluate_mir(mir, "heap_field", &[], Value::int32(42));
+    run_mir_expect(mir, "heap_field", &[], Value::int32(42));
 }
 
 /// Out-of-bounds field access produces an error.
@@ -215,4 +215,90 @@ block2:
     assert!(result.is_err());
     let err = result.unwrap_err();
     assert!(matches!(err.error, Error::AllocationFailed));
+}
+
+/// Raw allocation creates a heap cell and returns a raw pointer.
+#[test]
+fn test_raw_allocate() {
+    let mir = r#"
+function @raw_alloc() -> rawptr<i32> {
+block0:
+    v0 = raw_allocate i32
+    return v0
+}
+"#;
+    let output = run_mir_ok(mir, "raw_alloc", &[]);
+    assert!(matches!(output.value, Value::RawPointer(_)));
+    assert_eq!(output.raw_heap_cells, 1);
+}
+
+/// Raw free deallocates a raw pointer.
+#[test]
+fn test_raw_free() {
+    let mir = r#"
+function @raw_alloc_free() -> i32 {
+block0:
+    v0 = raw_allocate i32
+    v1 = iconst 42i32
+    store v0, v1
+    v2 = load v0
+    raw_free v0
+    return v2
+}
+"#;
+    let output = run_mir_ok(mir, "raw_alloc_free", &[]);
+    assert_eq!(output.value, Value::int32(42));
+    // after free, raw heap should be empty
+    assert_eq!(output.raw_heap_cells, 0);
+}
+
+/// Raw free on invalid pointer produces an error.
+#[test]
+fn test_raw_free_invalid() {
+    let mir = r#"
+function @double_free() -> void {
+block0:
+    v0 = raw_allocate i32
+    raw_free v0
+    raw_free v0
+    return
+}
+"#;
+    let result = run_mir(mir, "double_free", &[]);
+    assert!(result.is_err());
+    let err = result.unwrap_err();
+    assert!(matches!(err.error, Error::InvalidHeapHandle));
+}
+
+/// Stack allocation creates frame-local storage.
+#[test]
+fn test_stack_allocate() {
+    let mir = r#"
+function @stack_alloc() -> i32 {
+block0:
+    v0 = stack_allocate i32
+    v1 = iconst 99i32
+    store v0, v1
+    v2 = load v0
+    return v2
+}
+"#;
+    run_mir_expect(mir, "stack_alloc", &[], Value::int32(99));
+}
+
+/// Stack allocation with field access.
+#[test]
+fn test_stack_allocate_struct() {
+    let mir = r#"
+function @stack_struct() -> i32 {
+block0:
+    v0 = stack_allocate (i32, i32)
+    v1 = iconst 10i32
+    v2 = iconst 20i32
+    store v0, v1
+    v3 = extract_field v0, 0
+    return v3
+}
+"#;
+    run_mir_expect(mir, "stack_struct", &[], Value::int32(10));
 }

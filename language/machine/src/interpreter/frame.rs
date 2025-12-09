@@ -2,21 +2,15 @@ use destack_mir as mir;
 use smallvec::SmallVec;
 
 use crate::diagnostic::{Error, RuntimeError, RuntimeResult};
-use crate::memory::{HeapHandle, Value};
+use crate::memory::{HeapCell, HeapHandle, Value};
 
-/// Inline capacity for SSA values (covers most small functions).
+/// Inline capacity for SSA values.
 const VALUES_INLINE_CAP: usize = 8;
 
-/// Inline capacity for local variables (most functions have 0-4 locals).
+/// Inline capacity for local variables.
 const LOCALS_INLINE_CAP: usize = 4;
 
-/// A call frame in the interpreter.
-///
-/// Each function call creates a new frame that holds the local values
-/// and tracks the current execution position.
-///
-/// Uses SmallVec for inline storage of small functions, avoiding
-/// heap allocations for typical cases.
+/// Call frame in the interpreter.
 #[derive(Debug)]
 pub struct Frame {
     /// The function being executed.
@@ -26,15 +20,14 @@ pub struct Frame {
     /// The current block being executed.
     pub current_block: mir::LocalNodeId<mir::Block>,
     /// Current instruction index within the block (for resuming after calls).
-    pub instruction_index: usize,
+    pub instruction_idx: usize,
     /// SSA values in this frame, indexed by value id.
-    /// Uses SmallVec for inline storage of small functions.
-    values: SmallVec<[Option<Value>; VALUES_INLINE_CAP]>,
+    pub values: SmallVec<[Option<Value>; VALUES_INLINE_CAP]>,
     /// Local variables (stack slots).
-    /// Linear search is fine since functions typically have few locals.
-    locals: SmallVec<[(mir::LocalNodeId<mir::Local>, Value); LOCALS_INLINE_CAP]>,
-    /// Where to store the return value when this frame's callee returns.
-    /// Set by the caller before pushing a new frame.
+    pub locals: SmallVec<[(mir::LocalNodeId<mir::Local>, Value); LOCALS_INLINE_CAP]>,
+    /// Stack-allocated cells (freed when frame pops).
+    pub stack_cells: Vec<HeapCell>,
+    /// Where to store the return value when callee returns (set by caller before pushing a new frame).
     pub return_destination: Option<mir::Value>,
 }
 
@@ -48,9 +41,10 @@ impl Frame {
             function,
             entry_block,
             current_block: entry_block,
-            instruction_index: 0,
+            instruction_idx: 0,
             values: SmallVec::new(),
             locals: SmallVec::new(),
+            stack_cells: Vec::new(),
             return_destination: None,
         }
     }
@@ -107,6 +101,25 @@ impl Frame {
         self.values.clear();
     }
 
+    /// Allocate a new stack cell, returning its slot index.
+    pub fn allocate_stack_cell(&mut self) -> usize {
+        let slot = self.stack_cells.len();
+        self.stack_cells.push(HeapCell::new());
+        slot
+    }
+
+    /// Get a stack cell by slot index.
+    #[inline]
+    pub fn get_stack_cell(&self, slot: usize) -> Option<&HeapCell> {
+        self.stack_cells.get(slot)
+    }
+
+    /// Get a mutable reference to a stack cell by slot index.
+    #[inline]
+    pub fn get_stack_cell_mut(&mut self, slot: usize) -> Option<&mut HeapCell> {
+        self.stack_cells.get_mut(slot)
+    }
+
     /// Collect all heap handles from this frame for GC roots.
     pub fn collect_roots(&self, roots: &mut Vec<HeapHandle>) {
         for value in self.values.iter().flatten() {
@@ -114,6 +127,11 @@ impl Frame {
         }
         for (_, value) in &self.locals {
             Self::collect_handles_from_value(value, roots);
+        }
+        for cell in &self.stack_cells {
+            for value in &cell.slots {
+                Self::collect_handles_from_value(value, roots);
+            }
         }
     }
 

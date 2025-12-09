@@ -3,5 +3,5 @@
 mod heap;
 mod value;
 
-pub use heap::{Heap, HeapCell};
-pub use value::{HeapHandle, Value};
+pub use heap::{HeapCell, ManagedHeap, RawHeap};
+pub use value::{HeapHandle, RawPointer, StackPointer, Value};

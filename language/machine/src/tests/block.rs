@@ -1,6 +1,10 @@
+use destack_mir as mir;
+use destack_mir::parse::Parser;
+
 use crate::diagnostic::Error;
+use crate::interpreter::{Interpreter, MachineOptions};
 use crate::memory::Value;
-use crate::tests::{expect_evaluate_mir, run_mir};
+use crate::tests::{run_mir_expect, run_mir};
 
 /// Branch instruction takes the true path when condition is true.
 #[test]
@@ -17,7 +21,7 @@ block2:
     return v2
 }
 "#;
-    expect_evaluate_mir(mir, "select", &[Value::Bool(true)], Value::int32(1));
+    run_mir_expect(mir, "select", &[Value::Bool(true)], Value::int32(1));
 }
 
 /// Branch instruction takes the false path when condition is false.
@@ -35,7 +39,7 @@ block2:
     return v2
 }
 "#;
-    expect_evaluate_mir(mir, "select", &[Value::Bool(false)], Value::int32(0));
+    run_mir_expect(mir, "select", &[Value::Bool(false)], Value::int32(0));
 }
 
 /// Jump instruction transfers control to target block.
@@ -50,7 +54,7 @@ block1:
     return v0
 }
 "#;
-    expect_evaluate_mir(mir, "jump_test", &[], Value::int32(42));
+    run_mir_expect(mir, "jump_test", &[], Value::int32(42));
 }
 
 /// Switch instruction dispatches to the correct case or default.
@@ -71,9 +75,9 @@ block3:
     return v3
 }
 "#;
-    expect_evaluate_mir(mir, "switch_test", &[Value::int32(0)], Value::int32(100));
-    expect_evaluate_mir(mir, "switch_test", &[Value::int32(1)], Value::int32(200));
-    expect_evaluate_mir(mir, "switch_test", &[Value::int32(99)], Value::int32(0)); // default
+    run_mir_expect(mir, "switch_test", &[Value::int32(0)], Value::int32(100));
+    run_mir_expect(mir, "switch_test", &[Value::int32(1)], Value::int32(200));
+    run_mir_expect(mir, "switch_test", &[Value::int32(99)], Value::int32(0)); // default
 }
 
 /// Function calls pass arguments and return values correctly.
@@ -94,7 +98,7 @@ block0:
     return v2
 }
 "#;
-    expect_evaluate_mir(mir, "caller", &[], Value::int32(30));
+    run_mir_expect(mir, "caller", &[], Value::int32(30));
 }
 
 /// Recursive calls compute factorial correctly.
@@ -115,7 +119,7 @@ block2:
     return v5
 }
 "#;
-    expect_evaluate_mir(mir, "factorial", &[Value::int32(5)], Value::int32(120));
+    run_mir_expect(mir, "factorial", &[Value::int32(5)], Value::int32(120));
 }
 
 /// Infinite recursion triggers stack overflow error.
@@ -159,7 +163,7 @@ block0:
     return
 }
 "#;
-    expect_evaluate_mir(mir, "noop", &[], Value::Void);
+    run_mir_expect(mir, "noop", &[], Value::Void);
 }
 
 /// Caller's local values are preserved across nested calls.
@@ -180,7 +184,7 @@ block0:
     return v2
 }
 "#;
-    expect_evaluate_mir(mir, "outer", &[], Value::int32(15));
+    run_mir_expect(mir, "outer", &[], Value::int32(15));
 }
 
 /// Sequential function calls work correctly.
@@ -202,5 +206,64 @@ block0:
     return v2
 }
 "#;
-    expect_evaluate_mir(mir, "caller", &[], Value::int32(12));
+    run_mir_expect(mir, "caller", &[], Value::int32(12));
+}
+
+/// CallIndirect calls through a function pointer.
+#[test]
+fn test_call_indirect() {
+    let mir_text = r#"
+function @double(v0: i32) -> i32 {
+block0(v0: i32):
+    v1 = iconst 2i32
+    v2 = imul v0, v1
+    return v2
+}
+
+function @caller(v0: fn(i32) -> i32, v1: i32) -> i32 {
+block0(v0: fn(i32) -> i32, v1: i32):
+    v2 = call_indirect v0(v1)
+    return v2
+}
+"#;
+    // parse the MIR
+    let (tree, strings) = Parser::parse(mir_text).expect("failed to parse MIR");
+
+    // find the @double function id
+    let double_id = tree
+        .iter_nodes::<mir::Function>()
+        .find(|(_, f)| strings.get(f.name) == "double")
+        .map(|(id, _)| id)
+        .expect("double not found");
+
+    // create interpreter and run
+    let mut interpreter = Interpreter::with_options(tree, strings, MachineOptions::test());
+    let result = interpreter
+        .run_function_by_name(
+            "caller",
+            &[Value::FunctionPointer(double_id), Value::int32(21)],
+        )
+        .expect("execution failed");
+
+    assert_eq!(result.value, Value::int32(42));
+}
+
+/// CallIndirect with wrong type produces an error.
+#[test]
+fn test_call_indirect_type_mismatch() {
+    let mir_text = r#"
+function @caller(v0: fn(i32) -> i32, v1: i32) -> i32 {
+block0(v0: fn(i32) -> i32, v1: i32):
+    v2 = call_indirect v0(v1)
+    return v2
+}
+"#;
+    let (tree, strings) = Parser::parse(mir_text).expect("failed to parse MIR");
+    let mut interpreter = Interpreter::with_options(tree, strings, MachineOptions::test());
+
+    // pass an integer instead of a function pointer
+    let result = interpreter.run_function_by_name("caller", &[Value::int32(999), Value::int32(21)]);
+    assert!(result.is_err());
+    let err = result.unwrap_err();
+    assert!(matches!(err.error, Error::TypeMismatch { .. }));
 }

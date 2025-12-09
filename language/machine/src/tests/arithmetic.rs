@@ -1,5 +1,5 @@
 use crate::memory::Value;
-use crate::tests::expect_evaluate_mir;
+use crate::tests::run_mir_expect;
 
 /// Integer addition produces the sum of two i32 values.
 #[test]
@@ -11,7 +11,7 @@ block0(v0: i32, v1: i32):
     return v2
 }
 "#;
-    expect_evaluate_mir(
+    run_mir_expect(
         mir,
         "add",
         &[Value::int32(1), Value::int32(2)],
@@ -29,7 +29,7 @@ block0(v0: i32, v1: i32):
     return v2
 }
 "#;
-    expect_evaluate_mir(
+    run_mir_expect(
         mir,
         "sub",
         &[Value::int32(10), Value::int32(3)],
@@ -47,7 +47,7 @@ block0(v0: i32, v1: i32):
     return v2
 }
 "#;
-    expect_evaluate_mir(
+    run_mir_expect(
         mir,
         "mul",
         &[Value::int32(6), Value::int32(7)],
@@ -65,7 +65,7 @@ block0(v0: i32, v1: i32):
     return v2
 }
 "#;
-    expect_evaluate_mir(
+    run_mir_expect(
         mir,
         "div",
         &[Value::int32(20), Value::int32(4)],
@@ -83,7 +83,7 @@ block0(v0: i32):
     return v1
 }
 "#;
-    expect_evaluate_mir(mir, "neg", &[Value::int32(42)], Value::int32(-42));
+    run_mir_expect(mir, "neg", &[Value::int32(42)], Value::int32(-42));
 }
 
 /// Equality comparison returns true for equal values, false otherwise.
@@ -96,13 +96,13 @@ block0(v0: i32, v1: i32):
     return v2
 }
 "#;
-    expect_evaluate_mir(
+    run_mir_expect(
         mir,
         "eq",
         &[Value::int32(5), Value::int32(5)],
         Value::Bool(true),
     );
-    expect_evaluate_mir(
+    run_mir_expect(
         mir,
         "eq",
         &[Value::int32(5), Value::int32(3)],
@@ -120,13 +120,13 @@ block0(v0: i32, v1: i32):
     return v2
 }
 "#;
-    expect_evaluate_mir(
+    run_mir_expect(
         mir,
         "lt",
         &[Value::int32(3), Value::int32(5)],
         Value::Bool(true),
     );
-    expect_evaluate_mir(
+    run_mir_expect(
         mir,
         "lt",
         &[Value::int32(5), Value::int32(3)],
@@ -144,7 +144,7 @@ block0:
     return v0
 }
 "#;
-    expect_evaluate_mir(mir, "constant", &[], Value::int32(42));
+    run_mir_expect(mir, "constant", &[], Value::int32(42));
 }
 
 /// Boolean true constant is loaded correctly.
@@ -157,7 +157,7 @@ block0:
     return v0
 }
 "#;
-    expect_evaluate_mir(mir, "const_true", &[], Value::Bool(true));
+    run_mir_expect(mir, "const_true", &[], Value::Bool(true));
 }
 
 /// Boolean false constant is loaded correctly.
@@ -170,7 +170,7 @@ block0:
     return v0
 }
 "#;
-    expect_evaluate_mir(mir, "const_false", &[], Value::Bool(false));
+    run_mir_expect(mir, "const_false", &[], Value::Bool(false));
 }
 
 /// Bitwise AND on booleans produces logical AND.
@@ -183,13 +183,13 @@ block0(v0: bool, v1: bool):
     return v2
 }
 "#;
-    expect_evaluate_mir(
+    run_mir_expect(
         mir,
         "and",
         &[Value::Bool(true), Value::Bool(true)],
         Value::Bool(true),
     );
-    expect_evaluate_mir(
+    run_mir_expect(
         mir,
         "and",
         &[Value::Bool(true), Value::Bool(false)],
@@ -207,13 +207,13 @@ block0(v0: bool, v1: bool):
     return v2
 }
 "#;
-    expect_evaluate_mir(
+    run_mir_expect(
         mir,
         "or",
         &[Value::Bool(false), Value::Bool(true)],
         Value::Bool(true),
     );
-    expect_evaluate_mir(
+    run_mir_expect(
         mir,
         "or",
         &[Value::Bool(false), Value::Bool(false)],
@@ -231,8 +231,8 @@ block0(v0: bool):
     return v1
 }
 "#;
-    expect_evaluate_mir(mir, "not", &[Value::Bool(true)], Value::Bool(false));
-    expect_evaluate_mir(mir, "not", &[Value::Bool(false)], Value::Bool(true));
+    run_mir_expect(mir, "not", &[Value::Bool(true)], Value::Bool(false));
+    run_mir_expect(mir, "not", &[Value::Bool(false)], Value::Bool(true));
 }
 
 /// Floating point addition produces the sum of two f64 values.
@@ -245,7 +245,7 @@ block0(v0: f64, v1: f64):
     return v2
 }
 "#;
-    expect_evaluate_mir(
+    run_mir_expect(
         mir,
         "fadd",
         &[Value::float64(1.5), Value::float64(2.5)],
