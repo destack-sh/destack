@@ -103,7 +103,7 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                         space(),
                         token("="),
                         space(),
-                        token("local_get"),
+                        token("local.get"),
                         space(),
                         text(&format!("local{local_index}"))
                     ]
@@ -115,7 +115,7 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                 write!(
                     f,
                     [
-                        token("local_set"),
+                        token("local.set"),
                         space(),
                         text(&format!("local{local_index}")),
                         token(","),
@@ -136,7 +136,7 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                         space(),
                         token("="),
                         space(),
-                        token("global_get"),
+                        token("global.get"),
                         space()
                     ]
                 )?;
@@ -144,7 +144,7 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
             }
 
             Instruction::GlobalSet { global, value } => {
-                write!(f, [token("global_set"), space()])?;
+                write!(f, [token("global.set"), space()])?;
                 format_global_reference(*global, f)?;
                 write!(f, [token(","), space(), value])
             }
@@ -174,7 +174,7 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                 )
             }
 
-            Instruction::ExtractField {
+            Instruction::FieldGet {
                 destination,
                 aggregate,
                 index,
@@ -186,7 +186,7 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                         space(),
                         token("="),
                         space(),
-                        token("extract_field"),
+                        token("field.get"),
                         space(),
                         aggregate,
                         token(","),
@@ -196,7 +196,7 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                 )
             }
 
-            Instruction::InsertField {
+            Instruction::FieldSet {
                 destination,
                 aggregate,
                 index,
@@ -209,7 +209,7 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                         space(),
                         token("="),
                         space(),
-                        token("insert_field"),
+                        token("field.set"),
                         space(),
                         aggregate,
                         token(","),
@@ -222,7 +222,7 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                 )
             }
 
-            Instruction::ExtractElement {
+            Instruction::ElementGet {
                 destination,
                 array,
                 index,
@@ -234,7 +234,7 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                         space(),
                         token("="),
                         space(),
-                        token("extract_element"),
+                        token("element.get"),
                         space(),
                         array,
                         token(","),
@@ -244,7 +244,7 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                 )
             }
 
-            Instruction::InsertElement {
+            Instruction::ElementSet {
                 destination,
                 array,
                 index,
@@ -257,7 +257,7 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                         space(),
                         token("="),
                         space(),
-                        token("insert_element"),
+                        token("element.set"),
                         space(),
                         array,
                         token(","),
@@ -291,11 +291,11 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                 if let Some(dst) = destination {
                     write!(f, [dst, space(), token("="), space()])?;
                 }
-                write!(f, [token("call_indirect"), space(), callee])?;
+                write!(f, [token("call.indirect"), space(), callee])?;
                 format_value_list(arguments, f)
             }
 
-            Instruction::ManagedAllocate {
+            Instruction::ManagedAlloc {
                 destination,
                 layout,
             } => {
@@ -306,14 +306,14 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                         space(),
                         token("="),
                         space(),
-                        token("managed_allocate"),
+                        token("managed.alloc"),
                         space(),
                         layout
                     ]
                 )
             }
 
-            Instruction::ManagedAllocateArray {
+            Instruction::ManagedAllocArray {
                 destination,
                 element,
                 length,
@@ -325,7 +325,7 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                         space(),
                         token("="),
                         space(),
-                        token("managed_allocate_array"),
+                        token("managed.alloc_array"),
                         space(),
                         element,
                         token(","),
@@ -335,7 +335,7 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                 )
             }
 
-            Instruction::RawAllocate {
+            Instruction::RawAlloc {
                 destination,
                 layout,
             } => {
@@ -346,7 +346,7 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                         space(),
                         token("="),
                         space(),
-                        token("raw_allocate"),
+                        token("raw.alloc"),
                         space(),
                         layout
                     ]
@@ -354,10 +354,10 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
             }
 
             Instruction::RawFree { pointer } => {
-                write!(f, [token("raw_free"), space(), pointer])
+                write!(f, [token("raw.free"), space(), pointer])
             }
 
-            Instruction::StackAllocate {
+            Instruction::StackAlloc {
                 destination,
                 layout,
             } => {
@@ -368,15 +368,11 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                         space(),
                         token("="),
                         space(),
-                        token("stack_allocate"),
+                        token("stack.alloc"),
                         space(),
                         layout
                     ]
                 )
-            }
-
-            Instruction::Drop { value } => {
-                write!(f, [token("drop"), space(), value])
             }
         }
     }

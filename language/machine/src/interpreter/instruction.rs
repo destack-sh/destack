@@ -124,7 +124,7 @@ impl Interpreter {
                 let _ = (destination, global);
                 return Err(self.make_error_at(
                     Error::UnsupportedInstruction {
-                        name: "global_get".to_string(),
+                        name: "global.get".to_string(),
                     },
                     inst_id,
                 ));
@@ -133,7 +133,7 @@ impl Interpreter {
                 let _ = (global, value);
                 return Err(self.make_error_at(
                     Error::UnsupportedInstruction {
-                        name: "global_set".to_string(),
+                        name: "global.set".to_string(),
                     },
                     inst_id,
                 ));
@@ -209,7 +209,7 @@ impl Interpreter {
                 }
             }
 
-            mir::Instruction::ExtractField {
+            mir::Instruction::FieldGet {
                 destination,
                 aggregate,
                 index,
@@ -266,7 +266,7 @@ impl Interpreter {
                 frame.set_value(*destination, value);
             }
 
-            mir::Instruction::InsertField {
+            mir::Instruction::FieldSet {
                 destination,
                 aggregate,
                 index,
@@ -304,7 +304,7 @@ impl Interpreter {
                 frame.set_value(*destination, result);
             }
 
-            mir::Instruction::ExtractElement {
+            mir::Instruction::ElementGet {
                 destination,
                 array,
                 index,
@@ -339,7 +339,7 @@ impl Interpreter {
                 frame.set_value(*destination, value);
             }
 
-            mir::Instruction::InsertElement {
+            mir::Instruction::ElementSet {
                 destination,
                 array,
                 index,
@@ -379,7 +379,7 @@ impl Interpreter {
                 frame.set_value(*destination, result);
             }
 
-            mir::Instruction::ManagedAllocate {
+            mir::Instruction::ManagedAlloc {
                 destination,
                 layout: _,
             } => {
@@ -393,7 +393,7 @@ impl Interpreter {
                 let frame = self.current_frame_mut()?;
                 frame.set_value(*destination, Value::ManagedReference(handle));
             }
-            mir::Instruction::ManagedAllocateArray {
+            mir::Instruction::ManagedAllocArray {
                 destination,
                 element: _,
                 length,
@@ -416,7 +416,7 @@ impl Interpreter {
                 frame.set_value(*destination, Value::ManagedReference(handle));
             }
 
-            mir::Instruction::RawAllocate {
+            mir::Instruction::RawAlloc {
                 destination,
                 layout: _,
             } => {
@@ -449,7 +449,7 @@ impl Interpreter {
                 }
             }
 
-            mir::Instruction::StackAllocate {
+            mir::Instruction::StackAlloc {
                 destination,
                 layout: _,
             } => {
@@ -464,16 +464,6 @@ impl Interpreter {
                 frame.set_value(*destination, Value::StackPointer(sp));
             }
 
-            // unsupported instructions
-            mir::Instruction::Drop { .. } => {
-                let name = format!("{instruction:?}");
-                let name = name
-                    .split_whitespace()
-                    .next()
-                    .unwrap_or("unknown")
-                    .to_string();
-                return Err(self.make_error_at(Error::UnsupportedInstruction { name }, inst_id));
-            }
         }
 
         Ok(())

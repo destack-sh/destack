@@ -8,7 +8,7 @@ fn test_managed_allocate() {
     let mir = r#"
 function @alloc() -> ref<i32> {
 block0:
-    v0 = managed_allocate i32
+    v0 = managed.alloc i32
     return v0
 }
 "#;
@@ -23,7 +23,7 @@ fn test_load_store() {
     let mir = r#"
 function @load_store() -> i32 {
 block0:
-    v0 = managed_allocate i32
+    v0 = managed.alloc i32
     v1 = iconst 42i32
     store v0, v1
     v2 = load v0
@@ -40,7 +40,7 @@ fn test_managed_allocate_array() {
 function @alloc_array() -> ref<i32> {
 block0:
     v0 = iconst 10i64
-    v1 = managed_allocate_array i32, v0
+    v1 = managed.alloc_array i32, v0
     return v1
 }
 "#;
@@ -55,7 +55,7 @@ fn test_extract_field() {
     let mir = r#"
 function @get_first(v0: (i32, i32)) -> i32 {
 block0(v0: (i32, i32)):
-    v1 = extract_field v0, 0
+    v1 = field.get v0, 0
     return v1
 }
 "#;
@@ -69,7 +69,7 @@ fn test_insert_field() {
     let mir = r#"
 function @set_first(v0: (i32, i32), v1: i32) -> (i32, i32) {
 block0(v0: (i32, i32), v1: i32):
-    v2 = insert_field v0, 0, v1
+    v2 = field.set v0, 0, v1
     return v2
 }
 "#;
@@ -87,7 +87,7 @@ fn test_extract_element() {
     let mir = r#"
 function @get_elem(v0: [i32; 3], v1: i64) -> i32 {
 block0(v0: [i32; 3], v1: i64):
-    v2 = extract_element v0, v1
+    v2 = element.get v0, v1
     return v2
 }
 "#;
@@ -120,7 +120,7 @@ fn test_insert_element() {
     let mir = r#"
 function @set_elem(v0: [i32; 3], v1: i64, v2: i32) -> [i32; 3] {
 block0(v0: [i32; 3], v1: i64, v2: i32):
-    v3 = insert_element v0, v1, v2
+    v3 = element.set v0, v1, v2
     return v3
 }
 "#;
@@ -146,10 +146,10 @@ fn test_heap_field_access() {
     let mir = r#"
 function @heap_field() -> i32 {
 block0:
-    v0 = managed_allocate (i32, i32)
+    v0 = managed.alloc (i32, i32)
     v1 = iconst 42i32
     store v0, v1
-    v2 = extract_field v0, 0
+    v2 = field.get v0, 0
     return v2
 }
 "#;
@@ -162,7 +162,7 @@ fn test_invalid_field_access() {
     let mir = r#"
 function @bad_field(v0: (i32,)) -> i32 {
 block0(v0: (i32,)):
-    v1 = extract_field v0, 5
+    v1 = field.get v0, 5
     return v1
 }
 "#;
@@ -179,7 +179,7 @@ fn test_invalid_array_access() {
     let mir = r#"
 function @bad_elem(v0: [i32; 3], v1: i64) -> i32 {
 block0(v0: [i32; 3], v1: i64):
-    v2 = extract_element v0, v1
+    v2 = element.get v0, v1
     return v2
 }
 "#;
@@ -201,7 +201,7 @@ block0:
     v0 = iconst 0i32
     jump block1(v0)
 block1(v1: i32):
-    v2 = managed_allocate i32
+    v2 = managed.alloc i32
     v3 = iconst 1i32
     v4 = iadd v1, v3
     v5 = iconst 2000i32
@@ -223,7 +223,7 @@ fn test_raw_allocate() {
     let mir = r#"
 function @raw_alloc() -> rawptr<i32> {
 block0:
-    v0 = raw_allocate i32
+    v0 = raw.alloc i32
     return v0
 }
 "#;
@@ -238,11 +238,11 @@ fn test_raw_free() {
     let mir = r#"
 function @raw_alloc_free() -> i32 {
 block0:
-    v0 = raw_allocate i32
+    v0 = raw.alloc i32
     v1 = iconst 42i32
     store v0, v1
     v2 = load v0
-    raw_free v0
+    raw.free v0
     return v2
 }
 "#;
@@ -258,9 +258,9 @@ fn test_raw_free_invalid() {
     let mir = r#"
 function @double_free() -> void {
 block0:
-    v0 = raw_allocate i32
-    raw_free v0
-    raw_free v0
+    v0 = raw.alloc i32
+    raw.free v0
+    raw.free v0
     return
 }
 "#;
@@ -276,7 +276,7 @@ fn test_stack_allocate() {
     let mir = r#"
 function @stack_alloc() -> i32 {
 block0:
-    v0 = stack_allocate i32
+    v0 = stack.alloc i32
     v1 = iconst 99i32
     store v0, v1
     v2 = load v0
@@ -292,11 +292,11 @@ fn test_stack_allocate_struct() {
     let mir = r#"
 function @stack_struct() -> i32 {
 block0:
-    v0 = stack_allocate (i32, i32)
+    v0 = stack.alloc (i32, i32)
     v1 = iconst 10i32
     v2 = iconst 20i32
     store v0, v1
-    v3 = extract_field v0, 0
+    v3 = field.get v0, 0
     return v3
 }
 "#;

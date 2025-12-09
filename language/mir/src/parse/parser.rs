@@ -618,13 +618,13 @@ impl<'a> Parser<'a> {
             }
 
             // local operations
-            "local_get" => {
+            "local.get" => {
                 let local = self.parse_local_ref()?;
                 Instruction::LocalGet { destination, local }
             }
 
             // global operations
-            "global_get" => {
+            "global.get" => {
                 let global = self.parse_global_reference()?;
                 Instruction::GlobalGet {
                     destination,
@@ -642,46 +642,46 @@ impl<'a> Parser<'a> {
             }
 
             // aggregate operations
-            "extract_field" => {
+            "field.get" => {
                 let aggregate = self.parse_value()?;
                 self.eat_token(TokenType::Comma)?;
                 let index = self.parse_int_literal()? as u32;
-                Instruction::ExtractField {
+                Instruction::FieldGet {
                     destination,
                     aggregate,
                     index,
                 }
             }
-            "insert_field" => {
+            "field.set" => {
                 let aggregate = self.parse_value()?;
                 self.eat_token(TokenType::Comma)?;
                 let index = self.parse_int_literal()? as u32;
                 self.eat_token(TokenType::Comma)?;
                 let value = self.parse_value()?;
-                Instruction::InsertField {
+                Instruction::FieldSet {
                     destination,
                     aggregate,
                     index,
                     value,
                 }
             }
-            "extract_element" => {
+            "element.get" => {
                 let array = self.parse_value()?;
                 self.eat_token(TokenType::Comma)?;
                 let index = self.parse_value()?;
-                Instruction::ExtractElement {
+                Instruction::ElementGet {
                     destination,
                     array,
                     index,
                 }
             }
-            "insert_element" => {
+            "element.set" => {
                 let array = self.parse_value()?;
                 self.eat_token(TokenType::Comma)?;
                 let index = self.parse_value()?;
                 self.eat_token(TokenType::Comma)?;
                 let value = self.parse_value()?;
-                Instruction::InsertElement {
+                Instruction::ElementSet {
                     destination,
                     array,
                     index,
@@ -699,7 +699,7 @@ impl<'a> Parser<'a> {
                     arguments,
                 }
             }
-            "call_indirect" => {
+            "call.indirect" => {
                 let callee = self.parse_value()?;
                 let arguments = self.parse_call_arguments()?;
                 Instruction::CallIndirect {
@@ -710,33 +710,33 @@ impl<'a> Parser<'a> {
             }
 
             // allocation operations
-            "managed_allocate" => {
+            "managed.alloc" => {
                 let layout = self.parse_type()?;
-                Instruction::ManagedAllocate {
+                Instruction::ManagedAlloc {
                     destination,
                     layout,
                 }
             }
-            "managed_allocate_array" => {
+            "managed.alloc_array" => {
                 let element = self.parse_type()?;
                 self.eat_token(TokenType::Comma)?;
                 let length = self.parse_value()?;
-                Instruction::ManagedAllocateArray {
+                Instruction::ManagedAllocArray {
                     destination,
                     element,
                     length,
                 }
             }
-            "raw_allocate" => {
+            "raw.alloc" => {
                 let layout = self.parse_type()?;
-                Instruction::RawAllocate {
+                Instruction::RawAlloc {
                     destination,
                     layout,
                 }
             }
-            "stack_allocate" => {
+            "stack.alloc" => {
                 let layout = self.parse_type()?;
-                Instruction::StackAllocate {
+                Instruction::StackAlloc {
                     destination,
                     layout,
                 }
@@ -760,7 +760,7 @@ impl<'a> Parser<'a> {
 
         let instruction = match opcode_text {
             // local operations
-            "local_set" => {
+            "local.set" => {
                 let local = self.parse_local_ref()?;
                 self.eat_token(TokenType::Comma)?;
                 let value = self.parse_value()?;
@@ -768,7 +768,7 @@ impl<'a> Parser<'a> {
             }
 
             // global operations
-            "global_set" => {
+            "global.set" => {
                 let global = self.parse_global_reference()?;
                 self.eat_token(TokenType::Comma)?;
                 let value = self.parse_value()?;
@@ -793,7 +793,7 @@ impl<'a> Parser<'a> {
                     arguments,
                 }
             }
-            "call_indirect" => {
+            "call.indirect" => {
                 let callee = self.parse_value()?;
                 let arguments = self.parse_call_arguments()?;
                 Instruction::CallIndirect {
@@ -804,13 +804,9 @@ impl<'a> Parser<'a> {
             }
 
             // allocation operations (no destination)
-            "raw_free" => {
+            "raw.free" => {
                 let pointer = self.parse_value()?;
                 Instruction::RawFree { pointer }
-            }
-            "drop" => {
-                let value = self.parse_value()?;
-                Instruction::Drop { value }
             }
 
             _ => {
