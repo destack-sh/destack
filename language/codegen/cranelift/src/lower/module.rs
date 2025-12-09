@@ -52,23 +52,11 @@ pub(crate) struct ModuleLowerer<'a> {
     warnings: Vec<CodegenCraneliftWarning>,
     /// Collected non-fatal errors (treated as warnings for continued processing).
     errors: Vec<CodegenCraneliftError>,
-    /// Whether to skip actual compilation (for CLIF-only output).
-    skip_compilation: bool,
 }
 
 impl<'a> ModuleLowerer<'a> {
     /// Create a new module lowering context.
     pub(crate) fn new(isa: Arc<dyn TargetIsa>, strings: &'a StringPool, name: &str) -> Self {
-        Self::new_with_options(isa, strings, name, false)
-    }
-
-    /// Create a new module lowering context with options.
-    pub(crate) fn new_with_options(
-        isa: Arc<dyn TargetIsa>,
-        strings: &'a StringPool,
-        name: &str,
-        skip_compilation: bool,
-    ) -> Self {
         let builder =
             ObjectBuilder::new(isa.clone(), name, cranelift_module::default_libcall_names())
                 .expect("failed to create object builder");
@@ -82,7 +70,6 @@ impl<'a> ModuleLowerer<'a> {
             cl_functions: Vec::new(),
             warnings: Vec::new(),
             errors: Vec::new(),
-            skip_compilation,
         }
     }
 
@@ -131,7 +118,7 @@ impl<'a> ModuleLowerer<'a> {
         for (global_id, global) in tree.iter_nodes::<mir::Global>() {
             let name = self.strings.get(global.name);
 
-            // determine linkage
+            // determine linkage: private names (starting with . or _) are local
             let linkage = if name.starts_with('.') || name.starts_with('_') {
                 Linkage::Local
             } else {
@@ -300,11 +287,9 @@ impl<'a> ModuleLowerer<'a> {
             // save for CLIF output
             self.cl_functions.push((name, context.func.clone()));
 
-            // compile and define (skip if only generating CLIF text)
-            if !self.skip_compilation {
-                self.cl_module
-                    .define_function(cl_function_id, &mut context)?;
-            }
+            // compile and define
+            self.cl_module
+                .define_function(cl_function_id, &mut context)?;
         }
 
         Ok(())
