@@ -13,12 +13,13 @@ use std::sync::Arc;
 
 use cranelift_codegen::isa::TargetIsa;
 use cranelift_codegen::{Context, ir as cir};
-use cranelift_module::{FuncId, Linkage, Module};
+use cranelift_module::{DataId, FuncId, Linkage, Module};
 use cranelift_object::{ObjectBuilder, ObjectModule};
 use destack_mir as mir;
 use destack_source::StringPool;
 
 use super::FunctionLowerer;
+use super::layout::compute_type_layout;
 use super::r#type::lower_type;
 use crate::{CodegenCraneliftError, CodegenCraneliftResult, CodegenCraneliftWarning};
 
@@ -43,17 +44,31 @@ pub(crate) struct ModuleLowerer<'a> {
     cl_module: ObjectModule,
     /// Mapping from MIR function ids to Cranelift function ids.
     cl_function_ids: HashMap<mir::LocalNodeId<mir::Function>, FuncId>,
+    /// Mapping from MIR global ids to Cranelift data ids.
+    cl_global_data_ids: HashMap<mir::LocalNodeId<mir::Global>, DataId>,
     /// Compiled Cranelift functions (for CLIF output).
     cl_functions: Vec<(String, cir::Function)>,
     /// Collected warnings.
     warnings: Vec<CodegenCraneliftWarning>,
     /// Collected non-fatal errors (treated as warnings for continued processing).
     errors: Vec<CodegenCraneliftError>,
+    /// Whether to skip actual compilation (for CLIF-only output).
+    skip_compilation: bool,
 }
 
 impl<'a> ModuleLowerer<'a> {
     /// Create a new module lowering context.
     pub(crate) fn new(isa: Arc<dyn TargetIsa>, strings: &'a StringPool, name: &str) -> Self {
+        Self::new_with_options(isa, strings, name, false)
+    }
+
+    /// Create a new module lowering context with options.
+    pub(crate) fn new_with_options(
+        isa: Arc<dyn TargetIsa>,
+        strings: &'a StringPool,
+        name: &str,
+        skip_compilation: bool,
+    ) -> Self {
         let builder =
             ObjectBuilder::new(isa.clone(), name, cranelift_module::default_libcall_names())
                 .expect("failed to create object builder");
@@ -63,9 +78,11 @@ impl<'a> ModuleLowerer<'a> {
             strings,
             cl_module: module,
             cl_function_ids: HashMap::new(),
+            cl_global_data_ids: HashMap::new(),
             cl_functions: Vec::new(),
             warnings: Vec::new(),
             errors: Vec::new(),
+            skip_compilation,
         }
     }
 
@@ -77,10 +94,13 @@ impl<'a> ModuleLowerer<'a> {
 
     /// Lower an entire MIR module.
     pub(crate) fn lower_module(&mut self, tree: &mir::NodeTree) -> CodegenCraneliftResult<()> {
-        // phase 1: declare all functions
+        // phase 1: declare and define all globals
+        self.lower_globals(tree)?;
+
+        // phase 2: declare all functions
         self.declare_functions(tree)?;
 
-        // phase 2: lower function bodies
+        // phase 3: lower function bodies
         self.lower_functions(tree)?;
 
         Ok(())
@@ -104,7 +124,154 @@ impl<'a> ModuleLowerer<'a> {
         Ok(())
     }
 
-    /// Lower / define all function bodies (second pass after declaration).
+    /// Lower all globals to Cranelift data sections.
+    fn lower_globals(&mut self, tree: &mir::NodeTree) -> CodegenCraneliftResult<()> {
+        let pointer_bytes = self.isa.pointer_bytes();
+
+        for (global_id, global) in tree.iter_nodes::<mir::Global>() {
+            let name = self.strings.get(global.name);
+
+            // determine linkage
+            let linkage = if name.starts_with('.') || name.starts_with('_') {
+                Linkage::Local
+            } else {
+                Linkage::Export
+            };
+
+            // declare the data section
+            let writable = global.is_mutable();
+            let data_id = self
+                .cl_module
+                .declare_data(&name, linkage, writable, false)?;
+
+            // define the data if we have an initializer
+            if let Some(ref init) = global.initializer {
+                let bytes = self.lower_initializer(tree, init, global.ty, pointer_bytes)?;
+                let mut data_description = cranelift_module::DataDescription::new();
+                data_description.define(bytes.into_boxed_slice());
+                self.cl_module.define_data(data_id, &data_description)?;
+            }
+
+            self.cl_global_data_ids.insert(global_id, data_id);
+        }
+
+        Ok(())
+    }
+
+    /// Lower a GlobalInitializer to raw bytes.
+    fn lower_initializer(
+        &self,
+        tree: &mir::NodeTree,
+        init: &mir::GlobalInitializer,
+        ty: mir::LocalNodeId<mir::Type>,
+        pointer_bytes: u8,
+    ) -> CodegenCraneliftResult<Vec<u8>> {
+        match init {
+            mir::GlobalInitializer::Zero => {
+                // compute size from type and return zero bytes
+                let layout = compute_type_layout(tree, ty, pointer_bytes)?;
+                Ok(vec![0u8; layout.size as usize])
+            }
+
+            mir::GlobalInitializer::Scalar(constant) => self.lower_scalar_constant(constant, ty),
+
+            mir::GlobalInitializer::Bytes(bytes) => Ok(bytes.clone()),
+
+            mir::GlobalInitializer::Aggregate(elements) => {
+                // get the element types from the type
+                let mir_type = tree.get(ty);
+                let element_types = match mir_type {
+                    mir::Type::Tuple { elements } => elements.clone(),
+                    mir::Type::Struct { fields } => {
+                        fields.iter().map(|f| tree.get(*f).ty).collect()
+                    }
+                    mir::Type::Array { element, length } => {
+                        vec![*element; *length as usize]
+                    }
+                    _ => {
+                        return Err(CodegenCraneliftError::unsupported_type(
+                            format!("aggregate initializer for non-aggregate type: {mir_type:?}"),
+                            ty.into_any(),
+                        ));
+                    }
+                };
+
+                // lower each element and concatenate
+                // NOTE #Incomplete: this doesn't handle alignment padding between fields
+                let mut bytes = Vec::new();
+                for (elem_init, elem_ty) in elements.iter().zip(element_types.iter()) {
+                    let elem_bytes =
+                        self.lower_initializer(tree, elem_init, *elem_ty, pointer_bytes)?;
+                    bytes.extend(elem_bytes);
+                }
+                Ok(bytes)
+            }
+        }
+    }
+
+    /// Lower a scalar constant to bytes.
+    fn lower_scalar_constant(
+        &self,
+        constant: &mir::Constant,
+        ty: mir::LocalNodeId<mir::Type>,
+    ) -> CodegenCraneliftResult<Vec<u8>> {
+        match constant {
+            // boolean -> 1 or 0
+            mir::Constant::Boolean { value } => Ok(vec![if *value { 1 } else { 0 }]),
+
+            // integer -> bytes
+            mir::Constant::Int { width, .. } | mir::Constant::UInt { width, .. } => {
+                let value = match constant {
+                    mir::Constant::Int { value, .. } => *value as u64,
+                    mir::Constant::UInt { value, .. } => *value,
+                    _ => unreachable!(),
+                };
+                let bytes = match width {
+                    8 => vec![value as u8],
+                    16 => (value as u16).to_le_bytes().to_vec(),
+                    32 => (value as u32).to_le_bytes().to_vec(),
+                    64 => value.to_le_bytes().to_vec(),
+                    128 => (value as u128).to_le_bytes().to_vec(),
+                    _ => {
+                        return Err(CodegenCraneliftError::unsupported_type(
+                            format!("unsupported integer width for global initializer: {width}"),
+                            ty.into_any(),
+                        ));
+                    }
+                };
+                Ok(bytes)
+            }
+
+            // float -> bytes
+            mir::Constant::Float { bits, width } => {
+                let bytes = match width {
+                    32 => (*bits as u32).to_le_bytes().to_vec(),
+                    64 => bits.to_le_bytes().to_vec(),
+                    _ => {
+                        return Err(CodegenCraneliftError::unsupported_type(
+                            format!("unsupported float width for global initializer: {width}"),
+                            ty.into_any(),
+                        ));
+                    }
+                };
+                Ok(bytes)
+            }
+
+            // char -> bytes
+            mir::Constant::Char { value } => {
+                // char is stored as u32 (unicode codepoint)
+                Ok((*value as u32).to_le_bytes().to_vec())
+            }
+
+            // string -> error (should use GlobalInitializer::Bytes instead)
+            mir::Constant::String { .. } => Err(CodegenCraneliftError::unsupported_type(
+                "string constants in scalar position; use GlobalInitializer::Bytes".to_string(),
+                ty.into_any(),
+            )),
+        }
+    }
+
+    /// Lower / define all function bodies (third pass after declaration).
     fn lower_functions(&mut self, tree: &mir::NodeTree) -> CodegenCraneliftResult<()> {
         let pointer_bytes = self.isa.pointer_bytes();
 
@@ -118,23 +285,26 @@ impl<'a> ModuleLowerer<'a> {
             context.func.name = cir::UserFuncName::user(0, cl_function_id.as_u32());
 
             // lower the function body
-            let lowerer = FunctionLowerer::new(
+            let function_lowerer = FunctionLowerer::new(
                 tree,
                 self.strings,
                 function,
                 &self.isa,
                 &mut self.cl_module,
                 &self.cl_function_ids,
+                &self.cl_global_data_ids,
                 pointer_bytes,
             );
-            lowerer.lower(&mut context.func)?;
+            function_lowerer.lower(&mut context.func)?;
 
             // save for CLIF output
             self.cl_functions.push((name, context.func.clone()));
 
-            // compile and define
-            self.cl_module
-                .define_function(cl_function_id, &mut context)?;
+            // compile and define (skip if only generating CLIF text)
+            if !self.skip_compilation {
+                self.cl_module
+                    .define_function(cl_function_id, &mut context)?;
+            }
         }
 
         Ok(())

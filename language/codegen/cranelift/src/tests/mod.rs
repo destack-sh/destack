@@ -4,6 +4,7 @@ mod allocate;
 mod arithmetic;
 mod block;
 mod call;
+mod constant;
 mod function;
 mod memory;
 

@@ -163,3 +163,51 @@ block0:
     .trim();
     assert_eq!(clif, expected);
 }
+
+/// Character constants lower to i32 (unicode codepoint).
+#[test]
+fn test_char_constant() {
+    let mir = r#"
+function @char_const() -> i32 {
+block0:
+    v0 = iconst 'A'
+    return v0
+}
+"#;
+    let clif = compile_mir_to_normalized_clif(mir);
+
+    // 'A' = 65 in unicode
+    let expected = r#"
+function u0:0() -> i32 native {
+block0:
+    v0 = iconst.i32 65
+    return v0
+}
+"#
+    .trim();
+    assert_eq!(clif, expected);
+}
+
+/// Unicode character constants beyond ASCII.
+#[test]
+fn test_char_constant_unicode() {
+    let mir = r#"
+function @emoji() -> i32 {
+block0:
+    v0 = iconst '😀'
+    return v0
+}
+"#;
+    let clif = compile_mir_to_normalized_clif(mir);
+
+    // '😀' = U+1F600 = 128512
+    let expected = r#"
+function u0:0() -> i32 native {
+block0:
+    v0 = iconst.i32 0x0001_f600
+    return v0
+}
+"#
+    .trim();
+    assert_eq!(clif, expected);
+}

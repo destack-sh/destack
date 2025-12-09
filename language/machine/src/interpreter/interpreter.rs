@@ -165,8 +165,10 @@ impl Interpreter {
             }
             mir::Type::Boolean => Value::Bool(false),
             mir::Type::Tuple { elements } => {
-                let values: Vec<Value> =
-                    elements.iter().map(|e| Self::zero_value(tree, *e)).collect();
+                let values: Vec<Value> = elements
+                    .iter()
+                    .map(|e| Self::zero_value(tree, *e))
+                    .collect();
                 Value::Aggregate(values.into_boxed_slice())
             }
             mir::Type::Array { element, length } => {

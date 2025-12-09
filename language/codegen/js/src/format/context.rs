@@ -41,7 +41,7 @@ pub struct CodegenJsFormatOptions {
 impl CodegenJsFormatOptions {
     /// Create options from a Target and the specific file type being generated.
     pub fn from_target(_target: &Target, file_type: FileType) -> Self {
-        // TODO: use target settings for formatting options
+        // NOTE #Broken: use target settings for formatting options
         Self {
             mode: FormatMode::Pretty,
             file_type,
