@@ -119,6 +119,7 @@ impl<'a> ModuleLowerer<'a> {
             let name = self.strings.get(global.name);
 
             // determine linkage: private names (starting with . or _) are local
+            // TODO #Suspicious: make private names for globals explicit?
             let linkage = if name.starts_with('.') || name.starts_with('_') {
                 Linkage::Local
             } else {

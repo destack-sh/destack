@@ -1,9 +1,10 @@
-use crate::{AnalyzeError, AnalyzeResult, Compiler, TypeContext};
+use crate::{AnalyzeError, AnalyzeResult, Assignability, Compiler, TypeContext};
 use destack_dir::{
     Argument, BinaryOperator, Block, Declaration, DependencyItem, EnumField, Expression,
-    FunctionSignature, Generics, Heritage, LocalNodeId, LocalNodeIdAny, LocalTypeId, Mutability,
-    NodeTree, Parameter, Pattern, PatternField, PrimitiveType, Property, ScalarLiteral,
-    SymbolTable, Type, TypeKind, TypeLiteral, TypeTable, UnaryOperator, VarianceBound, WhereClause,
+    FunctionSignature, Generics, GlobalSymbolId, GlobalTypeId, Heritage, LocalNodeId,
+    LocalNodeIdAny, LocalTypeId, MatchCase, Mutability, NodeTree, Parameter, Pattern, PatternField,
+    PrimitiveType, Property, ScalarLiteral, SymbolTable, Type, TypeField, TypeKind, TypeLiteral,
+    TypeTable, UnaryOperator, VarianceBound, WhereClause,
 };
 use destack_workspace::Module;
 
@@ -119,8 +120,26 @@ impl Compiler {
                 } else {
                     None
                 };
-                let binding_ty_id = declared_ty_id.or(inferred_ty_id);
 
+                // type check: if both declared and inferred, check assignability
+                if let (Some(declared), Some(inferred)) = (declared_ty_id, inferred_ty_id)
+                    && self.check_is_type_assignable(declared, inferred, types)
+                        == Assignability::NotAssignable
+                {
+                    return Err(AnalyzeError::UnassignableType {
+                        node: expression_id.into_global_any(module.id),
+                        expected_ty: GlobalTypeId {
+                            module_id: module.id,
+                            local_id: declared,
+                        },
+                        actual_ty: GlobalTypeId {
+                            module_id: module.id,
+                            local_id: inferred,
+                        },
+                    });
+                }
+
+                let binding_ty_id = declared_ty_id.or(inferred_ty_id);
                 self.analyze_pattern(module, *pattern, binding_ty_id, tree, symbols, types, ctx)?;
 
                 let ty = Type::TypeLiteral {
@@ -188,10 +207,28 @@ impl Compiler {
             }
             // assignment operations -> void
             Expression::Assign { left, right } => {
-                let _left_ty_id =
+                let left_ty_id =
                     self.analyze_expression(module, *left, tree, symbols, types, ctx)?;
-                let _right_ty_id =
+                let right_ty_id =
                     self.analyze_expression(module, *right, tree, symbols, types, ctx)?;
+
+                // type check: right must be assignable to left
+                if self.check_is_type_assignable(left_ty_id, right_ty_id, types)
+                    == Assignability::NotAssignable
+                {
+                    return Err(AnalyzeError::UnassignableType {
+                        node: expression_id.into_global_any(module.id),
+                        expected_ty: GlobalTypeId {
+                            module_id: module.id,
+                            local_id: left_ty_id,
+                        },
+                        actual_ty: GlobalTypeId {
+                            module_id: module.id,
+                            local_id: right_ty_id,
+                        },
+                    });
+                }
+
                 let ty = Type::TypeLiteral {
                     value: TypeLiteral::Void,
                 };
@@ -243,7 +280,7 @@ impl Compiler {
                 };
                 types.insert_type_from(ty, expression_id)
             }
-            // NOTE #Incomplete: instantiate with static arguments
+            // NOTE #Incomplete: instantiate references with static arguments
             Expression::LocalReference {
                 path: _,
                 target_symbol,
@@ -259,14 +296,26 @@ impl Compiler {
                 target_symbol,
                 static_arguments: _,
             } => {
-                // TODO #Broken: resolve symbol type across modules
+                // follow symbol chain to get canonical symbol (for imports/re-exports)
+                let canonical_symbol =
+                    self.resolve_canonical_symbol(module, *target_symbol, symbols);
+
                 // narrow symbol type in context
-                if let Some(narrowed_ty_id) = ctx.get_narrowed(*target_symbol) {
+                if let Some(narrowed_ty_id) = ctx.get_narrowed(canonical_symbol) {
                     narrowed_ty_id
                 }
-                // symbol value type
-                else if let Some(value_ty_id) = types.get_value_type_id(*target_symbol) {
+                // symbol value type (local)
+                else if let Some(value_ty_id) = types.get_value_type_id(canonical_symbol) {
                     value_ty_id
+                }
+                // symbol value type (remote)
+                else if canonical_symbol.module_id != module.id {
+                    self.resolve_remote_symbol_value_type(
+                        module,
+                        expression_id,
+                        canonical_symbol,
+                        types,
+                    )?
                 }
                 // unknown type
                 else {
@@ -321,6 +370,492 @@ impl Compiler {
                 expression: inner_id,
             } => self.analyze_expression(module, *inner_id, tree, symbols, types, ctx)?,
 
+            // object expression -> object type
+            Expression::ObjectExpression { properties } => {
+                for property_id in properties {
+                    self.analyze_property(module, *property_id, tree, symbols, types, ctx)?;
+                }
+                // NOTE #Incomplete: construct proper object type from properties
+                let ty = Type::TypeLiteral {
+                    value: TypeLiteral::Unknown,
+                };
+                types.insert_type_from(ty, expression_id)
+            }
+
+            // call -> return type of callee
+            // NOTE #Incomplete: instantiate functions with static arguments
+            Expression::Call {
+                left,
+                static_arguments: _,
+                dynamic_arguments,
+            } => {
+                let callee_ty_id =
+                    self.analyze_expression(module, *left, tree, symbols, types, ctx)?;
+
+                // analyze arguments
+                let mut argument_ty_ids = Vec::with_capacity(dynamic_arguments.len());
+                for arg in dynamic_arguments {
+                    self.analyze_argument(module, *arg, None, tree, symbols, types, ctx)?;
+                    let arg_expr = tree.get(*arg);
+                    let arg_value_id = arg_expr.value();
+                    let argument_ty_id =
+                        self.analyze_expression(module, arg_value_id, tree, symbols, types, ctx)?;
+                    argument_ty_ids.push(argument_ty_id);
+                }
+
+                // check callee type and get return type
+                let callee_ty = types.get_type(callee_ty_id);
+                match callee_ty {
+                    Type::Function {
+                        dynamic_parameters,
+                        return_type,
+                        ..
+                    } => {
+                        // type check arguments against parameters
+                        let param_types = dynamic_parameters.clone();
+                        let return_type = *return_type;
+                        for (i, (argument_ty_id, param_ty_id)) in
+                            argument_ty_ids.iter().zip(param_types.iter()).enumerate()
+                        {
+                            if self.check_is_type_assignable(*param_ty_id, *argument_ty_id, types)
+                                == Assignability::NotAssignable
+                            {
+                                // get the argument node for error reporting
+                                let argument_node = dynamic_arguments
+                                    .get(i)
+                                    .map(|id| id.into_global_any(module.id))
+                                    .unwrap_or_else(|| expression_id.into_global_any(module.id));
+                                return Err(AnalyzeError::UnassignableType {
+                                    node: argument_node,
+                                    expected_ty: GlobalTypeId {
+                                        module_id: module.id,
+                                        local_id: *param_ty_id,
+                                    },
+                                    actual_ty: GlobalTypeId {
+                                        module_id: module.id,
+                                        local_id: *argument_ty_id,
+                                    },
+                                });
+                            }
+                        }
+                        return_type.unwrap_or_else(|| {
+                            let ty = Type::TypeLiteral {
+                                value: TypeLiteral::Void,
+                            };
+                            types.insert_type_from(ty, expression_id)
+                        })
+                    }
+                    // NOTE #Incomplete: handle other callable types (objects with call signature)
+                    _ => {
+                        let ty = Type::TypeLiteral {
+                            value: TypeLiteral::Unknown,
+                        };
+                        types.insert_type_from(ty, expression_id)
+                    }
+                }
+            }
+
+            // member access -> member type
+            Expression::Member {
+                left,
+                name: _,
+                static_arguments: _,
+            } => {
+                let _left_ty_id =
+                    self.analyze_expression(module, *left, tree, symbols, types, ctx)?;
+                // NOTE #Incomplete: look up member type from left type
+                let ty = Type::TypeLiteral {
+                    value: TypeLiteral::Unknown,
+                };
+                types.insert_type_from(ty, expression_id)
+            }
+
+            // index -> element type
+            Expression::Index { left, right } => {
+                let _left_ty_id =
+                    self.analyze_expression(module, *left, tree, symbols, types, ctx)?;
+                if let Some(right) = right {
+                    self.analyze_expression(module, *right, tree, symbols, types, ctx)?;
+                }
+                // NOTE #Incomplete: resolve element type from array/tuple type
+                let ty = Type::TypeLiteral {
+                    value: TypeLiteral::Unknown,
+                };
+                types.insert_type_from(ty, expression_id)
+            }
+
+            // new -> instance type
+            Expression::New {
+                left,
+                static_arguments: _,
+                dynamic_arguments,
+            } => {
+                let _left_ty_id =
+                    self.analyze_expression(module, *left, tree, symbols, types, ctx)?;
+                for arg in dynamic_arguments {
+                    self.analyze_argument(module, *arg, None, tree, symbols, types, ctx)?;
+                }
+                // NOTE #Incomplete: resolve instance type from constructor
+                let ty = Type::TypeLiteral {
+                    value: TypeLiteral::Unknown,
+                };
+                types.insert_type_from(ty, expression_id)
+            }
+
+            // if expression -> union of branches or common type
+            Expression::If {
+                kind: _,
+                condition,
+                then_expression,
+                else_expression,
+            } => {
+                self.analyze_expression(module, *condition, tree, symbols, types, ctx)?;
+                let then_ty_id =
+                    self.analyze_expression(module, *then_expression, tree, symbols, types, ctx)?;
+                if let Some(else_expr) = else_expression {
+                    let _else_ty_id =
+                        self.analyze_expression(module, *else_expr, tree, symbols, types, ctx)?;
+                    // NOTE #Incomplete: compute union or common type of then/else branches
+                }
+                then_ty_id
+            }
+
+            // loop -> loop body type or never
+            Expression::Loop {
+                kind: _,
+                condition,
+                body,
+                scope: _,
+                symbol: _,
+            } => {
+                if let Some(cond) = condition {
+                    self.analyze_expression(module, *cond, tree, symbols, types, ctx)?;
+                }
+                self.analyze_block(module, *body, tree, symbols, types, ctx)?;
+                // NOTE #Incomplete: loop return type depends on break value
+                let ty = Type::TypeLiteral {
+                    value: TypeLiteral::Void,
+                };
+                types.insert_type_from(ty, expression_id)
+            }
+
+            // for-each -> void
+            Expression::ForEach {
+                asynchrony: _,
+                kind: _,
+                pattern,
+                iterator,
+                body,
+                scope: _,
+                symbol: _,
+            } => {
+                let iterator_ty_id =
+                    self.analyze_expression(module, *iterator, tree, symbols, types, ctx)?;
+                self.analyze_pattern(
+                    module,
+                    *pattern,
+                    Some(iterator_ty_id),
+                    tree,
+                    symbols,
+                    types,
+                    ctx,
+                )?;
+                self.analyze_block(module, *body, tree, symbols, types, ctx)?;
+                let ty = Type::TypeLiteral {
+                    value: TypeLiteral::Void,
+                };
+                types.insert_type_from(ty, expression_id)
+            }
+
+            // for -> void
+            Expression::For {
+                initialization,
+                condition,
+                increment,
+                body,
+                scope: _,
+                symbol: _,
+            } => {
+                if let Some(init) = initialization {
+                    self.analyze_expression(module, *init, tree, symbols, types, ctx)?;
+                }
+                if let Some(cond) = condition {
+                    self.analyze_expression(module, *cond, tree, symbols, types, ctx)?;
+                }
+                if let Some(incr) = increment {
+                    self.analyze_expression(module, *incr, tree, symbols, types, ctx)?;
+                }
+                self.analyze_block(module, *body, tree, symbols, types, ctx)?;
+                let ty = Type::TypeLiteral {
+                    value: TypeLiteral::Void,
+                };
+                types.insert_type_from(ty, expression_id)
+            }
+
+            // match -> union of case result types
+            Expression::Match {
+                value,
+                cases,
+                source: _,
+                scope: _,
+                symbol: _,
+            } => {
+                let value_ty_id =
+                    self.analyze_expression(module, *value, tree, symbols, types, ctx)?;
+                let mut result_ty_id = None;
+                for case_id in cases {
+                    let case = tree.get(*case_id);
+                    let (pattern, guard, body_expr) = match case {
+                        MatchCase::Expression {
+                            pattern,
+                            body,
+                            guard,
+                            scope: _,
+                        } => (*pattern, *guard, Some(*body)),
+                        MatchCase::Block {
+                            pattern,
+                            body,
+                            guard,
+                            scope: _,
+                        } => {
+                            self.analyze_block(module, *body, tree, symbols, types, ctx)?;
+                            (*pattern, *guard, None)
+                        }
+                    };
+                    self.analyze_pattern(
+                        module,
+                        pattern,
+                        Some(value_ty_id),
+                        tree,
+                        symbols,
+                        types,
+                        ctx,
+                    )?;
+                    if let Some(guard_expr) = guard {
+                        self.analyze_expression(module, guard_expr, tree, symbols, types, ctx)?;
+                    }
+                    if let Some(expr) = body_expr {
+                        let case_ty_id =
+                            self.analyze_expression(module, expr, tree, symbols, types, ctx)?;
+                        if result_ty_id.is_none() {
+                            result_ty_id = Some(case_ty_id);
+                        }
+                    }
+                    // NOTE #Incomplete: compute union of case types
+                }
+                result_ty_id.unwrap_or_else(|| {
+                    let ty = Type::TypeLiteral {
+                        value: TypeLiteral::Never,
+                    };
+                    types.insert_type_from(ty, expression_id)
+                })
+            }
+
+            // try -> result type
+            Expression::Try {
+                try_expression,
+                catch_pattern,
+                catch_expression,
+                finally_expression,
+                scope: _,
+                symbol: _,
+            } => {
+                let try_ty_id =
+                    self.analyze_expression(module, *try_expression, tree, symbols, types, ctx)?;
+                if let Some(catch_pat) = catch_pattern {
+                    self.analyze_pattern(module, *catch_pat, None, tree, symbols, types, ctx)?;
+                }
+                if let Some(catch_expr) = catch_expression {
+                    self.analyze_expression(module, *catch_expr, tree, symbols, types, ctx)?;
+                }
+                if let Some(finally_expr) = finally_expression {
+                    self.analyze_expression(module, *finally_expr, tree, symbols, types, ctx)?;
+                }
+                try_ty_id
+            }
+
+            // return -> never (control flow)
+            Expression::Return { value } => {
+                if let Some(val) = value {
+                    self.analyze_expression(module, *val, tree, symbols, types, ctx)?;
+                }
+                let ty = Type::TypeLiteral {
+                    value: TypeLiteral::Never,
+                };
+                types.insert_type_from(ty, expression_id)
+            }
+
+            // break/continue -> never (control flow)
+            Expression::Break { target: _, value } => {
+                if let Some(val) = value {
+                    self.analyze_expression(module, *val, tree, symbols, types, ctx)?;
+                }
+                let ty = Type::TypeLiteral {
+                    value: TypeLiteral::Never,
+                };
+                types.insert_type_from(ty, expression_id)
+            }
+            Expression::Continue { target: _ } => {
+                let ty = Type::TypeLiteral {
+                    value: TypeLiteral::Never,
+                };
+                types.insert_type_from(ty, expression_id)
+            }
+
+            // throw -> never (control flow)
+            Expression::Throw { value } => {
+                if let Some(val) = value {
+                    self.analyze_expression(module, *val, tree, symbols, types, ctx)?;
+                }
+                let ty = Type::TypeLiteral {
+                    value: TypeLiteral::Never,
+                };
+                types.insert_type_from(ty, expression_id)
+            }
+
+            // await -> unwrapped promise type
+            Expression::Await { expression } => {
+                let _inner_ty_id =
+                    self.analyze_expression(module, *expression, tree, symbols, types, ctx)?;
+                // NOTE #Incomplete: unwrap Promise type
+                let ty = Type::TypeLiteral {
+                    value: TypeLiteral::Unknown,
+                };
+                types.insert_type_from(ty, expression_id)
+            }
+
+            // yield -> yielded type
+            Expression::Yield {
+                cardinality: _,
+                value,
+            } => {
+                self.analyze_expression(module, *value, tree, symbols, types, ctx)?;
+                // NOTE #Incomplete: yield type depends on generator context
+                let ty = Type::TypeLiteral {
+                    value: TypeLiteral::Unknown,
+                };
+                types.insert_type_from(ty, expression_id)
+            }
+
+            // maybe/must unwrap -> inner type or error
+            Expression::Maybe { left } | Expression::Must { left } => {
+                let _inner_ty_id =
+                    self.analyze_expression(module, *left, tree, symbols, types, ctx)?;
+                // NOTE #Incomplete: unwrap optional type
+                let ty = Type::TypeLiteral {
+                    value: TypeLiteral::Unknown,
+                };
+                types.insert_type_from(ty, expression_id)
+            }
+
+            // template expressions -> string
+            Expression::TemplateExpression { value: _ } => {
+                let ty = Type::TypeLiteral {
+                    value: TypeLiteral::Primitive(PrimitiveType::String),
+                };
+                types.insert_type_from(ty, expression_id)
+            }
+            Expression::TaggedTemplateExpression { tag, value: _ } => {
+                let _tag_ty_id =
+                    self.analyze_expression(module, *tag, tree, symbols, types, ctx)?;
+                // NOTE #Incomplete: tagged template return type from tag function
+                let ty = Type::TypeLiteral {
+                    value: TypeLiteral::Unknown,
+                };
+                types.insert_type_from(ty, expression_id)
+            }
+
+            // range expression -> Range type
+            Expression::RangeExpression {
+                start,
+                end,
+                is_inclusive: _,
+            } => {
+                self.analyze_expression(module, *start, tree, symbols, types, ctx)?;
+                self.analyze_expression(module, *end, tree, symbols, types, ctx)?;
+                // NOTE #Incomplete: proper Range type
+                let ty = Type::TypeLiteral {
+                    value: TypeLiteral::Unknown,
+                };
+                types.insert_type_from(ty, expression_id)
+            }
+
+            // tagged expressions for newtype construction
+            Expression::TaggedScalarExpression { ty, value } => {
+                let ty_id = self.analyze_expression(module, *ty, tree, symbols, types, ctx)?;
+                self.analyze_expression(module, *value, tree, symbols, types, ctx)?;
+                ty_id
+            }
+            Expression::TaggedTupleExpression { ty, elements } => {
+                let ty_id = self.analyze_expression(module, *ty, tree, symbols, types, ctx)?;
+                for elem in elements {
+                    self.analyze_argument(module, *elem, None, tree, symbols, types, ctx)?;
+                }
+                ty_id
+            }
+            Expression::TaggedObjectExpression { ty, properties } => {
+                let ty_id = self.analyze_expression(module, *ty, tree, symbols, types, ctx)?;
+                for prop_id in properties {
+                    self.analyze_property(module, *prop_id, tree, symbols, types, ctx)?;
+                }
+                ty_id
+            }
+
+            // type operations
+            Expression::TypeUnary { operator: _, right } => {
+                self.analyze_expression(module, *right, tree, symbols, types, ctx)?;
+                // NOTE #Incomplete: type-level unary operation
+                let ty = Type::TypeLiteral {
+                    value: TypeLiteral::Unknown,
+                };
+                types.insert_type_from(ty, expression_id)
+            }
+            Expression::TypeBinary {
+                left,
+                operator: _,
+                right,
+            } => {
+                self.analyze_expression(module, *left, tree, symbols, types, ctx)?;
+                self.analyze_expression(module, *right, tree, symbols, types, ctx)?;
+                // NOTE #Incomplete: type-level binary operation
+                let ty = Type::TypeLiteral {
+                    value: TypeLiteral::Unknown,
+                };
+                types.insert_type_from(ty, expression_id)
+            }
+
+            // tree expression (JSX-like)
+            Expression::TreeExpression {
+                left,
+                arguments,
+                elements,
+            } => {
+                if let Some(left) = left {
+                    self.analyze_expression(module, *left, tree, symbols, types, ctx)?;
+                }
+                if let Some(args) = arguments {
+                    for arg in args {
+                        self.analyze_argument(module, *arg, None, tree, symbols, types, ctx)?;
+                    }
+                }
+                if let Some(elems) = elements {
+                    for elem in elems {
+                        self.analyze_argument(module, *elem, None, tree, symbols, types, ctx)?;
+                    }
+                }
+                // NOTE #Incomplete: JSX element type
+                let ty = Type::TypeLiteral {
+                    value: TypeLiteral::Unknown,
+                };
+                types.insert_type_from(ty, expression_id)
+            }
+
+            // error expression -> error type
+            Expression::Error => {
+                let ty = Type::Error;
+                types.insert_type_from(ty, expression_id)
+            }
+
             // stub -> nothing to do
             Expression::Stub => {
                 let ty = Type::TypeLiteral {
@@ -329,8 +864,8 @@ impl Compiler {
                 types.insert_type_from(ty, expression_id)
             }
 
-            // fallback
-            _ => {
+            // unresolved expressions should have been resolved by now
+            Expression::UnresolvedBreak { .. } | Expression::UnresolvedContinue { .. } => {
                 return Err(AnalyzeError::UnsupportedConstruct {
                     node: expression_id.into_global_any(module.id),
                 });
@@ -588,12 +1123,12 @@ impl Compiler {
 
             // function
             Declaration::Function {
-                descriptor: _,
+                descriptor,
                 signature,
                 scope: _,
                 body,
             } => {
-                self.analyze_signature(
+                let fn_ty_id = self.analyze_signature(
                     module,
                     declaration_id.into_any(),
                     signature,
@@ -602,6 +1137,9 @@ impl Compiler {
                     types,
                     ctx,
                 )?;
+                // register the function type as the value_type for the function's symbol
+                types.set_value_type(descriptor.symbol.into_global(module.id), fn_ty_id);
+
                 if let Some(body) = body {
                     self.analyze_expression(module, *body, tree, symbols, types, ctx)?;
                 }
@@ -705,23 +1243,48 @@ impl Compiler {
         types: &mut TypeTable,
         ctx: &mut TypeContext,
     ) -> AnalyzeResult<LocalTypeId> {
-        // walk
+        // walk generics
         if let Some(generics) = &signature.generics {
             self.analyze_generics(module, generics, tree, symbols, types, ctx)?;
         }
+
+        // collect parameter types
+        let mut dynamic_param_types = Vec::with_capacity(signature.dynamic_parameters.len());
         for parameter_id in &signature.dynamic_parameters {
             self.analyze_parameter(module, *parameter_id, tree, symbols, types, ctx)?;
+            // get the declared type for this parameter
+            let param_ty_id = types
+                .get_declared_type_id(parameter_id.into_global_any(module.id))
+                .unwrap_or_else(|| {
+                    // no declared type: infer unknown
+                    let ty = Type::TypeLiteral {
+                        value: TypeLiteral::Unknown,
+                    };
+                    types.insert_type_from(ty, *parameter_id)
+                });
+            dynamic_param_types.push(param_ty_id);
         }
-        if let Some(return_type_id) = signature.return_type {
-            self.analyze_expression(module, return_type_id, tree, symbols, types, ctx)?;
-        }
+
+        // get return type
+        let return_type = if let Some(return_type_expr_id) = signature.return_type {
+            let return_ty_id =
+                self.analyze_expression(module, return_type_expr_id, tree, symbols, types, ctx)?;
+            // unwrap Value type if present
+            let return_ty = types.get_type(return_ty_id);
+            match return_ty {
+                Type::Value { value } => Some(*value),
+                _ => Some(return_ty_id),
+            }
+        } else {
+            None
+        };
 
         let ty = Type::Function {
             asynchrony: signature.asynchrony,
             cardinality: signature.cardinality,
-            dynamic_parameters: Vec::new(),
-            static_parameters: Vec::new(),
-            return_type: None,
+            dynamic_parameters: dynamic_param_types,
+            static_parameters: Vec::new(), // NOTE #Incomplete: static parameters
+            return_type,
         };
         let ty_id = types.insert_type_from_any(ty, node_id);
 
@@ -1244,6 +1807,405 @@ impl Compiler {
     ) -> Type {
         right.clone()
     }
+
+    /// Follow the symbol chain to get the canonical (final) symbol.
+    /// For import symbols, this follows target_symbol/final_symbol to the original definition.
+    fn resolve_canonical_symbol(
+        &self,
+        module: &Module,
+        symbol_id: GlobalSymbolId,
+        symbols: &SymbolTable,
+    ) -> GlobalSymbolId {
+        // if local symbol, check if it has a final_symbol (for imports)
+        if symbol_id.module_id == module.id {
+            let symbol = symbols.get_symbol(symbol_id.local_id);
+            if let Some(final_sym) = symbol.final_symbol {
+                return final_sym;
+            }
+        }
+        // otherwise return as-is
+        symbol_id
+    }
+
+    /// Resolve a remote symbol's value type by ensuring its module is analyzed
+    /// and copying the type into the current module's TypeTable.
+    fn resolve_remote_symbol_value_type(
+        &self,
+        _module: &Module,
+        expression_id: LocalNodeId<Expression>,
+        target_symbol: GlobalSymbolId,
+        types: &mut TypeTable,
+    ) -> AnalyzeResult<LocalTypeId> {
+        let remote_module_id = target_symbol.module_id;
+
+        // ensure the remote module is analyzed (may yield)
+        self.require_analyze(remote_module_id)?;
+
+        // look up the type in the remote module's TypeTable
+        let remote_module = self.program.modules.get(remote_module_id);
+        let remote_module = remote_module.read();
+        let remote_types = remote_module.dir.types.read();
+
+        // copy the type into our local TypeTable
+        if let Some(remote_ty_id) = remote_types.get_value_type_id(target_symbol) {
+            let remote_ty = remote_types.get_type(remote_ty_id);
+            let local_ty = self.import_type_from_remote(
+                expression_id,
+                remote_ty,
+                &remote_types,
+                target_symbol,
+                types,
+            );
+            Ok(local_ty)
+        }
+        // remote symbol doesn't have a value type, return unknown
+        else {
+            let ty = Type::TypeLiteral {
+                value: TypeLiteral::Unknown,
+            };
+            Ok(types.insert_type_from(ty, expression_id))
+        }
+    }
+
+    /// Import a type from a remote module into the current module's TypeTable.
+    ///  - For structural types (arrays, objects, ..): recursively copy the type structure.
+    ///  - For nominal types (Type::Reference): keep them as references to the original symbol.
+    fn import_type_from_remote(
+        &self,
+        expression_id: LocalNodeId<Expression>,
+        remote_ty: &Type,
+        remote_types: &TypeTable,
+        target_symbol: GlobalSymbolId,
+        types: &mut TypeTable,
+    ) -> LocalTypeId {
+        match remote_ty {
+            // leaf types: copy directly
+            Type::TypeLiteral { value } => types.insert_type_from(
+                Type::TypeLiteral {
+                    value: value.clone(),
+                },
+                expression_id,
+            ),
+            Type::Error => types.insert_type_from(Type::Error, expression_id),
+
+            // array types
+            Type::Array { element: None } => {
+                types.insert_type_from(Type::Array { element: None }, expression_id)
+            }
+            Type::Array {
+                element: Some(elem_id),
+            } => {
+                let elem_ty = remote_types.get_type(*elem_id);
+                let local_elem = self.import_type_from_remote(
+                    expression_id,
+                    elem_ty,
+                    remote_types,
+                    target_symbol,
+                    types,
+                );
+                types.insert_type_from(
+                    Type::Array {
+                        element: Some(local_elem),
+                    },
+                    expression_id,
+                )
+            }
+
+            // tuple types
+            Type::Tuple { elements } => {
+                let local_elems: Vec<_> = elements
+                    .iter()
+                    .map(|id| {
+                        let ty = remote_types.get_type(*id);
+                        self.import_type_from_remote(
+                            expression_id,
+                            ty,
+                            remote_types,
+                            target_symbol,
+                            types,
+                        )
+                    })
+                    .collect();
+                types.insert_type_from(
+                    Type::Tuple {
+                        elements: local_elems,
+                    },
+                    expression_id,
+                )
+            }
+
+            // object types
+            Type::Object { fields } => {
+                let local_fields: Vec<_> = fields
+                    .iter()
+                    .map(|field| {
+                        let ty = remote_types.get_type(field.ty);
+                        let local_ty = self.import_type_from_remote(
+                            expression_id,
+                            ty,
+                            remote_types,
+                            target_symbol,
+                            types,
+                        );
+                        TypeField {
+                            key: field.key,
+                            ty: local_ty,
+                            is_optional: field.is_optional,
+                            is_readonly: field.is_readonly,
+                        }
+                    })
+                    .collect();
+                types.insert_type_from(
+                    Type::Object {
+                        fields: local_fields,
+                    },
+                    expression_id,
+                )
+            }
+
+            // function types
+            Type::Function {
+                asynchrony,
+                cardinality,
+                static_parameters,
+                dynamic_parameters,
+                return_type,
+            } => {
+                let local_static_params: Vec<_> = static_parameters
+                    .iter()
+                    .map(|id| {
+                        let ty = remote_types.get_type(*id);
+                        self.import_type_from_remote(
+                            expression_id,
+                            ty,
+                            remote_types,
+                            target_symbol,
+                            types,
+                        )
+                    })
+                    .collect();
+                let local_dynamic_params: Vec<_> = dynamic_parameters
+                    .iter()
+                    .map(|id| {
+                        let ty = remote_types.get_type(*id);
+                        self.import_type_from_remote(
+                            expression_id,
+                            ty,
+                            remote_types,
+                            target_symbol,
+                            types,
+                        )
+                    })
+                    .collect();
+                let local_return = return_type.map(|id| {
+                    let ty = remote_types.get_type(id);
+                    self.import_type_from_remote(
+                        expression_id,
+                        ty,
+                        remote_types,
+                        target_symbol,
+                        types,
+                    )
+                });
+                types.insert_type_from(
+                    Type::Function {
+                        asynchrony: *asynchrony,
+                        cardinality: *cardinality,
+                        static_parameters: local_static_params,
+                        dynamic_parameters: local_dynamic_params,
+                        return_type: local_return,
+                    },
+                    expression_id,
+                )
+            }
+
+            // union and intersection types
+            Type::Union { elements } => {
+                let local_elems: Vec<_> = elements
+                    .iter()
+                    .map(|id| {
+                        let ty = remote_types.get_type(*id);
+                        self.import_type_from_remote(
+                            expression_id,
+                            ty,
+                            remote_types,
+                            target_symbol,
+                            types,
+                        )
+                    })
+                    .collect();
+                types.insert_type_from(
+                    Type::Union {
+                        elements: local_elems,
+                    },
+                    expression_id,
+                )
+            }
+            Type::Intersection { elements } => {
+                let local_elems: Vec<_> = elements
+                    .iter()
+                    .map(|id| {
+                        let ty = remote_types.get_type(*id);
+                        self.import_type_from_remote(
+                            expression_id,
+                            ty,
+                            remote_types,
+                            target_symbol,
+                            types,
+                        )
+                    })
+                    .collect();
+                types.insert_type_from(
+                    Type::Intersection {
+                        elements: local_elems,
+                    },
+                    expression_id,
+                )
+            }
+
+            // type modifiers: recurse into inner type
+            Type::Value { value } => {
+                let inner_ty = remote_types.get_type(*value);
+                let local_inner = self.import_type_from_remote(
+                    expression_id,
+                    inner_ty,
+                    remote_types,
+                    target_symbol,
+                    types,
+                );
+                types.insert_type_from(Type::Value { value: local_inner }, expression_id)
+            }
+            Type::Mutable { mutability, right } => {
+                let inner_ty = remote_types.get_type(*right);
+                let local_inner = self.import_type_from_remote(
+                    expression_id,
+                    inner_ty,
+                    remote_types,
+                    target_symbol,
+                    types,
+                );
+                types.insert_type_from(
+                    Type::Mutable {
+                        mutability: *mutability,
+                        right: local_inner,
+                    },
+                    expression_id,
+                )
+            }
+            Type::ValueOf {
+                mutability,
+                variance,
+                right,
+            } => {
+                let inner_ty = remote_types.get_type(*right);
+                let local_inner = self.import_type_from_remote(
+                    expression_id,
+                    inner_ty,
+                    remote_types,
+                    target_symbol,
+                    types,
+                );
+                types.insert_type_from(
+                    Type::ValueOf {
+                        mutability: *mutability,
+                        variance: *variance,
+                        right: local_inner,
+                    },
+                    expression_id,
+                )
+            }
+            Type::ReferenceOf {
+                mutability,
+                variance,
+                right,
+            } => {
+                let inner_ty = remote_types.get_type(*right);
+                let local_inner = self.import_type_from_remote(
+                    expression_id,
+                    inner_ty,
+                    remote_types,
+                    target_symbol,
+                    types,
+                );
+                types.insert_type_from(
+                    Type::ReferenceOf {
+                        mutability: *mutability,
+                        variance: *variance,
+                        right: local_inner,
+                    },
+                    expression_id,
+                )
+            }
+            Type::Unary { operator, right } => {
+                let inner_ty = remote_types.get_type(*right);
+                let local_inner = self.import_type_from_remote(
+                    expression_id,
+                    inner_ty,
+                    remote_types,
+                    target_symbol,
+                    types,
+                );
+                types.insert_type_from(
+                    Type::Unary {
+                        operator: *operator,
+                        right: local_inner,
+                    },
+                    expression_id,
+                )
+            }
+            Type::Binary {
+                left,
+                operator,
+                right,
+            } => {
+                let left_ty = remote_types.get_type(*left);
+                let right_ty = remote_types.get_type(*right);
+                let local_left = self.import_type_from_remote(
+                    expression_id,
+                    left_ty,
+                    remote_types,
+                    target_symbol,
+                    types,
+                );
+                let local_right = self.import_type_from_remote(
+                    expression_id,
+                    right_ty,
+                    remote_types,
+                    target_symbol,
+                    types,
+                );
+                types.insert_type_from(
+                    Type::Binary {
+                        left: local_left,
+                        operator: *operator,
+                        right: local_right,
+                    },
+                    expression_id,
+                )
+            }
+
+            // nominal/reference types: keep as Type::Reference to the original symbol
+            Type::Reference {
+                symbol,
+                static_arguments,
+            } => types.insert_type_from(
+                Type::Reference {
+                    symbol: *symbol,
+                    static_arguments: static_arguments.clone(),
+                },
+                expression_id,
+            ),
+
+            // types that can't be meaningfully copied: fall back to reference
+            Type::Unevaluated(_) | Type::ArraySized { .. } => types.insert_type_from(
+                Type::Reference {
+                    symbol: target_symbol,
+                    static_arguments: None,
+                },
+                expression_id,
+            ),
+        }
+    }
 }
 
 #[cfg(test)]
@@ -1448,8 +2410,9 @@ mod tests {
 
     #[test]
     fn test_analyze_let_expression_declare_type() {
+        // use compatible types: string annotation with string value
         let test = TestProgram::memory_sequential();
-        let module_id = test.register_module("test.ds", "let x: string = 42");
+        let module_id = test.register_module("test.ds", r#"let x: string = "hello""#);
         test.analyze_module(module_id);
         test.compile_dump_clean();
 
@@ -1609,6 +2572,116 @@ let [x, y, ...rest, z] = [123, 'abc', true, 456]; // array used as a tuple
             z_ty_id,
             Type::TypeLiteral {
                 value: TypeLiteral::Primitive(PrimitiveType::Number)
+            }
+        );
+    }
+
+    #[test]
+    fn test_analyze_cross_module_type_import() {
+        // import a value from another module and verify its type is correctly imported
+        let test = TestProgram::memory_parallel();
+        test.add_file(
+            "lib.ds",
+            r#"
+export let value = 42;
+"#,
+        );
+        let module_id = test.register_module(
+            "main.ds",
+            r#"
+import { value } from "./lib.ds";
+let x = value;
+"#,
+        );
+        test.analyze_module(module_id);
+        test.compile_dump_clean();
+
+        let module = test.program.modules.get(module_id);
+        let module = module.read();
+        let types = module.dir.types.read();
+
+        // x should have type number (imported from lib.ds)
+        let x_symbol = test.resolve_to_symbol("main.ds", "x").unwrap();
+        let x_ty_id = types.get_value_type_id(x_symbol).unwrap();
+        assert_type!(
+            types,
+            x_ty_id,
+            Type::TypeLiteral {
+                value: TypeLiteral::Primitive(PrimitiveType::Number)
+            }
+        );
+    }
+
+    #[test]
+    fn test_analyze_cross_module_tuple_type_import() {
+        // import a tuple value from another module
+        // (array literal [1, 2, 3] is inferred as tuple, not array)
+        let test = TestProgram::memory_parallel();
+        test.add_file(
+            "lib.ds",
+            r#"
+export let items = [1, 2, 3];
+"#,
+        );
+        let module_id = test.register_module(
+            "main.ds",
+            r#"
+import { items } from "./lib.ds";
+let x = items;
+"#,
+        );
+        test.analyze_module(module_id);
+        test.compile_dump_clean();
+
+        let module = test.program.modules.get(module_id);
+        let module = module.read();
+        let types = module.dir.types.read();
+
+        // x should have tuple type [number, number, number] (imported from lib.ds)
+        let x_symbol = test.resolve_to_symbol("main.ds", "x").unwrap();
+        let x_ty_id = types.get_value_type_id(x_symbol).unwrap();
+        assert_type!(types, x_ty_id, Type::Tuple { elements } => {
+            assert_eq!(elements.len(), 3);
+            for elem_id in elements {
+                assert_type!(types, *elem_id, Type::TypeLiteral {
+                    value: TypeLiteral::Primitive(PrimitiveType::Number)
+                });
+            }
+        });
+    }
+
+    #[test]
+    fn test_analyze_cross_module_string_type_import() {
+        // import a string value from another module
+        let test = TestProgram::memory_parallel();
+        test.add_file(
+            "lib.ds",
+            r#"
+export let greeting = "hello";
+"#,
+        );
+        let module_id = test.register_module(
+            "main.ds",
+            r#"
+import { greeting } from "./lib.ds";
+let x = greeting;
+"#,
+        );
+        test.analyze_module(module_id);
+        test.compile_dump_clean();
+
+        let module = test.program.modules.get(module_id);
+        let module = module.read();
+        let types = module.dir.types.read();
+
+        // x should have type string (imported from lib.ds)
+        let x_symbol = test.resolve_to_symbol("main.ds", "x").unwrap();
+        let x_ty_id = types.get_value_type_id(x_symbol).unwrap();
+        assert_type!(
+            types,
+            x_ty_id,
+            Type::TypeLiteral {
+                value: TypeLiteral::Primitive(PrimitiveType::String)
             }
         );
     }

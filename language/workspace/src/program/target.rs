@@ -182,6 +182,9 @@ pub struct Target {
     pub module: ModuleKind,
     /// ECMAScript target version.
     pub es_target: EsTarget,
+    /// Library files for this target (e.g., ["es2024", "dom"]).
+    /// If empty, defaults are derived from the output format.
+    pub lib: Vec<String>,
 
     // optimization
     /// Whether this is a debug build.
@@ -208,6 +211,7 @@ impl Default for Target {
             declaration_dir: None,
             module: ModuleKind::default(),
             es_target: EsTarget::default(),
+            lib: Vec::new(),
             include: Vec::new(),
             exclude: Vec::new(),
             debug: true,
@@ -311,6 +315,37 @@ impl Target {
     pub fn with_es_target(mut self, es_target: EsTarget) -> Self {
         self.es_target = es_target;
         self
+    }
+
+    /// Set library files.
+    pub fn with_lib(mut self, lib: Vec<String>) -> Self {
+        self.lib = lib;
+        self
+    }
+
+    /// Get the effective library files for this target.
+    ///
+    /// If `lib` is explicitly set, returns it. Otherwise, returns default
+    /// libraries based on the output format:
+    /// - JS/TS: `["esnext", "dom"]` (full web environment)
+    /// - WASM: `["es2020"]` (restricted, no DOM)
+    /// - Native: `[]` (minimal, core only)
+    pub fn effective_lib(&self) -> Vec<String> {
+        if !self.lib.is_empty() {
+            return self.lib.clone();
+        }
+
+        match self.output {
+            OutputFormat::Js | OutputFormat::Ts => {
+                vec!["esnext".to_string(), "dom".to_string()]
+            }
+            OutputFormat::Wasm => {
+                vec!["es2020".to_string()]
+            }
+            OutputFormat::Native => {
+                vec![]
+            }
+        }
     }
 
     /// Set whether optimization is enabled.

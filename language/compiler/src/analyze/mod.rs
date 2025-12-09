@@ -7,6 +7,7 @@ mod options;
 mod process;
 mod warning;
 
+pub use check::*;
 pub use context::*;
 pub use error::*;
 pub use options::*;

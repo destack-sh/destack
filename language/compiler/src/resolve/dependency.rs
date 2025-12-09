@@ -40,8 +40,11 @@ impl Compiler {
         if !is_relative {
             let global_module = self.program.modules.get(self.program.root_module_id);
             let global_module = global_module.read();
-            if let Some(&remote_module_id) =
-                global_module.dir.imported_modules.read().get(&(None, target))
+            if let Some(&remote_module_id) = global_module
+                .dir
+                .imported_modules
+                .read()
+                .get(&(None, target))
             {
                 module
                     .dir
@@ -119,13 +122,16 @@ impl Compiler {
                         let remote_module = remote_module.read();
                         (
                             remote_module_id,
-                            remote_module.dir.default_symbol.into_global(remote_module_id),
+                            remote_module
+                                .dir
+                                .default_symbol
+                                .into_global(remote_module_id),
                         )
                     }
                     DependencyMode::Namespace => {
                         // check if this is a namespace export (namespace re-export without alias)
                         if alias.is_none() && matches!(source, DependencySource::ExportStatement) {
-                            // this is `export * from "..."`, register as namespace export
+                            // `export * from "..."` -> register as namespace export
                             let current_module = self.program.modules.get(module.id);
                             let current_module = current_module.read();
                             current_module
@@ -138,7 +144,10 @@ impl Compiler {
                         let remote_module = remote_module.read();
                         (
                             remote_module_id,
-                            remote_module.dir.namespace_symbol.into_global(remote_module_id),
+                            remote_module
+                                .dir
+                                .namespace_symbol
+                                .into_global(remote_module_id),
                         )
                     }
                 };
