@@ -475,6 +475,7 @@ impl<'a> Parser<'a> {
             instructions.push(inst);
         }
 
+        // block
         let block = Block {
             parameters,
             instructions,
