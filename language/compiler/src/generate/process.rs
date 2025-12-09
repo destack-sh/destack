@@ -240,6 +240,11 @@ impl Compiler {
                     name,
                 }
             }
+            CodegenCraneliftError::OutOfBounds { node, index, len } => GenerateError::OutOfBounds {
+                node: Self::mir_to_global_node(module_id, node),
+                index,
+                len,
+            },
             CodegenCraneliftError::Internal { message } => GenerateError::Internal {
                 node: Self::placeholder_node(module_id),
                 message,

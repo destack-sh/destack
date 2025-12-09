@@ -29,6 +29,12 @@ pub enum GenerateError {
     UnresolvedFunction { node: GlobalNodeIdAny, name: String },
     /// Missing type information.
     MissingType { node: GlobalNodeIdAny },
+    /// Out of bounds access (tuple/array element index).
+    OutOfBounds {
+        node: GlobalNodeIdAny,
+        index: u32,
+        len: usize,
+    },
     /// Internal codegen error.
     Internal {
         node: GlobalNodeIdAny,
@@ -81,7 +87,8 @@ impl GenerateError {
             Self::UnresolvedConstruct { .. } => 6,
             Self::UnresolvedFunction { .. } => 7,
             Self::MissingType { .. } => 8,
-            Self::Internal { .. } => 9,
+            Self::OutOfBounds { .. } => 9,
+            Self::Internal { .. } => 10,
         }
     }
 
@@ -97,6 +104,7 @@ impl GenerateError {
             Self::UnresolvedConstruct { node, .. } => DiagnosticAnchor::Node(*node),
             Self::UnresolvedFunction { node, .. } => DiagnosticAnchor::Node(*node),
             Self::MissingType { node, .. } => DiagnosticAnchor::Node(*node),
+            Self::OutOfBounds { node, .. } => DiagnosticAnchor::Node(*node),
             Self::Internal { node, .. } => DiagnosticAnchor::Node(*node),
         }
     }
@@ -117,6 +125,9 @@ impl GenerateError {
                 format!("unresolved function: {name}")
             }
             Self::MissingType { .. } => "missing type".to_string(),
+            Self::OutOfBounds { index, len, .. } => {
+                format!("index {index} out of bounds (len {len})")
+            }
             Self::Internal { message, .. } => format!("internal error: {message}"),
         }
     }

@@ -203,7 +203,7 @@ pub enum Instruction {
         pointer: Value,
     },
     /// Allocate on the stack (lives until function returns).
-    /// Returns a `RawPointer<T>`.
+    /// Returns a `RawPointer<T>`. Cannot free.
     StackAllocate {
         /// The SSA value to define with the stack pointer.
         destination: Value,
@@ -212,7 +212,7 @@ pub enum Instruction {
     },
 
     // lifecycle
-    /// Call destructor/drop glue for a value.
+    /// Call destructor/drop for a value.
     Drop {
         /// The value to drop.
         value: Value,
