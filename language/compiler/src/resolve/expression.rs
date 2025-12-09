@@ -57,7 +57,6 @@ impl Compiler {
                     expression_id.into_global_any(module.id),
                     DependencySource::ImportStatement,
                     *target,
-                    symbols,
                 )?;
                 Expression::Import {
                     kind: *kind,
@@ -78,7 +77,6 @@ impl Compiler {
                     expression_id.into_global_any(module.id),
                     DependencySource::ExportStatement,
                     *target,
-                    symbols,
                 )?;
                 Expression::ReExport {
                     target: *target,

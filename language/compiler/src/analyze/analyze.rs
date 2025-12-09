@@ -285,7 +285,7 @@ impl Compiler {
                 types.insert_type_from(ty, expression_id)
             }
             // type literal -> use the given type literal?
-            // NOTE #Suspicious: using the type literal type itself as its type is strange
+            // NOTE #Architecture: using the type literal type itself as its type is strange
             Expression::TypeLiteral { value } => {
                 let ty = Type::TypeLiteral {
                     value: value.clone(),

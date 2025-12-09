@@ -1,7 +1,7 @@
 use destack_ast::StringId;
 use destack_dir::{
     DependencyItem, DependencyMode, DependencySource, GlobalNodeIdAny, GlobalSymbolId, LocalNodeId,
-    LocalScopeId, LocalScopeMark, NodeTree, StaticKey, SymbolTable,
+    LocalScopeMark, NodeTree, StaticKey, SymbolTable,
 };
 use destack_source::ModuleId;
 use destack_workspace::Module;
@@ -22,13 +22,17 @@ impl Compiler {
         node: GlobalNodeIdAny,
         _source: DependencySource,
         target: StringId,
-        symbols: &mut SymbolTable,
     ) -> ResolveResult<ModuleId> {
         let is_relative = self.is_import_relative(target);
         let relative_module = if is_relative { Some(module.id) } else { None };
 
         // check if already resolved locally
-        if let Some(remote_module_id) = symbols.get_resolved_import(relative_module, target) {
+        if let Some(&remote_module_id) = module
+            .dir
+            .imported_modules
+            .read()
+            .get(&(relative_module, target))
+        {
             return Ok(remote_module_id);
         }
 
@@ -36,9 +40,14 @@ impl Compiler {
         if !is_relative {
             let global_module = self.program.modules.get(self.program.root_module_id);
             let global_module = global_module.read();
-            let global_symbols = global_module.dir.symbols.read();
-            if let Some(remote_module_id) = global_symbols.get_resolved_import(None, target) {
-                symbols.resolve_import(None, target, remote_module_id);
+            if let Some(&remote_module_id) =
+                global_module.dir.imported_modules.read().get(&(None, target))
+            {
+                module
+                    .dir
+                    .imported_modules
+                    .write()
+                    .insert((None, target), remote_module_id);
                 return Ok(remote_module_id);
             }
         }
@@ -55,7 +64,11 @@ impl Compiler {
         })?;
 
         // record the resolved import
-        symbols.resolve_import(relative_module, target, remote_module_id);
+        module
+            .dir
+            .imported_modules
+            .write()
+            .insert((relative_module, target), remote_module_id);
         Ok(remote_module_id)
     }
 
@@ -84,112 +97,61 @@ impl Compiler {
                     item_id.into_global_any(module.id),
                     *source,
                     *target,
-                    symbols,
                 )?;
-                let remote_module = self.program.modules.get(remote_module_id);
-                let remote_module = remote_module.read();
-                let remote_symbols = remote_module.dir.symbols.read();
-                let target_symbol_id = match mode {
+
+                // resolve target symbol based on mode, returning (target_module_id, target_symbol)
+                let (target_module_id, target_symbol) = match mode {
                     DependencyMode::Item => {
-                        // resolve symbol in the remote module for item mode
-                        let remote_scope_id = remote_module.dir.namespace_scope;
-                        let remote_scope = remote_symbols.get_scope_by_id(remote_scope_id);
                         let key = name.map(StaticKey::Name).ok_or(
                             ResolveError::UnsupportedConstruct {
                                 node: item_id.into_global_any(module.id),
                             },
                         )?;
-                        // first try to resolve in the direct namespace
-                        match self.resolve_absolute_symbol(
+                        self.resolve_remote_item_symbol(
                             module,
                             item_id.into_global_any(module.id),
-                            (remote_scope_id, remote_scope, LocalScopeMark::end()),
+                            remote_module_id,
                             key,
-                            &remote_symbols,
-                        ) {
-                            Ok(symbol_id) => symbol_id,
-                            Err(_) => {
-                                // if not found directly, search through namespace exports
-                                // must drop locks before calling resolve_symbol_via_namespace_exports
-                                drop(remote_symbols);
-                                drop(remote_module);
-                                let global_symbol = self
-                                    .resolve_symbol_via_namespace_exports(
-                                        module,
-                                        item_id.into_global_any(module.id),
-                                        remote_module_id,
-                                        key,
-                                    )
-                                    .map_err(|e| {
-                                        // propagate yields, convert other errors to MissingSymbol
-                                        if matches!(e, ResolveError::Yield { .. }) {
-                                            e
-                                        } else {
-                                            ResolveError::MissingSymbol {
-                                                node: item_id.into_global_any(module.id),
-                                                scope: remote_scope_id
-                                                    .into_global(remote_module_id),
-                                                via_module: Some(remote_module_id),
-                                                key,
-                                            }
-                                        }
-                                    })?;
-                                // namespace export returns GlobalSymbolId with correct module
-                                // use target_module from the global symbol
-                                let target_module_id = global_symbol.module_id;
-                                let resolved_item = DependencyItem::Remote {
-                                    mode: *mode,
-                                    kind: *kind,
-                                    name: *name,
-                                    alias: *alias,
-                                    target: *target,
-                                    target_module: target_module_id,
-                                    symbol: *symbol,
-                                    target_symbol: global_symbol,
-                                };
-                                // update the target symbol of our symbol
-                                if let Some(symbol_id) = resolved_item.symbol()
-                                    && let Some(target_symbol) = resolved_item.target_symbol()
-                                {
-                                    symbols.get_symbol_mut(symbol_id).resolve_to(target_symbol);
-                                }
-                                *tree.get_mut(item_id) = resolved_item;
-                                return Ok(());
-                            }
-                        }
+                        )?
                     }
-                    DependencyMode::Default => remote_module.dir.default_symbol,
+                    DependencyMode::Default => {
+                        let remote_module = self.program.modules.get(remote_module_id);
+                        let remote_module = remote_module.read();
+                        (
+                            remote_module_id,
+                            remote_module.dir.default_symbol.into_global(remote_module_id),
+                        )
+                    }
                     DependencyMode::Namespace => {
                         // check if this is a namespace export (namespace re-export without alias)
                         if alias.is_none() && matches!(source, DependencySource::ExportStatement) {
-                            // this is `export * from "..."` - register as namespace export
-                            // release the locks before registering the namespace export
-                            drop(remote_symbols);
-                            drop(remote_module);
-                            // register the namespace export
-                            {
-                                let module = self.program.modules.get(module.id);
-                                let module = module.read();
-                                module.dir.namespace_exports.write().push(remote_module_id);
-                            }
-                            // re-acquire the lock for the namespace symbol
-                            let remote_module = self.program.modules.get(remote_module_id);
-                            let remote_module = remote_module.read();
-                            remote_module.dir.namespace_symbol
-                        } else {
-                            remote_module.dir.namespace_symbol
+                            // this is `export * from "..."`, register as namespace export
+                            let current_module = self.program.modules.get(module.id);
+                            let current_module = current_module.read();
+                            current_module
+                                .dir
+                                .namespace_exports
+                                .write()
+                                .push(remote_module_id);
                         }
+                        let remote_module = self.program.modules.get(remote_module_id);
+                        let remote_module = remote_module.read();
+                        (
+                            remote_module_id,
+                            remote_module.dir.namespace_symbol.into_global(remote_module_id),
+                        )
                     }
                 };
+
                 DependencyItem::Remote {
                     mode: *mode,
                     kind: *kind,
                     name: *name,
                     alias: *alias,
                     target: *target,
-                    target_module: remote_module_id,
+                    target_module: target_module_id,
                     symbol: *symbol,
-                    target_symbol: target_symbol_id.into_global(remote_module_id),
+                    target_symbol,
                 }
             }
             DependencyItem::UnresolvedLocal {
@@ -234,6 +196,55 @@ impl Compiler {
         Ok(())
     }
 
+    /// Resolve an item symbol in a remote module, searching through namespace exports if needed.
+    fn resolve_remote_item_symbol(
+        &self,
+        module: &Module,
+        node: GlobalNodeIdAny,
+        remote_module_id: ModuleId,
+        key: StaticKey,
+    ) -> ResolveResult<(ModuleId, GlobalSymbolId)> {
+        let remote_module = self.program.modules.get(remote_module_id);
+        let remote_module = remote_module.read();
+        let remote_symbols = remote_module.dir.symbols.read();
+        let remote_scope_id = remote_module.dir.namespace_scope;
+        let remote_scope = remote_symbols.get_scope_by_id(remote_scope_id);
+
+        // first try to resolve in the direct namespace
+        if let Ok(symbol_id) = self.resolve_absolute_symbol(
+            module,
+            node,
+            (remote_scope_id, remote_scope, LocalScopeMark::end()),
+            key,
+            &remote_symbols,
+        ) {
+            return Ok((remote_module_id, symbol_id.into_global(remote_module_id)));
+        }
+
+        // must drop locks before calling resolve_symbol_via_namespace_exports
+        drop(remote_symbols);
+        drop(remote_module);
+
+        // search through namespace exports
+        let global_symbol = self
+            .resolve_symbol_via_namespace_exports(module, node, remote_module_id, key)
+            .map_err(|e| {
+                // propagate yields, convert other errors to MissingSymbol
+                if matches!(e, ResolveError::Yield { .. }) {
+                    e
+                } else {
+                    ResolveError::MissingSymbol {
+                        node,
+                        scope: remote_scope_id.into_global(remote_module_id),
+                        via_module: Some(remote_module_id),
+                        key,
+                    }
+                }
+            })?;
+
+        Ok((global_symbol.module_id, global_symbol))
+    }
+
     /// Resolve a symbol through namespace exports of a module.
     /// This is used when a symbol isn't found in the direct namespace scope.
     fn resolve_symbol_via_namespace_exports(
@@ -251,6 +262,7 @@ impl Compiler {
         // get the namespace exports for the via module
         let via_module = self.program.modules.get(via_module_id);
         let via_module = via_module.read();
+        let via_namespace_scope = via_module.dir.namespace_scope;
         let namespace_exports: Vec<ModuleId> = via_module.dir.namespace_exports.read().clone();
         drop(via_module);
 
@@ -296,7 +308,7 @@ impl Compiler {
         // symbol not found
         Err(ResolveError::MissingSymbol {
             node,
-            scope: LocalScopeId::new(0).into_global(via_module_id), // nocheckin #Suspicious
+            scope: via_namespace_scope.into_global(via_module_id),
             via_module: Some(via_module_id),
             key,
         })

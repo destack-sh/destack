@@ -122,7 +122,7 @@ impl Compiler {
 
     /// Bind module exports and resolve conflicts.
     fn bind_module_exports(&self, module: &mut Module) {
-        let mut symbols = module.dir.symbols.write();
+        let symbols = module.dir.symbols.read();
 
         // collect exported symbols
         let root_scope = symbols.get_scope_by_id(module.dir.namespace_scope);
@@ -142,6 +142,7 @@ impl Compiler {
             .collect();
 
         // resolve exported symbols and check for conflicts
+        let mut exported = module.dir.exported_symbols.write();
         for (_, symbol_id) in exported_symbols.iter() {
             let symbol = symbols.get_symbol(*symbol_id);
             let space = symbol.space;
@@ -150,7 +151,7 @@ impl Compiler {
             };
             let key = StaticKey::Name(key);
             // override if already exported (we error conflicting exports in a separate check)
-            symbols.resolve_export((space, key), *symbol_id);
+            exported.insert((space, key), *symbol_id);
         }
     }
 
