@@ -1,1 +1,12 @@
-export * from "./type.ds";
+// Destack Built-ins Entry Point
+// NOTE: This file is not typically used directly - the compiler loads
+// specific builtin files based on LanguageFeature and `lib` configuration.
+
+// Core language primitives (always available)
+export * from "./core/type.ds";
+export * from "./core/operator.ds";
+export * from "./core/primitive.ds";
+export * from "./core/iterator.ds";
+
+// Library definitions are loaded separately based on the `lib` config option.
+// See README.md for available libs and their locations under ./lib/
