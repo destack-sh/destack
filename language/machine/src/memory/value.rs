@@ -30,11 +30,17 @@ pub enum Value {
     /// Character value (Unicode codepoint).
     Char(char),
 
-    /// Raw pointer (as integer address).
-    RawPointer(u64),
-
-    /// Managed reference (heap object handle).
+    /// Managed reference (GC-tracked heap object).
     ManagedReference(HeapHandle),
+
+    /// Raw pointer (manually managed heap object).
+    RawPointer(RawPointer),
+
+    /// Stack pointer (frame-scoped allocation).
+    StackPointer(StackPointer),
+
+    /// Function pointer (for indirect calls).
+    FunctionPointer(mir::LocalNodeId<mir::Function>),
 
     /// Aggregate value (struct, tuple, array).
     Aggregate(Box<[Value]>),
@@ -123,9 +129,11 @@ impl Value {
             Value::Float32(f) => *f != 0.0,
             Value::Float64(f) => *f != 0.0,
             Value::String(s) => !s.is_empty(),
-            Value::Char(_) => true, // all chars are truthy (even '\0')
-            Value::RawPointer(p) => *p != 0,
+            Value::Char(_) => true,
             Value::ManagedReference(h) => !h.is_null(),
+            Value::RawPointer(p) => !p.is_null(),
+            Value::StackPointer(_) => true,
+            Value::FunctionPointer(_) => true,
             Value::Aggregate(_) => true,
         }
     }
@@ -192,7 +200,7 @@ impl Value {
     }
 }
 
-/// Handle to a heap-allocated object.
+/// Handle to a managed (GC-tracked) heap object.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct HeapHandle(u64);
 
@@ -213,5 +221,45 @@ impl HeapHandle {
     /// Get the raw id of this handle.
     pub fn id(&self) -> u64 {
         self.0
+    }
+}
+
+/// Pointer to a raw (manually managed) heap object.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct RawPointer(u64);
+
+impl RawPointer {
+    /// The null pointer.
+    pub const NULL: Self = RawPointer(0);
+
+    /// Create a new raw pointer from an id.
+    pub fn new(id: u64) -> Self {
+        RawPointer(id)
+    }
+
+    /// Check if this pointer is null.
+    pub fn is_null(&self) -> bool {
+        self.0 == 0
+    }
+
+    /// Get the raw id of this pointer.
+    pub fn id(&self) -> u64 {
+        self.0
+    }
+}
+
+/// Pointer to a stack-allocated object (frame-scoped).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct StackPointer {
+    /// The frame depth (index into call stack).
+    pub frame_idx: usize,
+    /// The slot index within the frame's stack allocations.
+    pub slot: usize,
+}
+
+impl StackPointer {
+    /// Create a new stack pointer.
+    pub fn new(frame_depth: usize, slot: usize) -> Self {
+        Self { frame_idx: frame_depth, slot }
     }
 }

@@ -1,11 +1,9 @@
-//! MIR tree walking functions.
-
 use crate::{
     Block, Field, Function, Global, Instruction, Local, LocalNodeId, NodeTree, NodeType,
     NodeVisitor, Type,
 };
 
-/// Walk any node by its type and id.
+/// Walk any node.
 pub fn walk_any<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
     tree: &NodeTree,
@@ -51,7 +49,7 @@ pub fn walk_any<V: NodeVisitor + ?Sized>(
     }
 }
 
-/// Walk a Function and its children.
+/// Walk a Function.
 pub fn walk_function<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
     tree: &NodeTree,
@@ -59,21 +57,17 @@ pub fn walk_function<V: NodeVisitor + ?Sized>(
     function: &Function,
 ) {
     visitor.visit_any(tree, NodeType::Function, id.id);
-
-    // visit locals
     for local_id in &function.locals {
         let local = tree.get(*local_id);
         visitor.visit_local(tree, *local_id, local);
     }
-
-    // visit blocks
     for block_id in &function.blocks {
         let block = tree.get(*block_id);
         visitor.visit_block(tree, *block_id, block);
     }
 }
 
-/// Walk a Block and its children.
+/// Walk a Block.
 pub fn walk_block<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
     tree: &NodeTree,
@@ -82,16 +76,13 @@ pub fn walk_block<V: NodeVisitor + ?Sized>(
 ) {
     visitor.visit_any(tree, NodeType::Block, id.id);
 
-    // visit instructions
     for inst_id in &block.instructions {
         let instruction = tree.get(*inst_id);
         visitor.visit_instruction(tree, *inst_id, instruction);
     }
-
-    // terminator doesn't need visiting (it's inline data, not a node)
 }
 
-/// Walk an Instruction (leaf node, nothing to recurse into).
+/// Walk an Instruction.
 pub fn walk_instruction<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
     tree: &NodeTree,
@@ -99,10 +90,9 @@ pub fn walk_instruction<V: NodeVisitor + ?Sized>(
     _instruction: &Instruction,
 ) {
     visitor.visit_any(tree, NodeType::Instruction, id.id);
-    // instructions are leaf nodes - they reference Values/Locals/Types but don't own child nodes
 }
 
-/// Walk a Local (leaf node).
+/// Walk a Local.
 pub fn walk_local<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
     tree: &NodeTree,
@@ -112,7 +102,7 @@ pub fn walk_local<V: NodeVisitor + ?Sized>(
     visitor.visit_any(tree, NodeType::Local, id.id);
 }
 
-/// Walk a Type (may have nested types).
+/// Walk a Type.
 pub fn walk_type<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
     tree: &NodeTree,
@@ -121,7 +111,6 @@ pub fn walk_type<V: NodeVisitor + ?Sized>(
 ) {
     visitor.visit_any(tree, NodeType::Type, id.id);
 
-    // recursively visit nested types
     match ty {
         Type::RawPointer { pointee } => {
             let pointee_ty = tree.get(*pointee);
@@ -155,7 +144,6 @@ pub fn walk_type<V: NodeVisitor + ?Sized>(
             let result_ty = tree.get(*result);
             visitor.visit_type(tree, *result, result_ty);
         }
-        // primitive types have no children
         Type::Void | Type::Boolean | Type::Int { .. } | Type::Float { .. } => {}
     }
 }
@@ -172,7 +160,7 @@ pub fn walk_field<V: NodeVisitor + ?Sized>(
     visitor.visit_type(tree, field.ty, field_ty);
 }
 
-/// Walk a Global (leaf node, references a type but doesn't own child nodes).
+/// Walk a Global.
 pub fn walk_global<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
     tree: &NodeTree,

@@ -6,7 +6,7 @@ use destack_mir as mir;
 use destack_source::ImmutableStringPool;
 
 use crate::diagnostic::{DiagnosticAnchor, Error, FrameInfo, RuntimeError, RuntimeResult};
-use crate::memory::{Heap, Value};
+use crate::memory::{ManagedHeap, RawHeap, Value};
 
 use super::{Frame, MachineOptions, Statistics};
 
@@ -20,21 +20,22 @@ pub struct ExecutionOutput {
     pub value: Value,
     /// Statistics from this execution.
     pub statistics: Statistics,
-    /// Number of heap cells at end of execution.
+    /// Number of managed heap cells at end of execution.
     pub heap_cells: usize,
+    /// Number of raw heap cells at end of execution.
+    pub raw_heap_cells: usize,
 }
 
 /// MIR interpreter.
-///
-/// Executes MIR functions by walking the instruction tree.
-/// Uses an explicit call stack instead of Rust recursion.
 pub struct Interpreter {
     /// The MIR tree being executed.
     pub(super) tree: mir::NodeTree,
     /// String pool for names.
     pub(super) strings: ImmutableStringPool,
-    /// The managed heap.
-    pub(super) heap: Heap,
+    /// The managed heap (GC-tracked allocations).
+    pub(super) managed_heap: ManagedHeap,
+    /// The raw heap (manually managed allocations).
+    pub(super) raw_heap: RawHeap,
     /// External function handlers.
     pub(super) externals: HashMap<String, ExternalFn>,
     /// Configuration options.
@@ -48,7 +49,8 @@ pub struct Interpreter {
 impl std::fmt::Debug for Interpreter {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Interpreter")
-            .field("heap", &self.heap)
+            .field("managed_heap", &self.managed_heap)
+            .field("raw_heap", &self.raw_heap)
             .field("externals", &format!("<{} handlers>", self.externals.len()))
             .field("options", &self.options)
             .field("call_stack_depth", &self.call_stack.len())
@@ -72,7 +74,8 @@ impl Interpreter {
         Self {
             tree,
             strings,
-            heap: Heap::new(),
+            managed_heap: ManagedHeap::new(),
+            raw_heap: RawHeap::new(),
             externals: HashMap::new(),
             options,
             call_stack: Vec::new(),
@@ -145,17 +148,27 @@ impl Interpreter {
             .collect()
     }
 
-    /// Get a reference to the heap.
-    pub fn heap(&self) -> &Heap {
-        &self.heap
+    /// Get a reference to the managed heap.
+    pub fn managed_heap(&self) -> &ManagedHeap {
+        &self.managed_heap
     }
 
-    /// Get a mutable reference to the heap.
-    pub fn heap_mut(&mut self) -> &mut Heap {
-        &mut self.heap
+    /// Get a mutable reference to the managed heap.
+    pub fn managed_heap_mut(&mut self) -> &mut ManagedHeap {
+        &mut self.managed_heap
     }
 
-    /// Run garbage collection.
+    /// Get a reference to the raw heap.
+    pub fn raw_heap(&self) -> &RawHeap {
+        &self.raw_heap
+    }
+
+    /// Get a mutable reference to the raw heap.
+    pub fn raw_heap_mut(&mut self) -> &mut RawHeap {
+        &mut self.raw_heap
+    }
+
+    /// Run garbage collection on the managed heap.
     pub fn collect_garbage(&mut self) {
         // collect roots from all frames
         let mut roots = Vec::new();
@@ -163,6 +176,6 @@ impl Interpreter {
             frame.collect_roots(&mut roots);
         }
 
-        self.heap.collect(&roots);
+        self.managed_heap.collect(&roots);
     }
 }

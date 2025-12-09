@@ -3,7 +3,7 @@
 use destack_mir as mir;
 
 use crate::diagnostic::{Error, RuntimeResult};
-use crate::memory::Value;
+use crate::memory::{RawPointer, Value};
 
 use super::Interpreter;
 
@@ -281,7 +281,7 @@ impl Interpreter {
             PointerToInt => {
                 if let Value::RawPointer(p) = arg {
                     Value::UInt {
-                        value: p,
+                        value: p.id(),
                         width: 64,
                     }
                 } else {
@@ -290,9 +290,9 @@ impl Interpreter {
             }
             IntToPointer => {
                 if let Value::UInt { value, .. } = arg {
-                    Value::RawPointer(value)
+                    Value::RawPointer(RawPointer::new(value))
                 } else if let Value::Int { value, .. } = arg {
-                    Value::RawPointer(value as u64)
+                    Value::RawPointer(RawPointer::new(value as u64))
                 } else {
                     arg
                 }

@@ -1,19 +1,30 @@
-use super::value::{HeapHandle, Value};
+use std::collections::HashMap;
 
-/// A managed heap for interpreter allocations.
+use super::value::{HeapHandle, RawPointer, Value};
+
+/// A managed heap for interpreter allocations (GC-tracked).
 ///
 /// Uses a slab allocator for O(1) access.
 /// Freed slots are tracked in a free list for reuse.
 #[derive(Debug, Default)]
-pub struct Heap {
+pub struct ManagedHeap {
     /// Allocated cells. Index 0 is reserved (null handle).
     cells: Vec<Option<HeapCell>>,
     /// Free slot indices available for reuse.
     free_list: Vec<usize>,
 }
 
+/// A raw heap for manual memory management (not GC-tracked).
+#[derive(Debug, Default)]
+pub struct RawHeap {
+    /// Allocated cells, indexed by pointer ID.
+    cells: HashMap<u64, HeapCell>,
+    /// Next pointer ID to allocate.
+    next_id: u64,
+}
+
 /// A cell on the heap (unit of allocation).
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct HeapCell {
     /// The cell's slots (for structs/tuples) or elements (for arrays).
     pub slots: Vec<Value>,
@@ -21,11 +32,29 @@ pub struct HeapCell {
     pub marked: bool,
 }
 
-impl Heap {
+impl HeapCell {
+    /// Create a new empty cell.
+    pub fn new() -> Self {
+        Self {
+            slots: Vec::new(),
+            marked: false,
+        }
+    }
+
+    /// Create a cell with the given number of slots (initialized to Void).
+    pub fn with_slots(count: usize) -> Self {
+        Self {
+            slots: vec![Value::Void; count],
+            marked: false,
+        }
+    }
+}
+
+impl ManagedHeap {
     /// Create a new empty heap.
     pub fn new() -> Self {
         Self {
-            // Reserve slot 0 for null handle
+            // reserve slot 0 for null handle
             cells: vec![None],
             free_list: Vec::new(),
         }
@@ -128,7 +157,7 @@ impl Heap {
         self.free_list.clear();
     }
 
-    /// Run mark-and-sweep garbage collection.
+    /// Run basic mark-and-sweep garbage collection.
     ///
     /// Takes a list of root handles (values reachable from the call stack).
     /// Marks all reachable cells, then sweeps (frees) unmarked cells.
@@ -179,5 +208,75 @@ impl Heap {
             }
             _ => {}
         }
+    }
+}
+
+impl RawHeap {
+    /// Create a new empty raw heap.
+    pub fn new() -> Self {
+        Self {
+            cells: HashMap::new(),
+            next_id: 1, // (start at 1 so 0 can be null)
+        }
+    }
+
+    /// Allocate a new cell and return its pointer.
+    pub fn allocate(&mut self) -> RawPointer {
+        self.allocate_cell(HeapCell {
+            slots: Vec::new(),
+            marked: false,
+        })
+    }
+
+    /// Allocate a cell with a given number of slots (initialized to Void).
+    pub fn allocate_with_slots(&mut self, slot_count: usize) -> RawPointer {
+        self.allocate_cell(HeapCell {
+            slots: vec![Value::Void; slot_count],
+            marked: false,
+        })
+    }
+
+    /// Internal: allocate a cell with a new ID.
+    fn allocate_cell(&mut self, cell: HeapCell) -> RawPointer {
+        let id = self.next_id;
+        self.next_id += 1;
+        self.cells.insert(id, cell);
+        RawPointer::new(id)
+    }
+
+    /// Get a cell by pointer.
+    #[inline]
+    pub fn get(&self, pointer: RawPointer) -> Option<&HeapCell> {
+        self.cells.get(&pointer.id())
+    }
+
+    /// Get a mutable reference to a cell.
+    #[inline]
+    pub fn get_mut(&mut self, pointer: RawPointer) -> Option<&mut HeapCell> {
+        self.cells.get_mut(&pointer.id())
+    }
+
+    /// Free a cell by pointer. Returns true if the cell existed.
+    #[inline]
+    pub fn free(&mut self, pointer: RawPointer) -> bool {
+        self.cells.remove(&pointer.id()).is_some()
+    }
+
+    /// Get the number of allocated cells.
+    #[inline]
+    pub fn cell_count(&self) -> usize {
+        self.cells.len()
+    }
+
+    /// Check if the heap is empty.
+    #[inline]
+    pub fn is_empty(&self) -> bool {
+        self.cells.is_empty()
+    }
+
+    /// Clear all allocations.
+    #[inline]
+    pub fn clear(&mut self) {
+        self.cells.clear();
     }
 }

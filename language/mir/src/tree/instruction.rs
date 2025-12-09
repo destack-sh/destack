@@ -170,7 +170,7 @@ pub enum Instruction {
         arguments: Vec<Value>,
     },
 
-    // allocation
+    // allocation (managed - runtime tracks memory)
     /// Allocate a managed (runtime-tracked) struct.
     /// Returns a `ManagedReference<T>`.
     ManagedAllocate {
@@ -189,6 +189,8 @@ pub enum Instruction {
         /// The number of elements (runtime value).
         length: Value,
     },
+
+    // allocation (raw - manual memory management)
     /// Allocate raw memory on the heap.
     /// Returns a `RawPointer<T>`. Caller must free with `RawFree`.
     RawAllocate {
@@ -202,8 +204,10 @@ pub enum Instruction {
         /// The pointer to free.
         pointer: Value,
     },
+
+    // allocation (stack - automatic, scoped to function)
     /// Allocate on the stack (lives until function returns).
-    /// Returns a `RawPointer<T>`. Cannot free.
+    /// Returns a `RawPointer<T>`. Cannot free explicitly.
     StackAllocate {
         /// The SSA value to define with the stack pointer.
         destination: Value,
@@ -211,7 +215,7 @@ pub enum Instruction {
         layout: LocalNodeId<Type>,
     },
 
-    // lifecycle
+    // lifecycle (destructor/cleanup)
     /// Call destructor/drop for a value.
     Drop {
         /// The value to drop.

@@ -1,9 +1,9 @@
-use crate::memory::{Heap, HeapHandle, Value};
+use crate::memory::{HeapHandle, ManagedHeap, Value};
 
 /// Garbage collection removes cells not reachable from roots.
 #[test]
 fn test_gc_collects_unreachable() {
-    let mut heap = Heap::new();
+    let mut heap = ManagedHeap::new();
 
     // allocate some cells
     let handle1 = heap.allocate();
@@ -24,7 +24,7 @@ fn test_gc_collects_unreachable() {
 /// Garbage collection preserves all cells directly referenced as roots.
 #[test]
 fn test_gc_preserves_reachable() {
-    let mut heap = Heap::new();
+    let mut heap = ManagedHeap::new();
 
     let handle1 = heap.allocate();
     let handle2 = heap.allocate();
@@ -39,7 +39,7 @@ fn test_gc_preserves_reachable() {
 /// Garbage collection follows reference chains to preserve indirectly reachable cells.
 #[test]
 fn test_gc_follows_references() {
-    let mut heap = Heap::new();
+    let mut heap = ManagedHeap::new();
 
     // create a chain: root -> child1 -> child2
     let child2 = heap.allocate();
@@ -63,7 +63,7 @@ fn test_gc_follows_references() {
 /// Garbage collection correctly handles cyclic reference structures.
 #[test]
 fn test_gc_handles_cycles() {
-    let mut heap = Heap::new();
+    let mut heap = ManagedHeap::new();
 
     // create a cycle: a -> b -> a
     let a = heap.allocate();
@@ -97,7 +97,7 @@ fn test_gc_handles_cycles() {
 /// Garbage collection with no roots removes all heap cells.
 #[test]
 fn test_gc_empty_roots() {
-    let mut heap = Heap::new();
+    let mut heap = ManagedHeap::new();
 
     heap.allocate();
     heap.allocate();
@@ -114,7 +114,7 @@ fn test_gc_empty_roots() {
 /// Garbage collection preserves cells referenced by multiple holders.
 #[test]
 fn test_gc_multiple_references_to_same_cell() {
-    let mut heap = Heap::new();
+    let mut heap = ManagedHeap::new();
 
     let shared = heap.allocate();
     let holder1 = heap.allocate_with_values(vec![Value::ManagedReference(shared)]);
@@ -134,7 +134,7 @@ fn test_gc_multiple_references_to_same_cell() {
 /// Garbage collection traces references nested inside aggregate values.
 #[test]
 fn test_gc_handles_aggregates() {
-    let mut heap = Heap::new();
+    let mut heap = ManagedHeap::new();
 
     let child = heap.allocate();
     // put a reference inside an aggregate value
@@ -157,7 +157,7 @@ fn test_gc_handles_aggregates() {
 /// Garbage collection ignores invalid handles in the roots list.
 #[test]
 fn test_gc_invalid_root_ignored() {
-    let mut heap = Heap::new();
+    let mut heap = ManagedHeap::new();
 
     let valid = heap.allocate();
 
@@ -176,7 +176,7 @@ fn test_gc_invalid_root_ignored() {
 /// Repeated garbage collections correctly remove newly allocated garbage.
 #[test]
 fn test_gc_repeated_collection() {
-    let mut heap = Heap::new();
+    let mut heap = ManagedHeap::new();
 
     let root = heap.allocate();
     let _garbage = heap.allocate();

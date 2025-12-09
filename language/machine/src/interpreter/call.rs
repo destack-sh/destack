@@ -59,7 +59,8 @@ impl Interpreter {
             return Ok(ExecutionOutput {
                 value,
                 statistics: self.statistics.clone(),
-                heap_cells: self.heap.cell_count(),
+                heap_cells: self.managed_heap.cell_count(),
+                raw_heap_cells: self.raw_heap.cell_count(),
             });
         }
 
@@ -122,7 +123,7 @@ impl Interpreter {
                 (
                     block.instructions.clone(),
                     block.terminator.clone(),
-                    frame.instruction_index,
+                    frame.instruction_idx,
                 )
             };
 
@@ -145,7 +146,7 @@ impl Interpreter {
                 if self.call_stack.len() > stack_depth_before {
                     // save where to resume when we return
                     if let Some(caller_frame) = self.call_stack.get_mut(stack_depth_before - 1) {
-                        caller_frame.instruction_index = idx + 1;
+                        caller_frame.instruction_idx = idx + 1;
                     }
                     did_call = true;
                     break;
@@ -163,7 +164,7 @@ impl Interpreter {
                 TerminatorResult::Continue => {
                     // continue to next block (reset instruction index)
                     if let Some(frame) = self.call_stack.last_mut() {
-                        frame.instruction_index = 0;
+                        frame.instruction_idx = 0;
                     }
                 }
                 TerminatorResult::Return(value) => {
@@ -172,7 +173,8 @@ impl Interpreter {
                         return Ok(ExecutionOutput {
                             value,
                             statistics: self.statistics.clone(),
-                            heap_cells: self.heap.cell_count(),
+                            heap_cells: self.managed_heap.cell_count(),
+                            raw_heap_cells: self.raw_heap.cell_count(),
                         });
                     } else {
                         // pop the returning frame and push value to caller
@@ -206,14 +208,14 @@ impl Interpreter {
             }
 
             mir::Terminator::Jump { target, arguments } => {
-                let args = {
+                let arguments = {
                     let frame = self.current_frame()?;
                     arguments
                         .iter()
                         .map(|v| frame.get_value(*v))
                         .collect::<Result<Vec<_>, _>>()?
                 };
-                self.jump_to_block(*target, &args)?;
+                self.jump_to_block(*target, &arguments)?;
                 Ok(TerminatorResult::Continue)
             }
 
@@ -224,24 +226,24 @@ impl Interpreter {
                 else_target,
                 else_arguments,
             } => {
-                let (is_truthy, then_args, else_args) = {
+                let (is_truthy, then_arguments, else_arguments) = {
                     let frame = self.current_frame()?;
                     let cond = frame.get_value(*condition)?;
-                    let then_args: Vec<Value> = then_arguments
+                    let then_arguments: Vec<Value> = then_arguments
                         .iter()
                         .map(|v| frame.get_value(*v))
                         .collect::<Result<_, _>>()?;
-                    let else_args: Vec<Value> = else_arguments
+                    let else_arguments: Vec<Value> = else_arguments
                         .iter()
                         .map(|v| frame.get_value(*v))
                         .collect::<Result<_, _>>()?;
-                    (cond.is_truthy(), then_args, else_args)
+                    (cond.is_truthy(), then_arguments, else_arguments)
                 };
 
                 if is_truthy {
-                    self.jump_to_block(*then_target, &then_args)?;
+                    self.jump_to_block(*then_target, &then_arguments)?;
                 } else {
-                    self.jump_to_block(*else_target, &else_args)?;
+                    self.jump_to_block(*else_target, &else_arguments)?;
                 }
                 Ok(TerminatorResult::Continue)
             }
@@ -252,30 +254,30 @@ impl Interpreter {
                 default_arguments,
                 cases,
             } => {
-                let (target, args) = {
+                let (target, arguments) = {
                     let frame = self.current_frame()?;
-                    let val = frame.get_value(*value)?;
-                    let int_val = val.as_int().unwrap_or(0);
+                    let value = frame.get_value(*value)?;
+                    let int_val = value.as_int().unwrap_or(0);
 
                     cases
                         .iter()
                         .find(|c| c.value == int_val)
                         .map(|c| {
-                            let args: RuntimeResult<Vec<Value>> =
+                            let arguments: RuntimeResult<Vec<Value>> =
                                 c.arguments.iter().map(|v| frame.get_value(*v)).collect();
-                            (c.target, args)
+                            (c.target, arguments)
                         })
                         .unwrap_or_else(|| {
-                            let args: RuntimeResult<Vec<Value>> = default_arguments
+                            let arguments: RuntimeResult<Vec<Value>> = default_arguments
                                 .iter()
                                 .map(|v| frame.get_value(*v))
                                 .collect();
-                            (*default, args)
+                            (*default, arguments)
                         })
                 };
 
-                let args = args?;
-                self.jump_to_block(target, &args)?;
+                let arguments = arguments?;
+                self.jump_to_block(target, &arguments)?;
                 Ok(TerminatorResult::Continue)
             }
 
@@ -287,7 +289,7 @@ impl Interpreter {
     fn jump_to_block(
         &mut self,
         target: mir::LocalNodeId<mir::Block>,
-        args: &[Value],
+        arguments: &[Value],
     ) -> RuntimeResult<()> {
         let block = self.tree.get(target);
         let parameters: Vec<_> = block.parameters.iter().map(|p| p.value).collect();
@@ -299,7 +301,7 @@ impl Interpreter {
 
         // bind block parameters
         for (i, param_value) in parameters.iter().enumerate() {
-            let value = args.get(i).cloned().unwrap_or(Value::Void);
+            let value = arguments.get(i).cloned().unwrap_or(Value::Void);
             frame.set_value(*param_value, value);
         }
 
