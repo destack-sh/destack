@@ -135,8 +135,12 @@ impl DsConfig {
             compiler.lib = parent_compiler.lib.clone();
         }
 
-        // inherit checking options (stricter wins)
+        // inherit strict mode flags (stricter wins)
         compiler.strict = compiler.strict || parent_compiler.strict;
+        compiler.strict_unmanaged = compiler.strict_unmanaged || parent_compiler.strict_unmanaged;
+        compiler.strict_portable = compiler.strict_portable || parent_compiler.strict_portable;
+
+        // inherit TypeScript-compatible checking options (stricter wins)
         compiler.no_implicit_any = compiler.no_implicit_any || parent_compiler.no_implicit_any;
         compiler.strict_null_checks =
             compiler.strict_null_checks || parent_compiler.strict_null_checks;
@@ -165,6 +169,13 @@ impl DsConfig {
             compiler.exact_optional_property_types || parent_compiler.exact_optional_property_types;
         compiler.no_unchecked_indexed_access =
             compiler.no_unchecked_indexed_access || parent_compiler.no_unchecked_indexed_access;
+
+        // inherit Destack-specific checking options (stricter wins)
+        compiler.no_implicit_managed_type =
+            compiler.no_implicit_managed_type || parent_compiler.no_implicit_managed_type;
+        compiler.no_implicit_managed_value =
+            compiler.no_implicit_managed_value || parent_compiler.no_implicit_managed_value;
+        compiler.no_implicit_self = compiler.no_implicit_self || parent_compiler.no_implicit_self;
 
         // inherit emit settings (child overrides if set)
         if compiler.root_dir.is_none() {
@@ -319,11 +330,17 @@ pub struct DsConfigCompilerOptions {
     /// Library files to include (e.g., "es2024", "dom", "worker").
     pub lib: Vec<String>,
 
-    // checking
-    /// Enable all strict type-checking options.
+    // strict mode flags (umbrellas)
+    /// Enable all TypeScript-compatible strict type-checking options.
     pub strict: bool,
-    /// Error on implicit managed `T` (instead of `^T` or `&T` where not provable).
-    pub no_implicit_managed: bool, // nocheckin #Architecture: reorganize check options (strict TS vs strict DS?)
+    /// Enable all Destack ownership/managed-related checks.
+    /// Implies `no_implicit_managed_type` and `no_implicit_managed_value`.
+    pub strict_unmanaged: bool,
+    /// Ensure code works on all targets (js, wasm, native).
+    /// Restricts to intersection of capabilities across all output formats.
+    pub strict_portable: bool,
+
+    // TypeScript-derived checking
     /// Error on implicit `any`.
     pub no_implicit_any: bool,
     /// Strict null checks.
@@ -355,6 +372,14 @@ pub struct DsConfigCompilerOptions {
     /// Add `undefined` to index access.
     pub no_unchecked_indexed_access: bool,
 
+    // Destack-specific checking
+    /// Require `^T` or `&T` in type positions (no implicit managed types).
+    pub no_implicit_managed_type: bool,
+    /// Require explicit copy/borrow at call sites (no implicit managed values).
+    pub no_implicit_managed_value: bool,
+    /// Require explicit `self.` for member access in methods.
+    pub no_implicit_self: bool,
+
     // emit
     /// Root directory of source files (controls output directory structure, not module resolution).
     pub root_dir: Option<PathBuf>,
@@ -382,6 +407,7 @@ impl Default for DsConfigCompilerOptions {
     fn default() -> Self {
         // defaults to strict mode ON (stricter than TypeScript)
         let strict = true;
+        let strict_unmanaged = false; // off by default, opt-in for strict ownership
         Self {
             features: LanguageFeatureSet::all(),
             base_url: None,
@@ -390,9 +416,12 @@ impl Default for DsConfigCompilerOptions {
             target: EsTarget::default(),
             lib: Vec::new(), // derived from target's output format if empty
 
-            // checking
-            strict: true,
-            no_implicit_managed: strict,
+            // strict mode flags
+            strict,
+            strict_unmanaged,
+            strict_portable: false,
+
+            // TypeScript-derived checking
             no_implicit_any: strict,
             strict_null_checks: strict,
             no_implicit_this: strict,
@@ -408,6 +437,11 @@ impl Default for DsConfigCompilerOptions {
             no_fallthrough_cases_in_switch: true,
             exact_optional_property_types: false,
             no_unchecked_indexed_access: false,
+
+            // Destack-specific checking
+            no_implicit_managed_type: strict_unmanaged,
+            no_implicit_managed_value: strict_unmanaged,
+            no_implicit_self: false,
 
             // emit
             root_dir: None,
@@ -434,6 +468,7 @@ impl From<&DsConfigCompilerOptionsJson> for DsConfigCompilerOptions {
         json.apply_features(&mut features);
 
         let strict = json.strict.unwrap_or(true);
+        let strict_unmanaged = json.strict_unmanaged.unwrap_or(false);
         Self {
             features,
             base_url: json.base_url.as_ref().map(PathBuf::from),
@@ -450,9 +485,12 @@ impl From<&DsConfigCompilerOptionsJson> for DsConfigCompilerOptions {
                 .unwrap_or_default(),
             lib: json.lib.clone().unwrap_or_default(),
 
-            // checking
+            // strict mode flags
             strict,
-            no_implicit_managed: json.no_implicit_managed.unwrap_or(false),
+            strict_unmanaged,
+            strict_portable: json.strict_portable.unwrap_or(false),
+
+            // TypeScript-compatible checking
             no_implicit_any: json.no_implicit_any.unwrap_or(strict),
             strict_null_checks: json.strict_null_checks.unwrap_or(strict),
             no_implicit_this: json.no_implicit_this.unwrap_or(strict),
@@ -468,6 +506,15 @@ impl From<&DsConfigCompilerOptionsJson> for DsConfigCompilerOptions {
             no_fallthrough_cases_in_switch: json.no_fallthrough_cases_in_switch.unwrap_or(true),
             exact_optional_property_types: json.exact_optional_property_types.unwrap_or(false),
             no_unchecked_indexed_access: json.no_unchecked_indexed_access.unwrap_or(false),
+
+            // Destack-specific checking
+            no_implicit_managed_type: json
+                .no_implicit_managed_type
+                .unwrap_or(strict_unmanaged),
+            no_implicit_managed_value: json
+                .no_implicit_managed_value
+                .unwrap_or(strict_unmanaged),
+            no_implicit_self: json.no_implicit_self.unwrap_or(false),
 
             // emit
             root_dir: json.root_dir.as_ref().map(PathBuf::from),
@@ -734,7 +781,7 @@ impl From<IndentStyleJson> for IndentStyle {
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
 pub struct DsConfigCompilerOptionsJson {
-    // features
+    // language features
     /// Allow expression-oriented features: implicit returns, `loop`, `defer`, ranges, tuples, patterns.
     pub allow_expressions: Option<bool>,
     /// Allow tree literals: TSX-like syntax generalized for any tree-shaped data.
@@ -764,11 +811,15 @@ pub struct DsConfigCompilerOptionsJson {
     /// Library files to include (e.g., ["es2024", "dom"]).
     pub lib: Option<Vec<String>>,
 
-    // checking
-    /// Enable all strict type-checking options. Default: true for .ds files.
+    // strict mode flags (umbrellas)
+    /// Enable all TypeScript-compatible strict type-checking options. Default: true for .ds files.
     pub strict: Option<bool>,
-    /// Error on implicit managed `T` (instead of `^T` or `&T` where not provable).
-    pub no_implicit_managed: Option<bool>,
+    /// Enable all Destack runtime management-related checks.
+    pub strict_unmanaged: Option<bool>,
+    /// Ensure code works on all targets (js, wasm, native).
+    pub strict_portable: Option<bool>,
+
+    // TypeScript-derived checking
     /// Error on expressions and declarations with implied `any` type.
     pub no_implicit_any: Option<bool>,
     /// Enable strict null checks (`null` and `undefined` are distinct types).
@@ -799,6 +850,14 @@ pub struct DsConfigCompilerOptionsJson {
     pub exact_optional_property_types: Option<bool>,
     /// Add `undefined` to index signature results (safer array access).
     pub no_unchecked_indexed_access: Option<bool>,
+
+    // Destack-specific checking
+    /// Require `^T` or `&T` in type positions (no implicit managed types).
+    pub no_implicit_managed_type: Option<bool>,
+    /// Require explicit copy/borrow at call sites (no implicit managed values).
+    pub no_implicit_managed_value: Option<bool>,
+    /// Require explicit `self.` for member access in methods.
+    pub no_implicit_self: Option<bool>,
 
     // emit
     /// Root directory of source files (controls output directory structure, not module resolution).
