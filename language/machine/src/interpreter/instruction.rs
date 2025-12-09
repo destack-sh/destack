@@ -11,7 +11,7 @@ impl Interpreter {
     /// Execute a single instruction.
     pub(super) fn execute_instruction(
         &mut self,
-        inst_id: mir::LocalNodeId<mir::Instruction>,
+        _inst_id: mir::LocalNodeId<mir::Instruction>,
         instruction: &mir::Instruction,
     ) -> RuntimeResult<()> {
         match instruction {
@@ -126,29 +126,34 @@ impl Interpreter {
                 frame.set_local(*local, val);
             }
 
-            // dest = global variable (NOTE #Incomplete: global get/set)
+            // dest = @global
             mir::Instruction::GlobalGet {
                 destination,
                 global,
             } => {
-                let _ = (destination, global);
-                return Err(self.make_error_at(
-                    Error::UnsupportedInstruction {
-                        name: "global.get".to_string(),
-                    },
-                    inst_id,
-                ));
+                let value = self
+                    .globals
+                    .get(*global)
+                    .cloned()
+                    .ok_or_else(|| self.make_error(Error::UndefinedGlobal { global: *global }))?;
+                let frame = self.current_frame_mut()?;
+                frame.set_value(*destination, value);
             }
 
-            // global variable = value (NOTE #Incomplete: global get/set)
+            // @global = value
             mir::Instruction::GlobalSet { global, value } => {
-                let _ = (global, value);
-                return Err(self.make_error_at(
-                    Error::UnsupportedInstruction {
-                        name: "global.set".to_string(),
-                    },
-                    inst_id,
-                ));
+                let value = {
+                    let frame = self.current_frame()?;
+                    frame.get_value(*value)?
+                };
+
+                // check mutability
+                let global_def = self.tree.get(*global);
+                if !global_def.is_mutable() {
+                    return Err(self.make_error(Error::ImmutableGlobalWrite { global: *global }));
+                }
+
+                self.globals.set(*global, value);
             }
 
             // dest = *pointer
