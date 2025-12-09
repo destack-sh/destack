@@ -39,6 +39,9 @@ pub enum Value {
     /// Stack pointer (frame-scoped allocation).
     StackPointer(StackPointer),
 
+    /// Global pointer (pointer to a global variable).
+    GlobalPointer(mir::LocalNodeId<mir::Global>),
+
     /// Function pointer (for indirect calls).
     FunctionPointer(mir::LocalNodeId<mir::Function>),
 
@@ -133,6 +136,7 @@ impl Value {
             Value::ManagedReference(h) => !h.is_null(),
             Value::RawPointer(p) => !p.is_null(),
             Value::StackPointer(_) => true,
+            Value::GlobalPointer(_) => true,
             Value::FunctionPointer(_) => true,
             Value::Aggregate(_) => true,
         }

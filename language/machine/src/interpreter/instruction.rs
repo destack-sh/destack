@@ -16,7 +16,7 @@ impl Interpreter {
     ) -> RuntimeResult<()> {
         match instruction {
             // dest = constant value
-            mir::Instruction::Constant { destination, value } => {
+            mir::Instruction::Const { destination, value } => {
                 let frame = self.current_frame_mut()?;
                 frame.set_value(*destination, value.into());
             }
@@ -126,8 +126,18 @@ impl Interpreter {
                 frame.set_local(*local, val);
             }
 
-            // dest = @global
-            mir::Instruction::GlobalGet {
+            // dest = &global (get pointer to mutable global)
+            mir::Instruction::GlobalAddr {
+                destination,
+                global,
+            } => {
+                // return a global pointer that can be used with load/store
+                let frame = self.current_frame_mut()?;
+                frame.set_value(*destination, Value::GlobalPointer(*global));
+            }
+
+            // dest = global constant value (load immutable global directly)
+            mir::Instruction::GlobalConst {
                 destination,
                 global,
             } => {
@@ -138,22 +148,6 @@ impl Interpreter {
                     .ok_or_else(|| self.make_error(Error::UndefinedGlobal { global: *global }))?;
                 let frame = self.current_frame_mut()?;
                 frame.set_value(*destination, value);
-            }
-
-            // @global = value
-            mir::Instruction::GlobalSet { global, value } => {
-                let value = {
-                    let frame = self.current_frame()?;
-                    frame.get_value(*value)?
-                };
-
-                // check mutability
-                let global_def = self.tree.get(*global);
-                if !global_def.is_mutable() {
-                    return Err(self.make_error(Error::ImmutableGlobalWrite { global: *global }));
-                }
-
-                self.globals.set(*global, value);
             }
 
             // dest = *pointer
@@ -188,6 +182,11 @@ impl Interpreter {
                         }
                     }
                     Value::StackPointer(sp) => self.load_stack_slot(sp, 0)?,
+                    Value::GlobalPointer(global) => self
+                        .globals
+                        .get(global)
+                        .cloned()
+                        .ok_or_else(|| self.make_error(Error::UndefinedGlobal { global }))?,
                     _ => {
                         return Err(self.make_error(Error::InvalidPointerType {
                             actual: format!("{ptr:?}"),
@@ -239,6 +238,16 @@ impl Interpreter {
                     }
                     Value::StackPointer(sp) => {
                         self.store_stack_slot(sp, 0, val)?;
+                    }
+                    Value::GlobalPointer(global) => {
+                        // check mutability
+                        let global_def = self.tree.get(global);
+                        if !global_def.is_mutable() {
+                            return Err(
+                                self.make_error(Error::ImmutableGlobalWrite { global })
+                            );
+                        }
+                        self.globals.set(global, val);
                     }
                     _ => {
                         return Err(self.make_error(Error::InvalidPointerType {

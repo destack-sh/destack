@@ -426,7 +426,7 @@ impl<'a> FunctionBuilder<'a> {
                 width,
             }
         };
-        self.insert_instruction(Instruction::Constant {
+        self.insert_instruction(Instruction::Const {
             destination,
             value: constant,
         });
@@ -446,7 +446,7 @@ impl<'a> FunctionBuilder<'a> {
     /// Insert a boolean constant.
     pub fn bconst(&mut self, value: bool) -> Value {
         let destination = self.allocate_value();
-        self.insert_instruction(Instruction::Constant {
+        self.insert_instruction(Instruction::Const {
             destination,
             value: Constant::Boolean { value },
         });
@@ -588,19 +588,24 @@ impl<'a> FunctionBuilder<'a> {
         self.insert_instruction(Instruction::LocalSet { local, value });
     }
 
-    /// Load from a global variable.
-    pub fn global_get(&mut self, global: LocalNodeId<Global>) -> Value {
+    /// Get the address of a mutable global variable.
+    pub fn global_addr(&mut self, global: LocalNodeId<Global>) -> Value {
         let destination = self.allocate_value();
-        self.insert_instruction(Instruction::GlobalGet {
+        self.insert_instruction(Instruction::GlobalAddr {
             destination,
             global,
         });
         destination
     }
 
-    /// Store to a global variable.
-    pub fn global_set(&mut self, global: LocalNodeId<Global>, value: Value) {
-        self.insert_instruction(Instruction::GlobalSet { global, value });
+    /// Load the value of an immutable global constant.
+    pub fn global_const(&mut self, global: LocalNodeId<Global>) -> Value {
+        let destination = self.allocate_value();
+        self.insert_instruction(Instruction::GlobalConst {
+            destination,
+            global,
+        });
+        destination
     }
 
     /// Load from a pointer.

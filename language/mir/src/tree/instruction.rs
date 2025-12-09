@@ -16,7 +16,7 @@ use crate::{
 pub enum Instruction {
     // constants
     /// Load a constant value.
-    Constant {
+    Const {
         /// The SSA value to define.
         destination: Value,
         /// The constant value to load.
@@ -74,20 +74,22 @@ pub enum Instruction {
         value: Value,
     },
 
-    // global variables (global.get, global.set)
-    /// Load from a global variable.
-    GlobalGet {
-        /// The SSA value to define with the loaded value.
+    // global variables (global.addr, global.const)
+    /// Get the address of a mutable global variable.
+    /// Returns a raw pointer that can be used with Load/Store.
+    GlobalAddr {
+        /// The SSA value to define with the pointer.
         destination: Value,
-        /// The global variable to load from.
+        /// The global variable to get the address of.
         global: LocalNodeId<Global>,
     },
-    /// Store to a global variable.
-    GlobalSet {
-        /// The global variable to store to.
+    /// Load the value of an immutable global constant.
+    /// Returns the constant value directly.
+    GlobalConst {
+        /// The SSA value to define with the constant value.
+        destination: Value,
+        /// The global constant to load.
         global: LocalNodeId<Global>,
-        /// The value to store.
-        value: Value,
     },
 
     // memory (pointers)
@@ -224,14 +226,14 @@ impl Instruction {
     /// Get the destination value defined by this instruction (if any).
     pub fn destination(&self) -> Option<Value> {
         match self {
-            Instruction::Constant { destination, .. } => Some(*destination),
+            Instruction::Const { destination, .. } => Some(*destination),
             Instruction::Binary { destination, .. } => Some(*destination),
             Instruction::Unary { destination, .. } => Some(*destination),
             Instruction::Cast { destination, .. } => Some(*destination),
             Instruction::LocalGet { destination, .. } => Some(*destination),
             Instruction::LocalSet { .. } => None,
-            Instruction::GlobalGet { destination, .. } => Some(*destination),
-            Instruction::GlobalSet { .. } => None,
+            Instruction::GlobalAddr { destination, .. } => Some(*destination),
+            Instruction::GlobalConst { destination, .. } => Some(*destination),
             Instruction::Load { destination, .. } => Some(*destination),
             Instruction::Store { .. } => None,
             Instruction::FieldGet { destination, .. } => Some(*destination),
@@ -251,14 +253,14 @@ impl Instruction {
     /// Get all values used by this instruction.
     pub fn uses(&self) -> SmallVec<[Value; 4]> {
         match self {
-            Instruction::Constant { .. } => smallvec![],
+            Instruction::Const { .. } => smallvec![],
             Instruction::Binary { left, right, .. } => smallvec![*left, *right],
             Instruction::Unary { argument, .. } => smallvec![*argument],
             Instruction::Cast { argument, .. } => smallvec![*argument],
             Instruction::LocalGet { .. } => smallvec![],
             Instruction::LocalSet { value, .. } => smallvec![*value],
-            Instruction::GlobalGet { .. } => smallvec![],
-            Instruction::GlobalSet { value, .. } => smallvec![*value],
+            Instruction::GlobalAddr { .. } => smallvec![],
+            Instruction::GlobalConst { .. } => smallvec![],
             Instruction::Load { pointer, .. } => smallvec![*pointer],
             Instruction::Store { pointer, value, .. } => smallvec![*pointer, *value],
             Instruction::FieldGet { aggregate, .. } => smallvec![*aggregate],

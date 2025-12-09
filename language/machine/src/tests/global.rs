@@ -10,7 +10,7 @@ global @value: i32 = 42i32 ; const
 
 function @read() -> i32 {
 block0:
-    v0 = global.get @value
+    v0 = global.const @value
     return v0
 }
 "#;
@@ -25,18 +25,19 @@ global @counter: i32 = 0i32 ; var
 
 function @increment() -> i32 {
 block0:
-    v0 = global.get @counter
-    v1 = iconst 1i32
-    v2 = iadd v0, v1
-    global.set @counter, v2
-    v3 = global.get @counter
-    return v3
+    v0 = global.addr @counter
+    v1 = load v0
+    v2 = iconst 1i32
+    v3 = iadd v1, v2
+    store v0, v3
+    v4 = load v0
+    return v4
 }
 "#;
     run_mir_expect(mir, "increment", &[], Value::int32(1));
 }
 
-/// Writing to immutable global produces an error.
+/// Writing to immutable global via pointer produces an error.
 #[test]
 fn test_global_immutable_write() {
     let mir = r#"
@@ -44,8 +45,9 @@ global @CONST: i32 = 42i32 ; const
 
 function @bad_write() -> void {
 block0:
-    v0 = iconst 99i32
-    global.set @CONST, v0
+    v0 = global.addr @CONST
+    v1 = iconst 99i32
+    store v0, v1
     return
 }
 "#;
@@ -63,17 +65,19 @@ global @counter: i32 = 0i32 ; var
 
 function @inc() -> void {
 block0:
-    v0 = global.get @counter
-    v1 = iconst 1i32
-    v2 = iadd v0, v1
-    global.set @counter, v2
+    v0 = global.addr @counter
+    v1 = load v0
+    v2 = iconst 1i32
+    v3 = iadd v1, v2
+    store v0, v3
     return
 }
 
 function @get() -> i32 {
 block0:
-    v0 = global.get @counter
-    return v0
+    v0 = global.addr @counter
+    v1 = load v0
+    return v1
 }
 
 function @main() -> i32 {
@@ -96,8 +100,9 @@ global @data: i32 = zeroinit ; var
 
 function @read() -> i32 {
 block0:
-    v0 = global.get @data
-    return v0
+    v0 = global.addr @data
+    v1 = load v0
+    return v1
 }
 "#;
     run_mir_expect(mir, "read", &[], Value::int32(0));
@@ -111,8 +116,9 @@ global @data: f64 = zeroinit ; var
 
 function @read() -> f64 {
 block0:
-    v0 = global.get @data
-    return v0
+    v0 = global.addr @data
+    v1 = load v0
+    return v1
 }
 "#;
     run_mir_expect(mir, "read", &[], Value::float64(0.0));
@@ -126,8 +132,9 @@ global @flag: bool = zeroinit ; var
 
 function @read() -> bool {
 block0:
-    v0 = global.get @flag
-    return v0
+    v0 = global.addr @flag
+    v1 = load v0
+    return v1
 }
 "#;
     run_mir_expect(mir, "read", &[], Value::Bool(false));
@@ -141,7 +148,7 @@ global @pair: (i32, i32) = {10i32, 20i32} ; const
 
 function @get_second() -> i32 {
 block0:
-    v0 = global.get @pair
+    v0 = global.const @pair
     v1 = field.get v0, 1
     return v1
 }
@@ -159,12 +166,13 @@ global @c: i32 = 30i32 ; var
 
 function @sum() -> i32 {
 block0:
-    v0 = global.get @a
-    v1 = global.get @b
-    v2 = global.get @c
-    v3 = iadd v0, v1
-    v4 = iadd v3, v2
-    return v4
+    v0 = global.const @a
+    v1 = global.const @b
+    v2 = global.addr @c
+    v3 = load v2
+    v4 = iadd v0, v1
+    v5 = iadd v4, v3
+    return v5
 }
 "#;
     run_mir_expect(mir, "sum", &[], Value::int32(60));
@@ -178,14 +186,15 @@ global @value: i32 = 0i32 ; var
 
 function @test() -> i32 {
 block0:
-    v0 = iconst 10i32
-    global.set @value, v0
-    v1 = iconst 20i32
-    global.set @value, v1
-    v2 = iconst 30i32
-    global.set @value, v2
-    v3 = global.get @value
-    return v3
+    v0 = global.addr @value
+    v1 = iconst 10i32
+    store v0, v1
+    v2 = iconst 20i32
+    store v0, v2
+    v3 = iconst 30i32
+    store v0, v3
+    v4 = load v0
+    return v4
 }
 "#;
     run_mir_expect(mir, "test", &[], Value::int32(30));
@@ -199,7 +208,7 @@ global @neg: i32 = -42i32 ; const
 
 function @read() -> i32 {
 block0:
-    v0 = global.get @neg
+    v0 = global.const @neg
     return v0
 }
 "#;
@@ -214,7 +223,7 @@ global @pi: f64 = 3.14159f64 ; const
 
 function @read() -> f64 {
 block0:
-    v0 = global.get @pi
+    v0 = global.const @pi
     return v0
 }
 "#;
@@ -234,11 +243,12 @@ global @flag: bool = true ; var
 
 function @toggle() -> bool {
 block0:
-    v0 = global.get @flag
-    v1 = bnot v0
-    global.set @flag, v1
-    v2 = global.get @flag
-    return v2
+    v0 = global.addr @flag
+    v1 = load v0
+    v2 = bnot v1
+    store v0, v2
+    v3 = load v0
+    return v3
 }
 "#;
     run_mir_expect(mir, "toggle", &[], Value::Bool(false));
