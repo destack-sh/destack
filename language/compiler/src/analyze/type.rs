@@ -1,8 +1,8 @@
 use crate::{AnalyzeResult, Compiler};
 use destack_dir::{
     BinaryOperator, Expression, GlobalSymbolId, IntType, LocalNodeId, LocalTypeId, Mutability,
-    PrimitiveType, ScalarLiteral, Type, TypeField, TypeLiteral, TypeTable, UnaryOperator,
-    VarianceBound,
+    PrimitiveType, ScalarLiteral, StaticKey, Type, TypeField, TypeLiteral, TypeTable,
+    UnaryOperator, VarianceBound,
 };
 use destack_workspace::Module;
 
@@ -391,6 +391,78 @@ impl Compiler {
     ) -> Type {
         // NOTE #Incomplete: resolve reference of operation type
         right.clone()
+    }
+
+    /// Infer the type of a member field on a type by key.
+    pub(super) fn infer_member_type(
+        &self,
+        receiver_ty: &Type,
+        member_key: &StaticKey,
+        types: &mut TypeTable,
+    ) -> Option<LocalTypeId> {
+        match receiver_ty {
+            // object type: look up field directly
+            Type::Object { fields } => fields.iter().find(|f| &f.key == member_key).map(|f| f.ty),
+
+            // reference to a nominal type: look up in the declaration's instance type
+            Type::Reference {
+                symbol,
+                static_arguments: None,
+            } => {
+                // for structs and classes, the instance type contains the fields
+                if let Some(ty_id) = types.get_instance_type_id(*symbol) {
+                    let ty = types.get_type(ty_id).clone();
+                    self.infer_member_type(&ty, member_key, types)
+                } else {
+                    None
+                }
+            }
+
+            // union type: require all elements to have the field, return union of field types
+            Type::Union { elements } => {
+                let elem_ids = elements.clone();
+                let mut field_types: Vec<LocalTypeId> = Vec::new();
+                for elem_id in elem_ids {
+                    let elem_ty = types.get_type(elem_id).clone();
+                    if let Some(field_ty) = self.infer_member_type(&elem_ty, member_key, types) {
+                        field_types.push(field_ty);
+                    } else {
+                        return None;
+                    }
+                }
+                // if all field types are the same, return that type
+                // otherwise, return a union of the field types
+                if field_types.is_empty() {
+                    None
+                } else if field_types.len() == 1 {
+                    Some(field_types[0])
+                } else {
+                    // check if all types are identical
+                    let first = field_types[0];
+                    if field_types.iter().all(|&t| t == first) {
+                        Some(first)
+                    } else {
+                        Some(types.insert_type(Type::Union {
+                            elements: field_types,
+                        }))
+                    }
+                }
+            }
+
+            // intersection type: first match wins
+            Type::Intersection { elements } => {
+                let elem_ids = elements.clone();
+                for elem_id in elem_ids {
+                    let elem_ty = types.get_type(elem_id).clone();
+                    if let Some(field_ty) = self.infer_member_type(&elem_ty, member_key, types) {
+                        return Some(field_ty);
+                    }
+                }
+                None
+            }
+
+            _ => None,
+        }
     }
 
     /// Resolve a remote symbol's value type by ensuring its module is analyzed

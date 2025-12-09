@@ -1,4 +1,6 @@
-use destack_dir::{FunctionAbstraction, GlobalNodeIdAny, GlobalSymbolId, GlobalTypeId, Visibility};
+use destack_dir::{
+    FunctionAbstraction, GlobalNodeIdAny, GlobalSymbolId, GlobalTypeId, StaticKey, Visibility,
+};
 use destack_workspace::Program;
 
 use crate::{DiagnosticAnchor, TaskDependency, TaskDependencyError, TaskError, TaskPhase};
@@ -76,6 +78,14 @@ pub enum AnalyzeError {
         ty: GlobalTypeId,
         ty_str: String,
     },
+    /// Missing member on type.
+    MissingMember {
+        node: GlobalNodeIdAny,
+        receiver_ty: GlobalTypeId,
+        receiver_ty_str: String,
+        member_key: StaticKey,
+        member_key_str: String,
+    },
 }
 
 impl From<TaskDependencyError> for AnalyzeError {
@@ -123,6 +133,7 @@ impl AnalyzeError {
             Self::NoOverload { .. } => 15,
             Self::AmbiguousOverload { .. } => 16,
             Self::UnsupportedOperator { .. } => 17,
+            Self::MissingMember { .. } => 18,
         }
     }
 
@@ -147,6 +158,7 @@ impl AnalyzeError {
             Self::NoOverload { node, .. } => DiagnosticAnchor::Node(*node),
             Self::AmbiguousOverload { node, .. } => DiagnosticAnchor::Node(*node),
             Self::UnsupportedOperator { node, .. } => DiagnosticAnchor::Node(*node),
+            Self::MissingMember { node, .. } => DiagnosticAnchor::Node(*node),
         }
     }
 
@@ -190,6 +202,13 @@ impl AnalyzeError {
             Self::AmbiguousOverload { .. } => "ambiguous overload".to_string(),
             Self::UnsupportedOperator { ty_str, .. } => {
                 format!("unsupported operator for type {ty_str}")
+            }
+            Self::MissingMember {
+                receiver_ty_str,
+                member_key_str,
+                ..
+            } => {
+                format!("member '{member_key_str}' does not exist on type {receiver_ty_str}")
             }
         }
     }

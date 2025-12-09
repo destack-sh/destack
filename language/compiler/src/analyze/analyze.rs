@@ -1,9 +1,10 @@
 use crate::{AnalyzeError, AnalyzeResult, Assignability, Compiler, TypeContext};
 use destack_dir::{
-    Argument, Block, Declaration, DependencyItem, EnumField, Expression, FunctionSignature,
-    Generics, GlobalSymbolId, GlobalTypeId, Heritage, LocalNodeId, LocalNodeIdAny, LocalTypeId,
-    MatchCase, NodeTree, Parameter, Pattern, PatternField, PrimitiveType, Property, SymbolTable,
-    Type, TypeKind, TypeLiteral, TypeTable, WhereClause,
+    Argument, Block, Declaration, DependencyItem, DynamicKey, EnumField, Expression,
+    FunctionSignature, Generics, GlobalSymbolId, GlobalTypeId, Heritage, LocalNodeId,
+    LocalNodeIdAny, LocalTypeId, MatchCase, NodeTree, Parameter, Pattern, PatternField,
+    PrimitiveType, Property, StaticKey, SymbolTable, Type, TypeField, TypeKind, TypeLiteral,
+    TypeTable, WhereClause,
 };
 use destack_workspace::Module;
 
@@ -375,13 +376,15 @@ impl Compiler {
 
             // object expression -> object type
             Expression::ObjectExpression { properties } => {
+                let mut fields = Vec::new();
                 for property_id in properties {
-                    self.analyze_property(module, *property_id, tree, symbols, types, ctx)?;
+                    if let Some(field) =
+                        self.analyze_property(module, *property_id, tree, symbols, types, ctx)?
+                    {
+                        fields.push(field);
+                    }
                 }
-                // NOTE #Incomplete: construct proper object type from properties
-                let ty = Type::TypeLiteral {
-                    value: TypeLiteral::Unknown,
-                };
+                let ty = Type::Object { fields };
                 types.insert_type_from(ty, expression_id)
             }
 
@@ -465,16 +468,31 @@ impl Compiler {
             // member access -> member type
             Expression::Member {
                 left,
-                name: _,
+                name,
                 static_arguments: _,
             } => {
-                let _left_ty_id =
+                let left_ty_id =
                     self.analyze_expression(module, *left, tree, symbols, types, ctx)?;
-                // NOTE #Incomplete: look up member type from left type
-                let ty = Type::TypeLiteral {
-                    value: TypeLiteral::Unknown,
-                };
-                types.insert_type_from(ty, expression_id)
+                let left_ty = types.get_type(left_ty_id).clone();
+
+                // look up member type on the left type
+                let member_key = StaticKey::Name(*name);
+                if let Some(member_ty_id) = self.infer_member_type(&left_ty, &member_key, types) {
+                    member_ty_id
+                } else {
+                    // member not found, report error and continue with unknown type
+                    self.error(AnalyzeError::MissingMember {
+                        node: expression_id.into_global_any(module.id),
+                        receiver_ty: left_ty_id.into_global(module.id),
+                        receiver_ty_str: self.format_local_type(left_ty_id, types),
+                        member_key,
+                        member_key_str: self.format_static_key(&member_key),
+                    });
+                    let ty = Type::TypeLiteral {
+                        value: TypeLiteral::Unknown,
+                    };
+                    types.insert_type_from(ty, expression_id)
+                }
             }
 
             // index -> element type
@@ -1156,7 +1174,7 @@ impl Compiler {
         Ok(())
     }
 
-    /// Analyze a property.
+    /// Analyze a property and return its TypeField if it has a static key.
     fn analyze_property(
         &self,
         module: &Module,
@@ -1165,27 +1183,74 @@ impl Compiler {
         symbols: &SymbolTable,
         types: &mut TypeTable,
         ctx: &mut TypeContext,
-    ) -> AnalyzeResult<()> {
+    ) -> AnalyzeResult<Option<TypeField>> {
         let property = tree.get(property_id);
         match property {
-            Property::Field { value, default, .. } => {
-                if let Some(value) = value {
-                    self.analyze_expression(module, *value, tree, symbols, types, ctx)?;
-                }
+            Property::Field {
+                modifiers,
+                key,
+                value,
+                default,
+                symbol: _,
+            } => {
+                // extract the static key from the dynamic key
+                let static_key = key.and_then(|k| match k {
+                    DynamicKey::Name(name) => Some(StaticKey::Name(name)),
+                    // dynamic keys can't be used for static type inference
+                    DynamicKey::Expression(_) | DynamicKey::NamedExpression { .. } => None,
+                });
+
+                // infer the value type
+                let value_ty_id = if let Some(value) = value {
+                    self.analyze_expression(module, *value, tree, symbols, types, ctx)?
+                } else {
+                    // no value, return unknown type
+                    let ty = Type::TypeLiteral {
+                        value: TypeLiteral::Unknown,
+                    };
+                    types.insert_type(ty)
+                };
+
+                // analyze default if present
                 if let Some(default) = default {
                     self.analyze_expression(module, *default, tree, symbols, types, ctx)?;
                 }
+
+                // check if the field is optional
+                let is_optional = modifiers
+                    .as_ref()
+                    .is_some_and(|m| matches!(m.kind, Some(destack_dir::BindingKind::Maybe)));
+
+                // check if the field is readonly
+                let is_readonly = modifiers.as_ref().is_some_and(|m| {
+                    matches!(m.mutability, Some(destack_dir::Mutability::Immutable))
+                });
+
+                // only return a field if we have a static key
+                if let Some(key) = static_key {
+                    Ok(Some(TypeField {
+                        key,
+                        ty: value_ty_id,
+                        is_optional,
+                        is_readonly,
+                    }))
+                } else {
+                    Ok(None)
+                }
             }
             Property::Method { body, .. } => {
+                // NOTE #Incomplete: infer method type
                 if let Some(body) = body {
                     self.analyze_expression(module, *body, tree, symbols, types, ctx)?;
                 }
+                Ok(None)
             }
             Property::Spread { value, .. } => {
+                // NOTE #Incomplete: expand spread type into object type
                 self.analyze_expression(module, *value, tree, symbols, types, ctx)?;
+                Ok(None)
             }
         }
-        Ok(())
     }
 
     /// Analyze generics.

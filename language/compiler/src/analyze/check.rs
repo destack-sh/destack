@@ -332,7 +332,10 @@ impl Compiler {
             // boolean
             (ScalarLiteral::Boolean(_), PrimitiveType::Boolean) => true,
             // string (including regex strings)
-            (ScalarLiteral::String(_) | ScalarLiteral::RegexString { .. }, PrimitiveType::String) => true,
+            (
+                ScalarLiteral::String(_) | ScalarLiteral::RegexString { .. },
+                PrimitiveType::String,
+            ) => true,
             // integer and float to number (JavaScript style)
             (ScalarLiteral::Integer(_) | ScalarLiteral::Float(_), PrimitiveType::Number) => true,
             // integer literal to specific int type: check range
@@ -1089,5 +1092,59 @@ let x: number = getNumber();
                 .check_is_type_assignable(int8_ty, literal_ty, &types),
             Assignability::NotAssignable
         );
+    }
+
+    /// Resolve member access on object literal to field type.
+    /// NOTE: uses (obj).x syntax to force Expression::Member instead of Path.
+    #[test]
+    fn test_member_access_object_field() {
+        let test = TestProgram::memory_sequential();
+        let module_id = test.register_module(
+            "test.ds",
+            r#"
+let obj = { x: 42, y: "hello" };
+let a = (obj).x;
+let b = (obj).y;
+"#,
+        );
+        test.analyze_module(module_id);
+        test.compile();
+        test.check_clean();
+    }
+
+    /// Resolve member access across multiple fields.
+    /// NOTE: uses (obj).x syntax to force Expression::Member.
+    #[test]
+    fn test_member_access_multiple_fields() {
+        let test = TestProgram::memory_sequential();
+        let module_id = test.register_module(
+            "test.ds",
+            r#"
+let obj = { x: 42, y: "hello", z: true };
+let a = (obj).x;
+let b = (obj).y;
+let c = (obj).z;
+"#,
+        );
+        test.analyze_module(module_id);
+        test.compile();
+        test.check_clean();
+    }
+
+    /// Resolve chained member access on nested objects.
+    /// NOTE: uses parentheses to force Expression::Member.
+    #[test]
+    fn test_member_access_chained() {
+        let test = TestProgram::memory_sequential();
+        let module_id = test.register_module(
+            "test.ds",
+            r#"
+let obj = { inner: { value: 42 } };
+let a = ((obj).inner).value;
+"#,
+        );
+        test.analyze_module(module_id);
+        test.compile();
+        test.check_clean();
     }
 }
