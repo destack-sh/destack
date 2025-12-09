@@ -276,7 +276,7 @@ impl<'a> FunctionLowerer<'a> {
         match instruction {
             // constants: type is embedded in the constant, but we don't have a Type node
             // (we'll handle this specially when lowering instructions)
-            mir::Instruction::Constant { .. } => None,
+            mir::Instruction::Const { .. } => None,
 
             // binary: result type = operand type (for arithmetic), or bool (for comparisons)
             mir::Instruction::Binary {
@@ -318,17 +318,17 @@ impl<'a> FunctionLowerer<'a> {
             // local_set: no result
             mir::Instruction::LocalSet { .. } => None,
 
-            // global_get: result type = global's type
-            mir::Instruction::GlobalGet {
+            // global_addr: result type = pointer (but we don't track pointer types here)
+            mir::Instruction::GlobalAddr { .. } => None,
+
+            // global_const: result type = global's type
+            mir::Instruction::GlobalConst {
                 destination,
                 global,
             } => {
                 let global_data = self.tree.get(*global);
                 Some((*destination, global_data.ty))
             }
-
-            // global_set: no result
-            mir::Instruction::GlobalSet { .. } => None,
 
             // load: result type = pointee of pointer
             mir::Instruction::Load {
@@ -571,8 +571,8 @@ impl<'a> FunctionLowerer<'a> {
     ) -> CodegenCraneliftResult<()> {
         let instruction = self.tree.get(instruction_id);
         match instruction {
-            // constant -> iconst/fconst (type-specific immediate load)
-            mir::Instruction::Constant { destination, value } => {
+            // const -> iconst/fconst (type-specific immediate load)
+            mir::Instruction::Const { destination, value } => {
                 let result = self.lower_constant(instruction_id.into_any(), value, builder)?;
                 value_map.insert(*destination, result);
             }
@@ -630,18 +630,18 @@ impl<'a> FunctionLowerer<'a> {
                 builder.ins().stack_store(store_value, slot, 0);
             }
 
-            // global_get -> symbol_value + load (not yet implemented)
-            mir::Instruction::GlobalGet { .. } => {
+            // global_addr -> symbol_value (get address of global)
+            mir::Instruction::GlobalAddr { .. } => {
                 return Err(CodegenCraneliftError::unsupported_instruction(
-                    "GlobalGet not yet implemented",
+                    "GlobalAddr not yet implemented",
                     instruction_id.into_any(),
                 ));
             }
 
-            // global_set -> symbol_value + store (not yet implemented)
-            mir::Instruction::GlobalSet { .. } => {
+            // global_const -> load constant value from global (for immutable globals)
+            mir::Instruction::GlobalConst { .. } => {
                 return Err(CodegenCraneliftError::unsupported_instruction(
-                    "GlobalSet not yet implemented",
+                    "GlobalConst not yet implemented",
                     instruction_id.into_any(),
                 ));
             }
