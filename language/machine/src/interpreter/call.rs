@@ -352,7 +352,7 @@ impl Interpreter {
             .entry
             .ok_or_else(|| self.make_error(Error::UndefinedFunction { function }))?;
 
-        // store where to put the return value on the CALLER's frame
+        // store where to put the return value on the *caller*'s frame
         if let Some(caller_frame) = self.call_stack.last_mut() {
             caller_frame.return_destination = destination;
         }

@@ -164,7 +164,11 @@ impl Interpreter {
                         }
                     }
                     Value::StackPointer(sp) => self.load_stack_slot(sp, 0)?,
-                    _ => ptr, // nocheckin TODO #Suspicious: isn't this a bug?
+                    _ => {
+                        return Err(self.make_error(Error::InvalidPointerType {
+                            actual: format!("{:?}", ptr),
+                        }))
+                    }
                 };
 
                 let frame = self.current_frame_mut()?;
@@ -205,7 +209,11 @@ impl Interpreter {
                     Value::StackPointer(sp) => {
                         self.store_stack_slot(sp, 0, val)?;
                     }
-                    _ => {} // nocheckin TODO #Suspicious: isn't this a bug?
+                    _ => {
+                        return Err(self.make_error(Error::InvalidPointerType {
+                            actual: format!("{:?}", ptr),
+                        }))
+                    }
                 }
             }
 
