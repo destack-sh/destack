@@ -576,7 +576,7 @@ impl<'a> Parser<'a> {
             // constant
             "iconst" => {
                 let value = self.parse_constant()?;
-                Instruction::Constant { destination, value }
+                Instruction::Const { destination, value }
             }
 
             // binary ops
@@ -625,9 +625,16 @@ impl<'a> Parser<'a> {
             }
 
             // global operations
-            "global.get" => {
+            "global.addr" => {
                 let global = self.parse_global_reference()?;
-                Instruction::GlobalGet {
+                Instruction::GlobalAddr {
+                    destination,
+                    global,
+                }
+            }
+            "global.const" => {
+                let global = self.parse_global_reference()?;
+                Instruction::GlobalConst {
                     destination,
                     global,
                 }
@@ -766,14 +773,6 @@ impl<'a> Parser<'a> {
                 self.eat_token(TokenType::Comma)?;
                 let value = self.parse_value()?;
                 Instruction::LocalSet { local, value }
-            }
-
-            // global operations
-            "global.set" => {
-                let global = self.parse_global_reference()?;
-                self.eat_token(TokenType::Comma)?;
-                let value = self.parse_value()?;
-                Instruction::GlobalSet { global, value }
             }
 
             // memory operations

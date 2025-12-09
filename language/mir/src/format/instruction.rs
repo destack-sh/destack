@@ -13,7 +13,7 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
         f: &mut MirFormatter<'a, '_>,
     ) -> FormatResult<()> {
         match self {
-            Instruction::Constant { destination, value } => {
+            Instruction::Const { destination, value } => {
                 write!(
                     f,
                     [
@@ -125,7 +125,7 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                 )
             }
 
-            Instruction::GlobalGet {
+            Instruction::GlobalAddr {
                 destination,
                 global,
             } => {
@@ -136,17 +136,29 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                         space(),
                         token("="),
                         space(),
-                        token("global.get"),
+                        token("global.addr"),
                         space()
                     ]
                 )?;
                 format_global_reference(*global, f)
             }
 
-            Instruction::GlobalSet { global, value } => {
-                write!(f, [token("global.set"), space()])?;
-                format_global_reference(*global, f)?;
-                write!(f, [token(","), space(), value])
+            Instruction::GlobalConst {
+                destination,
+                global,
+            } => {
+                write!(
+                    f,
+                    [
+                        destination,
+                        space(),
+                        token("="),
+                        space(),
+                        token("global.const"),
+                        space()
+                    ]
+                )?;
+                format_global_reference(*global, f)
             }
 
             Instruction::Load {

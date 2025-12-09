@@ -251,7 +251,7 @@ impl<'a> Dumper<'a> {
         self.write_indent();
 
         match inst {
-            Instruction::Constant { destination, value } => {
+            Instruction::Const { destination, value } => {
                 self.write_colored(&self.format_value(*destination), Color::Green);
                 self.write(" = const ");
                 self.write_colored(&self.format_constant(value), Color::Yellow);
@@ -312,20 +312,22 @@ impl<'a> Dumper<'a> {
                 self.write(&self.format_value(*value));
             }
 
-            Instruction::GlobalGet {
+            Instruction::GlobalAddr {
                 destination,
                 global,
             } => {
                 self.write_colored(&self.format_value(*destination), Color::Green);
-                self.write(" = global.get ");
+                self.write(" = global.addr ");
                 self.write(&self.format_global_id(*global));
             }
 
-            Instruction::GlobalSet { global, value } => {
-                self.write("global.set ");
+            Instruction::GlobalConst {
+                destination,
+                global,
+            } => {
+                self.write_colored(&self.format_value(*destination), Color::Green);
+                self.write(" = global.const ");
                 self.write(&self.format_global_id(*global));
-                self.write(", ");
-                self.write(&self.format_value(*value));
             }
 
             Instruction::Load {

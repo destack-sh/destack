@@ -184,7 +184,7 @@ block0:
     assert_eq!(output, expected);
 }
 
-/// Module with global variable.
+/// Module with mutable global variable.
 #[test]
 fn test_format_global_variable() {
     // setup
@@ -195,14 +195,15 @@ fn test_format_global_variable() {
     // create a mutable global
     let counter = module.global_variable("counter", i32_type, GlobalInitializer::zero());
 
-    // build function that increments the global
+    // build function that increments the global via pointer
     let mut builder = module.function("increment", &[], void_type);
     let entry_block = builder.create_block();
     builder.switch_to_block(entry_block);
-    let value = builder.global_get(counter);
+    let ptr = builder.global_addr(counter);
+    let value = builder.load(ptr);
     let one = builder.iconst_i32(1);
     let new_value = builder.iadd(value, one);
-    builder.global_set(counter, new_value);
+    builder.store(ptr, new_value);
     builder.return_(None);
     builder.seal_block(entry_block);
     builder.finish();
@@ -214,10 +215,11 @@ fn test_format_global_variable() {
 global @counter: i32 = zeroinit ; var
 function @increment() -> void {
 block0:
-    v0 = global.get @counter
-    v1 = iconst 1i32
-    v2 = iadd v0, v1
-    global.set @counter, v2
+    v0 = global.addr @counter
+    v1 = load v0
+    v2 = iconst 1i32
+    v3 = iadd v1, v2
+    store v0, v3
     return
 }";
     assert_eq!(output, expected);
@@ -242,7 +244,7 @@ fn test_format_global_constant() {
     let mut builder = module.function("get_magic", &[], i64_type);
     let entry_block = builder.create_block();
     builder.switch_to_block(entry_block);
-    let value = builder.global_get(magic);
+    let value = builder.global_const(magic);
     builder.return_(Some(value));
     builder.seal_block(entry_block);
     builder.finish();
@@ -254,7 +256,7 @@ fn test_format_global_constant() {
 global @MAGIC: i64 = 42i64 ; const
 function @get_magic() -> i64 {
 block0:
-    v0 = global.get @MAGIC
+    v0 = global.const @MAGIC
     return v0
 }";
     assert_eq!(output, expected);
