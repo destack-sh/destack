@@ -172,15 +172,32 @@
             "null"
           ]
         },
+        "lib": {
+          "description": "Library files to include (e.g., [\"es2024\", \"dom\"]).",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
         "strict": {
-          "description": "Enable all strict type-checking options. Default: true for .ds files.",
+          "description": "Enable all TypeScript-compatible strict type-checking options. Default: true for .ds files.",
           "type": [
             "boolean",
             "null"
           ]
         },
-        "noImplicitManaged": {
-          "description": "Error on implicit managed `T` (instead of `^T` or `&T` where not provable).",
+        "strictUnmanaged": {
+          "description": "Enable all Destack runtime management-related checks.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "strictPortable": {
+          "description": "Ensure code works on all targets (js, wasm, native).",
           "type": [
             "boolean",
             "null"
@@ -286,6 +303,27 @@
         },
         "noUncheckedIndexedAccess": {
           "description": "Add `undefined` to index signature results (safer array access).",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "noImplicitManagedType": {
+          "description": "Require `^T` or `&T` in type positions (no implicit managed types).",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "noImplicitManagedValue": {
+          "description": "Require explicit copy/borrow at call sites (no implicit managed values).",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "noImplicitSelf": {
+          "description": "Require explicit `self.` for member access in methods.",
           "type": [
             "boolean",
             "null"
@@ -581,6 +619,16 @@
             "string",
             "null"
           ]
+        },
+        "lib": {
+          "description": "Library files for this target (overrides compilerOptions.lib).",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
         },
         "debug": {
           "description": "Whether this is a debug build.",
