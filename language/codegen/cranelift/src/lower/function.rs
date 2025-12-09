@@ -233,14 +233,14 @@ impl<'a> FunctionLowerer<'a> {
     ) {
         match instruction {
             // stack_allocate produces rawptr<layout>
-            mir::Instruction::StackAllocate {
+            mir::Instruction::StackAlloc {
                 destination,
                 layout,
             } => {
                 pointer_pointee_map.insert(*destination, *layout);
             }
             // raw_allocate produces rawptr<layout>
-            mir::Instruction::RawAllocate {
+            mir::Instruction::RawAlloc {
                 destination,
                 layout,
                 ..
@@ -248,13 +248,13 @@ impl<'a> FunctionLowerer<'a> {
                 pointer_pointee_map.insert(*destination, *layout);
             }
             // managed_allocate produces managed ref to layout
-            mir::Instruction::ManagedAllocate {
+            mir::Instruction::ManagedAlloc {
                 destination,
                 layout,
             } => {
                 pointer_pointee_map.insert(*destination, *layout);
             }
-            mir::Instruction::ManagedAllocateArray {
+            mir::Instruction::ManagedAllocArray {
                 destination,
                 element,
                 ..
@@ -355,7 +355,7 @@ impl<'a> FunctionLowerer<'a> {
             mir::Instruction::Store { .. } => None,
 
             // extract_field: type is the field's type
-            mir::Instruction::ExtractField {
+            mir::Instruction::FieldGet {
                 destination,
                 aggregate,
                 index,
@@ -381,14 +381,14 @@ impl<'a> FunctionLowerer<'a> {
             }
 
             // insert_field: result type = aggregate type
-            mir::Instruction::InsertField {
+            mir::Instruction::FieldSet {
                 destination,
                 aggregate,
                 ..
             } => type_map.get(aggregate).map(|ty| (*destination, *ty)),
 
             // extract_element: type is array element type
-            mir::Instruction::ExtractElement {
+            mir::Instruction::ElementGet {
                 destination, array, ..
             } => {
                 if let Some(array_type_id) = type_map.get(array) {
@@ -401,7 +401,7 @@ impl<'a> FunctionLowerer<'a> {
             }
 
             // insert_element: result type = array type
-            mir::Instruction::InsertElement {
+            mir::Instruction::ElementSet {
                 destination, array, ..
             } => type_map.get(array).map(|ty| (*destination, *ty)),
 
@@ -437,18 +437,17 @@ impl<'a> FunctionLowerer<'a> {
             }
 
             // stack_allocate: result type is rawptr<layout>
-            mir::Instruction::StackAllocate { .. } => None,
+            mir::Instruction::StackAlloc { .. } => None,
 
             // managed_allocate: result type is managed reference
-            mir::Instruction::ManagedAllocate { .. } => None,
-            mir::Instruction::ManagedAllocateArray { .. } => None,
+            mir::Instruction::ManagedAlloc { .. } => None,
+            mir::Instruction::ManagedAllocArray { .. } => None,
 
             // raw_allocate: result type is rawptr
-            mir::Instruction::RawAllocate { .. } => None,
+            mir::Instruction::RawAlloc { .. } => None,
 
             // these don't produce values
             mir::Instruction::RawFree { .. } => None,
-            mir::Instruction::Drop { .. } => None,
         }
     }
 
@@ -679,7 +678,7 @@ impl<'a> FunctionLowerer<'a> {
             }
 
             // extract_field -> load at computed offset (struct/tuple field read)
-            mir::Instruction::ExtractField {
+            mir::Instruction::FieldGet {
                 destination,
                 aggregate,
                 index,
@@ -691,7 +690,7 @@ impl<'a> FunctionLowerer<'a> {
                         .ok_or_else(|| CodegenCraneliftError::MissingType {
                             node: instruction_id.into_any(),
                             message: Some(
-                                "could not infer type for aggregate in ExtractField".into(),
+                                "could not infer type for aggregate in FieldGet".into(),
                             ),
                         })?;
                 let aggregate_type = self.tree.get(*aggregate_type_id);
@@ -727,7 +726,7 @@ impl<'a> FunctionLowerer<'a> {
                     }
                     _ => {
                         return Err(CodegenCraneliftError::Internal {
-                            message: "ExtractField on non-aggregate type".into(),
+                            message: "FieldGet on non-aggregate type".into(),
                         });
                     }
                 };
@@ -745,7 +744,7 @@ impl<'a> FunctionLowerer<'a> {
             }
 
             // insert_field -> store at computed offset (struct/tuple field write)
-            mir::Instruction::InsertField {
+            mir::Instruction::FieldSet {
                 destination,
                 aggregate,
                 index,
@@ -758,7 +757,7 @@ impl<'a> FunctionLowerer<'a> {
                         .ok_or_else(|| CodegenCraneliftError::MissingType {
                             node: instruction_id.into_any(),
                             message: Some(
-                                "could not infer type for aggregate in InsertField".into(),
+                                "could not infer type for aggregate in FieldSet".into(),
                             ),
                         })?;
                 let aggregate_type = self.tree.get(*aggregate_type_id);
@@ -784,7 +783,7 @@ impl<'a> FunctionLowerer<'a> {
                     )?,
                     _ => {
                         return Err(CodegenCraneliftError::Internal {
-                            message: "InsertField on non-aggregate type".into(),
+                            message: "FieldSet on non-aggregate type".into(),
                         });
                     }
                 };
@@ -803,7 +802,7 @@ impl<'a> FunctionLowerer<'a> {
             }
 
             // extract_element -> load at ptr + index * elem_size (array element read)
-            mir::Instruction::ExtractElement {
+            mir::Instruction::ElementGet {
                 destination,
                 array,
                 index,
@@ -815,7 +814,7 @@ impl<'a> FunctionLowerer<'a> {
                         .ok_or_else(|| CodegenCraneliftError::MissingType {
                             node: instruction_id.into_any(),
                             message: Some(
-                                "could not infer type for array in ExtractElement".into(),
+                                "could not infer type for array in ElementGet".into(),
                             ),
                         })?;
                 let array_type = self.tree.get(*array_type_id);
@@ -825,7 +824,7 @@ impl<'a> FunctionLowerer<'a> {
                     mir::Type::Array { element, .. } => *element,
                     _ => {
                         return Err(CodegenCraneliftError::Internal {
-                            message: "ExtractElement on non-array type".into(),
+                            message: "ElementGet on non-array type".into(),
                         });
                     }
                 };
@@ -844,7 +843,7 @@ impl<'a> FunctionLowerer<'a> {
             }
 
             // insert_element -> store at ptr + index * elem_size (array element write)
-            mir::Instruction::InsertElement {
+            mir::Instruction::ElementSet {
                 destination,
                 array,
                 index,
@@ -856,7 +855,7 @@ impl<'a> FunctionLowerer<'a> {
                         .get(array)
                         .ok_or_else(|| CodegenCraneliftError::MissingType {
                             node: instruction_id.into_any(),
-                            message: Some("could not infer type for array in InsertElement".into()),
+                            message: Some("could not infer type for array in ElementSet".into()),
                         })?;
                 let array_type = self.tree.get(*array_type_id);
 
@@ -865,7 +864,7 @@ impl<'a> FunctionLowerer<'a> {
                     mir::Type::Array { element, .. } => *element,
                     _ => {
                         return Err(CodegenCraneliftError::Internal {
-                            message: "InsertElement on non-array type".into(),
+                            message: "ElementSet on non-array type".into(),
                         });
                     }
                 };
@@ -972,7 +971,7 @@ impl<'a> FunctionLowerer<'a> {
             }
 
             // stack_allocate -> create_sized_stack_slot + stack_addr (alloca equivalent)
-            mir::Instruction::StackAllocate {
+            mir::Instruction::StackAlloc {
                 destination,
                 layout,
             } => {
@@ -990,18 +989,16 @@ impl<'a> FunctionLowerer<'a> {
             }
 
             // managed_allocate -> requires GC runtime, not supported
-            mir::Instruction::ManagedAllocate { .. }
-            | mir::Instruction::ManagedAllocateArray { .. } => {
+            mir::Instruction::ManagedAlloc { .. }
+            | mir::Instruction::ManagedAllocArray { .. } => {
                 return Err(CodegenCraneliftError::unsupported_instruction(
                     "require runtime support",
                     instruction_id.into_any(),
                 ));
             }
 
-            // raw_allocate, raw_free, drop -> all require runtime/external support, not implemented
-            mir::Instruction::RawAllocate { .. }
-            | mir::Instruction::RawFree { .. }
-            | mir::Instruction::Drop { .. } => {
+            // raw_allocate, raw_free -> all require runtime/external support, not implemented
+            mir::Instruction::RawAlloc { .. } | mir::Instruction::RawFree { .. } => {
                 return Err(CodegenCraneliftError::unsupported_instruction(
                     "require allocator support",
                     instruction_id.into_any(),
