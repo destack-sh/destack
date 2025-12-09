@@ -79,6 +79,18 @@ impl TypeTable {
         type_id
     }
 
+    /// Insert a type without a source node (for synthetic types).
+    pub fn insert_type(&mut self, ty: Type) -> LocalTypeId {
+        use crate::NodeType;
+        let type_id = LocalTypeId::new(self.next_type_id);
+        self.next_type_id += 1;
+        self.types.allocate(ty);
+        // use a sentinel value for synthetic types
+        self.source_id_by_type_id
+            .push(LocalNodeIdAny::new(u32::MAX, NodeType::Expression));
+        type_id
+    }
+
     /// Insert a type derived from some source node (any node type).
     pub fn insert_type_from_any(&mut self, ty: Type, node_id: LocalNodeIdAny) -> LocalTypeId {
         let type_id = LocalTypeId::new(self.next_type_id);

@@ -189,28 +189,8 @@ impl TestProgram {
         self.compile();
     }
 
-    /// Check no diagnostics of at least the given severity.
-    pub fn check_no_diagnostic(&self, min_severity: DiagnosticSeverity) {
-        let diagnostics = self.program.diagnostics.collect();
-        let highest = diagnostics.highest_severity();
-        if let Some(highest) = highest
-            && highest >= min_severity
-        {
-            let options = PrintOptions::new()
-                .with_line_width(self.program.language.formatting.line_width as u32)
-                .with_module_count(self.program.modules.len());
-            print_diagnostics(&self.program.files, &diagnostics, options);
-            let severity_name = min_severity.family_name().to_ascii_lowercase();
-            panic!(
-                "program has {} unexpected {}s",
-                diagnostics.len(),
-                severity_name
-            );
-        }
-    }
-
     /// Check no errors.
-    pub fn check_no_errors(&self) {
+    pub fn check_clean(&self) {
         self.check_no_diagnostic(DiagnosticSeverity::Error);
     }
 
@@ -262,5 +242,70 @@ impl TestProgram {
         let module = module.read();
         let symbols = module.dir.symbols.read();
         symbols.get_symbol(symbol_id.into_local()).clone()
+    }
+
+    /// Check no diagnostics of at least the given severity.
+    pub fn check_no_diagnostic(&self, min_severity: DiagnosticSeverity) {
+        let diagnostics = self.program.diagnostics.collect();
+        let highest = diagnostics.highest_severity();
+        if let Some(highest) = highest
+            && highest >= min_severity
+        {
+            let options = PrintOptions::new()
+                .with_line_width(self.program.language.formatting.line_width as u32)
+                .with_module_count(self.program.modules.len());
+            print_diagnostics(&self.program.files, &diagnostics, options);
+            let severity_name = min_severity.family_name().to_ascii_lowercase();
+            panic!(
+                "program has {} unexpected {severity_name}s",
+                diagnostics.len()
+            );
+        }
+    }
+
+    /// Check that exactly the given diagnostics are present (by code).
+    /// Panics if the actual diagnostics don't match.
+    pub fn check_diagnostics(&self, expected_codes: &[&str]) {
+        let diagnostics = self.program.diagnostics.collect();
+        let diagnostic_vec = diagnostics.iter();
+        let actual_codes: Vec<&str> = diagnostic_vec.iter().map(|d| d.code.as_str()).collect();
+        if actual_codes != expected_codes {
+            let options = PrintOptions::new()
+                .with_line_width(self.program.language.formatting.line_width as u32)
+                .with_module_count(self.program.modules.len());
+            print_diagnostics(&self.program.files, &diagnostics, options);
+            panic!("diagnostic mismatch\nexpected: {expected_codes:?}\nactual: {actual_codes:?}");
+        }
+    }
+
+    /// Check that a diagnostic with the given code is present.
+    pub fn check_has_diagnostic(&self, code: &str) {
+        let diagnostics = self.program.diagnostics.collect();
+        let diagnostic_vec = diagnostics.iter();
+        let has_code = diagnostic_vec.iter().any(|d| d.code == code);
+
+        if !has_code {
+            let options = PrintOptions::new()
+                .with_line_width(self.program.language.formatting.line_width as u32)
+                .with_module_count(self.program.modules.len());
+            print_diagnostics(&self.program.files, &diagnostics, options);
+            let actual_codes: Vec<&str> = diagnostic_vec.iter().map(|d| d.code.as_str()).collect();
+            panic!("expected diagnostic with code '{code}' but found: {actual_codes:?}");
+        }
+    }
+
+    /// Check that no diagnostic with the given code is present.
+    pub fn check_no_diagnostic_code(&self, code: &str) {
+        let diagnostics = self.program.diagnostics.collect();
+        let diagnostic_vec = diagnostics.iter();
+        let has_code = diagnostic_vec.iter().any(|d| d.code == code);
+
+        if has_code {
+            let options = PrintOptions::new()
+                .with_line_width(self.program.language.formatting.line_width as u32)
+                .with_module_count(self.program.modules.len());
+            print_diagnostics(&self.program.files, &diagnostics, options);
+            panic!("unexpected diagnostic with code '{code}'");
+        }
     }
 }

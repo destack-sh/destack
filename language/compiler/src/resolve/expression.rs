@@ -20,7 +20,11 @@ impl Compiler {
     pub(super) fn resolve_self_expression(
         &self,
         module: &Module,
-        scope: (destack_dir::LocalScopeId, &destack_dir::Scope, destack_dir::LocalScopeMark),
+        scope: (
+            destack_dir::LocalScopeId,
+            &destack_dir::Scope,
+            destack_dir::LocalScopeMark,
+        ),
         path: &Path,
         static_arguments: Option<Vec<LocalNodeId<destack_dir::Argument>>>,
         symbols: &SymbolTable,

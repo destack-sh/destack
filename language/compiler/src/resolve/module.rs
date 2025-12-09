@@ -51,7 +51,10 @@ impl Compiler {
                     && symbol.final_symbol.is_none()
                     && symbol.primary_declaration.is_some()
                 {
-                    Some((id.into_global(module_id), symbol.primary_declaration.unwrap()))
+                    Some((
+                        id.into_global(module_id),
+                        symbol.primary_declaration.unwrap(),
+                    ))
                 } else {
                     None
                 }

@@ -130,6 +130,11 @@ impl DsConfig {
             compiler.paths = parent_compiler.paths.clone();
         }
 
+        // inherit lib (child overrides if set)
+        if compiler.lib.is_empty() {
+            compiler.lib = parent_compiler.lib.clone();
+        }
+
         // inherit checking options (stricter wins)
         compiler.strict = compiler.strict || parent_compiler.strict;
         compiler.no_implicit_any = compiler.no_implicit_any || parent_compiler.no_implicit_any;
@@ -311,6 +316,8 @@ pub struct DsConfigCompilerOptions {
     pub module: ModuleKind,
     /// ECMAScript target version.
     pub target: EsTarget,
+    /// Library files to include (e.g., "es2024", "dom", "worker").
+    pub lib: Vec<String>,
 
     // checking
     /// Enable all strict type-checking options.
@@ -381,6 +388,7 @@ impl Default for DsConfigCompilerOptions {
             paths: None,
             module: ModuleKind::default(),
             target: EsTarget::default(),
+            lib: Vec::new(), // derived from target's output format if empty
 
             // checking
             strict: true,
@@ -440,6 +448,7 @@ impl From<&DsConfigCompilerOptionsJson> for DsConfigCompilerOptions {
                 .as_deref()
                 .and_then(EsTarget::parse)
                 .unwrap_or_default(),
+            lib: json.lib.clone().unwrap_or_default(),
 
             // checking
             strict,
@@ -510,6 +519,9 @@ pub struct DsConfigTargetOptions {
     pub module: ModuleKind,
     /// ECMAScript target for this target.
     pub es_target: EsTarget,
+    /// Library files for this target (overrides compilerOptions.lib).
+    /// If empty, uses compilerOptions.lib or derives from output format.
+    pub lib: Vec<String>,
 
     // optimization
     /// Whether this is a debug build.
@@ -537,6 +549,7 @@ impl Default for DsConfigTargetOptions {
             declaration_dir: None,
             module: ModuleKind::default(),
             es_target: EsTarget::default(),
+            lib: Vec::new(),
             debug: true,
             optimize: false,
             optimize_level: OptimizeLevel::O0,
@@ -581,6 +594,7 @@ impl DsConfigTargetOptions {
             declaration_dir: self.declaration_dir.clone(),
             module: self.module,
             es_target: self.es_target,
+            lib: self.lib.clone(),
             debug: self.debug,
             optimize: self.optimize,
             optimize_level: self.optimize_level,
@@ -629,6 +643,7 @@ impl From<&DsConfigTargetJson> for DsConfigTargetOptions {
                 .as_deref()
                 .and_then(EsTarget::parse)
                 .unwrap_or_default(),
+            lib: json.lib.clone().unwrap_or_default(),
             debug: json.debug,
             optimize: json.optimize,
             optimize_level: json
@@ -746,6 +761,8 @@ pub struct DsConfigCompilerOptionsJson {
     pub module: Option<String>,
     /// ECMAScript target version (e.g., "es2022", "esnext").
     pub target: Option<String>,
+    /// Library files to include (e.g., ["es2024", "dom"]).
+    pub lib: Option<Vec<String>>,
 
     // checking
     /// Enable all strict type-checking options. Default: true for .ds files.
@@ -870,6 +887,8 @@ pub struct DsConfigTargetJson {
     pub module: Option<String>,
     /// ECMAScript target for this target (overrides compilerOptions.target).
     pub es_target: Option<String>,
+    /// Library files for this target (overrides compilerOptions.lib).
+    pub lib: Option<Vec<String>>,
 
     // optimization
     /// Whether this is a debug build.

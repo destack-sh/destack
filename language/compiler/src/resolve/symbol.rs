@@ -597,7 +597,7 @@ let x = DefaultValue;
         );
         test.resolve_module(module_b_id);
         test.compile();
-        test.check_no_errors();
+        test.check_clean();
         test.dump();
 
         // the default import should target a.ds's default_symbol
@@ -634,7 +634,7 @@ let y = X + 1;
         );
         test.resolve_module(module_c_id);
         test.compile();
-        test.check_no_errors();
+        test.check_clean();
         test.dump();
 
         // c's X should resolve to b's re-export, which targets a's X
@@ -744,7 +744,7 @@ let sum = VALUE_A + RENAMED_B + BaseDefault + BaseNS.VALUE_A + DefaultFromBase +
         test.resolve_module(consumer_id);
         test.compile();
         test.dump();
-        test.check_no_errors();
+        test.check_clean();
 
         // consumer.ds VALUE_A -> relay.ds -> base.ds VALUE_A
         let value_a_symbol = test.resolve_to_symbol("consumer.ds", "VALUE_A").unwrap();
