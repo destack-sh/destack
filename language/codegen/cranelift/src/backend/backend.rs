@@ -104,6 +104,18 @@ impl CodegenCraneliftBackend {
             .map_err(|e| CodegenCraneliftError::Internal {
                 message: e.to_string(),
             })?;
+
+        // Enable PIC on AArch64 to use GOT-based relocations (Aarch64AdrGotPage21)
+        // instead of direct PC-relative (Aarch64AdrPrelPgHi21) which cranelift-object
+        // doesn't support.
+        if triple.architecture == target_lexicon::Architecture::Aarch64(target_lexicon::Aarch64Architecture::Aarch64) {
+            flags_builder
+                .set("is_pic", "true")
+                .map_err(|e| CodegenCraneliftError::Internal {
+                    message: e.to_string(),
+                })?;
+        }
+
         let flags = settings::Flags::new(flags_builder);
 
         // create isa
@@ -146,17 +158,13 @@ impl CodegenCraneliftBackend {
     }
 
     /// Compile a MIR module and return Cranelift IR text format.
-    /// Skips actual compilation to machine code (only generates IR).
     pub fn compile_to_clif(
         &self,
         module: &ModuleMir,
         name: &str,
     ) -> CodegenCraneliftResult<String> {
         let tree = module.tree.read();
-        // skip machine code generation - we only need CLIF IR text, and define_function
-        // can fail with platform-specific relocation errors (e.g. Aarch64AdrPrelPgHi21)
-        let mut lowerer =
-            ModuleLowerer::new_with_options(self.isa.clone(), &module.strings, name, true);
+        let mut lowerer = ModuleLowerer::new(self.isa.clone(), &module.strings, name);
         lowerer.lower_module(&tree)?;
         lowerer.as_clif_string()
     }
