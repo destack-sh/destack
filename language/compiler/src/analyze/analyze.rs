@@ -1,10 +1,9 @@
 use crate::{AnalyzeError, AnalyzeResult, Assignability, Compiler, TypeContext};
 use destack_dir::{
-    Argument, BinaryOperator, Block, Declaration, DependencyItem, EnumField, Expression,
-    FunctionSignature, Generics, GlobalSymbolId, GlobalTypeId, Heritage, LocalNodeId,
-    LocalNodeIdAny, LocalTypeId, MatchCase, Mutability, NodeTree, Parameter, Pattern, PatternField,
-    PrimitiveType, Property, ScalarLiteral, SymbolTable, Type, TypeField, TypeKind, TypeLiteral,
-    TypeTable, UnaryOperator, VarianceBound, WhereClause,
+    Argument, Block, Declaration, DependencyItem, EnumField, Expression, FunctionSignature,
+    Generics, GlobalSymbolId, GlobalTypeId, Heritage, LocalNodeId, LocalNodeIdAny, LocalTypeId,
+    MatchCase, NodeTree, Parameter, Pattern, PatternField, PrimitiveType, Property, SymbolTable,
+    Type, TypeKind, TypeLiteral, TypeTable, WhereClause,
 };
 use destack_workspace::Module;
 
@@ -153,7 +152,7 @@ impl Compiler {
             Expression::Unary { operator, right } => {
                 let right_ty_id =
                     self.analyze_expression(module, *right, tree, symbols, types, ctx)?;
-                let ty = self.analyze_unary_operation(operator, types.get_type(right_ty_id));
+                let ty = self.infer_unary_operation(operator, types.get_type(right_ty_id));
                 types.insert_type_from(ty, expression_id)
             }
             // value of operation -> value of type
@@ -164,7 +163,7 @@ impl Compiler {
             } => {
                 let right_ty_id =
                     self.analyze_expression(module, *right, tree, symbols, types, ctx)?;
-                let ty = self.analyze_value_of_operation(
+                let ty = self.infer_value_of_operation(
                     *mutability,
                     *variance,
                     types.get_type(right_ty_id),
@@ -179,7 +178,7 @@ impl Compiler {
             } => {
                 let right_ty_id =
                     self.analyze_expression(module, *right, tree, symbols, types, ctx)?;
-                let ty = self.analyze_reference_of_operation(
+                let ty = self.infer_reference_of_operation(
                     *mutability,
                     *variance,
                     types.get_type(right_ty_id),
@@ -198,7 +197,7 @@ impl Compiler {
                 let right_ty_id =
                     self.analyze_expression(module, *right, tree, symbols, types, ctx)?;
 
-                let ty = self.analyze_binary_operation(
+                let ty = self.infer_binary_operation(
                     operator,
                     types.get_type(left_ty_id),
                     types.get_type(right_ty_id),
@@ -329,7 +328,7 @@ impl Compiler {
             // scalar literal -> derive type from value
             Expression::ScalarLiteral { value } => {
                 let ty = Type::TypeLiteral {
-                    value: self.analyze_scalar_literal(value),
+                    value: self.infer_scalar_literal(value),
                 };
                 types.insert_type_from(ty, expression_id)
             }
@@ -1730,84 +1729,6 @@ impl Compiler {
         Ok(())
     }
 
-    /// Infer the result type of a scalar literal.
-    fn analyze_scalar_literal(&self, value: &ScalarLiteral) -> TypeLiteral {
-        match value {
-            ScalarLiteral::Boolean(_) => TypeLiteral::Primitive(PrimitiveType::Boolean),
-            ScalarLiteral::Integer(_) | ScalarLiteral::Float(_) => {
-                TypeLiteral::Primitive(PrimitiveType::Number)
-            }
-            ScalarLiteral::String(_) | ScalarLiteral::RegexString { .. } => {
-                TypeLiteral::Primitive(PrimitiveType::String)
-            }
-            ScalarLiteral::Bigint(_) => TypeLiteral::Primitive(PrimitiveType::Bigint),
-            ScalarLiteral::Character(_) => TypeLiteral::Primitive(PrimitiveType::Character),
-        }
-    }
-
-    /// Infer the result type of a binary operation.
-    fn analyze_binary_operation(
-        &self,
-        operator: &BinaryOperator,
-        left: &Type,
-        _right: &Type,
-    ) -> Type {
-        match operator {
-            // comparison operators always return boolean
-            BinaryOperator::Equal
-            | BinaryOperator::NotEqual
-            | BinaryOperator::EqualStrict
-            | BinaryOperator::NotEqualStrict
-            | BinaryOperator::LessThan
-            | BinaryOperator::LessThanOrEqual
-            | BinaryOperator::GreaterThan
-            | BinaryOperator::GreaterThanOrEqual
-            | BinaryOperator::In
-            | BinaryOperator::InstanceOf => Type::TypeLiteral {
-                value: TypeLiteral::Primitive(PrimitiveType::Boolean),
-            },
-
-            // logical operators return boolean
-            BinaryOperator::And | BinaryOperator::Or => Type::TypeLiteral {
-                value: TypeLiteral::Primitive(PrimitiveType::Boolean),
-            },
-
-            _ => left.clone(),
-        }
-    }
-
-    /// Infer the result type of a unary operation.
-    fn analyze_unary_operation(&self, operator: &UnaryOperator, right: &Type) -> Type {
-        match operator {
-            UnaryOperator::Not => Type::TypeLiteral {
-                value: TypeLiteral::Primitive(PrimitiveType::Boolean),
-            },
-            _ => right.clone(),
-        }
-    }
-
-    /// Infer the result type of a value of operation.
-    /// NOTE #Incomplete: resolve value of operation type
-    fn analyze_value_of_operation(
-        &self,
-        _mutability: Option<Mutability>,
-        _variance: Option<VarianceBound>,
-        right: &Type,
-    ) -> Type {
-        right.clone()
-    }
-
-    /// Infer the result type of a reference of operation.
-    /// NOTE #Incomplete: resolve reference of operation type
-    fn analyze_reference_of_operation(
-        &self,
-        _mutability: Option<Mutability>,
-        _variance: Option<VarianceBound>,
-        right: &Type,
-    ) -> Type {
-        right.clone()
-    }
-
     /// Follow the symbol chain to get the canonical (final) symbol.
     /// For import symbols, this follows target_symbol/final_symbol to the original definition.
     fn resolve_canonical_symbol(
@@ -1826,391 +1747,11 @@ impl Compiler {
         // otherwise return as-is
         symbol_id
     }
-
-    /// Resolve a remote symbol's value type by ensuring its module is analyzed
-    /// and copying the type into the current module's TypeTable.
-    fn resolve_remote_symbol_value_type(
-        &self,
-        _module: &Module,
-        expression_id: LocalNodeId<Expression>,
-        target_symbol: GlobalSymbolId,
-        types: &mut TypeTable,
-    ) -> AnalyzeResult<LocalTypeId> {
-        let remote_module_id = target_symbol.module_id;
-
-        // ensure the remote module is analyzed (may yield)
-        self.require_analyze(remote_module_id)?;
-
-        // look up the type in the remote module's TypeTable
-        let remote_module = self.program.modules.get(remote_module_id);
-        let remote_module = remote_module.read();
-        let remote_types = remote_module.dir.types.read();
-
-        // copy the type into our local TypeTable
-        if let Some(remote_ty_id) = remote_types.get_value_type_id(target_symbol) {
-            let remote_ty = remote_types.get_type(remote_ty_id);
-            let local_ty = self.import_type_from_remote(
-                expression_id,
-                remote_ty,
-                &remote_types,
-                target_symbol,
-                types,
-            );
-            Ok(local_ty)
-        }
-        // remote symbol doesn't have a value type, return unknown
-        else {
-            let ty = Type::TypeLiteral {
-                value: TypeLiteral::Unknown,
-            };
-            Ok(types.insert_type_from(ty, expression_id))
-        }
-    }
-
-    /// Import a type from a remote module into the current module's TypeTable.
-    ///  - For structural types (arrays, objects, ..): recursively copy the type structure.
-    ///  - For nominal types (Type::Reference): keep them as references to the original symbol.
-    fn import_type_from_remote(
-        &self,
-        expression_id: LocalNodeId<Expression>,
-        remote_ty: &Type,
-        remote_types: &TypeTable,
-        target_symbol: GlobalSymbolId,
-        types: &mut TypeTable,
-    ) -> LocalTypeId {
-        match remote_ty {
-            // leaf types: copy directly
-            Type::TypeLiteral { value } => types.insert_type_from(
-                Type::TypeLiteral {
-                    value: value.clone(),
-                },
-                expression_id,
-            ),
-            Type::Error => types.insert_type_from(Type::Error, expression_id),
-
-            // array types
-            Type::Array { element: None } => {
-                types.insert_type_from(Type::Array { element: None }, expression_id)
-            }
-            Type::Array {
-                element: Some(elem_id),
-            } => {
-                let elem_ty = remote_types.get_type(*elem_id);
-                let local_elem = self.import_type_from_remote(
-                    expression_id,
-                    elem_ty,
-                    remote_types,
-                    target_symbol,
-                    types,
-                );
-                types.insert_type_from(
-                    Type::Array {
-                        element: Some(local_elem),
-                    },
-                    expression_id,
-                )
-            }
-
-            // tuple types
-            Type::Tuple { elements } => {
-                let local_elems: Vec<_> = elements
-                    .iter()
-                    .map(|id| {
-                        let ty = remote_types.get_type(*id);
-                        self.import_type_from_remote(
-                            expression_id,
-                            ty,
-                            remote_types,
-                            target_symbol,
-                            types,
-                        )
-                    })
-                    .collect();
-                types.insert_type_from(
-                    Type::Tuple {
-                        elements: local_elems,
-                    },
-                    expression_id,
-                )
-            }
-
-            // object types
-            Type::Object { fields } => {
-                let local_fields: Vec<_> = fields
-                    .iter()
-                    .map(|field| {
-                        let ty = remote_types.get_type(field.ty);
-                        let local_ty = self.import_type_from_remote(
-                            expression_id,
-                            ty,
-                            remote_types,
-                            target_symbol,
-                            types,
-                        );
-                        TypeField {
-                            key: field.key,
-                            ty: local_ty,
-                            is_optional: field.is_optional,
-                            is_readonly: field.is_readonly,
-                        }
-                    })
-                    .collect();
-                types.insert_type_from(
-                    Type::Object {
-                        fields: local_fields,
-                    },
-                    expression_id,
-                )
-            }
-
-            // function types
-            Type::Function {
-                asynchrony,
-                cardinality,
-                static_parameters,
-                dynamic_parameters,
-                return_type,
-            } => {
-                let local_static_params: Vec<_> = static_parameters
-                    .iter()
-                    .map(|id| {
-                        let ty = remote_types.get_type(*id);
-                        self.import_type_from_remote(
-                            expression_id,
-                            ty,
-                            remote_types,
-                            target_symbol,
-                            types,
-                        )
-                    })
-                    .collect();
-                let local_dynamic_params: Vec<_> = dynamic_parameters
-                    .iter()
-                    .map(|id| {
-                        let ty = remote_types.get_type(*id);
-                        self.import_type_from_remote(
-                            expression_id,
-                            ty,
-                            remote_types,
-                            target_symbol,
-                            types,
-                        )
-                    })
-                    .collect();
-                let local_return = return_type.map(|id| {
-                    let ty = remote_types.get_type(id);
-                    self.import_type_from_remote(
-                        expression_id,
-                        ty,
-                        remote_types,
-                        target_symbol,
-                        types,
-                    )
-                });
-                types.insert_type_from(
-                    Type::Function {
-                        asynchrony: *asynchrony,
-                        cardinality: *cardinality,
-                        static_parameters: local_static_params,
-                        dynamic_parameters: local_dynamic_params,
-                        return_type: local_return,
-                    },
-                    expression_id,
-                )
-            }
-
-            // union and intersection types
-            Type::Union { elements } => {
-                let local_elems: Vec<_> = elements
-                    .iter()
-                    .map(|id| {
-                        let ty = remote_types.get_type(*id);
-                        self.import_type_from_remote(
-                            expression_id,
-                            ty,
-                            remote_types,
-                            target_symbol,
-                            types,
-                        )
-                    })
-                    .collect();
-                types.insert_type_from(
-                    Type::Union {
-                        elements: local_elems,
-                    },
-                    expression_id,
-                )
-            }
-            Type::Intersection { elements } => {
-                let local_elems: Vec<_> = elements
-                    .iter()
-                    .map(|id| {
-                        let ty = remote_types.get_type(*id);
-                        self.import_type_from_remote(
-                            expression_id,
-                            ty,
-                            remote_types,
-                            target_symbol,
-                            types,
-                        )
-                    })
-                    .collect();
-                types.insert_type_from(
-                    Type::Intersection {
-                        elements: local_elems,
-                    },
-                    expression_id,
-                )
-            }
-
-            // type modifiers: recurse into inner type
-            Type::Value { value } => {
-                let inner_ty = remote_types.get_type(*value);
-                let local_inner = self.import_type_from_remote(
-                    expression_id,
-                    inner_ty,
-                    remote_types,
-                    target_symbol,
-                    types,
-                );
-                types.insert_type_from(Type::Value { value: local_inner }, expression_id)
-            }
-            Type::Mutable { mutability, right } => {
-                let inner_ty = remote_types.get_type(*right);
-                let local_inner = self.import_type_from_remote(
-                    expression_id,
-                    inner_ty,
-                    remote_types,
-                    target_symbol,
-                    types,
-                );
-                types.insert_type_from(
-                    Type::Mutable {
-                        mutability: *mutability,
-                        right: local_inner,
-                    },
-                    expression_id,
-                )
-            }
-            Type::ValueOf {
-                mutability,
-                variance,
-                right,
-            } => {
-                let inner_ty = remote_types.get_type(*right);
-                let local_inner = self.import_type_from_remote(
-                    expression_id,
-                    inner_ty,
-                    remote_types,
-                    target_symbol,
-                    types,
-                );
-                types.insert_type_from(
-                    Type::ValueOf {
-                        mutability: *mutability,
-                        variance: *variance,
-                        right: local_inner,
-                    },
-                    expression_id,
-                )
-            }
-            Type::ReferenceOf {
-                mutability,
-                variance,
-                right,
-            } => {
-                let inner_ty = remote_types.get_type(*right);
-                let local_inner = self.import_type_from_remote(
-                    expression_id,
-                    inner_ty,
-                    remote_types,
-                    target_symbol,
-                    types,
-                );
-                types.insert_type_from(
-                    Type::ReferenceOf {
-                        mutability: *mutability,
-                        variance: *variance,
-                        right: local_inner,
-                    },
-                    expression_id,
-                )
-            }
-            Type::Unary { operator, right } => {
-                let inner_ty = remote_types.get_type(*right);
-                let local_inner = self.import_type_from_remote(
-                    expression_id,
-                    inner_ty,
-                    remote_types,
-                    target_symbol,
-                    types,
-                );
-                types.insert_type_from(
-                    Type::Unary {
-                        operator: *operator,
-                        right: local_inner,
-                    },
-                    expression_id,
-                )
-            }
-            Type::Binary {
-                left,
-                operator,
-                right,
-            } => {
-                let left_ty = remote_types.get_type(*left);
-                let right_ty = remote_types.get_type(*right);
-                let local_left = self.import_type_from_remote(
-                    expression_id,
-                    left_ty,
-                    remote_types,
-                    target_symbol,
-                    types,
-                );
-                let local_right = self.import_type_from_remote(
-                    expression_id,
-                    right_ty,
-                    remote_types,
-                    target_symbol,
-                    types,
-                );
-                types.insert_type_from(
-                    Type::Binary {
-                        left: local_left,
-                        operator: *operator,
-                        right: local_right,
-                    },
-                    expression_id,
-                )
-            }
-
-            // nominal/reference types: keep as Type::Reference to the original symbol
-            Type::Reference {
-                symbol,
-                static_arguments,
-            } => types.insert_type_from(
-                Type::Reference {
-                    symbol: *symbol,
-                    static_arguments: static_arguments.clone(),
-                },
-                expression_id,
-            ),
-
-            // types that can't be meaningfully copied: fall back to reference
-            Type::Unevaluated(_) | Type::ArraySized { .. } => types.insert_type_from(
-                Type::Reference {
-                    symbol: target_symbol,
-                    static_arguments: None,
-                },
-                expression_id,
-            ),
-        }
-    }
 }
 
 #[cfg(test)]
 mod tests {
-    use destack_dir::{Expression, PrimitiveType, Type, TypeLiteral};
+    use destack_dir::{Expression, PrimitiveType, ScalarLiteral, Type, TypeLiteral};
 
     use crate::{TestProgram, assert_type};
 
@@ -2238,10 +1779,11 @@ mod tests {
             .get_inferred_type(expression_id.into_global_any(module.id))
             .unwrap();
 
+        // integer literals now have literal types, not widened primitive types
         assert_eq!(
             *ty,
             Type::TypeLiteral {
-                value: TypeLiteral::Primitive(PrimitiveType::Number)
+                value: TypeLiteral::ScalarLiteral(ScalarLiteral::Integer(42))
             }
         );
     }
@@ -2270,12 +1812,13 @@ mod tests {
             .get_inferred_type(expression_id.into_global_any(module.id))
             .unwrap();
 
-        assert_eq!(
-            *ty,
+        // string literal has literal type (e.g., "hello" has type "hello")
+        assert!(matches!(
+            ty,
             Type::TypeLiteral {
-                value: TypeLiteral::Primitive(PrimitiveType::String)
+                value: TypeLiteral::ScalarLiteral(ScalarLiteral::String(_))
             }
-        );
+        ));
     }
 
     #[test]
@@ -2302,10 +1845,11 @@ mod tests {
             .get_inferred_type(expression_id.into_global_any(module.id))
             .unwrap();
 
+        // boolean literal has literal type (e.g., true has type true)
         assert_eq!(
             *ty,
             Type::TypeLiteral {
-                value: TypeLiteral::Primitive(PrimitiveType::Boolean)
+                value: TypeLiteral::ScalarLiteral(ScalarLiteral::Boolean(true))
             }
         );
     }
@@ -2334,10 +1878,11 @@ mod tests {
             .get_inferred_type(expression_id.into_global_any(module.id))
             .unwrap();
 
+        // constant folding: 1 + 2 evaluates to literal type 3
         assert_eq!(
             *ty,
             Type::TypeLiteral {
-                value: TypeLiteral::Primitive(PrimitiveType::Number)
+                value: TypeLiteral::ScalarLiteral(ScalarLiteral::Integer(3))
             }
         );
     }
@@ -2366,10 +1911,11 @@ mod tests {
             .get_inferred_type(expression_id.into_global_any(module.id))
             .unwrap();
 
+        // constant folding: 1 < 2 evaluates to literal true
         assert_eq!(
             *ty,
             Type::TypeLiteral {
-                value: TypeLiteral::Primitive(PrimitiveType::Boolean)
+                value: TypeLiteral::ScalarLiteral(ScalarLiteral::Boolean(true))
             }
         );
     }
@@ -2395,12 +1941,12 @@ mod tests {
                 .is_none()
         );
 
-        // value_type[x] = number
+        // value_type[x] = literal 42
         let x_ty = types.get_value_type(x_symbol).unwrap();
         assert_eq!(
             *x_ty,
             Type::TypeLiteral {
-                value: TypeLiteral::Primitive(PrimitiveType::Number)
+                value: TypeLiteral::ScalarLiteral(ScalarLiteral::Integer(42))
             }
         );
 
@@ -2476,42 +2022,42 @@ let (x, y, ...rest, z) = (123, 'abc', true, 456);
         let rest_symbol = test.resolve_to_symbol("test.ds", "rest").unwrap();
         let z_symbol = test.resolve_to_symbol("test.ds", "z").unwrap();
 
-        // value_type[x] = number
+        // value_type[x] = literal 123
         let x_ty_id = types.get_value_type_id(x_symbol).unwrap();
         assert_type!(
             types,
             x_ty_id,
             Type::TypeLiteral {
-                value: TypeLiteral::Primitive(PrimitiveType::Number)
+                value: TypeLiteral::ScalarLiteral(ScalarLiteral::Integer(123))
             }
         );
 
-        // value_type[y] = string
+        // value_type[y] = literal 'abc'
         let y_ty_id = types.get_value_type_id(y_symbol).unwrap();
         assert_type!(
             types,
             y_ty_id,
             Type::TypeLiteral {
-                value: TypeLiteral::Primitive(PrimitiveType::String)
+                value: TypeLiteral::ScalarLiteral(ScalarLiteral::String(_))
             }
         );
 
-        // value_type[rest] = (boolean,)
+        // value_type[rest] = (true,)
         let rest_ty_id = types.get_value_type_id(rest_symbol).unwrap();
         assert_type!(types, rest_ty_id, Type::Tuple { elements } => {
             assert_eq!(elements.len(), 1);
             assert_type!(types, elements[0], Type::TypeLiteral {
-                value: TypeLiteral::Primitive(PrimitiveType::Boolean)
+                value: TypeLiteral::ScalarLiteral(ScalarLiteral::Boolean(true))
             });
         });
 
-        // value_type[z] = number
+        // value_type[z] = literal 456
         let z_ty_id = types.get_value_type_id(z_symbol).unwrap();
         assert_type!(
             types,
             z_ty_id,
             Type::TypeLiteral {
-                value: TypeLiteral::Primitive(PrimitiveType::Number)
+                value: TypeLiteral::ScalarLiteral(ScalarLiteral::Integer(456))
             }
         );
     }
@@ -2537,41 +2083,41 @@ let [x, y, ...rest, z] = [123, 'abc', true, 456]; // array used as a tuple
         let rest_symbol = test.resolve_to_symbol("test.ds", "rest").unwrap();
         let z_symbol = test.resolve_to_symbol("test.ds", "z").unwrap();
 
-        // value_type[x] = number
+        // value_type[x] = literal 123
         let x_ty_id = types.get_value_type_id(x_symbol).unwrap();
         assert_type!(
             types,
             x_ty_id,
             Type::TypeLiteral {
-                value: TypeLiteral::Primitive(PrimitiveType::Number)
+                value: TypeLiteral::ScalarLiteral(ScalarLiteral::Integer(123))
             }
         );
 
-        // value_type[y] = string
+        // value_type[y] = literal 'abc'
         let y_ty_id = types.get_value_type_id(y_symbol).unwrap();
         assert_type!(
             types,
             y_ty_id,
             Type::TypeLiteral {
-                value: TypeLiteral::Primitive(PrimitiveType::String)
+                value: TypeLiteral::ScalarLiteral(ScalarLiteral::String(_))
             }
         );
 
-        // value_type[rest] = boolean[]
+        // value_type[rest] = true[] (array of boolean literal)
         let rest_ty_id = types.get_value_type_id(rest_symbol).unwrap();
         assert_type!(types, rest_ty_id, Type::Array { element: Some(element_id) } => {
             assert_type!(types, *element_id, Type::TypeLiteral {
-                value: TypeLiteral::Primitive(PrimitiveType::Boolean)
+                value: TypeLiteral::ScalarLiteral(ScalarLiteral::Boolean(true))
             });
         });
 
-        // value_type[z] = number
+        // value_type[z] = literal 456
         let z_ty_id = types.get_value_type_id(z_symbol).unwrap();
         assert_type!(
             types,
             z_ty_id,
             Type::TypeLiteral {
-                value: TypeLiteral::Primitive(PrimitiveType::Number)
+                value: TypeLiteral::ScalarLiteral(ScalarLiteral::Integer(456))
             }
         );
     }
@@ -2600,14 +2146,14 @@ let x = value;
         let module = module.read();
         let types = module.dir.types.read();
 
-        // x should have type number (imported from lib.ds)
+        // x should have literal type 42 (imported from lib.ds)
         let x_symbol = test.resolve_to_symbol("main.ds", "x").unwrap();
         let x_ty_id = types.get_value_type_id(x_symbol).unwrap();
         assert_type!(
             types,
             x_ty_id,
             Type::TypeLiteral {
-                value: TypeLiteral::Primitive(PrimitiveType::Number)
+                value: TypeLiteral::ScalarLiteral(ScalarLiteral::Integer(42))
             }
         );
     }
@@ -2637,14 +2183,14 @@ let x = items;
         let module = module.read();
         let types = module.dir.types.read();
 
-        // x should have tuple type [number, number, number] (imported from lib.ds)
+        // x should have tuple type [1, 2, 3] with literal elements (imported from lib.ds)
         let x_symbol = test.resolve_to_symbol("main.ds", "x").unwrap();
         let x_ty_id = types.get_value_type_id(x_symbol).unwrap();
         assert_type!(types, x_ty_id, Type::Tuple { elements } => {
             assert_eq!(elements.len(), 3);
             for elem_id in elements {
                 assert_type!(types, *elem_id, Type::TypeLiteral {
-                    value: TypeLiteral::Primitive(PrimitiveType::Number)
+                    value: TypeLiteral::ScalarLiteral(ScalarLiteral::Integer(_))
                 });
             }
         });
@@ -2674,14 +2220,14 @@ let x = greeting;
         let module = module.read();
         let types = module.dir.types.read();
 
-        // x should have type string (imported from lib.ds)
+        // x should have literal string type (imported from lib.ds)
         let x_symbol = test.resolve_to_symbol("main.ds", "x").unwrap();
         let x_ty_id = types.get_value_type_id(x_symbol).unwrap();
         assert_type!(
             types,
             x_ty_id,
             Type::TypeLiteral {
-                value: TypeLiteral::Primitive(PrimitiveType::String)
+                value: TypeLiteral::ScalarLiteral(ScalarLiteral::String(_))
             }
         );
     }

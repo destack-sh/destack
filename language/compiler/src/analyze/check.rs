@@ -1,4 +1,6 @@
-use destack_dir::{LocalTypeId, PrimitiveType, Type, TypeLiteral, TypeTable};
+use destack_dir::{
+    IntType, LocalTypeId, PrimitiveType, ScalarLiteral, Type, TypeLiteral, TypeTable,
+};
 
 use crate::Compiler;
 
@@ -323,18 +325,69 @@ impl Compiler {
     /// Check if a scalar literal value matches a primitive type.
     fn scalar_literal_matches_primitive(
         &self,
-        lit: &destack_dir::ScalarLiteral,
-        prim: &PrimitiveType,
+        literal: &ScalarLiteral,
+        ty: &PrimitiveType,
     ) -> bool {
-        use destack_dir::ScalarLiteral;
-        match (lit, prim) {
+        match (literal, ty) {
+            // boolean
             (ScalarLiteral::Boolean(_), PrimitiveType::Boolean) => true,
-            (ScalarLiteral::String(_), PrimitiveType::String) => true,
-            (ScalarLiteral::Integer(_), PrimitiveType::Number) => true,
-            (ScalarLiteral::Float(_), PrimitiveType::Number) => true,
-            // NOTE #Incomplete: specific numeric types (i32, f64, etc)
+            // string (including regex strings)
+            (ScalarLiteral::String(_) | ScalarLiteral::RegexString { .. }, PrimitiveType::String) => true,
+            // integer and float to number (JavaScript style)
+            (ScalarLiteral::Integer(_) | ScalarLiteral::Float(_), PrimitiveType::Number) => true,
+            // integer literal to specific int type: check range
+            (ScalarLiteral::Integer(value), PrimitiveType::Int(int_type)) => {
+                self.integer_fits_in_type(*value as i128, int_type)
+            }
+            // float literal to specific float type: always allowed (may lose precision)
+            (ScalarLiteral::Float(_), PrimitiveType::Float(_)) => true,
+            // integer literal to float type: always allowed (implicit conversion)
+            (ScalarLiteral::Integer(_), PrimitiveType::Float(_)) => true,
+            // bigint
+            (ScalarLiteral::Bigint(_), PrimitiveType::Bigint) => true,
+            // character
+            (ScalarLiteral::Character(_), PrimitiveType::Character) => true,
             _ => false,
         }
+    }
+
+    /// Check if an integer literal value fits within the range of a specific int type.
+    fn integer_fits_in_type(&self, value: i128, int_type: &IntType) -> bool {
+        let (min, max) = match int_type {
+            IntType::Int8 => (i8::MIN as i128, i8::MAX as i128),
+            IntType::Int16 => (i16::MIN as i128, i16::MAX as i128),
+            IntType::Int32 => (i32::MIN as i128, i32::MAX as i128),
+            IntType::Int64 => (i64::MIN as i128, i64::MAX as i128),
+            IntType::Int128 | IntType::Int256 => (i128::MIN, i128::MAX),
+            IntType::Uint8 => (0, u8::MAX as i128),
+            IntType::Uint16 => (0, u16::MAX as i128),
+            IntType::Uint32 => (0, u32::MAX as i128),
+            IntType::Uint64 => (0, u64::MAX as i128),
+            IntType::Uint128 | IntType::Uint256 => (0, i128::MAX), // (can't represent u128::MAX in i128)
+            IntType::IntP | IntType::UintP => {
+                // pointer-sized integers: use target platform's pointer size
+                // for now, assume 64-bit
+                if int_type.is_signed() {
+                    (i64::MIN as i128, i64::MAX as i128)
+                } else {
+                    (0, u64::MAX as i128)
+                }
+            }
+            IntType::Arbitrary { width, is_signed } => {
+                if *is_signed {
+                    let half_range = 1i128 << (width - 1);
+                    (-half_range, half_range - 1)
+                } else {
+                    let max_val = if *width >= 128 {
+                        i128::MAX
+                    } else {
+                        (1i128 << width) - 1
+                    };
+                    (0, max_val)
+                }
+            }
+        };
+        value >= min && value <= max
     }
 
     /// Check object type assignability (structural subtyping).
@@ -407,13 +460,15 @@ impl Compiler {
 
 #[cfg(test)]
 mod tests {
-    use destack_dir::{PrimitiveType, ScalarLiteral, Type, TypeField, TypeLiteral};
+    use destack_dir::{
+        FloatType, IntType, PrimitiveType, ScalarLiteral, Type, TypeField, TypeLiteral,
+    };
 
     use crate::{Assignability, TestProgram};
 
+    /// Number is assignable to number.
     #[test]
     fn test_analyze_assignability_same_primitive() {
-        // number is assignable to number
         let test = TestProgram::memory_sequential();
         let module_id = test.register_module("test.ds", "let x: number = 42");
         test.analyze_module(module_id);
@@ -434,9 +489,9 @@ mod tests {
         );
     }
 
+    /// String is not assignable to number.
     #[test]
     fn test_analyze_assignability_different_primitives() {
-        // string is not assignable to number
         let test = TestProgram::memory_sequential();
         let module_id = test.register_module("test.ds", "42");
         test.analyze_module(module_id);
@@ -460,9 +515,9 @@ mod tests {
         );
     }
 
+    /// Literal 42 is assignable to number.
     #[test]
     fn test_analyze_assignability_literal_to_primitive() {
-        // literal 42 is assignable to number
         let test = TestProgram::memory_sequential();
         let module_id = test.register_module("test.ds", "42");
         test.analyze_module(module_id);
@@ -486,9 +541,9 @@ mod tests {
         );
     }
 
+    /// Anything is assignable to any.
     #[test]
     fn test_analyze_assignability_any() {
-        // anything is assignable to any
         let test = TestProgram::memory_sequential();
         let module_id = test.register_module("test.ds", "42");
         test.analyze_module(module_id);
@@ -512,9 +567,9 @@ mod tests {
         );
     }
 
+    /// Never is assignable to anything (bottom type).
     #[test]
     fn test_analyze_assignability_never_source() {
-        // never is assignable to anything (bottom type)
         let test = TestProgram::memory_sequential();
         let module_id = test.register_module("test.ds", "42");
         test.analyze_module(module_id);
@@ -538,9 +593,9 @@ mod tests {
         );
     }
 
+    /// Nothing is assignable to never (except never itself).
     #[test]
     fn test_analyze_assignability_never_target() {
-        // nothing is assignable to never (except never itself)
         let test = TestProgram::memory_sequential();
         let module_id = test.register_module("test.ds", "42");
         test.analyze_module(module_id);
@@ -564,9 +619,9 @@ mod tests {
         );
     }
 
+    /// [number, string] is assignable to [number, string].
     #[test]
     fn test_analyze_assignability_tuple() {
-        // [number, string] is assignable to [number, string]
         let test = TestProgram::memory_sequential();
         let module_id = test.register_module("test.ds", "42");
         test.analyze_module(module_id);
@@ -593,9 +648,9 @@ mod tests {
         );
     }
 
+    /// [number, string] is not assignable to [number].
     #[test]
     fn test_analyze_assignability_tuple_different_length() {
-        // [number, string] is not assignable to [number]
         let test = TestProgram::memory_sequential();
         let module_id = test.register_module("test.ds", "42");
         test.analyze_module(module_id);
@@ -625,9 +680,9 @@ mod tests {
         );
     }
 
+    /// number[] is assignable to number[].
     #[test]
     fn test_analyze_assignability_array() {
-        // number[] is assignable to number[]
         let test = TestProgram::memory_sequential();
         let module_id = test.register_module("test.ds", "42");
         test.analyze_module(module_id);
@@ -651,9 +706,9 @@ mod tests {
         );
     }
 
+    /// [number, number] is assignable to number[].
     #[test]
     fn test_analyze_assignability_tuple_to_array() {
-        // [number, number] is assignable to number[]
         let test = TestProgram::memory_sequential();
         let module_id = test.register_module("test.ds", "42");
         test.analyze_module(module_id);
@@ -680,9 +735,9 @@ mod tests {
         );
     }
 
+    /// { a: number, b: string } is assignable to { a: number }.
     #[test]
     fn test_analyze_assignability_object_structural() {
-        // { a: number, b: string } is assignable to { a: number }
         let test = TestProgram::memory_sequential();
         let module_id = test.register_module("test.ds", "42");
         test.analyze_module(module_id);
@@ -743,9 +798,9 @@ mod tests {
         );
     }
 
+    /// Number is assignable to number | string.
     #[test]
     fn test_analyze_assignability_union_target() {
-        // number is assignable to number | string
         let test = TestProgram::memory_sequential();
         let module_id = test.register_module("test.ds", "42");
         test.analyze_module(module_id);
@@ -772,9 +827,9 @@ mod tests {
         );
     }
 
+    /// Number literal should be assignable to number type.
     #[test]
     fn test_type_check_let_compatible_types() {
-        // number literal should be assignable to number type
         let test = TestProgram::memory_sequential();
         let module_id = test.register_module("test.ds", "let x: number = 42;");
         test.analyze_module(module_id);
@@ -782,9 +837,9 @@ mod tests {
         test.check_clean();
     }
 
+    /// String literal should not be assignable to number type.
     #[test]
     fn test_type_check_let_incompatible_types() {
-        // string literal should not be assignable to number type
         let test = TestProgram::memory_sequential();
         let module_id = test.register_module("test.ds", r#"let x: number = "hello";"#);
         test.analyze_module(module_id);
@@ -792,9 +847,9 @@ mod tests {
         test.check_diagnostics(&["EA004"]);
     }
 
+    /// Boolean literal should not be assignable to string type.
     #[test]
     fn test_type_check_let_boolean_to_string_error() {
-        // boolean literal should not be assignable to string type
         let test = TestProgram::memory_sequential();
         let module_id = test.register_module("test.ds", "let x: string = true;");
         test.analyze_module(module_id);
@@ -802,9 +857,9 @@ mod tests {
         test.check_diagnostics(&["EA004"]);
     }
 
+    /// Anything should be assignable to any.
     #[test]
     fn test_type_check_let_any_accepts_all() {
-        // anything should be assignable to any
         let test = TestProgram::memory_sequential();
         let module_id = test.register_module("test.ds", "let x: any = 42;");
         test.analyze_module(module_id);
@@ -812,9 +867,9 @@ mod tests {
         test.check_clean();
     }
 
+    /// Function call with compatible argument types.
     #[test]
     fn test_type_check_function_call_compatible_args() {
-        // function call with compatible argument types
         let test = TestProgram::memory_sequential();
         let module_id = test.register_module(
             "test.ds",
@@ -830,9 +885,9 @@ let result = add(1, 2);
         test.check_clean();
     }
 
+    /// Function call with incompatible argument types.
     #[test]
     fn test_type_check_function_call_incompatible_args() {
-        // function call with incompatible argument types
         let test = TestProgram::memory_sequential();
         let module_id = test.register_module(
             "test.ds",
@@ -848,9 +903,9 @@ let result = greet(42);
         test.check_diagnostics(&["EA004"]);
     }
 
+    /// Function with declared return type should have that type.
     #[test]
     fn test_type_check_function_return_type() {
-        // function with declared return type should have that type
         let test = TestProgram::memory_sequential();
         let module_id = test.register_module(
             "test.ds",
@@ -864,5 +919,175 @@ let x: number = getNumber();
         test.analyze_module(module_id);
         test.compile();
         test.check_clean();
+    }
+
+    /// Integer literal should be assignable to int type.
+    #[test]
+    fn test_type_check_let_int_compatible() {
+        let test = TestProgram::memory_sequential();
+        let module_id = test.register_module("test.ds", "let x: int = 4;");
+        test.analyze_module(module_id);
+        test.compile();
+        test.check_clean();
+    }
+
+    /// Integer literal should be assignable to int32 type.
+    #[test]
+    fn test_type_check_let_int32_compatible() {
+        let test = TestProgram::memory_sequential();
+        let module_id = test.register_module("test.ds", "let x: int32 = 42;");
+        test.analyze_module(module_id);
+        test.compile();
+        test.check_clean();
+    }
+
+    /// Float literal should be assignable to float type.
+    #[test]
+    fn test_type_check_let_float_compatible() {
+        let test = TestProgram::memory_sequential();
+        let module_id = test.register_module("test.ds", "let x: float = 3.14;");
+        test.analyze_module(module_id);
+        test.compile();
+        test.check_clean();
+    }
+
+    /// Integer literal should be assignable to float type (implicit conversion).
+    #[test]
+    fn test_type_check_let_int_to_float_compatible() {
+        let test = TestProgram::memory_sequential();
+        let module_id = test.register_module("test.ds", "let x: float = 42;");
+        test.analyze_module(module_id);
+        test.compile();
+        test.check_clean();
+    }
+
+    /// Value within int8 range should be valid.
+    #[test]
+    fn test_type_check_int8_range_valid() {
+        let test = TestProgram::memory_sequential();
+        let module_id = test.register_module("test.ds", "let x: int8 = 127;");
+        test.analyze_module(module_id);
+        test.compile();
+        test.check_clean();
+    }
+
+    /// Value outside int8 range should fail.
+    #[test]
+    fn test_type_check_int8_range_overflow() {
+        let test = TestProgram::memory_sequential();
+        let module_id = test.register_module("test.ds", "let x: int8 = 128;");
+        test.analyze_module(module_id);
+        test.compile();
+        test.check_diagnostics(&["EA004"]);
+    }
+
+    /// Value within uint8 range should be valid.
+    #[test]
+    fn test_type_check_uint8_range_valid() {
+        let test = TestProgram::memory_sequential();
+        let module_id = test.register_module("test.ds", "let x: uint8 = 255;");
+        test.analyze_module(module_id);
+        test.compile();
+        test.check_clean();
+    }
+
+    /// Value outside uint8 range should fail.
+    #[test]
+    fn test_type_check_uint8_range_overflow() {
+        let test = TestProgram::memory_sequential();
+        let module_id = test.register_module("test.ds", "let x: uint8 = 256;");
+        test.analyze_module(module_id);
+        test.compile();
+        test.check_diagnostics(&["EA004"]);
+    }
+
+    /// Negative value should not be assignable to unsigned type.
+    /// Now works because we have constant folding for unary negation.
+    #[test]
+    fn test_type_check_uint_negative_fails() {
+        let test = TestProgram::memory_sequential();
+        let module_id = test.register_module("test.ds", "let x: uint = -1;");
+        test.analyze_module(module_id);
+        test.compile();
+        test.check_diagnostics(&["EA004"]);
+    }
+
+    /// Integer literal 42 is assignable to int32.
+    #[test]
+    fn test_analyze_assignability_literal_to_int() {
+        let test = TestProgram::memory_sequential();
+        let module_id = test.register_module("test.ds", "42");
+        test.analyze_module(module_id);
+        test.compile_dump_clean();
+
+        let module = test.program.modules.get(module_id);
+        let module = module.read();
+        let mut types = module.dir.types.write();
+
+        let int_ty = types.insert_type(Type::TypeLiteral {
+            value: TypeLiteral::Primitive(PrimitiveType::Int(IntType::Int32)),
+        });
+        let literal_ty = types.insert_type(Type::TypeLiteral {
+            value: TypeLiteral::ScalarLiteral(ScalarLiteral::Integer(42)),
+        });
+
+        assert_eq!(
+            test.compiler
+                .check_is_type_assignable(int_ty, literal_ty, &types),
+            Assignability::Assignable
+        );
+    }
+
+    /// Float literal 3.14 is assignable to float64.
+    #[test]
+    fn test_analyze_assignability_literal_to_float() {
+        let test = TestProgram::memory_sequential();
+        let module_id = test.register_module("test.ds", "42");
+        test.analyze_module(module_id);
+        test.compile_dump_clean();
+
+        let module = test.program.modules.get(module_id);
+        let module = module.read();
+        let mut types = module.dir.types.write();
+
+        let float_ty = types.insert_type(Type::TypeLiteral {
+            value: TypeLiteral::Primitive(PrimitiveType::Float(FloatType::Float64)),
+        });
+        let literal_ty = types.insert_type(Type::TypeLiteral {
+            #[allow(clippy::approx_constant)]
+            value: TypeLiteral::ScalarLiteral(ScalarLiteral::Float(3.14f64)),
+        });
+
+        assert_eq!(
+            test.compiler
+                .check_is_type_assignable(float_ty, literal_ty, &types),
+            Assignability::Assignable
+        );
+    }
+
+    /// Integer literal 1000 is not assignable to int8 (range: -128 to 127).
+    #[test]
+    fn test_analyze_assignability_int_out_of_range() {
+        let test = TestProgram::memory_sequential();
+        let module_id = test.register_module("test.ds", "42");
+        test.analyze_module(module_id);
+        test.compile_dump_clean();
+
+        let module = test.program.modules.get(module_id);
+        let module = module.read();
+        let mut types = module.dir.types.write();
+
+        let int8_ty = types.insert_type(Type::TypeLiteral {
+            value: TypeLiteral::Primitive(PrimitiveType::Int(IntType::Int8)),
+        });
+        let literal_ty = types.insert_type(Type::TypeLiteral {
+            value: TypeLiteral::ScalarLiteral(ScalarLiteral::Integer(1000)),
+        });
+
+        assert_eq!(
+            test.compiler
+                .check_is_type_assignable(int8_ty, literal_ty, &types),
+            Assignability::NotAssignable
+        );
     }
 }
