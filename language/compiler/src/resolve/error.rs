@@ -38,11 +38,18 @@ pub enum ResolveError {
         symbol: GlobalSymbolId,
         key: StaticKey,
     },
+    /// Cyclic symbol reference (re-export chain forms a cycle).
+    CyclicSymbol {
+        node: GlobalNodeIdAny,
+        symbol: GlobalSymbolId,
+    },
     /// Unresolved module.
     UnresolvedModule {
         node: GlobalNodeIdAny,
         target: StringId,
     },
+    /// Self type used outside of a type context.
+    MissingSelf { node: GlobalNodeIdAny },
 }
 
 impl From<TaskDependencyError> for ResolveError {
@@ -79,7 +86,9 @@ impl ResolveError {
             Self::UndeclaredSymbol { .. } => 4,
             Self::MissingSymbol { .. } => 5,
             Self::AmbiguousSymbol { .. } => 6,
+            Self::CyclicSymbol { .. } => 8,
             Self::UnresolvedModule { .. } => 7,
+            Self::MissingSelf { .. } => 9,
         }
     }
 
@@ -93,7 +102,9 @@ impl ResolveError {
             Self::UndeclaredSymbol { node, .. } => DiagnosticAnchor::Node(*node),
             Self::MissingSymbol { node, .. } => DiagnosticAnchor::Node(*node),
             Self::AmbiguousSymbol { node, .. } => DiagnosticAnchor::Node(*node),
+            Self::CyclicSymbol { node, .. } => DiagnosticAnchor::Node(*node),
             Self::UnresolvedModule { node, .. } => DiagnosticAnchor::Node(*node),
+            Self::MissingSelf { node, .. } => DiagnosticAnchor::Node(*node),
         }
     }
 
@@ -125,9 +136,13 @@ impl ResolveError {
                 let key = key.debug_string(&program.strings);
                 format!("ambiguous symbol {key}")
             }
+            Self::CyclicSymbol { .. } => "cyclic symbol reference".to_string(),
             Self::UnresolvedModule { target, .. } => {
                 let target = program.strings.get(*target).to_string();
                 format!("unresolved module '{target}'")
+            }
+            Self::MissingSelf { .. } => {
+                "`Self` type can only be used inside a class, struct, or enum".to_string()
             }
         }
     }

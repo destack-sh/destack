@@ -316,7 +316,7 @@ pub struct DsConfigCompilerOptions {
     /// Enable all strict type-checking options.
     pub strict: bool,
     /// Error on implicit managed `T` (instead of `^T` or `&T` where not provable).
-    pub no_implicit_managed: bool,
+    pub no_implicit_managed: bool, // nocheckin #Architecture: reorganize check options (strict TS vs strict DS?)
     /// Error on implicit `any`.
     pub no_implicit_any: bool,
     /// Strict null checks.

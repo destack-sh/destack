@@ -1,3 +1,4 @@
+mod declaration;
 mod dependency;
 mod error;
 mod expression;
