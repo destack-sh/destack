@@ -1,7 +1,7 @@
 use crate::{
-    Annotation, Argument, Block, Declaration, DependencyItem, EnumField, Expression, LocalNodeId,
-    LocalNodeIdAny, Node, NodeTree, NodeTreeImpl, NodeType, Parameter, Pattern, PatternField,
-    Property, Statement, SwitchCase, Type, TypeField,
+    Annotation, Argument, Block, Declaration, Declarator, DependencyItem, EnumField, Expression,
+    LocalNodeId, LocalNodeIdAny, Node, NodeTree, NodeTreeImpl, NodeType, Parameter, Pattern,
+    PatternField, Property, Statement, SwitchCase, Type, TypeField,
 };
 use destack_fir::format::{Format, FormatContext, FormatOptions, FormatResult, Formatter};
 use destack_fir::prelude::*;
@@ -339,6 +339,11 @@ impl<'a> Format<CodegenJsFormatContext<'a>> for LocalNodeIdAny {
             }
             NodeType::Annotation => {
                 let node_id = LocalNodeId::<Annotation>::new(self.id);
+                let node = context.tree.get(node_id);
+                node.format_node(node_id, f)
+            }
+            NodeType::Declarator => {
+                let node_id = LocalNodeId::<Declarator>::new(self.id);
                 let node = context.tree.get(node_id);
                 node.format_node(node_id, f)
             }

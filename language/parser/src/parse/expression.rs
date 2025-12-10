@@ -1258,10 +1258,10 @@ impl Parser {
 mod tests {
     use destack_ast::{
         Argument, AssignOperator, BinaryOperator, Block, Declaration, DeclarationDescriptor,
-        DeclarationType, DependencyItem, DependencyKind, DependencyMode, Expression, FunctionKind,
-        IntType, Key, Mutability, Name, Parameter, Pattern, PatternField, PostfixPosition,
-        Property, ScalarLiteral, TypeBinaryOperator, TypeLiteral, TypeUnaryOperator, UnaryOperator,
-        VarianceBound,
+        DeclarationType, Declarator, DependencyItem, DependencyKind, DependencyMode, Expression,
+        FunctionKind, IntType, Key, Mutability, Name, Parameter, Pattern, PatternField,
+        PostfixPosition, Property, ScalarLiteral, TypeBinaryOperator, TypeLiteral,
+        TypeUnaryOperator, UnaryOperator, VarianceBound,
     };
 
     use crate::{
@@ -1295,11 +1295,14 @@ type = type * 2
 
         // let type = 1
         let expression_id = parser.eat_expression().unwrap();
-        assert_node!(parser.tree, expression_id, Expression::Let { pattern, value: Some(value), .. } => {
-            assert_node!(parser.tree, *pattern, Pattern::Binding { name, .. } => {
-                assert_string!(parser, *name, "type");
+        assert_node!(parser.tree, expression_id, Expression::Let { declarators, .. } => {
+            assert_eq!(declarators.len(), 1);
+            assert_node!(parser.tree, declarators[0], Declarator::Binding { pattern, value: Some(value), .. } => {
+                assert_node!(parser.tree, *pattern, Pattern::Binding { name, .. } => {
+                    assert_string!(parser, *name, "type");
+                });
+                assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
             });
-            assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
         });
         parser.eat_newline().unwrap();
 
@@ -1686,17 +1689,20 @@ const shapes = (
         let mut parser = test.prepare();
         parser.eat_newline().unwrap();
         let expr_id = parser.eat_expression().unwrap();
-        assert_node!(parser.tree, expr_id, Expression::Let { pattern, value, .. } => {
-            // shapes
-            assert_node!(parser.tree, *pattern, Pattern::Binding { name, .. } => {
-                assert_string!(parser, *name, "shapes");
-            });
-            // (...)
-            assert_node!(parser.tree, value.unwrap(), Expression::TupleExpression { elements, .. } => {
-                assert_eq!(elements.len(), 5);
-                // TetrisPieceShape.I
-                assert_node!(parser.tree, elements[0], Argument::Positional { value } => {
-                    assert_expression_path!(parser, parser.tree.get(*value), "TetrisPieceShape.I");
+        assert_node!(parser.tree, expr_id, Expression::Let { declarators, .. } => {
+            assert_eq!(declarators.len(), 1);
+            assert_node!(parser.tree, declarators[0], Declarator::Binding { pattern, value, .. } => {
+                // shapes
+                assert_node!(parser.tree, *pattern, Pattern::Binding { name, .. } => {
+                    assert_string!(parser, *name, "shapes");
+                });
+                // (...)
+                assert_node!(parser.tree, value.unwrap(), Expression::TupleExpression { elements, .. } => {
+                    assert_eq!(elements.len(), 5);
+                    // TetrisPieceShape.I
+                    assert_node!(parser.tree, elements[0], Argument::Positional { value } => {
+                        assert_expression_path!(parser, parser.tree.get(*value), "TetrisPieceShape.I");
+                    });
                 });
             });
         });
@@ -1734,11 +1740,14 @@ const shapes = (
         let mut test = TestParser::new("let x = do { }");
         let mut parser = test.prepare();
         let expr_id = parser.eat_expression().unwrap();
-        assert_node!(parser.tree, expr_id, Expression::Let { pattern, value, .. } => {
-            assert_node!(parser.tree, *pattern, Pattern::Binding { name, .. } => {
-                assert_string!(parser, *name, "x");
+        assert_node!(parser.tree, expr_id, Expression::Let { declarators, .. } => {
+            assert_eq!(declarators.len(), 1);
+            assert_node!(parser.tree, declarators[0], Declarator::Binding { pattern, value, .. } => {
+                assert_node!(parser.tree, *pattern, Pattern::Binding { name, .. } => {
+                    assert_string!(parser, *name, "x");
+                });
+                assert_node!(parser.tree, value.unwrap(), Expression::Block { .. });
             });
-            assert_node!(parser.tree, value.unwrap( ), Expression::Block { .. });
         });
     }
 
@@ -2145,23 +2154,26 @@ geom.Mesh<2, 4> {
         let mut parser = test.prepare();
         let expr_id = parser.eat_expression().unwrap();
         // let Alias = A<B<C>>
-        assert_node!(parser.tree, expr_id, Expression::Let { pattern, value, .. } => {
-            // Alias
-            assert_node!(parser.tree, *pattern, Pattern::Binding { name, .. } => {
-                assert_string!(parser, *name, "Alias");
-            });
-            // A<B<C>>
-            assert_node!(parser.tree, value.unwrap(), Expression::Path { path, static_arguments } => {
-                assert_path!(parser, *path, "A");
-                assert!(static_arguments.is_some());
-                // B<C>
-                assert_node!(parser.tree, static_arguments.as_ref().unwrap()[0], Argument::Positional { value } => {
-                    assert_node!(parser.tree, *value, Expression::Path { path, static_arguments } => {
-                        assert_path!(parser, *path, "B");
-                        assert!(static_arguments.is_some());
-                        // C
-                        assert_node!(parser.tree, static_arguments.as_ref().unwrap()[0], Argument::Positional { value } => {
-                            assert_expression_path!(parser, parser.tree.get(*value), "C");
+        assert_node!(parser.tree, expr_id, Expression::Let { declarators, .. } => {
+            assert_eq!(declarators.len(), 1);
+            assert_node!(parser.tree, declarators[0], Declarator::Binding { pattern, value, .. } => {
+                // Alias
+                assert_node!(parser.tree, *pattern, Pattern::Binding { name, .. } => {
+                    assert_string!(parser, *name, "Alias");
+                });
+                // A<B<C>>
+                assert_node!(parser.tree, value.unwrap(), Expression::Path { path, static_arguments } => {
+                    assert_path!(parser, *path, "A");
+                    assert!(static_arguments.is_some());
+                    // B<C>
+                    assert_node!(parser.tree, static_arguments.as_ref().unwrap()[0], Argument::Positional { value } => {
+                        assert_node!(parser.tree, *value, Expression::Path { path, static_arguments } => {
+                            assert_path!(parser, *path, "B");
+                            assert!(static_arguments.is_some());
+                            // C
+                            assert_node!(parser.tree, static_arguments.as_ref().unwrap()[0], Argument::Positional { value } => {
+                                assert_expression_path!(parser, parser.tree.get(*value), "C");
+                            });
                         });
                     });
                 });
@@ -2298,57 +2310,64 @@ const x =
         assert_node!(
             parser.tree,
             expr_id,
-            Expression::Let { mutability, pattern, value, .. } => {
+            Expression::Let { mutability, declarators, .. } => {
                 assert_eq!(*mutability, Mutability::Immutable);
-                // x
+                assert_eq!(declarators.len(), 1);
                 assert_node!(
                     parser.tree,
-                    *pattern,
-                    Pattern::Binding { name, .. } => {
-                        assert_string!(parser, *name, "x");
-                    }
-                );
-                // foo.parse() + 2 + x
-                assert_node!(
-                    parser.tree,
-                    value.unwrap(),
-                    Expression::Binary { left, operator, right, .. } => {
-                        assert_eq!(*operator, BinaryOperator::Add);
-                        // foo.parse() + 2
-                        assert_node!(
-                            parser.tree,
-                            *left,
-                            Expression::Binary { left, operator, right, .. } => {
-                                assert_eq!(*operator, BinaryOperator::Add);
-                                // foo.parse()
-                                assert_node!(
-                                    parser.tree,
-                                    *left,
-                                    Expression::Call { left, .. } => {
-                                        // foo.parse
-                                        assert_node!(
-                                            parser.tree,
-                                            *left,
-                                            Expression::Path { path, .. } => {
-                                                assert_path!(parser, *path, "foo.parse");
-                                            }
-                                        );
-                                    }
-                                );
-                                // 2
-                                assert_node!(
-                                    parser.tree,
-                                    *right,
-                                    Expression::ScalarLiteral(ScalarLiteral::Integer(2))
-                                );
-                            }
-                        );
+                    declarators[0],
+                    Declarator::Binding { pattern, value, .. } => {
                         // x
                         assert_node!(
                             parser.tree,
-                            *right,
-                            Expression::Path { path, .. } => {
-                                assert_path!(parser, *path, "x");
+                            *pattern,
+                            Pattern::Binding { name, .. } => {
+                                assert_string!(parser, *name, "x");
+                            }
+                        );
+                        // foo.parse() + 2 + x
+                        assert_node!(
+                            parser.tree,
+                            value.unwrap(),
+                            Expression::Binary { left, operator, right, .. } => {
+                                assert_eq!(*operator, BinaryOperator::Add);
+                                // foo.parse() + 2
+                                assert_node!(
+                                    parser.tree,
+                                    *left,
+                                    Expression::Binary { left, operator, right, .. } => {
+                                        assert_eq!(*operator, BinaryOperator::Add);
+                                        // foo.parse()
+                                        assert_node!(
+                                            parser.tree,
+                                            *left,
+                                            Expression::Call { left, .. } => {
+                                                // foo.parse
+                                                assert_node!(
+                                                    parser.tree,
+                                                    *left,
+                                                    Expression::Path { path, .. } => {
+                                                        assert_path!(parser, *path, "foo.parse");
+                                                    }
+                                                );
+                                            }
+                                        );
+                                        // 2
+                                        assert_node!(
+                                            parser.tree,
+                                            *right,
+                                            Expression::ScalarLiteral(ScalarLiteral::Integer(2))
+                                        );
+                                    }
+                                );
+                                // x
+                                assert_node!(
+                                    parser.tree,
+                                    *right,
+                                    Expression::Path { path, .. } => {
+                                        assert_path!(parser, *path, "x");
+                                    }
+                                );
                             }
                         );
                     }
@@ -2846,21 +2865,24 @@ const value =
         parser.eat_newline().unwrap();
         let expr_id = parser.eat_expression().unwrap();
         // const value = | 1 | 2 | 3
-        assert_node!(parser.tree, expr_id, Expression::Let { mutability, descriptor: DeclarationDescriptor { name: _, .. }, value, .. } => {
+        assert_node!(parser.tree, expr_id, Expression::Let { mutability, declarators, .. } => {
             assert_eq!(*mutability, Mutability::Immutable);
-            // | 1 | 2 | 3
-            assert_node!(parser.tree, value.unwrap(), Expression::Binary { left, operator, right, .. } => {
-                assert_eq!(*operator, BinaryOperator::ElementwiseOr);
-                // 1 | 2
-                assert_node!(parser.tree, *left, Expression::Binary { left, operator, right, .. } => {
+            assert_eq!(declarators.len(), 1);
+            assert_node!(parser.tree, declarators[0], Declarator::Binding { value, .. } => {
+                // | 1 | 2 | 3
+                assert_node!(parser.tree, value.unwrap(), Expression::Binary { left, operator, right, .. } => {
                     assert_eq!(*operator, BinaryOperator::ElementwiseOr);
-                    // 1
-                    assert_node!(parser.tree, *left, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
-                    // 2
-                    assert_node!(parser.tree, *right, Expression::ScalarLiteral(ScalarLiteral::Integer(2)));
+                    // 1 | 2
+                    assert_node!(parser.tree, *left, Expression::Binary { left, operator, right, .. } => {
+                        assert_eq!(*operator, BinaryOperator::ElementwiseOr);
+                        // 1
+                        assert_node!(parser.tree, *left, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
+                        // 2
+                        assert_node!(parser.tree, *right, Expression::ScalarLiteral(ScalarLiteral::Integer(2)));
+                    });
+                    // 3
+                    assert_node!(parser.tree, *right, Expression::ScalarLiteral(ScalarLiteral::Integer(3)));
                 });
-                // 3
-                assert_node!(parser.tree, *right, Expression::ScalarLiteral(ScalarLiteral::Integer(3)));
             });
         });
     }

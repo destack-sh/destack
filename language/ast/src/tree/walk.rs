@@ -1,7 +1,7 @@
 use crate::{
-    Annotation, Argument, Blank, Block, Comment, Declaration, DeclarationDescriptor, Decorator,
-    DependencyItem, Doc, EnumField, Expression, FunctionSignature, Generics, Heritage, Key,
-    LocalNodeId, MatchCase, NodeTree, NodeType, NodeVisitor, Parameter, Pattern, PatternField,
+    Annotation, Argument, Blank, Block, Comment, Declaration, DeclarationDescriptor, Declarator,
+    Decorator, DependencyItem, Doc, EnumField, Expression, FunctionSignature, Generics, Heritage,
+    Key, LocalNodeId, MatchCase, NodeTree, NodeType, NodeVisitor, Parameter, Pattern, PatternField,
     Property, TemplateLiteral, WhereClause,
 };
 
@@ -76,6 +76,10 @@ pub fn walk_any<V: NodeVisitor + ?Sized>(
         NodeType::MatchCase => {
             let match_case = tree.match_cases.get(local_idx);
             walk_match_case(visitor, tree, LocalNodeId::new(node_id), match_case);
+        }
+        NodeType::Declarator => {
+            let declarator = tree.declarators.get(local_idx);
+            walk_declarator(visitor, tree, LocalNodeId::new(node_id), declarator);
         }
         // --------------------------------------------------------------------
         // Annotations
@@ -173,19 +177,11 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
         Expression::Let {
             mutability: _,
             descriptor: _,
-            pattern,
-            ty,
-            value,
+            declarators,
         } => {
-            let pattern_node = tree.get(*pattern);
-            visitor.visit_pattern(tree, *pattern, pattern_node);
-            if let Some(type_id) = ty {
-                let type_expr = tree.get(*type_id);
-                visitor.visit_expression(tree, *type_id, type_expr);
-            }
-            if let Some(value_id) = value {
-                let value_expr = tree.get(*value_id);
-                visitor.visit_expression(tree, *value_id, value_expr);
+            for declarator_id in declarators {
+                let declarator = tree.get(*declarator_id);
+                visitor.visit_declarator(tree, *declarator_id, declarator);
             }
         }
 
@@ -1153,6 +1149,30 @@ pub fn walk_match_case<V: NodeVisitor + ?Sized>(
             if let Some(guard_expr) = guard {
                 let guard_node = tree.get(*guard_expr);
                 visitor.visit_expression(tree, *guard_expr, guard_node);
+            }
+        }
+    }
+}
+
+/// Walk the Declarator.
+pub fn walk_declarator<V: NodeVisitor + ?Sized>(
+    visitor: &mut V,
+    tree: &NodeTree,
+    id: LocalNodeId<Declarator>,
+    declarator: &Declarator,
+) {
+    visitor.visit_any(tree, NodeType::Declarator, id.id);
+    match declarator {
+        Declarator::Binding { pattern, ty, value } => {
+            let pattern_node = tree.get(*pattern);
+            visitor.visit_pattern(tree, *pattern, pattern_node);
+            if let Some(type_id) = ty {
+                let type_expr = tree.get(*type_id);
+                visitor.visit_expression(tree, *type_id, type_expr);
+            }
+            if let Some(value_id) = value {
+                let value_expr = tree.get(*value_id);
+                visitor.visit_expression(tree, *value_id, value_expr);
             }
         }
     }

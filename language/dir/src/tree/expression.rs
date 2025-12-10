@@ -2,7 +2,7 @@ use destack_source::{ModuleId, StringId};
 
 use crate::{
     Argument, AssignOperator, Asynchrony, BinaryOperator, Block, Declaration,
-    DeclarationDescriptor, DependencyItem, DependencyKind, GlobalSymbolId, LocalNodeId,
+    DeclarationDescriptor, Declarator, DependencyItem, DependencyKind, GlobalSymbolId, LocalNodeId,
     LocalScopeId, LocalSymbolId, LocalTypeId, MatchCase, MatchSource, Mutability, Node, NodeType,
     Path, Pattern, Property, ScalarLiteral, StaticArgument, StaticProperty, TemplateLiteral,
     TypeBinaryOperator, TypeLiteral, TypeUnaryOperator, UnaryOperator, VarianceBound,
@@ -60,8 +60,7 @@ pub enum Expression {
     Let {
         descriptor: DeclarationDescriptor,
         mutability: Mutability,
-        pattern: LocalNodeId<Pattern>,
-        value: Option<LocalNodeId<Expression>>,
+        declarators: Vec<LocalNodeId<Declarator>>,
     },
 
     /// Type unary operation.

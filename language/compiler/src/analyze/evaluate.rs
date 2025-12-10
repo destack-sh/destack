@@ -224,7 +224,7 @@ impl Compiler {
 
 #[cfg(test)]
 mod tests {
-    use destack_dir::{PrimitiveType, Type, TypeLiteral};
+    use destack_dir::{Expression, PrimitiveType, Type, TypeLiteral};
 
     use crate::TestProgram;
 
@@ -242,15 +242,20 @@ mod tests {
 
         let let_expr_id = module.dir.roots[0];
         let expression = tree.get(let_expr_id);
-        let &destack_dir::Expression::Statement {
+        let &Expression::Statement {
             statement: let_expr_id,
         } = expression
         else {
             panic!("expected statement");
         };
+        let let_expression = tree.get(let_expr_id);
+        let Expression::Let { declarators, .. } = let_expression else {
+            panic!("expected let expression");
+        };
+        let declarator_id = declarators.first().unwrap();
 
         let let_ty = types
-            .get_declared_type(let_expr_id.into_global_any(module.id))
+            .get_declared_type(declarator_id.into_global(module.id).into())
             .unwrap();
 
         assert_eq!(
@@ -275,15 +280,20 @@ mod tests {
 
         let let_expr_id = module.dir.roots[0];
         let expression = tree.get(let_expr_id);
-        let &destack_dir::Expression::Statement {
+        let &Expression::Statement {
             statement: let_expr_id,
         } = expression
         else {
             panic!("expected statement");
         };
+        let let_expression = tree.get(let_expr_id);
+        let Expression::Let { declarators, .. } = let_expression else {
+            panic!("expected let expression");
+        };
+        let declarator_id = declarators.first().unwrap();
 
         let let_ty = types
-            .get_declared_type(let_expr_id.into_global_any(module.id))
+            .get_declared_type(declarator_id.into_global(module.id).into())
             .unwrap();
 
         // int resolves to Arbitrary { width: 32, is_signed: true } which is semantically Int32

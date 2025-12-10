@@ -765,9 +765,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
             Expression::Let {
                 mutability,
                 descriptor,
-                pattern: _,
-                ty: _,
-                value: _,
+                declarators: _,
             } => {
                 self.node("Expression::Let", _id.id)
                     .field("mutability", mutability)
@@ -1324,6 +1322,26 @@ impl<'a> NodeVisitor for Dumper<'a> {
         }
         self.with_depth(|dumper| {
             walk_match_case(dumper, _tree, _id, case);
+        });
+    }
+
+    fn visit_declarator(
+        &mut self,
+        _tree: &NodeTree,
+        _id: LocalNodeId<Declarator>,
+        declarator: &Declarator,
+    ) {
+        match declarator {
+            Declarator::Binding {
+                pattern: _,
+                ty: _,
+                value: _,
+            } => {
+                self.node("Declarator::Binding", _id.id).end();
+            }
+        }
+        self.with_depth(|dumper| {
+            walk_declarator(dumper, _tree, _id, declarator);
         });
     }
 

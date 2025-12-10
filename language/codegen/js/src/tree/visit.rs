@@ -1,11 +1,12 @@
 #![allow(unused_variables)]
 
 use crate::{
-    Annotation, Argument, Block, Declaration, DependencyItem, EnumField, Expression, LocalNodeId,
-    NodeTree, NodeType, Parameter, Pattern, PatternField, Property, Statement, SwitchCase, Type,
-    TypeField, walk_annotation, walk_argument, walk_block, walk_declaration, walk_dependency_item,
-    walk_enum_field, walk_expression, walk_parameter, walk_pattern, walk_pattern_field,
-    walk_property, walk_statement, walk_switch_case, walk_type, walk_type_field,
+    Annotation, Argument, Block, Declaration, Declarator, DependencyItem, EnumField, Expression,
+    LocalNodeId, NodeTree, NodeType, Parameter, Pattern, PatternField, Property, Statement,
+    SwitchCase, Type, TypeField, walk_annotation, walk_argument, walk_block, walk_declaration,
+    walk_declarator, walk_dependency_item, walk_enum_field, walk_expression, walk_parameter,
+    walk_pattern, walk_pattern_field, walk_property, walk_statement, walk_switch_case, walk_type,
+    walk_type_field,
 };
 
 #[derive(Debug, Clone, Default)]
@@ -62,6 +63,16 @@ pub trait NodeVisitor {
         declaration: &Declaration,
     ) {
         walk_declaration(self, tree, id, declaration);
+    }
+
+    /// Visit a declarator.
+    fn visit_declarator(
+        &mut self,
+        tree: &NodeTree,
+        id: LocalNodeId<Declarator>,
+        declarator: &Declarator,
+    ) {
+        walk_declarator(self, tree, id, declarator);
     }
 
     /// Visit a property.
@@ -212,6 +223,15 @@ impl NodeVisitor for CapturingNodeVisitor {
         _declaration: &Declaration,
     ) {
         self.visit_any(tree, NodeType::Declaration, id.id);
+    }
+
+    fn visit_declarator(
+        &mut self,
+        tree: &NodeTree,
+        id: LocalNodeId<Declarator>,
+        _declarator: &Declarator,
+    ) {
+        self.visit_any(tree, NodeType::Declarator, id.id);
     }
 
     fn visit_property(&mut self, tree: &NodeTree, id: LocalNodeId<Property>, _field: &Property) {

@@ -1,6 +1,6 @@
 use crate::{
     CodegenJsError, CodegenJsResult, CodegenJsResultExt, CodegenJsWarning, Expression, LocalNodeId,
-    LocalNodeIdAny, ModuleLowerer, NodeType, PostfixPosition, Statement,
+    LocalNodeIdAny, ModuleLowerer, NodeType, PostfixPosition, Statement, Type,
 };
 use destack_dir::{self as dir, Node};
 
@@ -145,29 +145,43 @@ impl ModuleLowerer<'_> {
             dir::Expression::Let {
                 descriptor,
                 mutability,
-                pattern,
-                value,
+                declarators: dir_declarators,
             } => {
                 let descriptor = self.lower_declaration_descriptor(descriptor);
                 let mutability = self.lower_mutability(*mutability);
-                let pattern = self.lower_pattern(*pattern)?;
-                let ty = self
-                    .types
-                    .get_declared_type_id(expression_id.into_global_any(self.module.id))
-                    .map(|ty| self.lower_type(ty))
-                    .transpose()?;
-                let value = value
-                    .map(|value| {
-                        self.lower_expression(value)
-                            .expect_node::<Expression>(value.into_global_any(self.module.id), self)
-                    })
-                    .transpose()?;
+
+                let mut declarators = Vec::with_capacity(dir_declarators.len());
+                for dir_declarator_id in dir_declarators {
+                    let dir_declarator = self.dir_tree.get(*dir_declarator_id);
+                    let (pattern_id, ty_id, value_id) = match dir_declarator {
+                        dir::Declarator::Binding { pattern, ty, value } => (pattern, ty, value),
+                    };
+
+                    let pattern = self.lower_pattern(*pattern_id)?;
+                    let ty: Option<crate::LocalNodeId<Type>> = ty_id
+                        .map(|ty| {
+                            self.lower_expression(ty)
+                                .expect_node::<Type>(ty.into_global_any(self.module.id), self)
+                        })
+                        .transpose()?;
+                    let value: Option<crate::LocalNodeId<Expression>> = value_id
+                        .map(|value| {
+                            self.lower_expression(value)
+                                .expect_node::<Expression>(value.into_global_any(self.module.id), self)
+                        })
+                        .transpose()?;
+
+                    let declarator = crate::Declarator::Binding { pattern, ty, value };
+                    let declarator_id = self
+                        .tree
+                        .insert_from_source(declarator, self.module.id, *dir_declarator_id);
+                    declarators.push(declarator_id);
+                }
+
                 let statement = Statement::Let {
                     descriptor,
                     mutability,
-                    pattern,
-                    ty,
-                    value,
+                    declarators,
                 };
                 self.tree
                     .insert_from_source(statement, self.module.id, expression_id)

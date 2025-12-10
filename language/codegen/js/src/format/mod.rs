@@ -3,6 +3,7 @@ mod argument;
 mod block;
 mod context;
 mod declaration;
+mod declarator;
 mod dependency;
 mod expression;
 mod identifier;
