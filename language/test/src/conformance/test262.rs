@@ -1,14 +1,9 @@
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
 
-use destack_ast::TokenType;
-use destack_parser::Parser;
-use destack_source::{
-    File, FileRegistry, FileSystem, FileType, LanguageOptions, MemoryFileSystem, Uri,
-};
-use destack_workspace::Program;
+use destack_source::FileType;
 
-use super::runner::{ConformanceSuite, SuiteResult, run_conformance_suite};
+use super::parse::{ParseOptions, ParseOutcome, is_module_path, parse_file};
+use super::runner::{ConformanceSuite, SuiteResult, TestOutcome, run_conformance_suite};
 use crate::harness::{TestOptions, fixtures_dir};
 
 // pinned version of test262-parser-tests
@@ -61,54 +56,6 @@ impl Test262Suite {
         tests.sort();
         tests
     }
-
-    fn parse_and_check(&self, path: &Path, content: &str) -> bool {
-        // set up minimal program context
-        let cwd = path.parent().unwrap_or(Path::new(".")).to_path_buf();
-        let files = Arc::new(FileRegistry::new());
-        let fs: Arc<dyn FileSystem> = Arc::new(MemoryFileSystem::new());
-        let program = Arc::new(Program::new(LanguageOptions::default(), cwd, fs, files));
-
-        // create file
-        let uri = Uri::from_path(path);
-        let file_id = program.files.next_id();
-        let name = path.file_name().unwrap().to_string_lossy().to_string();
-        let file = File::from_text(
-            file_id,
-            name,
-            uri,
-            Some(path.to_path_buf()),
-            FileType::JavaScript,
-            content.to_string(),
-        );
-        program.files.insert(file);
-        let file = program.files.get(file_id);
-
-        // parse
-        let mut parser = Parser::lex_file(file, program.language);
-        let _ = parser.parse();
-
-        // check for HTML comments in module files
-        // HTML comments (<!-- and -->) are only valid in script mode, not ES modules.
-        // (during real compilation we check this in the compiler's import phase)
-        // Note: HtmlComment is a trivia token, so it lives in side_tokens, not tokens
-        let is_module = path
-            .file_name()
-            .and_then(|n| n.to_str())
-            .is_some_and(|n| n.contains(".module."));
-        if is_module {
-            let has_html_comment = parser
-                .side_tokens
-                .iter()
-                .any(|t| t.token.ty == TokenType::HtmlComment);
-            if has_html_comment {
-                return true; // treat as error
-            }
-        }
-
-        // return whether there were errors
-        !parser.diagnostics.is_empty()
-    }
 }
 
 impl Default for Test262Suite {
@@ -160,10 +107,10 @@ impl ConformanceSuite for Test262Suite {
         tests
     }
 
-    fn run_test(&self, name: &str) -> bool {
+    fn run_test(&self, name: &str) -> TestOutcome {
         let parts: Vec<&str> = name.splitn(2, '/').collect();
         if parts.len() != 2 {
-            return false;
+            return TestOutcome::Failed;
         }
 
         let (category, test_name) = (parts[0], parts[1]);
@@ -171,16 +118,25 @@ impl ConformanceSuite for Test262Suite {
 
         let content = match std::fs::read_to_string(&path) {
             Ok(s) => s,
-            Err(_) => return false,
+            Err(_) => return TestOutcome::Failed,
         };
+
+        // HTML comments are forbidden in ES modules (files with .module. in name)
+        let options = ParseOptions {
+            reject_html_comments: is_module_path(&path),
+        };
+        let parse_outcome = parse_file(&path, &content, FileType::JavaScript, options);
 
         // early/ tests should also parse successfully (they have semantic errors, not syntax errors)
         let should_pass = matches!(category, "pass" | "pass-explicit" | "early");
-        let has_errors = self.parse_and_check(&path, &content);
 
-        // pass/early tests should parse without errors
-        // fail tests should have errors
-        if should_pass { !has_errors } else { has_errors }
+        // pass/early tests should parse without errors, fail tests should have errors
+        match (should_pass, parse_outcome) {
+            (true, ParseOutcome::Ok) => TestOutcome::Passed,
+            (true, ParseOutcome::Error) => TestOutcome::Failed,
+            (false, ParseOutcome::Ok) => TestOutcome::Failed,
+            (false, ParseOutcome::Error) => TestOutcome::Passed,
+        }
     }
 
     fn download_instructions(&self) -> String {
