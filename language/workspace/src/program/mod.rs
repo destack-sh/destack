@@ -1,5 +1,6 @@
 mod artifact;
 mod dsconfig;
+mod ecmascript;
 mod module;
 mod package;
 mod program;
@@ -9,6 +10,7 @@ mod tsconfig;
 
 pub use artifact::*;
 pub use dsconfig::*;
+pub use ecmascript::*;
 pub use module::*;
 pub use package::*;
 pub use program::*;

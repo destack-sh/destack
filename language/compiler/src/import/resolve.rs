@@ -8,7 +8,7 @@ use std::path::{Path, PathBuf};
 
 use destack_resolver::Resolver;
 use destack_source::{File, FileType, ModuleId, PackageId, StringId, Uri};
-use destack_workspace::{Module, Package, PackageKind};
+use destack_workspace::{Module, Package, PackageKind, ModuleType};
 
 use crate::{Compiler, ImportError, ImportResult};
 
@@ -113,7 +113,8 @@ impl Compiler {
 
         // create and register blank module
         let module_id = ModuleId::from_path(package_id, path, package_root.as_deref());
-        let module = Module::blank(module_id, file_id, uri, Some(path.clone()), package_id);
+        let module_type = ModuleType::from_extension(path).unwrap_or(ModuleType::Script);
+        let module = Module::blank(module_id, file_id, uri, Some(path.clone()), package_id, module_type);
         self.program.modules.insert(module);
 
         // mark as registered

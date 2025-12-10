@@ -16,12 +16,13 @@ enum SingleQuotedLiteral {
     String { is_terminated: bool },
 }
 
-pub const TRIVIA_TOKEN_TYPES: [TokenType; 5] = [
+pub const TRIVIA_TOKEN_TYPES: [TokenType; 6] = [
     TokenType::Whitespace,
     TokenType::LineComment,
     TokenType::BlockComment,
     TokenType::DocLineComment,
     TokenType::DocBlockComment,
+    TokenType::HtmlComment,
 ];
 
 pub const EXPRESSION_START_TOKEN_TYPES: [TokenType; 15] = [
@@ -459,7 +460,7 @@ impl Lexer<'_> {
                         self.eat(); // >
                         // eat until end of line (like a line comment)
                         self.eat_until(b'\n');
-                        (TokenType::LineComment, None)
+                        (TokenType::HtmlComment, None)
                     } else {
                         (TokenType::Decrement, None)
                     }
@@ -595,7 +596,7 @@ impl Lexer<'_> {
                     self.eat(); // -
                     // eat until end of line (like a line comment)
                     self.eat_until(b'\n');
-                    (TokenType::LineComment, None)
+                    (TokenType::HtmlComment, None)
                 }
                 // </ - tree closing tag (when tree state is Content)
                 // NOTE: we check tree_state() directly, not in_tree_content()

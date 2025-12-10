@@ -46,7 +46,8 @@ impl SemanticType {
             // Annotations
             // --------------------------------------------------
             TokenType::LineComment
-            | TokenType::BlockComment => SemanticType::Comment,
+            | TokenType::BlockComment
+            | TokenType::HtmlComment => SemanticType::Comment,
             TokenType::DocLineComment
             | TokenType::DocBlockComment => SemanticType::Doc,
             // (tags are not parsed as tokens)

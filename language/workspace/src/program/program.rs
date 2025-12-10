@@ -10,7 +10,7 @@ use indexmap::IndexMap;
 
 use crate::{
     ArtifactRegistry, Module, ModuleAst, ModuleRegistry, Package, PackageKind, PackageRegistry,
-    TsConfigRegistry,
+    ModuleType, TsConfigRegistry,
 };
 
 /// A Program.
@@ -124,14 +124,19 @@ impl Program {
 
         // root module (uses ephemeral module id)
         let root_module_id = ModuleId::EPHEMERAL;
-        let root_module_ast =
-            ModuleAst::from_tree(root_module_id, root_ast, Vec::new(), StringPool::new());
+        let root_module_ast = ModuleAst::from_tree(
+            root_module_id,
+            root_ast,
+            Vec::new(),
+            StringPool::new(),
+        );
         let root_module = Module::from_ast(
             root_module_id,
             root_file_id,
             root_uri,
             None,
             root_package_id,
+            ModuleType::Script,
             root_module_ast,
         );
 
@@ -159,7 +164,11 @@ impl Program {
         let package_id = PackageId::EPHEMERAL;
         let module_id =
             ModuleId::from_relative_path(package_id, std::path::Path::new(uri.as_ref()));
-        let module = Module::blank(module_id, file_id, uri, None, package_id);
+        let module_type = uri
+            .to_path()
+            .and_then(ModuleType::from_extension)
+            .unwrap_or(ModuleType::Script);
+        let module = Module::blank(module_id, file_id, uri, None, package_id, module_type);
         self.modules.insert(module);
 
         module_id

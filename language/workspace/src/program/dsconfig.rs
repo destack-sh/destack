@@ -13,7 +13,7 @@ use super::target::{
     OptimizeLevel, OutputFormat, OutputMode, Platform, Runtime, ShrinkLevel, Target,
     TargetDiscovery,
 };
-use super::tsconfig::{EsTarget, ModuleKind};
+use super::tsconfig::{EsTarget, ModuleTarget};
 
 /// Destack configuration (from `dsconfig.json`, 1:1 with Package).
 #[derive(Debug, Clone)]
@@ -338,7 +338,7 @@ pub struct DsConfigCompilerOptions {
 
     // module & target
     /// Module format for output.
-    pub module: ModuleKind,
+    pub module: ModuleTarget,
     /// ECMAScript target version.
     pub es_target: EsTarget,
     /// Library files to include (e.g., "es2024", "dom", "worker").
@@ -432,7 +432,7 @@ impl Default for DsConfigCompilerOptions {
             features: LanguageFeatureSet::all(),
             base_url: None,
             paths: None,
-            module: ModuleKind::default(),
+            module: ModuleTarget::default(),
             es_target: EsTarget::default(),
             lib: Vec::new(), // derived from runtime/platform if empty
 
@@ -505,7 +505,7 @@ impl From<&DsConfigCompilerOptionsJson> for DsConfigCompilerOptions {
             module: json
                 .module
                 .as_deref()
-                .and_then(ModuleKind::parse)
+                .and_then(ModuleTarget::parse)
                 .unwrap_or_default(),
             es_target: json
                 .target
@@ -601,7 +601,7 @@ pub struct DsConfigTargetOptions {
 
     // JS/TS specific
     /// Module format for this target.
-    pub module: ModuleKind,
+    pub module: ModuleTarget,
     /// ECMAScript target for this target.
     pub es_target: EsTarget,
     /// Library files for this target. If `None`, derived automatically from runtime and platform.
@@ -633,7 +633,7 @@ impl Default for DsConfigTargetOptions {
             out_dir: PathBuf::from(super::target::DEFAULT_OUT_DIR),
             out_file: None,
             declaration_dir: None,
-            module: ModuleKind::default(),
+            module: ModuleTarget::default(),
             es_target: EsTarget::default(),
             lib: None,
             debug: true,
@@ -734,7 +734,7 @@ impl From<&DsConfigTargetJson> for DsConfigTargetOptions {
             module: json
                 .module
                 .as_deref()
-                .and_then(ModuleKind::parse)
+                .and_then(ModuleTarget::parse)
                 .unwrap_or_default(),
             es_target: json
                 .es_target

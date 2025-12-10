@@ -87,3 +87,16 @@ const y = x as number;
 ```
 
 - cannot cast type boolean to number
+
+## Object Casts
+
+### object widening
+
+> Cast object to type with fewer required fields.
+
+```ds
+const obj = { x: 1, y: 2 };
+const obj2 = obj as { x: number };
+obj2 satisfies { x: number };
+```
+

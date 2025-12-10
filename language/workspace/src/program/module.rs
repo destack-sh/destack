@@ -10,6 +10,8 @@ use destack_dir::{self as dir};
 use destack_mir::{self as mir};
 use destack_source::{FileId, ModuleId, PackageId, StringId, StringPool, Uri};
 
+use super::ecmascript::ModuleType;
+
 /// A Module is a single source unit.
 #[derive(Debug)]
 pub struct Module {
@@ -23,6 +25,8 @@ pub struct Module {
     pub path: Option<PathBuf>,
     /// The package of the Module (every module belongs to a package).
     pub package_id: PackageId,
+    /// The source type of the Module (Script vs Module).
+    pub module_type: ModuleType,
 
     /// The AST-level module data.
     pub ast: ModuleAst,
@@ -41,6 +45,7 @@ impl Module {
         uri: Uri,
         path: Option<PathBuf>,
         package_id: PackageId,
+        module_type: ModuleType,
     ) -> Self {
         Self {
             id,
@@ -48,6 +53,7 @@ impl Module {
             uri,
             path,
             package_id,
+            module_type,
             ast: ModuleAst::new(id),
             dir: ModuleDir::new(id),
             mir: ModuleMir::new(id),
@@ -61,6 +67,7 @@ impl Module {
         uri: Uri,
         path: Option<PathBuf>,
         package_id: PackageId,
+        module_type: ModuleType,
         ast: ModuleAst,
     ) -> Self {
         let dir = ModuleDir::new(id);
@@ -71,6 +78,7 @@ impl Module {
             uri,
             path,
             package_id,
+            module_type,
             ast,
             dir,
             mir,
@@ -99,7 +107,7 @@ pub struct ModuleAst {
 }
 
 impl ModuleAst {
-    /// Create a new ModuleAst.
+    /// Create a new empty ModuleAst.
     pub fn new(id: ModuleId) -> Self {
         Self {
             id,

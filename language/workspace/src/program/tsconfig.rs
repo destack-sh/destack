@@ -557,7 +557,7 @@ impl ModuleResolution {
 
 /// Module format.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
-pub enum ModuleKind {
+pub enum ModuleTarget {
     /// CommonJS modules.
     CommonJs,
     /// AMD modules.
@@ -585,7 +585,7 @@ pub enum ModuleKind {
     None,
 }
 
-impl ModuleKind {
+impl ModuleTarget {
     /// Parse from a string value.
     pub fn parse(s: &str) -> Option<Self> {
         match s.to_lowercase().as_str() {
@@ -774,7 +774,7 @@ pub struct TsConfigCompilerOptions {
 
     // module & target
     /// Module format.
-    pub module: ModuleKind,
+    pub module: ModuleTarget,
     /// ECMAScript target.
     pub es_target: EsTarget,
     /// How to detect modules vs scripts.
@@ -906,7 +906,7 @@ impl Default for TsConfigCompilerOptions {
             resolve_package_json_imports: true,
             custom_conditions: Vec::new(),
 
-            module: ModuleKind::default(),
+            module: ModuleTarget::default(),
             es_target: EsTarget::default(),
             module_detection: ModuleDetection::default(),
 
@@ -992,7 +992,7 @@ impl From<&TsConfigCompilerOptionsJson> for TsConfigCompilerOptions {
             module: json
                 .module
                 .as_deref()
-                .and_then(ModuleKind::parse)
+                .and_then(ModuleTarget::parse)
                 .unwrap_or_default(),
             es_target: json
                 .target
