@@ -653,7 +653,7 @@ impl Compiler {
                         })
                         .collect()
                 });
-                Expression::UnresolvedAbsolutePath {
+                Expression::UnresolvedPath {
                     path,
                     static_arguments,
                 }

@@ -932,23 +932,11 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 self.node("Expression::Must", id.id).end();
             }
 
-            Expression::UnresolvedAbsolutePath {
+            Expression::UnresolvedPath {
                 path,
                 static_arguments: _,
             } => {
-                self.node("Expression::UnresolvedAbsolutePath", id.id)
-                    .field("path", path)
-                    .end();
-            }
-            Expression::UnresolvedRelativePath {
-                remaining_path,
-                target_symbol,
-                path,
-                static_arguments: _,
-            } => {
-                self.node("Expression::UnresolvedRelativePath", id.id)
-                    .field("remaining_path", remaining_path)
-                    .field("target_symbol", target_symbol)
+                self.node("Expression::UnresolvedPath", id.id)
                     .field("path", path)
                     .end();
             }

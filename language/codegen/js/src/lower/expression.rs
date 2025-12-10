@@ -174,7 +174,7 @@ impl ModuleLowerer<'_> {
                     .into_any()
             }
 
-            dir::Expression::UnresolvedAbsolutePath {
+            dir::Expression::UnresolvedPath {
                 path,
                 static_arguments,
             } => {

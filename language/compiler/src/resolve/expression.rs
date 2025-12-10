@@ -90,17 +90,21 @@ impl Compiler {
                 }
             }
 
-            Expression::UnresolvedAbsolutePath {
+            Expression::UnresolvedPath {
                 path,
                 static_arguments,
             } => {
+                let path = path.clone(); // (clone to release borrow on tree)
+                let static_arguments = static_arguments.clone();
                 match self.resolve_absolute_path(
                     module,
+                    expression_id,
                     expression_id.into_global_any(module.id),
                     scope,
-                    path,
+                    &path,
                     static_arguments.clone(),
                     symbols,
+                    tree,
                 ) {
                     Ok(expression) => expression,
                     Err(error)
@@ -114,7 +118,7 @@ impl Compiler {
                             self.resolve_self_expression(
                                 module,
                                 scope,
-                                path,
+                                &path,
                                 static_arguments.clone(),
                                 symbols,
                             )
@@ -129,20 +133,6 @@ impl Compiler {
                     Err(error) => return Err(error),
                 }
             }
-            Expression::UnresolvedRelativePath {
-                path,
-                target_symbol,
-                remaining_path,
-                static_arguments,
-            } => self.resolve_relative_path(
-                module,
-                expression_id.into_global_any(module.id),
-                *target_symbol,
-                path,
-                remaining_path,
-                static_arguments.clone(),
-                symbols,
-            )?,
             _ => return Ok(()),
         };
         *tree.get_mut(expression_id) = expression;

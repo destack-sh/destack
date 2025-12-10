@@ -144,16 +144,9 @@ pub enum Expression {
     /// Values.
     /// --------------------------------
 
-    /// Unresolved absolute path.
-    UnresolvedAbsolutePath {
+    /// Unresolved path.
+    UnresolvedPath {
         path: Path,
-        static_arguments: Option<Vec<LocalNodeId<Argument>>>,
-    },
-    /// Unresolved relative path to a remote symbol.
-    UnresolvedRelativePath {
-        path: Path,
-        target_symbol: LocalSymbolId,
-        remaining_path: Path,
         static_arguments: Option<Vec<LocalNodeId<Argument>>>,
     },
     /// Local reference.
@@ -331,8 +324,7 @@ impl Node for Expression {
             self,
             Expression::UnresolvedImport { .. }
                 | Expression::UnresolvedReExport { .. }
-                | Expression::UnresolvedAbsolutePath { .. }
-                | Expression::UnresolvedRelativePath { .. }
+                | Expression::UnresolvedPath { .. }
                 | Expression::UnresolvedBreak { .. }
                 | Expression::UnresolvedContinue { .. }
         )
@@ -372,8 +364,7 @@ impl Expression {
             Expression::New { .. } => "new",
             Expression::Delete { .. } => "delete",
 
-            Expression::UnresolvedAbsolutePath { .. } => "unresolved path",
-            Expression::UnresolvedRelativePath { .. } => "unresolved relative path",
+            Expression::UnresolvedPath { .. } => "unresolved path",
             Expression::LocalReference { .. } => "local reference",
             Expression::ModuleReference { .. } => "module reference",
             Expression::GlobalReference { .. } => "global reference",
