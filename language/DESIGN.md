@@ -296,7 +296,7 @@ Destack adds type extensions and real overloading for type-based dispatch and op
 
 ### Extensions
 
-Destack introdues extensions to add methods and static constants for any type:
+Destack introduces extensions to add methods and static constants for any type:
 
 ```
 extension Vector2 {
@@ -304,7 +304,12 @@ extension Vector2 {
 }
 ```
 
-Extensions let you add methods to any type: classes, structs, enums, even primitives and foreign types without modifying the original definition and without (hidden) global side effects.
+Extensions let you add methods to any type: classes, structs, enums, even primitives and foreign types without modifying the original definition.
+
+Extension visibility follows clear rules:
+- **Same file as type**: Extensions are automatically visible wherever the type is used.
+- **Anonymous on foreign type**: Only visible in the file where declared (`extension int32 { ... }`).
+- **Named on foreign type**: Must be explicitly imported to use (`export extension DateUtils: Date { ... }`).
 
 ### Overloading
 

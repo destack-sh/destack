@@ -612,6 +612,20 @@ enum Priority {
 
 Extensions add methods to existing types without modifying them.
 Unlike TypeScript's prototype extension, Destack extensions are type-safe and scoped.
+Extension visibility depends on where the extension is defined relative to the type.
+
+#### Extension Visibility
+
+| Scenario | Extension Form | Visibility |
+|----------|---------------|------------|
+| Extension in same file as type | Any | Automatic (wherever type is used) |
+| Extension on foreign type, local use | Anonymous | Same file only |
+| Extension on foreign type, shared | Named + exported | Where imported |
+
+This means:
+- When you define a type and extend it in the same file, the methods are part of the type's public API.
+- Anonymous extensions on foreign types are private utilities for that file.
+- Named extensions can be exported and shared, but must be explicitly imported to use.
 
 #### Basic Extensions
 
@@ -640,11 +654,15 @@ extension UserId {
     isValid(): boolean { this > 0; }
 }
 
-// anonymous extension to foreign type (only reachable in same scope)
+// anonymous extension on builtin type: only visible in this file
 extension int32 {
     abs(): int32 { if (this < 0) { -this } else { this }; }
 }
 ```
+
+Since `UserId` is defined in the same file, its extension is visible wherever `UserId` is used.
+Since `int32` is a builtin (foreign) type, the anonymous extension is only visible in this file.
+(Destack includes a prelude for builtin types that is automatically imported.)
 
 #### Implementing Interfaces
 
@@ -693,6 +711,7 @@ Extend types from other modules:
 ```
 import { Vector2 } from "somewhere";
 
+// anonymous: only visible in this file (foreign type)
 extension Vector2 {
     magnitude(): float32 {
         (this.x * this.x + this.y * this.y).sqrt()
@@ -700,11 +719,15 @@ extension Vector2 {
 }
 ```
 
+This anonymous extension on `Vector2` is only usable in the file where it's defined.
+To share extensions on foreign types, use named extensions and import them.
+
 #### Named Extensions
 
-For explicit scoping, extensions can be named and must be imported:
+Named extensions can be exported and must be imported where used:
 
 ```
+// in date-utils.ds
 import { Date } from "builtin";
 
 export extension DateUtils: Date implements Add<Date> {
@@ -712,12 +735,14 @@ export extension DateUtils: Date implements Add<Date> {
 }
 ```
 
-Then import explicitly:
+```
+// in app.ds
+import { DateUtils } from "./date-utils.ds";
 
+const tomorrow = today.addDays(1);  // works: DateUtils is imported
 ```
-import { DateUtils } from "./utilities";
-// now Date has .addDays()
-```
+
+Without importing `DateUtils`, the `addDays` method is not available even if `Date` is in scope.
 
 ### Function
 
