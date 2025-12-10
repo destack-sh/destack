@@ -142,11 +142,8 @@ error/yield_expr_in_parameter_initializer.js
 error/yield_in_non_generator_function.js
 ok/array_binding.js
 ok/array_binding_rest.js
-ok/async_continue_stmt.js
 ok/binary_expressions.js
-ok/break_stmt.js
 ok/class_constructor_parameter_modifiers.ts
-ok/continue_stmt.js
 ok/decorator.ts
 ok/decorator_abstract_class_declaration.ts
 ok/decorator_abstract_class_declaration_top_level.ts
