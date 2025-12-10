@@ -155,10 +155,11 @@ impl ConformanceSuite for Test262Suite {
             Err(_) => return false,
         };
 
-        let should_pass = matches!(category, "pass" | "pass-explicit");
+        // early/ tests should also parse successfully (they have semantic errors, not syntax errors)
+        let should_pass = matches!(category, "pass" | "pass-explicit" | "early");
         let has_errors = self.parse_and_check(&path, &content);
 
-        // pass tests should parse without errors
+        // pass/early tests should parse without errors
         // fail tests should have errors
         if should_pass { !has_errors } else { has_errors }
     }

@@ -1,6 +1,6 @@
-# Destack Language Specification
+# TypeScript++ Language Specification
 
-Destack is TypeScript++ for building better full-stack software systems.
+This is the specification for TypeScript++, Destack's extended TypeScript for building better full-stack software systems.
 This document describes the syntax and semantics of **`.ds` files**.
 `.ts` and `.js` files work exactly the same as before. 
 Even **copy-pasting from `.js` or `.ts` into `.ds` works**: 
