@@ -1593,60 +1593,59 @@ fn format_declarator<'ast>(
     declarator_id: LocalNodeId<Declarator>,
 ) -> FormatResult<()> {
     let declarator = tree.get(declarator_id);
-    match declarator {
-        Declarator::Binding { pattern, ty, value } => {
-            // header: pattern + optional type
-            let header = format_with(|f| {
-                write!(f, [pattern])?;
-                if let Some(ty_id) = ty {
-                    write!(f, [token(":"), space(), ty_id])?;
-                }
-                Ok(())
-            });
+    let Declarator { pattern, ty, value } = declarator;
 
-            let Some(value_id) = value else {
-                write!(f, [header])?;
-                return Ok(());
-            };
-
-            // prefer keeping the value on a single line
-            let format_inline = format_with(|f| {
-                write!(f, [header, space(), token("="), space(), *value_id])?;
-                Ok(())
-            });
-            // expand inline if breakable (like let x = [\n ... ])
-            let format_inline_expanded = format_with(|f| {
-                write!(
-                    f,
-                    [
-                        header,
-                        space(),
-                        token("="),
-                        space(),
-                        fits_expanded(&group(value_id).should_expand(true)),
-                    ]
-                )
-            });
-            // expand and indent the value
-            let format_indented = format_with(|f| {
-                group(&format_args![
-                    header,
-                    space(),
-                    token("="),
-                    block_indent(value_id)
-                ])
-                .format(f)
-            });
-
-            if is_expression_breakable(tree, tree.get(*value_id)) {
-                best_fitting![format_inline, format_inline_expanded, format_indented]
-                    .with_mode(BestFittingMode::AllLines)
-                    .format(f)?;
-            } else {
-                best_fitting![format_inline, format_indented].format(f)?;
-            }
+    // header: pattern + optional type
+    let header = format_with(|f| {
+        write!(f, [pattern])?;
+        if let Some(ty_id) = ty {
+            write!(f, [token(":"), space(), ty_id])?;
         }
+        Ok(())
+    });
+
+    let Some(value_id) = value else {
+        write!(f, [header])?;
+        return Ok(());
+    };
+
+    // prefer keeping the value on a single line
+    let format_inline = format_with(|f| {
+        write!(f, [header, space(), token("="), space(), *value_id])?;
+        Ok(())
+    });
+    // expand inline if breakable (like let x = [\n ... ])
+    let format_inline_expanded = format_with(|f| {
+        write!(
+            f,
+            [
+                header,
+                space(),
+                token("="),
+                space(),
+                fits_expanded(&group(value_id).should_expand(true)),
+            ]
+        )
+    });
+    // expand and indent the value
+    let format_indented = format_with(|f| {
+        group(&format_args![
+            header,
+            space(),
+            token("="),
+            block_indent(value_id)
+        ])
+        .format(f)
+    });
+
+    if is_expression_breakable(tree, tree.get(*value_id)) {
+        best_fitting![format_inline, format_inline_expanded, format_indented]
+            .with_mode(BestFittingMode::AllLines)
+            .format(f)?;
+    } else {
+        best_fitting![format_inline, format_indented].format(f)?;
     }
+
     Ok(())
 }
 

@@ -9,23 +9,21 @@ impl<'ast> FormatNode<'ast, Declarator> for Declarator {
         _node_id: LocalNodeId<Declarator>,
         f: &mut CodegenJsFormatter<'ast, '_>,
     ) -> FormatResult<()> {
-        match self {
-            Declarator::Binding { pattern, ty, value } => {
-                // pattern
-                write!(f, [pattern])?;
+        let Declarator { pattern, ty, value } = self;
 
-                // type
-                if f.context().include_types()
-                    && let Some(ty) = ty
-                {
-                    write!(f, [token(":"), space(), ty])?;
-                }
+        // pattern
+        write!(f, [pattern])?;
 
-                // value
-                if let Some(value) = value {
-                    write!(f, [space(), token("="), space(), value])?;
-                }
-            }
+        // type
+        if f.context().include_types()
+            && let Some(ty) = ty
+        {
+            write!(f, [token(":"), space(), ty])?;
+        }
+
+        // value
+        if let Some(value) = value {
+            write!(f, [space(), token("="), space(), value])?;
         }
         Ok(())
     }

@@ -1063,7 +1063,7 @@ over multiple lines with trailing space    */",
         assert_node!(parser.tree, expressions[0], Expression::Statement(statement_id) => {
             assert_node!(parser.tree, *statement_id, Expression::Let { declarators, .. } => {
                 assert_eq!(declarators.len(), 1);
-                assert_node!(parser.tree, declarators[0], Declarator::Binding { value, .. } => {
+                assert_node!(parser.tree, declarators[0], Declarator { value, .. } => {
                 assert_node!(parser.tree, value.unwrap(), Expression::Binary { left, right, operator } => {
                     assert_eq!(*operator, BinaryOperator::And);
                     // A

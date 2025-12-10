@@ -772,19 +772,16 @@ pub fn walk_declarator<V: NodeVisitor + ?Sized>(
     declarator: &Declarator,
 ) {
     visitor.visit_any(tree, NodeType::Declarator, id.id);
-    match declarator {
-        Declarator::Binding { pattern, ty, value } => {
-            let pattern_node = tree.get(*pattern);
-            visitor.visit_pattern(tree, *pattern, pattern_node);
-            if let Some(ty_id) = ty {
-                let ty_node = tree.get(*ty_id);
-                visitor.visit_expression(tree, *ty_id, ty_node);
-            }
-            if let Some(value_id) = value {
-                let value_node = tree.get(*value_id);
-                visitor.visit_expression(tree, *value_id, value_node);
-            }
-        }
+    let Declarator { pattern, ty, value } = declarator;
+    let pattern_node = tree.get(*pattern);
+    visitor.visit_pattern(tree, *pattern, pattern_node);
+    if let Some(ty_id) = ty {
+        let ty_node = tree.get(*ty_id);
+        visitor.visit_expression(tree, *ty_id, ty_node);
+    }
+    if let Some(value_id) = value {
+        let value_node = tree.get(*value_id);
+        visitor.visit_expression(tree, *value_id, value_node);
     }
 }
 
