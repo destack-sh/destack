@@ -153,20 +153,16 @@ impl ModuleLowerer<'_> {
                 let mut declarators = Vec::with_capacity(dir_declarators.len());
                 for dir_declarator_id in dir_declarators {
                     let dir_declarator = self.dir_tree.get(*dir_declarator_id);
-                    let dir::Declarator {
-                        pattern: pattern_id,
-                        ty: ty_id,
-                        value: value_id,
-                    } = dir_declarator;
-
-                    let pattern = self.lower_pattern(*pattern_id)?;
-                    let ty: Option<crate::LocalNodeId<Type>> = ty_id
+                    let pattern = self.lower_pattern(dir_declarator.pattern)?;
+                    let ty: Option<LocalNodeId<Type>> = dir_declarator
+                        .ty
                         .map(|ty| {
                             self.lower_expression(ty)
                                 .expect_node::<Type>(ty.into_global_any(self.module.id), self)
                         })
                         .transpose()?;
-                    let value: Option<crate::LocalNodeId<Expression>> = value_id
+                    let value: Option<LocalNodeId<Expression>> = dir_declarator
+                        .value
                         .map(|value| {
                             self.lower_expression(value).expect_node::<Expression>(
                                 value.into_global_any(self.module.id),

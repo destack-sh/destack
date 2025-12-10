@@ -2,55 +2,67 @@
 
 Parser conformance tests using external test suites.
 
-## Test262 Parser Tests
-
-ECMAScript parser conformance tests from [tc39/test262-parser-tests](https://github.com/tc39/test262-parser-tests).
-
-### Setup
+## Quick Start
 
 ```sh
-./test262-fetch.sh
-```
+# install all test fixtures
+just language/install-fixtures
 
-The script pins to a specific commit for reproducibility. Version info is stored in `test262/VERSION`.
-
-### Running
-
-```sh
-# run all test262 tests
+# run all conformance tests
 cargo test --release --test conformance
 
-# filter by name
-cargo test --release --test conformance -- pass/arrow
-
-# list tests without running
-cargo test --release --test conformance -- --list
-
-# update known failures file
-cargo test --release --test conformance -- --update-known-failures
+# run a specific suite
+cargo test --release --test conformance -- --test262
+cargo test --release --test conformance -- --babel
+cargo test --release --test conformance -- --swc
+cargo test --release --test conformance -- --biome
 ```
 
-### Test Categories
+## Test Suites
 
-| Directory | Expected Behavior |
-|-----------|-------------------|
-| `pass/` | Should parse successfully (script mode) |
-| `pass-explicit/` | Should parse successfully (module mode) |
-| `fail/` | Should fail to parse |
-| `early/` | Should parse but have semantic errors |
+| Suite | Source | Tests | Description |
+|-------|--------|-------|-------------|
+| test262 | [tc39/test262-parser-tests](https://github.com/tc39/test262-parser-tests) | ~5,363 | ECMAScript parser conformance |
+| babel | [babel/babel](https://github.com/babel/babel) | ~4,016 | TypeScript, JSX, Flow parsing |
+| swc | [swc-project/swc](https://github.com/swc-project/swc) | ~685 | TypeScript, JSX parsing |
+| biome | [biomejs/biome](https://github.com/biomejs/biome) | ~637 | JS/TS parsing |
 
-### Regression Tracking
+## Regression Tracking
 
 Each suite has a `<suite>-known-failures.txt` file listing tests expected to fail:
 
 - **Regression**: test fails that is NOT in known-failures
 - **Progress**: test passes that IS in known-failures
 
-CI passes if there are no regressions. To make progress, fix parser bugs and remove passing tests from the known-failures file.
+The overall conformance test suite passes if there are no *regressions*. 
+To make progress, fix bugs and remove newly passing tests from the known-failures files.
 
-### Updating Test262 Version
+### Updating Baselines
 
-1. Update `TEST262_COMMIT` in `test262-fetch.sh`
-2. Update `TEST262_COMMIT` in `test262.rs`
-3. Run `./test262-fetch.sh`
+```sh
+# update known failures for all suites
+cargo test --release --test conformance -- --update-known-failures
+
+# update for a specific suite
+cargo test --release --test conformance -- --test262 --update-known-failures
+```
+
+## Updating Suite Versions
+
+Each suite is pinned to a specific commit for reproducibility.
+
+1. Update the commit SHA in `<suite>-fetch.sh`
+2. Update the commit SHA in `<suite>.rs`
+3. Run the fetch script
 4. Run tests with `--update-known-failures` to capture new baseline
+
+## Manual Setup
+
+If you need to fetch suites individually:
+
+```sh
+./test262-fetch.sh
+./babel-fetch.sh
+./swc-fetch.sh
+./biome-fetch.sh
+```

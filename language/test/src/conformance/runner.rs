@@ -1,6 +1,5 @@
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
-use std::process::ExitCode;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::mpsc;
 use std::time::{Duration, Instant};
@@ -125,12 +124,21 @@ fn save_known_failures(path: &Path, failures: &HashSet<String>) -> std::io::Resu
     fs::write(path, content)
 }
 
+/// Result of running a suite, for aggregation.
+#[derive(Debug)]
+pub struct SuiteResult {
+    pub name: String,
+    pub result: ConformanceResult,
+    pub duration: Duration,
+}
+
 /// Run a conformance suite with the standard test harness.
+/// Returns Some(SuiteResult) on success, None if suite not found.
 pub fn run_conformance_suite<S: ConformanceSuite + 'static>(
     suite: &S,
     options: &TestOptions,
     update_known_failures: bool,
-) -> ExitCode {
+) -> Option<SuiteResult> {
     // check suite exists
     if !suite.root().exists() {
         eprintln!(
@@ -141,7 +149,7 @@ pub fn run_conformance_suite<S: ConformanceSuite + 'static>(
         );
         eprintln!();
         eprintln!("{}", suite.download_instructions());
-        return ExitCode::FAILURE;
+        return None;
     }
 
     // discover tests
@@ -165,7 +173,7 @@ pub fn run_conformance_suite<S: ConformanceSuite + 'static>(
         for test in &tests {
             println!("  {test}");
         }
-        return ExitCode::SUCCESS;
+        return None; // list mode doesn't return results
     }
 
     // load known failures
@@ -219,7 +227,7 @@ pub fn run_conformance_suite<S: ConformanceSuite + 'static>(
         })
         .collect();
 
-    // aggregate results (single-threaded for simplicity)
+    // aggregate results 
     let mut passed = 0;
     let mut failed = 0;
     let mut timedout = 0;
@@ -285,12 +293,118 @@ pub fn run_conformance_suite<S: ConformanceSuite + 'static>(
     // print results
     print_conformance_result(suite.name(), &result, duration);
 
-    // exit code
-    if result.has_regressions() {
-        ExitCode::FAILURE
-    } else {
-        ExitCode::SUCCESS
+    Some(SuiteResult {
+        name: suite.name().to_string(),
+        result,
+        duration,
+    })
+}
+
+/// Print a summary table of all suite results.
+pub fn print_summary(results: &[SuiteResult]) {
+    if results.len() <= 1 {
+        return; // no summary needed for single suite
     }
+
+    let total_passed: usize = results.iter().map(|r| r.result.passed).sum();
+    let total_failed: usize = results.iter().map(|r| r.result.failed).sum();
+    let total_timedout: usize = results.iter().map(|r| r.result.timedout).sum();
+    let total_tests: usize = results.iter().map(|r| r.result.total()).sum();
+    let total_duration: Duration = results.iter().map(|r| r.duration).sum();
+    let total_regressions: usize = results.iter().map(|r| r.result.regressions.len()).sum();
+
+    let overall_rate = if total_tests > 0 {
+        total_passed as f64 / total_tests as f64 * 100.0
+    } else {
+        100.0
+    };
+
+    println!();
+    println!("{}", color::bold("═══════════════════════════════════════════════════════════════"));
+    println!("{}", color::bold("                      CONFORMANCE SUMMARY"));
+    println!("{}", color::bold("═══════════════════════════════════════════════════════════════"));
+    println!();
+
+    // header
+    println!(
+        "  {:10}  {:>8}  {:>8}  {:>8}  {:>8}",
+        "Suite", "Passed", "Failed", "Total", "Rate"
+    );
+    println!("  {}", "─".repeat(52));
+
+    // rows - pad values before coloring to maintain alignment
+    for r in results {
+        let rate = r.result.pass_rate();
+        let rate_str = format!("{:>6.1}%", rate);
+        let rate_colored = if rate >= 90.0 {
+            color::green(&rate_str)
+        } else if rate >= 50.0 {
+            color::yellow(&rate_str)
+        } else {
+            color::red(&rate_str)
+        };
+
+        let name = format!("{:10}", r.name);
+        let passed = format!("{:>8}", r.result.passed);
+        let failed = format!("{:>8}", r.result.failed);
+
+        println!(
+            "  {}  {}  {}  {:>8}  {}",
+            color::cyan(&name),
+            color::green(&passed),
+            color::red(&failed),
+            r.result.total(),
+            rate_colored
+        );
+    }
+
+    // total row
+    println!("  {}", "─".repeat(52));
+    let total_rate_str = format!("{:>6.1}%", overall_rate);
+    let total_rate_colored = if overall_rate >= 90.0 {
+        color::green(&total_rate_str)
+    } else if overall_rate >= 50.0 {
+        color::yellow(&total_rate_str)
+    } else {
+        color::red(&total_rate_str)
+    };
+
+    let total_label = format!("{:10}", "TOTAL");
+    let total_passed_str = format!("{:>8}", total_passed);
+    let total_failed_str = format!("{:>8}", total_failed + total_timedout);
+
+    println!(
+        "  {}  {}  {}  {:>8}  {}",
+        color::bold(&total_label),
+        color::green(&total_passed_str),
+        color::red(&total_failed_str),
+        total_tests,
+        total_rate_colored
+    );
+    println!();
+
+    // timing
+    println!(
+        "  {}",
+        color::dim(&format!("completed in {:.2}s", total_duration.as_secs_f64()))
+    );
+
+    // final verdict
+    println!();
+    if total_regressions > 0 {
+        println!(
+            "  {} {} regressions across all suites",
+            color::red("FAILED:"),
+            total_regressions
+        );
+    } else {
+        println!(
+            "  {} all {} tests accounted for",
+            color::green("PASSED:"),
+            total_tests
+        );
+    }
+    println!();
 }
 
 /// Print conformance test results with colors.
