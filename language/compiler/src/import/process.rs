@@ -2,9 +2,10 @@ use crate::{
     Compiler, ImportError, ImportResult, Task, TaskDebug, TaskDependencyError, TaskOutput,
 };
 
+use destack_ast::TokenType;
 use destack_parser::Parser;
 use destack_source::{File, ModuleId};
-use destack_workspace::{ModuleAst, Program};
+use destack_workspace::{Module, ModuleAst, Program, ModuleType};
 
 /// Task to import (load and parse) a module.
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
@@ -122,10 +123,10 @@ impl Compiler {
         self.program.diagnostics.merge_from(&parser.diagnostics);
 
         // update module with AST
-        {
-            let mut module = module.write();
-            module.ast = ModuleAst::from_tree(module_id, parser.tree, expressions, parser.strings);
-        }
+        let mut module = module.write();
+        self.check_imported_module(&module, module.module_type, &parser);
+        module.ast = ModuleAst::from_tree(module_id, parser.tree, expressions, parser.strings);
+        drop(module);
 
         tracing::trace!(?module_id, "import.module.parse");
         Ok(ImportOutput { module: module_id })
@@ -134,5 +135,22 @@ impl Compiler {
     /// Ensure a module has been imported (loaded and parsed).
     pub fn require_import(&self, module: ModuleId) -> Result<(), TaskDependencyError> {
         self.require_task(ImportTask::ImportModule { module })
+    }
+
+    /// Check if the module is valid in context.
+    /// (Unfortunately we need parser state here to check the actual tokens.)
+    fn check_imported_module(&self, _module: &Module, module_type: ModuleType, parser: &Parser) {
+        // HTML comments are forbidden in ES modules (ECMAScript Annex B.1.3)
+        // Note: HtmlComment is a trivia token, so it lives in side_tokens, not tokens
+        if module_type.is_module() {
+            for token in &parser.side_tokens {
+                if token.token.ty == TokenType::HtmlComment {
+                    self.error(ImportError::UnsupportedConstruct {
+                        span: token.span,
+                        message: "HTML comments are not allowed in ES modules".to_string(),
+                    });
+                }
+            }
+        }
     }
 }

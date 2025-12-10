@@ -1,6 +1,6 @@
 use destack_dir::GlobalNodeIdAny;
 use destack_parser::ParseError;
-use destack_source::StringId;
+use destack_source::{Span, StringId};
 
 use crate::{DiagnosticAnchor, TaskDependency, TaskError, TaskPhase};
 
@@ -20,6 +20,8 @@ pub enum ImportError {
         node: GlobalNodeIdAny,
         diagnostics: Vec<ParseError>,
     },
+    /// Unsupported construct in module (forbidden by spec).
+    UnsupportedConstruct { span: Span, message: String },
 }
 
 impl TryFrom<ImportError> for TaskDependency {
@@ -38,6 +40,7 @@ impl ImportError {
         match self {
             Self::ModuleNotFound { .. } => 2,
             Self::ParseError { .. } => 3,
+            Self::UnsupportedConstruct { .. } => 4,
         }
     }
 
@@ -48,6 +51,8 @@ impl ImportError {
             Self::ModuleNotFound { .. } => DiagnosticAnchor::Global,
             // parse errors are tied to the parse node
             Self::ParseError { node, .. } => DiagnosticAnchor::Node(*node),
+            // HTML comment errors are tied to the file
+            Self::UnsupportedConstruct { span, .. } => DiagnosticAnchor::File(span.file),
         }
     }
 
@@ -59,6 +64,7 @@ impl ImportError {
                 format!("module '{target_str}' not found")
             }
             Self::ParseError { .. } => "parse error".to_string(),
+            Self::UnsupportedConstruct { message, .. } => message.clone(),
         }
     }
 }

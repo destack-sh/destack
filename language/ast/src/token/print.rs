@@ -21,6 +21,7 @@ impl Token {
             TokenType::BlockComment => source[offset..offset + len].to_string(),
             TokenType::DocLineComment => source[offset..offset + len].to_string(),
             TokenType::DocBlockComment => source[offset..offset + len].to_string(),
+            TokenType::HtmlComment => source[offset..offset + len].to_string(),
 
             // --------------------------------------------------
             // Identifiers

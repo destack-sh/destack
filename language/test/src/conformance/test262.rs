@@ -1,6 +1,7 @@
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
+use destack_ast::TokenType;
 use destack_parser::Parser;
 use destack_source::{
     File, FileRegistry, FileSystem, FileType, LanguageOptions, MemoryFileSystem, Uri,
@@ -86,6 +87,24 @@ impl Test262Suite {
         // parse
         let mut parser = Parser::lex_file(file, program.language);
         let _ = parser.parse();
+
+        // check for HTML comments in module files
+        // HTML comments (<!-- and -->) are only valid in script mode, not ES modules.
+        // (during real compilation we check this in the compiler's import phase)
+        // Note: HtmlComment is a trivia token, so it lives in side_tokens, not tokens
+        let is_module = path
+            .file_name()
+            .and_then(|n| n.to_str())
+            .is_some_and(|n| n.contains(".module."));
+        if is_module {
+            let has_html_comment = parser
+                .side_tokens
+                .iter()
+                .any(|t| t.token.ty == TokenType::HtmlComment);
+            if has_html_comment {
+                return true; // treat as error
+            }
+        }
 
         // return whether there were errors
         !parser.diagnostics.is_empty()

@@ -6,9 +6,10 @@ use destack_ast::{
 };
 use destack_source::{MultiSpan, NodeSearch, Span};
 
-const ANNOTATION_TOKEN_TYPES: [TokenType; 5] = [
+const ANNOTATION_TOKEN_TYPES: [TokenType; 6] = [
     TokenType::Newline,
     TokenType::LineComment,
+    TokenType::HtmlComment,
     TokenType::DocLineComment,
     TokenType::BlockComment,
     TokenType::DocBlockComment,
@@ -460,6 +461,7 @@ impl Parser {
 
         // find the node to attach to
         let is_line_comment = start_token.token.ty == TokenType::LineComment
+            || start_token.token.ty == TokenType::HtmlComment
             || start_token.token.ty == TokenType::DocLineComment;
         let Some((position, target_node_id)) = self.find_annotation_target(
             token_idx,
@@ -471,7 +473,7 @@ impl Parser {
         ) else {
             let node_type = match token_type {
                 TokenType::Newline => NodeType::Blank,
-                TokenType::LineComment => NodeType::Comment,
+                TokenType::LineComment | TokenType::HtmlComment => NodeType::Comment,
                 TokenType::BlockComment => NodeType::Comment,
                 TokenType::DocLineComment => NodeType::Doc,
                 TokenType::DocBlockComment => NodeType::Doc,
@@ -495,7 +497,7 @@ impl Parser {
                     span,
                 )
             }
-            TokenType::LineComment => {
+            TokenType::LineComment | TokenType::HtmlComment => {
                 let string = self.clean_annotation_string(token_type, group);
                 let string = self.strings.intern(string);
                 let comment = self.tree.insert(
@@ -584,9 +586,9 @@ impl Parser {
             // strip comment prefixes and suffixes
             let raw_str = self.file.get_span_str(token.span).unwrap_or_default();
             let mut inner_str = match token_type {
-                TokenType::LineComment => raw_str
-                    .strip_prefix("//")
-                    .or_else(|| raw_str.strip_prefix("<!--"))
+                TokenType::LineComment => raw_str.strip_prefix("//").unwrap_or(raw_str),
+                TokenType::HtmlComment => raw_str
+                    .strip_prefix("<!--")
                     .or_else(|| raw_str.strip_prefix("-->"))
                     .unwrap_or(raw_str),
                 TokenType::DocLineComment => raw_str.strip_prefix("///").unwrap_or(raw_str),
@@ -617,7 +619,7 @@ impl Parser {
 
             // clean up whitespace and formatting characters
             let cleaned = match token_type {
-                TokenType::LineComment | TokenType::DocLineComment => {
+                TokenType::LineComment | TokenType::HtmlComment | TokenType::DocLineComment => {
                     if inner_str.contains('\n') {
                         // strip leading space from each line
                         inner_str

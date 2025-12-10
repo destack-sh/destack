@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 
-use super::tsconfig::{EsTarget, ModuleKind};
+use super::tsconfig::{EsTarget, ModuleTarget};
 
 /// How modules are discovered for a build target.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
@@ -334,7 +334,7 @@ pub struct Target {
 
     // output generation
     /// Module format (esnext, commonjs, etc.).
-    pub module: ModuleKind,
+    pub module: ModuleTarget,
     /// ECMAScript target version.
     pub es_target: EsTarget,
     /// Library files for this target. If `None`, derived automatically from runtime and platform.
@@ -381,7 +381,7 @@ impl Default for Target {
             exclude: Vec::new(),
 
             // output generation
-            module: ModuleKind::default(),
+            module: ModuleTarget::default(),
             es_target: EsTarget::default(),
             lib: None,
             output: OutputFormat::default(),
@@ -520,7 +520,7 @@ impl Target {
     }
 
     /// Set the module format.
-    pub fn with_module(mut self, module: ModuleKind) -> Self {
+    pub fn with_module(mut self, module: ModuleTarget) -> Self {
         self.module = module;
         self
     }

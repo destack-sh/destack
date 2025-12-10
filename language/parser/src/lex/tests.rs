@@ -1280,7 +1280,7 @@ fn test_lex_unterminated_single_quote_is_marked() {
 fn test_lex_html_comment_open() {
     assert_tokenize_eq_roundtrip!(
         "<!--comment\n",
-        Token::new(TokenType::LineComment, 11, None),
+        Token::new(TokenType::HtmlComment, 11, None),
         Token::new(TokenType::Newline, 1, None),
     );
 }
@@ -1291,7 +1291,7 @@ fn test_lex_html_comment_open_after_code() {
     assert_tokenize_eq_roundtrip!(
         ";<!--comment\n",
         Token::new(TokenType::Semicolon, 1, None),
-        Token::new(TokenType::LineComment, 11, None),
+        Token::new(TokenType::HtmlComment, 11, None),
         Token::new(TokenType::Newline, 1, None),
     );
 }
@@ -1304,7 +1304,7 @@ fn test_lex_html_comment_close_at_line_start() {
         ";\n--> HTML comment\n",
         Token::new(TokenType::Semicolon, 1, None),
         Token::new(TokenType::Newline, 1, None),
-        Token::new(TokenType::LineComment, 16, None),
+        Token::new(TokenType::HtmlComment, 16, None),
         Token::new(TokenType::Newline, 1, None),
     );
 }
@@ -1330,7 +1330,7 @@ fn test_lex_html_comment_close_with_leading_whitespace() {
         Token::new(TokenType::Semicolon, 1, None),
         Token::new(TokenType::Newline, 1, None),
         Token::new(TokenType::Whitespace, 2, None),
-        Token::new(TokenType::LineComment, 11, None),
+        Token::new(TokenType::HtmlComment, 11, None),
         Token::new(TokenType::Newline, 1, None),
     );
 }
