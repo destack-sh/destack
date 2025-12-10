@@ -600,7 +600,7 @@
           }
         },
         "output": {
-          "description": "Output format: \"js\", \"ts\", \"wasm\", \"native\". Default: \"js\".",
+          "description": "Output format (e.g., JavaScript, TypeScript, WebAssembly, Native).",
           "anyOf": [
             {
               "$ref": "#/$defs/OutputFormatJson"
@@ -608,6 +608,20 @@
             {
               "type": "null"
             }
+          ]
+        },
+        "runtime": {
+          "description": "Runtime environment (e.g., Browser, Node, Deno, Bun, Worker, Workerd).",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "platform": {
+          "description": "Target platform (e.g., Web, Windows, macOS, Linux, iOS, Android, WASI, Universal).",
+          "type": [
+            "string",
+            "null"
           ]
         },
         "declaration": {
@@ -656,7 +670,7 @@
           ]
         },
         "lib": {
-          "description": "Library files for this target (overrides compilerOptions.lib).",
+          "description": "Library files for this target (overrides derived libs).",
           "type": [
             "array",
             "null"

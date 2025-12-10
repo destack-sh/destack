@@ -776,7 +776,7 @@ pub struct TsConfigCompilerOptions {
     /// Module format.
     pub module: ModuleKind,
     /// ECMAScript target.
-    pub target: EsTarget,
+    pub es_target: EsTarget,
     /// How to detect modules vs scripts.
     pub module_detection: ModuleDetection,
 
@@ -907,7 +907,7 @@ impl Default for TsConfigCompilerOptions {
             custom_conditions: Vec::new(),
 
             module: ModuleKind::default(),
-            target: EsTarget::default(),
+            es_target: EsTarget::default(),
             module_detection: ModuleDetection::default(),
 
             jsx: JsxMode::default(),
@@ -994,7 +994,7 @@ impl From<&TsConfigCompilerOptionsJson> for TsConfigCompilerOptions {
                 .as_deref()
                 .and_then(ModuleKind::parse)
                 .unwrap_or_default(),
-            target: json
+            es_target: json
                 .target
                 .as_deref()
                 .and_then(EsTarget::parse)

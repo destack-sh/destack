@@ -10,7 +10,8 @@ use destack_source::{
 };
 
 use super::target::{
-    OptimizeLevel, OutputFormat, OutputMode, ShrinkLevel, Target, TargetDiscovery,
+    OptimizeLevel, OutputFormat, OutputMode, Platform, Runtime, ShrinkLevel, Target,
+    TargetDiscovery,
 };
 use super::tsconfig::{EsTarget, ModuleKind};
 
@@ -339,7 +340,7 @@ pub struct DsConfigCompilerOptions {
     /// Module format for output.
     pub module: ModuleKind,
     /// ECMAScript target version.
-    pub target: EsTarget,
+    pub es_target: EsTarget,
     /// Library files to include (e.g., "es2024", "dom", "worker").
     pub lib: Vec<String>,
 
@@ -432,8 +433,8 @@ impl Default for DsConfigCompilerOptions {
             base_url: None,
             paths: None,
             module: ModuleKind::default(),
-            target: EsTarget::default(),
-            lib: Vec::new(), // derived from target's output format if empty
+            es_target: EsTarget::default(),
+            lib: Vec::new(), // derived from runtime/platform if empty
 
             // TypeScript-compatible checking
             strict,
@@ -506,7 +507,7 @@ impl From<&DsConfigCompilerOptionsJson> for DsConfigCompilerOptions {
                 .as_deref()
                 .and_then(ModuleKind::parse)
                 .unwrap_or_default(),
-            target: json
+            es_target: json
                 .target
                 .as_deref()
                 .and_then(EsTarget::parse)
@@ -581,6 +582,10 @@ pub struct DsConfigTargetOptions {
     // output format
     /// Output format (js, ts, wasm, native).
     pub output: OutputFormat,
+    /// Runtime environment (browser, node, wasm-wasi, destack, etc.).
+    pub runtime: Runtime,
+    /// Target platform (web, windows, macos, linux, ios, android, etc.).
+    pub platform: Platform,
     /// Emit declaration files (.d.ts) alongside JS output.
     pub declaration: bool,
     /// Emit source maps.
@@ -599,9 +604,8 @@ pub struct DsConfigTargetOptions {
     pub module: ModuleKind,
     /// ECMAScript target for this target.
     pub es_target: EsTarget,
-    /// Library files for this target (overrides compilerOptions.lib).
-    /// If empty, uses compilerOptions.lib or derives from output format.
-    pub lib: Vec<String>,
+    /// Library files for this target. If `None`, derived automatically from runtime and platform.
+    pub lib: Option<Vec<String>>,
 
     // optimization
     /// Whether this is a debug build.
@@ -622,6 +626,8 @@ impl Default for DsConfigTargetOptions {
             include: Vec::new(),
             exclude: Vec::new(),
             output: OutputFormat::default(),
+            runtime: Runtime::default(),
+            platform: Platform::default(),
             declaration: false,
             source_map: false,
             out_dir: PathBuf::from(super::target::DEFAULT_OUT_DIR),
@@ -629,7 +635,7 @@ impl Default for DsConfigTargetOptions {
             declaration_dir: None,
             module: ModuleKind::default(),
             es_target: EsTarget::default(),
-            lib: Vec::new(),
+            lib: None,
             debug: true,
             optimize: false,
             optimize_level: OptimizeLevel::O0,
@@ -667,6 +673,8 @@ impl DsConfigTargetOptions {
             include: self.include.clone(),
             exclude: self.exclude.clone(),
             output: self.output,
+            runtime: self.runtime,
+            platform: self.platform,
             declaration: self.declaration,
             source_map: self.source_map,
             out_dir: self.out_dir.clone(),
@@ -704,6 +712,16 @@ impl From<&DsConfigTargetJson> for DsConfigTargetOptions {
             include: json.include.clone().unwrap_or_default(),
             exclude: json.exclude.clone().unwrap_or_default(),
             output: json.output.map(OutputFormat::from).unwrap_or_default(),
+            runtime: json
+                .runtime
+                .as_deref()
+                .and_then(Runtime::parse)
+                .unwrap_or_default(),
+            platform: json
+                .platform
+                .as_deref()
+                .and_then(Platform::parse)
+                .unwrap_or_default(),
             declaration: json.declaration,
             source_map: json.source_map,
             out_dir: json
@@ -723,7 +741,7 @@ impl From<&DsConfigTargetJson> for DsConfigTargetOptions {
                 .as_deref()
                 .and_then(EsTarget::parse)
                 .unwrap_or_default(),
-            lib: json.lib.clone().unwrap_or_default(),
+            lib: json.lib.clone(),
             debug: json.debug,
             optimize: json.optimize,
             optimize_level: json
@@ -965,8 +983,12 @@ pub struct DsConfigTargetJson {
     pub exclude: Option<Vec<String>>,
 
     // output format
-    /// Output format: "js", "ts", "wasm", "native". Default: "js".
+    /// Output format (e.g., JavaScript, TypeScript, WebAssembly, Native).
     pub output: Option<OutputFormatJson>,
+    /// Runtime environment (e.g., Browser, Node, Deno, Bun, Worker, Workerd).
+    pub runtime: Option<String>,
+    /// Target platform (e.g., Web, Windows, macOS, Linux, iOS, Android, WASI, Universal).
+    pub platform: Option<String>,
     /// Emit declaration files (.d.ts) alongside JS output.
     #[serde(default)]
     pub declaration: bool,
@@ -987,7 +1009,7 @@ pub struct DsConfigTargetJson {
     pub module: Option<String>,
     /// ECMAScript target for this target (overrides compilerOptions.target).
     pub es_target: Option<String>,
-    /// Library files for this target (overrides compilerOptions.lib).
+    /// Library files for this target (overrides derived libs).
     pub lib: Option<Vec<String>>,
 
     // optimization

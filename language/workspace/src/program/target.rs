@@ -139,6 +139,177 @@ impl From<ShrinkLevel> for u8 {
     }
 }
 
+/// Runtime environment that executes the compiled code.
+///
+/// This determines what APIs are available and what semantic behaviors apply.
+/// For JS output, this is the JS engine/environment. For WASM, this is the WASM host.
+/// For native, this is the Destack runtime.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+pub enum Runtime {
+    // JS runtimes (for output=js/ts)
+    /// Web browser (Chrome, Firefox, Safari, etc.)
+    #[default]
+    Browser,
+    /// Node.js
+    Node,
+    /// Deno
+    Deno,
+    /// Bun
+    Bun,
+    /// Web Worker / Service Worker / Shared Worker
+    Worker,
+    /// Cloudflare Workers (workerd)
+    Workerd,
+    /// Embedded JS engine (QuickJS, Hermes, JavaScriptCore)
+    Embedded,
+
+    // WASM runtimes (for output=wasm)
+    /// WASM running in a JS host (browser or Node)
+    WasmJs,
+    /// WASM with WASI (wasmtime, wasmer, etc.)
+    WasmWasi,
+    /// Standalone WASM runtime without WASI
+    WasmStandalone,
+
+    // Native runtime (for output=native)
+    /// Destack native runtime
+    Destack,
+}
+
+impl std::str::FromStr for Runtime {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.to_lowercase().replace('-', "_").as_str() {
+            "browser" => Ok(Self::Browser),
+            "node" => Ok(Self::Node),
+            "deno" => Ok(Self::Deno),
+            "bun" => Ok(Self::Bun),
+            "worker" => Ok(Self::Worker),
+            "workerd" => Ok(Self::Workerd),
+            "embedded" => Ok(Self::Embedded),
+            "wasm_js" | "wasmjs" => Ok(Self::WasmJs),
+            "wasm_wasi" | "wasmwasi" | "wasi" => Ok(Self::WasmWasi),
+            "wasm_standalone" | "wasmstandalone" => Ok(Self::WasmStandalone),
+            "destack" | "native" => Ok(Self::Destack),
+            _ => Err(()),
+        }
+    }
+}
+
+impl Runtime {
+    /// Parse from a string value.
+    pub fn parse(s: &str) -> Option<Self> {
+        s.parse().ok()
+    }
+
+    /// Whether this runtime is a JS engine.
+    pub fn is_js(&self) -> bool {
+        matches!(
+            self,
+            Self::Browser
+                | Self::Node
+                | Self::Deno
+                | Self::Bun
+                | Self::Worker
+                | Self::Workerd
+                | Self::Embedded
+        )
+    }
+
+    /// Whether this runtime is a WASM host.
+    pub fn is_wasm(&self) -> bool {
+        matches!(self, Self::WasmJs | Self::WasmWasi | Self::WasmStandalone)
+    }
+
+    /// Whether this runtime is the Destack native runtime.
+    pub fn is_native(&self) -> bool {
+        matches!(self, Self::Destack)
+    }
+
+    /// Whether this runtime runs in a browser-like environment (has DOM potential).
+    pub fn is_browser_like(&self) -> bool {
+        matches!(self, Self::Browser | Self::WasmJs)
+    }
+
+    /// Whether this runtime is server-side.
+    pub fn is_server(&self) -> bool {
+        matches!(
+            self,
+            Self::Node | Self::Deno | Self::Bun | Self::WasmWasi | Self::Destack
+        )
+    }
+}
+
+/// Operating system / target platform.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+pub enum Platform {
+    // Web
+    /// Web browser
+    #[default]
+    Web,
+
+    // Desktop
+    /// Windows
+    Windows,
+    /// macOS
+    MacOS,
+    /// Linux
+    Linux,
+
+    // Mobile
+    /// iOS
+    IOS,
+    /// Android
+    Android,
+
+    // Other
+    /// WASI (WebAssembly System Interface)
+    Wasi,
+    /// Unknown or portable (no platform-specific APIs)
+    Universal,
+}
+
+impl std::str::FromStr for Platform {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.to_lowercase().as_str() {
+            "web" | "browser" => Ok(Self::Web),
+            "windows" | "win32" | "win" => Ok(Self::Windows),
+            "macos" | "darwin" | "mac" => Ok(Self::MacOS),
+            "linux" => Ok(Self::Linux),
+            "ios" => Ok(Self::IOS),
+            "android" => Ok(Self::Android),
+            "wasi" => Ok(Self::Wasi),
+            "universal" | "portable" | "any" => Ok(Self::Universal),
+            _ => Err(()),
+        }
+    }
+}
+
+impl Platform {
+    /// Parse from a string value.
+    pub fn parse(s: &str) -> Option<Self> {
+        s.parse().ok()
+    }
+
+    /// Whether this platform is a web platform.
+    pub fn is_web(&self) -> bool {
+        matches!(self, Self::Web)
+    }
+
+    /// Whether this is a desktop platform.
+    pub fn is_desktop(&self) -> bool {
+        matches!(self, Self::Windows | Self::MacOS | Self::Linux)
+    }
+
+    /// Whether this is a mobile platform.
+    pub fn is_mobile(&self) -> bool {
+        matches!(self, Self::IOS | Self::Android)
+    }
+}
+
 /// Default output directory for targets.
 pub const DEFAULT_OUT_DIR: &str = "dist";
 
@@ -161,30 +332,23 @@ pub struct Target {
     /// Glob patterns for files to exclude.
     pub exclude: Vec<String>,
 
-    // output format
-    /// Output format (js, ts, wasm, native).
-    pub output: OutputFormat,
-    /// Emit declaration files (.d.ts) alongside JS output.
-    pub declaration: bool,
-    /// Emit source maps.
-    pub source_map: bool,
-
-    // output paths
-    /// Output directory for this target (relative to package, defaults to "dist").
-    pub out_dir: PathBuf,
-    /// Output file for single-file targets.
-    pub out_file: Option<PathBuf>,
-    /// Separate directory for declaration files.
-    pub declaration_dir: Option<PathBuf>,
-
-    // JS/TS specific
+    // output generation
     /// Module format (esnext, commonjs, etc.).
     pub module: ModuleKind,
     /// ECMAScript target version.
     pub es_target: EsTarget,
-    /// Library files for this target (e.g., ["es2024", "dom"]).
-    /// If empty, defaults are derived from the output format.
-    pub lib: Vec<String>,
+    /// Library files for this target. If `None`, derived automatically from runtime and platform.
+    pub lib: Option<Vec<String>>,
+    /// Output format (js, ts, wasm, native).
+    pub output: OutputFormat,
+    /// Runtime environment (browser, node, wasm-wasi, destack, etc.).
+    pub runtime: Runtime,
+    /// Target platform (web, windows, macos, linux, ios, android, etc.).
+    pub platform: Platform,
+    /// Emit declaration files (.d.ts) alongside JS output.
+    pub declaration: bool,
+    /// Emit source maps.
+    pub source_map: bool,
 
     // optimization
     /// Whether this is a debug build.
@@ -195,39 +359,59 @@ pub struct Target {
     pub optimize_level: OptimizeLevel,
     /// Shrink level (code size reduction).
     pub shrink_level: ShrinkLevel,
+
+    // output paths
+    /// Output directory for this target (relative to package, defaults to "dist").
+    pub out_dir: PathBuf,
+    /// Output file for single-file targets.
+    pub out_file: Option<PathBuf>,
+    /// Separate directory for declaration files.
+    pub declaration_dir: Option<PathBuf>,
 }
 
 impl Default for Target {
     fn default() -> Self {
         Self {
             name: String::new(),
+
+            // discovery
             discovery: TargetDiscovery::default(),
             entry: Vec::new(),
-            output: OutputFormat::default(),
-            declaration: false,
-            source_map: false,
-            out_dir: PathBuf::from(DEFAULT_OUT_DIR),
-            out_file: None,
-            declaration_dir: None,
-            module: ModuleKind::default(),
-            es_target: EsTarget::default(),
-            lib: Vec::new(),
             include: Vec::new(),
             exclude: Vec::new(),
+
+            // output generation
+            module: ModuleKind::default(),
+            es_target: EsTarget::default(),
+            lib: None,
+            output: OutputFormat::default(),
+            runtime: Runtime::default(),
+            platform: Platform::default(),
+            declaration: false,
+            source_map: false,
+
+            // optimization
             debug: true,
             optimize: false,
             optimize_level: OptimizeLevel::O0,
             shrink_level: ShrinkLevel::S0,
+
+            // output paths
+            out_dir: PathBuf::from(DEFAULT_OUT_DIR),
+            out_file: None,
+            declaration_dir: None,
         }
     }
 }
 
 impl Target {
-    /// Create a new target with the given name and default JS output.
+    /// Create a new target with the given name and default JS output for browser.
     pub fn js(name: impl Into<String>) -> Self {
         Self {
             name: name.into(),
             output: OutputFormat::Js,
+            runtime: Runtime::Browser,
+            platform: Platform::Web,
             declaration: true, // default to emitting declarations for JS
             ..Default::default()
         }
@@ -238,15 +422,43 @@ impl Target {
         Self {
             name: name.into(),
             output: OutputFormat::Ts,
+            runtime: Runtime::Browser,
+            platform: Platform::Web,
             ..Default::default()
         }
     }
 
-    /// Create a new target with the given name and WASM output.
+    /// Create a new target with the given name and JS output for Node.js.
+    pub fn node(name: impl Into<String>) -> Self {
+        Self {
+            name: name.into(),
+            output: OutputFormat::Js,
+            runtime: Runtime::Node,
+            platform: Platform::Universal,
+            declaration: true,
+            ..Default::default()
+        }
+    }
+
+    /// Create a new target with the given name and WASM output for JS host.
     pub fn wasm(name: impl Into<String>) -> Self {
         Self {
             name: name.into(),
             output: OutputFormat::Wasm,
+            runtime: Runtime::WasmJs,
+            platform: Platform::Web,
+            optimize: true,
+            ..Default::default()
+        }
+    }
+
+    /// Create a new target with the given name and WASM output for WASI.
+    pub fn wasm_wasi(name: impl Into<String>) -> Self {
+        Self {
+            name: name.into(),
+            output: OutputFormat::Wasm,
+            runtime: Runtime::WasmWasi,
+            platform: Platform::Wasi,
             optimize: true,
             ..Default::default()
         }
@@ -257,6 +469,8 @@ impl Target {
         Self {
             name: name.into(),
             output: OutputFormat::Native,
+            runtime: Runtime::Destack,
+            platform: Platform::Universal,
             optimize: true,
             ..Default::default()
         }
@@ -317,35 +531,102 @@ impl Target {
         self
     }
 
-    /// Set library files.
+    /// Set library files explicitly (overrides automatic derivation).
     pub fn with_lib(mut self, lib: Vec<String>) -> Self {
-        self.lib = lib;
+        self.lib = Some(lib);
         self
     }
 
-    /// Get the effective library files for this target.
-    ///
-    /// If `lib` is explicitly set, returns it. Otherwise, returns default
-    /// libraries based on the output format:
-    /// - JS/TS: `["esnext", "dom"]` (full web environment)
-    /// - WASM: `["es2020"]` (restricted, no DOM)
-    /// - Native: `[]` (minimal, core only)
-    pub fn effective_lib(&self) -> Vec<String> {
-        if !self.lib.is_empty() {
-            return self.lib.clone();
+    /// Set the runtime.
+    pub fn with_runtime(mut self, runtime: Runtime) -> Self {
+        self.runtime = runtime;
+        self
+    }
+
+    /// Set the platform.
+    pub fn with_platform(mut self, platform: Platform) -> Self {
+        self.platform = platform;
+        self
+    }
+
+    /// Derive library files from runtime and platform.
+    /// If `lib` is explicitly set, returns it. Otherwise derives from runtime and platform:
+    /// - ES version comes from runtime capabilities
+    /// - Runtime-specific libs (dom, node, deno, worker, etc.)
+    /// - Platform-specific libs for native targets (darwin, windows, linux)
+    pub fn derived_lib(&self) -> Vec<String> {
+        if let Some(lib) = &self.lib {
+            return lib.clone();
         }
 
-        match self.output {
-            OutputFormat::Js | OutputFormat::Ts => {
-                vec!["esnext".to_string(), "dom".to_string()]
+        let mut libs = Vec::new();
+
+        // ES version based on runtime
+        let es_lib = match self.runtime {
+            // modern JS runtimes support esnext
+            Runtime::Browser | Runtime::Node | Runtime::Deno | Runtime::Bun => "esnext",
+            // workers typically support modern ES
+            Runtime::Worker | Runtime::Workerd => "es2022",
+            // embedded engines may be more limited
+            Runtime::Embedded => "es2020",
+            // WASM environments
+            Runtime::WasmJs => "es2020",
+            Runtime::WasmWasi | Runtime::WasmStandalone => "es2020",
+            // native runtime supports full ES semantics
+            Runtime::Destack => "esnext",
+        };
+        libs.push(es_lib.to_string());
+
+        // runtime-specific libs
+        match self.runtime {
+            Runtime::Browser => {
+                libs.push("dom".to_string());
+                libs.push("dom.iterable".to_string());
             }
-            OutputFormat::Wasm => {
-                vec!["es2020".to_string()]
+            Runtime::Node => {
+                libs.push("node".to_string());
             }
-            OutputFormat::Native => {
-                vec![]
+            Runtime::Deno => {
+                libs.push("deno".to_string());
+            }
+            Runtime::Bun => {
+                libs.push("bun".to_string());
+                libs.push("node".to_string());
+            }
+            Runtime::Worker | Runtime::Workerd => {
+                libs.push("worker".to_string());
+            }
+            Runtime::WasmJs => {
+                // WASM in browser may have limited DOM access
+            }
+            Runtime::WasmWasi => {
+                libs.push("wasi".to_string());
+            }
+            Runtime::WasmStandalone | Runtime::Embedded => {
+                // minimal environment
+            }
+            Runtime::Destack => {
+                libs.push("destack".to_string());
             }
         }
+
+        // platform-specific libs (primarily for native targets)
+        if self.runtime.is_native() {
+            match self.platform {
+                Platform::MacOS | Platform::IOS => {
+                    libs.push("darwin".to_string());
+                }
+                Platform::Windows => {
+                    libs.push("windows".to_string());
+                }
+                Platform::Linux | Platform::Android => {
+                    libs.push("linux".to_string());
+                }
+                _ => {}
+            }
+        }
+
+        libs
     }
 
     /// Set whether optimization is enabled.
