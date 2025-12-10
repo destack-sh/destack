@@ -446,6 +446,7 @@ impl ModuleLowerer<'_> {
                 symbol: _,
             } => {
                 let label = self.strings.intern_from(&self.module.ast.strings, *label);
+                // TODO #Broken: handle expressions lowering into non-statements (like labelled blocks?)
                 let body_id = self
                     .lower_expression(*body)
                     .expect_node::<Statement>(body.into_global_any(self.module.id), self)?;

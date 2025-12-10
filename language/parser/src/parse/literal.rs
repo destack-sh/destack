@@ -177,8 +177,11 @@ impl Parser {
 
             // string literal (ignore quotes)
             // supports both '...' and "..." delimited string literals
-            LiteralType::String { is_terminated } => {
-                if !is_terminated {
+            LiteralType::String {
+                is_terminated,
+                has_invalid_escape,
+            } => {
+                if !is_terminated || has_invalid_escape {
                     return Err(ParseError::expected_for(
                         literal_span.span,
                         TokenType::Literal,

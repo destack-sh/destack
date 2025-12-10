@@ -455,24 +455,39 @@ pub enum LiteralType {
     Boolean { value: bool },
     /// Integer (12, 0o100, 0x (is_empty), 0b120, 1.0, 1n)
     Int {
+        /// The base of the integer (binary, octal, decimal, hexadecimal).
         base: NumberBase,
+        /// Whether the integer is empty (e.g. `0`).
         is_empty: bool,
+        /// Whether the integer is a bigint (e.g. `1n`).
         is_bigint: bool,
     },
     /// Float (1.0, 1e3)
     Float {
+        /// The base of the float (binary, octal, decimal, hexadecimal).
         base: NumberBase,
+        /// Whether the float is empty (e.g. `1.0`).
         is_empty_exponent: bool,
     },
     /// Character ('a', '\\', ''', ';') or HTML entity (`&nbsp;`)
     Character {
+        /// Whether the character is terminated.
         is_terminated: bool,
+        /// Whether the character is an HTML entity (e.g. `&nbsp;`).
         is_html_entity: bool,
     },
     /// String ("abc", "abc")
-    String { is_terminated: bool },
+    String {
+        /// Whether the string is terminated.
+        is_terminated: bool,
+        /// Whether the string contains invalid escapes like `\8` or `\9`.
+        has_invalid_escape: bool,
+    },
     /// Regex string (`/abc/`, `/abc/g`, `/abc/i`, `/abc/gi`)
-    RegexString { has_flags: bool },
+    RegexString {
+        /// Whether the regex string has flags (e.g. `/abc/g`).
+        has_flags: bool,
+    },
     /// Text content inside tree literals (TSX-compatible).
     /// Raw text between `>` and `</` or `{`, like "Hello" in `<div>Hello</div>`.
     TreeString, // NOTE #Cleanup: does TreeString need to be a separate literal type?

@@ -140,7 +140,8 @@ fn test_lex_smoke() {
             TokenType::Literal,
             7,
             Some(LiteralType::String {
-                is_terminated: true
+                is_terminated: true,
+                has_invalid_escape: false,
             })
         ),
         Token::new(TokenType::CloseParenthesis, 1, None),
@@ -289,7 +290,8 @@ fn test_lex_single_quoted_strings() {
             TokenType::Literal,
             4,
             Some(LiteralType::String {
-                is_terminated: true
+                is_terminated: true,
+                has_invalid_escape: false,
             })
         ),
         Token::new(TokenType::Whitespace, 1, None),
@@ -297,7 +299,8 @@ fn test_lex_single_quoted_strings() {
             TokenType::Literal,
             12,
             Some(LiteralType::String {
-                is_terminated: true
+                is_terminated: true,
+                has_invalid_escape: false,
             })
         ),
         Token::new(TokenType::Whitespace, 1, None),
@@ -305,7 +308,8 @@ fn test_lex_single_quoted_strings() {
             TokenType::Literal,
             17,
             Some(LiteralType::String {
-                is_terminated: true
+                is_terminated: true,
+                has_invalid_escape: false,
             })
         ),
     );
@@ -544,7 +548,8 @@ false
             TokenType::Literal,
             3,
             Some(LiteralType::String {
-                is_terminated: true
+                is_terminated: true,
+                has_invalid_escape: false,
             })
         ),
         Token::new(TokenType::Newline, 1, None),
@@ -1277,7 +1282,7 @@ fn test_lex_unterminated_single_quote_is_marked() {
 
     let lit = string_token.unwrap().literal;
     match lit {
-        Some(LiteralType::String { is_terminated }) => {
+        Some(LiteralType::String { is_terminated, .. }) => {
             assert!(!is_terminated, "string should be marked as unterminated");
         }
         Some(LiteralType::Character { is_terminated, .. }) => {

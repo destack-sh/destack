@@ -1,28 +1,29 @@
 # Conformance Test Status
 
-**Blended Conformance**: 79.8% (5908/7405 tests passing)
+**Blended Conformance**: 79.9% (5918/7405 tests passing)
 
-| Suite | Passed | Failed | Total | Rate |
-|-------|--------|--------|-------|------|
-| test262 | 4470 | 893 | 5363 | 83.3% |
-| babel | 516 | 204 | 720 | 71.7% |
-| swc | 523 | 162 | 685 | 76.4% |
-| biome | 399 | 238 | 637 | 62.6% |
+| Suite    | Passed | Failed | Total |  Rate   |
+|:---------|-------:|-------:|------:|--------:|
+| test262  |  4480  |   883  |  5363 |  83.5%  |
+| babel    |   516  |   204  |   720 |  71.7%  |
+| swc      |   523  |   162  |   685 |  76.4%  |
+| biome    |   399  |   238  |   637 |  62.6%  |
 
 ## Recent Progress
 
 ### Completed Fixes (2025-12)
 
-| Fix | Tests Fixed | Files Changed |
-|-----|-------------|---------------|
-| do-while single statements | ~30 | `block.rs`, `loop.rs` |
-| new without parentheses | ~30 | `call.rs` |
-| Unterminated block comment | ~10 | `lex.rs` |
-| for/while single statements | ~47 | `loop.rs` |
-| Empty statement in loops | ~157 | `block.rs` |
-| **Labeled statements** | ~83 | AST, Parser, DIR, Compiler |
-| **break/continue labels** | ~3 | Biome tests fixed |
-| **Total** | **~287** | |
+| Fix                          | Tests Fixed | Files Changed                    |
+|------------------------------|:-----------:|----------------------------------|
+| do-while single statements   |     ~30     | `block.rs`, `loop.rs`            |
+| new without parentheses      |     ~30     | `call.rs`                        |
+| Unterminated block comment   |     ~10     | `lex.rs`                         |
+| for/while single statements  |     ~47     | `loop.rs`                        |
+| Empty statement in loops     |    ~157     | `block.rs`                       |
+| **Labeled statements**       |     ~83     | AST, Parser, DIR, Compiler       |
+| **break/continue labels**    |      ~3     | Biome tests fixed                |
+| **Invalid escape sequences** |     ~10     | `lex.rs`, `token.rs`             |
+| **Total**                    |  **~297**   |                                  |
 
 **Details:**
 - `do stmt; while(cond)` now works without requiring braces
@@ -33,6 +34,8 @@
 - `label: stmt` labeled statements now work
 - `break label` and `continue label` now work (JS-style without colon)
 - `PatternField::Elision` added for array elision patterns
+- `'\8'`, `'\9'` now correctly rejected as invalid escapes
+- Octal escapes in template literals (`` `\07` ``) now rejected
 
 **Note:** Some semantic restrictions (lexical declarations in single-statement context, `this` in for-of, etc.) are deferred to the semantic analysis pass.
 
@@ -40,23 +43,10 @@
 
 The following fixes are prioritized by impact and difficulty. Work in this order:
 
-#### 1. Invalid Escape Sequences (~39 fail tests)
+#### 1. ~~Invalid Escape Sequences~~ ✅ Done
 
-**Problem**: We accept invalid escape sequences that should be syntax errors.
-
-```javascript
-'\9'           // INVALID - \9 is not a valid escape (only \0-\7 for octal)
-'\8'           // INVALID - same
-`\07`          // INVALID - octal escapes forbidden in template literals
-"use strict"; '\1'  // INVALID - octal escapes forbidden in strict mode
-/\1/u          // INVALID - backreference not allowed in unicode regex
-```
-
-Valid escapes are: `\n`, `\r`, `\t`, `\\`, `\'`, `\"`, `\0` (null only), `\xNN`, `\uNNNN`, `\u{N...}`.
-
-**Fix**: In string/template lexing, validate escape sequences. Track strict mode or defer to semantic pass.
-
-**Files**: `lex.rs` (string and template literal scanning)
+Basic validation implemented: `\8`, `\9`, and octal escapes in template literals now rejected.
+Remaining: strict mode octal validation, regex unicode escape validation (deferred to semantic pass).
 
 #### 2. Generator/Yield Issues (~60 tests across suites)
 
@@ -128,7 +118,7 @@ class Foo {
 | TypeScript imports | ~25 | `import =` syntax, `import type` |
 | Type assertions | ~25 | `<Type>expr`, `as` edge cases |
 
-## Test262 Failures (893 tests)
+## Test262 Failures (883 tests)
 
 Test262 is the official JavaScript conformance suite. Failures are categorized by type:
 
