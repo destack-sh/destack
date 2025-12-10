@@ -652,7 +652,9 @@ impl<'a> FunctionLowerer<'a> {
                 global,
             } => {
                 let global_value = self.get_or_declare_global(*global, builder)?;
-                let ptr = builder.ins().global_value(self.pointer_type(), global_value);
+                let ptr = builder
+                    .ins()
+                    .global_value(self.pointer_type(), global_value);
                 value_map.insert(*destination, ptr);
             }
 
@@ -663,11 +665,15 @@ impl<'a> FunctionLowerer<'a> {
             } => {
                 let global_data = self.tree.get(*global);
                 let global_value = self.get_or_declare_global(*global, builder)?;
-                let ptr = builder.ins().global_value(self.pointer_type(), global_value);
+                let ptr = builder
+                    .ins()
+                    .global_value(self.pointer_type(), global_value);
 
                 // load the value from the global
                 let result_type = lower_type(self.tree, global_data.ty, self.pointer_bytes)?;
-                let result = builder.ins().load(result_type, cir::MemFlags::trusted(), ptr, 0);
+                let result = builder
+                    .ins()
+                    .load(result_type, cir::MemFlags::trusted(), ptr, 0);
                 value_map.insert(*destination, result);
             }
 
@@ -714,9 +720,7 @@ impl<'a> FunctionLowerer<'a> {
                         .get(aggregate)
                         .ok_or_else(|| CodegenCraneliftError::MissingType {
                             node: instruction_id.into_any(),
-                            message: Some(
-                                "could not infer type for aggregate in FieldGet".into(),
-                            ),
+                            message: Some("could not infer type for aggregate in FieldGet".into()),
                         })?;
                 let aggregate_type = self.tree.get(*aggregate_type_id);
 
@@ -781,9 +785,7 @@ impl<'a> FunctionLowerer<'a> {
                         .get(aggregate)
                         .ok_or_else(|| CodegenCraneliftError::MissingType {
                             node: instruction_id.into_any(),
-                            message: Some(
-                                "could not infer type for aggregate in FieldSet".into(),
-                            ),
+                            message: Some("could not infer type for aggregate in FieldSet".into()),
                         })?;
                 let aggregate_type = self.tree.get(*aggregate_type_id);
 
@@ -838,9 +840,7 @@ impl<'a> FunctionLowerer<'a> {
                         .get(array)
                         .ok_or_else(|| CodegenCraneliftError::MissingType {
                             node: instruction_id.into_any(),
-                            message: Some(
-                                "could not infer type for array in ElementGet".into(),
-                            ),
+                            message: Some("could not infer type for array in ElementGet".into()),
                         })?;
                 let array_type = self.tree.get(*array_type_id);
 
@@ -1014,8 +1014,7 @@ impl<'a> FunctionLowerer<'a> {
             }
 
             // managed_allocate -> requires GC runtime, not supported
-            mir::Instruction::ManagedAlloc { .. }
-            | mir::Instruction::ManagedAllocArray { .. } => {
+            mir::Instruction::ManagedAlloc { .. } | mir::Instruction::ManagedAllocArray { .. } => {
                 return Err(CodegenCraneliftError::unsupported_instruction(
                     "require runtime support",
                     instruction_id.into_any(),
@@ -1314,7 +1313,8 @@ impl<'a> FunctionLowerer<'a> {
 
             // string constants should be lowered as globals with GlobalInitializer::Bytes
             mir::Constant::String { .. } => Err(CodegenCraneliftError::unsupported_type(
-                "inline string constants not supported; use global with Bytes initializer".to_string(),
+                "inline string constants not supported; use global with Bytes initializer"
+                    .to_string(),
                 node_id,
             )),
 

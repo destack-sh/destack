@@ -6,13 +6,9 @@ use destack_workspace::Module;
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
-    /// Resolve a string to a builtin expression.
-    pub(super) fn resolve_string_to_builtin_expression_maybe(
-        &self,
-        string: &str,
-    ) -> Option<Expression> {
-        // type expression
-        let ty = self.resolve_string_to_type(string.as_str())?;
+    /// Resolve a string to a type literal expression (e.g., `int`, `string`).
+    pub(super) fn resolve_string_to_type_literal_maybe(&self, string: &str) -> Option<Expression> {
+        let ty = self.resolve_string_to_type(string)?;
         Some(Expression::TypeLiteral { value: ty })
     }
 
@@ -126,7 +122,7 @@ impl Compiler {
                                 node: expression_id.into_global_any(module.id),
                             })?
                         } else {
-                            self.resolve_string_to_builtin_expression_maybe(string.as_str())
+                            self.resolve_string_to_type_literal_maybe(string.as_str())
                                 .ok_or(error)?
                         }
                     }

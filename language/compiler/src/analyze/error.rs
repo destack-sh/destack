@@ -86,6 +86,14 @@ pub enum AnalyzeError {
         member_key: StaticKey,
         member_key_str: String,
     },
+    /// Type does not satisfy the expected type (satisfies expression).
+    UnsatisfiedType {
+        node: GlobalNodeIdAny,
+        expected_ty: GlobalTypeId,
+        actual_ty: GlobalTypeId,
+        expected_ty_string: String,
+        actual_ty_string: String,
+    },
 }
 
 impl From<TaskDependencyError> for AnalyzeError {
@@ -134,6 +142,7 @@ impl AnalyzeError {
             Self::AmbiguousOverload { .. } => 16,
             Self::UnsupportedOperator { .. } => 17,
             Self::MissingMember { .. } => 18,
+            Self::UnsatisfiedType { .. } => 19,
         }
     }
 
@@ -159,6 +168,7 @@ impl AnalyzeError {
             Self::AmbiguousOverload { node, .. } => DiagnosticAnchor::Node(*node),
             Self::UnsupportedOperator { node, .. } => DiagnosticAnchor::Node(*node),
             Self::MissingMember { node, .. } => DiagnosticAnchor::Node(*node),
+            Self::UnsatisfiedType { node, .. } => DiagnosticAnchor::Node(*node),
         }
     }
 
@@ -209,6 +219,13 @@ impl AnalyzeError {
                 ..
             } => {
                 format!("member '{member_key_str}' does not exist on type {receiver_ty_str}")
+            }
+            Self::UnsatisfiedType {
+                expected_ty_string,
+                actual_ty_string,
+                ..
+            } => {
+                format!("expected {expected_ty_string}, found {actual_ty_string}")
             }
         }
     }

@@ -9,7 +9,7 @@ Tests for number literal type inference and checking.
 > Integer literals can be assigned to number type.
 
 ```ds
-const x: number = 42
+const x: number = 42;
 ```
 
 ### negative integer
@@ -17,7 +17,7 @@ const x: number = 42
 > Negative integers are valid number literals.
 
 ```ds
-const x: number = -42
+const x: number = -42;
 ```
 
 ### zero
@@ -25,7 +25,7 @@ const x: number = -42
 > Zero is a valid number literal.
 
 ```ds
-const x: number = 0
+const x: number = 0;
 ```
 
 ## Float Literals
@@ -35,7 +35,7 @@ const x: number = 0
 > Float literals can be assigned to number type.
 
 ```ds
-const x: number = 3.14
+const x: number = 3.14;
 ```
 
 ### negative float
@@ -43,7 +43,7 @@ const x: number = 3.14
 > Negative floats are valid number literals.
 
 ```ds
-const x: number = -3.14
+const x: number = -3.14;
 ```
 
 ## Inference
@@ -53,7 +53,8 @@ const x: number = -3.14
 > Integer literals without annotation infer to number.
 
 ```ds
-const x = 123
+const x = 123;
+x satisfies number;
 ```
 
 ### inferred float type
@@ -61,5 +62,17 @@ const x = 123
 > Float literals without annotation infer to number.
 
 ```ds
-const x = 3.14
+const x = 3.14;
+x satisfies number;
 ```
+
+### number does not satisfy string
+
+> Number literal cannot satisfy string type.
+
+```ds
+const x = 123;
+x satisfies string;
+```
+
+- expected string, found 123

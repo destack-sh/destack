@@ -9,7 +9,7 @@ Tests for string literal type inference and checking.
 > String literals can be assigned to string type.
 
 ```ds
-const x: string = "hello"
+const x: string = "hello";
 ```
 
 ### empty string
@@ -17,7 +17,7 @@ const x: string = "hello"
 > Empty strings are valid string literals.
 
 ```ds
-const x: string = ""
+const x: string = "";
 ```
 
 ### string with spaces
@@ -25,7 +25,7 @@ const x: string = ""
 > Strings can contain spaces.
 
 ```ds
-const x: string = "hello world"
+const x: string = "hello world";
 ```
 
 ## Inference
@@ -35,7 +35,8 @@ const x: string = "hello world"
 > String literals without annotation infer to string.
 
 ```ds
-const x = "hello"
+const x = "hello";
+x satisfies string;
 ```
 
 ### inferred empty string
@@ -43,5 +44,17 @@ const x = "hello"
 > Empty string literals infer to string.
 
 ```ds
-const x = ""
+const x = "";
+x satisfies string;
 ```
+
+### string does not satisfy number
+
+> String literal cannot satisfy number type.
+
+```ds
+const x = "hello";
+x satisfies number;
+```
+
+- expected number, found "hello"

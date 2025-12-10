@@ -44,7 +44,7 @@ pub fn run_mdtests(options: &TestOptions) -> std::process::ExitCode {
             .unwrap_or("unknown");
         for md_test in tests {
             let test_name = format!("{}::{}", file_stem, slug(&md_test.name));
-            let category = format!("mdtest::{file_stem}");
+            let category = format!("destack_test::mdtest::{file_stem}");
             let case = MdTestCaseWrapper {
                 test_case: TestCase::file(&test_name, md_path.clone(), &category),
                 md_test,

@@ -9,7 +9,8 @@ Tests for the `any` type.
 > Any type accepts number values.
 
 ```ds
-const x: any = 42
+const x: any = 42;
+x satisfies any;
 ```
 
 ### string to any
@@ -17,7 +18,8 @@ const x: any = 42
 > Any type accepts string values.
 
 ```ds
-const x: any = "hello"
+const x: any = "hello";
+x satisfies any;
 ```
 
 ### object to any
@@ -25,7 +27,8 @@ const x: any = "hello"
 > Any type accepts object values.
 
 ```ds
-const x: any = { a: 1 }
+const x: any = { a: 1 };
+x satisfies any;
 ```
 
 ## Any is Assignable to Everything
@@ -35,8 +38,9 @@ const x: any = { a: 1 }
 > Any is assignable to number (unsafe but allowed).
 
 ```ds
-const x: any = 42
-const y: number = x
+const x: any = 42;
+const y: number = x;
+y satisfies number;
 ```
 
 ### any to string
@@ -44,6 +48,7 @@ const y: number = x
 > Any is assignable to string (unsafe but allowed).
 
 ```ds
-const x: any = "hello"
-const y: string = x
+const x: any = "hello";
+const y: string = x;
+y satisfies string;
 ```

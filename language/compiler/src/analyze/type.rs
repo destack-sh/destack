@@ -1,8 +1,8 @@
-use crate::{AnalyzeResult, Compiler};
+use crate::{AnalyzeError, AnalyzeResult, Assignability, Compiler};
 use destack_dir::{
-    BinaryOperator, Expression, GlobalSymbolId, IntType, LocalNodeId, LocalTypeId, Mutability,
-    PrimitiveType, ScalarLiteral, StaticKey, Type, TypeField, TypeLiteral, TypeTable,
-    UnaryOperator, VarianceBound,
+    BinaryOperator, Expression, GlobalSymbolId, GlobalTypeId, IntType, LocalNodeId, LocalTypeId,
+    Mutability, PrimitiveType, ScalarLiteral, StaticKey, Type, TypeBinaryOperator, TypeField,
+    TypeLiteral, TypeTable, TypeUnaryOperator, UnaryOperator, VarianceBound,
 };
 use destack_workspace::Module;
 
@@ -369,6 +369,61 @@ impl Compiler {
             }
         }
         right.clone()
+    }
+
+    /// Infer the result type of a type unary operation.
+    pub(super) fn infer_type_unary_operation(
+        &self,
+        _operator: &TypeUnaryOperator,
+        _right_ty_id: LocalTypeId,
+        _types: &TypeTable,
+    ) -> Type {
+        // NOTE #Incomplete: type-level unary operation
+        Type::TypeLiteral {
+            value: TypeLiteral::Unknown,
+        }
+    }
+
+    /// Infer the result type of a type binary operation.
+    pub(super) fn infer_type_binary_operation(
+        &self,
+        module: &Module,
+        expression_id: LocalNodeId<Expression>,
+        operator: &TypeBinaryOperator,
+        left_ty_id: LocalTypeId,
+        right_ty_id: LocalTypeId,
+        types: &TypeTable,
+    ) -> Type {
+        match operator {
+            TypeBinaryOperator::Satisfies => {
+                // check if left type satisfies (is assignable to) right type
+                if self.check_is_type_assignable(right_ty_id, left_ty_id, types)
+                    == Assignability::NotAssignable
+                {
+                    self.error(AnalyzeError::UnsatisfiedType {
+                        node: expression_id.into_global_any(module.id),
+                        expected_ty: GlobalTypeId {
+                            module_id: module.id,
+                            local_id: right_ty_id,
+                        },
+                        actual_ty: GlobalTypeId {
+                            module_id: module.id,
+                            local_id: left_ty_id,
+                        },
+                        expected_ty_string: self.format_type(types.get_type(right_ty_id), types),
+                        actual_ty_string: self.format_type(types.get_type(left_ty_id), types),
+                    });
+                }
+                // satisfies returns the original (left) type, not the asserted type
+                types.get_type(left_ty_id).clone()
+            }
+            _ => {
+                // NOTE #Incomplete: other type-level binary operations
+                Type::TypeLiteral {
+                    value: TypeLiteral::Unknown,
+                }
+            }
+        }
     }
 
     /// Infer the result type of a value of operation.
