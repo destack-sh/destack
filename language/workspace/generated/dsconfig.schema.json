@@ -183,21 +183,7 @@
           }
         },
         "strict": {
-          "description": "Enable all TypeScript-compatible strict type-checking options. Default: true for .ds files.",
-          "type": [
-            "boolean",
-            "null"
-          ]
-        },
-        "strictUnmanaged": {
-          "description": "Enable all Destack runtime management-related checks.",
-          "type": [
-            "boolean",
-            "null"
-          ]
-        },
-        "strictPortable": {
-          "description": "Ensure code works on all targets (js, wasm, native).",
+          "description": "Enable all TypeScript-derived strict type-checking options. Default: true for .ds files.",
           "type": [
             "boolean",
             "null"
@@ -308,6 +294,41 @@
             "null"
           ]
         },
+        "strictTypes": {
+          "description": "Enable all Destack type strictness checks (noImplicitSelf, noImprecisePrimitives, etc.).",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "strictPortable": {
+          "description": "Ensure code works on all targets (js, wasm, native).",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "noImplicitSelf": {
+          "description": "Require explicit `self.` for member access in methods.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "noImprecisePrimitives": {
+          "description": "Require precise primitive types (int32 vs number, etc.).",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "noImplicitConversions": {
+          "description": "Require explicit widening/narrowing conversions.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
         "noImplicitManagedType": {
           "description": "Require `^T` or `&T` in type positions (no implicit managed types).",
           "type": [
@@ -322,8 +343,22 @@
             "null"
           ]
         },
-        "noImplicitSelf": {
-          "description": "Require explicit `self.` for member access in methods.",
+        "noManaged": {
+          "description": "Forbid managed runtime features entirely (no &T at all, pure value types only).",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "noDynamicShapes": {
+          "description": "Forbid defineProperty, prototype mutation, etc. (require static object shapes).",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "noImplicitDynamicDispatch": {
+          "description": "Require overloads to be statically resolvable (no runtime dispatch).",
           "type": [
             "boolean",
             "null"

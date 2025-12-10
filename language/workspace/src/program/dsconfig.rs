@@ -135,12 +135,8 @@ impl DsConfig {
             compiler.lib = parent_compiler.lib.clone();
         }
 
-        // inherit strict mode flags (stricter wins)
-        compiler.strict = compiler.strict || parent_compiler.strict;
-        compiler.strict_unmanaged = compiler.strict_unmanaged || parent_compiler.strict_unmanaged;
-        compiler.strict_portable = compiler.strict_portable || parent_compiler.strict_portable;
-
         // inherit TypeScript-compatible checking options (stricter wins)
+        compiler.strict = compiler.strict || parent_compiler.strict;
         compiler.no_implicit_any = compiler.no_implicit_any || parent_compiler.no_implicit_any;
         compiler.strict_null_checks =
             compiler.strict_null_checks || parent_compiler.strict_null_checks;
@@ -170,12 +166,28 @@ impl DsConfig {
         compiler.no_unchecked_indexed_access =
             compiler.no_unchecked_indexed_access || parent_compiler.no_unchecked_indexed_access;
 
-        // inherit Destack-specific checking options (stricter wins)
+        // inherit Destack-specific checking - umbrella flags (stricter wins)
+        compiler.strict_types = compiler.strict_types || parent_compiler.strict_types;
+        compiler.strict_portable = compiler.strict_portable || parent_compiler.strict_portable;
+
+        // inherit Destack-specific checking - type strictness (stricter wins)
+        compiler.no_implicit_self = compiler.no_implicit_self || parent_compiler.no_implicit_self;
+        compiler.no_imprecise_primitives =
+            compiler.no_imprecise_primitives || parent_compiler.no_imprecise_primitives;
+        compiler.no_implicit_conversions =
+            compiler.no_implicit_conversions || parent_compiler.no_implicit_conversions;
+
+        // inherit Destack-specific checking - ownership (stricter wins)
         compiler.no_implicit_managed_type =
             compiler.no_implicit_managed_type || parent_compiler.no_implicit_managed_type;
         compiler.no_implicit_managed_value =
             compiler.no_implicit_managed_value || parent_compiler.no_implicit_managed_value;
-        compiler.no_implicit_self = compiler.no_implicit_self || parent_compiler.no_implicit_self;
+        compiler.no_managed = compiler.no_managed || parent_compiler.no_managed;
+
+        // inherit Destack-specific checking - shapes & dispatch (stricter wins)
+        compiler.no_dynamic_shapes = compiler.no_dynamic_shapes || parent_compiler.no_dynamic_shapes;
+        compiler.no_implicit_dynamic_dispatch =
+            compiler.no_implicit_dynamic_dispatch || parent_compiler.no_implicit_dynamic_dispatch;
 
         // inherit emit settings (child overrides if set)
         if compiler.root_dir.is_none() {
@@ -330,17 +342,9 @@ pub struct DsConfigCompilerOptions {
     /// Library files to include (e.g., "es2024", "dom", "worker").
     pub lib: Vec<String>,
 
-    // strict mode flags (umbrellas)
+    // TypeScript-compatible checking
     /// Enable all TypeScript-compatible strict type-checking options.
     pub strict: bool,
-    /// Enable all Destack ownership/managed-related checks.
-    /// Implies `no_implicit_managed_type` and `no_implicit_managed_value`.
-    pub strict_unmanaged: bool,
-    /// Ensure code works on all targets (js, wasm, native).
-    /// Restricts to intersection of capabilities across all output formats.
-    pub strict_portable: bool,
-
-    // TypeScript-derived checking
     /// Error on implicit `any`.
     pub no_implicit_any: bool,
     /// Strict null checks.
@@ -373,12 +377,26 @@ pub struct DsConfigCompilerOptions {
     pub no_unchecked_indexed_access: bool,
 
     // Destack-specific checking
+    /// Enable all Destack type strictness checks (no_implicit_self, no_imprecise_primitives, etc.).
+    pub strict_types: bool,
+    /// Require portable constructs that work on all targets (js, wasm, native).
+    pub strict_portable: bool,
+    /// Require explicit `self.` for member access in methods.
+    pub no_implicit_self: bool,
+    /// Require precise primitive types (int32 vs number, etc.).
+    pub no_imprecise_primitives: bool,
+    /// Require explicit widening/narrowing conversions.
+    pub no_implicit_conversions: bool,
     /// Require `^T` or `&T` in type positions (no implicit managed types).
     pub no_implicit_managed_type: bool,
     /// Require explicit copy/borrow at call sites (no implicit managed values).
     pub no_implicit_managed_value: bool,
-    /// Require explicit `self.` for member access in methods.
-    pub no_implicit_self: bool,
+    /// Forbid managed runtime features entirely (no &T at all, pure value types only).
+    pub no_managed: bool,
+    /// Forbid defineProperty, prototype mutation, etc. (require static object shapes).
+    pub no_dynamic_shapes: bool,
+    /// Require overloads to be statically resolvable (no runtime dispatch).
+    pub no_implicit_dynamic_dispatch: bool,
 
     // emit
     /// Root directory of source files (controls output directory structure, not module resolution).
@@ -407,7 +425,7 @@ impl Default for DsConfigCompilerOptions {
     fn default() -> Self {
         // defaults to strict mode ON (stricter than TypeScript)
         let strict = true;
-        let strict_unmanaged = false; // off by default, opt-in for strict ownership
+        let strict_types = false; // off by default, opt-in for Destack type strictness
         Self {
             features: LanguageFeatureSet::all(),
             base_url: None,
@@ -416,12 +434,8 @@ impl Default for DsConfigCompilerOptions {
             target: EsTarget::default(),
             lib: Vec::new(), // derived from target's output format if empty
 
-            // strict mode flags
+            // TypeScript-compatible checking
             strict,
-            strict_unmanaged,
-            strict_portable: false,
-
-            // TypeScript-derived checking
             no_implicit_any: strict,
             strict_null_checks: strict,
             no_implicit_this: strict,
@@ -438,10 +452,23 @@ impl Default for DsConfigCompilerOptions {
             exact_optional_property_types: false,
             no_unchecked_indexed_access: false,
 
-            // Destack-specific checking
-            no_implicit_managed_type: strict_unmanaged,
-            no_implicit_managed_value: strict_unmanaged,
-            no_implicit_self: false,
+            // Destack-specific checking - umbrella flags
+            strict_types,
+            strict_portable: false,
+
+            // Destack-specific checking - type strictness (under strict_types)
+            no_implicit_self: strict_types,
+            no_imprecise_primitives: strict_types,
+            no_implicit_conversions: strict_types,
+
+            // Destack-specific checking - ownership (standalone)
+            no_implicit_managed_type: false,
+            no_implicit_managed_value: false,
+            no_managed: false,
+
+            // Destack-specific checking - shapes & dispatch (standalone)
+            no_dynamic_shapes: false,
+            no_implicit_dynamic_dispatch: false,
 
             // emit
             root_dir: None,
@@ -468,7 +495,7 @@ impl From<&DsConfigCompilerOptionsJson> for DsConfigCompilerOptions {
         json.apply_features(&mut features);
 
         let strict = json.strict.unwrap_or(true);
-        let strict_unmanaged = json.strict_unmanaged.unwrap_or(false);
+        let strict_types = json.strict_types.unwrap_or(false);
         Self {
             features,
             base_url: json.base_url.as_ref().map(PathBuf::from),
@@ -485,12 +512,8 @@ impl From<&DsConfigCompilerOptionsJson> for DsConfigCompilerOptions {
                 .unwrap_or_default(),
             lib: json.lib.clone().unwrap_or_default(),
 
-            // strict mode flags
-            strict,
-            strict_unmanaged,
-            strict_portable: json.strict_portable.unwrap_or(false),
-
             // TypeScript-compatible checking
+            strict,
             no_implicit_any: json.no_implicit_any.unwrap_or(strict),
             strict_null_checks: json.strict_null_checks.unwrap_or(strict),
             no_implicit_this: json.no_implicit_this.unwrap_or(strict),
@@ -507,10 +530,23 @@ impl From<&DsConfigCompilerOptionsJson> for DsConfigCompilerOptions {
             exact_optional_property_types: json.exact_optional_property_types.unwrap_or(false),
             no_unchecked_indexed_access: json.no_unchecked_indexed_access.unwrap_or(false),
 
-            // Destack-specific checking
-            no_implicit_managed_type: json.no_implicit_managed_type.unwrap_or(strict_unmanaged),
-            no_implicit_managed_value: json.no_implicit_managed_value.unwrap_or(strict_unmanaged),
-            no_implicit_self: json.no_implicit_self.unwrap_or(false),
+            // Destack-specific checking - umbrella flags
+            strict_types,
+            strict_portable: json.strict_portable.unwrap_or(false),
+
+            // Destack-specific checking - type strictness (under strict_types)
+            no_implicit_self: json.no_implicit_self.unwrap_or(strict_types),
+            no_imprecise_primitives: json.no_imprecise_primitives.unwrap_or(strict_types),
+            no_implicit_conversions: json.no_implicit_conversions.unwrap_or(strict_types),
+
+            // Destack-specific checking - ownership (standalone)
+            no_implicit_managed_type: json.no_implicit_managed_type.unwrap_or(false),
+            no_implicit_managed_value: json.no_implicit_managed_value.unwrap_or(false),
+            no_managed: json.no_managed.unwrap_or(false),
+
+            // Destack-specific checking - shapes & dispatch (standalone)
+            no_dynamic_shapes: json.no_dynamic_shapes.unwrap_or(false),
+            no_implicit_dynamic_dispatch: json.no_implicit_dynamic_dispatch.unwrap_or(false),
 
             // emit
             root_dir: json.root_dir.as_ref().map(PathBuf::from),
@@ -807,15 +843,9 @@ pub struct DsConfigCompilerOptionsJson {
     /// Library files to include (e.g., ["es2024", "dom"]).
     pub lib: Option<Vec<String>>,
 
-    // strict mode flags (umbrellas)
-    /// Enable all TypeScript-compatible strict type-checking options. Default: true for .ds files.
+    // TypeScript-compatible checking
+    /// Enable all TypeScript-derived strict type-checking options. Default: true for .ds files.
     pub strict: Option<bool>,
-    /// Enable all Destack runtime management-related checks.
-    pub strict_unmanaged: Option<bool>,
-    /// Ensure code works on all targets (js, wasm, native).
-    pub strict_portable: Option<bool>,
-
-    // TypeScript-derived checking
     /// Error on expressions and declarations with implied `any` type.
     pub no_implicit_any: Option<bool>,
     /// Enable strict null checks (`null` and `undefined` are distinct types).
@@ -848,12 +878,26 @@ pub struct DsConfigCompilerOptionsJson {
     pub no_unchecked_indexed_access: Option<bool>,
 
     // Destack-specific checking
+    /// Enable all Destack type strictness checks (noImplicitSelf, noImprecisePrimitives, etc.).
+    pub strict_types: Option<bool>,
+    /// Ensure code works on all targets (js, wasm, native).
+    pub strict_portable: Option<bool>,
+    /// Require explicit `self.` for member access in methods.
+    pub no_implicit_self: Option<bool>,
+    /// Require precise primitive types (int32 vs number, etc.).
+    pub no_imprecise_primitives: Option<bool>,
+    /// Require explicit widening/narrowing conversions.
+    pub no_implicit_conversions: Option<bool>,
     /// Require `^T` or `&T` in type positions (no implicit managed types).
     pub no_implicit_managed_type: Option<bool>,
     /// Require explicit copy/borrow at call sites (no implicit managed values).
     pub no_implicit_managed_value: Option<bool>,
-    /// Require explicit `self.` for member access in methods.
-    pub no_implicit_self: Option<bool>,
+    /// Forbid managed runtime features entirely (no &T at all, pure value types only).
+    pub no_managed: Option<bool>,
+    /// Forbid defineProperty, prototype mutation, etc. (require static object shapes).
+    pub no_dynamic_shapes: Option<bool>,
+    /// Require overloads to be statically resolvable (no runtime dispatch).
+    pub no_implicit_dynamic_dispatch: Option<bool>,
 
     // emit
     /// Root directory of source files (controls output directory structure, not module resolution).
