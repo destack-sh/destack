@@ -6,6 +6,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::Instant;
 
 use destack_source::DiagnosticSeverity;
+use rayon::prelude::*;
 
 use super::{
     TestOptions, filter_tests, print_failures, print_result, print_summary, print_test_list,
@@ -20,6 +21,12 @@ pub enum TestResult {
     Failed { message: String },
     /// Test was skipped.
     Skipped { reason: String },
+    /// Suite of tests (for conformance tracking).
+    Suite {
+        passed: usize,
+        failed: usize,
+        skipped: usize,
+    },
 }
 
 impl TestResult {
@@ -36,6 +43,30 @@ impl TestResult {
     /// Whether the test was skipped.
     pub fn is_skipped(&self) -> bool {
         matches!(self, Self::Skipped { .. })
+    }
+
+    /// Whether this is a suite result.
+    pub fn is_suite(&self) -> bool {
+        matches!(self, Self::Suite { .. })
+    }
+
+    /// Get pass rate as a percentage (for Suite results).
+    pub fn pass_rate(&self) -> Option<f64> {
+        match self {
+            Self::Suite {
+                passed,
+                failed,
+                skipped,
+            } => {
+                let total = passed + failed + skipped;
+                if total == 0 {
+                    Some(100.0)
+                } else {
+                    Some(*passed as f64 / total as f64 * 100.0)
+                }
+            }
+            _ => None,
+        }
     }
 }
 
@@ -133,9 +164,25 @@ impl TestSummary {
     /// Record a test result.
     pub fn record(&self, result: &TestResult) {
         match result {
-            TestResult::Passed => self.passed.fetch_add(1, Ordering::Relaxed),
-            TestResult::Failed { .. } => self.failed.fetch_add(1, Ordering::Relaxed),
-            TestResult::Skipped { .. } => self.skipped.fetch_add(1, Ordering::Relaxed),
+            TestResult::Passed => {
+                self.passed.fetch_add(1, Ordering::Relaxed);
+            }
+            TestResult::Failed { .. } => {
+                self.failed.fetch_add(1, Ordering::Relaxed);
+            }
+            TestResult::Skipped { .. } => {
+                self.skipped.fetch_add(1, Ordering::Relaxed);
+            }
+            TestResult::Suite {
+                passed,
+                failed,
+                skipped,
+            } => {
+                // suite results aggregate their counts into the summary?
+                self.passed.fetch_add(*passed, Ordering::Relaxed);
+                self.failed.fetch_add(*failed, Ordering::Relaxed);
+                self.skipped.fetch_add(*skipped, Ordering::Relaxed);
+            }
         };
     }
 
@@ -188,28 +235,37 @@ where
 
     let summary = TestSummary::new();
     let start = Instant::now();
-    let mut results: Vec<(TestCase, TestResult)> = Vec::new();
 
-    // run tests sequentially (parallel can be added later with rayon)
-    for test in &filtered {
-        let test_start = Instant::now();
+    // run tests in parallel with rayon
+    let results: Vec<(TestCase, TestResult, std::time::Duration)> = filtered
+        .par_iter()
+        .map(|test| {
+            let test_start = Instant::now();
 
-        // handle pre-skipped tests
-        let result = if test.is_skipped {
-            TestResult::Skipped {
-                reason: "marked as skipped".to_string(),
-            }
-        } else {
-            runner(test)
-        };
+            // handle pre-skipped tests
+            let result = if test.is_skipped {
+                TestResult::Skipped {
+                    reason: "marked as skipped".to_string(),
+                }
+            } else {
+                runner(test)
+            };
 
-        let duration = test_start.elapsed();
-        summary.record(&result);
-        print_result(test, &result, duration, options.verbose);
-        results.push((test.clone(), result));
-    }
+            let duration = test_start.elapsed();
+            (test.clone(), result, duration)
+        })
+        .collect();
 
     let total_duration = start.elapsed();
+
+    // aggregate results and print (single-threaded for ordered output)
+    let mut final_results: Vec<(TestCase, TestResult)> = Vec::new();
+    for (test, result, duration) in results {
+        summary.record(&result);
+        print_result(&test, &result, duration, options.verbose);
+        final_results.push((test, result));
+    }
+    let results = final_results;
 
     // print failures
     print_failures(&results);

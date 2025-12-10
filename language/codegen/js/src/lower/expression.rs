@@ -166,15 +166,19 @@ impl ModuleLowerer<'_> {
                         .transpose()?;
                     let value: Option<crate::LocalNodeId<Expression>> = value_id
                         .map(|value| {
-                            self.lower_expression(value)
-                                .expect_node::<Expression>(value.into_global_any(self.module.id), self)
+                            self.lower_expression(value).expect_node::<Expression>(
+                                value.into_global_any(self.module.id),
+                                self,
+                            )
                         })
                         .transpose()?;
 
                     let declarator = crate::Declarator::Binding { pattern, ty, value };
-                    let declarator_id = self
-                        .tree
-                        .insert_from_source(declarator, self.module.id, *dir_declarator_id);
+                    let declarator_id = self.tree.insert_from_source(
+                        declarator,
+                        self.module.id,
+                        *dir_declarator_id,
+                    );
                     declarators.push(declarator_id);
                 }
 

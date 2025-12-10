@@ -31,6 +31,11 @@ name = "mdtest"
 path = "src/mdtest/main.rs"
 harness = false
 
+[[test]]
+name = "conformance"
+path = "src/conformance/main.rs"
+harness = false
+
 [dependencies]
 # language
 destack_ast = { workspace = true }
@@ -50,6 +55,7 @@ destack_workspace = { workspace = true }
 # general
 clap = { version = "4.5", features = ["derive"] }
 pulldown-cmark = "0.12"
+rayon = "1.10"
 
 [dev-dependencies]
 

@@ -259,8 +259,8 @@ impl Parser {
 #[cfg(test)]
 mod tests {
     use destack_ast::{
-        Asynchrony, BinaryOperator, Block, Declarator, Expression, ForEachKind, Mutability, Pattern,
-        ScalarLiteral, UnaryOperator, WhileKind,
+        Asynchrony, BinaryOperator, Block, Declarator, Expression, ForEachKind, Mutability,
+        Pattern, ScalarLiteral, UnaryOperator, WhileKind,
     };
 
     use crate::{TestParser, assert_expression_path, assert_node, assert_path, assert_string};

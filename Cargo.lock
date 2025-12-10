@@ -910,6 +910,7 @@ dependencies = [
  "destack_source",
  "destack_workspace",
  "pulldown-cmark",
+ "rayon",
 ]
 
 [[package]]

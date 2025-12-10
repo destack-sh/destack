@@ -428,16 +428,25 @@ let z = y;
         let module = module.read();
         let tree = module.dir.tree.read();
         let (x_symbol_id, x_node) = test.resolve_to_node::<Pattern>("test.ds", "x").unwrap();
-        
+
         // pattern -> declarator -> let
         let x_declarator = tree.get_parent(x_node.id).unwrap();
-        let x_node = tree.get_parent(x_declarator.id).unwrap().into_typed::<Expression>();
+        let x_node = tree
+            .get_parent(x_declarator.id)
+            .unwrap()
+            .into_typed::<Expression>();
         let (y_symbol_id, y_node) = test.resolve_to_node::<Pattern>("test.ds", "y").unwrap();
         let y_declarator = tree.get_parent(y_node.id).unwrap();
-        let y_node = tree.get_parent(y_declarator.id).unwrap().into_typed::<Expression>();
+        let y_node = tree
+            .get_parent(y_declarator.id)
+            .unwrap()
+            .into_typed::<Expression>();
         let (_z_symbol_id, z_node) = test.resolve_to_node::<Pattern>("test.ds", "z").unwrap();
         let z_declarator = tree.get_parent(z_node.id).unwrap();
-        let z_node = tree.get_parent(z_declarator.id).unwrap().into_typed::<Expression>();
+        let z_node = tree
+            .get_parent(z_declarator.id)
+            .unwrap()
+            .into_typed::<Expression>();
 
         // let x = 0;
         assert_node!(tree, x_node, Expression::Let { declarators, ..} => {
@@ -493,15 +502,21 @@ export let B = A + 1;
 
         // export let A = 1;
         let (a_symbol_id, a_node_id) = test.resolve_to_node::<Pattern>("a.ds", "A").unwrap();
-        
+
         // pattern -> declarator -> let
         let a_declarator = tree_a.get_parent(a_node_id.id).unwrap();
-        let _a_node = tree_a.get_parent(a_declarator.id).unwrap().into_typed::<Expression>();
+        let _a_node = tree_a
+            .get_parent(a_declarator.id)
+            .unwrap()
+            .into_typed::<Expression>();
 
         // export let B = A + 1;
         let (_b_symbol_id, b_node_id) = test.resolve_to_node::<Pattern>("b.ds", "B").unwrap();
         let b_declarator = tree_b.get_parent(b_node_id.id).unwrap();
-        let b_node = tree_b.get_parent(b_declarator.id).unwrap().into_typed::<Expression>();
+        let b_node = tree_b
+            .get_parent(b_declarator.id)
+            .unwrap()
+            .into_typed::<Expression>();
         assert_node!(tree_b, b_node, Expression::Let { declarators, ..} => {
             let declarator = tree_b.get(declarators[0]);
             let Declarator::Binding { value: Some(value), .. } = declarator else { panic!("expected binding") };
@@ -962,12 +977,18 @@ let b = obj.y;
         let module = module.read();
         let tree = module.dir.tree.read();
         let (_a_symbol_id, a_node) = test.resolve_to_node::<Pattern>("test.ds", "a").unwrap();
-        
+
         let a_declarator = tree.get_parent(a_node.id).unwrap();
-        let a_let = tree.get_parent(a_declarator.id).unwrap().into_typed::<Expression>();
+        let a_let = tree
+            .get_parent(a_declarator.id)
+            .unwrap()
+            .into_typed::<Expression>();
         let (_b_symbol_id, b_node) = test.resolve_to_node::<Pattern>("test.ds", "b").unwrap();
         let b_declarator = tree.get_parent(b_node.id).unwrap();
-        let b_let = tree.get_parent(b_declarator.id).unwrap().into_typed::<Expression>();
+        let b_let = tree
+            .get_parent(b_declarator.id)
+            .unwrap()
+            .into_typed::<Expression>();
 
         // let a = obj.x
         assert_node!(tree, a_let, Expression::Let { declarators, .. } => {
@@ -1007,7 +1028,10 @@ let a = obj.inner.value;
 
         let (_a_symbol_id, a_node) = test.resolve_to_node::<Pattern>("test.ds", "a").unwrap();
         let a_declarator = tree.get_parent(a_node.id).unwrap();
-        let a_let = tree.get_parent(a_declarator.id).unwrap().into_typed::<Expression>();
+        let a_let = tree
+            .get_parent(a_declarator.id)
+            .unwrap()
+            .into_typed::<Expression>();
 
         // let a = obj.inner.value
         assert_node!(tree, a_let, Expression::Let { declarators, .. } => {
