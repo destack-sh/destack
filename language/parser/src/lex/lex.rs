@@ -1068,15 +1068,20 @@ impl Lexer<'_> {
 
         let mut logical_len = 0_u32;
 
-        // parse until either quotes are terminated or error is detected
+        // parse until either quotes are terminated or EOF is reached
         loop {
+            // check for EOF first to avoid infinite loop on unterminated strings
+            if self.is_end() {
+                return Self::finish_single_quoted_literal(logical_len, false);
+            }
+
             match self.peek() {
                 // quotes are terminated, finish parsing
                 '\'' => {
                     self.eat();
                     return Self::finish_single_quoted_literal(logical_len, true);
                 }
-                // escaped slash is considered one character, so bump twice
+                // escaped character is considered one logical character
                 '\\' => {
                     self.eat();
                     if self.is_end() {
@@ -1085,7 +1090,7 @@ impl Lexer<'_> {
                     self.eat();
                     logical_len = logical_len.saturating_add(1);
                 }
-                // skip the character
+                // regular character
                 _ => {
                     self.eat();
                     logical_len = logical_len.saturating_add(1);

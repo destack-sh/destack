@@ -272,8 +272,12 @@ impl Parser {
             let mut strings: Vec<StringId> = Vec::new();
             let mut arguments: Vec<LocalNodeId<Argument>> = Vec::new();
 
-            // start
-            let string = &next_str[1..next_str.len() - 2]; // remove ` and ${
+            // start: remove ` and ${ (need at least 3 chars: `${)
+            let string = if next_str.len() >= 3 {
+                &next_str[1..next_str.len() - 2]
+            } else {
+                ""
+            };
             let string_id = self.strings.intern(string);
             strings.push(string_id);
 
@@ -282,8 +286,13 @@ impl Parser {
                 // string
                 if self.peek_token(TokenType::TemplateStringMiddle).is_ok() {
                     let token = *self.eat()?;
-                    let string = self.get_span_str(token.span);
-                    let string = &string[1..string.len() - 2]; // remove } and ${
+                    let token_str = self.get_span_str(token.span);
+                    // remove } and ${ (need at least 3 chars: }${)
+                    let string = if token_str.len() >= 3 {
+                        &token_str[1..token_str.len() - 2]
+                    } else {
+                        ""
+                    };
                     let string_id = self.strings.intern(string);
                     strings.push(string_id);
                 }
@@ -296,10 +305,14 @@ impl Parser {
                 }
             }
 
-            // end
+            // end: remove } and ` (need at least 2 chars: }`)
             let token = *self.eat_token(TokenType::TemplateStringEnd)?;
-            let string = self.get_span_str(token.span);
-            let string = &string[1..string.len() - 1]; // remove } and `
+            let token_str = self.get_span_str(token.span);
+            let string = if token_str.len() >= 2 {
+                &token_str[1..token_str.len() - 1]
+            } else {
+                ""
+            };
             let string_id = self.strings.intern(string);
             strings.push(string_id);
 
@@ -1278,5 +1291,54 @@ mod tests {
                 });
             });
         });
+    }
+
+    // ========================================================================
+    // Template literal tests (regression tests for panics on malformed input)
+    // ========================================================================
+
+    /// Valid template literal with interpolation should parse correctly.
+    #[test]
+    fn test_parse_template_literal_valid() {
+        let mut test = TestParser::new("`hello ${name}!`");
+        let mut parser = test.prepare();
+        let result = parser.eat_template_literal();
+        assert!(result.is_ok());
+    }
+
+    /// Valid template literal without interpolation.
+    #[test]
+    fn test_parse_template_literal_plain() {
+        let mut test = TestParser::new("`hello world`");
+        let mut parser = test.prepare();
+        let result = parser.eat_template_literal();
+        assert!(result.is_ok());
+    }
+
+    /// Empty template literal.
+    #[test]
+    fn test_parse_template_literal_empty() {
+        let mut test = TestParser::new("``");
+        let mut parser = test.prepare();
+        let result = parser.eat_template_literal();
+        assert!(result.is_ok());
+    }
+
+    /// Template literal with only interpolation `${foo}`.
+    #[test]
+    fn test_parse_template_literal_only_interpolation() {
+        let mut test = TestParser::new("`${foo}`");
+        let mut parser = test.prepare();
+        let result = parser.eat_template_literal();
+        assert!(result.is_ok());
+    }
+
+    /// Template literal with adjacent interpolations.
+    #[test]
+    fn test_parse_template_literal_adjacent_interpolations() {
+        let mut test = TestParser::new("`${a}${b}${c}`");
+        let mut parser = test.prepare();
+        let result = parser.eat_template_literal();
+        assert!(result.is_ok());
     }
 }
