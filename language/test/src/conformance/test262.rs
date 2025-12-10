@@ -1,5 +1,4 @@
 use std::path::{Path, PathBuf};
-use std::process::ExitCode;
 use std::sync::Arc;
 
 use destack_parser::Parser;
@@ -8,7 +7,7 @@ use destack_source::{
 };
 use destack_workspace::Program;
 
-use super::runner::{ConformanceSuite, run_conformance_suite};
+use super::runner::{ConformanceSuite, SuiteResult, run_conformance_suite};
 use crate::harness::{TestOptions, fixtures_dir};
 
 // pinned version of test262-parser-tests
@@ -177,7 +176,7 @@ impl ConformanceSuite for Test262Suite {
 }
 
 /// Run test262 conformance tests.
-pub fn run_test262(options: &TestOptions, update_known_failures: bool) -> ExitCode {
+pub fn run_test262(options: &TestOptions, update_known_failures: bool) -> Option<SuiteResult> {
     let suite = Test262Suite::new();
     run_conformance_suite(&suite, options, update_known_failures)
 }

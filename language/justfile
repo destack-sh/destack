@@ -10,6 +10,9 @@ _default:
 install-fixtures:
     just resolver/install-fixtures
     ./test/fixtures/conformance/test262-fetch.sh
+    ./test/fixtures/conformance/babel-fetch.sh
+    ./test/fixtures/conformance/swc-fetch.sh
+    ./test/fixtures/conformance/biome-fetch.sh
 
 # check
 check:
