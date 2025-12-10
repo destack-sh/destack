@@ -1,8 +1,8 @@
 use destack_ast::{self as ast};
 use destack_dir::{
-    DependencySource, Expression, ForEachKind, IfKind, LocalNodeId, LocalNodeIdAny, LocalScopeId,
-    LocalScopeMark, LoopKind, MatchSource, NodeTree, NodeType, ScopeKind, SymbolKind, SymbolTable,
-    TypeTable, YieldCardinality,
+    Declarator, DependencyMode, DependencySource, Expression, ForEachKind, IfKind, LocalNodeId,
+    LocalNodeIdAny, LocalScopeId, LocalScopeMark, LoopKind, MatchSource, NodeTree, NodeType,
+    ScopeKind, SymbolKind, SymbolTable, TypeTable, YieldCardinality,
 };
 use destack_workspace::Module;
 
@@ -199,9 +199,7 @@ impl Compiler {
             ast::Expression::Let {
                 descriptor,
                 mutability,
-                pattern,
-                ty,
-                value,
+                declarators: ast_declarators,
             } => {
                 let symbol_kind = if descriptor.export.is_some() {
                     SymbolKind::Item
@@ -217,51 +215,32 @@ impl Compiler {
                 );
                 let symbol_id = descriptor.symbol;
                 let mutability = self.bind_mutability(*mutability);
-                let pattern = self.bind_pattern(
-                    module,
-                    scope,
-                    descriptor.export,
-                    *pattern,
-                    Some(expression_id),
-                    tree,
-                    symbols,
-                    types,
-                );
-                let value = value.map(|value| {
-                    self.bind_expression(
-                        module,
-                        scope,
-                        value,
-                        Some(expression_id),
-                        tree,
-                        symbols,
-                        types,
-                    )
-                });
+                let declarators: Vec<LocalNodeId<Declarator>> = ast_declarators
+                    .iter()
+                    .map(|ast_decl_id| {
+                        self.bind_declarator(
+                            module,
+                            scope,
+                            descriptor.export,
+                            *ast_decl_id,
+                            Some(expression_id),
+                            tree,
+                            symbols,
+                            types,
+                        )
+                    })
+                    .collect();
+
                 let expression = Expression::Let {
                     descriptor,
                     mutability,
-                    pattern,
-                    value,
+                    declarators,
                 };
-                if let Some(ty) = ty {
-                    let ty = self.bind_expression_to_type(
-                        module,
-                        scope,
-                        *ty,
-                        Some(expression_id),
-                        tree,
-                        symbols,
-                        types,
-                    );
-                    let expression_id = tree.insert(expression_id, expression);
-                    symbols
-                        .get_symbol_mut(symbol_id)
-                        .declare_primary(expression_id);
-                    types.set_declared_type(expression_id.into_global_any(module.id), ty);
-                    return expression_id;
-                }
-                expression
+                let expression_id = tree.insert(expression_id, expression);
+                symbols
+                    .get_symbol_mut(symbol_id)
+                    .declare_primary(expression_id);
+                return expression_id;
             }
             ast::Expression::Unary { operator, right } => {
                 let right = self.bind_expression(
@@ -1294,5 +1273,78 @@ impl Compiler {
         } else {
             tree.insert(expression_id, expression)
         }
+    }
+
+    /// Bind a declarator to a DIR declarator.
+    #[allow(clippy::too_many_arguments)]
+    pub(super) fn bind_declarator(
+        &self,
+        module: &Module,
+        scope: (LocalScopeId, LocalScopeMark),
+        export: Option<DependencyMode>,
+        ast_declarator_id: ast::LocalNodeId<ast::Declarator>,
+        parent_id: Option<LocalNodeIdAny>,
+        tree: &mut NodeTree,
+        symbols: &mut SymbolTable,
+        types: &mut TypeTable,
+    ) -> LocalNodeId<Declarator> {
+        let ast_declarator = module.ast.tree.get(ast_declarator_id);
+        let declarator_id =
+            tree.reserve_from_source(NodeType::Declarator, ast_declarator_id.id, scope, parent_id);
+        let declarator = match ast_declarator {
+            ast::Declarator::Binding { pattern, ty, value } => {
+                let pattern = self.bind_pattern(
+                    module,
+                    scope,
+                    export,
+                    *pattern,
+                    Some(declarator_id),
+                    tree,
+                    symbols,
+                    types,
+                );
+                let bound_ty = ty.map(|ty_id| {
+                    self.bind_expression(
+                        module,
+                        scope,
+                        ty_id,
+                        Some(declarator_id),
+                        tree,
+                        symbols,
+                        types,
+                    )
+                });
+                let value = value.map(|v| {
+                    self.bind_expression(
+                        module,
+                        scope,
+                        v,
+                        Some(declarator_id),
+                        tree,
+                        symbols,
+                        types,
+                    )
+                });
+                // set declared type on declarator if type annotation is present
+                if let Some(ty_id) = ty {
+                    let declared_ty = self.bind_expression_to_type(
+                        module,
+                        scope,
+                        *ty_id,
+                        Some(declarator_id),
+                        tree,
+                        symbols,
+                        types,
+                    );
+                    types.set_declared_type(declarator_id.into_global(module.id), declared_ty);
+                }
+                Declarator::Binding {
+                    pattern,
+                    ty: bound_ty,
+                    value,
+                }
+            }
+        };
+        tree.insert(declarator_id, declarator)
     }
 }

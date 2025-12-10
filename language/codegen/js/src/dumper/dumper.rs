@@ -683,9 +683,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
             Statement::Let {
                 descriptor,
                 mutability,
-                pattern: _,
-                ty: _,
-                value: _,
+                declarators: _,
             } => {
                 self.node("Statement::Let", id.id)
                     .field("descriptor", descriptor)

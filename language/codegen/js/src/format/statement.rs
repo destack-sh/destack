@@ -91,9 +91,7 @@ impl<'ast> FormatNode<'ast, Statement> for Statement {
             Statement::Let {
                 descriptor,
                 mutability,
-                pattern,
-                ty,
-                value,
+                declarators,
             } => {
                 // export
                 if let Some(export) = descriptor.export {
@@ -111,19 +109,14 @@ impl<'ast> FormatNode<'ast, Statement> for Statement {
                     Mutability::Immutable => write!(f, [Keyword::Const])?,
                 }
 
-                // pattern
-                write!(f, [space(), pattern])?;
-
-                // type
-                if f.context().include_types()
-                    && let Some(ty) = ty
-                {
-                    write!(f, [space(), token(":"), space(), ty])?;
-                }
-
-                // value
-                if let Some(value) = value {
-                    write!(f, [space(), token("="), space(), *value])?;
+                // declarators
+                for (i, declarator) in declarators.iter().enumerate() {
+                    if i == 0 {
+                        write!(f, [space()])?;
+                    } else {
+                        write!(f, [token(","), space()])?;
+                    }
+                    write!(f, [declarator])?;
                 }
             }
             Statement::Assign {

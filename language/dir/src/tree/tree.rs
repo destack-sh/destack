@@ -4,9 +4,9 @@ use std::fmt::{Debug, Formatter};
 use destack_source::ModuleId;
 
 use crate::{
-    Annotation, Arena, Argument, Block, Declaration, DependencyItem, EnumField, Expression,
-    LocalNodeId, LocalNodeIdAny, LocalScopeId, LocalScopeMark, MatchCase, Node, NodeType,
-    Parameter, Pattern, PatternField, Property, WhereClause,
+    Annotation, Arena, Argument, Block, Declaration, Declarator, DependencyItem, EnumField,
+    Expression, LocalNodeId, LocalNodeIdAny, LocalScopeId, LocalScopeMark, MatchCase, Node,
+    NodeType, Parameter, Pattern, PatternField, Property, WhereClause,
 };
 
 /// Mutable DIR Node tree across a set of related source units. NOT THREAD-SAFE.
@@ -27,6 +27,7 @@ pub struct NodeTree {
     pub(crate) expressions: Arena<Expression>,
     pub(crate) blocks: Arena<Block>,
     pub(crate) declarations: Arena<Declaration>,
+    pub(crate) declarators: Arena<Declarator>,
     pub(crate) properties: Arena<Property>,
     pub(crate) enum_fields: Arena<EnumField>,
     pub(crate) where_clauses: Arena<WhereClause>,
@@ -81,6 +82,7 @@ impl NodeTree {
             expressions: Arena::new(),
             blocks: Arena::new(),
             declarations: Arena::new(),
+            declarators: Arena::new(),
             properties: Arena::new(),
             enum_fields: Arena::new(),
             where_clauses: Arena::new(),
@@ -362,6 +364,7 @@ impl_node_tree_stores! {
     Expression => expressions,
     Block => blocks,
     Declaration => declarations,
+    Declarator => declarators,
     Property => properties,
     EnumField => enum_fields,
     WhereClause => where_clauses,

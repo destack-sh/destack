@@ -1,7 +1,7 @@
 use crate::{
-    Annotation, Argument, Block, Declaration, DeclarationDescriptor, DependencyItem, EnumField,
-    Expression, FunctionSignature, Generics, Heritage, Key, LocalNodeId, NodeTree, NodeType,
-    NodeVisitor, Parameter, Pattern, PatternField, Property, Statement, SwitchCase,
+    Annotation, Argument, Block, Declaration, DeclarationDescriptor, Declarator, DependencyItem,
+    EnumField, Expression, FunctionSignature, Generics, Heritage, Key, LocalNodeId, NodeTree,
+    NodeType, NodeVisitor, Parameter, Pattern, PatternField, Property, Statement, SwitchCase,
     TemplateLiteral, Type, TypeField,
 };
 
@@ -29,6 +29,10 @@ pub fn walk_any<V: NodeVisitor + ?Sized>(
         NodeType::Declaration => {
             let declaration = tree.declarations.get(local_idx);
             walk_declaration(visitor, tree, LocalNodeId::new(node_id), declaration);
+        }
+        NodeType::Declarator => {
+            let declarator = tree.declarators.get(local_idx);
+            walk_declarator(visitor, tree, LocalNodeId::new(node_id), declarator);
         }
         NodeType::Property => {
             let field = tree.fields.get(local_idx);
@@ -148,19 +152,11 @@ pub fn walk_statement<V: NodeVisitor + ?Sized>(
         Statement::Let {
             descriptor: _,
             mutability: _,
-            pattern,
-            ty,
-            value,
+            declarators,
         } => {
-            let pattern_node = tree.get(*pattern);
-            visitor.visit_pattern(tree, *pattern, pattern_node);
-            if let Some(ty_id) = ty {
-                let ty = tree.get(*ty_id);
-                visitor.visit_type(tree, *ty_id, ty);
-            }
-            if let Some(value_id) = value {
-                let expression = tree.get(*value_id);
-                visitor.visit_expression(tree, *value_id, expression);
+            for declarator_id in declarators {
+                let declarator = tree.get(*declarator_id);
+                visitor.visit_declarator(tree, *declarator_id, declarator);
             }
         }
         Statement::Assign {
@@ -637,6 +633,31 @@ pub fn walk_key<V: NodeVisitor + ?Sized>(visitor: &mut V, tree: &NodeTree, key: 
         Key::NamedExpression { name: _, key } => {
             let key_expr = tree.get(*key);
             visitor.visit_expression(tree, *key, key_expr);
+        }
+    }
+}
+
+/// Walk a declarator.
+pub fn walk_declarator<V: NodeVisitor + ?Sized>(
+    visitor: &mut V,
+    tree: &NodeTree,
+    id: LocalNodeId<Declarator>,
+    declarator: &Declarator,
+) {
+    visitor.visit_any(tree, NodeType::Declarator, id.id);
+
+    match declarator {
+        Declarator::Binding { pattern, ty, value } => {
+            let pattern_node = tree.get(*pattern);
+            visitor.visit_pattern(tree, *pattern, pattern_node);
+            if let Some(ty_id) = ty {
+                let ty_node = tree.get(*ty_id);
+                visitor.visit_type(tree, *ty_id, ty_node);
+            }
+            if let Some(value_id) = value {
+                let value_node = tree.get(*value_id);
+                visitor.visit_expression(tree, *value_id, value_node);
+            }
         }
     }
 }

@@ -5,9 +5,9 @@ use destack_dir as dir;
 use destack_source::{Arena, ModuleId};
 
 use crate::{
-    Annotation, Argument, Block, Declaration, DependencyItem, EnumField, Expression, LocalNodeId,
-    Node, NodeType, Parameter, Pattern, PatternField, Property, Statement, SwitchCase, Type,
-    TypeField,
+    Annotation, Argument, Block, Declaration, Declarator, DependencyItem, EnumField, Expression,
+    LocalNodeId, Node, NodeType, Parameter, Pattern, PatternField, Property, Statement, SwitchCase,
+    Type, TypeField,
 };
 
 /// Mutable AST Node tree for a single source unit. NOT THREAD-SAFE.
@@ -36,6 +36,7 @@ pub struct NodeTree {
     pub(crate) statements: Arena<Statement>,
     pub(crate) expressions: Arena<Expression>,
     pub(crate) declarations: Arena<Declaration>,
+    pub(crate) declarators: Arena<Declarator>,
     pub(crate) fields: Arena<Property>,
     pub(crate) types: Arena<Type>,
     pub(crate) type_fields: Arena<TypeField>,
@@ -86,6 +87,7 @@ impl NodeTree {
             statements: Arena::new(),
             expressions: Arena::new(),
             declarations: Arena::new(),
+            declarators: Arena::new(),
             fields: Arena::new(),
             types: Arena::new(),
             type_fields: Arena::new(),
@@ -291,6 +293,7 @@ impl_node_tree_stores! {
     Statement => statements,
     Expression => expressions,
     Declaration => declarations,
+    Declarator => declarators,
     Property => fields,
     Type => types,
     TypeField => type_fields,

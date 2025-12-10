@@ -1,6 +1,6 @@
 use crate::{
-    Argument, AssignOperator, Block, Declaration, DeclarationDescriptor, DependencyItem,
-    DependencyKind, Expression, LocalNodeId, Mutability, Node, NodeType, Pattern, StringId, Type,
+    Argument, AssignOperator, Block, Declaration, DeclarationDescriptor, Declarator, DependencyItem,
+    DependencyKind, Expression, LocalNodeId, Mutability, Node, NodeType, Pattern, StringId,
 };
 
 /// A Statement is a JS/TS top-level statement in some container/block.
@@ -33,9 +33,7 @@ pub enum Statement {
     Let {
         descriptor: DeclarationDescriptor,
         mutability: Mutability,
-        pattern: LocalNodeId<Pattern>,
-        ty: Option<LocalNodeId<Type>>,
-        value: Option<LocalNodeId<Expression>>,
+        declarators: Vec<LocalNodeId<Declarator>>,
     },
     /// Assignment operation.
     Assign {

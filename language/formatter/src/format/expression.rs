@@ -1,6 +1,6 @@
 use destack_ast::{
-    Argument, Asynchrony, DependencyItem, DependencyKind, DependencyMode, Expression, ForEachKind,
-    IfKind, Keyword, LocalNodeId, Mutability, NodeTree, PostfixPosition, Property,
+    Argument, Asynchrony, Declarator, DependencyItem, DependencyKind, DependencyMode, Expression,
+    ForEachKind, IfKind, Keyword, LocalNodeId, Mutability, NodeTree, PostfixPosition, Property,
     TypeUnaryOperator, WhileKind, YieldCardinality,
 };
 use destack_fir::format::{BestFittingMode, FormatError};
@@ -1052,12 +1052,10 @@ pub(crate) fn format_expression<'ast>(
         Expression::Let {
             mutability,
             descriptor,
-            pattern,
-            ty,
-            value: value_id,
+            declarators,
         } => {
-            // header
-            let header = format_with(|f| {
+            // keyword header (export + const/let)
+            let keyword_header = format_with(|f| {
                 // export
                 if let Some(export) = descriptor.export {
                     write!(f, [export, space()])?;
@@ -1068,55 +1066,17 @@ pub(crate) fn format_expression<'ast>(
                 } else {
                     write!(f, [Keyword::Let])?;
                 }
-                // pattern
-                write!(f, [space(), pattern])?;
-                // type
-                if let Some(ty) = ty {
-                    write!(f, [token(":"), space(), ty])?;
+                Ok(())
+            });
+
+            // Format declarators (comma-separated)
+            write!(f, [keyword_header])?;
+            for (i, declarator_id) in declarators.iter().enumerate() {
+                if i > 0 {
+                    write!(f, [token(",")])?;
                 }
-                Ok(())
-            });
-
-            let Some(value_id) = value_id else {
-                write!(f, [header])?;
-                return Ok(());
-            };
-
-            // prefer keeping the value on a single line
-            let format_inline = format_with(|f| {
-                write!(f, [header, space(), token("="), space(), *value_id])?;
-                Ok(())
-            });
-            // expand inline if breakable (like let x = [\n ... ])
-            let format_inline_expanded = format_with(|f| {
-                write!(
-                    f,
-                    [
-                        header,
-                        space(),
-                        token("="),
-                        space(),
-                        fits_expanded(&group(value_id).should_expand(true)),
-                    ]
-                )
-            });
-            // expand and indent the value
-            let format_indented = format_with(|f| {
-                group(&format_args![
-                    header,
-                    space(),
-                    token("="),
-                    block_indent(value_id)
-                ])
-                .format(f)
-            });
-
-            if is_expression_breakable(tree, tree.get(*value_id)) {
-                best_fitting![format_inline, format_inline_expanded, format_indented]
-                    .with_mode(BestFittingMode::AllLines)
-                    .format(f)?;
-            } else {
-                best_fitting![format_inline, format_indented].format(f)?;
+                write!(f, [space()])?;
+                format_declarator(f, tree, *declarator_id)?;
             }
         }
 
@@ -1624,6 +1584,86 @@ pub(crate) fn format_expression<'ast>(
     };
 
     Ok(())
+}
+
+/// Format a declarator (pattern, optional type, optional value).
+fn format_declarator<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    tree: &NodeTree,
+    declarator_id: LocalNodeId<Declarator>,
+) -> FormatResult<()> {
+    let declarator = tree.get(declarator_id);
+    match declarator {
+        Declarator::Binding { pattern, ty, value } => {
+            // header: pattern + optional type
+            let header = format_with(|f| {
+                write!(f, [pattern])?;
+                if let Some(ty_id) = ty {
+                    write!(f, [token(":"), space(), ty_id])?;
+                }
+                Ok(())
+            });
+
+            let Some(value_id) = value else {
+                write!(f, [header])?;
+                return Ok(());
+            };
+
+            // prefer keeping the value on a single line
+            let format_inline = format_with(|f| {
+                write!(f, [header, space(), token("="), space(), *value_id])?;
+                Ok(())
+            });
+            // expand inline if breakable (like let x = [\n ... ])
+            let format_inline_expanded = format_with(|f| {
+                write!(
+                    f,
+                    [
+                        header,
+                        space(),
+                        token("="),
+                        space(),
+                        fits_expanded(&group(value_id).should_expand(true)),
+                    ]
+                )
+            });
+            // expand and indent the value
+            let format_indented = format_with(|f| {
+                group(&format_args![
+                    header,
+                    space(),
+                    token("="),
+                    block_indent(value_id)
+                ])
+                .format(f)
+            });
+
+            if is_expression_breakable(tree, tree.get(*value_id)) {
+                best_fitting![format_inline, format_inline_expanded, format_indented]
+                    .with_mode(BestFittingMode::AllLines)
+                    .format(f)?;
+            } else {
+                best_fitting![format_inline, format_indented].format(f)?;
+            }
+        }
+    }
+    Ok(())
+}
+
+impl<'ast> FormatNode<'ast, Declarator> for Declarator {
+    fn format_node(
+        &self,
+        node_id: LocalNodeId<Declarator>,
+        f: &mut DestackFormatter<'ast, '_>,
+    ) -> FormatResult<()> {
+        write!(f, [f.context().any_prefix_annotations(node_id)])?;
+
+        format_declarator(f, f.context().tree, node_id)?;
+
+        write!(f, [f.context().any_infix_or_postfix_annotations(node_id)])?;
+
+        Ok(())
+    }
 }
 
 impl<'ast> FormatNode<'ast, Expression> for Expression {

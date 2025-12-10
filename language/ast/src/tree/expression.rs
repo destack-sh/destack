@@ -63,6 +63,7 @@ pub enum Expression {
 
     /// Let or var binding for constant or mutable variables.
     /// Both let and var may destructure and pattern match.
+    /// Supports multiple declarators like TypeScript: `let a: T1 = v1, b: T2 = v2`
     ///
     /// Examples:
     /// ```
@@ -72,6 +73,7 @@ pub enum Expression {
     /// let x = 1
     /// let x: int32 = 1
     /// let x: int32 // implicitly uninitialized, must be set before use
+    /// let a: T1 = v1, b: T2  // multiple declarators
     /// const t = foo() ?? return;
     ///
     /// if const Some(x) = someFunction() {
@@ -83,9 +85,7 @@ pub enum Expression {
     Let {
         descriptor: DeclarationDescriptor,
         mutability: Mutability,
-        pattern: LocalNodeId<Pattern>,
-        ty: Option<LocalNodeId<Expression>>,
-        value: Option<LocalNodeId<Expression>>,
+        declarators: Vec<LocalNodeId<Declarator>>,
     },
 
     /// If/then/else expression.
@@ -854,4 +854,29 @@ pub enum MatchCase {
 
 impl Node for MatchCase {
     const TYPE: NodeType = NodeType::MatchCase;
+}
+
+/// A single variable declarator within a let/const/var statement.
+/// Each declarator has its own pattern, optional type, and optional initializer.
+///
+/// Examples:
+/// ```
+/// x           // just a binding
+/// x: int32    // binding with type
+/// x = 1       // binding with value
+/// x: int32 = 1  // binding with type and value
+/// (a, b) = tuple  // destructuring pattern
+/// ```
+#[derive(Debug, Clone, PartialEq)]
+pub enum Declarator {
+    /// A binding declarator with optional type and value.
+    Binding {
+        pattern: LocalNodeId<Pattern>,
+        ty: Option<LocalNodeId<Expression>>,
+        value: Option<LocalNodeId<Expression>>,
+    },
+}
+
+impl Node for Declarator {
+    const TYPE: NodeType = NodeType::Declarator;
 }

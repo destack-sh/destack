@@ -1,5 +1,3 @@
-//! Annotation parsing.
-
 use crate::parse::prelude::*;
 use crate::{ParseResult, Parser};
 use destack_ast::{
@@ -678,8 +676,8 @@ impl Parser {
 mod tests {
     use destack_ast::{
         Annotation, AnnotationPosition, BinaryOperator, Blank, Block, BlockFormat, Comment,
-        CommentStyle, Declaration, DeclarationDescriptor, Decorator, Doc, DocStyle, Expression,
-        Key, Name, Property,
+        CommentStyle, Declaration, DeclarationDescriptor, Declarator, Decorator, Doc, DocStyle,
+        Expression, Key, Name, Property,
     };
 
     use crate::{TestParser, assert_node, assert_path, assert_string};
@@ -1063,7 +1061,9 @@ over multiple lines with trailing space    */",
 
         // A && B
         assert_node!(parser.tree, expressions[0], Expression::Statement(statement_id) => {
-            assert_node!(parser.tree, *statement_id, Expression::Let { value, .. } => {
+            assert_node!(parser.tree, *statement_id, Expression::Let { declarators, .. } => {
+                assert_eq!(declarators.len(), 1);
+                assert_node!(parser.tree, declarators[0], Declarator::Binding { value, .. } => {
                 assert_node!(parser.tree, value.unwrap(), Expression::Binary { left, right, operator } => {
                     assert_eq!(*operator, BinaryOperator::And);
                     // A
@@ -1103,6 +1103,7 @@ over multiple lines with trailing space    */",
                             assert_eq!(*style, CommentStyle::Star);
                         });
                     });
+                });
                 });
             });
         });

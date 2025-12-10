@@ -259,7 +259,7 @@ impl Parser {
 #[cfg(test)]
 mod tests {
     use destack_ast::{
-        Asynchrony, BinaryOperator, Block, Expression, ForEachKind, Mutability, Pattern,
+        Asynchrony, BinaryOperator, Block, Declarator, Expression, ForEachKind, Mutability, Pattern,
         ScalarLiteral, UnaryOperator, WhileKind,
     };
 
@@ -415,11 +415,14 @@ for (var x = 0; x < 10; x++) {
         let for_id = parser.eat_for().unwrap();
         assert_node!(parser.tree, for_id, Expression::For { initialization, condition, increment, body: _, .. } => {
             // var x = 0
-            assert_node!(parser.tree, initialization.unwrap(), Expression::Let { pattern, value, .. } => {
-                assert_node!(parser.tree, *pattern, Pattern::Binding { mutability: None, name, pattern: None } => {
-                    assert_string!(parser, *name, "x");
+            assert_node!(parser.tree, initialization.unwrap(), Expression::Let { declarators, .. } => {
+                assert_eq!(declarators.len(), 1);
+                assert_node!(parser.tree, declarators[0], Declarator::Binding { pattern, value, .. } => {
+                    assert_node!(parser.tree, *pattern, Pattern::Binding { mutability: None, name, pattern: None } => {
+                        assert_string!(parser, *name, "x");
+                    });
+                    assert_node!(parser.tree, value.unwrap(), Expression::ScalarLiteral(ScalarLiteral::Integer(0)));
                 });
-                assert_node!(parser.tree, value.unwrap(), Expression::ScalarLiteral(ScalarLiteral::Integer(0)));
             });
             // x < 10
             assert_node!(parser.tree, condition.unwrap(), Expression::Binary { left, operator, right } => {

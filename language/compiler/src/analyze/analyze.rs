@@ -1,6 +1,6 @@
 use crate::{AnalyzeError, AnalyzeResult, Assignability, Compiler, TypeContext};
 use destack_dir::{
-    Argument, Block, Declaration, DependencyItem, DynamicKey, EnumField, Expression,
+    Argument, Block, Declaration, Declarator, DependencyItem, DynamicKey, EnumField, Expression,
     FunctionSignature, Generics, GlobalSymbolId, GlobalTypeId, Heritage, LocalNodeId,
     LocalNodeIdAny, LocalTypeId, MatchCase, NodeTree, Parameter, Pattern, PatternField,
     PrimitiveType, Property, StaticKey, SymbolTable, Type, TypeField, TypeKind, TypeLiteral,
@@ -109,41 +109,19 @@ impl Compiler {
             Expression::Let {
                 descriptor: _,
                 mutability: _,
-                pattern,
-                value,
+                declarators,
             } => {
-                // infer type from value or annotation
-                let declared_ty_id =
-                    types.get_declared_type_id(expression_id.into_global_any(module.id));
-                let inferred_ty_id = if let Some(value) = value {
-                    Some(self.analyze_expression(module, *value, tree, symbols, types, ctx)?)
-                } else {
-                    None
-                };
-
-                // type check: if both declared and inferred, check assignability
-                if let (Some(declared), Some(inferred)) = (declared_ty_id, inferred_ty_id)
-                    && self.check_is_type_assignable(declared, inferred, types)
-                        == Assignability::NotAssignable
-                {
-                    return Err(AnalyzeError::UnassignableType {
-                        node: expression_id.into_global_any(module.id),
-                        expected_ty: GlobalTypeId {
-                            module_id: module.id,
-                            local_id: declared,
-                        },
-                        actual_ty: GlobalTypeId {
-                            module_id: module.id,
-                            local_id: inferred,
-                        },
-                        expected_ty_string: self.format_type(types.get_type(declared), types),
-                        actual_ty_string: self.format_type(types.get_type(inferred), types),
-                    });
+                for decl_id in declarators {
+                    self.analyze_declarator(
+                        module,
+                        *decl_id,
+                        expression_id,
+                        tree,
+                        symbols,
+                        types,
+                        ctx,
+                    )?;
                 }
-
-                let binding_ty_id = declared_ty_id.or(inferred_ty_id);
-                self.analyze_pattern(module, *pattern, binding_ty_id, tree, symbols, types, ctx)?;
-
                 let ty = Type::TypeLiteral {
                     value: TypeLiteral::Void,
                 };
@@ -317,8 +295,20 @@ impl Compiler {
                 static_arguments: _,
             } => {
                 // follow symbol chain to get canonical symbol (for imports/re-exports)
-                let canonical_symbol =
-                    self.resolve_canonical_symbol(module, *target_symbol, symbols);
+                let canonical_symbol: GlobalSymbolId = {
+                    // if local symbol, check if it has a final_symbol (for imports)
+                    if target_symbol.module_id == module.id {
+                        let symbol = symbols.get_symbol(target_symbol.local_id);
+                        if let Some(final_symbol) = symbol.final_symbol {
+                            final_symbol
+                        } else {
+                            *target_symbol
+                        }
+                    } else {
+                        // otherwise return as-is
+                        *target_symbol
+                    }
+                };
 
                 // narrow symbol type in context
                 if let Some(narrowed_ty_id) = ctx.get_narrowed(canonical_symbol) {
@@ -1795,23 +1785,60 @@ impl Compiler {
         Ok(())
     }
 
-    /// Follow the symbol chain to get the canonical (final) symbol.
-    /// For import symbols, this follows target_symbol/final_symbol to the original definition.
-    fn resolve_canonical_symbol(
+    /// Analyze a declarator.
+    fn analyze_declarator(
         &self,
         module: &Module,
-        symbol_id: GlobalSymbolId,
+        declarator_id: LocalNodeId<Declarator>,
+        _let_expression_id: LocalNodeId<Expression>,
+        tree: &NodeTree,
         symbols: &SymbolTable,
-    ) -> GlobalSymbolId {
-        // if local symbol, check if it has a final_symbol (for imports)
-        if symbol_id.module_id == module.id {
-            let symbol = symbols.get_symbol(symbol_id.local_id);
-            if let Some(final_sym) = symbol.final_symbol {
-                return final_sym;
+        types: &mut TypeTable,
+        ctx: &mut TypeContext,
+    ) -> AnalyzeResult<()> {
+        let declarator = tree.get(declarator_id);
+        match declarator {
+            Declarator::Binding { pattern, ty, value } => {
+                // infer type from value or annotation
+                // declared type is now on the declarator node, not the let expression
+                let declared_ty_id =
+                    types.get_declared_type_id(declarator_id.into_global(module.id).into());
+                let inferred_ty_id = if let Some(value) = value {
+                    Some(self.analyze_expression(module, *value, tree, symbols, types, ctx)?)
+                } else {
+                    None
+                };
+
+                // type check: if both declared and inferred, check assignability
+                if let (Some(declared), Some(inferred)) = (declared_ty_id, inferred_ty_id)
+                    && self.check_is_type_assignable(declared, inferred, types)
+                        == Assignability::NotAssignable
+                {
+                    return Err(AnalyzeError::UnassignableType {
+                        node: declarator_id.into_global(module.id).into(),
+                        expected_ty: GlobalTypeId {
+                            module_id: module.id,
+                            local_id: declared,
+                        },
+                        actual_ty: GlobalTypeId {
+                            module_id: module.id,
+                            local_id: inferred,
+                        },
+                        expected_ty_string: self.format_type(types.get_type(declared), types),
+                        actual_ty_string: self.format_type(types.get_type(inferred), types),
+                    });
+                }
+
+                // analyze the type expression if present
+                if let Some(ty_id) = ty {
+                    self.analyze_expression(module, *ty_id, tree, symbols, types, ctx)?;
+                }
+
+                let binding_ty_id = declared_ty_id.or(inferred_ty_id);
+                self.analyze_pattern(module, *pattern, binding_ty_id, tree, symbols, types, ctx)?;
             }
         }
-        // otherwise return as-is
-        symbol_id
+        Ok(())
     }
 }
 
@@ -2041,11 +2068,16 @@ mod tests {
         else {
             panic!("expected statement");
         };
+        let let_expression = tree.get(expression_id);
+        let Expression::Let { declarators, .. } = let_expression else {
+            panic!("expected let expression");
+        };
+        let declarator_id = declarators.first().unwrap();
         let x_symbol = test.resolve_to_symbol("test.ds", "x").unwrap();
 
-        // declared_type[let_expr] = string
+        // declared_type[declarator] = string
         let declared = types
-            .get_declared_type(expression_id.into_global_any(module.id))
+            .get_declared_type(declarator_id.into_global(module.id).into())
             .unwrap();
         assert_eq!(
             *declared,
