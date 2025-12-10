@@ -9,7 +9,8 @@ Tests for comparison binary operators.
 > Comparing two numbers with == produces a boolean.
 
 ```ds
-const x = 1 == 1
+const x = 1 == 1;
+x satisfies true;
 ```
 
 ### string equals string
@@ -17,7 +18,8 @@ const x = 1 == 1
 > Comparing two strings with == produces a boolean.
 
 ```ds
-const x = "a" == "a"
+const x = "a" == "a";
+x satisfies boolean;
 ```
 
 ### strict equality
@@ -25,7 +27,8 @@ const x = "a" == "a"
 > Strict equality === compares without type coercion.
 
 ```ds
-const x = 1 === 1
+const x = 1 === 1;
+x satisfies true;
 ```
 
 ## Inequality
@@ -35,7 +38,8 @@ const x = 1 === 1
 > Not equal != checks if values are different.
 
 ```ds
-const x = 1 != 2
+const x = 1 != 2;
+x satisfies true;
 ```
 
 ### strict not equal
@@ -43,7 +47,8 @@ const x = 1 != 2
 > Strict not equal !== compares without type coercion.
 
 ```ds
-const x = 1 !== 2
+const x = 1 !== 2;
+x satisfies true;
 ```
 
 ## Relational
@@ -53,7 +58,8 @@ const x = 1 !== 2
 > Less than < compares numeric values.
 
 ```ds
-const x = 1 < 2
+const x = 1 < 2;
+x satisfies true;
 ```
 
 ### greater than
@@ -61,7 +67,8 @@ const x = 1 < 2
 > Greater than > compares numeric values.
 
 ```ds
-const x = 2 > 1
+const x = 2 > 1;
+x satisfies true;
 ```
 
 ### less than or equal
@@ -69,7 +76,8 @@ const x = 2 > 1
 > Less than or equal <= includes equality.
 
 ```ds
-const x = 1 <= 2
+const x = 1 <= 2;
+x satisfies true;
 ```
 
 ### greater than or equal
@@ -77,5 +85,6 @@ const x = 1 <= 2
 > Greater than or equal >= includes equality.
 
 ```ds
-const x = 2 >= 1
+const x = 2 >= 1;
+x satisfies true;
 ```

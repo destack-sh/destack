@@ -185,7 +185,8 @@ impl DsConfig {
         compiler.no_managed = compiler.no_managed || parent_compiler.no_managed;
 
         // inherit Destack-specific checking - shapes & dispatch (stricter wins)
-        compiler.no_dynamic_shapes = compiler.no_dynamic_shapes || parent_compiler.no_dynamic_shapes;
+        compiler.no_dynamic_shapes =
+            compiler.no_dynamic_shapes || parent_compiler.no_dynamic_shapes;
         compiler.no_implicit_dynamic_dispatch =
             compiler.no_implicit_dynamic_dispatch || parent_compiler.no_implicit_dynamic_dispatch;
 

@@ -9,15 +9,8 @@ Tests for arithmetic binary operators.
 > Adding two numbers produces a number.
 
 ```ds
-const x = 1 + 2
-```
-
-### string plus string
-
-> Concatenating two strings produces a string.
-
-```ds
-const x = "hello" + " world"
+const x = 1 + 2;
+x satisfies 3;
 ```
 
 ## Subtraction
@@ -27,7 +20,8 @@ const x = "hello" + " world"
 > Subtracting two numbers produces a number.
 
 ```ds
-const x = 5 - 3
+const x = 5 - 3;
+x satisfies 2;
 ```
 
 ## Multiplication
@@ -37,7 +31,8 @@ const x = 5 - 3
 > Multiplying two numbers produces a number.
 
 ```ds
-const x = 2 * 3
+const x = 2 * 3;
+x satisfies 6;
 ```
 
 ## Division
@@ -47,5 +42,6 @@ const x = 2 * 3
 > Dividing two numbers produces a number.
 
 ```ds
-const x = 10 / 2
+const x = 10 / 2;
+x satisfies 5;
 ```

@@ -9,8 +9,9 @@ Tests for primitive type assignability.
 > Number type is assignable to itself.
 
 ```ds
-const x: number = 42
-let y: number = x
+const x: number = 42;
+let y: number = x;
+y satisfies number;
 ```
 
 ### literal to number
@@ -18,8 +19,9 @@ let y: number = x
 > Literal 42 should be assignable to number.
 
 ```ds
-const x = 42
-let y: number = x
+const x = 42;
+let y: number = x;
+y satisfies number;
 ```
 
 ## String
@@ -29,8 +31,9 @@ let y: number = x
 > String type is assignable to itself.
 
 ```ds
-const x: string = "hello"
-let y: string = x
+const x: string = "hello";
+let y: string = x;
+y satisfies string;
 ```
 
 ### literal to string
@@ -38,8 +41,9 @@ let y: string = x
 > Literal "hello" should be assignable to string.
 
 ```ds
-const x = "hello"
-let y: string = x
+const x = "hello";
+let y: string = x;
+y satisfies string;
 ```
 
 ## Boolean
@@ -49,8 +53,9 @@ let y: string = x
 > Boolean type is assignable to itself.
 
 ```ds
-const x: boolean = true
-let y: boolean = x
+const x: boolean = true;
+let y: boolean = x;
+y satisfies boolean;
 ```
 
 ### literal to boolean
@@ -58,6 +63,7 @@ let y: boolean = x
 > Literal true should be assignable to boolean.
 
 ```ds
-const x = true
-let y: boolean = x
+const x = true;
+let y: boolean = x;
+y satisfies boolean;
 ```

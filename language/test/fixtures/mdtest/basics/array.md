@@ -9,7 +9,8 @@ Tests for array literal type inference and checking.
 > Arrays of numbers infer element type as number.
 
 ```ds
-const x = [1, 2, 3]
+const x = [1, 2, 3];
+x satisfies [1, 2, 3];
 ```
 
 ### array of strings
@@ -17,7 +18,8 @@ const x = [1, 2, 3]
 > Arrays of strings infer element type as string.
 
 ```ds
-const x = ["a", "b", "c"]
+const x = ["a", "b", "c"];
+x satisfies ["a", "b", "c"];
 ```
 
 ### empty array
@@ -25,7 +27,8 @@ const x = ["a", "b", "c"]
 > Empty arrays have unknown element type.
 
 ```ds
-const x = []
+const x = [];
+x satisfies [];
 ```
 
 ### mixed array
@@ -33,5 +36,6 @@ const x = []
 > Arrays with mixed types infer a union element type.
 
 ```ds
-const x = [1, "two", true]
+const x = [1, "two", true];
+x satisfies [1, "two", true];
 ```

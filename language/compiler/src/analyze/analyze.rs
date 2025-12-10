@@ -150,6 +150,33 @@ impl Compiler {
                 types.insert_type_from(ty, expression_id)
             }
 
+            // type operations
+            Expression::TypeUnary { operator, right } => {
+                let right_ty_id =
+                    self.analyze_expression(module, *right, tree, symbols, types, ctx)?;
+                let ty = self.infer_type_unary_operation(operator, right_ty_id, types);
+                types.insert_type_from(ty, expression_id)
+            }
+            Expression::TypeBinary {
+                left,
+                operator,
+                right,
+            } => {
+                let left_ty_id =
+                    self.analyze_expression(module, *left, tree, symbols, types, ctx)?;
+                let right_ty_id =
+                    self.analyze_expression(module, *right, tree, symbols, types, ctx)?;
+                let ty = self.infer_type_binary_operation(
+                    module,
+                    expression_id,
+                    operator,
+                    left_ty_id,
+                    right_ty_id,
+                    types,
+                );
+                types.insert_type_from(ty, expression_id)
+            }
+
             // unary operations -> compound type
             // NOTE #Incomplete: resolve unary operator overloads
             Expression::Unary { operator, right } => {
@@ -813,29 +840,6 @@ impl Compiler {
                     self.analyze_property(module, *prop_id, tree, symbols, types, ctx)?;
                 }
                 ty_id
-            }
-
-            // type operations
-            Expression::TypeUnary { operator: _, right } => {
-                self.analyze_expression(module, *right, tree, symbols, types, ctx)?;
-                // NOTE #Incomplete: type-level unary operation
-                let ty = Type::TypeLiteral {
-                    value: TypeLiteral::Unknown,
-                };
-                types.insert_type_from(ty, expression_id)
-            }
-            Expression::TypeBinary {
-                left,
-                operator: _,
-                right,
-            } => {
-                self.analyze_expression(module, *left, tree, symbols, types, ctx)?;
-                self.analyze_expression(module, *right, tree, symbols, types, ctx)?;
-                // NOTE #Incomplete: type-level binary operation
-                let ty = Type::TypeLiteral {
-                    value: TypeLiteral::Unknown,
-                };
-                types.insert_type_from(ty, expression_id)
             }
 
             // tree expression (JSX-like)

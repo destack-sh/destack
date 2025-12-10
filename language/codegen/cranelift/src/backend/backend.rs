@@ -108,7 +108,9 @@ impl CodegenCraneliftBackend {
         // Enable PIC on AArch64 to use GOT-based relocations (Aarch64AdrGotPage21)
         // instead of direct PC-relative (Aarch64AdrPrelPgHi21) which cranelift-object
         // doesn't support.
-        if triple.architecture == target_lexicon::Architecture::Aarch64(target_lexicon::Aarch64Architecture::Aarch64) {
+        if triple.architecture
+            == target_lexicon::Architecture::Aarch64(target_lexicon::Aarch64Architecture::Aarch64)
+        {
             flags_builder
                 .set("is_pic", "true")
                 .map_err(|e| CodegenCraneliftError::Internal {

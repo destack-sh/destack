@@ -18,7 +18,7 @@ function f(): void {}
 
 ```ds
 function add(a: number, b: number): number {
-    return a + b
+    return a + b;
 }
 ```
 
@@ -28,7 +28,7 @@ function add(a: number, b: number): number {
 
 ```ds
 function greet(name: string): string {
-    return "hello " + name
+    return "hello " + name;
 }
 ```
 
@@ -39,7 +39,8 @@ function greet(name: string): string {
 > Arrow functions can be declared with no parameters.
 
 ```ds
-const f = (): void => {}
+const f = (): void => {};
+f satisfies () => void;
 ```
 
 ### arrow with parameters
@@ -47,5 +48,6 @@ const f = (): void => {}
 > Arrow functions can have typed parameters.
 
 ```ds
-const add = (a: number, b: number): number => a + b
+const add = (a: number, b: number): number => a + b;
+add satisfies (a: number, b: number) => number;
 ```

@@ -9,7 +9,7 @@ Tests for boolean literal type inference and checking.
 > True can be assigned to boolean type.
 
 ```ds
-const x: boolean = true
+const x: boolean = true;
 ```
 
 ### false literal
@@ -17,7 +17,7 @@ const x: boolean = true
 > False can be assigned to boolean type.
 
 ```ds
-const x: boolean = false
+const x: boolean = false;
 ```
 
 ## Inference
@@ -27,7 +27,8 @@ const x: boolean = false
 > True literals without annotation infer to boolean.
 
 ```ds
-const x = true
+const x = true;
+x satisfies boolean;
 ```
 
 ### inferred false type
@@ -35,7 +36,8 @@ const x = true
 > False literals without annotation infer to boolean.
 
 ```ds
-const x = false
+const x = false;
+x satisfies boolean;
 ```
 
 ## Type Mismatches
@@ -45,7 +47,7 @@ const x = false
 > Boolean literals cannot be assigned to string type.
 
 ```ds
-const x: string = true
+const x: string = true;
 ```
 
 - type true is not assignable to type string
@@ -55,7 +57,18 @@ const x: string = true
 > Boolean literals cannot be assigned to number type.
 
 ```ds
-const x: number = false
+const x: number = false;
 ```
 
 - type false is not assignable to type number
+
+### boolean does not satisfy string
+
+> Boolean literal cannot satisfy string type.
+
+```ds
+const x = true;
+x satisfies string;
+```
+
+- expected string, found true

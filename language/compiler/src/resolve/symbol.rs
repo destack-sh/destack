@@ -141,7 +141,8 @@ impl Compiler {
                 // partial resolution: namespace traversal found a non-namespace symbol
                 // remaining segments should become Member chain
                 Ok((resolved_id, Some(remaining))) => {
-                    let resolved_path = path.slice(0..path.segments.len() - remaining.segments.len());
+                    let resolved_path =
+                        path.slice(0..path.segments.len() - remaining.segments.len());
                     return self.build_member_chain_from_symbol(
                         module,
                         node,
@@ -959,9 +960,15 @@ let b = obj.y;
         let module = module.read();
         let tree = module.dir.tree.read();
         let (_a_symbol_id, a_node) = test.resolve_to_node::<Pattern>("test.ds", "a").unwrap();
-        let a_let = tree.get_parent(a_node.id).unwrap().into_typed::<Expression>();
+        let a_let = tree
+            .get_parent(a_node.id)
+            .unwrap()
+            .into_typed::<Expression>();
         let (_b_symbol_id, b_node) = test.resolve_to_node::<Pattern>("test.ds", "b").unwrap();
-        let b_let = tree.get_parent(b_node.id).unwrap().into_typed::<Expression>();
+        let b_let = tree
+            .get_parent(b_node.id)
+            .unwrap()
+            .into_typed::<Expression>();
 
         // let a = obj.x
         assert_node!(tree, a_let, Expression::Let { value: Some(value), .. } => {
@@ -995,7 +1002,10 @@ let a = obj.inner.value;
         let module = module.read();
         let tree = module.dir.tree.read();
         let (_a_symbol_id, a_node) = test.resolve_to_node::<Pattern>("test.ds", "a").unwrap();
-        let a_let = tree.get_parent(a_node.id).unwrap().into_typed::<Expression>();
+        let a_let = tree
+            .get_parent(a_node.id)
+            .unwrap()
+            .into_typed::<Expression>();
 
         // let a = obj.inner.value
         assert_node!(tree, a_let, Expression::Let { value: Some(value), .. } => {

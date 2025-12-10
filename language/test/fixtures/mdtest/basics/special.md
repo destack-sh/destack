@@ -9,7 +9,8 @@ Tests for null, undefined, and other special literals.
 > Null can be assigned to null type.
 
 ```ds
-const x: null = null
+const x: null = null;
+x satisfies null;
 ```
 
 ## Undefined
@@ -19,7 +20,8 @@ const x: null = null
 > Undefined can be assigned to undefined type.
 
 ```ds
-const x: undefined = undefined
+const x: undefined = undefined;
+x satisfies undefined;
 ```
 
 ## Void

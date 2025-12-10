@@ -9,7 +9,8 @@ Tests for object literal type inference and checking.
 > Objects infer property types from their values.
 
 ```ds
-const x = { a: 1, b: "two" }
+const x = { a: 1, b: "two" };
+x satisfies { a: 1, b: "two" };
 ```
 
 ### empty object
@@ -17,7 +18,8 @@ const x = { a: 1, b: "two" }
 > Empty objects have no properties.
 
 ```ds
-const x = {}
+const x = {};
+x satisfies {};
 ```
 
 ### nested object
@@ -25,5 +27,6 @@ const x = {}
 > Objects can contain nested objects.
 
 ```ds
-const x = { a: { b: 1 } }
+const x = { a: { b: 1 } };
+x satisfies { a: { b: 1 } };
 ```

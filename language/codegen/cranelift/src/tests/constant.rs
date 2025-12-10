@@ -15,7 +15,10 @@ block0:
     let clif = compile_mir_to_normalized_clif(mir);
 
     // string globals create a global_value instruction
-    assert!(clif.contains("global_value"), "expected global_value in: {clif}");
+    assert!(
+        clif.contains("global_value"),
+        "expected global_value in: {clif}"
+    );
 }
 
 /// Empty string global.
@@ -31,7 +34,10 @@ block0:
 }
 "#;
     let clif = compile_mir_to_normalized_clif(mir);
-    assert!(clif.contains("global_value"), "expected global_value in: {clif}");
+    assert!(
+        clif.contains("global_value"),
+        "expected global_value in: {clif}"
+    );
 }
 
 /// Integer global constant.
@@ -49,7 +55,10 @@ block0:
     let clif = compile_mir_to_normalized_clif(mir);
 
     // global.const should produce global_value + load
-    assert!(clif.contains("global_value"), "expected global_value in: {clif}");
+    assert!(
+        clif.contains("global_value"),
+        "expected global_value in: {clif}"
+    );
     assert!(clif.contains("load"), "expected load in: {clif}");
 }
 
@@ -73,7 +82,10 @@ block0:
     let clif = compile_mir_to_normalized_clif(mir);
 
     // mutable global should produce global_value, load, and store
-    assert!(clif.contains("global_value"), "expected global_value in: {clif}");
+    assert!(
+        clif.contains("global_value"),
+        "expected global_value in: {clif}"
+    );
     assert!(clif.contains("load"), "expected load in: {clif}");
     assert!(clif.contains("store"), "expected store in: {clif}");
 }
@@ -92,6 +104,9 @@ block0:
 }
 "#;
     let clif = compile_mir_to_normalized_clif(mir);
-    assert!(clif.contains("global_value"), "expected global_value in: {clif}");
+    assert!(
+        clif.contains("global_value"),
+        "expected global_value in: {clif}"
+    );
     assert!(clif.contains("load"), "expected load in: {clif}");
 }
