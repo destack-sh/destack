@@ -607,8 +607,10 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             cardinality: _,
             value,
         } => {
-            let value_expression = tree.get(*value);
-            visitor.visit_expression(tree, *value, value_expression);
+            if let Some(value_id) = value {
+                let value_expression = tree.get(*value_id);
+                visitor.visit_expression(tree, *value_id, value_expression);
+            }
         }
         Expression::Throw { value } => {
             if let Some(value_id) = value {

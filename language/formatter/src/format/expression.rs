@@ -1284,7 +1284,9 @@ pub(crate) fn format_expression<'ast>(
             if *cardinality == YieldCardinality::Generator {
                 write!(f, [token("*")])?;
             }
-            write!(f, [space(), value])?;
+            if let Some(value) = value {
+                write!(f, [space(), value])?;
+            }
         }
 
         // throw

@@ -306,12 +306,13 @@ pub enum Expression {
     ///
     /// Examples:
     /// ```
+    /// yield
     /// yield someValue
     /// yield* someIterator
     /// ```
     Yield {
         cardinality: YieldCardinality,
-        value: LocalNodeId<Expression>,
+        value: Option<LocalNodeId<Expression>>,
     },
 
     /// Throw expression.

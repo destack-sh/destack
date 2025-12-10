@@ -311,7 +311,7 @@ pub enum Expression {
     /// Yield expression.
     Yield {
         cardinality: YieldCardinality,
-        value: LocalNodeId<Expression>,
+        value: Option<LocalNodeId<Expression>>,
     },
     /// Return expression.
     Return {

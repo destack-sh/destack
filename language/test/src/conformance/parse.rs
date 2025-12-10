@@ -60,7 +60,7 @@ pub(super) fn parse_file(
         return ParseOutcome::Error;
     }
 
-    // Check for HTML comments if requested (ES modules forbid them)
+    // Check for HTML comments if requested (ES modules forbid them) #ModuleTypeHandling
     if options.reject_html_comments {
         let has_html_comment = parser
             .side_tokens

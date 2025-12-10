@@ -210,7 +210,6 @@ ok/ts_import_equals_declaration.ts
 ok/ts_import_type.ts
 ok/ts_infer_type_allowed.ts
 ok/ts_instantiation_expressions.ts
-ok/ts_instantiation_expressions_new_line.ts
 ok/ts_keyword_assignments.js
 ok/ts_mapped_type.ts
 ok/ts_named_import_specifier_with_type.ts
@@ -234,5 +233,4 @@ ok/unary_delete.js
 ok/unary_delete_nested.js
 ok/using_declaration_statement.js
 ok/using_declarations_inside_for_statement.js
-ok/yield_expr.js
-ok/yield_in_generator_function.js
+error/yield_in_non_generator_function_module.js
