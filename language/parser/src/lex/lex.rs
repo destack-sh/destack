@@ -450,10 +450,19 @@ impl Lexer<'_> {
                     self.eat();
                     (TokenType::SubtractAssign, None)
                 }
-                // --
+                // -- (decrement or HTML close comment)
                 else if self.peek() == '-' {
                     self.eat();
-                    (TokenType::Decrement, None)
+                    // --> HTML close comment at line start (legacy web compat)
+                    // only valid if preceded only by whitespace/newline on this line
+                    if self.peek() == '>' && self.is_at_line_start() {
+                        self.eat(); // >
+                        // eat until end of line (like a line comment)
+                        self.eat_until(b'\n');
+                        (TokenType::LineComment, None)
+                    } else {
+                        (TokenType::Decrement, None)
+                    }
                 }
                 // -
                 else {
@@ -577,6 +586,16 @@ impl Lexer<'_> {
                 else if self.peek() == '=' {
                     self.eat();
                     (TokenType::LessThanOrEqual, None)
+                }
+                // <!-- HTML comment (legacy web compat, script mode only)
+                else if self.as_str().starts_with("!--") {
+                    // consume !--
+                    self.eat(); // !
+                    self.eat(); // -
+                    self.eat(); // -
+                    // eat until end of line (like a line comment)
+                    self.eat_until(b'\n');
+                    (TokenType::LineComment, None)
                 }
                 // </ - tree closing tag (when tree state is Content)
                 // NOTE: we check tree_state() directly, not in_tree_content()
@@ -842,6 +861,16 @@ impl Lexer<'_> {
 
             // identifier starting with an emoji (for graceful error recovery)
             c if !c.is_ascii() && c.is_emoji_char() => (self.eat_invalid_identifier(), None),
+
+            // backslash - could be unicode escape starting an identifier (\uXXXX or \u{...})
+            '\\' => {
+                if let Some(token) = self.try_eat_unicode_escape_identifier() {
+                    token
+                } else {
+                    (TokenType::Unknown, None)
+                }
+            }
+
             _ => (TokenType::Unknown, None),
         };
 
@@ -905,6 +934,12 @@ impl Lexer<'_> {
         let start_pos = self.pos;
         // consume continuation characters until an unknown character is met
         self.eat_while(is_identifier_continue);
+        // check for unicode escapes mid-identifier (e.g., `AB\u{43}`)
+        // Only consume if it's a valid escape
+        if self.peek() == '\\' && self.peek_next() == 'u' && self.is_valid_unicode_escape_ahead() {
+            self.eat_identifier_with_unicode_escapes();
+            return (TokenType::Identifier, None);
+        }
         // known prefixes must have been handled earlier
         match self.peek() {
             '#' | '"' | '\'' => return (TokenType::UnknownLiteralPrefix, None),
@@ -943,6 +978,142 @@ impl Lexer<'_> {
                 || c == ZERO_WIDTH_JOINER
         });
         TokenType::InvalidIdentifier
+    }
+
+    /// Try to parse a unicode escape sequence that starts an identifier.
+    /// Called after `\` has been eaten.
+    /// Returns Some((TokenType::Identifier, None)) if successful, None otherwise.
+    fn try_eat_unicode_escape_identifier(&mut self) -> Option<(TokenType, Option<LiteralType>)> {
+        // check for \u
+        if self.peek() != 'u' {
+            return None;
+        }
+        self.eat(); // eat 'u'
+
+        // parse the unicode escape value
+        let code_point = if self.peek() == '{' {
+            // \u{XXXX} form (ES6)
+            self.eat(); // eat '{'
+            let mut value: u32 = 0;
+            let mut count = 0;
+            while self.peek() != '}' && !self.is_end() {
+                let c = self.peek();
+                let digit = match c {
+                    '0'..='9' => c as u32 - '0' as u32,
+                    'a'..='f' => c as u32 - 'a' as u32 + 10,
+                    'A'..='F' => c as u32 - 'A' as u32 + 10,
+                    _ => return None, // invalid hex digit
+                };
+                value = value.checked_mul(16)?.checked_add(digit)?;
+                self.eat();
+                count += 1;
+                if count > 6 {
+                    return None; // too many digits
+                }
+            }
+            if count == 0 || self.peek() != '}' {
+                return None; // empty or unterminated
+            }
+            self.eat(); // eat '}'
+            value
+        } else {
+            // \uXXXX form (ES5) - exactly 4 hex digits
+            let mut value: u32 = 0;
+            for _ in 0..4 {
+                let c = self.peek();
+                let digit = match c {
+                    '0'..='9' => c as u32 - '0' as u32,
+                    'a'..='f' => c as u32 - 'a' as u32 + 10,
+                    'A'..='F' => c as u32 - 'A' as u32 + 10,
+                    _ => return None, // invalid hex digit
+                };
+                value = value * 16 + digit;
+                self.eat();
+            }
+            value
+        };
+
+        // convert to char and check if valid identifier start
+        let ch = char::from_u32(code_point)?;
+        if !is_identifier_start(ch) {
+            return None;
+        }
+
+        // continue eating identifier (including more unicode escapes or regular chars)
+        self.eat_identifier_with_unicode_escapes();
+
+        Some((TokenType::Identifier, None))
+    }
+
+    /// Continue eating an identifier that may contain unicode escapes.
+    fn eat_identifier_with_unicode_escapes(&mut self) {
+        loop {
+            let c = self.peek();
+            if is_identifier_continue(c) {
+                self.eat();
+            } else if c == '\\' && self.peek_next() == 'u' {
+                // Validate the unicode escape before consuming it
+                if !self.is_valid_unicode_escape_ahead() {
+                    break; // invalid escape, stop here
+                }
+                // Now consume the validated escape
+                self.eat(); // eat '\'
+                self.eat(); // eat 'u'
+                if self.peek() == '{' {
+                    // \u{XXXX} form
+                    self.eat(); // eat '{'
+                    while self.peek() != '}' && !self.is_end() {
+                        self.eat();
+                    }
+                    if self.peek() == '}' {
+                        self.eat();
+                    }
+                } else {
+                    // \uXXXX form - exactly 4 hex digits
+                    for _ in 0..4 {
+                        self.eat();
+                    }
+                }
+            } else {
+                break;
+            }
+        }
+    }
+
+    /// Check if there's a valid unicode escape sequence starting at current position.
+    /// Does NOT consume any characters, just peeks ahead.
+    fn is_valid_unicode_escape_ahead(&self) -> bool {
+        let bytes = self.as_str().as_bytes();
+        if bytes.len() < 2 || bytes[0] != b'\\' || bytes[1] != b'u' {
+            return false;
+        }
+
+        if bytes.len() > 2 && bytes[2] == b'{' {
+            // \u{XXXX} form - at least one hex digit and closing brace
+            let mut i = 3;
+            let mut count = 0;
+            while i < bytes.len() && bytes[i] != b'}' {
+                let c = bytes[i];
+                if !c.is_ascii_hexdigit() {
+                    return false;
+                }
+                count += 1;
+                i += 1;
+                if count > 6 {
+                    return false;
+                }
+            }
+            count > 0 && i < bytes.len() && bytes[i] == b'}'
+        } else {
+            // \uXXXX form - exactly 4 hex digits
+            if bytes.len() < 6 {
+                return false;
+            }
+            if !(bytes[2..6].iter().all(|&c| c.is_ascii_hexdigit())) {
+                return false;
+            }
+            true
+        }
     }
 
     /// Parses a number literal (excluding first digit).

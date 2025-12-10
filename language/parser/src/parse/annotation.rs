@@ -584,7 +584,11 @@ impl Parser {
             // strip comment prefixes and suffixes
             let raw_str = self.file.get_span_str(token.span).unwrap_or_default();
             let mut inner_str = match token_type {
-                TokenType::LineComment => raw_str.strip_prefix("//").unwrap_or(raw_str),
+                TokenType::LineComment => raw_str
+                    .strip_prefix("//")
+                    .or_else(|| raw_str.strip_prefix("<!--"))
+                    .or_else(|| raw_str.strip_prefix("-->"))
+                    .unwrap_or(raw_str),
                 TokenType::DocLineComment => raw_str.strip_prefix("///").unwrap_or(raw_str),
                 TokenType::BlockComment => raw_str
                     .strip_prefix("/*")
@@ -1518,6 +1522,48 @@ export namespace Outer {
                     assert_string!(parser, *string, "comment part 11");
                     assert_eq!(*style, CommentStyle::Slash);
                 });
+            });
+        });
+    }
+
+    /// HTML open comment (<!--) on its own line attaches as block prefix to next expression.
+    #[test]
+    fn test_attach_html_open_comment_prefix_to_expression() {
+        let mut test = TestParser::new("<!-- comment text\nlet x = 1");
+        let mut parser = test.prepare();
+        let expressions = parser.parse();
+
+        // let x = 1
+        assert_eq!(expressions.len(), 1);
+        // comment, block prefix
+        let annotations = parser.tree.get_annotations(expressions[0].id);
+        assert_eq!(annotations.len(), 1);
+        assert_node!(parser.tree, annotations[0], Annotation::Comment { node, position } => {
+            assert_eq!(*position, AnnotationPosition::BlockPrefix);
+            assert_node!(parser.tree, *node, Comment { string, style } => {
+                assert_string!(parser, *string, "comment text");
+                assert_eq!(*style, CommentStyle::Slash);
+            });
+        });
+    }
+
+    /// HTML close comment (-->) at line start attaches as block postfix to previous expression.
+    #[test]
+    fn test_attach_html_close_comment_postfix_to_expression() {
+        let mut test = TestParser::new("let x = 1\n--> comment text");
+        let mut parser = test.prepare();
+        let expressions = parser.parse();
+
+        // let x = 1
+        assert_eq!(expressions.len(), 1);
+        // comment, block postfix
+        let annotations = parser.tree.get_annotations(expressions[0].id);
+        assert_eq!(annotations.len(), 1);
+        assert_node!(parser.tree, annotations[0], Annotation::Comment { node, position } => {
+            assert_eq!(*position, AnnotationPosition::BlockPostfix);
+            assert_node!(parser.tree, *node, Comment { string, style } => {
+                assert_string!(parser, *string, "comment text");
+                assert_eq!(*style, CommentStyle::Slash);
             });
         });
     }

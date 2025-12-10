@@ -1274,3 +1274,146 @@ fn test_lex_unterminated_single_quote_is_marked() {
         _ => panic!("expected string or character literal, got {lit:?}"),
     }
 }
+
+/// HTML comment open (<!--) at start of file
+#[test]
+fn test_lex_html_comment_open() {
+    assert_tokenize_eq_roundtrip!(
+        "<!--comment\n",
+        Token::new(TokenType::LineComment, 11, None),
+        Token::new(TokenType::Newline, 1, None),
+    );
+}
+
+/// HTML comment open (<!--) after code on same line
+#[test]
+fn test_lex_html_comment_open_after_code() {
+    assert_tokenize_eq_roundtrip!(
+        ";<!--comment\n",
+        Token::new(TokenType::Semicolon, 1, None),
+        Token::new(TokenType::LineComment, 11, None),
+        Token::new(TokenType::Newline, 1, None),
+    );
+}
+
+/// HTML comment close (-->) at start of line (after newline)
+#[test]
+fn test_lex_html_comment_close_at_line_start() {
+    // "--> HTML comment" = 16 chars total
+    assert_tokenize_eq_roundtrip!(
+        ";\n--> HTML comment\n",
+        Token::new(TokenType::Semicolon, 1, None),
+        Token::new(TokenType::Newline, 1, None),
+        Token::new(TokenType::LineComment, 16, None),
+        Token::new(TokenType::Newline, 1, None),
+    );
+}
+
+/// HTML comment close (-->) NOT at line start should be parsed as -- and >
+#[test]
+fn test_lex_html_comment_close_not_at_line_start() {
+    assert_tokenize_eq_roundtrip!(
+        "a-->b",
+        Token::new(TokenType::Identifier, 1, None),
+        Token::new(TokenType::Decrement, 2, None),
+        Token::new(TokenType::GreaterThan, 1, None),
+        Token::new(TokenType::Identifier, 1, None),
+    );
+}
+
+/// HTML comment close (-->) with leading whitespace should still work
+#[test]
+fn test_lex_html_comment_close_with_leading_whitespace() {
+    // "--> comment" = 11 chars total
+    assert_tokenize_eq_roundtrip!(
+        ";\n  --> comment\n",
+        Token::new(TokenType::Semicolon, 1, None),
+        Token::new(TokenType::Newline, 1, None),
+        Token::new(TokenType::Whitespace, 2, None),
+        Token::new(TokenType::LineComment, 11, None),
+        Token::new(TokenType::Newline, 1, None),
+    );
+}
+
+/// Unicode escape \u{41} should produce identifier "A"
+#[test]
+fn test_lex_unicode_escape_braced_single() {
+    // \u{41} = 6 chars -> identifier "A"
+    assert_tokenize_eq_roundtrip!(r"\u{41}", Token::new(TokenType::Identifier, 6, None),);
+}
+
+/// Unicode escape \u{41}BC should produce identifier "ABC"
+#[test]
+fn test_lex_unicode_escape_braced_with_suffix() {
+    // \u{41}BC = 8 chars -> identifier "ABC"
+    assert_tokenize_eq_roundtrip!(r"\u{41}BC", Token::new(TokenType::Identifier, 8, None),);
+}
+
+/// ES5 style \uXXXX should produce identifier
+#[test]
+fn test_lex_unicode_escape_es5_style() {
+    // \u0041 = 6 chars -> identifier "A"
+    assert_tokenize_eq_roundtrip!(r"\u0041", Token::new(TokenType::Identifier, 6, None),);
+}
+
+/// ES5 style \uXXXX with suffix
+#[test]
+fn test_lex_unicode_escape_es5_with_suffix() {
+    // \u0041BC = 8 chars -> identifier "ABC"
+    assert_tokenize_eq_roundtrip!(r"\u0041BC", Token::new(TokenType::Identifier, 8, None),);
+}
+
+/// Multiple unicode escapes in sequence
+#[test]
+fn test_lex_unicode_escape_multiple() {
+    // \u{41}\u{42}\u{43} = 18 chars -> identifier "ABC"
+    assert_tokenize_eq_roundtrip!(
+        r"\u{41}\u{42}\u{43}",
+        Token::new(TokenType::Identifier, 18, None),
+    );
+}
+
+/// Unicode escape in var declaration
+#[test]
+fn test_lex_unicode_escape_in_var() {
+    // var \u{41}BC; = "var" (3) + " " (1) + "\u{41}BC" (8) + ";" (1)
+    assert_tokenize_eq_roundtrip!(
+        r"var \u{41}BC;",
+        Token::new(TokenType::Identifier, 3, None),
+        Token::new(TokenType::Whitespace, 1, None),
+        Token::new(TokenType::Identifier, 8, None),
+        Token::new(TokenType::Semicolon, 1, None),
+    );
+}
+
+/// Unicode escape starting with identifier chars followed by escape
+#[test]
+fn test_lex_identifier_with_unicode_escape_suffix() {
+    // AB\u{43} = 8 chars -> identifier "ABC"
+    assert_tokenize_eq_roundtrip!(r"AB\u{43}", Token::new(TokenType::Identifier, 8, None),);
+}
+
+/// Invalid unicode escape - only 2 hex digits instead of 4
+#[test]
+fn test_lex_invalid_unicode_escape_too_short() {
+    // a\u11z: "a" (ident), "\u11" becomes Unknown, "z" (ident)
+    // The backslash consumes as much as it can as Unknown
+    assert_tokenize_eq_roundtrip!(
+        r"a\u11z",
+        Token::new(TokenType::Identifier, 1, None), // "a"
+        Token::new(TokenType::Unknown, 4, None),    // "\u11"
+        Token::new(TokenType::Identifier, 1, None), // "z"
+    );
+}
+
+/// Invalid unicode escape - only 1 hex digit
+#[test]
+fn test_lex_invalid_unicode_escape_one_digit() {
+    // a\u1z: "a" (ident), "\u1" becomes Unknown, "z" (ident)
+    assert_tokenize_eq_roundtrip!(
+        r"a\u1z",
+        Token::new(TokenType::Identifier, 1, None), // "a"
+        Token::new(TokenType::Unknown, 3, None),    // "\u1"
+        Token::new(TokenType::Identifier, 1, None), // "z"
+    );
+}

@@ -27,7 +27,10 @@ impl SwcSuite {
     pub fn new() -> Self {
         let conformance_dir = fixtures_dir().join("conformance");
         let root = conformance_dir.join("swc");
-        Self { root, conformance_dir }
+        Self {
+            root,
+            conformance_dir,
+        }
     }
 
     fn discover_recursive(&self, dir: &Path, prefix: &str) -> Vec<String> {
@@ -151,11 +154,7 @@ impl ConformanceSuite for SwcSuite {
         let should_fail = name.contains("/errors/") || name.contains("typescript-errors");
         let has_errors = self.parse_and_check(&path, &content, file_type);
 
-        if should_fail {
-            has_errors
-        } else {
-            !has_errors
-        }
+        if should_fail { has_errors } else { !has_errors }
     }
 
     fn download_instructions(&self) -> String {

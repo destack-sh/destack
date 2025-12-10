@@ -195,6 +195,33 @@ impl<'a> Lexer<'a> {
         }
     }
 
+    /// Checks if the current position is at the start of a line.
+    /// This is true if the previous non-whitespace token on this line was nothing
+    /// (i.e., only whitespace and/or newline preceded the current position).
+    /// Used for HTML close comment (`-->`) detection.
+    #[inline]
+    pub(super) fn is_at_line_start(&self) -> bool {
+        // Look at previous tokens to find if only whitespace preceded on this line
+        for token_span in self.tokens.iter().rev() {
+            match token_span.token.ty {
+                destack_ast::TokenType::Whitespace => {
+                    // whitespace is ok, continue looking
+                    continue;
+                }
+                destack_ast::TokenType::Newline => {
+                    // found a newline before any non-whitespace, so we're at line start
+                    return true;
+                }
+                _ => {
+                    // found a non-whitespace token, not at line start
+                    return false;
+                }
+            }
+        }
+        // no tokens at all, we're at file start (counts as line start)
+        true
+    }
+
     /// Gets the current tree literal state (top of stack or None).
     #[inline]
     pub(super) fn tree_state(&self) -> TreeState {

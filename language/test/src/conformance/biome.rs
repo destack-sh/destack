@@ -27,7 +27,10 @@ impl BiomeSuite {
     pub fn new() -> Self {
         let conformance_dir = fixtures_dir().join("conformance");
         let root = conformance_dir.join("biome");
-        Self { root, conformance_dir }
+        Self {
+            root,
+            conformance_dir,
+        }
     }
 
     fn discover_in_dir(&self, dir: &Path, prefix: &str) -> Vec<String> {
@@ -141,11 +144,7 @@ impl ConformanceSuite for BiomeSuite {
         let should_fail = name.starts_with("error/");
         let has_errors = self.parse_and_check(&path, &content, file_type);
 
-        if should_fail {
-            has_errors
-        } else {
-            !has_errors
-        }
+        if should_fail { has_errors } else { !has_errors }
     }
 
     fn download_instructions(&self) -> String {

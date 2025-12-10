@@ -1,15 +1,14 @@
-# TypeScript++ Language Design
+# Destack Language Design
 
-Destack extends TypeScript for building correct, optimal, integrated full-stack systems.
-You can think of Destack like "TypeScript++", except we're still fully interoperable both ways.
+Destack is "TypeScript++" for building correct, optimal, integrated full-stack systems.
 This document describes the motivation and tradeoffs in choosing TypeScript and why what was added.
 Destack adds features to TypeScript that wouldn't fit in TypeScript itself (like `.tsx` or `.svelte` do).
 
 > ---
-> - **Valid JavaScript is valid TypeScript++.**
-> - **Valid TypeScript is valid TypeScript++.**
-> - **Valid TSX/JSX is valid TypeScript++.**
-> - **TypeScript++ transpiles to idiomatic TypeScript.**
+> - **Valid JavaScript is valid Destack.**
+> - **Valid TypeScript is valid Destack.**
+> - **Valid TSX/JSX is valid Destack.**
+> - **Destack transpiles to idiomatic TypeScript.**
 > ---
 
 Yes, other languages with some similar features also have tried this before. 

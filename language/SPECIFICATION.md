@@ -1,6 +1,6 @@
-# TypeScript++ Language Specification
+# Destack Language Specification
 
-This is the specification for TypeScript++, Destack's extended TypeScript for building better full-stack software systems.
+Destack is "TypeScript++" for building better full-stack software systems.
 This document describes the syntax and semantics of **`.ds` files**.
 `.ts` and `.js` files work exactly the same as before. 
 Even **copy-pasting from `.js` or `.ts` into `.ds` works**: 
@@ -1295,7 +1295,7 @@ const result = riskyOperation()?;   // propagate to next outer scope
 ```
 
 ### Using
-NOTE #Incomplete: support using expressions
+TODO #Incomplete: support `using` expressions
 
 `using` declares a resource that will be disposed when the current scope exits, following the TC39 Explicit Resource Management proposal.
 Resources must implement `Disposable` (sync) or `AsyncDisposable` (async):
