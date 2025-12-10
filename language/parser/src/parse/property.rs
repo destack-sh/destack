@@ -311,7 +311,7 @@ mod tests {
         Expression, FunctionMode, IntType, Key, Name, Parameter, Property, ScalarLiteral,
         TypeLiteral, Visibility,
     };
-    use destack_source::{LanguageCompatibility, LanguageOptions};
+    use destack_source::{LanguageOptions, LanguageType};
 
     use crate::tests::TestParser;
     use crate::{assert_expression_path, assert_node, assert_path, assert_string};
@@ -320,7 +320,7 @@ mod tests {
     fn test_parse_property_with_es_visibility_modifier() {
         let mut test = TestParser::new_with_options(
             r#"#name: string"#,
-            LanguageOptions::default().with_compatibility(LanguageCompatibility::TypeScript),
+            LanguageOptions::default().with_type(LanguageType::TypeScript),
         );
         let mut parser = test.prepare();
         parser.options.in_type = true;

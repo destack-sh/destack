@@ -463,6 +463,7 @@ impl Parser {
 #[cfg(test)]
 mod tests {
     use destack_ast::{Expression, ScalarLiteral, YieldCardinality};
+    use destack_source::{LanguageOptions, LanguageType};
 
     use crate::{TestParser, assert_expression_path, assert_node, assert_path, assert_string};
 
@@ -648,10 +649,9 @@ mod tests {
         });
     }
 
+    /// `yield\n*a` should NOT be parsed as `yield* a` due to ASI restricted production.
     #[test]
     fn test_yield_asi_with_newline() {
-        // yield\n*a should NOT be parsed as yield* a due to ASI restricted production
-        // the newline after yield triggers ASI, so it should be yield; followed by *a
         let mut test = TestParser::new("yield\n*a");
         let mut parser = test.prepare();
         let yield_id = parser.eat_yield().unwrap();
@@ -659,6 +659,29 @@ mod tests {
             assert_eq!(*cardinality, YieldCardinality::Scalar);
             assert!(value.is_none()); // ASI applied, no value
         });
+    }
+
+    /// `yield\n*a` should NOT be parsed as `yield* a` due to ASI restricted production.
+    #[test]
+    fn test_yield_asi_with_newline_js_mode() {
+        let options = LanguageOptions::default().with_type(LanguageType::JavaScript);
+        let mut test = TestParser::new_with_options("yield\n*a", options);
+        let mut parser = test.prepare();
+
+        // yield parses fine with ASI
+        let yield_id = parser.eat_yield().unwrap();
+        assert_node!(parser.tree, yield_id, Expression::Yield { cardinality, value } => {
+            assert_eq!(*cardinality, YieldCardinality::Scalar);
+            assert!(value.is_none()); // ASI applied, no value
+        });
+
+        // try to parse *a as next statement - should fail in JS mode
+        // (because * is not valid as unary prefix in JS)
+        let result = parser.eat_expression();
+        assert!(
+            result.is_err() || !parser.diagnostics.is_empty(),
+            "*a should fail in JavaScript mode"
+        );
     }
 
     #[test]

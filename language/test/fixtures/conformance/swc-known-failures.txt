@@ -37,6 +37,8 @@ jsx/basic/issue-10698/input.js
 jsx/basic/issue-10889/input.jsx
 jsx/basic/issue-6522/input.js
 jsx/basic/namespace-tag/input.js
+jsx/basic/nonentity-decimal/input.js
+jsx/basic/nonentity/input.js
 jsx/errors/attribute-arbitrary-expression/input.js
 jsx/errors/issue-10586/input.js
 jsx/errors/issue-10601/input.js
@@ -79,7 +81,6 @@ typescript/class/override/input.ts
 typescript/class/properties/input.ts
 typescript/class/property-private/input.ts
 typescript/custom/arrow/complex-tsc/input.ts
-typescript/custom/arrow/complex/input.ts
 typescript/custom/async-with-as/input.ts
 typescript/custom/bigint/input.ts
 typescript/custom/issue-374/input.ts
@@ -88,7 +89,6 @@ typescript/custom/issue-401-const-assertion-literal-ts/input.ts
 typescript/custom/issue-401-const-assertion-object-ts/input.ts
 typescript/custom/issue-410-2/input.ts
 typescript/custom/tsx-issue-573/input.tsx
-typescript/custom/tsx-unary-paren/input.tsx
 typescript/custom/type-only/export/type-only-specifier/input.ts
 typescript/custom/type-only/import/default/input.ts
 typescript/custom/type-only/import/specific/input.ts
@@ -156,6 +156,8 @@ typescript/types/conditional-infer-extends/basic/input.ts
 typescript/types/conditional-infer-extends/distinguishing/input.ts
 typescript/types/function-generic/input.ts
 typescript/types/mapped/input.ts
+typescript/types/tuple-optional/input.ts
+typescript/types/tuple-rest-after-optional/input.ts
 typescript/v4/optional-tuple-element/input.ts
 typescript/variable-declarator/definite-assignment/input.ts
 typescript/variance-annotations/1/input.ts

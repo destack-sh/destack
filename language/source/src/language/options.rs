@@ -1,128 +1,121 @@
-use crate::{FormatterOptions, IndentStyle, LanguageFeature, LanguageFeatureSet, LineEnding};
+use crate::{
+    FileType, FormatterOptions, IndentStyle, LanguageFeature, LanguageFeatureSet, LineEnding,
+};
 
-/// The mode we're working in.
+/// The source language type determines parsing and compatibility behavior.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
-pub enum LanguageMode {
-    /// Lenient mode with relaxed checking, conversion, cloning, boxing and more.
-    #[default]
-    Lenient,
-    /// Strict mode with explicit context, defaults, typing, behavior and more.
-    Strict,
-}
-
-/// The type of language.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum LanguageType {
-    /// The Destack language (like `.ds`, `.dst`).
+    /// Full Destack language (.ds, .dst) with all features enabled.
+    #[default]
     Destack,
-    /// The Destack data language (like `.d.ds`).
+    /// Destack declaration file (.d.ds).
     DestackDeclaration,
-    /// JavaScript (like `.js`).
+    /// JavaScript (.js) in compatibility mode.
     JavaScript,
-    /// JavaScript XML (like `.jsx`).
+    /// JavaScript with JSX (.jsx) in compatibility mode.
     JavaScriptXml,
-    /// TypeScript (like `.ts`).
+    /// TypeScript (.ts) in compatibility mode.
     TypeScript,
-    /// TypeScript XML (like `.tsx`).
+    /// TypeScript with JSX (.tsx) in compatibility mode.
     TypeScriptXml,
 }
 
-/// The language compatibility mode.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum LanguageCompatibility {
-    /// The JavaScript compatibility mode (like `.js`).
-    JavaScript,
-    /// The JavaScript XML compatibility mode (like `.jsx`).
-    JavaScriptXml,
-    /// The TypeScript compatibility mode (like `.ts`).
-    TypeScript,
-    /// The TypeScript XML compatibility mode (like `.tsx`).
-    TypeScriptXml,
-}
-
-impl LanguageCompatibility {
-    /// Whether the language compatibility is TypeScript-related.
+impl LanguageType {
+    /// Whether this is a Destack language type (not compatibility mode).
     #[inline]
-    pub fn is_typescript(&self) -> bool {
-        matches!(
-            self,
-            LanguageCompatibility::TypeScript | LanguageCompatibility::TypeScriptXml
-        )
+    pub fn is_destack(&self) -> bool {
+        matches!(self, Self::Destack | Self::DestackDeclaration)
     }
 
-    /// Whether the language compatibility is JavaScript-related.
+    /// Whether this is JavaScript (JS or JSX).
     #[inline]
     pub fn is_javascript(&self) -> bool {
-        matches!(
-            self,
-            LanguageCompatibility::JavaScript | LanguageCompatibility::JavaScriptXml
-        )
+        matches!(self, Self::JavaScript | Self::JavaScriptXml)
     }
 
-    /// Whether the language compatibility is XML-related.
+    /// Whether this is TypeScript (TS or TSX).
     #[inline]
-    pub fn supports_tree_literal(&self) -> bool {
+    pub fn is_typescript(&self) -> bool {
+        matches!(self, Self::TypeScript | Self::TypeScriptXml)
+    }
+
+    /// Whether this is a compatibility mode (JS/TS, not Destack).
+    #[inline]
+    pub fn is_compatibility_mode(&self) -> bool {
+        !self.is_destack()
+    }
+
+    /// Whether this language type supports JSX/tree literal syntax.
+    #[inline]
+    pub fn supports_jsx(&self) -> bool {
         matches!(
             self,
-            LanguageCompatibility::JavaScriptXml | LanguageCompatibility::TypeScriptXml
+            Self::Destack | Self::DestackDeclaration | Self::JavaScriptXml | Self::TypeScriptXml
         )
+    }
+}
+
+impl From<FileType> for LanguageType {
+    fn from(file_type: FileType) -> Self {
+        match file_type {
+            FileType::Destack | FileType::DestackText | FileType::DestackBinary => {
+                LanguageType::Destack
+            }
+            FileType::DestackDeclaration => LanguageType::DestackDeclaration,
+            FileType::JavaScript => LanguageType::JavaScript,
+            FileType::JavaScriptXml => LanguageType::JavaScriptXml,
+            FileType::TypeScript | FileType::TypeScriptDeclaration => LanguageType::TypeScript,
+            FileType::TypeScriptXml => LanguageType::TypeScriptXml,
+            // default to Destack for other file types
+            _ => LanguageType::Destack,
+        }
     }
 }
 
 /// The language version.
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Default)]
 pub enum LanguageVersion {
     /// The first version of the language.
+    #[default]
     V1,
 }
 
-/// The options for working with the Destack language.
+/// Options for working with the Destack language.
 #[derive(Debug, Copy, Clone, Default)]
 pub struct LanguageOptions {
     /// The version of the language.
     pub version: LanguageVersion = LanguageVersion::V1,
-    /// The mode we're operating Destack in.
-    pub mode: LanguageMode = LanguageMode::Lenient,
-    /// The compatibility mode.
-    pub compatibility: Option<LanguageCompatibility> = None,
-    /// The enabled language features.
+    /// The source language type (determines compatibility behavior).
+    pub ty: LanguageType = LanguageType::Destack,
+    /// The enabled language features (for post-parse feature gating).
     pub features: LanguageFeatureSet = LanguageFeatureSet::all(),
     /// The formatting options.
     pub formatting: FormatterOptions,
 }
 
 impl LanguageOptions {
-    /// Whether the language compatibility is XML-related.
+    /// Whether the language type is Destack-compatible.
     #[inline]
-    pub fn is_compatible_with_tree_literal(&self) -> bool {
-        self.compatibility
-            .is_some_and(|compatibility| compatibility.supports_tree_literal())
+    pub fn is_destack_compatible(&self) -> bool {
+        self.ty.is_destack()
     }
 
-    /// Whether the language compatibility is JavaScript-related.
+    /// Whether the language type is JavaScript-compatible.
     #[inline]
-    pub fn is_compatible_with_javascript(&self) -> bool {
-        self.compatibility
-            .is_some_and(|compatibility| compatibility.is_javascript())
+    pub fn is_javascript_compatible(&self) -> bool {
+        self.ty.is_javascript()
     }
 
-    /// Whether the language compatibility is TypeScript-related.
+    /// Whether the language type is TypeScript-compatible.
     #[inline]
-    pub fn is_compatible_with_typescript(&self) -> bool {
-        self.compatibility
-            .is_some_and(|compatibility| compatibility.is_typescript())
+    pub fn is_typescript_compatible(&self) -> bool {
+        self.ty.is_typescript()
     }
 
-    /// Whether we support XML-related syntax.
+    /// Whether the language supports JSX/tree literal syntax.
     #[inline]
     pub fn supports_tree_literal(&self) -> bool {
-        self.compatibility.is_none() || self.is_compatible_with_tree_literal()
-    }
-
-    /// Whether we support standalone maybe operator (like `x?`).
-    #[inline]
-    pub fn supports_standalone_maybe(&self) -> bool {
-        self.compatibility.is_none()
+        self.ty.supports_jsx()
     }
 
     /// Set the language version.
@@ -131,21 +124,9 @@ impl LanguageOptions {
         self
     }
 
-    /// Set the language mode.
-    pub fn with_mode(mut self, mode: LanguageMode) -> Self {
-        self.mode = mode;
-        self
-    }
-
-    /// Set the language compatibility.
-    pub fn with_compatibility(mut self, compatibility: LanguageCompatibility) -> Self {
-        self.compatibility = Some(compatibility);
-        self
-    }
-
-    /// Set the language compatibility.
-    pub fn without_compatibility(mut self) -> Self {
-        self.compatibility = None;
+    /// Set the language type.
+    pub fn with_type(mut self, language_type: LanguageType) -> Self {
+        self.ty = language_type;
         self
     }
 
