@@ -87,6 +87,7 @@ pub enum Declaration {
         body: Option<LocalNodeId<Expression>>,
     },
     /// Extension declaration.
+    /// TODO #Incomplete: support extensions in DIR
     Extension {
         descriptor: DeclarationDescriptor,
         generics: Generics,

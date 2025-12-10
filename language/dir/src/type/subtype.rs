@@ -17,7 +17,7 @@ impl Generics {
 }
 
 /// The polymoprhic relations.
-/// TODO #Incomplete: implement heritage (use proper unresolved state somehow?)
+/// TODO #Incomplete: support heritage (use proper unresolved state somehow?)
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct Heritage {
     /// The extends types of the declaration.

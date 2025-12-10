@@ -298,19 +298,23 @@ impl Compiler {
             (TypeLiteral::Void, TypeLiteral::Undefined) => Assignability::Assignable,
             (TypeLiteral::Undefined, TypeLiteral::Undefined) => Assignability::Assignable,
 
-            // primitives: must be the same
-            (TypeLiteral::Primitive(target_prim), TypeLiteral::Primitive(source_prim)) => {
-                if target_prim == source_prim {
+            // primitives: check for exact match or numeric widening
+            (
+                TypeLiteral::Primitive(target_primitive),
+                TypeLiteral::Primitive(source_primitive),
+            ) => {
+                if target_primitive == source_primitive
+                    || self.is_primitive_numeric_assignable(target_primitive, source_primitive)
+                {
                     Assignability::Assignable
                 } else {
-                    // NOTE #Incomplete: numeric widening (i32 -> i64, ..?)?
                     Assignability::NotAssignable
                 }
             }
 
             // scalar literal to primitive: check if literal is of that primitive type
-            (TypeLiteral::Primitive(prim), TypeLiteral::ScalarLiteral(lit)) => {
-                if self.scalar_literal_matches_primitive(lit, prim) {
+            (TypeLiteral::Primitive(primitive_type), TypeLiteral::ScalarLiteral(literal)) => {
+                if self.is_scalar_literal_assignable(literal, primitive_type) {
                     Assignability::Assignable
                 } else {
                     Assignability::NotAssignable
@@ -323,11 +327,7 @@ impl Compiler {
     }
 
     /// Check if a scalar literal value matches a primitive type.
-    fn scalar_literal_matches_primitive(
-        &self,
-        literal: &ScalarLiteral,
-        ty: &PrimitiveType,
-    ) -> bool {
+    fn is_scalar_literal_assignable(&self, literal: &ScalarLiteral, ty: &PrimitiveType) -> bool {
         match (literal, ty) {
             // boolean
             (ScalarLiteral::Boolean(_), PrimitiveType::Boolean) => true,
@@ -340,7 +340,7 @@ impl Compiler {
             (ScalarLiteral::Integer(_) | ScalarLiteral::Float(_), PrimitiveType::Number) => true,
             // integer literal to specific int type: check range
             (ScalarLiteral::Integer(value), PrimitiveType::Int(int_type)) => {
-                self.integer_fits_in_type(*value as i128, int_type)
+                self.is_integer_literal_assignable(*value as i128, int_type)
             }
             // float literal to specific float type: always allowed (may lose precision)
             (ScalarLiteral::Float(_), PrimitiveType::Float(_)) => true,
@@ -355,7 +355,7 @@ impl Compiler {
     }
 
     /// Check if an integer literal value fits within the range of a specific int type.
-    fn integer_fits_in_type(&self, value: i128, int_type: &IntType) -> bool {
+    fn is_integer_literal_assignable(&self, value: i128, int_type: &IntType) -> bool {
         let (min, max) = match int_type {
             IntType::Int8 => (i8::MIN as i128, i8::MAX as i128),
             IntType::Int16 => (i16::MIN as i128, i16::MAX as i128),
@@ -391,6 +391,50 @@ impl Compiler {
             }
         };
         value >= min && value <= max
+    }
+
+    /// Check if numeric widening from source to target is allowed.
+    /// Widening is allowed when assigning a smaller numeric type to a larger one.
+    fn is_primitive_numeric_assignable(
+        &self,
+        target: &PrimitiveType,
+        source: &PrimitiveType,
+    ) -> bool {
+        match (target, source) {
+            // number accepts any numeric type (JS compatibility)
+            (PrimitiveType::Number, PrimitiveType::Int(_) | PrimitiveType::Float(_)) => true,
+
+            // float widening: float32 -> float64
+            (PrimitiveType::Float(target_float), PrimitiveType::Float(source_float)) => {
+                target_float.width() >= source_float.width()
+            }
+
+            // int to float: always allowed (may lose precision for large ints)
+            (PrimitiveType::Float(_), PrimitiveType::Int(_)) => true,
+
+            // signed int widening: int8 -> int16 -> int32 -> int64 -> int128
+            (PrimitiveType::Int(target_int), PrimitiveType::Int(source_int)) => {
+                match (target_int.width(), source_int.width()) {
+                    (Some(tw), Some(sw)) => {
+                        if target_int.is_signed() == source_int.is_signed() {
+                            // same signedness: target must be at least as wide
+                            tw >= sw
+                        } else if target_int.is_signed() && !source_int.is_signed() {
+                            // unsigned to signed: target must be strictly wider
+                            // (uint8 max 255 fits in int16, but not int8)
+                            tw > sw
+                        } else {
+                            // signed to unsigned: not safe (negative values)
+                            false
+                        }
+                    }
+                    // pointer-sized ints: only allow same signedness
+                    _ => false,
+                }
+            }
+
+            _ => false,
+        }
     }
 
     /// Check object type assignability (structural subtyping).
@@ -1143,5 +1187,64 @@ let a = obj.inner.value;
         test.analyze_module(module_id);
         test.compile();
         test.check_clean();
+    }
+
+    /// int8 widens to int16, but not vice versa.
+    #[test]
+    fn test_numeric_widening_int() {
+        let test = TestProgram::memory_sequential();
+        let module_id = test.register_module("test.ds", "42");
+        test.analyze_module(module_id);
+        test.compile_dump_clean();
+
+        let module = test.program.modules.get(module_id);
+        let module = module.read();
+        let mut types = module.dir.types.write();
+
+        let int8_ty = types.insert_type(Type::TypeLiteral {
+            value: TypeLiteral::Primitive(PrimitiveType::Int(IntType::Int8)),
+        });
+        let int16_ty = types.insert_type(Type::TypeLiteral {
+            value: TypeLiteral::Primitive(PrimitiveType::Int(IntType::Int16)),
+        });
+
+        // widening allowed
+        assert_eq!(
+            test.compiler
+                .check_is_type_assignable(int16_ty, int8_ty, &types),
+            Assignability::Assignable
+        );
+        // narrowing not allowed
+        assert_eq!(
+            test.compiler
+                .check_is_type_assignable(int8_ty, int16_ty, &types),
+            Assignability::NotAssignable
+        );
+    }
+
+    /// Signed integers cannot widen to unsigned (may lose negative values).
+    #[test]
+    fn test_numeric_widening_signed_to_unsigned_not_allowed() {
+        let test = TestProgram::memory_sequential();
+        let module_id = test.register_module("test.ds", "42");
+        test.analyze_module(module_id);
+        test.compile_dump_clean();
+
+        let module = test.program.modules.get(module_id);
+        let module = module.read();
+        let mut types = module.dir.types.write();
+
+        let int8_ty = types.insert_type(Type::TypeLiteral {
+            value: TypeLiteral::Primitive(PrimitiveType::Int(IntType::Int8)),
+        });
+        let uint8_ty = types.insert_type(Type::TypeLiteral {
+            value: TypeLiteral::Primitive(PrimitiveType::Int(IntType::Uint8)),
+        });
+
+        assert_eq!(
+            test.compiler
+                .check_is_type_assignable(uint8_ty, int8_ty, &types),
+            Assignability::NotAssignable
+        );
     }
 }

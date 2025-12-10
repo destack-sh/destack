@@ -143,6 +143,8 @@ pub enum Expression {
     /// Values.
     /// --------------------------------
 
+    // TODO #Incomplete: support ImportMeta in DIR (as Expression variant? also get it from.. Module?)
+
     /// Unresolved path.
     UnresolvedPath {
         path: Path,
