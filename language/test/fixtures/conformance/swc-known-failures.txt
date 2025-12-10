@@ -47,6 +47,7 @@ jsx/errors/issue-387-4/input.js
 jsx/errors/issue-6977/1/input.js
 jsx/errors/issue-6977/2/input.js
 jsx/errors/unexpected_token_did_you_mean_or_gt/input.js
+jsx/errors/unicode-escape-in-identifier/input.js
 typescript/amaro-194/input.ts
 typescript/arrow-function/async-await-null/input.ts
 typescript/arrow-function/async-generic-false-positive/input.ts
@@ -146,15 +147,11 @@ typescript/jssue-7428/2/input.tsx
 typescript/next/0001/input.tsx
 typescript/next/stack-overflow/1/input.ts
 typescript/optional-chaining/conditional-decimal/input.ts
-typescript/optional-chaining/constructor-call/input.ts
 typescript/optional-chaining/type-arguments-with-call/input.ts
 typescript/stc/0001/input.ts
 typescript/tsx/brace-is-block/input.ts
-typescript/tsx/type-arguments/input.ts
 typescript/tsx/type-parameters/input.ts
-typescript/type-arguments/new-false-positive/input.ts
 typescript/type-arguments/new/input.ts
-typescript/type-arguments/tagged-template-no-asi/input.ts
 typescript/type-arguments/tsx/input.ts
 typescript/types/conditional-infer-extends/basic/input.ts
 typescript/types/conditional-infer-extends/distinguishing/input.ts
@@ -164,4 +161,3 @@ typescript/v4/optional-tuple-element/input.ts
 typescript/variable-declarator/definite-assignment/input.ts
 typescript/variance-annotations/1/input.ts
 typescript/variance-annotations/with_jsx/input.tsx
-jsx/errors/unicode-escape-in-identifier/input.js
