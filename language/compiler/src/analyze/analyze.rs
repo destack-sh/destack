@@ -1797,47 +1797,46 @@ impl Compiler {
         ctx: &mut TypeContext,
     ) -> AnalyzeResult<()> {
         let declarator = tree.get(declarator_id);
-        match declarator {
-            Declarator::Binding { pattern, ty, value } => {
-                // infer type from value or annotation
-                // declared type is now on the declarator node, not the let expression
-                let declared_ty_id =
-                    types.get_declared_type_id(declarator_id.into_global(module.id).into());
-                let inferred_ty_id = if let Some(value) = value {
-                    Some(self.analyze_expression(module, *value, tree, symbols, types, ctx)?)
-                } else {
-                    None
-                };
+        let Declarator { pattern, ty, value } = declarator;
 
-                // type check: if both declared and inferred, check assignability
-                if let (Some(declared), Some(inferred)) = (declared_ty_id, inferred_ty_id)
-                    && self.check_is_type_assignable(declared, inferred, types)
-                        == Assignability::NotAssignable
-                {
-                    return Err(AnalyzeError::UnassignableType {
-                        node: declarator_id.into_global(module.id).into(),
-                        expected_ty: GlobalTypeId {
-                            module_id: module.id,
-                            local_id: declared,
-                        },
-                        actual_ty: GlobalTypeId {
-                            module_id: module.id,
-                            local_id: inferred,
-                        },
-                        expected_ty_string: self.format_type(types.get_type(declared), types),
-                        actual_ty_string: self.format_type(types.get_type(inferred), types),
-                    });
-                }
+        // infer type from value or annotation
+        // declared type is now on the declarator node, not the let expression
+        let declared_ty_id =
+            types.get_declared_type_id(declarator_id.into_global(module.id).into());
+        let inferred_ty_id = if let Some(value) = value {
+            Some(self.analyze_expression(module, *value, tree, symbols, types, ctx)?)
+        } else {
+            None
+        };
 
-                // analyze the type expression if present
-                if let Some(ty_id) = ty {
-                    self.analyze_expression(module, *ty_id, tree, symbols, types, ctx)?;
-                }
-
-                let binding_ty_id = declared_ty_id.or(inferred_ty_id);
-                self.analyze_pattern(module, *pattern, binding_ty_id, tree, symbols, types, ctx)?;
-            }
+        // type check: if both declared and inferred, check assignability
+        if let (Some(declared), Some(inferred)) = (declared_ty_id, inferred_ty_id)
+            && self.check_is_type_assignable(declared, inferred, types)
+                == Assignability::NotAssignable
+        {
+            return Err(AnalyzeError::UnassignableType {
+                node: declarator_id.into_global(module.id).into(),
+                expected_ty: GlobalTypeId {
+                    module_id: module.id,
+                    local_id: declared,
+                },
+                actual_ty: GlobalTypeId {
+                    module_id: module.id,
+                    local_id: inferred,
+                },
+                expected_ty_string: self.format_type(types.get_type(declared), types),
+                actual_ty_string: self.format_type(types.get_type(inferred), types),
+            });
         }
+
+        // analyze the type expression if present
+        if let Some(ty_id) = ty {
+            self.analyze_expression(module, *ty_id, tree, symbols, types, ctx)?;
+        }
+
+        let binding_ty_id = declared_ty_id.or(inferred_ty_id);
+        self.analyze_pattern(module, *pattern, binding_ty_id, tree, symbols, types, ctx)?;
+
         Ok(())
     }
 }

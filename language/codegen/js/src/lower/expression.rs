@@ -1,6 +1,6 @@
 use crate::{
-    CodegenJsError, CodegenJsResult, CodegenJsResultExt, CodegenJsWarning, Expression, LocalNodeId,
-    LocalNodeIdAny, ModuleLowerer, NodeType, PostfixPosition, Statement, Type,
+    CodegenJsError, CodegenJsResult, CodegenJsResultExt, CodegenJsWarning, Declarator, Expression,
+    LocalNodeId, LocalNodeIdAny, ModuleLowerer, NodeType, PostfixPosition, Statement, Type,
 };
 use destack_dir::{self as dir, Node};
 
@@ -153,9 +153,11 @@ impl ModuleLowerer<'_> {
                 let mut declarators = Vec::with_capacity(dir_declarators.len());
                 for dir_declarator_id in dir_declarators {
                     let dir_declarator = self.dir_tree.get(*dir_declarator_id);
-                    let (pattern_id, ty_id, value_id) = match dir_declarator {
-                        dir::Declarator::Binding { pattern, ty, value } => (pattern, ty, value),
-                    };
+                    let dir::Declarator {
+                        pattern: pattern_id,
+                        ty: ty_id,
+                        value: value_id,
+                    } = dir_declarator;
 
                     let pattern = self.lower_pattern(*pattern_id)?;
                     let ty: Option<crate::LocalNodeId<Type>> = ty_id
@@ -173,7 +175,7 @@ impl ModuleLowerer<'_> {
                         })
                         .transpose()?;
 
-                    let declarator = crate::Declarator::Binding { pattern, ty, value };
+                    let declarator = Declarator { pattern, ty, value };
                     let declarator_id = self.tree.insert_from_source(
                         declarator,
                         self.module.id,

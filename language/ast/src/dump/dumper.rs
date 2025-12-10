@@ -1045,8 +1045,8 @@ impl<'a> NodeVisitor for Dumper<'a> {
     fn visit_declaration(
         &mut self,
         tree: &NodeTree,
-        id: LocalNodeId<crate::Declaration>,
-        declaration: &crate::Declaration,
+        id: LocalNodeId<Declaration>,
+        declaration: &Declaration,
     ) {
         match declaration {
             Declaration::Namespace {
@@ -1331,15 +1331,12 @@ impl<'a> NodeVisitor for Dumper<'a> {
         _id: LocalNodeId<Declarator>,
         declarator: &Declarator,
     ) {
-        match declarator {
-            Declarator::Binding {
-                pattern: _,
-                ty: _,
-                value: _,
-            } => {
-                self.node("Declarator::Binding", _id.id).end();
-            }
-        }
+        let Declarator {
+            pattern: _,
+            ty: _,
+            value: _,
+        } = declarator;
+        self.node("Declarator", _id.id).end();
         self.with_depth(|dumper| {
             walk_declarator(dumper, _tree, _id, declarator);
         });

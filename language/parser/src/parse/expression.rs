@@ -1297,7 +1297,7 @@ type = type * 2
         let expression_id = parser.eat_expression().unwrap();
         assert_node!(parser.tree, expression_id, Expression::Let { declarators, .. } => {
             assert_eq!(declarators.len(), 1);
-            assert_node!(parser.tree, declarators[0], Declarator::Binding { pattern, value: Some(value), .. } => {
+            assert_node!(parser.tree, declarators[0], Declarator { pattern, value: Some(value), .. } => {
                 assert_node!(parser.tree, *pattern, Pattern::Binding { name, .. } => {
                     assert_string!(parser, *name, "type");
                 });
@@ -1691,7 +1691,7 @@ const shapes = (
         let expr_id = parser.eat_expression().unwrap();
         assert_node!(parser.tree, expr_id, Expression::Let { declarators, .. } => {
             assert_eq!(declarators.len(), 1);
-            assert_node!(parser.tree, declarators[0], Declarator::Binding { pattern, value, .. } => {
+            assert_node!(parser.tree, declarators[0], Declarator { pattern, value, .. } => {
                 // shapes
                 assert_node!(parser.tree, *pattern, Pattern::Binding { name, .. } => {
                     assert_string!(parser, *name, "shapes");
@@ -1742,7 +1742,7 @@ const shapes = (
         let expr_id = parser.eat_expression().unwrap();
         assert_node!(parser.tree, expr_id, Expression::Let { declarators, .. } => {
             assert_eq!(declarators.len(), 1);
-            assert_node!(parser.tree, declarators[0], Declarator::Binding { pattern, value, .. } => {
+            assert_node!(parser.tree, declarators[0], Declarator { pattern, value, .. } => {
                 assert_node!(parser.tree, *pattern, Pattern::Binding { name, .. } => {
                     assert_string!(parser, *name, "x");
                 });
@@ -2156,7 +2156,7 @@ geom.Mesh<2, 4> {
         // let Alias = A<B<C>>
         assert_node!(parser.tree, expr_id, Expression::Let { declarators, .. } => {
             assert_eq!(declarators.len(), 1);
-            assert_node!(parser.tree, declarators[0], Declarator::Binding { pattern, value, .. } => {
+            assert_node!(parser.tree, declarators[0], Declarator { pattern, value, .. } => {
                 // Alias
                 assert_node!(parser.tree, *pattern, Pattern::Binding { name, .. } => {
                     assert_string!(parser, *name, "Alias");
@@ -2316,7 +2316,7 @@ const x =
                 assert_node!(
                     parser.tree,
                     declarators[0],
-                    Declarator::Binding { pattern, value, .. } => {
+                    Declarator { pattern, value, .. } => {
                         // x
                         assert_node!(
                             parser.tree,
@@ -2868,7 +2868,7 @@ const value =
         assert_node!(parser.tree, expr_id, Expression::Let { mutability, declarators, .. } => {
             assert_eq!(*mutability, Mutability::Immutable);
             assert_eq!(declarators.len(), 1);
-            assert_node!(parser.tree, declarators[0], Declarator::Binding { value, .. } => {
+            assert_node!(parser.tree, declarators[0], Declarator { value, .. } => {
                 // | 1 | 2 | 3
                 assert_node!(parser.tree, value.unwrap(), Expression::Binary { left, operator, right, .. } => {
                     assert_eq!(*operator, BinaryOperator::ElementwiseOr);

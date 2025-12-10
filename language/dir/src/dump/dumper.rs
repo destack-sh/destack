@@ -1297,15 +1297,12 @@ impl<'a> NodeVisitor for Dumper<'a> {
         id: LocalNodeId<Declarator>,
         declarator: &Declarator,
     ) {
-        match declarator {
-            Declarator::Binding {
-                pattern: _,
-                ty: _,
-                value: _,
-            } => {
-                self.node("Declarator::Binding", id.id).end();
-            }
-        }
+        let Declarator {
+            pattern: _,
+            ty: _,
+            value: _,
+        } = declarator;
+        self.node("Declarator", id.id).end();
         self.with_depth(|dumper| {
             walk_declarator(dumper, tree, id, declarator);
         });

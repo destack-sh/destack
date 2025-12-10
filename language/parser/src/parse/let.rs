@@ -160,7 +160,7 @@ impl Parser {
 
         // declarator
         let declarator_id = self.tree.insert(
-            Declarator::Binding {
+            Declarator {
                 pattern: pattern_id,
                 ty,
                 value,
@@ -196,7 +196,7 @@ const x: int32 = 1
             assert_eq!(*mutability, Mutability::Immutable);
             assert_eq!(declarators.len(), 1);
 
-            assert_node!(parser.tree, declarators[0], Declarator::Binding { pattern, ty, value } => {
+            assert_node!(parser.tree, declarators[0], Declarator { pattern, ty, value } => {
                 // x
                 assert_node!(parser.tree, *pattern, Pattern::Binding { name, .. } => {
                     assert_string!(parser, *name, "x");
@@ -230,7 +230,7 @@ var x: float64[3] = undefined
             assert_eq!(*mutability, Mutability::Mutable);
             assert_eq!(declarators.len(), 1);
 
-            assert_node!(parser.tree, declarators[0], Declarator::Binding { pattern, ty, .. } => {
+            assert_node!(parser.tree, declarators[0], Declarator { pattern, ty, .. } => {
                 // x
                 assert_node!(parser.tree, *pattern, Pattern::Binding { name, .. } => {
                     assert_string!(parser, *name, "x");
@@ -265,7 +265,7 @@ const (x, y) = foo()
             assert_eq!(*mutability, Mutability::Immutable);
             assert_eq!(declarators.len(), 1);
 
-            assert_node!(parser.tree, declarators[0], Declarator::Binding { pattern, ty, value } => {
+            assert_node!(parser.tree, declarators[0], Declarator { pattern, ty, value } => {
                 // (x, y)
                 assert_node!(parser.tree, *pattern, Pattern::Tuple { fields, .. } => {
                     assert_eq!(fields.len(), 2);
@@ -299,7 +299,7 @@ const (x, y) = foo()
         assert_node!(parser.tree, let_id, Expression::Let { declarators, mutability, .. } => {
             assert_eq!(*mutability, Mutability::Immutable);
             assert_eq!(declarators.len(), 1);
-            assert_node!(parser.tree, declarators[0], Declarator::Binding { pattern, ty, value } => {
+            assert_node!(parser.tree, declarators[0], Declarator { pattern, ty, value } => {
                 // x
                 assert_node!(parser.tree, *pattern, Pattern::Binding { name, .. } => {
                     assert_string!(parser, *name, "x");
@@ -328,7 +328,7 @@ const x =
         assert_node!(parser.tree, let_id, Expression::Let { declarators, mutability, .. } => {
             assert_eq!(*mutability, Mutability::Immutable);
             assert_eq!(declarators.len(), 1);
-            assert_node!(parser.tree, declarators[0], Declarator::Binding { pattern, value, .. } => {
+            assert_node!(parser.tree, declarators[0], Declarator { pattern, value, .. } => {
                 // x
                 assert_node!(parser.tree, *pattern, Pattern::Binding { name, .. } => {
                     assert_string!(parser, *name, "x");
@@ -364,7 +364,7 @@ const registry: Map<
             assert_eq!(*mutability, Mutability::Immutable);
             assert_eq!(declarators.len(), 1);
 
-            assert_node!(parser.tree, declarators[0], Declarator::Binding { pattern, ty, value } => {
+            assert_node!(parser.tree, declarators[0], Declarator { pattern, ty, value } => {
                 assert!(ty.is_some());
                 assert!(value.is_some());
 
@@ -412,7 +412,7 @@ const registry: Map<
             assert_eq!(*mutability, Mutability::Mutable);
             assert_eq!(declarators.len(), 2);
             // a: int32 = 1
-            assert_node!(parser.tree, declarators[0], Declarator::Binding { pattern, ty, value } => {
+            assert_node!(parser.tree, declarators[0], Declarator { pattern, ty, value } => {
                 assert_node!(parser.tree, *pattern, Pattern::Binding { name, .. } => {
                     assert_string!(parser, *name, "a");
                 });
@@ -420,7 +420,7 @@ const registry: Map<
                 assert!(value.is_some());
             });
             // b: string = "hello"
-            assert_node!(parser.tree, declarators[1], Declarator::Binding { pattern, ty, value } => {
+            assert_node!(parser.tree, declarators[1], Declarator { pattern, ty, value } => {
                 assert_node!(parser.tree, *pattern, Pattern::Binding { name, .. } => {
                     assert_string!(parser, *name, "b");
                 });

@@ -417,7 +417,7 @@ for (var x = 0; x < 10; x++) {
             // var x = 0
             assert_node!(parser.tree, initialization.unwrap(), Expression::Let { declarators, .. } => {
                 assert_eq!(declarators.len(), 1);
-                assert_node!(parser.tree, declarators[0], Declarator::Binding { pattern, value, .. } => {
+                assert_node!(parser.tree, declarators[0], Declarator { pattern, value, .. } => {
                     assert_node!(parser.tree, *pattern, Pattern::Binding { mutability: None, name, pattern: None } => {
                         assert_string!(parser, *name, "x");
                     });

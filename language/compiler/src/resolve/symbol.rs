@@ -451,22 +451,22 @@ let z = y;
         // let x = 0;
         assert_node!(tree, x_node, Expression::Let { declarators, ..} => {
             let declarator = tree.get(declarators[0]);
-            let Declarator::Binding { value: Some(value), .. } = declarator else { panic!("expected binding") };
-            assert_node!(tree, *value, Expression::ScalarLiteral { value: ScalarLiteral::Integer(0) });
+            let Some(value) = declarator.value else { panic!("expected binding value") };
+            assert_node!(tree, value, Expression::ScalarLiteral { value: ScalarLiteral::Integer(0) });
         });
         // let y = x;
         assert_node!(tree, y_node, Expression::Let { declarators, ..} => {
             let declarator = tree.get(declarators[0]);
-            let Declarator::Binding { value: Some(value), .. } = declarator else { panic!("expected binding") };
-            assert_node!(tree, *value, Expression::ModuleReference { target_symbol, .. } => {
+            let Some(value) = declarator.value else { panic!("expected binding value") };
+            assert_node!(tree, value, Expression::ModuleReference { target_symbol, .. } => {
                 assert_eq!(*target_symbol, x_symbol_id);
             })
         });
         // let z = y;
         assert_node!(tree, z_node, Expression::Let { declarators, ..} => {
             let declarator = tree.get(declarators[0]);
-            let Declarator::Binding { value: Some(value), .. } = declarator else { panic!("expected binding") };
-            assert_node!(tree, *value, Expression::ModuleReference { target_symbol, .. } => {
+            let Some(value) = declarator.value else { panic!("expected binding value") };
+            assert_node!(tree, value, Expression::ModuleReference { target_symbol, .. } => {
                 assert_eq!(*target_symbol, y_symbol_id);
             })
         });
@@ -519,8 +519,8 @@ export let B = A + 1;
             .into_typed::<Expression>();
         assert_node!(tree_b, b_node, Expression::Let { declarators, ..} => {
             let declarator = tree_b.get(declarators[0]);
-            let Declarator::Binding { value: Some(value), .. } = declarator else { panic!("expected binding") };
-            assert_node!(tree_b, *value, Expression::Binary { left, right, .. } => {
+            let Some(value) = declarator.value else { panic!("expected binding value") };
+            assert_node!(tree_b, value, Expression::Binary { left, right, .. } => {
                 assert_node!(tree_b, *left, Expression::ModuleReference { target_symbol: target_symbol_id, .. } => {
                     let target_symbol = test.symbol_by_id(*target_symbol_id);
                     assert_eq!(target_symbol.target_symbol, Some(a_symbol_id));
@@ -993,16 +993,16 @@ let b = obj.y;
         // let a = obj.x
         assert_node!(tree, a_let, Expression::Let { declarators, .. } => {
             let declarator = tree.get(declarators[0]);
-            let Declarator::Binding { value: Some(value), .. } = declarator else { panic!("expected binding") };
-            assert_node!(tree, *value, Expression::Member { name, .. } => {
+            let Some(value) = declarator.value else { panic!("expected binding value") };
+            assert_node!(tree, value, Expression::Member { name, .. } => {
                 assert_string!(test.program, *name, "x");
             });
         });
         // let b = obj.y
         assert_node!(tree, b_let, Expression::Let { declarators, .. } => {
             let declarator = tree.get(declarators[0]);
-            let Declarator::Binding { value: Some(value), .. } = declarator else { panic!("expected binding") };
-            assert_node!(tree, *value, Expression::Member { name, .. } => {
+            let Some(value) = declarator.value else { panic!("expected binding value") };
+            assert_node!(tree, value, Expression::Member { name, .. } => {
                 assert_string!(test.program, *name, "y");
             });
         });
@@ -1036,8 +1036,8 @@ let a = obj.inner.value;
         // let a = obj.inner.value
         assert_node!(tree, a_let, Expression::Let { declarators, .. } => {
             let declarator = tree.get(declarators[0]);
-            let Declarator::Binding { value: Some(value), .. } = declarator else { panic!("expected binding") };
-            assert_node!(tree, *value, Expression::Member { left, name, .. } => {
+            let Some(value) = declarator.value else { panic!("expected binding value") };
+            assert_node!(tree, value, Expression::Member { left, name, .. } => {
                 assert_string!(test.program, *name, "value");
                 assert_node!(tree, *left, Expression::Member { name: inner_name, .. } => {
                     assert_string!(test.program, *inner_name, "inner");

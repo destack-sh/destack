@@ -1291,59 +1291,49 @@ impl Compiler {
         let ast_declarator = module.ast.tree.get(ast_declarator_id);
         let declarator_id =
             tree.reserve_from_source(NodeType::Declarator, ast_declarator_id.id, scope, parent_id);
-        let declarator = match ast_declarator {
-            ast::Declarator::Binding { pattern, ty, value } => {
-                let pattern = self.bind_pattern(
-                    module,
-                    scope,
-                    export,
-                    *pattern,
-                    Some(declarator_id),
-                    tree,
-                    symbols,
-                    types,
-                );
-                let bound_ty = ty.map(|ty_id| {
-                    self.bind_expression(
-                        module,
-                        scope,
-                        ty_id,
-                        Some(declarator_id),
-                        tree,
-                        symbols,
-                        types,
-                    )
-                });
-                let value = value.map(|v| {
-                    self.bind_expression(
-                        module,
-                        scope,
-                        v,
-                        Some(declarator_id),
-                        tree,
-                        symbols,
-                        types,
-                    )
-                });
-                // set declared type on declarator if type annotation is present
-                if let Some(ty_id) = ty {
-                    let declared_ty = self.bind_expression_to_type(
-                        module,
-                        scope,
-                        *ty_id,
-                        Some(declarator_id),
-                        tree,
-                        symbols,
-                        types,
-                    );
-                    types.set_declared_type(declarator_id.into_global(module.id), declared_ty);
-                }
-                Declarator::Binding {
-                    pattern,
-                    ty: bound_ty,
-                    value,
-                }
-            }
+        let ast::Declarator { pattern, ty, value } = ast_declarator;
+
+        let pattern = self.bind_pattern(
+            module,
+            scope,
+            export,
+            *pattern,
+            Some(declarator_id),
+            tree,
+            symbols,
+            types,
+        );
+        let bound_ty = ty.map(|ty_id| {
+            self.bind_expression(
+                module,
+                scope,
+                ty_id,
+                Some(declarator_id),
+                tree,
+                symbols,
+                types,
+            )
+        });
+        let value = value.map(|v| {
+            self.bind_expression(module, scope, v, Some(declarator_id), tree, symbols, types)
+        });
+        // set declared type on declarator if type annotation is present
+        if let Some(ty_id) = ty {
+            let declared_ty = self.bind_expression_to_type(
+                module,
+                scope,
+                *ty_id,
+                Some(declarator_id),
+                tree,
+                symbols,
+                types,
+            );
+            types.set_declared_type(declarator_id.into_global(module.id), declared_ty);
+        }
+        let declarator = Declarator {
+            pattern,
+            ty: bound_ty,
+            value,
         };
         tree.insert(declarator_id, declarator)
     }

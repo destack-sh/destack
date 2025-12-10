@@ -868,13 +868,13 @@ impl Node for MatchCase {
 /// (a, b) = tuple  // destructuring pattern
 /// ```
 #[derive(Debug, Clone, PartialEq)]
-pub enum Declarator {
-    /// A binding declarator with optional type and value.
-    Binding {
-        pattern: LocalNodeId<Pattern>,
-        ty: Option<LocalNodeId<Expression>>,
-        value: Option<LocalNodeId<Expression>>,
-    },
+pub struct Declarator {
+    /// The pattern to bind (can be a simple identifier or destructuring pattern).
+    pub pattern: LocalNodeId<Pattern>,
+    /// Optional type annotation.
+    pub ty: Option<LocalNodeId<Expression>>,
+    /// Optional value expression.
+    pub value: Option<LocalNodeId<Expression>>,
 }
 
 impl Node for Declarator {
