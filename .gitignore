@@ -91,6 +91,7 @@ dist
 # IDE/Editor
 .idea/
 .vscode-test
+*.code-workspace
 *.gpg
 
 # Infrastructure
