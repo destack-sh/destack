@@ -51,6 +51,13 @@ pub fn print_result(test: &TestCase, result: &TestResult, duration: Duration, ve
         TestResult::Passed => color::green("ok"),
         TestResult::Failed { .. } => color::red("FAILED"),
         TestResult::Skipped { .. } => color::yellow("skipped"),
+        TestResult::Suite { passed, failed, .. } => {
+            if *failed == 0 {
+                color::green(&format!("suite ok ({passed} passed)"))
+            } else {
+                color::yellow(&format!("suite ({passed} passed, {failed} failed)"))
+            }
+        }
     };
 
     let duration_str = if duration.as_millis() > 100 {

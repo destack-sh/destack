@@ -1,6 +1,7 @@
 use crate::{
-    Argument, AssignOperator, Block, Declaration, DeclarationDescriptor, Declarator, DependencyItem,
-    DependencyKind, Expression, LocalNodeId, Mutability, Node, NodeType, Pattern, StringId,
+    Argument, AssignOperator, Block, Declaration, DeclarationDescriptor, Declarator,
+    DependencyItem, DependencyKind, Expression, LocalNodeId, Mutability, Node, NodeType, Pattern,
+    StringId,
 };
 
 /// A Statement is a JS/TS top-level statement in some container/block.

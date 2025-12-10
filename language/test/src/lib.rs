@@ -1,9 +1,5 @@
-//! Destack test infrastructure.
-//!
-//! This crate provides test harnesses and utilities for testing the Destack
-//! compiler, codegen backends, and runtime.
-
 pub mod codegen;
+pub mod conformance;
 pub mod formatter;
 pub mod harness;
 pub mod mdtest;

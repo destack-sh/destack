@@ -9,6 +9,7 @@ _default:
 # install test fixtures
 install-fixtures:
     just resolver/install-fixtures
+    ./test/fixtures/conformance/test262-fetch.sh
 
 # check
 check:

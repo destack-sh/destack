@@ -33,9 +33,7 @@ export interface ImportMetaEnv {
     readonly TEST: boolean,
 }
 
-/// Metadata about the current module and build configuration.
-///
-/// All properties are known at compile time and can be used for:
+/// Metadata about the current module and build configuration:
 /// - Conditional compilation via `if (import.meta.debug) { ... }`
 /// - Platform-specific code via `if (import.meta.platform == "macos") { ... }`
 /// - Dead code elimination when conditions are compile-time constant
