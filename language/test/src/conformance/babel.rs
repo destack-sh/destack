@@ -92,13 +92,20 @@ impl BabelSuite {
     }
 
     fn get_input_file(&self, test_dir: &Path) -> Option<(PathBuf, FileType)> {
+        // check if test is in a tsx or jsx directory (babel enables JSX based on directory)
+        let path_str = test_dir.to_string_lossy();
+        let in_tsx_dir = path_str.contains("/tsx/") || path_str.contains("/tsx-");
+        let in_jsx_dir = path_str.contains("/jsx/") || path_str.contains("/jsx-");
+
         for ext in &["ts", "tsx", "js", "jsx", "mjs"] {
             let input = test_dir.join(format!("input.{ext}"));
             if input.exists() {
                 let file_type = match *ext {
-                    "ts" => FileType::TypeScript,
                     "tsx" => FileType::TypeScriptXml,
+                    "ts" if in_tsx_dir => FileType::TypeScriptXml,
+                    "ts" => FileType::TypeScript,
                     "jsx" => FileType::JavaScriptXml,
+                    "js" if in_jsx_dir => FileType::JavaScriptXml,
                     _ => FileType::JavaScript,
                 };
                 return Some((input, file_type));

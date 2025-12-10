@@ -6,7 +6,7 @@ use std::sync::Arc;
 use destack_ast::TokenType;
 use destack_parser::Parser;
 use destack_source::{
-    File, FileRegistry, FileSystem, FileType, LanguageOptions, MemoryFileSystem, Uri,
+    File, FileRegistry, FileSystem, FileType, LanguageOptions, LanguageType, MemoryFileSystem, Uri,
 };
 use destack_workspace::Program;
 
@@ -36,7 +36,11 @@ pub(super) fn parse_file(
     let cwd = path.parent().unwrap_or(Path::new(".")).to_path_buf();
     let files = Arc::new(FileRegistry::new());
     let fs: Arc<dyn FileSystem> = Arc::new(MemoryFileSystem::new());
-    let program = Arc::new(Program::new(LanguageOptions::default(), cwd, fs, files));
+
+    // set language type based on file type for proper compatibility mode
+    let language_type = LanguageType::from(file_type);
+    let language = LanguageOptions::default().with_type(language_type);
+    let program = Arc::new(Program::new(language, cwd, fs, files));
 
     let uri = Uri::from_path(path);
     let file_id = program.files.next_id();
@@ -74,14 +78,25 @@ pub(super) fn parse_file(
     ParseOutcome::Ok
 }
 
-/// Determine the file type from a path's extension.
+/// Determine the file type from a path's extension and directory context.
 pub(super) fn file_type_from_path(path: &Path) -> FileType {
-    let name = path.to_string_lossy();
-    if name.ends_with(".tsx") {
+    let path_str = path.to_string_lossy();
+
+    // check if test is in a tsx or jsx directory (some suites enable JSX based on directory)
+    let in_tsx_dir = path_str.contains("/tsx/") || path_str.contains("/tsx-");
+    let in_jsx_dir = path_str.contains("/jsx/") || path_str.contains("/jsx-");
+
+    if path_str.ends_with(".tsx") {
         FileType::TypeScriptXml
-    } else if name.ends_with(".ts") {
-        FileType::TypeScript
-    } else if name.ends_with(".jsx") {
+    } else if path_str.ends_with(".ts") {
+        if in_tsx_dir {
+            FileType::TypeScriptXml
+        } else {
+            FileType::TypeScript
+        }
+    } else if path_str.ends_with(".jsx") {
+        FileType::JavaScriptXml
+    } else if in_jsx_dir {
         FileType::JavaScriptXml
     } else {
         FileType::JavaScript

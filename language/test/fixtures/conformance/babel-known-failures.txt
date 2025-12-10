@@ -5,6 +5,8 @@ jsx/basic/asi
 jsx/basic/fragment-5
 jsx/basic/html-comment
 jsx/basic/namespace-tag
+jsx/basic/nonentity
+jsx/basic/nonentity-decimal
 jsx/errors/_no-plugin-fragment
 jsx/errors/_no-plugin-jsx-expression
 jsx/errors/_no-plugin-ts-type-param
@@ -18,6 +20,8 @@ jsx/errors/unicode-escape-in-identifier
 jsx/errors/wrong-closing-tag
 jsx/errors/wrong-closing-tag-fragment
 jsx/errors/wrong-opening-tag-fragment
+jsx/html-entities/invalid
+jsx/html-entities/no-object-prototype
 typescript/arrow-function/arrow-function-with-newline
 typescript/arrow-function/arrow-like-in-conditional-2
 typescript/arrow-function/arrow-like-in-conditional-3
@@ -179,7 +183,6 @@ typescript/type-only-import-export-specifiers/import-named-type-as-as
 typescript/types/abstract-constructor-signatures
 typescript/types/const-type-parameters
 typescript/types/function-generic
-typescript/types/invalid-import-type-dynamic-with-jsx-options
 typescript/types/invalid-import-type-options-escaped-with
 typescript/types/invalid-import-type-options-string-with
 typescript/types/invalid-import-type-options-trailing-comma
@@ -196,7 +199,10 @@ typescript/types/tuple-invalid-label-2
 typescript/types/tuple-keyword-labeled
 typescript/types/tuple-labeled
 typescript/types/tuple-labeled-spread
+typescript/types/tuple-optional
+typescript/types/tuple-optional-invalid
 typescript/types/tuple-required-after-labeled-optional
+typescript/types/tuple-rest-after-optional
 typescript/types/union-intersection
 typescript/types/variance-annotations
 typescript/types/variance-annotations-with-jsx

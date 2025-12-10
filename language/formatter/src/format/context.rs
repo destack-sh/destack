@@ -7,7 +7,7 @@ use destack_ast::{
 use destack_fir::format::{Format, FormatContext, FormatOptions, FormatResult, Formatter};
 use destack_fir::print::PrintOptions;
 use destack_source::{
-    File, FileSourceMap, ImmutableStringPool, IndentStyle, LanguageCompatibility, LanguageOptions,
+    File, FileSourceMap, ImmutableStringPool, IndentStyle, LanguageOptions, LanguageType,
     LineEnding, MultiSpan, Span,
 };
 
@@ -16,9 +16,9 @@ pub type DestackFormatter<'ast, 'buf> = Formatter<'buf, DestackFormatContext<'as
 /// Destack format options.
 #[derive(Debug, Default, PartialEq, Clone)]
 pub struct DestackFormatOptions {
-    /// The compatibility mode.
-    pub compatibility: Option<LanguageCompatibility>,
-    /// The type of line ending to apply to the printed input.  
+    /// The source language type.
+    pub language_type: LanguageType = LanguageType::Destack,
+    /// The type of line ending to apply to the printed input.
     pub line_ending: LineEnding = LineEnding::LineFeed,
     /// The indent style.
     pub indent_style: IndentStyle = IndentStyle::Space,
@@ -32,7 +32,7 @@ impl From<LanguageOptions> for DestackFormatOptions {
     #[inline]
     fn from(options: LanguageOptions) -> Self {
         Self {
-            compatibility: options.compatibility,
+            language_type: options.ty,
             line_ending: options.formatting.line_ending,
             indent_style: options.formatting.indent_style,
             indent_width: options.formatting.indent_width,

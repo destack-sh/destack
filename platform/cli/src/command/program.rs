@@ -5,8 +5,8 @@ use std::thread;
 
 use clap::{Args, ValueEnum};
 use destack_source::{
-    FileRegistry, FileSystem, FormatterOptions, IndentStyle, LanguageMode, LanguageOptions,
-    LineEnding, MemoryFileSystem, PhysicalFileSystem,
+    FileRegistry, FileSystem, FormatterOptions, IndentStyle, LanguageOptions, LineEnding,
+    MemoryFileSystem, PhysicalFileSystem,
 };
 use destack_workspace::Program;
 
@@ -25,25 +25,6 @@ pub enum FileSystemArg {
     Physical,
     /// Use an in-memory file system.
     Memory,
-}
-
-/// The language mode to use.
-#[derive(Clone, Copy, Debug, Default, ValueEnum)]
-pub enum LanguageModeArg {
-    /// Lenient mode with relaxed checking.
-    #[default]
-    Lenient,
-    /// Strict mode with explicit typing.
-    Strict,
-}
-
-impl From<LanguageModeArg> for LanguageMode {
-    fn from(mode: LanguageModeArg) -> Self {
-        match mode {
-            LanguageModeArg::Lenient => LanguageMode::Lenient,
-            LanguageModeArg::Strict => LanguageMode::Strict,
-        }
-    }
 }
 
 /// The indent style to use.
@@ -90,10 +71,6 @@ impl From<LineEndingArg> for LineEnding {
 /// Arguments for configuring language options.
 #[derive(Args, Debug, Clone)]
 pub struct LanguageOptionsArgs {
-    /// The language mode (lenient|strict, default: lenient).
-    #[arg(long = "mode", value_enum)]
-    pub language_mode: Option<LanguageModeArg>,
-
     /// The indent style (tab|space, default: tab).
     #[arg(long = "indent-style", value_enum)]
     pub indent_style: Option<IndentStyleArg>,
@@ -114,11 +91,6 @@ pub struct LanguageOptionsArgs {
 impl From<LanguageOptionsArgs> for LanguageOptions {
     fn from(args: LanguageOptionsArgs) -> Self {
         let mut options = LanguageOptions::default();
-
-        if let Some(mode) = args.language_mode {
-            options.mode = mode.into();
-        }
-
         let mut formatting = FormatterOptions::default();
         if let Some(style) = args.indent_style {
             formatting.indent_style = style.into();

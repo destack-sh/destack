@@ -156,7 +156,15 @@ impl Parser {
     #[inline]
     pub fn peek_unary_prefix_operator(&self) -> ParseResult<UnaryOperator> {
         let token = self.peek()?;
-        UnaryOperator::from_prefix_token(token.token.ty).ok_or(ParseError::unexpected(token.span))
+        let operator = UnaryOperator::from_prefix_token(token.token.ty)
+            .ok_or(ParseError::unexpected(token.span))?;
+
+        // dereference (*x) is not valid in JS/TS compatibility mode
+        if operator == UnaryOperator::Dereference && !self.language.is_destack_compatible() {
+            return Err(ParseError::unexpected(token.span));
+        }
+
+        Ok(operator)
     }
 
     /// Peek a unary postfix operator.
@@ -433,8 +441,7 @@ impl Parser {
 
             // eat leading elementwise operator
             if token_type == TokenType::ElementwiseOr
-                || token_type == TokenType::ElementwiseAnd
-                    && self.language.is_compatible_with_typescript()
+                || token_type == TokenType::ElementwiseAnd && !self.language.is_destack_compatible()
             {
                 self.bump(); // eat elementwise operator
                 let leading_binary_operator = match token_type {
@@ -595,7 +602,9 @@ impl Parser {
                 self.tree.insert(expression, self.get_span_from(start))
             }
             // value (`^` or `^var` or `^T`)
-            else if self.peek_token(TokenType::ElementwiseXor).is_ok() {
+            else if self.peek_token(TokenType::ElementwiseXor).is_ok()
+                && self.language.is_destack_compatible()
+            {
                 self.bump(); // eat ^
                 let mutability = self.eat_mutability_maybe()?;
                 let variance = self.eat_variance_bound_maybe()?;
@@ -610,7 +619,9 @@ impl Parser {
                 self.tree.insert(expression, self.get_span_from(start))
             }
             // reference (`&` or `&var` or `&T`)
-            else if self.peek_token(TokenType::ElementwiseAnd).is_ok() {
+            else if self.peek_token(TokenType::ElementwiseAnd).is_ok()
+                && self.language.is_destack_compatible()
+            {
                 self.bump(); // eat &
                 let mutability = self.eat_mutability_maybe()?;
                 let variance = self.eat_variance_bound_maybe()?;
@@ -1116,7 +1127,7 @@ impl Parser {
                 // maybe or maybe dot (followed by a delimiter/stop, but not preceded by a newline)
                 if self.peek_token(TokenType::Maybe).is_ok()
                     && (self.peek_next_any_stop().is_ok()
-                        && self.language.supports_standalone_maybe()
+                        && self.language.is_destack_compatible()
                         && self.prev_token_type() != TokenType::Newline
                         || self.peek_next_any_close_parenthesis().is_ok()
                         || self.peek_next_token(TokenType::Dot).is_ok()
@@ -1290,6 +1301,7 @@ mod tests {
         PostfixPosition, Property, ScalarLiteral, TypeBinaryOperator, TypeLiteral,
         TypeUnaryOperator, UnaryOperator, VarianceBound,
     };
+    use destack_source::{LanguageOptions, LanguageType};
 
     use crate::{
         TestParser, assert_expression_path, assert_name, assert_node, assert_path, assert_string,
@@ -2218,6 +2230,17 @@ geom.Mesh<2, 4> {
             // x
             assert_expression_path!(parser, parser.tree.get(*right), "x");
         });
+    }
+
+    /// Dereference should fail in JavaScript compatibility mode.
+    #[test]
+    fn test_dereference_fails_in_js_mode() {
+        let options = LanguageOptions::default().with_type(LanguageType::JavaScript);
+        let mut test = TestParser::new_with_options("*x", options);
+        let mut parser = test.prepare();
+        // Should fail to parse *x as dereference in JS mode
+        let result = parser.eat_expression();
+        assert!(result.is_err() || !parser.diagnostics.is_empty());
     }
 
     /// Parse a reference expression.
