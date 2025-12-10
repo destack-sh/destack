@@ -1,15 +1,9 @@
 //! Biome parser conformance tests.
 
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
 
-use destack_parser::Parser;
-use destack_source::{
-    File, FileRegistry, FileSystem, FileType, LanguageOptions, MemoryFileSystem, Uri,
-};
-use destack_workspace::Program;
-
-use super::runner::{ConformanceSuite, SuiteResult, run_conformance_suite};
+use super::parse::{ParseOptions, ParseOutcome, file_type_from_path, parse_file};
+use super::runner::{ConformanceSuite, SuiteResult, TestOutcome, run_conformance_suite};
 use crate::harness::{TestOptions, fixtures_dir};
 
 // pinned version of Biome parser tests
@@ -58,31 +52,6 @@ impl BiomeSuite {
         tests
     }
 
-    fn parse_and_check(&self, path: &Path, content: &str, file_type: FileType) -> bool {
-        let cwd = path.parent().unwrap_or(Path::new(".")).to_path_buf();
-        let files = Arc::new(FileRegistry::new());
-        let fs: Arc<dyn FileSystem> = Arc::new(MemoryFileSystem::new());
-        let program = Arc::new(Program::new(LanguageOptions::default(), cwd, fs, files));
-
-        let uri = Uri::from_path(path);
-        let file_id = program.files.next_id();
-        let name = path.file_name().unwrap().to_string_lossy().to_string();
-        let file = File::from_text(
-            file_id,
-            name,
-            uri,
-            Some(path.to_path_buf()),
-            file_type,
-            content.to_string(),
-        );
-        program.files.insert(file);
-        let file = program.files.get(file_id);
-
-        let mut parser = Parser::lex_file(file, program.language);
-        let _ = parser.parse();
-
-        !parser.diagnostics.is_empty()
-    }
 }
 
 impl Default for BiomeSuite {
@@ -121,30 +90,26 @@ impl ConformanceSuite for BiomeSuite {
         tests
     }
 
-    fn run_test(&self, name: &str) -> bool {
+    fn run_test(&self, name: &str) -> TestOutcome {
         let path = self.root.join(name);
 
         let content = match std::fs::read_to_string(&path) {
             Ok(s) => s,
-            Err(_) => return false,
+            Err(_) => return TestOutcome::Failed,
         };
 
-        // determine file type from extension
-        let file_type = if name.ends_with(".tsx") {
-            FileType::TypeScriptXml
-        } else if name.ends_with(".ts") {
-            FileType::TypeScript
-        } else if name.ends_with(".jsx") {
-            FileType::JavaScriptXml
-        } else {
-            FileType::JavaScript
-        };
+        let file_type = file_type_from_path(&path);
+        let parse_outcome = parse_file(&path, &content, file_type, ParseOptions::default());
 
         // ok/ should pass, error/ should fail
         let should_fail = name.starts_with("error/");
-        let has_errors = self.parse_and_check(&path, &content, file_type);
 
-        if should_fail { has_errors } else { !has_errors }
+        match (should_fail, parse_outcome) {
+            (true, ParseOutcome::Error) => TestOutcome::Passed,
+            (true, ParseOutcome::Ok) => TestOutcome::Failed,
+            (false, ParseOutcome::Ok) => TestOutcome::Passed,
+            (false, ParseOutcome::Error) => TestOutcome::Failed,
+        }
     }
 
     fn download_instructions(&self) -> String {

@@ -13,6 +13,15 @@ use crate::harness::print::color;
 /// Per-test timeout in seconds.
 const TEST_TIMEOUT_SECS: u64 = 5;
 
+/// Result of running a single conformance test.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TestOutcome {
+    /// Test passed (actual result matched expected).
+    Passed,
+    /// Test failed (actual result did not match expected).
+    Failed,
+}
+
 /// A conformance test suite (e.g., test262, typescript).
 pub trait ConformanceSuite: Send + Sync + Clone {
     /// Name of the suite (for display).
@@ -27,15 +36,15 @@ pub trait ConformanceSuite: Send + Sync + Clone {
     /// Discover all test names in this suite.
     fn discover_tests(&self) -> Vec<String>;
 
-    /// Run a single test, return true if passed.
-    fn run_test(&self, name: &str) -> bool;
+    /// Run a single test, return whether it passed or failed.
+    fn run_test(&self, name: &str) -> TestOutcome;
 
     /// Instructions for downloading the suite.
     fn download_instructions(&self) -> String;
 }
 
-/// Result of running a single test with timeout.
-enum TestOutcome {
+/// Internal result including timeout state.
+enum TestResult {
     Passed,
     Failed,
     TimedOut,
@@ -46,7 +55,7 @@ fn run_test_with_timeout<S: ConformanceSuite + 'static>(
     suite: &S,
     name: &str,
     timeout: Duration,
-) -> TestOutcome {
+) -> TestResult {
     let suite = suite.clone();
     let name = name.to_string();
 
@@ -58,10 +67,10 @@ fn run_test_with_timeout<S: ConformanceSuite + 'static>(
     });
 
     match rx.recv_timeout(timeout) {
-        Ok(true) => TestOutcome::Passed,
-        Ok(false) => TestOutcome::Failed,
-        Err(mpsc::RecvTimeoutError::Timeout) => TestOutcome::TimedOut,
-        Err(mpsc::RecvTimeoutError::Disconnected) => TestOutcome::Failed,
+        Ok(TestOutcome::Passed) => TestResult::Passed,
+        Ok(TestOutcome::Failed) => TestResult::Failed,
+        Err(mpsc::RecvTimeoutError::Timeout) => TestResult::TimedOut,
+        Err(mpsc::RecvTimeoutError::Disconnected) => TestResult::Failed,
     }
 }
 
@@ -238,20 +247,20 @@ pub fn run_conformance_suite<S: ConformanceSuite + 'static>(
 
     for (name, outcome) in results {
         match outcome {
-            TestOutcome::Passed => {
+            TestResult::Passed => {
                 passed += 1;
                 if known_failures.contains(&name) {
                     fixed.push(name);
                 }
             }
-            TestOutcome::Failed => {
+            TestResult::Failed => {
                 failed += 1;
                 if !known_failures.contains(&name) {
                     regressions.push(name.clone());
                 }
                 current_failures.insert(name);
             }
-            TestOutcome::TimedOut => {
+            TestResult::TimedOut => {
                 timedout += 1;
                 timeouts.push(name.clone());
                 if !known_failures.contains(&name) {

@@ -1,15 +1,11 @@
 //! Babel parser conformance tests.
 
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
 
-use destack_parser::Parser;
-use destack_source::{
-    File, FileRegistry, FileSystem, FileType, LanguageOptions, MemoryFileSystem, Uri,
-};
-use destack_workspace::Program;
+use destack_source::FileType;
 
-use super::runner::{ConformanceSuite, SuiteResult, run_conformance_suite};
+use super::parse::{ParseOptions, ParseOutcome, parse_file};
+use super::runner::{ConformanceSuite, SuiteResult, TestOutcome, run_conformance_suite};
 use crate::harness::{TestOptions, fixtures_dir};
 
 // pinned version of babel parser tests
@@ -110,32 +106,6 @@ impl BabelSuite {
         }
         None
     }
-
-    fn parse_and_check(&self, path: &Path, content: &str, file_type: FileType) -> bool {
-        let cwd = path.parent().unwrap_or(Path::new(".")).to_path_buf();
-        let files = Arc::new(FileRegistry::new());
-        let fs: Arc<dyn FileSystem> = Arc::new(MemoryFileSystem::new());
-        let program = Arc::new(Program::new(LanguageOptions::default(), cwd, fs, files));
-
-        let uri = Uri::from_path(path);
-        let file_id = program.files.next_id();
-        let name = path.file_name().unwrap().to_string_lossy().to_string();
-        let file = File::from_text(
-            file_id,
-            name,
-            uri,
-            Some(path.to_path_buf()),
-            file_type,
-            content.to_string(),
-        );
-        program.files.insert(file);
-        let file = program.files.get(file_id);
-
-        let mut parser = Parser::lex_file(file, program.language);
-        let _ = parser.parse();
-
-        !parser.diagnostics.is_empty()
-    }
 }
 
 impl Default for BabelSuite {
@@ -171,22 +141,27 @@ impl ConformanceSuite for BabelSuite {
         tests
     }
 
-    fn run_test(&self, name: &str) -> bool {
+    fn run_test(&self, name: &str) -> TestOutcome {
         let test_dir = self.root.join(name);
 
         let Some((input_path, file_type)) = self.get_input_file(&test_dir) else {
-            return false;
+            return TestOutcome::Failed;
         };
 
         let content = match std::fs::read_to_string(&input_path) {
             Ok(s) => s,
-            Err(_) => return false,
+            Err(_) => return TestOutcome::Failed,
         };
 
+        let parse_outcome = parse_file(&input_path, &content, file_type, ParseOptions::default());
         let should_fail = self.should_throw(&test_dir);
-        let has_errors = self.parse_and_check(&input_path, &content, file_type);
 
-        if should_fail { has_errors } else { !has_errors }
+        match (should_fail, parse_outcome) {
+            (true, ParseOutcome::Error) => TestOutcome::Passed,
+            (true, ParseOutcome::Ok) => TestOutcome::Failed,
+            (false, ParseOutcome::Ok) => TestOutcome::Passed,
+            (false, ParseOutcome::Error) => TestOutcome::Failed,
+        }
     }
 
     fn download_instructions(&self) -> String {
