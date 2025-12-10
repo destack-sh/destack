@@ -11,6 +11,9 @@ Tests for arithmetic binary operators.
 ```ds
 const x = 1 + 2;
 x satisfies 3;
+x satisfies int;
+x satisfies float;
+x satisfies number;
 ```
 
 ## Subtraction
@@ -22,6 +25,9 @@ x satisfies 3;
 ```ds
 const x = 5 - 3;
 x satisfies 2;
+x satisfies int;
+x satisfies float;
+x satisfies number;
 ```
 
 ## Multiplication
@@ -33,6 +39,9 @@ x satisfies 2;
 ```ds
 const x = 2 * 3;
 x satisfies 6;
+x satisfies int;
+x satisfies float;
+x satisfies number;
 ```
 
 ## Division
@@ -44,4 +53,7 @@ x satisfies 6;
 ```ds
 const x = 10 / 2;
 x satisfies 5;
+x satisfies int;
+x satisfies float;
+x satisfies number;
 ```

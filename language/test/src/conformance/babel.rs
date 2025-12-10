@@ -27,7 +27,10 @@ impl BabelSuite {
     pub fn new() -> Self {
         let conformance_dir = fixtures_dir().join("conformance");
         let root = conformance_dir.join("babel");
-        Self { root, conformance_dir }
+        Self {
+            root,
+            conformance_dir,
+        }
     }
 
     fn discover_recursive(&self, dir: &Path, prefix: &str) -> Vec<String> {
@@ -40,11 +43,9 @@ impl BabelSuite {
                     // check if this directory is a test case (has input.*)
                     let has_input = std::fs::read_dir(&path)
                         .map(|entries| {
-                            entries.flatten().any(|e| {
-                                e.file_name()
-                                    .to_string_lossy()
-                                    .starts_with("input.")
-                            })
+                            entries
+                                .flatten()
+                                .any(|e| e.file_name().to_string_lossy().starts_with("input."))
                         })
                         .unwrap_or(false);
 
@@ -84,10 +85,10 @@ impl BabelSuite {
         // also check parent directories for options.json
         if let Some(parent) = test_dir.parent() {
             let parent_options = parent.join("options.json");
-            if let Ok(content) = std::fs::read_to_string(&parent_options) {
-                if content.contains("\"throws\"") {
-                    return true;
-                }
+            if let Ok(content) = std::fs::read_to_string(&parent_options)
+                && content.contains("\"throws\"")
+            {
+                return true;
             }
         }
 
@@ -163,9 +164,7 @@ impl ConformanceSuite for BabelSuite {
         for category in &["typescript", "jsx", "flow"] {
             let category_dir = self.root.join(category);
             if category_dir.exists() {
-                tests.extend(
-                    self.discover_recursive(&category_dir, category)
-                );
+                tests.extend(self.discover_recursive(&category_dir, category));
             }
         }
 
@@ -187,11 +186,7 @@ impl ConformanceSuite for BabelSuite {
         let should_fail = self.should_throw(&test_dir);
         let has_errors = self.parse_and_check(&input_path, &content, file_type);
 
-        if should_fail {
-            has_errors
-        } else {
-            !has_errors
-        }
+        if should_fail { has_errors } else { !has_errors }
     }
 
     fn download_instructions(&self) -> String {

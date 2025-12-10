@@ -1260,7 +1260,6 @@ fn test_lex_unterminated_single_quote_is_marked() {
     let (tokens, _) = Lexer::lex(file_id, "'abc", language);
     let tokens: Vec<Token> = tokens.into_iter().map(|t| t.token).collect();
 
-    // Find the string literal token
     let string_token = tokens.iter().find(|t| t.ty == TokenType::Literal);
     assert!(string_token.is_some(), "should have a literal token");
 
@@ -1272,6 +1271,6 @@ fn test_lex_unterminated_single_quote_is_marked() {
         Some(LiteralType::Character { is_terminated, .. }) => {
             assert!(!is_terminated, "character should be marked as unterminated");
         }
-        _ => panic!("expected string or character literal, got {:?}", lit),
+        _ => panic!("expected string or character literal, got {lit:?}"),
     }
 }

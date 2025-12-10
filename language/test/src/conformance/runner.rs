@@ -227,7 +227,7 @@ pub fn run_conformance_suite<S: ConformanceSuite + 'static>(
         })
         .collect();
 
-    // aggregate results 
+    // aggregate results
     let mut passed = 0;
     let mut failed = 0;
     let mut timedout = 0;
@@ -320,9 +320,18 @@ pub fn print_summary(results: &[SuiteResult]) {
     };
 
     println!();
-    println!("{}", color::bold("═══════════════════════════════════════════════════════════════"));
-    println!("{}", color::bold("                      CONFORMANCE SUMMARY"));
-    println!("{}", color::bold("═══════════════════════════════════════════════════════════════"));
+    println!(
+        "{}",
+        color::bold("═══════════════════════════════════════════════════════════════")
+    );
+    println!(
+        "{}",
+        color::bold("                      CONFORMANCE SUMMARY")
+    );
+    println!(
+        "{}",
+        color::bold("═══════════════════════════════════════════════════════════════")
+    );
     println!();
 
     // header
@@ -335,7 +344,7 @@ pub fn print_summary(results: &[SuiteResult]) {
     // rows - pad values before coloring to maintain alignment
     for r in results {
         let rate = r.result.pass_rate();
-        let rate_str = format!("{:>6.1}%", rate);
+        let rate_str = format!("{rate:>6.1}%");
         let rate_colored = if rate >= 90.0 {
             color::green(&rate_str)
         } else if rate >= 50.0 {
@@ -360,7 +369,7 @@ pub fn print_summary(results: &[SuiteResult]) {
 
     // total row
     println!("  {}", "─".repeat(52));
-    let total_rate_str = format!("{:>6.1}%", overall_rate);
+    let total_rate_str = format!("{overall_rate:>6.1}%");
     let total_rate_colored = if overall_rate >= 90.0 {
         color::green(&total_rate_str)
     } else if overall_rate >= 50.0 {
@@ -370,7 +379,7 @@ pub fn print_summary(results: &[SuiteResult]) {
     };
 
     let total_label = format!("{:10}", "TOTAL");
-    let total_passed_str = format!("{:>8}", total_passed);
+    let total_passed_str = format!("{total_passed:>8}");
     let total_failed_str = format!("{:>8}", total_failed + total_timedout);
 
     println!(
@@ -386,7 +395,10 @@ pub fn print_summary(results: &[SuiteResult]) {
     // timing
     println!(
         "  {}",
-        color::dim(&format!("completed in {:.2}s", total_duration.as_secs_f64()))
+        color::dim(&format!(
+            "completed in {:.2}s",
+            total_duration.as_secs_f64()
+        ))
     );
 
     // final verdict
