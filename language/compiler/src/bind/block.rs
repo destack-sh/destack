@@ -29,9 +29,6 @@ impl Compiler {
             (scope_id, LocalScopeMark::end()),
             parent_id,
         );
-        let label = ast_block
-            .label
-            .map(|label| self.program.strings.intern_from(&module.ast.strings, label));
         let expressions = ast_block
             .expressions
             .iter()
@@ -50,7 +47,6 @@ impl Compiler {
         let block_id = tree.insert(
             block_id,
             Block {
-                label,
                 expressions,
                 scope: scope_id,
             },
