@@ -115,7 +115,7 @@ impl Parser {
             self.eat_token(TokenType::CloseParenthesis)?;
 
             // body
-            let body_id = self.eat_block()?;
+            let body_id = self.eat_block_or_statement()?;
 
             // for
             let for_id = self.tree.insert(
@@ -164,7 +164,7 @@ impl Parser {
             }
 
             // body
-            let body_id = self.eat_block()?;
+            let body_id = self.eat_block_or_statement()?;
 
             // for
             let for_id = self.tree.insert(
@@ -242,7 +242,7 @@ impl Parser {
                 })?;
 
             // body
-            let body_id = self.eat_block()?;
+            let body_id = self.eat_block_or_statement()?;
 
             // while
             let while_id = self.tree.insert(

@@ -13,8 +13,23 @@ impl Parser {
             return self.eat_block();
         }
 
-        // otherwise, eat a single statement and wrap it in a block
         let start = self.mark();
+
+        // empty statement (just semicolon, e.g., `for (x of y);`)
+        if self.peek_token(TokenType::Semicolon).is_ok() {
+            self.bump();
+            let block_id = self.tree.insert(
+                Block {
+                    format: BlockFormat::Implicit,
+                    label: None,
+                    expressions: vec![],
+                },
+                self.get_span_from(start),
+            );
+            return Ok(block_id);
+        }
+
+        // otherwise, eat a single statement and wrap it in a block
         let expression_id = self.with_options(self.options.in_statement_position(), |parser| {
             parser.eat_expression()
         })?;
