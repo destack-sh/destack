@@ -1178,3 +1178,100 @@ fn test_lex_nested_tree_in_attr() {
         "}} after <IconLink /> should be CloseBrace, not TreeString"
     );
 }
+
+/// Unterminated single-quoted string at EOF should not hang.
+#[test]
+fn test_lex_unterminated_single_quote_eof() {
+    let file_id = FileId::new(0);
+    let language = LanguageOptions::default();
+    let (tokens, _) = Lexer::lex(file_id, "'", language);
+    let tokens: Vec<Token> = tokens.into_iter().map(|t| t.token).collect();
+
+    // Should produce an unterminated string token, not hang
+    assert!(tokens.len() >= 2, "should have at least string token + EOF");
+    assert_eq!(tokens.last().unwrap().ty, TokenType::End);
+}
+
+/// Unterminated single-quoted string with escape at EOF should not hang.
+#[test]
+fn test_lex_unterminated_single_quote_with_escape_eof() {
+    let file_id = FileId::new(0);
+    let language = LanguageOptions::default();
+    let (tokens, _) = Lexer::lex(file_id, r"'\x", language);
+    let tokens: Vec<Token> = tokens.into_iter().map(|t| t.token).collect();
+
+    assert!(tokens.len() >= 2, "should have at least string token + EOF");
+    assert_eq!(tokens.last().unwrap().ty, TokenType::End);
+}
+
+/// Unterminated single-quoted string with hex escape at EOF should not hang.
+#[test]
+fn test_lex_unterminated_single_quote_hex_escape() {
+    let file_id = FileId::new(0);
+    let language = LanguageOptions::default();
+    let (tokens, _) = Lexer::lex(file_id, r"'\x1", language);
+    let tokens: Vec<Token> = tokens.into_iter().map(|t| t.token).collect();
+
+    assert!(tokens.len() >= 2, "should have at least string token + EOF");
+    assert_eq!(tokens.last().unwrap().ty, TokenType::End);
+}
+
+/// Unterminated single-quoted string with octal escape at EOF should not hang.
+#[test]
+fn test_lex_unterminated_single_quote_octal_escape() {
+    let file_id = FileId::new(0);
+    let language = LanguageOptions::default();
+    let (tokens, _) = Lexer::lex(file_id, r"'\03", language);
+    let tokens: Vec<Token> = tokens.into_iter().map(|t| t.token).collect();
+
+    assert!(tokens.len() >= 2, "should have at least string token + EOF");
+    assert_eq!(tokens.last().unwrap().ty, TokenType::End);
+}
+
+/// Single quote followed by newline should not hang.
+#[test]
+fn test_lex_unterminated_single_quote_newline() {
+    let file_id = FileId::new(0);
+    let language = LanguageOptions::default();
+    let (tokens, _) = Lexer::lex(file_id, "'\n", language);
+    let tokens: Vec<Token> = tokens.into_iter().map(|t| t.token).collect();
+
+    assert!(tokens.len() >= 2, "should have tokens");
+    assert_eq!(tokens.last().unwrap().ty, TokenType::End);
+}
+
+/// Unterminated single quote in parentheses should not hang.
+#[test]
+fn test_lex_unterminated_single_quote_in_parens() {
+    let file_id = FileId::new(0);
+    let language = LanguageOptions::default();
+    let (tokens, _) = Lexer::lex(file_id, "(')", language);
+    let tokens: Vec<Token> = tokens.into_iter().map(|t| t.token).collect();
+
+    assert!(tokens.len() >= 2, "should have tokens");
+    assert_eq!(tokens.last().unwrap().ty, TokenType::End);
+}
+
+/// Verify unterminated strings are marked as such.
+#[test]
+fn test_lex_unterminated_single_quote_is_marked() {
+    let file_id = FileId::new(0);
+    let language = LanguageOptions::default();
+    let (tokens, _) = Lexer::lex(file_id, "'abc", language);
+    let tokens: Vec<Token> = tokens.into_iter().map(|t| t.token).collect();
+
+    // Find the string literal token
+    let string_token = tokens.iter().find(|t| t.ty == TokenType::Literal);
+    assert!(string_token.is_some(), "should have a literal token");
+
+    let lit = string_token.unwrap().literal;
+    match lit {
+        Some(LiteralType::String { is_terminated }) => {
+            assert!(!is_terminated, "string should be marked as unterminated");
+        }
+        Some(LiteralType::Character { is_terminated, .. }) => {
+            assert!(!is_terminated, "character should be marked as unterminated");
+        }
+        _ => panic!("expected string or character literal, got {:?}", lit),
+    }
+}
