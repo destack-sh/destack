@@ -117,7 +117,7 @@ impl Compiler {
                 );
                 tree.insert(
                     left_id,
-                    Expression::UnresolvedAbsolutePath {
+                    Expression::UnresolvedPath {
                         path,
                         static_arguments: None,
                     },

@@ -343,9 +343,9 @@ pub trait Node: Sized {
 
     /// Whether this node is lexically resolved (ignoring child nodes).
     ///
-    /// Resolution is name resolution - binding names to symbols. A node is resolved
+    /// Resolution is name resolution: binding names to symbols. A node is resolved
     /// when all its name references have been bound to their target symbols.
-    /// For example, `UnresolvedAbsolutePath` becomes `LocalReference` after resolution.
+    /// For example, `UnresolvedPath` becomes `LocalReference` or `Member` after resolution.
     fn is_resolved(&self) -> bool {
         true // most nodes don't need resolution
     }

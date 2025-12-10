@@ -1095,7 +1095,6 @@ let x: number = getNumber();
     }
 
     /// Resolve member access on object literal to field type.
-    /// NOTE: uses (obj).x syntax to force Expression::Member instead of Path.
     #[test]
     fn test_member_access_object_field() {
         let test = TestProgram::memory_sequential();
@@ -1103,8 +1102,8 @@ let x: number = getNumber();
             "test.ds",
             r#"
 let obj = { x: 42, y: "hello" };
-let a = (obj).x;
-let b = (obj).y;
+let a = obj.x;
+let b = obj.y;
 "#,
         );
         test.analyze_module(module_id);
@@ -1113,7 +1112,6 @@ let b = (obj).y;
     }
 
     /// Resolve member access across multiple fields.
-    /// NOTE: uses (obj).x syntax to force Expression::Member.
     #[test]
     fn test_member_access_multiple_fields() {
         let test = TestProgram::memory_sequential();
@@ -1121,9 +1119,9 @@ let b = (obj).y;
             "test.ds",
             r#"
 let obj = { x: 42, y: "hello", z: true };
-let a = (obj).x;
-let b = (obj).y;
-let c = (obj).z;
+let a = obj.x;
+let b = obj.y;
+let c = obj.z;
 "#,
         );
         test.analyze_module(module_id);
@@ -1132,7 +1130,6 @@ let c = (obj).z;
     }
 
     /// Resolve chained member access on nested objects.
-    /// NOTE: uses parentheses to force Expression::Member.
     #[test]
     fn test_member_access_chained() {
         let test = TestProgram::memory_sequential();
@@ -1140,7 +1137,7 @@ let c = (obj).z;
             "test.ds",
             r#"
 let obj = { inner: { value: 42 } };
-let a = ((obj).inner).value;
+let a = obj.inner.value;
 "#,
         );
         test.analyze_module(module_id);

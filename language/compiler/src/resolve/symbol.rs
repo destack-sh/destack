@@ -1,6 +1,7 @@
 use destack_dir::{
     Argument, Expression, GlobalNodeIdAny, GlobalSymbolId, LocalNodeId, LocalScopeId,
-    LocalScopeMark, LocalSymbolId, Path, Scope, ScopeKind, StaticKey, SymbolTable,
+    LocalScopeMark, LocalSymbolId, NodeTree, NodeType, Path, Scope, ScopeKind, StaticKey,
+    SymbolKind, SymbolTable,
 };
 use destack_workspace::Module;
 
@@ -45,7 +46,9 @@ impl Compiler {
         })
     }
 
-    /// Resolve a sub path in a scope.
+    /// Resolve a relative path starting from a symbol.
+    /// Returns the resolved symbol and any remaining path segments that couldn't be resolved
+    /// (e.g., when hitting a non-namespace symbol with more segments to go).
     pub(super) fn resolve_relative_symbol(
         &self,
         module: &Module,
@@ -55,12 +58,18 @@ impl Compiler {
         symbols: &SymbolTable,
     ) -> ResolveResult<(LocalSymbolId, Option<Path>)> {
         let mut current_symbol_id = symbol_id;
-        let mut remaining_path = path.clone();
+        let segments = &path.segments;
 
-        // resolve path segments
-        while let Some(segment) = remaining_path.segments.pop() {
-            let key = StaticKey::Name(segment);
+        for (i, &segment) in segments.iter().enumerate() {
             let symbol = symbols.get_symbol(current_symbol_id);
+
+            // stop traversing when we hit a non-namespace symbol
+            if symbol.kind != SymbolKind::Namespace {
+                let remaining = path.slice(i..);
+                return Ok((current_symbol_id, Some(remaining)));
+            }
+
+            let key = StaticKey::Name(segment);
             let scope = symbols.get_scope_by_id(symbol.scope.0);
             if let Some(found_symbol_id) = scope.find(key) {
                 current_symbol_id = found_symbol_id;
@@ -74,23 +83,21 @@ impl Compiler {
             }
         }
 
-        // return symbol and remainder (if any)
-        if remaining_path.segments.is_empty() {
-            Ok((current_symbol_id, None))
-        } else {
-            Ok((current_symbol_id, Some(remaining_path)))
-        }
+        Ok((current_symbol_id, None))
     }
 
     /// Resolve an absolute path. Tries to resolve builtins if the path root segment couldn't be resolved.
+    /// For non-namespace symbols with remaining path segments, creates Member expression chains.
     pub(super) fn resolve_absolute_path(
         &self,
         module: &Module,
+        expression_id: LocalNodeId<Expression>,
         node: GlobalNodeIdAny,
         scope: (LocalScopeId, &Scope, LocalScopeMark),
         path: &Path,
         static_arguments: Option<Vec<LocalNodeId<Argument>>>,
         symbols: &SymbolTable,
+        tree: &mut NodeTree,
     ) -> ResolveResult<Expression> {
         let first_segment = path.first_segment().expect("path is empty in {node:?}");
 
@@ -102,61 +109,179 @@ impl Compiler {
             StaticKey::Name(first_segment),
             symbols,
         )?;
-        let remaining_path = path.slice(1..);
-
-        // resolve remaining path
-        let (symbol_id, remaining_path) =
-            self.resolve_relative_symbol(module, node, symbol_id, &remaining_path, symbols)?;
-        if let Some(remaining_path) = remaining_path {
-            Ok(Expression::UnresolvedRelativePath {
-                path: path.clone(),
-                target_symbol: symbol_id,
-                remaining_path,
-                static_arguments,
-            })
-        } else {
-            self.resolve_symbol_to_expression(
+        let remaining_segments = &path.segments[1..];
+        if remaining_segments.is_empty() {
+            // simple case: just a single-segment path like `obj`
+            return self.resolve_symbol_to_expression(
                 module,
                 node,
                 symbol_id,
                 path,
                 static_arguments,
                 symbols,
-            )
+            );
         }
+
+        // traverse remaining segments for namespace symbols
+        let symbol = symbols.get_symbol(symbol_id);
+        if symbol.kind == SymbolKind::Namespace {
+            let remaining_path = path.slice(1..);
+            match self.resolve_relative_symbol(module, node, symbol_id, &remaining_path, symbols) {
+                // fully resolved relative symbol
+                Ok((resolved_id, None)) => {
+                    return self.resolve_symbol_to_expression(
+                        module,
+                        node,
+                        resolved_id,
+                        path,
+                        static_arguments,
+                        symbols,
+                    );
+                }
+                // partial resolution: namespace traversal found a non-namespace symbol
+                // remaining segments should become Member chain
+                Ok((resolved_id, Some(remaining))) => {
+                    let resolved_path = path.slice(0..path.segments.len() - remaining.segments.len());
+                    return self.build_member_chain_from_symbol(
+                        module,
+                        node,
+                        expression_id,
+                        resolved_id,
+                        &resolved_path,
+                        &remaining,
+                        static_arguments,
+                        symbols,
+                        tree,
+                    );
+                }
+                Err(e) => return Err(e),
+            }
+        }
+
+        // non-namespace symbol: remaining segments become Member chain
+        let root_path = Path {
+            segments: vec![first_segment].into(),
+        };
+        let root_expr = self.resolve_symbol_to_expression(
+            module, node, symbol_id, &root_path,
+            None, // static_arguments go on the final member
+            symbols,
+        )?;
+
+        // get scope info from the original expression
+        let original_scope = tree.get_scope(expression_id);
+
+        // create a new node for the root reference (don't reuse expression_id to avoid cycles)
+        let root_node_id = tree.reserve_from(
+            NodeType::Expression,
+            expression_id.into_any(),
+            original_scope,
+            Some(expression_id.into_any()),
+        );
+        tree.insert(root_node_id, root_expr);
+        let mut current_id: LocalNodeId<Expression> = LocalNodeId::new(root_node_id.id);
+
+        // create Member chain for remaining segments
+        for (i, &segment) in remaining_segments.iter().enumerate() {
+            let is_last = i == remaining_segments.len() - 1;
+
+            // member (with static arguments if last segment)
+            let member_static_args = if is_last {
+                static_arguments.clone()
+            } else {
+                None
+            };
+            let member_expression = Expression::Member {
+                left: current_id,
+                name: segment,
+                static_arguments: member_static_args,
+            };
+
+            // return the final member expression (will replace original node)
+            if is_last {
+                return Ok(member_expression);
+            }
+            // create intermediate member node
+            else {
+                let new_node_id = tree.reserve_from(
+                    NodeType::Expression,
+                    expression_id.into_any(),
+                    original_scope,
+                    Some(expression_id.into_any()),
+                );
+                tree.insert(new_node_id, member_expression);
+                current_id = LocalNodeId::new(new_node_id.id);
+            }
+        }
+
+        unreachable!("remaining_segments is not empty")
     }
 
-    /// Resolve a relative path.
-    pub(super) fn resolve_relative_path(
+    /// Build a Member expression chain from a resolved symbol with remaining path segments.
+    fn build_member_chain_from_symbol(
         &self,
         module: &Module,
         node: GlobalNodeIdAny,
+        expression_id: LocalNodeId<Expression>,
         symbol_id: LocalSymbolId,
-        path: &Path,
+        resolved_path: &Path,
         remaining_path: &Path,
         static_arguments: Option<Vec<LocalNodeId<Argument>>>,
         symbols: &SymbolTable,
+        tree: &mut NodeTree,
     ) -> ResolveResult<Expression> {
-        // resolve relative symbol
-        let (symbol_id, remaining_path) =
-            self.resolve_relative_symbol(module, node, symbol_id, remaining_path, symbols)?;
-        if let Some(remaining_path) = remaining_path {
-            Ok(Expression::UnresolvedRelativePath {
-                path: path.clone(),
-                target_symbol: symbol_id,
-                remaining_path,
-                static_arguments,
-            })
-        } else {
-            self.resolve_symbol_to_expression(
-                module,
-                node,
-                symbol_id,
-                path,
-                static_arguments,
-                symbols,
-            )
+        // create root expression from the resolved symbol
+        let root_expr = self.resolve_symbol_to_expression(
+            module,
+            node,
+            symbol_id,
+            resolved_path,
+            None, // static_arguments go on the final member
+            symbols,
+        )?;
+
+        let original_scope = tree.get_scope(expression_id);
+
+        // create a new node for the root reference
+        let root_node_id = tree.reserve_from(
+            NodeType::Expression,
+            expression_id.into_any(),
+            original_scope,
+            Some(expression_id.into_any()),
+        );
+        tree.insert(root_node_id, root_expr);
+        let mut current_id: LocalNodeId<Expression> = LocalNodeId::new(root_node_id.id);
+
+        // create Member chain for remaining segments
+        let segments = &remaining_path.segments;
+        for (i, &segment) in segments.iter().enumerate() {
+            let is_last = i == segments.len() - 1;
+            let member_static_args = if is_last {
+                static_arguments.clone()
+            } else {
+                None
+            };
+            let member_expression = Expression::Member {
+                left: current_id,
+                name: segment,
+                static_arguments: member_static_args,
+            };
+
+            if is_last {
+                return Ok(member_expression);
+            } else {
+                let new_node_id = tree.reserve_from(
+                    NodeType::Expression,
+                    expression_id.into_any(),
+                    original_scope,
+                    Some(expression_id.into_any()),
+                );
+                tree.insert(new_node_id, member_expression);
+                current_id = LocalNodeId::new(new_node_id.id);
+            }
         }
+
+        unreachable!("remaining_path is not empty")
     }
 
     /// Resolve a resolved symbol to an expression.
@@ -281,7 +406,7 @@ impl Compiler {
 mod tests {
     use destack_dir::{Expression, Pattern, ScalarLiteral};
 
-    use crate::{TestProgram, assert_node};
+    use crate::{TestProgram, assert_node, assert_string};
 
     /// Resolve symbols at top level in a single module.
     #[test]
@@ -813,5 +938,73 @@ let sum = VALUE_A + RENAMED_B + BaseDefault + BaseNS.VALUE_A + DefaultFromBase +
             base_import.target_symbol.is_some(),
             "Base from 'export * as Base' should have target_symbol"
         );
+    }
+
+    /// Resolve path expressions like obj.x to Member expressions.
+    #[test]
+    fn test_resolve_path_to_member() {
+        let test = TestProgram::memory_sequential();
+        let module_id = test.register_module(
+            "test.ds",
+            r#"
+let obj = { x: 42, y: "hello" };
+let a = obj.x;
+let b = obj.y;
+"#,
+        );
+        test.resolve_module(module_id);
+        test.compile_dump_clean();
+
+        let module = test.program.modules.get(module_id);
+        let module = module.read();
+        let tree = module.dir.tree.read();
+        let (_a_symbol_id, a_node) = test.resolve_to_node::<Pattern>("test.ds", "a").unwrap();
+        let a_let = tree.get_parent(a_node.id).unwrap().into_typed::<Expression>();
+        let (_b_symbol_id, b_node) = test.resolve_to_node::<Pattern>("test.ds", "b").unwrap();
+        let b_let = tree.get_parent(b_node.id).unwrap().into_typed::<Expression>();
+
+        // let a = obj.x
+        assert_node!(tree, a_let, Expression::Let { value: Some(value), .. } => {
+            assert_node!(tree, *value, Expression::Member { name, .. } => {
+                assert_string!(test.program, *name, "x");
+            });
+        });
+        // let b = obj.y
+        assert_node!(tree, b_let, Expression::Let { value: Some(value), .. } => {
+            assert_node!(tree, *value, Expression::Member { name, .. } => {
+                assert_string!(test.program, *name, "y");
+            });
+        });
+    }
+
+    /// Resolve chained member access like obj.inner.value.
+    #[test]
+    fn test_resolve_chained_member_access() {
+        let test = TestProgram::memory_sequential();
+        let module_id = test.register_module(
+            "test.ds",
+            r#"
+let obj = { inner: { value: 42 } };
+let a = obj.inner.value;
+"#,
+        );
+        test.resolve_module(module_id);
+        test.compile_dump_clean();
+
+        let module = test.program.modules.get(module_id);
+        let module = module.read();
+        let tree = module.dir.tree.read();
+        let (_a_symbol_id, a_node) = test.resolve_to_node::<Pattern>("test.ds", "a").unwrap();
+        let a_let = tree.get_parent(a_node.id).unwrap().into_typed::<Expression>();
+
+        // let a = obj.inner.value
+        assert_node!(tree, a_let, Expression::Let { value: Some(value), .. } => {
+            assert_node!(tree, *value, Expression::Member { left, name, .. } => {
+                assert_string!(test.program, *name, "value");
+                assert_node!(tree, *left, Expression::Member { name: inner_name, .. } => {
+                    assert_string!(test.program, *inner_name, "inner");
+                });
+            });
+        });
     }
 }

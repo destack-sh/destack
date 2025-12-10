@@ -329,21 +329,8 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             let left_expression = tree.get(*left);
             visitor.visit_expression(tree, *left, left_expression);
         }
-        Expression::UnresolvedAbsolutePath {
+        Expression::UnresolvedPath {
             path: _,
-            static_arguments,
-        } => {
-            if let Some(static_arguments) = static_arguments {
-                for argument_id in static_arguments {
-                    let argument = tree.get(*argument_id);
-                    visitor.visit_argument(tree, *argument_id, argument);
-                }
-            }
-        }
-        Expression::UnresolvedRelativePath {
-            path: _,
-            target_symbol: _,
-            remaining_path: _,
             static_arguments,
         } => {
             if let Some(static_arguments) = static_arguments {

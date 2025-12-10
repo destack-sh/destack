@@ -264,19 +264,8 @@ impl Compiler {
             }
 
             // references -> look up symbol type
-            Expression::UnresolvedAbsolutePath {
+            Expression::UnresolvedPath {
                 path: _,
-                static_arguments: _,
-            } => {
-                let ty = Type::TypeLiteral {
-                    value: TypeLiteral::Unknown,
-                };
-                types.insert_type_from(ty, expression_id)
-            }
-            Expression::UnresolvedRelativePath {
-                path: _,
-                target_symbol: _,
-                remaining_path: _,
                 static_arguments: _,
             } => {
                 let ty = Type::TypeLiteral {
