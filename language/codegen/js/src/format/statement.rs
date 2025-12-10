@@ -87,6 +87,9 @@ impl<'ast> FormatNode<'ast, Statement> for Statement {
             Statement::Block { block } => {
                 block.format(f)?;
             }
+            Statement::Labelled { label, body } => {
+                write!(f, [label, token(":"), space(), body])?;
+            }
 
             Statement::Let {
                 descriptor,

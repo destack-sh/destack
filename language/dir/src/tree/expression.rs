@@ -22,6 +22,14 @@ pub enum Expression {
     /// Statement expression (explicit statement with a `;` terminator).
     Statement { statement: LocalNodeId<Expression> },
 
+    /// Labelled statement (like `label: stmt` in JavaScript).
+    /// Used as a target for break/continue.
+    Labelled {
+        label: StringId,
+        body: LocalNodeId<Expression>,
+        symbol: LocalSymbolId,
+    },
+
     /// Unresolved import dependency declaration (like `import "foo"`).
     UnresolvedImport {
         kind: DependencyKind,
@@ -345,6 +353,7 @@ impl Expression {
 
             Expression::Block { .. } => "block",
             Expression::Statement { .. } => "statement",
+            Expression::Labelled { .. } => "labelled",
 
             Expression::Let { .. } => "let",
 

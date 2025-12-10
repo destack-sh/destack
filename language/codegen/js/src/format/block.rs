@@ -18,9 +18,6 @@ impl<'ast> FormatNode<'ast, Block> for Block {
         _node_id: LocalNodeId<Block>,
         f: &mut CodegenJsFormatter<'ast, '_>,
     ) -> FormatResult<()> {
-        if let Some(label) = &self.label {
-            write!(f, [label, token(":"), space()])?;
-        }
         write!(
             f,
             [

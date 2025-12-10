@@ -318,6 +318,33 @@ impl Parser {
     pub fn eat_expression(&mut self) -> ParseResult<LocalNodeId<Expression>> {
         let start = self.mark();
 
+        // labelled statement (like `label: while(...)` or `label: { }`)
+        // only in statement position, and identifier must be followed by colon then statement
+        if self.options.in_statement_position
+            && self.peek_token(TokenType::Identifier).is_ok()
+            && self.peek_next_token(TokenType::Colon).is_ok()
+        {
+            // check if what follows the colon is a statement-like construct
+            let is_next_label_target = self.peek_next_next_token(TokenType::OpenBrace).is_ok()
+                || self.peek_next_next_keyword(Keyword::While).is_ok()
+                || self.peek_next_next_keyword(Keyword::Do).is_ok()
+                || self.peek_next_next_keyword(Keyword::For).is_ok()
+                || self.peek_next_next_keyword(Keyword::If).is_ok()
+                || self.peek_next_next_keyword(Keyword::Switch).is_ok()
+                || self.peek_next_next_keyword(Keyword::Try).is_ok()
+                || self.peek_next_next_keyword(Keyword::With).is_ok();
+            if is_next_label_target {
+                let label = self.eat_identifier()?;
+                self.eat_colon()?;
+                let body = self.eat_expression()?;
+                let labelled_id = self.tree.insert(
+                    Expression::Labelled { label, body },
+                    self.get_span_from(start),
+                );
+                return Ok(labelled_id);
+            }
+        }
+
         //
         // ------------------------------------------------------------
         // Modifiers
@@ -1376,8 +1403,7 @@ type = type * 2
             });
             // { body }
             assert_node!(parser.tree, *then_expression, Expression::Block(block_id) => {
-                assert_node!(parser.tree, *block_id, Block { format: _, expressions, label } => {
-                    assert!(label.is_none());
+                assert_node!(parser.tree, *block_id, Block { format: _, expressions } => {
                     assert_eq!(expressions.len(), 1);
                     assert_expression_path!(parser, parser.tree.get(expressions[0]), "body");
                 });
@@ -1402,8 +1428,7 @@ type = type * 2
             });
             // { value }
             assert_node!(parser.tree, *then_expression, Expression::Block(block_id) => {
-                assert_node!(parser.tree, *block_id, Block { format: _, expressions, label } => {
-                    assert!(label.is_none());
+                assert_node!(parser.tree, *block_id, Block { format: _, expressions } => {
                     assert_eq!(expressions.len(), 1);
                     assert_expression_path!(parser, parser.tree.get(expressions[0]), "value");
                 });

@@ -89,6 +89,9 @@ impl<'ast> FormatNode<'ast, PatternField> for PatternField {
                     write!(f, [name])?;
                 }
             }
+            PatternField::Elision => {
+                // elision is an empty slot; comma handled at list level
+            }
         }
         Ok(())
     }

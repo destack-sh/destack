@@ -102,6 +102,8 @@ pub enum PatternField {
         name: Option<StringId>,
         symbol: LocalSymbolId,
     },
+    /// Elision (hole) in an array pattern (like `[,a]` or `[,,b]`).
+    Elision,
 }
 
 impl Node for PatternField {
@@ -116,6 +118,7 @@ impl PatternField {
             PatternField::Alias { symbol, .. } => Some(*symbol),
             PatternField::Positional { .. } => None,
             PatternField::Spread { symbol, .. } => Some(*symbol),
+            PatternField::Elision => None,
         }
     }
 }

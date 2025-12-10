@@ -124,6 +124,11 @@ impl ModuleLowerer<'_> {
                 self.tree
                     .insert_from_source(pattern_field, self.module.id, pattern_field_id)
             }
+            dir::PatternField::Elision => {
+                let pattern_field = PatternField::Elision;
+                self.tree
+                    .insert_from_source(pattern_field, self.module.id, pattern_field_id)
+            }
         };
         Ok(pattern_field_id)
     }

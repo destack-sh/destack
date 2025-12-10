@@ -937,6 +937,11 @@ pub(crate) fn format_expression<'ast>(
             write!(f, [*node, token(";")])?;
         }
 
+        // labelled statement
+        Expression::Labelled { label, body } => {
+            write!(f, [label, token(":"), space(), *body])?;
+        }
+
         // import
         Expression::Import {
             kind,

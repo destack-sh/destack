@@ -149,6 +149,10 @@ pub fn walk_statement<V: NodeVisitor + ?Sized>(
             let block_node = tree.get(*block);
             visitor.visit_block(tree, *block, block_node);
         }
+        Statement::Labelled { label: _, body } => {
+            let body_node = tree.get(*body);
+            visitor.visit_statement(tree, *body, body_node);
+        }
         Statement::Let {
             descriptor: _,
             mutability: _,
@@ -912,6 +916,9 @@ pub fn walk_pattern_field<V: NodeVisitor + ?Sized>(
             mutability: _,
             name: _,
         } => {
+            // nothing to do
+        }
+        PatternField::Elision => {
             // nothing to do
         }
     }

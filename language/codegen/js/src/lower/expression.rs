@@ -440,6 +440,24 @@ impl ModuleLowerer<'_> {
                     .into_any()
             }
 
+            dir::Expression::Labelled {
+                label,
+                body,
+                symbol: _,
+            } => {
+                let label = self.strings.intern_from(&self.module.ast.strings, *label);
+                let body_id = self
+                    .lower_expression(*body)
+                    .expect_node::<Statement>(body.into_global_any(self.module.id), self)?;
+                let statement = Statement::Labelled {
+                    label,
+                    body: body_id,
+                };
+                self.tree
+                    .insert_from_source(statement, self.module.id, expression_id)
+                    .into_any()
+            }
+
             _ => {
                 return Err(CodegenJsError::UnsupportedConstruct {
                     node: expression_id.into_global_any(self.module.id),

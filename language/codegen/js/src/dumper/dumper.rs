@@ -635,7 +635,6 @@ impl<'a> NodeVisitor for Dumper<'a> {
     fn visit_block(&mut self, tree: &NodeTree, id: LocalNodeId<Block>, block: &Block) {
         let statement_count = block.statements.len() as u32;
         self.node("Block", id.id)
-            .field_optional("label", &block.label)
             .field("statement_count", &statement_count)
             .end();
         self.with_depth(|dumper| {
@@ -679,6 +678,11 @@ impl<'a> NodeVisitor for Dumper<'a> {
             }
             Statement::Block { block: _ } => {
                 self.node("Statement::Block", id.id).end();
+            }
+            Statement::Labelled { label, body: _ } => {
+                self.node("Statement::Labelled", id.id)
+                    .field("label", label)
+                    .end();
             }
             Statement::Let {
                 descriptor,
@@ -1198,6 +1202,9 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .field_optional("mutability", mutability)
                     .field_optional("name", name)
                     .end();
+            }
+            PatternField::Elision => {
+                self.node("PatternField::Elision", id.id).end();
             }
         }
         self.with_depth(|dumper| {

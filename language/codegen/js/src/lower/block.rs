@@ -11,9 +11,6 @@ impl ModuleLowerer<'_> {
         block_id: dir::LocalNodeId<dir::Block>,
     ) -> CodegenJsResult<LocalNodeId<Block>> {
         let block = self.dir_tree.get(block_id);
-        let label = block
-            .label
-            .map(|label| self.strings.intern_from(&self.module.ast.strings, label));
         let statements = block
             .expressions
             .iter()
@@ -22,7 +19,7 @@ impl ModuleLowerer<'_> {
                     .expect_node::<Statement>(statement.into_global_any(self.module.id), self)
             })
             .collect::<Result<Vec<_>, CodegenJsError>>()?;
-        let block = Block { label, statements };
+        let block = Block { statements };
         Ok(self
             .tree
             .insert_from_source(block, self.module.id, block_id))

@@ -29,6 +29,11 @@ pub enum Statement {
     },
     /// Block of statements.
     Block { block: LocalNodeId<Block> },
+    /// Labelled statement (like `label: stmt`).
+    Labelled {
+        label: StringId,
+        body: LocalNodeId<Statement>,
+    },
 
     /// Let binding.
     Let {
@@ -114,7 +119,8 @@ impl Statement {
             | Statement::ForIn { .. }
             | Statement::ForOf { .. }
             | Statement::Try { .. }
-            | Statement::Block { .. } => false,
+            | Statement::Block { .. }
+            | Statement::Labelled { .. } => false,
 
             // declarations (function, class, etc.) typically don't need semicolons
             Statement::Declaration { .. } => false,
