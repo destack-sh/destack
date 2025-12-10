@@ -395,6 +395,33 @@ impl Compiler {
         types: &TypeTable,
     ) -> Type {
         match operator {
+            TypeBinaryOperator::Cast => {
+                // type assertion: `x as T`
+                // check if cast is valid (types overlap: at least one direction is assignable)
+                let left_to_right = self.check_is_type_assignable(right_ty_id, left_ty_id, types);
+                let right_to_left = self.check_is_type_assignable(left_ty_id, right_ty_id, types);
+
+                if left_to_right == Assignability::NotAssignable
+                    && right_to_left == Assignability::NotAssignable
+                {
+                    // neither direction works: illegal cast
+                    self.error(AnalyzeError::IllegalCast {
+                        node: expression_id.into_global_any(module.id),
+                        from_ty: GlobalTypeId {
+                            module_id: module.id,
+                            local_id: left_ty_id,
+                        },
+                        to_ty: GlobalTypeId {
+                            module_id: module.id,
+                            local_id: right_ty_id,
+                        },
+                        from_ty_str: self.format_type(types.get_type(left_ty_id), types),
+                        to_ty_str: self.format_type(types.get_type(right_ty_id), types),
+                    });
+                }
+                // cast returns the target (right) type
+                types.get_type(right_ty_id).clone()
+            }
             TypeBinaryOperator::Satisfies => {
                 // check if left type satisfies (is assignable to) right type
                 if self.check_is_type_assignable(right_ty_id, left_ty_id, types)
@@ -418,7 +445,7 @@ impl Compiler {
                 types.get_type(left_ty_id).clone()
             }
             _ => {
-                // NOTE #Incomplete: other type-level binary operations
+                // NOTE #Incomplete: other type-level binary operations (is, instanceof, extends, etc.)
                 Type::TypeLiteral {
                     value: TypeLiteral::Unknown,
                 }
