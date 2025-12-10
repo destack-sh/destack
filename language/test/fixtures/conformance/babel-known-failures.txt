@@ -14,6 +14,7 @@ jsx/errors/attribute-arbitrary-expression
 jsx/errors/attribute-empty-expression
 jsx/errors/attribute-sequence-expression
 jsx/errors/sequence-expression
+jsx/errors/unicode-escape-in-identifier
 jsx/errors/wrong-closing-tag
 jsx/errors/wrong-closing-tag-fragment
 jsx/errors/wrong-opening-tag-fragment
@@ -154,7 +155,6 @@ typescript/static-blocks/valid-static-block-with-line-breaks
 typescript/tsx/anonymous-function-generator
 typescript/tsx/brace-is-block
 typescript/tsx/cast-invalid
-typescript/tsx/type-arguments
 typescript/tsx/type-parameters
 typescript/type-alias/generic
 typescript/type-arguments-bit-shift-left-like/after-bit-shift
@@ -163,19 +163,14 @@ typescript/type-arguments-bit-shift-left-like/decorator-call-expression
 typescript/type-arguments-bit-shift-left-like/decorator-legacy-call-expression
 typescript/type-arguments-bit-shift-left-like/interface-heritage
 typescript/type-arguments-bit-shift-left-like/jsx-opening-element
-typescript/type-arguments-bit-shift-left-like/new-expression
 typescript/type-arguments/call-optional-chain
 typescript/type-arguments/empty-new
 typescript/type-arguments/empty-tsx
 typescript/type-arguments/empty-type-import
 typescript/type-arguments/new
-typescript/type-arguments/new-false-positive
-typescript/type-arguments/new-false-positive-2
-typescript/type-arguments/new-false-positive-3
 typescript/type-arguments/new-without-arguments
 typescript/type-arguments/new-without-arguments-asi
 typescript/type-arguments/new-without-arguments-missing-semicolon
-typescript/type-arguments/tagged-template-no-asi
 typescript/type-arguments/tsx
 typescript/type-only-import-export-specifiers/export-named-type
 typescript/type-only-import-export-specifiers/export-named-type-as-as
@@ -185,6 +180,7 @@ typescript/types/abstract-constructor-signatures
 typescript/types/const-type-parameters
 typescript/types/function-generic
 typescript/types/invalid-import-type-dynamic-with-jsx-options
+typescript/types/invalid-import-type-options-escaped-with
 typescript/types/invalid-import-type-options-string-with
 typescript/types/invalid-import-type-options-trailing-comma
 typescript/types/invalid-import-type-options-with-computed-properties
@@ -206,5 +202,3 @@ typescript/types/variance-annotations
 typescript/types/variance-annotations-with-jsx
 typescript/variable-declarator/definite-assignment
 typescript/variable-declarator/definite-assignment-not-allowed
-jsx/errors/unicode-escape-in-identifier
-typescript/types/invalid-import-type-options-escaped-with
