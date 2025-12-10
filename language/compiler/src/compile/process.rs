@@ -160,6 +160,7 @@ impl Compiler {
     fn handle_outcome(&self, task_id: TaskId, outcome: TaskOutcome) {
         let handle = self.queue.get_task(task_id);
         let args = handle.task.trace_args(&self.program);
+        let mut requeued = false;
         match &outcome {
             // complete and wake waiters
             TaskOutcome::Complete { output } => {
@@ -212,11 +213,13 @@ impl Compiler {
                         dependency: dependency.clone(),
                     },
                 );
-                self.yield_dependency(task_id, dependency);
+                requeued = self.yield_dependency(task_id, dependency);
             }
         }
-        // remember outcome
-        self.queue.set_last_outcome(task_id, outcome);
+        // remember outcome (skip if already requeued, since that clears last_outcome)
+        if !requeued {
+            self.queue.set_last_outcome(task_id, outcome);
+        }
     }
 
     /// Check if a yield should trigger an internal error (i.e. circuit break).
@@ -250,20 +253,23 @@ impl Compiler {
     }
 
     /// Yield to a dependency, register waiters for all sub-dependencies, and check if already satisfied.
-    fn yield_dependency(&self, waiter_id: TaskId, dependency: &TaskDependency) {
+    /// Returns true if the task was immediately requeued (dependency already satisfied).
+    fn yield_dependency(&self, waiter_id: TaskId, dependency: &TaskDependency) -> bool {
         // first, register all sub-dependencies (recursively)
         self.register_dependency(waiter_id, dependency);
 
         // then check if the full dependency is already satisfied
         if self.is_dependency_satisfied(dependency) {
             self.queue.try_requeue_yielded(waiter_id);
-            return;
+            return true;
         }
 
         // check if any dependency has failed
         if self.is_dependency_failed(dependency) {
             self.fail_waiter(waiter_id, dependency);
         }
+
+        false
     }
 
     /// Register waiters for all sub-dependencies without re-queuing.

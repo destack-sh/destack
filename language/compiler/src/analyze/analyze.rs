@@ -49,6 +49,19 @@ impl Compiler {
                 types.insert_type_from(ty, expression_id)
             }
 
+            // labelled statement -> analyze the body
+            Expression::Labelled {
+                label: _,
+                body,
+                symbol: _,
+            } => {
+                self.analyze_expression(module, *body, tree, symbols, types, ctx)?;
+                let ty = Type::TypeLiteral {
+                    value: TypeLiteral::Void,
+                };
+                types.insert_type_from(ty, expression_id)
+            }
+
             // import / exports
             Expression::Import {
                 kind: _,
@@ -1714,6 +1727,11 @@ impl Compiler {
                     let rest_ty = to_rest_type(rest_types);
                     Some(types.insert_type_from(rest_ty, *field_id))
                 }
+                PatternField::Elision => {
+                    // elision skips a type position
+                    ty_idx += 1;
+                    None
+                }
             };
             self.analyze_pattern_field(module, *field_id, field_ty, tree, symbols, types, ctx)?;
         }
@@ -1780,6 +1798,9 @@ impl Compiler {
                 if let Some(ty_id) = binding_ty_id {
                     types.set_value_type(symbol.into_global(module.id), ty_id);
                 }
+            }
+            PatternField::Elision => {
+                // elision doesn't bind anything
             }
         }
         Ok(())

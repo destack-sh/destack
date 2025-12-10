@@ -108,6 +108,13 @@ impl TaskQueue {
     pub(super) fn set_last_outcome(&self, task_id: TaskId, outcome: TaskOutcome) {
         let mut tasks = self.tasks.lock();
         if let Some(handle) = tasks.handles.get_mut(task_id.0 as usize) {
+            // for Yield outcomes, only set if task is still Yielded
+            // (prevents race with concurrent requeue via wake_waiters)
+            if matches!(outcome, TaskOutcome::Yield { .. })
+                && !matches!(handle.status, TaskStatus::Yielded { .. })
+            {
+                return;
+            }
             handle.last_outcome = Some(outcome);
         }
     }
@@ -131,6 +138,8 @@ impl TaskQueue {
             && matches!(handle.status, TaskStatus::Yielded { .. })
         {
             handle.status = TaskStatus::Queued;
+            // clear last_outcome since we're requeuing (dependency was satisfied, progress made)
+            handle.last_outcome = None;
             drop(tasks); // release lock before pushing
             self.push_ready(task_id);
         }

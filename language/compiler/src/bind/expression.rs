@@ -2,7 +2,7 @@ use destack_ast::{self as ast};
 use destack_dir::{
     Declarator, DependencyMode, DependencySource, Expression, ForEachKind, IfKind, LocalNodeId,
     LocalNodeIdAny, LocalScopeId, LocalScopeMark, LoopKind, MatchSource, NodeTree, NodeType,
-    ScopeKind, SymbolKind, SymbolTable, TypeTable, YieldCardinality,
+    ScopeKind, StaticKey, SymbolKind, SymbolSpace, SymbolTable, TypeTable, YieldCardinality,
 };
 use destack_workspace::Module;
 
@@ -74,6 +74,35 @@ impl Compiler {
                 );
                 Expression::Statement {
                     statement: inner_expression_id,
+                }
+            }
+
+            ast::Expression::Labelled { label, body } => {
+                let label_interned = self
+                    .program
+                    .strings
+                    .intern_from(&module.ast.strings, *label);
+                // create a local symbol for the label (for break/continue resolution)
+                let (symbol_id, _) = symbols.insert_symbol(
+                    SymbolKind::Local,
+                    SymbolSpace::Value,
+                    Some(StaticKey::Name(label_interned)),
+                    scope,
+                    None,
+                );
+                let body_id = self.bind_expression(
+                    module,
+                    scope,
+                    *body,
+                    Some(expression_id),
+                    tree,
+                    symbols,
+                    types,
+                );
+                Expression::Labelled {
+                    label: label_interned,
+                    body: body_id,
+                    symbol: symbol_id,
                 }
             }
 

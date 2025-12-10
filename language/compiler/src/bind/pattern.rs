@@ -445,6 +445,7 @@ impl Compiler {
                     symbol,
                 }
             }
+            ast::PatternField::Elision => PatternField::Elision,
         };
 
         // pattern field
