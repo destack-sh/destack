@@ -5,7 +5,7 @@ use crate::{
 use destack_ast::TokenType;
 use destack_parser::Parser;
 use destack_source::{File, ModuleId};
-use destack_workspace::{Module, ModuleAst, Program, ModuleType};
+use destack_workspace::{Module, ModuleAst, ModuleType, Program};
 
 /// Task to import (load and parse) a module.
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]

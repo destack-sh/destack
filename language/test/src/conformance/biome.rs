@@ -51,7 +51,6 @@ impl BiomeSuite {
         tests.sort();
         tests
     }
-
 }
 
 impl Default for BiomeSuite {

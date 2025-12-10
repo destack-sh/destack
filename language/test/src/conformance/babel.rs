@@ -129,9 +129,10 @@ impl ConformanceSuite for BabelSuite {
 
     fn discover_tests(&self) -> Vec<String> {
         // discover tests from typescript and jsx directories
+        // (flow is intentionally excluded, we don't support Flow, only TypeScript)
         let mut tests = Vec::new();
 
-        for category in &["typescript", "jsx", "flow"] {
+        for category in &["typescript", "jsx"] {
             let category_dir = self.root.join(category);
             if category_dir.exists() {
                 tests.extend(self.discover_recursive(&category_dir, category));

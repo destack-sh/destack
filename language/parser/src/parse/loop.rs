@@ -197,6 +197,8 @@ impl Parser {
     /// do {
     ///     y = 2
     /// } while (x > 1)
+    ///
+    /// do console.log("test"); while (true)
     /// ```
     pub fn eat_while(&mut self) -> ParseResult<LocalNodeId<Expression>> {
         let start = self.mark();
@@ -207,7 +209,7 @@ impl Parser {
             self.bump(); // eat do keyword
 
             // body
-            let body_id = self.eat_block()?;
+            let body_id = self.eat_block_or_statement()?;
 
             // while keyword
             self.eat_keyword(Keyword::While)?;
@@ -523,6 +525,42 @@ do { x } while (true)
         assert_node!(parser.tree, do_while_id, Expression::While { kind, condition, body: _, .. } => {
             assert_eq!(*kind, WhileKind::DoWhile);
             assert_node!(parser.tree, *condition, Expression::ScalarLiteral(ScalarLiteral::Boolean(true)));
+        });
+    }
+
+    /// JavaScript allows single statement body without braces.
+    #[test]
+    fn test_parse_do_while_single_statement() {
+        let mut test = TestParser::new("do x; while (true)");
+
+        let mut parser = test.prepare();
+
+        let do_while_id = parser.eat_while().unwrap();
+        assert_node!(parser.tree, do_while_id, Expression::While { kind, condition, body } => {
+            assert_eq!(*kind, WhileKind::DoWhile);
+            assert_node!(parser.tree, *condition, Expression::ScalarLiteral(ScalarLiteral::Boolean(true)));
+            // body should be a block with single expression
+            assert_node!(parser.tree, *body, Block { expressions, .. } => {
+                assert_eq!(expressions.len(), 1);
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_do_while_continue_statement() {
+        let mut test = TestParser::new("do continue; while (true)");
+
+        let mut parser = test.prepare();
+
+        let do_while_id = parser.eat_while().unwrap();
+        assert_node!(parser.tree, do_while_id, Expression::While { kind, condition, body } => {
+            assert_eq!(*kind, WhileKind::DoWhile);
+            assert_node!(parser.tree, *condition, Expression::ScalarLiteral(ScalarLiteral::Boolean(true)));
+            // body should be a block with continue statement
+            assert_node!(parser.tree, *body, Block { expressions, .. } => {
+                assert_eq!(expressions.len(), 1);
+                assert_node!(parser.tree, expressions[0], Expression::Continue { label: None });
+            });
         });
     }
 }

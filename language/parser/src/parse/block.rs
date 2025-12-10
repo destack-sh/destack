@@ -6,6 +6,36 @@ use crate::parse::prelude::*;
 use crate::{ParseError, ParseResult, Parser};
 
 impl Parser {
+    /// Eat a block or a single statement wrapped in a block.
+    pub fn eat_block_or_statement(&mut self) -> ParseResult<LocalNodeId<Block>> {
+        // if it's a block, just eat it
+        if self.peek_block().is_ok() {
+            return self.eat_block();
+        }
+
+        // otherwise, eat a single statement and wrap it in a block
+        let start = self.mark();
+        let expression_id = self.with_options(self.options.in_statement_position(), |parser| {
+            parser.eat_expression()
+        })?;
+
+        // consume trailing semicolon if present (e.g., `do x; while (true)`)
+        if self.peek_token(TokenType::Semicolon).is_ok() {
+            self.bump();
+        }
+
+        // wrap in a block
+        let block_id = self.tree.insert(
+            Block {
+                format: BlockFormat::Implicit,
+                label: None,
+                expressions: vec![expression_id],
+            },
+            self.get_span_from(start),
+        );
+        Ok(block_id)
+    }
+
     /// Peek a block (with and without label). Optional `do` prefix for disambiguation.
     #[inline]
     pub fn peek_block(&self) -> ParseResult<()> {

@@ -668,6 +668,18 @@ fn test_lex_block_comment_nested() {
     );
 }
 
+/// Unterminated block comment should produce Unknown token.
+#[test]
+fn test_lex_block_comment_unterminated() {
+    assert_tokenize_eq_roundtrip!("/*", Token::new(TokenType::Unknown, 2, None),);
+}
+
+/// Unterminated block comment with content should produce Unknown token.
+#[test]
+fn test_lex_block_comment_unterminated_with_content() {
+    assert_tokenize_eq_roundtrip!("/* some text", Token::new(TokenType::Unknown, 12, None),);
+}
+
 #[test]
 fn test_lex_doc_line_exact_three_slashes() {
     assert_tokenize_eq_roundtrip!(
