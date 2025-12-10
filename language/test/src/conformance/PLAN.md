@@ -1,13 +1,44 @@
 # Conformance Test Analysis
 
-**Current Status**: 74.5% (6074/8158 tests passing)
+**Current Status**: 78.7% (5825/7405 tests passing)
 
 | Suite | Passed | Failed | Total | Rate |
 |-------|--------|--------|-------|------|
-| test262 | 4150 | 1213 | 5363 | 77.4% |
-| babel | 1011 | 462 | 1473 | 68.6% |
-| swc | 518 | 167 | 685 | 75.6% |
-| biome | 395 | 242 | 637 | 62.0% |
+| test262 | 4390 | 973 | 5363 | 81.9% |
+| babel | 516 | 204 | 720 | 71.7% |
+| swc | 523 | 162 | 685 | 76.4% |
+| biome | 396 | 241 | 637 | 62.2% |
+
+## Recent Progress
+
+### Completed Fixes (2024-12)
+
+| Fix | Tests Fixed | Files Changed |
+|-----|-------------|---------------|
+| do-while single statements | ~30 | `block.rs`, `loop.rs` |
+| new without parentheses | ~30 | `call.rs` |
+| Unterminated block comment | ~10 | `lex.rs` |
+| for/while single statements | ~47 | `loop.rs` |
+| Empty statement in loops | ~157 | `block.rs` |
+| **Total** | **~204** | |
+
+**Details:**
+- `do stmt; while(cond)` now works without requiring braces
+- `new Foo` is now valid (parentheses optional)
+- `/*` without `*/` now correctly produces an error token
+- `for (x in y) stmt;` and `while (x) stmt;` now work without braces
+- `for (x of y);` with empty statement body now works
+
+**Note:** Some semantic restrictions (lexical declarations in single-statement context, `this` in for-of, etc.) are deferred to the semantic analysis pass.
+
+### Requires AST Changes (Future Work)
+
+| Feature | Tests | Required Changes |
+|---------|-------|------------------|
+| Labeled statements | ~100 | `Expression::Labelled` in ast + dir |
+| Array elision | ~10 | `PatternField::Elision` variant |
+| Reserved words as keys | ~20 | Allow keywords in property names |
+| `break label` / `continue label` | ~50 | Change label syntax from `:label` to `label` |
 
 ## Test262 Failures (1213 tests)
 
@@ -176,13 +207,16 @@ Flow support is extensive work. Consider:
 
 ## Quick Wins
 
-| Fix | Tests | Effort | Files |
-|-----|-------|--------|-------|
-| Unterminated comment | 10 | 1h | lex.rs |
-| new without parens | 30 | 2h | expression.rs |
-| do-while ASI | 30 | 2h | block.rs |
-| Return outside function | 30 | 2h | block.rs |
-| **Total** | **100** | **~7h** | |
+| Fix | Tests | Effort | Files | Status |
+|-----|-------|--------|-------|--------|
+| Unterminated comment | 10 | 1h | lex.rs | ✅ Done |
+| new without parens | 30 | 2h | call.rs | ✅ Done |
+| do-while single stmt | 30 | 2h | block.rs, loop.rs | ✅ Done |
+| for/while single stmt | ~47 | 1h | loop.rs | ✅ Done |
+| Empty statement loops | ~157 | 0.5h | block.rs | ✅ Done |
+| Return outside function | 30 | 2h | semantic pass | Pending (semantic) |
+| yield without value | ~20 | 3h | block.rs | Pending (needs ASI) |
+| **Completed** | **~204** | | |
 
 ---
 

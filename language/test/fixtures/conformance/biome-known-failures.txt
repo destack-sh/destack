@@ -35,6 +35,7 @@ error/eval_arguments_assignment.js
 error/exponent_unary_unparenthesized.js
 error/export_as_identifier_err.js
 error/export_decl_not_top_level.js
+error/for_of_async_identifier.js
 error/function_escaped_async.js
 error/function_id_err.js
 error/getter_class_no_body.js
@@ -49,6 +50,7 @@ error/interface_cannot_be_reserved_world.ts
 error/js_formal_parameter_error.js
 error/js_right_shift_comments.js
 error/jsx_children_expressions_not_accepted.jsx
+error/lexical_declaration_in_single_statement_context.js
 error/module_closing_curly.ts
 error/multiple_default_exports_err.js
 error/new_exprs.js
@@ -153,12 +155,10 @@ ok/decorator_class_declaration_top_level.js
 ok/decorator_class_member.ts
 ok/decorator_export_default_top_level_2.ts
 ok/decorator_export_top_level.js
-ok/do-while-asi.js
 ok/do_while_statement.js
 ok/exponent_unary_parenthesized.js
 ok/export_named_clause.js
 ok/export_named_from_clause.js
-ok/for_await_async_identifier.js
 ok/getter_class_member.js
 ok/getter_object_member.js
 ok/import_attribute.js

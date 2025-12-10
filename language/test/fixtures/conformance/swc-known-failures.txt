@@ -3,7 +3,6 @@ js/deferred-import-evaluation/import-defer/input.js
 js/explicit-resource-management/.valid-for-using-binding-escaped-of-of/input.js
 js/explicit-resource-management/valid-using-as-identifier-computed-member-no-plugin/input.js
 js/explicit-resource-management/valid-using-as-identifier-computed-member/input.js
-js/explicit-resource-management/valid-using-as-identifier-for-await-of/input.js
 js/explicit-resource-management/valid-using-as-identifier-for-in/input.js
 js/explicit-resource-management/valid-using-as-identifier-for-init/input.js
 js/explicit-resource-management/valid-using-as-identifier-for-of/input.js
