@@ -407,6 +407,10 @@ impl Dump for Name {
                 id.dump(dumper);
                 dumper.write_char(']', Some(Color::White));
             }
+            Name::Number(id) => {
+                // numeric keys display without quotes
+                id.dump(dumper);
+            }
         }
     }
 }
