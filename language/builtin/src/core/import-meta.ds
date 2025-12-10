@@ -1,0 +1,66 @@
+/// Import metadata available at compile time.
+///
+/// `import.meta` provides compile-time information about the current module
+/// and build configuration. Values are known at compile time and can be used
+/// for static optimization and conditional compilation.
+
+/// The target platform (OS) the code is being compiled for.
+/// Matches `Platform` enum in workspace/src/program/target.rs.
+export type Platform = "web" | "windows" | "macos" | "linux" | "ios" | "android" | "wasi" | "universal";
+
+/// The output format the code is being compiled to.
+/// Matches `OutputFormat` enum in workspace/src/program/target.rs.
+export type OutputFormat = "js" | "ts" | "wasm" | "native";
+
+/// The runtime environment that will execute the code.
+/// Matches `Runtime` enum in workspace/src/program/target.rs.
+export type Runtime =
+    | "browser" | "node" | "deno" | "bun" | "worker" | "workerd" | "embedded"
+    | "wasm-js" | "wasm-wasi" | "wasm-standalone"
+    | "destack";
+
+/// Environment variables available at compile time.
+export interface ImportMetaEnv {
+    /// Index signature for arbitrary environment variables.
+    readonly [key: string]: string | undefined,
+    /// Node environment mode.
+    readonly NODE_ENV?: "development" | "production" | "test",
+    /// True in development builds.
+    readonly DEV: boolean,
+    /// True in production builds.
+    readonly PROD: boolean,
+    /// True in test builds.
+    readonly TEST: boolean,
+}
+
+/// Metadata about the current module and build configuration.
+///
+/// All properties are known at compile time and can be used for:
+/// - Conditional compilation via `if (import.meta.debug) { ... }`
+/// - Platform-specific code via `if (import.meta.platform == "macos") { ... }`
+/// - Dead code elimination when conditions are compile-time constant
+export interface ImportMeta {
+    /// The URL of the current module (file:// for local, https:// for remote).
+    readonly url: string,
+    /// The file path of the current module (only for local files).
+    readonly file: string,
+    /// The directory containing the current module.
+    readonly dir: string,
+    /// The target platform (OS) being compiled for.
+    readonly platform: Platform,
+    /// The output format being compiled to.
+    readonly output: OutputFormat,
+    /// The runtime environment that will execute the code.
+    readonly runtime: Runtime,
+    /// True if this is a debug/development build (from target.debug).
+    readonly debug: boolean,
+    /// The compiler version.
+    readonly version: string,
+    /// Environment variables (from build configuration).
+    readonly env: ImportMetaEnv,
+}
+
+declare global {
+    /// The import.meta object for the current module.
+    const meta: ImportMeta;
+}

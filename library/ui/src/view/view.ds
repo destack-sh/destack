@@ -26,7 +26,10 @@ export type Sizing2D = {
     maxHeight?: Length,
 }
 
+// nocheckin: switch library to use structural types?
+
 /// Style properties for a 2D view.
+@entity
 export type Style2D = {
     /// Whether the View is visible.
     isVisible?: boolean,

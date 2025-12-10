@@ -6,5 +6,5 @@ export * from "./mouse";
 export * from "./key";
 export * from "./focus";
 export * from "./drag";
-export * from "./clipboard"
+export * from "./clipboard";
 
