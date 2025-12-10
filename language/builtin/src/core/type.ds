@@ -1,5 +1,6 @@
 /// Get the type descriptor for a value.
 /// Unlike JavaScript's `typeof` (which returns a string), this returns `Type<T>`.
+@intrinsic
 declare function typeOf<T>(value: T): Type<T>;
 
 // TODO #Incomplete: Type reflection
