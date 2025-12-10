@@ -2,8 +2,8 @@
 
 Destack is "TypeScript++" for building better full-stack software systems.
 This document describes the syntax and semantics of **`.ds` files**.
-`.ts` and `.js` files work exactly the same as before. 
-Even **copy-pasting from `.js` or `.ts` into `.ds` works**: 
+`.ts` and `.js` files work exactly the same as before.
+**Copy-pasting from `.js` or `.ts` into `.ds` works** for real-world code—see [Compatibility](DESIGN.md#compatibility) for rare edge cases.
 See [DESIGN.md](DESIGN.md) for design and motivation.
 
 ## Literals
