@@ -806,8 +806,11 @@ impl Parser {
             else if keyword == Some(Keyword::For) {
                 self.eat_for()?
             }
-            // loop
-            else if keyword == Some(Keyword::Loop) && self.peek_next_block().is_ok() {
+            // loop (Destack-only, for #Compatibility with TS)
+            else if keyword == Some(Keyword::Loop)
+                && self.language.is_destack_compatible()
+                && self.peek_next_block().is_ok()
+            {
                 self.eat_loop()?
             }
             // try
@@ -815,7 +818,10 @@ impl Parser {
                 self.eat_try()?
             }
             // match / switch
-            else if keyword == Some(Keyword::Match) || keyword == Some(Keyword::Switch) {
+            // NOTE: `match` is only a keyword in Destack mode (for #Compatibility with TS)
+            else if keyword == Some(Keyword::Switch)
+                || (keyword == Some(Keyword::Match) && self.language.is_destack_compatible())
+            {
                 self.eat_match()?
             }
             // break
