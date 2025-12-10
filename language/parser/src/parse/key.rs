@@ -120,6 +120,20 @@ impl Parser {
         }
     }
 
+    /// Peek a numeric literal (int or float, for object keys).
+    #[inline]
+    pub fn peek_numeric_literal(&self) -> ParseResult<&TokenSpan> {
+        let token = self.peek()?;
+        if token.token.ty == TokenType::Literal {
+            match token.token.literal {
+                Some(LiteralType::Int { .. }) | Some(LiteralType::Float { .. }) => Ok(token),
+                _ => Err(ParseError::expected(token.span, TokenType::Literal)),
+            }
+        } else {
+            Err(ParseError::expected(token.span, TokenType::Literal))
+        }
+    }
+
     /// Peek a name (like `x` or `"Content-Type"`).
     #[inline]
     pub fn peek_name(&self) -> ParseResult<()> {
@@ -167,7 +181,10 @@ impl Parser {
     /// Peek a name or a dynamic key.
     #[inline]
     pub fn peek_key(&self) -> ParseResult<()> {
-        if self.peek_name().is_ok() || self.peek_token(TokenType::OpenBracket).is_ok() {
+        if self.peek_name().is_ok()
+            || self.peek_token(TokenType::OpenBracket).is_ok()
+            || self.peek_numeric_literal().is_ok()
+        {
             Ok(())
         } else {
             Err(ParseError::unexpected(self.peek()?.span))
@@ -179,6 +196,12 @@ impl Parser {
     pub fn eat_key(&mut self) -> ParseResult<Key> {
         if self.peek_name().is_ok() {
             Ok(Key::Name(self.eat_name()?))
+        } else if self.peek_numeric_literal().is_ok() {
+            // numeric key (like `{123: value}` or `{2e308: value}`)
+            let token = *self.eat()?;
+            let key_str = self.get_token_str(token);
+            let string_id = self.strings.intern(key_str);
+            Ok(Key::Name(Name::Number(string_id)))
         } else if self.peek_token(TokenType::OpenBracket).is_ok() {
             self.bump(); // eat open bracket
             // name: type

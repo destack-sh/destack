@@ -156,8 +156,6 @@ ok/do_while_statement.js
 ok/exponent_unary_parenthesized.js
 ok/export_named_clause.js
 ok/export_named_from_clause.js
-ok/getter_class_member.js
-ok/getter_object_member.js
 ok/import_attribute.js
 ok/import_defer.js
 ok/import_named_clause.js
@@ -176,16 +174,9 @@ ok/labelled_statement_in_single_statement_context.js
 ok/literals.js
 ok/metavar.tsx
 ok/method_class_member.js
-ok/object_expr_method.js
-ok/object_member_name.js
-ok/object_prop_name.js
 ok/parameter_list.js
 ok/private_name_presence_check.js
-ok/property_assignment_target.js
-ok/property_class_member.js
 ok/sequence_expr.js
-ok/setter_class_member.js
-ok/setter_object_member.js
 ok/single_parameter_arrow_function_with_parameter_named_async.js
 ok/static_initialization_block_member.js
 ok/static_member_expression.js
@@ -234,3 +225,4 @@ ok/unary_delete_nested.js
 ok/using_declaration_statement.js
 ok/using_declarations_inside_for_statement.js
 error/yield_in_non_generator_function_module.js
+error/object_expr_non_ident_literal_prop.js

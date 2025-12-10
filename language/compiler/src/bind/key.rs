@@ -1,4 +1,5 @@
 use crate::Compiler;
+use crate::bind::literal::evaluate_numeric_literal;
 use destack_ast as ast;
 use destack_dir::{
     DynamicKey, LocalNodeIdAny, LocalScopeId, LocalScopeMark, NodeTree, SymbolTable, TypeTable,
@@ -19,6 +20,13 @@ impl Compiler {
         types: &mut TypeTable,
     ) -> DynamicKey {
         match key {
+            ast::Key::Name(ast::Name::Number(string_id)) => {
+                // (numeric keys evaluate to canonical string representation)
+                let source = module.ast.strings.get(string_id);
+                let canonical = evaluate_numeric_literal(&source);
+                let name = self.program.strings.intern(&canonical);
+                DynamicKey::Name(name)
+            }
             ast::Key::Name(name) => {
                 let name = self
                     .program

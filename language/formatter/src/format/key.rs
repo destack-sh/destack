@@ -19,6 +19,7 @@ impl<'ast> Format<DestackFormatContext<'ast>> for Name {
         match self {
             Name::Identifier(string) => string.format(f),
             Name::String(string) => write!(f, [token("\""), string, token("\"")]),
+            Name::Number(string) => string.format(f),
         }
     }
 }
