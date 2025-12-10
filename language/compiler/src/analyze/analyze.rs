@@ -773,7 +773,9 @@ impl Compiler {
                 cardinality: _,
                 value,
             } => {
-                self.analyze_expression(module, *value, tree, symbols, types, ctx)?;
+                if let Some(value_id) = value {
+                    self.analyze_expression(module, *value_id, tree, symbols, types, ctx)?;
+                }
                 // NOTE #Incomplete: yield type depends on generator context
                 let ty = Type::TypeLiteral {
                     value: TypeLiteral::Unknown,

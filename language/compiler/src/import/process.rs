@@ -123,6 +123,7 @@ impl Compiler {
         self.program.diagnostics.merge_from(&parser.diagnostics);
 
         // update module with AST
+        // NOTE #Cleanup: the late #ModuleTypeHandling is strange and we should probably do it in parser?
         let mut module = module.write();
         self.check_imported_module(&module, module.module_type, &parser);
         module.ast = ModuleAst::from_tree(module_id, parser.tree, expressions, parser.strings);
@@ -137,7 +138,7 @@ impl Compiler {
         self.require_task(ImportTask::ImportModule { module })
     }
 
-    /// Check if the module is valid in context.
+    /// Check if the module is valid in context. #ModuleTypeHandling
     /// (Unfortunately we need parser state here to check the actual tokens.)
     fn check_imported_module(&self, _module: &Module, module_type: ModuleType, parser: &Parser) {
         // HTML comments are forbidden in ES modules (ECMAScript Annex B.1.3)

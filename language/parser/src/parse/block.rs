@@ -211,28 +211,53 @@ impl Parser {
     /// ```
     /// break
     /// break :label
-    /// break :label 17
-    /// break 15
+    /// break label      // JS-style (no colon)
+    /// break :label 15  // Destack extension: label + value
     /// ```
     pub fn eat_break(&mut self) -> ParseResult<LocalNodeId<Expression>> {
         let start = self.mark();
         self.eat_keyword(Keyword::Break)?;
-        // label
-        let label = if self.peek_token(TokenType::Colon).is_ok() {
+
+        // label and value:
+        // 1. `:identifier` → Destack style label, optionally followed by value
+        // 2. `identifier` at statement stop → JS style label (no value)
+        // 3. Otherwise → value expression (Destack extension, no label)
+        let (label, value_id) = if self.peek_token(TokenType::Colon).is_ok() {
+            // Destack style: break :label [value]
             self.bump(); // eat colon
-            Some(self.eat_identifier()?)
-        } else {
-            None
-        };
-        // value (if not at a expression stop)
-        let value_id = if self.peek().is_ok() && self.peek_statement_stop().is_err() {
+            let label = Some(self.eat_identifier()?);
+            let value_id = if self.peek().is_ok() && self.peek_statement_stop().is_err() {
+                let value_id = self.with_options(self.options.not_in_position(), |parser| {
+                    parser.eat_expression()
+                })?;
+                Some(value_id)
+            } else {
+                None
+            };
+            (label, value_id)
+        } else if self.peek_token(TokenType::Identifier).is_ok()
+            && self
+                .peek_next_token_in(&[
+                    TokenType::Newline,
+                    TokenType::Semicolon,
+                    TokenType::End,
+                    TokenType::CloseBrace,
+                ])
+                .is_ok()
+        {
+            // JS style: break label (identifier followed by statement stop)
+            let label = Some(self.eat_identifier()?);
+            (label, None)
+        } else if self.peek().is_ok() && self.peek_statement_stop().is_err() {
+            // Destack extension: break value (no label)
             let value_id = self.with_options(self.options.not_in_position(), |parser| {
                 parser.eat_expression()
             })?;
-            Some(value_id)
+            (None, Some(value_id))
         } else {
-            None
+            (None, None)
         };
+
         // break
         let break_id = self.tree.insert(
             Expression::Break {
@@ -249,19 +274,36 @@ impl Parser {
     /// Examples:
     /// ```
     /// continue
-    /// continue :label
+    /// continue :label  // Destack style
+    /// continue label   // JS style (no colon)
     /// ```
     pub fn eat_continue(&mut self) -> ParseResult<LocalNodeId<Expression>> {
         let start = self.mark();
         self.eat_keyword(Keyword::Continue)?;
-        // label
+
+        // label parsing:
+        // 1. `:identifier` → Destack style label
+        // 2. `identifier` at statement stop → JS style label
         let label = if self.peek_token(TokenType::Colon).is_ok() {
+            // Destack style: continue :label
             self.bump(); // eat colon
-            let label = self.eat_identifier()?;
-            Some(label)
+            Some(self.eat_identifier()?)
+        } else if self.peek_token(TokenType::Identifier).is_ok()
+            && self
+                .peek_next_token_in(&[
+                    TokenType::Newline,
+                    TokenType::Semicolon,
+                    TokenType::End,
+                    TokenType::CloseBrace,
+                ])
+                .is_ok()
+        {
+            // JS style: continue label
+            Some(self.eat_identifier()?)
         } else {
             None
         };
+
         // continue
         let continue_id = self
             .tree
@@ -298,10 +340,19 @@ impl Parser {
 
     /// Eat a yield expression.
     ///
+    /// According to ECMAScript spec, yield has restricted productions:
+    /// - `yield` can appear alone (yields undefined)
+    /// - `yield [no LineTerminator] expr` yields the expression value
+    /// - `yield* [no LineTerminator] expr` delegates to another iterator
+    ///
+    /// The [no LineTerminator here] means ASI applies after yield if there's a newline.
+    ///
     /// Examples:
     /// ```
+    /// yield
     /// yield someValue
     /// yield* someIterator
+    /// yield *a  // same as yield* a (only if no newline after yield)
     /// ```
     pub fn eat_yield(&mut self) -> ParseResult<LocalNodeId<Expression>> {
         let start = self.mark();
@@ -309,7 +360,20 @@ impl Parser {
         // keyword
         self.eat_keyword(Keyword::Yield)?;
 
-        // cardinality
+        // check for restricted production: newline after yield triggers ASI
+        // if there's a newline, don't look for `*` or value
+        if self.peek_statement_stop().is_ok() {
+            let yield_id = self.tree.insert(
+                Expression::Yield {
+                    cardinality: YieldCardinality::Scalar,
+                    value: None,
+                },
+                self.get_span_from(start),
+            );
+            return Ok(yield_id);
+        }
+
+        // cardinality: `yield*` or `yield *` (space before *, but no newline)
         let cardinality = if self.peek_token(TokenType::Multiply).is_ok() {
             self.bump(); // eat *
             YieldCardinality::Generator
@@ -317,10 +381,16 @@ impl Parser {
             YieldCardinality::Scalar
         };
 
-        // value
-        let value_id = self.with_options(self.options.not_in_position(), |parser| {
-            parser.eat_expression()
-        })?;
+        // value (optional, like return/throw)
+        // yield without value is valid JS: `function* a() { yield }`
+        let value_id = if self.peek().is_ok() && self.peek_statement_stop().is_err() {
+            let value_id = self.with_options(self.options.not_in_position(), |parser| {
+                parser.eat_expression()
+            })?;
+            Some(value_id)
+        } else {
+            None
+        };
 
         // yield
         let yield_id = self.tree.insert(
@@ -410,7 +480,7 @@ mod tests {
         let mut test = TestParser::new("break");
         let mut parser = test.prepare();
         let break_id = parser.eat_break().unwrap();
-        assert_node!(parser.tree, break_id, Expression::Break { label, value } => {
+        assert_node!(parser.tree, break_id, Expression::Break { label: None, value } => {
             assert!(value.is_none());
         });
     }
@@ -443,7 +513,7 @@ mod tests {
         let mut test = TestParser::new("break 15");
         let mut parser = test.prepare();
         let break_id = parser.eat_break().unwrap();
-        assert_node!(parser.tree, break_id, Expression::Break { label, value } => {
+        assert_node!(parser.tree, break_id, Expression::Break { label: None, value } => {
             assert!(value.is_some());
             assert_node!(parser.tree, value.unwrap(), Expression::ScalarLiteral(ScalarLiteral::Integer(15)));
         });
@@ -454,7 +524,7 @@ mod tests {
         let mut test = TestParser::new("continue");
         let mut parser = test.prepare();
         let continue_id = parser.eat_continue().unwrap();
-        assert_node!(parser.tree, continue_id, Expression::Continue { label } => {
+        assert_node!(parser.tree, continue_id, Expression::Continue { label: None } => {
         });
     }
 
@@ -465,6 +535,48 @@ mod tests {
         let continue_id = parser.eat_continue().unwrap();
         assert_node!(parser.tree, continue_id, Expression::Continue { label } => {
             assert_string!(parser, label.unwrap(), "label");
+        });
+    }
+
+    #[test]
+    fn test_break_js_style_label() {
+        let mut test = TestParser::new("break foo;");
+        let mut parser = test.prepare();
+        let break_id = parser.eat_break().unwrap();
+        assert_node!(parser.tree, break_id, Expression::Break { label, value } => {
+            assert_string!(parser, label.unwrap(), "foo");
+            assert!(value.is_none());
+        });
+    }
+
+    #[test]
+    fn test_break_js_style_label_newline() {
+        let mut test = TestParser::new("break foo\n");
+        let mut parser = test.prepare();
+        let break_id = parser.eat_break().unwrap();
+        assert_node!(parser.tree, break_id, Expression::Break { label, value } => {
+            assert_string!(parser, label.unwrap(), "foo");
+            assert!(value.is_none());
+        });
+    }
+
+    #[test]
+    fn test_continue_js_style_label() {
+        let mut test = TestParser::new("continue foo;");
+        let mut parser = test.prepare();
+        let continue_id = parser.eat_continue().unwrap();
+        assert_node!(parser.tree, continue_id, Expression::Continue { label } => {
+            assert_string!(parser, label.unwrap(), "foo");
+        });
+    }
+
+    #[test]
+    fn test_continue_js_style_label_newline() {
+        let mut test = TestParser::new("continue foo\n");
+        let mut parser = test.prepare();
+        let continue_id = parser.eat_continue().unwrap();
+        assert_node!(parser.tree, continue_id, Expression::Continue { label } => {
+            assert_string!(parser, label.unwrap(), "foo");
         });
     }
 
@@ -492,10 +604,21 @@ mod tests {
         assert_node!(parser.tree, yield_id, Expression::Yield { cardinality, value } => {
             assert_eq!(*cardinality, YieldCardinality::Scalar);
             // someFunction()
-            assert_node!(parser.tree, *value, Expression::Call { position: _, left, static_arguments: None, dynamic_arguments } => {
+            assert_node!(parser.tree, value.unwrap(), Expression::Call { position: _, left, static_arguments: None, dynamic_arguments } => {
                 assert_expression_path!(parser, parser.tree.get(*left), "someFunction");
                 assert!(dynamic_arguments.is_empty());
             });
+        });
+    }
+
+    #[test]
+    fn test_yield_expression_no_value() {
+        let mut test = TestParser::new("yield");
+        let mut parser = test.prepare();
+        let yield_id = parser.eat_yield().unwrap();
+        assert_node!(parser.tree, yield_id, Expression::Yield { cardinality, value } => {
+            assert_eq!(*cardinality, YieldCardinality::Scalar);
+            assert!(value.is_none());
         });
     }
 
@@ -507,10 +630,34 @@ mod tests {
         assert_node!(parser.tree, yield_id, Expression::Yield { cardinality, value } => {
             assert_eq!(*cardinality, YieldCardinality::Generator);
             // someFunction()
-            assert_node!(parser.tree, *value, Expression::Call { position: _, left, static_arguments: None, dynamic_arguments } => {
+            assert_node!(parser.tree, value.unwrap(), Expression::Call { position: _, left, static_arguments: None, dynamic_arguments } => {
                 assert_expression_path!(parser, parser.tree.get(*left), "someFunction");
                 assert!(dynamic_arguments.is_empty());
             });
+        });
+    }
+
+    #[test]
+    fn test_yield_expression_generator_with_space() {
+        let mut test = TestParser::new("yield *a");
+        let mut parser = test.prepare();
+        let yield_id = parser.eat_yield().unwrap();
+        assert_node!(parser.tree, yield_id, Expression::Yield { cardinality, value } => {
+            assert_eq!(*cardinality, YieldCardinality::Generator);
+            assert!(value.is_some());
+        });
+    }
+
+    #[test]
+    fn test_yield_asi_with_newline() {
+        // yield\n*a should NOT be parsed as yield* a due to ASI restricted production
+        // the newline after yield triggers ASI, so it should be yield; followed by *a
+        let mut test = TestParser::new("yield\n*a");
+        let mut parser = test.prepare();
+        let yield_id = parser.eat_yield().unwrap();
+        assert_node!(parser.tree, yield_id, Expression::Yield { cardinality, value } => {
+            assert_eq!(*cardinality, YieldCardinality::Scalar);
+            assert!(value.is_none()); // ASI applied, no value
         });
     }
 
