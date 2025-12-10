@@ -61,7 +61,10 @@ impl Parser {
     ///
     /// Examples:
     /// ```
-    /// new
+    /// new Foo
+    /// new Foo()
+    /// new Foo(1, 2)
+    /// new Foo<T>()
     /// ```
     pub fn eat_new(&mut self) -> ParseResult<LocalNodeId<Expression>> {
         let start = self.mark();
@@ -77,8 +80,8 @@ impl Parser {
         // static arguments (may be empty)
         let static_arguments = self.eat_static_arguments_maybe()?;
 
-        // dynamic arguments (may be empty)
-        let dynamic_arguments = self.eat_dynamic_arguments()?;
+        // dynamic arguments (optional in JS: `new Foo` is valid without parentheses)
+        let dynamic_arguments = self.eat_dynamic_arguments_maybe()?.unwrap_or_default();
 
         // call
         let call_id = self.tree.insert(
@@ -250,6 +253,57 @@ mod tests {
             assert_node!(parser.tree, dynamic_arguments[1], Argument::Positional { value } => {
                 assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(2)));
             });
+        });
+    }
+
+    #[test]
+    fn test_parse_new_without_parentheses() {
+        // new Foo (without parentheses, valid JS)
+        let mut test = TestParser::new("new Foo");
+        let mut parser = test.prepare();
+        let expression_id = parser.eat_expression().unwrap();
+
+        assert_node!(parser.tree, expression_id, Expression::New { left, static_arguments, dynamic_arguments } => {
+            // Foo
+            assert_expression_path!(parser, parser.tree.get(*left), "Foo");
+            // no static arguments
+            assert!(static_arguments.is_none());
+            // empty dynamic arguments (no parentheses)
+            assert!(dynamic_arguments.is_empty());
+        });
+    }
+
+    #[test]
+    fn test_parse_new_with_empty_parentheses() {
+        // new Foo() (with empty parentheses)
+        let mut test = TestParser::new("new Foo()");
+        let mut parser = test.prepare();
+        let expression_id = parser.eat_expression().unwrap();
+
+        assert_node!(parser.tree, expression_id, Expression::New { left, static_arguments, dynamic_arguments } => {
+            // Foo
+            assert_expression_path!(parser, parser.tree.get(*left), "Foo");
+            // no static arguments
+            assert!(static_arguments.is_none());
+            // empty dynamic arguments
+            assert!(dynamic_arguments.is_empty());
+        });
+    }
+
+    #[test]
+    fn test_parse_new_with_arguments() {
+        // new Foo(1, 2)
+        let mut test = TestParser::new("new Foo(1, 2)");
+        let mut parser = test.prepare();
+        let expression_id = parser.eat_expression().unwrap();
+
+        assert_node!(parser.tree, expression_id, Expression::New { left, static_arguments, dynamic_arguments } => {
+            // Foo
+            assert_expression_path!(parser, parser.tree.get(*left), "Foo");
+            // no static arguments
+            assert!(static_arguments.is_none());
+            // (1, 2)
+            assert_eq!(dynamic_arguments.len(), 2);
         });
     }
 }

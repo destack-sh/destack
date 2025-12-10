@@ -64,7 +64,6 @@ impl SwcSuite {
         tests.sort();
         tests
     }
-
 }
 
 impl Default for SwcSuite {

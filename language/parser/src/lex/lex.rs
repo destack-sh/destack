@@ -167,8 +167,11 @@ impl Lexer<'_> {
                             let is_doc_block = third_is_star && !fourth_is_star;
                             // consume the initial '*'
                             self.eat();
-                            self.eat_block_comment();
-                            if is_doc_block {
+                            let is_terminated = self.eat_block_comment();
+                            // unterminated comment is an error
+                            if !is_terminated {
+                                (TokenType::Unknown, None)
+                            } else if is_doc_block {
                                 (TokenType::DocBlockComment, None)
                             } else {
                                 (TokenType::BlockComment, None)
@@ -1402,7 +1405,8 @@ impl Lexer<'_> {
 
     /// Parses a block comment body with nesting support.
     /// Assumes the initial `/*` has been seen (the `/` is already consumed and `*` consumed by caller).
-    pub(crate) fn eat_block_comment(&mut self) {
+    /// Returns true if the comment was properly terminated, false if EOF was reached.
+    pub(crate) fn eat_block_comment(&mut self) -> bool {
         let mut depth: u32 = 1;
         while !self.is_end() {
             let bytes = self.as_str().as_bytes();
@@ -1422,7 +1426,7 @@ impl Lexer<'_> {
                     self.eat();
                     depth = depth.saturating_sub(1);
                     if depth == 0 {
-                        break;
+                        return true; // properly terminated
                     }
                     continue;
                 }
@@ -1430,6 +1434,8 @@ impl Lexer<'_> {
             // consume a single character and continue
             let _ = self.eat();
         }
+        // reached EOF without closing comment
+        false
     }
 
     /// Tries to eat tree literal text content (TSX-compatible).

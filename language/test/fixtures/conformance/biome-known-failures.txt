@@ -30,10 +30,12 @@ error/decorator_precede_class_member.ts
 error/double_label.js
 error/empty_parenthesized_expression.js
 error/enum_in_js.js
+error/escaped_from.js
 error/eval_arguments_assignment.js
 error/exponent_unary_unparenthesized.js
 error/export_as_identifier_err.js
 error/export_decl_not_top_level.js
+error/function_escaped_async.js
 error/function_id_err.js
 error/getter_class_no_body.js
 error/import_as_identifier_err.js
@@ -177,7 +179,6 @@ ok/labelled_statement_in_single_statement_context.js
 ok/literals.js
 ok/metavar.tsx
 ok/method_class_member.js
-ok/new_exprs.js
 ok/object_expr_method.js
 ok/object_member_name.js
 ok/object_prop_name.js

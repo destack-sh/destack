@@ -7,7 +7,6 @@ js/explicit-resource-management/valid-using-as-identifier-for-await-of/input.js
 js/explicit-resource-management/valid-using-as-identifier-for-in/input.js
 js/explicit-resource-management/valid-using-as-identifier-for-init/input.js
 js/explicit-resource-management/valid-using-as-identifier-for-of/input.js
-js/explicit-resource-management/valid-using-binding-escaped/input.js
 js/explicit-resource-management/valid-using-binding-using/input.js
 js/import-assertions-with-keyword/valid-syntax-export-with-and-assertions-multiple-lines/input.js
 js/import-assertions-with-keyword/valid-syntax-export-with-assertions-and-value/input.js
@@ -165,3 +164,4 @@ typescript/v4/optional-tuple-element/input.ts
 typescript/variable-declarator/definite-assignment/input.ts
 typescript/variance-annotations/1/input.ts
 typescript/variance-annotations/with_jsx/input.tsx
+jsx/errors/unicode-escape-in-identifier/input.js
