@@ -1,5 +1,3 @@
-// Copied from unmaintained package https://github.com/bevry/get-current-line to fix imports
-
 /** The combination of location information about the line that was executing at the time */
 export type Location = {
 	/** the location of the line that was executing at the time */

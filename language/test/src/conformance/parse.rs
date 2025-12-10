@@ -83,6 +83,7 @@ pub(super) fn file_type_from_path(path: &Path) -> FileType {
     let path_str = path.to_string_lossy();
 
     // check if test is in a tsx or jsx directory (some suites enable JSX based on directory)
+    // nocheckin TODO #Suspicious: language type should be determined per-suite?
     let in_tsx_dir = path_str.contains("/tsx/") || path_str.contains("/tsx-");
     let in_jsx_dir = path_str.contains("/jsx/") || path_str.contains("/jsx-");
 
@@ -94,9 +95,7 @@ pub(super) fn file_type_from_path(path: &Path) -> FileType {
         } else {
             FileType::TypeScript
         }
-    } else if path_str.ends_with(".jsx") {
-        FileType::JavaScriptXml
-    } else if in_jsx_dir {
+    } else if path_str.ends_with(".jsx") || in_jsx_dir {
         FileType::JavaScriptXml
     } else {
         FileType::JavaScript

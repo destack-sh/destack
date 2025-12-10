@@ -16,26 +16,38 @@ use crate::harness::{
 /// Run all parser smoke tests.
 pub fn run_parser_smoke_tests(options: &TestOptions) -> std::process::ExitCode {
     let smoke_dir = fixtures_dir().join("smoke").join("parser");
-    let tests = discover_test_files(&smoke_dir, &["ds"], "destack_test::smoke::parser")
+    // support all language file extensions
+    let extensions = &["ds", ".d.ds", "ts", ".d.ts", "tsx", "js", "jsx"];
+    let tests = discover_test_files(&smoke_dir, extensions, "destack_test::smoke::parser")
         .expect("failed to discover tests");
     run_tests(tests, options, run_parser_test)
 }
 
 /// Run a single parser smoke test.
 fn run_parser_test(test: &TestCase) -> TestResult {
+    // determine file type from extension
+    let path_str = test.path.to_string_lossy();
+    let file_type = if path_str.ends_with(".d.ds") {
+        FileType::DestackDeclaration
+    } else if path_str.ends_with(".d.ts") {
+        FileType::TypeScriptDeclaration
+    } else {
+        let ext = test.path.extension().and_then(|e| e.to_str()).unwrap_or("");
+        FileType::from_extension(ext).unwrap_or(FileType::Destack)
+    };
+
+    // set up language options based on file type
+    let language_type = destack_source::LanguageType::from(file_type);
+    let language = LanguageOptions::default().with_type(language_type);
+
     // set up a minimal program for diagnostics
     let cwd = test.path.parent().unwrap().to_path_buf();
     let files = Arc::new(FileRegistry::new());
     let fs: Arc<dyn FileSystem> = Arc::new(MemoryFileSystem::new());
-    let program = Arc::new(Program::new(LanguageOptions::default(), cwd, fs, files));
+    let program = Arc::new(Program::new(language, cwd, fs, files));
 
     // load the file
     let uri = Uri::from_path(&test.path);
-    let file_type = if test.path.to_string_lossy().ends_with(".d.ds") {
-        FileType::DestackDeclaration
-    } else {
-        FileType::Destack
-    };
     let content = match std::fs::read_to_string(&test.path) {
         Ok(content) => content,
         Err(e) => {
