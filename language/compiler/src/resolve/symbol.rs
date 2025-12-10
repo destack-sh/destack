@@ -405,7 +405,7 @@ impl Compiler {
 
 #[cfg(test)]
 mod tests {
-    use destack_dir::{Declarator, Expression, Pattern, ScalarLiteral};
+    use destack_dir::{Expression, Pattern, ScalarLiteral};
 
     use crate::{TestProgram, assert_node, assert_string};
 

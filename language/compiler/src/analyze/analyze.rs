@@ -796,7 +796,8 @@ impl Compiler {
                 types.insert_type_from(ty, expression_id)
             }
 
-            // range expression -> Range type
+            // range expression: analyze bounds, type is Iterable<T>
+            // NOTE #Incomplete: range should satisfy Iterable<T> where T is the element type
             Expression::RangeExpression {
                 start,
                 end,
@@ -804,7 +805,6 @@ impl Compiler {
             } => {
                 self.analyze_expression(module, *start, tree, symbols, types, ctx)?;
                 self.analyze_expression(module, *end, tree, symbols, types, ctx)?;
-                // NOTE #Incomplete: proper Range type
                 let ty = Type::TypeLiteral {
                     value: TypeLiteral::Unknown,
                 };

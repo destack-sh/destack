@@ -1526,6 +1526,8 @@ export namespace Outer {
         });
     }
 
+    // NOTE #Broken: only allow HTML comments in certain module types
+
     /// HTML open comment (<!--) on its own line attaches as block prefix to next expression.
     #[test]
     fn test_attach_html_open_comment_prefix_to_expression() {

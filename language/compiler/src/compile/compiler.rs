@@ -68,6 +68,7 @@ impl Default for CompileOptions {
 }
 
 /// Compile files and sources into something (via DIR).
+/// TODO #Incomplete: should Compiler be per-target?
 pub struct Compiler {
     /// The program.
     pub program: Arc<Program>,
