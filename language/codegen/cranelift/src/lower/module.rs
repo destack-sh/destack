@@ -192,7 +192,7 @@ impl<'a> ModuleLowerer<'a> {
                 };
 
                 // lower each element and concatenate
-                // NOTE #Incomplete: this doesn't handle alignment padding between fields
+                // NOTE #Broken: cranelift initializers don't handle alignment padding between fields
                 let mut bytes = Vec::new();
                 for (elem_init, elem_ty) in elements.iter().zip(element_types.iter()) {
                     let elem_bytes =

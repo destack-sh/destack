@@ -1293,10 +1293,6 @@ mod tests {
         });
     }
 
-    // ========================================================================
-    // Template literal tests (regression tests for panics on malformed input)
-    // ========================================================================
-
     /// Valid template literal with interpolation should parse correctly.
     #[test]
     fn test_parse_template_literal_valid() {
