@@ -94,6 +94,7 @@ impl Parser {
             && token.token.literal
                 == Some(LiteralType::String {
                     is_terminated: true,
+                    has_invalid_escape: false,
                 })
         {
             Ok(token)
@@ -110,6 +111,7 @@ impl Parser {
             && token.token.literal
                 == Some(LiteralType::String {
                     is_terminated: true,
+                    has_invalid_escape: false,
                 })
         {
             Ok(token)

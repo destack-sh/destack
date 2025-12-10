@@ -12,8 +12,14 @@ use destack_unicode::UnicodeEmoji;
 
 /// Result of parsing a single-quoted literal.
 enum SingleQuotedLiteral {
-    Character { is_terminated: bool },
-    String { is_terminated: bool },
+    Character {
+        is_terminated: bool,
+        has_invalid_escape: bool,
+    },
+    String {
+        is_terminated: bool,
+        has_invalid_escape: bool,
+    },
 }
 
 pub const TRIVIA_TOKEN_TYPES: [TokenType; 6] = [
@@ -365,8 +371,11 @@ impl Lexer<'_> {
                     == Some(&self.options.parentheses_depth)
                 {
                     self.options.template_string_stack.pop();
-                    let is_complete = self.eat_template_string();
-                    if is_complete {
+                    let (is_complete, has_invalid_escape) = self.eat_template_string();
+                    // invalid escape in template literal is an error
+                    if has_invalid_escape {
+                        (TokenType::Unknown, None)
+                    } else if is_complete {
                         (TokenType::TemplateStringEnd, None)
                     } else {
                         // continue eating the template (after `${`, again)
@@ -827,32 +836,46 @@ impl Lexer<'_> {
 
             // character literal (with fallback to string literal for #Compatibility)
             '\'' => match self.eat_single_quoted_string() {
-                SingleQuotedLiteral::Character { is_terminated } => {
+                SingleQuotedLiteral::Character {
+                    is_terminated,
+                    has_invalid_escape,
+                } => {
+                    // Treat invalid escape as unterminated to trigger parse error
                     let kind = LiteralType::Character {
-                        is_terminated,
+                        is_terminated: is_terminated && !has_invalid_escape,
                         is_html_entity: false,
                     };
                     (TokenType::Literal, Some(kind))
                 }
-                SingleQuotedLiteral::String { is_terminated } => {
-                    let kind = LiteralType::String { is_terminated };
+                SingleQuotedLiteral::String {
+                    is_terminated,
+                    has_invalid_escape,
+                } => {
+                    let kind = LiteralType::String {
+                        is_terminated,
+                        has_invalid_escape,
+                    };
                     (TokenType::Literal, Some(kind))
                 }
             },
 
             // string literal
             '"' => {
-                let terminated = self.eat_double_quoted_string();
+                let (terminated, has_invalid_escape) = self.eat_double_quoted_string();
                 let kind = LiteralType::String {
                     is_terminated: terminated,
+                    has_invalid_escape,
                 };
                 (TokenType::Literal, Some(kind))
             }
 
             // template string literal
             '`' => {
-                let is_complete = self.eat_template_string();
-                if is_complete {
+                let (is_complete, has_invalid_escape) = self.eat_template_string();
+                // invalid escape in template literal is an error
+                if has_invalid_escape {
+                    (TokenType::Unknown, None)
+                } else if is_complete {
                     (TokenType::TemplateString, None)
                 } else {
                     self.options
@@ -1242,25 +1265,39 @@ impl Lexer<'_> {
         debug_assert!(self.prev() == '\'');
 
         let mut logical_len = 0_u32;
+        let mut has_invalid_escape = false;
 
         // parse until either quotes are terminated or EOF is reached
         loop {
             // check for EOF first to avoid infinite loop on unterminated strings
             if self.is_end() {
-                return Self::finish_single_quoted_literal(logical_len, false);
+                return Self::finish_single_quoted_literal(logical_len, false, has_invalid_escape);
             }
 
             match self.peek() {
                 // quotes are terminated, finish parsing
                 '\'' => {
                     self.eat();
-                    return Self::finish_single_quoted_literal(logical_len, true);
+                    return Self::finish_single_quoted_literal(
+                        logical_len,
+                        true,
+                        has_invalid_escape,
+                    );
                 }
                 // escaped character is considered one logical character
                 '\\' => {
                     self.eat();
                     if self.is_end() {
-                        return Self::finish_single_quoted_literal(logical_len, false);
+                        return Self::finish_single_quoted_literal(
+                            logical_len,
+                            false,
+                            has_invalid_escape,
+                        );
+                    }
+                    // \8 and \9 are always invalid escape sequences
+                    let escaped = self.peek();
+                    if escaped == '8' || escaped == '9' {
+                        has_invalid_escape = true;
                     }
                     self.eat();
                     logical_len = logical_len.saturating_add(1);
@@ -1275,32 +1312,50 @@ impl Lexer<'_> {
     }
 
     #[inline]
-    fn finish_single_quoted_literal(logical_len: u32, is_terminated: bool) -> SingleQuotedLiteral {
+    fn finish_single_quoted_literal(
+        logical_len: u32,
+        is_terminated: bool,
+        has_invalid_escape: bool,
+    ) -> SingleQuotedLiteral {
         if logical_len == 1 {
-            SingleQuotedLiteral::Character { is_terminated }
+            SingleQuotedLiteral::Character {
+                is_terminated,
+                has_invalid_escape,
+            }
         } else {
-            SingleQuotedLiteral::String { is_terminated }
+            SingleQuotedLiteral::String {
+                is_terminated,
+                has_invalid_escape,
+            }
         }
     }
 
     /// Parses a double-quoted string (excluding first `"`).
-    /// Returns whether the string is complete (i.e. not a true interpolation).
-    fn eat_double_quoted_string(&mut self) -> bool {
+    /// Returns (is_terminated, has_invalid_escape).
+    fn eat_double_quoted_string(&mut self) -> (bool, bool) {
         debug_assert!(self.prev() == '"');
+        let mut has_invalid_escape = false;
         while let Some(c) = self.eat() {
             match c {
                 '"' => {
-                    return true;
+                    return (true, has_invalid_escape);
                 }
-                '\\' if self.peek() == '\\' || self.peek() == '"' => {
-                    // bump again to skip escaped character
-                    self.eat();
+                '\\' => {
+                    // \8 and \9 are always invalid escape sequences
+                    let escaped = self.peek();
+                    if escaped == '8' || escaped == '9' {
+                        has_invalid_escape = true;
+                    }
+                    // skip escaped backslash or quote
+                    if escaped == '\\' || escaped == '"' {
+                        self.eat();
+                    }
                 }
                 _ => (),
             }
         }
         // end of file reached
-        false
+        (false, has_invalid_escape)
     }
 
     /// Parses a regex string (excluding first `/`, including any flags after `/`).
@@ -1333,26 +1388,43 @@ impl Lexer<'_> {
         has_flags
     }
 
-    /// Parses a template string (excluding first ``).
-    /// Returns whether it's the start or the full string.
-    fn eat_template_string(&mut self) -> bool {
+    /// Parses a template string (excluding first backtick).
+    /// Returns (is_complete, has_invalid_escape).
+    fn eat_template_string(&mut self) -> (bool, bool) {
+        let mut has_invalid_escape = false;
         while let Some(c) = self.eat() {
             match c {
                 '`' => {
-                    return true;
+                    return (true, has_invalid_escape);
                 }
                 '$' if self.peek() == '{' => {
                     self.eat();
-                    return false;
+                    return (false, has_invalid_escape);
                 }
-                '\\' if self.peek() == '\\' || self.peek() == '`' => {
-                    // bump again to skip escaped character
-                    self.eat();
+                '\\' => {
+                    let escaped = self.peek();
+                    // octal escapes are forbidden in template literals
+                    // this includes \0 followed by another digit, and \1 through \9
+                    if escaped.is_ascii_digit() && escaped != '0' {
+                        // \1 through \9 are always invalid in templates
+                        has_invalid_escape = true;
+                    } else if escaped == '0' {
+                        // \0 followed by another digit is invalid (legacy octal)
+                        self.eat();
+                        if self.peek().is_ascii_digit() {
+                            has_invalid_escape = true;
+                        }
+                        continue;
+                    }
+                    // skip escaped backslash or backtick
+                    if escaped == '\\' || escaped == '`' {
+                        self.eat();
+                    }
                 }
-                _ => (), // keep eating
+                _ => (),
             }
         }
-        false
+        (false, has_invalid_escape)
     }
 
     /// Parses decimal digits.

@@ -24,12 +24,12 @@ Documentation comments for functions/types/etc. should be proper sentences with 
  - Go multiline if there is more than one sentence. Only one sentence should begin per line.
  - For methods, documentation should be imperative, usually starting with a verb (e.g., "Send a message").
 
-Comments may start with keywords:
-- `NOTE`: call out something important
-- `TODO`: something to address eventually
-- `nocheckin`: temporary, should not be committed
+Comments may start with keywords (without the space!):
+- `N OTE`: call out something important
+- `T ODO`: something to address eventually
+- `n ocheckin`: temporary, should not be committed
 
-Keywords should include tags (like "NOTE #Suspicious: allocating in runtime seems wrong?"):
+Keywords should include tags (like "N OTE #Suspicious: allocating in runtime seems wrong?"):
 - `#Performance`: could be faster or more efficient
 - `#Robustness`: might be flaky in some cases
 - `#Broken`: doesn't work in likely cases
