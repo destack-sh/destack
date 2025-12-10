@@ -1411,7 +1411,7 @@ export namespace Outer {
     #[test]
     fn test_attach_multiple_comments_around_expression_in_successive_blocks() {
         let mut test = TestParser::new(
-            r"root: {
+            r"{
     // comment part 0
     a: {
         // comment part 1
@@ -1439,7 +1439,7 @@ export namespace Outer {
         assert_node!(parser.tree, block, Block { expressions, .. } => {
             assert_eq!(expressions.len(), 2);
 
-            // a
+            // a (labelled block)
             let a = expressions[0];
             let a_annotations = parser.tree.get_annotations(a.id);
             assert_eq!(a_annotations.len(), 1); // (0 as block prefix)
@@ -1453,32 +1453,34 @@ export namespace Outer {
                 });
             });
 
-            // a: { .. }
-            assert_node!(parser.tree, a, Expression::Block (block_id) => {
-                assert_node!(parser.tree, *block_id, Block { expressions, .. } => {
-                    assert_eq!(expressions.len(), 1);
-                    let annotations = parser.tree.get_annotations(expressions[0].id);
-                    assert_eq!(annotations.len(), 2);
-                    // comment part 1\ncomment part 2
-                    assert_node!(parser.tree, annotations[0], Annotation::Comment { node, position } => {
-                        assert_eq!(*position, AnnotationPosition::BlockPrefix);
-                        assert_node!(parser.tree, *node, Comment { string, style } => {
-                            assert_string!(parser, *string, "comment part 1\ncomment part 2");
-                            assert_eq!(*style, CommentStyle::Slash);
+            // a: { .. } - now Expression::Labelled
+            assert_node!(parser.tree, a, Expression::Labelled { label: _, body } => {
+                assert_node!(parser.tree, *body, Expression::Block (block_id) => {
+                    assert_node!(parser.tree, *block_id, Block { expressions, .. } => {
+                        assert_eq!(expressions.len(), 1);
+                        let annotations = parser.tree.get_annotations(expressions[0].id);
+                        assert_eq!(annotations.len(), 2);
+                        // comment part 1\ncomment part 2
+                        assert_node!(parser.tree, annotations[0], Annotation::Comment { node, position } => {
+                            assert_eq!(*position, AnnotationPosition::BlockPrefix);
+                            assert_node!(parser.tree, *node, Comment { string, style } => {
+                                assert_string!(parser, *string, "comment part 1\ncomment part 2");
+                                assert_eq!(*style, CommentStyle::Slash);
+                            });
                         });
-                    });
-                    // comment part 3\ncomment part 4
-                    assert_node!(parser.tree, annotations[1], Annotation::Comment { node, position } => {
-                        assert_eq!(*position, AnnotationPosition::BlockPostfix);
-                        assert_node!(parser.tree, *node, Comment { string, style } => {
-                            assert_string!(parser, *string, "comment part 3\ncomment part 4");
-                            assert_eq!(*style, CommentStyle::Slash);
+                        // comment part 3\ncomment part 4
+                        assert_node!(parser.tree, annotations[1], Annotation::Comment { node, position } => {
+                            assert_eq!(*position, AnnotationPosition::BlockPostfix);
+                            assert_node!(parser.tree, *node, Comment { string, style } => {
+                                assert_string!(parser, *string, "comment part 3\ncomment part 4");
+                                assert_eq!(*style, CommentStyle::Slash);
+                            });
                         });
                     });
                 });
             });
 
-            // b
+            // b (labelled block)
             let b = expressions[1];
             let b_annotations = parser.tree.get_annotations(b.id);
             assert_eq!(b_annotations.len(), 2); // (5+6 as block prefix, 11 as block postfix)
@@ -1492,26 +1494,28 @@ export namespace Outer {
                 });
             });
 
-            // b: { .. }
-            assert_node!(parser.tree, b, Expression::Block (block_id) => {
-                assert_node!(parser.tree, *block_id, Block { expressions, .. } => {
-                    assert_eq!(expressions.len(), 1);
-                    let annotations = parser.tree.get_annotations(expressions[0].id);
-                    assert_eq!(annotations.len(), 2);
-                    // comment part 7\ncomment part 8
-                    assert_node!(parser.tree, annotations[0], Annotation::Comment { node, position } => {
-                        assert_eq!(*position, AnnotationPosition::BlockPrefix);
-                        assert_node!(parser.tree, *node, Comment { string, style } => {
-                            assert_string!(parser, *string, "comment part 7\ncomment part 8");
-                            assert_eq!(*style, CommentStyle::Slash);
+            // b: { .. } - now Expression::Labelled
+            assert_node!(parser.tree, b, Expression::Labelled { label: _, body } => {
+                assert_node!(parser.tree, *body, Expression::Block (block_id) => {
+                    assert_node!(parser.tree, *block_id, Block { expressions, .. } => {
+                        assert_eq!(expressions.len(), 1);
+                        let annotations = parser.tree.get_annotations(expressions[0].id);
+                        assert_eq!(annotations.len(), 2);
+                        // comment part 7\ncomment part 8
+                        assert_node!(parser.tree, annotations[0], Annotation::Comment { node, position } => {
+                            assert_eq!(*position, AnnotationPosition::BlockPrefix);
+                            assert_node!(parser.tree, *node, Comment { string, style } => {
+                                assert_string!(parser, *string, "comment part 7\ncomment part 8");
+                                assert_eq!(*style, CommentStyle::Slash);
+                            });
                         });
-                    });
-                    // comment part 9\ncomment part 10
-                    assert_node!(parser.tree, annotations[1], Annotation::Comment { node, position } => {
-                        assert_eq!(*position, AnnotationPosition::BlockPostfix);
-                        assert_node!(parser.tree, *node, Comment { string, style } => {
-                            assert_string!(parser, *string, "comment part 9\ncomment part 10");
-                            assert_eq!(*style, CommentStyle::Slash);
+                        // comment part 9\ncomment part 10
+                        assert_node!(parser.tree, annotations[1], Annotation::Comment { node, position } => {
+                            assert_eq!(*position, AnnotationPosition::BlockPostfix);
+                            assert_node!(parser.tree, *node, Comment { string, style } => {
+                                assert_string!(parser, *string, "comment part 9\ncomment part 10");
+                                assert_eq!(*style, CommentStyle::Slash);
+                            });
                         });
                     });
                 });

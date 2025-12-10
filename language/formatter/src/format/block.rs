@@ -58,11 +58,6 @@ pub(crate) fn format_block_body_narrow<'ast>(
     let block = f.context().tree.get(block_id);
     debug_assert!(block.expressions.len() <= 1);
 
-    // label
-    if let Some(label) = &block.label {
-        write!(f, [label, token(":"), space()])?;
-    }
-
     // body
     if block.expressions.is_empty() {
         write!(f, [token("{"), space(), token("}")])?;
@@ -91,10 +86,6 @@ pub(crate) fn format_block_body_wide<'ast>(
     block_id: LocalNodeId<Block>,
 ) -> FormatResult<()> {
     let block = f.context().tree.get(block_id);
-    // label
-    if let Some(label) = &block.label {
-        write!(f, [label, token(":"), space()])?;
-    }
     // body
     write!(
         f,

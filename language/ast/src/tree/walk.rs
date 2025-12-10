@@ -145,6 +145,11 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             visitor.visit_expression(tree, *statement_id, statement);
         }
 
+        Expression::Labelled { label: _, body } => {
+            let body_expr = tree.get(*body);
+            visitor.visit_expression(tree, *body, body_expr);
+        }
+
         Expression::Import {
             kind: _,
             target: _,
@@ -1109,6 +1114,9 @@ pub fn walk_pattern_field<V: NodeVisitor + ?Sized>(
             mutability: _,
             name: _,
         } => {
+            // nothing to visit
+        }
+        PatternField::Elision => {
             // nothing to visit
         }
     }

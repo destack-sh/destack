@@ -212,7 +212,6 @@ impl Parser {
                 let block_id = self.tree.insert(
                     Block {
                         format: BlockFormat::Implicit,
-                        label: None,
                         expressions,
                     },
                     self.get_span_from(start),
@@ -435,7 +434,7 @@ switch (left.type) {
                     });
                 });
                 // body
-                assert_node!(parser.tree, *body, Block { format: _, label: _, expressions } => {
+                assert_node!(parser.tree, *body, Block { format: _, expressions } => {
                     assert_eq!(expressions.len(), 2);
                 });
             });
@@ -450,7 +449,7 @@ switch (left.type) {
                     });
                 });
                 // body
-                assert_node!(parser.tree, *body, Block { format: _, label: _, expressions } => {
+                assert_node!(parser.tree, *body, Block { format: _, expressions } => {
                     assert_eq!(expressions.len(), 2);
                 });
             });
@@ -475,7 +474,7 @@ switch (left.type) {
                 assert!(guard.is_none());
                 assert_node!(parser.tree, *pattern, Pattern::Wildcard);
                 // body
-                assert_node!(parser.tree, *body, Block { format: _, label: _, expressions } => {
+                assert_node!(parser.tree, *body, Block { format: _, expressions } => {
                     assert_eq!(expressions.len(), 2);
                 });
             });

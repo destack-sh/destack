@@ -22,6 +22,18 @@ pub enum Expression {
     /// Statement expression (explicit statement with a `;` terminator).
     Statement(LocalNodeId<Expression>),
 
+    /// Labelled statement (like `label: stmt` in JavaScript).
+    ///
+    /// Examples:
+    /// ```
+    /// outer: while (true) { break outer }
+    /// label: { break label }
+    /// ```
+    Labelled {
+        label: StringId,
+        body: LocalNodeId<Expression>,
+    },
+
     /// An Import is an import declaration for dependency management.
     ///
     /// Examples:
@@ -256,13 +268,13 @@ pub enum Expression {
     },
 
     /// A Break is break statement.
+    /// If a value is provided, a label must also be provided (to avoid ambiguity).
     ///
     /// Examples:
     /// ```
     /// break
-    /// break :label
-    /// break :label 17
-    /// break 15
+    /// break label
+    /// break label 17
     /// ```
     Break {
         label: Option<StringId>,
@@ -274,7 +286,7 @@ pub enum Expression {
     /// Examples:
     /// ```
     /// continue
-    /// continue :label
+    /// continue label
     /// ```
     Continue { label: Option<StringId> },
 
@@ -664,6 +676,7 @@ impl Expression {
             Expression::Block(_) => true,
             Expression::Declaration(_) => true,
             Expression::Statement(_) => true,
+            Expression::Labelled { .. } => true,
             Expression::If { .. } => true,
             Expression::While { .. } => true,
             Expression::ForEach { .. } => true,

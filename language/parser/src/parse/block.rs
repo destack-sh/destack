@@ -21,7 +21,6 @@ impl Parser {
             let block_id = self.tree.insert(
                 Block {
                     format: BlockFormat::Implicit,
-                    label: None,
                     expressions: vec![],
                 },
                 self.get_span_from(start),
@@ -43,7 +42,6 @@ impl Parser {
         let block_id = self.tree.insert(
             Block {
                 format: BlockFormat::Implicit,
-                label: None,
                 expressions: vec![expression_id],
             },
             self.get_span_from(start),
@@ -51,15 +49,12 @@ impl Parser {
         Ok(block_id)
     }
 
-    /// Peek a block (with and without label). Optional `do` prefix for disambiguation.
+    /// Peek a block. Optional `do` prefix for disambiguation.
     #[inline]
     pub fn peek_block(&self) -> ParseResult<()> {
         if self.peek_token(TokenType::OpenBrace).is_ok()
             || self.peek_keyword(Keyword::Do).is_ok()
                 && self.peek_next_token(TokenType::OpenBrace).is_ok()
-            || self.peek_token(TokenType::Identifier).is_ok()
-                && self.peek_next_token(TokenType::Colon).is_ok()
-                && self.peek_next_next_token(TokenType::OpenBrace).is_ok()
         {
             Ok(())
         } else {
@@ -70,15 +65,12 @@ impl Parser {
         }
     }
 
-    /// Peek a next block (with and without label). Optional `do` prefix for disambiguation.
+    /// Peek a next block. Optional `do` prefix for disambiguation.
     #[inline]
     pub fn peek_next_block(&self) -> ParseResult<()> {
         if self.peek_next_token(TokenType::OpenBrace).is_ok()
             || self.peek_next_keyword(Keyword::Do).is_ok()
                 && self.peek_next_next_token(TokenType::OpenBrace).is_ok()
-            || self.peek_next_token(TokenType::Identifier).is_ok()
-                && self.peek_next_next_token(TokenType::Colon).is_ok()
-                && self.peek_next_next_next_token(TokenType::OpenBrace).is_ok()
         {
             Ok(())
         } else {
@@ -103,17 +95,6 @@ impl Parser {
             self.bump(); // eat keyword
         }
 
-        // label
-        let label = if self.peek_token(TokenType::Identifier).is_ok()
-            && self.peek_next_token(TokenType::Colon).is_ok()
-        {
-            let label = self.eat_identifier().for_node_type(NodeType::Block)?;
-            self.eat_colon()?;
-            Some(label)
-        } else {
-            None
-        };
-
         // body
         self.try_eat_token(TokenType::OpenBrace, TokenType::CloseBrace)
             .for_node_type(NodeType::Block)?;
@@ -126,14 +107,10 @@ impl Parser {
         let block_id = self.tree.insert(
             Block {
                 format: BlockFormat::Explicit,
-                label: None,
                 expressions,
             },
             self.get_span_from(start),
         );
-        let block = self.tree.get_mut(block_id);
-        block.label = label;
-        self.tree.set_span(block_id, self.get_span_from(start));
         Ok(block_id)
     }
 
@@ -425,17 +402,6 @@ mod tests {
         let mut parser = test.prepare();
         let block_id = parser.eat_block().unwrap();
         let block = parser.tree.get(block_id);
-        assert_eq!(block.label, None);
-        assert!(block.expressions.is_empty());
-    }
-
-    #[test]
-    fn test_parse_labeled_empty_block() {
-        let mut test = TestParser::new("label: {}");
-        let mut parser = test.prepare();
-        let block_id = parser.eat_block().unwrap();
-        let block = parser.tree.get(block_id);
-        assert_string!(parser, block.label.unwrap(), "label");
         assert!(block.expressions.is_empty());
     }
 
@@ -445,7 +411,6 @@ mod tests {
         let mut parser = test.prepare();
         let break_id = parser.eat_break().unwrap();
         assert_node!(parser.tree, break_id, Expression::Break { label, value } => {
-            assert!(label.is_none());
             assert!(value.is_none());
         });
     }
@@ -479,7 +444,6 @@ mod tests {
         let mut parser = test.prepare();
         let break_id = parser.eat_break().unwrap();
         assert_node!(parser.tree, break_id, Expression::Break { label, value } => {
-            assert!(label.is_none());
             assert!(value.is_some());
             assert_node!(parser.tree, value.unwrap(), Expression::ScalarLiteral(ScalarLiteral::Integer(15)));
         });
@@ -491,7 +455,6 @@ mod tests {
         let mut parser = test.prepare();
         let continue_id = parser.eat_continue().unwrap();
         assert_node!(parser.tree, continue_id, Expression::Continue { label } => {
-            assert!(label.is_none());
         });
     }
 

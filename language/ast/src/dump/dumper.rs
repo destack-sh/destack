@@ -741,6 +741,11 @@ impl<'a> NodeVisitor for Dumper<'a> {
             Expression::Statement(_) => {
                 self.node("Expression::Statement", _id.id).end();
             }
+            Expression::Labelled { label, body: _ } => {
+                self.node("Expression::Labelled", _id.id)
+                    .field("label", label)
+                    .end();
+            }
             Expression::Import {
                 kind,
                 target,
@@ -1035,7 +1040,6 @@ impl<'a> NodeVisitor for Dumper<'a> {
     fn visit_block(&mut self, _tree: &NodeTree, _id: LocalNodeId<Block>, block: &Block) {
         self.node("Block", _id.id)
             .field("format", &block.format)
-            .field_optional("label", &block.label)
             .end();
         self.with_depth(|dumper| {
             walk_block(dumper, _tree, _id, block);
@@ -1450,6 +1454,9 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .field_optional("mutability", mutability)
                     .field_optional("name", name)
                     .end();
+            }
+            PatternField::Elision => {
+                self.node("PatternField::Elision", _id.id).end();
             }
         }
         self.with_depth(|dumper| {

@@ -451,7 +451,7 @@ mod tests {
     /// Multiple comments around an expression should retain their order across successive blocks.
     #[test]
     fn test_format_multiple_comments_around_expression_in_successive_blocks() {
-        let source = "root: {
+        let source = "{
     // comment part 0
     a: {
         // comment part 1

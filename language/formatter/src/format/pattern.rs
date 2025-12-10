@@ -136,6 +136,9 @@ impl<'ast> FormatNode<'ast, PatternField> for PatternField {
                     write!(f, [name])?;
                 }
             }
+            PatternField::Elision => {
+                // elision is represented by empty slot; comma is handled at list level
+            }
         }
 
         write!(f, [f.context().any_infix_or_postfix_annotations(node_id)])?;

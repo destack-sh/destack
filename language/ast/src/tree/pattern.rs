@@ -120,6 +120,8 @@ pub enum PatternField {
         mutability: Option<Mutability>,
         name: Option<Name>,
     },
+    /// Elision (hole) in an array pattern (like `[,a]` or `[,,b]`).
+    Elision,
 }
 
 impl Node for PatternField {

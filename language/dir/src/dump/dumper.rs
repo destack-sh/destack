@@ -772,6 +772,16 @@ impl<'a> NodeVisitor for Dumper<'a> {
             Expression::Statement { statement: _ } => {
                 self.node("Expression::Statement", id.id).end();
             }
+            Expression::Labelled {
+                label,
+                body: _,
+                symbol,
+            } => {
+                self.node("Expression::Labelled", id.id)
+                    .field("label", label)
+                    .field("symbol", symbol)
+                    .end();
+            }
 
             Expression::UnresolvedImport {
                 kind,
@@ -1705,6 +1715,9 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .field_optional("name", name)
                     .field("symbol", symbol)
                     .end();
+            }
+            PatternField::Elision => {
+                self.node("PatternField::Elision", id.id).end();
             }
         }
         self.with_depth(|dumper| {

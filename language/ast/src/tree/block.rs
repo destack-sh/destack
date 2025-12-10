@@ -1,4 +1,4 @@
-use crate::{Expression, LocalNodeId, Node, NodeType, StringId};
+use crate::{Expression, LocalNodeId, Node, NodeType};
 
 /// How a block is defined.
 #[derive(Debug, Copy, Clone, PartialEq)]
@@ -17,15 +17,10 @@ pub enum BlockFormat {
 ///     x = 1
 ///     y = 2
 /// }
-///
-/// label: {
-///     x = 1
-/// }
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub struct Block {
     pub format: BlockFormat,
-    pub label: Option<StringId>,
     pub expressions: Vec<LocalNodeId<Expression>>,
 }
 
