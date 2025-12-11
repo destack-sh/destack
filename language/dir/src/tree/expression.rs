@@ -205,6 +205,10 @@ pub enum Expression {
     TupleExpression {
         elements: Vec<LocalNodeId<Argument>>,
     },
+    /// Sequence expression (JS/TS comma operator).
+    SequenceExpression {
+        expressions: Vec<LocalNodeId<Expression>>,
+    },
     /// Object expression (anonymous).
     ObjectExpression {
         properties: Vec<LocalNodeId<Property>>,
@@ -387,6 +391,7 @@ impl Expression {
             Expression::RangeExpression { .. } => "range expression",
             Expression::ArrayExpression { .. } => "array expression",
             Expression::TupleExpression { .. } => "tuple expression",
+            Expression::SequenceExpression { .. } => "sequence expression",
             Expression::ObjectExpression { .. } => "object expression",
             Expression::TreeExpression { .. } => "tree expression",
             Expression::TaggedScalarExpression { .. } => "tagged scalar expression",

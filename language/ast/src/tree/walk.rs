@@ -400,6 +400,13 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             }
         }
 
+        Expression::SequenceExpression { expressions } => {
+            for expr_id in expressions {
+                let expr = tree.get(*expr_id);
+                visitor.visit_expression(tree, *expr_id, expr);
+            }
+        }
+
         Expression::ObjectExpression { ty, properties } => {
             if let Some(type_id) = ty {
                 let type_expr = tree.get(*type_id);

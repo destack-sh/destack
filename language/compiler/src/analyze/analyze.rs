@@ -388,6 +388,23 @@ impl Compiler {
                 };
                 types.insert_type_from(ty, expression_id)
             }
+            // sequence expression (comma operator) -> type of last expression
+            Expression::SequenceExpression { expressions } => {
+                let mut last_ty = None;
+                for expr_id in expressions {
+                    last_ty =
+                        Some(self.analyze_expression(module, *expr_id, tree, symbols, types, ctx)?);
+                }
+                // return the type of the last expression, or void if empty (shouldn't be empty?)
+                last_ty.unwrap_or_else(|| {
+                    types.insert_type_from(
+                        Type::TypeLiteral {
+                            value: TypeLiteral::Void,
+                        },
+                        expression_id,
+                    )
+                })
+            }
             // parenthesized -> same type as inner
             Expression::Parenthesized {
                 expression: inner_id,

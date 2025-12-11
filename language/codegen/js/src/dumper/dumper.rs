@@ -811,6 +811,11 @@ impl<'a> NodeVisitor for Dumper<'a> {
             Expression::ArrayLiteral { elements: _ } => {
                 self.node("Expression::ArrayLiteral", id.id).end();
             }
+            Expression::SequenceExpression { expressions } => {
+                self.node("Expression::SequenceExpression", id.id)
+                    .field("count", &(expressions.len() as u32))
+                    .end();
+            }
             Expression::ObjectLiteral { properties: _ } => {
                 self.node("Expression::ObjectLiteral", id.id).end();
             }

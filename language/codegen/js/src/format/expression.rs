@@ -72,6 +72,16 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
             Expression::ArrayLiteral { elements } => {
                 write!(f, [list_like("[", "]", ",", elements)])?;
             }
+            Expression::SequenceExpression { expressions } => {
+                write!(f, [token("(")])?;
+                for (i, expr_id) in expressions.iter().enumerate() {
+                    if i > 0 {
+                        write!(f, [token(","), space()])?;
+                    }
+                    write!(f, [expr_id])?;
+                }
+                write!(f, [token(")")])?;
+            }
             Expression::ObjectLiteral { properties } => {
                 write!(f, [list_like("{", "}", ",", properties).include_space()])?;
             }

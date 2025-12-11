@@ -516,16 +516,29 @@ impl Parser {
                 else {
                     self.bump(); // eat open paranthesis
                     self.eat_newlines_maybe()?;
-                    // empty tuple if we immediately see a closing parenthesis
+                    // empty tuple/sequence if we immediately see a closing parenthesis
                     if self.peek_token(TokenType::CloseParenthesis).is_ok() {
                         self.bump(); // eat closing parenthesis
-                        self.tree.insert(
-                            Expression::TupleExpression { elements: vec![] },
-                            self.get_span_from(start),
-                        )
+                        // in Destack: empty tuple
+                        if self.language.is_destack_compatible() {
+                            self.tree.insert(
+                                Expression::TupleExpression { elements: vec![] },
+                                self.get_span_from(start),
+                            )
+                        }
+                        // in JS/TS: empty sequence (unusual but valid)
+                        else {
+                            self.tree.insert(
+                                Expression::SequenceExpression {
+                                    expressions: vec![],
+                                },
+                                self.get_span_from(start),
+                            )
+                        }
                     }
                     // tuple if we see a named element
-                    else if self.peek_token(TokenType::Identifier).is_ok()
+                    else if self.language.is_destack_compatible()
+                        && self.peek_token(TokenType::Identifier).is_ok()
                         && self.peek_next_token(TokenType::Colon).is_ok()
                     {
                         let tuple_elements = self
@@ -540,7 +553,7 @@ impl Parser {
                             self.get_span_from(start),
                         )
                     }
-                    // may be a tuple with anonymous elements or just a parenthesized expression (see below)
+                    // may be a tuple/sequence with anonymous elements or just a parenthesized expression (see below)
                     else {
                         let inner_start = self.pos();
                         let expression_id = self
@@ -553,6 +566,14 @@ impl Parser {
                             // if it was a tuple starting here, expand it to cover the entire span
                             //  (except if that tuple has its own parenthesis already when nesting)
                             Expression::TupleExpression { .. }
+                                if self.tokens[inner_start as usize].token.ty
+                                    != TokenType::OpenParenthesis =>
+                            {
+                                self.tree.set_span(expression_id, self.get_span_from(start));
+                                expression_id
+                            }
+                            // if it was a sequence expression starting here, expand it to cover the entire span
+                            Expression::SequenceExpression { .. }
                                 if self.tokens[inner_start as usize].token.ty
                                     != TokenType::OpenParenthesis =>
                             {
@@ -1211,33 +1232,60 @@ impl Parser {
                     self.get_span_from(start),
                 );
             }
-            // tuple
+            // tuple (Destack) or sequence expression (JS/TS)
             // (if we have a delimiter following an expression inside parentheses)
             else if self.options.in_parenthesis && self.peek_token(TokenType::Comma).is_ok() {
                 self.bump(); // eat comma
                 self.eat_newlines_maybe()?;
-                // we already have the first element (the expression itself)
-                let first_element_id = self.tree.insert(
-                    Argument::Positional {
-                        value: left_expression_id,
-                    },
-                    self.get_span_from(start),
-                );
-                // parse remaining elements
-                let tuple_elements =
-                    self.with_options(self.options.not_in_position(), |parser| {
-                        parser.eat_sequence_literal_body(
-                            Some(first_element_id),
-                            TokenType::CloseParenthesis,
-                        )
-                    })?;
-                // build tuple literal
-                left_expression_id = self.tree.insert(
-                    Expression::TupleExpression {
-                        elements: tuple_elements,
-                    },
-                    self.get_span_from(start),
-                );
+                if self.language.is_destack_compatible() {
+                    // build a tuple
+                    let first_element_id = self.tree.insert(
+                        Argument::Positional {
+                            value: left_expression_id,
+                        },
+                        self.get_span_from(start),
+                    );
+                    // parse remaining elements
+                    let tuple_elements =
+                        self.with_options(self.options.not_in_position(), |parser| {
+                            parser.eat_sequence_literal_body(
+                                Some(first_element_id),
+                                TokenType::CloseParenthesis,
+                            )
+                        })?;
+                    // build tuple literal
+                    left_expression_id = self.tree.insert(
+                        Expression::TupleExpression {
+                            elements: tuple_elements,
+                        },
+                        self.get_span_from(start),
+                    );
+                } else {
+                    // build a sequence expression (comma operator)
+                    let mut expressions = vec![left_expression_id];
+                    // parse remaining expressions until we see the close parenthesis
+                    // (mirrors eat_sequence_literal_body behavior for consistency)
+                    while self.peek_token(TokenType::CloseParenthesis).is_err() {
+                        // consume any comma delimiter
+                        if self.peek_token(TokenType::Comma).is_ok() {
+                            self.bump(); // eat comma
+                            self.eat_newlines_maybe()?;
+                            continue;
+                        }
+                        // parse next expression
+                        let expr_id = self
+                            .with_options(self.options.not_in_position(), |parser| {
+                                parser.eat_expression()
+                            })?;
+                        expressions.push(expr_id);
+                        self.eat_newlines_maybe()?;
+                    }
+                    // build sequence expression
+                    left_expression_id = self.tree.insert(
+                        Expression::SequenceExpression { expressions },
+                        self.get_span_from(start),
+                    );
+                }
             }
             // done
             else {
@@ -2950,6 +2998,69 @@ const value =
         // a;
         assert_node!(parser.tree, expr_id, Expression::Statement(expression_id) => {
             assert_expression_path!(parser, parser.tree.get(*expression_id), "a");
+        });
+    }
+
+    /// Comma in parentheses parses as sequence expression.
+    #[test]
+    fn test_parse_sequence_expression() {
+        let options = LanguageOptions::default().with_type(LanguageType::JavaScript);
+        let mut test = TestParser::new_with_options("(a, b, c)", options);
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression().unwrap();
+        // (a, b, c)
+        assert_node!(parser.tree, expr_id, Expression::SequenceExpression { expressions } => {
+            assert_eq!(expressions.len(), 3);
+            // a
+            assert_expression_path!(parser, parser.tree.get(expressions[0]), "a");
+            // b
+            assert_expression_path!(parser, parser.tree.get(expressions[1]), "b");
+            // c
+            assert_expression_path!(parser, parser.tree.get(expressions[2]), "c");
+        });
+    }
+
+    /// Comma in parentheses parses as tuple expression.
+    #[test]
+    fn test_parse_tuple_expression() {
+        let options = LanguageOptions::default().with_type(LanguageType::Destack);
+        let mut test = TestParser::new_with_options("(a, b, c)", options);
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression().unwrap();
+        // (a, b, c)
+        assert_node!(parser.tree, expr_id, Expression::TupleExpression { elements } => {
+            assert_eq!(elements.len(), 3);
+            // a
+            assert_node!(parser.tree, elements[0], Argument::Positional { value } => {
+                assert_expression_path!(parser, parser.tree.get(*value), "a");
+            });
+            // b
+            assert_node!(parser.tree, elements[1], Argument::Positional { value } => {
+                assert_expression_path!(parser, parser.tree.get(*value), "b");
+            });
+            // c
+            assert_node!(parser.tree, elements[2], Argument::Positional { value } => {
+                assert_expression_path!(parser, parser.tree.get(*value), "c");
+            });
+        });
+    }
+
+    /// Sequence expression with type literal elements.
+    #[test]
+    fn test_parse_sequence_expression_with_type_literal() {
+        let options = LanguageOptions::default().with_type(LanguageType::JavaScript);
+        let mut test = TestParser::new_with_options("(a, void, 1)", options);
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression().unwrap();
+        // (a, void, 1)
+        assert_node!(parser.tree, expr_id, Expression::SequenceExpression { expressions } => {
+            assert_eq!(expressions.len(), 3);
+            // a
+            assert_expression_path!(parser, parser.tree.get(expressions[0]), "a");
+            // void (type literal)
+            assert_node!(parser.tree, expressions[1], Expression::TypeLiteral(TypeLiteral::Void));
+            // 1
+            assert_node!(parser.tree, expressions[2], Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
         });
     }
 }

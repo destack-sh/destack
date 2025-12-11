@@ -908,6 +908,9 @@ impl<'a> NodeVisitor for Dumper<'a> {
             Expression::TupleExpression { elements: _ } => {
                 self.node("Expression::TupleExpression", _id.id).end();
             }
+            Expression::SequenceExpression { expressions: _ } => {
+                self.node("Expression::SequenceExpression", _id.id).end();
+            }
             Expression::ObjectExpression {
                 ty: _,
                 properties: _,

@@ -237,6 +237,21 @@ impl ModuleLowerer<'_> {
                     .insert_from_source(expression, self.module.id, expression_id)
                     .into_any()
             }
+            dir::Expression::SequenceExpression { expressions } => {
+                let expressions = expressions
+                    .iter()
+                    .map(|expr_id| {
+                        self.lower_expression(*expr_id).expect_node::<Expression>(
+                            expr_id.into_global_any(self.module.id),
+                            self,
+                        )
+                    })
+                    .collect::<Result<Vec<_>, CodegenJsError>>()?;
+                let expression = Expression::SequenceExpression { expressions };
+                self.tree
+                    .insert_from_source(expression, self.module.id, expression_id)
+                    .into_any()
+            }
             dir::Expression::ArrayExpression { elements } => {
                 let elements = elements
                     .iter()

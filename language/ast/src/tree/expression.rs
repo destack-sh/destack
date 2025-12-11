@@ -443,6 +443,18 @@ pub enum Expression {
         elements: Vec<LocalNodeId<Argument>>,
     },
 
+    /// A SequenceExpression is the JavaScript/TypeScript comma operator.
+    /// It evaluates all expressions left-to-right and returns the last value.
+    /// Only parsed in JS/TS files for compatibility with EcmaScript.
+    ///
+    /// Examples:
+    /// ```
+    /// (a, b, c) // evaluates a, b, c and returns c
+    /// ```
+    SequenceExpression {
+        expressions: Vec<LocalNodeId<Expression>>,
+    },
+
     /// An ObjectExpression constructs an object with heterogeneous fields.
     /// May have an optional type prefix for nominal struct construction.
     ///
