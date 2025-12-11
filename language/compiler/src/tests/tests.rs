@@ -169,7 +169,7 @@ impl TestProgram {
 
     /// Enqueue Resolve task for a module.
     pub fn resolve_module(&self, module: ModuleId) {
-        self.enqueue(ResolveTask::ResolveModule { module });
+        self.enqueue(ResolveTask::ResolveModuleCanonical { module });
     }
 
     /// Enqueue Analyze task for a module (runs all phases: Declare, Infer, Check).
