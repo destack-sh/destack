@@ -3,7 +3,10 @@ use destack_dir::{
 };
 use destack_workspace::Program;
 
-use crate::{DiagnosticAnchor, TaskDependency, TaskDependencyError, TaskError, TaskPhase};
+use crate::{
+    DiagnosticAnchor, TaskDependency, TaskDependencyError, TaskError, TaskPhase,
+    format_global_type, format_static_key,
+};
 
 /// Error when analyzeing something into the compiler.
 #[derive(Debug, Clone, PartialEq)]
@@ -22,8 +25,6 @@ pub enum AnalyzeError {
         node: GlobalNodeIdAny,
         expected_ty: GlobalTypeId,
         actual_ty: GlobalTypeId,
-        expected_ty_string: String,
-        actual_ty_string: String,
     },
     /// Inaccessible symbol (private/internal/module boundaries).
     InaccessibleSymbol {
@@ -58,14 +59,11 @@ pub enum AnalyzeError {
         node: GlobalNodeIdAny,
         from_ty: GlobalTypeId,
         to_ty: GlobalTypeId,
-        from_ty_str: String,
-        to_ty_str: String,
     },
     /// No overload found for operator/method with given types.
     NoOverload {
         node: GlobalNodeIdAny,
         receiver_ty: GlobalTypeId,
-        receiver_ty_str: String,
     },
     /// Ambiguous overload: multiple candidates match equally well.
     AmbiguousOverload {
@@ -76,23 +74,18 @@ pub enum AnalyzeError {
     UnsupportedOperator {
         node: GlobalNodeIdAny,
         ty: GlobalTypeId,
-        ty_str: String,
     },
     /// Missing member on type.
     MissingMember {
         node: GlobalNodeIdAny,
         receiver_ty: GlobalTypeId,
-        receiver_ty_str: String,
         member_key: StaticKey,
-        member_key_str: String,
     },
     /// Type does not satisfy the expected type (satisfies expression).
     UnsatisfiedType {
         node: GlobalNodeIdAny,
         expected_ty: GlobalTypeId,
         actual_ty: GlobalTypeId,
-        expected_ty_string: String,
-        actual_ty_string: String,
     },
     /// Invalid lineage.
     InvalidLineage {
@@ -182,18 +175,20 @@ impl AnalyzeError {
     }
 
     /// Get the message of the error.
-    pub fn message(&self, _program: &Program) -> String {
+    pub fn message(&self, program: &Program) -> String {
         match self {
             Self::Yield { .. } => "pending dependency".to_string(),
             Self::UnsatisfiedDependency { .. } => "unsatisfied dependency".to_string(),
             Self::UnsupportedConstruct { .. } => "unsupported construct".to_string(),
             Self::MissingType { .. } => "missing type".to_string(),
             Self::UnassignableType {
-                expected_ty_string,
-                actual_ty_string,
+                expected_ty,
+                actual_ty,
                 ..
             } => {
-                format!("type {actual_ty_string} is not assignable to type {expected_ty_string}")
+                let expected = format_global_type(*expected_ty, program);
+                let actual = format_global_type(*actual_ty, program);
+                format!("type {actual} is not assignable to type {expected}")
             }
             Self::InaccessibleSymbol { .. } => "inaccessible symbol".to_string(),
             Self::InconsistentFunctionOverride { .. } => {
@@ -206,35 +201,37 @@ impl AnalyzeError {
             Self::ConflictingPattern { .. } => "conflicting pattern".to_string(),
             Self::MissingReturn { .. } => "missing return".to_string(),
             Self::UninitializedVariable { .. } => "uninitialized variable".to_string(),
-            Self::IllegalCast {
-                from_ty_str,
-                to_ty_str,
-                ..
-            } => {
-                format!("cannot cast type {from_ty_str} to {to_ty_str}")
+            Self::IllegalCast { from_ty, to_ty, .. } => {
+                let from = format_global_type(*from_ty, program);
+                let to = format_global_type(*to_ty, program);
+                format!("cannot cast type {from} to {to}")
             }
-            Self::NoOverload {
-                receiver_ty_str, ..
-            } => {
-                format!("no matching overload for type {receiver_ty_str}")
+            Self::NoOverload { receiver_ty, .. } => {
+                let receiver = format_global_type(*receiver_ty, program);
+                format!("no matching overload for type {receiver}")
             }
             Self::AmbiguousOverload { .. } => "ambiguous overload".to_string(),
-            Self::UnsupportedOperator { ty_str, .. } => {
+            Self::UnsupportedOperator { ty, .. } => {
+                let ty_str = format_global_type(*ty, program);
                 format!("unsupported operator for type {ty_str}")
             }
             Self::MissingMember {
-                receiver_ty_str,
-                member_key_str,
+                receiver_ty,
+                member_key,
                 ..
             } => {
-                format!("member '{member_key_str}' does not exist on type {receiver_ty_str}")
+                let receiver = format_global_type(*receiver_ty, program);
+                let key = format_static_key(member_key, program);
+                format!("member '{key}' does not exist on type {receiver}")
             }
             Self::UnsatisfiedType {
-                expected_ty_string,
-                actual_ty_string,
+                expected_ty,
+                actual_ty,
                 ..
             } => {
-                format!("expected {expected_ty_string}, found {actual_ty_string}")
+                let expected = format_global_type(*expected_ty, program);
+                let actual = format_global_type(*actual_ty, program);
+                format!("expected {expected}, found {actual}")
             }
             Self::InvalidLineage { .. } => "invalid lineage".to_string(),
         }

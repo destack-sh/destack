@@ -415,8 +415,6 @@ impl Compiler {
                             module_id: module.id,
                             local_id: right_ty_id,
                         },
-                        from_ty_str: self.format_type(types.get_type(left_ty_id), types),
-                        to_ty_str: self.format_type(types.get_type(right_ty_id), types),
                     });
                 }
                 // cast returns the target (right) type
@@ -437,8 +435,6 @@ impl Compiler {
                             module_id: module.id,
                             local_id: left_ty_id,
                         },
-                        expected_ty_string: self.format_type(types.get_type(right_ty_id), types),
-                        actual_ty_string: self.format_type(types.get_type(left_ty_id), types),
                     });
                 }
                 // satisfies returns the original (left) type, not the asserted type

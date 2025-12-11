@@ -188,7 +188,7 @@ pub enum Declaration {
     ///     myField: int32
     ///     myOtherField: T
     ///
-    ///     ..Baz
+    ///     ...Baz
     ///     static x: int32 = 7 // constant
     ///
     ///     myFunc() { // nested declaration
