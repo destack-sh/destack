@@ -3,31 +3,6 @@ use crate::{
     StaticExpression, StringId,
 };
 
-/// Static argument in some static context.
-/// Static evaluation supports all constructs, this is for the resulting static value.
-/// This is a plain value type, not a tree node so we can pass it around directly.
-#[derive(Debug, Clone, PartialEq)]
-pub enum StaticArgument {
-    /// Unevaluated argument (needs compile-time evaluation).
-    Unevaluated { node: LocalNodeId<Argument> },
-
-    /// Evaluated static argument.
-    Evaluated {
-        name: Option<StringId>,
-        value: StaticExpression,
-    },
-}
-
-impl StaticArgument {
-    /// Check if the static argument and its value have been evaluated.
-    pub fn is_evaluated(&self) -> bool {
-        match self {
-            StaticArgument::Unevaluated { .. } => false,
-            StaticArgument::Evaluated { value, .. } => value.is_evaluated(),
-        }
-    }
-}
-
 /// A Parameter is a parameter to some construct.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Parameter {
@@ -99,4 +74,29 @@ impl Argument {
 
 impl Node for Argument {
     const TYPE: NodeType = NodeType::Argument;
+}
+
+/// Static argument in some static context.
+/// Static evaluation supports all constructs, this is for the resulting static value.
+/// This is a plain value type, not a tree node so we can pass it around directly.
+#[derive(Debug, Clone, PartialEq)]
+pub enum StaticArgument {
+    /// Unevaluated argument (needs compile-time evaluation).
+    Unevaluated { node: LocalNodeId<Argument> },
+
+    /// Evaluated static argument.
+    Evaluated {
+        name: Option<StringId>,
+        value: StaticExpression,
+    },
+}
+
+impl StaticArgument {
+    /// Check if the static argument and its value have been evaluated.
+    pub fn is_evaluated(&self) -> bool {
+        match self {
+            StaticArgument::Unevaluated { .. } => false,
+            StaticArgument::Evaluated { value, .. } => value.is_evaluated(),
+        }
+    }
 }

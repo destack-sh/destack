@@ -1298,100 +1298,122 @@ let a = obj.inner.value;
         );
     }
 
-    // nocheckin: make these tests more specific and move elaborate subtyping tests to mdtest?
-
-    /// Child class is assignable to parent class via function parameter.
+    /// Verify lineage is created for classes with extends.
     #[test]
-    fn test_class_extends_assignable_via_function() {
+    fn test_lineage_created_for_class_extends() {
         let test = TestProgram::memory_sequential();
         let module_id = test.register_module(
             "test.ds",
             r#"
-class Animal {
-    name: string
-}
-class Dog extends Animal {
-    breed: string
-}
-function acceptAnimal(a: Animal): void {}
-declare function getDog(): Dog;
-acceptAnimal(getDog());
+class Animal { name: string }
+class Dog extends Animal { breed: string }
 "#,
         );
         test.analyze_module(module_id);
         test.compile();
         test.check_clean();
+
+        let animal_id = test.resolve_to_symbol("test.ds", "Animal").unwrap();
+        let dog_id = test.resolve_to_symbol("test.ds", "Dog").unwrap();
+
+        let module = test.module("test.ds");
+        let module = module.read();
+        let types = module.dir.types.read();
+        let lineage = types
+            .get_lineage_for_symbol(dog_id)
+            .expect("Dog should have lineage");
+        assert_eq!(lineage.extends, Some(animal_id), "Dog should extend Animal");
     }
 
-    /// Parent class is not assignable to child class.
+    /// Verify lineage chain for multi-level inheritance.
     #[test]
-    fn test_class_extends_not_reverse_assignable() {
+    fn test_lineage_chain_multilevel() {
         let test = TestProgram::memory_sequential();
         let module_id = test.register_module(
             "test.ds",
             r#"
-class Animal {
-    name: string
-}
-class Dog extends Animal {
-    breed: string
-}
-function acceptDog(d: Dog): void {}
-declare function getAnimal(): Animal;
-acceptDog(getAnimal());
-"#,
-        );
-        test.analyze_module(module_id);
-        test.compile();
-        test.check_diagnostics(&["EA004"]);
-    }
-
-    /// Multi-level inheritance: grandchild assignable to grandparent.
-    #[test]
-    fn test_multilevel_inheritance_assignable() {
-        let test = TestProgram::memory_sequential();
-        let module_id = test.register_module(
-            "test.ds",
-            r#"
-class Animal {
-    name: string
-}
-class Dog extends Animal {
-    breed: string
-}
-class Labrador extends Dog {
-    color: string
-}
-function acceptAnimal(a: Animal): void {}
-declare function getLabrador(): Labrador;
-acceptAnimal(getLabrador());
+class Animal { name: string }
+class Dog extends Animal { breed: string }
+class Labrador extends Dog { color: string }
 "#,
         );
         test.analyze_module(module_id);
         test.compile();
         test.check_clean();
+
+        let animal_id = test.resolve_to_symbol("test.ds", "Animal").unwrap();
+        let dog_id = test.resolve_to_symbol("test.ds", "Dog").unwrap();
+        let labrador_id = test.resolve_to_symbol("test.ds", "Labrador").unwrap();
+
+        let module = test.module("test.ds");
+        let module = module.read();
+        let types = module.dir.types.read();
+
+        // Labrador extends Dog
+        let labrador_lineage = types
+            .get_lineage_for_symbol(labrador_id)
+            .expect("Labrador should have lineage");
+        assert_eq!(labrador_lineage.extends, Some(dog_id));
+
+        // Dog extends Animal
+        let dog_lineage = types
+            .get_lineage_for_symbol(dog_id)
+            .expect("Dog should have lineage");
+        assert_eq!(dog_lineage.extends, Some(animal_id));
+
+        // Animal has no extends (or empty lineage)
+        let animal_lineage = types.get_lineage_for_symbol(animal_id);
+        assert!(
+            animal_lineage.is_none() || animal_lineage.unwrap().extends.is_none(),
+            "Animal should not extend anything"
+        );
     }
 
-    /// Interface implementation makes type assignable to interface.
+    /// Verify implements creates lineage entries.
     #[test]
-    fn test_implements_interface_assignable() {
+    fn test_lineage_created_for_implements() {
         let test = TestProgram::memory_sequential();
         let module_id = test.register_module(
             "test.ds",
             r#"
-interface Printable {
-    print(): void
-}
-class Document implements Printable {
+interface Printable { print(): void }
+interface Saveable { save(): void }
+class Document implements Printable, Saveable {
     print(): void {}
+    save(): void {}
 }
-function acceptPrintable(p: Printable): void {}
-declare function getDocument(): Document;
-acceptPrintable(getDocument());
 "#,
         );
         test.analyze_module(module_id);
         test.compile();
         test.check_clean();
+
+        let printable_id = test.resolve_to_symbol("test.ds", "Printable").unwrap();
+        let saveable_id = test.resolve_to_symbol("test.ds", "Saveable").unwrap();
+        let document_id = test.resolve_to_symbol("test.ds", "Document").unwrap();
+
+        let module = test.module("test.ds");
+        let module = module.read();
+        let types = module.dir.types.read();
+        let doc_lineage = types
+            .get_lineage_for_symbol(document_id)
+            .expect("Document should have lineage");
+        assert!(
+            doc_lineage.extends.is_none(),
+            "Document should not extend anything"
+        );
+        assert_eq!(
+            doc_lineage.implements.len(),
+            2,
+            "Document should implement two interfaces"
+        );
+        assert!(
+            doc_lineage.implements.contains(&printable_id),
+            "Document should implement Printable"
+        );
+        assert!(
+            doc_lineage.implements.contains(&saveable_id),
+            "Document should implement Saveable"
+        );
     }
 }

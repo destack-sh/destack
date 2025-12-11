@@ -421,15 +421,23 @@ impl Compiler {
                 types.get_type(right_ty_id).clone()
             }
             TypeBinaryOperator::Satisfies => {
+                // NOTE #Suspicious: unsure about auto-unwrapping Type::Value in satisfies?
+                // unwrap Type::Value if the right side is a class/struct used as a type
+                // (class references have value type = Type::Value { value: instance_ty })
+                let target_ty_id = match types.get_type(right_ty_id) {
+                    Type::Value { value } => *value,
+                    _ => right_ty_id,
+                };
+
                 // check if left type satisfies (is assignable to) right type
-                if self.check_is_type_assignable(right_ty_id, left_ty_id, types)
+                if self.check_is_type_assignable(target_ty_id, left_ty_id, types)
                     == Assignability::NotAssignable
                 {
                     self.error(AnalyzeError::UnsatisfiedType {
                         node: expression_id.into_global_any(module.id),
                         expected_ty: GlobalTypeId {
                             module_id: module.id,
-                            local_id: right_ty_id,
+                            local_id: target_ty_id,
                         },
                         actual_ty: GlobalTypeId {
                             module_id: module.id,

@@ -181,6 +181,28 @@ impl Compiler {
                 }
             }
 
+            // references
+            // NOTE #Incomplete: evaluate static arguments
+            Expression::LocalReference {
+                target_symbol,
+                static_arguments: _,
+                ..
+            }
+            | Expression::ModuleReference {
+                target_symbol,
+                static_arguments: _,
+                ..
+            }
+            | Expression::GlobalReference {
+                target_symbol,
+                static_arguments: _,
+                ..
+            } => Type::Reference {
+                symbol: *target_symbol,
+                static_arguments: None,
+            },
+
+            // NOTE #Incomplete: evaluate tuples/objects to types
             // tuple (anonymous)
             Expression::TupleExpression { .. } => {
                 return Err(AnalyzeError::UnsupportedConstruct {
