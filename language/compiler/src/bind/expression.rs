@@ -783,6 +783,23 @@ impl Compiler {
                     .collect();
                 Expression::TupleExpression { elements }
             }
+            ast::Expression::SequenceExpression { expressions } => {
+                let expressions = expressions
+                    .iter()
+                    .map(|expr_id| {
+                        self.bind_expression(
+                            module,
+                            scope,
+                            *expr_id,
+                            Some(expression_id),
+                            tree,
+                            symbols,
+                            types,
+                        )
+                    })
+                    .collect();
+                Expression::SequenceExpression { expressions }
+            }
             ast::Expression::ArrayExpression { elements } => {
                 let elements = elements
                     .iter()

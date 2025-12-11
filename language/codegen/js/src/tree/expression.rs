@@ -34,6 +34,10 @@ pub enum Expression {
     ArrayLiteral {
         elements: Vec<LocalNodeId<Expression>>,
     },
+    /// Sequence expression (JS comma operator).
+    SequenceExpression {
+        expressions: Vec<LocalNodeId<Expression>>,
+    },
     /// Object literal.
     ObjectLiteral {
         properties: Vec<LocalNodeId<Property>>,

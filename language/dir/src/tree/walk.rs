@@ -431,6 +431,12 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
                 visitor.visit_argument(tree, *argument_id, argument);
             }
         }
+        Expression::SequenceExpression { expressions } => {
+            for expr_id in expressions {
+                let expr = tree.get(*expr_id);
+                visitor.visit_expression(tree, *expr_id, expr);
+            }
+        }
         Expression::ObjectExpression { properties } => {
             for property_id in properties {
                 let property = tree.get(*property_id);

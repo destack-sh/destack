@@ -187,6 +187,12 @@ impl Compiler {
                     node: expression_id.into_global_any(module.id),
                 });
             }
+            // sequence expression (comma operator)
+            Expression::SequenceExpression { .. } => {
+                return Err(AnalyzeError::UnsupportedConstruct {
+                    node: expression_id.into_global_any(module.id),
+                });
+            }
             // object (anonymous)
             Expression::ObjectExpression { .. } => {
                 return Err(AnalyzeError::UnsupportedConstruct {

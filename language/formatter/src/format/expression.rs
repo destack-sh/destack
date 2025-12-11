@@ -751,6 +751,7 @@ pub fn is_expression_breakable(tree: &NodeTree, expression: &Expression) -> bool
     match expression {
         Expression::ArrayExpression { elements, .. } => !elements.is_empty(),
         Expression::TupleExpression { elements, .. } => !elements.is_empty(),
+        Expression::SequenceExpression { expressions, .. } => !expressions.is_empty(),
         Expression::ObjectExpression { ty, properties, .. } => {
             ty.is_some_and(|ty| is_expression_breakable(tree, tree.get(ty)))
                 || !properties.is_empty()
@@ -1395,6 +1396,15 @@ pub(crate) fn format_expression<'ast>(
                         .force_trailing_separator()
                         .should_expand(should_expand)]
                 )?;
+            }
+        }
+
+        // sequence expression (JS/TS comma operator)
+        Expression::SequenceExpression { expressions } => {
+            if expressions.is_empty() {
+                write!(f, [token("()")])?;
+            } else {
+                write!(f, [list_like("(", ")", ",", expressions)])?;
             }
         }
 
