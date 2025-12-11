@@ -1045,4 +1045,52 @@ let a = obj.inner.value;
             });
         });
     }
+
+    /// Verify circular imports resolve correctly.
+    #[test]
+    fn test_resolve_circular_imports() {
+        let test = TestProgram::memory_sequential();
+        test.add_file(
+            "a.ds",
+            r#"
+import { B } from "./b.ds";
+
+export let A = 0;
+"#,
+        );
+        test.add_file(
+            "b.ds",
+            r#"
+import { A } from "./a.ds";
+export let B = 0;
+"#,
+        );
+        let module_id = test.register_module(
+            "main.ds",
+            r#"
+import { A } from "./a.ds";
+import { B } from "./b.ds";
+
+export let C = A + B;
+"#,
+        );
+
+        test.resolve_module(module_id);
+        test.compile_dump_clean();
+
+        let module = test.program.modules.get(module_id);
+        let module = module.read();
+        let symbols = module.dir.symbols.read();
+
+        let a_symbol_id = test.resolve_to_symbol("a.ds", "A").unwrap();
+        let b_symbol_id = test.resolve_to_symbol("b.ds", "B").unwrap();
+
+        let main_a_symbol_id = test.resolve_to_symbol("main.ds", "A").unwrap();
+        let main_b_symbol_id = test.resolve_to_symbol("main.ds", "B").unwrap();
+        let main_a_symbol = symbols.get_symbol(main_a_symbol_id.into_local());
+        let main_b_symbol = symbols.get_symbol(main_b_symbol_id.into_local());
+
+        assert_eq!(main_a_symbol.final_symbol, Some(a_symbol_id));
+        assert_eq!(main_b_symbol.final_symbol, Some(b_symbol_id));
+    }
 }

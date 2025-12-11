@@ -14,6 +14,8 @@ use crate::harness::{TestCase, TestOptions, TestResult, TestSummary, fixtures_di
 
 use super::manifest::{EcosystemManifest, Tier};
 
+// nocheckin: ecosystem tests!
+
 /// Run all ecosystem tests.
 pub fn run_ecosystem_tests(options: &TestOptions, tier_filter: Option<Tier>) -> ExitCode {
     let ecosystem_dir = fixtures_dir().join("ecosystem");

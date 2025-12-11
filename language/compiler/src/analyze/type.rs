@@ -659,19 +659,13 @@ impl Compiler {
     /// - Named: Extension on foreign type, must be explicitly imported to use.
     pub(super) fn is_extension_visible(&self, module: &Module, extension: &Extension) -> bool {
         match extension.kind {
-            // native extensions are always visible (defined with the type)
-            ExtensionKind::Native => true,
-
-            // anonymous extensions are only visible in their defining module
-            ExtensionKind::Anonymous => extension.symbol.module_id == module.id,
-
-            // named extensions must be imported
+            ExtensionKind::Inherent => true,
+            ExtensionKind::Local => extension.symbol.module_id == module.id,
             ExtensionKind::Named => {
                 if extension.symbol.module_id == module.id {
                     return true;
                 }
-                // TODO #Incomplete: should check if the extension is actually imported
-                // (requires checking the symbol table for imports)
+                // nocheckin TODO #Incomplete: import extensions
                 false
             }
         }

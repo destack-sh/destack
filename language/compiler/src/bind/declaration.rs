@@ -428,7 +428,7 @@ impl Compiler {
                     scope,
                     descriptor,
                     SymbolKind::Item,
-                    SymbolType::Void, // (extensions don't have their own type)
+                    SymbolType::Extension,
                     symbols,
                 );
                 let generics = self.bind_generics(

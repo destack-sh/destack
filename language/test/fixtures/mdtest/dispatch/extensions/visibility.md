@@ -81,44 +81,4 @@ const e = getExternal();
 e.helper();
 ```
 
-## Named Extensions
-
-> Named extensions must be explicitly imported to use.
-> NOTE: Multi-file named extension tests require cross-module support.
-
-### named extension defined locally
-
-> Named extension in same file is visible without import.
-
-```ds
-struct Data {}
-
-export extension DataHelpers: Data {
-    process(): void {}
-}
-
-declare function getData(): Data;
-
-const d = getData();
-d.process();
-```
-
-## Multi-file Visibility
-
-nocheckin TODO extend/test this properly
-
-> Native extensions should be visible when the type is imported.
-
-```ds
-// lib.ds:
-struct Vector2 { x: number, y: number }
-
-extension Vector2 {
-    length(): number { return 0 }
-}
-
-declare function getVector(): Vector2;
-
-const v = getVector();
-const l: number = v.length();
-```
+nocheckin TODO #Incomplete: inherent / named extensions (within and across modules)

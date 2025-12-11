@@ -2,7 +2,9 @@
 
 use std::env::current_dir;
 use std::path::PathBuf;
-use std::sync::Arc;
+use std::sync::{Arc, mpsc};
+use std::thread;
+use std::time::Duration;
 
 use destack_dir::{DumperOptions, GlobalSymbolId, Symbol};
 use destack_source::{
@@ -17,6 +19,8 @@ use crate::{
 };
 
 use super::tracing::init_tracing;
+
+const TEST_TIMEOUT_SECONDS: u64 = 1;
 
 /// A test file system.
 #[derive(Debug, Clone)]
@@ -178,9 +182,26 @@ impl TestProgram {
         self.compiler.enqueue(task);
     }
 
-    /// Run all queued tasks to completion.
+    /// Run all queued tasks to completion (with 5s timeout).
     pub fn compile(&self) {
-        self.compiler.compile();
+        let timeout = Duration::from_secs(TEST_TIMEOUT_SECONDS);
+        let compiler = self.compiler.clone();
+
+        let (tx, rx) = mpsc::channel();
+        thread::spawn(move || {
+            compiler.compile();
+            let _ = tx.send(());
+        });
+
+        match rx.recv_timeout(timeout) {
+            Ok(()) => {}
+            Err(mpsc::RecvTimeoutError::Timeout) => {
+                panic!("compile timed out after {TEST_TIMEOUT_SECONDS}s");
+            }
+            Err(mpsc::RecvTimeoutError::Disconnected) => {
+                panic!("compile thread panicked");
+            }
+        }
     }
 
     /// Enqueue a task and run to completion.

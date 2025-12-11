@@ -1,11 +1,9 @@
-//! Markdown test runner.
-//!
-//! Compiles code from mdtest cases and compares diagnostics against expected errors.
-
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
+use std::process::ExitCode;
 use std::sync::{Arc, mpsc};
-use std::thread;
 use std::time::Duration;
+use std::{io, thread};
 
 use destack_compiler::{AnalyzeTask, CompileOptions, Compiler};
 use destack_source::{FileRegistry, FileSystem, LanguageOptions, MemoryFileSystem};
@@ -18,17 +16,17 @@ use crate::harness::{
 use super::parser::{MdTestCase, parse_mdtest_file};
 
 /// Per-test timeout in seconds.
-const TEST_TIMEOUT_SECS: u64 = 5;
+const TEST_TIMEOUT_SECONDS: u64 = 1;
 
 /// Run all markdown tests.
-pub fn run_mdtests(options: &TestOptions) -> std::process::ExitCode {
+pub fn run_mdtests(options: &TestOptions) -> ExitCode {
     let mdtest_dir = fixtures_dir().join("mdtest");
 
     // discover all .md files in the mdtest directory (recursively)
     let md_files = discover_md_files(&mdtest_dir).expect("failed to discover mdtest files");
     if md_files.is_empty() {
         println!("no mdtest files found in {}", mdtest_dir.display());
-        return std::process::ExitCode::SUCCESS;
+        return ExitCode::SUCCESS;
     }
 
     // parse all markdown files and extract test cases
@@ -60,14 +58,14 @@ pub fn run_mdtests(options: &TestOptions) -> std::process::ExitCode {
 
     if all_tests.is_empty() {
         println!("no tests found in mdtest files");
-        return std::process::ExitCode::SUCCESS;
+        return ExitCode::SUCCESS;
     }
 
     // convert to plain TestCases for filtering/listing
     let test_cases: Vec<TestCase> = all_tests.iter().map(|w| w.test_case.clone()).collect();
 
     // create a lookup for the actual test data
-    let test_map: std::collections::HashMap<String, MdTestCase> = all_tests
+    let test_map: HashMap<String, MdTestCase> = all_tests
         .into_iter()
         .map(|w| (w.test_case.full_name(), w.md_test))
         .collect();
@@ -80,7 +78,7 @@ pub fn run_mdtests(options: &TestOptions) -> std::process::ExitCode {
 
 /// Run a single markdown test case with a timeout.
 fn run_mdtest_with_timeout(test: &MdTestCase) -> TestResult {
-    let timeout = Duration::from_secs(TEST_TIMEOUT_SECS);
+    let timeout = Duration::from_secs(TEST_TIMEOUT_SECONDS);
     let test = test.clone();
 
     let (tx, rx) = mpsc::channel();
@@ -94,7 +92,7 @@ fn run_mdtest_with_timeout(test: &MdTestCase) -> TestResult {
         Ok(result) => result,
         Err(mpsc::RecvTimeoutError::Timeout) => TestResult::Failed {
             message: format!(
-                "test timed out after {TEST_TIMEOUT_SECS}s (likely deadlock or infinite loop)"
+                "test timed out after {TEST_TIMEOUT_SECONDS}s (likely deadlock or infinite loop)"
             ),
         },
         Err(mpsc::RecvTimeoutError::Disconnected) => TestResult::Failed {
@@ -291,7 +289,7 @@ fn types_match_in_assignability_error(expected: &str, actual: &str) -> bool {
 }
 
 /// Discover markdown files recursively in a directory.
-fn discover_md_files(dir: &Path) -> std::io::Result<Vec<PathBuf>> {
+fn discover_md_files(dir: &Path) -> io::Result<Vec<PathBuf>> {
     let mut files = Vec::new();
 
     if !dir.exists() {
