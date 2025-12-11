@@ -1,10 +1,10 @@
 use crate::{AnalyzeError, AnalyzeResult, Assignability, Compiler, TypeContext};
 use destack_dir::{
     Argument, Block, Declaration, Declarator, DependencyItem, DynamicKey, EnumField, Expression,
-    FunctionSignature, Generics, GlobalSymbolId, GlobalTypeId, Heritage, Lineage, LocalNodeId,
-    LocalNodeIdAny, LocalSymbolId, LocalTypeId, MatchCase, Member, NodeTree, Parameter, Pattern,
-    PatternField, PrimitiveType, Property, StaticKey, SymbolTable, Type, TypeField, TypeKind,
-    TypeLiteral, TypeTable, WhereClause,
+    Extension, ExtensionKind, FunctionSignature, Generics, GlobalSymbolId, GlobalTypeId, Heritage,
+    Lineage, LocalNodeId, LocalNodeIdAny, LocalSymbolId, LocalTypeId, MatchCase, Member, NodeTree,
+    Parameter, Pattern, PatternField, PrimitiveType, Property, StaticKey, SymbolTable, Type,
+    TypeField, TypeKind, TypeLiteral, TypeTable, WhereClause,
 };
 use destack_workspace::Module;
 
@@ -505,9 +505,11 @@ impl Compiler {
                     self.analyze_expression(module, *left, tree, symbols, types, ctx)?;
                 let left_ty = types.get_type(left_ty_id).clone();
 
-                // look up member type on the left type
+                // look up member type on the left type (including extensions)
                 let member_key = StaticKey::Name(*name);
-                if let Some(member_ty_id) = self.infer_member_type(&left_ty, &member_key, types) {
+                if let Some(member_ty_id) =
+                    self.infer_member_type(module, &left_ty, &member_key, types)
+                {
                     member_ty_id
                 } else {
                     // member not found, report error and continue with unknown type
@@ -1161,10 +1163,10 @@ impl Compiler {
 
             // extension
             Declaration::Extension {
-                descriptor: _,
+                descriptor,
                 generics,
                 target_type,
-                target_symbol: _,
+                target_symbol,
                 heritage,
                 scope: _,
                 members,
@@ -1172,18 +1174,51 @@ impl Compiler {
                 // walk
                 self.analyze_generics(module, generics, tree, symbols, types, ctx)?;
                 self.analyze_expression(module, *target_type, tree, symbols, types, ctx)?;
+                // pass extension's symbol so lineage is stored (for implements clauses)
                 self.analyze_heritage(
                     module,
                     heritage,
                     declaration_id.into_any(),
-                    None,
+                    Some(descriptor.symbol),
                     tree,
                     symbols,
                     types,
                     ctx,
                 )?;
+
+                // collect type fields from members
+                let mut fields = Vec::new();
                 for member_id in members {
-                    self.analyze_member(module, *member_id, tree, symbols, types, ctx)?;
+                    if let Some(field) =
+                        self.analyze_member(module, *member_id, tree, symbols, types, ctx)?
+                    {
+                        fields.push(field);
+                    }
+                }
+
+                // extension instance type -> object type with its methods
+                // this is used during member lookup on the target type
+                let instance_ty = Type::Object { fields };
+                let instance_ty_id = types.insert_type_from(instance_ty, declaration_id);
+                let extension_symbol = descriptor.symbol.into_global(module.id);
+                types.set_instance_type(extension_symbol, instance_ty_id);
+
+                // register extension in TypeTable for member lookup
+                if let Some(target) = target_symbol {
+                    let target_module = target.module_id;
+                    let is_named = descriptor.name.is_some();
+
+                    let kind = if module.id == target_module {
+                        ExtensionKind::Native
+                    } else if is_named {
+                        ExtensionKind::Named
+                    } else {
+                        ExtensionKind::Anonymous
+                    };
+
+                    let lineage = types.get_lineage_id_for_symbol(extension_symbol);
+                    let extension = Extension::new(extension_symbol, kind, *target, lineage);
+                    types.insert_extension(extension);
                 }
             }
 
@@ -1409,15 +1444,48 @@ impl Compiler {
                     Ok(None)
                 }
             }
-            Member::Method { body, .. } => {
-                // TODO #Incomplete: infer method type
+            Member::Method {
+                key,
+                signature,
+                body,
+                ..
+            } => {
+                // extract the static key from the dynamic key
+                let static_key = key.and_then(|k| match k {
+                    DynamicKey::Name(name) => Some(StaticKey::Name(name)),
+                    DynamicKey::Expression(_) | DynamicKey::NamedExpression { .. } => None,
+                });
+
+                // infer the method type from signature
+                let method_ty_id = self.analyze_signature(
+                    module,
+                    member_id.into_any(),
+                    signature,
+                    tree,
+                    symbols,
+                    types,
+                    ctx,
+                )?;
+
+                // analyze method body if present
                 if let Some(body) = body {
                     self.analyze_expression(module, *body, tree, symbols, types, ctx)?;
                 }
-                Ok(None)
+
+                // return a field if we have a static key
+                if let Some(key) = static_key {
+                    Ok(Some(TypeField {
+                        key,
+                        ty: method_ty_id,
+                        is_optional: false,
+                        is_readonly: true,
+                    }))
+                } else {
+                    Ok(None)
+                }
             }
             Member::Embed { value, .. } => {
-                // NOTE #Incomplete: expand embedded type into member fields
+                // NOTE #Incomplete: expand embedded type into member fields?
                 self.analyze_expression(module, *value, tree, symbols, types, ctx)?;
                 Ok(None)
             }

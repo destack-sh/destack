@@ -527,46 +527,73 @@ impl Compiler {
     }
 
     /// Check if source_symbol is a subtype of target_symbol via lineage (follows inheritance chain).
+    /// This also checks visible extensions that add `implements` clauses to the source type.
     pub fn is_type_lineage_assignable(
         &self,
         source_symbol: GlobalSymbolId,
         target_symbol: GlobalSymbolId,
         types: &TypeTable,
     ) -> bool {
-        // get the lineage of the source type
-        let Some(lineage) = types.get_lineage_for_symbol(source_symbol) else {
-            return false;
-        };
-
-        // check direct extends
-        if let Some(extends) = lineage.extends {
-            if extends == target_symbol {
-                return true;
+        // step 1: check the type's own lineage
+        if let Some(lineage) = types.get_lineage_for_symbol(source_symbol) {
+            // check direct extends
+            if let Some(extends) = lineage.extends {
+                if extends == target_symbol {
+                    return true;
+                }
+                if self.is_type_lineage_assignable(extends, target_symbol, types) {
+                    return true;
+                }
             }
-            // check transitively
-            if self.is_type_lineage_assignable(extends, target_symbol, types) {
-                return true;
+
+            // check direct implements
+            for &implements in &lineage.implements {
+                if implements == target_symbol {
+                    return true;
+                }
+                if self.is_type_lineage_assignable(implements, target_symbol, types) {
+                    return true;
+                }
+            }
+
+            // check embedded types (composition can also contribute to assignability)
+            for &embedded in &lineage.embedded {
+                if embedded == target_symbol {
+                    return true;
+                }
+                if self.is_type_lineage_assignable(embedded, target_symbol, types) {
+                    return true;
+                }
             }
         }
 
-        // check direct implements
-        for &implements in &lineage.implements {
-            if implements == target_symbol {
-                return true;
-            }
-            // check transitively (interfaces can extend other interfaces)
-            if self.is_type_lineage_assignable(implements, target_symbol, types) {
-                return true;
-            }
-        }
+        // step 2: check visible extensions that add implements clauses
+        if let Some(extension_ids) = types.get_extensions_for_target(source_symbol) {
+            let module = self.program.modules.get(types.module_id);
+            let module = module.read();
 
-        // check embedded types (composition can also contribute to assignability)
-        for &embedded in &lineage.embedded {
-            if embedded == target_symbol {
-                return true;
-            }
-            if self.is_type_lineage_assignable(embedded, target_symbol, types) {
-                return true;
+            for extension_id in extension_ids {
+                let extension = types.get_extension(*extension_id);
+
+                // check visibility (reuses the same function as member lookup)
+                if !self.is_extension_visible(&module, extension) {
+                    continue;
+                }
+
+                // check extension's lineage (implements clauses)
+                if let Some(lineage_id) = extension.lineage {
+                    let lineage = types.get_lineage(lineage_id);
+
+                    // extensions typically only add implements, but check all for completeness
+                    for &implements in &lineage.implements {
+                        if implements == target_symbol {
+                            return true;
+                        }
+                        if self.is_type_lineage_assignable(implements, target_symbol, types) {
+                            return true;
+                        }
+                    }
+                }
             }
         }
 
@@ -577,7 +604,8 @@ impl Compiler {
 #[cfg(test)]
 mod tests {
     use destack_dir::{
-        FloatType, IntType, PrimitiveType, ScalarLiteral, Type, TypeField, TypeLiteral,
+        ExtensionKind, FloatType, IntType, PrimitiveType, ScalarLiteral, Type, TypeField,
+        TypeLiteral,
     };
 
     use crate::{Assignability, TestProgram};
@@ -1434,5 +1462,40 @@ class Document implements Printable, Saveable {
             doc_lineage.implements.contains(&saveable_id),
             "Document should implement Saveable"
         );
+    }
+
+    /// Verify extensions are registered in TypeTable with correct methods.
+    #[test]
+    fn test_extension_registered_in_type_table() {
+        let test = TestProgram::memory_sequential();
+        let module_id = test.register_module(
+            "test.ds",
+            r#"
+struct Point { x: number, y: number }
+
+extension Point {
+    magnitude(): number { return 0 }
+}
+"#,
+        );
+        test.analyze_module(module_id);
+        test.compile_dump_clean();
+
+        let point_id = test.resolve_to_symbol("test.ds", "Point").unwrap();
+
+        let module = test.program.modules.get(module_id);
+        let module = module.read();
+        let types = module.dir.types.read();
+
+        // check extension is registered for Point
+        let extension_ids = types
+            .get_extensions_for_target(point_id)
+            .expect("Point should have extensions");
+        assert_eq!(extension_ids.len(), 1, "Point should have one extension");
+
+        // check extension kind is Native (same module as type)
+        let extension = types.get_extension(extension_ids[0]);
+        assert_eq!(extension.kind, ExtensionKind::Native);
+        assert_eq!(extension.target, point_id);
     }
 }

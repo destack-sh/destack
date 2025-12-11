@@ -14,10 +14,37 @@
 //! - Expected error message 1
 //! - Expected error message 2
 //! ```
+//!
+//! ## Multi-file tests
+//!
+//! For tests that span multiple files, use the `:filename` suffix:
+//!
+//! ```markdown
+//! ### Multi-file test
+//!
+//! ```ds:types.ds
+//! export struct Foo {}
+//! ```
+//!
+//! ```ds:main.ds
+//! import { Foo } from "./types.ds"
+//! ```
+//!
+//! - expected error
+//! ```
 
 use std::path::Path;
 
 use pulldown_cmark::{Event, HeadingLevel, Parser, Tag, TagEnd};
+
+/// A single file within a test case.
+#[derive(Debug, Clone)]
+pub struct MdTestFile {
+    /// The filename (e.g., "main.ds" or "types.ds").
+    pub path: String,
+    /// The source code content.
+    pub content: String,
+}
 
 /// A single test case extracted from markdown.
 #[derive(Debug, Clone)]
@@ -26,8 +53,10 @@ pub struct MdTestCase {
     pub name: String,
     /// Section/category the test belongs to.
     pub section: String,
-    /// The source code to compile.
-    pub code: String,
+    /// The source files to compile.
+    /// For single-file tests, this contains one file with path "main.ds".
+    /// For multi-file tests, this contains multiple files with their specified paths.
+    pub files: Vec<MdTestFile>,
     /// Expected error messages (from bullet list).
     pub expected_errors: Vec<String>,
     /// Line number in the markdown file where this test starts.
@@ -40,6 +69,28 @@ pub fn parse_mdtest_file(path: &Path) -> std::io::Result<Vec<MdTestCase>> {
     Ok(parse_mdtest(&content))
 }
 
+/// Parse the language tag to extract the base language and optional filename.
+///
+/// Examples:
+/// - "ds" -> ("ds", None)
+/// - "ds:main.ds" -> ("ds", Some("main.ds"))
+/// - "typescript:utils.ts" -> ("typescript", Some("utils.ts"))
+fn parse_lang_tag(lang: &str) -> (&str, Option<&str>) {
+    if let Some(colon_pos) = lang.find(':') {
+        let base_lang = &lang[..colon_pos];
+        let filename = &lang[colon_pos + 1..];
+        (base_lang, Some(filename))
+    } else {
+        (lang, None)
+    }
+}
+
+/// Check if a language tag is a supported code language.
+fn is_code_language(lang: &str) -> bool {
+    let lower = lang.to_lowercase();
+    lower == "ts" || lower == "typescript" || lower == "ds" || lower == "destack"
+}
+
 /// Parse markdown content and extract test cases.
 pub fn parse_mdtest(content: &str) -> Vec<MdTestCase> {
     let parser = Parser::new(content);
@@ -47,7 +98,7 @@ pub fn parse_mdtest(content: &str) -> Vec<MdTestCase> {
     let mut tests = Vec::new();
     let mut current_section = String::new();
     let mut current_test_name: Option<String> = None;
-    let mut current_code: Option<String> = None;
+    let mut current_files: Vec<MdTestFile> = Vec::new();
     let mut current_errors: Vec<String> = Vec::new();
     let mut in_heading = false;
     let mut heading_level: Option<HeadingLevel> = None;
@@ -65,11 +116,13 @@ pub fn parse_mdtest(content: &str) -> Vec<MdTestCase> {
         match event {
             Event::Start(Tag::Heading { level, .. }) => {
                 // before starting a new heading, finalize any pending test
-                if let (Some(name), Some(code)) = (current_test_name.take(), current_code.take()) {
+                if let Some(name) = current_test_name.take()
+                    && !current_files.is_empty()
+                {
                     tests.push(MdTestCase {
                         name,
                         section: current_section.clone(),
-                        code,
+                        files: std::mem::take(&mut current_files),
                         expected_errors: std::mem::take(&mut current_errors),
                         line: current_line,
                     });
@@ -91,7 +144,7 @@ pub fn parse_mdtest(content: &str) -> Vec<MdTestCase> {
                     // H3 or H4 = test case
                     Some(HeadingLevel::H3 | HeadingLevel::H4) => {
                         current_test_name = Some(text);
-                        current_code = None;
+                        current_files.clear();
                         current_errors.clear();
                     }
                     _ => {}
@@ -125,13 +178,16 @@ pub fn parse_mdtest(content: &str) -> Vec<MdTestCase> {
             Event::End(TagEnd::CodeBlock) => {
                 in_code_block = false;
 
-                // only capture ts/typescript/ds code blocks as test code
-                let lang = code_block_lang.to_lowercase();
-                if (lang == "ts" || lang == "typescript" || lang == "ds" || lang == "destack")
-                    && current_test_name.is_some()
-                    && current_code.is_none()
-                {
-                    current_code = Some(code_block_content.clone());
+                // parse lang:filename syntax
+                let (base_lang, filename) = parse_lang_tag(&code_block_lang);
+
+                // only capture supported code blocks
+                if is_code_language(base_lang) && current_test_name.is_some() {
+                    let path = filename.unwrap_or("main.ds").to_string();
+                    current_files.push(MdTestFile {
+                        path,
+                        content: code_block_content.clone(),
+                    });
                 }
             }
             Event::Start(Tag::Item) => {
@@ -142,8 +198,8 @@ pub fn parse_mdtest(content: &str) -> Vec<MdTestCase> {
                 in_list_item = false;
                 let text = list_item_text.trim().to_string();
 
-                // only collect list items if we have a test with code
-                if current_test_name.is_some() && current_code.is_some() && !text.is_empty() {
+                // only collect list items if we have a test with files
+                if current_test_name.is_some() && !current_files.is_empty() && !text.is_empty() {
                     current_errors.push(text);
                 }
             }
@@ -160,11 +216,13 @@ pub fn parse_mdtest(content: &str) -> Vec<MdTestCase> {
     }
 
     // finalize any remaining test
-    if let (Some(name), Some(code)) = (current_test_name, current_code) {
+    if let Some(name) = current_test_name
+        && !current_files.is_empty()
+    {
         tests.push(MdTestCase {
             name,
             section: current_section,
-            code,
+            files: current_files,
             expected_errors: current_errors,
             line: current_line,
         });
@@ -195,7 +253,9 @@ const x: string = 5
         assert_eq!(tests.len(), 1);
         assert_eq!(tests[0].name, "Variable type mismatch");
         assert_eq!(tests[0].section, "Variables");
-        assert_eq!(tests[0].code.trim(), "const x: string = 5");
+        assert_eq!(tests[0].files.len(), 1);
+        assert_eq!(tests[0].files[0].path, "main.ds");
+        assert_eq!(tests[0].files[0].content.trim(), "const x: string = 5");
         assert_eq!(tests[0].expected_errors.len(), 1);
         assert!(tests[0].expected_errors[0].contains("not assignable"));
     }
@@ -296,6 +356,46 @@ const x = 1
 
         let tests = parse_mdtest(md);
         assert_eq!(tests.len(), 1);
-        assert_eq!(tests[0].code.trim(), "const x = 1");
+        assert_eq!(tests[0].files.len(), 1);
+        assert_eq!(tests[0].files[0].content.trim(), "const x = 1");
+    }
+
+    #[test]
+    fn test_parse_multi_file() {
+        let md = r#"
+## Extensions
+
+### Multi-file test
+
+```ds:types.ds
+export struct Foo {}
+```
+
+```ds:main.ds
+import { Foo } from "./types.ds"
+const f: Foo = Foo {}
+```
+
+- some error
+"#;
+
+        let tests = parse_mdtest(md);
+        assert_eq!(tests.len(), 1);
+        assert_eq!(tests[0].name, "Multi-file test");
+        assert_eq!(tests[0].files.len(), 2);
+        assert_eq!(tests[0].files[0].path, "types.ds");
+        assert!(tests[0].files[0].content.contains("export struct Foo"));
+        assert_eq!(tests[0].files[1].path, "main.ds");
+        assert!(tests[0].files[1].content.contains("import { Foo }"));
+    }
+
+    #[test]
+    fn test_parse_lang_tag() {
+        assert_eq!(parse_lang_tag("ds"), ("ds", None));
+        assert_eq!(parse_lang_tag("ds:main.ds"), ("ds", Some("main.ds")));
+        assert_eq!(
+            parse_lang_tag("typescript:utils.ts"),
+            ("typescript", Some("utils.ts"))
+        );
     }
 }

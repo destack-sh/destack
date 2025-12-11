@@ -94,6 +94,7 @@ impl Compiler {
         }
 
         // step 2: analyze types (infer, instantiate, resolve)
+        // note: extensions are registered during declaration analysis
         let mut ctx = TypeContext::new();
         for root_id in module.dir.roots.iter() {
             self.collect(
@@ -102,8 +103,8 @@ impl Compiler {
             );
         }
 
-        // step 3: check types (type compatibility, assignability, etc.)
-        // TODO #Incomplete: check analyzed types, visibility, overloads, ..
+        // step 3: check post-analysis (visibility, overloads, ..)
+        // TODO #Incomplete: check analyzed types, patterns, visibility, overloads, ..
 
         // yield on any yield
         if let Some(dependency) = collector.try_into_yield_any() {
