@@ -1,0 +1,16 @@
+[package]
+name = "zod"
+description = "TypeScript-first schema validation"
+repo = "https://github.com/colinhacks/zod"
+ref = "v3.24.2"
+
+[discovery]
+include = ["src/**/*.ts"]
+exclude = ["**/*.test.ts", "**/__tests__/**"]
+
+[tiers.parse]
+status = false
+reason = "inline object types in arrow function params"
+
+[tiers]
+analyze = false

@@ -1,19 +1,13 @@
-# ms - tiny millisecond conversion utility
-# https://github.com/vercel/ms
-#
-# good starter: very small, simple types, single file
-
 [package]
 name = "ms"
+description = "Tiny millisecond conversion utility"
 repo = "https://github.com/vercel/ms"
-# use default branch (main) for now
+ref = "3.0.0-canary.1"
 
 [discovery]
 include = ["src/**/*.ts"]
-exclude = ["**/*.test.ts", "**/__tests__/**"]
+exclude = ["**/*.test.ts"]
 
 [tiers]
 parse = true
-check = false
-compile_js = false
-compile_native = false
+analyze = false

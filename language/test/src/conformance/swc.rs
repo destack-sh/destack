@@ -2,8 +2,10 @@
 
 use std::path::{Path, PathBuf};
 
-use super::parse::{ParseOptions, ParseOutcome, file_type_from_path, parse_file};
-use super::runner::{ConformanceSuite, SuiteResult, TestOutcome, run_conformance_suite};
+use destack_source::FileType;
+
+use super::parse::{ParseOptions, ParseOutcome, parse_file};
+use super::runner::{ConformanceSuite, SuiteResult, Test, TestOutcome, run_conformance_suite};
 use crate::harness::{TestOptions, fixtures_dir};
 
 // pinned version of SWC parser tests
@@ -27,42 +29,65 @@ impl SwcSuite {
         }
     }
 
-    fn discover_recursive(&self, dir: &Path, prefix: &str) -> Vec<String> {
+    fn discover_recursive(&self, dir: &Path, prefix: &str, category: &str) -> Vec<Test> {
         let mut tests = Vec::new();
 
         if let Ok(entries) = std::fs::read_dir(dir) {
             for entry in entries.flatten() {
                 let path = entry.path();
-                let name = path.file_name().unwrap().to_string_lossy();
+                let file_name = path.file_name().unwrap().to_string_lossy();
 
                 if path.is_dir() {
                     let new_prefix = if prefix.is_empty() {
-                        name.to_string()
+                        file_name.to_string()
                     } else {
-                        format!("{prefix}/{name}")
+                        format!("{prefix}/{file_name}")
                     };
-                    tests.extend(self.discover_recursive(&path, &new_prefix));
+                    tests.extend(self.discover_recursive(&path, &new_prefix, category));
                 } else if let Some(ext) = path.extension() {
                     let ext = ext.to_string_lossy();
                     if matches!(ext.as_ref(), "ts" | "tsx" | "js" | "jsx") {
                         // skip .d.ts files
-                        if name.ends_with(".d.ts") {
+                        if file_name.ends_with(".d.ts") {
                             continue;
                         }
                         let stem = path.file_stem().unwrap().to_string_lossy();
-                        let test_name = if prefix.is_empty() {
+                        let name = if prefix.is_empty() {
                             format!("{stem}.{ext}")
                         } else {
                             format!("{prefix}/{stem}.{ext}")
                         };
-                        tests.push(test_name);
+
+                        // determine file type based on category and extension
+                        let file_type = Self::file_type_for_category(category, &name);
+                        let expect_error = name.contains("/errors/") || name.contains("typescript-errors");
+
+                        tests.push(Test {
+                            name,
+                            file_type,
+                            expect_error,
+                        });
                     }
                 }
             }
         }
 
-        tests.sort();
+        tests.sort_by(|a, b| a.name.cmp(&b.name));
         tests
+    }
+
+    /// Determine file type based on SWC category directory.
+    fn file_type_for_category(category: &str, name: &str) -> FileType {
+        // tsx directory = TypeScript with JSX
+        if category.contains("tsx") || name.ends_with(".tsx") {
+            FileType::TypeScriptXml
+        } else if category == "typescript" || name.ends_with(".ts") {
+            FileType::TypeScript
+        } else if category == "jsx" || name.ends_with(".jsx") {
+            FileType::JavaScriptXml
+        } else {
+            FileType::JavaScript
+        }
     }
 }
 
@@ -85,35 +110,31 @@ impl ConformanceSuite for SwcSuite {
         self.conformance_dir.join("swc-known-failures.txt")
     }
 
-    fn discover_tests(&self) -> Vec<String> {
+    fn discover_tests(&self) -> Vec<Test> {
         let mut tests = Vec::new();
 
         // discover tests from typescript, jsx, and js directories
         for category in &["typescript", "jsx", "js"] {
             let category_dir = self.root.join(category);
             if category_dir.exists() {
-                tests.extend(self.discover_recursive(&category_dir, category));
+                tests.extend(self.discover_recursive(&category_dir, category, category));
             }
         }
 
         tests
     }
 
-    fn run_test(&self, name: &str) -> TestOutcome {
-        let path = self.root.join(name);
+    fn run_test(&self, test: &Test) -> TestOutcome {
+        let path = self.root.join(&test.name);
 
         let content = match std::fs::read_to_string(&path) {
             Ok(s) => s,
             Err(_) => return TestOutcome::Failed,
         };
 
-        let file_type = file_type_from_path(&path);
-        let parse_outcome = parse_file(&path, &content, file_type, ParseOptions::default());
+        let parse_outcome = parse_file(&path, &content, test.file_type, ParseOptions::default());
 
-        // SWC tests: if in "errors" directory, should fail; otherwise should pass
-        let should_fail = name.contains("/errors/") || name.contains("typescript-errors");
-
-        match (should_fail, parse_outcome) {
+        match (test.expect_error, parse_outcome) {
             (true, ParseOutcome::Error) => TestOutcome::Passed,
             (true, ParseOutcome::Ok) => TestOutcome::Failed,
             (false, ParseOutcome::Ok) => TestOutcome::Passed,

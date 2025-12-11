@@ -57,7 +57,7 @@ fn run_compiler_test(test: &TestCase) -> TestResult {
             };
         }
     };
-    compiler.enqueue(AnalyzeTask::AnalyzeModule { module: module_id });
+    compiler.enqueue(AnalyzeTask::AnalyzeModuleCheck { module: module_id });
     compiler.compile();
     drop(compiler);
 

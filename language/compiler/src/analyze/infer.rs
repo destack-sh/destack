@@ -2677,6 +2677,6 @@ const b = getB();
         test.analyze_module(module_id);
         test.compile_dump_clean();
 
-        // nocheckin: implement test fully, add another with circular type references
+        // nocheckin: implement test circular analysis fully, add another with circular type references
     }
 }

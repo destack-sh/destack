@@ -81,4 +81,4 @@ const e = getExternal();
 e.helper();
 ```
 
-nocheckin TODO #Incomplete: inherent / named extensions (within and across modules)
+nocheckin TODO #Incomplete: extensions

@@ -78,29 +78,6 @@ pub(super) fn parse_file(
     ParseOutcome::Ok
 }
 
-/// Determine the file type from a path's extension and directory context.
-pub(super) fn file_type_from_path(path: &Path) -> FileType {
-    let path_str = path.to_string_lossy();
-
-    // check if test is in a tsx or jsx directory (some suites enable JSX based on directory)
-    // nocheckin TODO #Suspicious: language type should be determined per-suite?
-    let in_tsx_dir = path_str.contains("/tsx/") || path_str.contains("/tsx-");
-    let in_jsx_dir = path_str.contains("/jsx/") || path_str.contains("/jsx-");
-
-    if path_str.ends_with(".tsx") {
-        FileType::TypeScriptXml
-    } else if path_str.ends_with(".ts") {
-        if in_tsx_dir {
-            FileType::TypeScriptXml
-        } else {
-            FileType::TypeScript
-        }
-    } else if path_str.ends_with(".jsx") || in_jsx_dir {
-        FileType::JavaScriptXml
-    } else {
-        FileType::JavaScript
-    }
-}
 
 /// Check if a path indicates an ES module (by naming convention).
 pub(super) fn is_module_path(path: &Path) -> bool {

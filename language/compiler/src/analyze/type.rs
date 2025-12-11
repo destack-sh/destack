@@ -651,9 +651,7 @@ impl Compiler {
         None
     }
 
-    /// Check if an extension is visible from the given module.
-    ///
-    /// Visibility rules:
+    /// Check if an extension is visible from the given module:
     /// - Native: Extension in same module as target type, always visible wherever type is used.
     /// - Anonymous: Extension on foreign type, only visible in the file where it's declared.
     /// - Named: Extension on foreign type, must be explicitly imported to use.
@@ -665,7 +663,7 @@ impl Compiler {
                 if extension.symbol.module_id == module.id {
                     return true;
                 }
-                // nocheckin TODO #Incomplete: import extensions
+                // nocheckin TODO #Incomplete: extensions
                 false
             }
         }

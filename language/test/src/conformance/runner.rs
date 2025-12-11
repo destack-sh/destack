@@ -7,6 +7,8 @@ use std::{fs, thread};
 
 use rayon::prelude::*;
 
+use destack_source::FileType;
+
 use crate::harness::TestOptions;
 use crate::harness::print::color;
 
@@ -22,6 +24,50 @@ pub enum TestOutcome {
     Failed,
 }
 
+/// A discovered conformance test with metadata.
+#[derive(Debug, Clone)]
+pub struct Test {
+    /// Test name (relative path within suite).
+    pub name: String,
+    /// File type for parsing.
+    pub file_type: FileType,
+    /// Whether the test is expected to have parse errors.
+    pub expect_error: bool,
+}
+
+impl Test {
+    /// Create a test that should pass (no parse errors expected).
+    pub fn pass(name: impl Into<String>, file_type: FileType) -> Self {
+        Self {
+            name: name.into(),
+            file_type,
+            expect_error: false,
+        }
+    }
+
+    /// Create a test that should fail (parse errors expected).
+    pub fn fail(name: impl Into<String>, file_type: FileType) -> Self {
+        Self {
+            name: name.into(),
+            file_type,
+            expect_error: true,
+        }
+    }
+
+    /// Infer file type from extension.
+    pub fn file_type_from_name(name: &str) -> FileType {
+        if name.ends_with(".tsx") {
+            FileType::TypeScriptXml
+        } else if name.ends_with(".ts") {
+            FileType::TypeScript
+        } else if name.ends_with(".jsx") {
+            FileType::JavaScriptXml
+        } else {
+            FileType::JavaScript
+        }
+    }
+}
+
 /// A conformance test suite (e.g., test262, typescript).
 pub trait ConformanceSuite: Send + Sync + Clone {
     /// Name of the suite (for display).
@@ -33,11 +79,11 @@ pub trait ConformanceSuite: Send + Sync + Clone {
     /// Path to known-failures file.
     fn known_failures_path(&self) -> PathBuf;
 
-    /// Discover all test names in this suite.
-    fn discover_tests(&self) -> Vec<String>;
+    /// Discover all tests in this suite.
+    fn discover_tests(&self) -> Vec<Test>;
 
     /// Run a single test, return whether it passed or failed.
-    fn run_test(&self, name: &str) -> TestOutcome;
+    fn run_test(&self, test: &Test) -> TestOutcome;
 
     /// Instructions for downloading the suite.
     fn download_instructions(&self) -> String;
@@ -53,16 +99,16 @@ enum TestResult {
 /// Run a single test with a timeout.
 fn run_test_with_timeout<S: ConformanceSuite + 'static>(
     suite: &S,
-    name: &str,
+    test: &Test,
     timeout: Duration,
 ) -> TestResult {
     let suite = suite.clone();
-    let name = name.to_string();
+    let test = test.clone();
 
     let (tx, rx) = mpsc::channel();
 
     thread::spawn(move || {
-        let result = suite.run_test(&name);
+        let result = suite.run_test(&test);
         let _ = tx.send(result);
     });
 
@@ -166,7 +212,7 @@ pub fn run_conformance_suite<S: ConformanceSuite + 'static>(
     let tests: Vec<_> = if let Some(filter) = &options.filter {
         all_tests
             .into_iter()
-            .filter(|t| t.contains(filter))
+            .filter(|t| t.name.contains(filter))
             .collect()
     } else {
         all_tests
@@ -180,7 +226,7 @@ pub fn run_conformance_suite<S: ConformanceSuite + 'static>(
             color::cyan(suite.name())
         );
         for test in &tests {
-            println!("  {test}");
+            println!("  {}", test.name);
         }
         return None; // list mode doesn't return results
     }
@@ -216,8 +262,8 @@ pub fn run_conformance_suite<S: ConformanceSuite + 'static>(
     // run tests in parallel and collect results
     let results: Vec<_> = tests
         .par_iter()
-        .map(|name| {
-            let outcome = run_test_with_timeout(suite, name, timeout);
+        .map(|test| {
+            let outcome = run_test_with_timeout(suite, test, timeout);
 
             // progress reporting (approximate due to parallelism)
             if verbose {
@@ -232,7 +278,7 @@ pub fn run_conformance_suite<S: ConformanceSuite + 'static>(
                 }
             }
 
-            (name.clone(), outcome)
+            (test.name.clone(), outcome)
         })
         .collect();
 

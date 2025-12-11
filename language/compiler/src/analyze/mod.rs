@@ -1,15 +1,15 @@
-mod infer;
-mod check;
+mod assignable;
 mod context;
-mod error;
 mod declare;
+mod error;
 mod format;
+mod infer;
 mod options;
 mod process;
 mod r#type;
 mod warning;
 
-pub use check::*;
+pub use assignable::*;
 pub use context::*;
 pub use error::*;
 pub use format::*;
