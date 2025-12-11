@@ -67,12 +67,12 @@ impl Compiler {
     }
 
     /// Ensure a target has been linked.
-    pub fn require_link(
+    pub fn require_link_module(
         &self,
         package: PackageId,
         target: &str,
     ) -> Result<(), TaskDependencyError> {
-        self.require_task(LinkTask::LinkTarget {
+        self.do_require_task_internal(LinkTask::LinkTarget {
             package,
             target: target.to_string(),
         })

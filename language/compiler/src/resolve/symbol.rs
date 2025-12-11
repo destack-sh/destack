@@ -5,7 +5,7 @@ use destack_dir::{
 };
 use destack_workspace::Module;
 
-use crate::{Compiler, ResolveError, ResolveResult, ResolveTask};
+use crate::{Compiler, ResolveError, ResolveResult};
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
@@ -345,9 +345,7 @@ impl Compiler {
 
             // ensure the target module is resolved (may yield) - skip if it's the calling module
             if current.module_id != calling_module {
-                self.require_task(ResolveTask::ResolveModule {
-                    module: current.module_id,
-                })?;
+                self.require_resolve_module(current.module_id)?;
             }
 
             // get the symbol

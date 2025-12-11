@@ -61,7 +61,7 @@ impl Compiler {
     pub fn process_bind(&self, task: BindTask) -> BindResult<BindOutput> {
         match task {
             BindTask::BindModule { module } => {
-                self.require_import(module)?;
+                self.require_import_module(module)?;
                 let module_arc = self.program.modules.get(module);
                 let mut module_guard = module_arc.write();
                 self.bind_module(&mut module_guard);
@@ -71,8 +71,8 @@ impl Compiler {
     }
 
     /// Ensure a module has been bound.
-    pub fn require_bind(&self, module: ModuleId) -> Result<(), TaskDependencyError> {
-        self.require_task(BindTask::BindModule { module })
+    pub fn require_bind_module(&self, module: ModuleId) -> Result<(), TaskDependencyError> {
+        self.do_require_task_internal(BindTask::BindModule { module })
     }
 
     /// Bind a module.

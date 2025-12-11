@@ -683,7 +683,7 @@ impl Compiler {
         let remote_module_id = target_symbol.module_id;
 
         // ensure the remote module is analyzed (may yield)
-        self.require_analyze(remote_module_id)?;
+        self.require_analyze_module(remote_module_id)?;
 
         // look up the type in the remote module's TypeTable
         let remote_module = self.program.modules.get(remote_module_id);

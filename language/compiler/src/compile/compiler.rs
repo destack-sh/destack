@@ -202,7 +202,13 @@ impl Compiler {
     }
 
     /// Require a task to be complete, returning an error if it's not ready or has failed.
-    pub fn require_task<T: Into<Task> + Clone>(&self, task: T) -> Result<(), TaskDependencyError> {
+    /// Each phase defines its own tasks, and its own higher level require_* helper functions.
+    /// 
+    /// This function should only be called directly by each phase's main process.
+    pub(crate) fn do_require_task_internal<T: Into<Task> + Clone>(
+        &self,
+        task: T,
+    ) -> Result<(), TaskDependencyError> {
         let t: Task = task.clone().into();
         match self.queue.find_task_status(&t) {
             Some(TaskStatus::Complete { .. }) => Ok(()),

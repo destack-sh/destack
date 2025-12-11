@@ -6,7 +6,7 @@ use destack_dir::{
 use destack_source::ModuleId;
 use destack_workspace::Module;
 
-use crate::{Compiler, ResolveError, ResolveResult, ResolveTask, TaskDependencyError};
+use crate::{Compiler, ResolveError, ResolveResult, TaskDependencyError};
 
 impl Compiler {
     /// Whether the target is a relative import.
@@ -61,7 +61,7 @@ impl Compiler {
             .map_err(|_| ResolveError::UnresolvedModule { node, target })?;
 
         // ensure the target module is bound (may yield)
-        self.require_bind(remote_module_id).map_err(|e| match e {
+        self.require_bind_module(remote_module_id).map_err(|e| match e {
             TaskDependencyError::NotReady { dependency } => ResolveError::Yield { dependency },
             TaskDependencyError::Failed { .. } => ResolveError::UnresolvedModule { node, target },
         })?;
@@ -264,9 +264,7 @@ impl Compiler {
         key: StaticKey,
     ) -> ResolveResult<GlobalSymbolId> {
         // ensure the via module is resolved (so namespace_exports is populated)
-        self.require_task(ResolveTask::ResolveModule {
-            module: via_module_id,
-        })?;
+        self.require_resolve_module(via_module_id)?;
 
         // get the namespace exports for the via module
         let via_module = self.program.modules.get(via_module_id);
@@ -287,9 +285,7 @@ impl Compiler {
             visited.push(namespace_module_id);
 
             // ensure the namespace module is resolved (may yield)
-            self.require_task(ResolveTask::ResolveModule {
-                module: namespace_module_id,
-            })?;
+            self.require_resolve_module(namespace_module_id)?;
 
             let namespace_module = self.program.modules.get(namespace_module_id);
             let namespace_module = namespace_module.read();

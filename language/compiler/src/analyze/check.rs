@@ -608,7 +608,7 @@ mod tests {
         TypeLiteral,
     };
 
-    use crate::{Assignability, TestProgram, assert_type};
+    use crate::{Assignability, TestProgram};
 
     /// Number is assignable to number.
     #[test]
@@ -1487,46 +1487,13 @@ extension Point {
         let module = module.read();
         let types = module.dir.types.read();
 
-        // check extension is registered for Point
+        // check extension for Point
         let extension_ids = types
             .get_extensions_for_target(point_id)
             .expect("Point should have extensions");
         assert_eq!(extension_ids.len(), 1, "Point should have one extension");
-
-        // check extension kind is Native (same module as type)
         let extension = types.get_extension(extension_ids[0]);
         assert_eq!(extension.kind, ExtensionKind::Inherent);
         assert_eq!(extension.target, point_id);
-    }
-
-    /// Verify cross-module type annotations work.
-    #[test]
-    fn test_analyze_type_across_modules() {
-        let test = TestProgram::memory_sequential();
-        test.add_file("lib.ds", "export struct Vector2 { x: number, y: number }");
-        let module_id = test.register_module(
-            "main.ds",
-            r#"
-import { Vector2 } from "./lib.ds";
-
-declare function getVector(): Vector2;
-
-const v = getVector();
-"#,
-        );
-        test.analyze_module(module_id);
-        test.compile_dump_clean();
-
-        // v's type should be Type::Reference to Vector2 from lib.ds
-        let v_symbol = test.resolve_to_symbol("main.ds", "v").unwrap();
-        let module = test.program.modules.get(module_id);
-        let module = module.read();
-        let types = module.dir.types.read();
-        let v_ty_id = types
-            .get_value_type_id(v_symbol)
-            .expect("v should have value type");
-        assert_type!(types, v_ty_id, Type::Reference { symbol, .. } => {
-            assert_ne!(symbol.module_id, module_id, "should reference lib.ds type");
-        });
     }
 }

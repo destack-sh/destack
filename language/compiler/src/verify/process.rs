@@ -58,7 +58,7 @@ impl Compiler {
     pub fn process_verify(&self, task: VerifyTask) -> VerifyResult<VerifyOutput> {
         match task {
             VerifyTask::VerifyModule { module } => {
-                self.require_lower(module)?;
+                self.require_lower_module(module)?;
                 self.verify_module(module)?;
             }
         }
@@ -75,7 +75,7 @@ impl Compiler {
     }
 
     /// Ensure a module has been verified.
-    pub fn require_verify(&self, module: ModuleId) -> Result<(), TaskDependencyError> {
-        self.require_task(VerifyTask::VerifyModule { module })
+    pub fn require_verify_module(&self, module: ModuleId) -> Result<(), TaskDependencyError> {
+        self.do_require_task_internal(VerifyTask::VerifyModule { module })
     }
 }
