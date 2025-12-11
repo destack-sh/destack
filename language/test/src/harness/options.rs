@@ -1,5 +1,3 @@
-//! Command-line options for test runners.
-
 use clap::Parser;
 
 /// Options for running tests.

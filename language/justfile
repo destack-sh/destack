@@ -110,7 +110,7 @@ bench-parse:
 
 # fetch ecosystem test packages
 ecosystem-fetch:
-    cargo test --release --test ecosystem -- --fetch
+    ./test/fixtures/ecosystem/ecosystem-fetch.sh
 
 # run ecosystem tests
 test-ecosystem:

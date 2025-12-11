@@ -79,7 +79,10 @@ impl Compiler {
         // resolve canonical symbols (may yield for cross-module resolution)
         let mut collector = TaskResultCollector::new();
         for (symbol_id, node) in symbols_to_resolve {
-            self.collect(&mut collector, self.resolve_canonical_symbol(node, symbol_id));
+            self.collect(
+                &mut collector,
+                self.resolve_canonical_symbol(node, symbol_id),
+            );
         }
 
         // yield on any yield

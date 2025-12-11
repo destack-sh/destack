@@ -1,5 +1,3 @@
-//! Biome parser conformance tests.
-
 use std::path::{Path, PathBuf};
 
 use super::parse::{ParseOptions, ParseOutcome, parse_file};
@@ -78,7 +76,7 @@ impl ConformanceSuite for BiomeSuite {
         self.conformance_dir.join("biome-known-failures.txt")
     }
 
-    fn discover_tests(&self) -> Vec<Test> {
+    fn discover(&self) -> Vec<Test> {
         let mut tests = Vec::new();
 
         // Biome has ok/ (should pass) and error/ (should fail) directories
@@ -95,7 +93,7 @@ impl ConformanceSuite for BiomeSuite {
         tests
     }
 
-    fn run_test(&self, test: &Test) -> TestOutcome {
+    fn run(&self, test: &Test) -> TestOutcome {
         let path = self.root.join(&test.name);
 
         let content = match std::fs::read_to_string(&path) {

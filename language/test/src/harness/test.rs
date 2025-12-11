@@ -1,16 +1,10 @@
-//! Test case, result, and runner types.
-
 use std::path::PathBuf;
 use std::process::ExitCode;
 use std::sync::atomic::{AtomicUsize, Ordering};
-use std::time::Instant;
 
 use destack_source::DiagnosticSeverity;
-use rayon::prelude::*;
 
-use super::{
-    TestOptions, filter_tests, print_failures, print_result, print_summary, print_test_list,
-};
+use super::{RunContext, Runner, TestOptions};
 
 /// Result of running a single test.
 #[derive(Debug, Clone)]
@@ -178,7 +172,7 @@ impl TestSummary {
                 failed,
                 skipped,
             } => {
-                // suite results aggregate their counts into the summary?
+                // suite results aggregate their counts into the summary
                 self.passed.fetch_add(*passed, Ordering::Relaxed);
                 self.failed.fetch_add(*failed, Ordering::Relaxed);
                 self.skipped.fetch_add(*skipped, Ordering::Relaxed);
@@ -217,65 +211,6 @@ pub fn run_tests<F>(tests: Vec<TestCase>, options: &TestOptions, runner: F) -> E
 where
     F: Fn(&TestCase) -> TestResult + Send + Sync,
 {
-    let filtered = filter_tests(tests, options.filter.as_deref());
-
-    if filtered.is_empty() {
-        println!("no tests to run");
-        return ExitCode::SUCCESS;
-    }
-
-    // list mode: just print tests and exit
-    if options.list {
-        print_test_list(&filtered);
-        return ExitCode::SUCCESS;
-    }
-
-    println!();
-    println!("running {} tests", filtered.len());
-
-    let summary = TestSummary::new();
-    let start = Instant::now();
-
-    // run tests in parallel with rayon
-    let results: Vec<(TestCase, TestResult, std::time::Duration)> = filtered
-        .par_iter()
-        .map(|test| {
-            let test_start = Instant::now();
-
-            // handle pre-skipped tests
-            let result = if test.is_skipped {
-                TestResult::Skipped {
-                    reason: "marked as skipped".to_string(),
-                }
-            } else {
-                runner(test)
-            };
-
-            let duration = test_start.elapsed();
-            (test.clone(), result, duration)
-        })
-        .collect();
-
-    let total_duration = start.elapsed();
-
-    // aggregate results and print (single-threaded for ordered output)
-    let mut final_results: Vec<(TestCase, TestResult)> = Vec::new();
-    for (test, result, duration) in results {
-        summary.record(&result);
-        print_result(&test, &result, duration, options.verbose);
-        final_results.push((test, result));
-    }
-    let results = final_results;
-
-    // print failures
-    print_failures(&results);
-
-    // print summary
-    print_summary(&summary, total_duration);
-
-    if summary.all_passed() {
-        ExitCode::SUCCESS
-    } else {
-        ExitCode::FAILURE
-    }
+    let context = RunContext::new(options);
+    Runner::run_cases(tests, &context, |test, _context| runner(test))
 }

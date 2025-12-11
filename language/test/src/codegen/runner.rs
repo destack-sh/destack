@@ -1,5 +1,3 @@
-//! Codegen test runner.
-
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -11,23 +9,39 @@ use destack_source::{
 use destack_workspace::{DsConfig, Program, Target};
 
 use crate::harness::{
-    TestCase, TestOptions, TestResult, check_diagnostics, discover_test_directories, fixtures_dir,
-    run_tests,
+    RunContext, Runner, Suite, TestCase, TestOptions, TestResult, check_diagnostics,
+    discover_test_directories, fixtures_dir,
 };
 
 use super::assert::compare_directory;
 use super::discover::{SOURCE_EXTENSIONS, discover_source_files};
 
+#[derive(Debug, Clone, Copy, Default)]
+pub struct CodegenSuite;
+
+impl Suite for CodegenSuite {
+    fn name(&self) -> &'static str {
+        "codegen"
+    }
+
+    fn discover(&self, _options: &TestOptions) -> Vec<TestCase> {
+        let codegen_directory = fixtures_dir().join("codegen");
+        discover_test_directories(&codegen_directory, "destack_test::codegen")
+            .expect("failed to discover tests")
+    }
+
+    fn run(&self, case: &TestCase, _context: &RunContext<'_>) -> TestResult {
+        run_codegen_case(case)
+    }
+}
+
 /// Run all codegen tests.
 pub fn run_codegen_tests(options: &TestOptions) -> std::process::ExitCode {
-    let codegen_dir = fixtures_dir().join("codegen");
-    let tests = discover_test_directories(&codegen_dir, "destack_test::codegen")
-        .expect("failed to discover tests");
-    run_tests(tests, options, run_codegen_test)
+    Runner::run_suite(&CodegenSuite, options)
 }
 
 /// Run a single codegen test.
-fn run_codegen_test(test: &TestCase) -> TestResult {
+fn run_codegen_case(test: &TestCase) -> TestResult {
     // parse dsconfig.json to get targets
     let dsconfig_path = test.path.join("dsconfig.json");
     let dsconfig = match load_dsconfig(&dsconfig_path) {

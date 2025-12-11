@@ -2,13 +2,10 @@ use std::process::ExitCode;
 
 use clap::Parser;
 
-use destack_test::conformance::{
-    SuiteResult, print_summary, run_babel as babel_suite, run_biome as biome_suite,
-    run_swc as swc_suite, run_test262 as test262_suite,
-};
-use destack_test::harness::TestOptions;
+use destack_test::conformance::{ConformanceHarnessSuite, ConformanceSelection};
+use destack_test::harness::{Runner, TestOptions};
 
-/// Conformance test specific options.
+/// CLI options for the `conformance` test binary.
 #[derive(Parser, Debug)]
 #[command(name = "conformance", about = "Run parser conformance tests")]
 struct Args {
@@ -39,43 +36,12 @@ struct Args {
 
 fn main() -> ExitCode {
     let args = Args::parse();
-
-    // if no suite specified, run all suites
-    let no_suite_specified = !args.test262 && !args.babel && !args.swc && !args.biome;
-    let mut results: Vec<SuiteResult> = Vec::new();
-
-    // test262
-    let run_test262 = args.test262 || no_suite_specified;
-    if run_test262 && let Some(r) = test262_suite(&args.test, args.update_known_failures) {
-        results.push(r);
-    }
-
-    // babel
-    let run_babel = args.babel || no_suite_specified;
-    if run_babel && let Some(r) = babel_suite(&args.test, args.update_known_failures) {
-        results.push(r);
-    }
-
-    // swc
-    let run_swc = args.swc || no_suite_specified;
-    if run_swc && let Some(r) = swc_suite(&args.test, args.update_known_failures) {
-        results.push(r);
-    }
-
-    // biome
-    let run_biome = args.biome || no_suite_specified;
-    if run_biome && let Some(r) = biome_suite(&args.test, args.update_known_failures) {
-        results.push(r);
-    }
-
-    // print summary if multiple suites ran
-    print_summary(&results);
-
-    // check for any regressions
-    let any_regressions = results.iter().any(|r| r.result.has_regressions());
-    if any_regressions {
-        ExitCode::FAILURE
-    } else {
-        ExitCode::SUCCESS
-    }
+    let selection = ConformanceSelection {
+        test262: args.test262,
+        babel: args.babel,
+        swc: args.swc,
+        biome: args.biome,
+    };
+    let suite = ConformanceHarnessSuite::new(selection, args.update_known_failures);
+    Runner::run_suite(&suite, &args.test)
 }

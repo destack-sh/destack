@@ -95,8 +95,8 @@ pub fn run(args: &CompileArgs) -> i32 {
         return 1;
     };
 
-    // compile (import phase)
-    compiler.enqueue(AnalyzeTask::AnalyzeModule { module: module_id });
+    // compile
+    compiler.enqueue(AnalyzeTask::AnalyzeModuleCheck { module: module_id });
     compiler.compile();
     drop(compiler);
 

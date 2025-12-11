@@ -1,5 +1,3 @@
-//! Test output printing utilities.
-
 use std::time::Duration;
 
 use super::{TestCase, TestResult, TestSummary};

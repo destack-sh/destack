@@ -1,5 +1,3 @@
-//! Compiler smoke tests.
-
 use std::sync::Arc;
 
 use destack_compiler::{AnalyzeTask, CompileOptions, Compiler};
@@ -7,20 +5,36 @@ use destack_source::{FileRegistry, FileSystem, LanguageOptions, MemoryFileSystem
 use destack_workspace::Program;
 
 use crate::harness::{
-    TestCase, TestOptions, TestResult, check_diagnostics, discover_test_files, fixtures_dir,
-    run_tests,
+    RunContext, Runner, Suite, TestCase, TestOptions, TestResult, check_diagnostics,
+    discover_test_files, fixtures_dir,
 };
+
+#[derive(Debug, Clone, Copy, Default)]
+pub struct CompilerSmokeSuite;
+
+impl Suite for CompilerSmokeSuite {
+    fn name(&self) -> &'static str {
+        "smoke-compiler"
+    }
+
+    fn discover(&self, _options: &TestOptions) -> Vec<TestCase> {
+        let smoke_directory = fixtures_dir().join("smoke").join("compiler");
+        discover_test_files(&smoke_directory, &["ds"], "destack_test::smoke::compiler")
+            .expect("failed to discover tests")
+    }
+
+    fn run(&self, case: &TestCase, _context: &RunContext<'_>) -> TestResult {
+        run_compiler_case(case)
+    }
+}
 
 /// Run all compiler smoke tests.
 pub fn run_compiler_smoke_tests(options: &TestOptions) -> std::process::ExitCode {
-    let smoke_dir = fixtures_dir().join("smoke").join("compiler");
-    let tests = discover_test_files(&smoke_dir, &["ds"], "destack_test::smoke::compiler")
-        .expect("failed to discover tests");
-    run_tests(tests, options, run_compiler_test)
+    Runner::run_suite(&CompilerSmokeSuite, options)
 }
 
 /// Run a single compiler smoke test.
-fn run_compiler_test(test: &TestCase) -> TestResult {
+fn run_compiler_case(test: &TestCase) -> TestResult {
     // read file content from disk
     let content = match std::fs::read_to_string(&test.path) {
         Ok(content) => content,

@@ -1,5 +1,3 @@
-//! Shared parsing utilities for conformance tests.
-
 use std::path::Path;
 use std::sync::Arc;
 
@@ -77,7 +75,6 @@ pub(super) fn parse_file(
 
     ParseOutcome::Ok
 }
-
 
 /// Check if a path indicates an ES module (by naming convention).
 pub(super) fn is_module_path(path: &Path) -> bool {

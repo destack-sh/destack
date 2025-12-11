@@ -12,6 +12,7 @@ pub enum Assignability {
     Assignable,
     /// Types are not assignable
     NotAssignable,
+    // ..Undecidable?
 }
 
 impl Assignability {

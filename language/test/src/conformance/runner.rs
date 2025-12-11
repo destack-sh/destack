@@ -2,15 +2,16 @@ use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::mpsc;
+use std::thread;
 use std::time::{Duration, Instant};
-use std::{fs, thread};
 
+use rayon::ThreadPoolBuilder;
 use rayon::prelude::*;
 
 use destack_source::FileType;
 
-use crate::harness::TestOptions;
 use crate::harness::print::color;
+use crate::harness::{TestOptions, load_expected_failures, save_expected_failures};
 
 /// Per-test timeout in seconds.
 const TEST_TIMEOUT_SECONDS: u64 = 1;
@@ -80,10 +81,10 @@ pub trait ConformanceSuite: Send + Sync + Clone {
     fn known_failures_path(&self) -> PathBuf;
 
     /// Discover all tests in this suite.
-    fn discover_tests(&self) -> Vec<Test>;
+    fn discover(&self) -> Vec<Test>;
 
     /// Run a single test, return whether it passed or failed.
-    fn run_test(&self, test: &Test) -> TestOutcome;
+    fn run(&self, test: &Test) -> TestOutcome;
 
     /// Instructions for downloading the suite.
     fn download_instructions(&self) -> String;
@@ -108,7 +109,7 @@ fn run_test_with_timeout<S: ConformanceSuite + 'static>(
     let (tx, rx) = mpsc::channel();
 
     thread::spawn(move || {
-        let result = suite.run_test(&test);
+        let result = suite.run(&test);
         let _ = tx.send(result);
     });
 
@@ -158,27 +159,6 @@ impl ConformanceResult {
     }
 }
 
-/// Load known failures from a file (one test name per line).
-fn load_known_failures(path: &Path) -> HashSet<String> {
-    match fs::read_to_string(path) {
-        Ok(content) => content
-            .lines()
-            .map(|line| line.trim())
-            .filter(|line| !line.is_empty() && !line.starts_with('#'))
-            .map(String::from)
-            .collect(),
-        Err(_) => HashSet::new(),
-    }
-}
-
-/// Save known failures to a file.
-fn save_known_failures(path: &Path, failures: &HashSet<String>) -> std::io::Result<()> {
-    let mut sorted: Vec<_> = failures.iter().cloned().collect();
-    sorted.sort();
-    let content = sorted.join("\n") + "\n";
-    fs::write(path, content)
-}
-
 /// Result of running a suite, for aggregation.
 #[derive(Debug)]
 pub struct SuiteResult {
@@ -208,7 +188,7 @@ pub fn run_conformance_suite<S: ConformanceSuite + 'static>(
     }
 
     // discover tests
-    let all_tests = suite.discover_tests();
+    let all_tests = suite.discover();
     let tests: Vec<_> = if let Some(filter) = &options.filter {
         all_tests
             .into_iter()
@@ -233,7 +213,7 @@ pub fn run_conformance_suite<S: ConformanceSuite + 'static>(
 
     // load known failures
     let known_failures_path = suite.known_failures_path();
-    let known_failures = load_known_failures(&known_failures_path);
+    let known_failures = load_expected_failures(&known_failures_path);
 
     println!();
     println!(
@@ -260,27 +240,45 @@ pub fn run_conformance_suite<S: ConformanceSuite + 'static>(
     let verbose = options.verbose;
 
     // run tests in parallel and collect results
-    let results: Vec<_> = tests
-        .par_iter()
-        .map(|test| {
-            let outcome = run_test_with_timeout(suite, test, timeout);
+    let results: Vec<_> = if options.parallel() {
+        let jobs = options.jobs.max(1);
+        let thread_pool = ThreadPoolBuilder::new()
+            .num_threads(jobs)
+            .build()
+            .expect("failed to build rayon thread pool");
 
-            // progress reporting (approximate due to parallelism)
-            if verbose {
-                let completed = progress_counter.fetch_add(1, Ordering::Relaxed) + 1;
-                if completed.is_multiple_of(100) {
-                    eprintln!(
-                        "  progress: ~{}/{} ({:.0}%)",
-                        completed,
-                        total_tests,
-                        completed as f64 / total_tests as f64 * 100.0
-                    );
-                }
-            }
+        thread_pool.install(|| {
+            tests
+                .par_iter()
+                .map(|test| {
+                    let outcome = run_test_with_timeout(suite, test, timeout);
 
-            (test.name.clone(), outcome)
+                    // progress reporting (approximate due to parallelism)
+                    if verbose {
+                        let completed = progress_counter.fetch_add(1, Ordering::Relaxed) + 1;
+                        if completed.is_multiple_of(100) {
+                            eprintln!(
+                                "  progress: ~{}/{} ({:.0}%)",
+                                completed,
+                                total_tests,
+                                completed as f64 / total_tests as f64 * 100.0
+                            );
+                        }
+                    }
+
+                    (test.name.clone(), outcome)
+                })
+                .collect()
         })
-        .collect();
+    } else {
+        tests
+            .iter()
+            .map(|test| {
+                let outcome = run_test_with_timeout(suite, test, timeout);
+                (test.name.clone(), outcome)
+            })
+            .collect()
+    };
 
     // aggregate results
     let mut passed = 0;
@@ -321,7 +319,7 @@ pub fn run_conformance_suite<S: ConformanceSuite + 'static>(
 
     // update known-failures if requested
     if update_known_failures {
-        if let Err(err) = save_known_failures(&known_failures_path, &current_failures) {
+        if let Err(err) = save_expected_failures(&known_failures_path, &current_failures) {
             eprintln!(
                 "{}: failed to update known-failures: {err}",
                 color::red("error")

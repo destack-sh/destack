@@ -1,19 +1,22 @@
-//! Test harness utilities for running dynamic fixture-based tests.
-//!
-//! This module provides common infrastructure for discovering and running tests
-//! from fixture directories, with proper CLI argument handling and output formatting.
-
+mod context;
 mod diagnostic;
 pub mod diff;
 mod discover;
+mod expected_failures;
 mod options;
 pub mod print;
+mod runner;
+mod suite;
 mod test;
 
+pub use context::*;
 pub use diagnostic::*;
 pub use discover::*;
+pub use expected_failures::*;
 pub use options::*;
 pub use print::*;
+pub use runner::*;
+pub use suite::*;
 pub use test::*;
 
 use std::path::PathBuf;
