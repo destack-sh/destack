@@ -2,6 +2,9 @@
 
 Parser conformance tests using external test suites.
 
+> See [TESTING.md](../../../../TESTING.md) for the overall testing philosophy and strategy.
+> See [Conformance Status](../../src/conformance/README.md) for current pass rates and known issues.
+
 ## Quick Start
 
 ```sh

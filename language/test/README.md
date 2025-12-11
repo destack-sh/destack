@@ -2,6 +2,8 @@
 
 Integration and fixture-based tests for the Destack language toolchain.
 
+> See [TESTING.md](../../TESTING.md) for the overall testing philosophy and strategy.
+
 ## Test Types
 
 | Type | Location | Description |
