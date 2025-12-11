@@ -188,7 +188,7 @@ impl Compiler {
                 descriptor,
                 generics,
                 heritage,
-                properties,
+                members,
             } => {
                 let (descriptor, scope_id) = self.bind_declaration_descriptor(
                     module,
@@ -216,13 +216,13 @@ impl Compiler {
                     symbols,
                     types,
                 );
-                let properties = properties
+                let members = members
                     .iter()
-                    .map(|property| {
-                        self.bind_property(
+                    .map(|member| {
+                        self.bind_member(
                             module,
                             (scope_id, symbols.get_scope_mark(scope_id)),
-                            *property,
+                            *member,
                             Some(declaration_id),
                             tree,
                             symbols,
@@ -235,14 +235,14 @@ impl Compiler {
                     generics,
                     heritage,
                     scope: scope_id,
-                    properties,
+                    members,
                 }
             }
             ast::Declaration::Class {
                 descriptor,
                 generics,
                 heritage,
-                properties,
+                members,
             } => {
                 let (descriptor, scope_id) = self.bind_declaration_descriptor(
                     module,
@@ -270,13 +270,13 @@ impl Compiler {
                     symbols,
                     types,
                 );
-                let properties = properties
+                let members = members
                     .iter()
-                    .map(|property| {
-                        self.bind_property(
+                    .map(|member| {
+                        self.bind_member(
                             module,
                             (scope_id, symbols.get_scope_mark(scope_id)),
-                            *property,
+                            *member,
                             Some(declaration_id),
                             tree,
                             symbols,
@@ -289,7 +289,7 @@ impl Compiler {
                     generics,
                     heritage,
                     scope: scope_id,
-                    properties,
+                    members,
                 }
             }
             ast::Declaration::Enum {
@@ -297,7 +297,7 @@ impl Compiler {
                 generics,
                 heritage,
                 fields,
-                properties,
+                members,
             } => {
                 let (descriptor, scope_id) = self.bind_declaration_descriptor(
                     module,
@@ -339,13 +339,13 @@ impl Compiler {
                         )
                     })
                     .collect();
-                let properties = properties
+                let members = members
                     .iter()
-                    .map(|property| {
-                        self.bind_property(
+                    .map(|member| {
+                        self.bind_member(
                             module,
                             (scope_id, symbols.get_scope_mark(scope_id)),
-                            *property,
+                            *member,
                             Some(declaration_id),
                             tree,
                             symbols,
@@ -359,14 +359,14 @@ impl Compiler {
                     heritage,
                     scope: scope_id,
                     fields,
-                    properties,
+                    members,
                 }
             }
             ast::Declaration::Interface {
                 descriptor,
                 generics,
                 heritage,
-                properties,
+                members,
             } => {
                 let (descriptor, scope_id) = self.bind_declaration_descriptor(
                     module,
@@ -394,13 +394,13 @@ impl Compiler {
                     symbols,
                     types,
                 );
-                let properties = properties
+                let members = members
                     .iter()
-                    .map(|property| {
-                        self.bind_property(
+                    .map(|member| {
+                        self.bind_member(
                             module,
                             (scope_id, symbols.get_scope_mark(scope_id)),
-                            *property,
+                            *member,
                             Some(declaration_id),
                             tree,
                             symbols,
@@ -413,7 +413,7 @@ impl Compiler {
                     generics,
                     heritage,
                     scope: scope_id,
-                    properties,
+                    members,
                 }
             }
             ast::Declaration::Extension {
@@ -421,7 +421,7 @@ impl Compiler {
                 generics,
                 target_type,
                 heritage,
-                properties,
+                members,
             } => {
                 let (descriptor, scope_id) = self.bind_declaration_descriptor(
                     module,
@@ -458,13 +458,13 @@ impl Compiler {
                     symbols,
                     types,
                 );
-                let properties = properties
+                let members = members
                     .iter()
-                    .map(|property| {
-                        self.bind_property(
+                    .map(|member| {
+                        self.bind_member(
                             module,
                             (scope_id, symbols.get_scope_mark(scope_id)),
-                            *property,
+                            *member,
                             Some(declaration_id),
                             tree,
                             symbols,
@@ -479,7 +479,7 @@ impl Compiler {
                     target_symbol: None,
                     heritage,
                     scope: scope_id,
-                    properties,
+                    members,
                 }
             }
             ast::Declaration::Function {

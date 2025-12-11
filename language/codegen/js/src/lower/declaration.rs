@@ -126,21 +126,21 @@ impl ModuleLowerer<'_> {
                 scope: _,
                 generics,
                 heritage,
-                properties,
+                members,
             } => {
                 let descriptor = self.lower_declaration_descriptor(descriptor);
                 let generics = self.lower_generics(generics)?;
                 let heritage = self.lower_heritage(heritage)?;
-                let properties = properties
+                let members = members
                     .iter()
-                    .map(|property| self.lower_property(*property))
+                    .map(|member| self.lower_member(*member))
                     .collect::<Result<Vec<_>, CodegenJsError>>()?;
                 // NOTE #Incomplete: struct declarations should become just JS types + namespaces?
                 Declaration::Class {
                     descriptor,
                     generics,
                     heritage,
-                    properties,
+                    members,
                 }
             }
             dir::Declaration::Class {
@@ -148,20 +148,20 @@ impl ModuleLowerer<'_> {
                 scope: _,
                 generics,
                 heritage,
-                properties,
+                members,
             } => {
                 let descriptor = self.lower_declaration_descriptor(descriptor);
                 let generics = self.lower_generics(generics)?;
                 let heritage = self.lower_heritage(heritage)?;
-                let properties = properties
+                let members = members
                     .iter()
-                    .map(|property| self.lower_property(*property))
+                    .map(|member| self.lower_member(*member))
                     .collect::<Result<Vec<_>, CodegenJsError>>()?;
                 Declaration::Class {
                     descriptor,
                     generics,
                     heritage,
-                    properties,
+                    members,
                 }
             }
             dir::Declaration::Interface {
@@ -169,20 +169,20 @@ impl ModuleLowerer<'_> {
                 scope: _,
                 generics,
                 heritage,
-                properties,
+                members,
             } => {
                 let descriptor = self.lower_declaration_descriptor(descriptor);
                 let generics = self.lower_generics(generics)?;
                 let heritage = self.lower_heritage(heritage)?;
-                let properties = properties
+                let members = members
                     .iter()
-                    .map(|property| self.lower_property(*property))
+                    .map(|member| self.lower_member(*member))
                     .collect::<Result<Vec<_>, CodegenJsError>>()?;
                 Declaration::Interface {
                     descriptor,
                     generics,
                     heritage,
-                    properties,
+                    members,
                 }
             }
             dir::Declaration::Enum {
@@ -191,7 +191,7 @@ impl ModuleLowerer<'_> {
                 generics: _,
                 heritage: _,
                 fields,
-                properties: _,
+                members: _,
             } => {
                 let descriptor = self.lower_declaration_descriptor(descriptor);
                 let fields = fields

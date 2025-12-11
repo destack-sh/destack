@@ -1,7 +1,7 @@
 use crate::argument::list_like;
 use crate::block::format_block_of_statements;
 use crate::expression::is_expression_breakable;
-use crate::property::format_block_of_properties;
+use crate::property::format_block_of_members;
 use crate::r#where::format_where_clause;
 use crate::{
     DestackFormatContext, DestackFormatter, FormatNode, empty_block_with_infix_annotations,
@@ -208,13 +208,13 @@ impl<'ast> FormatNode<'ast, Declaration> for Declaration {
                 descriptor,
                 generics,
                 heritage,
-                properties,
+                members,
             }
             | Declaration::Class {
                 descriptor,
                 generics,
                 heritage,
-                properties,
+                members,
             } => {
                 let is_class = matches!(self, Declaration::Class { .. });
 
@@ -272,7 +272,7 @@ impl<'ast> FormatNode<'ast, Declaration> for Declaration {
                 write!(f, [space()])?;
 
                 // empty body
-                if properties.is_empty() {
+                if members.is_empty() {
                     write!(f, [empty_block_with_infix_annotations(node_id)])?;
                     write!(f, [f.context().any_postfix_annotations(node_id)])?;
                     return Ok(());
@@ -281,12 +281,12 @@ impl<'ast> FormatNode<'ast, Declaration> for Declaration {
                 // body
                 write!(f, [token("{"), hard_line_break()])?;
 
-                // properties
-                if !properties.is_empty() {
+                // members
+                if !members.is_empty() {
                     write!(
                         f,
                         [group(&format_args![block_indent(&format_with(|f| {
-                            format_block_of_properties(f, properties)
+                            format_block_of_members(f, members)
                         })),])]
                     )?;
                 }
@@ -302,7 +302,7 @@ impl<'ast> FormatNode<'ast, Declaration> for Declaration {
                 generics,
                 heritage,
                 fields,
-                properties,
+                members,
             } => {
                 // export
                 if let Some(export) = descriptor.export {
@@ -354,7 +354,7 @@ impl<'ast> FormatNode<'ast, Declaration> for Declaration {
                 write!(f, [space()])?;
 
                 // empty block
-                if fields.is_empty() && properties.is_empty() {
+                if fields.is_empty() && members.is_empty() {
                     write!(f, [empty_block_with_infix_annotations(node_id)])?;
                     write!(f, [f.context().any_postfix_annotations(node_id)])?;
                     return Ok(());
@@ -373,18 +373,18 @@ impl<'ast> FormatNode<'ast, Declaration> for Declaration {
                 )?;
 
                 // blank line
-                if !fields.is_empty() && !properties.is_empty() {
+                if !fields.is_empty() && !members.is_empty() {
                     write!(f, [hard_line_break()])?;
-                    if !f.context().has_blank_prefix_annotation(properties[0]) {
+                    if !f.context().has_blank_prefix_annotation(members[0]) {
                         write!(f, [empty_line()])?;
                     }
                 }
 
-                // properties
+                // members
                 write!(
                     f,
                     [group(&format_args![block_indent(&format_with(|f| {
-                        format_block_of_properties(f, properties)
+                        format_block_of_members(f, members)
                     })),])]
                 )?;
                 write!(f, [f.context().block_infix_annotations(node_id)])?;
@@ -396,7 +396,7 @@ impl<'ast> FormatNode<'ast, Declaration> for Declaration {
                 descriptor,
                 generics,
                 heritage,
-                properties,
+                members,
             } => {
                 // export
                 if let Some(export) = descriptor.export {
@@ -442,7 +442,7 @@ impl<'ast> FormatNode<'ast, Declaration> for Declaration {
                 write!(f, [space()])?;
 
                 // empty body
-                if properties.is_empty() {
+                if members.is_empty() {
                     write!(f, [empty_block_with_infix_annotations(node_id)])?;
                     write!(f, [f.context().any_postfix_annotations(node_id)])?;
                     return Ok(());
@@ -451,12 +451,12 @@ impl<'ast> FormatNode<'ast, Declaration> for Declaration {
                 // body
                 write!(f, [token("{"), hard_line_break()])?;
 
-                // properties
-                if !properties.is_empty() {
+                // members
+                if !members.is_empty() {
                     write!(
                         f,
                         [group(&format_args![block_indent(&format_with(|f| {
-                            format_block_of_properties(f, properties)
+                            format_block_of_members(f, members)
                         })),])]
                     )?;
                 }
@@ -472,7 +472,7 @@ impl<'ast> FormatNode<'ast, Declaration> for Declaration {
                 generics,
                 target_type,
                 heritage,
-                properties,
+                members,
             } => {
                 // export
                 if let Some(export) = descriptor.export {
@@ -529,7 +529,7 @@ impl<'ast> FormatNode<'ast, Declaration> for Declaration {
                 }
 
                 // body
-                if properties.is_empty() {
+                if members.is_empty() {
                     write!(f, [space(), empty_block_with_infix_annotations(node_id)])?;
                     return Ok(());
                 }
@@ -539,7 +539,7 @@ impl<'ast> FormatNode<'ast, Declaration> for Declaration {
                 write!(
                     f,
                     [group(&format_args![block_indent(&format_with(|f| {
-                        format_block_of_properties(f, properties)
+                        format_block_of_members(f, members)
                     })),])]
                 )?;
                 write!(f, [hard_line_break(), token("}")])?;

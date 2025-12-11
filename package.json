@@ -1,6 +1,6 @@
 {
     "name": "@destack-sh/monorepo",
-    "version": "0.48.3",
+    "version": "0.48.4",
     "license": "Apache-2.0",
     "private": true,
     "type": "module",

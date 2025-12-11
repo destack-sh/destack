@@ -1,8 +1,8 @@
 use crate::{
     Annotation, Argument, Blank, Block, Comment, Declaration, DeclarationDescriptor, Declarator,
     Decorator, DependencyItem, Doc, EnumField, Expression, FunctionSignature, Generics, Heritage,
-    Key, LocalNodeId, MatchCase, NodeTree, NodeType, NodeVisitor, Parameter, Pattern, PatternField,
-    Property, TemplateLiteral, WhereClause,
+    Key, LocalNodeId, MatchCase, Member, NodeTree, NodeType, NodeVisitor, Parameter, Pattern,
+    PatternField, Property, TemplateLiteral, WhereClause,
 };
 
 /// Walk any node.
@@ -35,6 +35,10 @@ pub fn walk_any<V: NodeVisitor + ?Sized>(
         NodeType::Property => {
             let property = tree.properties.get(local_idx);
             walk_property(visitor, tree, LocalNodeId::new(node_id), property);
+        }
+        NodeType::Member => {
+            let member = tree.members.get(local_idx);
+            walk_member(visitor, tree, LocalNodeId::new(node_id), member);
         }
         NodeType::EnumField => {
             let enum_field = tree.enum_fields.get(local_idx);
@@ -695,28 +699,28 @@ pub fn walk_declaration<V: NodeVisitor + ?Sized>(
             descriptor,
             generics,
             heritage,
-            properties,
+            members,
         } => {
             walk_declaration_descriptor(visitor, tree, descriptor);
             walk_generics(visitor, tree, generics);
             walk_heritage(visitor, tree, heritage);
-            for property_id in properties {
-                let property = tree.get(*property_id);
-                visitor.visit_property(tree, *property_id, property);
+            for member_id in members {
+                let member = tree.get(*member_id);
+                visitor.visit_member(tree, *member_id, member);
             }
         }
         Declaration::Class {
             descriptor,
             generics,
             heritage,
-            properties,
+            members,
         } => {
             walk_declaration_descriptor(visitor, tree, descriptor);
             walk_generics(visitor, tree, generics);
             walk_heritage(visitor, tree, heritage);
-            for property_id in properties {
-                let property = tree.get(*property_id);
-                visitor.visit_property(tree, *property_id, property);
+            for member_id in members {
+                let member = tree.get(*member_id);
+                visitor.visit_member(tree, *member_id, member);
             }
         }
         Declaration::Enum {
@@ -724,7 +728,7 @@ pub fn walk_declaration<V: NodeVisitor + ?Sized>(
             generics,
             heritage,
             fields,
-            properties,
+            members,
         } => {
             walk_declaration_descriptor(visitor, tree, descriptor);
             walk_generics(visitor, tree, generics);
@@ -733,23 +737,23 @@ pub fn walk_declaration<V: NodeVisitor + ?Sized>(
                 let field = tree.get(*field_id);
                 visitor.visit_enum_field(tree, *field_id, field);
             }
-            for property_id in properties {
-                let property = tree.get(*property_id);
-                visitor.visit_property(tree, *property_id, property);
+            for member_id in members {
+                let member = tree.get(*member_id);
+                visitor.visit_member(tree, *member_id, member);
             }
         }
         Declaration::Interface {
             descriptor,
             generics,
             heritage,
-            properties,
+            members,
         } => {
             walk_declaration_descriptor(visitor, tree, descriptor);
             walk_generics(visitor, tree, generics);
             walk_heritage(visitor, tree, heritage);
-            for property_id in properties {
-                let property = tree.get(*property_id);
-                visitor.visit_property(tree, *property_id, property);
+            for member_id in members {
+                let member = tree.get(*member_id);
+                visitor.visit_member(tree, *member_id, member);
             }
         }
         Declaration::Extension {
@@ -757,16 +761,16 @@ pub fn walk_declaration<V: NodeVisitor + ?Sized>(
             generics,
             target_type,
             heritage,
-            properties,
+            members,
         } => {
             walk_declaration_descriptor(visitor, tree, descriptor);
             walk_generics(visitor, tree, generics);
             let target_type_expression = tree.get(*target_type);
             visitor.visit_expression(tree, *target_type, target_type_expression);
             walk_heritage(visitor, tree, heritage);
-            for property_id in properties {
-                let property = tree.get(*property_id);
-                visitor.visit_property(tree, *property_id, property);
+            for member_id in members {
+                let member = tree.get(*member_id);
+                visitor.visit_member(tree, *member_id, member);
             }
         }
         Declaration::Function {
@@ -849,6 +853,62 @@ pub fn walk_property<V: NodeVisitor + ?Sized>(
         } => {
             let value_expr = tree.get(*value);
             visitor.visit_expression(tree, *value, value_expr);
+        }
+    }
+}
+
+/// Walk the Member.
+pub fn walk_member<V: NodeVisitor + ?Sized>(
+    visitor: &mut V,
+    tree: &NodeTree,
+    id: LocalNodeId<Member>,
+    member: &Member,
+) {
+    visitor.visit_any(tree, NodeType::Member, id.id);
+    match member {
+        Member::Field {
+            modifiers: _,
+            key,
+            value,
+            default,
+        } => {
+            if let Some(key) = key {
+                walk_key(visitor, tree, key);
+            }
+            if let Some(value) = value {
+                let value_expr = tree.get(*value);
+                visitor.visit_expression(tree, *value, value_expr);
+            }
+            if let Some(default) = default {
+                let default_expr = tree.get(*default);
+                visitor.visit_expression(tree, *default, default_expr);
+            }
+        }
+        Member::Method {
+            modifiers: _,
+            key,
+            signature,
+            body,
+        } => {
+            if let Some(key) = key {
+                walk_key(visitor, tree, key);
+            }
+            walk_function_signature(visitor, tree, signature);
+            if let Some(body_id) = body {
+                let expression = tree.get(*body_id);
+                visitor.visit_expression(tree, *body_id, expression);
+            }
+        }
+        Member::Embed {
+            modifiers: _,
+            value,
+        } => {
+            let value_expr = tree.get(*value);
+            visitor.visit_expression(tree, *value, value_expr);
+        }
+        Member::StaticBlock { body } => {
+            let body_expr = tree.get(*body);
+            visitor.visit_expression(tree, *body, body_expr);
         }
     }
 }

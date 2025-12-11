@@ -683,7 +683,7 @@ mod tests {
     use destack_ast::{
         Annotation, AnnotationPosition, BinaryOperator, Blank, Block, BlockFormat, Comment,
         CommentStyle, Declaration, DeclarationDescriptor, Declarator, Decorator, Doc, DocStyle,
-        Expression, Key, Name, Property,
+        Expression, Key, Member, Name,
     };
 
     use crate::{TestParser, assert_node, assert_path, assert_string};
@@ -948,11 +948,11 @@ over multiple lines with trailing space    */",
         parser.finish();
 
         // interface X
-        assert_node!(parser.tree, interface_id, Declaration::Interface { properties, .. } => {
-            assert_eq!(properties.len(), 2);
+        assert_node!(parser.tree, interface_id, Declaration::Interface { members, .. } => {
+            assert_eq!(members.len(), 2);
 
             // a(): A
-            let annotations = parser.tree.get_annotations(properties[0].id);
+            let annotations = parser.tree.get_annotations(members[0].id);
             assert_eq!(annotations.len(), 1);
             assert_node!(parser.tree, annotations[0], Annotation::Doc { node, position } => {
                 assert_eq!(*position, AnnotationPosition::BlockPrefix);
@@ -963,7 +963,7 @@ over multiple lines with trailing space    */",
             });
 
             // b(): B
-            let annotations = parser.tree.get_annotations(properties[1].id);
+            let annotations = parser.tree.get_annotations(members[1].id);
             assert_eq!(annotations.len(), 1);
             assert_node!(parser.tree, annotations[0], Annotation::Doc { node, position } => {
                 assert_eq!(*position, AnnotationPosition::BlockPrefix);
@@ -1289,12 +1289,12 @@ struct Floof {
 
         // struct Floof
         assert_node!(parser.tree, expressions[0], Expression::Declaration(node) => {
-            assert_node!(parser.tree, *node, Declaration::Struct { properties, .. } => {
+            assert_node!(parser.tree, *node, Declaration::Struct { members, .. } => {
                 // a: int32
-                assert_eq!(properties.len(), 1);
-                assert_node!(parser.tree, properties[0], Property::Field { key: Some(Key::Name(Name::Identifier(name))), .. } => {
+                assert_eq!(members.len(), 1);
+                assert_node!(parser.tree, members[0], Member::Field { key: Some(Key::Name(Name::Identifier(name))), .. } => {
                     assert_string!(parser, *name, "a");
-                    let annotations = parser.tree.get_annotations(properties[0].id);
+                    let annotations = parser.tree.get_annotations(members[0].id);
                     assert_eq!(annotations.len(), 4);
 
                     // doc block prefix

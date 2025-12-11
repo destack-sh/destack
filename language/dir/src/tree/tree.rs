@@ -5,7 +5,7 @@ use destack_source::ModuleId;
 
 use crate::{
     Annotation, Arena, Argument, Block, Declaration, Declarator, DependencyItem, EnumField,
-    Expression, LocalNodeId, LocalNodeIdAny, LocalScopeId, LocalScopeMark, MatchCase, Node,
+    Expression, LocalNodeId, LocalNodeIdAny, LocalScopeId, LocalScopeMark, MatchCase, Member, Node,
     NodeType, Parameter, Pattern, PatternField, Property, WhereClause,
 };
 
@@ -29,6 +29,7 @@ pub struct NodeTree {
     pub(crate) declarations: Arena<Declaration>,
     pub(crate) declarators: Arena<Declarator>,
     pub(crate) properties: Arena<Property>,
+    pub(crate) members: Arena<Member>,
     pub(crate) enum_fields: Arena<EnumField>,
     pub(crate) where_clauses: Arena<WhereClause>,
     pub(crate) dependency_items: Arena<DependencyItem>,
@@ -84,6 +85,7 @@ impl NodeTree {
             declarations: Arena::new(),
             declarators: Arena::new(),
             properties: Arena::new(),
+            members: Arena::new(),
             enum_fields: Arena::new(),
             where_clauses: Arena::new(),
             dependency_items: Arena::new(),
@@ -366,6 +368,7 @@ impl_node_tree_stores! {
     Declaration => declarations,
     Declarator => declarators,
     Property => properties,
+    Member => members,
     EnumField => enum_fields,
     WhereClause => where_clauses,
     DependencyItem => dependency_items,

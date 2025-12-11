@@ -78,9 +78,9 @@ impl Parser {
         self.try_eat_token(TokenType::OpenBrace, TokenType::CloseBrace)
             .for_node_type(NodeType::Declaration)?;
         self.eat_newlines_maybe()?;
-        let properties = self
+        let members = self
             .with_options(self.options.nested().in_variant(), |parser| {
-                parser.eat_properties()
+                parser.eat_members()
             })
             .for_node_type(NodeType::Declaration)?;
         self.eat_token(TokenType::CloseBrace)
@@ -94,14 +94,14 @@ impl Parser {
                 descriptor,
                 generics,
                 heritage,
-                properties,
+                members,
             }
         } else {
             Declaration::Struct {
                 descriptor,
                 generics,
                 heritage,
-                properties,
+                members,
             }
         };
         let declaration_id = self.tree.insert(declaration, self.get_span_from(start));
@@ -114,8 +114,8 @@ impl Parser {
 mod tests {
     use destack_ast::{
         BinaryOperator, BindingKind, Declaration, DeclarationDescriptor, DeclarationKind,
-        Expression, IntType, Key, Mutability, Name, Parameter, Property, ScalarLiteral,
-        TypeLiteral, Visibility, WhereClause,
+        Expression, IntType, Key, Member, Mutability, Name, Parameter, ScalarLiteral, TypeLiteral,
+        Visibility, WhereClause,
     };
 
     use crate::{TestParser, assert_expression_path, assert_node, assert_path, assert_string};
@@ -135,14 +135,14 @@ struct { public x: int32, readonly y: boolean
         let struct_id = parser
             .eat_struct_or_class(DeclarationDescriptor::default())
             .unwrap();
-        assert_node!(parser.tree, struct_id, Declaration::Struct { descriptor, generics, properties, .. } => {
+        assert_node!(parser.tree, struct_id, Declaration::Struct { descriptor, generics, members, .. } => {
             assert_eq!(descriptor.kind, DeclarationKind::Definition);
             assert!(descriptor.name.is_none());
             assert!(generics.is_empty());
-            assert_eq!(properties.len(), 2);
+            assert_eq!(members.len(), 2);
 
             // public x: int32
-            assert_node!(parser.tree, properties[0], Property::Field { modifiers: Some(modifiers), key: Some(Key::Name(Name::Identifier(name))), value: Some(ty), default: None, .. } => {
+            assert_node!(parser.tree, members[0], Member::Field { modifiers: Some(modifiers), key: Some(Key::Name(Name::Identifier(name))), value: Some(ty), default: None, .. } => {
                 assert!(modifiers.mutability.is_none());
                 assert_eq!(*modifiers.visibility.as_ref().unwrap(), Visibility::Public);
                 assert_string!(parser, *name, "x");
@@ -150,7 +150,7 @@ struct { public x: int32, readonly y: boolean
             });
 
             // readonly y: boolean
-            assert_node!(parser.tree, properties[1], Property::Field { modifiers: Some(modifiers), key: Some(Key::Name(Name::Identifier(name))), value: Some(ty), default: None, .. } => {
+            assert_node!(parser.tree, members[1], Member::Field { modifiers: Some(modifiers), key: Some(Key::Name(Name::Identifier(name))), value: Some(ty), default: None, .. } => {
                 assert_eq!(modifiers.mutability.unwrap(), Mutability::Immutable);
                 assert!(modifiers.visibility.is_none());
                 assert_string!(parser, *name, "y");
@@ -172,10 +172,10 @@ struct Foo extends Bar {}
         let struct_id = parser
             .eat_struct_or_class(DeclarationDescriptor::default())
             .unwrap();
-        assert_node!(parser.tree, struct_id, Declaration::Struct { descriptor, heritage, properties, .. } => {
+        assert_node!(parser.tree, struct_id, Declaration::Struct { descriptor, heritage, members, .. } => {
             assert_eq!(descriptor.kind, DeclarationKind::Definition);
             assert_string!(parser, descriptor.name.unwrap().string(), "Foo");
-            assert!(properties.is_empty());
+            assert!(members.is_empty());
             assert!(!heritage.is_empty());
             assert!(heritage.implements_types.is_none());
 
@@ -208,7 +208,7 @@ struct Foo<T: Numeric> extends Boz implements Quux {
         let struct_id = parser
             .eat_struct_or_class(DeclarationDescriptor::default())
             .unwrap();
-        assert_node!(parser.tree, struct_id, Declaration::Struct { descriptor, generics, heritage, properties, .. } => {
+        assert_node!(parser.tree, struct_id, Declaration::Struct { descriptor, generics, heritage, members, .. } => {
             assert_eq!(descriptor.kind, DeclarationKind::Definition);
             assert_string!(parser, descriptor.name.unwrap().string(), "Foo");
             assert!(!generics.is_empty());
@@ -246,31 +246,31 @@ struct Foo<T: Numeric> extends Boz implements Quux {
                 assert_path!(parser, *path, "Quux");
             });
 
-            assert_eq!(properties.len(), 6);
+            assert_eq!(members.len(), 6);
 
             // ..Bar
-            assert_node!(parser.tree, properties[0], Property::Spread { modifiers: None, value } => {
+            assert_node!(parser.tree, members[0], Member::Embed { modifiers: None, value } => {
                 assert_expression_path!(parser, parser.tree.get(*value), "Bar");
             });
             // ..Baz
-            assert_node!(parser.tree, properties[1], Property::Spread { modifiers: None, value } => {
+            assert_node!(parser.tree, members[1], Member::Embed { modifiers: None, value } => {
                 assert_expression_path!(parser, parser.tree.get(*value), "Baz");
             });
             // a: T
-            assert_node!(parser.tree, properties[2], Property::Field { modifiers: None, key: Some(Key::Name(Name::Identifier(name))), value: Some(ty), default: None, .. } => {
+            assert_node!(parser.tree, members[2], Member::Field { modifiers: None, key: Some(Key::Name(Name::Identifier(name))), value: Some(ty), default: None, .. } => {
                 assert_string!(parser, *name, "a");
                 assert_node!(parser.tree, *ty, Expression::Path { path, .. } => {
                     assert_path!(parser, *path, "T");
                 });
             });
             // b?: T
-            assert_node!(parser.tree, properties[3], Property::Field { modifiers: Some(modifiers), key: Some(Key::Name(Name::Identifier(name))), value: Some(ty), default: None, .. } => {
+            assert_node!(parser.tree, members[3], Member::Field { modifiers: Some(modifiers), key: Some(Key::Name(Name::Identifier(name))), value: Some(ty), default: None, .. } => {
                 assert_eq!(modifiers.kind.unwrap(), BindingKind::Maybe);
                 assert_string!(parser, *name, "b");
                 assert_expression_path!(parser, parser.tree.get(*ty), "T");
             });
             // c: T?
-            assert_node!(parser.tree, properties[4], Property::Field { modifiers: None, key: Some(Key::Name(Name::Identifier(name))), value: Some(ty), default: None, .. } => {
+            assert_node!(parser.tree, members[4], Member::Field { modifiers: None, key: Some(Key::Name(Name::Identifier(name))), value: Some(ty), default: None, .. } => {
                 assert_string!(parser, *name, "c");
                 assert_node!(parser.tree, *ty, Expression::Maybe { left, position: _ } => {
                     assert_node!(parser.tree, *left, Expression::Path { path, .. } => {
@@ -279,7 +279,7 @@ struct Foo<T: Numeric> extends Boz implements Quux {
                 });
             });
             // private d: int32 = 4
-            assert_node!(parser.tree, properties[5], Property::Field { modifiers: Some(modifiers), key: Some(Key::Name(Name::Identifier(name))), value: Some(ty), default: Some(value), .. } => {
+            assert_node!(parser.tree, members[5], Member::Field { modifiers: Some(modifiers), key: Some(Key::Name(Name::Identifier(name))), value: Some(ty), default: Some(value), .. } => {
                 assert_eq!(modifiers.visibility.unwrap(), Visibility::Private);
                 assert_string!(parser, *name, "d");
                 assert_node!(parser.tree, *ty, Expression::TypeLiteral(TypeLiteral::Int(IntType::Arbitrary { width: Some(32), is_signed: true })));
@@ -302,9 +302,9 @@ struct Foo where Guard > Limit {
         let struct_id = parser
             .eat_struct_or_class(DeclarationDescriptor::default())
             .unwrap();
-        assert_node!(parser.tree, struct_id, Declaration::Struct { descriptor, generics, properties, .. } => {
+        assert_node!(parser.tree, struct_id, Declaration::Struct { descriptor, generics, members, .. } => {
             assert_eq!(descriptor.kind, DeclarationKind::Definition);
-            assert!(properties.is_empty());
+            assert!(members.is_empty());
             assert!(!generics.is_empty());
 
             // where Guard > Limit
@@ -337,9 +337,9 @@ struct Foo {
         let struct_id = parser
             .eat_struct_or_class(DeclarationDescriptor::default())
             .unwrap();
-        assert_node!(parser.tree, struct_id, Declaration::Struct { descriptor, properties, .. } => {
+        assert_node!(parser.tree, struct_id, Declaration::Struct { descriptor, members, .. } => {
             assert_eq!(descriptor.kind, DeclarationKind::Definition);
-            assert_eq!(properties.len(), 1);
+            assert_eq!(members.len(), 1);
         });
     }
 }

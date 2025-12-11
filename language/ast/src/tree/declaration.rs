@@ -1,6 +1,6 @@
 use crate::{
-    BindingAnchor, DependencyMode, Expression, FunctionSignature, LocalNodeId, Mutability, Name,
-    Node, NodeType, Parameter, Property, TypeKind, WhereClause,
+    BindingAnchor, DependencyMode, Expression, FunctionSignature, LocalNodeId, Member, Mutability,
+    Name, Node, NodeType, Parameter, TypeKind, WhereClause,
 };
 
 /// The kind of declaration.
@@ -199,7 +199,7 @@ pub enum Declaration {
         descriptor: DeclarationDescriptor,
         generics: Generics,
         heritage: Heritage,
-        properties: Vec<LocalNodeId<Property>>,
+        members: Vec<LocalNodeId<Member>>,
     },
 
     /// A Class is a class declaration with reference semantics.
@@ -213,6 +213,10 @@ pub enum Declaration {
     ///     constructor(value: int32) {
     ///         this.myField = value
     ///     }
+    ///
+    ///     static {
+    ///         console.log("class initialized")
+    ///     }
     /// }
     ///
     /// class Bar extends Foo {
@@ -223,7 +227,7 @@ pub enum Declaration {
         descriptor: DeclarationDescriptor,
         generics: Generics,
         heritage: Heritage,
-        properties: Vec<LocalNodeId<Property>>,
+        members: Vec<LocalNodeId<Member>>,
     },
 
     /// An Enum is an enumeration declaration.
@@ -266,7 +270,7 @@ pub enum Declaration {
         generics: Generics,
         heritage: Heritage,
         fields: Vec<LocalNodeId<EnumField>>,
-        properties: Vec<LocalNodeId<Property>>,
+        members: Vec<LocalNodeId<Member>>,
     },
 
     /// A Interface is interface declaration node defining behavior and constants.
@@ -303,7 +307,7 @@ pub enum Declaration {
         descriptor: DeclarationDescriptor,
         generics: Generics,
         heritage: Heritage,
-        properties: Vec<LocalNodeId<Property>>,
+        members: Vec<LocalNodeId<Member>>,
     },
 
     /// An Extension defines the implementation of a concrete type, optionally for some specific super types.
@@ -333,7 +337,7 @@ pub enum Declaration {
         generics: Generics,
         target_type: LocalNodeId<Expression>,
         heritage: Heritage,
-        properties: Vec<LocalNodeId<Property>>,
+        members: Vec<LocalNodeId<Member>>,
     },
 
     /// A Function is function or "lambda" declaration or declaration.

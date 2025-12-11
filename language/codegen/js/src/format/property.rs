@@ -1,6 +1,6 @@
 use crate::{
     Asynchrony, BindingAnchor, BindingKind, BindingModifier, BindingOperator, FunctionAbstraction,
-    FunctionCardinality, Keyword, LocalNodeId, Mutability, Property,
+    FunctionCardinality, Keyword, LocalNodeId, Member, Mutability, Property,
 };
 use destack_fir::format::FormatResult;
 use destack_fir::prelude::*;
@@ -163,6 +163,109 @@ impl<'ast> FormatNode<'ast, Property> for Property {
                 format_binding_modifiers_prefix_maybe(f, *modifiers)?;
                 // value
                 write!(f, [token("..."), value])?;
+            }
+        }
+
+        Ok(())
+    }
+}
+
+impl<'ast> FormatNode<'ast, Member> for Member {
+    fn format_node(
+        &self,
+        _node_id: LocalNodeId<Member>,
+        f: &mut CodegenJsFormatter<'ast, '_>,
+    ) -> FormatResult<()> {
+        match self {
+            Member::Field {
+                modifiers,
+                key,
+                value,
+                default,
+            } => {
+                // modifiers
+                format_binding_modifiers_prefix_maybe(f, *modifiers)?;
+                // key
+                write!(f, [key])?;
+                // modifiers
+                format_binding_modifiers_postfix_maybe(f, *modifiers)?;
+                // value
+                if let Some(value) = value {
+                    write!(f, [token(":"), space(), value])?;
+                }
+                // default
+                if let Some(default) = default {
+                    write!(f, [space(), token("="), space(), default])?;
+                }
+            }
+            Member::Method {
+                modifiers,
+                key,
+                signature,
+                body,
+            } => {
+                // modifiers
+                format_binding_modifiers_prefix_maybe(f, *modifiers)?;
+                // abstraction
+                match signature.abstraction {
+                    FunctionAbstraction::Abstract => {
+                        write!(f, [Keyword::Abstract, space()])?;
+                    }
+                    FunctionAbstraction::AbstractOverride => {
+                        write!(f, [Keyword::Abstract, space()])?;
+                        write!(f, [Keyword::Override, space()])?;
+                    }
+                    FunctionAbstraction::ConcreteOverride => {
+                        write!(f, [Keyword::Override, space()])?;
+                    }
+                    FunctionAbstraction::Concrete => {}
+                }
+                // asynchrony
+                if signature.asynchrony == Asynchrony::Async {
+                    write!(f, [Keyword::Async, space()])?;
+                }
+                // mode
+                if let Some(mode) = signature.mode {
+                    if let Some(keyword) = mode.to_keyword() {
+                        write!(f, [keyword])?;
+                    }
+                    if key.is_some() {
+                        write!(f, [space()])?;
+                    }
+                }
+                // cardinality
+                if signature.cardinality == FunctionCardinality::Generator {
+                    write!(f, [token("*")])?;
+                }
+                // key
+                write!(f, [key])?;
+                // static parameters
+                if let Some(static_parameters) = signature
+                    .generics
+                    .as_ref()
+                    .and_then(|generics| generics.static_parameters.as_ref())
+                    && !static_parameters.is_empty()
+                {
+                    write!(f, [list_like("<", ">", ",", static_parameters)])?;
+                }
+                // dynamic parameters
+                write!(f, [list_like("(", ")", ",", &signature.dynamic_parameters)])?;
+                // modifiers
+                format_binding_modifiers_postfix_maybe(f, *modifiers)?;
+                // return type
+                if let Some(return_type) = signature.return_type {
+                    write!(f, [token(":"), space(), return_type])?;
+                }
+                // body
+                if let Some(body) = body {
+                    write!(f, [space(), body])?;
+                }
+            }
+            Member::StaticBlock { body } => {
+                // keyword
+                write!(f, [Keyword::Static, space()])?;
+                // body
+                write!(f, [body])?;
             }
         }
 
