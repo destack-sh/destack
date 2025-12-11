@@ -111,21 +111,34 @@ struct MdTestCaseWrapper {
 
 /// Run a single markdown test case.
 fn run_mdtest(test: &MdTestCase) -> TestResult {
-    // set up an in-memory program with the test code
+    // set up an in-memory program with the test files
     let files = Arc::new(FileRegistry::new());
     let memory_fs = Arc::new(MemoryFileSystem::new());
-
-    // create a virtual file for the test code
-    let test_path = PathBuf::from("/test/main.ds");
-    memory_fs
-        .add_file(&test_path, test.code.as_bytes())
-        .expect("failed to add test file");
-
     let cwd = PathBuf::from("/test");
+
+    // create virtual files for all test files
+    let mut main_path: Option<PathBuf> = None;
+
+    for file in &test.files {
+        let file_path = cwd.join(&file.path);
+        memory_fs
+            .add_file(&file_path, file.content.as_bytes())
+            .expect("failed to add test file");
+
+        // track which file is the main entry point:
+        // - if named "main.ds", it's the main file
+        // - otherwise, use the last file
+        if file.path == "main.ds" || main_path.is_none() {
+            main_path = Some(file_path);
+        }
+    }
+
+    let main_path = main_path.expect("test should have at least one file");
+
     let fs: Arc<dyn FileSystem> = memory_fs;
     let program = Arc::new(Program::new(LanguageOptions::default(), cwd, fs, files));
 
-    // compile the test file
+    // compile the main file (this will pull in imports)
     let compiler = Compiler::new(
         program.clone(),
         CompileOptions {
@@ -134,7 +147,7 @@ fn run_mdtest(test: &MdTestCase) -> TestResult {
         },
     );
 
-    let module_id = match compiler.resolve_path_to_module(&test_path) {
+    let module_id = match compiler.resolve_path_to_module(&main_path) {
         Ok(id) => id,
         Err(e) => {
             return TestResult::Failed {

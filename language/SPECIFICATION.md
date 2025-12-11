@@ -622,7 +622,7 @@ Extension visibility depends on where the extension is defined relative to the t
 | Extension on foreign type, local use | Anonymous | Same file only |
 | Extension on foreign type, shared | Named + exported | Where imported |
 
-This means:
+Extension visibility is thus always explicit per scope:
 - When you define a type and extend it in the same file, the methods are part of the type's public API.
 - Anonymous extensions on foreign types are private utilities for that file.
 - Named extensions can be exported and shared, but must be explicitly imported to use.

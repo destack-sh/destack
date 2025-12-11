@@ -1,8 +1,9 @@
 use crate::{AnalyzeError, AnalyzeResult, Assignability, Compiler};
 use destack_dir::{
-    BinaryOperator, Expression, GlobalSymbolId, GlobalTypeId, IntType, LocalNodeId, LocalTypeId,
-    Mutability, PrimitiveType, ScalarLiteral, StaticKey, Type, TypeBinaryOperator, TypeField,
-    TypeLiteral, TypeTable, TypeUnaryOperator, UnaryOperator, VarianceBound,
+    BinaryOperator, Expression, Extension, ExtensionKind, GlobalSymbolId, GlobalTypeId, IntType,
+    LocalNodeId, LocalTypeId, Mutability, PrimitiveType, ScalarLiteral, StaticKey, Type,
+    TypeBinaryOperator, TypeField, TypeLiteral, TypeTable, TypeUnaryOperator, UnaryOperator,
+    VarianceBound,
 };
 use destack_workspace::Module;
 
@@ -480,8 +481,11 @@ impl Compiler {
     }
 
     /// Infer the type of a member field on a type by key.
+    ///
+    /// The `module` parameter is the current module, used for extension visibility checks.
     pub(super) fn infer_member_type(
         &self,
+        module: &Module,
         receiver_ty: &Type,
         member_key: &StaticKey,
         types: &mut TypeTable,
@@ -490,13 +494,13 @@ impl Compiler {
             // object type: look up field directly
             Type::Object { fields } => fields.iter().find(|f| &f.key == member_key).map(|f| f.ty),
 
-            // reference to a nominal type: look up in the declaration's instance type, then heritage
+            // reference to a nominal type: look up in the declaration's instance type, then heritage, then extensions
             Type::Reference {
                 symbol,
                 static_arguments: None,
             } => {
                 let mut visited = Vec::new();
-                self.infer_member_type_for_symbol(*symbol, member_key, types, &mut visited)
+                self.infer_member_type_for_symbol(module, *symbol, member_key, types, &mut visited)
             }
 
             // union type: require all elements to have the field, return union of field types
@@ -505,7 +509,9 @@ impl Compiler {
                 let mut field_types: Vec<LocalTypeId> = Vec::new();
                 for elem_id in elem_ids {
                     let elem_ty = types.get_type(elem_id).clone();
-                    if let Some(field_ty) = self.infer_member_type(&elem_ty, member_key, types) {
+                    if let Some(field_ty) =
+                        self.infer_member_type(module, &elem_ty, member_key, types)
+                    {
                         field_types.push(field_ty);
                     } else {
                         return None;
@@ -535,7 +541,9 @@ impl Compiler {
                 let elem_ids = elements.clone();
                 for elem_id in elem_ids {
                     let elem_ty = types.get_type(elem_id).clone();
-                    if let Some(field_ty) = self.infer_member_type(&elem_ty, member_key, types) {
+                    if let Some(field_ty) =
+                        self.infer_member_type(module, &elem_ty, member_key, types)
+                    {
                         return Some(field_ty);
                     }
                 }
@@ -546,9 +554,10 @@ impl Compiler {
         }
     }
 
-    /// Infer member type for a nominal type symbol, traversing lineage if needed.
+    /// Infer member type for a nominal type symbol, traversing lineage and extensions.
     fn infer_member_type_for_symbol(
         &self,
+        module: &Module,
         symbol: GlobalSymbolId,
         member_key: &StaticKey,
         types: &mut TypeTable,
@@ -560,44 +569,112 @@ impl Compiler {
         }
         visited.push(symbol);
 
-        // first, look up in the type's own instance type
+        // step 1: look up in the type's own instance type
         if let Some(ty_id) = types.get_instance_type_id(symbol) {
             let ty = types.get_type(ty_id).clone();
-            if let Some(member_ty) = self.infer_member_type(&ty, member_key, types) {
+            if let Some(member_ty) = self.infer_member_type(module, &ty, member_key, types) {
                 return Some(member_ty);
             }
         }
 
-        // not found directly: traverse lineage
-        let lineage = types.get_lineage_for_symbol(symbol)?.clone();
+        // step 2: traverse lineage (extends, implements, embedded)
+        if let Some(lineage) = types.get_lineage_for_symbol(symbol).cloned() {
+            // check parent type (extends)
+            if let Some(extends) = lineage.extends
+                && let Some(member_ty) =
+                    self.infer_member_type_for_symbol(module, extends, member_key, types, visited)
+            {
+                return Some(member_ty);
+            }
 
-        // check parent type (extends)
-        if let Some(extends) = lineage.extends
-            && let Some(member_ty) =
-                self.infer_member_type_for_symbol(extends, member_key, types, visited)
+            // check implemented interfaces
+            for implements in &lineage.implements {
+                if let Some(member_ty) = self.infer_member_type_for_symbol(
+                    module,
+                    *implements,
+                    member_key,
+                    types,
+                    visited,
+                ) {
+                    return Some(member_ty);
+                }
+            }
+
+            // check embedded types
+            for embedded in &lineage.embedded {
+                if let Some(member_ty) =
+                    self.infer_member_type_for_symbol(module, *embedded, member_key, types, visited)
+                {
+                    return Some(member_ty);
+                }
+            }
+        }
+
+        // step 3: check visible extensions
+        if let Some(member_ty) =
+            self.infer_member_type_from_extensions(module, symbol, member_key, types)
         {
             return Some(member_ty);
         }
 
-        // check implemented interfaces
-        for implements in &lineage.implements {
-            if let Some(member_ty) =
-                self.infer_member_type_for_symbol(*implements, member_key, types, visited)
-            {
-                return Some(member_ty);
-            }
-        }
+        None
+    }
 
-        // check embedded types
-        for embedded in &lineage.embedded {
-            if let Some(member_ty) =
-                self.infer_member_type_for_symbol(*embedded, member_key, types, visited)
-            {
-                return Some(member_ty);
+    /// Infer member type from visible extensions targeting the given symbol.
+    fn infer_member_type_from_extensions(
+        &self,
+        module: &Module,
+        target_symbol: GlobalSymbolId,
+        member_key: &StaticKey,
+        types: &TypeTable,
+    ) -> Option<LocalTypeId> {
+        let extension_ids = types.get_extensions_for_target(target_symbol)?.clone();
+        for extension_id in extension_ids {
+            let extension = types.get_extension(extension_id);
+
+            // check visibility
+            if !self.is_extension_visible(module, extension) {
+                continue;
+            }
+
+            // look up member in extension's instance type
+            if let Some(ty_id) = types.get_instance_type_id(extension.symbol) {
+                let ty = types.get_type(ty_id);
+                if let Type::Object { fields } = ty
+                    && let Some(field) = fields.iter().find(|f| &f.key == member_key)
+                {
+                    return Some(field.ty);
+                }
             }
         }
 
         None
+    }
+
+    /// Check if an extension is visible from the given module.
+    ///
+    /// Visibility rules:
+    /// - Native: Extension in same module as target type, always visible wherever type is used.
+    /// - Anonymous: Extension on foreign type, only visible in the file where it's declared.
+    /// - Named: Extension on foreign type, must be explicitly imported to use.
+    pub(super) fn is_extension_visible(&self, module: &Module, extension: &Extension) -> bool {
+        match extension.kind {
+            // native extensions are always visible (defined with the type)
+            ExtensionKind::Native => true,
+
+            // anonymous extensions are only visible in their defining module
+            ExtensionKind::Anonymous => extension.symbol.module_id == module.id,
+
+            // named extensions must be imported
+            ExtensionKind::Named => {
+                if extension.symbol.module_id == module.id {
+                    return true;
+                }
+                // TODO #Incomplete: should check if the extension is actually imported
+                // (requires checking the symbol table for imports)
+                false
+            }
+        }
     }
 
     /// Resolve a remote symbol's value type by ensuring its module is analyzed

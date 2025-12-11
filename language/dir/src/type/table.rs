@@ -3,8 +3,9 @@ use indexmap::IndexMap;
 use destack_source::ModuleId;
 
 use crate::{
-    Arena, GlobalNodeIdAny, GlobalSymbolId, Instance, Lineage, LocalInstanceId, LocalLineageId,
-    LocalNodeId, LocalNodeIdAny, LocalResolutionId, LocalTypeId, Node, Resolution, Type,
+    Arena, Extension, GlobalNodeIdAny, GlobalSymbolId, Instance, Lineage, LocalExtensionId,
+    LocalInstanceId, LocalLineageId, LocalNodeId, LocalNodeIdAny, LocalResolutionId, LocalTypeId,
+    Node, Resolution, Type,
 };
 
 /// TypeTable stores all type-related analysis results for a module. NOT THREAD-SAFE.
@@ -52,6 +53,16 @@ pub struct TypeTable {
     pub(crate) lineages: Arena<Lineage>,
     /// The lineage by symbol id (for type declarations: their resolved heritage).
     pub(crate) lineage_by_symbol_id: IndexMap<GlobalSymbolId, LocalLineageId>,
+
+    // extensions (methods and implements added to existing types)
+    /// The next extension id to allocate.
+    pub(crate) next_extension_id: u32,
+    /// The extensions.
+    pub(crate) extensions: Arena<Extension>,
+    /// Extensions by their declaration symbol (for lookup by extension symbol).
+    pub(crate) extension_by_symbol: IndexMap<GlobalSymbolId, LocalExtensionId>,
+    /// Extensions indexed by target symbol (for member lookup on types).
+    pub(crate) extensions_by_target: IndexMap<GlobalSymbolId, Vec<LocalExtensionId>>,
 }
 
 impl TypeTable {
@@ -79,6 +90,11 @@ impl TypeTable {
             next_lineage_id: 0,
             lineages: Arena::new(),
             lineage_by_symbol_id: IndexMap::new(),
+            // extensions
+            next_extension_id: 0,
+            extensions: Arena::new(),
+            extension_by_symbol: IndexMap::new(),
+            extensions_by_target: IndexMap::new(),
         }
     }
 
@@ -301,5 +317,66 @@ impl TypeTable {
         self.lineage_by_symbol_id
             .get(&symbol_id)
             .map(|id| self.lineages.get(id.0))
+    }
+
+    /// Insert a new extension.
+    pub fn insert_extension(&mut self, extension: Extension) -> LocalExtensionId {
+        let extension_id = LocalExtensionId::new(self.next_extension_id);
+        self.next_extension_id += 1;
+
+        // index by target symbol for member lookup
+        let target = extension.target;
+        self.extensions_by_target
+            .entry(target)
+            .or_default()
+            .push(extension_id);
+
+        // index by extension symbol
+        self.extension_by_symbol
+            .insert(extension.symbol, extension_id);
+
+        self.extensions.allocate(extension);
+        extension_id
+    }
+
+    /// Get an extension by its id.
+    pub fn get_extension(&self, extension_id: LocalExtensionId) -> &Extension {
+        self.extensions.get(extension_id.0)
+    }
+
+    /// Get a mutable extension by its id.
+    pub fn get_extension_mut(&mut self, extension_id: LocalExtensionId) -> &mut Extension {
+        self.extensions.get_mut(extension_id.0)
+    }
+
+    /// Get the extension id for an extension symbol.
+    pub fn get_extension_id_for_symbol(
+        &self,
+        symbol_id: GlobalSymbolId,
+    ) -> Option<LocalExtensionId> {
+        self.extension_by_symbol.get(&symbol_id).copied()
+    }
+
+    /// Get the extension for an extension symbol directly.
+    pub fn get_extension_for_symbol(&self, symbol_id: GlobalSymbolId) -> Option<&Extension> {
+        self.extension_by_symbol
+            .get(&symbol_id)
+            .map(|id| self.extensions.get(id.0))
+    }
+
+    /// Get all extensions targeting a specific type symbol.
+    pub fn get_extensions_for_target(
+        &self,
+        target_symbol: GlobalSymbolId,
+    ) -> Option<&Vec<LocalExtensionId>> {
+        self.extensions_by_target.get(&target_symbol)
+    }
+
+    /// Iterate over all extensions.
+    pub fn iter_extensions(&self) -> impl Iterator<Item = (LocalExtensionId, &Extension)> {
+        (0..self.next_extension_id).map(|i| {
+            let id = LocalExtensionId::new(i);
+            (id, self.extensions.get(i))
+        })
     }
 }
