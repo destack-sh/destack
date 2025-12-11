@@ -9,9 +9,9 @@ Tests for implicit numeric type widening.
 > Smaller signed integers can be assigned to larger signed integers.
 
 ```ds
-function take_int16(x: int16): void {}
+function takeInt16(x: int16): void {}
 declare const small: int8;
-take_int16(small);
+takeInt16(small);
 ```
 
 ### int32 to int64
@@ -19,9 +19,9 @@ take_int16(small);
 > int32 can widen to int64.
 
 ```ds
-function take_int64(x: int64): void {}
+function takeInt64(x: int64): void {}
 declare const medium: int32;
-take_int64(medium);
+takeInt64(medium);
 ```
 
 ### int16 to int8 fails
@@ -29,9 +29,9 @@ take_int64(medium);
 > Larger integers cannot narrow to smaller integers.
 
 ```ds
-function take_int8(x: int8): void {}
+function takeInt8(x: int8): void {}
 declare const medium: int16;
-take_int8(medium);
+takeInt8(medium);
 ```
 
 - type int16 is not assignable to type int8
@@ -41,9 +41,9 @@ take_int8(medium);
 > Unsigned integers can widen to larger signed integers.
 
 ```ds
-function take_int16(x: int16): void {}
+function takeInt16(x: int16): void {}
 declare const small: uint8;
-take_int16(small);
+takeInt16(small);
 ```
 
 ### int8 to uint8 fails

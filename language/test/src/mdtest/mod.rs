@@ -15,8 +15,8 @@
 //! const x: string = 5
 //! ```
 //!
-//! - Expected error message 1
-//! - Expected error message 2
+//! - expected error message 1
+//! - expected error message 2
 //! ```
 //!
 //! See `fixtures/mdtest/README.md` for full documentation.

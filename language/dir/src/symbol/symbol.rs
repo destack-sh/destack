@@ -41,6 +41,8 @@ pub enum SymbolType {
     Enum,
     /// A function declaration.
     Function,
+    /// An extension declaration.
+    Extension,
     /// A type alias declaration (transparent, structural equivalence).
     TypeAlias,
     /// A newtype declaration (nominal, distinct type).

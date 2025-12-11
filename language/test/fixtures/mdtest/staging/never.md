@@ -9,7 +9,7 @@ Tests for the `never` type (bottom type).
 > Never is the bottom type, assignable to any type.
 
 ```ds
-function fail(): never { throw new Error() }
+function fail(): never { throw "error" }
 const x: number = fail()
 ```
 
@@ -18,6 +18,6 @@ const x: number = fail()
 > A function returning never can be assigned to any type.
 
 ```ds
-function fail(): never { throw new Error() }
+function fail(): never { throw "error" }
 const x: string = fail()
 ```

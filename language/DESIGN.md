@@ -38,21 +38,22 @@ Each feature below is independently useful, composes well with others, and can b
 You can use just the features you need, and they all transpile to clean, idiomatic TypeScript.
 Technically, you can even use none at all, and then Destack is just TypeScript.
 
-| Feature | Description |
-|---------|-------------|
-| [Expressions](#expressions) | Expression extensions: ranges, tuples, patterns, `loop`, `using` |
-| [Trees](#trees) | Tree literals: TSX-like syntax generalized for any tree-shaped data |
-| [Annotations](#annotations) | Annotations: decorators (`@`) for any expression |
-| [Types](#types) | Type system extensions: newtypes, primitives, structs, constraints |
-| [Reflection](#reflection) | Types as values, runtime type descriptors, refinements, schema validation |
-| [Dispatch](#dispatch) | Type-based dispatch: extensions and overloading |
-| [Ownership](#ownership) | Value ownership (`&T`, `^T`), mutability (`const`/`var`), and explicit dispatch |
+| Feature | Description | Tests |
+|---------|-------------|-------|
+| [Expressions](#expressions) | Expression extensions: ranges, tuples, patterns, `loop`, `using` | [expressions/](test/fixtures/mdtest/expressions/) |
+| [Trees](#trees) | Tree literals: TSX-like syntax generalized for any tree-shaped data | |
+| [Annotations](#annotations) | Annotations: decorators (`@`) for any expression | |
+| [Types](#types) | Type system extensions: newtypes, primitives, structs, constraints | [types/](test/fixtures/mdtest/types/) |
+| [Reflection](#reflection) | Types as values, runtime type descriptors, refinements, schema validation | [reflection/](test/fixtures/mdtest/reflection/) |
+| [Dispatch](#dispatch) | Type-based dispatch: extensions and overloading | [dispatch/](test/fixtures/mdtest/dispatch/) |
+| [Ownership](#ownership) | Value ownership (`&T`, `^T`), mutability (`const`/`var`), and explicit dispatch | [ownership/](test/fixtures/mdtest/ownership/) |
 
 ## Expressions
 
-In TypeScript, `if` is a statement—you need a ternary or temporary to get a value.
+In TypeScript, `if` is a statement, and you need a ternary or temporary to get a value.
 In Destack, everything is an expression.
 The last non-statement expression (no trailing `;`) becomes the value.
+This enables more ergonomic expressions for complex control flow.
 
 ```
 const result = if (condition) { computeA() } else { computeB() };
@@ -73,7 +74,7 @@ for (const i of 0..=10) { }     // inclusive
 
 ### Tuples
 
-Explicit tuple syntax with parentheses (clearer than TypeScript's `[T, U]` array syntax):
+Explicit tuple syntax with parentheses:
 
 ```
 const point: (int32, int32) = (1, 2);
@@ -104,9 +105,11 @@ loop {
 }
 ```
 
+<sub>See [test/fixtures/mdtest/expressions/](test/fixtures/mdtest/expressions/) for specification tests.</sub>
+
 ## Trees
 
-TSX-like syntax generalized for any tree-shaped data:
+TSX syntax generalized for any tree-shaped data:
 
 ```
 <Prompt>
@@ -139,6 +142,8 @@ Decorator behavior depends on what it resolves to:
 - **Newtype**: Compile-time metadata, stripped in output (for hints like `@unroll`, `@inline`)
 
 TypeScript decorators copy-pasted into Destack work as expected.
+
+<!-- NOTE: No separate mdtest folder for annotations yet - covered in expressions/ -->
 
 ## Types
 
@@ -193,6 +198,8 @@ function merge<T: int, U>(): T where (
     U: Comparable<T>
 ) { }
 ```
+
+<sub>See [test/fixtures/mdtest/types/](test/fixtures/mdtest/types/) for specification tests.</sub>
 
 ## Reflection
 
@@ -289,6 +296,8 @@ type User = { name: string.minLength(1) }
 parse(User, data);  // User IS the schema
 ```
 
+<sub>See [test/fixtures/mdtest/reflection/](test/fixtures/mdtest/reflection/) for specification tests.</sub>
+
 ## Dispatch
 
 TypeScript has parametric polymorphism ("generics") but does not support type-based dispatch (by design).
@@ -330,6 +339,8 @@ For function overloads, Destack uses **declaration order**: the first matching o
 Operator interfaces (`Add`, `Compare`, etc.) require **explicit `implements`** declarations.
 Unlike regular interfaces which are structural, operator dispatch only activates when a type explicitly declares that it implements the operator interface—this prevents accidental operator overloading from structurally-compatible types.
 
+<sub>See [test/fixtures/mdtest/dispatch/](test/fixtures/mdtest/dispatch/) for specification tests.</sub>
+
 ## Ownership
 
 TypeScript doesn't distinguish references from values—everything is implicitly reference-counted _or_ copied purely based on type.
@@ -368,6 +379,8 @@ Control how polymorphic calls are dispatched:
 
 Explicit dispatch enables devirtualization and other optimizations when the compiler can prove static dispatch is safe.
 It's closer to Mojo's approach: explicit control when you need it, automatic behavior when you don't.
+
+<sub>See [test/fixtures/mdtest/ownership/](test/fixtures/mdtest/ownership/) for specification tests.</sub>
 
 ## Compatibility
 
