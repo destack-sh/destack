@@ -135,8 +135,8 @@ impl Compiler {
     }
 
     /// Ensure a module has been imported (loaded and parsed).
-    pub fn require_import(&self, module: ModuleId) -> Result<(), TaskDependencyError> {
-        self.require_task(ImportTask::ImportModule { module })
+    pub fn require_import_module(&self, module: ModuleId) -> Result<(), TaskDependencyError> {
+        self.do_require_task_internal(ImportTask::ImportModule { module })
     }
 
     /// Check if the module is valid in context. #ModuleTypeHandling

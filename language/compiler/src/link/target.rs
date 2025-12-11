@@ -1,4 +1,4 @@
-use crate::{Compiler, GenerateTask, LinkError, LinkOutput, LinkResult, TaskResultCollector};
+use crate::{Compiler, LinkError, LinkOutput, LinkResult, TaskResultCollector};
 
 use destack_source::{ModuleId, PackageId};
 use destack_workspace::TargetDiscovery;
@@ -39,17 +39,8 @@ impl Compiler {
         // generate all discovered modules
         let mut collector = TaskResultCollector::new();
         for module_id in modules {
-            let result = self.require_task(GenerateTask::GenerateModule {
-                module: module_id,
-                target: target_name.to_string(),
-            });
-
-            // try_collect returns Some(err) if dependency failed (not just not-ready)
-            if let Some(err) = collector.try_collect(result) {
-                return Err(LinkError::UnsatisfiedDependency {
-                    dependency: err.into_dependency(),
-                });
-            }
+            let result = self.require_generate_module(module_id, target_name);
+            collector.try_collect(result);
         }
 
         // yield if any dependencies are pending

@@ -58,7 +58,7 @@ impl Compiler {
     pub fn process_lower(&self, task: LowerTask) -> LowerResult<LowerOutput> {
         match task {
             LowerTask::LowerModule { module } => {
-                self.require_elaborate(module)?;
+                self.require_elaborate_module(module)?;
                 self.lower_module(module)?;
             }
         }
@@ -72,7 +72,7 @@ impl Compiler {
     }
 
     /// Ensure a module has been lowered.
-    pub fn require_lower(&self, module: ModuleId) -> Result<(), TaskDependencyError> {
-        self.require_task(LowerTask::LowerModule { module })
+    pub fn require_lower_module(&self, module: ModuleId) -> Result<(), TaskDependencyError> {
+        self.do_require_task_internal(LowerTask::LowerModule { module })
     }
 }

@@ -107,7 +107,7 @@ impl Compiler {
     /// Generate JS/TS code for a module.
     fn generate_js(&self, module_id: ModuleId, target: &Target) -> GenerateResult<GenerateOutput> {
         // yield to Elaborate if not ready
-        self.require_elaborate(module_id)?;
+        self.require_elaborate_module(module_id)?;
 
         // dispatch to JS codegen
         let output = destack_codegen_js::generate_module(self.program.clone(), module_id, target)
@@ -314,12 +314,12 @@ impl Compiler {
     }
 
     /// Ensure a module has been generated.
-    pub fn require_generate(
+    pub fn require_generate_module(
         &self,
         module: ModuleId,
         target: &str,
     ) -> Result<(), TaskDependencyError> {
-        self.require_task(GenerateTask::GenerateModule {
+        self.do_require_task_internal(GenerateTask::GenerateModule {
             module,
             target: target.to_string(),
         })

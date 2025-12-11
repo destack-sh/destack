@@ -58,7 +58,7 @@ impl Compiler {
     pub fn process_optimize(&self, task: OptimizeTask) -> OptimizeResult<OptimizeOutput> {
         match task {
             OptimizeTask::OptimizeModule { module } => {
-                self.require_verify(module)?;
+                self.require_verify_module(module)?;
                 self.optimize_module(module)?;
             }
         }
@@ -76,6 +76,6 @@ impl Compiler {
 
     /// Ensure a module has been optimized.
     pub fn require_optimize(&self, module: ModuleId) -> Result<(), TaskDependencyError> {
-        self.require_task(OptimizeTask::OptimizeModule { module })
+        self.do_require_task_internal(OptimizeTask::OptimizeModule { module })
     }
 }

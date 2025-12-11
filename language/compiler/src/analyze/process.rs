@@ -62,7 +62,7 @@ impl Compiler {
     pub fn process_analyze(&self, task: AnalyzeTask) -> AnalyzeResult<AnalyzeOutput> {
         match task {
             AnalyzeTask::AnalyzeModule { module } => {
-                self.require_resolve(module)?;
+                self.require_resolve_module(module)?;
                 self.analyze_module(module)?;
             }
         }
@@ -70,8 +70,8 @@ impl Compiler {
     }
 
     /// Ensure a module has been analyzed.
-    pub fn require_analyze(&self, module: ModuleId) -> Result<(), TaskDependencyError> {
-        self.require_task(AnalyzeTask::AnalyzeModule { module })
+    pub fn require_analyze_module(&self, module: ModuleId) -> Result<(), TaskDependencyError> {
+        self.do_require_task_internal(AnalyzeTask::AnalyzeModule { module })
     }
 
     /// Analyze a module.

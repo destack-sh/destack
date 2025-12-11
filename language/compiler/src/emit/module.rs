@@ -16,7 +16,7 @@ impl Compiler {
         drop(module);
 
         // ensure linking is complete
-        self.require_link(package_id, target_name)?;
+        self.require_link_module(package_id, target_name)?;
 
         // verify target exists
         let has_target = {

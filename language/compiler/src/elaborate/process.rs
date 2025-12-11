@@ -58,7 +58,7 @@ impl Compiler {
     pub fn process_elaborate(&self, task: ElaborateTask) -> ElaborateResult<ElaborateOutput> {
         match task {
             ElaborateTask::ElaborateModule { module } => {
-                self.require_analyze(module)?;
+                self.require_analyze_module(module)?;
                 self.elaborate_module(module)?;
             }
         }
@@ -76,7 +76,7 @@ impl Compiler {
     }
 
     /// Ensure a module has been elaborated.
-    pub fn require_elaborate(&self, module: ModuleId) -> Result<(), TaskDependencyError> {
-        self.require_task(ElaborateTask::ElaborateModule { module })
+    pub fn require_elaborate_module(&self, module: ModuleId) -> Result<(), TaskDependencyError> {
+        self.do_require_task_internal(ElaborateTask::ElaborateModule { module })
     }
 }
