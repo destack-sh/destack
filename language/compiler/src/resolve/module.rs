@@ -41,14 +41,14 @@ impl Compiler {
             return Err(ResolveError::Yield { dependency });
         }
 
-        // collect symbols that have target_symbol but no final_symbol
+        // collect symbols that have target_symbol but no canonical_symbol
         // (only include symbols with primary_declaration, others are internal/incomplete)
         let symbols_to_resolve: Vec<_> = (0..symbols.symbol_count())
             .map(LocalSymbolId::new)
             .filter_map(|id| {
                 let symbol = symbols.get_symbol(id);
                 if symbol.target_symbol.is_some()
-                    && symbol.final_symbol.is_none()
+                    && symbol.canonical_symbol.is_none()
                     && symbol.primary_declaration.is_some()
                 {
                     Some((
@@ -69,7 +69,7 @@ impl Compiler {
         // resolve final symbols (may yield for cross-module resolution)
         let mut collector = TaskResultCollector::new();
         for (symbol_id, node) in symbols_to_resolve {
-            self.collect(&mut collector, self.resolve_final_symbol(node, symbol_id));
+            self.collect(&mut collector, self.resolve_canonical_symbol(node, symbol_id));
         }
 
         // yield on any yield

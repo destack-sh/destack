@@ -158,7 +158,7 @@ pub struct Symbol {
     /// Forward to the *next* remote symbol (like for imports, pattern bindings, etc.).
     pub target_symbol: Option<GlobalSymbolId>,
     /// Final remote symbol in the chain (end of target-symbol chain).
-    pub final_symbol: Option<GlobalSymbolId>,
+    pub canonical_symbol: Option<GlobalSymbolId>,
 }
 
 impl Symbol {

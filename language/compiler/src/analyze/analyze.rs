@@ -307,11 +307,11 @@ impl Compiler {
             } => {
                 // follow symbol chain to get canonical symbol (for imports/re-exports)
                 let canonical_symbol: GlobalSymbolId = {
-                    // if local symbol, check if it has a final_symbol (for imports)
+                    // if local symbol, check if it has a canonical_symbol (for imports)
                     if target_symbol.module_id == module.id {
                         let symbol = symbols.get_symbol(target_symbol.local_id);
-                        if let Some(final_symbol) = symbol.final_symbol {
-                            final_symbol
+                        if let Some(canonical_symbol) = symbol.canonical_symbol {
+                            canonical_symbol
                         } else {
                             *target_symbol
                         }
