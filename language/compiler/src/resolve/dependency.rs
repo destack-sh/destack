@@ -263,8 +263,8 @@ impl Compiler {
         via_module_id: ModuleId,
         key: StaticKey,
     ) -> ResolveResult<GlobalSymbolId> {
-        // ensure the via module is resolved (so namespace_exports is populated)
-        self.require_resolve_module(via_module_id)?;
+        // ensure the via module's direct symbols are resolved (so namespace_exports is populated)
+        self.require_resolve_module_direct(via_module_id)?;
 
         // get the namespace exports for the via module
         let via_module = self.program.modules.get(via_module_id);
@@ -284,8 +284,8 @@ impl Compiler {
             }
             visited.push(namespace_module_id);
 
-            // ensure the namespace module is resolved (may yield)
-            self.require_resolve_module(namespace_module_id)?;
+            // ensure the namespace module's direct symbols are resolved (may yield)
+            self.require_resolve_module_direct(namespace_module_id)?;
 
             let namespace_module = self.program.modules.get(namespace_module_id);
             let namespace_module = namespace_module.read();
