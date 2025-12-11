@@ -14,7 +14,7 @@ pub enum SymbolSpace {
     Value,
 }
 
-/// The kind of a symbol.
+/// The kind of a symbol (scope behavior).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum SymbolKind {
     /// Namespace.
@@ -25,15 +25,57 @@ pub enum SymbolKind {
     Local,
 }
 
+/// The type of a symbol (declaration type).
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub enum SymbolType {
+    /// Not a type declaration (variables, labels, namespaces, extensions, imports).
+    #[default]
+    Void,
+    /// A class declaration.
+    Class,
+    /// A struct declaration.
+    Struct,
+    /// An interface declaration.
+    Interface,
+    /// An enum declaration.
+    Enum,
+    /// A function declaration.
+    Function,
+    /// A type alias declaration (transparent, structural equivalence).
+    TypeAlias,
+    /// A newtype declaration (nominal, distinct type).
+    Newtype,
+}
+
+impl SymbolType {
+    /// Check if this is an interface.
+    #[inline]
+    pub fn is_interface(self) -> bool {
+        self == SymbolType::Interface
+    }
+}
+
 /// Unique identifier for Symbols.
-#[repr(transparent)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct LocalSymbolId(pub u32);
+pub struct LocalSymbolId {
+    /// The numeric id.
+    pub id: u32,
+    /// The type of the symbol.
+    pub ty: SymbolType,
+}
 
 impl LocalSymbolId {
-    /// Wrap an id as a SymbolId.
+    /// Create a new symbol id with unknown type.
     pub fn new(id: u32) -> Self {
-        Self(id)
+        Self {
+            id,
+            ty: SymbolType::Void,
+        }
+    }
+
+    /// Create a new symbol id with a specific type.
+    pub fn new_typed(id: u32, ty: SymbolType) -> Self {
+        Self { id, ty }
     }
 
     /// Turn into a GlobalSymbolId.
@@ -41,6 +83,14 @@ impl LocalSymbolId {
         GlobalSymbolId {
             module_id,
             local_id: self,
+        }
+    }
+
+    /// Set the symbol type, returning a new ID.
+    pub fn with_type(self, symbol_type: SymbolType) -> Self {
+        Self {
+            ty: symbol_type,
+            ..self
         }
     }
 }
@@ -68,6 +118,12 @@ impl GlobalSymbolId {
     pub fn into_local(self) -> LocalSymbolId {
         self.local_id
     }
+
+    /// Get the symbol type.
+    #[inline]
+    pub fn ty(self) -> SymbolType {
+        self.local_id.ty
+    }
 }
 
 impl From<GlobalSymbolId> for LocalSymbolId {
@@ -81,6 +137,8 @@ impl From<GlobalSymbolId> for LocalSymbolId {
 pub struct Symbol {
     /// The kind of the symbol.
     pub kind: SymbolKind,
+    /// The type of the symbol.
+    pub ty: SymbolType,
     /// The "space" of the symbol.
     pub space: SymbolSpace,
     /// The key of the symbol.
@@ -95,7 +153,7 @@ pub struct Symbol {
     pub primary_declaration: Option<GlobalNodeIdAny>,
     /// Secondary declaration nodes of the symbol.
     pub secondary_declarations: Option<Box<Vec<GlobalNodeIdAny>>>,
-    /// Forward to another remote symbol (like for imports, pattern bindings, etc.).
+    /// Forward to the *next* remote symbol (like for imports, pattern bindings, etc.).
     pub target_symbol: Option<GlobalSymbolId>,
     /// Final remote symbol in the chain (end of target-symbol chain).
     pub final_symbol: Option<GlobalSymbolId>,

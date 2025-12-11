@@ -2,7 +2,8 @@ use destack_ast::{self as ast};
 use destack_dir::{
     Declarator, DependencyMode, DependencySource, Expression, ForEachKind, IfKind, LocalNodeId,
     LocalNodeIdAny, LocalScopeId, LocalScopeMark, LoopKind, MatchSource, NodeTree, NodeType,
-    ScopeKind, StaticKey, SymbolKind, SymbolSpace, SymbolTable, TypeTable, YieldCardinality,
+    ScopeKind, StaticKey, SymbolKind, SymbolSpace, SymbolTable, SymbolType, TypeTable,
+    YieldCardinality,
 };
 use destack_workspace::Module;
 
@@ -85,6 +86,7 @@ impl Compiler {
                 // create a local symbol for the label (for break/continue resolution)
                 let (symbol_id, _) = symbols.insert_symbol(
                     SymbolKind::Local,
+                    SymbolType::Void,
                     SymbolSpace::Value,
                     Some(StaticKey::Name(label_interned)),
                     scope,
@@ -240,6 +242,7 @@ impl Compiler {
                     scope,
                     descriptor,
                     symbol_kind,
+                    SymbolType::Void,
                     symbols,
                 );
                 let symbol_id = descriptor.symbol;

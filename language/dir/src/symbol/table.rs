@@ -2,7 +2,7 @@ use destack_source::ModuleId;
 
 use crate::{
     Arena, DependencyMode, LocalNodeId, LocalScopeId, LocalScopeMark, LocalSymbolId, Node,
-    NodeTree, Scope, ScopeKind, StaticKey, Symbol, SymbolKind, SymbolSpace,
+    NodeTree, Scope, ScopeKind, StaticKey, Symbol, SymbolKind, SymbolSpace, SymbolType,
 };
 use std::fmt::Debug;
 
@@ -57,15 +57,17 @@ impl SymbolTable {
     pub fn insert_symbol(
         &mut self,
         kind: SymbolKind,
+        ty: SymbolType,
         space: SymbolSpace,
         key: Option<StaticKey>,
         scope: (LocalScopeId, LocalScopeMark),
         export: Option<DependencyMode>,
     ) -> (LocalSymbolId, LocalScopeMark) {
-        let symbol_id = LocalSymbolId::new(self.next_symbol_id);
+        let symbol_id = LocalSymbolId::new_typed(self.next_symbol_id, ty);
         self.next_symbol_id += 1;
         let symbol = Symbol {
             kind,
+            ty,
             space,
             key,
             scope,
@@ -109,13 +111,13 @@ impl SymbolTable {
     /// Get a symbol by its id.
     #[inline]
     pub fn get_symbol(&self, symbol_id: LocalSymbolId) -> &Symbol {
-        self.symbols.get(symbol_id.0)
+        self.symbols.get(symbol_id.id)
     }
 
     /// Get the symbol mutable by its id.
     #[inline]
     pub fn get_symbol_mut(&mut self, symbol_id: LocalSymbolId) -> &mut Symbol {
-        self.symbols.get_mut(symbol_id.0)
+        self.symbols.get_mut(symbol_id.id)
     }
 
     /// Get the scope view for a scope id.

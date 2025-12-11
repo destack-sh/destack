@@ -3,7 +3,7 @@ use destack_ast as ast;
 use destack_dir::{
     BindingAnchor, Declaration, DeclarationDescriptor, DeclarationKind, EnumField, LocalNodeId,
     LocalNodeIdAny, LocalScopeId, LocalScopeMark, NodeTree, NodeType, ScopeKind, StaticKey,
-    SymbolKind, SymbolSpace, SymbolTable, TypeTable,
+    SymbolKind, SymbolSpace, SymbolTable, SymbolType, TypeTable,
 };
 use destack_workspace::Module;
 
@@ -32,6 +32,7 @@ impl Compiler {
         scope: (LocalScopeId, LocalScopeMark),
         descriptor: &ast::DeclarationDescriptor,
         kind: SymbolKind,
+        symbol_type: SymbolType,
         symbols: &mut SymbolTable,
     ) -> (DeclarationDescriptor, LocalScopeId) {
         let name = descriptor.name.map(|name| {
@@ -45,6 +46,7 @@ impl Compiler {
         let (symbol_id, scope_id) = {
             let (symbol_id, _) = symbols.insert_symbol(
                 kind,
+                symbol_type,
                 SymbolSpace::Value,
                 name.map(StaticKey::Name),
                 scope,
@@ -94,6 +96,7 @@ impl Compiler {
                     scope,
                     descriptor,
                     SymbolKind::Item,
+                    SymbolType::Void,
                     symbols,
                 );
                 let generics = self.bind_generics(
@@ -143,6 +146,7 @@ impl Compiler {
                     scope,
                     descriptor,
                     symbol_kind,
+                    SymbolType::TypeAlias,
                     symbols,
                 );
                 let kind = self.bind_type_kind(*kind);
@@ -191,6 +195,7 @@ impl Compiler {
                     scope,
                     descriptor,
                     SymbolKind::Item,
+                    SymbolType::Struct,
                     symbols,
                 );
                 let generics = self.bind_generics(
@@ -244,6 +249,7 @@ impl Compiler {
                     scope,
                     descriptor,
                     SymbolKind::Item,
+                    SymbolType::Class,
                     symbols,
                 );
                 let generics = self.bind_generics(
@@ -298,6 +304,7 @@ impl Compiler {
                     scope,
                     descriptor,
                     SymbolKind::Item,
+                    SymbolType::Enum,
                     symbols,
                 );
                 let generics = self.bind_generics(
@@ -366,6 +373,7 @@ impl Compiler {
                     scope,
                     descriptor,
                     SymbolKind::Item,
+                    SymbolType::Interface,
                     symbols,
                 );
                 let generics = self.bind_generics(
@@ -420,6 +428,7 @@ impl Compiler {
                     scope,
                     descriptor,
                     SymbolKind::Item,
+                    SymbolType::Void, // (extensions don't have their own type)
                     symbols,
                 );
                 let generics = self.bind_generics(
@@ -483,6 +492,7 @@ impl Compiler {
                     scope,
                     descriptor,
                     SymbolKind::Item,
+                    SymbolType::Function,
                     symbols,
                 );
                 let signature = self.bind_function_signature(

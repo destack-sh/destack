@@ -1033,21 +1033,32 @@ impl Compiler {
                     types,
                     ctx,
                 )?;
+
+                // type fields
+                let mut fields = Vec::new();
                 for property_id in properties {
-                    self.analyze_property(module, *property_id, tree, symbols, types, ctx)?;
+                    if let Some(field) =
+                        self.analyze_property(module, *property_id, tree, symbols, types, ctx)?
+                    {
+                        fields.push(field);
+                    }
                 }
 
-                // struct instance type -> object type
-                let instance_ty = Type::Reference {
-                    symbol: descriptor.symbol.into_global(module.id),
-                    static_arguments: None,
-                };
+                // struct instance type -> object type with fields
+                let instance_ty = Type::Object { fields };
                 let instance_ty_id = types.insert_type_from(instance_ty, declaration_id);
                 types.set_instance_type(descriptor.symbol.into_global(module.id), instance_ty_id);
 
-                // struct instance type -> struct value type
+                // struct nominal type -> reference type
+                let nominal_ty = Type::Reference {
+                    symbol: descriptor.symbol.into_global(module.id),
+                    static_arguments: None,
+                };
+                let nominal_ty_id = types.insert_type_from(nominal_ty, declaration_id);
+
+                // struct value type -> nominal type
                 let value_ty = Type::Value {
-                    value: instance_ty_id,
+                    value: nominal_ty_id,
                 };
                 let value_ty_id = types.insert_type_from(value_ty, declaration_id);
                 types.set_value_type(descriptor.symbol.into_global(module.id), value_ty_id);
@@ -1073,21 +1084,32 @@ impl Compiler {
                     types,
                     ctx,
                 )?;
+
+                // type fields
+                let mut fields = Vec::new();
                 for property_id in properties {
-                    self.analyze_property(module, *property_id, tree, symbols, types, ctx)?;
+                    if let Some(field) =
+                        self.analyze_property(module, *property_id, tree, symbols, types, ctx)?
+                    {
+                        fields.push(field);
+                    }
                 }
 
-                // class instance type -> object type
-                let instance_ty = Type::Reference {
-                    symbol: descriptor.symbol.into_global(module.id),
-                    static_arguments: None,
-                };
+                // class instance type -> object type with fields
+                let instance_ty = Type::Object { fields };
                 let instance_ty_id = types.insert_type_from(instance_ty, declaration_id);
                 types.set_instance_type(descriptor.symbol.into_global(module.id), instance_ty_id);
 
-                // class instance type -> class value type
+                // class nominal type -> reference type
+                let nominal_ty = Type::Reference {
+                    symbol: descriptor.symbol.into_global(module.id),
+                    static_arguments: None,
+                };
+                let nominal_ty_id = types.insert_type_from(nominal_ty, declaration_id);
+
+                // class value type -> nominal type
                 let value_ty = Type::Value {
-                    value: instance_ty_id,
+                    value: nominal_ty_id,
                 };
                 let value_ty_id = types.insert_type_from(value_ty, declaration_id);
                 types.set_value_type(descriptor.symbol.into_global(module.id), value_ty_id);
@@ -1185,21 +1207,32 @@ impl Compiler {
                     types,
                     ctx,
                 )?;
+
+                // collect type fields from properties
+                let mut fields = Vec::new();
                 for property_id in properties {
-                    self.analyze_property(module, *property_id, tree, symbols, types, ctx)?;
+                    if let Some(field) =
+                        self.analyze_property(module, *property_id, tree, symbols, types, ctx)?
+                    {
+                        fields.push(field);
+                    }
                 }
 
-                // interface instance type -> interface value type
-                let instance_ty = Type::Reference {
-                    symbol: descriptor.symbol.into_global(module.id),
-                    static_arguments: None,
-                };
+                // interface instance type -> object type with fields
+                let instance_ty = Type::Object { fields };
                 let instance_ty_id = types.insert_type_from(instance_ty, declaration_id);
                 types.set_instance_type(descriptor.symbol.into_global(module.id), instance_ty_id);
 
-                // interface value type -> interface value type
+                // interface nominal type -> reference type
+                let nominal_ty = Type::Reference {
+                    symbol: descriptor.symbol.into_global(module.id),
+                    static_arguments: None,
+                };
+                let nominal_ty_id = types.insert_type_from(nominal_ty, declaration_id);
+
+                // interface value type -> nominal type
                 let value_ty = Type::Value {
-                    value: instance_ty_id,
+                    value: nominal_ty_id,
                 };
                 let value_ty_id = types.insert_type_from(value_ty, declaration_id);
                 types.set_value_type(descriptor.symbol.into_global(module.id), value_ty_id);
