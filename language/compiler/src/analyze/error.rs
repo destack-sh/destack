@@ -94,6 +94,13 @@ pub enum AnalyzeError {
         expected_ty_string: String,
         actual_ty_string: String,
     },
+    /// Invalid lineage.
+    InvalidLineage {
+        node: GlobalNodeIdAny,
+        extends_symbols: Vec<GlobalSymbolId>,
+        implements_symbols: Vec<GlobalSymbolId>,
+        embedded_symbols: Vec<GlobalSymbolId>,
+    },
 }
 
 impl From<TaskDependencyError> for AnalyzeError {
@@ -143,6 +150,7 @@ impl AnalyzeError {
             Self::UnsupportedOperator { .. } => 17,
             Self::MissingMember { .. } => 18,
             Self::UnsatisfiedType { .. } => 19,
+            Self::InvalidLineage { .. } => 20,
         }
     }
 
@@ -169,6 +177,7 @@ impl AnalyzeError {
             Self::UnsupportedOperator { node, .. } => DiagnosticAnchor::Node(*node),
             Self::MissingMember { node, .. } => DiagnosticAnchor::Node(*node),
             Self::UnsatisfiedType { node, .. } => DiagnosticAnchor::Node(*node),
+            Self::InvalidLineage { node, .. } => DiagnosticAnchor::Node(*node),
         }
     }
 
@@ -227,6 +236,7 @@ impl AnalyzeError {
             } => {
                 format!("expected {expected_ty_string}, found {actual_ty_string}")
             }
+            Self::InvalidLineage { .. } => "invalid lineage".to_string(),
         }
     }
 }

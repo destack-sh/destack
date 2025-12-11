@@ -327,6 +327,9 @@ extension Vector2 implements Add<Vector2> {
 For operators, Destack uses **receiver-based dispatch**: `a + b` desugars to `a.add(b)`.
 For function overloads, Destack uses **declaration order**: the first matching overload wins.
 
+Operator interfaces (`Add`, `Compare`, etc.) require **explicit `implements`** declarations.
+Unlike regular interfaces which are structural, operator dispatch only activates when a type explicitly declares that it implements the operator interface—this prevents accidental operator overloading from structurally-compatible types.
+
 ## Ownership
 
 TypeScript doesn't distinguish references from values—everything is implicitly reference-counted _or_ copied purely based on type.

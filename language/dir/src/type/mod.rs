@@ -1,4 +1,5 @@
 mod instance;
+mod lineage;
 mod operator;
 mod primitive;
 mod resolution;
@@ -7,6 +8,7 @@ mod table;
 mod r#type;
 
 pub use instance::*;
+pub use lineage::*;
 pub use operator::*;
 pub use primitive::*;
 pub use resolution::*;

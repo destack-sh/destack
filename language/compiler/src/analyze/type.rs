@@ -486,18 +486,13 @@ impl Compiler {
             // object type: look up field directly
             Type::Object { fields } => fields.iter().find(|f| &f.key == member_key).map(|f| f.ty),
 
-            // reference to a nominal type: look up in the declaration's instance type
+            // reference to a nominal type: look up in the declaration's instance type, then heritage
             Type::Reference {
                 symbol,
                 static_arguments: None,
             } => {
-                // for structs and classes, the instance type contains the fields
-                if let Some(ty_id) = types.get_instance_type_id(*symbol) {
-                    let ty = types.get_type(ty_id).clone();
-                    self.infer_member_type(&ty, member_key, types)
-                } else {
-                    None
-                }
+                let mut visited = Vec::new();
+                self.infer_member_type_for_symbol(*symbol, member_key, types, &mut visited)
             }
 
             // union type: require all elements to have the field, return union of field types
@@ -545,6 +540,60 @@ impl Compiler {
 
             _ => None,
         }
+    }
+
+    /// Infer member type for a nominal type symbol, traversing lineage if needed.
+    fn infer_member_type_for_symbol(
+        &self,
+        symbol: GlobalSymbolId,
+        member_key: &StaticKey,
+        types: &mut TypeTable,
+        visited: &mut Vec<GlobalSymbolId>,
+    ) -> Option<LocalTypeId> {
+        // cycle detection: if we've already visited this symbol, stop
+        if visited.contains(&symbol) {
+            return None;
+        }
+        visited.push(symbol);
+
+        // first, look up in the type's own instance type
+        if let Some(ty_id) = types.get_instance_type_id(symbol) {
+            let ty = types.get_type(ty_id).clone();
+            if let Some(member_ty) = self.infer_member_type(&ty, member_key, types) {
+                return Some(member_ty);
+            }
+        }
+
+        // not found directly: traverse lineage
+        let lineage = types.get_lineage_for_symbol(symbol)?.clone();
+
+        // check parent type (extends)
+        if let Some(extends) = lineage.extends
+            && let Some(member_ty) =
+                self.infer_member_type_for_symbol(extends, member_key, types, visited)
+        {
+            return Some(member_ty);
+        }
+
+        // check implemented interfaces
+        for implements in &lineage.implements {
+            if let Some(member_ty) =
+                self.infer_member_type_for_symbol(*implements, member_key, types, visited)
+            {
+                return Some(member_ty);
+            }
+        }
+
+        // check embedded types
+        for embedded in &lineage.embedded {
+            if let Some(member_ty) =
+                self.infer_member_type_for_symbol(*embedded, member_key, types, visited)
+            {
+                return Some(member_ty);
+            }
+        }
+
+        None
     }
 
     /// Resolve a remote symbol's value type by ensuring its module is analyzed

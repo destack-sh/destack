@@ -16,8 +16,11 @@ impl Generics {
     }
 }
 
-/// The polymoprhic relations.
-/// TODO #Incomplete: support heritage (use proper unresolved state somehow?)
+/// The syntactic heritage of a type declaration (what the user wrote).
+///
+/// Heritage stores expression node IDs that represent the extends/implements/embedded clauses.
+/// These expressions get resolved during the resolve phase like any other expressions.
+/// During analyze phase, the resolved symbols are extracted into `Lineage` (in TypeTable).
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct Heritage {
     /// The extends types of the declaration.
