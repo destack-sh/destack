@@ -2,8 +2,8 @@
 
 use std::path::{Path, PathBuf};
 
-use super::parse::{ParseOptions, ParseOutcome, file_type_from_path, parse_file};
-use super::runner::{ConformanceSuite, SuiteResult, TestOutcome, run_conformance_suite};
+use super::parse::{ParseOptions, ParseOutcome, parse_file};
+use super::runner::{ConformanceSuite, SuiteResult, Test, TestOutcome, run_conformance_suite};
 use crate::harness::{TestOptions, fixtures_dir};
 
 // pinned version of Biome parser tests
@@ -27,7 +27,7 @@ impl BiomeSuite {
         }
     }
 
-    fn discover_in_dir(&self, dir: &Path, prefix: &str) -> Vec<String> {
+    fn discover_in_dir(&self, dir: &Path, prefix: &str, expect_error: bool) -> Vec<Test> {
         let mut tests = Vec::new();
 
         if let Ok(entries) = std::fs::read_dir(dir) {
@@ -37,18 +37,24 @@ impl BiomeSuite {
                     let ext = ext.to_string_lossy();
                     // only include source files, not snapshots
                     if matches!(ext.as_ref(), "ts" | "tsx" | "js" | "jsx") {
-                        let name = path.file_name().unwrap().to_string_lossy();
+                        let file_name = path.file_name().unwrap().to_string_lossy();
                         // skip .d.ts files
-                        if name.ends_with(".d.ts") {
+                        if file_name.ends_with(".d.ts") {
                             continue;
                         }
-                        tests.push(format!("{prefix}/{name}"));
+                        let name = format!("{prefix}/{file_name}");
+                        let file_type = Test::file_type_from_name(&name);
+                        tests.push(Test {
+                            name,
+                            file_type,
+                            expect_error,
+                        });
                     }
                 }
             }
         }
 
-        tests.sort();
+        tests.sort_by(|a, b| a.name.cmp(&b.name));
         tests
     }
 }
@@ -72,38 +78,34 @@ impl ConformanceSuite for BiomeSuite {
         self.conformance_dir.join("biome-known-failures.txt")
     }
 
-    fn discover_tests(&self) -> Vec<String> {
+    fn discover_tests(&self) -> Vec<Test> {
         let mut tests = Vec::new();
 
         // Biome has ok/ (should pass) and error/ (should fail) directories
         let ok_dir = self.root.join("ok");
         if ok_dir.exists() {
-            tests.extend(self.discover_in_dir(&ok_dir, "ok"));
+            tests.extend(self.discover_in_dir(&ok_dir, "ok", false));
         }
 
         let error_dir = self.root.join("error");
         if error_dir.exists() {
-            tests.extend(self.discover_in_dir(&error_dir, "error"));
+            tests.extend(self.discover_in_dir(&error_dir, "error", true));
         }
 
         tests
     }
 
-    fn run_test(&self, name: &str) -> TestOutcome {
-        let path = self.root.join(name);
+    fn run_test(&self, test: &Test) -> TestOutcome {
+        let path = self.root.join(&test.name);
 
         let content = match std::fs::read_to_string(&path) {
             Ok(s) => s,
             Err(_) => return TestOutcome::Failed,
         };
 
-        let file_type = file_type_from_path(&path);
-        let parse_outcome = parse_file(&path, &content, file_type, ParseOptions::default());
+        let parse_outcome = parse_file(&path, &content, test.file_type, ParseOptions::default());
 
-        // ok/ should pass, error/ should fail
-        let should_fail = name.starts_with("error/");
-
-        match (should_fail, parse_outcome) {
+        match (test.expect_error, parse_outcome) {
             (true, ParseOutcome::Error) => TestOutcome::Passed,
             (true, ParseOutcome::Ok) => TestOutcome::Failed,
             (false, ParseOutcome::Ok) => TestOutcome::Passed,

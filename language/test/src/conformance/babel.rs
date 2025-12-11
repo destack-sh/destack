@@ -5,7 +5,7 @@ use std::path::{Path, PathBuf};
 use destack_source::FileType;
 
 use super::parse::{ParseOptions, ParseOutcome, parse_file};
-use super::runner::{ConformanceSuite, SuiteResult, TestOutcome, run_conformance_suite};
+use super::runner::{ConformanceSuite, SuiteResult, Test, TestOutcome, run_conformance_suite};
 use crate::harness::{TestOptions, fixtures_dir};
 
 // pinned version of babel parser tests
@@ -29,7 +29,7 @@ impl BabelSuite {
         }
     }
 
-    fn discover_recursive(&self, dir: &Path, prefix: &str) -> Vec<String> {
+    fn discover_recursive(&self, dir: &Path, prefix: &str) -> Vec<Test> {
         let mut tests = Vec::new();
 
         if let Ok(entries) = std::fs::read_dir(dir) {
@@ -37,29 +37,28 @@ impl BabelSuite {
                 let path = entry.path();
                 if path.is_dir() {
                     // check if this directory is a test case (has input.*)
-                    let has_input = std::fs::read_dir(&path)
-                        .map(|entries| {
-                            entries
-                                .flatten()
-                                .any(|e| e.file_name().to_string_lossy().starts_with("input."))
-                        })
-                        .unwrap_or(false);
+                    let input_info = self.get_input_file(&path);
 
-                    if has_input {
-                        let name = path.file_name().unwrap().to_string_lossy();
-                        let test_name = if prefix.is_empty() {
-                            name.to_string()
+                    if let Some((_, file_type)) = input_info {
+                        let dir_name = path.file_name().unwrap().to_string_lossy();
+                        let name = if prefix.is_empty() {
+                            dir_name.to_string()
                         } else {
-                            format!("{prefix}/{name}")
+                            format!("{prefix}/{dir_name}")
                         };
-                        tests.push(test_name);
+                        let expect_error = self.should_throw(&path);
+                        tests.push(Test {
+                            name,
+                            file_type,
+                            expect_error,
+                        });
                     } else {
                         // recurse into subdirectory
-                        let name = path.file_name().unwrap().to_string_lossy();
+                        let dir_name = path.file_name().unwrap().to_string_lossy();
                         let new_prefix = if prefix.is_empty() {
-                            name.to_string()
+                            dir_name.to_string()
                         } else {
-                            format!("{prefix}/{name}")
+                            format!("{prefix}/{dir_name}")
                         };
                         tests.extend(self.discover_recursive(&path, &new_prefix));
                     }
@@ -67,7 +66,7 @@ impl BabelSuite {
             }
         }
 
-        tests.sort();
+        tests.sort_by(|a, b| a.name.cmp(&b.name));
         tests
     }
 
@@ -134,7 +133,7 @@ impl ConformanceSuite for BabelSuite {
         self.conformance_dir.join("babel-known-failures.txt")
     }
 
-    fn discover_tests(&self) -> Vec<String> {
+    fn discover_tests(&self) -> Vec<Test> {
         // discover tests from typescript and jsx directories
         // (flow is intentionally excluded, we don't support Flow, only TypeScript)
         let mut tests = Vec::new();
@@ -149,10 +148,10 @@ impl ConformanceSuite for BabelSuite {
         tests
     }
 
-    fn run_test(&self, name: &str) -> TestOutcome {
-        let test_dir = self.root.join(name);
+    fn run_test(&self, test: &Test) -> TestOutcome {
+        let test_dir = self.root.join(&test.name);
 
-        let Some((input_path, file_type)) = self.get_input_file(&test_dir) else {
+        let Some((input_path, _)) = self.get_input_file(&test_dir) else {
             return TestOutcome::Failed;
         };
 
@@ -161,10 +160,9 @@ impl ConformanceSuite for BabelSuite {
             Err(_) => return TestOutcome::Failed,
         };
 
-        let parse_outcome = parse_file(&input_path, &content, file_type, ParseOptions::default());
-        let should_fail = self.should_throw(&test_dir);
+        let parse_outcome = parse_file(&input_path, &content, test.file_type, ParseOptions::default());
 
-        match (should_fail, parse_outcome) {
+        match (test.expect_error, parse_outcome) {
             (true, ParseOutcome::Error) => TestOutcome::Passed,
             (true, ParseOutcome::Ok) => TestOutcome::Failed,
             (false, ParseOutcome::Ok) => TestOutcome::Passed,

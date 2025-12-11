@@ -8,18 +8,14 @@ use serde::Deserialize;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Tier {
     Parse = 1,
-    Check = 2,
-    CompileJs = 3,
-    CompileNative = 4,
+    Analyze = 2,
 }
 
 impl Tier {
     pub fn name(&self) -> &'static str {
         match self {
             Tier::Parse => "parse",
-            Tier::Check => "check",
-            Tier::CompileJs => "compile_js",
-            Tier::CompileNative => "compile_native",
+            Tier::Analyze => "analyze",
         }
     }
 }
@@ -36,10 +32,16 @@ pub struct EcosystemManifest {
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct PackageInfo {
+    /// Package name (used as directory name).
     pub name: String,
+    /// Human-readable description.
+    #[serde(default)]
+    pub description: String,
+    /// Git repository URL.
     pub repo: String,
+    /// Git ref (tag, branch, or commit) - required for reproducibility.
     #[serde(rename = "ref")]
-    pub git_ref: Option<String>,
+    pub git_ref: String,
 }
 
 #[derive(Debug, Clone, Deserialize, Default)]
@@ -53,23 +55,54 @@ pub struct DiscoveryConfig {
 #[derive(Debug, Clone, Deserialize, Default)]
 pub struct TierConfig {
     #[serde(default)]
-    pub parse: bool,
+    pub parse: TierStatus,
     #[serde(default)]
-    pub check: bool,
-    #[serde(default)]
-    pub compile_js: bool,
-    #[serde(default)]
-    pub compile_native: bool,
+    pub analyze: TierStatus,
+}
+
+/// Status of a tier - either passing (true), failing with reason, or not tested.
+#[derive(Debug, Clone, Deserialize, Default)]
+#[serde(untagged)]
+pub enum TierStatus {
+    /// Tier passes.
+    Pass(bool),
+    /// Tier fails with a reason.
+    Fail {
+        status: bool,
+        reason: String,
+    },
+    /// Not tested yet.
+    #[default]
+    NotTested,
+}
+
+impl TierStatus {
+    pub fn expects_pass(&self) -> bool {
+        match self {
+            TierStatus::Pass(v) => *v,
+            TierStatus::Fail { status, .. } => *status,
+            TierStatus::NotTested => false,
+        }
+    }
+
+    pub fn reason(&self) -> Option<&str> {
+        match self {
+            TierStatus::Fail { reason, .. } => Some(reason),
+            _ => None,
+        }
+    }
 }
 
 impl TierConfig {
-    pub fn expects_pass(&self, tier: Tier) -> bool {
+    pub fn get(&self, tier: Tier) -> &TierStatus {
         match tier {
-            Tier::Parse => self.parse,
-            Tier::Check => self.check,
-            Tier::CompileJs => self.compile_js,
-            Tier::CompileNative => self.compile_native,
+            Tier::Parse => &self.parse,
+            Tier::Analyze => &self.analyze,
         }
+    }
+
+    pub fn expects_pass(&self, tier: Tier) -> bool {
+        self.get(tier).expects_pass()
     }
 }
 

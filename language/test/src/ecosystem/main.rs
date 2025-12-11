@@ -25,9 +25,9 @@ struct EcosystemOptions {
     #[arg(long)]
     parse: bool,
 
-    /// Only run check tier.
+    /// Only run analyze tier.
     #[arg(long)]
-    check: bool,
+    analyze: bool,
 
     /// Common test options.
     #[command(flatten)]
@@ -45,8 +45,8 @@ fn main() -> ExitCode {
     // determine tier filter
     let tier = if options.parse {
         Some(Tier::Parse)
-    } else if options.check {
-        Some(Tier::Check)
+    } else if options.analyze {
+        Some(Tier::Analyze)
     } else {
         None // run default (parse)
     };

@@ -13,6 +13,7 @@ install-fixtures:
     ./test/fixtures/conformance/babel-fetch.sh
     ./test/fixtures/conformance/swc-fetch.sh
     ./test/fixtures/conformance/biome-fetch.sh
+    just ecosystem-fetch
 
 # check
 check:

@@ -14,8 +14,6 @@ use crate::harness::{TestCase, TestOptions, TestResult, TestSummary, fixtures_di
 
 use super::manifest::{EcosystemManifest, Tier};
 
-// nocheckin: ecosystem tests!
-
 /// Run all ecosystem tests.
 pub fn run_ecosystem_tests(options: &TestOptions, tier_filter: Option<Tier>) -> ExitCode {
     let ecosystem_dir = fixtures_dir().join("ecosystem");
@@ -111,7 +109,7 @@ fn run_package_test(
     // check if package is fetched
     if !package_dir.exists() {
         return TestResult::Skipped {
-            reason: format!("not fetched (run: just ecosystem-fetch)"),
+            reason: "not fetched (run: just ecosystem-fetch)".to_string(),
         };
     }
 
@@ -138,22 +136,17 @@ fn run_package_test(
 
     // only run if this tier is expected to pass
     if !manifest.tiers.expects_pass(tier) {
+        let reason = manifest.tiers.get(tier).reason();
         return TestResult::Skipped {
-            reason: format!("tier {} not expected to pass yet", tier.name()),
+            reason: reason.map(|r| r.to_string()).unwrap_or_else(|| format!("{} tier not expected to pass", tier.name())),
         };
     }
 
     // run the tier
     match tier {
         Tier::Parse => run_parse_tier(&package_dir, &files),
-        Tier::Check => TestResult::Skipped {
-            reason: "check tier not implemented".to_string(),
-        },
-        Tier::CompileJs => TestResult::Skipped {
-            reason: "compile_js tier not implemented".to_string(),
-        },
-        Tier::CompileNative => TestResult::Skipped {
-            reason: "compile_native tier not implemented".to_string(),
+        Tier::Analyze => TestResult::Skipped {
+            reason: "analyze tier not implemented".to_string(),
         },
     }
 }
@@ -305,66 +298,45 @@ fn copy_dir_recursive(src: &Path, dst: &Path) -> Result<(), String> {
     Ok(())
 }
 
-/// Fetch a package into the cache.
+/// Fetch a package from git into the cache.
 pub fn fetch_package(manifest: &EcosystemManifest, cache_dir: &Path) -> Result<PathBuf, String> {
     let package_dir = cache_dir.join(&manifest.package.name);
 
     std::fs::create_dir_all(cache_dir)
         .map_err(|e| format!("failed to create cache dir: {e}"))?;
 
-    // remove existing and re-clone (simpler than updating)
+    // remove existing (simpler than updating)
     if package_dir.exists() {
         std::fs::remove_dir_all(&package_dir)
             .map_err(|e| format!("failed to remove existing dir: {e}"))?;
     }
 
-    let git_ref = manifest.package.git_ref.as_deref();
+    // clone with no checkout first
+    let status = Command::new("git")
+        .args([
+            "clone",
+            "--no-checkout",
+            "--filter=blob:none",
+            &manifest.package.repo,
+            &manifest.package.name,
+        ])
+        .current_dir(cache_dir)
+        .status()
+        .map_err(|e| format!("git clone failed: {e}"))?;
 
-    // clone (full clone if we need a specific ref, otherwise shallow)
-    if git_ref.is_some() {
-        // need full clone to checkout tags/commits
-        let status = Command::new("git")
-            .args([
-                "clone",
-                "--no-checkout",
-                &manifest.package.repo,
-                &manifest.package.name,
-            ])
-            .current_dir(cache_dir)
-            .status()
-            .map_err(|e| format!("git clone failed: {e}"))?;
+    if !status.success() {
+        return Err("git clone failed".to_string());
+    }
 
-        if !status.success() {
-            return Err("git clone failed".to_string());
-        }
+    // checkout the specific ref
+    let status = Command::new("git")
+        .args(["checkout", &manifest.package.git_ref])
+        .current_dir(&package_dir)
+        .status()
+        .map_err(|e| format!("git checkout failed: {e}"))?;
 
-        // checkout the specific ref
-        let ref_name = git_ref.unwrap();
-        let status = Command::new("git")
-            .args(["checkout", ref_name])
-            .current_dir(&package_dir)
-            .status()
-            .map_err(|e| format!("git checkout failed: {e}"))?;
-
-        if !status.success() {
-            return Err(format!("git checkout {ref_name} failed"));
-        }
-    } else {
-        // shallow clone default branch
-        let status = Command::new("git")
-            .args([
-                "clone",
-                "--depth", "1",
-                &manifest.package.repo,
-                &manifest.package.name,
-            ])
-            .current_dir(cache_dir)
-            .status()
-            .map_err(|e| format!("git clone failed: {e}"))?;
-
-        if !status.success() {
-            return Err("git clone failed".to_string());
-        }
+    if !status.success() {
+        return Err(format!("git checkout {} failed", manifest.package.git_ref));
     }
 
     Ok(package_dir)
@@ -384,7 +356,7 @@ pub fn fetch_all_packages() -> ExitCode {
     for path in manifest_paths {
         match EcosystemManifest::load(&path) {
             Ok(manifest) => {
-                print!("  {} ... ", manifest.package.name);
+                print!("  {}@{} ... ", manifest.package.name, manifest.package.git_ref);
                 match fetch_package(&manifest, &cache_dir) {
                     Ok(_) => println!("ok"),
                     Err(e) => {

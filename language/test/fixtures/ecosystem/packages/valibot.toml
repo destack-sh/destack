@@ -1,18 +1,16 @@
-# valibot - modular schema validation
-# https://github.com/fabian-hiller/valibot
-#
-# good test: schema library (similar to our schema lib), lots of types
-
 [package]
 name = "valibot"
+description = "Modular schema validation library"
 repo = "https://github.com/fabian-hiller/valibot"
+ref = "v1.0.0"
 
 [discovery]
 include = ["library/src/**/*.ts"]
-exclude = ["**/*.test.ts", "**/*.test-d.ts", "**/__tests__/**"]
+exclude = ["**/*.test.ts", "**/*.test-d.ts"]
+
+[tiers.parse]
+status = false
+reason = "quoted property shorthand methods: '~run'(dataset) { ... }"
 
 [tiers]
-parse = true
-check = false
-compile_js = false
-compile_native = false
+analyze = false

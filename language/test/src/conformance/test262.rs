@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 use destack_source::FileType;
 
 use super::parse::{ParseOptions, ParseOutcome, is_module_path, parse_file};
-use super::runner::{ConformanceSuite, SuiteResult, TestOutcome, run_conformance_suite};
+use super::runner::{ConformanceSuite, SuiteResult, Test, TestOutcome, run_conformance_suite};
 use crate::harness::{TestOptions, fixtures_dir};
 
 // pinned version of test262-parser-tests
@@ -39,21 +39,26 @@ impl Test262Suite {
         }
     }
 
-    fn discover_in_dir(&self, dir: &Path, prefix: &str) -> Vec<String> {
+    fn discover_in_dir(&self, dir: &Path, prefix: &str, expect_error: bool) -> Vec<Test> {
         let mut tests = Vec::new();
 
         if let Ok(entries) = std::fs::read_dir(dir) {
             for entry in entries.flatten() {
                 let path = entry.path();
                 if path.extension().is_some_and(|ext| ext == "js")
-                    && let Some(name) = path.file_stem()
+                    && let Some(stem) = path.file_stem()
                 {
-                    tests.push(format!("{prefix}/{}", name.to_string_lossy()));
+                    let name = format!("{prefix}/{}", stem.to_string_lossy());
+                    tests.push(Test {
+                        name,
+                        file_type: FileType::JavaScript,
+                        expect_error,
+                    });
                 }
             }
         }
 
-        tests.sort();
+        tests.sort_by(|a, b| a.name.cmp(&b.name));
         tests
     }
 }
@@ -77,38 +82,38 @@ impl ConformanceSuite for Test262Suite {
         self.conformance_dir.join("test262-known-failures.txt")
     }
 
-    fn discover_tests(&self) -> Vec<String> {
+    fn discover_tests(&self) -> Vec<Test> {
         let mut tests = Vec::new();
 
         // pass/ directory: files that should parse successfully
         let pass_dir = self.root.join("pass");
         if pass_dir.exists() {
-            tests.extend(self.discover_in_dir(&pass_dir, "pass"));
+            tests.extend(self.discover_in_dir(&pass_dir, "pass", false));
         }
 
         // fail/ directory: files that should fail to parse
         let fail_dir = self.root.join("fail");
         if fail_dir.exists() {
-            tests.extend(self.discover_in_dir(&fail_dir, "fail"));
+            tests.extend(self.discover_in_dir(&fail_dir, "fail", true));
         }
 
         // pass-explicit/ directory: files that should parse in module mode
         let pass_explicit_dir = self.root.join("pass-explicit");
         if pass_explicit_dir.exists() {
-            tests.extend(self.discover_in_dir(&pass_explicit_dir, "pass-explicit"));
+            tests.extend(self.discover_in_dir(&pass_explicit_dir, "pass-explicit", false));
         }
 
         // early/ directory: files with early errors (parse succeeds, has semantic errors)
         let early_dir = self.root.join("early");
         if early_dir.exists() {
-            tests.extend(self.discover_in_dir(&early_dir, "early"));
+            tests.extend(self.discover_in_dir(&early_dir, "early", false));
         }
 
         tests
     }
 
-    fn run_test(&self, name: &str) -> TestOutcome {
-        let parts: Vec<&str> = name.splitn(2, '/').collect();
+    fn run_test(&self, test: &Test) -> TestOutcome {
+        let parts: Vec<&str> = test.name.splitn(2, '/').collect();
         if parts.len() != 2 {
             return TestOutcome::Failed;
         }
@@ -125,17 +130,13 @@ impl ConformanceSuite for Test262Suite {
         let options = ParseOptions {
             reject_html_comments: is_module_path(&path),
         };
-        let parse_outcome = parse_file(&path, &content, FileType::JavaScript, options);
+        let parse_outcome = parse_file(&path, &content, test.file_type, options);
 
-        // early/ tests should also parse successfully (they have semantic errors, not syntax errors)
-        let should_pass = matches!(category, "pass" | "pass-explicit" | "early");
-
-        // pass/early tests should parse without errors, fail tests should have errors
-        match (should_pass, parse_outcome) {
-            (true, ParseOutcome::Ok) => TestOutcome::Passed,
-            (true, ParseOutcome::Error) => TestOutcome::Failed,
-            (false, ParseOutcome::Ok) => TestOutcome::Failed,
-            (false, ParseOutcome::Error) => TestOutcome::Passed,
+        match (test.expect_error, parse_outcome) {
+            (true, ParseOutcome::Error) => TestOutcome::Passed,
+            (true, ParseOutcome::Ok) => TestOutcome::Failed,
+            (false, ParseOutcome::Ok) => TestOutcome::Passed,
+            (false, ParseOutcome::Error) => TestOutcome::Failed,
         }
     }
 
