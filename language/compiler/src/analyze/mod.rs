@@ -1,8 +1,8 @@
-mod analyze;
+mod infer;
 mod check;
 mod context;
 mod error;
-mod evaluate;
+mod declare;
 mod format;
 mod options;
 mod process;

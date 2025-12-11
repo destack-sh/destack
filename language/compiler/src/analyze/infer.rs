@@ -1,4 +1,4 @@
-use crate::{AnalyzeError, AnalyzeResult, Assignability, Compiler, TypeContext};
+use crate::{AnalyzeError, AnalyzeResult, Assignability, Compiler, InferContext};
 use destack_dir::{
     Argument, Block, Declaration, Declarator, DependencyItem, DynamicKey, EnumField, Expression,
     Extension, ExtensionKind, FunctionSignature, Generics, GlobalSymbolId, GlobalTypeId, Heritage,
@@ -10,15 +10,15 @@ use destack_workspace::Module;
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
-    /// Analyze an expression.
-    pub(super) fn analyze_expression(
+    /// Infer the type of an expression.
+    pub(super) fn infer_expression(
         &self,
         module: &Module,
         expression_id: LocalNodeId<Expression>,
         tree: &NodeTree,
         symbols: &SymbolTable,
         types: &mut TypeTable,
-        ctx: &mut TypeContext,
+        ctx: &mut InferContext,
     ) -> AnalyzeResult<LocalTypeId> {
         if let Some(ty_id) = types.get_inferred_type_id(expression_id.into_global_any(module.id)) {
             return Ok(ty_id);
@@ -28,7 +28,7 @@ impl Compiler {
         let ty_id: LocalTypeId = match expression {
             // declaration -> analyze the declaration
             Expression::Declaration { declaration } => {
-                self.analyze_declaration(module, *declaration, tree, symbols, types, ctx)?;
+                self.infer_declaration(module, *declaration, tree, symbols, types, ctx)?;
                 let ty = Type::TypeLiteral {
                     value: TypeLiteral::Void,
                 };
@@ -37,12 +37,12 @@ impl Compiler {
 
             // block -> analyze the block
             Expression::Block { block } => {
-                self.analyze_block(module, *block, tree, symbols, types, ctx)?
+                self.infer_block(module, *block, tree, symbols, types, ctx)?
             }
 
             // statement -> analyze the statement
             Expression::Statement { statement } => {
-                self.analyze_expression(module, *statement, tree, symbols, types, ctx)?;
+                self.infer_expression(module, *statement, tree, symbols, types, ctx)?;
                 let ty = Type::TypeLiteral {
                     value: TypeLiteral::Void,
                 };
@@ -55,7 +55,7 @@ impl Compiler {
                 body,
                 symbol: _,
             } => {
-                self.analyze_expression(module, *body, tree, symbols, types, ctx)?;
+                self.infer_expression(module, *body, tree, symbols, types, ctx)?;
                 let ty = Type::TypeLiteral {
                     value: TypeLiteral::Void,
                 };
@@ -77,11 +77,11 @@ impl Compiler {
                 arguments,
             } => {
                 for item_id in items {
-                    self.analyze_dependency_item(module, *item_id, tree, symbols, types, ctx)?;
+                    self.infer_dependency_item(module, *item_id, tree, symbols, types, ctx)?;
                 }
                 if let Some(arguments) = arguments {
                     for argument_id in arguments {
-                        self.analyze_argument(
+                        self.infer_argument(
                             module,
                             *argument_id,
                             None,
@@ -110,7 +110,7 @@ impl Compiler {
                 items,
             } => {
                 for item_id in items {
-                    self.analyze_dependency_item(module, *item_id, tree, symbols, types, ctx)?;
+                    self.infer_dependency_item(module, *item_id, tree, symbols, types, ctx)?;
                 }
                 let ty = Type::TypeLiteral {
                     value: TypeLiteral::Void,
@@ -125,7 +125,7 @@ impl Compiler {
                 declarators,
             } => {
                 for decl_id in declarators {
-                    self.analyze_declarator(
+                    self.infer_declarator(
                         module,
                         *decl_id,
                         expression_id,
@@ -144,7 +144,7 @@ impl Compiler {
             // type operations
             Expression::TypeUnary { operator, right } => {
                 let right_ty_id =
-                    self.analyze_expression(module, *right, tree, symbols, types, ctx)?;
+                    self.infer_expression(module, *right, tree, symbols, types, ctx)?;
                 let ty = self.infer_type_unary_operation(operator, right_ty_id, types);
                 types.insert_type_from(ty, expression_id)
             }
@@ -154,9 +154,9 @@ impl Compiler {
                 right,
             } => {
                 let left_ty_id =
-                    self.analyze_expression(module, *left, tree, symbols, types, ctx)?;
+                    self.infer_expression(module, *left, tree, symbols, types, ctx)?;
                 let right_ty_id =
-                    self.analyze_expression(module, *right, tree, symbols, types, ctx)?;
+                    self.infer_expression(module, *right, tree, symbols, types, ctx)?;
                 let ty = self.infer_type_binary_operation(
                     module,
                     expression_id,
@@ -172,7 +172,7 @@ impl Compiler {
             // NOTE #Incomplete: resolve unary operator overloads
             Expression::Unary { operator, right } => {
                 let right_ty_id =
-                    self.analyze_expression(module, *right, tree, symbols, types, ctx)?;
+                    self.infer_expression(module, *right, tree, symbols, types, ctx)?;
                 let ty = self.infer_unary_operation(operator, types.get_type(right_ty_id));
                 types.insert_type_from(ty, expression_id)
             }
@@ -183,7 +183,7 @@ impl Compiler {
                 right,
             } => {
                 let right_ty_id =
-                    self.analyze_expression(module, *right, tree, symbols, types, ctx)?;
+                    self.infer_expression(module, *right, tree, symbols, types, ctx)?;
                 let ty = self.infer_value_of_operation(
                     *mutability,
                     *variance,
@@ -198,7 +198,7 @@ impl Compiler {
                 right,
             } => {
                 let right_ty_id =
-                    self.analyze_expression(module, *right, tree, symbols, types, ctx)?;
+                    self.infer_expression(module, *right, tree, symbols, types, ctx)?;
                 let ty = self.infer_reference_of_operation(
                     *mutability,
                     *variance,
@@ -214,9 +214,9 @@ impl Compiler {
                 right,
             } => {
                 let left_ty_id =
-                    self.analyze_expression(module, *left, tree, symbols, types, ctx)?;
+                    self.infer_expression(module, *left, tree, symbols, types, ctx)?;
                 let right_ty_id =
-                    self.analyze_expression(module, *right, tree, symbols, types, ctx)?;
+                    self.infer_expression(module, *right, tree, symbols, types, ctx)?;
 
                 let ty = self.infer_binary_operation(
                     operator,
@@ -228,9 +228,9 @@ impl Compiler {
             // assignment operations -> void
             Expression::Assign { left, right } => {
                 let left_ty_id =
-                    self.analyze_expression(module, *left, tree, symbols, types, ctx)?;
+                    self.infer_expression(module, *left, tree, symbols, types, ctx)?;
                 let right_ty_id =
-                    self.analyze_expression(module, *right, tree, symbols, types, ctx)?;
+                    self.infer_expression(module, *right, tree, symbols, types, ctx)?;
 
                 // type check: right must be assignable to left
                 if self.check_is_type_assignable(left_ty_id, right_ty_id, types)
@@ -260,9 +260,9 @@ impl Compiler {
                 right,
             } => {
                 let _left_ty_id =
-                    self.analyze_expression(module, *left, tree, symbols, types, ctx)?;
+                    self.infer_expression(module, *left, tree, symbols, types, ctx)?;
                 let _right_ty_id =
-                    self.analyze_expression(module, *right, tree, symbols, types, ctx)?;
+                    self.infer_expression(module, *right, tree, symbols, types, ctx)?;
                 let ty = Type::TypeLiteral {
                     value: TypeLiteral::Void,
                 };
@@ -272,7 +272,7 @@ impl Compiler {
             // delete operation -> void
             Expression::Delete { value } => {
                 let _value_ty_id =
-                    self.analyze_expression(module, *value, tree, symbols, types, ctx)?;
+                    self.infer_expression(module, *value, tree, symbols, types, ctx)?;
                 let ty = Type::TypeLiteral {
                     value: TypeLiteral::Void,
                 };
@@ -371,14 +371,14 @@ impl Compiler {
             // array / tuple expression -> precise tuple type for each element
             Expression::ArrayExpression { elements } | Expression::TupleExpression { elements } => {
                 for element_id in elements {
-                    self.analyze_argument(module, *element_id, None, tree, symbols, types, ctx)?;
+                    self.infer_argument(module, *element_id, None, tree, symbols, types, ctx)?;
                 }
                 let element_tys: Vec<LocalTypeId> = elements
                     .iter()
                     .map(|element_id| {
                         let element = tree.get(*element_id);
                         let element_id = element.value();
-                        self.analyze_expression(module, element_id, tree, symbols, types, ctx)
+                        self.infer_expression(module, element_id, tree, symbols, types, ctx)
                     })
                     .collect::<Result<Vec<_>, AnalyzeError>>()?;
                 let ty = Type::Tuple {
@@ -391,7 +391,7 @@ impl Compiler {
                 let mut last_ty = None;
                 for expr_id in expressions {
                     last_ty =
-                        Some(self.analyze_expression(module, *expr_id, tree, symbols, types, ctx)?);
+                        Some(self.infer_expression(module, *expr_id, tree, symbols, types, ctx)?);
                 }
                 // return the type of the last expression, or void if empty (shouldn't be empty?)
                 last_ty.unwrap_or_else(|| {
@@ -406,14 +406,14 @@ impl Compiler {
             // parenthesized -> same type as inner
             Expression::Parenthesized {
                 expression: inner_id,
-            } => self.analyze_expression(module, *inner_id, tree, symbols, types, ctx)?,
+            } => self.infer_expression(module, *inner_id, tree, symbols, types, ctx)?,
 
             // object expression -> object type
             Expression::ObjectExpression { properties } => {
                 let mut fields = Vec::new();
                 for property_id in properties {
                     if let Some(field) =
-                        self.analyze_property(module, *property_id, tree, symbols, types, ctx)?
+                        self.infer_property(module, *property_id, tree, symbols, types, ctx)?
                     {
                         fields.push(field);
                     }
@@ -430,16 +430,16 @@ impl Compiler {
                 dynamic_arguments,
             } => {
                 let callee_ty_id =
-                    self.analyze_expression(module, *left, tree, symbols, types, ctx)?;
+                    self.infer_expression(module, *left, tree, symbols, types, ctx)?;
 
                 // analyze arguments
                 let mut argument_ty_ids = Vec::with_capacity(dynamic_arguments.len());
                 for arg in dynamic_arguments {
-                    self.analyze_argument(module, *arg, None, tree, symbols, types, ctx)?;
+                    self.infer_argument(module, *arg, None, tree, symbols, types, ctx)?;
                     let arg_expr = tree.get(*arg);
                     let arg_value_id = arg_expr.value();
                     let argument_ty_id =
-                        self.analyze_expression(module, arg_value_id, tree, symbols, types, ctx)?;
+                        self.infer_expression(module, arg_value_id, tree, symbols, types, ctx)?;
                     argument_ty_ids.push(argument_ty_id);
                 }
 
@@ -502,7 +502,7 @@ impl Compiler {
                 static_arguments: _,
             } => {
                 let left_ty_id =
-                    self.analyze_expression(module, *left, tree, symbols, types, ctx)?;
+                    self.infer_expression(module, *left, tree, symbols, types, ctx)?;
                 let left_ty = types.get_type(left_ty_id).clone();
 
                 // look up member type on the left type (including extensions)
@@ -528,9 +528,9 @@ impl Compiler {
             // index -> element type
             Expression::Index { left, right } => {
                 let _left_ty_id =
-                    self.analyze_expression(module, *left, tree, symbols, types, ctx)?;
+                    self.infer_expression(module, *left, tree, symbols, types, ctx)?;
                 if let Some(right) = right {
-                    self.analyze_expression(module, *right, tree, symbols, types, ctx)?;
+                    self.infer_expression(module, *right, tree, symbols, types, ctx)?;
                 }
                 // NOTE #Incomplete: resolve element type from array/tuple type
                 let ty = Type::TypeLiteral {
@@ -546,9 +546,9 @@ impl Compiler {
                 dynamic_arguments,
             } => {
                 let _left_ty_id =
-                    self.analyze_expression(module, *left, tree, symbols, types, ctx)?;
+                    self.infer_expression(module, *left, tree, symbols, types, ctx)?;
                 for arg in dynamic_arguments {
-                    self.analyze_argument(module, *arg, None, tree, symbols, types, ctx)?;
+                    self.infer_argument(module, *arg, None, tree, symbols, types, ctx)?;
                 }
                 // NOTE #Incomplete: resolve instance type from constructor
                 let ty = Type::TypeLiteral {
@@ -564,12 +564,12 @@ impl Compiler {
                 then_expression,
                 else_expression,
             } => {
-                self.analyze_expression(module, *condition, tree, symbols, types, ctx)?;
+                self.infer_expression(module, *condition, tree, symbols, types, ctx)?;
                 let then_ty_id =
-                    self.analyze_expression(module, *then_expression, tree, symbols, types, ctx)?;
+                    self.infer_expression(module, *then_expression, tree, symbols, types, ctx)?;
                 if let Some(else_expr) = else_expression {
                     let _else_ty_id =
-                        self.analyze_expression(module, *else_expr, tree, symbols, types, ctx)?;
+                        self.infer_expression(module, *else_expr, tree, symbols, types, ctx)?;
                     // NOTE #Incomplete: compute union or common type of then/else branches
                 }
                 then_ty_id
@@ -584,9 +584,9 @@ impl Compiler {
                 symbol: _,
             } => {
                 if let Some(cond) = condition {
-                    self.analyze_expression(module, *cond, tree, symbols, types, ctx)?;
+                    self.infer_expression(module, *cond, tree, symbols, types, ctx)?;
                 }
-                self.analyze_block(module, *body, tree, symbols, types, ctx)?;
+                self.infer_block(module, *body, tree, symbols, types, ctx)?;
                 // NOTE #Incomplete: loop return type depends on break value
                 let ty = Type::TypeLiteral {
                     value: TypeLiteral::Void,
@@ -605,8 +605,8 @@ impl Compiler {
                 symbol: _,
             } => {
                 let iterator_ty_id =
-                    self.analyze_expression(module, *iterator, tree, symbols, types, ctx)?;
-                self.analyze_pattern(
+                    self.infer_expression(module, *iterator, tree, symbols, types, ctx)?;
+                self.infer_pattern(
                     module,
                     *pattern,
                     Some(iterator_ty_id),
@@ -615,7 +615,7 @@ impl Compiler {
                     types,
                     ctx,
                 )?;
-                self.analyze_block(module, *body, tree, symbols, types, ctx)?;
+                self.infer_block(module, *body, tree, symbols, types, ctx)?;
                 let ty = Type::TypeLiteral {
                     value: TypeLiteral::Void,
                 };
@@ -632,15 +632,15 @@ impl Compiler {
                 symbol: _,
             } => {
                 if let Some(init) = initialization {
-                    self.analyze_expression(module, *init, tree, symbols, types, ctx)?;
+                    self.infer_expression(module, *init, tree, symbols, types, ctx)?;
                 }
                 if let Some(cond) = condition {
-                    self.analyze_expression(module, *cond, tree, symbols, types, ctx)?;
+                    self.infer_expression(module, *cond, tree, symbols, types, ctx)?;
                 }
                 if let Some(incr) = increment {
-                    self.analyze_expression(module, *incr, tree, symbols, types, ctx)?;
+                    self.infer_expression(module, *incr, tree, symbols, types, ctx)?;
                 }
-                self.analyze_block(module, *body, tree, symbols, types, ctx)?;
+                self.infer_block(module, *body, tree, symbols, types, ctx)?;
                 let ty = Type::TypeLiteral {
                     value: TypeLiteral::Void,
                 };
@@ -656,7 +656,7 @@ impl Compiler {
                 symbol: _,
             } => {
                 let value_ty_id =
-                    self.analyze_expression(module, *value, tree, symbols, types, ctx)?;
+                    self.infer_expression(module, *value, tree, symbols, types, ctx)?;
                 let mut result_ty_id = None;
                 for case_id in cases {
                     let case = tree.get(*case_id);
@@ -673,11 +673,11 @@ impl Compiler {
                             guard,
                             scope: _,
                         } => {
-                            self.analyze_block(module, *body, tree, symbols, types, ctx)?;
+                            self.infer_block(module, *body, tree, symbols, types, ctx)?;
                             (*pattern, *guard, None)
                         }
                     };
-                    self.analyze_pattern(
+                    self.infer_pattern(
                         module,
                         pattern,
                         Some(value_ty_id),
@@ -687,11 +687,11 @@ impl Compiler {
                         ctx,
                     )?;
                     if let Some(guard_expr) = guard {
-                        self.analyze_expression(module, guard_expr, tree, symbols, types, ctx)?;
+                        self.infer_expression(module, guard_expr, tree, symbols, types, ctx)?;
                     }
                     if let Some(expr) = body_expr {
                         let case_ty_id =
-                            self.analyze_expression(module, expr, tree, symbols, types, ctx)?;
+                            self.infer_expression(module, expr, tree, symbols, types, ctx)?;
                         if result_ty_id.is_none() {
                             result_ty_id = Some(case_ty_id);
                         }
@@ -716,15 +716,15 @@ impl Compiler {
                 symbol: _,
             } => {
                 let try_ty_id =
-                    self.analyze_expression(module, *try_expression, tree, symbols, types, ctx)?;
+                    self.infer_expression(module, *try_expression, tree, symbols, types, ctx)?;
                 if let Some(catch_pat) = catch_pattern {
-                    self.analyze_pattern(module, *catch_pat, None, tree, symbols, types, ctx)?;
+                    self.infer_pattern(module, *catch_pat, None, tree, symbols, types, ctx)?;
                 }
                 if let Some(catch_expr) = catch_expression {
-                    self.analyze_expression(module, *catch_expr, tree, symbols, types, ctx)?;
+                    self.infer_expression(module, *catch_expr, tree, symbols, types, ctx)?;
                 }
                 if let Some(finally_expr) = finally_expression {
-                    self.analyze_expression(module, *finally_expr, tree, symbols, types, ctx)?;
+                    self.infer_expression(module, *finally_expr, tree, symbols, types, ctx)?;
                 }
                 try_ty_id
             }
@@ -732,7 +732,7 @@ impl Compiler {
             // return -> never (control flow)
             Expression::Return { value } => {
                 if let Some(val) = value {
-                    self.analyze_expression(module, *val, tree, symbols, types, ctx)?;
+                    self.infer_expression(module, *val, tree, symbols, types, ctx)?;
                 }
                 let ty = Type::TypeLiteral {
                     value: TypeLiteral::Never,
@@ -743,7 +743,7 @@ impl Compiler {
             // break/continue -> never (control flow)
             Expression::Break { target: _, value } => {
                 if let Some(val) = value {
-                    self.analyze_expression(module, *val, tree, symbols, types, ctx)?;
+                    self.infer_expression(module, *val, tree, symbols, types, ctx)?;
                 }
                 let ty = Type::TypeLiteral {
                     value: TypeLiteral::Never,
@@ -760,7 +760,7 @@ impl Compiler {
             // throw -> never (control flow)
             Expression::Throw { value } => {
                 if let Some(val) = value {
-                    self.analyze_expression(module, *val, tree, symbols, types, ctx)?;
+                    self.infer_expression(module, *val, tree, symbols, types, ctx)?;
                 }
                 let ty = Type::TypeLiteral {
                     value: TypeLiteral::Never,
@@ -771,7 +771,7 @@ impl Compiler {
             // await -> unwrapped promise type
             Expression::Await { expression } => {
                 let _inner_ty_id =
-                    self.analyze_expression(module, *expression, tree, symbols, types, ctx)?;
+                    self.infer_expression(module, *expression, tree, symbols, types, ctx)?;
                 // NOTE #Incomplete: unwrap Promise type
                 let ty = Type::TypeLiteral {
                     value: TypeLiteral::Unknown,
@@ -785,7 +785,7 @@ impl Compiler {
                 value,
             } => {
                 if let Some(value_id) = value {
-                    self.analyze_expression(module, *value_id, tree, symbols, types, ctx)?;
+                    self.infer_expression(module, *value_id, tree, symbols, types, ctx)?;
                 }
                 // NOTE #Incomplete: yield type depends on generator context
                 let ty = Type::TypeLiteral {
@@ -797,7 +797,7 @@ impl Compiler {
             // maybe/must unwrap -> inner type or error
             Expression::Maybe { left } | Expression::Must { left } => {
                 let _inner_ty_id =
-                    self.analyze_expression(module, *left, tree, symbols, types, ctx)?;
+                    self.infer_expression(module, *left, tree, symbols, types, ctx)?;
                 // NOTE #Incomplete: unwrap optional type
                 let ty = Type::TypeLiteral {
                     value: TypeLiteral::Unknown,
@@ -814,7 +814,7 @@ impl Compiler {
             }
             Expression::TaggedTemplateExpression { tag, value: _ } => {
                 let _tag_ty_id =
-                    self.analyze_expression(module, *tag, tree, symbols, types, ctx)?;
+                    self.infer_expression(module, *tag, tree, symbols, types, ctx)?;
                 // NOTE #Incomplete: tagged template return type from tag function
                 let ty = Type::TypeLiteral {
                     value: TypeLiteral::Unknown,
@@ -829,8 +829,8 @@ impl Compiler {
                 end,
                 is_inclusive: _,
             } => {
-                self.analyze_expression(module, *start, tree, symbols, types, ctx)?;
-                self.analyze_expression(module, *end, tree, symbols, types, ctx)?;
+                self.infer_expression(module, *start, tree, symbols, types, ctx)?;
+                self.infer_expression(module, *end, tree, symbols, types, ctx)?;
                 let ty = Type::TypeLiteral {
                     value: TypeLiteral::Unknown,
                 };
@@ -839,21 +839,21 @@ impl Compiler {
 
             // tagged expressions for newtype construction
             Expression::TaggedScalarExpression { ty, value } => {
-                let ty_id = self.analyze_expression(module, *ty, tree, symbols, types, ctx)?;
-                self.analyze_expression(module, *value, tree, symbols, types, ctx)?;
+                let ty_id = self.infer_expression(module, *ty, tree, symbols, types, ctx)?;
+                self.infer_expression(module, *value, tree, symbols, types, ctx)?;
                 ty_id
             }
             Expression::TaggedTupleExpression { ty, elements } => {
-                let ty_id = self.analyze_expression(module, *ty, tree, symbols, types, ctx)?;
+                let ty_id = self.infer_expression(module, *ty, tree, symbols, types, ctx)?;
                 for elem in elements {
-                    self.analyze_argument(module, *elem, None, tree, symbols, types, ctx)?;
+                    self.infer_argument(module, *elem, None, tree, symbols, types, ctx)?;
                 }
                 ty_id
             }
             Expression::TaggedObjectExpression { ty, properties } => {
-                let ty_id = self.analyze_expression(module, *ty, tree, symbols, types, ctx)?;
+                let ty_id = self.infer_expression(module, *ty, tree, symbols, types, ctx)?;
                 for prop_id in properties {
-                    self.analyze_property(module, *prop_id, tree, symbols, types, ctx)?;
+                    self.infer_property(module, *prop_id, tree, symbols, types, ctx)?;
                 }
                 ty_id
             }
@@ -865,16 +865,16 @@ impl Compiler {
                 elements,
             } => {
                 if let Some(left) = left {
-                    self.analyze_expression(module, *left, tree, symbols, types, ctx)?;
+                    self.infer_expression(module, *left, tree, symbols, types, ctx)?;
                 }
                 if let Some(args) = arguments {
                     for arg in args {
-                        self.analyze_argument(module, *arg, None, tree, symbols, types, ctx)?;
+                        self.infer_argument(module, *arg, None, tree, symbols, types, ctx)?;
                     }
                 }
                 if let Some(elems) = elements {
                     for elem in elems {
-                        self.analyze_argument(module, *elem, None, tree, symbols, types, ctx)?;
+                        self.infer_argument(module, *elem, None, tree, symbols, types, ctx)?;
                     }
                 }
                 // NOTE #Incomplete: JSX element type
@@ -912,14 +912,14 @@ impl Compiler {
     }
 
     /// Analyze a block.
-    fn analyze_block(
+    fn infer_block(
         &self,
         module: &Module,
         block_id: LocalNodeId<Block>,
         tree: &NodeTree,
         symbols: &SymbolTable,
         types: &mut TypeTable,
-        ctx: &mut TypeContext,
+        ctx: &mut InferContext,
     ) -> AnalyzeResult<LocalTypeId> {
         if let Some(ty_id) = types.get_inferred_type_id(block_id.into_global_any(module.id)) {
             return Ok(ty_id);
@@ -927,12 +927,12 @@ impl Compiler {
 
         let block = tree.get(block_id);
         for expression_id in &block.expressions {
-            self.analyze_expression(module, *expression_id, tree, symbols, types, ctx)?;
+            self.infer_expression(module, *expression_id, tree, symbols, types, ctx)?;
         }
 
         // type is last expression type
         let ty_id = if let Some(last_expression_id) = block.expressions.last() {
-            self.analyze_expression(module, *last_expression_id, tree, symbols, types, ctx)?
+            self.infer_expression(module, *last_expression_id, tree, symbols, types, ctx)?
         } else {
             let ty = Type::TypeLiteral {
                 value: TypeLiteral::Void,
@@ -946,14 +946,14 @@ impl Compiler {
     }
 
     /// Analyze a declaration.
-    fn analyze_declaration(
+    fn infer_declaration(
         &self,
         module: &Module,
         declaration_id: LocalNodeId<Declaration>,
         tree: &NodeTree,
         symbols: &SymbolTable,
         types: &mut TypeTable,
-        ctx: &mut TypeContext,
+        ctx: &mut InferContext,
     ) -> AnalyzeResult<()> {
         let declaration = tree.get(declaration_id);
 
@@ -966,9 +966,9 @@ impl Compiler {
                 expressions,
             } => {
                 // walk
-                self.analyze_generics(module, generics, tree, symbols, types, ctx)?;
+                self.infer_generics(module, generics, tree, symbols, types, ctx)?;
                 for expression_id in expressions {
-                    self.analyze_expression(module, *expression_id, tree, symbols, types, ctx)?;
+                    self.infer_expression(module, *expression_id, tree, symbols, types, ctx)?;
                 }
             }
 
@@ -983,13 +983,13 @@ impl Compiler {
                 // walk
                 if let Some(parameters) = static_parameters {
                     for parameter_id in parameters {
-                        self.analyze_parameter(module, *parameter_id, tree, symbols, types, ctx)?;
+                        self.infer_parameter(module, *parameter_id, tree, symbols, types, ctx)?;
                     }
                 }
 
                 // type instance type -> type value
                 let instance_ty_id =
-                    self.analyze_expression(module, *value, tree, symbols, types, ctx)?;
+                    self.infer_expression(module, *value, tree, symbols, types, ctx)?;
                 match *kind {
                     TypeKind::Structural => {
                         types.set_instance_type(
@@ -1024,8 +1024,8 @@ impl Compiler {
                 members,
             } => {
                 // walk
-                self.analyze_generics(module, generics, tree, symbols, types, ctx)?;
-                self.analyze_heritage(
+                self.infer_generics(module, generics, tree, symbols, types, ctx)?;
+                self.infer_heritage(
                     module,
                     heritage,
                     declaration_id.into_any(),
@@ -1040,7 +1040,7 @@ impl Compiler {
                 let mut fields = Vec::new();
                 for member_id in members {
                     if let Some(field) =
-                        self.analyze_member(module, *member_id, tree, symbols, types, ctx)?
+                        self.infer_member(module, *member_id, tree, symbols, types, ctx)?
                     {
                         fields.push(field);
                     }
@@ -1075,8 +1075,8 @@ impl Compiler {
                 members,
             } => {
                 // walk
-                self.analyze_generics(module, generics, tree, symbols, types, ctx)?;
-                self.analyze_heritage(
+                self.infer_generics(module, generics, tree, symbols, types, ctx)?;
+                self.infer_heritage(
                     module,
                     heritage,
                     declaration_id.into_any(),
@@ -1091,7 +1091,7 @@ impl Compiler {
                 let mut fields = Vec::new();
                 for member_id in members {
                     if let Some(field) =
-                        self.analyze_member(module, *member_id, tree, symbols, types, ctx)?
+                        self.infer_member(module, *member_id, tree, symbols, types, ctx)?
                     {
                         fields.push(field);
                     }
@@ -1127,8 +1127,8 @@ impl Compiler {
                 members,
             } => {
                 // walk
-                self.analyze_generics(module, generics, tree, symbols, types, ctx)?;
-                self.analyze_heritage(
+                self.infer_generics(module, generics, tree, symbols, types, ctx)?;
+                self.infer_heritage(
                     module,
                     heritage,
                     declaration_id.into_any(),
@@ -1139,10 +1139,10 @@ impl Compiler {
                     ctx,
                 )?;
                 for field_id in fields {
-                    self.analyze_enum_field(module, *field_id, tree, symbols, types, ctx)?;
+                    self.infer_enum_field(module, *field_id, tree, symbols, types, ctx)?;
                 }
                 for member_id in members {
-                    self.analyze_member(module, *member_id, tree, symbols, types, ctx)?;
+                    self.infer_member(module, *member_id, tree, symbols, types, ctx)?;
                 }
 
                 // enum instance type -> enum value type
@@ -1172,9 +1172,9 @@ impl Compiler {
                 members,
             } => {
                 // walk
-                self.analyze_generics(module, generics, tree, symbols, types, ctx)?;
-                self.analyze_expression(module, *target_type, tree, symbols, types, ctx)?;
-                self.analyze_heritage(
+                self.infer_generics(module, generics, tree, symbols, types, ctx)?;
+                self.infer_expression(module, *target_type, tree, symbols, types, ctx)?;
+                self.infer_heritage(
                     module,
                     heritage,
                     declaration_id.into_any(),
@@ -1189,7 +1189,7 @@ impl Compiler {
                 let mut fields = Vec::new();
                 for member_id in members {
                     if let Some(field) =
-                        self.analyze_member(module, *member_id, tree, symbols, types, ctx)?
+                        self.infer_member(module, *member_id, tree, symbols, types, ctx)?
                     {
                         fields.push(field);
                     }
@@ -1225,8 +1225,8 @@ impl Compiler {
                 members,
             } => {
                 // walk
-                self.analyze_generics(module, generics, tree, symbols, types, ctx)?;
-                self.analyze_heritage(
+                self.infer_generics(module, generics, tree, symbols, types, ctx)?;
+                self.infer_heritage(
                     module,
                     heritage,
                     declaration_id.into_any(),
@@ -1241,7 +1241,7 @@ impl Compiler {
                 let mut fields = Vec::new();
                 for member_id in members {
                     if let Some(field) =
-                        self.analyze_member(module, *member_id, tree, symbols, types, ctx)?
+                        self.infer_member(module, *member_id, tree, symbols, types, ctx)?
                     {
                         fields.push(field);
                     }
@@ -1274,7 +1274,7 @@ impl Compiler {
                 scope: _,
                 body,
             } => {
-                let fn_ty_id = self.analyze_signature(
+                let fn_ty_id = self.infer_signature(
                     module,
                     declaration_id.into_any(),
                     signature,
@@ -1287,7 +1287,7 @@ impl Compiler {
                 types.set_value_type(descriptor.symbol.into_global(module.id), fn_ty_id);
 
                 if let Some(body) = body {
-                    self.analyze_expression(module, *body, tree, symbols, types, ctx)?;
+                    self.infer_expression(module, *body, tree, symbols, types, ctx)?;
                 }
             }
         }
@@ -1295,15 +1295,15 @@ impl Compiler {
         Ok(())
     }
 
-    /// Analyze a property and return its TypeField if it has a static key.
-    fn analyze_property(
+    /// Infer a property and return its TypeField if it has a static key.
+    fn infer_property(
         &self,
         module: &Module,
         property_id: LocalNodeId<Property>,
         tree: &NodeTree,
         symbols: &SymbolTable,
         types: &mut TypeTable,
-        ctx: &mut TypeContext,
+        ctx: &mut InferContext,
     ) -> AnalyzeResult<Option<TypeField>> {
         let property = tree.get(property_id);
         match property {
@@ -1323,7 +1323,7 @@ impl Compiler {
 
                 // infer the value type
                 let value_ty_id = if let Some(value) = value {
-                    self.analyze_expression(module, *value, tree, symbols, types, ctx)?
+                    self.infer_expression(module, *value, tree, symbols, types, ctx)?
                 } else {
                     // no value, return unknown type
                     let ty = Type::TypeLiteral {
@@ -1334,7 +1334,7 @@ impl Compiler {
 
                 // analyze default if present
                 if let Some(default) = default {
-                    self.analyze_expression(module, *default, tree, symbols, types, ctx)?;
+                    self.infer_expression(module, *default, tree, symbols, types, ctx)?;
                 }
 
                 // check if the field is optional
@@ -1362,27 +1362,27 @@ impl Compiler {
             Property::Method { body, .. } => {
                 // TODO #Incomplete: infer method type
                 if let Some(body) = body {
-                    self.analyze_expression(module, *body, tree, symbols, types, ctx)?;
+                    self.infer_expression(module, *body, tree, symbols, types, ctx)?;
                 }
                 Ok(None)
             }
             Property::Spread { value, .. } => {
                 // NOTE #Incomplete: expand spread type into object type
-                self.analyze_expression(module, *value, tree, symbols, types, ctx)?;
+                self.infer_expression(module, *value, tree, symbols, types, ctx)?;
                 Ok(None)
             }
         }
     }
 
     /// Analyze a member and return its TypeField if it has a static key.
-    fn analyze_member(
+    fn infer_member(
         &self,
         module: &Module,
         member_id: LocalNodeId<Member>,
         tree: &NodeTree,
         symbols: &SymbolTable,
         types: &mut TypeTable,
-        ctx: &mut TypeContext,
+        ctx: &mut InferContext,
     ) -> AnalyzeResult<Option<TypeField>> {
         let member = tree.get(member_id);
         match member {
@@ -1402,7 +1402,7 @@ impl Compiler {
 
                 // infer the value type
                 let value_ty_id = if let Some(value) = value {
-                    self.analyze_expression(module, *value, tree, symbols, types, ctx)?
+                    self.infer_expression(module, *value, tree, symbols, types, ctx)?
                 } else {
                     // no value, return unknown type
                     let ty = Type::TypeLiteral {
@@ -1413,7 +1413,7 @@ impl Compiler {
 
                 // analyze default if present
                 if let Some(default) = default {
-                    self.analyze_expression(module, *default, tree, symbols, types, ctx)?;
+                    self.infer_expression(module, *default, tree, symbols, types, ctx)?;
                 }
 
                 // check if the field is optional
@@ -1451,7 +1451,7 @@ impl Compiler {
                 });
 
                 // infer the method type from signature
-                let method_ty_id = self.analyze_signature(
+                let method_ty_id = self.infer_signature(
                     module,
                     member_id.into_any(),
                     signature,
@@ -1463,7 +1463,7 @@ impl Compiler {
 
                 // analyze method body if present
                 if let Some(body) = body {
-                    self.analyze_expression(module, *body, tree, symbols, types, ctx)?;
+                    self.infer_expression(module, *body, tree, symbols, types, ctx)?;
                 }
 
                 // return a field if we have a static key
@@ -1480,42 +1480,42 @@ impl Compiler {
             }
             Member::Embed { value, .. } => {
                 // NOTE #Incomplete: expand embedded type into member fields?
-                self.analyze_expression(module, *value, tree, symbols, types, ctx)?;
+                self.infer_expression(module, *value, tree, symbols, types, ctx)?;
                 Ok(None)
             }
             Member::StaticBlock { body, .. } => {
                 // analyze static block body, but doesn't contribute to type fields
-                self.analyze_expression(module, *body, tree, symbols, types, ctx)?;
+                self.infer_expression(module, *body, tree, symbols, types, ctx)?;
                 Ok(None)
             }
         }
     }
 
     /// Analyze generics.
-    fn analyze_generics(
+    fn infer_generics(
         &self,
         module: &Module,
         generics: &Generics,
         tree: &NodeTree,
         symbols: &SymbolTable,
         types: &mut TypeTable,
-        ctx: &mut TypeContext,
+        ctx: &mut InferContext,
     ) -> AnalyzeResult<()> {
         if let Some(static_parameters) = &generics.static_parameters {
             for parameter_id in static_parameters {
-                self.analyze_parameter(module, *parameter_id, tree, symbols, types, ctx)?;
+                self.infer_parameter(module, *parameter_id, tree, symbols, types, ctx)?;
             }
         }
         if let Some(clauses) = &generics.where_clauses {
             for clause_id in clauses {
-                self.analyze_where_clause(module, *clause_id, tree, symbols, types, ctx)?;
+                self.infer_where_clause(module, *clause_id, tree, symbols, types, ctx)?;
             }
         }
         Ok(())
     }
 
     /// Analyze heritage.
-    fn analyze_heritage(
+    fn infer_heritage(
         &self,
         module: &Module,
         heritage: &Heritage,
@@ -1524,13 +1524,13 @@ impl Compiler {
         tree: &NodeTree,
         symbols: &SymbolTable,
         types: &mut TypeTable,
-        ctx: &mut TypeContext,
+        ctx: &mut InferContext,
     ) -> AnalyzeResult<()> {
         // analyze and extract extends symbols
         let mut extends_symbols = Vec::new();
         if let Some(extend_types) = &heritage.extends_types {
             for expression_id in extend_types {
-                self.analyze_expression(module, *expression_id, tree, symbols, types, ctx)?;
+                self.infer_expression(module, *expression_id, tree, symbols, types, ctx)?;
                 let expression = tree.get(*expression_id);
                 if let Some(target_symbol) = expression.target_symbol() {
                     extends_symbols.push(target_symbol);
@@ -1542,7 +1542,7 @@ impl Compiler {
         let mut implements_symbols = Vec::new();
         if let Some(implements_types) = &heritage.implements_types {
             for expression_id in implements_types {
-                self.analyze_expression(module, *expression_id, tree, symbols, types, ctx)?;
+                self.infer_expression(module, *expression_id, tree, symbols, types, ctx)?;
                 let expression = tree.get(*expression_id);
                 if let Some(target_symbol) = expression.target_symbol() {
                     implements_symbols.push(target_symbol);
@@ -1554,7 +1554,7 @@ impl Compiler {
         let mut embedded_symbols = Vec::new();
         if let Some(embedded_types) = &heritage.embedded_types {
             for expression_id in embedded_types {
-                self.analyze_expression(module, *expression_id, tree, symbols, types, ctx)?;
+                self.infer_expression(module, *expression_id, tree, symbols, types, ctx)?;
                 let expression = tree.get(*expression_id);
                 if let Some(target_symbol) = expression.target_symbol() {
                     embedded_symbols.push(target_symbol);
@@ -1589,8 +1589,8 @@ impl Compiler {
         Ok(())
     }
 
-    /// Analyze a function signature.
-    fn analyze_signature(
+    /// Infer a function signature.
+    fn infer_signature(
         &self,
         module: &Module,
         node_id: LocalNodeIdAny,
@@ -1598,17 +1598,17 @@ impl Compiler {
         tree: &NodeTree,
         symbols: &SymbolTable,
         types: &mut TypeTable,
-        ctx: &mut TypeContext,
+        ctx: &mut InferContext,
     ) -> AnalyzeResult<LocalTypeId> {
         // walk generics
         if let Some(generics) = &signature.generics {
-            self.analyze_generics(module, generics, tree, symbols, types, ctx)?;
+            self.infer_generics(module, generics, tree, symbols, types, ctx)?;
         }
 
         // collect parameter types
         let mut dynamic_param_types = Vec::with_capacity(signature.dynamic_parameters.len());
         for parameter_id in &signature.dynamic_parameters {
-            self.analyze_parameter(module, *parameter_id, tree, symbols, types, ctx)?;
+            self.infer_parameter(module, *parameter_id, tree, symbols, types, ctx)?;
             // get the declared type for this parameter
             let param_ty_id = types
                 .get_declared_type_id(parameter_id.into_global_any(module.id))
@@ -1625,7 +1625,7 @@ impl Compiler {
         // get return type
         let return_type = if let Some(return_type_expr_id) = signature.return_type {
             let return_ty_id =
-                self.analyze_expression(module, return_type_expr_id, tree, symbols, types, ctx)?;
+                self.infer_expression(module, return_type_expr_id, tree, symbols, types, ctx)?;
             // unwrap Value type if present
             let return_ty = types.get_type(return_ty_id);
             match return_ty {
@@ -1649,14 +1649,14 @@ impl Compiler {
     }
 
     /// Analyze a parameter.
-    fn analyze_parameter(
+    fn infer_parameter(
         &self,
         module: &Module,
         parameter_id: LocalNodeId<Parameter>,
         tree: &NodeTree,
         symbols: &SymbolTable,
         types: &mut TypeTable,
-        ctx: &mut TypeContext,
+        ctx: &mut InferContext,
     ) -> AnalyzeResult<()> {
         let parameter = tree.get(parameter_id);
         match parameter {
@@ -1667,7 +1667,7 @@ impl Compiler {
                 symbol: _,
             } => {
                 if let Some(default) = default {
-                    self.analyze_expression(module, *default, tree, symbols, types, ctx)?;
+                    self.infer_expression(module, *default, tree, symbols, types, ctx)?;
                 }
             }
             Parameter::Pattern {
@@ -1678,11 +1678,11 @@ impl Compiler {
             } => {
                 // infer type from default if present
                 let default_ty_id = if let Some(default) = default {
-                    Some(self.analyze_expression(module, *default, tree, symbols, types, ctx)?)
+                    Some(self.infer_expression(module, *default, tree, symbols, types, ctx)?)
                 } else {
                     None
                 };
-                self.analyze_pattern(module, *pattern, default_ty_id, tree, symbols, types, ctx)?;
+                self.infer_pattern(module, *pattern, default_ty_id, tree, symbols, types, ctx)?;
             }
             Parameter::Variadic {
                 modifiers: _,
@@ -1695,8 +1695,8 @@ impl Compiler {
         Ok(())
     }
 
-    /// Analyze an argument.
-    fn analyze_argument(
+    /// Infer an argument.
+    fn infer_argument(
         &self,
         module: &Module,
         argument_id: LocalNodeId<Argument>,
@@ -1704,39 +1704,39 @@ impl Compiler {
         tree: &NodeTree,
         symbols: &SymbolTable,
         types: &mut TypeTable,
-        ctx: &mut TypeContext,
+        ctx: &mut InferContext,
     ) -> AnalyzeResult<()> {
         let argument = tree.get(argument_id);
         match argument {
             Argument::Positional { value } => {
-                self.analyze_expression(module, *value, tree, symbols, types, ctx)?;
+                self.infer_expression(module, *value, tree, symbols, types, ctx)?;
             }
             Argument::Named { name: _, value } => {
-                self.analyze_expression(module, *value, tree, symbols, types, ctx)?;
+                self.infer_expression(module, *value, tree, symbols, types, ctx)?;
             }
             Argument::Labeled { label: _, value } => {
-                self.analyze_expression(module, *value, tree, symbols, types, ctx)?;
+                self.infer_expression(module, *value, tree, symbols, types, ctx)?;
             }
             Argument::Spread { value } => {
-                self.analyze_expression(module, *value, tree, symbols, types, ctx)?;
+                self.infer_expression(module, *value, tree, symbols, types, ctx)?;
             }
             Argument::Dynamic { key, value } => {
-                self.analyze_expression(module, *key, tree, symbols, types, ctx)?;
-                self.analyze_expression(module, *value, tree, symbols, types, ctx)?;
+                self.infer_expression(module, *key, tree, symbols, types, ctx)?;
+                self.infer_expression(module, *value, tree, symbols, types, ctx)?;
             }
         }
         Ok(())
     }
 
-    /// Analyze a dependency item.
-    fn analyze_dependency_item(
+    /// Infer a dependency item.
+    fn infer_dependency_item(
         &self,
         _module: &Module,
         item_id: LocalNodeId<DependencyItem>,
         tree: &NodeTree,
         _symbols: &SymbolTable,
         _types: &mut TypeTable,
-        _ctx: &mut TypeContext,
+        _ctx: &mut InferContext,
     ) -> AnalyzeResult<()> {
         let item = tree.get(item_id);
         match item {
@@ -1759,47 +1759,47 @@ impl Compiler {
         Ok(())
     }
 
-    /// Analyze where clause.
-    fn analyze_where_clause(
+    /// Infer where clause.
+    fn infer_where_clause(
         &self,
         module: &Module,
         clause_id: LocalNodeId<WhereClause>,
         tree: &NodeTree,
         symbols: &SymbolTable,
         types: &mut TypeTable,
-        ctx: &mut TypeContext,
+        ctx: &mut InferContext,
     ) -> AnalyzeResult<()> {
         let clause = tree.get(clause_id);
         match clause {
             WhereClause::Assertion { left: _, right } => {
-                self.analyze_expression(module, *right, tree, symbols, types, ctx)?;
+                self.infer_expression(module, *right, tree, symbols, types, ctx)?;
             }
             WhereClause::Guard { guard } => {
-                self.analyze_expression(module, *guard, tree, symbols, types, ctx)?;
+                self.infer_expression(module, *guard, tree, symbols, types, ctx)?;
             }
         }
         Ok(())
     }
 
-    /// Analyze an enum field.
-    fn analyze_enum_field(
+    /// Infer an enum field.
+    fn infer_enum_field(
         &self,
         module: &Module,
         field_id: LocalNodeId<EnumField>,
         tree: &NodeTree,
         symbols: &SymbolTable,
         types: &mut TypeTable,
-        ctx: &mut TypeContext,
+        ctx: &mut InferContext,
     ) -> AnalyzeResult<()> {
         let field = tree.get(field_id);
         if let Some(value) = field.value {
-            self.analyze_expression(module, value, tree, symbols, types, ctx)?;
+            self.infer_expression(module, value, tree, symbols, types, ctx)?;
         }
         Ok(())
     }
 
-    /// Analyze a pattern, given an optional binding type of the pattern.
-    fn analyze_pattern(
+    /// Infer a pattern, given an optional binding type of the pattern.
+    fn infer_pattern(
         &self,
         module: &Module,
         pattern_id: LocalNodeId<Pattern>,
@@ -1807,7 +1807,7 @@ impl Compiler {
         tree: &NodeTree,
         symbols: &SymbolTable,
         types: &mut TypeTable,
-        ctx: &mut TypeContext,
+        ctx: &mut InferContext,
     ) -> AnalyzeResult<()> {
         let pattern = tree.get(pattern_id);
         match pattern {
@@ -1815,7 +1815,7 @@ impl Compiler {
                 // nothing to do
             }
             Pattern::Maybe(pattern_id) => {
-                self.analyze_pattern(
+                self.infer_pattern(
                     module,
                     *pattern_id,
                     binding_ty_id,
@@ -1829,13 +1829,13 @@ impl Compiler {
                 mutability: _,
                 right,
             } => {
-                self.analyze_pattern(module, *right, binding_ty_id, tree, symbols, types, ctx)?;
+                self.infer_pattern(module, *right, binding_ty_id, tree, symbols, types, ctx)?;
             }
             Pattern::ValueOf {
                 mutability: _,
                 right,
             } => {
-                self.analyze_pattern(module, *right, binding_ty_id, tree, symbols, types, ctx)?;
+                self.infer_pattern(module, *right, binding_ty_id, tree, symbols, types, ctx)?;
             }
             Pattern::Binding {
                 mutability: _,
@@ -1847,7 +1847,7 @@ impl Compiler {
                     types.set_value_type(symbol.into_global(module.id), ty_id);
                 }
                 if let Some(pattern_id) = pattern {
-                    self.analyze_pattern(
+                    self.infer_pattern(
                         module,
                         *pattern_id,
                         binding_ty_id,
@@ -1859,7 +1859,7 @@ impl Compiler {
                 }
             }
             Pattern::Expression { value } => {
-                self.analyze_expression(module, *value, tree, symbols, types, ctx)?;
+                self.infer_expression(module, *value, tree, symbols, types, ctx)?;
             }
             Pattern::Range {
                 start,
@@ -1867,7 +1867,7 @@ impl Compiler {
                 is_inclusive: _,
             } => {
                 if let Some(start_pattern_id) = start {
-                    self.analyze_pattern(
+                    self.infer_pattern(
                         module,
                         *start_pattern_id,
                         binding_ty_id,
@@ -1878,7 +1878,7 @@ impl Compiler {
                     )?;
                 }
                 if let Some(end_pattern_id) = end {
-                    self.analyze_pattern(
+                    self.infer_pattern(
                         module,
                         *end_pattern_id,
                         binding_ty_id,
@@ -1890,7 +1890,7 @@ impl Compiler {
                 }
             }
             Pattern::Tuple { fields } => {
-                self.analyze_pattern_sequence(
+                self.infer_pattern_sequence(
                     module,
                     fields,
                     binding_ty_id,
@@ -1904,8 +1904,8 @@ impl Compiler {
                 )?;
             }
             Pattern::TaggedTuple { ty, fields } => {
-                let ty_id = self.analyze_expression(module, *ty, tree, symbols, types, ctx)?;
-                self.analyze_pattern_sequence(
+                let ty_id = self.infer_expression(module, *ty, tree, symbols, types, ctx)?;
+                self.infer_pattern_sequence(
                     module,
                     fields,
                     Some(ty_id),
@@ -1919,7 +1919,7 @@ impl Compiler {
                 )?;
             }
             Pattern::Array { fields } => {
-                self.analyze_pattern_sequence(
+                self.infer_pattern_sequence(
                     module,
                     fields,
                     binding_ty_id,
@@ -1934,7 +1934,7 @@ impl Compiler {
             }
             Pattern::Object { fields } => {
                 for field_id in fields {
-                    self.analyze_pattern_field(
+                    self.infer_pattern_field(
                         module,
                         *field_id,
                         binding_ty_id,
@@ -1946,9 +1946,9 @@ impl Compiler {
                 }
             }
             Pattern::TaggedObject { ty, fields } => {
-                let ty_id = self.analyze_expression(module, *ty, tree, symbols, types, ctx)?;
+                let ty_id = self.infer_expression(module, *ty, tree, symbols, types, ctx)?;
                 for field_id in fields {
-                    self.analyze_pattern_field(
+                    self.infer_pattern_field(
                         module,
                         *field_id,
                         Some(ty_id),
@@ -1961,7 +1961,7 @@ impl Compiler {
             }
             Pattern::Union { patterns } => {
                 for pattern_id in patterns {
-                    self.analyze_pattern(
+                    self.infer_pattern(
                         module,
                         *pattern_id,
                         binding_ty_id,
@@ -1978,7 +1978,7 @@ impl Compiler {
     }
 
     /// Analyze a sequence of pattern fields (with spread syntax support).
-    fn analyze_pattern_sequence(
+    fn infer_pattern_sequence(
         &self,
         module: &Module,
         fields: &Vec<LocalNodeId<PatternField>>,
@@ -1987,7 +1987,7 @@ impl Compiler {
         tree: &NodeTree,
         symbols: &SymbolTable,
         types: &mut TypeTable,
-        ctx: &mut TypeContext,
+        ctx: &mut InferContext,
     ) -> AnalyzeResult<()> {
         let binding_ty_fields = binding_ty_id
             .and_then(|ty_id| match types.get_type(ty_id) {
@@ -2022,13 +2022,13 @@ impl Compiler {
                     None
                 }
             };
-            self.analyze_pattern_field(module, *field_id, field_ty, tree, symbols, types, ctx)?;
+            self.infer_pattern_field(module, *field_id, field_ty, tree, symbols, types, ctx)?;
         }
         Ok(())
     }
 
-    /// Analyze a pattern field and propagate type to bound symbol.
-    fn analyze_pattern_field(
+    /// Infer a pattern field and propagate type to bound symbol.
+    fn infer_pattern_field(
         &self,
         module: &Module,
         field_id: LocalNodeId<PatternField>,
@@ -2036,7 +2036,7 @@ impl Compiler {
         tree: &NodeTree,
         symbols: &SymbolTable,
         types: &mut TypeTable,
-        ctx: &mut TypeContext,
+        ctx: &mut InferContext,
     ) -> AnalyzeResult<()> {
         let field = tree.get(field_id);
         match field {
@@ -2051,7 +2051,7 @@ impl Compiler {
                     types.set_value_type(symbol.into_global(module.id), ty_id);
                 }
                 if let Some(pattern_id) = pattern {
-                    self.analyze_pattern(
+                    self.infer_pattern(
                         module,
                         *pattern_id,
                         binding_ty_id,
@@ -2073,11 +2073,11 @@ impl Compiler {
                     types.set_value_type(symbol.into_global(module.id), ty_id);
                 }
                 if let Some(default) = default {
-                    self.analyze_expression(module, *default, tree, symbols, types, ctx)?;
+                    self.infer_expression(module, *default, tree, symbols, types, ctx)?;
                 }
             }
             PatternField::Positional { pattern } => {
-                self.analyze_pattern(module, *pattern, binding_ty_id, tree, symbols, types, ctx)?;
+                self.infer_pattern(module, *pattern, binding_ty_id, tree, symbols, types, ctx)?;
             }
             PatternField::Spread {
                 mutability: _,
@@ -2095,8 +2095,8 @@ impl Compiler {
         Ok(())
     }
 
-    /// Analyze a declarator.
-    fn analyze_declarator(
+    /// Infer a declarator.
+    fn infer_declarator(
         &self,
         module: &Module,
         declarator_id: LocalNodeId<Declarator>,
@@ -2104,7 +2104,7 @@ impl Compiler {
         tree: &NodeTree,
         symbols: &SymbolTable,
         types: &mut TypeTable,
-        ctx: &mut TypeContext,
+        ctx: &mut InferContext,
     ) -> AnalyzeResult<()> {
         let declarator = tree.get(declarator_id);
         let Declarator { pattern, ty, value } = declarator;
@@ -2114,7 +2114,7 @@ impl Compiler {
         let declared_ty_id =
             types.get_declared_type_id(declarator_id.into_global(module.id).into());
         let inferred_ty_id = if let Some(value) = value {
-            Some(self.analyze_expression(module, *value, tree, symbols, types, ctx)?)
+            Some(self.infer_expression(module, *value, tree, symbols, types, ctx)?)
         } else {
             None
         };
@@ -2139,11 +2139,11 @@ impl Compiler {
 
         // analyze the type expression if present
         if let Some(ty_id) = ty {
-            self.analyze_expression(module, *ty_id, tree, symbols, types, ctx)?;
+            self.infer_expression(module, *ty_id, tree, symbols, types, ctx)?;
         }
 
         let binding_ty_id = declared_ty_id.or(inferred_ty_id);
-        self.analyze_pattern(module, *pattern, binding_ty_id, tree, symbols, types, ctx)?;
+        self.infer_pattern(module, *pattern, binding_ty_id, tree, symbols, types, ctx)?;
 
         Ok(())
     }
@@ -2677,6 +2677,6 @@ const b = getB();
         test.analyze_module(module_id);
         test.compile_dump_clean();
 
-        // nocheckin
+        // nocheckin: implement test fully, add another with circular type references
     }
 }

@@ -172,9 +172,9 @@ impl TestProgram {
         self.enqueue(ResolveTask::ResolveModule { module });
     }
 
-    /// Enqueue Analyze task for a module.
+    /// Enqueue Analyze task for a module (runs all phases: Declare, Infer, Check).
     pub fn analyze_module(&self, module: ModuleId) {
-        self.enqueue(AnalyzeTask::AnalyzeModule { module });
+        self.enqueue(AnalyzeTask::AnalyzeModuleCheck { module });
     }
 
     /// Enqueue a task (does not run it).

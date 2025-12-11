@@ -14,7 +14,7 @@ impl Compiler {
         module: &Module,
         ty_id: LocalTypeId,
         tree: &mut NodeTree,
-        symbols: &mut SymbolTable,
+        symbols: &SymbolTable,
         types: &mut TypeTable,
     ) -> AnalyzeResult<()> {
         let expression_id = {
@@ -46,7 +46,7 @@ impl Compiler {
         module: &Module,
         expression_id: LocalNodeId<Expression>,
         tree: &mut NodeTree,
-        symbols: &mut SymbolTable,
+        symbols: &SymbolTable,
         types: &mut TypeTable,
     ) -> AnalyzeResult<Type> {
         let ty = self
@@ -61,7 +61,7 @@ impl Compiler {
         module: &Module,
         expression_id: LocalNodeId<Expression>,
         tree: &mut NodeTree,
-        symbols: &mut SymbolTable,
+        symbols: &SymbolTable,
         types: &mut TypeTable,
     ) -> AnalyzeResult<LocalTypeId> {
         let ty = self.try_evaluate_expression_to_type_value(
@@ -80,7 +80,7 @@ impl Compiler {
         module: &Module,
         expression_id: LocalNodeId<Expression>,
         tree: &mut NodeTree,
-        symbols: &mut SymbolTable,
+        symbols: &SymbolTable,
         types: &mut TypeTable,
     ) -> AnalyzeResult<Option<Type>> {
         let expression = tree.get(expression_id);

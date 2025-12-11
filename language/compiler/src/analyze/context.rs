@@ -2,9 +2,9 @@ use std::collections::HashMap;
 
 use destack_dir::{GlobalSymbolId, LocalTypeId};
 
-/// TypeContext holds contextual, flow-sensitive information during type analysis.
+/// InferContext holds contextual, flow-sensitive information during type analysis.
 #[derive(Debug, Clone)]
-pub struct TypeContext {
+pub struct InferContext {
     /// Type narrowings currently in scope.
     /// For example, after `if (typeof x === "number")`, `x` maps to `number`.
     pub narrowings: HashMap<GlobalSymbolId, LocalTypeId>,
@@ -12,7 +12,7 @@ pub struct TypeContext {
     pub is_unreachable: bool,
 }
 
-impl TypeContext {
+impl InferContext {
     /// Create a new empty context.
     pub fn new() -> Self {
         Self {
@@ -46,7 +46,7 @@ impl TypeContext {
     }
 
     /// Merge two "branched" context together.
-    pub fn merge(&mut self, other: &TypeContext) {
+    pub fn merge(&mut self, other: &InferContext) {
         // if neither is unreachable
         if self.is_unreachable && other.is_unreachable {
             // both unreachable, stay unreachable
@@ -70,7 +70,7 @@ impl TypeContext {
     }
 }
 
-impl Default for TypeContext {
+impl Default for InferContext {
     fn default() -> Self {
         Self::new()
     }
