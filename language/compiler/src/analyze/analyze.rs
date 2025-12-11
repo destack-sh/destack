@@ -1,10 +1,10 @@
 use crate::{AnalyzeError, AnalyzeResult, Assignability, Compiler, TypeContext};
 use destack_dir::{
     Argument, Block, Declaration, Declarator, DependencyItem, DynamicKey, EnumField, Expression,
-    FunctionSignature, Generics, GlobalSymbolId, GlobalTypeId, Heritage, LocalNodeId,
-    LocalNodeIdAny, LocalTypeId, MatchCase, NodeTree, Parameter, Pattern, PatternField,
-    PrimitiveType, Property, StaticKey, SymbolTable, Type, TypeField, TypeKind, TypeLiteral,
-    TypeTable, WhereClause,
+    FunctionSignature, Generics, GlobalSymbolId, GlobalTypeId, Heritage, Lineage, LocalNodeId,
+    LocalNodeIdAny, LocalSymbolId, LocalTypeId, MatchCase, NodeTree, Parameter, Pattern,
+    PatternField, PrimitiveType, Property, StaticKey, SymbolTable, Type, TypeField, TypeKind,
+    TypeLiteral, TypeTable, WhereClause,
 };
 use destack_workspace::Module;
 
@@ -1031,7 +1031,16 @@ impl Compiler {
             } => {
                 // walk
                 self.analyze_generics(module, generics, tree, symbols, types, ctx)?;
-                self.analyze_heritage(module, heritage, tree, symbols, types, ctx)?;
+                self.analyze_heritage(
+                    module,
+                    heritage,
+                    declaration_id.into_any(),
+                    Some(descriptor.symbol),
+                    tree,
+                    symbols,
+                    types,
+                    ctx,
+                )?;
                 for property_id in properties {
                     self.analyze_property(module, *property_id, tree, symbols, types, ctx)?;
                 }
@@ -1062,7 +1071,16 @@ impl Compiler {
             } => {
                 // walk
                 self.analyze_generics(module, generics, tree, symbols, types, ctx)?;
-                self.analyze_heritage(module, heritage, tree, symbols, types, ctx)?;
+                self.analyze_heritage(
+                    module,
+                    heritage,
+                    declaration_id.into_any(),
+                    Some(descriptor.symbol),
+                    tree,
+                    symbols,
+                    types,
+                    ctx,
+                )?;
                 for property_id in properties {
                     self.analyze_property(module, *property_id, tree, symbols, types, ctx)?;
                 }
@@ -1094,7 +1112,16 @@ impl Compiler {
             } => {
                 // walk
                 self.analyze_generics(module, generics, tree, symbols, types, ctx)?;
-                self.analyze_heritage(module, heritage, tree, symbols, types, ctx)?;
+                self.analyze_heritage(
+                    module,
+                    heritage,
+                    declaration_id.into_any(),
+                    Some(descriptor.symbol),
+                    tree,
+                    symbols,
+                    types,
+                    ctx,
+                )?;
                 for field_id in fields {
                     self.analyze_enum_field(module, *field_id, tree, symbols, types, ctx)?;
                 }
@@ -1131,7 +1158,16 @@ impl Compiler {
                 // walk
                 self.analyze_generics(module, generics, tree, symbols, types, ctx)?;
                 self.analyze_expression(module, *target_type, tree, symbols, types, ctx)?;
-                self.analyze_heritage(module, heritage, tree, symbols, types, ctx)?;
+                self.analyze_heritage(
+                    module,
+                    heritage,
+                    declaration_id.into_any(),
+                    None,
+                    tree,
+                    symbols,
+                    types,
+                    ctx,
+                )?;
                 for property_id in properties {
                     self.analyze_property(module, *property_id, tree, symbols, types, ctx)?;
                 }
@@ -1147,7 +1183,16 @@ impl Compiler {
             } => {
                 // walk
                 self.analyze_generics(module, generics, tree, symbols, types, ctx)?;
-                self.analyze_heritage(module, heritage, tree, symbols, types, ctx)?;
+                self.analyze_heritage(
+                    module,
+                    heritage,
+                    declaration_id.into_any(),
+                    Some(descriptor.symbol),
+                    tree,
+                    symbols,
+                    types,
+                    ctx,
+                )?;
                 for property_id in properties {
                     self.analyze_property(module, *property_id, tree, symbols, types, ctx)?;
                 }
@@ -1296,26 +1341,73 @@ impl Compiler {
         &self,
         module: &Module,
         heritage: &Heritage,
+        node_id: LocalNodeIdAny,
+        symbol: Option<LocalSymbolId>,
         tree: &NodeTree,
         symbols: &SymbolTable,
         types: &mut TypeTable,
         ctx: &mut TypeContext,
     ) -> AnalyzeResult<()> {
+        // analyze and extract extends symbols
+        let mut extends_symbols = Vec::new();
         if let Some(extend_types) = &heritage.extends_types {
             for expression_id in extend_types {
                 self.analyze_expression(module, *expression_id, tree, symbols, types, ctx)?;
+                let expression = tree.get(*expression_id);
+                if let Some(target_symbol) = expression.target_symbol() {
+                    extends_symbols.push(target_symbol);
+                }
             }
         }
+
+        // analyze and extract implements symbols
+        let mut implements_symbols = Vec::new();
         if let Some(implements_types) = &heritage.implements_types {
             for expression_id in implements_types {
                 self.analyze_expression(module, *expression_id, tree, symbols, types, ctx)?;
+                let expression = tree.get(*expression_id);
+                if let Some(target_symbol) = expression.target_symbol() {
+                    implements_symbols.push(target_symbol);
+                }
             }
         }
+
+        // analyze and extract embedded symbols
+        let mut embedded_symbols = Vec::new();
         if let Some(embedded_types) = &heritage.embedded_types {
             for expression_id in embedded_types {
                 self.analyze_expression(module, *expression_id, tree, symbols, types, ctx)?;
+                let expression = tree.get(*expression_id);
+                if let Some(target_symbol) = expression.target_symbol() {
+                    embedded_symbols.push(target_symbol);
+                }
             }
         }
+
+        // build and store lineage if we have a declaring symbol
+        if let Some(symbol) = symbol {
+            // check lineage
+            if extends_symbols.len() > 1 {
+                self.error(AnalyzeError::InvalidLineage {
+                    node: node_id.into_global(module.id),
+                    extends_symbols: extends_symbols.clone(),
+                    implements_symbols: implements_symbols.clone(),
+                    embedded_symbols: embedded_symbols.clone(),
+                });
+            }
+
+            // remember lineage
+            let lineage = Lineage {
+                extends: extends_symbols.first().copied(),
+                implements: implements_symbols,
+                embedded: embedded_symbols,
+            };
+            if !lineage.is_empty() {
+                let lineage_id = types.insert_lineage(lineage);
+                types.set_lineage_for_symbol(symbol.into_global(module.id), lineage_id);
+            }
+        }
+
         Ok(())
     }
 

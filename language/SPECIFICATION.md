@@ -1348,6 +1348,33 @@ Operators with an interface in the table below desugar to method calls on the le
 The receiver type determines which implementation "family" to look at, and the right operand type selects the specific overload within that family.
 For example, `Vector2` can implement both `Add<Vector2>` and `Add<float>` for vector addition and scalar addition respectively.
 
+### Explicit Operator Overloading
+
+Operator interfaces use **explicit dispatch**: the operator only overloads to the method call when the type explicitly declares `implements` for the operator interface.
+This prevents accidental operator overloading from types that happen to have a structurally-compatible method.
+(We treat such interfaces as nominal traits, which is a tradeoff against introducing even more concepts.)
+
+```
+// Foo has an `add` method but doesn't implement Add<T>
+struct Foo {
+    add(other: Foo): Foo { ... }
+}
+
+const a = Foo { };
+const b = Foo { };
+a + b;        // error: Foo does not implement Add
+a.add(b);     // ok: direct method call works
+
+// Foo explicitly implements Add<T>
+extension Foo implements Add<Foo> {
+    add(other: Foo): Foo { ... }
+}
+
+a + b;        // ok: Foo implements Add<Foo>
+```
+
+This rule applies to all operator interfaces.
+
 ### Arithmetic
 
 Standard arithmetic operators, all overloadable:

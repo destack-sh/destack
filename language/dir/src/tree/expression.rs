@@ -438,6 +438,16 @@ impl Expression {
             _ => None,
         }
     }
+
+    /// Get the target symbol of the expression.
+    pub fn target_symbol(&self) -> Option<GlobalSymbolId> {
+        match self {
+            Expression::LocalReference { target_symbol, .. } => Some(*target_symbol),
+            Expression::ModuleReference { target_symbol, .. } => Some(*target_symbol),
+            Expression::GlobalReference { target_symbol, .. } => Some(*target_symbol),
+            _ => None,
+        }
+    }
 }
 
 /// Static value form of an expression in some static context.

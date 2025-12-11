@@ -1,13 +1,15 @@
 # Conformance Test Status
 
-**Blended Conformance**: 79.9% (5918/7405 tests passing)
+**Blended Conformance**: 80.5% (5961/7405 tests passing)
 
 | Suite    | Passed | Failed | Total |  Rate   |
 |:---------|-------:|-------:|------:|--------:|
-| test262  |  4480  |   883  |  5363 |  83.5%  |
-| babel    |   516  |   204  |   720 |  71.7%  |
-| swc      |   523  |   162  |   685 |  76.4%  |
-| biome    |   399  |   238  |   637 |  62.6%  |
+| test262  |  4519  |   844  |  5363 |  84.3%  |
+| babel    |   511  |   209  |   720 |  71.0%  |
+| swc      |   522  |   163  |   685 |  76.2%  |
+| biome    |   409  |   228  |   637 |  64.2%  |
+
+**Note:** Flow support is intentionally excluded. We support TypeScript only.
 
 ## Recent Progress
 
@@ -23,7 +25,6 @@
 | **Labeled statements**       |     ~83     | AST, Parser, DIR, Compiler       |
 | **break/continue labels**    |      ~3     | Biome tests fixed                |
 | **Invalid escape sequences** |     ~10     | `lex.rs`, `token.rs`             |
-| **Total**                    |  **~297**   |                                  |
 
 **Details:**
 - `do stmt; while(cond)` now works without requiring braces
@@ -39,211 +40,211 @@
 
 **Note:** Some semantic restrictions (lexical declarations in single-statement context, `this` in for-of, etc.) are deferred to the semantic analysis pass.
 
-### Next Up
+---
 
-The following fixes are prioritized by impact and difficulty. Work in this order:
+## Key Missing Features & Misbehaviors
 
-#### 1. ~~Invalid Escape Sequences~~ ✅ Done
+### 1. Static Initialization Blocks (~25 tests) - **HIGH PRIORITY**
 
-Basic validation implemented: `\8`, `\9`, and octal escapes in template literals now rejected.
-Remaining: strict mode octal validation, regex unicode escape validation (deferred to semantic pass).
+Class static blocks (ES2022) are not supported. This is the single highest-impact fix.
 
-#### 2. Generator/Yield Issues (~60 tests across suites)
+```typescript
+class Foo {
+  static x: number;
+  static {
+    this.x = computeValue();  // static initialization block
+  }
+  static {}  // multiple blocks allowed
+}
+```
 
-**Problem**: JavaScript generators have complex `yield` semantics we don't fully handle.
+**Affected suites:** babel (~13), swc (~8), biome (~4)
+**Files:** `class.rs`, AST definitions
 
-**yield without value** (ASI complexity):
+### 2. Yield/Generator Issues (~75 tests) - **HIGH PRIORITY**
+
+JavaScript generators have complex `yield` semantics we don't fully handle.
+
+**yield without value (ASI):**
 ```javascript
 function* a() { yield }      // valid - yields undefined
-function* a() {
-    yield      // yields undefined (ASI inserts semicolon)
-    foo()      // separate statement
-}
-function* a() { yield foo() }  // yields result of foo()
+function* a() { yield *b }   // yield* delegation
+function *a() { yield *yield } // yield* with yield as operand
 ```
 
-**yield* delegation**:
+**yield as identifier in generators (should reject):**
 ```javascript
-function* a() { yield* b }   // delegates to another iterator
-function* a() { yield *b }   // same thing (space before *)
+function *g() { var yield; }        // INVALID - we accept
+function *g(){ (yield) => 42 }      // INVALID - we accept
 ```
 
-**yield in nested contexts**:
-```javascript
-function* a() { ({get b(){ yield }}) }  // yield inside getter inside generator
-function* a() { (class extends (yield) {}) }  // yield as superclass expression
+**Files:** `expression.rs` (yield parsing), `function.rs` (generator context)
+
+### 3. TypeScript Import Equals (~18 tests) - **MEDIUM PRIORITY**
+
+TypeScript-specific import syntax not supported:
+
+```typescript
+import A = B.C;              // import equals
+import a = require("a");     // import require
+export import A = B.C;       // export import equals
+import type A = B.C;         // type import equals
 ```
 
-**Files**: `expression.rs` (yield parsing), `function.rs` (generator context tracking)
+**Files:** `import.rs`, AST definitions
 
-#### 3. TypeScript Class Features (~50 tests)
+### 4. Invalid JS We Accept (~383 fail tests)
 
-**Problem**: TypeScript classes have many modifiers and features beyond standard JS.
+The parser accepts many invalid JavaScript programs. Key categories:
 
-**Modifiers and ordering**:
+| Pattern | Count | Example | Fix Type |
+|---------|-------|---------|----------|
+| **Yield semantic** | ~26 | `function *g() { var yield; }` | Parser context |
+| **Octal strict mode** | ~11 | `'use strict'; 08` | Semantic pass |
+| **Regex edge cases** | ~9 | `/42` | Lexer fix |
+| **Reserved fn names** | ~4 | `function null() {}` | Parser validation |
+| **Invalid LHS** | ~4 | `3 = 4`, `(1+1) = 10` | Parser validation |
+| **Return outside fn** | ~3 | `{ return; }` | Parser context |
+| **new.prop invalid** | ~6 | `new.prop` (only `new.target` valid) | Parser fix |
+| **Rest not last** | ~20 | `[...x, y] = 0` | Parser validation |
+
+### 5. TypeScript Class Features (~30 tests)
+
+**accessor keyword (ES2022 auto-accessors):**
 ```typescript
 class Foo {
-    public static readonly x: number;     // multiple modifiers
-    private abstract foo(): void;         // abstract methods
-    protected override bar() {}           // override keyword
-    accessor myProp: string;              // auto-accessor (ES2022+)
+  accessor prop: number = 1;
+  static accessor prop2: number;
+  abstract accessor prop3: number;
 }
 ```
 
-**Static blocks** (ES2022+):
+**Modifier ordering validation:**
 ```typescript
 class Foo {
-    static x: number;
-    static {
-        this.x = computeValue();  // static initialization block
-    }
+  override private foo: string;     // should error: wrong order
+  readonly private foo2: string;    // should error: wrong order
 }
 ```
 
-**Parameter properties**:
+### 6. TypeScript Type Assertions (~21 tests)
+
 ```typescript
-class Foo {
-    constructor(public x: number, private y: string) {}
-}
+<T>() => {};           // type assertion in arrow (TSX ambiguity)
+(a as T) => {};        // as in arrow param (invalid)
+<number> 1;            // type assertion expression
+(<number>x) = null     // type assertion + assignment
 ```
 
-**Files**: `class.rs`, `function.rs` (for constructor parameter properties)
+### 7. JSX Edge Cases (~24 tests)
 
-#### Future Work
+```jsx
+<a:b />               // namespaced tags (not supported)
+<!-- comment -->      // HTML comments in JSX
+&entity;              // HTML entity handling
+```
 
-| Feature | Tests | Required Changes |
-|---------|-------|------------------|
-| Reserved words as keys | ~20 | Allow keywords in property names |
-| Spread/rest patterns | ~30 | Parser updates |
-| TypeScript imports | ~25 | `import =` syntax, `import type` |
-| Type assertions | ~25 | `<Type>expr`, `as` edge cases |
+---
 
-## Test262 Failures (883 tests)
-
-Test262 is the official JavaScript conformance suite. Failures are categorized by type:
+## Test262 Failures (844 tests)
 
 | Category | Description | Count |
 |----------|-------------|-------|
-| pass | Valid JS we're rejecting | 367 |
-| pass-explicit | Valid modules we're rejecting | 327 |
-| fail | Invalid JS we're accepting | 379 |
-| early | Valid JS with semantic errors we're rejecting | 140 |
+| pass | Valid JS we reject | 211 |
+| pass-explicit | Valid modules we reject | 156 |
+| fail | Invalid JS we accept | 383 |
+| early | Semantic errors we miss | 94 |
 
-### Pattern Analysis
-
-**PASS/PASS-EXPLICIT failures** (valid JS we reject, ~694 tests):
-
-| Pattern | Count | Example | Fix Difficulty |
-|---------|-------|---------|----------------|
-| Labeled statements | ~100 | `a: while (true) { break a }` | Medium |
-| Generator/yield | ~70 | `function* a() { yield }` | Medium |
-| for-of/for-in | ~100 | `for (var {a, b} in c);` | Medium |
-| for destructuring | ~40 | `for ([a,b] in c);` | Medium |
-| do-while edge cases | ~30 | `do continue; while (true)` | Easy |
-| new without parens | ~30 | `new Foo` (vs `new Foo()`) | Easy |
-| Spread/rest patterns | ~30 | `(a, ...[]) => 1` | Medium |
-| Arrow functions | ~15 | Edge cases | Easy |
-
-**FAIL failures** (invalid JS we accept, ~379 tests):
-
-| Pattern | Count | Example | Fix Difficulty |
-|---------|-------|---------|----------------|
-| Unterminated comment | 10 | `/*` without `*/` | Easy |
-| Invalid LHS | ~50 | `3 = 4` | Medium |
-| Return outside function | ~30 | `{ return; }` | Easy |
-| Reserved word misuse | ~30 | `var enum = 1` | Medium |
-| Regex edge cases | ~20 | `/42` | Medium |
-| Invalid spread | ~40 | `[{a=0},...0]` | Medium |
-
-**EARLY failures** (semantic errors we miss, ~140 tests):
+### Pass Failures (367 tests) - Valid JS We Reject
 
 | Pattern | Count | Example |
 |---------|-------|---------|
-| yield in non-generator | ~30 | `function a() { yield 1 }` |
-| for-in/of duplicates | ~30 | `for (const {a, a} of 1);` |
-| Labeled break/continue | ~15 | `a: continue a;` |
+| yield/yield* | ~49 | `yield *a`, ASI with yield |
+| for-in/of destructuring | ~17 | `for([a,b[a]] in 3);` |
+| Spread/rest patterns | ~30 | `(...[]) => 1` |
+| class extends | ~14 | `class extends b {}` |
 
-## Babel Failures (204 tests)
+### Fail Failures (383 tests) - Invalid JS We Accept
 
-Babel tests focus on TypeScript and JSX (Flow is intentionally excluded):
+Most require parser-level validation or semantic analysis:
+- Yield context validation (~26)
+- Strict mode restrictions (~40)
+- LHS validation (~50)
+- Control flow scope (~15)
 
-| Category | Count | Notes |
-|----------|-------|-------|
-| TypeScript | ~180 | TS-specific syntax |
-| JSX | ~24 | JSX edge cases |
+### Early Failures (94 tests) - Semantic Errors
 
-### TypeScript Issues (~180 tests)
+These parse correctly but should fail semantic analysis:
+- yield in non-generator (~20)
+- Duplicate bindings (~15)
+- Labeled break/continue scope (~10)
 
-| Subcategory | Count | Priority |
-|-------------|-------|----------|
-| class | 30 | High - modifiers, abstract, etc. |
-| types | 24 | Medium - complex type syntax |
-| cast | 21 | High - type assertions |
-| import | 18 | High - import equals, type imports |
-| static-blocks | 13 | Medium |
-| type-arguments | 13 | High - generics parsing |
-| arrow-function | 10 | High - generic arrows |
-| declare | 10 | Medium |
+---
 
-## SWC Failures (162 tests)
+## Babel Failures (209 tests)
 
-SWC tests overlap significantly with Babel. Key areas:
-- TypeScript features: ~100
-- JSX: ~40
-- JS edge cases: ~27
+| Category | Count | Priority |
+|----------|-------|----------|
+| static-blocks | 13 | **High** |
+| import equals | 18 | **High** |
+| class features | 30 | Medium |
+| cast/assertions | 21 | Medium |
+| type-arguments | 13 | Medium |
+| arrow-function | 10 | Medium |
+| JSX | 24 | Low |
 
-## Biome Failures (238 tests)
+---
+
+## Biome Failures (228 tests)
 
 | Category | Count | Description |
 |----------|-------|-------------|
-| ok/ | 102 | Valid code we reject |
-| error/ | 140 | Invalid code we accept |
+| error/ | 147 | Invalid code we accept |
+| ok/ | 81 | Valid code we reject |
 
-### Semantic Validation Missing (error/ tests):
-
-- `abstract_class_in_js.js` - Abstract classes in JS
-- `await_in_non_async_function.js` - Await outside async
-- `break_in_nested_function.js` - Break scope validation
-- `return_stmt_err.js` - Return validation
-- `class_constructor_parameter.js` - Constructor parameters
-- Many TypeScript-specific semantic checks
+Key error/ patterns we should reject:
+- `abstract class` in JS files
+- `await` outside async function
+- `break`/`continue` in nested functions
+- TypeScript modifiers in wrong context
 
 ---
 
-## Completed Fixes
+## Roadmap
 
-| Fix | Tests | Effort | Files |
-|-----|-------|--------|-------|
-| Unterminated comment | 10 | 1h | lex.rs |
-| new without parens | 30 | 2h | call.rs |
-| do-while single stmt | 30 | 2h | block.rs, loop.rs |
-| for/while single stmt | ~47 | 1h | loop.rs |
-| Empty statement loops | ~157 | 0.5h | block.rs |
-| Labeled statements | ~83 | 4h | AST, Parser, DIR, Compiler |
-| **Total** | **~287** | | |
+### Phase 1: High-Impact Parsing Fixes
+
+| Feature | Tests | Complexity |
+|---------|-------|------------|
+| **Static blocks** | ~25 | Medium |
+| **yield/yield*** | ~49 | Medium |
+| **Import equals** | ~18 | Low |
+
+### Phase 2: Validation & TypeScript
+
+| Feature | Tests | Notes |
+|---------|-------|-------|
+| accessor keyword | ~15 | ES2022 auto-accessors |
+| Type assertions | ~25 | `<Type>expr` edge cases |
+| Invalid LHS | ~50 | `3 = 4` validation |
+| Reserved words | ~30 | Function names, imports |
+
+### Phase 3: Semantic Analysis Pass
+
+Adding a compile/semantic step to conformance tests would catch:
+- yield/await context errors (~50)
+- Strict mode violations (~40)
+- Duplicate binding detection (~30)
+- Control flow scope validation (~20)
+
+```rust
+// Current: parse only
+let outcome = parse_file(&path, &content, file_type, options);
+
+// Future: parse + semantic analysis
+let module = parse_file(&path, &content, file_type, options)?;
+let outcome = analyze_semantics(&module, analysis_options);
+```
 
 ---
 
-## Recommended Roadmap
-
-Work in this order (see "Next Up" section above for details):
-
-### Phase 1: Validation & Core JS (Current)
-1. ✅ Labeled statements - Done
-2. ✅ Loop single statements - Done
-3. **Invalid escape sequences** (~39 tests) - lexer validation
-4. **Generator/yield** (~60 tests) - ASI handling, yield* delegation
-
-### Phase 2: TypeScript Features
-1. **TypeScript class features** (~50 tests) - modifiers, static blocks
-2. TypeScript imports (~25 tests) - `import =` syntax
-3. Type assertions (~25 tests) - `<Type>expr`, `as` edge cases
-4. Generic arrow functions (~10 tests)
-
-### Phase 3: Remaining Validation
-1. Invalid LHS (`3 = 4`) - ~50 tests
-2. Reserved word validation - ~30 tests
-3. Spread/rest validation - ~30 tests
-4. Return outside function - semantic pass
-
-**Note:** Flow support is intentionally excluded. We support TypeScript only.

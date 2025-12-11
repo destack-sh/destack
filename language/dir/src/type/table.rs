@@ -3,8 +3,8 @@ use indexmap::IndexMap;
 use destack_source::ModuleId;
 
 use crate::{
-    Arena, GlobalNodeIdAny, GlobalSymbolId, Instance, LocalInstanceId, LocalNodeId, LocalNodeIdAny,
-    LocalResolutionId, LocalTypeId, Node, Resolution, Type,
+    Arena, GlobalNodeIdAny, GlobalSymbolId, Instance, Lineage, LocalInstanceId, LocalLineageId,
+    LocalNodeId, LocalNodeIdAny, LocalResolutionId, LocalTypeId, Node, Resolution, Type,
 };
 
 /// TypeTable stores all type-related analysis results for a module. NOT THREAD-SAFE.
@@ -44,6 +44,14 @@ pub struct TypeTable {
     pub(crate) resolutions: Arena<Resolution>,
     /// The resolution used by node ids.
     pub(crate) resolution_by_node_id: IndexMap<GlobalNodeIdAny, LocalResolutionId>,
+
+    // lineages (resolved inheritance for nominal types)
+    /// The next lineage id to allocate.
+    pub(crate) next_lineage_id: u32,
+    /// The lineages.
+    pub(crate) lineages: Arena<Lineage>,
+    /// The lineage by symbol id (for type declarations: their resolved heritage).
+    pub(crate) lineage_by_symbol_id: IndexMap<GlobalSymbolId, LocalLineageId>,
 }
 
 impl TypeTable {
@@ -67,6 +75,10 @@ impl TypeTable {
             next_resolution_id: 0,
             resolutions: Arena::new(),
             resolution_by_node_id: IndexMap::new(),
+            // lineages
+            next_lineage_id: 0,
+            lineages: Arena::new(),
+            lineage_by_symbol_id: IndexMap::new(),
         }
     }
 
@@ -250,5 +262,44 @@ impl TypeTable {
     /// Get the resolution used by a node id.
     pub fn get_resolution_for_node(&self, node_id: GlobalNodeIdAny) -> Option<LocalResolutionId> {
         self.resolution_by_node_id.get(&node_id).copied()
+    }
+
+    /// Insert a new lineage.
+    pub fn insert_lineage(&mut self, lineage: Lineage) -> LocalLineageId {
+        let lineage_id = LocalLineageId::new(self.next_lineage_id);
+        self.next_lineage_id += 1;
+        self.lineages.allocate(lineage);
+        lineage_id
+    }
+
+    /// Get a lineage by its id.
+    pub fn get_lineage(&self, lineage_id: LocalLineageId) -> &Lineage {
+        self.lineages.get(lineage_id.0)
+    }
+
+    /// Get a mutable lineage by its id.
+    pub fn get_lineage_mut(&mut self, lineage_id: LocalLineageId) -> &mut Lineage {
+        self.lineages.get_mut(lineage_id.0)
+    }
+
+    /// Set the lineage for a symbol (type declaration).
+    pub fn set_lineage_for_symbol(
+        &mut self,
+        symbol_id: GlobalSymbolId,
+        lineage_id: LocalLineageId,
+    ) {
+        self.lineage_by_symbol_id.insert(symbol_id, lineage_id);
+    }
+
+    /// Get the lineage id for a symbol.
+    pub fn get_lineage_id_for_symbol(&self, symbol_id: GlobalSymbolId) -> Option<LocalLineageId> {
+        self.lineage_by_symbol_id.get(&symbol_id).copied()
+    }
+
+    /// Get the lineage for a symbol directly.
+    pub fn get_lineage_for_symbol(&self, symbol_id: GlobalSymbolId) -> Option<&Lineage> {
+        self.lineage_by_symbol_id
+            .get(&symbol_id)
+            .map(|id| self.lineages.get(id.0))
     }
 }
