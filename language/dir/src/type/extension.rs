@@ -65,14 +65,14 @@ impl Display for LocalExtensionId {
 /// This determines visibility rules for the extension's members.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ExtensionKind {
-    /// Extension defined in same module as target type.
+    /// Inherent extension defined in same module as target type.
     /// Automatically visible wherever the type is used.
-    Native,
-    /// Anonymous extension on a foreign type.
-    /// Only visible in the defining file.
-    Anonymous,
+    Inherent,
+    /// Local extension on a foreign type.
+    /// Only visible in the defining module.
+    Local,
     /// Named extension on a foreign type.
-    /// Must be explicitly imported to use.
+    /// Must be explicitly imported to use (outside of the defining module).
     Named,
 }
 
@@ -84,13 +84,13 @@ pub enum ExtensionKind {
 /// ### Example
 ///
 /// ```text
-/// // Native extension (same module as Vector2)
+/// // native extension (same module as Vector2)
 /// struct Vector2 { x: float, y: float }
 /// extension Vector2 implements Add<Vector2> {
 ///     add(other: Vector2): Vector2 { ... }
 /// }
 ///
-/// // Named extension (on foreign type)
+/// // named extension (on foreign type)
 /// export extension DateHelpers: Date {
 ///     isWeekend(): boolean { ... }
 /// }
@@ -126,7 +126,7 @@ impl Extension {
 
     /// Check if this extension is native (defined in same module as target).
     pub fn is_native(&self) -> bool {
-        matches!(self.kind, ExtensionKind::Native)
+        matches!(self.kind, ExtensionKind::Inherent)
     }
 
     /// Check if this extension is named (can be exported/imported).
@@ -136,6 +136,6 @@ impl Extension {
 
     /// Check if this extension is anonymous.
     pub fn is_anonymous(&self) -> bool {
-        matches!(self.kind, ExtensionKind::Anonymous)
+        matches!(self.kind, ExtensionKind::Local)
     }
 }

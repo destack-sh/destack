@@ -608,7 +608,7 @@ mod tests {
         TypeLiteral,
     };
 
-    use crate::{Assignability, TestProgram};
+    use crate::{Assignability, TestProgram, assert_type};
 
     /// Number is assignable to number.
     #[test]
@@ -1237,7 +1237,7 @@ let x: number = getNumber();
 
     /// Resolve member access on object literal to field type.
     #[test]
-    fn test_member_access_object_field() {
+    fn test_analyze_member_access_object_field() {
         let test = TestProgram::memory_sequential();
         let module_id = test.register_module(
             "test.ds",
@@ -1254,7 +1254,7 @@ let b = obj.y;
 
     /// Resolve member access across multiple fields.
     #[test]
-    fn test_member_access_multiple_fields() {
+    fn test_analyze_member_access_multiple_fields() {
         let test = TestProgram::memory_sequential();
         let module_id = test.register_module(
             "test.ds",
@@ -1272,7 +1272,7 @@ let c = obj.z;
 
     /// Resolve chained member access on nested objects.
     #[test]
-    fn test_member_access_chained() {
+    fn test_analyze_member_access_chained() {
         let test = TestProgram::memory_sequential();
         let module_id = test.register_module(
             "test.ds",
@@ -1288,7 +1288,7 @@ let a = obj.inner.value;
 
     /// int8 widens to int16, but not vice versa.
     #[test]
-    fn test_numeric_widening_int() {
+    fn test_analyze_numeric_widening_int() {
         let test = TestProgram::memory_sequential();
         let module_id = test.register_module("test.ds", "42");
         test.analyze_module(module_id);
@@ -1321,7 +1321,7 @@ let a = obj.inner.value;
 
     /// Signed integers cannot widen to unsigned (may lose negative values).
     #[test]
-    fn test_numeric_widening_signed_to_unsigned_not_allowed() {
+    fn test_analyze_numeric_widening_signed_to_unsigned_not_allowed() {
         let test = TestProgram::memory_sequential();
         let module_id = test.register_module("test.ds", "42");
         test.analyze_module(module_id);
@@ -1347,7 +1347,7 @@ let a = obj.inner.value;
 
     /// Verify lineage is created for classes with extends.
     #[test]
-    fn test_lineage_created_for_class_extends() {
+    fn test_analyze_lineage_created_for_class_extends() {
         let test = TestProgram::memory_sequential();
         let module_id = test.register_module(
             "test.ds",
@@ -1374,7 +1374,7 @@ class Dog extends Animal { breed: string }
 
     /// Verify lineage chain for multi-level inheritance.
     #[test]
-    fn test_lineage_chain_multilevel() {
+    fn test_analyze_lineage_chain_multilevel() {
         let test = TestProgram::memory_sequential();
         let module_id = test.register_module(
             "test.ds",
@@ -1418,7 +1418,7 @@ class Labrador extends Dog { color: string }
 
     /// Verify implements creates lineage entries.
     #[test]
-    fn test_lineage_created_for_implements() {
+    fn test_analyze_lineage_created_for_implements() {
         let test = TestProgram::memory_sequential();
         let module_id = test.register_module(
             "test.ds",
@@ -1466,7 +1466,7 @@ class Document implements Printable, Saveable {
 
     /// Verify extensions are registered in TypeTable with correct methods.
     #[test]
-    fn test_extension_registered_in_type_table() {
+    fn test_analyze_extension() {
         let test = TestProgram::memory_sequential();
         let module_id = test.register_module(
             "test.ds",
@@ -1495,7 +1495,83 @@ extension Point {
 
         // check extension kind is Native (same module as type)
         let extension = types.get_extension(extension_ids[0]);
-        assert_eq!(extension.kind, ExtensionKind::Native);
+        assert_eq!(extension.kind, ExtensionKind::Inherent);
         assert_eq!(extension.target, point_id);
+    }
+
+    /// Verify cross-module type annotations work.
+    #[test]
+    fn test_analyze_type_across_modules() {
+        let test = TestProgram::memory_sequential();
+        test.add_file("lib.ds", "export struct Vector2 { x: number, y: number }");
+        let module_id = test.register_module(
+            "main.ds",
+            r#"
+import { Vector2 } from "./lib.ds";
+
+declare function getVector(): Vector2;
+
+const v = getVector();
+"#,
+        );
+        test.analyze_module(module_id);
+        test.compile_dump_clean();
+
+        // v's type should be Type::Reference to Vector2 from lib.ds
+        let v_symbol = test.resolve_to_symbol("main.ds", "v").unwrap();
+        let module = test.program.modules.get(module_id);
+        let module = module.read();
+        let types = module.dir.types.read();
+        let v_ty_id = types
+            .get_value_type_id(v_symbol)
+            .expect("v should have value type");
+        assert_type!(types, v_ty_id, Type::Reference { symbol, .. } => {
+            assert_ne!(symbol.module_id, module_id, "should reference lib.ds type");
+        });
+    }
+
+    /// Verify cross-module inherent extension methods are visible.
+    #[test]
+    fn test_analyze_cross_module_inherent_extension() {
+        let test = TestProgram::memory_sequential();
+        test.add_file(
+            "lib.ds",
+            r#"
+export struct Vector2 { x: number, y: number }
+
+extension Vector2 {
+    length(): number { return 0 }
+}
+"#,
+        );
+        let module_id = test.register_module(
+            "main.ds",
+            r#"
+import { Vector2 } from "./lib.ds";
+
+declare function getVector(): Vector2;
+
+const v = getVector();
+const l = v.length();
+"#,
+        );
+        test.analyze_module(module_id);
+        test.compile_dump_clean();
+
+        // l should have type number (from extension method)
+        let l_symbol = test.resolve_to_symbol("main.ds", "l").unwrap();
+        let module = test.program.modules.get(module_id);
+        let module = module.read();
+        let types = module.dir.types.read();
+        let l_ty_id = types
+            .get_value_type_id(l_symbol)
+            .expect("l should have value type");
+        assert_type!(
+            types,
+            l_ty_id,
+            Type::TypeLiteral {
+                value: TypeLiteral::Primitive(PrimitiveType::Number)
+            }
+        );
     }
 }

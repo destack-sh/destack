@@ -1174,12 +1174,11 @@ impl Compiler {
                 // walk
                 self.analyze_generics(module, generics, tree, symbols, types, ctx)?;
                 self.analyze_expression(module, *target_type, tree, symbols, types, ctx)?;
-                // pass extension's symbol so lineage is stored (for implements clauses)
                 self.analyze_heritage(
                     module,
                     heritage,
                     declaration_id.into_any(),
-                    Some(descriptor.symbol),
+                    Some(descriptor.symbol), // (put lineage on extension symbol itself)
                     tree,
                     symbols,
                     types,
@@ -1197,25 +1196,20 @@ impl Compiler {
                 }
 
                 // extension instance type -> object type with its methods
-                // this is used during member lookup on the target type
                 let instance_ty = Type::Object { fields };
                 let instance_ty_id = types.insert_type_from(instance_ty, declaration_id);
                 let extension_symbol = descriptor.symbol.into_global(module.id);
                 types.set_instance_type(extension_symbol, instance_ty_id);
 
-                // register extension in TypeTable for member lookup
+                // register extension
                 if let Some(target) = target_symbol {
-                    let target_module = target.module_id;
-                    let is_named = descriptor.name.is_some();
-
-                    let kind = if module.id == target_module {
-                        ExtensionKind::Native
-                    } else if is_named {
+                    let kind = if module.id == target.module_id {
+                        ExtensionKind::Inherent
+                    } else if descriptor.name.is_some() {
                         ExtensionKind::Named
                     } else {
-                        ExtensionKind::Anonymous
+                        ExtensionKind::Local
                     };
-
                     let lineage = types.get_lineage_id_for_symbol(extension_symbol);
                     let extension = Extension::new(extension_symbol, kind, *target, lineage);
                     types.insert_extension(extension);
@@ -2536,7 +2530,7 @@ let [x, y, ...rest, z] = [123, 'abc', true, 456]; // array used as a tuple
     #[test]
     fn test_analyze_cross_module_type_import() {
         // import a value from another module and verify its type is correctly imported
-        let test = TestProgram::memory_parallel();
+        let test = TestProgram::memory_sequential();
         test.add_file(
             "lib.ds",
             r#"
@@ -2573,7 +2567,7 @@ let x = value;
     fn test_analyze_cross_module_tuple_type_import() {
         // import a tuple value from another module
         // (array literal [1, 2, 3] is inferred as tuple, not array)
-        let test = TestProgram::memory_parallel();
+        let test = TestProgram::memory_sequential();
         test.add_file(
             "lib.ds",
             r#"
@@ -2610,7 +2604,7 @@ let x = items;
     #[test]
     fn test_analyze_cross_module_string_type_import() {
         // import a string value from another module
-        let test = TestProgram::memory_parallel();
+        let test = TestProgram::memory_sequential();
         test.add_file(
             "lib.ds",
             r#"
@@ -2641,5 +2635,48 @@ let x = greeting;
                 value: TypeLiteral::ScalarLiteral(ScalarLiteral::String(_))
             }
         );
+    }
+
+    /// Verify circular imports work during analysis.
+    #[test]
+    fn test_analyze_circular_imports() {
+        let test = TestProgram::memory_sequential();
+        test.add_file(
+            "a.ds",
+            r#"
+import { helperB } from "./b.ds";
+
+export struct A { value: number }
+
+export function helperA(): number { return 1 }
+"#,
+        );
+        test.add_file(
+            "b.ds",
+            r#"
+import { helperA } from "./a.ds";
+
+export struct B { value: number }
+
+export function helperB(): number { return 2 }
+"#,
+        );
+        let module_id = test.register_module(
+            "main.ds",
+            r#"
+import { A } from "./a.ds";
+import { B } from "./b.ds";
+
+declare function getA(): A;
+declare function getB(): B;
+
+const a = getA();
+const b = getB();
+"#,
+        );
+        test.analyze_module(module_id);
+        test.compile_dump_clean();
+
+        // nocheckin
     }
 }

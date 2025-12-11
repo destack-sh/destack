@@ -11,7 +11,7 @@ use crate::harness::TestOptions;
 use crate::harness::print::color;
 
 /// Per-test timeout in seconds.
-const TEST_TIMEOUT_SECS: u64 = 5;
+const TEST_TIMEOUT_SECONDS: u64 = 1;
 
 /// Result of running a single conformance test.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -206,7 +206,7 @@ pub fn run_conformance_suite<S: ConformanceSuite + 'static>(
 
     // run tests in parallel
     let start = Instant::now();
-    let timeout = Duration::from_secs(TEST_TIMEOUT_SECS);
+    let timeout = Duration::from_secs(TEST_TIMEOUT_SECONDS);
 
     // atomic counters for progress reporting
     let progress_counter = AtomicUsize::new(0);
@@ -492,7 +492,7 @@ fn print_conformance_result(
             "{} ({} tests exceeded {}s timeout, likely infinite loops):",
             color::yellow("TIMEOUTS"),
             result.timeouts.len(),
-            TEST_TIMEOUT_SECS
+            TEST_TIMEOUT_SECONDS
         );
         let show_count = result.timeouts.len().min(20);
         for test in &result.timeouts[..show_count] {
