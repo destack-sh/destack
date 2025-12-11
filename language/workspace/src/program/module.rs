@@ -10,7 +10,7 @@ use destack_dir::{self as dir};
 use destack_mir::{self as mir};
 use destack_source::{FileId, ModuleId, PackageId, StringId, StringPool, Uri};
 
-use super::ecmascript::ModuleType;
+use crate::ModuleType;
 
 /// A Module is a single source unit.
 #[derive(Debug)]
