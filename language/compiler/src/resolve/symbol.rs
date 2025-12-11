@@ -342,9 +342,9 @@ impl Compiler {
             }
             visited.push(current);
 
-            // ensure the target module is resolved (may yield) - skip if it's the calling module
+            // ensure the target module's direct symbols are resolved (may yield) - skip if it's the calling module
             if current.module_id != calling_module {
-                self.require_resolve_module(current.module_id)?;
+                self.require_resolve_module_direct(current.module_id)?;
             }
 
             // get the symbol
@@ -1088,5 +1088,207 @@ export let C = A + B;
 
         assert_eq!(main_a_symbol.canonical_symbol, Some(a_symbol_id));
         assert_eq!(main_b_symbol.canonical_symbol, Some(b_symbol_id));
+    }
+
+    /// Circular imports with re-exports (export { X } from).
+    #[test]
+    fn test_resolve_circular_imports_with_reexport() {
+        let test = TestProgram::memory_parallel();
+        test.add_file(
+            "a.ds",
+            r#"
+import { B } from "./b.ds";
+export let A = 1;
+"#,
+        );
+        test.add_file(
+            "b.ds",
+            r#"
+export { A } from "./a.ds";
+export let B = 2;
+"#,
+        );
+        let module_id = test.register_module(
+            "main.ds",
+            r#"
+import { A, B } from "./b.ds";
+export let C = A + B;
+"#,
+        );
+
+        test.resolve_module(module_id);
+        test.compile_dump_clean();
+
+        let a_symbol_id = test.resolve_to_symbol("a.ds", "A").unwrap();
+        let b_symbol_id = test.resolve_to_symbol("b.ds", "B").unwrap();
+
+        let main_a_symbol_id = test.resolve_to_symbol("main.ds", "A").unwrap();
+        let main_b_symbol_id = test.resolve_to_symbol("main.ds", "B").unwrap();
+        let main_a_symbol = test.symbol_by_id(main_a_symbol_id);
+        let main_b_symbol = test.symbol_by_id(main_b_symbol_id);
+
+        assert_eq!(main_a_symbol.canonical_symbol, Some(a_symbol_id));
+        assert_eq!(main_b_symbol.canonical_symbol, Some(b_symbol_id));
+    }
+
+    /// Circular imports with namespace re-exports (export * from).
+    #[test]
+    fn test_resolve_circular_imports_with_namespace_reexport() {
+        let test = TestProgram::memory_parallel();
+        test.add_file(
+            "a.ds",
+            r#"
+import { B } from "./b.ds";
+export let A = 1;
+"#,
+        );
+        test.add_file(
+            "b.ds",
+            r#"
+export * from "./a.ds";
+export let B = 2;
+"#,
+        );
+        let module_id = test.register_module(
+            "main.ds",
+            r#"
+import { A, B } from "./b.ds";
+export let C = A + B;
+"#,
+        );
+
+        test.resolve_module(module_id);
+        test.compile_dump_clean();
+
+        let a_symbol_id = test.resolve_to_symbol("a.ds", "A").unwrap();
+        let b_symbol_id = test.resolve_to_symbol("b.ds", "B").unwrap();
+
+        let main_a_symbol_id = test.resolve_to_symbol("main.ds", "A").unwrap();
+        let main_b_symbol_id = test.resolve_to_symbol("main.ds", "B").unwrap();
+        let main_a_symbol = test.symbol_by_id(main_a_symbol_id);
+        let main_b_symbol = test.symbol_by_id(main_b_symbol_id);
+
+        assert_eq!(main_a_symbol.canonical_symbol, Some(a_symbol_id));
+        assert_eq!(main_b_symbol.canonical_symbol, Some(b_symbol_id));
+    }
+
+    /// Three-way circular imports (A -> B -> C -> A).
+    #[test]
+    fn test_resolve_three_way_circular_imports() {
+        let test = TestProgram::memory_sequential();
+        test.add_file(
+            "a.ds",
+            r#"
+import { C } from "./c.ds";
+export let A = 1;
+"#,
+        );
+        test.add_file(
+            "b.ds",
+            r#"
+import { A } from "./a.ds";
+export let B = 2;
+"#,
+        );
+        test.add_file(
+            "c.ds",
+            r#"
+import { B } from "./b.ds";
+export let C = 3;
+"#,
+        );
+        let module_id = test.register_module(
+            "main.ds",
+            r#"
+import { A } from "./a.ds";
+import { B } from "./b.ds";
+import { C } from "./c.ds";
+export let D = A + B + C;
+"#,
+        );
+
+        test.resolve_module(module_id);
+        test.compile_dump_clean();
+
+        let a_symbol_id = test.resolve_to_symbol("a.ds", "A").unwrap();
+        let b_symbol_id = test.resolve_to_symbol("b.ds", "B").unwrap();
+        let c_symbol_id = test.resolve_to_symbol("c.ds", "C").unwrap();
+
+        let main_a = test.symbol_by_id(test.resolve_to_symbol("main.ds", "A").unwrap());
+        let main_b = test.symbol_by_id(test.resolve_to_symbol("main.ds", "B").unwrap());
+        let main_c = test.symbol_by_id(test.resolve_to_symbol("main.ds", "C").unwrap());
+
+        assert_eq!(main_a.canonical_symbol, Some(a_symbol_id));
+        assert_eq!(main_b.canonical_symbol, Some(b_symbol_id));
+        assert_eq!(main_c.canonical_symbol, Some(c_symbol_id));
+    }
+
+    /// Mutual namespace re-exports resolve correctly (cycle handled by visited tracking).
+    #[test]
+    fn test_resolve_mutual_namespace_reexports() {
+        let test = TestProgram::memory_parallel();
+        test.add_file(
+            "a.ds",
+            r#"
+export * from "./b.ds";
+export let X = 1;
+"#,
+        );
+        test.add_file(
+            "b.ds",
+            r#"
+export * from "./a.ds";
+export let Y = 2;
+"#,
+        );
+        let module_id = test.register_module(
+            "main.ds",
+            r#"
+import { X, Y } from "./a.ds";
+export let Z = X + Y;
+"#,
+        );
+
+        test.resolve_module(module_id);
+        test.compile_dump_clean();
+
+        let a_x_symbol_id = test.resolve_to_symbol("a.ds", "X").unwrap();
+        let b_y_symbol_id = test.resolve_to_symbol("b.ds", "Y").unwrap();
+
+        let main_x = test.symbol_by_id(test.resolve_to_symbol("main.ds", "X").unwrap());
+        let main_y = test.symbol_by_id(test.resolve_to_symbol("main.ds", "Y").unwrap());
+
+        assert_eq!(main_x.canonical_symbol, Some(a_x_symbol_id));
+        assert_eq!(main_y.canonical_symbol, Some(b_y_symbol_id));
+    }
+
+    /// Cyclic re-export chain should produce an error (a re-exports from b, b re-exports from a).
+    #[test]
+    fn test_detect_cyclic_reexport() {
+        let test = TestProgram::memory_parallel();
+        test.add_file(
+            "a.ds",
+            r#"
+export { X } from "./b.ds";
+"#,
+        );
+        test.add_file(
+            "b.ds",
+            r#"
+export { X } from "./a.ds";
+"#,
+        );
+        let module_id = test.register_module(
+            "main.ds",
+            r#"
+import { X } from "./a.ds";
+"#,
+        );
+
+        test.resolve_module(module_id);
+        test.compile();
+
+        // ER008 = CyclicSymbol (re-export chain forms a cycle)
+        test.check_has_diagnostic("ER008");
     }
 }
