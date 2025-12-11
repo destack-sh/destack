@@ -249,7 +249,7 @@ impl Compiler {
                 Assignability::NotAssignable
             }
 
-            // references: same symbol OR source is subtype of target via lineage
+            // references: same symbol OR source is subtype of target via lineage OR structurally compatible
             // NOTE #Incomplete: should also check type arguments
             (
                 Type::Reference {
@@ -261,13 +261,32 @@ impl Compiler {
                     ..
                 },
             ) => {
+                // nominal check: same symbol or lineage
                 if target_symbol == source_symbol
                     || self.is_type_lineage_assignable(*source_symbol, *target_symbol, types)
                 {
-                    Assignability::Assignable
-                } else {
-                    Assignability::NotAssignable
+                    return Assignability::Assignable;
                 }
+
+                // structural check: only for interfaces
+                if target_symbol.ty().is_interface()
+                    && let (Some(target_instance_ty), Some(source_instance_ty)) = (
+                        types.get_instance_type(*target_symbol),
+                        types.get_instance_type(*source_symbol),
+                    )
+                    && let (
+                        Type::Object {
+                            fields: target_fields,
+                        },
+                        Type::Object {
+                            fields: source_fields,
+                        },
+                    ) = (target_instance_ty, source_instance_ty)
+                {
+                    return self.is_object_type_assignable(target_fields, source_fields, types);
+                }
+
+                Assignability::NotAssignable
             }
 
             // error types: always assignable (to suppress cascading errors)

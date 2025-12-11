@@ -132,3 +132,86 @@ declare function getDocument(): Document;
 const base: Base = getDocument();
 const printable: Printable = getDocument();
 ```
+
+## Structural Subtyping ("Duck Typing")
+
+### class without implements assignable to interface
+
+> A class that has the same shape as an interface is assignable to it,
+> even without explicit `implements`.
+
+```ds
+interface HasId {
+    id: number
+}
+
+class Document {
+    id: number
+}
+
+declare function getDocument(): Document;
+
+const hasId: HasId = getDocument();
+```
+
+### class missing field not assignable to interface
+
+> A class that lacks a required field is not assignable to the interface.
+>
+> NOTE #Incomplete: methods are not yet included in structural checks,
+> so this test uses properties instead.
+
+```ds
+interface HasId {
+    id: number
+}
+
+class Document {
+    name: string
+}
+
+declare function getDocument(): Document;
+
+const hasId: HasId = getDocument();
+```
+
+- type Document is not assignable to type HasId
+
+### struct without implements assignable to interface
+
+> Structs also support structural subtyping to interfaces.
+
+```ds
+interface HasName {
+    name: string
+}
+
+struct Person {
+    name: string
+    age: number
+}
+
+declare function getPerson(): Person;
+
+const named: HasName = getPerson();
+```
+
+### class with extra fields assignable to interface
+
+> A class with more fields than required is still assignable.
+
+```ds
+interface Named {
+    name: string
+}
+
+class User {
+    name: string
+    email: string
+    age: number
+}
+
+declare function getUser(): User;
+
+const named: Named = getUser();
+```

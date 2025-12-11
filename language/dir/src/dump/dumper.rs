@@ -1794,7 +1794,10 @@ impl Dump for LocalScopeMark {
 impl Dump for GlobalSymbolId {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
         dumper.write_str(
-            format!("{}:{}", self.module_id, self.local_id.0),
+            format!(
+                "{}:{}:{:?}",
+                self.module_id, self.local_id.id, self.local_id.ty
+            ),
             Some(Color::Green),
         );
     }
@@ -1802,7 +1805,7 @@ impl Dump for GlobalSymbolId {
 
 impl Dump for LocalSymbolId {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
-        dumper.write_str(format!("#{}", self.0), Some(Color::Green));
+        dumper.write_str(format!("#{}", self.id), Some(Color::Green));
     }
 }
 
@@ -1875,7 +1878,7 @@ impl<'a> Dumper<'a> {
         id: LocalSymbolId,
         symbol: &Symbol,
     ) {
-        self.node_like("Symbol", Some(id.0), Some(symbol.scope.0.0))
+        self.node_like("Symbol", Some(id.id), Some(symbol.scope.0.0))
             .field("id", &id)
             .field("kind", &symbol.kind)
             .field("space", &symbol.space)

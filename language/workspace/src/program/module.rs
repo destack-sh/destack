@@ -171,6 +171,7 @@ impl ModuleDir {
         let namespace_scope_id = symbols.insert_scope(dir::ScopeKind::Namespace, None, None);
         let (namespace_symbol_id, _) = symbols.insert_symbol(
             dir::SymbolKind::Namespace,
+            dir::SymbolType::Void,
             dir::SymbolSpace::Value,
             None,
             (namespace_scope_id, dir::LocalScopeMark::end()),
@@ -179,6 +180,7 @@ impl ModuleDir {
         symbols.get_scope_by_id_mut(namespace_scope_id).owner_id = Some(namespace_symbol_id);
         let (default_symbol_id, _) = symbols.insert_symbol(
             dir::SymbolKind::Namespace,
+            dir::SymbolType::Void,
             dir::SymbolSpace::Value,
             None,
             (namespace_scope_id, dir::LocalScopeMark::end()),

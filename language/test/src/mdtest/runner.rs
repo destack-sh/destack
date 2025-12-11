@@ -3,7 +3,9 @@
 //! Compiles code from mdtest cases and compares diagnostics against expected errors.
 
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
+use std::sync::{Arc, mpsc};
+use std::thread;
+use std::time::Duration;
 
 use destack_compiler::{AnalyzeTask, CompileOptions, Compiler};
 use destack_source::{FileRegistry, FileSystem, LanguageOptions, MemoryFileSystem};
@@ -14,6 +16,9 @@ use crate::harness::{
 };
 
 use super::parser::{MdTestCase, parse_mdtest_file};
+
+/// Per-test timeout in seconds.
+const TEST_TIMEOUT_SECS: u64 = 5;
 
 /// Run all markdown tests.
 pub fn run_mdtests(options: &TestOptions) -> std::process::ExitCode {
@@ -69,8 +74,33 @@ pub fn run_mdtests(options: &TestOptions) -> std::process::ExitCode {
 
     run_tests(test_cases, options, |test| {
         let md_test = test_map.get(&test.full_name()).expect("test not found");
-        run_mdtest(md_test)
+        run_mdtest_with_timeout(md_test)
     })
+}
+
+/// Run a single markdown test case with a timeout.
+fn run_mdtest_with_timeout(test: &MdTestCase) -> TestResult {
+    let timeout = Duration::from_secs(TEST_TIMEOUT_SECS);
+    let test = test.clone();
+
+    let (tx, rx) = mpsc::channel();
+
+    thread::spawn(move || {
+        let result = run_mdtest(&test);
+        let _ = tx.send(result);
+    });
+
+    match rx.recv_timeout(timeout) {
+        Ok(result) => result,
+        Err(mpsc::RecvTimeoutError::Timeout) => TestResult::Failed {
+            message: format!(
+                "test timed out after {TEST_TIMEOUT_SECS}s (likely deadlock or infinite loop)"
+            ),
+        },
+        Err(mpsc::RecvTimeoutError::Disconnected) => TestResult::Failed {
+            message: "test thread panicked".to_string(),
+        },
+    }
 }
 
 /// Wrapper to hold both TestCase and MdTestCase.
