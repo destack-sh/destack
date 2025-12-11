@@ -61,7 +61,7 @@ fn is_wide(c: char) -> bool {
     false
 }
 
-// NOTE #Cleanup: keep this list in sync with Unicode east Asian wide ranges when upgrading unicode tables
+// keep this list in sync with Unicode east Asian wide ranges when upgrading unicode tables
 const WIDE_RANGES: &[(u32, u32)] = &[
     (0x1100, 0x115F),
     (0x231A, 0x231B),

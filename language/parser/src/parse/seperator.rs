@@ -1,5 +1,5 @@
 use crate::{ParseError, ParseResult, Parser};
-use destack_ast::{LiteralType, TokenSpan, TokenType};
+use destack_ast::{TokenSpan, TokenType};
 
 impl Parser {
     /// Peek a colon.
@@ -67,35 +67,6 @@ impl Parser {
             self.eat_newline()?;
         }
         Ok(())
-    }
-
-    // NOTE #Cleanup: move skip_tree_whitespace to rest of literal/tree?
-    /// Skip whitespace-only tree string tokens (TSX content whitespace).
-    /// Returns true if any tokens were skipped.
-    pub fn skip_tree_whitespace(&mut self) -> ParseResult<bool> {
-        let mut skipped = false;
-        loop {
-            let token = self.peek()?;
-            // skip newlines
-            if token.token.ty == TokenType::Newline {
-                self.bump();
-                skipped = true;
-                continue;
-            }
-            // skip whitespace-only tree strings
-            if token.token.ty == TokenType::Literal
-                && token.token.literal == Some(LiteralType::TreeString)
-            {
-                let content = self.get_span_str(token.span);
-                if content.trim().is_empty() {
-                    self.bump();
-                    skipped = true;
-                    continue;
-                }
-            }
-            break;
-        }
-        Ok(skipped)
     }
 
     /// Peek an arrow.

@@ -54,6 +54,7 @@ error/lexical_declaration_in_single_statement_context.js
 error/module_closing_curly.ts
 error/multiple_default_exports_err.js
 error/new_exprs.js
+error/object_expr_non_ident_literal_prop.js
 error/object_expr_setter.js
 error/object_shorthand_with_initializer.js
 error/optional_member.js
@@ -140,6 +141,7 @@ error/variable_declaration_statement_err.js
 error/yield_at_top_level_module.js
 error/yield_expr_in_parameter_initializer.js
 error/yield_in_non_generator_function.js
+error/yield_in_non_generator_function_module.js
 ok/array_binding.js
 ok/array_binding_rest.js
 ok/binary_expressions.js
@@ -224,5 +226,3 @@ ok/unary_delete.js
 ok/unary_delete_nested.js
 ok/using_declaration_statement.js
 ok/using_declarations_inside_for_statement.js
-error/yield_in_non_generator_function_module.js
-error/object_expr_non_ident_literal_prop.js
