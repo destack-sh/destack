@@ -1196,6 +1196,13 @@ impl Compiler {
                 };
                 let instance_ty_id = types.insert_type_from(instance_ty, declaration_id);
                 types.set_instance_type(descriptor.symbol.into_global(module.id), instance_ty_id);
+
+                // interface value type -> interface value type
+                let value_ty = Type::Value {
+                    value: instance_ty_id,
+                };
+                let value_ty_id = types.insert_type_from(value_ty, declaration_id);
+                types.set_value_type(descriptor.symbol.into_global(module.id), value_ty_id);
             }
 
             // function
