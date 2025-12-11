@@ -490,7 +490,8 @@ pub enum LiteralType {
     },
     /// Text content inside tree literals (TSX-compatible).
     /// Raw text between `>` and `</` or `{`, like "Hello" in `<div>Hello</div>`.
-    TreeString, // NOTE #Cleanup: does TreeString need to be a separate literal type?
+    /// Separate from String because JSX text has no escape sequences (uses HTML entities instead).
+    TreeString,
 }
 
 /// Numeric literal base (according to its prefix).

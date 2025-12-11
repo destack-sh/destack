@@ -20,7 +20,6 @@ jsx/errors/unicode-escape-in-identifier
 jsx/errors/wrong-closing-tag
 jsx/errors/wrong-closing-tag-fragment
 jsx/errors/wrong-opening-tag-fragment
-jsx/html-entities/invalid
 jsx/html-entities/no-object-prototype
 typescript/arrow-function/arrow-function-with-newline
 typescript/arrow-function/arrow-like-in-conditional-2

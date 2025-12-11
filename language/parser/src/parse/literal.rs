@@ -407,6 +407,35 @@ impl Parser {
         Err(ParseError::unexpected(self.peek()?.span))
     }
 
+    /// Skip whitespace-only tree string tokens (TSX content whitespace).
+    /// JSX semantics ignore whitespace-only text between elements (Babel/TypeScript behavior).
+    /// See: https://github.com/facebook/jsx/issues/19
+    fn skip_tree_whitespace(&mut self) -> ParseResult<bool> {
+        let mut skipped = false;
+        loop {
+            let token = self.peek()?;
+            // skip newlines
+            if token.token.ty == TokenType::Newline {
+                self.bump();
+                skipped = true;
+                continue;
+            }
+            // skip whitespace-only tree strings (entire tokens, not content inside strings)
+            if token.token.ty == TokenType::Literal
+                && token.token.literal == Some(LiteralType::TreeString)
+            {
+                let content = self.get_span_str(token.span);
+                if content.trim().is_empty() {
+                    self.bump();
+                    skipped = true;
+                    continue;
+                }
+            }
+            break;
+        }
+        Ok(skipped)
+    }
+
     /// Eat a tree literal (including the `<` and `>` tokens).
     ///
     /// Examples:

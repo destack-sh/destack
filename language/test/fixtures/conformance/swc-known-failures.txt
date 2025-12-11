@@ -147,7 +147,6 @@ typescript/next/0001/input.tsx
 typescript/next/stack-overflow/1/input.ts
 typescript/optional-chaining/conditional-decimal/input.ts
 typescript/optional-chaining/type-arguments-with-call/input.ts
-typescript/stc/0001/input.ts
 typescript/tsx/brace-is-block/input.ts
 typescript/tsx/type-parameters/input.ts
 typescript/type-arguments/new/input.ts

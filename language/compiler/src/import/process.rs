@@ -123,7 +123,8 @@ impl Compiler {
         self.program.diagnostics.merge_from(&parser.diagnostics);
 
         // update module with AST
-        // NOTE #Cleanup: the late #ModuleTypeHandling is strange and we should probably do it in parser?
+        // nocheckin TODO #Cleanup: the late #ModuleTypeHandling is strange and we should probably do it in parser?
+        //  (also related to doing proper compilation in conformance tests?)
         let mut module = module.write();
         self.check_imported_module(&module, module.module_type, &parser);
         module.ast = ModuleAst::from_tree(module_id, parser.tree, expressions, parser.strings);
