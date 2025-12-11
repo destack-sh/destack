@@ -1,6 +1,20 @@
 # Operators
 
-Tests for binary and unary operators.
+Binary and unary operators, type assertions.
 
-Covers arithmetic (+, -, *, /), comparison (==, !=, <, >, <=, >=),
-logical (&&, ||, !), and other operators.
+## Coverage
+
+- **Arithmetic**: `+`, `-`, `*`, `/`, `%`, `**`
+- **Comparison**: `==`, `!=`, `===`, `!==`, `<`, `>`, `<=`, `>=`
+- **Logical**: `&&`, `||`, `!`, `??`
+- **Bitwise**: `&`, `|`, `^`, `~`, `<<`, `>>`, `>>>`
+- **Assignment**: `=`, `+=`, `-=`, etc.
+- **Type assertions**: `as`, `satisfies`
+
+## Files
+
+| File | Description |
+|------|-------------|
+| `arithmetic.md` | Arithmetic operators |
+| `comparison.md` | Comparison operators |
+| `cast.md` | Type assertions (`as`) |

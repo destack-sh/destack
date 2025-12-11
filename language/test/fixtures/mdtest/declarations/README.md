@@ -1,6 +1,16 @@
 # Declarations
 
-Tests for variable and function declarations.
+Variable and function declarations.
 
-Covers const/let declarations, type annotations, function parameters,
-return types, and arrow functions.
+## Coverage
+
+- **Variables**: `const`, `let`, `var` bindings
+- **Functions**: Declaration syntax, parameters, return types
+- **Arrow functions**: Expression and block body forms
+- **Type annotations**: Explicit type declarations
+
+## Files
+
+| File | Description |
+|------|-------------|
+| `basic.md` | Function declarations and arrow functions |

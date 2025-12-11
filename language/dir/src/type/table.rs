@@ -30,7 +30,7 @@ pub struct TypeTable {
     /// The value type by symbol id (the type when used as a value).
     pub(crate) value_type_by_symbol_id: IndexMap<GlobalSymbolId, LocalTypeId>,
 
-    // instances
+    // instances (statically parameterised types)
     /// The next instance id to allocate.
     pub(crate) next_instance_id: u32,
     /// The instances.
@@ -38,7 +38,7 @@ pub struct TypeTable {
     /// The instance used by node ids.
     pub(crate) instance_by_node_id: IndexMap<GlobalNodeIdAny, LocalInstanceId>,
 
-    // resolutions
+    // resolutions (types of members like functions/methods)
     /// The next resolution id to allocate.
     pub(crate) next_resolution_id: u32,
     /// The resolutions.
@@ -46,7 +46,7 @@ pub struct TypeTable {
     /// The resolution used by node ids.
     pub(crate) resolution_by_node_id: IndexMap<GlobalNodeIdAny, LocalResolutionId>,
 
-    // lineages (resolved inheritance for nominal types)
+    // lineages (resolved heritage for nominal types)
     /// The next lineage id to allocate.
     pub(crate) next_lineage_id: u32,
     /// The lineages.

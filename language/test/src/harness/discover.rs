@@ -1,5 +1,3 @@
-//! Test discovery utilities.
-
 use std::path::Path;
 use std::{fs, io};
 
@@ -7,7 +5,6 @@ use super::TestCase;
 
 /// Discover test files in a directory with given extensions.
 /// Each file is treated as a test case.
-///
 /// Files prefixed with `_` are registered as skipped tests.
 pub fn discover_test_files(
     directory: &Path,
@@ -58,7 +55,6 @@ pub fn discover_test_files(
 
 /// Discover test directories in a parent directory.
 /// Each subdirectory is treated as a test case.
-///
 /// Directories prefixed with `_` are registered as skipped tests.
 /// Directories starting with `.` are ignored entirely.
 pub fn discover_test_directories(directory: &Path, category: &str) -> io::Result<Vec<TestCase>> {
