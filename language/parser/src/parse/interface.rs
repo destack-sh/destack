@@ -63,9 +63,9 @@ impl Parser {
         self.try_eat_token(TokenType::OpenBrace, TokenType::CloseBrace)
             .for_node_type(NodeType::Declaration)?;
         self.eat_newlines_maybe()?;
-        let properties = self
+        let members = self
             .with_options(self.options.nested().in_variant(), |parser| {
-                parser.eat_properties()
+                parser.eat_members()
             })
             .for_node_type(NodeType::Declaration)?;
         self.eat_token(TokenType::CloseBrace)
@@ -79,7 +79,7 @@ impl Parser {
                 descriptor,
                 generics,
                 heritage,
-                properties,
+                members,
             },
             self.get_span_from(start),
         );
@@ -91,8 +91,7 @@ impl Parser {
 mod tests {
     use destack_ast::{
         BindingKind, Declaration, DeclarationDescriptor, DeclarationKind, Expression, FunctionMode,
-        IntType, Key, Mutability, Name, Parameter, Property, ScalarLiteral, TypeLiteral,
-        WhereClause,
+        IntType, Key, Member, Mutability, Name, Parameter, ScalarLiteral, TypeLiteral, WhereClause,
     };
 
     use crate::{TestParser, assert_expression_path, assert_node, assert_path, assert_string};
@@ -105,11 +104,11 @@ mod tests {
         let interface_id = parser
             .eat_interface(DeclarationDescriptor::default())
             .unwrap();
-        assert_node!(parser.tree, interface_id, Declaration::Interface { descriptor, generics, properties, .. } => {
+        assert_node!(parser.tree, interface_id, Declaration::Interface { descriptor, generics, members, .. } => {
             assert_eq!(descriptor.kind, DeclarationKind::Definition);
             assert!(descriptor.name.is_none());
             assert!(generics.is_empty());
-            assert!(properties.is_empty());
+            assert!(members.is_empty());
         });
     }
 
@@ -121,10 +120,10 @@ mod tests {
         let interface_id = parser
             .eat_interface(DeclarationDescriptor::default())
             .unwrap();
-        assert_node!(parser.tree, interface_id, Declaration::Interface { descriptor, generics, heritage, properties, .. } => {
+        assert_node!(parser.tree, interface_id, Declaration::Interface { descriptor, generics, heritage, members, .. } => {
             assert_eq!(descriptor.kind, DeclarationKind::Definition);
             assert_string!(parser, descriptor.name.unwrap().string(), "Foo");
-            assert!(properties.is_empty());
+            assert!(members.is_empty());
             assert!(generics.is_empty());
             assert!(!heritage.is_empty());
 
@@ -154,7 +153,7 @@ interface Foo extends Baz {
         let interface_id = parser
             .eat_interface(DeclarationDescriptor::default())
             .unwrap();
-        assert_node!(parser.tree, interface_id, Declaration::Interface { descriptor, generics, heritage, properties, .. } => {
+        assert_node!(parser.tree, interface_id, Declaration::Interface { descriptor, generics, heritage, members, .. } => {
             assert_eq!(descriptor.kind, DeclarationKind::Definition);
             assert_string!(parser, descriptor.name.unwrap().string(), "Foo");
             assert!(generics.is_empty());
@@ -168,7 +167,7 @@ interface Foo extends Baz {
             });
 
             // readonly value: int32
-            assert_node!(parser.tree, properties[0], Property::Field { modifiers: Some(modifiers), key: Some(Key::Name(Name::Identifier(name))), value: Some(ty), default, .. } => {
+            assert_node!(parser.tree, members[0], Member::Field { modifiers: Some(modifiers), key: Some(Key::Name(Name::Identifier(name))), value: Some(ty), default, .. } => {
                 assert_eq!(modifiers.mutability, Some(Mutability::Immutable));
                 assert_string!(parser, *name, "value");
                 assert_node!(parser.tree, *ty, Expression::TypeLiteral(TypeLiteral::Int(IntType::Arbitrary { width: Some(32), is_signed: true })));
@@ -176,7 +175,7 @@ interface Foo extends Baz {
             });
 
             // count: int32 = 4
-            assert_node!(parser.tree, properties[1], Property::Field { modifiers: None, key: Some(Key::Name(Name::Identifier(name))), value: Some(ty), default: Some(value), .. } => {
+            assert_node!(parser.tree, members[1], Member::Field { modifiers: None, key: Some(Key::Name(Name::Identifier(name))), value: Some(ty), default: Some(value), .. } => {
                 assert_string!(parser, *name, "count");
                 assert_node!(parser.tree, *ty, Expression::TypeLiteral(TypeLiteral::Int(IntType::Arbitrary { width: Some(32), is_signed: true })));
                 assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(4)));
@@ -261,13 +260,13 @@ interface SQL {
         let interface_id = parser
             .eat_interface(DeclarationDescriptor::default())
             .unwrap();
-        assert_node!(parser.tree, interface_id, Declaration::Interface { descriptor, properties, .. } => {
+        assert_node!(parser.tree, interface_id, Declaration::Interface { descriptor, members, .. } => {
             assert_eq!(descriptor.kind, DeclarationKind::Definition);
             assert_string!(parser, descriptor.name.unwrap().string(), "SQL");
-            assert_eq!(properties.len(), 5);
+            assert_eq!(members.len(), 5);
 
             // <T = any>(value: T): SQL.Result<T>;
-            assert_node!(parser.tree, properties[0], Property::Method { key: None, signature, .. } => {
+            assert_node!(parser.tree, members[0], Member::Method { key: None, signature, .. } => {
                 assert_eq!(signature.mode, Some(FunctionMode::Call));
                 let static_parameters = signature
                     .generics
@@ -291,7 +290,7 @@ interface SQL {
             });
 
             // (value: any, ...arguments: any[]): SQL.Result<any>;
-            assert_node!(parser.tree, properties[1], Property::Method { modifiers: None, key: None, signature, .. } => {
+            assert_node!(parser.tree, members[1], Member::Method { modifiers: None, key: None, signature, .. } => {
                 assert_eq!(signature.mode, Some(FunctionMode::Call));
                 // (value: any, ...arguments: any[])
                 assert_eq!(signature.dynamic_parameters.len(), 2);
@@ -309,7 +308,7 @@ interface SQL {
             });
 
             // new(): SQL;
-            assert_node!(parser.tree, properties[2], Property::Method { modifiers: None, key: None, signature, .. } => {
+            assert_node!(parser.tree, members[2], Member::Method { modifiers: None, key: None, signature, .. } => {
                 assert_eq!(signature.mode, Some(FunctionMode::New));
                 assert_eq!(signature.dynamic_parameters.len(), 0);
                 // SQL
@@ -317,7 +316,7 @@ interface SQL {
             });
 
             // [Symbol.asyncIterator](): AsyncIterableIterator<string>;
-            assert_node!(parser.tree, properties[3], Property::Method { modifiers: None, key: Some(Key::Expression(key)), signature, .. } => {
+            assert_node!(parser.tree, members[3], Member::Method { modifiers: None, key: Some(Key::Expression(key)), signature, .. } => {
                 // [Symbol.asyncIterator]
                 assert_expression_path!(parser, parser.tree.get(*key), "Symbol.asyncIterator");
                 assert_eq!(signature.dynamic_parameters.len(), 0);
@@ -326,7 +325,7 @@ interface SQL {
             });
 
             // [Symbol.toPrimitive]?(): number;
-            assert_node!(parser.tree, properties[4], Property::Method { modifiers: Some(modifiers), key: Some(Key::Expression(key)), signature, .. } => {
+            assert_node!(parser.tree, members[4], Member::Method { modifiers: Some(modifiers), key: Some(Key::Expression(key)), signature, .. } => {
                 // [Symbol.toPrimitive]
                 assert_expression_path!(parser, parser.tree.get(*key), "Symbol.toPrimitive");
                 // ?

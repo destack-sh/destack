@@ -157,9 +157,6 @@ const hasId: HasId = getDocument();
 ### class missing field not assignable to interface
 
 > A class that lacks a required field is not assignable to the interface.
->
-> NOTE #Incomplete: methods are not yet included in structural checks,
-> so this test uses properties instead.
 
 ```ds
 interface HasId {

@@ -100,25 +100,6 @@ pub enum FunctionMode {
 /// A Property is a property of a variant type (may be a field or method).
 /// `symbol` is the declaration symbol for this property.
 /// For object literals, field resolution (to expected type's field) is in ResolutionTable.
-///
-/// Examples:
-/// ```text
-/// // field
-/// x: int32
-/// x
-/// ...Bar
-/// a: T
-/// a?: T
-/// private b: int32 = 4
-/// public static c: int32 = 4
-///
-/// // method
-/// foo()
-/// <T>(): T
-/// get x(): int32
-/// set x(value: int32): void
-/// public abstract foo(): void
-/// ```
 #[derive(Debug, Clone, PartialEq)]
 pub enum Property {
     /// Named field (like `x: int32`).
@@ -147,4 +128,40 @@ pub enum Property {
 
 impl Node for Property {
     const TYPE: NodeType = NodeType::Property;
+}
+
+/// A Member is a member of a class-like declaration.
+#[derive(Debug, Clone, PartialEq)]
+pub enum Member {
+    /// Named field (like `x: int32`).
+    Field {
+        modifiers: Option<BindingModifier>,
+        key: Option<DynamicKey>,
+        value: Option<LocalNodeId<Expression>>,
+        default: Option<LocalNodeId<Expression>>,
+        symbol: LocalSymbolId,
+    },
+    /// Named member function (like `foo()` or `<T>(): T`).
+    Method {
+        modifiers: Option<BindingModifier>,
+        key: Option<DynamicKey>,
+        signature: FunctionSignature,
+        body: Option<LocalNodeId<Expression>>,
+        symbol: LocalSymbolId,
+    },
+    /// Type embedding (like `...Base`), includes all members from the embedded type.
+    Embed {
+        modifiers: Option<BindingModifier>,
+        value: LocalNodeId<Expression>,
+        symbol: LocalSymbolId,
+    },
+    /// Static initialization block (like `static { ... }`).
+    StaticBlock {
+        body: LocalNodeId<Expression>,
+        symbol: LocalSymbolId,
+    },
+}
+
+impl Node for Member {
+    const TYPE: NodeType = NodeType::Member;
 }

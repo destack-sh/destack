@@ -2,7 +2,7 @@ use crate::{AnalyzeError, AnalyzeResult, Assignability, Compiler, TypeContext};
 use destack_dir::{
     Argument, Block, Declaration, Declarator, DependencyItem, DynamicKey, EnumField, Expression,
     FunctionSignature, Generics, GlobalSymbolId, GlobalTypeId, Heritage, Lineage, LocalNodeId,
-    LocalNodeIdAny, LocalSymbolId, LocalTypeId, MatchCase, NodeTree, Parameter, Pattern,
+    LocalNodeIdAny, LocalSymbolId, LocalTypeId, MatchCase, Member, NodeTree, Parameter, Pattern,
     PatternField, PrimitiveType, Property, StaticKey, SymbolTable, Type, TypeField, TypeKind,
     TypeLiteral, TypeTable, WhereClause,
 };
@@ -1019,7 +1019,7 @@ impl Compiler {
                 generics,
                 heritage,
                 scope: _,
-                properties,
+                members,
             } => {
                 // walk
                 self.analyze_generics(module, generics, tree, symbols, types, ctx)?;
@@ -1036,9 +1036,9 @@ impl Compiler {
 
                 // type fields
                 let mut fields = Vec::new();
-                for property_id in properties {
+                for member_id in members {
                     if let Some(field) =
-                        self.analyze_property(module, *property_id, tree, symbols, types, ctx)?
+                        self.analyze_member(module, *member_id, tree, symbols, types, ctx)?
                     {
                         fields.push(field);
                     }
@@ -1070,7 +1070,7 @@ impl Compiler {
                 generics,
                 heritage,
                 scope: _,
-                properties,
+                members,
             } => {
                 // walk
                 self.analyze_generics(module, generics, tree, symbols, types, ctx)?;
@@ -1087,9 +1087,9 @@ impl Compiler {
 
                 // type fields
                 let mut fields = Vec::new();
-                for property_id in properties {
+                for member_id in members {
                     if let Some(field) =
-                        self.analyze_property(module, *property_id, tree, symbols, types, ctx)?
+                        self.analyze_member(module, *member_id, tree, symbols, types, ctx)?
                     {
                         fields.push(field);
                     }
@@ -1122,7 +1122,7 @@ impl Compiler {
                 heritage,
                 scope: _,
                 fields,
-                properties,
+                members,
             } => {
                 // walk
                 self.analyze_generics(module, generics, tree, symbols, types, ctx)?;
@@ -1139,8 +1139,8 @@ impl Compiler {
                 for field_id in fields {
                     self.analyze_enum_field(module, *field_id, tree, symbols, types, ctx)?;
                 }
-                for property_id in properties {
-                    self.analyze_property(module, *property_id, tree, symbols, types, ctx)?;
+                for member_id in members {
+                    self.analyze_member(module, *member_id, tree, symbols, types, ctx)?;
                 }
 
                 // enum instance type -> enum value type
@@ -1167,7 +1167,7 @@ impl Compiler {
                 target_symbol: _,
                 heritage,
                 scope: _,
-                properties,
+                members,
             } => {
                 // walk
                 self.analyze_generics(module, generics, tree, symbols, types, ctx)?;
@@ -1182,8 +1182,8 @@ impl Compiler {
                     types,
                     ctx,
                 )?;
-                for property_id in properties {
-                    self.analyze_property(module, *property_id, tree, symbols, types, ctx)?;
+                for member_id in members {
+                    self.analyze_member(module, *member_id, tree, symbols, types, ctx)?;
                 }
             }
 
@@ -1193,7 +1193,7 @@ impl Compiler {
                 generics,
                 heritage,
                 scope: _,
-                properties,
+                members,
             } => {
                 // walk
                 self.analyze_generics(module, generics, tree, symbols, types, ctx)?;
@@ -1208,11 +1208,11 @@ impl Compiler {
                     ctx,
                 )?;
 
-                // collect type fields from properties
+                // collect type fields from members
                 let mut fields = Vec::new();
-                for property_id in properties {
+                for member_id in members {
                     if let Some(field) =
-                        self.analyze_property(module, *property_id, tree, symbols, types, ctx)?
+                        self.analyze_member(module, *member_id, tree, symbols, types, ctx)?
                     {
                         fields.push(field);
                     }
@@ -1331,7 +1331,7 @@ impl Compiler {
                 }
             }
             Property::Method { body, .. } => {
-                // NOTE #Incomplete: infer method type
+                // TODO #Incomplete: infer method type
                 if let Some(body) = body {
                     self.analyze_expression(module, *body, tree, symbols, types, ctx)?;
                 }
@@ -1340,6 +1340,90 @@ impl Compiler {
             Property::Spread { value, .. } => {
                 // NOTE #Incomplete: expand spread type into object type
                 self.analyze_expression(module, *value, tree, symbols, types, ctx)?;
+                Ok(None)
+            }
+        }
+    }
+
+    /// Analyze a member and return its TypeField if it has a static key.
+    fn analyze_member(
+        &self,
+        module: &Module,
+        member_id: LocalNodeId<Member>,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+        ctx: &mut TypeContext,
+    ) -> AnalyzeResult<Option<TypeField>> {
+        let member = tree.get(member_id);
+        match member {
+            Member::Field {
+                modifiers,
+                key,
+                value,
+                default,
+                symbol: _,
+            } => {
+                // extract the static key from the dynamic key
+                let static_key = key.and_then(|k| match k {
+                    DynamicKey::Name(name) => Some(StaticKey::Name(name)),
+                    // dynamic keys can't be used for static type inference
+                    DynamicKey::Expression(_) | DynamicKey::NamedExpression { .. } => None,
+                });
+
+                // infer the value type
+                let value_ty_id = if let Some(value) = value {
+                    self.analyze_expression(module, *value, tree, symbols, types, ctx)?
+                } else {
+                    // no value, return unknown type
+                    let ty = Type::TypeLiteral {
+                        value: TypeLiteral::Unknown,
+                    };
+                    types.insert_type(ty)
+                };
+
+                // analyze default if present
+                if let Some(default) = default {
+                    self.analyze_expression(module, *default, tree, symbols, types, ctx)?;
+                }
+
+                // check if the field is optional
+                let is_optional = modifiers
+                    .as_ref()
+                    .is_some_and(|m| matches!(m.kind, Some(destack_dir::BindingKind::Maybe)));
+
+                // check if the field is readonly
+                let is_readonly = modifiers.as_ref().is_some_and(|m| {
+                    matches!(m.mutability, Some(destack_dir::Mutability::Immutable))
+                });
+
+                // only return a field if we have a static key
+                if let Some(key) = static_key {
+                    Ok(Some(TypeField {
+                        key,
+                        ty: value_ty_id,
+                        is_optional,
+                        is_readonly,
+                    }))
+                } else {
+                    Ok(None)
+                }
+            }
+            Member::Method { body, .. } => {
+                // TODO #Incomplete: infer method type
+                if let Some(body) = body {
+                    self.analyze_expression(module, *body, tree, symbols, types, ctx)?;
+                }
+                Ok(None)
+            }
+            Member::Embed { value, .. } => {
+                // NOTE #Incomplete: expand embedded type into member fields
+                self.analyze_expression(module, *value, tree, symbols, types, ctx)?;
+                Ok(None)
+            }
+            Member::StaticBlock { body, .. } => {
+                // analyze static block body, but doesn't contribute to type fields
+                self.analyze_expression(module, *body, tree, symbols, types, ctx)?;
                 Ok(None)
             }
         }

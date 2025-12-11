@@ -115,6 +115,7 @@ impl FunctionMode {
 }
 
 /// A Property is a property of a variant type (may be a field or method).
+/// TODO #Cleanup: remove modifiers from Property (across language)?
 ///
 /// Examples:
 /// ```
@@ -159,4 +160,59 @@ pub enum Property {
 
 impl Node for Property {
     const TYPE: NodeType = NodeType::Property;
+}
+
+/// A Member is a member of a class-like declaration.
+///
+/// Members differ from Properties in that they support class-specific constructs:
+/// - Static blocks for initialization
+/// - Type embedding via `...Type` syntax
+/// - Visibility modifiers (public, private, protected)
+/// - Static anchor
+///
+/// Examples:
+/// ```
+/// // field
+/// x: int32
+/// private y: boolean = true
+/// public static z: int32 = 42
+///
+/// // method
+/// foo() { }
+/// public abstract bar(): void
+/// get name(): string { }
+///
+/// // embedding (compile-time type inclusion)
+/// ...Base
+///
+/// // static block (ES2022)
+/// static { console.log("initializing") }
+/// ```
+#[derive(Debug, Clone, PartialEq)]
+pub enum Member {
+    /// Named field (like `x: int32`).
+    Field {
+        modifiers: Option<BindingModifier>,
+        key: Option<Key>,
+        value: Option<LocalNodeId<Expression>>,
+        default: Option<LocalNodeId<Expression>>,
+    },
+    /// Named member function (like `foo()` or `<T>(): T`).
+    Method {
+        modifiers: Option<BindingModifier>,
+        key: Option<Key>,
+        signature: FunctionSignature,
+        body: Option<LocalNodeId<Expression>>,
+    },
+    /// Type embedding (like `...Base`), includes all members from the embedded type.
+    Embed {
+        modifiers: Option<BindingModifier>,
+        value: LocalNodeId<Expression>,
+    },
+    /// Static initialization block (like `static { ... }`).
+    StaticBlock { body: LocalNodeId<Expression> },
+}
+
+impl Node for Member {
+    const TYPE: NodeType = NodeType::Member;
 }

@@ -142,7 +142,7 @@ impl<'ast> FormatNode<'ast, Declaration> for Declaration {
                 descriptor,
                 generics,
                 heritage,
-                properties,
+                members,
             } => {
                 // export
                 if let Some(export) = descriptor.export {
@@ -191,7 +191,7 @@ impl<'ast> FormatNode<'ast, Declaration> for Declaration {
                     f,
                     [block_indent(&format_with(|f| f
                         .join_with(hard_line_break())
-                        .entries(properties)
+                        .entries(members)
                         .finish()))]
                 )?;
                 write!(f, [hard_line_break(), token("}"),])?;
@@ -200,7 +200,7 @@ impl<'ast> FormatNode<'ast, Declaration> for Declaration {
                 descriptor,
                 generics,
                 heritage,
-                properties,
+                members,
             } => {
                 // export
                 if let Some(export) = descriptor.export {
@@ -240,7 +240,7 @@ impl<'ast> FormatNode<'ast, Declaration> for Declaration {
                     f,
                     [block_indent(&format_with(|f| f
                         .join_with(hard_line_break())
-                        .entries(properties)
+                        .entries(members)
                         .finish()))]
                 )?;
                 write!(f, [hard_line_break(), token("}"),])?;

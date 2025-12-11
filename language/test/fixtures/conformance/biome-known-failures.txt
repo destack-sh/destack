@@ -74,6 +74,7 @@ error/ts_annotated_property_initializer_ambient_context.ts
 error/ts_arrow_function_this_parameter.ts
 error/ts_catch_declaration_non_any_unknown_type_annotation.ts
 error/ts_class_heritage_clause_errors.ts
+error/ts_class_initializer_with_modifiers.ts
 error/ts_class_member_accessor_readonly_precedence.ts
 error/ts_class_name_reserved_as_type.ts
 error/ts_class_type_parameters_errors.ts
@@ -127,6 +128,7 @@ error/ts_readonly_modifier_non_class_or_indexer.ts
 error/ts_satisfies_assignment_no_parenthesize.ts
 error/ts_satisfies_expression.js
 error/ts_setter_return_type_annotation.ts
+error/ts_static_initialization_block_member_with_decorators.ts
 error/ts_type_alias_cannot_be_reserved_word.ts
 error/ts_type_assertions_not_valid_at_new_expr.ts
 error/ts_typed_default_import_with_named.ts
@@ -180,7 +182,6 @@ ok/parameter_list.js
 ok/private_name_presence_check.js
 ok/sequence_expr.js
 ok/single_parameter_arrow_function_with_parameter_named_async.js
-ok/static_initialization_block_member.js
 ok/static_member_expression.js
 ok/switch_stmt.js
 ok/ts_abstract_classes.ts

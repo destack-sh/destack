@@ -2,11 +2,11 @@
 
 use crate::{
     Annotation, Argument, Block, Declaration, Declarator, DependencyItem, EnumField, Expression,
-    LocalNodeId, NodeTree, NodeType, Parameter, Pattern, PatternField, Property, Statement,
+    LocalNodeId, Member, NodeTree, NodeType, Parameter, Pattern, PatternField, Property, Statement,
     SwitchCase, Type, TypeField, walk_annotation, walk_argument, walk_block, walk_declaration,
-    walk_declarator, walk_dependency_item, walk_enum_field, walk_expression, walk_parameter,
-    walk_pattern, walk_pattern_field, walk_property, walk_statement, walk_switch_case, walk_type,
-    walk_type_field,
+    walk_declarator, walk_dependency_item, walk_enum_field, walk_expression, walk_member,
+    walk_parameter, walk_pattern, walk_pattern_field, walk_property, walk_statement,
+    walk_switch_case, walk_type, walk_type_field,
 };
 
 #[derive(Debug, Clone, Default)]
@@ -78,6 +78,11 @@ pub trait NodeVisitor {
     /// Visit a property.
     fn visit_property(&mut self, tree: &NodeTree, id: LocalNodeId<Property>, property: &Property) {
         walk_property(self, tree, id, property);
+    }
+
+    /// Visit a member.
+    fn visit_member(&mut self, tree: &NodeTree, id: LocalNodeId<Member>, member: &Member) {
+        walk_member(self, tree, id, member);
     }
 
     /// Visit an enum field.
@@ -236,6 +241,10 @@ impl NodeVisitor for CapturingNodeVisitor {
 
     fn visit_property(&mut self, tree: &NodeTree, id: LocalNodeId<Property>, _field: &Property) {
         self.visit_any(tree, NodeType::Property, id.id);
+    }
+
+    fn visit_member(&mut self, tree: &NodeTree, id: LocalNodeId<Member>, _member: &Member) {
+        self.visit_any(tree, NodeType::Member, id.id);
     }
 
     fn visit_enum_field(

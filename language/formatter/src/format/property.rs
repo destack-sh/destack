@@ -3,7 +3,7 @@ use crate::r#where::format_where_clause;
 use crate::{DestackFormatter, FormatNode};
 use destack_ast::{
     Asynchrony, BindingAnchor, BindingKind, BindingModifier, BindingOperator, FunctionAbstraction,
-    FunctionCardinality, Keyword, LocalNodeId, Mutability, Property,
+    FunctionCardinality, Keyword, LocalNodeId, Member, Mutability, Property,
 };
 use destack_fir::format::FormatResult;
 use destack_fir::prelude::*;
@@ -68,6 +68,7 @@ pub(crate) fn format_binding_modifiers_postfix_maybe<'ast>(
 }
 
 /// Format a block of properties (with appropriate empty annotations)
+#[allow(unused)]
 pub(crate) fn format_block_of_properties<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     properties: &[LocalNodeId<Property>],
@@ -81,6 +82,27 @@ pub(crate) fn format_block_of_properties<'ast>(
         property_id.format(f)?;
         // comma after field properties
         if matches!(property, Property::Field { .. }) {
+            write!(f, [token(",")])?;
+        }
+    }
+    Ok(())
+}
+
+/// Format a block of members (with appropriate empty annotations)
+#[allow(unused)]
+pub(crate) fn format_block_of_members<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    members: &[LocalNodeId<Member>],
+) -> FormatResult<()> {
+    for (i, &member_id) in members.iter().enumerate() {
+        let member = f.context().tree.get(member_id);
+        // blank line between members
+        if i > 0 {
+            write!(f, [hard_line_break()])?;
+        }
+        member_id.format(f)?;
+        // comma after field members
+        if matches!(member, Member::Field { .. }) {
             write!(f, [token(",")])?;
         }
     }
@@ -208,6 +230,142 @@ impl<'ast> FormatNode<'ast, Property> for Property {
                 write!(f, [value])?;
                 // modifiers
                 format_binding_modifiers_postfix_maybe(f, *modifiers)?;
+            }
+        }
+
+        write!(f, [f.context().any_infix_or_postfix_annotations(node_id)])?;
+
+        Ok(())
+    }
+}
+
+impl<'ast> FormatNode<'ast, Member> for Member {
+    fn format_node(
+        &self,
+        node_id: LocalNodeId<Member>,
+        f: &mut DestackFormatter<'ast, '_>,
+    ) -> FormatResult<()> {
+        write!(f, [f.context().any_prefix_annotations(node_id)])?;
+
+        match self {
+            Member::Field {
+                modifiers,
+                key,
+                value,
+                default,
+            } => {
+                // modifiers
+                format_binding_modifiers_prefix_maybe(f, *modifiers)?;
+                // key
+                write!(f, [key])?;
+                // modifiers
+                format_binding_modifiers_postfix_maybe(f, *modifiers)?;
+                // value
+                if let Some(value) = value {
+                    write!(f, [token(":"), space(), value])?;
+                }
+                // default
+                if let Some(default) = default {
+                    write!(f, [space(), token("="), space(), default])?;
+                }
+            }
+            Member::Method {
+                modifiers,
+                key,
+                signature,
+                body,
+            } => {
+                let generics = signature.generics.as_ref();
+
+                // modifiers
+                format_binding_modifiers_prefix_maybe(f, *modifiers)?;
+
+                // abstraction
+                match signature.abstraction {
+                    FunctionAbstraction::Abstract => {
+                        write!(f, [Keyword::Abstract, space()])?;
+                    }
+                    FunctionAbstraction::AbstractOverride => {
+                        write!(f, [Keyword::Abstract, space()])?;
+                        write!(f, [Keyword::Override, space()])?;
+                    }
+                    FunctionAbstraction::ConcreteOverride => {
+                        write!(f, [Keyword::Override, space()])?;
+                    }
+                    FunctionAbstraction::Concrete => {}
+                }
+
+                // asynchrony
+                if signature.asynchrony == Asynchrony::Async {
+                    write!(f, [Keyword::Async, space()])?;
+                }
+
+                // mode
+                if let Some(mode) = signature.mode {
+                    if let Some(keyword) = mode.to_keyword() {
+                        write!(f, [keyword])?;
+                    }
+                    if key.is_some() {
+                        write!(f, [space()])?;
+                    }
+                }
+
+                // cardinality
+                if signature.cardinality == FunctionCardinality::Generator {
+                    write!(f, [token("*")])?;
+                }
+
+                // key
+                write!(f, [key])?;
+
+                // static parameters
+                if let Some(static_parameters) =
+                    generics.and_then(|generics| generics.static_parameters.as_ref())
+                    && !static_parameters.is_empty()
+                {
+                    write!(f, [list_like("<", ">", ",", static_parameters)])?;
+                }
+
+                // dynamic parameters
+                write!(f, [list_like("(", ")", ",", &signature.dynamic_parameters)])?;
+
+                // modifiers
+                format_binding_modifiers_postfix_maybe(f, *modifiers)?;
+
+                // return type
+                if let Some(return_type) = signature.return_type {
+                    write!(f, [token(":"), space(), return_type])?;
+                }
+
+                // where clauses
+                if let Some(where_clauses) =
+                    generics.and_then(|generics| generics.where_clauses.as_ref())
+                    && !where_clauses.is_empty()
+                {
+                    write!(f, [space()])?;
+                    format_where_clause(f, where_clauses)?;
+                }
+
+                // body
+                if let Some(body) = body {
+                    write!(f, [space(), body])?;
+                }
+            }
+            Member::Embed { modifiers, value } => {
+                // modifiers
+                format_binding_modifiers_prefix_maybe(f, *modifiers)?;
+                // keyword
+                write!(f, [token("...")])?;
+                // value
+                write!(f, [value])?;
+                // modifiers
+                format_binding_modifiers_postfix_maybe(f, *modifiers)?;
+            }
+            Member::StaticBlock { body } => {
+                // keyword
+                write!(f, [Keyword::Static, space()])?;
+                // body
+                write!(f, [body])?;
             }
         }
 

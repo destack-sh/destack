@@ -966,7 +966,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 descriptor,
                 generics,
                 heritage,
-                properties: _,
+                members: _,
             } => {
                 let mut node = self.node("Declaration::Class", id.id);
                 node.field("descriptor", descriptor);
@@ -982,7 +982,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 descriptor,
                 generics,
                 heritage,
-                properties: _,
+                members: _,
             } => {
                 let mut node = self.node("Declaration::Interface", id.id);
                 node.field("descriptor", descriptor);
@@ -1054,6 +1054,40 @@ impl<'a> NodeVisitor for Dumper<'a> {
         }
         self.with_depth(|dumper| {
             walk_property(dumper, tree, id, property);
+        });
+    }
+
+    fn visit_member(&mut self, tree: &NodeTree, id: LocalNodeId<Member>, member: &Member) {
+        match member {
+            Member::Field {
+                modifiers,
+                key,
+                value: _,
+                default: _,
+            } => {
+                self.node("Member::Field", id.id)
+                    .field_optional("modifiers", modifiers)
+                    .field_optional("key", key)
+                    .end();
+            }
+            Member::Method {
+                modifiers,
+                key,
+                signature,
+                body: _,
+            } => {
+                self.node("Member::Method", id.id)
+                    .field_optional("modifiers", modifiers)
+                    .field_optional("key", key)
+                    .field("signature", signature)
+                    .end();
+            }
+            Member::StaticBlock { body: _ } => {
+                self.node("Member::StaticBlock", id.id).end();
+            }
+        }
+        self.with_depth(|dumper| {
+            walk_member(dumper, tree, id, member);
         });
     }
 

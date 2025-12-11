@@ -1,6 +1,6 @@
 use crate::{
     BindingAnchor, Block, DependencyMode, Expression, FunctionSignature, Generics, Heritage,
-    LocalNodeId, Name, Node, NodeType, Parameter, Property, Statement, StringId, Type,
+    LocalNodeId, Member, Name, Node, NodeType, Parameter, Statement, StringId, Type,
 };
 
 /// The kind of declaration.
@@ -44,14 +44,14 @@ pub enum Declaration {
         descriptor: DeclarationDescriptor,
         generics: Generics,
         heritage: Heritage,
-        properties: Vec<LocalNodeId<Property>>,
+        members: Vec<LocalNodeId<Member>>,
     },
     /// Interface declaration.
     Interface {
         descriptor: DeclarationDescriptor,
         generics: Generics,
         heritage: Heritage,
-        properties: Vec<LocalNodeId<Property>>,
+        members: Vec<LocalNodeId<Member>>,
     },
     /// Enum declaration.
     Enum {

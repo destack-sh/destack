@@ -3,7 +3,7 @@ use crate::{ParseError, ParseResult, Parser};
 
 use destack_ast::{
     Declaration, DeclarationDescriptor, EnumField, Generics, Heritage, Keyword, LocalNodeId,
-    NodeType, Property, TokenType,
+    Member, NodeType, TokenType,
 };
 
 impl Parser {
@@ -73,7 +73,7 @@ impl Parser {
         self.try_eat_token(TokenType::OpenBrace, TokenType::CloseBrace)
             .for_node_type(NodeType::Declaration)?;
         self.eat_newlines_maybe()?;
-        let (fields, properties) = self.eat_enum_body().for_node_type(NodeType::Declaration)?;
+        let (fields, members) = self.eat_enum_body().for_node_type(NodeType::Declaration)?;
         self.eat_token(TokenType::CloseBrace)?;
 
         let generics = Generics::new(static_parameters, where_clauses);
@@ -84,7 +84,7 @@ impl Parser {
                 generics,
                 heritage,
                 fields,
-                properties,
+                members,
             },
             self.get_span_from(start),
         );
@@ -96,10 +96,10 @@ impl Parser {
     #[allow(clippy::type_complexity)]
     fn eat_enum_body(
         &mut self,
-    ) -> ParseResult<(Vec<LocalNodeId<EnumField>>, Vec<LocalNodeId<Property>>)> {
+    ) -> ParseResult<(Vec<LocalNodeId<EnumField>>, Vec<LocalNodeId<Member>>)> {
         // eat everything
         let mut fields: Vec<LocalNodeId<EnumField>> = Vec::new();
-        let mut properties: Vec<LocalNodeId<Property>> = Vec::new();
+        let mut members: Vec<LocalNodeId<Member>> = Vec::new();
         while self.peek().is_ok() {
             // stop on closing brace
             if self.peek_token(TokenType::CloseBrace).is_ok() {
@@ -114,18 +114,18 @@ impl Parser {
                 let field = self.eat_enum_field().for_node_type(NodeType::EnumField)?;
                 fields.push(field);
             }
-            // eat properties
+            // eat members
             else {
-                let property_id = self
+                let member_id = self
                     .with_options(self.options.nested().in_variant(), |parser| {
-                        parser.try_eat_property(TokenType::Newline)
+                        parser.try_eat_member(TokenType::Newline)
                     })
-                    .for_node_type(NodeType::Property)?;
-                properties.push(property_id);
+                    .for_node_type(NodeType::Member)?;
+                members.push(member_id);
             }
         }
 
-        Ok((fields, properties))
+        Ok((fields, members))
     }
 
     /// Peek an enum field.
@@ -189,10 +189,10 @@ enum Foo extends Day {}
         parser.eat_newline().unwrap();
 
         let enum_id = parser.eat_enum(DeclarationDescriptor::default()).unwrap();
-        assert_node!(parser.tree, enum_id, Declaration::Enum { descriptor, generics, heritage, fields, properties, .. } => {
+        assert_node!(parser.tree, enum_id, Declaration::Enum { descriptor, generics, heritage, fields, members, .. } => {
             assert_eq!(descriptor.kind, DeclarationKind::Definition);
             assert_string!(parser, descriptor.name.unwrap().string(), "Foo");
-            assert!(properties.is_empty());
+            assert!(members.is_empty());
             assert!(fields.is_empty());
             assert!(generics.is_empty());
 

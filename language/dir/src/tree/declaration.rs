@@ -1,7 +1,7 @@
 use crate::{
     BindingAnchor, DependencyMode, Expression, FunctionSignature, Generics, GlobalSymbolId,
-    Heritage, LocalNodeId, LocalScopeId, LocalSymbolId, Mutability, Node, NodeType, Parameter,
-    Property, StringId, TypeKind,
+    Heritage, LocalNodeId, LocalScopeId, LocalSymbolId, Member, Mutability, Node, NodeType,
+    Parameter, StringId, TypeKind,
 };
 
 /// The kind of declaration.
@@ -52,7 +52,7 @@ pub enum Declaration {
         generics: Generics,
         heritage: Heritage,
         scope: LocalScopeId,
-        properties: Vec<LocalNodeId<Property>>,
+        members: Vec<LocalNodeId<Member>>,
     },
     /// Class declaration with reference semantics.
     Class {
@@ -60,7 +60,7 @@ pub enum Declaration {
         generics: Generics,
         heritage: Heritage,
         scope: LocalScopeId,
-        properties: Vec<LocalNodeId<Property>>,
+        members: Vec<LocalNodeId<Member>>,
     },
     /// Enum declaration.
     Enum {
@@ -69,7 +69,7 @@ pub enum Declaration {
         heritage: Heritage,
         scope: LocalScopeId,
         fields: Vec<LocalNodeId<EnumField>>,
-        properties: Vec<LocalNodeId<Property>>,
+        members: Vec<LocalNodeId<Member>>,
     },
     /// Interface declaration.
     Interface {
@@ -77,7 +77,7 @@ pub enum Declaration {
         generics: Generics,
         heritage: Heritage,
         scope: LocalScopeId,
-        properties: Vec<LocalNodeId<Property>>,
+        members: Vec<LocalNodeId<Member>>,
     },
     /// Function declaration. Nested declarations are lifted from the body.
     Function {
@@ -95,7 +95,7 @@ pub enum Declaration {
         target_symbol: Option<GlobalSymbolId>,
         heritage: Heritage,
         scope: LocalScopeId,
-        properties: Vec<LocalNodeId<Property>>,
+        members: Vec<LocalNodeId<Member>>,
     },
 }
 

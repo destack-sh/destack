@@ -1,6 +1,6 @@
 use crate::{
-    BindingAnchor, BindingKind, BindingModifier, BindingOperator, CodegenJsResult,
-    CodegenJsResultExt, Expression, LocalNodeId, ModuleLowerer, Property,
+    BindingAnchor, BindingKind, BindingModifier, BindingOperator, CodegenJsError, CodegenJsResult,
+    CodegenJsResultExt, Expression, LocalNodeId, Member, ModuleLowerer, Property,
 };
 use destack_dir as dir;
 
@@ -123,5 +123,94 @@ impl ModuleLowerer<'_> {
             .tree
             .insert_from_source(property, self.module.id, property_id);
         Ok(property_id)
+    }
+
+    /// Lower a member from DIR into JS AST.
+    pub fn lower_member(
+        &mut self,
+        member_id: dir::LocalNodeId<dir::Member>,
+    ) -> CodegenJsResult<LocalNodeId<Member>> {
+        let member = self.dir_tree.get(member_id);
+        let member = match member {
+            dir::Member::Field {
+                modifiers,
+                key,
+                value,
+                default,
+                symbol: _,
+            } => {
+                let modifiers = modifiers
+                    .map(|modifiers| self.lower_binding_modifier(modifiers))
+                    .transpose()?;
+                let key = key.as_ref().map(|key| self.lower_key(*key)).transpose()?;
+                let value = value
+                    .as_ref()
+                    .map(|value| {
+                        self.lower_expression(*value)
+                            .expect_node::<Expression>(value.into_global_any(self.module.id), self)
+                    })
+                    .transpose()?;
+                let default = default
+                    .as_ref()
+                    .map(|default| {
+                        self.lower_expression(*default).expect_node::<Expression>(
+                            default.into_global_any(self.module.id),
+                            self,
+                        )
+                    })
+                    .transpose()?;
+                Member::Field {
+                    modifiers,
+                    key,
+                    value,
+                    default,
+                }
+            }
+            dir::Member::Method {
+                modifiers,
+                key,
+                signature,
+                body,
+                symbol: _,
+            } => {
+                let modifiers = modifiers
+                    .map(|modifiers| self.lower_binding_modifier(modifiers))
+                    .transpose()?;
+                let key = key.as_ref().map(|key| self.lower_key(*key)).transpose()?;
+                let signature = self.lower_function_signature(signature)?;
+                let body = body
+                    .as_ref()
+                    .map(|body_id| {
+                        self.lower_expression(*body_id).expect_node::<Expression>(
+                            body_id.into_global_any(self.module.id),
+                            self,
+                        )
+                    })
+                    .transpose()?;
+                Member::Method {
+                    modifiers,
+                    key,
+                    signature,
+                    body,
+                }
+            }
+            dir::Member::Embed { .. } => {
+                // Embed is a compile-time construct, shouldn't reach codegen
+                return Err(CodegenJsError::UnsupportedConstruct {
+                    node: member_id.into_global_any(self.module.id),
+                    message: Some("type embedding should be expanded before codegen".to_string()),
+                });
+            }
+            dir::Member::StaticBlock { body, symbol: _ } => {
+                let body = self
+                    .lower_expression(*body)
+                    .expect_node::<Expression>(body.into_global_any(self.module.id), self)?;
+                Member::StaticBlock { body }
+            }
+        };
+        let member_id = self
+            .tree
+            .insert_from_source(member, self.module.id, member_id);
+        Ok(member_id)
     }
 }

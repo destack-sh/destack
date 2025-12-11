@@ -1216,7 +1216,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 descriptor,
                 generics,
                 heritage,
-                properties: _,
+                members: _,
                 scope,
             } => {
                 self.node("Declaration::Struct", id.id)
@@ -1230,7 +1230,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 descriptor,
                 generics,
                 heritage,
-                properties: _,
+                members: _,
                 scope,
             } => {
                 self.node("Declaration::Class", id.id)
@@ -1245,7 +1245,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 generics,
                 heritage,
                 fields: _,
-                properties: _,
+                members: _,
                 scope,
             } => {
                 self.node("Declaration::Enum", id.id)
@@ -1259,7 +1259,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 descriptor,
                 generics,
                 heritage,
-                properties: _,
+                members: _,
                 scope,
             } => {
                 self.node("Declaration::Interface", id.id)
@@ -1287,7 +1287,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 target_type: _,
                 target_symbol,
                 heritage,
-                properties: _,
+                members: _,
                 scope,
             } => {
                 self.node("Declaration::Extension", id.id)
@@ -1363,6 +1363,56 @@ impl<'a> NodeVisitor for Dumper<'a> {
         }
         self.with_depth(|dumper| {
             walk_property(dumper, tree, id, property);
+        });
+    }
+
+    fn visit_member(&mut self, tree: &NodeTree, id: LocalNodeId<Member>, member: &Member) {
+        match member {
+            Member::Field {
+                modifiers,
+                key,
+                value: _,
+                default: _,
+                symbol,
+            } => {
+                self.node("Member::Field", id.id)
+                    .field_optional("modifiers", modifiers)
+                    .field_optional("key", key)
+                    .field("symbol", symbol)
+                    .end();
+            }
+            Member::Method {
+                modifiers,
+                key,
+                signature,
+                body: _,
+                symbol,
+            } => {
+                self.node("Member::Method", id.id)
+                    .field_optional("modifiers", modifiers)
+                    .field_optional("key", key)
+                    .field("signature", signature)
+                    .field("symbol", symbol)
+                    .end();
+            }
+            Member::Embed {
+                modifiers,
+                value: _,
+                symbol,
+            } => {
+                self.node("Member::Embed", id.id)
+                    .field_optional("modifiers", modifiers)
+                    .field("symbol", symbol)
+                    .end();
+            }
+            Member::StaticBlock { body: _, symbol } => {
+                self.node("Member::StaticBlock", id.id)
+                    .field("symbol", symbol)
+                    .end();
+            }
+        }
+        self.with_depth(|dumper| {
+            walk_member(dumper, tree, id, member);
         });
     }
 

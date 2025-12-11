@@ -66,7 +66,7 @@ impl Parser {
         self.try_eat_token(TokenType::OpenBrace, TokenType::CloseBrace)
             .for_node_type(NodeType::Declaration)?;
         self.eat_newlines_maybe()?;
-        let properties = self.eat_properties()?;
+        let members = self.eat_members()?;
         self.eat_token(TokenType::CloseBrace)?;
 
         // extension
@@ -78,7 +78,7 @@ impl Parser {
                 generics,
                 target_type,
                 heritage,
-                properties,
+                members,
             },
             self.get_span_from(start),
         );
