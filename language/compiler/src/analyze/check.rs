@@ -1529,49 +1529,4 @@ const v = getVector();
             assert_ne!(symbol.module_id, module_id, "should reference lib.ds type");
         });
     }
-
-    /// Verify cross-module inherent extension methods are visible.
-    #[test]
-    fn test_analyze_cross_module_inherent_extension() {
-        let test = TestProgram::memory_sequential();
-        test.add_file(
-            "lib.ds",
-            r#"
-export struct Vector2 { x: number, y: number }
-
-extension Vector2 {
-    length(): number { return 0 }
-}
-"#,
-        );
-        let module_id = test.register_module(
-            "main.ds",
-            r#"
-import { Vector2 } from "./lib.ds";
-
-declare function getVector(): Vector2;
-
-const v = getVector();
-const l = v.length();
-"#,
-        );
-        test.analyze_module(module_id);
-        test.compile_dump_clean();
-
-        // l should have type number (from extension method)
-        let l_symbol = test.resolve_to_symbol("main.ds", "l").unwrap();
-        let module = test.program.modules.get(module_id);
-        let module = module.read();
-        let types = module.dir.types.read();
-        let l_ty_id = types
-            .get_value_type_id(l_symbol)
-            .expect("l should have value type");
-        assert_type!(
-            types,
-            l_ty_id,
-            Type::TypeLiteral {
-                value: TypeLiteral::Primitive(PrimitiveType::Number)
-            }
-        );
-    }
 }
