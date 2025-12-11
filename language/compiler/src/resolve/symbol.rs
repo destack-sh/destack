@@ -322,7 +322,7 @@ impl Compiler {
 
     /// Follow a symbol's target chain to find the canonical (final) symbol.
     /// (This may yield if intermediate modules aren't resolved yet.)
-    fn resolve_final_symbol_chain(
+    fn resolve_canonical_symbol_chain(
         &self,
         node: GlobalNodeIdAny,
         start_symbol: GlobalSymbolId,
@@ -354,9 +354,9 @@ impl Compiler {
             let symbols = module.dir.symbols.read();
             let symbol = symbols.get_symbol(current.local_id);
 
-            // if symbol already has final_symbol computed, use it (optimization)
-            if let Some(final_symbol) = symbol.final_symbol {
-                return Ok(final_symbol);
+            // if symbol already has canonical_symbol computed, use it (optimization)
+            if let Some(canonical_symbol) = symbol.canonical_symbol {
+                return Ok(canonical_symbol);
             }
 
             // if it has a target, follow it
@@ -369,9 +369,9 @@ impl Compiler {
         }
     }
 
-    /// Resolve and set the final_symbol for a symbol that has a target_symbol.
+    /// Resolve and set the canonical_symbol for a symbol that has a target_symbol.
     /// (This should be called after setting target_symbol on a symbol.)
-    pub(crate) fn resolve_final_symbol(
+    pub(crate) fn resolve_canonical_symbol(
         &self,
         node: GlobalNodeIdAny,
         symbol_id: GlobalSymbolId,
@@ -389,15 +389,15 @@ impl Compiler {
         drop(module);
 
         // follow the chain from target
-        let final_symbol = self.resolve_final_symbol_chain(node, target_symbol)?;
+        let canonical_symbol = self.resolve_canonical_symbol_chain(node, target_symbol)?;
 
-        // set the final_symbol
+        // set the canonical_symbol
         let module = self.program.modules.get(symbol_id.module_id);
         let module = module.read();
         let mut symbols = module.dir.symbols.write();
-        symbols.get_symbol_mut(symbol_id.local_id).final_symbol = Some(final_symbol);
+        symbols.get_symbol_mut(symbol_id.local_id).canonical_symbol = Some(canonical_symbol);
 
-        Ok(final_symbol)
+        Ok(canonical_symbol)
     }
 }
 
@@ -625,11 +625,11 @@ export let B = A + 1;
         // check that b.ds's A symbol (import) has target_symbol pointing to a.ds's A
         let b_import_symbol = test.symbol_by_id(b_import_symbol_id);
         assert_eq!(b_import_symbol.target_symbol, Some(a_symbol_id));
-        // b.ds's A should also have final_symbol pointing to a.ds's A (canonical symbol)
-        assert_eq!(b_import_symbol.final_symbol, Some(a_symbol_id));
+        // b.ds's A should also have canonical_symbol pointing to a.ds's A (canonical symbol)
+        assert_eq!(b_import_symbol.canonical_symbol, Some(a_symbol_id));
     }
 
-    /// Verify final_symbol chains through multi-level type aliases.
+    /// Verify canonical_symbol chains through multi-level type aliases.
     #[test]
     fn test_resolve_symbol_multilevel_type_alias() {
         let test = TestProgram::memory_sequential();
@@ -652,13 +652,13 @@ type Bar = Baz;
         let bar_symbol = test.symbol_by_id(bar_symbol_id);
         assert_eq!(bar_symbol.target_symbol, Some(baz_symbol_id));
 
-        // Bar -> Foo (final_symbol, following the chain)
-        assert_eq!(bar_symbol.final_symbol, Some(foo_symbol_id));
+        // Bar -> Foo (canonical_symbol, following the chain)
+        assert_eq!(bar_symbol.canonical_symbol, Some(foo_symbol_id));
 
-        // Baz -> Foo (target_symbol and final_symbol)
+        // Baz -> Foo (target_symbol and canonical_symbol)
         let baz_symbol = test.symbol_by_id(baz_symbol_id);
         assert_eq!(baz_symbol.target_symbol, Some(foo_symbol_id));
-        assert_eq!(baz_symbol.final_symbol, Some(foo_symbol_id));
+        assert_eq!(baz_symbol.canonical_symbol, Some(foo_symbol_id));
     }
 
     /// Detect cyclic type alias reference (A -> B -> C -> A forms a cycle).
@@ -786,13 +786,13 @@ let y = X + 1;
             "import from re-export should have target_symbol"
         );
 
-        // the import from c -> b should have final_symbol pointing to a's X
+        // the import from c -> b should have canonical_symbol pointing to a's X
         // (this requires the re-export to be resolved as a transitive chain)
         let a_x_symbol_id = test.resolve_to_symbol("a.ds", "X").unwrap();
         assert_eq!(
-            c_x_symbol.final_symbol,
+            c_x_symbol.canonical_symbol,
             Some(a_x_symbol_id),
-            "final_symbol should point to original symbol from a.ds"
+            "canonical_symbol should point to original symbol from a.ds"
         );
     }
 
@@ -896,9 +896,9 @@ let sum = VALUE_A + RENAMED_B + BaseDefault + BaseNS.VALUE_A + DefaultFromBase +
         );
         let base_value_a = test.resolve_to_symbol("base.ds", "VALUE_A").unwrap();
         assert_eq!(
-            value_a.final_symbol,
+            value_a.canonical_symbol,
             Some(base_value_a),
-            "VALUE_A final_symbol should point to base.ds"
+            "VALUE_A canonical_symbol should point to base.ds"
         );
 
         // consumer.ds RENAMED_B -> relay.ds (VALUE_B as RENAMED_B) -> base.ds VALUE_B
@@ -910,9 +910,9 @@ let sum = VALUE_A + RENAMED_B + BaseDefault + BaseNS.VALUE_A + DefaultFromBase +
         );
         let base_value_b = test.resolve_to_symbol("base.ds", "VALUE_B").unwrap();
         assert_eq!(
-            renamed_b.final_symbol,
+            renamed_b.canonical_symbol,
             Some(base_value_b),
-            "RENAMED_B final_symbol should point to base.ds VALUE_B"
+            "RENAMED_B canonical_symbol should point to base.ds VALUE_B"
         );
 
         // consumer.ds DefaultFromBase -> base.ds default export
@@ -942,9 +942,9 @@ let sum = VALUE_A + RENAMED_B + BaseDefault + BaseNS.VALUE_A + DefaultFromBase +
         );
         let base_ns_x = test.resolve_to_symbol("base.ds", "NS_X").unwrap();
         assert_eq!(
-            ns_x.final_symbol,
+            ns_x.canonical_symbol,
             Some(base_ns_x),
-            "NS_X final_symbol should point to base.ds"
+            "NS_X canonical_symbol should point to base.ds"
         );
 
         // consumer.ds Base -> namespace_as.ds (export * as Base from) -> base.ds namespace
@@ -1088,7 +1088,7 @@ export let C = A + B;
         let main_a_symbol = symbols.get_symbol(main_a_symbol_id.into_local());
         let main_b_symbol = symbols.get_symbol(main_b_symbol_id.into_local());
 
-        assert_eq!(main_a_symbol.final_symbol, Some(a_symbol_id));
-        assert_eq!(main_b_symbol.final_symbol, Some(b_symbol_id));
+        assert_eq!(main_a_symbol.canonical_symbol, Some(a_symbol_id));
+        assert_eq!(main_b_symbol.canonical_symbol, Some(b_symbol_id));
     }
 }
