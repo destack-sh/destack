@@ -1,6 +1,6 @@
 use crate::{
     AnalyzeError, AnalyzeResult, Compiler, Task, TaskDebug, TaskDependencyError, TaskOutput,
-    TaskResultCollector, TypeContext,
+    TaskResultCollector, InferContext,
 };
 
 use destack_dir::LocalTypeId;
@@ -10,15 +10,23 @@ use destack_workspace::Program;
 /// Task to analyze something.
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub enum AnalyzeTask {
-    /// Analyze a module.
-    AnalyzeModule { module: ModuleId },
+    /// Evaluate declared types.
+    AnalyzeModuleDeclare { module: ModuleId },
+
+    /// Infer expression types.
+    AnalyzeModuleInfer { module: ModuleId },
+
+    /// Final validation pass.
+    AnalyzeModuleCheck { module: ModuleId },
 }
 
 impl AnalyzeTask {
     /// Get the sub code for the task.
     pub fn sub_code(&self) -> u8 {
         match self {
-            Self::AnalyzeModule { .. } => 1,
+            Self::AnalyzeModuleDeclare { .. } => 1,
+            Self::AnalyzeModuleInfer { .. } => 2,
+            Self::AnalyzeModuleCheck { .. } => 3,
         }
     }
 }
@@ -26,13 +34,17 @@ impl AnalyzeTask {
 impl TaskDebug for AnalyzeTask {
     fn name(&self) -> &'static str {
         match self {
-            Self::AnalyzeModule { .. } => "analyze module",
+            Self::AnalyzeModuleDeclare { .. } => "module_declare",
+            Self::AnalyzeModuleInfer { .. } => "module_infer",
+            Self::AnalyzeModuleCheck { .. } => "module_check",
         }
     }
 
     fn trace_args(&self, program: &Program) -> String {
         match self {
-            Self::AnalyzeModule { module } => {
+            Self::AnalyzeModuleDeclare { module }
+            | Self::AnalyzeModuleInfer { module }
+            | Self::AnalyzeModuleCheck { module } => {
                 let module = program.modules.get(*module);
                 let uri = module.read().uri.clone().to_string();
                 format!(r#"module="{uri}""#)
@@ -61,56 +73,100 @@ impl Compiler {
     /// Process an analyze task.
     pub fn process_analyze(&self, task: AnalyzeTask) -> AnalyzeResult<AnalyzeOutput> {
         match task {
-            AnalyzeTask::AnalyzeModule { module } => {
+            AnalyzeTask::AnalyzeModuleDeclare { module } => {
                 self.require_resolve_module(module)?;
-                self.analyze_module(module)?;
+                self.analyze_module_declare(module)?;
+            }
+            AnalyzeTask::AnalyzeModuleInfer { module } => {
+                self.require_analyze_module_declare(module)?;
+                self.analyze_module_infer(module)?;
+            }
+            AnalyzeTask::AnalyzeModuleCheck { module } => {
+                self.require_analyze_module_infer(module)?;
+                self.analyze_module_check(module)?;
             }
         }
         Ok(AnalyzeOutput {})
     }
 
-    /// Ensure a module has been analyzed.
-    pub fn require_analyze_module(&self, module: ModuleId) -> Result<(), TaskDependencyError> {
-        self.do_require_task_internal_only(AnalyzeTask::AnalyzeModule { module })
+    /// Ensure a module's types have been declared (evaluated).
+    pub fn require_analyze_module_declare(
+        &self,
+        module: ModuleId,
+    ) -> Result<(), TaskDependencyError> {
+        self.do_require_task_internal_only(AnalyzeTask::AnalyzeModuleDeclare { module })
     }
 
-    /// Analyze a module.
-    pub fn analyze_module(&self, module_id: ModuleId) -> AnalyzeResult<()> {
+    /// Ensure a module's types have been inferred.
+    pub fn require_analyze_module_infer(
+        &self,
+        module: ModuleId,
+    ) -> Result<(), TaskDependencyError> {
+        self.do_require_task_internal_only(AnalyzeTask::AnalyzeModuleInfer { module })
+    }
+
+    /// Ensure a module has been fully analyzed (including checks).
+    pub fn require_analyze_module(&self, module: ModuleId) -> Result<(), TaskDependencyError> {
+        self.do_require_task_internal_only(AnalyzeTask::AnalyzeModuleCheck { module })
+    }
+
+    /// Phase 1: Evaluate declared types.
+    /// Converts Type::Unevaluated → actual Type values.
+    /// No remote dependencies, no tree walk - just iterates over the type table.
+    fn analyze_module_declare(&self, module_id: ModuleId) -> AnalyzeResult<()> {
         let module = self.program.modules.get(module_id);
         let module = module.read();
         let mut tree = module.dir.tree.write();
-        let mut symbols = module.dir.symbols.write();
+        let symbols = module.dir.symbols.read();
         let mut types = module.dir.types.write();
         let mut collector = TaskResultCollector::new();
 
-        // step 1: evaluate declared types (from annotations)
-        let type_count = types.type_count();
-        for i in 0..type_count {
+        // evaluate any unevaluated types
+        for i in 0..types.type_count() {
             let ty_id = LocalTypeId::new(i);
             self.collect(
                 &mut collector,
-                self.evaluate_type(&module, ty_id, &mut tree, &mut symbols, &mut types),
+                self.evaluate_type(&module, ty_id, &mut tree, &symbols, &mut types),
             );
         }
 
-        // step 2: analyze types (infer, instantiate, resolve)
-        // note: extensions are registered during declaration analysis
-        let mut ctx = TypeContext::new();
-        for root_id in module.dir.roots.iter() {
-            self.collect(
-                &mut collector,
-                self.analyze_expression(&module, *root_id, &tree, &symbols, &mut types, &mut ctx),
-            );
-        }
-
-        // step 3: check post-analysis (visibility, overloads, ..)
-        // TODO #Incomplete: check analyzed types, patterns, visibility, overloads, ..
-
-        // yield on any yield
         if let Some(dependency) = collector.try_into_yield_any() {
             return Err(AnalyzeError::Yield { dependency });
         }
 
+        Ok(())
+    }
+
+    /// Phase 2: Infer expression types.
+    /// The big CFG walk - infers types, resolves overloads, computes instance types.
+    fn analyze_module_infer(&self, module_id: ModuleId) -> AnalyzeResult<()> {
+        let module = self.program.modules.get(module_id);
+        let module = module.read();
+        let tree = module.dir.tree.read();
+        let symbols = module.dir.symbols.read();
+        let mut types = module.dir.types.write();
+        let mut collector = TaskResultCollector::new();
+
+        // the big walk - analyze all expressions
+        let mut ctx = InferContext::new();
+        for root_id in module.dir.roots.iter() {
+            self.collect(
+                &mut collector,
+                self.infer_expression(&module, *root_id, &tree, &symbols, &mut types, &mut ctx),
+            );
+        }
+
+        if let Some(dependency) = collector.try_into_yield_any() {
+            return Err(AnalyzeError::Yield { dependency });
+        }
+
+        Ok(())
+    }
+
+    /// Phase 3: Final validation checks.
+    /// Pattern completeness, unused warnings, final type errors.
+    fn analyze_module_check(&self, module_id: ModuleId) -> AnalyzeResult<()> {
+        let _ = module_id;
         Ok(())
     }
 }

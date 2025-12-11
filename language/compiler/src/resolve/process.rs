@@ -15,7 +15,7 @@ pub enum ResolveTask {
     ResolveModuleCanonical { module: ModuleId },
 
     /// Resolve both direct and canonical symbols.
-    ResolveModule { module: ModuleId },
+    ResolveModule { module: ModuleId }, // nocheckin: remove ResolveModule task (just use canonical one)
 }
 
 impl ResolveTask {
