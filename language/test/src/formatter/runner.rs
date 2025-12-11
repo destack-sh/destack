@@ -1,5 +1,3 @@
-//! Formatter roundtrip tests.
-
 use std::sync::Arc;
 
 use destack_ast::NodeParentIndex;
@@ -13,20 +11,40 @@ use destack_workspace::Program;
 
 use crate::harness::diff::print_diff;
 use crate::harness::{
-    TestCase, TestOptions, TestResult, check_diagnostics, discover_test_files, fixtures_dir,
-    run_tests,
+    RunContext, Runner, Suite, TestCase, TestOptions, TestResult, check_diagnostics,
+    discover_test_files, fixtures_dir,
 };
+
+#[derive(Debug, Clone, Copy, Default)]
+pub struct FormatterSuite;
+
+impl Suite for FormatterSuite {
+    fn name(&self) -> &'static str {
+        "formatter"
+    }
+
+    fn discover(&self, _options: &TestOptions) -> Vec<TestCase> {
+        let formatter_directory = fixtures_dir().join("formatter");
+        discover_test_files(
+            &formatter_directory,
+            &["ds", ".d.ds"],
+            "destack_test::formatter",
+        )
+        .expect("failed to discover tests")
+    }
+
+    fn run(&self, case: &TestCase, _context: &RunContext<'_>) -> TestResult {
+        run_roundtrip_case(case)
+    }
+}
 
 /// Run all formatter roundtrip tests.
 pub fn run_formatter_tests(options: &TestOptions) -> std::process::ExitCode {
-    let formatter_dir = fixtures_dir().join("formatter");
-    let tests = discover_test_files(&formatter_dir, &["ds", ".d.ds"], "destack_test::formatter")
-        .expect("failed to discover tests");
-    run_tests(tests, options, run_roundtrip_test)
+    Runner::run_suite(&FormatterSuite, options)
 }
 
 /// Run a single formatter roundtrip test.
-fn run_roundtrip_test(test: &TestCase) -> TestResult {
+fn run_roundtrip_case(test: &TestCase) -> TestResult {
     // set up a minimal program for diagnostics
     let cwd = test.path.parent().unwrap().to_path_buf();
     let files = Arc::new(FileRegistry::new());

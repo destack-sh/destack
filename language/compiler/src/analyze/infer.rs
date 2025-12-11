@@ -81,15 +81,7 @@ impl Compiler {
                 }
                 if let Some(arguments) = arguments {
                     for argument_id in arguments {
-                        self.infer_argument(
-                            module,
-                            *argument_id,
-                            None,
-                            tree,
-                            symbols,
-                            types,
-                            ctx,
-                        )?;
+                        self.infer_argument(module, *argument_id, None, tree, symbols, types, ctx)?;
                     }
                 }
                 let ty = Type::TypeLiteral {
@@ -153,8 +145,7 @@ impl Compiler {
                 operator,
                 right,
             } => {
-                let left_ty_id =
-                    self.infer_expression(module, *left, tree, symbols, types, ctx)?;
+                let left_ty_id = self.infer_expression(module, *left, tree, symbols, types, ctx)?;
                 let right_ty_id =
                     self.infer_expression(module, *right, tree, symbols, types, ctx)?;
                 let ty = self.infer_type_binary_operation(
@@ -213,8 +204,7 @@ impl Compiler {
                 operator,
                 right,
             } => {
-                let left_ty_id =
-                    self.infer_expression(module, *left, tree, symbols, types, ctx)?;
+                let left_ty_id = self.infer_expression(module, *left, tree, symbols, types, ctx)?;
                 let right_ty_id =
                     self.infer_expression(module, *right, tree, symbols, types, ctx)?;
 
@@ -227,8 +217,7 @@ impl Compiler {
             }
             // assignment operations -> void
             Expression::Assign { left, right } => {
-                let left_ty_id =
-                    self.infer_expression(module, *left, tree, symbols, types, ctx)?;
+                let left_ty_id = self.infer_expression(module, *left, tree, symbols, types, ctx)?;
                 let right_ty_id =
                     self.infer_expression(module, *right, tree, symbols, types, ctx)?;
 
@@ -501,8 +490,7 @@ impl Compiler {
                 name,
                 static_arguments: _,
             } => {
-                let left_ty_id =
-                    self.infer_expression(module, *left, tree, symbols, types, ctx)?;
+                let left_ty_id = self.infer_expression(module, *left, tree, symbols, types, ctx)?;
                 let left_ty = types.get_type(left_ty_id).clone();
 
                 // look up member type on the left type (including extensions)
@@ -813,8 +801,7 @@ impl Compiler {
                 types.insert_type_from(ty, expression_id)
             }
             Expression::TaggedTemplateExpression { tag, value: _ } => {
-                let _tag_ty_id =
-                    self.infer_expression(module, *tag, tree, symbols, types, ctx)?;
+                let _tag_ty_id = self.infer_expression(module, *tag, tree, symbols, types, ctx)?;
                 // NOTE #Incomplete: tagged template return type from tag function
                 let ty = Type::TypeLiteral {
                     value: TypeLiteral::Unknown,

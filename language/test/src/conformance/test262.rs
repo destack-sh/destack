@@ -82,7 +82,7 @@ impl ConformanceSuite for Test262Suite {
         self.conformance_dir.join("test262-known-failures.txt")
     }
 
-    fn discover_tests(&self) -> Vec<Test> {
+    fn discover(&self) -> Vec<Test> {
         let mut tests = Vec::new();
 
         // pass/ directory: files that should parse successfully
@@ -112,7 +112,7 @@ impl ConformanceSuite for Test262Suite {
         tests
     }
 
-    fn run_test(&self, test: &Test) -> TestOutcome {
+    fn run(&self, test: &Test) -> TestOutcome {
         let parts: Vec<&str> = test.name.splitn(2, '/').collect();
         if parts.len() != 2 {
             return TestOutcome::Failed;

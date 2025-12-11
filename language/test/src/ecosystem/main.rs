@@ -1,25 +1,23 @@
-//! Ecosystem test runner.
-//!
-//! Usage:
-//!   cargo test --test ecosystem              # run all ecosystem tests
-//!   cargo test --test ecosystem -- ms        # run specific package
-//!   cargo test --test ecosystem -- --fetch   # fetch packages
-//!   cargo test --test ecosystem -- --list    # list packages
-
 use std::process::ExitCode;
 
 use clap::Parser;
 
-use destack_test::ecosystem::{run_ecosystem_tests, Tier};
-use destack_test::ecosystem::runner::fetch_all_packages;
+use destack_test::ecosystem::{
+    EcosystemRunOptions, FetchOptions, Tier, fetch_all_packages, run_ecosystem_tests,
+};
 use destack_test::harness::TestOptions;
 
+/// CLI options for the `ecosystem` test binary.
 #[derive(Parser, Debug, Clone)]
 #[command(name = "ecosystem", about = "Run Destack ecosystem tests")]
 struct EcosystemOptions {
     /// Fetch all packages before running tests.
     #[arg(long)]
     fetch: bool,
+
+    /// Refresh packages during fetch (re-clone even if already present).
+    #[arg(long)]
+    refresh: bool,
 
     /// Only run parse tier.
     #[arg(long)]
@@ -28,6 +26,14 @@ struct EcosystemOptions {
     /// Only run analyze tier.
     #[arg(long)]
     analyze: bool,
+
+    /// Override include patterns (glob, relative to package root).
+    #[arg(long, value_name = "PATTERN")]
+    include: Vec<String>,
+
+    /// Add extra exclude patterns (glob, relative to package root).
+    #[arg(long, value_name = "PATTERN")]
+    exclude: Vec<String>,
 
     /// Common test options.
     #[command(flatten)]
@@ -39,7 +45,9 @@ fn main() -> ExitCode {
 
     // fetch mode
     if options.fetch {
-        return fetch_all_packages();
+        return fetch_all_packages(FetchOptions {
+            refresh: options.refresh,
+        });
     }
 
     // determine tier filter
@@ -51,5 +59,11 @@ fn main() -> ExitCode {
         None // run default (parse)
     };
 
-    run_ecosystem_tests(&options.test, tier)
+    let run_options = EcosystemRunOptions {
+        tier,
+        include: options.include,
+        exclude: options.exclude,
+    };
+
+    run_ecosystem_tests(&options.test, &run_options)
 }

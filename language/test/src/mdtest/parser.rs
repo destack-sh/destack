@@ -1,38 +1,3 @@
-//! Markdown test parser.
-//!
-//! Parses markdown files to extract test cases following the ezno-style format:
-//!
-//! ```markdown
-//! ## Section Name
-//!
-//! ### Test Name
-//!
-//! ```ds
-//! const x: string = 5
-//! ```
-//!
-//! - Expected error message 1
-//! - Expected error message 2
-//! ```
-//!
-//! ## Multi-file tests
-//!
-//! For tests that span multiple files, use the `:filename` suffix:
-//!
-//! ```markdown
-//! ### Multi-file test
-//!
-//! ```ds:types.ds
-//! export struct Foo {}
-//! ```
-//!
-//! ```ds:main.ds
-//! import { Foo } from "./types.ds"
-//! ```
-//!
-//! - expected error
-//! ```
-
 use std::path::Path;
 
 use pulldown_cmark::{Event, HeadingLevel, Parser, Tag, TagEnd};

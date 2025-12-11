@@ -10,7 +10,7 @@ use destack_source::{FileRegistry, FileSystem, LanguageOptions, MemoryFileSystem
 use destack_workspace::Program;
 
 use crate::harness::{
-    TestCase, TestOptions, TestResult, discover_test_files, fixtures_dir, run_tests,
+    RunContext, Runner, Suite, TestCase, TestOptions, TestResult, discover_test_files, fixtures_dir,
 };
 
 use super::parser::{MdTestCase, parse_mdtest_file};
@@ -18,67 +18,84 @@ use super::parser::{MdTestCase, parse_mdtest_file};
 /// Per-test timeout in seconds.
 const TEST_TIMEOUT_SECONDS: u64 = 1;
 
-/// Run all markdown tests.
-pub fn run_mdtests(options: &TestOptions) -> ExitCode {
-    let mdtest_dir = fixtures_dir().join("mdtest");
+#[derive(Debug, Default)]
+pub struct MdtestSuite {
+    tests: HashMap<String, MdTestCase>,
+    cases: Vec<TestCase>,
+}
 
-    // discover all .md files in the mdtest directory (recursively)
-    let md_files = discover_md_files(&mdtest_dir).expect("failed to discover mdtest files");
-    if md_files.is_empty() {
-        println!("no mdtest files found in {}", mdtest_dir.display());
-        return ExitCode::SUCCESS;
+impl MdtestSuite {
+    pub fn load() -> Self {
+        let mdtest_directory = fixtures_dir().join("mdtest");
+
+        let md_files = discover_md_files(&mdtest_directory).unwrap_or_default();
+
+        let mut suite = Self::default();
+        for md_path in md_files {
+            suite.add_file(&mdtest_directory, &md_path);
+        }
+
+        suite
     }
 
-    // parse all markdown files and extract test cases
-    let mut all_tests = Vec::new();
-    for md_path in &md_files {
-        let tests = match parse_mdtest_file(md_path) {
-            Ok(tests) => tests,
-            Err(e) => {
-                eprintln!("failed to parse {}: {}", md_path.display(), e);
-                continue;
+    fn add_file(&mut self, mdtest_directory: &Path, md_path: &Path) {
+        let cases = match parse_mdtest_file(md_path) {
+            Ok(cases) => cases,
+            Err(error) => {
+                eprintln!("failed to parse {}: {error}", md_path.display());
+                return;
             }
         };
 
-        // convert MdTestCase to TestCase for the harness
-        let file_stem = md_path
-            .file_stem()
-            .and_then(|s| s.to_str())
-            .unwrap_or("unknown");
-        for md_test in tests {
-            let test_name = format!("{}::{}", file_stem, slug(&md_test.name));
-            let category = format!("destack_test::mdtest::{file_stem}");
-            let case = MdTestCaseWrapper {
-                test_case: TestCase::file(&test_name, md_path.clone(), &category),
-                md_test,
-            };
-            all_tests.push(case);
+        let relative_path = md_path.strip_prefix(mdtest_directory).unwrap_or(md_path);
+        let relative_name = relative_path.to_string_lossy();
+
+        for case in cases {
+            let name = format!(
+                "{relative_name}/{}/{}",
+                slug(&case.section),
+                slug(&case.name),
+            );
+            let test_case = TestCase::file(name, md_path.to_path_buf(), "destack_test::mdtest");
+
+            self.tests.insert(test_case.full_name(), case);
+            self.cases.push(test_case);
         }
     }
+}
 
-    if all_tests.is_empty() {
-        println!("no tests found in mdtest files");
-        return ExitCode::SUCCESS;
+impl Suite for MdtestSuite {
+    fn name(&self) -> &'static str {
+        "mdtest"
     }
 
-    // convert to plain TestCases for filtering/listing
-    let test_cases: Vec<TestCase> = all_tests.iter().map(|w| w.test_case.clone()).collect();
+    fn discover(&self, _options: &TestOptions) -> Vec<TestCase> {
+        self.cases.clone()
+    }
 
-    // create a lookup for the actual test data
-    let test_map: HashMap<String, MdTestCase> = all_tests
-        .into_iter()
-        .map(|w| (w.test_case.full_name(), w.md_test))
-        .collect();
+    fn run(&self, case: &TestCase, context: &RunContext<'_>) -> TestResult {
+        let Some(md_test) = self.tests.get(&case.full_name()) else {
+            return TestResult::Failed {
+                message: "test not found".to_string(),
+            };
+        };
 
-    run_tests(test_cases, options, |test| {
-        let md_test = test_map.get(&test.full_name()).expect("test not found");
-        run_mdtest_with_timeout(md_test)
-    })
+        run_mdtest_with_timeout(md_test, context.timeout)
+    }
+
+    fn timeout(&self) -> Option<Duration> {
+        Some(Duration::from_secs(TEST_TIMEOUT_SECONDS))
+    }
+}
+
+pub fn run_mdtests(options: &TestOptions) -> ExitCode {
+    let suite = MdtestSuite::load();
+    Runner::run_suite(&suite, options)
 }
 
 /// Run a single markdown test case with a timeout.
-fn run_mdtest_with_timeout(test: &MdTestCase) -> TestResult {
-    let timeout = Duration::from_secs(TEST_TIMEOUT_SECONDS);
+fn run_mdtest_with_timeout(test: &MdTestCase, timeout: Option<Duration>) -> TestResult {
+    let timeout = timeout.unwrap_or(Duration::from_secs(TEST_TIMEOUT_SECONDS));
     let test = test.clone();
 
     let (tx, rx) = mpsc::channel();
@@ -99,12 +116,6 @@ fn run_mdtest_with_timeout(test: &MdTestCase) -> TestResult {
             message: "test thread panicked".to_string(),
         },
     }
-}
-
-/// Wrapper to hold both TestCase and MdTestCase.
-struct MdTestCaseWrapper {
-    test_case: TestCase,
-    md_test: MdTestCase,
 }
 
 /// Run a single markdown test case.
@@ -173,23 +184,23 @@ fn run_mdtest(test: &MdTestCase) -> TestResult {
 
 /// Compare expected and actual errors.
 fn compare_errors(expected: &[String], actual: &[String]) -> TestResult {
-    // normalize and compare
-    let expected_normalized: Vec<String> = expected.iter().map(|s| normalize_error(s)).collect();
+    let expected_patterns: Vec<ExpectedError> =
+        expected.iter().map(|s| ExpectedError::parse(s)).collect();
     let actual_normalized: Vec<String> = actual.iter().map(|s| normalize_error(s)).collect();
 
     // check for missing expected errors
     let mut missing: Vec<&str> = Vec::new();
-    for exp in &expected_normalized {
-        if !actual_normalized.iter().any(|a| error_matches(exp, a)) {
-            missing.push(exp);
+    for expected in &expected_patterns {
+        if !actual_normalized.iter().any(|a| expected.matches(a)) {
+            missing.push(expected.as_str());
         }
     }
 
     // check for unexpected errors
     let mut unexpected: Vec<&str> = Vec::new();
     for act in &actual_normalized {
-        if !expected_normalized.iter().any(|e| error_matches(e, act)) {
-            unexpected.push(act);
+        if !expected_patterns.iter().any(|e| e.matches(act)) {
+            unexpected.push(act.as_str());
         }
     }
 
@@ -222,70 +233,41 @@ fn compare_errors(expected: &[String], actual: &[String]) -> TestResult {
 
 /// Normalize an error message for comparison.
 fn normalize_error(s: &str) -> String {
-    s.trim().to_lowercase()
+    let s = s.trim().to_lowercase();
+    s.split_whitespace().collect::<Vec<_>>().join(" ")
 }
 
-/// Check if an expected error matches an actual error.
-/// Uses substring matching to be flexible with error message formatting.
-fn error_matches(expected: &str, actual: &str) -> bool {
-    // exact match
-    if expected == actual {
-        return true;
-    }
-
-    // check if actual contains the expected message (substring match)
-    if actual.contains(expected) {
-        return true;
-    }
-
-    // check if expected contains key parts of actual:
-    // this handles cases where expected is more specific
-    if expected.contains(actual) {
-        return true;
-    }
-
-    // check for common patterns like "type X is not assignable to type Y"
-    // where X and Y might be formatted differently
-    if expected.contains("not assignable") && actual.contains("not assignable") {
-        // extract the types being compared and check if they match
-        return types_match_in_assignability_error(expected, actual);
-    }
-
-    false
+#[derive(Debug, Clone)]
+enum ExpectedError {
+    Exact(String),
+    Contains(String),
 }
 
-/// Check if two assignability error messages are about the same types.
-fn types_match_in_assignability_error(expected: &str, actual: &str) -> bool {
-    // simple heuristic: check if key type names appear in both
-    // expected format: "type X is not assignable to type Y"
-    // actual format: "type X is not assignable to type Y"
+impl ExpectedError {
+    fn parse(raw: &str) -> Self {
+        let raw = raw.trim();
 
-    // extract words that look like type names (capitalized or quoted)
-    let expected_words: Vec<&str> = expected.split_whitespace().collect();
-    let actual_words: Vec<&str> = actual.split_whitespace().collect();
+        let lower = raw.to_lowercase();
+        if let Some(rest) = lower.strip_prefix("contains:") {
+            return Self::Contains(normalize_error(rest));
+        }
 
-    // find the type names (words after "type")
-    let mut expected_types: Vec<&str> = Vec::new();
-    let mut actual_types: Vec<&str> = Vec::new();
+        Self::Exact(normalize_error(raw))
+    }
 
-    for (i, word) in expected_words.iter().enumerate() {
-        if *word == "type" && i + 1 < expected_words.len() {
-            expected_types.push(expected_words[i + 1]);
+    fn matches(&self, actual: &str) -> bool {
+        match self {
+            ExpectedError::Exact(expected) => actual == expected,
+            ExpectedError::Contains(expected) => actual.contains(expected),
         }
     }
 
-    for (i, word) in actual_words.iter().enumerate() {
-        if *word == "type" && i + 1 < actual_words.len() {
-            actual_types.push(actual_words[i + 1]);
+    fn as_str(&self) -> &str {
+        match self {
+            ExpectedError::Exact(s) => s,
+            ExpectedError::Contains(s) => s,
         }
     }
-
-    // check if at least the key types match
-    if expected_types.len() >= 2 && actual_types.len() >= 2 {
-        return expected_types[0] == actual_types[0] && expected_types[1] == actual_types[1];
-    }
-
-    false
 }
 
 /// Discover markdown files recursively in a directory.

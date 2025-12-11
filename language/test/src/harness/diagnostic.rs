@@ -1,5 +1,3 @@
-//! Diagnostic checking utilities for tests.
-
 use destack_parser::source_colorizer;
 use destack_source::{
     DiagnosticCollector, DiagnosticSeverity, FileRegistry, PrintOptions, pluralize,

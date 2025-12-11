@@ -1,5 +1,3 @@
-//! Parser smoke tests.
-
 use std::sync::Arc;
 
 use destack_parser::Parser;
@@ -9,22 +7,40 @@ use destack_source::{
 use destack_workspace::Program;
 
 use crate::harness::{
-    TestCase, TestOptions, TestResult, check_diagnostics, discover_test_files, fixtures_dir,
-    run_tests,
+    RunContext, Runner, Suite, TestCase, TestOptions, TestResult, check_diagnostics,
+    discover_test_files, fixtures_dir,
 };
+
+#[derive(Debug, Clone, Copy, Default)]
+pub struct ParserSmokeSuite;
+
+impl Suite for ParserSmokeSuite {
+    fn name(&self) -> &'static str {
+        "smoke-parser"
+    }
+
+    fn discover(&self, _options: &TestOptions) -> Vec<TestCase> {
+        let smoke_directory = fixtures_dir().join("smoke").join("parser");
+
+        // support all language file extensions
+        let extensions = &["ds", ".d.ds", "ts", ".d.ts", "tsx", "js", "jsx"];
+
+        discover_test_files(&smoke_directory, extensions, "destack_test::smoke::parser")
+            .expect("failed to discover tests")
+    }
+
+    fn run(&self, case: &TestCase, _context: &RunContext<'_>) -> TestResult {
+        run_parser_case(case)
+    }
+}
 
 /// Run all parser smoke tests.
 pub fn run_parser_smoke_tests(options: &TestOptions) -> std::process::ExitCode {
-    let smoke_dir = fixtures_dir().join("smoke").join("parser");
-    // support all language file extensions
-    let extensions = &["ds", ".d.ds", "ts", ".d.ts", "tsx", "js", "jsx"];
-    let tests = discover_test_files(&smoke_dir, extensions, "destack_test::smoke::parser")
-        .expect("failed to discover tests");
-    run_tests(tests, options, run_parser_test)
+    Runner::run_suite(&ParserSmokeSuite, options)
 }
 
 /// Run a single parser smoke test.
-fn run_parser_test(test: &TestCase) -> TestResult {
+fn run_parser_case(test: &TestCase) -> TestResult {
     // determine file type from extension
     let path_str = test.path.to_string_lossy();
     let file_type = if path_str.ends_with(".d.ds") {

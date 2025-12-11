@@ -1,5 +1,3 @@
-//! Diff utilities for comparing text content.
-
 use super::print::color;
 
 /// Print a unified diff between expected and actual content.

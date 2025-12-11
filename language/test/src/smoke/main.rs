@@ -1,20 +1,11 @@
-//! Smoke test runner.
-//!
-//! Usage:
-//!   cargo test --test smoke              # run all smoke tests
-//!   cargo test --test smoke -- --parser  # run only parser tests
-//!   cargo test --test smoke -- --compiler # run only compiler tests
-//!   cargo test --test smoke -- smoke1    # filter by test name
-//!   cargo test --test smoke -- --list    # list tests without running
-
 use std::process::ExitCode;
 
 use clap::Parser;
 
-use destack_test::harness::TestOptions;
-use destack_test::smoke::{run_compiler_smoke_tests, run_parser_smoke_tests};
+use destack_test::harness::{Runner, TestOptions};
+use destack_test::smoke::{CompilerSmokeSuite, ParserSmokeSuite};
 
-/// Smoke test specific options.
+/// CLI options for the `smoke` test binary.
 #[derive(Parser, Debug, Clone)]
 #[command(name = "smoke", about = "Run Destack smoke tests")]
 struct SmokeOptions {
@@ -42,13 +33,13 @@ fn main() -> ExitCode {
     // actually run the tests
     let mut any_failed = false;
     if run_parser {
-        let result = run_parser_smoke_tests(&options.test);
+        let result = Runner::run_suite(&ParserSmokeSuite, &options.test);
         if result != ExitCode::SUCCESS {
             any_failed = true;
         }
     }
     if run_compiler {
-        let result = run_compiler_smoke_tests(&options.test);
+        let result = Runner::run_suite(&CompilerSmokeSuite, &options.test);
         if result != ExitCode::SUCCESS {
             any_failed = true;
         }

@@ -1,5 +1,3 @@
-//! Source file discovery for codegen tests.
-
 use std::fs;
 use std::path::{Path, PathBuf};
 

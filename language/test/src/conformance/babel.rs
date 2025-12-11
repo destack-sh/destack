@@ -1,5 +1,3 @@
-//! Babel parser conformance tests.
-
 use std::path::{Path, PathBuf};
 
 use destack_source::FileType;
@@ -29,22 +27,23 @@ impl BabelSuite {
         }
     }
 
-    fn discover_recursive(&self, dir: &Path, prefix: &str) -> Vec<Test> {
+    fn discover_recursive(&self, directory: &Path, prefix: &str) -> Vec<Test> {
         let mut tests = Vec::new();
 
-        if let Ok(entries) = std::fs::read_dir(dir) {
+        if let Ok(entries) = std::fs::read_dir(directory) {
             for entry in entries.flatten() {
                 let path = entry.path();
                 if path.is_dir() {
                     // check if this directory is a test case (has input.*)
                     let input_info = self.get_input_file(&path);
 
+                    // if this directory is a test case, register it
                     if let Some((_, file_type)) = input_info {
-                        let dir_name = path.file_name().unwrap().to_string_lossy();
+                        let directory_name = path.file_name().unwrap().to_string_lossy();
                         let name = if prefix.is_empty() {
-                            dir_name.to_string()
+                            directory_name.to_string()
                         } else {
-                            format!("{prefix}/{dir_name}")
+                            format!("{prefix}/{directory_name}")
                         };
                         let expect_error = self.should_throw(&path);
                         tests.push(Test {
@@ -53,12 +52,12 @@ impl BabelSuite {
                             expect_error,
                         });
                     } else {
-                        // recurse into subdirectory
-                        let dir_name = path.file_name().unwrap().to_string_lossy();
+                        // otherwise recurse into the subdirectory
+                        let directory_name = path.file_name().unwrap().to_string_lossy();
                         let new_prefix = if prefix.is_empty() {
-                            dir_name.to_string()
+                            directory_name.to_string()
                         } else {
-                            format!("{prefix}/{dir_name}")
+                            format!("{prefix}/{directory_name}")
                         };
                         tests.extend(self.discover_recursive(&path, &new_prefix));
                     }
@@ -133,7 +132,7 @@ impl ConformanceSuite for BabelSuite {
         self.conformance_dir.join("babel-known-failures.txt")
     }
 
-    fn discover_tests(&self) -> Vec<Test> {
+    fn discover(&self) -> Vec<Test> {
         // discover tests from typescript and jsx directories
         // (flow is intentionally excluded, we don't support Flow, only TypeScript)
         let mut tests = Vec::new();
@@ -148,7 +147,7 @@ impl ConformanceSuite for BabelSuite {
         tests
     }
 
-    fn run_test(&self, test: &Test) -> TestOutcome {
+    fn run(&self, test: &Test) -> TestOutcome {
         let test_dir = self.root.join(&test.name);
 
         let Some((input_path, _)) = self.get_input_file(&test_dir) else {
@@ -160,7 +159,12 @@ impl ConformanceSuite for BabelSuite {
             Err(_) => return TestOutcome::Failed,
         };
 
-        let parse_outcome = parse_file(&input_path, &content, test.file_type, ParseOptions::default());
+        let parse_outcome = parse_file(
+            &input_path,
+            &content,
+            test.file_type,
+            ParseOptions::default(),
+        );
 
         match (test.expect_error, parse_outcome) {
             (true, ParseOutcome::Error) => TestOutcome::Passed,

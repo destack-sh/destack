@@ -1,253 +1,393 @@
-//! Ecosystem test runner.
-
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::process::{Command, ExitCode};
 use std::sync::Arc;
 
+use destack_compiler::{AnalyzeTask, CompileOptions, Compiler};
 use destack_parser::Parser;
 use destack_source::{
-    File, FileRegistry, FileSystem, FileType, LanguageOptions, MemoryFileSystem, Uri, glob,
+    File, FileRegistry, FileSystem, FileType, LanguageOptions, MemoryFileSystem,
+    PhysicalFileSystem, Uri, glob,
 };
 use destack_workspace::Program;
 
-use crate::harness::{TestCase, TestOptions, TestResult, TestSummary, fixtures_dir, print_result, print_summary, filter_tests, print_test_list};
+use crate::harness::{RunContext, Runner, Suite, TestCase, TestOptions, TestResult, fixtures_dir};
 
 use super::manifest::{EcosystemManifest, Tier};
 
-/// Run all ecosystem tests.
-pub fn run_ecosystem_tests(options: &TestOptions, tier_filter: Option<Tier>) -> ExitCode {
-    let ecosystem_dir = fixtures_dir().join("ecosystem");
-    let packages_dir = ecosystem_dir.join("packages");
-    let cache_dir = ecosystem_dir.join("cache");
-    let patches_dir = ecosystem_dir.join("patches");
+const DEFAULT_INCLUDE_PATTERNS: &[&str] = &["**/*.ts", "**/*.tsx", "**/*.js", "**/*.jsx"];
+const DEFAULT_EXCLUDE_PATTERNS: &[&str] = &["**/node_modules/**", "**/dist/**", "**/build/**"];
 
-    // discover package manifests
-    let manifest_paths = EcosystemManifest::discover_all(&packages_dir);
-    if manifest_paths.is_empty() {
-        println!("no ecosystem packages found in {}", packages_dir.display());
-        return ExitCode::SUCCESS;
-    }
+const MAX_ANALYZE_ENTRYPOINTS: usize = 50;
 
-    // load manifests
-    let mut packages: Vec<(EcosystemManifest, PathBuf)> = Vec::new();
-    for path in manifest_paths {
-        match EcosystemManifest::load(&path) {
-            Ok(manifest) => packages.push((manifest, path)),
-            Err(e) => {
-                eprintln!("warning: {e}");
+/// Configuration options for running ecosystem tests.
+#[derive(Debug, Clone, Default)]
+pub struct EcosystemRunOptions {
+    /// The tier to run.
+    pub tier: Option<Tier>,
+    /// Override include patterns (if empty, use manifest defaults).
+    pub include: Vec<String>,
+    /// Additional exclude patterns.
+    pub exclude: Vec<String>,
+}
+
+/// Configuration options for fetching ecosystem packages.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct FetchOptions {
+    /// Whether to re-clone packages even if they already exist.
+    pub refresh: bool,
+}
+
+/// A `Suite` implementation that runs ecosystem tests across a set of packages.
+#[derive(Debug)]
+pub struct EcosystemSuite {
+    tier: Tier,
+    include: Vec<String>,
+    exclude: Vec<String>,
+    manifests: Vec<EcosystemManifest>,
+    manifests_by_name: HashMap<String, EcosystemManifest>,
+    cache_dir: PathBuf,
+    patches_dir: PathBuf,
+}
+
+impl EcosystemSuite {
+    pub fn load(options: &EcosystemRunOptions) -> Self {
+        let ecosystem_dir = fixtures_dir().join("ecosystem");
+        let packages_dir = ecosystem_dir.join("packages");
+        let cache_dir = ecosystem_dir.join("cache");
+        let patches_dir = ecosystem_dir.join("patches");
+
+        let tier = options.tier.unwrap_or(Tier::Parse);
+
+        let mut manifests: Vec<EcosystemManifest> = Vec::new();
+        let mut manifests_by_name = HashMap::new();
+
+        for path in EcosystemManifest::discover_all(&packages_dir) {
+            match EcosystemManifest::load(&path) {
+                Ok(manifest) => {
+                    manifests_by_name.insert(manifest.package.name.clone(), manifest.clone());
+                    manifests.push(manifest);
+                }
+                Err(error) => {
+                    eprintln!("warning: {error}");
+                }
             }
+        }
+
+        Self {
+            tier,
+            include: options.include.clone(),
+            exclude: options.exclude.clone(),
+            manifests,
+            manifests_by_name,
+            cache_dir,
+            patches_dir,
         }
     }
 
-    // build test cases (one per package)
-    let tests: Vec<TestCase> = packages
-        .iter()
-        .map(|(manifest, _)| {
-            TestCase::directory(
-                &manifest.package.name,
-                cache_dir.join(&manifest.package.name),
-                "ecosystem",
-            )
-        })
-        .collect();
+    fn run_package(&self, manifest: &EcosystemManifest) -> TestResult {
+        let package_dir = self.cache_dir.join(&manifest.package.name);
 
-    let filtered = filter_tests(tests, options.filter.as_deref());
-
-    if options.list {
-        print_test_list(&filtered);
-        return ExitCode::SUCCESS;
-    }
-
-    println!();
-    println!("running {} ecosystem packages", filtered.len());
-
-    let summary = TestSummary::new();
-    let start = std::time::Instant::now();
-
-    // run each package test
-    for test in &filtered {
-        let test_start = std::time::Instant::now();
-
-        // find the manifest for this test
-        let manifest = packages
-            .iter()
-            .find(|(m, _)| m.package.name == test.name)
-            .map(|(m, _)| m);
-
-        let result = if let Some(manifest) = manifest {
-            run_package_test(manifest, &cache_dir, &patches_dir, tier_filter)
-        } else {
-            TestResult::Failed {
-                message: "manifest not found".to_string(),
-            }
-        };
-
-        let duration = test_start.elapsed();
-        summary.record(&result);
-        print_result(test, &result, duration, options.verbose);
-    }
-
-    let total_duration = start.elapsed();
-    print_summary(&summary, total_duration);
-
-    if summary.all_passed() {
-        ExitCode::SUCCESS
-    } else {
-        ExitCode::FAILURE
-    }
-}
-
-/// Run tests for a single package.
-fn run_package_test(
-    manifest: &EcosystemManifest,
-    cache_dir: &Path,
-    patches_dir: &Path,
-    tier_filter: Option<Tier>,
-) -> TestResult {
-    let package_dir = cache_dir.join(&manifest.package.name);
-
-    // check if package is fetched
-    if !package_dir.exists() {
-        return TestResult::Skipped {
-            reason: "not fetched (run: just ecosystem-fetch)".to_string(),
-        };
-    }
-
-    // apply patches if they exist
-    let package_patches = patches_dir.join(&manifest.package.name);
-    if package_patches.exists() {
-        if let Err(e) = apply_patches(&package_patches, &package_dir) {
-            return TestResult::Failed {
-                message: format!("failed to apply patches: {e}"),
+        // check whether the package is present in the cache
+        if !package_dir.exists() {
+            return TestResult::Skipped {
+                reason: "not fetched (run: ./language/test/fixtures/ecosystem/ecosystem-fetch.sh)"
+                    .to_string(),
             };
         }
-    }
 
-    // discover files
-    let files = discover_package_files(&package_dir, manifest);
-    if files.is_empty() {
-        return TestResult::Failed {
-            message: "no files found matching include patterns".to_string(),
+        // apply patches if they exist
+        let package_patches_dir = self.patches_dir.join(&manifest.package.name);
+        if package_patches_dir.exists()
+            && let Err(error) = apply_patches(&package_patches_dir, &package_dir)
+        {
+            return TestResult::Failed {
+                message: format!("failed to apply patches: {error}"),
+            };
+        }
+
+        let files = discover_package_files(&package_dir, manifest, &self.include, &self.exclude);
+        if files.is_empty() {
+            return TestResult::Failed {
+                message: "no files found matching include patterns".to_string(),
+            };
+        }
+
+        let tier_result = match self.tier {
+            Tier::Parse => run_parse_tier(&package_dir, &files),
+            Tier::Analyze => run_analyze_tier(&package_dir, &files),
         };
-    }
 
-    // determine which tier to test
-    let tier = tier_filter.unwrap_or(Tier::Parse);
+        let expects_pass = manifest.tiers.expects_pass(self.tier);
+        if expects_pass {
+            return tier_result;
+        }
 
-    // only run if this tier is expected to pass
-    if !manifest.tiers.expects_pass(tier) {
-        let reason = manifest.tiers.get(tier).reason();
-        return TestResult::Skipped {
-            reason: reason.map(|r| r.to_string()).unwrap_or_else(|| format!("{} tier not expected to pass", tier.name())),
-        };
-    }
-
-    // run the tier
-    match tier {
-        Tier::Parse => run_parse_tier(&package_dir, &files),
-        Tier::Analyze => TestResult::Skipped {
-            reason: "analyze tier not implemented".to_string(),
-        },
+        match tier_result {
+            TestResult::Passed => TestResult::Passed,
+            TestResult::Failed { message } => {
+                let reason = manifest.tiers.get(self.tier).reason();
+                let reason = reason
+                    .map(|r| r.to_string())
+                    .unwrap_or_else(|| format!("{} tier not expected to pass", self.tier.name()));
+                TestResult::Skipped {
+                    reason: format!("expected failure: {reason}\n{message}"),
+                }
+            }
+            TestResult::Skipped { reason } => TestResult::Skipped { reason },
+            TestResult::Suite { .. } => tier_result,
+        }
     }
 }
 
-/// Discover files in package matching include/exclude patterns.
-fn discover_package_files(package_dir: &Path, manifest: &EcosystemManifest) -> Vec<PathBuf> {
+impl Suite for EcosystemSuite {
+    fn name(&self) -> &'static str {
+        "ecosystem"
+    }
+
+    fn discover(&self, _options: &TestOptions) -> Vec<TestCase> {
+        self.manifests
+            .iter()
+            .map(|manifest| {
+                TestCase::directory(
+                    &manifest.package.name,
+                    self.cache_dir.join(&manifest.package.name),
+                    format!("destack_test::ecosystem::{}", self.tier.name()),
+                )
+            })
+            .collect()
+    }
+
+    fn run(&self, case: &TestCase, _context: &RunContext<'_>) -> TestResult {
+        let Some(manifest) = self.manifests_by_name.get(&case.name) else {
+            return TestResult::Failed {
+                message: "manifest not found".to_string(),
+            };
+        };
+
+        self.run_package(manifest)
+    }
+
+    fn report(&self, results: &[(TestCase, TestResult)], _context: &RunContext<'_>) {
+        let mut regressions: Vec<String> = Vec::new();
+        let mut fixed: Vec<String> = Vec::new();
+
+        for (case, result) in results {
+            let Some(manifest) = self.manifests_by_name.get(&case.name) else {
+                continue;
+            };
+
+            let expects_pass = manifest.tiers.expects_pass(self.tier);
+            if expects_pass && result.is_failed() {
+                regressions.push(case.name.clone());
+            }
+            if !expects_pass && result.is_passed() {
+                fixed.push(case.name.clone());
+            }
+        }
+
+        if regressions.is_empty() && fixed.is_empty() {
+            return;
+        }
+
+        println!();
+        println!("ecosystem: {}", self.tier.name());
+
+        if !regressions.is_empty() {
+            println!("regressions (expected to pass but failed):");
+            for name in regressions {
+                println!("  {name}");
+            }
+        }
+
+        if !fixed.is_empty() {
+            println!("fixed (expected to fail but passed):");
+            for name in fixed {
+                println!("  {name}");
+            }
+        }
+        println!();
+    }
+}
+
+pub fn run_ecosystem_tests(options: &TestOptions, run_options: &EcosystemRunOptions) -> ExitCode {
+    let suite = EcosystemSuite::load(run_options);
+    Runner::run_suite(&suite, options)
+}
+
+fn discover_package_files(
+    package_dir: &Path,
+    manifest: &EcosystemManifest,
+    include_override: &[String],
+    exclude_override: &[String],
+) -> Vec<PathBuf> {
     let mut files = Vec::new();
 
-    // default patterns if none specified
-    let include_patterns = if manifest.discovery.include.is_empty() {
-        vec!["**/*.ts".to_string(), "**/*.tsx".to_string()]
+    let include_patterns: Vec<String> = if !include_override.is_empty() {
+        include_override.to_vec()
+    } else if manifest.discovery.include.is_empty() {
+        DEFAULT_INCLUDE_PATTERNS
+            .iter()
+            .map(|s| s.to_string())
+            .collect()
     } else {
         manifest.discovery.include.clone()
     };
 
-    // glob each include pattern
     for pattern in &include_patterns {
         let full_pattern = package_dir.join(pattern);
         let matches = glob(&full_pattern.to_string_lossy());
         files.extend(matches);
     }
 
-    // build exclude set
     let mut exclude_set = std::collections::HashSet::new();
+
     for pattern in &manifest.discovery.exclude {
         let full_pattern = package_dir.join(pattern);
         let matches = glob(&full_pattern.to_string_lossy());
         exclude_set.extend(matches);
     }
 
-    // always exclude node_modules and common test directories
-    let default_excludes = ["**/node_modules/**", "**/dist/**", "**/build/**"];
-    for pattern in default_excludes {
+    for pattern in exclude_override {
         let full_pattern = package_dir.join(pattern);
         let matches = glob(&full_pattern.to_string_lossy());
         exclude_set.extend(matches);
     }
 
-    files.retain(|f| !exclude_set.contains(f));
+    for pattern in DEFAULT_EXCLUDE_PATTERNS {
+        let full_pattern = package_dir.join(pattern);
+        let matches = glob(&full_pattern.to_string_lossy());
+        exclude_set.extend(matches);
+    }
+
+    files.retain(|path| !exclude_set.contains(path));
     files.sort();
     files
 }
 
-/// Run parse tier on all files.
 fn run_parse_tier(package_dir: &Path, files: &[PathBuf]) -> TestResult {
     let mut failed = 0;
     let mut failure_messages: Vec<String> = Vec::new();
 
-    for file in files {
-        match parse_file(file) {
+    for path in files {
+        match parse_file(path) {
             Ok(()) => {}
-            Err(e) => {
+            Err(error) => {
                 failed += 1;
-                let relative = file.strip_prefix(package_dir).unwrap_or(file);
+                let relative = path.strip_prefix(package_dir).unwrap_or(path);
                 if failure_messages.len() < 10 {
-                    failure_messages.push(format!("{}: {e}", relative.display()));
+                    failure_messages.push(format!("{}: {error}", relative.display()));
                 }
             }
         }
     }
 
     if failed == 0 {
-        TestResult::Passed
-    } else {
-        let message = if failure_messages.len() < failed {
-            format!(
-                "{} files failed to parse (showing first 10):\n  {}",
-                failed,
-                failure_messages.join("\n  ")
-            )
-        } else {
-            format!(
-                "{} files failed to parse:\n  {}",
-                failed,
-                failure_messages.join("\n  ")
-            )
-        };
-        TestResult::Failed { message }
+        return TestResult::Passed;
     }
+
+    let message = if failure_messages.len() < failed {
+        format!(
+            "{failed} files failed to parse (showing first 10):\n  {}",
+            failure_messages.join("\n  ")
+        )
+    } else {
+        format!(
+            "{failed} files failed to parse:\n  {}",
+            failure_messages.join("\n  ")
+        )
+    };
+
+    TestResult::Failed { message }
 }
 
-/// Parse a single file, return Ok if no errors.
-fn parse_file(path: &Path) -> Result<(), String> {
-    let content = std::fs::read_to_string(path)
-        .map_err(|e| format!("read error: {e}"))?;
+fn run_analyze_tier(package_dir: &Path, files: &[PathBuf]) -> TestResult {
+    let files_registry = Arc::new(FileRegistry::new());
+    let file_system: Arc<dyn FileSystem> = Arc::new(PhysicalFileSystem);
+    let program = Arc::new(Program::new(
+        LanguageOptions::default(),
+        package_dir.to_path_buf(),
+        file_system,
+        files_registry,
+    ));
 
-    // determine file type from extension
-    let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("");
-    let file_type = FileType::from_extension(ext).unwrap_or(FileType::TypeScript);
+    let compiler = Compiler::new(
+        program.clone(),
+        CompileOptions {
+            workers: 1,
+            ..Default::default()
+        },
+    );
+
+    // N OTE: analyzing every file can be very expensive in large projects
+    // we start with a bounded number of entrypoints to keep the suite practical
+    for path in files.iter().take(MAX_ANALYZE_ENTRYPOINTS) {
+        let module_id = match compiler.resolve_path_to_module(path) {
+            Ok(id) => id,
+            Err(error) => {
+                return TestResult::Failed {
+                    message: format!("failed to resolve module {}: {error:?}", path.display()),
+                };
+            }
+        };
+        compiler.enqueue(AnalyzeTask::AnalyzeModuleCheck { module: module_id });
+    }
+
+    compiler.compile();
+    drop(compiler);
+
+    let diagnostics = program.diagnostics.collect();
+    let errors: Vec<_> = diagnostics
+        .iter()
+        .into_iter()
+        .filter(|d| d.severity == destack_source::DiagnosticSeverity::Error)
+        .collect();
+    if errors.is_empty() {
+        return TestResult::Passed;
+    }
+
+    let mut messages: Vec<String> = Vec::new();
+    for diag in errors.iter().take(10) {
+        messages.push(diag.message.clone());
+    }
+
+    let message = if errors.len() > 10 {
+        format!(
+            "{} errors (showing first 10):\n  {}",
+            errors.len(),
+            messages.join("\n  ")
+        )
+    } else {
+        format!("{} errors:\n  {}", errors.len(), messages.join("\n  "))
+    };
+
+    TestResult::Failed { message }
+}
+
+fn parse_file(path: &Path) -> Result<(), String> {
+    let content = std::fs::read_to_string(path).map_err(|e| format!("read error: {e}"))?;
+
+    let extension = path.extension().and_then(|e| e.to_str()).unwrap_or("");
+    let file_type = FileType::from_extension(extension).unwrap_or(FileType::TypeScript);
     let language_type = destack_source::LanguageType::from(file_type);
     let language = LanguageOptions::default().with_type(language_type);
 
     let uri = Uri::from_path(path);
     let files = Arc::new(FileRegistry::new());
-    let fs: Arc<dyn FileSystem> = Arc::new(MemoryFileSystem::new());
+    let file_system: Arc<dyn FileSystem> = Arc::new(MemoryFileSystem::new());
     let cwd = path.parent().unwrap_or(Path::new(".")).to_path_buf();
-    let program = Arc::new(Program::new(language, cwd, fs, files));
+    let program = Arc::new(Program::new(language, cwd, file_system, files));
 
     let file_id = program.files.next_id();
     let name = path.file_name().unwrap().to_string_lossy().to_string();
-    let file = File::from_text(file_id, name, uri, Some(path.to_path_buf()), file_type, content);
+    let file = File::from_text(
+        file_id,
+        name,
+        uri,
+        Some(path.to_path_buf()),
+        file_type,
+        content,
+    );
     program.files.insert(file);
     let file = program.files.get(file_id);
 
@@ -255,28 +395,23 @@ fn parse_file(path: &Path) -> Result<(), String> {
     let _ = parser.parse();
     program.diagnostics.merge_from(&parser.diagnostics);
 
-    // check for errors
-    let diagnostics = program.diagnostics.iter();
-    let errors: Vec<_> = diagnostics
+    let errors: Vec<_> = program
+        .diagnostics
+        .iter()
         .into_iter()
         .filter(|d| d.severity == destack_source::DiagnosticSeverity::Error)
         .collect();
-
     if errors.is_empty() {
-        Ok(())
-    } else {
-        let first_error = &errors[0];
-        Err(first_error.message.clone())
+        return Ok(());
     }
+
+    Err(errors[0].message.clone())
 }
 
-/// Apply patches from patches directory to package.
 fn apply_patches(patches_dir: &Path, package_dir: &Path) -> Result<(), String> {
-    // copy all files from patches dir to package dir
     copy_dir_recursive(patches_dir, package_dir)
 }
 
-/// Recursively copy directory contents.
 fn copy_dir_recursive(src: &Path, dst: &Path) -> Result<(), String> {
     if !src.is_dir() {
         return Ok(());
@@ -290,28 +425,61 @@ fn copy_dir_recursive(src: &Path, dst: &Path) -> Result<(), String> {
         if src_path.is_dir() {
             std::fs::create_dir_all(&dst_path).map_err(|e| e.to_string())?;
             copy_dir_recursive(&src_path, &dst_path)?;
-        } else {
-            std::fs::copy(&src_path, &dst_path).map_err(|e| e.to_string())?;
+            continue;
         }
+
+        std::fs::copy(&src_path, &dst_path).map_err(|e| e.to_string())?;
     }
 
     Ok(())
 }
 
-/// Fetch a package from git into the cache.
-pub fn fetch_package(manifest: &EcosystemManifest, cache_dir: &Path) -> Result<PathBuf, String> {
+pub fn fetch_package(
+    manifest: &EcosystemManifest,
+    cache_dir: &Path,
+    options: FetchOptions,
+) -> Result<PathBuf, String> {
     let package_dir = cache_dir.join(&manifest.package.name);
 
-    std::fs::create_dir_all(cache_dir)
-        .map_err(|e| format!("failed to create cache dir: {e}"))?;
+    std::fs::create_dir_all(cache_dir).map_err(|e| format!("failed to create cache dir: {e}"))?;
 
-    // remove existing (simpler than updating)
+    if package_dir.exists() && !options.refresh {
+        // keep the existing clone and update it to the requested ref
+        let status = Command::new("git")
+            .args(["fetch", "--depth=1", "origin", &manifest.package.git_ref])
+            .current_dir(&package_dir)
+            .status()
+            .map_err(|e| format!("git fetch failed: {e}"))?;
+        if !status.success() {
+            return Err("git fetch failed".to_string());
+        }
+
+        let status = Command::new("git")
+            .args(["checkout", "--force", &manifest.package.git_ref])
+            .current_dir(&package_dir)
+            .status()
+            .map_err(|e| format!("git checkout failed: {e}"))?;
+        if !status.success() {
+            return Err(format!("git checkout {} failed", manifest.package.git_ref));
+        }
+
+        let status = Command::new("git")
+            .args(["reset", "--hard"])
+            .current_dir(&package_dir)
+            .status()
+            .map_err(|e| format!("git reset failed: {e}"))?;
+        if !status.success() {
+            return Err("git reset failed".to_string());
+        }
+
+        return Ok(package_dir);
+    }
+
     if package_dir.exists() {
         std::fs::remove_dir_all(&package_dir)
             .map_err(|e| format!("failed to remove existing dir: {e}"))?;
     }
 
-    // clone with no checkout first
     let status = Command::new("git")
         .args([
             "clone",
@@ -323,18 +491,15 @@ pub fn fetch_package(manifest: &EcosystemManifest, cache_dir: &Path) -> Result<P
         .current_dir(cache_dir)
         .status()
         .map_err(|e| format!("git clone failed: {e}"))?;
-
     if !status.success() {
         return Err("git clone failed".to_string());
     }
 
-    // checkout the specific ref
     let status = Command::new("git")
         .args(["checkout", &manifest.package.git_ref])
         .current_dir(&package_dir)
         .status()
         .map_err(|e| format!("git checkout failed: {e}"))?;
-
     if !status.success() {
         return Err(format!("git checkout {} failed", manifest.package.git_ref));
     }
@@ -342,31 +507,32 @@ pub fn fetch_package(manifest: &EcosystemManifest, cache_dir: &Path) -> Result<P
     Ok(package_dir)
 }
 
-/// Fetch all packages.
-pub fn fetch_all_packages() -> ExitCode {
+pub fn fetch_all_packages(options: FetchOptions) -> ExitCode {
     let ecosystem_dir = fixtures_dir().join("ecosystem");
     let packages_dir = ecosystem_dir.join("packages");
     let cache_dir = ecosystem_dir.join("cache");
 
     let manifest_paths = EcosystemManifest::discover_all(&packages_dir);
-
     println!("fetching {} packages...", manifest_paths.len());
 
     let mut any_failed = false;
     for path in manifest_paths {
         match EcosystemManifest::load(&path) {
             Ok(manifest) => {
-                print!("  {}@{} ... ", manifest.package.name, manifest.package.git_ref);
-                match fetch_package(&manifest, &cache_dir) {
+                print!(
+                    "  {}@{} ... ",
+                    manifest.package.name, manifest.package.git_ref
+                );
+                match fetch_package(&manifest, &cache_dir, options) {
                     Ok(_) => println!("ok"),
-                    Err(e) => {
-                        println!("FAILED: {e}");
+                    Err(error) => {
+                        println!("FAILED: {error}");
                         any_failed = true;
                     }
                 }
             }
-            Err(e) => {
-                eprintln!("  error loading {}: {e}", path.display());
+            Err(error) => {
+                eprintln!("  error loading {}: {error}", path.display());
                 any_failed = true;
             }
         }

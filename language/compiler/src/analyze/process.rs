@@ -1,6 +1,6 @@
 use crate::{
-    AnalyzeError, AnalyzeResult, Compiler, Task, TaskDebug, TaskDependencyError, TaskOutput,
-    TaskResultCollector, InferContext,
+    AnalyzeError, AnalyzeResult, Compiler, InferContext, Task, TaskDebug, TaskDependencyError,
+    TaskOutput, TaskResultCollector,
 };
 
 use destack_dir::LocalTypeId;

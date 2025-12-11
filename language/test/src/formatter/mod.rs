@@ -1,5 +1,3 @@
-//! Formatter roundtrip tests.
-
 mod runner;
 
-pub use runner::run_formatter_tests;
+pub use runner::{FormatterSuite, run_formatter_tests};

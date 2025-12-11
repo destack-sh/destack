@@ -1,5 +1,3 @@
-//! SWC parser conformance tests.
-
 use std::path::{Path, PathBuf};
 
 use destack_source::FileType;
@@ -60,7 +58,8 @@ impl SwcSuite {
 
                         // determine file type based on category and extension
                         let file_type = Self::file_type_for_category(category, &name);
-                        let expect_error = name.contains("/errors/") || name.contains("typescript-errors");
+                        let expect_error =
+                            name.contains("/errors/") || name.contains("typescript-errors");
 
                         tests.push(Test {
                             name,
@@ -110,7 +109,7 @@ impl ConformanceSuite for SwcSuite {
         self.conformance_dir.join("swc-known-failures.txt")
     }
 
-    fn discover_tests(&self) -> Vec<Test> {
+    fn discover(&self) -> Vec<Test> {
         let mut tests = Vec::new();
 
         // discover tests from typescript, jsx, and js directories
@@ -124,7 +123,7 @@ impl ConformanceSuite for SwcSuite {
         tests
     }
 
-    fn run_test(&self, test: &Test) -> TestOutcome {
+    fn run(&self, test: &Test) -> TestOutcome {
         let path = self.root.join(&test.name);
 
         let content = match std::fs::read_to_string(&path) {

@@ -1,5 +1,3 @@
-//! Directory comparison assertions for codegen tests.
-
 use std::collections::HashSet;
 use std::fs;
 use std::path::Path;
