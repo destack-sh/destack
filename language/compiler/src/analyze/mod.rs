@@ -12,6 +12,7 @@ mod warning;
 pub use check::*;
 pub use context::*;
 pub use error::*;
+pub use format::*;
 pub use options::*;
 pub use process::*;
 pub use warning::*;

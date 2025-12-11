@@ -1298,6 +1298,8 @@ let a = obj.inner.value;
         );
     }
 
+    // nocheckin: make these tests more specific and move elaborate subtyping tests to mdtest?
+
     /// Child class is assignable to parent class via function parameter.
     #[test]
     fn test_class_extends_assignable_via_function() {
@@ -1312,7 +1314,7 @@ class Dog extends Animal {
     breed: string
 }
 function acceptAnimal(a: Animal): void {}
-function getDog(): Dog { return undefined as Dog; }
+declare function getDog(): Dog;
 acceptAnimal(getDog());
 "#,
         );
@@ -1335,7 +1337,7 @@ class Dog extends Animal {
     breed: string
 }
 function acceptDog(d: Dog): void {}
-function getAnimal(): Animal { return undefined as Animal; }
+declare function getAnimal(): Animal;
 acceptDog(getAnimal());
 "#,
         );
@@ -1361,7 +1363,7 @@ class Labrador extends Dog {
     color: string
 }
 function acceptAnimal(a: Animal): void {}
-function getLabrador(): Labrador { return undefined as Labrador; }
+declare function getLabrador(): Labrador;
 acceptAnimal(getLabrador());
 "#,
         );
@@ -1384,7 +1386,7 @@ class Document implements Printable {
     print(): void {}
 }
 function acceptPrintable(p: Printable): void {}
-function getDocument(): Document { return undefined as Document; }
+declare function getDocument(): Document;
 acceptPrintable(getDocument());
 "#,
         );
@@ -1392,12 +1394,4 @@ acceptPrintable(getDocument());
         test.compile();
         test.check_clean();
     }
-
-    // nocheckin NOTE: inheritance tests that use `undefined as ClassName` are temporarily disabled
-    // due to a pre-existing lock re-entrancy bug in format_type during error formatting.
-    // The bug: analysis holds write lock on symbols, then format_type tries to read lock.
-    // This causes deadlock when IllegalCast error is generated.
-    //
-    // The lineage code itself works correctly - this is a separate issue.
-    // nocheckin TODO: fix the lock re-entrancy issue in format.rs, then re-enable these tests.
 }

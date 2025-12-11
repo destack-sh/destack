@@ -246,8 +246,6 @@ impl Compiler {
                             module_id: module.id,
                             local_id: right_ty_id,
                         },
-                        expected_ty_string: self.format_type(types.get_type(left_ty_id), types),
-                        actual_ty_string: self.format_type(types.get_type(right_ty_id), types),
                     });
                 }
 
@@ -477,10 +475,6 @@ impl Compiler {
                                         module_id: module.id,
                                         local_id: *argument_ty_id,
                                     },
-                                    expected_ty_string: self
-                                        .format_type(types.get_type(*param_ty_id), types),
-                                    actual_ty_string: self
-                                        .format_type(types.get_type(*argument_ty_id), types),
                                 });
                             }
                         }
@@ -520,9 +514,7 @@ impl Compiler {
                     self.error(AnalyzeError::MissingMember {
                         node: expression_id.into_global_any(module.id),
                         receiver_ty: left_ty_id.into_global(module.id),
-                        receiver_ty_str: self.format_local_type(left_ty_id, types),
                         member_key,
-                        member_key_str: self.format_static_key(&member_key),
                     });
                     let ty = Type::TypeLiteral {
                         value: TypeLiteral::Unknown,
@@ -1956,8 +1948,6 @@ impl Compiler {
                     module_id: module.id,
                     local_id: inferred,
                 },
-                expected_ty_string: self.format_type(types.get_type(declared), types),
-                actual_ty_string: self.format_type(types.get_type(inferred), types),
             });
         }
 
