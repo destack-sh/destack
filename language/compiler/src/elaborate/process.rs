@@ -77,6 +77,6 @@ impl Compiler {
 
     /// Ensure a module has been elaborated.
     pub fn require_elaborate_module(&self, module: ModuleId) -> Result<(), TaskDependencyError> {
-        self.do_require_task_internal(ElaborateTask::ElaborateModule { module })
+        self.do_require_task_internal_only(ElaborateTask::ElaborateModule { module })
     }
 }

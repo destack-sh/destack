@@ -73,6 +73,6 @@ impl Compiler {
 
     /// Ensure a module has been lowered.
     pub fn require_lower_module(&self, module: ModuleId) -> Result<(), TaskDependencyError> {
-        self.do_require_task_internal(LowerTask::LowerModule { module })
+        self.do_require_task_internal_only(LowerTask::LowerModule { module })
     }
 }

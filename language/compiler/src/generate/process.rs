@@ -319,7 +319,7 @@ impl Compiler {
         module: ModuleId,
         target: &str,
     ) -> Result<(), TaskDependencyError> {
-        self.do_require_task_internal(GenerateTask::GenerateModule {
+        self.do_require_task_internal_only(GenerateTask::GenerateModule {
             module,
             target: target.to_string(),
         })

@@ -203,9 +203,9 @@ impl Compiler {
 
     /// Require a task to be complete, returning an error if it's not ready or has failed.
     /// Each phase defines its own tasks, and its own higher level require_* helper functions.
-    /// 
+    ///
     /// This function should only be called directly by each phase's main process.
-    pub(crate) fn do_require_task_internal<T: Into<Task> + Clone>(
+    pub(crate) fn do_require_task_internal_only<T: Into<Task> + Clone>(
         &self,
         task: T,
     ) -> Result<(), TaskDependencyError> {

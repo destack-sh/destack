@@ -71,7 +71,7 @@ impl Compiler {
 
     /// Ensure a module has been analyzed.
     pub fn require_analyze_module(&self, module: ModuleId) -> Result<(), TaskDependencyError> {
-        self.do_require_task_internal(AnalyzeTask::AnalyzeModule { module })
+        self.do_require_task_internal_only(AnalyzeTask::AnalyzeModule { module })
     }
 
     /// Analyze a module.
