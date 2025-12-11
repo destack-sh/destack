@@ -76,6 +76,6 @@ impl Compiler {
 
     /// Ensure a module has been optimized.
     pub fn require_optimize(&self, module: ModuleId) -> Result<(), TaskDependencyError> {
-        self.do_require_task_internal(OptimizeTask::OptimizeModule { module })
+        self.do_require_task_internal_only(OptimizeTask::OptimizeModule { module })
     }
 }

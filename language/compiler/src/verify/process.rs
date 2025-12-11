@@ -76,6 +76,6 @@ impl Compiler {
 
     /// Ensure a module has been verified.
     pub fn require_verify_module(&self, module: ModuleId) -> Result<(), TaskDependencyError> {
-        self.do_require_task_internal(VerifyTask::VerifyModule { module })
+        self.do_require_task_internal_only(VerifyTask::VerifyModule { module })
     }
 }

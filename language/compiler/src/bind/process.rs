@@ -72,7 +72,7 @@ impl Compiler {
 
     /// Ensure a module has been bound.
     pub fn require_bind_module(&self, module: ModuleId) -> Result<(), TaskDependencyError> {
-        self.do_require_task_internal(BindTask::BindModule { module })
+        self.do_require_task_internal_only(BindTask::BindModule { module })
     }
 
     /// Bind a module.

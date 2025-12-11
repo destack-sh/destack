@@ -321,7 +321,6 @@ impl Compiler {
     }
 
     /// Follow a symbol's target chain to find the canonical (final) symbol.
-    /// (This may yield if intermediate modules aren't resolved yet.)
     fn resolve_canonical_symbol_chain(
         &self,
         node: GlobalNodeIdAny,
@@ -370,7 +369,6 @@ impl Compiler {
     }
 
     /// Resolve and set the canonical_symbol for a symbol that has a target_symbol.
-    /// (This should be called after setting target_symbol on a symbol.)
     pub(crate) fn resolve_canonical_symbol(
         &self,
         node: GlobalNodeIdAny,

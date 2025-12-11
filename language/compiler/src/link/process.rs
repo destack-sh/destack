@@ -72,7 +72,7 @@ impl Compiler {
         package: PackageId,
         target: &str,
     ) -> Result<(), TaskDependencyError> {
-        self.do_require_task_internal(LinkTask::LinkTarget {
+        self.do_require_task_internal_only(LinkTask::LinkTarget {
             package,
             target: target.to_string(),
         })
