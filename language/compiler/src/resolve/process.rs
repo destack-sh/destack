@@ -13,9 +13,6 @@ pub enum ResolveTask {
     /// Compute canonical_symbol for all symbols (phase 2).
     /// Follows target_symbol chains to find the canonical symbol.
     ResolveModuleCanonical { module: ModuleId },
-
-    /// Resolve both direct and canonical symbols.
-    ResolveModule { module: ModuleId }, // nocheckin: remove ResolveModule task (just use canonical one)
 }
 
 impl ResolveTask {
@@ -24,7 +21,6 @@ impl ResolveTask {
         match self {
             ResolveTask::ResolveModuleDirect { .. } => 1,
             ResolveTask::ResolveModuleCanonical { .. } => 2,
-            ResolveTask::ResolveModule { .. } => 3,
         }
     }
 }
@@ -34,15 +30,13 @@ impl TaskDebug for ResolveTask {
         match self {
             ResolveTask::ResolveModuleDirect { .. } => "module_direct",
             ResolveTask::ResolveModuleCanonical { .. } => "module_canonical",
-            ResolveTask::ResolveModule { .. } => "module",
         }
     }
 
     fn trace_args(&self, program: &Program) -> String {
         match self {
             ResolveTask::ResolveModuleDirect { module }
-            | ResolveTask::ResolveModuleCanonical { module }
-            | ResolveTask::ResolveModule { module } => {
+            | ResolveTask::ResolveModuleCanonical { module } => {
                 let module = program.modules.get(*module);
                 let uri = module.read().uri.clone().to_string();
                 format!(r#"module="{uri}""#)
@@ -79,11 +73,6 @@ impl Compiler {
                 self.require_resolve_module_direct(module)?;
                 self.resolve_module_canonical(module)?;
             }
-            ResolveTask::ResolveModule { module } => {
-                self.require_bind_module(module)?;
-                self.resolve_module_direct(module)?;
-                self.resolve_module_canonical(module)?;
-            }
         }
         Ok(ResolveOutput {})
     }
@@ -102,10 +91,5 @@ impl Compiler {
         module: ModuleId,
     ) -> Result<(), TaskDependencyError> {
         self.do_require_task_internal_only(ResolveTask::ResolveModuleCanonical { module })
-    }
-
-    /// Ensure a module has been fully resolved (both phases).
-    pub fn require_resolve_module(&self, module: ModuleId) -> Result<(), TaskDependencyError> {
-        self.do_require_task_internal_only(ResolveTask::ResolveModule { module })
     }
 }

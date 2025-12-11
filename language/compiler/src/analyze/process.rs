@@ -74,7 +74,7 @@ impl Compiler {
     pub fn process_analyze(&self, task: AnalyzeTask) -> AnalyzeResult<AnalyzeOutput> {
         match task {
             AnalyzeTask::AnalyzeModuleDeclare { module } => {
-                self.require_resolve_module(module)?;
+                self.require_resolve_module_canonical(module)?;
                 self.analyze_module_declare(module)?;
             }
             AnalyzeTask::AnalyzeModuleInfer { module } => {
