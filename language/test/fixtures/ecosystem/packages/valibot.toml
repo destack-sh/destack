@@ -1,0 +1,18 @@
+# valibot - modular schema validation
+# https://github.com/fabian-hiller/valibot
+#
+# good test: schema library (similar to our schema lib), lots of types
+
+[package]
+name = "valibot"
+repo = "https://github.com/fabian-hiller/valibot"
+
+[discovery]
+include = ["library/src/**/*.ts"]
+exclude = ["**/*.test.ts", "**/*.test-d.ts", "**/__tests__/**"]
+
+[tiers]
+parse = true
+check = false
+compile_js = false
+compile_native = false

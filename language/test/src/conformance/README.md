@@ -1,5 +1,7 @@
 # Conformance Test Status
 
+> See [TESTING.md](../../../../TESTING.md) for the overall testing philosophy and strategy.
+
 **Blended Conformance**: 80.5% (5961/7405 tests passing)
 
 | Suite    | Passed | Failed | Total |  Rate   |

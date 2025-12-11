@@ -50,3 +50,67 @@ schema:
     cargo run -p destack_workspace --features schema --bin generate-schema --release > workspace/generated/dsconfig.schema.json
     cp workspace/generated/dsconfig.schema.json ../platform/vscode/dsconfig.schema.json
     @echo "generated workspace/generated/dsconfig.schema.json"
+
+# --- test suites ---
+
+# run smoke tests
+test-smoke:
+    cargo test --release --test smoke
+
+# run codegen tests
+test-codegen:
+    cargo test --release --test codegen
+
+# run mdtest (markdown-driven type tests)
+test-mdtest:
+    cargo test --release --test mdtest
+
+# run conformance tests
+test-conformance:
+    cargo test --release --test conformance
+
+# run formatter tests
+test-formatter:
+    cargo test --release --test formatter
+
+# update conformance baselines after fixes
+conformance-update:
+    cargo test --release --test conformance -- --update-known-failures
+
+# --- fuzzing ---
+
+# run parser fuzzer (default 5 minutes)
+fuzz-parser duration="300":
+    cd parser/fuzz && cargo +nightly fuzz run destack_parser_fuzz -- -max_total_time={{duration}}
+
+# run parser fuzzer briefly for CI (1 minute)
+fuzz-ci:
+    just fuzz-parser 60
+
+# minimize fuzz corpus
+fuzz-cmin:
+    cd parser/fuzz && cargo +nightly fuzz cmin destack_parser_fuzz
+
+# --- benchmarks ---
+
+# run parser benchmarks
+bench-parser:
+    cargo bench -p destack_parser
+
+# run lexer benchmark only
+bench-lex:
+    cargo bench -p destack_parser -- destack_lex
+
+# run parse benchmark only
+bench-parse:
+    cargo bench -p destack_parser -- destack_ast
+
+# --- ecosystem tests ---
+
+# fetch ecosystem test packages
+ecosystem-fetch:
+    cargo test --release --test ecosystem -- --fetch
+
+# run ecosystem tests
+test-ecosystem:
+    cargo test --release --test ecosystem

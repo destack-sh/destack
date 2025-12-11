@@ -103,18 +103,14 @@ const d = getData();
 d.process();
 ```
 
-## Multi-file Visibility (Placeholder)
+## Multi-file Visibility
 
-> These tests require cross-module extension lookup to work.
-> See is_extension_visible TODO for implementation status.
-
-### native extension across modules
+nocheckin TODO extend/test this properly
 
 > Native extensions should be visible when the type is imported.
-> NOTE: Currently blocked on cross-module TypeTable lookup.
 
 ```ds
-// placeholder: single-file version
+// lib.ds:
 struct Vector2 { x: number, y: number }
 
 extension Vector2 {
