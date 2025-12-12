@@ -2,9 +2,9 @@ use crate::{AnalyzeError, AnalyzeResult, Assignability, Compiler, InferContext};
 use destack_dir::{
     Argument, Block, Declaration, Declarator, DependencyItem, DynamicKey, EnumField, Expression,
     Extension, ExtensionKind, FunctionSignature, Generics, GlobalSymbolId, GlobalTypeId, Heritage,
-    Lineage, LocalNodeId, LocalNodeIdAny, LocalSymbolId, LocalTypeId, MatchCase, Member, NodeTree,
-    Parameter, Pattern, PatternField, PrimitiveType, Property, StaticKey, SymbolTable, Type,
-    TypeField, TypeKind, TypeLiteral, TypeTable, WhereClause,
+    Lineage, LocalNodeId, LocalNodeIdAny, LocalSymbolId, LocalTypeId, MatchCase, MatchSource,
+    Member, NodeTree, Parameter, Pattern, PatternField, PrimitiveType, Property, StaticKey,
+    SymbolTable, Type, TypeField, TypeKind, TypeLiteral, TypeTable, WhereClause,
 };
 use destack_workspace::Module;
 
@@ -49,13 +49,13 @@ impl Compiler {
                 types.insert_type_from(ty, expression_id)
             }
 
-            // labelled statement -> analyze the body
+            // labelled statement -> analyze the body with label in context
             Expression::Labelled {
                 label: _,
-                body,
+                body: body_id,
                 symbol: _,
             } => {
-                self.infer_expression(module, *body, tree, symbols, types, ctx)?;
+                self.infer_expression(module, *body_id, tree, symbols, types, ctx)?;
                 let ty = Type::TypeLiteral {
                     value: TypeLiteral::Void,
                 };
@@ -160,13 +160,14 @@ impl Compiler {
             }
 
             // unary operations -> compound type
-            // NOTE #Incomplete: resolve unary operator overloads
+            // #Incomplete: resolve unary operator overloads
             Expression::Unary { operator, right } => {
                 let right_ty_id =
                     self.infer_expression(module, *right, tree, symbols, types, ctx)?;
                 let ty = self.infer_unary_operation(operator, types.get_type(right_ty_id));
                 types.insert_type_from(ty, expression_id)
             }
+
             // value of operation -> value of type
             Expression::ValueOf {
                 mutability,
@@ -182,6 +183,7 @@ impl Compiler {
                 );
                 types.insert_type_from(ty, expression_id)
             }
+
             // reference of operation -> reference of type
             Expression::ReferenceOf {
                 mutability,
@@ -197,8 +199,9 @@ impl Compiler {
                 );
                 types.insert_type_from(ty, expression_id)
             }
+
             // binary operations -> compound type
-            // NOTE #Incomplete: resolve binary operator overloads
+            // #Incomplete: resolve binary operator overloads
             Expression::Binary {
                 left,
                 operator,
@@ -215,6 +218,7 @@ impl Compiler {
                 );
                 types.insert_type_from(ty, expression_id)
             }
+
             // assignment operations -> void
             Expression::Assign { left, right } => {
                 let left_ty_id = self.infer_expression(module, *left, tree, symbols, types, ctx)?;
@@ -278,7 +282,9 @@ impl Compiler {
                 };
                 types.insert_type_from(ty, expression_id)
             }
-            // NOTE #Incomplete: instantiate references with static arguments
+
+            // #Incomplete: instantiate references with static arguments
+            // reference -> symbol type
             Expression::LocalReference {
                 path: _,
                 target_symbol,
@@ -343,8 +349,9 @@ impl Compiler {
                 };
                 types.insert_type_from(ty, expression_id)
             }
+
             // type literal -> use the given type literal?
-            // NOTE #Architecture: using the type literal type itself as its type is strange
+            // NOTE #Suspicious: using the type literal type itself as its type is strange
             Expression::TypeLiteral { value } => {
                 let ty = Type::TypeLiteral {
                     value: value.clone(),
@@ -357,6 +364,7 @@ impl Compiler {
                 let ty = Type::Value { value: *value };
                 types.insert_type_from(ty, expression_id)
             }
+
             // array / tuple expression -> precise tuple type for each element
             Expression::ArrayExpression { elements } | Expression::TupleExpression { elements } => {
                 for element_id in elements {
@@ -375,6 +383,7 @@ impl Compiler {
                 };
                 types.insert_type_from(ty, expression_id)
             }
+
             // sequence expression (comma operator) -> type of last expression
             Expression::SequenceExpression { expressions } => {
                 let mut last_ty = None;
@@ -392,6 +401,7 @@ impl Compiler {
                     )
                 })
             }
+
             // parenthesized -> same type as inner
             Expression::Parenthesized {
                 expression: inner_id,
@@ -412,7 +422,7 @@ impl Compiler {
             }
 
             // call -> return type of callee
-            // NOTE #Incomplete: instantiate functions with static arguments
+            // #Incomplete: instantiate functions with static arguments
             Expression::Call {
                 left,
                 static_arguments: _,
@@ -474,7 +484,7 @@ impl Compiler {
                             types.insert_type_from(ty, expression_id)
                         })
                     }
-                    // NOTE #Incomplete: handle other callable types (objects with call signature)
+                    // #Incomplete: handle other callable types (objects with call signature)
                     _ => {
                         let ty = Type::TypeLiteral {
                             value: TypeLiteral::Unknown,
@@ -521,7 +531,7 @@ impl Compiler {
                 if let Some(right) = right {
                     self.infer_expression(module, *right, tree, symbols, types, ctx)?;
                 }
-                // NOTE #Incomplete: resolve element type from array/tuple type
+                // #Incomplete: resolve element type from array/tuple type
                 let ty = Type::TypeLiteral {
                     value: TypeLiteral::Unknown,
                 };
@@ -539,7 +549,7 @@ impl Compiler {
                 for arg in dynamic_arguments {
                     self.infer_argument(module, *arg, None, tree, symbols, types, ctx)?;
                 }
-                // NOTE #Incomplete: resolve instance type from constructor
+                // #Incomplete: resolve instance type from constructor
                 let ty = Type::TypeLiteral {
                     value: TypeLiteral::Unknown,
                 };
@@ -559,7 +569,7 @@ impl Compiler {
                 if let Some(else_expr) = else_expression {
                     let _else_ty_id =
                         self.infer_expression(module, *else_expr, tree, symbols, types, ctx)?;
-                    // NOTE #Incomplete: compute union or common type of then/else branches
+                    // #Incomplete: compute union or common type of then/else branches
                 }
                 then_ty_id
             }
@@ -575,8 +585,9 @@ impl Compiler {
                 if let Some(cond) = condition {
                     self.infer_expression(module, *cond, tree, symbols, types, ctx)?;
                 }
-                self.infer_block(module, *body, tree, symbols, types, ctx)?;
-                // NOTE #Incomplete: loop return type depends on break value
+                let mut ctx = ctx.fork().in_loop();
+                self.infer_block(module, *body, tree, symbols, types, &mut ctx)?;
+                // #Incomplete: loop return type depends on break value
                 let ty = Type::TypeLiteral {
                     value: TypeLiteral::Void,
                 };
@@ -604,7 +615,8 @@ impl Compiler {
                     types,
                     ctx,
                 )?;
-                self.infer_block(module, *body, tree, symbols, types, ctx)?;
+                let mut ctx = ctx.fork().in_loop();
+                self.infer_block(module, *body, tree, symbols, types, &mut ctx)?;
                 let ty = Type::TypeLiteral {
                     value: TypeLiteral::Void,
                 };
@@ -629,7 +641,8 @@ impl Compiler {
                 if let Some(incr) = increment {
                     self.infer_expression(module, *incr, tree, symbols, types, ctx)?;
                 }
-                self.infer_block(module, *body, tree, symbols, types, ctx)?;
+                let mut ctx = ctx.fork().in_loop();
+                self.infer_block(module, *body, tree, symbols, types, &mut ctx)?;
                 let ty = Type::TypeLiteral {
                     value: TypeLiteral::Void,
                 };
@@ -640,12 +653,17 @@ impl Compiler {
             Expression::Match {
                 value,
                 cases,
-                source: _,
+                source,
                 scope: _,
                 symbol: _,
             } => {
                 let value_ty_id =
                     self.infer_expression(module, *value, tree, symbols, types, ctx)?;
+                let mut ctx = if *source == MatchSource::Match {
+                    ctx.fork().in_switch()
+                } else {
+                    ctx.fork()
+                };
                 let mut result_ty_id = None;
                 for case_id in cases {
                     let case = tree.get(*case_id);
@@ -662,7 +680,7 @@ impl Compiler {
                             guard,
                             scope: _,
                         } => {
-                            self.infer_block(module, *body, tree, symbols, types, ctx)?;
+                            self.infer_block(module, *body, tree, symbols, types, &mut ctx)?;
                             (*pattern, *guard, None)
                         }
                     };
@@ -673,19 +691,19 @@ impl Compiler {
                         tree,
                         symbols,
                         types,
-                        ctx,
+                        &mut ctx,
                     )?;
                     if let Some(guard_expr) = guard {
-                        self.infer_expression(module, guard_expr, tree, symbols, types, ctx)?;
+                        self.infer_expression(module, guard_expr, tree, symbols, types, &mut ctx)?;
                     }
                     if let Some(expr) = body_expr {
                         let case_ty_id =
-                            self.infer_expression(module, expr, tree, symbols, types, ctx)?;
+                            self.infer_expression(module, expr, tree, symbols, types, &mut ctx)?;
                         if result_ty_id.is_none() {
                             result_ty_id = Some(case_ty_id);
                         }
                     }
-                    // NOTE #Incomplete: compute union of case types
+                    // #Incomplete: compute union of case types
                 }
                 result_ty_id.unwrap_or_else(|| {
                     let ty = Type::TypeLiteral {
@@ -730,7 +748,8 @@ impl Compiler {
             }
 
             // break/continue -> never (control flow)
-            Expression::Break { target: _, value } => {
+            Expression::Break { target: _, value }
+            | Expression::UnresolvedBreak { target: _, value } => {
                 if let Some(val) = value {
                     self.infer_expression(module, *val, tree, symbols, types, ctx)?;
                 }
@@ -739,7 +758,7 @@ impl Compiler {
                 };
                 types.insert_type_from(ty, expression_id)
             }
-            Expression::Continue { target: _ } => {
+            Expression::Continue { target: _ } | Expression::UnresolvedContinue { target: _ } => {
                 let ty = Type::TypeLiteral {
                     value: TypeLiteral::Never,
                 };
@@ -761,7 +780,7 @@ impl Compiler {
             Expression::Await { expression } => {
                 let _inner_ty_id =
                     self.infer_expression(module, *expression, tree, symbols, types, ctx)?;
-                // NOTE #Incomplete: unwrap Promise type
+                // #Incomplete: unwrap Promise type
                 let ty = Type::TypeLiteral {
                     value: TypeLiteral::Unknown,
                 };
@@ -776,7 +795,7 @@ impl Compiler {
                 if let Some(value_id) = value {
                     self.infer_expression(module, *value_id, tree, symbols, types, ctx)?;
                 }
-                // NOTE #Incomplete: yield type depends on generator context
+                // #Incomplete: yield type depends on generator context
                 let ty = Type::TypeLiteral {
                     value: TypeLiteral::Unknown,
                 };
@@ -787,7 +806,7 @@ impl Compiler {
             Expression::Maybe { left } | Expression::Must { left } => {
                 let _inner_ty_id =
                     self.infer_expression(module, *left, tree, symbols, types, ctx)?;
-                // NOTE #Incomplete: unwrap optional type
+                // #Incomplete: unwrap optional type
                 let ty = Type::TypeLiteral {
                     value: TypeLiteral::Unknown,
                 };
@@ -803,7 +822,7 @@ impl Compiler {
             }
             Expression::TaggedTemplateExpression { tag, value: _ } => {
                 let _tag_ty_id = self.infer_expression(module, *tag, tree, symbols, types, ctx)?;
-                // NOTE #Incomplete: tagged template return type from tag function
+                // #Incomplete: tagged template return type from tag function
                 let ty = Type::TypeLiteral {
                     value: TypeLiteral::Unknown,
                 };
@@ -811,7 +830,7 @@ impl Compiler {
             }
 
             // range expression: analyze bounds, type is Iterable<T>
-            // NOTE #Incomplete: range should satisfy Iterable<T> where T is the element type
+            // #Incomplete: range should satisfy Iterable<T> where T is the element type
             Expression::RangeExpression {
                 start,
                 end,
@@ -865,7 +884,7 @@ impl Compiler {
                         self.infer_argument(module, *elem, None, tree, symbols, types, ctx)?;
                     }
                 }
-                // NOTE #Incomplete: JSX element type
+                // #Incomplete: JSX element type
                 let ty = Type::TypeLiteral {
                     value: TypeLiteral::Unknown,
                 };
@@ -884,13 +903,6 @@ impl Compiler {
                     value: TypeLiteral::Unknown,
                 };
                 types.insert_type_from(ty, expression_id)
-            }
-
-            // unresolved expressions should have been resolved by now
-            Expression::UnresolvedBreak { .. } | Expression::UnresolvedContinue { .. } => {
-                return Err(AnalyzeError::UnsupportedConstruct {
-                    node: expression_id.into_global_any(module.id),
-                });
             }
         };
 
@@ -1275,7 +1287,8 @@ impl Compiler {
                 types.set_value_type(descriptor.symbol.into_global(module.id), fn_ty_id);
 
                 if let Some(body) = body {
-                    self.infer_expression(module, *body, tree, symbols, types, ctx)?;
+                    let mut ctx = ctx.reset();
+                    self.infer_expression(module, *body, tree, symbols, types, &mut ctx)?;
                 }
             }
         }
@@ -1348,14 +1361,15 @@ impl Compiler {
                 }
             }
             Property::Method { body, .. } => {
-                // TODO #Incomplete: infer method type
+                // #Incomplete: infer method type
                 if let Some(body) = body {
-                    self.infer_expression(module, *body, tree, symbols, types, ctx)?;
+                    let mut ctx = ctx.reset();
+                    self.infer_expression(module, *body, tree, symbols, types, &mut ctx)?;
                 }
                 Ok(None)
             }
             Property::Spread { value, .. } => {
-                // NOTE #Incomplete: expand spread type into object type
+                // #Incomplete: expand spread type into object type
                 self.infer_expression(module, *value, tree, symbols, types, ctx)?;
                 Ok(None)
             }
@@ -1438,7 +1452,7 @@ impl Compiler {
                     DynamicKey::Expression(_) | DynamicKey::NamedExpression { .. } => None,
                 });
 
-                // infer the method type from signature
+                // signature
                 let method_ty_id = self.infer_signature(
                     module,
                     member_id.into_any(),
@@ -1449,9 +1463,10 @@ impl Compiler {
                     ctx,
                 )?;
 
-                // analyze method body if present
+                // body
                 if let Some(body) = body {
-                    self.infer_expression(module, *body, tree, symbols, types, ctx)?;
+                    let mut ctx = ctx.reset();
+                    self.infer_expression(module, *body, tree, symbols, types, &mut ctx)?;
                 }
 
                 // return a field if we have a static key
@@ -1467,12 +1482,11 @@ impl Compiler {
                 }
             }
             Member::Embed { value, .. } => {
-                // NOTE #Incomplete: expand embedded type into member fields?
+                // #Incomplete: expand embedded type into member fields?
                 self.infer_expression(module, *value, tree, symbols, types, ctx)?;
                 Ok(None)
             }
             Member::StaticBlock { body, .. } => {
-                // analyze static block body, but doesn't contribute to type fields
                 self.infer_expression(module, *body, tree, symbols, types, ctx)?;
                 Ok(None)
             }
@@ -1628,7 +1642,7 @@ impl Compiler {
             asynchrony: signature.asynchrony,
             cardinality: signature.cardinality,
             dynamic_parameters: dynamic_param_types,
-            static_parameters: Vec::new(), // NOTE #Incomplete: static parameters
+            static_parameters: Vec::new(), // #Incomplete: static parameters
             return_type,
         };
         let ty_id = types.insert_type_from_any(ty, node_id);

@@ -302,7 +302,7 @@ pub enum Expression {
         target: LocalScopeId,
         value: Option<LocalNodeId<Expression>>,
     },
-    /// Continue expression.
+    /// Continue expression. // nocheckin: resolve continue/break targets during resolve phase?
     UnresolvedContinue { target: Option<StringId> },
     /// Continue expression.
     Continue { target: LocalScopeId },
