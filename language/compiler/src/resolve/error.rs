@@ -50,6 +50,17 @@ pub enum ResolveError {
     },
     /// Self type used outside of a type context.
     MissingSelf { node: GlobalNodeIdAny },
+    /// Missing target for a control flow expression.
+    MissingTarget {
+        node: GlobalNodeIdAny,
+        target: Option<StringId>,
+    },
+    /// Invalid target for a control flow expression.
+    InvalidTarget {
+        node: GlobalNodeIdAny,
+        target: Option<StringId>,
+        target_node: GlobalNodeIdAny,
+    },
 }
 
 impl From<TaskDependencyError> for ResolveError {
@@ -89,6 +100,8 @@ impl ResolveError {
             Self::CyclicSymbol { .. } => 8,
             Self::UnresolvedModule { .. } => 7,
             Self::MissingSelf { .. } => 9,
+            Self::MissingTarget { .. } => 10,
+            Self::InvalidTarget { .. } => 11,
         }
     }
 
@@ -105,6 +118,8 @@ impl ResolveError {
             Self::CyclicSymbol { node, .. } => DiagnosticAnchor::Node(*node),
             Self::UnresolvedModule { node, .. } => DiagnosticAnchor::Node(*node),
             Self::MissingSelf { node, .. } => DiagnosticAnchor::Node(*node),
+            Self::MissingTarget { node, .. } => DiagnosticAnchor::Node(*node),
+            Self::InvalidTarget { node, .. } => DiagnosticAnchor::Node(*node),
         }
     }
 
@@ -143,6 +158,22 @@ impl ResolveError {
             }
             Self::MissingSelf { .. } => {
                 "`Self` type can only be used inside a class, struct, or enum".to_string()
+            }
+            Self::MissingTarget { target, .. } => {
+                let target = target
+                    .map(|t| program.strings.get(t).to_string())
+                    .unwrap_or_default();
+                format!("missing target {target}")
+            }
+            Self::InvalidTarget {
+                target,
+                target_node: _,
+                ..
+            } => {
+                let target = target
+                    .map(|t| program.strings.get(t).to_string())
+                    .unwrap_or_default();
+                format!("invalid target {target}")
             }
         }
     }

@@ -122,6 +122,7 @@ impl Compiler {
                                 node: expression_id.into_global_any(module.id),
                             })?
                         } else {
+                            // resolve to type literal if possible
                             self.resolve_string_to_type_literal_maybe(string.as_str())
                                 .ok_or(error)?
                         }
@@ -129,6 +130,36 @@ impl Compiler {
                     Err(error) => return Err(error),
                 }
             }
+
+            Expression::UnresolvedBreak { target, value } => {
+                let symbol_id = self.resolve_label_symbol(
+                    module,
+                    expression_id.into_global_any(module.id),
+                    scope,
+                    *target,
+                    symbols,
+                )?;
+                Expression::Break {
+                    target: Some(*target),
+                    target_symbol: Some(symbol_id.into_global(module.id)),
+                    value: *value,
+                }
+            }
+
+            Expression::UnresolvedContinue { target } => {
+                let symbol_id = self.resolve_label_symbol(
+                    module,
+                    expression_id.into_global_any(module.id),
+                    scope,
+                    *target,
+                    symbols,
+                )?;
+                Expression::Continue {
+                    target: Some(*target),
+                    target_symbol: Some(symbol_id.into_global(module.id)),
+                }
+            }
+
             _ => return Ok(()),
         };
         *tree.get_mut(expression_id) = expression;

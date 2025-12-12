@@ -1,6 +1,6 @@
 use destack_dir::{
     GlobalNodeIdAny, GlobalSymbolId, LocalNodeId, LocalScopeMark, LocalSymbolId, Node, Scope,
-    StaticKey, SymbolTable,
+    StaticKey, SymbolSpace, SymbolTable,
 };
 
 use crate::TestProgram;
@@ -112,5 +112,27 @@ impl TestProgram {
         }
 
         Some(current_symbol_id.into_global(symbols.module_id))
+    }
+
+    /// Resolve a label symbol by name.
+    pub fn resolve_label_symbol(&self, module_uri: &str, name: &str) -> Option<GlobalSymbolId> {
+        let module = self.module(module_uri);
+        let module = module.read();
+        let symbols = module.dir.symbols.read();
+        let name_id = self.program.strings.intern(name);
+
+        // search all symbols for a matching label symbol
+        for (idx, symbol) in symbols.symbols().enumerate() {
+            if symbol.space == SymbolSpace::Label
+                && let Some(StaticKey::Name(key_name)) = symbol.key
+                && key_name == name_id
+            {
+                return Some(
+                    LocalSymbolId::new_typed(idx as u32, symbol.ty).into_global(module.id),
+                );
+            }
+        }
+
+        None
     }
 }

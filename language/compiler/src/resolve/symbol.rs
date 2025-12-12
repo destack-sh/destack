@@ -1,7 +1,7 @@
 use destack_dir::{
     Argument, Expression, GlobalNodeIdAny, GlobalSymbolId, LocalNodeId, LocalScopeId,
     LocalScopeMark, LocalSymbolId, NodeTree, NodeType, Path, Scope, ScopeKind, StaticKey,
-    SymbolKind, SymbolTable,
+    StringId, SymbolKind, SymbolSpace, SymbolTable,
 };
 use destack_workspace::Module;
 
@@ -320,6 +320,48 @@ impl Compiler {
         }
     }
 
+    /// Resolve a label symbol by name, walking up scopes.
+    /// Labels are in the Label symbol space and can only be found within the same module.
+    pub(super) fn resolve_label_symbol(
+        &self,
+        _module: &Module,
+        node: GlobalNodeIdAny,
+        scope: (LocalScopeId, &Scope, LocalScopeMark),
+        label: StringId,
+        symbols: &SymbolTable,
+    ) -> ResolveResult<LocalSymbolId> {
+        let key = StaticKey::Name(label);
+        let mut scope = scope;
+        loop {
+            // search for label symbol in current scope
+            for (candidate_key, symbol_id) in scope.1.named_symbols.iter() {
+                if *candidate_key == key {
+                    let symbol = symbols.get_symbol(*symbol_id);
+                    if symbol.space == SymbolSpace::Label {
+                        return Ok(*symbol_id);
+                    }
+                }
+            }
+            // go to parent scope
+            if let Some((parent_scope_id, parent_mark)) = scope.1.parent {
+                scope = (
+                    parent_scope_id,
+                    symbols.get_scope_by_id(parent_scope_id),
+                    parent_mark,
+                );
+            }
+            // no more scopes
+            else {
+                break;
+            }
+        }
+
+        Err(ResolveError::MissingTarget {
+            node,
+            target: Some(label),
+        })
+    }
+
     /// Follow a symbol's target chain to find the canonical (final) symbol.
     fn resolve_canonical_symbol_chain(
         &self,
@@ -404,6 +446,222 @@ mod tests {
     use destack_dir::{Expression, Pattern, ScalarLiteral};
 
     use crate::{TestProgram, assert_node, assert_string};
+
+    // ==================== Label Resolution Tests ====================
+
+    /// Resolve labeled break to outer loop.
+    #[test]
+    fn test_resolve_labeled_break() {
+        let test = TestProgram::memory_sequential();
+        let module_id = test.add_module(
+            "test.ds",
+            r#"
+outer: while (true) {
+    while (true) {
+        break outer;
+    }
+}
+"#,
+        );
+        test.resolve_module(module_id);
+        test.compile_dump_clean();
+
+        let module = test.program.modules.get(module_id);
+        let module = module.read();
+        let tree = module.dir.tree.read();
+
+        // find the outer while loop's symbol
+        let outer_symbol_id = test.resolve_label_symbol("test.ds", "outer").unwrap();
+
+        // find the break expression and verify it resolved correctly
+        let found_break = tree.iter_nodes_of_type::<Expression>().find(|(_, expr)| {
+            matches!(expr, Expression::Break { target_symbol: Some(_), .. })
+        });
+        assert!(found_break.is_some(), "expected resolved Break expression");
+        let (_, break_expr) = found_break.unwrap();
+        if let Expression::Break { target, target_symbol, .. } = break_expr {
+            assert!(target.is_some(), "expected target label name");
+            assert_eq!(*target_symbol, Some(outer_symbol_id), "break should target outer loop symbol");
+        }
+    }
+
+    /// Resolve labeled continue in nested loops.
+    #[test]
+    fn test_resolve_labeled_continue() {
+        let test = TestProgram::memory_sequential();
+        let module_id = test.add_module(
+            "test.ds",
+            r#"
+outer: for (let i = 0; i < 10; i++) {
+    for (let j = 0; j < 10; j++) {
+        if (j == 5) {
+            continue outer;
+        }
+    }
+}
+"#,
+        );
+        test.resolve_module(module_id);
+        test.compile_dump_clean();
+
+        let outer_symbol_id = test.resolve_label_symbol("test.ds", "outer").unwrap();
+
+        let module = test.program.modules.get(module_id);
+        let module = module.read();
+        let tree = module.dir.tree.read();
+
+        // find the continue expression
+        let found_continue = tree.iter_nodes_of_type::<Expression>().find(|(_, expr)| {
+            matches!(expr, Expression::Continue { target_symbol: Some(_), .. })
+        });
+        assert!(found_continue.is_some(), "expected resolved Continue expression");
+        let (_, continue_expr) = found_continue.unwrap();
+        if let Expression::Continue { target, target_symbol } = continue_expr {
+            assert!(target.is_some(), "expected target label name");
+            assert_eq!(*target_symbol, Some(outer_symbol_id), "continue should target outer loop symbol");
+        }
+    }
+
+    /// Break from labeled block (not a loop).
+    #[test]
+    fn test_resolve_labeled_break_from_block() {
+        let test = TestProgram::memory_sequential();
+        let module_id = test.add_module(
+            "test.ds",
+            r#"
+myblock: {
+    if (true) {
+        break myblock;
+    }
+}
+"#,
+        );
+        test.resolve_module(module_id);
+        test.compile_dump_clean();
+
+        let block_symbol_id = test.resolve_label_symbol("test.ds", "myblock").unwrap();
+
+        let module = test.program.modules.get(module_id);
+        let module = module.read();
+        let tree = module.dir.tree.read();
+
+        let found_break = tree.iter_nodes_of_type::<Expression>().find(|(_, expr)| {
+            matches!(expr, Expression::Break { target_symbol: Some(_), .. })
+        });
+        assert!(found_break.is_some(), "expected resolved Break expression");
+        let (_, break_expr) = found_break.unwrap();
+        if let Expression::Break { target_symbol, .. } = break_expr {
+            assert_eq!(*target_symbol, Some(block_symbol_id), "break should target labeled block");
+        }
+    }
+
+    /// Missing label error for break.
+    #[test]
+    fn test_resolve_missing_label_break() {
+        let test = TestProgram::memory_sequential();
+        let module_id = test.add_module(
+            "test.ds",
+            r#"
+while (true) {
+    break nonexistent;
+}
+"#,
+        );
+        test.resolve_module(module_id);
+        test.compile();
+
+        // ER010 = MissingTarget
+        test.check_has_diagnostic("ER010");
+    }
+
+    /// Missing label error for continue.
+    #[test]
+    fn test_resolve_missing_label_continue() {
+        let test = TestProgram::memory_sequential();
+        let module_id = test.add_module(
+            "test.ds",
+            r#"
+while (true) {
+    continue nonexistent;
+}
+"#,
+        );
+        test.resolve_module(module_id);
+        test.compile();
+
+        // ER010 = MissingTarget
+        test.check_has_diagnostic("ER010");
+    }
+
+    /// Multiple nested labeled loops with correct targeting.
+    #[test]
+    fn test_resolve_multiple_nested_labels() {
+        let test = TestProgram::memory_sequential();
+        let module_id = test.add_module(
+            "test.ds",
+            r#"
+outer: while (true) {
+    middle: while (true) {
+        inner: while (true) {
+            break middle;
+        }
+    }
+}
+"#,
+        );
+        test.resolve_module(module_id);
+        test.compile_dump_clean();
+
+        let middle_symbol_id = test.resolve_label_symbol("test.ds", "middle").unwrap();
+
+        let module = test.program.modules.get(module_id);
+        let module = module.read();
+        let tree = module.dir.tree.read();
+
+        let found_break = tree.iter_nodes_of_type::<Expression>().find(|(_, expr)| {
+            matches!(expr, Expression::Break { target_symbol: Some(_), .. })
+        });
+        assert!(found_break.is_some(), "expected resolved Break expression");
+        let (_, break_expr) = found_break.unwrap();
+        if let Expression::Break { target_symbol, .. } = break_expr {
+            assert_eq!(*target_symbol, Some(middle_symbol_id), "break should target middle loop");
+        }
+    }
+
+    /// Labeled loop with break.
+    #[test]
+    fn test_resolve_labeled_loop_break() {
+        let test = TestProgram::memory_sequential();
+        let module_id = test.add_module(
+            "test.ds",
+            r#"
+outer: loop {
+    loop {
+        break outer;
+    }
+}
+"#,
+        );
+        test.resolve_module(module_id);
+        test.compile_dump_clean();
+
+        let outer_symbol_id = test.resolve_label_symbol("test.ds", "outer").unwrap();
+
+        let module = test.program.modules.get(module_id);
+        let module = module.read();
+        let tree = module.dir.tree.read();
+
+        let found_break = tree.iter_nodes_of_type::<Expression>().find(|(_, expr)| {
+            matches!(expr, Expression::Break { target_symbol: Some(_), .. })
+        });
+        assert!(found_break.is_some(), "expected resolved Break expression");
+        let (_, break_expr) = found_break.unwrap();
+        if let Expression::Break { target_symbol, .. } = break_expr {
+            assert_eq!(*target_symbol, Some(outer_symbol_id), "break should target outer loop");
+        }
+    }
+
+    // ==================== End Label Resolution Tests ====================
 
     /// Resolve symbols at top level in a single module.
     #[test]

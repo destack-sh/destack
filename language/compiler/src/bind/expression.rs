@@ -80,16 +80,15 @@ impl Compiler {
             }
 
             ast::Expression::Labelled { label, body } => {
-                let label_interned = self
+                let label = self
                     .program
                     .strings
                     .intern_from(&module.ast.strings, *label);
-                // create a local symbol for the label (for break/continue resolution)
                 let (symbol_id, _) = symbols.insert_symbol(
                     SymbolKind::Local,
                     SymbolType::Void,
-                    SymbolSpace::Value,
-                    Some(StaticKey::Name(label_interned)),
+                    SymbolSpace::Label,
+                    Some(StaticKey::Name(label)),
                     scope,
                     None,
                 );
@@ -103,7 +102,7 @@ impl Compiler {
                     types,
                 );
                 Expression::Labelled {
-                    label: label_interned,
+                    label,
                     body: body_id,
                     symbol: symbol_id,
                 }
@@ -1242,15 +1241,30 @@ impl Compiler {
                         types,
                     )
                 });
-                Expression::UnresolvedBreak {
-                    target: label,
-                    value,
+                if let Some(label) = label {
+                    Expression::UnresolvedBreak {
+                        target: label,
+                        value,
+                    }
+                } else {
+                    Expression::Break {
+                        target: None,
+                        target_symbol: None,
+                        value,
+                    }
                 }
             }
             ast::Expression::Continue { label } => {
                 let label =
                     label.map(|label| self.program.strings.intern_from(&module.ast.strings, label));
-                Expression::UnresolvedContinue { target: label }
+                if let Some(label) = label {
+                    Expression::UnresolvedContinue { target: label }
+                } else {
+                    Expression::Continue {
+                        target: None,
+                        target_symbol: None,
+                    }
+                }
             }
             ast::Expression::Return { value } => {
                 let value = value.map(|value| {

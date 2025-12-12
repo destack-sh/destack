@@ -294,18 +294,22 @@ pub enum Expression {
     },
     /// Break expression.
     UnresolvedBreak {
-        target: Option<StringId>,
+        target: StringId,
         value: Option<LocalNodeId<Expression>>,
     },
     /// Break expression.
     Break {
-        target: LocalScopeId,
+        target: Option<StringId>,
+        target_symbol: Option<GlobalSymbolId>,
         value: Option<LocalNodeId<Expression>>,
     },
-    /// Continue expression. // nocheckin: resolve continue/break targets during resolve phase?
-    UnresolvedContinue { target: Option<StringId> },
     /// Continue expression.
-    Continue { target: LocalScopeId },
+    UnresolvedContinue { target: StringId },
+    /// Continue expression.
+    Continue {
+        target: Option<StringId>,
+        target_symbol: Option<GlobalSymbolId>,
+    },
     /// Throw expression.
     Throw {
         value: Option<LocalNodeId<Expression>>,
