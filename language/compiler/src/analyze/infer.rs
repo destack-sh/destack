@@ -661,7 +661,7 @@ impl Compiler {
                 let value_ty_id =
                     self.infer_expression(module, *value, tree, symbols, types, ctx)?;
                 let mut ctx = if *source == MatchSource::Match {
-                    ctx.fork().in_switch()
+                    ctx.fork().in_match()
                 } else {
                     ctx.fork()
                 };
@@ -749,7 +749,7 @@ impl Compiler {
             }
 
             // break/continue -> never (control flow)
-            Expression::Break { target: _, value }
+            Expression::Break { target: _, target_symbol: _, value }
             | Expression::UnresolvedBreak { target: _, value } => {
                 if let Some(val) = value {
                     self.infer_expression(module, *val, tree, symbols, types, ctx)?;
@@ -759,7 +759,7 @@ impl Compiler {
                 };
                 types.insert_type_from(ty, expression_id)
             }
-            Expression::Continue { target: _ } | Expression::UnresolvedContinue { target: _ } => {
+            Expression::Continue { target: _, target_symbol: _ } | Expression::UnresolvedContinue { target: _ } => {
                 let ty = Type::TypeLiteral {
                     value: TypeLiteral::Never,
                 };

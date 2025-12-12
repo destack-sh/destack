@@ -9,8 +9,8 @@ pub struct InferContext {
     pub is_unreachable: bool,
     /// Whether we're inside a loop (break and continue both valid).
     pub in_loop: bool,
-    /// Whether we're inside a switch (break valid, continue not).
-    pub in_switch: bool,
+    /// Whether we're inside a match (break valid, continue not).
+    pub in_match: bool,
 }
 
 impl InferContext {
@@ -20,7 +20,7 @@ impl InferContext {
             narrowings: Vec::new(),
             is_unreachable: false,
             in_loop: false,
-            in_switch: false,
+            in_match: false,
         }
     }
 
@@ -30,7 +30,7 @@ impl InferContext {
             narrowings: self.narrowings.clone(),
             is_unreachable: self.is_unreachable,
             in_loop: self.in_loop,
-            in_switch: self.in_switch,
+            in_match: self.in_match,
         }
     }
 
@@ -40,7 +40,7 @@ impl InferContext {
             narrowings: self.narrowings.clone(),
             is_unreachable: false,
             in_loop: false,
-            in_switch: false,
+            in_match: false,
         }
     }
 
@@ -50,15 +50,15 @@ impl InferContext {
         self
     }
 
-    /// Enter a switch context.
-    pub fn in_switch(mut self) -> Self {
-        self.in_switch = true;
+    /// Enter a match context.
+    pub fn in_match(mut self) -> Self {
+        self.in_match = true;
         self
     }
 
-    /// Check if we can break (in loop or switch).
+    /// Check if we can break (in loop or match).
     pub fn can_break(&self) -> bool {
-        self.in_loop || self.in_switch
+        self.in_loop || self.in_match
     }
 
     /// Check if we can continue (in loop only).

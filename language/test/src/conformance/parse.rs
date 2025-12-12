@@ -31,17 +31,19 @@ pub(super) enum TestArea {
 impl TestArea {
     /// Check if an error code is relevant for this test area.
     pub(super) fn is_relevant_error(&self, code: &str) -> bool {
+        // NOTE #Cleanup: use more rigorous error code matching for conformance testing?
         match self {
             TestArea::Parse => code.starts_with("EP") || code.starts_with("EI"),
             TestArea::Early => {
                 code.starts_with("EP")
                     || code.starts_with("EI")
                     || code.starts_with("EB")
-                    // NOTE #Cleanup: use more rigorous error code matching for conformance testing?
-                    || code == "EA020"
-                    || code == "EA021"
-                    || code == "EA022"
-                    || code == "EA023"
+                    || code == "ER010" // MissingTarget
+                    || code == "ER011" // InvalidTarget
+                    || code == "EA020" // InvalidLineage
+                    || code == "EA021" // IllegalBreak
+                    || code == "EA022" // IllegalContinue
+                    || code == "EA023" // UnknownLabel
             }
         }
     }

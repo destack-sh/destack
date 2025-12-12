@@ -602,14 +602,22 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
                 visitor.visit_match_case(tree, *case_id, case);
             }
         }
-        Expression::Break { target: _, value }
+        Expression::Break {
+            target: _,
+            target_symbol: _,
+            value,
+        }
         | Expression::UnresolvedBreak { target: _, value } => {
             if let Some(value_id) = value {
                 let value_expression = tree.get(*value_id);
                 visitor.visit_expression(tree, *value_id, value_expression);
             }
         }
-        Expression::Continue { target: _ } | Expression::UnresolvedContinue { target: _ } => {}
+        Expression::Continue {
+            target: _,
+            target_symbol: _,
+        }
+        | Expression::UnresolvedContinue { target: _ } => {}
         Expression::Await { expression } => {
             let expression_node = tree.get(*expression);
             visitor.visit_expression(tree, *expression, expression_node);

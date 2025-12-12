@@ -5,7 +5,6 @@ error/await_in_non_async_function.js
 error/await_in_parameter_initializer.js
 error/await_using_declaration_only_allowed_inside_an_async_function.js
 error/break_in_nested_function.js
-error/break_stmt.js
 error/class_constructor_parameter.js
 error/class_constructor_parameter_readonly.js
 error/class_declare_member.js

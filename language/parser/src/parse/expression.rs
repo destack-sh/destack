@@ -328,16 +328,15 @@ impl Parser {
             let start = self.mark();
 
         // labelled statement (like `label: while(...)` or `label: { }`)
-        // only in statement position, and identifier must be followed by colon then statement
         if self.options.in_statement_position
             && self.peek_token(TokenType::Identifier).is_ok()
             && self.peek_next_token(TokenType::Colon).is_ok()
         {
-            // check if what follows the colon is a statement-like construct
             let is_next_label_target = self.peek_next_next_token(TokenType::OpenBrace).is_ok()
                 || self.peek_next_next_keyword(Keyword::While).is_ok()
                 || self.peek_next_next_keyword(Keyword::Do).is_ok()
                 || self.peek_next_next_keyword(Keyword::For).is_ok()
+                || self.peek_next_next_keyword(Keyword::Loop).is_ok()
                 || self.peek_next_next_keyword(Keyword::If).is_ok()
                 || self.peek_next_next_keyword(Keyword::Switch).is_ok()
                 || self.peek_next_next_keyword(Keyword::Try).is_ok()

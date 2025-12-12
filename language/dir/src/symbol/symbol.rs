@@ -12,6 +12,8 @@ pub enum SymbolSpace {
     Type,
     /// The value space.
     Value,
+    /// The label space.
+    Label,
 }
 
 /// The kind of a symbol (scope behavior).

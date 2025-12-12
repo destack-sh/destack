@@ -1125,22 +1125,31 @@ impl<'a> NodeVisitor for Dumper<'a> {
             }
             Expression::UnresolvedBreak { target, value: _ } => {
                 self.node("Expression::UnresolvedBreak", id.id)
-                    .field_optional("target", target)
+                    .field("target", target)
                     .end();
             }
-            Expression::Break { target, value: _ } => {
+            Expression::Break {
+                target,
+                target_symbol,
+                value: _,
+            } => {
                 self.node("Expression::Break", id.id)
-                    .field("target", target)
+                    .field_optional("target", target)
+                    .field_optional("target_symbol", target_symbol)
                     .end();
             }
             Expression::UnresolvedContinue { target } => {
                 self.node("Expression::UnresolvedContinue", id.id)
-                    .field_optional("target", target)
+                    .field("target", target)
                     .end();
             }
-            Expression::Continue { target } => {
+            Expression::Continue {
+                target,
+                target_symbol,
+            } => {
                 self.node("Expression::Continue", id.id)
-                    .field("target", target)
+                    .field_optional("target", target)
+                    .field_optional("target_symbol", target_symbol)
                     .end();
             }
             Expression::Throw { value: _ } => {
