@@ -6,11 +6,14 @@ use std::time::Duration;
 use std::{io, thread};
 
 use destack_compiler::{AnalyzeTask, CompileOptions, Compiler};
-use destack_source::{FileRegistry, FileSystem, LanguageOptions, MemoryFileSystem};
+use destack_parser::source_colorizer;
+use destack_source::{FileRegistry, FileSystem, LanguageOptions, MemoryFileSystem, PrintOptions};
 use destack_workspace::Program;
 
+use crate::harness::print::color;
 use crate::harness::{
-    RunContext, Runner, Suite, TestCase, TestOptions, TestResult, discover_test_files, fixtures_dir,
+    RunContext, Runner, Suite, TestCase, TestOptions, TestResult, discover_test_files,
+    fixtures_dir, format_diagnostics,
 };
 
 use super::parser::{MdTestCase, parse_mdtest_file};
@@ -18,9 +21,12 @@ use super::parser::{MdTestCase, parse_mdtest_file};
 /// Per-test timeout in seconds.
 const TEST_TIMEOUT_SECONDS: u64 = 1;
 
+/// A suite of markdown tests.
 #[derive(Debug, Default)]
 pub struct MdtestSuite {
+    /// A map of test case names to test cases.
     tests: HashMap<String, MdTestCase>,
+    /// A list of test cases.
     cases: Vec<TestCase>,
 }
 
@@ -178,7 +184,23 @@ fn run_mdtest(test: &MdTestCase) -> TestResult {
         .collect();
 
     // compare against expected errors
-    compare_errors(&test.expected_errors, &actual_errors)
+    let result = compare_errors(&test.expected_errors, &actual_errors);
+    match result {
+        TestResult::Failed { mut message } => {
+            let options = PrintOptions::new().with_colorizer(source_colorizer());
+            let rendered = format_diagnostics(&program.files, &diagnostics, options);
+            if !rendered.is_empty() {
+                if !message.is_empty() {
+                    message.push('\n');
+                    message.push('\n');
+                }
+                message.push_str(&rendered);
+            }
+
+            TestResult::Failed { message }
+        }
+        other => other,
+    }
 }
 
 /// Compare expected and actual errors.
@@ -211,9 +233,9 @@ fn compare_errors(expected: &[String], actual: &[String]) -> TestResult {
     let mut message = String::new();
 
     if !missing.is_empty() {
-        message.push_str("missing expected errors:\n");
+        message.push_str(&format!("{}\n", color::red("missing expected errors:")));
         for err in &missing {
-            message.push_str(&format!("  - {err}\n"));
+            message.push_str(&format!("  {}\n", color::red(&format!("- {err}"))));
         }
     }
 
@@ -221,9 +243,12 @@ fn compare_errors(expected: &[String], actual: &[String]) -> TestResult {
         if !message.is_empty() {
             message.push('\n');
         }
-        message.push_str("unexpected errors:\n");
+        message.push_str(&format!(
+            "{}\n",
+            color::green("additional unexpected errors:")
+        ));
         for err in &unexpected {
-            message.push_str(&format!("  + {err}\n"));
+            message.push_str(&format!("  {}\n", color::green(&format!("+ {err}"))));
         }
     }
 
@@ -236,9 +261,12 @@ fn normalize_error(s: &str) -> String {
     s.split_whitespace().collect::<Vec<_>>().join(" ")
 }
 
+/// An expected error message.
 #[derive(Debug, Clone)]
 enum ExpectedError {
+    /// An exact error message.
     Exact(String),
+    /// A substring error message.
     Contains(String),
 }
 

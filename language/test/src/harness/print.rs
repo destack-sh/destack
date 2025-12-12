@@ -43,33 +43,127 @@ pub mod color {
     }
 }
 
+/// Compute the visible width of a string, ignoring ANSI SGR color sequences.
+///
+/// This is used to pad boxed output so the right border lines up.
+fn visible_width(text: &str) -> usize {
+    let mut width = 0;
+    let mut bytes = text.as_bytes();
+    while !bytes.is_empty() {
+        if bytes[0] == 0x1b && bytes.get(1) == Some(&b'[') {
+            // skip ANSI escape sequences like "\x1b[...m"
+            let mut i = 2;
+            while i < bytes.len() {
+                if bytes[i] == b'm' {
+                    i += 1;
+                    break;
+                }
+                i += 1;
+            }
+            bytes = &bytes[i.min(bytes.len())..];
+            continue;
+        }
+
+        // decode the next utf8 character
+        let next_char = match std::str::from_utf8(bytes) {
+            Ok(s) => s.chars().next(),
+            Err(err) => {
+                // skip invalid bytes to keep the renderer resilient
+                bytes = &bytes[err.valid_up_to().saturating_add(1)..];
+                continue;
+            }
+        };
+
+        if let Some(ch) = next_char {
+            width += 1;
+            bytes = &bytes[ch.len_utf8()..];
+        } else {
+            break;
+        }
+    }
+
+    width
+}
+
 /// Print test result with colors.
-pub fn print_result(test: &TestCase, result: &TestResult, duration: Duration, verbose: bool) {
-    let status = match result {
-        TestResult::Passed => color::green("ok"),
-        TestResult::Failed { .. } => color::red("FAILED"),
-        TestResult::Skipped { .. } => color::yellow("skipped"),
+pub fn print_result(test: &TestCase, result: &TestResult, duration: Duration, _verbose: bool) {
+    let (status_plain, status) = match result {
+        TestResult::Passed => ("ok".to_string(), color::green("ok")),
+        TestResult::Failed { .. } => ("FAILED".to_string(), color::red("FAILED")),
+        TestResult::Skipped { .. } => ("skipped".to_string(), color::yellow("skipped")),
         TestResult::Suite { passed, failed, .. } => {
             if *failed == 0 {
-                color::green(&format!("suite ok ({passed} passed)"))
+                let plain = format!("suite ok ({passed} passed)");
+                let colored = color::green(&plain);
+                (plain, colored)
             } else {
-                color::yellow(&format!("suite ({passed} passed, {failed} failed)"))
+                let plain = format!("suite ({passed} passed, {failed} failed)");
+                let colored = color::yellow(&plain);
+                (plain, colored)
             }
         }
     };
 
-    let duration_str = if duration.as_millis() > 100 {
-        color::dim(&format!(" ({:.2}s)", duration.as_secs_f64()))
+    let duration_plain = if duration.as_millis() > 100 {
+        format!(" ({:.2}s)", duration.as_secs_f64())
     } else {
         String::new()
+    };
+    let duration_str = if duration_plain.is_empty() {
+        String::new()
+    } else {
+        color::dim(&duration_plain)
     };
 
     println!("test {} ... {}{}", test.full_name(), status, duration_str);
 
-    if verbose && let TestResult::Failed { message } = result {
-        for line in message.lines() {
-            println!("       {line}");
+    if let TestResult::Failed { message } = result {
+        if message.is_empty() {
+            return;
         }
+
+        let indent = "       ";
+        let indent_len = indent.len();
+        let base_line_len = format!(
+            "test {} ... {}{}",
+            test.full_name(),
+            status_plain,
+            duration_plain
+        )
+        .len();
+
+        let separator_len = std::env::var("COLUMNS")
+            .ok()
+            .and_then(|s| s.parse::<usize>().ok())
+            .map(|columns| columns.saturating_sub(indent_len))
+            .unwrap_or_else(|| base_line_len.saturating_sub(indent_len))
+            .max(40);
+
+        let inner_width = separator_len.saturating_sub(4).max(8);
+        let border_top = color::dim(&format!(
+            "┌{}┐",
+            "─".repeat(separator_len.saturating_sub(2))
+        ));
+        let border_bottom = color::dim(&format!(
+            "└{}┘",
+            "─".repeat(separator_len.saturating_sub(2))
+        ));
+        let border_left = color::dim("│");
+        let border_right = color::dim("│");
+
+        println!("{indent}{border_top}");
+
+        for line in message.lines() {
+            let visible = visible_width(line);
+            let padding = inner_width.saturating_sub(visible);
+            println!(
+                "{indent}{border_left} {line}{} {border_right}",
+                " ".repeat(padding)
+            );
+        }
+
+        println!("{indent}{border_bottom}");
+        println!();
     }
 }
 

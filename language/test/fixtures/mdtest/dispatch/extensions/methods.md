@@ -112,7 +112,7 @@ const calc = getCalc();
 const sum: number = calc.add("one", 2);
 ```
 
-- not assignable
+- contains: not assignable
 
 ## Chaining
 

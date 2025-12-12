@@ -21,7 +21,7 @@ const p = getPoint();
 const bad = p.nonexistent();
 ```
 
-- does not exist
+- contains: does not exist
 
 ### method exists on type but not extension
 
@@ -58,7 +58,7 @@ const f = getFoo();
 const s: string = f.bar();
 ```
 
-- not assignable
+- contains: not assignable
 
 ## Multiple Extensions
 
