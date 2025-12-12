@@ -615,7 +615,7 @@ mod tests {
     #[test]
     fn test_analyze_assignability_same_primitive() {
         let test = TestProgram::memory_sequential();
-        let module_id = test.register_module("test.ds", "let x: number = 42");
+        let module_id = test.add_module("test.ds", "let x: number = 42");
         test.analyze_module(module_id);
         test.compile_dump_clean();
 
@@ -638,7 +638,7 @@ mod tests {
     #[test]
     fn test_analyze_assignability_different_primitives() {
         let test = TestProgram::memory_sequential();
-        let module_id = test.register_module("test.ds", "42");
+        let module_id = test.add_module("test.ds", "42");
         test.analyze_module(module_id);
         test.compile_dump_clean();
 
@@ -664,7 +664,7 @@ mod tests {
     #[test]
     fn test_analyze_assignability_literal_to_primitive() {
         let test = TestProgram::memory_sequential();
-        let module_id = test.register_module("test.ds", "42");
+        let module_id = test.add_module("test.ds", "42");
         test.analyze_module(module_id);
         test.compile_dump_clean();
 
@@ -690,7 +690,7 @@ mod tests {
     #[test]
     fn test_analyze_assignability_any() {
         let test = TestProgram::memory_sequential();
-        let module_id = test.register_module("test.ds", "42");
+        let module_id = test.add_module("test.ds", "42");
         test.analyze_module(module_id);
         test.compile_dump_clean();
 
@@ -716,7 +716,7 @@ mod tests {
     #[test]
     fn test_analyze_assignability_never_source() {
         let test = TestProgram::memory_sequential();
-        let module_id = test.register_module("test.ds", "42");
+        let module_id = test.add_module("test.ds", "42");
         test.analyze_module(module_id);
         test.compile_dump_clean();
 
@@ -742,7 +742,7 @@ mod tests {
     #[test]
     fn test_analyze_assignability_never_target() {
         let test = TestProgram::memory_sequential();
-        let module_id = test.register_module("test.ds", "42");
+        let module_id = test.add_module("test.ds", "42");
         test.analyze_module(module_id);
         test.compile_dump_clean();
 
@@ -768,7 +768,7 @@ mod tests {
     #[test]
     fn test_analyze_assignability_tuple() {
         let test = TestProgram::memory_sequential();
-        let module_id = test.register_module("test.ds", "42");
+        let module_id = test.add_module("test.ds", "42");
         test.analyze_module(module_id);
         test.compile_dump_clean();
 
@@ -797,7 +797,7 @@ mod tests {
     #[test]
     fn test_analyze_assignability_tuple_different_length() {
         let test = TestProgram::memory_sequential();
-        let module_id = test.register_module("test.ds", "42");
+        let module_id = test.add_module("test.ds", "42");
         test.analyze_module(module_id);
         test.compile_dump_clean();
 
@@ -829,7 +829,7 @@ mod tests {
     #[test]
     fn test_analyze_assignability_array() {
         let test = TestProgram::memory_sequential();
-        let module_id = test.register_module("test.ds", "42");
+        let module_id = test.add_module("test.ds", "42");
         test.analyze_module(module_id);
         test.compile_dump_clean();
 
@@ -855,7 +855,7 @@ mod tests {
     #[test]
     fn test_analyze_assignability_tuple_to_array() {
         let test = TestProgram::memory_sequential();
-        let module_id = test.register_module("test.ds", "42");
+        let module_id = test.add_module("test.ds", "42");
         test.analyze_module(module_id);
         test.compile_dump_clean();
 
@@ -884,7 +884,7 @@ mod tests {
     #[test]
     fn test_analyze_assignability_object_structural() {
         let test = TestProgram::memory_sequential();
-        let module_id = test.register_module("test.ds", "42");
+        let module_id = test.add_module("test.ds", "42");
         test.analyze_module(module_id);
         test.compile_dump_clean();
 
@@ -947,7 +947,7 @@ mod tests {
     #[test]
     fn test_analyze_assignability_union_target() {
         let test = TestProgram::memory_sequential();
-        let module_id = test.register_module("test.ds", "42");
+        let module_id = test.add_module("test.ds", "42");
         test.analyze_module(module_id);
         test.compile_dump_clean();
 
@@ -976,7 +976,7 @@ mod tests {
     #[test]
     fn test_type_check_let_compatible_types() {
         let test = TestProgram::memory_sequential();
-        let module_id = test.register_module("test.ds", "let x: number = 42;");
+        let module_id = test.add_module("test.ds", "let x: number = 42;");
         test.analyze_module(module_id);
         test.compile();
         test.check_clean();
@@ -986,7 +986,7 @@ mod tests {
     #[test]
     fn test_type_check_let_incompatible_types() {
         let test = TestProgram::memory_sequential();
-        let module_id = test.register_module("test.ds", r#"let x: number = "hello";"#);
+        let module_id = test.add_module("test.ds", r#"let x: number = "hello";"#);
         test.analyze_module(module_id);
         test.compile();
         test.check_diagnostics(&["EA004"]);
@@ -996,7 +996,7 @@ mod tests {
     #[test]
     fn test_type_check_let_boolean_to_string_error() {
         let test = TestProgram::memory_sequential();
-        let module_id = test.register_module("test.ds", "let x: string = true;");
+        let module_id = test.add_module("test.ds", "let x: string = true;");
         test.analyze_module(module_id);
         test.compile();
         test.check_diagnostics(&["EA004"]);
@@ -1006,7 +1006,7 @@ mod tests {
     #[test]
     fn test_type_check_let_any_accepts_all() {
         let test = TestProgram::memory_sequential();
-        let module_id = test.register_module("test.ds", "let x: any = 42;");
+        let module_id = test.add_module("test.ds", "let x: any = 42;");
         test.analyze_module(module_id);
         test.compile();
         test.check_clean();
@@ -1016,7 +1016,7 @@ mod tests {
     #[test]
     fn test_type_check_function_call_compatible_args() {
         let test = TestProgram::memory_sequential();
-        let module_id = test.register_module(
+        let module_id = test.add_module(
             "test.ds",
             r#"
 function add(x: number, y: number): number {
@@ -1034,7 +1034,7 @@ let result = add(1, 2);
     #[test]
     fn test_type_check_function_call_incompatible_args() {
         let test = TestProgram::memory_sequential();
-        let module_id = test.register_module(
+        let module_id = test.add_module(
             "test.ds",
             r#"
 function greet(name: string): string {
@@ -1052,7 +1052,7 @@ let result = greet(42);
     #[test]
     fn test_type_check_function_return_type() {
         let test = TestProgram::memory_sequential();
-        let module_id = test.register_module(
+        let module_id = test.add_module(
             "test.ds",
             r#"
 function getNumber(): number {
@@ -1070,7 +1070,7 @@ let x: number = getNumber();
     #[test]
     fn test_type_check_let_int_compatible() {
         let test = TestProgram::memory_sequential();
-        let module_id = test.register_module("test.ds", "let x: int = 4;");
+        let module_id = test.add_module("test.ds", "let x: int = 4;");
         test.analyze_module(module_id);
         test.compile();
         test.check_clean();
@@ -1080,7 +1080,7 @@ let x: number = getNumber();
     #[test]
     fn test_type_check_let_int32_compatible() {
         let test = TestProgram::memory_sequential();
-        let module_id = test.register_module("test.ds", "let x: int32 = 42;");
+        let module_id = test.add_module("test.ds", "let x: int32 = 42;");
         test.analyze_module(module_id);
         test.compile();
         test.check_clean();
@@ -1090,7 +1090,7 @@ let x: number = getNumber();
     #[test]
     fn test_type_check_let_float_compatible() {
         let test = TestProgram::memory_sequential();
-        let module_id = test.register_module("test.ds", "let x: float = 3.14;");
+        let module_id = test.add_module("test.ds", "let x: float = 3.14;");
         test.analyze_module(module_id);
         test.compile();
         test.check_clean();
@@ -1100,7 +1100,7 @@ let x: number = getNumber();
     #[test]
     fn test_type_check_let_int_to_float_compatible() {
         let test = TestProgram::memory_sequential();
-        let module_id = test.register_module("test.ds", "let x: float = 42;");
+        let module_id = test.add_module("test.ds", "let x: float = 42;");
         test.analyze_module(module_id);
         test.compile();
         test.check_clean();
@@ -1110,7 +1110,7 @@ let x: number = getNumber();
     #[test]
     fn test_type_check_int8_range_valid() {
         let test = TestProgram::memory_sequential();
-        let module_id = test.register_module("test.ds", "let x: int8 = 127;");
+        let module_id = test.add_module("test.ds", "let x: int8 = 127;");
         test.analyze_module(module_id);
         test.compile();
         test.check_clean();
@@ -1120,7 +1120,7 @@ let x: number = getNumber();
     #[test]
     fn test_type_check_int8_range_overflow() {
         let test = TestProgram::memory_sequential();
-        let module_id = test.register_module("test.ds", "let x: int8 = 128;");
+        let module_id = test.add_module("test.ds", "let x: int8 = 128;");
         test.analyze_module(module_id);
         test.compile();
         test.check_diagnostics(&["EA004"]);
@@ -1130,7 +1130,7 @@ let x: number = getNumber();
     #[test]
     fn test_type_check_uint8_range_valid() {
         let test = TestProgram::memory_sequential();
-        let module_id = test.register_module("test.ds", "let x: uint8 = 255;");
+        let module_id = test.add_module("test.ds", "let x: uint8 = 255;");
         test.analyze_module(module_id);
         test.compile();
         test.check_clean();
@@ -1140,7 +1140,7 @@ let x: number = getNumber();
     #[test]
     fn test_type_check_uint8_range_overflow() {
         let test = TestProgram::memory_sequential();
-        let module_id = test.register_module("test.ds", "let x: uint8 = 256;");
+        let module_id = test.add_module("test.ds", "let x: uint8 = 256;");
         test.analyze_module(module_id);
         test.compile();
         test.check_diagnostics(&["EA004"]);
@@ -1151,7 +1151,7 @@ let x: number = getNumber();
     #[test]
     fn test_type_check_uint_negative_fails() {
         let test = TestProgram::memory_sequential();
-        let module_id = test.register_module("test.ds", "let x: uint = -1;");
+        let module_id = test.add_module("test.ds", "let x: uint = -1;");
         test.analyze_module(module_id);
         test.compile();
         test.check_diagnostics(&["EA004"]);
@@ -1161,7 +1161,7 @@ let x: number = getNumber();
     #[test]
     fn test_analyze_assignability_literal_to_int() {
         let test = TestProgram::memory_sequential();
-        let module_id = test.register_module("test.ds", "42");
+        let module_id = test.add_module("test.ds", "42");
         test.analyze_module(module_id);
         test.compile_dump_clean();
 
@@ -1187,7 +1187,7 @@ let x: number = getNumber();
     #[test]
     fn test_analyze_assignability_literal_to_float() {
         let test = TestProgram::memory_sequential();
-        let module_id = test.register_module("test.ds", "42");
+        let module_id = test.add_module("test.ds", "42");
         test.analyze_module(module_id);
         test.compile_dump_clean();
 
@@ -1214,7 +1214,7 @@ let x: number = getNumber();
     #[test]
     fn test_analyze_assignability_int_out_of_range() {
         let test = TestProgram::memory_sequential();
-        let module_id = test.register_module("test.ds", "42");
+        let module_id = test.add_module("test.ds", "42");
         test.analyze_module(module_id);
         test.compile_dump_clean();
 
@@ -1240,7 +1240,7 @@ let x: number = getNumber();
     #[test]
     fn test_analyze_member_access_object_field() {
         let test = TestProgram::memory_sequential();
-        let module_id = test.register_module(
+        let module_id = test.add_module(
             "test.ds",
             r#"
 let obj = { x: 42, y: "hello" };
@@ -1257,7 +1257,7 @@ let b = obj.y;
     #[test]
     fn test_analyze_member_access_multiple_fields() {
         let test = TestProgram::memory_sequential();
-        let module_id = test.register_module(
+        let module_id = test.add_module(
             "test.ds",
             r#"
 let obj = { x: 42, y: "hello", z: true };
@@ -1275,7 +1275,7 @@ let c = obj.z;
     #[test]
     fn test_analyze_member_access_chained() {
         let test = TestProgram::memory_sequential();
-        let module_id = test.register_module(
+        let module_id = test.add_module(
             "test.ds",
             r#"
 let obj = { inner: { value: 42 } };
@@ -1291,7 +1291,7 @@ let a = obj.inner.value;
     #[test]
     fn test_analyze_numeric_widening_int() {
         let test = TestProgram::memory_sequential();
-        let module_id = test.register_module("test.ds", "42");
+        let module_id = test.add_module("test.ds", "42");
         test.analyze_module(module_id);
         test.compile_dump_clean();
 
@@ -1324,7 +1324,7 @@ let a = obj.inner.value;
     #[test]
     fn test_analyze_numeric_widening_signed_to_unsigned_not_allowed() {
         let test = TestProgram::memory_sequential();
-        let module_id = test.register_module("test.ds", "42");
+        let module_id = test.add_module("test.ds", "42");
         test.analyze_module(module_id);
         test.compile_dump_clean();
 
@@ -1350,7 +1350,7 @@ let a = obj.inner.value;
     #[test]
     fn test_analyze_lineage_created_for_class_extends() {
         let test = TestProgram::memory_sequential();
-        let module_id = test.register_module(
+        let module_id = test.add_module(
             "test.ds",
             r#"
 class Animal { name: string }
@@ -1377,7 +1377,7 @@ class Dog extends Animal { breed: string }
     #[test]
     fn test_analyze_lineage_chain_multilevel() {
         let test = TestProgram::memory_sequential();
-        let module_id = test.register_module(
+        let module_id = test.add_module(
             "test.ds",
             r#"
 class Animal { name: string }
@@ -1421,7 +1421,7 @@ class Labrador extends Dog { color: string }
     #[test]
     fn test_analyze_lineage_created_for_implements() {
         let test = TestProgram::memory_sequential();
-        let module_id = test.register_module(
+        let module_id = test.add_module(
             "test.ds",
             r#"
 interface Printable { print(): void }
@@ -1469,7 +1469,7 @@ class Document implements Printable, Saveable {
     #[test]
     fn test_analyze_extension() {
         let test = TestProgram::memory_sequential();
-        let module_id = test.register_module(
+        let module_id = test.add_module(
             "test.ds",
             r#"
 struct Point { x: number, y: number }
