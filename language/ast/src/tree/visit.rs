@@ -29,7 +29,7 @@ pub trait NodeVisitor {
         id: LocalNodeId<Expression>,
         expression: &Expression,
     ) {
-        walk_expression(self, tree, id, expression);
+        destack_source::ensure_sufficient_stack(|| walk_expression(self, tree, id, expression));
     }
 
     /// Visit a Block.

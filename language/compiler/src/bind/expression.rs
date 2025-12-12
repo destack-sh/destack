@@ -20,18 +20,19 @@ impl Compiler {
         }
     }
 
-    /// Bind an expression to a DIR expression.
-    pub(super) fn bind_expression(
-        &self,
-        module: &Module,
-        scope: (LocalScopeId, LocalScopeMark),
-        ast_expression_id: ast::LocalNodeId<ast::Expression>,
-        parent_id: Option<LocalNodeIdAny>,
-        tree: &mut NodeTree,
-        symbols: &mut SymbolTable,
-        types: &mut TypeTable,
-    ) -> LocalNodeId<Expression> {
-        let ast_expression = module.ast.tree.get(ast_expression_id);
+    destack_source::ensure_sufficient_stack! {
+        /// Bind an expression to a DIR expression.
+        pub(super) fn bind_expression(
+            &self,
+            module: &Module,
+            scope: (LocalScopeId, LocalScopeMark),
+            ast_expression_id: ast::LocalNodeId<ast::Expression>,
+            parent_id: Option<LocalNodeIdAny>,
+            tree: &mut NodeTree,
+            symbols: &mut SymbolTable,
+            types: &mut TypeTable,
+        ) -> LocalNodeId<Expression> {
+            let ast_expression = module.ast.tree.get(ast_expression_id);
         let expression_id =
             tree.reserve_from_source(NodeType::Expression, ast_expression_id.id, scope, parent_id);
         let expression = match ast_expression {
@@ -1323,6 +1324,7 @@ impl Compiler {
             expression_id
         } else {
             tree.insert(expression_id, expression)
+        }
         }
     }
 

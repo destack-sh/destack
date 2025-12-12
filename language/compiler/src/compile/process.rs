@@ -51,8 +51,11 @@ impl Compiler {
     pub fn compile(&self) {
         // spawn worker threads
         thread::scope(|scope| {
-            for _ in 0..self.options.workers {
-                scope.spawn(|| self.run_loop());
+            for i in 0..self.options.workers {
+                thread::Builder::new()
+                    .name(format!("compiler-worker-{i}"))
+                    .spawn_scoped(scope, || self.run_loop())
+                    .expect("failed to spawn compiler worker thread");
             }
         });
 

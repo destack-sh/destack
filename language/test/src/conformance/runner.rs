@@ -105,13 +105,17 @@ fn run_test_with_timeout<S: ConformanceSuite + 'static>(
 ) -> TestResult {
     let suite = suite.clone();
     let test = test.clone();
+    let thread_name = format!("{}::{}", suite.name(), test.name);
 
     let (tx, rx) = mpsc::channel();
 
-    thread::spawn(move || {
-        let result = suite.run(&test);
-        let _ = tx.send(result);
-    });
+    thread::Builder::new()
+        .name(thread_name)
+        .spawn(move || {
+            let result = suite.run(&test);
+            let _ = tx.send(result);
+        })
+        .expect("failed to spawn test thread");
 
     match rx.recv_timeout(timeout) {
         Ok(TestOutcome::Passed) => TestResult::Passed,

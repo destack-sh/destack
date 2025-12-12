@@ -76,6 +76,7 @@ target-lexicon = "0.13.3"
 
 # general
 cfg-if = "1.0.4"
+stacker = "0.1.17"
 crossbeam-deque = "0.8.6"
 dashmap = "6.1.0"
 indexmap = "2.12.0"

@@ -10,17 +10,18 @@ use destack_workspace::Module;
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
-    /// Infer the type of an expression.
-    pub(super) fn infer_expression(
-        &self,
-        module: &Module,
-        expression_id: LocalNodeId<Expression>,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
-        ctx: &mut InferContext,
-    ) -> AnalyzeResult<LocalTypeId> {
-        if let Some(ty_id) = types.get_inferred_type_id(expression_id.into_global_any(module.id)) {
+    destack_source::ensure_sufficient_stack! {
+        /// Infer the type of an expression.
+        pub(super) fn infer_expression(
+            &self,
+            module: &Module,
+            expression_id: LocalNodeId<Expression>,
+            tree: &NodeTree,
+            symbols: &SymbolTable,
+            types: &mut TypeTable,
+            ctx: &mut InferContext,
+        ) -> AnalyzeResult<LocalTypeId> {
+            if let Some(ty_id) = types.get_inferred_type_id(expression_id.into_global_any(module.id)) {
             return Ok(ty_id);
         }
 
@@ -909,6 +910,7 @@ impl Compiler {
         types.set_inferred_type(expression_id.into_global_any(module.id), ty_id);
 
         Ok(ty_id)
+        }
     }
 
     /// Analyze a block.
