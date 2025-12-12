@@ -2155,7 +2155,7 @@ impl Compiler {
 
 #[cfg(test)]
 mod tests {
-    use destack_dir::{Expression, ExtensionKind, PrimitiveType, ScalarLiteral, Type, TypeLiteral};
+    use destack_dir::{Expression, PrimitiveType, ScalarLiteral, Type, TypeLiteral};
 
     use crate::{TestProgram, assert_type};
 
@@ -2855,15 +2855,5 @@ import { Point } from "./point.ds";
 
         let _point_id = test.resolve_to_symbol("test.ds", "Point").unwrap();
         let _point_helpers_id = test.resolve_to_symbol("test.ds", "PointHelpers").unwrap();
-    }
-
-    // nocheckin: remove this test after debugging
-    /// Regression test for conformance tests: pass/b9a5f5c8c12525c7, pass/d59a168fe5b7c787
-    #[test]
-    fn test_analyze_regex_member_access_js_mode() {
-        let test = TestProgram::memory_sequential();
-        let module_id = test.add_module("test.js", "/0/g.a");
-        test.analyze_module(module_id);
-        test.compile();
     }
 }

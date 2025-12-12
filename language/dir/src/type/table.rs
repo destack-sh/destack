@@ -349,21 +349,6 @@ impl TypeTable {
         self.extensions.get_mut(extension_id.0)
     }
 
-    /// Get the extension id for an extension symbol.
-    pub fn get_extension_id_for_symbol(
-        &self,
-        symbol_id: GlobalSymbolId,
-    ) -> Option<LocalExtensionId> {
-        self.extension_by_symbol.get(&symbol_id).copied()
-    }
-
-    /// Get the extension for an extension symbol directly.
-    pub fn get_extension_for_symbol(&self, symbol_id: GlobalSymbolId) -> Option<&Extension> {
-        self.extension_by_symbol
-            .get(&symbol_id)
-            .map(|id| self.extensions.get(id.0))
-    }
-
     /// Get all extensions targeting a specific type symbol.
     pub fn get_extensions_for_target(
         &self,

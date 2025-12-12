@@ -96,11 +96,11 @@ pub fn format_type(ty: &Type, types: &TypeTable, program: &Program) -> String {
             }
         }
         Type::Tuple { elements } => {
-            let elems: Vec<_> = elements
+            let elements: Vec<_> = elements
                 .iter()
                 .map(|e| format_local_type(*e, types, program))
                 .collect();
-            format!("({})", elems.join(", "))
+            format!("({})", elements.join(", "))
         }
         Type::Object { fields } => {
             if fields.is_empty() {
@@ -155,18 +155,18 @@ pub fn format_type(ty: &Type, types: &TypeTable, program: &Program) -> String {
             )
         }
         Type::Union { elements } => {
-            let elems: Vec<_> = elements
+            let elements: Vec<_> = elements
                 .iter()
                 .map(|e| format_local_type(*e, types, program))
                 .collect();
-            elems.join(" | ")
+            elements.join(" | ")
         }
         Type::Intersection { elements } => {
-            let elems: Vec<_> = elements
+            let elements: Vec<_> = elements
                 .iter()
                 .map(|e| format_local_type(*e, types, program))
                 .collect();
-            elems.join(" & ")
+            elements.join(" & ")
         }
         Type::Error => "<error>".to_string(),
     }
@@ -174,6 +174,7 @@ pub fn format_type(ty: &Type, types: &TypeTable, program: &Program) -> String {
 
 /// Format a TypeLiteral.
 pub fn format_type_literal(lit: &TypeLiteral, program: &Program) -> String {
+    tracing::trace!("format_type_literal: lit={lit:?}");
     match lit {
         TypeLiteral::Never => "never".to_string(),
         TypeLiteral::Any => "any".to_string(),
@@ -184,7 +185,10 @@ pub fn format_type_literal(lit: &TypeLiteral, program: &Program) -> String {
         TypeLiteral::Null => "null".to_string(),
         TypeLiteral::Primitive(p) => format_primitive_type(p),
         TypeLiteral::Composite(c) => format_composite_type(c),
-        TypeLiteral::ScalarLiteral(s) => format_scalar_literal(s, program),
+        TypeLiteral::ScalarLiteral(s) => {
+            tracing::trace!("format_type_literal: ScalarLiteral case");
+            format_scalar_literal(s, program)
+        }
     }
 }
 
@@ -239,9 +243,10 @@ pub fn format_scalar_literal(scalar: &ScalarLiteral, program: &Program) -> Strin
             format!("\"{s}\"")
         }
         ScalarLiteral::RegexString { content, flags } => {
-            let content_str = &*program.strings.get(*content);
+            // (copy strings to release the StringPool mutex guard)
+            let content_str = program.strings.get(*content).to_string();
             if let Some(flags_id) = flags {
-                let flags_str = &*program.strings.get(*flags_id);
+                let flags_str = program.strings.get(*flags_id).to_string();
                 format!("/{content_str}/{flags_str}")
             } else {
                 format!("/{content_str}/")
@@ -330,18 +335,18 @@ pub fn format_static_expression(expression: &StaticExpression, program: &Program
             format!("{start_str}{op}{end_str}")
         }
         StaticExpression::ArrayExpression { elements } => {
-            let elems: Vec<_> = elements
+            let elements: Vec<_> = elements
                 .iter()
                 .map(|e| format_static_expression(e, program))
                 .collect();
-            format!("[{}]", elems.join(", "))
+            format!("[{}]", elements.join(", "))
         }
         StaticExpression::TupleExpression { elements } => {
-            let elems: Vec<_> = elements
+            let elements: Vec<_> = elements
                 .iter()
                 .map(|e| format_static_expression(e, program))
                 .collect();
-            format!("({})", elems.join(", "))
+            format!("({})", elements.join(", "))
         }
         StaticExpression::ObjectExpression { .. } => "{...}".to_string(),
     }
