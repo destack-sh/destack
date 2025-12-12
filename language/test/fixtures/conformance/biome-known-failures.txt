@@ -211,6 +211,7 @@ ok/ts_import_type.ts
 ok/ts_infer_type_allowed.ts
 ok/ts_instantiation_expressions.ts
 ok/ts_instantiation_expressions_1.ts
+ok/ts_interface_extends_clause.ts
 ok/ts_keyword_assignments.js
 ok/ts_mapped_type.ts
 ok/ts_method_and_constructor_overload.ts
