@@ -203,6 +203,17 @@ impl ConformanceSuite for BabelSuite {
                ./language/test/fixtures/conformance/babel-fetch.sh\n"
         )
     }
+
+    fn category_for_test(&self, test_name: &str) -> String {
+        // babel tests are typescript/subcategory/... or jsx/subcategory/...
+        // use the second segment as the category
+        let parts: Vec<&str> = test_name.split('/').collect();
+        if parts.len() >= 2 {
+            parts[1].to_string()
+        } else {
+            parts.first().unwrap_or(&"unknown").to_string()
+        }
+    }
 }
 
 /// Run Babel conformance tests.

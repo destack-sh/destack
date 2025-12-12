@@ -168,6 +168,24 @@ impl ConformanceSuite for SwcSuite {
                ./language/test/fixtures/conformance/swc-fetch.sh\n"
         )
     }
+
+    fn category_for_test(&self, test_name: &str) -> String {
+        // swc tests are typescript/subcategory/... or jsx/subcategory/... or js/subcategory/...
+        // use the second segment as the category
+        let parts: Vec<&str> = test_name.split('/').collect();
+        let category = if parts.len() >= 2 {
+            parts[1]
+        } else {
+            parts.first().unwrap_or(&"unknown")
+        };
+
+        // combine all issue-* into one "issue" category
+        if category.starts_with("issue-") || category.starts_with("jssue-") {
+            "issue".to_string()
+        } else {
+            category.to_string()
+        }
+    }
 }
 
 /// Run SWC conformance tests.
