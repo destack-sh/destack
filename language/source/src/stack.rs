@@ -37,10 +37,7 @@ pub fn ensure_sufficient_stack<R, F: FnOnce() -> R>(f: F) -> R {
 
 /// A macro to wrap function bodies with stack growth protection.
 ///
-/// This eliminates the need for `_inner` helper functions by allowing you to
-/// wrap recursive functions directly.
-///
-/// # Example
+///  # Example
 ///
 /// ```ignore
 /// destack_source::ensure_sufficient_stack! {
