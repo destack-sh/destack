@@ -91,6 +91,7 @@ dist
 # IDE/Editor
 .idea/
 .vscode-test
+.cursor
 *.code-workspace
 *.gpg
 
