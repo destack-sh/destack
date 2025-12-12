@@ -72,8 +72,12 @@ impl Parser {
             if identifier.is_empty() {
                 identifier.push_str(token_part);
             } else {
-                identifier.push_str(&token_part[0..1].to_uppercase());
-                identifier.push_str(&token_part[1..]);
+                // uppercase the first character (UTF-8 safe)
+                let mut chars = token_part.chars();
+                if let Some(first) = chars.next() {
+                    identifier.extend(first.to_uppercase());
+                    identifier.push_str(chars.as_str());
+                }
             }
 
             if self.peek_token(TokenType::Subtract).is_ok() {
@@ -101,6 +105,21 @@ impl Parser {
         } else {
             Err(ParseError::expected(token.span, TokenType::Literal))
         }
+    }
+
+    /// Get the content of a string literal (without surrounding quotes).
+    #[inline]
+    pub fn get_string_literal_str(&self, token: TokenSpan) -> &str {
+        let token_str = self.get_token_str(token);
+        token_str
+            .strip_prefix('"')
+            .and_then(|s| s.strip_suffix('"'))
+            .or_else(|| {
+                token_str
+                    .strip_prefix('\'')
+                    .and_then(|s| s.strip_suffix('\''))
+            })
+            .unwrap_or(token_str)
     }
 
     /// Peek a next string literal.
@@ -165,9 +184,8 @@ impl Parser {
         }
         // string identifier
         else if self.peek_string_literal().is_ok() {
-            let token = self.peek_string_literal()?;
-            let token_str = self.get_token_str(*token);
-            let token_str = &token_str[1..token_str.len() - 1];
+            let token = *self.peek_string_literal()?;
+            let token_str = self.get_string_literal_str(token);
             let string_id = self.strings.intern(token_str);
             self.bump();
             Ok(Name::String(string_id))
