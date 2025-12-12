@@ -9,9 +9,9 @@ Tests for implicit numeric type widening.
 > Smaller signed integers can be assigned to larger signed integers.
 
 ```ds
-function takeInt16(x: int16): void {}
-declare const small: int8;
-takeInt16(small);
+function takeInt16(value: int16): void {}
+declare const smallInteger: int8;
+takeInt16(smallInteger);
 ```
 
 ### int32 to int64
@@ -19,9 +19,9 @@ takeInt16(small);
 > int32 can widen to int64.
 
 ```ds
-function takeInt64(x: int64): void {}
-declare const medium: int32;
-takeInt64(medium);
+function takeInt64(value: int64): void {}
+declare const mediumInteger: int32;
+takeInt64(mediumInteger);
 ```
 
 ### int16 to int8 fails
@@ -29,9 +29,9 @@ takeInt64(medium);
 > Larger integers cannot narrow to smaller integers.
 
 ```ds
-function takeInt8(x: int8): void {}
-declare const medium: int16;
-takeInt8(medium);
+function takeInt8(value: int8): void {}
+declare const mediumInteger: int16;
+takeInt8(mediumInteger);
 ```
 
 - type int16 is not assignable to type int8
@@ -41,9 +41,9 @@ takeInt8(medium);
 > Unsigned integers can widen to larger signed integers.
 
 ```ds
-function takeInt16(x: int16): void {}
-declare const small: uint8;
-takeInt16(small);
+function takeInt16(value: int16): void {}
+declare const smallUnsigned: uint8;
+takeInt16(smallUnsigned);
 ```
 
 ### int8 to uint8 fails
@@ -51,9 +51,9 @@ takeInt16(small);
 > Signed integers cannot widen to unsigned (may lose negative values).
 
 ```ds
-function take_uint8(x: uint8): void {}
-declare const signed: int8;
-take_uint8(signed);
+function takeUint8(value: uint8): void {}
+declare const signedInteger: int8;
+takeUint8(signedInteger);
 ```
 
 - type int8 is not assignable to type uint8
@@ -65,9 +65,9 @@ take_uint8(signed);
 > Smaller floats can widen to larger floats.
 
 ```ds
-function take_float64(x: float64): void {}
-declare const small: float32;
-take_float64(small);
+function takeFloat64(value: float64): void {}
+declare const smallFloat: float32;
+takeFloat64(smallFloat);
 ```
 
 ### float64 to float32 fails
@@ -75,9 +75,9 @@ take_float64(small);
 > Larger floats cannot narrow to smaller floats.
 
 ```ds
-function take_float32(x: float32): void {}
-declare const large: float64;
-take_float32(large);
+function takeFloat32(value: float32): void {}
+declare const largeFloat: float64;
+takeFloat32(largeFloat);
 ```
 
 - type float64 is not assignable to type float32
@@ -89,9 +89,9 @@ take_float32(large);
 > Integers can widen to floats.
 
 ```ds
-function take_float64(x: float64): void {}
-declare const i: int32;
-take_float64(i);
+function takeFloat64(value: float64): void {}
+declare const integer: int32;
+takeFloat64(integer);
 ```
 
 ## Widening to Number
@@ -101,9 +101,9 @@ take_float64(i);
 > Any integer type can widen to number.
 
 ```ds
-function take_number(x: number): void {}
-declare const i: int32;
-take_number(i);
+function takeNumber(value: number): void {}
+declare const integer: int32;
+takeNumber(integer);
 ```
 
 ### float64 to number
@@ -111,7 +111,7 @@ take_number(i);
 > Any float type can widen to number.
 
 ```ds
-function take_number(x: number): void {}
-declare const f: float64;
-take_number(f);
+function takeNumber(value: number): void {}
+declare const floatValue: float64;
+takeNumber(floatValue);
 ```
