@@ -1,4 +1,4 @@
-mod assignable;
+mod assign;
 mod context;
 mod declare;
 mod error;
@@ -9,7 +9,7 @@ mod process;
 mod r#type;
 mod warning;
 
-pub use assignable::*;
+pub use assign::*;
 pub use context::*;
 pub use error::*;
 pub use format::*;

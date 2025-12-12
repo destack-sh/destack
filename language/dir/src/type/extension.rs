@@ -60,9 +60,7 @@ impl Display for LocalExtensionId {
     }
 }
 
-/// How an extension relates to its target type.
-///
-/// This determines visibility rules for the extension's members.
+/// How an extension relates to its target type (determines visibility).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ExtensionKind {
     /// Inherent extension defined in same module as target type.
@@ -103,8 +101,8 @@ pub struct Extension {
     pub kind: ExtensionKind,
     /// The target type symbol being extended.
     pub target: GlobalSymbolId,
-    /// Heritage added by this extension (implements clauses).
-    /// This is the extension's own lineage, not the target's.
+    /// Lineage added by this extension directly.
+    /// (This is the extension's *own* lineage, not the target's.)
     pub lineage: Option<LocalLineageId>,
 }
 

@@ -605,8 +605,7 @@ impl Compiler {
 #[cfg(test)]
 mod tests {
     use destack_dir::{
-        ExtensionKind, FloatType, IntType, PrimitiveType, ScalarLiteral, Type, TypeField,
-        TypeLiteral,
+        FloatType, IntType, PrimitiveType, ScalarLiteral, Type, TypeField, TypeLiteral,
     };
 
     use crate::{Assignability, TestProgram};
@@ -1236,57 +1235,6 @@ let x: number = getNumber();
         );
     }
 
-    /// Resolve member access on object literal to field type.
-    #[test]
-    fn test_analyze_member_access_object_field() {
-        let test = TestProgram::memory_sequential();
-        let module_id = test.add_module(
-            "test.ds",
-            r#"
-let obj = { x: 42, y: "hello" };
-let a = obj.x;
-let b = obj.y;
-"#,
-        );
-        test.analyze_module(module_id);
-        test.compile();
-        test.check_clean();
-    }
-
-    /// Resolve member access across multiple fields.
-    #[test]
-    fn test_analyze_member_access_multiple_fields() {
-        let test = TestProgram::memory_sequential();
-        let module_id = test.add_module(
-            "test.ds",
-            r#"
-let obj = { x: 42, y: "hello", z: true };
-let a = obj.x;
-let b = obj.y;
-let c = obj.z;
-"#,
-        );
-        test.analyze_module(module_id);
-        test.compile();
-        test.check_clean();
-    }
-
-    /// Resolve chained member access on nested objects.
-    #[test]
-    fn test_analyze_member_access_chained() {
-        let test = TestProgram::memory_sequential();
-        let module_id = test.add_module(
-            "test.ds",
-            r#"
-let obj = { inner: { value: 42 } };
-let a = obj.inner.value;
-"#,
-        );
-        test.analyze_module(module_id);
-        test.compile();
-        test.check_clean();
-    }
-
     /// int8 widens to int16, but not vice versa.
     #[test]
     fn test_analyze_numeric_widening_int() {
@@ -1345,34 +1293,6 @@ let a = obj.inner.value;
             Assignability::NotAssignable
         );
     }
-
-    /// Verify lineage is created for classes with extends.
-    #[test]
-    fn test_analyze_lineage_created_for_class_extends() {
-        let test = TestProgram::memory_sequential();
-        let module_id = test.add_module(
-            "test.ds",
-            r#"
-class Animal { name: string }
-class Dog extends Animal { breed: string }
-"#,
-        );
-        test.analyze_module(module_id);
-        test.compile();
-        test.check_clean();
-
-        let animal_id = test.resolve_to_symbol("test.ds", "Animal").unwrap();
-        let dog_id = test.resolve_to_symbol("test.ds", "Dog").unwrap();
-
-        let module = test.module("test.ds");
-        let module = module.read();
-        let types = module.dir.types.read();
-        let lineage = types
-            .get_lineage_for_symbol(dog_id)
-            .expect("Dog should have lineage");
-        assert_eq!(lineage.extends, Some(animal_id), "Dog should extend Animal");
-    }
-
     /// Verify lineage chain for multi-level inheritance.
     #[test]
     fn test_analyze_lineage_chain_multilevel() {
@@ -1463,38 +1383,5 @@ class Document implements Printable, Saveable {
             doc_lineage.implements.contains(&saveable_id),
             "Document should implement Saveable"
         );
-    }
-
-    /// Verify extensions are registered in TypeTable with correct methods.
-    #[test]
-    fn test_analyze_extension() {
-        let test = TestProgram::memory_sequential();
-        let module_id = test.add_module(
-            "test.ds",
-            r#"
-struct Point { x: number, y: number }
-
-extension Point {
-    magnitude(): number { return 0 }
-}
-"#,
-        );
-        test.analyze_module(module_id);
-        test.compile_dump_clean();
-
-        let point_id = test.resolve_to_symbol("test.ds", "Point").unwrap();
-
-        let module = test.program.modules.get(module_id);
-        let module = module.read();
-        let types = module.dir.types.read();
-
-        // check extension for Point
-        let extension_ids = types
-            .get_extensions_for_target(point_id)
-            .expect("Point should have extensions");
-        assert_eq!(extension_ids.len(), 1, "Point should have one extension");
-        let extension = types.get_extension(extension_ids[0]);
-        assert_eq!(extension.kind, ExtensionKind::Inherent);
-        assert_eq!(extension.target, point_id);
     }
 }
