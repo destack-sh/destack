@@ -322,9 +322,10 @@ impl Parser {
         }
     }
 
-    /// Eat an expression.
-    pub fn eat_expression(&mut self) -> ParseResult<LocalNodeId<Expression>> {
-        let start = self.mark();
+    destack_source::ensure_sufficient_stack! {
+        /// Eat an expression.
+        pub fn eat_expression(&mut self) -> ParseResult<LocalNodeId<Expression>> {
+            let start = self.mark();
 
         // labelled statement (like `label: while(...)` or `label: { }`)
         // only in statement position, and identifier must be followed by colon then statement
@@ -667,7 +668,7 @@ impl Parser {
                 && COMPOSITE_TYPE_KEYWORDS.contains(&keyword)
                 && next_token_type != TokenType::Dot
                 && next_token_type != TokenType::OpenBracket
-                // composite type is eagerly closed before a block 
+                // composite type is eagerly closed before a block
                 // (to allow stuff like `if x instanceof type { ... }` where type excludes the block)
                 && (!DECLARATION_START_TOKENS.contains(&next_token_type) || self.options.in_before_block && next_token_type == TokenType::OpenBrace)
                 // type is only allowed in `(type)` parenthesis to disambiguate from expression form
@@ -1343,6 +1344,7 @@ impl Parser {
         }
 
         Ok(left_expression_id)
+        }
     }
 }
 

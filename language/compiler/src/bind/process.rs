@@ -105,7 +105,7 @@ impl Compiler {
     fn bind_module_validate(&self, module: &Module) {
         // check for reserved identifiers
         self.validate_binding_names(module);
-        
+
         // check for conflicting bindings
         self.validate_binding_conflicts(module);
     }

@@ -32,8 +32,7 @@ impl TestArea {
     /// Check if an error code is relevant for this test area.
     pub(super) fn is_relevant_error(&self, code: &str) -> bool {
         match self {
-            TestArea::Parse => 
-            code.starts_with("EP") || code.starts_with("EI"),
+            TestArea::Parse => code.starts_with("EP") || code.starts_with("EI"),
             TestArea::Early => {
                 code.starts_with("EP")
                     || code.starts_with("EI")

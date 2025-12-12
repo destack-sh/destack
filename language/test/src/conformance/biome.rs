@@ -25,13 +25,6 @@ impl BiomeSuite {
         }
     }
 
-    /// Tests to skip (cause stack overflow due to deep recursion).
-    fn should_skip_test(name: &str) -> bool {
-        // nocheckin #Broken: fix stack overflow from IR-driven recursion (probably both parse & compile)
-        // many_empty_strings.js has 2500+ nested binary expressions that overflow the stack
-        name == "ok/many_empty_strings.js"
-    }
-
     fn discover_in_dir(&self, dir: &Path, prefix: &str, expect_error: bool) -> Vec<Test> {
         let mut tests = Vec::new();
 
@@ -48,9 +41,6 @@ impl BiomeSuite {
                             continue;
                         }
                         let name = format!("{prefix}/{file_name}");
-                        if Self::should_skip_test(&name) {
-                            continue;
-                        }
                         let file_type = Test::file_type_from_name(&name);
                         tests.push(Test {
                             name,
