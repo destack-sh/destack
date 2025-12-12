@@ -117,8 +117,7 @@ impl Compiler {
                 let item = DependencyItem::UnresolvedLocal {
                     mode,
                     kind,
-                    name: name
-                        .unwrap_or_else(|| panic!("name is required for local dependency item")),
+                    name,
                     alias,
                     symbol: symbol_id,
                 };
