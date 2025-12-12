@@ -2155,7 +2155,7 @@ impl Compiler {
 
 #[cfg(test)]
 mod tests {
-    use destack_dir::{Expression, PrimitiveType, ScalarLiteral, Type, TypeLiteral};
+    use destack_dir::{Expression, ExtensionKind, PrimitiveType, ScalarLiteral, Type, TypeLiteral};
 
     use crate::{TestProgram, assert_type};
 
@@ -2706,5 +2706,164 @@ declare const b: B = helperB();
                 assert_eq!(*symbol, a_symbol_id);
             });
         });
+    }
+
+    /// Resolve member access on object literal to field type.
+    #[test]
+    fn test_analyze_member_access_object_field() {
+        let test = TestProgram::memory_sequential();
+        let module_id = test.add_module(
+            "test.ds",
+            r#"
+let obj = { x: 42, y: "hello" };
+let a = obj.x;
+let b = obj.y;
+"#,
+        );
+        test.analyze_module(module_id);
+        test.compile();
+        test.check_clean();
+    }
+
+    /// Resolve member access across multiple fields.
+    #[test]
+    fn test_analyze_member_access_multiple_fields() {
+        let test = TestProgram::memory_sequential();
+        let module_id = test.add_module(
+            "test.ds",
+            r#"
+let obj = { x: 42, y: "hello", z: true };
+let a = obj.x;
+let b = obj.y;
+let c = obj.z;
+"#,
+        );
+        test.analyze_module(module_id);
+        test.compile();
+        test.check_clean();
+    }
+
+    /// Resolve chained member access on nested objects.
+    #[test]
+    fn test_analyze_member_access_chained() {
+        let test = TestProgram::memory_sequential();
+        let module_id = test.add_module(
+            "test.ds",
+            r#"
+let obj = { inner: { value: 42 } };
+let a = obj.inner.value;
+"#,
+        );
+        test.analyze_module(module_id);
+        test.compile();
+        test.check_clean();
+    }
+
+    /// Analyze an inherent extension.
+    #[test]
+    fn test_analyze_inherent_extension() {
+        let test = TestProgram::memory_sequential();
+        let module_id = test.add_module(
+            "test.ds",
+            r#"
+struct Point { 
+    x: number, 
+    y: number,
+}
+
+extension Point {
+    magnitude(): number { 
+        return 0; 
+    }
+}
+
+extension Point {
+    distance(other: Point): number { 
+        return 0; 
+    }
+}
+"#,
+        );
+        test.analyze_module(module_id);
+        test.compile_dump_clean();
+
+        let _point_id = test.resolve_to_symbol("test.ds", "Point").unwrap();
+    }
+
+    /// Analyze a local extension (on a foreign type).
+    #[test]
+    fn test_analyze_local_extension() {
+        let test = TestProgram::memory_sequential();
+        test.add_file(
+            "point.ds",
+            r#"
+struct Point { 
+    x: number, 
+    y: number,
+}
+"#,
+        );
+        let module_id = test.add_module(
+            "test.ds",
+            r#"
+import { Point } from "./point.ds";
+
+// local extension on foreign type
+extension Point {
+    distance(other: Point): number { return 0; }
+}
+"#,
+        );
+        test.analyze_module(module_id);
+        test.compile_dump_clean();
+
+        let _point_id = test.resolve_to_symbol("test.ds", "Point").unwrap();
+    }
+
+    /// Analyze a named extension (on a foreign type, from a foreign extension).
+    #[test]
+    fn test_analyze_named_extension() {
+        let test = TestProgram::memory_sequential();
+        test.add_file(
+            "point.ds",
+            r#"
+struct Point { 
+    x: number, 
+    y: number,
+}
+"#,
+        );
+        test.add_file(
+            "extensions.ds",
+            r#"
+import { Point } from "./point.ds";
+
+extension PointHelpers: Point {
+    distance(other: Point): number { return 0; }
+}
+"#,
+        );
+        let module_id = test.add_module(
+            "test.ds",
+            r#"
+import { PointHelpers } from "./extensions.ds";
+import { Point } from "./point.ds";
+"#,
+        );
+        test.analyze_module(module_id);
+        test.compile_dump_clean();
+
+        let _point_id = test.resolve_to_symbol("test.ds", "Point").unwrap();
+        let _point_helpers_id = test.resolve_to_symbol("test.ds", "PointHelpers").unwrap();
+    }
+
+    // nocheckin: remove this test after debugging
+    /// Regression test for conformance tests: pass/b9a5f5c8c12525c7, pass/d59a168fe5b7c787
+    #[test]
+    fn test_analyze_regex_member_access_js_mode() {
+        let test = TestProgram::memory_sequential();
+        let module_id = test.add_module("test.js", "/0/g.a");
+        test.analyze_module(module_id);
+        test.compile();
     }
 }
