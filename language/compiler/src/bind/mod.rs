@@ -1,6 +1,7 @@
 mod annotation;
 mod argument;
 mod block;
+mod build;
 mod declaration;
 mod dependency;
 mod error;
@@ -17,6 +18,7 @@ mod process;
 mod property;
 mod symbol;
 mod r#type;
+mod validate;
 mod warning;
 mod r#where;
 

@@ -330,7 +330,7 @@ fn run_analyze_tier(package_dir: &Path, files: &[PathBuf]) -> TestResult {
                 };
             }
         };
-        compiler.enqueue(AnalyzeTask::AnalyzeModuleCheck { module: module_id });
+        compiler.enqueue(AnalyzeTask::AnalyzeModuleValidate { module: module_id });
     }
 
     compiler.compile();

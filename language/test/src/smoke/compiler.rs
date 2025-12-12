@@ -71,7 +71,7 @@ fn run_compiler_case(test: &TestCase) -> TestResult {
             };
         }
     };
-    compiler.enqueue(AnalyzeTask::AnalyzeModuleCheck { module: module_id });
+    compiler.enqueue(AnalyzeTask::AnalyzeModuleValidate { module: module_id });
     compiler.compile();
     drop(compiler);
 

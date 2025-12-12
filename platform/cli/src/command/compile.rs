@@ -96,7 +96,7 @@ pub fn run(args: &CompileArgs) -> i32 {
     };
 
     // compile
-    compiler.enqueue(AnalyzeTask::AnalyzeModuleCheck { module: module_id });
+    compiler.enqueue(AnalyzeTask::AnalyzeModuleValidate { module: module_id });
     compiler.compile();
     drop(compiler);
 

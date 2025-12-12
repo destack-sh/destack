@@ -66,7 +66,7 @@ impl Compiler {
     pub fn process_resolve(&self, task: ResolveTask) -> ResolveResult<ResolveOutput> {
         match task {
             ResolveTask::ResolveModuleDirect { module } => {
-                self.require_bind_module(module)?;
+                self.require_bind_module_validate(module)?;
                 self.resolve_module_direct(module)?;
             }
             ResolveTask::ResolveModuleCanonical { module } => {

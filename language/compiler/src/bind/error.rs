@@ -36,6 +36,35 @@ pub enum BindError {
         name: Option<StringId>,
         module: ModuleId,
     },
+    /// Break used outside of a valid breakable context, or with an invalid label.
+    IllegalBreak {
+        node: GlobalNodeIdAny,
+        label: Option<StringId>,
+    },
+    /// Continue used outside of a loop, or with an invalid label.
+    IllegalContinue {
+        node: GlobalNodeIdAny,
+        label: Option<StringId>,
+    },
+    /// Referenced label does not exist in this scope.
+    UnknownLabel {
+        node: GlobalNodeIdAny,
+        label: StringId,
+    },
+    /// Await used in an invalid context.
+    IllegalAwait { node: GlobalNodeIdAny },
+    /// Yield used in an invalid context.
+    IllegalYield { node: GlobalNodeIdAny },
+    /// Reserved identifier used in a forbidden context.
+    ReservedIdentifier {
+        node: GlobalNodeIdAny,
+        name: StringId,
+    },
+    /// Directive prologue is invalid or cannot be interpreted.
+    InvalidPrologue {
+        node: GlobalNodeIdAny,
+        content: String,
+    },
 }
 
 impl From<TaskDependencyError> for BindError {
@@ -80,6 +109,13 @@ impl BindError {
             Self::ConflictingBinding { .. } => 4,
             Self::ConflictingExport { .. } => 5,
             Self::ConflictingDefaultExport { .. } => 6,
+            Self::IllegalBreak { .. } => 7,
+            Self::IllegalContinue { .. } => 8,
+            Self::UnknownLabel { .. } => 9,
+            Self::IllegalAwait { .. } => 10,
+            Self::IllegalYield { .. } => 11,
+            Self::ReservedIdentifier { .. } => 12,
+            Self::InvalidPrologue { .. } => 13,
         }
     }
 
@@ -92,6 +128,13 @@ impl BindError {
             Self::ConflictingBinding { node, .. } => DiagnosticAnchor::Node(*node),
             Self::ConflictingExport { node, .. } => DiagnosticAnchor::Node(*node),
             Self::ConflictingDefaultExport { node, .. } => DiagnosticAnchor::Node(*node),
+            Self::IllegalBreak { node, .. } => DiagnosticAnchor::Node(*node),
+            Self::IllegalContinue { node, .. } => DiagnosticAnchor::Node(*node),
+            Self::UnknownLabel { node, .. } => DiagnosticAnchor::Node(*node),
+            Self::IllegalAwait { node, .. } => DiagnosticAnchor::Node(*node),
+            Self::IllegalYield { node, .. } => DiagnosticAnchor::Node(*node),
+            Self::ReservedIdentifier { node, .. } => DiagnosticAnchor::Node(*node),
+            Self::InvalidPrologue { node, .. } => DiagnosticAnchor::Node(*node),
         }
     }
 
@@ -131,6 +174,33 @@ impl BindError {
                     "conflicting default export".to_string()
                 }
             }
+            Self::IllegalBreak { label, .. } => {
+                if let Some(label) = label {
+                    let label = program.strings.get(*label).to_string();
+                    format!("illegal break to '{label}'")
+                } else {
+                    "illegal break".to_string()
+                }
+            }
+            Self::IllegalContinue { label, .. } => {
+                if let Some(label) = label {
+                    let label = program.strings.get(*label).to_string();
+                    format!("illegal continue to '{label}'")
+                } else {
+                    "illegal continue".to_string()
+                }
+            }
+            Self::UnknownLabel { label, .. } => {
+                let label = program.strings.get(*label).to_string();
+                format!("unknown label '{label}'")
+            }
+            Self::IllegalAwait { .. } => "illegal await".to_string(),
+            Self::IllegalYield { .. } => "illegal yield".to_string(),
+            Self::ReservedIdentifier { name, .. } => {
+                let name = program.strings.get(*name).to_string();
+                format!("reserved identifier '{name}'")
+            }
+            Self::InvalidPrologue { .. } => "invalid directive prologue".to_string(),
         }
     }
 }
