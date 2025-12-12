@@ -6,10 +6,9 @@ use destack_ast::{
 };
 use destack_source::{MultiSpan, NodeSearch, Span};
 
-const ANNOTATION_TOKEN_TYPES: [TokenType; 6] = [
+const ANNOTATION_TOKEN_TYPES: [TokenType; 5] = [
     TokenType::Newline,
     TokenType::LineComment,
-    TokenType::HtmlComment,
     TokenType::DocLineComment,
     TokenType::BlockComment,
     TokenType::DocBlockComment,
@@ -461,7 +460,6 @@ impl Parser {
 
         // find the node to attach to
         let is_line_comment = start_token.token.ty == TokenType::LineComment
-            || start_token.token.ty == TokenType::HtmlComment
             || start_token.token.ty == TokenType::DocLineComment;
         let Some((position, target_node_id)) = self.find_annotation_target(
             token_idx,
@@ -473,10 +471,8 @@ impl Parser {
         ) else {
             let node_type = match token_type {
                 TokenType::Newline => NodeType::Blank,
-                TokenType::LineComment | TokenType::HtmlComment => NodeType::Comment,
-                TokenType::BlockComment => NodeType::Comment,
-                TokenType::DocLineComment => NodeType::Doc,
-                TokenType::DocBlockComment => NodeType::Doc,
+                TokenType::LineComment | TokenType::BlockComment => NodeType::Comment,
+                TokenType::DocLineComment | TokenType::DocBlockComment => NodeType::Doc,
                 _ => unreachable!("unexpected token type: {token_type:?}"),
             };
             let error = ParseError::unexpected_for(span, node_type);
@@ -497,7 +493,7 @@ impl Parser {
                     span,
                 )
             }
-            TokenType::LineComment | TokenType::HtmlComment => {
+            TokenType::LineComment => {
                 let string = self.clean_annotation_string(token_type, group);
                 let string = self.strings.intern(string);
                 let comment = self.tree.insert(
@@ -587,10 +583,6 @@ impl Parser {
             let raw_str = self.file.get_span_str(token.span).unwrap_or_default();
             let mut inner_str = match token_type {
                 TokenType::LineComment => raw_str.strip_prefix("//").unwrap_or(raw_str),
-                TokenType::HtmlComment => raw_str
-                    .strip_prefix("<!--")
-                    .or_else(|| raw_str.strip_prefix("-->"))
-                    .unwrap_or(raw_str),
                 TokenType::DocLineComment => raw_str.strip_prefix("///").unwrap_or(raw_str),
                 TokenType::BlockComment => raw_str
                     .strip_prefix("/*")
@@ -619,7 +611,7 @@ impl Parser {
 
             // clean up whitespace and formatting characters
             let cleaned = match token_type {
-                TokenType::LineComment | TokenType::HtmlComment | TokenType::DocLineComment => {
+                TokenType::LineComment | TokenType::DocLineComment => {
                     if inner_str.contains('\n') {
                         // strip leading space from each line
                         inner_str
@@ -1528,50 +1520,6 @@ export namespace Outer {
                     assert_string!(parser, *string, "comment part 11");
                     assert_eq!(*style, CommentStyle::Slash);
                 });
-            });
-        });
-    }
-
-    // NOTE #Broken: only allow HTML comments in certain module types
-
-    /// HTML open comment (<!--) on its own line attaches as block prefix to next expression.
-    #[test]
-    fn test_attach_html_open_comment_prefix_to_expression() {
-        let mut test = TestParser::new("<!-- comment text\nlet x = 1");
-        let mut parser = test.prepare();
-        let expressions = parser.parse();
-
-        // let x = 1
-        assert_eq!(expressions.len(), 1);
-        // comment, block prefix
-        let annotations = parser.tree.get_annotations(expressions[0].id);
-        assert_eq!(annotations.len(), 1);
-        assert_node!(parser.tree, annotations[0], Annotation::Comment { node, position } => {
-            assert_eq!(*position, AnnotationPosition::BlockPrefix);
-            assert_node!(parser.tree, *node, Comment { string, style } => {
-                assert_string!(parser, *string, "comment text");
-                assert_eq!(*style, CommentStyle::Slash);
-            });
-        });
-    }
-
-    /// HTML close comment (-->) at line start attaches as block postfix to previous expression.
-    #[test]
-    fn test_attach_html_close_comment_postfix_to_expression() {
-        let mut test = TestParser::new("let x = 1\n--> comment text");
-        let mut parser = test.prepare();
-        let expressions = parser.parse();
-
-        // let x = 1
-        assert_eq!(expressions.len(), 1);
-        // comment, block postfix
-        let annotations = parser.tree.get_annotations(expressions[0].id);
-        assert_eq!(annotations.len(), 1);
-        assert_node!(parser.tree, annotations[0], Annotation::Comment { node, position } => {
-            assert_eq!(*position, AnnotationPosition::BlockPostfix);
-            assert_node!(parser.tree, *node, Comment { string, style } => {
-                assert_string!(parser, *string, "comment text");
-                assert_eq!(*style, CommentStyle::Slash);
             });
         });
     }

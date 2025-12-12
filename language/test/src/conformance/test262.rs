@@ -2,7 +2,7 @@ use std::path::{Path, PathBuf};
 
 use destack_source::FileType;
 
-use super::parse::{ParseOptions, ParseOutcome, is_module_path, parse_file};
+use super::parse::{ParseOptions, ParseOutcome, parse_file};
 use super::runner::{ConformanceSuite, SuiteResult, Test, TestOutcome, run_conformance_suite};
 use crate::harness::{TestOptions, fixtures_dir};
 
@@ -126,11 +126,7 @@ impl ConformanceSuite for Test262Suite {
             Err(_) => return TestOutcome::Failed,
         };
 
-        // HTML comments are forbidden in ES modules (files with .module. in name)
-        let options = ParseOptions {
-            reject_html_comments: is_module_path(&path),
-        };
-        let parse_outcome = parse_file(&path, &content, test.file_type, options);
+        let parse_outcome = parse_file(&path, &content, test.file_type, ParseOptions::default());
 
         match (test.expect_error, parse_outcome) {
             (true, ParseOutcome::Error) => TestOutcome::Passed,

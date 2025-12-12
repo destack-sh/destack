@@ -1,7 +1,6 @@
 use std::path::Path;
 use std::sync::Arc;
 
-use destack_ast::TokenType;
 use destack_parser::Parser;
 use destack_source::{
     File, FileRegistry, FileSystem, FileType, LanguageOptions, LanguageType, MemoryFileSystem, Uri,
@@ -19,17 +18,14 @@ pub(super) enum ParseOutcome {
 
 /// Options for parsing in conformance tests.
 #[derive(Debug, Clone, Default)]
-pub(super) struct ParseOptions {
-    /// Whether to treat HTML comments as errors (for ES modules).
-    pub reject_html_comments: bool,
-}
+pub(super) struct ParseOptions {}
 
 /// Parse a file and return the outcome.
 pub(super) fn parse_file(
     path: &Path,
     content: &str,
     file_type: FileType,
-    options: ParseOptions,
+    _options: ParseOptions,
 ) -> ParseOutcome {
     let cwd = path.parent().unwrap_or(Path::new(".")).to_path_buf();
     let files = Arc::new(FileRegistry::new());
@@ -62,23 +58,5 @@ pub(super) fn parse_file(
         return ParseOutcome::Error;
     }
 
-    // Check for HTML comments if requested (ES modules forbid them) #ModuleTypeHandling
-    if options.reject_html_comments {
-        let has_html_comment = parser
-            .side_tokens
-            .iter()
-            .any(|t| t.token.ty == TokenType::HtmlComment);
-        if has_html_comment {
-            return ParseOutcome::Error;
-        }
-    }
-
     ParseOutcome::Ok
-}
-
-/// Check if a path indicates an ES module (by naming convention).
-pub(super) fn is_module_path(path: &Path) -> bool {
-    path.file_name()
-        .and_then(|n| n.to_str())
-        .is_some_and(|n| n.contains(".module."))
 }

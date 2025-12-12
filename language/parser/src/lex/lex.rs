@@ -22,13 +22,12 @@ enum SingleQuotedLiteral {
     },
 }
 
-pub const TRIVIA_TOKEN_TYPES: [TokenType; 6] = [
+pub const TRIVIA_TOKEN_TYPES: [TokenType; 5] = [
     TokenType::Whitespace,
     TokenType::LineComment,
     TokenType::BlockComment,
     TokenType::DocLineComment,
     TokenType::DocBlockComment,
-    TokenType::HtmlComment,
 ];
 
 pub const EXPRESSION_START_TOKEN_TYPES: [TokenType; 15] = [
@@ -463,19 +462,10 @@ impl Lexer<'_> {
                     self.eat();
                     (TokenType::SubtractAssign, None)
                 }
-                // -- (decrement or HTML close comment)
+                // --
                 else if self.peek() == '-' {
                     self.eat();
-                    // --> HTML close comment at line start (legacy web compat)
-                    // only valid if preceded only by whitespace/newline on this line
-                    if self.peek() == '>' && self.is_at_line_start() {
-                        self.eat(); // >
-                        // eat until end of line (like a line comment)
-                        self.eat_until(b'\n');
-                        (TokenType::HtmlComment, None)
-                    } else {
-                        (TokenType::Decrement, None)
-                    }
+                    (TokenType::Decrement, None)
                 }
                 // -
                 else {
@@ -599,16 +589,6 @@ impl Lexer<'_> {
                 else if self.peek() == '=' {
                     self.eat();
                     (TokenType::LessThanOrEqual, None)
-                }
-                // <!-- HTML comment (legacy web compat, script mode only)
-                else if self.as_str().starts_with("!--") {
-                    // consume !--
-                    self.eat(); // !
-                    self.eat(); // -
-                    self.eat(); // -
-                    // eat until end of line (like a line comment)
-                    self.eat_until(b'\n');
-                    (TokenType::HtmlComment, None)
                 }
                 // </ - tree closing tag (when tree state is Content)
                 // NOTE: we check tree_state() directly, not in_tree_content()

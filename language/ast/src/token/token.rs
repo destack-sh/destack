@@ -63,9 +63,6 @@ pub enum TokenType {
     DocLineComment,
     /// Doc block comment, e.g. `/** doc comment *//`
     DocBlockComment,
-    /// HTML comment (legacy web compat), e.g. `<!-- comment` or `-->` at line start.
-    /// Only valid in script mode (not ES modules).
-    HtmlComment,
     // (tags are not parsed as tokens)
     /// --------------------------------------------------
     /// Identifiers / Literals
@@ -328,7 +325,6 @@ impl Display for TokenType {
             TokenType::BlockComment => write!(f, "/*"),
             TokenType::DocLineComment => write!(f, "///"),
             TokenType::DocBlockComment => write!(f, "/**"),
-            TokenType::HtmlComment => write!(f, "<!--"),
 
             // identifiers / literals
             TokenType::Identifier => write!(f, "Identifier"),

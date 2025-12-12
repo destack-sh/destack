@@ -402,5 +402,4 @@ Just as `.tsx` extends `.ts` with JSX syntax (introducing the generic arrow ambi
 
 ### What We Don't Support
 
-- **Annex B** (legacy web compatibility): We intentionally exclude legacy features like HTML comments in scripts, legacy octal literals in sloppy mode, and other deprecated patterns. These are optional extensions to the spec, not core ECMAScript.
 - **Flow**: We support TypeScript only.

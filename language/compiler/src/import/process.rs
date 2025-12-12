@@ -2,7 +2,6 @@ use crate::{
     Compiler, ImportError, ImportResult, Task, TaskDebug, TaskDependencyError, TaskOutput,
 };
 
-use destack_ast::TokenType;
 use destack_parser::Parser;
 use destack_source::{File, ModuleId};
 use destack_workspace::{Module, ModuleAst, ModuleType, Program};
@@ -141,18 +140,7 @@ impl Compiler {
 
     /// Check if the module is valid in context. #ModuleTypeHandling
     /// (Unfortunately we need parser state here to check the actual tokens.)
-    fn check_imported_module(&self, _module: &Module, module_type: ModuleType, parser: &Parser) {
-        // HTML comments are forbidden in ES modules (ECMAScript Annex B.1.3)
-        // Note: HtmlComment is a trivia token, so it lives in side_tokens, not tokens
-        if module_type.is_module() {
-            for token in &parser.side_tokens {
-                if token.token.ty == TokenType::HtmlComment {
-                    self.error(ImportError::UnsupportedConstruct {
-                        span: token.span,
-                        message: "HTML comments are not allowed in ES modules".to_string(),
-                    });
-                }
-            }
-        }
+    fn check_imported_module(&self, _module: &Module, _module_type: ModuleType, _parser: &Parser) {
+        // Reserved for future module-type-specific checks
     }
 }

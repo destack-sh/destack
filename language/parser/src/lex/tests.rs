@@ -1292,66 +1292,6 @@ fn test_lex_unterminated_single_quote_is_marked() {
     }
 }
 
-/// HTML comment open (<!--) at start of file
-#[test]
-fn test_lex_html_comment_open() {
-    assert_tokenize_eq_roundtrip!(
-        "<!--comment\n",
-        Token::new(TokenType::HtmlComment, 11, None),
-        Token::new(TokenType::Newline, 1, None),
-    );
-}
-
-/// HTML comment open (<!--) after code on same line
-#[test]
-fn test_lex_html_comment_open_after_code() {
-    assert_tokenize_eq_roundtrip!(
-        ";<!--comment\n",
-        Token::new(TokenType::Semicolon, 1, None),
-        Token::new(TokenType::HtmlComment, 11, None),
-        Token::new(TokenType::Newline, 1, None),
-    );
-}
-
-/// HTML comment close (-->) at start of line (after newline)
-#[test]
-fn test_lex_html_comment_close_at_line_start() {
-    // "--> HTML comment" = 16 chars total
-    assert_tokenize_eq_roundtrip!(
-        ";\n--> HTML comment\n",
-        Token::new(TokenType::Semicolon, 1, None),
-        Token::new(TokenType::Newline, 1, None),
-        Token::new(TokenType::HtmlComment, 16, None),
-        Token::new(TokenType::Newline, 1, None),
-    );
-}
-
-/// HTML comment close (-->) NOT at line start should be parsed as -- and >
-#[test]
-fn test_lex_html_comment_close_not_at_line_start() {
-    assert_tokenize_eq_roundtrip!(
-        "a-->b",
-        Token::new(TokenType::Identifier, 1, None),
-        Token::new(TokenType::Decrement, 2, None),
-        Token::new(TokenType::GreaterThan, 1, None),
-        Token::new(TokenType::Identifier, 1, None),
-    );
-}
-
-/// HTML comment close (-->) with leading whitespace should still work
-#[test]
-fn test_lex_html_comment_close_with_leading_whitespace() {
-    // "--> comment" = 11 chars total
-    assert_tokenize_eq_roundtrip!(
-        ";\n  --> comment\n",
-        Token::new(TokenType::Semicolon, 1, None),
-        Token::new(TokenType::Newline, 1, None),
-        Token::new(TokenType::Whitespace, 2, None),
-        Token::new(TokenType::HtmlComment, 11, None),
-        Token::new(TokenType::Newline, 1, None),
-    );
-}
-
 /// Unicode escape \u{41} should produce identifier "A"
 #[test]
 fn test_lex_unicode_escape_braced_single() {
