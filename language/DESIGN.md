@@ -403,3 +403,4 @@ Just as `.tsx` extends `.ts` with JSX syntax (introducing the generic arrow ambi
 ### What We Don't Support
 
 - **Flow**: We support TypeScript only.
+- **Sloppy mode**: Destack targets modern strict-mode JavaScript/TypeScript. Non-strict ("sloppy mode") behaviors like duplicate function declarations or `yield` as an identifier are not supported. This aligns with how TypeScript modules work (always strict) and modern best practices.

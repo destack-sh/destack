@@ -1,18 +1,19 @@
 use std::path::Path;
 use std::sync::Arc;
 
-use destack_parser::Parser;
+use destack_compiler::{BindTask, CompileOptions, Compiler};
 use destack_source::{
-    File, FileRegistry, FileSystem, FileType, LanguageOptions, LanguageType, MemoryFileSystem, Uri,
+    DiagnosticSeverity, FileRegistry, FileSystem, FileType, LanguageOptions, LanguageType,
+    MemoryFileSystem,
 };
 use destack_workspace::Program;
 
-/// Outcome of parsing a file for conformance testing.
+/// Outcome of checking a file for conformance testing.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(super) enum ParseOutcome {
-    /// File parsed without errors.
+    /// File parsed and bound without errors.
     Ok,
-    /// File had parse errors.
+    /// File had errors (parse or bind).
     Error,
 }
 
@@ -20,7 +21,7 @@ pub(super) enum ParseOutcome {
 #[derive(Debug, Clone, Default)]
 pub(super) struct ParseOptions {}
 
-/// Parse a file and return the outcome.
+/// Parse and bind a file, return the outcome.
 pub(super) fn parse_file(
     path: &Path,
     content: &str,
@@ -29,32 +30,37 @@ pub(super) fn parse_file(
 ) -> ParseOutcome {
     let cwd = path.parent().unwrap_or(Path::new(".")).to_path_buf();
     let files = Arc::new(FileRegistry::new());
-    let fs: Arc<dyn FileSystem> = Arc::new(MemoryFileSystem::new());
+    let memory_fs = Arc::new(MemoryFileSystem::new());
+    memory_fs
+        .add_file(path, content.as_bytes())
+        .expect("failed to add file to memory fs");
+    let fs: Arc<dyn FileSystem> = memory_fs;
 
     // set language type based on file type for proper compatibility mode
     let language_type = LanguageType::from(file_type);
     let language = LanguageOptions::default().with_type(language_type);
     let program = Arc::new(Program::new(language, cwd, fs, files));
 
-    let uri = Uri::from_path(path);
-    let file_id = program.files.next_id();
-    let name = path.file_name().unwrap().to_string_lossy().to_string();
-    let file = File::from_text(
-        file_id,
-        name,
-        uri,
-        Some(path.to_path_buf()),
-        file_type,
-        content.to_string(),
+    // create compiler and resolve module
+    let compiler = Compiler::new(
+        program.clone(),
+        CompileOptions {
+            workers: 1,
+            ..Default::default()
+        },
     );
-    program.files.insert(file);
-    let file = program.files.get(file_id);
 
-    let mut parser = Parser::lex_file(file, program.language);
-    let _ = parser.parse();
+    let module_id = match compiler.resolve_path_to_module(&path.to_path_buf()) {
+        Ok(id) => id,
+        Err(_) => return ParseOutcome::Error,
+    };
 
-    // check for parse errors
-    if !parser.diagnostics.is_empty() {
+    // run import (parse) and bind phases (including validation)
+    compiler.enqueue(BindTask::BindModuleValidate { module: module_id });
+    compiler.compile();
+
+    // check for any errors (parse or bind)
+    if program.diagnostics.has_diagnostics_of_severity(DiagnosticSeverity::Error) {
         return ParseOutcome::Error;
     }
 
