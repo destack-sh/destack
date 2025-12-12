@@ -179,9 +179,11 @@ impl ConformanceSuite for SwcSuite {
             parts.first().unwrap_or(&"unknown")
         };
 
-        // combine all issue-* into one "issue" category
+        // combine issue-* and deno-* into single categories
         if category.starts_with("issue-") || category.starts_with("jssue-") {
             "issue".to_string()
+        } else if category.starts_with("deno-") {
+            "deno".to_string()
         } else {
             category.to_string()
         }
