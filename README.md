@@ -1,14 +1,16 @@
 # Destack: Universal Software Engine
 
+> Destack aims to make building correct, optimal, integrated software the obvious default.
+
 Destack is a universal software engine for building correct, optimal, integrated full-stack systems.
 Build on TypeScript and the web ecosystem with a unified open source toolchain, stack and platform.
-Own your software and run it anywhere in one integrated open source stack:
+Own your software, build it anywhere and run it everywhere in one integrated open source stack:
 
  - **Destack Language**: "TypeScript++" [extends TypeScript with opt-in features](language/DESIGN.md) for correctness, collaboration, ergonomics, and performance. Two-way compatibility enables incremental adoption [`.ds` adoption](language/SPECIFICATION.md) (like we already do with `.tsx`).
 
- - **Destack Library**: Standard library for most things most software needs. Fully integrated, batteries-included components for every layer of the stack and every part of the software lifecycle.
+ - **Destack Library**: Standard library for most things most software needs. Fully integrated, batteries-included components for every layer of the stack and every concern in the software lifecycle.
 
- - **Destack Platform**: Integrated platform to support your software - the CLI, IDE integrations, build plugins, debugging, analytics, deployment tools. Everything to plug your software into the real world.
+ - **Destack Platform**: Integrated platform to support your software development - the CLI, IDE integrations, build plugins, debugging, analytics, deployment tools. Everything to plug your software into the real world.
 
 **Destack is designed as an integrated system**, **but you *can* pick and choose any pieces you like.**
 You are free to use plain TypeScript, pick any of the libraries, or plug into the platform from a different system entirely.
@@ -27,14 +29,15 @@ You are free to use plain TypeScript, pick any of the libraries, or plug into th
 ## Higher-Order Software
 
 We're very early in software as an industry.
-Software is broken, slow, and hard to build right.
+Software is broken, suboptimal, and surprisingly hard to build right.
 Computers are miraculously fast, yet software feels slow and clunky.
+We can do better.
 Destack aims to make building correct, optimal, integrated software the obvious default.
 
 TypeScript is a language for describing *the shape of datae*.
 Destack is a system for describing *the shape of software*.
 TypeScript has `.ts`, `.d.ts`, and `.tsx`, Destack brings `.ds` and `.d.ds` into the same codebase.
-The fully integrated library and platform let us extend the TypeScript phiolosphy for entire software systems. 
+The fully integrated library and platform let us extend the TypeScript philosophy for entire software systems. 
 
 The best programing language is the one that fits the problem.
 And this "language" encompasses supporting libraries, the platform and its ecosystem.
@@ -50,20 +53,25 @@ We welcome feedback, issues, ideas, and small fixes, but please reach out for an
 
 ### Setup
 
-Destack is *developed* using Rust and TypeScript. 
-To build it locally you will need at least `bun`, `cargo` and `just`:
+Destack is *developed* primarily using Rust and TypeScript (and Destack itself, of course).
+To contribute to Destack and build it yourself locally you will need at least `cargo`, `bun`, and `just`:
 
-- [Rust](https://rustup.rs/): Rust compiler (`nightly-2025-11-27`, see `rust-toolchain.toml`)
+- [Rust](https://rustup.rs/): Rust compiler (`nightly-2025-11-27`, see [rust-toolchain.toml](rust-toolchain.toml))
 - [Bun](https://bun.sh/): JavaScript runtime and package management
-- [Python](https://python.org/): Scripts and codegen utilities (optional)
 - [just](https://github.com/casey/just): Scripts and command runner
+- [Python](https://python.org/): Scripts and codegen utilities (*optional*)
 
-We use `justfile`s: 
+We use `justfile`s as the source of truth for all commands: 
 ```sh
 just install 		# setup everything
 just check          # check & lint everything
 just fmt            # format all code
 just lint           # lint all code
+just test           # run all tests
+just bench          # run all benchmarks
+just fuzz           # run all fuzzers
+just clean          # clean all build artifacts
+just publish        # publish all packages
 ```
 
 ### Structure
