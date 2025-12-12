@@ -111,6 +111,17 @@ impl File {
         line_start_offsets
     }
 
+    /// Normalize line endings to `\n` (LF).
+    ///
+    /// Converts `\r\n` (CRLF) and standalone `\r` (CR) to `\n` (LF).
+    fn normalize_line_endings(content: String) -> String {
+        if content.contains('\r') {
+            content.replace("\r\n", "\n").replace('\r', "\n")
+        } else {
+            content
+        }
+    }
+
     /// Create a new File.
     pub fn from_text(
         id: FileId,
@@ -120,6 +131,7 @@ impl File {
         ty: FileType,
         content: String,
     ) -> Self {
+        let content = Self::normalize_line_endings(content);
         let len = content.len() as u32;
         let line_start_offsets = Self::precompute_line_start_offsets(&content);
         Self {
@@ -143,6 +155,7 @@ impl File {
         ty: FileType,
         content: String,
     ) -> Result<Self, serde_json::Error> {
+        let content = Self::normalize_line_endings(content);
         // strip BOM from content for parsing, but keep original content
         let json_str = content.strip_prefix('\u{feff}').unwrap_or(&content);
 
@@ -174,6 +187,7 @@ impl File {
         ty: FileType,
         content: String,
     ) -> Result<Self, serde_json::Error> {
+        let content = Self::normalize_line_endings(content);
         // strip BOM from content for parsing
         let json_content = content.strip_prefix('\u{feff}').unwrap_or(&content);
 

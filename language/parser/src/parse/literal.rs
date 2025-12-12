@@ -275,12 +275,11 @@ impl Parser {
             let mut strings: Vec<StringId> = Vec::new();
             let mut arguments: Vec<LocalNodeId<Argument>> = Vec::new();
 
-            // start: remove ` and ${ (need at least 3 chars: `${)
-            let string = if next_str.len() >= 3 {
-                &next_str[1..next_str.len() - 2]
-            } else {
-                ""
-            };
+            // start: remove ` prefix and ${ suffix
+            let string = next_str
+                .strip_prefix('`')
+                .and_then(|s| s.strip_suffix("${"))
+                .unwrap_or("");
             let string_id = self.strings.intern(string);
             strings.push(string_id);
 
@@ -290,12 +289,11 @@ impl Parser {
                 if self.peek_token(TokenType::TemplateStringMiddle).is_ok() {
                     let token = *self.eat()?;
                     let token_str = self.get_span_str(token.span);
-                    // remove } and ${ (need at least 3 chars: }${)
-                    let string = if token_str.len() >= 3 {
-                        &token_str[1..token_str.len() - 2]
-                    } else {
-                        ""
-                    };
+                    // remove } prefix and ${ suffix
+                    let string = token_str
+                        .strip_prefix('}')
+                        .and_then(|s| s.strip_suffix("${"))
+                        .unwrap_or("");
                     let string_id = self.strings.intern(string);
                     strings.push(string_id);
                 }
@@ -308,14 +306,13 @@ impl Parser {
                 }
             }
 
-            // end: remove } and ` (need at least 2 chars: }`)
+            // end: remove } prefix and ` suffix
             let token = *self.eat_token(TokenType::TemplateStringEnd)?;
             let token_str = self.get_span_str(token.span);
-            let string = if token_str.len() >= 2 {
-                &token_str[1..token_str.len() - 1]
-            } else {
-                ""
-            };
+            let string = token_str
+                .strip_prefix('}')
+                .and_then(|s| s.strip_suffix('`'))
+                .unwrap_or("");
             let string_id = self.strings.intern(string);
             strings.push(string_id);
 
