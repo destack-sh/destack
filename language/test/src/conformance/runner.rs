@@ -620,6 +620,28 @@ fn print_conformance_result(
 
     // category breakdown (if more than one category)
     if result.categories.len() > 1 {
+        // compute column widths
+        let max_name_len = result
+            .categories
+            .keys()
+            .map(|k| k.len())
+            .max()
+            .unwrap_or(10);
+        let max_passed = result
+            .categories
+            .values()
+            .map(|s| s.passed)
+            .max()
+            .unwrap_or(1);
+        let max_total = result
+            .categories
+            .values()
+            .map(|s| s.total())
+            .max()
+            .unwrap_or(1);
+        let passed_width = max_passed.to_string().len();
+        let total_width = max_total.to_string().len();
+
         println!();
         println!("  {}", color::bold("by category:"));
         for (category, stats) in &result.categories {
@@ -633,11 +655,14 @@ fn print_conformance_result(
                 color::red(&rate_str)
             };
             println!(
-                "    {:<20}  {:>5} / {:<5}  {}",
+                "    {:<name_width$}  {:>passed_width$} / {:>total_width$}  {}",
                 category,
                 stats.passed,
                 stats.total(),
-                rate_colored
+                rate_colored,
+                name_width = max_name_len,
+                passed_width = passed_width,
+                total_width = total_width
             );
         }
     }
