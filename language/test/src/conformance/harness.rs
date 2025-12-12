@@ -4,11 +4,16 @@ use crate::harness::{RunContext, Suite, TestCase, TestOptions, TestResult};
 
 use super::{SuiteResult, print_summary, run_babel, run_biome, run_swc, run_test262};
 
+/// Selection of conformance suites to run.
 #[derive(Debug, Clone, Copy, Default)]
 pub struct ConformanceSelection {
+    /// Run test262 suite.
     pub test262: bool,
+    /// Run Babel parser suite.
     pub babel: bool,
+    /// Run SWC parser suite.
     pub swc: bool,
+    /// Run Biome parser suite.
     pub biome: bool,
 }
 
@@ -18,14 +23,19 @@ impl ConformanceSelection {
     }
 }
 
+/// A conformance test suite.
 #[derive(Debug)]
 pub struct ConformanceHarnessSuite {
+    /// Selection of conformance suites to run.
     pub selection: ConformanceSelection,
+    /// Update known-failures file with current failures.
     pub update_known_failures: bool,
+    /// Results of the conformance tests.
     results: Mutex<Vec<SuiteResult>>,
 }
 
 impl ConformanceHarnessSuite {
+    /// Create a new conformance test suite.
     pub fn new(selection: ConformanceSelection, update_known_failures: bool) -> Self {
         Self {
             selection,
@@ -44,6 +54,8 @@ impl Suite for ConformanceHarnessSuite {
         let run_all = self.selection.is_all_disabled();
 
         let mut cases = Vec::new();
+
+        // test262
         if run_all || self.selection.test262 {
             cases.push(TestCase::directory(
                 "test262",
@@ -51,6 +63,8 @@ impl Suite for ConformanceHarnessSuite {
                 "destack_test::conformance",
             ));
         }
+
+        // babel
         if run_all || self.selection.babel {
             cases.push(TestCase::directory(
                 "babel",
@@ -58,6 +72,8 @@ impl Suite for ConformanceHarnessSuite {
                 "destack_test::conformance",
             ));
         }
+
+        // swc
         if run_all || self.selection.swc {
             cases.push(TestCase::directory(
                 "swc",
@@ -65,6 +81,8 @@ impl Suite for ConformanceHarnessSuite {
                 "destack_test::conformance",
             ));
         }
+
+        // biome
         if run_all || self.selection.biome {
             cases.push(TestCase::directory(
                 "biome",

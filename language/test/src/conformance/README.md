@@ -14,7 +14,7 @@ We do not expect to reach 100% conformance because:
 
 | Suite    | Passed | Failed | Total |  Rate   |
 |:---------|-------:|-------:|------:|--------:|
-| test262  |  4519  |   844  |  5363 |  84.3%  |
+| test262  |  4434  |   929  |  5363 |  82.7%  |
 | babel    |   511  |   209  |   720 |  71.0%  |
 | swc      |   522  |   163  |   685 |  76.2%  |
 | biome    |   409  |   228  |   637 |  64.2%  |
@@ -23,5 +23,6 @@ We do not expect to reach 100% conformance because:
 
 - **Annex B**: The test262-parser-tests suite we use does not include Annex B tests, so this isn't a factor in our conformance numbers.
 - **Flow**: Intentionally excluded. We support TypeScript only.
+- **Sloppy mode**: Destack targets modern strict-mode JavaScript/TypeScript. Non-strict ("sloppy mode") behaviors like duplicate function declarations or `yield` as an identifier are not supported.
 - **Non-standard proposals**: Some SWC `js/*` tests cover syntax proposals we don't intend to support yet (e.g. import attributes, source phase imports, explicit resource management).
   These are intentionally excluded from conformance for now.
