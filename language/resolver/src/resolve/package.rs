@@ -72,6 +72,11 @@ impl Resolver {
                     path: package_json_path.clone(),
                 }
             })?;
+
+        // load dsconfig.json if it exists (optional)
+        let dsconfig = self.load_package_dsconfig(&package_config).ok();
+
+        // insert package
         let package_id = PackageId::from_path(&package_config.directory);
         let package = Package {
             id: package_id,
@@ -81,7 +86,7 @@ impl Resolver {
             name: package_config.content.name.clone(),
             version: package_config.content.version.clone(),
             package_config: Some(package_config),
-            dsconfig: None, // loaded separately when needed
+            dsconfig,
             main_tsconfig_id: None,
             targets: Default::default(),
         };

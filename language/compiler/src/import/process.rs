@@ -4,7 +4,7 @@ use crate::{
 
 use destack_parser::Parser;
 use destack_source::{File, ModuleId};
-use destack_workspace::{Module, ModuleAst, ModuleType, Program};
+use destack_workspace::{ModuleAst, Program};
 
 /// Task to import (load and parse) a module.
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
@@ -122,10 +122,7 @@ impl Compiler {
         self.program.diagnostics.merge_from(&parser.diagnostics);
 
         // update module with AST
-        // nocheckin TODO #Cleanup: the late #ModuleTypeHandling is strange and we should probably do it in parser?
-        //  (also related to doing proper compilation in conformance tests?)
         let mut module = module.write();
-        self.check_imported_module(&module, module.module_type, &parser);
         module.ast = ModuleAst::from_tree(module_id, parser.tree, expressions, parser.strings);
         drop(module);
 
@@ -136,11 +133,5 @@ impl Compiler {
     /// Ensure a module has been imported (loaded and parsed).
     pub fn require_import_module(&self, module: ModuleId) -> Result<(), TaskDependencyError> {
         self.do_require_task_internal_only(ImportTask::ImportModule { module })
-    }
-
-    /// Check if the module is valid in context. #ModuleTypeHandling
-    /// (Unfortunately we need parser state here to check the actual tokens.)
-    fn check_imported_module(&self, _module: &Module, _module_type: ModuleType, _parser: &Parser) {
-        // Reserved for future module-type-specific checks
     }
 }

@@ -164,7 +164,7 @@ impl TestProgram {
 
     /// Enqueue Bind task for a module.
     pub fn bind_module(&self, module: ModuleId) {
-        self.enqueue(BindTask::BindModule { module });
+        self.enqueue(BindTask::BindModuleValidate { module });
     }
 
     /// Enqueue Resolve task for a module.
@@ -174,7 +174,7 @@ impl TestProgram {
 
     /// Enqueue Analyze task for a module (runs all phases: Declare, Infer, Check).
     pub fn analyze_module(&self, module: ModuleId) {
-        self.enqueue(AnalyzeTask::AnalyzeModuleCheck { module });
+        self.enqueue(AnalyzeTask::AnalyzeModuleValidate { module });
     }
 
     /// Enqueue a task (does not run it).

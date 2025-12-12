@@ -1,8 +1,8 @@
 use std::borrow::Cow;
 use std::path::{Path, PathBuf};
 
-use destack_source::{File, FileType, PackageId, PathExt, Uri};
-use destack_workspace::DsConfig;
+use destack_source::{File, FileType, PathExt, Uri};
+use destack_workspace::{DsConfig, PackageConfig};
 
 use crate::{ResolveError, Resolver};
 
@@ -46,34 +46,15 @@ impl DsConfigResolveContext {
 impl Resolver {
     /// Load the dsconfig.json for a package, storing it in the package.
     #[tracing::instrument(name = "resolver.load_package_dsconfig", level = "trace", skip(self))]
-    pub fn load_package_dsconfig(&self, package_id: PackageId) -> Result<DsConfig, ResolveError> {
-        let package = self.program.packages.get(package_id);
-        let package_guard = package.read();
-
-        // check if dsconfig is already loaded
-        if let Some(ref dsconfig) = package_guard.dsconfig {
-            return Ok(dsconfig.clone());
-        }
-
-        // need package path to find dsconfig.json
-        let Some(ref package_path) = package_guard.path else {
-            return Err(ResolveError::DsConfigNotFound {
-                path: PathBuf::from("<ephemeral>"),
-            });
-        };
-
-        let dsconfig_path = package_path.join("dsconfig.json");
-        drop(package_guard); // release lock before loading
+    pub fn load_package_dsconfig(
+        &self,
+        package_config: &PackageConfig,
+    ) -> Result<DsConfig, ResolveError> {
+        let dsconfig_path = package_config.directory.join("dsconfig.json");
 
         // load and parse the dsconfig
         let dsconfig =
             self.load_dsconfig(&dsconfig_path, &mut DsConfigResolveContext::default())?;
-
-        // store in package
-        {
-            let mut package_guard = package.write();
-            package_guard.dsconfig = Some(dsconfig.clone());
-        }
 
         Ok(dsconfig)
     }

@@ -17,7 +17,7 @@ pub enum AnalyzeTask {
     AnalyzeModuleInfer { module: ModuleId },
 
     /// Final validation pass.
-    AnalyzeModuleCheck { module: ModuleId },
+    AnalyzeModuleValidate { module: ModuleId },
 }
 
 impl AnalyzeTask {
@@ -26,7 +26,7 @@ impl AnalyzeTask {
         match self {
             Self::AnalyzeModuleDeclare { .. } => 1,
             Self::AnalyzeModuleInfer { .. } => 2,
-            Self::AnalyzeModuleCheck { .. } => 3,
+            Self::AnalyzeModuleValidate { .. } => 3,
         }
     }
 }
@@ -36,7 +36,7 @@ impl TaskDebug for AnalyzeTask {
         match self {
             Self::AnalyzeModuleDeclare { .. } => "module_declare",
             Self::AnalyzeModuleInfer { .. } => "module_infer",
-            Self::AnalyzeModuleCheck { .. } => "module_check",
+            Self::AnalyzeModuleValidate { .. } => "module_validate",
         }
     }
 
@@ -44,7 +44,7 @@ impl TaskDebug for AnalyzeTask {
         match self {
             Self::AnalyzeModuleDeclare { module }
             | Self::AnalyzeModuleInfer { module }
-            | Self::AnalyzeModuleCheck { module } => {
+            | Self::AnalyzeModuleValidate { module } => {
                 let module = program.modules.get(*module);
                 let uri = module.read().uri.clone().to_string();
                 format!(r#"module="{uri}""#)
@@ -81,9 +81,9 @@ impl Compiler {
                 self.require_analyze_module_declare(module)?;
                 self.analyze_module_infer(module)?;
             }
-            AnalyzeTask::AnalyzeModuleCheck { module } => {
+            AnalyzeTask::AnalyzeModuleValidate { module } => {
                 self.require_analyze_module_infer(module)?;
-                self.analyze_module_check(module)?;
+                self.analyze_module_validate(module)?;
             }
         }
         Ok(AnalyzeOutput {})
@@ -107,7 +107,7 @@ impl Compiler {
 
     /// Ensure a module has been fully analyzed (including checks).
     pub fn require_analyze_module(&self, module: ModuleId) -> Result<(), TaskDependencyError> {
-        self.do_require_task_internal_only(AnalyzeTask::AnalyzeModuleCheck { module })
+        self.do_require_task_internal_only(AnalyzeTask::AnalyzeModuleValidate { module })
     }
 
     /// Phase 1: Evaluate declared types.
@@ -164,8 +164,8 @@ impl Compiler {
     }
 
     /// Phase 3: Final validation checks.
-    /// Pattern completeness, unused warnings, final type errors.
-    fn analyze_module_check(&self, module_id: ModuleId) -> AnalyzeResult<()> {
+    /// Pattern completeness, unused warnings, type errors.
+    fn analyze_module_validate(&self, module_id: ModuleId) -> AnalyzeResult<()> {
         let _ = module_id;
         Ok(())
     }

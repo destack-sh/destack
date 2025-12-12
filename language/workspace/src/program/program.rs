@@ -4,13 +4,13 @@ use std::sync::Arc;
 use destack_ast as ast;
 use destack_source::{
     DiagnosticCollector, File, FileId, FileRegistry, FileSystem, FileType, LanguageOptions,
-    ModuleId, PackageId, StringPool, Uri,
+    LanguageType, ModuleId, PackageId, StringPool, Uri,
 };
 use indexmap::IndexMap;
 
 use crate::{
-    ArtifactRegistry, Module, ModuleAst, ModuleRegistry, ModuleType, Package, PackageKind,
-    PackageRegistry, TsConfigRegistry,
+    ArtifactRegistry, DsConfigOptions, Module, ModuleAst, ModuleRegistry, ModuleType, Package,
+    PackageKind, PackageRegistry, TsConfigOptions, TsConfigRegistry,
 };
 
 /// A Program.
@@ -85,6 +85,7 @@ impl Program {
     }
 
     /// Create and insert the root file, AST, module, and package for caching.
+    /// NOTE #Architecture: revisit having a "root module" in program
     fn new_root(
         modules: &ModuleRegistry,
         packages: &PackageRegistry,
@@ -132,7 +133,9 @@ impl Program {
             root_uri,
             None,
             root_package_id,
+            None, // no tsconfig for root module
             ModuleType::Script,
+            LanguageType::Destack,
             root_module_ast,
         );
 
@@ -164,9 +167,33 @@ impl Program {
             .to_path()
             .and_then(ModuleType::from_extension)
             .unwrap_or(ModuleType::Script);
-        let module = Module::blank(module_id, file_id, uri, None, package_id, module_type);
+        let language_type = LanguageType::from(ty);
+        let module = Module::blank(module_id, file_id, uri, None, package_id, None, module_type, language_type);
         self.modules.insert(module);
 
         module_id
+    }
+
+    /// Access tsconfig options for a module via closure.
+    pub fn with_tsconfig_options<T>(
+        &self,
+        module: &Module,
+        f: impl FnOnce(&TsConfigOptions) -> T,
+    ) -> Option<T> {
+        let tsconfig_id = module.tsconfig_id?;
+        let tsconfig = self.tsconfigs.get(tsconfig_id);
+        Some(f(&tsconfig.read().options))
+    }
+
+    /// Access dsconfig options for a module via closure.
+    pub fn with_dsconfig_options<T>(
+        &self,
+        module: &Module,
+        f: impl FnOnce(&DsConfigOptions) -> T,
+    ) -> Option<T> {
+        let package = self.packages.get(module.package_id);
+        let package_guard = package.read();
+        let dsconfig = package_guard.dsconfig.as_ref()?;
+        Some(f(&dsconfig.options))
     }
 }

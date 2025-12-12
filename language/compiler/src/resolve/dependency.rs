@@ -61,7 +61,7 @@ impl Compiler {
             .map_err(|_| ResolveError::UnresolvedModule { node, target })?;
 
         // ensure the target module is bound (may yield)
-        self.require_bind_module(remote_module_id)
+        self.require_bind_module_validate(remote_module_id)
             .map_err(|e| match e {
                 TaskDependencyError::NotReady { dependency } => ResolveError::Yield { dependency },
                 TaskDependencyError::Failed { .. } => {

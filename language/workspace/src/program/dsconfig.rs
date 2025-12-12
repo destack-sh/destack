@@ -383,6 +383,8 @@ pub struct DsConfigCompilerOptions {
     pub strict_types: bool,
     /// Require portable constructs that work on all targets (js, wasm, native).
     pub strict_portable: bool,
+    /// Forbid re-declaration of local variables.
+    pub no_redeclared_locals: bool,
     /// Require explicit `self.` for member access in methods.
     pub no_implicit_self: bool,
     /// Require precise primitive types (int32 vs number, etc.).
@@ -454,21 +456,16 @@ impl Default for DsConfigCompilerOptions {
             exact_optional_property_types: false,
             no_unchecked_indexed_access: false,
 
-            // Destack-specific checking - umbrella flags
+            // Destack-specific checking
             strict_types,
             strict_portable: false,
-
-            // Destack-specific checking - type strictness (under strict_types)
+            no_redeclared_locals: false,
             no_implicit_self: strict_types,
             no_imprecise_primitives: strict_types,
             no_implicit_conversions: strict_types,
-
-            // Destack-specific checking - ownership (standalone)
             no_implicit_managed_type: false,
             no_implicit_managed_value: false,
             no_managed: false,
-
-            // Destack-specific checking - shapes & dispatch (standalone)
             no_dynamic_shapes: false,
             no_implicit_dynamic_dispatch: false,
 
@@ -532,21 +529,16 @@ impl From<&DsConfigCompilerOptionsJson> for DsConfigCompilerOptions {
             exact_optional_property_types: json.exact_optional_property_types.unwrap_or(false),
             no_unchecked_indexed_access: json.no_unchecked_indexed_access.unwrap_or(false),
 
-            // Destack-specific checking - umbrella flags
+            // Destack-specific checking
             strict_types,
             strict_portable: json.strict_portable.unwrap_or(false),
-
-            // Destack-specific checking - type strictness (under strict_types)
+            no_redeclared_locals: json.no_redeclared_locals.unwrap_or(false),
             no_implicit_self: json.no_implicit_self.unwrap_or(strict_types),
             no_imprecise_primitives: json.no_imprecise_primitives.unwrap_or(strict_types),
             no_implicit_conversions: json.no_implicit_conversions.unwrap_or(strict_types),
-
-            // Destack-specific checking - ownership (standalone)
             no_implicit_managed_type: json.no_implicit_managed_type.unwrap_or(false),
             no_implicit_managed_value: json.no_implicit_managed_value.unwrap_or(false),
             no_managed: json.no_managed.unwrap_or(false),
-
-            // Destack-specific checking - shapes & dispatch (standalone)
             no_dynamic_shapes: json.no_dynamic_shapes.unwrap_or(false),
             no_implicit_dynamic_dispatch: json.no_implicit_dynamic_dispatch.unwrap_or(false),
 
@@ -901,6 +893,8 @@ pub struct DsConfigCompilerOptionsJson {
     pub strict_types: Option<bool>,
     /// Ensure code works on all targets (js, wasm, native).
     pub strict_portable: Option<bool>,
+    /// Forbid re-declaration of local variables.
+    pub no_redeclared_locals: Option<bool>,
     /// Require explicit `self.` for member access in methods.
     pub no_implicit_self: Option<bool>,
     /// Require precise primitive types (int32 vs number, etc.).

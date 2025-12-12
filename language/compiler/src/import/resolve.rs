@@ -7,7 +7,7 @@
 use std::path::{Path, PathBuf};
 
 use destack_resolver::Resolver;
-use destack_source::{File, FileType, ModuleId, PackageId, StringId, Uri};
+use destack_source::{File, FileType, LanguageType, ModuleId, PackageId, StringId, Uri};
 use destack_workspace::{Module, ModuleType, Package, PackageKind};
 
 use crate::{Compiler, ImportError, ImportResult};
@@ -111,16 +111,22 @@ impl Compiler {
         // find or create package
         let (package_id, package_root) = self.resolve_or_create_package_for_path(path, resolver);
 
+        // find tsconfig (if any)
+        let tsconfig_id = resolver.find_tsconfig(path);
+
         // create and register blank module
         let module_id = ModuleId::from_path(package_id, path, package_root.as_deref());
         let module_type = ModuleType::from_extension(path).unwrap_or(ModuleType::Script);
+        let language_type = LanguageType::from(ty);
         let module = Module::blank(
             module_id,
             file_id,
             uri,
             Some(path.clone()),
             package_id,
+            tsconfig_id,
             module_type,
+            language_type,
         );
         self.program.modules.insert(module);
 
