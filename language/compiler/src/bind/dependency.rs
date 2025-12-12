@@ -44,11 +44,12 @@ impl Compiler {
         parent_id: Option<LocalNodeIdAny>,
         tree: &mut NodeTree,
         symbols: &mut SymbolTable,
-        _types: &mut TypeTable,
+        types: &mut TypeTable,
     ) -> LocalNodeId<DependencyItem> {
         let ast_item = module.ast.tree.get(ast_item_id);
         let item_id =
             tree.reserve_from_source(NodeType::DependencyItem, ast_item_id.id, scope, parent_id);
+
         let is_export = matches!(
             source,
             DependencySource::ExportStatement | DependencySource::ValueExpression
@@ -82,27 +83,47 @@ impl Compiler {
                 symbols,
             )
         };
-        let item_id = if let Some(target) = target {
-            let item = DependencyItem::UnresolvedRemote {
-                source,
-                mode,
-                kind,
-                name,
-                alias,
-                target,
-                target_module: None,
-                symbol: symbol_id,
-            };
-            tree.insert(item_id, item)
-        } else {
-            let item = DependencyItem::UnresolvedLocal {
-                mode,
-                kind,
-                name: name.unwrap_or_else(|| panic!("name is required for local dependency item")),
-                alias,
-                symbol: symbol_id,
-            };
-            tree.insert(item_id, item)
+        let item_id = {
+            // `export = expr`
+            if let Some(ast_value_id) = ast_item.value {
+                let value_id = self.bind_expression(
+                    module,
+                    scope,
+                    ast_value_id,
+                    Some(item_id),
+                    tree,
+                    symbols,
+                    types,
+                );
+                let item = DependencyItem::Value { value: value_id };
+                tree.insert(item_id, item)
+            } 
+            // `import` or `export { foo } from "foo"`
+            else if let Some(target) = target {
+                let item = DependencyItem::UnresolvedRemote {
+                    source,
+                    mode,
+                    kind,
+                    name,
+                    alias,
+                    target,
+                    target_module: None,
+                    symbol: symbol_id,
+                };
+                tree.insert(item_id, item)
+            } 
+            // `export { foo }`
+            else {
+                let item = DependencyItem::UnresolvedLocal {
+                    mode,
+                    kind,
+                    name: name
+                        .unwrap_or_else(|| panic!("name is required for local dependency item")),
+                    alias,
+                    symbol: symbol_id,
+                };
+                tree.insert(item_id, item)
+            }
         };
 
         // set primary declaration for the symbol
