@@ -179,6 +179,18 @@ impl Parser {
             None
         };
 
+        // `export { default }` without `from` is invalid
+        // (default is a reserved word and can't be a local binding)
+        if target.is_none() {
+            for item_id in &items {
+                let item = self.tree.get(*item_id);
+                if item.mode == DependencyMode::Default && item.name.is_none() {
+                    let span = self.tree.get_span(*item_id);
+                    return Err(ParseError::unexpected(span));
+                }
+            }
+        }
+
         // export
         let export_id = self.tree.insert(
             Expression::Export {

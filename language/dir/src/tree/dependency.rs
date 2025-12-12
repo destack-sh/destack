@@ -55,7 +55,7 @@ pub enum DependencyItem {
     UnresolvedLocal {
         mode: DependencyMode,
         kind: DependencyKind,
-        name: StringId,
+        name: Option<StringId>,
         alias: Option<StringId>,
         symbol: LocalSymbolId,
     },
@@ -65,7 +65,7 @@ pub enum DependencyItem {
     Local {
         mode: DependencyMode,
         kind: DependencyKind,
-        name: StringId,
+        name: Option<StringId>,
         alias: Option<StringId>,
         symbol: LocalSymbolId,
         target_symbol: GlobalSymbolId,

@@ -173,12 +173,16 @@ impl Compiler {
                 alias,
                 symbol,
             } => {
+                // nothing to resolve for unnamed local exports (internal edge case)
+                let Some(name_id) = name else {
+                    return Ok(());
+                };
                 let (scope_id, scope, mark) = symbols.get_scope(item_id, tree);
                 let target_symbol_id = self.resolve_absolute_symbol(
                     module,
                     item_id.into_global_any(module.id),
                     (scope_id, scope, mark),
-                    StaticKey::Name(*name),
+                    StaticKey::Name(*name_id),
                     symbols,
                 )?;
                 DependencyItem::Local {
