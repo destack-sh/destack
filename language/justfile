@@ -6,31 +6,45 @@ packages := "-p destack_ast -p destack_codegen_js -p destack_compiler -p destack
 _default:
     @just --list --unsorted
 
-# install test fixtures
-install-fixtures:
-    just resolver/install-fixtures
+# --- setup ---
+
+# install test fixtures (conformance suites, ecosystem packages, resolver fixtures)
+install:
     ./test/fixtures/conformance/test262-fetch.sh
     ./test/fixtures/conformance/babel-fetch.sh
     ./test/fixtures/conformance/swc-fetch.sh
     ./test/fixtures/conformance/biome-fetch.sh
-    just ecosystem-fetch
+    ./test/fixtures/ecosystem/ecosystem-fetch.sh
+    just install-resolver
 
-# check
+# install resolver fixture dependencies
+install-resolver:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    FIXTURES_DIR="test/fixtures/resolver"
+    for dir in "$FIXTURES_DIR/pnpm" "$FIXTURES_DIR/pnpm-workspace"; do
+        if [ -f "$dir/package.json" ]; then
+            (cd "$dir" && pnpm install --ignore-workspace)
+        fi
+    done
+
+# --- build ---
+
+# check (clippy)
 check:
     cargo clippy --release {{ packages }}
 
 # build
 build:
     cargo build --release {{ packages }}
-    just schema
+    just generate-schema
 
-# test all
-test:
-    cargo test --release --all-targets --no-fail-fast {{ packages }}
-
-# format
-fmt:
+# format code
+format:
     cargo fmt {{ packages }}
+
+# alias for format
+fmt := "format"
 
 # generate docs
 doc:
@@ -40,19 +54,34 @@ doc:
 clean:
     cargo clean
 
-# regenerate generated code
+# --- codegen ---
+
+# regenerate all generated code
 generate:
+    just generate-unicode
+    just generate-lexer
+    just generate-schema
+
+# regenerate unicode tables
+generate-unicode:
     cd unicode && python3 src/generate.py
+
+# regenerate lexer tables
+generate-lexer:
     cd parser/src/lex && python3 generate.py
 
-# generate JSON schemas
-schema:
+# generate JSON schema
+generate-schema:
     mkdir -p workspace/generated
     cargo run -p destack_workspace --features schema --bin generate-schema --release > workspace/generated/dsconfig.schema.json
     cp workspace/generated/dsconfig.schema.json ../platform/vscode/dsconfig.schema.json
     @echo "generated workspace/generated/dsconfig.schema.json"
 
-# --- test suites ---
+# --- test ---
+
+# run all tests
+test:
+    cargo test --release --all-targets --no-fail-fast {{ packages }}
 
 # run smoke tests
 test-smoke:
@@ -70,48 +99,59 @@ test-mdtest:
 test-conformance:
     cargo test --release --test conformance
 
+# update conformance test baselines
+test-conformance-update:
+    cargo test --release --test conformance -- --update-known-failures
+
 # run formatter tests
 test-formatter:
     cargo test --release --test formatter
 
-# update conformance baselines after fixes
-conformance-update:
-    cargo test --release --test conformance -- --update-known-failures
-
-# --- fuzzing ---
-
-# run parser fuzzer (default 5 minutes)
-fuzz-parser duration="300":
-    cd parser/fuzz && cargo +nightly fuzz run destack_parser_fuzz -- -max_total_time={{duration}}
-
-# run parser fuzzer briefly for CI (1 minute)
-fuzz-ci:
-    just fuzz-parser 60
-
-# minimize fuzz corpus
-fuzz-cmin:
-    cd parser/fuzz && cargo +nightly fuzz cmin destack_parser_fuzz
-
-# --- benchmarks ---
-
-# run parser benchmarks
-bench-parser:
-    cargo bench -p destack_parser
-
-# run lexer benchmark only
-bench-lex:
-    cargo bench -p destack_parser -- destack_lex
-
-# run parse benchmark only
-bench-parse:
-    cargo bench -p destack_parser -- destack_ast
-
-# --- ecosystem tests ---
-
-# fetch ecosystem test packages
-ecosystem-fetch:
-    ./test/fixtures/ecosystem/ecosystem-fetch.sh
-
 # run ecosystem tests
 test-ecosystem:
     cargo test --release --test ecosystem
+
+# run resolver tests
+test-resolver:
+    cargo test --release -p destack_resolver
+
+# --- bench ---
+
+# run all benchmarks
+bench:
+    cargo bench -p destack_parser
+
+# run lexer benchmarks
+bench-lexer:
+    cargo bench -p destack_parser -- destack_lex
+
+# run parser benchmarks
+bench-parser:
+    cargo bench -p destack_parser -- destack_ast
+
+# --- fuzz ---
+
+# run all fuzzers
+fuzz duration="60":
+    just fuzz-lexer {{duration}}
+    just fuzz-parser {{duration}}
+    just fuzz-formatter {{duration}}
+
+# run lexer fuzzer
+fuzz-lexer duration="300":
+    cd parser/fuzz && cargo +nightly fuzz run lexer -- -max_total_time={{duration}}
+
+# run parser fuzzer
+fuzz-parser duration="300":
+    cd parser/fuzz && cargo +nightly fuzz run parser -- -max_total_time={{duration}}
+
+# run formatter fuzzer
+fuzz-formatter duration="300":
+    cd formatter/fuzz && cargo +nightly fuzz run formatter -- -max_total_time={{duration}}
+
+# list fuzz targets
+fuzz-list:
+    @echo "parser/fuzz:"
+    @cd parser/fuzz && cargo +nightly fuzz list
+    @echo "formatter/fuzz:"
+    @cd formatter/fuzz && cargo +nightly fuzz list
