@@ -2,7 +2,7 @@ use std::path::{Path, PathBuf};
 
 use destack_source::FileType;
 
-use super::parse::{ParseOptions, ParseOutcome, parse_file};
+use super::parse::{ParseOptions, ParseOutcome, TestArea, parse_file};
 use super::runner::{ConformanceSuite, SuiteResult, Test, TestOutcome, run_conformance_suite};
 use crate::harness::{TestOptions, fixtures_dir};
 
@@ -103,10 +103,10 @@ impl ConformanceSuite for Test262Suite {
             tests.extend(self.discover_in_dir(&pass_explicit_dir, "pass-explicit", false));
         }
 
-        // early/ directory: files with early errors (parse succeeds, has semantic errors)
+        // early/ directory: files with early errors (should be detected as errors)
         let early_dir = self.root.join("early");
         if early_dir.exists() {
-            tests.extend(self.discover_in_dir(&early_dir, "early", false));
+            tests.extend(self.discover_in_dir(&early_dir, "early", true));
         }
 
         tests
@@ -126,7 +126,14 @@ impl ConformanceSuite for Test262Suite {
             Err(_) => return TestOutcome::Failed,
         };
 
-        let parse_outcome = parse_file(&path, &content, test.file_type, ParseOptions::default());
+        // early/ tests check for early errors (bind + flow), others only check parse errors
+        let area = if category == "early" {
+            TestArea::Early
+        } else {
+            TestArea::Parse
+        };
+
+        let parse_outcome = parse_file(&path, &content, test.file_type, ParseOptions { area });
 
         match (test.expect_error, parse_outcome) {
             (true, ParseOutcome::Error) => TestOutcome::Passed,

@@ -4,6 +4,8 @@ error/async_or_generator_in_single_statement_context.js
 error/await_in_non_async_function.js
 error/await_in_parameter_initializer.js
 error/await_using_declaration_only_allowed_inside_an_async_function.js
+error/break_in_nested_function.js
+error/break_stmt.js
 error/class_constructor_parameter.js
 error/class_constructor_parameter_readonly.js
 error/class_declare_member.js
@@ -13,6 +15,7 @@ error/class_implements.js
 error/class_in_single_statement_context.js
 error/class_invalid_modifiers.js
 error/class_member_static_accessor_precedence.js
+error/continue_stmt.js
 error/debugger_stmt.js
 error/decorator_async_function_export_default_declaration_clause.ts
 error/decorator_class_declaration.js

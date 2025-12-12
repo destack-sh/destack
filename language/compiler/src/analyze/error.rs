@@ -1,6 +1,7 @@
 use destack_dir::{
     FunctionAbstraction, GlobalNodeIdAny, GlobalSymbolId, GlobalTypeId, StaticKey, Visibility,
 };
+use destack_source::StringId;
 use destack_workspace::Program;
 
 use crate::{
@@ -94,6 +95,21 @@ pub enum AnalyzeError {
         implements_symbols: Vec<GlobalSymbolId>,
         embedded_symbols: Vec<GlobalSymbolId>,
     },
+    /// Break used outside of a valid breakable context, or with an invalid label.
+    IllegalBreak {
+        node: GlobalNodeIdAny,
+        label: Option<StringId>,
+    },
+    /// Continue used outside of a loop, or with an invalid label.
+    IllegalContinue {
+        node: GlobalNodeIdAny,
+        label: Option<StringId>,
+    },
+    /// Referenced label does not exist in this scope.
+    UnknownLabel {
+        node: GlobalNodeIdAny,
+        label: StringId,
+    },
 }
 
 impl From<TaskDependencyError> for AnalyzeError {
@@ -144,6 +160,9 @@ impl AnalyzeError {
             Self::MissingMember { .. } => 18,
             Self::UnsatisfiedType { .. } => 19,
             Self::InvalidLineage { .. } => 20,
+            Self::IllegalBreak { .. } => 21,
+            Self::IllegalContinue { .. } => 22,
+            Self::UnknownLabel { .. } => 23,
         }
     }
 
@@ -171,6 +190,9 @@ impl AnalyzeError {
             Self::MissingMember { node, .. } => DiagnosticAnchor::Node(*node),
             Self::UnsatisfiedType { node, .. } => DiagnosticAnchor::Node(*node),
             Self::InvalidLineage { node, .. } => DiagnosticAnchor::Node(*node),
+            Self::IllegalBreak { node, .. } => DiagnosticAnchor::Node(*node),
+            Self::IllegalContinue { node, .. } => DiagnosticAnchor::Node(*node),
+            Self::UnknownLabel { node, .. } => DiagnosticAnchor::Node(*node),
         }
     }
 
@@ -234,6 +256,26 @@ impl AnalyzeError {
                 format!("expected {expected}, found {actual}")
             }
             Self::InvalidLineage { .. } => "invalid lineage".to_string(),
+            Self::IllegalBreak { label, .. } => {
+                if let Some(label) = label {
+                    let label = program.strings.get(*label).to_string();
+                    format!("illegal break to '{label}'")
+                } else {
+                    "illegal break".to_string()
+                }
+            }
+            Self::IllegalContinue { label, .. } => {
+                if let Some(label) = label {
+                    let label = program.strings.get(*label).to_string();
+                    format!("illegal continue to '{label}'")
+                } else {
+                    "illegal continue".to_string()
+                }
+            }
+            Self::UnknownLabel { label, .. } => {
+                let label = program.strings.get(*label).to_string();
+                format!("unknown label '{label}'")
+            }
         }
     }
 }

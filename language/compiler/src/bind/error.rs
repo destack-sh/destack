@@ -15,7 +15,7 @@ pub enum BindError {
     UnsatisfiedDependency { dependency: TaskDependency },
     /// Unsupported node.
     UnsupportedConstruct { node: GlobalNodeIdAny },
-    /// Conflicting symbol binding.
+    /// Conflicting symbol binding (unambiguous).
     ConflictingBinding {
         node: GlobalNodeIdAny,
         other_node: GlobalNodeIdAny,

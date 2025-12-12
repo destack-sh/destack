@@ -72,10 +72,10 @@ impl BabelSuite {
     fn should_throw(&self, test_dir: &Path) -> bool {
         // check options.json for "throws" key
         let options_path = test_dir.join("options.json");
-        if let Ok(content) = std::fs::read_to_string(&options_path) {
-            if content.contains("\"throws\"") {
-                return true;
-            }
+        if let Ok(content) = std::fs::read_to_string(&options_path)
+            && content.contains("\"throws\"")
+        {
+            return true;
         }
 
         // also check parent directories for options.json
@@ -111,11 +111,9 @@ impl BabelSuite {
     }
 
     fn get_input_file(&self, test_dir: &Path) -> Option<(PathBuf, FileType)> {
-        // check if test is in a tsx or jsx directory (babel enables JSX based on directory)
         let path_str = test_dir.to_string_lossy();
         let in_tsx_dir = path_str.contains("/tsx/") || path_str.contains("/tsx-");
         let in_jsx_dir = path_str.contains("/jsx/") || path_str.contains("/jsx-");
-
         for ext in &["ts", "tsx", "js", "jsx", "mjs"] {
             let input = test_dir.join(format!("input.{ext}"));
             if input.exists() {

@@ -2,7 +2,7 @@ use std::panic::AssertUnwindSafe;
 use std::path::Path;
 use std::sync::Arc;
 
-use destack_compiler::{BindTask, CompileOptions, Compiler};
+use destack_compiler::{AnalyzeTask, CompileOptions, Compiler};
 use destack_source::{
     DiagnosticSeverity, FileRegistry, FileSystem, FileType, LanguageOptions, LanguageType,
     MemoryFileSystem,
@@ -12,22 +12,60 @@ use destack_workspace::Program;
 /// Outcome of checking a file for conformance testing.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(super) enum ParseOutcome {
-    /// File parsed and bound without errors.
+    /// File parsed without relevant errors.
     Ok,
-    /// File had errors (parse or bind).
+    /// File had relevant errors.
     Error,
+}
+
+/// What category of errors a test cares about.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub(super) enum TestArea {
+    /// Only parse/import errors (EI*) - pure grammar conformance.
+    Parse,
+    /// Parse + bind + flow errors (EI*, EB*, EA021-EA023) - early error conformance.
+    #[default]
+    Early,
+}
+
+impl TestArea {
+    /// Check if an error code is relevant for this test area.
+    ///
+    /// Error code prefixes:
+    /// - EP*: Parse errors (from parser)
+    /// - EI*: Import errors (module resolution, parse wrapper)
+    /// - EB*: Bind errors (structural/declaration conflicts)
+    /// - EA*: Analyze errors (type inference, flow validation)
+    pub(super) fn is_relevant_error(&self, code: &str) -> bool {
+        match self {
+            // Parse-only: grammar errors
+            TestArea::Parse => code.starts_with("EP") || code.starts_with("EI"),
+            // Early: grammar + early errors (bind, flow)
+            TestArea::Early => {
+                code.starts_with("EP")
+                    || code.starts_with("EI")
+                    || code.starts_with("EB")
+                    || code == "EA021"
+                    || code == "EA022"
+                    || code == "EA023"
+            }
+        }
+    }
 }
 
 /// Options for parsing in conformance tests.
 #[derive(Debug, Clone, Default)]
-pub(super) struct ParseOptions {}
+pub(super) struct ParseOptions {
+    /// What category of errors to check for.
+    pub area: TestArea,
+}
 
 /// Parse and bind a file, return the outcome.
 pub(super) fn parse_file(
     path: &Path,
     content: &str,
     file_type: FileType,
-    _options: ParseOptions,
+    options: ParseOptions,
 ) -> ParseOutcome {
     let cwd = path.parent().unwrap_or(Path::new(".")).to_path_buf();
     let files = Arc::new(FileRegistry::new());
@@ -56,9 +94,10 @@ pub(super) fn parse_file(
         Err(_) => return ParseOutcome::Error,
     };
 
-    // run import (parse) and bind phases (including validation)
-    // catch panics to treat them as errors (some malformed code causes panics in bind)
-    compiler.enqueue(BindTask::BindModuleValidate { module: module_id });
+    // run import, bind, resolve, and analyze (infer) phases
+    // flow validation (break/continue) is done in the analyze infer phase
+    // catch panics to treat them as errors (some malformed code causes panics)
+    compiler.enqueue(AnalyzeTask::AnalyzeModuleInfer { module: module_id });
     let result = std::panic::catch_unwind(AssertUnwindSafe(|| {
         compiler.compile();
     }));
@@ -68,10 +107,14 @@ pub(super) fn parse_file(
         return ParseOutcome::Error;
     }
 
-    // check for any errors (parse or bind)
-    if program.diagnostics.has_diagnostics_of_severity(DiagnosticSeverity::Error) {
-        return ParseOutcome::Error;
-    }
+    // check for errors relevant to the test area
+    let has_relevant_error = program.diagnostics.iter().into_iter().any(|d| {
+        d.severity == DiagnosticSeverity::Error && options.area.is_relevant_error(&d.code)
+    });
 
-    ParseOutcome::Ok
+    if has_relevant_error {
+        ParseOutcome::Error
+    } else {
+        ParseOutcome::Ok
+    }
 }
