@@ -27,6 +27,19 @@ impl SwcSuite {
         }
     }
 
+    fn should_skip_test_by_name(name: &str) -> bool {
+        // NOTE: we intentionally exclude non-standard/proposal syntax suites for now
+        // because conformance is focused on JS/TS/JSX that we intend to support.
+        // These categories are typically ahead of the official ECMAScript baseline.
+        name.starts_with("js/explicit-resource-management/")
+            || name.starts_with("js/import-assertions-with-keyword/")
+            || name.starts_with("js/import-assertions/")
+            || name.starts_with("js/import-attributes-deprecatedAssertKeyword/")
+            || name.starts_with("js/import-attributes/")
+            || name.starts_with("js/source-phase-imports/")
+            || name.starts_with("js/deferred-import-evaluation/")
+    }
+
     fn discover_recursive(&self, dir: &Path, prefix: &str, category: &str) -> Vec<Test> {
         let mut tests = Vec::new();
 
@@ -55,6 +68,10 @@ impl SwcSuite {
                         } else {
                             format!("{prefix}/{stem}.{ext}")
                         };
+
+                        if Self::should_skip_test_by_name(&name) {
+                            continue;
+                        }
 
                         // determine file type based on category and extension
                         let file_type = Self::file_type_for_category(category, &name);

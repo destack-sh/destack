@@ -53,7 +53,7 @@ pub(super) fn parse_file(
     let mut parser = Parser::lex_file(file, program.language);
     let _ = parser.parse();
 
-    // Check for parse errors
+    // check for parse errors
     if !parser.diagnostics.is_empty() {
         return ParseOutcome::Error;
     }

@@ -23,3 +23,5 @@ We do not expect to reach 100% conformance because:
 
 - **Annex B**: The test262-parser-tests suite we use does not include Annex B tests, so this isn't a factor in our conformance numbers.
 - **Flow**: Intentionally excluded. We support TypeScript only.
+- **Non-standard proposals**: Some SWC `js/*` tests cover syntax proposals we don't intend to support yet (e.g. import attributes, source phase imports, explicit resource management).
+  These are intentionally excluded from conformance for now.
