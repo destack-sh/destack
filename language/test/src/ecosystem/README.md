@@ -1,4 +1,4 @@
-## Ecosystem tests
+## Ecosystem Tests
 
 Ecosystem tests validate Destack against real-world TypeScript/JavaScript packages.
 

@@ -1286,19 +1286,16 @@ fn parse_float_constant(s: &str) -> Option<Constant> {
 
 /// Parse a string literal, handling escape sequences.
 fn parse_string_literal(s: &str) -> Option<String> {
-    // Strip surrounding quotes
-    let inner = s.strip_prefix('"')?.strip_suffix('"')?;
-    parse_escape_sequences(inner)
+    let s = s.strip_prefix('"')?.strip_suffix('"')?;
+    parse_escape_sequences(s)
 }
 
 /// Parse a char literal, handling escape sequences.
 fn parse_char_literal(s: &str) -> Option<char> {
-    // Strip surrounding quotes
-    let inner = s.strip_prefix('\'')?.strip_suffix('\'')?;
-    let unescaped = parse_escape_sequences(inner)?;
+    let s = s.strip_prefix('\'')?.strip_suffix('\'')?;
+    let unescaped = parse_escape_sequences(s)?;
     let mut chars = unescaped.chars();
     let c = chars.next()?;
-    // Ensure only one character
     if chars.next().is_some() {
         return None;
     }

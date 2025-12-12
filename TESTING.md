@@ -1,10 +1,13 @@
 # Testing
 
-Our goal is 100% bullet-proof reliability at the best possible performance: the Destack language, libraries and platform must never hardcrash, and must never fail (gracefully) in unexpected ways.
+Our goal is a 100% bullet-proof stack and toolchain with the best possible performance: the Destack language, libraries and platform:
+ 1. Destack must never hardcrash, 
+ 2. Destack must never fail in unexpected ways
+ 3. Destack must be 
 
 ## Reliability
 
-The only way to ensure 100% reliability is to test everything, and test it thoroughly:
+The only way to ensure 100% reliability is to test everything, and test it thoroughly.
 | Suite | Location | Description |
 |-------|----------|-------------|
 | **Smoke** | [language/test/fixtures/smoke/](language/test/fixtures/smoke/) | Parser and compiler don't crash on any input |
@@ -13,7 +16,7 @@ The only way to ensure 100% reliability is to test everything, and test it thoro
 | **Conformance** | [language/test/fixtures/conformance/](language/test/fixtures/conformance/) | Parser conformance against test262, babel, swc, biome |
 | **Formatter** | [language/test/fixtures/formatter/](language/test/fixtures/formatter/) | Format roundtrip stability |
 | **Resolver** | [language/test/fixtures/resolver/](language/test/fixtures/resolver/) | Module resolution (node_modules, pnpm, yarn, tsconfig paths) |
-| **Fuzzing** | [language/parser/fuzz/](language/parser/fuzz/) | Parser tokenizer fuzzing (~2,100 corpus entries) |
+| **Fuzzing** | [language/parser/fuzz/](language/parser/fuzz/) | Parser tokenizer fuzzing |
 
 ```bash
 # all tests

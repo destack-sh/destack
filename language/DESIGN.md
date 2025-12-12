@@ -384,8 +384,10 @@ It's closer to Mojo's approach: explicit control when you need it, automatic beh
 
 ## Compatibility
 
-Destack aims to be drop-in compatible with JavaScript and TypeScript.
-In practice, a few obscure syntax patterns work differently in `.ds` files because of TSX-interoperability and additional typing features:
+**Destack aims for 100% compatibility with modern TypeScript.**
+
+For `.ts`, `.tsx`, `.js`, and `.jsx` files, Destack parses with full compatibility—your existing code works unchanged.
+For `.ds` files, a few obscure syntax patterns work differently due to built-in TSX support and additional typing features:
 
 | Pattern | `.ts` | `.tsx` | `.ds` |
 |---------|-------|--------|-------|
@@ -393,8 +395,12 @@ In practice, a few obscure syntax patterns work differently in `.ds` files becau
 | `(a, b, c)` | Comma operator | Comma operator | Tuple literal |
 
 These patterns rarely appear in production code:
-- The **generic arrow** ambiguity already exists in `.tsx` files—`.ds` inherits this since it supports TSX syntax. The workaround (`<T,>`) is standard practice in TSX codebases.
-- The **comma operator** is mostly seen in minified code or obscure one-liners. Destack uses `()` for tuples instead, which is more explicit and plays better with the type system than TypeScript's `[T, U]` array syntax.
+- The **generic arrow** ambiguity already exists in `.tsx` files—`.ds` inherits this since it supports TSX syntax natively. The workaround (`<T,>`) is standard practice in TSX codebases.
+- The **comma operator** is mostly seen in minified code or obscure one-liners. Destack uses `()` for tuples instead, which is more explicit and composes better with the type system than TypeScript's `[T, U]` array syntax.
 
 Just as `.tsx` extends `.ts` with JSX syntax (introducing the generic arrow ambiguity), `.ds` extends `.tsx` with Destack features like tuples.
-Destack parses `.ts`, `.tsx`, `.js`, and `.jsx` files with full compatibility—the differences above only apply to `.ds` files.
+
+### What We Don't Support
+
+- **Annex B** (legacy web compatibility): We intentionally exclude legacy features like HTML comments in scripts, legacy octal literals in sloppy mode, and other deprecated patterns. These are optional extensions to the spec, not core ECMAScript.
+- **Flow**: We support TypeScript only.
