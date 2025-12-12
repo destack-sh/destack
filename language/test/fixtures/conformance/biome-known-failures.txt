@@ -196,8 +196,6 @@ ok/ts_decorator_constructor.ts
 ok/ts_decorator_on_class_method.ts
 ok/ts_decorator_on_class_setter.ts
 ok/ts_default_type_clause.ts
-ok/ts_export_assignment_identifier.ts
-ok/ts_export_assignment_qualified_name.ts
 ok/ts_export_default_function_overload.ts
 ok/ts_export_function_overload.ts
 ok/ts_export_named_from_specifier_with_type.ts

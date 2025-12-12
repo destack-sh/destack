@@ -460,9 +460,17 @@ pub fn print_summary(results: &[SuiteResult]) {
 
     // final verdict
     println!();
+    let total_fixed: usize = results.iter().map(|r| r.result.fixed.len()).sum();
+    if total_fixed > 0 {
+        println!(
+            "  {} {} tests fixed across all suites",
+            color::green("FIXED:"),
+            total_fixed
+        );
+    }
     if total_regressions > 0 {
         println!(
-            "  {} {} regressions across all suites",
+            "  {} {} tests regressed across all suites",
             color::red("FAILED:"),
             total_regressions
         );
