@@ -75,8 +75,17 @@ H3 or H4 headings define individual test cases with:
 ### Expected Errors
 
 - Bullet list after code block specifies expected errors
-- Error matching is case-insensitive with substring matching
+- Error matching is exact by default (after normalization)
+- Prefix a line with `contains:` to match by substring instead
+- Normalization: trim, lowercase, collapse whitespace runs to single spaces
 - No bullet list = expect no errors
+
+Examples:
+
+```markdown
+- member 'nonexistent' does not exist on type point
+- contains: does not exist
+```
 
 ## Running Tests
 

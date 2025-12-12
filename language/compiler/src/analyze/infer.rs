@@ -2625,45 +2625,68 @@ let x = greeting;
     }
 
     /// Verify circular imports work during analysis.
+    // nocheckin #Broken: fix this, make TypeTable access/computations granular (no &mut TypeTable)
     #[test]
-    fn test_analyze_circular_imports() {
+    fn test_analyze_circular_type_dependency() {
         let test = TestProgram::memory_sequential();
         test.add_file(
             "a.ds",
             r#"
-import { helperB } from "./b.ds";
+import { B } from "./b.ds";
 
-export struct A { value: number }
+export struct A { value: B }
 
-export function helperA(): number { return 1 }
+export function helperA(): A { throw "not implemented" }
 "#,
         );
         test.add_file(
             "b.ds",
             r#"
-import { helperA } from "./a.ds";
+import { A } from "./a.ds";
 
-export struct B { value: number }
+export struct B { value: A }
 
-export function helperB(): number { return 2 }
+export function helperB(): B { throw "not implemented" }
 "#,
         );
         let module_id = test.register_module(
             "main.ds",
             r#"
-import { A } from "./a.ds";
-import { B } from "./b.ds";
+import { A, helperA } from "./a.ds";
+import { B, helperB } from "./b.ds";
 
-declare function getA(): A;
-declare function getB(): B;
-
-const a = getA();
-const b = getB();
+declare const a: A = helperA();
+declare const b: B = helperB();
 "#,
         );
         test.analyze_module(module_id);
         test.compile_dump_clean();
 
-        // nocheckin: implement test circular analysis fully, add another with circular type references
+        let a_symbol_id = test.resolve_to_symbol("a.ds", "A").unwrap();
+        let b_symbol_id = test.resolve_to_symbol("b.ds", "B").unwrap();
+
+        // struct A { value: B } -> typeOf(A.value) should point to canonical B
+        let a_module = test.program.modules.get(a_symbol_id.module_id);
+        let a_module = a_module.read();
+        let a_types = a_module.dir.types.read();
+        let a_ty_id = a_types.get_value_type_id(a_symbol_id).unwrap();
+        assert_type!(a_types, a_ty_id, Type::Object { fields } => {
+            assert_eq!(fields.len(), 1);
+            assert_type!(a_types, fields[0].ty, Type::Reference { symbol, static_arguments: _ } => {
+                assert_eq!(*symbol, b_symbol_id);
+            });
+        });
+
+        // struct B { value: A } -> typeOf(B.value) should point to canonical A
+        let b_module = test.program.modules.get(b_symbol_id.module_id);
+        let b_module = b_module.read();
+        let b_types = b_module.dir.types.read();
+        let b_ty_id = b_types.get_value_type_id(b_symbol_id).unwrap();
+        assert_type!(b_types, b_ty_id, Type::Object { fields } => {
+            assert_eq!(fields.len(), 1);
+            assert_type!(b_types, fields[0].ty, Type::Reference { symbol, static_arguments: _ } => {
+                assert_eq!(*symbol, a_symbol_id);
+            });
+        });
     }
 }
