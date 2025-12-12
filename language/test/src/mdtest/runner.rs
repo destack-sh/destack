@@ -127,7 +127,6 @@ fn run_mdtest(test: &MdTestCase) -> TestResult {
 
     // create virtual files for all test files
     let mut main_path: Option<PathBuf> = None;
-
     for file in &test.files {
         let file_path = cwd.join(&file.path);
         memory_fs

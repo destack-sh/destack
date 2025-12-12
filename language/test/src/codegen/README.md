@@ -1,4 +1,4 @@
-## Codegen tests
+## Codegen Tests
 
 Codegen tests verify emitted output against checked-in snapshots.
 

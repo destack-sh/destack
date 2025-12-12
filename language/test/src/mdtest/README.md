@@ -1,6 +1,7 @@
-## Markdown tests
+## Markdown Tests
 
-Markdown tests run type checking and assert expected diagnostics for small, focused examples.
+Markdown tests are for specification testing.
+They currently run type checking and assert expected diagnostics for small, focused examples.
 
 ### Fixtures
 - `fixtures/mdtest/**/*.md`

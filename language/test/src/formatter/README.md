@@ -1,4 +1,4 @@
-## Formatter tests
+## Formatter Tests
 
 Formatter tests are roundtrip checks: formatting a file should produce the same text.
 
