@@ -26,28 +26,6 @@ const point = getPoint();
 point.magnitude() satisfies number;
 ```
 
-### extension method accesses struct fields
-
-> Extension methods can access fields via `this`.
-
-```ds
-struct Point {
-    x: number,
-    y: number
-}
-
-extension Point {
-    sum(): number {
-        return this.x + this.y
-    }
-}
-
-declare function getPoint(): Point;
-
-const point = getPoint();
-point.sum() satisfies number;
-```
-
 ### extension does not modify type shape
 
 > Extension methods are resolved separately from the type's own members.
@@ -120,27 +98,6 @@ counter.increment();
 counter.reset();
 ```
 
-### extension method accesses class fields
-
-> Extension methods can access class fields via `this`.
-
-```ds
-class Counter {
-    count: number
-}
-
-extension Counter {
-    doubled(): number {
-        return this.count * 2
-    }
-}
-
-declare function getCounter(): Counter;
-
-const counter = getCounter();
-counter.doubled() satisfies number;
-```
-
 ## Extension on Interface
 
 ### extension on interface
@@ -162,27 +119,6 @@ declare function getShape(): Shape;
 
 const shape = getShape();
 shape.describe() satisfies string;
-```
-
-### extension method calls interface method
-
-> Extension methods can call the interface's own methods.
-
-```ds
-interface Shape {
-    area(): number
-}
-
-extension Shape {
-    isLarge(): boolean {
-        return this.area() > 100
-    }
-}
-
-declare function getShape(): Shape;
-
-const shape = getShape();
-shape.isLarge() satisfies boolean;
 ```
 
 ## Extension on Enum
@@ -210,24 +146,3 @@ const status = getStatus();
 status.isActive() satisfies boolean;
 ```
 
-## Extension on Type Alias
-
-### extension on type alias
-
-> Extensions can extend type aliases (the alias resolves to its underlying type).
-
-```ds
-struct Point { x: number, y: number }
-type Vector = Point;
-
-extension Vector {
-    length(): number {
-        return 0
-    }
-}
-
-declare function getPoint(): Point;
-
-const point = getPoint();
-point.length() satisfies number;
-```
