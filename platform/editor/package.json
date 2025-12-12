@@ -1,6 +1,6 @@
 {
 	"name": "@destack-sh/editor",
-	"version": "0.48.4",
+	"version": "0.49.1",
 	"license": "MIT",
 	"type": "module",
 	"sideEffects": false,

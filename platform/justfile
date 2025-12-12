@@ -6,7 +6,9 @@ packages := "-p destack_cli -p destack_lsp -p destack_vscode -p destack_daemon"
 _default:
     @just --list --unsorted
 
-# check
+# --- build ---
+
+# check (clippy)
 check:
     cargo clippy --release {{ packages }}
 
@@ -19,11 +21,36 @@ build:
 build-vscode:
     cd vscode && bun run bundle && bun run package
 
-# test
+# format code
+format:
+    cargo fmt {{ packages }}
+
+# alias for format
+fmt := "format"
+
+# clean
+clean:
+    cargo clean
+    rm -rf vscode/out vscode/*.vsix
+
+# --- test ---
+
+# run all tests
 test:
     cargo test --release --all-targets {{ packages }}
+    just test-vscode
+
+# test vscode grammar
+test-vscode:
     cd vscode && bun run test:grammar
 
-# format
-fmt:
-    cargo fmt {{ packages }}
+# --- release ---
+
+# publish vscode extension (dry-run by default)
+publish dry="--dry-run":
+    cd vscode && bun run package
+    @if [ "{{dry}}" = "--dry-run" ]; then \
+        echo "Dry run: would publish vscode extension"; \
+    else \
+        cd vscode && bunx --bun @vscode/vsce@latest publish; \
+    fi

@@ -19,10 +19,19 @@ test:
     cargo test --release --all-targets -p destack_napi
     bun test
 
-# format
-fmt:
+# format code
+format:
     bun run biome format --write .
+
+# alias for format
+fmt := "format"
 
 # clean
 clean:
     rm -rf node_modules
+
+# --- release ---
+
+# publish npm packages (dry-run by default)
+publish dry="--dry-run":
+    cd schema && bun publish {{dry}} --access public

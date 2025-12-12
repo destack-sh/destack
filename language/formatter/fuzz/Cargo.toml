@@ -2,8 +2,8 @@
 # fuzzer is in its own workspace
 
 [package]
-name = "destack_parser_fuzz"
-description = "Destack Parser Fuzzing"
+name = "destack_formatter_fuzz"
+description = "Destack Formatter Fuzzing"
 edition = "2024"
 authors = ["Symbol Industries"]
 license = "proprietary"
@@ -13,22 +13,18 @@ rust-version = "1.88.0"
 cargo-fuzz = true
 
 [dependencies]
-destack_parser = { path = ".." }
+destack_ast = { path = "../../ast" }
+destack_fir = { path = "../../fir" }
+destack_formatter = { path = ".." }
+destack_parser = { path = "../../parser" }
 destack_source = { path = "../../source" }
 
 arbitrary = { version = "1.4.2", features = ["derive"] }
 libfuzzer-sys = "0.4.10"
 
 [[bin]]
-name = "lexer"
-path = "fuzz_targets/lexer.rs"
-test = false
-doc = false
-bench = false
-
-[[bin]]
-name = "parser"
-path = "fuzz_targets/parser.rs"
+name = "formatter"
+path = "fuzz_targets/formatter.rs"
 test = false
 doc = false
 bench = false
