@@ -13,6 +13,7 @@ use destack_source::{FileId, LanguageType, ModuleId, PackageId, StringId, String
 use crate::{ModuleType, TsConfigId};
 
 /// A Module is a single source unit.
+/// Destack treats all modules as "strict mode".
 #[derive(Debug)]
 pub struct Module {
     /// The id of the Module itself.

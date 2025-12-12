@@ -73,7 +73,9 @@ impl BabelSuite {
         // check options.json for "throws" key
         let options_path = test_dir.join("options.json");
         if let Ok(content) = std::fs::read_to_string(&options_path) {
-            return content.contains("\"throws\"");
+            if content.contains("\"throws\"") {
+                return true;
+            }
         }
 
         // also check parent directories for options.json
@@ -83,6 +85,25 @@ impl BabelSuite {
                 && content.contains("\"throws\"")
             {
                 return true;
+            }
+        }
+
+        // check output.json for "errors" array with content
+        // babel stores expected errors in output.json as: "errors": ["SyntaxError: ..."]
+        let output_path = test_dir.join("output.json");
+        if let Ok(content) = std::fs::read_to_string(&output_path) {
+            // look for non-empty errors array: "errors": [ followed by content before ]
+            if let Some(errors_start) = content.find("\"errors\":") {
+                let after_errors = &content[errors_start..];
+                // check if there's actual content in the errors array (not just "errors": [])
+                if let Some(bracket_start) = after_errors.find('[') {
+                    let after_bracket = &after_errors[bracket_start + 1..];
+                    // trim whitespace and check if next char is not ]
+                    let trimmed = after_bracket.trim_start();
+                    if !trimmed.starts_with(']') {
+                        return true;
+                    }
+                }
             }
         }
 

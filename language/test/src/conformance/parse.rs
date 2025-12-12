@@ -1,3 +1,4 @@
+use std::panic::AssertUnwindSafe;
 use std::path::Path;
 use std::sync::Arc;
 
@@ -56,8 +57,16 @@ pub(super) fn parse_file(
     };
 
     // run import (parse) and bind phases (including validation)
+    // catch panics to treat them as errors (some malformed code causes panics in bind)
     compiler.enqueue(BindTask::BindModuleValidate { module: module_id });
-    compiler.compile();
+    let result = std::panic::catch_unwind(AssertUnwindSafe(|| {
+        compiler.compile();
+    }));
+
+    // panics during compilation are treated as errors
+    if result.is_err() {
+        return ParseOutcome::Error;
+    }
 
     // check for any errors (parse or bind)
     if program.diagnostics.has_diagnostics_of_severity(DiagnosticSeverity::Error) {

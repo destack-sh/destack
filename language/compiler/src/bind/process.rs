@@ -103,6 +103,8 @@ impl Compiler {
 
     /// Validate a module after binding into DIR.
     fn bind_module_validate(&self, module: &Module) {
-        self.bind_validate_scopes(module);
+        self.validate_binding_names(module);
+        self.validate_binding_conflicts(module);
+        self.validate_flow(module);
     }
 }
