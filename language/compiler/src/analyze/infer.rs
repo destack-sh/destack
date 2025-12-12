@@ -494,9 +494,10 @@ impl Compiler {
                 let left_ty = types.get_type(left_ty_id).clone();
 
                 // look up member type on the left type (including extensions)
+                let mut visited = Vec::new();
                 let member_key = StaticKey::Name(*name);
                 if let Some(member_ty_id) =
-                    self.infer_member_type(module, &left_ty, &member_key, types)
+                    self.infer_member_of_type(module, &left_ty, &member_key, types, &mut visited)
                 {
                     member_ty_id
                 } else {

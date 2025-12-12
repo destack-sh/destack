@@ -481,14 +481,13 @@ impl Compiler {
     }
 
     /// Infer the type of a member field on a type by key.
-    ///
-    /// The `module` parameter is the current module, used for extension visibility checks.
-    pub(super) fn infer_member_type(
+    pub(super) fn infer_member_of_type(
         &self,
         module: &Module,
         receiver_ty: &Type,
         member_key: &StaticKey,
         types: &mut TypeTable,
+        visited: &mut Vec<GlobalSymbolId>,
     ) -> Option<LocalTypeId> {
         match receiver_ty {
             // object type: look up field directly
@@ -498,19 +497,16 @@ impl Compiler {
             Type::Reference {
                 symbol,
                 static_arguments: None,
-            } => {
-                let mut visited = Vec::new();
-                self.infer_member_type_for_symbol(module, *symbol, member_key, types, &mut visited)
-            }
+            } => self.infer_member_of_symbol(module, *symbol, member_key, types, visited),
 
             // union type: require all elements to have the field, return union of field types
             Type::Union { elements } => {
-                let elem_ids = elements.clone();
+                let element_ids = elements.clone();
                 let mut field_types: Vec<LocalTypeId> = Vec::new();
-                for elem_id in elem_ids {
-                    let elem_ty = types.get_type(elem_id).clone();
+                for element_id in element_ids {
+                    let element_ty = types.get_type(element_id).clone();
                     if let Some(field_ty) =
-                        self.infer_member_type(module, &elem_ty, member_key, types)
+                        self.infer_member_of_type(module, &element_ty, member_key, types, visited)
                     {
                         field_types.push(field_ty);
                     } else {
@@ -538,11 +534,11 @@ impl Compiler {
 
             // intersection type: first match wins
             Type::Intersection { elements } => {
-                let elem_ids = elements.clone();
-                for elem_id in elem_ids {
-                    let elem_ty = types.get_type(elem_id).clone();
+                let element_ids = elements.clone();
+                for element_id in element_ids {
+                    let element_ty = types.get_type(element_id).clone();
                     if let Some(field_ty) =
-                        self.infer_member_type(module, &elem_ty, member_key, types)
+                        self.infer_member_of_type(module, &element_ty, member_key, types, visited)
                     {
                         return Some(field_ty);
                     }
@@ -555,7 +551,7 @@ impl Compiler {
     }
 
     /// Infer member type for a nominal type symbol, traversing lineage and extensions.
-    fn infer_member_type_for_symbol(
+    fn infer_member_of_symbol(
         &self,
         module: &Module,
         symbol: GlobalSymbolId,
@@ -564,6 +560,7 @@ impl Compiler {
         visited: &mut Vec<GlobalSymbolId>,
     ) -> Option<LocalTypeId> {
         // cycle detection: if we've already visited this symbol, stop
+        // NOTE #Suspicious: should we really just return None for already-visited symbol types?
         if visited.contains(&symbol) {
             return None;
         }
@@ -572,7 +569,9 @@ impl Compiler {
         // step 1: look up in the type's own instance type
         if let Some(ty_id) = types.get_instance_type_id(symbol) {
             let ty = types.get_type(ty_id).clone();
-            if let Some(member_ty) = self.infer_member_type(module, &ty, member_key, types) {
+            if let Some(member_ty) =
+                self.infer_member_of_type(module, &ty, member_key, types, visited)
+            {
                 return Some(member_ty);
             }
         }
@@ -582,20 +581,16 @@ impl Compiler {
             // check parent type (extends)
             if let Some(extends) = lineage.extends
                 && let Some(member_ty) =
-                    self.infer_member_type_for_symbol(module, extends, member_key, types, visited)
+                    self.infer_member_of_symbol(module, extends, member_key, types, visited)
             {
                 return Some(member_ty);
             }
 
             // check implemented interfaces
             for implements in &lineage.implements {
-                if let Some(member_ty) = self.infer_member_type_for_symbol(
-                    module,
-                    *implements,
-                    member_key,
-                    types,
-                    visited,
-                ) {
+                if let Some(member_ty) =
+                    self.infer_member_of_symbol(module, *implements, member_key, types, visited)
+                {
                     return Some(member_ty);
                 }
             }
@@ -603,7 +598,7 @@ impl Compiler {
             // check embedded types
             for embedded in &lineage.embedded {
                 if let Some(member_ty) =
-                    self.infer_member_type_for_symbol(module, *embedded, member_key, types, visited)
+                    self.infer_member_of_symbol(module, *embedded, member_key, types, visited)
                 {
                     return Some(member_ty);
                 }
@@ -611,33 +606,12 @@ impl Compiler {
         }
 
         // step 3: check visible extensions
-        if let Some(member_ty) =
-            self.infer_member_type_from_extensions(module, symbol, member_key, types)
-        {
-            return Some(member_ty);
-        }
-
-        None
-    }
-
-    /// Infer member type from visible extensions targeting the given symbol.
-    fn infer_member_type_from_extensions(
-        &self,
-        module: &Module,
-        target_symbol: GlobalSymbolId,
-        member_key: &StaticKey,
-        types: &TypeTable,
-    ) -> Option<LocalTypeId> {
-        let extension_ids = types.get_extensions_for_target(target_symbol)?.clone();
+        let extension_ids = types.get_extensions_for_target(symbol)?.clone();
         for extension_id in extension_ids {
             let extension = types.get_extension(extension_id);
-
-            // check visibility
             if !self.is_extension_visible(module, extension) {
                 continue;
             }
-
-            // look up member in extension's instance type
             if let Some(ty_id) = types.get_instance_type_id(extension.symbol) {
                 let ty = types.get_type(ty_id);
                 if let Type::Object { fields } = ty
@@ -663,7 +637,7 @@ impl Compiler {
                 if extension.symbol.module_id == module.id {
                     return true;
                 }
-                // nocheckin TODO #Incomplete: extensions
+                // nocheckin TODO #Incomplete: local/named extensions
                 false
             }
         }
@@ -735,12 +709,12 @@ impl Compiler {
                 types.insert_type_from(Type::Array { element: None }, expression_id)
             }
             Type::Array {
-                element: Some(elem_id),
+                element: Some(element_id),
             } => {
-                let elem_ty = remote_types.get_type(*elem_id);
+                let element_ty = remote_types.get_type(*element_id);
                 let local_elem = self.import_type_from_remote(
                     expression_id,
-                    elem_ty,
+                    element_ty,
                     remote_types,
                     target_symbol,
                     types,
