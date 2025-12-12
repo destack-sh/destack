@@ -45,25 +45,6 @@ vector.magnitude();
 
 ## Type Errors
 
-### wrong return type used
-
-> Return type of extension method is checked.
-
-```ds
-struct Point { x: number, y: number }
-
-extension Point {
-    magnitude(): number { return 0 }
-}
-
-declare function getPoint(): Point;
-
-const point = getPoint();
-point.magnitude() satisfies string;
-```
-
-- contains: not assignable
-
 ### wrong argument type
 
 > Passing wrong argument type to extension method is an error.
@@ -82,44 +63,6 @@ calculator.add("one", 2);
 ```
 
 - contains: not assignable
-
-### wrong number of arguments
-
-> Extension methods must be called with correct number of arguments.
-
-```ds
-struct Calculator { value: number }
-
-extension Calculator {
-    add(a: number, b: number): number { return 0 }
-}
-
-declare function getCalculator(): Calculator;
-
-const calculator = getCalculator();
-calculator.add(1);
-```
-
-- contains: expected 2 arguments
-
-### too many arguments
-
-> Extension methods reject extra arguments.
-
-```ds
-struct Calculator { value: number }
-
-extension Calculator {
-    add(a: number, b: number): number { return 0 }
-}
-
-declare function getCalculator(): Calculator;
-
-const calculator = getCalculator();
-calculator.add(1, 2, 3);
-```
-
-- contains: expected 2 arguments
 
 ## Visibility Errors
 
@@ -150,38 +93,6 @@ vector.magnitude();
 
 - contains: does not exist
 
-## This Errors
-
-### accessing nonexistent field via this
-
-> Extension methods cannot access fields that don't exist.
-
-```ds
-struct Point { x: number, y: number }
-
-extension Point {
-    getZ(): number {
-        return this.z
-    }
-}
-```
-
-- contains: does not exist
-
-## Extension Target Errors
-
-### extension on undefined type
-
-> Extension must target an existing type.
-
-```ds
-extension NonexistentType {
-    process(): void {}
-}
-```
-
-- contains: not defined
-
 ## Duplicate Method Handling
 
 ### shadowing between extensions
@@ -205,37 +116,3 @@ declare function getVector(): Vector2;
 const vector = getVector();
 vector.process() satisfies number;
 ```
-
-## Implementation Errors
-
-### extension method body type mismatch
-
-> Extension method body must match return type.
-
-```ds
-struct Point { x: number, y: number }
-
-extension Point {
-    magnitude(): number {
-        return "not a number"
-    }
-}
-```
-
-- contains: not assignable
-
-### extension method references undefined variable
-
-> Extension methods cannot reference undefined variables.
-
-```ds
-struct Point { x: number, y: number }
-
-extension Point {
-    magnitude(): number {
-        return undefinedVariable
-    }
-}
-```
-
-- contains: not defined

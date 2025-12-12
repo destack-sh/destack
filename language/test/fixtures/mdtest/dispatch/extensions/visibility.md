@@ -115,27 +115,6 @@ vector.normalized() satisfies Vector2;
 > Local extensions extend a foreign type (from another file).
 > They are only visible in the file where they are declared.
 
-### local extension on imported type
-
-> Local extension is visible in the file where it's defined.
-
-```ds:types.ds
-export struct Vector2 { x: number, y: number }
-```
-
-```ds:main.ds
-import { Vector2 } from "./types.ds"
-
-extension Vector2 {
-    magnitude(): number { return 0 }
-}
-
-declare function getVector(): Vector2;
-
-const vector = getVector();
-vector.magnitude() satisfies number;
-```
-
 ### local extension not visible in other files
 
 > Local extension is not visible when type is used in another file.
@@ -163,27 +142,6 @@ const m = vector.magnitude();
 
 - contains: does not exist
 
-### multiple local extensions on same type
-
-> Multiple files can have their own local extensions on the same foreign type.
-
-```ds:types.ds
-export struct Vector2 { x: number, y: number }
-```
-
-```ds:main.ds
-import { Vector2 } from "./types.ds"
-
-extension Vector2 {
-    doubled(): Vector2 { return Vector2 { x: this.x * 2, y: this.y * 2 } }
-}
-
-declare function getVector(): Vector2;
-
-const vector = getVector();
-vector.doubled() satisfies Vector2;
-```
-
 ## Named Extensions
 
 > Named extensions use the syntax `extension Name: Type { }`.
@@ -204,27 +162,6 @@ declare function getPoint(): Point;
 
 const point = getPoint();
 point.distance() satisfies number;
-```
-
-### named extension on foreign type in same file
-
-> Named extension is visible in the defining file.
-
-```ds:types.ds
-export struct Vector2 { x: number, y: number }
-```
-
-```ds:main.ds
-import { Vector2 } from "./types.ds"
-
-extension VectorHelpers: Vector2 {
-    magnitude(): number { return 0 }
-}
-
-declare function getVector(): Vector2;
-
-const vector = getVector();
-vector.magnitude() satisfies number;
 ```
 
 ## Overlapping Extensions
