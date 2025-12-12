@@ -21,6 +21,5 @@ We do not expect to reach 100% conformance because:
 
 ## Notes
 
-- **Annex B**: The test262-parser-tests suite we use does not include Annex B tests. We intentionally don't support Annex B (legacy web compatibility features like HTML comments in scripts). This is the same approach SWC takes.
+- **Annex B**: The test262-parser-tests suite we use does not include Annex B tests, so this isn't a factor in our conformance numbers.
 - **Flow**: Intentionally excluded. We support TypeScript only.
-- **Real-world priority**: The babel/swc/biome suites test patterns users actually write. Improving these rates matters more than edge-case test262 compliance.
