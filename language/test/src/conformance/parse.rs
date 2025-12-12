@@ -21,30 +21,25 @@ pub(super) enum ParseOutcome {
 /// What category of errors a test cares about.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub(super) enum TestArea {
-    /// Only parse/import errors (EI*) - pure grammar conformance.
+    /// Pure grammar-level conformance.
     Parse,
-    /// Parse + bind + flow errors (EI*, EB*, EA021-EA023) - early error conformance.
+    /// "Early" error semi-semantic conformance.
     #[default]
     Early,
 }
 
 impl TestArea {
     /// Check if an error code is relevant for this test area.
-    ///
-    /// Error code prefixes:
-    /// - EP*: Parse errors (from parser)
-    /// - EI*: Import errors (module resolution, parse wrapper)
-    /// - EB*: Bind errors (structural/declaration conflicts)
-    /// - EA*: Analyze errors (type inference, flow validation)
     pub(super) fn is_relevant_error(&self, code: &str) -> bool {
         match self {
-            // Parse-only: grammar errors
-            TestArea::Parse => code.starts_with("EP") || code.starts_with("EI"),
-            // Early: grammar + early errors (bind, flow)
+            TestArea::Parse => 
+            code.starts_with("EP") || code.starts_with("EI"),
             TestArea::Early => {
                 code.starts_with("EP")
                     || code.starts_with("EI")
                     || code.starts_with("EB")
+                    // NOTE #Cleanup: use more rigorous error code matching for conformance testing?
+                    || code == "EA020"
                     || code == "EA021"
                     || code == "EA022"
                     || code == "EA023"
