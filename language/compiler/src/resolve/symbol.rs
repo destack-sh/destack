@@ -409,7 +409,7 @@ mod tests {
     #[test]
     fn test_resolve_symbol_in_single_module() {
         let test = TestProgram::memory_sequential();
-        let module_id = test.register_module(
+        let module_id = test.add_module(
             "test.ds",
             r#"
 let x = 0;
@@ -479,7 +479,7 @@ let z = y;
 export let A = 1;
             "#,
         );
-        let module_b_id = test.register_module(
+        let module_b_id = test.add_module(
             "b.ds",
             r#"
 import { A } from "./a.ds";
@@ -584,7 +584,7 @@ export let M{i} = {sum_expression_str} + 1;
 export let M{N} = {sum_expression_str} + 1;
 "#
             );
-            let module_id = test.register_module(&format!("m{N}.ds"), &content);
+            let module_id = test.add_module(&format!("m{N}.ds"), &content);
             test.resolve_module(module_id);
         }
         test.compile_dump_clean();
@@ -604,7 +604,7 @@ export let M{N} = {sum_expression_str} + 1;
 export let A = 1;
             "#,
         );
-        let module_b_id = test.register_module(
+        let module_b_id = test.add_module(
             "b.ds",
             r#"
 import { A } from "./a.ds";
@@ -631,7 +631,7 @@ export let B = A + 1;
     #[test]
     fn test_resolve_symbol_multilevel_type_alias() {
         let test = TestProgram::memory_sequential();
-        let module_id = test.register_module(
+        let module_id = test.add_module(
             "test.ds",
             r#"
 struct Foo {}
@@ -663,7 +663,7 @@ type Bar = Baz;
     #[test]
     fn test_detect_cyclic_type_alias() {
         let test = TestProgram::memory_parallel();
-        let module_id = test.register_module(
+        let module_id = test.add_module(
             "test.ds",
             r#"
 type A = B;
@@ -697,7 +697,7 @@ export let X = 1;
 export let Y = 2;
 "#,
         );
-        let module_b_id = test.register_module(
+        let module_b_id = test.add_module(
             "b.ds",
             r#"
 import * as A from "./a.ds";
@@ -727,7 +727,7 @@ let value = 42;
 export default value;
 "#,
         );
-        let module_b_id = test.register_module(
+        let module_b_id = test.add_module(
             "b.ds",
             r#"
 import DefaultValue from "./a.ds";
@@ -764,7 +764,7 @@ export let X = 1;
 export { X } from "./a.ds";
 "#,
         );
-        let module_c_id = test.register_module(
+        let module_c_id = test.add_module(
             "c.ds",
             r#"
 import { X } from "./b.ds";
@@ -851,7 +851,7 @@ export * as Base from "./base.ds";
         );
 
         // consumer: imports from all relay modules
-        let consumer_id = test.register_module(
+        let consumer_id = test.add_module(
             "consumer.ds",
             r#"
 // named import from relay
@@ -958,7 +958,7 @@ let sum = VALUE_A + RENAMED_B + BaseDefault + BaseNS.VALUE_A + DefaultFromBase +
     #[test]
     fn test_resolve_path_to_member() {
         let test = TestProgram::memory_sequential();
-        let module_id = test.register_module(
+        let module_id = test.add_module(
             "test.ds",
             r#"
 let obj = { x: 42, y: "hello" };
@@ -1008,7 +1008,7 @@ let b = obj.y;
     #[test]
     fn test_resolve_chained_member_access() {
         let test = TestProgram::memory_sequential();
-        let module_id = test.register_module(
+        let module_id = test.add_module(
             "test.ds",
             r#"
 let obj = { inner: { value: 42 } };
@@ -1061,7 +1061,7 @@ import { A } from "./a.ds";
 export let B = 0;
 "#,
         );
-        let module_id = test.register_module(
+        let module_id = test.add_module(
             "main.ds",
             r#"
 import { A } from "./a.ds";
@@ -1108,7 +1108,7 @@ export { A } from "./a.ds";
 export let B = 2;
 "#,
         );
-        let module_id = test.register_module(
+        let module_id = test.add_module(
             "main.ds",
             r#"
 import { A, B } from "./b.ds";
@@ -1149,7 +1149,7 @@ export * from "./a.ds";
 export let B = 2;
 "#,
         );
-        let module_id = test.register_module(
+        let module_id = test.add_module(
             "main.ds",
             r#"
 import { A, B } from "./b.ds";
@@ -1197,7 +1197,7 @@ import { B } from "./b.ds";
 export let C = 3;
 "#,
         );
-        let module_id = test.register_module(
+        let module_id = test.add_module(
             "main.ds",
             r#"
 import { A } from "./a.ds";
@@ -1241,7 +1241,7 @@ export * from "./a.ds";
 export let Y = 2;
 "#,
         );
-        let module_id = test.register_module(
+        let module_id = test.add_module(
             "main.ds",
             r#"
 import { X, Y } from "./a.ds";
@@ -1278,7 +1278,7 @@ export { X } from "./b.ds";
 export { X } from "./a.ds";
 "#,
         );
-        let module_id = test.register_module(
+        let module_id = test.add_module(
             "main.ds",
             r#"
 import { X } from "./a.ds";

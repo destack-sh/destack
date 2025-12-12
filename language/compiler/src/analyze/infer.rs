@@ -2146,7 +2146,7 @@ mod tests {
     #[test]
     fn test_analyze_number_literal() {
         let test = TestProgram::memory_sequential();
-        let module_id = test.register_module("test.ds", "42");
+        let module_id = test.add_module("test.ds", "42");
         test.analyze_module(module_id);
         test.compile_dump_clean();
 
@@ -2179,7 +2179,7 @@ mod tests {
     #[test]
     fn test_analyze_string_literal() {
         let test = TestProgram::memory_sequential();
-        let module_id = test.register_module("test.ds", r#""hello""#);
+        let module_id = test.add_module("test.ds", r#""hello""#);
         test.analyze_module(module_id);
         test.compile_dump_clean();
 
@@ -2212,7 +2212,7 @@ mod tests {
     #[test]
     fn test_analyze_boolean_literal() {
         let test = TestProgram::memory_sequential();
-        let module_id = test.register_module("test.ds", "true");
+        let module_id = test.add_module("test.ds", "true");
         test.analyze_module(module_id);
         test.compile_dump_clean();
 
@@ -2245,7 +2245,7 @@ mod tests {
     #[test]
     fn test_analyze_binary_number_operation() {
         let test = TestProgram::memory_sequential();
-        let module_id = test.register_module("test.ds", "1 + 2");
+        let module_id = test.add_module("test.ds", "1 + 2");
         test.analyze_module(module_id);
         test.compile_dump_clean();
 
@@ -2278,7 +2278,7 @@ mod tests {
     #[test]
     fn test_analyze_binary_number_comparison() {
         let test = TestProgram::memory_sequential();
-        let module_id = test.register_module("test.ds", "1 < 2");
+        let module_id = test.add_module("test.ds", "1 < 2");
         test.analyze_module(module_id);
         test.compile_dump_clean();
 
@@ -2311,7 +2311,7 @@ mod tests {
     #[test]
     fn test_analyze_let_expression_infer_type() {
         let test = TestProgram::memory_sequential();
-        let module_id = test.register_module("test.ds", "let x = 42");
+        let module_id = test.add_module("test.ds", "let x = 42");
         test.analyze_module(module_id);
         test.compile_dump_clean();
 
@@ -2346,7 +2346,7 @@ mod tests {
     fn test_analyze_let_expression_declare_type() {
         // use compatible types: string annotation with string value
         let test = TestProgram::memory_sequential();
-        let module_id = test.register_module("test.ds", r#"let x: string = "hello""#);
+        let module_id = test.add_module("test.ds", r#"let x: string = "hello""#);
         test.analyze_module(module_id);
         test.compile_dump_clean();
 
@@ -2397,7 +2397,7 @@ mod tests {
     #[test]
     fn test_analyze_let_expression_infer_tuple_type_with_pattern() {
         let test = TestProgram::memory_sequential();
-        let module_id = test.register_module(
+        let module_id = test.add_module(
             "test.ds",
             r#"
 let (x, y, ...rest, z) = (123, 'abc', true, 456);
@@ -2458,7 +2458,7 @@ let (x, y, ...rest, z) = (123, 'abc', true, 456);
     #[test]
     fn test_analyze_let_expression_infer_array_tuple_type_with_pattern() {
         let test = TestProgram::memory_sequential();
-        let module_id = test.register_module(
+        let module_id = test.add_module(
             "test.ds",
             r#"
 let [x, y, ...rest, z] = [123, 'abc', true, 456]; // array used as a tuple
@@ -2525,7 +2525,7 @@ let [x, y, ...rest, z] = [123, 'abc', true, 456]; // array used as a tuple
 export let value = 42;
 "#,
         );
-        let module_id = test.register_module(
+        let module_id = test.add_module(
             "main.ds",
             r#"
 import { value } from "./lib.ds";
@@ -2562,7 +2562,7 @@ let x = value;
 export let items = [1, 2, 3];
 "#,
         );
-        let module_id = test.register_module(
+        let module_id = test.add_module(
             "main.ds",
             r#"
 import { items } from "./lib.ds";
@@ -2599,7 +2599,7 @@ let x = items;
 export let greeting = "hello";
 "#,
         );
-        let module_id = test.register_module(
+        let module_id = test.add_module(
             "main.ds",
             r#"
 import { greeting } from "./lib.ds";
@@ -2651,7 +2651,7 @@ export struct B { value: A }
 export function helperB(): B { throw "not implemented" }
 "#,
         );
-        let module_id = test.register_module(
+        let module_id = test.add_module(
             "main.ds",
             r#"
 import { A, helperA } from "./a.ds";

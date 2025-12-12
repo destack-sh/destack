@@ -168,7 +168,16 @@ impl Program {
             .and_then(ModuleType::from_extension)
             .unwrap_or(ModuleType::Script);
         let language_type = LanguageType::from(ty);
-        let module = Module::blank(module_id, file_id, uri, None, package_id, None, module_type, language_type);
+        let module = Module::blank(
+            module_id,
+            file_id,
+            uri,
+            None,
+            package_id,
+            None,
+            module_type,
+            language_type,
+        );
         self.modules.insert(module);
 
         module_id

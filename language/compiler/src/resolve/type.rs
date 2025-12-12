@@ -147,7 +147,7 @@ mod tests {
     #[test]
     fn test_resolve_builtin_types_in_value_position() {
         let test = TestProgram::memory_sequential();
-        let module_id = test.register_module(
+        let module_id = test.add_module(
             "test.ds",
             r#"
 int;
@@ -250,7 +250,7 @@ string;
     #[test]
     fn test_variable_shadows_builtin_type() {
         let test = TestProgram::memory_sequential();
-        let module_id = test.register_module(
+        let module_id = test.add_module(
             "test.ds",
             r#"
 let string: string = "hello";
@@ -280,7 +280,7 @@ string;
     #[test]
     fn test_self_type_in_struct() {
         let test = TestProgram::memory_sequential();
-        let module_id = test.register_module(
+        let module_id = test.add_module(
             "test.ds",
             r#"
 struct Foo {
@@ -325,7 +325,7 @@ struct Foo {
     #[test]
     fn test_self_type_outside_type_errors() {
         let test = TestProgram::memory_sequential();
-        let module_id = test.register_module(
+        let module_id = test.add_module(
             "test.ds",
             r#"
 let x: Self = 1;

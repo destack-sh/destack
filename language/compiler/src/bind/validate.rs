@@ -65,7 +65,7 @@ mod tests {
     #[test]
     fn test_redeclare_locals_allowed_by_default() {
         let test = TestProgram::memory_sequential();
-        let module_id = test.register_module(
+        let module_id = test.add_module(
             "test.ds",
             r#"
 let x = 1;
@@ -83,19 +83,8 @@ let x = 2;
     #[test]
     fn test_redeclare_locals_forbidden_by_dsconfig() {
         let test = TestProgram::memory_sequential();
-        test.add_file(
-            "dsconfig.json",
-            r#"{
-                "compilerOptions": {
-                    "noRedeclaredLocals": true
-                }
-            }"#,
-        );
-        test.add_file(
-            "package.json",
-            r#"{ "name": "test-pkg" }"#,
-        );
-        let module_id = test.register_module(
+        test.add_package("test", Some(r#""noRedeclaredLocals": true"#));
+        let module_id = test.add_module(
             "test.ds",
             r#"
 let x = 1;

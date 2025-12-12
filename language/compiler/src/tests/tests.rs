@@ -149,8 +149,24 @@ impl TestProgram {
         }
     }
 
+    /// Add a package.json and optionally dsconfig.json to the memory filesystem.
+    ///
+    /// `dsconfig_compiler_options` is the raw JSON content for `compilerOptions`, e.g.:
+    /// ```ignore
+    /// test.add_package("my-pkg", Some(r#""noRedeclaredLocals": true"#));
+    /// ```
+    pub fn add_package(&self, name: &str, dsconfig_compiler_options: Option<&str>) {
+        self.add_file("package.json", &format!(r#"{{ "name": "{name}" }}"#));
+        if let Some(opts) = dsconfig_compiler_options {
+            self.add_file(
+                "dsconfig.json",
+                &format!(r#"{{ "compilerOptions": {{ {opts} }} }}"#),
+            );
+        }
+    }
+
     /// Add a file and register a blank module for it (no import/parsing yet).
-    pub fn register_module(&self, path: &str, content: &str) -> ModuleId {
+    pub fn add_module(&self, path: &str, content: &str) -> ModuleId {
         self.add_file(path, content);
         self.compiler
             .resolve_path_to_module(&PathBuf::from(path))

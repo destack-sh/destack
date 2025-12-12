@@ -406,7 +406,7 @@ mod tests {
     #[test]
     fn test_format_type_primitives() {
         let test = TestProgram::memory_sequential();
-        let module_id = test.register_module("test.ds", "declare let a: number");
+        let module_id = test.add_module("test.ds", "declare let a: number");
         test.analyze_module(module_id);
 
         let types = [
@@ -439,7 +439,7 @@ mod tests {
     #[test]
     fn test_format_type_literals() {
         let test = TestProgram::memory_sequential();
-        let module_id = test.register_module("test.ds", "declare let a: any");
+        let module_id = test.add_module("test.ds", "declare let a: any");
         test.analyze_module(module_id);
 
         let types = [
@@ -467,7 +467,7 @@ mod tests {
     #[test]
     fn test_format_scalar_literals() {
         let test = TestProgram::memory_sequential();
-        let module_id = test.register_module("test.ds", "declare let a: 42");
+        let module_id = test.add_module("test.ds", "declare let a: 42");
         test.analyze_module(module_id);
 
         let module = test.program.modules.get(module_id);
@@ -522,7 +522,7 @@ mod tests {
     #[test]
     fn test_format_array_types() {
         let test = TestProgram::memory_sequential();
-        let module_id = test.register_module("test.ds", "declare let a: number[]");
+        let module_id = test.add_module("test.ds", "declare let a: number[]");
         test.analyze_module(module_id);
 
         let module = test.program.modules.get(module_id);
@@ -562,7 +562,7 @@ mod tests {
     #[test]
     fn test_format_tuple_types() {
         let test = TestProgram::memory_sequential();
-        let module_id = test.register_module("test.ds", "declare let a: (number, string)");
+        let module_id = test.add_module("test.ds", "declare let a: (number, string)");
         test.analyze_module(module_id);
 
         let module = test.program.modules.get(module_id);
@@ -602,7 +602,7 @@ mod tests {
     #[test]
     fn test_format_union_intersection_types() {
         let test = TestProgram::memory_sequential();
-        let module_id = test.register_module("test.ds", "declare let a: number | string");
+        let module_id = test.add_module("test.ds", "declare let a: number | string");
         test.analyze_module(module_id);
 
         let module = test.program.modules.get(module_id);
@@ -642,7 +642,7 @@ mod tests {
     #[test]
     fn test_format_function_types() {
         let test = TestProgram::memory_sequential();
-        let module_id = test.register_module("test.ds", "declare let f: () -> void");
+        let module_id = test.add_module("test.ds", "declare let f: () -> void");
         test.analyze_module(module_id);
 
         let module = test.program.modules.get(module_id);
@@ -705,7 +705,7 @@ mod tests {
     #[test]
     fn test_format_error_and_unevaluated() {
         let test = TestProgram::memory_sequential();
-        let module_id = test.register_module("test.ds", "declare let a: any");
+        let module_id = test.add_module("test.ds", "declare let a: any");
         test.analyze_module(module_id);
 
         let module = test.program.modules.get(module_id);

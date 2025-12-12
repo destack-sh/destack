@@ -88,7 +88,7 @@ mod tests {
     #[test]
     fn test_resolve_type_alias_target_symbol() {
         let test = TestProgram::memory_sequential();
-        let module_id = test.register_module(
+        let module_id = test.add_module(
             "test.ds",
             r#"
 struct Foo {}
@@ -121,7 +121,7 @@ type Bar = Foo;
     #[test]
     fn test_resolve_extension_target_symbol() {
         let test = TestProgram::memory_sequential();
-        let module_id = test.register_module(
+        let module_id = test.add_module(
             "test.ds",
             r#"
 struct Foo {}
