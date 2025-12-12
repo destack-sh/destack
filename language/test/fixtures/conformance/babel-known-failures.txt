@@ -125,8 +125,7 @@ typescript/exponentiation/await-non-null-before-exponential
 typescript/exponentiation/unary-non-null-before-exponential
 typescript/export/declare-invalid
 typescript/export/double-declare
-typescript/export/equals
-typescript/export/equals-in-unambiguous
+typescript/export/equals-in-script
 typescript/function/anonymous-generator
 typescript/function/declare
 typescript/function/empty-type-parameters

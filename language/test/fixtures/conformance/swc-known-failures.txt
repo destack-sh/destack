@@ -74,7 +74,6 @@ typescript/decorators/parameter/input.ts
 typescript/decorators/type-arguments/input.ts
 typescript/deno/dso/reflect/input.ts
 typescript/es2019/from-entries/input.ts
-typescript/export/equals/input.ts
 typescript/function/declare/input.ts
 typescript/function/overloads/input.ts
 typescript/import/equals-require/input.ts
