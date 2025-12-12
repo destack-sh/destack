@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::collections::{BTreeMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::mpsc;
@@ -88,6 +88,11 @@ pub trait ConformanceSuite: Send + Sync + Clone {
 
     /// Instructions for downloading the suite.
     fn download_instructions(&self) -> String;
+
+    /// Extract category from test name (default: first path segment).
+    fn category_for_test(&self, test_name: &str) -> String {
+        test_name.split('/').next().unwrap_or("unknown").to_string()
+    }
 }
 
 /// Internal result including timeout state.
@@ -125,6 +130,28 @@ fn run_test_with_timeout<S: ConformanceSuite + 'static>(
     }
 }
 
+/// Per-category statistics.
+#[derive(Debug, Clone, Default)]
+pub struct CategoryStats {
+    pub passed: usize,
+    pub failed: usize,
+}
+
+impl CategoryStats {
+    pub fn total(&self) -> usize {
+        self.passed + self.failed
+    }
+
+    pub fn pass_rate(&self) -> f64 {
+        let total = self.total();
+        if total == 0 {
+            100.0
+        } else {
+            self.passed as f64 / total as f64 * 100.0
+        }
+    }
+}
+
 /// Result of a conformance test run.
 #[derive(Debug)]
 pub struct ConformanceResult {
@@ -138,6 +165,8 @@ pub struct ConformanceResult {
     pub fixed: Vec<String>,
     /// tests that timed out (likely infinite loops)
     pub timeouts: Vec<String>,
+    /// per-category breakdown (category name -> stats)
+    pub categories: BTreeMap<String, CategoryStats>,
 }
 
 impl ConformanceResult {
@@ -292,17 +321,24 @@ pub fn run_conformance_suite<S: ConformanceSuite + 'static>(
     let mut fixed = Vec::new();
     let mut timeouts = Vec::new();
     let mut current_failures = HashSet::new();
+    let mut categories: BTreeMap<String, CategoryStats> = BTreeMap::new();
 
     for (name, outcome) in results {
+        // extract category from test name (suite-specific)
+        let category = suite.category_for_test(&name);
+        let cat_stats = categories.entry(category).or_default();
+
         match outcome {
             TestResult::Passed => {
                 passed += 1;
+                cat_stats.passed += 1;
                 if known_failures.contains(&name) {
                     fixed.push(name);
                 }
             }
             TestResult::Failed => {
                 failed += 1;
+                cat_stats.failed += 1;
                 if !known_failures.contains(&name) {
                     regressions.push(name.clone());
                 }
@@ -310,6 +346,7 @@ pub fn run_conformance_suite<S: ConformanceSuite + 'static>(
             }
             TestResult::TimedOut => {
                 timedout += 1;
+                cat_stats.failed += 1; // count timeouts as failures in category
                 timeouts.push(name.clone());
                 if !known_failures.contains(&name) {
                     regressions.push(name.clone());
@@ -345,6 +382,7 @@ pub fn run_conformance_suite<S: ConformanceSuite + 'static>(
         regressions,
         fixed,
         timeouts,
+        categories,
     };
 
     // print results
@@ -358,7 +396,7 @@ pub fn run_conformance_suite<S: ConformanceSuite + 'static>(
 }
 
 /// Print a summary table of all suite results.
-pub fn print_summary(results: &[SuiteResult]) {
+pub fn print_summary(results: &[SuiteResult], baseline: Option<&ReadmeResults>) {
     if results.len() <= 1 {
         return; // no summary needed for single suite
     }
@@ -375,6 +413,19 @@ pub fn print_summary(results: &[SuiteResult]) {
     } else {
         100.0
     };
+
+    // compute old totals for delta
+    let old_total_rate = baseline
+        .map(|b| {
+            let passed: usize = b.rows.iter().map(|r| r.passed).sum();
+            let total: usize = b.rows.iter().map(|r| r.total).sum();
+            if total > 0 {
+                passed as f64 / total as f64 * 100.0
+            } else {
+                0.0
+            }
+        })
+        .unwrap_or(0.0);
 
     println!();
     println!(
@@ -393,15 +444,15 @@ pub fn print_summary(results: &[SuiteResult]) {
 
     // header
     println!(
-        "  {:10}  {:>8}  {:>8}  {:>8}  {:>8}",
-        "Suite", "Passed", "Failed", "Total", "Rate"
+        "  {:10}  {:>8}  {:>8}  {:>8}  {:>8}  {:>10}",
+        "Suite", "Passed", "Failed", "Total", "Rate", "Δ Rate"
     );
-    println!("  {}", "─".repeat(52));
+    println!("  {}", "─".repeat(64));
 
     // rows - pad values before coloring to maintain alignment
     for r in results {
         let rate = r.result.pass_rate();
-        let rate_str = format!("{rate:>6.1}%");
+        let rate_str = format!("{rate:>7.2}%");
         let rate_colored = if rate >= 90.0 {
             color::green(&rate_str)
         } else if rate >= 50.0 {
@@ -410,23 +461,31 @@ pub fn print_summary(results: &[SuiteResult]) {
             color::red(&rate_str)
         };
 
+        // compute delta from baseline
+        let rate_delta = baseline
+            .and_then(|b| b.find(&r.name))
+            .map(|old| rate - old.rate)
+            .unwrap_or(0.0);
+        let delta_str = format_rate_delta_inline(rate_delta);
+
         let name = format!("{:10}", r.name);
         let passed = format!("{:>8}", r.result.passed);
         let failed = format!("{:>8}", r.result.failed);
 
         println!(
-            "  {}  {}  {}  {:>8}  {}",
+            "  {}  {}  {}  {:>8}  {}  {}",
             color::cyan(&name),
             color::green(&passed),
             color::red(&failed),
             r.result.total(),
-            rate_colored
+            rate_colored,
+            delta_str
         );
     }
 
     // total row
-    println!("  {}", "─".repeat(52));
-    let total_rate_str = format!("{overall_rate:>6.1}%");
+    println!("  {}", "─".repeat(64));
+    let total_rate_str = format!("{overall_rate:>7.2}%");
     let total_rate_colored = if overall_rate >= 90.0 {
         color::green(&total_rate_str)
     } else if overall_rate >= 50.0 {
@@ -435,17 +494,25 @@ pub fn print_summary(results: &[SuiteResult]) {
         color::red(&total_rate_str)
     };
 
+    let total_rate_delta = if baseline.is_some() {
+        overall_rate - old_total_rate
+    } else {
+        0.0
+    };
+    let total_delta_str = format_rate_delta_inline(total_rate_delta);
+
     let total_label = format!("{:10}", "TOTAL");
     let total_passed_str = format!("{total_passed:>8}");
     let total_failed_str = format!("{:>8}", total_failed + total_timedout);
 
     println!(
-        "  {}  {}  {}  {:>8}  {}",
+        "  {}  {}  {}  {:>8}  {}  {}",
         color::bold(&total_label),
         color::green(&total_passed_str),
         color::red(&total_failed_str),
         total_tests,
-        total_rate_colored
+        total_rate_colored,
+        total_delta_str
     );
     println!();
 
@@ -484,6 +551,16 @@ pub fn print_summary(results: &[SuiteResult]) {
     println!();
 }
 
+fn format_rate_delta_inline(delta: f64) -> String {
+    if delta > 0.005 {
+        color::green(&format!("{delta:>+8.2}%"))
+    } else if delta < -0.005 {
+        color::red(&format!("{delta:>+8.2}%"))
+    } else {
+        color::dim(&format!("{:>9}", "±0.00%"))
+    }
+}
+
 /// Print conformance test results with colors.
 fn print_conformance_result(
     suite_name: &str,
@@ -495,11 +572,11 @@ fn print_conformance_result(
 
     // header with pass rate
     let rate_color = if pass_rate >= 90.0 {
-        color::green(&format!("{pass_rate:.1}%"))
+        color::green(&format!("{pass_rate:.2}%"))
     } else if pass_rate >= 50.0 {
-        color::yellow(&format!("{pass_rate:.1}%"))
+        color::yellow(&format!("{pass_rate:.2}%"))
     } else {
-        color::red(&format!("{pass_rate:.1}%"))
+        color::red(&format!("{pass_rate:.2}%"))
     };
 
     println!();
@@ -514,13 +591,13 @@ fn print_conformance_result(
 
     // breakdown
     println!(
-        "  {}  {:>5}  ({:.1}%)",
+        "  {}  {:>5}  ({:.2}%)",
         color::green("passed:"),
         result.passed,
         result.passed as f64 / total as f64 * 100.0
     );
     println!(
-        "  {}  {:>5}  ({:.1}%)",
+        "  {}  {:>5}  ({:.2}%)",
         color::red("failed:"),
         result.failed,
         result.failed as f64 / total as f64 * 100.0
@@ -530,7 +607,7 @@ fn print_conformance_result(
     }
     if result.timedout > 0 {
         println!(
-            "  {} {:>5}  ({:.1}%)",
+            "  {} {:>5}  ({:.2}%)",
             color::yellow("timeout:"),
             result.timedout,
             result.timedout as f64 / total as f64 * 100.0
@@ -540,6 +617,30 @@ fn print_conformance_result(
         "  {}",
         color::dim(&format!("finished in {:.2}s", duration.as_secs_f64()))
     );
+
+    // category breakdown (if more than one category)
+    if result.categories.len() > 1 {
+        println!();
+        println!("  {}", color::bold("by category:"));
+        for (category, stats) in &result.categories {
+            let rate = stats.pass_rate();
+            let rate_str = format!("{rate:>6.2}%");
+            let rate_colored = if rate >= 90.0 {
+                color::green(&rate_str)
+            } else if rate >= 50.0 {
+                color::yellow(&rate_str)
+            } else {
+                color::red(&rate_str)
+            };
+            println!(
+                "    {:<20}  {:>5} / {:<5}  {}",
+                category,
+                stats.passed,
+                stats.total(),
+                rate_colored
+            );
+        }
+    }
     println!();
 
     // timeouts (separate from regressions for visibility)
@@ -621,5 +722,407 @@ fn print_conformance_result(
         );
     } else {
         println!("test result: {}.", color::green("ok"));
+    }
+}
+
+// ============================================================================
+// README.md auto-update functionality
+// ============================================================================
+
+/// Row data for a suite in the results table.
+#[derive(Debug, Clone, PartialEq)]
+struct ReadmeRow {
+    name: String,
+    passed: usize,
+    failed: usize,
+    total: usize,
+    rate: f64,
+}
+
+impl ReadmeRow {
+    fn from_suite_result(result: &SuiteResult) -> Self {
+        Self {
+            name: result.name.clone(),
+            passed: result.result.passed,
+            failed: result.result.failed + result.result.timedout,
+            total: result.result.total(),
+            rate: result.result.pass_rate(),
+        }
+    }
+
+    /// Format a single row with proper spacing.
+    fn format(&self) -> String {
+        format!(
+            "| {:<8} | {:>5}  | {:>5}  | {:>5} | {:>6.2}% |",
+            self.name, self.passed, self.failed, self.total, self.rate
+        )
+    }
+}
+
+/// Parsed results from README.md.
+#[derive(Debug, Clone)]
+pub struct ReadmeResults {
+    rows: Vec<ReadmeRow>,
+}
+
+impl ReadmeResults {
+    /// Parse a row from the table (returns None for separator/header rows).
+    fn parse_row(line: &str) -> Option<ReadmeRow> {
+        let line = line.trim();
+        if !line.starts_with('|') || !line.ends_with('|') {
+            return None;
+        }
+
+        let parts: Vec<&str> = line.split('|').map(|s| s.trim()).collect();
+        // parts: ["", "name", "passed", "failed", "total", "rate", ""]
+        if parts.len() != 7 {
+            return None;
+        }
+
+        let name = parts[1].to_lowercase();
+        // skip header row and separator
+        if name.is_empty()
+            || name == "suite"
+            || name.starts_with(':')
+            || name.starts_with('-')
+            || name == "total"
+        {
+            return None;
+        }
+
+        let passed: usize = parts[2].parse().ok()?;
+        let failed: usize = parts[3].parse().ok()?;
+        let total: usize = parts[4].parse().ok()?;
+        let rate: f64 = parts[5].trim_end_matches('%').parse().ok()?;
+
+        Some(ReadmeRow {
+            name,
+            passed,
+            failed,
+            total,
+            rate,
+        })
+    }
+
+    /// Parse results from README content.
+    fn parse(content: &str) -> Option<Self> {
+        let begin_marker = "<!-- begin:summary-results -->";
+        let end_marker = "<!-- end:summary-results -->";
+
+        let begin_idx = content.find(begin_marker)?;
+        let end_idx = content.find(end_marker)?;
+        let section = &content[begin_idx + begin_marker.len()..end_idx];
+
+        let rows: Vec<ReadmeRow> = section.lines().filter_map(Self::parse_row).collect();
+
+        Some(Self { rows })
+    }
+
+    /// Find a row by suite name.
+    fn find(&self, name: &str) -> Option<&ReadmeRow> {
+        self.rows.iter().find(|r| r.name == name.to_lowercase())
+    }
+}
+
+/// Load the baseline results from README.md.
+pub fn load_readme_baseline() -> Option<ReadmeResults> {
+    let readme_path = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("src")
+        .join("conformance")
+        .join("README.md");
+
+    let content = std::fs::read_to_string(&readme_path).ok()?;
+    ReadmeResults::parse(&content)
+}
+
+/// Delta between old and new results.
+#[derive(Debug)]
+struct ResultDelta {
+    name: String,
+    passed_delta: i64,
+    failed_delta: i64,
+    total_delta: i64,
+    rate_delta: f64,
+}
+
+impl ResultDelta {
+    fn new(name: &str, old: Option<&ReadmeRow>, new: &ReadmeRow) -> Self {
+        match old {
+            Some(old) => Self {
+                name: name.to_string(),
+                passed_delta: new.passed as i64 - old.passed as i64,
+                failed_delta: new.failed as i64 - old.failed as i64,
+                total_delta: new.total as i64 - old.total as i64,
+                rate_delta: new.rate - old.rate,
+            },
+            None => Self {
+                name: name.to_string(),
+                passed_delta: new.passed as i64,
+                failed_delta: new.failed as i64,
+                total_delta: new.total as i64,
+                rate_delta: new.rate,
+            },
+        }
+    }
+
+    fn has_changes(&self) -> bool {
+        self.passed_delta != 0 || self.failed_delta != 0 || self.total_delta != 0
+    }
+}
+
+/// Replace content between markers in a string.
+/// Returns the new content, or None if markers not found.
+fn replace_section(content: &str, section_name: &str, new_section: &str) -> Option<String> {
+    let begin_marker = format!("<!-- begin:{section_name} -->");
+    let end_marker = format!("<!-- end:{section_name} -->");
+
+    let begin_idx = content.find(&begin_marker)?;
+    let end_idx = content.find(&end_marker)?;
+
+    Some(format!(
+        "{}\n{}\n{}{}",
+        &content[..begin_idx + begin_marker.len()],
+        new_section,
+        end_marker,
+        &content[end_idx + end_marker.len()..]
+    ))
+}
+
+/// Format a category breakdown table for a suite.
+fn format_category_section(categories: &BTreeMap<String, CategoryStats>) -> String {
+    let total_passed: usize = categories.values().map(|s| s.passed).sum();
+    let total_failed: usize = categories.values().map(|s| s.failed).sum();
+    let total_total: usize = categories.values().map(|s| s.total()).sum();
+    let total_rate = if total_total > 0 {
+        total_passed as f64 / total_total as f64 * 100.0
+    } else {
+        0.0
+    };
+
+    let mut lines = Vec::new();
+    lines.push("| Category             | Passed | Failed | Total |  Rate   |".to_string());
+    lines.push("|:---------------------|-------:|-------:|------:|--------:|".to_string());
+
+    for (category, stats) in categories {
+        lines.push(format!(
+            "| {:<20} | {:>5}  | {:>5}  | {:>5} | {:>6.2}% |",
+            category,
+            stats.passed,
+            stats.failed,
+            stats.total(),
+            stats.pass_rate()
+        ));
+    }
+
+    lines.push("|----------------------|--------|--------|-------|---------|".to_string());
+    lines.push(format!(
+        "| {:<20} | {:>5}  | {:>5}  | {:>5} | {:>6.2}% |",
+        "total", total_passed, total_failed, total_total, total_rate
+    ));
+
+    lines.join("\n")
+}
+
+/// Format the complete results section.
+fn format_results_section(rows: &[ReadmeRow]) -> String {
+    // compute totals
+    let total_passed: usize = rows.iter().map(|r| r.passed).sum();
+    let total_failed: usize = rows.iter().map(|r| r.failed).sum();
+    let total_total: usize = rows.iter().map(|r| r.total).sum();
+    let total_rate = if total_total > 0 {
+        total_passed as f64 / total_total as f64 * 100.0
+    } else {
+        0.0
+    };
+
+    let mut lines = Vec::new();
+    lines.push("| Suite    | Passed | Failed | Total |  Rate   |".to_string());
+    lines.push("|:---------|-------:|-------:|------:|--------:|".to_string());
+
+    for row in rows {
+        lines.push(row.format());
+    }
+
+    lines.push("|----------|--------|--------|-------|---------|".to_string());
+    lines.push(format!(
+        "| {:<8} | {:>5}  | {:>5}  | {:>5} | {:>6.2}% |",
+        "total", total_passed, total_failed, total_total, total_rate
+    ));
+    lines.push(String::new());
+    lines.push(format!("Total Blended Pass Rate: **{total_rate:.2}%**"));
+
+    lines.join("\n")
+}
+
+/// Update the README.md with new results.
+///
+/// # Arguments
+/// * `results` - The suite results to update
+/// * `is_partial` - If true, only update rows for suites that were run
+///
+/// Returns true if changes were made.
+pub fn update_readme(results: &[SuiteResult], is_partial: bool) -> bool {
+    let readme_path = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("src")
+        .join("conformance")
+        .join("README.md");
+
+    let content = match std::fs::read_to_string(&readme_path) {
+        Ok(c) => c,
+        Err(err) => {
+            eprintln!("{}: failed to read README.md: {err}", color::red("error"));
+            return false;
+        }
+    };
+
+    // parse existing results
+    let old_results = ReadmeResults::parse(&content);
+
+    // build new rows
+    let new_rows: Vec<ReadmeRow> = results.iter().map(ReadmeRow::from_suite_result).collect();
+
+    // merge with existing if partial update
+    let mut final_rows: Vec<ReadmeRow> = if is_partial {
+        let Some(old) = &old_results else {
+            eprintln!(
+                "{}: cannot do partial update - no existing results in README.md",
+                color::yellow("warning")
+            );
+            return false;
+        };
+
+        // collect all suite names from both old and new
+        let mut all_names: Vec<&str> = old.rows.iter().map(|r| r.name.as_str()).collect();
+        for row in &new_rows {
+            if !all_names.contains(&row.name.as_str()) {
+                all_names.push(&row.name);
+            }
+        }
+
+        // use new row if we have it, otherwise keep old
+        all_names
+            .into_iter()
+            .filter_map(|name| {
+                if let Some(new_row) = new_rows.iter().find(|r| r.name == name) {
+                    Some(new_row.clone())
+                } else {
+                    old.find(name).cloned()
+                }
+            })
+            .collect()
+    } else {
+        new_rows.clone()
+    };
+
+    // sort alphabetically
+    final_rows.sort_by(|a, b| a.name.cmp(&b.name));
+
+    // compute deltas for reporting
+    let deltas: Vec<ResultDelta> = new_rows
+        .iter()
+        .map(|new| {
+            let old_row = old_results.as_ref().and_then(|o| o.find(&new.name));
+            ResultDelta::new(&new.name, old_row, new)
+        })
+        .collect();
+
+    let any_changes = deltas.iter().any(|d| d.has_changes());
+
+    // format and replace summary section
+    let summary_section = format_results_section(&final_rows);
+    let Some(mut new_content) = replace_section(&content, "summary-results", &summary_section)
+    else {
+        eprintln!(
+            "{}: README.md missing summary-results markers",
+            color::red("error")
+        );
+        return false;
+    };
+
+    // update per-suite category sections (only for suites that were run)
+    for suite_result in results {
+        if suite_result.result.categories.len() > 1 {
+            let section_name = format!("{}-results", suite_result.name);
+            let category_section = format_category_section(&suite_result.result.categories);
+            if let Some(updated) = replace_section(&new_content, &section_name, &category_section) {
+                new_content = updated;
+            }
+            // if section doesn't exist, that's fine, just skip it
+        }
+    }
+
+    // check if content actually changed
+    if new_content == content {
+        // compute totals for display
+        let total_passed: usize = final_rows.iter().map(|r| r.passed).sum();
+        let total_total: usize = final_rows.iter().map(|r| r.total).sum();
+        let total_rate = if total_total > 0 {
+            total_passed as f64 / total_total as f64 * 100.0
+        } else {
+            0.0
+        };
+
+        println!();
+        println!(
+            "  {} README.md unchanged — {:.2}% ({}/{})",
+            color::dim("(no changes)"),
+            total_rate,
+            total_passed,
+            total_total
+        );
+        return false;
+    }
+
+    // write updated content
+    if let Err(err) = std::fs::write(&readme_path, &new_content) {
+        eprintln!("{}: failed to write README.md: {err}", color::red("error"));
+        return false;
+    }
+
+    // report changes
+    println!();
+    if any_changes {
+        println!("  {} README.md updated:", color::green("UPDATED"));
+        for delta in &deltas {
+            if delta.has_changes() {
+                let passed_str = format_delta(delta.passed_delta);
+                let failed_str = format_delta(delta.failed_delta);
+                let rate_str = format_rate_delta(delta.rate_delta);
+                println!(
+                    "    {}: passed {} | failed {} | rate {}",
+                    color::cyan(&delta.name),
+                    passed_str,
+                    failed_str,
+                    rate_str
+                );
+            }
+        }
+    } else {
+        println!(
+            "  {} README.md updated (formatting only)",
+            color::dim("UPDATED")
+        );
+    }
+
+    true
+}
+
+fn format_delta(delta: i64) -> String {
+    if delta > 0 {
+        color::green(&format!("+{delta}"))
+    } else if delta < 0 {
+        color::red(&format!("{delta}"))
+    } else {
+        color::dim("±0")
+    }
+}
+
+fn format_rate_delta(delta: f64) -> String {
+    if delta > 0.005 {
+        color::green(&format!("+{delta:.2}%"))
+    } else if delta < -0.005 {
+        color::red(&format!("{delta:.2}%"))
+    } else {
+        color::dim("±0.00%")
     }
 }

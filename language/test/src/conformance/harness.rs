@@ -2,7 +2,10 @@ use std::sync::Mutex;
 
 use crate::harness::{RunContext, Suite, TestCase, TestOptions, TestResult};
 
-use super::{SuiteResult, print_summary, run_babel, run_biome, run_swc, run_test262};
+use super::{
+    SuiteResult, load_readme_baseline, print_summary, run_babel, run_biome, run_swc, run_test262,
+    update_readme,
+};
 
 /// Selection of conformance suites to run.
 #[derive(Debug, Clone, Copy, Default)]
@@ -129,11 +132,24 @@ impl Suite for ConformanceHarnessSuite {
         TestResult::Passed
     }
 
-    fn report(&self, _results: &[(TestCase, TestResult)], _context: &RunContext<'_>) {
+    fn report(&self, _results: &[(TestCase, TestResult)], context: &RunContext<'_>) {
         let Ok(results) = self.results.lock() else {
             return;
         };
 
-        print_summary(&results);
+        // load baseline for delta display
+        let baseline = load_readme_baseline();
+        print_summary(&results, baseline.as_ref());
+
+        // update README.md with results (skip if filtering is applied)
+        if context.options.filter.is_some() {
+            return;
+        }
+
+        // determine if this is a partial run (not all suites)
+        let run_all = self.selection.is_all_disabled();
+        let is_partial = !run_all;
+
+        update_readme(&results, is_partial);
     }
 }

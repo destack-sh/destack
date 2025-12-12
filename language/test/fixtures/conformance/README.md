@@ -2,9 +2,6 @@
 
 Parser conformance tests using external test suites.
 
-> See [TESTING.md](../../../../TESTING.md) for the overall testing philosophy and strategy.
-> See [Conformance Status](../../src/conformance/README.md) for current pass rates and known issues.
-
 ## Quick Start
 
 ```sh
@@ -16,19 +13,16 @@ cargo test --release --test conformance
 
 # run a specific suite
 cargo test --release --test conformance -- --test262
-cargo test --release --test conformance -- --babel
-cargo test --release --test conformance -- --swc
-cargo test --release --test conformance -- --biome
 ```
 
 ## Test Suites
 
 | Suite | Source | Tests | Description |
 |-------|--------|-------|-------------|
-| test262 | [tc39/test262-parser-tests](https://github.com/tc39/test262-parser-tests) | ~5,363 | ECMAScript parser conformance |
-| babel | [babel/babel](https://github.com/babel/babel) | ~4,016 | TypeScript, JSX, Flow parsing |
-| swc | [swc-project/swc](https://github.com/swc-project/swc) | ~685 | TypeScript, JSX parsing |
-| biome | [biomejs/biome](https://github.com/biomejs/biome) | ~637 | JS/TS parsing |
+| babel | [babel/babel](https://github.com/babel/babel) | ~4,016 | TypeScript, JSX/TSX |
+| biome | [biomejs/biome](https://github.com/biomejs/biome) | ~637 | JS/TS |
+| swc | [swc-project/swc](https://github.com/swc-project/swc) | ~685 | TypeScript, JSX/TSX |
+| test262 | [tc39/test262-parser-tests](https://github.com/tc39/test262-parser-tests) | ~5,363 | ECMAScript |
 
 ## Regression Tracking
 
