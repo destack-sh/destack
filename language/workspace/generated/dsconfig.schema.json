@@ -294,22 +294,15 @@
             "null"
           ]
         },
-        "strictTypes": {
-          "description": "Enable all Destack type strictness checks (noImplicitSelf, noImprecisePrimitives, etc.).",
+        "noAny": {
+          "description": "Forbid use of `any` type.",
           "type": [
             "boolean",
             "null"
           ]
         },
-        "strictPortable": {
-          "description": "Ensure code works on all targets (js, wasm, native).",
-          "type": [
-            "boolean",
-            "null"
-          ]
-        },
-        "noImplicitSelf": {
-          "description": "Require explicit `self.` for member access in methods.",
+        "noUnknown": {
+          "description": "Forbid use of `unknown` type.",
           "type": [
             "boolean",
             "null"
@@ -324,6 +317,34 @@
         },
         "noImplicitConversions": {
           "description": "Require explicit widening/narrowing conversions.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "noUnsafeTypeAssertions": {
+          "description": "Forbid unsafe type assertions (`as T`).",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "noImplicitSelf": {
+          "description": "Require explicit `self.` for member access in methods.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "noArguments": {
+          "description": "Forbid `arguments` object (use rest parameters instead).",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "noRedeclaredLocals": {
+          "description": "Forbid re-declaration of local variables.",
           "type": [
             "boolean",
             "null"
@@ -350,15 +371,57 @@
             "null"
           ]
         },
+        "noDynamicEvaluation": {
+          "description": "Forbid `eval()` and `Function` constructor.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "noGlobalThis": {
+          "description": "Forbid `globalThis` access.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "noDynamicImport": {
+          "description": "Forbid dynamic `import()` and `require()` expressions.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
         "noDynamicShapes": {
-          "description": "Forbid defineProperty, prototype mutation, etc. (require static object shapes).",
+          "description": "Forbid defineProperty, prototype mutation, delete (require static object shapes).",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "noComputedPropertyAccess": {
+          "description": "Forbid computed property access `obj[expr]` where expr isn't constant.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "noProxy": {
+          "description": "Forbid `Proxy`.",
           "type": [
             "boolean",
             "null"
           ]
         },
         "noImplicitDynamicDispatch": {
-          "description": "Require overloads to be statically resolvable (no runtime dispatch).",
+          "description": "Require overloads to be statically resolvable (no implicit runtime dispatch).",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "noExceptions": {
+          "description": "Forbid `throw` and `try`/`catch` (use Result types instead).",
           "type": [
             "boolean",
             "null"
