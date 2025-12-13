@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use crate::{Color, FileId, LabeledSpan, Suggestion};
 
 /// The level of a diagnostic.
@@ -79,39 +77,6 @@ pub struct DiagnosticOptions {
 }
 
 impl DiagnosticOptions {
-    /// Parse diagnostic options from arguments.
-    ///
-    /// Examples:
-    /// ```
-    /// --error-warnings W001,W002
-    /// --suppress-errors E001
-    /// --suppress-warnings W001,W002
-    /// ```
-    pub fn parse(flags: &HashMap<String, Option<String>>) -> Self {
-        let mut options = Self::default();
-        for (key, value) in flags {
-            match (key.as_str(), value) {
-                ("error-warnings", Some(value)) => {
-                    options
-                        .error_warnings
-                        .extend(value.split(',').map(|s| s.to_string()));
-                }
-                ("suppress-errors", Some(value)) => {
-                    options
-                        .suppress_errors
-                        .extend(value.split(',').map(|s| s.to_string()));
-                }
-                ("suppress-warnings", Some(value)) => {
-                    options
-                        .suppress_warnings
-                        .extend(value.split(',').map(|s| s.to_string()));
-                }
-                _ => {}
-            }
-        }
-        options
-    }
-
     /// Map a diagnostic to its adjusted diagnostic.
     pub fn map(&self, mut diagnostic: Diagnostic) -> Option<Diagnostic> {
         // retain original code/severity
