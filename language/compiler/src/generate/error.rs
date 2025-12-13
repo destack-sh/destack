@@ -1,145 +1,65 @@
+use crate::{
+    DiagnosticAnchor, DiagnosticDefinition, TaskDependency, TaskDependencyError, TaskError,
+};
+use destack_compiler_macros::DefineError;
 use destack_dir::GlobalNodeIdAny;
-
-use crate::{DiagnosticAnchor, TaskDependency, TaskDependencyError, TaskError, TaskPhase};
-
 use destack_workspace::Program;
 
-/// Error during code generation.
-#[derive(Debug, Clone, PartialEq)]
-#[repr(u8)]
+/// Errors during the generate phase.
+#[derive(Debug, Clone, PartialEq, DefineError)]
+#[phase(Generate)]
 pub enum GenerateError {
     /// Wait for task dependency.
+    #[error(code = "EG000", r#yield)]
     Yield { dependency: TaskDependency },
+
     /// Yield dependency has failed.
+    #[error(code = "EG001", yield_failed)]
     UnsatisfiedDependency { dependency: TaskDependency },
+
     /// Unsupported target/output format.
+    #[error(code = "EG002", message = "unsupported target: {target}")]
     UnsupportedTarget {
         node: GlobalNodeIdAny,
         target: String,
     },
+
     /// Unsupported construct (instruction, expression, etc.).
+    #[error(code = "EG003", message = "unsupported construct")]
     UnsupportedConstruct { node: GlobalNodeIdAny },
+
     /// Unsupported type for codegen.
+    #[error(code = "EG004", message = "unsupported type")]
     UnsupportedType { node: GlobalNodeIdAny },
+
     /// Unexpected construct (wrong node type).
+    #[error(code = "EG005", message = "unexpected construct")]
     UnexpectedConstruct { node: GlobalNodeIdAny },
+
     /// Unresolved construct (not fully resolved before codegen).
+    #[error(code = "EG006", message = "unresolved construct")]
     UnresolvedConstruct { node: GlobalNodeIdAny },
+
     /// Unresolved function reference.
+    #[error(code = "EG007", message = "unresolved function: {name}")]
     UnresolvedFunction { node: GlobalNodeIdAny, name: String },
+
     /// Missing type information.
+    #[error(code = "EG008", message = "missing type")]
     MissingType { node: GlobalNodeIdAny },
+
     /// Out of bounds access (tuple/array element index).
+    #[error(code = "EG009", message = "index {index} out of bounds (len {len})")]
     OutOfBounds {
         node: GlobalNodeIdAny,
         index: u32,
         len: usize,
     },
+
     /// Internal codegen error.
+    #[error(code = "EG010", message = "internal error: {message}")]
     Internal {
         node: GlobalNodeIdAny,
         message: String,
     },
-}
-
-impl From<TaskDependencyError> for GenerateError {
-    fn from(e: TaskDependencyError) -> Self {
-        match e {
-            TaskDependencyError::NotReady { dependency } => Self::Yield { dependency },
-            TaskDependencyError::Failed { dependency } => {
-                Self::UnsatisfiedDependency { dependency }
-            }
-        }
-    }
-}
-
-impl TryFrom<GenerateError> for TaskDependency {
-    type Error = GenerateError;
-
-    fn try_from(error: GenerateError) -> Result<Self, Self::Error> {
-        match error {
-            GenerateError::Yield { dependency } => Ok(dependency),
-            _ => Err(error),
-        }
-    }
-}
-
-pub type GenerateResult<T> = Result<T, GenerateError>;
-
-impl From<GenerateError> for TaskError {
-    #[inline]
-    fn from(error: GenerateError) -> Self {
-        TaskError::Generate(error)
-    }
-}
-
-impl GenerateError {
-    /// Get the numeric sub-code of the error.
-    #[inline]
-    pub fn sub_code(&self) -> u8 {
-        match self {
-            Self::Yield { .. } => 0,
-            Self::UnsatisfiedDependency { .. } => 1,
-            Self::UnsupportedTarget { .. } => 2,
-            Self::UnsupportedConstruct { .. } => 3,
-            Self::UnsupportedType { .. } => 4,
-            Self::UnexpectedConstruct { .. } => 5,
-            Self::UnresolvedConstruct { .. } => 6,
-            Self::UnresolvedFunction { .. } => 7,
-            Self::MissingType { .. } => 8,
-            Self::OutOfBounds { .. } => 9,
-            Self::Internal { .. } => 10,
-        }
-    }
-
-    /// Get the anchor of the error.
-    pub fn anchor(&self) -> DiagnosticAnchor {
-        match self {
-            Self::Yield { dependency } => dependency.anchor(),
-            Self::UnsatisfiedDependency { dependency } => dependency.anchor(),
-            Self::UnsupportedTarget { node, .. } => DiagnosticAnchor::Node(*node),
-            Self::UnsupportedConstruct { node, .. } => DiagnosticAnchor::Node(*node),
-            Self::UnsupportedType { node, .. } => DiagnosticAnchor::Node(*node),
-            Self::UnexpectedConstruct { node, .. } => DiagnosticAnchor::Node(*node),
-            Self::UnresolvedConstruct { node, .. } => DiagnosticAnchor::Node(*node),
-            Self::UnresolvedFunction { node, .. } => DiagnosticAnchor::Node(*node),
-            Self::MissingType { node, .. } => DiagnosticAnchor::Node(*node),
-            Self::OutOfBounds { node, .. } => DiagnosticAnchor::Node(*node),
-            Self::Internal { node, .. } => DiagnosticAnchor::Node(*node),
-        }
-    }
-
-    /// Get the message of the error.
-    pub fn message(&self, _program: &Program) -> String {
-        match self {
-            Self::Yield { .. } => "pending dependency".to_string(),
-            Self::UnsatisfiedDependency { .. } => "unsatisfied dependency".to_string(),
-            Self::UnsupportedTarget { target, .. } => {
-                format!("unsupported target: {target}")
-            }
-            Self::UnsupportedConstruct { .. } => "unsupported construct".to_string(),
-            Self::UnsupportedType { .. } => "unsupported type".to_string(),
-            Self::UnexpectedConstruct { .. } => "unexpected construct".to_string(),
-            Self::UnresolvedConstruct { .. } => "unresolved construct".to_string(),
-            Self::UnresolvedFunction { name, .. } => {
-                format!("unresolved function: {name}")
-            }
-            Self::MissingType { .. } => "missing type".to_string(),
-            Self::OutOfBounds { index, len, .. } => {
-                format!("index {index} out of bounds (len {len})")
-            }
-            Self::Internal { message, .. } => format!("internal error: {message}"),
-        }
-    }
-}
-
-impl std::fmt::Display for GenerateError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("GenerateError")
-            .field(
-                "code",
-                &format!("E{}{:03}", TaskPhase::Generate.letter(), self.sub_code()),
-            )
-            .finish()
-    }
 }

@@ -1,90 +1,29 @@
+use crate::{DiagnosticAnchor, DiagnosticDefinition, TaskDependency, TaskError};
+use destack_compiler_macros::DefineError;
 use destack_dir::GlobalNodeIdAny;
 use destack_parser::ParseError;
 use destack_source::{Span, StringId};
-
-use crate::{DiagnosticAnchor, TaskDependency, TaskError, TaskPhase};
-
 use destack_workspace::Program;
 
-/// Error when importing something into the compiler.
-#[derive(Debug, Clone, PartialEq)]
-#[repr(u8)]
+/// Errors during the import phase.
+#[derive(Debug, Clone, PartialEq, DefineError)]
+#[phase(Import)]
 pub enum ImportError {
     /// Module could not be resolved (filesystem or specifier resolution).
+    #[error(code = "EI001", message = "module not found")]
     ModuleNotFound {
         target: StringId,
         error: Option<destack_resolver::ResolveError>,
     },
+
     /// Failed to parse a module.
+    #[error(code = "EI002", message = "parse error")]
     ParseError {
         node: GlobalNodeIdAny,
         diagnostics: Vec<ParseError>,
     },
+
     /// Unsupported construct in module (forbidden by spec).
+    #[error(code = "EI003", message = "unsupported construct")]
     UnsupportedConstruct { span: Span, message: String },
-}
-
-impl TryFrom<ImportError> for TaskDependency {
-    type Error = ImportError;
-
-    fn try_from(error: ImportError) -> Result<Self, Self::Error> {
-        // interface required for tasks but imports cannot yield
-        Err(error)
-    }
-}
-
-impl ImportError {
-    /// Get the numeric sub-code of the error (e.g., `1` for `IE001`).
-    #[inline]
-    pub fn sub_code(&self) -> u8 {
-        match self {
-            Self::ModuleNotFound { .. } => 2,
-            Self::ParseError { .. } => 3,
-            Self::UnsupportedConstruct { .. } => 4,
-        }
-    }
-
-    /// Get the anchor of the error.
-    pub fn anchor(&self) -> DiagnosticAnchor {
-        match self {
-            // module resolution is global (not tied to a specific source location)
-            Self::ModuleNotFound { .. } => DiagnosticAnchor::Global,
-            // parse errors are tied to the parse node
-            Self::ParseError { node, .. } => DiagnosticAnchor::Node(*node),
-            // HTML comment errors are tied to the file
-            Self::UnsupportedConstruct { span, .. } => DiagnosticAnchor::File(span.file),
-        }
-    }
-
-    /// Get the message of the error.
-    pub fn message(&self, program: &Program) -> String {
-        match self {
-            Self::ModuleNotFound { target, .. } => {
-                let target_str = program.strings.get(*target).to_string();
-                format!("module '{target_str}' not found")
-            }
-            Self::ParseError { .. } => "parse error".to_string(),
-            Self::UnsupportedConstruct { message, .. } => message.clone(),
-        }
-    }
-}
-
-impl std::fmt::Display for ImportError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("ImportError")
-            .field(
-                "code",
-                &format!("E{}{:03}", TaskPhase::Import.letter(), self.sub_code()),
-            )
-            .finish()
-    }
-}
-
-pub type ImportResult<T> = Result<T, ImportError>;
-
-impl From<ImportError> for TaskError {
-    #[inline]
-    fn from(error: ImportError) -> Self {
-        TaskError::Import(error)
-    }
 }

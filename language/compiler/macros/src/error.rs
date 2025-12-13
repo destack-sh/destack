@@ -1,149 +1,35 @@
 use proc_macro::TokenStream;
-use proc_macro2::TokenStream as TokenStream2;
+use proc_macro2::{Span, TokenStream as TokenStream2};
 use quote::{format_ident, quote};
 use std::collections::HashSet;
-use syn::parse::{Parse, ParseStream};
-use syn::punctuated::Punctuated;
-use syn::{Attribute, Expr, Ident, LitStr, Result, Token, Type, braced, parse_macro_input};
-
-/// A field within an error variant.
-struct ErrorField {
-    name: Ident,
-    field_type: Type,
-}
-
-impl Parse for ErrorField {
-    fn parse(input: ParseStream<'_>) -> Result<Self> {
-        let name: Ident = input.parse()?;
-        input.parse::<Token![:]>()?;
-        let field_type: Type = input.parse()?;
-        Ok(ErrorField { name, field_type })
-    }
-}
+use syn::{
+    Data, DeriveInput, Error, Expr, Fields, Ident, Lit, LitStr, Meta, Result, Type,
+    parse_macro_input,
+};
 
 /// Marker for variants that represent task yielding.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum YieldMarker {
     /// Not a yield variant.
     None,
-    /// Variant marked with `#[error_yield]`.
+    /// Variant marked with `yield`.
     Yield,
-    /// Variant marked with `#[error_yield_failed]`.
+    /// Variant marked with `yield_failed`.
     YieldFailed,
 }
 
-/// A single error variant definition from the macro input.
+/// Parsed error variant data.
 struct ErrorVariant {
-    attributes: Vec<Attribute>,
-    yield_marker: YieldMarker,
-    code: LitStr,
     name: Ident,
-    fields: Vec<ErrorField>,
-    message: Option<ErrorMessage>,
-}
-
-/// The message format for an error variant.
-enum ErrorMessage {
-    /// A simple string literal message.
-    Simple(String),
-    /// An expression that computes the message.
-    Closure(Expr),
-}
-
-impl Parse for ErrorVariant {
-    fn parse(input: ParseStream<'_>) -> Result<Self> {
-        let attributes = input.call(Attribute::parse_outer)?;
-
-        // check for #[error_yield] or #[error_yield_failed] markers in attributes
-        let mut yield_marker = YieldMarker::None;
-        let mut filtered_attributes = Vec::new();
-        for attr in attributes {
-            if attr.path().is_ident("error_yield") {
-                yield_marker = YieldMarker::Yield;
-            } else if attr.path().is_ident("error_yield_failed") {
-                yield_marker = YieldMarker::YieldFailed;
-            } else {
-                filtered_attributes.push(attr);
-            }
-        }
-        let attributes = filtered_attributes;
-
-        // parse the error code: "ER001" = VariantName { ... }
-        let code: LitStr = input.parse()?;
-        input.parse::<Token![=]>()?;
-
-        let name: Ident = input.parse()?;
-
-        // parse fields
-        let content;
-        braced!(content in input);
-        let fields_punctuated: Punctuated<ErrorField, Token![,]> =
-            content.parse_terminated(ErrorField::parse, Token![,])?;
-        let fields: Vec<ErrorField> = fields_punctuated.into_iter().collect();
-
-        // parse optional message
-        let message = if input.peek(Token![=>]) {
-            input.parse::<Token![=>]>()?;
-
-            if input.peek(LitStr) {
-                let literal: LitStr = input.parse()?;
-                Some(ErrorMessage::Simple(literal.value()))
-            } else {
-                let expression: Expr = input.parse()?;
-                Some(ErrorMessage::Closure(expression))
-            }
-        } else {
-            None
-        };
-
-        Ok(ErrorVariant {
-            attributes,
-            yield_marker,
-            code,
-            name,
-            fields,
-            message,
-        })
-    }
-}
-
-/// Parsed input for the `define_errors!` macro.
-struct DefineErrorsInput {
-    attributes: Vec<Attribute>,
-    phase: Ident,
-    variants: Vec<ErrorVariant>,
-}
-
-impl Parse for DefineErrorsInput {
-    fn parse(input: ParseStream<'_>) -> Result<Self> {
-        let attributes = input.call(Attribute::parse_outer)?;
-
-        // parse: Resolve, { ... }
-        let phase: Ident = input.parse()?;
-        input.parse::<Token![,]>()?;
-
-        let content;
-        braced!(content in input);
-
-        let mut variants = Vec::new();
-        while !content.is_empty() {
-            variants.push(content.parse::<ErrorVariant>()?);
-            if content.peek(Token![,]) {
-                content.parse::<Token![,]>()?;
-            }
-        }
-
-        Ok(DefineErrorsInput {
-            attributes,
-            phase,
-            variants,
-        })
-    }
+    code: LitStr,
+    yield_marker: YieldMarker,
+    message: Option<String>,
+    fields: Vec<(Ident, Type)>,
 }
 
 /// Map a compiler phase name to its single-letter code.
-fn phase_letter(phase: &Ident) -> char {
-    match phase.to_string().as_str() {
+fn phase_letter(phase: &str) -> char {
+    match phase {
         "Import" => 'I',
         "Bind" => 'B',
         "Resolve" => 'R',
@@ -166,7 +52,7 @@ fn validate_error_code(code: &LitStr, expected_letter: char) -> Result<u16> {
 
     // must be exactly 5 characters: E + letter + 3 digits
     if chars.len() != 5 {
-        return Err(syn::Error::new(
+        return Err(Error::new(
             code.span(),
             format!(
                 "error code must be exactly 5 characters (e.g., \"E{expected_letter}001\"), got \"{code_str}\""
@@ -176,7 +62,7 @@ fn validate_error_code(code: &LitStr, expected_letter: char) -> Result<u16> {
 
     // first character must be 'E'
     if chars[0] != 'E' {
-        return Err(syn::Error::new(
+        return Err(Error::new(
             code.span(),
             format!("error code must start with 'E', got '{}'", chars[0]),
         ));
@@ -184,7 +70,7 @@ fn validate_error_code(code: &LitStr, expected_letter: char) -> Result<u16> {
 
     // second character must match the phase letter
     if chars[1] != expected_letter {
-        return Err(syn::Error::new(
+        return Err(Error::new(
             code.span(),
             format!(
                 "error code phase letter must be '{expected_letter}' for this phase, got '{}'",
@@ -197,75 +83,237 @@ fn validate_error_code(code: &LitStr, expected_letter: char) -> Result<u16> {
     let number_str: String = chars[2..5].iter().collect();
     match number_str.parse::<u16>() {
         Ok(n) if n < 1000 => Ok(n),
-        _ => Err(syn::Error::new(
+        _ => Err(Error::new(
             code.span(),
             format!("error code must end with 3 digits (000-999), got \"{number_str}\""),
         )),
     }
 }
 
-/// Implementation of the `define_errors!` macro.
-pub(crate) fn define_errors_impl(input: TokenStream) -> TokenStream {
-    let input = parse_macro_input!(input as DefineErrorsInput);
+/// Get the simple type name from a Type.
+fn type_name(ty: &Type) -> Option<String> {
+    if let Type::Path(type_path) = ty {
+        type_path.path.segments.last().map(|s| s.ident.to_string())
+    } else {
+        None
+    }
+}
 
-    let phase = &input.phase;
-    let letter = phase_letter(phase);
-    let error_name = format_ident!("{}Error", phase);
-    let result_name = format_ident!("{}Result", phase);
+/// Generate the formatting expression for a field based on its type.
+fn format_field_expr(field_name: &Ident, ty: &Type) -> TokenStream2 {
+    let type_name = type_name(ty).unwrap_or_default();
+    match type_name.as_str() {
+        "StringId" => quote! { program.strings.get(*#field_name).as_str() },
+        "StaticKey" => quote! { #field_name.debug_string(&program.strings) },
+        "ModuleId" => quote! { program.modules.get(*#field_name).read().uri.to_string() },
+        "GlobalNodeIdAny" => quote! { #field_name.local_id.ty.name() },
+        _ => quote! { #field_name },
+    }
+}
 
-    let attributes = &input.attributes;
-    let variants = &input.variants;
+/// Parse a format string and generate the formatting code.
+fn generate_format_expr(
+    format_str: &str,
+    fields: &[(Ident, Type)],
+    span: Span,
+) -> Result<TokenStream2> {
+    // find all {field_name} placeholders
+    let mut result_format = String::new();
+    let mut format_args: Vec<TokenStream2> = Vec::new();
+    let mut chars = format_str.chars().peekable();
 
-    // validate all codes and check for duplicates
-    let mut seen_codes: HashSet<String> = HashSet::new();
-    let mut code_numbers: Vec<u16> = Vec::new();
-
-    for variant in variants {
-        match validate_error_code(&variant.code, letter) {
-            Ok(number) => {
-                let code_str = variant.code.value();
-                if !seen_codes.insert(code_str.clone()) {
-                    return syn::Error::new(
-                        variant.code.span(),
-                        format!("duplicate error code \"{code_str}\""),
-                    )
-                    .to_compile_error()
-                    .into();
+    while let Some(c) = chars.next() {
+        if c == '{' {
+            if chars.peek() == Some(&'{') {
+                // escaped brace
+                chars.next();
+                result_format.push_str("{{");
+            } else {
+                // placeholder
+                let mut field_name = String::new();
+                while let Some(&c) = chars.peek() {
+                    if c == '}' {
+                        chars.next();
+                        break;
+                    }
+                    field_name.push(chars.next().unwrap());
                 }
-                code_numbers.push(number);
+
+                // find the field
+                let field = fields.iter().find(|(name, _)| name == &field_name);
+                if let Some((name, ty)) = field {
+                    result_format.push_str("{}");
+                    format_args.push(format_field_expr(name, ty));
+                } else {
+                    return Err(Error::new(
+                        span,
+                        format!("unknown field `{field_name}` in format string"),
+                    ));
+                }
             }
-            Err(e) => return e.to_compile_error().into(),
+        } else if c == '}' {
+            if chars.peek() == Some(&'}') {
+                // escaped brace
+                chars.next();
+                result_format.push_str("}}");
+            } else {
+                result_format.push(c);
+            }
+        } else {
+            result_format.push(c);
         }
     }
 
-    // generate enum variants
-    let enum_variants: Vec<TokenStream2> = variants
+    Ok(quote! { format!(#result_format, #(#format_args),*) })
+}
+
+/// Extract the doc comment from attributes.
+fn extract_doc_comment(attrs: &[syn::Attribute]) -> String {
+    attrs
         .iter()
-        .map(|variant| {
-            let name = &variant.name;
-            let variant_attributes = &variant.attributes;
-            let fields: Vec<TokenStream2> = variant
-                .fields
-                .iter()
-                .map(|field| {
-                    let field_name = &field.name;
-                    let field_type = &field.field_type;
-                    quote! { #field_name: #field_type }
-                })
-                .collect();
-            quote! {
-                #(#variant_attributes)*
-                #name { #(#fields),* }
+        .filter_map(|attr| {
+            if attr.path().is_ident("doc")
+                && let Meta::NameValue(nv) = &attr.meta
+                && let Expr::Lit(expr_lit) = &nv.value
+                && let Lit::Str(s) = &expr_lit.lit
+            {
+                return Some(s.value().trim().to_string());
+            }
+            None
+        })
+        .collect::<Vec<_>>()
+        .join(" ")
+}
+
+/// Implementation of the `DefineError` derive macro.
+pub(crate) fn define_error_impl(input: TokenStream) -> TokenStream {
+    let input = parse_macro_input!(input as DeriveInput);
+
+    match define_error_inner(input) {
+        Ok(tokens) => tokens.into(),
+        Err(e) => e.to_compile_error().into(),
+    }
+}
+
+fn define_error_inner(input: DeriveInput) -> Result<TokenStream2> {
+    let enum_name = &input.ident;
+
+    // extract phase from #[phase(X)] attribute
+    let phase = input
+        .attrs
+        .iter()
+        .find_map(|attr| {
+            if attr.path().is_ident("phase") {
+                attr.parse_args::<Ident>().ok()
+            } else {
+                None
             }
         })
-        .collect();
+        .ok_or_else(|| Error::new(Span::call_site(), "missing #[phase(Name)] attribute"))?;
 
-    // generate code match arms using the explicit codes
+    let phase_str = phase.to_string();
+    let letter = phase_letter(&phase_str);
+
+    // verify enum name matches phase
+    let expected_name = format!("{phase_str}Error");
+    if enum_name != &expected_name {
+        return Err(Error::new(
+            enum_name.span(),
+            format!("enum name must be `{expected_name}` for phase `{phase_str}`"),
+        ));
+    }
+
+    let result_name = format_ident!("{}Result", phase_str);
+
+    // extract variants
+    let data = match &input.data {
+        Data::Enum(data) => data,
+        _ => {
+            return Err(Error::new(
+                Span::call_site(),
+                "DefineError only works on enums",
+            ));
+        }
+    };
+
+    let mut variants: Vec<ErrorVariant> = Vec::new();
+    let mut seen_codes: HashSet<String> = HashSet::new();
+
+    for variant in &data.variants {
+        let name = variant.ident.clone();
+
+        // parse #[error(...)] attribute
+        let error_attr = variant
+            .attrs
+            .iter()
+            .find(|attr| attr.path().is_ident("error"))
+            .ok_or_else(|| Error::new(name.span(), "missing #[error(code = \"...\")] attribute"))?;
+
+        let mut code: Option<LitStr> = None;
+        let mut yield_marker = YieldMarker::None;
+        let mut message: Option<String> = None;
+
+        error_attr.parse_nested_meta(|meta| {
+            if meta.path.is_ident("code") {
+                let value = meta.value()?;
+                code = Some(value.parse()?);
+            } else if meta.path.is_ident("message") {
+                let value = meta.value()?;
+                let lit: LitStr = value.parse()?;
+                message = Some(lit.value());
+            } else if meta.path.is_ident("r#yield")
+                || meta.path.get_ident().map(|i| i.to_string()) == Some("yield".to_string())
+            {
+                yield_marker = YieldMarker::Yield;
+            } else if meta.path.is_ident("yield_failed") {
+                yield_marker = YieldMarker::YieldFailed;
+            } else {
+                return Err(meta.error("unknown attribute"));
+            }
+            Ok(())
+        })?;
+
+        let code =
+            code.ok_or_else(|| Error::new(name.span(), "missing `code` in #[error(...)]"))?;
+
+        // validate code
+        let _code_number = validate_error_code(&code, letter)?;
+        let code_str = code.value();
+        if !seen_codes.insert(code_str.clone()) {
+            return Err(Error::new(
+                code.span(),
+                format!("duplicate error code \"{code_str}\""),
+            ));
+        }
+
+        // extract fields
+        let fields: Vec<(Ident, Type)> = match &variant.fields {
+            Fields::Named(named) => named
+                .named
+                .iter()
+                .map(|f| (f.ident.clone().unwrap(), f.ty.clone()))
+                .collect(),
+            Fields::Unnamed(_) => {
+                return Err(Error::new(name.span(), "tuple variants not supported"));
+            }
+            Fields::Unit => Vec::new(),
+        };
+
+        variants.push(ErrorVariant {
+            name,
+            code,
+            yield_marker,
+            message,
+            fields,
+        });
+    }
+
+    // generate code match arms
     let code_arms: Vec<TokenStream2> = variants
         .iter()
-        .map(|variant| {
-            let name = &variant.name;
-            let code_str = variant.code.value();
+        .map(|v| {
+            let name = &v.name;
+            let code_str = v.code.value();
             quote! { Self::#name { .. } => #code_str }
         })
         .collect();
@@ -273,10 +321,10 @@ pub(crate) fn define_errors_impl(input: TokenStream) -> TokenStream {
     // generate sub_code match arms
     let sub_code_arms: Vec<TokenStream2> = variants
         .iter()
-        .zip(code_numbers.iter())
-        .map(|(variant, &sub_code)| {
-            let name = &variant.name;
-            let sub_code = sub_code as u8;
+        .map(|v| {
+            let name = &v.name;
+            let code_str = v.code.value();
+            let sub_code: u8 = code_str[2..].parse().unwrap_or(0);
             quote! { Self::#name { .. } => #sub_code }
         })
         .collect();
@@ -287,12 +335,18 @@ pub(crate) fn define_errors_impl(input: TokenStream) -> TokenStream {
     // generate DiagnosticDefinition entries
     let diagnostic_defs: Vec<TokenStream2> = variants
         .iter()
-        .zip(code_numbers.iter())
-        .map(|(variant, &sub_code)| {
-            let code = variant.code.value();
-            let name = variant.name.to_string();
-            let description = extract_doc_comment(&variant.attributes);
-            let sub_code = sub_code as u8;
+        .map(|v| {
+            let code = v.code.value();
+            let name = v.name.to_string();
+            let description = extract_doc_comment(
+                &data
+                    .variants
+                    .iter()
+                    .find(|var| var.ident == v.name)
+                    .unwrap()
+                    .attrs,
+            );
+            let sub_code: u8 = code[2..].parse().unwrap_or(0);
             quote! {
                 DiagnosticDefinition {
                     code: #code,
@@ -307,16 +361,18 @@ pub(crate) fn define_errors_impl(input: TokenStream) -> TokenStream {
     // generate anchor match arms
     let anchor_arms: Vec<TokenStream2> = variants
         .iter()
-        .map(|variant| {
-            let name = &variant.name;
-
-            // only bind the field we actually use for the anchor
-            if variant.fields.iter().any(|f| f.name == "dependency") {
+        .map(|v| {
+            let name = &v.name;
+            if v.fields.iter().any(|(n, _)| n == "dependency") {
                 quote! { Self::#name { dependency, .. } => dependency.anchor() }
-            } else if variant.fields.iter().any(|f| f.name == "node") {
+            } else if v.fields.iter().any(|(n, _)| n == "node") {
                 quote! { Self::#name { node, .. } => DiagnosticAnchor::Node(*node) }
-            } else if variant.fields.iter().any(|f| f.name == "span") {
+            } else if v.fields.iter().any(|(n, _)| n == "span") {
                 quote! { Self::#name { span, .. } => DiagnosticAnchor::File(span.file) }
+            } else if v.fields.iter().any(|(n, _)| n == "package") {
+                quote! { Self::#name { package, .. } => DiagnosticAnchor::Package(*package) }
+            } else if v.fields.iter().any(|(n, _)| n == "module") {
+                quote! { Self::#name { module, .. } => DiagnosticAnchor::Module(*module) }
             } else {
                 quote! { Self::#name { .. } => DiagnosticAnchor::Global }
             }
@@ -326,23 +382,28 @@ pub(crate) fn define_errors_impl(input: TokenStream) -> TokenStream {
     // generate message match arms
     let message_arms: Vec<TokenStream2> = variants
         .iter()
-        .map(|variant| {
-            let name = &variant.name;
+        .map(|v| {
+            let name = &v.name;
 
-            match &variant.message {
-                Some(ErrorMessage::Simple(string)) => {
-                    // simple string, no fields needed
-                    quote! { Self::#name { .. } => #string.to_string() }
+            if let Some(msg) = &v.message {
+                // extract only the fields used in the format string
+                let used_fields: Vec<&Ident> = v
+                    .fields
+                    .iter()
+                    .filter(|(n, _)| msg.contains(&format!("{{{n}}}")))
+                    .map(|(n, _)| n)
+                    .collect();
+
+                let format_expr = generate_format_expr(msg, &v.fields, v.code.span())
+                    .unwrap_or_else(|e| e.to_compile_error());
+                if used_fields.is_empty() {
+                    quote! { Self::#name { .. } => #format_expr }
+                } else {
+                    quote! { Self::#name { #(#used_fields,)* .. } => #format_expr }
                 }
-                Some(ErrorMessage::Closure(expression)) => {
-                    // closure needs all fields bound for use in the expression
-                    let field_names: Vec<&Ident> = variant.fields.iter().map(|f| &f.name).collect();
-                    quote! { Self::#name { #(#field_names),* } => #expression }
-                }
-                None => {
-                    let default_message = variant.name.to_string();
-                    quote! { Self::#name { .. } => #default_message.to_string() }
-                }
+            } else {
+                let default_msg = v.name.to_string();
+                quote! { Self::#name { .. } => #default_msg.to_string() }
             }
         })
         .collect();
@@ -355,15 +416,15 @@ pub(crate) fn define_errors_impl(input: TokenStream) -> TokenStream {
         .iter()
         .find(|v| v.yield_marker == YieldMarker::YieldFailed);
 
-    let try_from_impl = if let Some(yield_variant) = yield_variant {
-        let yield_name = &yield_variant.name;
+    let try_from_impl = if let Some(yv) = yield_variant {
+        let yield_name = &yv.name;
         quote! {
-            impl TryFrom<#error_name> for TaskDependency {
-                type Error = #error_name;
+            impl TryFrom<#enum_name> for TaskDependency {
+                type Error = #enum_name;
 
-                fn try_from(error: #error_name) -> Result<Self, Self::Error> {
+                fn try_from(error: #enum_name) -> Result<Self, Self::Error> {
                     match error {
-                        #error_name::#yield_name { dependency } => Ok(dependency),
+                        #enum_name::#yield_name { dependency } => Ok(dependency),
                         _ => Err(error),
                     }
                 }
@@ -371,23 +432,23 @@ pub(crate) fn define_errors_impl(input: TokenStream) -> TokenStream {
         }
     } else {
         quote! {
-            impl TryFrom<#error_name> for TaskDependency {
-                type Error = #error_name;
+            impl TryFrom<#enum_name> for TaskDependency {
+                type Error = #enum_name;
 
-                fn try_from(error: #error_name) -> Result<Self, Self::Error> {
+                fn try_from(error: #enum_name) -> Result<Self, Self::Error> {
                     Err(error)
                 }
             }
         }
     };
 
-    let from_task_dependency_error_impl = if let (Some(yield_variant), Some(yield_failed_variant)) =
+    let from_task_dependency_error_impl = if let (Some(yv), Some(yfv)) =
         (yield_variant, yield_failed_variant)
     {
-        let yield_name = &yield_variant.name;
-        let yield_failed_name = &yield_failed_variant.name;
+        let yield_name = &yv.name;
+        let yield_failed_name = &yfv.name;
         quote! {
-            impl From<TaskDependencyError> for #error_name {
+            impl From<TaskDependencyError> for #enum_name {
                 fn from(error: TaskDependencyError) -> Self {
                     match error {
                         TaskDependencyError::NotReady { dependency } => Self::#yield_name { dependency },
@@ -400,14 +461,8 @@ pub(crate) fn define_errors_impl(input: TokenStream) -> TokenStream {
         quote! {}
     };
 
-    let expanded = quote! {
-        #(#attributes)*
-        #[derive(Debug, Clone, PartialEq)]
-        pub enum #error_name {
-            #(#enum_variants),*
-        }
-
-        impl #error_name {
+    Ok(quote! {
+        impl #enum_name {
             /// Phase letter for this error type.
             pub const PHASE_LETTER: char = #letter;
 
@@ -464,15 +519,15 @@ pub(crate) fn define_errors_impl(input: TokenStream) -> TokenStream {
             }
         }
 
-        impl std::fmt::Display for #error_name {
+        impl std::fmt::Display for #enum_name {
             fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
                 write!(f, "{}", self.code())
             }
         }
 
-        impl From<#error_name> for TaskError {
+        impl From<#enum_name> for TaskError {
             #[inline]
-            fn from(error: #error_name) -> Self {
+            fn from(error: #enum_name) -> Self {
                 TaskError::#phase(error)
             }
         }
@@ -482,28 +537,6 @@ pub(crate) fn define_errors_impl(input: TokenStream) -> TokenStream {
         #from_task_dependency_error_impl
 
         /// Result type for this phase.
-        pub type #result_name<T> = Result<T, #error_name>;
-    };
-
-    TokenStream::from(expanded)
-}
-
-/// Extract the doc comment text from a list of attributes.
-fn extract_doc_comment(attributes: &[Attribute]) -> String {
-    attributes
-        .iter()
-        .filter_map(|attribute| {
-            if attribute.path().is_ident("doc")
-                && let syn::Meta::NameValue(name_value) = &attribute.meta
-                && let syn::Expr::Lit(syn::ExprLit {
-                    lit: syn::Lit::Str(string),
-                    ..
-                }) = &name_value.value
-            {
-                return Some(string.value().trim().to_string());
-            }
-            None
-        })
-        .collect::<Vec<_>>()
-        .join(" ")
+        pub type #result_name<T> = Result<T, #enum_name>;
+    })
 }
