@@ -1,114 +1,93 @@
 use crate::{
     DiagnosticAnchor, DiagnosticDefinition, TaskDependency, TaskDependencyError, TaskError,
 };
-use destack_compiler_macros::define_errors;
+use destack_compiler_macros::DefineError;
 use destack_dir::{GlobalNodeIdAny, GlobalScopeId, GlobalSymbolId, StaticKey, StringId};
 use destack_source::ModuleId;
 use destack_workspace::Program;
 
-define_errors!(Resolve, {
+/// Errors during the resolve phase.
+#[derive(Debug, Clone, PartialEq, DefineError)]
+#[phase(Resolve)]
+pub enum ResolveError {
     /// Wait for task dependency.
-    #[error_yield]
-    "ER000" = Yield {
-        dependency: TaskDependency,
-    } => "pending dependency",
+    #[error(code = "ER000", r#yield)]
+    Yield { dependency: TaskDependency },
 
     /// Yield dependency has failed.
-    #[error_yield_failed]
-    "ER001" = UnsatisfiedDependency {
-        dependency: TaskDependency,
-    } => "unsatisfied dependency",
+    #[error(code = "ER001", yield_failed)]
+    UnsatisfiedDependency { dependency: TaskDependency },
 
     /// Unsupported node.
-    "ER002" = UnsupportedConstruct {
-        node: GlobalNodeIdAny,
-    } => {
-        format!("unsupported {}", node.local_id.ty.name())
-    },
+    #[error(code = "ER002", message = "unsupported {node}")]
+    UnsupportedConstruct { node: GlobalNodeIdAny },
 
     /// Circular dependency.
-    "ER003" = CircularDependency {
+    #[error(code = "ER003", message = "circular dependency")]
+    CircularDependency {
         node: GlobalNodeIdAny,
         depends_on: Vec<GlobalNodeIdAny>,
-    } => "circular dependency",
+    },
 
     /// Use of undeclared symbol.
-    "ER004" = UndeclaredSymbol {
+    #[error(code = "ER004", message = "missing symbol {key}")]
+    UndeclaredSymbol {
         node: GlobalNodeIdAny,
         scope: GlobalScopeId,
         key: StaticKey,
-    } => {
-        let key = key.debug_string(&program.strings);
-        format!("missing symbol {key}")
     },
 
     /// Use of missing symbol.
-    "ER005" = MissingSymbol {
+    #[error(code = "ER005", message = "missing symbol {key}")]
+    MissingSymbol {
         node: GlobalNodeIdAny,
         scope: GlobalScopeId,
         via_module: Option<ModuleId>,
         key: StaticKey,
-    } => {
-        let key = key.debug_string(&program.strings);
-        if let &Some(via_module) = via_module {
-            let via_module = program.modules.get(via_module).read().uri.to_string();
-            format!("missing symbol {key} in '{via_module}'")
-        } else {
-            format!("missing symbol {key}")
-        }
     },
 
     /// Use of ambiguous symbol.
-    "ER006" = AmbiguousSymbol {
+    #[error(code = "ER006", message = "ambiguous symbol {key}")]
+    AmbiguousSymbol {
         node: GlobalNodeIdAny,
         scope: GlobalScopeId,
         symbol: GlobalSymbolId,
         key: StaticKey,
-    } => {
-        let key = key.debug_string(&program.strings);
-        format!("ambiguous symbol {key}")
     },
 
     /// Unresolved module.
-    "ER007" = UnresolvedModule {
+    #[error(code = "ER007", message = "unresolved module '{target}'")]
+    UnresolvedModule {
         node: GlobalNodeIdAny,
         target: StringId,
-    } => {
-        let target = program.strings.get(*target).to_string();
-        format!("unresolved module '{target}'")
     },
 
     /// Cyclic symbol reference (re-export chain forms a cycle).
-    "ER008" = CyclicSymbol {
+    #[error(code = "ER008", message = "cyclic symbol reference")]
+    CyclicSymbol {
         node: GlobalNodeIdAny,
         symbol: GlobalSymbolId,
-    } => "cyclic symbol reference",
+    },
 
     /// Self type used outside of a type context.
-    "ER009" = MissingSelf {
-        node: GlobalNodeIdAny,
-    } => "`Self` type can only be used inside a class, struct, or enum",
+    #[error(
+        code = "ER009",
+        message = "`Self` type can only be used inside a class, struct, or enum"
+    )]
+    MissingSelf { node: GlobalNodeIdAny },
 
     /// Missing target for a control flow expression.
-    "ER010" = MissingTarget {
+    #[error(code = "ER010", message = "missing target")]
+    MissingTarget {
         node: GlobalNodeIdAny,
         target: Option<StringId>,
-    } => {
-        let target = target
-            .map(|t| program.strings.get(t).to_string())
-            .unwrap_or_default();
-        format!("missing target {target}")
     },
 
     /// Invalid target for a control flow expression.
-    "ER011" = InvalidTarget {
+    #[error(code = "ER011", message = "invalid target")]
+    InvalidTarget {
         node: GlobalNodeIdAny,
         target: Option<StringId>,
         target_node: GlobalNodeIdAny,
-    } => {
-        let target = target
-            .map(|t| program.strings.get(t).to_string())
-            .unwrap_or_default();
-        format!("invalid target {target}")
     },
-});
+}

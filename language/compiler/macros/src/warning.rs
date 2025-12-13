@@ -1,122 +1,23 @@
 use proc_macro::TokenStream;
-use proc_macro2::TokenStream as TokenStream2;
-use quote::{format_ident, quote};
+use proc_macro2::{Span, TokenStream as TokenStream2};
+use quote::quote;
 use std::collections::HashSet;
-use syn::parse::{Parse, ParseStream};
-use syn::punctuated::Punctuated;
-use syn::{Attribute, Expr, Ident, LitStr, Result, Token, Type, braced, parse_macro_input};
+use syn::{
+    Data, DeriveInput, Error, Expr, Fields, Ident, Lit, LitStr, Meta, Result, Type,
+    parse_macro_input,
+};
 
-/// A field within a warning variant.
-struct WarningField {
-    name: Ident,
-    field_type: Type,
-}
-
-impl Parse for WarningField {
-    fn parse(input: ParseStream<'_>) -> Result<Self> {
-        let name: Ident = input.parse()?;
-        input.parse::<Token![:]>()?;
-        let field_type: Type = input.parse()?;
-        Ok(WarningField { name, field_type })
-    }
-}
-
-/// A single warning variant definition from the macro input.
+/// Parsed warning variant data.
 struct WarningVariant {
-    attributes: Vec<Attribute>,
-    code: LitStr,
     name: Ident,
-    fields: Vec<WarningField>,
-    message: Option<WarningMessage>,
-}
-
-/// The message format for a warning variant.
-enum WarningMessage {
-    /// A simple string literal message.
-    Simple(String),
-    /// An expression that computes the message.
-    Closure(Expr),
-}
-
-impl Parse for WarningVariant {
-    fn parse(input: ParseStream<'_>) -> Result<Self> {
-        let attributes = input.call(Attribute::parse_outer)?;
-
-        // parse the warning code: "WR001" = VariantName { ... }
-        let code: LitStr = input.parse()?;
-        input.parse::<Token![=]>()?;
-
-        let name: Ident = input.parse()?;
-
-        // parse fields
-        let content;
-        braced!(content in input);
-        let fields_punctuated: Punctuated<WarningField, Token![,]> =
-            content.parse_terminated(WarningField::parse, Token![,])?;
-        let fields: Vec<WarningField> = fields_punctuated.into_iter().collect();
-
-        // parse optional message
-        let message = if input.peek(Token![=>]) {
-            input.parse::<Token![=>]>()?;
-
-            if input.peek(LitStr) {
-                let literal: LitStr = input.parse()?;
-                Some(WarningMessage::Simple(literal.value()))
-            } else {
-                let expression: Expr = input.parse()?;
-                Some(WarningMessage::Closure(expression))
-            }
-        } else {
-            None
-        };
-
-        Ok(WarningVariant {
-            attributes,
-            code,
-            name,
-            fields,
-            message,
-        })
-    }
-}
-
-/// Parsed input for the `define_warnings!` macro.
-struct DefineWarningsInput {
-    attributes: Vec<Attribute>,
-    phase: Ident,
-    variants: Vec<WarningVariant>,
-}
-
-impl Parse for DefineWarningsInput {
-    fn parse(input: ParseStream<'_>) -> Result<Self> {
-        let attributes = input.call(Attribute::parse_outer)?;
-
-        // parse: Resolve, { ... }
-        let phase: Ident = input.parse()?;
-        input.parse::<Token![,]>()?;
-
-        let content;
-        braced!(content in input);
-
-        let mut variants = Vec::new();
-        while !content.is_empty() {
-            variants.push(content.parse::<WarningVariant>()?);
-            if content.peek(Token![,]) {
-                content.parse::<Token![,]>()?;
-            }
-        }
-
-        Ok(DefineWarningsInput {
-            attributes,
-            phase,
-            variants,
-        })
-    }
+    code: LitStr,
+    message: Option<String>,
+    fields: Vec<(Ident, Type)>,
 }
 
 /// Map a compiler phase name to its single-letter code.
-fn phase_letter(phase: &Ident) -> char {
-    match phase.to_string().as_str() {
+fn phase_letter(phase: &str) -> char {
+    match phase {
         "Import" => 'I',
         "Bind" => 'B',
         "Resolve" => 'R',
@@ -139,7 +40,7 @@ fn validate_warning_code(code: &LitStr, expected_letter: char) -> Result<u16> {
 
     // must be exactly 5 characters: W + letter + 3 digits
     if chars.len() != 5 {
-        return Err(syn::Error::new(
+        return Err(Error::new(
             code.span(),
             format!(
                 "warning code must be exactly 5 characters (e.g., \"W{expected_letter}001\"), got \"{code_str}\""
@@ -149,7 +50,7 @@ fn validate_warning_code(code: &LitStr, expected_letter: char) -> Result<u16> {
 
     // first character must be 'W'
     if chars[0] != 'W' {
-        return Err(syn::Error::new(
+        return Err(Error::new(
             code.span(),
             format!("warning code must start with 'W', got '{}'", chars[0]),
         ));
@@ -157,7 +58,7 @@ fn validate_warning_code(code: &LitStr, expected_letter: char) -> Result<u16> {
 
     // second character must match the phase letter
     if chars[1] != expected_letter {
-        return Err(syn::Error::new(
+        return Err(Error::new(
             code.span(),
             format!(
                 "warning code phase letter must be '{expected_letter}' for this phase, got '{}'",
@@ -170,74 +71,235 @@ fn validate_warning_code(code: &LitStr, expected_letter: char) -> Result<u16> {
     let number_str: String = chars[2..5].iter().collect();
     match number_str.parse::<u16>() {
         Ok(n) if n < 1000 => Ok(n),
-        _ => Err(syn::Error::new(
+        _ => Err(Error::new(
             code.span(),
             format!("warning code must end with 3 digits (000-999), got \"{number_str}\""),
         )),
     }
 }
 
-/// Implementation of the `define_warnings!` macro.
-pub(crate) fn define_warnings_impl(input: TokenStream) -> TokenStream {
-    let input = parse_macro_input!(input as DefineWarningsInput);
+/// Get the simple type name from a Type.
+fn type_name(ty: &Type) -> Option<String> {
+    if let Type::Path(type_path) = ty {
+        type_path.path.segments.last().map(|s| s.ident.to_string())
+    } else {
+        None
+    }
+}
 
-    let phase = &input.phase;
-    let letter = phase_letter(phase);
-    let warning_name = format_ident!("{}Warning", phase);
+/// Generate the formatting expression for a field based on its type.
+fn format_field_expr(field_name: &Ident, ty: &Type) -> TokenStream2 {
+    let type_name = type_name(ty).unwrap_or_default();
+    match type_name.as_str() {
+        "StringId" => quote! { program.strings.get(*#field_name).as_str() },
+        "StaticKey" => quote! { #field_name.debug_string(&program.strings) },
+        "ModuleId" => quote! { program.modules.get(*#field_name).read().uri.to_string() },
+        "GlobalNodeIdAny" => quote! { #field_name.local_id.ty.name() },
+        _ => quote! { #field_name },
+    }
+}
 
-    let attributes = &input.attributes;
-    let variants = &input.variants;
+/// Parse a format string and generate the formatting code.
+fn generate_format_expr(
+    format_str: &str,
+    fields: &[(Ident, Type)],
+    span: Span,
+) -> Result<TokenStream2> {
+    // find all {field_name} placeholders
+    let mut result_format = String::new();
+    let mut format_args: Vec<TokenStream2> = Vec::new();
+    let mut chars = format_str.chars().peekable();
 
-    // validate all codes and check for duplicates
-    let mut seen_codes: HashSet<String> = HashSet::new();
-    let mut code_numbers: Vec<u16> = Vec::new();
-
-    for variant in variants {
-        match validate_warning_code(&variant.code, letter) {
-            Ok(number) => {
-                let code_str = variant.code.value();
-                if !seen_codes.insert(code_str.clone()) {
-                    return syn::Error::new(
-                        variant.code.span(),
-                        format!("duplicate warning code \"{code_str}\""),
-                    )
-                    .to_compile_error()
-                    .into();
+    while let Some(c) = chars.next() {
+        if c == '{' {
+            if chars.peek() == Some(&'{') {
+                // escaped brace
+                chars.next();
+                result_format.push_str("{{");
+            } else {
+                // placeholder
+                let mut field_name = String::new();
+                while let Some(&c) = chars.peek() {
+                    if c == '}' {
+                        chars.next();
+                        break;
+                    }
+                    field_name.push(chars.next().unwrap());
                 }
-                code_numbers.push(number);
+
+                // find the field
+                let field = fields.iter().find(|(name, _)| name == &field_name);
+                if let Some((name, ty)) = field {
+                    result_format.push_str("{}");
+                    format_args.push(format_field_expr(name, ty));
+                } else {
+                    return Err(Error::new(
+                        span,
+                        format!("unknown field `{field_name}` in format string"),
+                    ));
+                }
             }
-            Err(e) => return e.to_compile_error().into(),
+        } else if c == '}' {
+            if chars.peek() == Some(&'}') {
+                // escaped brace
+                chars.next();
+                result_format.push_str("}}");
+            } else {
+                result_format.push(c);
+            }
+        } else {
+            result_format.push(c);
         }
     }
 
-    // generate enum variants
-    let enum_variants: Vec<TokenStream2> = variants
+    Ok(quote! { format!(#result_format, #(#format_args),*) })
+}
+
+/// Extract the doc comment from attributes.
+fn extract_doc_comment(attrs: &[syn::Attribute]) -> String {
+    attrs
         .iter()
-        .map(|variant| {
-            let name = &variant.name;
-            let variant_attributes = &variant.attributes;
-            let fields: Vec<TokenStream2> = variant
-                .fields
-                .iter()
-                .map(|field| {
-                    let field_name = &field.name;
-                    let field_type = &field.field_type;
-                    quote! { #field_name: #field_type }
-                })
-                .collect();
-            quote! {
-                #(#variant_attributes)*
-                #name { #(#fields),* }
+        .filter_map(|attr| {
+            if attr.path().is_ident("doc")
+                && let Meta::NameValue(nv) = &attr.meta
+                && let Expr::Lit(expr_lit) = &nv.value
+                && let Lit::Str(s) = &expr_lit.lit
+            {
+                return Some(s.value().trim().to_string());
+            }
+            None
+        })
+        .collect::<Vec<_>>()
+        .join(" ")
+}
+
+/// Implementation of the `DefineWarning` derive macro.
+pub(crate) fn define_warning_impl(input: TokenStream) -> TokenStream {
+    let input = parse_macro_input!(input as DeriveInput);
+
+    match define_warning_inner(input) {
+        Ok(tokens) => tokens.into(),
+        Err(e) => e.to_compile_error().into(),
+    }
+}
+
+fn define_warning_inner(input: DeriveInput) -> Result<TokenStream2> {
+    let enum_name = &input.ident;
+
+    // extract phase from #[phase(X)] attribute
+    let phase = input
+        .attrs
+        .iter()
+        .find_map(|attr| {
+            if attr.path().is_ident("phase") {
+                attr.parse_args::<Ident>().ok()
+            } else {
+                None
             }
         })
-        .collect();
+        .ok_or_else(|| Error::new(Span::call_site(), "missing #[phase(Name)] attribute"))?;
 
-    // generate code match arms using the explicit codes
+    // check for #[standalone] attribute - if present, don't generate From impl
+    let is_standalone = input
+        .attrs
+        .iter()
+        .any(|attr| attr.path().is_ident("standalone"));
+
+    let phase_str = phase.to_string();
+    let letter = phase_letter(&phase_str);
+
+    // verify enum name matches phase
+    let expected_name = format!("{phase_str}Warning");
+    if enum_name != &expected_name {
+        return Err(Error::new(
+            enum_name.span(),
+            format!("enum name must be `{expected_name}` for phase `{phase_str}`"),
+        ));
+    }
+
+    // extract variants
+    let data = match &input.data {
+        Data::Enum(data) => data,
+        _ => {
+            return Err(Error::new(
+                Span::call_site(),
+                "DefineWarning only works on enums",
+            ));
+        }
+    };
+
+    let mut variants: Vec<WarningVariant> = Vec::new();
+    let mut seen_codes: HashSet<String> = HashSet::new();
+
+    for variant in &data.variants {
+        let name = variant.ident.clone();
+
+        // parse #[warning(...)] attribute
+        let warning_attr = variant
+            .attrs
+            .iter()
+            .find(|attr| attr.path().is_ident("warning"))
+            .ok_or_else(|| {
+                Error::new(name.span(), "missing #[warning(code = \"...\")] attribute")
+            })?;
+
+        let mut code: Option<LitStr> = None;
+        let mut message: Option<String> = None;
+
+        warning_attr.parse_nested_meta(|meta| {
+            if meta.path.is_ident("code") {
+                let value = meta.value()?;
+                code = Some(value.parse()?);
+            } else if meta.path.is_ident("message") {
+                let value = meta.value()?;
+                let lit: LitStr = value.parse()?;
+                message = Some(lit.value());
+            } else {
+                return Err(meta.error("unknown attribute"));
+            }
+            Ok(())
+        })?;
+
+        let code =
+            code.ok_or_else(|| Error::new(name.span(), "missing `code` in #[warning(...)]"))?;
+
+        // validate code
+        let _code_number = validate_warning_code(&code, letter)?;
+        let code_str = code.value();
+        if !seen_codes.insert(code_str.clone()) {
+            return Err(Error::new(
+                code.span(),
+                format!("duplicate warning code \"{code_str}\""),
+            ));
+        }
+
+        // extract fields
+        let fields: Vec<(Ident, Type)> = match &variant.fields {
+            Fields::Named(named) => named
+                .named
+                .iter()
+                .map(|f| (f.ident.clone().unwrap(), f.ty.clone()))
+                .collect(),
+            Fields::Unnamed(_) => {
+                return Err(Error::new(name.span(), "tuple variants not supported"));
+            }
+            Fields::Unit => Vec::new(),
+        };
+
+        variants.push(WarningVariant {
+            name,
+            code,
+            message,
+            fields,
+        });
+    }
+
+    // generate code match arms
     let code_arms: Vec<TokenStream2> = variants
         .iter()
-        .map(|variant| {
-            let name = &variant.name;
-            let code_str = variant.code.value();
+        .map(|v| {
+            let name = &v.name;
+            let code_str = v.code.value();
             quote! { Self::#name { .. } => #code_str }
         })
         .collect();
@@ -245,10 +307,10 @@ pub(crate) fn define_warnings_impl(input: TokenStream) -> TokenStream {
     // generate sub_code match arms
     let sub_code_arms: Vec<TokenStream2> = variants
         .iter()
-        .zip(code_numbers.iter())
-        .map(|(variant, &sub_code)| {
-            let name = &variant.name;
-            let sub_code = sub_code as u8;
+        .map(|v| {
+            let name = &v.name;
+            let code_str = v.code.value();
+            let sub_code: u8 = code_str[2..].parse().unwrap_or(0);
             quote! { Self::#name { .. } => #sub_code }
         })
         .collect();
@@ -259,12 +321,18 @@ pub(crate) fn define_warnings_impl(input: TokenStream) -> TokenStream {
     // generate DiagnosticDefinition entries
     let diagnostic_defs: Vec<TokenStream2> = variants
         .iter()
-        .zip(code_numbers.iter())
-        .map(|(variant, &sub_code)| {
-            let code = variant.code.value();
-            let name = variant.name.to_string();
-            let description = extract_doc_comment(&variant.attributes);
-            let sub_code = sub_code as u8;
+        .map(|v| {
+            let code = v.code.value();
+            let name = v.name.to_string();
+            let description = extract_doc_comment(
+                &data
+                    .variants
+                    .iter()
+                    .find(|var| var.ident == v.name)
+                    .unwrap()
+                    .attrs,
+            );
+            let sub_code: u8 = code[2..].parse().unwrap_or(0);
             quote! {
                 DiagnosticDefinition {
                     code: #code,
@@ -279,14 +347,16 @@ pub(crate) fn define_warnings_impl(input: TokenStream) -> TokenStream {
     // generate anchor match arms
     let anchor_arms: Vec<TokenStream2> = variants
         .iter()
-        .map(|variant| {
-            let name = &variant.name;
-
-            // only bind the field we actually use for the anchor
-            if variant.fields.iter().any(|f| f.name == "node") {
+        .map(|v| {
+            let name = &v.name;
+            if v.fields.iter().any(|(n, _)| n == "node") {
                 quote! { Self::#name { node, .. } => DiagnosticAnchor::Node(*node) }
-            } else if variant.fields.iter().any(|f| f.name == "span") {
+            } else if v.fields.iter().any(|(n, _)| n == "span") {
                 quote! { Self::#name { span, .. } => DiagnosticAnchor::File(span.file) }
+            } else if v.fields.iter().any(|(n, _)| n == "package") {
+                quote! { Self::#name { package, .. } => DiagnosticAnchor::Package(*package) }
+            } else if v.fields.iter().any(|(n, _)| n == "module") {
+                quote! { Self::#name { module, .. } => DiagnosticAnchor::Module(*module) }
             } else {
                 quote! { Self::#name { .. } => DiagnosticAnchor::Global }
             }
@@ -296,35 +366,34 @@ pub(crate) fn define_warnings_impl(input: TokenStream) -> TokenStream {
     // generate message match arms
     let message_arms: Vec<TokenStream2> = variants
         .iter()
-        .map(|variant| {
-            let name = &variant.name;
+        .map(|v| {
+            let name = &v.name;
 
-            match &variant.message {
-                Some(WarningMessage::Simple(string)) => {
-                    // simple string, no fields needed
-                    quote! { Self::#name { .. } => #string.to_string() }
+            if let Some(msg) = &v.message {
+                // extract only the fields used in the format string
+                let used_fields: Vec<&Ident> = v
+                    .fields
+                    .iter()
+                    .filter(|(n, _)| msg.contains(&format!("{{{n}}}")))
+                    .map(|(n, _)| n)
+                    .collect();
+
+                let format_expr = generate_format_expr(msg, &v.fields, v.code.span())
+                    .unwrap_or_else(|e| e.to_compile_error());
+                if used_fields.is_empty() {
+                    quote! { Self::#name { .. } => #format_expr }
+                } else {
+                    quote! { Self::#name { #(#used_fields,)* .. } => #format_expr }
                 }
-                Some(WarningMessage::Closure(expression)) => {
-                    // closure needs all fields bound for use in the expression
-                    let field_names: Vec<&Ident> = variant.fields.iter().map(|f| &f.name).collect();
-                    quote! { Self::#name { #(#field_names),* } => #expression }
-                }
-                None => {
-                    let default_message = variant.name.to_string();
-                    quote! { Self::#name { .. } => #default_message.to_string() }
-                }
+            } else {
+                let default_msg = v.name.to_string();
+                quote! { Self::#name { .. } => #default_msg.to_string() }
             }
         })
         .collect();
 
-    let expanded = quote! {
-        #(#attributes)*
-        #[derive(Debug, Clone, PartialEq)]
-        pub enum #warning_name {
-            #(#enum_variants),*
-        }
-
-        impl #warning_name {
+    let mut output = quote! {
+        impl #enum_name {
             /// Phase letter for this warning type.
             pub const PHASE_LETTER: char = #letter;
 
@@ -357,7 +426,7 @@ pub(crate) fn define_warnings_impl(input: TokenStream) -> TokenStream {
                 }
             }
 
-            /// Get the full code for this warning (e.g., "WA004").
+            /// Get the full code for this warning (e.g., "WR001").
             #[inline]
             pub fn code(&self) -> &'static str {
                 match self {
@@ -381,38 +450,23 @@ pub(crate) fn define_warnings_impl(input: TokenStream) -> TokenStream {
             }
         }
 
-        impl std::fmt::Display for #warning_name {
+        impl std::fmt::Display for #enum_name {
             fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
                 write!(f, "{}", self.code())
             }
         }
-
-        impl From<#warning_name> for TaskWarning {
-            fn from(warning: #warning_name) -> Self {
-                TaskWarning::#phase(warning)
-            }
-        }
     };
 
-    TokenStream::from(expanded)
-}
-
-/// Extract the doc comment text from a list of attributes.
-fn extract_doc_comment(attributes: &[Attribute]) -> String {
-    attributes
-        .iter()
-        .filter_map(|attribute| {
-            if attribute.path().is_ident("doc")
-                && let syn::Meta::NameValue(name_value) = &attribute.meta
-                && let syn::Expr::Lit(syn::ExprLit {
-                    lit: syn::Lit::Str(string),
-                    ..
-                }) = &name_value.value
-            {
-                return Some(string.value().trim().to_string());
+    // conditionally generate From impl
+    if !is_standalone {
+        output.extend(quote! {
+            impl From<#enum_name> for TaskWarning {
+                fn from(warning: #enum_name) -> Self {
+                    TaskWarning::#phase(warning)
+                }
             }
-            None
-        })
-        .collect::<Vec<_>>()
-        .join(" ")
+        });
+    }
+
+    Ok(output)
 }
