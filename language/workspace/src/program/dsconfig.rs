@@ -167,29 +167,37 @@ impl DsConfig {
         compiler.no_unchecked_indexed_access =
             compiler.no_unchecked_indexed_access || parent_compiler.no_unchecked_indexed_access;
 
-        // inherit Destack-specific checking - umbrella flags (stricter wins)
-        compiler.strict_types = compiler.strict_types || parent_compiler.strict_types;
-        compiler.strict_portable = compiler.strict_portable || parent_compiler.strict_portable;
-
-        // inherit Destack-specific checking - type strictness (stricter wins)
-        compiler.no_implicit_self = compiler.no_implicit_self || parent_compiler.no_implicit_self;
+        // inherit Destack-specific checking (stricter wins)
+        compiler.no_any = compiler.no_any || parent_compiler.no_any;
+        compiler.no_unknown = compiler.no_unknown || parent_compiler.no_unknown;
         compiler.no_imprecise_primitives =
             compiler.no_imprecise_primitives || parent_compiler.no_imprecise_primitives;
         compiler.no_implicit_conversions =
             compiler.no_implicit_conversions || parent_compiler.no_implicit_conversions;
-
-        // inherit Destack-specific checking - ownership (stricter wins)
+        compiler.no_unsafe_type_assertions =
+            compiler.no_unsafe_type_assertions || parent_compiler.no_unsafe_type_assertions;
+        compiler.no_implicit_self = compiler.no_implicit_self || parent_compiler.no_implicit_self;
+        compiler.no_arguments = compiler.no_arguments || parent_compiler.no_arguments;
+        compiler.no_redeclared_locals =
+            compiler.no_redeclared_locals || parent_compiler.no_redeclared_locals;
         compiler.no_implicit_managed_type =
             compiler.no_implicit_managed_type || parent_compiler.no_implicit_managed_type;
         compiler.no_implicit_managed_value =
             compiler.no_implicit_managed_value || parent_compiler.no_implicit_managed_value;
         compiler.no_managed = compiler.no_managed || parent_compiler.no_managed;
-
-        // inherit Destack-specific checking - shapes & dispatch (stricter wins)
+        compiler.no_dynamic_evaluation =
+            compiler.no_dynamic_evaluation || parent_compiler.no_dynamic_evaluation;
+        compiler.no_global_this = compiler.no_global_this || parent_compiler.no_global_this;
+        compiler.no_dynamic_import =
+            compiler.no_dynamic_import || parent_compiler.no_dynamic_import;
         compiler.no_dynamic_shapes =
             compiler.no_dynamic_shapes || parent_compiler.no_dynamic_shapes;
+        compiler.no_computed_property_access =
+            compiler.no_computed_property_access || parent_compiler.no_computed_property_access;
+        compiler.no_proxy = compiler.no_proxy || parent_compiler.no_proxy;
         compiler.no_implicit_dynamic_dispatch =
             compiler.no_implicit_dynamic_dispatch || parent_compiler.no_implicit_dynamic_dispatch;
+        compiler.no_exceptions = compiler.no_exceptions || parent_compiler.no_exceptions;
 
         // inherit emit settings (child overrides if set)
         if compiler.root_dir.is_none() {
@@ -379,28 +387,44 @@ pub struct DsConfigCompilerOptions {
     pub no_unchecked_indexed_access: bool,
 
     // Destack-specific checking
-    /// Enable all Destack type strictness checks (no_implicit_self, no_imprecise_primitives, etc.).
-    pub strict_types: bool,
-    /// Require portable constructs that work on all targets (js, wasm, native).
-    pub strict_portable: bool,
-    /// Forbid re-declaration of local variables.
-    pub no_redeclared_locals: bool,
-    /// Require explicit `self.` for member access in methods.
-    pub no_implicit_self: bool,
+    /// Forbid use of `any` type.
+    pub no_any: bool,
+    /// Forbid use of `unknown` type.
+    pub no_unknown: bool,
     /// Require precise primitive types (int32 vs number, etc.).
     pub no_imprecise_primitives: bool,
     /// Require explicit widening/narrowing conversions.
     pub no_implicit_conversions: bool,
+    /// Forbid unsafe type assertions (`as T`).
+    pub no_unsafe_type_assertions: bool,
+    /// Require explicit `self.` for member access in methods.
+    pub no_implicit_self: bool,
+    /// Forbid `arguments` object (use rest parameters instead).
+    pub no_arguments: bool,
+    /// Forbid re-declaration of local variables.
+    pub no_redeclared_locals: bool,
     /// Require `^T` or `&T` in type positions (no implicit managed types).
     pub no_implicit_managed_type: bool,
     /// Require explicit copy/borrow at call sites (no implicit managed values).
     pub no_implicit_managed_value: bool,
-    /// Forbid managed runtime features entirely (no &T at all, pure value types only).
+    /// Forbid managed runtime features entirely (no unowned `T` at all, pure value types only).
     pub no_managed: bool,
-    /// Forbid defineProperty, prototype mutation, etc. (require static object shapes).
+    /// Forbid `eval()` and `Function` constructor.
+    pub no_dynamic_evaluation: bool,
+    /// Forbid `globalThis` access.
+    pub no_global_this: bool,
+    /// Forbid dynamic `import()` and `require()` expressions.
+    pub no_dynamic_import: bool,
+    /// Forbid defineProperty, prototype mutation, delete (require static object shapes).
     pub no_dynamic_shapes: bool,
-    /// Require overloads to be statically resolvable (no runtime dispatch).
+    /// Forbid computed property access `obj[expr]` where expr isn't constant.
+    pub no_computed_property_access: bool,
+    /// Forbid `Proxy`.
+    pub no_proxy: bool,
+    /// Require overloads to be statically resolvable (no implicit runtime dispatch).
     pub no_implicit_dynamic_dispatch: bool,
+    /// Forbid `throw` and `try`/`catch` (use Result types instead).
+    pub no_exceptions: bool,
 
     // emit
     /// Root directory of source files (controls output directory structure, not module resolution).
@@ -429,7 +453,6 @@ impl Default for DsConfigCompilerOptions {
     fn default() -> Self {
         // defaults to strict mode ON (stricter than TypeScript)
         let strict = true;
-        let strict_types = false; // off by default, opt-in for Destack type strictness
         Self {
             features: LanguageFeatureSet::all(),
             base_url: None,
@@ -456,18 +479,26 @@ impl Default for DsConfigCompilerOptions {
             exact_optional_property_types: false,
             no_unchecked_indexed_access: false,
 
-            // Destack-specific checking
-            strict_types,
-            strict_portable: false,
+            // Destack-specific checking (all off by default, opt-in)
+            no_any: false,
+            no_unknown: false,
+            no_imprecise_primitives: false,
+            no_implicit_conversions: false,
+            no_unsafe_type_assertions: false,
+            no_implicit_self: false,
+            no_arguments: false,
             no_redeclared_locals: false,
-            no_implicit_self: strict_types,
-            no_imprecise_primitives: strict_types,
-            no_implicit_conversions: strict_types,
             no_implicit_managed_type: false,
             no_implicit_managed_value: false,
             no_managed: false,
+            no_dynamic_evaluation: false,
+            no_global_this: false,
+            no_dynamic_import: false,
             no_dynamic_shapes: false,
+            no_computed_property_access: false,
+            no_proxy: false,
             no_implicit_dynamic_dispatch: false,
+            no_exceptions: false,
 
             // emit
             root_dir: None,
@@ -494,7 +525,6 @@ impl From<&DsConfigCompilerOptionsJson> for DsConfigCompilerOptions {
         json.apply_features(&mut features);
 
         let strict = json.strict.unwrap_or(true);
-        let strict_types = json.strict_types.unwrap_or(false);
         Self {
             features,
             base_url: json.base_url.as_ref().map(PathBuf::from),
@@ -530,17 +560,25 @@ impl From<&DsConfigCompilerOptionsJson> for DsConfigCompilerOptions {
             no_unchecked_indexed_access: json.no_unchecked_indexed_access.unwrap_or(false),
 
             // Destack-specific checking
-            strict_types,
-            strict_portable: json.strict_portable.unwrap_or(false),
+            no_any: json.no_any.unwrap_or(false),
+            no_unknown: json.no_unknown.unwrap_or(false),
+            no_imprecise_primitives: json.no_imprecise_primitives.unwrap_or(false),
+            no_implicit_conversions: json.no_implicit_conversions.unwrap_or(false),
+            no_unsafe_type_assertions: json.no_unsafe_type_assertions.unwrap_or(false),
+            no_implicit_self: json.no_implicit_self.unwrap_or(false),
+            no_arguments: json.no_arguments.unwrap_or(false),
             no_redeclared_locals: json.no_redeclared_locals.unwrap_or(false),
-            no_implicit_self: json.no_implicit_self.unwrap_or(strict_types),
-            no_imprecise_primitives: json.no_imprecise_primitives.unwrap_or(strict_types),
-            no_implicit_conversions: json.no_implicit_conversions.unwrap_or(strict_types),
             no_implicit_managed_type: json.no_implicit_managed_type.unwrap_or(false),
             no_implicit_managed_value: json.no_implicit_managed_value.unwrap_or(false),
             no_managed: json.no_managed.unwrap_or(false),
+            no_dynamic_evaluation: json.no_dynamic_evaluation.unwrap_or(false),
+            no_global_this: json.no_global_this.unwrap_or(false),
+            no_dynamic_import: json.no_dynamic_import.unwrap_or(false),
             no_dynamic_shapes: json.no_dynamic_shapes.unwrap_or(false),
+            no_computed_property_access: json.no_computed_property_access.unwrap_or(false),
+            no_proxy: json.no_proxy.unwrap_or(false),
             no_implicit_dynamic_dispatch: json.no_implicit_dynamic_dispatch.unwrap_or(false),
+            no_exceptions: json.no_exceptions.unwrap_or(false),
 
             // emit
             root_dir: json.root_dir.as_ref().map(PathBuf::from),
@@ -889,28 +927,44 @@ pub struct DsConfigCompilerOptionsJson {
     pub no_unchecked_indexed_access: Option<bool>,
 
     // Destack-specific checking
-    /// Enable all Destack type strictness checks (noImplicitSelf, noImprecisePrimitives, etc.).
-    pub strict_types: Option<bool>,
-    /// Ensure code works on all targets (js, wasm, native).
-    pub strict_portable: Option<bool>,
-    /// Forbid re-declaration of local variables.
-    pub no_redeclared_locals: Option<bool>,
-    /// Require explicit `self.` for member access in methods.
-    pub no_implicit_self: Option<bool>,
+    /// Forbid use of `any` type.
+    pub no_any: Option<bool>,
+    /// Forbid use of `unknown` type.
+    pub no_unknown: Option<bool>,
     /// Require precise primitive types (int32 vs number, etc.).
     pub no_imprecise_primitives: Option<bool>,
     /// Require explicit widening/narrowing conversions.
     pub no_implicit_conversions: Option<bool>,
+    /// Forbid unsafe type assertions (`as T`).
+    pub no_unsafe_type_assertions: Option<bool>,
+    /// Require explicit `self.` for member access in methods.
+    pub no_implicit_self: Option<bool>,
+    /// Forbid `arguments` object (use rest parameters instead).
+    pub no_arguments: Option<bool>,
+    /// Forbid re-declaration of local variables.
+    pub no_redeclared_locals: Option<bool>,
     /// Require `^T` or `&T` in type positions (no implicit managed types).
     pub no_implicit_managed_type: Option<bool>,
     /// Require explicit copy/borrow at call sites (no implicit managed values).
     pub no_implicit_managed_value: Option<bool>,
     /// Forbid managed runtime features entirely (no &T at all, pure value types only).
     pub no_managed: Option<bool>,
-    /// Forbid defineProperty, prototype mutation, etc. (require static object shapes).
+    /// Forbid `eval()` and `Function` constructor.
+    pub no_dynamic_evaluation: Option<bool>,
+    /// Forbid `globalThis` access.
+    pub no_global_this: Option<bool>,
+    /// Forbid dynamic `import()` and `require()` expressions.
+    pub no_dynamic_import: Option<bool>,
+    /// Forbid defineProperty, prototype mutation, delete (require static object shapes).
     pub no_dynamic_shapes: Option<bool>,
-    /// Require overloads to be statically resolvable (no runtime dispatch).
+    /// Forbid computed property access `obj[expr]` where expr isn't constant.
+    pub no_computed_property_access: Option<bool>,
+    /// Forbid `Proxy`.
+    pub no_proxy: Option<bool>,
+    /// Require overloads to be statically resolvable (no implicit runtime dispatch).
     pub no_implicit_dynamic_dispatch: Option<bool>,
+    /// Forbid `throw` and `try`/`catch` (use Result types instead).
+    pub no_exceptions: Option<bool>,
 
     // emit
     /// Root directory of source files (controls output directory structure, not module resolution).
