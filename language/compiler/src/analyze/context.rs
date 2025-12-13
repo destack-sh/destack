@@ -19,6 +19,8 @@ pub struct InferContext {
     pub is_async: bool,
     /// Whether the enclosing function is a generator (enables yield).
     pub is_generator: bool,
+    /// Whether we're in an abstract class/struct (abstract methods allowed).
+    pub in_abstract_class: bool,
 }
 
 impl InferContext {
@@ -32,6 +34,7 @@ impl InferContext {
             in_function: None,
             is_async: false,
             is_generator: false,
+            in_abstract_class: false,
         }
     }
 
@@ -45,6 +48,7 @@ impl InferContext {
             in_function: self.in_function,
             is_async: self.is_async,
             is_generator: self.is_generator,
+            in_abstract_class: self.in_abstract_class,
         }
     }
 
@@ -58,6 +62,7 @@ impl InferContext {
             in_function: None,
             is_async: false,
             is_generator: false,
+            in_abstract_class: false,
         }
     }
 
@@ -68,8 +73,8 @@ impl InferContext {
         signature: &FunctionSignature,
     ) -> Self {
         self.in_function(function_id)
-            .is_async_if(signature.asynchrony == Asynchrony::Async)
-            .is_generator_if(signature.cardinality == FunctionCardinality::Generator)
+            .is_async_maybe(signature.asynchrony == Asynchrony::Async)
+            .is_generator_maybe(signature.cardinality == FunctionCardinality::Generator)
     }
 
     /// Enter a function context.
@@ -91,14 +96,20 @@ impl InferContext {
     }
 
     /// Set async context conditionally.
-    pub fn is_async_if(mut self, is_async: bool) -> Self {
+    pub fn is_async_maybe(mut self, is_async: bool) -> Self {
         self.is_async = is_async;
         self
     }
 
     /// Set generator context conditionally.
-    pub fn is_generator_if(mut self, is_generator: bool) -> Self {
+    pub fn is_generator_maybe(mut self, is_generator: bool) -> Self {
         self.is_generator = is_generator;
+        self
+    }
+
+    /// Set abstract class context conditionally.
+    pub fn in_abstract_class_maybe(mut self, is_abstract: bool) -> Self {
+        self.in_abstract_class = is_abstract;
         self
     }
 

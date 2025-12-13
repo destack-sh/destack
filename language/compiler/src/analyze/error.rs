@@ -173,4 +173,15 @@ pub enum AnalyzeError {
     /// Invalid function (e.g., declare function with body).
     #[error(code = "EA028", message = "invalid function")]
     InvalidFunction { node: GlobalNodeIdAny },
+
+    /// Invalid method (e.g., abstract method in non-abstract class, abstract method with body).
+    #[error(code = "EA029", message = "invalid method")]
+    InvalidMethod {
+        node: GlobalNodeIdAny,
+        abstraction: FunctionAbstraction,
+    },
+
+    /// Invalid member modifier (e.g., private field with visibility modifier).
+    #[error(code = "EA030", message = "invalid member modifier")]
+    InvalidMemberModifier { node: GlobalNodeIdAny },
 }

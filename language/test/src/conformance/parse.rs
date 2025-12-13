@@ -51,6 +51,8 @@ impl TestArea {
                     || code == "EA026" // InvalidConstructor
                     || code == "EA027" // InvalidInterface
                     || code == "EA028" // InvalidFunction
+                    || code == "EA029" // InvalidMethod
+                    || code == "EA030" // InvalidMemberModifier
             }
         }
     }

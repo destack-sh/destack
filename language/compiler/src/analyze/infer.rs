@@ -1,11 +1,11 @@
 use crate::{AnalyzeError, AnalyzeResult, Assignability, Compiler, InferContext};
 use destack_dir::{
     Argument, Block, Declaration, DeclarationAbstraction, DeclarationKind, Declarator,
-    DependencyItem, DynamicKey, EnumField, Expression, Extension, ExtensionKind, FunctionMode,
-    FunctionSignature, Generics, GlobalSymbolId, GlobalTypeId, Heritage, Lineage, LocalNodeId,
-    LocalNodeIdAny, LocalSymbolId, LocalTypeId, MatchCase, MatchSource, Member, NodeTree,
-    Parameter, Pattern, PatternField, PrimitiveType, Property, StaticKey, SymbolTable, Type,
-    TypeField, TypeKind, TypeLiteral, TypeTable, WhereClause,
+    DependencyItem, DynamicKey, EnumField, Expression, Extension, ExtensionKind,
+    FunctionAbstraction, FunctionMode, FunctionSignature, Generics, GlobalSymbolId, GlobalTypeId,
+    Heritage, Lineage, LocalNodeId, LocalNodeIdAny, LocalSymbolId, LocalTypeId, MatchCase,
+    MatchSource, Member, NodeTree, Parameter, Pattern, PatternField, PrimitiveType, Property,
+    StaticKey, SymbolTable, Type, TypeField, TypeKind, TypeLiteral, TypeTable, WhereClause,
 };
 use destack_workspace::Module;
 
@@ -1143,11 +1143,15 @@ impl Compiler {
                     ctx,
                 )?;
 
+                // context
+                let is_abstract = descriptor.abstraction == DeclarationAbstraction::Abstract;
+                let mut ctx = ctx.fork().in_abstract_class_maybe(is_abstract);
+
                 // type fields
                 let mut fields = Vec::new();
                 for member_id in members {
                     if let Some(field) =
-                        self.infer_member(module, *member_id, tree, symbols, types, ctx)?
+                        self.infer_member(module, *member_id, tree, symbols, types, &mut ctx)?
                     {
                         fields.push(field);
                     }
@@ -1560,6 +1564,26 @@ impl Compiler {
                 {
                     self.error(AnalyzeError::InvalidConstructor {
                         node: member_id.into_global_any(module.id),
+                    });
+                }
+
+                // abstractness
+                let is_abstract = matches!(
+                    signature.abstraction,
+                    FunctionAbstraction::Abstract | FunctionAbstraction::AbstractOverride
+                );
+                // abstract methods cannot have a body
+                if is_abstract && body.is_some() {
+                    self.error(AnalyzeError::InvalidMethod {
+                        node: member_id.into_global_any(module.id),
+                        abstraction: signature.abstraction,
+                    });
+                }
+                // abstract methods can only appear in abstract classes
+                if is_abstract && !ctx.in_abstract_class {
+                    self.error(AnalyzeError::InvalidMethod {
+                        node: member_id.into_global_any(module.id),
+                        abstraction: signature.abstraction,
                     });
                 }
 

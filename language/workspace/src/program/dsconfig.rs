@@ -397,6 +397,8 @@ pub struct DsConfigCompilerOptions {
     pub no_implicit_managed_value: bool,
     /// Forbid managed runtime features entirely (no unowned `T` at all, pure value types only).
     pub no_managed: bool,
+    /// Forbid referential equality.
+    pub no_referential_equality: bool,
     /// Forbid `eval()` and `Function` constructor.
     pub no_dynamic_evaluation: bool,
     /// Forbid `globalThis` access.
