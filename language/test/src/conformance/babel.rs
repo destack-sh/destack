@@ -76,13 +76,27 @@ impl BabelSuite {
     /// Check if a test uses script mode (sourceType: "script").
     /// We only support strict module mode, so we skip these tests.
     fn is_script_mode(&self, test_dir: &Path) -> bool {
+        fn has_script_source_type(path: &Path) -> bool {
+            if let Ok(content) = std::fs::read_to_string(path) {
+                return content.contains("\"sourceType\": \"script\"")
+                    || content.contains("\"sourceType\":\"script\"");
+            }
+            false
+        }
+
+        // check options.json in the test directory
         let options_path = test_dir.join("options.json");
-        if let Ok(content) = std::fs::read_to_string(&options_path)
-            && content.contains("\"sourceType\"")
-            && content.contains("\"script\"")
-        {
+        if has_script_source_type(&options_path) {
             return true;
         }
+
+        // also check parent directories for options.json (babel allows inheritance)
+        if let Some(parent) = test_dir.parent() {
+            if has_script_source_type(&parent.join("options.json")) {
+                return true;
+            }
+        }
+
         false
     }
 
