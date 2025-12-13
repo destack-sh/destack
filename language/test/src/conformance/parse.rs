@@ -48,6 +48,7 @@ impl TestArea {
                     || code == "EA023" // InvalidAwait
                     || code == "EA024" // InvalidYield
                     || code == "EA025" // InvalidReturn
+                    || code == "EA026" // InvalidConstructor
             }
         }
     }

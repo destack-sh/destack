@@ -282,13 +282,16 @@ impl Parser {
 
     /// Eat static parameters (including the `<` and `>` tokens).
     pub fn eat_static_parameters(&mut self) -> ParseResult<Vec<LocalNodeId<Parameter>>> {
+        let start = self.mark();
         self.eat_token(TokenType::LessThan)?;
         self.eat_newlines_maybe()?;
 
-        // empty static parameters
+        // empty static parameters are not allowed
         if self.peek_token(TokenType::GreaterThan).is_ok() {
-            self.bump(); // eat greater than
-            return Ok(vec![]);
+            return Err(ParseError::expected(
+                self.get_span_from(start),
+                TokenType::Identifier,
+            ));
         }
 
         // regular static parameters
@@ -559,13 +562,16 @@ impl Parser {
     /// Eat static arguments (including the `<` and `>` tokens).
     /// Only positional and spread arguments are allowed (no named arguments).
     pub fn eat_static_arguments(&mut self) -> ParseResult<Vec<LocalNodeId<Argument>>> {
+        let start = self.mark();
         self.eat_token(TokenType::LessThan)?;
         self.eat_newlines_maybe()?;
 
-        // empty static arguments
+        // empty static arguments are not allowed
         if self.peek_token(TokenType::GreaterThan).is_ok() {
-            self.bump(); // eat greater than
-            return Ok(vec![]);
+            return Err(ParseError::expected(
+                self.get_span_from(start),
+                TokenType::Identifier,
+            ));
         }
 
         // regular static arguments (positional/spread only)
