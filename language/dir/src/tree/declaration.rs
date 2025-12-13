@@ -99,7 +99,10 @@ pub enum Declaration {
         body: Option<LocalNodeId<Expression>>,
     },
     /// Extension declaration.
-    /// TODO #Incomplete: support extensions in DIR
+    ///
+    /// Extensions require nominal types—types with declaration identity.
+    /// The `target_symbol` must resolve to a `struct`, `class`, `enum`, `newtype`,
+    /// or a prelude-declared primitive. Type aliases and structural types cannot be extended.
     Extension {
         descriptor: DeclarationDescriptor,
         generics: Generics,

@@ -633,7 +633,7 @@ impl Compiler {
         match extension.kind {
             ExtensionKind::Inherent => true,
             ExtensionKind::Local => extension.symbol.module_id == module.id,
-            ExtensionKind::Named => {
+            ExtensionKind::Nominal => {
                 if extension.symbol.module_id == module.id {
                     return true;
                 }

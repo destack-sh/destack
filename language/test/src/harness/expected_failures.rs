@@ -1,12 +1,24 @@
 use std::collections::HashSet;
 use std::path::Path;
 
+/// Load test names from a failures file:
+/// - `# full line comments`
+/// - `test-name # inline comments`
+/// - blank lines (ignored)
 pub fn load_expected_failures(path: &Path) -> HashSet<String> {
     match std::fs::read_to_string(path) {
         Ok(content) => content
             .lines()
             .map(|line| line.trim())
             .filter(|line| !line.is_empty() && !line.starts_with('#'))
+            .map(|line| {
+                // Strip inline comments: "test-name # comment" -> "test-name"
+                match line.find('#') {
+                    Some(idx) => line[..idx].trim(),
+                    None => line,
+                }
+            })
+            .filter(|line| !line.is_empty())
             .map(String::from)
             .collect(),
         Err(_) => HashSet::new(),

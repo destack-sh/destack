@@ -1,0 +1,10 @@
+# Biome tests we consciously skip.
+# These are intentional language differences, not bugs.
+#
+# Format:
+#   # comment explaining why tests below are skipped
+#   test-name-1
+#   test-name-2
+#
+#   another-test # inline comment also works
+

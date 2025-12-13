@@ -1263,7 +1263,7 @@ impl Compiler {
                     let kind = if module.id == target.module_id {
                         ExtensionKind::Inherent
                     } else if descriptor.name.is_some() {
-                        ExtensionKind::Named
+                        ExtensionKind::Nominal
                     } else {
                         ExtensionKind::Local
                     };

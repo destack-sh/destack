@@ -71,18 +71,25 @@ pub enum ExtensionKind {
     Local,
     /// Named extension on a foreign type.
     /// Must be explicitly imported to use (outside of the defining module).
-    Named,
+    Nominal,
 }
 
 /// A resolved extension declaration.
 ///
 /// Extensions add methods and optionally nominal relationships (via `implements`)
-/// to an existing type without modifying its definition.
+/// to an existing nominal type without modifying its definition.
 ///
-/// ### Example
+/// ## Nominal Types Only
+///
+/// Extensions require **nominal types**—types with declaration identity.
+/// This includes `struct`, `class`, `enum`, `newtype`, and primitive types
+/// declared in the prelude (`int32`, `string`, etc.).
+/// Type aliases (`type X = ...`) and inline structural types cannot be extended.
+///
+/// ## Example
 ///
 /// ```
-/// // native extension (same module as Vector2)
+/// // inherent extension (same module as Vector2)
 /// struct Vector2 { x: float, y: float }
 /// extension Vector2 implements Add<Vector2> {
 ///     add(other: Vector2): Vector2 { ... }
@@ -129,7 +136,7 @@ impl Extension {
 
     /// Check if this extension is named (can be exported/imported).
     pub fn is_named(&self) -> bool {
-        matches!(self.kind, ExtensionKind::Named)
+        matches!(self.kind, ExtensionKind::Nominal)
     }
 
     /// Check if this extension is anonymous.
