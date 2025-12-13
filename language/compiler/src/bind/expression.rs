@@ -115,6 +115,7 @@ impl Compiler {
                 items,
                 arguments,
             } => {
+                // Import equals (`import A = B.C`) is lowered to Let in the parser.
                 let target = self
                     .program
                     .strings

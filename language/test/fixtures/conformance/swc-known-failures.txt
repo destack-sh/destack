@@ -77,12 +77,6 @@ typescript/decorators/type-arguments/input.ts
 typescript/deno/dso/reflect/input.ts
 typescript/es2019/from-entries/input.ts
 typescript/function/overloads/input.ts
-typescript/import/equals-require/input.ts
-typescript/import/equals-type-only/input.ts
-typescript/import/equals/input.ts
-typescript/import/export-import-require/input.ts
-typescript/import/export-import-type-require/input.ts
-typescript/import/export-import/input.ts
 typescript/import/type-only-string-specifier/input.ts
 typescript/instantiation-expr/base/input.ts
 typescript/instantiation-expr/more-exprs/input.ts
