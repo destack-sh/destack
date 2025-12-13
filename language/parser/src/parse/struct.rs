@@ -9,34 +9,37 @@ use destack_ast::{
 };
 
 impl Parser {
-    /// Eat a struct declaration.
+    /// Eat a struct or class declaration.
     ///
-    /// Examples:
+    /// Note: The parser accepts `extends` for both, but structs cannot semantically
+    /// use extends (use embedding instead). This is validated in the analyze phase.
+    ///
+    /// Struct examples:
     /// ```
     /// struct {} // empty anonymous struct
     ///
     /// struct { a: int32, b: boolean }
-    ///
-    /// struct { // anonymous struct (for use as a value)
-    ///     myField: int32 // colon optional
-    ///     myOtherField: boolean
-    /// }
     ///
     /// struct Bar {
     ///     myField: int32
     ///     myOtherField: boolean
     /// }
     ///
-    /// struct Foo<T> extends Baz { // Foo has a Baz
+    /// struct Foo<T> implements Drawable { // structs can implement interfaces
     ///     myField: int32
     ///     myOtherField: T
     ///
+    ///     ...Bar              // embedding for composition
     ///     static x: int32 = 7 // constant
     ///
-    ///     ..Bar // Foo has a Bar
+    ///     myFunc() { }
+    /// }
+    /// ```
     ///
-    ///     myFunc() { // nested declaration
-    ///     }
+    /// Class examples:
+    /// ```
+    /// class Foo extends Bar { // classes can extend
+    ///     myField: int32
     /// }
     /// ```
     pub fn eat_struct_or_class(

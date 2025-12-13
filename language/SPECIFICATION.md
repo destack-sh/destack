@@ -585,17 +585,29 @@ interface Container<T> extends Iterable<T> {
 
 ### Class
 
-Classes work like TypeScript:
+Classes work like TypeScript—reference types with identity and prototype-based inheritance:
 
 ```
 class MyClass {
     field: int32
-    
+
     constructor(value: int32) {
         this.field = value
     }
 }
 ```
+
+Classes have **identity**: two instances are only `===` if they're the same object:
+
+```
+const a = new MyClass(1);
+const b = new MyClass(1);
+a == b    // false: different instances (unless Equal implemented)
+a === b   // false: different instances
+a === a   // true: same instance
+```
+
+This is the key difference from structs—see the comparison table below.
 
 ### Struct
 
@@ -618,13 +630,22 @@ struct Point {
 | Default passing | Copy | Reference |
 | JS output | Plain object | ES6 class |
 
-Structs have no identity—two structs with the same fields are equal:
+#### Equality and Identity
+
+Structs have no identity—two structs with the same fields are equal.
+Structs auto-derive `Equal` (field-by-field comparison) by default:
 
 ```
 const p1 = Point { x: 1, y: 2 };
 const p2 = Point { x: 1, y: 2 };
-p1 == p2  // true: same data = same struct
+p1 == p2   // true: same fields = equal (auto-derived Equal)
+p1 === p2  // error: === requires identity, structs have none
 ```
+
+Since structs have no identity, `===` and `!==` are compile errors on struct types.
+Use `==` for value comparison.
+
+#### Construction
 
 Structs are nominal, so they must be explicitly constructed:
 
@@ -634,12 +655,32 @@ let p: Point = new Point(1, 2)       // ok: constructor syntax
 let p: Point = { x: 1, y: 2 }        // error: object literal is not Point
 ```
 
-For composition, structs use embedding instead of inheritance:
+#### Pattern Matching
+
+Struct patterns require the type name (unlike newtypes which auto-unwrap):
 
 ```
+match (point) {
+    Point { x: 0, y: 0 } => "origin"
+    Point { x, y } => `at ${x}, ${y}`
+    { x, y } => ...  // error: structural pattern on nominal type
+}
+```
+
+#### Interfaces and Composition
+
+Structs can `implements` interfaces but cannot `extends` (use embedding instead):
+
+```
+struct Point implements Drawable {
+    x: float32
+    y: float32
+    draw(): void { ... }
+}
+
 struct Transform { position: Vec3, rotation: Quat }
 struct Player {
-    ...Transform    // embeds Transform's fields
+    ...Transform    // embeds Transform's fields (composition)
     health: int
 }
 ```

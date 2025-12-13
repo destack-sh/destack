@@ -160,28 +160,29 @@ const balance: float32 = 100.50;
 
 ### Newtypes
 
-Nominal (distinct) types that prevent mixing semantically different values:
+Nominal wrappers that prevent mixing semantically different values:
 
 ```
 newtype UserId = int64;
 newtype OrderId = int64;
 // UserId and OrderId don't mix, even though both are int64
 
-const id = UserId(42);           // scalar newtype
-const p = Point(1.0, 2.0);       // tuple newtype
-const c = Config { debug: true }; // struct newtype
+const id = UserId(42);            // wraps scalar
+const p = Point(1.0, 2.0);        // wraps tuple
+const c = Config({ debug: true }); // wraps object
 ```
 
 ### Structs
 
 Structs are data-oriented object types with fixed layout.
 Structs are simpler than classes: no identity, no inheritance, just data with a name.
+Structs may embed other structs to compose types, and structs can implement interfaces.
 
 ```
 struct Point { x: float32, y: float32 }
 ```
 
-**Structs vs Classes:**
+#### Structs vs Classes
 
 | | struct | class |
 |---|---|---|
@@ -202,6 +203,8 @@ const e1 = new Entity(1);
 const e2 = new Entity(1);
 e1 == e2  // false: different instances
 ```
+
+#### Structs Are Nominal
 
 Structs are nominal (like newtypes), so they must be explicitly constructed:
 
