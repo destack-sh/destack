@@ -36,19 +36,6 @@ impl LanguageFeature {
         Self::Ownership,
     ];
 
-    /// The config key for this feature (e.g., `"allowDispatch"`).
-    pub fn options_key(&self) -> &'static str {
-        match self {
-            Self::Expressions => "allowExpressions",
-            Self::Trees => "allowTrees",
-            Self::Annotations => "allowAnnotations",
-            Self::Types => "allowTypes",
-            Self::Reflection => "allowReflection",
-            Self::Dispatch => "allowDispatch",
-            Self::Ownership => "allowOwnership",
-        }
-    }
-
     /// Human-readable name for error messages.
     pub fn display_name(&self) -> &'static str {
         match self {

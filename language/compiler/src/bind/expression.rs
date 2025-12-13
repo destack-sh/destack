@@ -2,8 +2,8 @@ use destack_ast::{self as ast};
 use destack_dir::{
     Declarator, DependencyMode, DependencySource, Expression, ForEachKind, IfKind, LocalNodeId,
     LocalNodeIdAny, LocalScopeId, LocalScopeMark, LoopKind, MatchSource, NodeTree, NodeType,
-    ScopeKind, StaticKey, SymbolKind, SymbolSpace, SymbolTable, SymbolType, TypeTable,
-    YieldCardinality,
+    ScopeKind, StaticKey, SymbolBinding, SymbolKind, SymbolSpace, SymbolTable, SymbolType,
+    TypeTable, YieldCardinality,
 };
 use destack_workspace::Module;
 
@@ -88,6 +88,7 @@ impl Compiler {
                     SymbolKind::Local,
                     SymbolType::Void,
                     SymbolSpace::Label,
+                    SymbolBinding::Definition,
                     Some(StaticKey::Name(label)),
                     scope,
                     None,

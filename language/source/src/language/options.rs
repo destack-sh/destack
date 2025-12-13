@@ -1,6 +1,4 @@
-use crate::{
-    FileType, FormatterOptions, IndentStyle, LanguageFeature, LanguageFeatureSet, LineEnding,
-};
+use crate::{FileType, FormatterOptions, IndentStyle, LineEnding};
 
 /// The source language type determines parsing and compatibility behavior.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
@@ -37,12 +35,6 @@ impl LanguageType {
     #[inline]
     pub fn is_typescript(&self) -> bool {
         matches!(self, Self::TypeScript | Self::TypeScriptXml)
-    }
-
-    /// Whether this is a compatibility mode (JS/TS, not Destack).
-    #[inline]
-    pub fn is_compatibility_mode(&self) -> bool {
-        !self.is_destack()
     }
 
     /// Whether this language type supports JSX/tree literal syntax.
@@ -87,8 +79,6 @@ pub struct LanguageOptions {
     pub version: LanguageVersion = LanguageVersion::V1,
     /// The source language type (determines compatibility behavior).
     pub ty: LanguageType = LanguageType::Destack,
-    /// The enabled language features (for post-parse feature gating).
-    pub features: LanguageFeatureSet = LanguageFeatureSet::all(),
     /// The formatting options.
     pub formatting: FormatterOptions,
 }
@@ -96,25 +86,25 @@ pub struct LanguageOptions {
 impl LanguageOptions {
     /// Whether the language type is Destack-compatible.
     #[inline]
-    pub fn is_destack_compatible(&self) -> bool {
+    pub fn is_destack(&self) -> bool {
         self.ty.is_destack()
     }
 
     /// Whether the language type is JavaScript-compatible.
     #[inline]
-    pub fn is_javascript_compatible(&self) -> bool {
+    pub fn is_javascript(&self) -> bool {
         self.ty.is_javascript()
     }
 
     /// Whether the language type is TypeScript-compatible.
     #[inline]
-    pub fn is_typescript_compatible(&self) -> bool {
+    pub fn is_typescript(&self) -> bool {
         self.ty.is_typescript()
     }
 
     /// Whether the language supports JSX/tree literal syntax.
     #[inline]
-    pub fn supports_tree_literal(&self) -> bool {
+    pub fn supports_jsx(&self) -> bool {
         self.ty.supports_jsx()
     }
 
@@ -158,29 +148,5 @@ impl LanguageOptions {
     pub fn with_line_width(mut self, line_width: u8) -> Self {
         self.formatting.line_width = line_width;
         self
-    }
-
-    /// Set the enabled features.
-    pub fn with_features(mut self, features: LanguageFeatureSet) -> Self {
-        self.features = features;
-        self
-    }
-
-    /// Enable a specific feature.
-    pub fn with_feature(mut self, feature: LanguageFeature) -> Self {
-        self.features.enable(feature);
-        self
-    }
-
-    /// Disable a specific feature.
-    pub fn without_feature(mut self, feature: LanguageFeature) -> Self {
-        self.features.disable(feature);
-        self
-    }
-
-    /// Check if a feature is enabled.
-    #[inline]
-    pub fn is_feature_enabled(&self, feature: LanguageFeature) -> bool {
-        self.features.is_enabled(feature)
     }
 }

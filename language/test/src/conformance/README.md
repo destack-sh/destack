@@ -8,14 +8,14 @@ Conformance tests check that the Destack parser conforms both to the ECMAScript 
 <!-- begin:summary-results -->
 | Suite    | Passed | Failed | Total |  Rate   |
 |:---------|-------:|-------:|------:|--------:|
-| babel    |   438  |   282  |   720 |  60.83% |
-| biome    |   394  |   243  |   637 |  61.85% |
-| swc      |   392  |   146  |   538 |  72.86% |
-| test262  |  4261  |  1102  |  5363 |  79.45% |
+| babel    |   453  |   267  |   720 |  62.92% |
+| biome    |   398  |   239  |   637 |  62.48% |
+| swc      |   390  |   148  |   538 |  72.49% |
+| test262  |  4333  |  1030  |  5363 |  80.79% |
 |----------|--------|--------|-------|---------|
-| total    |  5485  |  1773  |  7258 |  75.57% |
+| total    |  5574  |  1684  |  7258 |  76.80% |
 
-Total Blended Pass Rate: **75.57%**
+Total Blended Pass Rate: **76.80%**
 <!-- end:summary-results -->
 
 ### babel
@@ -32,7 +32,7 @@ Total Blended Pass Rate: **75.57%**
 | catch-clause         |     1  |     0  |     1 | 100.00% |
 | class                |    47  |    50  |    97 |  48.45% |
 | const                |     1  |     3  |     4 |  25.00% |
-| declare              |    12  |    15  |    27 |  44.44% |
+| declare              |    11  |    16  |    27 |  40.74% |
 | decorators           |     1  |     1  |     2 |  50.00% |
 | disallow-jsx-ambiguity |     2  |     1  |     3 |  66.67% |
 | dts                  |     3  |     2  |     5 |  60.00% |
@@ -42,7 +42,7 @@ Total Blended Pass Rate: **75.57%**
 | explicit-resource-management |     0  |     1  |     1 |   0.00% |
 | exponentiation       |     1  |     2  |     3 |  33.33% |
 | export               |    11  |     3  |    14 |  78.57% |
-| function             |     6  |     7  |    13 |  46.15% |
+| function             |     7  |     6  |    13 |  53.85% |
 | html-entities        |     3  |     1  |     4 |  75.00% |
 | import               |     9  |    14  |    23 |  39.13% |
 | interface            |    30  |    17  |    47 |  63.83% |
@@ -50,7 +50,7 @@ Total Blended Pass Rate: **75.57%**
 | module-namespace     |    15  |     3  |    18 |  83.33% |
 | optional-chaining    |     1  |     0  |     1 | 100.00% |
 | regression           |    22  |     3  |    25 |  88.00% |
-| scope                |    30  |    36  |    66 |  45.45% |
+| scope                |    45  |    21  |    66 |  68.18% |
 | static-blocks        |    14  |     6  |    20 |  70.00% |
 | tsx                  |     5  |     3  |     8 |  62.50% |
 | type-alias           |     5  |     2  |     7 |  71.43% |
@@ -61,17 +61,17 @@ Total Blended Pass Rate: **75.57%**
 | types-arrow-function |     3  |     0  |     3 | 100.00% |
 | variable-declarator  |     1  |     2  |     3 |  33.33% |
 |----------------------|--------|--------|-------|---------|
-| total                |   438  |   282  |   720 |  60.83% |
+| total                |   453  |   267  |   720 |  62.92% |
 <!-- end:babel-results -->
 
 ### biome
 <!-- begin:biome-results -->
 | Category             | Passed | Failed | Total |  Rate   |
 |:---------------------|-------:|-------:|------:|--------:|
-| error                |   179  |   123  |   302 |  59.27% |
+| error                |   183  |   119  |   302 |  60.60% |
 | ok                   |   215  |   120  |   335 |  64.18% |
 |----------------------|--------|--------|-------|---------|
-| total                |   394  |   243  |   637 |  61.85% |
+| total                |   398  |   239  |   637 |  62.48% |
 <!-- end:biome-results -->
 
 ### swc
@@ -80,13 +80,13 @@ Total Blended Pass Rate: **75.57%**
 |:---------------------|-------:|-------:|------:|--------:|
 | amaro-194            |     0  |     1  |     1 |   0.00% |
 | arrow-function       |     8  |     7  |    15 |  53.33% |
-| basic                |    48  |    15  |    63 |  76.19% |
+| basic                |    46  |    17  |    63 |  73.02% |
 | case1                |     1  |     0  |     1 | 100.00% |
 | cast                 |    11  |     5  |    16 |  68.75% |
 | class                |    19  |    20  |    39 |  48.72% |
 | const                |     1  |     0  |     1 | 100.00% |
-| custom               |    42  |    14  |    56 |  75.00% |
-| declare              |     5  |     0  |     5 | 100.00% |
+| custom               |    43  |    13  |    56 |  76.79% |
+| declare              |     4  |     1  |     5 |  80.00% |
 | decorators           |     0  |     2  |     2 |   0.00% |
 | deno                 |     6  |     1  |     7 |  85.71% |
 | enum                 |    11  |     0  |    11 | 100.00% |
@@ -96,7 +96,7 @@ Total Blended Pass Rate: **75.57%**
 | estree-compat        |     1  |     0  |     1 | 100.00% |
 | export               |     5  |     0  |     5 | 100.00% |
 | export-default-interface |     1  |     0  |     1 | 100.00% |
-| function             |     4  |     2  |     6 |  66.67% |
+| function             |     5  |     1  |     6 |  83.33% |
 | import               |     1  |     7  |     8 |  12.50% |
 | import-assertions    |     7  |     0  |     7 | 100.00% |
 | instantiation-expr   |     6  |     2  |     8 |  75.00% |
@@ -118,25 +118,25 @@ Total Blended Pass Rate: **75.57%**
 | tsx                  |     1  |     2  |     3 |  33.33% |
 | type-alias           |     5  |     0  |     5 | 100.00% |
 | type-arguments       |     5  |     2  |     7 |  71.43% |
-| types                |    24  |     6  |    30 |  80.00% |
+| types                |    23  |     7  |    30 |  76.67% |
 | v4                   |     4  |     1  |     5 |  80.00% |
 | variable-declarator  |     0  |     1  |     1 |   0.00% |
 | variance-annotations |     0  |     2  |     2 |   0.00% |
 | vercel               |     1  |     0  |     1 | 100.00% |
 |----------------------|--------|--------|-------|---------|
-| total                |   392  |   146  |   538 |  72.86% |
+| total                |   390  |   148  |   538 |  72.49% |
 <!-- end:swc-results -->
 
 ### test262
 <!-- begin:test262-results -->
 | Category             | Passed | Failed | Total |  Rate   |
 |:---------------------|-------:|-------:|------:|--------:|
-| early                |   264  |   404  |   668 |  39.52% |
+| early                |   336  |   332  |   668 |  50.30% |
 | fail                 |   346  |   383  |   729 |  47.46% |
 | pass                 |  1798  |   185  |  1983 |  90.67% |
 | pass-explicit        |  1853  |   130  |  1983 |  93.44% |
 |----------------------|--------|--------|-------|---------|
-| total                |  4261  |  1102  |  5363 |  79.45% |
+| total                |  4333  |  1030  |  5363 |  80.79% |
 <!-- end:test262-results -->
 
 ## Why Not 100%?

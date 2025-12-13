@@ -160,7 +160,7 @@ impl Parser {
             .ok_or(ParseError::unexpected(token.span))?;
 
         // dereference (*x) is not valid in JS/TS compatibility mode
-        if operator == UnaryOperator::Dereference && !self.language.is_destack_compatible() {
+        if operator == UnaryOperator::Dereference && !self.language.is_destack() {
             return Err(ParseError::unexpected(token.span));
         }
 
@@ -441,7 +441,7 @@ impl Parser {
 
             // eat leading elementwise operator
             if token_type == TokenType::ElementwiseOr
-                || token_type == TokenType::ElementwiseAnd && !self.language.is_destack_compatible()
+                || token_type == TokenType::ElementwiseAnd && !self.language.is_destack()
             {
                 self.bump(); // eat elementwise operator
                 let leading_binary_operator = match token_type {
@@ -520,7 +520,7 @@ impl Parser {
                     if self.peek_token(TokenType::CloseParenthesis).is_ok() {
                         self.bump(); // eat closing parenthesis
                         // in Destack: empty tuple
-                        if self.language.is_destack_compatible() {
+                        if self.language.is_destack() {
                             self.tree.insert(
                                 Expression::TupleExpression { elements: vec![] },
                                 self.get_span_from(start),
@@ -537,7 +537,7 @@ impl Parser {
                         }
                     }
                     // tuple if we see a named element
-                    else if self.language.is_destack_compatible()
+                    else if self.language.is_destack()
                         && self.peek_token(TokenType::Identifier).is_ok()
                         && self.peek_next_token(TokenType::Colon).is_ok()
                     {
@@ -624,7 +624,7 @@ impl Parser {
             }
             // value (`^` or `^var` or `^T`)
             else if self.peek_token(TokenType::ElementwiseXor).is_ok()
-                && self.language.is_destack_compatible()
+                && self.language.is_destack()
             {
                 self.bump(); // eat ^
                 let mutability = self.eat_mutability_maybe()?;
@@ -641,7 +641,7 @@ impl Parser {
             }
             // reference (`&` or `&var` or `&T`)
             else if self.peek_token(TokenType::ElementwiseAnd).is_ok()
-                && self.language.is_destack_compatible()
+                && self.language.is_destack()
             {
                 self.bump(); // eat &
                 let mutability = self.eat_mutability_maybe()?;
@@ -832,7 +832,7 @@ impl Parser {
             }
             // loop (Destack-only, for #Compatibility with TS)
             else if keyword == Some(Keyword::Loop)
-                && self.language.is_destack_compatible()
+                && self.language.is_destack()
                 && self.peek_next_block().is_ok()
             {
                 self.eat_loop()?
@@ -844,7 +844,7 @@ impl Parser {
             // match / switch
             // NOTE: `match` is only a keyword in Destack mode (for #Compatibility with TS)
             else if keyword == Some(Keyword::Switch)
-                || (keyword == Some(Keyword::Match) && self.language.is_destack_compatible())
+                || (keyword == Some(Keyword::Match) && self.language.is_destack())
             {
                 self.eat_match()?
             }
@@ -909,7 +909,7 @@ impl Parser {
                     .insert(Expression::Block(block_id), self.get_span_from(start))
             }
             // tree literal
-            else if self.language.supports_tree_literal()
+            else if self.language.supports_jsx()
                 && token_type == TokenType::LessThan
                 && self.peek_tree_literal().is_ok()
             {
@@ -1157,7 +1157,7 @@ impl Parser {
                 // maybe or maybe dot (followed by a delimiter/stop, but not preceded by a newline)
                 if self.peek_token(TokenType::Maybe).is_ok()
                     && (self.peek_next_any_stop().is_ok()
-                        && self.language.is_destack_compatible()
+                        && self.language.is_destack()
                         && self.prev_token_type() != TokenType::Newline
                         || self.peek_next_any_close_parenthesis().is_ok()
                         || self.peek_next_token(TokenType::Dot).is_ok()
@@ -1240,7 +1240,7 @@ impl Parser {
             else if self.options.in_parenthesis && self.peek_token(TokenType::Comma).is_ok() {
                 self.bump(); // eat comma
                 self.eat_newlines_maybe()?;
-                if self.language.is_destack_compatible() {
+                if self.language.is_destack() {
                     // build a tuple
                     let first_element_id = self.tree.insert(
                         Argument::Positional {

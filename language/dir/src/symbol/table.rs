@@ -2,7 +2,8 @@ use destack_source::ModuleId;
 
 use crate::{
     Arena, DependencyMode, LocalNodeId, LocalScopeId, LocalScopeMark, LocalSymbolId, Node,
-    NodeTree, Scope, ScopeKind, StaticKey, Symbol, SymbolKind, SymbolSpace, SymbolType,
+    NodeTree, Scope, ScopeKind, StaticKey, Symbol, SymbolBinding, SymbolKind, SymbolSpace,
+    SymbolType,
 };
 use std::fmt::Debug;
 
@@ -59,6 +60,7 @@ impl SymbolTable {
         kind: SymbolKind,
         ty: SymbolType,
         space: SymbolSpace,
+        binding: SymbolBinding,
         key: Option<StaticKey>,
         scope: (LocalScopeId, LocalScopeMark),
         export: Option<DependencyMode>,
@@ -69,6 +71,7 @@ impl SymbolTable {
             kind,
             ty,
             space,
+            binding,
             key,
             scope,
             module_id: self.module_id,
