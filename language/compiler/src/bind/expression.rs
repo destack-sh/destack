@@ -1,9 +1,9 @@
 use destack_ast::{self as ast};
 use destack_dir::{
-    Declarator, DependencyMode, DependencySource, Expression, ForEachKind, IfKind, LocalNodeId,
-    LocalNodeIdAny, LocalScopeId, LocalScopeMark, LoopKind, MatchSource, NodeTree, NodeType,
-    ScopeKind, StaticKey, SymbolBinding, SymbolKind, SymbolSpace, SymbolTable, SymbolType,
-    TypeTable, YieldCardinality,
+    DeclarationKind, Declarator, DependencyMode, DependencySource, Expression, ForEachKind, IfKind,
+    LocalNodeId, LocalNodeIdAny, LocalScopeId, LocalScopeMark, LoopKind, MatchSource, NodeTree,
+    NodeType, ScopeKind, StaticKey, SymbolBinding, SymbolKind, SymbolSpace, SymbolTable,
+    SymbolType, TypeTable, YieldCardinality,
 };
 use destack_workspace::Module;
 
@@ -88,7 +88,7 @@ impl Compiler {
                     SymbolKind::Local,
                     SymbolType::Void,
                     SymbolSpace::Label,
-                    SymbolBinding::Definition,
+                    SymbolBinding::Runtime,
                     Some(StaticKey::Name(label)),
                     scope,
                     None,
@@ -247,6 +247,10 @@ impl Compiler {
                     symbols,
                 );
                 let symbol_id = descriptor.symbol;
+                let binding = match descriptor.kind {
+                    DeclarationKind::Declaration => SymbolBinding::Ambient,
+                    DeclarationKind::Definition => SymbolBinding::Runtime,
+                };
                 let mutability = self.bind_mutability(*mutability);
                 let declarators: Vec<LocalNodeId<Declarator>> = ast_declarators
                     .iter()
@@ -255,6 +259,7 @@ impl Compiler {
                             module,
                             scope,
                             descriptor.export,
+                            binding,
                             *ast_decl_id,
                             Some(expression_id),
                             tree,
@@ -989,6 +994,7 @@ impl Compiler {
                     module,
                     scope,
                     None,
+                    SymbolBinding::Runtime,
                     *pattern,
                     Some(expression_id),
                     tree,
@@ -1146,6 +1152,7 @@ impl Compiler {
                         module,
                         (scope_id, symbols.get_scope_mark(scope_id)),
                         None,
+                        SymbolBinding::Runtime,
                         catch_pattern,
                         Some(expression_id),
                         tree,
@@ -1348,6 +1355,7 @@ impl Compiler {
         module: &Module,
         scope: (LocalScopeId, LocalScopeMark),
         export: Option<DependencyMode>,
+        binding: SymbolBinding,
         ast_declarator_id: ast::LocalNodeId<ast::Declarator>,
         parent_id: Option<LocalNodeIdAny>,
         tree: &mut NodeTree,
@@ -1363,6 +1371,7 @@ impl Compiler {
             module,
             scope,
             export,
+            binding,
             *pattern,
             Some(declarator_id),
             tree,

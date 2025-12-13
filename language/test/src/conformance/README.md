@@ -8,14 +8,14 @@ Conformance tests check that the Destack parser conforms both to the ECMAScript 
 <!-- begin:summary-results -->
 | Suite    | Passed | Failed | Total |  Rate   |
 |:---------|-------:|-------:|------:|--------:|
-| babel    |   453  |   267  |   720 |  62.92% |
+| babel    |   454  |   266  |   720 |  63.06% |
 | biome    |   398  |   239  |   637 |  62.48% |
-| swc      |   390  |   148  |   538 |  72.49% |
+| swc      |   391  |   147  |   538 |  72.68% |
 | test262  |  4333  |  1030  |  5363 |  80.79% |
 |----------|--------|--------|-------|---------|
-| total    |  5574  |  1684  |  7258 |  76.80% |
+| total    |  5576  |  1682  |  7258 |  76.83% |
 
-Total Blended Pass Rate: **76.80%**
+Total Blended Pass Rate: **76.83%**
 <!-- end:summary-results -->
 
 ### babel
@@ -32,7 +32,7 @@ Total Blended Pass Rate: **76.80%**
 | catch-clause         |     1  |     0  |     1 | 100.00% |
 | class                |    47  |    50  |    97 |  48.45% |
 | const                |     1  |     3  |     4 |  25.00% |
-| declare              |    11  |    16  |    27 |  40.74% |
+| declare              |    12  |    15  |    27 |  44.44% |
 | decorators           |     1  |     1  |     2 |  50.00% |
 | disallow-jsx-ambiguity |     2  |     1  |     3 |  66.67% |
 | dts                  |     3  |     2  |     5 |  60.00% |
@@ -61,7 +61,7 @@ Total Blended Pass Rate: **76.80%**
 | types-arrow-function |     3  |     0  |     3 | 100.00% |
 | variable-declarator  |     1  |     2  |     3 |  33.33% |
 |----------------------|--------|--------|-------|---------|
-| total                |   453  |   267  |   720 |  62.92% |
+| total                |   454  |   266  |   720 |  63.06% |
 <!-- end:babel-results -->
 
 ### biome
@@ -86,7 +86,7 @@ Total Blended Pass Rate: **76.80%**
 | class                |    19  |    20  |    39 |  48.72% |
 | const                |     1  |     0  |     1 | 100.00% |
 | custom               |    43  |    13  |    56 |  76.79% |
-| declare              |     4  |     1  |     5 |  80.00% |
+| declare              |     5  |     0  |     5 | 100.00% |
 | decorators           |     0  |     2  |     2 |   0.00% |
 | deno                 |     6  |     1  |     7 |  85.71% |
 | enum                 |    11  |     0  |    11 | 100.00% |
@@ -124,7 +124,7 @@ Total Blended Pass Rate: **76.80%**
 | variance-annotations |     0  |     2  |     2 |   0.00% |
 | vercel               |     1  |     0  |     1 | 100.00% |
 |----------------------|--------|--------|-------|---------|
-| total                |   390  |   148  |   538 |  72.49% |
+| total                |   391  |   147  |   538 |  72.68% |
 <!-- end:swc-results -->
 
 ### test262

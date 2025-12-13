@@ -25,7 +25,7 @@ impl Compiler {
             SymbolKind::Item,
             SymbolType::Void,
             space,
-            SymbolBinding::Definition,
+            SymbolBinding::Runtime,
             Some(key),
             scope,
             export,
@@ -48,7 +48,7 @@ impl Compiler {
             SymbolKind::Item,
             SymbolType::Void,
             space,
-            SymbolBinding::Definition,
+            SymbolBinding::Runtime,
             Some(key),
             scope,
             export,
@@ -71,7 +71,7 @@ impl Compiler {
             SymbolKind::Item,
             SymbolType::Void,
             space,
-            SymbolBinding::Definition,
+            SymbolBinding::Runtime,
             None,
             scope,
             export,
@@ -92,7 +92,7 @@ impl Compiler {
             SymbolKind::Item,
             SymbolType::Void,
             SymbolSpace::Value,
-            SymbolBinding::Definition,
+            SymbolBinding::Runtime,
             None,
             scope,
             export,
@@ -115,7 +115,7 @@ impl Compiler {
             SymbolKind::Local,
             SymbolType::Void,
             space,
-            SymbolBinding::Definition,
+            SymbolBinding::Runtime,
             Some(key),
             scope,
             None,
@@ -137,7 +137,7 @@ impl Compiler {
             SymbolKind::Local,
             SymbolType::Void,
             space,
-            SymbolBinding::Definition,
+            SymbolBinding::Runtime,
             Some(key),
             scope,
             None,
@@ -159,7 +159,7 @@ impl Compiler {
             SymbolKind::Local,
             SymbolType::Void,
             space,
-            SymbolBinding::Definition,
+            SymbolBinding::Runtime,
             None,
             scope,
             None,
@@ -179,7 +179,7 @@ impl Compiler {
             SymbolKind::Local,
             SymbolType::Void,
             SymbolSpace::Value,
-            SymbolBinding::Definition,
+            SymbolBinding::Runtime,
             None,
             scope,
             None,
@@ -204,5 +204,33 @@ impl Compiler {
         } else {
             self.bind_named_local(module, space, key, scope, symbols)
         }
+    }
+
+    /// Bind a new named item or local with explicit binding type.
+    #[inline]
+    pub(super) fn bind_named_symbol_with_binding(
+        &self,
+        _module: &Module,
+        space: SymbolSpace,
+        key: StaticKey,
+        binding: SymbolBinding,
+        scope: (LocalScopeId, LocalScopeMark),
+        export: Option<DependencyMode>,
+        symbols: &mut SymbolTable,
+    ) -> (LocalSymbolId, LocalScopeMark) {
+        let kind = if export.is_some() {
+            SymbolKind::Item
+        } else {
+            SymbolKind::Local
+        };
+        symbols.insert_symbol(
+            kind,
+            SymbolType::Void,
+            space,
+            binding,
+            Some(key),
+            scope,
+            export,
+        )
     }
 }
