@@ -2,7 +2,7 @@ use crate::{
     AnalyzeError, AnalyzeResult, Compiler, InferContext, Task, TaskDebug, TaskDependencyError,
     TaskOutput, TaskResultCollector,
 };
-use destack_dir::{LocalTypeId, Member, Parameter};
+use destack_dir::{Declaration, LocalTypeId, Member, Parameter};
 use destack_source::ModuleId;
 use destack_workspace::Program;
 
@@ -172,6 +172,12 @@ impl Compiler {
         let module = self.program.modules.get(module_id);
         let module = module.read();
         let tree = module.dir.tree.read();
+        let types = module.dir.types.read();
+
+        // validate declarations
+        for (id, declaration) in tree.iter_nodes_of_type::<Declaration>() {
+            self.validate_declaration(&module, &types, id, declaration);
+        }
 
         // validate parameters
         for (id, parameter) in tree.iter_nodes_of_type::<Parameter>() {
@@ -180,7 +186,7 @@ impl Compiler {
 
         // validate members
         for (id, member) in tree.iter_nodes_of_type::<Member>() {
-            self.validate_member(&module, id, member);
+            self.validate_member(&module, &tree, id, member);
         }
 
         Ok(())

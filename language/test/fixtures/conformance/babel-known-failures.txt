@@ -60,6 +60,7 @@ typescript/class/expression-extends-implements
 typescript/class/expression-implements
 typescript/class/extends
 typescript/class/extends-empty
+typescript/class/extends-implements
 typescript/class/extends-implements-empty
 typescript/class/get-generic
 typescript/class/implements-empty

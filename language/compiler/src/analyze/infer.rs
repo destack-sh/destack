@@ -1,11 +1,11 @@
 use crate::{AnalyzeError, AnalyzeResult, Assignability, Compiler, InferContext};
 use destack_dir::{
-    Argument, Block, Declaration, DeclarationAbstraction, DeclarationKind, Declarator,
-    DependencyItem, DynamicKey, EnumField, Expression, Extension, ExtensionKind,
-    FunctionAbstraction, FunctionMode, FunctionSignature, Generics, GlobalSymbolId, GlobalTypeId,
-    Heritage, Lineage, LocalNodeId, LocalNodeIdAny, LocalSymbolId, LocalTypeId, MatchCase,
-    MatchSource, Member, NodeTree, Parameter, Pattern, PatternField, PrimitiveType, Property,
-    StaticKey, SymbolTable, Type, TypeField, TypeKind, TypeLiteral, TypeTable, WhereClause,
+    Argument, Block, Declaration, DeclarationAbstraction, Declarator, DependencyItem, DynamicKey,
+    EnumField, Expression, Extension, ExtensionKind, FunctionSignature, Generics, GlobalSymbolId,
+    GlobalTypeId, Heritage, Lineage, LocalNodeId, LocalNodeIdAny, LocalSymbolId, LocalTypeId,
+    MatchCase, MatchSource, Member, NodeTree, Parameter, Pattern, PatternField, PrimitiveType,
+    Property, StaticKey, SymbolTable, Type, TypeField, TypeKind, TypeLiteral, TypeTable,
+    WhereClause,
 };
 use destack_workspace::Module;
 
@@ -1285,13 +1285,6 @@ impl Compiler {
                 scope: _,
                 members,
             } => {
-                // interfaces cannot be abstract
-                if descriptor.abstraction == DeclarationAbstraction::Abstract {
-                    self.error(AnalyzeError::InvalidInterface {
-                        node: declaration_id.into_global_any(module.id),
-                    });
-                }
-
                 // walk
                 self.infer_generics(module, generics, tree, symbols, types, ctx)?;
                 self.infer_heritage(
@@ -1342,13 +1335,6 @@ impl Compiler {
                 scope: _,
                 body,
             } => {
-                // declare functions cannot have a body
-                if descriptor.kind == DeclarationKind::Declaration && body.is_some() {
-                    self.error(AnalyzeError::InvalidFunction {
-                        node: declaration_id.into_global_any(module.id),
-                    });
-                }
-
                 let fn_ty_id = self.infer_signature(
                     module,
                     declaration_id.into_any(),
@@ -1553,40 +1539,6 @@ impl Compiler {
                     self.infer_expression(module, *body, tree, symbols, types, &mut ctx)?;
                 }
 
-                // constructor cannot have static parameters
-                if signature
-                    .generics
-                    .as_ref()
-                    .is_some_and(|generics| generics.static_parameters.is_some())
-                    && signature
-                        .mode
-                        .is_some_and(|mode| mode == FunctionMode::Constructor)
-                {
-                    self.error(AnalyzeError::InvalidConstructor {
-                        node: member_id.into_global_any(module.id),
-                    });
-                }
-
-                // abstractness
-                let is_abstract = matches!(
-                    signature.abstraction,
-                    FunctionAbstraction::Abstract | FunctionAbstraction::AbstractOverride
-                );
-                // abstract methods cannot have a body
-                if is_abstract && body.is_some() {
-                    self.error(AnalyzeError::InvalidMethod {
-                        node: member_id.into_global_any(module.id),
-                        abstraction: signature.abstraction,
-                    });
-                }
-                // abstract methods can only appear in abstract classes
-                if is_abstract && !ctx.in_abstract_class {
-                    self.error(AnalyzeError::InvalidMethod {
-                        node: member_id.into_global_any(module.id),
-                        abstraction: signature.abstraction,
-                    });
-                }
-
                 // return a field if we have a static key
                 if let Some(key) = static_key {
                     Ok(Some(TypeField {
@@ -1639,7 +1591,7 @@ impl Compiler {
         &self,
         module: &Module,
         heritage: &Heritage,
-        node_id: LocalNodeIdAny,
+        _node_id: LocalNodeIdAny,
         symbol: Option<LocalSymbolId>,
         tree: &NodeTree,
         symbols: &SymbolTable,
@@ -1684,17 +1636,7 @@ impl Compiler {
 
         // build and store lineage if we have a declaring symbol
         if let Some(symbol) = symbol {
-            // check lineage
-            if extends_symbols.len() > 1 {
-                self.error(AnalyzeError::InvalidLineage {
-                    node: node_id.into_global(module.id),
-                    extends_symbols: extends_symbols.clone(),
-                    implements_symbols: implements_symbols.clone(),
-                    embedded_symbols: embedded_symbols.clone(),
-                });
-            }
-
-            // remember lineage
+            // remember lineage (validation happens in validate phase)
             let lineage = Lineage {
                 extends: extends_symbols.first().copied(),
                 implements: implements_symbols,

@@ -46,6 +46,7 @@ typescript/class/constructor/input.ts
 typescript/class/expression-extends-implements/input.ts
 typescript/class/expression-extends/input.ts
 typescript/class/expression-implements/input.ts
+typescript/class/extends-implements/input.ts
 typescript/class/extends/input.ts
 typescript/class/get-generic/input.ts
 typescript/class/members-with-modifier-names/input.ts

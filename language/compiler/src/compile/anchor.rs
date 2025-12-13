@@ -245,7 +245,7 @@ impl DiagnosticRegistry {
     }
 
     /// Validate a list of codes and return any invalid ones.
-    pub fn validate_codes<'a>(codes: &'a [String]) -> Vec<&'a str> {
+    pub fn validate_codes(codes: &[String]) -> Vec<&str> {
         codes
             .iter()
             .filter(|c| !Self::is_valid_code(c))
