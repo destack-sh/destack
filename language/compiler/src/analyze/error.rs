@@ -109,6 +109,8 @@ pub enum AnalyzeError {
     InvalidAwait { node: GlobalNodeIdAny },
     /// Invalid yield.
     InvalidYield { node: GlobalNodeIdAny },
+    /// Invalid return (outside function).
+    InvalidReturn { node: GlobalNodeIdAny },
 }
 
 impl From<TaskDependencyError> for AnalyzeError {
@@ -163,6 +165,7 @@ impl AnalyzeError {
             Self::InvalidContinue { .. } => 22,
             Self::InvalidAwait { .. } => 23,
             Self::InvalidYield { .. } => 24,
+            Self::InvalidReturn { .. } => 25,
         }
     }
 
@@ -194,6 +197,7 @@ impl AnalyzeError {
             Self::InvalidContinue { node, .. } => DiagnosticAnchor::Node(*node),
             Self::InvalidAwait { node, .. } => DiagnosticAnchor::Node(*node),
             Self::InvalidYield { node, .. } => DiagnosticAnchor::Node(*node),
+            Self::InvalidReturn { node, .. } => DiagnosticAnchor::Node(*node),
         }
     }
 
@@ -256,25 +260,26 @@ impl AnalyzeError {
                 let actual = format_global_type(*actual_ty, program);
                 format!("expected {expected}, found {actual}")
             }
-            Self::InvalidLineage { .. } => "illegal lineage".to_string(),
+            Self::InvalidLineage { .. } => "invalid lineage".to_string(),
             Self::InvalidBreak { label, .. } => {
                 if let Some(label) = label {
                     let label = program.strings.get(*label).to_string();
-                    format!("illegal break to '{label}'")
+                    format!("invalid break to '{label}'")
                 } else {
-                    "illegal break".to_string()
+                    "invalid break".to_string()
                 }
             }
             Self::InvalidContinue { label, .. } => {
                 if let Some(label) = label {
                     let label = program.strings.get(*label).to_string();
-                    format!("illegal continue to '{label}'")
+                    format!("invalid continue to '{label}'")
                 } else {
-                    "illegal continue".to_string()
+                    "invalid continue".to_string()
                 }
             }
-            Self::InvalidAwait { .. } => "illegal await".to_string(),
-            Self::InvalidYield { .. } => "illegal yield".to_string(),
+            Self::InvalidAwait { .. } => "invalid await".to_string(),
+            Self::InvalidYield { .. } => "invalid yield".to_string(),
+            Self::InvalidReturn { .. } => "invalid return".to_string(),
         }
     }
 }

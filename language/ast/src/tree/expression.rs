@@ -322,9 +322,7 @@ pub enum Expression {
     /// throw someError
     /// throw anyOldExpression()
     /// ```
-    Throw {
-        value: LocalNodeId<Expression>,
-    },
+    Throw { value: LocalNodeId<Expression> },
 
     /// Return expression.
     ///

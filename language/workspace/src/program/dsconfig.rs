@@ -953,7 +953,6 @@ pub struct DsConfigCompilerOptionsJson {
     pub skip_lib_check: Option<bool>,
 }
 
-
 /// Destack build target configuration.
 #[derive(Debug, Default, Deserialize, Clone)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]

@@ -180,7 +180,6 @@ typescript/scope/export-import-in-declare-module
 typescript/scope/export-namespace
 typescript/scope/function-type-before-declaration
 typescript/scope/function-type-before-declaration-optional-pattern
-typescript/scope/redeclaration-constenum-constenum
 typescript/scope/redeclaration-constenum-enum
 typescript/scope/redeclaration-enum-constenum
 typescript/scope/redeclaration-function-type

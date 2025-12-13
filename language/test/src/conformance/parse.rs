@@ -31,7 +31,7 @@ pub(super) enum TestArea {
 impl TestArea {
     /// Check if an error code is relevant for this test area.
     pub(super) fn is_relevant_error(&self, code: &str) -> bool {
-        // nocheckin TODO #Cleanup: use more rigorous error code matching for conformance testing?
+        // nocheckin TODO #Cleanup: use more rigorous diagnostic definition?
         // (reorganize warnings/errors and other diagnostics incl. future lints to use some macro,
         //  such that we can easily check against them and list them statically like for docs and tests)
         match self {
@@ -47,6 +47,7 @@ impl TestArea {
                     || code == "EA022" // InvalidContinue
                     || code == "EA023" // InvalidAwait
                     || code == "EA024" // InvalidYield
+                    || code == "EA025" // InvalidReturn
             }
         }
     }

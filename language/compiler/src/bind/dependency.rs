@@ -97,7 +97,7 @@ impl Compiler {
                 );
                 let item = DependencyItem::Value { value: value_id };
                 tree.insert(item_id, item)
-            } 
+            }
             // `import` or `export { foo } from "foo"`
             else if let Some(target) = target {
                 let item = DependencyItem::UnresolvedRemote {
@@ -111,7 +111,7 @@ impl Compiler {
                     symbol: symbol_id,
                 };
                 tree.insert(item_id, item)
-            } 
+            }
             // `export { foo }`
             else {
                 let item = DependencyItem::UnresolvedLocal {
