@@ -8,14 +8,14 @@ Conformance tests check that the Destack parser conforms both to the ECMAScript 
 <!-- begin:summary-results -->
 | Suite    | Passed | Failed | Skipped | Total |  Rate   |
 |:---------|-------:|-------:|--------:|------:|--------:|
-| babel    |   469  |   241  |     5  |   710 |  66.06% |
+| babel    |   477  |   233  |     5  |   710 |  67.18% |
 | biome    |   409  |   228  |     -  |   637 |  64.21% |
 | swc      |   402  |   136  |     -  |   538 |  74.72% |
 | test262  |  4360  |  1003  |     -  |  5363 |  81.30% |
 |----------|--------|--------|---------|-------|---------|
-| total    |  5640  |  1608  |      5  |  7248 |  77.81% |
+| total    |  5648  |  1600  |      5  |  7248 |  77.92% |
 
-Total Blended Pass Rate: **77.81%**
+Total Blended Pass Rate: **77.92%**
 <!-- end:summary-results -->
 
 ### babel
@@ -30,7 +30,7 @@ Total Blended Pass Rate: **77.81%**
 | binary-expression    |     2  |     0  |     2 | 100.00% |
 | cast                 |    30  |     7  |    37 |  81.08% |
 | catch-clause         |     1  |     0  |     1 | 100.00% |
-| class                |    49  |    48  |    97 |  50.52% |
+| class                |    56  |    41  |    97 |  57.73% |
 | const                |     1  |     3  |     4 |  25.00% |
 | declare              |    13  |    14  |    27 |  48.15% |
 | decorators           |     1  |     1  |     2 |  50.00% |
@@ -44,7 +44,7 @@ Total Blended Pass Rate: **77.81%**
 | function             |     8  |     5  |    13 |  61.54% |
 | html-entities        |     3  |     1  |     4 |  75.00% |
 | import               |    13  |     8  |    21 |  61.90% |
-| interface            |    32  |    15  |    47 |  68.09% |
+| interface            |    33  |    14  |    47 |  70.21% |
 | legacy-decorators    |     1  |     1  |     2 |  50.00% |
 | module-namespace     |    15  |     3  |    18 |  83.33% |
 | optional-chaining    |     1  |     0  |     1 | 100.00% |
@@ -60,7 +60,7 @@ Total Blended Pass Rate: **77.81%**
 | types-arrow-function |     3  |     0  |     3 | 100.00% |
 | variable-declarator  |     1  |     2  |     3 |  33.33% |
 |----------------------|--------|--------|-------|---------|
-| total                |   469  |   241  |   710 |  66.06% |
+| total                |   477  |   233  |   710 |  67.18% |
 <!-- end:babel-results -->
 
 ### biome

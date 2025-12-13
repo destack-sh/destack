@@ -74,7 +74,11 @@ impl Parser {
         let modifiers = self.eat_binding_modifiers_prefix_maybe()?;
 
         // abstraction
-        let abstraction = if self.peek_keyword(Keyword::Abstract).is_ok() {
+        // Note: `abstract` followed by `<` or `(` is a method named "abstract", not an abstract method
+        let abstraction = if self.peek_keyword(Keyword::Abstract).is_ok()
+            && self.peek_next_token(TokenType::LessThan).is_err()
+            && self.peek_next_token(TokenType::OpenParenthesis).is_err()
+        {
             self.bump(); // eat abstract keyword
             if self.peek_keyword(Keyword::Override).is_ok() {
                 self.bump(); // eat override keyword
@@ -383,7 +387,11 @@ impl Parser {
         }
 
         // abstraction
-        let abstraction = if self.peek_keyword(Keyword::Abstract).is_ok() {
+        // Note: `abstract` followed by `<` or `(` is a method named "abstract", not an abstract method
+        let abstraction = if self.peek_keyword(Keyword::Abstract).is_ok()
+            && self.peek_next_token(TokenType::LessThan).is_err()
+            && self.peek_next_token(TokenType::OpenParenthesis).is_err()
+        {
             self.bump(); // eat abstract keyword
             if self.peek_keyword(Keyword::Override).is_ok() {
                 self.bump(); // eat override keyword

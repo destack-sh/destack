@@ -40,11 +40,6 @@ typescript/cast/destructure-and-assign
 typescript/cast/for-of-lhs
 typescript/cast/need-parentheses
 typescript/cast/unparenthesized-assert-and-assign
-typescript/class/abstract-method-in-non-abstract-class-1
-typescript/class/abstract-method-in-non-abstract-class-2
-typescript/class/abstract-method-in-non-abstract-class-3
-typescript/class/abstract-method-with-body
-typescript/class/abstract-method-with-body-computed
 typescript/class/accessor
 typescript/class/async-named-properties
 typescript/class/constructor
@@ -66,7 +61,6 @@ typescript/class/expression-implements
 typescript/class/extends
 typescript/class/extends-empty
 typescript/class/extends-implements-empty
-typescript/class/generator-method-with-modifiers
 typescript/class/get-generic
 typescript/class/implements-empty
 typescript/class/index-signature-errors
@@ -78,7 +72,6 @@ typescript/class/method-with-newline-with-body
 typescript/class/method-with-newline-without-body
 typescript/class/modifiers-override
 typescript/class/modifiers-properties
-typescript/class/optional-generator-method-with-invalid-modifiers
 typescript/class/parameter-properties-binding-patterns
 typescript/class/parameter-properties-not-constructor
 typescript/class/private-fields
@@ -138,7 +131,6 @@ typescript/interface/get-set-invalid-reset-parameter-babel-7
 typescript/interface/get-set-invalid-return-types
 typescript/interface/invalid-abstract-interface
 typescript/interface/invalid-get-properties
-typescript/interface/invalid-modifiers-method
 typescript/interface/invalid-set-properties
 typescript/interface/new-line
 typescript/interface/new-line-error
