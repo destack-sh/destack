@@ -231,9 +231,12 @@ impl Parser {
             }
             // function with body
             if kind == FunctionKind::Function && self.peek_token(TokenType::OpenBrace).is_ok() {
-                let body = self.with_options(self.options.in_statement_position(), |parser| {
-                    parser.eat_expression()
-                })?;
+                let options = if is_generator {
+                    self.options.in_statement_position().in_generator()
+                } else {
+                    self.options.in_statement_position()
+                };
+                let body = self.with_options(options, |parser| parser.eat_expression())?;
                 Some(body)
             }
             // lambda with body
@@ -243,9 +246,12 @@ impl Parser {
             {
                 self.eat_arrow()?;
                 self.eat_newlines_maybe()?;
-                let body = self.with_options(self.options.in_statement_position(), |parser| {
-                    parser.eat_expression()
-                })?;
+                let options = if is_generator {
+                    self.options.in_statement_position().in_generator()
+                } else {
+                    self.options.in_statement_position()
+                };
+                let body = self.with_options(options, |parser| parser.eat_expression())?;
                 Some(body)
             }
             // no body

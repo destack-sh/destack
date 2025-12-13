@@ -184,10 +184,15 @@ impl Parser {
 
             // body
             let body = if self.peek_token(TokenType::OpenBrace).is_ok() {
-                let body = self.with_options(
-                    self.options.not_in_position().in_statement_position(),
-                    |parser| parser.eat_expression(),
-                )?;
+                let options = if is_generator {
+                    self.options
+                        .not_in_position()
+                        .in_statement_position()
+                        .in_generator()
+                } else {
+                    self.options.not_in_position().in_statement_position()
+                };
+                let body = self.with_options(options, |parser| parser.eat_expression())?;
                 Some(body)
             } else {
                 None
@@ -488,10 +493,15 @@ impl Parser {
 
             // body
             let body = if self.peek_token(TokenType::OpenBrace).is_ok() {
-                let body = self.with_options(
-                    self.options.not_in_position().in_statement_position(),
-                    |parser| parser.eat_expression(),
-                )?;
+                let options = if is_generator {
+                    self.options
+                        .not_in_position()
+                        .in_statement_position()
+                        .in_generator()
+                } else {
+                    self.options.not_in_position().in_statement_position()
+                };
+                let body = self.with_options(options, |parser| parser.eat_expression())?;
                 Some(body)
             } else {
                 None

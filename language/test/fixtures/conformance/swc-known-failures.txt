@@ -13,6 +13,7 @@ jsx/basic/issue-6522/input.js
 jsx/basic/namespace-tag/input.js
 jsx/basic/nonentity-decimal/input.js
 jsx/basic/nonentity/input.js
+jsx/basic/yield-tag/input.js
 jsx/errors/attribute-arbitrary-expression/input.js
 jsx/errors/issue-10586/input.js
 jsx/errors/issue-10601/input.js
@@ -93,9 +94,6 @@ typescript/issue-1252/case1/input.tsx
 typescript/issue-1505/case1/input.tsx
 typescript/issue-1505/case2/input.tsx
 typescript/issue-1514/case1/input.ts
-typescript/issue-1526/case1/input.tsx
-typescript/issue-1526/case3/input.tsx
-typescript/issue-1526/case4/input.ts
 typescript/issue-1558/case1/input.ts
 typescript/issue-1803/case1/input.ts
 typescript/issue-2040/case1/input.ts

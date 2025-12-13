@@ -667,6 +667,8 @@ impl Parser {
                 && COMPOSITE_TYPE_KEYWORDS.contains(&keyword)
                 && next_token_type != TokenType::Dot
                 && next_token_type != TokenType::OpenBracket
+                // function* is a generator declaration, not a type literal
+                && !(keyword == Keyword::Function && next_token_type == TokenType::Multiply)
                 // composite type is eagerly closed before a block
                 // (to allow stuff like `if x instanceof type { ... }` where type excludes the block)
                 && (!DECLARATION_START_TOKENS.contains(&next_token_type) || self.options.in_before_block && next_token_type == TokenType::OpenBrace)
@@ -746,6 +748,7 @@ impl Parser {
                     TokenType::OpenParenthesis,
                     TokenType::LessThan,
                     TokenType::At,
+                    TokenType::Multiply, // function* generator
                 ]
                 .contains(&next_token_type)
             {
@@ -859,8 +862,8 @@ impl Parser {
             {
                 self.eat_await()?
             }
-            // yield
-            else if keyword == Some(Keyword::Yield) {
+            // yield (only valid inside generator functions)
+            else if keyword == Some(Keyword::Yield) && self.options.in_generator {
                 self.eat_yield()?
             }
             // throw

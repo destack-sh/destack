@@ -57,7 +57,10 @@ pub(crate) struct ParserOptions {
     /// Whether we're parsing a new receiver.
     /// Disallows call-like expressions to disambiguate dynamic arguments.
     pub in_new_receiver: bool = false,
-    /// The left precedence preceding (i.e. before) the expression. 
+    /// Whether we're parsing inside a generator function.
+    /// Makes `yield` a keyword instead of an identifier.
+    pub in_generator: bool = false,
+    /// The left precedence preceding (i.e. before) the expression.
     /// Determines expression operator lifting / grouping.
     pub left_precedence: Option<u16> = None,
 }
@@ -196,6 +199,15 @@ impl ParserOptions {
     pub(crate) fn in_new_receiver(self) -> Self {
         Self {
             in_new_receiver: true,
+            ..self
+        }
+    }
+
+    /// Set `in_generator=true`.
+    #[inline]
+    pub(crate) fn in_generator(self) -> Self {
+        Self {
+            in_generator: true,
             ..self
         }
     }
