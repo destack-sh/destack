@@ -84,6 +84,7 @@ impl Compiler {
         let generics = signature.generics.as_ref().map(|generics| {
             self.bind_generics(module, scope, generics, parent_id, tree, symbols, types)
         });
+
         let dynamic_parameters = signature
             .dynamic_parameters
             .iter()

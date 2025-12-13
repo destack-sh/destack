@@ -1387,8 +1387,13 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .field("symbol", symbol)
                     .end();
             }
-            Member::StaticBlock { body: _, symbol } => {
+            Member::StaticBlock {
+                modifiers,
+                body: _,
+                symbol,
+            } => {
                 self.node("Member::StaticBlock", id.id)
+                    .field_optional("modifiers", modifiers)
                     .field("symbol", symbol)
                     .end();
             }

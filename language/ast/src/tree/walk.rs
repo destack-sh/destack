@@ -905,7 +905,7 @@ pub fn walk_member<V: NodeVisitor + ?Sized>(
             let value_expr = tree.get(*value);
             visitor.visit_expression(tree, *value, value_expr);
         }
-        Member::StaticBlock { body } => {
+        Member::StaticBlock { modifiers: _, body } => {
             let body_expr = tree.get(*body);
             visitor.visit_expression(tree, *body, body_expr);
         }

@@ -91,10 +91,10 @@ impl BabelSuite {
         }
 
         // also check parent directories for options.json (babel allows inheritance)
-        if let Some(parent) = test_dir.parent() {
-            if has_script_source_type(&parent.join("options.json")) {
-                return true;
-            }
+        if let Some(parent) = test_dir.parent()
+            && has_script_source_type(&parent.join("options.json"))
+        {
+            return true;
         }
 
         false

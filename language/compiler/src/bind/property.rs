@@ -248,7 +248,10 @@ impl Compiler {
                     symbol: symbol_id,
                 }
             }
-            ast::Member::StaticBlock { body, .. } => {
+            ast::Member::StaticBlock { modifiers, body } => {
+                // modifiers are validated in the analyze validate pass
+                let modifiers =
+                    modifiers.map(|modifiers| self.bind_binding_modifier(module, modifiers));
                 let body = self.bind_expression(
                     module,
                     scope,
@@ -261,6 +264,7 @@ impl Compiler {
                 let (symbol_id, _) =
                     self.bind_anonymous_item(module, SymbolSpace::Value, scope, None, symbols);
                 Member::StaticBlock {
+                    modifiers,
                     body,
                     symbol: symbol_id,
                 }

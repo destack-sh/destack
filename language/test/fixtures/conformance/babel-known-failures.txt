@@ -73,7 +73,6 @@ typescript/class/method-with-newline-without-body
 typescript/class/modifiers-override
 typescript/class/modifiers-properties
 typescript/class/parameter-properties-binding-patterns
-typescript/class/parameter-properties-not-constructor
 typescript/class/private-fields
 typescript/class/private-fields-modifier-private
 typescript/class/private-fields-modifier-protected
@@ -110,7 +109,6 @@ typescript/export/declare-invalid
 typescript/export/double-declare
 typescript/function/getter-setter
 typescript/function/overloads
-typescript/function/parameter-properties
 typescript/function/pattern-optional-parameters
 typescript/function/pattern-optional-parameters-arrow
 typescript/import/export-import-type
@@ -163,11 +161,7 @@ typescript/scope/redeclaration-import-type-var
 typescript/scope/redeclaration-import-var
 typescript/scope/redeclaration-in-different-module-and-top-level
 typescript/scope/redeclaration-type-function
-typescript/static-blocks/invalid-static-block-with-accessibility-private-01
-typescript/static-blocks/invalid-static-block-with-accessibility-protected-01
-typescript/static-blocks/invalid-static-block-with-accessibility-public-01
 typescript/static-blocks/invalid-static-blocks-with-modifer-declare-01
-typescript/static-blocks/invalid-static-blocks-with-modifier-readonly-02
 typescript/static-blocks/valid-static-block-with-line-breaks
 typescript/tsx/brace-is-block
 typescript/tsx/invalid-gt-arrow-like

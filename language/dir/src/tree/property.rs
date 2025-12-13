@@ -165,7 +165,9 @@ pub enum Member {
         symbol: LocalSymbolId,
     },
     /// Static initialization block (like `static { ... }`).
+    /// Modifiers are preserved for validation (static blocks shouldn't have modifiers other than `static`).
     StaticBlock {
+        modifiers: Option<BindingModifier>,
         body: LocalNodeId<Expression>,
         symbol: LocalSymbolId,
     },

@@ -274,7 +274,10 @@ pub fn run_conformance_suite<S: ConformanceSuite + 'static>(
     let skipped_failures = load_expected_failures(&expected_failures_path);
 
     // count how many tests are in skipped list (for display)
-    let skipped_count = tests.iter().filter(|t| skipped_failures.contains(&t.name)).count();
+    let skipped_count = tests
+        .iter()
+        .filter(|t| skipped_failures.contains(&t.name))
+        .count();
 
     println!();
     println!(
@@ -662,27 +665,42 @@ fn print_conformance_result(
     println!();
 
     // breakdown
+    let passed_pct = if total == 0 {
+        100.0
+    } else {
+        result.passed as f64 / total as f64 * 100.0
+    };
+    let failed_pct = if total == 0 {
+        0.0
+    } else {
+        result.failed as f64 / total as f64 * 100.0
+    };
     println!(
         "  {}  {:>5}  ({:.2}%)",
         color::green("passed:"),
         result.passed,
-        result.passed as f64 / total as f64 * 100.0
+        passed_pct
     );
     println!(
         "  {}  {:>5}  ({:.2}%)",
         color::red("failed:"),
         result.failed,
-        result.failed as f64 / total as f64 * 100.0
+        failed_pct
     );
     if result.skipped > 0 {
         println!("  {} {:>5}", color::yellow("skipped:"), result.skipped);
     }
     if result.timedout > 0 {
+        let timedout_pct = if total == 0 {
+            0.0
+        } else {
+            result.timedout as f64 / total as f64 * 100.0
+        };
         println!(
             "  {} {:>5}  ({:.2}%)",
             color::yellow("timeout:"),
             result.timedout,
-            result.timedout as f64 / total as f64 * 100.0
+            timedout_pct
         );
     }
     println!(
