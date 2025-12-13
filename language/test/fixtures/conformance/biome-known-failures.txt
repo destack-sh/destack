@@ -66,12 +66,10 @@ error/ts_class_heritage_clause_errors.ts
 error/ts_class_initializer_with_modifiers.ts
 error/ts_class_member_accessor_readonly_precedence.ts
 error/ts_class_name_reserved_as_type.ts
-error/ts_class_type_parameters_errors.ts
-error/ts_construct_signature_member_err.ts
 error/ts_constructor_this_parameter.ts
 error/ts_declare_async_function.ts
+error/ts_declare_const_initializer.ts
 error/ts_declare_function_export_declaration_missing_id.ts
-error/ts_declare_function_with_body.ts
 error/ts_declare_generator_function.ts
 error/ts_declare_interface_err.ts
 error/ts_declare_property_private_name.ts
@@ -79,7 +77,6 @@ error/ts_export_default_enum.ts
 error/ts_export_type.ts
 error/ts_extends_trailing_comma.ts
 error/ts_formal_parameter_decorator.ts
-error/ts_getter_setter_type_parameters_errors.ts
 error/ts_index_signature_class_member_cannot_be_accessor.ts
 error/ts_index_signature_class_member_cannot_have_visibility_modifiers.ts
 error/ts_index_signature_class_member_static_readonly_precedence.ts
@@ -88,10 +85,8 @@ error/ts_index_signature_interface_member_cannot_have_visibility_modifiers.ts
 error/ts_instantiation_expression_property_access.ts
 error/ts_invalid_decorated_class_members.ts
 error/ts_method_members_with_missing_body.ts
-error/ts_method_object_member_body_error.ts
 error/ts_method_signature_generator.ts
 error/ts_module_err.ts
-error/ts_object_getter_type_parameters.ts
 error/ts_object_setter_return_type.ts
 error/ts_property_initializer_ambient_context.ts
 error/ts_property_parameter_pattern.ts

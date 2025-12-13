@@ -1,7 +1,7 @@
 use destack_ast::{
-    Argument, BindingAnchor, BindingKind, BindingModifier, BindingOperator, Expression, Keyword,
-    LocalNodeId, Mutability, Name, NodeType, Parameter, Pattern, ScalarLiteral, StringId,
-    TokenType,
+    AccessorKind, Argument, BindingAnchor, BindingKind, BindingModifier, BindingOperator,
+    Expression, Keyword, LocalNodeId, Mutability, Name, NodeType, Parameter, Pattern,
+    ScalarLiteral, StringId, TokenType,
 };
 
 use crate::parse::prelude::*;
@@ -42,6 +42,14 @@ impl Parser {
                 modifiers = Some(BindingModifier::default());
             }
             modifiers.as_mut().unwrap().operator = Some(BindingOperator::AsConst);
+        }
+        // accessor
+        if self.peek_keyword(Keyword::Accessor).is_ok() {
+            self.bump(); // eat accessor
+            if modifiers.is_none() {
+                modifiers = Some(BindingModifier::default());
+            }
+            modifiers.as_mut().unwrap().accessor = Some(AccessorKind::Accessor);
         }
         Ok(modifiers)
     }

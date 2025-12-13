@@ -1,9 +1,10 @@
 use crate::Compiler;
 use destack_ast as ast;
 use destack_dir::{
-    BindingAnchor, Declaration, DeclarationDescriptor, DeclarationKind, EnumField, EnumKind,
-    LocalNodeId, LocalNodeIdAny, LocalScopeId, LocalScopeMark, NodeTree, NodeType, ScopeKind,
-    StaticKey, SymbolBinding, SymbolKind, SymbolSpace, SymbolTable, SymbolType, TypeTable,
+    BindingAnchor, Declaration, DeclarationAbstraction, DeclarationDescriptor, DeclarationKind,
+    EnumField, EnumKind, LocalNodeId, LocalNodeIdAny, LocalScopeId, LocalScopeMark, NodeTree,
+    NodeType, ScopeKind, StaticKey, SymbolBinding, SymbolKind, SymbolSpace, SymbolTable,
+    SymbolType, TypeTable,
 };
 use destack_workspace::Module;
 
@@ -22,6 +23,17 @@ impl Compiler {
         match anchor {
             ast::BindingAnchor::Static => BindingAnchor::Static,
             ast::BindingAnchor::Instance => BindingAnchor::Instance,
+        }
+    }
+
+    /// Bind declaration abstraction to DIR declaration abstraction.
+    pub(super) fn bind_declaration_abstraction(
+        &self,
+        abstraction: ast::DeclarationAbstraction,
+    ) -> DeclarationAbstraction {
+        match abstraction {
+            ast::DeclarationAbstraction::Abstract => DeclarationAbstraction::Abstract,
+            ast::DeclarationAbstraction::Concrete => DeclarationAbstraction::Concrete,
         }
     }
 
@@ -79,9 +91,11 @@ impl Compiler {
             (symbol_id, scope_id)
         };
         let kind = self.bind_declaration_kind(descriptor.kind);
+        let abstraction = self.bind_declaration_abstraction(descriptor.abstraction);
         let anchor = self.bind_binding_anchor(descriptor.anchor);
         let descriptor = DeclarationDescriptor {
             kind,
+            abstraction,
             anchor,
             name,
             export,

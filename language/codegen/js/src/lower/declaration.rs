@@ -1,7 +1,7 @@
 use crate::{
     BindingAnchor, Block, CodegenJsError, CodegenJsResult, CodegenJsResultExt, Declaration,
-    DeclarationDescriptor, DeclarationKind, DependencyMode, EnumField, Expression, LocalNodeId,
-    ModuleLowerer, Statement, Type, Visibility,
+    DeclarationAbstraction, DeclarationDescriptor, DeclarationKind, DependencyMode, EnumField,
+    Expression, LocalNodeId, ModuleLowerer, Statement, Type, Visibility,
 };
 use destack_dir as dir;
 
@@ -23,6 +23,17 @@ impl ModuleLowerer<'_> {
         match declaration_kind {
             dir::DeclarationKind::Declaration => DeclarationKind::Declaration,
             dir::DeclarationKind::Definition => DeclarationKind::Definition,
+        }
+    }
+
+    /// Lower a declaration abstraction from DIR into JS AST.
+    pub fn lower_declaration_abstraction(
+        &self,
+        abstraction: dir::DeclarationAbstraction,
+    ) -> DeclarationAbstraction {
+        match abstraction {
+            dir::DeclarationAbstraction::Abstract => DeclarationAbstraction::Abstract,
+            dir::DeclarationAbstraction::Concrete => DeclarationAbstraction::Concrete,
         }
     }
 
@@ -49,6 +60,7 @@ impl ModuleLowerer<'_> {
         descriptor: &dir::DeclarationDescriptor,
     ) -> DeclarationDescriptor {
         let kind = self.lower_declaration_kind(descriptor.kind);
+        let abstraction = self.lower_declaration_abstraction(descriptor.abstraction);
         let anchor = self.lower_binding_anchor(descriptor.anchor);
         let name = descriptor.name.map(|name| self.lower_string_to_name(name));
         let export = descriptor
@@ -56,6 +68,7 @@ impl ModuleLowerer<'_> {
             .map(|export| self.lower_export_type(export));
         DeclarationDescriptor {
             kind,
+            abstraction,
             anchor,
             name,
             export,

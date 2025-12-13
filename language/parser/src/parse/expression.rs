@@ -4,10 +4,10 @@ use crate::parse::prelude::*;
 use crate::{ParseError, ParseResult, Parser, ParserMark};
 
 use destack_ast::{
-    Argument, AssignOperator, BinaryOperator, BindingAnchor, DeclarationDescriptor,
-    DeclarationKind, DependencyMode, EnumKind, Expression, IfKind, InfixOperator, Keyword,
-    LocalNodeId, NodeType, PostfixPosition, TokenSpan, TokenType, TypeBinaryOperator,
-    TypeUnaryOperator, UnaryOperator,
+    Argument, AssignOperator, BinaryOperator, BindingAnchor, DeclarationAbstraction,
+    DeclarationDescriptor, DeclarationKind, DependencyMode, EnumKind, Expression, IfKind,
+    InfixOperator, Keyword, LocalNodeId, NodeType, PostfixPosition, TokenSpan, TokenType,
+    TypeBinaryOperator, TypeUnaryOperator, UnaryOperator,
 };
 
 pub static DECLARATION_KEYWORDS: [Keyword; 21] = [
@@ -394,6 +394,18 @@ impl Parser {
             DeclarationKind::Declaration
         } else {
             DeclarationKind::Definition
+        };
+
+        // abstraction
+        descriptor.abstraction = if self.peek_keyword(Keyword::Abstract).is_ok()
+            && !self.options.in_variant
+            && self.peek_next_token(TokenType::Newline).is_err()
+            && self.peek_next_any_keyword().is_ok_and(|kw| DECLARATION_KEYWORDS.contains(&kw))
+        {
+            self.bump(); // eat abstract
+            DeclarationAbstraction::Abstract
+        } else {
+            DeclarationAbstraction::Concrete
         };
 
         // anchor

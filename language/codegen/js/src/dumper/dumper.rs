@@ -466,6 +466,7 @@ impl Dump for FunctionSignature {
 }
 
 impl_dump_display! {
+    AccessorKind,
     AnnotationPosition,
     AssignOperator,
     Asynchrony,
@@ -473,6 +474,7 @@ impl_dump_display! {
     BindingKind,
     BindingOperator,
     BindingAnchor,
+    DeclarationAbstraction,
     DeclarationKind,
     DependencyKind,
     DependencyMode,
@@ -601,6 +603,7 @@ impl Dump for BindingModifier {
             .field_optional("mutability", &self.mutability)
             .field_optional("visibility", &self.visibility)
             .field_optional("operator", &self.operator)
+            .field_optional("accessor", &self.accessor)
             .end();
     }
 }
@@ -611,6 +614,7 @@ impl Dump for DeclarationDescriptor {
         dumper
             .object("DeclarationDescriptor")
             .field("kind", &self.kind)
+            .field("abstraction", &self.abstraction)
             .field("anchor", &self.anchor)
             .field_optional("name", &self.name)
             .field_optional("export", &self.export)

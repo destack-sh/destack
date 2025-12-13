@@ -18,8 +18,10 @@ pub enum Keyword {
     Mut,
     /// Static modifier (reserved).
     Static,
-    /// Final modifier (reserved).  
+    /// Final modifier (reserved).
     Final,
+    /// Accessor modifier (auto-accessor).
+    Accessor,
     /// Default export type.
     Default,
 
@@ -235,6 +237,7 @@ impl Keyword {
             Keyword::Mut => "mut",
             Keyword::Static => "static",
             Keyword::Final => "final",
+            Keyword::Accessor => "accessor",
             Keyword::Default => "default",
 
             // context
@@ -339,6 +342,7 @@ impl FromStr for Keyword {
             "mut" => Ok(Keyword::Mut),
             "static" => Ok(Keyword::Static),
             "final" => Ok(Keyword::Final),
+            "accessor" => Ok(Keyword::Accessor),
             "default" => Ok(Keyword::Default),
 
             // context

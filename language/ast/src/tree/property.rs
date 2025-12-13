@@ -28,6 +28,13 @@ pub enum BindingOperator {
     AsConst,
 }
 
+/// The accessor kind of a binding.
+#[derive(Debug, Copy, Clone, PartialEq)]
+pub enum AccessorKind {
+    /// Auto-accessor (generates getter/setter).
+    Accessor,
+}
+
 /// The modifiers of a field-like item.
 #[derive(Debug, Copy, Clone, PartialEq, Default)]
 pub struct BindingModifier {
@@ -41,6 +48,8 @@ pub struct BindingModifier {
     pub visibility: Option<Visibility> = None,
     /// The operator to apply to the binding.
     pub operator: Option<BindingOperator> = None,
+    /// The accessor kind of the binding.
+    pub accessor: Option<AccessorKind> = None,
 }
 
 impl BindingModifier {
@@ -80,6 +89,14 @@ impl BindingModifier {
     pub fn with_operator(self, operator: BindingOperator) -> Self {
         Self {
             operator: Some(operator),
+            ..self
+        }
+    }
+
+    /// Create a new binding modifiers with the given accessor kind.
+    pub fn with_accessor(self, accessor: AccessorKind) -> Self {
+        Self {
+            accessor: Some(accessor),
             ..self
         }
     }

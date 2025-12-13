@@ -49,6 +49,8 @@ impl TestArea {
                     || code == "EA024" // InvalidYield
                     || code == "EA025" // InvalidReturn
                     || code == "EA026" // InvalidConstructor
+                    || code == "EA027" // InvalidInterface
+                    || code == "EA028" // InvalidFunction
             }
         }
     }

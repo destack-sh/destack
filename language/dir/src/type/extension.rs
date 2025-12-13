@@ -81,7 +81,7 @@ pub enum ExtensionKind {
 ///
 /// ### Example
 ///
-/// ```text
+/// ```
 /// // native extension (same module as Vector2)
 /// struct Vector2 { x: float, y: float }
 /// extension Vector2 implements Add<Vector2> {

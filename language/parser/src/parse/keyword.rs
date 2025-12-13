@@ -37,6 +37,17 @@ impl Parser {
         }
     }
 
+    /// Peek any next keyword.
+    #[inline]
+    pub fn peek_next_any_keyword(&self) -> ParseResult<Keyword> {
+        let current = self.peek_next_token(TokenType::Identifier)?;
+        if let Ok(keyword) = Keyword::from_str(self.get_span_str(current.span)) {
+            Ok(keyword)
+        } else {
+            Err(ParseError::expected(current.span, TokenType::Identifier))
+        }
+    }
+
     /// Peek the next next keyword.
     #[inline]
     pub fn peek_next_next_keyword(&self, keyword: Keyword) -> ParseResult<&TokenSpan> {

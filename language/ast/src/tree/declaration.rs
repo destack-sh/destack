@@ -12,11 +12,23 @@ pub enum DeclarationKind {
     Definition,
 }
 
+/// The abstraction level of a declaration.
+#[derive(Debug, Copy, Clone, PartialEq, Default)]
+pub enum DeclarationAbstraction {
+    /// Abstract declaration.
+    Abstract,
+    /// Concrete declaration.
+    #[default]
+    Concrete,
+}
+
 /// The descriptor data for a declaration.
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct DeclarationDescriptor {
     /// The kind of declaration.
     pub kind: DeclarationKind = DeclarationKind::Definition,
+    /// The abstraction level of the declaration.
+    pub abstraction: DeclarationAbstraction = DeclarationAbstraction::Concrete,
     /// The anchor of the declaration.
     pub anchor: BindingAnchor = BindingAnchor::Instance,
     /// The name of the declaration.
