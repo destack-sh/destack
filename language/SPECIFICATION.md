@@ -599,31 +599,53 @@ class MyClass {
 
 ### Struct
 
-Destack adds `struct` for nominal object types with value semantics, fixed layout, and simple constructor.
-Structs may be embedded in other types (like structs or classes).
+Destack adds `struct` for nominal object types with fixed layout.
+Structs are simpler than classes: no identity, no inheritance, just data with a name.
 
 ```
 struct Point {
     x: float32
     y: float32
 }
-
-class MyEntity extends Entity {
-    id: uint64
-    ...Transform           // embed Transform properties and methods
-}
 ```
 
-Structs are nominal (like newtypes), so they must be explicitly constructed:
+#### Struct vs Class
+
+| | struct | class |
+|---|---|---|
+| Identity | ❌ No (value equality) | ✅ Yes (reference equality) |
+| Inheritance | ❌ No (use embedding) | ✅ Yes (`extends`) |
+| Default passing | Copy | Reference |
+| JS output | Plain object | ES6 class |
+
+Structs have no identity—two structs with the same fields are equal:
+
+```
+const p1 = Point { x: 1, y: 2 };
+const p2 = Point { x: 1, y: 2 };
+p1 == p2  // true: same data = same struct
+```
+
+Structs are nominal, so they must be explicitly constructed:
 
 ```
 let p: Point = Point { x: 1, y: 2 }  // ok: explicit construction
-let p: Point = new Point(1, 2)       // ok: compatible with class constructors
+let p: Point = new Point(1, 2)       // ok: constructor syntax
 let p: Point = { x: 1, y: 2 }        // error: object literal is not Point
 ```
 
-Unlike classes, structs are passed by value (i.e., copied) by default.
-At runtime, a struct is just another object—its nominal type is erased.
+For composition, structs use embedding instead of inheritance:
+
+```
+struct Transform { position: Vec3, rotation: Quat }
+struct Player {
+    ...Transform    // embeds Transform's fields
+    health: int
+}
+```
+
+At runtime in JS, a struct is just a plain object—its nominal type is erased.
+Ownership (`&T`, `^T`) is orthogonal: you can explicitly reference or copy either structs or classes.
 
 ### Enum
 

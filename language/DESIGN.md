@@ -174,19 +174,47 @@ const c = Config { debug: true }; // struct newtype
 
 ### Structs
 
-Structs are data-oriented object types with fixed layout and value semantics.
-Basically, structs are simpler classes for plain data objects with stricter guarantees and control.
+Structs are data-oriented object types with fixed layout.
+Structs are simpler than classes: no identity, no inheritance, just data with a name.
 
 ```
 struct Point { x: float32, y: float32 }
 ```
 
-Structs are nominal (like newtypes), so they must be created or coerced explicity:
+**Structs vs Classes:**
+
+| | struct | class |
+|---|---|---|
+| Identity | ❌ No (value equality) | ✅ Yes (reference equality) |
+| Inheritance | ❌ No (use embedding) | ✅ Yes (`extends`) |
+| Default passing | Copy | Reference |
+| JS output | Plain object | ES6 class |
+
+Two structs with the same field values are equal—structs *are* their data.
+Two class instances with the same field values are not equal unless they're the same instance—classes *have* identity.
 
 ```
-let x: Point = new Point(x, y) // ok
+const p1 = Point { x: 1, y: 2 };
+const p2 = Point { x: 1, y: 2 };
+p1 == p2  // true: same data
+
+const e1 = new Entity(1);
+const e2 = new Entity(1);
+e1 == e2  // false: different instances
+```
+
+Structs are nominal (like newtypes), so they must be explicitly constructed:
+
+```
 let x: Point = Point { x, y }  // ok
-let x: Point = { x, y }        // error
+let x: Point = { x, y }        // error: plain object is not Point
+```
+
+For composition, structs use embedding instead of inheritance:
+
+```
+struct Transform { position: Vec3, rotation: Quat }
+struct Player { ...Transform, health: int }  // embeds Transform's fields
 ```
 
 ### Constraints
