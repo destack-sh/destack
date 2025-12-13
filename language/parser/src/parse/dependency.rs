@@ -265,8 +265,9 @@ impl Parser {
             let item_id = self.tree.insert(item, self.get_span_from(start));
             items.push(item_id);
         }
-        // `* as foo`
-        else if self.peek_token(TokenType::Multiply).is_ok()
+
+        // `* as foo` (can follow a default import)
+        if self.peek_token(TokenType::Multiply).is_ok()
             && self.peek_next_keyword(Keyword::As).is_ok()
         {
             let start = self.mark();
@@ -539,6 +540,30 @@ import {
                 assert_string!(parser, *name, "Item");
             });
             // `foo`
+            assert_string!(parser, *target, "foo");
+        });
+    }
+
+    #[test]
+    fn test_parse_import_default_and_namespace() {
+        // combined default import + namespace import
+        let mut test = TestParser::new(r#"import a, * as b from "foo""#);
+        let mut parser = test.prepare();
+        let import_id = parser.eat_import().unwrap();
+
+        assert_node!(parser.tree, import_id, Expression::Import { kind, target, items, .. } => {
+            assert_eq!(*kind, DependencyKind::Value);
+            assert_eq!(items.len(), 2);
+            // default: a
+            assert_node!(parser.tree, items[0], DependencyItem { mode, kind: None, name: None, alias: Some(alias),.. } => {
+                assert_eq!(*mode, DependencyMode::Default);
+                assert_string!(parser, *alias, "a");
+            });
+            // namespace: * as b
+            assert_node!(parser.tree, items[1], DependencyItem { mode, kind: None, name: None, alias: Some(alias),.. } => {
+                assert_eq!(*mode, DependencyMode::Namespace);
+                assert_string!(parser, *alias, "b");
+            });
             assert_string!(parser, *target, "foo");
         });
     }
