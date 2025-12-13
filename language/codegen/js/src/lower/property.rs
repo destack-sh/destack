@@ -1,6 +1,6 @@
 use crate::{
-    BindingAnchor, BindingKind, BindingModifier, BindingOperator, CodegenJsError, CodegenJsResult,
-    CodegenJsResultExt, Expression, LocalNodeId, Member, ModuleLowerer, Property,
+    AccessorKind, BindingAnchor, BindingKind, BindingModifier, BindingOperator, CodegenJsError,
+    CodegenJsResult, CodegenJsResultExt, Expression, LocalNodeId, Member, ModuleLowerer, Property,
 };
 use destack_dir as dir;
 
@@ -27,12 +27,16 @@ impl ModuleLowerer<'_> {
         let operator = modifier.operator.map(|operator| match operator {
             dir::BindingOperator::AsConst => BindingOperator::AsConst,
         });
+        let accessor = modifier.accessor.map(|accessor| match accessor {
+            dir::AccessorKind::Accessor => AccessorKind::Accessor,
+        });
         Ok(BindingModifier {
             kind,
             anchor,
             mutability,
             visibility,
             operator,
+            accessor,
         })
     }
 

@@ -27,6 +27,13 @@ pub enum BindingOperator {
     AsConst,
 }
 
+/// The accessor kind of a binding.
+#[derive(Debug, Copy, Clone, PartialEq)]
+pub enum AccessorKind {
+    /// Auto-accessor (generates getter/setter).
+    Accessor,
+}
+
 /// The modifiers of a field-like item.
 #[derive(Debug, Copy, Clone, PartialEq, Default)]
 pub struct BindingModifier {
@@ -40,6 +47,8 @@ pub struct BindingModifier {
     pub visibility: Option<Visibility> = None,
     /// The operator to apply to the binding.
     pub operator: Option<BindingOperator> = None,
+    /// The accessor kind of the binding.
+    pub accessor: Option<AccessorKind> = None,
 }
 
 /// Named or positional parameter to some construct.

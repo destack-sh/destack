@@ -1,9 +1,9 @@
 use crate::Compiler;
 use destack_ast as ast;
 use destack_dir::{
-    Argument, BindingAnchor, BindingKind, BindingModifier, BindingOperator, LocalNodeId,
-    LocalNodeIdAny, LocalScopeId, LocalScopeMark, Mutability, NodeTree, NodeType, Parameter,
-    StaticKey, SymbolBinding, SymbolSpace, SymbolTable, TypeTable, Visibility,
+    AccessorKind, Argument, BindingAnchor, BindingKind, BindingModifier, BindingOperator,
+    LocalNodeId, LocalNodeIdAny, LocalScopeId, LocalScopeMark, Mutability, NodeTree, NodeType,
+    Parameter, StaticKey, SymbolBinding, SymbolSpace, SymbolTable, TypeTable, Visibility,
 };
 use destack_workspace::Module;
 
@@ -35,12 +35,16 @@ impl Compiler {
         let operator = modifiers.operator.map(|operator| match operator {
             ast::BindingOperator::AsConst => BindingOperator::AsConst,
         });
+        let accessor = modifiers.accessor.map(|accessor| match accessor {
+            ast::AccessorKind::Accessor => AccessorKind::Accessor,
+        });
         BindingModifier {
             kind,
             anchor,
             mutability,
             visibility,
             operator,
+            accessor,
         }
     }
 

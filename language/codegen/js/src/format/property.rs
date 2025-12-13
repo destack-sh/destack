@@ -1,6 +1,6 @@
 use crate::{
-    Asynchrony, BindingAnchor, BindingKind, BindingModifier, BindingOperator, FunctionAbstraction,
-    FunctionCardinality, Keyword, LocalNodeId, Member, Mutability, Property,
+    AccessorKind, Asynchrony, BindingAnchor, BindingKind, BindingModifier, BindingOperator,
+    FunctionAbstraction, FunctionCardinality, Keyword, LocalNodeId, Member, Mutability, Property,
 };
 use destack_fir::format::FormatResult;
 use destack_fir::prelude::*;
@@ -29,6 +29,10 @@ pub(crate) fn format_binding_modifiers_prefix<'ast>(
     // operator
     if modifiers.operator == Some(BindingOperator::AsConst) {
         write!(f, [Keyword::Const, space()])?;
+    }
+    // accessor
+    if modifiers.accessor == Some(AccessorKind::Accessor) {
+        write!(f, [Keyword::Accessor, space()])?;
     }
     Ok(())
 }

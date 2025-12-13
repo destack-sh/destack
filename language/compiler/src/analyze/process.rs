@@ -10,7 +10,7 @@ use destack_workspace::Program;
 /// Task to analyze something.
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub enum AnalyzeTask {
-    /// Evaluate declared types.
+    /// Analyze declarations.
     AnalyzeModuleDeclare { module: ModuleId },
 
     /// Infer expression types.
@@ -110,9 +110,7 @@ impl Compiler {
         self.do_require_task_internal_only(AnalyzeTask::AnalyzeModuleValidate { module })
     }
 
-    /// Phase 1: Evaluate declared types.
-    /// Converts Type::Unevaluated → actual Type values.
-    /// No remote dependencies, no tree walk - just iterates over the type table.
+    /// Phase 1: Evaluate declarations.
     fn analyze_module_declare(&self, module_id: ModuleId) -> AnalyzeResult<()> {
         let module = self.program.modules.get(module_id);
         let module = module.read();
@@ -138,7 +136,6 @@ impl Compiler {
     }
 
     /// Phase 2: Infer expression types.
-    /// The big CFG walk - infers types, resolves overloads, computes instance types.
     fn analyze_module_infer(&self, module_id: ModuleId) -> AnalyzeResult<()> {
         let module = self.program.modules.get(module_id);
         let module = module.read();
@@ -164,7 +161,6 @@ impl Compiler {
     }
 
     /// Phase 3: Final validation checks.
-    /// Pattern completeness, unused warnings, type errors.
     fn analyze_module_validate(&self, module_id: ModuleId) -> AnalyzeResult<()> {
         let _ = module_id;
         Ok(())

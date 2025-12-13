@@ -12,6 +12,7 @@ pub enum Keyword {
     Readonly,
     Static,
     Abstract,
+    Accessor,
     Declare,
     Override,
 
@@ -154,6 +155,7 @@ impl Keyword {
             Keyword::Readonly => "readonly",
             Keyword::Static => "static",
             Keyword::Abstract => "abstract",
+            Keyword::Accessor => "accessor",
             Keyword::Declare => "declare",
             Keyword::Override => "override",
 
@@ -254,6 +256,7 @@ impl FromStr for Keyword {
             "readonly" => Ok(Keyword::Readonly),
             "static" => Ok(Keyword::Static),
             "abstract" => Ok(Keyword::Abstract),
+            "accessor" => Ok(Keyword::Accessor),
             "declare" => Ok(Keyword::Declare),
             "override" => Ok(Keyword::Override),
 

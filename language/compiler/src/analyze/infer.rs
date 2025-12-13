@@ -1,11 +1,11 @@
 use crate::{AnalyzeError, AnalyzeResult, Assignability, Compiler, InferContext};
 use destack_dir::{
-    Argument, Block, Declaration, Declarator, DependencyItem, DynamicKey, EnumField, Expression,
-    Extension, ExtensionKind, FunctionMode, FunctionSignature, Generics, GlobalSymbolId,
-    GlobalTypeId, Heritage, Lineage, LocalNodeId, LocalNodeIdAny, LocalSymbolId, LocalTypeId,
-    MatchCase, MatchSource, Member, NodeTree, Parameter, Pattern, PatternField, PrimitiveType,
-    Property, StaticKey, SymbolTable, Type, TypeField, TypeKind, TypeLiteral, TypeTable,
-    WhereClause,
+    Argument, Block, Declaration, DeclarationAbstraction, DeclarationKind, Declarator,
+    DependencyItem, DynamicKey, EnumField, Expression, Extension, ExtensionKind, FunctionMode,
+    FunctionSignature, Generics, GlobalSymbolId, GlobalTypeId, Heritage, Lineage, LocalNodeId,
+    LocalNodeIdAny, LocalSymbolId, LocalTypeId, MatchCase, MatchSource, Member, NodeTree,
+    Parameter, Pattern, PatternField, PrimitiveType, Property, StaticKey, SymbolTable, Type,
+    TypeField, TypeKind, TypeLiteral, TypeTable, WhereClause,
 };
 use destack_workspace::Module;
 
@@ -967,7 +967,7 @@ impl Compiler {
         }
     }
 
-    /// Analyze a block.
+    /// Infer a block.
     fn infer_block(
         &self,
         module: &Module,
@@ -1001,7 +1001,7 @@ impl Compiler {
         Ok(ty_id)
     }
 
-    /// Analyze a declaration.
+    /// Infer a declaration.
     fn infer_declaration(
         &self,
         module: &Module,
@@ -1281,6 +1281,13 @@ impl Compiler {
                 scope: _,
                 members,
             } => {
+                // interfaces cannot be abstract
+                if descriptor.abstraction == DeclarationAbstraction::Abstract {
+                    self.error(AnalyzeError::InvalidInterface {
+                        node: declaration_id.into_global_any(module.id),
+                    });
+                }
+
                 // walk
                 self.infer_generics(module, generics, tree, symbols, types, ctx)?;
                 self.infer_heritage(
@@ -1331,6 +1338,13 @@ impl Compiler {
                 scope: _,
                 body,
             } => {
+                // declare functions cannot have a body
+                if descriptor.kind == DeclarationKind::Declaration && body.is_some() {
+                    self.error(AnalyzeError::InvalidFunction {
+                        node: declaration_id.into_global_any(module.id),
+                    });
+                }
+
                 let fn_ty_id = self.infer_signature(
                     module,
                     declaration_id.into_any(),
@@ -1439,7 +1453,7 @@ impl Compiler {
         }
     }
 
-    /// Analyze a member and return its TypeField if it has a static key.
+    /// Infer a member and return its TypeField if it has a static key.
     fn infer_member(
         &self,
         module: &Module,
@@ -1573,7 +1587,7 @@ impl Compiler {
         }
     }
 
-    /// Analyze generics.
+    /// Infer generics.
     fn infer_generics(
         &self,
         module: &Module,
@@ -1596,7 +1610,7 @@ impl Compiler {
         Ok(())
     }
 
-    /// Analyze heritage.
+    /// Infer heritage.
     fn infer_heritage(
         &self,
         module: &Module,
@@ -1730,7 +1744,7 @@ impl Compiler {
         Ok(ty_id)
     }
 
-    /// Analyze a parameter.
+    /// Infer a parameter.
     fn infer_parameter(
         &self,
         module: &Module,
@@ -2059,7 +2073,7 @@ impl Compiler {
         Ok(())
     }
 
-    /// Analyze a sequence of pattern fields (with spread syntax support).
+    /// Infer a sequence of pattern fields (with spread syntax support).
     fn infer_pattern_sequence(
         &self,
         module: &Module,
@@ -2837,7 +2851,7 @@ let a = obj.inner.value;
         test.check_clean();
     }
 
-    /// Analyze an inherent extension.
+    /// Infer an inherent extension.
     #[test]
     fn test_analyze_inherent_extension() {
         let test = TestProgram::memory_sequential();
@@ -2868,7 +2882,7 @@ extension Point {
         let _point_id = test.resolve_to_symbol("test.ds", "Point").unwrap();
     }
 
-    /// Analyze a local extension (on a foreign type).
+    /// Infer a local extension (on a foreign type).
     #[test]
     fn test_analyze_local_extension() {
         let test = TestProgram::memory_sequential();
@@ -2898,7 +2912,7 @@ extension Point {
         let _point_id = test.resolve_to_symbol("test.ds", "Point").unwrap();
     }
 
-    /// Analyze a named extension (on a foreign type, from a foreign extension).
+    /// Infer a named extension (on a foreign type, from a foreign extension).
     #[test]
     fn test_analyze_named_extension() {
         let test = TestProgram::memory_sequential();

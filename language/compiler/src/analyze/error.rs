@@ -113,6 +113,10 @@ pub enum AnalyzeError {
     InvalidReturn { node: GlobalNodeIdAny },
     /// Invalid constructor.
     InvalidConstructor { node: GlobalNodeIdAny },
+    /// Invalid interface (e.g., abstract interface).
+    InvalidInterface { node: GlobalNodeIdAny },
+    /// Invalid function (e.g., declare function with body).
+    InvalidFunction { node: GlobalNodeIdAny },
 }
 
 impl From<TaskDependencyError> for AnalyzeError {
@@ -169,6 +173,8 @@ impl AnalyzeError {
             Self::InvalidYield { .. } => 24,
             Self::InvalidReturn { .. } => 25,
             Self::InvalidConstructor { .. } => 26,
+            Self::InvalidInterface { .. } => 27,
+            Self::InvalidFunction { .. } => 28,
         }
     }
 
@@ -202,6 +208,8 @@ impl AnalyzeError {
             Self::InvalidYield { node, .. } => DiagnosticAnchor::Node(*node),
             Self::InvalidReturn { node, .. } => DiagnosticAnchor::Node(*node),
             Self::InvalidConstructor { node, .. } => DiagnosticAnchor::Node(*node),
+            Self::InvalidInterface { node, .. } => DiagnosticAnchor::Node(*node),
+            Self::InvalidFunction { node, .. } => DiagnosticAnchor::Node(*node),
         }
     }
 
@@ -285,6 +293,8 @@ impl AnalyzeError {
             Self::InvalidYield { .. } => "invalid yield".to_string(),
             Self::InvalidReturn { .. } => "invalid return".to_string(),
             Self::InvalidConstructor { .. } => "invalid constructor".to_string(),
+            Self::InvalidInterface { .. } => "invalid interface".to_string(),
+            Self::InvalidFunction { .. } => "invalid function".to_string(),
         }
     }
 }
