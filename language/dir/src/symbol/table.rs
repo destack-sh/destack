@@ -24,6 +24,7 @@ pub struct SymbolTable {
     pub(crate) scopes: Arena<Scope>,
 }
 
+#[allow(clippy::too_many_arguments)]
 impl SymbolTable {
     /// Create a new SymbolTable.
     pub fn new(module_id: ModuleId) -> Self {

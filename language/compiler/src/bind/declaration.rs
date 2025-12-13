@@ -1,9 +1,9 @@
 use crate::Compiler;
 use destack_ast as ast;
 use destack_dir::{
-    BindingAnchor, Declaration, DeclarationDescriptor, DeclarationKind, EnumField, LocalNodeId,
-    LocalNodeIdAny, LocalScopeId, LocalScopeMark, NodeTree, NodeType, ScopeKind, StaticKey,
-    SymbolBinding, SymbolKind, SymbolSpace, SymbolTable, SymbolType, TypeTable,
+    BindingAnchor, Declaration, DeclarationDescriptor, DeclarationKind, EnumField, EnumKind,
+    LocalNodeId, LocalNodeIdAny, LocalScopeId, LocalScopeMark, NodeTree, NodeType, ScopeKind,
+    StaticKey, SymbolBinding, SymbolKind, SymbolSpace, SymbolTable, SymbolType, TypeTable,
 };
 use destack_workspace::Module;
 
@@ -22,6 +22,14 @@ impl Compiler {
         match anchor {
             ast::BindingAnchor::Static => BindingAnchor::Static,
             ast::BindingAnchor::Instance => BindingAnchor::Instance,
+        }
+    }
+
+    /// Bind enum kind to DIR enum kind.
+    pub(super) fn bind_enum_kind(&self, kind: ast::EnumKind) -> EnumKind {
+        match kind {
+            ast::EnumKind::Enum => EnumKind::Enum,
+            ast::EnumKind::Const => EnumKind::Const,
         }
     }
 
@@ -309,6 +317,7 @@ impl Compiler {
             }
             ast::Declaration::Enum {
                 descriptor,
+                kind,
                 generics,
                 heritage,
                 fields,
@@ -322,6 +331,7 @@ impl Compiler {
                     SymbolType::Enum,
                     symbols,
                 );
+                let kind = self.bind_enum_kind(*kind);
                 let generics = self.bind_generics(
                     module,
                     (scope_id, symbols.get_scope_mark(scope_id)),
@@ -370,6 +380,7 @@ impl Compiler {
                     .collect();
                 Declaration::Enum {
                     descriptor,
+                    kind,
                     generics,
                     heritage,
                     scope: scope_id,

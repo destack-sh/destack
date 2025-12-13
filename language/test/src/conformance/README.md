@@ -8,14 +8,14 @@ Conformance tests check that the Destack parser conforms both to the ECMAScript 
 <!-- begin:summary-results -->
 | Suite    | Passed | Failed | Total |  Rate   |
 |:---------|-------:|-------:|------:|--------:|
-| babel    |   454  |   266  |   720 |  63.06% |
+| babel    |   455  |   265  |   720 |  63.19% |
 | biome    |   398  |   239  |   637 |  62.48% |
 | swc      |   391  |   147  |   538 |  72.68% |
 | test262  |  4333  |  1030  |  5363 |  80.79% |
 |----------|--------|--------|-------|---------|
-| total    |  5576  |  1682  |  7258 |  76.83% |
+| total    |  5577  |  1681  |  7258 |  76.84% |
 
-Total Blended Pass Rate: **76.83%**
+Total Blended Pass Rate: **76.84%**
 <!-- end:summary-results -->
 
 ### babel
@@ -50,7 +50,7 @@ Total Blended Pass Rate: **76.83%**
 | module-namespace     |    15  |     3  |    18 |  83.33% |
 | optional-chaining    |     1  |     0  |     1 | 100.00% |
 | regression           |    22  |     3  |    25 |  88.00% |
-| scope                |    45  |    21  |    66 |  68.18% |
+| scope                |    46  |    20  |    66 |  69.70% |
 | static-blocks        |    14  |     6  |    20 |  70.00% |
 | tsx                  |     5  |     3  |     8 |  62.50% |
 | type-alias           |     5  |     2  |     7 |  71.43% |
@@ -61,7 +61,7 @@ Total Blended Pass Rate: **76.83%**
 | types-arrow-function |     3  |     0  |     3 | 100.00% |
 | variable-declarator  |     1  |     2  |     3 |  33.33% |
 |----------------------|--------|--------|-------|---------|
-| total                |   454  |   266  |   720 |  63.06% |
+| total                |   455  |   265  |   720 |  63.19% |
 <!-- end:babel-results -->
 
 ### biome

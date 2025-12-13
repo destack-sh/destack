@@ -187,6 +187,7 @@ impl ModuleLowerer<'_> {
             }
             dir::Declaration::Enum {
                 descriptor,
+                kind: _,
                 scope: _,
                 generics: _,
                 heritage: _,

@@ -723,6 +723,7 @@ pub fn walk_declaration<V: NodeVisitor + ?Sized>(
         }
         Declaration::Enum {
             descriptor,
+            kind: _,
             generics,
             heritage,
             fields,

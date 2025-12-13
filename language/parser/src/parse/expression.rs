@@ -5,9 +5,9 @@ use crate::{ParseError, ParseResult, Parser, ParserMark};
 
 use destack_ast::{
     Argument, AssignOperator, BinaryOperator, BindingAnchor, DeclarationDescriptor,
-    DeclarationKind, DependencyMode, Expression, IfKind, InfixOperator, Keyword, LocalNodeId,
-    NodeType, PostfixPosition, TokenSpan, TokenType, TypeBinaryOperator, TypeUnaryOperator,
-    UnaryOperator,
+    DeclarationKind, DependencyMode, EnumKind, Expression, IfKind, InfixOperator, Keyword,
+    LocalNodeId, NodeType, PostfixPosition, TokenSpan, TokenType, TypeBinaryOperator,
+    TypeUnaryOperator, UnaryOperator,
 };
 
 pub static DECLARATION_KEYWORDS: [Keyword; 21] = [
@@ -706,7 +706,16 @@ impl Parser {
             else if keyword == Some(Keyword::Enum)
                 && DECLARATION_START_TOKENS.contains(&next_token_type)
             {
-                let enum_id = self.eat_enum(descriptor)?;
+                let enum_id = self.eat_enum(EnumKind::Enum, descriptor)?;
+                self.tree
+                    .insert(Expression::Declaration(enum_id), self.get_span_from(start))
+            }
+            // const enum
+            else if keyword == Some(Keyword::Const)
+                && self.peek_next_keyword(Keyword::Enum).is_ok()
+            {
+                self.eat_keyword(Keyword::Const)?;
+                let enum_id = self.eat_enum(EnumKind::Const, descriptor)?;
                 self.tree
                     .insert(Expression::Declaration(enum_id), self.get_span_from(start))
             }
@@ -842,7 +851,6 @@ impl Parser {
                 self.eat_try()?
             }
             // match / switch
-            // NOTE: `match` is only a keyword in Destack mode (for #Compatibility with TS)
             else if keyword == Some(Keyword::Switch)
                 || (keyword == Some(Keyword::Match) && self.language.is_destack())
             {
@@ -1354,9 +1362,9 @@ impl Parser {
 mod tests {
     use destack_ast::{
         Argument, AssignOperator, BinaryOperator, Block, Declaration, DeclarationDescriptor,
-        DeclarationType, Declarator, DependencyItem, DependencyKind, DependencyMode, Expression,
-        FunctionKind, IntType, Key, Mutability, Name, Parameter, Pattern, PatternField,
-        PostfixPosition, Property, ScalarLiteral, TypeBinaryOperator, TypeLiteral,
+        DeclarationType, Declarator, DependencyItem, DependencyKind, DependencyMode, EnumField,
+        EnumKind, Expression, FunctionKind, IntType, Key, Mutability, Name, Parameter, Pattern,
+        PatternField, PostfixPosition, Property, ScalarLiteral, TypeBinaryOperator, TypeLiteral,
         TypeUnaryOperator, UnaryOperator, VarianceBound,
     };
     use destack_source::{LanguageOptions, LanguageType};
@@ -3065,6 +3073,30 @@ const value =
             assert_node!(parser.tree, expressions[1], Expression::TypeLiteral(TypeLiteral::Void));
             // 1
             assert_node!(parser.tree, expressions[2], Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
+        });
+    }
+
+    /// Test const enum declaration.
+    #[test]
+    fn test_parse_const_enum() {
+        let mut test = TestParser::new("const enum Foo { A, B }");
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression().unwrap();
+        // const enum Foo { A, B }
+        assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
+            assert_node!(parser.tree, *decl_id, Declaration::Enum { descriptor, kind, fields, .. } => {
+                assert_string!(parser, descriptor.name.unwrap().string(), "Foo");
+                assert_eq!(*kind, EnumKind::Const);
+                assert_eq!(fields.len(), 2);
+                assert_node!(parser.tree, fields[0], EnumField { name, value } => {
+                    assert_string!(parser, name.string(), "A");
+                    assert!(value.is_none());
+                });
+                assert_node!(parser.tree, fields[1], EnumField { name, value } => {
+                    assert_string!(parser, name.string(), "B");
+                    assert!(value.is_none());
+                });
+            });
         });
     }
 }

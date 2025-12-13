@@ -1120,6 +1120,7 @@ impl Compiler {
             // enum
             Declaration::Enum {
                 descriptor,
+                kind: _,
                 generics,
                 heritage,
                 scope: _,
