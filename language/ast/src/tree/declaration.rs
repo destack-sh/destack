@@ -267,6 +267,7 @@ pub enum Declaration {
     /// ```
     Enum {
         descriptor: DeclarationDescriptor,
+        kind: EnumKind,
         generics: Generics,
         heritage: Heritage,
         fields: Vec<LocalNodeId<EnumField>>,
@@ -420,6 +421,16 @@ impl Declaration {
     pub fn name(&self) -> Option<Name> {
         self.descriptor().name
     }
+}
+
+/// The kind of an enum declaration.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+pub enum EnumKind {
+    /// A regular enum.
+    #[default]
+    Enum,
+    /// A const enum.
+    Const,
 }
 
 /// A EnumField is a enum field declaration.

@@ -418,9 +418,11 @@ impl_dump_display! {
     BindingAnchor,
     BinaryOperator,
     DeclarationKind,
+    DeclarationType,
     DependencyKind,
     DependencySource,
     DependencyMode,
+    EnumKind,
     ForEachKind,
     FunctionAbstraction,
     FunctionCardinality,
@@ -562,41 +564,6 @@ impl Dump for FloatType {
                 .field("width", width)
                 .end(),
         };
-    }
-}
-
-/// Dump a DeclarationType as a structured representation.
-impl Dump for DeclarationType {
-    fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
-        match self {
-            DeclarationType::Type => {
-                dumper.object("DeclarationType::Type").end();
-            }
-            DeclarationType::Namespace => {
-                dumper.object("DeclarationType::Module").end();
-            }
-            DeclarationType::Struct => {
-                dumper.object("DeclarationType::Struct").end();
-            }
-            DeclarationType::Class => {
-                dumper.object("DeclarationType::Class").end();
-            }
-            DeclarationType::Enum => {
-                dumper.object("DeclarationType::Enum").end();
-            }
-            DeclarationType::Union => {
-                dumper.object("DeclarationType::Union").end();
-            }
-            DeclarationType::Interface => {
-                dumper.object("DeclarationType::Interface").end();
-            }
-            DeclarationType::Extension => {
-                dumper.object("DeclarationType::Extension").end();
-            }
-            DeclarationType::Function => {
-                dumper.object("DeclarationType::Function").end();
-            }
-        }
     }
 }
 
@@ -1251,6 +1218,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
             }
             Declaration::Enum {
                 descriptor,
+                kind,
                 generics,
                 heritage,
                 fields: _,
@@ -1259,6 +1227,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
             } => {
                 self.node("Declaration::Enum", id.id)
                     .field("descriptor", descriptor)
+                    .field("kind", kind)
                     .field("generics", generics)
                     .field("heritage", heritage)
                     .field("scope", scope)

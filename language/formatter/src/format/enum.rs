@@ -32,14 +32,14 @@ impl<'ast> FormatNode<'ast, EnumField> for EnumField {
 #[cfg(test)]
 mod tests {
     use crate::{DestackFormatOptions, TestFormatter, assert_format};
-    use destack_ast::DeclarationDescriptor;
+    use destack_ast::{DeclarationDescriptor, EnumKind};
 
     #[test]
     fn test_format_enum_empty() {
         assert_format!(
             "enum { }",
             "enum { }",
-            |p| p.eat_enum(DeclarationDescriptor::default()),
+            |p| p.eat_enum(EnumKind::Enum, DeclarationDescriptor::default()),
             DestackFormatOptions::default()
         );
     }
@@ -49,7 +49,7 @@ mod tests {
         assert_format!(
             "enum { A, B }",
             "enum {\n\tA,\n\tB,\n}",
-            |p| p.eat_enum(DeclarationDescriptor::default()),
+            |p| p.eat_enum(EnumKind::Enum, DeclarationDescriptor::default()),
             DestackFormatOptions::default_tab()
         );
     }
@@ -59,7 +59,7 @@ mod tests {
         assert_format!(
             "enum { A }",
             "enum {\n\tA,\n}",
-            |p| p.eat_enum(DeclarationDescriptor::default()),
+            |p| p.eat_enum(EnumKind::Enum, DeclarationDescriptor::default()),
             DestackFormatOptions::default_tab()
         );
     }
@@ -75,7 +75,7 @@ mod tests {
         assert_format!(
             source,
             source,
-            |p| p.eat_enum(DeclarationDescriptor::default()),
+            |p| p.eat_enum(EnumKind::Enum, DeclarationDescriptor::default()),
             DestackFormatOptions::default()
         );
     }

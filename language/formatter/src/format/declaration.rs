@@ -7,9 +7,9 @@ use crate::{
     DestackFormatContext, DestackFormatter, FormatNode, empty_block_with_infix_annotations,
 };
 use destack_ast::{
-    Asynchrony, Declaration, DeclarationKind, DependencyMode, Expression, FunctionAbstraction,
-    FunctionCardinality, FunctionKind, FunctionMode, Keyword, LocalNodeId, Mutability, TypeKind,
-    Visibility,
+    Asynchrony, Declaration, DeclarationKind, DependencyMode, EnumKind, Expression,
+    FunctionAbstraction, FunctionCardinality, FunctionKind, FunctionMode, Keyword, LocalNodeId,
+    Mutability, TypeKind, Visibility,
 };
 use destack_fir::format::{BestFittingMode, FormatResult};
 use destack_fir::prelude::*;
@@ -299,6 +299,7 @@ impl<'ast> FormatNode<'ast, Declaration> for Declaration {
             // enum
             Declaration::Enum {
                 descriptor,
+                kind,
                 generics,
                 heritage,
                 fields,
@@ -312,6 +313,11 @@ impl<'ast> FormatNode<'ast, Declaration> for Declaration {
                 // kind
                 if descriptor.kind == DeclarationKind::Declaration {
                     write!(f, [Keyword::Declare, space()])?;
+                }
+
+                // const enum
+                if *kind == EnumKind::Const {
+                    write!(f, [Keyword::Const, space()])?;
                 }
 
                 // header

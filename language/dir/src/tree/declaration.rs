@@ -65,6 +65,7 @@ pub enum Declaration {
     /// Enum declaration.
     Enum {
         descriptor: DeclarationDescriptor,
+        kind: EnumKind,
         generics: Generics,
         heritage: Heritage,
         scope: LocalScopeId,
@@ -151,6 +152,16 @@ impl Declaration {
             Declaration::Extension { scope, .. } => Some(*scope),
         }
     }
+}
+
+/// The kind of an enum declaration.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+pub enum EnumKind {
+    /// A regular enum.
+    #[default]
+    Enum,
+    /// A const enum.
+    Const,
 }
 
 /// An enum field is a named field of an enum declaration.
