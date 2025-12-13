@@ -382,7 +382,8 @@ impl Parser {
                 self.options.not_in_position().in_statement_position(),
                 |parser| parser.eat_expression(),
             )?;
-            let member = Member::StaticBlock { body };
+            // Preserve modifiers for validation (static blocks shouldn't have other modifiers)
+            let member = Member::StaticBlock { modifiers, body };
             return Ok(self.tree.insert(member, self.get_span_from(start)));
         }
 

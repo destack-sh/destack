@@ -365,7 +365,7 @@ impl<'ast> FormatNode<'ast, Member> for Member {
                 // modifiers
                 format_binding_modifiers_postfix_maybe(f, *modifiers)?;
             }
-            Member::StaticBlock { body } => {
+            Member::StaticBlock { body, .. } => {
                 // keyword
                 write!(f, [Keyword::Static, space()])?;
                 // body

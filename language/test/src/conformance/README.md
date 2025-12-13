@@ -8,14 +8,14 @@ Conformance tests check that the Destack parser conforms both to the ECMAScript 
 <!-- begin:summary-results -->
 | Suite    | Passed | Failed | Skipped | Total |  Rate   |
 |:---------|-------:|-------:|--------:|------:|--------:|
-| babel    |   477  |   233  |     5  |   710 |  67.18% |
-| biome    |   409  |   228  |     -  |   637 |  64.21% |
+| babel    |   483  |   227  |     5  |   710 |  68.03% |
+| biome    |   410  |   227  |     -  |   637 |  64.36% |
 | swc      |   402  |   136  |     -  |   538 |  74.72% |
 | test262  |  4360  |  1003  |     -  |  5363 |  81.30% |
 |----------|--------|--------|---------|-------|---------|
-| total    |  5648  |  1600  |      5  |  7248 |  77.92% |
+| total    |  5655  |  1593  |      5  |  7248 |  78.02% |
 
-Total Blended Pass Rate: **77.92%**
+Total Blended Pass Rate: **78.02%**
 <!-- end:summary-results -->
 
 ### babel
@@ -30,7 +30,7 @@ Total Blended Pass Rate: **77.92%**
 | binary-expression    |     2  |     0  |     2 | 100.00% |
 | cast                 |    30  |     7  |    37 |  81.08% |
 | catch-clause         |     1  |     0  |     1 | 100.00% |
-| class                |    56  |    41  |    97 |  57.73% |
+| class                |    57  |    40  |    97 |  58.76% |
 | const                |     1  |     3  |     4 |  25.00% |
 | declare              |    13  |    14  |    27 |  48.15% |
 | decorators           |     1  |     1  |     2 |  50.00% |
@@ -41,7 +41,7 @@ Total Blended Pass Rate: **77.92%**
 | expect-plugin        |     0  |     3  |     3 |   0.00% |
 | exponentiation       |     1  |     2  |     3 |  33.33% |
 | export               |    11  |     2  |    13 |  84.62% |
-| function             |     8  |     5  |    13 |  61.54% |
+| function             |     9  |     4  |    13 |  69.23% |
 | html-entities        |     3  |     1  |     4 |  75.00% |
 | import               |    13  |     8  |    21 |  61.90% |
 | interface            |    33  |    14  |    47 |  70.21% |
@@ -50,7 +50,7 @@ Total Blended Pass Rate: **77.92%**
 | optional-chaining    |     1  |     0  |     1 | 100.00% |
 | regression           |    21  |     4  |    25 |  84.00% |
 | scope                |    46  |    20  |    66 |  69.70% |
-| static-blocks        |    14  |     6  |    20 |  70.00% |
+| static-blocks        |    18  |     2  |    20 |  90.00% |
 | tsx                  |     5  |     3  |     8 |  62.50% |
 | type-alias           |     5  |     2  |     7 |  71.43% |
 | type-arguments       |    27  |     6  |    33 |  81.82% |
@@ -60,17 +60,17 @@ Total Blended Pass Rate: **77.92%**
 | types-arrow-function |     3  |     0  |     3 | 100.00% |
 | variable-declarator  |     1  |     2  |     3 |  33.33% |
 |----------------------|--------|--------|-------|---------|
-| total                |   477  |   233  |   710 |  67.18% |
+| total                |   483  |   227  |   710 |  68.03% |
 <!-- end:babel-results -->
 
 ### biome
 <!-- begin:biome-results -->
 | Category             | Passed | Failed | Total |  Rate   |
 |:---------------------|-------:|-------:|------:|--------:|
-| error                |   193  |   109  |   302 |  63.91% |
+| error                |   194  |   108  |   302 |  64.24% |
 | ok                   |   216  |   119  |   335 |  64.48% |
 |----------------------|--------|--------|-------|---------|
-| total                |   409  |   228  |   637 |  64.21% |
+| total                |   410  |   227  |   637 |  64.36% |
 <!-- end:biome-results -->
 
 ### swc

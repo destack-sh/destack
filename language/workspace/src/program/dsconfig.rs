@@ -480,6 +480,7 @@ impl Default for DsConfigCompilerOptions {
             no_implicit_managed_type: false,
             no_implicit_managed_value: false,
             no_managed: false,
+            no_referential_equality: false,
             no_dynamic_evaluation: false,
             no_global_this: false,
             no_dynamic_import: false,
@@ -553,6 +554,7 @@ impl From<&DsConfigCompilerOptionsJson> for DsConfigCompilerOptions {
             no_implicit_managed_type: json.no_implicit_managed_type.unwrap_or(false),
             no_implicit_managed_value: json.no_implicit_managed_value.unwrap_or(false),
             no_managed: json.no_managed.unwrap_or(false),
+            no_referential_equality: json.no_referential_equality.unwrap_or(false),
             no_dynamic_evaluation: json.no_dynamic_evaluation.unwrap_or(false),
             no_global_this: json.no_global_this.unwrap_or(false),
             no_dynamic_import: json.no_dynamic_import.unwrap_or(false),
@@ -915,6 +917,8 @@ pub struct DsConfigCompilerOptionsJson {
     pub no_implicit_managed_value: Option<bool>,
     /// Forbid managed runtime features entirely (no &T at all, pure value types only).
     pub no_managed: Option<bool>,
+    /// Forbid referential equality.
+    pub no_referential_equality: Option<bool>,
     /// Forbid `eval()` and `Function` constructor.
     pub no_dynamic_evaluation: Option<bool>,
     /// Forbid `globalThis` access.

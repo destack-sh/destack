@@ -227,7 +227,11 @@ pub enum Member {
         value: LocalNodeId<Expression>,
     },
     /// Static initialization block (like `static { ... }`).
-    StaticBlock { body: LocalNodeId<Expression> },
+    /// Modifiers are preserved for validation (static blocks shouldn't have modifiers other than `static`).
+    StaticBlock {
+        modifiers: Option<BindingModifier>,
+        body: LocalNodeId<Expression>,
+    },
 }
 
 impl Node for Member {

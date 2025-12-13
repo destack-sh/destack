@@ -1196,8 +1196,10 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .field_optional("modifiers", modifiers)
                     .end();
             }
-            Member::StaticBlock { body: _ } => {
-                self.node("Member::StaticBlock", id.id).end();
+            Member::StaticBlock { modifiers, body: _ } => {
+                self.node("Member::StaticBlock", id.id)
+                    .field_optional("modifiers", modifiers)
+                    .end();
             }
         }
         self.with_depth(|dumper| {

@@ -205,7 +205,7 @@ impl ModuleLowerer<'_> {
                     message: Some("type embedding should be expanded before codegen".to_string()),
                 });
             }
-            dir::Member::StaticBlock { body, symbol: _ } => {
+            dir::Member::StaticBlock { body, .. } => {
                 let body = self
                     .lower_expression(*body)
                     .expect_node::<Expression>(body.into_global_any(self.module.id), self)?;

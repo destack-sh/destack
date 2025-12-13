@@ -53,6 +53,8 @@ impl TestArea {
                     || code == "EA028" // InvalidFunction
                     || code == "EA029" // InvalidMethod
                     || code == "EA030" // InvalidMemberModifier
+                    || code == "EA031" // InvalidParameterProperty
+                    || code == "EA032" // InvalidStaticBlockModifier
             }
         }
     }
@@ -99,10 +101,8 @@ pub(super) fn parse_file(
         Err(_) => return ParseOutcome::Error,
     };
 
-    // run import, bind, resolve, and analyze (infer) phases
-    // flow validation (break/continue) is done in the analyze infer phase
-    // catch panics to treat them as errors (some malformed code causes panics)
-    compiler.enqueue(AnalyzeTask::AnalyzeModuleInfer { module: module_id });
+    // run up to analyze
+    compiler.enqueue(AnalyzeTask::AnalyzeModuleValidate { module: module_id });
     let result = std::panic::catch_unwind(AssertUnwindSafe(|| {
         compiler.compile();
     }));

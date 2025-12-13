@@ -184,4 +184,18 @@ pub enum AnalyzeError {
     /// Invalid member modifier (e.g., private field with visibility modifier).
     #[error(code = "EA030", message = "invalid member modifier")]
     InvalidMemberModifier { node: GlobalNodeIdAny },
+
+    /// Parameter property (visibility/readonly modifier) is only allowed in constructor.
+    #[error(
+        code = "EA031",
+        message = "parameter property is only allowed in a constructor"
+    )]
+    InvalidParameterProperty { node: GlobalNodeIdAny },
+
+    /// Static class blocks cannot have modifiers (other than `static`).
+    #[error(
+        code = "EA032",
+        message = "static class blocks cannot have any modifier"
+    )]
+    InvalidStaticBlockModifier { node: GlobalNodeIdAny },
 }

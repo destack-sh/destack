@@ -2,8 +2,7 @@ use crate::{
     AnalyzeError, AnalyzeResult, Compiler, InferContext, Task, TaskDebug, TaskDependencyError,
     TaskOutput, TaskResultCollector,
 };
-
-use destack_dir::LocalTypeId;
+use destack_dir::{LocalTypeId, Member, Parameter};
 use destack_source::ModuleId;
 use destack_workspace::Program;
 
@@ -170,9 +169,19 @@ impl Compiler {
 
     /// Phase 3: Final validation checks.
     fn analyze_module_validate(&self, module_id: ModuleId) -> AnalyzeResult<()> {
-        let _ = module_id;
+        let module = self.program.modules.get(module_id);
+        let module = module.read();
+        let tree = module.dir.tree.read();
 
-        // nothing to do yet?
+        // validate parameters
+        for (id, parameter) in tree.iter_nodes_of_type::<Parameter>() {
+            self.validate_parameter(&module, &tree, id, parameter);
+        }
+
+        // validate members
+        for (id, member) in tree.iter_nodes_of_type::<Member>() {
+            self.validate_member(&module, id, member);
+        }
 
         Ok(())
     }

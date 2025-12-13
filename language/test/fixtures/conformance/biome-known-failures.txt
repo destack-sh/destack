@@ -63,7 +63,6 @@ error/ts_ambient_context_semi.ts
 error/ts_arrow_function_this_parameter.ts
 error/ts_catch_declaration_non_any_unknown_type_annotation.ts
 error/ts_class_heritage_clause_errors.ts
-error/ts_class_initializer_with_modifiers.ts
 error/ts_class_member_accessor_readonly_precedence.ts
 error/ts_class_name_reserved_as_type.ts
 error/ts_constructor_this_parameter.ts

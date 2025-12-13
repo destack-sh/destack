@@ -7,6 +7,7 @@ mod infer;
 mod options;
 mod process;
 mod r#type;
+mod validate;
 mod warning;
 
 pub use assign::*;

@@ -1,8 +1,6 @@
 # Destack: Universal Software Engine
 
-> Destack aims to make building correct, optimal, integrated software the obvious default.
-
-Destack is a universal software engine for building correct, optimal, integrated full-stack systems.
+**Destack is a universal software engine for building correct, optimal, integrated software**.
 Build on TypeScript and the web ecosystem with a unified open source toolchain, stack and platform.
 Own your software, build it anywhere and run it everywhere in one integrated open source stack:
 

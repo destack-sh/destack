@@ -32,6 +32,17 @@ impl Node for Parameter {
     const TYPE: NodeType = NodeType::Parameter;
 }
 
+impl Parameter {
+    /// Get the modifiers of the parameter.
+    pub fn modifiers(&self) -> Option<&BindingModifier> {
+        match self {
+            Parameter::Named { modifiers, .. } => modifiers.as_ref(),
+            Parameter::Pattern { modifiers, .. } => modifiers.as_ref(),
+            Parameter::Variadic { modifiers, .. } => modifiers.as_ref(),
+        }
+    }
+}
+
 /// An Argument is a named, positional, spread, labeled, or dynamic argument.
 /// Parameter mapping (which parameter an argument maps to) is resolved
 /// as part of call resolution, not stored here.
