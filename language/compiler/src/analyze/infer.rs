@@ -768,9 +768,7 @@ impl Compiler {
 
             // throw -> never (control flow)
             Expression::Throw { value } => {
-                if let Some(val) = value {
-                    self.infer_expression(module, *val, tree, symbols, types, ctx)?;
-                }
+                self.infer_expression(module, *value, tree, symbols, types, ctx)?;
                 let ty = Type::TypeLiteral {
                     value: TypeLiteral::Never,
                 };

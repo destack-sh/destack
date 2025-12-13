@@ -1293,9 +1293,7 @@ pub(crate) fn format_expression<'ast>(
         // throw
         Expression::Throw { value } => {
             write!(f, [token("throw")])?;
-            if let Some(value) = value {
-                write!(f, [space(), value])?;
-            }
+            write!(f, [space(), value])?;
         }
 
         // return

@@ -323,7 +323,7 @@ pub enum Expression {
     /// throw anyOldExpression()
     /// ```
     Throw {
-        value: Option<LocalNodeId<Expression>>,
+        value: LocalNodeId<Expression>,
     },
 
     /// Return expression.
