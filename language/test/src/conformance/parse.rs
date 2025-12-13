@@ -2,7 +2,9 @@ use std::panic::AssertUnwindSafe;
 use std::path::Path;
 use std::sync::Arc;
 
-use destack_compiler::{AnalyzeTask, CompileOptions, Compiler};
+use destack_compiler::{
+    AnalyzeError, AnalyzeTask, BindError, CompileOptions, Compiler, ImportError, ResolveError,
+};
 use destack_source::{
     DiagnosticSeverity, FileRegistry, FileSystem, FileType, LanguageOptions, LanguageType,
     MemoryFileSystem,
@@ -28,33 +30,42 @@ pub(super) enum TestArea {
     Early,
 }
 
+/// Early analysis error codes relevant for conformance testing.
+const EARLY_ANALYZE_CODES: &[&str] = &[
+    AnalyzeError::ALL_CODES[20], // EA020: InvalidLineage
+    AnalyzeError::ALL_CODES[21], // EA021: InvalidBreak
+    AnalyzeError::ALL_CODES[22], // EA022: InvalidContinue
+    AnalyzeError::ALL_CODES[23], // EA023: InvalidAwait
+    AnalyzeError::ALL_CODES[24], // EA024: InvalidYield
+    AnalyzeError::ALL_CODES[25], // EA025: InvalidReturn
+    AnalyzeError::ALL_CODES[26], // EA026: InvalidConstructor
+    AnalyzeError::ALL_CODES[27], // EA027: InvalidInterface
+    AnalyzeError::ALL_CODES[28], // EA028: InvalidFunction
+    AnalyzeError::ALL_CODES[29], // EA029: InvalidMethod
+    AnalyzeError::ALL_CODES[30], // EA030: InvalidMemberModifier
+    AnalyzeError::ALL_CODES[31], // EA031: InvalidParameterProperty
+    AnalyzeError::ALL_CODES[32], // EA032: InvalidStaticBlockModifier
+];
+
+/// Early resolve error codes relevant for conformance testing.
+const EARLY_RESOLVE_CODES: &[&str] = &[
+    ResolveError::ALL_CODES[10], // ER010: MissingTarget
+    ResolveError::ALL_CODES[11], // ER011: InvalidTarget
+];
+
 impl TestArea {
     /// Check if an error code is relevant for this test area.
     pub(super) fn is_relevant_error(&self, code: &str) -> bool {
-        // nocheckin TODO #Cleanup: use more rigorous diagnostic definition?
-        // (reorganize warnings/errors and other diagnostics incl. future lints to use some macro,
-        //  such that we can easily check against them and list them statically like for docs and tests)
         match self {
-            TestArea::Parse => code.starts_with("EP") || code.starts_with("EI"),
+            // parse errors are EP (parser) and EI (import, includes file loading)
+            TestArea::Parse => code.starts_with("EP") || ImportError::is_valid_code(code),
+            // early errors include parse + bind + specific resolve/analyze codes
             TestArea::Early => {
                 code.starts_with("EP")
-                    || code.starts_with("EI")
-                    || code.starts_with("EB")
-                    || code == "ER010" // MissingTarget
-                    || code == "ER011" // InvalidTarget
-                    || code == "EA020" // InvalidLineage
-                    || code == "EA021" // InvalidBreak
-                    || code == "EA022" // InvalidContinue
-                    || code == "EA023" // InvalidAwait
-                    || code == "EA024" // InvalidYield
-                    || code == "EA025" // InvalidReturn
-                    || code == "EA026" // InvalidConstructor
-                    || code == "EA027" // InvalidInterface
-                    || code == "EA028" // InvalidFunction
-                    || code == "EA029" // InvalidMethod
-                    || code == "EA030" // InvalidMemberModifier
-                    || code == "EA031" // InvalidParameterProperty
-                    || code == "EA032" // InvalidStaticBlockModifier
+                    || ImportError::is_valid_code(code)
+                    || BindError::is_valid_code(code)
+                    || EARLY_RESOLVE_CODES.contains(&code)
+                    || EARLY_ANALYZE_CODES.contains(&code)
             }
         }
     }
