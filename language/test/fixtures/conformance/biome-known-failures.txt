@@ -189,7 +189,6 @@ ok/ts_export_type_specifier.ts
 ok/ts_formal_parameter_decorator.ts
 ok/ts_function_overload.ts
 ok/ts_import_clause_types.ts
-ok/ts_import_equals_declaration.ts
 ok/ts_import_type.ts
 ok/ts_infer_type_allowed.ts
 ok/ts_instantiation_expressions.ts

@@ -128,6 +128,12 @@ impl Compiler {
             );
         }
 
+        // register extensions
+        // 1) register inherent extensions from imported symbols
+        // 2) register 
+        // nocheckin
+
+        // yield on any yields
         if let Some(dependency) = collector.try_into_yield_any() {
             return Err(AnalyzeError::Yield { dependency });
         }
@@ -144,7 +150,7 @@ impl Compiler {
         let mut types = module.dir.types.write();
         let mut collector = TaskResultCollector::new();
 
-        // the big walk - analyze all expressions
+        // analyze all expressions
         let mut ctx = InferContext::new();
         for root_id in module.dir.roots.iter() {
             self.collect(
@@ -153,6 +159,7 @@ impl Compiler {
             );
         }
 
+        // yield on any yields
         if let Some(dependency) = collector.try_into_yield_any() {
             return Err(AnalyzeError::Yield { dependency });
         }
@@ -163,6 +170,9 @@ impl Compiler {
     /// Phase 3: Final validation checks.
     fn analyze_module_validate(&self, module_id: ModuleId) -> AnalyzeResult<()> {
         let _ = module_id;
+
+        // nothing to do yet?
+
         Ok(())
     }
 }

@@ -8,14 +8,14 @@ Conformance tests check that the Destack parser conforms both to the ECMAScript 
 <!-- begin:summary-results -->
 | Suite    | Passed | Failed | Total |  Rate   |
 |:---------|-------:|-------:|------:|--------:|
-| babel    |   466  |   254  |   720 |  64.72% |
-| biome    |   408  |   229  |   637 |  64.05% |
-| swc      |   391  |   147  |   538 |  72.68% |
+| babel    |   469  |   246  |   715 |  65.59% |
+| biome    |   409  |   228  |   637 |  64.21% |
+| swc      |   399  |   139  |   538 |  74.16% |
 | test262  |  4360  |  1003  |  5363 |  81.30% |
 |----------|--------|--------|-------|---------|
-| total    |  5625  |  1633  |  7258 |  77.50% |
+| total    |  5637  |  1616  |  7253 |  77.72% |
 
-Total Blended Pass Rate: **77.50%**
+Total Blended Pass Rate: **77.72%**
 <!-- end:summary-results -->
 
 ### babel
@@ -26,7 +26,7 @@ Total Blended Pass Rate: **77.50%**
 | assert-predicate     |     7  |     3  |    10 |  70.00% |
 | assign               |     1  |     2  |     3 |  33.33% |
 | async-call           |     0  |     1  |     1 |   0.00% |
-| basic                |    28  |    10  |    38 |  73.68% |
+| basic                |    28  |     9  |    37 |  75.68% |
 | binary-expression    |     2  |     0  |     2 | 100.00% |
 | cast                 |    30  |    12  |    42 |  71.43% |
 | catch-clause         |     1  |     0  |     1 | 100.00% |
@@ -39,17 +39,16 @@ Total Blended Pass Rate: **77.50%**
 | enum                 |    13  |     0  |    13 | 100.00% |
 | errors               |    19  |     9  |    28 |  67.86% |
 | expect-plugin        |     0  |     3  |     3 |   0.00% |
-| explicit-resource-management |     0  |     1  |     1 |   0.00% |
 | exponentiation       |     1  |     2  |     3 |  33.33% |
-| export               |    11  |     3  |    14 |  78.57% |
+| export               |    11  |     2  |    13 |  84.62% |
 | function             |     8  |     5  |    13 |  61.54% |
 | html-entities        |     3  |     1  |     4 |  75.00% |
-| import               |     9  |    14  |    23 |  39.13% |
+| import               |    13  |     8  |    21 |  61.90% |
 | interface            |    32  |    15  |    47 |  68.09% |
 | legacy-decorators    |     1  |     1  |     2 |  50.00% |
 | module-namespace     |    15  |     3  |    18 |  83.33% |
 | optional-chaining    |     1  |     0  |     1 | 100.00% |
-| regression           |    22  |     3  |    25 |  88.00% |
+| regression           |    21  |     4  |    25 |  84.00% |
 | scope                |    46  |    20  |    66 |  69.70% |
 | static-blocks        |    14  |     6  |    20 |  70.00% |
 | tsx                  |     5  |     3  |     8 |  62.50% |
@@ -61,7 +60,7 @@ Total Blended Pass Rate: **77.50%**
 | types-arrow-function |     3  |     0  |     3 | 100.00% |
 | variable-declarator  |     1  |     2  |     3 |  33.33% |
 |----------------------|--------|--------|-------|---------|
-| total                |   466  |   254  |   720 |  64.72% |
+| total                |   469  |   246  |   715 |  65.59% |
 <!-- end:babel-results -->
 
 ### biome
@@ -69,9 +68,9 @@ Total Blended Pass Rate: **77.50%**
 | Category             | Passed | Failed | Total |  Rate   |
 |:---------------------|-------:|-------:|------:|--------:|
 | error                |   193  |   109  |   302 |  63.91% |
-| ok                   |   215  |   120  |   335 |  64.18% |
+| ok                   |   216  |   119  |   335 |  64.48% |
 |----------------------|--------|--------|-------|---------|
-| total                |   408  |   229  |   637 |  64.05% |
+| total                |   409  |   228  |   637 |  64.21% |
 <!-- end:biome-results -->
 
 ### swc
@@ -97,11 +96,11 @@ Total Blended Pass Rate: **77.50%**
 | export               |     5  |     0  |     5 | 100.00% |
 | export-default-interface |     1  |     0  |     1 | 100.00% |
 | function             |     5  |     1  |     6 |  83.33% |
-| import               |     1  |     7  |     8 |  12.50% |
+| import               |     7  |     1  |     8 |  87.50% |
 | import-assertions    |     7  |     0  |     7 | 100.00% |
 | instantiation-expr   |     6  |     2  |     8 |  75.00% |
 | interface            |    16  |     0  |    16 | 100.00% |
-| issue                |    95  |    41  |   136 |  69.85% |
+| issue                |    97  |    39  |   136 |  71.32% |
 | meta-property        |     3  |     0  |     3 | 100.00% |
 | module-namespace     |     9  |     0  |     9 | 100.00% |
 | next                 |     0  |     2  |     2 |   0.00% |
@@ -124,7 +123,7 @@ Total Blended Pass Rate: **77.50%**
 | variance-annotations |     0  |     2  |     2 |   0.00% |
 | vercel               |     1  |     0  |     1 | 100.00% |
 |----------------------|--------|--------|-------|---------|
-| total                |   391  |   147  |   538 |  72.68% |
+| total                |   399  |   139  |   538 |  74.16% |
 <!-- end:swc-results -->
 
 ### test262
@@ -149,7 +148,7 @@ We do not expect to reach 100% conformance because:
 
 ## Notes
 
-- **Annex B**: The test262-parser-tests suite we use does not include Annex B tests (no legacy support).
-- **Flow**: Flow is intentionally excluded because it's rarely used anymore. We support TypeScript only.
-- **Strict**: Destack targets modern strict-mode JavaScript/TypeScript. Non-strict ("sloppy mode") behaviors like duplicate function declarations or `yield` as an identifier are not supported.
-- **Proposals**: Some SWC `js/*` tests cover syntax proposals we don't support. These are intentionally excluded from conformance.
+- **Annex B**: Our test262 suite does not include Annex B tests. We do not support legacy syntax.
+- **Flow**: Flow is intentionally excluded because it's rarely used anymore. We support only TypeScript.
+- **Strict**: Non-strict ("sloppy mode") behaviors like duplicate function declarations or `yield` as an identifier are not supported. We support only modern strict-mode JS/TS. 
+- **Proposals**: Some SWC `js/*` tests cover not-yet-standard syntax proposals. We do not support most of these.

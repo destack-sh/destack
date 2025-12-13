@@ -2,14 +2,17 @@ use crate::parse::prelude::*;
 use crate::{ParseResult, Parser};
 
 use destack_ast::{
-    DependencyItem, DependencyKind, DependencyMode, Expression, Keyword, LocalNodeId,
-    ScalarLiteral, TokenType,
+    DeclarationDescriptor, Declarator, DependencyItem, DependencyKind, DependencyMode, Expression,
+    Keyword, LocalNodeId, Mutability, Pattern, ScalarLiteral, TokenType,
 };
 use destack_source::StringId;
 
 #[allow(clippy::type_complexity)]
 impl Parser {
-    /// Eat a import declaration (including the `import` keyword and an optional body).
+    /// Eat an import declaration (including the `import` keyword and an optional body).
+    ///
+    /// Import equals syntax (`import A = B.C` or `import a = require("a")`) is lowered
+    /// to a Let binding since it's semantically equivalent to `const A = B.C`.
     ///
     /// Examples:
     /// ```
@@ -19,6 +22,8 @@ impl Parser {
     /// import { bar, baz } from "foo"
     /// import Default, { type Item } from "foo"
     /// import foo as baz with { bar: true }
+    /// import A = B.C          // lowered to: const A = B.C
+    /// import a = require("a") // lowered to: const a = require("a")
     /// ```
     pub fn eat_import(&mut self) -> ParseResult<LocalNodeId<Expression>> {
         let start = self.mark();
@@ -33,6 +38,44 @@ impl Parser {
         } else {
             None
         };
+
+        // import equals: `import A = B.C` or `import a = require("a")`
+        if self.peek_token(TokenType::Identifier).is_ok()
+            && self.peek_next_token(TokenType::Assign).is_ok()
+        {
+            let name = self.eat_identifier()?;
+            self.bump(); // eat =
+            // value
+            let value = self.eat_expression()?;
+            // pattern
+            let pattern = self.tree.insert(
+                Pattern::Binding {
+                    mutability: None,
+                    name,
+                    pattern: None,
+                },
+                self.get_span_from(start),
+            );
+            // declarator
+            let declarator = self.tree.insert(
+                Declarator {
+                    pattern,
+                    ty: None,
+                    value: Some(value),
+                },
+                self.get_span_from(start),
+            );
+            // let
+            let let_id = self.tree.insert(
+                Expression::Let {
+                    descriptor: DeclarationDescriptor::default(),
+                    mutability: Mutability::Immutable,
+                    declarators: vec![declarator],
+                },
+                self.get_span_from(start),
+            );
+            return Ok(let_id);
+        }
 
         // binding
         let items = if self.peek_dependency_binding().is_ok() {
@@ -386,7 +429,8 @@ impl Parser {
 #[cfg(test)]
 mod tests {
     use destack_ast::{
-        Argument, DependencyItem, DependencyKind, DependencyMode, Expression, ScalarLiteral,
+        Argument, Declarator, DependencyItem, DependencyKind, DependencyMode, Expression,
+        Mutability, Pattern, ScalarLiteral,
     };
 
     use crate::{TestParser, assert_expression_path, assert_node, assert_path, assert_string};
@@ -565,6 +609,61 @@ import {
                 assert_string!(parser, *alias, "b");
             });
             assert_string!(parser, *target, "foo");
+        });
+    }
+
+    #[test]
+    fn test_parse_import_equals_namespace() {
+        let mut test = TestParser::new("import A = B.C");
+        let mut parser = test.prepare();
+        let let_id = parser.eat_import().unwrap();
+
+        assert_node!(parser.tree, let_id, Expression::Let { mutability, declarators, .. } => {
+            assert_eq!(*mutability, Mutability::Immutable);
+            assert_eq!(declarators.len(), 1);
+            assert_node!(parser.tree, declarators[0], Declarator { pattern, ty: None, value: Some(value) } => {
+                assert_node!(parser.tree, *pattern, Pattern::Binding { name, .. } => {
+                    assert_string!(parser, *name, "A");
+                });
+                assert_expression_path!(parser, parser.tree.get(*value), "B.C");
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_import_equals_require() {
+        let mut test = TestParser::new(r#"import a = require("a")"#);
+        let mut parser = test.prepare();
+        let let_id = parser.eat_import().unwrap();
+
+        assert_node!(parser.tree, let_id, Expression::Let { mutability, declarators, .. } => {
+            assert_eq!(*mutability, Mutability::Immutable);
+            assert_eq!(declarators.len(), 1);
+            assert_node!(parser.tree, declarators[0], Declarator { pattern, ty: None, value: Some(value) } => {
+                assert_node!(parser.tree, *pattern, Pattern::Binding { name, .. } => {
+                    assert_string!(parser, *name, "a");
+                });
+                // value is a call expression: require("a")
+                assert_node!(parser.tree, *value, Expression::Call { .. });
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_import_type_equals_require() {
+        let mut test = TestParser::new(r#"import type MyType = require("pkg")"#);
+        let mut parser = test.prepare();
+        let let_id = parser.eat_import().unwrap();
+
+        assert_node!(parser.tree, let_id, Expression::Let { mutability, declarators, .. } => {
+            assert_eq!(*mutability, Mutability::Immutable);
+            assert_eq!(declarators.len(), 1);
+            assert_node!(parser.tree, declarators[0], Declarator { pattern, ty: None, value: Some(value) } => {
+                assert_node!(parser.tree, *pattern, Pattern::Binding { name, .. } => {
+                    assert_string!(parser, *name, "MyType");
+                });
+                assert_node!(parser.tree, *value, Expression::Call { .. });
+            });
         });
     }
 

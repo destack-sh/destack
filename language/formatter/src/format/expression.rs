@@ -959,7 +959,9 @@ pub(crate) fn format_expression<'ast>(
             // items
             let first_item = items.first().map(|item| tree.get(*item));
             // namespace
-            if items.len() == 1 && first_item.unwrap().mode == DependencyMode::Namespace {
+            if items.len() == 1
+                && first_item.is_some_and(|item| item.mode == DependencyMode::Namespace)
+            {
                 write!(
                     f,
                     [

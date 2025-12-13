@@ -39,6 +39,10 @@ impl BabelSuite {
 
                     // if this directory is a test case, register it
                     if let Some((_, file_type)) = input_info {
+                        // skip script-mode tests (we only support strict module mode)
+                        if self.is_script_mode(&path) {
+                            continue;
+                        }
                         let directory_name = path.file_name().unwrap().to_string_lossy();
                         let name = if prefix.is_empty() {
                             directory_name.to_string()
@@ -67,6 +71,19 @@ impl BabelSuite {
 
         tests.sort_by(|a, b| a.name.cmp(&b.name));
         tests
+    }
+
+    /// Check if a test uses script mode (sourceType: "script").
+    /// We only support strict module mode, so we skip these tests.
+    fn is_script_mode(&self, test_dir: &Path) -> bool {
+        let options_path = test_dir.join("options.json");
+        if let Ok(content) = std::fs::read_to_string(&options_path)
+            && content.contains("\"sourceType\"")
+            && content.contains("\"script\"")
+        {
+            return true;
+        }
+        false
     }
 
     fn should_throw(&self, test_dir: &Path) -> bool {
