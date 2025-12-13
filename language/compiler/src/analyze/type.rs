@@ -637,8 +637,7 @@ impl Compiler {
                 if extension.symbol.module_id == module.id {
                     return true;
                 }
-                // nocheckin TODO #Incomplete: local/named extensions
-                false
+                false // TODO #Incomplete: local/named extensions #Extensions
             }
         }
     }

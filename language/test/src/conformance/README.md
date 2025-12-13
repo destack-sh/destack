@@ -10,12 +10,12 @@ Conformance tests check that the Destack parser conforms both to the ECMAScript 
 |:---------|-------:|-------:|------:|--------:|
 | babel    |   469  |   246  |   715 |  65.59% |
 | biome    |   409  |   228  |   637 |  64.21% |
-| swc      |   399  |   139  |   538 |  74.16% |
+| swc      |   402  |   136  |   538 |  74.72% |
 | test262  |  4360  |  1003  |  5363 |  81.30% |
 |----------|--------|--------|-------|---------|
-| total    |  5637  |  1616  |  7253 |  77.72% |
+| total    |  5640  |  1613  |  7253 |  77.76% |
 
-Total Blended Pass Rate: **77.72%**
+Total Blended Pass Rate: **77.76%**
 <!-- end:summary-results -->
 
 ### babel
@@ -34,7 +34,7 @@ Total Blended Pass Rate: **77.72%**
 | const                |     1  |     3  |     4 |  25.00% |
 | declare              |    13  |    14  |    27 |  48.15% |
 | decorators           |     1  |     1  |     2 |  50.00% |
-| disallow-jsx-ambiguity |     2  |     1  |     3 |  66.67% |
+| disallow-jsx-ambiguity |     3  |     0  |     3 | 100.00% |
 | dts                  |     3  |     2  |     5 |  60.00% |
 | enum                 |    13  |     0  |    13 | 100.00% |
 | errors               |    19  |     9  |    28 |  67.86% |
@@ -56,7 +56,7 @@ Total Blended Pass Rate: **77.72%**
 | type-arguments       |    27  |     6  |    33 |  81.82% |
 | type-arguments-bit-shift-left-like |     3  |     6  |     9 |  33.33% |
 | type-only-import-export-specifiers |    14  |    10  |    24 |  58.33% |
-| types                |    63  |    32  |    95 |  66.32% |
+| types                |    62  |    33  |    95 |  65.26% |
 | types-arrow-function |     3  |     0  |     3 | 100.00% |
 | variable-declarator  |     1  |     2  |     3 |  33.33% |
 |----------------------|--------|--------|-------|---------|
@@ -78,7 +78,7 @@ Total Blended Pass Rate: **77.72%**
 | Category             | Passed | Failed | Total |  Rate   |
 |:---------------------|-------:|-------:|------:|--------:|
 | amaro-194            |     0  |     1  |     1 |   0.00% |
-| arrow-function       |     8  |     7  |    15 |  53.33% |
+| arrow-function       |     9  |     6  |    15 |  60.00% |
 | basic                |    46  |    17  |    63 |  73.02% |
 | case1                |     1  |     0  |     1 | 100.00% |
 | cast                 |    11  |     5  |    16 |  68.75% |
@@ -100,7 +100,7 @@ Total Blended Pass Rate: **77.72%**
 | import-assertions    |     7  |     0  |     7 | 100.00% |
 | instantiation-expr   |     6  |     2  |     8 |  75.00% |
 | interface            |    16  |     0  |    16 | 100.00% |
-| issue                |    97  |    39  |   136 |  71.32% |
+| issue                |    99  |    37  |   136 |  72.79% |
 | meta-property        |     3  |     0  |     3 | 100.00% |
 | module-namespace     |     9  |     0  |     9 | 100.00% |
 | next                 |     0  |     2  |     2 |   0.00% |
@@ -123,7 +123,7 @@ Total Blended Pass Rate: **77.72%**
 | variance-annotations |     0  |     2  |     2 |   0.00% |
 | vercel               |     1  |     0  |     1 | 100.00% |
 |----------------------|--------|--------|-------|---------|
-| total                |   399  |   139  |   538 |  74.16% |
+| total                |   402  |   136  |   538 |  74.72% |
 <!-- end:swc-results -->
 
 ### test262

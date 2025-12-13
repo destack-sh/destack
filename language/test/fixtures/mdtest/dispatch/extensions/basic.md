@@ -146,4 +146,4 @@ const status = getStatus();
 status.isActive() satisfies boolean;
 ```
 
-// nocheckin: extension specification tests
+// TODO #Incomplete: test #Extensions

@@ -141,19 +141,34 @@ impl BabelSuite {
         false
     }
 
+    /// Check if options.json enables JSX plugin.
+    fn has_jsx_plugin(test_dir: &Path) -> bool {
+        fn check(path: &Path) -> bool {
+            std::fs::read_to_string(path)
+                .map(|c| c.contains("\"jsx\""))
+                .unwrap_or(false)
+        }
+        check(&test_dir.join("options.json"))
+            || test_dir
+                .parent()
+                .map(|p| check(&p.join("options.json")))
+                .unwrap_or(false)
+    }
+
     fn get_input_file(&self, test_dir: &Path) -> Option<(PathBuf, FileType)> {
         let path_str = test_dir.to_string_lossy();
         let in_tsx_dir = path_str.contains("/tsx/") || path_str.contains("/tsx-");
         let in_jsx_dir = path_str.contains("/jsx/") || path_str.contains("/jsx-");
+        let has_jsx = Self::has_jsx_plugin(test_dir);
         for ext in &["ts", "tsx", "js", "jsx", "mjs"] {
             let input = test_dir.join(format!("input.{ext}"));
             if input.exists() {
                 let file_type = match *ext {
                     "tsx" => FileType::TypeScriptXml,
-                    "ts" if in_tsx_dir => FileType::TypeScriptXml,
+                    "ts" if in_tsx_dir || has_jsx => FileType::TypeScriptXml,
                     "ts" => FileType::TypeScript,
                     "jsx" => FileType::JavaScriptXml,
-                    "js" if in_jsx_dir => FileType::JavaScriptXml,
+                    "js" if in_jsx_dir || has_jsx => FileType::JavaScriptXml,
                     _ => FileType::JavaScript,
                 };
                 return Some((input, file_type));

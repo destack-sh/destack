@@ -937,10 +937,36 @@ impl Parser {
                     parser.eat_tree_literal()
                 })?
             }
-            // disambiguated statically parameterized lambda <T,>(...)
+            // statically parameterized lambda: <T>(...) or <T,>(...) #Cleanup
             else if token_type == TokenType::LessThan
                 && self.peek_next_token(TokenType::Identifier).is_ok()
-                && self.peek_next_next_token(TokenType::Comma).is_ok()
+                && (self.peek_next_next_token(TokenType::Comma).is_ok()
+                    || !self.options.in_type
+                        && !self.language.supports_jsx()
+                        && self
+                            .find_matching_close(None, TokenType::LessThan, TokenType::GreaterThan)
+                            .ok()
+                            .and_then(|gt_pos| {
+                                // must be `<T>(...` pattern
+                                let after_gt = self.tokens.get(gt_pos as usize + 1)?;
+                                if after_gt.token.ty != TokenType::OpenParenthesis {
+                                    return None;
+                                }
+                                // find `)` and check for `:` or `=>` after
+                                let parenthesis_close = self
+                                    .find_matching_close(
+                                        Some(gt_pos + 1),
+                                        TokenType::OpenParenthesis,
+                                        TokenType::CloseParenthesis,
+                                    )
+                                    .ok()?;
+                                let after_parenthesis_close = self.tokens.get(parenthesis_close as usize + 1)?;
+                                (after_parenthesis_close.token.ty == TokenType::Colon
+                                    || after_parenthesis_close.token.ty == TokenType::Arrow
+                                    || after_parenthesis_close.token.ty == TokenType::ArrowWide)
+                                    .then_some(true)
+                            })
+                            .is_some())
             {
                 let function_id = self.eat_function(descriptor, false, false)?;
                 self.tree.insert(

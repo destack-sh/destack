@@ -31,7 +31,6 @@ typescript/arrow-function/async-await-null/input.ts
 typescript/arrow-function/async-generic-false-positive/input.ts
 typescript/arrow-function/async-generic/input.ts
 typescript/arrow-function/const-type-param/input.ts
-typescript/arrow-function/generic-tsx/input.ts
 typescript/arrow-function/generic/input.ts
 typescript/arrow-function/inside-conditional-expr/input.ts
 typescript/cast/need-parentheses/input.ts
@@ -90,8 +89,6 @@ typescript/issue-1505/case2/input.tsx
 typescript/issue-1514/case1/input.ts
 typescript/issue-1558/case1/input.ts
 typescript/issue-1803/case1/input.ts
-typescript/issue-2040/case1/input.ts
-typescript/issue-2040/case2/input.ts
 typescript/issue-2040/case3/input.tsx
 typescript/issue-2161/case1/input.tsx
 typescript/issue-3337/input.ts
