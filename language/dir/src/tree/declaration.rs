@@ -58,6 +58,8 @@ pub enum Declaration {
         value: LocalNodeId<Expression>,
     },
     /// Struct declaration: nominal object type with value semantics and fixed layout.
+    /// Structs have no identity (value equality) and cannot use `extends`.
+    /// Use embedding for composition. Can `implements` interfaces.
     Struct {
         descriptor: DeclarationDescriptor,
         generics: Generics,

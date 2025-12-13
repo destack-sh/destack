@@ -104,12 +104,15 @@ impl Generics {
     }
 }
 
-/// The polymoprhic relations.
+/// The polymorphic relations (inheritance and interface implementation).
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct Heritage {
     /// The extends types of the declaration.
+    /// Only semantically valid for classes (single inheritance) and interfaces.
+    /// Structs cannot use extends—use embedding instead.
     pub extends_types: Option<Vec<LocalNodeId<Expression>>> = None,
     /// The implements types of the declaration.
+    /// Valid for structs, classes, and enums.
     pub implements_types: Option<Vec<LocalNodeId<Expression>>> = None,
 }
 
@@ -175,8 +178,9 @@ pub enum Declaration {
 
     /// A Struct is a nominal object type with value semantics and fixed layout.
     /// The ',' separator is optional if newline-delimited.
-    /// Structs may `use` other structs to include them (just like interfaces).
-    /// Structs may also extend other structs as semantic sugar for `use`-ing them.
+    /// Structs have no identity (value equality) and cannot use inheritance.
+    /// Use embedding (`...Other`) for composition instead of `extends`.
+    /// Structs can `implements` interfaces.
     ///
     /// Examples:
     /// ```
@@ -196,11 +200,11 @@ pub enum Declaration {
     ///     myOtherField: boolean
     /// }
     ///
-    /// struct Foo<T> extends Baz { // Foo has a Baz
+    /// struct Foo<T> implements Drawable { // structs can implement interfaces
     ///     myField: int32
     ///     myOtherField: T
     ///
-    ///     ...Baz
+    ///     ...Bar              // embedding for composition (not extends)
     ///     static x: int32 = 7 // constant
     ///
     ///     myFunc() { // nested declaration
