@@ -79,6 +79,7 @@ error/ts_constructor_this_parameter.ts
 error/ts_declare_async_function.ts
 error/ts_declare_function_export_declaration_missing_id.ts
 error/ts_declare_function_with_body.ts
+error/ts_declare_generator_function.ts
 error/ts_declare_interface_err.ts
 error/ts_declare_property_private_name.ts
 error/ts_decorator_on_arrow_function.ts
@@ -121,7 +122,6 @@ error/typescript_members_with_body_in_ambient_context_should_err.ts
 error/unterminated_unicode_codepoint.js
 error/variable_declaration_statement_err.js
 error/yield_at_top_level_module.js
-error/yield_expr_in_parameter_initializer.js
 ok/array_binding.js
 ok/array_binding_rest.js
 ok/array_or_object_member_assignment.js
@@ -241,3 +241,4 @@ ok/unary_delete.js
 ok/unary_delete_nested.js
 ok/using_declaration_statement.js
 ok/using_declarations_inside_for_statement.js
+ok/yield_in_generator_function.js

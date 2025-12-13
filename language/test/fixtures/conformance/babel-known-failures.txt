@@ -7,6 +7,7 @@ jsx/basic/html-comment
 jsx/basic/namespace-tag
 jsx/basic/nonentity
 jsx/basic/nonentity-decimal
+jsx/basic/yield-tag
 jsx/errors/_no-plugin-fragment
 jsx/errors/_no-plugin-jsx-expression
 jsx/errors/_no-plugin-ts-type-param
@@ -126,7 +127,6 @@ typescript/exponentiation/unary-non-null-before-exponential
 typescript/export/declare-invalid
 typescript/export/double-declare
 typescript/export/equals-in-script
-typescript/function/anonymous-generator
 typescript/function/declare
 typescript/function/empty-type-parameters
 typescript/function/getter-setter
@@ -214,7 +214,6 @@ typescript/static-blocks/invalid-static-block-with-accessibility-public-01
 typescript/static-blocks/invalid-static-blocks-with-modifer-declare-01
 typescript/static-blocks/invalid-static-blocks-with-modifier-readonly-02
 typescript/static-blocks/valid-static-block-with-line-breaks
-typescript/tsx/anonymous-function-generator
 typescript/tsx/brace-is-block
 typescript/tsx/invalid-gt-arrow-like
 typescript/tsx/type-parameters
