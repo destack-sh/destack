@@ -695,6 +695,7 @@ dependencies = [
  "destack_codegen_cranelift",
  "destack_codegen_js",
  "destack_codegen_lib",
+ "destack_compiler_macros",
  "destack_dir",
  "destack_fir",
  "destack_machine",
@@ -710,6 +711,15 @@ dependencies = [
  "smallvec",
  "tracing",
  "tracing-subscriber",
+]
+
+[[package]]
+name = "destack_compiler_macros"
+version = "0.49.2"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
 ]
 
 [[package]]
