@@ -111,6 +111,8 @@ pub enum AnalyzeError {
     InvalidYield { node: GlobalNodeIdAny },
     /// Invalid return (outside function).
     InvalidReturn { node: GlobalNodeIdAny },
+    /// Invalid constructor.
+    InvalidConstructor { node: GlobalNodeIdAny },
 }
 
 impl From<TaskDependencyError> for AnalyzeError {
@@ -166,6 +168,7 @@ impl AnalyzeError {
             Self::InvalidAwait { .. } => 23,
             Self::InvalidYield { .. } => 24,
             Self::InvalidReturn { .. } => 25,
+            Self::InvalidConstructor { .. } => 26,
         }
     }
 
@@ -198,6 +201,7 @@ impl AnalyzeError {
             Self::InvalidAwait { node, .. } => DiagnosticAnchor::Node(*node),
             Self::InvalidYield { node, .. } => DiagnosticAnchor::Node(*node),
             Self::InvalidReturn { node, .. } => DiagnosticAnchor::Node(*node),
+            Self::InvalidConstructor { node, .. } => DiagnosticAnchor::Node(*node),
         }
     }
 
@@ -280,6 +284,7 @@ impl AnalyzeError {
             Self::InvalidAwait { .. } => "invalid await".to_string(),
             Self::InvalidYield { .. } => "invalid yield".to_string(),
             Self::InvalidReturn { .. } => "invalid return".to_string(),
+            Self::InvalidConstructor { .. } => "invalid constructor".to_string(),
         }
     }
 }

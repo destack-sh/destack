@@ -8,14 +8,14 @@ Conformance tests check that the Destack parser conforms both to the ECMAScript 
 <!-- begin:summary-results -->
 | Suite    | Passed | Failed | Total |  Rate   |
 |:---------|-------:|-------:|------:|--------:|
-| babel    |   455  |   265  |   720 |  63.19% |
-| biome    |   403  |   234  |   637 |  63.27% |
+| babel    |   463  |   257  |   720 |  64.31% |
+| biome    |   408  |   229  |   637 |  64.05% |
 | swc      |   391  |   147  |   538 |  72.68% |
 | test262  |  4360  |  1003  |  5363 |  81.30% |
 |----------|--------|--------|-------|---------|
-| total    |  5609  |  1649  |  7258 |  77.28% |
+| total    |  5622  |  1636  |  7258 |  77.46% |
 
-Total Blended Pass Rate: **77.28%**
+Total Blended Pass Rate: **77.46%**
 <!-- end:summary-results -->
 
 ### babel
@@ -30,7 +30,7 @@ Total Blended Pass Rate: **77.28%**
 | binary-expression    |     2  |     0  |     2 | 100.00% |
 | cast                 |    30  |    12  |    42 |  71.43% |
 | catch-clause         |     1  |     0  |     1 | 100.00% |
-| class                |    47  |    50  |    97 |  48.45% |
+| class                |    49  |    48  |    97 |  50.52% |
 | const                |     1  |     3  |     4 |  25.00% |
 | declare              |    12  |    15  |    27 |  44.44% |
 | decorators           |     1  |     1  |     2 |  50.00% |
@@ -42,7 +42,7 @@ Total Blended Pass Rate: **77.28%**
 | explicit-resource-management |     0  |     1  |     1 |   0.00% |
 | exponentiation       |     1  |     2  |     3 |  33.33% |
 | export               |    11  |     3  |    14 |  78.57% |
-| function             |     7  |     6  |    13 |  53.85% |
+| function             |     8  |     5  |    13 |  61.54% |
 | html-entities        |     3  |     1  |     4 |  75.00% |
 | import               |     9  |    14  |    23 |  39.13% |
 | interface            |    30  |    17  |    47 |  63.83% |
@@ -54,24 +54,24 @@ Total Blended Pass Rate: **77.28%**
 | static-blocks        |    14  |     6  |    20 |  70.00% |
 | tsx                  |     5  |     3  |     8 |  62.50% |
 | type-alias           |     5  |     2  |     7 |  71.43% |
-| type-arguments       |    22  |    11  |    33 |  66.67% |
+| type-arguments       |    27  |     6  |    33 |  81.82% |
 | type-arguments-bit-shift-left-like |     3  |     6  |     9 |  33.33% |
 | type-only-import-export-specifiers |    14  |    10  |    24 |  58.33% |
 | types                |    63  |    32  |    95 |  66.32% |
 | types-arrow-function |     3  |     0  |     3 | 100.00% |
 | variable-declarator  |     1  |     2  |     3 |  33.33% |
 |----------------------|--------|--------|-------|---------|
-| total                |   455  |   265  |   720 |  63.19% |
+| total                |   463  |   257  |   720 |  64.31% |
 <!-- end:babel-results -->
 
 ### biome
 <!-- begin:biome-results -->
 | Category             | Passed | Failed | Total |  Rate   |
 |:---------------------|-------:|-------:|------:|--------:|
-| error                |   188  |   114  |   302 |  62.25% |
+| error                |   193  |   109  |   302 |  63.91% |
 | ok                   |   215  |   120  |   335 |  64.18% |
 |----------------------|--------|--------|-------|---------|
-| total                |   403  |   234  |   637 |  63.27% |
+| total                |   408  |   229  |   637 |  64.05% |
 <!-- end:biome-results -->
 
 ### swc

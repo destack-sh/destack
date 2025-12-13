@@ -1,10 +1,11 @@
 use crate::{AnalyzeError, AnalyzeResult, Assignability, Compiler, InferContext};
 use destack_dir::{
     Argument, Block, Declaration, Declarator, DependencyItem, DynamicKey, EnumField, Expression,
-    Extension, ExtensionKind, FunctionSignature, Generics, GlobalSymbolId, GlobalTypeId, Heritage,
-    Lineage, LocalNodeId, LocalNodeIdAny, LocalSymbolId, LocalTypeId, MatchCase, MatchSource,
-    Member, NodeTree, Parameter, Pattern, PatternField, PrimitiveType, Property, StaticKey,
-    SymbolTable, Type, TypeField, TypeKind, TypeLiteral, TypeTable, WhereClause,
+    Extension, ExtensionKind, FunctionMode, FunctionSignature, Generics, GlobalSymbolId,
+    GlobalTypeId, Heritage, Lineage, LocalNodeId, LocalNodeIdAny, LocalSymbolId, LocalTypeId,
+    MatchCase, MatchSource, Member, NodeTree, Parameter, Pattern, PatternField, PrimitiveType,
+    Property, StaticKey, SymbolTable, Type, TypeField, TypeKind, TypeLiteral, TypeTable,
+    WhereClause,
 };
 use destack_workspace::Module;
 
@@ -1391,22 +1392,22 @@ impl Compiler {
                     types.insert_type(ty)
                 };
 
-                // analyze default if present
+                // default
                 if let Some(default) = default {
                     self.infer_expression(module, *default, tree, symbols, types, ctx)?;
                 }
 
-                // check if the field is optional
+                // is optional
                 let is_optional = modifiers
                     .as_ref()
                     .is_some_and(|m| matches!(m.kind, Some(destack_dir::BindingKind::Maybe)));
 
-                // check if the field is readonly
+                // is readonly
                 let is_readonly = modifiers.as_ref().is_some_and(|m| {
                     matches!(m.mutability, Some(destack_dir::Mutability::Immutable))
                 });
 
-                // only return a field if we have a static key
+                // static key
                 if let Some(key) = static_key {
                     Ok(Some(TypeField {
                         key,
@@ -1506,6 +1507,7 @@ impl Compiler {
                 key,
                 signature,
                 body,
+                modifiers: _,
                 ..
             } => {
                 // extract the static key from the dynamic key
@@ -1531,6 +1533,20 @@ impl Compiler {
                         .reset()
                         .in_function_with_signature(member_id.into_any(), signature);
                     self.infer_expression(module, *body, tree, symbols, types, &mut ctx)?;
+                }
+
+                // constructor cannot have static parameters
+                if signature
+                    .generics
+                    .as_ref()
+                    .is_some_and(|generics| generics.static_parameters.is_some())
+                    && signature
+                        .mode
+                        .is_some_and(|mode| mode == FunctionMode::Constructor)
+                {
+                    self.error(AnalyzeError::InvalidConstructor {
+                        node: member_id.into_global_any(module.id),
+                    });
                 }
 
                 // return a field if we have a static key
