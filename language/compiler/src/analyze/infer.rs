@@ -586,7 +586,7 @@ impl Compiler {
                 if let Some(cond) = condition {
                     self.infer_expression(module, *cond, tree, symbols, types, ctx)?;
                 }
-                let mut ctx = ctx.fork().in_loop();
+                let mut ctx = ctx.fork().in_loop(expression_id.into_any());
                 self.infer_block(module, *body, tree, symbols, types, &mut ctx)?;
                 // #Incomplete: loop return type depends on break value
                 let ty = Type::TypeLiteral {
@@ -616,7 +616,7 @@ impl Compiler {
                     types,
                     ctx,
                 )?;
-                let mut ctx = ctx.fork().in_loop();
+                let mut ctx = ctx.fork().in_loop(expression_id.into_any());
                 self.infer_block(module, *body, tree, symbols, types, &mut ctx)?;
                 let ty = Type::TypeLiteral {
                     value: TypeLiteral::Void,
@@ -633,16 +633,16 @@ impl Compiler {
                 scope: _,
                 symbol: _,
             } => {
-                if let Some(init) = initialization {
-                    self.infer_expression(module, *init, tree, symbols, types, ctx)?;
+                if let Some(initialization) = initialization {
+                    self.infer_expression(module, *initialization, tree, symbols, types, ctx)?;
                 }
-                if let Some(cond) = condition {
-                    self.infer_expression(module, *cond, tree, symbols, types, ctx)?;
+                if let Some(condition) = condition {
+                    self.infer_expression(module, *condition, tree, symbols, types, ctx)?;
                 }
-                if let Some(incr) = increment {
-                    self.infer_expression(module, *incr, tree, symbols, types, ctx)?;
+                if let Some(increment) = increment {
+                    self.infer_expression(module, *increment, tree, symbols, types, ctx)?;
                 }
-                let mut ctx = ctx.fork().in_loop();
+                let mut ctx = ctx.fork().in_loop(expression_id.into_any());
                 self.infer_block(module, *body, tree, symbols, types, &mut ctx)?;
                 let ty = Type::TypeLiteral {
                     value: TypeLiteral::Void,
@@ -661,7 +661,7 @@ impl Compiler {
                 let value_ty_id =
                     self.infer_expression(module, *value, tree, symbols, types, ctx)?;
                 let mut ctx = if *source == MatchSource::Match {
-                    ctx.fork().in_match()
+                    ctx.fork().in_match(expression_id.into_any())
                 } else {
                     ctx.fork()
                 };
@@ -739,6 +739,11 @@ impl Compiler {
 
             // return -> never (control flow)
             Expression::Return { value } => {
+                if !ctx.can_return() {
+                    self.error(AnalyzeError::InvalidReturn {
+                        node: expression_id.into_global_any(module.id),
+                    });
+                }
                 if let Some(val) = value {
                     self.infer_expression(module, *val, tree, symbols, types, ctx)?;
                 }
@@ -748,9 +753,14 @@ impl Compiler {
                 types.insert_type_from(ty, expression_id)
             }
 
-            // break/continue -> never (control flow)
-            Expression::Break { target: _, target_symbol: _, value }
-            | Expression::UnresolvedBreak { target: _, value } => {
+            // break -> never
+            Expression::Break { target, target_symbol: _, value } => {
+                if !ctx.can_break() {
+                    self.error(AnalyzeError::InvalidBreak {
+                        node: expression_id.into_global_any(module.id),
+                        label: *target,
+                    });
+                }
                 if let Some(val) = value {
                     self.infer_expression(module, *val, tree, symbols, types, ctx)?;
                 }
@@ -759,7 +769,42 @@ impl Compiler {
                 };
                 types.insert_type_from(ty, expression_id)
             }
-            Expression::Continue { target: _, target_symbol: _ } | Expression::UnresolvedContinue { target: _ } => {
+            Expression::UnresolvedBreak { target, value } => {
+                if !ctx.can_break() {
+                    self.error(AnalyzeError::InvalidBreak {
+                        node: expression_id.into_global_any(module.id),
+                        label: Some(*target),
+                    });
+                }
+                if let Some(val) = value {
+                    self.infer_expression(module, *val, tree, symbols, types, ctx)?;
+                }
+                let ty = Type::TypeLiteral {
+                    value: TypeLiteral::Never,
+                };
+                types.insert_type_from(ty, expression_id)
+            }
+
+            // continue -> never
+            Expression::Continue { target, target_symbol: _ } => {
+                if !ctx.can_continue() {
+                    self.error(AnalyzeError::InvalidContinue {
+                        node: expression_id.into_global_any(module.id),
+                        label: *target,
+                    });
+                }
+                let ty = Type::TypeLiteral {
+                    value: TypeLiteral::Never,
+                };
+                types.insert_type_from(ty, expression_id)
+            }
+            Expression::UnresolvedContinue { target } => {
+                if !ctx.can_continue() {
+                    self.error(AnalyzeError::InvalidContinue {
+                        node: expression_id.into_global_any(module.id),
+                        label: Some(*target),
+                    });
+                }
                 let ty = Type::TypeLiteral {
                     value: TypeLiteral::Never,
                 };
@@ -777,6 +822,11 @@ impl Compiler {
 
             // await -> unwrapped promise type
             Expression::Await { expression } => {
+                if !ctx.can_await() {
+                    self.error(AnalyzeError::InvalidAwait {
+                        node: expression_id.into_global_any(module.id),
+                    });
+                }
                 let _inner_ty_id =
                     self.infer_expression(module, *expression, tree, symbols, types, ctx)?;
                 // #Incomplete: unwrap Promise type
@@ -791,6 +841,11 @@ impl Compiler {
                 cardinality: _,
                 value,
             } => {
+                if !ctx.can_yield() {
+                    self.error(AnalyzeError::InvalidYield {
+                        node: expression_id.into_global_any(module.id),
+                    });
+                }
                 if let Some(value_id) = value {
                     self.infer_expression(module, *value_id, tree, symbols, types, ctx)?;
                 }
@@ -1288,7 +1343,9 @@ impl Compiler {
                 types.set_value_type(descriptor.symbol.into_global(module.id), fn_ty_id);
 
                 if let Some(body) = body {
-                    let mut ctx = ctx.reset();
+                    let mut ctx = ctx
+                        .reset()
+                        .in_function_with_signature(declaration_id.into_any(), signature);
                     self.infer_expression(module, *body, tree, symbols, types, &mut ctx)?;
                 }
             }
@@ -1361,10 +1418,14 @@ impl Compiler {
                     Ok(None)
                 }
             }
-            Property::Method { body, .. } => {
+            Property::Method {
+                signature, body, ..
+            } => {
                 // #Incomplete: infer method type
                 if let Some(body) = body {
-                    let mut ctx = ctx.reset();
+                    let mut ctx = ctx
+                        .reset()
+                        .in_function_with_signature(property_id.into_any(), signature);
                     self.infer_expression(module, *body, tree, symbols, types, &mut ctx)?;
                 }
                 Ok(None)
@@ -1466,7 +1527,9 @@ impl Compiler {
 
                 // body
                 if let Some(body) = body {
-                    let mut ctx = ctx.reset();
+                    let mut ctx = ctx
+                        .reset()
+                        .in_function_with_signature(member_id.into_any(), signature);
                     self.infer_expression(module, *body, tree, symbols, types, &mut ctx)?;
                 }
 

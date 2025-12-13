@@ -1,7 +1,7 @@
 use destack_dir::{
     Argument, Expression, GlobalNodeIdAny, GlobalSymbolId, LocalNodeId, LocalScopeId,
-    LocalScopeMark, LocalSymbolId, NodeTree, NodeType, Path, Scope, ScopeKind, StaticKey,
-    StringId, SymbolKind, SymbolSpace, SymbolTable,
+    LocalScopeMark, LocalSymbolId, NodeTree, NodeType, Path, Scope, ScopeKind, StaticKey, StringId,
+    SymbolKind, SymbolSpace, SymbolTable,
 };
 use destack_workspace::Module;
 
@@ -475,13 +475,28 @@ outer: while (true) {
 
         // find the break expression and verify it resolved correctly
         let found_break = tree.iter_nodes_of_type::<Expression>().find(|(_, expr)| {
-            matches!(expr, Expression::Break { target_symbol: Some(_), .. })
+            matches!(
+                expr,
+                Expression::Break {
+                    target_symbol: Some(_),
+                    ..
+                }
+            )
         });
         assert!(found_break.is_some(), "expected resolved Break expression");
         let (_, break_expr) = found_break.unwrap();
-        if let Expression::Break { target, target_symbol, .. } = break_expr {
+        if let Expression::Break {
+            target,
+            target_symbol,
+            ..
+        } = break_expr
+        {
             assert!(target.is_some(), "expected target label name");
-            assert_eq!(*target_symbol, Some(outer_symbol_id), "break should target outer loop symbol");
+            assert_eq!(
+                *target_symbol,
+                Some(outer_symbol_id),
+                "break should target outer loop symbol"
+            );
         }
     }
 
@@ -512,13 +527,30 @@ outer: for (let i = 0; i < 10; i++) {
 
         // find the continue expression
         let found_continue = tree.iter_nodes_of_type::<Expression>().find(|(_, expr)| {
-            matches!(expr, Expression::Continue { target_symbol: Some(_), .. })
+            matches!(
+                expr,
+                Expression::Continue {
+                    target_symbol: Some(_),
+                    ..
+                }
+            )
         });
-        assert!(found_continue.is_some(), "expected resolved Continue expression");
+        assert!(
+            found_continue.is_some(),
+            "expected resolved Continue expression"
+        );
         let (_, continue_expr) = found_continue.unwrap();
-        if let Expression::Continue { target, target_symbol } = continue_expr {
+        if let Expression::Continue {
+            target,
+            target_symbol,
+        } = continue_expr
+        {
             assert!(target.is_some(), "expected target label name");
-            assert_eq!(*target_symbol, Some(outer_symbol_id), "continue should target outer loop symbol");
+            assert_eq!(
+                *target_symbol,
+                Some(outer_symbol_id),
+                "continue should target outer loop symbol"
+            );
         }
     }
 
@@ -546,12 +578,22 @@ myblock: {
         let tree = module.dir.tree.read();
 
         let found_break = tree.iter_nodes_of_type::<Expression>().find(|(_, expr)| {
-            matches!(expr, Expression::Break { target_symbol: Some(_), .. })
+            matches!(
+                expr,
+                Expression::Break {
+                    target_symbol: Some(_),
+                    ..
+                }
+            )
         });
         assert!(found_break.is_some(), "expected resolved Break expression");
         let (_, break_expr) = found_break.unwrap();
         if let Expression::Break { target_symbol, .. } = break_expr {
-            assert_eq!(*target_symbol, Some(block_symbol_id), "break should target labeled block");
+            assert_eq!(
+                *target_symbol,
+                Some(block_symbol_id),
+                "break should target labeled block"
+            );
         }
     }
 
@@ -619,12 +661,22 @@ outer: while (true) {
         let tree = module.dir.tree.read();
 
         let found_break = tree.iter_nodes_of_type::<Expression>().find(|(_, expr)| {
-            matches!(expr, Expression::Break { target_symbol: Some(_), .. })
+            matches!(
+                expr,
+                Expression::Break {
+                    target_symbol: Some(_),
+                    ..
+                }
+            )
         });
         assert!(found_break.is_some(), "expected resolved Break expression");
         let (_, break_expr) = found_break.unwrap();
         if let Expression::Break { target_symbol, .. } = break_expr {
-            assert_eq!(*target_symbol, Some(middle_symbol_id), "break should target middle loop");
+            assert_eq!(
+                *target_symbol,
+                Some(middle_symbol_id),
+                "break should target middle loop"
+            );
         }
     }
 
@@ -652,12 +704,22 @@ outer: loop {
         let tree = module.dir.tree.read();
 
         let found_break = tree.iter_nodes_of_type::<Expression>().find(|(_, expr)| {
-            matches!(expr, Expression::Break { target_symbol: Some(_), .. })
+            matches!(
+                expr,
+                Expression::Break {
+                    target_symbol: Some(_),
+                    ..
+                }
+            )
         });
         assert!(found_break.is_some(), "expected resolved Break expression");
         let (_, break_expr) = found_break.unwrap();
         if let Expression::Break { target_symbol, .. } = break_expr {
-            assert_eq!(*target_symbol, Some(outer_symbol_id), "break should target outer loop");
+            assert_eq!(
+                *target_symbol,
+                Some(outer_symbol_id),
+                "break should target outer loop"
+            );
         }
     }
 

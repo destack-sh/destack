@@ -190,7 +190,9 @@ enum Foo extends Day {}
         let mut parser = test.prepare();
         parser.eat_newline().unwrap();
 
-        let enum_id = parser.eat_enum(EnumKind::Enum, DeclarationDescriptor::default()).unwrap();
+        let enum_id = parser
+            .eat_enum(EnumKind::Enum, DeclarationDescriptor::default())
+            .unwrap();
         assert_node!(parser.tree, enum_id, Declaration::Enum { descriptor, generics, heritage, fields, members, .. } => {
             assert_eq!(descriptor.kind, DeclarationKind::Definition);
             assert_string!(parser, descriptor.name.unwrap().string(), "Foo");
@@ -221,7 +223,9 @@ enum {
         let mut parser = test.prepare();
         parser.eat_newline().unwrap();
 
-        let enum_id = parser.eat_enum(EnumKind::Enum, DeclarationDescriptor::default()).unwrap();
+        let enum_id = parser
+            .eat_enum(EnumKind::Enum, DeclarationDescriptor::default())
+            .unwrap();
         assert_node!(parser.tree, enum_id, Declaration::Enum { descriptor, fields, .. } => {
             assert_eq!(descriptor.kind, DeclarationKind::Definition);
             assert!(descriptor.name.is_none());
@@ -257,7 +261,9 @@ enum Foo extends Day {
         let mut parser = test.prepare();
         parser.eat_newline().unwrap();
 
-        let enum_id = parser.eat_enum(EnumKind::Enum, DeclarationDescriptor::default()).unwrap();
+        let enum_id = parser
+            .eat_enum(EnumKind::Enum, DeclarationDescriptor::default())
+            .unwrap();
         assert_node!(parser.tree, enum_id, Declaration::Enum { descriptor, fields, generics, heritage, .. } => {
             assert_eq!(descriptor.kind, DeclarationKind::Definition);
             // Foo
@@ -304,7 +310,9 @@ enum Machine<T: int32 = 3, IsSomething: boolean = true> {
         let mut parser = test.prepare();
         parser.eat_newline().unwrap();
 
-        let enum_id = parser.eat_enum(EnumKind::Enum, DeclarationDescriptor::default()).unwrap();
+        let enum_id = parser
+            .eat_enum(EnumKind::Enum, DeclarationDescriptor::default())
+            .unwrap();
         assert_node!(parser.tree, enum_id, Declaration::Enum { descriptor, generics, fields, .. } => {
             assert_eq!(descriptor.kind, DeclarationKind::Definition);
             // Machine
@@ -340,7 +348,9 @@ enum Foo where Requirement: Interface {
         let mut parser = test.prepare();
         parser.eat_newline().unwrap();
 
-        let enum_id = parser.eat_enum(EnumKind::Enum, DeclarationDescriptor::default()).unwrap();
+        let enum_id = parser
+            .eat_enum(EnumKind::Enum, DeclarationDescriptor::default())
+            .unwrap();
         assert_node!(parser.tree, enum_id, Declaration::Enum { descriptor, generics, fields, .. } => {
             assert_eq!(descriptor.kind, DeclarationKind::Definition);
             assert!(!generics.is_empty());

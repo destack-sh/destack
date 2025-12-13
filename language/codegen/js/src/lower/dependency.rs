@@ -67,8 +67,8 @@ impl ModuleLowerer<'_> {
                     symbol: _,
                 } => {
                     let mode = self.lower_dependency_mode(*mode);
-                    let name = name
-                        .map(|name| self.strings.intern_from(&self.module.ast.strings, name));
+                    let name =
+                        name.map(|name| self.strings.intern_from(&self.module.ast.strings, name));
                     let alias = alias
                         .map(|alias| self.strings.intern_from(&self.module.ast.strings, alias));
                     DependencyItem {
@@ -104,8 +104,8 @@ impl ModuleLowerer<'_> {
                     target_symbol: _,
                 } => {
                     let mode = self.lower_dependency_mode(*mode);
-                    let name = name
-                        .map(|name| self.strings.intern_from(&self.module.ast.strings, name));
+                    let name =
+                        name.map(|name| self.strings.intern_from(&self.module.ast.strings, name));
                     let alias = alias
                         .map(|alias| self.strings.intern_from(&self.module.ast.strings, alias));
                     DependencyItem {

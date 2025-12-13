@@ -90,7 +90,7 @@ impl BindError {
             Self::ConflictingBinding { .. } => 4,
             Self::ConflictingExport { .. } => 5,
             Self::ConflictingDefaultExport { .. } => 6,
-            Self::ReservedIdentifier { .. } => 7,  
+            Self::ReservedIdentifier { .. } => 7,
             Self::InvalidPrologue { .. } => 8,
         }
     }

@@ -1,4 +1,6 @@
-use destack_dir::{GlobalSymbolId, LocalTypeId};
+use destack_dir::{
+    Asynchrony, FunctionCardinality, FunctionSignature, GlobalSymbolId, LocalNodeIdAny, LocalTypeId,
+};
 
 /// InferContext holds contextual, flow-sensitive information during type analysis.
 #[derive(Debug)]
@@ -7,10 +9,16 @@ pub struct InferContext {
     pub narrowings: Vec<(GlobalSymbolId, LocalTypeId)>,
     /// Whether we're in an unreachable code region (after `return`, `throw`, etc.).
     pub is_unreachable: bool,
-    /// Whether we're inside a loop (break and continue both valid).
-    pub in_loop: bool,
-    /// Whether we're inside a match (break valid, continue not).
-    pub in_match: bool,
+    /// The enclosing loop node (if any) (enables break and continue).
+    pub in_loop: Option<LocalNodeIdAny>,
+    /// The enclosing match node (if any) (enables break only).
+    pub in_match: Option<LocalNodeIdAny>,
+    /// The enclosing function node (if any) (enables return).
+    pub in_function: Option<LocalNodeIdAny>,
+    /// Whether the enclosing function is async (enables await).
+    pub is_async: bool,
+    /// Whether the enclosing function is a generator (enables yield).
+    pub is_generator: bool,
 }
 
 impl InferContext {
@@ -19,51 +27,105 @@ impl InferContext {
         Self {
             narrowings: Vec::new(),
             is_unreachable: false,
-            in_loop: false,
-            in_match: false,
+            in_loop: None,
+            in_match: None,
+            in_function: None,
+            is_async: false,
+            is_generator: false,
         }
     }
 
-    /// Fork the context for a code region (e.g., then/else of an if).
+    /// Fork the context.
     pub fn fork(&self) -> Self {
         Self {
             narrowings: self.narrowings.clone(),
             is_unreachable: self.is_unreachable,
             in_loop: self.in_loop,
             in_match: self.in_match,
+            in_function: self.in_function,
+            is_async: self.is_async,
+            is_generator: self.is_generator,
         }
     }
 
-    /// Reset flow context (for function boundaries).
+    /// Reset flow context.
     pub fn reset(&self) -> Self {
         Self {
             narrowings: self.narrowings.clone(),
             is_unreachable: false,
-            in_loop: false,
-            in_match: false,
+            in_loop: None,
+            in_match: None,
+            in_function: None,
+            is_async: false,
+            is_generator: false,
         }
     }
 
+    /// Enter a function context with the given signature.
+    pub fn in_function_with_signature(
+        self,
+        function_id: LocalNodeIdAny,
+        signature: &FunctionSignature,
+    ) -> Self {
+        self.in_function(function_id)
+            .is_async_if(signature.asynchrony == Asynchrony::Async)
+            .is_generator_if(signature.cardinality == FunctionCardinality::Generator)
+    }
+
+    /// Enter a function context.
+    pub fn in_function(mut self, function_id: LocalNodeIdAny) -> Self {
+        self.in_function = Some(function_id);
+        self
+    }
+
     /// Enter a loop context.
-    pub fn in_loop(mut self) -> Self {
-        self.in_loop = true;
+    pub fn in_loop(mut self, loop_id: LocalNodeIdAny) -> Self {
+        self.in_loop = Some(loop_id);
         self
     }
 
     /// Enter a match context.
-    pub fn in_match(mut self) -> Self {
-        self.in_match = true;
+    pub fn in_match(mut self, match_id: LocalNodeIdAny) -> Self {
+        self.in_match = Some(match_id);
+        self
+    }
+
+    /// Set async context conditionally.
+    pub fn is_async_if(mut self, is_async: bool) -> Self {
+        self.is_async = is_async;
+        self
+    }
+
+    /// Set generator context conditionally.
+    pub fn is_generator_if(mut self, is_generator: bool) -> Self {
+        self.is_generator = is_generator;
         self
     }
 
     /// Check if we can break (in loop or match).
     pub fn can_break(&self) -> bool {
-        self.in_loop || self.in_match
+        self.in_loop.is_some() || self.in_match.is_some()
     }
 
     /// Check if we can continue (in loop only).
     pub fn can_continue(&self) -> bool {
-        self.in_loop
+        self.in_loop.is_some()
+    }
+
+    /// Check if we can return (in function).
+    pub fn can_return(&self) -> bool {
+        self.in_function.is_some()
+    }
+
+    /// Check if we can await (in async function or at top level).
+    pub fn can_await(&self) -> bool {
+        // await is valid in async functions, or at module top-level (when not in any function)
+        self.is_async || self.in_function.is_none()
+    }
+
+    /// Check if we can yield (in generator function).
+    pub fn can_yield(&self) -> bool {
+        self.is_generator
     }
 
     /// Mark this context as unreachable.

@@ -9,13 +9,13 @@ Conformance tests check that the Destack parser conforms both to the ECMAScript 
 | Suite    | Passed | Failed | Total |  Rate   |
 |:---------|-------:|-------:|------:|--------:|
 | babel    |   455  |   265  |   720 |  63.19% |
-| biome    |   398  |   239  |   637 |  62.48% |
+| biome    |   403  |   234  |   637 |  63.27% |
 | swc      |   391  |   147  |   538 |  72.68% |
-| test262  |  4333  |  1030  |  5363 |  80.79% |
+| test262  |  4360  |  1003  |  5363 |  81.30% |
 |----------|--------|--------|-------|---------|
-| total    |  5577  |  1681  |  7258 |  76.84% |
+| total    |  5609  |  1649  |  7258 |  77.28% |
 
-Total Blended Pass Rate: **76.84%**
+Total Blended Pass Rate: **77.28%**
 <!-- end:summary-results -->
 
 ### babel
@@ -68,10 +68,10 @@ Total Blended Pass Rate: **76.84%**
 <!-- begin:biome-results -->
 | Category             | Passed | Failed | Total |  Rate   |
 |:---------------------|-------:|-------:|------:|--------:|
-| error                |   183  |   119  |   302 |  60.60% |
+| error                |   188  |   114  |   302 |  62.25% |
 | ok                   |   215  |   120  |   335 |  64.18% |
 |----------------------|--------|--------|-------|---------|
-| total                |   398  |   239  |   637 |  62.48% |
+| total                |   403  |   234  |   637 |  63.27% |
 <!-- end:biome-results -->
 
 ### swc
@@ -131,12 +131,12 @@ Total Blended Pass Rate: **76.84%**
 <!-- begin:test262-results -->
 | Category             | Passed | Failed | Total |  Rate   |
 |:---------------------|-------:|-------:|------:|--------:|
-| early                |   336  |   332  |   668 |  50.30% |
+| early                |   363  |   305  |   668 |  54.34% |
 | fail                 |   346  |   383  |   729 |  47.46% |
 | pass                 |  1798  |   185  |  1983 |  90.67% |
 | pass-explicit        |  1853  |   130  |  1983 |  93.44% |
 |----------------------|--------|--------|-------|---------|
-| total                |  4333  |  1030  |  5363 |  80.79% |
+| total                |  4360  |  1003  |  5363 |  81.30% |
 <!-- end:test262-results -->
 
 ## Why Not 100%?
