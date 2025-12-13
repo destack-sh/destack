@@ -3,6 +3,19 @@ use destack_source::{FileId, ModuleId, PackageId, Span};
 
 use destack_workspace::Program;
 
+/// Static metadata about a diagnostic variant.
+#[derive(Debug, Clone, Copy)]
+pub struct DiagnosticDefinition {
+    /// The full code (e.g., "ER003").
+    pub code: &'static str,
+    /// The variant name (e.g., "UndeclaredSymbol").
+    pub name: &'static str,
+    /// The doc comment description.
+    pub description: &'static str,
+    /// The numeric sub-code (e.g., 3 for "ER003").
+    pub sub_code: u8,
+}
+
 /// Where a Diagnostic is anchored in the source.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum DiagnosticAnchor {

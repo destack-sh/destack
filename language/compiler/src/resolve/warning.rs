@@ -1,64 +1,21 @@
+use crate::{DiagnosticAnchor, DiagnosticDefinition, TaskWarning};
+use destack_compiler_macros::define_warnings;
 use destack_dir::GlobalNodeIdAny;
-
-use crate::{DiagnosticAnchor, TaskPhase, TaskWarning};
-
 use destack_workspace::Program;
 
-/// Warning when evaluating something statically.
-#[derive(Debug, Clone, PartialEq)]
-#[repr(u8)]
-pub enum ResolveWarning {
+define_warnings!(Resolve, {
     /// Unknown import.
-    UnknownImport { node: GlobalNodeIdAny },
-    /// Unused imports / unused re-exports.
-    UnusedImport { node: GlobalNodeIdAny },
+    "WR001" = UnknownImport {
+        node: GlobalNodeIdAny,
+    } => "unknown import",
+
+    /// Unused imports or unused re-exports.
+    "WR002" = UnusedImport {
+        node: GlobalNodeIdAny,
+    } => "unused import",
+
     /// Import that resolves but is only used for side effects.
-    SideEffectOnlyImport { node: GlobalNodeIdAny },
-}
-
-impl ResolveWarning {
-    /// Get the numeric sub-code of the warning.
-    #[inline]
-    pub fn sub_code(&self) -> u8 {
-        match self {
-            Self::UnknownImport { .. } => 1,
-            Self::UnusedImport { .. } => 2,
-            Self::SideEffectOnlyImport { .. } => 3,
-        }
-    }
-
-    /// Get the anchor of the warning.
-    pub fn anchor(&self) -> DiagnosticAnchor {
-        match self {
-            Self::UnknownImport { node, .. } => DiagnosticAnchor::Node(*node),
-            Self::UnusedImport { node, .. } => DiagnosticAnchor::Node(*node),
-            Self::SideEffectOnlyImport { node, .. } => DiagnosticAnchor::Node(*node),
-        }
-    }
-
-    /// Get the message of the warning.
-    pub fn message(&self, _program: &Program) -> String {
-        match self {
-            Self::UnknownImport { .. } => "unknown import".to_string(),
-            Self::UnusedImport { .. } => "unused import".to_string(),
-            Self::SideEffectOnlyImport { .. } => "side effect only import".to_string(),
-        }
-    }
-}
-
-impl std::fmt::Display for ResolveWarning {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("ResolveWarning")
-            .field(
-                "code",
-                &format!("W{}{:03}", TaskPhase::Resolve.letter(), self.sub_code()),
-            )
-            .finish()
-    }
-}
-
-impl From<ResolveWarning> for TaskWarning {
-    fn from(warning: ResolveWarning) -> Self {
-        TaskWarning::Resolve(warning)
-    }
-}
+    "WR003" = SideEffectOnlyImport {
+        node: GlobalNodeIdAny,
+    } => "side effect only import",
+});

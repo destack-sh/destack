@@ -7,6 +7,7 @@ members = [
 	"language/codegen/lib",
 	"language/codegen/js",
 	"language/compiler",
+	"language/compiler/macros",
 	"language/dir",
 	"language/fir",
 	"language/formatter",
@@ -43,6 +44,7 @@ destack_codegen_cranelift = { path = "language/codegen/cranelift" }
 destack_codegen_js = { path = "language/codegen/js" }
 destack_codegen_lib = { path = "language/codegen/lib" }
 destack_compiler = { path = "language/compiler" }
+destack_compiler_macros = { path = "language/compiler/macros" }
 destack_dir = { path = "language/dir" }
 destack_fir = { path = "language/fir" }
 destack_formatter = { path = "language/formatter" }

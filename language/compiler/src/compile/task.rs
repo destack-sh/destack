@@ -68,6 +68,8 @@ pub enum TaskPhase {
     Link = 10,
     /// Emit linked output to disk.
     Emit = 11,
+    // --------------------------------------------------
+    // Lint = 12, // nocheckin TODO: scaffold linter
 }
 
 impl std::fmt::Display for TaskPhase {
@@ -107,6 +109,7 @@ impl TaskPhase {
             Self::Generate => "generate",
             Self::Link => "link",
             Self::Emit => "emit",
+            // Self::Lint => "lint",
         }
     }
 
@@ -124,6 +127,7 @@ impl TaskPhase {
             Self::Generate => "generate DIR or MIR into artifacts",
             Self::Link => "link artifacts into final output",
             Self::Emit => "emit linked output to disk",
+            // Self::Lint => "lint the program",
         }
     }
 
@@ -135,12 +139,13 @@ impl TaskPhase {
             Self::Resolve => 'R',
             Self::Analyze => 'A',
             Self::Elaborate => 'E',
-            Self::Lower => 'L',
+            Self::Lower => 'M', // MIR
             Self::Verify => 'V',
             Self::Optimize => 'O',
             Self::Generate => 'G',
             Self::Link => 'K',
             Self::Emit => 'M', // eMit
+                               // Self::Lint => 'L', // lint
         }
     }
 }
