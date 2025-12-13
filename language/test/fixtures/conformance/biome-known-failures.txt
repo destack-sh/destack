@@ -6,7 +6,6 @@ error/class_constructor_parameter.js
 error/class_constructor_parameter_readonly.js
 error/class_declare_member.js
 error/class_declare_method.js
-error/class_extends_err.js
 error/class_implements.js
 error/class_in_single_statement_context.js
 error/class_invalid_modifiers.js
@@ -192,7 +191,6 @@ ok/ts_import_type.ts
 ok/ts_infer_type_allowed.ts
 ok/ts_instantiation_expressions.ts
 ok/ts_instantiation_expressions_1.ts
-ok/ts_interface_extends_clause.ts
 ok/ts_keyword_assignments.js
 ok/ts_mapped_type.ts
 ok/ts_method_and_constructor_overload.ts
