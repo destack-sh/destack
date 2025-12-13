@@ -111,7 +111,6 @@ typescript/declare/namespace-class
 typescript/declare/namespace-function
 typescript/declare/var-new-line
 typescript/decorators/type-arguments
-typescript/disallow-jsx-ambiguity/type-parameter-unambiguous
 typescript/dts/invalid-class-implementation
 typescript/dts/invalid-class-initializer
 typescript/expect-plugin/export-interface
@@ -218,6 +217,7 @@ typescript/types/import-type-declaration-error
 typescript/types/import-type-dynamic-errors
 typescript/types/infer-with-constraints
 typescript/types/intrinsic-keyword-error
+typescript/types/invalid-import-type-dynamic-with-jsx-options
 typescript/types/invalid-import-type-options-escaped-with
 typescript/types/invalid-import-type-options-string-with
 typescript/types/invalid-import-type-options-trailing-comma
