@@ -5,8 +5,8 @@ use indexmap::IndexMap;
 use serde::Deserialize;
 
 use destack_source::{
-    File, FileContent, FileId, FormatterOptions, IndentStyle, LanguageFeature, LanguageFeatureSet,
-    LineEnding, LinterOptions, LinterRules, RuleSeverity,
+    File, FileContent, FileId, FormatterOptions, IndentStyle, LineEnding, LinterOptions,
+    LinterRules, RuleSeverity,
 };
 
 use super::target::{
@@ -115,13 +115,6 @@ impl DsConfig {
         // extend compiler options
         let parent_compiler = &parent.compiler;
         let compiler = &mut self.options.compiler;
-
-        // inherit features from parent
-        for feature in LanguageFeature::ALL {
-            if parent_compiler.features.is_enabled(*feature) {
-                compiler.features.enable(*feature);
-            }
-        }
 
         // inherit module resolution (child overrides if set)
         if compiler.base_url.is_none() {
@@ -329,15 +322,10 @@ pub type DsPathAliases = IndexMap<String, Vec<String>>;
 
 /// Normalized Destack compiler options.
 ///
-/// **By default, all language features are enabled and strict mode is ON.**
-/// Set `allow*: false` in `dsconfig.json` to disable specific features.
+/// **By default, strict mode is ON.**
 /// Destack defaults to stricter type checking than TypeScript.
 #[derive(Debug, Clone)]
 pub struct DsConfigCompilerOptions {
-    // language features
-    /// Enabled language features. All features are enabled by default.
-    pub features: LanguageFeatureSet,
-
     // module resolution
     /// Base URL for resolving non-relative module names.
     pub base_url: Option<PathBuf>,
@@ -454,7 +442,6 @@ impl Default for DsConfigCompilerOptions {
         // defaults to strict mode ON (stricter than TypeScript)
         let strict = true;
         Self {
-            features: LanguageFeatureSet::all(),
             base_url: None,
             paths: None,
             module: ModuleTarget::default(),
@@ -518,15 +505,8 @@ impl Default for DsConfigCompilerOptions {
 
 impl From<&DsConfigCompilerOptionsJson> for DsConfigCompilerOptions {
     fn from(json: &DsConfigCompilerOptionsJson) -> Self {
-        // start with all features enabled
-        let mut features = LanguageFeatureSet::all();
-
-        // apply feature flags from JSON (only explicit false disables)
-        json.apply_features(&mut features);
-
         let strict = json.strict.unwrap_or(true);
         Self {
-            features,
             base_url: json.base_url.as_ref().map(PathBuf::from),
             paths: json.paths.clone(),
             module: json
@@ -862,22 +842,6 @@ impl From<IndentStyleJson> for IndentStyle {
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
 pub struct DsConfigCompilerOptionsJson {
-    // language features
-    /// Allow expression-oriented features: implicit returns, `loop`, `defer`, ranges, tuples, patterns.
-    pub allow_expressions: Option<bool>,
-    /// Allow tree literals: TSX-like syntax generalized for any tree-shaped data.
-    pub allow_trees: Option<bool>,
-    /// Allow annotations: decorators (`@`) extended to any expression.
-    pub allow_annotations: Option<bool>,
-    /// Allow type system extensions: newtypes, primitives, structs, constraints.
-    pub allow_types: Option<bool>,
-    /// Allow reflection: types as values, runtime type descriptors, decorator metadata.
-    pub allow_reflection: Option<bool>,
-    /// Allow dispatch: extensions and overloading (type-based method/function dispatch).
-    pub allow_dispatch: Option<bool>,
-    /// Allow ownership: value ownership (`&T`, `^T`), mutability (`var`), and explicit dispatch.
-    pub allow_ownership: Option<bool>,
-
     // module resolution
     /// Base URL for resolving non-relative module names.
     pub base_url: Option<String>,
@@ -989,32 +953,6 @@ pub struct DsConfigCompilerOptionsJson {
     pub skip_lib_check: Option<bool>,
 }
 
-impl DsConfigCompilerOptionsJson {
-    /// Apply feature flags from options to a feature set.
-    pub fn apply_features(&self, features: &mut LanguageFeatureSet) {
-        if let Some(enabled) = self.allow_expressions {
-            features.set(LanguageFeature::Expressions, enabled);
-        }
-        if let Some(enabled) = self.allow_trees {
-            features.set(LanguageFeature::Trees, enabled);
-        }
-        if let Some(enabled) = self.allow_annotations {
-            features.set(LanguageFeature::Annotations, enabled);
-        }
-        if let Some(enabled) = self.allow_types {
-            features.set(LanguageFeature::Types, enabled);
-        }
-        if let Some(enabled) = self.allow_reflection {
-            features.set(LanguageFeature::Reflection, enabled);
-        }
-        if let Some(enabled) = self.allow_dispatch {
-            features.set(LanguageFeature::Dispatch, enabled);
-        }
-        if let Some(enabled) = self.allow_ownership {
-            features.set(LanguageFeature::Ownership, enabled);
-        }
-    }
-}
 
 /// Destack build target configuration.
 #[derive(Debug, Default, Deserialize, Clone)]

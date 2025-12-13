@@ -12,8 +12,32 @@ pub enum SymbolSpace {
     Type,
     /// The value space.
     Value,
+    /// The type-value space (Destack: types ARE values, conflict with both).
+    TypeValue,
     /// The label space.
     Label,
+}
+
+impl SymbolSpace {
+    /// Check if this space conflicts with another space.
+    ///
+    /// In TypeScript mode, `Type` and `Value` are separate (no conflict).
+    /// In Destack mode, `TypeValue` conflicts with both `Type` and `Value`.
+    /// `Label` only conflicts with `Label`.
+    #[inline]
+    pub fn conflicts_with(self, other: Self) -> bool {
+        match (self, other) {
+            // Label only conflicts with Label
+            (Self::Label, Self::Label) => true,
+            (Self::Label, _) | (_, Self::Label) => false,
+            // TypeValue conflicts with Type, Value, and TypeValue
+            (Self::TypeValue, _) | (_, Self::TypeValue) => true,
+            // Type and Value are separate in TS mode
+            (Self::Type, Self::Type) => true,
+            (Self::Value, Self::Value) => true,
+            (Self::Type, Self::Value) | (Self::Value, Self::Type) => false,
+        }
+    }
 }
 
 /// The kind of a symbol (scope behavior).
@@ -25,6 +49,18 @@ pub enum SymbolKind {
     Item,
     /// Local (may be shadowed within its scope).
     Local,
+}
+
+/// How a symbol was introduced/bound.
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub enum SymbolBinding {
+    /// A runtime definition (let, const, var, class, function, etc.)
+    #[default]
+    Definition,
+    /// An ambient declaration (declare var, declare function, .d.ts)
+    Ambient,
+    /// An import binding.
+    Import,
 }
 
 /// The type of a symbol (declaration type).
@@ -145,6 +181,8 @@ pub struct Symbol {
     pub ty: SymbolType,
     /// The "space" of the symbol.
     pub space: SymbolSpace,
+    /// How this symbol was introduced/bound.
+    pub binding: SymbolBinding,
     /// The key of the symbol.
     pub key: Option<StaticKey>,
     /// The scope that introduces the symbol.

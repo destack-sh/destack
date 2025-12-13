@@ -55,8 +55,8 @@ pub enum AnalyzeError {
     MissingReturn { node: GlobalNodeIdAny },
     /// Use of uninitialized variable in a read position.
     UninitializedVariable { node: GlobalNodeIdAny },
-    /// Illegal casts (unsafe or impossible with static rules).
-    IllegalCast {
+    /// Invalid casts (unsafe or impossible with static rules).
+    InvalidCast {
         node: GlobalNodeIdAny,
         from_ty: GlobalTypeId,
         to_ty: GlobalTypeId,
@@ -95,21 +95,20 @@ pub enum AnalyzeError {
         implements_symbols: Vec<GlobalSymbolId>,
         embedded_symbols: Vec<GlobalSymbolId>,
     },
-    /// Break used outside of a valid breakable context, or with an invalid label.
-    IllegalBreak {
+    /// Invalid break.
+    InvalidBreak {
         node: GlobalNodeIdAny,
         label: Option<StringId>,
     },
-    /// Continue used outside of a loop, or with an invalid label.
-    IllegalContinue {
+    /// Invalid continue.
+    InvalidContinue {
         node: GlobalNodeIdAny,
         label: Option<StringId>,
     },
-    /// Referenced label does not exist in this scope.
-    UnknownLabel {
-        node: GlobalNodeIdAny,
-        label: StringId,
-    },
+    /// Invalid await.
+    InvalidAwait { node: GlobalNodeIdAny },
+    /// Invalid yield.
+    InvalidYield { node: GlobalNodeIdAny },
 }
 
 impl From<TaskDependencyError> for AnalyzeError {
@@ -153,16 +152,17 @@ impl AnalyzeError {
             Self::ConflictingPattern { .. } => 11,
             Self::MissingReturn { .. } => 12,
             Self::UninitializedVariable { .. } => 13,
-            Self::IllegalCast { .. } => 14,
+            Self::InvalidCast { .. } => 14,
             Self::NoOverload { .. } => 15,
             Self::AmbiguousOverload { .. } => 16,
             Self::UnsupportedOperator { .. } => 17,
             Self::MissingMember { .. } => 18,
             Self::UnsatisfiedType { .. } => 19,
             Self::InvalidLineage { .. } => 20,
-            Self::IllegalBreak { .. } => 21,
-            Self::IllegalContinue { .. } => 22,
-            Self::UnknownLabel { .. } => 23,
+            Self::InvalidBreak { .. } => 21,
+            Self::InvalidContinue { .. } => 22,
+            Self::InvalidAwait { .. } => 23,
+            Self::InvalidYield { .. } => 24,
         }
     }
 
@@ -183,16 +183,17 @@ impl AnalyzeError {
             Self::ConflictingPattern { node, .. } => DiagnosticAnchor::Node(*node),
             Self::MissingReturn { node, .. } => DiagnosticAnchor::Node(*node),
             Self::UninitializedVariable { node, .. } => DiagnosticAnchor::Node(*node),
-            Self::IllegalCast { node, .. } => DiagnosticAnchor::Node(*node),
+            Self::InvalidCast { node, .. } => DiagnosticAnchor::Node(*node),
             Self::NoOverload { node, .. } => DiagnosticAnchor::Node(*node),
             Self::AmbiguousOverload { node, .. } => DiagnosticAnchor::Node(*node),
             Self::UnsupportedOperator { node, .. } => DiagnosticAnchor::Node(*node),
             Self::MissingMember { node, .. } => DiagnosticAnchor::Node(*node),
             Self::UnsatisfiedType { node, .. } => DiagnosticAnchor::Node(*node),
             Self::InvalidLineage { node, .. } => DiagnosticAnchor::Node(*node),
-            Self::IllegalBreak { node, .. } => DiagnosticAnchor::Node(*node),
-            Self::IllegalContinue { node, .. } => DiagnosticAnchor::Node(*node),
-            Self::UnknownLabel { node, .. } => DiagnosticAnchor::Node(*node),
+            Self::InvalidBreak { node, .. } => DiagnosticAnchor::Node(*node),
+            Self::InvalidContinue { node, .. } => DiagnosticAnchor::Node(*node),
+            Self::InvalidAwait { node, .. } => DiagnosticAnchor::Node(*node),
+            Self::InvalidYield { node, .. } => DiagnosticAnchor::Node(*node),
         }
     }
 
@@ -223,7 +224,7 @@ impl AnalyzeError {
             Self::ConflictingPattern { .. } => "conflicting pattern".to_string(),
             Self::MissingReturn { .. } => "missing return".to_string(),
             Self::UninitializedVariable { .. } => "uninitialized variable".to_string(),
-            Self::IllegalCast { from_ty, to_ty, .. } => {
+            Self::InvalidCast { from_ty, to_ty, .. } => {
                 let from = format_global_type(*from_ty, program);
                 let to = format_global_type(*to_ty, program);
                 format!("cannot cast type {from} to {to}")
@@ -255,8 +256,8 @@ impl AnalyzeError {
                 let actual = format_global_type(*actual_ty, program);
                 format!("expected {expected}, found {actual}")
             }
-            Self::InvalidLineage { .. } => "invalid lineage".to_string(),
-            Self::IllegalBreak { label, .. } => {
+            Self::InvalidLineage { .. } => "illegal lineage".to_string(),
+            Self::InvalidBreak { label, .. } => {
                 if let Some(label) = label {
                     let label = program.strings.get(*label).to_string();
                     format!("illegal break to '{label}'")
@@ -264,7 +265,7 @@ impl AnalyzeError {
                     "illegal break".to_string()
                 }
             }
-            Self::IllegalContinue { label, .. } => {
+            Self::InvalidContinue { label, .. } => {
                 if let Some(label) = label {
                     let label = program.strings.get(*label).to_string();
                     format!("illegal continue to '{label}'")
@@ -272,10 +273,8 @@ impl AnalyzeError {
                     "illegal continue".to_string()
                 }
             }
-            Self::UnknownLabel { label, .. } => {
-                let label = program.strings.get(*label).to_string();
-                format!("unknown label '{label}'")
-            }
+            Self::InvalidAwait { .. } => "illegal await".to_string(),
+            Self::InvalidYield { .. } => "illegal yield".to_string(),
         }
     }
 }

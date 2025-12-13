@@ -3,7 +3,7 @@ use destack_ast as ast;
 use destack_dir::{
     BindingAnchor, Declaration, DeclarationDescriptor, DeclarationKind, EnumField, LocalNodeId,
     LocalNodeIdAny, LocalScopeId, LocalScopeMark, NodeTree, NodeType, ScopeKind, StaticKey,
-    SymbolKind, SymbolSpace, SymbolTable, SymbolType, TypeTable,
+    SymbolBinding, SymbolKind, SymbolSpace, SymbolTable, SymbolType, TypeTable,
 };
 use destack_workspace::Module;
 
@@ -43,11 +43,26 @@ impl Compiler {
         let export = descriptor
             .export
             .map(|export| self.bind_dependency_mode(export));
+        let space = match symbol_type {
+            SymbolType::TypeAlias | SymbolType::Interface => SymbolSpace::Type,
+            SymbolType::Class
+            | SymbolType::Enum
+            | SymbolType::Function
+            | SymbolType::Struct
+            | SymbolType::Newtype
+            | SymbolType::Extension => SymbolSpace::TypeValue,
+            SymbolType::Void => SymbolSpace::Value,
+        };
+        let binding = match descriptor.kind {
+            ast::DeclarationKind::Declaration => SymbolBinding::Ambient,
+            ast::DeclarationKind::Definition => SymbolBinding::Definition,
+        };
         let (symbol_id, scope_id) = {
             let (symbol_id, _) = symbols.insert_symbol(
                 kind,
                 symbol_type,
-                SymbolSpace::Value,
+                space,
+                binding,
                 name.map(StaticKey::Name),
                 scope,
                 export,

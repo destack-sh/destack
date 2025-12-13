@@ -406,7 +406,7 @@ impl Compiler {
                     && right_to_left == Assignability::NotAssignable
                 {
                     // neither direction works: illegal cast
-                    self.error(AnalyzeError::IllegalCast {
+                    self.error(AnalyzeError::InvalidCast {
                         node: expression_id.into_global_any(module.id),
                         from_ty: GlobalTypeId {
                             module_id: module.id,
