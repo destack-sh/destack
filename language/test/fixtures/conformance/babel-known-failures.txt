@@ -39,11 +39,6 @@ typescript/cast/as-const
 typescript/cast/destructure-and-assign
 typescript/cast/for-of-lhs
 typescript/cast/need-parentheses
-typescript/cast/parenthesized-type-assertion-and-assign
-typescript/cast/type-assertion
-typescript/cast/type-assertion-after-operator
-typescript/cast/type-assertion-and-assign
-typescript/cast/type-assertion-before-operator
 typescript/cast/unparenthesized-assert-and-assign
 typescript/class/abstract-method-in-non-abstract-class-1
 typescript/class/abstract-method-in-non-abstract-class-2

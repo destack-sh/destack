@@ -323,9 +323,13 @@ pub enum Declaration {
         members: Vec<LocalNodeId<Member>>,
     },
 
-    /// An Extension defines the implementation of a concrete type, optionally for some specific super types.
+    /// An Extension defines the implementation of a nominal type, optionally for some specific super types.
     /// There may be multiple Extensions for the same type, and even extensions for different modules.
     /// Extensions are anonymous by default, but may be named like `extension MyExt: Type { .. }`.
+    ///
+    /// Extensions require **nominal types**—types with declaration identity.
+    /// This includes `struct`, `class`, `enum`, `newtype`, and primitive types from the prelude.
+    /// Type aliases (`type X = ...`) and inline structural types cannot be extended.
     ///
     /// Examples:
     /// ```
@@ -337,11 +341,11 @@ pub enum Declaration {
     ///     ...
     /// }
     ///
-    /// extension Bar<int32> extends Baz {
+    /// extension Bar<int32> implements Baz {
     ///     ...
     /// }
     ///
-    /// extension<T> MyExt: Bar<T> extends Baz {
+    /// extension<T> MyExt: Bar<T> implements Baz {
     ///     ...
     /// }
     /// ```

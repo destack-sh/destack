@@ -77,8 +77,21 @@ pub trait ConformanceSuite: Send + Sync + Clone {
     /// Root directory of the suite.
     fn root(&self) -> &Path;
 
-    /// Path to known-failures file.
+    /// Path to known-failures file (tests that fail but we want to fix).
     fn known_failures_path(&self) -> PathBuf;
+
+    /// Path to expected-failures file (tests we consciously skip).
+    /// These are tests we don't expect to pass due to intentional language differences.
+    fn expected_failures_path(&self) -> PathBuf {
+        // Default: same directory as known-failures, with -expected-failures.txt suffix
+        let known = self.known_failures_path();
+        let stem = known
+            .file_stem()
+            .and_then(|s| s.to_str())
+            .unwrap_or("unknown");
+        let name = stem.strip_suffix("-known-failures").unwrap_or(stem);
+        known.with_file_name(format!("{name}-expected-failures.txt"))
+    }
 
     /// Discover all tests in this suite.
     fn discover(&self) -> Vec<Test>;
@@ -159,10 +172,12 @@ pub struct ConformanceResult {
     pub failed: usize,
     pub skipped: usize,
     pub timedout: usize,
-    /// tests that failed unexpectedly (not in known-failures)
+    /// tests that failed unexpectedly (not in known-failures or skipped-failures)
     pub regressions: Vec<String>,
     /// tests that passed but were in known-failures (progress!)
     pub fixed: Vec<String>,
+    /// tests in skipped-failures that now pass (remove from skipped!)
+    pub unskipped: Vec<String>,
     /// tests that timed out (likely infinite loops)
     pub timeouts: Vec<String>,
     /// per-category breakdown (category name -> stats)
@@ -174,15 +189,22 @@ impl ConformanceResult {
         !self.regressions.is_empty()
     }
 
+    /// Pass rate excludes skipped tests (they weren't run).
     pub fn pass_rate(&self) -> f64 {
-        let total = self.passed + self.failed + self.skipped;
-        if total == 0 {
+        let run = self.passed + self.failed;
+        if run == 0 {
             100.0
         } else {
-            self.passed as f64 / total as f64 * 100.0
+            self.passed as f64 / run as f64 * 100.0
         }
     }
 
+    /// Total tests run (excludes skipped).
+    pub fn total_run(&self) -> usize {
+        self.passed + self.failed + self.timedout
+    }
+
+    /// Total tests including skipped.
     pub fn total(&self) -> usize {
         self.passed + self.failed + self.skipped + self.timedout
     }
@@ -244,9 +266,15 @@ pub fn run_conformance_suite<S: ConformanceSuite + 'static>(
         return None; // list mode doesn't return results
     }
 
-    // load known failures
+    // load known failures and skipped failures
     let known_failures_path = suite.known_failures_path();
     let known_failures = load_expected_failures(&known_failures_path);
+
+    let expected_failures_path = suite.expected_failures_path();
+    let skipped_failures = load_expected_failures(&expected_failures_path);
+
+    // count how many tests are in skipped list (for display)
+    let skipped_count = tests.iter().filter(|t| skipped_failures.contains(&t.name)).count();
 
     println!();
     println!(
@@ -259,6 +287,13 @@ pub fn run_conformance_suite<S: ConformanceSuite + 'static>(
             "  {} known failures loaded from {}",
             color::yellow(&known_failures.len().to_string()),
             known_failures_path.display()
+        );
+    }
+    if skipped_count > 0 {
+        println!(
+            "  {} expected failures loaded from {}",
+            color::dim(&skipped_count.to_string()),
+            expected_failures_path.display()
         );
     }
     println!();
@@ -316,42 +351,65 @@ pub fn run_conformance_suite<S: ConformanceSuite + 'static>(
     // aggregate results
     let mut passed = 0;
     let mut failed = 0;
+    let mut skipped = 0;
     let mut timedout = 0;
     let mut regressions = Vec::new();
     let mut fixed = Vec::new();
+    let mut unskipped = Vec::new();
     let mut timeouts = Vec::new();
     let mut current_failures = HashSet::new();
     let mut categories: BTreeMap<String, CategoryStats> = BTreeMap::new();
 
     for (name, outcome) in results {
+        let is_skipped = skipped_failures.contains(&name);
+        let is_known_failure = known_failures.contains(&name);
+
         // extract category from test name (suite-specific)
         let category = suite.category_for_test(&name);
         let cat_stats = categories.entry(category).or_default();
 
         match outcome {
             TestResult::Passed => {
-                passed += 1;
-                cat_stats.passed += 1;
-                if known_failures.contains(&name) {
-                    fixed.push(name);
+                if is_skipped {
+                    // Skipped test now passes - report so we can remove from skipped list
+                    unskipped.push(name);
+                    skipped += 1;
+                    // Don't count in category stats (it's skipped)
+                } else {
+                    passed += 1;
+                    cat_stats.passed += 1;
+                    if is_known_failure {
+                        fixed.push(name);
+                    }
                 }
             }
             TestResult::Failed => {
-                failed += 1;
-                cat_stats.failed += 1;
-                if !known_failures.contains(&name) {
-                    regressions.push(name.clone());
+                if is_skipped {
+                    // Expected - skipped tests should fail
+                    skipped += 1;
+                    // Don't count in category stats (it's skipped)
+                } else {
+                    failed += 1;
+                    cat_stats.failed += 1;
+                    if !is_known_failure {
+                        regressions.push(name.clone());
+                    }
+                    current_failures.insert(name);
                 }
-                current_failures.insert(name);
             }
             TestResult::TimedOut => {
-                timedout += 1;
-                cat_stats.failed += 1; // count timeouts as failures in category
-                timeouts.push(name.clone());
-                if !known_failures.contains(&name) {
-                    regressions.push(name.clone());
+                if is_skipped {
+                    // Skipped test timed out - still counts as skipped
+                    skipped += 1;
+                } else {
+                    timedout += 1;
+                    cat_stats.failed += 1; // count timeouts as failures in category
+                    timeouts.push(name.clone());
+                    if !is_known_failure {
+                        regressions.push(name.clone());
+                    }
+                    current_failures.insert(name);
                 }
-                current_failures.insert(name);
             }
         }
     }
@@ -377,10 +435,11 @@ pub fn run_conformance_suite<S: ConformanceSuite + 'static>(
     let result = ConformanceResult {
         passed,
         failed,
-        skipped: 0,
+        skipped,
         timedout,
         regressions,
         fixed,
+        unskipped,
         timeouts,
         categories,
     };
@@ -403,8 +462,9 @@ pub fn print_summary(results: &[SuiteResult], baseline: Option<&ReadmeResults>) 
 
     let total_passed: usize = results.iter().map(|r| r.result.passed).sum();
     let total_failed: usize = results.iter().map(|r| r.result.failed).sum();
+    let total_skipped: usize = results.iter().map(|r| r.result.skipped).sum();
     let total_timedout: usize = results.iter().map(|r| r.result.timedout).sum();
-    let total_tests: usize = results.iter().map(|r| r.result.total()).sum();
+    let total_tests: usize = results.iter().map(|r| r.result.total_run()).sum();
     let total_duration: Duration = results.iter().map(|r| r.duration).sum();
     let total_regressions: usize = results.iter().map(|r| r.result.regressions.len()).sum();
 
@@ -430,24 +490,24 @@ pub fn print_summary(results: &[SuiteResult], baseline: Option<&ReadmeResults>) 
     println!();
     println!(
         "{}",
-        color::bold("═══════════════════════════════════════════════════════════════")
+        color::bold("═══════════════════════════════════════════════════════════════════════")
     );
     println!(
         "{}",
-        color::bold("                      CONFORMANCE SUMMARY")
+        color::bold("                          CONFORMANCE SUMMARY")
     );
     println!(
         "{}",
-        color::bold("═══════════════════════════════════════════════════════════════")
+        color::bold("═══════════════════════════════════════════════════════════════════════")
     );
     println!();
 
     // header
     println!(
-        "  {:10}  {:>8}  {:>8}  {:>8}  {:>8}  {:>10}",
-        "Suite", "Passed", "Failed", "Total", "Rate", "Δ Rate"
+        "  {:10}  {:>8}  {:>8}  {:>8}  {:>8}  {:>8}  {:>10}",
+        "Suite", "Passed", "Failed", "Skipped", "Total", "Rate", "Δ Rate"
     );
-    println!("  {}", "─".repeat(64));
+    println!("  {}", "─".repeat(72));
 
     // rows - pad values before coloring to maintain alignment
     for r in results {
@@ -471,20 +531,26 @@ pub fn print_summary(results: &[SuiteResult], baseline: Option<&ReadmeResults>) 
         let name = format!("{:10}", r.name);
         let passed = format!("{:>8}", r.result.passed);
         let failed = format!("{:>8}", r.result.failed);
+        let skipped = if r.result.skipped > 0 {
+            format!("{:>8}", r.result.skipped)
+        } else {
+            format!("{:>8}", "-")
+        };
 
         println!(
-            "  {}  {}  {}  {:>8}  {}  {}",
+            "  {}  {}  {}  {}  {:>8}  {}  {}",
             color::cyan(&name),
             color::green(&passed),
             color::red(&failed),
-            r.result.total(),
+            color::dim(&skipped),
+            r.result.total_run(),
             rate_colored,
             delta_str
         );
     }
 
     // total row
-    println!("  {}", "─".repeat(64));
+    println!("  {}", "─".repeat(72));
     let total_rate_str = format!("{overall_rate:>7.2}%");
     let total_rate_colored = if overall_rate >= 90.0 {
         color::green(&total_rate_str)
@@ -504,12 +570,18 @@ pub fn print_summary(results: &[SuiteResult], baseline: Option<&ReadmeResults>) 
     let total_label = format!("{:10}", "TOTAL");
     let total_passed_str = format!("{total_passed:>8}");
     let total_failed_str = format!("{:>8}", total_failed + total_timedout);
+    let total_skipped_str = if total_skipped > 0 {
+        format!("{total_skipped:>8}")
+    } else {
+        format!("{:>8}", "-")
+    };
 
     println!(
-        "  {}  {}  {}  {:>8}  {}  {}",
+        "  {}  {}  {}  {}  {:>8}  {}  {}",
         color::bold(&total_label),
         color::green(&total_passed_str),
         color::red(&total_failed_str),
+        color::dim(&total_skipped_str),
         total_tests,
         total_rate_colored,
         total_delta_str
@@ -711,7 +783,7 @@ fn print_conformance_result(
         println!();
     }
 
-    // fixed tests
+    // fixed tests (were in known-failures, now pass)
     if !result.fixed.is_empty() {
         println!(
             "{} ({} tests now passing, remove from known-failures.txt):",
@@ -732,6 +804,27 @@ fn print_conformance_result(
         println!();
     }
 
+    // unskipped tests (were in skipped-failures, now pass)
+    if !result.unskipped.is_empty() {
+        println!(
+            "{} ({} skipped tests now passing, remove from skipped-failures.txt):",
+            color::green("UNSKIPPED"),
+            result.unskipped.len()
+        );
+        let show_count = result.unskipped.len().min(20);
+        for test in &result.unskipped[..show_count] {
+            println!("  {test}");
+        }
+        if result.unskipped.len() > show_count {
+            println!(
+                "  {} ... and {} more",
+                color::dim(""),
+                result.unskipped.len() - show_count
+            );
+        }
+        println!();
+    }
+
     // final status
     if result.has_regressions() {
         println!(
@@ -739,11 +832,18 @@ fn print_conformance_result(
             color::red("FAILED"),
             result.regressions.len()
         );
-    } else if !result.fixed.is_empty() {
+    } else if !result.fixed.is_empty() || !result.unskipped.is_empty() {
+        let mut parts = Vec::new();
+        if !result.fixed.is_empty() {
+            parts.push(format!("{} fixed", result.fixed.len()));
+        }
+        if !result.unskipped.is_empty() {
+            parts.push(format!("{} unskipped", result.unskipped.len()));
+        }
         println!(
             "test result: {}. {} tests newly passing",
             color::green("ok"),
-            result.fixed.len()
+            parts.join(", ")
         );
     } else {
         println!("test result: {}.", color::green("ok"));
@@ -760,6 +860,7 @@ struct ReadmeRow {
     name: String,
     passed: usize,
     failed: usize,
+    skipped: usize,
     total: usize,
     rate: f64,
 }
@@ -770,17 +871,25 @@ impl ReadmeRow {
             name: result.name.clone(),
             passed: result.result.passed,
             failed: result.result.failed + result.result.timedout,
-            total: result.result.total(),
+            skipped: result.result.skipped,
+            total: result.result.total_run(),
             rate: result.result.pass_rate(),
         }
     }
 
     /// Format a single row with proper spacing.
     fn format(&self) -> String {
-        format!(
-            "| {:<8} | {:>5}  | {:>5}  | {:>5} | {:>6.2}% |",
-            self.name, self.passed, self.failed, self.total, self.rate
-        )
+        if self.skipped > 0 {
+            format!(
+                "| {:<8} | {:>5}  | {:>5}  | {:>5}  | {:>5} | {:>6.2}% |",
+                self.name, self.passed, self.failed, self.skipped, self.total, self.rate
+            )
+        } else {
+            format!(
+                "| {:<8} | {:>5}  | {:>5}  | {:>5}  | {:>5} | {:>6.2}% |",
+                self.name, self.passed, self.failed, "-", self.total, self.rate
+            )
+        }
     }
 }
 
@@ -792,6 +901,7 @@ pub struct ReadmeResults {
 
 impl ReadmeResults {
     /// Parse a row from the table (returns None for separator/header rows).
+    /// Handles both old format (5 columns) and new format (6 columns with skipped).
     fn parse_row(line: &str) -> Option<ReadmeRow> {
         let line = line.trim();
         if !line.starts_with('|') || !line.ends_with('|') {
@@ -799,12 +909,33 @@ impl ReadmeResults {
         }
 
         let parts: Vec<&str> = line.split('|').map(|s| s.trim()).collect();
-        // parts: ["", "name", "passed", "failed", "total", "rate", ""]
-        if parts.len() != 7 {
-            return None;
-        }
 
-        let name = parts[1].to_lowercase();
+        // Handle both formats:
+        // Old: ["", "name", "passed", "failed", "total", "rate", ""] - 7 parts
+        // New: ["", "name", "passed", "failed", "skipped", "total", "rate", ""] - 8 parts
+        let (name, passed, failed, skipped, total, rate) = match parts.len() {
+            7 => {
+                // Old format without skipped column
+                let name = parts[1].to_lowercase();
+                let passed: usize = parts[2].parse().ok()?;
+                let failed: usize = parts[3].parse().ok()?;
+                let total: usize = parts[4].parse().ok()?;
+                let rate: f64 = parts[5].trim_end_matches('%').parse().ok()?;
+                (name, passed, failed, 0, total, rate)
+            }
+            8 => {
+                // New format with skipped column
+                let name = parts[1].to_lowercase();
+                let passed: usize = parts[2].parse().ok()?;
+                let failed: usize = parts[3].parse().ok()?;
+                let skipped: usize = parts[4].parse().unwrap_or(0); // "-" parses as 0
+                let total: usize = parts[5].parse().ok()?;
+                let rate: f64 = parts[6].trim_end_matches('%').parse().ok()?;
+                (name, passed, failed, skipped, total, rate)
+            }
+            _ => return None,
+        };
+
         // skip header row and separator
         if name.is_empty()
             || name == "suite"
@@ -815,15 +946,11 @@ impl ReadmeResults {
             return None;
         }
 
-        let passed: usize = parts[2].parse().ok()?;
-        let failed: usize = parts[3].parse().ok()?;
-        let total: usize = parts[4].parse().ok()?;
-        let rate: f64 = parts[5].trim_end_matches('%').parse().ok()?;
-
         Some(ReadmeRow {
             name,
             passed,
             failed,
+            skipped,
             total,
             rate,
         })
@@ -953,6 +1080,7 @@ fn format_results_section(rows: &[ReadmeRow]) -> String {
     // compute totals
     let total_passed: usize = rows.iter().map(|r| r.passed).sum();
     let total_failed: usize = rows.iter().map(|r| r.failed).sum();
+    let total_skipped: usize = rows.iter().map(|r| r.skipped).sum();
     let total_total: usize = rows.iter().map(|r| r.total).sum();
     let total_rate = if total_total > 0 {
         total_passed as f64 / total_total as f64 * 100.0
@@ -961,17 +1089,22 @@ fn format_results_section(rows: &[ReadmeRow]) -> String {
     };
 
     let mut lines = Vec::new();
-    lines.push("| Suite    | Passed | Failed | Total |  Rate   |".to_string());
-    lines.push("|:---------|-------:|-------:|------:|--------:|".to_string());
+    lines.push("| Suite    | Passed | Failed | Skipped | Total |  Rate   |".to_string());
+    lines.push("|:---------|-------:|-------:|--------:|------:|--------:|".to_string());
 
     for row in rows {
         lines.push(row.format());
     }
 
-    lines.push("|----------|--------|--------|-------|---------|".to_string());
+    lines.push("|----------|--------|--------|---------|-------|---------|".to_string());
+    let skipped_str = if total_skipped > 0 {
+        format!("{total_skipped:>5}")
+    } else {
+        "-".to_string()
+    };
     lines.push(format!(
-        "| {:<8} | {:>5}  | {:>5}  | {:>5} | {:>6.2}% |",
-        "total", total_passed, total_failed, total_total, total_rate
+        "| {:<8} | {:>5}  | {:>5}  | {:>6}  | {:>5} | {:>6.2}% |",
+        "total", total_passed, total_failed, skipped_str, total_total, total_rate
     ));
     lines.push(String::new());
     lines.push(format!("Total Blended Pass Rate: **{total_rate:.2}%**"));

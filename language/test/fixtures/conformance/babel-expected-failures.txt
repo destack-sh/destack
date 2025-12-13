@@ -1,0 +1,17 @@
+# Babel tests we consciously skip.
+# These are intentional language differences, not bugs.
+#
+# Format:
+#   # comment explaining why tests below are skipped
+#   test-name-1
+#   test-name-2
+#
+#   another-test # inline comment also works
+
+# Legacy <T>x type assertion syntax - use `x as T` instead
+# See DESIGN.md - we don't support this in .ds files (TSX ambiguity)
+typescript/cast/type-assertion
+typescript/cast/type-assertion-after-operator
+typescript/cast/type-assertion-and-assign
+typescript/cast/type-assertion-before-operator
+typescript/cast/parenthesized-type-assertion-and-assign

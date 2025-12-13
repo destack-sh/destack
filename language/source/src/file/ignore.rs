@@ -1,5 +1,4 @@
-//! Minimal .gitignore-like matcher used by directory walking.
-//! Supports:
+//! Minimal .gitignore-like matcher used by directory walking:
 //! - comments starting with '#'
 //! - blank lines
 //! - negation with '!'
