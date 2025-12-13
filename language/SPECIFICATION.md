@@ -216,43 +216,95 @@ A & B                      // intersection
 
 #### Discriminated Unions
 
-Destack uses TypeScript-style discriminated unions for sum types.
-Combined with nominal structs, discriminated unions enables more explicit union types:
+Destack supports TypeScript-style discriminated unions directly:
+
+```
+type Result<T, E> =
+    | { kind: 'ok', value: T }
+    | { kind: 'err', error: E }
+
+function divide(a: int, b: int): Result<int, string> {
+    if (b == 0) {
+        { kind: 'err', error: "division by zero" }
+    } else {
+        { kind: 'ok', value: a / b }
+    }
+}
+
+// or use the newtype Result
+function divide(a: int, b: int): Result<int, string> {
+    if (b == 0) {
+        Result.err("division by zero")
+    } else {
+        Result.ok(a / b)
+    }
+}
+
+const result = divide(10, 2);
+if (result.kind == 'ok') {
+    print(`result: ${result.value}`);
+} else {
+    print(`error: ${result.error}`);
+}
+```
+
+This is standard TypeScript and works unchanged in Destack.
+
+#### Result Types
+
+For richer `Result` types with methods, use nominal structs and newtypes:
 
 ```
 struct Ok<T> { kind: 'ok' = 'ok', value: T }
 struct Err<E> { kind: 'err' = 'err', error: E }
-type Result<T, E> = Ok<T> | Err<E>
+newtype Result<T, E> = Ok<T> | Err<E>
 ```
 
-Usage with construction and pattern matching:
+Since `Result` is now a newtype, it can be extended with methods:
+
+```
+extension<T, E> Result<T, E> {
+    static ok(value: T): Result<T, E> { Result(Ok { value }) }
+    static err(error: E): Result<T, E> { Result(Err { error }) }
+
+    map<U>(f: (T) => U): Result<U, E> {
+        match (this) {
+            Ok { value } => Result.ok(f(value))
+            Err _ => this
+        }
+    }
+
+    unwrap(): T {
+        match (this) {
+            Ok { value } => value
+            Err { error } => throw error
+        }
+    }
+}
+```
+
+Usage:
 
 ```
 function divide(a: int, b: int): Result<int, string> {
     if (b == 0) {
-        Err { error: "division by zero" }
+        Result.err("division by zero")
     } else {
-        Ok { value: a / b }
+        Result.ok(a / b)
     }
 }
 
+// Method chaining
+divide(10, 2).map(x => x * 2).unwrap()
+
+// Pattern matching (newtype unwraps automatically)
 match (divide(10, 2)) {
-    Ok { value } => print(`result: ${value}`);
-    Err { error } => print(`error: ${error}`);
+    Ok { value } => print(`result: ${value}`)
+    Err { error } => print(`error: ${error}`)
 }
 ```
 
-This pattern is fully TypeScript-interoperable and works seamlessly with Destack's pattern matching. 
-Matching basically desugars down to the equivalent if-else (or switch-case):
-
-```
-const result = divide(10, 2);
-if (result.kind == 'ok') { 
-    print(`result: ${value}`);
-} else if (result.kind == 'error') {
-    print(`error: ${error}`);
-}
-```
+Both approaches are compatible—the newtype erases at runtime to the underlying discriminated union, so you can still use structural matching like `{ kind: 'ok', value }` if preferred.
 
 ### Arrays and Tuples
 
@@ -610,9 +662,52 @@ enum Priority {
 
 ### Extension
 
-Extensions add methods to existing types without modifying them.
+Extensions add methods to existing nominal types without modifying them.
 Unlike TypeScript's prototype extension, Destack extensions are type-safe and scoped.
 Extension visibility depends on where the extension is defined relative to the type.
+
+```
+extension Vector2 {
+    magnitude(): float32 {
+        (this.x * this.x + this.y * this.y).sqrt()
+    }
+    
+    normalized(): Vector2 {
+        const m = this.magnitude();
+        Vector2 { x: this.x / m, y: this.y / m }
+    }
+}
+```
+
+#### Extensible Types
+
+Extensions require **nominal types**—types with declaration identity:
+
+| Type | Nominal? | Extensible? |
+|------|----------|-------------|
+| `struct S { }` | ✅ | ✅ |
+| `class C { }` | ✅ | ✅ |
+| `enum E { }` | ✅ | ✅ |
+| `newtype N = T` | ✅ | ✅ |
+| `int32`, `string`, ... | ✅ (prelude) | ✅ |
+| `type X = T` | ❌ (alias) | ❌ |
+| `{ x: T }` inline | ❌ (structural) | ❌ |
+| `T | U` union | ❌ (structural) | ❌ |
+
+To extend a structural shape, wrap it in a nominal type:
+
+```
+// can NOT extend type aliases or inline types (structural)
+type Point = { x: number, y: number };
+extension Point { ... }  // error: Point is a type alias
+
+// can extend newtype or struct (nominal)
+newtype Point = { x: number, y: number };
+extension Point { ... }  // ok: Point is nominal
+```
+
+Unlike Rust's blanket `impl`s, Destack does not support generic extensions like `extension<T> T where T: Constraint`.
+Extensions target concrete nominal types only to keeps extension resolution predictable in TypeScript's expressive type system.
 
 #### Extension Visibility
 
@@ -627,22 +722,6 @@ Extension visibility is thus always explicit per scope:
 - Anonymous extensions on foreign types are private utilities for that file.
 - Named extensions can be exported and shared, but must be explicitly imported to use.
 
-#### Basic Extensions
-
-Add methods to any type—structs, enums, newtypes, or primitives:
-
-```
-extension Vector2 {
-    magnitude(): float32 {
-        (this.x * this.x + this.y * this.y).sqrt()
-    }
-    
-    normalized(): Vector2 {
-        const m = this.magnitude();
-        Vector2 { x: this.x / m, y: this.y / m }
-    }
-}
-```
 
 #### Extending Newtypes and Primitives
 

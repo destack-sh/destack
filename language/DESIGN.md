@@ -305,7 +305,7 @@ Destack adds type extensions and real overloading for type-based dispatch and op
 
 ### Extensions
 
-Destack introduces extensions to add methods and static constants for any type:
+Destack introduces extensions to add methods and static constants for any nominal type:
 
 ```
 extension Vector2 {
@@ -313,7 +313,25 @@ extension Vector2 {
 }
 ```
 
-Extensions let you add methods to any type: classes, structs, enums, even primitives and foreign types without modifying the original definition.
+Extensions require **nominal types**—types with identity. This includes `struct`, `class`, `enum`, `newtype`, and primitive types declared in the prelude (`int32`, `string`, etc.).
+Type aliases (`type X = ...`) and inline structural types (`{ x: number }`) cannot be extended.
+
+To extend a structural shape, wrap it in a nominal type:
+
+```
+// ❌ Can't extend a type alias or inline shape
+type Point = { x: number, y: number };
+extension Point { ... }  // error
+
+// ✅ Use newtype or struct instead
+newtype Point = { x: number, y: number };
+extension Point { ... }  // ok
+```
+
+Unlike Rust's blanket impls, Destack extensions only target concrete types—no `extension<T> T where T: Foo` patterns.
+This is an intentional simplification: most extensions are "add methods to this specific type," and the simpler model keeps the mental overhead low.
+
+Extensions let you add methods to any nominal type: classes, structs, enums, newtypes, even primitives and foreign types without modifying the original definition.
 
 Extension visibility follows clear rules:
 - **Same file as type**: Extensions are automatically visible wherever the type is used.
