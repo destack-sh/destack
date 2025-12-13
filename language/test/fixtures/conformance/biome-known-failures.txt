@@ -64,7 +64,6 @@ error/setter_class_no_body.js
 error/super_expression_err.js
 error/template_after_optional_chain.js
 error/template_literal.js
-error/throw_stmt_err.js
 error/ts_ambient_async_method.ts
 error/ts_ambient_context_semi.ts
 error/ts_arrow_function_this_parameter.ts

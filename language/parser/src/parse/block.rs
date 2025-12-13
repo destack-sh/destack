@@ -405,6 +405,9 @@ impl Parser {
 
     /// Eat a throw expression.
     ///
+    /// `throw` is a restricted production: a newline after `throw` triggers ASI,
+    /// but unlike `return`, `throw` REQUIRES an expression, so `throw;` is invalid.
+    ///
     /// Examples:
     /// ```
     /// throw someError
@@ -413,15 +416,18 @@ impl Parser {
     pub fn eat_throw(&mut self) -> ParseResult<LocalNodeId<Expression>> {
         let start = self.mark();
         self.eat_keyword(Keyword::Throw)?;
+
         // value
-        let value_id = if self.peek().is_ok() && self.peek_statement_stop().is_err() {
-            let value_id = self.with_options(self.options.not_in_position(), |parser| {
-                parser.eat_expression()
-            })?;
-            Some(value_id)
-        } else {
-            None
-        };
+        if self.peek_statement_stop().is_ok() || self.peek().is_err() {
+            return Err(ParseError::unexpected_for(
+                self.get_span_from(start),
+                NodeType::Expression,
+            ));
+        }
+        let value_id = self.with_options(self.options.not_in_position(), |parser| {
+            parser.eat_expression()
+        })?;
+
         // throw
         let throw_id = self.tree.insert(
             Expression::Throw { value: value_id },
@@ -685,23 +691,12 @@ mod tests {
     }
 
     #[test]
-    fn test_throw_expression_no_value() {
-        let mut test = TestParser::new("throw");
-        let mut parser = test.prepare();
-        let throw_id = parser.eat_throw().unwrap();
-        assert_node!(parser.tree, throw_id, Expression::Throw { value } => {
-            assert!(value.is_none());
-        });
-    }
-
-    #[test]
     fn test_throw_expression_with_value() {
         let mut test = TestParser::new("throw 17");
         let mut parser = test.prepare();
         let throw_id = parser.eat_throw().unwrap();
         assert_node!(parser.tree, throw_id, Expression::Throw { value } => {
-            assert!(value.is_some());
-            assert_node!(parser.tree, value.unwrap(), Expression::ScalarLiteral(ScalarLiteral::Integer(17)));
+            assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(17)));
         });
     }
 

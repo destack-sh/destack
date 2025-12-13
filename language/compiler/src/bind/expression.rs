@@ -1311,17 +1311,15 @@ impl Compiler {
                 Expression::Yield { cardinality, value }
             }
             ast::Expression::Throw { value } => {
-                let value = value.map(|value| {
-                    self.bind_expression(
-                        module,
-                        scope,
-                        value,
-                        Some(expression_id),
-                        tree,
-                        symbols,
-                        types,
-                    )
-                });
+                let value = self.bind_expression(
+                    module,
+                    scope,
+                    *value,
+                    Some(expression_id),
+                    tree,
+                    symbols,
+                    types,
+                );
                 Expression::Throw { value }
             }
 

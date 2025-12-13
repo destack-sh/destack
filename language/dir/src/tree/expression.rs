@@ -311,9 +311,7 @@ pub enum Expression {
         target_symbol: Option<GlobalSymbolId>,
     },
     /// Throw expression.
-    Throw {
-        value: Option<LocalNodeId<Expression>>,
-    },
+    Throw { value: LocalNodeId<Expression> },
     /// Await expression.
     Await { expression: LocalNodeId<Expression> },
     /// Yield expression.
