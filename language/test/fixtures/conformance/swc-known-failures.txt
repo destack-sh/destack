@@ -112,8 +112,6 @@ typescript/issue-7305/input.ts
 typescript/issue-7403/3/input.ts
 typescript/issue-7444/1/input.tsx
 typescript/issue-7456/1/input.tsx
-typescript/issue-8308/2/input.ts
-typescript/issue-8308/3/input.ts
 typescript/issue-8581/input.ts
 typescript/issue-913/input.ts
 typescript/issue-9914/1/input.ts

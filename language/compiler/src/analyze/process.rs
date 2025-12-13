@@ -130,7 +130,8 @@ impl Compiler {
 
         // register extensions
         // 1) register inherent extensions from imported symbols
-        // 2) register 
+        // 2) register local extensions from local symbols
+        // 3) register named extensions from imported symbols
         // nocheckin
 
         // yield on any yields

@@ -149,6 +149,6 @@ We do not expect to reach 100% conformance because:
 ## Notes
 
 - **Annex B**: Our test262 suite does not include Annex B tests. We do not support legacy syntax.
-- **Flow**: Flow is intentionally excluded because it's rarely used anymore. We support only TypeScript.
-- **Strict**: Non-strict ("sloppy mode") behaviors like duplicate function declarations or `yield` as an identifier are not supported. We support only modern strict-mode JS/TS. 
-- **Proposals**: Some SWC `js/*` tests cover not-yet-standard syntax proposals. We do not support most of these.
+- **Flow**: Flow is intentionally excluded because it's rarely used anymore. We target modern JS/TS only.
+- **Strict**: Non-strict ("sloppy mode") behaviors are not supported. We target strict-mode JS/TS. 
+- **Proposals**: Some SWC `js/*` tests cover not-yet-standard syntax proposals. We do not aim to support most of these.
