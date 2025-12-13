@@ -2,7 +2,7 @@ use crate::Compiler;
 use destack_ast as ast;
 use destack_dir::{
     DependencyMode, LocalNodeId, LocalNodeIdAny, LocalScopeId, LocalScopeMark, NodeTree, NodeType,
-    Pattern, PatternField, StaticKey, SymbolSpace, SymbolTable, TypeTable,
+    Pattern, PatternField, StaticKey, SymbolBinding, SymbolSpace, SymbolTable, TypeTable,
 };
 use destack_workspace::Module;
 
@@ -14,6 +14,7 @@ impl Compiler {
         module: &Module,
         scope: (LocalScopeId, LocalScopeMark),
         export: Option<DependencyMode>,
+        binding: SymbolBinding,
         ast_pattern_id: ast::LocalNodeId<ast::Pattern>,
         parent_id: Option<LocalNodeIdAny>,
         tree: &mut NodeTree,
@@ -29,6 +30,7 @@ impl Compiler {
                 module,
                 scope,
                 export,
+                binding,
                 *ast_pattern_id,
                 Some(pattern_id),
                 tree,
@@ -44,6 +46,7 @@ impl Compiler {
                     module,
                     scope,
                     export,
+                    binding,
                     *right_id,
                     Some(pattern_id),
                     tree,
@@ -61,6 +64,7 @@ impl Compiler {
                     module,
                     scope,
                     export,
+                    binding,
                     *right_id,
                     Some(pattern_id),
                     tree,
@@ -81,6 +85,7 @@ impl Compiler {
                         module,
                         scope,
                         export,
+                        binding,
                         pattern,
                         Some(pattern_id),
                         tree,
@@ -88,10 +93,11 @@ impl Compiler {
                         types,
                     )
                 });
-                let (symbol, _) = self.bind_named_symbol(
+                let (symbol, _) = self.bind_named_symbol_with_binding(
                     module,
                     SymbolSpace::Value,
                     StaticKey::Name(name),
+                    binding,
                     scope,
                     export,
                     symbols,
@@ -125,6 +131,7 @@ impl Compiler {
                         module,
                         scope,
                         export,
+                        binding,
                         start,
                         Some(pattern_id),
                         tree,
@@ -137,6 +144,7 @@ impl Compiler {
                         module,
                         scope,
                         export,
+                        binding,
                         end,
                         Some(pattern_id),
                         tree,
@@ -158,6 +166,7 @@ impl Compiler {
                             module,
                             scope,
                             export,
+                            binding,
                             *field,
                             Some(pattern_id),
                             tree,
@@ -185,6 +194,7 @@ impl Compiler {
                             module,
                             scope,
                             export,
+                            binding,
                             *field,
                             Some(pattern_id),
                             tree,
@@ -203,6 +213,7 @@ impl Compiler {
                             module,
                             scope,
                             export,
+                            binding,
                             *field,
                             Some(pattern_id),
                             tree,
@@ -221,6 +232,7 @@ impl Compiler {
                             module,
                             scope,
                             export,
+                            binding,
                             *field,
                             Some(pattern_id),
                             tree,
@@ -248,6 +260,7 @@ impl Compiler {
                             module,
                             scope,
                             export,
+                            binding,
                             *field,
                             Some(pattern_id),
                             tree,
@@ -266,6 +279,7 @@ impl Compiler {
                             module,
                             scope,
                             export,
+                            binding,
                             *field,
                             Some(pattern_id),
                             tree,
@@ -296,6 +310,7 @@ impl Compiler {
         module: &Module,
         scope: (LocalScopeId, LocalScopeMark),
         export: Option<DependencyMode>,
+        binding: SymbolBinding,
         ast_pattern_field_id: ast::LocalNodeId<ast::PatternField>,
         parent_id: Option<LocalNodeIdAny>,
         tree: &mut NodeTree,
@@ -326,6 +341,7 @@ impl Compiler {
                         module,
                         scope,
                         export,
+                        binding,
                         pattern,
                         Some(pattern_field_id),
                         tree,
@@ -344,10 +360,11 @@ impl Compiler {
                         types,
                     )
                 });
-                let (symbol, _) = self.bind_named_symbol(
+                let (symbol, _) = self.bind_named_symbol_with_binding(
                     module,
                     SymbolSpace::Value,
                     StaticKey::Name(name),
+                    binding,
                     scope,
                     export,
                     symbols,
@@ -386,10 +403,11 @@ impl Compiler {
                         types,
                     )
                 });
-                let (symbol, _) = self.bind_named_symbol(
+                let (symbol, _) = self.bind_named_symbol_with_binding(
                     module,
                     SymbolSpace::Value,
                     StaticKey::Name(name),
+                    binding,
                     scope,
                     export,
                     symbols,
@@ -409,6 +427,7 @@ impl Compiler {
                     module,
                     scope,
                     export,
+                    binding,
                     *pattern_id,
                     Some(pattern_field_id),
                     tree,
@@ -425,10 +444,11 @@ impl Compiler {
                         .intern_from(&module.ast.strings, name.string())
                 });
                 let symbol = if let Some(name) = name {
-                    let (symbol, _) = self.bind_named_symbol(
+                    let (symbol, _) = self.bind_named_symbol_with_binding(
                         module,
                         SymbolSpace::Value,
                         StaticKey::Name(name),
+                        binding,
                         scope,
                         export,
                         symbols,

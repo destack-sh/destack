@@ -1,7 +1,7 @@
 use destack_ast::{self as ast};
 use destack_dir::{
     LocalNodeId, LocalNodeIdAny, LocalScopeId, LocalScopeMark, MatchCase, NodeTree, NodeType,
-    ScopeKind, SymbolTable, TypeTable,
+    ScopeKind, SymbolBinding, SymbolTable, TypeTable,
 };
 
 use crate::Compiler;
@@ -36,6 +36,7 @@ impl Compiler {
                     module,
                     (scope_id, symbols.get_scope_mark(scope_id)),
                     None,
+                    SymbolBinding::Runtime,
                     *pattern,
                     Some(match_case_id),
                     tree,
@@ -78,6 +79,7 @@ impl Compiler {
                     module,
                     (scope_id, symbols.get_scope_mark(scope_id)),
                     None,
+                    SymbolBinding::Runtime,
                     *pattern,
                     Some(match_case_id),
                     tree,

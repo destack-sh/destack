@@ -13,6 +13,8 @@ jsx/basic/issue-6522/input.js
 jsx/basic/namespace-tag/input.js
 jsx/basic/nonentity-decimal/input.js
 jsx/basic/nonentity/input.js
+jsx/basic/string/input.js
+jsx/basic/template/input.js
 jsx/basic/yield-tag/input.js
 jsx/errors/attribute-arbitrary-expression/input.js
 jsx/errors/issue-10586/input.js
@@ -60,7 +62,6 @@ typescript/class/property-private/input.ts
 typescript/custom/arrow/complex-tsc/input.ts
 typescript/custom/async-with-as/input.ts
 typescript/custom/bigint/input.ts
-typescript/custom/issue-196-02/input.ts
 typescript/custom/issue-374/input.ts
 typescript/custom/issue-401-const-assertion-array-ts/input.ts
 typescript/custom/issue-401-const-assertion-literal-ts/input.ts
@@ -75,7 +76,6 @@ typescript/decorators/parameter/input.ts
 typescript/decorators/type-arguments/input.ts
 typescript/deno/dso/reflect/input.ts
 typescript/es2019/from-entries/input.ts
-typescript/function/declare/input.ts
 typescript/function/overloads/input.ts
 typescript/import/equals-require/input.ts
 typescript/import/equals-type-only/input.ts
@@ -137,6 +137,7 @@ typescript/type-arguments/tsx/input.ts
 typescript/types/conditional-infer-extends/basic/input.ts
 typescript/types/conditional-infer-extends/distinguishing/input.ts
 typescript/types/function-generic/input.ts
+typescript/types/literal-boolean/input.ts
 typescript/types/mapped/input.ts
 typescript/types/tuple-optional/input.ts
 typescript/types/tuple-rest-after-optional/input.ts

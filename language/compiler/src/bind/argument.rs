@@ -3,7 +3,7 @@ use destack_ast as ast;
 use destack_dir::{
     Argument, BindingAnchor, BindingKind, BindingModifier, BindingOperator, LocalNodeId,
     LocalNodeIdAny, LocalScopeId, LocalScopeMark, Mutability, NodeTree, NodeType, Parameter,
-    StaticKey, SymbolSpace, SymbolTable, TypeTable, Visibility,
+    StaticKey, SymbolBinding, SymbolSpace, SymbolTable, TypeTable, Visibility,
 };
 use destack_workspace::Module;
 
@@ -122,6 +122,7 @@ impl Compiler {
                     module,
                     scope,
                     None,
+                    SymbolBinding::Runtime,
                     *pattern,
                     Some(parameter_id),
                     tree,

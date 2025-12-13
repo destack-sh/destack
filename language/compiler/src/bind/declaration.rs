@@ -55,7 +55,7 @@ impl Compiler {
         };
         let binding = match descriptor.kind {
             ast::DeclarationKind::Declaration => SymbolBinding::Ambient,
-            ast::DeclarationKind::Definition => SymbolBinding::Definition,
+            ast::DeclarationKind::Definition => SymbolBinding::Runtime,
         };
         let (symbol_id, scope_id) = {
             let (symbol_id, _) = symbols.insert_symbol(

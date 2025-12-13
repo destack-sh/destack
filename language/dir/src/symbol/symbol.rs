@@ -56,11 +56,9 @@ pub enum SymbolKind {
 pub enum SymbolBinding {
     /// A runtime definition (let, const, var, class, function, etc.)
     #[default]
-    Definition,
+    Runtime,
     /// An ambient declaration (declare var, declare function, .d.ts)
     Ambient,
-    /// An import binding.
-    Import,
 }
 
 /// The type of a symbol (declaration type).
@@ -193,7 +191,7 @@ pub struct Symbol {
     pub export: Option<DependencyMode>,
     /// The main declaration node of the symbol.
     pub primary_declaration: Option<GlobalNodeIdAny>,
-    /// Secondary declaration nodes of the symbol.
+    /// Secondary declaration nodes of the symbol (for merging with other symbols).
     pub secondary_declarations: Option<Box<Vec<GlobalNodeIdAny>>>,
     /// Forward to the *next* remote symbol (like for imports, pattern bindings, etc.).
     pub target_symbol: Option<GlobalSymbolId>,
