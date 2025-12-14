@@ -369,6 +369,33 @@ Extension visibility follows clear rules:
 - **Anonymous on foreign type**: Only visible in the file where declared (`extension int32 { ... }`).
 - **Named on foreign type**: Must be explicitly imported to use (`export extension DateUtils: Date { ... }`).
 
+### Nominal Interfaces
+
+TypeScript interfaces are structural, i.e., any type with matching shape satisfies the interface.
+Destack adds **nominal interfaces** using the `newtype` modifier on `interface` declarations:
+
+```
+// Structural interface (standard TypeScript behavior)
+interface Drawable {
+    draw(): void;
+}
+const x: Drawable = { draw() {} };  // OK: structural match
+
+// Nominal interface (requires explicit `implements`)
+newtype interface Add<T, R = Self> {
+    add(other: T): R;
+}
+```
+
+Nominal interfaces require **explicit `implements`** declarations.
+Structural compatibility alone doesn't satisfy the constraint.
+Nominal interfaces (often represented as `traits`) are used for:
+
+- **Operator interfaces**: `Add`, `Compare`, etc.
+- **Marker traits**: `Send`, `Sync`, `Copy`
+
+The `newtype` modifier on `interface` follows the same pattern as `newtype` on type aliases.
+
 ### Overloading
 
 Real function and operator overloading with distinct implementations:
@@ -384,9 +411,6 @@ extension Vector2 implements Add<Vector2> {
 
 For operators, Destack uses **receiver-based dispatch**: `a + b` desugars to `a.add(b)`.
 For function overloads, Destack uses **declaration order**: the first matching overload wins.
-
-Operator interfaces (`Add`, `Compare`, etc.) require **explicit `implements`** declarations.
-Unlike regular interfaces which are structural, operator dispatch only activates when a type explicitly declares that it implements the operator interface—this prevents accidental operator overloading from structurally-compatible types.
 
 <sub>See [test/fixtures/mdtest/dispatch/](test/fixtures/mdtest/dispatch/) for specification tests.</sub>
 

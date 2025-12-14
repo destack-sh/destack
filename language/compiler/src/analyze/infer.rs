@@ -1280,6 +1280,7 @@ impl Compiler {
             // interface
             Declaration::Interface {
                 descriptor,
+                kind: _,
                 generics,
                 heritage,
                 scope: _,

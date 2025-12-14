@@ -404,6 +404,7 @@ impl Compiler {
             }
             ast::Declaration::Interface {
                 descriptor,
+                kind,
                 generics,
                 heritage,
                 members,
@@ -450,6 +451,7 @@ impl Compiler {
                     .collect();
                 Declaration::Interface {
                     descriptor,
+                    kind: self.bind_type_kind(*kind),
                     generics,
                     heritage,
                     scope: scope_id,

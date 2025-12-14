@@ -293,6 +293,9 @@ pub enum Declaration {
     /// A Interface is interface declaration node defining behavior and constants.
     /// Interfaces can `use` other interfaces to include them (just like structs / unions).
     /// Interfaces can also have super interfaces as semantic sugar for `use`-ing other interfaces.
+    /// Interfaces can be structural (default) or nominal (`newtype interface`).
+    /// Nominal interfaces require explicit ("nominal") `implements` declarations—structural compatibility
+    /// alone does not satisfy the constraint. This is used for operator interfaces and marker traits.
     ///
     /// Examples:
     /// ```
@@ -306,7 +309,7 @@ pub enum Declaration {
     ///
     ///     myField: int32
     ///     myOtherField: boolean | Vector2
-    ///     
+    ///
     ///     static x: int32 // associated constant/type
     ///     foo() => int32
     ///
@@ -319,9 +322,18 @@ pub enum Declaration {
     ///
     ///     baz() => T // semicolon optional
     /// }
+    ///
+    /// // Nominal interface - requires explicit ("nominal") `implements`
+    /// newtype interface Add<T, R = Self> {
+    ///     add(other: T): R
+    /// }
+    ///
+    /// // Marker trait - nominal, no methods
+    /// newtype interface Send {}
     /// ```
     Interface {
         descriptor: DeclarationDescriptor,
+        kind: TypeKind,
         generics: Generics,
         heritage: Heritage,
         members: Vec<LocalNodeId<Member>>,
@@ -331,7 +343,7 @@ pub enum Declaration {
     /// There may be multiple Extensions for the same type, and even extensions for different modules.
     /// Extensions are anonymous by default, but may be named like `extension MyExt: Type { .. }`.
     ///
-    /// Extensions require **nominal types**—types with declaration identity.
+    /// Extensions require **nominal types**—types with declaration identity (nominality).
     /// This includes `struct`, `class`, `enum`, `newtype`, and primitive types from the prelude.
     /// Type aliases (`type X = ...`) and inline structural types cannot be extended.
     ///
