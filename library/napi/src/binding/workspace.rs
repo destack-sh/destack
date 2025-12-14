@@ -34,29 +34,8 @@ impl Workspace {
     pub fn new(options: WorkspaceOptions) -> Self {
         let cwd = PathBuf::from(options.cwd);
         Self {
-            inner: destack_workspace::Workspace::new(cwd),
+            inner: destack_workspace::Workspace::single_package(cwd),
         }
-    }
-
-    /// Add a root to the workspace.
-    /// Creates a new Program for the given root path.
-    #[napi]
-    pub fn add_root(&self, root: String) -> napi::Result<()> {
-        let root_path = PathBuf::from(root);
-        self.inner.add_root(root_path);
-        Ok(())
-    }
-
-    /// Get the current working directory.
-    #[napi(getter)]
-    pub fn cwd(&self) -> String {
-        self.inner.cwd.to_string_lossy().to_string()
-    }
-
-    /// Get the number of programs in the workspace.
-    #[napi(getter)]
-    pub fn program_count(&self) -> u32 {
-        self.inner.programs.len() as u32
     }
 }
 

@@ -4,6 +4,7 @@ use std::sync::Arc;
 use std::thread;
 
 use clap::{Args, ValueEnum};
+use destack_resolver::{ResolveOptions, Resolver};
 use destack_source::{
     FileRegistry, FileSystem, IndentStyle, LineEnding, MemoryFileSystem, PhysicalFileSystem,
 };
@@ -141,8 +142,19 @@ impl ProgramArgs {
             FileSystemArg::Physical => Arc::new(PhysicalFileSystem::new()),
             FileSystemArg::Memory => Arc::new(MemoryFileSystem::new()),
         };
-        tracing::trace!(?cwd, ?fs_type, workers = self.workers, "program.setup");
-        let program = Program::new(formatter_options, linter_options, cwd, fs, files);
+
+        // discover workspace using a bootstrap program
+        let bootstrap = Arc::new(Program::new_default(cwd.clone(), fs.clone(), files.clone()));
+        let resolver = Resolver::new(bootstrap, ResolveOptions::default());
+        let workspace = resolver
+            .discover_workspace(&cwd)
+            .unwrap_or_else(|_| destack_workspace::Workspace::single_package(cwd.clone()));
+        let root = workspace.root.clone();
+
+        tracing::trace!(?cwd, ?root, ?fs_type, workspace_kind = ?workspace.kind, workers = self.workers, "program.setup");
+
+        // create the actual program with workspace root
+        let program = Program::new(formatter_options, linter_options, root, fs, files);
         Arc::new(program)
     }
 }

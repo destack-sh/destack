@@ -1,103 +1,83 @@
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::sync::Arc;
 
-use dashmap::DashMap;
-use destack_source::{FileRegistry, FileSystem, PhysicalFileSystem};
+use crate::DsConfig;
 
-use crate::{FormatterOptions, LinterOptions, Program};
+/// Kind of workspace based on how it was discovered.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+pub enum WorkspaceKind {
+    /// Monorepo with multiple packages (npm/pnpm workspaces).
+    Monorepo,
+    /// Single package workspace.
+    #[default]
+    SinglePackage,
+}
 
-/// A workspace containing multiple program roots.
-#[derive(Debug)]
+/// A workspace is an organizational structure discovered from disk.
+///
+/// It represents a monorepo or single-package project, containing:
+/// - The root directory of the workspace
+/// - Workspace-wide configuration (from root `dsconfig.json`)
+/// - Paths to packages within the workspace
+///
+/// This is distinct from `Session`, which is the runtime state for
+/// daemon/LSP use cases with program caching and file watching.
+#[derive(Debug, Clone)]
 pub struct Workspace {
-    /// The current working directory.
-    pub cwd: PathBuf,
-    /// The file system.
-    pub fs: Arc<dyn FileSystem>,
-    /// The files in the workspace.
-    pub files: Arc<FileRegistry>,
-    /// Default formatter options.
-    pub formatter: FormatterOptions,
-    /// Default linter options.
-    pub linter: LinterOptions,
-    /// The programs in the workspace, keyed by root path.
-    pub programs: DashMap<PathBuf, Arc<Program>>,
+    /// The root directory of the workspace.
+    pub root: PathBuf,
+    /// The kind of workspace (monorepo or single package).
+    pub kind: WorkspaceKind,
+    /// The workspace-wide dsconfig (from root `dsconfig.json`).
+    /// Child packages inherit from this configuration.
+    pub config: Option<Arc<DsConfig>>,
+    /// Paths to packages within the workspace.
+    /// For single-package workspaces, this is just the root.
+    /// For monorepos, these are the package directories.
+    pub package_paths: Vec<PathBuf>,
 }
 
 impl Workspace {
-    /// Create a new Workspace with physical file system.
-    pub fn new(cwd: PathBuf) -> Self {
+    /// Create a new single-package workspace.
+    pub fn single_package(root: PathBuf) -> Self {
         Self {
-            cwd,
-            fs: Arc::new(PhysicalFileSystem::new()),
-            files: Arc::new(FileRegistry::new()),
-            formatter: FormatterOptions::default(),
-            linter: LinterOptions::default(),
-            programs: DashMap::new(),
+            root: root.clone(),
+            kind: WorkspaceKind::SinglePackage,
+            config: None,
+            package_paths: vec![root],
         }
     }
 
-    /// Create a new Workspace with a custom file system.
-    pub fn with_fs(cwd: PathBuf, fs: Arc<dyn FileSystem>) -> Self {
+    /// Create a new monorepo workspace.
+    pub fn monorepo(root: PathBuf, package_paths: Vec<PathBuf>) -> Self {
         Self {
-            cwd,
-            fs,
-            files: Arc::new(FileRegistry::new()),
-            formatter: FormatterOptions::default(),
-            linter: LinterOptions::default(),
-            programs: DashMap::new(),
+            root,
+            kind: WorkspaceKind::Monorepo,
+            config: None,
+            package_paths,
         }
     }
 
-    /// Create a new Workspace with formatter options.
-    pub fn with_formatter(mut self, formatter: FormatterOptions) -> Self {
-        self.formatter = formatter;
+    /// Set the workspace-wide configuration.
+    pub fn with_config(mut self, config: DsConfig) -> Self {
+        self.config = Some(Arc::new(config));
         self
     }
 
-    /// Create a new Workspace with linter options.
-    pub fn with_linter(mut self, linter: LinterOptions) -> Self {
-        self.linter = linter;
-        self
+    /// Check if this is a monorepo workspace.
+    pub fn is_monorepo(&self) -> bool {
+        self.kind == WorkspaceKind::Monorepo
     }
 
-    /// Add a root to the workspace.
-    /// Creates a new Program for the given root path.
-    pub fn add_root(&self, root: PathBuf) -> Arc<Program> {
-        let program = Arc::new(Program::new(
-            self.formatter,
-            self.linter.clone(),
-            root.clone(),
-            self.fs.clone(),
-            self.files.clone(),
-        ));
-        self.programs.insert(root.clone(), program.clone());
-        program
+    /// Check if a path is within this workspace.
+    pub fn contains_path(&self, path: &std::path::Path) -> bool {
+        path.starts_with(&self.root)
     }
 
-    /// Get a program by root path.
-    pub fn get_program(&self, root: &Path) -> Option<Arc<Program>> {
-        self.programs.get(root).map(|p| p.clone())
-    }
-
-    /// Get or create a program for the given root path.
-    pub fn get_or_create_program(&self, root: PathBuf) -> Arc<Program> {
-        if let Some(program) = self.programs.get(&root) {
-            return program.clone();
-        }
-        self.add_root(root)
-    }
-
-    /// Find the program that contains the given path.
-    /// Falls back to the cwd-based program if no match is found.
-    pub fn find_program_for_path(&self, path: &Path) -> Arc<Program> {
-        // look for a program whose root is a prefix of the path
-        for entry in self.programs.iter() {
-            if path.starts_with(entry.key()) {
-                return entry.value().clone();
-            }
-        }
-
-        // fallback: create/get a program for the cwd
-        self.get_or_create_program(self.cwd.clone())
+    /// Find the package path that contains the given path.
+    pub fn find_package_for_path(&self, path: &std::path::Path) -> Option<&PathBuf> {
+        self.package_paths
+            .iter()
+            .find(|pkg_path| path.starts_with(pkg_path))
     }
 }

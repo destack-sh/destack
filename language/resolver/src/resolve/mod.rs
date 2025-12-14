@@ -11,6 +11,7 @@ mod resolution;
 mod resolve;
 mod resolver;
 mod tsconfig;
+mod workspace;
 
 pub use context::*;
 pub use error::*;
