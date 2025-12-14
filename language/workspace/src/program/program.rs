@@ -76,6 +76,17 @@ pub struct Program {
 }
 
 impl Program {
+    /// Create a new Program with default options.
+    pub fn new_default(cwd: PathBuf, fs: Arc<dyn FileSystem>, files: Arc<FileRegistry>) -> Self {
+        Self::new(
+            FormatterOptions::default(),
+            LinterOptions::default(),
+            cwd,
+            fs,
+            files,
+        )
+    }
+
     /// Create a new Program.
     pub fn new(
         formatter: FormatterOptions,

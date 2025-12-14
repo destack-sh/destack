@@ -156,6 +156,38 @@ pub struct PackageJson {
     /// The "imports" mapping. Node module imports.
     /// <https://nodejs.org/api/packages.html#imports>
     pub imports: Option<Map<String, Value>>,
+
+    /// The "workspaces" field for npm/yarn/pnpm workspaces.
+    /// <https://docs.npmjs.com/cli/v11/configuring-npm/package-json#workspaces>
+    pub workspaces: Option<WorkspacesField>,
+}
+
+/// The "workspaces" field in package.json.
+/// Can be an array of glob patterns or an object with packages/nohoist.
+#[derive(Deserialize, Debug, Clone)]
+#[serde(untagged)]
+pub enum WorkspacesField {
+    /// Array of workspace glob patterns.
+    Patterns(Vec<String>),
+    /// Object with packages array and optional nohoist.
+    Object {
+        /// Workspace package glob patterns.
+        packages: Option<Vec<String>>,
+        /// Packages to not hoist (yarn).
+        nohoist: Option<Vec<String>>,
+    },
+}
+
+impl WorkspacesField {
+    /// Get the workspace patterns.
+    pub fn patterns(&self) -> &[String] {
+        match self {
+            WorkspacesField::Patterns(patterns) => patterns,
+            WorkspacesField::Object { packages, .. } => {
+                packages.as_ref().map_or(&[], |p| p.as_slice())
+            }
+        }
+    }
 }
 
 /// Registry of Packages. THREAD-SAFE.
