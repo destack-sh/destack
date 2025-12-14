@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use destack_compiler::{AnalyzeTask, CompileOptions, Compiler};
 use destack_source::{FileRegistry, FileSystem, MemoryFileSystem};
-use destack_workspace::{LanguageOptions, Program};
+use destack_workspace::{FormatterOptions, LinterOptions, Program};
 
 use crate::harness::{
     RunContext, Runner, Suite, TestCase, TestOptions, TestResult, check_diagnostics,
@@ -54,7 +54,6 @@ fn run_compiler_case(test: &TestCase) -> TestResult {
         .expect("failed to add test file to memory fs");
     let fs: Arc<dyn FileSystem> = memory_fs;
     let program = Arc::new(Program::new(
-        LanguageOptions::default(),
         FormatterOptions::default(),
         LinterOptions::default(),
         cwd,

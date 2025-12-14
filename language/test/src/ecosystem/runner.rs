@@ -8,7 +8,7 @@ use destack_parser::Parser;
 use destack_source::{
     File, FileRegistry, FileSystem, FileType, MemoryFileSystem, PhysicalFileSystem, Uri, glob,
 };
-use destack_workspace::{LanguageOptions, Program};
+use destack_workspace::{FormatterOptions, LinterOptions, Program};
 
 use crate::harness::{RunContext, Runner, Suite, TestCase, TestOptions, TestResult, fixtures_dir};
 
@@ -304,7 +304,8 @@ fn run_analyze_tier(package_dir: &Path, files: &[PathBuf]) -> TestResult {
     let files_registry = Arc::new(FileRegistry::new());
     let file_system: Arc<dyn FileSystem> = Arc::new(PhysicalFileSystem);
     let program = Arc::new(Program::new(
-        LanguageOptions::default(),
+        FormatterOptions::default(),
+        LinterOptions::default(),
         package_dir.to_path_buf(),
         file_system,
         files_registry,
@@ -369,13 +370,18 @@ fn parse_file(path: &Path) -> Result<(), String> {
     let extension = path.extension().and_then(|e| e.to_str()).unwrap_or("");
     let file_type = FileType::from_extension(extension).unwrap_or(FileType::TypeScript);
     let language_type = destack_source::LanguageType::from(file_type);
-    let language = LanguageOptions::default().with_type(language_type);
 
     let uri = Uri::from_path(path);
     let files = Arc::new(FileRegistry::new());
     let file_system: Arc<dyn FileSystem> = Arc::new(MemoryFileSystem::new());
     let cwd = path.parent().unwrap_or(Path::new(".")).to_path_buf();
-    let program = Arc::new(Program::new(language, cwd, file_system, files));
+    let program = Arc::new(Program::new(
+        FormatterOptions::default(),
+        LinterOptions::default(),
+        cwd,
+        file_system,
+        files,
+    ));
 
     let file_id = program.files.next_id();
     let name = path.file_name().unwrap().to_string_lossy().to_string();
@@ -390,7 +396,7 @@ fn parse_file(path: &Path) -> Result<(), String> {
     program.files.insert(file);
     let file = program.files.get(file_id);
 
-    let mut parser = Parser::lex_file(file, program.language.ty);
+    let mut parser = Parser::lex_file(file, language_type);
     let _ = parser.parse();
     program.diagnostics.merge_from(&parser.diagnostics);
 

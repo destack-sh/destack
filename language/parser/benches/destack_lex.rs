@@ -1,5 +1,5 @@
 use destack_parser::Lexer;
-use destack_source::{FileId, LanguageOptions, glob};
+use destack_source::{FileId, LanguageType, glob};
 
 use criterion::{BenchmarkId, Criterion, Throughput, black_box, criterion_group, criterion_main};
 use pprof::criterion::{Output, PProfProfiler};
@@ -51,8 +51,7 @@ fn bench_lex(c: &mut Criterion) {
     group.throughput(Throughput::Elements(line_count));
     group.bench_with_input(BenchmarkId::new("lex", "all"), &ds_str, |b, input| {
         b.iter(|| {
-            let language = LanguageOptions::default();
-            let (tokens, _) = Lexer::lex(FileId::new(0), input, language);
+            let (tokens, _) = Lexer::lex(FileId::new(0), input, LanguageType::Destack);
             black_box(tokens);
         });
     });

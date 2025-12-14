@@ -1,7 +1,7 @@
 #![no_main]
 
 use destack_parser::Lexer;
-use destack_source::{FileId, LanguageOptions};
+use destack_source::{FileId, LanguageType};
 use libfuzzer_sys::fuzz_target;
 
 fuzz_target!(|data: &[u8]| {
@@ -11,6 +11,5 @@ fuzz_target!(|data: &[u8]| {
 
     // tokenize the input
     let file_id = FileId::new(0);
-    let language = LanguageOptions::default();
-    let _ = Lexer::lex(file_id, input, language);
+    let _ = Lexer::lex(file_id, input, LanguageType::Destack);
 });

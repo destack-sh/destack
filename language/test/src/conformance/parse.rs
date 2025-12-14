@@ -5,10 +5,8 @@ use std::sync::Arc;
 use destack_compiler::{
     AnalyzeError, AnalyzeTask, BindError, CompileOptions, Compiler, ImportError, ResolveError,
 };
-use destack_source::{
-    DiagnosticSeverity, FileRegistry, FileSystem, FileType, LanguageType, MemoryFileSystem,
-};
-use destack_workspace::{LanguageOptions, Program};
+use destack_source::{DiagnosticSeverity, FileRegistry, FileSystem, FileType, MemoryFileSystem};
+use destack_workspace::{FormatterOptions, LinterOptions, Program};
 
 /// Outcome of checking a file for conformance testing.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -81,7 +79,7 @@ pub(super) struct ParseOptions {
 pub(super) fn parse_file(
     path: &Path,
     content: &str,
-    file_type: FileType,
+    _file_type: FileType,
     options: ParseOptions,
 ) -> ParseOutcome {
     let cwd = path.parent().unwrap_or(Path::new(".")).to_path_buf();
@@ -92,11 +90,7 @@ pub(super) fn parse_file(
         .expect("failed to add file to memory fs");
     let fs: Arc<dyn FileSystem> = memory_fs;
 
-    // set language type based on file type for proper compatibility mode
-    let language_type = LanguageType::from(file_type);
-    let language = LanguageOptions::default().with_type(language_type);
     let program = Arc::new(Program::new(
-        language,
         FormatterOptions::default(),
         LinterOptions::default(),
         cwd,

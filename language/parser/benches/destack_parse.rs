@@ -1,6 +1,6 @@
 use criterion::{BenchmarkId, Criterion, Throughput, black_box, criterion_group, criterion_main};
 use destack_parser::Parser;
-use destack_source::{File, FileId, FileType, LanguageOptions, Uri, glob};
+use destack_source::{File, FileId, FileType, LanguageType, Uri, glob};
 use pprof::criterion::{Output, PProfProfiler};
 use std::fs;
 use std::path::PathBuf;
@@ -58,8 +58,7 @@ fn bench_parse(c: &mut Criterion) {
     group.throughput(Throughput::Elements(line_count));
     group.bench_with_input(BenchmarkId::new("parse", "all"), &file, |b, file| {
         b.iter(|| {
-            let language = LanguageOptions::default();
-            let mut parser = Parser::lex_file(file.clone(), language);
+            let mut parser = Parser::lex_file(file.clone(), LanguageType::Destack);
             parser.parse();
             black_box(parser);
         });

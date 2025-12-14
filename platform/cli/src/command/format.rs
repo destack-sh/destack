@@ -7,10 +7,10 @@ use destack_fir::format as fir_format;
 use destack_formatter::{DestackFormatContext, DestackFormatOptions};
 use destack_parser::{Parser, colorize_source};
 use destack_source::{
-    DiagnosticOptions, DiagnosticSeverity, File, FileId, FileType, IndentStyle, LineEnding, Uri,
-    glob,
+    DiagnosticOptions, DiagnosticSeverity, File, FileId, FileType, IndentStyle, LanguageType,
+    LineEnding, Uri, glob,
 };
-use destack_workspace::{FormatterOptions, LanguageOptions, Program};
+use destack_workspace::{FormatterOptions, Program};
 use serde::Deserialize;
 
 use crate::command::{
@@ -166,9 +166,10 @@ fn check_and_print_errors(program: &Arc<Program>, diagnostic_options: &Diagnosti
 }
 
 /// Format a single file and return the formatted content.
-fn format_file(file: Arc<File>, language: LanguageOptions, program: Arc<Program>) -> String {
+fn format_file(file: Arc<File>, formatter: FormatterOptions, program: Arc<Program>) -> String {
     // parse file
-    let mut parser = Parser::lex_file(file.clone(), language.ty);
+    let language_type = LanguageType::from(file.ty);
+    let mut parser = Parser::lex_file(file.clone(), language_type);
     let expressions = parser.parse();
     parser.finish();
     program.diagnostics.merge_from(&parser.diagnostics);
@@ -178,11 +179,11 @@ fn format_file(file: Arc<File>, language: LanguageOptions, program: Arc<Program>
     let strings = parser.strings.into_immutable();
     let parents = NodeParentIndex::from_tree(&parser.tree);
     let format_options = DestackFormatOptions {
-        language_type: language.ty,
-        line_ending: language.formatting.line_ending,
-        indent_style: language.formatting.indent_style,
-        indent_width: language.formatting.indent_width,
-        line_width: language.formatting.line_width,
+        language_type,
+        line_ending: formatter.line_ending,
+        indent_style: formatter.indent_style,
+        indent_width: formatter.indent_width,
+        line_width: formatter.line_width,
     };
     let context = DestackFormatContext {
         options: format_options,
@@ -220,7 +221,7 @@ pub fn run(args: &FormatArgs) -> i32 {
     let check = args.check;
     let diagnostic_options: DiagnosticOptions = args.diagnostics.clone().into();
     let program = args.program.setup();
-    let default_formatting = program.language.formatting;
+    let default_formatting = program.formatter;
 
     // case 1: format inline string
     if let Some(ref string) = args.string {
@@ -235,7 +236,7 @@ pub fn run(args: &FormatArgs) -> i32 {
         ));
 
         // format and check for parse errors
-        let formatted = format_file(file.clone(), program.language, program.clone());
+        let formatted = format_file(file.clone(), program.formatter, program.clone());
         if check_and_print_errors(&program, &diagnostic_options) {
             return 1;
         }
@@ -263,7 +264,6 @@ pub fn run(args: &FormatArgs) -> i32 {
 
         // get formatting options from dsconfig
         let formatting_options = get_formatting_options(&path, default_formatting);
-        let language = program.language.with_formatting(formatting_options);
 
         // read and parse file
         let file = match get_string_or_file(
@@ -282,7 +282,7 @@ pub fn run(args: &FormatArgs) -> i32 {
         };
 
         // format file
-        let formatted = format_file(file.clone(), language, program.clone());
+        let formatted = format_file(file.clone(), formatting_options, program.clone());
         if check_and_print_errors(&program, &diagnostic_options) {
             return 1;
         }
@@ -338,7 +338,6 @@ pub fn run(args: &FormatArgs) -> i32 {
     for path in &paths {
         // get formatting options from dsconfig
         let formatting_options = get_formatting_options(path, default_formatting);
-        let language = program.language.with_formatting(formatting_options);
 
         // read file
         let content = match std::fs::read_to_string(path) {
@@ -362,7 +361,7 @@ pub fn run(args: &FormatArgs) -> i32 {
 
         // format file
         let file = program.files.get_by_uri(&uri).expect("file not found");
-        let formatted = format_file(file.clone(), language, program.clone());
+        let formatted = format_file(file.clone(), formatting_options, program.clone());
         files.push((path.clone(), content, formatted));
     }
 

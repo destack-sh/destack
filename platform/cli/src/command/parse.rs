@@ -1,7 +1,7 @@
 use clap::{ArgGroup, Args};
 use destack_ast::{Dumper, DumperOptions, NodeVisitor};
 use destack_parser::{Parser, colorize_source};
-use destack_source::DiagnosticOptions;
+use destack_source::{DiagnosticOptions, LanguageType};
 
 use crate::command::{
     DiagnosticArgs, DumpFormat, DumpKind, ProgramArgs, SourceArg, get_string_or_file,
@@ -70,7 +70,8 @@ pub fn run(args: &ParseArgs) -> i32 {
     };
 
     // parse as implicit module
-    let mut parser = Parser::lex_file(file.clone(), program.language.ty);
+    let language_type = LanguageType::from(file.ty);
+    let mut parser = Parser::lex_file(file.clone(), language_type);
     let expressions = parser.parse();
     program.diagnostics.merge_from(&parser.diagnostics);
 

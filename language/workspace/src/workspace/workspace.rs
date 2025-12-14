@@ -4,7 +4,7 @@ use std::sync::Arc;
 use dashmap::DashMap;
 use destack_source::{FileRegistry, FileSystem, PhysicalFileSystem};
 
-use crate::{FormatterOptions, LanguageOptions, LinterOptions, Program};
+use crate::{FormatterOptions, LinterOptions, Program};
 
 /// A workspace containing multiple program roots.
 #[derive(Debug)]
@@ -15,8 +15,6 @@ pub struct Workspace {
     pub fs: Arc<dyn FileSystem>,
     /// The files in the workspace.
     pub files: Arc<FileRegistry>,
-    /// The language options.
-    pub language: LanguageOptions,
     /// Default formatter options.
     pub formatter: FormatterOptions,
     /// Default linter options.
@@ -32,7 +30,6 @@ impl Workspace {
             cwd,
             fs: Arc::new(PhysicalFileSystem::new()),
             files: Arc::new(FileRegistry::new()),
-            language: LanguageOptions::default(),
             formatter: FormatterOptions::default(),
             linter: LinterOptions::default(),
             programs: DashMap::new(),
@@ -45,17 +42,10 @@ impl Workspace {
             cwd,
             fs,
             files: Arc::new(FileRegistry::new()),
-            language: LanguageOptions::default(),
             formatter: FormatterOptions::default(),
             linter: LinterOptions::default(),
             programs: DashMap::new(),
         }
-    }
-
-    /// Create a new Workspace with language options.
-    pub fn with_language(mut self, language: LanguageOptions) -> Self {
-        self.language = language;
-        self
     }
 
     /// Create a new Workspace with formatter options.
@@ -74,7 +64,6 @@ impl Workspace {
     /// Creates a new Program for the given root path.
     pub fn add_root(&self, root: PathBuf) -> Arc<Program> {
         let program = Arc::new(Program::new(
-            self.language,
             self.formatter,
             self.linter.clone(),
             root.clone(),

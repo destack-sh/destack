@@ -4,7 +4,7 @@ use std::path::Path;
 use std::sync::Arc;
 
 use destack_parser::Parser;
-use destack_source::{File, FileId, FileType, LanguageOptions, Uri};
+use destack_source::{File, FileId, FileType, LanguageType, Uri};
 use libfuzzer_sys::fuzz_target;
 
 fuzz_target!(|data: &[u8]| {
@@ -13,7 +13,6 @@ fuzz_target!(|data: &[u8]| {
     };
 
     // set up minimal context for parsing
-    let language = LanguageOptions::default();
     let file_id = FileId::new(0);
     let uri = Uri::from_path(Path::new("fuzz.ds"));
     let file = Arc::new(File::from_text(
@@ -26,7 +25,7 @@ fuzz_target!(|data: &[u8]| {
     ));
 
     // parse the input
-    let mut parser = Parser::lex_file(file, language);
+    let mut parser = Parser::lex_file(file, LanguageType::Destack);
     let _ = parser.parse();
     parser.finish();
 });

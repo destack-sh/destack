@@ -5,9 +5,8 @@ use destack_ast::{NodeParentIndex, NodeTree, TokenSpan};
 use destack_fir::format;
 use destack_fir::format::Format;
 use destack_parser::{ParseResult, Parser};
-use destack_source::{
-    File, FileId, FileType, ImmutableStringPool, LanguageOptions, MultiSpan, Uri,
-};
+use destack_base::ImmutableStringPool;
+use destack_source::{File, FileId, FileType, LanguageType, MultiSpan, Uri};
 
 /// A test wrapper for Formatter.
 #[derive(Debug)]
@@ -39,7 +38,7 @@ impl TestFormatter {
         let file = Arc::new(file);
 
         // parse
-        let language = LanguageOptions::default();
+        let language = LanguageType::default();
         let (side_span, tree, tokens, side_tokens, strings, n) = {
             let mut parser = Parser::lex_file(file.clone(), language);
             let n = parse_fn(&mut parser)?;

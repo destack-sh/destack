@@ -1,7 +1,7 @@
 use clap::{ArgGroup, Args};
 use destack_ast::{SemanticType, TokenSpan, TokenType};
 use destack_parser::{Lexer, is_semantic};
-use destack_source::File;
+use destack_source::{File, LanguageType};
 
 use crate::command::{ProgramArgs, SourceArg, get_string_or_file};
 use crate::console;
@@ -86,7 +86,8 @@ pub fn run(args: &LexArgs) -> i32 {
     } else {
         |_| true
     };
-    let (tokens, _) = Lexer::lex(file.id, text, program.language.ty);
+    let language_type = LanguageType::from(file.ty);
+    let (tokens, _) = Lexer::lex(file.id, text, language_type);
     let tokens: Vec<TokenSpan> = tokens
         .into_iter()
         .filter(|token| filter(token.token.ty))
