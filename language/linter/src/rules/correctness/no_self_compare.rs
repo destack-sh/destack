@@ -45,7 +45,7 @@ impl LintRule for NoSelfCompare {
         severity: LintSeverity,
         ctx: &mut LintModuleDirContext,
     ) {
-        ctx.for_each::<Expression, _>(|tree, expression, span| {
+        ctx.for_each::<Expression, _>(|tree, _node_id, expression, span| {
             if let Expression::Binary {
                 left,
                 operator,
