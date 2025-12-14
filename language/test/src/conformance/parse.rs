@@ -5,7 +5,7 @@ use std::sync::Arc;
 use destack_compiler::{
     AnalyzeError, AnalyzeTask, BindError, CompileOptions, Compiler, ImportError, ResolveError,
 };
-use destack_source::{DiagnosticSeverity, FileRegistry, FileSystem, FileType, MemoryFileSystem};
+use destack_source::{DiagnosticSeverity, FileRegistry, FileSystem, FileType, MemoryFileSystem, Uri};
 use destack_workspace::{FormatterOptions, LinterOptions, Program};
 
 /// Outcome of checking a file for conformance testing.
@@ -79,16 +79,12 @@ pub(super) struct ParseOptions {
 pub(super) fn parse_file(
     path: &Path,
     content: &str,
-    _file_type: FileType,
+    file_type: FileType,
     options: ParseOptions,
 ) -> ParseOutcome {
     let cwd = path.parent().unwrap_or(Path::new(".")).to_path_buf();
     let files = Arc::new(FileRegistry::new());
-    let memory_fs = Arc::new(MemoryFileSystem::new());
-    memory_fs
-        .add_file(path, content.as_bytes())
-        .expect("failed to add file to memory fs");
-    let fs: Arc<dyn FileSystem> = memory_fs;
+    let fs: Arc<dyn FileSystem> = Arc::new(MemoryFileSystem::new());
 
     let program = Arc::new(Program::new(
         FormatterOptions::default(),
@@ -98,7 +94,11 @@ pub(super) fn parse_file(
         files,
     ));
 
-    // create compiler and resolve module
+    // register module with the correct file type (important for JSX files with .js extension)
+    let uri = Uri::from_path(path);
+    let module_id = program.register_inline_module(uri, content.to_string(), file_type);
+
+    // create compiler and compile the module
     let compiler = Compiler::new(
         program.clone(),
         CompileOptions {
@@ -106,11 +106,6 @@ pub(super) fn parse_file(
             ..Default::default()
         },
     );
-
-    let module_id = match compiler.resolve_path_to_module(&path.to_path_buf()) {
-        Ok(id) => id,
-        Err(_) => return ParseOutcome::Error,
-    };
 
     // run up to analyze
     compiler.enqueue(AnalyzeTask::AnalyzeModuleValidate { module: module_id });
