@@ -1,5 +1,124 @@
 use indexmap::IndexMap;
 
+/// Lint rule categories.
+///
+/// Each category has a letter code used in lint identifiers (e.g., `LC001` for Correctness).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum LintCategory {
+    /// Correctness (C) lints detect likely bugs and logic errors.
+    /// These are high-confidence issues that are almost always wrong.
+    Correctness,
+
+    /// Suspicious (U) lints detect code that is likely unintentional.
+    /// These patterns are usually bugs but may occasionally be intentional.
+    Suspicious,
+
+    /// Performance (P) lints detect inefficient patterns.
+    /// The code is correct but could be faster or use less memory.
+    Performance,
+
+    /// Style (Y) lints enforce consistent coding style.
+    /// These are subjective preferences, not correctness issues.
+    Style,
+
+    /// Security (S) lints detect potential vulnerabilities.
+    /// These patterns may expose the application to attacks.
+    Security,
+
+    /// Complexity (X) lints detect overly complex code.
+    /// High complexity makes code harder to understand and maintain.
+    Complexity,
+
+    /// Restriction (R) lints enforce project-specific restrictions.
+    /// These are opt-in rules that ban certain patterns by choice.
+    Restriction,
+
+    /// Pedantic (D) lints are very strict or opinionated.
+    /// These may have false positives or be too noisy for some projects.
+    Pedantic,
+}
+
+impl LintCategory {
+    /// Get the category letter for diagnostic codes.
+    pub const fn letter(&self) -> char {
+        match self {
+            Self::Correctness => 'C',
+            Self::Suspicious => 'U',
+            Self::Performance => 'P',
+            Self::Style => 'Y',
+            Self::Security => 'S',
+            Self::Complexity => 'X',
+            Self::Restriction => 'R',
+            Self::Pedantic => 'D',
+        }
+    }
+
+    /// Get the category name.
+    pub const fn name(&self) -> &'static str {
+        match self {
+            Self::Correctness => "correctness",
+            Self::Suspicious => "suspicious",
+            Self::Performance => "performance",
+            Self::Style => "style",
+            Self::Security => "security",
+            Self::Complexity => "complexity",
+            Self::Restriction => "restriction",
+            Self::Pedantic => "pedantic",
+        }
+    }
+
+    /// Get the description of the category.
+    pub const fn description(&self) -> &'static str {
+        match self {
+            Self::Correctness => "detects likely bugs and logic errors",
+            Self::Suspicious => "detects code that is likely unintentional",
+            Self::Performance => "detects inefficient patterns",
+            Self::Style => "enforces consistent coding style",
+            Self::Security => "detects potential vulnerabilities",
+            Self::Complexity => "detects overly complex code",
+            Self::Restriction => "enforces project-specific restrictions",
+            Self::Pedantic => "very strict or opinionated checks",
+        }
+    }
+
+    /// Whether this category is part of the "recommended" set.
+    pub const fn is_recommended(&self) -> bool {
+        matches!(self, Self::Correctness | Self::Suspicious | Self::Security)
+    }
+
+    /// Default severity for rules in this category.
+    pub const fn default_severity(&self) -> LintSeverity {
+        match self {
+            Self::Correctness => LintSeverity::Error,
+            Self::Suspicious => LintSeverity::Warning,
+            Self::Performance => LintSeverity::Warning,
+            Self::Style => LintSeverity::Warning,
+            Self::Security => LintSeverity::Error,
+            Self::Complexity => LintSeverity::Warning,
+            Self::Restriction => LintSeverity::Off, // opt-in
+            Self::Pedantic => LintSeverity::Off,    // opt-in
+        }
+    }
+
+    /// All categories.
+    pub const ALL: &'static [LintCategory] = &[
+        Self::Correctness,
+        Self::Suspicious,
+        Self::Performance,
+        Self::Style,
+        Self::Security,
+        Self::Complexity,
+        Self::Restriction,
+        Self::Pedantic,
+    ];
+}
+
+impl std::fmt::Display for LintCategory {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.name())
+    }
+}
+
 /// Lint rule preset.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub enum LintPreset {
@@ -52,7 +171,7 @@ pub struct LinterOptions {
     /// Base preset (none, recommended, all).
     pub preset: LintPreset,
     /// Category-level severity overrides.
-    pub categories: IndexMap<String, LintSeverity>,
+    pub categories: IndexMap<LintCategory, LintSeverity>,
     /// Individual rule severity overrides.
     pub overrides: IndexMap<String, LintSeverity>,
 }
@@ -101,8 +220,8 @@ impl LinterOptions {
     }
 
     /// Set a category's severity.
-    pub fn with_category(mut self, category: impl Into<String>, severity: LintSeverity) -> Self {
-        self.categories.insert(category.into(), severity);
+    pub fn with_category(mut self, category: LintCategory, severity: LintSeverity) -> Self {
+        self.categories.insert(category, severity);
         self
     }
 
@@ -118,8 +237,8 @@ impl LinterOptions {
     }
 
     /// Get a category's configured severity (returns None if not overridden).
-    pub fn get_category_severity(&self, category: &str) -> Option<LintSeverity> {
-        self.categories.get(category).copied()
+    pub fn get_category_severity(&self, category: LintCategory) -> Option<LintSeverity> {
+        self.categories.get(&category).copied()
     }
 
     /// Resolve effective severity for a rule given its category and default severity.
@@ -128,9 +247,8 @@ impl LinterOptions {
     pub fn resolve_severity(
         &self,
         rule_id: &str,
-        category: &str,
+        category: LintCategory,
         default: LintSeverity,
-        is_recommended: bool,
     ) -> LintSeverity {
         // rule override takes precedence
         if let Some(severity) = self.overrides.get(rule_id) {
@@ -138,7 +256,7 @@ impl LinterOptions {
         }
 
         // category override
-        if let Some(severity) = self.categories.get(category) {
+        if let Some(severity) = self.categories.get(&category) {
             return *severity;
         }
 
@@ -146,7 +264,7 @@ impl LinterOptions {
         match self.preset {
             LintPreset::None => LintSeverity::Off,
             LintPreset::Recommended => {
-                if is_recommended {
+                if category.is_recommended() {
                     default
                 } else {
                     LintSeverity::Off

@@ -1,10 +1,7 @@
 use destack_source::{DiagnosticSeverity, FileId, ModuleId};
-use destack_workspace::LintSeverity;
+use destack_workspace::{LintCategory, LintSeverity};
 
-use super::{
-    LintCategory, LintModuleAstContext, LintModuleDirContext, LintModuleMirContext,
-    LintProgramContext,
-};
+use super::{LintModuleAstContext, LintModuleDirContext, LintModuleMirContext, LintProgramContext};
 
 /// The IR level at which a lint operates.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
