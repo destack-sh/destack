@@ -9,6 +9,9 @@ use destack_workspace::Program;
 /// Task to analyze something.
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub enum AnalyzeTask {
+    /// Analyze a module completely (declare, infer, validate).
+    AnalyzeModule { module: ModuleId },
+
     /// Analyze declarations.
     AnalyzeModuleDeclare { module: ModuleId },
 
@@ -23,9 +26,10 @@ impl AnalyzeTask {
     /// Get the sub code for the task.
     pub fn sub_code(&self) -> u8 {
         match self {
-            Self::AnalyzeModuleDeclare { .. } => 1,
-            Self::AnalyzeModuleInfer { .. } => 2,
-            Self::AnalyzeModuleValidate { .. } => 3,
+            Self::AnalyzeModule { .. } => 1,
+            Self::AnalyzeModuleDeclare { .. } => 2,
+            Self::AnalyzeModuleInfer { .. } => 3,
+            Self::AnalyzeModuleValidate { .. } => 4,
         }
     }
 }
@@ -33,6 +37,7 @@ impl AnalyzeTask {
 impl TaskDebug for AnalyzeTask {
     fn name(&self) -> &'static str {
         match self {
+            Self::AnalyzeModule { .. } => "module",
             Self::AnalyzeModuleDeclare { .. } => "module_declare",
             Self::AnalyzeModuleInfer { .. } => "module_infer",
             Self::AnalyzeModuleValidate { .. } => "module_validate",
@@ -41,6 +46,11 @@ impl TaskDebug for AnalyzeTask {
 
     fn trace_args(&self, program: &Program) -> String {
         match self {
+            Self::AnalyzeModule { module } => {
+                let module = program.modules.get(*module);
+                let uri = module.read().uri.clone().to_string();
+                format!(r#"module="{uri}""#)
+            }
             Self::AnalyzeModuleDeclare { module }
             | Self::AnalyzeModuleInfer { module }
             | Self::AnalyzeModuleValidate { module } => {
@@ -72,6 +82,9 @@ impl Compiler {
     /// Process an analyze task.
     pub fn process_analyze(&self, task: AnalyzeTask) -> AnalyzeResult<AnalyzeOutput> {
         match task {
+            AnalyzeTask::AnalyzeModule { module } => {
+                self.require_analyze_module_validate(module)?;
+            }
             AnalyzeTask::AnalyzeModuleDeclare { module } => {
                 self.require_resolve_module_canonical(module)?;
                 self.analyze_module_declare(module)?;
@@ -102,6 +115,14 @@ impl Compiler {
         module: ModuleId,
     ) -> Result<(), TaskDependencyError> {
         self.do_require_task_internal_only(AnalyzeTask::AnalyzeModuleInfer { module })
+    }
+
+    /// Ensure a module has been validated after analysis.
+    pub fn require_analyze_module_validate(
+        &self,
+        module: ModuleId,
+    ) -> Result<(), TaskDependencyError> {
+        self.do_require_task_internal_only(AnalyzeTask::AnalyzeModuleValidate { module })
     }
 
     /// Ensure a module has been fully analyzed (including checks).

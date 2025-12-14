@@ -186,7 +186,6 @@ pub enum Task {
     /// Lint the program.
     Lint(LintTask),
 }
-// nocheckin: add a "combined" task for every phase that just does them all? ("AnalyzeModule"->"AnalyzeModuleValidate")
 
 impl Task {
     /// Get the phase of the task.

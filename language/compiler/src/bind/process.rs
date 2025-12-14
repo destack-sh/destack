@@ -7,8 +7,12 @@ use destack_workspace::{Module, Program};
 /// Task to bind AST into DIR.
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub enum BindTask {
+    /// Bind a module completely (build, validate).
+    BindModule { module: ModuleId },
+
     /// Build DIR for a module by binding its AST.
     BindModuleBuild { module: ModuleId },
+
     /// Validate module semantics that depend on structural context (but not types).
     BindModuleValidate { module: ModuleId },
 }
@@ -17,8 +21,9 @@ impl BindTask {
     /// Get the sub code for the task.
     pub fn sub_code(&self) -> u8 {
         match self {
-            BindTask::BindModuleBuild { .. } => 1,
-            BindTask::BindModuleValidate { .. } => 2,
+            BindTask::BindModule { .. } => 1,
+            BindTask::BindModuleBuild { .. } => 2,
+            BindTask::BindModuleValidate { .. } => 3,
         }
     }
 }
@@ -26,6 +31,7 @@ impl BindTask {
 impl TaskDebug for BindTask {
     fn name(&self) -> &'static str {
         match self {
+            BindTask::BindModule { .. } => "module",
             BindTask::BindModuleBuild { .. } => "module_build",
             BindTask::BindModuleValidate { .. } => "module_validate",
         }
@@ -33,6 +39,11 @@ impl TaskDebug for BindTask {
 
     fn trace_args(&self, program: &Program) -> String {
         match self {
+            BindTask::BindModule { module } => {
+                let module = program.modules.get(*module);
+                let uri = module.read().uri.clone().to_string();
+                format!(r#"module="{uri}""#)
+            }
             BindTask::BindModuleBuild { module } | BindTask::BindModuleValidate { module } => {
                 let module = program.modules.get(*module);
                 let uri = module.read().uri.clone().to_string();
@@ -63,6 +74,9 @@ impl Compiler {
     /// Process a bind task.
     pub fn process_bind(&self, task: BindTask) -> BindResult<BindOutput> {
         match task {
+            BindTask::BindModule { module } => {
+                self.require_bind_module_build(module)?;
+            }
             BindTask::BindModuleBuild { module } => {
                 self.require_import_module(module)?;
                 let module = self.program.modules.get(module);

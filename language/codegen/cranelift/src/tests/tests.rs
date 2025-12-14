@@ -1,7 +1,7 @@
 use std::num::NonZeroU32;
 
-use destack_mir as mir;
 use destack_base::StringId;
+use destack_mir as mir;
 use destack_source::ModuleId;
 use destack_workspace::ModuleMir;
 

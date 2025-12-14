@@ -6,6 +6,9 @@ use destack_workspace::Program;
 /// Task to statically resolve something in-place.
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub enum ResolveTask {
+    /// Resolve a module completely (direct, canonical).
+    ResolveModule { module: ModuleId },
+
     /// Resolve expressions and dependency items (phase 1).
     /// Sets target_symbol for imports and populates namespace_exports.
     ResolveModuleDirect { module: ModuleId },
@@ -19,8 +22,9 @@ impl ResolveTask {
     /// Get the sub code for the task.
     pub fn sub_code(&self) -> u8 {
         match self {
-            ResolveTask::ResolveModuleDirect { .. } => 1,
-            ResolveTask::ResolveModuleCanonical { .. } => 2,
+            ResolveTask::ResolveModule { .. } => 1,
+            ResolveTask::ResolveModuleDirect { .. } => 2,
+            ResolveTask::ResolveModuleCanonical { .. } => 3,
         }
     }
 }
@@ -28,6 +32,7 @@ impl ResolveTask {
 impl TaskDebug for ResolveTask {
     fn name(&self) -> &'static str {
         match self {
+            ResolveTask::ResolveModule { .. } => "module",
             ResolveTask::ResolveModuleDirect { .. } => "module_direct",
             ResolveTask::ResolveModuleCanonical { .. } => "module_canonical",
         }
@@ -35,6 +40,11 @@ impl TaskDebug for ResolveTask {
 
     fn trace_args(&self, program: &Program) -> String {
         match self {
+            ResolveTask::ResolveModule { module } => {
+                let module = program.modules.get(*module);
+                let uri = module.read().uri.clone().to_string();
+                format!(r#"module="{uri}""#)
+            }
             ResolveTask::ResolveModuleDirect { module }
             | ResolveTask::ResolveModuleCanonical { module } => {
                 let module = program.modules.get(*module);
@@ -65,6 +75,9 @@ impl Compiler {
     /// Process a resolve task.
     pub fn process_resolve(&self, task: ResolveTask) -> ResolveResult<ResolveOutput> {
         match task {
+            ResolveTask::ResolveModule { module } => {
+                self.require_resolve_module_canonical(module)?;
+            }
             ResolveTask::ResolveModuleDirect { module } => {
                 self.require_bind_module_validate(module)?;
                 self.resolve_module_direct(module)?;
