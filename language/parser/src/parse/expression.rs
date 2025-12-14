@@ -388,8 +388,11 @@ impl Parser {
             descriptor.export = mode;
         }
 
-        // kind
-        descriptor.kind = if self.peek_keyword(Keyword::Declare).is_ok() {
+        // kind (declare must not be followed by newline, similar to abstract)
+        descriptor.kind = if self.peek_keyword(Keyword::Declare).is_ok()
+            && self.peek_next_token(TokenType::Newline).is_err()
+            && self.peek_next_any_keyword().is_ok_and(|kw| DECLARATION_KEYWORDS.contains(&kw))
+        {
             self.bump(); // eat declare
             DeclarationKind::Declaration
         } else {

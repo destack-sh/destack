@@ -8,14 +8,14 @@ Conformance tests check that the Destack parser conforms both to the ECMAScript 
 <!-- begin:summary-results -->
 | Suite    | Passed | Failed | Skipped | Total |  Rate   |
 |:---------|-------:|-------:|--------:|------:|--------:|
-| babel    |   482  |   228  |     5  |   710 |  67.89% |
-| biome    |   412  |   225  |     -  |   637 |  64.68% |
+| babel    |   484  |   224  |     7  |   708 |  68.36% |
+| biome    |   415  |   222  |     -  |   637 |  65.15% |
 | swc      |   401  |   137  |     -  |   538 |  74.54% |
 | test262  |  4360  |  1003  |     -  |  5363 |  81.30% |
 |----------|--------|--------|---------|-------|---------|
-| total    |  5655  |  1593  |      5  |  7248 |  78.02% |
+| total    |  5660  |  1586  |      7  |  7246 |  78.11% |
 
-Total Blended Pass Rate: **78.02%**
+Total Blended Pass Rate: **78.11%**
 <!-- end:summary-results -->
 
 ### babel
@@ -30,9 +30,9 @@ Total Blended Pass Rate: **78.02%**
 | binary-expression    |     2  |     0  |     2 | 100.00% |
 | cast                 |    30  |     7  |    37 |  81.08% |
 | catch-clause         |     1  |     0  |     1 | 100.00% |
-| class                |    56  |    41  |    97 |  57.73% |
+| class                |    57  |    40  |    97 |  58.76% |
 | const                |     1  |     3  |     4 |  25.00% |
-| declare              |    13  |    14  |    27 |  48.15% |
+| declare              |    15  |    12  |    27 |  55.56% |
 | decorators           |     1  |     1  |     2 |  50.00% |
 | disallow-jsx-ambiguity |     3  |     0  |     3 | 100.00% |
 | dts                  |     3  |     2  |     5 |  60.00% |
@@ -46,11 +46,11 @@ Total Blended Pass Rate: **78.02%**
 | import               |    13  |     8  |    21 |  61.90% |
 | interface            |    33  |    14  |    47 |  70.21% |
 | legacy-decorators    |     1  |     1  |     2 |  50.00% |
-| module-namespace     |    15  |     3  |    18 |  83.33% |
+| module-namespace     |    13  |     3  |    16 |  81.25% |
 | optional-chaining    |     1  |     0  |     1 | 100.00% |
 | regression           |    21  |     4  |    25 |  84.00% |
 | scope                |    46  |    20  |    66 |  69.70% |
-| static-blocks        |    18  |     2  |    20 |  90.00% |
+| static-blocks        |    19  |     1  |    20 |  95.00% |
 | tsx                  |     5  |     3  |     8 |  62.50% |
 | type-alias           |     5  |     2  |     7 |  71.43% |
 | type-arguments       |    27  |     6  |    33 |  81.82% |
@@ -60,17 +60,17 @@ Total Blended Pass Rate: **78.02%**
 | types-arrow-function |     3  |     0  |     3 | 100.00% |
 | variable-declarator  |     1  |     2  |     3 |  33.33% |
 |----------------------|--------|--------|-------|---------|
-| total                |   482  |   228  |   710 |  67.89% |
+| total                |   484  |   224  |   708 |  68.36% |
 <!-- end:babel-results -->
 
 ### biome
 <!-- begin:biome-results -->
 | Category             | Passed | Failed | Total |  Rate   |
 |:---------------------|-------:|-------:|------:|--------:|
-| error                |   195  |   107  |   302 |  64.57% |
-| ok                   |   217  |   118  |   335 |  64.78% |
+| error                |   196  |   106  |   302 |  64.90% |
+| ok                   |   219  |   116  |   335 |  65.37% |
 |----------------------|--------|--------|-------|---------|
-| total                |   412  |   225  |   637 |  64.68% |
+| total                |   415  |   222  |   637 |  65.15% |
 <!-- end:biome-results -->
 
 ### swc
@@ -138,16 +138,12 @@ Total Blended Pass Rate: **78.02%**
 | total                |  4360  |  1003  |  5363 |  81.30% |
 <!-- end:test262-results -->
 
-## Why Not 100%?
+## Notes
 
 We do not expect to reach 100% conformance because:
 
-1. **Destack is TSX**: `.ds` files are more like `.tsx` than `.ts` or `.js`. Just like `.tsx` is not 100% compatible with `.ts`, `.ds` is not 100% compatible with `.ts` or `.js`.
-
-2. **Destack is TypeScript++**: `.ds` files override some obscure TypeScript syntax patterns with more useful features (like tuples with `()` instead of sequence operators).
-
-## Notes
-
+- **TSX**: `.ds` files are more like `.tsx` than `.ts` or `.js`. Just like `.tsx` is not 100% compatible with `.ts`, `.ds` is not 100% compatible with `.ts` or `.js`. (We still strive for 100% compatibility *within* `.js` and `.ts` files.)
+- **TypeScript++**: `.ds` files override some obscure TypeScript syntax patterns with more useful features (like tuples with `()` instead of sequence operators).
 - **Annex B**: Our test262 suite does not include Annex B tests. We do not support legacy syntax.
 - **Flow**: Flow is intentionally excluded because it's rarely used anymore. We target modern JS/TS only.
 - **Strict**: Non-strict ("sloppy mode") behaviors are not supported. We target strict-mode JS/TS. 
