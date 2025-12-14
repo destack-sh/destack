@@ -1591,6 +1591,11 @@ pub(crate) fn format_expression<'ast>(
             write!(f, [operator, space(), right])?;
         }
 
+        // debugger
+        Expression::Debugger => {
+            write!(f, [token("debugger")])?;
+        }
+
         // stub (placeholder for annotation-only files)
         Expression::Stub => {}
 

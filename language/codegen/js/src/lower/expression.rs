@@ -441,6 +441,13 @@ impl ModuleLowerer<'_> {
                     .into_any()
             }
 
+            dir::Expression::Debugger => {
+                let statement = Statement::Debugger;
+                self.tree
+                    .insert_from_source(statement, self.module.id, expression_id)
+                    .into_any()
+            }
+
             dir::Expression::Stub => {
                 let expression = Expression::Stub;
                 self.tree

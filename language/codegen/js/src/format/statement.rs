@@ -264,6 +264,9 @@ impl<'ast> FormatNode<'ast, Statement> for Statement {
                     write!(f, [space(), value])?;
                 }
             }
+            Statement::Debugger => {
+                write!(f, [Keyword::Debugger])?;
+            }
         }
 
         Ok(())

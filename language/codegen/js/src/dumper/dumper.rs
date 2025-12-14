@@ -771,6 +771,9 @@ impl<'a> NodeVisitor for Dumper<'a> {
             Statement::Return { value: _ } => {
                 self.node("Statement::Return", id.id).end();
             }
+            Statement::Debugger => {
+                self.node("Statement::Debugger", id.id).end();
+            }
         }
         self.with_depth(|dumper| {
             walk_statement(dumper, tree, id, statement);

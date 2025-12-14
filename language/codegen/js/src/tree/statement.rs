@@ -102,6 +102,8 @@ pub enum Statement {
     Return {
         value: Option<LocalNodeId<Expression>>,
     },
+    /// Debugger statement.
+    Debugger,
 }
 
 impl Node for Statement {
@@ -137,7 +139,8 @@ impl Statement {
             | Statement::Throw { .. }
             | Statement::Continue { .. }
             | Statement::Break { .. }
-            | Statement::Return { .. } => true,
+            | Statement::Return { .. }
+            | Statement::Debugger => true,
         }
     }
 }

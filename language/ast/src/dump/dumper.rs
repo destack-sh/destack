@@ -1004,6 +1004,9 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .field("operator", operator)
                     .end();
             }
+            Expression::Debugger => {
+                self.node("Expression::Debugger", _id.id).end();
+            }
             Expression::Stub => {
                 self.node("Expression::Stub", _id.id).end();
             }

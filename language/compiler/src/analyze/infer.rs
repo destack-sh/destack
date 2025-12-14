@@ -952,6 +952,14 @@ impl Compiler {
                 types.insert_type_from(ty, expression_id)
             }
 
+            // debugger -> void
+            Expression::Debugger => {
+                let ty = Type::TypeLiteral {
+                    value: TypeLiteral::Void,
+                };
+                types.insert_type_from(ty, expression_id)
+            }
+
             // stub -> nothing to do
             Expression::Stub => {
                 let ty = Type::TypeLiteral {

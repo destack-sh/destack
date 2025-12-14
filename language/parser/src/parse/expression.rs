@@ -908,6 +908,12 @@ impl Parser {
             else if keyword == Some(Keyword::Return) {
                 self.eat_return()?
             }
+            // debugger
+            else if keyword == Some(Keyword::Debugger) {
+                self.bump(); // eat `debugger`
+                self.tree
+                    .insert(Expression::Debugger, self.get_span_from(start))
+            }
             //
             // ------------------------------------------------------------
             // Literals / Aliases / Values

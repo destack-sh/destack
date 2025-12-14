@@ -668,6 +668,15 @@ pub enum Expression {
         right: LocalNodeId<Expression>,
     },
 
+    /// Debugger statement.
+    ///
+    /// Examples:
+    /// ```
+    /// debugger
+    /// debugger;
+    /// ```
+    Debugger,
+
     /// Stub placeholder.
     Stub,
 
@@ -730,6 +739,7 @@ impl Expression {
                 | Expression::Continue { .. }
                 | Expression::Return { .. }
                 | Expression::Assign { .. }
+                | Expression::Debugger
         )
     }
 }
