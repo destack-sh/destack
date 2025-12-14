@@ -6,7 +6,7 @@ use serde::Deserialize;
 
 use destack_source::{File, FileContent, FileId, IndentStyle, LineEnding};
 
-use crate::{FormatterOptions, LintPreset, LintSeverity, LinterOptions};
+use crate::{FormatterOptions, LintCategory, LintPreset, LintSeverity, LinterOptions};
 
 use super::target::{
     OptimizeLevel, OutputFormat, OutputMode, Platform, Runtime, ShrinkLevel, Target,
@@ -213,7 +213,7 @@ impl DsConfig {
                 self.options
                     .linter
                     .categories
-                    .insert(category.clone(), *severity);
+                    .insert(*category, *severity);
             }
         }
         // merge rule overrides (child takes precedence)
@@ -1093,7 +1093,7 @@ pub struct DsConfigLinterRulesJson {
     /// Enable all rules (shorthand for preset: "all").
     pub all: Option<bool>,
     /// Category-level severity overrides.
-    pub categories: Option<IndexMap<String, RuleSeverityJson>>,
+    pub categories: Option<IndexMap<LintCategoryJson, RuleSeverityJson>>,
     /// Individual rule overrides (rule name -> severity).
     #[serde(flatten)]
     pub overrides: IndexMap<String, RuleSeverityJson>,
@@ -1122,7 +1122,7 @@ impl DsConfigLinterRulesJson {
             for (category, severity) in categories {
                 options
                     .categories
-                    .insert(category.clone(), (*severity).into());
+                    .insert((*category).into(), (*severity).into());
             }
         }
 
@@ -1152,6 +1152,44 @@ impl From<RuleSeverityJson> for LintSeverity {
             RuleSeverityJson::Off => LintSeverity::Off,
             RuleSeverityJson::Warn => LintSeverity::Warning,
             RuleSeverityJson::Error => LintSeverity::Error,
+        }
+    }
+}
+
+/// Lint category for JSON deserialization.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "lowercase")]
+pub enum LintCategoryJson {
+    /// Correctness lints detect likely bugs and logic errors.
+    Correctness,
+    /// Suspicious lints detect code that is likely unintentional.
+    Suspicious,
+    /// Performance lints detect inefficient patterns.
+    Performance,
+    /// Style lints enforce consistent coding style.
+    Style,
+    /// Security lints detect potential vulnerabilities.
+    Security,
+    /// Complexity lints detect overly complex code.
+    Complexity,
+    /// Restriction lints enforce project-specific restrictions.
+    Restriction,
+    /// Pedantic lints are very strict or opinionated.
+    Pedantic,
+}
+
+impl From<LintCategoryJson> for LintCategory {
+    fn from(value: LintCategoryJson) -> Self {
+        match value {
+            LintCategoryJson::Correctness => LintCategory::Correctness,
+            LintCategoryJson::Suspicious => LintCategory::Suspicious,
+            LintCategoryJson::Performance => LintCategory::Performance,
+            LintCategoryJson::Style => LintCategory::Style,
+            LintCategoryJson::Security => LintCategory::Security,
+            LintCategoryJson::Complexity => LintCategory::Complexity,
+            LintCategoryJson::Restriction => LintCategory::Restriction,
+            LintCategoryJson::Pedantic => LintCategory::Pedantic,
         }
     }
 }

@@ -116,14 +116,14 @@ impl Compiler {
             LintLevel::Dir,
         );
 
+        // #Incomplete: run comptime/user-defined lints?
+
         // collect diagnostics
         for diagnostic in ast_diagnostics.into_iter().chain(dir_diagnostics) {
             self.program
                 .diagnostics
                 .insert(diagnostic.into_diagnostic());
         }
-
-        // #Incomplete: run comptime/user-defined lints?
 
         Ok(())
     }
@@ -175,8 +175,7 @@ debugger;
     fn test_lint_module_detects_empty_block() {
         let test = TestProgram::memory_sequential();
         let module = test.add_module(
-            "test.ds",
-            r#"
+            "test.ds", r#"
 {}
 "#,
         );

@@ -8,7 +8,7 @@
       "description": "Extends other dsconfigs or tsconfigs.",
       "anyOf": [
         {
-          "$ref": "#/$defs/DsConfigExtendsField"
+          "$ref": "#/$defs/ExtendsFieldJson"
         },
         {
           "type": "null"
@@ -47,7 +47,7 @@
     },
     "compilerOptions": {
       "description": "Compiler options.",
-      "$ref": "#/$defs/DsConfigCompilerOptionsJson"
+      "$ref": "#/$defs/CompilerOptionsJson"
     },
     "formatter": {
       "description": "Formatter options.",
@@ -69,7 +69,7 @@
     }
   },
   "$defs": {
-    "DsConfigExtendsField": {
+    "ExtendsFieldJson": {
       "description": "Value for the \"extends\" field of a dsconfig.",
       "anyOf": [
         {
@@ -85,59 +85,10 @@
         }
       ]
     },
-    "DsConfigCompilerOptionsJson": {
+    "CompilerOptionsJson": {
       "description": "Destack configuration compiler options.",
       "type": "object",
       "properties": {
-        "allowExpressions": {
-          "description": "Allow expression-oriented features: implicit returns, `loop`, `defer`, ranges, tuples, patterns.",
-          "type": [
-            "boolean",
-            "null"
-          ]
-        },
-        "allowTrees": {
-          "description": "Allow tree literals: TSX-like syntax generalized for any tree-shaped data.",
-          "type": [
-            "boolean",
-            "null"
-          ]
-        },
-        "allowAnnotations": {
-          "description": "Allow annotations: decorators (`@`) extended to any expression.",
-          "type": [
-            "boolean",
-            "null"
-          ]
-        },
-        "allowTypes": {
-          "description": "Allow type system extensions: newtypes, primitives, structs, constraints.",
-          "type": [
-            "boolean",
-            "null"
-          ]
-        },
-        "allowReflection": {
-          "description": "Allow reflection: types as values, runtime type descriptors, decorator metadata.",
-          "type": [
-            "boolean",
-            "null"
-          ]
-        },
-        "allowDispatch": {
-          "description": "Allow dispatch: extensions and overloading (type-based method/function dispatch).",
-          "type": [
-            "boolean",
-            "null"
-          ]
-        },
-        "allowOwnership": {
-          "description": "Allow ownership: value ownership (`&T`, `^T`), mutability (`var`), and explicit dispatch.",
-          "type": [
-            "boolean",
-            "null"
-          ]
-        },
         "baseUrl": {
           "description": "Base URL for resolving non-relative module names.",
           "type": [
@@ -371,6 +322,13 @@
             "null"
           ]
         },
+        "noReferentialEquality": {
+          "description": "Forbid referential equality.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
         "noDynamicEvaluation": {
           "description": "Forbid `eval()` and `Function` constructor.",
           "type": [
@@ -589,19 +547,36 @@
       "description": "Linter rules configuration.",
       "type": "object",
       "properties": {
+        "preset": {
+          "description": "Preset: \"none\", \"recommended\", or \"all\".",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "recommended": {
-          "description": "Enable the recommended rule set. Default: true.",
+          "description": "Enable the recommended rule set (shorthand for preset: \"recommended\").",
           "type": [
             "boolean",
             "null"
           ]
         },
         "all": {
-          "description": "Enable all rules (stricter than recommended).",
+          "description": "Enable all rules (shorthand for preset: \"all\").",
           "type": [
             "boolean",
             "null"
           ]
+        },
+        "categories": {
+          "description": "Category-level severity overrides.",
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": {
+            "$ref": "#/$defs/RuleSeverityJson"
+          }
         }
       },
       "additionalProperties": {

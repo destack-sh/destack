@@ -1,8 +1,7 @@
 use destack_source::{Diagnostic, DiagnosticSeverity, FileId, LabeledSpan, Span, Suggestion};
-use destack_workspace::LintSeverity;
+use destack_workspace::{LintCategory, LintSeverity};
 
 use super::LintFix;
-use crate::linter::LintCategory;
 
 /// A lint diagnostic produced by a lint rule.
 #[derive(Debug, Clone)]

@@ -110,6 +110,7 @@ function foo() {}
 
     #[test]
     fn test_no_empty_module_level() {
+        // implicit module-level blocks should not trigger
         let test = TestProgram::for_rule(NoEmptyBlock);
         let result = test.lint_ast(
             "test.ds",

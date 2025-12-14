@@ -1,0 +1,778 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "DsConfigJson",
+  "description": "DsConfig JSON (usually from `dsconfig.json`)",
+  "type": "object",
+  "properties": {
+    "extends": {
+      "description": "Extends other dsconfigs or tsconfigs.",
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ExtendsFieldJson"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "files": {
+      "description": "Specific files to include in the project.",
+      "type": [
+        "array",
+        "null"
+      ],
+      "items": {
+        "type": "string"
+      }
+    },
+    "include": {
+      "description": "Glob patterns for files to include.",
+      "type": [
+        "array",
+        "null"
+      ],
+      "items": {
+        "type": "string"
+      }
+    },
+    "exclude": {
+      "description": "Glob patterns for files to exclude.",
+      "type": [
+        "array",
+        "null"
+      ],
+      "items": {
+        "type": "string"
+      }
+    },
+    "compilerOptions": {
+      "description": "Compiler options.",
+      "$ref": "#/$defs/CompilerOptionsJson"
+    },
+    "formatter": {
+      "description": "Formatter options.",
+      "$ref": "#/$defs/DsConfigFormatterJson"
+    },
+    "linter": {
+      "description": "Linter options.",
+      "$ref": "#/$defs/DsConfigLinterJson"
+    },
+    "targets": {
+      "description": "Build targets.",
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": {
+        "$ref": "#/$defs/DsConfigTargetJson"
+      }
+    }
+  },
+  "$defs": {
+    "ExtendsFieldJson": {
+      "description": "Value for the \"extends\" field of a dsconfig.",
+      "anyOf": [
+        {
+          "description": "Extend a single dsconfig.",
+          "type": "string"
+        },
+        {
+          "description": "Extend multiple dsconfigs.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      ]
+    },
+    "CompilerOptionsJson": {
+      "description": "Destack configuration compiler options.",
+      "type": "object",
+      "properties": {
+        "baseUrl": {
+          "description": "Base URL for resolving non-relative module names.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "paths": {
+          "description": "Path alias mappings (resolved relative to baseUrl, like tsconfig paths).",
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "module": {
+          "description": "Module format for output (e.g., \"esnext\", \"commonjs\").",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "target": {
+          "description": "ECMAScript target version (e.g., \"es2022\", \"esnext\").",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "lib": {
+          "description": "Library files to include (e.g., [\"es2024\", \"dom\"]).",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "strict": {
+          "description": "Enable all TypeScript-derived strict type-checking options. Default: true for .ds files.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "noImplicitAny": {
+          "description": "Error on expressions and declarations with implied `any` type.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "strictNullChecks": {
+          "description": "Enable strict null checks (`null` and `undefined` are distinct types).",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "noImplicitThis": {
+          "description": "Error on `this` expressions with implied `any` type.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "strictFunctionTypes": {
+          "description": "Enable strict checking of function types (contravariant parameters).",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "strictBindCallApply": {
+          "description": "Enable strict checking of `bind`, `call`, and `apply` methods.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "strictPropertyInitialization": {
+          "description": "Require class properties to be initialized in constructor.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "useUnknownInCatchVariables": {
+          "description": "Use `unknown` instead of `any` for catch clause variables.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "noUnusedLocals": {
+          "description": "Report errors on unused local variables.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "noUnusedParameters": {
+          "description": "Report errors on unused function parameters.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "noImplicitReturns": {
+          "description": "Report error when not all code paths return a value.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "allowUnreachableCode": {
+          "description": "Allow unreachable code (disables dead code warnings).",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "noImplicitOverride": {
+          "description": "Require `override` keyword when overriding class members.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "noFallthroughCasesInSwitch": {
+          "description": "Report errors for fallthrough cases in switch statements.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "exactOptionalPropertyTypes": {
+          "description": "Interpret optional property types as written (no implicit `undefined`).",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "noUncheckedIndexedAccess": {
+          "description": "Add `undefined` to index signature results (safer array access).",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "noAny": {
+          "description": "Forbid use of `any` type.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "noUnknown": {
+          "description": "Forbid use of `unknown` type.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "noImprecisePrimitives": {
+          "description": "Require precise primitive types (int32 vs number, etc.).",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "noImplicitConversions": {
+          "description": "Require explicit widening/narrowing conversions.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "noUnsafeTypeAssertions": {
+          "description": "Forbid unsafe type assertions (`as T`).",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "noImplicitSelf": {
+          "description": "Require explicit `self.` for member access in methods.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "noArguments": {
+          "description": "Forbid `arguments` object (use rest parameters instead).",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "noRedeclaredLocals": {
+          "description": "Forbid re-declaration of local variables.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "noImplicitManagedType": {
+          "description": "Require `^T` or `&T` in type positions (no implicit managed types).",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "noImplicitManagedValue": {
+          "description": "Require explicit copy/borrow at call sites (no implicit managed values).",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "noManaged": {
+          "description": "Forbid managed runtime features entirely (no &T at all, pure value types only).",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "noReferentialEquality": {
+          "description": "Forbid referential equality.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "noDynamicEvaluation": {
+          "description": "Forbid `eval()` and `Function` constructor.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "noGlobalThis": {
+          "description": "Forbid `globalThis` access.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "noDynamicImport": {
+          "description": "Forbid dynamic `import()` and `require()` expressions.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "noDynamicShapes": {
+          "description": "Forbid defineProperty, prototype mutation, delete (require static object shapes).",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "noComputedPropertyAccess": {
+          "description": "Forbid computed property access `obj[expr]` where expr isn't constant.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "noProxy": {
+          "description": "Forbid `Proxy`.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "noImplicitDynamicDispatch": {
+          "description": "Require overloads to be statically resolvable (no implicit runtime dispatch).",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "noExceptions": {
+          "description": "Forbid `throw` and `try`/`catch` (use Result types instead).",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "rootDir": {
+          "description": "Root directory of source files (controls output directory structure, not module resolution).",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "outDir": {
+          "description": "Output directory for compiled files.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "declarationDir": {
+          "description": "Output directory for declaration files (.d.ts). Defaults to outDir.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "tsconfig": {
+          "description": "Path to tsconfig.json to inherit settings from.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "allowTs": {
+          "description": "Allow TypeScript files (.ts, .tsx) in the project.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "checkTs": {
+          "description": "Type-check TypeScript files.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "allowJs": {
+          "description": "Allow JavaScript files (.js, .jsx) in the project.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "checkJs": {
+          "description": "Type-check JavaScript files.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "skipLibCheck": {
+          "description": "Skip type checking of declaration files (.d.ts, .d.ds).",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        }
+      }
+    },
+    "DsConfigFormatterJson": {
+      "description": "Formatter options (top-level, like Biome/Deno).",
+      "type": "object",
+      "properties": {
+        "lineEnding": {
+          "description": "Line ending style: \"lf\", \"crlf\", or \"cr\".",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/LineEndingJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "indentStyle": {
+          "description": "Indent style: \"tab\" or \"space\".",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/IndentStyleJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "indentWidth": {
+          "description": "Number of spaces per indent (when using spaces). Default: 4.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint8",
+          "minimum": 0,
+          "maximum": 255
+        },
+        "lineWidth": {
+          "description": "Maximum line width (best effort). Default: 100.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint8",
+          "minimum": 0,
+          "maximum": 255
+        }
+      }
+    },
+    "LineEndingJson": {
+      "description": "Line ending style for JSON deserialization.",
+      "oneOf": [
+        {
+          "description": "Unix-style line endings (LF).",
+          "type": "string",
+          "const": "lf"
+        },
+        {
+          "description": "Windows-style line endings (CRLF).",
+          "type": "string",
+          "const": "crlf"
+        },
+        {
+          "description": "Classic Mac-style line endings (CR).",
+          "type": "string",
+          "const": "cr"
+        }
+      ]
+    },
+    "IndentStyleJson": {
+      "description": "Indent style for JSON deserialization.",
+      "type": "string",
+      "enum": [
+        "tab",
+        "space"
+      ]
+    },
+    "DsConfigLinterJson": {
+      "description": "Linter options (top-level, like Biome/Deno).",
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "description": "Whether linting is enabled. Default: true.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "rules": {
+          "description": "Rule configuration.",
+          "$ref": "#/$defs/DsConfigLinterRulesJson"
+        }
+      }
+    },
+    "DsConfigLinterRulesJson": {
+      "description": "Linter rules configuration.",
+      "type": "object",
+      "properties": {
+        "preset": {
+          "description": "Preset: \"none\", \"recommended\", or \"all\".",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "recommended": {
+          "description": "Enable the recommended rule set (shorthand for preset: \"recommended\").",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "all": {
+          "description": "Enable all rules (shorthand for preset: \"all\").",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "categories": {
+          "description": "Category-level severity overrides.",
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": {
+            "$ref": "#/$defs/RuleSeverityJson"
+          }
+        }
+      },
+      "additionalProperties": {
+        "$ref": "#/$defs/RuleSeverityJson"
+      }
+    },
+    "RuleSeverityJson": {
+      "description": "Rule severity for JSON deserialization.",
+      "oneOf": [
+        {
+          "description": "Rule is disabled.",
+          "type": "string",
+          "const": "off"
+        },
+        {
+          "description": "Rule produces warnings.",
+          "type": "string",
+          "const": "warn"
+        },
+        {
+          "description": "Rule produces errors.",
+          "type": "string",
+          "const": "error"
+        }
+      ]
+    },
+    "DsConfigTargetJson": {
+      "description": "Destack build target configuration.",
+      "type": "object",
+      "properties": {
+        "entry": {
+          "description": "Entry points for entry-based discovery (bundled/executable targets).\nIf set, discovery mode is Entry; otherwise it's Include.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "include": {
+          "description": "Glob patterns for files to include (for include-based discovery).",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "exclude": {
+          "description": "Glob patterns for files to exclude.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "output": {
+          "description": "Output format (e.g., JavaScript, TypeScript, WebAssembly, Native).",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/OutputFormatJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "runtime": {
+          "description": "Runtime environment (e.g., Browser, Node, Deno, Bun, Worker, Workerd).",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "platform": {
+          "description": "Target platform (e.g., Web, Windows, macOS, Linux, iOS, Android, WASI, Universal).",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "declaration": {
+          "description": "Emit declaration files (.d.ts) alongside JS output.",
+          "type": "boolean",
+          "default": false
+        },
+        "sourceMap": {
+          "description": "Emit source maps.",
+          "type": "boolean",
+          "default": false
+        },
+        "outDir": {
+          "description": "Output directory for this target (overrides compilerOptions.outDir).",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "outFile": {
+          "description": "Output file for single-file targets like wasm (e.g., \"./dist/core.wasm\").",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "declarationDir": {
+          "description": "Separate directory for declaration files (overrides compilerOptions.declarationDir).",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "module": {
+          "description": "Module format for this target (overrides compilerOptions.module).",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "esTarget": {
+          "description": "ECMAScript target for this target (overrides compilerOptions.target).",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "lib": {
+          "description": "Library files for this target (overrides derived libs).",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "debug": {
+          "description": "Whether this is a debug build.",
+          "type": "boolean",
+          "default": false
+        },
+        "optimize": {
+          "description": "Whether optimization is enabled.",
+          "type": "boolean",
+          "default": false
+        },
+        "optimizeLevel": {
+          "description": "Optimization level (0-3).",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint8",
+          "minimum": 0,
+          "maximum": 255
+        },
+        "shrinkLevel": {
+          "description": "Shrink level (0-3).",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint8",
+          "minimum": 0,
+          "maximum": 255
+        }
+      }
+    },
+    "OutputFormatJson": {
+      "description": "Output format for JSON deserialization.",
+      "oneOf": [
+        {
+          "description": "JavaScript (.js).",
+          "type": "string",
+          "const": "js"
+        },
+        {
+          "description": "TypeScript (.ts).",
+          "type": "string",
+          "const": "ts"
+        },
+        {
+          "description": "WebAssembly (.wasm).",
+          "type": "string",
+          "const": "wasm"
+        },
+        {
+          "description": "Native binary.",
+          "type": "string",
+          "const": "native"
+        }
+      ]
+    }
+  }
+}
