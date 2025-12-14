@@ -70,7 +70,7 @@ impl DiagnosticAnchor {
                     .map(|c| (c.file_id, Span::empty(c.file_id)))
                     .or_else(|| {
                         package
-                            .package_config
+                            .manifest
                             .as_ref()
                             .map(|c| (c.file_id, Span::empty(c.file_id)))
                     })

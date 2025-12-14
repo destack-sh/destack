@@ -6,7 +6,7 @@ use serde::Deserialize;
 
 use destack_source::{File, FileContent, FileId, IndentStyle, LineEnding};
 
-use crate::{FormatterOptions, LinterOptions, LinterRules, RuleSeverity};
+use crate::{FormatterOptions, LintSeverity, LinterOptions, LinterRules};
 
 use super::target::{
     OptimizeLevel, OutputFormat, OutputMode, Platform, Runtime, ShrinkLevel, Target,
@@ -27,32 +27,6 @@ pub struct DsConfig {
     pub options: DsConfigOptions,
     /// The raw JSON content of the `dsconfig.json` file.
     pub content: DsConfigJson,
-}
-
-/// DsConfig JSON (usually from `dsconfig.json`)
-#[derive(Debug, Deserialize, Clone, Default)]
-#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
-#[serde(rename_all = "camelCase")]
-pub struct DsConfigJson {
-    /// Extends other dsconfigs or tsconfigs.
-    pub extends: Option<DsConfigExtendsField>,
-    /// Specific files to include in the project.
-    pub files: Option<Vec<String>>,
-    /// Glob patterns for files to include.
-    pub include: Option<Vec<String>>,
-    /// Glob patterns for files to exclude.
-    pub exclude: Option<Vec<String>>,
-    /// Compiler options.
-    #[serde(default)]
-    pub compiler_options: DsConfigCompilerOptionsJson,
-    /// Formatter options.
-    #[serde(default)]
-    pub formatter: DsConfigFormatterJson,
-    /// Linter options.
-    #[serde(default)]
-    pub linter: DsConfigLinterJson,
-    /// Build targets.
-    pub targets: Option<IndexMap<String, DsConfigTargetJson>>,
 }
 
 impl DsConfig {
@@ -256,18 +230,7 @@ impl DsConfig {
     }
 }
 
-/// Value for the "extends" field of a dsconfig.
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq)]
-#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
-#[serde(untagged)]
-pub enum DsConfigExtendsField {
-    /// Extend a single dsconfig.
-    Single(String),
-    /// Extend multiple dsconfigs.
-    Multiple(Vec<String>),
-}
-
-/// Normalized Destack configuration options (from `dsconfig.json`).
+/// Normalized Destack package configuration options (from `dsconfig.json`).
 #[derive(Debug, Clone, Default)]
 pub struct DsConfigOptions {
     /// Specific files to include in the project.
@@ -284,36 +247,6 @@ pub struct DsConfigOptions {
     pub linter: LinterOptions,
     /// Build targets.
     pub targets: IndexMap<String, DsConfigTargetOptions>,
-}
-
-impl From<&DsConfigJson> for DsConfigOptions {
-    fn from(json: &DsConfigJson) -> Self {
-        let compiler = DsConfigCompilerOptions::from(&json.compiler_options);
-
-        let mut formatter = FormatterOptions::default();
-        json.formatter.apply(&mut formatter);
-
-        let mut linter = LinterOptions::default();
-        json.linter.apply(&mut linter);
-
-        Self {
-            files: json.files.clone().unwrap_or_default(),
-            include: json.include.clone().unwrap_or_default(),
-            exclude: json.exclude.clone().unwrap_or_default(),
-            compiler,
-            formatter,
-            linter,
-            targets: json
-                .targets
-                .as_ref()
-                .map(|t| {
-                    t.iter()
-                        .map(|(k, v)| (k.clone(), DsConfigTargetOptions::from(v)))
-                        .collect()
-                })
-                .unwrap_or_default(),
-        }
-    }
 }
 
 /// Path alias mapping (resolved from dsconfig paths).
@@ -505,78 +438,71 @@ impl Default for DsConfigCompilerOptions {
     }
 }
 
-impl From<&DsConfigCompilerOptionsJson> for DsConfigCompilerOptions {
-    fn from(json: &DsConfigCompilerOptionsJson) -> Self {
-        let strict = json.strict.unwrap_or(true);
+/// DsConfig JSON (usually from `dsconfig.json`)
+#[derive(Debug, Deserialize, Clone, Default)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "camelCase")]
+pub struct DsConfigJson {
+    /// Extends other dsconfigs or tsconfigs.
+    pub extends: Option<ExtendsFieldJson>,
+    /// Specific files to include in the project.
+    pub files: Option<Vec<String>>,
+    /// Glob patterns for files to include.
+    pub include: Option<Vec<String>>,
+    /// Glob patterns for files to exclude.
+    pub exclude: Option<Vec<String>>,
+    /// Compiler options.
+    #[serde(default)]
+    pub compiler_options: CompilerOptionsJson,
+    /// Formatter options.
+    #[serde(default)]
+    pub formatter: DsConfigFormatterJson,
+    /// Linter options.
+    #[serde(default)]
+    pub linter: DsConfigLinterJson,
+    /// Build targets.
+    pub targets: Option<IndexMap<String, DsConfigTargetJson>>,
+}
+
+impl From<&DsConfigJson> for DsConfigOptions {
+    fn from(json: &DsConfigJson) -> Self {
+        let compiler = DsConfigCompilerOptions::from(&json.compiler_options);
+
+        let mut formatter = FormatterOptions::default();
+        json.formatter.apply(&mut formatter);
+
+        let mut linter = LinterOptions::default();
+        json.linter.apply(&mut linter);
+
         Self {
-            base_url: json.base_url.as_ref().map(PathBuf::from),
-            paths: json.paths.clone(),
-            module: json
-                .module
-                .as_deref()
-                .and_then(ModuleTarget::parse)
+            files: json.files.clone().unwrap_or_default(),
+            include: json.include.clone().unwrap_or_default(),
+            exclude: json.exclude.clone().unwrap_or_default(),
+            compiler,
+            formatter,
+            linter,
+            targets: json
+                .targets
+                .as_ref()
+                .map(|t| {
+                    t.iter()
+                        .map(|(k, v)| (k.clone(), DsConfigTargetOptions::from(v)))
+                        .collect()
+                })
                 .unwrap_or_default(),
-            es_target: json
-                .target
-                .as_deref()
-                .and_then(EsTarget::parse)
-                .unwrap_or_default(),
-            lib: json.lib.clone().unwrap_or_default(),
-
-            // TypeScript-compatible checking
-            strict,
-            no_implicit_any: json.no_implicit_any.unwrap_or(strict),
-            strict_null_checks: json.strict_null_checks.unwrap_or(strict),
-            no_implicit_this: json.no_implicit_this.unwrap_or(strict),
-            strict_function_types: json.strict_function_types.unwrap_or(strict),
-            strict_bind_call_apply: json.strict_bind_call_apply.unwrap_or(strict),
-            strict_property_initialization: json.strict_property_initialization.unwrap_or(strict),
-            use_unknown_in_catch_variables: json.use_unknown_in_catch_variables.unwrap_or(strict),
-            no_unused_locals: json.no_unused_locals.unwrap_or(false),
-            no_unused_parameters: json.no_unused_parameters.unwrap_or(false),
-            no_implicit_returns: json.no_implicit_returns.unwrap_or(true),
-            allow_unreachable_code: json.allow_unreachable_code.unwrap_or(false),
-            no_implicit_override: json.no_implicit_override.unwrap_or(true),
-            no_fallthrough_cases_in_switch: json.no_fallthrough_cases_in_switch.unwrap_or(true),
-            exact_optional_property_types: json.exact_optional_property_types.unwrap_or(false),
-            no_unchecked_indexed_access: json.no_unchecked_indexed_access.unwrap_or(false),
-
-            // Destack-specific checking
-            no_any: json.no_any.unwrap_or(false),
-            no_unknown: json.no_unknown.unwrap_or(false),
-            no_imprecise_primitives: json.no_imprecise_primitives.unwrap_or(false),
-            no_implicit_conversions: json.no_implicit_conversions.unwrap_or(false),
-            no_unsafe_type_assertions: json.no_unsafe_type_assertions.unwrap_or(false),
-            no_implicit_self: json.no_implicit_self.unwrap_or(false),
-            no_arguments: json.no_arguments.unwrap_or(false),
-            no_redeclared_locals: json.no_redeclared_locals.unwrap_or(false),
-            no_implicit_managed_type: json.no_implicit_managed_type.unwrap_or(false),
-            no_implicit_managed_value: json.no_implicit_managed_value.unwrap_or(false),
-            no_managed: json.no_managed.unwrap_or(false),
-            no_referential_equality: json.no_referential_equality.unwrap_or(false),
-            no_dynamic_evaluation: json.no_dynamic_evaluation.unwrap_or(false),
-            no_global_this: json.no_global_this.unwrap_or(false),
-            no_dynamic_import: json.no_dynamic_import.unwrap_or(false),
-            no_dynamic_shapes: json.no_dynamic_shapes.unwrap_or(false),
-            no_computed_property_access: json.no_computed_property_access.unwrap_or(false),
-            no_proxy: json.no_proxy.unwrap_or(false),
-            no_implicit_dynamic_dispatch: json.no_implicit_dynamic_dispatch.unwrap_or(false),
-            no_exceptions: json.no_exceptions.unwrap_or(false),
-
-            // emit
-            root_dir: json.root_dir.as_ref().map(PathBuf::from),
-            out_dir: json.out_dir.as_ref().map(PathBuf::from),
-            declaration_dir: json.declaration_dir.as_ref().map(PathBuf::from),
-
-            // interop
-            tsconfig: json.tsconfig.as_ref().map(PathBuf::from),
-            allow_ts: json.allow_ts.unwrap_or(true),
-            check_ts: json.check_ts.unwrap_or(false),
-            allow_js: json.allow_js.unwrap_or(true),
-            check_js: json.check_js.unwrap_or(false),
-            skip_lib_check: json.skip_lib_check.unwrap_or(false),
         }
     }
+}
+
+/// Value for the "extends" field of a dsconfig.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(untagged)]
+pub enum ExtendsFieldJson {
+    /// Extend a single dsconfig.
+    Single(String),
+    /// Extend multiple dsconfigs.
+    Multiple(Vec<String>),
 }
 
 /// Normalized Destack build target options (from dsconfig.json).
@@ -844,7 +770,7 @@ impl From<IndentStyleJson> for IndentStyle {
 #[derive(Debug, Default, Deserialize, Clone)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
-pub struct DsConfigCompilerOptionsJson {
+pub struct CompilerOptionsJson {
     // module resolution
     /// Base URL for resolving non-relative module names.
     pub base_url: Option<String>,
@@ -956,6 +882,80 @@ pub struct DsConfigCompilerOptionsJson {
     pub check_js: Option<bool>,
     /// Skip type checking of declaration files (.d.ts, .d.ds).
     pub skip_lib_check: Option<bool>,
+}
+
+impl From<&CompilerOptionsJson> for DsConfigCompilerOptions {
+    fn from(json: &CompilerOptionsJson) -> Self {
+        let strict = json.strict.unwrap_or(true);
+        Self {
+            base_url: json.base_url.as_ref().map(PathBuf::from),
+            paths: json.paths.clone(),
+            module: json
+                .module
+                .as_deref()
+                .and_then(ModuleTarget::parse)
+                .unwrap_or_default(),
+            es_target: json
+                .target
+                .as_deref()
+                .and_then(EsTarget::parse)
+                .unwrap_or_default(),
+            lib: json.lib.clone().unwrap_or_default(),
+
+            // TypeScript-compatible checking
+            strict,
+            no_implicit_any: json.no_implicit_any.unwrap_or(strict),
+            strict_null_checks: json.strict_null_checks.unwrap_or(strict),
+            no_implicit_this: json.no_implicit_this.unwrap_or(strict),
+            strict_function_types: json.strict_function_types.unwrap_or(strict),
+            strict_bind_call_apply: json.strict_bind_call_apply.unwrap_or(strict),
+            strict_property_initialization: json.strict_property_initialization.unwrap_or(strict),
+            use_unknown_in_catch_variables: json.use_unknown_in_catch_variables.unwrap_or(strict),
+            no_unused_locals: json.no_unused_locals.unwrap_or(false),
+            no_unused_parameters: json.no_unused_parameters.unwrap_or(false),
+            no_implicit_returns: json.no_implicit_returns.unwrap_or(true),
+            allow_unreachable_code: json.allow_unreachable_code.unwrap_or(false),
+            no_implicit_override: json.no_implicit_override.unwrap_or(true),
+            no_fallthrough_cases_in_switch: json.no_fallthrough_cases_in_switch.unwrap_or(true),
+            exact_optional_property_types: json.exact_optional_property_types.unwrap_or(false),
+            no_unchecked_indexed_access: json.no_unchecked_indexed_access.unwrap_or(false),
+
+            // Destack-specific checking
+            no_any: json.no_any.unwrap_or(false),
+            no_unknown: json.no_unknown.unwrap_or(false),
+            no_imprecise_primitives: json.no_imprecise_primitives.unwrap_or(false),
+            no_implicit_conversions: json.no_implicit_conversions.unwrap_or(false),
+            no_unsafe_type_assertions: json.no_unsafe_type_assertions.unwrap_or(false),
+            no_implicit_self: json.no_implicit_self.unwrap_or(false),
+            no_arguments: json.no_arguments.unwrap_or(false),
+            no_redeclared_locals: json.no_redeclared_locals.unwrap_or(false),
+            no_implicit_managed_type: json.no_implicit_managed_type.unwrap_or(false),
+            no_implicit_managed_value: json.no_implicit_managed_value.unwrap_or(false),
+            no_managed: json.no_managed.unwrap_or(false),
+            no_referential_equality: json.no_referential_equality.unwrap_or(false),
+            no_dynamic_evaluation: json.no_dynamic_evaluation.unwrap_or(false),
+            no_global_this: json.no_global_this.unwrap_or(false),
+            no_dynamic_import: json.no_dynamic_import.unwrap_or(false),
+            no_dynamic_shapes: json.no_dynamic_shapes.unwrap_or(false),
+            no_computed_property_access: json.no_computed_property_access.unwrap_or(false),
+            no_proxy: json.no_proxy.unwrap_or(false),
+            no_implicit_dynamic_dispatch: json.no_implicit_dynamic_dispatch.unwrap_or(false),
+            no_exceptions: json.no_exceptions.unwrap_or(false),
+
+            // emit
+            root_dir: json.root_dir.as_ref().map(PathBuf::from),
+            out_dir: json.out_dir.as_ref().map(PathBuf::from),
+            declaration_dir: json.declaration_dir.as_ref().map(PathBuf::from),
+
+            // interop
+            tsconfig: json.tsconfig.as_ref().map(PathBuf::from),
+            allow_ts: json.allow_ts.unwrap_or(true),
+            check_ts: json.check_ts.unwrap_or(false),
+            allow_js: json.allow_js.unwrap_or(true),
+            check_js: json.check_js.unwrap_or(false),
+            skip_lib_check: json.skip_lib_check.unwrap_or(false),
+        }
+    }
 }
 
 /// Destack build target configuration.
@@ -1114,12 +1114,12 @@ pub enum RuleSeverityJson {
     Error,
 }
 
-impl From<RuleSeverityJson> for RuleSeverity {
+impl From<RuleSeverityJson> for LintSeverity {
     fn from(value: RuleSeverityJson) -> Self {
         match value {
-            RuleSeverityJson::Off => RuleSeverity::Off,
-            RuleSeverityJson::Warn => RuleSeverity::Warn,
-            RuleSeverityJson::Error => RuleSeverity::Error,
+            RuleSeverityJson::Off => LintSeverity::Off,
+            RuleSeverityJson::Warn => LintSeverity::Warning,
+            RuleSeverityJson::Error => LintSeverity::Error,
         }
     }
 }

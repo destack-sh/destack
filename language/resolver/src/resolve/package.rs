@@ -3,7 +3,7 @@ use std::cmp::Ordering;
 use std::path::{Component, Path, PathBuf};
 
 use destack_source::{File, FileType, PackageId, PathExt, Uri};
-use destack_workspace::{ModuleSpecifier, Package, PackageConfig, PackageKind};
+use destack_workspace::{ModuleSpecifier, Package, PackageManifest, PackageKind};
 
 use crate::{ResolveContext, ResolveError, Resolver};
 
@@ -33,7 +33,7 @@ impl Resolver {
         if let Some(package_id) = self.program.packages.get_id_by_path(path) {
             let package = self.program.packages.get(package_id);
             let package = package.read();
-            if let Some(ref config) = package.package_config {
+            if let Some(ref config) = package.manifest {
                 ctx.track_found_dependency(&config.path);
             }
             return Ok(Some(package_id));
@@ -67,7 +67,7 @@ impl Resolver {
 
         // parse `package.json` from file
         let package_config =
-            PackageConfig::parse(&file, package_json_path.clone()).map_err(|_| {
+            PackageManifest::parse(&file, package_json_path.clone()).map_err(|_| {
                 ResolveError::InvalidPackageJson {
                     path: package_json_path.clone(),
                 }
@@ -85,9 +85,9 @@ impl Resolver {
             path: Some(package_config.directory.clone()),
             name: package_config.content.name.clone(),
             version: package_config.content.version.clone(),
-            package_config: Some(package_config),
+            manifest: Some(package_config),
             dsconfig,
-            main_tsconfig_id: None,
+            tsconfig: None,
             targets: Default::default(),
         };
         self.program.packages.insert(package);
@@ -194,7 +194,7 @@ impl Resolver {
         let package = package.read();
 
         // check if the package has imports
-        if let Some(ref config) = package.package_config
+        if let Some(ref config) = package.manifest
             && let Some(resolved) = self.package_imports_resolve(specifier, config, ctx)?
         {
             return self.resolve_esm_match(specifier, &resolved, ctx);
@@ -343,7 +343,7 @@ impl Resolver {
         let package = package.read();
 
         // resolve exports
-        if let Some(ref config) = package.package_config
+        if let Some(ref config) = package.manifest
             && let Some(exports) = config.content.exports.as_ref()
             && let Some(resolved) =
                 self.package_exports_resolve(path, &format!(".{subpath}"), exports, ctx)?
@@ -371,7 +371,7 @@ impl Resolver {
         let package = package.read();
 
         // check if the package has config
-        let Some(ref config) = package.package_config else {
+        let Some(ref config) = package.manifest else {
             return Ok(None);
         };
 
@@ -459,7 +459,7 @@ impl Resolver {
                         let package = self.program.packages.get(package_id);
                         let package = package.read();
 
-                        if let Some(config) = &package.package_config {
+                        if let Some(config) = &package.manifest {
                             // resolve exports
                             if let Some(exports) = config.content.exports.as_ref()
                                 && let Some(resolved) = self.package_exports_resolve(
@@ -584,7 +584,7 @@ impl Resolver {
     fn package_imports_resolve(
         &self,
         specifier: &str,
-        package_config: &PackageConfig,
+        package_config: &PackageManifest,
         ctx: &mut ResolveContext,
     ) -> Result<Option<PathBuf>, ResolveError> {
         debug_assert!(specifier.starts_with('#'), "{specifier}");

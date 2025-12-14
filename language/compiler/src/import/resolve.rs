@@ -206,9 +206,9 @@ impl Compiler {
             path: Some(directory.to_path_buf()),
             name: None,
             version: None,
-            package_config: None,
+            manifest: None,
             dsconfig: None,
-            main_tsconfig_id: None,
+            tsconfig: None,
             targets: Default::default(),
         };
         self.program.packages.insert(package);

@@ -2,7 +2,7 @@ use std::borrow::Cow;
 use std::path::{Path, PathBuf};
 
 use destack_source::{PathExt, SLASH_START};
-use destack_workspace::PackageConfig;
+use destack_workspace::PackageManifest;
 
 use crate::{Alias, AliasValue, ResolveContext, ResolveError, Resolver};
 
@@ -11,7 +11,7 @@ impl Resolver {
     /// Resolve the browser field value for a path or request.
     pub(crate) fn resolve_browser_field<'a>(
         &self,
-        package_config: &'a PackageConfig,
+        package_config: &'a PackageManifest,
         path: &Path,
         request: Option<&str>,
     ) -> Result<Option<&'a str>, ResolveError> {
@@ -66,7 +66,7 @@ impl Resolver {
         &self,
         path: &Path,
         module_specifier: Option<&str>,
-        package_config: &PackageConfig,
+        package_config: &PackageManifest,
         ctx: &mut ResolveContext,
     ) -> Result<Option<PathBuf>, ResolveError> {
         if ctx.is_fully_specified {

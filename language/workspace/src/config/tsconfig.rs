@@ -829,7 +829,7 @@ pub struct TsConfigOptions {
     /// Glob patterns for files to exclude.
     pub exclude: Vec<String>,
     /// Compiler options.
-    pub compiler: TsConfigCompilerOptions,
+    pub compiler: TsCompilerOptions,
 }
 
 impl From<&TsConfigJson> for TsConfigOptions {
@@ -838,14 +838,14 @@ impl From<&TsConfigJson> for TsConfigOptions {
             files: json.files.clone().unwrap_or_default(),
             include: json.include.clone().unwrap_or_default(),
             exclude: json.exclude.clone().unwrap_or_default(),
-            compiler: TsConfigCompilerOptions::from(&json.compiler_options),
+            compiler: TsCompilerOptions::from(&json.compiler_options),
         }
     }
 }
 
 /// Normalized TypeScript compiler options.
 #[derive(Debug, Clone)]
-pub struct TsConfigCompilerOptions {
+pub struct TsCompilerOptions {
     // module resolution
     /// Base URL for resolving non-relative module names.
     pub base_url: Option<PathBuf>,
@@ -987,7 +987,7 @@ pub struct TsConfigCompilerOptions {
     pub no_emit: bool,
 }
 
-impl Default for TsConfigCompilerOptions {
+impl Default for TsCompilerOptions {
     fn default() -> Self {
         Self {
             base_url: None,
@@ -1063,8 +1063,8 @@ impl Default for TsConfigCompilerOptions {
     }
 }
 
-impl From<&TsConfigCompilerOptionsJson> for TsConfigCompilerOptions {
-    fn from(json: &TsConfigCompilerOptionsJson) -> Self {
+impl From<&TsCompilerOptionsJson> for TsCompilerOptions {
+    fn from(json: &TsCompilerOptionsJson) -> Self {
         // determine if strict mode is enabled
         let strict = json.strict.unwrap_or(false);
 
@@ -1195,7 +1195,7 @@ pub struct TsConfigJson {
     /// Compiler options.
     /// <https://www.typescriptlang.org/tsconfig/#compilerOptions>
     #[serde(default)]
-    pub compiler_options: TsConfigCompilerOptionsJson,
+    pub compiler_options: TsCompilerOptionsJson,
     /// Bubbled up project references with a reference to their tsconfig.
     /// <https://www.typescriptlang.org/tsconfig/#references>
     #[serde(default)]
@@ -1285,7 +1285,7 @@ impl TsConfigJson {
 /// <https://www.typescriptlang.org/tsconfig#compilerOptions>
 #[derive(Debug, Default, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
-pub struct TsConfigCompilerOptionsJson {
+pub struct TsCompilerOptionsJson {
     /// Base URL (e.g. `./src`)
     /// <https://www.typescriptlang.org/tsconfig/#baseUrl>
     pub base_url: Option<PathBuf>,
