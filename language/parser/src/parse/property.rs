@@ -187,7 +187,11 @@ impl Parser {
             let generics = Generics::new(static_parameters, where_clauses).into_option();
 
             // body
-            let body = if self.peek_token(TokenType::OpenBrace).is_ok() {
+            let body = if self
+                .peek_token_after_newlines(self.pos().saturating_sub(1), TokenType::OpenBrace)
+                .is_ok()
+            {
+                self.eat_newlines_maybe()?;
                 let options = if is_generator {
                     self.options
                         .not_in_position()
@@ -196,8 +200,7 @@ impl Parser {
                 } else {
                     self.options.not_in_position().in_statement_position()
                 };
-                let body = self.with_options(options, |parser| parser.eat_expression())?;
-                Some(body)
+                Some(self.with_options(options, |parser| parser.eat_expression())?)
             } else {
                 None
             };
@@ -371,18 +374,21 @@ impl Parser {
         // modifiers prefix
         let modifiers = self.eat_binding_modifiers_prefix_maybe()?;
 
-        // static block: `static { ... }`
+        // static block: `static { ... }` or `static\n{ ... }`
         // (must check *before* abstraction parsing since `static` is also a modifier)
         if modifiers
             .as_ref()
             .is_some_and(|m| m.anchor == Some(destack_ast::BindingAnchor::Static))
-            && self.peek_token(TokenType::OpenBrace).is_ok()
+            && self
+                .peek_token_after_newlines(self.pos().saturating_sub(1), TokenType::OpenBrace)
+                .is_ok()
         {
+            self.eat_newlines_maybe()?;
             let body = self.with_options(
                 self.options.not_in_position().in_statement_position(),
                 |parser| parser.eat_expression(),
             )?;
-            // Preserve modifiers for validation (static blocks shouldn't have other modifiers)
+            // preserve modifiers for validation (static blocks shouldn't have other modifiers)
             let member = Member::StaticBlock { modifiers, body };
             return Ok(self.tree.insert(member, self.get_span_from(start)));
         }
@@ -501,7 +507,11 @@ impl Parser {
             let generics = Generics::new(static_parameters, where_clauses).into_option();
 
             // body
-            let body = if self.peek_token(TokenType::OpenBrace).is_ok() {
+            let body = if self
+                .peek_token_after_newlines(self.pos().saturating_sub(1), TokenType::OpenBrace)
+                .is_ok()
+            {
+                self.eat_newlines_maybe()?;
                 let options = if is_generator {
                     self.options
                         .not_in_position()
@@ -510,8 +520,7 @@ impl Parser {
                 } else {
                     self.options.not_in_position().in_statement_position()
                 };
-                let body = self.with_options(options, |parser| parser.eat_expression())?;
-                Some(body)
+                Some(self.with_options(options, |parser| parser.eat_expression())?)
             } else {
                 None
             };

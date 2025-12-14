@@ -49,7 +49,6 @@ typescript/class/declare-accessor
 typescript/class/declare-field-initializer
 typescript/class/declare-initializer
 typescript/class/declare-method
-typescript/class/declare-new-line
 typescript/class/declare-new-line-abstract
 typescript/class/declare-readonly-field-initializer-w-annotation
 typescript/class/duplicate-modifier-1
@@ -84,16 +83,14 @@ typescript/class/protected-static
 typescript/const/initializer-ambient-context
 typescript/const/invalid-initializer-ambient-context
 typescript/const/no-initializer
-typescript/declare/const-new-line
+typescript/declare/destructure-new-line
 typescript/declare/eval
 typescript/declare/eval-dts
-typescript/declare/interface-new-line
 typescript/declare/invalid-await-using-declaration
 typescript/declare/invalid-await-using-declaration-with-initializer
 typescript/declare/invalid-namespace-var
 typescript/declare/invalid-using-declaration
 typescript/declare/invalid-using-declaration-with-initializer
-typescript/declare/let-new-line
 typescript/declare/module-function
 typescript/declare/namespace-class
 typescript/declare/namespace-function
@@ -135,7 +132,9 @@ typescript/interface/new-line
 typescript/interface/new-line-error
 typescript/interface/property-initializer
 typescript/legacy-decorators/type-arguments
+typescript/module-namespace/module-declare-new-line
 typescript/module-namespace/module-new-line-error
+typescript/module-namespace/namespace-declare-new-line
 typescript/module-namespace/namespace-new-line-error
 typescript/module-namespace/top-level-await
 typescript/regression/async-arrow-generic-9560

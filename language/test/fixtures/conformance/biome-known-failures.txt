@@ -66,7 +66,6 @@ error/ts_class_member_accessor_readonly_precedence.ts
 error/ts_class_name_reserved_as_type.ts
 error/ts_constructor_this_parameter.ts
 error/ts_declare_async_function.ts
-error/ts_declare_const_initializer.ts
 error/ts_declare_function_export_declaration_missing_id.ts
 error/ts_declare_generator_function.ts
 error/ts_declare_interface_err.ts
@@ -173,7 +172,6 @@ ok/ts_class_property_member_modifiers.ts
 ok/ts_conditional_type.ts
 ok/ts_construct_signature_member.ts
 ok/ts_constructor_type.ts
-ok/ts_declare_function.ts
 ok/ts_decorator_call_expression_with_arrow.ts
 ok/ts_decorator_constructor.ts
 ok/ts_decorator_on_class_method.ts
@@ -191,7 +189,6 @@ ok/ts_import_type.ts
 ok/ts_infer_type_allowed.ts
 ok/ts_instantiation_expressions.ts
 ok/ts_instantiation_expressions_1.ts
-ok/ts_keyword_assignments.js
 ok/ts_mapped_type.ts
 ok/ts_method_and_constructor_overload.ts
 ok/ts_named_import_specifier_with_type.ts

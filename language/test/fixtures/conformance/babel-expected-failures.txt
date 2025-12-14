@@ -15,3 +15,9 @@ typescript/cast/type-assertion-after-operator
 typescript/cast/type-assertion-and-assign
 typescript/cast/type-assertion-before-operator
 typescript/cast/parenthesized-type-assertion-and-assign
+
+# Destack allows namespace declarations without `declare` prefix
+# In TypeScript, `namespace` alone after ASI would be an identifier, but Destack
+# treats it as a valid namespace declaration keyword (more permissive)
+typescript/module-namespace/module-declare-new-line
+typescript/module-namespace/namespace-declare-new-line
