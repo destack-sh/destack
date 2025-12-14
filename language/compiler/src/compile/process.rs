@@ -3,8 +3,8 @@ use std::thread;
 
 use crate::{
     AnalyzeError, BindError, Compiler, ElaborateError, EmitError, GenerateError, InternalError,
-    LinkError, LowerError, OptimizeError, ResolveError, Task, TaskDebug, TaskDependency, TaskError,
-    TaskHandle, TaskId, TaskOutcome, TaskOutput, TaskPhase, TaskStatus, VerifyError,
+    LinkError, LintError, LowerError, OptimizeError, ResolveError, Task, TaskDebug, TaskDependency,
+    TaskError, TaskHandle, TaskId, TaskOutcome, TaskOutput, TaskPhase, TaskStatus, VerifyError,
 };
 
 /// Maximum number of yields allowed per task before treating it as an (internal) bug.
@@ -156,6 +156,7 @@ impl Compiler {
             Task::Generate(generate_task) => self.process_generate(generate_task).into(),
             Task::Link(link_task) => self.process_link(link_task).into(),
             Task::Emit(emit_task) => self.process_emit(emit_task).into(),
+            Task::Lint(lint_task) => self.process_lint(lint_task).into(),
         }
     }
 
@@ -444,6 +445,10 @@ impl Compiler {
             }
             .into(),
             TaskPhase::Emit => EmitError::UnsatisfiedDependency {
+                dependency: dependency.clone(),
+            }
+            .into(),
+            TaskPhase::Lint => LintError::UnsatisfiedDependency {
                 dependency: dependency.clone(),
             }
             .into(),

@@ -5,8 +5,8 @@ use crate::DiagnosticAnchor;
 use crate::{
     AnalyzeOutput, AnalyzeTask, BindOutput, BindTask, ElaborateOutput, ElaborateTask, EmitOutput,
     EmitTask, GenerateOutput, GenerateTask, ImportOutput, ImportTask, LinkOutput, LinkTask,
-    LowerOutput, LowerTask, OptimizeOutput, OptimizeTask, ResolveOutput, ResolveTask, TaskError,
-    VerifyOutput, VerifyTask,
+    LintOutput, LintTask, LowerOutput, LowerTask, OptimizeOutput, OptimizeTask, ResolveOutput,
+    ResolveTask, TaskError, VerifyOutput, VerifyTask,
 };
 
 /// Trait for formatting task information.
@@ -27,6 +27,8 @@ pub enum TaskRegion {
     Middle,
     /// Back-end (generate, link, emit).
     Back,
+    /// Lint.
+    Lint,
 }
 
 impl TaskRegion {
@@ -36,6 +38,7 @@ impl TaskRegion {
             Self::Front => "front-end",
             Self::Middle => "middle-end",
             Self::Back => "back-end",
+            Self::Lint => "lint",
         }
     }
 }
@@ -69,7 +72,8 @@ pub enum TaskPhase {
     /// Emit linked output to disk.
     Emit = 11,
     // --------------------------------------------------
-    // Lint = 12, // nocheckin TODO: scaffold linter
+    /// Lint the program.
+    Lint = 12,
 }
 
 impl std::fmt::Display for TaskPhase {
@@ -92,6 +96,7 @@ impl TaskPhase {
             }
             Self::Lower | Self::Verify | Self::Optimize => TaskRegion::Middle,
             Self::Generate | Self::Link | Self::Emit => TaskRegion::Back,
+            Self::Lint => TaskRegion::Lint,
         }
     }
 
@@ -109,7 +114,7 @@ impl TaskPhase {
             Self::Generate => "generate",
             Self::Link => "link",
             Self::Emit => "emit",
-            // Self::Lint => "lint",
+            Self::Lint => "lint",
         }
     }
 
@@ -127,7 +132,7 @@ impl TaskPhase {
             Self::Generate => "generate DIR or MIR into artifacts",
             Self::Link => "link artifacts into final output",
             Self::Emit => "emit linked output to disk",
-            // Self::Lint => "lint the program",
+            Self::Lint => "lint the program",
         }
     }
 
@@ -144,8 +149,8 @@ impl TaskPhase {
             Self::Optimize => 'O',
             Self::Generate => 'G',
             Self::Link => 'K',
-            Self::Emit => 'M', // eMit
-                               // Self::Lint => 'L', // lint
+            Self::Emit => 'X', // emiX
+            Self::Lint => 'L',
         }
     }
 }
@@ -177,7 +182,11 @@ pub enum Task {
     Link(LinkTask),
     /// Emit linked output to disk.
     Emit(EmitTask),
+    // --------------------------------------------------
+    /// Lint the program.
+    Lint(LintTask),
 }
+// nocheckin: add a "combined" task for every phase that just does them all? ("AnalyzeModule"->"AnalyzeModuleValidate")
 
 impl Task {
     /// Get the phase of the task.
@@ -194,6 +203,7 @@ impl Task {
             Self::Generate(_) => TaskPhase::Generate,
             Self::Link(_) => TaskPhase::Link,
             Self::Emit(_) => TaskPhase::Emit,
+            Self::Lint(_) => TaskPhase::Lint,
         }
     }
 
@@ -216,6 +226,7 @@ impl Task {
             Self::Generate(task) => task.sub_code(),
             Self::Link(task) => task.sub_code(),
             Self::Emit(task) => task.sub_code(),
+            Self::Lint(task) => task.sub_code(),
         }
     }
 
@@ -239,6 +250,7 @@ impl TaskDebug for Task {
             Self::Generate(task) => task.name(),
             Self::Link(task) => task.name(),
             Self::Emit(task) => task.name(),
+            Self::Lint(task) => task.name(),
         }
     }
 
@@ -255,6 +267,7 @@ impl TaskDebug for Task {
             Self::Generate(task) => task.trace_args(program),
             Self::Link(task) => task.trace_args(program),
             Self::Emit(task) => task.trace_args(program),
+            Self::Lint(task) => task.trace_args(program),
         }
     }
 }
@@ -495,6 +508,9 @@ pub enum TaskOutput {
     Link(LinkOutput),
     /// Output of an emit task.
     Emit(EmitOutput),
+    // --------------------------------------------------
+    /// Output of a lint task.
+    Lint(LintOutput),
 }
 
 /// Error when a task dependency is not satisfied.
