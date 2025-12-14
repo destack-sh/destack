@@ -56,7 +56,7 @@ impl Resolver {
         tracing::trace!(?path, "resolver.load.directory");
         // check for package.json in the directory
         if let Some(package_id) = self.load_package(path, ctx)? {
-            let package = self.program.packages.get(package_id);
+            let package = self.packages.get(package_id);
             let package = package.read();
             if let Some(ref config) = package.manifest {
                 if let Some(main_field) = config.content.main.as_deref() {
@@ -178,7 +178,7 @@ impl Resolver {
     ) -> Result<Option<PathBuf>, ResolveError> {
         // try browser field
         if let Some(package_id) = self.find_package_json(path, ctx)? {
-            let package = self.program.packages.get(package_id);
+            let package = self.packages.get(package_id);
             let package = package.read();
             if let Some(ref config) = package.manifest
                 && let Some(resolved) = self.load_browser_field(path, None, config, ctx)?

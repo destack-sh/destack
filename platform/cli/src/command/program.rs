@@ -8,7 +8,9 @@ use destack_resolver::{ResolveOptions, Resolver};
 use destack_source::{
     FileRegistry, FileSystem, IndentStyle, LineEnding, MemoryFileSystem, PhysicalFileSystem,
 };
-use destack_workspace::{FormatterOptions, LinterOptions, Program};
+use destack_workspace::{
+    FormatterOptions, LinterOptions, PackageRegistry, Program, TsConfigRegistry,
+};
 
 /// Get the default number of worker threads (available parallelism, or 1 if unknown).
 pub fn default_workers() -> u16 {
@@ -143,9 +145,18 @@ impl ProgramArgs {
             FileSystemArg::Memory => Arc::new(MemoryFileSystem::new()),
         };
 
-        // discover workspace using a bootstrap program
-        let bootstrap = Arc::new(Program::new_default(cwd.clone(), fs.clone(), files.clone()));
-        let resolver = Resolver::new(bootstrap, ResolveOptions::default());
+        // create shared registries
+        let packages = Arc::new(PackageRegistry::new());
+        let tsconfigs = Arc::new(TsConfigRegistry::new());
+
+        // discover workspace
+        let resolver = Resolver::new(
+            fs.clone(),
+            files.clone(),
+            packages.clone(),
+            tsconfigs.clone(),
+            ResolveOptions::default(),
+        );
         let workspace = resolver
             .discover_workspace(&cwd)
             .unwrap_or_else(|_| destack_workspace::Workspace::single_package(cwd.clone()));
@@ -153,8 +164,16 @@ impl ProgramArgs {
 
         tracing::trace!(?cwd, ?root, ?fs_type, workspace_kind = ?workspace.kind, workers = self.workers, "program.setup");
 
-        // create the actual program with workspace root
-        let program = Program::new(formatter_options, linter_options, root, fs, files);
+        // create program with shared registries (preserves state from discovery)
+        let program = Program::with_registries(
+            formatter_options,
+            linter_options,
+            root,
+            fs,
+            files,
+            packages,
+            tsconfigs,
+        );
         Arc::new(program)
     }
 }

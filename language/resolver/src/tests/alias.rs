@@ -34,7 +34,7 @@ fn test_resolve_alias() {
         ("/dashed-name", ""),
     ]);
 
-    let resolver = Resolver::blank_with_fs(
+    let resolver = Resolver::blank(
         Arc::new(fs),
         ResolveOptions {
             alias: vec![
@@ -155,7 +155,7 @@ fn test_resolve_alias() {
 #[test]
 fn test_resolve_infinite_alias_recursion() {
     let f = super::fixture();
-    let resolver = Resolver::blank(ResolveOptions {
+    let resolver = Resolver::physical(ResolveOptions {
         alias: vec![
             ("./a".into(), vec![AliasValue::from("./b")]),
             ("./b".into(), vec![AliasValue::from("./a")]),
@@ -187,7 +187,7 @@ fn check_os_path_slashes(path: &Path) {
 #[test]
 fn test_resolve_alias_to_absolute_path() {
     let f = super::fixture();
-    let resolver = Resolver::blank(ResolveOptions {
+    let resolver = Resolver::physical(ResolveOptions {
         alias: vec![(
             f.join("foo").to_str().unwrap().to_string(),
             vec![AliasValue::Ignore],
@@ -208,7 +208,7 @@ fn test_resolve_alias_to_absolute_path() {
 #[test]
 fn test_resolve_alias_to_system_path() {
     let f = super::fixture();
-    let resolver = Resolver::blank(ResolveOptions {
+    let resolver = Resolver::physical(ResolveOptions {
         alias: vec![(
             "@app".into(),
             vec![AliasValue::from(f.join("alias").to_string_lossy())],
@@ -235,7 +235,7 @@ fn test_resolve_alias_is_full_path() {
     let dir = f.join("foo");
     let dir_str = dir.to_string_lossy().to_string();
 
-    let resolver = Resolver::blank(ResolveOptions {
+    let resolver = Resolver::physical(ResolveOptions {
         alias: vec![("@".into(), vec![AliasValue::Path(dir_str.clone())])],
         ..ResolveOptions::default()
     });
@@ -282,7 +282,7 @@ fn test_resolve_alias_is_full_path() {
 #[test]
 fn test_resolve_all_alias_values_are_not_found() {
     let f = super::fixture();
-    let resolver = Resolver::blank(ResolveOptions {
+    let resolver = Resolver::physical(ResolveOptions {
         alias: vec![(
             "m1".to_string(),
             vec![AliasValue::Path(
@@ -331,7 +331,7 @@ fn test_resolve_alias_with_fragment() {
     ];
 
     for (comment, request, expected) in data {
-        let resolver = Resolver::blank(ResolveOptions {
+        let resolver = Resolver::physical(ResolveOptions {
             alias: vec![(
                 "foo".to_string(),
                 vec![AliasValue::Path(request.to_string())],
@@ -347,7 +347,7 @@ fn test_resolve_alias_with_fragment() {
 #[test]
 fn test_resolve_alias_try_fragment_as_path() {
     let f = super::fixture();
-    let resolver = Resolver::blank(ResolveOptions {
+    let resolver = Resolver::physical(ResolveOptions {
         alias: vec![(
             "#".to_string(),
             vec![AliasValue::Path(f.join("#").to_string_lossy().to_string())],
@@ -362,7 +362,7 @@ fn test_resolve_alias_try_fragment_as_path() {
 #[test]
 fn test_resolve_alias_with_multiple_fallbacks() {
     let f = super::fixture();
-    let resolver = Resolver::blank(ResolveOptions {
+    let resolver = Resolver::physical(ResolveOptions {
         alias: vec![(
             "multi".to_string(),
             vec![
@@ -383,7 +383,7 @@ fn test_resolve_alias_with_multiple_fallbacks() {
 fn test_resolve_extension_alias() {
     let f = super::fixture().join("extension-alias");
 
-    let resolver = Resolver::blank(ResolveOptions {
+    let resolver = Resolver::physical(ResolveOptions {
         extensions: vec![".js".into()],
         main_files: vec!["index.js".into()],
         extension_alias: IndexMap::from([
@@ -432,7 +432,7 @@ fn test_resolve_extension_alias() {
 
     #[cfg(all(not(target_os = "windows"), target_endian = "little"))]
     {
-        let resolver = Resolver::blank(ResolveOptions {
+        let resolver = Resolver::physical(ResolveOptions {
             extension_alias: IndexMap::from([(".js".into(), vec![".ts".into(), ".d.ts".into()])]),
             ..ResolveOptions::default()
         });
@@ -454,7 +454,7 @@ fn test_resolve_extension_alias() {
 fn test_resolve_extension_alias_do_not_apply_to_main_files() {
     let f = super::fixture().join("extension-alias");
 
-    let resolver = Resolver::blank(ResolveOptions {
+    let resolver = Resolver::physical(ResolveOptions {
         extensions: vec![".js".into()],
         main_files: vec!["index".into()],
         extension_alias: IndexMap::from([(".js".into(), vec![])]),

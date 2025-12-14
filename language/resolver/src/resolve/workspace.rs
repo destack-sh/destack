@@ -33,7 +33,11 @@ impl Resolver {
 
             // check for package.json (package boundary without workspaces)
             let package_json_path = current.join("package.json");
-            if self.fs().metadata(&package_json_path).is_ok_and(|m| m.is_file) {
+            if self
+                .fs()
+                .metadata(&package_json_path)
+                .is_ok_and(|m| m.is_file)
+            {
                 // found a package.json without workspaces, treat as single-package workspace
                 return Ok(Workspace::single_package(current));
             }
@@ -61,7 +65,7 @@ impl Resolver {
         };
 
         // parse package.json
-        let file_id = self.program.files.next_id();
+        let file_id = self.files.next_id();
         let (name, uri) = Uri::from_path_with_name(&package_json_path);
         let file = File::from_bytes_as_json(
             file_id,
@@ -74,8 +78,8 @@ impl Resolver {
         .map_err(|_| ResolveError::InvalidPackageJson {
             path: package_json_path.clone(),
         })?;
-        self.program.files.insert(file);
-        let file = self.program.files.get(file_id);
+        self.files.insert(file);
+        let file = self.files.get(file_id);
 
         // check for workspaces field
         let destack_source::FileContent::Json { value, .. } = &file.content else {
@@ -219,11 +223,13 @@ impl Resolver {
                     }
                 }
             }
-        } else if let Some(base) = pattern.strip_suffix("/**") {
-            // recursive glob: packages/**
+        }
+        // recursive glob: packages/**
+        else if let Some(base) = pattern.strip_suffix("/**") {
             self.collect_directories_recursive(root, base, &mut results);
-        } else {
-            // exact path
+        }
+        // exact path
+        else {
             let path = root.join(pattern);
             if self.fs().metadata(&path).is_ok_and(|m| m.is_directory) {
                 results.push(path);
@@ -257,12 +263,14 @@ impl Resolver {
         loop {
             // check for npm/yarn workspaces
             let package_json_path = current.join("package.json");
-            if self.fs().metadata(&package_json_path).is_ok_and(|m| m.is_file) {
-                if let Ok(content) = self.fs().read_to_string(&package_json_path) {
-                    if content.contains("\"workspaces\"") {
-                        return Some(current);
-                    }
-                }
+            if self
+                .fs()
+                .metadata(&package_json_path)
+                .is_ok_and(|m| m.is_file)
+                && let Ok(content) = self.fs().read_to_string(&package_json_path)
+                && content.contains("\"workspaces\"")
+            {
+                return Some(current);
             }
 
             // check for pnpm workspace

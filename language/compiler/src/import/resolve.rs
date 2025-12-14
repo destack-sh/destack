@@ -158,7 +158,7 @@ impl Compiler {
                 ".node".into(),
             ])
             .with_conditions(vec!["types".to_string(), "import".to_string()]);
-        Resolver::new(self.program.clone(), resolver_options)
+        Resolver::from_program(&self.program, resolver_options)
     }
 
     /// Get the directory to resolve from for a source module.

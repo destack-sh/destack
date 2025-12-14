@@ -12,7 +12,7 @@ fn test_imports_field_simple() {
     let f = super::fixture().join("imports-field");
     let f2 = super::fixture().join("imports-exports-wildcard/node_modules/m/");
 
-    let resolver = Resolver::blank(ResolveOptions {
+    let resolver = Resolver::physical(ResolveOptions {
         extensions: vec![".js".into()],
         main_files: vec!["index".into()],
         conditions: vec!["webpack".into()],
@@ -858,7 +858,7 @@ fn test_imports_field_cases() {
     ];
 
     for case in test_cases {
-        let resolver = Resolver::blank_with_fs(
+        let resolver = Resolver::blank(
             Arc::new(MemoryFileSystem::default()),
             ResolveOptions::default(),
         );

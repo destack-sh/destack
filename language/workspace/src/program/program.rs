@@ -58,9 +58,9 @@ pub struct Program {
     /// The modules.
     pub modules: ModuleRegistry,
     /// The packages.
-    pub packages: PackageRegistry,
+    pub packages: Arc<PackageRegistry>,
     /// The tsconfigs (separate registry as tsconfigs can be nested within packages).
-    pub tsconfigs: TsConfigRegistry,
+    pub tsconfigs: Arc<TsConfigRegistry>,
     /// Generated artifacts (from codegen).
     pub artifacts: ArtifactRegistry,
     /// The combined string pool.
@@ -97,14 +97,53 @@ impl Program {
     ) -> Self {
         // set up content registries
         let modules = ModuleRegistry::new();
-        let packages = PackageRegistry::new();
-        let tsconfigs = TsConfigRegistry::new();
+        let packages = Arc::new(PackageRegistry::new());
+        let tsconfigs = Arc::new(TsConfigRegistry::new());
         let artifacts = ArtifactRegistry::new();
         let strings = StringPool::new();
         let diagnostics = DiagnosticCollector::new();
 
         // create and insert the root package and module (for global caching)
-        let (root_module_id, fallback_file_id) = Self::new_root(&modules, &packages, files.clone());
+        let (root_module_id, fallback_file_id) =
+            Self::new_root(&modules, &packages, files.clone());
+
+        Self {
+            formatter,
+            linter,
+            cwd,
+            fs,
+            files,
+
+            modules,
+            packages,
+            tsconfigs,
+            artifacts,
+            strings,
+            diagnostics,
+
+            root_module_id,
+            fallback_file_id,
+        }
+    }
+
+    /// Create a new Program with pre-created registries (for sharing with Resolver).
+    pub fn with_registries(
+        formatter: FormatterOptions,
+        linter: LinterOptions,
+        cwd: PathBuf,
+        fs: Arc<dyn FileSystem>,
+        files: Arc<FileRegistry>,
+        packages: Arc<PackageRegistry>,
+        tsconfigs: Arc<TsConfigRegistry>,
+    ) -> Self {
+        let modules = ModuleRegistry::new();
+        let artifacts = ArtifactRegistry::new();
+        let strings = StringPool::new();
+        let diagnostics = DiagnosticCollector::new();
+
+        // create and insert the root package and module (for global caching)
+        let (root_module_id, fallback_file_id) =
+            Self::new_root(&modules, &packages, files.clone());
 
         Self {
             formatter,
@@ -129,7 +168,7 @@ impl Program {
     /// NOTE #Architecture: revisit having a "root module" in program
     fn new_root(
         modules: &ModuleRegistry,
-        packages: &PackageRegistry,
+        packages: &Arc<PackageRegistry>,
         files: Arc<FileRegistry>,
     ) -> (ModuleId, FileId) {
         // ephemeral package for root
