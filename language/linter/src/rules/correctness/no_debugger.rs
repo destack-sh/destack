@@ -32,7 +32,7 @@ impl LintRule for NoDebugger {
         severity: LintSeverity,
         ctx: &mut LintModuleAstContext,
     ) {
-        ctx.for_each::<Expression, _>(|_tree, expression, span| {
+        ctx.for_each::<Expression, _>(|_tree, _node_id, expression, span| {
             if matches!(expression, Expression::Debugger) {
                 Some(
                     LintDiagnostic::new(

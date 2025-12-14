@@ -102,7 +102,7 @@ impl LintModuleDirContext {
     where
         N: Node + Clone,
         NodeTree: NodeTreeImpl<N>,
-        F: for<'a> FnMut(&'a NodeTree, &'a N, Span) -> Option<LintDiagnostic>,
+        F: for<'a> FnMut(&'a NodeTree, LocalNodeId<N>, &'a N, Span) -> Option<LintDiagnostic>,
     {
         let diagnostics: Vec<_> = {
             let module = self.module.read();
@@ -110,10 +110,10 @@ impl LintModuleDirContext {
             let ast_tree = &module.ast.tree;
             dir_tree
                 .iter_nodes_of_type::<N>()
-                .filter_map(|(id, node)| {
-                    let ast_node_id = dir_tree.get_source(id.id);
+                .filter_map(|(node_id, node)| {
+                    let ast_node_id = dir_tree.get_source(node_id.id);
                     let span = ast_tree.get_span_by_id(ast_node_id);
-                    callback(&dir_tree, node, span)
+                    callback(&dir_tree, node_id, node, span)
                 })
                 .collect()
         };

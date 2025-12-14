@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use destack_ast::{Node, NodeTree, NodeTreeImpl};
+use destack_ast::{LocalNodeId, Node, NodeTree, NodeTreeImpl};
 use destack_source::{FileId, ModuleId, Span};
 use destack_workspace::{LintSeverity, LinterOptions, Module, Program};
 use parking_lot::RwLock;
@@ -94,16 +94,16 @@ impl LintModuleAstContext {
     where
         N: Node + Clone,
         NodeTree: NodeTreeImpl<N>,
-        F: FnMut(&NodeTree, &N, Span) -> Option<LintDiagnostic>,
+        F: FnMut(&NodeTree, LocalNodeId<N>, &N, Span) -> Option<LintDiagnostic>,
     {
         let diagnostics: Vec<_> = {
             let module = self.module.read();
             let tree = &module.ast.tree;
             tree.iter_nodes::<N>()
-                .filter_map(|id| {
-                    let span = tree.get_span(id);
-                    let node = tree.get(id);
-                    callback(tree, node, span)
+                .filter_map(|node_id| {
+                    let span = tree.get_span(node_id);
+                    let node = tree.get(node_id);
+                    callback(tree, node_id, node, span)
                 })
                 .collect()
         };

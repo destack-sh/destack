@@ -46,7 +46,7 @@ impl LintRule for NoConstantCondition {
         severity: LintSeverity,
         ctx: &mut LintModuleAstContext,
     ) {
-        ctx.for_each::<Expression, _>(|tree, expression, _span| {
+        ctx.for_each::<Expression, _>(|tree, _node_id, expression, _span| {
             let condition_id = match expression {
                 Expression::If { condition, .. } => Some(*condition),
                 Expression::While { condition, .. } => Some(*condition),
