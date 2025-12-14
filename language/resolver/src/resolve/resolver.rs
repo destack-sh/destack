@@ -2,7 +2,7 @@ use std::fmt;
 use std::sync::Arc;
 
 use destack_source::{FileRegistry, FileSystem, PhysicalFileSystem};
-use destack_workspace::{FormatterOptions, LanguageOptions, LinterOptions, Program};
+use destack_workspace::{FormatterOptions, LinterOptions, Program};
 
 use crate::ResolveOptions;
 
@@ -44,7 +44,6 @@ impl Resolver {
         let fs: Arc<dyn FileSystem> = Arc::new(PhysicalFileSystem::new());
         let files = Arc::new(FileRegistry::new());
         let program = Arc::new(Program::new(
-            LanguageOptions::default(),
             FormatterOptions::default(),
             LinterOptions::default(),
             cwd,
@@ -62,7 +61,6 @@ impl Resolver {
             .unwrap_or_else(|| std::env::current_dir().unwrap());
         let files = Arc::new(FileRegistry::new());
         let program = Arc::new(Program::new(
-            LanguageOptions::default(),
             FormatterOptions::default(),
             LinterOptions::default(),
             cwd,

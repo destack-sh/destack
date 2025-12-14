@@ -11,7 +11,7 @@ use destack_source::{
     DiagnosticSeverity, File, FileRegistry, FileSystem, MemoryFileSystem, ModuleId,
     PhysicalFileSystem, PrintOptions, Uri, print_diagnostics,
 };
-use destack_workspace::{LanguageOptions, Module, Program};
+use destack_workspace::{FormatterOptions, LinterOptions, Module, Program};
 use parking_lot::RwLock;
 
 use crate::{
@@ -67,7 +67,8 @@ impl TestProgram {
         };
 
         let program = Arc::new(Program::new(
-            LanguageOptions::default(),
+            FormatterOptions::default(),
+            LinterOptions::default(),
             root_directory,
             fs.fs(),
             Arc::new(FileRegistry::new()),
@@ -289,7 +290,7 @@ impl TestProgram {
             && highest >= min_severity
         {
             let options = PrintOptions::new()
-                .with_line_width(self.program.language.formatting.line_width as u32)
+                .with_line_width(self.program.formatter.line_width as u32)
                 .with_module_count(self.program.modules.len());
             print_diagnostics(&self.program.files, &diagnostics, options);
             let severity_name = min_severity.family_name().to_ascii_lowercase();
@@ -308,7 +309,7 @@ impl TestProgram {
         let actual_codes: Vec<&str> = diagnostic_vec.iter().map(|d| d.code.as_str()).collect();
         if actual_codes != expected_codes {
             let options = PrintOptions::new()
-                .with_line_width(self.program.language.formatting.line_width as u32)
+                .with_line_width(self.program.formatter.line_width as u32)
                 .with_module_count(self.program.modules.len());
             print_diagnostics(&self.program.files, &diagnostics, options);
             panic!("diagnostic mismatch\nexpected: {expected_codes:?}\nactual: {actual_codes:?}");
@@ -323,7 +324,7 @@ impl TestProgram {
 
         if !has_code {
             let options = PrintOptions::new()
-                .with_line_width(self.program.language.formatting.line_width as u32)
+                .with_line_width(self.program.formatter.line_width as u32)
                 .with_module_count(self.program.modules.len());
             print_diagnostics(&self.program.files, &diagnostics, options);
             let actual_codes: Vec<&str> = diagnostic_vec.iter().map(|d| d.code.as_str()).collect();
@@ -339,7 +340,7 @@ impl TestProgram {
 
         if has_code {
             let options = PrintOptions::new()
-                .with_line_width(self.program.language.formatting.line_width as u32)
+                .with_line_width(self.program.formatter.line_width as u32)
                 .with_module_count(self.program.modules.len());
             print_diagnostics(&self.program.files, &diagnostics, options);
             panic!("unexpected diagnostic with code '{code}'");

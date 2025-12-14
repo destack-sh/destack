@@ -3,7 +3,7 @@ use crate::{
 };
 
 use destack_parser::Parser;
-use destack_source::{File, ModuleId};
+use destack_source::{File, LanguageType, ModuleId};
 use destack_workspace::{ModuleAst, Program};
 
 /// Task to import (load and parse) a module.
@@ -117,7 +117,8 @@ impl Compiler {
             };
 
         // parse
-        let mut parser = Parser::lex_file(file.clone(), self.program.language.ty);
+        let language_type = LanguageType::from(file.ty);
+        let mut parser = Parser::lex_file(file.clone(), language_type);
         let expressions = parser.parse();
         self.program.diagnostics.merge_from(&parser.diagnostics);
 

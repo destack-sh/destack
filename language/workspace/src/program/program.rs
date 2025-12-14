@@ -10,8 +10,8 @@ use destack_source::{
 use indexmap::IndexMap;
 
 use crate::{
-    ArtifactRegistry, DsConfigOptions, FormatterOptions, LanguageOptions, LinterOptions, Module,
-    ModuleAst, ModuleRegistry, ModuleType, Package, PackageKind, PackageRegistry, TsConfigOptions,
+    ArtifactRegistry, DsConfigOptions, FormatterOptions, LinterOptions, Module, ModuleAst,
+    ModuleRegistry, ModuleType, Package, PackageKind, PackageRegistry, TsConfigOptions,
     TsConfigRegistry,
 };
 
@@ -43,8 +43,6 @@ impl ProgramId {
 #[derive(Debug)]
 pub struct Program {
     // meta
-    /// The language options.
-    pub language: LanguageOptions,
     /// Default formatter options.
     pub formatter: FormatterOptions,
     /// Default linter options.
@@ -80,7 +78,6 @@ pub struct Program {
 impl Program {
     /// Create a new Program.
     pub fn new(
-        language: LanguageOptions,
         formatter: FormatterOptions,
         linter: LinterOptions,
         cwd: PathBuf,
@@ -99,7 +96,6 @@ impl Program {
         let (root_module_id, fallback_file_id) = Self::new_root(&modules, &packages, files.clone());
 
         Self {
-            language,
             formatter,
             linter,
             cwd,

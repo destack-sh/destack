@@ -7,7 +7,7 @@ use destack_ast::NodeParentIndex;
 use destack_fir::format as fir_format;
 use destack_formatter::{DestackFormatContext, DestackFormatOptions};
 use destack_parser::Parser;
-use destack_source::{DiagnosticSeverity, File, FileId, FileType, LanguageOptions, Uri};
+use destack_source::{DiagnosticSeverity, File, FileId, FileType, LanguageType, Uri};
 use libfuzzer_sys::fuzz_target;
 
 fuzz_target!(|data: &[u8]| {
@@ -16,7 +16,6 @@ fuzz_target!(|data: &[u8]| {
     };
 
     // Set up minimal context for parsing
-    let language = LanguageOptions::default();
     let file_id = FileId::new(0);
     let uri = Uri::from_path(Path::new("fuzz.ds"));
     let file = Arc::new(File::from_text(
@@ -29,7 +28,7 @@ fuzz_target!(|data: &[u8]| {
     ));
 
     // Parse the input
-    let mut parser = Parser::lex_file(file.clone(), language);
+    let mut parser = Parser::lex_file(file.clone(), LanguageType::Destack);
     let expressions = parser.parse();
     parser.finish();
 
@@ -42,7 +41,7 @@ fuzz_target!(|data: &[u8]| {
     let side_span = parser.compute_side_span();
     let strings = parser.strings.clone().into_immutable();
     let parents = NodeParentIndex::from_tree(&parser.tree);
-    let format_options = DestackFormatOptions::from(language);
+    let format_options = DestackFormatOptions::default();
 
     let context = DestackFormatContext {
         options: format_options,

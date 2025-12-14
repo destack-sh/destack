@@ -7,7 +7,7 @@ use clap::{Args, ValueEnum};
 use destack_source::{
     FileRegistry, FileSystem, IndentStyle, LineEnding, MemoryFileSystem, PhysicalFileSystem,
 };
-use destack_workspace::{FormatterOptions, LanguageOptions, Program};
+use destack_workspace::{FormatterOptions, LinterOptions, Program};
 
 /// Get the default number of worker threads (available parallelism, or 1 if unknown).
 pub fn default_workers() -> u16 {
@@ -67,9 +67,9 @@ impl From<LineEndingArg> for LineEnding {
     }
 }
 
-/// Arguments for configuring language options.
+/// Arguments for configuring formatter options.
 #[derive(Args, Debug, Clone)]
-pub struct LanguageOptionsArgs {
+pub struct FormatterOptionsArgs {
     /// The indent style (tab|space, default: tab).
     #[arg(long = "indent-style", value_enum)]
     pub indent_style: Option<IndentStyleArg>,
@@ -87,24 +87,21 @@ pub struct LanguageOptionsArgs {
     pub line_width: Option<u8>,
 }
 
-impl From<LanguageOptionsArgs> for LanguageOptions {
-    fn from(args: LanguageOptionsArgs) -> Self {
-        let mut options = LanguageOptions::default();
-        let mut formatting = FormatterOptions::default();
+impl From<FormatterOptionsArgs> for FormatterOptions {
+    fn from(args: FormatterOptionsArgs) -> Self {
+        let mut options = FormatterOptions::default();
         if let Some(style) = args.indent_style {
-            formatting.indent_style = style.into();
+            options.indent_style = style.into();
         }
         if let Some(width) = args.indent_width {
-            formatting.indent_width = width;
+            options.indent_width = width;
         }
         if let Some(ending) = args.line_ending {
-            formatting.line_ending = ending.into();
+            options.line_ending = ending.into();
         }
         if let Some(width) = args.line_width {
-            formatting.line_width = width;
+            options.line_width = width;
         }
-        options.formatting = formatting;
-
         options
     }
 }
@@ -124,9 +121,9 @@ pub struct ProgramArgs {
     #[arg(long = "workers", short = 'j', default_value_t = default_workers())]
     pub workers: u16,
 
-    /// The language options.
+    /// The formatter options.
     #[command(flatten)]
-    pub language: LanguageOptionsArgs,
+    pub formatter: FormatterOptionsArgs,
 }
 
 impl ProgramArgs {
@@ -136,7 +133,8 @@ impl ProgramArgs {
             .cwd
             .clone()
             .unwrap_or_else(|| std::env::current_dir().unwrap_or_default());
-        let language_options: LanguageOptions = self.language.clone().into();
+        let formatter_options: FormatterOptions = self.formatter.clone().into();
+        let linter_options = LinterOptions::default();
         let fs_type = self.file_system.unwrap_or_default();
         let files = Arc::new(FileRegistry::new());
         let fs: Arc<dyn FileSystem> = match fs_type {
@@ -144,7 +142,7 @@ impl ProgramArgs {
             FileSystemArg::Memory => Arc::new(MemoryFileSystem::new()),
         };
         tracing::trace!(?cwd, ?fs_type, workers = self.workers, "program.setup");
-        let program = Program::new(language_options, cwd, fs, files);
+        let program = Program::new(formatter_options, linter_options, cwd, fs, files);
         Arc::new(program)
     }
 }

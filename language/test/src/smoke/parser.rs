@@ -4,7 +4,7 @@ use destack_parser::Parser;
 use destack_source::{
     File, FileRegistry, FileSystem, FileType, LanguageType, MemoryFileSystem, Uri,
 };
-use destack_workspace::{LanguageOptions, Program};
+use destack_workspace::{FormatterOptions, LinterOptions, Program};
 
 use crate::harness::{
     RunContext, Runner, Suite, TestCase, TestOptions, TestResult, check_diagnostics,
@@ -52,16 +52,11 @@ fn run_parser_case(test: &TestCase) -> TestResult {
         FileType::from_extension(ext).unwrap_or(FileType::Destack)
     };
 
-    // set up language options based on file type
-    let language_type = LanguageType::from(file_type);
-    let language = LanguageOptions::default().with_type(language_type);
-
     // set up a minimal program for diagnostics
     let cwd = test.path.parent().unwrap().to_path_buf();
     let files = Arc::new(FileRegistry::new());
     let fs: Arc<dyn FileSystem> = Arc::new(MemoryFileSystem::new());
     let program = Arc::new(Program::new(
-        language,
         FormatterOptions::default(),
         LinterOptions::default(),
         cwd,
@@ -87,7 +82,8 @@ fn run_parser_case(test: &TestCase) -> TestResult {
     let file = program.files.get(file_id);
 
     // parse the file
-    let mut parser = Parser::lex_file(file, program.language.ty);
+    let language_type = LanguageType::from(file.ty);
+    let mut parser = Parser::lex_file(file, language_type);
     let _expressions = parser.parse();
     program.diagnostics.merge_from(&parser.diagnostics);
 

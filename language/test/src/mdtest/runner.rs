@@ -8,7 +8,7 @@ use std::{io, thread};
 use destack_compiler::{AnalyzeTask, CompileOptions, Compiler};
 use destack_parser::source_colorizer;
 use destack_source::{FileRegistry, FileSystem, MemoryFileSystem, PrintOptions};
-use destack_workspace::{LanguageOptions, Program};
+use destack_workspace::{FormatterOptions, LinterOptions, Program};
 
 use crate::harness::print::color;
 use crate::harness::{
@@ -151,7 +151,6 @@ fn run_mdtest(test: &MdTestCase) -> TestResult {
 
     let fs: Arc<dyn FileSystem> = memory_fs;
     let program = Arc::new(Program::new(
-        LanguageOptions::default(),
         FormatterOptions::default(),
         LinterOptions::default(),
         cwd,

@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use destack_compiler::{CompileOptions, Compiler, EmitTask};
 use destack_source::{File, FileRegistry, FileSystem, FileType, PhysicalFileSystem, Uri};
-use destack_workspace::{DsConfig, LanguageOptions, Program, Target};
+use destack_workspace::{DsConfig, FormatterOptions, LinterOptions, Program, Target};
 
 use crate::harness::{
     RunContext, Runner, Suite, TestCase, TestOptions, TestResult, check_diagnostics,
@@ -68,7 +68,8 @@ fn run_codegen_case(test: &TestCase) -> TestResult {
     let files = Arc::new(FileRegistry::new());
     let fs: Arc<dyn FileSystem> = Arc::new(PhysicalFileSystem);
     let program = Arc::new(Program::new(
-        LanguageOptions::default(),
+        FormatterOptions::default(),
+        LinterOptions::default(),
         test.path.clone(),
         fs,
         files,
