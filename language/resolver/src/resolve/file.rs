@@ -3,7 +3,7 @@ use std::collections::HashSet;
 use std::hash::{BuildHasherDefault, Hash, Hasher};
 use std::path::{Component, Path, PathBuf};
 
-use destack_source::{FileSystem, PathExt};
+use destack_source::PathExt;
 
 use crate::{ResolveContext, ResolveError, Resolver, Restriction};
 
@@ -49,12 +49,6 @@ pub(crate) fn append_extension(path: &Path, extension: &str) -> PathBuf {
 }
 
 impl Resolver {
-    /// Get the filesystem.
-    #[inline]
-    pub(crate) fn fs(&self) -> &dyn FileSystem {
-        self.program.fs.as_ref()
-    }
-
     /// Check if a path is a file.
     #[inline]
     pub(crate) fn is_file(&self, path: &Path, ctx: &mut ResolveContext) -> bool {

@@ -130,7 +130,7 @@ impl Resolver {
                 path: path.to_path_buf(),
             }
         })?;
-        let file_id = self.program.files.next_id();
+        let file_id = self.files.next_id();
         let (name, uri) = Uri::from_path_with_name(&*dsconfig_path);
         let file = File::from_text_as_jsonc(
             file_id,
@@ -143,8 +143,8 @@ impl Resolver {
         .map_err(|_| ResolveError::DsConfigInvalid {
             path: dsconfig_path.to_path_buf(),
         })?;
-        self.program.files.insert(file);
-        let file = self.program.files.get(file_id);
+        self.files.insert(file);
+        let file = self.files.get(file_id);
 
         // parse dsconfig from file
         let dsconfig = DsConfig::parse(&file).map_err(|_| ResolveError::DsConfigInvalid {

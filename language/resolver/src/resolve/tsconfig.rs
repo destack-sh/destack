@@ -62,7 +62,7 @@ impl Resolver {
 
     /// Get the TsConfig for a given TsConfigId.
     pub fn get_tsconfig(&self, tsconfig_id: TsConfigId) -> TsConfig {
-        let tsconfig = self.program.tsconfigs.get(tsconfig_id);
+        let tsconfig = self.tsconfigs.get(tsconfig_id);
         let tsconfig_guard = tsconfig.read();
         (*tsconfig_guard).clone()
     }
@@ -82,13 +82,13 @@ impl Resolver {
     ) -> Result<TsConfigId, ResolveError> {
         tracing::trace!(?path, is_root, "resolver.load_tsconfig");
         // check if already in registry
-        if let Some(tsconfig_id) = self.program.tsconfigs.get_id_by_path(path) {
+        if let Some(tsconfig_id) = self.tsconfigs.get_id_by_path(path) {
             return Ok(tsconfig_id);
         }
 
         // parse the `tsconfig.json` file
         let tsconfig_id = self.read_tsconfig(is_root, path)?;
-        let tsconfig = self.program.tsconfigs.get(tsconfig_id);
+        let tsconfig = self.tsconfigs.get(tsconfig_id);
 
         // check for circular extends
         {
@@ -121,7 +121,7 @@ impl Resolver {
                         &TypeScriptOptionsReferences::Disabled,
                         ctx,
                     )?;
-                    let extended = self.program.tsconfigs.get(extended_tsconfig_id);
+                    let extended = self.tsconfigs.get(extended_tsconfig_id);
                     let extended_guard = extended.read();
                     let mut tsconfig = tsconfig.write();
                     tsconfig.extend_from(&extended_guard);
@@ -163,7 +163,7 @@ impl Resolver {
 
             // error if reference tsconfig points to itself
             {
-                let referenced = self.program.tsconfigs.get(reference_tsconfig_id);
+                let referenced = self.tsconfigs.get(reference_tsconfig_id);
                 let referenced_tsconfig = referenced.read();
                 if referenced_tsconfig.path == current_path {
                     return Err(ResolveError::TsConfigSelfReference {
@@ -174,14 +174,14 @@ impl Resolver {
 
             // extend the reference tsconfig
             {
-                let referenced_tsconfig = self.program.tsconfigs.get(reference_tsconfig_id);
+                let referenced_tsconfig = self.tsconfigs.get(reference_tsconfig_id);
                 let directory = referenced_tsconfig.read().directory.to_path_buf();
                 self.extend_tsconfig(reference_tsconfig_id, &directory, ctx)?;
             }
 
             // build the reference tsconfig
             {
-                let referenced_tsconfig = self.program.tsconfigs.get(reference_tsconfig_id);
+                let referenced_tsconfig = self.tsconfigs.get(reference_tsconfig_id);
                 let mut referenced_tsconfig = referenced_tsconfig.write();
                 referenced_tsconfig.build();
             }
@@ -200,7 +200,7 @@ impl Resolver {
     ///
     /// Creates a `File`, inserts it into the file registry, parses to `TsConfig`,
     /// and inserts into the tsconfig registry. Returns the `TsConfigId` for further
-    /// modification via `self.program.tsconfigs.get(id).write()`.
+    /// modification via `self.tsconfigs.get(id).write()`.
     fn read_tsconfig(&self, is_root: bool, path: &Path) -> Result<TsConfigId, ResolveError> {
         // resolve path to actual tsconfig file
         let meta = self.fs().metadata(path).ok();
@@ -220,7 +220,7 @@ impl Resolver {
                 path: path.to_path_buf(),
             }
         })?;
-        let file_id = self.program.files.next_id();
+        let file_id = self.files.next_id();
         let (name, uri) = Uri::from_path_with_name(&*tsconfig_path);
         let file = File::from_text_as_jsonc(
             file_id,
@@ -233,17 +233,17 @@ impl Resolver {
         .map_err(|_| ResolveError::TsConfigInvalid {
             path: tsconfig_path.to_path_buf(),
         })?;
-        self.program.files.insert(file);
-        let file = self.program.files.get(file_id);
+        self.files.insert(file);
+        let file = self.files.get(file_id);
 
         // parse tsconfig from file
-        let tsconfig_id = self.program.tsconfigs.next_id();
+        let tsconfig_id = self.tsconfigs.next_id();
         let tsconfig = TsConfig::parse(tsconfig_id, is_root, &file).map_err(|_| {
             ResolveError::TsConfigInvalid {
                 path: tsconfig_path.to_path_buf(),
             }
         })?;
-        self.program.tsconfigs.insert(tsconfig);
+        self.tsconfigs.insert(tsconfig);
 
         Ok(tsconfig_id)
     }
@@ -257,7 +257,7 @@ impl Resolver {
     ) -> Result<(), ResolveError> {
         // collect the paths to extend from
         let extended_tsconfig_paths = {
-            let tsconfig_lock = self.program.tsconfigs.get(tsconfig_id);
+            let tsconfig_lock = self.tsconfigs.get(tsconfig_id);
             let tsconfig = tsconfig_lock.read();
             tsconfig
                 .content
@@ -274,9 +274,9 @@ impl Resolver {
                 &TypeScriptOptionsReferences::Disabled,
                 ctx,
             )?;
-            let extended = self.program.tsconfigs.get(extended_tsconfig_id);
+            let extended = self.tsconfigs.get(extended_tsconfig_id);
             let extended_guard = extended.read();
-            let tsconfig_lock = self.program.tsconfigs.get(tsconfig_id);
+            let tsconfig_lock = self.tsconfigs.get(tsconfig_id);
             let mut tsconfig = tsconfig_lock.write();
             tsconfig.extend_from(&extended_guard);
         }
@@ -311,7 +311,7 @@ impl Resolver {
         };
 
         let tsconfig = self.get_tsconfig(tsconfig_id);
-        let paths = tsconfig.resolve(path, specifier, &self.program.tsconfigs);
+        let paths = tsconfig.resolve(path, specifier, &self.tsconfigs);
         for resolved in paths {
             if let Some(resolution) = self.load_file_or_directory(&resolved, ".", ctx)? {
                 return Ok(Some(resolution));

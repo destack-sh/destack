@@ -30,8 +30,8 @@ impl Resolver {
         let package_json_path = path.join("package.json");
 
         // check if already in registry (indexed by directory path, not package.json path)
-        if let Some(package_id) = self.program.packages.get_id_by_path(path) {
-            let package = self.program.packages.get(package_id);
+        if let Some(package_id) = self.packages.get_id_by_path(path) {
+            let package = self.packages.get(package_id);
             let package = package.read();
             if let Some(ref config) = package.manifest {
                 ctx.track_found_dependency(&config.path);
@@ -49,7 +49,7 @@ impl Resolver {
         };
 
         // create package file
-        let file_id = self.program.files.next_id();
+        let file_id = self.files.next_id();
         let (name, uri) = Uri::from_path_with_name(&package_json_path);
         let file = File::from_bytes_as_json(
             file_id,
@@ -62,8 +62,8 @@ impl Resolver {
         .map_err(|_| ResolveError::InvalidPackageJson {
             path: package_json_path.clone(),
         })?;
-        self.program.files.insert(file);
-        let file = self.program.files.get(file_id);
+        self.files.insert(file);
+        let file = self.files.get(file_id);
 
         // parse `package.json` from file
         let package_config =
@@ -90,7 +90,7 @@ impl Resolver {
             tsconfig: None,
             targets: Default::default(),
         };
-        self.program.packages.insert(package);
+        self.packages.insert(package);
 
         ctx.track_found_dependency(&package_json_path);
         Ok(Some(package_id))
@@ -190,7 +190,7 @@ impl Resolver {
         let Some(package_id) = self.find_package_json(path, ctx)? else {
             return Ok(None);
         };
-        let package = self.program.packages.get(package_id);
+        let package = self.packages.get(package_id);
         let package = package.read();
 
         // check if the package has imports
@@ -339,7 +339,7 @@ impl Resolver {
         let Some(package_id) = self.load_package(path, ctx)? else {
             return Ok(None);
         };
-        let package = self.program.packages.get(package_id);
+        let package = self.packages.get(package_id);
         let package = package.read();
 
         // resolve exports
@@ -367,7 +367,7 @@ impl Resolver {
         let Some(package_id) = self.find_package_json(path, ctx)? else {
             return Ok(None);
         };
-        let package = self.program.packages.get(package_id);
+        let package = self.packages.get(package_id);
         let package = package.read();
 
         // check if the package has config
@@ -456,7 +456,7 @@ impl Resolver {
                 if self.is_directory(&package_path, ctx) {
                     // load `package.json`
                     if let Some(package_id) = self.load_package(&package_path, ctx)? {
-                        let package = self.program.packages.get(package_id);
+                        let package = self.packages.get(package_id);
                         let package = package.read();
 
                         if let Some(config) = &package.manifest {
