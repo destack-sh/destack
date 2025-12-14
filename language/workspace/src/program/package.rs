@@ -38,11 +38,11 @@ pub struct Package {
     pub version: Option<String>,
 
     /// The package.json config (None for synthetic/ephemeral packages).
-    pub package_config: Option<PackageConfig>,
+    pub manifest: Option<PackageManifest>,
     /// The dsconfig.json config (1:1 with package, None if not specified).
     pub dsconfig: Option<DsConfig>,
     /// The root tsconfig of the package (in TsConfigRegistry, supports nesting).
-    pub main_tsconfig_id: Option<TsConfigId>,
+    pub tsconfig: Option<TsConfigId>,
     /// Build targets for this package (usually from `dsconfig.json`.targets).
     pub targets: IndexMap<String, Target>,
 }
@@ -59,15 +59,19 @@ impl Package {
     }
 }
 
-/// Package config from `package.json`.
+/// Package manifest from `package.json`.
 #[derive(Debug, Clone)]
-pub struct PackageConfig {
+pub struct PackageManifest {
     /// The id of the `package.json` file.
     pub file_id: FileId,
     /// The URI of the `package.json` file.
     pub uri: Uri,
     /// The path to the `package.json` file.
     pub path: PathBuf,
+    /// The name of the package.
+    pub name: String,
+    /// The version of the package.
+    pub version: String,
     /// The realpath to the `package.json` file.
     pub realpath: PathBuf,
     /// The directory of the `package.json` file.
@@ -76,7 +80,7 @@ pub struct PackageConfig {
     pub content: PackageJson,
 }
 
-impl PackageConfig {
+impl PackageManifest {
     /// Parse a package.json file from a File with JSON content.
     pub fn parse(file: &Arc<File>, realpath: PathBuf) -> Result<Self, serde_json::Error> {
         // extract the JSON value from file content
@@ -104,6 +108,8 @@ impl PackageConfig {
             file_id: file.id,
             uri: file.uri.clone(),
             path,
+            name: package_json.name.clone().unwrap_or_default(),
+            version: package_json.version.clone().unwrap_or_default(),
             realpath,
             directory,
             content: package_json,
@@ -123,6 +129,11 @@ pub struct PackageJson {
     /// Version of the package.
     /// <https://docs.npmjs.com/cli/v11/configuring-npm/package-json#version>
     pub version: Option<String>,
+
+    /// Module type: "module" (ESM) or "commonjs" (CJS).
+    /// <https://nodejs.org/api/packages.html#type>
+    #[serde(rename = "type")]
+    pub module_type: Option<String>,
 
     /// The "main" entry point.
     /// <https://docs.npmjs.com/cli/v11/configuring-npm/package-json#main>

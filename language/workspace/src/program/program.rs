@@ -131,9 +131,9 @@ impl Program {
             path: None,
             name: Some("<root>".to_string()),
             version: None,
-            package_config: None,
+            manifest: None,
             dsconfig: None,
-            main_tsconfig_id: None,
+            tsconfig: None,
             targets: IndexMap::new(),
         };
         packages.insert(root_package);

@@ -2,7 +2,7 @@ use std::borrow::Cow;
 use std::path::{Path, PathBuf};
 
 use destack_source::{File, FileType, PathExt, Uri};
-use destack_workspace::{DsConfig, PackageConfig};
+use destack_workspace::{DsConfig, PackageManifest};
 
 use crate::{ResolveError, Resolver};
 
@@ -48,7 +48,7 @@ impl Resolver {
     #[tracing::instrument(name = "resolver.load_package_dsconfig", level = "trace", skip(self))]
     pub fn load_package_dsconfig(
         &self,
-        package_config: &PackageConfig,
+        package_config: &PackageManifest,
     ) -> Result<DsConfig, ResolveError> {
         let dsconfig_path = package_config.directory.join("dsconfig.json");
 
@@ -84,8 +84,8 @@ impl Resolver {
             .extends
             .as_ref()
             .map(|extends| match extends {
-                destack_workspace::DsConfigExtendsField::Single(s) => vec![s.clone()],
-                destack_workspace::DsConfigExtendsField::Multiple(m) => m.clone(),
+                destack_workspace::ExtendsFieldJson::Single(s) => vec![s.clone()],
+                destack_workspace::ExtendsFieldJson::Multiple(m) => m.clone(),
             })
             .unwrap_or_default()
             .into_iter()

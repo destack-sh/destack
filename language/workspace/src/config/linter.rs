@@ -6,7 +6,7 @@ pub struct LinterOptions {
     /// Whether linting is enabled.
     pub enabled: bool,
     /// Rule configuration.
-    pub rules: LinterRules,
+    pub rules: LinterRules, // nocheckin: this feels awkward, inline LinterRules struct?
 }
 
 impl Default for LinterOptions {
@@ -21,10 +21,10 @@ impl Default for LinterOptions {
 /// Linter rules configuration.
 #[derive(Debug, Clone)]
 pub struct LinterRules {
-    /// Enable the recommended rule set.
+    /// Enable the recommended rule set. // nocheckin: better way of doing categories?
     pub recommended: bool,
     /// Individual rule overrides (rule name -> severity).
-    pub overrides: IndexMap<String, RuleSeverity>,
+    pub overrides: IndexMap<String, LintSeverity>,
 }
 
 impl Default for LinterRules {
@@ -60,56 +60,64 @@ impl LinterRules {
     }
 
     /// Set a rule's severity.
-    pub fn with_rule(mut self, rule: impl Into<String>, severity: RuleSeverity) -> Self {
+    pub fn with_rule(mut self, rule: impl Into<String>, severity: LintSeverity) -> Self {
         self.overrides.insert(rule.into(), severity);
         self
     }
 
     /// Get a rule's severity (returns None if not overridden).
-    pub fn get_severity(&self, rule: &str) -> Option<RuleSeverity> {
+    pub fn get_severity(&self, rule: &str) -> Option<LintSeverity> {
         self.overrides.get(rule).copied()
     }
 }
 
 /// Rule severity level.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
-pub enum RuleSeverity {
+pub enum LintSeverity {
     /// Rule is disabled.
     Off,
+    /// Rule produces notes.
+    Note,
     /// Rule produces warnings.
     #[default]
-    Warn,
+    Warning,
     /// Rule produces errors.
     Error,
 }
 
-impl RuleSeverity {
+impl LintSeverity {
     /// Whether this severity is enabled (not off).
     pub fn is_enabled(&self) -> bool {
-        !matches!(self, RuleSeverity::Off)
+        !matches!(self, LintSeverity::Off)
     }
 
-    /// Whether this severity is an error.
-    pub fn is_error(&self) -> bool {
-        matches!(self, RuleSeverity::Error)
+    /// Whether this severity is a note.
+    pub fn is_note(&self) -> bool {
+        matches!(self, LintSeverity::Note)
     }
 
     /// Whether this severity is a warning.
     pub fn is_warn(&self) -> bool {
-        matches!(self, RuleSeverity::Warn)
+        matches!(self, LintSeverity::Warning)
+    }
+
+    /// Whether this severity is an error.
+    pub fn is_error(&self) -> bool {
+        matches!(self, LintSeverity::Error)
     }
 
     /// Get the string representation.
     pub fn as_str(&self) -> &'static str {
         match self {
-            RuleSeverity::Off => "off",
-            RuleSeverity::Warn => "warn",
-            RuleSeverity::Error => "error",
+            LintSeverity::Off => "off",
+            LintSeverity::Note => "note",
+            LintSeverity::Warning => "warn",
+            LintSeverity::Error => "error",
         }
     }
 }
 
-impl std::fmt::Display for RuleSeverity {
+impl std::fmt::Display for LintSeverity {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str(self.as_str())
     }
