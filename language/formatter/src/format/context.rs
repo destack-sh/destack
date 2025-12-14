@@ -4,12 +4,10 @@ use destack_ast::{
     Member, Node, NodeParentIndex, NodeTree, NodeTreeImpl, NodeType, Parameter, Pattern,
     PatternField, Property, TokenSpan, TokenType, WhereClause,
 };
+use destack_base::ImmutableStringPool;
 use destack_fir::format::{Format, FormatContext, FormatOptions, FormatResult, Formatter};
 use destack_fir::print::PrintOptions;
-use destack_source::{
-    File, FileSourceMap, ImmutableStringPool, IndentStyle, LanguageOptions, LanguageType,
-    LineEnding, MultiSpan, Span,
-};
+use destack_source::{File, FileSourceMap, IndentStyle, LanguageType, LineEnding, MultiSpan, Span};
 
 pub type DestackFormatter<'ast, 'buf> = Formatter<'buf, DestackFormatContext<'ast>>;
 
@@ -26,19 +24,6 @@ pub struct DestackFormatOptions {
     pub indent_width: u8 = 4,
     /// Maximum line length (best effort).
     pub line_width: u8 = 100,
-}
-
-impl From<LanguageOptions> for DestackFormatOptions {
-    #[inline]
-    fn from(options: LanguageOptions) -> Self {
-        Self {
-            language_type: options.ty,
-            line_ending: options.formatting.line_ending,
-            indent_style: options.formatting.indent_style,
-            indent_width: options.formatting.indent_width,
-            line_width: options.formatting.line_width,
-        }
-    }
 }
 
 impl DestackFormatOptions {

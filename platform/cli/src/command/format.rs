@@ -7,10 +7,10 @@ use destack_fir::format as fir_format;
 use destack_formatter::{DestackFormatContext, DestackFormatOptions};
 use destack_parser::{Parser, colorize_source};
 use destack_source::{
-    DiagnosticOptions, DiagnosticSeverity, File, FileId, FileType, FormatterOptions, IndentStyle,
-    LanguageOptions, LineEnding, Uri, glob,
+    DiagnosticOptions, DiagnosticSeverity, File, FileId, FileType, IndentStyle, LineEnding, Uri,
+    glob,
 };
-use destack_workspace::Program;
+use destack_workspace::{FormatterOptions, LanguageOptions, Program};
 use serde::Deserialize;
 
 use crate::command::{
@@ -168,7 +168,7 @@ fn check_and_print_errors(program: &Arc<Program>, diagnostic_options: &Diagnosti
 /// Format a single file and return the formatted content.
 fn format_file(file: Arc<File>, language: LanguageOptions, program: Arc<Program>) -> String {
     // parse file
-    let mut parser = Parser::lex_file(file.clone(), language);
+    let mut parser = Parser::lex_file(file.clone(), language.ty);
     let expressions = parser.parse();
     parser.finish();
     program.diagnostics.merge_from(&parser.diagnostics);
@@ -177,7 +177,13 @@ fn format_file(file: Arc<File>, language: LanguageOptions, program: Arc<Program>
     let side_span = parser.compute_side_span();
     let strings = parser.strings.into_immutable();
     let parents = NodeParentIndex::from_tree(&parser.tree);
-    let format_options = DestackFormatOptions::from(language);
+    let format_options = DestackFormatOptions {
+        language_type: language.ty,
+        line_ending: language.formatting.line_ending,
+        indent_style: language.formatting.indent_style,
+        indent_width: language.formatting.indent_width,
+        line_width: language.formatting.line_width,
+    };
     let context = DestackFormatContext {
         options: format_options,
         file: file.as_ref(),

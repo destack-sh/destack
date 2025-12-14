@@ -7,8 +7,8 @@ use std::{io, thread};
 
 use destack_compiler::{AnalyzeTask, CompileOptions, Compiler};
 use destack_parser::source_colorizer;
-use destack_source::{FileRegistry, FileSystem, LanguageOptions, MemoryFileSystem, PrintOptions};
-use destack_workspace::Program;
+use destack_source::{FileRegistry, FileSystem, MemoryFileSystem, PrintOptions};
+use destack_workspace::{LanguageOptions, Program};
 
 use crate::harness::print::color;
 use crate::harness::{
@@ -150,7 +150,14 @@ fn run_mdtest(test: &MdTestCase) -> TestResult {
     let main_path = main_path.expect("test should have at least one file");
 
     let fs: Arc<dyn FileSystem> = memory_fs;
-    let program = Arc::new(Program::new(LanguageOptions::default(), cwd, fs, files));
+    let program = Arc::new(Program::new(
+        LanguageOptions::default(),
+        FormatterOptions::default(),
+        LinterOptions::default(),
+        cwd,
+        fs,
+        files,
+    ));
 
     // compile the main file (this will pull in imports)
     let compiler = Compiler::new(

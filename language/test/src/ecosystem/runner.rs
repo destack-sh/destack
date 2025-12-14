@@ -6,10 +6,9 @@ use std::sync::Arc;
 use destack_compiler::{AnalyzeTask, CompileOptions, Compiler};
 use destack_parser::Parser;
 use destack_source::{
-    File, FileRegistry, FileSystem, FileType, LanguageOptions, MemoryFileSystem,
-    PhysicalFileSystem, Uri, glob,
+    File, FileRegistry, FileSystem, FileType, MemoryFileSystem, PhysicalFileSystem, Uri, glob,
 };
-use destack_workspace::Program;
+use destack_workspace::{LanguageOptions, Program};
 
 use crate::harness::{RunContext, Runner, Suite, TestCase, TestOptions, TestResult, fixtures_dir};
 
@@ -391,7 +390,7 @@ fn parse_file(path: &Path) -> Result<(), String> {
     program.files.insert(file);
     let file = program.files.get(file_id);
 
-    let mut parser = Parser::lex_file(file, program.language);
+    let mut parser = Parser::lex_file(file, program.language.ty);
     let _ = parser.parse();
     program.diagnostics.merge_from(&parser.diagnostics);
 

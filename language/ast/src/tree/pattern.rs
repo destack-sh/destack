@@ -1,4 +1,4 @@
-use destack_source::StringId;
+use destack_base::StringId;
 
 use crate::{Expression, LocalNodeId, Mutability, Name, Node, NodeType};
 

@@ -2,7 +2,7 @@ use std::fmt::Debug;
 use std::str::Chars;
 
 use destack_ast::TokenSpan;
-use destack_source::{FileId, LanguageOptions, Span};
+use destack_source::{FileId, LanguageType, Span};
 
 use super::memchr::find_byte;
 
@@ -66,9 +66,9 @@ pub struct Lexer<'a> {
     /// The tokens seen so far.
     pub(super) tokens: Vec<TokenSpan>,
 
-    /// The options for the lexer.
+    /// The language type for parsing behavior.
     #[allow(unused)]
-    pub(super) language: LanguageOptions,
+    pub(super) language: LanguageType,
 }
 
 impl Debug for Lexer<'_> {
@@ -85,7 +85,7 @@ pub const EOF_CHAR: char = '\0';
 
 impl<'a> Lexer<'a> {
     /// Create a new Lexer from a string.
-    pub fn new(file_id: FileId, source: &'a str, language: LanguageOptions) -> Lexer<'a> {
+    pub fn new(file_id: FileId, source: &'a str, language: LanguageType) -> Lexer<'a> {
         Lexer {
             file_id,
             source,

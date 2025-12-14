@@ -4,10 +4,8 @@ use destack_ast::NodeParentIndex;
 use destack_fir::format as fir_format;
 use destack_formatter::{DestackFormatContext, DestackFormatOptions};
 use destack_parser::Parser;
-use destack_source::{
-    File, FileRegistry, FileSystem, FileType, LanguageOptions, MemoryFileSystem, Uri,
-};
-use destack_workspace::Program;
+use destack_source::{File, FileRegistry, FileSystem, FileType, MemoryFileSystem, Uri};
+use destack_workspace::{LanguageOptions, Program};
 
 use crate::harness::diff::print_diff;
 use crate::harness::{
@@ -50,7 +48,14 @@ fn run_roundtrip_case(test: &TestCase) -> TestResult {
     let files = Arc::new(FileRegistry::new());
     let fs: Arc<dyn FileSystem> = Arc::new(MemoryFileSystem::new());
     let language = LanguageOptions::default();
-    let program = Arc::new(Program::new(language, cwd, fs, files));
+    let program = Arc::new(Program::new(
+        language,
+        FormatterOptions::default(),
+        LinterOptions::default(),
+        cwd,
+        fs,
+        files,
+    ));
 
     // read the original file
     let original = match std::fs::read_to_string(&test.path) {
@@ -83,7 +88,7 @@ fn run_roundtrip_case(test: &TestCase) -> TestResult {
     program.files.insert((*file).clone());
 
     // parse the file
-    let mut parser = Parser::lex_file(file.clone(), program.language);
+    let mut parser = Parser::lex_file(file.clone(), program.language.ty);
     let expressions = parser.parse();
     parser.finish();
     program.diagnostics.merge_from(&parser.diagnostics);
@@ -118,7 +123,13 @@ fn format_expressions(
     let side_span = parser.compute_side_span();
     let strings = parser.strings.clone().into_immutable();
     let parents = NodeParentIndex::from_tree(&parser.tree);
-    let format_options = DestackFormatOptions::from(language);
+    let format_options = DestackFormatOptions {
+        language_type: language.ty,
+        line_ending: language.formatting.line_ending,
+        indent_style: language.formatting.indent_style,
+        indent_width: language.formatting.indent_width,
+        line_width: language.formatting.line_width,
+    };
 
     let context = DestackFormatContext {
         options: format_options,

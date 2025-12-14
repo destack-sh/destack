@@ -1,5 +1,5 @@
 use crate::LocalNodeIdAny;
-use destack_source::{StringId, StringPool};
+use destack_base::{StringId, StringPool};
 
 /// Key for a symbol / some static "identifier".
 #[derive(Debug, Clone, Copy, PartialEq, Hash, PartialOrd, Eq)]

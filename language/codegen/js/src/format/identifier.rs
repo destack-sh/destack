@@ -1,8 +1,8 @@
 use crate::{Keyword, Name};
+use destack_base::StringId;
 use destack_fir::format::{Format, FormatResult, text};
 use destack_fir::prelude::*;
 use destack_fir::write;
-use destack_source::StringId;
 
 use crate::{CodegenJsFormatContext, CodegenJsFormatter};
 

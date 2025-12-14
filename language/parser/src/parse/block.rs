@@ -469,7 +469,7 @@ impl Parser {
 #[cfg(test)]
 mod tests {
     use destack_ast::{Expression, ScalarLiteral, YieldCardinality};
-    use destack_source::{LanguageOptions, LanguageType};
+    use destack_source::LanguageType;
 
     use crate::{TestParser, assert_expression_path, assert_node, assert_path, assert_string};
 
@@ -670,7 +670,7 @@ mod tests {
     /// `yield\n*a` should NOT be parsed as `yield* a` due to ASI restricted production.
     #[test]
     fn test_yield_asi_with_newline_js_mode() {
-        let options = LanguageOptions::default().with_type(LanguageType::JavaScript);
+        let options = LanguageType::JavaScript;
         let mut test = TestParser::new_with_options("yield\n*a", options);
         let mut parser = test.prepare();
 

@@ -4,10 +4,9 @@ use std::sync::Arc;
 use indexmap::IndexMap;
 use serde::Deserialize;
 
-use destack_source::{
-    File, FileContent, FileId, FormatterOptions, IndentStyle, LineEnding, LinterOptions,
-    LinterRules, RuleSeverity,
-};
+use destack_source::{File, FileContent, FileId, IndentStyle, LineEnding};
+
+use crate::{FormatterOptions, LinterOptions, LinterRules, RuleSeverity};
 
 use super::target::{
     OptimizeLevel, OutputFormat, OutputMode, Platform, Runtime, ShrinkLevel, Target,

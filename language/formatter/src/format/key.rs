@@ -1,9 +1,9 @@
 use crate::{DestackFormatContext, DestackFormatter};
 use destack_ast::{Key, Keyword, Name};
+use destack_base::StringId;
 use destack_fir::format::text;
 use destack_fir::prelude::*;
 use destack_fir::write;
-use destack_source::StringId;
 
 impl<'ast> Format<DestackFormatContext<'ast>> for StringId {
     #[inline]

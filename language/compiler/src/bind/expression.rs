@@ -20,7 +20,7 @@ impl Compiler {
         }
     }
 
-    destack_source::ensure_sufficient_stack! {
+    destack_base::ensure_sufficient_stack! {
         /// Bind an expression to a DIR expression.
         pub(super) fn bind_expression(
             &self,

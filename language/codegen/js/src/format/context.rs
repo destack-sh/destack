@@ -3,10 +3,11 @@ use crate::{
     LocalNodeId, LocalNodeIdAny, Member, Node, NodeTree, NodeTreeImpl, NodeType, Parameter,
     Pattern, PatternField, Property, Statement, SwitchCase, Type, TypeField,
 };
+use destack_base::ImmutableStringPool;
 use destack_fir::format::{Format, FormatContext, FormatOptions, FormatResult, Formatter};
 use destack_fir::prelude::*;
 use destack_fir::print::PrintOptions;
-use destack_source::{File, FileType, ImmutableStringPool, IndentStyle, LineEnding};
+use destack_source::{File, FileType, IndentStyle, LineEnding};
 use destack_workspace::Target;
 
 pub type CodegenJsFormatter<'ast, 'buf> = Formatter<'buf, CodegenJsFormatContext<'ast>>;

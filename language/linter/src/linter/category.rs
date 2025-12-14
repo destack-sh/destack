@@ -89,15 +89,12 @@ impl LintCategory {
 
     /// Whether this category is part of the "recommended" set.
     pub const fn is_recommended(&self) -> bool {
-        matches!(
-            self,
-            Self::Correctness | Self::Suspicious | Self::Security
-        )
+        matches!(self, Self::Correctness | Self::Suspicious | Self::Security)
     }
 
     /// Default severity for rules in this category.
-    pub const fn default_severity(&self) -> destack_source::RuleSeverity {
-        use destack_source::RuleSeverity;
+    pub const fn default_severity(&self) -> destack_workspace::RuleSeverity {
+        use destack_workspace::RuleSeverity;
         match self {
             Self::Correctness => RuleSeverity::Error,
             Self::Suspicious => RuleSeverity::Warn,

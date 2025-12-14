@@ -1,6 +1,6 @@
 //! MIR global data definitions.
 
-use destack_source::StringId;
+use destack_base::StringId;
 
 use crate::{Constant, LocalNodeId, Mutability, Node, NodeType, Type};
 

@@ -3,7 +3,9 @@
 use std::fmt;
 use std::sync::Arc;
 
-use crate::{Color, File, LabeledSpan, Span};
+use destack_base::Color;
+
+use crate::{File, LabeledSpan, Span};
 
 const HEADER_PREFIX: &str = "==>";
 const BODY_PREFIX: &str = " | ";

@@ -86,7 +86,7 @@ pub fn run(args: &LexArgs) -> i32 {
     } else {
         |_| true
     };
-    let (tokens, _) = Lexer::lex(file.id, text, program.language);
+    let (tokens, _) = Lexer::lex(file.id, text, program.language.ty);
     let tokens: Vec<TokenSpan> = tokens
         .into_iter()
         .filter(|token| filter(token.token.ty))

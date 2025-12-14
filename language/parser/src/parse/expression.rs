@@ -322,7 +322,7 @@ impl Parser {
         }
     }
 
-    destack_source::ensure_sufficient_stack! {
+    destack_base::ensure_sufficient_stack! {
         /// Eat an expression.
         pub fn eat_expression(&mut self) -> ParseResult<LocalNodeId<Expression>> {
             let start = self.mark();
@@ -1405,7 +1405,7 @@ mod tests {
         PatternField, PostfixPosition, Property, ScalarLiteral, TypeBinaryOperator, TypeLiteral,
         TypeUnaryOperator, UnaryOperator, VarianceBound,
     };
-    use destack_source::{LanguageOptions, LanguageType};
+    use destack_source::LanguageType;
 
     use crate::{
         TestParser, assert_expression_path, assert_name, assert_node, assert_path, assert_string,
@@ -2339,7 +2339,7 @@ geom.Mesh<2, 4> {
     /// Dereference should fail in JavaScript compatibility mode.
     #[test]
     fn test_dereference_fails_in_js_mode() {
-        let options = LanguageOptions::default().with_type(LanguageType::JavaScript);
+        let options = LanguageType::JavaScript;
         let mut test = TestParser::new_with_options("*x", options);
         let mut parser = test.prepare();
         // Should fail to parse *x as dereference in JS mode
@@ -3054,7 +3054,7 @@ const value =
     /// Comma in parentheses parses as sequence expression.
     #[test]
     fn test_parse_sequence_expression() {
-        let options = LanguageOptions::default().with_type(LanguageType::JavaScript);
+        let options = LanguageType::JavaScript;
         let mut test = TestParser::new_with_options("(a, b, c)", options);
         let mut parser = test.prepare();
         let expr_id = parser.eat_expression().unwrap();
@@ -3073,7 +3073,7 @@ const value =
     /// Comma in parentheses parses as tuple expression.
     #[test]
     fn test_parse_tuple_expression() {
-        let options = LanguageOptions::default().with_type(LanguageType::Destack);
+        let options = LanguageType::Destack;
         let mut test = TestParser::new_with_options("(a, b, c)", options);
         let mut parser = test.prepare();
         let expr_id = parser.eat_expression().unwrap();
@@ -3098,7 +3098,7 @@ const value =
     /// Sequence expression with type literal elements.
     #[test]
     fn test_parse_sequence_expression_with_type_literal() {
-        let options = LanguageOptions::default().with_type(LanguageType::JavaScript);
+        let options = LanguageType::JavaScript;
         let mut test = TestParser::new_with_options("(a, void, 1)", options);
         let mut parser = test.prepare();
         let expr_id = parser.eat_expression().unwrap();

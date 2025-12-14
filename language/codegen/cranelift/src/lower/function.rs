@@ -38,8 +38,8 @@ use cranelift_codegen::isa::TargetIsa;
 use cranelift_frontend::{FunctionBuilder, FunctionBuilderContext, Switch};
 use cranelift_module::{DataId, FuncId, Module};
 use cranelift_object::ObjectModule;
+use destack_base::StringPool;
 use destack_mir as mir;
-use destack_source::StringPool;
 
 use super::layout::compute_tuple_element_offset;
 use super::r#type::lower_type;

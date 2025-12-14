@@ -3,10 +3,8 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use destack_compiler::{CompileOptions, Compiler, EmitTask};
-use destack_source::{
-    File, FileRegistry, FileSystem, FileType, LanguageOptions, PhysicalFileSystem, Uri,
-};
-use destack_workspace::{DsConfig, Program, Target};
+use destack_source::{File, FileRegistry, FileSystem, FileType, PhysicalFileSystem, Uri};
+use destack_workspace::{DsConfig, LanguageOptions, Program, Target};
 
 use crate::harness::{
     RunContext, Runner, Suite, TestCase, TestOptions, TestResult, check_diagnostics,

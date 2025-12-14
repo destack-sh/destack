@@ -1,4 +1,4 @@
-use destack_source::StringId;
+use destack_base::StringId;
 use smallvec::SmallVec;
 
 use crate::{ParseResult, Parser};

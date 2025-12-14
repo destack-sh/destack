@@ -1,7 +1,7 @@
 #![allow(clippy::match_like_matches_macro)]
 
 use crate::*;
-use destack_source::{Color, ImmutableStringPool, impl_dump_display, rebuild_tree_output};
+use destack_base::{Color, ImmutableStringPool, impl_dump_display, rebuild_tree_output};
 use smallvec::{Array, SmallVec};
 use std::borrow::Cow;
 

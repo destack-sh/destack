@@ -2,8 +2,8 @@ use std::sync::Arc;
 
 use parking_lot::RwLock;
 
-use destack_source::{FileId, LinterRules, ModuleId, RuleSeverity, Span};
-use destack_workspace::{Module, Program};
+use destack_source::{FileId, ModuleId, Span};
+use destack_workspace::{LinterRules, Module, Program, RuleSeverity};
 
 use super::{LintCategory, LintDiagnostic};
 

@@ -6,9 +6,10 @@ use indexmap::IndexMap;
 use parking_lot::RwLock;
 
 use destack_ast::{self as ast};
+use destack_base::{StringId, StringPool};
 use destack_dir::{self as dir};
 use destack_mir::{self as mir};
-use destack_source::{FileId, LanguageType, ModuleId, PackageId, StringId, StringPool, Uri};
+use destack_source::{FileId, LanguageType, ModuleId, PackageId, Uri};
 
 use crate::{ModuleType, TsConfigId};
 

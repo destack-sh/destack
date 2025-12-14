@@ -2,16 +2,42 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use destack_ast as ast;
+use destack_base::StringPool;
 use destack_source::{
-    DiagnosticCollector, File, FileId, FileRegistry, FileSystem, FileType, LanguageOptions,
-    LanguageType, ModuleId, PackageId, StringPool, Uri,
+    DiagnosticCollector, File, FileId, FileRegistry, FileSystem, FileType, LanguageType, ModuleId,
+    PackageId, Uri,
 };
 use indexmap::IndexMap;
 
 use crate::{
-    ArtifactRegistry, DsConfigOptions, Module, ModuleAst, ModuleRegistry, ModuleType, Package,
-    PackageKind, PackageRegistry, TsConfigOptions, TsConfigRegistry,
+    ArtifactRegistry, DsConfigOptions, FormatterOptions, LanguageOptions, LinterOptions, Module,
+    ModuleAst, ModuleRegistry, ModuleType, Package, PackageKind, PackageRegistry, TsConfigOptions,
+    TsConfigRegistry,
 };
+
+/// Unique identifier for Programs.
+#[repr(transparent)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub struct ProgramId(pub u32);
+
+impl std::fmt::Debug for ProgramId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "#{}", self.0)
+    }
+}
+
+impl std::fmt::Display for ProgramId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "#{}", self.0)
+    }
+}
+
+impl ProgramId {
+    /// Wrap an id as a ProgramId.
+    pub fn new(id: u32) -> Self {
+        Self(id)
+    }
+}
 
 /// A Program.
 #[derive(Debug)]
@@ -19,6 +45,10 @@ pub struct Program {
     // meta
     /// The language options.
     pub language: LanguageOptions,
+    /// Default formatter options.
+    pub formatter: FormatterOptions,
+    /// Default linter options.
+    pub linter: LinterOptions,
     /// The current working directory.
     pub cwd: PathBuf,
     /// The file system.
@@ -51,6 +81,8 @@ impl Program {
     /// Create a new Program.
     pub fn new(
         language: LanguageOptions,
+        formatter: FormatterOptions,
+        linter: LinterOptions,
         cwd: PathBuf,
         fs: Arc<dyn FileSystem>,
         files: Arc<FileRegistry>,
@@ -68,6 +100,8 @@ impl Program {
 
         Self {
             language,
+            formatter,
+            linter,
             cwd,
             fs,
             files,

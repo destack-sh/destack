@@ -1,10 +1,10 @@
 use destack_ast::{self as ast};
+use destack_base::StringId;
 use destack_dir::{
     DependencyItem, DependencyKind, DependencyMode, DependencySource, LocalNodeId, LocalNodeIdAny,
     LocalScopeId, LocalScopeMark, NodeTree, NodeType, StaticKey, SymbolSpace, SymbolTable,
     TypeTable,
 };
-use destack_source::StringId;
 
 use crate::Compiler;
 

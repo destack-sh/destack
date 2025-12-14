@@ -36,7 +36,7 @@ impl From<DiagnosticArgs> for DiagnosticOptions {
 /// Print diagnostics (and suggestions) to the console.
 pub(crate) fn print_diagnostics(program: &Program, diagnostics: &DiagnosticCollection) {
     let options = PrintOptions::new()
-        .with_line_width(program.language.formatting.line_width as u32)
+        .with_line_width(100)
         .with_module_count(program.modules.len())
         .with_colorizer(source_colorizer());
     print_diagnostics_impl(&program.files, diagnostics, options);

@@ -1,0 +1,21 @@
+[package]
+name = "destack_base"
+description = "Destack Base Primitives"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[lib]
+path = "src/lib.rs"
+doctest = false
+
+[dependencies]
+parking_lot = { workspace = true }
+stacker = { workspace = true }
+
+[dev-dependencies]
+
+[lints]
+workspace = true

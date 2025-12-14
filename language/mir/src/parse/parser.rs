@@ -7,7 +7,7 @@ use crate::{
     Linkage, Local, LocalNodeId, Mutability, NodeTree, Ownership, SwitchCase, Terminator, Type,
     TypedValue, UnaryOperator, Value,
 };
-use destack_source::{ImmutableStringPool, StringPool};
+use destack_base::{ImmutableStringPool, StringPool};
 
 use super::error::{ParseError, ParseResult};
 use super::lexer::Lexer;

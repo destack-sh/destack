@@ -24,7 +24,7 @@ pub use block::*;
 pub use declaration::*;
 pub use declarator::*;
 pub use dependency::*;
-pub use destack_source::{Arena, StringId, StringPool};
+pub use destack_base::{Arena, StringId, StringPool};
 pub use expression::*;
 pub use function::*;
 pub use key::*;

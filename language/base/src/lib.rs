@@ -1,11 +1,13 @@
+mod arena;
 mod color;
+mod dumper;
 mod humanize;
-mod span;
+mod stack;
 mod string;
-mod uri;
 
+pub use arena::*;
 pub use color::*;
+pub use dumper::*;
 pub use humanize::*;
-pub use span::*;
+pub use stack::*;
 pub use string::*;
-pub use uri::*;

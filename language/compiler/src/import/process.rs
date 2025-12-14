@@ -117,7 +117,7 @@ impl Compiler {
             };
 
         // parse
-        let mut parser = Parser::lex_file(file.clone(), self.program.language);
+        let mut parser = Parser::lex_file(file.clone(), self.program.language.ty);
         let expressions = parser.parse();
         self.program.diagnostics.merge_from(&parser.diagnostics);
 
