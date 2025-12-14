@@ -162,6 +162,8 @@ pub enum Keyword {
     Break,
     /// Continue expression.
     Continue,
+    /// Debugger statement.
+    Debugger,
     /// Return expression.
     Return,
     /// Yield expression.
@@ -308,6 +310,7 @@ impl Keyword {
             Keyword::Assert => "assert",
             Keyword::Break => "break",
             Keyword::Continue => "continue",
+            Keyword::Debugger => "debugger",
             Keyword::Return => "return",
             Keyword::Yield => "yield",
             Keyword::Goto => "goto",
@@ -413,6 +416,7 @@ impl FromStr for Keyword {
             "assert" => Ok(Keyword::Assert),
             "break" => Ok(Keyword::Break),
             "continue" => Ok(Keyword::Continue),
+            "debugger" => Ok(Keyword::Debugger),
             "return" => Ok(Keyword::Return),
             "yield" => Ok(Keyword::Yield),
             "goto" => Ok(Keyword::Goto),

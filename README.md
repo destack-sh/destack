@@ -1,7 +1,7 @@
 # Destack: Universal Software Engine
 
-**Destack is a universal software engine for building correct, optimal, integrated software**.
-Build on TypeScript and the web ecosystem with a unified open source toolchain, stack and platform.
+**Destack is a universal software engine for building correct, optimal, integrated software systems.**
+Build on TypeScript and the web ecosystem with a unified standards-based toolchain, stack and platform.
 Own your software, build it anywhere and run it everywhere in one integrated open source stack:
 
  - **Destack Language**: "TypeScript++" [extends TypeScript with opt-in features](language/DESIGN.md) for correctness, collaboration, ergonomics, and performance. Two-way compatibility enables incremental adoption [`.ds` adoption](language/SPECIFICATION.md) (like we already do with `.tsx`).

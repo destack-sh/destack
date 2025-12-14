@@ -325,6 +325,9 @@ pub enum Expression {
         value: Option<LocalNodeId<Expression>>,
     },
 
+    /// Debugger statement.
+    Debugger,
+
     /// Stub placeholder for annotation-only files.
     Stub,
 
@@ -416,6 +419,8 @@ impl Expression {
             Expression::Await { .. } => "await",
             Expression::Yield { .. } => "yield",
             Expression::Return { .. } => "return",
+
+            Expression::Debugger => "debugger",
 
             Expression::Stub => "stub",
             Expression::Error => "error",

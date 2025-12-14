@@ -283,6 +283,7 @@ pub fn walk_statement<V: NodeVisitor + ?Sized>(
                 visitor.visit_expression(tree, *value, value_expr);
             }
         }
+        Statement::Debugger => {}
     }
 }
 
