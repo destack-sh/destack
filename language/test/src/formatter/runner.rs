@@ -4,8 +4,9 @@ use destack_ast::NodeParentIndex;
 use destack_fir::format as fir_format;
 use destack_formatter::{DestackFormatContext, DestackFormatOptions};
 use destack_parser::Parser;
-use destack_source::{File, FileRegistry, FileSystem, FileType, MemoryFileSystem, Uri};
-use destack_source::LanguageType;
+use destack_source::{
+    File, FileRegistry, FileSystem, FileType, LanguageType, MemoryFileSystem, Uri,
+};
 use destack_workspace::{FormatterOptions, LinterOptions, Program};
 
 use crate::harness::diff::print_diff;
@@ -99,7 +100,13 @@ fn run_roundtrip_case(test: &TestCase) -> TestResult {
     }
 
     // format the file
-    let formatted = format_expressions(&parser, &expressions, &file, language_type, program.formatter);
+    let formatted = format_expressions(
+        &parser,
+        &expressions,
+        &file,
+        language_type,
+        program.formatter,
+    );
 
     // compare to original
     if formatted == original {

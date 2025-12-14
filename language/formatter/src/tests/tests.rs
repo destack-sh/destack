@@ -2,10 +2,10 @@ use std::sync::Arc;
 
 use crate::{DestackFormatContext, DestackFormatOptions};
 use destack_ast::{NodeParentIndex, NodeTree, TokenSpan};
+use destack_base::ImmutableStringPool;
 use destack_fir::format;
 use destack_fir::format::Format;
 use destack_parser::{ParseResult, Parser};
-use destack_base::ImmutableStringPool;
 use destack_source::{File, FileId, FileType, LanguageType, MultiSpan, Uri};
 
 /// A test wrapper for Formatter.

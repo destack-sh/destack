@@ -5,7 +5,9 @@ use std::sync::Arc;
 use destack_compiler::{
     AnalyzeError, AnalyzeTask, BindError, CompileOptions, Compiler, ImportError, ResolveError,
 };
-use destack_source::{DiagnosticSeverity, FileRegistry, FileSystem, FileType, MemoryFileSystem, Uri};
+use destack_source::{
+    DiagnosticSeverity, FileRegistry, FileSystem, FileType, MemoryFileSystem, Uri,
+};
 use destack_workspace::{FormatterOptions, LinterOptions, Program};
 
 /// Outcome of checking a file for conformance testing.
