@@ -283,4 +283,18 @@ impl Program {
         let dsconfig = package_guard.dsconfig.as_ref()?;
         Some(f(&dsconfig.options))
     }
+
+    /// Get effective linter options for a module (package dsconfig > program defaults).
+    pub fn get_linter_options(&self, module_id: ModuleId) -> LinterOptions {
+        let module = self.modules.get(module_id);
+        let module = module.read();
+
+        // try package dsconfig first
+        if let Some(options) = self.with_dsconfig_options(&module, |ds| ds.linter.clone()) {
+            return options;
+        }
+
+        // fall back to program defaults
+        self.linter.clone()
+    }
 }

@@ -1,7 +1,7 @@
 use std::path::Path;
 
 use clap::{ArgGroup, Args};
-use destack_compiler::{AnalyzeTask, CompileOptions, Compiler};
+use destack_compiler::{CompileOptions, Compiler, LintTask};
 use destack_dir::{Dumper, DumperOptions, NodeVisitor};
 use destack_parser::colorize_source;
 use destack_source::{DiagnosticOptions, FileType, Uri};
@@ -96,7 +96,7 @@ pub fn run(args: &CompileArgs) -> i32 {
     };
 
     // compile
-    compiler.enqueue(AnalyzeTask::AnalyzeModuleValidate { module: module_id });
+    compiler.enqueue(LintTask::LintModule { module: module_id });
     compiler.compile();
     drop(compiler);
 
