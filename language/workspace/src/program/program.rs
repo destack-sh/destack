@@ -104,8 +104,7 @@ impl Program {
         let diagnostics = DiagnosticCollector::new();
 
         // create and insert the root package and module (for global caching)
-        let (root_module_id, fallback_file_id) =
-            Self::new_root(&modules, &packages, files.clone());
+        let (root_module_id, fallback_file_id) = Self::new_root(&modules, &packages, files.clone());
 
         Self {
             formatter,
@@ -142,8 +141,7 @@ impl Program {
         let diagnostics = DiagnosticCollector::new();
 
         // create and insert the root package and module (for global caching)
-        let (root_module_id, fallback_file_id) =
-            Self::new_root(&modules, &packages, files.clone());
+        let (root_module_id, fallback_file_id) = Self::new_root(&modules, &packages, files.clone());
 
         Self {
             formatter,

@@ -6,7 +6,7 @@ use serde::Deserialize;
 
 use destack_source::{File, FileContent, FileId, IndentStyle, LineEnding};
 
-use crate::{FormatterOptions, LintSeverity, LinterOptions, LinterRules};
+use crate::{FormatterOptions, LintPreset, LintSeverity, LinterOptions};
 
 use super::target::{
     OptimizeLevel, OutputFormat, OutputMode, Platform, Runtime, ShrinkLevel, Target,
@@ -201,15 +201,26 @@ impl DsConfig {
         if child_linter_json.enabled.is_none() {
             self.options.linter.enabled = parent.linter.enabled;
         }
-        if child_linter_json.rules.recommended.is_none() {
-            self.options.linter.rules.recommended = parent.linter.rules.recommended;
+        if child_linter_json.rules.preset.is_none()
+            && child_linter_json.rules.recommended.is_none()
+            && child_linter_json.rules.all.is_none()
+        {
+            self.options.linter.preset = parent.linter.preset;
         }
-        // merge rule overrides (child takes precedence)
-        for (rule, severity) in &parent.linter.rules.overrides {
-            if !self.options.linter.rules.overrides.contains_key(rule) {
+        // merge category overrides (child takes precedence)
+        for (category, severity) in &parent.linter.categories {
+            if !self.options.linter.categories.contains_key(category) {
                 self.options
                     .linter
-                    .rules
+                    .categories
+                    .insert(category.clone(), *severity);
+            }
+        }
+        // merge rule overrides (child takes precedence)
+        for (rule, severity) in &parent.linter.overrides {
+            if !self.options.linter.overrides.contains_key(rule) {
+                self.options
+                    .linter
                     .overrides
                     .insert(rule.clone(), *severity);
             }
@@ -1066,7 +1077,7 @@ impl DsConfigLinterJson {
         if let Some(enabled) = self.enabled {
             options.enabled = enabled;
         }
-        self.rules.apply(&mut options.rules);
+        self.rules.apply(options);
     }
 }
 
@@ -1075,28 +1086,49 @@ impl DsConfigLinterJson {
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
 pub struct DsConfigLinterRulesJson {
-    /// Enable the recommended rule set. Default: true.
+    /// Preset: "none", "recommended", or "all".
+    pub preset: Option<String>,
+    /// Enable the recommended rule set (shorthand for preset: "recommended").
     pub recommended: Option<bool>,
-    /// Enable all rules (stricter than recommended).
+    /// Enable all rules (shorthand for preset: "all").
     pub all: Option<bool>,
+    /// Category-level severity overrides.
+    pub categories: Option<IndexMap<String, RuleSeverityJson>>,
     /// Individual rule overrides (rule name -> severity).
-    /// Overrides take precedence over presets.
     #[serde(flatten)]
     pub overrides: IndexMap<String, RuleSeverityJson>,
 }
 
 impl DsConfigLinterRulesJson {
-    /// Apply rules configuration to a LinterRules struct.
-    pub fn apply(&self, rules: &mut LinterRules) {
-        if let Some(recommended) = self.recommended {
-            rules.recommended = recommended;
+    /// Apply rules configuration to LinterOptions.
+    pub fn apply(&self, options: &mut LinterOptions) {
+        // preset field takes precedence
+        if let Some(preset_str) = &self.preset {
+            if let Some(preset) = LintPreset::parse(preset_str) {
+                options.preset = preset;
+            }
+        } else if let Some(true) = self.all {
+            options.preset = LintPreset::All;
+        } else if let Some(recommended) = self.recommended {
+            options.preset = if recommended {
+                LintPreset::Recommended
+            } else {
+                LintPreset::None
+            };
         }
-        // "all" implies recommended + more
-        if let Some(true) = self.all {
-            rules.recommended = true;
+
+        // category overrides
+        if let Some(categories) = &self.categories {
+            for (category, severity) in categories {
+                options
+                    .categories
+                    .insert(category.clone(), (*severity).into());
+            }
         }
+
+        // rule overrides
         for (rule, severity) in &self.overrides {
-            rules.overrides.insert(rule.clone(), (*severity).into());
+            options.overrides.insert(rule.clone(), (*severity).into());
         }
     }
 }

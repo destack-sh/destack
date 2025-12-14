@@ -13,7 +13,7 @@ pub struct LintDiagnostic {
     pub code: &'static str,
     /// The category of the lint.
     pub category: LintCategory,
-    /// The configured severity (from LinterRules).
+    /// The configured severity.
     pub severity: LintSeverity,
     /// The diagnostic message.
     pub message: String,

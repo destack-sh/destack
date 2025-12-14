@@ -15,11 +15,15 @@ doctest = false
 destack_ast = { workspace = true }
 destack_dir = { workspace = true }
 destack_linter_macros = { workspace = true }
+destack_mir = { workspace = true }
+destack_parser = { workspace = true }
 destack_source = { workspace = true }
 destack_workspace = { workspace = true }
+indexmap = { workspace = true }
 parking_lot = { workspace = true }
 
 [dev-dependencies]
+destack_compiler = { workspace = true }
 
 [lints]
 workspace = true

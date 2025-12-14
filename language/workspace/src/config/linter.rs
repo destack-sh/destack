@@ -1,61 +1,108 @@
 use indexmap::IndexMap;
 
-/// The linter options.
+/// Lint rule preset.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+pub enum LintPreset {
+    /// No rules enabled by default.
+    None,
+    /// Recommended rules enabled (default).
+    #[default]
+    Recommended,
+    /// All rules enabled.
+    All,
+}
+
+impl LintPreset {
+    /// Parse a preset from a string.
+    pub fn parse(s: &str) -> Option<Self> {
+        match s.to_lowercase().as_str() {
+            "none" | "off" => Some(Self::None),
+            "recommended" => Some(Self::Recommended),
+            "all" => Some(Self::All),
+            _ => None,
+        }
+    }
+
+    /// Get the string representation.
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Self::None => "none",
+            Self::Recommended => "recommended",
+            Self::All => "all",
+        }
+    }
+}
+
+impl std::fmt::Display for LintPreset {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.as_str())
+    }
+}
+
+/// Linter options.
+///
+/// Rule severity resolution order (highest precedence first):
+/// 1. Individual rule overrides
+/// 2. Category-level overrides
+/// 3. Preset defaults
 #[derive(Debug, Clone)]
 pub struct LinterOptions {
     /// Whether linting is enabled.
     pub enabled: bool,
-    /// Rule configuration.
-    pub rules: LinterRules, // nocheckin: this feels awkward, inline LinterRules struct?
+    /// Base preset (none, recommended, all).
+    pub preset: LintPreset,
+    /// Category-level severity overrides.
+    pub categories: IndexMap<String, LintSeverity>,
+    /// Individual rule severity overrides.
+    pub overrides: IndexMap<String, LintSeverity>,
 }
 
 impl Default for LinterOptions {
     fn default() -> Self {
         Self {
             enabled: true,
-            rules: LinterRules::default(),
-        }
-    }
-}
-
-/// Linter rules configuration.
-#[derive(Debug, Clone)]
-pub struct LinterRules {
-    /// Enable the recommended rule set. // nocheckin: better way of doing categories?
-    pub recommended: bool,
-    /// Individual rule overrides (rule name -> severity).
-    pub overrides: IndexMap<String, LintSeverity>,
-}
-
-impl Default for LinterRules {
-    fn default() -> Self {
-        Self {
-            recommended: true,
+            preset: LintPreset::Recommended,
+            categories: IndexMap::new(),
             overrides: IndexMap::new(),
         }
     }
 }
 
-impl LinterRules {
-    /// Create rules with recommended enabled.
+impl LinterOptions {
+    /// Create options with recommended preset.
     pub fn recommended() -> Self {
-        Self {
-            recommended: true,
-            overrides: IndexMap::new(),
-        }
+        Self::default()
     }
 
-    /// Create rules with recommended disabled.
+    /// Create options with no rules enabled.
     pub fn none() -> Self {
         Self {
-            recommended: false,
+            enabled: true,
+            preset: LintPreset::None,
+            categories: IndexMap::new(),
             overrides: IndexMap::new(),
         }
     }
 
-    /// Set whether recommended rules are enabled.
-    pub fn with_recommended(mut self, recommended: bool) -> Self {
-        self.recommended = recommended;
+    /// Create options with all rules enabled.
+    pub fn all() -> Self {
+        Self {
+            enabled: true,
+            preset: LintPreset::All,
+            categories: IndexMap::new(),
+            overrides: IndexMap::new(),
+        }
+    }
+
+    /// Set the preset.
+    pub fn with_preset(mut self, preset: LintPreset) -> Self {
+        self.preset = preset;
+        self
+    }
+
+    /// Set a category's severity.
+    pub fn with_category(mut self, category: impl Into<String>, severity: LintSeverity) -> Self {
+        self.categories.insert(category.into(), severity);
         self
     }
 
@@ -65,9 +112,48 @@ impl LinterRules {
         self
     }
 
-    /// Get a rule's severity (returns None if not overridden).
-    pub fn get_severity(&self, rule: &str) -> Option<LintSeverity> {
+    /// Get a rule's configured severity (returns None if not overridden).
+    pub fn get_rule_severity(&self, rule: &str) -> Option<LintSeverity> {
         self.overrides.get(rule).copied()
+    }
+
+    /// Get a category's configured severity (returns None if not overridden).
+    pub fn get_category_severity(&self, category: &str) -> Option<LintSeverity> {
+        self.categories.get(category).copied()
+    }
+
+    /// Resolve effective severity for a rule given its category and default severity.
+    ///
+    /// Resolution order: rule override > category override > preset default
+    pub fn resolve_severity(
+        &self,
+        rule_id: &str,
+        category: &str,
+        default: LintSeverity,
+        is_recommended: bool,
+    ) -> LintSeverity {
+        // rule override takes precedence
+        if let Some(severity) = self.overrides.get(rule_id) {
+            return *severity;
+        }
+
+        // category override
+        if let Some(severity) = self.categories.get(category) {
+            return *severity;
+        }
+
+        // preset logic
+        match self.preset {
+            LintPreset::None => LintSeverity::Off,
+            LintPreset::Recommended => {
+                if is_recommended {
+                    default
+                } else {
+                    LintSeverity::Off
+                }
+            }
+            LintPreset::All => default,
+        }
     }
 }
 
@@ -113,6 +199,17 @@ impl LintSeverity {
             LintSeverity::Note => "note",
             LintSeverity::Warning => "warn",
             LintSeverity::Error => "error",
+        }
+    }
+
+    /// Parse from string.
+    pub fn parse(s: &str) -> Option<Self> {
+        match s.to_lowercase().as_str() {
+            "off" | "none" | "0" => Some(Self::Off),
+            "note" | "info" => Some(Self::Note),
+            "warn" | "warning" | "1" => Some(Self::Warning),
+            "error" | "deny" | "2" => Some(Self::Error),
+            _ => None,
         }
     }
 }

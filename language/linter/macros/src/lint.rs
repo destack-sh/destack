@@ -142,16 +142,14 @@ fn extract_docs(attrs: &[Attribute]) -> String {
     attrs
         .iter()
         .filter_map(|attr| {
-            if attr.path().is_ident("doc") {
-                if let Meta::NameValue(nv) = &attr.meta {
-                    if let syn::Expr::Lit(syn::ExprLit {
-                        lit: syn::Lit::Str(s),
-                        ..
-                    }) = &nv.value
-                    {
-                        return Some(s.value());
-                    }
-                }
+            if attr.path().is_ident("doc")
+                && let Meta::NameValue(nv) = &attr.meta
+                && let syn::Expr::Lit(syn::ExprLit {
+                    lit: syn::Lit::Str(s),
+                    ..
+                }) = &nv.value
+            {
+                return Some(s.value());
             }
             None
         })
@@ -220,8 +218,9 @@ pub(crate) fn declare_lint_impl(input: TokenStream) -> TokenStream {
             scope: crate::linter::LintScope::#scope,
         };
 
-        impl crate::linter::LintRule for #name {
-            fn meta(&self) -> &'static crate::linter::LintMeta {
+        impl #name {
+            /// Get the lint metadata.
+            pub const fn meta() -> &'static crate::linter::LintMeta {
                 #static_name
             }
         }
