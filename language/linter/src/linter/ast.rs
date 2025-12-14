@@ -94,7 +94,7 @@ impl LintModuleAstContext {
     where
         N: Node + Clone,
         NodeTree: NodeTreeImpl<N>,
-        F: FnMut(&N, Span) -> Option<LintDiagnostic>,
+        F: FnMut(&NodeTree, &N, Span) -> Option<LintDiagnostic>,
     {
         let diagnostics: Vec<_> = {
             let module = self.module.read();
@@ -103,7 +103,7 @@ impl LintModuleAstContext {
                 .filter_map(|id| {
                     let span = tree.get_span(id);
                     let node = tree.get(id);
-                    callback(node, span)
+                    callback(tree, node, span)
                 })
                 .collect()
         };
