@@ -1,7 +1,7 @@
 use destack_source::{ModuleId, PackageId};
 use destack_workspace::Program;
 
-use crate::{Compiler, LintResult, Task, TaskDebug, TaskOutput};
+use crate::{Compiler, LintResult, Task, TaskDebug, TaskOutput, TaskResultCollector};
 
 /// Task to lint something.
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
@@ -11,9 +11,6 @@ pub enum LintTask {
 
     /// Lint a package
     LintPackage { package: PackageId },
-
-    /// Lint the entire program.
-    LintProgram,
 }
 
 impl LintTask {
@@ -22,7 +19,6 @@ impl LintTask {
         match self {
             Self::LintModule { .. } => 1,
             Self::LintPackage { .. } => 2,
-            Self::LintProgram => 4,
         }
     }
 }
@@ -32,7 +28,6 @@ impl TaskDebug for LintTask {
         match self {
             Self::LintModule { .. } => "module",
             Self::LintPackage { .. } => "package",
-            Self::LintProgram => "program",
         }
     }
 
@@ -48,7 +43,6 @@ impl TaskDebug for LintTask {
                 let uri = package.read().uri.clone().to_string();
                 format!(r#"package="{uri}""#)
             }
-            Self::LintProgram => String::new(),
         }
     }
 }
@@ -83,7 +77,6 @@ impl Compiler {
                 self.lint_module(module)?
             }
             LintTask::LintPackage { package } => self.lint_package(package)?,
-            LintTask::LintProgram => self.lint_program()?,
         };
         Ok(LintOutput { diagnostic_count })
     }
@@ -95,14 +88,24 @@ impl Compiler {
     }
 
     /// Lint a package.
-    fn lint_package(&self, _package_id: PackageId) -> LintResult<usize> {
-        // TODO: implement lint package
-        Ok(0)
-    }
+    fn lint_package(&self, package_id: PackageId) -> LintResult<usize> {
+        // collect all modules in the package
+        let modules = self
+            .program
+            .modules
+            .iter()
+            .filter(|module| module.read().package_id == package_id);
 
-    /// Lint the entire program.
-    fn lint_program(&self) -> LintResult<usize> {
-        // TODO: implement lint program
-        Ok(0)
+        // lint each module
+        let mut collector = TaskResultCollector::new();
+        for module in modules {
+            let result = self.require_lint_module(module.read().id);
+            collector.try_collect(result);
+        }
+
+        // yield on any yields
+        if let Some(dependency) = collector.try_into_yield_all() {
+            return Err(LintError::Yield { dependency });
+        }
     }
 }

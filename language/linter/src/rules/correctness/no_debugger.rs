@@ -1,4 +1,6 @@
 use destack_ast::Expression;
+use destack_source::{FileId, ModuleId};
+use destack_workspace::LintSeverity;
 
 use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
 
@@ -23,11 +25,14 @@ impl LintRule for NoDebugger {
         NoDebugger::meta()
     }
 
-    fn check_module_ast(&self, context: &mut LintModuleAstContext) {
-        let file_id = context.file_id;
-        let severity = context.get_severity(NoDebugger::meta());
-
-        context.for_each::<Expression, _>(|expression, span| {
+    fn check_module_ast(
+        &self,
+        file_id: FileId,
+        _module_id: ModuleId,
+        severity: LintSeverity,
+        ctx: &mut LintModuleAstContext,
+    ) {
+        ctx.for_each::<Expression, _>(|_tree, expression, span| {
             if matches!(expression, Expression::Debugger) {
                 Some(
                     LintDiagnostic::new(
@@ -57,14 +62,24 @@ mod tests {
     #[test]
     fn test_detects_debugger_statement() {
         let test = TestProgram::for_rule(NoDebugger);
-        let result = test.lint_ast("test.ds", "debugger;");
+        let result = test.lint_ast(
+            "test.ds",
+            r#"
+debugger;
+"#,
+        );
         test.result(result).assert_lint("no-debugger");
     }
 
     #[test]
     fn test_detects_debugger_expression() {
         let test = TestProgram::for_rule(NoDebugger);
-        let result = test.lint_ast("test.ds", "let x = debugger;");
+        let result = test.lint_ast(
+            "test.ds",
+            r#"
+let x = debugger;
+"#,
+        );
         test.result(result).assert_lint("no-debugger");
     }
 

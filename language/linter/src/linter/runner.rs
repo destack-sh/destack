@@ -90,17 +90,20 @@ impl LintRunner {
         module: Arc<RwLock<Module>>,
         options: &LinterOptions,
     ) -> Vec<LintDiagnostic> {
-        let mut context = LintModuleAstContext::new(program, module, options.clone());
+        let mut ctx = LintModuleAstContext::new(program, module, options.clone());
+        let file_id = ctx.file_id;
+        let module_id = ctx.module_id;
         for rule in &self.rules {
             if rule.meta().level != LintLevel::Ast {
                 continue;
             }
-            if !context.is_rule_enabled(rule.meta()) {
+            if !ctx.is_rule_enabled(rule.meta()) {
                 continue;
             }
-            rule.check_module_ast(&mut context);
+            let severity = ctx.get_severity(rule.meta());
+            rule.check_module_ast(file_id, module_id, severity, &mut ctx);
         }
-        context.take_diagnostics()
+        ctx.take_diagnostics()
     }
 
     /// Lint a module at DIR level.
@@ -110,17 +113,20 @@ impl LintRunner {
         module: Arc<RwLock<Module>>,
         options: &LinterOptions,
     ) -> Vec<LintDiagnostic> {
-        let mut context = LintModuleDirContext::new(program, module, options.clone());
+        let mut ctx = LintModuleDirContext::new(program, module, options.clone());
+        let file_id = ctx.file_id;
+        let module_id = ctx.module_id;
         for rule in &self.rules {
             if rule.meta().level != LintLevel::Dir {
                 continue;
             }
-            if !context.is_rule_enabled(rule.meta()) {
+            if !ctx.is_rule_enabled(rule.meta()) {
                 continue;
             }
-            rule.check_module_dir(&mut context);
+            let severity = ctx.get_severity(rule.meta());
+            rule.check_module_dir(file_id, module_id, severity, &mut ctx);
         }
-        context.take_diagnostics()
+        ctx.take_diagnostics()
     }
 
     /// Lint a module at MIR level.
@@ -130,17 +136,20 @@ impl LintRunner {
         module: Arc<RwLock<Module>>,
         options: &LinterOptions,
     ) -> Vec<LintDiagnostic> {
-        let mut context = LintModuleMirContext::new(program, module, options.clone());
+        let mut ctx = LintModuleMirContext::new(program, module, options.clone());
+        let file_id = ctx.file_id;
+        let module_id = ctx.module_id;
         for rule in &self.rules {
             if rule.meta().level != LintLevel::Mir {
                 continue;
             }
-            if !context.is_rule_enabled(rule.meta()) {
+            if !ctx.is_rule_enabled(rule.meta()) {
                 continue;
             }
-            rule.check_module_mir(&mut context);
+            let severity = ctx.get_severity(rule.meta());
+            rule.check_module_mir(file_id, module_id, severity, &mut ctx);
         }
-        context.take_diagnostics()
+        ctx.take_diagnostics()
     }
 
     /// Lint a module by id.

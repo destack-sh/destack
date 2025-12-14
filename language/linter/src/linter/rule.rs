@@ -1,4 +1,5 @@
-use destack_source::DiagnosticSeverity;
+use destack_source::{DiagnosticSeverity, FileId, ModuleId};
+use destack_workspace::LintSeverity;
 
 use super::{
     LintCategory, LintModuleAstContext, LintModuleDirContext, LintModuleMirContext,
@@ -68,16 +69,37 @@ pub trait LintRule: Send + Sync {
     fn meta(&self) -> &'static LintMeta;
 
     /// Check a module at AST level (syntax patterns, no type info).
-    fn check_module_ast(&self, _context: &mut LintModuleAstContext) {}
+    fn check_module_ast(
+        &self,
+        _file_id: FileId,
+        _module_id: ModuleId,
+        _severity: LintSeverity,
+        _ctx: &mut LintModuleAstContext,
+    ) {
+    }
 
     /// Check a module at DIR level (typed IR with symbols and types).
-    fn check_module_dir(&self, _context: &mut LintModuleDirContext) {}
+    fn check_module_dir(
+        &self,
+        _file_id: FileId,
+        _module_id: ModuleId,
+        _severity: LintSeverity,
+        _ctx: &mut LintModuleDirContext,
+    ) {
+    }
 
     /// Check a module at MIR level (low-level control flow IR).
-    fn check_module_mir(&self, _context: &mut LintModuleMirContext) {}
+    fn check_module_mir(
+        &self,
+        _file_id: FileId,
+        _module_id: ModuleId,
+        _severity: LintSeverity,
+        _ctx: &mut LintModuleMirContext,
+    ) {
+    }
 
     /// Check the entire program (cross-module analysis).
-    fn check_program(&self, _context: &mut LintProgramContext) {}
+    fn check_program(&self, _ctx: &mut LintProgramContext) {}
 }
 
 /// A boxed lint rule for dynamic dispatch.
