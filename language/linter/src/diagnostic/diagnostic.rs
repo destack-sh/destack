@@ -1,5 +1,5 @@
-use destack_source::{DiagnosticSeverity, FileId, LabeledSpan, Span, Suggestion};
-use destack_workspace::RuleSeverity;
+use destack_source::{Diagnostic, DiagnosticSeverity, FileId, LabeledSpan, Span, Suggestion};
+use destack_workspace::LintSeverity;
 
 use super::LintFix;
 use crate::linter::LintCategory;
@@ -14,7 +14,7 @@ pub struct LintDiagnostic {
     /// The category of the lint.
     pub category: LintCategory,
     /// The configured severity (from LinterRules).
-    pub severity: RuleSeverity,
+    pub severity: LintSeverity,
     /// The diagnostic message.
     pub message: String,
     /// The file containing the issue.
@@ -37,7 +37,7 @@ impl LintDiagnostic {
         rule_id: &'static str,
         code: &'static str,
         category: LintCategory,
-        severity: RuleSeverity,
+        severity: LintSeverity,
         message: impl Into<String>,
         file_id: FileId,
         span: Span,
@@ -82,18 +82,19 @@ impl LintDiagnostic {
     }
 
     /// Convert to a standard Diagnostic.
-    pub fn into_diagnostic(self) -> destack_source::Diagnostic {
+    pub fn into_diagnostic(self) -> Diagnostic {
         let severity = match self.severity {
             // shouldn't happen, but treat as note
-            RuleSeverity::Off => return self.into_diagnostic_as(DiagnosticSeverity::Note),
-            RuleSeverity::Warn => DiagnosticSeverity::Warning,
-            RuleSeverity::Error => DiagnosticSeverity::Error,
+            LintSeverity::Off => return self.into_diagnostic_as(DiagnosticSeverity::Note),
+            LintSeverity::Note => DiagnosticSeverity::Note,
+            LintSeverity::Warning => DiagnosticSeverity::Warning,
+            LintSeverity::Error => DiagnosticSeverity::Error,
         };
         self.into_diagnostic_as(severity)
     }
 
     /// Convert to a standard Diagnostic with a specific severity.
-    fn into_diagnostic_as(self, severity: DiagnosticSeverity) -> destack_source::Diagnostic {
+    fn into_diagnostic_as(self, severity: DiagnosticSeverity) -> Diagnostic {
         let primary_span = LabeledSpan {
             span: self.span,
             label: self.label,
@@ -110,7 +111,7 @@ impl LintDiagnostic {
             )
         };
 
-        destack_source::Diagnostic {
+        Diagnostic {
             code: self.code.to_string(),
             original_code: None,
             severity,
@@ -130,6 +131,6 @@ impl LintDiagnostic {
 
     /// Check if this diagnostic should be reported based on severity.
     pub fn is_enabled(&self) -> bool {
-        self.severity != RuleSeverity::Off
+        self.severity != LintSeverity::Off
     }
 }

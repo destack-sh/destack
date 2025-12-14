@@ -93,17 +93,17 @@ impl LintCategory {
     }
 
     /// Default severity for rules in this category.
-    pub const fn default_severity(&self) -> destack_workspace::RuleSeverity {
-        use destack_workspace::RuleSeverity;
+    pub const fn default_severity(&self) -> destack_workspace::LintSeverity {
+        use destack_workspace::LintSeverity;
         match self {
-            Self::Correctness => RuleSeverity::Error,
-            Self::Suspicious => RuleSeverity::Warn,
-            Self::Performance => RuleSeverity::Warn,
-            Self::Style => RuleSeverity::Warn,
-            Self::Security => RuleSeverity::Error,
-            Self::Complexity => RuleSeverity::Warn,
-            Self::Restriction => RuleSeverity::Off, // opt-in
-            Self::Pedantic => RuleSeverity::Off,    // opt-in
+            Self::Correctness => LintSeverity::Error,
+            Self::Suspicious => LintSeverity::Warning,
+            Self::Performance => LintSeverity::Warning,
+            Self::Style => LintSeverity::Warning,
+            Self::Security => LintSeverity::Error,
+            Self::Complexity => LintSeverity::Warning,
+            Self::Restriction => LintSeverity::Off, // opt-in
+            Self::Pedantic => LintSeverity::Off,    // opt-in
         }
     }
 
