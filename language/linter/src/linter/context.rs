@@ -3,9 +3,9 @@ use std::sync::Arc;
 use parking_lot::RwLock;
 
 use destack_source::{FileId, ModuleId, Span};
-use destack_workspace::{LinterRules, Module, Program, RuleSeverity};
+use destack_workspace::{LinterRules, Module, Program, LintSeverity};
 
-use super::{LintCategory, LintDiagnostic};
+use crate::{LintCategory, LintDiagnostic};
 
 /// Context provided to lint rules during checking.
 pub struct LintContext<'a> {
@@ -66,14 +66,14 @@ impl<'a> LintContext<'a> {
     }
 
     /// Get the configured severity for a rule, or None if not overridden.
-    pub fn configured_severity(&self, rule_id: &str) -> Option<RuleSeverity> {
+    pub fn configured_severity(&self, rule_id: &str) -> Option<LintSeverity> {
         self.rules.get_severity(rule_id)
     }
 
     /// Check if a rule is enabled (not off).
-    pub fn is_rule_enabled(&self, rule_id: &str, default: RuleSeverity) -> bool {
+    pub fn is_rule_enabled(&self, rule_id: &str, default: LintSeverity) -> bool {
         let severity = self.configured_severity(rule_id).unwrap_or(default);
-        severity != RuleSeverity::Off
+        severity != LintSeverity::Off
     }
 
     /// Report a lint diagnostic.
@@ -81,22 +81,6 @@ impl<'a> LintContext<'a> {
         if diagnostic.is_enabled() {
             self.diagnostics.push(diagnostic);
         }
-    }
-
-    /// Create and report a diagnostic.
-    pub fn lint(
-        &mut self,
-        rule_id: &'static str,
-        code: &'static str,
-        category: LintCategory,
-        severity: RuleSeverity,
-        message: impl Into<String>,
-        file_id: FileId,
-        span: Span,
-    ) {
-        let diagnostic =
-            LintDiagnostic::new(rule_id, code, category, severity, message, file_id, span);
-        self.report(diagnostic);
     }
 
     /// Take the collected diagnostics.

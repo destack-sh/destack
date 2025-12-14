@@ -5,7 +5,7 @@ use parking_lot::RwLock;
 use destack_source::ModuleId;
 use destack_workspace::{LinterOptions, Module, Program};
 
-use super::{BoxedLintRule, LintContext, LintDiagnostic, LintLevel};
+use crate::{BoxedLintRule, LintContext, LintDiagnostic, LintLevel};
 
 /// Runs lint rules against modules and programs.
 pub struct LintRunner {
@@ -14,9 +14,7 @@ pub struct LintRunner {
 
 impl std::fmt::Debug for LintRunner {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("LintRunner")
-            .field("rule_count", &self.rules.len())
-            .finish()
+        f.debug_struct("LintRunner").finish()
     }
 }
 
@@ -29,26 +27,6 @@ impl LintRunner {
     /// Create an empty lint runner.
     pub fn empty() -> Self {
         Self { rules: Vec::new() }
-    }
-
-    /// Create a lint runner with all recommended rules.
-    pub fn with_recommended_rules() -> Self {
-        Self::new(crate::rules::recommended_rules())
-    }
-
-    /// Create a lint runner with all built-in rules.
-    pub fn with_all_rules() -> Self {
-        Self::new(crate::rules::all_rules())
-    }
-
-    /// Add a rule to the runner.
-    pub fn add_rule(&mut self, rule: BoxedLintRule) {
-        self.rules.push(rule);
-    }
-
-    /// Get the number of rules.
-    pub fn rule_count(&self) -> usize {
-        self.rules.len()
     }
 
     /// Lint a single module at a specific IR level.
