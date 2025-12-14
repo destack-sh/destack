@@ -8,10 +8,10 @@ use std::time::Duration;
 
 use destack_dir::{DumperOptions, GlobalSymbolId, Symbol};
 use destack_source::{
-    DiagnosticSeverity, File, FileRegistry, FileSystem, LanguageOptions, MemoryFileSystem,
-    ModuleId, PhysicalFileSystem, PrintOptions, Uri, print_diagnostics,
+    DiagnosticSeverity, File, FileRegistry, FileSystem, MemoryFileSystem, ModuleId,
+    PhysicalFileSystem, PrintOptions, Uri, print_diagnostics,
 };
-use destack_workspace::{Module, Program};
+use destack_workspace::{LanguageOptions, Module, Program};
 use parking_lot::RwLock;
 
 use crate::{

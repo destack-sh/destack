@@ -32,7 +32,7 @@ pub trait NodeVisitor {
         id: LocalNodeId<Statement>,
         statement: &Statement,
     ) {
-        destack_source::ensure_sufficient_stack(|| walk_statement(self, tree, id, statement));
+        destack_base::ensure_sufficient_stack(|| walk_statement(self, tree, id, statement));
     }
 
     /// Visit an expression.
@@ -42,7 +42,7 @@ pub trait NodeVisitor {
         id: LocalNodeId<Expression>,
         expression: &Expression,
     ) {
-        destack_source::ensure_sufficient_stack(|| walk_expression(self, tree, id, expression));
+        destack_base::ensure_sufficient_stack(|| walk_expression(self, tree, id, expression));
     }
 
     /// Visit a switch case.

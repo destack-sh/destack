@@ -2,8 +2,8 @@
 
 use std::collections::HashMap;
 
+use destack_base::ImmutableStringPool;
 use destack_mir as mir;
-use destack_source::ImmutableStringPool;
 
 use crate::diagnostic::{DiagnosticAnchor, Error, FrameInfo, RuntimeError, RuntimeResult};
 use crate::memory::{ManagedHeap, RawHeap, Value};

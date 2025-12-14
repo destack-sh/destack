@@ -11,7 +11,7 @@ use destack_workspace::Module;
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
-    destack_source::ensure_sufficient_stack! {
+    destack_base::ensure_sufficient_stack! {
         /// Infer the type of an expression.
         pub(super) fn infer_expression(
             &self,

@@ -3,8 +3,9 @@
 //! The `ModuleLowerer` converts elaborated DIR (Destack IR) into a JavaScript AST.
 //! This is the JS codegen entry point, used for JS/TS targets.
 
+use destack_base::StringPool;
 use destack_dir::{NodeTree as DirTree, SymbolTable, TypeTable};
-use destack_source::{FileType, StringPool};
+use destack_source::FileType;
 use destack_workspace::{
     Artifact, ArtifactContent, ArtifactId, ArtifactScope, Module, OutputFormat, Target,
 };

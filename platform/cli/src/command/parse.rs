@@ -70,7 +70,7 @@ pub fn run(args: &ParseArgs) -> i32 {
     };
 
     // parse as implicit module
-    let mut parser = Parser::lex_file(file.clone(), program.language);
+    let mut parser = Parser::lex_file(file.clone(), program.language.ty);
     let expressions = parser.parse();
     program.diagnostics.merge_from(&parser.diagnostics);
 

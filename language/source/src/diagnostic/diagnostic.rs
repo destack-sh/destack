@@ -1,4 +1,6 @@
-use crate::{Color, FileId, LabeledSpan, Suggestion};
+use destack_base::Color;
+
+use crate::{FileId, LabeledSpan, Suggestion};
 
 /// The level of a diagnostic.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]

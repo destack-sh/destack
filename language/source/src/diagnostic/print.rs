@@ -1,8 +1,8 @@
 use std::fmt;
 
-use crate::{
-    AnnotateOptions, DiagnosticCollection, FileRegistry, SourceColorizer, annotate_file, pluralize,
-};
+use destack_base::pluralize;
+
+use crate::{AnnotateOptions, DiagnosticCollection, FileRegistry, SourceColorizer, annotate_file};
 
 /// Options for printing diagnostics.
 #[derive(Clone, Default)]

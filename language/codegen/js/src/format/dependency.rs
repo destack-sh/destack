@@ -1,8 +1,8 @@
 use crate::{DependencyItem, DependencyKind, DependencyMode, Keyword, LocalNodeId};
+use destack_base::StringId;
 use destack_fir::format::FormatResult;
 use destack_fir::prelude::*;
 use destack_fir::write;
-use destack_source::StringId;
 
 use crate::format::argument::list_like;
 use crate::{CodegenJsFormatter, FormatNode};

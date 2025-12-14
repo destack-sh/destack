@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use destack_source::{File, FileId, FileType, LanguageOptions, Uri};
+use destack_source::{File, FileId, FileType, LanguageType, Uri};
 
 use crate::Parser;
 
@@ -8,17 +8,17 @@ use crate::Parser;
 #[derive(Debug)]
 pub(crate) struct TestParser {
     pub file: Arc<File>,
-    pub language: LanguageOptions,
+    pub language: LanguageType,
 }
 
 impl TestParser {
     /// Create a new TestParser with default options.
     pub(crate) fn new(input: &str) -> Self {
-        Self::new_with_options(input, LanguageOptions::default())
+        Self::new_with_options(input, LanguageType::default())
     }
 
     /// Create a new TestParser with custom options.
-    pub(crate) fn new_with_options(input: &str, options: LanguageOptions) -> Self {
+    pub(crate) fn new_with_options(input: &str, language: LanguageType) -> Self {
         let file_id = FileId::new(0);
         let file = File::from_text(
             file_id,
@@ -30,7 +30,7 @@ impl TestParser {
         );
         Self {
             file: Arc::new(file),
-            language: options,
+            language,
         }
     }
 

@@ -13,6 +13,7 @@ doctest = false
 
 [dependencies]
 # language
+destack_base = { workspace = true }
 destack_fir = { workspace = true }
 destack_source = { workspace = true }
 destack_unicode = { workspace = true }

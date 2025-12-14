@@ -1,8 +1,9 @@
 use std::collections::HashMap;
 use std::fmt::{Debug, Formatter};
 
+use destack_base::Arena;
 use destack_dir as dir;
-use destack_source::{Arena, ModuleId};
+use destack_source::ModuleId;
 
 use crate::{
     Annotation, Argument, Block, Declaration, Declarator, DependencyItem, EnumField, Expression,

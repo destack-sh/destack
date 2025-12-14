@@ -1,9 +1,7 @@
 use proc_macro::TokenStream;
 use quote::{format_ident, quote};
-use syn::{
-    parse::{Parse, ParseStream},
-    parse_macro_input, Attribute, Ident, LitStr, Meta, Result, Token, Visibility,
-};
+use syn::parse::{Parse, ParseStream};
+use syn::{Attribute, Ident, LitStr, Meta, Result, Token, Visibility, parse_macro_input};
 
 /// Input for the declare_lint! macro.
 struct DeclareLintInput {
@@ -119,7 +117,8 @@ fn parse_lint_attr(attrs: &[Attribute]) -> Result<LintAttr> {
         Ok(())
     })?;
 
-    let id = id.ok_or_else(|| syn::Error::new_spanned(lint_attr, "missing `id` in #[lint(...)]"))?;
+    let id =
+        id.ok_or_else(|| syn::Error::new_spanned(lint_attr, "missing `id` in #[lint(...)]"))?;
     let code =
         code.ok_or_else(|| syn::Error::new_spanned(lint_attr, "missing `code` in #[lint(...)]"))?;
     let category = category

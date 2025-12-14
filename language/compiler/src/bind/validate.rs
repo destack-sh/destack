@@ -1,3 +1,4 @@
+use destack_base::StringId;
 use destack_dir::{StaticKey, Symbol, SymbolBinding, SymbolKind, SymbolType};
 use destack_workspace::Module;
 
@@ -20,7 +21,7 @@ const RESERVED_IDENTIFIERS: &[&str] = &[
 
 impl Compiler {
     /// Check if an identifier is reserved.
-    fn is_reserved_identifier(&self, name: destack_source::StringId) -> bool {
+    fn is_reserved_identifier(&self, name: StringId) -> bool {
         let name_str = self.program.strings.get(name);
         RESERVED_IDENTIFIERS.contains(&name_str.as_ref())
     }

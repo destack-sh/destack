@@ -1,4 +1,4 @@
-use destack_source::StringId;
+use destack_base::StringId;
 
 use crate::{Block, Linkage, Local, LocalNodeId, Node, NodeType, Type, TypedValue, Value};
 

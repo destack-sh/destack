@@ -1,4 +1,5 @@
-use destack_source::{DiagnosticSeverity, FileId, LabeledSpan, RuleSeverity, Span, Suggestion};
+use destack_source::{DiagnosticSeverity, FileId, LabeledSpan, Span, Suggestion};
+use destack_workspace::RuleSeverity;
 
 use super::LintFix;
 use crate::linter::LintCategory;

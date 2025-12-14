@@ -1,6 +1,6 @@
 mod no_debugger;
 
-use crate::{boxed, BoxedLintRule};
+use crate::{BoxedLintRule, boxed};
 
 pub use no_debugger::*;
 

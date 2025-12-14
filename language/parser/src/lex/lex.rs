@@ -7,7 +7,7 @@ use destack_ast::{
     is_identifier_start, is_whitespace,
 };
 
-use destack_source::{FileId, LanguageOptions, Span};
+use destack_source::{FileId, LanguageType, Span};
 use destack_unicode::UnicodeEmoji;
 
 /// Result of parsing a single-quoted literal.
@@ -75,7 +75,7 @@ impl Lexer<'_> {
     pub fn lex(
         file_id: FileId,
         input: &str,
-        language: LanguageOptions,
+        language: LanguageType,
     ) -> (Vec<TokenSpan>, TokenSpan) {
         let mut lexer = Lexer::new(file_id, input, language);
         let eof_token = lexer.run();

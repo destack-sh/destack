@@ -1,8 +1,9 @@
 use crate::{DiagnosticAnchor, DiagnosticDefinition, TaskDependency, TaskError};
+use destack_base::StringId;
 use destack_compiler_macros::DefineError;
 use destack_dir::GlobalNodeIdAny;
 use destack_parser::ParseError;
-use destack_source::{Span, StringId};
+use destack_source::Span;
 use destack_workspace::Program;
 
 /// Errors during the import phase.

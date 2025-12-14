@@ -1,4 +1,4 @@
-use destack_source::{ImmutableStringPool, StringId, StringPool};
+use destack_base::{ImmutableStringPool, StringId, StringPool};
 
 use crate::{
     Field, Function, Global, GlobalInitializer, LocalNodeId, Mutability, NodeTree, Type,

@@ -44,6 +44,7 @@ harness = false
 [dependencies]
 # language
 destack_ast = { workspace = true }
+destack_base = { workspace = true }
 destack_codegen_js = { workspace = true }
 destack_codegen_lib = { workspace = true }
 destack_compiler = { workspace = true }

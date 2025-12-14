@@ -1,4 +1,5 @@
-use destack_source::{DiagnosticSeverity, RuleSeverity};
+use destack_source::DiagnosticSeverity;
+use destack_workspace::RuleSeverity;
 
 use super::{LintCategory, LintContext};
 
@@ -79,12 +80,10 @@ pub trait LintRule: Send + Sync {
 
     /// Get the effective severity given configuration.
     fn effective_severity(&self, configured: Option<RuleSeverity>) -> RuleSeverity {
-        configured.unwrap_or_else(|| {
-            match self.meta().default_severity {
-                DiagnosticSeverity::Note => RuleSeverity::Off,
-                DiagnosticSeverity::Warning => RuleSeverity::Warn,
-                DiagnosticSeverity::Error => RuleSeverity::Error,
-            }
+        configured.unwrap_or_else(|| match self.meta().default_severity {
+            DiagnosticSeverity::Note => RuleSeverity::Off,
+            DiagnosticSeverity::Warning => RuleSeverity::Warn,
+            DiagnosticSeverity::Error => RuleSeverity::Error,
         })
     }
 

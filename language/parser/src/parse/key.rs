@@ -1,6 +1,6 @@
 use crate::{ParseError, ParseResult, Parser};
 use destack_ast::{Key, LiteralType, Name, TokenSpan, TokenType};
-use destack_source::StringId;
+use destack_base::StringId;
 
 impl Parser {
     /// Peek an identifier.

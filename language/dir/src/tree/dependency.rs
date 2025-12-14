@@ -1,4 +1,5 @@
-use destack_source::{ModuleId, StringId};
+use destack_base::StringId;
+use destack_source::ModuleId;
 
 use crate::{Expression, GlobalSymbolId, LocalNodeId, LocalSymbolId, Node, NodeType};
 

@@ -6,10 +6,11 @@ use destack_ast::{
     Argument, DeclarationType, FloatType, IntType, Keyword, LocalNodeId, ScalarLiteral,
     TemplateLiteral, TypeLiteral,
 };
+use destack_base::StringId;
 use destack_fir::format::{Format, FormatResult, text, token};
 use destack_fir::prelude::*;
 use destack_fir::{format_args, write};
-use destack_source::{Span, StringId};
+use destack_source::Span;
 
 /// Format a scalar literal.
 /// (This is a separate function because it's not a node but we need the span for normalization.)

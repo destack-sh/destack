@@ -2,11 +2,12 @@
 
 use std::collections::HashMap;
 
+use destack_base::ImmutableStringPool;
 use destack_fir::format::{Format, FormatContext, FormatOptions, FormatResult, Formatter};
 use destack_fir::prelude::*;
 use destack_fir::print::PrintOptions;
 use destack_fir::write;
-use destack_source::{File, FileType, ImmutableStringPool, IndentStyle, LineEnding};
+use destack_source::{File, FileType, IndentStyle, LineEnding};
 
 use crate::{Block, Function, Global, Local, LocalNodeId, Node, NodeTree, NodeTreeImpl};
 

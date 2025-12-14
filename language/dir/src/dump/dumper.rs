@@ -1,8 +1,7 @@
 #![allow(clippy::match_like_matches_macro)]
 
-use destack_source::{
-    Color, ImmutableStringPool, ModuleId, impl_dump_display, rebuild_tree_output,
-};
+use destack_base::{Color, ImmutableStringPool, impl_dump_display, rebuild_tree_output};
+use destack_source::ModuleId;
 use smallvec::{Array, SmallVec};
 
 use crate::*;

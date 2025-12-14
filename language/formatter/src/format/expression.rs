@@ -3,10 +3,10 @@ use destack_ast::{
     ForEachKind, IfKind, Keyword, LocalNodeId, Mutability, NodeTree, PostfixPosition, Property,
     TypeUnaryOperator, WhileKind, YieldCardinality,
 };
+use destack_base::StringId;
 use destack_fir::format::{BestFittingMode, FormatError};
 use destack_fir::prelude::*;
 use destack_fir::{best_fitting, format_args, write};
-use destack_source::StringId;
 use smallvec::{SmallVec, smallvec};
 
 use crate::argument::list_like;

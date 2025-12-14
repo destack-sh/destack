@@ -1,6 +1,6 @@
 use destack_linter::{LintDiagnostic, LintLevel, LintRunner};
-use destack_source::{LinterOptions, ModuleId};
-use destack_workspace::Program;
+use destack_source::ModuleId;
+use destack_workspace::{LinterOptions, Program};
 
 use crate::{Compiler, LintResult, Task, TaskDebug, TaskOutput};
 

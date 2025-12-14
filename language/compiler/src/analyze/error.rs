@@ -1,11 +1,11 @@
 use crate::{
     DiagnosticAnchor, DiagnosticDefinition, TaskDependency, TaskDependencyError, TaskError,
 };
+use destack_base::StringId;
 use destack_compiler_macros::DefineError;
 use destack_dir::{
     FunctionAbstraction, GlobalNodeIdAny, GlobalSymbolId, GlobalTypeId, StaticKey, Visibility,
 };
-use destack_source::StringId;
 use destack_workspace::Program;
 
 /// Errors during the analyze phase.

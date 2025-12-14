@@ -12,6 +12,9 @@ path = "src/lib.rs"
 doctest = false
 
 [dependencies]
+# language
+destack_base = { workspace = true }
+
 # general
 cfg-if = { workspace = true }
 dashmap = { workspace = true }

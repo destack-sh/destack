@@ -2,8 +2,8 @@ use std::sync::Arc;
 
 use parking_lot::RwLock;
 
-use destack_source::{LinterOptions, ModuleId};
-use destack_workspace::{Module, Program};
+use destack_source::ModuleId;
+use destack_workspace::{LinterOptions, Module, Program};
 
 use super::{BoxedLintRule, LintContext, LintDiagnostic, LintLevel};
 
@@ -72,9 +72,7 @@ impl LintRunner {
             }
 
             // skip disabled rules
-            let severity = rule.effective_severity(
-                options.rules.get_severity(rule.meta().id),
-            );
+            let severity = rule.effective_severity(options.rules.get_severity(rule.meta().id));
             if !severity.is_enabled() {
                 continue;
             }
@@ -95,9 +93,7 @@ impl LintRunner {
 
         for rule in &self.rules {
             // skip disabled rules
-            let severity = rule.effective_severity(
-                options.rules.get_severity(rule.meta().id),
-            );
+            let severity = rule.effective_severity(options.rules.get_severity(rule.meta().id));
             if !severity.is_enabled() {
                 continue;
             }

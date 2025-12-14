@@ -8,7 +8,7 @@ macro_rules! impl_dump_display {
         $(
             impl Dump for $ty {
                 fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
-                    dumper.write_str(format!("{self:?}").as_str(), Some(Color::Yellow));
+                    dumper.write_str(format!("{self:?}").as_str(), Some($crate::Color::Yellow));
                 }
             }
         )+
@@ -317,5 +317,82 @@ fn append_segment(buffer: &mut String, segment: &str, use_colors: bool) {
         buffer.push_str(Color::Cyan.apply(segment).as_str());
     } else {
         buffer.push_str(segment);
+    }
+}
+
+/// Trait for types that can be dumped to a tree representation.
+pub trait Dump {
+    /// Dump this value to the dumper.
+    fn dump<'a>(&self, dumper: &mut Dumper<'a>);
+}
+
+/// A dumper for creating tree representations of data structures.
+#[derive(Debug)]
+pub struct Dumper<'a> {
+    /// The output buffer.
+    buffer: &'a mut String,
+    /// Current indentation depth.
+    depth: usize,
+    /// Whether to use colors.
+    use_colors: bool,
+}
+
+impl<'a> Dumper<'a> {
+    /// Create a new dumper.
+    pub fn new(buffer: &'a mut String, use_colors: bool) -> Self {
+        Self {
+            buffer,
+            depth: 0,
+            use_colors,
+        }
+    }
+
+    /// Write a string with optional color.
+    pub fn write_str(&mut self, s: &str, color: Option<Color>) {
+        if self.use_colors {
+            if let Some(c) = color {
+                self.buffer.push_str(&c.apply(s));
+            } else {
+                self.buffer.push_str(s);
+            }
+        } else {
+            self.buffer.push_str(s);
+        }
+    }
+
+    /// Write a string with optional color in bold.
+    pub fn write_str_bold(&mut self, s: &str, color: Option<Color>) {
+        if self.use_colors {
+            if let Some(c) = color {
+                self.buffer.push_str(&c.apply_bold(s));
+            } else {
+                self.buffer.push_str(s);
+            }
+        } else {
+            self.buffer.push_str(s);
+        }
+    }
+
+    /// Start a new line with proper indentation.
+    pub fn newline(&mut self) {
+        self.buffer.push('\n');
+        for _ in 0..self.depth {
+            self.buffer.push_str("├─ ");
+        }
+    }
+
+    /// Increase indentation depth.
+    pub fn indent(&mut self) {
+        self.depth += 1;
+    }
+
+    /// Decrease indentation depth.
+    pub fn dedent(&mut self) {
+        self.depth = self.depth.saturating_sub(1);
+    }
+
+    /// Get whether colors are enabled.
+    pub fn use_colors(&self) -> bool {
+        self.use_colors
     }
 }

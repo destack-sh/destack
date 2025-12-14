@@ -146,5 +146,44 @@ impl<'a, T> Iterator for Iter<'a, T> {
 }
 
 #[cfg(test)]
-#[path = "tests.rs"]
-mod tests;
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_arena_allocate_and_get() {
+        let mut arena: Arena<i32> = Arena::new();
+        let id1 = arena.allocate(42);
+        let id2 = arena.allocate(100);
+
+        assert_eq!(*arena.get(id1), 42);
+        assert_eq!(*arena.get(id2), 100);
+        assert_eq!(arena.len(), 2);
+    }
+
+    #[test]
+    fn test_arena_get_mut() {
+        let mut arena: Arena<i32> = Arena::new();
+        let id = arena.allocate(42);
+
+        *arena.get_mut(id) = 100;
+        assert_eq!(*arena.get(id), 100);
+    }
+
+    #[test]
+    fn test_arena_iter() {
+        let mut arena: Arena<i32> = Arena::new();
+        arena.allocate(1);
+        arena.allocate(2);
+        arena.allocate(3);
+
+        let values: Vec<i32> = arena.iter().copied().collect();
+        assert_eq!(values, vec![1, 2, 3]);
+    }
+
+    #[test]
+    fn test_arena_empty() {
+        let arena: Arena<i32> = Arena::new();
+        assert!(arena.is_empty());
+        assert_eq!(arena.len(), 0);
+    }
+}

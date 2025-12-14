@@ -6,10 +6,9 @@ use destack_compiler::{
     AnalyzeError, AnalyzeTask, BindError, CompileOptions, Compiler, ImportError, ResolveError,
 };
 use destack_source::{
-    DiagnosticSeverity, FileRegistry, FileSystem, FileType, LanguageOptions, LanguageType,
-    MemoryFileSystem,
+    DiagnosticSeverity, FileRegistry, FileSystem, FileType, LanguageType, MemoryFileSystem,
 };
-use destack_workspace::Program;
+use destack_workspace::{LanguageOptions, Program};
 
 /// Outcome of checking a file for conformance testing.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -96,7 +95,14 @@ pub(super) fn parse_file(
     // set language type based on file type for proper compatibility mode
     let language_type = LanguageType::from(file_type);
     let language = LanguageOptions::default().with_type(language_type);
-    let program = Arc::new(Program::new(language, cwd, fs, files));
+    let program = Arc::new(Program::new(
+        language,
+        FormatterOptions::default(),
+        LinterOptions::default(),
+        cwd,
+        fs,
+        files,
+    ));
 
     // create compiler and resolve module
     let compiler = Compiler::new(

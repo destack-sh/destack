@@ -1,9 +1,10 @@
 use std::fmt::Write;
 
+use destack_base::pluralize;
 use destack_parser::source_colorizer;
 use destack_source::{
     AnnotateOptions, DiagnosticCollection, DiagnosticCollector, DiagnosticSeverity, FileRegistry,
-    PrintOptions, annotate_file, pluralize,
+    PrintOptions, annotate_file,
 };
 
 use super::{TestCase, TestResult};

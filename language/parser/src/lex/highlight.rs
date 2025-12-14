@@ -1,7 +1,8 @@
 use std::sync::Arc;
 
 use destack_ast::SemanticType;
-use destack_source::{Color, File, SourceColorizer};
+use destack_base::Color;
+use destack_source::{File, SourceColorizer};
 
 use super::Lexer;
 

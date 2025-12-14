@@ -4,9 +4,9 @@ use std::sync::Arc;
 
 use crate::{Lexer, is_semantic};
 use destack_ast::{BlockFormat, Expression, LocalNodeId, NodeTree, NodeType, TokenSpan, TokenType};
+use destack_base::StringPool;
 use destack_source::{
-    DiagnosticCollector, EnclosingSpan, File, FileId, LanguageOptions, MultiSpan, NodeSearch, Span,
-    StringPool,
+    DiagnosticCollector, EnclosingSpan, File, FileId, LanguageType, MultiSpan, NodeSearch, Span,
 };
 
 use crate::{ParseError, ParseResult};
@@ -274,8 +274,8 @@ pub struct Parser {
     /// The string pool.
     pub strings: StringPool,
 
-    /// The language options.
-    pub language: LanguageOptions,
+    /// The language type for parsing behavior.
+    pub language: LanguageType,
     /// The diagnostic collector.
     pub diagnostics: DiagnosticCollector,
     /// The errors encountered so far (for deduplication).
@@ -292,7 +292,7 @@ impl Parser {
     /// Create a new parser from a text File and tokenize it.
     /// Also prepares the pre-annotations (like tags) in a pre-parse pass.
     #[tracing::instrument(name = "parser.lex", level = "trace", skip_all, fields(file_id = ?file.id))]
-    pub fn lex_file(file: Arc<File>, language: LanguageOptions) -> Self {
+    pub fn lex_file(file: Arc<File>, language: LanguageType) -> Self {
         // tokenize
         let (all_tokens, eof_token) = Lexer::lex(file.id, file.text(), language);
         let (tokens, side_tokens) = all_tokens

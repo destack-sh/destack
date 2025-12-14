@@ -5,7 +5,7 @@ use destack_ast::{
     DeclarationDescriptor, Declarator, DependencyItem, DependencyKind, DependencyMode, Expression,
     Keyword, LocalNodeId, Mutability, Pattern, ScalarLiteral, TokenType,
 };
-use destack_source::StringId;
+use destack_base::StringId;
 
 #[allow(clippy::type_complexity)]
 impl Parser {

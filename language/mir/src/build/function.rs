@@ -70,7 +70,7 @@ impl<'a> FunctionBuilder<'a> {
     /// NOTE: the entry block is NOT created automatically (call `create_block()` first).
     pub fn new(
         tree: &'a mut NodeTree,
-        name: destack_source::StringId,
+        name: destack_base::StringId,
         parameter_types: &[LocalNodeId<Type>],
         return_type: LocalNodeId<Type>,
     ) -> Self {

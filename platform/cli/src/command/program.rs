@@ -5,10 +5,9 @@ use std::thread;
 
 use clap::{Args, ValueEnum};
 use destack_source::{
-    FileRegistry, FileSystem, FormatterOptions, IndentStyle, LanguageOptions, LineEnding,
-    MemoryFileSystem, PhysicalFileSystem,
+    FileRegistry, FileSystem, IndentStyle, LineEnding, MemoryFileSystem, PhysicalFileSystem,
 };
-use destack_workspace::Program;
+use destack_workspace::{FormatterOptions, LanguageOptions, Program};
 
 /// Get the default number of worker threads (available parallelism, or 1 if unknown).
 pub fn default_workers() -> u16 {

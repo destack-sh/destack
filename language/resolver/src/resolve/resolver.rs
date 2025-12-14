@@ -1,8 +1,8 @@
 use std::fmt;
 use std::sync::Arc;
 
-use destack_source::{FileRegistry, FileSystem, LanguageOptions, PhysicalFileSystem};
-use destack_workspace::Program;
+use destack_source::{FileRegistry, FileSystem, PhysicalFileSystem};
+use destack_workspace::{FormatterOptions, LanguageOptions, LinterOptions, Program};
 
 use crate::ResolveOptions;
 
@@ -45,6 +45,8 @@ impl Resolver {
         let files = Arc::new(FileRegistry::new());
         let program = Arc::new(Program::new(
             LanguageOptions::default(),
+            FormatterOptions::default(),
+            LinterOptions::default(),
             cwd,
             fs.clone(),
             files.clone(),
@@ -61,6 +63,8 @@ impl Resolver {
         let files = Arc::new(FileRegistry::new());
         let program = Arc::new(Program::new(
             LanguageOptions::default(),
+            FormatterOptions::default(),
+            LinterOptions::default(),
             cwd,
             fs.clone(),
             files.clone(),

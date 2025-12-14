@@ -1,6 +1,6 @@
 use std::fmt::{Debug, Formatter};
 
-use destack_source::Arena;
+use destack_base::Arena;
 
 use crate::{
     Block, Field, Function, Global, Instruction, Local, LocalNodeId, Node, NodeType, Type,

@@ -5,7 +5,7 @@ use crate::{
     Local, LocalNodeId, Mutability, NodeTree, NodeVisitor, NodeVisitorOptions, Ownership,
     SwitchCase, Terminator, Type, UnaryOperator, Value,
 };
-use destack_source::{Color, StringPool};
+use destack_base::{Color, StringPool};
 
 /// Options for the MIR dumper.
 #[derive(Debug, Clone, Copy)]
