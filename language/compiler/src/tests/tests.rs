@@ -130,13 +130,7 @@ impl TestProgram {
         )
     }
 
-    // -------------------------------------------------------------------------
-    // File helpers
-    // -------------------------------------------------------------------------
-
     /// Add a file to the memory filesystem (without creating a Module).
-    ///
-    /// Use this for files that will be transitively imported.
     pub fn add_file(&self, path: &str, content: &str) {
         match &self.fs {
             TestFileSystem::Memory { fs } => {
@@ -321,7 +315,6 @@ impl TestProgram {
         let diagnostics = self.program.diagnostics.collect();
         let diagnostic_vec = diagnostics.iter();
         let has_code = diagnostic_vec.iter().any(|d| d.code == code);
-
         if !has_code {
             let options = PrintOptions::new()
                 .with_line_width(self.program.formatter.line_width as u32)
@@ -337,7 +330,6 @@ impl TestProgram {
         let diagnostics = self.program.diagnostics.collect();
         let diagnostic_vec = diagnostics.iter();
         let has_code = diagnostic_vec.iter().any(|d| d.code == code);
-
         if has_code {
             let options = PrintOptions::new()
                 .with_line_width(self.program.formatter.line_width as u32)

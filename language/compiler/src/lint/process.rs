@@ -72,6 +72,8 @@ impl From<LintOutput> for TaskOutput {
     }
 }
 
+// nocheckin: implement lint in Compiler and hook it up
+
 impl Compiler {
     /// Process a lint task.
     pub fn process_lint(&self, task: LintTask) -> LintResult<LintOutput> {

@@ -220,11 +220,12 @@ impl NodeTree {
     where
         T: Node,
     {
-        self.local_id_by_node_id
+        self.node_type_by_node_id
             .iter()
-            .filter_map(|id| {
-                if self.node_type_by_node_id[*id as usize] == T::TYPE {
-                    Some(LocalNodeId::new(*id))
+            .enumerate()
+            .filter_map(|(global_id, &node_type)| {
+                if node_type == T::TYPE {
+                    Some(LocalNodeId::new(global_id as u32))
                 } else {
                     None
                 }
@@ -234,17 +235,20 @@ impl NodeTree {
 
     /// Iter nodes of a given type.
     #[inline]
-    pub fn iter_nodes<T>(&self) -> impl Iterator<Item = LocalNodeId<T>>
+    pub fn iter_nodes<T>(&self) -> impl Iterator<Item = LocalNodeId<T>> + '_
     where
         T: Node,
     {
-        self.local_id_by_node_id.iter().filter_map(|id| {
-            if self.node_type_by_node_id[*id as usize] == T::TYPE {
-                Some(LocalNodeId::new(*id))
-            } else {
-                None
-            }
-        })
+        self.node_type_by_node_id
+            .iter()
+            .enumerate()
+            .filter_map(|(global_id, &node_type)| {
+                if node_type == T::TYPE {
+                    Some(LocalNodeId::new(global_id as u32))
+                } else {
+                    None
+                }
+            })
     }
 
     /// Append a doc to a node by its global id.

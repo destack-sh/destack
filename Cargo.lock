@@ -802,10 +802,14 @@ name = "destack_linter"
 version = "0.49.4"
 dependencies = [
  "destack_ast",
+ "destack_compiler",
  "destack_dir",
  "destack_linter_macros",
+ "destack_mir",
+ "destack_parser",
  "destack_source",
  "destack_workspace",
+ "indexmap",
  "parking_lot",
 ]
 
