@@ -3,11 +3,14 @@ use crate::{ParseResult, Parser};
 
 use destack_ast::{
     Declaration, DeclarationDescriptor, Generics, Heritage, Keyword, LocalNodeId, NodeType,
-    TokenType,
+    TokenType, TypeKind,
 };
 
 impl Parser {
-    /// Eat a Interface.
+    /// Eat an Interface.
+    ///
+    /// Interfaces can be structural (default) or nominal (`newtype interface`).
+    /// The `kind` parameter determines which.
     ///
     /// Examples:
     /// ```
@@ -18,10 +21,10 @@ impl Parser {
     /// interface Foo extends Baz { // Foo extends Baz
     ///     ..Bar
     ///     ..Boz
-    ///     
+    ///
     ///     myField: int32
     ///     myOtherField: boolean | Vector2
-    ///     
+    ///
     ///     static x: int32 // constant
     ///     foo() => int32
     ///
@@ -36,10 +39,19 @@ impl Parser {
     ///
     ///     function baz() => T // semicolon optional
     /// }
+    ///
+    /// // Nominal interface - requires explicit `implements`
+    /// newtype interface Add<T, R = Self> {
+    ///     add(other: T): R
+    /// }
+    ///
+    /// // Marker trait - nominal, no methods
+    /// newtype interface Send {}
     /// ```
     pub fn eat_interface(
         &mut self,
         mut descriptor: DeclarationDescriptor,
+        kind: TypeKind,
     ) -> ParseResult<LocalNodeId<Declaration>> {
         let start = self.mark();
 
@@ -77,6 +89,7 @@ impl Parser {
         let interface_id = self.tree.insert(
             Declaration::Interface {
                 descriptor,
+                kind,
                 generics,
                 heritage,
                 members,
@@ -91,7 +104,8 @@ impl Parser {
 mod tests {
     use destack_ast::{
         BindingKind, Declaration, DeclarationDescriptor, DeclarationKind, Expression, FunctionMode,
-        IntType, Key, Member, Mutability, Name, Parameter, ScalarLiteral, TypeLiteral, WhereClause,
+        IntType, Key, Member, Mutability, Name, Parameter, ScalarLiteral, TypeKind, TypeLiteral,
+        WhereClause,
     };
 
     use crate::{TestParser, assert_expression_path, assert_node, assert_path, assert_string};
@@ -102,10 +116,11 @@ mod tests {
         let mut parser = test.prepare();
 
         let interface_id = parser
-            .eat_interface(DeclarationDescriptor::default())
+            .eat_interface(DeclarationDescriptor::default(), TypeKind::Structural)
             .unwrap();
-        assert_node!(parser.tree, interface_id, Declaration::Interface { descriptor, generics, members, .. } => {
+        assert_node!(parser.tree, interface_id, Declaration::Interface { descriptor, kind, generics, members, .. } => {
             assert_eq!(descriptor.kind, DeclarationKind::Definition);
+            assert_eq!(*kind, TypeKind::Structural);
             assert!(descriptor.name.is_none());
             assert!(generics.is_empty());
             assert!(members.is_empty());
@@ -118,10 +133,11 @@ mod tests {
         let mut parser = test.prepare();
 
         let interface_id = parser
-            .eat_interface(DeclarationDescriptor::default())
+            .eat_interface(DeclarationDescriptor::default(), TypeKind::Structural)
             .unwrap();
-        assert_node!(parser.tree, interface_id, Declaration::Interface { descriptor, generics, heritage, members, .. } => {
+        assert_node!(parser.tree, interface_id, Declaration::Interface { descriptor, kind, generics, heritage, members, .. } => {
             assert_eq!(descriptor.kind, DeclarationKind::Definition);
+            assert_eq!(*kind, TypeKind::Structural);
             assert_string!(parser, descriptor.name.unwrap().string(), "Foo");
             assert!(members.is_empty());
             assert!(generics.is_empty());
@@ -151,7 +167,7 @@ interface Foo extends Baz {
         parser.eat_newline().unwrap();
 
         let interface_id = parser
-            .eat_interface(DeclarationDescriptor::default())
+            .eat_interface(DeclarationDescriptor::default(), TypeKind::Structural)
             .unwrap();
         assert_node!(parser.tree, interface_id, Declaration::Interface { descriptor, generics, heritage, members, .. } => {
             assert_eq!(descriptor.kind, DeclarationKind::Definition);
@@ -189,7 +205,7 @@ interface Foo extends Baz {
         let mut parser = test.prepare();
 
         let interface_id = parser
-            .eat_interface(DeclarationDescriptor::default())
+            .eat_interface(DeclarationDescriptor::default(), TypeKind::Structural)
             .unwrap();
         assert_node!(parser.tree, interface_id, Declaration::Interface { descriptor, generics, .. } => {
             assert_eq!(descriptor.kind, DeclarationKind::Definition);
@@ -214,7 +230,7 @@ interface Baz<T> where Requirement: Interface {
         parser.eat_newline().unwrap();
 
         let interface_id = parser
-            .eat_interface(DeclarationDescriptor::default())
+            .eat_interface(DeclarationDescriptor::default(), TypeKind::Structural)
             .unwrap();
         assert_node!(parser.tree, interface_id, Declaration::Interface { descriptor, generics, .. } => {
             assert_eq!(descriptor.kind, DeclarationKind::Definition);
@@ -244,7 +260,7 @@ interface Baz<T> where Requirement: Interface {
             r#"
 interface SQL {
     <T = any>(value: T): SQL.Result<T>;
-    
+
     (value: any, ...arguments: any[]): SQL.Result<any>;
 
     new(): SQL;
@@ -258,7 +274,7 @@ interface SQL {
         parser.eat_newline().unwrap();
 
         let interface_id = parser
-            .eat_interface(DeclarationDescriptor::default())
+            .eat_interface(DeclarationDescriptor::default(), TypeKind::Structural)
             .unwrap();
         assert_node!(parser.tree, interface_id, Declaration::Interface { descriptor, members, .. } => {
             assert_eq!(descriptor.kind, DeclarationKind::Definition);
@@ -333,6 +349,56 @@ interface SQL {
                 assert_eq!(signature.dynamic_parameters.len(), 0);
                 // number
                 assert_node!(parser.tree, signature.return_type.unwrap(), Expression::TypeLiteral(TypeLiteral::Number));
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_newtype_interface_empty() {
+        let mut test = TestParser::new("interface {}");
+        let mut parser = test.prepare();
+
+        let interface_id = parser
+            .eat_interface(DeclarationDescriptor::default(), TypeKind::Nominal)
+            .unwrap();
+        assert_node!(parser.tree, interface_id, Declaration::Interface { descriptor, kind, generics, members, .. } => {
+            assert_eq!(descriptor.kind, DeclarationKind::Definition);
+            assert_eq!(*kind, TypeKind::Nominal);
+            assert!(descriptor.name.is_none());
+            assert!(generics.is_empty());
+            assert!(members.is_empty());
+        });
+    }
+
+    #[test]
+    fn test_parse_newtype_interface_with_method() {
+        let mut test = TestParser::new(
+            r#"
+interface Add<T, R = Self> {
+    add(other: T): R
+}
+"#,
+        );
+        let mut parser = test.prepare();
+        parser.eat_newline().unwrap();
+
+        let interface_id = parser
+            .eat_interface(DeclarationDescriptor::default(), TypeKind::Nominal)
+            .unwrap();
+        assert_node!(parser.tree, interface_id, Declaration::Interface { descriptor, kind, generics, members, .. } => {
+            assert_eq!(descriptor.kind, DeclarationKind::Definition);
+            assert_eq!(*kind, TypeKind::Nominal);
+            assert_string!(parser, descriptor.name.unwrap().string(), "Add");
+
+            // <T, R = Self>
+            let params = generics.static_parameters.as_ref().expect("expected static params");
+            assert_eq!(params.len(), 2);
+
+            // add(other: T): R
+            assert_eq!(members.len(), 1);
+            assert_node!(parser.tree, members[0], Member::Method { key: Some(Key::Name(Name::Identifier(name))), signature, .. } => {
+                assert_string!(parser, *name, "add");
+                assert_eq!(signature.dynamic_parameters.len(), 1);
             });
         });
     }

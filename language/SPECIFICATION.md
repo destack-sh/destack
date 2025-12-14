@@ -570,7 +570,7 @@ Interfaces work like TypeScript, with optional default functions and properties:
 ```
 interface Drawable {
     draw(): void
-    
+
     isVisible(): boolean {
         true  // default implementation
     }
@@ -582,6 +582,41 @@ interface Container<T> extends Iterable<T> {
     get(index: uint64): T?
 }
 ```
+
+#### Nominal Interfaces
+
+Destack adds **nominal interfaces** using the `newtype interface` syntax.
+Nominal interfaces require explicit ("nominal") `implements` declarations.
+
+```
+// Structural interface (standard TypeScript behavior)
+interface Drawable {
+    draw(): void
+}
+const x: Drawable = { draw() {} }  // OK: structural match
+
+// Nominal interface (requires explicit "nominal" `implements`)
+newtype interface Add<T, R = Self> {
+    add(other: T): R
+}
+
+struct Vec2 { x: float, y: float }
+const v: Add<Vec2> = Vec2 { x: 1, y: 2 }  // ERROR: Vec2 doesn't implement Add
+
+// Explicit opt-in required
+extension Vec2 implements Add<Vec2> {
+    add(other: Vec2): Vec2 { Vec2 { x: this.x + other.x, y: this.y + other.y } }
+}
+const v: Add<Vec2> = Vec2 { x: 1, y: 2 }  // OK: Vec2 implements Add
+```
+
+Nominal interfaces are used for:
+
+- **Operator interfaces** (`Add`, `Compare`, `Equal`, etc.) to prevent accidental operator overloading
+- **Marker traits** (`Send`, `Sync`, `Copy`) for compile-time capabilities
+
+The `newtype` modifier follows the same pattern as `newtype` on type aliases—it makes the interface nominal.
+Extending a nominal interface produces a nominal interface (nominality is inherited).
 
 ### Class
 
@@ -1492,9 +1527,16 @@ For example, `Vector2` can implement both `Add<Vector2>` and `Add<float>` for ve
 
 ### Explicit Operator Overloading
 
-Operator interfaces use **explicit dispatch**: the operator only overloads to the method call when the type explicitly declares `implements` for the operator interface.
-This prevents accidental operator overloading from types that happen to have a structurally-compatible method.
-(We treat such interfaces as nominal traits, which is a tradeoff against introducing even more concepts.)
+Operator interfaces are declared as **nominal interfaces** using `newtype interface`:
+
+```
+newtype interface Add<T, R = Self> {
+    add(other: T): R
+}
+```
+
+Because they are nominal, operators only overload when a type explicitly declares `implements` for the operator interface.
+(This prevents accidental conformance from types that happen to have a structurally-compatible method.)
 
 ```
 // Foo has an `add` method but doesn't implement Add<T>
@@ -1515,7 +1557,7 @@ extension Foo implements Add<Foo> {
 a + b;        // ok: Foo implements Add<Foo>
 ```
 
-This rule applies to all operator interfaces.
+This rule applies to all operator interfaces (see [Nominal Interfaces](#nominal-interfaces)).
 
 ### Arithmetic
 

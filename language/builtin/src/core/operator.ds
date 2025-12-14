@@ -1,90 +1,90 @@
-/// Trait for the `+` operator.
-interface Add<T, R = Self> {
+/// Nominal interface for the `+` operator.
+newtype interface Add<T, R = Self> {
     add(other: T): R;
 }
 
-/// Trait for the `-` operator.
-interface Subtract<T, R = Self> {
+/// Nominal interface for the `-` operator.
+newtype interface Subtract<T, R = Self> {
     subtract(other: T): R;
 }
 
-/// Trait for the `*` operator.
-interface Multiply<T, R = Self> {
+/// Nominal interface for the `*` operator.
+newtype interface Multiply<T, R = Self> {
     multiply(other: T): R;
 }
 
-/// Trait for the `/` operator.
-interface Divide<T, R = Self> {
+/// Nominal interface for the `/` operator.
+newtype interface Divide<T, R = Self> {
     divide(other: T): R;
 }
 
-/// Trait for the `%` operator.
-interface Remainder<T, R = Self> {
+/// Nominal interface for the `%` operator.
+newtype interface Remainder<T, R = Self> {
     remainder(other: T): R;
 }
 
-/// Trait for the `**` operator.
-interface Power<T, R = Self> {
+/// Nominal interface for the `**` operator.
+newtype interface Power<T, R = Self> {
     power(other: T): R;
 }
 
-/// Trait for unary `-` (negation).
-interface Negate<R = Self> {
+/// Nominal interface for unary `-` (negation).
+newtype interface Negate<R = Self> {
     negate(): R;
 }
 
-/// Trait for the `==` and `!=` operators.
-interface Equal<T = Self> {
+/// Nominal interface for the `==` and `!=` operators.
+newtype interface Equal<T = Self> {
     equal(other: T): boolean;
 }
 
-/// Trait for comparison operators (`<`, `<=`, `>`, `>=`).
+/// Nominal interface for comparison operators (`<`, `<=`, `>`, `>=`).
 /// Returns -1 (less), 0 (equal), or 1 (greater).
-interface Compare<T = Self> {
+newtype interface Compare<T = Self> {
     compare(other: T): int;
 }
 
-/// Trait for the `&` operator (bitwise/elementwise AND).
-interface And<T, R = Self> {
+/// Nominal interface for the `&` operator (bitwise/elementwise AND).
+newtype interface And<T, R = Self> {
     and(other: T): R;
 }
 
-/// Trait for the `|` operator (bitwise/elementwise OR).
-interface Or<T, R = Self> {
+/// Nominal interface for the `|` operator (bitwise/elementwise OR).
+newtype interface Or<T, R = Self> {
     or(other: T): R;
 }
 
-/// Trait for the `^` operator (bitwise/elementwise XOR).
-interface Xor<T, R = Self> {
+/// Nominal interface for the `^` operator (bitwise/elementwise XOR).
+newtype interface Xor<T, R = Self> {
     xor(other: T): R;
 }
 
-/// Trait for the `~` operator (bitwise/elementwise NOT).
-interface Not<R = Self> {
+/// Nominal interface for the `~` operator (bitwise/elementwise NOT).
+newtype interface Not<R = Self> {
     not(): R;
 }
 
-/// Trait for the `<<` operator (shift left).
-interface ShiftLeft<T, R = Self> {
+/// Nominal interface for the `<<` operator (shift left).
+newtype interface ShiftLeft<T, R = Self> {
     shiftLeft(other: T): R;
 }
 
-/// Trait for the `>>` operator (shift right).
-interface ShiftRight<T, R = Self> {
+/// Nominal interface for the `>>` operator (shift right).
+newtype interface ShiftRight<T, R = Self> {
     shiftRight(other: T): R;
 }
 
-/// Trait for the `>>>` operator (unsigned shift right).
-interface ShiftRightUnsigned<T, R = Self> {
+/// Nominal interface for the `>>>` operator (unsigned shift right).
+newtype interface ShiftRightUnsigned<T, R = Self> {
     shiftRightUnsigned(other: T): R;
 }
 
-/// Trait for index access `a[i]`.
-interface Index<I, O> {
+/// Nominal interface for index access `a[i]`.
+newtype interface Index<I, O> {
     index(key: I): O;
 }
 
-/// Trait for index assignment `a[i] = v`.
-interface SetIndex<I, V> {
+/// Nominal interface for index assignment `a[i] = v`.
+newtype interface SetIndex<I, V> {
     setIndex(key: I, value: V): void;
 }

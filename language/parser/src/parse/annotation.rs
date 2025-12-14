@@ -675,7 +675,7 @@ mod tests {
     use destack_ast::{
         Annotation, AnnotationPosition, BinaryOperator, Blank, Block, BlockFormat, Comment,
         CommentStyle, Declaration, DeclarationDescriptor, Declarator, Decorator, Doc, DocStyle,
-        Expression, Key, Member, Name,
+        Expression, Key, Member, Name, TypeKind,
     };
 
     use crate::{TestParser, assert_node, assert_path, assert_string};
@@ -935,7 +935,7 @@ over multiple lines with trailing space    */",
         );
         let mut parser = test.prepare();
         let interface_id = parser
-            .eat_interface(DeclarationDescriptor::default())
+            .eat_interface(DeclarationDescriptor::default(), TypeKind::Structural)
             .unwrap();
         parser.finish();
 

@@ -400,6 +400,7 @@ impl<'ast> FormatNode<'ast, Declaration> for Declaration {
             // interface
             Declaration::Interface {
                 descriptor,
+                kind,
                 generics,
                 heritage,
                 members,
@@ -415,6 +416,9 @@ impl<'ast> FormatNode<'ast, Declaration> for Declaration {
                 }
 
                 // keyword
+                if *kind == TypeKind::Nominal {
+                    write!(f, [Keyword::Newtype, space()])?;
+                }
                 write!(f, [Keyword::Interface])?;
 
                 // name / key

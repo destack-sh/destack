@@ -7,7 +7,7 @@ use destack_ast::{
     Argument, AssignOperator, BinaryOperator, BindingAnchor, DeclarationAbstraction,
     DeclarationDescriptor, DeclarationKind, DependencyMode, EnumKind, Expression, IfKind,
     InfixOperator, Keyword, LocalNodeId, NodeType, PostfixPosition, TokenSpan, TokenType,
-    TypeBinaryOperator, TypeUnaryOperator, UnaryOperator,
+    TypeBinaryOperator, TypeKind, TypeUnaryOperator, UnaryOperator,
 };
 
 pub static DECLARATION_KEYWORDS: [Keyword; 21] = [
@@ -734,11 +734,22 @@ impl Parser {
                 self.tree
                     .insert(Expression::Declaration(enum_id), self.get_span_from(start))
             }
-            // interface
+            // newtype interface (nominal interface)
+            else if keyword == Some(Keyword::Newtype)
+                && self.peek_next_keyword(Keyword::Interface).is_ok()
+            {
+                self.eat_keyword(Keyword::Newtype)?;
+                let interface_id = self.eat_interface(descriptor, TypeKind::Nominal)?;
+                self.tree.insert(
+                    Expression::Declaration(interface_id),
+                    self.get_span_from(start),
+                )
+            }
+            // interface (structural interface)
             else if keyword == Some(Keyword::Interface)
                 && DECLARATION_START_TOKENS.contains(&next_token_type)
             {
-                let interface_id = self.eat_interface(descriptor)?;
+                let interface_id = self.eat_interface(descriptor, TypeKind::Structural)?;
                 self.tree.insert(
                     Expression::Declaration(interface_id),
                     self.get_span_from(start),

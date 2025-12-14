@@ -179,6 +179,7 @@ impl ModuleLowerer<'_> {
             }
             dir::Declaration::Interface {
                 descriptor,
+                kind: _,
                 scope: _,
                 generics,
                 heritage,

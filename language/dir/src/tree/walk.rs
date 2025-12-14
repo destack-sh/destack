@@ -747,6 +747,7 @@ pub fn walk_declaration<V: NodeVisitor + ?Sized>(
         }
         Declaration::Interface {
             descriptor: _,
+            kind: _,
             generics,
             heritage,
             members,

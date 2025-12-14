@@ -1238,6 +1238,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
             }
             Declaration::Interface {
                 descriptor,
+                kind,
                 generics,
                 heritage,
                 members: _,
@@ -1245,6 +1246,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
             } => {
                 self.node("Declaration::Interface", id.id)
                     .field("descriptor", descriptor)
+                    .field("kind", kind)
                     .field("generics", generics)
                     .field("heritage", heritage)
                     .field("scope", scope)

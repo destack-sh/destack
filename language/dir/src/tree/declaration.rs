@@ -86,8 +86,11 @@ pub enum Declaration {
         members: Vec<LocalNodeId<Member>>,
     },
     /// Interface declaration.
+    /// Interfaces can be structural (default) or nominal (`newtype interface`).
+    /// Nominal interfaces require explicit `implements` declarations.
     Interface {
         descriptor: DeclarationDescriptor,
+        kind: TypeKind,
         generics: Generics,
         heritage: Heritage,
         scope: LocalScopeId,
