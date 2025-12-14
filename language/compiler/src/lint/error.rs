@@ -2,22 +2,17 @@ use crate::{
     DiagnosticAnchor, DiagnosticDefinition, TaskDependency, TaskDependencyError, TaskError,
 };
 use destack_compiler_macros::DefineError;
-use destack_dir::GlobalNodeIdAny;
 use destack_workspace::Program;
 
-/// Errors during the lower phase.
+/// Errors during the lint phase.
 #[derive(Debug, Clone, PartialEq, DefineError)]
-#[phase(Lower)]
-pub enum LowerError {
+#[phase(Lint)]
+pub enum LintError {
     /// Wait for task dependency.
-    #[error(code = "EM000", r#yield)]
+    #[error(code = "EL000", r#yield)]
     Yield { dependency: TaskDependency },
 
     /// Yield dependency has failed.
-    #[error(code = "EM001", yield_failed)]
+    #[error(code = "EL001", yield_failed)]
     UnsatisfiedDependency { dependency: TaskDependency },
-
-    /// Unsupported node.
-    #[error(code = "EM002", message = "unsupported construct")]
-    UnsupportedConstruct { node: GlobalNodeIdAny },
 }

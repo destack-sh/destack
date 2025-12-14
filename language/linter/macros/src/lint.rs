@@ -1,326 +1,229 @@
-//! Implementation of the `define_lints!` macro.
-
 use proc_macro::TokenStream;
-use proc_macro2::TokenStream as TokenStream2;
 use quote::{format_ident, quote};
 use syn::{
-    braced,
     parse::{Parse, ParseStream},
-    parse_macro_input,
-    punctuated::Punctuated,
-    Attribute, Expr, Ident, LitStr, Result, Token, Type,
+    parse_macro_input, Attribute, Ident, LitStr, Meta, Result, Token, Visibility,
 };
 
-/// A field in a lint variant.
-struct Field {
+/// Input for the declare_lint! macro.
+struct DeclareLintInput {
+    /// Doc comments and other attributes.
+    attrs: Vec<Attribute>,
+    /// The #[lint(...)] attribute with configuration.
+    lint_attr: LintAttr,
+    /// Visibility (usually `pub`).
+    vis: Visibility,
+    /// The struct name (e.g., NoDebugger).
     name: Ident,
-    ty: Type,
+    /// Short description string.
+    description: String,
 }
 
-impl Parse for Field {
+/// Parsed #[lint(...)] attribute.
+struct LintAttr {
+    id: String,
+    code: String,
+    category: Ident,
+    level: Ident,
+    scope: Option<Ident>,
+    fixable: bool,
+    docs_url: Option<String>,
+}
+
+impl Parse for DeclareLintInput {
     fn parse(input: ParseStream<'_>) -> Result<Self> {
+        // parse all outer attributes (doc comments and #[lint(...)])
+        let attrs = input.call(Attribute::parse_outer)?;
+
+        // find and parse the #[lint(...)] attribute
+        let lint_attr = parse_lint_attr(&attrs)?;
+
+        // filter out the #[lint(...)] attribute from attrs (keep doc comments)
+        let attrs: Vec<Attribute> = attrs
+            .into_iter()
+            .filter(|a| !a.path().is_ident("lint"))
+            .collect();
+
+        // parse visibility
+        let vis: Visibility = input.parse()?;
+
+        // parse struct name
         let name: Ident = input.parse()?;
-        input.parse::<Token![:]>()?;
-        let ty: Type = input.parse()?;
-        Ok(Field { name, ty })
+
+        // parse comma
+        input.parse::<Token![,]>()?;
+
+        // parse description string
+        let description: LitStr = input.parse()?;
+
+        Ok(DeclareLintInput {
+            attrs,
+            lint_attr,
+            vis,
+            name,
+            description: description.value(),
+        })
     }
 }
 
-/// A lint rule definition.
-struct LintRule {
-    attrs: Vec<Attribute>,
-    name: Ident,
-    id: Option<String>,
-    default_severity: Option<Ident>,
-    docs_url: Option<String>,
-    fixable: bool,
-    fields: Vec<Field>,
-    message: Option<LintMessage>,
-}
+/// Parse the #[lint(...)] attribute.
+fn parse_lint_attr(attrs: &[Attribute]) -> Result<LintAttr> {
+    let lint_attr = attrs
+        .iter()
+        .find(|a| a.path().is_ident("lint"))
+        .ok_or_else(|| syn::Error::new_spanned(&attrs[0], "missing #[lint(...)] attribute"))?;
 
-/// Message definition for a lint.
-enum LintMessage {
-    /// Simple string literal.
-    Simple(String),
-    /// Complex closure expression.
-    Closure(Expr),
-}
+    let mut id = None;
+    let mut code = None;
+    let mut category = None;
+    let mut level = None;
+    let mut scope = None;
+    let mut fixable = false;
+    let mut docs_url = None;
 
-impl Parse for LintRule {
-    fn parse(input: ParseStream<'_>) -> Result<Self> {
-        let attrs = input.call(Attribute::parse_outer)?;
-
-        // extract special attributes
-        let mut id = None;
-        let mut default_severity = None;
-        let mut docs_url = None;
-        let mut fixable = false;
-
-        for attr in &attrs {
-            if attr.path().is_ident("id") {
-                if let syn::Meta::NameValue(nv) = &attr.meta {
-                    if let syn::Expr::Lit(syn::ExprLit {
-                        lit: syn::Lit::Str(s),
-                        ..
-                    }) = &nv.value
-                    {
-                        id = Some(s.value());
-                    }
-                }
-            } else if attr.path().is_ident("default_severity") {
-                if let syn::Meta::NameValue(nv) = &attr.meta {
-                    if let syn::Expr::Path(p) = &nv.value {
-                        if let Some(ident) = p.path.get_ident() {
-                            default_severity = Some(ident.clone());
-                        }
-                    }
-                }
-            } else if attr.path().is_ident("docs") {
-                if let syn::Meta::NameValue(nv) = &attr.meta {
-                    if let syn::Expr::Lit(syn::ExprLit {
-                        lit: syn::Lit::Str(s),
-                        ..
-                    }) = &nv.value
-                    {
-                        docs_url = Some(s.value());
-                    }
-                }
-            } else if attr.path().is_ident("fixable") {
+    lint_attr.parse_nested_meta(|meta| {
+        if meta.path.is_ident("id") {
+            meta.input.parse::<Token![=]>()?;
+            let lit: LitStr = meta.input.parse()?;
+            id = Some(lit.value());
+        } else if meta.path.is_ident("code") {
+            meta.input.parse::<Token![=]>()?;
+            let lit: LitStr = meta.input.parse()?;
+            code = Some(lit.value());
+        } else if meta.path.is_ident("category") {
+            meta.input.parse::<Token![=]>()?;
+            let ident: Ident = meta.input.parse()?;
+            category = Some(ident);
+        } else if meta.path.is_ident("level") {
+            meta.input.parse::<Token![=]>()?;
+            let ident: Ident = meta.input.parse()?;
+            level = Some(ident);
+        } else if meta.path.is_ident("scope") {
+            meta.input.parse::<Token![=]>()?;
+            let ident: Ident = meta.input.parse()?;
+            scope = Some(ident);
+        } else if meta.path.is_ident("fixable") {
+            // can be just `fixable` or `fixable = true`
+            if meta.input.peek(Token![=]) {
+                meta.input.parse::<Token![=]>()?;
+                let lit: syn::LitBool = meta.input.parse()?;
+                fixable = lit.value();
+            } else {
                 fixable = true;
             }
+        } else if meta.path.is_ident("docs") {
+            meta.input.parse::<Token![=]>()?;
+            let lit: LitStr = meta.input.parse()?;
+            docs_url = Some(lit.value());
         }
+        Ok(())
+    })?;
 
-        let name: Ident = input.parse()?;
+    let id = id.ok_or_else(|| syn::Error::new_spanned(lint_attr, "missing `id` in #[lint(...)]"))?;
+    let code =
+        code.ok_or_else(|| syn::Error::new_spanned(lint_attr, "missing `code` in #[lint(...)]"))?;
+    let category = category
+        .ok_or_else(|| syn::Error::new_spanned(lint_attr, "missing `category` in #[lint(...)]"))?;
+    let level = level
+        .ok_or_else(|| syn::Error::new_spanned(lint_attr, "missing `level` in #[lint(...)]"))?;
 
-        // parse fields: { field: Type, ... }
-        let content;
-        braced!(content in input);
-        let fields_punctuated: Punctuated<Field, Token![,]> =
-            content.parse_terminated(Field::parse, Token![,])?;
-        let fields: Vec<Field> = fields_punctuated.into_iter().collect();
-
-        // parse optional message: => "..." or => |self, program| { ... }
-        let message = if input.peek(Token![=>]) {
-            input.parse::<Token![=>]>()?;
-
-            if input.peek(LitStr) {
-                let lit: LitStr = input.parse()?;
-                Some(LintMessage::Simple(lit.value()))
-            } else {
-                let expr: Expr = input.parse()?;
-                Some(LintMessage::Closure(expr))
-            }
-        } else {
-            None
-        };
-
-        Ok(LintRule {
-            attrs,
-            name,
-            id,
-            default_severity,
-            docs_url,
-            fixable,
-            fields,
-            message,
-        })
-    }
+    Ok(LintAttr {
+        id,
+        code,
+        category,
+        level,
+        scope,
+        fixable,
+        docs_url,
+    })
 }
 
-/// The full input to the define_lints! macro.
-struct DefineLintsInput {
-    attrs: Vec<Attribute>,
-    category: Ident,
-    rules: Vec<LintRule>,
-}
-
-impl Parse for DefineLintsInput {
-    fn parse(input: ParseStream<'_>) -> Result<Self> {
-        let attrs = input.call(Attribute::parse_outer)?;
-
-        // parse: category Correctness { ... }
-        input.parse::<Ident>()?; // "category" keyword
-        let category: Ident = input.parse()?;
-
-        let content;
-        braced!(content in input);
-
-        let mut rules = Vec::new();
-        while !content.is_empty() {
-            rules.push(content.parse::<LintRule>()?);
-            if content.peek(Token![,]) {
-                content.parse::<Token![,]>()?;
-            }
-        }
-
-        Ok(DefineLintsInput {
-            attrs,
-            category,
-            rules,
-        })
-    }
-}
-
-/// Get the category letter for a category name.
-fn category_letter(category: &Ident) -> char {
-    match category.to_string().as_str() {
-        "Correctness" => 'C',
-        "Suspicious" => 'U', // sUspicious
-        "Performance" => 'P',
-        "Style" => 'Y',      // stYle
-        "Security" => 'S',
-        "Complexity" => 'X', // compleXity
-        _ => 'L',            // generic Lint
-    }
-}
-
-pub(crate) fn define_lints_impl(input: TokenStream) -> TokenStream {
-    let input = parse_macro_input!(input as DefineLintsInput);
-
-    let category = &input.category;
-    let category_letter = category_letter(category);
-    let rules = &input.rules;
-
-    // generate LintDef entries
-    let lint_defs: Vec<TokenStream2> = rules
+/// Extract doc comment text from attributes.
+fn extract_docs(attrs: &[Attribute]) -> String {
+    attrs
         .iter()
-        .enumerate()
-        .map(|(i, r)| {
-            let code = format!("L{}{:03}", category_letter, i);
-            let name = r.name.to_string();
-            let id = r.id.clone().unwrap_or_else(|| to_kebab_case(&name));
-            let desc = r
-                .attrs
-                .iter()
-                .filter_map(|a| {
-                    if a.path().is_ident("doc") {
-                        if let syn::Meta::NameValue(nv) = &a.meta {
-                            if let syn::Expr::Lit(syn::ExprLit {
-                                lit: syn::Lit::Str(s),
-                                ..
-                            }) = &nv.value
-                            {
-                                return Some(s.value().trim().to_string());
-                            }
-                        }
+        .filter_map(|attr| {
+            if attr.path().is_ident("doc") {
+                if let Meta::NameValue(nv) = &attr.meta {
+                    if let syn::Expr::Lit(syn::ExprLit {
+                        lit: syn::Lit::Str(s),
+                        ..
+                    }) = &nv.value
+                    {
+                        return Some(s.value());
                     }
-                    None
-                })
-                .collect::<Vec<_>>()
-                .join(" ");
-            let severity = r
-                .default_severity
-                .as_ref()
-                .map(|s| quote! { DiagnosticSeverity::#s })
-                .unwrap_or_else(|| quote! { DiagnosticSeverity::Warning });
-            let docs = r
-                .docs_url
-                .as_ref()
-                .map(|u| quote! { Some(#u) })
-                .unwrap_or_else(|| quote! { None });
-            let fixable = r.fixable;
-            let sub_code = i as u8;
-
-            quote! {
-                LintDef {
-                    code: #code,
-                    id: #id,
-                    name: #name,
-                    description: #desc,
-                    category: LintCategory::#category,
-                    default_severity: #severity,
-                    docs_url: #docs,
-                    fixable: #fixable,
-                    sub_code: #sub_code,
                 }
             }
+            None
         })
-        .collect();
+        .map(|s| s.trim().to_string())
+        .collect::<Vec<_>>()
+        .join("\n")
+}
 
-    // generate ALL_CODES array
-    let all_codes: Vec<String> = rules
-        .iter()
-        .enumerate()
-        .map(|(i, _)| format!("L{}{:03}", category_letter, i))
-        .collect();
+pub(crate) fn declare_lint_impl(input: TokenStream) -> TokenStream {
+    let input = parse_macro_input!(input as DeclareLintInput);
 
-    // generate ALL_IDS array
-    let all_ids: Vec<String> = rules
-        .iter()
-        .map(|r| {
-            r.id.clone()
-                .unwrap_or_else(|| to_kebab_case(&r.name.to_string()))
-        })
-        .collect();
+    let DeclareLintInput {
+        attrs,
+        lint_attr,
+        vis,
+        name,
+        description,
+    } = input;
 
-    let category_lints_name = format_ident!("{}Lints", category);
+    let LintAttr {
+        id,
+        code,
+        category,
+        level,
+        scope,
+        fixable,
+        docs_url,
+    } = lint_attr;
+
+    // generate static name: NoDebugger -> NO_DEBUGGER
+    let static_name = format_ident!("{}", to_screaming_snake_case(&name.to_string()));
+
+    // scope defaults to Module
+    let scope = scope.unwrap_or_else(|| format_ident!("Module"));
+
+    // docs_url
+    let docs_url_tokens = match docs_url {
+        Some(url) => quote! { Some(#url) },
+        None => quote! { None },
+    };
+
+    // extract long description from doc comments
+    let _long_description = extract_docs(&attrs);
+
+    // default severity based on category (correctness = error, others = warning)
+    let default_severity = match category.to_string().as_str() {
+        "Correctness" => quote! { destack_source::DiagnosticSeverity::Error },
+        _ => quote! { destack_source::DiagnosticSeverity::Warning },
+    };
 
     let expanded = quote! {
-        /// Static metadata about a lint rule.
+        #(#attrs)*
         #[derive(Debug, Clone, Copy)]
-        pub struct LintDef {
-            /// The full code (e.g., "LC003").
-            pub code: &'static str,
-            /// The kebab-case id (e.g., "no-floating-promise").
-            pub id: &'static str,
-            /// The variant name (e.g., "NoFloatingPromise").
-            pub name: &'static str,
-            /// The doc comment description.
-            pub description: &'static str,
-            /// The category.
-            pub category: LintCategory,
-            /// The default severity.
-            pub default_severity: DiagnosticSeverity,
-            /// The documentation URL.
-            pub docs_url: Option<&'static str>,
-            /// Whether the lint has an auto-fix.
-            pub fixable: bool,
-            /// The sub-code number.
-            pub sub_code: u8,
-        }
+        #vis struct #name;
 
-        /// Lints in the #category category.
-        pub struct #category_lints_name;
+        #vis static #static_name: &crate::linter::LintMeta = &crate::linter::LintMeta {
+            id: #id,
+            code: #code,
+            name: stringify!(#name),
+            description: #description,
+            category: crate::linter::LintCategory::#category,
+            default_severity: #default_severity,
+            docs_url: #docs_url_tokens,
+            fixable: #fixable,
+            level: crate::linter::LintLevel::#level,
+            scope: crate::linter::LintScope::#scope,
+        };
 
-        impl #category_lints_name {
-            /// Category letter for this lint category.
-            pub const CATEGORY_LETTER: char = #category_letter;
-
-            /// All lint definitions for this category.
-            pub const ALL: &'static [LintDef] = &[
-                #(#lint_defs),*
-            ];
-
-            /// All lint codes for this category.
-            pub const ALL_CODES: &'static [&'static str] = &[
-                #(#all_codes),*
-            ];
-
-            /// All lint ids for this category.
-            pub const ALL_IDS: &'static [&'static str] = &[
-                #(#all_ids),*
-            ];
-
-            /// Check if a code string is valid for this category.
-            #[inline]
-            pub fn is_valid_code(code: &str) -> bool {
-                Self::ALL_CODES.contains(&code)
-            }
-
-            /// Check if an id string is valid for this category.
-            #[inline]
-            pub fn is_valid_id(id: &str) -> bool {
-                Self::ALL_IDS.contains(&id)
-            }
-
-            /// Get the definition for a code, if valid.
-            pub fn def_for_code(code: &str) -> Option<&'static LintDef> {
-                Self::ALL.iter().find(|def| def.code == code)
-            }
-
-            /// Get the definition for an id, if valid.
-            pub fn def_for_id(id: &str) -> Option<&'static LintDef> {
-                Self::ALL.iter().find(|def| def.id == id)
+        impl crate::linter::LintRule for #name {
+            fn meta(&self) -> &'static crate::linter::LintMeta {
+                #static_name
             }
         }
     };
@@ -328,17 +231,17 @@ pub(crate) fn define_lints_impl(input: TokenStream) -> TokenStream {
     TokenStream::from(expanded)
 }
 
-/// Convert PascalCase to kebab-case.
-fn to_kebab_case(s: &str) -> String {
+/// Convert PascalCase to SCREAMING_SNAKE_CASE.
+fn to_screaming_snake_case(s: &str) -> String {
     let mut result = String::new();
     for (i, c) in s.chars().enumerate() {
         if c.is_uppercase() {
             if i > 0 {
-                result.push('-');
+                result.push('_');
             }
-            result.push(c.to_ascii_lowercase());
-        } else {
             result.push(c);
+        } else {
+            result.push(c.to_ascii_uppercase());
         }
     }
     result

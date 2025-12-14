@@ -18,33 +18,6 @@ impl Default for LinterOptions {
     }
 }
 
-impl LinterOptions {
-    /// Create new linter options with linting enabled.
-    pub fn enabled() -> Self {
-        Self::default()
-    }
-
-    /// Create new linter options with linting disabled.
-    pub fn disabled() -> Self {
-        Self {
-            enabled: false,
-            rules: LinterRules::default(),
-        }
-    }
-
-    /// Set whether linting is enabled.
-    pub fn with_enabled(mut self, enabled: bool) -> Self {
-        self.enabled = enabled;
-        self
-    }
-
-    /// Set the rules configuration.
-    pub fn with_rules(mut self, rules: LinterRules) -> Self {
-        self.rules = rules;
-        self
-    }
-}
-
 /// Linter rules configuration.
 #[derive(Debug, Clone)]
 pub struct LinterRules {
