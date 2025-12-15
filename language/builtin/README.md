@@ -2,35 +2,24 @@
 
 Language built-in definitions. Shipped with the language toolchain.
 
+This crate provides:
+- **Rust**: `destack_builtin` crate with `LanguageItem`, `PreludeItem`, and embedded `.ds` sources
+- **Destack**: Core language primitives and library type definitions
+
 ## Structure
 
 ```
-src/
-├── core/                   # Language primitives (always loaded)
-│   ├── index.ds
-│   │
-│   ├── intrinsic/          # Compiler-provided features
-│   │
-│   ├── operator/           # Operator overloading interfaces
-│   │
-│   └── reflection/         # Reflection system (e.g., Types as values)
-│
-├── lib/                    # Runtime library definitions (loaded via `lib` config)
-│   ├── es/                 # ECMAScript versions
-│   │   ├── es5/
-│   │   ├── es2015/
-│   │   ├── ...
-│   │   ├── es2024/
-│   │   └── esnext/
-│   │
-│   ├── dom/                # Browser DOM APIs
-│   │
-│   └── worker/             # Web Worker APIs
-│
-└── index.ds
+src/                        # Rust source (destack_builtin crate)
 
-scripts/
-└── sync-libs.sh            # Script to update lib definitions
+core/                       # Language primitives (always loaded)
+├── operator/               # Operator overloading interfaces
+├── reflection/             # Reflection system (Type<T>, decorators, etc.)
+└── intrinsic/              # Compiler-provided features
+
+lib/                        # Runtime library definitions (loaded via `lib` config)
+├── es/                     # ECMAScript versions
+├── dom/                    # Browser DOM APIs
+└── worker/                 # Web Worker APIs
 ```
 
 ## What's Bundled vs External

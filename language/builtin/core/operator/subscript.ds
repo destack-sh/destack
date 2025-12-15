@@ -10,7 +10,7 @@
 ///     width: int,
 /// }
 ///
-/// extension<T> for Grid<T> implements Index<(int, int), T>, SetIndex<(int, int), T> {
+/// extension<T> for Grid<T> implements Index<(int, int), T>, IndexSet<(int, int), T> {
 ///     index(key: (int, int)): T {
 ///         const (x, y) = key;
 ///         this.data[y * this.width + x]
@@ -38,11 +38,11 @@ newtype interface Index<I, O> {
 
 /// Interface for index assignment `a[i] = v`.
 ///
-/// `a[i] = v` desugars to `a.setIndex(i, v)`.
+/// `a[i] = v` desugars to `a.indexSet(i, v)`.
 ///
-/// Types that implement `SetIndex` should typically also implement `Index`.
-newtype interface SetIndex<I, V> {
-    setIndex(key: I, value: V): void;
+/// Types that implement `IndexSet` should typically also implement `Index`.
+newtype interface IndexSet<I, V> {
+    indexSet(key: I, value: V): void;
 }
 
 /// Interface for dereference `*a`.

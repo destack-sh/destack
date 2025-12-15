@@ -43,10 +43,6 @@
 /// }
 /// ```
 
-// ============================================================================
-// DECORATOR INFO
-// ============================================================================
-
 /// Metadata about a decorator applied to a declaration.
 struct DecoratorInfo {
     /// The name of the decorator.
@@ -74,10 +70,6 @@ struct DecoratorInfo {
     /// ```
     value: unknown,
 }
-
-// ============================================================================
-// COMMON DECORATORS
-// ============================================================================
 
 /// Marks something as deprecated.
 ///
@@ -129,3 +121,17 @@ newtype inline = void;
 /// function complexCalculation() { ... }
 /// ```
 newtype noinline = void;
+
+/// Loop unroll hint for the optimizer.
+///
+/// Suggests that a loop should be unrolled. Can optionally specify
+/// the unroll factor.
+///
+/// ```
+/// @unroll
+/// for (let i = 0; i < 4; i++) { }
+///
+/// @unroll(4)
+/// for (let i = 0; i < 16; i++) { }
+/// ```
+newtype unroll = int | void;

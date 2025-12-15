@@ -1,9 +1,5 @@
 /// Property and Variant descriptors for struct/class/enum types.
 
-// ============================================================================
-// PROPERTY
-// ============================================================================
-
 /// A property (field) in a struct, class, interface, or object type.
 ///
 /// Properties describe data members, not methods. For functions/methods,
@@ -50,10 +46,6 @@ struct Property {
     /// Documentation comment, if present.
     description?: string,
 }
-
-// ============================================================================
-// VARIANT
-// ============================================================================
 
 /// A variant in an enum type.
 ///
