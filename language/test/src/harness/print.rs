@@ -87,7 +87,7 @@ fn visible_width(text: &str) -> usize {
 
 /// Print test result with colors.
 pub fn print_result(test: &TestCase, result: &TestResult, duration: Duration, _verbose: bool) {
-    let (status_plain, status) = match result {
+    let (_status_plain, status) = match result {
         TestResult::Passed => ("ok".to_string(), color::green("ok")),
         TestResult::Failed { .. } => ("FAILED".to_string(), color::red("FAILED")),
         TestResult::Skipped { .. } => ("skipped".to_string(), color::yellow("skipped")),
@@ -123,23 +123,19 @@ pub fn print_result(test: &TestCase, result: &TestResult, duration: Duration, _v
         }
 
         let indent = "       ";
-        let indent_len = indent.len();
-        let base_line_len = format!(
-            "test {} ... {}{}",
-            test.full_name(),
-            status_plain,
-            duration_plain
-        )
-        .len();
 
-        let separator_len = std::env::var("COLUMNS")
-            .ok()
-            .and_then(|s| s.parse::<usize>().ok())
-            .map(|columns| columns.saturating_sub(indent_len))
-            .unwrap_or_else(|| base_line_len.saturating_sub(indent_len))
-            .max(40);
+        // calculate max visible width of all content lines
+        let max_content_width = message
+            .lines()
+            .map(|line| visible_width(line))
+            .max()
+            .unwrap_or(0);
 
-        let inner_width = separator_len.saturating_sub(4).max(8);
+        // box inner width must fit the widest content line (plus minimum of 8)
+        let inner_width = max_content_width.max(8);
+        // separator includes: │ + space + content + space + │
+        let separator_len = inner_width + 4;
+
         let border_top = color::dim(&format!(
             "┌{}┐",
             "─".repeat(separator_len.saturating_sub(2))

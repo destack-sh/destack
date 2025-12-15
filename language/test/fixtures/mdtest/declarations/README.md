@@ -9,8 +9,3 @@ Variable and function declarations.
 - **Arrow functions**: Expression and block body forms
 - **Type annotations**: Explicit type declarations
 
-## Files
-
-| File | Description |
-|------|-------------|
-| `basic.md` | Function declarations and arrow functions |

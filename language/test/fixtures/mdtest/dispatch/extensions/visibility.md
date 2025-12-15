@@ -166,28 +166,6 @@ point.distance() satisfies number;
 
 ## Overlapping Extensions
 
-### type's own members take priority over extensions
-
-> When a type has a member and an extension adds a method with the same name,
-> the type's own member is used.
-
-```ds
-struct Point {
-    x: number,
-    y: number,
-    length(): number { return 0 }
-}
-
-extension for Point {
-    length(): number { return 1 }
-}
-
-declare function getPoint(): Point;
-
-const point = getPoint();
-point.length() satisfies number;
-```
-
 ### first extension wins for duplicates
 
 > When multiple extensions define the same method, the first one wins.
