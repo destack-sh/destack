@@ -24,9 +24,7 @@ fn is_constant_expression(tree: &NodeTree, expr: &Expression) -> bool {
         Expression::Parenthesized { expression } => {
             is_constant_expression(tree, tree.get(*expression))
         }
-        Expression::Unary { right, .. } => {
-            is_constant_expression(tree, tree.get(*right))
-        }
+        Expression::Unary { right, .. } => is_constant_expression(tree, tree.get(*right)),
         _ => false,
     }
 }
@@ -36,11 +34,7 @@ impl LintRule for NoConstantCondition {
         NoConstantCondition::meta()
     }
 
-    fn check_module_ast<'a>(
-        &self,
-        severity: LintSeverity,
-        ctx: &mut LintModuleAstContext<'a>,
-    ) {
+    fn check_module_ast<'a>(&self, severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
         for node_id in ctx.tree.iter_nodes::<Expression>() {
             let condition_id = match ctx.tree.get(node_id) {
                 Expression::If { condition, .. } => *condition,

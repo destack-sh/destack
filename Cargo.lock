@@ -612,6 +612,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "destack_builtin"
+version = "0.50.0"
+
+[[package]]
 name = "destack_cli"
 version = "0.50.0"
 dependencies = [

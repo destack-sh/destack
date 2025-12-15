@@ -181,6 +181,29 @@ impl NodeTree {
         self.alias_node_id_by_node_id.insert(dir_id, alias.id);
     }
 
+    /// Get the alias node id for a DIR node id, if one exists.
+    /// Returns the aliased node id, or None if no alias exists.
+    #[inline]
+    pub fn get_alias(&self, node_id: u32) -> Option<LocalNodeIdAny> {
+        self.alias_node_id_by_node_id
+            .get(&node_id)
+            .copied()
+            .map(|alias_id| {
+                LocalNodeIdAny::new(alias_id, self.node_type_by_node_id[alias_id as usize])
+            })
+    }
+
+    /// Resolve the final alias for a DIR node id, following the alias chain.
+    /// Returns the final aliased node id, or the original if no aliases exist.
+    #[inline]
+    pub fn resolve_alias(&self, node_id: u32) -> LocalNodeIdAny {
+        let mut current = node_id;
+        while let Some(alias_id) = self.alias_node_id_by_node_id.get(&current) {
+            current = *alias_id;
+        }
+        LocalNodeIdAny::new(current, self.node_type_by_node_id[current as usize])
+    }
+
     /// Get the type of an untyped node id.
     #[inline]
     pub fn get_node_type(&self, id: u32) -> NodeType {

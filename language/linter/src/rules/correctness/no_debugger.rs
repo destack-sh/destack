@@ -24,11 +24,7 @@ impl LintRule for NoDebugger {
         NoDebugger::meta()
     }
 
-    fn check_module_ast<'a>(
-        &self,
-        severity: LintSeverity,
-        ctx: &mut LintModuleAstContext<'a>,
-    ) {
+    fn check_module_ast<'a>(&self, severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
         for node_id in ctx.tree.iter_nodes::<Expression>() {
             let expression = ctx.tree.get(node_id);
             if !matches!(expression, Expression::Debugger) {
@@ -63,8 +59,8 @@ impl LintRule for NoDebugger {
                 }
             }
             // not in statement position: offer unsafe fix only
-            let diagnostic = diagnostic
-                .with_fix(LintFix::r#unsafe("Remove debugger expression").delete(span));
+            let diagnostic =
+                diagnostic.with_fix(LintFix::r#unsafe("Remove debugger expression").delete(span));
             ctx.report(diagnostic);
         }
     }

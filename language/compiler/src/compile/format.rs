@@ -13,8 +13,7 @@ use destack_dir::{
 use destack_source::{FileType, ModuleId, Uri};
 use destack_workspace::Program;
 
-use crate::format_global_type;
-use crate::format_symbol_name;
+use crate::{format_global_type, format_symbol_name};
 
 /// Trait for formatting types in diagnostic messages.
 ///
