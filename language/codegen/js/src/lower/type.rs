@@ -50,12 +50,8 @@ impl ModuleLowerer<'_> {
     }
 
     /// Lower a primitive type from DIR into JS AST.
-    pub fn lower_primitive_type(
-        &mut self,
-        _ty_id: dir::LocalTypeId,
-        primitive: dir::PrimitiveType,
-    ) -> CodegenJsResult<PrimitiveType> {
-        let primitive = match primitive {
+    pub fn lower_primitive_type_value(&self, primitive: dir::PrimitiveType) -> PrimitiveType {
+        match primitive {
             dir::PrimitiveType::Boolean => PrimitiveType::Boolean,
             dir::PrimitiveType::Character => PrimitiveType::String,
             dir::PrimitiveType::String => PrimitiveType::String,
@@ -65,16 +61,21 @@ impl ModuleLowerer<'_> {
             dir::PrimitiveType::Float(_) => PrimitiveType::Number,
             dir::PrimitiveType::Symbol => PrimitiveType::Symbol,
             dir::PrimitiveType::UniqueSymbol => PrimitiveType::UniqueSymbol,
-        };
-        Ok(primitive)
+        }
     }
 
-    /// Lower a type literal from DIR into JS AST.
-    pub fn lower_type_literal(
+    /// Lower a primitive type from DIR into JS AST.
+    pub fn lower_primitive_type(
         &mut self,
-        ty_id: dir::LocalTypeId,
-        literal: &dir::TypeLiteral,
-    ) -> CodegenJsResult<TypeLiteral> {
+        _ty_id: dir::LocalTypeId,
+        primitive: dir::PrimitiveType,
+    ) -> CodegenJsResult<PrimitiveType> {
+        Ok(self.lower_primitive_type_value(primitive))
+    }
+
+    /// Lower a type literal value from DIR into JS AST.
+    /// Returns None for unsupported type literals (like Infer, Composite).
+    pub fn lower_type_literal_value(&mut self, literal: &dir::TypeLiteral) -> Option<TypeLiteral> {
         let literal = match literal {
             dir::TypeLiteral::Never => TypeLiteral::Never,
             dir::TypeLiteral::Any => TypeLiteral::Any,
@@ -83,22 +84,31 @@ impl ModuleLowerer<'_> {
             dir::TypeLiteral::Void => TypeLiteral::Void,
             dir::TypeLiteral::Null => TypeLiteral::Null,
             dir::TypeLiteral::Primitive(primitive) => {
-                let primitive = self.lower_primitive_type(ty_id, *primitive)?;
+                let primitive = self.lower_primitive_type_value(*primitive);
                 TypeLiteral::Primitive(primitive)
             }
             dir::TypeLiteral::ScalarLiteral(scalar_literal) => {
                 let scalar_literal = self.lower_scalar_literal(scalar_literal);
                 TypeLiteral::ScalarLiteral(scalar_literal)
             }
-            _ => {
-                let source_id = self.types.get_type_source(ty_id);
-                return Err(CodegenJsError::UnsupportedConstruct {
-                    node: source_id.into_global(self.module.id),
-                    message: None,
-                });
-            }
+            _ => return None,
         };
-        Ok(literal)
+        Some(literal)
+    }
+
+    /// Lower a type literal from DIR into JS AST.
+    pub fn lower_type_literal(
+        &mut self,
+        ty_id: dir::LocalTypeId,
+        literal: &dir::TypeLiteral,
+    ) -> CodegenJsResult<TypeLiteral> {
+        self.lower_type_literal_value(literal).ok_or_else(|| {
+            let source_id = self.types.get_type_source(ty_id);
+            CodegenJsError::UnsupportedConstruct {
+                node: source_id.into_global(self.module.id),
+                message: None,
+            }
+        })
     }
 
     /// Lower a type unary operator from DIR into JS AST.

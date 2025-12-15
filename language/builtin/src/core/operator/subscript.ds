@@ -1,0 +1,85 @@
+/// Subscript and dereference operator interfaces.
+///
+/// These nominal interfaces enable custom indexing and pointer-like access.
+///
+/// # Example
+///
+/// ```
+/// struct Grid<T> {
+///     data: T[],
+///     width: int,
+/// }
+///
+/// extension<T> for Grid<T> implements Index<(int, int), T>, SetIndex<(int, int), T> {
+///     index(key: (int, int)): T {
+///         const (x, y) = key;
+///         this.data[y * this.width + x]
+///     }
+///     setIndex(key: (int, int), value: T): void {
+///         const (x, y) = key;
+///         this.data[y * this.width + x] = value;
+///     }
+/// }
+///
+/// const grid = Grid { data: [1, 2, 3, 4], width: 2 };
+/// grid[(0, 1)]        // 3
+/// grid[(1, 1)] = 10;  // sets element at (1,1)
+/// ```
+
+// ============================================================================
+// INDEXING
+// ============================================================================
+
+/// Interface for index access `a[i]`.
+///
+/// `a[i]` desugars to `a.index(i)`.
+///
+/// The index type `I` can be any type (int, string, tuple, range, etc.).
+/// The output type `O` is what the indexing returns.
+newtype interface Index<I, O> {
+    index(key: I): O;
+}
+
+/// Interface for index assignment `a[i] = v`.
+///
+/// `a[i] = v` desugars to `a.setIndex(i, v)`.
+///
+/// Types that implement `SetIndex` should typically also implement `Index`.
+newtype interface SetIndex<I, V> {
+    setIndex(key: I, value: V): void;
+}
+
+// ============================================================================
+// DEREFERENCE
+// ============================================================================
+
+/// Interface for dereference `*a`.
+///
+/// `*a` desugars to `a.deref()`.
+///
+/// Used for smart pointer types and other indirection wrappers.
+///
+/// # Example
+///
+/// ```
+/// struct Ref<T> {
+///     value: T,
+/// }
+///
+/// extension<T> for Ref<T> implements Deref<T> {
+///     deref(): T { this.value }
+/// }
+///
+/// const r = Ref { value: 42 };
+/// *r  // 42
+/// ```
+newtype interface Deref<T> {
+    deref(): T;
+}
+
+/// Interface for mutable dereference assignment `*a = v`.
+///
+/// `*a = v` desugars to `a.derefSet(v)`.
+newtype interface DerefSet<T> {
+    derefSet(value: T): void;
+}

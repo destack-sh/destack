@@ -1,0 +1,126 @@
+/// Control flow operator interfaces.
+///
+/// These nominal interfaces enable custom behavior for control flow operators
+/// like `?` (try/propagate) and `..`/`..=` (ranges).
+
+// ============================================================================
+// TRY (? OPERATOR)
+// ============================================================================
+
+/// Control flow result for the Try interface.
+///
+/// Used to signal whether to continue or break/return early.
+enum ControlFlow<B, C> {
+    /// Continue with the contained value.
+    Continue(C),
+    /// Break/return early with the contained value.
+    Break(B),
+}
+
+/// Interface for the `?` operator (try/propagate).
+///
+/// The `?` operator provides early return on "error" values.
+/// `x?` desugars to:
+/// ```
+/// match x.branch() {
+///     ControlFlow.Continue(v) => v
+///     ControlFlow.Break(e) => return Self.fromResidual(e)
+/// }
+/// ```
+///
+/// # Example
+///
+/// ```
+/// // Result<T, E> implements Try
+/// function divide(a: int, b: int): Result<int, string> {
+///     if (b == 0) { Result.err("division by zero") }
+///     else { Result.ok(a / b) }
+/// }
+///
+/// function calculate(): Result<int, string> {
+///     const x = divide(10, 2)?;  // x = 5, or returns early on error
+///     const y = divide(x, 0)?;   // returns Err("division by zero")
+///     Result.ok(y)
+/// }
+/// ```
+newtype interface Try {
+    /// The success/output type.
+    type Output;
+
+    /// The residual type (for early return).
+    type Residual;
+
+    /// Branch on success or failure.
+    branch(): ControlFlow<Self.Residual, Self.Output>;
+
+    /// Construct Self from a residual (for propagation).
+    static fromResidual(residual: Self.Residual): Self;
+}
+
+// ============================================================================
+// RANGE OPERATORS
+// ============================================================================
+
+/// A bound for a range (start or end).
+enum Bound<T> {
+    /// Inclusive bound (includes the value).
+    Included(T),
+    /// Exclusive bound (excludes the value).
+    Excluded(T),
+    /// Unbounded (no limit).
+    Unbounded,
+}
+
+/// Interface for types that represent range bounds.
+///
+/// Used by range-accepting functions like slice, substring, etc.
+///
+/// # Example
+///
+/// ```
+/// const arr = [1, 2, 3, 4, 5];
+/// arr[1..4]   // [2, 3, 4] - elements 1, 2, 3
+/// arr[1..=4]  // [2, 3, 4, 5] - elements 1, 2, 3, 4
+/// arr[2..]    // [3, 4, 5] - from index 2 to end
+/// arr[..3]    // [1, 2, 3] - from start to index 2
+/// ```
+newtype interface RangeBounds<T> {
+    /// Get the start bound.
+    startBound(): Bound<T>;
+
+    /// Get the end bound.
+    endBound(): Bound<T>;
+
+    /// Check if a value is contained in this range.
+    contains(value: T): boolean;
+}
+
+/// Exclusive range `start..end`.
+struct Range<T> implements RangeBounds<T> {
+    start: T,
+    end: T,
+}
+
+/// Inclusive range `start..=end`.
+struct RangeInclusive<T> implements RangeBounds<T> {
+    start: T,
+    end: T,
+}
+
+/// Range from start `start..`.
+struct RangeFrom<T> implements RangeBounds<T> {
+    start: T,
+}
+
+/// Range to end (exclusive) `..end`.
+struct RangeTo<T> implements RangeBounds<T> {
+    end: T,
+}
+
+/// Range to end (inclusive) `..=end`.
+struct RangeToInclusive<T> implements RangeBounds<T> {
+    end: T,
+}
+
+/// Full range `..` (unbounded).
+struct RangeFull implements RangeBounds<unknown> {}

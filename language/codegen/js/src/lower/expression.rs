@@ -285,6 +285,18 @@ impl ModuleLowerer<'_> {
                 self.lower_expression(*value)?
             }
 
+            dir::Expression::TypeLiteral { value } => {
+                let type_literal = self.lower_type_literal_value(value).ok_or_else(|| {
+                    CodegenJsError::UnsupportedConstruct {
+                        node: expression_id.into_global_any(self.module.id),
+                        message: None,
+                    }
+                })?;
+                let ty = Type::Scalar(type_literal);
+                self.tree
+                    .insert_from_source(ty, self.module.id, expression_id)
+                    .into_any()
+            }
             dir::Expression::TypeUnary { operator, right } => self
                 .lower_type_unary_expression(expression_id, *operator, *right)?
                 .into_any(),

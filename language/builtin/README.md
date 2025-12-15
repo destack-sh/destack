@@ -7,12 +7,15 @@ Language built-in definitions. Shipped with the language toolchain.
 ```
 src/
 ├── core/                   # Language primitives (always loaded)
-│   ├── type.ds             # Type<T>, typeOf(), Field, Method
-│   ├── operator.ds         # Add, Subtract, Compare, etc.
-│   ├── primitive.ds        # int32, uint64, float64, etc.
-│   └── iterator.ds         # Iterator, Iterable
+│   ├── index.ds
+│   │
+│   ├── intrinsic/          # Compiler-provided features
+│   │
+│   ├── operator/           # Operator overloading interfaces
+│   │
+│   └── reflection/         # Reflection system (e.g., Types as values)
 │
-├── lib/                    # Standard library definitions (loaded via `lib` config)
+├── lib/                    # Runtime library definitions (loaded via `lib` config)
 │   ├── es/                 # ECMAScript versions
 │   │   ├── es5/
 │   │   ├── es2015/

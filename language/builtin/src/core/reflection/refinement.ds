@@ -1,0 +1,156 @@
+/// Refinements - type constraints that are checked at compile-time and runtime.
+///
+/// Refinements add constraints to types without changing their runtime representation.
+/// They're implemented as extensions on types that return wrapped types with metadata.
+///
+/// # Built-in Refinements
+///
+/// The compiler recognizes these refinement methods on primitive types:
+///
+/// **Numeric types** (`int`, `uint`, `float`, and sized variants):
+/// - `.min(n)` - value >= n
+/// - `.max(n)` - value <= n
+/// - `.positive()` - value > 0
+/// - `.negative()` - value < 0
+/// - `.nonZero()` - value != 0
+///
+/// **String type**:
+/// - `.minLength(n)` - length >= n
+/// - `.maxLength(n)` - length <= n
+/// - `.length(n)` - length == n
+/// - `.nonEmpty()` - length >= 1
+/// - `.pattern(regex)` - matches regex
+/// - `.email()` - valid email format
+/// - `.url()` - valid URL format
+/// - `.uuid()` - valid UUID format
+///
+/// **Array types**:
+/// - `.minLength(n)` - length >= n
+/// - `.maxLength(n)` - length <= n
+/// - `.length(n)` - length == n
+/// - `.nonEmpty()` - length >= 1
+///
+/// # Example
+///
+/// ```
+/// // Type with refinements
+/// type Age = int.min(0).max(150);
+/// type Email = string.email();
+/// type NonEmptyList = int[].nonEmpty();
+///
+/// // In structs
+/// struct User {
+///     name: string.minLength(1).maxLength(100),
+///     age: int.min(0).max(150),
+///     email: string.email(),
+/// }
+///
+/// // Compiler checks refinements when values are provable
+/// const age: Age = 30;   // ok
+/// const age: Age = 200;  // compile error: 200 > max(150)
+///
+/// // Runtime validation for unknown values
+/// const parsed = User.parse(jsonData);
+/// ```
+///
+/// # Custom Refinements
+///
+/// Custom refinements will be supported via extensions when comptime is ready:
+///
+/// ```
+/// // Future: user-defined refinements
+/// extension for Type<string> {
+///     creditCard(): RefinedType<string> {
+///         Type.refine(this, Refinement {
+///             kind: "creditCard",
+///             validate: (s) => luhnCheck(s),
+///             message: "Invalid credit card number",
+///         })
+///     }
+/// }
+/// ```
+
+// ============================================================================
+// REFINEMENT
+// ============================================================================
+
+/// A refinement (constraint) on a type.
+///
+/// Refinements describe constraints that must be satisfied by values of a type.
+/// They contain both the constraint metadata (for introspection) and a validation
+/// function (for runtime checking).
+struct Refinement {
+    /// The kind of refinement (e.g., "min", "max", "minLength", "pattern").
+    kind: string,
+
+    /// Arguments to the refinement.
+    ///
+    /// - `min(5)` => args: [5]
+    /// - `pattern(/^\d+$/)` => args: [/^\d+$/]
+    args: readonly unknown[],
+
+    /// Custom error message, if provided.
+    message?: string,
+
+    /// Validation function.
+    /// Returns true if the value satisfies this refinement.
+    validate: (value: unknown) => boolean,
+}
+
+// ============================================================================
+// REFINEMENT KIND
+// ============================================================================
+
+/// Well-known refinement kinds.
+///
+/// The compiler recognizes these and can generate optimized validation code.
+/// Custom refinements use string kinds and rely on the `validate` function.
+type RefinementKind =
+    // Numeric
+    | "min"
+    | "max"
+    | "positive"
+    | "negative"
+    | "nonZero"
+    | "multipleOf"
+    // String/Array length
+    | "minLength"
+    | "maxLength"
+    | "length"
+    | "nonEmpty"
+    // String patterns
+    | "pattern"
+    | "email"
+    | "url"
+    | "uuid"
+    | "datetime"
+    | "date"
+    | "time"
+    // Custom
+    | string
+;
+
+// ============================================================================
+// REFINEMENT OPERATIONS
+// ============================================================================
+
+// NOTE: These extensions would be on the primitive types themselves (int, string, etc.)
+// and are implemented in the compiler. They're documented here for reference.
+//
+// The actual implementation requires the compiler to:
+// 1. Recognize `.min()`, `.max()`, etc. method calls on types
+// 2. Create RefinedType<T> with the refinement attached
+// 3. Track refinements through type inference
+// 4. Generate validation code during codegen
+//
+// Example of what the compiler does internally:
+//
+// Source: int.min(0).max(100)
+//
+// Produces: RefinedType<int> {
+//     base: int,
+//     refinements: [
+//         Refinement { kind: "min", args: [0], validate: (x) => x >= 0 },
+//         Refinement { kind: "max", args: [100], validate: (x) => x <= 100 },
+//     ],
+// }
