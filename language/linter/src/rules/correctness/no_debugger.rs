@@ -113,4 +113,53 @@ function foo() {
         );
         test.result(result).assert_no_lint("no-debugger");
     }
+
+    #[test]
+    fn test_fix_removes_debugger_statement() {
+        let test = TestProgram::for_rule(NoDebugger);
+        let result = test.lint_ast("test.ds", r#"
+debugger;
+"#);
+        test.result(result)
+            .assert_lint("no-debugger")
+            .assert_has_fix("no-debugger")
+            .assert_safe_fixed(r#""#);
+    }
+
+    #[test]
+    fn test_fix_preserves_surrounding_code() {
+        let test = TestProgram::for_rule(NoDebugger);
+        let result = test.lint_ast(
+            "test.ds",
+            r#"
+let x = 1;
+debugger;
+let y = 2;
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-debugger")
+            .assert_safe_fixed(
+                r#"
+let x = 1;
+let y = 2;
+"#,
+            );
+    }
+
+    #[test]
+    fn test_fix_without_semicolon() {
+        let test = TestProgram::for_rule(NoDebugger);
+        let result = test.lint_ast("test.ds", r#"
+let x = debugger;
+"#);
+        test.result(result)
+            .assert_lint("no-debugger")
+            .assert_safe_fixed(r#"
+let x = debugger;
+"#)
+            .assert_unsafe_fixed(r#"
+let x = ;
+"#);
+    }
 }

@@ -7,7 +7,7 @@ use crate::{CapturingNodeVisitor, LocalNodeId, Node, NodeTree, NodeTreeImpl, wal
 ///  having bottom-up ids also makes it simpler to get the "innermost" or "outermost" node unambiguously.)
 #[derive(Debug, Clone)]
 pub struct NodeParentIndex {
-    parents_per_node: Vec<Option<u32>>,
+    parent_id_by_node_id: Vec<Option<u32>>,
 }
 
 impl Default for NodeParentIndex {
@@ -20,7 +20,7 @@ impl NodeParentIndex {
     /// Create a new NodeParentIndex.
     pub fn new() -> Self {
         Self {
-            parents_per_node: Vec::new(),
+            parent_id_by_node_id: Vec::new(),
         }
     }
 
@@ -47,7 +47,9 @@ impl NodeParentIndex {
             parents_per_node.push(parent_by_node.get(&(i as u32)).cloned());
         }
 
-        Self { parents_per_node }
+        Self {
+            parent_id_by_node_id: parents_per_node,
+        }
     }
 
     /// Get the parent for a node.
@@ -55,15 +57,14 @@ impl NodeParentIndex {
     pub fn get<T>(&self, node_id: LocalNodeId<T>) -> Option<u32>
     where
         T: Node,
-        NodeTree: NodeTreeImpl<T>,
     {
-        self.parents_per_node[node_id.id as usize]
+        self.parent_id_by_node_id[node_id.id as usize]
     }
 
     /// Get the parent for a node by its id.
     #[inline]
     pub fn get_by_id(&self, node_id: u32) -> Option<u32> {
-        self.parents_per_node[node_id as usize]
+        self.parent_id_by_node_id[node_id as usize]
     }
 
     /// Walk all parents to the root.

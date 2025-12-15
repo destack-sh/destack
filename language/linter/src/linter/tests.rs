@@ -8,7 +8,9 @@ use destack_source::{
 };
 use destack_workspace::{LinterOptions, Program};
 
-use crate::{BoxedLintRule, LintDiagnostic, LintLevel, LintRunner};
+use crate::{
+    BoxedLintRule, FixApplicability, LintDiagnostic, LintLevel, LintRunner, TextEdit, print_diff,
+};
 
 /// Test wrapper for linting.
 pub(crate) struct TestProgram {
@@ -188,27 +190,29 @@ impl<'a> LintResult<'a> {
 
     /// Assert diagnostics contain a lint with the given rule id.
     #[track_caller]
-    pub(crate) fn assert_lint(&self, rule_id: &str) {
+    pub(crate) fn assert_lint(&self, rule_id: &str) -> &Self {
         let found = self.diagnostics.iter().any(|d| d.rule_id == rule_id);
         if !found {
             let ids: Vec<_> = self.diagnostics.iter().map(|d| d.rule_id).collect();
             self.print_diagnostics(&self.diagnostics);
             panic!("expected lint '{rule_id}' but found: {ids:?}");
         }
+        self
     }
 
     /// Assert diagnostics do not contain a lint with the given rule id.
     #[track_caller]
-    pub(crate) fn assert_no_lint(&self, rule_id: &str) {
+    pub(crate) fn assert_no_lint(&self, rule_id: &str) -> &Self {
         let found = self.diagnostics.iter().find(|d| d.rule_id == rule_id);
         if let Some(d) = found {
             panic!("unexpected lint '{rule_id}': {}", d.message);
         }
+        self
     }
 
     /// Assert diagnostics contain exactly n lints with the given rule id.
     #[track_caller]
-    pub(crate) fn assert_lint_count(&self, rule_id: &str, expected: usize) {
+    pub(crate) fn assert_lint_count(&self, rule_id: &str, expected: usize) -> &Self {
         let matching: Vec<_> = self
             .diagnostics
             .iter()
@@ -220,11 +224,12 @@ impl<'a> LintResult<'a> {
             self.print_diagnostics(&matching);
             panic!("expected {expected} '{rule_id}' lints but found {count}");
         }
+        self
     }
 
     /// Assert a lint exists at the given line (1-indexed).
     #[track_caller]
-    pub(crate) fn assert_lint_at_line(&self, rule_id: &str, line: u32) {
+    pub(crate) fn assert_lint_at_line(&self, rule_id: &str, line: u32) -> &Self {
         let matching: Vec<_> = self
             .diagnostics
             .iter()
@@ -240,7 +245,7 @@ impl<'a> LintResult<'a> {
             if let Some((line_index, _)) = file.get_position(diagnostic.span.start) {
                 let diagnostic_line = line_index + 1;
                 if diagnostic_line == line {
-                    return;
+                    return self;
                 }
             }
         }
@@ -255,5 +260,96 @@ impl<'a> LintResult<'a> {
             .collect();
         self.print_diagnostics(&self.diagnostics);
         panic!("expected lint '{rule_id}' at line {line} but found at lines: {lines:?}");
+    }
+    /// Apply text edits to source code and return the result.
+    pub(crate) fn apply_edits(&self, edits: Vec<&TextEdit>) -> String {
+        // return original source if no edits
+        if edits.is_empty() {
+            if let Some(d) = self.diagnostics.first() {
+                return self.program.files.get(d.file_id).text().to_string();
+            }
+            return String::new();
+        }
+
+        // sort by span start, descending (apply from end to preserve offsets)
+        let mut sorted_edits = edits;
+        sorted_edits.sort_by(|a, b| b.span.start.cmp(&a.span.start));
+
+        // apply all edits to the source
+        let file_id = sorted_edits[0].span.file;
+        let file = self.program.files.get(file_id);
+        let mut source = file.text().to_string();
+        for edit in sorted_edits {
+            let start = edit.span.start as usize;
+            let end = edit.span.end as usize;
+            source.replace_range(start..end, &edit.replacement);
+        }
+
+        source
+    }
+
+    /// Apply fixes from diagnostics with the given applicability and return the fixed source.
+    pub(crate) fn apply_fixes(&self, applicability: Option<FixApplicability>) -> String {
+        // collect all edits from fixes with matching applicability
+        let edits: Vec<&TextEdit> = self
+            .diagnostics
+            .iter()
+            .flat_map(|d| &d.fixes)
+            .filter(|f| applicability.map(|a| f.applicability == a).unwrap_or(true))
+            .flat_map(|f| &f.edits)
+            .collect();
+
+        self.apply_edits(edits)
+    }
+
+    /// Assert the safely fixed code matches expected.
+    #[track_caller]
+    pub(crate) fn assert_safe_fixed(&self, expected: &str) -> &Self {
+        let fixed = self.apply_fixes(Some(FixApplicability::Safe));
+        let fixed = fixed.trim();
+        let expected = expected.trim();
+        if fixed != expected {
+            print_diff(expected, fixed);
+            panic!("fixed code mismatch");
+        }
+        self
+    }
+
+    /// Assert the unsafely fixed code matches expected.
+    #[track_caller]
+    pub(crate) fn assert_unsafe_fixed(&self, expected: &str) -> &Self {
+        let fixed = self.apply_fixes(Some(FixApplicability::Unsafe));
+        let fixed = fixed.trim();
+        let expected = expected.trim();
+        if fixed != expected {
+            print_diff(expected, fixed);
+            panic!("fixed code mismatch");
+        }
+        self
+    }
+
+    /// Assert the fully fixed code matches expected.
+    #[track_caller]
+    pub(crate) fn assert_any_fixed(&self, expected: &str) -> &Self {
+        let fixed = self.apply_fixes(None);
+        let fixed = fixed.trim();
+        let expected = expected.trim();
+        if fixed != expected {
+            print_diff(expected, fixed);
+            panic!("fixed code mismatch");
+        }
+        self
+    }
+
+    /// Assert that a fix exists for the given rule.
+    #[track_caller]
+    pub(crate) fn assert_has_fix(&self, rule_id: &str) -> &Self {
+        let has_fix = self
+            .diagnostics
+            .iter()
+            .filter(|d| d.rule_id == rule_id)
+            .any(|d| !d.fixes.is_empty());
+        assert!(has_fix, "expected fix for '{rule_id}' but none found");
+        self
     }
 }
