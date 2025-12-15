@@ -12,14 +12,14 @@ pub enum OptimizeWarning {
     InscrutableType { node: GlobalNodeIdAny },
 
     /// Hint ignored.
-    #[warning(code = "WO002", message = "ignored hint")]
+    #[warning(code = "WO002", message = "ignored hint: {message}")]
     IgnoredHint {
         node: GlobalNodeIdAny,
         message: Option<String>,
     },
 
     /// Optimization skipped.
-    #[warning(code = "WO003", message = "optimization skipped")]
+    #[warning(code = "WO003", message = "optimization skipped: {message}")]
     SkippedOptimization {
         node: GlobalNodeIdAny,
         message: Option<String>,

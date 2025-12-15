@@ -999,7 +999,7 @@ type C = A;
         let has_cyclic = diagnostics
             .iter()
             .into_iter()
-            .any(|d| d.message.contains("cyclic symbol"));
+            .any(|d| d.message.contains("cyclic reference"));
         assert!(
             has_cyclic,
             "expected CyclicSymbol error for cyclic type aliases"

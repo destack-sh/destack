@@ -18,7 +18,7 @@ pub enum LinkError {
     UnsatisfiedDependency { dependency: TaskDependency },
 
     /// Internal error during linking.
-    #[error(code = "EK002", message = "internal error")]
+    #[error(code = "EK002", message = "internal error: {message}")]
     Internal { package: PackageId, message: String },
 
     /// Missing target.

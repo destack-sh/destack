@@ -24,7 +24,7 @@ pub enum BindError {
     UnsupportedConstruct { node: GlobalNodeIdAny },
 
     /// Conflicting symbol binding (unambiguous).
-    #[error(code = "EB003", message = "conflicting binding")]
+    #[error(code = "EB003", message = "duplicate identifier '{name}'")]
     ConflictingBinding {
         node: GlobalNodeIdAny,
         other_node: GlobalNodeIdAny,
@@ -33,7 +33,7 @@ pub enum BindError {
     },
 
     /// Conflicting export name in the same module.
-    #[error(code = "EB004", message = "conflicting export")]
+    #[error(code = "EB004", message = "duplicate export '{name}'")]
     ConflictingExport {
         node: GlobalNodeIdAny,
         other_node: GlobalNodeIdAny,
@@ -42,7 +42,7 @@ pub enum BindError {
     },
 
     /// Conflicting default export.
-    #[error(code = "EB005", message = "conflicting default export")]
+    #[error(code = "EB005", message = "duplicate default export '{name}'")]
     ConflictingDefaultExport {
         node: GlobalNodeIdAny,
         other_node: GlobalNodeIdAny,
