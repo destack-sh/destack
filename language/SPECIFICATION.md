@@ -263,7 +263,7 @@ newtype Result<T, E> = Ok<T> | Err<E>
 Since `Result` is now a newtype, it can be extended with methods:
 
 ```
-extension<T, E> Result<T, E> {
+extension<T, E> for Result<T, E> {
     static ok(value: T): Result<T, E> { Result(Ok { value }) }
     static err(error: E): Result<T, E> { Result(Err { error }) }
 
@@ -604,7 +604,7 @@ struct Vec2 { x: float, y: float }
 const v: Add<Vec2> = Vec2 { x: 1, y: 2 }  // ERROR: Vec2 doesn't implement Add
 
 // Explicit opt-in required
-extension Vec2 implements Add<Vec2> {
+extension for Vec2 implements Add<Vec2> {
     add(other: Vec2): Vec2 { Vec2 { x: this.x + other.x, y: this.y + other.y } }
 }
 const v: Add<Vec2> = Vec2 { x: 1, y: 2 }  // OK: Vec2 implements Add
@@ -765,11 +765,11 @@ Unlike TypeScript's prototype extension, Destack extensions are type-safe and sc
 Extension visibility depends on where the extension is defined relative to the type.
 
 ```
-extension Vector2 {
+extension for Vector2 {
     magnitude(): float32 {
         (this.x * this.x + this.y * this.y).sqrt()
     }
-    
+
     normalized(): Vector2 {
         const m = this.magnitude();
         Vector2 { x: this.x / m, y: this.y / m }
@@ -797,11 +797,11 @@ To extend a structural shape, wrap it in a nominal type:
 ```
 // can NOT extend type aliases or inline types (structural)
 type Point = { x: number, y: number };
-extension Point { ... }  // error: Point is a type alias
+extension for Point { ... }  // error: Point is a type alias
 
 // can extend newtype or struct (nominal)
 newtype Point = { x: number, y: number };
-extension Point { ... }  // ok: Point is nominal
+extension for Point { ... }  // ok: Point is nominal
 ```
 
 Unlike Rust's blanket `impl`s, Destack does not support generic extensions like `extension<T> T where T: Constraint`.
@@ -827,12 +827,12 @@ The same mechanism works for newtypes and even precise primitives:
 
 ```
 newtype UserId = int;
-extension UserId {
+extension for UserId {
     isValid(): boolean { this > 0; }
 }
 
 // anonymous extension on builtin type: only visible in this file
-extension int32 {
+extension for int32 {
     abs(): int32 { if (this < 0) { -this } else { this }; }
 }
 ```
@@ -852,7 +852,7 @@ interface Add<T, U = T> {
 ```
 
 ```
-extension Vector2 implements Add<Vector2> {
+extension for Vector2 implements Add<Vector2> {
     add(other: Vector2): Vector2 {
         Vector2 { x: this.x + other.x, y: this.y + other.y }
     }
@@ -864,11 +864,11 @@ extension Vector2 implements Add<Vector2> {
 Multiple overloads for the same operator are supported via multiple interface implementations:
 
 ```
-extension Vector2 implements Add<Vector2>, Add<float> {
+extension for Vector2 implements Add<Vector2>, Add<float> {
     add(other: Vector2): Vector2 {
         Vector2 { x: this.x + other.x, y: this.y + other.y }
     }
-    
+
     add(other: float): Vector2 {
         Vector2 { x: this.x + other, y: this.y + other }
     }
@@ -889,7 +889,7 @@ Extend types from other modules:
 import { Vector2 } from "somewhere";
 
 // anonymous: only visible in this file (foreign type)
-extension Vector2 {
+extension for Vector2 {
     magnitude(): float32 {
         (this.x * this.x + this.y * this.y).sqrt()
     }
@@ -907,8 +907,10 @@ Named extensions can be exported and must be imported where used:
 // in date-utils.ds
 import { Date } from "builtin";
 
-export extension DateUtils: Date implements Add<Date> {
+export extension DateUtils for Date implements Add<Date> {
     addDays(days: int): Date { ... }
+
+    add(other: Date): Date { ... }
 }
 ```
 
@@ -1550,7 +1552,7 @@ a + b;        // error: Foo does not implement Add
 a.add(b);     // ok: direct method call works
 
 // Foo explicitly implements Add<T>
-extension Foo implements Add<Foo> {
+extension for Foo implements Add<Foo> {
     add(other: Foo): Foo { ... }
 }
 

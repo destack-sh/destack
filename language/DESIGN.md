@@ -339,7 +339,7 @@ Destack adds type extensions and real overloading for type-based dispatch and op
 Destack introduces extensions to add methods and static constants for any nominal type:
 
 ```
-extension Vector2 {
+extension for Vector2 {
     magnitude(): float32 { (this.x * this.x + this.y * this.y).sqrt() }
 }
 ```
@@ -352,11 +352,11 @@ To extend a structural shape, wrap it in a nominal type:
 ```
 // ❌ Can't extend a type alias or inline shape
 type Point = { x: number, y: number };
-extension Point { ... }  // error
+extension for Point { ... }  // error
 
 // ✅ Use newtype or struct instead
 newtype Point = { x: number, y: number };
-extension Point { ... }  // ok
+extension for Point { ... }  // ok
 ```
 
 Unlike Rust's blanket impls, Destack extensions only target concrete types—no `extension<T> T where T: Foo` patterns.
@@ -366,8 +366,8 @@ Extensions let you add methods to any nominal type: classes, structs, enums, new
 
 Extension visibility follows clear rules:
 - **Same file as type**: Extensions are automatically visible wherever the type is used.
-- **Anonymous on foreign type**: Only visible in the file where declared (`extension int32 { ... }`).
-- **Named on foreign type**: Must be explicitly imported to use (`export extension DateUtils: Date { ... }`).
+- **Anonymous on foreign type**: Only visible in the file where declared (`extension for int32 { ... }`).
+- **Named on foreign type**: Must be explicitly imported to use (`export extension DateUtils for Date { ... }`).
 
 ### Nominal Interfaces
 
@@ -404,7 +404,7 @@ Real function and operator overloading with distinct implementations:
 function parse(input: string): int32 { parseInt(input) }
 function parse(input: int32): int32 { input }
 
-extension Vector2 implements Add<Vector2> {
+extension for Vector2 implements Add<Vector2> {
     add(other: Vector2): Vector2 { ... }
 }
 ```
