@@ -37,11 +37,8 @@ impl LintProgramContext {
 
     /// Resolve severity for a rule.
     pub fn get_severity(&self, meta: &LintMeta) -> LintSeverity {
-        self.options.resolve_severity(
-            meta.id,
-            meta.category,
-            meta.category.default_severity(),
-        )
+        self.options
+            .resolve_severity(meta.id, meta.category, meta.category.default_severity())
     }
 
     /// Check if a rule is enabled.

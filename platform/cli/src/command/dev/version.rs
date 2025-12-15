@@ -18,11 +18,11 @@ const FILE_GLOBS_TO_IGNORE: &[&str] = &["language/test/fixtures/"];
 
 #[derive(Subcommand, Clone, Debug)]
 pub enum VersionCommands {
-    /// Bump major version (X.0.0) - breaking changes.
+    /// Bump major version (X.0.0).
     Major,
-    /// Bump minor version (x.Y.0) - new features, backwards compatible.
+    /// Bump minor version (x.Y.0).
     Minor,
-    /// Bump patch version (x.y.Z) - bug fixes only.
+    /// Bump patch version (x.y.Z).
     Patch,
     /// Show current version.
     Show,

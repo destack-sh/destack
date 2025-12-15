@@ -210,10 +210,7 @@ impl DsConfig {
         // merge category overrides (child takes precedence)
         for (category, severity) in &parent.linter.categories {
             if !self.options.linter.categories.contains_key(category) {
-                self.options
-                    .linter
-                    .categories
-                    .insert(*category, *severity);
+                self.options.linter.categories.insert(*category, *severity);
             }
         }
         // merge rule overrides (child takes precedence)

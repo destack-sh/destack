@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use clap::Args;
 use destack_resolver::{ResolveOptions, Resolver};
 
-use crate::command::ProgramArgs;
+use crate::common::ProgramArgs;
 use crate::console;
 
 #[derive(Args, Debug, Clone)]

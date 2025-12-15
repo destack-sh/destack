@@ -7,71 +7,23 @@ use destack_fir::format as fir_format;
 use destack_formatter::{DestackFormatContext, DestackFormatOptions};
 use destack_parser::{Parser, colorize_source};
 use destack_source::{
-    DiagnosticOptions, DiagnosticSeverity, File, FileId, FileType, IndentStyle, LanguageType,
-    LineEnding, Uri, glob,
+    DiagnosticOptions, DiagnosticSeverity, File, FileId, FileType, LanguageType, Uri, glob,
 };
 use destack_workspace::{FormatterOptions, Program};
 use serde::Deserialize;
 
-use crate::command::{
-    DiagnosticArgs, ProgramArgs, SourceArg, get_string_or_file, print_diagnostics,
-};
+use crate::common::{DiagnosticArgs, ProgramArgs, print_diagnostics};
 use crate::console;
 
-/// Line ending style for JSON deserialization.
-#[derive(Debug, Clone, Copy, Deserialize)]
-#[serde(rename_all = "lowercase")]
-enum LineEndingJson {
-    #[serde(alias = "lf")]
-    LineFeed,
-    #[serde(alias = "crlf")]
-    CarriageReturnLineFeed,
-    #[serde(alias = "cr")]
-    CarriageReturn,
-}
-
-impl From<LineEndingJson> for LineEnding {
-    fn from(value: LineEndingJson) -> Self {
-        match value {
-            LineEndingJson::LineFeed => LineEnding::LineFeed,
-            LineEndingJson::CarriageReturnLineFeed => LineEnding::CarriageReturnLineFeed,
-            LineEndingJson::CarriageReturn => LineEnding::CarriageReturn,
-        }
-    }
-}
-
-/// Indent style for JSON deserialization.
-#[derive(Debug, Clone, Copy, Deserialize)]
-#[serde(rename_all = "lowercase")]
-enum IndentStyleJson {
-    #[serde(alias = "tabs")]
-    Tab,
-    #[serde(alias = "spaces")]
-    Space,
-}
-
-impl From<IndentStyleJson> for IndentStyle {
-    fn from(value: IndentStyleJson) -> Self {
-        match value {
-            IndentStyleJson::Tab => IndentStyle::Tab,
-            IndentStyleJson::Space => IndentStyle::Space,
-        }
-    }
-}
-
 #[derive(Args, Debug, Clone)]
-pub struct FormatArgs {
-    /// Directory to format (default: current directory).
-    #[arg(value_name = "DIR")]
-    pub directory: Option<String>,
-
-    /// Format a specific file.
-    #[arg(long)]
-    pub file: Option<String>,
+pub struct FmtArgs {
+    /// Input files or directories to format.
+    #[arg(value_name = "FILES")]
+    pub files: Vec<PathBuf>,
 
     /// Format inline string (output to stdout).
-    #[arg(long)]
-    pub string: Option<String>,
+    #[arg(short = 'e', long = "eval")]
+    pub eval: Option<String>,
 
     /// Check if files are formatted (exit 1 if not, don't write).
     #[arg(long)]
@@ -120,6 +72,47 @@ struct DsConfigFormatting {
 struct DsConfigJson {
     #[serde(default)]
     formatter: DsConfigFormatting,
+}
+
+/// Line ending style for JSON deserialization.
+#[derive(Debug, Clone, Copy, Deserialize)]
+#[serde(rename_all = "lowercase")]
+enum LineEndingJson {
+    #[serde(alias = "lf")]
+    LineFeed,
+    #[serde(alias = "crlf")]
+    CarriageReturnLineFeed,
+    #[serde(alias = "cr")]
+    CarriageReturn,
+}
+
+impl From<LineEndingJson> for destack_source::LineEnding {
+    fn from(value: LineEndingJson) -> Self {
+        match value {
+            LineEndingJson::LineFeed => Self::LineFeed,
+            LineEndingJson::CarriageReturnLineFeed => Self::CarriageReturnLineFeed,
+            LineEndingJson::CarriageReturn => Self::CarriageReturn,
+        }
+    }
+}
+
+/// Indent style for JSON deserialization.
+#[derive(Debug, Clone, Copy, Deserialize)]
+#[serde(rename_all = "lowercase")]
+enum IndentStyleJson {
+    #[serde(alias = "tabs")]
+    Tab,
+    #[serde(alias = "spaces")]
+    Space,
+}
+
+impl From<IndentStyleJson> for destack_source::IndentStyle {
+    fn from(value: IndentStyleJson) -> Self {
+        match value {
+            IndentStyleJson::Tab => Self::Tab,
+            IndentStyleJson::Space => Self::Space,
+        }
+    }
 }
 
 /// Load formatting options from a dsconfig.json file.
@@ -217,19 +210,19 @@ fn format_file(file: Arc<File>, formatter: FormatterOptions, program: Arc<Progra
 }
 
 /// Format source files.
-pub fn run(args: &FormatArgs) -> i32 {
+pub fn run(args: &FmtArgs) -> i32 {
     let check = args.check;
     let diagnostic_options: DiagnosticOptions = args.diagnostics.clone().into();
     let program = args.program.setup();
     let default_formatting = program.formatter;
 
     // case 1: format inline string
-    if let Some(ref string) = args.string {
+    if let Some(ref string) = args.eval {
         let file_id = FileId::new(0);
         let file = Arc::new(File::from_text(
             file_id,
-            "<string>".to_string(),
-            Uri::from_string("<string>"),
+            "<eval>".to_string(),
+            Uri::from_string("<eval>"),
             None,
             FileType::Destack,
             string.clone(),
@@ -244,8 +237,8 @@ pub fn run(args: &FormatArgs) -> i32 {
         // create a file from the formatted output for colorization
         let formatted_file = File::from_text(
             FileId::new(0),
-            "<string>".to_string(),
-            Uri::from_string("<string>"),
+            "<eval>".to_string(),
+            Uri::from_string("<eval>"),
             None,
             FileType::Destack,
             formatted,
@@ -254,71 +247,63 @@ pub fn run(args: &FormatArgs) -> i32 {
         return 0;
     }
 
-    // case 2: format single file
-    if let Some(ref file_path) = args.file {
-        let path = PathBuf::from(file_path);
-        if !path.exists() {
-            console::error(&std::format!("file not found: '{file_path}'"));
+    // case 2: format specific files
+    if !args.files.is_empty() {
+        let mut did_any_change = false;
+        let mut had_errors = false;
+
+        for path in &args.files {
+            if path.is_file() {
+                // format single file
+                let result = format_single_file(
+                    &program,
+                    path,
+                    default_formatting,
+                    &diagnostic_options,
+                    check,
+                );
+                match result {
+                    FormatResult::Unchanged => {}
+                    FormatResult::Changed => did_any_change = true,
+                    FormatResult::Error => had_errors = true,
+                }
+            } else if path.is_dir() {
+                // format all .ds files in directory
+                let pattern = format!("{}/**/*.ds", path.display());
+                let paths = glob(&pattern);
+                for file_path in paths {
+                    let result = format_single_file(
+                        &program,
+                        &file_path,
+                        default_formatting,
+                        &diagnostic_options,
+                        check,
+                    );
+                    match result {
+                        FormatResult::Unchanged => {}
+                        FormatResult::Changed => did_any_change = true,
+                        FormatResult::Error => had_errors = true,
+                    }
+                }
+            } else {
+                console::error(&format!("not found: '{}'", path.display()));
+                had_errors = true;
+            }
+        }
+
+        if had_errors {
             return 1;
         }
-
-        // get formatting options from dsconfig
-        let formatting_options = get_formatting_options(&path, default_formatting);
-
-        // read and parse file
-        let file = match get_string_or_file(
-            &program,
-            SourceArg {
-                file: Some(file_path),
-                string: None,
-                format: None,
-            },
-        ) {
-            Ok(file) => file,
-            Err(e) => {
-                console::error(&std::format!("error: {e}"));
-                return 1;
-            }
-        };
-
-        // format file
-        let formatted = format_file(file.clone(), formatting_options, program.clone());
-        if check_and_print_errors(&program, &diagnostic_options) {
-            return 1;
-        }
-
-        // check if file changed
-        if check {
-            let original = file.text();
-            if original != formatted {
-                // error if the file changed
-                console::error(&file_path.to_string());
-                return 1;
-            }
-            return 0;
-        }
-
-        // write back to file
-        if let Err(e) = std::fs::write(&path, &formatted) {
-            console::error(&std::format!("error writing '{file_path}': {e}"));
+        if check && did_any_change {
             return 1;
         }
         return 0;
     }
 
-    // case 3: format all .ds and .d.ds files in directory
-    let base_directory = if let Some(ref directory) = args.directory {
-        let path = PathBuf::from(directory);
-        if path.is_absolute() {
-            path
-        } else {
-            program.cwd.join(path)
-        }
-    } else {
-        program.cwd.clone()
-    };
+    // case 3: format all .ds files in current directory
+    let base_directory = program.cwd.clone();
     if !base_directory.exists() {
-        console::error(&std::format!(
+        console::error(&format!(
             "directory not found: '{}'",
             base_directory.display()
         ));
@@ -326,7 +311,7 @@ pub fn run(args: &FormatArgs) -> i32 {
     }
 
     // find all .ds files in directory
-    let pattern = std::format!("{}/**/*.ds", base_directory.display());
+    let pattern = format!("{}/**/*.ds", base_directory.display());
     let paths = glob(&pattern);
     if paths.is_empty() {
         console::info("no .ds files found");
@@ -343,7 +328,7 @@ pub fn run(args: &FormatArgs) -> i32 {
         let content = match std::fs::read_to_string(path) {
             Ok(c) => c,
             Err(e) => {
-                console::error(&std::format!("error reading '{}': {e}", path.display()));
+                console::error(&format!("error reading '{}': {e}", path.display()));
                 return 1;
             }
         };
@@ -376,20 +361,18 @@ pub fn run(args: &FormatArgs) -> i32 {
         if check {
             // error if the file changed
             if original_content != formatted_content {
-                console::error(&std::format!("{}", path.display()));
+                console::error(&format!("{}", path.display()));
                 did_any_change = true;
-            } else {
-                // nothing to do
             }
         } else if original_content != formatted_content {
             // write the changed file, bail on error
             if let Err(e) = std::fs::write(&path, &formatted_content) {
-                console::error(&std::format!("error writing '{}': {e}", path.display()));
+                console::error(&format!("error writing '{}': {e}", path.display()));
                 return 1;
             }
             // print the changed file path
             else {
-                console::info(&std::format!("'{}'", path.display()));
+                console::info(&format!("'{}'", path.display()));
             }
         }
     }
@@ -399,4 +382,70 @@ pub fn run(args: &FormatArgs) -> i32 {
     }
 
     0
+}
+
+enum FormatResult {
+    Unchanged,
+    Changed,
+    Error,
+}
+
+fn format_single_file(
+    program: &Arc<Program>,
+    path: &Path,
+    default_formatting: FormatterOptions,
+    diagnostic_options: &DiagnosticOptions,
+    check: bool,
+) -> FormatResult {
+    // get formatting options from dsconfig
+    let formatting_options = get_formatting_options(path, default_formatting);
+
+    // read file
+    let content = match std::fs::read_to_string(path) {
+        Ok(c) => c,
+        Err(e) => {
+            console::error(&format!("error reading '{}': {e}", path.display()));
+            return FormatResult::Error;
+        }
+    };
+
+    let file_id = program.files.next_id();
+    let (name, uri) = Uri::from_path_with_name(path);
+    let file = File::from_text(
+        file_id,
+        name,
+        uri.clone(),
+        Some(path.to_path_buf()),
+        FileType::Destack,
+        content.clone(),
+    );
+    program.files.insert(file);
+
+    // format file
+    let file = program.files.get_by_uri(&uri).expect("file not found");
+    let formatted = format_file(file.clone(), formatting_options, program.clone());
+
+    // check for parse errors
+    if check_and_print_errors(program, diagnostic_options) {
+        return FormatResult::Error;
+    }
+
+    if check {
+        if content != formatted {
+            console::error(&format!("{}", path.display()));
+            return FormatResult::Changed;
+        }
+        return FormatResult::Unchanged;
+    }
+
+    if content != formatted {
+        if let Err(e) = std::fs::write(path, &formatted) {
+            console::error(&format!("error writing '{}': {e}", path.display()));
+            return FormatResult::Error;
+        }
+        console::info(&format!("'{}'", path.display()));
+        return FormatResult::Changed;
+    }
+
+    FormatResult::Unchanged
 }

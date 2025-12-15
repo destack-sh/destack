@@ -42,6 +42,14 @@ pub struct TracingArgs {
     /// Set log level (error|warn|info|debug|trace, default: off).
     #[arg(long = "log", value_enum, global = true)]
     pub log_level: Option<LogLevelArg>,
+
+    /// Quiet mode (minimal output).
+    #[arg(short = 'q', long, global = true)]
+    pub quiet: bool,
+
+    /// Verbose mode (detailed output).
+    #[arg(short = 'v', long, global = true)]
+    pub verbose: bool,
 }
 
 impl TracingArgs {

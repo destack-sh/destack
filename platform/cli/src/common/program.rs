@@ -5,9 +5,7 @@ use std::thread;
 
 use clap::{Args, ValueEnum};
 use destack_resolver::{ResolveOptions, Resolver};
-use destack_source::{
-    FileRegistry, FileSystem, IndentStyle, LineEnding, MemoryFileSystem, PhysicalFileSystem,
-};
+use destack_source::{FileRegistry, FileSystem, IndentStyle, LineEnding, PhysicalFileSystem};
 use destack_workspace::{
     FormatterOptions, LinterOptions, PackageRegistry, Program, TsConfigRegistry,
 };
@@ -17,16 +15,6 @@ pub fn default_workers() -> u16 {
     thread::available_parallelism()
         .unwrap_or(NonZero::new(1).unwrap())
         .get() as u16
-}
-
-/// The file system type to use.
-#[derive(Clone, Copy, Debug, Default, ValueEnum)]
-pub enum FileSystemArg {
-    /// Use the physical file system.
-    #[default]
-    Physical,
-    /// Use an in-memory file system.
-    Memory,
 }
 
 /// The indent style to use.
@@ -71,7 +59,7 @@ impl From<LineEndingArg> for LineEnding {
 }
 
 /// Arguments for configuring formatter options.
-#[derive(Args, Debug, Clone)]
+#[derive(Args, Debug, Clone, Default)]
 pub struct FormatterOptionsArgs {
     /// The indent style (tab|space, default: tab).
     #[arg(long = "indent-style", value_enum)]
@@ -110,15 +98,11 @@ impl From<FormatterOptionsArgs> for FormatterOptions {
 }
 
 /// Arguments for configuring program setup.
-#[derive(Args, Debug, Clone)]
+#[derive(Args, Debug, Clone, Default)]
 pub struct ProgramArgs {
     /// The working directory (default: current directory).
     #[arg(long = "cwd")]
     pub cwd: Option<PathBuf>,
-
-    /// The file system type to use (physical|memory, default: physical).
-    #[arg(long = "fs", value_enum)]
-    pub file_system: Option<FileSystemArg>,
 
     /// The number of worker threads to use (default: number of CPU cores).
     #[arg(long = "workers", short = 'j', default_value_t = default_workers())]
@@ -138,12 +122,8 @@ impl ProgramArgs {
             .unwrap_or_else(|| std::env::current_dir().unwrap_or_default());
         let formatter_options: FormatterOptions = self.formatter.clone().into();
         let linter_options = LinterOptions::default();
-        let fs_type = self.file_system.unwrap_or_default();
         let files = Arc::new(FileRegistry::new());
-        let fs: Arc<dyn FileSystem> = match fs_type {
-            FileSystemArg::Physical => Arc::new(PhysicalFileSystem::new()),
-            FileSystemArg::Memory => Arc::new(MemoryFileSystem::new()),
-        };
+        let fs: Arc<dyn FileSystem> = Arc::new(PhysicalFileSystem::new());
 
         // create shared registries
         let packages = Arc::new(PackageRegistry::new());
@@ -162,7 +142,7 @@ impl ProgramArgs {
             .unwrap_or_else(|_| destack_workspace::Workspace::single_package(cwd.clone()));
         let root = workspace.root.clone();
 
-        tracing::trace!(?cwd, ?root, ?fs_type, workspace_kind = ?workspace.kind, workers = self.workers, "program.setup");
+        tracing::trace!(?cwd, ?root, workspace_kind = ?workspace.kind, workers = self.workers, "program.setup");
 
         // create program with shared registries (preserves state from discovery)
         let program = Program::with_registries(

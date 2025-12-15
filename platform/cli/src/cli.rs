@@ -1,12 +1,9 @@
 use clap::Parser;
 
-use crate::command::TracingArgs;
-use crate::command::compile::CompileArgs;
-use crate::command::format::FormatArgs;
-use crate::command::lex::LexArgs;
-use crate::command::parse::ParseArgs;
-use crate::command::resolve::ResolveArgs;
-use crate::command::version::VersionCommands;
+#[cfg(feature = "dev")]
+use crate::command::DevCommand;
+use crate::command::{BuildArgs, CheckArgs, CleanArgs, FmtArgs, InitArgs, LintArgs, RunArgs};
+use crate::common::TracingArgs;
 
 #[derive(Parser, Debug)]
 #[command(name = "destack", version, about = "Destack CLI", long_about = None)]
@@ -20,20 +17,30 @@ pub struct Cli {
 
 #[derive(Parser, Debug)]
 pub enum Command {
-    /// Tokenize source into tokens.
-    Lex(LexArgs),
-    /// Parse source into AST (implicit module).
-    Parse(ParseArgs),
-    /// Resolve a module specifier.
-    Resolve(ResolveArgs),
-    /// Compile source into its final DIR.
-    Compile(CompileArgs),
+    /// Type check source files.
+    Check(CheckArgs),
+
+    /// Compile source files.
+    Build(BuildArgs),
+
+    /// Compile and run a source file.
+    Run(RunArgs),
+
+    /// Lint source files.
+    Lint(LintArgs),
+
     /// Format source files.
     #[command(alias = "fmt")]
-    Format(FormatArgs),
-    /// Mark new versions.
-    Version {
-        #[command(subcommand)]
-        subcommand: VersionCommands,
-    },
+    Format(FmtArgs),
+
+    /// Initialize a new project.
+    Init(InitArgs),
+
+    /// Remove build artifacts.
+    Clean(CleanArgs),
+
+    /// Developer commands (compiler inspection, version management).
+    #[cfg(feature = "dev")]
+    #[command(subcommand)]
+    Dev(DevCommand),
 }

@@ -8,7 +8,7 @@ use destack_workspace::Program;
 
 use clap::Args;
 
-#[derive(Args, Debug, Clone)]
+#[derive(Args, Debug, Clone, Default)]
 pub struct DiagnosticArgs {
     /// Error on the given warning codes (like WR001).
     #[arg(long, value_delimiter = ',', value_name = "CODES", value_parser = validate_warning_code)]
@@ -34,7 +34,7 @@ impl From<DiagnosticArgs> for DiagnosticOptions {
 }
 
 /// Print diagnostics (and suggestions) to the console.
-pub(crate) fn print_diagnostics(program: &Program, diagnostics: &DiagnosticCollection) {
+pub fn print_diagnostics(program: &Program, diagnostics: &DiagnosticCollection) {
     let options = PrintOptions::new()
         .with_line_width(100)
         .with_module_count(program.modules.len())

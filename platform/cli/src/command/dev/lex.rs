@@ -1,31 +1,17 @@
-use clap::{ArgGroup, Args};
+use clap::Args;
 use destack_ast::{SemanticType, TokenSpan, TokenType};
 use destack_parser::{Lexer, is_semantic};
 use destack_source::{File, LanguageType};
 
-use crate::command::{ProgramArgs, SourceArg, get_string_or_file};
+use crate::common::{ProgramArgs, SingleInputArgs, load_source};
 use crate::console;
 use crate::console::table;
 
 #[derive(Args, Debug, Clone)]
-#[command(group(
-    ArgGroup::new("source")
-        .args(["file", "string"])
-        .required(true)
-        .multiple(false)
-))]
 pub struct LexArgs {
-    /// Read input from file.
-    #[arg(long)]
-    pub file: Option<String>,
-
-    /// Read input from provided string.
-    #[arg(long)]
-    pub string: Option<String>,
-
-    /// Parse a file with the given format (default: ds).
-    #[arg(long = "type", alias = "format", value_name = "FORMAT")]
-    pub format: Option<String>,
+    /// Input arguments.
+    #[command(flatten)]
+    pub input: SingleInputArgs,
 
     /// Only show semantic tokens.
     #[arg(long)]
@@ -48,16 +34,18 @@ pub struct LexArgs {
 pub fn run(args: &LexArgs) -> i32 {
     let program = args.program.setup();
 
-    // read input source
-    let file = match get_string_or_file(
-        &program,
-        SourceArg {
-            file: args.file.as_deref(),
-            string: args.string.as_deref(),
-            format: args.format.as_deref(),
-        },
-    ) {
-        Ok(file) => file,
+    // determine input source
+    let source = match args.input.to_source() {
+        Ok(s) => s,
+        Err(e) => {
+            console::error(&format!("error: {e}"));
+            return 1;
+        }
+    };
+
+    // load source
+    let file = match load_source(&program, &source) {
+        Ok(f) => f,
         Err(e) => {
             console::error(&format!("error: {e}"));
             return 1;
@@ -172,43 +160,25 @@ fn format_token_kind(kind: TokenType) -> String {
 }
 
 /// Compute the appropriate ANSI color code for a token's semantic type.
-/// Use None for semantic types we do not wish to color.
-/// Pick visually distinct colors for each semantic class where possible.
 fn get_token_color(source: &File, token: &TokenSpan) -> &'static str {
     let semantic_type = SemanticType::from_token(source, token);
     match semantic_type {
-        // whitespace and identifier get no color
         SemanticType::Whitespace => "0",
         SemanticType::Identifier => "0",
-        // blue for keywords
         SemanticType::Keyword => "94",
-        // yellow for number literals
         SemanticType::LiteralNumbery => "93",
-        // green for string literals
         SemanticType::LiteralStringy => "92",
-        // cyan for parentheses
         SemanticType::Parenthesis => "96",
-        // magenta for symbols
         SemanticType::Symbol => "35",
-        // bright cyan for operators
         SemanticType::Operator => "96",
-        // bright green for doc comments
         SemanticType::Doc => "92",
-        // dim for comments
         SemanticType::Comment => "2",
-        // bold magenta for modifiers
         SemanticType::Modifier => "95;1",
-        // bright magenta for macros
         SemanticType::Macro => "95",
-        // cyan for types
         SemanticType::Type => "36",
-        // bright blue for functions
         SemanticType::Function => "94;1",
-        // bright white for parameters
         SemanticType::Parameter => "97",
-        // yellow for arguments
         SemanticType::Argument => "93",
-        // dim cyan for variables
         SemanticType::Variable => "36;2",
     }
 }

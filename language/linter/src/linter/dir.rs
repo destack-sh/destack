@@ -33,11 +33,7 @@ impl std::fmt::Debug for LintModuleDirContext {
 
 impl LintModuleDirContext {
     /// Create a new DIR lint context for a module.
-    pub fn new(
-        program: Arc<Program>,
-        module: Arc<RwLock<Module>>,
-        options: LinterOptions,
-    ) -> Self {
+    pub fn new(program: Arc<Program>, module: Arc<RwLock<Module>>, options: LinterOptions) -> Self {
         let (module_id, file_id) = {
             let m = module.read();
             (m.id, m.file_id)
@@ -59,11 +55,8 @@ impl LintModuleDirContext {
 
     /// Resolve severity for a rule.
     pub fn get_severity(&self, meta: &LintMeta) -> LintSeverity {
-        self.options.resolve_severity(
-            meta.id,
-            meta.category,
-            meta.category.default_severity(),
-        )
+        self.options
+            .resolve_severity(meta.id, meta.category, meta.category.default_severity())
     }
 
     /// Check if a rule is enabled.

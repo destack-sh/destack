@@ -2,6 +2,7 @@
 
 pub mod cli;
 pub mod command;
+pub mod common;
 pub mod console;
 
-pub use command::{compile, format, lex, parse, resolve, version};
+pub use command::{build, check, clean, fmt, init, lint, run};
