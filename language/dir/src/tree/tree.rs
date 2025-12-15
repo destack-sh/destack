@@ -232,6 +232,33 @@ impl NodeTree {
         <Self as NodeTreeImpl<T>>::get_mut(self, local_id)
     }
 
+    /// Replace a node in-place, preserving the original at a new ID:
+    /// - The original node is preserved at a new ID (for diagnostics/codegen)
+    /// - The node at `id` is replaced with `replacement`
+    /// - An alias is set up from `id` to the preserved original
+    ///
+    /// Returns the ID of the preserved original node (which is new! - since the original is replaced).
+    pub fn replace<T>(&mut self, id: LocalNodeId<T>, replacement: T) -> LocalNodeId<T>
+    where
+        T: Node + Clone,
+        Self: NodeTreeImpl<T>,
+    {
+        let scope = self.get_scope(id);
+        let original = self.get(id).clone();
+
+        // preserve original at new ID
+        let preserved_id = self.reserve_from(T::TYPE, id.into_any(), scope, None);
+        let preserved_id: LocalNodeId<T> = self.insert(preserved_id, original);
+
+        // replace in-place
+        *self.get_mut(id) = replacement;
+
+        // alias for reverse lookup (id -> preserved)
+        self.alias_from(id.id, preserved_id);
+
+        preserved_id
+    }
+
     /// Iterate over all nodes of a given type together with their NodeId.
     pub fn iter_nodes_of_type<'a, T>(&'a self) -> impl Iterator<Item = (LocalNodeId<T>, &'a T)> + 'a
     where

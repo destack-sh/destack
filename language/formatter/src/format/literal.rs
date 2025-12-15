@@ -22,17 +22,32 @@ pub(crate) fn format_scalar_literal<'ast>(
     let span_str = f.context().file.get_span_str(span).unwrap_or_default();
     match scalar {
         ScalarLiteral::Boolean(value) => token(if *value { "true" } else { "false" }).format(f)?,
-        ScalarLiteral::Integer(_) => {
-            let normalized_str = normalize_int(span_str, false);
-            text(&normalized_str).format(f)?;
+        ScalarLiteral::Integer(value) => {
+            if span_str.is_empty() {
+                // fallback: no source span available, format from value
+                text(&value.to_string()).format(f)?;
+            } else {
+                let normalized_str = normalize_int(span_str, false);
+                text(&normalized_str).format(f)?;
+            }
         }
-        ScalarLiteral::Bigint(_) => {
-            let normalized_str = normalize_int(span_str, true);
-            text(&normalized_str).format(f)?;
+        ScalarLiteral::Bigint(value) => {
+            if span_str.is_empty() {
+                // fallback: no source span available, format from value
+                text(&format!("{}n", value)).format(f)?;
+            } else {
+                let normalized_str = normalize_int(span_str, true);
+                text(&normalized_str).format(f)?;
+            }
         }
-        ScalarLiteral::Float(_) => {
-            let normalized_str = normalize_float(span_str);
-            text(&normalized_str).format(f)?;
+        ScalarLiteral::Float(value) => {
+            if span_str.is_empty() {
+                // fallback: no source span available, format from value
+                text(&value.to_string()).format(f)?;
+            } else {
+                let normalized_str = normalize_float(span_str);
+                text(&normalized_str).format(f)?;
+            }
         }
         ScalarLiteral::Character(value) => {
             write!(
@@ -40,24 +55,28 @@ pub(crate) fn format_scalar_literal<'ast>(
                 [token("'"), text(value.to_string().as_str()), token("'")]
             )?;
         }
-        ScalarLiteral::String(_) => {
-            let normalized_str =
-                if span_str.len() >= 2 && span_str.starts_with('\'') && span_str.ends_with('\'') {
-                    // single-quoted string -> convert to double quotes
-                    let mut normalized = String::with_capacity(span_str.len());
-                    normalized.push('"');
-                    normalized.push_str(&span_str[1..span_str.len() - 1]);
-                    normalized.push('"');
-                    Cow::Owned(normalized)
-                } else if span_str.starts_with('"') || span_str.starts_with('\'') {
-                    // quoted string -> use as-is
-                    Cow::Borrowed(span_str)
-                } else {
-                    // JSX text content (unquoted) -> trim whitespace
-                    Cow::Borrowed(span_str.trim())
-                };
-
-            write!(f, [text(normalized_str.as_ref())])?;
+        ScalarLiteral::String(string_id) => {
+            if span_str.is_empty() {
+                // fallback: no source span available, format from string pool
+                let string = f.context().strings.get(*string_id);
+                write!(f, [token("\""), text(string), token("\"")])?;
+            } else if span_str.len() >= 2
+                && span_str.starts_with('\'')
+                && span_str.ends_with('\'')
+            {
+                // single-quoted string -> convert to double quotes
+                let mut normalized = String::with_capacity(span_str.len());
+                normalized.push('"');
+                normalized.push_str(&span_str[1..span_str.len() - 1]);
+                normalized.push('"');
+                write!(f, [text(normalized.as_str())])?;
+            } else if span_str.starts_with('"') || span_str.starts_with('\'') {
+                // quoted string -> use as-is
+                write!(f, [text(span_str)])?;
+            } else {
+                // JSX text content (unquoted) -> trim whitespace
+                write!(f, [text(span_str.trim())])?;
+            }
         }
         ScalarLiteral::RegexString { content, flags } => {
             if let Some(flags) = flags {
