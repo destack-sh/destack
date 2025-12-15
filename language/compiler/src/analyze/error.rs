@@ -48,7 +48,10 @@ pub enum AnalyzeError {
     },
 
     /// Inconsistent function override.
-    #[error(code = "EA006", message = "{abstraction} function has inconsistent override")]
+    #[error(
+        code = "EA006",
+        message = "{abstraction} function has inconsistent override"
+    )]
     InconsistentFunctionOverride {
         node: GlobalNodeIdAny,
         abstraction: FunctionAbstraction,
@@ -94,7 +97,10 @@ pub enum AnalyzeError {
     },
 
     /// No overload found for operator/method with given types.
-    #[error(code = "EA015", message = "no matching overload for type {receiver_ty}")]
+    #[error(
+        code = "EA015",
+        message = "no matching overload for type {receiver_ty}"
+    )]
     NoOverload {
         node: GlobalNodeIdAny,
         receiver_ty: GlobalTypeId,
@@ -115,7 +121,10 @@ pub enum AnalyzeError {
     },
 
     /// Missing member on type.
-    #[error(code = "EA018", message = "property {member_key} does not exist on type {receiver_ty}")]
+    #[error(
+        code = "EA018",
+        message = "property {member_key} does not exist on type {receiver_ty}"
+    )]
     MissingMember {
         node: GlobalNodeIdAny,
         receiver_ty: GlobalTypeId,

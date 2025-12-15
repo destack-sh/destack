@@ -11,7 +11,7 @@ pub struct LintModuleAstContext<'a> {
     pub program: Arc<Program>,
     /// The module being linted.
     pub module: &'a Module,
-    
+
     /// The AST tree.
     pub tree: &'a ast::NodeTree,
     /// The parent index.
@@ -20,10 +20,10 @@ pub struct LintModuleAstContext<'a> {
     pub roots: &'a Vec<ast::LocalNodeId<ast::Expression>>,
     /// The string pool.
     pub strings: &'a StringPool,
-    
+
     /// Linter configuration.
     pub options: &'a LinterOptions,
-    
+
     /// Collected diagnostics.
     diagnostics: Vec<LintDiagnostic>,
 }
@@ -101,5 +101,4 @@ impl<'a> LintModuleAstContext<'a> {
     pub fn diagnostics(&self) -> &[LintDiagnostic] {
         &self.diagnostics
     }
-
 }

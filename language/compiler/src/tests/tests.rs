@@ -15,8 +15,8 @@ use destack_workspace::{FormatterOptions, LinterOptions, Module, Program};
 use parking_lot::RwLock;
 
 use crate::{
-    AnalyzeTask, BindTask, CompileOptions, Compiler, ImportTask, LintTask, ResolveTask, Task,
-    default_workers,
+    AnalyzeTask, BindTask, CompileOptions, Compiler, ElaborateTask, ImportTask, LintTask,
+    ResolveTask, Task, default_workers,
 };
 
 use super::tracing::init_tracing;
@@ -192,6 +192,11 @@ impl TestProgram {
     /// Enqueue Lint task for a module.
     pub fn lint_module(&self, module: ModuleId) {
         self.enqueue(LintTask::LintModule { module });
+    }
+
+    /// Enqueue Elaborate task for a module.
+    pub fn elaborate_module(&self, module: ModuleId) {
+        self.enqueue(ElaborateTask::ElaborateModule { module });
     }
 
     /// Enqueue a task (does not run it).

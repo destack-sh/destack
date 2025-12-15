@@ -1,3 +1,3 @@
-export * from "./intrinsic/index.ds";
-export * from "./operator/index.ds";
-export * from "./reflection/index.ds";
+export * from "./intrinsic";
+export * from "./operator";
+export * from "./reflection";

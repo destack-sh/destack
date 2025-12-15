@@ -1,6 +1,6 @@
 use crate::{
-    CodegenJsError, CodegenJsResult, CodegenJsResultExt, CodegenJsWarning, Declarator, Expression,
-    LocalNodeId, LocalNodeIdAny, ModuleLowerer, NodeType, PostfixPosition, Statement, Type,
+    CodegenJsError, CodegenJsResult, CodegenJsResultExt, Declarator, Expression, LocalNodeId,
+    LocalNodeIdAny, ModuleLowerer, NodeType, PostfixPosition, Statement, Type,
 };
 use destack_dir::{self as dir, Node};
 
@@ -22,6 +22,15 @@ impl ModuleLowerer<'_> {
         &mut self,
         expression_id: dir::LocalNodeId<dir::Expression>,
     ) -> CodegenJsResult<LocalNodeIdAny> {
+        // Resolve any alias chain to get the elaborated expression
+        let resolved = self.dir_tree.resolve_alias(expression_id.id);
+        let expression_id = if resolved.ty == dir::NodeType::Expression {
+            dir::LocalNodeId::new(resolved.id)
+        } else {
+            // Alias points to a different node type - use original
+            expression_id
+        };
+
         let expression = self.dir_tree.get(expression_id);
 
         // report unresolved warning
@@ -48,11 +57,8 @@ impl ModuleLowerer<'_> {
             dir::Expression::Statement { statement } => {
                 let lowered_id = self.lower_expression(*statement)?;
                 let statement_id: LocalNodeId<Statement> = match lowered_id.ty {
-                    // wrap expression in statement
+                    // wrap expression in statement (normal, no warning)
                     NodeType::Expression => {
-                        self.warning(CodegenJsWarning::ExpectedStatement {
-                            node: expression_id.into_global_any(self.module.id),
-                        });
                         let statement = Statement::Expression {
                             expression: lowered_id.try_into().unwrap(),
                         };
@@ -193,6 +199,21 @@ impl ModuleLowerer<'_> {
             dir::Expression::UnresolvedPath {
                 path,
                 static_arguments,
+            }
+            | dir::Expression::LocalReference {
+                path,
+                static_arguments,
+                ..
+            }
+            | dir::Expression::ModuleReference {
+                path,
+                static_arguments,
+                ..
+            }
+            | dir::Expression::GlobalReference {
+                path,
+                static_arguments,
+                ..
             } => {
                 let path = self.lower_path(expression_id.into_any(), path)?;
                 let static_arguments = static_arguments
