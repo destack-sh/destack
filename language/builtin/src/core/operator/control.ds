@@ -3,10 +3,6 @@
 /// These nominal interfaces enable custom behavior for control flow operators
 /// like `?` (try/propagate) and `..`/`..=` (ranges).
 
-// ============================================================================
-// TRY (? OPERATOR)
-// ============================================================================
-
 /// Control flow result for the Try interface.
 ///
 /// Used to signal whether to continue or break/return early.
@@ -56,11 +52,7 @@ newtype interface Try {
     /// Construct Self from a residual (for propagation).
     static fromResidual(residual: Self.Residual): Self;
 }
-
-// ============================================================================
-// RANGE OPERATORS
-// ============================================================================
-
+    
 /// A bound for a range (start or end).
 enum Bound<T> {
     /// Inclusive bound (includes the value).

@@ -12,6 +12,20 @@ enum(flags) MyEnum {}
 namespace MyNs {}
 //          ^ entity.name.type.definition.ds
 
+newtype UserId {}
+//        ^ entity.name.type.definition.ds
+
+extension for Vector2 {}
+//  ^ keyword.declaration.type.ds
+//        ^ keyword.declaration.type.ds
+//            ^ entity.name.type.ds
+
+extension DateHelpers for Date {}
+//  ^ keyword.declaration.type.ds
+//          ^ entity.name.type.definition.ds
+//                    ^ keyword.declaration.type.ds
+//                        ^ entity.name.type.ds
+
 value.foo.bar
 //      ^ variable.other.member.ds
 //          ^ variable.other.member.ds

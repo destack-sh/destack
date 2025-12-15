@@ -25,10 +25,6 @@
 /// a < b    // true (same x, but y is less)
 /// ```
 
-// ============================================================================
-// EQUALITY
-// ============================================================================
-
 /// Interface for the `==` and `!=` operators.
 ///
 /// `a == b` desugars to `a.equal(b)`.
@@ -40,10 +36,6 @@ newtype interface Equal<T = Self> {
     equal(other: T): boolean;
 }
 
-// ============================================================================
-// ORDERING
-// ============================================================================
-
 /// Result of a comparison operation.
 ///
 /// Used by the `Compare` interface.
@@ -53,7 +45,7 @@ enum Ordering {
     Greater = 1,
 }
 
-/// Interface for comparison operators (`<`, `<=`, `>`, `>=`).
+/// Interface for comparison operators (`<`, `<=`, `>`, `>=`) and ordering.
 ///
 /// `a < b` desugars to `a.compare(b) == Ordering.Less`.
 /// `a <= b` desugars to `a.compare(b) != Ordering.Greater`.
@@ -64,10 +56,6 @@ enum Ordering {
 newtype interface Compare<T = Self> {
     compare(other: T): Ordering;
 }
-
-// ============================================================================
-// PARTIAL ORDERING (for types like float with NaN)
-// ============================================================================
 
 /// Interface for partial comparison (when comparison might fail).
 ///

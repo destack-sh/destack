@@ -21,6 +21,9 @@ static
 final
 // <- keyword.other.modifier.ds
 
+accessor
+// <- keyword.other.modifier.ds
+
 default
 // <- keyword.other.modifier.ds
 
@@ -51,9 +54,6 @@ export
 from
 // <- keyword.declaration.import.ds
 
-use
-// <- keyword.declaration.import.ds
-
 with
 // <- keyword.declaration.import.ds
 
@@ -69,10 +69,10 @@ var
 namespace
 // <- keyword.declaration.type.ds
 
-module
+type
 // <- keyword.declaration.type.ds
 
-type
+newtype
 // <- keyword.declaration.type.ds
 
 struct
@@ -108,10 +108,16 @@ new
 delete
 // <- keyword.operator.new.ds
 
-tuple
+where
 // <- keyword.operator.type.ds
 
-where
+asserts
+// <- keyword.operator.type.ds
+
+using
+// <- keyword.operator.type.ds
+
+provides
 // <- keyword.operator.type.ds
 
 any
@@ -147,13 +153,16 @@ for
 loop
 // <- keyword.control.loop.ds
 
+assert
+// <- keyword.control.flow.ds
+
 break
 // <- keyword.control.flow.ds
 
 continue
 // <- keyword.control.flow.ds
 
-defer {}
+debugger
 // <- keyword.control.flow.ds
 
 return
@@ -187,4 +196,7 @@ get
 // <- keyword.other.accessor.ds
 
 set
+// <- keyword.other.accessor.ds
+
+move
 // <- keyword.other.accessor.ds

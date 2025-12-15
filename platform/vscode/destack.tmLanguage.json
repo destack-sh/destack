@@ -105,7 +105,7 @@
       "patterns": [
         {
           "name": "keyword.other.modifier.ds",
-          "match": "\\b(?:public|protected|private|readonly|mut|static|final|default|abstract|override)\\b"
+          "match": "\\b(?:public|protected|private|readonly|mut|static|final|accessor|default|abstract|override)\\b"
         },
         {
           "name": "keyword.other.context.ds",
@@ -113,11 +113,11 @@
         },
         {
           "name": "keyword.declaration.import.ds",
-          "match": "\\b(?:import|export|from|use|with)\\b"
+          "match": "\\b(?:import|export|from|with)\\b"
         },
         {
           "name": "keyword.declaration.type.ds",
-          "match": "\\b(?:const|let|var|namespace|module|type|struct|class|enum|union|interface|function|extension|implement|declare|constructor)\\b"
+          "match": "\\b(?:const|let|var|namespace|type|newtype|struct|class|enum|union|interface|function|extension|declare|constructor)\\b"
         },
         {
           "name": "keyword.operator.new.ds",
@@ -125,7 +125,7 @@
         },
         {
           "name": "keyword.operator.type.ds",
-          "match": "\\b(?:tuple|where)\\b"
+          "match": "\\b(?:where|asserts|using|provides)\\b"
         },
         {
           "name": "keyword.other.type.ds",
@@ -141,7 +141,7 @@
         },
         {
           "name": "keyword.control.flow.ds",
-          "match": "\\b(?:defer|break|continue|return|yield|goto)\\b"
+          "match": "\\b(?:assert|break|continue|debugger|return|yield|goto)\\b"
         },
         {
           "name": "keyword.control.exception.ds",
@@ -153,7 +153,7 @@
         },
         {
           "name": "keyword.other.accessor.ds",
-          "match": "\\b(?:get|set)\\b"
+          "match": "\\b(?:get|set|move)\\b"
         }
       ]
     },
@@ -711,13 +711,46 @@
       "patterns": [
         {
           "name": "meta.entity.definition.ds",
-          "match": "(?x)\\b(struct|interface|implement|module|namespace|class|enum|union)\\b(?:\\s*\\([^)]*\\))*\\s+([A-Za-z_]\\w*)",
+          "match": "(?x)\\b(struct|interface|namespace|class|enum|union|newtype)\\b(?:\\s*\\([^)]*\\))*\\s+([A-Za-z_]\\w*)",
           "captures": {
             "1": {
               "name": "keyword.declaration.type.ds"
             },
             "2": {
               "name": "entity.name.type.definition.ds"
+            }
+          }
+        },
+        {
+          "name": "meta.extension.definition.ds",
+          "match": "(?x)\\b(extension)\\s+([A-Za-z_]\\w*)\\s+(for)\\s+([A-Za-z_]\\w*)",
+          "captures": {
+            "1": {
+              "name": "keyword.declaration.type.ds"
+            },
+            "2": {
+              "name": "entity.name.type.definition.ds"
+            },
+            "3": {
+              "name": "keyword.declaration.type.ds"
+            },
+            "4": {
+              "name": "entity.name.type.ds"
+            }
+          }
+        },
+        {
+          "name": "meta.extension.anonymous.ds",
+          "match": "(?x)\\b(extension)\\s+(for)\\s+([A-Za-z_]\\w*)",
+          "captures": {
+            "1": {
+              "name": "keyword.declaration.type.ds"
+            },
+            "2": {
+              "name": "keyword.declaration.type.ds"
+            },
+            "3": {
+              "name": "entity.name.type.ds"
             }
           }
         }
