@@ -714,6 +714,7 @@ dependencies = [
  "destack_compiler_macros",
  "destack_dir",
  "destack_fir",
+ "destack_formatter",
  "destack_linter",
  "destack_machine",
  "destack_mir",

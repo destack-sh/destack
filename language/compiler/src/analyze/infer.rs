@@ -1791,10 +1791,6 @@ impl Compiler {
             Argument::Spread { value } => {
                 self.infer_expression(module, *value, tree, symbols, types, ctx)?;
             }
-            Argument::Dynamic { key, value } => {
-                self.infer_expression(module, *key, tree, symbols, types, ctx)?;
-                self.infer_expression(module, *value, tree, symbols, types, ctx)?;
-            }
         }
         Ok(())
     }

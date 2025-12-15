@@ -1593,9 +1593,6 @@ impl<'a> NodeVisitor for Dumper<'a> {
             Argument::Spread { value: _ } => {
                 self.node("Argument::Spread", id.id).end();
             }
-            Argument::Dynamic { key: _, value: _ } => {
-                self.node("Argument::Dynamic", id.id).end();
-            }
             Argument::Labeled { label, value: _ } => {
                 self.node("Argument::Labeled", id.id)
                     .field("label", label)

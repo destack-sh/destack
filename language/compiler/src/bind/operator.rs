@@ -27,6 +27,9 @@ impl Compiler {
         type_unary_operator: ast::TypeUnaryOperator,
     ) -> TypeUnaryOperator {
         match type_unary_operator {
+            ast::TypeUnaryOperator::Not => TypeUnaryOperator::Not,
+            ast::TypeUnaryOperator::Maybe => TypeUnaryOperator::Maybe,
+            ast::TypeUnaryOperator::Must => TypeUnaryOperator::Must,
             ast::TypeUnaryOperator::Newtype => TypeUnaryOperator::Newtype,
             ast::TypeUnaryOperator::Type => TypeUnaryOperator::Type,
             ast::TypeUnaryOperator::Readonly => TypeUnaryOperator::Readonly,
@@ -102,6 +105,7 @@ impl Compiler {
 
             // container
             ast::BinaryOperator::In => destack_dir::BinaryOperator::In,
+            ast::BinaryOperator::InstanceOf => destack_dir::BinaryOperator::InstanceOf,
         }
     }
 
@@ -112,6 +116,7 @@ impl Compiler {
     ) -> TypeBinaryOperator {
         match type_binary_operator {
             ast::TypeBinaryOperator::Cast => TypeBinaryOperator::Cast,
+            ast::TypeBinaryOperator::In => TypeBinaryOperator::In,
             ast::TypeBinaryOperator::Is => TypeBinaryOperator::Is,
             ast::TypeBinaryOperator::InstanceOf => TypeBinaryOperator::InstanceOf,
             ast::TypeBinaryOperator::Satisfies => TypeBinaryOperator::Satisfies,

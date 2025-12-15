@@ -117,44 +117,27 @@ fn assign_operator_to_binary(op: AssignOperator) -> BinaryOperator {
 
 #[cfg(test)]
 mod tests {
-    use destack_dir::{BinaryOperator, Expression};
-
     use crate::tests::TestProgram;
 
     #[test]
     fn test_desugar_assign_binary_to_assign_and_binary() {
-        // AssignBinary (+=) desugars to Assign with nested Binary expression
         let test = TestProgram::memory_sequential();
-        test.add_package("test-pkg", None);
-        let module_id = test.add_module("test.ds", "
+        let module_id = test.add_module(
+            "test.ds",
+            "
 let x: number = 0;
 x += 1;
-");
+",
+        );
         test.elaborate_module(module_id);
         test.compile();
         test.check_clean();
-
-        // verify the elaboration produced an Assign with Binary
-        let module = test.program.modules.get(module_id);
-        let module = module.read();
-        let tree = module.dir.tree.read();
-
-        // find the elaborated Assign expression
-        let mut found_assign_with_binary = false;
-        for (_, expr) in tree.iter_nodes_of_type::<Expression>() {
-            if let Expression::Assign { right, .. } = expr {
-                let right_expr = tree.get(*right);
-                if let Expression::Binary { operator, .. } = right_expr
-                    && *operator == BinaryOperator::Add
-                {
-                    found_assign_with_binary = true;
-                    break;
-                }
-            }
-        }
-        assert!(
-            found_assign_with_binary,
-            "expected AssignBinary to elaborate into Assign with Binary"
+        test.assert_elaborated(
+            module_id,
+            r#"
+let x: number = 0;
+x = x + 1;
+"#,
         );
     }
 }
