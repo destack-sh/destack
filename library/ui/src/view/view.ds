@@ -1,7 +1,5 @@
-import * as ds from "destack";
-
 /// Position properties for a 2D view.
-export type Position2D = {
+export struct Position2D {
     /// The origin of the Entity in 2D space.
     origin?: Vector2,
     /// The anchor of the Entity in 2D space.
@@ -11,7 +9,7 @@ export type Position2D = {
 }
 
 /// Sizing properties for a 2D view.
-export type Sizing2D = {
+export struct Sizing2D {
     /// The width of the View.
     width?: Length,
     /// The height of the View.
@@ -26,11 +24,8 @@ export type Sizing2D = {
     maxHeight?: Length,
 }
 
-// NOTE #Architecture: switch library to use structural types?
-
 /// Style properties for a 2D view.
-@entity
-export type Style2D = {
+export struct Style2D {
     /// Whether the View is visible.
     isVisible?: boolean,
     /// The opacity of the View.
@@ -46,7 +41,6 @@ export type Style2D = {
 }
 
 /// A View2D is a 2D export interface element.
-@entity
 export class View2D extends RigidBody2D {
     ...Position2D
     ...Sizing2D

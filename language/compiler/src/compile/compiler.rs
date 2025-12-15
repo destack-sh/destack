@@ -68,7 +68,7 @@ impl Default for CompileOptions {
 }
 
 /// Compile files and sources into something (via DIR).
-/// TODO #Incomplete: should Compiler be per-target?
+/// NOTE #Architecture: should Compiler be per-target? what about comptime though?
 pub struct Compiler {
     /// The program.
     pub program: Arc<Program>,

@@ -28,6 +28,8 @@ pub struct NodeTree {
     pub(crate) types: Arena<Type>,
     pub(crate) fields: Arena<Field>,
     pub(crate) globals: Arena<Global>,
+
+    // nocheckin: track parents in MIR NodeTree
 }
 
 impl Debug for NodeTree {

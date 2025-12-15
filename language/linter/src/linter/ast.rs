@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use destack_ast::{LocalNodeId, Node, NodeTree, NodeTreeImpl};
+use destack_ast as ast;
 use destack_source::{FileId, ModuleId, Span};
 use destack_workspace::{LintSeverity, LinterOptions, Module, Program};
 use parking_lot::RwLock;
@@ -81,12 +81,24 @@ impl LintModuleAstContext {
         &self.diagnostics
     }
 
+    /// Get the parent node id for an AST node.
+    pub fn get_parent_id<T: ast::Node>(
+        &self,
+        id: ast::LocalNodeId<T>,
+    ) -> Option<ast::LocalNodeIdAny> {
+        let module = self.module.read();
+        module.ast.parents.get(id).map(|parent_id| {
+            let parent_type = module.ast.tree.get_node_type(parent_id);
+            ast::LocalNodeIdAny::new(parent_id, parent_type)
+        })
+    }
+
     /// Iterate all nodes of a given type and call the callback for each.
     pub fn for_each<N, F>(&mut self, mut callback: F)
     where
-        N: Node + Clone,
-        NodeTree: NodeTreeImpl<N>,
-        F: FnMut(&NodeTree, LocalNodeId<N>, &N, Span) -> Option<LintDiagnostic>,
+        N: ast::Node + Clone,
+        ast::NodeTree: ast::NodeTreeImpl<N>,
+        F: FnMut(&ast::NodeTree, ast::LocalNodeId<N>, &N, Span) -> Option<LintDiagnostic>,
     {
         let diagnostics: Vec<_> = {
             let module = self.module.read();

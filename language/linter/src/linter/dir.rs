@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use destack_dir::{LocalNodeId, Node, NodeTree, NodeTreeImpl};
+use destack_dir as dir;
 use destack_source::{FileId, ModuleId, Span};
 use destack_workspace::{LintSeverity, LinterOptions, Module, Program};
 use parking_lot::RwLock;
@@ -82,19 +82,34 @@ impl LintModuleDirContext {
     }
 
     /// Return the source span for a DIR node by looking up its AST source node.
-    pub fn get_span<T: Node>(&self, id: LocalNodeId<T>) -> Span {
+    pub fn get_span<T: dir::Node>(&self, id: dir::LocalNodeId<T>) -> Span {
         let module = self.module.read();
         let dir_tree = module.dir.tree.read();
         let ast_node_id = dir_tree.get_source(id.id);
         module.ast.tree.get_span_by_id(ast_node_id)
     }
 
+    /// Get the parent node id for a DIR node.
+    pub fn get_parent_id<T: dir::Node>(
+        &self,
+        id: dir::LocalNodeId<T>,
+    ) -> Option<dir::LocalNodeIdAny> {
+        let module = self.module.read();
+        let dir_tree = module.dir.tree.read();
+        dir_tree.get_parent(id.id)
+    }
+
     /// Iterate all nodes of a given type and call the callback for each.
     pub fn for_each<N, F>(&mut self, mut callback: F)
     where
-        N: Node + Clone,
-        NodeTree: NodeTreeImpl<N>,
-        F: for<'a> FnMut(&'a NodeTree, LocalNodeId<N>, &'a N, Span) -> Option<LintDiagnostic>,
+        N: dir::Node + Clone,
+        dir::NodeTree: dir::NodeTreeImpl<N>,
+        F: for<'a> FnMut(
+            &'a dir::NodeTree,
+            dir::LocalNodeId<N>,
+            &'a N,
+            Span,
+        ) -> Option<LintDiagnostic>,
     {
         let diagnostics: Vec<_> = {
             let module = self.module.read();

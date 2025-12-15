@@ -1,10 +1,9 @@
 use std::sync::Arc;
 
-use destack_mir::{LocalNodeId, Node, NodeTree, NodeTreeImpl};
+use destack_mir as mir;
 use destack_source::{FileId, ModuleId};
 use destack_workspace::{LintSeverity, LinterOptions, Module, Program};
 use parking_lot::RwLock;
-
 use crate::{LintDiagnostic, LintMeta};
 
 /// Context for MIR-level linting of a single module.
@@ -84,9 +83,9 @@ impl LintModuleMirContext {
     /// Iterate all nodes of a given type and call the callback for each.
     pub fn for_each<N, F>(&mut self, mut callback: F)
     where
-        N: Node,
-        NodeTree: NodeTreeImpl<N>,
-        F: FnMut(&N, LocalNodeId<N>) -> Option<LintDiagnostic>,
+        N: mir::Node,
+        mir::NodeTree: mir::NodeTreeImpl<N>,
+        F: FnMut(&N, mir::LocalNodeId<N>) -> Option<LintDiagnostic>,
     {
         let diagnostics: Vec<_> = {
             let module = self.module.read();
