@@ -15,6 +15,11 @@ namespace MyNs {}
 newtype UserId {}
 //        ^ entity.name.type.definition.ds
 
+newtype interface Foo {}
+//  ^ keyword.declaration.type.ds
+//        ^ keyword.declaration.type.ds
+//                  ^ entity.name.type.definition.ds
+
 extension for Vector2 {}
 //  ^ keyword.declaration.type.ds
 //        ^ keyword.declaration.type.ds

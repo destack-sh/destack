@@ -711,6 +711,21 @@
       "patterns": [
         {
           "name": "meta.entity.definition.ds",
+          "match": "(?x)\\b(newtype)\\s+(struct|interface|class|enum|union)\\b(?:\\s*\\([^)]*\\))*\\s+([A-Za-z_]\\w*)",
+          "captures": {
+            "1": {
+              "name": "keyword.declaration.type.ds"
+            },
+            "2": {
+              "name": "keyword.declaration.type.ds"
+            },
+            "3": {
+              "name": "entity.name.type.definition.ds"
+            }
+          }
+        },
+        {
+          "name": "meta.entity.definition.ds",
           "match": "(?x)\\b(struct|interface|namespace|class|enum|union|newtype)\\b(?:\\s*\\([^)]*\\))*\\s+([A-Za-z_]\\w*)",
           "captures": {
             "1": {
