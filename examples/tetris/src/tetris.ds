@@ -303,7 +303,7 @@ export struct TetrisPiece {
     }
 }
 
-extension TetrisGame {
+extension for TetrisGame {
     /// Create a new Tetris game.
     constructor(width: int32, height: int32): TetrisGame {
         TetrisGame {

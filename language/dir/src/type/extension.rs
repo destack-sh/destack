@@ -91,12 +91,12 @@ pub enum ExtensionKind {
 /// ```
 /// // inherent extension (same module as Vector2)
 /// struct Vector2 { x: float, y: float }
-/// extension Vector2 implements Add<Vector2> {
+/// extension for Vector2 implements Add<Vector2> {
 ///     add(other: Vector2): Vector2 { ... }
 /// }
 ///
 /// // named extension (on foreign type)
-/// export extension DateHelpers: Date {
+/// export extension DateHelpers for Date {
 ///     isWeekend(): boolean { ... }
 /// }
 /// ```

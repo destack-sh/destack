@@ -3,7 +3,7 @@ import * as ds from "destack";
 /// An Entity Epoch.
 export newtype Epoch = number;
 
-extension Epoch {
+extension for Epoch {
     static Zero: Epoch = Epoch(0),
 }
 

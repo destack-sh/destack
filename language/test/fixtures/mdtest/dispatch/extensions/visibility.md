@@ -21,7 +21,7 @@ Extension visibility depends on where the extension is defined relative to the t
 ```ds
 struct Point { x: number, y: number }
 
-extension Point {
+extension for Point {
     length(): number { return 0 }
 }
 
@@ -38,7 +38,7 @@ point.length() satisfies number;
 ```ds
 class User { name: string }
 
-extension User {
+extension for User {
     greet(): string { return "" }
 }
 
@@ -57,7 +57,7 @@ interface Shape {
     area(): number
 }
 
-extension Shape {
+extension for Shape {
     describe(): string { return "" }
 }
 
@@ -78,7 +78,7 @@ enum Color {
     Blue
 }
 
-extension Color {
+extension for Color {
     isWarm(): boolean { return true }
 }
 
@@ -95,11 +95,11 @@ color.isWarm() satisfies boolean;
 ```ds
 struct Vector2 { x: number, y: number }
 
-extension Vector2 {
+extension for Vector2 {
     magnitude(): number { return 0 }
 }
 
-extension Vector2 {
+extension for Vector2 {
     normalized(): Vector2 { return Vector2 { x: 0, y: 0 } }
 }
 
@@ -126,7 +126,7 @@ export struct Vector2 { x: number, y: number }
 ```ds:extensions.ds
 import { Vector2 } from "./types.ds"
 
-extension Vector2 {
+extension for Vector2 {
     magnitude(): number { return 0 }
 }
 ```
@@ -144,17 +144,17 @@ const m = vector.magnitude();
 
 ## Named Extensions
 
-> Named extensions use the syntax `extension Name: Type { }`.
+> Named extensions use the syntax `extension Name for Type { }`.
 > They can be exported and must be imported to use (not yet fully implemented).
 
 ### named extension syntax
 
-> Named extensions have a name before the colon.
+> Named extensions have a name before the `for` keyword.
 
 ```ds
 struct Point { x: number, y: number }
 
-extension PointHelpers: Point {
+extension PointHelpers for Point {
     distance(): number { return 0 }
 }
 
@@ -178,7 +178,7 @@ struct Point {
     length(): number { return 0 }
 }
 
-extension Point {
+extension for Point {
     length(): number { return 1 }
 }
 
@@ -195,11 +195,11 @@ point.length() satisfies number;
 ```ds
 struct Vector2 { x: number, y: number }
 
-extension Vector2 {
+extension for Vector2 {
     process(): number { return 1 }
 }
 
-extension Vector2 {
+extension for Vector2 {
     process(): string { return "" }
 }
 

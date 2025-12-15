@@ -18,7 +18,7 @@ interface Describable {
 
 struct Point { x: number, y: number }
 
-extension Point implements Describable {
+extension for Point implements Describable {
     describe(): string {
         return ""
     }
@@ -45,7 +45,7 @@ interface Serializable {
 
 struct Document { content: string }
 
-extension Document implements Printable, Serializable {
+extension for Document implements Printable, Serializable {
     print(): void {}
     serialize(): string { return "" }
 }

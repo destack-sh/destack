@@ -2838,13 +2838,13 @@ struct Point {
     y: number,
 }
 
-extension Point {
+extension for Point {
     magnitude(): number { 
         return 0; 
     }
 }
 
-extension Point {
+extension for Point {
     distance(other: Point): number { 
         return 0; 
     }
@@ -2876,7 +2876,7 @@ struct Point {
 import { Point } from "./point.ds";
 
 // local extension on foreign type
-extension Point {
+extension for Point {
     distance(other: Point): number { return 0; }
 }
 "#,
@@ -2905,7 +2905,7 @@ struct Point {
             r#"
 import { Point } from "./point.ds";
 
-extension PointHelpers: Point {
+extension PointHelpers for Point {
     distance(other: Point): number { return 0; }
 }
 "#,

@@ -11,7 +11,7 @@ Tests for extension method signatures, parameters, and special members.
 ```ds
 struct Point { x: number, y: number }
 
-extension Point {
+extension for Point {
     length(): number { return 0 }
 }
 
@@ -28,7 +28,7 @@ point.length() satisfies number;
 ```ds
 struct Logger { prefix: string }
 
-extension Logger {
+extension for Logger {
     log(message: string): void {}
 }
 
@@ -45,7 +45,7 @@ logger.log("hello");
 ```ds
 struct Vector2 { x: number, y: number }
 
-extension Vector2 {
+extension for Vector2 {
     normalized(): Vector2 {
         return Vector2 { x: 0, y: 0 }
     }
@@ -64,7 +64,7 @@ vector.normalized() satisfies Vector2;
 ```ds
 struct Point { x: number, y: number }
 
-extension Point {
+extension for Point {
     toString(): string {
         return ""
     }
@@ -85,7 +85,7 @@ point.toString() satisfies string;
 ```ds
 struct Point { x: number, y: number }
 
-extension Point {
+extension for Point {
     scale(factor: number): Point {
         return Point { x: 0, y: 0 }
     }
@@ -104,7 +104,7 @@ point.scale(2) satisfies Point;
 ```ds
 struct Point { x: number, y: number }
 
-extension Point {
+extension for Point {
     translate(dx: number, dy: number): Point {
         return Point { x: 0, y: 0 }
     }
@@ -123,7 +123,7 @@ point.translate(10, 20) satisfies Point;
 ```ds
 struct Logger { prefix: string }
 
-extension Logger {
+extension for Logger {
     log(message: string, level?: number): void {}
 }
 
@@ -143,7 +143,7 @@ logger.log("warn", 2);
 ```ds
 struct StringBuilder { value: string }
 
-extension StringBuilder {
+extension for StringBuilder {
     append(text: string): StringBuilder {
         return StringBuilder { value: "" }
     }

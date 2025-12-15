@@ -12,7 +12,7 @@ Destack adds extensions and real overloading.
 Add methods to existing types without modifying them:
 
 ```ds
-extension Vector2 {
+extension for Vector2 {
     magnitude(): float32 { (this.x * this.x + this.y * this.y).sqrt() }
 }
 ```
@@ -30,7 +30,7 @@ Real function and operator overloading with distinct implementations:
 function parse(input: string): int32 { parseInt(input) }
 function parse(input: int32): int32 { input }
 
-extension Vector2 implements Add<Vector2> {
+extension for Vector2 implements Add<Vector2> {
     add(other: Vector2): Vector2 { ... }
 }
 ```

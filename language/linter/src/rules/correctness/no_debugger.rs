@@ -161,6 +161,7 @@ let y = 2;
             .assert_safe_fixed(
                 r#"
 let x = 1;
+
 let y = 2;
 "#,
             );

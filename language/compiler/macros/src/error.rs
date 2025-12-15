@@ -91,25 +91,9 @@ fn validate_error_code(code: &LitStr, expected_letter: char) -> Result<u16> {
     }
 }
 
-/// Get the simple type name from a Type.
-fn type_name(ty: &Type) -> Option<String> {
-    if let Type::Path(type_path) = ty {
-        type_path.path.segments.last().map(|s| s.ident.to_string())
-    } else {
-        None
-    }
-}
-
-/// Generate the formatting expression for a field based on its type.
-fn format_field_expr(field_name: &Ident, ty: &Type) -> TokenStream2 {
-    let type_name = type_name(ty).unwrap_or_default();
-    match type_name.as_str() {
-        "StringId" => quote! { program.strings.get(*#field_name).as_str() },
-        "StaticKey" => quote! { #field_name.debug_string(&program.strings) },
-        "ModuleId" => quote! { program.modules.get(*#field_name).read().uri.to_string() },
-        "GlobalNodeIdAny" => quote! { #field_name.local_id.ty.name() },
-        _ => quote! { #field_name },
-    }
+/// Generate the formatting expression for a field using DiagnosticFormat trait.
+fn format_field_expr(field_name: &Ident) -> TokenStream2 {
+    quote! { #field_name.diagnostic_fmt(program) }
 }
 
 /// Parse a format string and generate the formatting code.
@@ -142,9 +126,9 @@ fn generate_format_expr(
 
                 // find the field
                 let field = fields.iter().find(|(name, _)| name == &field_name);
-                if let Some((name, ty)) = field {
+                if let Some((name, _ty)) = field {
                     result_format.push_str("{}");
-                    format_args.push(format_field_expr(name, ty));
+                    format_args.push(format_field_expr(name));
                 } else {
                     return Err(Error::new(
                         span,
@@ -255,20 +239,29 @@ fn define_error_inner(input: DeriveInput) -> Result<TokenStream2> {
         let mut message: Option<String> = None;
 
         error_attr.parse_nested_meta(|meta| {
+            // code
             if meta.path.is_ident("code") {
                 let value = meta.value()?;
                 code = Some(value.parse()?);
-            } else if meta.path.is_ident("message") {
+            }
+            // message
+            else if meta.path.is_ident("message") {
                 let value = meta.value()?;
                 let lit: LitStr = value.parse()?;
                 message = Some(lit.value());
-            } else if meta.path.is_ident("r#yield")
+            }
+            // yield
+            else if meta.path.is_ident("r#yield")
                 || meta.path.get_ident().map(|i| i.to_string()) == Some("yield".to_string())
             {
                 yield_marker = YieldMarker::Yield;
-            } else if meta.path.is_ident("yield_failed") {
+            }
+            // yield_failed
+            else if meta.path.is_ident("yield_failed") {
                 yield_marker = YieldMarker::YieldFailed;
-            } else {
+            }
+            // unknown attribute
+            else {
                 return Err(meta.error("unknown attribute"));
             }
             Ok(())
@@ -463,6 +456,9 @@ fn define_error_inner(input: DeriveInput) -> Result<TokenStream2> {
     };
 
     Ok(quote! {
+        // Import the DiagnosticFormat trait for field formatting in messages.
+        use crate::DiagnosticFormat as _;
+
         impl #enum_name {
             /// Phase letter for this error type.
             pub const PHASE_LETTER: char = #letter;

@@ -125,7 +125,7 @@ type Bar = Foo;
             "test.ds",
             r#"
 struct Foo {}
-extension Foo {
+extension for Foo {
     fn bar() {}
 }
 "#,

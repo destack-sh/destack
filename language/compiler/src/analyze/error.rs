@@ -29,7 +29,10 @@ pub enum AnalyzeError {
     MissingType { node: GlobalNodeIdAny },
 
     /// Type is not assignable to the expected type.
-    #[error(code = "EA004", message = "type is not assignable")]
+    #[error(
+        code = "EA004",
+        message = "type {actual_ty} is not assignable to type {expected_ty}"
+    )]
     UnassignableType {
         node: GlobalNodeIdAny,
         expected_ty: GlobalTypeId,
@@ -83,7 +86,7 @@ pub enum AnalyzeError {
     UninitializedVariable { node: GlobalNodeIdAny },
 
     /// Invalid casts (unsafe or impossible with static rules).
-    #[error(code = "EA014", message = "invalid cast")]
+    #[error(code = "EA014", message = "cannot cast type {from_ty} to {to_ty}")]
     InvalidCast {
         node: GlobalNodeIdAny,
         from_ty: GlobalTypeId,
@@ -91,7 +94,7 @@ pub enum AnalyzeError {
     },
 
     /// No overload found for operator/method with given types.
-    #[error(code = "EA015", message = "no matching overload")]
+    #[error(code = "EA015", message = "no matching overload for type {receiver_ty}")]
     NoOverload {
         node: GlobalNodeIdAny,
         receiver_ty: GlobalTypeId,
@@ -105,14 +108,14 @@ pub enum AnalyzeError {
     },
 
     /// Operator not supported for type.
-    #[error(code = "EA017", message = "unsupported operator")]
+    #[error(code = "EA017", message = "operator not supported for type {ty}")]
     UnsupportedOperator {
         node: GlobalNodeIdAny,
         ty: GlobalTypeId,
     },
 
     /// Missing member on type.
-    #[error(code = "EA018", message = "missing member")]
+    #[error(code = "EA018", message = "property {member_key} does not exist on type {receiver_ty}")]
     MissingMember {
         node: GlobalNodeIdAny,
         receiver_ty: GlobalTypeId,
@@ -120,7 +123,7 @@ pub enum AnalyzeError {
     },
 
     /// Type does not satisfy the expected type (satisfies expression).
-    #[error(code = "EA019", message = "unsatisfied type")]
+    #[error(code = "EA019", message = "expected {expected_ty}, found {actual_ty}")]
     UnsatisfiedType {
         node: GlobalNodeIdAny,
         expected_ty: GlobalTypeId,
