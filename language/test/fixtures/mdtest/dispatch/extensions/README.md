@@ -15,9 +15,9 @@ From [SPECIFICATION.md](../../../../../SPECIFICATION.md#extension):
 
 | Kind | Syntax | Visibility |
 |------|--------|------------|
-| **Inherent** | `extension T { }` (same file as T) | Automatic wherever T is used |
-| **Local** | `extension T { }` (T from another file) | Only in defining file |
-| **Named** | `extension Name: T { }` | Must be imported to use |
+| **Inherent** | `extension for T { }` (same file as T) | Automatic wherever T is used |
+| **Local** | `extension for T { }` (T from another file) | Only in defining file |
+| **Named** | `extension Name for T { }` | Must be imported to use |
 
 ## Files
 
