@@ -2,8 +2,7 @@
 
 Tests for extensions that implement interfaces.
 
-> NOTE: Operator overloading via interface implementation is not yet supported.
-> These tests cover the syntax and basic semantics of `extension T implements I { }`.
+> #Incomplete: Operator overloading via interface implementation is not yet supported.
 
 ## Basic Interface Implementation
 

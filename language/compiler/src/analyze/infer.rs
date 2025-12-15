@@ -2855,6 +2855,7 @@ extension for Point {
         test.compile_dump_clean();
 
         let _point_id = test.resolve_to_symbol("test.ds", "Point").unwrap();
+        // #Incomplete: #Extensions
     }
 
     /// Infer a local extension (on a foreign type).
@@ -2885,6 +2886,7 @@ extension for Point {
         test.compile_dump_clean();
 
         let _point_id = test.resolve_to_symbol("test.ds", "Point").unwrap();
+        // #Incomplete: #Extensions
     }
 
     /// Infer a named extension (on a foreign type, from a foreign extension).
@@ -2922,5 +2924,6 @@ import { Point } from "./point.ds";
 
         let _point_id = test.resolve_to_symbol("test.ds", "Point").unwrap();
         let _point_helpers_id = test.resolve_to_symbol("test.ds", "PointHelpers").unwrap();
+        // #Incomplete: #Extensions
     }
 }

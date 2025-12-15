@@ -55,10 +55,6 @@ interface Type<T> {
     readonly isAsync?: boolean,
     /// Whether function is a generator.
     readonly isGenerator?: boolean,
-    /// Create an instance of this type (for constructable types).
-    create(...args: unknown[]): T
-    /// Check if a value is of this type.
-    is(value: unknown): value is T
 }
 
 /// Decorator metadata attached to a declaration.

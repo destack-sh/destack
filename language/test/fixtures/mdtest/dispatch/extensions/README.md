@@ -17,18 +17,7 @@ From [SPECIFICATION.md](../../../../../SPECIFICATION.md#extension):
 |------|--------|------------|
 | **Inherent** | `extension for T { }` (same file as T) | Automatic wherever T is used |
 | **Local** | `extension for T { }` (T from another file) | Only in defining file |
-| **Named** | `extension Name for T { }` | Must be imported to use |
-
-## Files
-
-| File | Description |
-|------|-------------|
-| `basic.md` | Basic extension declarations on structs, classes, interfaces, enums |
-| `methods.md` | Extension method signatures: parameters, returns, `this`, static members |
-| `visibility.md` | Extension visibility rules for inherent, local, and named extensions |
-| `generics.md` | Generic extensions with type parameters |
-| `implements.md` | Extensions implementing interfaces |
-| `errors.md` | Error cases: missing methods, type mismatches, visibility errors |
+| **Named** | `extension Name for T { }` | Must be imported to use (or local) |
 
 ## Not Yet Covered
 
