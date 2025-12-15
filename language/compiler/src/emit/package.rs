@@ -1,14 +1,10 @@
-use crate::{Compiler, EmitError, EmitOutput, EmitResult};
+use crate::{Compiler, EmitError, EmitResult};
 
 use destack_source::PackageId;
 
 impl Compiler {
     /// Emit all outputs for a package target.
-    pub(super) fn emit_package(
-        &self,
-        package_id: PackageId,
-        target_name: &str,
-    ) -> EmitResult<EmitOutput> {
+    pub(super) fn emit_package(&self, package_id: PackageId, target_name: &str) -> EmitResult<()> {
         // ensure linking is complete
         self.require_link_module(package_id, target_name)?;
 
@@ -32,7 +28,6 @@ impl Compiler {
             .get_by_package_target(package_id, target_name);
 
         // emit each artifact using its precomputed output path
-        let mut output = EmitOutput::default();
         for artifact in artifacts {
             let output_path =
                 artifact
@@ -43,10 +38,9 @@ impl Compiler {
                         uri: artifact.uri.clone(),
                     })?;
 
-            let emitted = self.write_artifact(&artifact, &output_path)?;
-            output.artifacts.push(emitted);
+            self.write_artifact(&artifact, &output_path)?;
         }
 
-        Ok(output)
+        Ok(())
     }
 }

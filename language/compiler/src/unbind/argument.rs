@@ -63,8 +63,7 @@ impl Compiler {
                 default,
                 ..
             } => {
-                let modifiers =
-                    modifiers.map(|modifiers| self.unbind_binding_modifier(&modifiers));
+                let modifiers = modifiers.map(|modifiers| self.unbind_binding_modifier(&modifiers));
                 let name = ast_strings.intern_from(&self.program.strings, *name);
                 let default = default.map(|default| {
                     self.unbind_expression(module, default, tree, symbols, ast_tree, ast_strings)
@@ -82,8 +81,7 @@ impl Compiler {
                 default,
                 ..
             } => {
-                let modifiers =
-                    modifiers.map(|modifiers| self.unbind_binding_modifier(&modifiers));
+                let modifiers = modifiers.map(|modifiers| self.unbind_binding_modifier(&modifiers));
                 let pattern =
                     self.unbind_pattern(module, *pattern, tree, symbols, ast_tree, ast_strings);
                 let ty = None;
@@ -100,8 +98,7 @@ impl Compiler {
             dir::Parameter::Variadic {
                 modifiers, name, ..
             } => {
-                let modifiers =
-                    modifiers.map(|modifiers| self.unbind_binding_modifier(&modifiers));
+                let modifiers = modifiers.map(|modifiers| self.unbind_binding_modifier(&modifiers));
                 let name = ast_strings.intern_from(&self.program.strings, *name);
                 let ty = None;
                 ast::Parameter::Variadic {
@@ -128,7 +125,8 @@ impl Compiler {
         let span = self.unbind_span(module, argument_id.into());
         let ast_argument = match argument {
             dir::Argument::Named { name, value } => {
-                let name = ast::Name::Identifier(ast_strings.intern_from(&self.program.strings, *name));
+                let name =
+                    ast::Name::Identifier(ast_strings.intern_from(&self.program.strings, *name));
                 let value =
                     self.unbind_expression(module, *value, tree, symbols, ast_tree, ast_strings);
                 ast::Argument::Named { name, value }

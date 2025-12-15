@@ -47,8 +47,12 @@ impl Compiler {
     ) -> ast::FunctionAbstraction {
         match abstraction {
             dir::FunctionAbstraction::Abstract => ast::FunctionAbstraction::Abstract,
-            dir::FunctionAbstraction::AbstractOverride => ast::FunctionAbstraction::AbstractOverride,
-            dir::FunctionAbstraction::ConcreteOverride => ast::FunctionAbstraction::ConcreteOverride,
+            dir::FunctionAbstraction::AbstractOverride => {
+                ast::FunctionAbstraction::AbstractOverride
+            }
+            dir::FunctionAbstraction::ConcreteOverride => {
+                ast::FunctionAbstraction::ConcreteOverride
+            }
             dir::FunctionAbstraction::Concrete => ast::FunctionAbstraction::Concrete,
         }
     }

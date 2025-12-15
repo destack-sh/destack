@@ -1,4 +1,5 @@
 mod error;
+mod task;
 mod warning;
 
 use proc_macro::TokenStream;
@@ -70,4 +71,37 @@ pub fn define_error(input: TokenStream) -> TokenStream {
 #[proc_macro_derive(DefineWarning, attributes(phase, warning, standalone))]
 pub fn define_warning(input: TokenStream) -> TokenStream {
     warning::define_warning_impl(input)
+}
+
+/// Derive macro for defining task types for a compiler phase.
+///
+/// # Example
+///
+/// ```ignore
+/// use destack_compiler_macros::DefineTask;
+///
+/// #[derive(Debug, Clone, Hash, PartialEq, Eq, DefineTask)]
+/// #[phase(Import)]
+/// pub enum ImportTask {
+///     /// Import a module by its id.
+///     #[task(code = 1, trace = "module={module}")]
+///     ImportModule { module: ModuleId },
+/// }
+/// ```
+///
+/// # Attributes
+///
+/// - `code`: Required numeric sub-code (u8) for the task variant
+/// - `trace`: Optional format string for trace_args using DiagnosticFormat
+///
+/// # Generated Code
+///
+/// For each phase, this generates:
+/// - `sub_code()` returns the numeric sub-code
+/// - `PHASE_LETTER` constant with the phase letter
+/// - `TaskDebug` impl with `name()` (auto-derived from variant) and `trace_args()`
+/// - `From<XTask> for Task` impl
+#[proc_macro_derive(DefineTask, attributes(phase, task))]
+pub fn define_task(input: TokenStream) -> TokenStream {
+    task::define_task_impl(input)
 }

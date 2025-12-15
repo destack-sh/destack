@@ -10,7 +10,7 @@ use destack_base::StringId;
 use destack_dir::{
     FunctionAbstraction, GlobalNodeIdAny, GlobalSymbolId, GlobalTypeId, StaticKey, Visibility,
 };
-use destack_source::{FileType, ModuleId, Uri};
+use destack_source::{FileType, ModuleId, PackageId, Uri};
 use destack_workspace::Program;
 
 use crate::{format_global_type, format_symbol_name};
@@ -46,6 +46,20 @@ impl DiagnosticFormat for StaticKey {
 impl DiagnosticFormat for ModuleId {
     fn diagnostic_fmt(&self, program: &Program) -> String {
         program.modules.get(*self).read().uri.to_string()
+    }
+}
+
+impl DiagnosticFormat for PackageId {
+    fn diagnostic_fmt(&self, program: &Program) -> String {
+        let package = program.packages.get(*self);
+        let package = package.read();
+        package.name.clone().unwrap_or_else(|| {
+            package
+                .path
+                .as_ref()
+                .map(|p| p.display().to_string())
+                .unwrap_or_else(|| format!("<package:{}>", self.0))
+        })
     }
 }
 

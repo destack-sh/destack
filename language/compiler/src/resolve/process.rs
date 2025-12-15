@@ -1,79 +1,30 @@
-use crate::{Compiler, ResolveResult, Task, TaskDebug, TaskDependencyError, TaskOutput};
+use crate::{Compiler, ResolveResult, TaskDependencyError};
 
+use destack_compiler_macros::DefineTask;
 use destack_source::ModuleId;
-use destack_workspace::Program;
 
 /// Task to statically resolve something in-place.
-#[derive(Debug, Clone, Hash, PartialEq, Eq)]
+#[derive(Debug, Clone, Hash, PartialEq, Eq, DefineTask)]
+#[phase(Resolve)]
 pub enum ResolveTask {
     /// Resolve a module completely (direct, canonical).
+    #[task(code = 1, trace = "module={module}")]
     ResolveModule { module: ModuleId },
 
     /// Resolve expressions and dependency items (phase 1).
     /// Sets target_symbol for imports and populates namespace_exports.
+    #[task(code = 2, trace = "module={module}")]
     ResolveModuleDirect { module: ModuleId },
 
     /// Compute canonical_symbol for all symbols (phase 2).
     /// Follows target_symbol chains to find the canonical symbol.
+    #[task(code = 3, trace = "module={module}")]
     ResolveModuleCanonical { module: ModuleId },
-}
-
-impl ResolveTask {
-    /// Get the sub code for the task.
-    pub fn sub_code(&self) -> u8 {
-        match self {
-            ResolveTask::ResolveModule { .. } => 1,
-            ResolveTask::ResolveModuleDirect { .. } => 2,
-            ResolveTask::ResolveModuleCanonical { .. } => 3,
-        }
-    }
-}
-
-impl TaskDebug for ResolveTask {
-    fn name(&self) -> &'static str {
-        match self {
-            ResolveTask::ResolveModule { .. } => "module",
-            ResolveTask::ResolveModuleDirect { .. } => "module_direct",
-            ResolveTask::ResolveModuleCanonical { .. } => "module_canonical",
-        }
-    }
-
-    fn trace_args(&self, program: &Program) -> String {
-        match self {
-            ResolveTask::ResolveModule { module } => {
-                let module = program.modules.get(*module);
-                let uri = module.read().uri.clone().to_string();
-                format!(r#"module="{uri}""#)
-            }
-            ResolveTask::ResolveModuleDirect { module }
-            | ResolveTask::ResolveModuleCanonical { module } => {
-                let module = program.modules.get(*module);
-                let uri = module.read().uri.clone().to_string();
-                format!(r#"module="{uri}""#)
-            }
-        }
-    }
-}
-
-impl From<ResolveTask> for Task {
-    fn from(task: ResolveTask) -> Self {
-        Task::Resolve(task)
-    }
-}
-
-/// Output of a resolve task.
-#[derive(Debug, Clone, PartialEq)]
-pub struct ResolveOutput {}
-
-impl From<ResolveOutput> for TaskOutput {
-    fn from(output: ResolveOutput) -> Self {
-        TaskOutput::Resolve(output)
-    }
 }
 
 impl Compiler {
     /// Process a resolve task.
-    pub fn process_resolve(&self, task: ResolveTask) -> ResolveResult<ResolveOutput> {
+    pub fn process_resolve(&self, task: ResolveTask) -> ResolveResult<()> {
         match task {
             ResolveTask::ResolveModule { module } => {
                 self.require_resolve_module_canonical(module)?;
@@ -87,7 +38,7 @@ impl Compiler {
                 self.resolve_module_canonical(module)?;
             }
         }
-        Ok(ResolveOutput {})
+        Ok(())
     }
 
     /// Ensure a module's direct symbols have been resolved (phase 1).

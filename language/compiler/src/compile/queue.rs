@@ -5,7 +5,7 @@ use crossbeam_deque::{Injector, Steal};
 use dashmap::DashMap;
 use parking_lot::{Condvar, Mutex};
 
-use crate::{Task, TaskHandle, TaskId, TaskOutcome, TaskOutput, TaskStatus};
+use crate::{Task, TaskHandle, TaskId, TaskOutcome, TaskStatus};
 
 #[derive(Debug, Default)]
 struct TaskIndex {
@@ -203,19 +203,6 @@ impl TaskQueue {
             .get(task)
             .and_then(|task_id| tasks.handles.get(task_id.0 as usize))
             .and_then(|handle| handle.last_outcome.clone())
-    }
-
-    /// Find a task by its content and return its output if complete.
-    pub(super) fn find_task_output(&self, task: &Task) -> Option<TaskOutput> {
-        let tasks = self.tasks.lock();
-        tasks
-            .ids
-            .get(task)
-            .and_then(|task_id| tasks.handles.get(task_id.0 as usize))
-            .and_then(|handle| match handle.last_outcome.as_ref() {
-                Some(TaskOutcome::Complete { output }) => Some(output.clone()),
-                _ => None,
-            })
     }
 
     /// Increment active task count (called when a worker starts processing).

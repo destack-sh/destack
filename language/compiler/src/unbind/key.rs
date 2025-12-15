@@ -22,8 +22,14 @@ impl Compiler {
                 ast::Key::Name(ast::Name::Identifier(name))
             }
             dir::DynamicKey::Expression(expression) => {
-                let expression =
-                    self.unbind_expression(module, *expression, tree, symbols, ast_tree, ast_strings);
+                let expression = self.unbind_expression(
+                    module,
+                    *expression,
+                    tree,
+                    symbols,
+                    ast_tree,
+                    ast_strings,
+                );
                 ast::Key::Expression(expression)
             }
             dir::DynamicKey::NamedExpression { name, key } => {

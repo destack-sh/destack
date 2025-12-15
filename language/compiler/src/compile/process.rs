@@ -4,7 +4,7 @@ use std::thread;
 use crate::{
     AnalyzeError, BindError, Compiler, ElaborateError, EmitError, GenerateError, InternalError,
     LinkError, LintError, LowerError, OptimizeError, ResolveError, Task, TaskDebug, TaskDependency,
-    TaskError, TaskHandle, TaskId, TaskOutcome, TaskOutput, TaskPhase, TaskStatus, VerifyError,
+    TaskError, TaskHandle, TaskId, TaskOutcome, TaskPhase, TaskStatus, VerifyError,
 };
 
 /// Maximum number of yields allowed per task before treating it as an (internal) bug.
@@ -39,12 +39,6 @@ impl Compiler {
     pub fn get_outcome<T: Into<Task>>(&self, task: T) -> Option<TaskOutcome> {
         let task: Task = task.into();
         self.queue.find_task_outcome(&task)
-    }
-
-    /// Get the output of a task
-    pub fn get_output<T: Into<Task>>(&self, task: T) -> Option<TaskOutput> {
-        let task: Task = task.into();
-        self.queue.find_task_output(&task)
     }
 
     /// Runs the compiler loop until there is nothing left to do.
@@ -95,8 +89,8 @@ impl Compiler {
             // check if target reached a final state
             if let Some(status) = self.queue.get_status(target_id) {
                 match status {
-                    TaskStatus::Complete { output } => {
-                        return TaskOutcome::Complete { output };
+                    TaskStatus::Complete => {
+                        return TaskOutcome::Complete;
                     }
                     TaskStatus::Failed { error } => {
                         return TaskOutcome::Error { error };
@@ -167,15 +161,10 @@ impl Compiler {
         let mut requeued = false;
         match &outcome {
             // complete and wake waiters
-            TaskOutcome::Complete { output } => {
+            TaskOutcome::Complete => {
                 let event = format!("{}.{}.complete", handle.phase().name(), handle.task.name());
                 tracing::debug!(%event, %args, ?task_id);
-                self.queue.set_status(
-                    task_id,
-                    TaskStatus::Complete {
-                        output: output.clone(),
-                    },
-                );
+                self.queue.set_status(task_id, TaskStatus::Complete);
                 self.wake_waiters(task_id);
             }
             // error and fail waiters

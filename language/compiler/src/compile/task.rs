@@ -3,10 +3,8 @@ use destack_workspace::Program;
 use crate::DiagnosticAnchor;
 
 use crate::{
-    AnalyzeOutput, AnalyzeTask, BindOutput, BindTask, ElaborateOutput, ElaborateTask, EmitOutput,
-    EmitTask, GenerateOutput, GenerateTask, ImportOutput, ImportTask, LinkOutput, LinkTask,
-    LintOutput, LintTask, LowerOutput, LowerTask, OptimizeOutput, OptimizeTask, ResolveOutput,
-    ResolveTask, TaskError, VerifyOutput, VerifyTask,
+    AnalyzeTask, BindTask, ElaborateTask, EmitTask, GenerateTask, ImportTask, LinkTask, LintTask,
+    LowerTask, OptimizeTask, ResolveTask, TaskError, VerifyTask,
 };
 
 /// Trait for formatting task information.
@@ -310,7 +308,7 @@ pub enum TaskStatus {
     /// The task is waiting for a dependency.
     Yielded { dependency: TaskDependency },
     /// The task is complete.
-    Complete { output: TaskOutput },
+    Complete,
     /// The task failed.
     Failed { error: TaskError },
 }
@@ -335,7 +333,7 @@ impl From<TaskOutcome> for TaskStatus {
         match outcome {
             TaskOutcome::Yield { dependency } => Self::Yielded { dependency },
             TaskOutcome::Error { error } => Self::Failed { error },
-            TaskOutcome::Complete { output } => Self::Complete { output },
+            TaskOutcome::Complete => Self::Complete,
         }
     }
 }
@@ -385,21 +383,18 @@ pub enum TaskOutcome {
     Yield { dependency: TaskDependency },
     /// The task failed with an error.
     Error { error: TaskError },
-    /// The task completed with an output.
-    Complete { output: TaskOutput },
+    /// The task completed successfully.
+    Complete,
 }
 
-impl<O, E> From<Result<O, E>> for TaskOutcome
+impl<E> From<Result<(), E>> for TaskOutcome
 where
-    O: Into<TaskOutput>,
     E: Into<TaskError>,
     E: TryInto<TaskDependency, Error = E>,
 {
-    fn from(result: Result<O, E>) -> Self {
+    fn from(result: Result<(), E>) -> Self {
         match result {
-            Ok(output) => Self::Complete {
-                output: output.into(),
-            },
+            Ok(()) => Self::Complete,
             Err(error) => match error.try_into() {
                 Ok(dependency) => Self::Yield { dependency },
                 Err(error) => Self::Error {
@@ -411,20 +406,12 @@ where
 }
 
 impl TaskOutcome {
-    /// Unwrap the outcome as a complete output.
-    pub fn unwrap_complete(self) -> TaskOutput {
-        match self {
-            Self::Complete { output } => output,
-            _ => panic!("outcome is not complete"),
-        }
-    }
-
     /// Check if the outcome is final (i.e., will not change).
     pub fn is_final(&self) -> bool {
         match self {
             Self::Yield { .. } => false,
             Self::Error { .. } => true,
-            Self::Complete { .. } => true,
+            Self::Complete => true,
         }
     }
 }
@@ -478,38 +465,6 @@ impl TaskDependency {
                 .collect(),
         }
     }
-}
-
-/// Output of a compiler task.
-#[derive(Debug, Clone, PartialEq)]
-pub enum TaskOutput {
-    /// Output of an import task.
-    Import(ImportOutput),
-    /// Output of a bind task.
-    Bind(BindOutput),
-    /// Output of a resolve task.
-    Resolve(ResolveOutput),
-    /// Output of an analyze task.
-    Analyze(AnalyzeOutput),
-    /// Output of an elaborate task.
-    Elaborate(ElaborateOutput),
-    // --------------------------------------------------
-    /// Output of a lower task.
-    Lower(LowerOutput),
-    /// Output of a verify task.
-    Verify(VerifyOutput),
-    /// Output of an optimize task.
-    Optimize(OptimizeOutput),
-    // --------------------------------------------------
-    /// Output of a generate task.
-    Generate(GenerateOutput),
-    /// Output of a link task.
-    Link(LinkOutput),
-    /// Output of an emit task.
-    Emit(EmitOutput),
-    // --------------------------------------------------
-    /// Output of a lint task.
-    Lint(LintOutput),
 }
 
 /// Error when a task dependency is not satisfied.

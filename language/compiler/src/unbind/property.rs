@@ -26,11 +26,10 @@ impl Compiler {
                 default,
                 ..
             } => {
-                let modifiers =
-                    modifiers.map(|modifiers| self.unbind_binding_modifier(&modifiers));
-                let key =
-                    key.as_ref()
-                        .map(|key| self.unbind_key(module, key, tree, symbols, ast_tree, ast_strings));
+                let modifiers = modifiers.map(|modifiers| self.unbind_binding_modifier(&modifiers));
+                let key = key
+                    .as_ref()
+                    .map(|key| self.unbind_key(module, key, tree, symbols, ast_tree, ast_strings));
                 let value = value.map(|value| {
                     self.unbind_expression(module, value, tree, symbols, ast_tree, ast_strings)
                 });
@@ -51,13 +50,18 @@ impl Compiler {
                 body,
                 ..
             } => {
-                let modifiers =
-                    modifiers.map(|modifiers| self.unbind_binding_modifier(&modifiers));
-                let key =
-                    key.as_ref()
-                        .map(|key| self.unbind_key(module, key, tree, symbols, ast_tree, ast_strings));
-                let signature =
-                    self.unbind_function_signature(module, signature, tree, symbols, ast_tree, ast_strings);
+                let modifiers = modifiers.map(|modifiers| self.unbind_binding_modifier(&modifiers));
+                let key = key
+                    .as_ref()
+                    .map(|key| self.unbind_key(module, key, tree, symbols, ast_tree, ast_strings));
+                let signature = self.unbind_function_signature(
+                    module,
+                    signature,
+                    tree,
+                    symbols,
+                    ast_tree,
+                    ast_strings,
+                );
                 let body = body.map(|body| {
                     self.unbind_expression(module, body, tree, symbols, ast_tree, ast_strings)
                 });
@@ -71,8 +75,7 @@ impl Compiler {
             dir::Property::Spread {
                 modifiers, value, ..
             } => {
-                let modifiers =
-                    modifiers.map(|modifiers| self.unbind_binding_modifier(&modifiers));
+                let modifiers = modifiers.map(|modifiers| self.unbind_binding_modifier(&modifiers));
                 let value =
                     self.unbind_expression(module, *value, tree, symbols, ast_tree, ast_strings);
                 ast::Property::Spread { modifiers, value }
@@ -101,11 +104,10 @@ impl Compiler {
                 default,
                 ..
             } => {
-                let modifiers =
-                    modifiers.map(|modifiers| self.unbind_binding_modifier(&modifiers));
-                let key =
-                    key.as_ref()
-                        .map(|key| self.unbind_key(module, key, tree, symbols, ast_tree, ast_strings));
+                let modifiers = modifiers.map(|modifiers| self.unbind_binding_modifier(&modifiers));
+                let key = key
+                    .as_ref()
+                    .map(|key| self.unbind_key(module, key, tree, symbols, ast_tree, ast_strings));
                 let value = value.map(|value| {
                     self.unbind_expression(module, value, tree, symbols, ast_tree, ast_strings)
                 });
@@ -126,13 +128,18 @@ impl Compiler {
                 body,
                 ..
             } => {
-                let modifiers =
-                    modifiers.map(|modifiers| self.unbind_binding_modifier(&modifiers));
-                let key =
-                    key.as_ref()
-                        .map(|key| self.unbind_key(module, key, tree, symbols, ast_tree, ast_strings));
-                let signature =
-                    self.unbind_function_signature(module, signature, tree, symbols, ast_tree, ast_strings);
+                let modifiers = modifiers.map(|modifiers| self.unbind_binding_modifier(&modifiers));
+                let key = key
+                    .as_ref()
+                    .map(|key| self.unbind_key(module, key, tree, symbols, ast_tree, ast_strings));
+                let signature = self.unbind_function_signature(
+                    module,
+                    signature,
+                    tree,
+                    symbols,
+                    ast_tree,
+                    ast_strings,
+                );
                 let body = body.map(|body| {
                     self.unbind_expression(module, body, tree, symbols, ast_tree, ast_strings)
                 });
@@ -146,8 +153,7 @@ impl Compiler {
             dir::Member::Embed {
                 modifiers, value, ..
             } => {
-                let modifiers =
-                    modifiers.map(|modifiers| self.unbind_binding_modifier(&modifiers));
+                let modifiers = modifiers.map(|modifiers| self.unbind_binding_modifier(&modifiers));
                 let value =
                     self.unbind_expression(module, *value, tree, symbols, ast_tree, ast_strings);
                 ast::Member::Embed { modifiers, value }
@@ -155,8 +161,7 @@ impl Compiler {
             dir::Member::StaticBlock {
                 modifiers, body, ..
             } => {
-                let modifiers =
-                    modifiers.map(|modifiers| self.unbind_binding_modifier(&modifiers));
+                let modifiers = modifiers.map(|modifiers| self.unbind_binding_modifier(&modifiers));
                 let body =
                     self.unbind_expression(module, *body, tree, symbols, ast_tree, ast_strings);
                 ast::Member::StaticBlock { modifiers, body }
