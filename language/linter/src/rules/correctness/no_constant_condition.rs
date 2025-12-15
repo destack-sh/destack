@@ -1,5 +1,4 @@
 use destack_ast::{Expression, NodeTree};
-use destack_source::{FileId, ModuleId};
 use destack_workspace::LintSeverity;
 
 use crate::{LintDiagnostic, LintModuleAstContext, LintRule, declare_lint};
@@ -23,12 +22,10 @@ fn is_constant_expression(tree: &NodeTree, expr: &Expression) -> bool {
     match expr {
         Expression::ScalarLiteral(_) => true,
         Expression::Parenthesized { expression } => {
-            let inner = tree.get(*expression);
-            is_constant_expression(tree, inner)
+            is_constant_expression(tree, tree.get(*expression))
         }
         Expression::Unary { right, .. } => {
-            let inner = tree.get(*right);
-            is_constant_expression(tree, inner)
+            is_constant_expression(tree, tree.get(*right))
         }
         _ => false,
     }
@@ -39,38 +36,32 @@ impl LintRule for NoConstantCondition {
         NoConstantCondition::meta()
     }
 
-    fn check_module_ast(
+    fn check_module_ast<'a>(
         &self,
-        file_id: FileId,
-        _module_id: ModuleId,
         severity: LintSeverity,
-        ctx: &mut LintModuleAstContext,
+        ctx: &mut LintModuleAstContext<'a>,
     ) {
-        ctx.for_each::<Expression, _>(|tree, _node_id, expression, _span| {
-            let condition_id = match expression {
-                Expression::If { condition, .. } => Some(*condition),
-                Expression::While { condition, .. } => Some(*condition),
-                _ => None,
-            }?;
-            let condition = tree.get(condition_id);
-            if is_constant_expression(tree, condition) {
-                let condition_span = tree.get_span(condition_id);
-                Some(
+        for node_id in ctx.tree.iter_nodes::<Expression>() {
+            let condition_id = match ctx.tree.get(node_id) {
+                Expression::If { condition, .. } => *condition,
+                Expression::While { condition, .. } => *condition,
+                _ => continue,
+            };
+            if is_constant_expression(ctx.tree, ctx.tree.get(condition_id)) {
+                ctx.report(
                     LintDiagnostic::new(
                         NO_CONSTANT_CONDITION.id,
                         NO_CONSTANT_CONDITION.code,
                         NO_CONSTANT_CONDITION.category,
                         severity,
                         "unexpected constant condition",
-                        file_id,
-                        condition_span,
+                        ctx.module.file_id,
+                        ctx.tree.get_span(condition_id),
                     )
                     .with_label("this condition is always the same"),
-                )
-            } else {
-                None
+                );
             }
-        });
+        }
     }
 }
 

@@ -1,5 +1,4 @@
 use destack_dir::{BinaryOperator, Expression};
-use destack_source::{FileId, ModuleId};
 use destack_workspace::LintSeverity;
 
 use crate::{LintDiagnostic, LintModuleDirContext, LintRule, declare_lint};
@@ -38,51 +37,46 @@ impl LintRule for NoSelfCompare {
         NoSelfCompare::meta()
     }
 
-    fn check_module_dir(
-        &self,
-        file_id: FileId,
-        _module_id: ModuleId,
-        severity: LintSeverity,
-        ctx: &mut LintModuleDirContext,
-    ) {
-        ctx.for_each::<Expression, _>(|tree, _node_id, expression, span| {
-            if let Expression::Binary {
+    fn check_module_dir<'a>(&self, severity: LintSeverity, ctx: &mut LintModuleDirContext<'a>) {
+        for (node_id, expression) in ctx.tree.iter_nodes_of_type::<Expression>() {
+            // filter to comparison binary expressions
+            let Expression::Binary {
                 left,
                 operator,
                 right,
             } = expression
-            {
-                if !is_comparison_operator(*operator) {
-                    return None;
-                }
-
-                // get the target symbols for both sides
-                let left_expr = tree.get(*left);
-                let right_expr = tree.get(*right);
-
-                let left_symbol = left_expr.target_symbol();
-                let right_symbol = right_expr.target_symbol();
-
-                // if both sides reference the same symbol, it's a self-compare
-                if let (Some(left_sym), Some(right_sym)) = (left_symbol, right_symbol)
-                    && left_sym == right_sym
-                {
-                    return Some(
-                        LintDiagnostic::new(
-                            NO_SELF_COMPARE.id,
-                            NO_SELF_COMPARE.code,
-                            NO_SELF_COMPARE.category,
-                            severity,
-                            "comparing a value to itself",
-                            file_id,
-                            span,
-                        )
-                        .with_label("both sides of this comparison are identical"),
-                    );
-                }
+            else {
+                continue;
+            };
+            if !is_comparison_operator(*operator) {
+                continue;
             }
-            None
-        });
+
+            // get the target symbols for both sides
+            let left_expr = ctx.tree.get(*left);
+            let right_expr = ctx.tree.get(*right);
+            let left_symbol = left_expr.target_symbol();
+            let right_symbol = right_expr.target_symbol();
+
+            // if both sides reference the same symbol, it's a self-compare
+            if let (Some(left_sym), Some(right_sym)) = (left_symbol, right_symbol)
+                && left_sym == right_sym
+            {
+                let span = ctx.get_span(node_id);
+                ctx.report(
+                    LintDiagnostic::new(
+                        NO_SELF_COMPARE.id,
+                        NO_SELF_COMPARE.code,
+                        NO_SELF_COMPARE.category,
+                        severity,
+                        "comparing a value to itself",
+                        ctx.module.file_id,
+                        span,
+                    )
+                    .with_label("both sides of this comparison are identical"),
+                );
+            }
+        }
     }
 }
 

@@ -24,6 +24,8 @@ parking_lot = { workspace = true }
 
 [dev-dependencies]
 destack_compiler = { workspace = true }
+destack_fir = { workspace = true }
+destack_formatter = { workspace = true }
 
 [lints]
 workspace = true

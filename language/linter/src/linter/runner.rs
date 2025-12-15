@@ -7,7 +7,7 @@ use destack_workspace::{LintPreset, LinterOptions, Module, Program};
 
 use crate::{
     BoxedLintRule, LintDiagnostic, LintLevel, LintModuleAstContext, LintModuleDirContext,
-    LintModuleMirContext, LintProgramContext, all_rules, recommended_rules,
+    LintProgramContext, all_rules, recommended_rules,
 };
 
 /// Runs lint rules against modules and programs.
@@ -75,11 +75,10 @@ impl LintRunner {
         if !options.enabled {
             return Vec::new();
         }
-
         match level {
             LintLevel::Ast => self.lint_module_ast(program, module, options),
             LintLevel::Dir => self.lint_module_dir(program, module, options),
-            LintLevel::Mir => self.lint_module_mir(program, module, options),
+            LintLevel::Mir => todo!(),
         }
     }
 
@@ -90,9 +89,17 @@ impl LintRunner {
         module: Arc<RwLock<Module>>,
         options: &LinterOptions,
     ) -> Vec<LintDiagnostic> {
-        let mut ctx = LintModuleAstContext::new(program, module, options.clone());
-        let file_id = ctx.file_id;
-        let module_id = ctx.module_id;
+        let module = module.read();
+        let mut ctx = LintModuleAstContext::new(
+            program,
+            &module,
+            &module.ast.tree,
+            &module.ast.parents,
+            &module.ast.roots,
+            &module.ast.strings,
+            options,
+        );
+
         for rule in &self.rules {
             if rule.meta().level != LintLevel::Ast {
                 continue;
@@ -101,8 +108,9 @@ impl LintRunner {
                 continue;
             }
             let severity = ctx.get_severity(rule.meta());
-            rule.check_module_ast(file_id, module_id, severity, &mut ctx);
+            rule.check_module_ast(severity, &mut ctx);
         }
+
         ctx.take_diagnostics()
     }
 
@@ -113,9 +121,32 @@ impl LintRunner {
         module: Arc<RwLock<Module>>,
         options: &LinterOptions,
     ) -> Vec<LintDiagnostic> {
-        let mut ctx = LintModuleDirContext::new(program, module, options.clone());
-        let file_id = ctx.file_id;
-        let module_id = ctx.module_id;
+        // context
+        let module = module.read();
+        let tree = module.dir.tree.read();
+        let symbols = module.dir.symbols.read();
+        let types = module.dir.types.read();
+        let namespace_exports = module.dir.namespace_exports.read();
+        let imported_modules = module.dir.imported_modules.read();
+        let exported_symbols = module.dir.exported_symbols.read();
+        let mut ctx = LintModuleDirContext::new(
+            program,
+            &module,
+            &module.ast.tree,
+            &tree,
+            &symbols,
+            &types,
+            module.dir.roots.clone(),
+            module.dir.namespace_symbol,
+            module.dir.namespace_scope,
+            module.dir.default_symbol,
+            namespace_exports.clone(),
+            imported_modules.clone(),
+            exported_symbols.clone(),
+            options,
+        );
+
+        // check rules
         for rule in &self.rules {
             if rule.meta().level != LintLevel::Dir {
                 continue;
@@ -124,31 +155,9 @@ impl LintRunner {
                 continue;
             }
             let severity = ctx.get_severity(rule.meta());
-            rule.check_module_dir(file_id, module_id, severity, &mut ctx);
+            rule.check_module_dir(severity, &mut ctx);
         }
-        ctx.take_diagnostics()
-    }
 
-    /// Lint a module at MIR level.
-    fn lint_module_mir(
-        &self,
-        program: Arc<Program>,
-        module: Arc<RwLock<Module>>,
-        options: &LinterOptions,
-    ) -> Vec<LintDiagnostic> {
-        let mut ctx = LintModuleMirContext::new(program, module, options.clone());
-        let file_id = ctx.file_id;
-        let module_id = ctx.module_id;
-        for rule in &self.rules {
-            if rule.meta().level != LintLevel::Mir {
-                continue;
-            }
-            if !ctx.is_rule_enabled(rule.meta()) {
-                continue;
-            }
-            let severity = ctx.get_severity(rule.meta());
-            rule.check_module_mir(file_id, module_id, severity, &mut ctx);
-        }
         ctx.take_diagnostics()
     }
 

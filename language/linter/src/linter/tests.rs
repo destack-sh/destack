@@ -1,10 +1,14 @@
 use std::env::current_dir;
 use std::sync::Arc;
 
+use destack_ast::NodeParentIndex;
 use destack_compiler::{AnalyzeTask, CompileOptions, Compiler, ImportTask};
+use destack_fir::format as fir_format;
+use destack_formatter::{DestackFormatContext, DestackFormatOptions};
+use destack_parser::Parser;
 use destack_source::{
-    DiagnosticCollection, DiagnosticSeverity, FileRegistry, MemoryFileSystem, ModuleId,
-    PrintOptions, print_diagnostics,
+    DiagnosticCollection, DiagnosticSeverity, File, FileId, FileRegistry, FileType, LanguageType,
+    MemoryFileSystem, ModuleId, PrintOptions, Uri, print_diagnostics,
 };
 use destack_workspace::{LinterOptions, Program};
 
@@ -299,7 +303,8 @@ impl<'a> LintResult<'a> {
             .flat_map(|f| &f.edits)
             .collect();
 
-        self.apply_edits(edits)
+        let fixed = self.apply_edits(edits);
+        self.format_source(&fixed)
     }
 
     /// Assert the safely fixed code matches expected.
@@ -351,5 +356,67 @@ impl<'a> LintResult<'a> {
             .any(|d| !d.fixes.is_empty());
         assert!(has_fix, "expected fix for '{rule_id}' but none found");
         self
+    }
+
+    /// Format source code to normalize whitespace.
+    pub(crate) fn format_source(&self, source: &str) -> String {
+        let file_id = FileId::new(0);
+        let file = Arc::new(File::from_text(
+            file_id,
+            "<test>".to_string(),
+            Uri::from_string("<test>"),
+            None,
+            FileType::Destack,
+            source.to_string(),
+        ));
+
+        // parse file
+        let language_type = LanguageType::Destack;
+        let mut parser = Parser::lex_file(file.clone(), language_type);
+        let expressions = parser.parse();
+        parser.finish();
+
+        // if parsing fails, return original source
+        if parser
+            .diagnostics
+            .has_diagnostics_of_severity(DiagnosticSeverity::Error)
+        {
+            return source.to_string();
+        }
+
+        // format context
+        let side_span = parser.compute_side_span();
+        let strings = parser.strings.into_immutable();
+        let parents = NodeParentIndex::from_tree(&parser.tree);
+        let format_options = DestackFormatOptions::default();
+        let context = DestackFormatContext {
+            options: format_options,
+            file: file.as_ref(),
+            tree: &parser.tree,
+            source_map: &parser.tree.source_map,
+            parents,
+            tokens: &parser.tokens,
+            side_tokens: &parser.side_tokens,
+            side_span: &side_span,
+            strings: &strings,
+        };
+
+        // format
+        let mut result = String::new();
+        for (i, expr) in expressions.iter().enumerate() {
+            let formatted = fir_format!(context.clone(), [expr]).unwrap();
+            let printed = formatted.print().unwrap();
+            result.push_str(printed.as_str());
+            if i < expressions.len() - 1 {
+                result.push('\n');
+            }
+        }
+
+        // ensure trailing newline
+        if !result.is_empty() && !result.ends_with('\n') {
+            result.push('\n');
+        }
+
+        result
     }
 }
