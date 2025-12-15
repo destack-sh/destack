@@ -6,6 +6,7 @@ use destack_source::ModuleId;
 
 use crate::{Compiler, ElaborateResult};
 
+#[allow(clippy::single_match)]
 impl Compiler {
     /// Desugar a module.
     pub(super) fn desugar_module(&self, module_id: ModuleId) -> ElaborateResult<()> {
@@ -30,10 +31,10 @@ impl Compiler {
         tree: &mut NodeTree,
         _symbols: &SymbolTable,
         _types: &TypeTable,
-    ) -> ElaborateResult<Option<LocalNodeId<Expression>>> {
+    ) -> ElaborateResult<()> {
         let scope = tree.get_scope(expression_id);
         let expression = tree.get(expression_id).clone();
-        let replacement = match expression {
+        match expression {
             // AssignBinary -> Assign with Binary expression
             Expression::AssignBinary {
                 left,
@@ -42,37 +43,32 @@ impl Compiler {
             } => {
                 let binary_operator = assign_operator_to_binary(operator);
 
-                // create intermediate Binary: left <op> right
+                // Binary: left <op> right
                 let binary_id =
                     tree.reserve_from(NodeType::Expression, expression_id.into_any(), scope, None);
-                let binary = Expression::Binary {
-                    left,
-                    operator: binary_operator,
-                    right,
-                };
-                let binary_id: LocalNodeId<Expression> = tree.insert(binary_id, binary);
+                let binary_id: LocalNodeId<Expression> = tree.insert(
+                    binary_id,
+                    Expression::Binary {
+                        left,
+                        operator: binary_operator,
+                        right,
+                    },
+                );
 
-                // create replacement Assign: left = binary
-                let assign_id =
-                    tree.reserve_from(NodeType::Expression, expression_id.into_any(), scope, None);
-                let assign = Expression::Assign {
-                    left,
-                    right: binary_id,
-                };
-                let assign_id: LocalNodeId<Expression> = tree.insert(assign_id, assign);
-
-                Some(assign_id)
+                // replace AssignBinary with Assign
+                tree.replace(
+                    expression_id,
+                    Expression::Assign {
+                        left,
+                        right: binary_id,
+                    },
+                );
             }
 
-            _ => None,
+            _ => {}
         };
 
-        // set up alias if we have a replacement (new -> original for reverse lookup)
-        if let Some(new_id) = replacement {
-            tree.alias_from(new_id.id, expression_id);
-        }
-
-        Ok(replacement)
+        Ok(())
     }
 }
 
@@ -135,7 +131,7 @@ x += 1;
         test.assert_elaborated(
             module_id,
             r#"
-let x: number = 0;
+let x = 0;
 x = x + 1;
 "#,
         );
