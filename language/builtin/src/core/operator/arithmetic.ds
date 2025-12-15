@@ -26,10 +26,6 @@
 /// -a      // Vec2 { x: -1, y: -2 }
 /// ```
 
-// ============================================================================
-// BINARY ARITHMETIC
-// ============================================================================
-
 /// Interface for the `+` operator.
 ///
 /// `a + b` desugars to `a.add(b)`.
@@ -72,9 +68,6 @@ newtype interface Power<T, R = Self> {
     power(other: T): R;
 }
 
-// ============================================================================
-// UNARY ARITHMETIC
-// ============================================================================
 
 /// Interface for unary `-` (negation).
 ///
@@ -91,10 +84,6 @@ newtype interface Negate<R = Self> {
 newtype interface Plus<R = Self> {
     plus(): R;
 }
-
-// ============================================================================
-// BITWISE BINARY
-// ============================================================================
 
 /// Interface for the `&` operator (bitwise/elementwise AND).
 ///
@@ -134,10 +123,6 @@ newtype interface Not<R = Self> {
     not(): R;
 }
 
-// ============================================================================
-// SHIFT OPERATORS
-// ============================================================================
-
 /// Interface for the `<<` operator (shift left).
 ///
 /// `a << b` desugars to `a.shiftLeft(b)`.
@@ -163,10 +148,6 @@ newtype interface ShiftRightUnsigned<T, R = Self> {
     shiftRightUnsigned(other: T): R;
 }
 
-// ============================================================================
-// CONCATENATION
-// ============================================================================
-
 /// Interface for concatenation operations.
 ///
 /// Can be used with `+` (like JavaScript strings/arrays) or a dedicated
@@ -178,6 +159,6 @@ newtype interface ShiftRightUnsigned<T, R = Self> {
 /// - String concatenation
 /// - Array concatenation
 /// - Other sequence types
-newtype interface Concat<T, R = Self> {
+newtype interface Concatenate<T, R = Self> {
     concat(other: T): R;
 }
