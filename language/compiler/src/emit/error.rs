@@ -24,11 +24,11 @@ pub enum EmitError {
     TargetNotFound { package: PackageId, target: String },
 
     /// Artifact has invalid or missing output path.
-    #[error(code = "EX003", message = "artifact has invalid output path")]
+    #[error(code = "EX003", message = "artifact has invalid output path: {uri}")]
     InvalidOutputPath { artifact: ArtifactId, uri: Uri },
 
     /// Unsupported artifact.
-    #[error(code = "EX004", message = "unsupported artifact")]
+    #[error(code = "EX004", message = "unsupported artifact type '{file_type}'")]
     UnsupportedArtifact {
         artifact: ArtifactId,
         uri: Uri,
@@ -36,7 +36,7 @@ pub enum EmitError {
     },
 
     /// Failed to write output file.
-    #[error(code = "EX005", message = "failed to write file")]
+    #[error(code = "EX005", message = "failed to write file '{path}': {message}")]
     FailedWrite {
         artifact: ArtifactId,
         path: PathBuf,

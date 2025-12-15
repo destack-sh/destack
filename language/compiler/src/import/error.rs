@@ -11,7 +11,7 @@ use destack_workspace::Program;
 #[phase(Import)]
 pub enum ImportError {
     /// Module could not be resolved (filesystem or specifier resolution).
-    #[error(code = "EI001", message = "module not found")]
+    #[error(code = "EI001", message = "module '{target}' not found")]
     ModuleNotFound {
         target: StringId,
         error: Option<destack_resolver::ResolveError>,
@@ -25,6 +25,6 @@ pub enum ImportError {
     },
 
     /// Unsupported construct in module (forbidden by spec).
-    #[error(code = "EI003", message = "unsupported construct")]
+    #[error(code = "EI003", message = "unsupported construct: {message}")]
     UnsupportedConstruct { span: Span, message: String },
 }

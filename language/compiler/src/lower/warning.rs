@@ -12,7 +12,7 @@ pub enum LowerWarning {
     ComplexType { node: GlobalNodeIdAny },
 
     /// This feature will be emulated slowly on this target.
-    #[warning(code = "WL002", message = "slow emulation in target")]
+    #[warning(code = "WL002", message = "slow emulation in target: '{feature}'")]
     SlowEmulation {
         node: GlobalNodeIdAny,
         feature: String,

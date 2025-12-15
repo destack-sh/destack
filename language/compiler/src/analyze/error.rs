@@ -40,7 +40,7 @@ pub enum AnalyzeError {
     },
 
     /// Inaccessible symbol (private/internal/module boundaries).
-    #[error(code = "EA005", message = "inaccessible symbol")]
+    #[error(code = "EA005", message = "'{symbol}' is {visibility}")]
     InaccessibleSymbol {
         node: GlobalNodeIdAny,
         visibility: Visibility,
@@ -48,7 +48,7 @@ pub enum AnalyzeError {
     },
 
     /// Inconsistent function override.
-    #[error(code = "EA006", message = "inconsistent function override")]
+    #[error(code = "EA006", message = "{abstraction} function has inconsistent override")]
     InconsistentFunctionOverride {
         node: GlobalNodeIdAny,
         abstraction: FunctionAbstraction,
@@ -101,7 +101,7 @@ pub enum AnalyzeError {
     },
 
     /// Ambiguous overload: multiple candidates match equally well.
-    #[error(code = "EA016", message = "ambiguous overload")]
+    #[error(code = "EA016", message = "ambiguous overload: {candidates}")]
     AmbiguousOverload {
         node: GlobalNodeIdAny,
         candidates: Vec<GlobalSymbolId>,
@@ -140,14 +140,14 @@ pub enum AnalyzeError {
     },
 
     /// Invalid break.
-    #[error(code = "EA021", message = "invalid break")]
+    #[error(code = "EA021", message = "invalid break to '{label}'")]
     InvalidBreak {
         node: GlobalNodeIdAny,
         label: Option<StringId>,
     },
 
     /// Invalid continue.
-    #[error(code = "EA022", message = "invalid continue")]
+    #[error(code = "EA022", message = "invalid continue to '{label}'")]
     InvalidContinue {
         node: GlobalNodeIdAny,
         label: Option<StringId>,
@@ -178,7 +178,7 @@ pub enum AnalyzeError {
     InvalidFunction { node: GlobalNodeIdAny },
 
     /// Invalid method (e.g., abstract method in non-abstract class, abstract method with body).
-    #[error(code = "EA029", message = "invalid method")]
+    #[error(code = "EA029", message = "invalid {abstraction} method")]
     InvalidMethod {
         node: GlobalNodeIdAny,
         abstraction: FunctionAbstraction,

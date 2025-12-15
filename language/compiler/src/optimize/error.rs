@@ -26,7 +26,7 @@ pub enum OptimizeError {
     UnsupportedOptimization { node: GlobalNodeIdAny },
 
     /// Undefined behavior possible.
-    #[error(code = "EO004", message = "possible undefined behavior")]
+    #[error(code = "EO004", message = "possible undefined behavior: {behavior}")]
     PossibleUndefinedBehavior {
         node: GlobalNodeIdAny,
         behavior: String,
