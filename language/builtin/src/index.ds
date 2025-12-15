@@ -1,2 +1,0 @@
-// language built-ins (always available)
-export * from "./core/index.ds";

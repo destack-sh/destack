@@ -29,8 +29,11 @@ enum ControlFlow<B, C> {
 /// ```
 /// // Result<T, E> implements Try
 /// function divide(a: int, b: int): Result<int, string> {
-///     if (b == 0) { Result.err("division by zero") }
-///     else { Result.ok(a / b) }
+///     if (b == 0) { 
+///         Result.err("division by zero") 
+///     } else { 
+///         Result.ok(a / b) 
+///     }
 /// }
 ///
 /// function calculate(): Result<int, string> {
@@ -52,67 +55,92 @@ newtype interface Try {
     /// Construct Self from a residual (for propagation).
     static fromResidual(residual: Self.Residual): Self;
 }
-    
-/// A bound for a range (start or end).
+
+// ============================================================================
+// RANGE TYPES
+// ============================================================================
+
+/// A range bound - included, excluded, or unbounded.
 enum Bound<T> {
-    /// Inclusive bound (includes the value).
+    /// Included in the range (closed bound).
     Included(T),
-    /// Exclusive bound (excludes the value).
+    /// Excluded from the range (open bound).
     Excluded(T),
-    /// Unbounded (no limit).
+    /// No bound in this direction.
     Unbounded,
 }
 
-/// Interface for types that represent range bounds.
+/// Interface for types that represent a range of values.
 ///
-/// Used by range-accepting functions like slice, substring, etc.
-///
-/// # Example
-///
-/// ```
-/// const arr = [1, 2, 3, 4, 5];
-/// arr[1..4]   // [2, 3, 4] - elements 1, 2, 3
-/// arr[1..=4]  // [2, 3, 4, 5] - elements 1, 2, 3, 4
-/// arr[2..]    // [3, 4, 5] - from index 2 to end
-/// arr[..3]    // [1, 2, 3] - from start to index 2
-/// ```
+/// Implemented by all range types (`Range`, `RangeInclusive`, etc.).
 newtype interface RangeBounds<T> {
-    /// Get the start bound.
+    /// The start bound of this range.
     startBound(): Bound<T>;
 
-    /// Get the end bound.
+    /// The end bound of this range.
     endBound(): Bound<T>;
 
     /// Check if a value is contained in this range.
     contains(value: T): boolean;
 }
 
-/// Exclusive range `start..end`.
+/// Exclusive range: `start..end` (includes start, excludes end).
+///
+/// ```
+/// for (const i of 0..5) {
+///     print(i);  // 0, 1, 2, 3, 4
+/// }
+/// ```
 struct Range<T> implements RangeBounds<T> {
     start: T,
     end: T,
 }
 
-/// Inclusive range `start..=end`.
+/// Inclusive range: `start..=end` (includes both start and end).
+///
+/// ```
+/// for (const i of 0..=5) {
+///     print(i);  // 0, 1, 2, 3, 4, 5
+/// }
+/// ```
 struct RangeInclusive<T> implements RangeBounds<T> {
     start: T,
     end: T,
 }
 
-/// Range from start `start..`.
+/// Range from: `start..` (includes start, no upper bound).
+///
+/// ```
+/// for (const i of 5..) {
+///     if (i > 10) { break }
+///     print(i);  // 5, 6, 7, 8, 9, 10
+/// }
+/// ```
 struct RangeFrom<T> implements RangeBounds<T> {
     start: T,
 }
 
-/// Range to end (exclusive) `..end`.
+/// Range to (exclusive): `..end` (no lower bound, excludes end).
+///
+/// ```
+/// array[..5]  // first 5 elements (indices 0-4)
+/// ```
 struct RangeTo<T> implements RangeBounds<T> {
     end: T,
 }
 
-/// Range to end (inclusive) `..=end`.
+/// Range to (inclusive): `..=end` (no lower bound, includes end).
+///
+/// ```
+/// array[..=5]  // first 6 elements (indices 0-5)
+/// ```
 struct RangeToInclusive<T> implements RangeBounds<T> {
     end: T,
 }
 
-/// Full range `..` (unbounded).
+/// Full range: `..` (no bounds, matches everything).
+///
+/// ```
+/// array[..]   // entire array
+/// ```
 struct RangeFull implements RangeBounds<unknown> {}
