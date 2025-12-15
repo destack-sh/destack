@@ -1,3 +1,5 @@
+// NOTE #Architecture: CLI should be implemented via NAPI on top of library/tui stuff
+
 use clap::Parser;
 
 #[cfg(feature = "dev")]

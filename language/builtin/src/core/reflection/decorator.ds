@@ -1,0 +1,131 @@
+/// Decorator metadata - information about decorators applied to declarations.
+///
+/// Decorators in Destack can be:
+/// - **Runtime decorators**: Functions that transform the target
+/// - **Compile-time decorators**: Newtypes that serve as metadata markers
+///
+/// Both are recorded in `DecoratorInfo` and accessible via reflection.
+///
+/// # Example
+///
+/// ```
+/// @deprecated("use newAPI instead")
+/// @memoize
+/// function oldAPI() { }
+///
+/// // Access decorator info at runtime
+/// oldAPI.decorators
+/// // => [
+/// //     { name: "deprecated", args: ["use newAPI instead"] },
+/// //     { name: "memoize", args: [] },
+/// // ]
+/// ```
+///
+/// # ORM/API Usage
+///
+/// ```
+/// @table("users")
+/// struct User {
+///     @primaryKey
+///     @autoIncrement
+///     id: int,
+///
+///     @unique
+///     @column("user_email")
+///     email: string,
+/// }
+///
+/// // ORM reads decorators to generate SQL:
+/// for (const prop of User.properties) {
+///     if (prop.decorators.some(d => d.name === "primaryKey")) {
+///         // generate PRIMARY KEY constraint
+///     }
+/// }
+/// ```
+
+// ============================================================================
+// DECORATOR INFO
+// ============================================================================
+
+/// Metadata about a decorator applied to a declaration.
+struct DecoratorInfo {
+    /// The name of the decorator.
+    ///
+    /// For `@foo`, this is "foo".
+    /// For `@foo.bar`, this is "foo.bar".
+    name: string,
+
+    /// Arguments passed to the decorator.
+    ///
+    /// For `@foo(1, "hello")`, this is [1, "hello"].
+    /// For `@foo` (no call), this is [].
+    args: readonly unknown[],
+
+    /// The decorator value itself.
+    ///
+    /// - For function decorators: the decorator function
+    /// - For newtype decorators: the newtype descriptor
+    ///
+    /// This allows runtime code to check decorator types:
+    /// ```
+    /// if (decorator.value === deprecated) {
+    ///     console.warn("This is deprecated");
+    /// }
+    /// ```
+    value: unknown,
+}
+
+// ============================================================================
+// COMMON DECORATORS
+// ============================================================================
+
+/// Marks something as deprecated.
+///
+/// When used as a decorator, emits a compile-time warning.
+/// The message is included in the warning and accessible at runtime.
+///
+/// ```
+/// @deprecated("use newAPI instead")
+/// function oldAPI() { }
+/// ```
+newtype deprecated = string | void;
+
+/// Marks something as experimental/unstable.
+///
+/// ```
+/// @experimental
+/// function newFeature() { }
+/// ```
+newtype experimental = string | void;
+
+/// Compiler intrinsic marker.
+///
+/// Marks a declaration as implemented by the compiler.
+/// The declaration body (if any) is ignored; the compiler provides the implementation.
+///
+/// ```
+/// @intrinsic
+/// declare function typeOf<T>(value: T): Type<T>;
+/// ```
+newtype intrinsic = void;
+
+/// Inline hint for the optimizer.
+///
+/// Suggests that this function should be inlined at call sites.
+/// The compiler may ignore this hint based on heuristics.
+///
+/// ```
+/// @inline
+/// function add(a: int, b: int): int { a + b }
+/// ```
+newtype inline = void;
+
+/// No-inline hint for the optimizer.
+///
+/// Prevents this function from being inlined.
+///
+/// ```
+/// @noinline
+/// function complexCalculation() { ... }
+/// ```
+newtype noinline = void;

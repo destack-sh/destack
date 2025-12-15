@@ -1,0 +1,16 @@
+/// Operator interfaces for operator overloading.
+///
+/// These nominal interfaces enable custom types to participate in
+/// Destack's operators. Implement them via extensions.
+///
+/// # Categories
+///
+/// - **arithmetic.ds** - Numeric and bitwise operations (+, -, *, /, %, **, &, |, ^, ~, <<, >>)
+/// - **comparison.ds** - Equality and ordering (==, !=, <, <=, >, >=)
+/// - **subscript.ds** - Indexing and dereference ([], *)
+/// - **control.ds** - Control flow operators (?, .., ..=)
+
+export * from "./arithmetic.ds";
+export * from "./comparison.ds";
+export * from "./subscript.ds";
+export * from "./control.ds";

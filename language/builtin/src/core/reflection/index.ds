@@ -1,0 +1,35 @@
+/// Reflection - Runtime type introspection for Destack.
+///
+/// The reflection system provides compile-time generated type descriptors
+/// that are available at runtime. Unlike traditional reflection which uses
+/// runtime introspection, Destack generates type metadata during compilation.
+///
+/// # Core Types
+///
+/// - `Type<T>` - A type descriptor, the union of all type variants
+/// - `Property` - A field/property in a struct, class, or interface
+/// - `Variant` - A variant in an enum or union type
+/// - `Refinement` - A constraint on a type (e.g., `int.min(0)`)
+/// - `DecoratorInfo` - Metadata from decorators
+///
+/// # Usage
+///
+/// Every nominal type has a corresponding `Type<T>` value:
+///
+/// ```
+/// struct User { name: string, age: int }
+///
+/// // User in type position: the type
+/// let u: User = User { name: "Alice", age: 30 };
+///
+/// // User in value position: the type descriptor
+/// User.name        // "User"
+/// User.properties  // [{ name: "name", ... }, { name: "age", ... }]
+/// User.is(u)       // true
+/// ```
+
+export * from "./type.ds";
+export * from "./property.ds";
+export * from "./refinement.ds";
+export * from "./decorator.ds";
+export * from "./validation.ds";

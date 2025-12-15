@@ -1,0 +1,87 @@
+/// Property and Variant descriptors for struct/class/enum types.
+
+// ============================================================================
+// PROPERTY
+// ============================================================================
+
+/// A property (field) in a struct, class, interface, or object type.
+///
+/// Properties describe data members, not methods. For functions/methods,
+/// see `FunctionType`.
+///
+/// # Example
+///
+/// ```
+/// struct User {
+///     @unique
+///     name: string,
+///     age?: int,
+/// }
+///
+/// User.properties[0]
+/// // => Property {
+/// //      name: "name",
+/// //      type: Type<string>,
+/// //      optional: false,
+/// //      readonly: false,
+/// //      decorators: [{ name: "unique", args: [] }],
+/// //    }
+/// ```
+struct Property {
+    /// The name of this property.
+    name: string,
+
+    /// The type of this property.
+    type: Type<unknown>,
+
+    /// Whether this property is optional (`?`).
+    optional: boolean,
+
+    /// Whether this property is readonly.
+    readonly: boolean,
+
+    /// Decorators on this property.
+    decorators: readonly DecoratorInfo[],
+
+    /// Default value factory, if specified.
+    /// Called to produce the default when not provided.
+    default?: () => unknown,
+
+    /// Documentation comment, if present.
+    description?: string,
+}
+
+// ============================================================================
+// VARIANT
+// ============================================================================
+
+/// A variant in an enum type.
+///
+/// Variants can be:
+/// - Simple: just a name (auto-numbered)
+/// - Valued: name with explicit value
+/// - Data-carrying: name with associated data type
+///
+/// # Example
+///
+/// ```
+/// enum Status {
+///     Active,           // simple
+///     Inactive = 0,     // valued
+///     Pending = "wait", // string valued
+/// }
+///
+/// Status.variants[0]
+/// // => Variant { name: "Active", value: 0 }
+/// ```
+struct Variant {
+    /// The name of this variant.
+    name: string,
+
+    /// The explicit value, if this is a valued enum.
+    /// For simple enums, this is the auto-assigned numeric value.
+    value: int | string,
+
+    /// Documentation comment, if present.
+    description?: string,
+}
