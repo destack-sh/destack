@@ -5,13 +5,10 @@ export enum MeetupStatus {
     /// The Meetup is a draft.
     @default 
     Draft,
-    
     /// The Meetup is upcoming.
     Upcoming,
-    
     /// The Meetup is cancelled.
     Cancelled,
-    
     /// The Meetup is past.
     Past,
 }
@@ -21,7 +18,6 @@ export enum MeetupStatus {
 export class MeetupSeries {
     /// The name of the Meetup Series.
     name: string,
-
     /// The prefix of the Meetup Series.
     prefix: string,
 }
@@ -38,19 +34,14 @@ export enum MeetupLanguage {
 export class Meetup {
     /// When the Meetup is happening.
     date: DateTime,
-    
     /// The name of the Meetup.
     name: string,
-    
     /// The number of the Meetup.
     number: uint,   
-    
     /// The Series this Meetup is part of.
     series?: MeetupSeries,
-    
     /// The language of the Meetup.
     language: MeetupLanguage,
-    
     /// The status of the Meetup.
     status: MeetupStatus,
 }

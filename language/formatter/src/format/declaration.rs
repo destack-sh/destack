@@ -497,31 +497,56 @@ impl<'ast> FormatNode<'ast, Declaration> for Declaration {
                 // keyword
                 write!(f, [Keyword::Extension])?;
 
-                // static arguments
-                if let Some(static_arguments) = generics.static_parameters.as_ref()
-                    && !static_arguments.is_empty()
-                {
-                    write!(
-                        f,
-                        [group(&format_args![
-                            token("<"),
-                            soft_block_indent(&format_with(|f| {
-                                f.join_with(&format_args![&token(","), soft_line_break_or_space()])
+                // For named extensions: `extension Name<T> of Target`
+                // For anonymous extensions: `extension<T> of Target`
+                if let Some(name) = descriptor.name {
+                    // Named: name first, then generics
+                    write!(f, [space(), name])?;
+
+                    if let Some(static_arguments) = generics.static_parameters.as_ref()
+                        && !static_arguments.is_empty()
+                    {
+                        write!(
+                            f,
+                            [group(&format_args![
+                                token("<"),
+                                soft_block_indent(&format_with(|f| {
+                                    f.join_with(&format_args![
+                                        &token(","),
+                                        soft_line_break_or_space()
+                                    ])
                                     .entries(static_arguments)
                                     .finish()
-                            })),
-                            token(">")
-                        ])]
-                    )?;
+                                })),
+                                token(">")
+                            ])]
+                        )?;
+                    }
+                } else {
+                    // Anonymous: generics first (no name)
+                    if let Some(static_arguments) = generics.static_parameters.as_ref()
+                        && !static_arguments.is_empty()
+                    {
+                        write!(
+                            f,
+                            [group(&format_args![
+                                token("<"),
+                                soft_block_indent(&format_with(|f| {
+                                    f.join_with(&format_args![
+                                        &token(","),
+                                        soft_line_break_or_space()
+                                    ])
+                                    .entries(static_arguments)
+                                    .finish()
+                                })),
+                                token(">")
+                            ])]
+                        )?;
+                    }
                 }
 
-                // name / key
-                if let Some(name) = descriptor.name {
-                    write!(f, [space(), name, token(":")])?;
-                }
-
-                // target type
-                write!(f, [space(), target_type])?;
+                // for keyword + target type
+                write!(f, [space(), Keyword::For, space(), target_type])?;
 
                 // implements types
                 if let Some(implements_types) = heritage.implements_types.as_ref()

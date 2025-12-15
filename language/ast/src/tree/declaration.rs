@@ -341,7 +341,7 @@ pub enum Declaration {
 
     /// An Extension defines the implementation of a nominal type, optionally for some specific super types.
     /// There may be multiple Extensions for the same type, and even extensions for different modules.
-    /// Extensions are anonymous by default, but may be named like `extension MyExt: Type { .. }`.
+    /// Extensions are anonymous by default, but may be named like `extension MyExt for Type { .. }`.
     ///
     /// Extensions require **nominal types**—types with declaration identity (nominality).
     /// This includes `struct`, `class`, `enum`, `newtype`, and primitive types from the prelude.
@@ -349,19 +349,23 @@ pub enum Declaration {
     ///
     /// Examples:
     /// ```
-    /// extension Foo {
+    /// extension for Foo {
     ///     ...
     /// }
     ///
-    /// extension MyExt: Foo<int32> {
+    /// extension MyExt for Foo<int32> {
     ///     ...
     /// }
     ///
-    /// extension Bar<int32> implements Baz {
+    /// extension for Bar<int32> implements Baz {
     ///     ...
     /// }
     ///
-    /// extension<T> MyExt: Bar<T> implements Baz {
+    /// extension MyExt<T> for Bar<T> implements Baz {
+    ///     ...
+    /// }
+    ///
+    /// extension<T> for Bar<T> implements Baz {
     ///     ...
     /// }
     /// ```
