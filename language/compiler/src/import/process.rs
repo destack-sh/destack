@@ -1,80 +1,36 @@
-use crate::{
-    Compiler, ImportError, ImportResult, Task, TaskDebug, TaskDependencyError, TaskOutput,
-};
+use crate::{Compiler, ImportError, ImportResult, TaskDependencyError};
 
+use destack_compiler_macros::DefineTask;
 use destack_parser::Parser;
 use destack_source::{File, LanguageType, ModuleId};
-use destack_workspace::{ModuleAst, Program};
+use destack_workspace::ModuleAst;
 
 /// Task to import (load and parse) a module.
-#[derive(Debug, Clone, Hash, PartialEq, Eq)]
+#[derive(Debug, Clone, Hash, PartialEq, Eq, DefineTask)]
+#[phase(Import)]
 pub enum ImportTask {
     /// Import a module by its id (module must already be registered).
+    #[task(code = 1, trace = "module={module}")]
     ImportModule { module: ModuleId },
-}
-
-impl ImportTask {
-    /// Get the sub code for the task.
-    pub fn sub_code(&self) -> u8 {
-        match self {
-            ImportTask::ImportModule { .. } => 1,
-        }
-    }
-}
-
-impl TaskDebug for ImportTask {
-    fn name(&self) -> &'static str {
-        match self {
-            ImportTask::ImportModule { .. } => "module",
-        }
-    }
-
-    fn trace_args(&self, program: &Program) -> String {
-        match self {
-            ImportTask::ImportModule { module } => {
-                let module = program.modules.get(*module);
-                let uri = module.read().uri.clone().to_string();
-                format!(r#"module="{uri}""#)
-            }
-        }
-    }
-}
-
-impl From<ImportTask> for Task {
-    fn from(task: ImportTask) -> Self {
-        Task::Import(task)
-    }
-}
-
-/// Output of an import task.
-#[derive(Debug, Clone, PartialEq)]
-pub struct ImportOutput {
-    pub module: ModuleId,
-}
-
-impl From<ImportOutput> for TaskOutput {
-    fn from(output: ImportOutput) -> Self {
-        TaskOutput::Import(output)
-    }
 }
 
 impl Compiler {
     /// Process an import task.
-    pub fn process_import(&self, task: ImportTask) -> ImportResult<ImportOutput> {
+    pub fn process_import(&self, task: ImportTask) -> ImportResult<()> {
         match task {
             ImportTask::ImportModule { module } => self.import_module(module),
         }
     }
 
     /// Import (load and parse) a module.
-    fn import_module(&self, module_id: ModuleId) -> ImportResult<ImportOutput> {
+    fn import_module(&self, module_id: ModuleId) -> ImportResult<()> {
         let module = self.program.modules.get(module_id);
 
         // check if already parsed
         {
             let module = module.read();
             if module.is_parsed() {
-                return Ok(ImportOutput { module: module_id });
+                return Ok(());
             }
         }
 
@@ -128,7 +84,7 @@ impl Compiler {
         drop(module);
 
         tracing::trace!(?module_id, "import.module.parse");
-        Ok(ImportOutput { module: module_id })
+        Ok(())
     }
 
     /// Ensure a module has been imported (loaded and parsed).

@@ -51,9 +51,8 @@ impl Compiler {
             } => {
                 let mutability = mutability.map(|m| self.unbind_mutability(m));
                 let name = ast_strings.intern_from(&self.program.strings, *name);
-                let pattern = pattern.map(|p| {
-                    self.unbind_pattern(module, p, tree, symbols, ast_tree, ast_strings)
-                });
+                let pattern = pattern
+                    .map(|p| self.unbind_pattern(module, p, tree, symbols, ast_tree, ast_strings));
                 ast::Pattern::Binding {
                     mutability,
                     name,
@@ -70,12 +69,10 @@ impl Compiler {
                 end,
                 is_inclusive,
             } => {
-                let start = start.map(|s| {
-                    self.unbind_pattern(module, s, tree, symbols, ast_tree, ast_strings)
-                });
-                let end = end.map(|e| {
-                    self.unbind_pattern(module, e, tree, symbols, ast_tree, ast_strings)
-                });
+                let start = start
+                    .map(|s| self.unbind_pattern(module, s, tree, symbols, ast_tree, ast_strings));
+                let end = end
+                    .map(|e| self.unbind_pattern(module, e, tree, symbols, ast_tree, ast_strings));
                 ast::Pattern::Range {
                     start,
                     end,
@@ -86,7 +83,14 @@ impl Compiler {
                 let fields = fields
                     .iter()
                     .map(|field| {
-                        self.unbind_pattern_field(module, *field, tree, symbols, ast_tree, ast_strings)
+                        self.unbind_pattern_field(
+                            module,
+                            *field,
+                            tree,
+                            symbols,
+                            ast_tree,
+                            ast_strings,
+                        )
                     })
                     .collect();
                 ast::Pattern::Tuple { fields }
@@ -96,7 +100,14 @@ impl Compiler {
                 let fields = fields
                     .iter()
                     .map(|field| {
-                        self.unbind_pattern_field(module, *field, tree, symbols, ast_tree, ast_strings)
+                        self.unbind_pattern_field(
+                            module,
+                            *field,
+                            tree,
+                            symbols,
+                            ast_tree,
+                            ast_strings,
+                        )
                     })
                     .collect();
                 ast::Pattern::TaggedTuple { ty, fields }
@@ -105,7 +116,14 @@ impl Compiler {
                 let fields = fields
                     .iter()
                     .map(|field| {
-                        self.unbind_pattern_field(module, *field, tree, symbols, ast_tree, ast_strings)
+                        self.unbind_pattern_field(
+                            module,
+                            *field,
+                            tree,
+                            symbols,
+                            ast_tree,
+                            ast_strings,
+                        )
                     })
                     .collect();
                 ast::Pattern::Array { fields }
@@ -114,7 +132,14 @@ impl Compiler {
                 let fields = fields
                     .iter()
                     .map(|field| {
-                        self.unbind_pattern_field(module, *field, tree, symbols, ast_tree, ast_strings)
+                        self.unbind_pattern_field(
+                            module,
+                            *field,
+                            tree,
+                            symbols,
+                            ast_tree,
+                            ast_strings,
+                        )
                     })
                     .collect();
                 ast::Pattern::Object { fields }
@@ -124,7 +149,14 @@ impl Compiler {
                 let fields = fields
                     .iter()
                     .map(|field| {
-                        self.unbind_pattern_field(module, *field, tree, symbols, ast_tree, ast_strings)
+                        self.unbind_pattern_field(
+                            module,
+                            *field,
+                            tree,
+                            symbols,
+                            ast_tree,
+                            ast_strings,
+                        )
                     })
                     .collect();
                 ast::Pattern::TaggedObject { ty, fields }
@@ -163,9 +195,8 @@ impl Compiler {
                 let mutability = mutability.map(|m| self.unbind_mutability(m));
                 let name =
                     ast::Name::Identifier(ast_strings.intern_from(&self.program.strings, *name));
-                let pattern = pattern.map(|p| {
-                    self.unbind_pattern(module, p, tree, symbols, ast_tree, ast_strings)
-                });
+                let pattern = pattern
+                    .map(|p| self.unbind_pattern(module, p, tree, symbols, ast_tree, ast_strings));
                 let default = default.map(|d| {
                     self.unbind_expression(module, d, tree, symbols, ast_tree, ast_strings)
                 });

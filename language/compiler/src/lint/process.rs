@@ -1,75 +1,25 @@
+use destack_compiler_macros::DefineTask;
 use destack_linter::{LintLevel, LintRunner};
 use destack_source::{ModuleId, PackageId};
-use destack_workspace::Program;
 
-use crate::{
-    Compiler, LintError, LintResult, Task, TaskDebug, TaskDependencyError, TaskOutput,
-    TaskResultCollector,
-};
+use crate::{Compiler, LintError, LintResult, TaskDependencyError, TaskResultCollector};
 
 /// Task to lint something.
-#[derive(Debug, Clone, Hash, PartialEq, Eq)]
+#[derive(Debug, Clone, Hash, PartialEq, Eq, DefineTask)]
+#[phase(Lint)]
 pub enum LintTask {
     /// Lint a module.
+    #[task(code = 1, trace = "module={module}")]
     LintModule { module: ModuleId },
 
     /// Lint a package
+    #[task(code = 2, trace = "package={package}")]
     LintPackage { package: PackageId },
-}
-
-impl LintTask {
-    /// Get the sub code for the task.
-    pub fn sub_code(&self) -> u8 {
-        match self {
-            Self::LintModule { .. } => 1,
-            Self::LintPackage { .. } => 2,
-        }
-    }
-}
-
-impl TaskDebug for LintTask {
-    fn name(&self) -> &'static str {
-        match self {
-            Self::LintModule { .. } => "module",
-            Self::LintPackage { .. } => "package",
-        }
-    }
-
-    fn trace_args(&self, program: &Program) -> String {
-        match self {
-            Self::LintModule { module } => {
-                let module = program.modules.get(*module);
-                let uri = module.read().uri.clone().to_string();
-                format!(r#"module="{uri}""#)
-            }
-            Self::LintPackage { package } => {
-                let package = program.packages.get(*package);
-                let uri = package.read().uri.clone().to_string();
-                format!(r#"package="{uri}""#)
-            }
-        }
-    }
-}
-
-impl From<LintTask> for Task {
-    fn from(task: LintTask) -> Self {
-        Task::Lint(task)
-    }
-}
-
-/// Output of a lint task.
-#[derive(Debug, Clone, PartialEq)]
-pub struct LintOutput {}
-
-impl From<LintOutput> for TaskOutput {
-    fn from(output: LintOutput) -> Self {
-        TaskOutput::Lint(output)
-    }
 }
 
 impl Compiler {
     /// Process a lint task.
-    pub fn process_lint(&self, task: LintTask) -> LintResult<LintOutput> {
+    pub fn process_lint(&self, task: LintTask) -> LintResult<()> {
         match task {
             LintTask::LintModule { module } => {
                 self.require_analyze_module(module)?;
@@ -77,7 +27,7 @@ impl Compiler {
             }
             LintTask::LintPackage { package } => self.lint_package(package)?,
         };
-        Ok(LintOutput {})
+        Ok(())
     }
 
     /// Ensure a module has been analyzed.

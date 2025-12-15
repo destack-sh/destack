@@ -1,78 +1,31 @@
+use destack_compiler_macros::DefineTask;
 use destack_source::ModuleId;
 
-use crate::{BindResult, Compiler, Task, TaskDebug, TaskDependencyError, TaskOutput};
+use crate::{BindResult, Compiler, TaskDependencyError};
 
-use destack_workspace::{Module, Program};
+use destack_workspace::Module;
 
 /// Task to bind AST into DIR.
-#[derive(Debug, Clone, Hash, PartialEq, Eq)]
+#[derive(Debug, Clone, Hash, PartialEq, Eq, DefineTask)]
+#[phase(Bind)]
 pub enum BindTask {
     /// Bind a module completely (build, validate).
+    #[task(code = 1, trace = "module={module}")]
     BindModule { module: ModuleId },
 
     /// Build DIR for a module by binding its AST.
+    #[task(code = 2, trace = "module={module}")]
     BindModuleBuild { module: ModuleId },
 
     /// Validate module semantics that depend on structural context (but not types).
+    #[task(code = 3, trace = "module={module}")]
     BindModuleValidate { module: ModuleId },
-}
-
-impl BindTask {
-    /// Get the sub code for the task.
-    pub fn sub_code(&self) -> u8 {
-        match self {
-            BindTask::BindModule { .. } => 1,
-            BindTask::BindModuleBuild { .. } => 2,
-            BindTask::BindModuleValidate { .. } => 3,
-        }
-    }
-}
-
-impl TaskDebug for BindTask {
-    fn name(&self) -> &'static str {
-        match self {
-            BindTask::BindModule { .. } => "module",
-            BindTask::BindModuleBuild { .. } => "module_build",
-            BindTask::BindModuleValidate { .. } => "module_validate",
-        }
-    }
-
-    fn trace_args(&self, program: &Program) -> String {
-        match self {
-            BindTask::BindModule { module } => {
-                let module = program.modules.get(*module);
-                let uri = module.read().uri.clone().to_string();
-                format!(r#"module="{uri}""#)
-            }
-            BindTask::BindModuleBuild { module } | BindTask::BindModuleValidate { module } => {
-                let module = program.modules.get(*module);
-                let uri = module.read().uri.clone().to_string();
-                format!(r#"module="{uri}""#)
-            }
-        }
-    }
-}
-
-impl From<BindTask> for Task {
-    fn from(task: BindTask) -> Self {
-        Task::Bind(task)
-    }
-}
-
-/// Output of a bind task.
-#[derive(Debug, Clone, PartialEq)]
-pub struct BindOutput {}
-
-impl From<BindOutput> for TaskOutput {
-    fn from(output: BindOutput) -> Self {
-        TaskOutput::Bind(output)
-    }
 }
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
     /// Process a bind task.
-    pub fn process_bind(&self, task: BindTask) -> BindResult<BindOutput> {
+    pub fn process_bind(&self, task: BindTask) -> BindResult<()> {
         match task {
             BindTask::BindModule { module } => {
                 self.require_bind_module_build(module)?;
@@ -90,7 +43,7 @@ impl Compiler {
                 self.bind_module_validate(&module);
             }
         }
-        Ok(BindOutput {})
+        Ok(())
     }
 
     /// Ensure a module has been bound (DIR built).

@@ -1,68 +1,27 @@
-use crate::{Compiler, OptimizeResult, Task, TaskDebug, TaskDependencyError, TaskOutput};
+use crate::{Compiler, OptimizeResult, TaskDependencyError};
 
+use destack_compiler_macros::DefineTask;
 use destack_source::ModuleId;
-use destack_workspace::Program;
 
 /// Task to optimize something.
-#[derive(Debug, Clone, Hash, PartialEq, Eq)]
+#[derive(Debug, Clone, Hash, PartialEq, Eq, DefineTask)]
+#[phase(Optimize)]
 pub enum OptimizeTask {
     /// Optimize a module's MIR.
+    #[task(code = 1, trace = "module={module}")]
     OptimizeModule { module: ModuleId },
-}
-
-impl OptimizeTask {
-    /// Get the sub code for the task.
-    pub fn sub_code(&self) -> u8 {
-        match self {
-            Self::OptimizeModule { .. } => 1,
-        }
-    }
-}
-
-impl TaskDebug for OptimizeTask {
-    fn name(&self) -> &'static str {
-        match self {
-            Self::OptimizeModule { .. } => "optimize module",
-        }
-    }
-
-    fn trace_args(&self, program: &Program) -> String {
-        match self {
-            Self::OptimizeModule { module } => {
-                let module = program.modules.get(*module);
-                let uri = module.read().uri.clone().to_string();
-                format!(r#"module="{uri}""#)
-            }
-        }
-    }
-}
-
-impl From<OptimizeTask> for Task {
-    fn from(task: OptimizeTask) -> Self {
-        Task::Optimize(task)
-    }
-}
-
-/// Output of an optimize task.
-#[derive(Debug, Clone, PartialEq)]
-pub struct OptimizeOutput {}
-
-impl From<OptimizeOutput> for TaskOutput {
-    fn from(output: OptimizeOutput) -> Self {
-        TaskOutput::Optimize(output)
-    }
 }
 
 impl Compiler {
     /// Process an optimize task.
-    pub fn process_optimize(&self, task: OptimizeTask) -> OptimizeResult<OptimizeOutput> {
+    pub fn process_optimize(&self, task: OptimizeTask) -> OptimizeResult<()> {
         match task {
             OptimizeTask::OptimizeModule { module } => {
                 self.require_verify_module(module)?;
                 self.optimize_module(module)?;
             }
         }
-        Ok(OptimizeOutput {})
+        Ok(())
     }
 
     /// Optimize a module's MIR.

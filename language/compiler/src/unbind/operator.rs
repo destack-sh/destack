@@ -85,11 +85,19 @@ impl Compiler {
         match operator {
             // multiplication
             dir::AssignOperator::MultiplyAssign => ast::AssignOperator::MultiplyAssign,
-            dir::AssignOperator::WrappingMultiplyAssign => ast::AssignOperator::WrappingMultiplyAssign,
-            dir::AssignOperator::SaturatingMultiplyAssign => ast::AssignOperator::SaturatingMultiplyAssign,
+            dir::AssignOperator::WrappingMultiplyAssign => {
+                ast::AssignOperator::WrappingMultiplyAssign
+            }
+            dir::AssignOperator::SaturatingMultiplyAssign => {
+                ast::AssignOperator::SaturatingMultiplyAssign
+            }
             dir::AssignOperator::ExponentAssign => ast::AssignOperator::ExponentAssign,
-            dir::AssignOperator::WrappingExponentAssign => ast::AssignOperator::WrappingExponentAssign,
-            dir::AssignOperator::SaturatingExponentAssign => ast::AssignOperator::SaturatingExponentAssign,
+            dir::AssignOperator::WrappingExponentAssign => {
+                ast::AssignOperator::WrappingExponentAssign
+            }
+            dir::AssignOperator::SaturatingExponentAssign => {
+                ast::AssignOperator::SaturatingExponentAssign
+            }
             dir::AssignOperator::DivideAssign => ast::AssignOperator::DivideAssign,
             dir::AssignOperator::RemainderAssign => ast::AssignOperator::RemainderAssign,
 
@@ -98,14 +106,22 @@ impl Compiler {
             dir::AssignOperator::WrappingAddAssign => ast::AssignOperator::WrappingAddAssign,
             dir::AssignOperator::SaturatingAddAssign => ast::AssignOperator::SaturatingAddAssign,
             dir::AssignOperator::SubtractAssign => ast::AssignOperator::SubtractAssign,
-            dir::AssignOperator::WrappingSubtractAssign => ast::AssignOperator::WrappingSubtractAssign,
-            dir::AssignOperator::SaturatingSubtractAssign => ast::AssignOperator::SaturatingSubtractAssign,
+            dir::AssignOperator::WrappingSubtractAssign => {
+                ast::AssignOperator::WrappingSubtractAssign
+            }
+            dir::AssignOperator::SaturatingSubtractAssign => {
+                ast::AssignOperator::SaturatingSubtractAssign
+            }
 
             // shift
             dir::AssignOperator::ShiftLeftAssign => ast::AssignOperator::ShiftLeftAssign,
-            dir::AssignOperator::SaturatingShiftLeftAssign => ast::AssignOperator::SaturatingShiftLeftAssign,
+            dir::AssignOperator::SaturatingShiftLeftAssign => {
+                ast::AssignOperator::SaturatingShiftLeftAssign
+            }
             dir::AssignOperator::ShiftRightAssign => ast::AssignOperator::ShiftRightAssign,
-            dir::AssignOperator::UnsignedShiftRightAssign => ast::AssignOperator::UnsignedShiftRightAssign,
+            dir::AssignOperator::UnsignedShiftRightAssign => {
+                ast::AssignOperator::UnsignedShiftRightAssign
+            }
 
             // elementwise
             dir::AssignOperator::ElementwiseAndAssign => ast::AssignOperator::ElementwiseAndAssign,

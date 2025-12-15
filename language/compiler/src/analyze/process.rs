@@ -1,86 +1,34 @@
 use crate::{
-    AnalyzeError, AnalyzeResult, Compiler, InferContext, Task, TaskDebug, TaskDependencyError,
-    TaskOutput, TaskResultCollector,
+    AnalyzeError, AnalyzeResult, Compiler, InferContext, TaskDependencyError, TaskResultCollector,
 };
+use destack_compiler_macros::DefineTask;
 use destack_dir::{Declaration, LocalTypeId, Member, Parameter};
 use destack_source::ModuleId;
-use destack_workspace::Program;
 
 /// Task to analyze something.
-#[derive(Debug, Clone, Hash, PartialEq, Eq)]
+#[derive(Debug, Clone, Hash, PartialEq, Eq, DefineTask)]
+#[phase(Analyze)]
 pub enum AnalyzeTask {
     /// Analyze a module completely (declare, infer, validate).
+    #[task(code = 1, trace = "module={module}")]
     AnalyzeModule { module: ModuleId },
 
     /// Analyze declarations.
+    #[task(code = 2, trace = "module={module}")]
     AnalyzeModuleDeclare { module: ModuleId },
 
     /// Infer expression types.
+    #[task(code = 3, trace = "module={module}")]
     AnalyzeModuleInfer { module: ModuleId },
 
     /// Final validation pass.
+    #[task(code = 4, trace = "module={module}")]
     AnalyzeModuleValidate { module: ModuleId },
-}
-
-impl AnalyzeTask {
-    /// Get the sub code for the task.
-    pub fn sub_code(&self) -> u8 {
-        match self {
-            Self::AnalyzeModule { .. } => 1,
-            Self::AnalyzeModuleDeclare { .. } => 2,
-            Self::AnalyzeModuleInfer { .. } => 3,
-            Self::AnalyzeModuleValidate { .. } => 4,
-        }
-    }
-}
-
-impl TaskDebug for AnalyzeTask {
-    fn name(&self) -> &'static str {
-        match self {
-            Self::AnalyzeModule { .. } => "module",
-            Self::AnalyzeModuleDeclare { .. } => "module_declare",
-            Self::AnalyzeModuleInfer { .. } => "module_infer",
-            Self::AnalyzeModuleValidate { .. } => "module_validate",
-        }
-    }
-
-    fn trace_args(&self, program: &Program) -> String {
-        match self {
-            Self::AnalyzeModule { module } => {
-                let module = program.modules.get(*module);
-                let uri = module.read().uri.clone().to_string();
-                format!(r#"module="{uri}""#)
-            }
-            Self::AnalyzeModuleDeclare { module }
-            | Self::AnalyzeModuleInfer { module }
-            | Self::AnalyzeModuleValidate { module } => {
-                let module = program.modules.get(*module);
-                let uri = module.read().uri.clone().to_string();
-                format!(r#"module="{uri}""#)
-            }
-        }
-    }
-}
-
-impl From<AnalyzeTask> for Task {
-    fn from(task: AnalyzeTask) -> Self {
-        Task::Analyze(task)
-    }
-}
-
-/// Output of a analyze task.
-#[derive(Debug, Clone, PartialEq)]
-pub struct AnalyzeOutput {}
-
-impl From<AnalyzeOutput> for TaskOutput {
-    fn from(output: AnalyzeOutput) -> Self {
-        TaskOutput::Analyze(output)
-    }
 }
 
 impl Compiler {
     /// Process an analyze task.
-    pub fn process_analyze(&self, task: AnalyzeTask) -> AnalyzeResult<AnalyzeOutput> {
+    pub fn process_analyze(&self, task: AnalyzeTask) -> AnalyzeResult<()> {
         match task {
             AnalyzeTask::AnalyzeModule { module } => {
                 self.require_analyze_module_validate(module)?;
@@ -98,7 +46,7 @@ impl Compiler {
                 self.analyze_module_validate(module)?;
             }
         }
-        Ok(AnalyzeOutput {})
+        Ok(())
     }
 
     /// Ensure a module's types have been declared (evaluated).

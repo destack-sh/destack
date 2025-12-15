@@ -1,94 +1,32 @@
+use destack_compiler_macros::DefineTask;
 use destack_source::ModuleId;
-use destack_workspace::Program;
 
-use crate::{Compiler, ElaborateResult, Task, TaskDebug, TaskDependencyError, TaskOutput};
-
-// nocheckin: introduce a task macro (like the DefineError/DefineWarning macros)
-// nocheckin: remove TaskOutputs?
+use crate::{Compiler, ElaborateResult, TaskDependencyError};
 
 /// Task to elaborate something.
-#[derive(Debug, Clone, Hash, PartialEq, Eq)]
+#[derive(Debug, Clone, Hash, PartialEq, Eq, DefineTask)]
+#[phase(Elaborate)]
 pub enum ElaborateTask {
     /// Desugar a module.
+    #[task(code = 1, trace = "module={module}")]
     ElaborateModuleDesugar { module: ModuleId },
 
     /// Deload a module.
+    #[task(code = 2, trace = "module={module}")]
     ElaborateModuleDeload { module: ModuleId },
 
     /// Reify a module.
+    #[task(code = 3, trace = "module={module}")]
     ElaborateModuleReify { module: ModuleId },
 
     /// Elaborate a module.
+    #[task(code = 4, trace = "module={module}")]
     ElaborateModule { module: ModuleId },
-}
-
-impl ElaborateTask {
-    /// Get the sub code for the task.
-    pub fn sub_code(&self) -> u8 {
-        match self {
-            Self::ElaborateModuleDesugar { .. } => 1,
-            Self::ElaborateModuleDeload { .. } => 2,
-            Self::ElaborateModuleReify { .. } => 3,
-            Self::ElaborateModule { .. } => 4,
-        }
-    }
-}
-
-impl TaskDebug for ElaborateTask {
-    fn name(&self) -> &'static str {
-        match self {
-            Self::ElaborateModuleDesugar { .. } => "desugar module",
-            Self::ElaborateModuleDeload { .. } => "deload module",
-            Self::ElaborateModuleReify { .. } => "reify module",
-            Self::ElaborateModule { .. } => "elaborate module",
-        }
-    }
-
-    fn trace_args(&self, program: &Program) -> String {
-        match self {
-            Self::ElaborateModuleDesugar { module } => {
-                let module = program.modules.get(*module);
-                let uri = module.read().uri.clone().to_string();
-                format!(r#"module="{uri}""#)
-            }
-            Self::ElaborateModuleDeload { module } => {
-                let module = program.modules.get(*module);
-                let uri = module.read().uri.clone().to_string();
-                format!(r#"module="{uri}""#)
-            }
-            Self::ElaborateModuleReify { module } => {
-                let module = program.modules.get(*module);
-                let uri = module.read().uri.clone().to_string();
-                format!(r#"module="{uri}""#)
-            }
-            Self::ElaborateModule { module } => {
-                let module = program.modules.get(*module);
-                let uri = module.read().uri.clone().to_string();
-                format!(r#"module="{uri}""#)
-            }
-        }
-    }
-}
-
-impl From<ElaborateTask> for Task {
-    fn from(task: ElaborateTask) -> Self {
-        Task::Elaborate(task)
-    }
-}
-
-/// Output of an elaborate task.
-#[derive(Debug, Clone, PartialEq)]
-pub struct ElaborateOutput {}
-
-impl From<ElaborateOutput> for TaskOutput {
-    fn from(output: ElaborateOutput) -> Self {
-        TaskOutput::Elaborate(output)
-    }
 }
 
 impl Compiler {
     /// Process an elaborate task.
-    pub fn process_elaborate(&self, task: ElaborateTask) -> ElaborateResult<ElaborateOutput> {
+    pub fn process_elaborate(&self, task: ElaborateTask) -> ElaborateResult<()> {
         match task {
             ElaborateTask::ElaborateModuleDesugar { module } => {
                 self.require_analyze_module(module)?;
@@ -106,7 +44,7 @@ impl Compiler {
                 self.require_elaborate_module_reify(module)?;
             }
         }
-        Ok(ElaborateOutput {})
+        Ok(())
     }
 
     /// Ensure a module has been desugared.

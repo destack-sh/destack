@@ -1,15 +1,11 @@
-use crate::{Compiler, LinkError, LinkOutput, LinkResult, TaskResultCollector};
+use crate::{Compiler, LinkError, LinkResult, TaskResultCollector};
 
 use destack_source::{ModuleId, PackageId};
 use destack_workspace::TargetDiscovery;
 
 impl Compiler {
     /// Link all modules for a target.
-    pub(super) fn link_target(
-        &self,
-        package_id: PackageId,
-        target_name: &str,
-    ) -> LinkResult<LinkOutput> {
+    pub(super) fn link_target(&self, package_id: PackageId, target_name: &str) -> LinkResult<()> {
         // get package and target configuration
         let package = self.program.packages.get(package_id);
         let package = package.read();
@@ -56,6 +52,6 @@ impl Compiler {
             });
         }
 
-        Ok(LinkOutput {})
+        Ok(())
     }
 }

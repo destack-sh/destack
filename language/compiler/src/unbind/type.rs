@@ -53,21 +53,24 @@ impl Compiler {
         ast_tree: &mut ast::NodeTree,
         ast_strings: &mut StringPool,
     ) -> ast::Generics {
-        let static_parameters = generics.static_parameters.as_ref().map(|static_parameters| {
-            static_parameters
-                .iter()
-                .map(|static_parameter| {
-                    self.unbind_parameter(
-                        module,
-                        *static_parameter,
-                        tree,
-                        symbols,
-                        ast_tree,
-                        ast_strings,
-                    )
-                })
-                .collect()
-        });
+        let static_parameters = generics
+            .static_parameters
+            .as_ref()
+            .map(|static_parameters| {
+                static_parameters
+                    .iter()
+                    .map(|static_parameter| {
+                        self.unbind_parameter(
+                            module,
+                            *static_parameter,
+                            tree,
+                            symbols,
+                            ast_tree,
+                            ast_strings,
+                        )
+                    })
+                    .collect()
+            });
         let where_clauses = generics.where_clauses.as_ref().map(|where_clauses| {
             where_clauses
                 .iter()

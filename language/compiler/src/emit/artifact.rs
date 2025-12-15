@@ -1,28 +1,15 @@
 use std::path::Path;
 
-use crate::{Compiler, EmitError, EmitResult, EmittedArtifact};
+use crate::{Compiler, EmitError, EmitResult};
 
 use destack_workspace::{Artifact, ArtifactContent};
 
 impl Compiler {
     /// Write an artifact to disk.
-    pub(super) fn write_artifact(
-        &self,
-        artifact: &Artifact,
-        path: &Path,
-    ) -> EmitResult<EmittedArtifact> {
+    pub(super) fn write_artifact(&self, artifact: &Artifact, path: &Path) -> EmitResult<()> {
         // check dry run mode
         if self.options.emit.dry_run {
-            let size = match &artifact.content {
-                ArtifactContent::Text { code, .. } => code.len(),
-                ArtifactContent::Json { content, .. } => content.len(),
-                ArtifactContent::Binary { bytes, .. } => bytes.len(),
-            };
-            return Ok(EmittedArtifact {
-                artifact: artifact.id,
-                path: path.to_path_buf(),
-                size,
-            });
+            return Ok(());
         }
 
         // create parent directories if needed
@@ -51,7 +38,7 @@ impl Compiler {
         }
 
         // write the content
-        let size = match &artifact.content {
+        match &artifact.content {
             ArtifactContent::Text { code, .. } => {
                 self.program
                     .fs
@@ -61,7 +48,6 @@ impl Compiler {
                         path: path.to_path_buf(),
                         message: Some(e.to_string()),
                     })?;
-                code.len()
             }
             ArtifactContent::Json { content, .. } => {
                 self.program.fs.write_string(path, content).map_err(|e| {
@@ -71,7 +57,6 @@ impl Compiler {
                         message: Some(e.to_string()),
                     }
                 })?;
-                content.len()
             }
             ArtifactContent::Binary { bytes, .. } => {
                 self.program
@@ -82,14 +67,9 @@ impl Compiler {
                         path: path.to_path_buf(),
                         message: Some(e.to_string()),
                     })?;
-                bytes.len()
             }
         };
 
-        Ok(EmittedArtifact {
-            artifact: artifact.id,
-            path: path.to_path_buf(),
-            size,
-        })
+        Ok(())
     }
 }

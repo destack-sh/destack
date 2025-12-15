@@ -24,8 +24,7 @@ impl Compiler {
             }
             dir::ScalarLiteral::RegexString { content, flags } => {
                 let content = ast_strings.intern_from(&self.program.strings, *content);
-                let flags =
-                    flags.map(|flag| ast_strings.intern_from(&self.program.strings, flag));
+                let flags = flags.map(|flag| ast_strings.intern_from(&self.program.strings, flag));
                 ast::ScalarLiteral::RegexString { content, flags }
             }
         }
@@ -59,24 +58,20 @@ impl Compiler {
             dir::TypeLiteral::Composite(composite_type) => {
                 ast::TypeLiteral::Composite(self.unbind_declaration_type(composite_type))
             }
-            dir::TypeLiteral::ScalarLiteral(scalar) => {
-                match scalar {
-                    dir::ScalarLiteral::Boolean(_) => ast::TypeLiteral::Boolean,
-                    dir::ScalarLiteral::Integer(_) => {
-                        ast::TypeLiteral::Int(ast::IntType::Arbitrary {
-                            width: Some(32),
-                            is_signed: true,
-                        })
-                    }
-                    dir::ScalarLiteral::Bigint(_) => ast::TypeLiteral::Bigint,
-                    dir::ScalarLiteral::Float(_) => {
-                        ast::TypeLiteral::Float(ast::FloatType { width: Some(64) })
-                    }
-                    dir::ScalarLiteral::Character(_) => ast::TypeLiteral::Character,
-                    dir::ScalarLiteral::String(_) => ast::TypeLiteral::String,
-                    dir::ScalarLiteral::RegexString { .. } => ast::TypeLiteral::String,
+            dir::TypeLiteral::ScalarLiteral(scalar) => match scalar {
+                dir::ScalarLiteral::Boolean(_) => ast::TypeLiteral::Boolean,
+                dir::ScalarLiteral::Integer(_) => ast::TypeLiteral::Int(ast::IntType::Arbitrary {
+                    width: Some(32),
+                    is_signed: true,
+                }),
+                dir::ScalarLiteral::Bigint(_) => ast::TypeLiteral::Bigint,
+                dir::ScalarLiteral::Float(_) => {
+                    ast::TypeLiteral::Float(ast::FloatType { width: Some(64) })
                 }
-            }
+                dir::ScalarLiteral::Character(_) => ast::TypeLiteral::Character,
+                dir::ScalarLiteral::String(_) => ast::TypeLiteral::String,
+                dir::ScalarLiteral::RegexString { .. } => ast::TypeLiteral::String,
+            },
         }
     }
 
@@ -145,7 +140,9 @@ impl Compiler {
         match float_type {
             dir::FloatType::Float32 => ast::FloatType { width: Some(32) },
             dir::FloatType::Float64 => ast::FloatType { width: Some(64) },
-            dir::FloatType::Arbitrary { width } => ast::FloatType { width: Some(*width) },
+            dir::FloatType::Arbitrary { width } => ast::FloatType {
+                width: Some(*width),
+            },
         }
     }
 
@@ -190,7 +187,14 @@ impl Compiler {
                 let arguments = arguments
                     .iter()
                     .map(|argument| {
-                        self.unbind_argument(module, *argument, tree, symbols, ast_tree, ast_strings)
+                        self.unbind_argument(
+                            module,
+                            *argument,
+                            tree,
+                            symbols,
+                            ast_tree,
+                            ast_strings,
+                        )
                     })
                     .collect();
                 ast::TemplateLiteral::InterpolatedString { strings, arguments }
