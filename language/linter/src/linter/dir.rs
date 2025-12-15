@@ -1,56 +1,105 @@
 use std::sync::Arc;
 
-use destack_dir as dir;
-use destack_source::{FileId, ModuleId, Span};
+use destack_ast::StringId;
+use destack_source::{ModuleId, Span};
 use destack_workspace::{LintSeverity, LinterOptions, Module, Program};
-use parking_lot::RwLock;
+use indexmap::IndexMap;
+use {destack_ast as ast, destack_dir as dir};
 
 use crate::{LintDiagnostic, LintMeta};
 
-/// Context for DIR-level linting of a single module.
-pub struct LintModuleDirContext {
+/// Context for DIR-level linting of a single module. Unfurls ModuleDir.
+pub struct LintModuleDirContext<'a> {
     /// The program containing this module.
     pub program: Arc<Program>,
-    /// The id of the module being linted.
-    pub module_id: ModuleId,
-    /// The file id of the module's source.
-    pub file_id: FileId,
     /// The module being linted.
-    module: Arc<RwLock<Module>>,
+    pub module: &'a Module,
+
+    /// The AST tree.
+    pub ast: &'a ast::NodeTree,
+    /// The DIR tree.
+    pub tree: &'a dir::NodeTree,
+    /// The symbol table.
+    pub symbols: &'a dir::SymbolTable,
+    /// The type table.
+    pub types: &'a dir::TypeTable,
+    /// The top-level expressions of the Module.
+    pub roots: Vec<dir::LocalNodeId<dir::Expression>>,
+
+    /// The symbol of the Module namespace.
+    pub namespace_symbol: dir::LocalSymbolId,
+    /// The scope of the Module.
+    pub namespace_scope: dir::LocalScopeId,
+    /// The symbol of the Module default.
+    pub default_symbol: dir::LocalSymbolId,
+    /// Namespace exports: modules whose exports are re-exported via `export * from "..."`.
+    pub namespace_exports: Vec<ModuleId>,
+    /// Resolved import specifiers to module ids (keyed by (relative_module, specifier)).
+    pub imported_modules: IndexMap<(Option<ModuleId>, StringId), ModuleId>,
+    /// Exported symbols by key (space, name).
+    pub exported_symbols: IndexMap<(dir::SymbolSpace, dir::StaticKey), dir::LocalSymbolId>,
+
     /// Linter configuration.
-    options: LinterOptions,
+    pub options: &'a LinterOptions,
+
     /// Collected diagnostics.
     diagnostics: Vec<LintDiagnostic>,
 }
 
-impl std::fmt::Debug for LintModuleDirContext {
+impl<'a> std::fmt::Debug for LintModuleDirContext<'a> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("LintModuleDirContext")
-            .field("module_id", &self.module_id)
+            .field("module_id", &self.module.id)
             .finish()
     }
 }
 
-impl LintModuleDirContext {
+#[allow(clippy::too_many_arguments)]
+impl<'a> LintModuleDirContext<'a> {
     /// Create a new DIR lint context for a module.
-    pub fn new(program: Arc<Program>, module: Arc<RwLock<Module>>, options: LinterOptions) -> Self {
-        let (module_id, file_id) = {
-            let m = module.read();
-            (m.id, m.file_id)
-        };
+    pub fn new(
+        program: Arc<Program>,
+        module: &'a Module,
+        ast: &'a ast::NodeTree,
+        tree: &'a dir::NodeTree,
+        symbols: &'a dir::SymbolTable,
+        types: &'a dir::TypeTable,
+        roots: Vec<dir::LocalNodeId<dir::Expression>>,
+        namespace_symbol: dir::LocalSymbolId,
+        namespace_scope: dir::LocalScopeId,
+        default_symbol: dir::LocalSymbolId,
+        namespace_exports: Vec<ModuleId>,
+        imported_modules: IndexMap<(Option<ModuleId>, StringId), ModuleId>,
+        exported_symbols: IndexMap<(dir::SymbolSpace, dir::StaticKey), dir::LocalSymbolId>,
+        options: &'a LinterOptions,
+    ) -> Self {
         Self {
             program,
-            module_id,
-            file_id,
             module,
+            ast,
+            tree,
+            symbols,
+            types,
+            roots,
+            namespace_symbol,
+            namespace_scope,
+            default_symbol,
+            namespace_exports,
+            imported_modules,
+            exported_symbols,
             options,
             diagnostics: Vec::new(),
         }
     }
 
-    /// Return the linter options.
-    pub fn options(&self) -> &LinterOptions {
-        &self.options
+    /// Return the file id.
+    pub fn file_id(&self) -> destack_source::FileId {
+        self.module.file_id
+    }
+
+    /// Return the module id.
+    pub fn module_id(&self) -> destack_source::ModuleId {
+        self.module.id
     }
 
     /// Resolve severity for a rule.
@@ -83,50 +132,7 @@ impl LintModuleDirContext {
 
     /// Return the source span for a DIR node by looking up its AST source node.
     pub fn get_span<T: dir::Node>(&self, id: dir::LocalNodeId<T>) -> Span {
-        let module = self.module.read();
-        let dir_tree = module.dir.tree.read();
-        let ast_node_id = dir_tree.get_source(id.id);
-        module.ast.tree.get_span_by_id(ast_node_id)
-    }
-
-    /// Get the parent node id for a DIR node.
-    pub fn get_parent_id<T: dir::Node>(
-        &self,
-        id: dir::LocalNodeId<T>,
-    ) -> Option<dir::LocalNodeIdAny> {
-        let module = self.module.read();
-        let dir_tree = module.dir.tree.read();
-        dir_tree.get_parent(id.id)
-    }
-
-    /// Iterate all nodes of a given type and call the callback for each.
-    pub fn for_each<N, F>(&mut self, mut callback: F)
-    where
-        N: dir::Node + Clone,
-        dir::NodeTree: dir::NodeTreeImpl<N>,
-        F: for<'a> FnMut(
-            &'a dir::NodeTree,
-            dir::LocalNodeId<N>,
-            &'a N,
-            Span,
-        ) -> Option<LintDiagnostic>,
-    {
-        let diagnostics: Vec<_> = {
-            let module = self.module.read();
-            let dir_tree = module.dir.tree.read();
-            let ast_tree = &module.ast.tree;
-            dir_tree
-                .iter_nodes_of_type::<N>()
-                .filter_map(|(node_id, node)| {
-                    let ast_node_id = dir_tree.get_source(node_id.id);
-                    let span = ast_tree.get_span_by_id(ast_node_id);
-                    callback(&dir_tree, node_id, node, span)
-                })
-                .collect()
-        };
-
-        for diagnostic in diagnostics {
-            self.report(diagnostic);
-        }
+        let ast_node_id = self.tree.get_source(id.id);
+        self.ast.get_span_by_id(ast_node_id)
     }
 }

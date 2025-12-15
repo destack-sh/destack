@@ -1,5 +1,4 @@
 use destack_ast::{Block, BlockFormat};
-use destack_source::{FileId, ModuleId};
 use destack_workspace::LintSeverity;
 
 use crate::{LintDiagnostic, LintModuleAstContext, LintRule, declare_lint};
@@ -24,35 +23,28 @@ impl LintRule for NoEmptyBlock {
         NoEmptyBlock::meta()
     }
 
-    fn check_module_ast(
-        &self,
-        file_id: FileId,
-        _module_id: ModuleId,
-        severity: LintSeverity,
-        ctx: &mut LintModuleAstContext,
-    ) {
-        ctx.for_each::<Block, _>(|tree, node_id, block, span| {
-            // only flag explicit blocks (not implicit module-level blocks)
+    fn check_module_ast<'a>(&self, severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+        for node_id in ctx.tree.iter_nodes::<Block>() {
+            let block = ctx.tree.get(node_id);
             if block.format == BlockFormat::Explicit
                 && block.expressions.is_empty()
-                && !tree.has_infix_annotations(node_id.id)
+                && !ctx.tree.has_infix_annotations(node_id.id)
             {
-                Some(
+                let span = ctx.tree.get_span(node_id);
+                ctx.report(
                     LintDiagnostic::new(
                         NO_EMPTY_BLOCK.id,
                         NO_EMPTY_BLOCK.code,
                         NO_EMPTY_BLOCK.category,
                         severity,
                         "empty block statement",
-                        file_id,
+                        ctx.module.file_id,
                         span,
                     )
                     .with_label("this block is empty"),
-                )
-            } else {
-                None
+                );
             }
-        });
+        }
     }
 }
 

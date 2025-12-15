@@ -1,5 +1,4 @@
 use destack_ast::Expression;
-use destack_source::{FileId, ModuleId};
 use destack_workspace::LintSeverity;
 
 use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
@@ -25,32 +24,49 @@ impl LintRule for NoDebugger {
         NoDebugger::meta()
     }
 
-    fn check_module_ast(
+    fn check_module_ast<'a>(
         &self,
-        file_id: FileId,
-        _module_id: ModuleId,
         severity: LintSeverity,
-        ctx: &mut LintModuleAstContext,
+        ctx: &mut LintModuleAstContext<'a>,
     ) {
-        ctx.for_each::<Expression, _>(|_tree, _node_id, expression, span| {
-            if matches!(expression, Expression::Debugger) {
-                Some(
-                    LintDiagnostic::new(
-                        NO_DEBUGGER.id,
-                        NO_DEBUGGER.code,
-                        NO_DEBUGGER.category,
-                        severity,
-                        "debugger statement is not allowed",
-                        file_id,
-                        span,
-                    )
-                    .with_label("remove this debugger statement")
-                    .with_fix(LintFix::safe("Remove debugger statement").delete(span)),
-                )
-            } else {
-                None
+        for node_id in ctx.tree.iter_nodes::<Expression>() {
+            let expression = ctx.tree.get(node_id);
+            if !matches!(expression, Expression::Debugger) {
+                continue;
             }
-        });
+
+            let span = ctx.tree.get_span(node_id);
+            let diagnostic = LintDiagnostic::new(
+                NO_DEBUGGER.id,
+                NO_DEBUGGER.code,
+                NO_DEBUGGER.category,
+                severity,
+                "debugger statement is not allowed",
+                ctx.module.file_id,
+                span,
+            )
+            .with_label("remove this debugger statement");
+
+            // check if parent is Statement (i.e., `debugger;` as a standalone statement)
+            // if so, delete the whole statement span safely (includes semicolon)
+            if let Some(parent_id) = ctx.parents.get(node_id)
+                && ctx.tree.get_node_type(parent_id) == destack_ast::NodeType::Expression
+            {
+                let parent_expr_id = destack_ast::LocalNodeId::<Expression>::new(parent_id);
+                let parent_expr = ctx.tree.get(parent_expr_id);
+                if matches!(parent_expr, Expression::Statement(_)) {
+                    let parent_span = ctx.tree.get_span(parent_expr_id);
+                    let diagnostic = diagnostic
+                        .with_fix(LintFix::safe("Remove debugger statement").delete(parent_span));
+                    ctx.report(diagnostic);
+                    continue;
+                }
+            }
+            // not in statement position: offer unsafe fix only
+            let diagnostic = diagnostic
+                .with_fix(LintFix::r#unsafe("Remove debugger expression").delete(span));
+            ctx.report(diagnostic);
+        }
     }
 }
 
@@ -117,9 +133,12 @@ function foo() {
     #[test]
     fn test_fix_removes_debugger_statement() {
         let test = TestProgram::for_rule(NoDebugger);
-        let result = test.lint_ast("test.ds", r#"
+        let result = test.lint_ast(
+            "test.ds",
+            r#"
 debugger;
-"#);
+"#,
+        );
         test.result(result)
             .assert_lint("no-debugger")
             .assert_has_fix("no-debugger")
@@ -150,16 +169,23 @@ let y = 2;
     #[test]
     fn test_fix_without_semicolon() {
         let test = TestProgram::for_rule(NoDebugger);
-        let result = test.lint_ast("test.ds", r#"
+        let result = test.lint_ast(
+            "test.ds",
+            r#"
 let x = debugger;
-"#);
+"#,
+        );
         test.result(result)
             .assert_lint("no-debugger")
-            .assert_safe_fixed(r#"
+            .assert_safe_fixed(
+                r#"
 let x = debugger;
-"#)
-            .assert_unsafe_fixed(r#"
+"#,
+            )
+            .assert_unsafe_fixed(
+                r#"
 let x = ;
-"#);
+"#,
+            );
     }
 }

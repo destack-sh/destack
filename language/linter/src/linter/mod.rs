@@ -1,7 +1,6 @@
 mod ast;
 mod diff;
 mod dir;
-mod mir;
 mod program;
 mod rule;
 mod runner;
@@ -10,7 +9,6 @@ pub use ast::*;
 pub use destack_workspace::LintCategory;
 pub use diff::*;
 pub use dir::*;
-pub use mir::*;
 pub use program::*;
 pub use rule::*;
 pub use runner::*;

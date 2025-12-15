@@ -1,56 +1,77 @@
 use std::sync::Arc;
 
-use destack_ast as ast;
-use destack_source::{FileId, ModuleId, Span};
+use destack_ast::{self as ast, StringPool};
 use destack_workspace::{LintSeverity, LinterOptions, Module, Program};
-use parking_lot::RwLock;
 
 use crate::{LintDiagnostic, LintMeta};
 
-/// Context for AST-level linting of a single module.
-pub struct LintModuleAstContext {
+/// Context for AST-level linting of a single module. Unfurls ModuleAst.
+pub struct LintModuleAstContext<'a> {
     /// The program containing this module.
     pub program: Arc<Program>,
-    /// The id of the module being linted.
-    pub module_id: ModuleId,
-    /// The file id of the module's source.
-    pub file_id: FileId,
     /// The module being linted.
-    module: Arc<RwLock<Module>>,
+    pub module: &'a Module,
+    
+    /// The AST tree.
+    pub tree: &'a ast::NodeTree,
+    /// The parent index.
+    pub parents: &'a ast::NodeParentIndex,
+    /// The roots.
+    pub roots: &'a Vec<ast::LocalNodeId<ast::Expression>>,
+    /// The string pool.
+    pub strings: &'a StringPool,
+    
     /// Linter configuration.
-    options: LinterOptions,
+    pub options: &'a LinterOptions,
+    
     /// Collected diagnostics.
     diagnostics: Vec<LintDiagnostic>,
 }
 
-impl std::fmt::Debug for LintModuleAstContext {
+impl<'a> std::fmt::Debug for LintModuleAstContext<'a> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("LintModuleAstContext")
-            .field("module_id", &self.module_id)
+            .field("module_id", &self.module.id)
             .finish()
     }
 }
 
-impl LintModuleAstContext {
+impl<'a> LintModuleAstContext<'a> {
     /// Create a new AST lint context for a module.
-    pub fn new(program: Arc<Program>, module: Arc<RwLock<Module>>, options: LinterOptions) -> Self {
-        let (module_id, file_id) = {
-            let m = module.read();
-            (m.id, m.file_id)
-        };
+    pub fn new(
+        program: Arc<Program>,
+        module: &'a Module,
+        tree: &'a ast::NodeTree,
+        parents: &'a ast::NodeParentIndex,
+        roots: &'a Vec<ast::LocalNodeId<ast::Expression>>,
+        strings: &'a StringPool,
+        options: &'a LinterOptions,
+    ) -> Self {
         Self {
             program,
-            module_id,
-            file_id,
             module,
+            tree,
+            parents,
+            roots,
+            strings,
             options,
             diagnostics: Vec::new(),
         }
     }
 
+    /// Return the file id.
+    pub fn file_id(&self) -> destack_source::FileId {
+        self.module.file_id
+    }
+
+    /// Return the module id.
+    pub fn module_id(&self) -> destack_source::ModuleId {
+        self.module.id
+    }
+
     /// Return the linter options.
     pub fn options(&self) -> &LinterOptions {
-        &self.options
+        self.options
     }
 
     /// Resolve severity for a rule.
@@ -81,39 +102,4 @@ impl LintModuleAstContext {
         &self.diagnostics
     }
 
-    /// Get the parent node id for an AST node.
-    pub fn get_parent_id<T: ast::Node>(
-        &self,
-        id: ast::LocalNodeId<T>,
-    ) -> Option<ast::LocalNodeIdAny> {
-        let module = self.module.read();
-        module.ast.parents.get(id).map(|parent_id| {
-            let parent_type = module.ast.tree.get_node_type(parent_id);
-            ast::LocalNodeIdAny::new(parent_id, parent_type)
-        })
-    }
-
-    /// Iterate all nodes of a given type and call the callback for each.
-    pub fn for_each<N, F>(&mut self, mut callback: F)
-    where
-        N: ast::Node + Clone,
-        ast::NodeTree: ast::NodeTreeImpl<N>,
-        F: FnMut(&ast::NodeTree, ast::LocalNodeId<N>, &N, Span) -> Option<LintDiagnostic>,
-    {
-        let diagnostics: Vec<_> = {
-            let module = self.module.read();
-            let tree = &module.ast.tree;
-            tree.iter_nodes::<N>()
-                .filter_map(|node_id| {
-                    let span = tree.get_span(node_id);
-                    let node = tree.get(node_id);
-                    callback(tree, node_id, node, span)
-                })
-                .collect()
-        };
-
-        for diagnostic in diagnostics {
-            self.report(diagnostic);
-        }
-    }
 }
