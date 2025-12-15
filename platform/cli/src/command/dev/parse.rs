@@ -1,33 +1,30 @@
-use clap::{ArgGroup, Args};
+use clap::Args;
 use destack_ast::{Dumper, DumperOptions, NodeVisitor};
 use destack_parser::{Parser, colorize_source};
 use destack_source::{DiagnosticOptions, LanguageType};
 
-use crate::command::{
-    DiagnosticArgs, DumpFormat, DumpKind, ProgramArgs, SourceArg, get_string_or_file,
-    print_diagnostics,
-};
+use crate::common::{DiagnosticArgs, ProgramArgs, SingleInputArgs, load_source, print_diagnostics};
 use crate::console;
 
+/// What to dump from parsing.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, clap::ValueEnum)]
+pub enum DumpKind {
+    /// Dump file/source representation.
+    #[value(alias = "f")]
+    File,
+    /// Dump AST/node representation.
+    #[value(alias = "n")]
+    Node,
+    /// Dump all representations.
+    #[value(alias = "a")]
+    All,
+}
+
 #[derive(Args, Debug, Clone)]
-#[command(group(
-    ArgGroup::new("source")
-        .args(["file", "string"])
-        .required(true)
-        .multiple(false)
-))]
 pub struct ParseArgs {
-    /// Read input from file.
-    #[arg(long)]
-    pub file: Option<String>,
-
-    /// Read input from provided string.
-    #[arg(long)]
-    pub string: Option<String>,
-
-    /// Parse a file with the given format (default: ds).
-    #[arg(long = "type", alias = "format", value_name = "FORMAT")]
-    pub format: Option<String>,
+    /// Input arguments.
+    #[command(flatten)]
+    pub input: SingleInputArgs,
 
     /// Dump output format(s): file|f, node|n (comma-separated).
     #[arg(long, value_delimiter = ',', default_value = "all")]
@@ -49,20 +46,23 @@ pub struct ParseArgs {
 /// Parse source into an AST and dump the statements.
 pub fn run(args: &ParseArgs) -> i32 {
     let silent = args.silent;
-    let dump = DumpFormat::from(args.dump.clone());
+    let dump_file = args.dump.contains(&DumpKind::File) || args.dump.contains(&DumpKind::All);
+    let dump_node = args.dump.contains(&DumpKind::Node) || args.dump.contains(&DumpKind::All);
     let diagnostic_options: DiagnosticOptions = args.diagnostics.clone().into();
     let program = args.program.setup();
 
-    // read input source
-    let file = match get_string_or_file(
-        &program,
-        SourceArg {
-            file: args.file.as_deref(),
-            string: args.string.as_deref(),
-            format: args.format.as_deref(),
-        },
-    ) {
-        Ok(file) => file,
+    // determine input source
+    let source = match args.input.to_source() {
+        Ok(s) => s,
+        Err(e) => {
+            console::error(&format!("error: {e}"));
+            return 1;
+        }
+    };
+
+    // load source
+    let file = match load_source(&program, &source) {
+        Ok(f) => f,
         Err(e) => {
             console::error(&format!("error: {e}"));
             return 1;
@@ -78,7 +78,7 @@ pub fn run(args: &ParseArgs) -> i32 {
     // dump output
     if !silent {
         // dump file representation (colorized source)
-        if dump.includes_file() {
+        if dump_file {
             console::info("=".repeat(80).as_str());
             console::info(format!("{} [FILE]", file.uri).as_str());
             console::info("=".repeat(80).as_str());
@@ -86,7 +86,7 @@ pub fn run(args: &ParseArgs) -> i32 {
         }
 
         // dump AST node representation
-        if dump.includes_node() {
+        if dump_node {
             let dump_options = DumperOptions::default();
             let strings = parser.strings.clone().into_immutable();
             let mut dumper = Dumper::new(&strings, &parser.tree, dump_options);

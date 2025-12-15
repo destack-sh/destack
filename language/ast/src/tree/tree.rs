@@ -270,31 +270,37 @@ impl NodeTree {
     /// Has prefix annotations attached to a node.
     #[inline]
     pub fn has_prefix_annotations(&self, node_id: u32) -> bool {
-        self.get_annotations(node_id).into_iter().any(|annotation_id| {
-            let annotation = self.get(annotation_id);
-            annotation.position() == AnnotationPosition::BlockPrefix
-                || annotation.position() == AnnotationPosition::LinePrefix
-        })
+        self.get_annotations(node_id)
+            .into_iter()
+            .any(|annotation_id| {
+                let annotation = self.get(annotation_id);
+                annotation.position() == AnnotationPosition::BlockPrefix
+                    || annotation.position() == AnnotationPosition::LinePrefix
+            })
     }
 
     /// Has postfix annotations attached to a node.
     #[inline]
     pub fn has_postfix_annotations(&self, node_id: u32) -> bool {
-        self.get_annotations(node_id).into_iter().any(|annotation_id| {
-            let annotation = self.get(annotation_id);
-            annotation.position() == AnnotationPosition::BlockPostfix
-                || annotation.position() == AnnotationPosition::LinePostfix
-                || annotation.position() == AnnotationPosition::LinePostfixBoundary
-        })
+        self.get_annotations(node_id)
+            .into_iter()
+            .any(|annotation_id| {
+                let annotation = self.get(annotation_id);
+                annotation.position() == AnnotationPosition::BlockPostfix
+                    || annotation.position() == AnnotationPosition::LinePostfix
+                    || annotation.position() == AnnotationPosition::LinePostfixBoundary
+            })
     }
 
     /// Has infix annotations attached to a node.
     #[inline]
     pub fn has_infix_annotations(&self, node_id: u32) -> bool {
-        self.get_annotations(node_id).into_iter().any(|annotation_id| {
-            let annotation = self.get(annotation_id);
-            annotation.position() == AnnotationPosition::BlockInfix
-        })
+        self.get_annotations(node_id)
+            .into_iter()
+            .any(|annotation_id| {
+                let annotation = self.get(annotation_id);
+                annotation.position() == AnnotationPosition::BlockInfix
+            })
     }
 
     /// Get annotations attached to a node.

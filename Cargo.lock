@@ -592,7 +592,7 @@ dependencies = [
 
 [[package]]
 name = "destack_ast"
-version = "0.49.4"
+version = "0.49.5"
 dependencies = [
  "criterion",
  "destack_base",
@@ -605,7 +605,7 @@ dependencies = [
 
 [[package]]
 name = "destack_base"
-version = "0.49.4"
+version = "0.49.5"
 dependencies = [
  "parking_lot",
  "stacker",
@@ -613,7 +613,7 @@ dependencies = [
 
 [[package]]
 name = "destack_cli"
-version = "0.49.4"
+version = "0.49.5"
 dependencies = [
  "clap",
  "destack_ast",
@@ -637,7 +637,7 @@ dependencies = [
 
 [[package]]
 name = "destack_codegen_cranelift"
-version = "0.49.4"
+version = "0.49.5"
 dependencies = [
  "cranelift-codegen",
  "cranelift-frontend",
@@ -662,7 +662,7 @@ dependencies = [
 
 [[package]]
 name = "destack_codegen_js"
-version = "0.49.4"
+version = "0.49.5"
 dependencies = [
  "dashmap",
  "destack_ast",
@@ -681,7 +681,7 @@ dependencies = [
 
 [[package]]
 name = "destack_codegen_lib"
-version = "0.49.4"
+version = "0.49.5"
 dependencies = [
  "dashmap",
  "destack_ast",
@@ -698,7 +698,7 @@ dependencies = [
 
 [[package]]
 name = "destack_compiler"
-version = "0.49.4"
+version = "0.49.5"
 dependencies = [
  "crossbeam-deque",
  "dashmap",
@@ -728,7 +728,7 @@ dependencies = [
 
 [[package]]
 name = "destack_compiler_macros"
-version = "0.49.4"
+version = "0.49.5"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -737,7 +737,7 @@ dependencies = [
 
 [[package]]
 name = "destack_daemon"
-version = "0.49.4"
+version = "0.49.5"
 dependencies = [
  "crossbeam-deque",
  "dashmap",
@@ -761,7 +761,7 @@ dependencies = [
 
 [[package]]
 name = "destack_dir"
-version = "0.49.4"
+version = "0.49.5"
 dependencies = [
  "dashmap",
  "destack_base",
@@ -779,7 +779,7 @@ dependencies = [
 
 [[package]]
 name = "destack_fir"
-version = "0.49.4"
+version = "0.49.5"
 dependencies = [
  "destack_source",
  "destack_unicode",
@@ -787,7 +787,7 @@ dependencies = [
 
 [[package]]
 name = "destack_formatter"
-version = "0.49.4"
+version = "0.49.5"
 dependencies = [
  "destack_ast",
  "destack_base",
@@ -799,7 +799,7 @@ dependencies = [
 
 [[package]]
 name = "destack_linter"
-version = "0.49.4"
+version = "0.49.5"
 dependencies = [
  "destack_ast",
  "destack_compiler",
@@ -815,7 +815,7 @@ dependencies = [
 
 [[package]]
 name = "destack_linter_macros"
-version = "0.49.4"
+version = "0.49.5"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -824,7 +824,7 @@ dependencies = [
 
 [[package]]
 name = "destack_lsp"
-version = "0.49.4"
+version = "0.49.5"
 dependencies = [
  "destack_ast",
  "destack_dir",
@@ -840,7 +840,7 @@ dependencies = [
 
 [[package]]
 name = "destack_machine"
-version = "0.49.4"
+version = "0.49.5"
 dependencies = [
  "destack_base",
  "destack_mir",
@@ -850,7 +850,7 @@ dependencies = [
 
 [[package]]
 name = "destack_mir"
-version = "0.49.4"
+version = "0.49.5"
 dependencies = [
  "destack_base",
  "destack_fir",
@@ -862,7 +862,7 @@ dependencies = [
 
 [[package]]
 name = "destack_napi"
-version = "0.49.4"
+version = "0.49.5"
 dependencies = [
  "destack_codegen_js",
  "destack_compiler",
@@ -879,7 +879,7 @@ dependencies = [
 
 [[package]]
 name = "destack_parser"
-version = "0.49.4"
+version = "0.49.5"
 dependencies = [
  "criterion",
  "destack_ast",
@@ -893,7 +893,7 @@ dependencies = [
 
 [[package]]
 name = "destack_resolver"
-version = "0.49.4"
+version = "0.49.5"
 dependencies = [
  "cfg-if",
  "crossbeam-deque",
@@ -916,7 +916,7 @@ dependencies = [
 
 [[package]]
 name = "destack_runtime"
-version = "0.49.4"
+version = "0.49.5"
 dependencies = [
  "destack_ast",
  "destack_dir",
@@ -929,7 +929,7 @@ dependencies = [
 
 [[package]]
 name = "destack_source"
-version = "0.49.4"
+version = "0.49.5"
 dependencies = [
  "cfg-if",
  "dashmap",
@@ -947,7 +947,7 @@ dependencies = [
 
 [[package]]
 name = "destack_test"
-version = "0.49.4"
+version = "0.49.5"
 dependencies = [
  "clap",
  "destack_ast",
@@ -972,15 +972,15 @@ dependencies = [
 
 [[package]]
 name = "destack_unicode"
-version = "0.49.4"
+version = "0.49.5"
 
 [[package]]
 name = "destack_vscode"
-version = "0.49.4"
+version = "0.49.5"
 
 [[package]]
 name = "destack_workspace"
-version = "0.49.4"
+version = "0.49.5"
 dependencies = [
  "crossbeam-deque",
  "dashmap",

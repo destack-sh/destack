@@ -3,7 +3,7 @@ use std::cmp::Ordering;
 use std::path::{Component, Path, PathBuf};
 
 use destack_source::{File, FileType, PackageId, PathExt, Uri};
-use destack_workspace::{ModuleSpecifier, Package, PackageManifest, PackageKind};
+use destack_workspace::{ModuleSpecifier, Package, PackageKind, PackageManifest};
 
 use crate::{ResolveContext, ResolveError, Resolver};
 

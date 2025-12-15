@@ -8,6 +8,10 @@ license.workspace = true
 rust-version.workspace = true
 default-run = "destack_cli"
 
+[features]
+default = ["dev"]
+dev = []
+
 [lib]
 path = "src/lib.rs"
 doctest = false
