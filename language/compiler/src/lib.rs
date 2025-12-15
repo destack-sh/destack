@@ -15,6 +15,7 @@ mod lint;
 mod lower;
 mod optimize;
 mod resolve;
+mod unbind;
 mod verify;
 
 pub use analyze::*;
@@ -29,6 +30,7 @@ pub use lint::*;
 pub use lower::*;
 pub use optimize::*;
 pub use resolve::*;
+pub use unbind::*;
 pub use verify::*;
 
 #[cfg(test)]

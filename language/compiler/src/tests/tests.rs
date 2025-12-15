@@ -6,10 +6,13 @@ use std::sync::{Arc, mpsc};
 use std::thread;
 use std::time::Duration;
 
+use destack_ast::NodeParentIndex;
 use destack_dir::{DumperOptions, GlobalSymbolId, Symbol};
+use destack_formatter::{DestackFormatContext, DestackFormatOptions};
+use destack_linter::print_diff;
 use destack_source::{
-    DiagnosticSeverity, File, FileRegistry, FileSystem, MemoryFileSystem, ModuleId,
-    PhysicalFileSystem, PrintOptions, Uri, print_diagnostics,
+    DiagnosticSeverity, File, FileId, FileRegistry, FileSystem, FileType, MemoryFileSystem,
+    ModuleId, MultiSpan, PhysicalFileSystem, PrintOptions, Uri, print_diagnostics,
 };
 use destack_workspace::{FormatterOptions, LinterOptions, Module, Program};
 use parking_lot::RwLock;
@@ -347,6 +350,59 @@ impl TestProgram {
                 .with_module_count(self.program.modules.len());
             print_diagnostics(&self.program.files, &diagnostics, options);
             panic!("unexpected diagnostic with code '{code}'");
+        }
+    }
+
+    /// Unbind a module's DIR back to AST and format it to a string.
+    pub fn unbind_to_string(&self, module_id: ModuleId) -> String {
+        let module = self.program.modules.get(module_id);
+        let module = module.read();
+
+        // unbind DIR to AST
+        let unbound = self.compiler.unbind_module(&module);
+
+        // create a synthetic file for formatting (no real source)
+        let file = File::from_text(
+            FileId::new(0),
+            "<unbound>".to_string(),
+            Uri::from_string("<unbound>"),
+            None,
+            FileType::Destack,
+            String::new(),
+        );
+
+        // format the AST
+        let strings = unbound.strings.into_immutable();
+        let context = DestackFormatContext {
+            options: DestackFormatOptions::default(),
+            file: &file,
+            tree: &unbound.tree,
+            source_map: &unbound.tree.source_map,
+            parents: NodeParentIndex::from_tree(&unbound.tree),
+            tokens: &vec![],
+            side_tokens: &vec![],
+            side_span: &MultiSpan::new(vec![]),
+            strings: &strings,
+        };
+
+        // format each root expression and join with newlines
+        let mut results = Vec::new();
+        for root_id in &unbound.roots {
+            let formatted = destack_fir::format!(context.clone(), [root_id]).unwrap();
+            let printed = formatted.print().unwrap();
+            results.push(printed.into_str());
+        }
+        results.join("\n")
+    }
+
+    /// Assert that a module's DIR has been elaborated to the given AST.
+    pub fn assert_elaborated(&self, module_id: ModuleId, expected: &str) {
+        let unbound = self.unbind_to_string(module_id);
+        let unbound = unbound.trim();
+        let expected = expected.trim();
+        if unbound != expected {
+            print_diff(expected, unbound);
+            panic!("elaborated code mismatch");
         }
     }
 }

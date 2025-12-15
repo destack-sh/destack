@@ -1443,6 +1443,12 @@ pub(crate) fn format_expression<'ast>(
 
         // type unary
         Expression::TypeUnary { operator, right } => match operator {
+            TypeUnaryOperator::Not => {
+                write!(f, [operator, right])?;
+            }
+            TypeUnaryOperator::Maybe | TypeUnaryOperator::Must => {
+                write!(f, [right, operator])?;
+            }
             TypeUnaryOperator::Newtype
             | TypeUnaryOperator::Type
             | TypeUnaryOperator::Readonly

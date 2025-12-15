@@ -28,6 +28,9 @@ impl<'ast> Format<DestackFormatContext<'ast>> for UnaryOperator {
 impl<'ast> Format<DestackFormatContext<'ast>> for TypeUnaryOperator {
     fn format(&self, f: &mut DestackFormatter<'ast, '_>) -> FormatResult<()> {
         let token = match self {
+            TypeUnaryOperator::Not => token("!"),
+            TypeUnaryOperator::Maybe => token("?"),
+            TypeUnaryOperator::Must => token("!"),
             TypeUnaryOperator::Newtype => token("newtype"),
             TypeUnaryOperator::Type => token("type"),
             TypeUnaryOperator::Readonly => token("readonly"),
@@ -90,6 +93,7 @@ impl<'ast> Format<DestackFormatContext<'ast>> for BinaryOperator {
 
             // container
             BinaryOperator::In => token("in"),
+            BinaryOperator::InstanceOf => token("instanceof"),
         };
         write!(f, [token])
     }
@@ -99,6 +103,7 @@ impl<'ast> Format<DestackFormatContext<'ast>> for TypeBinaryOperator {
     fn format(&self, f: &mut DestackFormatter<'ast, '_>) -> FormatResult<()> {
         let token = match self {
             TypeBinaryOperator::Cast => token("as"),
+            TypeBinaryOperator::In => token("in"),
             TypeBinaryOperator::Is => token("is"),
             TypeBinaryOperator::InstanceOf => token("instanceof"),
             TypeBinaryOperator::Satisfies => token("satisfies"),

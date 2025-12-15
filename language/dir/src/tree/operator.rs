@@ -71,8 +71,6 @@ pub enum BinaryOperator {
     ShiftRight,
     /// `>>>`
     UnsignedShiftRight,
-    /// `>>>=`
-    UnsignedShiftRightAssign,
 
     // elementwise
     /// `&`

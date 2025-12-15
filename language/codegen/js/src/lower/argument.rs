@@ -120,15 +120,6 @@ impl ModuleLowerer<'_> {
                     .expect_node::<Expression>(value.into_global_any(self.module.id), self)?;
                 Argument::Spread { value }
             }
-            dir::Argument::Dynamic { key, value } => {
-                let key = self
-                    .lower_expression(*key)
-                    .expect_node::<Expression>(key.into_global_any(self.module.id), self)?;
-                let value = self
-                    .lower_expression(*value)
-                    .expect_node::<Expression>(value.into_global_any(self.module.id), self)?;
-                Argument::Dynamic { key, value }
-            }
         };
         let argument_id = self
             .tree

@@ -43,7 +43,7 @@ impl Parameter {
     }
 }
 
-/// An Argument is a named, positional, spread, labeled, or dynamic argument.
+/// An Argument is a named, positional, spread, or labeled argument.
 /// Parameter mapping (which parameter an argument maps to) is resolved
 /// as part of call resolution, not stored here.
 #[derive(Debug, Clone, PartialEq)]
@@ -63,11 +63,6 @@ pub enum Argument {
     Positional { value: LocalNodeId<Expression> },
     /// Spread argument (like `...args`).
     Spread { value: LocalNodeId<Expression> },
-    /// Dynamic/computed argument (like `[key]: value`).
-    Dynamic {
-        key: LocalNodeId<Expression>,
-        value: LocalNodeId<Expression>,
-    },
 }
 
 impl Argument {
@@ -78,7 +73,6 @@ impl Argument {
             Argument::Labeled { value, .. } => *value,
             Argument::Positional { value, .. } => *value,
             Argument::Spread { value, .. } => *value,
-            Argument::Dynamic { value, .. } => *value,
         }
     }
 }

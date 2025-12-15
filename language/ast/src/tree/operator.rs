@@ -84,6 +84,12 @@ pub enum OperatorPrecedence {
 /// A TypeUnaryOperator is a type unary operator.
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum TypeUnaryOperator {
+    /// `!T`
+    Not = 1811,
+    /// `T?`
+    Maybe = 1810,
+    /// `T!`
+    Must = 1809,
     /// `newtype`
     Newtype = 1808,
     /// `type`
@@ -120,14 +126,17 @@ impl TypeUnaryOperator {
     #[inline]
     pub fn is_prefix(&self) -> bool {
         match self {
-            TypeUnaryOperator::Newtype
+            TypeUnaryOperator::Not
+            | TypeUnaryOperator::Newtype
             | TypeUnaryOperator::Type
             | TypeUnaryOperator::Readonly
             | TypeUnaryOperator::Typeof
             | TypeUnaryOperator::Keyof
             | TypeUnaryOperator::Infer
             | TypeUnaryOperator::Asserts => true,
-            TypeUnaryOperator::AsConst => false,
+            TypeUnaryOperator::Maybe
+            | TypeUnaryOperator::Must
+            | TypeUnaryOperator::AsConst => false,
         }
     }
 
@@ -261,7 +270,9 @@ impl UnaryOperator {
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum TypeBinaryOperator {
     /// `as`
-    Cast = 1006,
+    Cast = 1007,
+    /// `in`
+    In = 1006,
     /// `is`
     Is = 1005,
     /// `instanceof`
@@ -293,6 +304,7 @@ impl TypeBinaryOperator {
     pub fn from_token(token_str: &str, _token_type: TokenType) -> Option<TypeBinaryOperator> {
         match token_str {
             "as" => Some(TypeBinaryOperator::Cast),
+            "in" => Some(TypeBinaryOperator::In),
             "is" => Some(TypeBinaryOperator::Is),
             "instanceof" => Some(TypeBinaryOperator::InstanceOf),
             "satisfies" => Some(TypeBinaryOperator::Satisfies),
@@ -386,6 +398,8 @@ pub enum BinaryOperator {
     // container
     /// `in`
     In = 1102,
+    /// `instanceof`
+    InstanceOf = 1101,
 }
 
 impl BinaryOperator {
@@ -439,6 +453,7 @@ impl BinaryOperator {
 
             // container
             BinaryOperator::In => OperatorPrecedence::Container,
+            BinaryOperator::InstanceOf => OperatorPrecedence::Container,
         }
     }
 
@@ -496,6 +511,7 @@ impl BinaryOperator {
 
             // container
             TokenType::Identifier if token_str == "in" => Some(BinaryOperator::In),
+            TokenType::Identifier if token_str == "instanceof" => Some(BinaryOperator::InstanceOf),
 
             _ => None,
         }
