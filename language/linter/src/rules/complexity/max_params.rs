@@ -45,9 +45,7 @@ impl LintRule for MaxParams {
                         MAX_PARAMS.code,
                         MAX_PARAMS.category,
                         severity,
-                        format!(
-                            "function has {param_count} parameters (max {DEFAULT_MAX_PARAMS})"
-                        ),
+                        format!("function has {param_count} parameters (max {DEFAULT_MAX_PARAMS})"),
                         ctx.module.file_id,
                         ctx.tree.get_span(node_id),
                     )

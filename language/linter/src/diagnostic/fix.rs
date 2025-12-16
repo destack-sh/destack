@@ -1,6 +1,4 @@
-use destack_source::{
-    Applicability, Edit, FileId, LabeledSpan, Span, Suggestion, SuggestionStyle,
-};
+use destack_source::{Applicability, Edit, FileId, LabeledSpan, Span, Suggestion, SuggestionStyle};
 
 /// A suggested fix for a lint.
 #[derive(Debug, Clone)]

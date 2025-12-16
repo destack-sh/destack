@@ -72,10 +72,7 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> T
     let count_str = content.strip_prefix("count:").unwrap_or(content).trim();
     let Ok(expected_count) = count_str.parse::<usize>() else {
         return TestResult::Failed {
-            message: format!(
-                "find_references expectation '{}' is not a valid count",
-                content
-            ),
+            message: format!("find_references expectation '{content}' is not a valid count",),
         };
     };
 
@@ -87,10 +84,9 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> T
             if refs.len() != expected_count {
                 TestResult::Failed {
                     message: format!(
-                        "find_references at '{}' returned {} references, expected {}",
+                        "find_references at '{}' returned {} references, expected {expected_count}",
                         exp.target,
                         refs.len(),
-                        expected_count
                     ),
                 }
             } else {

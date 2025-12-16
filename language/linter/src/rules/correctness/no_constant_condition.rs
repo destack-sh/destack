@@ -41,7 +41,8 @@ impl LintRule for NoConstantCondition {
                 Expression::While { condition, .. } => *condition,
                 _ => continue,
             };
-            if is_constant_expression(ctx.tree, ctx.tree.get(condition_id)) {
+            let condition = ctx.tree.get(condition_id);
+            if is_constant_expression(ctx.tree, condition) {
                 ctx.report(
                     LintDiagnostic::new(
                         NO_CONSTANT_CONDITION.id,

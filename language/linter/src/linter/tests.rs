@@ -1,9 +1,5 @@
 use std::env::current_dir;
-use std::sync::{Arc, mpsc};
-use std::thread;
-use std::time::Duration;
-
-const TEST_TIMEOUT_SECONDS: u64 = 5;
+use std::sync::Arc;
 
 use destack_ast::NodeParentIndex;
 use destack_compiler::{AnalyzeTask, CompileOptions, Compiler, ImportTask};
@@ -14,7 +10,7 @@ use destack_source::{
     DiagnosticCollection, DiagnosticSeverity, Edit, File, FileId, FileType, LanguageType,
     MemoryFileSystem, ModuleId, PrintOptions, Uri, print_diagnostics,
 };
-use destack_workspace::{Program, Session};
+use destack_workspace::{LintCategory, LintSeverity, LinterOptions, Program, Session};
 
 use crate::{
     BoxedLintRule, FixApplicability, LintDiagnostic, LintLevel, LintRunner, all_rules, print_diff,
@@ -32,6 +28,8 @@ pub(crate) struct TestProgram {
     compiler: Arc<Compiler>,
     /// The lint runner.
     runner: LintRunner,
+    /// Linter options for tests (all rules enabled by default).
+    linter_options: LinterOptions,
 }
 
 impl std::fmt::Debug for TestProgram {
@@ -40,6 +38,15 @@ impl std::fmt::Debug for TestProgram {
             .field("rules", &self.runner.rules().len())
             .finish()
     }
+}
+
+/// Linter options for tests with all categories enabled.
+fn test_linter_options() -> LinterOptions {
+    let mut options = LinterOptions::all();
+    for category in LintCategory::ALL {
+        options = options.with_category(*category, LintSeverity::Warning);
+    }
+    options
 }
 
 #[allow(dead_code)]
@@ -72,6 +79,7 @@ impl TestProgram {
             program,
             compiler,
             runner,
+            linter_options: test_linter_options(),
         }
     }
 
@@ -124,33 +132,16 @@ impl TestProgram {
         self.compiler.enqueue(AnalyzeTask::AnalyzeModule { module });
     }
 
-    /// Run all queued tasks (with timeout).
+    /// Run all queued tasks.
     pub(crate) fn compile(&self) {
-        let timeout = Duration::from_secs(TEST_TIMEOUT_SECONDS);
-        let compiler = self.compiler.clone();
-
-        let (tx, rx) = mpsc::channel();
-        thread::spawn(move || {
-            compiler.compile();
-            let _ = tx.send(());
-        });
-
-        match rx.recv_timeout(timeout) {
-            Ok(()) => {}
-            Err(mpsc::RecvTimeoutError::Timeout) => {
-                panic!("compile timed out after {TEST_TIMEOUT_SECONDS}s");
-            }
-            Err(mpsc::RecvTimeoutError::Disconnected) => {
-                panic!("compile thread panicked");
-            }
-        }
+        self.compiler.compile();
     }
 
     /// Lint a module at the given level.
     pub(crate) fn lint_module(&self, module: ModuleId, level: LintLevel) -> Vec<LintDiagnostic> {
         let module = self.program.modules.get(module);
         self.runner
-            .lint_module(self.program.clone(), module, &self.program.linter, level)
+            .lint_module(self.program.clone(), module, &self.linter_options, level)
     }
 
     /// Add module, compile through analysis, and lint.

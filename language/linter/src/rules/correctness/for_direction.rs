@@ -85,7 +85,9 @@ fn get_condition_direction(
     match condition {
         Expression::Binary { operator, .. } => match operator {
             // i < n or i <= n: counter should increase
-            BinaryOperator::LessThan | BinaryOperator::LessThanOrEqual => Some(Direction::Increasing),
+            BinaryOperator::LessThan | BinaryOperator::LessThanOrEqual => {
+                Some(Direction::Increasing)
+            }
             // i > n or i >= n: counter should decrease
             BinaryOperator::GreaterThan | BinaryOperator::GreaterThanOrEqual => {
                 Some(Direction::Decreasing)
