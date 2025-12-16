@@ -11,8 +11,8 @@ OUT_DIR = Path(__file__).parent
 
 def generate_many_types():
     """Generate a file with 100,000 type definitions."""
-    print("generating many_types.ds...")
-    with open(OUT_DIR / "many_types.ds", "w") as f:
+    print("generating _many_types.ds...")
+    with open(OUT_DIR / "_many_types.ds", "w") as f:
         for i in range(100_000):
             f.write(f"type Type_{i} = {{ field_{i}: int32 }};\n")
 
@@ -90,8 +90,8 @@ def generate_many_scopes():
 
 def generate_many_overloads():
     """Generate many function overloads."""
-    print("generating many_overloads.ds...")
-    with open(OUT_DIR / "many_overloads.ds", "w") as f:
+    print("generating _many_overloads.ds...")
+    with open(OUT_DIR / "_many_overloads.ds", "w") as f:
         # interface with many overloaded methods
         f.write("interface Overloaded {\n")
         for i in range(100):
@@ -151,8 +151,8 @@ def generate_wide_class():
 
 def generate_wide_interface():
     """Generate an interface with many distinct methods."""
-    print("generating wide_interface.ds...")
-    with open(OUT_DIR / "wide_interface.ds", "w") as f:
+    print("generating _wide_interface.ds...")
+    with open(OUT_DIR / "_wide_interface.ds", "w") as f:
         f.write("interface WideInterface {\n")
         for i in range(500):
             f.write(f"    method_{i}(x: int32): int32;\n")
