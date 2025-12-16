@@ -60,7 +60,12 @@ impl Parser {
             .for_node_type(NodeType::Declaration)?;
 
         // optional name / key
-        descriptor = descriptor.with_name_maybe(self.eat_name_maybe()?);
+        let name_span = if let Some((name, span)) = self.eat_name_maybe_with_span()? {
+            descriptor = descriptor.with_name(name);
+            Some(span)
+        } else {
+            None
+        };
 
         // optional static parameters: < ... >
         let static_parameters = self.eat_static_parameters_maybe()?;
@@ -96,6 +101,12 @@ impl Parser {
             },
             self.get_span_from(start),
         );
+
+        // set main_span to the name identifier
+        if let Some(span) = name_span {
+            self.tree.set_main_span(interface_id, span);
+        }
+
         Ok(interface_id)
     }
 }

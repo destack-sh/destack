@@ -108,10 +108,14 @@ impl Parser {
         };
 
         // function style, name, static parameters
-        let (name, static_parameters) = {
+        let (name, name_span, static_parameters) = {
             if kind == FunctionKind::Function {
                 // name
-                let name = self.eat_name_maybe()?;
+                let (name, name_span) = if let Some((n, s)) = self.eat_name_maybe_with_span()? {
+                    (Some(n), Some(s))
+                } else {
+                    (None, None)
+                };
 
                 // maybe keyword after name (maybe)
                 if expect_maybe {
@@ -123,14 +127,14 @@ impl Parser {
                     .eat_static_parameters_maybe()
                     .for_node_type(NodeType::Declaration)?;
 
-                (name, static_parameters)
+                (name, name_span, static_parameters)
             } else {
                 // static parameters
                 let static_parameters = self
                     .eat_static_parameters_maybe()
                     .for_node_type(NodeType::Declaration)?;
 
-                (None, static_parameters)
+                (None, None, static_parameters)
             }
         };
         descriptor = descriptor.with_name_maybe(name);
@@ -290,6 +294,12 @@ impl Parser {
             },
             self.get_span_from(start),
         );
+
+        // set main_span to the name identifier
+        if let Some(span) = name_span {
+            self.tree.set_main_span(function_id, span);
+        }
+
         Ok(function_id)
     }
 }

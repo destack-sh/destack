@@ -18,7 +18,12 @@ impl Parser {
         self.eat_keyword(Keyword::Namespace)?;
 
         // name
-        descriptor = descriptor.with_name_maybe(self.eat_name_maybe()?);
+        let name_span = if let Some((name, span)) = self.eat_name_maybe_with_span()? {
+            descriptor = descriptor.with_name(name);
+            Some(span)
+        } else {
+            None
+        };
 
         // where
         let where_clauses = self.eat_where_maybe()?;
@@ -45,6 +50,12 @@ impl Parser {
         };
 
         let namespace_id = self.tree.insert(namespace, self.get_span_from(start));
+
+        // set main_span to the name identifier
+        if let Some(span) = name_span {
+            self.tree.set_main_span(namespace_id, span);
+        }
+
         Ok(namespace_id)
     }
 }

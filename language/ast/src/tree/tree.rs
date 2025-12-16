@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::fmt::{Debug, Formatter};
 
-use destack_source::{FileSourceMap, Span};
+use destack_source::{NodeSourceMap, Span};
 
 use crate::{
     Annotation, AnnotationPosition, Arena, Argument, Blank, Block, Comment, Declaration,
@@ -21,7 +21,7 @@ pub struct NodeTree {
     /// The annotations attached to nodes.
     pub(crate) annotations_by_node_id: HashMap<u32, Vec<LocalNodeId<Annotation>>>,
     /// The spans of the NodeTree.
-    pub source_map: FileSourceMap,
+    pub source_map: NodeSourceMap,
 
     // node arenas
     pub(crate) expressions: Arena<Expression>,
@@ -73,7 +73,7 @@ impl NodeTree {
             local_id_by_node_id: Vec::with_capacity(capacity),
             node_type_by_node_id: Vec::with_capacity(capacity),
             annotations_by_node_id: HashMap::new(),
-            source_map: FileSourceMap::new(),
+            source_map: NodeSourceMap::new(),
             expressions: Arena::new(),
             blocks: Arena::new(),
             declarations: Arena::new(),
@@ -185,6 +185,30 @@ impl NodeTree {
         T: Node,
     {
         self.source_map.set(node_id.id, span);
+    }
+
+    /// Get the main span for a node (identifier span for declarations, etc).
+    #[inline]
+    pub fn get_main_span<T>(&self, node_id: LocalNodeId<T>) -> Option<Span>
+    where
+        T: Node,
+    {
+        self.source_map.get_main(node_id.id)
+    }
+
+    /// Get the main span for a node by its id.
+    #[inline]
+    pub fn get_main_span_by_id(&self, node_id: u32) -> Option<Span> {
+        self.source_map.get_main(node_id)
+    }
+
+    /// Set the main span for a node (identifier span for declarations, etc).
+    #[inline]
+    pub fn set_main_span<T>(&mut self, node_id: LocalNodeId<T>, span: Span)
+    where
+        T: Node,
+    {
+        self.source_map.set_main(node_id.id, span);
     }
 
     /// Get the spans for all nodes of a given type.

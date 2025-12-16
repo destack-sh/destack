@@ -128,7 +128,11 @@ impl Parser {
         };
 
         // pattern/name
-        let (pattern, name): (Option<LocalNodeId<Pattern>>, Option<StringId>) = {
+        let (pattern, name, name_span): (
+            Option<LocalNodeId<Pattern>>,
+            Option<StringId>,
+            Option<destack_source::Span>,
+        ) = {
             // pattern
             if !is_variadic
                 && self
@@ -142,12 +146,12 @@ impl Parser {
             {
                 let pattern = self
                     .with_options(self.options.in_before_type(), |parser| parser.eat_pattern())?;
-                (Some(pattern), None)
+                (Some(pattern), None, None)
             }
             // name
             else {
-                let name = self.eat_identifier()?;
-                (None, Some(name))
+                let (name, span) = self.eat_identifier_with_span()?;
+                (None, Some(name), Some(span))
             }
         };
 
@@ -243,6 +247,12 @@ impl Parser {
 
         // parameter
         let parameter_id = self.tree.insert(parameter, self.get_span_from(start));
+
+        // set main_span to the name identifier
+        if let Some(span) = name_span {
+            self.tree.set_main_span(parameter_id, span);
+        }
+
         Ok(parameter_id)
     }
 

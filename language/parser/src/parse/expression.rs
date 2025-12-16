@@ -614,7 +614,9 @@ impl Parser {
 
             // unary prefix operations
             else if let Ok(operator) = self.peek_unary_prefix_operator() {
+                let operator_start = self.mark();
                 self.bump(); // eat unary operator (always because right associative)
+                let operator_span = self.get_span_from(operator_start);
                 let right = self.with_options(
                     self.options
                         .not_in_position()
@@ -622,11 +624,15 @@ impl Parser {
                     |parser| parser.eat_expression(),
                 )?;
                 let expression = Expression::Unary { operator, right };
-                self.tree.insert(expression, self.get_span_from(start))
+                let expression_id = self.tree.insert(expression, self.get_span_from(start));
+                self.tree.set_main_span(expression_id, operator_span);
+                expression_id
             }
             // type unary operations
             else if let Ok(operator) = self.peek_type_unary_prefix_operator() {
+                let operator_start = self.mark();
                 self.bump(); // eat type unary operator (always because right associative)
+                let operator_span = self.get_span_from(operator_start);
                 let right = self.with_options(
                     self.options
                         .not_in_position()
@@ -635,7 +641,9 @@ impl Parser {
                     |parser| parser.eat_expression(),
                 )?;
                 let expression = Expression::TypeUnary { operator, right };
-                self.tree.insert(expression, self.get_span_from(start))
+                let expression_id = self.tree.insert(expression, self.get_span_from(start));
+                self.tree.set_main_span(expression_id, operator_span);
+                expression_id
             }
             // value (`^` or `^var` or `^T`)
             else if self.peek_token(TokenType::ElementwiseXor).is_ok()
@@ -1107,7 +1115,9 @@ impl Parser {
         while self.peek().is_ok() {
             // unary postfix operations
             if let Ok(operator) = self.peek_unary_postfix_operator() {
+                let operator_start = self.mark();
                 self.bump(); // eat unary operator
+                let operator_span = self.get_span_from(operator_start);
                 left_expression_id = self.tree.insert(
                     Expression::Unary {
                         operator,
@@ -1115,13 +1125,16 @@ impl Parser {
                     },
                     self.get_span_from(start),
                 );
+                self.tree.set_main_span(left_expression_id, operator_span);
             }
             // type unary postfix operations
             else if let Ok(operator) = self.peek_type_unary_postfix_operator() {
+                let operator_start = self.mark();
                 self.bump(); // eat type unary operator
                 if operator == TypeUnaryOperator::AsConst {
                     self.bump(); // eat second token
                 }
+                let operator_span = self.get_span_from(operator_start);
                 left_expression_id = self.tree.insert(
                     Expression::TypeUnary {
                         operator,
@@ -1129,6 +1142,7 @@ impl Parser {
                     },
                     self.get_span_from(start),
                 );
+                self.tree.set_main_span(left_expression_id, operator_span);
             }
             // range (`..`, `..=`)
             else if self.peek_token(TokenType::Range).is_ok() {
@@ -1155,7 +1169,7 @@ impl Parser {
             // member (also works across newline)
             else if let Ok(distance) = self.peek_member(TokenType::Identifier) {
                 self.bump_by(distance - 1); // keep the identifier
-                let name = self.eat_identifier()?;
+                let (name, name_span) = self.eat_identifier_with_span()?;
                 // speculatively unwrap postfix static parameterisation with `<`
                 //  (might also be just a comparison operator)
                 let static_arguments = if self.peek_token(TokenType::LessThan).is_ok() {
@@ -1179,6 +1193,7 @@ impl Parser {
                     },
                     self.get_span_from(start),
                 );
+                self.tree.set_main_span(left_expression_id, name_span);
             }
             // index (like `[]`)
             else if self.peek_token(TokenType::OpenBracket).is_ok()
@@ -1394,7 +1409,12 @@ impl Parser {
             if self.peek_token(TokenType::Newline).is_ok() {
                 self.eat_newlines_maybe()?; // eat newlines
             }
+
+            // capture operator span before eating
+            let operator_start = self.mark();
             self.bump_by(operator_offset); // eat infix operator
+            let operator_span = self.get_span_from(operator_start);
+
             self.eat_newline_maybe()?; // allow newlines after infix operator
 
             // eat right expression
@@ -1408,7 +1428,10 @@ impl Parser {
             // combine into new left expression
             let left_expression =
                 self.make_infix_expression(left_expression_id, right_operator, right_expression_id);
-            left_expression_id = self.tree.insert(left_expression, self.get_span_from(start))
+            left_expression_id = self.tree.insert(left_expression, self.get_span_from(start));
+
+            // set main_span to the operator
+            self.tree.set_main_span(left_expression_id, operator_span)
         }
 
         Ok(left_expression_id)

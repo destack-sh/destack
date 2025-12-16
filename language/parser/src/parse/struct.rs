@@ -55,7 +55,12 @@ impl Parser {
         let is_class = keyword == Keyword::Class;
 
         // optional name / key
-        descriptor = descriptor.with_name_maybe(self.eat_name_maybe()?);
+        let name_span = if let Some((name, span)) = self.eat_name_maybe_with_span()? {
+            descriptor = descriptor.with_name(name);
+            Some(span)
+        } else {
+            None
+        };
 
         // optional static parameters: < ... >
         let static_parameters = self
@@ -108,6 +113,11 @@ impl Parser {
             }
         };
         let declaration_id = self.tree.insert(declaration, self.get_span_from(start));
+
+        // set main_span to the name identifier
+        if let Some(span) = name_span {
+            self.tree.set_main_span(declaration_id, span);
+        }
 
         Ok(declaration_id)
     }
