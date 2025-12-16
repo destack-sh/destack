@@ -1,4 +1,4 @@
-use destack_ast::{Block, BlockFormat};
+use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
 use crate::{LintDiagnostic, LintModuleAstContext, LintRule, declare_lint};
@@ -24,9 +24,9 @@ impl LintRule for NoEmpty {
     }
 
     fn check_module_ast<'a>(&self, severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
-        for node_id in ctx.tree.iter_nodes::<Block>() {
+        for node_id in ctx.tree.iter_nodes::<ast::Block>() {
             let block = ctx.tree.get(node_id);
-            if block.format == BlockFormat::Explicit
+            if block.format == ast::BlockFormat::Explicit
                 && block.expressions.is_empty()
                 && !ctx.tree.has_infix_annotations(node_id.id)
             {

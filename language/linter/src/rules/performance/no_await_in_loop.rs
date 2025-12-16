@@ -1,7 +1,5 @@
-use destack_ast::{Expression, NodeType};
+use destack_ast as ast;
 use destack_workspace::LintSeverity;
-
-// nocheckin: make sure lints use ast/dir prefix (use destack_ast as ast, ast::Expression, ..)
 
 use crate::{LintDiagnostic, LintModuleAstContext, LintRule, declare_lint};
 
@@ -29,8 +27,8 @@ impl LintRule for NoAwaitInLoop {
     }
 
     fn check_module_ast<'a>(&self, severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
-        for node_id in ctx.tree.iter_nodes::<Expression>() {
-            let Expression::Await { .. } = ctx.tree.get(node_id) else {
+        for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
+            let ast::Expression::Await { .. } = ctx.tree.get(node_id) else {
                 continue;
             };
 
@@ -38,20 +36,20 @@ impl LintRule for NoAwaitInLoop {
             let mut current = node_id.id;
             while let Some(parent_id) = ctx.parents.get_by_id(current) {
                 let parent_type = ctx.tree.get_node_type(parent_id);
-                if parent_type != NodeType::Expression {
+                if parent_type != ast::NodeType::Expression {
                     current = parent_id;
                     continue;
                 }
 
-                let parent_expr_id = destack_ast::LocalNodeId::<Expression>::new(parent_id);
+                let parent_expr_id = ast::LocalNodeId::<ast::Expression>::new(parent_id);
                 let parent = ctx.tree.get(parent_expr_id);
 
                 match parent {
                     // found a loop: report the await
-                    Expression::While { .. }
-                    | Expression::For { .. }
-                    | Expression::ForEach { .. }
-                    | Expression::Loop { .. } => {
+                    ast::Expression::While { .. }
+                    | ast::Expression::For { .. }
+                    | ast::Expression::ForEach { .. }
+                    | ast::Expression::Loop { .. } => {
                         ctx.report(
                             LintDiagnostic::new(
                                 NO_AWAIT_IN_LOOP.id,
@@ -67,9 +65,9 @@ impl LintRule for NoAwaitInLoop {
                         break;
                     }
                     // found a function boundary: stop searching (await in nested async fn is fine)
-                    Expression::Declaration(decl_id) => {
+                    ast::Expression::Declaration(decl_id) => {
                         let decl = ctx.tree.get(*decl_id);
-                        if matches!(decl, destack_ast::Declaration::Function { .. }) {
+                        if matches!(decl, ast::Declaration::Function { .. }) {
                             break;
                         }
                     }

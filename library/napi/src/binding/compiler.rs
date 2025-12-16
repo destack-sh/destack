@@ -24,7 +24,6 @@ impl From<DiagnosticOptions> for destack_source::DiagnosticOptions {
     }
 }
 
-
 // -- Compile Options (Top Level) --
 
 /// The options for compiling a workspace.
@@ -51,7 +50,7 @@ impl From<CompileOptions> for destack_compiler::CompileOptions {
         Self {
             diagnostic: options.diagnostic.into(),
             workers: options.workers,
-            ....Default::default()
+            ..Default::default()
         }
     }
 }

@@ -1,4 +1,4 @@
-use destack_ast::{AssignOperator, BinaryOperator, Expression, UnaryOperator};
+use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
 use crate::{LintDiagnostic, LintModuleAstContext, LintRule, declare_lint};
@@ -31,8 +31,8 @@ impl LintRule for ForDirection {
     }
 
     fn check_module_ast<'a>(&self, severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
-        for node_id in ctx.tree.iter_nodes::<Expression>() {
-            let Expression::For {
+        for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
+            let ast::Expression::For {
                 condition: Some(condition_id),
                 increment: Some(increment_id),
                 ..
@@ -79,22 +79,22 @@ impl LintRule for ForDirection {
 /// Determine the expected direction from the loop condition.
 fn get_condition_direction(
     ctx: &LintModuleAstContext<'_>,
-    condition_id: destack_ast::LocalNodeId<Expression>,
+    condition_id: ast::LocalNodeId<ast::Expression>,
 ) -> Option<Direction> {
     let condition = ctx.tree.get(condition_id);
     match condition {
-        Expression::Binary { operator, .. } => match operator {
+        ast::Expression::Binary { operator, .. } => match operator {
             // i < n or i <= n: counter should increase
-            BinaryOperator::LessThan | BinaryOperator::LessThanOrEqual => {
+            ast::BinaryOperator::LessThan | ast::BinaryOperator::LessThanOrEqual => {
                 Some(Direction::Increasing)
             }
             // i > n or i >= n: counter should decrease
-            BinaryOperator::GreaterThan | BinaryOperator::GreaterThanOrEqual => {
+            ast::BinaryOperator::GreaterThan | ast::BinaryOperator::GreaterThanOrEqual => {
                 Some(Direction::Decreasing)
             }
             _ => None,
         },
-        Expression::Parenthesized { expression } => get_condition_direction(ctx, *expression),
+        ast::Expression::Parenthesized { expression } => get_condition_direction(ctx, *expression),
         _ => None,
     }
 }
@@ -102,31 +102,31 @@ fn get_condition_direction(
 /// Determine the direction from the loop increment expression.
 fn get_increment_direction(
     ctx: &LintModuleAstContext<'_>,
-    increment_id: destack_ast::LocalNodeId<Expression>,
+    increment_id: ast::LocalNodeId<ast::Expression>,
 ) -> Option<Direction> {
     let increment = ctx.tree.get(increment_id);
     match increment {
         // i++ or ++i
-        Expression::Unary { operator, .. } => match operator {
-            UnaryOperator::PostIncrement | UnaryOperator::PreIncrement => {
+        ast::Expression::Unary { operator, .. } => match operator {
+            ast::UnaryOperator::PostIncrement | ast::UnaryOperator::PreIncrement => {
                 Some(Direction::Increasing)
             }
-            UnaryOperator::PostDecrement | UnaryOperator::PreDecrement => {
+            ast::UnaryOperator::PostDecrement | ast::UnaryOperator::PreDecrement => {
                 Some(Direction::Decreasing)
             }
             _ => None,
         },
         // i += n (assume positive n means increasing)
-        Expression::Assign { operator, .. } => match operator {
-            AssignOperator::AddAssign
-            | AssignOperator::WrappingAddAssign
-            | AssignOperator::SaturatingAddAssign => Some(Direction::Increasing),
-            AssignOperator::SubtractAssign
-            | AssignOperator::WrappingSubtractAssign
-            | AssignOperator::SaturatingSubtractAssign => Some(Direction::Decreasing),
+        ast::Expression::Assign { operator, .. } => match operator {
+            ast::AssignOperator::AddAssign
+            | ast::AssignOperator::WrappingAddAssign
+            | ast::AssignOperator::SaturatingAddAssign => Some(Direction::Increasing),
+            ast::AssignOperator::SubtractAssign
+            | ast::AssignOperator::WrappingSubtractAssign
+            | ast::AssignOperator::SaturatingSubtractAssign => Some(Direction::Decreasing),
             _ => None,
         },
-        Expression::Parenthesized { expression } => get_increment_direction(ctx, *expression),
+        ast::Expression::Parenthesized { expression } => get_increment_direction(ctx, *expression),
         _ => None,
     }
 }

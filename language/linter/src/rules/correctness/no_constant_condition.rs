@@ -1,4 +1,4 @@
-use destack_ast::{Expression, NodeTree};
+use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
 use crate::{LintDiagnostic, LintModuleAstContext, LintRule, declare_lint};
@@ -18,13 +18,13 @@ declare_lint! {
     "Disallow constant expressions in conditions"
 }
 
-fn is_constant_expression(tree: &NodeTree, expr: &Expression) -> bool {
+fn is_constant_expression(tree: &ast::NodeTree, expr: &ast::Expression) -> bool {
     match expr {
-        Expression::ScalarLiteral(_) => true,
-        Expression::Parenthesized { expression } => {
+        ast::Expression::ScalarLiteral(_) => true,
+        ast::Expression::Parenthesized { expression } => {
             is_constant_expression(tree, tree.get(*expression))
         }
-        Expression::Unary { right, .. } => is_constant_expression(tree, tree.get(*right)),
+        ast::Expression::Unary { right, .. } => is_constant_expression(tree, tree.get(*right)),
         _ => false,
     }
 }
@@ -35,10 +35,10 @@ impl LintRule for NoConstantCondition {
     }
 
     fn check_module_ast<'a>(&self, severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
-        for node_id in ctx.tree.iter_nodes::<Expression>() {
+        for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
             let condition_id = match ctx.tree.get(node_id) {
-                Expression::If { condition, .. } => *condition,
-                Expression::While { condition, .. } => *condition,
+                ast::Expression::If { condition, .. } => *condition,
+                ast::Expression::While { condition, .. } => *condition,
                 _ => continue,
             };
             let condition = ctx.tree.get(condition_id);

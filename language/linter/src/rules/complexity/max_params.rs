@@ -1,4 +1,4 @@
-use destack_ast::{Declaration, Expression};
+use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
 use crate::{LintDiagnostic, LintModuleAstContext, LintRule, declare_lint};
@@ -28,12 +28,12 @@ impl LintRule for MaxParams {
     }
 
     fn check_module_ast<'a>(&self, severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
-        for node_id in ctx.tree.iter_nodes::<Expression>() {
-            let Expression::Declaration(decl_id) = ctx.tree.get(node_id) else {
+        for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
+            let ast::Expression::Declaration(decl_id) = ctx.tree.get(node_id) else {
                 continue;
             };
 
-            let Declaration::Function { signature, .. } = ctx.tree.get(*decl_id) else {
+            let ast::Declaration::Function { signature, .. } = ctx.tree.get(*decl_id) else {
                 continue;
             };
 

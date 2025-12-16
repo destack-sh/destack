@@ -1,4 +1,4 @@
-use destack_ast::{Expression, IfKind};
+use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
 use crate::{LintDiagnostic, LintModuleAstContext, LintRule, declare_lint};
@@ -25,10 +25,10 @@ impl LintRule for NoNestedTernary {
     }
 
     fn check_module_ast<'a>(&self, severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
-        for node_id in ctx.tree.iter_nodes::<Expression>() {
+        for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
             // look for ternary expressions
-            let Expression::If {
-                kind: IfKind::Ternary,
+            let ast::Expression::If {
+                kind: ast::IfKind::Ternary,
                 condition,
                 then_expression,
                 else_expression,
@@ -62,15 +62,15 @@ impl LintRule for NoNestedTernary {
 /// Check if an expression is a ternary (possibly wrapped in parentheses).
 fn is_ternary(
     ctx: &LintModuleAstContext<'_>,
-    expr_id: destack_ast::LocalNodeId<Expression>,
+    expr_id: ast::LocalNodeId<ast::Expression>,
 ) -> bool {
     let expr = ctx.tree.get(expr_id);
     match expr {
-        Expression::If {
-            kind: IfKind::Ternary,
+        ast::Expression::If {
+            kind: ast::IfKind::Ternary,
             ..
         } => true,
-        Expression::Parenthesized { expression } => is_ternary(ctx, *expression),
+        ast::Expression::Parenthesized { expression } => is_ternary(ctx, *expression),
         _ => false,
     }
 }
