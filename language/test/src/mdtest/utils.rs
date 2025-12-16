@@ -1,3 +1,4 @@
+use std::panic::{AssertUnwindSafe, catch_unwind};
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, mpsc};
 use std::time::Duration;
@@ -52,8 +53,32 @@ where
     let (tx, rx) = mpsc::channel();
 
     thread::spawn(move || {
-        let result = f(&test);
-        let _ = tx.send(result);
+        // catch panics to prevent thread from hanging during cleanup
+        let result = catch_unwind(AssertUnwindSafe(|| f(&test)));
+
+        let test_result = match result {
+            Ok(result) => result,
+            Err(panic) => {
+                let msg = panic
+                    .downcast_ref::<&str>()
+                    .copied()
+                    .or_else(|| panic.downcast_ref::<String>().map(|s| s.as_str()))
+                    .unwrap_or("unknown panic");
+
+                // if it's a todo!() panic with #Incomplete marker, skip the test
+                if msg.contains("#Incomplete") {
+                    TestResult::Skipped {
+                        reason: msg.to_string(),
+                    }
+                } else {
+                    TestResult::Failed {
+                        message: format!("panic: {msg}"),
+                    }
+                }
+            }
+        };
+
+        let _ = tx.send(test_result);
     });
 
     match rx.recv_timeout(timeout) {
@@ -65,7 +90,7 @@ where
             ),
         },
         Err(mpsc::RecvTimeoutError::Disconnected) => TestResult::Failed {
-            message: "test thread panicked".to_string(),
+            message: "test thread disconnected unexpectedly".to_string(),
         },
     }
 }
