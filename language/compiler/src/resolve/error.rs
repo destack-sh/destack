@@ -1,6 +1,7 @@
 use crate::{
     DiagnosticAnchor, DiagnosticDefinition, TaskDependency, TaskDependencyError, TaskError,
 };
+use destack_builtin::LanguageItem;
 use destack_compiler_macros::DefineError;
 use destack_dir::{GlobalNodeIdAny, GlobalScopeId, GlobalSymbolId, StaticKey, StringId};
 use destack_source::ModuleId;
@@ -90,4 +91,8 @@ pub enum ResolveError {
         target: Option<StringId>,
         target_node: GlobalNodeIdAny,
     },
+
+    /// Missing language item (builtin not found).
+    #[error(code = "ER012", message = "missing language item '{item}'")]
+    MissingLanguageItem { item: LanguageItem },
 }

@@ -3,15 +3,7 @@
 /// Format: "module/path:TypeName" (e.g., "myapp/models:User")
 newtype TypeId = string;
 
-
 /// Common interface implemented by all type descriptor variants.
-///
-/// This enables polymorphic operations on any type descriptor:
-/// ```
-/// function printType(t: Type<unknown>) {
-///     print(t.name);  // works for any Type
-/// }
-/// ```
 newtype interface TypeBase<T> {
     /// The name of this type (e.g., "User", "int", "string[]").
     readonly name: string;

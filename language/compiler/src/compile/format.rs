@@ -7,6 +7,7 @@
 use std::path::PathBuf;
 
 use destack_base::StringId;
+use destack_builtin::LanguageItem;
 use destack_dir::{
     FunctionAbstraction, GlobalNodeIdAny, GlobalSymbolId, GlobalTypeId, StaticKey, Visibility,
 };
@@ -187,6 +188,12 @@ impl DiagnosticFormat for i64 {
 }
 
 impl DiagnosticFormat for usize {
+    fn diagnostic_fmt(&self, _program: &Program) -> String {
+        self.to_string()
+    }
+}
+
+impl DiagnosticFormat for LanguageItem {
     fn diagnostic_fmt(&self, _program: &Program) -> String {
         self.to_string()
     }

@@ -1,7 +1,8 @@
 use std::sync::Arc;
 
 use dashmap::DashMap;
-use destack_builtin::{CORE_SOURCES, PRELUDE_SOURCE};
+use destack_builtin::{CORE_SOURCES, LanguageItem, PRELUDE_SOURCE};
+use destack_dir::GlobalSymbolId;
 use destack_source::{File, FileRegistry, FileType, LanguageType, ModuleId, PackageId, Uri};
 
 use crate::{Module, ModuleRegistry, ModuleType, Package, PackageKind, PackageRegistry};
@@ -26,6 +27,10 @@ pub struct LanguageBuiltins {
 
     /// Lib modules cache ("dom" -> modules, "es2024" -> modules).
     pub lib_modules: DashMap<String, Vec<ModuleId>>,
+
+    /// Resolved language items cache (LanguageItem -> GlobalSymbolId).
+    /// (Populated lazily when items are first resolved after module compilation.)
+    pub items: DashMap<LanguageItem, GlobalSymbolId>,
 }
 
 impl LanguageBuiltins {
@@ -107,7 +112,14 @@ impl LanguageBuiltins {
             core_modules,
             prelude_module_id,
             lib_modules: DashMap::new(),
+            items: DashMap::new(),
         }
+    }
+
+    /// Get the ModuleId for a language item's defining module.
+    pub fn module_for_item(&self, item: LanguageItem) -> ModuleId {
+        let module_path = format!("{}.ds", item.module());
+        ModuleId::from_relative_path(BUILTIN_PACKAGE_ID, std::path::Path::new(&module_path))
     }
 
     /// Load a lib module set (e.g., "dom", "es2024").

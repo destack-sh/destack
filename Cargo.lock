@@ -708,6 +708,7 @@ dependencies = [
  "dashmap",
  "destack_ast",
  "destack_base",
+ "destack_builtin",
  "destack_codegen_cranelift",
  "destack_codegen_js",
  "destack_codegen_lib",

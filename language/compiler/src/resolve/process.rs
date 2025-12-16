@@ -7,6 +7,11 @@ use destack_source::ModuleId;
 #[derive(Debug, Clone, Hash, PartialEq, Eq, DefineTask)]
 #[phase(Resolve)]
 pub enum ResolveTask {
+    /// Resolve all builtin modules and required language items.
+    /// Should be enqueued before user modules to ensure builtins are ready.
+    #[task(code = 0, trace = "builtins")]
+    ResolveBuiltins,
+
     /// Resolve a module completely (direct, canonical).
     #[task(code = 1, trace = "module={module}")]
     ResolveModule { module: ModuleId },
@@ -26,6 +31,9 @@ impl Compiler {
     /// Process a resolve task.
     pub fn process_resolve(&self, task: ResolveTask) -> ResolveResult<()> {
         match task {
+            ResolveTask::ResolveBuiltins => {
+                self.resolve_builtins()?;
+            }
             ResolveTask::ResolveModule { module } => {
                 self.require_resolve_module_canonical(module)?;
             }
@@ -60,5 +68,10 @@ impl Compiler {
     /// Ensure a module has been resolved.
     pub fn require_resolve_module(&self, module: ModuleId) -> Result<(), TaskDependencyError> {
         self.do_require_task_internal_only(ResolveTask::ResolveModule { module })
+    }
+
+    /// Ensure builtins have been resolved.
+    pub fn require_resolve_builtins(&self) -> Result<(), TaskDependencyError> {
+        self.do_require_task_internal_only(ResolveTask::ResolveBuiltins)
     }
 }

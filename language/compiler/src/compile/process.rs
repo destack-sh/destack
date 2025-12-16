@@ -325,7 +325,7 @@ impl Compiler {
             TaskDependency::Complete { task, .. } => {
                 matches!(
                     self.queue.find_task_status(task),
-                    Some(TaskStatus::Complete { .. })
+                    Some(TaskStatus::Complete)
                 )
             }
             TaskDependency::CompleteAll { dependencies } => dependencies
