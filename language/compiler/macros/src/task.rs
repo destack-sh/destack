@@ -51,11 +51,7 @@ fn to_snake_case(s: &str) -> String {
 /// Derive the task name from the variant name by stripping the phase prefix.
 fn derive_task_name(variant_name: &str, phase: &str) -> String {
     // strip phase prefix if present: "ImportModule" -> "Module" for phase "Import"
-    let stripped = if variant_name.starts_with(phase) {
-        &variant_name[phase.len()..]
-    } else {
-        variant_name
-    };
+    let stripped = variant_name.strip_prefix(phase).unwrap_or(variant_name);
     to_snake_case(stripped)
 }
 
