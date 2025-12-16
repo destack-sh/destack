@@ -60,7 +60,7 @@ declare namespace "bun" {
      * @param options Additional options
      *
      * @example
-     * ```ts
+     * ```ds
      * const redis = new RedisClient();
      * await redis.set("hello", "world");
      * console.log(await redis.get("hello"));
@@ -926,7 +926,7 @@ declare namespace "bun" {
      * @returns Promise that resolves with [key, element] or null on timeout
      *
      * @example
-     * ```ts
+     * ```ds
      * // Block for up to 1 second
      * const result = await redis.blpop("mylist", 1.0);
      * if (result) {
@@ -950,7 +950,7 @@ declare namespace "bun" {
      * @returns Promise that resolves with [key, element] or null on timeout
      *
      * @example
-     * ```ts
+     * ```ds
      * // Block for up to 1 second
      * const result = await redis.brpop("mylist", 1.0);
      * if (result) {
@@ -978,7 +978,7 @@ declare namespace "bun" {
      * @returns Promise that resolves with the moved element or null on timeout
      *
      * @example
-     * ```ts
+     * ```ds
      * // Move from right of source to left of destination (like BRPOPLPUSH)
      * const element = await redis.blmove("mylist", "otherlist", "RIGHT", "LEFT", 1.0);
      * if (element) {
@@ -1009,7 +1009,7 @@ declare namespace "bun" {
      * @returns Promise that resolves with [key, [elements]] or null on timeout
      *
      * @example
-     * ```ts
+     * ```ds
      * // Pop from left end of first available list, wait 1 second
      * const result = await redis.blmpop(1.0, 2, "list1", "list2", "LEFT");
      * if (result) {
@@ -1036,7 +1036,7 @@ declare namespace "bun" {
      * @returns Promise that resolves with the moved element or null on timeout
      *
      * @example
-     * ```ts
+     * ```ds
      * // Block for up to 1 second
      * const element = await redis.brpoplpush("tasks", "processing", 1.0);
      * if (element) {
@@ -1058,7 +1058,7 @@ declare namespace "bun" {
      * @returns Promise that resolves with the element at index, or null if index is out of range
      *
      * @example
-     * ```ts
+     * ```ds
      * await redis.lpush("mylist", "three", "two", "one");
      * console.log(await redis.lindex("mylist", 0)); // "one"
      * console.log(await redis.lindex("mylist", -1)); // "three"
@@ -1087,7 +1087,7 @@ declare namespace "bun" {
      * @returns Promise that resolves with the element moved, or null if the source list is empty
      *
      * @example
-     * ```ts
+     * ```ds
      * await redis.lpush("source", "a", "b", "c");
      * const result1 = await redis.lmove("source", "dest", "LEFT", "RIGHT");
      * // result1: "c" (popped from head of source, pushed to tail of dest)
@@ -1131,7 +1131,7 @@ declare namespace "bun" {
      *          or null if element is not found. Returns array when COUNT option is used.
      *
      * @example
-     * ```ts
+     * ```ds
      * await redis.lpush("mylist", "a", "b", "c", "b", "d");
      * const pos1 = await redis.lpos("mylist", "b");
      * // pos1: 1 (first occurrence of "b")
@@ -1163,7 +1163,7 @@ declare namespace "bun" {
      * @returns Promise that resolves with [key, [elements]] or null if all lists are empty
      *
      * @example
-     * ```ts
+     * ```ds
      * await redis.lpush("list1", "a", "b", "c");
      * const result1 = await redis.lmpop(1, "list1", "LEFT");
      * // result1: ["list1", ["c"]]
@@ -1185,7 +1185,7 @@ declare namespace "bun" {
      * @returns Promise that resolves with array of elements in the specified range
      *
      * @example
-     * ```ts
+     * ```ds
      * await redis.lpush("mylist", "three", "two", "one");
      * console.log(await redis.lrange("mylist", 0, -1)); // ["one", "two", "three"]
      * console.log(await redis.lrange("mylist", 0, 1)); // ["one", "two"]
@@ -1202,7 +1202,7 @@ declare namespace "bun" {
      * @returns Promise that resolves with "OK" on success
      *
      * @example
-     * ```ts
+     * ```ds
      * await redis.lpush("mylist", "three", "two", "one");
      * await redis.lset("mylist", 0, "zero");
      * console.log(await redis.lrange("mylist", 0, -1)); // ["zero", "two", "three"]
@@ -1253,7 +1253,7 @@ declare namespace "bun" {
      * database is empty
      *
      * @example
-     * ```ts
+     * ```ds
      * await redis.set("key1", "value1");
      * await redis.set("key2", "value2");
      * await redis.set("key3", "value3");
@@ -1288,7 +1288,7 @@ declare namespace "bun" {
      * @returns Promise that resolves with the element moved, or null if the source list is empty
      *
      * @example
-     * ```ts
+     * ```ds
      * await redis.lpush("source", "a", "b", "c");
      * // source: ["c", "b", "a"]
      *
@@ -1320,7 +1320,7 @@ declare namespace "bun" {
      * an array of matching keys
      *
      * @example
-     * ```ts
+     * ```ds
      * // Basic scan - iterate all keys
      * let cursor = "0";
      * const allKeys: string[] = [];
@@ -1332,13 +1332,13 @@ declare namespace "bun" {
      * ```
      *
      * @example
-     * ```ts
+     * ```ds
      * // Scan with MATCH pattern
      * const [cursor, keys] = await redis.scan("0", "MATCH", "user:*");
      * ```
      *
      * @example
-     * ```ts
+     * ```ds
      * // Scan with COUNT hint
      * const [cursor, keys] = await redis.scan("0", "COUNT", "100");
      * ```
@@ -1483,7 +1483,7 @@ declare namespace "bun" {
      * "none" if the key doesn't exist
      *
      * @example
-     * ```ts
+     * ```ds
      * await redis.set("mykey", "Hello");
      * console.log(await redis.type("mykey")); // "string"
      *
@@ -1564,7 +1564,7 @@ declare namespace "bun" {
      * @param args Keys followed by timeout in seconds (e.g., "key1", "key2", 1.0)
      * @returns Promise that resolves with [key, member, score] or null if timeout
      * @example
-     * ```ts
+     * ```ds
      * // Block for up to 1 second wait for an element
      * const result = await redis.bzpopmin("myzset", 1.0);
      * if (result) {
@@ -1580,7 +1580,7 @@ declare namespace "bun" {
      * @param args Keys followed by timeout in seconds (e.g., "key1", "key2", 1.0)
      * @returns Promise that resolves with [key, member, score] or null if timeout
      * @example
-     * ```ts
+     * ```ds
      * // Block for up to 1 second wait for an element
      * const result = await redis.bzpopmax("myzset", 1.0);
      * if (result) {
@@ -1625,7 +1625,7 @@ declare namespace "bun" {
      * @returns Promise that resolves with an array of [member, score, member, score, ...]
      *
      * @example
-     * ```ts
+     * ```ds
      * const results = await redis.zrange("myzset", 0, -1, "WITHSCORES");
      * // Returns ["member1", "1.5", "member2", "2.5", ...]
      * ```
@@ -1647,7 +1647,7 @@ declare namespace "bun" {
      * @returns Promise that resolves with an array of members with scores in the range
      *
      * @example
-     * ```ts
+     * ```ds
      * // Get members with score between 1 and 3
      * const members = await redis.zrange("myzset", "1", "3", "BYSCORE");
      *
@@ -1672,7 +1672,7 @@ declare namespace "bun" {
      * @returns Promise that resolves with an array of members in the lexicographical range
      *
      * @example
-     * ```ts
+     * ```ds
      * // Get members lexicographically from "a" to "c" (inclusive)
      * const members = await redis.zrange("myzset", "[a", "[c", "BYLEX");
      * ```
@@ -1689,7 +1689,7 @@ declare namespace "bun" {
      * @returns Promise that resolves with an array of members (or with scores if WITHSCORES)
      *
      * @example
-     * ```ts
+     * ```ds
      * // Get members by score with limit
      * const members = await redis.zrange("myzset", "1", "10", "BYSCORE", "LIMIT", "0", "5");
      *
@@ -1716,7 +1716,7 @@ declare namespace "bun" {
      * @returns Promise that resolves with an array of members in the specified range
      *
      * @example
-     * ```ts
+     * ```ds
      * // Get all members
      * const members = await redis.zrange("myzset", 0, -1);
      *
@@ -1737,7 +1737,7 @@ declare namespace "bun" {
      * @returns Promise that resolves with an array of members in reverse order
      *
      * @example
-     * ```ts
+     * ```ds
      * // Get all members in reverse order (highest to lowest score)
      * const members = await redis.zrevrange("myzset", 0, -1);
      *
@@ -1757,7 +1757,7 @@ declare namespace "bun" {
      * @returns Promise that resolves with an array of [member, score, member, score, ...] in reverse order
      *
      * @example
-     * ```ts
+     * ```ds
      * const results = await redis.zrevrange("myzset", 0, -1, "WITHSCORES");
      * // Returns ["member3", "3.5", "member2", "2.5", "member1", "1.5", ...]
      * ```
@@ -1807,7 +1807,7 @@ declare namespace "bun" {
      * @returns Promise that resolves with the length of the list after insert, -1 if pivot not found, or 0 if key doesn't exist
      *
      * @example
-     * ```ts
+     * ```ds
      * await redis.lpush("mylist", "World");
      * await redis.lpush("mylist", "Hello");
      * await redis.linsert("mylist", "BEFORE", "World", "There");
@@ -1850,7 +1850,7 @@ declare namespace "bun" {
      * @returns Promise that resolves with the number of elements removed
      *
      * @example
-     * ```ts
+     * ```ds
      * await redis.rpush("mylist", "hello", "hello", "world", "hello");
      * await redis.lrem("mylist", 2, "hello"); // Removes first 2 "hello"
      * // List is now: ["world", "hello"]
@@ -1866,7 +1866,7 @@ declare namespace "bun" {
      * @returns Promise that resolves with "OK"
      *
      * @example
-     * ```ts
+     * ```ds
      * await redis.rpush("mylist", "one", "two", "three", "four");
      * await redis.ltrim("mylist", 1, 2);
      * // List is now: ["two", "three"]
@@ -1918,7 +1918,7 @@ declare namespace "bun" {
      * @returns Promise that resolves with "OK" on success
      *
      * @example
-     * ```ts
+     * ```ds
      * await redis.setex("mykey", 10, "Hello");
      * // Key will expire after 10 seconds
      * ```
@@ -1933,7 +1933,7 @@ declare namespace "bun" {
      * @returns Promise that resolves with "OK" on success
      *
      * @example
-     * ```ts
+     * ```ds
      * await redis.psetex("mykey", 10000, "Hello");
      * // Key will expire after 10000 milliseconds (10 seconds)
      * ```
@@ -2000,7 +2000,7 @@ declare namespace "bun" {
      * @returns Promise that resolves with the number of elements added (or changed if CH is used, or new score if INCR is used)
      *
      * @example
-     * ```ts
+     * ```ds
      * // Add members with scores
      * await redis.zadd("myzset", "1", "one", "2", "two", "3", "three");
      *
@@ -2048,7 +2048,7 @@ declare namespace "bun" {
      * @returns Promise that resolves with a tuple [cursor, [member1, score1, member2, score2, ...]]
      *
      * @example
-     * ```ts
+     * ```ds
      * // Basic scan - iterate all elements
      * let cursor = "0";
      * const allElements: string[] = [];
@@ -2060,13 +2060,13 @@ declare namespace "bun" {
      * ```
      *
      * @example
-     * ```ts
+     * ```ds
      * // Scan with MATCH pattern
      * const [cursor, elements] = await redis.zscan("myzset", "0", "MATCH", "user:*");
      * ```
      *
      * @example
-     * ```ts
+     * ```ds
      * // Scan with COUNT hint
      * const [cursor, elements] = await redis.zscan("myzset", "0", "COUNT", "100");
      * ```
@@ -2127,7 +2127,7 @@ declare namespace "bun" {
      * @returns Promise that resolves with array of members
      *
      * @example
-     * ```ts
+     * ```ds
      * await redis.send("ZADD", ["myzset", "0", "apple", "0", "banana", "0", "cherry"]);
      * const members = await redis.zrangebylex("myzset", "[banana", "[cherry");
      * // Returns: ["banana", "cherry"]
@@ -2147,7 +2147,7 @@ declare namespace "bun" {
      * @returns Promise that resolves with array of members
      *
      * @example
-     * ```ts
+     * ```ds
      * await redis.send("ZADD", ["myzset", "0", "a", "0", "b", "0", "c", "0", "d"]);
      * const result = await redis.zrangebylex("myzset", "-", "+", "LIMIT", 1, 2);
      * // Returns: ["b", "c"]
@@ -2190,7 +2190,7 @@ declare namespace "bun" {
      * @returns Promise that resolves with array of members
      *
      * @example
-     * ```ts
+     * ```ds
      * await redis.send("ZADD", ["myzset", "1", "one", "2", "two", "3", "three"]);
      * const members = await redis.zrangebyscore("myzset", 1, 2);
      * // Returns: ["one", "two"]
@@ -2208,7 +2208,7 @@ declare namespace "bun" {
      * @returns Promise that resolves with array of [member, score, member, score, ...]
      *
      * @example
-     * ```ts
+     * ```ds
      * await redis.send("ZADD", ["myzset", "1", "one", "2", "two", "3", "three"]);
      * const result = await redis.zrangebyscore("myzset", 1, 2, "WITHSCORES");
      * // Returns: ["one", "1", "two", "2"]
@@ -2233,7 +2233,7 @@ declare namespace "bun" {
      * @returns Promise that resolves with array of members
      *
      * @example
-     * ```ts
+     * ```ds
      * await redis.send("ZADD", ["myzset", "1", "one", "2", "two", "3", "three", "4", "four"]);
      * const result = await redis.zrangebyscore("myzset", "-inf", "+inf", "LIMIT", 1, 2);
      * // Returns: ["two", "three"]
@@ -2318,7 +2318,7 @@ declare namespace "bun" {
      * @returns Promise that resolves with array of members
      *
      * @example
-     * ```ts
+     * ```ds
      * await redis.send("ZADD", ["myzset", "1", "one", "2", "two", "3", "three"]);
      * const members = await redis.zrevrangebyscore("myzset", 2, 1);
      * // Returns: ["two", "one"]
@@ -2336,7 +2336,7 @@ declare namespace "bun" {
      * @returns Promise that resolves with array of [member, score, member, score, ...]
      *
      * @example
-     * ```ts
+     * ```ds
      * await redis.send("ZADD", ["myzset", "1", "one", "2", "two", "3", "three"]);
      * const result = await redis.zrevrangebyscore("myzset", 2, 1, "WITHSCORES");
      * // Returns: ["two", "2", "one", "1"]
@@ -2400,7 +2400,7 @@ declare namespace "bun" {
      * @returns Promise that resolves with an array of members in reverse lexicographical order
      *
      * @example
-     * ```ts
+     * ```ds
      * // Add members with same score
      * await redis.send("ZADD", ["myzset", "0", "a", "0", "b", "0", "c", "0", "d"]);
      *
@@ -2429,7 +2429,7 @@ declare namespace "bun" {
      * @returns Promise that resolves with the number of elements in the resulting sorted set
      *
      * @example
-     * ```ts
+     * ```ds
      * // Add members to source set
      * await redis.send("ZADD", ["source", "1", "one", "2", "two", "3", "three"]);
      *
@@ -2511,7 +2511,7 @@ declare namespace "bun" {
      * @returns Promise that resolves with "OK" on success
      *
      * @example
-     * ```ts
+     * ```ds
      * await redis.mset("key1", "value1", "key2", "value2");
      * ```
      */
@@ -2535,7 +2535,7 @@ declare namespace "bun" {
      * @returns Promise that resolves with 1 if all keys were set, 0 if no key was set
      *
      * @example
-     * ```ts
+     * ```ds
      * // Returns 1 if keys don't exist
      * await redis.msetnx("key1", "value1", "key2", "value2");
      *
@@ -2725,7 +2725,7 @@ declare namespace "bun" {
      * the channel as the second argument.
      *
      * @example
-     * ```ts
+     * ```ds
      * await client.subscribe("my-channel", (message, channel) => {
      *   console.log(`Received message on ${channel}: ${message}`);
      * });
@@ -2830,7 +2830,7 @@ declare namespace "bun" {
      * @returns Promise that resolves with 1 if the key was copied, 0 if not
      *
      * @example
-     * ```ts
+     * ```ds
      * await redis.set("mykey", "Hello");
      * await redis.copy("mykey", "myotherkey");
      * console.log(await redis.get("myotherkey")); // "Hello"
@@ -2849,7 +2849,7 @@ declare namespace "bun" {
      * @returns Promise that resolves with 1 if the key was copied, 0 if not
      *
      * @example
-     * ```ts
+     * ```ds
      * await redis.set("mykey", "Hello");
      * await redis.set("myotherkey", "World");
      * await redis.copy("mykey", "myotherkey", "REPLACE");
@@ -2871,7 +2871,7 @@ declare namespace "bun" {
      * @returns Promise that resolves with the number of keys that were unlinked
      *
      * @example
-     * ```ts
+     * ```ds
      * await redis.set("key1", "Hello");
      * await redis.set("key2", "World");
      * const count = await redis.unlink("key1", "key2", "key3");
@@ -2894,7 +2894,7 @@ declare namespace "bun" {
      * @returns Promise that resolves with the number of keys that were touched
      *
      * @example
-     * ```ts
+     * ```ds
      * await redis.set("key1", "Hello");
      * await redis.set("key2", "World");
      * const touched = await redis.touch("key1", "key2", "key3");
@@ -2914,7 +2914,7 @@ declare namespace "bun" {
      * @returns Promise that resolves with "OK" on success
      *
      * @example
-     * ```ts
+     * ```ds
      * await redis.set("mykey", "Hello");
      * await redis.rename("mykey", "myotherkey");
      * const value = await redis.get("myotherkey"); // "Hello"
@@ -2934,7 +2934,7 @@ declare namespace "bun" {
      * @returns Promise that resolves with 1 if the key was renamed, 0 if newkey already exists
      *
      * @example
-     * ```ts
+     * ```ds
      * await redis.set("mykey", "Hello");
      * await redis.renamenx("mykey", "myotherkey"); // Returns 1
      * await redis.set("mykey2", "World");
@@ -2951,7 +2951,7 @@ declare namespace "bun" {
      * @returns Promise that resolves with an array of [member, score] pairs
      *
      * @example
-     * ```ts
+     * ```ds
      * await redis.send("ZADD", ["zset1", "1", "one", "2", "two", "3", "three"]);
      * await redis.send("ZADD", ["zset2", "1", "one", "2", "two"]);
      * const diff = await redis.zdiff(2, "zset1", "zset2", "WITHSCORES");
@@ -2975,7 +2975,7 @@ declare namespace "bun" {
      * @returns Promise that resolves with an array of members
      *
      * @example
-     * ```ts
+     * ```ds
      * await redis.send("ZADD", ["zset1", "1", "one", "2", "two", "3", "three"]);
      * await redis.send("ZADD", ["zset2", "1", "one", "2", "two"]);
      * const diff = await redis.zdiff(2, "zset1", "zset2");
@@ -2997,7 +2997,7 @@ declare namespace "bun" {
      * @returns Promise that resolves with the number of elements in the resulting sorted set
      *
      * @example
-     * ```ts
+     * ```ds
      * await redis.send("ZADD", ["zset1", "1", "one", "2", "two", "3", "three"]);
      * await redis.send("ZADD", ["zset2", "1", "one"]);
      * const count = await redis.zdiffstore("out", 2, "zset1", "zset2");
@@ -3024,7 +3024,7 @@ declare namespace "bun" {
      * @returns Promise that resolves with an array of members (or [member, score] pairs if WITHSCORES)
      *
      * @example
-     * ```ts
+     * ```ds
      * // Set up sorted sets
      * await redis.zadd("zset1", "1", "a", "2", "b", "3", "c");
      * await redis.zadd("zset2", "1", "b", "2", "c", "3", "d");
@@ -3069,7 +3069,7 @@ declare namespace "bun" {
      * @returns Promise that resolves with an array of members (or [member, score] pairs if WITHSCORES)
      *
      * @example
-     * ```ts
+     * ```ds
      * // Set up sorted sets
      * await redis.zadd("zset1", "1", "a", "2", "b", "3", "c");
      * await redis.zadd("zset2", "1", "b", "2", "c", "3", "d");
@@ -3108,7 +3108,7 @@ declare namespace "bun" {
      * @returns Promise that resolves with the number of elements in the intersection
      *
      * @example
-     * ```ts
+     * ```ds
      * await redis.send("ZADD", ["zset1", "1", "one", "2", "two", "3", "three"]);
      * await redis.send("ZADD", ["zset2", "1", "one", "2", "two", "4", "four"]);
      * const count = await redis.zintercard(2, "zset1", "zset2");
@@ -3125,7 +3125,7 @@ declare namespace "bun" {
      * @returns Promise that resolves with the number of elements (up to limit)
      *
      * @example
-     * ```ts
+     * ```ds
      * await redis.send("ZADD", ["zset1", "1", "a", "2", "b", "3", "c"]);
      * await redis.send("ZADD", ["zset2", "1", "a", "2", "b", "3", "c"]);
      * const count = await redis.zintercard(2, "zset1", "zset2", "LIMIT", 2);
@@ -3150,7 +3150,7 @@ declare namespace "bun" {
      * @returns Promise that resolves with the number of elements in the resulting sorted set
      *
      * @example
-     * ```ts
+     * ```ds
      * // Set up sorted sets
      * await redis.zadd("zset1", "1", "a", "2", "b", "3", "c");
      * await redis.zadd("zset2", "1", "b", "2", "c", "3", "d");
@@ -3186,7 +3186,7 @@ declare namespace "bun" {
      * @returns Promise that resolves with an array of members (or members with scores if WITHSCORES is used)
      *
      * @example
-     * ```ts
+     * ```ds
      * // Set up sorted sets
      * await redis.zadd("zset1", "1", "a", "2", "b", "3", "c");
      * await redis.zadd("zset2", "4", "b", "5", "c", "6", "d");
@@ -3229,7 +3229,7 @@ declare namespace "bun" {
      * @returns Promise that resolves with an array of members (or members with scores if WITHSCORES is used)
      *
      * @example
-     * ```ts
+     * ```ds
      * // Set up sorted sets
      * await redis.zadd("zset1", "1", "a", "2", "b", "3", "c");
      * await redis.zadd("zset2", "4", "b", "5", "c", "6", "d");
@@ -3269,7 +3269,7 @@ declare namespace "bun" {
      * @returns Promise that resolves with the number of elements in the resulting sorted set
      *
      * @example
-     * ```ts
+     * ```ds
      * // Set up sorted sets
      * await redis.zadd("zset1", "1", "a", "2", "b", "3", "c");
      * await redis.zadd("zset2", "4", "b", "5", "c", "6", "d");
@@ -3294,7 +3294,7 @@ declare namespace "bun" {
      * Pops from the first non-empty sorted set.
      *
      * @example
-     * ```ts
+     * ```ds
      * // Pop lowest score from one set
      * const result1 = await redis.zmpop(1, "myzset", "MIN");
      * // Returns: ["myzset", [["member1", 1]]]
@@ -3318,7 +3318,7 @@ declare namespace "bun" {
      * Blocking version of ZMPOP. Blocks until a member is available or timeout expires.
      *
      * @example
-     * ```ts
+     * ```ds
      * // Block for 5 seconds wait for a member
      * const result1 = await redis.bzmpop(5, 1, "myzset", "MIN");
      * // Returns: ["myzset", [["member1", 1]]] or null if timeout

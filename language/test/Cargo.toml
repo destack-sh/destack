@@ -27,8 +27,13 @@ path = "src/formatter/main.rs"
 harness = false
 
 [[test]]
-name = "mdtest"
-path = "src/mdtest/main.rs"
+name = "spec"
+path = "src/spec/main.rs"
+harness = false
+
+[[test]]
+name = "query"
+path = "src/query/main.rs"
 harness = false
 
 [[test]]

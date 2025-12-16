@@ -58,7 +58,7 @@ declare namespace "bun" {
        * @returns An array of header values
        *
        * @example
-       * ```ts
+       * ```ds
        * const headers = new Headers();
        * headers.append("Set-Cookie", "foo=bar");
        * headers.append("Set-Cookie", "baz=qux");

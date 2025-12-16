@@ -168,14 +168,18 @@ pub fn parse_markers(file_id: FileId, source: &str) -> (String, TestMarkers) {
 
         // check for @expect directives (// @completion, // @hover, etc.)
         if let Some(rest) = trimmed.strip_prefix("// @") {
-            parse_expect_directive_with_state(rest, &mut markers.expectations, &mut multiline_state);
+            parse_expect_directive_with_state(
+                rest,
+                &mut markers.expectations,
+                &mut multiline_state,
+            );
             continue;
         }
 
         // check for multiline continuation: "// - item"
         if let Some(rest) = trimmed.strip_prefix("// - ") {
             parse_expect_directive_with_state(
-                &format!("- {}", rest),
+                &format!("- {rest}"),
                 &mut markers.expectations,
                 &mut multiline_state,
             );
@@ -330,14 +334,14 @@ fn parse_expect_directive_with_state(
     // handle multiline continuation: "- item"
     if directive.starts_with("- ") {
         let item = directive[2..].trim();
-        if let Some(MultilineDirective::Completion(cursor)) = multiline_state {
-            if let Some(completion) = parse_single_completion(item) {
-                expectations
-                    .completions
-                    .entry(*cursor)
-                    .or_default()
-                    .push(completion);
-            }
+        if let Some(MultilineDirective::Completion(cursor)) = multiline_state
+            && let Some(completion) = parse_single_completion(item)
+        {
+            expectations
+                .completions
+                .entry(*cursor)
+                .or_default()
+                .push(completion);
         }
         return;
     }
@@ -386,7 +390,9 @@ fn parse_expect_directive_with_state(
     if let Some(rest) = directive.strip_prefix("inlay_hint ") {
         if let Some((offset, label)) = parse_offset_directive(rest) {
             let label = label.trim_matches('"').to_string();
-            expectations.inlay_hints.push(ExpectedInlayHint { offset, label });
+            expectations
+                .inlay_hints
+                .push(ExpectedInlayHint { offset, label });
         }
         return;
     }
@@ -478,7 +484,10 @@ fn parse_single_completion(item: &str) -> Option<ExpectedCompletion> {
     // format: label: kind or label: kind: detail
     let parts: Vec<&str> = item.splitn(3, ':').collect();
     let label = parts.first()?.trim().to_string();
-    let kind = parts.get(1).map(|s| s.trim().to_string()).unwrap_or_default();
+    let kind = parts
+        .get(1)
+        .map(|s| s.trim().to_string())
+        .unwrap_or_default();
     let detail = parts.get(2).map(|s| s.trim().to_string());
 
     if label.is_empty() || kind.is_empty() {
@@ -494,7 +503,9 @@ fn parse_single_completion(item: &str) -> Option<ExpectedCompletion> {
 
 /// Parse inline completion items: "x: field, y: field"
 fn parse_completion_items(s: &str) -> Vec<ExpectedCompletion> {
-    s.split(',').filter_map(|item| parse_single_completion(item)).collect()
+    s.split(',')
+        .filter_map(|item| parse_single_completion(item))
+        .collect()
 }
 
 /// Parse a single symbol item: "Foo: struct"
@@ -514,7 +525,9 @@ fn parse_single_symbol(item: &str) -> Option<ExpectedSymbol> {
 
 /// Parse symbol items: "Foo: struct, bar: function"
 fn parse_symbol_items(s: &str) -> Vec<ExpectedSymbol> {
-    s.split(',').filter_map(|item| parse_single_symbol(item)).collect()
+    s.split(',')
+        .filter_map(|item| parse_single_symbol(item))
+        .collect()
 }
 
 /// Parse fold items: "2-5(function), 7-10"
@@ -528,12 +541,7 @@ fn parse_fold_items(s: &str) -> Vec<ExpectedFold> {
             // format: start-end or start-end(kind)
             let (range, kind) = if let Some(paren) = item.find('(') {
                 let range = &item[..paren];
-                let kind = Some(
-                    item[paren + 1..]
-                        .trim_end_matches(')')
-                        .trim()
-                        .to_string(),
-                );
+                let kind = Some(item[paren + 1..].trim_end_matches(')').trim().to_string());
                 (range, kind)
             } else {
                 (item, None)
@@ -562,12 +570,7 @@ fn parse_highlight_items(s: &str) -> Vec<ExpectedHighlight> {
             }
             let (range, kind) = if let Some(paren) = item.find('(') {
                 let range = &item[..paren];
-                let kind = Some(
-                    item[paren + 1..]
-                        .trim_end_matches(')')
-                        .trim()
-                        .to_string(),
-                );
+                let kind = Some(item[paren + 1..].trim_end_matches(')').trim().to_string());
                 (range, kind)
             } else {
                 (item, None)

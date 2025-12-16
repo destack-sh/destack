@@ -11,7 +11,7 @@ declare namespace "bun" {
      * The [Bun shell](https://bun.com/docs/runtime/shell) is a powerful tool for running shell commands.
      *
      * @example
-     * ```ts
+     * ```ds
      * const result = await $`echo "Hello, world!"`.text();
      * console.log(result); // "Hello, world!"
      * ```
@@ -81,7 +81,7 @@ declare namespace "bun" {
          * once awaited, or called with `.text()`, `.json()`, etc.
          *
          * @example
-         * ```ts
+         * ```ds
          * const myShellPromise = $`echo "Hello, world!"`;
          * const result = await myShellPromise.text();
          * console.log(result); // "Hello, world!"
@@ -101,7 +101,7 @@ declare namespace "bun" {
              * @param newEnv - The new environment variables
              *
              * @example
-             * ```ts
+             * ```ds
              * await $`echo $FOO`.env({ ...process.env, FOO: "LOL!" })
              * expect(stdout.toString()).toBe("LOL!");
              * ```
@@ -135,13 +135,13 @@ declare namespace "bun" {
              *
              * @example
              * **Read as UTF-8 string**
-             * ```ts
+             * ```ds
              * const output = await $`echo hello`.text();
              * console.log(output); // "hello\n"
              * ```
              *
              * **Read as base64 string**
-             * ```ts
+             * ```ds
              * const output = await $`echo ${atob("hello")}`.text("base64");
              * console.log(output); // "hello\n"
              * ```
@@ -156,7 +156,7 @@ declare namespace "bun" {
              * @returns A promise that resolves with stdout as a JSON object
              * @example
              *
-             * ```ts
+             * ```ds
              * const output = await $`echo '{"hello": 123}'`.json();
              * console.log(output); // { hello: 123 }
              * ```
@@ -171,7 +171,7 @@ declare namespace "bun" {
              * @returns A promise that resolves with stdout as an ArrayBuffer
              * @example
              *
-             * ```ts
+             * ```ds
              * const output = await $`echo hello`.arrayBuffer();
              * console.log(output); // ArrayBuffer { byteLength: 6 }
              * ```
@@ -184,7 +184,7 @@ declare namespace "bun" {
              * Automatically calls {@link quiet}
              * @returns A promise that resolves with stdout as a Blob
              * @example
-             * ```ts
+             * ```ds
              * const output = await $`echo hello`.blob();
              * console.log(output); // Blob { size: 6, type: "" }
              * ```
@@ -210,7 +210,7 @@ declare namespace "bun" {
          * ShellError represents an error that occurred while executing a shell command with [the Bun Shell](https://bun.com/docs/runtime/shell).
          *
          * @example
-         * ```ts
+         * ```ds
          * try {
          *   const result = await $`exit 1`;
          * } catch (error) {
@@ -233,13 +233,13 @@ declare namespace "bun" {
              *
              * @example
              * **Read as UTF-8 string**
-             * ```ts
+             * ```ds
              * const output = await $`echo hello`;
              * console.log(output.text()); // "hello\n"
              * ```
              *
              * **Read as base64 string**
-             * ```ts
+             * ```ds
              * const output = await $`echo ${atob("hello")}`;
              * console.log(output.text("base64")); // "hello\n"
              * ```
@@ -252,7 +252,7 @@ declare namespace "bun" {
              * @returns Stdout as a JSON object
              * @example
              *
-             * ```ts
+             * ```ds
              * const output = await $`echo '{"hello": 123}'`;
              * console.log(output.json()); // { hello: 123 }
              * ```
@@ -266,7 +266,7 @@ declare namespace "bun" {
              * @returns Stdout as an ArrayBuffer
              * @example
              *
-             * ```ts
+             * ```ds
              * const output = await $`echo hello`;
              * console.log(output.arrayBuffer()); // ArrayBuffer { byteLength: 6 }
              * ```
@@ -278,7 +278,7 @@ declare namespace "bun" {
              *
              * @returns Stdout as a blob
              * @example
-             * ```ts
+             * ```ds
              * const output = await $`echo hello`;
              * console.log(output.blob()); // Blob { size: 6, type: "" }
              * ```
@@ -290,7 +290,7 @@ declare namespace "bun" {
              *
              * @returns Stdout as an Uint8Array
              * @example
-             * ```ts
+             * ```ds
              * const output = await $`echo hello`;
              * console.log(output.bytes()); // Uint8Array { byteLength: 6 }
              * ```
@@ -311,13 +311,13 @@ declare namespace "bun" {
              *
              * @example
              * **Read as UTF-8 string**
-             * ```ts
+             * ```ds
              * const output = await $`echo hello`;
              * console.log(output.text()); // "hello\n"
              * ```
              *
              * **Read as base64 string**
-             * ```ts
+             * ```ds
              * const output = await $`echo ${atob("hello")}`;
              * console.log(output.text("base64")); // "hello\n"
              * ```
@@ -330,7 +330,7 @@ declare namespace "bun" {
              * @returns Stdout as a JSON object
              * @example
              *
-             * ```ts
+             * ```ds
              * const output = await $`echo '{"hello": 123}'`;
              * console.log(output.json()); // { hello: 123 }
              * ```
@@ -344,7 +344,7 @@ declare namespace "bun" {
              * @returns Stdout as an ArrayBuffer
              * @example
              *
-             * ```ts
+             * ```ds
              * const output = await $`echo hello`;
              * console.log(output.arrayBuffer()); // ArrayBuffer { byteLength: 6 }
              * ```
@@ -357,7 +357,7 @@ declare namespace "bun" {
              * @returns Stdout as an Uint8Array
              * @example
              *
-             * ```ts
+             * ```ds
              * const output = await $`echo hello`;
              * console.log(output.bytes()); // Uint8Array { byteLength: 6 }
              * ```
@@ -369,7 +369,7 @@ declare namespace "bun" {
              *
              * @returns Stdout as a blob
              * @example
-             * ```ts
+             * ```ds
              * const output = await $`echo hello`;
              * console.log(output.blob()); // Blob { size: 6, type: "" }
              * ```

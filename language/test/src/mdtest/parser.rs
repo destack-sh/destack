@@ -5,25 +5,35 @@ use pulldown_cmark::{Event, HeadingLevel, Parser, Tag, TagEnd};
 /// A single file within a test case.
 #[derive(Debug, Clone)]
 pub struct MdTestFile {
-    /// The filename (e.g., "main.ds" or "types.ds").
+    /// The filename (e.g., "main.ds" or "lib.ds").
     pub path: String,
     /// The source code content.
     pub content: String,
 }
 
+/// A raw code block from markdown (before interpretation).
+#[derive(Debug, Clone)]
+pub struct RawCodeBlock {
+    /// The language tag (e.g., "query completion $0" or "expected:main").
+    pub language: String,
+    /// The block content.
+    pub content: String,
+}
+
 /// A single test case extracted from markdown.
+/// Contains raw parsed data that spec/query interpret differently.
 #[derive(Debug, Clone)]
 pub struct MdTestCase {
-    /// Name of the test (from heading).
+    /// Name of the test (from H3/H4 heading).
     pub name: String,
-    /// Section/category the test belongs to.
+    /// Section the test belongs to (from H2 heading).
     pub section: String,
-    /// The source files to compile.
-    /// For single-file tests, this contains one file with path "main.ds".
-    /// For multi-file tests, this contains multiple files with their specified paths.
+    /// Source files (ds/ts code blocks).
     pub files: Vec<MdTestFile>,
-    /// Expected error messages (from bullet list).
-    pub expected_errors: Vec<String>,
+    /// Bullet list items (used as expected errors in spec tests).
+    pub bullet_items: Vec<String>,
+    /// Non-source code blocks like `query` and `expected:` blocks.
+    pub extra_blocks: Vec<RawCodeBlock>,
     /// Line number in the markdown file where this test starts.
     pub line: usize,
 }
@@ -35,24 +45,19 @@ pub fn parse_mdtest_file(path: &Path) -> std::io::Result<Vec<MdTestCase>> {
 }
 
 /// Parse the language tag to extract the base language and optional filename.
-///
-/// Examples:
-/// - "ds" -> ("ds", None)
-/// - "ds:main.ds" -> ("ds", Some("main.ds"))
-/// - "typescript:utils.ts" -> ("typescript", Some("utils.ts"))
-fn parse_lang_tag(lang: &str) -> (&str, Option<&str>) {
-    if let Some(colon_pos) = lang.find(':') {
-        let base_lang = &lang[..colon_pos];
-        let filename = &lang[colon_pos + 1..];
-        (base_lang, Some(filename))
+fn parse_language_tag(language: &str) -> (&str, Option<&str>) {
+    if let Some(colon_pos) = language.find(':') {
+        let base_language = &language[..colon_pos];
+        let filename = &language[colon_pos + 1..];
+        (base_language, Some(filename))
     } else {
-        (lang, None)
+        (language, None)
     }
 }
 
-/// Check if a language tag is a supported code language.
-fn is_code_language(lang: &str) -> bool {
-    let lower = lang.to_lowercase();
+/// Check if a language tag is a supported source code language.
+fn is_code_language(language: &str) -> bool {
+    let lower = language.to_lowercase();
     lower == "ts" || lower == "typescript" || lower == "ds" || lower == "destack"
 }
 
@@ -64,23 +69,22 @@ pub fn parse_mdtest(content: &str) -> Vec<MdTestCase> {
     let mut current_section = String::new();
     let mut current_test_name: Option<String> = None;
     let mut current_files: Vec<MdTestFile> = Vec::new();
-    let mut current_errors: Vec<String> = Vec::new();
+    let mut current_bullets: Vec<String> = Vec::new();
+    let mut current_extra_blocks: Vec<RawCodeBlock> = Vec::new();
     let mut in_heading = false;
     let mut heading_level: Option<HeadingLevel> = None;
     let mut heading_text = String::new();
     let mut in_code_block = false;
-    let mut code_block_lang = String::new();
+    let mut code_block_language = String::new();
     let mut code_block_content = String::new();
     let mut in_list_item = false;
     let mut list_item_text = String::new();
-
-    // track line numbers (approximate based on newlines before current position)
     let mut current_line = 1;
 
     for event in parser {
         match event {
             Event::Start(Tag::Heading { level, .. }) => {
-                // before starting a new heading, finalize any pending test
+                // finalize pending test before starting a new heading
                 if let Some(name) = current_test_name.take()
                     && !current_files.is_empty()
                 {
@@ -88,7 +92,8 @@ pub fn parse_mdtest(content: &str) -> Vec<MdTestCase> {
                         name,
                         section: current_section.clone(),
                         files: std::mem::take(&mut current_files),
-                        expected_errors: std::mem::take(&mut current_errors),
+                        bullet_items: std::mem::take(&mut current_bullets),
+                        extra_blocks: std::mem::take(&mut current_extra_blocks),
                         line: current_line,
                     });
                 }
@@ -102,15 +107,14 @@ pub fn parse_mdtest(content: &str) -> Vec<MdTestCase> {
                 let text = heading_text.trim().to_string();
 
                 match heading_level {
-                    // H2 = section
                     Some(HeadingLevel::H2) => {
                         current_section = text;
                     }
-                    // H3 or H4 = test case
                     Some(HeadingLevel::H3 | HeadingLevel::H4) => {
                         current_test_name = Some(text);
                         current_files.clear();
-                        current_errors.clear();
+                        current_bullets.clear();
+                        current_extra_blocks.clear();
                     }
                     _ => {}
                 }
@@ -135,22 +139,30 @@ pub fn parse_mdtest(content: &str) -> Vec<MdTestCase> {
             Event::Start(Tag::CodeBlock(kind)) => {
                 in_code_block = true;
                 code_block_content.clear();
-                code_block_lang = match kind {
-                    pulldown_cmark::CodeBlockKind::Fenced(lang) => lang.to_string(),
+                code_block_language = match kind {
+                    pulldown_cmark::CodeBlockKind::Fenced(language) => language.to_string(),
                     pulldown_cmark::CodeBlockKind::Indented => String::new(),
                 };
             }
             Event::End(TagEnd::CodeBlock) => {
                 in_code_block = false;
 
-                // parse lang:filename syntax
-                let (base_lang, filename) = parse_lang_tag(&code_block_lang);
+                if current_test_name.is_none() {
+                    continue;
+                }
 
-                // only capture supported code blocks
-                if is_code_language(base_lang) && current_test_name.is_some() {
+                // check if it's a source code block
+                let (base_language, filename) = parse_language_tag(&code_block_language);
+                if is_code_language(base_language) {
                     let path = filename.unwrap_or("main.ds").to_string();
                     current_files.push(MdTestFile {
                         path,
+                        content: code_block_content.clone(),
+                    });
+                } else if !code_block_language.is_empty() {
+                    // non-source block (query, expected, etc.)
+                    current_extra_blocks.push(RawCodeBlock {
+                        language: code_block_language.clone(),
                         content: code_block_content.clone(),
                     });
                 }
@@ -163,9 +175,8 @@ pub fn parse_mdtest(content: &str) -> Vec<MdTestCase> {
                 in_list_item = false;
                 let text = list_item_text.trim().to_string();
 
-                // only collect list items if we have a test with files
                 if current_test_name.is_some() && !current_files.is_empty() && !text.is_empty() {
-                    current_errors.push(text);
+                    current_bullets.push(text);
                 }
             }
             Event::SoftBreak | Event::HardBreak => {
@@ -180,7 +191,7 @@ pub fn parse_mdtest(content: &str) -> Vec<MdTestCase> {
         }
     }
 
-    // finalize any remaining test
+    // finalize remaining test
     if let Some(name) = current_test_name
         && !current_files.is_empty()
     {
@@ -188,7 +199,8 @@ pub fn parse_mdtest(content: &str) -> Vec<MdTestCase> {
             name,
             section: current_section,
             files: current_files,
-            expected_errors: current_errors,
+            bullet_items: current_bullets,
+            extra_blocks: current_extra_blocks,
             line: current_line,
         });
     }
@@ -221,8 +233,8 @@ const x: string = 5
         assert_eq!(tests[0].files.len(), 1);
         assert_eq!(tests[0].files[0].path, "main.ds");
         assert_eq!(tests[0].files[0].content.trim(), "const x: string = 5");
-        assert_eq!(tests[0].expected_errors.len(), 1);
-        assert!(tests[0].expected_errors[0].contains("not assignable"));
+        assert_eq!(tests[0].bullet_items.len(), 1);
+        assert!(tests[0].bullet_items[0].contains("not assignable"));
     }
 
     #[test]
@@ -243,7 +255,7 @@ const y: boolean = "hello"
 
         let tests = parse_mdtest(md);
         assert_eq!(tests.len(), 1);
-        assert_eq!(tests[0].expected_errors.len(), 2);
+        assert_eq!(tests[0].bullet_items.len(), 2);
     }
 
     #[test]
@@ -260,7 +272,7 @@ const x: number = 5
 
         let tests = parse_mdtest(md);
         assert_eq!(tests.len(), 1);
-        assert_eq!(tests[0].expected_errors.len(), 0);
+        assert_eq!(tests[0].bullet_items.len(), 0);
     }
 
     #[test]
@@ -323,6 +335,9 @@ const x = 1
         assert_eq!(tests.len(), 1);
         assert_eq!(tests[0].files.len(), 1);
         assert_eq!(tests[0].files[0].content.trim(), "const x = 1");
+        // json block goes into extra_blocks
+        assert_eq!(tests[0].extra_blocks.len(), 1);
+        assert_eq!(tests[0].extra_blocks[0].language, "json");
     }
 
     #[test]
@@ -355,12 +370,65 @@ const f: Foo = Foo {}
     }
 
     #[test]
-    fn test_parse_lang_tag() {
-        assert_eq!(parse_lang_tag("ds"), ("ds", None));
-        assert_eq!(parse_lang_tag("ds:main.ds"), ("ds", Some("main.ds")));
+    fn test_parse_language_tag() {
+        assert_eq!(parse_language_tag("ds"), ("ds", None));
+        assert_eq!(parse_language_tag("ds:main.ds"), ("ds", Some("main.ds")));
         assert_eq!(
-            parse_lang_tag("typescript:utils.ts"),
+            parse_language_tag("typescript:utils.ts"),
             ("typescript", Some("utils.ts"))
         );
+    }
+
+    #[test]
+    fn test_parse_query_block() {
+        let md = r#"
+## Assist
+
+### Completion test
+
+```ds
+struct Point { x: f32, y: f32 }
+const p = Point { x: 1, y: 2 };
+p.$0
+```
+
+```query completion $0
+- x: field
+- y: field
+```
+"#;
+
+        let tests = parse_mdtest(md);
+        assert_eq!(tests.len(), 1);
+        assert_eq!(tests[0].extra_blocks.len(), 1);
+        assert_eq!(tests[0].extra_blocks[0].language, "query completion $0");
+        assert!(tests[0].extra_blocks[0].content.contains("x: field"));
+    }
+
+    #[test]
+    fn test_parse_expected_block() {
+        let md = r#"
+## Refactor
+
+### Rename test
+
+```ds:main.ds
+const foo = 1;
+```
+
+```query rename target "bar"
+```
+
+```expected:main
+const bar = 1;
+```
+"#;
+
+        let tests = parse_mdtest(md);
+        assert_eq!(tests.len(), 1);
+        assert_eq!(tests[0].extra_blocks.len(), 2);
+        assert_eq!(tests[0].extra_blocks[0].language, "query rename target \"bar\"");
+        assert_eq!(tests[0].extra_blocks[1].language, "expected:main");
+        assert!(tests[0].extra_blocks[1].content.contains("bar"));
     }
 }

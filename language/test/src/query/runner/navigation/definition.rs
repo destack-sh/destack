@@ -14,7 +14,7 @@ pub fn run(session: &QueryTestSession) -> TestResult {
 
         let Some(expected_def) = session.markers.range(target_name) else {
             return TestResult::Failed {
-                message: format!("target marker '{}' not found", target_name),
+                message: format!("target marker '{target_name}' not found"),
             };
         };
 
