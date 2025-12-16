@@ -46,6 +46,11 @@ name = "ecosystem"
 path = "src/ecosystem/main.rs"
 harness = false
 
+[[test]]
+name = "stress"
+path = "src/stress/main.rs"
+harness = false
+
 [dependencies]
 # language
 destack_ast = { workspace = true }

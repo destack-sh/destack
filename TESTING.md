@@ -1,22 +1,25 @@
 # Testing
 
 Our goal is a 100% bullet-proof stack and toolchain with the best possible performance: the Destack language, libraries and platform:
- 1. Destack must never hardcrash, 
+ 1. Destack must never hardcrash
  2. Destack must never fail in unexpected ways
- 3. Destack must be 
+ 3. Destack must be fast
 
 ## Reliability
 
 The only way to ensure 100% reliability is to test everything, and test it thoroughly.
+
 | Suite | Location | Description |
 |-------|----------|-------------|
 | **Smoke** | [language/test/fixtures/smoke/](language/test/fixtures/smoke/) | Parser and compiler don't crash on any input |
 | **Codegen** | [language/test/fixtures/codegen/](language/test/fixtures/codegen/) | Codegen output matches expected snapshots |
-| **MDTest** | [language/test/fixtures/mdtest/](language/test/fixtures/mdtest/) | Markdown-driven type checking and diagnostics |
+| **Spec** | [language/test/fixtures/spec/](language/test/fixtures/spec/) | MDTest-driven type checking and diagnostics |
+| **Query** | [language/test/fixtures/query/](language/test/fixtures/query/) | MDTest-driven IDE/LSP queries (goto definition, completion, rename) |
 | **Conformance** | [language/test/fixtures/conformance/](language/test/fixtures/conformance/) | Parser conformance against established test suites |
 | **Formatter** | [language/test/fixtures/formatter/](language/test/fixtures/formatter/) | Format roundtrip stability |
 | **Resolver** | [language/test/fixtures/resolver/](language/test/fixtures/resolver/) | Module resolution (node_modules, pnpm, yarn, tsconfig paths) |
-| **Fuzzing** | [language/parser/fuzz/](language/parser/fuzz/) | Parser tokenizer fuzzing |
+| **Stress** | [language/test/fixtures/stress/](language/test/fixtures/stress/) | Scale limits: large files, many modules, deep nesting |
+| **Fuzz** | [language/parser/fuzz/](language/parser/fuzz/), [language/formatter/fuzz/](language/formatter/fuzz/) | Random input exploration |
 
 ```bash
 # all tests
@@ -25,27 +28,15 @@ just test
 # individual suites
 just test-smoke
 just test-codegen
-just test-mdtest
+just test-spec
+just test-query
 just test-conformance
 just test-formatter
-
-# fuzzing
-just fuzz-parser          # 5 minutes (default)
-just fuzz-parser 60       # 1 minute
-just fuzz-ci              # brief CI run
+just test-stress        # requires: just generate-stress
 ```
 
-## Performance
-
-And the only way to ensure performance is to benchmark everything, and benchmark continuously.
-
-| Suite | Location | Description |
-|-------|----------|-------------|
-| **Lexer** | [language/parser/benches/](language/parser/benches/) | Tokenizer throughput (lines/sec) |
-| **Parser** | [language/parser/benches/](language/parser/benches/) | Parser throughput (lines/sec) |
-
 ```bash
-just bench-parser         # all parser benchmarks
-just bench-lex            # lexer only
-just bench-parse          # parser only
+just bench               # all benchmarks
+just bench-lexer         # lexer only
+just bench-parser        # parser only
 ```
