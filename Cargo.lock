@@ -993,6 +993,7 @@ dependencies = [
  "dashmap",
  "destack_ast",
  "destack_base",
+ "destack_builtin",
  "destack_dir",
  "destack_mir",
  "destack_source",

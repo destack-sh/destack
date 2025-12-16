@@ -1,5 +1,3 @@
-/// Property and Variant descriptors for struct/class/enum types.
-
 /// A property (field) in a struct, class, interface, or object type.
 ///
 /// Properties describe data members, not methods. For functions/methods,

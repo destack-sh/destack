@@ -86,9 +86,7 @@ type ValidationErrorCode =
     // Union/enum errors
     | "invalidUnion"      // Doesn't match any union member
     | "invalidEnum"       // Not a valid enum value
-
-    // Custom
-    | string
+    | string              // custom error codes
 ;
 
 // ============================================================================

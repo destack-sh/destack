@@ -219,10 +219,10 @@ struct FunctionType<T> implements TypeBase<T> {
     returnType: Type<unknown>,
 
     /// Whether this function is async.
-    async: boolean,
+    isAsync: boolean,
 
     /// Whether this function is a generator.
-    generator: boolean,
+    isGenerator: boolean,
 }
 
 /// A function parameter.

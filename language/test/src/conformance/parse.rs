@@ -88,7 +88,7 @@ pub(super) fn parse_file(
     let files = Arc::new(FileRegistry::new());
     let fs: Arc<dyn FileSystem> = Arc::new(MemoryFileSystem::new());
 
-    let program = Arc::new(Program::new(
+    let program = Arc::new(Program::from_options(
         FormatterOptions::default(),
         LinterOptions::default(),
         cwd,

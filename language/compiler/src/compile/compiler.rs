@@ -5,7 +5,7 @@ use std::thread;
 use dashmap::DashMap;
 
 use destack_source::{DiagnosticCollector, DiagnosticOptions, ModuleId, Uri};
-use destack_workspace::Program;
+use destack_workspace::{LanguageBuiltins, Program};
 use parking_lot::Mutex;
 
 use crate::{
@@ -29,6 +29,7 @@ pub struct CompileOptions {
     pub diagnostic: DiagnosticOptions,
     /// The number of worker threads to use.
     pub workers: u16,
+
     /// The options for importing.
     pub import: ImportOptions,
     /// The options for binding.
@@ -109,6 +110,11 @@ impl Compiler {
             queue: TaskQueue::new(),
             import_locks: DashMap::new(),
         }
+    }
+
+    /// Get the builtins (if loaded in program).
+    pub fn builtins(&self) -> Option<&Arc<LanguageBuiltins>> {
+        self.program.builtins.as_ref()
     }
 
     /// Get the import lock for a URI.

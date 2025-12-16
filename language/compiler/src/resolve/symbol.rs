@@ -852,6 +852,7 @@ export let B = A + 1;
     fn test_resolve_symbol_across_n_modules() {
         const N: usize = 20;
         let test = TestProgram::memory_parallel();
+        let initial_module_count = test.program.modules.len();
 
         // add module 1 to fs: export let M1 = 1;
         test.add_file(
@@ -911,7 +912,7 @@ export let M{N} = {sum_expression_str} + 1;
 
         // verify all N modules were created (no duplicates from race conditions)
         let module_count = test.program.modules.len();
-        assert_eq!(module_count, N + 1,); // (+1 for the implicit root module)
+        assert_eq!(module_count, initial_module_count + N);
     }
 
     /// Test import chain resolution to the canonical symbol.
@@ -1610,5 +1611,34 @@ import { X } from "./a.ds";
 
         // ER008 = CyclicSymbol (re-export chain forms a cycle)
         test.check_has_diagnostic("ER008");
+    }
+
+    /// Test that prelude items (like Add, Type) are available in user code.
+    #[test]
+    #[ignore] // nocheckin TODO: enable once prelude injection is implemented
+    fn test_resolve_prelude_items() {
+        let test = TestProgram::memory_sequential_with_builtins();
+
+        // code that uses prelude items without importing them
+        let module_id = test.add_module(
+            "test.ds",
+            r#"
+// Use a prelude type (Add is an operator interface)
+type MyAdd = Add;
+
+// Use a prelude decorator
+@deprecated
+function oldFunction() {}
+
+// Use Type<T> for reflection
+function printType<T>(t: Type<T>) {
+    // ...
+}
+"#,
+        );
+
+        test.resolve_module(module_id);
+        test.compile();
+        test.check_clean();
     }
 }

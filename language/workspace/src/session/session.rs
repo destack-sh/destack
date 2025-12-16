@@ -2,11 +2,17 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use dashmap::DashMap;
-use destack_source::{FileRegistry, FileSystem, PhysicalFileSystem};
+use destack_source::{FileRegistry, FileSystem, ModuleId, PhysicalFileSystem};
 
-use crate::{FormatterOptions, LinterOptions, Program, Workspace};
+use crate::{
+    FormatterOptions, LanguageBuiltins, LinterOptions, ModuleRegistry, PackageRegistry, Program,
+    TsConfigRegistry, Workspace,
+};
 
 /// A session is the persistent state for a workspace.
+///
+/// Sessions always have builtins loaded. Programs created from a session
+/// share the session's builtins.
 #[derive(Debug)]
 pub struct Session {
     /// The workspace this session is for.
@@ -17,44 +23,103 @@ pub struct Session {
     pub fs: Arc<dyn FileSystem>,
     /// The files in the session.
     pub files: Arc<FileRegistry>,
+
     /// Default formatter options.
     pub formatter: FormatterOptions,
     /// Default linter options.
     pub linter: LinterOptions,
+
     /// The programs in the session, keyed by root path.
     pub programs: DashMap<PathBuf, Arc<Program>>,
+    /// Shared package registry (for builtins and cross-program sharing).
+    pub packages: Arc<PackageRegistry>,
+    /// Shared module registry (for builtins).
+    pub modules: Arc<ModuleRegistry>,
+    /// Compiled builtins (always loaded).
+    pub builtins: Arc<LanguageBuiltins>,
 }
 
 impl Session {
-    /// Create a new session for a workspace.
-    pub fn new(workspace: Arc<Workspace>, cwd: PathBuf) -> Self {
+    /// Create a new session with builtins loaded.
+    pub fn new(cwd: PathBuf) -> Self {
+        let files = Arc::new(FileRegistry::new());
+        let modules = Arc::new(ModuleRegistry::new());
+        let packages = Arc::new(PackageRegistry::new());
+        let builtins = Arc::new(LanguageBuiltins::embedded(
+            files.clone(),
+            modules.clone(),
+            packages.clone(),
+        ));
+
+        Self {
+            workspace: Arc::new(Workspace::single_package(cwd.clone())),
+            cwd,
+            fs: Arc::new(PhysicalFileSystem::new()),
+            files,
+
+            formatter: FormatterOptions::default(),
+            linter: LinterOptions::default(),
+
+            programs: DashMap::new(),
+            packages,
+            modules,
+            builtins,
+        }
+    }
+
+    /// Create a session for a workspace with builtins loaded.
+    pub fn for_workspace(workspace: Arc<Workspace>, cwd: PathBuf) -> Self {
+        let files = Arc::new(FileRegistry::new());
+        let modules = Arc::new(ModuleRegistry::new());
+        let packages = Arc::new(PackageRegistry::new());
+        let builtins = Arc::new(LanguageBuiltins::embedded(
+            files.clone(),
+            modules.clone(),
+            packages.clone(),
+        ));
+
         Self {
             workspace,
             cwd,
             fs: Arc::new(PhysicalFileSystem::new()),
-            files: Arc::new(FileRegistry::new()),
+            files,
+
             formatter: FormatterOptions::default(),
             linter: LinterOptions::default(),
+
             programs: DashMap::new(),
+            packages,
+            modules,
+            builtins,
         }
     }
 
-    /// Create a new session with a custom file system.
+    /// Set the file system (builder pattern).
     pub fn with_fs(mut self, fs: Arc<dyn FileSystem>) -> Self {
         self.fs = fs;
         self
     }
 
-    /// Create a new session with formatter options.
+    /// Set formatter options (builder pattern).
     pub fn with_formatter(mut self, formatter: FormatterOptions) -> Self {
         self.formatter = formatter;
         self
     }
 
-    /// Create a new session with linter options.
+    /// Set linter options (builder pattern).
     pub fn with_linter(mut self, linter: LinterOptions) -> Self {
         self.linter = linter;
         self
+    }
+
+    /// Load a lib module set (e.g., "dom", "es2024").
+    pub fn load_lib(&self, name: &str) -> Vec<ModuleId> {
+        self.builtins.load_lib(
+            name,
+            self.files.clone(),
+            self.modules.clone(),
+            self.packages.clone(),
+        )
     }
 
     /// Add a root to the session.
@@ -66,6 +131,10 @@ impl Session {
             root.clone(),
             self.fs.clone(),
             self.files.clone(),
+            self.modules.clone(),
+            self.packages.clone(),
+            Arc::new(TsConfigRegistry::new()),
+            Some(self.builtins.clone()),
         ));
         self.programs.insert(root.clone(), program.clone());
         program

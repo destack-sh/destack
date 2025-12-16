@@ -53,7 +53,7 @@ fn run_compiler_case(test: &TestCase) -> TestResult {
         .add_file(&test.path, content.as_bytes())
         .expect("failed to add test file to memory fs");
     let fs: Arc<dyn FileSystem> = memory_fs;
-    let program = Arc::new(Program::new(
+    let program = Arc::new(Program::from_options(
         FormatterOptions::default(),
         LinterOptions::default(),
         cwd,

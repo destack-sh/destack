@@ -32,7 +32,15 @@ pub struct LexArgs {
 
 /// Tokenize input and show a colored table with locations.
 pub fn run(args: &LexArgs) -> i32 {
-    let program = args.program.setup();
+    let session = args.program.setup();
+
+    // get the program from the session
+    let program = session
+        .programs
+        .iter()
+        .next()
+        .map(|entry| entry.value().clone())
+        .expect("session should have a program after setup");
 
     // determine input source
     let source = match args.input.to_source() {

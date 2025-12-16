@@ -41,7 +41,15 @@ pub struct ResolveArgs {
 }
 
 pub fn run(args: &ResolveArgs) -> i32 {
-    let program = args.program.setup();
+    let session = args.program.setup();
+
+    // get the program from the session
+    let program = session
+        .programs
+        .iter()
+        .next()
+        .map(|entry| entry.value().clone())
+        .expect("session should have a program after setup");
 
     // determine directory to resolve from
     let directory = args

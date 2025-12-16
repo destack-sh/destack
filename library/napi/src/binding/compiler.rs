@@ -72,6 +72,8 @@ pub struct TypeResolveOptions {
     pub default_int_width: u16,
     /// Default float width (if not specified).
     pub default_float_width: u16,
+    /// Whether to make prelude items (Add, Type, deprecated) available without imports.
+    pub inject_prelude: Option<bool>,
 }
 
 impl Default for TypeResolveOptions {
@@ -79,6 +81,7 @@ impl Default for TypeResolveOptions {
         Self {
             default_int_width: 32,
             default_float_width: 32,
+            inject_prelude: None,
         }
     }
 }
@@ -88,6 +91,7 @@ impl From<TypeResolveOptions> for destack_compiler::ResolveOptions {
         Self {
             default_int_width: options.default_int_width,
             default_float_width: options.default_float_width,
+            inject_prelude: options.inject_prelude.unwrap_or(true),
         }
     }
 }

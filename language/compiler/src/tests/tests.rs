@@ -11,15 +11,15 @@ use destack_dir::{DumperOptions, GlobalSymbolId, Symbol};
 use destack_formatter::{DestackFormatContext, DestackFormatOptions};
 use destack_linter::print_diff;
 use destack_source::{
-    DiagnosticSeverity, File, FileId, FileRegistry, FileSystem, FileType, MemoryFileSystem,
-    ModuleId, MultiSpan, PhysicalFileSystem, PrintOptions, Uri, print_diagnostics,
+    DiagnosticSeverity, File, FileId, FileSystem, FileType, MemoryFileSystem, ModuleId, MultiSpan,
+    PhysicalFileSystem, PrintOptions, Uri, print_diagnostics,
 };
-use destack_workspace::{FormatterOptions, LinterOptions, Module, Program};
+use destack_workspace::{Module, Program, Session};
 use parking_lot::RwLock;
 
 use crate::{
     AnalyzeTask, BindTask, CompileOptions, Compiler, ElaborateTask, ImportTask, LintTask,
-    ResolveTask, Task, default_workers,
+    ResolveOptions, ResolveTask, Task, default_workers,
 };
 
 use super::tracing::init_tracing;
@@ -53,6 +53,8 @@ impl TestFileSystem {
 pub struct TestProgram {
     /// The file system.
     pub fs: TestFileSystem,
+    /// The session (holds shared state like builtins).
+    pub session: Arc<Session>,
     /// The program.
     pub program: Arc<Program>,
     /// The compiler.
@@ -62,76 +64,84 @@ pub struct TestProgram {
 }
 
 impl TestProgram {
-    /// Create a new TestProgram with the given TestFileSystem and worker count.
-    fn new(fs: TestFileSystem, workers: u16) -> Self {
+    /// Create a new TestProgram with the given options.
+    fn new(fs: TestFileSystem, workers: u16, inject_prelude: bool) -> Self {
         init_tracing();
         let root_directory = match &fs {
             TestFileSystem::Memory { .. } => current_dir().unwrap(),
             TestFileSystem::Physical { root_directory, .. } => root_directory.clone(),
         };
 
-        let program = Arc::new(Program::new(
-            FormatterOptions::default(),
-            LinterOptions::default(),
-            root_directory,
-            fs.fs(),
-            Arc::new(FileRegistry::new()),
-        ));
+        let session = Arc::new(Session::new(root_directory.clone()).with_fs(fs.fs()));
+        let program = session.add_root(root_directory);
 
         let compiler_options = CompileOptions {
             workers,
+            resolve: ResolveOptions {
+                inject_prelude,
+                ..Default::default()
+            },
             ..CompileOptions::default()
         };
         let compiler = Arc::new(Compiler::new(program.clone(), compiler_options));
 
         Self {
             fs,
+            session,
             program,
             compiler,
             dumper_options: DumperOptions::default(),
         }
     }
 
-    /// Create a new blank TestProgram with in-memory file system and multiple workers.
+    /// In-memory, parallel, without prelude injection.
     pub fn memory_parallel() -> Self {
         Self::new(
             TestFileSystem::Memory {
                 fs: Arc::new(MemoryFileSystem::new()),
             },
             default_workers(),
+            false,
         )
     }
 
-    /// Create a new blank TestProgram with in-memory file system and a single worker.
+    /// In-memory, parallel, with prelude injection.
+    pub fn memory_parallel_with_builtins() -> Self {
+        Self::new(
+            TestFileSystem::Memory {
+                fs: Arc::new(MemoryFileSystem::new()),
+            },
+            default_workers(),
+            true,
+        )
+    }
+
+    /// In-memory, sequential, without prelude injection.
     pub fn memory_sequential() -> Self {
         Self::new(
             TestFileSystem::Memory {
                 fs: Arc::new(MemoryFileSystem::new()),
             },
             1,
+            false,
         )
     }
 
-    /// Create a new blank TestProgram with physical file system and multiple workers.
-    pub fn physical_parallel(root_directory: &str) -> Self {
+    /// In-memory, sequential, with prelude injection.
+    pub fn memory_sequential_with_builtins() -> Self {
         Self::new(
-            TestFileSystem::Physical {
-                root_directory: PathBuf::from(root_directory),
-                fs: Arc::new(PhysicalFileSystem::new()),
-            },
-            default_workers(),
-        )
-    }
-
-    /// Create a new blank TestProgram with physical file system and a single worker.
-    pub fn physical_sequential(root_directory: &str) -> Self {
-        Self::new(
-            TestFileSystem::Physical {
-                root_directory: PathBuf::from(root_directory),
-                fs: Arc::new(PhysicalFileSystem::new()),
+            TestFileSystem::Memory {
+                fs: Arc::new(MemoryFileSystem::new()),
             },
             1,
+            true,
         )
+    }
+
+    /// Load a lib module set (builder pattern).
+    pub fn with_lib(self, name: &str) -> Self {
+        self.session.load_lib(name);
+        self
     }
 
     /// Add a file to the memory filesystem (without creating a Module).

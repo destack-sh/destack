@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use destack_compiler::{AnalyzeTask, CompileOptions, Compiler, GenerateTask, LintTask};
 use destack_source::{DiagnosticOptions, FileType, ModuleId, Uri};
-use destack_workspace::Program;
+use destack_workspace::{Program, Session};
 
 use crate::common::{DiagnosticArgs, InputArgs, InputSource, ProgramArgs, print_diagnostics};
 use crate::console;
@@ -26,6 +26,7 @@ pub enum CompileMode {
 
 /// Common compilation context shared by check/build/lint commands.
 pub struct CompileContext {
+    pub session: Arc<Session>,
     pub program: Arc<Program>,
     pub compiler: Compiler,
     pub diagnostic_options: DiagnosticOptions,
@@ -35,6 +36,7 @@ pub struct CompileContext {
 impl fmt::Debug for CompileContext {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("CompileContext")
+            .field("session", &self.session)
             .field("program", &self.program)
             .field("compiler", &"Compiler { ... }")
             .field("diagnostic_options", &self.diagnostic_options)
@@ -70,7 +72,16 @@ impl CompileContext {
         mode: CompileMode,
     ) -> Self {
         let diagnostic_options: DiagnosticOptions = diagnostic_args.clone().into();
-        let program = program_args.setup();
+        let session = program_args.setup();
+
+        // get the program from the session (created during setup)
+        let program = session
+            .programs
+            .iter()
+            .next()
+            .map(|entry| entry.value().clone())
+            .expect("session should have a program after setup");
+
         let compiler = Compiler::new(
             program.clone(),
             CompileOptions {
@@ -80,6 +91,7 @@ impl CompileContext {
             },
         );
         Self {
+            session,
             program,
             compiler,
             diagnostic_options,

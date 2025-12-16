@@ -213,8 +213,16 @@ fn format_file(file: Arc<File>, formatter: FormatterOptions, program: Arc<Progra
 pub fn run(args: &FmtArgs) -> i32 {
     let check = args.check;
     let diagnostic_options: DiagnosticOptions = args.diagnostics.clone().into();
-    let program = args.program.setup();
-    let default_formatting = program.formatter;
+    let session = args.program.setup();
+    let default_formatting = session.formatter;
+
+    // get the program from the session
+    let program = session
+        .programs
+        .iter()
+        .next()
+        .map(|entry| entry.value().clone())
+        .expect("session should have a program after setup");
 
     // case 1: format inline string
     if let Some(ref string) = args.eval {

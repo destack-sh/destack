@@ -60,9 +60,7 @@ pub(crate) fn format_scalar_literal<'ast>(
                 // fallback: no source span available, format from string pool
                 let string = f.context().strings.get(*string_id);
                 write!(f, [token("\""), text(string), token("\"")])?;
-            } else if span_str.len() >= 2
-                && span_str.starts_with('\'')
-                && span_str.ends_with('\'')
+            } else if span_str.len() >= 2 && span_str.starts_with('\'') && span_str.ends_with('\'')
             {
                 // single-quoted string -> convert to double quotes
                 let mut normalized = String::with_capacity(span_str.len());
