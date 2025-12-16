@@ -8,7 +8,6 @@ declare_lint! {
     ///
     /// Functions with many parameters are harder to use and understand.
     /// Consider using an options object or breaking the function into smaller pieces.
-    /// Default maximum is 4 parameters.
     #[lint(
         id = "max-params",
         code = "LX001",
