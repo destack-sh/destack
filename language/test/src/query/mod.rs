@@ -1,9 +1,8 @@
 mod harness;
 pub mod marker;
-mod runner;
+pub mod runner;
 mod suite;
 
 pub use harness::*;
 pub use marker::*;
-pub use runner::*;
-pub use suite::QuerySuite;
+pub use suite::{QueryExpectation, QuerySuite};

@@ -1,7 +1,7 @@
 use crate::harness::TestResult;
-use crate::query::QueryTestSession;
+use crate::query::{QueryExpectation, QueryTestSession};
 
 /// Run an inlay_hints test.
-pub fn run(_session: &QueryTestSession) -> TestResult {
+pub fn run(_session: &QueryTestSession, _expectation: Option<&QueryExpectation>) -> TestResult {
     todo!("#Incomplete: inlay_hints test runner")
 }

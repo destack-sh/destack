@@ -6,6 +6,7 @@ use destack_source::{FileId, FileSystem, FileType, MemoryFileSystem, Uri};
 use destack_workspace::Session;
 
 use super::{TestMarkers, parse_markers};
+use crate::mdtest::MdTestCase;
 
 /// Information about a single file in a test session.
 #[derive(Debug, Clone)]
@@ -117,6 +118,87 @@ impl QueryTestSession {
             session,
             file_id: primary_file_id.unwrap(),
             markers: primary_markers,
+            source: primary_source,
+            files,
+        }
+    }
+
+    /// Create a test session from a markdown test case.
+    ///
+    /// Uses the same setup as spec tests for proper initialization.
+    pub fn from_mdtest(test: &MdTestCase) -> Self {
+        let memory_fs = Arc::new(MemoryFileSystem::new());
+        let cwd = PathBuf::from("/test");
+
+        let mut files = HashMap::new();
+        let mut all_markers = TestMarkers::default();
+        let mut primary_file_id = None;
+        let mut primary_source = String::new();
+
+        // first pass: parse markers and collect clean sources
+        let mut clean_files: Vec<(String, String, FileId, TestMarkers)> = Vec::new();
+
+        for (idx, file) in test.files.iter().enumerate() {
+            // use index as file_id for marker spans
+            let file_id = FileId(idx as u32);
+            let (clean_source, markers) = parse_markers(file_id, &file.content);
+            clean_files.push((file.path.clone(), clean_source, file_id, markers));
+        }
+
+        // populate filesystem with clean sources
+        for (path, clean_source, _, _) in &clean_files {
+            let file_path = cwd.join(path);
+            memory_fs
+                .add_file(&file_path, clean_source.as_bytes())
+                .expect("failed to add test file");
+        }
+
+        // create session with in-memory filesystem
+        let fs: Arc<dyn FileSystem> = memory_fs;
+        let session = Arc::new(Session::new(cwd.clone()).with_fs(fs));
+        let _program = session.add_root(cwd);
+
+        // build TestFile structs and merge markers
+        for (path, clean_source, file_id, markers) in clean_files {
+            // merge markers into all_markers (for cross-file lookups)
+            for range in &markers.ranges {
+                all_markers.ranges.push(super::RangeMarker {
+                    name: range.name.clone(),
+                    span: destack_source::Span::new(file_id, range.span.start, range.span.end),
+                    target: range.target.clone(),
+                });
+            }
+            for cursor in &markers.cursors {
+                all_markers.cursors.push(super::CursorMarker {
+                    index: cursor.index,
+                    offset: cursor.offset,
+                });
+            }
+            if markers.test_type.is_some() {
+                all_markers.test_type = markers.test_type.clone();
+            }
+
+            files.insert(
+                path.clone(),
+                TestFile {
+                    file_id,
+                    name: path.clone(),
+                    markers: markers.clone(),
+                    source: clean_source.clone(),
+                },
+            );
+
+            // main.ds or first file is primary
+            if primary_file_id.is_none() || path == "main.ds" {
+                primary_file_id = Some(file_id);
+                primary_source = clean_source;
+            }
+        }
+
+        Self {
+            session,
+            file_id: primary_file_id.unwrap_or(FileId(0)),
+            markers: all_markers,
             source: primary_source,
             files,
         }
