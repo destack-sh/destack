@@ -27,7 +27,7 @@ export type AudioPlayerOptions = {
      * How often (in milliseconds) to emit playback status updates. Defaults to 500ms.
      *
      * @example
-     * ```tsx
+     * ```dsx
      * import { useAudioPlayer } from 'expo-audio';
      *
      * export default function App() {

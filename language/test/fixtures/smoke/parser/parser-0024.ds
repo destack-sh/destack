@@ -384,7 +384,7 @@ declare namespace "bun" {
      * Configuration options for SQL client connection and behavior
      *
      * @example
-     * ```ts
+     * ```ds
      * const config: Bun.SQL.Options = {
      *   host: 'localhost',
      *   port: 5432,
@@ -460,7 +460,7 @@ declare namespace "bun" {
      * value inside of a query.
      *
      * @example
-     * ```ts
+     * ```ds
      * const helper = sql(users, 'id');
      * await sql`insert into users ${helper}`;
      * ```
@@ -475,7 +475,7 @@ declare namespace "bun" {
     /**
      * Executes a SQL query using template literals
      * @example
-     * ```ts
+     * ```ds
      * const [user] = await sql<Users[]>`select * from users where id = ${1}`;
      * ```
      */
@@ -485,7 +485,7 @@ declare namespace "bun" {
      * Execute a SQL query using a string
      *
      * @example
-     * ```ts
+     * ```ds
      * const users = await sql<User[]>`SELECT * FROM users WHERE id = ${1}`;
      * ```
      */
@@ -495,7 +495,7 @@ declare namespace "bun" {
      * Helper function for inserting an object into a query
      *
      * @example
-     * ```ts
+     * ```ds
      * // Insert an object
      * const result = await sql`insert into users ${sql(users)} returning *`;
      *
@@ -512,7 +512,7 @@ declare namespace "bun" {
      * Helper function for inserting an object into a query, supporting specific columns
      *
      * @example
-     * ```ts
+     * ```ds
      * // Insert an object
      * const result = await sql`insert into users ${sql(users)} returning *`;
      *
@@ -532,7 +532,7 @@ declare namespace "bun" {
      * Helper function for inserting any serializable value into a query
      *
      * @example
-     * ```ts
+     * ```ds
      * const result = await sql`SELECT * FROM users WHERE id IN ${sql([1, 2, 3])}`;
      * ```
      */
@@ -549,7 +549,7 @@ declare namespace "bun" {
      * @param connectionString - The connection string for the SQL client
      *
      * @example
-     * ```ts
+     * ```ds
      * const sql = new SQL("postgres://localhost:5432/mydb");
      * const sql = new SQL(new URL("postgres://localhost:5432/mydb"));
      * ```
@@ -563,7 +563,7 @@ declare namespace "bun" {
      * @param options - The options for the SQL client
      *
      * @example
-     * ```ts
+     * ```ds
      * const sql = new SQL("postgres://localhost:5432/mydb", { idleTimeout: 1000 });
      * ```
      */
@@ -578,7 +578,7 @@ declare namespace "bun" {
      * @param options - The options for the SQL client
      *
      * @example
-     * ```ts
+     * ```ds
      * const sql = new SQL({ url: "postgres://localhost:5432/mydb", idleTimeout: 1000 });
      * ```
      */
@@ -597,7 +597,7 @@ declare namespace "bun" {
      * @throws {Error} If the adapter does not support distributed transactions (e.g., SQLite)
      *
      * @example
-     * ```ts
+     * ```ds
      * await sql.commitDistributed("my_distributed_transaction");
      * ```
      */
@@ -611,7 +611,7 @@ declare namespace "bun" {
      * @throws {Error} If the adapter does not support distributed transactions (e.g., SQLite)
      *
      * @example
-     * ```ts
+     * ```ds
      * await sql.rollbackDistributed("my_distributed_transaction");
      * ```
      */
@@ -620,7 +620,7 @@ declare namespace "bun" {
     /** Waits for the database connection to be established
      *
      * @example
-     * ```ts
+     * ```ds
      * await sql.connect();
      * ```
      */
@@ -632,7 +632,7 @@ declare namespace "bun" {
      * @param options - The options for the close
      *
      * @example
-     * ```ts
+     * ```ds
      * await sql.close({ timeout: 1 });
      * ```
      */
@@ -645,7 +645,7 @@ declare namespace "bun" {
      * @param options - The options for the close
      *
      * @example
-     * ```ts
+     * ```ds
      * await sql.end({ timeout: 1 });
      * ```
      */
@@ -657,7 +657,7 @@ declare namespace "bun" {
      * @throws {Error} If the adapter does not support flushing (e.g., SQLite)
      *
      * @example
-     * ```ts
+     * ```ds
      * sql.flush();
      * ```
      */
@@ -672,7 +672,7 @@ declare namespace "bun" {
      * @throws {Error} If the adapter does not support connection pooling (e.g., SQLite)s
      *
      * @example
-     * ```ts
+     * ```ds
      * const reserved = await sql.reserve();
      * await reserved`select * from users`;
      * await reserved.release();
@@ -699,7 +699,7 @@ declare namespace "bun" {
      * @returns A new SQL array parameter
      *
      * @example
-     * ```ts
+     * ```ds
      * const array = sql.array([1, 2, 3], "INT");
      * await sql`CREATE TABLE users_posts (user_id INT, posts_id INT[])`;
      * await sql`INSERT INTO users_posts (user_id, posts_id) VALUES (${user.id}, ${array})`;
