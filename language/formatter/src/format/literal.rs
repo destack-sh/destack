@@ -34,7 +34,7 @@ pub(crate) fn format_scalar_literal<'ast>(
         ScalarLiteral::Bigint(value) => {
             if span_str.is_empty() {
                 // fallback: no source span available, format from value
-                text(&format!("{}n", value)).format(f)?;
+                text(&format!("{value}n")).format(f)?;
             } else {
                 let normalized_str = normalize_int(span_str, true);
                 text(&normalized_str).format(f)?;

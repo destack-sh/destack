@@ -1,0 +1,14 @@
+// test: goto_definition
+// description: goto definition of local variables
+
+const foo = 1;
+//    ^^^ def:foo
+
+const bar = foo;
+//          ^^^ use:foo -> def:foo
+
+function test() {
+    const baz = foo + bar;
+    //          ^^^ use:foo -> def:foo
+    //                ^^^ use:bar -> def:bar
+}

@@ -7,14 +7,12 @@ use destack_fir::format as fir_format;
 use destack_formatter::{DestackFormatContext, DestackFormatOptions};
 use destack_parser::Parser;
 use destack_source::{
-    DiagnosticCollection, DiagnosticSeverity, File, FileId, FileType, LanguageType,
+    DiagnosticCollection, DiagnosticSeverity, Edit, File, FileId, FileType, LanguageType,
     MemoryFileSystem, ModuleId, PrintOptions, Uri, print_diagnostics,
 };
 use destack_workspace::{Program, Session};
 
-use crate::{
-    BoxedLintRule, FixApplicability, LintDiagnostic, LintLevel, LintRunner, TextEdit, print_diff,
-};
+use crate::{BoxedLintRule, FixApplicability, LintDiagnostic, LintLevel, LintRunner, print_diff};
 
 /// Test wrapper for linting.
 pub(crate) struct TestProgram {
@@ -287,8 +285,8 @@ impl<'a> LintResult<'a> {
         self.print_diagnostics(&self.diagnostics);
         panic!("expected lint '{rule_id}' at line {line} but found at lines: {lines:?}");
     }
-    /// Apply text edits to source code and return the result.
-    pub(crate) fn apply_edits(&self, edits: Vec<&TextEdit>) -> String {
+    /// Apply edits to source code and return the result.
+    pub(crate) fn apply_edits(&self, edits: Vec<&Edit>) -> String {
         // return original source if no edits
         if edits.is_empty() {
             if let Some(d) = self.diagnostics.first() {
@@ -308,7 +306,7 @@ impl<'a> LintResult<'a> {
         for edit in sorted_edits {
             let start = edit.span.start as usize;
             let end = edit.span.end as usize;
-            source.replace_range(start..end, &edit.replacement);
+            source.replace_range(start..end, &edit.new_text);
         }
 
         source
@@ -317,7 +315,7 @@ impl<'a> LintResult<'a> {
     /// Apply fixes from diagnostics with the given applicability and return the fixed source.
     pub(crate) fn apply_fixes(&self, applicability: Option<FixApplicability>) -> String {
         // collect all edits from fixes with matching applicability
-        let edits: Vec<&TextEdit> = self
+        let edits: Vec<&Edit> = self
             .diagnostics
             .iter()
             .flat_map(|d| &d.fixes)

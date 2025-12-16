@@ -1,12 +1,14 @@
-use destack_source::{Applicability, FileId, LabeledSpan, Span, Suggestion, SuggestionStyle};
+use destack_source::{
+    Applicability, Edit, FileId, LabeledSpan, Span, Suggestion, SuggestionStyle,
+};
 
 /// A suggested fix for a lint.
 #[derive(Debug, Clone)]
 pub struct LintFix {
     /// Description of the fix.
     pub description: String,
-    /// Text edits to apply.
-    pub edits: Vec<TextEdit>,
+    /// Edits to apply.
+    pub edits: Vec<Edit>,
     /// How safe the fix is to apply automatically.
     pub applicability: FixApplicability,
 }
@@ -36,27 +38,27 @@ impl LintFix {
         Self::new(description, FixApplicability::Suggestion)
     }
 
-    /// Add a text edit.
-    pub fn with_edit(mut self, edit: TextEdit) -> Self {
+    /// Add an edit.
+    pub fn with_edit(mut self, edit: Edit) -> Self {
         self.edits.push(edit);
         self
     }
 
     /// Add a replacement edit.
-    pub fn replace(mut self, span: Span, replacement: impl Into<String>) -> Self {
-        self.edits.push(TextEdit::replace(span, replacement));
+    pub fn replace(mut self, span: Span, new_text: impl Into<String>) -> Self {
+        self.edits.push(Edit::replace(span, new_text));
         self
     }
 
     /// Add a deletion edit.
     pub fn delete(mut self, span: Span) -> Self {
-        self.edits.push(TextEdit::delete(span));
+        self.edits.push(Edit::delete(span));
         self
     }
 
     /// Add an insertion edit at a position in a file.
-    pub fn insert(mut self, file_id: FileId, position: u32, text: impl Into<String>) -> Self {
-        self.edits.push(TextEdit::insert(file_id, position, text));
+    pub fn insert(mut self, file: FileId, position: u32, text: impl Into<String>) -> Self {
+        self.edits.push(Edit::insert(file, position, text));
         self
     }
 
@@ -71,7 +73,7 @@ impl LintFix {
                     span: edit.span,
                     label: self.description.clone(),
                 }],
-                Some(edit.replacement.clone()),
+                Some(edit.new_text.clone()),
             )
         } else {
             // multiple edits: show spans but can't express replacement simply
@@ -96,41 +98,6 @@ impl LintFix {
                 FixApplicability::Safe => Applicability::Automatic,
                 FixApplicability::Unsafe | FixApplicability::Suggestion => Applicability::Dangerous,
             },
-        }
-    }
-}
-
-/// A text edit for a fix.
-#[derive(Debug, Clone)]
-pub struct TextEdit {
-    /// The span to replace.
-    pub span: Span,
-    /// The replacement text (empty = deletion).
-    pub replacement: String,
-}
-
-impl TextEdit {
-    /// Create a replacement edit.
-    pub fn replace(span: Span, replacement: impl Into<String>) -> Self {
-        Self {
-            span,
-            replacement: replacement.into(),
-        }
-    }
-
-    /// Create a deletion edit.
-    pub fn delete(span: Span) -> Self {
-        Self {
-            span,
-            replacement: String::new(),
-        }
-    }
-
-    /// Create an insertion edit at a position.
-    pub fn insert(file_id: FileId, position: u32, text: impl Into<String>) -> Self {
-        Self {
-            span: Span::new(file_id, position, position),
-            replacement: text.into(),
         }
     }
 }

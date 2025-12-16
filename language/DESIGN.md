@@ -124,7 +124,7 @@ This enables domain-specific trees for AI prompts, game entities, UI components,
 
 ## Annotations
 
-Destack extends decorators (`@`) to work on any declaration, statement, or expression—not just class members.
+Destack extends decorators (`@`) to work on many more language constructs: declarations, statements, members, parameters, match arms, and more.
 
 ```
 @deprecated("use newAPI instead")
@@ -135,11 +135,27 @@ function expensive() { }
 
 @unroll
 for (let i = 0; i < 4; i++) { }
+
+// on struct members
+struct User {
+    @validate(minLength(1))
+    name: string,
+}
+
+// on function parameters
+function process(@nonempty input: string) { }
+
+// on match arms
+match (result) {
+    @cold
+    Err(e) => handleError(e),
+    Ok(v) => v,
+}
 ```
 
-Decorator behavior depends on what it resolves to:
-- **Function**: Transforms the target (standard decorator semantics)
-- **Newtype**: Compile-time metadata, stripped in output (for hints like `@unroll`, `@inline`)
+Decorator behavior depends on what the decorator resolves to:
+- **Function**: Transforms the target, `@foo body` desugars to `foo(body)`
+- **Newtype**: Compile-time metadata, available for reflection but stripped from output
 
 TypeScript decorators copy-pasted into Destack work as expected.
 

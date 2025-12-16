@@ -51,9 +51,9 @@ pub enum TaskPhase {
     Bind = 2,
     /// Resolve symbol references in DIR.
     Resolve = 3,
-    /// Type inference, overload resolution, and validation.
+    /// Infer types, resolve overloads, validate.
     Analyze = 4,
-    /// Monomorphize, evaluate comptime, and desugar DIR.
+    /// Desugar, impute overloads, reify DIR.
     Elaborate = 5,
     // --------------------------------------------------
     /// Lower DIR into MIR.
@@ -122,8 +122,8 @@ impl TaskPhase {
             Self::Import => "import and parse source into AST",
             Self::Bind => "bind and declare AST into DIR",
             Self::Resolve => "resolve symbol references in DIR",
-            Self::Analyze => "type inference, overload resolution, and validation",
-            Self::Elaborate => "monomorphize, evaluate comptime, and desugar DIR",
+            Self::Analyze => "infer types, resolve overloads, validate",
+            Self::Elaborate => "desugar, resolve overloads, reify",
             Self::Lower => "lower DIR into MIR",
             Self::Verify => "verify and flow-check MIR",
             Self::Optimize => "optimize MIR",
@@ -162,9 +162,9 @@ pub enum Task {
     Bind(BindTask),
     /// Resolve symbol references in DIR.
     Resolve(ResolveTask),
-    /// Type inference, overload resolution, and validation.
+    /// Infer types, resolve overloads, validate.
     Analyze(AnalyzeTask),
-    /// Monomorphize, evaluate comptime, and desugar DIR.
+    /// Desugar, resolve overloads, reify DIR.
     Elaborate(ElaborateTask),
     // --------------------------------------------------
     /// Lower DIR into MIR.

@@ -1,0 +1,15 @@
+// test: rename
+// description: rename local variables
+
+const foo = 1;
+//    ^^^ def:foo
+
+const bar = foo + foo;
+//          ^^^ use:foo -> def:foo
+//                ^^^ use:foo -> def:foo
+
+console.log(foo);
+//          ^^^ use:foo -> def:foo
+
+// rename "foo" to "baz"
+// expected refs: 4 (1 def + 3 uses)

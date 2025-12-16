@@ -5,10 +5,12 @@
 
 pub mod config;
 pub mod program;
+pub mod query;
 pub mod session;
 pub mod workspace;
 
 pub use config::*;
 pub use program::*;
+pub use query::*;
 pub use session::*;
 pub use workspace::*;
