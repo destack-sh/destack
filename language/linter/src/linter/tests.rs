@@ -1,5 +1,9 @@
 use std::env::current_dir;
-use std::sync::Arc;
+use std::sync::{Arc, mpsc};
+use std::thread;
+use std::time::Duration;
+
+const TEST_TIMEOUT_SECONDS: u64 = 5;
 
 use destack_ast::NodeParentIndex;
 use destack_compiler::{AnalyzeTask, CompileOptions, Compiler, ImportTask};
@@ -12,7 +16,9 @@ use destack_source::{
 };
 use destack_workspace::{Program, Session};
 
-use crate::{BoxedLintRule, FixApplicability, LintDiagnostic, LintLevel, LintRunner, print_diff};
+use crate::{
+    BoxedLintRule, FixApplicability, LintDiagnostic, LintLevel, LintRunner, all_rules, print_diff,
+};
 
 /// Test wrapper for linting.
 pub(crate) struct TestProgram {
@@ -86,7 +92,7 @@ impl TestProgram {
 
     /// Create a test with all rules (without prelude).
     pub(crate) fn with_all_rules() -> Self {
-        Self::new_without_builtins(crate::all_rules())
+        Self::new_without_builtins(all_rules())
     }
 
     /// Load a lib module set (builder pattern).
@@ -118,9 +124,26 @@ impl TestProgram {
         self.compiler.enqueue(AnalyzeTask::AnalyzeModule { module });
     }
 
-    /// Run all queued tasks.
+    /// Run all queued tasks (with timeout).
     pub(crate) fn compile(&self) {
-        self.compiler.compile();
+        let timeout = Duration::from_secs(TEST_TIMEOUT_SECONDS);
+        let compiler = self.compiler.clone();
+
+        let (tx, rx) = mpsc::channel();
+        thread::spawn(move || {
+            compiler.compile();
+            let _ = tx.send(());
+        });
+
+        match rx.recv_timeout(timeout) {
+            Ok(()) => {}
+            Err(mpsc::RecvTimeoutError::Timeout) => {
+                panic!("compile timed out after {TEST_TIMEOUT_SECONDS}s");
+            }
+            Err(mpsc::RecvTimeoutError::Disconnected) => {
+                panic!("compile thread panicked");
+            }
+        }
     }
 
     /// Lint a module at the given level.

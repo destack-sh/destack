@@ -1,21 +1,18 @@
+mod for_direction;
 mod no_constant_condition;
-mod no_debugger;
-mod no_empty_block;
 mod no_self_compare;
 
 use crate::{BoxedLintRule, boxed};
 
+pub use for_direction::*;
 pub use no_constant_condition::*;
-pub use no_debugger::*;
-pub use no_empty_block::*;
 pub use no_self_compare::*;
 
 /// Get all correctness rules.
 pub fn rules() -> Vec<BoxedLintRule> {
     vec![
+        boxed(ForDirection),
         boxed(NoConstantCondition),
-        boxed(NoDebugger),
-        boxed(NoEmptyBlock),
         boxed(NoSelfCompare),
     ]
 }

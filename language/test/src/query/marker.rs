@@ -310,9 +310,7 @@ enum MultilineDirective {
     Completion(usize),
 }
 
-/// Parse an @expect directive and add to expectations.
-///
-/// Supported directives:
+/// Parse an @expect directive and add to expectations:
 /// - @completion $0: x(field), y(field)  OR multiline with "- item" lines
 /// - @hover $0: "hover text"
 /// - @symbols: Foo(struct), bar(function)
@@ -332,8 +330,8 @@ fn parse_expect_directive_with_state(
     let directive = directive.trim();
 
     // handle multiline continuation: "- item"
-    if directive.starts_with("- ") {
-        let item = directive[2..].trim();
+    if let Some(item) = directive.strip_prefix("- ") {
+        let item = item.trim();
         if let Some(MultilineDirective::Completion(cursor)) = multiline_state
             && let Some(completion) = parse_single_completion(item)
         {
@@ -346,7 +344,7 @@ fn parse_expect_directive_with_state(
         return;
     }
 
-    // New directive - clear multiline state
+    // new directive, clear multiline state
     *multiline_state = None;
 
     // @completion $N: items... OR @completion $N: (start multiline)
@@ -417,12 +415,12 @@ fn parse_expect_directive_with_state(
 
     // @references marker: count
     if let Some(rest) = directive.strip_prefix("references ") {
-        if let Some((marker, count_str)) = rest.split_once(':') {
-            if let Ok(count) = count_str.trim().parse::<usize>() {
-                expectations
-                    .reference_count
-                    .insert(marker.trim().to_string(), count);
-            }
+        if let Some((marker, count_str)) = rest.split_once(':')
+            && let Ok(count) = count_str.trim().parse::<usize>()
+        {
+            expectations
+                .reference_count
+                .insert(marker.trim().to_string(), count);
         }
         return;
     }
@@ -503,9 +501,7 @@ fn parse_single_completion(item: &str) -> Option<ExpectedCompletion> {
 
 /// Parse inline completion items: "x: field, y: field"
 fn parse_completion_items(s: &str) -> Vec<ExpectedCompletion> {
-    s.split(',')
-        .filter_map(|item| parse_single_completion(item))
-        .collect()
+    s.split(',').filter_map(parse_single_completion).collect()
 }
 
 /// Parse a single symbol item: "Foo: struct"
@@ -525,9 +521,7 @@ fn parse_single_symbol(item: &str) -> Option<ExpectedSymbol> {
 
 /// Parse symbol items: "Foo: struct, bar: function"
 fn parse_symbol_items(s: &str) -> Vec<ExpectedSymbol> {
-    s.split(',')
-        .filter_map(|item| parse_single_symbol(item))
-        .collect()
+    s.split(',').filter_map(parse_single_symbol).collect()
 }
 
 /// Parse fold items: "2-5(function), 7-10"
