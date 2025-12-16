@@ -1,0 +1,42 @@
+// reflection
+export { Type, typeOf } from "./reflection/type.ds";
+export { deprecated, intrinsic, inline, unroll } from "./reflection/decorator.ds";
+
+// operator: arithmetic
+export {
+    Add,
+    Subtract,
+    Multiply,
+    Divide,
+    Remainder,
+    Power,
+    Negate,
+    And,
+    Or,
+    Xor,
+    Not,
+    ShiftLeft,
+    ShiftRight,
+    ShiftRightUnsigned,
+    Concatenate,
+} from "./operator/arithmetic.ds";
+
+// operator: comparison
+export { Equal, Compare, Ordering } from "./operator/comparison.ds";
+
+// operator: subscript
+export { Index, IndexSet, Deref, DerefSet } from "./operator/subscript.ds";
+
+// operator: control
+export {
+    Try,
+    ControlFlow,
+    Bound,
+    RangeBounds,
+    Range,
+    RangeInclusive,
+    RangeFrom,
+    RangeTo,
+    RangeToInclusive,
+    RangeFull,
+} from "./operator/control.ds";

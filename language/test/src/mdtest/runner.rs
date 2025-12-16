@@ -7,8 +7,8 @@ use std::{io, thread};
 
 use destack_compiler::{AnalyzeTask, CompileOptions, Compiler};
 use destack_parser::source_colorizer;
-use destack_source::{FileRegistry, FileSystem, MemoryFileSystem, PrintOptions};
-use destack_workspace::{FormatterOptions, LinterOptions, Program};
+use destack_source::{FileSystem, MemoryFileSystem, PrintOptions};
+use destack_workspace::Session;
 
 use crate::harness::print::color;
 use crate::harness::{
@@ -127,7 +127,6 @@ fn run_mdtest_with_timeout(test: &MdTestCase, timeout: Option<Duration>) -> Test
 /// Run a single markdown test case.
 fn run_mdtest(test: &MdTestCase) -> TestResult {
     // set up an in-memory program with the test files
-    let files = Arc::new(FileRegistry::new());
     let memory_fs = Arc::new(MemoryFileSystem::new());
     let cwd = PathBuf::from("/test");
 
@@ -150,16 +149,12 @@ fn run_mdtest(test: &MdTestCase) -> TestResult {
     let main_path = main_path.expect("test should have at least one file");
 
     let fs: Arc<dyn FileSystem> = memory_fs;
-    let program = Arc::new(Program::from_options(
-        FormatterOptions::default(),
-        LinterOptions::default(),
-        cwd,
-        fs,
-        files,
-    ));
+    let session = Arc::new(Session::new(cwd.clone()).with_fs(fs));
+    let program = session.add_root(cwd);
 
     // compile the main file (this will pull in imports)
     let compiler = Compiler::new(
+        session.clone(),
         program.clone(),
         CompileOptions {
             workers: 1,

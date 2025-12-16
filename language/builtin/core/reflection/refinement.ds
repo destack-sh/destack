@@ -33,7 +33,7 @@ type RefinementKind =
     | "negative"
     | "nonZero"
     | "multipleOf"
-    // String/Array length
+    // Sequence length
     | "minLength"
     | "maxLength"
     | "length"
@@ -46,27 +46,5 @@ type RefinementKind =
     | "datetime"
     | "date"
     | "time"
-    | string  // custom format names
+    | string
 ;
-
-
-// NOTE: These extensions would be on the primitive types themselves (int, string, etc.)
-// and are implemented in the compiler. They're documented here for reference.
-//
-// The actual implementation requires the compiler to:
-// 1. Recognize `.min()`, `.max()`, etc. method calls on types
-// 2. Create RefinedType<T> with the refinement attached
-// 3. Track refinements through type inference
-// 4. Generate validation code during codegen
-//
-// Example of what the compiler does internally:
-//
-// Source: int.min(0).max(100)
-//
-// Produces: RefinedType<int> {
-//     base: int,
-//     refinements: [
-//         Refinement { kind: "min", args: [0], validate: (x) => x >= 0 },
-//         Refinement { kind: "max", args: [100], validate: (x) => x <= 100 },
-//     ],
-// }

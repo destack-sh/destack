@@ -5,7 +5,7 @@ use std::thread;
 use dashmap::DashMap;
 
 use destack_source::{DiagnosticCollector, DiagnosticOptions, ModuleId, Uri};
-use destack_workspace::{LanguageBuiltins, Program};
+use destack_workspace::{LanguageBuiltins, Program, Session};
 use parking_lot::Mutex;
 
 use crate::{
@@ -71,6 +71,8 @@ impl Default for CompileOptions {
 /// Compile files and sources into something (via DIR).
 /// NOTE #Architecture: should Compiler be per-target? what about comptime though?
 pub struct Compiler {
+    /// The session (shared state).
+    pub session: Arc<Session>,
     /// The program.
     pub program: Arc<Program>,
     /// The options for compiling.
@@ -90,6 +92,7 @@ pub struct Compiler {
 impl std::fmt::Debug for Compiler {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Compiler")
+            .field("session", &"...")
             .field("program", &self.program)
             .field("options", &self.options)
             .field("queue", &self.queue)
@@ -100,8 +103,9 @@ impl std::fmt::Debug for Compiler {
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
     /// Create a new Compiler.
-    pub fn new(program: Arc<Program>, options: CompileOptions) -> Self {
+    pub fn new(session: Arc<Session>, program: Arc<Program>, options: CompileOptions) -> Self {
         Self {
+            session,
             program,
             options,
             seen_errors: Mutex::new(Vec::new()),

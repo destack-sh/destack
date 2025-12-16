@@ -198,8 +198,7 @@ fn define_task_inner(input: DeriveInput) -> Result<TokenStream2> {
             Ok(())
         })?;
 
-        let code =
-            code.ok_or_else(|| Error::new(name.span(), "missing `code` in #[task(...)]"))?;
+        let code = code.ok_or_else(|| Error::new(name.span(), "missing `code` in #[task(...)]"))?;
 
         // validate code is unique u8
         let code_value: u8 = code

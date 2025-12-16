@@ -877,7 +877,7 @@ extension for Vector2 implements Add<Vector2>, Add<float> {
 // now you can use both: v1 + v2 and v1 + 2.0
 ```
 
-Operator overloading uses **receiver-based dispatch**: `v1 + v2` desugars to `v1.add(v2)`.
+Operator overloading uses **receiver-based dispatch**: `v1 + v2` becomes `v1.add(v2)`.
 The left operand's type determines which implementation "family" is used, then the right operand's type selects the specific overload.
 This keeps overload resolution simple and matches TypeScript's method dispatch semantics.
 

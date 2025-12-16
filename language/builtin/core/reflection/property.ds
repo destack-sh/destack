@@ -41,7 +41,7 @@ struct Property {
     /// Called to produce the default when not provided.
     default?: () => unknown,
 
-    /// Documentation comment, if present.
+    /// Documentation comment (block prefix), if present.
     description?: string,
 }
 
@@ -72,6 +72,6 @@ struct Variant {
     /// For simple enums, this is the auto-assigned numeric value.
     value: int | string,
 
-    /// Documentation comment, if present.
+    /// Documentation comment (block prefix), if present.
     description?: string,
 }

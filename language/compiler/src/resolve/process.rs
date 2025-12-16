@@ -56,4 +56,9 @@ impl Compiler {
     ) -> Result<(), TaskDependencyError> {
         self.do_require_task_internal_only(ResolveTask::ResolveModuleCanonical { module })
     }
+
+    /// Ensure a module has been resolved.
+    pub fn require_resolve_module(&self, module: ModuleId) -> Result<(), TaskDependencyError> {
+        self.do_require_task_internal_only(ResolveTask::ResolveModule { module })
+    }
 }

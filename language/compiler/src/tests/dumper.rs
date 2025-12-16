@@ -50,7 +50,7 @@ impl TestProgram {
 
     /// Dump the node representation of a single module.
     pub fn dump_module_nodes(&self, module: &Arc<RwLock<Module>>) {
-        let strings = self.program.strings.clone().into_immutable();
+        let strings = (*self.program.strings).clone().into_immutable();
         let module = module.read();
         let tree = module.dir.tree.read();
         let mut dumper = Dumper::new(&strings, &tree, self.dumper_options);
@@ -66,7 +66,7 @@ impl TestProgram {
 
     /// Dump the symbol representation of a single module.
     pub fn dump_module_symbols(&self, module: &Arc<RwLock<Module>>) {
-        let strings = self.program.strings.clone().into_immutable();
+        let strings = (*self.program.strings).clone().into_immutable();
         let module = module.read();
         let tree = module.dir.tree.read();
         let symbols = module.dir.symbols.read();

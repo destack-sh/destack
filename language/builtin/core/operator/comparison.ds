@@ -1,37 +1,10 @@
-/// Comparison operator interfaces.
-///
-/// These nominal interfaces enable equality and ordering comparisons.
-///
-/// # Example
-///
-/// ```
-/// struct Point { x: int, y: int }
-///
-/// extension for Point implements Equal<Point>, Compare<Point> {
-///     equal(other: Point): boolean {
-///         this.x == other.x && this.y == other.y
-///     }
-///     compare(other: Point): Ordering {
-///         // Compare by x first, then y
-///         const xCmp = this.x.compare(other.x);
-///         if (xCmp != Ordering.Equal) { xCmp }
-///         else { this.y.compare(other.y) }
-///     }
-/// }
-///
-/// const a = Point { x: 1, y: 2 };
-/// const b = Point { x: 1, y: 3 };
-/// a == b   // false
-/// a < b    // true (same x, but y is less)
-/// ```
-
 /// Interface for the `==` and `!=` operators.
 ///
-/// `a == b` desugars to `a.equal(b)`.
-/// `a != b` desugars to `!a.equal(b)`.
+/// `a == b` becomes `a.equal(b)`.
+/// `a != b` becomes `!a.equal(b)`.
 ///
-/// Note: `===` and `!==` (strict identity) are NOT overloadable.
-/// They always compare by reference identity.
+/// `===` and `!==` (strict identity) are not overloadable.
+/// They always compare by reference identity (where allowed).
 newtype interface Equal<T = Self> {
     equal(other: T): boolean;
 }
@@ -47,10 +20,10 @@ enum Ordering {
 
 /// Interface for comparison operators (`<`, `<=`, `>`, `>=`) and ordering.
 ///
-/// `a < b` desugars to `a.compare(b) == Ordering.Less`.
-/// `a <= b` desugars to `a.compare(b) != Ordering.Greater`.
-/// `a > b` desugars to `a.compare(b) == Ordering.Greater`.
-/// `a >= b` desugars to `a.compare(b) != Ordering.Less`.
+/// `a < b` becomes `a.compare(b) == Ordering.Less`.
+/// `a <= b` becomes `a.compare(b) != Ordering.Greater`.
+/// `a > b` becomes `a.compare(b) == Ordering.Greater`.
+/// `a >= b` becomes `a.compare(b) != Ordering.Less`.
 ///
 /// Types that implement `Compare` should also implement `Equal` for consistency.
 newtype interface Compare<T = Self> {
@@ -66,12 +39,12 @@ newtype interface Compare<T = Self> {
 /// - If `a.partialCompare(b)` is `null`, result is `false`
 /// - Otherwise, checks if result is `Ordering.Less`
 newtype interface PartialCompare<T = Self> {
-    partialCompare(other: T): Ordering?;
+    partialCompare(other: T): Ordering | null;
 }
 
 /// Interface for partial equality (when equality might fail).
 ///
 /// For types where `a == a` might be false (like float NaN).
 newtype interface PartialEqual<T = Self> {
-    partialEqual(other: T): boolean?;
+    partialEqual(other: T): boolean | null;
 }

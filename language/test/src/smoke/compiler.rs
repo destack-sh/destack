@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
 use destack_compiler::{AnalyzeTask, CompileOptions, Compiler};
-use destack_source::{FileRegistry, FileSystem, MemoryFileSystem};
-use destack_workspace::{FormatterOptions, LinterOptions, Program};
+use destack_source::{FileSystem, MemoryFileSystem};
+use destack_workspace::Session;
 
 use crate::harness::{
     RunContext, Runner, Suite, TestCase, TestOptions, TestResult, check_diagnostics,
@@ -45,24 +45,19 @@ fn run_compiler_case(test: &TestCase) -> TestResult {
         }
     };
 
-    // set up program with memory filesystem containing the test file
+    // set up session and program with memory filesystem containing the test file
     let cwd = test.path.parent().unwrap().to_path_buf();
-    let files = Arc::new(FileRegistry::new());
     let memory_fs = Arc::new(MemoryFileSystem::new());
     memory_fs
         .add_file(&test.path, content.as_bytes())
         .expect("failed to add test file to memory fs");
     let fs: Arc<dyn FileSystem> = memory_fs;
-    let program = Arc::new(Program::from_options(
-        FormatterOptions::default(),
-        LinterOptions::default(),
-        cwd,
-        fs,
-        files,
-    ));
+    let session = Arc::new(Session::new(cwd.clone()).with_fs(fs));
+    let program = session.add_root(cwd);
 
     // compile the file
     let compiler = Compiler::new(
+        session.clone(),
         program.clone(),
         CompileOptions {
             workers: 1,
