@@ -1580,9 +1580,9 @@ type = type * 2
         assert_node!(parser.tree, expression_id, Expression::If { condition, then_expression, else_expression, .. } => {
             assert!(else_expression.is_none());
             // T instanceof class
-            assert_node!(parser.tree, *condition, Expression::TypeBinary { left, operator, right } => {
+            assert_node!(parser.tree, *condition, Expression::Binary { left, operator, right } => {
                 assert_expression_path!(parser, parser.tree.get(*left), "T");
-                assert_eq!(*operator, TypeBinaryOperator::InstanceOf);
+                assert_eq!(*operator, BinaryOperator::InstanceOf);
                 assert_node!(parser.tree, *right, Expression::TypeLiteral(TypeLiteral::Composite(DeclarationType::Class)));
             });
             // { value }
