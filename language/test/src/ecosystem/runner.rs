@@ -8,7 +8,7 @@ use destack_parser::Parser;
 use destack_source::{
     File, FileRegistry, FileSystem, FileType, MemoryFileSystem, PhysicalFileSystem, Uri, glob,
 };
-use destack_workspace::{FormatterOptions, LinterOptions, Program};
+use destack_workspace::{FormatterOptions, LinterOptions, Program, Session};
 
 use crate::harness::{RunContext, Runner, Suite, TestCase, TestOptions, TestResult, fixtures_dir};
 
@@ -301,17 +301,12 @@ fn run_parse_tier(package_dir: &Path, files: &[PathBuf]) -> TestResult {
 }
 
 fn run_analyze_tier(package_dir: &Path, files: &[PathBuf]) -> TestResult {
-    let files_registry = Arc::new(FileRegistry::new());
     let file_system: Arc<dyn FileSystem> = Arc::new(PhysicalFileSystem);
-    let program = Arc::new(Program::from_options(
-        FormatterOptions::default(),
-        LinterOptions::default(),
-        package_dir.to_path_buf(),
-        file_system,
-        files_registry,
-    ));
+    let session = Arc::new(Session::new(package_dir.to_path_buf()).with_fs(file_system));
+    let program = session.add_root(package_dir.to_path_buf());
 
     let compiler = Compiler::new(
+        session.clone(),
         program.clone(),
         CompileOptions {
             workers: 1,

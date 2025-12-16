@@ -5,10 +5,8 @@ use std::sync::Arc;
 use destack_compiler::{
     AnalyzeError, AnalyzeTask, BindError, CompileOptions, Compiler, ImportError, ResolveError,
 };
-use destack_source::{
-    DiagnosticSeverity, FileRegistry, FileSystem, FileType, MemoryFileSystem, Uri,
-};
-use destack_workspace::{FormatterOptions, LinterOptions, Program};
+use destack_source::{DiagnosticSeverity, FileSystem, FileType, MemoryFileSystem, Uri};
+use destack_workspace::Session;
 
 /// Outcome of checking a file for conformance testing.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -85,16 +83,9 @@ pub(super) fn parse_file(
     options: ParseOptions,
 ) -> ParseOutcome {
     let cwd = path.parent().unwrap_or(Path::new(".")).to_path_buf();
-    let files = Arc::new(FileRegistry::new());
     let fs: Arc<dyn FileSystem> = Arc::new(MemoryFileSystem::new());
-
-    let program = Arc::new(Program::from_options(
-        FormatterOptions::default(),
-        LinterOptions::default(),
-        cwd,
-        fs,
-        files,
-    ));
+    let session = Arc::new(Session::new(cwd.clone()).with_fs(fs));
+    let program = session.add_root(cwd);
 
     // register module with the correct file type (important for JSX files with .js extension)
     let uri = Uri::from_path(path);
@@ -102,6 +93,7 @@ pub(super) fn parse_file(
 
     // create compiler and compile the module
     let compiler = Compiler::new(
+        session.clone(),
         program.clone(),
         CompileOptions {
             workers: 1,

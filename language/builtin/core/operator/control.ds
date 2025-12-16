@@ -1,22 +1,14 @@
-/// Control flow operator interfaces.
-///
-/// These nominal interfaces enable custom behavior for control flow operators
-/// like `?` (try/propagate) and `..`/`..=` (ranges).
-
 /// Control flow result for the Try interface.
 ///
 /// Used to signal whether to continue or break/return early.
-enum ControlFlow<B, C> {
-    /// Continue with the contained value.
-    Continue(C),
-    /// Break/return early with the contained value.
-    Break(B),
-}
+newtype ControlFlow<B, C> =
+    | { kind: "continue", value: C }
+    | { kind: "break", value: B };
 
 /// Interface for the `?` operator (try/propagate).
 ///
 /// The `?` operator provides early return on "error" values.
-/// `x?` desugars to:
+/// `x?` becomes:
 /// ```
 /// match x.branch() {
 ///     ControlFlow.Continue(v) => v
@@ -56,19 +48,11 @@ newtype interface Try {
     static fromResidual(residual: Self.Residual): Self;
 }
 
-// ============================================================================
-// RANGE TYPES
-// ============================================================================
-
 /// A range bound - included, excluded, or unbounded.
-enum Bound<T> {
-    /// Included in the range (closed bound).
-    Included(T),
-    /// Excluded from the range (open bound).
-    Excluded(T),
-    /// No bound in this direction.
-    Unbounded,
-}
+newtype Bound<T> =
+    | { kind: "included", value: T }
+    | { kind: "excluded", value: T }
+    | { kind: "unbounded" };
 
 /// Interface for types that represent a range of values.
 ///

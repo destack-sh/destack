@@ -3,8 +3,8 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use destack_compiler::{CompileOptions, Compiler, EmitTask};
-use destack_source::{File, FileRegistry, FileSystem, FileType, PhysicalFileSystem, Uri};
-use destack_workspace::{DsConfig, FormatterOptions, LinterOptions, Program, Target};
+use destack_source::{File, FileSystem, FileType, PhysicalFileSystem, Uri};
+use destack_workspace::{DsConfig, Session, Target};
 
 use crate::harness::{
     RunContext, Runner, Suite, TestCase, TestOptions, TestResult, check_diagnostics,
@@ -64,19 +64,14 @@ fn run_codegen_case(test: &TestCase) -> TestResult {
         };
     }
 
-    // set up program with physical filesystem
-    let files = Arc::new(FileRegistry::new());
+    // set up session and program with physical filesystem
     let fs: Arc<dyn FileSystem> = Arc::new(PhysicalFileSystem);
-    let program = Arc::new(Program::from_options(
-        FormatterOptions::default(),
-        LinterOptions::default(),
-        test.path.clone(),
-        fs,
-        files,
-    ));
+    let session = Arc::new(Session::new(test.path.clone()).with_fs(fs));
+    let program = session.add_root(test.path.clone());
 
     // set up compiler
     let compiler = Compiler::new(
+        session.clone(),
         program.clone(),
         CompileOptions {
             workers: 1,

@@ -20,11 +20,20 @@ impl Compiler {
         specifier: StringId,
         source_module: Option<ModuleId>,
     ) -> ImportResult<ModuleId> {
+        let specifier_str = self.program.strings.get(specifier).to_string();
+
+        // resolve builtin module imports (builtin:// URIs)
+        if let Some(source_id) = source_module
+            && let Some(module_id) = self.resolve_builtin_specifier(&specifier_str, source_id)
+        {
+            return Ok(module_id);
+        }
+
+        // resolve non-builtin imports
         let resolver = self.create_resolver();
         let directory = self.get_resolve_directory(source_module);
 
         // resolve specifier to path
-        let specifier_str = self.program.strings.get(specifier).to_string();
         let resolution = resolver
             .resolve(&directory, &specifier_str)
             .map_err(|error| ImportError::ModuleNotFound {
@@ -39,6 +48,39 @@ impl Compiler {
 
         // register blank module
         self.register_blank_module(&resolution.path, None, &resolver)
+    }
+
+    /// Resolve a specifier from a builtin module to a builtin module (see LanguageBuiltins).
+    fn resolve_builtin_specifier(
+        &self,
+        specifier: &str,
+        source_module: ModuleId,
+    ) -> Option<ModuleId> {
+        // get source module URI
+        let source = self.program.modules.get(source_module);
+        let source_uri = source.read().uri.clone();
+        let source_str: &str = source_uri.as_ref();
+
+        // check if source is a builtin module
+        if !source_str.starts_with("builtin://") {
+            return None;
+        }
+
+        // only handle relative imports for now nocheckin #Suspicious
+        if !specifier.starts_with("./") && !specifier.starts_with("../") {
+            return None;
+        }
+
+        // resolve relative path against source URI
+        // source: builtin://core/prelude.ds
+        // specifier: ./reflection/type.ds
+        // target: builtin://core/reflection/type.ds
+        let source_dir = source_str.rsplit_once('/').map(|(dir, _)| dir)?;
+        let target_uri_str = resolve_relative_uri(source_dir, specifier);
+        let target_uri = Uri::from_string(&target_uri_str);
+
+        // look up target module by URI
+        self.program.modules.get_id_by_uri(&target_uri)
     }
 
     /// Resolve a path to a ModuleId, registering a blank module if needed.
@@ -215,4 +257,23 @@ impl Compiler {
 
         (package_id, Some(directory.to_path_buf()))
     }
+}
+
+/// Resolve a relative specifier against a base URI directory.
+/// e.g., resolve_relative_uri("builtin://core", "./reflection/type.ds")
+///       -> "builtin://core/reflection/type.ds"
+fn resolve_relative_uri(base_dir: &str, specifier: &str) -> String {
+    let mut parts: Vec<&str> = base_dir.split('/').collect();
+
+    for segment in specifier.split('/') {
+        match segment {
+            "." | "" => continue,
+            ".." => {
+                parts.pop();
+            }
+            other => parts.push(other),
+        }
+    }
+
+    parts.join("/")
 }

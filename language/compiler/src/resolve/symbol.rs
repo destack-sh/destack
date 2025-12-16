@@ -9,7 +9,9 @@ use crate::{Compiler, ResolveError, ResolveResult};
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
-    /// Resolve an absolute symbol key.
+    /// Resolve an absolute symbol key within local scopes only.
+    /// Walks up the scope chain looking for the symbol.
+    /// Does NOT check prelude - use resolve_absolute_path for that.
     pub(super) fn resolve_absolute_symbol(
         &self,
         module: &Module,
@@ -20,7 +22,7 @@ impl Compiler {
     ) -> ResolveResult<LocalSymbolId> {
         let mut scope = scope;
         loop {
-            // find symbol
+            // find symbol in local scope
             if let Some(symbol_id) = scope.1.find_up_to(key, scope.2) {
                 return Ok(symbol_id);
             }
@@ -32,7 +34,7 @@ impl Compiler {
                     parent_mark,
                 );
             }
-            // no more scopes
+            // no more local scopes
             else {
                 break;
             }
@@ -44,6 +46,46 @@ impl Compiler {
             via_module: None,
             key,
         })
+    }
+
+    /// Resolve a symbol from the prelude by name.
+    pub(super) fn resolve_prelude_symbol(
+        &self,
+        name: StringId,
+    ) -> ResolveResult<Option<GlobalSymbolId>> {
+        // check if prelude injection is enabled
+        if !self.options.resolve.inject_prelude {
+            return Ok(None);
+        }
+
+        // get the prelude module ID from builtins
+        let Some(builtins) = self.program.builtins.as_ref() else {
+            return Ok(None);
+        };
+        let prelude_module_id = builtins.prelude_module_id;
+
+        // ensure the prelude module has been resolved (may yield)
+        self.require_resolve_module(prelude_module_id)?;
+
+        // get the prelude module
+        let prelude_module = self.program.modules.get(prelude_module_id);
+        let prelude_module = prelude_module.read();
+        let symbols = prelude_module.dir.symbols.read();
+
+        // look up symbol by name in prelude's namespace scope
+        let namespace_scope = symbols.get_scope_by_id(prelude_module.dir.namespace_scope);
+        let key = StaticKey::Name(name);
+        let Some(symbol_id) = namespace_scope.find(key) else {
+            return Ok(None);
+        };
+
+        // verify it's exported
+        let symbol = symbols.get_symbol(symbol_id);
+        if symbol.export.is_none() {
+            return Ok(None);
+        }
+
+        Ok(Some(symbol_id.into_global(prelude_module_id)))
     }
 
     /// Resolve a relative path starting from a symbol.
@@ -86,8 +128,9 @@ impl Compiler {
         Ok((current_symbol_id, None))
     }
 
-    /// Resolve an absolute path. Tries to resolve builtins if the path root segment couldn't be resolved.
+    /// Resolve an absolute path.
     /// For non-namespace symbols with remaining path segments, creates Member expression chains.
+    /// Falls back to prelude lookup if local lookup fails and inject_prelude is enabled.
     pub(super) fn resolve_absolute_path(
         &self,
         module: &Module,
@@ -101,45 +144,83 @@ impl Compiler {
     ) -> ResolveResult<Expression> {
         let first_segment = path.first_segment().expect("path is empty in {node:?}");
 
-        // resolve root symbol
-        let symbol_id = self.resolve_absolute_symbol(
+        // try to resolve root symbol locally
+        let local_result = self.resolve_absolute_symbol(
             module,
             node,
             scope,
             StaticKey::Name(first_segment),
             symbols,
-        )?;
-        let remaining_segments = &path.segments[1..];
-        if remaining_segments.is_empty() {
-            // simple case: just a single-segment path like `obj`
-            return self.resolve_symbol_to_expression(
+        );
+
+        // if local lookup succeeded, use the local symbol
+        if let Ok(local_id) = local_result {
+            return self.resolve_local_path(
                 module,
+                expression_id,
                 node,
-                symbol_id,
+                local_id,
                 path,
                 static_arguments,
                 symbols,
+                tree,
             );
         }
 
-        // traverse remaining segments for namespace symbols
-        let symbol = symbols.get_symbol(symbol_id);
+        // try prelude if enabled
+        if let Some(prelude_symbol) = self.resolve_prelude_symbol(first_segment)? {
+            // nocheckin: handle remaining path in prelude symbols? use resolve_local_path..?
+            return Ok(Expression::GlobalReference {
+                path: path.clone(),
+                static_arguments,
+                target_symbol: prelude_symbol,
+            });
+        }
+
+        // neither local nor prelude found - return the original error
+        local_result.map(|_| unreachable!())
+    }
+
+    /// Resolve a path starting from a local symbol.
+    fn resolve_local_path(
+        &self,
+        module: &Module,
+        expression_id: LocalNodeId<Expression>,
+        node: GlobalNodeIdAny,
+        local_id: LocalSymbolId,
+        path: &Path,
+        static_arguments: Option<Vec<LocalNodeId<Argument>>>,
+        symbols: &SymbolTable,
+        tree: &mut NodeTree,
+    ) -> ResolveResult<Expression> {
+        let first_segment = path.first_segment().expect("path is empty");
+        let remaining_segments = &path.segments[1..];
+
+        // single-segment path: just return the resolved expression
+        if remaining_segments.is_empty() {
+            return Ok(self.resolve_symbol_to_expression(
+                module,
+                local_id,
+                path,
+                static_arguments,
+                symbols,
+            ));
+        }
+
+        // multi-segment path: check if first segment is a namespace
+        let symbol = symbols.get_symbol(local_id);
         if symbol.kind == SymbolKind::Namespace {
             let remaining_path = path.slice(1..);
-            match self.resolve_relative_symbol(module, node, symbol_id, &remaining_path, symbols) {
-                // fully resolved relative symbol
+            match self.resolve_relative_symbol(module, node, local_id, &remaining_path, symbols) {
                 Ok((resolved_id, None)) => {
-                    return self.resolve_symbol_to_expression(
+                    return Ok(self.resolve_symbol_to_expression(
                         module,
-                        node,
                         resolved_id,
                         path,
                         static_arguments,
                         symbols,
-                    );
+                    ));
                 }
-                // partial resolution: namespace traversal found a non-namespace symbol
-                // remaining segments should become Member chain
                 Ok((resolved_id, Some(remaining))) => {
                     let resolved_path =
                         path.slice(0..path.segments.len() - remaining.segments.len());
@@ -163,11 +244,8 @@ impl Compiler {
         let root_path = Path {
             segments: vec![first_segment].into(),
         };
-        let root_expr = self.resolve_symbol_to_expression(
-            module, node, symbol_id, &root_path,
-            None, // static_arguments go on the final member
-            symbols,
-        )?;
+        let root_expression =
+            self.resolve_symbol_to_expression(module, local_id, &root_path, None, symbols);
 
         // get scope info from the original expression
         let original_scope = tree.get_scope(expression_id);
@@ -179,7 +257,7 @@ impl Compiler {
             original_scope,
             Some(expression_id.into_any()),
         );
-        tree.insert(root_node_id, root_expr);
+        tree.insert(root_node_id, root_expression);
         let mut current_id: LocalNodeId<Expression> = LocalNodeId::new(root_node_id.id);
 
         // create Member chain for remaining segments
@@ -222,7 +300,7 @@ impl Compiler {
     fn build_member_chain_from_symbol(
         &self,
         module: &Module,
-        node: GlobalNodeIdAny,
+        _node: GlobalNodeIdAny,
         expression_id: LocalNodeId<Expression>,
         symbol_id: LocalSymbolId,
         resolved_path: &Path,
@@ -232,14 +310,8 @@ impl Compiler {
         tree: &mut NodeTree,
     ) -> ResolveResult<Expression> {
         // create root expression from the resolved symbol
-        let root_expr = self.resolve_symbol_to_expression(
-            module,
-            node,
-            symbol_id,
-            resolved_path,
-            None, // static_arguments go on the final member
-            symbols,
-        )?;
+        let root_expr =
+            self.resolve_symbol_to_expression(module, symbol_id, resolved_path, None, symbols);
 
         let original_scope = tree.get_scope(expression_id);
 
@@ -285,38 +357,30 @@ impl Compiler {
         unreachable!("remaining_path is not empty")
     }
 
-    /// Resolve a resolved symbol to an expression.
+    /// Resolve a local symbol to an expression.
     pub(super) fn resolve_symbol_to_expression(
         &self,
         module: &Module,
-        _node: GlobalNodeIdAny,
         symbol_id: LocalSymbolId,
         path: &Path,
         static_arguments: Option<Vec<LocalNodeId<Argument>>>,
         symbols: &SymbolTable,
-    ) -> ResolveResult<Expression> {
+    ) -> Expression {
         let symbol = symbols.get_symbol(symbol_id);
         let scope = symbols.get_scope_by_id(symbol.scope.0);
-        if symbol.module_id == module.id {
-            if scope.kind == ScopeKind::Block {
-                Ok(Expression::LocalReference {
-                    path: path.clone(),
-                    static_arguments,
-                    target_symbol: symbol_id.into_global(module.id),
-                })
-            } else {
-                Ok(Expression::ModuleReference {
-                    path: path.clone(),
-                    static_arguments,
-                    target_symbol: symbol_id.into_global(module.id),
-                })
-            }
-        } else {
-            Ok(Expression::GlobalReference {
+        let global_id = symbol_id.into_global(module.id);
+        if scope.kind == ScopeKind::Block {
+            Expression::LocalReference {
                 path: path.clone(),
                 static_arguments,
-                target_symbol: symbol_id.into_global(module.id),
-            })
+                target_symbol: global_id,
+            }
+        } else {
+            Expression::ModuleReference {
+                path: path.clone(),
+                static_arguments,
+                target_symbol: global_id,
+            }
         }
     }
 
@@ -1615,7 +1679,6 @@ import { X } from "./a.ds";
 
     /// Test that prelude items (like Add, Type) are available in user code.
     #[test]
-    #[ignore] // nocheckin TODO: enable once prelude injection is implemented
     fn test_resolve_prelude_items() {
         let test = TestProgram::memory_sequential_with_builtins();
 
@@ -1623,15 +1686,15 @@ import { X } from "./a.ds";
         let module_id = test.add_module(
             "test.ds",
             r#"
-// Use a prelude type (Add is an operator interface)
 type MyAdd = Add;
 
-// Use a prelude decorator
 @deprecated
 function oldFunction() {}
 
-// Use Type<T> for reflection
-function printType<T>(t: Type<T>) {
+@inline
+function inlineFunction() {}
+
+function printType(t: Type) {
     // ...
 }
 "#,

@@ -72,7 +72,7 @@ pub fn run(args: &DirArgs) -> i32 {
     // dump DIR to output
     if !silent {
         let dump_options = DumperOptions::default();
-        let strings = result.program.strings.clone().into_immutable();
+        let strings = (*result.program.strings).clone().into_immutable();
 
         for module in result.program.modules.iter() {
             let module = module.read();

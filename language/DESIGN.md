@@ -409,8 +409,8 @@ extension for Vector2 implements Add<Vector2> {
 }
 ```
 
-For operators, Destack uses **receiver-based dispatch**: `a + b` desugars to `a.add(b)`.
-For function overloads, Destack uses **declaration order**: the first matching overload wins.
+For operators, Destack uses **receiver-based dispatch**: `a + b` becomes `a.add(b)`.
+Relatedly, to avoid ambiguity, Destack uses **declaration order**: the first matching overload wins.
 
 <sub>See [test/fixtures/mdtest/dispatch/](test/fixtures/mdtest/dispatch/) for specification tests.</sub>
 

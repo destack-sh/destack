@@ -2,4 +2,3 @@ export * from "./type.ds";
 export * from "./property.ds";
 export * from "./refinement.ds";
 export * from "./decorator.ds";
-export * from "./validation.ds";

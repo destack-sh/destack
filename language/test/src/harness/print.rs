@@ -125,11 +125,7 @@ pub fn print_result(test: &TestCase, result: &TestResult, duration: Duration, _v
         let indent = "       ";
 
         // calculate max visible width of all content lines
-        let max_content_width = message
-            .lines()
-            .map(|line| visible_width(line))
-            .max()
-            .unwrap_or(0);
+        let max_content_width = message.lines().map(visible_width).max().unwrap_or(0);
 
         // box inner width must fit the widest content line (plus minimum of 8)
         let inner_width = max_content_width.max(8);

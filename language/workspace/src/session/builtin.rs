@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use dashmap::DashMap;
-use destack_builtin::{CORE_SOURCES, PRELUDE, PreludeItem};
+use destack_builtin::{CORE_SOURCES, PRELUDE_SOURCE};
 use destack_source::{File, FileRegistry, FileType, LanguageType, ModuleId, PackageId, Uri};
 
 use crate::{Module, ModuleRegistry, ModuleType, Package, PackageKind, PackageRegistry};
@@ -12,7 +12,7 @@ pub const BUILTIN_PACKAGE_ID: PackageId = PackageId(1);
 /// Well-known package name for builtins.
 pub const BUILTIN_PACKAGE_NAME: &str = "@destack/builtin";
 
-/// Compiled language builtins, shared across programs.
+/// Language builtins.
 #[derive(Debug)]
 pub struct LanguageBuiltins {
     /// The builtin package ID.
@@ -21,15 +21,15 @@ pub struct LanguageBuiltins {
     /// Core modules (operators, reflection, intrinsics).
     pub core_modules: Vec<ModuleId>,
 
+    /// The prelude module ID (re-exports items available without imports).
+    pub prelude_module_id: ModuleId,
+
     /// Lib modules cache ("dom" -> modules, "es2024" -> modules).
     pub lib_modules: DashMap<String, Vec<ModuleId>>,
 }
 
 impl LanguageBuiltins {
     /// Create builtins by registering core modules from embedded sources.
-    ///
-    /// This creates the package and modules but does NOT bind them.
-    /// Binding happens later when the compiler processes them.
     pub fn embedded(
         files: Arc<FileRegistry>,
         modules: Arc<ModuleRegistry>,
@@ -93,16 +93,21 @@ impl LanguageBuiltins {
             core_modules.push(module_id);
         }
 
+        // compute prelude module ID
+        let prelude_path = if PRELUDE_SOURCE.path.is_empty() {
+            PRELUDE_SOURCE.name.to_string()
+        } else {
+            format!("{}/{}", PRELUDE_SOURCE.path, PRELUDE_SOURCE.name)
+        };
+        let prelude_module_id =
+            ModuleId::from_relative_path(BUILTIN_PACKAGE_ID, std::path::Path::new(&prelude_path));
+
         Self {
             package_id: BUILTIN_PACKAGE_ID,
             core_modules,
+            prelude_module_id,
             lib_modules: DashMap::new(),
         }
-    }
-
-    /// Get prelude items for scope injection.
-    pub fn prelude(&self) -> &'static [PreludeItem] {
-        PRELUDE
     }
 
     /// Load a lib module set (e.g., "dom", "es2024").

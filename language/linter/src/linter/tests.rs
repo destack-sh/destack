@@ -49,6 +49,7 @@ impl TestProgram {
         let program = session.add_root(cwd);
 
         let compiler = Arc::new(Compiler::new(
+            session.clone(),
             program.clone(),
             CompileOptions {
                 workers: 1,

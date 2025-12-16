@@ -39,7 +39,7 @@ impl ProgramId {
     }
 }
 
-/// A Program.
+/// A Program in a session.
 #[derive(Debug)]
 pub struct Program {
     // meta
@@ -55,19 +55,18 @@ pub struct Program {
     pub files: Arc<FileRegistry>,
 
     // content
-    /// The modules.
-    pub modules: Arc<ModuleRegistry>,
     /// The packages.
     pub packages: Arc<PackageRegistry>,
+    /// The modules.
+    pub modules: Arc<ModuleRegistry>,
     /// The tsconfigs (separate registry as tsconfigs can be nested within packages).
     pub tsconfigs: Arc<TsConfigRegistry>,
-    // nocheckin: move artifacts and tsconfigs to session? what about strings?
+    /// The combined string pool.
+    pub strings: Arc<StringPool>,
     /// Generated artifacts (from codegen).
-    pub artifacts: ArtifactRegistry,
+    pub artifacts: Arc<ArtifactRegistry>,
     /// The diagnostic collector.
     pub diagnostics: DiagnosticCollector,
-    /// The combined string pool.
-    pub strings: StringPool,
 
     // builtins
     /// Language builtins.
@@ -103,8 +102,8 @@ impl Program {
         let modules = Arc::new(ModuleRegistry::new());
         let packages = Arc::new(PackageRegistry::new());
         let tsconfigs = Arc::new(TsConfigRegistry::new());
-        let artifacts = ArtifactRegistry::new();
-        let strings = StringPool::new();
+        let artifacts = Arc::new(ArtifactRegistry::new());
+        let strings = Arc::new(StringPool::new());
         let diagnostics = DiagnosticCollector::new();
 
         // create and insert the root package and module (for global caching)
@@ -141,10 +140,10 @@ impl Program {
         modules: Arc<ModuleRegistry>,
         packages: Arc<PackageRegistry>,
         tsconfigs: Arc<TsConfigRegistry>,
+        strings: Arc<StringPool>,
+        artifacts: Arc<ArtifactRegistry>,
         builtins: Option<Arc<LanguageBuiltins>>,
     ) -> Self {
-        let artifacts = ArtifactRegistry::new();
-        let strings = StringPool::new();
         let diagnostics = DiagnosticCollector::new();
 
         // create and insert the root package and module

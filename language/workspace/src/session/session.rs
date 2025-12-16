@@ -2,17 +2,15 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use dashmap::DashMap;
+use destack_base::StringPool;
 use destack_source::{FileRegistry, FileSystem, ModuleId, PhysicalFileSystem};
 
 use crate::{
-    FormatterOptions, LanguageBuiltins, LinterOptions, ModuleRegistry, PackageRegistry, Program,
-    TsConfigRegistry, Workspace,
+    ArtifactRegistry, FormatterOptions, LanguageBuiltins, LinterOptions, ModuleRegistry,
+    PackageRegistry, Program, TsConfigRegistry, Workspace,
 };
 
 /// A session is the persistent state for a workspace.
-///
-/// Sessions always have builtins loaded. Programs created from a session
-/// share the session's builtins.
 #[derive(Debug)]
 pub struct Session {
     /// The workspace this session is for.
@@ -31,10 +29,16 @@ pub struct Session {
 
     /// The programs in the session, keyed by root path.
     pub programs: DashMap<PathBuf, Arc<Program>>,
-    /// Shared package registry (for builtins and cross-program sharing).
+    /// The package registry (for builtins and cross-program sharing).
     pub packages: Arc<PackageRegistry>,
-    /// Shared module registry (for builtins).
+    /// The module registry (for builtins).
     pub modules: Arc<ModuleRegistry>,
+    /// The tsconfig registry (separate registry as tsconfigs can be nested within packages).
+    pub tsconfigs: Arc<TsConfigRegistry>,
+    /// The combined string pool.
+    pub strings: Arc<StringPool>,
+    /// The artifact registry (for generated artifacts from codegen).
+    pub artifacts: Arc<ArtifactRegistry>,
     /// Compiled builtins (always loaded).
     pub builtins: Arc<LanguageBuiltins>,
 }
@@ -64,11 +68,14 @@ impl Session {
             packages,
             modules,
             builtins,
+            strings: Arc::new(StringPool::new()),
+            artifacts: Arc::new(ArtifactRegistry::new()),
+            tsconfigs: Arc::new(TsConfigRegistry::new()),
         }
     }
 
     /// Create a session for a workspace with builtins loaded.
-    pub fn for_workspace(workspace: Arc<Workspace>, cwd: PathBuf) -> Self {
+    pub fn workspace(cwd: PathBuf, workspace: Arc<Workspace>) -> Self {
         let files = Arc::new(FileRegistry::new());
         let modules = Arc::new(ModuleRegistry::new());
         let packages = Arc::new(PackageRegistry::new());
@@ -90,6 +97,9 @@ impl Session {
             programs: DashMap::new(),
             packages,
             modules,
+            tsconfigs: Arc::new(TsConfigRegistry::new()),
+            strings: Arc::new(StringPool::new()),
+            artifacts: Arc::new(ArtifactRegistry::new()),
             builtins,
         }
     }
@@ -133,7 +143,9 @@ impl Session {
             self.files.clone(),
             self.modules.clone(),
             self.packages.clone(),
-            Arc::new(TsConfigRegistry::new()),
+            self.tsconfigs.clone(),
+            self.strings.clone(),
+            self.artifacts.clone(),
             Some(self.builtins.clone()),
         ));
         self.programs.insert(root.clone(), program.clone());

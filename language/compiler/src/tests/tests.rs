@@ -83,7 +83,11 @@ impl TestProgram {
             },
             ..CompileOptions::default()
         };
-        let compiler = Arc::new(Compiler::new(program.clone(), compiler_options));
+        let compiler = Arc::new(Compiler::new(
+            session.clone(),
+            program.clone(),
+            compiler_options,
+        ));
 
         Self {
             fs,

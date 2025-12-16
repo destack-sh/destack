@@ -227,14 +227,14 @@ impl Compiler {
         let remote_scope = remote_symbols.get_scope_by_id(remote_scope_id);
 
         // first try to resolve in the direct namespace
-        if let Ok(symbol_id) = self.resolve_absolute_symbol(
+        if let Ok(local_id) = self.resolve_absolute_symbol(
             module,
             node,
             (remote_scope_id, remote_scope, LocalScopeMark::end()),
             key,
             &remote_symbols,
         ) {
-            return Ok((remote_module_id, symbol_id.into_global(remote_module_id)));
+            return Ok((remote_module_id, local_id.into_global(remote_module_id)));
         }
 
         // must drop locks before calling resolve_symbol_via_namespace_exports

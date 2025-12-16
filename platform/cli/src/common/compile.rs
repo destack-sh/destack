@@ -83,6 +83,7 @@ impl CompileContext {
             .expect("session should have a program after setup");
 
         let compiler = Compiler::new(
+            session.clone(),
             program.clone(),
             CompileOptions {
                 diagnostic: diagnostic_options.clone(),

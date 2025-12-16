@@ -1,19 +1,10 @@
-/// Import metadata available at compile time.
-///
-/// `import.meta` provides compile-time information about the current module
-/// and build configuration. Values are known at compile time and can be used
-/// for static optimization and conditional compilation.
-
 /// The target platform (OS) the code is being compiled for.
-/// Matches `Platform` enum in workspace/src/program/target.rs.
 export type Platform = "web" | "windows" | "macos" | "linux" | "ios" | "android" | "wasi" | "universal";
 
 /// The output format the code is being compiled to.
-/// Matches `OutputFormat` enum in workspace/src/program/target.rs.
 export type OutputFormat = "js" | "ts" | "wasm" | "native";
 
 /// The runtime environment that will execute the code.
-/// Matches `Runtime` enum in workspace/src/program/target.rs.
 export type Runtime =
     | "browser" | "node" | "deno" | "bun" | "worker" | "workerd" | "embedded"
     | "wasm-js" | "wasm-wasi" | "wasm-standalone"
@@ -33,10 +24,7 @@ export interface ImportMetaEnv {
     readonly TEST: boolean,
 }
 
-/// Metadata about the current module and build configuration:
-/// - Conditional compilation via `if (import.meta.debug) { ... }`
-/// - Platform-specific code via `if (import.meta.platform == "macos") { ... }`
-/// - Dead code elimination when conditions are compile-time constant
+/// Metadata about the current module and build configuration.
 export interface ImportMeta {
     /// The URL of the current module (file:// for local, https:// for remote).
     readonly url: string,

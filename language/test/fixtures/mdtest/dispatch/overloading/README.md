@@ -9,7 +9,7 @@ Function and operator overloading with distinct implementations.
 - **Function overloading**: Multiple implementations for different parameter types
 - **Overload resolution**: Declaration order determines matching
 - **Operator overloading**: Via interface implementation (`Add`, `Compare`, etc.)
-- **Receiver-based dispatch**: `a + b` desugars to `a.add(b)`
+- **Receiver-based dispatch**: `a + b` becomes `a.add(b)`
 
 ## Example
 
@@ -28,5 +28,5 @@ extension for Vector2 implements Add<Vector2> {
     add(other: Vector2): Vector2 { ... }
 }
 
-v1 + v2  // desugars to v1.add(v2)
+v1 + v2  // becomes v1.add(v2)
 ```

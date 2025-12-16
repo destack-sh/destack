@@ -20,7 +20,11 @@ impl BuiltinSource {
 
     /// Full virtual path (e.g., "builtin://core/operator/arithmetic.ds").
     pub fn virtual_path(&self) -> String {
-        format!("builtin://core/{}/{}", self.path, self.name)
+        if self.path.is_empty() {
+            format!("builtin://core/{}", self.name)
+        } else {
+            format!("builtin://core/{}/{}", self.path, self.name)
+        }
     }
 }
 
@@ -36,16 +40,14 @@ macro_rules! builtin_source {
     };
     // Root-level files: builtin_source!(NAME, "file.ds")
     ($name:ident, $file:literal) => {
-        const $name: BuiltinSource = BuiltinSource::new(
-            "",
-            $file,
-            include_str!(concat!("../core/", $file)),
-        );
+        const $name: BuiltinSource =
+            BuiltinSource::new("", $file, include_str!(concat!("../core/", $file)));
     };
 }
 
 // core
 builtin_source!(CORE_INDEX, "index.ds");
+builtin_source!(CORE_PRELUDE, "prelude.ds");
 
 // operator
 builtin_source!(OPERATOR_INDEX, "operator", "index.ds");
@@ -60,7 +62,6 @@ builtin_source!(REFLECTION_TYPE, "reflection", "type.ds");
 builtin_source!(REFLECTION_PROPERTY, "reflection", "property.ds");
 builtin_source!(REFLECTION_REFINEMENT, "reflection", "refinement.ds");
 builtin_source!(REFLECTION_DECORATOR, "reflection", "decorator.ds");
-builtin_source!(REFLECTION_VALIDATION, "reflection", "validation.ds");
 
 // intrinsic
 builtin_source!(INTRINSIC_INDEX, "intrinsic", "index.ds");
@@ -80,7 +81,6 @@ pub const CORE_SOURCES: &[BuiltinSource] = &[
     REFLECTION_PROPERTY,
     REFLECTION_REFINEMENT,
     REFLECTION_DECORATOR,
-    REFLECTION_VALIDATION,
     REFLECTION_TYPE,
     REFLECTION_INDEX,
     // intrinsic
@@ -88,7 +88,12 @@ pub const CORE_SOURCES: &[BuiltinSource] = &[
     INTRINSIC_INDEX,
     // top level
     CORE_INDEX,
+    // prelude
+    CORE_PRELUDE,
 ];
+
+/// The prelude module source.
+pub const PRELUDE_SOURCE: &BuiltinSource = &CORE_PRELUDE;
 
 #[cfg(test)]
 mod tests {
