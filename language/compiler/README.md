@@ -5,7 +5,7 @@ The Destack compiler takes JavaScript, TypeScript and Destack sources and transl
 ## Pipeline
 
 Like most compilers, the Destack compiler has three main regions: 
- 1. Front-end (`.(ds|ts|tsx|js|jsx)` → typed DIR)
+ 1. Front-end (`.(ds|ts|tsx|js|jsx)` → typed DIR -> elaborated DIR)
  2. Middle-end (DIR → optimized MIR)
  3. Back-end (DIR/MIR → artifacts).
 (For JS/TS targets, the middle-end may be skipped entirely.)
@@ -47,15 +47,15 @@ Phases are grouped into regions and identified by a single letter for tracing an
 
 ### Front-End
 
-The front-end transforms source text into typed, monomorphized DIR.
+The front-end transforms source text into typed, elaborated DIR.
 
 | Phase | Letter | Input | Output | Description |
 |-------|--------|-------|--------|-------------|
 | Import | `I` | Text | AST | Parse source into abstract syntax tree |
 | Bind | `B` | AST | DIR | Create symbols, scopes, initial DIR structure |
 | Resolve | `R` | DIR | DIR | Resolve symbol references (lexical binding) |
-| Analyze | `A` | DIR | DIR | Type inference, type checking, overload resolution |
-| Elaborate | `E` | DIR | DIR | Monomorphize generics, evaluate comptime |
+| Analyze | `A` | DIR | DIR | Infer types, resolve overloads, validate |
+| Elaborate | `E` | DIR | DIR | Desugar, impute overloads, reify |
 
 ### Middle-End
 

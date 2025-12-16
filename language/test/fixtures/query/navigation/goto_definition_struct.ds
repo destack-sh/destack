@@ -1,0 +1,20 @@
+// test: goto_definition
+// description: goto definition of struct and fields
+
+struct Point {
+//     ^^^^^ def:Point
+    x: float32,
+//  ^ def:x
+    y: float32,
+//  ^ def:y
+}
+
+const p: Point = Point { x: 1, y: 2 };
+//       ^^^^^ use:Point -> def:Point
+//               ^^^^^ use:Point -> def:Point
+
+const xValue = p.x;
+//               ^ use:x -> def:x
+
+const yValue = p.y;
+//               ^ use:y -> def:y

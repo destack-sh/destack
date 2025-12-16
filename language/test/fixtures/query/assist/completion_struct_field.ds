@@ -1,0 +1,21 @@
+// test: completion
+// description: complete struct fields after dot
+
+struct Point {
+    x: float32,
+    y: float32,
+}
+
+extension for Point {
+    magnitude(): float32 {
+        (this.x * this.x + this.y * this.y).sqrt()
+    }
+}
+
+const p = Point { x: 1, y: 2 };
+p.$0
+
+// @completion $0:
+// - x: field
+// - y: field
+// - magnitude: method

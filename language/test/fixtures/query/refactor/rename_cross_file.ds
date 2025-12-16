@@ -1,0 +1,8 @@
+// test: rename
+// description: Rename a function that's used in another file (primary file)
+
+// This file defines the function
+export function greet(name: string): string {
+//              ^^^^^ def:greet
+    `Hello, ${name}`
+}

@@ -1,0 +1,10 @@
+// description: Usage file for cross-file rename test
+
+import { greet } from "./rename_cross_file"
+//       ^^^^^ use:greet -> def:greet
+
+function main() {
+    const message = greet("World")
+    //              ^^^^^ use:greet -> def:greet
+    print(message)
+}

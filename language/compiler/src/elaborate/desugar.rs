@@ -8,7 +8,14 @@ use crate::{Compiler, ElaborateResult};
 
 #[allow(clippy::single_match)]
 impl Compiler {
-    /// Desugar a module.
+    /// Desugar a module: syntactic simplification (no type info needed).
+    ///
+    /// Transforms:
+    /// - `AssignBinary` → `Assign` + `Binary` (`x += 1` → `x = x + 1`)
+    /// - `RangeExpression` → iterator construction
+    /// - `TreeExpression` → runtime construction calls
+    /// - `Maybe`/`Must` → explicit error handling
+    /// - `Tagged*Expression` → underlying value (newtype erasure)
     pub(super) fn desugar_module(&self, module_id: ModuleId) -> ElaborateResult<()> {
         let module = self.program.modules.get(module_id);
         let module = module.read();
@@ -20,6 +27,9 @@ impl Compiler {
         for expression_id in tree.iter_node_ids_of_type::<Expression>() {
             self.desugar_expression(expression_id, &mut tree, &symbols, &types)?;
         }
+
+        // desugar annotations
+        // TODO: desugar annotations (function annotations into expressions)
 
         Ok(())
     }

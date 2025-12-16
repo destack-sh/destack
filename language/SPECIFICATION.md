@@ -1835,7 +1835,7 @@ All annotations are preserved in the AST and available to tooling.
 
 ### Decorators
 
-Decorators generalize TypeScript decorator semantics to enable decorators both as metadata and as transforms on any declaration, statement, or expression (not just classes and class members).
+Decorators generalize TypeScript decorator semantics to enable decorators both as metadata and as transforms on most language constructs: declarations, statements, members, parameters, match arms, and more (not just classes and class members).
 
 ```
 @memoize                           // decorator: memoize(target)
@@ -1848,10 +1848,10 @@ The decorator LHS-expression can be any expression (path, member access, call):
 - `@foo(args)` → calls `foo(args)(target)` (factory pattern)
 - `@obj.method` → calls `obj.method(target)`
 
-Decorators can be applied to declarations, statements, and expressions:
+Decorators can be applied to most language constructs:
 
 ```
-// on declarations (incl. outside of types)
+// on declarations
 @deprecated("use newAPI")
 function oldAPI() { }
 
@@ -1859,11 +1859,25 @@ function oldAPI() { }
 @unroll
 for (let i = 0; i < 4; i++) { }
 
-// on expressions
-const x = @inline computeSomething();
+// on struct/class members
+struct Config {
+    @env("DEBUG")
+    debug: boolean,
+}
+
+// on function parameters
+function greet(@validate name: string) { }
+
+// on match arms
+match (event) {
+    @likely
+    Click(pos) => handleClick(pos),
+    @cold
+    Error(e) => logError(e),
+}
 ```
 
-#### Compile-Time vs Runtime Decorators
+#### Decorator Resolution
 
 Decorator behavior depends on what the decorator resolves to:
 

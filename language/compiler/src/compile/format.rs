@@ -33,7 +33,7 @@ impl DiagnosticFormat for StringId {
         if program.strings.contains(*self) {
             program.strings.get(*self).to_string()
         } else {
-            format!("<string:{}>", self)
+            format!("<string:{self}>")
         }
     }
 }
@@ -49,7 +49,7 @@ impl DiagnosticFormat for ModuleId {
         if program.modules.contains(*self) {
             program.modules.get(*self).read().uri.to_string()
         } else {
-            format!("<module:{}>", self)
+            format!("<module:{self}>")
         }
     }
 }
