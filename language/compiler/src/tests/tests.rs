@@ -201,6 +201,11 @@ impl TestProgram {
         self.enqueue(ResolveTask::ResolveModule { module });
     }
 
+    /// Enqueue ResolveBuiltins task.
+    pub fn resolve_builtins(&self) {
+        self.enqueue(ResolveTask::ResolveBuiltins);
+    }
+
     /// Enqueue Analyze task for a module.
     pub fn analyze_module(&self, module: ModuleId) {
         self.enqueue(AnalyzeTask::AnalyzeModule { module });

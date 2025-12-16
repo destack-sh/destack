@@ -15,6 +15,7 @@ doctest = false
 # language
 destack_ast = { workspace = true }
 destack_base = { workspace = true }
+destack_builtin = { workspace = true }
 destack_compiler_macros = { workspace = true }
 destack_codegen_cranelift = { workspace = true }
 destack_codegen_js = { workspace = true }
