@@ -1,6 +1,8 @@
 use destack_ast::{Expression, NodeType};
 use destack_workspace::LintSeverity;
 
+// nocheckin: make sure lints use ast/dir prefix (use destack_ast as ast, ast::Expression, ..)
+
 use crate::{LintDiagnostic, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {

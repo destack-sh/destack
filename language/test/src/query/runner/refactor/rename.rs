@@ -70,7 +70,7 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> T
     // parse expected edit count from content
     let Ok(expected_count) = content.parse::<usize>() else {
         return TestResult::Failed {
-            message: format!("rename expectation '{}' is not a valid count", content),
+            message: format!("rename expectation '{content}' is not a valid count"),
         };
     };
 

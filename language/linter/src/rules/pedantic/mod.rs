@@ -1,12 +1,6 @@
-mod radix;
-
-use crate::{BoxedLintRule, boxed};
-
-pub use radix::*;
+use crate::BoxedLintRule;
 
 /// Get all pedantic rules.
 pub fn rules() -> Vec<BoxedLintRule> {
-    vec![
-        boxed(Radix),
-    ]
+    vec![]
 }

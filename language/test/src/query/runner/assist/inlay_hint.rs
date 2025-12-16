@@ -65,7 +65,7 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> T
     // parse expected count from content
     let Ok(expected_count) = content.parse::<usize>() else {
         return TestResult::Failed {
-            message: format!("inlay_hints expectation '{}' is not a valid count", content),
+            message: format!("inlay_hints expectation '{content}' is not a valid count"),
         };
     };
 

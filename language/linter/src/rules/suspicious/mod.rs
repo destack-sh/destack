@@ -10,9 +10,5 @@ pub use no_empty::*;
 
 /// Get all suspicious rules.
 pub fn rules() -> Vec<BoxedLintRule> {
-    vec![
-        boxed(NoCondAssign),
-        boxed(NoDebugger),
-        boxed(NoEmpty),
-    ]
+    vec![boxed(NoCondAssign), boxed(NoDebugger), boxed(NoEmpty)]
 }

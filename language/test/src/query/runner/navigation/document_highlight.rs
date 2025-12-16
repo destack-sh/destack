@@ -89,10 +89,7 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> T
     // parse expected count from content
     let Ok(expected_count) = content.parse::<usize>() else {
         return TestResult::Failed {
-            message: format!(
-                "document_highlight expectation '{}' is not a valid count",
-                content
-            ),
+            message: format!("document_highlight expectation '{content}' is not a valid count"),
         };
     };
 
@@ -101,10 +98,9 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> T
     if highlights.len() != expected_count {
         TestResult::Failed {
             message: format!(
-                "document_highlight at '{}' returned {} highlights, expected {}",
+                "document_highlight at '{}' returned {} highlights, expected {expected_count}",
                 exp.target,
                 highlights.len(),
-                expected_count
             ),
         }
     } else {
