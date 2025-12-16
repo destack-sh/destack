@@ -66,15 +66,15 @@ impl Compiler {
             return None;
         }
 
-        // only handle relative imports for now nocheckin #Suspicious
+        // only handle relative imports (for now?)
         if !specifier.starts_with("./") && !specifier.starts_with("../") {
             return None;
         }
 
         // resolve relative path against source URI
-        // source: builtin://core/prelude.ds
-        // specifier: ./reflection/type.ds
-        // target: builtin://core/reflection/type.ds
+        //  - source: builtin://core/prelude.ds
+        //  - specifier: ./reflection/type.ds
+        //  - target: builtin://core/reflection/type.ds
         let source_dir = source_str.rsplit_once('/').map(|(dir, _)| dir)?;
         let target_uri_str = resolve_relative_uri(source_dir, specifier);
         let target_uri = Uri::from_string(&target_uri_str);

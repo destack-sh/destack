@@ -9,6 +9,62 @@ use crate::{Compiler, ResolveError, ResolveResult};
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
+    /// Build a Member expression chain from a root expression with remaining path segments.
+    fn build_member_chain(
+        &self,
+        expression_id: LocalNodeId<Expression>,
+        root_expr: Expression,
+        remaining_path: &Path,
+        static_arguments: Option<Vec<LocalNodeId<Argument>>>,
+        tree: &mut NodeTree,
+    ) -> Expression {
+        let original_scope = tree.get_scope(expression_id);
+
+        // create a new node for the root expression
+        let root_node_id = tree.reserve_from(
+            NodeType::Expression,
+            expression_id.into_any(),
+            original_scope,
+            Some(expression_id.into_any()),
+        );
+        tree.insert(root_node_id, root_expr);
+        let mut current_id: LocalNodeId<Expression> = LocalNodeId::new(root_node_id.id);
+
+        // create Member chain for remaining segments
+        let segments = &remaining_path.segments;
+        for (i, &segment) in segments.iter().enumerate() {
+            let is_last = i == segments.len() - 1;
+            let member_static_args = if is_last {
+                static_arguments.clone()
+            } else {
+                None
+            };
+            let member_expression = Expression::Member {
+                left: current_id,
+                name: segment,
+                static_arguments: member_static_args,
+            };
+
+            // return the final member expression
+            if is_last {
+                return member_expression;
+            }
+            // create intermediate member node
+            else {
+                let new_node_id = tree.reserve_from(
+                    NodeType::Expression,
+                    expression_id.into_any(),
+                    original_scope,
+                    Some(expression_id.into_any()),
+                );
+                tree.insert(new_node_id, member_expression);
+                current_id = LocalNodeId::new(new_node_id.id);
+            }
+        }
+
+        unreachable!("remaining_path is not empty")
+    }
+
     /// Resolve an absolute symbol key within local scopes only.
     /// Walks up the scope chain looking for the symbol.
     /// Does NOT check prelude - use resolve_absolute_path for that.
@@ -86,6 +142,95 @@ impl Compiler {
         }
 
         Ok(Some(symbol_id.into_global(prelude_module_id)))
+    }
+
+    /// Resolve a path starting from a prelude symbol.
+    /// Similar to resolve_local_path but for symbols from the prelude module.
+    fn resolve_prelude_path(
+        &self,
+        _module: &Module,
+        expression_id: LocalNodeId<Expression>,
+        node: GlobalNodeIdAny,
+        prelude_symbol: GlobalSymbolId,
+        path: &Path,
+        static_arguments: Option<Vec<LocalNodeId<Argument>>>,
+        tree: &mut NodeTree,
+    ) -> ResolveResult<Expression> {
+        let remaining_segments = &path.segments[1..];
+
+        // single-segment path: just return the GlobalReference
+        if remaining_segments.is_empty() {
+            return Ok(Expression::GlobalReference {
+                path: path.clone(),
+                static_arguments,
+                target_symbol: prelude_symbol,
+            });
+        }
+
+        // multi-segment path: need to check if prelude symbol is a namespace
+        let prelude_module_id = prelude_symbol.module_id;
+        let prelude_module = self.program.modules.get(prelude_module_id);
+        let prelude_module = prelude_module.read();
+        let prelude_symbols = prelude_module.dir.symbols.read();
+
+        let local_symbol_id = prelude_symbol.local_id;
+        let symbol = prelude_symbols.get_symbol(local_symbol_id);
+
+        if symbol.kind == SymbolKind::Namespace {
+            // resolve remaining path within the prelude module's namespace
+            let remaining_path = path.slice(1..);
+            match self.resolve_relative_symbol(
+                &prelude_module,
+                node,
+                local_symbol_id,
+                &remaining_path,
+                &prelude_symbols,
+            ) {
+                Ok((resolved_id, None)) => {
+                    // fully resolved within prelude
+                    return Ok(Expression::GlobalReference {
+                        path: path.clone(),
+                        static_arguments,
+                        target_symbol: resolved_id.into_global(prelude_module_id),
+                    });
+                }
+                Ok((resolved_id, Some(remaining))) => {
+                    // partially resolved, build Member chain for remaining
+                    let resolved_path =
+                        path.slice(0..path.segments.len() - remaining.segments.len());
+                    let root_expr = Expression::GlobalReference {
+                        path: resolved_path,
+                        static_arguments: None,
+                        target_symbol: resolved_id.into_global(prelude_module_id),
+                    };
+                    return Ok(self.build_member_chain(
+                        expression_id,
+                        root_expr,
+                        &remaining,
+                        static_arguments,
+                        tree,
+                    ));
+                }
+                Err(e) => return Err(e),
+            }
+        }
+
+        // non-namespace symbol: remaining segments become Member chain
+        let root_path = Path {
+            segments: vec![path.first_segment().unwrap()].into(),
+        };
+        let root_expr = Expression::GlobalReference {
+            path: root_path,
+            static_arguments: None,
+            target_symbol: prelude_symbol,
+        };
+        Ok(self.build_member_chain(
+            expression_id,
+            root_expr,
+            &path.slice(1..),
+            static_arguments,
+            tree,
+        ))
     }
 
     /// Resolve a relative path starting from a symbol.
@@ -169,12 +314,15 @@ impl Compiler {
 
         // try prelude if enabled
         if let Some(prelude_symbol) = self.resolve_prelude_symbol(first_segment)? {
-            // nocheckin: handle remaining path in prelude symbols? use resolve_local_path..?
-            return Ok(Expression::GlobalReference {
-                path: path.clone(),
+            return self.resolve_prelude_path(
+                module,
+                expression_id,
+                node,
+                prelude_symbol,
+                path,
                 static_arguments,
-                target_symbol: prelude_symbol,
-            });
+                tree,
+            );
         }
 
         // neither local nor prelude found - return the original error
@@ -224,17 +372,20 @@ impl Compiler {
                 Ok((resolved_id, Some(remaining))) => {
                     let resolved_path =
                         path.slice(0..path.segments.len() - remaining.segments.len());
-                    return self.build_member_chain_from_symbol(
+                    let root_expr = self.resolve_symbol_to_expression(
                         module,
-                        node,
-                        expression_id,
                         resolved_id,
                         &resolved_path,
+                        None,
+                        symbols,
+                    );
+                    return Ok(self.build_member_chain(
+                        expression_id,
+                        root_expr,
                         &remaining,
                         static_arguments,
-                        symbols,
                         tree,
-                    );
+                    ));
                 }
                 Err(e) => return Err(e),
             }
@@ -244,117 +395,16 @@ impl Compiler {
         let root_path = Path {
             segments: vec![first_segment].into(),
         };
-        let root_expression =
-            self.resolve_symbol_to_expression(module, local_id, &root_path, None, symbols);
-
-        // get scope info from the original expression
-        let original_scope = tree.get_scope(expression_id);
-
-        // create a new node for the root reference (don't reuse expression_id to avoid cycles)
-        let root_node_id = tree.reserve_from(
-            NodeType::Expression,
-            expression_id.into_any(),
-            original_scope,
-            Some(expression_id.into_any()),
-        );
-        tree.insert(root_node_id, root_expression);
-        let mut current_id: LocalNodeId<Expression> = LocalNodeId::new(root_node_id.id);
-
-        // create Member chain for remaining segments
-        for (i, &segment) in remaining_segments.iter().enumerate() {
-            let is_last = i == remaining_segments.len() - 1;
-
-            // member (with static arguments if last segment)
-            let member_static_args = if is_last {
-                static_arguments.clone()
-            } else {
-                None
-            };
-            let member_expression = Expression::Member {
-                left: current_id,
-                name: segment,
-                static_arguments: member_static_args,
-            };
-
-            // return the final member expression (will replace original node)
-            if is_last {
-                return Ok(member_expression);
-            }
-            // create intermediate member node
-            else {
-                let new_node_id = tree.reserve_from(
-                    NodeType::Expression,
-                    expression_id.into_any(),
-                    original_scope,
-                    Some(expression_id.into_any()),
-                );
-                tree.insert(new_node_id, member_expression);
-                current_id = LocalNodeId::new(new_node_id.id);
-            }
-        }
-
-        unreachable!("remaining_segments is not empty")
-    }
-
-    /// Build a Member expression chain from a resolved symbol with remaining path segments.
-    fn build_member_chain_from_symbol(
-        &self,
-        module: &Module,
-        _node: GlobalNodeIdAny,
-        expression_id: LocalNodeId<Expression>,
-        symbol_id: LocalSymbolId,
-        resolved_path: &Path,
-        remaining_path: &Path,
-        static_arguments: Option<Vec<LocalNodeId<Argument>>>,
-        symbols: &SymbolTable,
-        tree: &mut NodeTree,
-    ) -> ResolveResult<Expression> {
-        // create root expression from the resolved symbol
         let root_expr =
-            self.resolve_symbol_to_expression(module, symbol_id, resolved_path, None, symbols);
-
-        let original_scope = tree.get_scope(expression_id);
-
-        // create a new node for the root reference
-        let root_node_id = tree.reserve_from(
-            NodeType::Expression,
-            expression_id.into_any(),
-            original_scope,
-            Some(expression_id.into_any()),
-        );
-        tree.insert(root_node_id, root_expr);
-        let mut current_id: LocalNodeId<Expression> = LocalNodeId::new(root_node_id.id);
-
-        // create Member chain for remaining segments
-        let segments = &remaining_path.segments;
-        for (i, &segment) in segments.iter().enumerate() {
-            let is_last = i == segments.len() - 1;
-            let member_static_args = if is_last {
-                static_arguments.clone()
-            } else {
-                None
-            };
-            let member_expression = Expression::Member {
-                left: current_id,
-                name: segment,
-                static_arguments: member_static_args,
-            };
-
-            if is_last {
-                return Ok(member_expression);
-            } else {
-                let new_node_id = tree.reserve_from(
-                    NodeType::Expression,
-                    expression_id.into_any(),
-                    original_scope,
-                    Some(expression_id.into_any()),
-                );
-                tree.insert(new_node_id, member_expression);
-                current_id = LocalNodeId::new(new_node_id.id);
-            }
-        }
-
-        unreachable!("remaining_path is not empty")
+            self.resolve_symbol_to_expression(module, local_id, &root_path, None, symbols);
+        let remaining_path = path.slice(1..);
+        Ok(self.build_member_chain(
+            expression_id,
+            root_expr,
+            &remaining_path,
+            static_arguments,
+            tree,
+        ))
     }
 
     /// Resolve a local symbol to an expression.
