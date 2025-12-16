@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
 
+use destack_compiler::{AnalyzeTask, CompileOptions, Compiler};
 use destack_source::{FileId, FileSystem, FileType, MemoryFileSystem, Uri};
 use destack_workspace::Session;
 
@@ -126,27 +127,22 @@ impl QueryTestSession {
     /// Create a test session from a markdown test case.
     ///
     /// Uses the same setup as spec tests for proper initialization.
+    /// Runs the compiler to populate DIR with resolved symbols.
     pub fn from_mdtest(test: &MdTestCase) -> Self {
         let memory_fs = Arc::new(MemoryFileSystem::new());
         let cwd = PathBuf::from("/test");
 
-        let mut files = HashMap::new();
-        let mut all_markers = TestMarkers::default();
-        let mut primary_file_id = None;
-        let mut primary_source = String::new();
-
         // first pass: parse markers and collect clean sources
-        let mut clean_files: Vec<(String, String, FileId, TestMarkers)> = Vec::new();
+        let mut clean_files: Vec<(String, String, TestMarkers)> = Vec::new();
 
-        for (idx, file) in test.files.iter().enumerate() {
-            // use index as file_id for marker spans
-            let file_id = FileId(idx as u32);
-            let (clean_source, markers) = parse_markers(file_id, &file.content);
-            clean_files.push((file.path.clone(), clean_source, file_id, markers));
+        for file in &test.files {
+            // parse markers with placeholder file_id (will be updated after compilation)
+            let (clean_source, markers) = parse_markers(FileId(0), &file.content);
+            clean_files.push((file.path.clone(), clean_source, markers));
         }
 
         // populate filesystem with clean sources
-        for (path, clean_source, _, _) in &clean_files {
+        for (path, clean_source, _) in &clean_files {
             let file_path = cwd.join(path);
             memory_fs
                 .add_file(&file_path, clean_source.as_bytes())
@@ -156,11 +152,52 @@ impl QueryTestSession {
         // create session with in-memory filesystem
         let fs: Arc<dyn FileSystem> = memory_fs;
         let session = Arc::new(Session::new(cwd.clone()).with_fs(fs));
-        let _program = session.add_root(cwd);
+        let program = session.add_root(cwd.clone());
 
-        // build TestFile structs and merge markers
-        for (path, clean_source, file_id, markers) in clean_files {
-            // merge markers into all_markers (for cross-file lookups)
+        // create compiler and run analysis
+        let compiler = Compiler::new(
+            session.clone(),
+            program.clone(),
+            CompileOptions {
+                workers: 1,
+                ..Default::default()
+            },
+        );
+
+        // find the main file path
+        let main_name = test
+            .files
+            .iter()
+            .find(|f| f.path == "main.ds")
+            .map(|f| &f.path)
+            .unwrap_or(&test.files[0].path);
+        let main_path = cwd.join(main_name);
+
+        // resolve and compile the main module
+        let module_id = compiler
+            .resolve_path_to_module(&main_path)
+            .expect("failed to resolve module");
+
+        compiler.enqueue(AnalyzeTask::AnalyzeModuleValidate { module: module_id });
+        compiler.compile();
+        drop(compiler);
+
+        // build TestFile structs with actual file IDs from compiled modules
+        let mut files = HashMap::new();
+        let mut all_markers = TestMarkers::default();
+        let mut primary_file_id = FileId(0);
+        let mut primary_source = String::new();
+
+        for (path, clean_source, markers) in &clean_files {
+            let file_path = cwd.join(path);
+
+            // get actual file_id from session
+            let file_id = session
+                .files
+                .get_id_by_path(&file_path)
+                .unwrap_or(FileId(0));
+
+            // update marker spans with correct file_id
             for range in &markers.ranges {
                 all_markers.ranges.push(super::RangeMarker {
                     name: range.name.clone(),
@@ -175,7 +212,7 @@ impl QueryTestSession {
                 });
             }
             if markers.test_type.is_some() {
-                all_markers.test_type = markers.test_type.clone();
+                all_markers.test_type.clone_from(&markers.test_type);
             }
 
             files.insert(
@@ -189,15 +226,15 @@ impl QueryTestSession {
             );
 
             // main.ds or first file is primary
-            if primary_file_id.is_none() || path == "main.ds" {
-                primary_file_id = Some(file_id);
-                primary_source = clean_source;
+            if path == "main.ds" || primary_file_id == FileId(0) {
+                primary_file_id = file_id;
+                primary_source = clean_source.clone();
             }
         }
 
         Self {
             session,
-            file_id: primary_file_id.unwrap_or(FileId(0)),
+            file_id: primary_file_id,
             markers: all_markers,
             source: primary_source,
             files,

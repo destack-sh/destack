@@ -1,0 +1,7 @@
+# generated stress test fixtures
+*.ds
+*/
+!*/generate.py
+!.gitignore
+!generate.sh
+!README.md

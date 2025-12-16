@@ -7,3 +7,4 @@ pub mod mdtest;
 pub mod query;
 pub mod smoke;
 pub mod spec;
+pub mod stress;

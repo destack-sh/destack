@@ -115,6 +115,44 @@ test-ecosystem:
 test-resolver:
     cargo test --release -p destack_resolver
 
+# run spec tests (type checking specification)
+test-spec:
+    cargo test --release --test spec
+
+# run query tests (IDE/LSP queries)
+test-query:
+    cargo test --release --test query
+
+# run stress tests (requires generated fixtures)
+test-stress:
+    cargo test --release --test stress
+
+# --- stress fixtures ---
+
+# generate all stress test fixtures
+generate-stress:
+    ./test/fixtures/stress/generate.sh all
+
+# generate large file stress fixtures
+generate-stress-large-files:
+    ./test/fixtures/stress/generate.sh large_files
+
+# generate large project stress fixtures
+generate-stress-large-projects:
+    ./test/fixtures/stress/generate.sh large_projects
+
+# generate memory stress fixtures
+generate-stress-memory:
+    ./test/fixtures/stress/generate.sh memory
+
+# generate edge case stress fixtures
+generate-stress-edge-cases:
+    ./test/fixtures/stress/generate.sh edge_cases
+
+# generate pathological stress fixtures
+generate-stress-pathological:
+    ./test/fixtures/stress/generate.sh pathological
+
 # --- bench ---
 
 # run all benchmarks
