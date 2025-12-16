@@ -265,6 +265,9 @@ fn dispatch_query(
         "document_symbols" | "symbols" => {
             runner::navigation::document_symbol::run(session, expectation)
         }
+        "workspace_symbols" | "workspace" => {
+            runner::navigation::workspace_symbol::run(session, expectation)
+        }
         "selection_range" => runner::navigation::selection_range::run(session, expectation),
         "call_hierarchy" => runner::navigation::call_hierarchy::run(session, expectation),
         "type_hierarchy" => runner::navigation::type_hierarchy::run(session, expectation),

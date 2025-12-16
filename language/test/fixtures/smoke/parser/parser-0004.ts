@@ -1993,8 +1993,6 @@ declare namespace "bun" {
      * - CH: Modify the return value from the number of new elements added, to the total number of elements changed (CH is an abbreviation of changed).
      * - INCR: When this option is specified ZADD acts like ZINCRBY. Only one score-member pair can be specified in this mode.
      *
-     * Note: The GT, LT and NX options are mutually exclusive.
-     *
      * @param key The sorted set key
      * @param args Score-member pairs and optional flags (NX, XX, GT, LT, CH, INCR)
      * @returns Promise that resolves with the number of elements added (or changed if CH is used, or new score if INCR is used)

@@ -1,6 +1,7 @@
 use destack_source::{FileId, Span};
 
 use crate::Session;
+use crate::query::common::get_module_by_file_id;
 
 /// A selection range with parent.
 ///
@@ -29,6 +30,14 @@ impl SelectionRange {
             parent: Some(Box::new(parent)),
         }
     }
+
+    /// Get the depth of this selection range.
+    pub fn depth(&self) -> usize {
+        match &self.parent {
+            None => 1,
+            Some(parent) => 1 + parent.depth(),
+        }
+    }
 }
 
 /// Get selection ranges for positions in a file.
@@ -38,14 +47,56 @@ impl SelectionRange {
 ///
 /// Used for "Expand Selection" / "Shrink Selection" editor commands.
 pub fn selection_ranges(
-    _session: &Session,
-    _file: FileId,
-    _positions: &[u32],
+    session: &Session,
+    file: FileId,
+    positions: &[u32],
 ) -> Vec<SelectionRange> {
-    // 1. parse the file to get AST
-    // 2. for each position, find the syntax node at that position
-    // 3. walk up the tree, collecting ranges:
-    //    - identifier -> expression -> statement -> block -> function -> module
-    // 4. build nested SelectionRange from innermost to outermost
-    todo!("#Incomplete: selection_ranges")
+    // get the module for this file
+    let Some(module) = get_module_by_file_id(session, file) else {
+        return Vec::new();
+    };
+
+    let module_guard = module.read();
+    let mut results = Vec::with_capacity(positions.len());
+
+    for &offset in positions {
+        // find all enclosing AST nodes at this position
+        let enclosing = module_guard
+            .ast
+            .tree
+            .source_map
+            .get_enclosing_spans(offset, offset);
+
+        if enclosing.is_empty() {
+            // no enclosing spans, return a minimal selection at the position
+            results.push(SelectionRange::leaf(Span::new(file, offset, offset)));
+            continue;
+        }
+
+        // enclosing spans are sorted by distance (innermost first)
+        // we need to deduplicate spans with the same range
+        let mut unique_spans: Vec<Span> = Vec::new();
+        for enc in &enclosing {
+            if unique_spans.last() != Some(&enc.span) {
+                unique_spans.push(enc.span);
+            }
+        }
+
+        // build the nested SelectionRange from outermost to innermost
+        // start with the outermost as the root (no parent)
+        let mut selection = SelectionRange::leaf(unique_spans.pop().unwrap_or(Span::new(
+            file,
+            offset,
+            offset,
+        )));
+
+        // add each subsequent span as a child (with the previous as parent)
+        while let Some(span) = unique_spans.pop() {
+            selection = SelectionRange::with_parent(span, selection);
+        }
+
+        results.push(selection);
+    }
+
+    results
 }
