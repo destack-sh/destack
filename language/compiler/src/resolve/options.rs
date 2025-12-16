@@ -1,6 +1,7 @@
 /// The options for type/symbol resolution.
 #[derive(Debug, Clone)]
 pub struct ResolveOptions {
+    // nocheckin: merge all task-specific *Options into CompileOptions?
     /// Default integer width (if not specified).
     pub default_int_width: u16,
     /// Default float width (if not specified).

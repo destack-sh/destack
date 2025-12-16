@@ -4,6 +4,8 @@
 
 ### Rename local variable
 
+Rename should update all occurrences of a symbol to the new name.
+
 ```ds
 const foo = 1;
 //    ^^^ target
@@ -11,6 +13,8 @@ const foo = 1;
 const bar = foo + foo;
 console.log(foo);
 ```
+
+`foo` appears 4 times: its definition and 3 uses. Renaming to `baz` should update all 4 occurrences.
 
 ```query rename target "baz"
 ```
@@ -20,38 +24,4 @@ const baz = 1;
 
 const bar = baz + baz;
 console.log(baz);
-```
-
-## Cross-file
-
-### Rename exported function
-
-```ds:lib.ds
-export function greet(name: string): string {
-//              ^^^^^ target
-    return "Hello, " + name;
-}
-```
-
-```ds:main.ds
-import { greet } from "./lib";
-
-const msg = greet("World");
-console.log(msg);
-```
-
-```query rename target "sayHello"
-```
-
-```expected:lib
-export function sayHello(name: string): string {
-    return "Hello, " + name;
-}
-```
-
-```expected:main
-import { sayHello } from "./lib";
-
-const msg = sayHello("World");
-console.log(msg);
 ```

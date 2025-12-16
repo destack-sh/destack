@@ -203,6 +203,16 @@ def generate_pathological():
     with open(OUT_DIR / "unclosed_brackets.ds", "w") as f:
         f.write("const x = " + "[" * 10000 + "1;\n")
 
+    # unmatched closing delimiters
+    with open(OUT_DIR / "unmatched_close_parens.ds", "w") as f:
+        f.write("const x = 1" + ")" * 10000 + ";\n")
+
+    with open(OUT_DIR / "unmatched_close_braces.ds", "w") as f:
+        f.write("const x = 1;" + "}" * 5000 + "\n")
+
+    with open(OUT_DIR / "unmatched_close_brackets.ds", "w") as f:
+        f.write("const x = 1" + "]" * 10000 + ";\n")
+
     # bracket spam
     import random
     random.seed(42)

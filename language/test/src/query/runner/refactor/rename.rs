@@ -43,12 +43,40 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> T
     // then do the actual rename
     let result = query::rename(&session.session, session.file_id, offset, new_name);
 
+    let content = exp.content.trim();
+
+    // empty expectation means we just verify the rename works (produces any edits)
+    if content.is_empty() {
+        match result {
+            Some(rename_result) => {
+                if rename_result.edit_count() == 0 {
+                    return TestResult::Failed {
+                        message: format!(
+                            "rename at '{}' to '{}' produced 0 edits",
+                            exp.target, new_name
+                        ),
+                    };
+                }
+                return TestResult::Passed;
+            }
+            None => {
+                return TestResult::Failed {
+                    message: format!("rename at '{}' to '{}' returned None", exp.target, new_name),
+                };
+            }
+        }
+    }
+
+    // parse expected edit count from content
+    let Ok(expected_count) = content.parse::<usize>() else {
+        return TestResult::Failed {
+            message: format!("rename expectation '{}' is not a valid count", content),
+        };
+    };
+
     match result {
         Some(rename_result) => {
-            // parse expected edit count from content
-            let expected_count: usize = exp.content.trim().parse().unwrap_or(0);
-
-            if expected_count > 0 && rename_result.edit_count() != expected_count {
+            if rename_result.edit_count() != expected_count {
                 TestResult::Failed {
                     message: format!(
                         "rename at '{}' to '{}' produced {} edits, expected {}",

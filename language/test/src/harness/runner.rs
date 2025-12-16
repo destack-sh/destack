@@ -13,7 +13,6 @@ use super::{
 #[derive(Debug)]
 pub struct Runner;
 
-
 impl Runner {
     pub fn run_suite<S: Suite>(suite: &S, options: &TestOptions) -> ExitCode {
         let context = RunContext {
@@ -93,8 +92,9 @@ impl Runner {
                                 if duration > timeout {
                                     TestResult::Failed {
                                         message: format!(
-                                            "timeout: took {:?}, limit {:?}",
-                                            duration, timeout
+                                            "timeout: took {:.2}s, limit {:.2}s",
+                                            duration.as_secs_f64(),
+                                            timeout.as_secs_f64()
                                         ),
                                     }
                                 } else {
@@ -129,8 +129,9 @@ impl Runner {
                             if duration > timeout {
                                 TestResult::Failed {
                                     message: format!(
-                                        "timeout: took {:?}, limit {:?}",
-                                        duration, timeout
+                                        "timeout: took {:.2}s, limit {:.2}s",
+                                        duration.as_secs_f64(),
+                                        timeout.as_secs_f64()
                                     ),
                                 }
                             } else {

@@ -25,7 +25,9 @@ pub fn run(session: &QueryTestSession, expectation: Option<&QueryExpectation>) -
             Some(sig_help) => {
                 if sig_help.signatures.is_empty() {
                     return TestResult::Failed {
-                        message: format!("signature_help at ${} returned empty signatures", cursor_idx),
+                        message: format!(
+                            "signature_help at ${cursor_idx} returned empty signatures"
+                        ),
                     };
                 }
 
@@ -39,20 +41,20 @@ pub fn run(session: &QueryTestSession, expectation: Option<&QueryExpectation>) -
                     };
                 }
 
-                if let Some(active) = expected_active {
-                    if sig_help.active_parameter != *active {
-                        return TestResult::Failed {
-                            message: format!(
-                                "signature_help at ${} expected active parameter {}, got {}",
-                                cursor_idx, active, sig_help.active_parameter
-                            ),
-                        };
-                    }
+                if let Some(active) = expected_active
+                    && sig_help.active_parameter != *active
+                {
+                    return TestResult::Failed {
+                        message: format!(
+                            "signature_help at ${cursor_idx} expected active parameter {active}, got {}",
+                            sig_help.active_parameter
+                        ),
+                    };
                 }
             }
             None => {
                 return TestResult::Failed {
-                    message: format!("signature_help at ${} returned None", cursor_idx),
+                    message: format!("signature_help at ${cursor_idx} returned None"),
                 };
             }
         }
@@ -64,7 +66,11 @@ pub fn run(session: &QueryTestSession, expectation: Option<&QueryExpectation>) -
 /// Run with markdown expectation.
 fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> TestResult {
     // parse cursor from target
-    let cursor_idx: usize = exp.target.strip_prefix('$').and_then(|s| s.parse().ok()).unwrap_or(0);
+    let cursor_idx: usize = exp
+        .target
+        .strip_prefix('$')
+        .and_then(|s| s.parse().ok())
+        .unwrap_or(0);
     let Some(cursor) = session.markers.cursor(cursor_idx) else {
         return TestResult::Failed {
             message: format!("cursor ${cursor_idx} not found"),
@@ -75,11 +81,34 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> T
 
     let expected_sig = exp.content.trim();
 
+    // empty expectation is an error
+    if expected_sig.is_empty() {
+        return TestResult::Failed {
+            message: format!(
+                "signature_help expectation is empty at ${cursor_idx}, got: {:?}",
+                result.map(|r| r.signatures.first().map(|s| s.label.clone()))
+            ),
+        };
+    }
+
+    // "<none>" means we expect no result
+    if expected_sig == "<none>" {
+        return match result {
+            None => TestResult::Passed,
+            Some(sig_help) => TestResult::Failed {
+                message: format!(
+                    "signature_help at ${cursor_idx} expected None, got '{}'",
+                    sig_help.signatures.first().map(|s| s.label.as_str()).unwrap_or("")
+                ),
+            },
+        };
+    }
+
     match result {
         Some(sig_help) => {
             if sig_help.signatures.is_empty() {
                 return TestResult::Failed {
-                    message: format!("signature_help at ${} returned empty signatures", cursor_idx),
+                    message: format!("signature_help at ${cursor_idx} returned empty signatures"),
                 };
             }
 
@@ -87,22 +116,16 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> T
             if !sig.label.contains(expected_sig) {
                 TestResult::Failed {
                     message: format!(
-                        "signature_help at ${} expected '{}', got '{}'",
-                        cursor_idx, expected_sig, sig.label
+                        "signature_help at ${cursor_idx} expected '{expected_sig}', got '{}'",
+                        sig.label
                     ),
                 }
             } else {
                 TestResult::Passed
             }
         }
-        None => {
-            if expected_sig.is_empty() || expected_sig == "none" {
-                TestResult::Passed
-            } else {
-                TestResult::Failed {
-                    message: format!("signature_help at ${} returned None", cursor_idx),
-                }
-            }
-        }
+        None => TestResult::Failed {
+            message: format!("signature_help at ${cursor_idx} returned None"),
+        },
     }
 }

@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use crate::Span;
 
 /// The type of node search to perform.
@@ -11,14 +13,18 @@ pub enum NodeSearch {
     SmallestInnermost,
 }
 
-/// The FileSourceMap is a side index of Spans into a NodeTree.
+/// The NodeSourceMap is a side index of Spans into a NodeTree.
 #[derive(Debug, Clone)]
-pub struct FileSourceMap {
+pub struct NodeSourceMap {
     /// The spans of all nodes. Index is the global node id.
     spans_per_node: Vec<Span>,
+    /// The "main" spans for nodes that have them (sparse).
+    /// For declarations, this is the identifier span.
+    /// For operators, this is the operator token span.
+    main_spans: HashMap<u32, Span>,
 }
 
-impl Default for FileSourceMap {
+impl Default for NodeSourceMap {
     fn default() -> Self {
         Self::new()
     }
@@ -36,10 +42,11 @@ pub struct EnclosingSpan {
     pub span: Span,
 }
 
-impl FileSourceMap {
+impl NodeSourceMap {
     pub fn new() -> Self {
         Self {
             spans_per_node: Vec::new(),
+            main_spans: HashMap::new(),
         }
     }
 
@@ -59,6 +66,19 @@ impl FileSourceMap {
     #[inline]
     pub fn prune_from(&mut self, from_idx: u32) {
         self.spans_per_node.truncate(from_idx as usize);
+        self.main_spans.retain(|&id, _| id < from_idx);
+    }
+
+    /// Set the main span for a node.
+    #[inline]
+    pub fn set_main(&mut self, node_id: u32, span: Span) {
+        self.main_spans.insert(node_id, span);
+    }
+
+    /// Get the main span for a node, if it has one.
+    #[inline]
+    pub fn get_main(&self, node_id: u32) -> Option<Span> {
+        self.main_spans.get(&node_id).copied()
     }
 
     /// Get the span for a node by its id.

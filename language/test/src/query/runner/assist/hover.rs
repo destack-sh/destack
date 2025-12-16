@@ -34,7 +34,7 @@ pub fn run(session: &QueryTestSession, expectation: Option<&QueryExpectation>) -
             }
             None => {
                 return TestResult::Failed {
-                    message: format!("hover at ${} returned None", cursor_idx),
+                    message: format!("hover at ${cursor_idx} returned None"),
                 };
             }
         }
@@ -67,6 +67,30 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> T
 
     let expected_text = exp.content.trim();
 
+    // empty expectation is an error
+    if expected_text.is_empty() {
+        return TestResult::Failed {
+            message: format!(
+                "hover expectation is empty at '{}', got: {:?}",
+                exp.target,
+                result.map(|r| r.signature)
+            ),
+        };
+    }
+
+    // "<none>" means we expect no result
+    if expected_text == "<none>" {
+        return match result {
+            None => TestResult::Passed,
+            Some(hover_info) => TestResult::Failed {
+                message: format!(
+                    "hover at '{}' expected None, got '{}'",
+                    exp.target, hover_info.signature
+                ),
+            },
+        };
+    }
+
     match result {
         Some(hover_info) => {
             if !hover_info.signature.contains(expected_text) {
@@ -80,14 +104,8 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> T
                 TestResult::Passed
             }
         }
-        None => {
-            if expected_text.is_empty() || expected_text == "none" {
-                TestResult::Passed
-            } else {
-                TestResult::Failed {
-                    message: format!("hover at '{}' returned None", exp.target),
-                }
-            }
-        }
+        None => TestResult::Failed {
+            message: format!("hover at '{}' returned None", exp.target),
+        },
     }
 }

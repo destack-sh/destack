@@ -7,7 +7,9 @@ use destack_parser::source_colorizer;
 use destack_source::PrintOptions;
 
 use crate::harness::print::color;
-use crate::harness::{RunContext, Suite, TestCase, TestOptions, TestResult, fixtures_dir, format_diagnostics};
+use crate::harness::{
+    RunContext, Suite, TestCase, TestOptions, TestResult, fixtures_dir, format_diagnostics,
+};
 use crate::mdtest::{
     MdTestCase, TEST_TIMEOUT_SECONDS, discover_md_files, parse_mdtest_file, run_with_timeout,
     setup_test_environment, slug,
@@ -49,7 +51,11 @@ impl SpecSuite {
         let relative_name = relative_path.to_string_lossy();
 
         for case in cases {
-            let name = format!("{relative_name}/{}/{}", slug(&case.section), slug(&case.name));
+            let name = format!(
+                "{relative_name}/{}/{}",
+                slug(&case.section),
+                slug(&case.name)
+            );
             let test_case = TestCase::file(name, md_path.to_path_buf(), "destack_test::spec");
 
             self.tests.insert(test_case.full_name(), case);
@@ -74,7 +80,9 @@ impl Suite for SpecSuite {
             };
         };
 
-        let timeout = context.timeout.unwrap_or(Duration::from_secs(TEST_TIMEOUT_SECONDS));
+        let timeout = context
+            .timeout
+            .unwrap_or(Duration::from_secs(TEST_TIMEOUT_SECONDS));
         run_with_timeout(md_test.clone(), timeout, run_spec_test)
     }
 
@@ -190,7 +198,10 @@ fn compare_errors(expected: &[String], actual: &[String]) -> TestResult {
         if !message.is_empty() {
             message.push('\n');
         }
-        message.push_str(&format!("{}\n", color::green("additional unexpected errors:")));
+        message.push_str(&format!(
+            "{}\n",
+            color::green("additional unexpected errors:")
+        ));
         for err in &unexpected {
             message.push_str(&format!("  {}\n", color::green(&format!("+ {err}"))));
         }

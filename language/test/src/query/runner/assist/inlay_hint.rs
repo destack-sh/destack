@@ -25,10 +25,15 @@ pub fn run(session: &QueryTestSession, expectation: Option<&QueryExpectation>) -
     let hints = query::inlay_hints(&session.session, session.file_id, range);
 
     for exp in expected_hints {
-        let found = hints.iter().any(|h| h.position == exp.offset && h.label.contains(&exp.label));
+        let found = hints
+            .iter()
+            .any(|h| h.position == exp.offset && h.label.contains(&exp.label));
 
         if !found {
-            let actual: Vec<_> = hints.iter().map(|h| format!("{}:{}", h.position, h.label)).collect();
+            let actual: Vec<_> = hints
+                .iter()
+                .map(|h| format!("{}:{}", h.position, h.label))
+                .collect();
             return TestResult::Failed {
                 message: format!(
                     "inlay_hint at offset {} with label '{}' not found\nactual: {:?}",
@@ -43,14 +48,32 @@ pub fn run(session: &QueryTestSession, expectation: Option<&QueryExpectation>) -
 
 /// Run with markdown expectation.
 fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> TestResult {
+    let content = exp.content.trim();
+
+    // empty expectation is an error
+    if content.is_empty() {
+        let range = Span::new(session.file_id, 0, session.source.len() as u32);
+        let hints = query::inlay_hints(&session.session, session.file_id, range);
+        return TestResult::Failed {
+            message: format!(
+                "inlay_hints expectation is empty, but query returned {} hints",
+                hints.len()
+            ),
+        };
+    }
+
+    // parse expected count from content
+    let Ok(expected_count) = content.parse::<usize>() else {
+        return TestResult::Failed {
+            message: format!("inlay_hints expectation '{}' is not a valid count", content),
+        };
+    };
+
     // get all hints for the file
     let range = Span::new(session.file_id, 0, session.source.len() as u32);
     let hints = query::inlay_hints(&session.session, session.file_id, range);
 
-    // parse expected count from content
-    let expected_count: usize = exp.content.trim().parse().unwrap_or(0);
-
-    if expected_count > 0 && hints.len() != expected_count {
+    if hints.len() != expected_count {
         TestResult::Failed {
             message: format!(
                 "inlay_hints returned {} hints, expected {}",

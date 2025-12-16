@@ -100,10 +100,10 @@ def generate_many_overloads():
         f.write("}\n")
 
 
-def generate_complex_inference():
-    """Generate code requiring complex type inference."""
-    print("generating complex_inference.ds...")
-    with open(OUT_DIR / "complex_inference.ds", "w") as f:
+def generate_inference_chain():
+    """Generate chained type inference."""
+    print("generating inference_chain.ds...")
+    with open(OUT_DIR / "inference_chain.ds", "w") as f:
         # chain of inferred types
         f.write("const a = 1;\n")
         for i in range(500):
@@ -136,6 +136,53 @@ def generate_many_implements():
         f.write("}\n")
 
 
+def generate_wide_class():
+    """Generate a class with many methods."""
+    print("generating wide_class.ds...")
+    with open(OUT_DIR / "wide_class.ds", "w") as f:
+        f.write("class WideClass {\n")
+        for i in range(500):
+            f.write(f"    field_{i}: int32 = {i};\n")
+        for i in range(500):
+            f.write(f"    method_{i}(): int32 {{ this.field_{i} }}\n")
+        f.write("}\n")
+        f.write("const instance = new WideClass();\n")
+
+
+def generate_wide_interface():
+    """Generate an interface with many distinct methods."""
+    print("generating wide_interface.ds...")
+    with open(OUT_DIR / "wide_interface.ds", "w") as f:
+        f.write("interface WideInterface {\n")
+        for i in range(500):
+            f.write(f"    method_{i}(x: int32): int32;\n")
+        f.write("}\n")
+
+
+def generate_deep_recursive_type():
+    """Generate deeply recursive type definitions."""
+    print("generating deep_recursive_type.ds...")
+    with open(OUT_DIR / "deep_recursive_type.ds", "w") as f:
+        # linked list type
+        f.write("type List<T> = { head: T, tail: List<T> | null };\n")
+        f.write("type Tree<T> = { value: T, left: Tree<T> | null, right: Tree<T> | null };\n")
+        # instantiate at various depths
+        for i in range(50):
+            f.write(f"type ListOf{i} = List<int32>;\n")
+            f.write(f"type TreeOf{i} = Tree<string>;\n")
+
+
+def generate_deep_newtype():
+    """Generate deep type alias chains."""
+    print("generating deep_newtype.ds...")
+    with open(OUT_DIR / "deep_newtype.ds", "w") as f:
+        f.write("type Base = int32;\n")
+        for i in range(500):
+            prev = "Base" if i == 0 else f"Alias{i-1}"
+            f.write(f"type Alias{i} = {prev};\n")
+        f.write("const x: Alias499 = 42;\n")
+
+
 def main():
     generate_many_types()
     generate_deep_inheritance()
@@ -143,10 +190,14 @@ def main():
     generate_many_generics()
     generate_nested_generics()
     generate_wide_struct()
+    generate_wide_class()
+    generate_wide_interface()
     generate_many_scopes()
     generate_many_overloads()
-    generate_complex_inference()
+    generate_inference_chain()
     generate_many_implements()
+    generate_deep_recursive_type()
+    generate_deep_newtype()
     print("done")
 
 

@@ -6,6 +6,8 @@ use crate::{
 };
 use destack_source::File;
 
+// NOTE #Cleanup: can we remove AST SemanticType now that we have workspace/query?
+
 /// The semantic type of a Span or Token.
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum SemanticType {

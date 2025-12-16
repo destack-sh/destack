@@ -94,7 +94,10 @@ impl QueryTestSession {
 
             let (clean_source, markers) = parse_markers(file_id, source);
 
-            let _ = fs.write(&PathBuf::from(format!("/test/{name}")), clean_source.as_bytes());
+            let _ = fs.write(
+                &PathBuf::from(format!("/test/{name}")),
+                clean_source.as_bytes(),
+            );
             program.register_inline_module(uri, clean_source.clone(), FileType::Destack);
 
             files.insert(

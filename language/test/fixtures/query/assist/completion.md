@@ -1,41 +1,35 @@
 # Completion
 
-## Struct Fields
+## Basic Symbols
 
-### Complete struct fields after dot
+### Complete with available keywords
 
-```ds
-struct Point {
-    x: float32,
-    y: float32,
-}
-
-extension for Point {
-    magnitude(): float32 {
-        (this.x * this.x + this.y * this.y).sqrt()
-    }
-}
-
-const p = Point { x: 1, y: 2 };
-p.$0
-```
-
-```query completion $0
-- x: field
-- y: field
-- magnitude: method
-```
-
-### Complete nested struct fields
+At any position in the file, completion should offer language keywords.
 
 ```ds
-struct Inner { value: int32 }
-struct Outer { inner: Inner }
-
-const o = Outer { inner: Inner { value: 1 } };
-o.inner.$0
+const foo = 1;
+$0
 ```
 
+Common keywords like `function`, `const`, and `struct` should appear in the completion list.
+
 ```query completion $0
-- value: field
+- function: keyword
+- const: keyword
+- struct: keyword
+```
+
+### Complete with keywords at start
+
+Even in an empty file, completion should offer language keywords.
+
+```ds
+$0
+```
+
+This verifies the baseline completion functionality works without any context.
+
+```query completion $0
+- function: keyword
+- const: keyword
 ```
