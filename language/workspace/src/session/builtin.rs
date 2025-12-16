@@ -114,27 +114,15 @@ impl LanguageBuiltins {
     pub fn load_lib(
         &self,
         name: &str,
-        files: Arc<FileRegistry>,
-        modules: Arc<ModuleRegistry>,
-        packages: Arc<PackageRegistry>,
+        _files: Arc<FileRegistry>,
+        _modules: Arc<ModuleRegistry>,
+        _packages: Arc<PackageRegistry>,
     ) -> Vec<ModuleId> {
         // check cache first
         if let Some(cached) = self.lib_modules.get(name) {
             return cached.clone();
         }
 
-        // nocheckin TODO: load lib sources from embedded lib/ directory
-        // For now, return empty - libs will be implemented when we add
-        // platform-specific type definitions (dom, es2024, node, etc.)
-        let lib_module_ids: Vec<ModuleId> = Vec::new();
-
-        // cache and return
-        self.lib_modules
-            .insert(name.to_string(), lib_module_ids.clone());
-
-        // suppress unused warnings for now
-        let _ = (files, modules, packages);
-
-        lib_module_ids
+        todo!("#Incomplete: load lib from embedded lib/ (into 'builtin://lib/'?)")
     }
 }
