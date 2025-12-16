@@ -236,7 +236,12 @@ impl Parser {
             // identifier
             // (speculative because we don't know yet if we'll have a `=` afterwards)
             let speculative_start = (self.mark(), self.tree.next_id());
-            descriptor.name = self.eat_name_maybe()?;
+            let (name, name_span) = if let Some((n, s)) = self.eat_name_maybe_with_span()? {
+                (Some(n), Some(s))
+            } else {
+                (None, None)
+            };
+            descriptor.name = name;
 
             // static parameters
             let static_parameters = self.eat_static_parameters_maybe()?;
@@ -260,6 +265,12 @@ impl Parser {
                     value: value_id,
                 };
                 let declaration_id = self.tree.insert(declaration, self.get_span_from(start));
+
+                // set main_span to the name identifier
+                if let Some(span) = name_span {
+                    self.tree.set_main_span(declaration_id, span);
+                }
+
                 let expression = Expression::Declaration(declaration_id);
                 Ok(self.tree.insert(expression, self.get_span_from(start)))
             }

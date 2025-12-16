@@ -48,7 +48,12 @@ impl Parser {
         self.eat_keyword(Keyword::Enum)?;
 
         // optional name
-        descriptor = descriptor.with_name_maybe(self.eat_name_maybe()?);
+        let name_span = if let Some((name, span)) = self.eat_name_maybe_with_span()? {
+            descriptor = descriptor.with_name(name);
+            Some(span)
+        } else {
+            None
+        };
 
         // optional static parameters: < ... >
         let static_parameters = self
@@ -90,6 +95,11 @@ impl Parser {
             },
             self.get_span_from(start),
         );
+
+        // set main_span to the name identifier
+        if let Some(span) = name_span {
+            self.tree.set_main_span(enum_id, span);
+        }
 
         Ok(enum_id)
     }
@@ -151,7 +161,9 @@ impl Parser {
     /// Eat a single enum field and return it as a UnionField node id.
     fn eat_enum_field(&mut self) -> ParseResult<LocalNodeId<EnumField>> {
         let start = self.mark();
-        let name = self.eat_name().for_node_type(NodeType::EnumField)?;
+        let (name, name_span) = self
+            .eat_name_with_span()
+            .for_node_type(NodeType::EnumField)?;
 
         // optional `= <expr>` value
         let value = if self.peek_token(TokenType::Assign).is_ok() {
@@ -167,6 +179,9 @@ impl Parser {
         let field_id = self
             .tree
             .insert(EnumField { name, value }, self.get_span_from(start));
+
+        // set main_span to the name identifier
+        self.tree.set_main_span(field_id, name_span);
         Ok(field_id)
     }
 }

@@ -17,6 +17,14 @@ impl Parser {
         Ok(string_id)
     }
 
+    /// Eat an identifier and return both the identifier and its span.
+    #[inline]
+    pub fn eat_identifier_with_span(&mut self) -> ParseResult<(StringId, destack_source::Span)> {
+        let token = *self.eat_token(TokenType::Identifier)?;
+        let string_id = self.strings.intern(self.get_token_str(token));
+        Ok((string_id, token.span))
+    }
+
     /// Peek an identifier that matches a given string.
     #[inline]
     pub fn peek_identifier_str(&self, string: &str) -> ParseResult<&TokenSpan> {
@@ -55,6 +63,18 @@ impl Parser {
     pub fn eat_name_maybe(&mut self) -> ParseResult<Option<Name>> {
         if self.peek_name().is_ok() {
             Ok(Some(self.eat_name()?))
+        } else {
+            Ok(None)
+        }
+    }
+
+    /// Eat a name maybe, returning both the name and its span.
+    #[inline]
+    pub fn eat_name_maybe_with_span(
+        &mut self,
+    ) -> ParseResult<Option<(Name, destack_source::Span)>> {
+        if self.peek_name().is_ok() {
+            Ok(Some(self.eat_name_with_span()?))
         } else {
             Ok(None)
         }
@@ -178,9 +198,18 @@ impl Parser {
     /// Eat a name (like `x` or `"Content-Type"`).
     #[inline]
     pub fn eat_name(&mut self) -> ParseResult<Name> {
+        let (name, _span) = self.eat_name_with_span()?;
+        Ok(name)
+    }
+
+    /// Eat a name and return both the name and its span.
+    #[inline]
+    pub fn eat_name_with_span(&mut self) -> ParseResult<(Name, destack_source::Span)> {
         // regular identifier
         if self.peek_token(TokenType::Identifier).is_ok() {
-            Ok(Name::Identifier(self.eat_identifier()?))
+            let token = *self.eat_token(TokenType::Identifier)?;
+            let string_id = self.strings.intern(self.get_token_str(token));
+            Ok((Name::Identifier(string_id), token.span))
         }
         // string identifier
         else if self.peek_string_literal().is_ok() {
@@ -188,7 +217,7 @@ impl Parser {
             let token_str = self.get_string_literal_str(token);
             let string_id = self.strings.intern(token_str);
             self.bump();
-            Ok(Name::String(string_id))
+            Ok((Name::String(string_id), token.span))
         }
         // error
         else {
