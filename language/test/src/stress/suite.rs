@@ -73,13 +73,24 @@ fn run_parser_stress(test: &TestCase) -> TestResult {
     let uri = Uri::from_path(&test.path);
     let content = match std::fs::read_to_string(&test.path) {
         Ok(c) => c,
-        Err(e) => return TestResult::Failed { message: format!("failed to read: {e}") },
+        Err(e) => {
+            return TestResult::Failed {
+                message: format!("failed to read: {e}"),
+            };
+        }
     };
     let file_size = content.len();
     let line_count = content.lines().count();
     let file_id = program.files.next_id();
     let name = test.path.file_name().unwrap().to_string_lossy().to_string();
-    let file = File::from_text(file_id, name, uri, Some(test.path.clone()), file_type, content);
+    let file = File::from_text(
+        file_id,
+        name,
+        uri,
+        Some(test.path.clone()),
+        file_type,
+        content,
+    );
     program.files.insert(file);
     let file = program.files.get(file_id);
 
@@ -90,7 +101,7 @@ fn run_parser_stress(test: &TestCase) -> TestResult {
     let _ast = parser.parse();
     let elapsed = start.elapsed();
 
-    eprintln!("  {} bytes, {} lines, parsed in {:?}", file_size, line_count, elapsed);
+    eprintln!("  {file_size} bytes, {line_count} lines, parsed in {elapsed:?}",);
     TestResult::Passed
 }
 
@@ -150,9 +161,12 @@ fn run_resolver_stress(test: &TestCase) -> TestResult {
 
     // count files in project
     let file_count = std::fs::read_dir(project_dir)
-        .map(|entries| entries.filter_map(Result::ok).filter(|e| {
-            e.path().extension().map_or(false, |ext| ext == "ds")
-        }).count())
+        .map(|entries| {
+            entries
+                .filter_map(Result::ok)
+                .filter(|e| e.path().extension().is_some_and(|ext| ext == "ds"))
+                .count()
+        })
         .unwrap_or(0);
 
     // set up compiler with physical file system access to the project
@@ -167,7 +181,11 @@ fn run_resolver_stress(test: &TestCase) -> TestResult {
     // resolve entry module
     let module_id = match compiler.resolve_path_to_module(&test.path) {
         Ok(id) => id,
-        Err(e) => return TestResult::Failed { message: format!("failed to resolve module: {e:?}") },
+        Err(e) => {
+            return TestResult::Failed {
+                message: format!("failed to resolve module: {e:?}"),
+            };
+        }
     };
 
     // resolve schedules import + bind automatically
@@ -175,7 +193,7 @@ fn run_resolver_stress(test: &TestCase) -> TestResult {
     compiler.compile();
 
     let elapsed = start.elapsed();
-    eprintln!("  {} files, resolved in {:?}", file_count, elapsed);
+    eprintln!("  {file_count} files, resolved in {elapsed:?}",);
     TestResult::Passed
 }
 
@@ -218,7 +236,11 @@ fn run_checker_stress(test: &TestCase) -> TestResult {
     // read file content for stats
     let content = match std::fs::read_to_string(&test.path) {
         Ok(c) => c,
-        Err(e) => return TestResult::Failed { message: format!("failed to read: {e}") },
+        Err(e) => {
+            return TestResult::Failed {
+                message: format!("failed to read: {e}"),
+            };
+        }
     };
     let file_size = content.len();
     let line_count = content.lines().count();
@@ -236,7 +258,11 @@ fn run_checker_stress(test: &TestCase) -> TestResult {
     // resolve module
     let module_id = match compiler.resolve_path_to_module(&test.path) {
         Ok(id) => id,
-        Err(e) => return TestResult::Failed { message: format!("failed to resolve module: {e:?}") },
+        Err(e) => {
+            return TestResult::Failed {
+                message: format!("failed to resolve module: {e:?}"),
+            };
+        }
     };
 
     // analyze schedules import + bind + resolve automatically
@@ -244,6 +270,6 @@ fn run_checker_stress(test: &TestCase) -> TestResult {
     compiler.compile();
 
     let elapsed = start.elapsed();
-    eprintln!("  {} bytes, {} lines, checked in {:?}", file_size, line_count, elapsed);
+    eprintln!("  {file_size} bytes, {line_count} lines, checked in {elapsed:?}",);
     TestResult::Passed
 }

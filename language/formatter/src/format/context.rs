@@ -7,7 +7,7 @@ use destack_ast::{
 use destack_base::ImmutableStringPool;
 use destack_fir::format::{Format, FormatContext, FormatOptions, FormatResult, Formatter};
 use destack_fir::print::PrintOptions;
-use destack_source::{File, FileSourceMap, IndentStyle, LanguageType, LineEnding, MultiSpan, Span};
+use destack_source::{File, IndentStyle, LanguageType, LineEnding, MultiSpan, NodeSourceMap, Span};
 
 pub type DestackFormatter<'ast, 'buf> = Formatter<'buf, DestackFormatContext<'ast>>;
 
@@ -125,7 +125,7 @@ pub struct DestackFormatContext<'a> {
     /// The tree.
     pub tree: &'a NodeTree,
     /// The source map.
-    pub source_map: &'a FileSourceMap,
+    pub source_map: &'a NodeSourceMap,
     /// The parent index.
     pub parents: NodeParentIndex,
     /// The string pool.

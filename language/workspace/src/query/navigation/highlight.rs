@@ -1,6 +1,11 @@
+use destack_dir::Expression;
 use destack_source::{FileId, Span};
 
 use crate::Session;
+use crate::query::common::{
+    find_symbol_at_offset, get_canonical_symbol, get_dir_node_span, get_module_by_file_id,
+    get_symbol_definition_span,
+};
 
 /// Kind of document highlight.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
@@ -52,13 +57,59 @@ impl DocumentHighlight {
 /// Highlight all occurrences of the symbol at the given position in the document.
 ///
 /// Only highlights within the same file (for cross-file, use find_references).
-pub fn document_highlight(
-    _session: &Session,
-    _file: FileId,
-    _offset: u32,
-) -> Vec<DocumentHighlight> {
+pub fn document_highlight(session: &Session, file: FileId, offset: u32) -> Vec<DocumentHighlight> {
     // 1. find the symbol at offset
-    // 2. find all references to that symbol in the same file
-    // 3. classify as read/write based on context
-    todo!("#Incomplete: document_highlight")
+    let Some(symbol_at) = find_symbol_at_offset(session, file, offset) else {
+        return Vec::new();
+    };
+
+    // 2. get canonical symbol (resolve imports)
+    let canonical_id = get_canonical_symbol(session, symbol_at.symbol_id);
+
+    // 3. get the module for this file
+    let Some(module) = get_module_by_file_id(session, file) else {
+        return Vec::new();
+    };
+
+    let mut highlights = Vec::new();
+
+    // 4. check if the definition is in this file, add as Write highlight
+    if let Some(definition_span) = get_symbol_definition_span(session, canonical_id)
+        && definition_span.file == file
+    {
+        highlights.push(DocumentHighlight::write(definition_span));
+    }
+
+    // 5. find all references in this file
+    let module_guard = module.read();
+
+    // collect matching expression ids first to avoid borrow issues
+    let matching_expression_ids: Vec<_> = {
+        let dir_tree = module_guard.dir.tree.read();
+        dir_tree
+            .iter_nodes_of_type::<Expression>()
+            .filter_map(|(expression_id, expression)| {
+                if let Some(target) = expression.target_symbol() {
+                    let target_canonical = get_canonical_symbol(session, target);
+                    if target_canonical == canonical_id {
+                        return Some(expression_id);
+                    }
+                }
+                None
+            })
+            .collect()
+    };
+
+    // get spans for each matching expression
+    for expression_id in matching_expression_ids {
+        if let Some(span) = get_dir_node_span(&module_guard, expression_id.into()) {
+            // only include if in this file (should always be true for single module)
+            if span.file == file {
+                // classify as Read (basic classification - definition was already added as Write)
+                highlights.push(DocumentHighlight::read(span));
+            }
+        }
+    }
+
+    highlights
 }

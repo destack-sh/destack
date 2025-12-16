@@ -19,7 +19,8 @@ pub fn run(session: &QueryTestSession, expectation: Option<&QueryExpectation>) -
             };
         };
 
-        let highlights = query::document_highlight(&session.session, session.file_id, cursor.offset);
+        let highlights =
+            query::document_highlight(&session.session, session.file_id, cursor.offset);
 
         if highlights.len() != expected_highlights.len() {
             return TestResult::Failed {
@@ -33,9 +34,9 @@ pub fn run(session: &QueryTestSession, expectation: Option<&QueryExpectation>) -
         }
 
         for exp in expected_highlights {
-            let found = highlights.iter().any(|h| {
-                h.range.start == exp.start && h.range.end == exp.end
-            });
+            let found = highlights
+                .iter()
+                .any(|h| h.range.start == exp.start && h.range.end == exp.end);
 
             if !found {
                 return TestResult::Failed {
@@ -71,12 +72,33 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> T
         marker.span.start
     };
 
-    let highlights = query::document_highlight(&session.session, session.file_id, offset);
+    let content = exp.content.trim();
+
+    // empty expectation is an error
+    if content.is_empty() {
+        let highlights = query::document_highlight(&session.session, session.file_id, offset);
+        return TestResult::Failed {
+            message: format!(
+                "document_highlight expectation is empty at '{}', got {} highlights",
+                exp.target,
+                highlights.len()
+            ),
+        };
+    }
 
     // parse expected count from content
-    let expected_count: usize = exp.content.trim().parse().unwrap_or(0);
+    let Ok(expected_count) = content.parse::<usize>() else {
+        return TestResult::Failed {
+            message: format!(
+                "document_highlight expectation '{}' is not a valid count",
+                content
+            ),
+        };
+    };
 
-    if expected_count > 0 && highlights.len() != expected_count {
+    let highlights = query::document_highlight(&session.session, session.file_id, offset);
+
+    if highlights.len() != expected_count {
         TestResult::Failed {
             message: format!(
                 "document_highlight at '{}' returned {} highlights, expected {}",

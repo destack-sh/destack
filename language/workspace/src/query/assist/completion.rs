@@ -1,6 +1,8 @@
+use destack_dir::SymbolType;
 use destack_source::FileId;
 
 use crate::Session;
+use crate::query::common::get_module_by_file_id;
 
 /// Kind of completion item.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -30,6 +32,22 @@ pub enum CompletionKind {
     Event,
     Operator,
     TypeParameter,
+}
+
+impl From<SymbolType> for CompletionKind {
+    fn from(ty: SymbolType) -> Self {
+        match ty {
+            SymbolType::Void => CompletionKind::Variable,
+            SymbolType::Class => CompletionKind::Class,
+            SymbolType::Struct => CompletionKind::Struct,
+            SymbolType::Interface => CompletionKind::Interface,
+            SymbolType::Enum => CompletionKind::Enum,
+            SymbolType::Function => CompletionKind::Function,
+            SymbolType::Extension => CompletionKind::Class,
+            SymbolType::TypeAlias => CompletionKind::TypeParameter,
+            SymbolType::Newtype => CompletionKind::TypeParameter,
+        }
+    }
 }
 
 /// A completion item.
@@ -118,17 +136,101 @@ pub enum CompletionTrigger {
 
 /// Get completions at the given position.
 pub fn completions(
-    _session: &Session,
-    _file: FileId,
+    session: &Session,
+    file: FileId,
     _offset: u32,
     _trigger: CompletionTrigger,
 ) -> Vec<Completion> {
-    // 1. determine context (after '.', in type position, etc.)
-    // 2. based on context, collect candidates:
-    //    - after '.': fields and methods of the receiver type
-    //    - in type position: types in scope
-    //    - in expression position: variables, functions, types in scope
-    //    - in import: exported members
-    // 3. filter and sort
-    todo!("#Incomplete: completions")
+    let mut results = Vec::new();
+
+    // 1. get the module for this file
+    let Some(module) = get_module_by_file_id(session, file) else {
+        return results;
+    };
+
+    let module_guard = module.read();
+
+    // 2. collect all named symbols from the module
+    let symbols = module_guard.dir.symbols.read();
+    for symbol in symbols.symbols() {
+        // only include symbols with names
+        let Some(string_id) = symbol.name() else {
+            continue;
+        };
+
+        let name = module_guard.ast.strings.get(string_id).to_string();
+        let kind = CompletionKind::from(symbol.ty);
+
+        results.push(Completion::new(name, kind));
+    }
+
+    // 3. add language keywords
+    results.extend(keyword_completions());
+
+    // 4. sort by label
+    results.sort_by(|a, b| a.label.cmp(&b.label));
+
+    results
+}
+
+/// Get keyword completions.
+fn keyword_completions() -> Vec<Completion> {
+    const KEYWORDS: &[&str] = &[
+        "as",
+        "async",
+        "await",
+        "break",
+        "case",
+        "catch",
+        "class",
+        "const",
+        "continue",
+        "default",
+        "do",
+        "else",
+        "enum",
+        "export",
+        "extends",
+        "false",
+        "finally",
+        "for",
+        "function",
+        "if",
+        "implements",
+        "import",
+        "in",
+        "interface",
+        "is",
+        "let",
+        "match",
+        "namespace",
+        "new",
+        "null",
+        "of",
+        "private",
+        "protected",
+        "public",
+        "readonly",
+        "return",
+        "static",
+        "struct",
+        "super",
+        "switch",
+        "this",
+        "throw",
+        "true",
+        "try",
+        "type",
+        "typeof",
+        "var",
+        "void",
+        "where",
+        "while",
+        "yield",
+    ];
+
+    KEYWORDS
+        .iter()
+        .map(|kw| Completion::new(*kw, CompletionKind::Keyword).with_sort_order(200))
+        .collect()
 }

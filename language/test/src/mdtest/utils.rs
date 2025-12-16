@@ -17,7 +17,11 @@ pub const TEST_TIMEOUT_SECONDS: u64 = 1;
 /// Set up an in-memory test environment from a markdown test case.
 pub fn setup_test_environment(
     test: &MdTestCase,
-) -> (Arc<Session>, Arc<destack_workspace::program::Program>, PathBuf) {
+) -> (
+    Arc<Session>,
+    Arc<destack_workspace::program::Program>,
+    PathBuf,
+) {
     let memory_fs = Arc::new(MemoryFileSystem::new());
     let cwd = PathBuf::from("/test");
 

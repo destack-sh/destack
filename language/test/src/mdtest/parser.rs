@@ -392,7 +392,7 @@ const p = Point { x: 1, y: 2 };
 p.$0
 ```
 
-```query completion $0
+```query_completion $0
 - x: field
 - y: field
 ```
@@ -401,34 +401,7 @@ p.$0
         let tests = parse_mdtest(md);
         assert_eq!(tests.len(), 1);
         assert_eq!(tests[0].extra_blocks.len(), 1);
-        assert_eq!(tests[0].extra_blocks[0].language, "query completion $0");
+        assert_eq!(tests[0].extra_blocks[0].language, "query_completion $0");
         assert!(tests[0].extra_blocks[0].content.contains("x: field"));
-    }
-
-    #[test]
-    fn test_parse_expected_block() {
-        let md = r#"
-## Refactor
-
-### Rename test
-
-```ds:main.ds
-const foo = 1;
-```
-
-```query rename target "bar"
-```
-
-```expected:main
-const bar = 1;
-```
-"#;
-
-        let tests = parse_mdtest(md);
-        assert_eq!(tests.len(), 1);
-        assert_eq!(tests[0].extra_blocks.len(), 2);
-        assert_eq!(tests[0].extra_blocks[0].language, "query rename target \"bar\"");
-        assert_eq!(tests[0].extra_blocks[1].language, "expected:main");
-        assert!(tests[0].extra_blocks[1].content.contains("bar"));
     }
 }

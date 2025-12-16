@@ -28,17 +28,15 @@ pub fn run(session: &QueryTestSession, expectation: Option<&QueryExpectation>) -
                 if refs.len() != *expected_count {
                     return TestResult::Failed {
                         message: format!(
-                            "find_references at '{}' returned {} references, expected {}",
-                            marker_name,
+                            "find_references at '{marker_name}' returned {} references, expected {expected_count}",
                             refs.len(),
-                            expected_count
                         ),
                     };
                 }
             }
             None => {
                 return TestResult::Failed {
-                    message: format!("find_references at '{}' returned None", marker_name),
+                    message: format!("find_references at '{marker_name}' returned None",),
                 };
             }
         }
@@ -55,22 +53,38 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> T
         };
     };
 
+    let content = exp.content.trim();
+
+    // empty expectation is an error
+    if content.is_empty() {
+        let offset = source_marker.span.start;
+        let result = query::find_references(&session.session, session.file_id, offset, true);
+        return TestResult::Failed {
+            message: format!(
+                "find_references expectation is empty at '{}', got: {:?}",
+                exp.target,
+                result.map(|r| r.len())
+            ),
+        };
+    }
+
+    // parse expected count from content (e.g., "3" or "count: 3")
+    let count_str = content.strip_prefix("count:").unwrap_or(content).trim();
+    let Ok(expected_count) = count_str.parse::<usize>() else {
+        return TestResult::Failed {
+            message: format!(
+                "find_references expectation '{}' is not a valid count",
+                content
+            ),
+        };
+    };
+
     let offset = source_marker.span.start;
     let result = query::find_references(&session.session, session.file_id, offset, true);
 
-    // parse expected count from content (e.g., "3" or "count: 3")
-    let expected_count: usize = exp
-        .content
-        .trim()
-        .strip_prefix("count:")
-        .unwrap_or(exp.content.trim())
-        .trim()
-        .parse()
-        .unwrap_or(0);
-
     match result {
         Some(refs) => {
-            if expected_count > 0 && refs.len() != expected_count {
+            if refs.len() != expected_count {
                 TestResult::Failed {
                     message: format!(
                         "find_references at '{}' returned {} references, expected {}",
@@ -83,14 +97,8 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> T
                 TestResult::Passed
             }
         }
-        None => {
-            if expected_count == 0 {
-                TestResult::Passed
-            } else {
-                TestResult::Failed {
-                    message: format!("find_references at '{}' returned None", exp.target),
-                }
-            }
-        }
+        None => TestResult::Failed {
+            message: format!("find_references at '{}' returned None", exp.target),
+        },
     }
 }
