@@ -41,17 +41,17 @@ High-confidence issues that are almost always wrong.
 |------|--------|-------|-------|--------|-------|
 | `await-thenable` | TS-ESLint | DIR | | 🔶 | `await` non-Promise |
 | `constructor-super` | ESLint | DIR | | 🟡 | Verify `super()` in constructor |
-| `for-direction` | ESLint | AST | ✓ | 🟡 | For loop going wrong direction |
+| `for-direction` | ESLint | AST | ✓ | ✅ | For loop going wrong direction |
 | `getter-return` | ESLint | DIR | | 🟡 | Getter must return a value |
 | `no-array-delete` | TS-ESLint | DIR | | 🔶 | `delete arr[i]` |
 | `no-async-promise-executor` | ESLint | AST | | 🟡 | Needs `Promise` builtin check |
 | `no-class-assign` | ESLint | DIR | | 🟡 | Reassigning class declaration |
-| `no-compare-neg-zero` | ESLint | AST | ✓ | 🟡 | Compare to `-0` |
+| `no-compare-neg-zero` | ESLint | AST | ✓ | ✅ | Compare to `-0` |
 | `no-const-assign` | ESLint | DIR | | 🟡 | Needs binding kind tracking |
-| `no-constant-binary-expression` | ESLint | AST | ✓ | 🟡 | Comparison always same result |
+| `no-constant-binary-expression` | ESLint | AST | ✓ | ✅ | Comparison always same result |
 | `no-constant-condition` | ESLint | AST | ✓ | ✅ | Constant in condition (`if (true)`) |
-| `no-duplicate-case` | ESLint | AST | ✓ | 🟡 | Duplicate switch cases |
-| `no-fallthrough` | ESLint | AST | ✓ | 🟡 | Switch case fallthrough |
+| `no-duplicate-case` | ESLint | AST | ✓ | ✅ | Duplicate switch cases |
+| `no-fallthrough` | ESLint | AST | ✓ | ✅ | Switch case fallthrough |
 | `no-floating-promises` | TS-ESLint | DIR | | 🔶 | Unhandled Promise |
 | `no-for-in-array` | TS-ESLint | DIR | | 🔶 | `for-in` on array |
 | `no-func-assign` | ESLint | DIR | | 🟡 | Reassigning function declaration |
@@ -64,8 +64,8 @@ High-confidence issues that are almost always wrong.
 | `no-self-compare` | ESLint | AST | ✓ | ✅ | Comparing value to itself |
 | `no-struct-identity-compare` | Destack | DIR | | 🟡 | `===` on structs (no identity) |
 | `no-this-before-super` | ESLint | DIR | | 🟡 | `this` before `super()` call |
-| `no-unsafe-finally` | ESLint | AST | ✓ | 🟡 | Control flow in `finally` |
-| `no-unsafe-negation` | ESLint | AST | ✓ | 🟡 | `!a in b` vs `!(a in b)` |
+| `no-unsafe-finally` | ESLint | AST | ✓ | ✅ | Control flow in `finally` |
+| `no-unsafe-negation` | ESLint | AST | ✓ | ✅ | `!a in b` vs `!(a in b)` |
 | `no-unsafe-optional-chaining` | ESLint | DIR | | 🟡 | `?.` in unsafe contexts |
 | `switch-exhaustiveness-check` | TS-ESLint | DIR | | 🟡 | Non-exhaustive switch |
 | `unbound-method` | TS-ESLint | DIR | | 🔶 | Method used without binding |
@@ -99,13 +99,13 @@ Code that is likely unintentional but may occasionally be intentional.
 | `no-unexpected-multiline` | ESLint | AST | ✓ | 🟡 | Confusing line breaks |
 | `no-unnecessary-type-assertion` | TS-ESLint | DIR | | 🔶 | Redundant `as T` |
 | `no-useless-backreference` | ESLint | AST | ✓ | 🟡 | Invalid regex backrefs |
-| `no-useless-catch` | ESLint | AST | ✓ | 🟡 | Catch that just rethrows |
-| `no-useless-computed-key` | ESLint | AST | ✓ | 🟡 | `{["x"]: 1}` |
-| `no-useless-concat` | ESLint | AST | ✓ | 🟡 | `"a" + "b"` |
-| `no-useless-constructor` | ESLint | AST | ✓ | 🟡 | Empty constructor |
-| `no-useless-escape` | ESLint | AST | ✓ | 🟡 | Unnecessary escape chars |
-| `no-useless-rename` | ESLint | AST | ✓ | 🟡 | `{x: x}` in destructuring |
-| `no-useless-return` | ESLint | AST | ✓ | 🟡 | Return with no value at end |
+| `no-useless-catch` | ESLint | AST | ✓ | ✅ | Catch that just rethrows |
+| `no-useless-computed-key` | ESLint | AST | ✓ | ✅ | `{["x"]: 1}` |
+| `no-useless-concat` | ESLint | AST | ✓ | ✅ | `"a" + "b"` |
+| `no-useless-constructor` | ESLint | AST | ✓ | ✅ | Empty constructor |
+| `no-useless-escape` | ESLint | AST | ✓ | ✅ | Unnecessary escape chars |
+| `no-useless-rename` | ESLint | AST | ✓ | ✅ | `{x: x}` in destructuring |
+| `no-useless-return` | ESLint | AST | ✓ | ✅ | Return with no value at end |
 | `prefer-match` | Destack | AST | ✓ | 🟡 | Complex if-else → match |
 | `require-yield` | ESLint | AST | ✓ | 🟡 | Generator without yield |
 
@@ -120,11 +120,6 @@ Patterns that may expose the application to attacks.
 | `no-eval` | ESLint | DIR | | 🟡 | Needs `eval` builtin check |
 | `no-implied-eval` | ESLint | DIR | | 🟡 | Needs `setTimeout` builtin check |
 | `no-new-func` | ESLint | DIR | | 🟡 | Needs `Function` builtin check |
-| `no-unsafe-argument` | TS-ESLint | DIR | | 🔶 | Passing `any` as argument |
-| `no-unsafe-assignment` | TS-ESLint | DIR | | 🔶 | Assigning `any` |
-| `no-unsafe-call` | TS-ESLint | DIR | | 🔶 | Calling `any` typed value |
-| `no-unsafe-member-access` | TS-ESLint | DIR | | 🔶 | Accessing `any` member |
-| `no-unsafe-return` | TS-ESLint | DIR | | 🔶 | Returning `any` |
 
 ## Performance (P)
 
@@ -186,13 +181,13 @@ Overly complex code that is harder to understand and maintain.
 
 | Rule | Source | Level | Ready | Status | Notes |
 |------|--------|-------|-------|--------|-------|
-| `max-depth` | ESLint | AST | ✓ | 🟡 | Maximum nesting depth |
-| `max-lines` | ESLint | AST | ✓ | 🟡 | Maximum lines per file |
-| `max-lines-per-function` | ESLint | AST | ✓ | 🟡 | Maximum lines per function |
-| `max-nested-callbacks` | ESLint | AST | ✓ | 🟡 | Maximum callback nesting |
-| `max-params` | ESLint | AST | ✓ | 🟡 | Maximum function parameters |
-| `max-statements` | ESLint | AST | ✓ | 🟡 | Maximum statements per function |
-| `no-multi-assign` | ESLint | AST | ✓ | 🟡 | `a = b = c` chains |
+| `max-depth` | ESLint | AST | ✓ | ✅ | Maximum nesting depth |
+| `max-lines` | ESLint | AST | ✓ | ✅ | Maximum lines per file |
+| `max-lines-per-function` | ESLint | AST | ✓ | ✅ | Maximum lines per function |
+| `max-nested-callbacks` | ESLint | AST | ✓ | ✅ | Maximum callback nesting |
+| `max-params` | ESLint | AST | ✓ | ✅ | Maximum function parameters |
+| `max-statements` | ESLint | AST | ✓ | ✅ | Maximum statements per function |
+| `no-multi-assign` | ESLint | AST | ✓ | ✅ | `a = b = c` chains |
 | `no-multi-declarators` | ESLint | AST | ✓ | 🟡 | `a = b, c = d` chains |
 
 ## Restriction (R)
