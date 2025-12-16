@@ -1,4 +1,4 @@
-use destack_ast::Expression;
+use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
 use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
@@ -25,9 +25,9 @@ impl LintRule for NoDebugger {
     }
 
     fn check_module_ast<'a>(&self, severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
-        for node_id in ctx.tree.iter_nodes::<Expression>() {
+        for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
             let expression = ctx.tree.get(node_id);
-            if !matches!(expression, Expression::Debugger) {
+            if !matches!(expression, ast::Expression::Debugger) {
                 continue;
             }
 
@@ -46,11 +46,11 @@ impl LintRule for NoDebugger {
             // check if parent is Statement (i.e., `debugger;` as a standalone statement)
             // if so, delete the whole statement span safely (includes semicolon)
             if let Some(parent_id) = ctx.parents.get(node_id)
-                && ctx.tree.get_node_type(parent_id) == destack_ast::NodeType::Expression
+                && ctx.tree.get_node_type(parent_id) == ast::NodeType::Expression
             {
-                let parent_expr_id = destack_ast::LocalNodeId::<Expression>::new(parent_id);
+                let parent_expr_id = ast::LocalNodeId::<ast::Expression>::new(parent_id);
                 let parent_expr = ctx.tree.get(parent_expr_id);
-                if matches!(parent_expr, Expression::Statement(_)) {
+                if matches!(parent_expr, ast::Expression::Statement(_)) {
                     let parent_span = ctx.tree.get_span(parent_expr_id);
                     let diagnostic = diagnostic
                         .with_fix(LintFix::safe("Remove debugger statement").delete(parent_span));

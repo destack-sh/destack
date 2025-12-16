@@ -1,4 +1,4 @@
-use destack_dir::{BinaryOperator, Expression};
+use destack_dir as dir;
 use destack_workspace::LintSeverity;
 
 use crate::{LintDiagnostic, LintModuleDirContext, LintRule, declare_lint};
@@ -18,17 +18,17 @@ declare_lint! {
     "Disallow comparing a value to itself"
 }
 
-fn is_comparison_operator(op: BinaryOperator) -> bool {
+fn is_comparison_operator(op: dir::BinaryOperator) -> bool {
     matches!(
         op,
-        BinaryOperator::Equal
-            | BinaryOperator::NotEqual
-            | BinaryOperator::EqualStrict
-            | BinaryOperator::NotEqualStrict
-            | BinaryOperator::LessThan
-            | BinaryOperator::LessThanOrEqual
-            | BinaryOperator::GreaterThan
-            | BinaryOperator::GreaterThanOrEqual
+        dir::BinaryOperator::Equal
+            | dir::BinaryOperator::NotEqual
+            | dir::BinaryOperator::EqualStrict
+            | dir::BinaryOperator::NotEqualStrict
+            | dir::BinaryOperator::LessThan
+            | dir::BinaryOperator::LessThanOrEqual
+            | dir::BinaryOperator::GreaterThan
+            | dir::BinaryOperator::GreaterThanOrEqual
     )
 }
 
@@ -38,9 +38,9 @@ impl LintRule for NoSelfCompare {
     }
 
     fn check_module_dir<'a>(&self, severity: LintSeverity, ctx: &mut LintModuleDirContext<'a>) {
-        for (node_id, expression) in ctx.tree.iter_nodes_of_type::<Expression>() {
+        for (node_id, expression) in ctx.tree.iter_nodes_of_type::<dir::Expression>() {
             // filter to comparison binary expressions
-            let Expression::Binary {
+            let dir::Expression::Binary {
                 left,
                 operator,
                 right,

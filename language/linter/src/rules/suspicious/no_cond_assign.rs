@@ -1,4 +1,4 @@
-use destack_ast::Expression;
+use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
 use crate::{LintDiagnostic, LintModuleAstContext, LintRule, declare_lint};
@@ -25,10 +25,10 @@ impl LintRule for NoCondAssign {
     }
 
     fn check_module_ast<'a>(&self, severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
-        for node_id in ctx.tree.iter_nodes::<Expression>() {
+        for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
             let condition_id = match ctx.tree.get(node_id) {
-                Expression::If { condition, .. } => *condition,
-                Expression::While { condition, .. } => *condition,
+                ast::Expression::If { condition, .. } => *condition,
+                ast::Expression::While { condition, .. } => *condition,
                 // don't check for-loop conditions since `for (;x=y;)` is less common
                 _ => continue,
             };
@@ -57,12 +57,12 @@ impl LintRule for NoCondAssign {
 /// Check if an expression is an assignment (possibly wrapped in parentheses).
 fn is_assignment(
     ctx: &LintModuleAstContext<'_>,
-    expr_id: destack_ast::LocalNodeId<Expression>,
+    expr_id: ast::LocalNodeId<ast::Expression>,
 ) -> bool {
     let expr = ctx.tree.get(expr_id);
     match expr {
-        Expression::Assign { .. } => true,
-        Expression::Parenthesized { expression } => is_assignment(ctx, *expression),
+        ast::Expression::Assign { .. } => true,
+        ast::Expression::Parenthesized { expression } => is_assignment(ctx, *expression),
         _ => false,
     }
 }
