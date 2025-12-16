@@ -1,35 +1,95 @@
-use tower_lsp_server::{Client, LanguageServer, jsonrpc, lsp_types as lsp};
+use std::path::PathBuf;
+use std::sync::Arc;
+
+use dashmap::DashMap;
+use destack_compiler::{AnalyzeTask, CompileOptions, Compiler};
+use destack_source::{FileId, FileType, Uri};
+use destack_workspace::{query, Session};
+use parking_lot::RwLock;
+use tower_lsp_server::{Client, LanguageServer, UriExt, jsonrpc, lsp_types as lsp};
 
 use crate::semantic;
+use crate::source::{byte_span_to_range, position_to_byte};
 use crate::workspace::TRACKED_FILE_TYPES;
+
+/// State for an open document.
+#[derive(Debug)]
+struct OpenDocument {
+    file_id: FileId,
+    #[allow(dead_code)]
+    content: String,
+}
 
 #[derive(Debug)]
 pub struct DestackLanguageServer {
-    /// The client that the language server is connected to.
     pub(super) client: Client,
+    session: RwLock<Option<Arc<Session>>>,
+    open_documents: DashMap<String, OpenDocument>,
 }
 
 impl DestackLanguageServer {
-    /// Create a new language server instance with the given client.
+    /// Create a new language server instance.
     pub fn new(client: Client) -> Self {
-        Self { client }
+        Self {
+            client,
+            session: RwLock::new(None),
+            open_documents: DashMap::new(),
+        }
+    }
+
+    fn get_session(&self) -> Option<Arc<Session>> {
+        self.session.read().clone()
+    }
+
+    /// Compile a module after registration.
+    fn compile_module(&self, session: &Session, path: &std::path::Path) {
+        let program = session.find_program_for_path(path);
+        let path_buf = path.to_path_buf();
+
+        let compiler = Compiler::new(
+            Arc::new(Session::new(session.cwd.clone()).with_fs(session.fs.clone())),
+            program.clone(),
+            CompileOptions {
+                workers: 1,
+                ..Default::default()
+            },
+        );
+
+        if let Ok(module_id) = compiler.resolve_path_to_module(&path_buf) {
+            compiler.enqueue(AnalyzeTask::AnalyzeModuleValidate { module: module_id });
+            compiler.compile();
+        }
     }
 }
 
-impl LanguageServer for DestackLanguageServer {
-    // ------------------------------------------------------------
-    // Lifecycle
-    // ------------------------------------------------------------
+// ----------------------------------------------------------------------------
+// lifecycle
+// ----------------------------------------------------------------------------
 
-    /// The [`initialize`] request is the first request sent from the client to the server.
+impl LanguageServer for DestackLanguageServer {
     async fn initialize(
         &self,
-        _params: lsp::InitializeParams,
+        params: lsp::InitializeParams,
     ) -> jsonrpc::Result<lsp::InitializeResult> {
         self.client
             .log_message(lsp::MessageType::INFO, "destack.initialize.start")
             .await;
 
+        // determine workspace root from params
+        #[allow(deprecated)]
+        let cwd = params
+            .root_uri
+            .as_ref()
+            .and_then(|uri| uri.to_file_path().map(|p| p.into_owned()))
+            .or_else(|| params.root_path.clone().map(PathBuf::from))
+            .unwrap_or_else(|| std::env::current_dir().unwrap_or_default());
+
+        // create session and add root
+        let session = Arc::new(Session::new(cwd.clone()));
+        session.add_root(cwd);
+        *self.session.write() = Some(session);
+
+        // file operation filters for workspace notifications
         let file_operation_filters: Vec<lsp::FileOperationFilter> = TRACKED_FILE_TYPES
             .iter()
             .map(|file_type| lsp::FileOperationFilter {
@@ -48,6 +108,14 @@ impl LanguageServer for DestackLanguageServer {
             text_document_sync: Some(lsp::TextDocumentSyncCapability::Kind(
                 lsp::TextDocumentSyncKind::FULL,
             )),
+            hover_provider: Some(lsp::HoverProviderCapability::Simple(true)),
+            definition_provider: Some(lsp::OneOf::Left(true)),
+            references_provider: Some(lsp::OneOf::Left(true)),
+            document_symbol_provider: Some(lsp::OneOf::Left(true)),
+            completion_provider: Some(lsp::CompletionOptions {
+                trigger_characters: Some(vec![".".to_string(), ":".to_string()]),
+                ..Default::default()
+            }),
             semantic_tokens_provider: Some(
                 lsp::SemanticTokensServerCapabilities::SemanticTokensOptions(
                     lsp::SemanticTokensOptions {
@@ -83,24 +151,24 @@ impl LanguageServer for DestackLanguageServer {
         };
 
         self.client
-            .log_message(lsp::MessageType::INFO, "destack.initialize")
+            .log_message(lsp::MessageType::INFO, "destack.initialize.done")
             .await;
 
         Ok(lsp::InitializeResult {
             capabilities,
             server_info: Some(lsp::ServerInfo {
                 name: "destack".to_string(),
-                version: None,
+                version: Some(env!("CARGO_PKG_VERSION").to_string()),
             }),
         })
     }
 
-    /// The [`initialized`] notification is sent from the client to the server after the client received the result of the initialize request but before the client sends anything else.
     async fn initialized(&self, _: lsp::InitializedParams) {
-        todo!("initialized");
+        self.client
+            .log_message(lsp::MessageType::INFO, "destack.initialized")
+            .await;
     }
 
-    /// The [`shutdown`] request asks the server to gracefully shut down, but to not exit.
     async fn shutdown(&self) -> jsonrpc::Result<()> {
         self.client
             .log_message(lsp::MessageType::INFO, "destack.shutdown")
@@ -108,82 +176,167 @@ impl LanguageServer for DestackLanguageServer {
         Ok(())
     }
 
-    // ------------------------------------------------------------
-    // Synchronization
-    // ------------------------------------------------------------
+    // ------------------------------------------------------------------------
+    // synchronization
+    // ------------------------------------------------------------------------
 
-    /// The [`textDocument/didOpen`] notification is sent from the client to the server to signal that a new text document has been opened by the client.
-    async fn did_open(&self, _params: lsp::DidOpenTextDocumentParams) {
-        todo!("did_open");
+    async fn did_open(&self, params: lsp::DidOpenTextDocumentParams) {
+        let uri_str = params.text_document.uri.to_string();
+        let content = params.text_document.text;
+
+        self.client
+            .log_message(lsp::MessageType::INFO, format!("did_open: {uri_str}"))
+            .await;
+
+        let Some(session) = self.get_session() else {
+            return;
+        };
+
+        let Some(path) = params.text_document.uri.to_file_path().map(|p| p.into_owned()) else {
+            return;
+        };
+
+        // register module with inline content
+        let uri = Uri::from_path(&path);
+        let program = session.find_program_for_path(&path);
+        let module_id = program.register_inline_module(uri, content.clone(), FileType::Destack);
+
+        let module = session.modules.get(module_id);
+        let file_id = module.read().file_id;
+
+        self.open_documents.insert(uri_str, OpenDocument { file_id, content });
+
+        self.compile_module(&session, &path);
     }
 
-    /// The [`textDocument/didChange`] notification is sent from the client to the server to signal changes to a text document.
-    async fn did_change(&self, _params: lsp::DidChangeTextDocumentParams) {
-        todo!("did_change");
+    async fn did_change(&self, params: lsp::DidChangeTextDocumentParams) {
+        let uri_str = params.text_document.uri.to_string();
+
+        // full sync: we get entire new content
+        let Some(change) = params.content_changes.into_iter().next() else {
+            return;
+        };
+        let content = change.text;
+
+        let Some(session) = self.get_session() else {
+            return;
+        };
+
+        let Some(path) = params.text_document.uri.to_file_path().map(|p| p.into_owned()) else {
+            return;
+        };
+
+        // TODO #Incomplete: re-registering creates a new module, should update existing
+        let uri = Uri::from_path(&path);
+        let program = session.find_program_for_path(&path);
+        let module_id = program.register_inline_module(uri, content.clone(), FileType::Destack);
+
+        let module = session.modules.get(module_id);
+        let file_id = module.read().file_id;
+
+        self.open_documents.insert(uri_str, OpenDocument { file_id, content });
+
+        self.compile_module(&session, &path);
     }
 
-    /// The [`textDocument/didClose`] notification is sent from the client to the server when the document got closed in the client.
-    async fn did_close(&self, _params: lsp::DidCloseTextDocumentParams) {
-        todo!("did_close");
+    async fn did_close(&self, params: lsp::DidCloseTextDocumentParams) {
+        let uri_str = params.text_document.uri.to_string();
+        self.open_documents.remove(&uri_str);
     }
 
-    /// The [`workspace/didChangeWorkspaceFolders`] notification is sent from the client to the server to inform about workspace folder configuration changes.
     async fn did_change_workspace_folders(&self, _params: lsp::DidChangeWorkspaceFoldersParams) {
-        todo!("did_change_workspace_folders");
+        // TODO #Incomplete: handle workspace folder changes
     }
 
-    /// The [`workspace/didChangeWatchedFiles`] notification is sent from the client to the server when the client detects changes to files watched by the language client.
     async fn did_change_watched_files(&self, _params: lsp::DidChangeWatchedFilesParams) {
-        todo!("did_change_watched_files");
+        // TODO #Incomplete: handle external file changes
     }
 
-    /// The [`workspace/didCreateFiles`] notification is sent from the client to the server after files are created.
     async fn did_create_files(&self, _params: lsp::CreateFilesParams) {
-        todo!("did_create_files");
+        // TODO #Incomplete: handle file creation
     }
 
-    /// The [`workspace/didRenameFiles`] notification is sent from the client to the server after files are renamed.
     async fn did_rename_files(&self, _params: lsp::RenameFilesParams) {
-        todo!("did_rename_files");
+        // TODO #Incomplete: handle file renames
     }
 
-    /// The [`workspace/didDeleteFiles`] notification is sent from the client to the server after files are deleted.
     async fn did_delete_files(&self, _params: lsp::DeleteFilesParams) {
-        todo!("did_delete_files");
+        // TODO #Incomplete: handle file deletion
     }
 
-    // ------------------------------------------------------------
-    // Semantic Tokens
-    // ------------------------------------------------------------
+    // ------------------------------------------------------------------------
+    // language features
+    // ------------------------------------------------------------------------
 
-    /// The [`textDocument/semanticTokens/full`] request is sent from the client to the server to
-    /// resolve the semantic tokens of a given file.
+    async fn hover(&self, params: lsp::HoverParams) -> jsonrpc::Result<Option<lsp::Hover>> {
+        let uri_str = params
+            .text_document_position_params
+            .text_document
+            .uri
+            .to_string();
+
+        let Some(session) = self.get_session() else {
+            return Ok(None);
+        };
+
+        let Some(doc) = self.open_documents.get(&uri_str) else {
+            return Ok(None);
+        };
+
+        let file = session.files.get(doc.file_id);
+
+        let Some(offset) =
+            position_to_byte(&file, &params.text_document_position_params.position)
+        else {
+            return Ok(None);
+        };
+
+        let Some(hover_info) = query::hover(&session, doc.file_id, offset) else {
+            return Ok(None);
+        };
+
+        let range = hover_info
+            .range
+            .map(|span| byte_span_to_range(&file, span));
+
+        Ok(Some(lsp::Hover {
+            contents: lsp::HoverContents::Markup(lsp::MarkupContent {
+                kind: lsp::MarkupKind::Markdown,
+                value: hover_info.to_markdown(),
+            }),
+            range,
+        }))
+    }
+
+    // ------------------------------------------------------------------------
+    // semantic tokens
+    // ------------------------------------------------------------------------
+
     async fn semantic_tokens_full(
         &self,
         _params: lsp::SemanticTokensParams,
     ) -> jsonrpc::Result<Option<lsp::SemanticTokensResult>> {
-        todo!("semantic_tokens_full");
+        // TODO #Incomplete: implement semantic tokens
+        Ok(None)
     }
 
-    /// The [`textDocument/semanticTokens/range`] request is sent from the client to the server to
-    /// resolve the semantic tokens **for the visible range** of a given file.
     async fn semantic_tokens_range(
         &self,
         _params: lsp::SemanticTokensRangeParams,
     ) -> jsonrpc::Result<Option<lsp::SemanticTokensRangeResult>> {
-        todo!("semantic_tokens_range");
+        // TODO #Incomplete: implement semantic tokens range
+        Ok(None)
     }
 
-    // ------------------------------------------------------------
-    // Formatting
-    // ------------------------------------------------------------
+    // ------------------------------------------------------------------------
+    // formatting
+    // ------------------------------------------------------------------------
 
-    /// The [`textDocument/formatting`] request is sent from the client to the server to
-    /// format a given text document.
     async fn formatting(
         &self,
         _params: lsp::DocumentFormattingParams,
     ) -> jsonrpc::Result<Option<Vec<lsp::TextEdit>>> {
-        todo!("formatting");
+        // TODO #Incomplete: implement formatting
+        Ok(None)
     }
 }

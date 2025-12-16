@@ -656,7 +656,7 @@ block0:
     raw.free v0
     return
 }";
-    // Note: rawptr_type was created but not used in output
+    // rawptr_type was created but not used in output
     let _ = rawptr_type;
     assert_eq!(output, expected);
 }

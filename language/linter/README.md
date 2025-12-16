@@ -85,8 +85,6 @@ Code that is likely unintentional but may occasionally be intentional.
 | `no-debugger` | ESLint | AST | ✓ | ✅ | Debugger statements |
 | `no-dupe-else-if` | ESLint | AST | ✓ | 🟡 | Duplicate else-if |
 | `no-empty` | ESLint | AST | ✓ | ✅ | Empty `{}` blocks |
-| `no-empty-function` | ESLint | AST | ✓ | 🟡 | Empty function body |
-| `no-empty-match-arm` | Destack | AST | ✓ | 🟡 | Empty match arm body |
 | `no-empty-pattern` | ESLint | AST | ✓ | 🟡 | Empty destructuring `{}` |
 | `no-ex-assign` | ESLint | DIR | | 🟡 | Needs exception binding tracking |
 | `no-misleading-character-class` | ESLint | AST | ✓ | 🟡 | Misleading regex chars |
@@ -215,9 +213,7 @@ Opt-in rules that ban certain patterns by project choice.
 | `no-plusplus` | ESLint | AST | ✓ | 🟡 | `++` and `--` |
 | `no-process-exit` | Unicorn | DIR | | 🟡 | Needs `process` builtin check |
 | `no-require-imports` | TS-ESLint | AST | ✓ | 🟡 | CommonJS `require()` |
-| `no-restricted-globals` | ESLint | DIR | | 🟡 | Needs symbol resolution |
 | `no-restricted-imports` | ESLint | AST | ✓ | 🟡 | Banned imports |
-| `no-restricted-syntax` | ESLint | AST | ✓ | 🟡 | Banned AST patterns |
 | `no-ternary` | ESLint | AST | ✓ | 🟡 | Ternary operator |
 | `no-void` | ESLint | AST | ✓ | 🟡 | `void` operator |
 | `no-warning-comments` | ESLint | AST | ✓ | 🟡 | `TODO`, `FIXME` etc |
