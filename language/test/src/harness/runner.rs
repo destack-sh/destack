@@ -13,6 +13,7 @@ use super::{
 #[derive(Debug)]
 pub struct Runner;
 
+
 impl Runner {
     pub fn run_suite<S: Suite>(suite: &S, options: &TestOptions) -> ExitCode {
         let context = RunContext {
@@ -86,6 +87,23 @@ impl Runner {
                             };
 
                             let duration = case_start.elapsed();
+
+                            // check timeout after test completes
+                            let result = if let Some(timeout) = context.timeout {
+                                if duration > timeout {
+                                    TestResult::Failed {
+                                        message: format!(
+                                            "timeout: took {:?}, limit {:?}",
+                                            duration, timeout
+                                        ),
+                                    }
+                                } else {
+                                    result
+                                }
+                            } else {
+                                result
+                            };
+
                             (case.clone(), result, duration)
                         })
                         .collect()
@@ -105,6 +123,23 @@ impl Runner {
                         };
 
                         let duration = case_start.elapsed();
+
+                        // check timeout after test completes
+                        let result = if let Some(timeout) = context.timeout {
+                            if duration > timeout {
+                                TestResult::Failed {
+                                    message: format!(
+                                        "timeout: took {:?}, limit {:?}",
+                                        duration, timeout
+                                    ),
+                                }
+                            } else {
+                                result
+                            }
+                        } else {
+                            result
+                        };
+
                         (case.clone(), result, duration)
                     })
                     .collect()

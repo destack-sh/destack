@@ -3,36 +3,23 @@ use std::process::ExitCode;
 use clap::Parser;
 
 use destack_test::harness::{Runner, TestOptions};
-use destack_test::stress::{
-    EdgeCasesStressSuite, LargeFilesStressSuite, LargeProjectsStressSuite, MemoryStressSuite,
-    PathologicalStressSuite,
-};
+use destack_test::stress::{CheckerStressSuite, ParserStressSuite, ResolverStressSuite};
 
-/// CLI options for the `stress` test binary.
 #[derive(Parser, Debug, Clone)]
-#[command(name = "stress", about = "Run Destack stress tests")]
+#[command(name = "stress", about = "run destack stress tests")]
 struct StressOptions {
-    /// Run only large file stress tests.
+    /// run only parser stress tests
     #[arg(long)]
-    large_files: bool,
+    parser: bool,
 
-    /// Run only large project stress tests.
+    /// run only resolver stress tests
     #[arg(long)]
-    large_projects: bool,
+    resolver: bool,
 
-    /// Run only memory stress tests.
+    /// run only checker stress tests
     #[arg(long)]
-    memory: bool,
+    checker: bool,
 
-    /// Run only edge case stress tests.
-    #[arg(long)]
-    edge_cases: bool,
-
-    /// Run only pathological stress tests.
-    #[arg(long)]
-    pathological: bool,
-
-    /// Common test options.
     #[command(flatten)]
     test: TestOptions,
 }
@@ -40,50 +27,29 @@ struct StressOptions {
 fn main() -> ExitCode {
     let options = StressOptions::parse();
 
-    // determine which tests to run (if no flags, run all)
-    let any_specific = options.large_files
-        || options.large_projects
-        || options.memory
-        || options.edge_cases
-        || options.pathological;
-    let run_large_files = options.large_files || !any_specific;
-    let run_large_projects = options.large_projects || !any_specific;
-    let run_memory = options.memory || !any_specific;
-    let run_edge_cases = options.edge_cases || !any_specific;
-    let run_pathological = options.pathological || !any_specific;
+    let any_specific = options.parser || options.resolver || options.checker;
+    let run_parser = options.parser || !any_specific;
+    let run_resolver = options.resolver || !any_specific;
+    let run_checker = options.checker || !any_specific;
 
     let mut any_failed = false;
 
-    if run_large_files {
-        let result = Runner::run_suite(&LargeFilesStressSuite, &options.test);
+    if run_parser {
+        let result = Runner::run_suite(&ParserStressSuite, &options.test);
         if result != ExitCode::SUCCESS {
             any_failed = true;
         }
     }
 
-    if run_large_projects {
-        let result = Runner::run_suite(&LargeProjectsStressSuite, &options.test);
+    if run_resolver {
+        let result = Runner::run_suite(&ResolverStressSuite, &options.test);
         if result != ExitCode::SUCCESS {
             any_failed = true;
         }
     }
 
-    if run_memory {
-        let result = Runner::run_suite(&MemoryStressSuite, &options.test);
-        if result != ExitCode::SUCCESS {
-            any_failed = true;
-        }
-    }
-
-    if run_edge_cases {
-        let result = Runner::run_suite(&EdgeCasesStressSuite, &options.test);
-        if result != ExitCode::SUCCESS {
-            any_failed = true;
-        }
-    }
-
-    if run_pathological {
-        let result = Runner::run_suite(&PathologicalStressSuite, &options.test);
+    if run_checker {
+        let result = Runner::run_suite(&CheckerStressSuite, &options.test);
         if result != ExitCode::SUCCESS {
             any_failed = true;
         }
