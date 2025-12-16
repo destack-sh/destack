@@ -64,10 +64,7 @@ impl TestProgram {
             program.clone(),
             CompileOptions {
                 workers: 1,
-                resolve: destack_compiler::ResolveOptions {
-                    inject_prelude,
-                    ..Default::default()
-                },
+                inject_prelude,
                 ..Default::default()
             },
         ));
