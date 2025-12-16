@@ -808,6 +808,7 @@ name = "destack_linter"
 version = "0.50.0"
 dependencies = [
  "destack_ast",
+ "destack_base",
  "destack_compiler",
  "destack_dir",
  "destack_fir",

@@ -8,7 +8,7 @@ The linter operates at three IR levels, each enabling different kinds of analysi
 
 | Level | IR | What's Available | Example Rules |
 |-------|-----|------------------|---------------|
-| **AST** | Syntax tree | Syntax patterns, no type info | `no-debugger`, `no-sparse-arrays` |
+| **AST** | Syntax tree | Syntax patterns, no type info | `no-debugger`, `for-direction` |
 | **DIR** | Typed IR | Symbols, types, cross-references | `no-floating-promises`, `prefer-const` |
 | **MIR** | Machine IR | CFG, ownership, data flow | `no-unreachable`, `cyclomatic-complexity` |
 
@@ -50,26 +50,18 @@ High-confidence issues that are almost always wrong.
 | `no-const-assign` | ESLint | DIR | | 🟡 | Needs binding kind tracking |
 | `no-constant-binary-expression` | ESLint | AST | ✓ | 🟡 | Comparison always same result |
 | `no-constant-condition` | ESLint | AST | ✓ | ✅ | Constant in condition (`if (true)`) |
-| `no-control-regex` | ESLint | AST | ✓ | 🟡 | Control chars in regex |
-| `no-dupe-args` | ESLint | AST | ✓ | 🟡 | Duplicate function parameters |
-| `no-dupe-keys` | ESLint | AST | ✓ | 🟡 | Duplicate object/struct keys |
 | `no-duplicate-case` | ESLint | AST | ✓ | 🟡 | Duplicate switch cases |
 | `no-fallthrough` | ESLint | AST | ✓ | 🟡 | Switch case fallthrough |
 | `no-floating-promises` | TS-ESLint | DIR | | 🔶 | Unhandled Promise |
 | `no-for-in-array` | TS-ESLint | DIR | | 🔶 | `for-in` on array |
 | `no-func-assign` | ESLint | DIR | | 🟡 | Reassigning function declaration |
 | `no-import-assign` | ESLint | DIR | | 🟡 | Reassigning import binding |
-| `no-invalid-regexp` | ESLint | AST | ✓ | 🟡 | Invalid regex syntax |
-| `no-loss-of-precision` | ESLint | AST | ✓ | 🟡 | Numeric precision loss |
 | `no-misused-promises` | TS-ESLint | DIR | | 🔶 | Promise in wrong context |
 | `no-misused-spread` | TS-ESLint | DIR | | 🔶 | Spread in wrong context |
-| `no-mixed-numeric-ops` | Destack | DIR | | 🔶 | `int32 + uint64` without cast |
 | `no-newtype-structural-match` | Destack | DIR | | 🟡 | Match newtype without constructor |
 | `no-obj-calls` | ESLint | DIR | | 🟡 | Needs `Math`/`JSON` builtin check |
 | `no-promise-executor-return` | ESLint | AST | | 🟡 | Needs `Promise` builtin check |
 | `no-self-compare` | ESLint | AST | ✓ | ✅ | Comparing value to itself |
-| `no-setter-return` | ESLint | AST | ✓ | 🟡 | Setter must not return value |
-| `no-sparse-arrays` | ESLint | AST | ✓ | 🟡 | Holes in arrays `[1,,3]` |
 | `no-struct-identity-compare` | Destack | DIR | | 🟡 | `===` on structs (no identity) |
 | `no-this-before-super` | ESLint | DIR | | 🟡 | `this` before `super()` call |
 | `no-unsafe-finally` | ESLint | AST | ✓ | 🟡 | Control flow in `finally` |
@@ -77,8 +69,6 @@ High-confidence issues that are almost always wrong.
 | `no-unsafe-optional-chaining` | ESLint | DIR | | 🟡 | `?.` in unsafe contexts |
 | `switch-exhaustiveness-check` | TS-ESLint | DIR | | 🟡 | Non-exhaustive switch |
 | `unbound-method` | TS-ESLint | DIR | | 🔶 | Method used without binding |
-| `use-isnan` | ESLint | AST | | 🟡 | Needs `isNaN` builtin check |
-| `valid-typeof` | ESLint | AST | ✓ | 🟡 | Valid `typeof` comparison |
 
 ## Suspicious (U)
 
@@ -171,7 +161,6 @@ Subjective preferences for consistent coding style.
 | `no-else-return` | ESLint | AST | ✓ | 🟡 | Early return style |
 | `no-lonely-if` | ESLint | AST | ✓ | 🟡 | Lonely `if` in `else` |
 | `no-nested-ternary` | ESLint | AST | ✓ | 🟡 | Nested `?:` |
-| `no-null` | Unicorn | AST | ✓ | 🟡 | `null` → `undefined` |
 | `no-unneeded-ternary` | ESLint | AST | ✓ | 🟡 | `x ? true : false` |
 | `no-var` | ESLint | AST | ✓ | 🟡 | `var` → `let`/`const` |
 | `object-shorthand` | ESLint | AST | ✓ | 🟡 | `{x: x}` → `{x}` |
@@ -204,6 +193,7 @@ Overly complex code that is harder to understand and maintain.
 | `max-params` | ESLint | AST | ✓ | 🟡 | Maximum function parameters |
 | `max-statements` | ESLint | AST | ✓ | 🟡 | Maximum statements per function |
 | `no-multi-assign` | ESLint | AST | ✓ | 🟡 | `a = b = c` chains |
+| `no-multi-declarators` | ESLint | AST | ✓ | 🟡 | `a = b, c = d` chains |
 
 ## Restriction (R)
 
@@ -285,6 +275,15 @@ These are handled by the compiler or formatter:
 | `no-undef` | Compiler error (resolve phase) |
 | `no-unused-vars` | Compiler warning (analyze phase) |
 | `no-redeclare` | Compiler error (Destack allows shadowing) |
+| `no-dupe-args` | Compiler error (duplicate parameters) |
+| `no-dupe-keys` | Compiler error (duplicate keys) |
+| `no-loss-of-precision` | Compiler warning (numeric precision) |
+| `no-setter-return` | Compiler error (setter return type) |
+| `valid-typeof` | Compiler error (type checking) |
+| `use-isnan` | Compiler error (type checking) |
+| `no-control-regex` | Compiler error (regex validation) |
+| `no-invalid-regexp` | Compiler error (regex validation) |
+| `no-sparse-arrays` | Compiler error (elided elements) |
 | Match exhaustiveness | Compiler error for `match` |
 | All layout/formatting | Handled by formatter |
 
@@ -292,7 +291,7 @@ These are handled by the compiler or formatter:
 
 | Type | IR Level | Example |
 |------|----------|---------|
-| Syntax patterns | AST | `no-debugger`, `no-sparse-arrays` |
+| Syntax patterns | AST | `no-debugger`, `for-direction` |
 | Symbol tracking | DIR | `prefer-const`, `no-shadow` |
 | Type information | DIR | `no-floating-promises`, `await-thenable` |
 | Builtin references | DIR | `no-eval`, `no-console`, `radix` |

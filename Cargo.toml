@@ -122,6 +122,7 @@ ambiguous_glob_reexports = { level = "forbid", priority = 1 }
 [workspace.lints.clippy]
 perf = "warn"
 uninlined_format_args = "warn"
+collapsible_match = { level = "allow", priority = 1 }
 expect_used = { level = "allow", priority = 1 }
 manual_range_contains = { level = "allow", priority = 1 }
 module_inception = { level = "allow", priority = 1 }
