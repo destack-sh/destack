@@ -234,7 +234,7 @@ impl Compiler {
                 }
 
                 dir::Expression::Type { .. } => {
-                    // nocheckin?
+                    // #Incomplete: unbind dir::Expression::Type?
                     ast::Expression::Error
                 }
 

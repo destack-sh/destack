@@ -150,7 +150,7 @@ fn run_mdtest(test: &MdTestCase) -> TestResult {
     let main_path = main_path.expect("test should have at least one file");
 
     let fs: Arc<dyn FileSystem> = memory_fs;
-    let program = Arc::new(Program::new(
+    let program = Arc::new(Program::from_options(
         FormatterOptions::default(),
         LinterOptions::default(),
         cwd,

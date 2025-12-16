@@ -5,10 +5,8 @@ use std::thread;
 
 use clap::{Args, ValueEnum};
 use destack_resolver::{ResolveOptions, Resolver};
-use destack_source::{FileRegistry, FileSystem, IndentStyle, LineEnding, PhysicalFileSystem};
-use destack_workspace::{
-    FormatterOptions, LinterOptions, PackageRegistry, Program, TsConfigRegistry,
-};
+use destack_source::{FileSystem, IndentStyle, LineEnding, PhysicalFileSystem};
+use destack_workspace::{FormatterOptions, LinterOptions, Session, TsConfigRegistry};
 
 /// Get the default number of worker threads (available parallelism, or 1 if unknown).
 pub fn default_workers() -> u16 {
@@ -114,26 +112,30 @@ pub struct ProgramArgs {
 }
 
 impl ProgramArgs {
-    /// Create a Program from these arguments.
-    pub fn setup(&self) -> Arc<Program> {
+    /// Create a Session from these arguments.
+    pub fn setup(&self) -> Arc<Session> {
         let cwd = self
             .cwd
             .clone()
             .unwrap_or_else(|| std::env::current_dir().unwrap_or_default());
         let formatter_options: FormatterOptions = self.formatter.clone().into();
         let linter_options = LinterOptions::default();
-        let files = Arc::new(FileRegistry::new());
         let fs: Arc<dyn FileSystem> = Arc::new(PhysicalFileSystem::new());
 
-        // create shared registries
-        let packages = Arc::new(PackageRegistry::new());
+        // create session (builtins are always loaded)
+        let session = Session::new(cwd.clone())
+            .with_fs(fs.clone())
+            .with_formatter(formatter_options)
+            .with_linter(linter_options);
+
+        // create shared tsconfig registry for resolver
         let tsconfigs = Arc::new(TsConfigRegistry::new());
 
         // discover workspace
         let resolver = Resolver::new(
-            fs.clone(),
-            files.clone(),
-            packages.clone(),
+            session.fs.clone(),
+            session.files.clone(),
+            session.packages.clone(),
             tsconfigs.clone(),
             ResolveOptions::default(),
         );
@@ -144,16 +146,9 @@ impl ProgramArgs {
 
         tracing::trace!(?cwd, ?root, workspace_kind = ?workspace.kind, workers = self.workers, "program.setup");
 
-        // create program with shared registries (preserves state from discovery)
-        let program = Program::with_registries(
-            formatter_options,
-            linter_options,
-            root,
-            fs,
-            files,
-            packages,
-            tsconfigs,
-        );
-        Arc::new(program)
+        // add the root to create a program
+        session.add_root(root);
+
+        Arc::new(session)
     }
 }

@@ -303,7 +303,7 @@ fn run_parse_tier(package_dir: &Path, files: &[PathBuf]) -> TestResult {
 fn run_analyze_tier(package_dir: &Path, files: &[PathBuf]) -> TestResult {
     let files_registry = Arc::new(FileRegistry::new());
     let file_system: Arc<dyn FileSystem> = Arc::new(PhysicalFileSystem);
-    let program = Arc::new(Program::new(
+    let program = Arc::new(Program::from_options(
         FormatterOptions::default(),
         LinterOptions::default(),
         package_dir.to_path_buf(),
@@ -375,7 +375,7 @@ fn parse_file(path: &Path) -> Result<(), String> {
     let files = Arc::new(FileRegistry::new());
     let file_system: Arc<dyn FileSystem> = Arc::new(MemoryFileSystem::new());
     let cwd = path.parent().unwrap_or(Path::new(".")).to_path_buf();
-    let program = Arc::new(Program::new(
+    let program = Arc::new(Program::from_options(
         FormatterOptions::default(),
         LinterOptions::default(),
         cwd,

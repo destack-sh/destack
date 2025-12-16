@@ -10,8 +10,8 @@ use destack_source::{
 use indexmap::IndexMap;
 
 use crate::{
-    ArtifactRegistry, DsConfigOptions, FormatterOptions, LinterOptions, Module, ModuleAst,
-    ModuleRegistry, ModuleType, Package, PackageKind, PackageRegistry, TsConfigOptions,
+    ArtifactRegistry, DsConfigOptions, FormatterOptions, LanguageBuiltins, LinterOptions, Module,
+    ModuleAst, ModuleRegistry, ModuleType, Package, PackageKind, PackageRegistry, TsConfigOptions,
     TsConfigRegistry,
 };
 
@@ -56,29 +56,33 @@ pub struct Program {
 
     // content
     /// The modules.
-    pub modules: ModuleRegistry,
+    pub modules: Arc<ModuleRegistry>,
     /// The packages.
     pub packages: Arc<PackageRegistry>,
     /// The tsconfigs (separate registry as tsconfigs can be nested within packages).
     pub tsconfigs: Arc<TsConfigRegistry>,
+    // nocheckin: move artifacts and tsconfigs to session? what about strings?
     /// Generated artifacts (from codegen).
     pub artifacts: ArtifactRegistry,
-    /// The combined string pool.
-    pub strings: StringPool,
     /// The diagnostic collector.
     pub diagnostics: DiagnosticCollector,
+    /// The combined string pool.
+    pub strings: StringPool,
 
-    // root module for global caching
-    /// The root module id (ephemeral module used for caching).
+    // builtins
+    /// Language builtins.
+    pub builtins: Option<Arc<LanguageBuiltins>>,
+    /// The root module id.
     pub root_module_id: ModuleId,
     /// Fallback file for diagnostics without source anchors.
     pub fallback_file_id: FileId,
 }
 
+#[allow(clippy::too_many_arguments)]
 impl Program {
     /// Create a new Program with default options.
-    pub fn new_default(cwd: PathBuf, fs: Arc<dyn FileSystem>, files: Arc<FileRegistry>) -> Self {
-        Self::new(
+    pub fn from_fs(cwd: PathBuf, fs: Arc<dyn FileSystem>, files: Arc<FileRegistry>) -> Self {
+        Self::from_options(
             FormatterOptions::default(),
             LinterOptions::default(),
             cwd,
@@ -88,7 +92,7 @@ impl Program {
     }
 
     /// Create a new Program.
-    pub fn new(
+    pub fn from_options(
         formatter: FormatterOptions,
         linter: LinterOptions,
         cwd: PathBuf,
@@ -96,7 +100,7 @@ impl Program {
         files: Arc<FileRegistry>,
     ) -> Self {
         // set up content registries
-        let modules = ModuleRegistry::new();
+        let modules = Arc::new(ModuleRegistry::new());
         let packages = Arc::new(PackageRegistry::new());
         let tsconfigs = Arc::new(TsConfigRegistry::new());
         let artifacts = ArtifactRegistry::new();
@@ -104,7 +108,8 @@ impl Program {
         let diagnostics = DiagnosticCollector::new();
 
         // create and insert the root package and module (for global caching)
-        let (root_module_id, fallback_file_id) = Self::new_root(&modules, &packages, files.clone());
+        let (root_module_id, fallback_file_id) =
+            Self::make_root(&modules, &packages, files.clone());
 
         Self {
             formatter,
@@ -119,29 +124,32 @@ impl Program {
             artifacts,
             strings,
             diagnostics,
+            builtins: None,
 
             root_module_id,
             fallback_file_id,
         }
     }
 
-    /// Create a new Program with pre-created registries (for sharing with Resolver).
-    pub fn with_registries(
+    /// Create a new Program with shared registries (for use with Session).
+    pub fn new(
         formatter: FormatterOptions,
         linter: LinterOptions,
         cwd: PathBuf,
         fs: Arc<dyn FileSystem>,
         files: Arc<FileRegistry>,
+        modules: Arc<ModuleRegistry>,
         packages: Arc<PackageRegistry>,
         tsconfigs: Arc<TsConfigRegistry>,
+        builtins: Option<Arc<LanguageBuiltins>>,
     ) -> Self {
-        let modules = ModuleRegistry::new();
         let artifacts = ArtifactRegistry::new();
         let strings = StringPool::new();
         let diagnostics = DiagnosticCollector::new();
 
-        // create and insert the root package and module (for global caching)
-        let (root_module_id, fallback_file_id) = Self::new_root(&modules, &packages, files.clone());
+        // create and insert the root package and module
+        let (root_module_id, fallback_file_id) =
+            Self::make_root(&modules, &packages, files.clone());
 
         Self {
             formatter,
@@ -156,6 +164,7 @@ impl Program {
             artifacts,
             strings,
             diagnostics,
+            builtins,
 
             root_module_id,
             fallback_file_id,
@@ -163,8 +172,7 @@ impl Program {
     }
 
     /// Create and insert the root file, AST, module, and package for caching.
-    /// NOTE #Architecture: revisit having a "root module" in program
-    fn new_root(
+    fn make_root(
         modules: &ModuleRegistry,
         packages: &Arc<PackageRegistry>,
         files: Arc<FileRegistry>,

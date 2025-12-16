@@ -49,7 +49,15 @@ pub fn run(args: &ParseArgs) -> i32 {
     let dump_file = args.dump.contains(&DumpKind::File) || args.dump.contains(&DumpKind::All);
     let dump_node = args.dump.contains(&DumpKind::Node) || args.dump.contains(&DumpKind::All);
     let diagnostic_options: DiagnosticOptions = args.diagnostics.clone().into();
-    let program = args.program.setup();
+    let session = args.program.setup();
+
+    // get the program from the session
+    let program = session
+        .programs
+        .iter()
+        .next()
+        .map(|entry| entry.value().clone())
+        .expect("session should have a program after setup");
 
     // determine input source
     let source = match args.input.to_source() {

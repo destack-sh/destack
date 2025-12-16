@@ -7,10 +7,10 @@ use destack_fir::format as fir_format;
 use destack_formatter::{DestackFormatContext, DestackFormatOptions};
 use destack_parser::Parser;
 use destack_source::{
-    DiagnosticCollection, DiagnosticSeverity, File, FileId, FileRegistry, FileType, LanguageType,
+    DiagnosticCollection, DiagnosticSeverity, File, FileId, FileType, LanguageType,
     MemoryFileSystem, ModuleId, PrintOptions, Uri, print_diagnostics,
 };
-use destack_workspace::{LinterOptions, Program};
+use destack_workspace::{Program, Session};
 
 use crate::{
     BoxedLintRule, FixApplicability, LintDiagnostic, LintLevel, LintRunner, TextEdit, print_diff,
@@ -20,6 +20,8 @@ use crate::{
 pub(crate) struct TestProgram {
     /// The file system.
     fs: Arc<MemoryFileSystem>,
+    /// The session.
+    session: Arc<Session>,
     /// The program.
     pub program: Arc<Program>,
     /// The compiler.
@@ -38,20 +40,22 @@ impl std::fmt::Debug for TestProgram {
 
 #[allow(dead_code)]
 impl TestProgram {
-    /// Create a new test program with the given rules.
-    pub(crate) fn memory_sequential(rules: Vec<BoxedLintRule>) -> Self {
+    /// Create a new test program with the given rules and options.
+    fn new(rules: Vec<BoxedLintRule>, inject_prelude: bool) -> Self {
         let fs = Arc::new(MemoryFileSystem::new());
-        let program = Arc::new(Program::new(
-            Default::default(),
-            LinterOptions::default(),
-            current_dir().unwrap(),
-            fs.clone(),
-            Arc::new(FileRegistry::new()),
-        ));
+        let cwd = current_dir().unwrap();
+
+        let session = Arc::new(Session::new(cwd.clone()).with_fs(fs.clone()));
+        let program = session.add_root(cwd);
+
         let compiler = Arc::new(Compiler::new(
             program.clone(),
             CompileOptions {
                 workers: 1,
+                resolve: destack_compiler::ResolveOptions {
+                    inject_prelude,
+                    ..Default::default()
+                },
                 ..Default::default()
             },
         ));
@@ -59,20 +63,37 @@ impl TestProgram {
 
         Self {
             fs,
+            session,
             program,
             compiler,
             runner,
         }
     }
 
-    /// Create a test with a single rule.
-    pub(crate) fn for_rule<R: crate::LintRule + 'static>(rule: R) -> Self {
-        Self::memory_sequential(vec![crate::boxed(rule)])
+    /// Create a test program without prelude injection.
+    pub(crate) fn new_without_builtins(rules: Vec<BoxedLintRule>) -> Self {
+        Self::new(rules, false)
     }
 
-    /// Create a test with all rules.
+    /// Create a test program with prelude injection.
+    pub(crate) fn new_with_builtins(rules: Vec<BoxedLintRule>) -> Self {
+        Self::new(rules, true)
+    }
+
+    /// Create a test with a single rule (without prelude).
+    pub(crate) fn for_rule<R: crate::LintRule + 'static>(rule: R) -> Self {
+        Self::new_without_builtins(vec![crate::boxed(rule)])
+    }
+
+    /// Create a test with all rules (without prelude).
     pub(crate) fn with_all_rules() -> Self {
-        Self::memory_sequential(crate::all_rules())
+        Self::new_without_builtins(crate::all_rules())
+    }
+
+    /// Load a lib module set (builder pattern).
+    pub(crate) fn with_lib(self, name: &str) -> Self {
+        self.session.load_lib(name);
+        self
     }
 
     /// Add a file to the filesystem.

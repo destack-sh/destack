@@ -67,7 +67,7 @@ fn run_codegen_case(test: &TestCase) -> TestResult {
     // set up program with physical filesystem
     let files = Arc::new(FileRegistry::new());
     let fs: Arc<dyn FileSystem> = Arc::new(PhysicalFileSystem);
-    let program = Arc::new(Program::new(
+    let program = Arc::new(Program::from_options(
         FormatterOptions::default(),
         LinterOptions::default(),
         test.path.clone(),

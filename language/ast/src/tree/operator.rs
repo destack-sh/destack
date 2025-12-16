@@ -134,9 +134,9 @@ impl TypeUnaryOperator {
             | TypeUnaryOperator::Keyof
             | TypeUnaryOperator::Infer
             | TypeUnaryOperator::Asserts => true,
-            TypeUnaryOperator::Maybe
-            | TypeUnaryOperator::Must
-            | TypeUnaryOperator::AsConst => false,
+            TypeUnaryOperator::Maybe | TypeUnaryOperator::Must | TypeUnaryOperator::AsConst => {
+                false
+            }
         }
     }
 

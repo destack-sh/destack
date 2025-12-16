@@ -19,6 +19,8 @@ pub enum PackageKind {
     Synthetic,
     /// Ephemeral package for virtual content (REPL, eval, root module).
     Ephemeral,
+    /// Builtin package for language primitives (operators, reflection, etc.).
+    Builtin,
 }
 
 /// A Package is a bundle of modules.
