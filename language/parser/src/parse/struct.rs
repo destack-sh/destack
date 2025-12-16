@@ -11,7 +11,7 @@ use destack_ast::{
 impl Parser {
     /// Eat a struct or class declaration.
     ///
-    /// Note: The parser accepts `extends` for both, but structs cannot semantically
+    /// The parser accepts `extends` for both, but structs cannot semantically
     /// use extends (use embedding instead). This is validated in the analyze phase.
     ///
     /// Struct examples:

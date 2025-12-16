@@ -1,3 +1,5 @@
+use std::panic;
+
 use destack_dir::Declaration;
 use destack_source::{FileId, Span};
 
@@ -152,8 +154,64 @@ pub struct WorkspaceSymbol {
 }
 
 /// Search for symbols across the workspace.
-pub fn workspace_symbols(_session: &Session, _query: &str) -> Vec<WorkspaceSymbol> {
-    // search all modules for symbols matching the query
-    // support fuzzy matching
-    todo!("#Incomplete: workspace_symbols")
+///
+/// Returns symbols whose names contain the query string (case-insensitive).
+pub fn workspace_symbols(session: &Session, query: &str) -> Vec<WorkspaceSymbol> {
+    let mut symbols = Vec::new();
+    let query_lower = query.to_lowercase();
+
+    // search all modules
+    for module in session.modules.iter() {
+        let module_guard = module.read();
+        let dir_tree = module_guard.dir.tree.read();
+        let file = module_guard.file_id;
+
+        // iterate through all declarations
+        for (declaration_id, declaration) in dir_tree.iter_nodes_of_type::<Declaration>() {
+            // get the declaration name
+            let descriptor = declaration.descriptor();
+            let Some(string_id) = descriptor.name else {
+                continue;
+            };
+
+            let name = module_guard.ast.strings.get(string_id).to_string();
+
+            // check if name matches query (case-insensitive substring match)
+            if !query.is_empty() && !name.to_lowercase().contains(&query_lower) {
+                continue;
+            }
+
+            // get the kind based on declaration type
+            let kind = match declaration {
+                Declaration::Function { .. } => SymbolKind::Function,
+                Declaration::Struct { .. } => SymbolKind::Struct,
+                Declaration::Class { .. } => SymbolKind::Class,
+                Declaration::Interface { .. } => SymbolKind::Interface,
+                Declaration::Enum { .. } => SymbolKind::Enum,
+                Declaration::Namespace { .. } => SymbolKind::Namespace,
+                Declaration::Type { .. } => SymbolKind::TypeParameter,
+                Declaration::Extension { .. } => SymbolKind::Class,
+            };
+
+            // get span (safely, skipping if out of bounds)
+            let ast_node_id = dir_tree.get_source(declaration_id.id);
+            let full_span = panic::catch_unwind(panic::AssertUnwindSafe(|| {
+                module_guard.ast.tree.source_map.get(ast_node_id)
+            }));
+
+            let Ok(full_span) = full_span else {
+                continue;
+            };
+
+            symbols.push(WorkspaceSymbol {
+                name,
+                kind,
+                file,
+                range: full_span,
+                container: None,
+            });
+        }
+    }
+
+    symbols
 }

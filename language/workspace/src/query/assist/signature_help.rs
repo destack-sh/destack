@@ -1,4 +1,4 @@
-use destack_dir::{Expression, NodeType};
+use destack_dir::{Declaration, Expression, GlobalSymbolId, NodeType, Parameter};
 use destack_source::FileId;
 
 use crate::Session;
@@ -126,8 +126,8 @@ pub fn signature_help(session: &Session, file: FileId, offset: u32) -> Option<Si
             // get the function being called
             let left_expr = dir_tree.get::<Expression>(*left);
 
-            // try to get the function name
-            let function_name = match left_expr {
+            // try to get the function name and target symbol
+            let (function_name, target_symbol) = match left_expr {
                 // direct function call: add(...)
                 Expression::GlobalReference { target_symbol, .. }
                 | Expression::LocalReference { target_symbol, .. }
@@ -136,24 +136,23 @@ pub fn signature_help(session: &Session, file: FileId, offset: u32) -> Option<Si
                     let target_guard = target_module.read();
                     let symbols = target_guard.dir.symbols.read();
                     let symbol_data = symbols.get_symbol(target_symbol.local_id);
-                    symbol_data
+                    let name = symbol_data
                         .name()
-                        .map(|id| target_guard.ast.strings.get(id).to_string())
+                        .map(|id| target_guard.ast.strings.get(id).to_string());
+                    (name, Some(*target_symbol))
                 }
                 // method call: obj.method(...)
                 Expression::Member { name, .. } => {
-                    Some(module_guard.ast.strings.get(*name).to_string())
+                    let name = module_guard.ast.strings.get(*name).to_string();
+                    (Some(name), None) // TODO: resolve method to get actual signature
                 }
-                _ => None,
+                _ => (None, None),
             };
 
             let function_name = function_name.unwrap_or_else(|| "<function>".to_string());
 
-            // build a basic signature with parameter placeholders
-            let parameter_count = dynamic_arguments.len().max(1);
-            let params: Vec<_> = (0..parameter_count) // nocheckin #Suspicious
-                .map(|i| ParameterInfo::new(format!("arg{i}")))
-                .collect();
+            // try to get actual parameter names from the function declaration
+            let params = get_function_parameters(session, target_symbol, dynamic_arguments.len());
 
             let param_labels: Vec<_> = params.iter().map(|p| p.label.clone()).collect();
             let signature_label = format!("{}({})", function_name, param_labels.join(", "));
@@ -172,4 +171,67 @@ pub fn signature_help(session: &Session, file: FileId, offset: u32) -> Option<Si
     }
 
     None
+}
+
+/// Get parameter information for a function.
+///
+/// If the target symbol points to a function declaration, extracts actual parameter names.
+/// Falls back to generic arg0, arg1, etc. if not available.
+fn get_function_parameters(
+    session: &Session,
+    target_symbol: Option<GlobalSymbolId>,
+    argument_count: usize,
+) -> Vec<ParameterInfo> {
+    // try to get actual parameter names from the function declaration
+    if let Some(symbol_id) = target_symbol {
+        let target_module = session.modules.get(symbol_id.module_id);
+        let target_guard = target_module.read();
+        let symbols = target_guard.dir.symbols.read();
+        let symbol_data = symbols.get_symbol(symbol_id.local_id);
+
+        // check if this symbol has a primary declaration
+        if let Some(global_node_id) = symbol_data.primary_declaration {
+            // must be a declaration node
+            if global_node_id.local_id.ty == NodeType::Declaration {
+                let declaration_id = global_node_id.local_id.try_into_typed().ok();
+                if let Some(declaration_id) = declaration_id {
+                    let dir_tree = target_guard.dir.tree.read();
+                    let declaration = dir_tree.get::<Declaration>(declaration_id);
+
+                    // if it's a function, get its parameters
+                    if let Declaration::Function { signature, .. } = declaration {
+                        let params: Vec<_> = signature
+                            .dynamic_parameters
+                            .iter()
+                            .map(|param_id| {
+                                let param = dir_tree.get::<Parameter>(*param_id);
+                                let param_name = match param {
+                                    Parameter::Named { name, .. } => {
+                                        target_guard.ast.strings.get(*name).to_string()
+                                    }
+                                    Parameter::Variadic { name, .. } => {
+                                        let name_str =
+                                            target_guard.ast.strings.get(*name).to_string();
+                                        format!("...{name_str}")
+                                    }
+                                    Parameter::Pattern { .. } => "<pattern>".to_string(),
+                                };
+                                ParameterInfo::new(param_name)
+                            })
+                            .collect();
+
+                        if !params.is_empty() {
+                            return params;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // fallback to generic parameter names
+    let count = argument_count.max(1);
+    (0..count)
+        .map(|i| ParameterInfo::new(format!("arg{i}")))
+        .collect()
 }

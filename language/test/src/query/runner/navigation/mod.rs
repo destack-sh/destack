@@ -7,3 +7,4 @@ pub mod find_references;
 pub mod implementation;
 pub mod selection_range;
 pub mod type_hierarchy;
+pub mod workspace_symbol;

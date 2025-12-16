@@ -74,7 +74,6 @@ impl Parser {
         let modifiers = self.eat_binding_modifiers_prefix_maybe()?;
 
         // abstraction
-        // Note: `abstract` followed by `<` or `(` is a method named "abstract", not an abstract method
         let abstraction = if self.peek_keyword(Keyword::Abstract).is_ok()
             && self.peek_next_token(TokenType::LessThan).is_err()
             && self.peek_next_token(TokenType::OpenParenthesis).is_err()
@@ -394,7 +393,6 @@ impl Parser {
         }
 
         // abstraction
-        // Note: `abstract` followed by `<` or `(` is a method named "abstract", not an abstract method
         let abstraction = if self.peek_keyword(Keyword::Abstract).is_ok()
             && self.peek_next_token(TokenType::LessThan).is_err()
             && self.peek_next_token(TokenType::OpenParenthesis).is_err()

@@ -8,7 +8,6 @@ use crate::Compiler;
 #[allow(dead_code)]
 impl Compiler {
     /// Unbind a DIR annotation position to an AST annotation position.
-    /// Note: DIR has fewer positions than AST, so we map conservatively.
     #[inline]
     pub(super) fn unbind_annotation_position(
         &self,

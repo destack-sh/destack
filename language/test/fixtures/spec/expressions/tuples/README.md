@@ -21,4 +21,4 @@ const (x, _) = getPoint();
 type Coordinate = (x: float32, y: float32);
 ```
 
-Note: In `.ds` files, `(a, b, c)` is a tuple, not the comma operator.
+In `.ds` files, `(a, b, c)` is a tuple, not the comma operator.
