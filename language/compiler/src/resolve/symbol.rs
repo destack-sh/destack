@@ -110,7 +110,7 @@ impl Compiler {
         name: StringId,
     ) -> ResolveResult<Option<GlobalSymbolId>> {
         // check if prelude injection is enabled
-        if !self.options.resolve.inject_prelude {
+        if !self.options.inject_prelude {
             return Ok(None);
         }
 

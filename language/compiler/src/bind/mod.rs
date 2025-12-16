@@ -11,7 +11,6 @@ mod key;
 mod literal;
 mod r#match;
 mod operator;
-mod options;
 mod path;
 mod pattern;
 mod process;
@@ -23,6 +22,5 @@ mod warning;
 mod r#where;
 
 pub use error::*;
-pub use options::*;
 pub use process::*;
 pub use warning::*;

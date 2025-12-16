@@ -41,7 +41,6 @@ impl LintRule for NoNestedTernary {
             let has_nested_ternary = is_ternary(ctx, *condition)
                 || is_ternary(ctx, *then_expression)
                 || else_expression.map(|e| is_ternary(ctx, e)).unwrap_or(false);
-
             if has_nested_ternary {
                 ctx.report(
                     LintDiagnostic::new(

@@ -19,7 +19,7 @@ use parking_lot::RwLock;
 
 use crate::{
     AnalyzeTask, BindTask, CompileOptions, Compiler, ElaborateTask, ImportTask, LintTask,
-    ResolveOptions, ResolveTask, Task, default_workers,
+    ResolveTask, Task, default_workers,
 };
 
 use super::tracing::init_tracing;
@@ -77,10 +77,7 @@ impl TestProgram {
 
         let compiler_options = CompileOptions {
             workers,
-            resolve: ResolveOptions {
-                inject_prelude,
-                ..Default::default()
-            },
+            inject_prelude,
             ..CompileOptions::default()
         };
         let compiler = Arc::new(Compiler::new(

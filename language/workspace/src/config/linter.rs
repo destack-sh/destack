@@ -158,6 +158,40 @@ impl std::fmt::Display for LintPreset {
     }
 }
 
+/// Preferred array type syntax for the `array-type` rule.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+pub enum ArrayTypeStyle {
+    /// Prefer `T[]` syntax.
+    #[default]
+    Array,
+    /// Prefer `Array<T>` syntax.
+    Generic,
+}
+
+/// Preferred type definition syntax for the `consistent-type-definitions` rule.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+pub enum TypeDefinitionStyle {
+    /// Prefer `type` aliases.
+    #[default]
+    Type,
+    /// Prefer `interface` declarations.
+    Interface,
+}
+
+/// Filename case style for the `filename-case` rule.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+pub enum FilenameCase {
+    /// kebab-case (e.g., `my-component.ts`).
+    #[default]
+    Kebab,
+    /// snake_case (e.g., `my_component.ts`).
+    Snake,
+    /// camelCase (e.g., `myComponent.ts`).
+    Camel,
+    /// PascalCase (e.g., `MyComponent.ts`).
+    Pascal,
+}
+
 /// Linter options.
 ///
 /// Rule severity resolution order (highest precedence first):
@@ -174,6 +208,40 @@ pub struct LinterOptions {
     pub categories: IndexMap<LintCategory, LintSeverity>,
     /// Individual rule severity overrides.
     pub overrides: IndexMap<String, LintSeverity>,
+
+    // complexity thresholds
+    /// Maximum nesting depth (default: 4).
+    pub max_depth: usize,
+    /// Maximum lines per file (default: 500).
+    pub max_lines: usize,
+    /// Maximum lines per function (default: 50).
+    pub max_lines_per_function: usize,
+    /// Maximum callback nesting (default: 4).
+    pub max_nested_callbacks: usize,
+    /// Maximum function parameters (default: 4).
+    pub max_params: usize,
+    /// Maximum statements per function (default: 50).
+    pub max_statements: usize,
+
+    // style options
+    /// Preferred array type syntax.
+    pub array_type: ArrayTypeStyle,
+    /// Preferred type definition syntax.
+    pub type_definition_style: TypeDefinitionStyle,
+    /// Required catch clause error name (default: "error").
+    pub catch_error_name: String,
+    /// Required filename case style.
+    pub filename_case: FilenameCase,
+
+    // restriction options
+    /// Magic numbers to allow (default: [-1, 0, 1, 2]).
+    pub allowed_magic_numbers: Vec<f64>,
+    /// Globals to restrict.
+    pub restricted_globals: Vec<String>,
+    /// Import paths to restrict.
+    pub restricted_imports: Vec<String>,
+    /// Comment terms to warn on (default: ["TODO", "FIXME", "HACK"]).
+    pub warning_comment_terms: Vec<String>,
 }
 
 impl Default for LinterOptions {
@@ -183,6 +251,27 @@ impl Default for LinterOptions {
             preset: LintPreset::Recommended,
             categories: IndexMap::new(),
             overrides: IndexMap::new(),
+            // complexity
+            max_depth: 4,
+            max_lines: 500,
+            max_lines_per_function: 50,
+            max_nested_callbacks: 4,
+            max_params: 4,
+            max_statements: 50,
+            // style
+            array_type: ArrayTypeStyle::default(),
+            type_definition_style: TypeDefinitionStyle::default(),
+            catch_error_name: "error".to_string(),
+            filename_case: FilenameCase::default(),
+            // restriction
+            allowed_magic_numbers: vec![-1.0, 0.0, 1.0, 2.0],
+            restricted_globals: Vec::new(),
+            restricted_imports: Vec::new(),
+            warning_comment_terms: vec![
+                "TODO".to_string(),
+                "FIXME".to_string(),
+                "HACK".to_string(),
+            ],
         }
     }
 }
@@ -196,20 +285,16 @@ impl LinterOptions {
     /// Create options with no rules enabled.
     pub fn none() -> Self {
         Self {
-            enabled: true,
             preset: LintPreset::None,
-            categories: IndexMap::new(),
-            overrides: IndexMap::new(),
+            ..Self::default()
         }
     }
 
     /// Create options with all rules enabled.
     pub fn all() -> Self {
         Self {
-            enabled: true,
             preset: LintPreset::All,
-            categories: IndexMap::new(),
-            overrides: IndexMap::new(),
+            ..Self::default()
         }
     }
 
