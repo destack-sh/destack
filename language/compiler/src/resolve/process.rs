@@ -8,7 +8,6 @@ use destack_source::ModuleId;
 #[phase(Resolve)]
 pub enum ResolveTask {
     /// Resolve all builtin modules and required language items.
-    /// Should be enqueued before user modules to ensure builtins are ready.
     #[task(code = 0, trace = "builtins")]
     ResolveBuiltins,
 

@@ -1,3 +1,6 @@
+import { Type } from "./type.ds";
+import { DecoratorInfo } from "./decorator.ds";
+
 /// A property (field) in a struct, class, interface, or object type.
 ///
 /// Properties describe data members, not methods. For functions/methods,

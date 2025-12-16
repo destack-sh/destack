@@ -1,3 +1,7 @@
+import { Property, Variant } from "./property.ds";
+import { DecoratorInfo } from "./decorator.ds";
+import { Refinement } from "./refinement.ds";
+
 /// Stable unique identifier for a type.
 ///
 /// Format: "module/path:TypeName" (e.g., "myapp/models:User")

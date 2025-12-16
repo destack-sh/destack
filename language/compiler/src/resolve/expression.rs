@@ -1,17 +1,11 @@
 use destack_dir::{DependencySource, Expression, LocalNodeId, NodeTree, Path, SymbolTable};
 
-use crate::{Compiler, ResolveError, ResolveResult};
+use crate::{Compiler, ResolveResult};
 
 use destack_workspace::Module;
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
-    /// Resolve a string to a type literal expression (e.g., `int`, `string`).
-    pub(super) fn resolve_string_to_type_literal_maybe(&self, string: &str) -> Option<Expression> {
-        let ty = self.resolve_string_to_type(string)?;
-        Some(Expression::TypeLiteral { value: ty })
-    }
-
     /// Try to resolve `Self` type to an expression referencing the enclosing type.
     pub(super) fn resolve_self_expression(
         &self,
@@ -26,7 +20,8 @@ impl Compiler {
         symbols: &SymbolTable,
     ) -> Option<Expression> {
         let owner_symbol_id = self.resolve_self_type(scope, symbols)?;
-        // Self always refers to a type in the same module
+
+        // Self always refers to a type in the same module (by definition)
         Some(Expression::ModuleReference {
             path: path.clone(),
             static_arguments,
@@ -92,43 +87,16 @@ impl Compiler {
             } => {
                 let path = path.clone(); // (clone to release borrow on tree)
                 let static_arguments = static_arguments.clone();
-                match self.resolve_absolute_path(
+                self.resolve_absolute_path(
                     module,
                     expression_id,
                     expression_id.into_global_any(module.id),
                     scope,
                     &path,
-                    static_arguments.clone(),
+                    static_arguments,
                     symbols,
                     tree,
-                ) {
-                    Ok(expression) => expression,
-                    Err(error)
-                        if matches!(error, ResolveError::MissingSymbol { .. })
-                            && path.segments.len() == 1 =>
-                    {
-                        // try resolving simple terms as builtin expression or Self type
-                        let string = self.program.strings.get(path.segments[0]);
-                        if string == "Self" {
-                            // try to resolve Self type from enclosing type scope
-                            self.resolve_self_expression(
-                                module,
-                                scope,
-                                &path,
-                                static_arguments.clone(),
-                                symbols,
-                            )
-                            .ok_or(ResolveError::MissingSelf {
-                                node: expression_id.into_global_any(module.id),
-                            })?
-                        } else {
-                            // resolve to type literal if possible
-                            self.resolve_string_to_type_literal_maybe(string.as_str())
-                                .ok_or(error)?
-                        }
-                    }
-                    Err(error) => return Err(error),
-                }
+                )?
             }
 
             Expression::UnresolvedBreak { target, value } => {

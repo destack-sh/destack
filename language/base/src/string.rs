@@ -181,6 +181,13 @@ impl StringPool {
         }
     }
 
+    /// Check if the pool contains the given StringId.
+    #[inline]
+    pub fn contains(&self, id: StringId) -> bool {
+        let state = self.inner.lock();
+        state.strings.len() > id.as_usize()
+    }
+
     /// Get the string associated with the given StringId.
     #[inline]
     pub fn get(&self, id: StringId) -> StringRef<'_> {

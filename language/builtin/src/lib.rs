@@ -1,5 +1,3 @@
-mod language;
-mod source;
+mod core;
 
-pub use language::{LanguageItem, LanguageItemKind};
-pub use source::{BuiltinSource, CORE_SOURCES, PRELUDE_SOURCE};
+pub use core::*;

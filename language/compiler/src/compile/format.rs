@@ -16,11 +16,7 @@ use destack_workspace::Program;
 
 use crate::{format_global_type, format_symbol_name};
 
-/// Trait for formatting types in diagnostic messages.
-///
-/// Types that implement this trait can be used directly in error/warning message
-/// templates with `{field_name}` syntax. The macro will automatically call
-/// `diagnostic_fmt` to produce a human-readable string.
+/// Trait for formatting types in diagnostic messages. Should not fail.
 pub trait DiagnosticFormat {
     /// Format this value for display in a diagnostic message.
     fn diagnostic_fmt(&self, program: &Program) -> String;
@@ -34,7 +30,11 @@ impl DiagnosticFormat for GlobalTypeId {
 
 impl DiagnosticFormat for StringId {
     fn diagnostic_fmt(&self, program: &Program) -> String {
-        program.strings.get(*self).to_string()
+        if program.strings.contains(*self) {
+            program.strings.get(*self).to_string()
+        } else {
+            format!("<string:{}>", self)
+        }
     }
 }
 
@@ -46,7 +46,11 @@ impl DiagnosticFormat for StaticKey {
 
 impl DiagnosticFormat for ModuleId {
     fn diagnostic_fmt(&self, program: &Program) -> String {
-        program.modules.get(*self).read().uri.to_string()
+        if program.modules.contains(*self) {
+            program.modules.get(*self).read().uri.to_string()
+        } else {
+            format!("<module:{}>", self)
+        }
     }
 }
 

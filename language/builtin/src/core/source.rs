@@ -35,13 +35,13 @@ macro_rules! builtin_source {
         const $name: BuiltinSource = BuiltinSource::new(
             $dir,
             $file,
-            include_str!(concat!("../core/", $dir, "/", $file)),
+            include_str!(concat!("../../core/", $dir, "/", $file)),
         );
     };
     // Root-level files: builtin_source!(NAME, "file.ds")
     ($name:ident, $file:literal) => {
         const $name: BuiltinSource =
-            BuiltinSource::new("", $file, include_str!(concat!("../core/", $file)));
+            BuiltinSource::new("", $file, include_str!(concat!("../../core/", $file)));
     };
 }
 
