@@ -274,12 +274,6 @@ define_language_items! {
 
         /// Decorator info
         DecoratorInfo => (Struct, "reflection/decorator", "DecoratorInfo", required),
-
-        /// Validation result
-        ValidationResult => (Struct, "reflection/validation", "ValidationResult", required),
-
-        /// Validation error
-        ValidationError => (Struct, "reflection/validation", "ValidationError", required),
     }
 
     /// Well-known decorators.

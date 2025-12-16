@@ -10,9 +10,9 @@ impl Compiler {
             return Ok(());
         };
 
-        // resolve prelude/core module
+        // resolve prelude/core modules
         self.require_resolve_module(builtins.prelude_module_id)?;
-        for &module_id in &builtins.core_modules {
+        for &module_id in builtins.core_module_by_path.values() {
             self.require_resolve_module(module_id)?;
         }
 
@@ -31,37 +31,31 @@ impl Compiler {
             return Err(ResolveError::MissingLanguageItem { item });
         };
 
-        // check cache first
+        // check cache
         if let Some(cached) = builtins.items.get(&item) {
             return Ok(*cached);
         }
 
-        // get the module for this language item
+        // resolve the module for this language item
         let module_id = builtins.module_for_item(item);
+        self.require_resolve_module(module_id)?;
 
-        // ensure the module is resolved (may yield if not ready)
-        self.require_resolve_module_direct(module_id)?;
-
-        // look up the export in the module's symbol table
+        // resolve the symbol in the module
         let module = self.program.modules.get(module_id);
         let module = module.read();
         let symbols = module.dir.symbols.read();
 
-        let export_name = item.export_name();
-        let name_id = self.program.strings.intern(export_name);
-
         // find the symbol in the module's namespace scope
+        let name_id = self.program.strings.intern(item.export_name());
         let namespace_scope = symbols.get_scope_by_id(module.dir.namespace_scope);
         let key = StaticKey::Name(name_id);
         let Some(symbol_id) = namespace_scope.find(key) else {
             return Err(ResolveError::MissingLanguageItem { item });
         };
 
+        // result
         let global_id = symbol_id.into_global(module_id);
-
-        // cache the result
         builtins.items.insert(item, global_id);
-
         Ok(global_id)
     }
 
@@ -85,22 +79,18 @@ mod tests {
 
     use crate::{TestProgram, assert_string};
 
+    /// Test that language item modules can be looked up correctly.
     #[test]
-    fn test_expect_language_item_resolved() {
+    fn test_resolve_language_item_symbol() {
         let test = TestProgram::memory_sequential_with_builtins();
         test.resolve_builtins();
-        test.compile_dump_clean();
+        test.compile();
 
-        // check a specific item
-        let add_id = test.compiler.expect_language_item(LanguageItem::Add);
-
-        // verify the symbol exists and has the expected name
-        let module = test.program.modules.get(add_id.module_id);
-        let module = module.read();
-        let symbols = module.dir.symbols.read();
-        let symbol = symbols.get_symbol(add_id.into_local());
-
-        let name_id = symbol.name().expect("symbol should have a name");
-        assert_string!(test.program, name_id, "Add");
+        let language_item_id = test.compiler.expect_language_item(LanguageItem::Add);
+        let language_item_module = test.program.modules.get(language_item_id.module_id);
+        let language_item_module = language_item_module.read();
+        let language_item_symbols = language_item_module.dir.symbols.read();
+        let language_item_symbol = language_item_symbols.get_symbol(language_item_id.into_local());
+        assert_string!(test.program, language_item_symbol.name().unwrap(), "Add");
     }
 }

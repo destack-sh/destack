@@ -12,7 +12,7 @@ newtype interface Equal<T = Self> {
 /// Result of a comparison operation.
 ///
 /// Used by the `Compare` interface.
-enum Ordering {
+const enum Ordering {
     Less = -1,
     Equal = 0,
     Greater = 1,

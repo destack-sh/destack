@@ -11,9 +11,9 @@ impl OperatorLanguageItem for BinaryOperator {
     fn language_item(&self) -> Option<LanguageItem> {
         match self {
             // arithmetic
-            BinaryOperator::Add
-            | BinaryOperator::WrappingAdd
-            | BinaryOperator::SaturatingAdd => Some(LanguageItem::Add),
+            BinaryOperator::Add | BinaryOperator::WrappingAdd | BinaryOperator::SaturatingAdd => {
+                Some(LanguageItem::Add)
+            }
             BinaryOperator::Subtract
             | BinaryOperator::WrappingSubtract
             | BinaryOperator::SaturatingSubtract => Some(LanguageItem::Subtract),

@@ -288,6 +288,7 @@ impl Compiler {
         tree: &mut NodeTree,
     ) -> ResolveResult<Expression> {
         let first_segment = path.first_segment().expect("path is empty in {node:?}");
+        let first_segment_str = self.program.strings.get(first_segment);
 
         // try to resolve root symbol locally
         let local_result = self.resolve_absolute_symbol(
@@ -312,6 +313,43 @@ impl Compiler {
             );
         }
 
+        // check for builtin types (boolean, int, string, etc.)
+        if let Some(ty) = self.resolve_string_to_type(first_segment_str.as_str()) {
+            let root_expr = Expression::TypeLiteral { value: ty };
+            if path.segments.len() == 1 {
+                return Ok(root_expr);
+            }
+            // multi-segment paths like `int.MAX` become member chains
+            return Ok(self.build_member_chain(
+                expression_id,
+                root_expr,
+                &path.slice(1..),
+                static_arguments,
+                tree,
+            ));
+        }
+
+        // resolve Self to enclosing type
+        if first_segment_str.as_str() == "Self" {
+            let root_path = Path {
+                segments: vec![first_segment].into(),
+            };
+            let root_expr = self
+                .resolve_self_expression(module, scope, &root_path, None, symbols)
+                .ok_or(ResolveError::MissingSelf { node })?;
+            if path.segments.len() == 1 {
+                return Ok(root_expr);
+            }
+            // multi-segment Self.X becomes member chain (e.g., for associated types)
+            return Ok(self.build_member_chain(
+                expression_id,
+                root_expr,
+                &path.slice(1..),
+                static_arguments,
+                tree,
+            ));
+        }
+
         // try prelude if enabled
         if let Some(prelude_symbol) = self.resolve_prelude_symbol(first_segment)? {
             return self.resolve_prelude_path(
@@ -325,7 +363,7 @@ impl Compiler {
             );
         }
 
-        // neither local nor prelude found - return the original error
+        // neither local nor prelude found, return the original error
         local_result.map(|_| unreachable!())
     }
 

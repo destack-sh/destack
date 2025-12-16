@@ -34,18 +34,12 @@ newtype ControlFlow<B, C> =
 ///     Result.ok(y)
 /// }
 /// ```
-newtype interface Try {
-    /// The success/output type.
-    type Output;
-
-    /// The residual type (for early return).
-    type Residual;
-
+newtype interface Try<T, E> {
     /// Branch on success or failure.
-    branch(): ControlFlow<Self.Residual, Self.Output>;
+    branch(): ControlFlow<E, T>;
 
     /// Construct Self from a residual (for propagation).
-    static fromResidual(residual: Self.Residual): Self;
+    static fromResidual(residual: E): Self;
 }
 
 /// A range bound - included, excluded, or unbounded.
