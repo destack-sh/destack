@@ -3,65 +3,48 @@
 #
 # usage:
 #   ./generate.sh           # generate all fixtures
-#   ./generate.sh large_files
-#   ./generate.sh large_projects
-#   ./generate.sh concurrent
-#   ./generate.sh memory
+#   ./generate.sh parser
+#   ./generate.sh resolver
+#   ./generate.sh checker
 
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-generate_large_files() {
-    python3 "$SCRIPT_DIR/large_files/generate.py"
+generate_parser() {
+    python3 "$SCRIPT_DIR/parser/generate.py"
 }
 
-generate_large_projects() {
-    python3 "$SCRIPT_DIR/large_projects/generate.py"
+generate_resolver() {
+    python3 "$SCRIPT_DIR/resolver/generate.py"
 }
 
-generate_memory() {
-    python3 "$SCRIPT_DIR/memory/generate.py"
-}
-
-generate_edge_cases() {
-    python3 "$SCRIPT_DIR/edge_cases/generate.py"
-}
-
-generate_pathological() {
-    python3 "$SCRIPT_DIR/pathological/generate.py"
+generate_checker() {
+    python3 "$SCRIPT_DIR/checker/generate.py"
 }
 
 generate_all() {
-    generate_large_files
-    generate_large_projects
-    generate_memory
-    generate_edge_cases
-    generate_pathological
+    generate_parser
+    generate_resolver
+    generate_checker
 }
 
 case "${1:-all}" in
     all)
         generate_all
         ;;
-    large_files)
-        generate_large_files
+    parser)
+        generate_parser
         ;;
-    large_projects)
-        generate_large_projects
+    resolver)
+        generate_resolver
         ;;
-    memory)
-        generate_memory
-        ;;
-    edge_cases)
-        generate_edge_cases
-        ;;
-    pathological)
-        generate_pathological
+    checker)
+        generate_checker
         ;;
     *)
         echo "unknown category: $1"
-        echo "usage: $0 [all|large_files|large_projects|memory|edge_cases|pathological]"
+        echo "usage: $0 [all|parser|resolver|checker]"
         exit 1
         ;;
 esac

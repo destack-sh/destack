@@ -1,7 +1,108 @@
+use destack_workspace::query;
+
 use crate::harness::TestResult;
 use crate::query::{QueryExpectation, QueryTestSession};
 
 /// Run a signature_help test.
-pub fn run(_session: &QueryTestSession, _expectation: Option<&QueryExpectation>) -> TestResult {
-    todo!("#Incomplete: signature_help test runner")
+///
+/// Verifies that signature help at cursor position shows expected function signature.
+pub fn run(session: &QueryTestSession, expectation: Option<&QueryExpectation>) -> TestResult {
+    if let Some(exp) = expectation {
+        return run_with_expectation(session, exp);
+    }
+
+    // fallback: check signature expectations from markers
+    for (cursor_idx, (expected_sig, expected_active)) in &session.markers.expectations.signature {
+        let Some(cursor) = session.markers.cursor(*cursor_idx) else {
+            return TestResult::Failed {
+                message: format!("cursor ${cursor_idx} not found"),
+            };
+        };
+
+        let result = query::signature_help(&session.session, session.file_id, cursor.offset);
+
+        match result {
+            Some(sig_help) => {
+                if sig_help.signatures.is_empty() {
+                    return TestResult::Failed {
+                        message: format!("signature_help at ${} returned empty signatures", cursor_idx),
+                    };
+                }
+
+                let sig = &sig_help.signatures[sig_help.active_signature];
+                if !sig.label.contains(expected_sig) {
+                    return TestResult::Failed {
+                        message: format!(
+                            "signature_help at ${} expected '{}', got '{}'",
+                            cursor_idx, expected_sig, sig.label
+                        ),
+                    };
+                }
+
+                if let Some(active) = expected_active {
+                    if sig_help.active_parameter != *active {
+                        return TestResult::Failed {
+                            message: format!(
+                                "signature_help at ${} expected active parameter {}, got {}",
+                                cursor_idx, active, sig_help.active_parameter
+                            ),
+                        };
+                    }
+                }
+            }
+            None => {
+                return TestResult::Failed {
+                    message: format!("signature_help at ${} returned None", cursor_idx),
+                };
+            }
+        }
+    }
+
+    TestResult::Passed
+}
+
+/// Run with markdown expectation.
+fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> TestResult {
+    // parse cursor from target
+    let cursor_idx: usize = exp.target.strip_prefix('$').and_then(|s| s.parse().ok()).unwrap_or(0);
+    let Some(cursor) = session.markers.cursor(cursor_idx) else {
+        return TestResult::Failed {
+            message: format!("cursor ${cursor_idx} not found"),
+        };
+    };
+
+    let result = query::signature_help(&session.session, session.file_id, cursor.offset);
+
+    let expected_sig = exp.content.trim();
+
+    match result {
+        Some(sig_help) => {
+            if sig_help.signatures.is_empty() {
+                return TestResult::Failed {
+                    message: format!("signature_help at ${} returned empty signatures", cursor_idx),
+                };
+            }
+
+            let sig = &sig_help.signatures[sig_help.active_signature];
+            if !sig.label.contains(expected_sig) {
+                TestResult::Failed {
+                    message: format!(
+                        "signature_help at ${} expected '{}', got '{}'",
+                        cursor_idx, expected_sig, sig.label
+                    ),
+                }
+            } else {
+                TestResult::Passed
+            }
+        }
+        None => {
+            if expected_sig.is_empty() || expected_sig == "none" {
+                TestResult::Passed
+            } else {
+                TestResult::Failed {
+                    message: format!("signature_help at ${} returned None", cursor_idx),
+                }
+            }
+        }
+    }
 }

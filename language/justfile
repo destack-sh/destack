@@ -133,25 +133,17 @@ test-stress:
 generate-stress:
     ./test/fixtures/stress/generate.sh all
 
-# generate large file stress fixtures
-generate-stress-large-files:
-    ./test/fixtures/stress/generate.sh large_files
+# generate parser stress fixtures
+generate-stress-parser:
+    ./test/fixtures/stress/generate.sh parser
 
-# generate large project stress fixtures
-generate-stress-large-projects:
-    ./test/fixtures/stress/generate.sh large_projects
+# generate resolver stress fixtures
+generate-stress-resolver:
+    ./test/fixtures/stress/generate.sh resolver
 
-# generate memory stress fixtures
-generate-stress-memory:
-    ./test/fixtures/stress/generate.sh memory
-
-# generate edge case stress fixtures
-generate-stress-edge-cases:
-    ./test/fixtures/stress/generate.sh edge_cases
-
-# generate pathological stress fixtures
-generate-stress-pathological:
-    ./test/fixtures/stress/generate.sh pathological
+# generate checker stress fixtures
+generate-stress-checker:
+    ./test/fixtures/stress/generate.sh checker
 
 # --- bench ---
 
