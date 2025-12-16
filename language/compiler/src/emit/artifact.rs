@@ -8,12 +8,12 @@ impl Compiler {
     /// Write an artifact to disk.
     pub(super) fn write_artifact(&self, artifact: &Artifact, path: &Path) -> EmitResult<()> {
         // check dry run mode
-        if self.options.emit.dry_run {
+        if self.options.emit_dry_run {
             return Ok(());
         }
 
         // create parent directories if needed
-        if self.options.emit.create_dirs
+        if self.options.emit_create_dirs
             && let Some(parent) = path.parent()
         {
             self.program
@@ -27,7 +27,7 @@ impl Compiler {
         }
 
         // check if file exists and overwrite is disabled
-        if !self.options.emit.overwrite
+        if !self.options.emit_overwrite
             && let Ok(true) = self.program.fs.exists(path)
         {
             return Err(EmitError::FailedWrite {

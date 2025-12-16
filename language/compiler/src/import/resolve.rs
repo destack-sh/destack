@@ -185,8 +185,7 @@ impl Compiler {
     pub(super) fn create_resolver(&self) -> Resolver {
         let resolver_options = self
             .options
-            .import
-            .resolve
+            .import_resolve
             .clone()
             .with_extensions(vec![
                 ".ds".into(),

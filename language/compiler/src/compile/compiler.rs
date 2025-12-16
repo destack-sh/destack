@@ -9,10 +9,8 @@ use destack_workspace::{LanguageBuiltins, Program, Session};
 use parking_lot::Mutex;
 
 use crate::{
-    AnalyzeOptions, BindOptions, CompileDiagnostic, DiagnosticAnchor, EmitOptions, GenerateOptions,
-    ImportOptions, LinkOptions, LowerOptions, OptimizeOptions, ResolveOptions, Task,
-    TaskDependency, TaskDependencyError, TaskError, TaskQueue, TaskResultCollector, TaskStatus,
-    TaskWarning,
+    CompileDiagnostic, DiagnosticAnchor, Task, TaskDependency, TaskDependencyError, TaskError,
+    TaskQueue, TaskResultCollector, TaskStatus, TaskWarning,
 };
 
 /// Get the default number of worker threads (available parallelism, or 1 if unknown).
@@ -30,24 +28,28 @@ pub struct CompileOptions {
     /// The number of worker threads to use.
     pub workers: u16,
 
-    /// The options for importing.
-    pub import: ImportOptions,
-    /// The options for binding.
-    pub bind: BindOptions,
-    /// The options for evaluating.
-    pub resolve: ResolveOptions,
-    /// The options for validating.
-    pub analyze: AnalyzeOptions,
-    /// The options for lowering.
-    pub lower: LowerOptions,
-    /// The options for optimizing.
-    pub optimize: OptimizeOptions,
-    /// The options for code generation.
-    pub generate: GenerateOptions,
-    /// The options for linking.
-    pub link: LinkOptions,
-    /// The options for emitting.
-    pub emit: EmitOptions,
+    /// Whether to follow imports automatically.
+    pub follow_imports: bool,
+    /// Options for resolving imports.
+    pub import_resolve: destack_resolver::ResolveOptions,
+
+    /// Default integer width (if not specified).
+    pub default_int_width: u16,
+    /// Default float width (if not specified).
+    pub default_float_width: u16,
+    /// Whether to make prelude items (Add, Type, deprecated, etc.) available.
+    /// When true, prelude items resolve without explicit imports.
+    pub inject_prelude: bool,
+
+    /// Whether to generate source maps.
+    pub source_map: bool,
+
+    /// Whether to overwrite existing files.
+    pub emit_overwrite: bool,
+    /// Whether to create parent directories if they don't exist.
+    pub emit_create_dirs: bool,
+    /// Dry run: report what would be written without actually writing.
+    pub emit_dry_run: bool,
 }
 
 impl Default for CompileOptions {
@@ -55,21 +57,25 @@ impl Default for CompileOptions {
         Self {
             diagnostic: DiagnosticOptions::default(),
             workers: default_workers(),
-            import: ImportOptions::default(),
-            bind: BindOptions::default(),
-            resolve: ResolveOptions::default(),
-            analyze: AnalyzeOptions::default(),
-            lower: LowerOptions::default(),
-            optimize: OptimizeOptions::default(),
-            generate: GenerateOptions::default(),
-            link: LinkOptions::default(),
-            emit: EmitOptions::default(),
+
+            follow_imports: true,
+            import_resolve: destack_resolver::ResolveOptions::default(),
+
+            default_int_width: 32,
+            default_float_width: 64,
+            inject_prelude: true,
+
+            source_map: true,
+
+            emit_overwrite: true,
+            emit_create_dirs: true,
+            emit_dry_run: false,
         }
     }
 }
 
 /// Compile files and sources into something (via DIR).
-/// NOTE #Architecture: should Compiler be per-target? what about comptime though?
+/// #Architecture: should Compiler be per-target? what about comptime though?
 pub struct Compiler {
     /// The session (shared state).
     pub session: Arc<Session>,

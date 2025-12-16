@@ -140,7 +140,7 @@ impl Compiler {
                 width: None,
                 is_signed,
             } => IntType::Arbitrary {
-                width: self.options.resolve.default_int_width,
+                width: self.options.default_int_width,
                 is_signed: *is_signed,
             },
             ast::IntType::Arbitrary {
@@ -159,7 +159,7 @@ impl Compiler {
             ast::FloatType { width: Some(32) } => FloatType::Float32,
             ast::FloatType { width: Some(64) } => FloatType::Float64,
             ast::FloatType { width: None } => FloatType::Arbitrary {
-                width: self.options.resolve.default_float_width,
+                width: self.options.default_float_width,
             },
             ast::FloatType { width: Some(width) } => FloatType::Arbitrary { width: *width },
         }

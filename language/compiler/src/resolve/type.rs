@@ -76,7 +76,7 @@ impl Compiler {
             // int (followed by number or nothing)
             "int" => Some(TypeLiteral::Primitive(PrimitiveType::Int(
                 IntType::Arbitrary {
-                    width: self.options.resolve.default_int_width,
+                    width: self.options.default_int_width,
                     is_signed: true,
                 }
                 .simplify(),
@@ -94,7 +94,7 @@ impl Compiler {
             // uint (followed by number or nothing)
             "uint" => Some(TypeLiteral::Primitive(PrimitiveType::Int(
                 IntType::Arbitrary {
-                    width: self.options.resolve.default_int_width,
+                    width: self.options.default_int_width,
                     is_signed: false,
                 }
                 .simplify(),
@@ -121,7 +121,7 @@ impl Compiler {
             // float (followed by number or nothing)
             "float" => Some(TypeLiteral::Primitive(PrimitiveType::Float(
                 FloatType::Arbitrary {
-                    width: self.options.resolve.default_float_width,
+                    width: self.options.default_float_width,
                 }
                 .simplify(),
             ))),
