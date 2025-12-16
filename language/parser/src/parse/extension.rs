@@ -45,7 +45,7 @@ impl Parser {
         //
         // Check if this is a named extension (name followed by `<` or `for`)
         let (static_parameters, name) =
-            if self.peek_name().is_ok() && !self.peek_keyword(Keyword::For).is_ok() {
+            if self.peek_name().is_ok() && self.peek_keyword(Keyword::For).is_err() {
                 // Named extension: name comes first
                 let name = self.eat_name()?;
                 let static_parameters = self.eat_static_parameters_maybe()?;
