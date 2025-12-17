@@ -138,22 +138,11 @@ where
             .should_expand(true)
             .format(f)
         });
-        // if overall better fit, expand without indenting the
-        let format_inline_expanded = format_with(|f| {
-            write!(
-                f,
-                [
-                    &token(self.start_token),
-                    fits_expanded(&group(body).should_expand(true)),
-                    &token(self.end_token)
-                ]
-            )
-        });
 
         if self.force_expand {
             format_indented.format(f)?;
         } else {
-            best_fitting![format_inline, format_indented, format_inline_expanded]
+            best_fitting![format_inline, format_indented]
                 .with_mode(BestFittingMode::AllLines)
                 .format(f)?;
         }

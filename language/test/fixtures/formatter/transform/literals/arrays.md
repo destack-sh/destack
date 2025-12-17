@@ -418,7 +418,7 @@ foo([1, 2, 3])
 foo([1, 2, 3]);
 ```
 
-### _array in object property
+### array in object property
 
 Arrays can be object property values.
 

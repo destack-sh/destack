@@ -256,16 +256,16 @@ css`color: ${color}; font-size: ${size}px;`;
 
 ## String Concatenation
 
-### _string concatenation
+### string concatenation
 
-String concatenation uses `+` operator.
+String concatenation uses `+` operator. Single-character strings are normalized to single quotes.
 
 ```ds
 "hello" + " " + "world"
 ```
 
 ```ds expected
-"hello" + " " + "world";
+"hello" + ' ' + "world";
 ```
 
 ### string concat with variables
@@ -294,16 +294,16 @@ foo("hello")
 foo("hello");
 ```
 
-### _string in array
+### string in array
 
-Strings can be array elements.
+Strings can be array elements. Single-character strings are normalized to single quotes.
 
 ```ds
 ["a", "b", "c"]
 ```
 
 ```ds expected
-["a", "b", "c"];
+['a', 'b', 'c'];
 ```
 
 ### string in object

@@ -272,7 +272,7 @@ const x = { a: { b: { c: { d: 1 } } } }
 const x = { a: { b: { c: { d: 1 } } } };
 ```
 
-### _object with array value
+### object with array value
 
 Arrays can be object property values.
 

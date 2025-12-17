@@ -12,10 +12,10 @@ Extra whitespace around the type alias should be normalized.
 type   Foo   =   number
 ```
 
-Type aliases have single spaces around `=` and no trailing semicolon.
+Type aliases have single spaces around `=` and a trailing semicolon.
 
 ```ds expected
-type Foo = number
+type Foo = number;
 ```
 
 ### type alias with union
@@ -27,7 +27,7 @@ type   Foo   =   string   |   number
 ```
 
 ```ds expected
-type Foo = string | number
+type Foo = string | number;
 ```
 
 ### type alias with intersection
@@ -39,5 +39,5 @@ type   Foo   =   A   &   B
 ```
 
 ```ds expected
-type Foo = A & B
+type Foo = A & B;
 ```

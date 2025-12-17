@@ -101,7 +101,7 @@ Config {
 
 ## Nested Structs
 
-### _nested struct literal
+### nested struct literal
 
 Nested structs stay on one line if short.
 
@@ -131,7 +131,7 @@ Level1 {
 
 ## Struct with Expressions
 
-### _struct with computed values
+### struct with computed values
 
 Expressions can be struct field values.
 
@@ -143,7 +143,7 @@ Point { x: a + b, y: c * d }
 Point { x: a + b, y: c * d };
 ```
 
-### _struct with function calls
+### struct with function calls
 
 Function calls can be struct field values.
 
@@ -155,7 +155,7 @@ Config { value: getValue(), name: getName() }
 Config { value: getValue(), name: getName() };
 ```
 
-### _struct with method call result
+### struct with method call result
 
 Method call results can be struct field values.
 
@@ -226,9 +226,9 @@ Point(1.0, 2.0);
 
 ### struct with mixed content
 
-Complex structs with nested types expand.
+Complex structs with nested types expand when they exceed line width.
 
-```ds
+```ds line-width=60
 Entity { id: UserId(1), position: Point { x: 0, y: 0 }, active: true }
 ```
 
@@ -242,7 +242,7 @@ Entity {
 
 ## Struct in Collections
 
-### _array of structs
+### array of structs
 
 Arrays of structs stay on one line if short.
 

@@ -202,6 +202,8 @@ impl<'ast> FormatNode<'ast, Declaration> for Declaration {
                         .with_mode(BestFittingMode::AllLines)
                         .format(f)?;
                 }
+                // type alias declarations need trailing semicolon (like const/let)
+                write!(f, [token(";")])?;
             }
 
             // struct or class
@@ -731,6 +733,12 @@ impl<'ast> FormatNode<'ast, Declaration> for Declaration {
                     } else {
                         write!(f, [space(), body])?;
                     }
+                }
+
+                // exported lambda declarations need trailing semicolon (they're expressions)
+                // non-exported lambdas are part of another statement that adds the semicolon
+                if signature.kind == FunctionKind::Lambda && descriptor.export.is_some() {
+                    write!(f, [token(";")])?;
                 }
             }
         }

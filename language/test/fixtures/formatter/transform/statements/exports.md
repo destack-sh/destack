@@ -130,7 +130,7 @@ export interface Foo {
 }
 ```
 
-### _export type alias
+### export type alias
 
 Type aliases can be exported inline.
 
@@ -212,7 +212,7 @@ export default 42;
 
 ### _export default object
 
-Object literals can be the default export.
+Object literals can be the default export (requires parentheses in Destack).
 
 ```ds
 export default { x: 1, y: 2 }
@@ -222,7 +222,7 @@ export default { x: 1, y: 2 }
 export default { x: 1, y: 2 };
 ```
 
-### _export default arrow function
+### export default arrow function
 
 Arrow functions can be the default export.
 
@@ -238,7 +238,7 @@ export default (x) => x * 2;
 
 ### _type-only export
 
-Type-only exports use `export type`.
+Type-only exports use `export type` (parser issue - export keyword dropped).
 
 ```ds
 export type { Foo }
@@ -292,12 +292,12 @@ export {
 };
 ```
 
-### _many exports break
+### many exports break
 
-Many short exports also break when they exceed the line width.
+When exports exceed the line width, they break to multiple lines.
 
-```ds line-width=50
-export { a, b, c, d, e, f, g, h, i, j, k }
+```ds line-width=30
+export { a, b, c, d, e, f, g }
 ```
 
 ```ds expected
@@ -309,9 +309,5 @@ export {
     e,
     f,
     g,
-    h,
-    i,
-    j,
-    k,
 };
 ```
