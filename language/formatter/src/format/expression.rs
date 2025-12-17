@@ -1592,16 +1592,18 @@ pub(crate) fn format_expression<'ast>(
             right,
         } => {
             // group binary expressions so they can break across lines
+            // skip space before operator if left has postfix annotation (it adds its own space)
+            let has_postfix = f.context().has_postfix_annotation(*left);
             write!(
                 f,
                 [group(&format_args![
                     left,
-                    indent(&format_args![
-                        soft_line_break_or_space(),
-                        operator,
-                        space(),
-                        right
-                    ])
+                    indent(&format_with(|f| {
+                        if !has_postfix {
+                            write!(f, [soft_line_break_or_space()])?;
+                        }
+                        write!(f, [operator, space(), right])
+                    }))
                 ])]
             )?;
         }
@@ -1612,16 +1614,17 @@ pub(crate) fn format_expression<'ast>(
             operator,
             right,
         } => {
+            let has_postfix = f.context().has_postfix_annotation(*left);
             write!(
                 f,
                 [group(&format_args![
                     left,
-                    indent(&format_args![
-                        soft_line_break_or_space(),
-                        operator,
-                        space(),
-                        right
-                    ])
+                    indent(&format_with(|f| {
+                        if !has_postfix {
+                            write!(f, [soft_line_break_or_space()])?;
+                        }
+                        write!(f, [operator, space(), right])
+                    }))
                 ])]
             )?;
         }
@@ -1632,11 +1635,17 @@ pub(crate) fn format_expression<'ast>(
             operator,
             right,
         } => {
+            let has_postfix = f.context().has_postfix_annotation(*left);
             write!(
                 f,
                 [group(&format_args![
                     left,
-                    space(),
+                    format_with(|f| {
+                        if !has_postfix {
+                            write!(f, [space()])?;
+                        }
+                        Ok(())
+                    }),
                     operator,
                     indent(&format_args![soft_line_break_or_space(), right])
                 ])]
