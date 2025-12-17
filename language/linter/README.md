@@ -163,7 +163,7 @@ Subjective preferences for consistent coding style.
 | `prefer-exponentiation-operator` | ESLint | DIR | ✗ | 🟡 | Needs `Math.pow` builtin check |
 | `prefer-expression` | Destack | AST | ✓ | ✅ | `let x; if (...) x=a` → `const x = if (...) { a }` |
 | `prefer-implicit-return` | Destack | AST | ✓ | ✅ | `return x` → `x` |
-| `prefer-loop` | Destack | AST | ✓ | 🟡 | Prefer explicit `loop` over `while(true)` or `for (;;)` |
+| `prefer-loop` | Destack | AST | ✓ | ✅ | Prefer explicit `loop` over `while(true)` or `for(;;)` |
 | `prefer-newtype-over-alias` | Destack | DIR | ✗ | 🟡 | Type alias → newtype |
 | `prefer-object-spread` | ESLint | DIR | ✗ | 🟡 | Needs `Object.assign` builtin check |
 | `prefer-range-literal` | Destack | AST | ✓ | ✅ | `for (let i=0; i<n; i++)` → `for i of 0..n` |
@@ -211,8 +211,7 @@ Opt-in rules that ban certain patterns by project choice.
 | `no-non-null-assertion` | TS-ESLint | AST | ✓ | ✅ | `!` assertion operator |
 | `no-plusplus` | ESLint | AST | ✓ | ✅ | `++` and `--` |
 | `no-process-exit` | Unicorn | DIR | ✗ | 🟡 | Needs `process` builtin check |
-| `no-require-imports` | TS-ESLint | AST | ✓ | ✅ | CommonJS `require()` |
-| `no-restricted-imports` | ESLint | AST | ✓ | 🟡 | Banned imports |
+| `no-require-imports` | TS-ESLint | AST | ✗ | 🟡 | Needs `require` builtin check |
 | `no-sequences` | ESLint | AST | ✓ | ✅ | Comma operator (JS/TS only) |
 | `no-ternary` | ESLint | AST | ✓ | ✅ | Ternary operator |
 | `no-warning-comments` | ESLint | AST | ✗ | 🟡 | Needs comment API |

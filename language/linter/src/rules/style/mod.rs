@@ -16,6 +16,7 @@ mod prefer_arrow_callback;
 mod prefer_as_const;
 mod prefer_expression;
 mod prefer_implicit_return;
+mod prefer_loop;
 mod prefer_range_literal;
 mod prefer_template;
 
@@ -39,6 +40,7 @@ pub use prefer_arrow_callback::*;
 pub use prefer_as_const::*;
 pub use prefer_expression::*;
 pub use prefer_implicit_return::*;
+pub use prefer_loop::*;
 pub use prefer_range_literal::*;
 pub use prefer_template::*;
 
@@ -63,6 +65,7 @@ pub fn rules() -> Vec<BoxedLintRule> {
         boxed(PreferAsConst),
         boxed(PreferExpression),
         boxed(PreferImplicitReturn),
+        boxed(PreferLoop),
         boxed(PreferRangeLiteral),
         boxed(PreferTemplate),
     ]
