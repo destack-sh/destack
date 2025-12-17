@@ -15,15 +15,32 @@ pub fn diagnostic_to_lsp_diagnostic(diagnostic: &Diagnostic, source: &File) -> l
         DiagnosticSeverity::Note => Some(lsp::DiagnosticSeverity::INFORMATION),
     };
 
+    // related information from secondary spans
+    let related_information = diagnostic.secondary_spans.as_ref().map(|spans| {
+        spans
+            .iter()
+            .filter_map(|labeled| {
+                let uri = source.uri.as_ref().parse::<lsp::Uri>().ok()?;
+                Some(lsp::DiagnosticRelatedInformation {
+                    location: lsp::Location {
+                        uri,
+                        range: byte_span_to_range(source, labeled.span),
+                    },
+                    message: labeled.label.clone(),
+                })
+            })
+            .collect()
+    });
+
     // diagnostic
     lsp::Diagnostic {
         range,
         severity,
-        code: None,
+        code: Some(lsp::NumberOrString::String(diagnostic.code.clone())),
         code_description: None,
         source: Some("destack".to_string()),
         message: diagnostic.message.clone(),
-        related_information: None,
+        related_information,
         tags: None,
         data: None,
     }

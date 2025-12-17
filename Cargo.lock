@@ -800,6 +800,7 @@ dependencies = [
  "destack_fir",
  "destack_parser",
  "destack_source",
+ "destack_workspace",
  "smallvec",
 ]
 
