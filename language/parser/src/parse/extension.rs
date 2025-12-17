@@ -40,20 +40,18 @@ impl Parser {
         // keyword
         self.eat_keyword(Keyword::Extension)?;
 
-        // For named extensions: `extension Name<T> for Target`
-        // For anonymous extensions: `extension<T> for Target` or `extension for Target`
-        //
-        // Check if this is a named extension (name followed by `<` or `for`)
-        let (static_parameters, name) =
+        // name and static parameters
+        let (static_parameters, name, name_span) =
+            // named extension
             if self.peek_name().is_ok() && self.peek_keyword(Keyword::For).is_err() {
-                // Named extension: name comes first
-                let name = self.eat_name()?;
+                let (name, span) = self.eat_name_with_span()?;
                 let static_parameters = self.eat_static_parameters_maybe()?;
-                (static_parameters, Some(name))
-            } else {
-                // Anonymous extension: generics come first (if any)
+                (static_parameters, Some(name), Some(span))
+            } 
+            // anonymous extension
+            else {
                 let static_parameters = self.eat_static_parameters_maybe()?;
-                (static_parameters, None)
+                (static_parameters, None, None)
             };
 
         descriptor.name = name;
@@ -93,6 +91,12 @@ impl Parser {
             },
             self.get_span_from(start),
         );
+
+        // set main span to the name identifier
+        if let Some(span) = name_span {
+            self.tree.set_main_span(extension_id, span);
+        }
+
         Ok(extension_id)
     }
 }

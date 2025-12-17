@@ -1430,7 +1430,7 @@ impl Parser {
                 self.make_infix_expression(left_expression_id, right_operator, right_expression_id);
             left_expression_id = self.tree.insert(left_expression, self.get_span_from(start));
 
-            // set main_span to the operator
+            // set main span to the operator
             self.tree.set_main_span(left_expression_id, operator_span)
         }
 

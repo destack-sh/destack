@@ -96,7 +96,7 @@ impl Parser {
             self.get_span_from(start),
         );
 
-        // set main_span to the name identifier
+        // set main span to the name identifier
         if let Some(span) = name_span {
             self.tree.set_main_span(enum_id, span);
         }
@@ -180,7 +180,7 @@ impl Parser {
             .tree
             .insert(EnumField { name, value }, self.get_span_from(start));
 
-        // set main_span to the name identifier
+        // set main span to the name identifier
         self.tree.set_main_span(field_id, name_span);
         Ok(field_id)
     }

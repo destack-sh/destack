@@ -6,6 +6,7 @@ use destack_ast::{
     FunctionKind, FunctionMode, FunctionSignature, Generics, Keyword, LocalNodeId, NodeType,
     Parameter, TokenType,
 };
+use destack_source::NodeSpanType;
 
 /// The keywords that can appear before a function declaration.
 pub static FUNCTION_MODIFIERS: [Keyword; 7] = [
@@ -179,11 +180,12 @@ impl Parser {
 
         // return type info (including where)
         // only for functions or lambda types
-        let (return_type, where_clauses) = {
+        let (return_type, return_type_span, where_clauses) = {
             // lambda with explicit return type
             if kind == FunctionKind::Lambda
                 && (self.peek_colon().is_ok() || self.options.in_type && self.peek_arrow().is_ok())
             {
+                let type_start = self.mark();
                 self.bump(); // eat colon or arrow
                 self.eat_newlines_maybe()?;
 
@@ -191,35 +193,38 @@ impl Parser {
                 let return_type = self.with_options(self.options.nested().in_type(), |parser| {
                     parser.eat_expression()
                 })?;
+                let return_type_span = self.get_span_from(type_start);
 
                 // where
                 let where_clauses = self.eat_where_maybe()?;
 
-                (Some(return_type), where_clauses)
+                (Some(return_type), Some(return_type_span), where_clauses)
             }
             // regular function with return type or lambda type
             else if kind == FunctionKind::Function || self.options.in_type {
                 // return type
-                let return_type = if self.peek_arrow().is_ok() || self.peek_colon().is_ok() {
-                    self.bump(); // eat arrow or colon
-                    self.eat_newlines_maybe()?;
-                    let return_type = self.with_options(
-                        self.options.nested().in_type().in_before_block(),
-                        |parser| parser.eat_expression(),
-                    )?;
-                    Some(return_type)
-                } else {
-                    None
-                };
+                let (return_type, return_type_span) =
+                    if self.peek_arrow().is_ok() || self.peek_colon().is_ok() {
+                        let type_start = self.mark();
+                        self.bump(); // eat arrow or colon
+                        self.eat_newlines_maybe()?;
+                        let return_type = self.with_options(
+                            self.options.nested().in_type().in_before_block(),
+                            |parser| parser.eat_expression(),
+                        )?;
+                        (Some(return_type), Some(self.get_span_from(type_start)))
+                    } else {
+                        (None, None)
+                    };
 
                 // where
                 let where_clauses = self.eat_where_maybe()?;
 
-                (return_type, where_clauses)
+                (return_type, return_type_span, where_clauses)
             }
             // nothing
             else {
-                (None, None)
+                (None, None, None)
             }
         };
 
@@ -295,9 +300,14 @@ impl Parser {
             self.get_span_from(start),
         );
 
-        // set main_span to the name identifier
+        // set main span to the name identifier
         if let Some(span) = name_span {
             self.tree.set_main_span(function_id, span);
+        }
+
+        // set type span for return type annotation
+        if let Some(span) = return_type_span {
+            self.tree.set_side_span(function_id, NodeSpanType::Type, span);
         }
 
         Ok(function_id)
