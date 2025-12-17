@@ -14,7 +14,7 @@ use destack_dir::{
 use destack_source::{FileType, ModuleId, PackageId, Uri};
 use destack_workspace::Program;
 
-use crate::{format_global_type, format_symbol_name};
+use destack_workspace::format::{format_global_type, format_symbol_name};
 
 /// Trait for formatting types in diagnostic messages. Should not fail.
 pub trait DiagnosticFormat {
@@ -24,7 +24,7 @@ pub trait DiagnosticFormat {
 
 impl DiagnosticFormat for GlobalTypeId {
     fn diagnostic_fmt(&self, program: &Program) -> String {
-        format_global_type(*self, program)
+        format_global_type(*self, &program.modules, &program.strings)
     }
 }
 
@@ -76,7 +76,7 @@ impl DiagnosticFormat for GlobalNodeIdAny {
 
 impl DiagnosticFormat for GlobalSymbolId {
     fn diagnostic_fmt(&self, program: &Program) -> String {
-        format_symbol_name(*self, program)
+        format_symbol_name(*self, &program.modules, &program.strings)
     }
 }
 

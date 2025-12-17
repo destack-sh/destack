@@ -2,6 +2,7 @@ use destack_dir::SymbolType;
 use destack_source::{FileId, Span};
 
 use crate::Session;
+use crate::format::format_symbol_signature;
 use crate::query::common::find_symbol_at_offset;
 
 /// Hover information for a symbol.
@@ -50,28 +51,32 @@ impl HoverInfo {
 
 /// Get hover information for the symbol at the given position.
 pub fn hover(session: &Session, file: FileId, offset: u32) -> Option<HoverInfo> {
-    // 1. find the symbol at offset
     let symbol_at = find_symbol_at_offset(session, file, offset)?;
 
-    // 2. get symbol information
+    // try rich signature formatting first (for declarations)
+    if let Some(formatted) =
+        format_symbol_signature(symbol_at.symbol_id, &session.modules, &session.strings)
+    {
+        return Some(HoverInfo::signature(formatted.text).with_range(symbol_at.span));
+    }
+
+    // fallback: simple formatting for locals and other symbols
     let module = session.modules.get(symbol_at.symbol_id.module_id);
     let module_guard = module.read();
     let symbols = module_guard.dir.symbols.read();
     let symbol = symbols.get_symbol(symbol_at.symbol_id.local_id);
 
-    // 3. get the symbol name
     let name = symbol
         .name()
         .map(|id| module_guard.ast.strings.get(id).to_string());
 
-    // 4. format the signature based on symbol type
-    let signature = format_symbol_signature(symbol.ty, name.as_deref());
+    let signature = format_simple_signature(symbol.ty, name.as_deref());
 
     Some(HoverInfo::signature(signature).with_range(symbol_at.span))
 }
 
-/// Format a symbol's signature for display.
-fn format_symbol_signature(symbol_type: SymbolType, name: Option<&str>) -> String {
+/// Simple signature formatting for locals and symbols without declarations.
+fn format_simple_signature(symbol_type: SymbolType, name: Option<&str>) -> String {
     let name = name.unwrap_or("<anonymous>");
 
     match symbol_type {
