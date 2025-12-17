@@ -65,11 +65,9 @@ pub fn hover(session: &Session, file: FileId, offset: u32) -> Option<HoverInfo> 
     let module_guard = module.read();
     let symbols = module_guard.dir.symbols.read();
     let symbol = symbols.get_symbol(symbol_at.symbol_id.local_id);
-
     let name = symbol
         .name()
         .map(|id| module_guard.ast.strings.get(id).to_string());
-
     let signature = format_simple_signature(symbol.ty, name.as_deref());
 
     Some(HoverInfo::signature(signature).with_range(symbol_at.span))
@@ -80,7 +78,7 @@ fn format_simple_signature(symbol_type: SymbolType, name: Option<&str>) -> Strin
     let name = name.unwrap_or("<anonymous>");
 
     match symbol_type {
-        SymbolType::Void => format!("(local) {name}"),
+        SymbolType::Void => format!("void {name}"),
         SymbolType::Class => format!("class {name}"),
         SymbolType::Struct => format!("struct {name}"),
         SymbolType::Interface => format!("interface {name}"),

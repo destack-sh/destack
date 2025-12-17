@@ -1,15 +1,11 @@
 #![feature(default_field_values)]
 #![feature(if_let_guard)]
 
-pub mod diagnostic;
-pub mod lifecycle;
-pub mod semantic;
+pub mod query;
 pub mod server;
-pub mod source;
-pub mod workspace;
 
+pub use query::*;
 pub use server::DestackLanguageServer;
-pub use source::*;
 
 use tower_lsp_server::{LspService, Server};
 

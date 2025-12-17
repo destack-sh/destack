@@ -4,6 +4,7 @@ pub mod clean;
 pub mod fmt;
 pub mod init;
 pub mod lint;
+pub mod lsp;
 pub mod run;
 
 pub use build::BuildArgs;
@@ -12,6 +13,7 @@ pub use clean::CleanArgs;
 pub use fmt::FmtArgs;
 pub use init::InitArgs;
 pub use lint::LintArgs;
+pub use lsp::LspArgs;
 pub use run::RunArgs;
 
 #[cfg(feature = "dev")]

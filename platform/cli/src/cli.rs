@@ -4,7 +4,7 @@ use clap::Parser;
 
 #[cfg(feature = "dev")]
 use crate::command::DevCommand;
-use crate::command::{BuildArgs, CheckArgs, CleanArgs, FmtArgs, InitArgs, LintArgs, RunArgs};
+use crate::command::{BuildArgs, CheckArgs, CleanArgs, FmtArgs, InitArgs, LintArgs, LspArgs, RunArgs};
 use crate::common::TracingArgs;
 
 #[derive(Parser, Debug)]
@@ -40,6 +40,9 @@ pub enum Command {
 
     /// Remove build artifacts.
     Clean(CleanArgs),
+
+    /// Start the language server (for editor integration).
+    Lsp(LspArgs),
 
     /// Developer commands (compiler inspection, version management).
     #[cfg(feature = "dev")]

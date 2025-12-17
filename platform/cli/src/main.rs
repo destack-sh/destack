@@ -1,6 +1,6 @@
 use clap::Parser;
 use destack_cli::cli::{Cli, Command};
-use destack_cli::{build, check, clean, fmt, init, lint, run};
+use destack_cli::{build, check, clean, fmt, init, lint, lsp, run};
 
 #[cfg(feature = "dev")]
 use destack_cli::command::{DevCommand, dev};
@@ -17,6 +17,7 @@ fn main() {
         Command::Format(args) => fmt::run(&args),
         Command::Init(args) => init::run(&args),
         Command::Clean(args) => clean::run(&args),
+        Command::Lsp(args) => lsp::run(&args),
         #[cfg(feature = "dev")]
         Command::Dev(subcommand) => match subcommand {
             DevCommand::Lex(args) => dev::lex::run(&args),

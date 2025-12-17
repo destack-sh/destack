@@ -99,7 +99,6 @@ impl CallbackVisitor {
         let Expression::Declaration(declaration_id) = value else {
             return;
         };
-
         let declaration = tree.get(*declaration_id);
         let Declaration::Function {
             descriptor,
