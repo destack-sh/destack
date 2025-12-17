@@ -176,7 +176,9 @@ where
 
             // for line comments (// style), use line_postfix to defer to end of line
             // this keeps `x, // comment` together; block comments stay inline
-            let is_slash_comment = if let Annotation::Comment { node: comment_id, .. } = annotation
+            let is_slash_comment = if let Annotation::Comment {
+                node: comment_id, ..
+            } = annotation
             {
                 let comment = f.context().tree.get::<Comment>(*comment_id);
                 comment.style == CommentStyle::Slash
@@ -638,7 +640,7 @@ mod tests {
         assert_format!(
             "function foo() { /* empty */ }",
             "function foo() {\n    /* empty */\n}",
-            |p| p.eat_function(DeclarationDescriptor::default(), false, false),
+            |p| p.eat_function(p.mark(), DeclarationDescriptor::default(), false, false),
             DestackFormatOptions::default()
         );
     }

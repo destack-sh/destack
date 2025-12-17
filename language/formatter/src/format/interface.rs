@@ -8,7 +8,11 @@ mod tests {
         assert_format!(
             "interface {}",
             "interface { }",
-            |p| p.eat_interface(DeclarationDescriptor::default(), TypeKind::Structural),
+            |p| p.eat_interface(
+                p.mark(),
+                DeclarationDescriptor::default(),
+                TypeKind::Structural
+            ),
             DestackFormatOptions::default()
         );
     }
@@ -18,7 +22,11 @@ mod tests {
         assert_format!(
             "interface Foo extends Bar, Baz {}",
             "interface Foo extends Bar, Baz { }",
-            |p| p.eat_interface(DeclarationDescriptor::default(), TypeKind::Structural),
+            |p| p.eat_interface(
+                p.mark(),
+                DeclarationDescriptor::default(),
+                TypeKind::Structural
+            ),
             DestackFormatOptions::default()
         );
     }
@@ -28,7 +36,11 @@ mod tests {
         assert_format!(
             "interface Foo { static X = 1 }",
             "interface Foo {\n\tstatic X = 1,\n}",
-            |p| p.eat_interface(DeclarationDescriptor::default(), TypeKind::Structural),
+            |p| p.eat_interface(
+                p.mark(),
+                DeclarationDescriptor::default(),
+                TypeKind::Structural
+            ),
             DestackFormatOptions::default_tab()
         );
     }
@@ -38,7 +50,11 @@ mod tests {
         assert_format!(
             "interface {}",
             "newtype interface { }",
-            |p| p.eat_interface(DeclarationDescriptor::default(), TypeKind::Nominal),
+            |p| p.eat_interface(
+                p.mark(),
+                DeclarationDescriptor::default(),
+                TypeKind::Nominal
+            ),
             DestackFormatOptions::default()
         );
     }
@@ -48,7 +64,11 @@ mod tests {
         assert_format!(
             "interface Add<T> { add(other: T): Self }",
             "newtype interface Add<T> {\n\tadd(other: T): Self\n}",
-            |p| p.eat_interface(DeclarationDescriptor::default(), TypeKind::Nominal),
+            |p| p.eat_interface(
+                p.mark(),
+                DeclarationDescriptor::default(),
+                TypeKind::Nominal
+            ),
             DestackFormatOptions::default_tab()
         );
     }
