@@ -1,9 +1,8 @@
-//! Utilities for computing semantic tokens from parsed Destack sources.
-
 use std::cmp;
 
 use destack_ast::TokenSpan;
 use destack_source::{File, Span};
+use destack_workspace::{Session, query};
 use tower_lsp_server::lsp_types as lsp;
 
 /// Convert byte span to LSP range.
@@ -111,4 +110,44 @@ pub fn token_length_utf16(source: &File, token: &TokenSpan) -> u32 {
     let start = token.span.start as usize;
     let end = token.span.end as usize;
     source.text()[start..end].encode_utf16().count() as u32
+}
+
+/// Convert a span to an LSP location.
+pub fn span_to_location(session: &Session, span: Span) -> Option<lsp::Location> {
+    let file = session.files.get(span.file);
+    let range = byte_span_to_range(&file, span);
+    let uri = file.uri.as_ref().parse::<lsp::Uri>().ok()?;
+    Some(lsp::Location { uri, range })
+}
+
+/// Convert query symbol kind to LSP symbol kind.
+pub fn symbol_kind_to_lsp(kind: query::SymbolKind) -> lsp::SymbolKind {
+    match kind {
+        query::SymbolKind::File => lsp::SymbolKind::FILE,
+        query::SymbolKind::Module => lsp::SymbolKind::MODULE,
+        query::SymbolKind::Namespace => lsp::SymbolKind::NAMESPACE,
+        query::SymbolKind::Package => lsp::SymbolKind::PACKAGE,
+        query::SymbolKind::Class => lsp::SymbolKind::CLASS,
+        query::SymbolKind::Method => lsp::SymbolKind::METHOD,
+        query::SymbolKind::Property => lsp::SymbolKind::PROPERTY,
+        query::SymbolKind::Field => lsp::SymbolKind::FIELD,
+        query::SymbolKind::Constructor => lsp::SymbolKind::CONSTRUCTOR,
+        query::SymbolKind::Enum => lsp::SymbolKind::ENUM,
+        query::SymbolKind::Interface => lsp::SymbolKind::INTERFACE,
+        query::SymbolKind::Function => lsp::SymbolKind::FUNCTION,
+        query::SymbolKind::Variable => lsp::SymbolKind::VARIABLE,
+        query::SymbolKind::Constant => lsp::SymbolKind::CONSTANT,
+        query::SymbolKind::String => lsp::SymbolKind::STRING,
+        query::SymbolKind::Number => lsp::SymbolKind::NUMBER,
+        query::SymbolKind::Boolean => lsp::SymbolKind::BOOLEAN,
+        query::SymbolKind::Array => lsp::SymbolKind::ARRAY,
+        query::SymbolKind::Object => lsp::SymbolKind::OBJECT,
+        query::SymbolKind::Key => lsp::SymbolKind::KEY,
+        query::SymbolKind::Null => lsp::SymbolKind::NULL,
+        query::SymbolKind::EnumMember => lsp::SymbolKind::ENUM_MEMBER,
+        query::SymbolKind::Struct => lsp::SymbolKind::STRUCT,
+        query::SymbolKind::Event => lsp::SymbolKind::EVENT,
+        query::SymbolKind::Operator => lsp::SymbolKind::OPERATOR,
+        query::SymbolKind::TypeParameter => lsp::SymbolKind::TYPE_PARAMETER,
+    }
 }

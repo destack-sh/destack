@@ -5,4 +5,4 @@ pub mod command;
 pub mod common;
 pub mod console;
 
-pub use command::{build, check, clean, fmt, init, lint, run};
+pub use command::{build, check, clean, fmt, init, lint, lsp, run};
