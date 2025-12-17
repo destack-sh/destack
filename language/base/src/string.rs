@@ -1,4 +1,4 @@
-use parking_lot::{Mutex, MutexGuard};
+use parking_lot::{RwLock, RwLockReadGuard};
 use std::collections::HashMap;
 use std::fmt::{self, Debug, Formatter};
 use std::hash::{DefaultHasher, Hash, Hasher};
@@ -42,7 +42,7 @@ impl StringId {
 #[derive(Debug)]
 pub struct StringRef<'a> {
     /// The guard to the string pool state.
-    pool: MutexGuard<'a, StringPoolState>,
+    pool: RwLockReadGuard<'a, StringPoolState>,
     /// The string id.
     id: StringId,
 }
@@ -141,15 +141,16 @@ impl StringPoolState {
 }
 
 /// Thread-safe string interning with stable identifiers.
+/// Uses RwLock to allow concurrent reads while protecting writes.
 pub struct StringPool {
-    inner: Mutex<StringPoolState>,
+    inner: RwLock<StringPoolState>,
 }
 
 impl Clone for StringPool {
     fn clone(&self) -> Self {
-        let state = self.inner.lock().clone();
+        let state = self.inner.read().clone();
         Self {
-            inner: Mutex::new(state),
+            inner: RwLock::new(state),
         }
     }
 }
@@ -157,7 +158,7 @@ impl Clone for StringPool {
 impl Debug for StringPool {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         // show pool length only, do not lock for longer than necessary
-        let state = self.inner.lock();
+        let state = self.inner.read();
         f.debug_struct("StringPool")
             .field("length", &state.strings.len())
             .finish()
@@ -174,7 +175,7 @@ impl StringPool {
     /// Create a new empty StringPool.
     pub fn new() -> Self {
         Self {
-            inner: Mutex::new(StringPoolState {
+            inner: RwLock::new(StringPoolState {
                 strings: Vec::new(),
                 index: HashMap::new(),
             }),
@@ -184,42 +185,43 @@ impl StringPool {
     /// Check if the pool contains the given StringId.
     #[inline]
     pub fn contains(&self, id: StringId) -> bool {
-        let state = self.inner.lock();
+        let state = self.inner.read();
         state.strings.len() > id.as_usize()
     }
 
     /// Get the string associated with the given StringId.
+    /// Multiple concurrent reads are allowed.
     #[inline]
     pub fn get(&self, id: StringId) -> StringRef<'_> {
-        let state = self.inner.lock();
+        let state = self.inner.read();
         StringRef { pool: state, id }
     }
 
     /// Intern a string, storing only one owned copy of bytes.
     /// Returns the same StringId for identical strings.
     pub fn intern<S: AsRef<str>>(&self, some_str: S) -> StringId {
-        let mut inner = self.inner.lock();
+        let mut inner = self.inner.write();
         inner.intern(some_str)
     }
 
     /// Intern a string from another pool.
     #[inline]
     pub fn intern_from(&self, other: &StringPool, string_id: StringId) -> StringId {
-        let mut inner = self.inner.lock();
+        let mut inner = self.inner.write();
         inner.intern_from(other, string_id)
     }
 
     /// Get the number of unique strings stored in this pool.
     #[inline]
     pub fn len(&self) -> usize {
-        let state = self.inner.lock();
+        let state = self.inner.read();
         state.len()
     }
 
     /// Check if the pool contains no strings.
     #[inline]
     pub fn is_empty(&self) -> bool {
-        let state = self.inner.lock();
+        let state = self.inner.read();
         state.is_empty()
     }
 
