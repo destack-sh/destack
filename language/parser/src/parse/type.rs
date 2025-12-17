@@ -1,4 +1,4 @@
-use crate::{ParseError, ParseResult, Parser};
+use crate::{ParseError, ParseResult, Parser, ParserMark};
 
 use destack_ast::{
     Declaration, DeclarationDescriptor, DeclarationType, Expression, FloatType, IntType, Keyword,
@@ -207,9 +207,9 @@ impl Parser {
     /// ```
     pub fn eat_type(
         &mut self,
+        start: ParserMark,
         mut descriptor: DeclarationDescriptor,
     ) -> ParseResult<LocalNodeId<Expression>> {
-        let start = self.mark();
         let keyword: Keyword =
             self.eat_keyword_in(&[Keyword::Type, Keyword::Readonly, Keyword::Newtype])?;
 

@@ -135,4 +135,3 @@ pub fn document_symbols(session: &Session, file: FileId) -> Vec<DocumentSymbol> 
 
     symbols
 }
-

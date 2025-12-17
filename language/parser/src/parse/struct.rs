@@ -1,7 +1,7 @@
 #![allow(clippy::type_complexity)]
 
 use crate::parse::prelude::*;
-use crate::{ParseResult, Parser};
+use crate::{ParseResult, Parser, ParserMark};
 
 use destack_ast::{
     Declaration, DeclarationDescriptor, Generics, Heritage, Keyword, LocalNodeId, NodeType,
@@ -44,10 +44,9 @@ impl Parser {
     /// ```
     pub fn eat_struct_or_class(
         &mut self,
+        start: ParserMark,
         mut descriptor: DeclarationDescriptor,
     ) -> ParseResult<LocalNodeId<Declaration>> {
-        let start = self.mark();
-
         // keyword
         let keyword = self
             .eat_keyword_in(&[Keyword::Struct, Keyword::Class])
@@ -145,8 +144,9 @@ struct { public x: int32, readonly y: boolean
         parser.eat_newline().unwrap();
 
         // struct { x: int32, y: boolean }
+        let start = parser.mark();
         let struct_id = parser
-            .eat_struct_or_class(DeclarationDescriptor::default())
+            .eat_struct_or_class(start, DeclarationDescriptor::default())
             .unwrap();
         assert_node!(parser.tree, struct_id, Declaration::Struct { descriptor, generics, members, .. } => {
             assert_eq!(descriptor.kind, DeclarationKind::Definition);
@@ -182,8 +182,9 @@ struct Foo extends Bar {}
         let mut parser = test.prepare();
         parser.eat_newline().unwrap();
 
+        let start = parser.mark();
         let struct_id = parser
-            .eat_struct_or_class(DeclarationDescriptor::default())
+            .eat_struct_or_class(start, DeclarationDescriptor::default())
             .unwrap();
         assert_node!(parser.tree, struct_id, Declaration::Struct { descriptor, heritage, members, .. } => {
             assert_eq!(descriptor.kind, DeclarationKind::Definition);
@@ -218,8 +219,9 @@ struct Foo<T: Numeric> extends Boz implements Quux {
         let mut parser = test.prepare();
         parser.eat_newline().unwrap();
 
+        let start = parser.mark();
         let struct_id = parser
-            .eat_struct_or_class(DeclarationDescriptor::default())
+            .eat_struct_or_class(start, DeclarationDescriptor::default())
             .unwrap();
         assert_node!(parser.tree, struct_id, Declaration::Struct { descriptor, generics, heritage, members, .. } => {
             assert_eq!(descriptor.kind, DeclarationKind::Definition);
@@ -312,8 +314,9 @@ struct Foo where Guard > Limit {
         let mut parser = test.prepare();
         parser.eat_newline().unwrap();
 
+        let start = parser.mark();
         let struct_id = parser
-            .eat_struct_or_class(DeclarationDescriptor::default())
+            .eat_struct_or_class(start, DeclarationDescriptor::default())
             .unwrap();
         assert_node!(parser.tree, struct_id, Declaration::Struct { descriptor, generics, members, .. } => {
             assert_eq!(descriptor.kind, DeclarationKind::Definition);
@@ -347,8 +350,9 @@ struct Foo {
         let mut parser = test.prepare();
         parser.eat_newline().unwrap();
 
+        let start = parser.mark();
         let struct_id = parser
-            .eat_struct_or_class(DeclarationDescriptor::default())
+            .eat_struct_or_class(start, DeclarationDescriptor::default())
             .unwrap();
         assert_node!(parser.tree, struct_id, Declaration::Struct { descriptor, members, .. } => {
             assert_eq!(descriptor.kind, DeclarationKind::Definition);

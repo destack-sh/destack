@@ -492,7 +492,7 @@ impl Parser {
                 && (self.peek_next_token(TokenType::Arrow).is_ok()
                     || self.peek_next_token(TokenType::ArrowWide).is_ok())
             {
-                let lambda_id = self.eat_function(descriptor, false, false)?;
+                let lambda_id = self.eat_function(start, descriptor, false, false)?;
                 self.tree.insert(
                     Expression::Declaration(lambda_id),
                     self.get_span_from(start),
@@ -521,7 +521,7 @@ impl Parser {
                     })
                     .unwrap_or(false)
                 {
-                    let lambda_id = self.eat_function(descriptor, false, false)?;
+                    let lambda_id = self.eat_function(start, descriptor, false, false)?;
                     self.tree.insert(
                         Expression::Declaration(lambda_id),
                         self.get_span_from(start),
@@ -709,7 +709,7 @@ impl Parser {
             else if keyword == Some(Keyword::Namespace)
                 && DECLARATION_START_TOKENS.contains(&next_token_type)
             {
-                let namespace_id = self.eat_namespace(descriptor)?;
+                let namespace_id = self.eat_namespace(start, descriptor)?;
                 self.tree.insert(
                     Expression::Declaration(namespace_id),
                     self.get_span_from(start),
@@ -719,7 +719,7 @@ impl Parser {
             else if (keyword == Some(Keyword::Struct) || keyword == Some(Keyword::Class))
                 && DECLARATION_START_TOKENS.contains(&next_token_type)
             {
-                let struct_id = self.eat_struct_or_class(descriptor)?;
+                let struct_id = self.eat_struct_or_class(start, descriptor)?;
                 self.tree.insert(
                     Expression::Declaration(struct_id),
                     self.get_span_from(start),
@@ -729,7 +729,7 @@ impl Parser {
             else if keyword == Some(Keyword::Enum)
                 && DECLARATION_START_TOKENS.contains(&next_token_type)
             {
-                let enum_id = self.eat_enum(EnumKind::Enum, descriptor)?;
+                let enum_id = self.eat_enum(start, EnumKind::Enum, descriptor)?;
                 self.tree
                     .insert(Expression::Declaration(enum_id), self.get_span_from(start))
             }
@@ -738,7 +738,7 @@ impl Parser {
                 && self.peek_next_keyword(Keyword::Enum).is_ok()
             {
                 self.eat_keyword(Keyword::Const)?;
-                let enum_id = self.eat_enum(EnumKind::Const, descriptor)?;
+                let enum_id = self.eat_enum(start, EnumKind::Const, descriptor)?;
                 self.tree
                     .insert(Expression::Declaration(enum_id), self.get_span_from(start))
             }
@@ -747,7 +747,7 @@ impl Parser {
                 && self.peek_next_keyword(Keyword::Interface).is_ok()
             {
                 self.eat_keyword(Keyword::Newtype)?;
-                let interface_id = self.eat_interface(descriptor, TypeKind::Nominal)?;
+                let interface_id = self.eat_interface(start, descriptor, TypeKind::Nominal)?;
                 self.tree.insert(
                     Expression::Declaration(interface_id),
                     self.get_span_from(start),
@@ -757,7 +757,7 @@ impl Parser {
             else if keyword == Some(Keyword::Interface)
                 && DECLARATION_START_TOKENS.contains(&next_token_type)
             {
-                let interface_id = self.eat_interface(descriptor, TypeKind::Structural)?;
+                let interface_id = self.eat_interface(start, descriptor, TypeKind::Structural)?;
                 self.tree.insert(
                     Expression::Declaration(interface_id),
                     self.get_span_from(start),
@@ -767,7 +767,7 @@ impl Parser {
             else if keyword == Some(Keyword::Extension)
                 && DECLARATION_START_TOKENS.contains(&next_token_type)
             {
-                let extension_id = self.eat_extension(descriptor)?;
+                let extension_id = self.eat_extension(start, descriptor)?;
                 self.tree.insert(
                     Expression::Declaration(extension_id),
                     self.get_span_from(start),
@@ -795,7 +795,7 @@ impl Parser {
                 ]
                 .contains(&next_token_type)
             {
-                let function_id = self.eat_function(descriptor, false, false)?;
+                let function_id = self.eat_function(start, descriptor, false, false)?;
                 self.tree.insert(
                     Expression::Declaration(function_id),
                     self.get_span_from(start),
@@ -831,7 +831,7 @@ impl Parser {
                 || keyword == Some(Keyword::Var)
                 || keyword == Some(Keyword::Const)
             {
-                self.eat_let(descriptor)?
+                self.eat_let(start, descriptor)?
             }
             // type
             else if (keyword == Some(Keyword::Type)
@@ -846,7 +846,7 @@ impl Parser {
                 ]
                 .contains(&next_token_type))
             {
-                self.eat_type(descriptor)?
+                self.eat_type(start, descriptor)?
             }
             // if
             else if keyword == Some(Keyword::If) {
@@ -996,7 +996,7 @@ impl Parser {
                             })
                             .is_some())
             {
-                let function_id = self.eat_function(descriptor, false, false)?;
+                let function_id = self.eat_function(start, descriptor, false, false)?;
                 self.tree.insert(
                     Expression::Declaration(function_id),
                     self.get_span_from(start),

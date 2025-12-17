@@ -1,5 +1,5 @@
 use crate::parse::prelude::*;
-use crate::{ParseResult, Parser};
+use crate::{ParseResult, Parser, ParserMark};
 
 use destack_ast::{
     Asynchrony, Declaration, DeclarationDescriptor, FunctionAbstraction, FunctionCardinality,
@@ -68,12 +68,11 @@ impl Parser {
     /// ```
     pub fn eat_function(
         &mut self,
+        start: ParserMark,
         mut descriptor: DeclarationDescriptor,
         expect_maybe: bool,
         expect_body: bool,
     ) -> ParseResult<LocalNodeId<Declaration>> {
-        let start = self.mark();
-
         // async
         let is_async = if self.peek_keyword(Keyword::Async).is_ok() {
             self.bump(); // eat async keyword
@@ -330,8 +329,9 @@ mod tests {
         let mut test = TestParser::new("(x: number):\n\tnumber =>\n\tx");
         let mut parser = test.prepare();
 
+        let start = parser.mark();
         let function_id = parser
-            .eat_function(DeclarationDescriptor::default(), false, false)
+            .eat_function(start, DeclarationDescriptor::default(), false, false)
             .unwrap();
         // (x: number): number => x
         assert_node!(parser.tree, function_id, Declaration::Function { descriptor, signature, body: Some(body), .. } => {
@@ -357,8 +357,9 @@ mod tests {
         let mut test = TestParser::new("(x): int32 => x");
         let mut parser = test.prepare();
 
+        let start = parser.mark();
         let function_id = parser
-            .eat_function(DeclarationDescriptor::default(), false, false)
+            .eat_function(start, DeclarationDescriptor::default(), false, false)
             .unwrap();
         // (x): int32 => x
         assert_node!(parser.tree, function_id, Declaration::Function { descriptor, signature, body: Some(body), .. } => {
@@ -384,8 +385,9 @@ mod tests {
         let mut parser = test.prepare();
         parser.options.in_type = true;
 
+        let start = parser.mark();
         let function_id = parser
-            .eat_function(DeclarationDescriptor::default(), false, false)
+            .eat_function(start, DeclarationDescriptor::default(), false, false)
             .unwrap();
         // new (x) => int32
         assert_node!(parser.tree, function_id, Declaration::Function { descriptor, signature, .. } => {
@@ -403,8 +405,9 @@ mod tests {
         let mut parser = test.prepare();
         parser.options.in_type = true;
 
+        let start = parser.mark();
         let function_id = parser
-            .eat_function(DeclarationDescriptor::default(), false, false)
+            .eat_function(start, DeclarationDescriptor::default(), false, false)
             .unwrap();
         // new <T>(x: int32) => T
         assert_node!(parser.tree, function_id, Declaration::Function { descriptor, signature, .. } => {
@@ -445,8 +448,9 @@ function foo() => int32 where Guard > Limit {
         let mut parser = test.prepare();
         parser.eat_newline().unwrap();
 
+        let start = parser.mark();
         let function_id = parser
-            .eat_function(DeclarationDescriptor::default(), false, false)
+            .eat_function(start, DeclarationDescriptor::default(), false, false)
             .unwrap();
         assert_node!(parser.tree, function_id, Declaration::Function { descriptor, signature, .. } => {
             // function name
@@ -480,8 +484,9 @@ function compute<Validate: boolean, Precision: uint8>(data: uint8[]) {
         let mut parser = test.prepare();
         parser.eat_newline().unwrap();
 
+        let start = parser.mark();
         let function_id = parser
-            .eat_function(DeclarationDescriptor::default(), false, false)
+            .eat_function(start, DeclarationDescriptor::default(), false, false)
             .unwrap();
         assert_node!(parser.tree, function_id, Declaration::Function { descriptor, signature, .. } => {
             // compute
@@ -519,8 +524,9 @@ function compute<Validate: boolean, Precision: uint8>(data: uint8[]) {
         let mut parser = test.prepare();
 
         // function foo() => (str: string) => boolean
+        let start = parser.mark();
         let function_id = parser
-            .eat_function(DeclarationDescriptor::default(), false, false)
+            .eat_function(start, DeclarationDescriptor::default(), false, false)
             .unwrap();
         assert_node!(parser.tree, function_id, Declaration::Function { descriptor, signature, .. } => {
             // foo
@@ -556,8 +562,9 @@ async function* foo() => int32 {
         let mut parser = test.prepare();
         parser.eat_newline().unwrap();
 
+        let start = parser.mark();
         let function_id = parser
-            .eat_function(DeclarationDescriptor::default(), false, false)
+            .eat_function(start, DeclarationDescriptor::default(), false, false)
             .unwrap();
         // async function* foo() => int32 { body }
         assert_node!(parser.tree, function_id, Declaration::Function { descriptor, signature, .. } => {
@@ -583,8 +590,9 @@ function onResolve(
         let mut parser = test.prepare();
         parser.eat_newline().unwrap();
 
+        let start = parser.mark();
         let function_id = parser
-            .eat_function(DeclarationDescriptor::default(), false, false)
+            .eat_function(start, DeclarationDescriptor::default(), false, false)
             .unwrap();
         assert_node!(parser.tree, function_id, Declaration::Function { descriptor, signature, .. } => {
             assert_string!(parser, descriptor.name.unwrap().string(), "onResolve");
