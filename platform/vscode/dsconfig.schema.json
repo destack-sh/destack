@@ -451,7 +451,7 @@
       }
     },
     "DsConfigFormatterJson": {
-      "description": "Formatter options (top-level, like Biome/Deno).",
+      "description": "Formatter options (top-level, like Biome/Deno).\n\nField names use Prettier-compatible naming for familiarity.",
       "type": "object",
       "properties": {
         "lineEnding": {
@@ -463,6 +463,13 @@
             {
               "type": "null"
             }
+          ]
+        },
+        "useTabs": {
+          "description": "Use tabs instead of spaces.",
+          "type": [
+            "boolean",
+            "null"
           ]
         },
         "indentStyle": {
@@ -477,7 +484,7 @@
           ]
         },
         "indentWidth": {
-          "description": "Number of spaces per indent (when using spaces). Default: 4.",
+          "description": "Number of spaces per indent. Default: 4.",
           "type": [
             "integer",
             "null"
@@ -492,9 +499,92 @@
             "integer",
             "null"
           ],
-          "format": "uint8",
+          "format": "uint16",
           "minimum": 0,
-          "maximum": 255
+          "maximum": 65535
+        },
+        "semicolons": {
+          "description": "Semicolon insertion: \"always\" or \"asNeeded\".",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SemicolonsJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "quoteStyle": {
+          "description": "Quote style: \"double\" or \"single\".",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/QuoteStyleJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "singleQuote": {
+          "description": "Use single quotes (Prettier shorthand). Takes precedence over quoteStyle.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "trailingComma": {
+          "description": "Trailing comma policy: \"all\", \"es5\", or \"none\".",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TrailingCommaJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "bracketSpacing": {
+          "description": "Spaces inside object braces: `{ foo }` (true) vs `{foo}` (false). Default: true.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "arrowParens": {
+          "description": "Arrow function parentheses: \"always\" or \"avoid\".",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ArrowParenthesesJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "quoteProps": {
+          "description": "Object property quoting: \"as-needed\", \"consistent\", or \"preserve\".",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/QuotePropertyJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "bracketSameLine": {
+          "description": "Put `>` of multi-line JSX on same line as last attribute.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "singleAttributePerLine": {
+          "description": "Force each JSX attribute onto its own line.",
+          "type": [
+            "boolean",
+            "null"
+          ]
         }
       }
     },
@@ -524,6 +614,91 @@
       "enum": [
         "tab",
         "space"
+      ]
+    },
+    "SemicolonsJson": {
+      "description": "Semicolons style for JSON deserialization (Prettier: `semi`).",
+      "oneOf": [
+        {
+          "description": "Always insert semicolons.",
+          "type": "string",
+          "const": "always"
+        },
+        {
+          "description": "Only where required by ASI.",
+          "type": "string",
+          "const": "asNeeded"
+        }
+      ]
+    },
+    "QuoteStyleJson": {
+      "description": "Quote style for JSON deserialization (Prettier: `singleQuote`).",
+      "oneOf": [
+        {
+          "description": "Use double quotes.",
+          "type": "string",
+          "const": "double"
+        },
+        {
+          "description": "Use single quotes.",
+          "type": "string",
+          "const": "single"
+        }
+      ]
+    },
+    "TrailingCommaJson": {
+      "description": "Trailing comma policy for JSON deserialization (Prettier: `trailingComma`).",
+      "oneOf": [
+        {
+          "description": "Trailing commas everywhere valid.",
+          "type": "string",
+          "const": "all"
+        },
+        {
+          "description": "Trailing commas where valid in ES5.",
+          "type": "string",
+          "const": "es5"
+        },
+        {
+          "description": "No trailing commas.",
+          "type": "string",
+          "const": "none"
+        }
+      ]
+    },
+    "ArrowParenthesesJson": {
+      "description": "Arrow function parentheses for JSON deserialization.",
+      "oneOf": [
+        {
+          "description": "Always include parentheses.",
+          "type": "string",
+          "const": "always"
+        },
+        {
+          "description": "Omit when possible.",
+          "type": "string",
+          "const": "avoid"
+        }
+      ]
+    },
+    "QuotePropertyJson": {
+      "description": "Object property quoting for JSON deserialization.",
+      "oneOf": [
+        {
+          "description": "Only quote when required.",
+          "type": "string",
+          "const": "as-needed"
+        },
+        {
+          "description": "Quote all if any require quotes.",
+          "type": "string",
+          "const": "consistent"
+        },
+        {
+          "description": "Preserve original quoting.",
+          "type": "string",
+          "const": "preserve"
+        }
       ]
     },
     "DsConfigLinterJson": {

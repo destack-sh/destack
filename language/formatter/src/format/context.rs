@@ -23,12 +23,12 @@ pub struct DestackFormatOptions {
     /// Spaces per indent.
     pub indent_width: u8 = 4,
     /// Maximum line length (best effort).
-    pub line_width: u8 = 100,
+    pub line_width: u16 = 100,
 }
 
 impl DestackFormatOptions {
     /// Default options with a given line width.
-    pub fn default_with_line_width(line_width: u8) -> Self {
+    pub fn default_with_line_width(line_width: u16) -> Self {
         Self {
             line_width,
             ..Self::default()
@@ -44,7 +44,7 @@ impl DestackFormatOptions {
     }
 
     /// Default options with tab indent style and a given line width.
-    pub fn default_tab_with_line_width(line_width: u8) -> Self {
+    pub fn default_tab_with_line_width(line_width: u16) -> Self {
         Self {
             indent_style: IndentStyle::Tab,
             line_width,
@@ -71,16 +71,16 @@ impl DestackFormatOptions {
     }
 
     /// Set the line width.
-    pub fn with_line_width(mut self, line_width: u8) -> Self {
+    pub fn with_line_width(mut self, line_width: u16) -> Self {
         self.line_width = line_width;
         self
     }
 
-    /// Convert to print options.
+    /// Convert to print options (clamps line_width to u8 max).
     pub fn as_print_options(&self) -> PrintOptions {
         PrintOptions {
             line_ending: self.line_ending,
-            line_width: self.line_width,
+            line_width: self.line_width.min(255) as u8,
             indent_style: self.indent_style,
             indent_width: self.indent_width,
         }
@@ -100,7 +100,7 @@ impl FormatOptions for DestackFormatOptions {
 
     #[inline]
     fn line_width(&self) -> u8 {
-        self.line_width
+        self.line_width.min(255) as u8
     }
 
     #[inline]
