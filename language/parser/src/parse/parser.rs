@@ -815,7 +815,11 @@ impl Parser {
     }
 
     /// Get the node starting at a token.
-    pub fn find_node_starting_at(&self, span: &Span, search: NodeSearchMode) -> Option<EnclosingSpan> {
+    pub fn find_node_starting_at(
+        &self,
+        span: &Span,
+        search: NodeSearchMode,
+    ) -> Option<EnclosingSpan> {
         let mut enclosing_spans = self
             .tree
             .source_map
@@ -838,7 +842,11 @@ impl Parser {
     }
 
     /// Get the node ending at a token.
-    pub fn find_node_ending_at(&self, span: &Span, search: NodeSearchMode) -> Option<EnclosingSpan> {
+    pub fn find_node_ending_at(
+        &self,
+        span: &Span,
+        search: NodeSearchMode,
+    ) -> Option<EnclosingSpan> {
         let mut enclosing_spans = self
             .tree
             .source_map

@@ -1,5 +1,5 @@
 use crate::parse::prelude::*;
-use crate::{ParseResult, Parser};
+use crate::{ParseResult, Parser, ParserMark};
 
 use destack_ast::{
     BlockFormat, Declaration, DeclarationDescriptor, Generics, Keyword, LocalNodeId, NodeType,
@@ -10,10 +10,9 @@ impl Parser {
     /// Eat a namespace declaration (incl. `namespace` keyword).
     pub fn eat_namespace(
         &mut self,
+        start: ParserMark,
         mut descriptor: DeclarationDescriptor,
     ) -> ParseResult<LocalNodeId<Declaration>> {
-        let start = self.mark();
-
         // keyword
         self.eat_keyword(Keyword::Namespace)?;
 
@@ -73,8 +72,9 @@ mod tests {
     fn test_parse_empty_namespace() {
         let mut test = TestParser::new("namespace { }");
         let mut parser = test.prepare();
+        let start = parser.mark();
         let namespace_id = parser
-            .eat_namespace(DeclarationDescriptor::default())
+            .eat_namespace(start, DeclarationDescriptor::default())
             .unwrap();
         assert_node!(parser.tree, namespace_id, Declaration::Namespace { descriptor, expressions, generics, .. } => {
             assert_eq!(descriptor.kind, DeclarationKind::Definition);
@@ -96,8 +96,9 @@ namespace Foo where Guard > Limit {
         let mut parser = test.prepare();
         parser.eat_newline().unwrap();
 
+        let start = parser.mark();
         let namespace_id = parser
-            .eat_namespace(DeclarationDescriptor::default())
+            .eat_namespace(start, DeclarationDescriptor::default())
             .unwrap();
         assert_node!(parser.tree, namespace_id, Declaration::Namespace { descriptor, expressions, generics, .. } => {
             assert_eq!(descriptor.kind, DeclarationKind::Definition);
@@ -123,8 +124,9 @@ namespace Foo where Guard > Limit {
     fn test_parse_forward_namespace_with_where() {
         let mut test = TestParser::new("namespace Foo where Requirement: Interface { }");
         let mut parser = test.prepare();
+        let start = parser.mark();
         let namespace_id = parser
-            .eat_namespace(DeclarationDescriptor::default())
+            .eat_namespace(start, DeclarationDescriptor::default())
             .unwrap();
 
         assert_node!(parser.tree, namespace_id, Declaration::Namespace { descriptor, expressions, generics, .. } => {

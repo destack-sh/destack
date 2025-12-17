@@ -162,8 +162,7 @@ pub fn signature_help(session: &Session, file: FileId, offset: u32) -> Option<Si
                 signature = signature.with_parameter(param);
             }
 
-            // determine active parameter (basic: assume first for now)
-            // A more complete implementation would count commas before the cursor
+            // determine active parameter (#Incomplete: assume first for now)
             let active_parameter = 0;
 
             return Some(SignatureHelp::single(signature, active_parameter));

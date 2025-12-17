@@ -268,11 +268,14 @@ impl Parser {
         let start_token = group[0];
         let end_token = group[group.len() - 1];
         let is_one_line = self.is_same_line(start_token.span, end_token.span);
-        let enclosing_scope =
-            self.find_node_enclosing_at(&start_token.span, NodeSearchMode::SmallestInnermost, |span| {
+        let enclosing_scope = self.find_node_enclosing_at(
+            &start_token.span,
+            NodeSearchMode::SmallestInnermost,
+            |span| {
                 !ANNOTATION_NODE_TYPES.contains(&self.tree.get_node_type(span.idx))
                     && !ignore_span.contains(&span.span)
-            });
+            },
+        );
         let enclosing_span = enclosing_scope.map(|scope| scope.span);
 
         #[cfg(debug_assertions)]
@@ -966,8 +969,13 @@ over multiple lines with trailing space    */",
 }",
         );
         let mut parser = test.prepare();
+        let start = parser.mark();
         let interface_id = parser
-            .eat_interface(DeclarationDescriptor::default(), TypeKind::Structural)
+            .eat_interface(
+                start,
+                DeclarationDescriptor::default(),
+                TypeKind::Structural,
+            )
             .unwrap();
         parser.finish();
 
@@ -1015,8 +1023,9 @@ over multiple lines with trailing space    */",
 }",
         );
         let mut parser = test.prepare();
+        let start = parser.mark();
         let function = parser
-            .eat_function(DeclarationDescriptor::default(), false, false)
+            .eat_function(start, DeclarationDescriptor::default(), false, false)
             .unwrap();
         parser.finish();
 
@@ -1235,8 +1244,9 @@ function main() {
         let mut parser = test.prepare();
         parser.eat_newline().unwrap();
 
+        let start = parser.mark();
         let function = parser
-            .eat_function(DeclarationDescriptor::default(), false, false)
+            .eat_function(start, DeclarationDescriptor::default(), false, false)
             .unwrap();
         parser.finish();
 

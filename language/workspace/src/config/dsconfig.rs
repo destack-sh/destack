@@ -1165,7 +1165,7 @@ pub struct DsConfigFormatterJson {
 
     /// Quote style: "double", "single", or "semantic".
     pub quote_style: Option<QuoteStyleJson>,
-    /// Use single quotes (Prettier shorthand). Takes precedence over quoteStyle.
+    /// Use single quotes. Takes precedence over quoteStyle.
     pub single_quote: Option<bool>,
     /// Trailing comma policy: "all", "es5", or "none".
     pub trailing_comma: Option<TrailingCommaJson>,

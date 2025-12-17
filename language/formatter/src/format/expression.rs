@@ -1765,7 +1765,6 @@ pub(crate) fn format_expression<'ast>(
             kind: IfKind::Ternary,
             ..
         } => {
-            // Format ternary using helper function
             format_ternary(f, node_id)?;
         }
 
@@ -2892,7 +2891,6 @@ mod tests {
 
     #[test]
     fn test_format_return_jsx_multiline() {
-        // When JSX doesn't fit, it gets wrapped in parentheses
         assert_format!(
             "return <App prop=\"value\" another=\"thing\" />",
             "return (\n    <App\n        prop=\"value\"\n        another=\"thing\"\n    />\n)",
@@ -2903,7 +2901,6 @@ mod tests {
 
     #[test]
     fn test_format_nested_ternary() {
-        // nested ternaries break at all levels with same indentation
         assert_format!(
             "const x = isFirst ? firstValue : isSecond ? secondValue : defaultValue",
             "const x = isFirst\n    ? firstValue\n    : isSecond\n    ? secondValue\n    : defaultValue",

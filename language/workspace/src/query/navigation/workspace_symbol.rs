@@ -24,7 +24,11 @@ pub struct WorkspaceSymbol {
 /// Search for symbols across the workspace.
 ///
 /// Returns symbols whose names contain the query string (case-insensitive).
-pub fn workspace_symbols(session: &Session, query: &str, max_results: usize) -> Vec<WorkspaceSymbol> {
+pub fn workspace_symbols(
+    session: &Session,
+    query: &str,
+    max_results: usize,
+) -> Vec<WorkspaceSymbol> {
     let mut symbols = Vec::new();
     let query_lower = query.to_lowercase();
 

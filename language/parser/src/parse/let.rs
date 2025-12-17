@@ -1,4 +1,4 @@
-use crate::{ParseError, ParseResult, Parser};
+use crate::{ParseError, ParseResult, Parser, ParserMark};
 
 use destack_ast::{
     DeclarationDescriptor, Declarator, Expression, Keyword, LetKind, LocalNodeId, Mutability,
@@ -101,10 +101,9 @@ impl Parser {
     /// ```
     pub fn eat_let(
         &mut self,
+        start: ParserMark,
         descriptor: DeclarationDescriptor,
     ) -> ParseResult<LocalNodeId<Expression>> {
-        let start = self.mark();
-
         // kind and mutability
         let (kind, mutability) = self.eat_let_kind()?;
 
@@ -208,7 +207,10 @@ const x: int32 = 1
         let mut parser = test.prepare();
         parser.eat_newline().unwrap();
 
-        let let_id = parser.eat_let(DeclarationDescriptor::default()).unwrap();
+        let start = parser.mark();
+        let let_id = parser
+            .eat_let(start, DeclarationDescriptor::default())
+            .unwrap();
 
         assert_node!(parser.tree, let_id, Expression::Let { declarators, mutability, .. } => {
             assert_eq!(*mutability, Mutability::Immutable);
@@ -241,7 +243,10 @@ var x: float64[3] = undefined
         let mut parser = test.prepare();
         parser.eat_newline().unwrap();
 
-        let let_id = parser.eat_let(DeclarationDescriptor::default()).unwrap();
+        let start = parser.mark();
+        let let_id = parser
+            .eat_let(start, DeclarationDescriptor::default())
+            .unwrap();
 
         assert_node!(parser.tree, let_id, Expression::Let { declarators, mutability, .. } => {
             // var (mutable)
@@ -276,7 +281,10 @@ const (x, y) = foo()
         let mut parser = test.prepare();
         parser.eat_newline().unwrap();
 
-        let let_id = parser.eat_let(DeclarationDescriptor::default()).unwrap();
+        let start = parser.mark();
+        let let_id = parser
+            .eat_let(start, DeclarationDescriptor::default())
+            .unwrap();
 
         assert_node!(parser.tree, let_id, Expression::Let { declarators, mutability, .. } => {
             // let (immutable)
@@ -311,7 +319,10 @@ const (x, y) = foo()
         let mut test = TestParser::new("const x: int32");
         let mut parser = test.prepare();
 
-        let let_id = parser.eat_let(DeclarationDescriptor::default()).unwrap();
+        let start = parser.mark();
+        let let_id = parser
+            .eat_let(start, DeclarationDescriptor::default())
+            .unwrap();
 
         // let x: int32
         assert_node!(parser.tree, let_id, Expression::Let { declarators, mutability, .. } => {
@@ -340,7 +351,10 @@ const x =
         let mut parser = test.prepare();
         parser.eat_newline().unwrap();
 
-        let let_id = parser.eat_let(DeclarationDescriptor::default()).unwrap();
+        let start = parser.mark();
+        let let_id = parser
+            .eat_let(start, DeclarationDescriptor::default())
+            .unwrap();
 
         // const x = foo.parse()
         assert_node!(parser.tree, let_id, Expression::Let { declarators, mutability, .. } => {
@@ -425,7 +439,10 @@ const registry: Map<
     fn test_parse_let_multiple_declarators() {
         let mut test = TestParser::new("let a: int32 = 1, b: string = \"hello\"");
         let mut parser = test.prepare();
-        let let_id = parser.eat_let(DeclarationDescriptor::default()).unwrap();
+        let start = parser.mark();
+        let let_id = parser
+            .eat_let(start, DeclarationDescriptor::default())
+            .unwrap();
         assert_node!(parser.tree, let_id, Expression::Let { declarators, mutability, .. } => {
             assert_eq!(*mutability, Mutability::Mutable);
             assert_eq!(declarators.len(), 2);
