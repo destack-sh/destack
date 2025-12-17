@@ -4,7 +4,7 @@ use crate::Span;
 
 /// The type of node search to perform.
 #[derive(Debug, Copy, Clone, PartialEq)]
-pub enum NodeSearch {
+pub enum NodeSearchMode {
     /// Search for the biggest outermost node that matches.
     BiggestOutermost,
     /// Search for the smallest outermost node that matches.

@@ -69,15 +69,21 @@ impl<'ast> Format<DestackFormatContext<'ast>> for TreeExpressionArgument {
                         | Expression::TreeExpression { .. }
                 );
                 if needs_braces {
-                    // group expression container for proper indentation when it breaks
-                    write!(
-                        f,
-                        [group(&format_args![
-                            token("{"),
-                            soft_block_indent(&value),
-                            token("}")
-                        ])]
-                    )?;
+                    // for comment-only containers (stub), use soft_block_indent
+                    // for regular expressions, keep inline to preserve ternary formatting
+                    let is_comment_only = matches!(value_expr, Expression::Stub);
+                    if is_comment_only {
+                        write!(
+                            f,
+                            [group(&format_args![
+                                token("{"),
+                                soft_block_indent(&value),
+                                token("}")
+                            ])]
+                        )?;
+                    } else {
+                        write!(f, [token("{"), value, token("}")])?;
+                    }
                 } else {
                     write!(f, [value])?;
                 }
@@ -295,6 +301,26 @@ fn get_argument_value(
     }
 }
 
+/// Check if an argument list contains a single multi-line JSX element.
+/// Multi-line JSX (with children) should not be hugged in function calls.
+#[inline]
+fn has_multiline_jsx_argument(tree: &NodeTree, arguments: &[LocalNodeId<Argument>]) -> bool {
+    if arguments.len() != 1 {
+        return false;
+    }
+
+    let Some(value_id) = get_argument_value(tree, arguments[0]) else {
+        return false;
+    };
+
+    // check if it's a JSX element with children
+    if let Expression::TreeExpression { elements, .. } = tree.get(value_id) {
+        elements.as_ref().is_some_and(|e| !e.is_empty())
+    } else {
+        false
+    }
+}
+
 /// Check if an expression is huggable with the given configuration.
 #[inline]
 fn is_huggable_expression(
@@ -327,7 +353,7 @@ fn is_huggable_expression(
 /// Returns true if hugging was applied, false if regular list_like should be used.
 fn format_hugged<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
-    arguments: &Vec<LocalNodeId<Argument>>,
+    arguments: &[LocalNodeId<Argument>],
     config: HugOptions,
 ) -> FormatResult<bool> {
     // only hug single positional arguments
@@ -671,7 +697,12 @@ fn format_call_expression<'ast>(
 
         // try hugged format for single object/array arguments
         if !format_hugged(f, dynamic_arguments, HugOptions::CALL)? {
-            write!(f, [list_like("(", ")", ",", dynamic_arguments)])?;
+            // force expansion when single argument is multi-line JSX
+            let force_expand = has_multiline_jsx_argument(f.context().tree, dynamic_arguments);
+            write!(
+                f,
+                [list_like("(", ")", ",", dynamic_arguments).should_expand(force_expand)]
+            )?;
         }
     } else {
         debug_assert!(false, "unexpected expression kind for call formatter");
@@ -1352,32 +1383,62 @@ pub(crate) fn format_tree_literal<'ast>(
 
             // body
             if let Some(elements) = elements {
-                // Check if source has newlines in the tree body
+                // check if source has newlines in the tree body
                 let span = f.context().get_span(expression_id);
                 let source_has_newline = f.context().has_newline(span);
 
-                // Check child types for formatting decisions
+                // check child types for formatting decisions
                 let has_multiple_elements = elements.len() > 1;
+                let tree = f.context().tree;
                 let element_children_count = elements
                     .iter()
                     .filter(|elem_id| {
-                        let arg = f.context().tree.get(**elem_id);
+                        let arg = tree.get(**elem_id);
                         if let Argument::Positional { value } = arg {
-                            matches!(
-                                f.context().tree.get(*value),
-                                Expression::TreeExpression { .. }
-                            )
+                            matches!(tree.get(*value), Expression::TreeExpression { .. })
                         } else {
                             false
                         }
                     })
                     .count();
 
-                // Force breaking when:
+                // check if any child has complex content (block expressions)
+                let has_complex_child = elements.iter().any(|elem_id| {
+                    let arg = tree.get(*elem_id);
+                    if let Argument::Positional { value } = arg {
+                        // check for call with callback that has block body
+                        if let Expression::Call {
+                            dynamic_arguments, ..
+                        } = tree.get(*value)
+                        {
+                            dynamic_arguments.iter().any(|arg_id| {
+                                if let Argument::Positional { value: arg_val } = tree.get(*arg_id)
+                                    && let Expression::Declaration(decl_id) = tree.get(*arg_val)
+                                    && let Declaration::Function {
+                                        body: Some(body_id),
+                                        ..
+                                    } = tree.get(*decl_id)
+                                {
+                                    return matches!(tree.get(*body_id), Expression::Block(_));
+                                }
+                                false
+                            })
+                        } else {
+                            false
+                        }
+                    } else {
+                        false
+                    }
+                });
+
+                // force breaking when:
                 // - Source has newlines (preserve author's formatting intent), OR
-                // - ALL children are tree elements and there are multiple
+                // - ALL children are tree elements and there are multiple, OR
+                // - Any child has complex content (callbacks with block body)
                 let all_elements = element_children_count == elements.len();
-                let force_break = source_has_newline || (all_elements && has_multiple_elements);
+                let force_break = source_has_newline
+                    || (all_elements && has_multiple_elements)
+                    || has_complex_child;
 
                 // Format children using TreeExpressionArgument for proper brace handling
                 let format_children = format_with(|f| {
@@ -1818,22 +1879,41 @@ pub(crate) fn format_expression<'ast>(
             write!(f, [token("return")])?;
             if let Some(value_id) = value {
                 let value_expr = tree.get(*value_id);
-                // For JSX returns, wrap in parens when breaking (Prettier convention)
-                if let Expression::TreeExpression { .. } = value_expr {
-                    let format_inline = format_with(|f| {
-                        write!(f, [space(), value_id])
-                    });
-                    let format_wrapped = format_with(|f| {
-                        write!(f, [
-                            space(),
-                            token("("),
-                            soft_block_indent(&value_id),
-                            token(")")
-                        ])
-                    });
-                    best_fitting![format_inline, format_wrapped]
-                        .with_mode(BestFittingMode::AllLines)
-                        .format(f)?;
+                // for JSX returns, wrap in parens when multi-line (Prettier convention)
+                // JSX with children will always be multi-line, so always wrap those
+                if let Expression::TreeExpression { elements, .. } = value_expr {
+                    let has_children = elements.as_ref().is_some_and(|e| !e.is_empty());
+                    if has_children {
+                        // multi-line JSX: wrap in parens with block indent
+                        write!(
+                            f,
+                            [
+                                space(),
+                                token("("),
+                                block_indent(value_id),
+                                hard_line_break(),
+                                token(")")
+                            ]
+                        )?;
+                    } else {
+                        // self-closing or no children: use best_fitting
+                        let format_inline = format_with(|f| write!(f, [space(), value_id]));
+                        let format_wrapped = format_with(|f| {
+                            write!(
+                                f,
+                                [
+                                    space(),
+                                    token("("),
+                                    block_indent(value_id),
+                                    hard_line_break(),
+                                    token(")")
+                                ]
+                            )
+                        });
+                        best_fitting![format_inline, format_wrapped]
+                            .with_mode(BestFittingMode::AllLines)
+                            .format(f)?;
+                    }
                 } else {
                     write!(f, [space(), value_id])?;
                 }
@@ -2254,8 +2334,15 @@ fn format_declarator<'ast>(
         return Ok(());
     };
 
+    let value_expr = tree.get(*value_id);
     let pattern_breakable = is_pattern_breakable(tree, *pattern);
-    let value_breakable = is_expression_breakable(tree, tree.get(*value_id));
+    let value_breakable = is_expression_breakable(tree, value_expr);
+
+    // string literals are atomic - never break at `=` (Prettier behavior)
+    let is_string_literal = matches!(
+        value_expr,
+        Expression::ScalarLiteral(ScalarLiteral::String(_)) | Expression::TemplateExpression { .. }
+    );
 
     // prefer keeping the value on a single line
     let format_inline = format_with(|f| {
@@ -2304,29 +2391,40 @@ fn format_declarator<'ast>(
         .format(f)
     });
 
-    match (pattern_breakable, value_breakable) {
-        (true, true) => {
-            best_fitting![
-                format_inline,
-                format_value_expanded,
-                format_header_expanded,
-                format_indented
-            ]
-            .with_mode(BestFittingMode::AllLines)
-            .format(f)?;
-        }
-        (true, false) => {
-            best_fitting![format_inline, format_header_expanded, format_indented]
+    // for string literals, never break at `=` - just let them exceed line width
+    if is_string_literal {
+        if pattern_breakable {
+            best_fitting![format_inline, format_header_expanded]
                 .with_mode(BestFittingMode::AllLines)
                 .format(f)?;
+        } else {
+            write!(f, [format_inline])?;
         }
-        (false, true) => {
-            best_fitting![format_inline, format_value_expanded, format_indented]
+    } else {
+        match (pattern_breakable, value_breakable) {
+            (true, true) => {
+                best_fitting![
+                    format_inline,
+                    format_value_expanded,
+                    format_header_expanded,
+                    format_indented
+                ]
                 .with_mode(BestFittingMode::AllLines)
                 .format(f)?;
-        }
-        (false, false) => {
-            best_fitting![format_inline, format_indented].format(f)?;
+            }
+            (true, false) => {
+                best_fitting![format_inline, format_header_expanded, format_indented]
+                    .with_mode(BestFittingMode::AllLines)
+                    .format(f)?;
+            }
+            (false, true) => {
+                best_fitting![format_inline, format_value_expanded, format_indented]
+                    .with_mode(BestFittingMode::AllLines)
+                    .format(f)?;
+            }
+            (false, false) => {
+                best_fitting![format_inline, format_indented].format(f)?;
+            }
         }
     }
 

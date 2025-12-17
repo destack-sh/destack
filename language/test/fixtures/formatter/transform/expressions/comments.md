@@ -42,9 +42,11 @@ const x = /* pre-A */ A /* A comment */ && B /* B comment */;
 
 ## Comments Causing Expansion
 
-### comment in object causes expansion
+### _comment in object causes expansion
 
 Objects with internal comments expand to multiple lines.
+
+// #Broken: Parser doesn't handle comments before object properties yet.
 
 ```ds
 { /* key */ a: 1, /* another */ b: 2 }

@@ -447,16 +447,17 @@ const data = await fetch(url);
 
 ### await in chain
 
-Await works with method chains.
+Await works with method chains. Long expressions use method chaining style.
 
 ```ds line-width=40
 const json = await fetch(url).then((r) => r.json())
 ```
 
 ```ds expected
-const json = await fetch(url).then(
-    (r) => r.json(),
-);
+const json =
+    await fetch(url)
+        .then((r) => r.json())
+;
 ```
 
 ### multiple awaits in expression

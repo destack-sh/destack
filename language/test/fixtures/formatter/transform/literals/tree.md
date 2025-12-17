@@ -207,13 +207,13 @@ Boolean attributes can omit the value.
 Comments inside JSX use expression containers. Block infix comments cause expansion with proper indent.
 
 ```ds
-<Container>{/* TODO: add content */}</Container>
+<Container>{/* XOXO: something something add content */}</Container>
 ```
 
 ```ds expected
 <Container>
     {
-        /* TODO: add content */
+        /* XOXO: something something add content */
     }
 </Container>;
 ```
@@ -236,7 +236,7 @@ Map expressions can generate multiple elements.
 
 ### long map with block body
 
-Map with block body breaks appropriately.
+Map with block body breaks appropriately. Return JSX gets parens when multi-line.
 
 ```ds line-width=40
 <List>{items.map((item) => { return <Item key={item.id} name={item.name} /> })}</List>
@@ -245,10 +245,12 @@ Map with block body breaks appropriately.
 ```ds expected
 <List>
     {items.map((item) => {
-        return <Item
-            key={item.id}
-            name={item.name}
-        />
+        return (
+            <Item
+                key={item.id}
+                name={item.name}
+            />
+        )
     })}
 </List>;
 ```
@@ -330,19 +332,19 @@ render(<App />);
 
 ### jsx with props in function call
 
-JSX with attributes in function arguments.
+JSX with attributes in function arguments. Boolean `{true}` uses shorthand.
 
 ```ds
 createPortal(<Modal isOpen={true} />, document.body)
 ```
 
 ```ds expected
-createPortal(<Modal isOpen={true} />, document.body);
+createPortal(<Modal isOpen />, document.body);
 ```
 
 ### complex jsx in function call breaks
 
-Complex JSX in function call breaks appropriately.
+Complex JSX in function call breaks to new line (Prettier style).
 
 ```ds line-width=40
 render(<Container><Header /><Content /></Container>)
