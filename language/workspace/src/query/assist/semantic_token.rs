@@ -198,7 +198,8 @@ pub fn semantic_tokens(session: &Session, file: FileId) -> Vec<SemanticToken> {
             }
 
             tokens.push(
-                SemanticToken::new(main_span, SemanticTokenType::Variable).with_modifiers(modifiers),
+                SemanticToken::new(main_span, SemanticTokenType::Variable)
+                    .with_modifiers(modifiers),
             );
         }
     }

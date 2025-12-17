@@ -166,3 +166,24 @@ pub fn type_hierarchy_item_to_lsp(
         data: None,
     })
 }
+
+/// Convert a workspace symbol to an LSP workspace symbol.
+#[allow(deprecated)]
+pub fn workspace_symbol_to_lsp(
+    session: &Session,
+    symbol: &query::WorkspaceSymbol,
+) -> Option<lsp::SymbolInformation> {
+    let file = session.files.get(symbol.file);
+    let uri = file.uri.as_ref().parse::<lsp::Uri>().ok()?;
+    let range = byte_span_to_range(&file, symbol.range);
+    let kind = symbol_kind_to_lsp(symbol.kind);
+
+    Some(lsp::SymbolInformation {
+        name: symbol.name.clone(),
+        kind,
+        tags: None,
+        deprecated: None,
+        location: lsp::Location { uri, range },
+        container_name: symbol.container.clone(),
+    })
+}
