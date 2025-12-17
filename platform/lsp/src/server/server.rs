@@ -741,7 +741,7 @@ impl LanguageServer for DestackLanguageServer {
             .unwrap_or_default();
 
         // format the file
-        let Some(formatted) = format_file(&file, formatter) else {
+        let Some(formatted) = format_file(session, doc.file_id, &file, formatter) else {
             return Ok(None);
         };
 
@@ -847,9 +847,46 @@ fn completion_kind_to_lsp(kind: query::CompletionKind) -> lsp::CompletionItemKin
 }
 
 /// Format a file and return the formatted content.
-fn format_file(file: &Arc<File>, formatter: FormatterOptions) -> Option<String> {
-    // parse file
+/// Uses the module's pre-parsed AST when available, falls back to re-parsing.
+fn format_file(
+    session: &Session,
+    file_id: FileId,
+    file: &Arc<File>,
+    formatter: FormatterOptions,
+) -> Option<String> {
     let language_type = LanguageType::from(file.ty);
+    let format_options = DestackFormatOptions {
+        language_type,
+        line_ending: formatter.line_ending,
+        indent_style: formatter.indent_style,
+        indent_width: formatter.indent_width,
+        line_width: formatter.line_width,
+    };
+
+    // try to use module's pre-parsed AST
+    if let Some(module_lock) = query::get_module_by_file_id(session, file_id) {
+        let module = module_lock.read();
+        if !module.ast.tokens.is_empty() {
+            // use module's AST
+            let side_span = Parser::compute_side_span_from_tree(&module.ast.tree);
+            let strings = module.ast.strings.clone().into_immutable();
+            let context = DestackFormatContext {
+                options: format_options,
+                file: file.as_ref(),
+                tree: &module.ast.tree,
+                source_map: &module.ast.tree.source_map,
+                parents: module.ast.parents.clone(),
+                tokens: &module.ast.tokens,
+                side_tokens: &module.ast.side_tokens,
+                side_span: &side_span,
+                strings: &strings,
+            };
+
+            return format_expressions(&context, &module.ast.roots);
+        }
+    }
+
+    // fallback if module doesn't have AST yet, parse file
     let mut parser = Parser::lex_file(file.clone(), language_type);
     let expressions = parser.parse();
     parser.finish();
@@ -866,13 +903,6 @@ fn format_file(file: &Arc<File>, formatter: FormatterOptions) -> Option<String> 
     let side_span = parser.compute_side_span();
     let strings = parser.strings.into_immutable();
     let parents = NodeParentIndex::from_tree(&parser.tree);
-    let format_options = DestackFormatOptions {
-        language_type,
-        line_ending: formatter.line_ending,
-        indent_style: formatter.indent_style,
-        indent_width: formatter.indent_width,
-        line_width: formatter.line_width,
-    };
     let context = DestackFormatContext {
         options: format_options,
         file: file.as_ref(),
@@ -885,7 +915,15 @@ fn format_file(file: &Arc<File>, formatter: FormatterOptions) -> Option<String> 
         strings: &strings,
     };
 
-    // format each expression
+    format_expressions(&context, &expressions)
+}
+
+/// Format expressions and return the result string.
+fn format_expressions<T>(context: &DestackFormatContext<'_>, expressions: &[T]) -> Option<String>
+where
+    T: Copy,
+    for<'a> T: destack_fir::format::Format<DestackFormatContext<'a>>,
+{
     let mut result = String::new();
     for (i, expr) in expressions.iter().enumerate() {
         let formatted = fir_format!(context.clone(), [expr]).ok()?;
