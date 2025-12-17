@@ -20,7 +20,7 @@ use crate::query::diagnostic::{code_action_to_lsp, diagnostic_to_lsp_diagnostic}
 use crate::query::navigation::{
     call_hierarchy_item_to_lsp, definition_to_location, document_highlight_to_lsp,
     document_link_to_lsp, document_symbol_to_lsp, implementation_to_location,
-    selection_range_to_lsp, type_hierarchy_item_to_lsp,
+    selection_range_to_lsp, type_hierarchy_item_to_lsp, workspace_symbol_to_lsp,
 };
 use crate::query::refactor::batch_edit_to_workspace_edit;
 use crate::query::semantic;
@@ -166,6 +166,7 @@ impl LanguageServer for DestackLanguageServer {
             type_definition_provider: Some(lsp::TypeDefinitionProviderCapability::Simple(true)),
             references_provider: Some(lsp::OneOf::Left(true)),
             document_symbol_provider: Some(lsp::OneOf::Left(true)),
+            workspace_symbol_provider: Some(lsp::OneOf::Left(true)),
             document_highlight_provider: Some(lsp::OneOf::Left(true)),
             completion_provider: Some(lsp::CompletionOptions {
                 trigger_characters: Some(vec![".".to_string(), ":".to_string()]),
@@ -515,6 +516,29 @@ impl LanguageServer for DestackLanguageServer {
             Ok(None)
         } else {
             Ok(Some(lsp::DocumentSymbolResponse::Nested(lsp_symbols)))
+        }
+    }
+
+    async fn symbol(
+        &self,
+        params: lsp::WorkspaceSymbolParams,
+    ) -> jsonrpc::Result<Option<lsp::OneOf<Vec<lsp::SymbolInformation>, Vec<lsp::WorkspaceSymbol>>>>
+    {
+        let session = self.session();
+
+        // query workspace symbols
+        let symbols = query::workspace_symbols(session, &params.query);
+
+        // convert to LSP
+        let lsp_symbols: Vec<lsp::SymbolInformation> = symbols
+            .iter()
+            .filter_map(|s| workspace_symbol_to_lsp(session, s))
+            .collect();
+
+        if lsp_symbols.is_empty() {
+            Ok(None)
+        } else {
+            Ok(Some(lsp::OneOf::Left(lsp_symbols)))
         }
     }
 

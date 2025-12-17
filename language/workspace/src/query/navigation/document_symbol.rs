@@ -1,7 +1,8 @@
 use std::panic;
 
-use destack_dir::Declaration;
 use destack_source::{FileId, Span};
+use dir::Declaration;
+use {destack_ast as ast, destack_dir as dir};
 
 use crate::Session;
 use crate::query::common::get_module_by_file_id;
@@ -183,15 +184,19 @@ pub fn workspace_symbols(session: &Session, query: &str) -> Vec<WorkspaceSymbol>
 
             // get the kind based on declaration type
             let kind = match declaration {
-                Declaration::Function { .. } => SymbolKind::Function,
-                Declaration::Struct { .. } => SymbolKind::Struct,
-                Declaration::Class { .. } => SymbolKind::Class,
-                Declaration::Interface { .. } => SymbolKind::Interface,
-                Declaration::Enum { .. } => SymbolKind::Enum,
-                Declaration::Namespace { .. } => SymbolKind::Namespace,
-                Declaration::Type { .. } => SymbolKind::TypeParameter,
-                Declaration::Extension { .. } => SymbolKind::Class,
+                dir::Declaration::Function { .. } => SymbolKind::Function,
+                dir::Declaration::Struct { .. } => SymbolKind::Struct,
+                dir::Declaration::Class { .. } => SymbolKind::Class,
+                dir::Declaration::Interface { .. } => SymbolKind::Interface,
+                dir::Declaration::Enum { .. } => SymbolKind::Enum,
+                dir::Declaration::Namespace { .. } => SymbolKind::Namespace,
+                dir::Declaration::Type { .. } => SymbolKind::TypeParameter,
+                dir::Declaration::Extension { .. } => SymbolKind::Class,
             };
+
+            // find container by walking up parent tree
+            let container =
+                find_container_name(&dir_tree, &module_guard.ast.strings, declaration_id.id);
 
             // get span (safely, skipping if out of bounds)
             let ast_node_id = dir_tree.get_source(declaration_id.id);
@@ -208,10 +213,39 @@ pub fn workspace_symbols(session: &Session, query: &str) -> Vec<WorkspaceSymbol>
                 kind,
                 file,
                 range: full_span,
-                container: None,
+                container,
             });
         }
     }
 
     symbols
+}
+
+/// Find the container name for a node by walking up the parent tree.
+/// NOTE #Performance: find workspace symbol containers more efficiently?
+fn find_container_name(
+    dir_tree: &dir::NodeTree,
+    strings: &ast::StringPool,
+    node_id: u32,
+) -> Option<String> {
+    let mut current_id = node_id;
+
+    // walk up parent chain
+    while let Some(parent) = dir_tree.get_parent(current_id) {
+        if parent.ty == dir::NodeType::Declaration {
+            // found a parent declaration, get its name
+            let Ok(decl_id) = dir::LocalNodeId::<dir::Declaration>::try_from(parent) else {
+                current_id = parent.id;
+                continue;
+            };
+            let parent_decl = dir_tree.get(decl_id);
+            let descriptor = parent_decl.descriptor();
+            if let Some(name_id) = descriptor.name {
+                return Some(strings.get(name_id).to_string());
+            }
+        }
+        current_id = parent.id;
+    }
+
+    None
 }

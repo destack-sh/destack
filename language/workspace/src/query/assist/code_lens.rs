@@ -1,6 +1,8 @@
-use destack_source::{FileId, Span};
+use destack_dir::{self as dir, Expression, GlobalSymbolId, SymbolType};
+use destack_source::{FileId, NodeSpanType, Span};
 
 use crate::Session;
+use crate::query::common::{get_canonical_symbol, get_module_by_file_id};
 
 /// A code lens (inline annotation with optional command).
 #[derive(Debug, Clone)]
@@ -100,20 +102,161 @@ impl CodeLens {
 ///
 /// Code lenses appear as inline annotations above functions, classes, etc.
 /// Common uses: reference counts, "Run Test" buttons, implementation counts.
-pub fn code_lenses(_session: &Session, _file: FileId) -> Vec<CodeLens> {
-    // 1. walk the file's declarations
-    // 2. for functions/methods: count references, add "N references" lens
-    // 3. for interfaces/abstract classes: count implementations
-    // 4. for test functions: add "Run Test" lens
-    // 5. for main functions: add "Run" lens
-    todo!("#Incomplete: code_lenses")
+pub fn code_lenses(session: &Session, file: FileId) -> Vec<CodeLens> {
+    let Some(module) = get_module_by_file_id(session, file) else {
+        return Vec::new();
+    };
+
+    let mut lenses = Vec::new();
+    let module_guard = module.read();
+    let module_id = module_guard.id;
+    let dir_tree = module_guard.dir.tree.read();
+    let symbols = module_guard.dir.symbols.read();
+
+    // collect declarations and their info
+    let declarations: Vec<_> = dir_tree
+        .iter_nodes_of_type::<dir::Declaration>()
+        .map(|(decl_id, decl)| {
+            let symbol_id = decl.symbol();
+            let ast_node_id = dir_tree.get_source(decl_id.id);
+            let main_span = module_guard
+                .ast
+                .tree
+                .get_side_span_by_id(ast_node_id, NodeSpanType::Main);
+            let name = symbols
+                .get_symbol(symbol_id)
+                .name()
+                .map(|id| module_guard.ast.strings.get(id).to_string());
+            let symbol_type = symbols.get_symbol(symbol_id).ty;
+            (
+                decl.clone(),
+                GlobalSymbolId {
+                    module_id,
+                    local_id: symbol_id,
+                },
+                main_span,
+                name,
+                symbol_type,
+            )
+        })
+        .collect();
+
+    drop(symbols);
+    drop(dir_tree);
+    drop(module_guard);
+
+    for (declaration, global_symbol_id, main_span, name, symbol_type) in declarations {
+        let Some(span) = main_span else {
+            continue;
+        };
+
+        // count references for functions/methods
+        if matches!(declaration, dir::Declaration::Function { .. }) {
+            let ref_count = count_references(session, global_symbol_id);
+            if ref_count > 0 {
+                lenses.push(CodeLens::references(span, ref_count));
+            }
+
+            // check if it's a test function
+            if let Some(ref fn_name) = name
+                && is_test_function(fn_name)
+            {
+                lenses.push(CodeLens::run_test(span, fn_name.clone()));
+            }
+        }
+
+        // count implementations for interfaces
+        if symbol_type == SymbolType::Interface {
+            let impl_count = count_implementations(session, global_symbol_id);
+            if impl_count > 0 {
+                lenses.push(CodeLens::implementations(span, impl_count));
+            }
+        }
+
+        // count subclasses for classes
+        if symbol_type == SymbolType::Class {
+            let subclass_count = count_subclasses(session, global_symbol_id);
+            if subclass_count > 0 {
+                lenses.push(CodeLens::implementations(span, subclass_count));
+            }
+        }
+    }
+
+    // sort lenses by position
+    lenses.sort_by_key(|l| l.range.start);
+    lenses
+}
+
+/// Count references to a symbol across all modules.
+fn count_references(session: &Session, symbol_id: GlobalSymbolId) -> usize {
+    let canonical_id = get_canonical_symbol(session, symbol_id);
+    let mut count = 0;
+
+    for module in session.modules.iter() {
+        let module_guard = module.read();
+        let dir_tree = module_guard.dir.tree.read();
+
+        for (_, expr) in dir_tree.iter_nodes_of_type::<Expression>() {
+            if let Some(target) = expr.target_symbol() {
+                let target_canonical = get_canonical_symbol(session, target);
+                if target_canonical == canonical_id {
+                    count += 1;
+                }
+            }
+        }
+    }
+
+    count
+}
+
+/// Count implementations of an interface across all modules.
+fn count_implementations(session: &Session, symbol_id: GlobalSymbolId) -> usize {
+    let canonical_id = get_canonical_symbol(session, symbol_id);
+    let mut count = 0;
+
+    for module in session.modules.iter() {
+        let module_guard = module.read();
+        let types = module_guard.dir.types.read();
+
+        for (_, lineage) in types.iter_lineages() {
+            if lineage.directly_implements(canonical_id) {
+                count += 1;
+            }
+        }
+    }
+
+    count
+}
+
+/// Count subclasses of a class across all modules.
+fn count_subclasses(session: &Session, symbol_id: GlobalSymbolId) -> usize {
+    let canonical_id = get_canonical_symbol(session, symbol_id);
+    let mut count = 0;
+
+    for module in session.modules.iter() {
+        let module_guard = module.read();
+        let types = module_guard.dir.types.read();
+
+        for (_, lineage) in types.iter_lineages() {
+            if lineage.directly_extends(canonical_id) {
+                count += 1;
+            }
+        }
+    }
+
+    count
+}
+
+/// Check if a function name indicates it's a test.
+fn is_test_function(name: &str) -> bool {
+    name.starts_with("test_") || name.starts_with("test") || name == "test"
 }
 
 /// Resolve a code lens (compute its command if deferred).
 ///
 /// Some lenses defer computation until the user hovers/clicks.
-pub fn resolve_code_lens(_session: &Session, _lens: &CodeLens) -> CodeLens {
+pub fn resolve_code_lens(_session: &Session, lens: &CodeLens) -> CodeLens {
     // For now, lenses are fully resolved on creation
     // This hook exists for expensive computations that should be deferred
-    todo!("#Incomplete: resolve_code_lens")
+    lens.clone()
 }

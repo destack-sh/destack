@@ -20,7 +20,6 @@ fn main() {
         Command::Lsp(args) => lsp::run(&args),
         #[cfg(feature = "dev")]
         Command::Dev(subcommand) => match subcommand {
-            DevCommand::Lex(args) => dev::lex::run(&args),
             DevCommand::Parse(args) => dev::parse::run(&args),
             DevCommand::Dir(args) => dev::dir::run(&args),
             DevCommand::Resolve(args) => dev::resolve::run(&args),
