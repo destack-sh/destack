@@ -164,7 +164,6 @@ Subjective preferences for consistent coding style.
 | `prefer-expression` | Destack | AST | ✓ | ✅ | `let x; if (...) x=a` → `const x = if (...) { a }` |
 | `prefer-implicit-return` | Destack | AST | ✓ | ✅ | `return x` → `x` |
 | `prefer-loop` | Destack | AST | ✓ | ✅ | Prefer explicit `loop` over `while(true)` or `for(;;)` |
-| `prefer-newtype-over-alias` | Destack | DIR | ✗ | 🟡 | Type alias → newtype |
 | `prefer-object-spread` | ESLint | DIR | ✗ | 🟡 | Needs `Object.assign` builtin check |
 | `prefer-range-literal` | Destack | AST | ✓ | ✅ | `for (let i=0; i<n; i++)` → `for i of 0..n` |
 | `prefer-struct-over-class` | Destack | DIR | ✗ | 🟡 | Needs usage analysis |
@@ -213,8 +212,8 @@ Opt-in rules that ban certain patterns by project choice.
 | `no-process-exit` | Unicorn | DIR | ✗ | 🟡 | Needs `process` builtin check |
 | `no-require-imports` | TS-ESLint | AST | ✗ | 🟡 | Needs `require` builtin check |
 | `no-sequences` | ESLint | AST | ✓ | ✅ | Comma operator (JS/TS only) |
+| `no-struct` | Destack | AST | ✓ | ✅ | Prefer class over struct |
 | `no-ternary` | ESLint | AST | ✓ | ✅ | Ternary operator |
-| `no-warning-comments` | ESLint | AST | ✗ | 🟡 | Needs comment API |
 | `strict-boolean-expressions` | TS-ESLint | DIR | ✗ | 🔶 | No truthy/falsy |
 
 ## Pedantic (D)
@@ -225,17 +224,15 @@ Very strict or opinionated checks that may be too noisy.
 
 | Rule | Source | Level | Ready | Status | Notes |
 |------|--------|-------|-------|--------|-------|
-| `consistent-return` | ESLint | DIR | ✗ | 🟡 | Needs flow analysis |
 | `explicit-function-return-type` | TS-ESLint | AST | ✓ | ✅ | Explicit return types |
 | `explicit-length-check` | Unicorn | DIR | ✗ | 🟡 | Needs type info |
 | `guard-for-in` | ESLint | AST | ✗ | 🟡 | `hasOwnProperty` in for-in |
 | `no-caller` | ESLint | AST | ✗ | 🟡 | `arguments.caller` |
 | `no-extend-native` | ESLint | DIR | ✗ | 🟡 | Needs prototype tracking |
 | `no-inferrable-types` | TS-ESLint | DIR | ✗ | 🟡 | Needs type inference |
-| `no-iterator` | ESLint | AST | ✓ | 🟡 | `__iterator__` property |
 | `no-param-reassign` | ESLint | DIR | ✗ | 🟡 | Needs symbol tracking |
 | `no-shadow` | ESLint | DIR | ✗ | 🟡 | Needs scope analysis |
-| `no-unreadable-array-destructuring` | Unicorn | AST | ✓ | 🟡 | Too many holes `[,,,x]` |
+| `no-unreadable-array-destructuring` | Unicorn | AST | ✗ | 🟡 | Needs elision pattern parsing |
 | `no-use-before-define` | ESLint | DIR | ✗ | 🟡 | Needs declaration order |
 | `prefer-nullish-coalescing` | TS-ESLint | DIR | ✗ | 🔶 | `??` vs `\|\|` |
 | `radix` | ESLint | DIR | ✗ | 🟡 | Needs `parseInt` builtin check |

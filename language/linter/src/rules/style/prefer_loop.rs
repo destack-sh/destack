@@ -62,19 +62,19 @@ impl LintRule for PreferLoop {
 }
 
 /// Check if an expression is always truthy (true or 1).
-fn is_always_true(tree: &ast::NodeTree, expr_id: ast::LocalNodeId<ast::Expression>) -> bool {
-    let expr = tree.get(expr_id);
+fn is_always_true(tree: &ast::NodeTree, expression_id: ast::LocalNodeId<ast::Expression>) -> bool {
+    let expression = tree.get(expression_id);
 
     // unwrap parentheses
-    if let ast::Expression::Parenthesized { expression } = expr {
+    if let ast::Expression::Parenthesized { expression } = expression {
         return is_always_true(tree, *expression);
     }
 
-    match expr {
-        ast::Expression::ScalarLiteral(ScalarLiteral::Boolean(true)) => true,
-        ast::Expression::ScalarLiteral(ScalarLiteral::Integer(1)) => true,
-        _ => false,
-    }
+    matches!(
+        expression,
+        ast::Expression::ScalarLiteral(ScalarLiteral::Boolean(true))
+            | ast::Expression::ScalarLiteral(ScalarLiteral::Integer(1))
+    )
 }
 
 #[cfg(test)]

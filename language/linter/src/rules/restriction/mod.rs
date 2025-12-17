@@ -11,6 +11,7 @@ mod no_namespace;
 mod no_non_null_assertion;
 mod no_plusplus;
 mod no_sequences;
+mod no_struct;
 mod no_ternary;
 
 pub use no_anonymous_default_export::*;
@@ -24,6 +25,7 @@ pub use no_namespace::*;
 pub use no_non_null_assertion::*;
 pub use no_plusplus::*;
 pub use no_sequences::*;
+pub use no_struct::*;
 pub use no_ternary::*;
 
 /// Get all restriction rules.
@@ -40,6 +42,7 @@ pub fn rules() -> Vec<BoxedLintRule> {
         Box::new(NoNonNullAssertion),
         Box::new(NoPlusplus),
         Box::new(NoSequences),
+        Box::new(NoStruct),
         Box::new(NoTernary),
     ]
 }
