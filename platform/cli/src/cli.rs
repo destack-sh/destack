@@ -4,7 +4,9 @@ use clap::Parser;
 
 #[cfg(feature = "dev")]
 use crate::command::DevCommand;
-use crate::command::{BuildArgs, CheckArgs, CleanArgs, FmtArgs, InitArgs, LintArgs, LspArgs, RunArgs};
+use crate::command::{
+    BuildArgs, CheckArgs, CleanArgs, FmtArgs, InitArgs, LintArgs, LspArgs, RunArgs,
+};
 use crate::common::TracingArgs;
 
 #[derive(Parser, Debug)]

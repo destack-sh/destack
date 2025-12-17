@@ -35,21 +35,19 @@ pub fn find_symbol_at_offset(
         .tree
         .source_map
         .get_enclosing_spans(offset, offset);
-
     if enclosing.is_empty() {
         return None;
     }
 
     // sort by length (smallest first) to get most specific node
     let mut enclosing = enclosing;
-    enclosing.sort_by_key(|e| e.length);
-
-    let dir_tree = module_guard.dir.tree.read();
+    enclosing.sort_by_key(|e| e.length); // nocheckin #Suspicious: use source map sort?
 
     // try each AST node from smallest to largest
-    for enc in &enclosing {
+    let dir_tree = module_guard.dir.tree.read();
+    for enclosing_span in &enclosing {
         // try to get the DIR node for this AST node
-        let Some(dir_node_id) = dir_tree.get_node_id_by_source_id(enc.idx) else {
+        let Some(dir_node_id) = dir_tree.get_node_id_by_source_id(enclosing_span.idx) else {
             continue;
         };
 
@@ -64,7 +62,11 @@ pub fn find_symbol_at_offset(
                     return Some(SymbolAtOffset {
                         symbol_id: target_symbol,
                         node_id: dir_node_id,
-                        span: Span::new(file_id, enc.span.start, enc.span.end),
+                        span: Span::new(
+                            file_id,
+                            enclosing_span.span.start,
+                            enclosing_span.span.end,
+                        ),
                     });
                 }
             }
@@ -82,7 +84,11 @@ pub fn find_symbol_at_offset(
                     return Some(SymbolAtOffset {
                         symbol_id,
                         node_id: dir_node_id,
-                        span: Span::new(file_id, enc.span.start, enc.span.end),
+                        span: Span::new(
+                            file_id,
+                            enclosing_span.span.start,
+                            enclosing_span.span.end,
+                        ),
                     });
                 }
             }
@@ -100,7 +106,7 @@ pub fn find_symbol_at_offset(
                 return Some(SymbolAtOffset {
                     symbol_id,
                     node_id: dir_node_id,
-                    span: Span::new(file_id, enc.span.start, enc.span.end),
+                    span: Span::new(file_id, enclosing_span.span.start, enclosing_span.span.end),
                 });
             }
             _ => {}

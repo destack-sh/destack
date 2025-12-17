@@ -47,7 +47,7 @@ impl Parser {
                 let (name, span) = self.eat_name_with_span()?;
                 let static_parameters = self.eat_static_parameters_maybe()?;
                 (static_parameters, Some(name), Some(span))
-            } 
+            }
             // anonymous extension
             else {
                 let static_parameters = self.eat_static_parameters_maybe()?;
