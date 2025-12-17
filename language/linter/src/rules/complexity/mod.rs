@@ -5,6 +5,7 @@ mod max_nested_callbacks;
 mod max_params;
 mod max_statements;
 mod no_multi_assign;
+mod no_multi_declarators;
 
 use crate::{BoxedLintRule, boxed};
 
@@ -15,6 +16,7 @@ pub use max_nested_callbacks::*;
 pub use max_params::*;
 pub use max_statements::*;
 pub use no_multi_assign::*;
+pub use no_multi_declarators::*;
 
 /// Get all complexity rules.
 pub fn rules() -> Vec<BoxedLintRule> {
@@ -26,5 +28,6 @@ pub fn rules() -> Vec<BoxedLintRule> {
         boxed(MaxParams),
         boxed(MaxStatements),
         boxed(NoMultiAssign),
+        boxed(NoMultiDeclarators),
     ]
 }

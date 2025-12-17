@@ -161,6 +161,7 @@ Subjective preferences for consistent coding style.
 | `prefer-const` | ESLint | DIR | ✗ | 🟡 | Needs reassignment tracking |
 | `prefer-destructuring` | ESLint | DIR | ✗ | 🟡 | Needs symbol tracking |
 | `prefer-exponentiation-operator` | ESLint | DIR | ✗ | 🟡 | Needs `Math.pow` builtin check |
+| `prefer-expression` | Destack | AST | ✓ | 🟡 | `let x; if (...) x=a` → `const x = if (...) { a }` |
 | `prefer-implicit-return` | Destack | AST | ✓ | ✅ | `return x` → `x` |
 | `prefer-loop` | Destack | AST | ✓ | 🟡 | Prefer explicit `loop` over `while(true)` or `for (;;)` |
 | `prefer-newtype-over-alias` | Destack | DIR | ✗ | 🟡 | Type alias → newtype |
@@ -168,7 +169,7 @@ Subjective preferences for consistent coding style.
 | `prefer-range-literal` | Destack | AST | ✓ | ✅ | `for (let i=0; i<n; i++)` → `for i of 0..n` |
 | `prefer-struct-over-class` | Destack | DIR | ✗ | 🟡 | Needs usage analysis |
 | `prefer-template` | ESLint | AST | ✓ | ✅ | Concat → template literal |
-| `prefer-tuple-destructuring` | Destack | AST | ✓ | ✅ | `[a, b]` → `(a, b)` |
+| `prefer-tuple` | Destack | DIR | ✗ | 🟡 | Arrays used as tuples → `(a, b)` |
 
 ## Complexity (X)
 
@@ -197,6 +198,7 @@ Opt-in rules that ban certain patterns by project choice.
 |------|--------|-------|-------|--------|-------|
 | `no-alert` | ESLint | DIR | ✗ | 🟡 | Needs `alert` builtin check |
 | `no-anonymous-default-export` | Unicorn | AST | ✓ | 🟡 | Named exports only |
+| `no-arguments` | ESLint | DIR | ✗ | 🟡 | Needs `arguments` binding in resolve |
 | `no-any` | Destack | AST | ✓ | 🟡 | Ban `any` entirely |
 | `no-bitwise` | ESLint | AST | ✓ | 🟡 | Bitwise operators |
 | `no-class` | Destack | AST | ✓ | 🟡 | Prefer struct over class |
@@ -212,6 +214,7 @@ Opt-in rules that ban certain patterns by project choice.
 | `no-process-exit` | Unicorn | DIR | ✗ | 🟡 | Needs `process` builtin check |
 | `no-require-imports` | TS-ESLint | AST | ✓ | 🟡 | CommonJS `require()` |
 | `no-restricted-imports` | ESLint | AST | ✓ | 🟡 | Banned imports |
+| `no-sequences` | ESLint | AST | ✓ | ✅ | Comma operator (JS/TS only) |
 | `no-ternary` | ESLint | AST | ✓ | 🟡 | Ternary operator |
 | `no-void` | ESLint | AST | ✓ | 🟡 | `void` operator |
 | `no-warning-comments` | ESLint | AST | ✓ | 🟡 | `TODO`, `FIXME` etc |

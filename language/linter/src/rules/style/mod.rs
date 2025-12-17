@@ -14,10 +14,10 @@ mod object_shorthand;
 mod operator_assignment;
 mod prefer_arrow_callback;
 mod prefer_as_const;
+mod prefer_expression;
 mod prefer_implicit_return;
 mod prefer_range_literal;
 mod prefer_template;
-mod prefer_tuple_destructuring;
 
 use crate::{BoxedLintRule, boxed};
 
@@ -37,10 +37,10 @@ pub use object_shorthand::*;
 pub use operator_assignment::*;
 pub use prefer_arrow_callback::*;
 pub use prefer_as_const::*;
+pub use prefer_expression::*;
 pub use prefer_implicit_return::*;
 pub use prefer_range_literal::*;
 pub use prefer_template::*;
-pub use prefer_tuple_destructuring::*;
 
 /// Get all style rules.
 pub fn rules() -> Vec<BoxedLintRule> {
@@ -61,9 +61,9 @@ pub fn rules() -> Vec<BoxedLintRule> {
         boxed(OperatorAssignment),
         boxed(PreferArrowCallback),
         boxed(PreferAsConst),
+        boxed(PreferExpression),
         boxed(PreferImplicitReturn),
         boxed(PreferRangeLiteral),
         boxed(PreferTemplate),
-        boxed(PreferTupleDestructuring),
     ]
 }
