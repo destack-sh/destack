@@ -155,7 +155,7 @@ pub fn incoming_calls(
 
         // convert to incoming calls
         for (fn_symbol_id, call_spans) in call_sites_by_function {
-            if let Some(fn_item) = symbol_to_call_hierarchy_item(session, fn_symbol_id) {
+            if let Some(fn_item) = call_hierarchy_item_from_symbol(session, fn_symbol_id) {
                 incoming.push(CallHierarchyIncomingCall {
                     from: fn_item,
                     from_ranges: call_spans,
@@ -234,7 +234,7 @@ pub fn outgoing_calls(
         drop(target_symbols);
         drop(target_guard);
 
-        if let Some(target_item) = symbol_to_call_hierarchy_item(session, target_symbol_id) {
+        if let Some(target_item) = call_hierarchy_item_from_symbol(session, target_symbol_id) {
             outgoing.push(CallHierarchyOutgoingCall {
                 to: target_item,
                 from_ranges: call_spans,
@@ -316,7 +316,7 @@ fn find_containing_function(
 }
 
 /// Convert a symbol ID to a CallHierarchyItem.
-fn symbol_to_call_hierarchy_item(
+pub fn call_hierarchy_item_from_symbol(
     session: &Session,
     symbol_id: GlobalSymbolId,
 ) -> Option<CallHierarchyItem> {

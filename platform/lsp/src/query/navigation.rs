@@ -1,5 +1,7 @@
-use destack_source::File;
+use destack_dir::GlobalSymbolId;
+use destack_source::{File, ModuleId, PackageId};
 use destack_workspace::{Session, query};
+use serde_json::json;
 use tower_lsp_server::lsp_types as lsp;
 
 use super::common::{byte_span_to_range, span_to_location, symbol_kind_to_lsp};
@@ -127,6 +129,14 @@ pub fn call_hierarchy_item_to_lsp(
         query::CallHierarchyKind::Method => lsp::SymbolKind::METHOD,
         query::CallHierarchyKind::Constructor => lsp::SymbolKind::CONSTRUCTOR,
     };
+
+    // store symbol_id in data for incoming/outgoing calls
+    let data = Some(json!({
+        "package": item.symbol_id.module_id.package.0,
+        "module": item.symbol_id.module_id.local,
+        "symbol": item.symbol_id.local_id.id,
+    }));
+
     Some(lsp::CallHierarchyItem {
         name: item.name.clone(),
         kind,
@@ -135,8 +145,58 @@ pub fn call_hierarchy_item_to_lsp(
         uri,
         range,
         selection_range,
-        data: None,
+        data,
     })
+}
+
+/// Extract symbol_id from LSP call hierarchy item data.
+pub fn call_hierarchy_item_symbol_id(item: &lsp::CallHierarchyItem) -> Option<GlobalSymbolId> {
+    let data = item.data.as_ref()?;
+    let package = data.get("package")?.as_u64()?;
+    let module = data.get("module")?.as_u64()? as u32;
+    let symbol = data.get("symbol")?.as_u64()? as u32;
+
+    Some(GlobalSymbolId {
+        module_id: ModuleId::new(PackageId(package), module),
+        local_id: destack_dir::LocalSymbolId::new(symbol),
+    })
+}
+
+/// Convert an incoming call to LSP format.
+pub fn incoming_call_to_lsp(
+    session: &Session,
+    call: &query::CallHierarchyIncomingCall,
+) -> Option<lsp::CallHierarchyIncomingCall> {
+    let from = call_hierarchy_item_to_lsp(session, &call.from)?;
+    let file = session.files.get(call.from.file);
+    let from_ranges = call
+        .from_ranges
+        .iter()
+        .map(|span| byte_span_to_range(&file, *span))
+        .collect();
+
+    Some(lsp::CallHierarchyIncomingCall { from, from_ranges })
+}
+
+/// Convert an outgoing call to LSP format.
+pub fn outgoing_call_to_lsp(
+    session: &Session,
+    call: &query::CallHierarchyOutgoingCall,
+) -> Option<lsp::CallHierarchyOutgoingCall> {
+    let to = call_hierarchy_item_to_lsp(session, &call.to)?;
+
+    // from_ranges are in the caller's file, need to look up via symbol
+    // for now, just convert the spans as-is (they should have file info)
+    let from_ranges = call
+        .from_ranges
+        .iter()
+        .map(|span| {
+            let file = session.files.get(span.file);
+            byte_span_to_range(&file, *span)
+        })
+        .collect();
+
+    Some(lsp::CallHierarchyOutgoingCall { to, from_ranges })
 }
 
 /// Convert a type hierarchy item to an LSP type hierarchy item.
@@ -155,6 +215,14 @@ pub fn type_hierarchy_item_to_lsp(
         query::TypeHierarchyKind::Struct => lsp::SymbolKind::STRUCT,
         query::TypeHierarchyKind::TypeAlias => lsp::SymbolKind::TYPE_PARAMETER,
     };
+
+    // store symbol_id in data for supertypes/subtypes
+    let data = Some(json!({
+        "package": item.symbol_id.module_id.package.0,
+        "module": item.symbol_id.module_id.local,
+        "symbol": item.symbol_id.local_id.id,
+    }));
+
     Some(lsp::TypeHierarchyItem {
         name: item.name.clone(),
         kind,
@@ -163,7 +231,20 @@ pub fn type_hierarchy_item_to_lsp(
         uri,
         range,
         selection_range,
-        data: None,
+        data,
+    })
+}
+
+/// Extract symbol_id from LSP type hierarchy item data.
+pub fn type_hierarchy_item_symbol_id(item: &lsp::TypeHierarchyItem) -> Option<GlobalSymbolId> {
+    let data = item.data.as_ref()?;
+    let package = data.get("package")?.as_u64()?;
+    let module = data.get("module")?.as_u64()? as u32;
+    let symbol = data.get("symbol")?.as_u64()? as u32;
+
+    Some(GlobalSymbolId {
+        module_id: ModuleId::new(PackageId(package), module),
+        local_id: destack_dir::LocalSymbolId::new(symbol),
     })
 }
 

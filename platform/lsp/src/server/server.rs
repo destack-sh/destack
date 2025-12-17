@@ -18,9 +18,10 @@ use crate::query::assist::{code_lens_to_lsp, inlay_hint_to_lsp};
 use crate::query::common::{byte_span_to_range, position_to_byte, span_to_location};
 use crate::query::diagnostic::{code_action_to_lsp, diagnostic_to_lsp_diagnostic};
 use crate::query::navigation::{
-    call_hierarchy_item_to_lsp, definition_to_location, document_highlight_to_lsp,
-    document_link_to_lsp, document_symbol_to_lsp, implementation_to_location,
-    selection_range_to_lsp, type_hierarchy_item_to_lsp, workspace_symbol_to_lsp,
+    call_hierarchy_item_symbol_id, call_hierarchy_item_to_lsp, definition_to_location,
+    document_highlight_to_lsp, document_link_to_lsp, document_symbol_to_lsp,
+    implementation_to_location, incoming_call_to_lsp, outgoing_call_to_lsp, selection_range_to_lsp,
+    type_hierarchy_item_symbol_id, type_hierarchy_item_to_lsp, workspace_symbol_to_lsp,
 };
 use crate::query::refactor::batch_edit_to_workspace_edit;
 use crate::query::semantic;
@@ -1232,18 +1233,54 @@ impl LanguageServer for DestackLanguageServer {
         &self,
         params: lsp::CallHierarchyIncomingCallsParams,
     ) -> jsonrpc::Result<Option<Vec<lsp::CallHierarchyIncomingCall>>> {
-        // TODO #Incomplete: convert params.item back to query::CallHierarchyItem
-        let _ = params;
-        Ok(Some(vec![]))
+        // extract symbol_id from item data
+        let Some(symbol_id) = call_hierarchy_item_symbol_id(&params.item) else {
+            return Ok(Some(vec![]));
+        };
+
+        // reconstruct call hierarchy item
+        let session = self.session();
+        let Some(item) = query::call_hierarchy_item_from_symbol(session, symbol_id) else {
+            return Ok(Some(vec![]));
+        };
+
+        // query incoming calls
+        let calls = query::incoming_calls(session, &item);
+
+        // convert to LSP
+        let lsp_calls: Vec<lsp::CallHierarchyIncomingCall> = calls
+            .iter()
+            .filter_map(|c| incoming_call_to_lsp(session, c))
+            .collect();
+
+        Ok(Some(lsp_calls))
     }
 
     async fn outgoing_calls(
         &self,
         params: lsp::CallHierarchyOutgoingCallsParams,
     ) -> jsonrpc::Result<Option<Vec<lsp::CallHierarchyOutgoingCall>>> {
-        // TODO #Incomplete: convert params.item back to query::CallHierarchyItem
-        let _ = params;
-        Ok(Some(vec![]))
+        // extract symbol_id from item data
+        let Some(symbol_id) = call_hierarchy_item_symbol_id(&params.item) else {
+            return Ok(Some(vec![]));
+        };
+
+        // reconstruct call hierarchy item
+        let session = self.session();
+        let Some(item) = query::call_hierarchy_item_from_symbol(session, symbol_id) else {
+            return Ok(Some(vec![]));
+        };
+
+        // query outgoing calls
+        let calls = query::outgoing_calls(session, &item);
+
+        // convert to LSP
+        let lsp_calls: Vec<lsp::CallHierarchyOutgoingCall> = calls
+            .iter()
+            .filter_map(|c| outgoing_call_to_lsp(session, c))
+            .collect();
+
+        Ok(Some(lsp_calls))
     }
 
     // ------------------------------------------------------------------------
@@ -1284,18 +1321,54 @@ impl LanguageServer for DestackLanguageServer {
         &self,
         params: lsp::TypeHierarchySupertypesParams,
     ) -> jsonrpc::Result<Option<Vec<lsp::TypeHierarchyItem>>> {
-        // TODO #Incomplete: convert params.item back to query::TypeHierarchyItem
-        let _ = params;
-        Ok(Some(vec![]))
+        // extract symbol_id from item data
+        let Some(symbol_id) = type_hierarchy_item_symbol_id(&params.item) else {
+            return Ok(Some(vec![]));
+        };
+
+        // reconstruct type hierarchy item
+        let session = self.session();
+        let Some(item) = query::type_hierarchy_item_from_symbol(session, symbol_id) else {
+            return Ok(Some(vec![]));
+        };
+
+        // query supertypes
+        let supertypes = query::supertypes(session, &item);
+
+        // convert to LSP
+        let lsp_items: Vec<lsp::TypeHierarchyItem> = supertypes
+            .iter()
+            .filter_map(|t| type_hierarchy_item_to_lsp(session, t))
+            .collect();
+
+        Ok(Some(lsp_items))
     }
 
     async fn subtypes(
         &self,
         params: lsp::TypeHierarchySubtypesParams,
     ) -> jsonrpc::Result<Option<Vec<lsp::TypeHierarchyItem>>> {
-        // TODO #Incomplete: convert params.item back to query::TypeHierarchyItem
-        let _ = params;
-        Ok(Some(vec![]))
+        // extract symbol_id from item data
+        let Some(symbol_id) = type_hierarchy_item_symbol_id(&params.item) else {
+            return Ok(Some(vec![]));
+        };
+
+        // reconstruct type hierarchy item
+        let session = self.session();
+        let Some(item) = query::type_hierarchy_item_from_symbol(session, symbol_id) else {
+            return Ok(Some(vec![]));
+        };
+
+        // query subtypes
+        let subtypes = query::subtypes(session, &item);
+
+        // convert to LSP
+        let lsp_items: Vec<lsp::TypeHierarchyItem> = subtypes
+            .iter()
+            .filter_map(|t| type_hierarchy_item_to_lsp(session, t))
+            .collect();
+
+        Ok(Some(lsp_items))
     }
 }
 
