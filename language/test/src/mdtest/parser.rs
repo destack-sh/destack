@@ -39,6 +39,8 @@ pub struct MdTestCase {
     pub extra_blocks: Vec<RawCodeBlock>,
     /// Line number in the markdown file where this test starts.
     pub line: usize,
+    /// Whether this test is marked as skipped (prefixed with `_`).
+    pub skip: bool,
 }
 
 /// Parse a markdown file and extract test cases.
@@ -112,6 +114,7 @@ pub fn parse_mdtest(content: &str) -> Vec<MdTestCase> {
     let mut tests = Vec::new();
     let mut current_section = String::new();
     let mut current_test_name: Option<String> = None;
+    let mut current_test_skip = false;
     let mut current_files: Vec<MdTestFile> = Vec::new();
     let mut current_bullets: Vec<String> = Vec::new();
     let mut current_extra_blocks: Vec<RawCodeBlock> = Vec::new();
@@ -139,7 +142,9 @@ pub fn parse_mdtest(content: &str) -> Vec<MdTestCase> {
                         bullet_items: std::mem::take(&mut current_bullets),
                         extra_blocks: std::mem::take(&mut current_extra_blocks),
                         line: current_line,
+                        skip: current_test_skip,
                     });
+                    current_test_skip = false;
                 }
 
                 in_heading = true;
@@ -155,7 +160,13 @@ pub fn parse_mdtest(content: &str) -> Vec<MdTestCase> {
                         current_section = text;
                     }
                     Some(HeadingLevel::H3 | HeadingLevel::H4) => {
-                        current_test_name = Some(text);
+                        let (name, skip) = if let Some(stripped) = text.strip_prefix('_') {
+                            (stripped.to_string(), true)
+                        } else {
+                            (text, false)
+                        };
+                        current_test_name = Some(name);
+                        current_test_skip = skip;
                         current_files.clear();
                         current_bullets.clear();
                         current_extra_blocks.clear();
@@ -250,6 +261,7 @@ pub fn parse_mdtest(content: &str) -> Vec<MdTestCase> {
             bullet_items: current_bullets,
             extra_blocks: current_extra_blocks,
             line: current_line,
+            skip: current_test_skip,
         });
     }
 

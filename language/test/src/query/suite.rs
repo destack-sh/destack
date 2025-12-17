@@ -172,6 +172,7 @@ impl QuerySuite {
 
         for base_case in cases {
             // only include tests that have query expectations or expected files
+            let skip = base_case.skip;
             let Some(query_case) = QueryTestCase::from_mdtest(base_case) else {
                 continue;
             };
@@ -181,7 +182,8 @@ impl QuerySuite {
                 slug(&query_case.base.section),
                 slug(&query_case.base.name)
             );
-            let test_case = TestCase::file(name, md_path.to_path_buf(), "destack_test::query");
+            let test_case = TestCase::file(name, md_path.to_path_buf(), "destack_test::query")
+                .with_skipped(skip);
 
             self.tests.insert(test_case.full_name(), query_case);
             self.cases.push(test_case);

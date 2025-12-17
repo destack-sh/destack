@@ -17,3 +17,301 @@ Spaces are added after `{` and before `}`.
 ```ds expected
 export { foo, bar, baz };
 ```
+
+### single named export
+
+Single exports also get internal spacing.
+
+```ds
+export { foo }
+```
+
+```ds expected
+export { foo };
+```
+
+### export with alias
+
+Exports can rename values using `as`.
+
+```ds
+export { foo as bar }
+```
+
+```ds expected
+export { foo as bar };
+```
+
+### multiple exports with aliases
+
+Multiple exports can each have aliases.
+
+```ds
+export { foo as f, bar as b, baz as z }
+```
+
+```ds expected
+export { foo as f, bar as b, baz as z };
+```
+
+### export as default
+
+Values can be exported as the default export.
+
+```ds
+export { foo as default }
+```
+
+```ds expected
+export { foo as default };
+```
+
+## Inline Exports
+
+### export const
+
+Constants can be exported inline.
+
+```ds
+export const x = 1
+```
+
+```ds expected
+export const x = 1;
+```
+
+### export let
+
+Mutable variables can be exported inline.
+
+```ds
+export let y = 2
+```
+
+```ds expected
+export let y = 2;
+```
+
+### export function
+
+Functions can be exported inline.
+
+```ds
+export function foo() { }
+```
+
+```ds expected
+export function foo() { }
+```
+
+### export class
+
+Classes can be exported inline.
+
+```ds
+export class Foo { }
+```
+
+```ds expected
+export class Foo { }
+```
+
+### export interface
+
+Interfaces with members expand to multiple lines.
+
+```ds
+export interface Foo { x: number }
+```
+
+```ds expected
+export interface Foo {
+    x: number,
+}
+```
+
+### _export type alias
+
+Type aliases can be exported inline.
+
+```ds
+export type Foo = number
+```
+
+```ds expected
+export type Foo = number;
+```
+
+### export struct
+
+Structs with fields expand to multiple lines.
+
+```ds
+export struct Point { x: number; y: number }
+```
+
+```ds expected
+export struct Point {
+    x: number,
+    y: number,
+}
+```
+
+### export enum
+
+Enums expand to multiple lines with trailing commas on variants.
+
+```ds
+export enum Status { Active; Inactive }
+```
+
+```ds expected
+export enum Status {
+    Active,
+    Inactive,
+}
+```
+
+## Default Exports
+
+### export default function
+
+Functions can be the default export.
+
+```ds
+export default function handler() { }
+```
+
+```ds expected
+export default function handler() { }
+```
+
+### export default class
+
+Classes can be the default export.
+
+```ds
+export default class Handler { }
+```
+
+```ds expected
+export default class Handler { }
+```
+
+### export default expression
+
+Expressions can be the default export.
+
+```ds
+export default 42
+```
+
+```ds expected
+export default 42;
+```
+
+### _export default object
+
+Object literals can be the default export.
+
+```ds
+export default { x: 1, y: 2 }
+```
+
+```ds expected
+export default { x: 1, y: 2 };
+```
+
+### _export default arrow function
+
+Arrow functions can be the default export.
+
+```ds
+export default (x) => x * 2
+```
+
+```ds expected
+export default (x) => x * 2;
+```
+
+## Type Exports
+
+### _type-only export
+
+Type-only exports use `export type`.
+
+```ds
+export type { Foo }
+```
+
+```ds expected
+export type { Foo };
+```
+
+### mixed type and value exports
+
+Type and value exports can be mixed using `type` modifier on individual items.
+
+```ds
+export { type Foo, bar }
+```
+
+```ds expected
+export { type Foo, bar };
+```
+
+### multiple type exports
+
+Multiple types can be exported together.
+
+```ds
+export { type Foo, type Bar, type Baz }
+```
+
+```ds expected
+export { type Foo, type Bar, type Baz };
+```
+
+## Line Breaking
+
+### long export breaks
+
+When exports exceed the line width, they break to multiple lines.
+
+```ds line-width=40
+export { veryLongName, anotherLongName, thirdLongName }
+```
+
+Each export goes on its own line with a trailing comma.
+
+```ds expected
+export {
+    veryLongName,
+    anotherLongName,
+    thirdLongName,
+};
+```
+
+### _many exports break
+
+Many short exports also break when they exceed the line width.
+
+```ds line-width=50
+export { a, b, c, d, e, f, g, h, i, j, k }
+```
+
+```ds expected
+export {
+    a,
+    b,
+    c,
+    d,
+    e,
+    f,
+    g,
+    h,
+    i,
+    j,
+    k,
+};
+```

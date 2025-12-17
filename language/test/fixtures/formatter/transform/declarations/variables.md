@@ -20,7 +20,7 @@ const x = 1;
 
 ### const with type annotation
 
-Type annotations should have no space before the colon and one space after.
+Type annotations have no space before the colon and one space after.
 
 ```ds
 const   x  :  number   =   1
@@ -34,6 +34,8 @@ const x: number = 1;
 
 ### basic let
 
+Mutable variable declarations use `let`.
+
 ```ds
 let   x   =   1
 ```
@@ -45,6 +47,8 @@ let x = 1;
 ## var
 
 ### basic var
+
+Legacy `var` declarations are preserved but follow the same spacing rules.
 
 ```ds
 var   x   =   1

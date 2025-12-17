@@ -70,7 +70,8 @@ impl FormatterSuite {
                 name,
                 md_path.to_path_buf(),
                 "destack_test::formatter::transform",
-            );
+            )
+            .with_skipped(case.skip);
 
             self.mdtests.insert(test_case.full_name(), case);
             self.cases.push(test_case);
