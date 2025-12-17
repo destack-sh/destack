@@ -57,7 +57,9 @@ impl LintRule for NoUselessComputedKey {
                         ctx.module.file_id,
                         ctx.tree.get_span(node_id),
                     )
-                    .with_label(format!("use `{string_str}` instead of `[\"{string_str}\"]`")),
+                    .with_label(format!(
+                        "use `{string_str}` instead of `[\"{string_str}\"]`"
+                    )),
                 );
             }
         }
@@ -120,7 +122,8 @@ const obj = { ["foo"]: 1 }
 const obj = { ["Content-Type"]: "json" }
 "#,
         );
-        test.result(result).assert_no_lint("no-useless-computed-key");
+        test.result(result)
+            .assert_no_lint("no-useless-computed-key");
     }
 
     #[test]
@@ -133,7 +136,8 @@ const key = "x"
 const obj = { [key]: 1 }
 "#,
         );
-        test.result(result).assert_no_lint("no-useless-computed-key");
+        test.result(result)
+            .assert_no_lint("no-useless-computed-key");
     }
 
     #[test]
@@ -145,7 +149,8 @@ const obj = { [key]: 1 }
 const obj = { x: 1 }
 "#,
         );
-        test.result(result).assert_no_lint("no-useless-computed-key");
+        test.result(result)
+            .assert_no_lint("no-useless-computed-key");
     }
 
     #[test]
@@ -158,6 +163,7 @@ const obj = { x: 1 }
 const obj = { ["123"]: 1 }
 "#,
         );
-        test.result(result).assert_no_lint("no-useless-computed-key");
+        test.result(result)
+            .assert_no_lint("no-useless-computed-key");
     }
 }

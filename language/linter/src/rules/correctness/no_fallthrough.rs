@@ -117,9 +117,7 @@ fn is_terminating_statement(
         ast::Expression::Throw { .. } => true,
         ast::Expression::Continue { .. } => true,
         ast::Expression::Statement(inner_id) => is_terminating_statement(ctx, *inner_id),
-        ast::Expression::Parenthesized { expression } => {
-            is_terminating_statement(ctx, *expression)
-        }
+        ast::Expression::Parenthesized { expression } => is_terminating_statement(ctx, *expression),
         ast::Expression::Block(block_id) => {
             let block = ctx.tree.get(*block_id);
             if let Some(last_id) = block.expressions.last() {

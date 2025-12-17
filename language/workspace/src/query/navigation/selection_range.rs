@@ -46,11 +46,7 @@ impl SelectionRange {
 /// to least specific (innermost syntax node to outermost).
 ///
 /// Used for "Expand Selection" / "Shrink Selection" editor commands.
-pub fn selection_ranges(
-    session: &Session,
-    file: FileId,
-    positions: &[u32],
-) -> Vec<SelectionRange> {
+pub fn selection_ranges(session: &Session, file: FileId, positions: &[u32]) -> Vec<SelectionRange> {
     // get the module for this file
     let Some(module) = get_module_by_file_id(session, file) else {
         return Vec::new();
@@ -84,11 +80,11 @@ pub fn selection_ranges(
 
         // build the nested SelectionRange from outermost to innermost
         // start with the outermost as the root (no parent)
-        let mut selection = SelectionRange::leaf(unique_spans.pop().unwrap_or(Span::new(
-            file,
-            offset,
-            offset,
-        )));
+        let mut selection = SelectionRange::leaf(
+            unique_spans
+                .pop()
+                .unwrap_or(Span::new(file, offset, offset)),
+        );
 
         // add each subsequent span as a child (with the previous as parent)
         while let Some(span) = unique_spans.pop() {

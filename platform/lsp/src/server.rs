@@ -4,7 +4,7 @@ use std::sync::Arc;
 use dashmap::DashMap;
 use destack_compiler::{AnalyzeTask, CompileOptions, Compiler};
 use destack_source::{FileId, FileType, Uri};
-use destack_workspace::{query, Session};
+use destack_workspace::{Session, query};
 use parking_lot::RwLock;
 use tower_lsp_server::{Client, LanguageServer, UriExt, jsonrpc, lsp_types as lsp};
 
@@ -192,7 +192,12 @@ impl LanguageServer for DestackLanguageServer {
             return;
         };
 
-        let Some(path) = params.text_document.uri.to_file_path().map(|p| p.into_owned()) else {
+        let Some(path) = params
+            .text_document
+            .uri
+            .to_file_path()
+            .map(|p| p.into_owned())
+        else {
             return;
         };
 
@@ -204,7 +209,8 @@ impl LanguageServer for DestackLanguageServer {
         let module = session.modules.get(module_id);
         let file_id = module.read().file_id;
 
-        self.open_documents.insert(uri_str, OpenDocument { file_id, content });
+        self.open_documents
+            .insert(uri_str, OpenDocument { file_id, content });
 
         self.compile_module(&session, &path);
     }
@@ -222,7 +228,12 @@ impl LanguageServer for DestackLanguageServer {
             return;
         };
 
-        let Some(path) = params.text_document.uri.to_file_path().map(|p| p.into_owned()) else {
+        let Some(path) = params
+            .text_document
+            .uri
+            .to_file_path()
+            .map(|p| p.into_owned())
+        else {
             return;
         };
 
@@ -234,7 +245,8 @@ impl LanguageServer for DestackLanguageServer {
         let module = session.modules.get(module_id);
         let file_id = module.read().file_id;
 
-        self.open_documents.insert(uri_str, OpenDocument { file_id, content });
+        self.open_documents
+            .insert(uri_str, OpenDocument { file_id, content });
 
         self.compile_module(&session, &path);
     }
@@ -285,8 +297,7 @@ impl LanguageServer for DestackLanguageServer {
 
         let file = session.files.get(doc.file_id);
 
-        let Some(offset) =
-            position_to_byte(&file, &params.text_document_position_params.position)
+        let Some(offset) = position_to_byte(&file, &params.text_document_position_params.position)
         else {
             return Ok(None);
         };
@@ -295,9 +306,7 @@ impl LanguageServer for DestackLanguageServer {
             return Ok(None);
         };
 
-        let range = hover_info
-            .range
-            .map(|span| byte_span_to_range(&file, span));
+        let range = hover_info.range.map(|span| byte_span_to_range(&file, span));
 
         Ok(Some(lsp::Hover {
             contents: lsp::HoverContents::Markup(lsp::MarkupContent {

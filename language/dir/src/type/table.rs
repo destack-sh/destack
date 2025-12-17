@@ -364,4 +364,11 @@ impl TypeTable {
             (id, self.extensions.get(i))
         })
     }
+
+    /// Iterate over all lineages with their associated symbol ids.
+    pub fn iter_lineages(&self) -> impl Iterator<Item = (GlobalSymbolId, &Lineage)> {
+        self.lineage_by_symbol_id
+            .iter()
+            .map(|(symbol_id, lineage_id)| (*symbol_id, self.lineages.get(lineage_id.0)))
+    }
 }

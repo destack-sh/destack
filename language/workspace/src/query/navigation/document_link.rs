@@ -1,6 +1,8 @@
+use destack_dir::Expression;
 use destack_source::{FileId, Span};
 
 use crate::Session;
+use crate::query::common::get_module_by_file_id;
 
 /// A clickable link in a document.
 #[derive(Debug, Clone)]
@@ -67,18 +69,64 @@ impl DocumentLink {
 ///
 /// Document links are clickable regions that navigate to files or URLs.
 /// Common uses: import paths, URLs in comments, file references.
-pub fn document_links(_session: &Session, _file: FileId) -> Vec<DocumentLink> {
-    // 1. find all import statements, create links to resolved files
-    // 2. find URLs in comments and strings
-    // 3. find file path references (e.g., in configuration)
-    todo!("#Incomplete: document_links")
+pub fn document_links(session: &Session, file: FileId) -> Vec<DocumentLink> {
+    let Some(module) = get_module_by_file_id(session, file) else {
+        return Vec::new();
+    };
+
+    let mut links = Vec::new();
+
+    let module_guard = module.read();
+    let dir_tree = module_guard.dir.tree.read();
+
+    // find all import and re-export statements
+    for (expr_id, expr) in dir_tree.iter_nodes_of_type::<Expression>() {
+        match expr {
+            Expression::Import {
+                target,
+                target_module,
+                ..
+            }
+            | Expression::ReExport {
+                target,
+                target_module,
+                ..
+            } => {
+                // get the target module's file path
+                let target_module_ref = session.modules.get(*target_module);
+                let target_guard = target_module_ref.read();
+
+                let Some(ref path) = target_guard.path else {
+                    continue;
+                };
+
+                // get the span of this import expression
+                let ast_node_id = dir_tree.get_source(expr_id.id);
+                let span = module_guard.ast.tree.source_map.get(ast_node_id);
+
+                // the link should be on the import path string, not the whole statement
+                // for now, use the whole span but ideally we'd narrow to just the string
+                let link_span = Span::new(file, span.start, span.end); // nocheckin #Suspicious
+
+                // get the import path string for tooltip
+                let import_path = session.strings.get(*target).to_string();
+
+                links.push(
+                    DocumentLink::file(link_span, path.to_string_lossy().to_string())
+                        .with_tooltip(format!("Go to {import_path}")),
+                );
+            }
+            _ => {}
+        }
+    }
+
+    links
 }
 
 /// Resolve a document link (compute its target if deferred).
 ///
 /// Some links defer resolution until clicked.
-pub fn resolve_document_link(_session: &Session, _link: &DocumentLink) -> DocumentLink {
-    // For import links: resolve the module specifier to a file path
-    // For relative paths: resolve to absolute
-    todo!("#Incomplete: resolve_document_link")
+pub fn resolve_document_link(_session: &Session, link: &DocumentLink) -> DocumentLink {
+    // currently all links are resolved immediately
+    link.clone()
 }

@@ -170,9 +170,7 @@ fn get_parameter_names(
         .map(|param_id| {
             let param = dir_tree.get::<Parameter>(*param_id);
             match param {
-                Parameter::Named { name, .. } => {
-                    target_guard.ast.strings.get(*name).to_string()
-                }
+                Parameter::Named { name, .. } => target_guard.ast.strings.get(*name).to_string(),
                 Parameter::Variadic { name, .. } => {
                     let name_str = target_guard.ast.strings.get(*name).to_string();
                     format!("...{name_str}")

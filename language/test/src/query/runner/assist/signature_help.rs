@@ -98,7 +98,11 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> T
             Some(sig_help) => TestResult::Failed {
                 message: format!(
                     "signature_help at ${cursor_idx} expected None, got '{}'",
-                    sig_help.signatures.first().map(|s| s.label.as_str()).unwrap_or("")
+                    sig_help
+                        .signatures
+                        .first()
+                        .map(|s| s.label.as_str())
+                        .unwrap_or("")
                 ),
             },
         };

@@ -26,10 +26,7 @@ impl LintRule for NoUnsafeNegation {
     fn check_module_ast<'a>(&self, severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
         for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
             // check for Binary expressions with in/instanceof
-            if let ast::Expression::Binary {
-                left, operator, ..
-            } = ctx.tree.get(node_id)
-            {
+            if let ast::Expression::Binary { left, operator, .. } = ctx.tree.get(node_id) {
                 // only check relational operators
                 if !matches!(
                     operator,
