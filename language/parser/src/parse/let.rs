@@ -4,6 +4,7 @@ use destack_ast::{
     DeclarationDescriptor, Declarator, Expression, Keyword, LetKind, LocalNodeId, Mutability,
     TokenType,
 };
+use destack_source::NodeSpanType;
 
 impl Parser {
     /// Peek a mutability modifier.
@@ -146,14 +147,15 @@ impl Parser {
             })?;
 
         // type
-        let ty = if self.peek_colon().is_ok() {
+        let (ty, ty_span) = if self.peek_colon().is_ok() {
+            let type_start = self.mark();
             self.bump(); // eat colon
             let ty = self.with_options(self.options.not_in_position().in_type(), |parser| {
                 parser.eat_expression()
             })?;
-            Some(ty)
+            (Some(ty), Some(self.get_span_from(type_start)))
         } else {
-            None
+            (None, None)
         };
 
         // value
@@ -176,6 +178,12 @@ impl Parser {
             },
             self.get_span_from(start),
         );
+
+        // set type span for the type annotation
+        if let Some(span) = ty_span {
+            self.tree.set_side_span(declarator_id, NodeSpanType::Type, span);
+        }
+
         Ok(declarator_id)
     }
 }

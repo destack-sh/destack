@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::fmt::{Debug, Formatter};
 
-use destack_source::{NodeSourceMap, Span};
+use destack_source::{NodeSourceMap, NodeSpanType, Span};
 
 use crate::{
     Annotation, AnnotationPosition, Arena, Argument, Blank, Block, Comment, Declaration,
@@ -209,6 +209,30 @@ impl NodeTree {
         T: Node,
     {
         self.source_map.set_main(node_id.id, span);
+    }
+
+    /// Set a side span for a node.
+    #[inline]
+    pub fn set_side_span<T>(&mut self, node_id: LocalNodeId<T>, span_type: NodeSpanType, span: Span)
+    where
+        T: Node,
+    {
+        self.source_map.set_side(node_id.id, span_type, span);
+    }
+
+    /// Get a side span for a node.
+    #[inline]
+    pub fn get_side_span<T>(&self, node_id: LocalNodeId<T>, span_type: NodeSpanType) -> Option<Span>
+    where
+        T: Node,
+    {
+        self.source_map.get_side(node_id.id, span_type)
+    }
+
+    /// Get a side span for a node by its id.
+    #[inline]
+    pub fn get_side_span_by_id(&self, node_id: u32, span_type: NodeSpanType) -> Option<Span> {
+        self.source_map.get_side(node_id, span_type)
     }
 
     /// Get the spans for all nodes of a given type.

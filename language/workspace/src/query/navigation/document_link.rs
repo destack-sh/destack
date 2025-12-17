@@ -74,12 +74,10 @@ pub fn document_links(session: &Session, file: FileId) -> Vec<DocumentLink> {
         return Vec::new();
     };
 
-    let mut links = Vec::new();
-
+    // find all import and re-export statements
     let module_guard = module.read();
     let dir_tree = module_guard.dir.tree.read();
-
-    // find all import and re-export statements
+    let mut links = Vec::new();
     for (expr_id, expr) in dir_tree.iter_nodes_of_type::<Expression>() {
         match expr {
             Expression::Import {

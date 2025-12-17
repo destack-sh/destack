@@ -3,7 +3,7 @@ use crate::{ParseResult, Parser};
 
 use destack_ast::{
     DeclarationDescriptor, Declarator, DependencyItem, DependencyKind, DependencyMode, Expression,
-    Keyword, LetKind, LocalNodeId, Mutability, Pattern, ScalarLiteral, TokenType,
+    Keyword, LetKind, LocalNodeId, Mutability, Pattern, TokenType,
 };
 use destack_base::StringId;
 
@@ -87,7 +87,7 @@ impl Parser {
         if !items.is_empty() {
             self.eat_keyword(Keyword::From)?;
         }
-        let target = self.eat_dependency_target()?;
+        let (target, target_span) = self.eat_dependency_target_with_span()?;
 
         // arguments
         let arguments = if self.peek_keyword(Keyword::With).is_ok() {
@@ -112,6 +112,10 @@ impl Parser {
             },
             self.get_span_from(start),
         );
+
+        // set main span to the import target string
+        self.tree.set_main_span(import_id, target_span);
+
         Ok(import_id)
     }
 
@@ -186,7 +190,7 @@ impl Parser {
         {
             self.bump(); // eat *
             self.bump(); // eat from
-            let target = self.eat_dependency_target()?;
+            let (target, target_span) = self.eat_dependency_target_with_span()?;
             let item = DependencyItem {
                 mode: DependencyMode::Namespace,
                 kind: None,
@@ -203,6 +207,10 @@ impl Parser {
                 },
                 self.get_span_from(start),
             );
+
+            // set main span to the export target string
+            self.tree.set_main_span(export, target_span);
+
             return Ok(export);
         }
 
@@ -216,11 +224,12 @@ impl Parser {
 
         // binding
         let items = self.eat_dependency_items_block()?;
-        let target = if self.peek_keyword(Keyword::From).is_ok() {
+        let (target, target_span) = if self.peek_keyword(Keyword::From).is_ok() {
             self.bump(); // eat from
-            Some(self.eat_dependency_target()?)
+            let (target, span) = self.eat_dependency_target_with_span()?;
+            (Some(target), Some(span))
         } else {
-            None
+            (None, None)
         };
 
         // `export { default }` without `from` is invalid
@@ -244,6 +253,12 @@ impl Parser {
             },
             self.get_span_from(start),
         );
+
+        // set main span to the export target string if present
+        if let Some(target_span) = target_span {
+            self.tree.set_main_span(export_id, target_span);
+        }
+
         Ok(export_id)
     }
 
@@ -261,20 +276,18 @@ impl Parser {
         }
     }
 
-    /// Eat an dependency target.
+    /// Eat an dependency target and return both the string and its span.
     ///
     /// Examples:
     /// ```
     /// "foo"
     /// "foo/bar:something"
     /// ```
-    fn eat_dependency_target(&mut self) -> ParseResult<StringId> {
-        // physical/string target
-        let literal = self.eat_scalar_literal()?;
-        match literal {
-            ScalarLiteral::String(string) => Ok(string),
-            _ => Err(ParseError::expected(self.peek()?.span, TokenType::Literal)),
-        }
+    fn eat_dependency_target_with_span(
+        &mut self,
+    ) -> ParseResult<(StringId, destack_source::Span)> {
+        let (string_id, span) = self.eat_string_literal_with_span()?;
+        Ok((string_id, span))
     }
 
     /// Eat a dependency items block.

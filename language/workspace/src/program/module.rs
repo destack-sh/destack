@@ -116,13 +116,13 @@ impl Module {
 
     /// Reset the module for recompilation.
     /// Clears AST, DIR, and MIR data, increments version, and updates source_version.
-    pub fn reset(&mut self, new_source_version: FileVersion) {
-        // nocheckin #Suspicious: revisit Module::reset
-        self.version = self.version.next();
-        self.source_version = new_source_version;
-        self.ast = ModuleAst::new(self.id);
-        self.dir = ModuleDir::new(self.id);
-        self.mir = ModuleMir::new(self.id);
+    pub fn reset(&mut self, _new_source_version: FileVersion) {
+        todo!("#Suspicious: revisit Module::reset"); // (use versions and task dependencies..?)
+        // self.version = self.version.next();
+        // self.source_version = new_source_version;
+        // self.ast = ModuleAst::new(self.id);
+        // self.dir = ModuleDir::new(self.id);
+        // self.mir = ModuleMir::new(self.id);
     }
 
     /// Check if this module is stale (source file has changed since compilation).

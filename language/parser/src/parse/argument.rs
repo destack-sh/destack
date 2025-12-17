@@ -3,6 +3,7 @@ use destack_ast::{
     Expression, Keyword, LocalNodeId, Mutability, Name, NodeType, Parameter, Pattern,
     ScalarLiteral, StringId, TokenType,
 };
+use destack_source::NodeSpanType;
 
 use crate::parse::prelude::*;
 use crate::{ParseResult, Parser};
@@ -165,12 +166,13 @@ impl Parser {
         }
 
         // : type (or keyword for #Compatibility)
-        let ty = {
+        let (ty, ty_span) = {
             if self.peek_colon().is_ok()
                 || (self.options.in_static
                     && (self.peek_keyword(Keyword::Extends).is_ok()
                         || self.peek_keyword(Keyword::Implements).is_ok()))
             {
+                let type_start = self.mark();
                 self.bump(); // eat colon or keyword
                 self.eat_newlines_maybe()?;
                 let ty = self
@@ -178,9 +180,9 @@ impl Parser {
                         parser.eat_expression()
                     })
                     .for_node_type(NodeType::Parameter)?;
-                Some(ty)
+                (Some(ty), Some(self.get_span_from(type_start)))
             } else {
-                None
+                (None, None)
             }
         };
 
@@ -248,9 +250,14 @@ impl Parser {
         // parameter
         let parameter_id = self.tree.insert(parameter, self.get_span_from(start));
 
-        // set main_span to the name identifier
+        // set main span to the name identifier
         if let Some(span) = name_span {
             self.tree.set_main_span(parameter_id, span);
+        }
+
+        // set type span for the type annotation
+        if let Some(span) = ty_span {
+            self.tree.set_side_span(parameter_id, NodeSpanType::Type, span);
         }
 
         Ok(parameter_id)

@@ -114,7 +114,7 @@ impl Parser {
         };
         let declaration_id = self.tree.insert(declaration, self.get_span_from(start));
 
-        // set main_span to the name identifier
+        // set main span to the name identifier
         if let Some(span) = name_span {
             self.tree.set_main_span(declaration_id, span);
         }

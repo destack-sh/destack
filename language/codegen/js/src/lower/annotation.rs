@@ -17,7 +17,6 @@ impl ModuleLowerer<'_> {
     }
 
     /// Lower an annotation from DIR into JS AST.
-    /// nocheckin TODO #Incomplete: properly generate JS annotations
     pub fn lower_annotation(
         &mut self,
         _scope_id: dir::LocalNodeIdAny,
@@ -40,8 +39,7 @@ impl ModuleLowerer<'_> {
                 left: _,
                 arguments: _,
             } => {
-                // nocheckin TODO #Incomplete: properly generate JS decorators..  metadata vs actual decorators?
-                //  (where do we lower decorators if they're real decorators.. elaborate phase?)
+                // NOTE #Incomplete: properly generate JS decorators after elaborate phase
                 return Err(CodegenJsError::UnsupportedConstruct {
                     node: annotation_id.into_global_any(self.module.id),
                     message: None,

@@ -25,6 +25,16 @@ impl Parser {
         Ok((string_id, token.span))
     }
 
+    /// Eat a string literal and return both the content and its span.
+    #[inline]
+    pub fn eat_string_literal_with_span(&mut self) -> ParseResult<(StringId, destack_source::Span)> {
+        let token = *self.peek_string_literal()?;
+        let content = self.get_string_literal_str(token);
+        let string_id = self.strings.intern(content);
+        self.bump();
+        Ok((string_id, token.span))
+    }
+
     /// Peek an identifier that matches a given string.
     #[inline]
     pub fn peek_identifier_str(&self, string: &str) -> ParseResult<&TokenSpan> {

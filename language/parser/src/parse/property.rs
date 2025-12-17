@@ -4,6 +4,7 @@ use destack_ast::{
     Asynchrony, FunctionAbstraction, FunctionCardinality, FunctionKind, FunctionMode,
     FunctionSignature, Generics, Keyword, LocalNodeId, Member, NodeType, Property, TokenType,
 };
+use destack_source::NodeSpanType;
 
 use crate::{ParseError, ParseResult, Parser, ParserMark};
 
@@ -169,15 +170,16 @@ impl Parser {
             let modifiers = self.eat_binding_modifiers_postfix_maybe(modifiers)?;
 
             // return type
-            let return_type = if self.peek_colon().is_ok() {
+            let (return_type, return_type_span) = if self.peek_colon().is_ok() {
+                let type_start = self.mark();
                 self.bump(); // eat colon
                 let return_type = self.with_options(
                     self.options.nested().in_type().in_before_block(),
                     |parser| parser.eat_expression(),
                 )?;
-                Some(return_type)
+                (Some(return_type), Some(self.get_span_from(type_start)))
             } else {
-                None
+                (None, None)
             };
 
             // where clauses
@@ -228,12 +230,20 @@ impl Parser {
                 },
                 body,
             };
-            Ok(self.tree.insert(property, self.get_span_from(start)))
+            let property_id = self.tree.insert(property, self.get_span_from(start));
+
+            // set type span for return type annotation
+            if let Some(span) = return_type_span {
+                self.tree.set_side_span(property_id, NodeSpanType::Type, span);
+            }
+
+            Ok(property_id)
         }
         // field
         else {
-            // value
-            let value = if self.peek_colon().is_ok() {
+            // value (type annotation)
+            let (value, type_span) = if self.peek_colon().is_ok() {
+                let type_start = self.mark();
                 self.bump(); // eat colon
                 self.eat_newlines_maybe()?;
                 // keep in type / in variant (for `type x = { .. }` expressions)
@@ -251,9 +261,9 @@ impl Parser {
                         |parser| parser.eat_expression(),
                     )?
                 };
-                Some(value)
+                (Some(value), Some(self.get_span_from(type_start)))
             } else {
-                None
+                (None, None)
             };
 
             // default
@@ -282,7 +292,14 @@ impl Parser {
                 value,
                 default,
             };
-            Ok(self.tree.insert(property, self.get_span_from(start)))
+            let property_id = self.tree.insert(property, self.get_span_from(start));
+
+            // set type span for field type annotation
+            if let Some(span) = type_span {
+                self.tree.set_side_span(property_id, NodeSpanType::Type, span);
+            }
+
+            Ok(property_id)
         }
     }
 
@@ -488,15 +505,16 @@ impl Parser {
             let modifiers = self.eat_binding_modifiers_postfix_maybe(modifiers)?;
 
             // return type
-            let return_type = if self.peek_colon().is_ok() {
+            let (return_type, return_type_span) = if self.peek_colon().is_ok() {
+                let type_start = self.mark();
                 self.bump(); // eat colon
                 let return_type = self.with_options(
                     self.options.nested().in_type().in_before_block(),
                     |parser| parser.eat_expression(),
                 )?;
-                Some(return_type)
+                (Some(return_type), Some(self.get_span_from(type_start)))
             } else {
-                None
+                (None, None)
             };
 
             // where clauses
@@ -547,12 +565,20 @@ impl Parser {
                 },
                 body,
             };
-            Ok(self.tree.insert(member, self.get_span_from(start)))
+            let member_id = self.tree.insert(member, self.get_span_from(start));
+
+            // set type span for return type annotation
+            if let Some(span) = return_type_span {
+                self.tree.set_side_span(member_id, NodeSpanType::Type, span);
+            }
+
+            Ok(member_id)
         }
         // field
         else {
-            // value
-            let value = if self.peek_colon().is_ok() {
+            // value (type annotation)
+            let (value, type_span) = if self.peek_colon().is_ok() {
+                let type_start = self.mark();
                 self.bump(); // eat colon
                 self.eat_newlines_maybe()?;
                 // keep in type / in variant (for `type x = { .. }` expressions)
@@ -570,9 +596,9 @@ impl Parser {
                         |parser| parser.eat_expression(),
                     )?
                 };
-                Some(value)
+                (Some(value), Some(self.get_span_from(type_start)))
             } else {
-                None
+                (None, None)
             };
 
             // default
@@ -601,7 +627,14 @@ impl Parser {
                 value,
                 default,
             };
-            Ok(self.tree.insert(member, self.get_span_from(start)))
+            let member_id = self.tree.insert(member, self.get_span_from(start));
+
+            // set type span for field type annotation
+            if let Some(span) = type_span {
+                self.tree.set_side_span(member_id, NodeSpanType::Type, span);
+            }
+
+            Ok(member_id)
         }
     }
 

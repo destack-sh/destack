@@ -13,15 +13,24 @@ pub enum NodeSearch {
     SmallestInnermost,
 }
 
+/// The type of span for a node.
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+pub enum NodeSpanType {
+    /// The enclosing span of a node.
+    Enclosing,
+    /// The main span of a node (usually its identifier).
+    Main,
+    /// The type declaration span of a node.
+    Type,
+}
+
 /// The NodeSourceMap is a side index of Spans into a NodeTree.
 #[derive(Debug, Clone)]
 pub struct NodeSourceMap {
-    /// The spans of all nodes. Index is the global node id.
-    spans_per_node: Vec<Span>,
-    /// The "main" spans for nodes that have them (sparse).
-    /// For declarations, this is the identifier span.
-    /// For operators, this is the operator token span.
-    main_spans: HashMap<u32, Span>,
+    /// The enclosing spans of all nodes. Index is the global node id.
+    enclosing_spans: Vec<Span>,
+    /// The extra side spans for nodes that have them (sparse).
+    side_spans: HashMap<(u32, NodeSpanType), Span>,
 }
 
 impl Default for NodeSourceMap {
@@ -45,53 +54,65 @@ pub struct EnclosingSpan {
 impl NodeSourceMap {
     pub fn new() -> Self {
         Self {
-            spans_per_node: Vec::new(),
-            main_spans: HashMap::new(),
+            enclosing_spans: Vec::new(),
+            side_spans: HashMap::new(),
         }
     }
 
     /// Append a span to the map.
     #[inline]
     pub fn append(&mut self, span: Span) {
-        self.spans_per_node.push(span);
+        self.enclosing_spans.push(span);
     }
 
     /// Set the span for a node.
     #[inline]
     pub fn set(&mut self, node_id: u32, span: Span) {
-        self.spans_per_node[node_id as usize] = span;
+        self.enclosing_spans[node_id as usize] = span;
     }
 
     /// Prune spans from the map.
     #[inline]
     pub fn prune_from(&mut self, from_idx: u32) {
-        self.spans_per_node.truncate(from_idx as usize);
-        self.main_spans.retain(|&id, _| id < from_idx);
+        self.enclosing_spans.truncate(from_idx as usize);
+        self.side_spans.retain(|&(id, _), _| id < from_idx);
+    }
+
+    /// Set a side span for a node.
+    #[inline]
+    pub fn set_side(&mut self, node_id: u32, span_type: NodeSpanType, span: Span) {
+        self.side_spans.insert((node_id, span_type), span);
+    }
+
+    /// Get a side span for a node, if it has one.
+    #[inline]
+    pub fn get_side(&self, node_id: u32, span_type: NodeSpanType) -> Option<Span> {
+        self.side_spans.get(&(node_id, span_type)).copied()
     }
 
     /// Set the main span for a node.
     #[inline]
     pub fn set_main(&mut self, node_id: u32, span: Span) {
-        self.main_spans.insert(node_id, span);
+        self.set_side(node_id, NodeSpanType::Main, span);
     }
 
     /// Get the main span for a node, if it has one.
     #[inline]
     pub fn get_main(&self, node_id: u32) -> Option<Span> {
-        self.main_spans.get(&node_id).copied()
+        self.get_side(node_id, NodeSpanType::Main)
     }
 
     /// Get the span for a node by its id.
     #[inline]
     pub fn get(&self, node_id: u32) -> Span {
-        self.spans_per_node[node_id as usize]
+        self.enclosing_spans[node_id as usize]
     }
 
     /// Gets all enclosing spans in the given range (including index).
     #[inline]
     pub fn get_enclosing_spans(&self, start: u32, end_inclusive: u32) -> Vec<EnclosingSpan> {
         let mut spans: Vec<EnclosingSpan> = Vec::new();
-        for (i, span) in self.spans_per_node.iter().enumerate() {
+        for (i, span) in self.enclosing_spans.iter().enumerate() {
             if span.contains(start) && span.contains(end_inclusive) {
                 let distance = (start).abs_diff(span.start) + (span.end).abs_diff(end_inclusive);
                 spans.push(EnclosingSpan {
