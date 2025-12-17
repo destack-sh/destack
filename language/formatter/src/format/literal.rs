@@ -400,7 +400,8 @@ mod tests {
     /// Long strings are NOT broken even when they exceed line width (like Prettier).
     #[test]
     fn test_format_long_string_not_broken() {
-        let source = r#""This is a very long string that exceeds the line width but should not be broken""#;
+        let source =
+            r#""This is a very long string that exceeds the line width but should not be broken""#;
         assert_format!(
             source,
             source,

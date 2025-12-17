@@ -74,7 +74,7 @@ const x = a ? b : c ? d : e;
 
 ### deeply nested ternary breaks
 
-Deep nesting breaks the outer ternary, inner stays on one line if it fits.
+Nested ternaries break at all levels with same indentation.
 
 ```ds line-width=50
 const x = isFirst ? firstValue : isSecond ? secondValue : defaultValue
@@ -83,7 +83,9 @@ const x = isFirst ? firstValue : isSecond ? secondValue : defaultValue
 ```ds expected
 const x = isFirst
     ? firstValue
-    : isSecond ? secondValue : defaultValue;
+    : isSecond
+    ? secondValue
+    : defaultValue;
 ```
 
 ## Ternary with Complex Expressions

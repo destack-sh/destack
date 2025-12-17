@@ -301,6 +301,106 @@ fn get_argument_value(
     }
 }
 
+/// Collect ternary chain into a flat list of (condition, then) pairs plus final else.
+fn collect_ternary_chain(
+    tree: &NodeTree,
+    node_id: LocalNodeId<Expression>,
+) -> (
+    Vec<(LocalNodeId<Expression>, LocalNodeId<Expression>)>,
+    Option<LocalNodeId<Expression>>,
+) {
+    let mut branches = Vec::new();
+    let mut current = node_id;
+
+    loop {
+        let Expression::If {
+            kind: IfKind::Ternary,
+            condition,
+            then_expression,
+            else_expression,
+            ..
+        } = tree.get(current)
+        else {
+            break;
+        };
+
+        branches.push((*condition, *then_expression));
+
+        // check if else is another ternary
+        let Some(else_id) = else_expression else {
+            return (branches, None);
+        };
+
+        if matches!(
+            tree.get(*else_id),
+            Expression::If {
+                kind: IfKind::Ternary,
+                ..
+            }
+        ) {
+            current = *else_id;
+        } else {
+            return (branches, Some(*else_id));
+        }
+    }
+
+    (branches, None)
+}
+
+/// Format a ternary expression with Prettier-style breaking.
+/// Nested ternaries get progressive indentation when they break.
+fn format_ternary(
+    f: &mut DestackFormatter<'_, '_>,
+    node_id: LocalNodeId<Expression>,
+) -> FormatResult<()> {
+    let tree = f.context().tree;
+    let (branches, final_else) = collect_ternary_chain(tree, node_id);
+
+    if branches.len() == 1 {
+        // simple ternary
+        let (condition, then_expr) = branches[0];
+        write!(
+            f,
+            [group(&format_args![
+                condition,
+                indent(&format_args![
+                    soft_line_break_or_space(),
+                    token("?"),
+                    space(),
+                    then_expr,
+                    soft_line_break_or_space(),
+                    token(":"),
+                    space(),
+                    final_else
+                ]),
+            ])]
+        )
+    } else {
+        // nested ternary chain: all branches at same indent level
+        write!(
+            f,
+            [group(&format_with(|f| {
+                for (condition, then_expr) in branches.iter() {
+                    write!(f, [condition])?;
+                    write!(
+                        f,
+                        [indent(&format_args![
+                            soft_line_break_or_space(),
+                            token("?"),
+                            space(),
+                            then_expr,
+                            soft_line_break_or_space(),
+                            token(":"),
+                            space(),
+                        ])]
+                    )?;
+                }
+                write!(f, [final_else])
+            }))]
+        )
+    }
+}
+
 /// Check if an argument list contains a single multi-line JSX element.
 /// Multi-line JSX (with children) should not be hugged in function calls.
 #[inline]
@@ -1663,32 +1763,10 @@ pub(crate) fn format_expression<'ast>(
         // if (ternary)
         Expression::If {
             kind: IfKind::Ternary,
-            condition,
-            then_expression,
-            else_expression,
             ..
         } => {
-            // prettier style: condition ? then : else
-            // breaks to:
-            //   condition
-            //     ? then
-            //     : else
-            write!(
-                f,
-                [group(&format_args![
-                    condition,
-                    indent(&format_args![
-                        soft_line_break_or_space(),
-                        token("?"),
-                        space(),
-                        then_expression,
-                        soft_line_break_or_space(),
-                        token(":"),
-                        space(),
-                        else_expression
-                    ]),
-                ])]
-            )?;
+            // Format ternary using helper function
+            format_ternary(f, node_id)?;
         }
 
         // if (regular)
@@ -1879,7 +1957,7 @@ pub(crate) fn format_expression<'ast>(
             write!(f, [token("return")])?;
             if let Some(value_id) = value {
                 let value_expr = tree.get(*value_id);
-                // for JSX returns, wrap in parens when multi-line (Prettier convention)
+                // for JSX returns, wrap in parens when multi-line
                 // JSX with children will always be multi-line, so always wrap those
                 if let Expression::TreeExpression { elements, .. } = value_expr {
                     let has_children = elements.as_ref().is_some_and(|e| !e.is_empty());
@@ -2338,7 +2416,7 @@ fn format_declarator<'ast>(
     let pattern_breakable = is_pattern_breakable(tree, *pattern);
     let value_breakable = is_expression_breakable(tree, value_expr);
 
-    // string literals are atomic - never break at `=` (Prettier behavior)
+    // string literals are atomic - never break at `=`
     let is_string_literal = matches!(
         value_expr,
         Expression::ScalarLiteral(ScalarLiteral::String(_)) | Expression::TemplateExpression { .. }
@@ -2814,12 +2892,23 @@ mod tests {
 
     #[test]
     fn test_format_return_jsx_multiline() {
-        // When JSX doesn't fit, it gets wrapped in parentheses (Prettier convention)
+        // When JSX doesn't fit, it gets wrapped in parentheses
         assert_format!(
             "return <App prop=\"value\" another=\"thing\" />",
             "return (\n    <App\n        prop=\"value\"\n        another=\"thing\"\n    />\n)",
             |p| p.eat_expression(),
             DestackFormatOptions::default_with_line_width(30)
+        );
+    }
+
+    #[test]
+    fn test_format_nested_ternary() {
+        // nested ternaries break at all levels with same indentation
+        assert_format!(
+            "const x = isFirst ? firstValue : isSecond ? secondValue : defaultValue",
+            "const x = isFirst\n    ? firstValue\n    : isSecond\n    ? secondValue\n    : defaultValue",
+            |p| p.eat_expression(),
+            DestackFormatOptions::default_with_line_width(50)
         );
     }
 }

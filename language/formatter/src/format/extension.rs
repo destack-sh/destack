@@ -8,7 +8,7 @@ mod tests {
         assert_format!(
             "extension for Foo {}",
             "extension for Foo { }",
-            |p| p.eat_extension(DeclarationDescriptor::default()),
+            |p| p.eat_extension(p.mark(), DeclarationDescriptor::default()),
             DestackFormatOptions::default()
         );
     }
@@ -18,7 +18,7 @@ mod tests {
         assert_format!(
             "extension for Foo implements Bar { static X = 1 }",
             "extension for Foo implements Bar {\n\tstatic X = 1,\n}",
-            |p| p.eat_extension(DeclarationDescriptor::default()),
+            |p| p.eat_extension(p.mark(), DeclarationDescriptor::default()),
             DestackFormatOptions::default_tab()
         );
     }
@@ -28,7 +28,7 @@ mod tests {
         assert_format!(
             "extension<T> for Foo<T> { }",
             "extension<T> for Foo<T> { }",
-            |p| p.eat_extension(DeclarationDescriptor::default()),
+            |p| p.eat_extension(p.mark(), DeclarationDescriptor::default()),
             DestackFormatOptions::default()
         );
     }

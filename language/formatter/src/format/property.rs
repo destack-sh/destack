@@ -389,7 +389,7 @@ mod tests {
         assert_format!(
             "struct { }",
             "struct { }",
-            |p| p.eat_struct_or_class(DeclarationDescriptor::default()),
+            |p| p.eat_struct_or_class(p.mark(), DeclarationDescriptor::default()),
             DestackFormatOptions::default()
         );
     }
@@ -399,7 +399,7 @@ mod tests {
         assert_format!(
             "struct { a: int32, b: boolean }",
             "struct {\n\ta: int32,\n\tb: boolean,\n}",
-            |p| p.eat_struct_or_class(DeclarationDescriptor::default()),
+            |p| p.eat_struct_or_class(p.mark(), DeclarationDescriptor::default()),
             DestackFormatOptions::default_tab()
         );
     }
@@ -409,7 +409,7 @@ mod tests {
         assert_format!(
             "struct { readonly a: int32, private b: boolean }",
             "struct {\n\treadonly a: int32,\n\tprivate b: boolean,\n}",
-            |p| p.eat_struct_or_class(DeclarationDescriptor::default()),
+            |p| p.eat_struct_or_class(p.mark(), DeclarationDescriptor::default()),
             DestackFormatOptions::default_tab()
         );
     }
@@ -419,7 +419,7 @@ mod tests {
         assert_format!(
             "struct Foo { a: int32 }",
             "struct Foo {\n\ta: int32,\n}",
-            |p| p.eat_struct_or_class(DeclarationDescriptor::default()),
+            |p| p.eat_struct_or_class(p.mark(), DeclarationDescriptor::default()),
             DestackFormatOptions::default_tab()
         );
     }
@@ -429,7 +429,7 @@ mod tests {
         assert_format!(
             "struct { a?: int32 = 42, b: boolean? }",
             "struct {\n\ta?: int32 = 42,\n\tb: boolean?,\n}",
-            |p| p.eat_struct_or_class(DeclarationDescriptor::default()),
+            |p| p.eat_struct_or_class(p.mark(), DeclarationDescriptor::default()),
             DestackFormatOptions::default_tab()
         );
     }
@@ -439,7 +439,7 @@ mod tests {
         assert_format!(
             "struct Foo<T: Numeric> extends Bar implements Baz { }",
             "struct Foo<T: Numeric> extends Bar implements Baz { }",
-            |p| p.eat_struct_or_class(DeclarationDescriptor::default()),
+            |p| p.eat_struct_or_class(p.mark(), DeclarationDescriptor::default()),
             DestackFormatOptions::default()
         );
     }

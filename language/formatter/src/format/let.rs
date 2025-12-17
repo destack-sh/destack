@@ -6,7 +6,7 @@ mod tests {
     #[test]
     fn test_format_let_with_value() {
         assert_format!("let x = 1", "let x = 1", |p| p
-            .eat_let(DeclarationDescriptor::default()));
+            .eat_let(p.mark(), DeclarationDescriptor::default()));
     }
 
     #[test]
@@ -14,7 +14,7 @@ mod tests {
         assert_format!(
             "const veryLongIdentifierName = veryLongIdentifierNameWithManyWords\n",
             "const veryLongIdentifierName =\n\tveryLongIdentifierNameWithManyWords\n",
-            |p| p.eat_let(DeclarationDescriptor::default()),
+            |p| p.eat_let(p.mark(), DeclarationDescriptor::default()),
             DestackFormatOptions::default_tab().with_line_width(40)
         );
     }
@@ -30,7 +30,7 @@ mod tests {
         assert_format!(
             source,
             source,
-            |p| p.eat_let(DeclarationDescriptor::default()),
+            |p| p.eat_let(p.mark(), DeclarationDescriptor::default()),
             DestackFormatOptions::default_with_line_width(40)
         );
     }
@@ -45,7 +45,7 @@ mod tests {
     TetrisPieceShape.L,
     TetrisPieceShape.O,
 )",
-            |p| p.eat_let(DeclarationDescriptor::default()),
+            |p| p.eat_let(p.mark(), DeclarationDescriptor::default()),
             DestackFormatOptions::default_with_line_width(40)
         );
     }
@@ -61,7 +61,7 @@ mod tests {
         assert_format!(
             source,
             source,
-            |p| p.eat_let(DeclarationDescriptor::default()),
+            |p| p.eat_let(p.mark(), DeclarationDescriptor::default()),
             DestackFormatOptions::default_with_line_width(40)
         );
     }
@@ -76,7 +76,7 @@ mod tests {
     TetrisPieceShape.L,
     TetrisPieceShape.O,
 ]",
-            |p| p.eat_let(DeclarationDescriptor::default()),
+            |p| p.eat_let(p.mark(), DeclarationDescriptor::default()),
             DestackFormatOptions::default_with_line_width(40)
         );
     }
@@ -94,7 +94,7 @@ mod tests {
         assert_format!(
             source,
             source,
-            |p| p.eat_let(DeclarationDescriptor::default()),
+            |p| p.eat_let(p.mark(), DeclarationDescriptor::default()),
             DestackFormatOptions::default_with_line_width(40)
         );
     }
@@ -108,7 +108,7 @@ mod tests {
     count: total = 0,
     items: [...rest],
 } = config"#,
-            |p| p.eat_let(DeclarationDescriptor::default()),
+            |p| p.eat_let(p.mark(), DeclarationDescriptor::default()),
             DestackFormatOptions::default_with_line_width(60)
         );
     }

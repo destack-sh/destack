@@ -178,3 +178,198 @@ Hovering over `x` parameter should show parameter info.
 ```query hover def:x_param
 parameter x
 ```
+
+## Declaration Modifiers
+
+Declaration spans should include prefix modifiers like `export`, `abstract`, and `declare`.
+
+### Hover over export keyword on function
+
+Hovering over the `export` keyword of an exported function should show the function.
+
+```ds
+export function greetExport(name: string): string {
+//^^^^ hover:export_fn
+//              ^^^^^^^^^^^ def:greetExport
+    return "Hello, " + name;
+}
+```
+
+Hovering over `export` should show function info because it's part of the declaration span.
+
+```query hover hover:export_fn
+function greetExport
+```
+
+### Hover over export keyword on struct
+
+Hovering over the `export` keyword of an exported struct should show the struct.
+
+```ds
+export struct ExportedPoint {
+//^^^^ hover:export_struct
+//            ^^^^^^^^^^^^^ def:ExportedPoint
+    x: float32,
+    y: float32,
+}
+```
+
+```query hover hover:export_struct
+struct ExportedPoint
+```
+
+### Hover over export keyword on class
+
+Hovering over the `export` keyword of an exported class should show the class.
+
+```ds
+export class ExportedAnimal {
+//^^^^ hover:export_class
+//           ^^^^^^^^^^^^^^ def:ExportedAnimal
+    name: string
+}
+```
+
+```query hover hover:export_class
+class ExportedAnimal
+```
+
+### Hover over export keyword on enum
+
+Hovering over the `export` keyword of an exported enum should show the enum.
+
+```ds
+export enum ExportedColor {
+//^^^^ hover:export_enum
+//          ^^^^^^^^^^^^^ def:ExportedColor
+    Red,
+    Green,
+    Blue,
+}
+```
+
+```query hover hover:export_enum
+enum ExportedColor
+```
+
+### Hover over export keyword on interface
+
+Hovering over the `export` keyword of an exported interface should show the interface.
+
+```ds
+export interface ExportedShape {
+//^^^^ hover:export_interface
+//               ^^^^^^^^^^^^^ def:ExportedShape
+    area(): float64
+}
+```
+
+```query hover hover:export_interface
+interface ExportedShape
+```
+
+### Hover over export keyword on type alias
+
+Hovering over the `export` keyword of an exported type alias should show the type.
+
+```ds
+export type ExportedId = string | int32
+//^^^^ hover:export_type
+//          ^^^^^^^^^^ def:ExportedId
+```
+
+```query hover hover:export_type
+type ExportedId
+```
+
+### Hover over abstract keyword on class
+
+Hovering over the `abstract` keyword should show the class.
+
+```ds
+abstract class AbstractBase {
+//^^^^^^ hover:abstract_class
+//             ^^^^^^^^^^^^ def:AbstractBase
+    abstract doSomething(): void
+}
+```
+
+```query hover hover:abstract_class
+class AbstractBase
+```
+
+### Hover over export abstract combination
+
+Hovering over `export` on an abstract class should show the class.
+
+```ds
+export abstract class ExportedAbstract {
+//^^^^ hover:export_abstract
+//                    ^^^^^^^^^^^^^^^^ def:ExportedAbstract
+    abstract process(): void
+}
+```
+
+```query hover hover:export_abstract
+class ExportedAbstract
+```
+
+### Hover over declare keyword on function
+
+Hovering over `declare` on an ambient declaration should show the declaration.
+
+```ds
+declare function declaredFn(x: int32): int32
+//^^^^^ hover:declare_fn
+//               ^^^^^^^^^^ def:declaredFn
+```
+
+```query hover hover:declare_fn
+function declaredFn
+```
+
+### Hover over export declare combination
+
+Hovering over `export` on an ambient declaration should show the declaration.
+
+```ds
+export declare function exportDeclaredFn(x: int32): int32
+//^^^^ hover:export_declare_fn
+//                      ^^^^^^^^^^^^^^^^ def:exportDeclaredFn
+```
+
+```query hover hover:export_declare_fn
+function exportDeclaredFn
+```
+
+### Hover over declare keyword on class
+
+Hovering over `declare` on an ambient class should show the class.
+
+```ds
+declare class DeclaredClass {
+//^^^^^ hover:declare_class
+//            ^^^^^^^^^^^^^ def:DeclaredClass
+    constructor(name: string)
+}
+```
+
+```query hover hover:declare_class
+class DeclaredClass
+```
+
+### Hover over export keyword on namespace
+
+Hovering over `export` on a namespace should show the namespace.
+
+```ds
+export namespace ExportedNS {
+//^^^^ hover:export_ns
+//               ^^^^^^^^^^ def:ExportedNS
+    export function inner(): void {}
+}
+```
+
+```query hover hover:export_ns
+namespace ExportedNS
+```

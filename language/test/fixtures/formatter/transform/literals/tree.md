@@ -344,7 +344,7 @@ createPortal(<Modal isOpen />, document.body);
 
 ### complex jsx in function call breaks
 
-Complex JSX in function call breaks to new line (Prettier style).
+Complex JSX in function call breaks to new line.
 
 ```ds line-width=40
 render(<Container><Header /><Content /></Container>)
@@ -375,7 +375,7 @@ return <App />;
 
 ### return jsx multiline gets wrapped
 
-When JSX in return breaks, it gets wrapped in parentheses (Prettier convention).
+When JSX in return breaks, it gets wrapped in parentheses.
 
 ```ds line-width=30
 return <App prop="value" another="thing" />

@@ -526,7 +526,7 @@
           ]
         },
         "singleQuote": {
-          "description": "Use single quotes (Prettier shorthand). Takes precedence over quoteStyle.",
+          "description": "Use single quotes. Takes precedence over quoteStyle.",
           "type": [
             "boolean",
             "null"
