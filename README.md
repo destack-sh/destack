@@ -6,7 +6,7 @@ Own your software, build it anywhere and run it everywhere in one integrated ope
 
  - **Destack Language**: "TypeScript++" [extends TypeScript with opt-in features](language/DESIGN.md) for correctness, collaboration, ergonomics, and performance. Two-way compatibility enables incremental adoption [`.ds` adoption](language/SPECIFICATION.md) (like we already do with `.tsx`).
 
- - **Destack Library**: Standard library for most things most software needs. Fully integrated, batteries-included components for every layer of the stack and every concern in the software lifecycle.
+ - **Destack Library**: Standard library for most things most software needs. Fully integrated, batteries-included components for every layer of the stack and every moment in the software lifecycle.
 
  - **Destack Platform**: Integrated platform to support your software development - the CLI, IDE integrations, build plugins, debugging, analytics, deployment tools. Everything to plug your software into the real world.
 

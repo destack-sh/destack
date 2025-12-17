@@ -1,17 +1,15 @@
 # Completion
 
-## Basic Symbols
+## Basic Keywords
 
-### Complete with available keywords
+### Complete with keywords at statement position
 
-At any position in the file, completion should offer language keywords.
+At any statement position, completion should offer language keywords.
 
 ```ds
 const foo = 1;
 $0
 ```
-
-Common keywords like `function`, `const`, and `struct` should appear in the completion list.
 
 ```query completion $0
 - function: keyword
@@ -19,17 +17,48 @@ Common keywords like `function`, `const`, and `struct` should appear in the comp
 - struct: keyword
 ```
 
-### Complete with keywords at start
+### Complete in empty file
 
-Even in an empty file, completion should offer language keywords.
+Even in an empty file, completion should offer keywords.
 
 ```ds
 $0
 ```
 
-This verifies the baseline completion functionality works without any context.
-
 ```query completion $0
 - function: keyword
 - const: keyword
+```
+
+## Type Position
+
+### Complete primitives after colon
+
+In type annotation position (after `:`), should show primitive types but NOT keywords.
+
+```ds
+const x: $0
+```
+
+```query completion $0
+- int32: type_parameter
+- string: type_parameter
+- bool: type_parameter
+! function: keyword
+! const: keyword
+```
+
+### Complete after extends
+
+After `extends` keyword, should show primitive types but NOT keywords.
+
+```ds
+class Child extends $0
+```
+
+```query completion $0
+- int32: type_parameter
+- string: type_parameter
+! function: keyword
+! const: keyword
 ```

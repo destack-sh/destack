@@ -70,9 +70,9 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> T
     };
 
     // parse expected completions from content (markdown list format)
-    let expected = parse_completion_content(&exp.content);
+    let ParsedExpectations { expected, excluded } = parse_completion_content(&exp.content);
 
-    if expected.is_empty() {
+    if expected.is_empty() && excluded.is_empty() {
         return TestResult::Skipped {
             reason: "no expected completions in query block".to_string(),
         };
@@ -105,6 +105,22 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> T
         }
     }
 
+    // check excluded completions are NOT present
+    for exc_item in &excluded {
+        let found = completions
+            .iter()
+            .any(|item| item.label == exc_item.label && kind_to_str(&item.kind) == exc_item.kind);
+
+        if found {
+            return TestResult::Failed {
+                message: format!(
+                    "completion '{}: {}' should NOT be present but was found",
+                    exc_item.label, exc_item.kind
+                ),
+            };
+        }
+    }
+
     TestResult::Passed
 }
 
@@ -116,20 +132,49 @@ fn parse_cursor_target(target: &str) -> usize {
         .unwrap_or(0)
 }
 
+/// Parsed completion expectations.
+struct ParsedExpectations {
+    /// Completions that should be present.
+    expected: Vec<ExpectedCompletion>,
+    /// Completions that should NOT be present.
+    excluded: Vec<ExpectedCompletion>,
+}
+
 /// Parse markdown list of completions: "- x: field\n- y: field".
-fn parse_completion_content(content: &str) -> Vec<ExpectedCompletion> {
-    content
-        .lines()
-        .filter_map(|line| {
-            let line = line.trim().strip_prefix("- ")?;
-            let (label, kind) = line.split_once(':')?;
-            Some(ExpectedCompletion {
-                label: label.trim().to_string(),
-                kind: kind.trim().to_string(),
-                detail: None,
-            })
-        })
-        .collect()
+/// Also supports exclusions with "! x: field" prefix.
+fn parse_completion_content(content: &str) -> ParsedExpectations {
+    let mut expected = Vec::new();
+    let mut excluded = Vec::new();
+
+    for line in content.lines() {
+        let line = line.trim();
+
+        // exclusion: "! x: field" or "- ! x: field"
+        let is_exclusion = line.starts_with("! ") || line.starts_with("- ! ");
+        let line = line
+            .strip_prefix("- ! ")
+            .or_else(|| line.strip_prefix("! "))
+            .or_else(|| line.strip_prefix("- "));
+
+        let Some(line) = line else { continue };
+        let Some((label, kind)) = line.split_once(':') else {
+            continue;
+        };
+
+        let completion = ExpectedCompletion {
+            label: label.trim().to_string(),
+            kind: kind.trim().to_string(),
+            detail: None,
+        };
+
+        if is_exclusion {
+            excluded.push(completion);
+        } else {
+            expected.push(completion);
+        }
+    }
+
+    ParsedExpectations { expected, excluded }
 }
 
 fn kind_to_str(kind: &query::CompletionKind) -> &'static str {
