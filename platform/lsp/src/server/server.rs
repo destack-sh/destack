@@ -15,6 +15,7 @@ use destack_workspace::{FormatterOptions, Session, query};
 use tower_lsp_server::{Client, LanguageServer, UriExt, jsonrpc, lsp_types as lsp};
 
 use crate::query::common::{byte_span_to_range, position_to_byte, span_to_location};
+use crate::query::diagnostic::diagnostic_to_lsp_diagnostic;
 use crate::query::navigation::{
     definition_to_location, document_highlight_to_lsp, document_symbol_to_lsp,
 };
@@ -64,16 +65,16 @@ impl DestackLanguageServer {
         self.session.get().expect("session not initialized")
     }
 
-    /// Invalidate a module at the given path.
+    /// Recompile a module at the given path and publish diagnostics.
     ///
-    /// nocheckin TODO #Incomplete: incremental recompilation
-    fn invalidate_path(&self, path: &std::path::Path) {
+    /// NOTE #Incomplete: incremental recompilation (currently recompiles entire module)
+    async fn recompile_and_publish(&self, uri: &lsp::Uri, path: &std::path::Path) {
         let session = self.session().clone();
         let program = session.find_program_for_path(path);
 
-        // create compiler with existing session (reuses all state...?)
+        // create compiler with existing session
         let compiler = Compiler::new(
-            session,
+            session.clone(),
             program.clone(),
             CompilerOptions {
                 workers: 1,
@@ -87,6 +88,24 @@ impl DestackLanguageServer {
         };
         compiler.enqueue(AnalyzeTask::AnalyzeModuleValidate { module: module_id });
         compiler.compile();
+
+        // collect diagnostics for this file
+        let module = session.modules.get(module_id);
+        let file_id = module.read().file_id;
+        let file = session.files.get(file_id);
+
+        let diagnostics: Vec<lsp::Diagnostic> = program
+            .diagnostics
+            .iter()
+            .into_iter()
+            .filter(|d| d.file_id == file_id)
+            .map(|d| diagnostic_to_lsp_diagnostic(&d, &file))
+            .collect();
+
+        // publish diagnostics
+        self.client
+            .publish_diagnostics(uri.clone(), diagnostics, None)
+            .await;
     }
 }
 
@@ -228,7 +247,6 @@ impl LanguageServer for DestackLanguageServer {
             .await;
 
         let session = self.session();
-
         let Some(path) = params
             .text_document
             .uri
@@ -252,8 +270,9 @@ impl LanguageServer for DestackLanguageServer {
         self.open_documents
             .insert(uri_str, OpenDocument { file_id });
 
-        // invalidate the module
-        self.invalidate_path(&path);
+        // recompile and publish diagnostics
+        self.recompile_and_publish(&params.text_document.uri, &path)
+            .await;
     }
 
     async fn did_change(&self, params: lsp::DidChangeTextDocumentParams) {
@@ -261,8 +280,6 @@ impl LanguageServer for DestackLanguageServer {
         let Some(change) = params.content_changes.into_iter().next() else {
             return;
         };
-        let content = change.text;
-
         let Some(path) = params
             .text_document
             .uri
@@ -273,10 +290,11 @@ impl LanguageServer for DestackLanguageServer {
         };
 
         // update overlay with new content
-        self.overlay_fs.set_overlay(&path, content);
+        self.overlay_fs.set_overlay(&path, change.text);
 
-        // invalidate the module
-        self.invalidate_path(&path);
+        // recompile and publish diagnostics
+        self.recompile_and_publish(&params.text_document.uri, &path)
+            .await;
     }
 
     async fn did_close(&self, params: lsp::DidCloseTextDocumentParams) {
@@ -292,26 +310,31 @@ impl LanguageServer for DestackLanguageServer {
         {
             self.overlay_fs.remove_overlay(&path);
         }
+
+        // clear diagnostics for closed file
+        self.client
+            .publish_diagnostics(params.text_document.uri, vec![], None)
+            .await;
     }
 
     async fn did_change_workspace_folders(&self, _params: lsp::DidChangeWorkspaceFoldersParams) {
-        // TODO #Incomplete: handle workspace folder changes
+        // #Incomplete: handle workspace folder changes
     }
 
     async fn did_change_watched_files(&self, _params: lsp::DidChangeWatchedFilesParams) {
-        // TODO #Incomplete: handle external file changes
+        // #Incomplete: handle external file changes
     }
 
     async fn did_create_files(&self, _params: lsp::CreateFilesParams) {
-        // TODO #Incomplete: handle file creation
+        // #Incomplete: handle file creation
     }
 
     async fn did_rename_files(&self, _params: lsp::RenameFilesParams) {
-        // TODO #Incomplete: handle file renames
+        // #Incomplete: handle file renames
     }
 
     async fn did_delete_files(&self, _params: lsp::DeleteFilesParams) {
-        // TODO #Incomplete: handle file deletion
+        // #Incomplete: handle file deletion
     }
 
     // ------------------------------------------------------------------------
