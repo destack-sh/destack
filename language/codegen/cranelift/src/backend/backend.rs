@@ -6,7 +6,8 @@ use cranelift_codegen::settings::{self, Configurable};
 use destack_codegen_lib::CodegenBackend;
 use destack_source::{FileType, ModuleId};
 use destack_workspace::{
-    Artifact, ArtifactContent, ArtifactId, ArtifactScope, ModuleMir, OutputFormat, Program, Target,
+    Artifact, ArtifactContent, ArtifactId, ArtifactScope, ArtifactVersion, ModuleMir, OutputFormat,
+    Program, Target,
 };
 use target_lexicon::Triple;
 
@@ -234,6 +235,7 @@ pub fn generate_module(
 
     let artifact = Artifact {
         id: registry_next_id(),
+        version: ArtifactVersion::INITIAL,
         scope: ArtifactScope::Module(module_id),
         target: target.name.clone(),
         uri,

@@ -8,7 +8,7 @@ use std::path::{Path, PathBuf};
 
 use destack_base::StringId;
 use destack_resolver::Resolver;
-use destack_source::{File, FileType, LanguageType, ModuleId, PackageId, Uri};
+use destack_source::{File, FileType, FileVersion, LanguageType, ModuleId, PackageId, Uri};
 use destack_workspace::{Module, ModuleType, Package, PackageKind};
 
 use crate::{Compiler, ImportError, ImportResult};
@@ -164,6 +164,7 @@ impl Compiler {
         let module = Module::blank(
             module_id,
             file_id,
+            FileVersion::INITIAL,
             uri,
             Some(path.clone()),
             package_id,

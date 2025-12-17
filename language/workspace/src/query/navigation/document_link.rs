@@ -107,7 +107,7 @@ pub fn document_links(session: &Session, file: FileId) -> Vec<DocumentLink> {
                 // the link should be on the import path string, not the whole statement
                 // for now, use the whole span but ideally we'd narrow to just the string
                 // nocheckin #Suspicious: why not just make the target the main_span in parser..?
-                let link_span = Span::new(file, span.start, span.end); 
+                let link_span = Span::new(file, span.start, span.end);
 
                 // get the import path string for tooltip
                 let import_path = session.strings.get(*target).to_string();

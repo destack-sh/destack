@@ -28,6 +28,38 @@ impl ArtifactId {
     }
 }
 
+/// Version of an artifact's generated content (increments on regeneration).
+#[repr(transparent)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Default)]
+pub struct ArtifactVersion(pub u64);
+
+impl std::fmt::Debug for ArtifactVersion {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "v{}", self.0)
+    }
+}
+
+impl std::fmt::Display for ArtifactVersion {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "v{}", self.0)
+    }
+}
+
+impl ArtifactVersion {
+    /// Initial version.
+    pub const INITIAL: Self = Self(0);
+
+    /// Create a new ArtifactVersion.
+    pub fn new(version: u64) -> Self {
+        Self(version)
+    }
+
+    /// Increment the version, returning the new value.
+    pub fn next(self) -> Self {
+        Self(self.0 + 1)
+    }
+}
+
 /// Scope of an artifact: module-level or package-level.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum ArtifactScope {
@@ -60,6 +92,8 @@ impl ArtifactScope {
 pub struct Artifact {
     /// The artifact id.
     pub id: ArtifactId,
+    /// The version of the artifact (increments on regeneration).
+    pub version: ArtifactVersion,
     /// The scope (module or package).
     pub scope: ArtifactScope,
     /// The target name (e.g., "npm", "wasm").

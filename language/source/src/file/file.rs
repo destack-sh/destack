@@ -25,11 +25,45 @@ impl FileId {
     }
 }
 
+/// Version of a file's content (increments on each change).
+#[repr(transparent)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Default)]
+pub struct FileVersion(pub u64);
+
+impl std::fmt::Debug for FileVersion {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "v{}", self.0)
+    }
+}
+
+impl std::fmt::Display for FileVersion {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "v{}", self.0)
+    }
+}
+
+impl FileVersion {
+    /// Initial version.
+    pub const INITIAL: Self = Self(0);
+
+    /// Create a new FileVersion.
+    pub fn new(version: u64) -> Self {
+        Self(version)
+    }
+
+    /// Increment the version, returning the new value.
+    pub fn next(self) -> Self {
+        Self(self.0 + 1)
+    }
+}
+
 /// File with content.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct File {
     /// The id of the File.
     pub id: FileId,
+    /// The version of the File (increments on each change).
+    pub version: FileVersion,
     /// The name of the source (usually the last segment of the URI).
     pub name: String,
     /// The URI of the File.
@@ -73,6 +107,7 @@ impl File {
     ) -> Self {
         Self {
             id,
+            version: FileVersion::INITIAL,
             name,
             uri,
             path,
@@ -136,6 +171,7 @@ impl File {
         let line_start_offsets = Self::precompute_line_start_offsets(&content);
         Self {
             id,
+            version: FileVersion::INITIAL,
             name,
             uri,
             path,
@@ -164,6 +200,7 @@ impl File {
         let line_start_offsets = Self::precompute_line_start_offsets(&content);
         let file = Self {
             id,
+            version: FileVersion::INITIAL,
             name,
             uri,
             path,
@@ -206,6 +243,7 @@ impl File {
         let line_start_offsets = Self::precompute_line_start_offsets(&content);
         let file = Self {
             id,
+            version: FileVersion::INITIAL,
             name,
             uri,
             path,
@@ -244,6 +282,12 @@ impl File {
     ) -> Result<Self, serde_json::Error> {
         let content = String::from_utf8(bytes).unwrap_or_else(|_| String::new());
         Self::from_text_as_jsonc(id, name, uri, path, ty, content)
+    }
+
+    /// Set the version of the file (builder pattern).
+    pub fn with_version(mut self, version: FileVersion) -> Self {
+        self.version = version;
+        self
     }
 
     /// Get the text content of the File (empty if not text).
