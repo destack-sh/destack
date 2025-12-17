@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
-use destack_compiler::{AnalyzeTask, CompileOptions, Compiler};
+use destack_compiler::{AnalyzeTask, Compiler, CompilerOptions};
 use destack_parser::source_colorizer;
 use destack_source::PrintOptions;
 
@@ -99,7 +99,7 @@ fn run_spec_test(test: &MdTestCase) -> TestResult {
     let compiler = Compiler::new(
         session.clone(),
         program.clone(),
-        CompileOptions {
+        CompilerOptions {
             workers: 1,
             ..Default::default()
         },

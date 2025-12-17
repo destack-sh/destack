@@ -2,7 +2,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use dashmap::DashMap;
-use destack_compiler::{AnalyzeTask, CompileOptions, Compiler};
+use destack_compiler::{AnalyzeTask, Compiler, CompilerOptions};
 use destack_source::{FileId, FileType, Uri};
 use destack_workspace::{Session, query};
 use parking_lot::RwLock;
@@ -49,7 +49,7 @@ impl DestackLanguageServer {
         let compiler = Compiler::new(
             Arc::new(Session::new(session.cwd.clone()).with_fs(session.fs.clone())),
             program.clone(),
-            CompileOptions {
+            CompilerOptions {
                 workers: 1,
                 ..Default::default()
             },

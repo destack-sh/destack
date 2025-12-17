@@ -240,9 +240,12 @@ impl ParserOptions {
         }
     }
 
-    /// Reset everything.
+    /// Reset position-related options but preserve context options like `in_generator`.
     pub(crate) fn nested(self) -> Self {
-        Self::default()
+        Self {
+            in_generator: self.in_generator,
+            ..Self::default()
+        }
     }
 }
 

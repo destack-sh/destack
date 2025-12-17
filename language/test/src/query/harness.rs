@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use destack_compiler::{AnalyzeTask, CompileOptions, Compiler};
+use destack_compiler::{AnalyzeTask, Compiler, CompilerOptions};
 use destack_source::{FileId, FileSystem, FileType, MemoryFileSystem, Uri};
 use destack_workspace::Session;
 
@@ -161,7 +161,7 @@ impl QueryTestSession {
         let compiler = Compiler::new(
             session.clone(),
             program.clone(),
-            CompileOptions {
+            CompilerOptions {
                 workers: 1,
                 ..Default::default()
             },

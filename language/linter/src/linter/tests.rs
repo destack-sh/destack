@@ -2,7 +2,7 @@ use std::env::current_dir;
 use std::sync::Arc;
 
 use destack_ast::NodeParentIndex;
-use destack_compiler::{AnalyzeTask, CompileOptions, Compiler, ImportTask};
+use destack_compiler::{AnalyzeTask, Compiler, CompilerOptions, ImportTask};
 use destack_fir::format as fir_format;
 use destack_formatter::{DestackFormatContext, DestackFormatOptions};
 use destack_parser::Parser;
@@ -62,7 +62,7 @@ impl TestProgram {
         let compiler = Arc::new(Compiler::new(
             session.clone(),
             program.clone(),
-            CompileOptions {
+            CompilerOptions {
                 workers: 1,
                 inject_prelude,
                 ..Default::default()

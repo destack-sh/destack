@@ -24,6 +24,7 @@ destack_workspace = { workspace = true }
 # general
 indexmap = { workspace = true }
 parking_lot = { workspace = true }
+regex-syntax = { workspace = true }
 
 [dev-dependencies]
 destack_compiler = { workspace = true }

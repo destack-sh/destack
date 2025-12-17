@@ -29,14 +29,14 @@ export type PrintedCompilerPipelineValue = {
     value: string,
 }
 
-type CompileOptions = {
+type CompilerOptions = {
     text: string,
     file: string,
     options: PluginOptions | null,
 }
 
 export async function compile(
-    { text, file, options }: CompileOptions,
+    { text, file, options }: CompilerOptions,
 ): Promise<BabelCore.BabelFileResult> {
     const ast = await parseAsync(text, {
         sourceFileName: file,

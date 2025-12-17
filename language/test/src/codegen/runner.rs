@@ -2,7 +2,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use destack_compiler::{CompileOptions, Compiler, EmitTask};
+use destack_compiler::{Compiler, CompilerOptions, EmitTask};
 use destack_source::{File, FileSystem, FileType, PhysicalFileSystem, Uri};
 use destack_workspace::{DsConfig, Session, Target};
 
@@ -73,7 +73,7 @@ fn run_codegen_case(test: &TestCase) -> TestResult {
     let compiler = Compiler::new(
         session.clone(),
         program.clone(),
-        CompileOptions {
+        CompilerOptions {
             workers: 1,
             ..Default::default()
         },

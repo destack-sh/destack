@@ -820,6 +820,7 @@ dependencies = [
  "destack_workspace",
  "indexmap",
  "parking_lot",
+ "regex-syntax",
 ]
 
 [[package]]
