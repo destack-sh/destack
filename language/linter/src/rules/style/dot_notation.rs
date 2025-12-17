@@ -1,0 +1,144 @@
+use destack_ast::{self as ast, Expression, ScalarLiteral, is_identifier};
+use destack_workspace::LintSeverity;
+
+use crate::{LintDiagnostic, LintModuleAstContext, LintRule, declare_lint};
+
+declare_lint! {
+    /// Prefer dot notation over bracket notation for property access.
+    ///
+    /// Use `obj.property` instead of `obj["property"]` when the property name
+    /// is a valid identifier.
+    #[lint(
+        id = "dot-notation",
+        code = "LY020",
+        category = Style,
+        level = Ast
+    )]
+    pub DotNotation,
+    "Prefer dot notation for property access"
+}
+
+impl LintRule for DotNotation {
+    fn meta(&self) -> &'static crate::LintMeta {
+        DotNotation::meta()
+    }
+
+    fn check_module_ast<'a>(&self, severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+        for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
+            let expr = ctx.tree.get(node_id);
+
+            // look for index expressions with string literal index
+            let Expression::Index {
+                index: Some(index_id),
+                ..
+            } = expr
+            else {
+                continue;
+            };
+
+            let index_expr = ctx.tree.get(*index_id);
+
+            // check if index is a string literal
+            let Expression::ScalarLiteral(ScalarLiteral::String(string_id)) = index_expr else {
+                continue;
+            };
+
+            let property_name = ctx.strings.get(*string_id);
+            let name_str = property_name.as_ref();
+
+            // check if string is a valid identifier
+            if is_identifier(name_str) {
+                ctx.report(
+                    LintDiagnostic::new(
+                        DOT_NOTATION.id,
+                        DOT_NOTATION.code,
+                        DOT_NOTATION.category,
+                        severity,
+                        format!("use `.{name_str}` instead of `[\"{name_str}\"]`"),
+                        ctx.module.file_id,
+                        ctx.tree.get_span(node_id),
+                    )
+                    .with_label("prefer dot notation"),
+                );
+            }
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::linter::TestProgram;
+
+    #[test]
+    fn test_detects_bracket_notation() {
+        let test = TestProgram::for_rule(DotNotation);
+        let result = test.lint_ast(
+            "test.ds",
+            r#"
+const x = obj["foo"]
+"#,
+        );
+        test.result(result).assert_lint("dot-notation");
+    }
+
+    #[test]
+    fn test_allows_dot_notation() {
+        let test = TestProgram::for_rule(DotNotation);
+        let result = test.lint_ast(
+            "test.ds",
+            r#"
+const x = obj.foo
+"#,
+        );
+        test.result(result).assert_no_lint("dot-notation");
+    }
+
+    #[test]
+    fn test_allows_non_identifier_bracket() {
+        let test = TestProgram::for_rule(DotNotation);
+        let result = test.lint_ast(
+            "test.ds",
+            r#"
+const x = obj["foo-bar"]
+"#,
+        );
+        test.result(result).assert_no_lint("dot-notation");
+    }
+
+    #[test]
+    fn test_allows_numeric_index() {
+        let test = TestProgram::for_rule(DotNotation);
+        let result = test.lint_ast(
+            "test.ds",
+            r#"
+const x = arr[0]
+"#,
+        );
+        test.result(result).assert_no_lint("dot-notation");
+    }
+
+    #[test]
+    fn test_allows_variable_index() {
+        let test = TestProgram::for_rule(DotNotation);
+        let result = test.lint_ast(
+            "test.ds",
+            r#"
+const x = obj[key]
+"#,
+        );
+        test.result(result).assert_no_lint("dot-notation");
+    }
+
+    #[test]
+    fn test_detects_underscore_property() {
+        let test = TestProgram::for_rule(DotNotation);
+        let result = test.lint_ast(
+            "test.ds",
+            r#"
+const x = obj["_private"]
+"#,
+        );
+        test.result(result).assert_lint("dot-notation");
+    }
+}

@@ -240,7 +240,7 @@ pub struct LinterOptions {
     pub restricted_globals: Vec<String>,
     /// Import paths to restrict.
     pub restricted_imports: Vec<String>,
-    /// Comment terms to warn on (default: ["TODO", "FIXME", "HACK"]).
+    /// Comment terms to warn on (default: ["nocheckin", "TODO", "FIXME", "HACK"]).
     pub warning_comment_terms: Vec<String>,
 }
 
@@ -268,6 +268,7 @@ impl Default for LinterOptions {
             restricted_globals: Vec::new(),
             restricted_imports: Vec::new(),
             warning_comment_terms: vec![
+                "nocheckin".to_string(),
                 "TODO".to_string(),
                 "FIXME".to_string(),
                 "HACK".to_string(),
