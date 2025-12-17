@@ -1,0 +1,127 @@
+// Complex formatting roundtrip test
+
+import { createServer, Router, Response } from "destack/http";
+import { Database, Query } from "destack/db";
+
+type UserId = string;
+type Result<T> = { ok: true, value: T } | { ok: false, error: Error };
+
+interface UserService {
+    findById(id: UserId): Promise<User | undefined>,
+    create(data: CreateUserInput): Promise<Result<User>>,
+    update(id: UserId, data: UpdateUserInput): Promise<Result<User>>,
+    delete(id: UserId): Promise<Result<void>>,
+}
+
+@entity
+export class User {
+    @primaryKey
+    id: UserId,
+
+    @unique
+    @index
+    email: string,
+
+    @encrypted
+    passwordHash: string,
+
+    profile: {
+        firstName: string,
+        lastName: string,
+        avatar?: string,
+        settings: {
+            theme: "light" | "dark",
+            notifications: boolean,
+        },
+    },
+
+    @timestamps
+    createdAt: DateTime,
+    updatedAt: DateTime,
+}
+
+export const userRouter = Router.create()
+    .get("/users", async (ctx) => {
+        const users = await ctx.db
+            .query<User>()
+            .where({ active: true })
+            .orderBy("createdAt", "desc")
+            .limit(100)
+            .execute();
+
+        return Response.json(users);
+    })
+    .get("/users/:id", async (ctx) => {
+        const user = await ctx.db
+            .query<User>()
+            .where({ id: ctx.params.id })
+            .first();
+
+        return user
+            ? Response.json(user)
+            : Response.notFound({ error: "User not found" });
+    })
+    .post("/users", async (ctx) => {
+        const input = await ctx.body<CreateUserInput>();
+
+        const result = await ctx.services.user.create(input);
+
+        return result.ok
+            ? Response.created(result.value)
+            : Response.badRequest(result.error);
+    });
+
+function processItems<T>(
+    items: T[],
+    transformer: (item: T, index: number) => T,
+    filter?: (item: T) => boolean,
+): T[] {
+    return items
+        .filter(filter ?? (() => true))
+        .map(transformer)
+        .filter((item) => item !== null);
+}
+
+const config = {
+    database: {
+        host: process.env.DB_HOST ?? "localhost",
+        port: parseInt(process.env.DB_PORT ?? "5432"),
+        name: process.env.DB_NAME ?? "app",
+        pool: {
+            min: 2,
+            max: 10,
+            idleTimeout: 30000,
+        },
+    },
+    server: {
+        port: 3000,
+        cors: {
+            origins: ["http://localhost:3000", "https://app.example.com"],
+            methods: ["GET", "POST", "PUT", "DELETE"],
+        },
+    },
+};
+
+async function main() {
+    const db = await Database.connect(config.database);
+
+    const server = createServer({
+        port: config.server.port,
+        middleware: [
+            corsMiddleware(config.server.cors),
+            authMiddleware(),
+            loggingMiddleware({ level: "info" }),
+        ],
+        routes: [userRouter],
+    });
+
+    server.on("error", (err) => {
+        console.error("Server error:", err);
+        process.exit(1);
+    });
+
+    await server.start();
+    console.log(`Server running on port ${config.server.port}`);
+}
+
+main().catch(console.error);

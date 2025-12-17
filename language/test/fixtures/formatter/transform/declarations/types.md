@@ -41,3 +41,35 @@ type   Foo   =   A   &   B
 ```ds expected
 type Foo = A & B;
 ```
+
+## Multi-line Type Unions
+
+### long union breaks at operators
+
+When a union type exceeds line width, it breaks with operators at the start of lines.
+
+```ds line-width=30
+type Result = Success | Failure | Pending | Unknown
+```
+
+```ds expected
+type Result = Success
+    | Failure
+    | Pending
+    | Unknown;
+```
+
+### long intersection breaks at operators
+
+Intersection types also break with operators at the start of lines.
+(Unlike in TypeScript, we can't lead with `&` because it's a valid unary operator i.e. references.)
+
+```ds line-width=30
+type Combined = HasName & HasAge & HasEmail
+```
+
+```ds expected
+type Combined = HasName
+    & HasAge
+    & HasEmail;
+```

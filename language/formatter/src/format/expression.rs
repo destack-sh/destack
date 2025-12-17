@@ -276,7 +276,10 @@ impl HugOptions {
 
 /// Extract the value expression from a positional argument.
 #[inline]
-fn get_argument_value(tree: &NodeTree, argument_id: LocalNodeId<Argument>) -> Option<LocalNodeId<Expression>> {
+fn get_argument_value(
+    tree: &NodeTree,
+    argument_id: LocalNodeId<Argument>,
+) -> Option<LocalNodeId<Expression>> {
     match tree.get(argument_id) {
         Argument::Positional { value } => Some(*value),
         _ => None,
@@ -285,12 +288,20 @@ fn get_argument_value(tree: &NodeTree, argument_id: LocalNodeId<Argument>) -> Op
 
 /// Check if an expression is huggable with the given configuration.
 #[inline]
-fn is_huggable_expression(tree: &NodeTree, expression_id: LocalNodeId<Expression>, config: &HugOptions) -> bool {
+fn is_huggable_expression(
+    tree: &NodeTree,
+    expression_id: LocalNodeId<Expression>,
+    config: &HugOptions,
+) -> bool {
     match tree.get(expression_id) {
         Expression::ObjectExpression { .. } | Expression::ArrayExpression { .. } => true,
         Expression::Declaration(declaration_id) if config.allow_arrow_functions => {
             // arrow function with block body
-            if let Declaration::Function { body: Some(body_id), .. } = tree.get(*declaration_id) {
+            if let Declaration::Function {
+                body: Some(body_id),
+                ..
+            } = tree.get(*declaration_id)
+            {
                 matches!(tree.get(*body_id), Expression::Block(_))
             } else {
                 false
@@ -349,41 +360,65 @@ fn format_hugged<'ast>(
                 if let Some(ty) = ty {
                     write!(f, [ty, space()])?;
                 }
-                write!(f, [
-                    group(&format_with(|f: &mut DestackFormatter<'ast, '_>| {
-                        write!(f, [
-                            token("{"),
-                            block_indent(&format_with(|f: &mut DestackFormatter<'ast, '_>| {
-                                f.join_with(&format_args![token(","), soft_line_break_or_space()])
-                                    .entries(properties)
-                                    .finish()?;
-                                write!(f, [if_group_breaks(&token(","))])
-                            })),
-                            token("}")
-                        ])
-                    })).should_expand(true),
-                    token(trailing),
-                    token(config.close)
-                ])?;
+                write!(
+                    f,
+                    [
+                        group(&format_with(|f: &mut DestackFormatter<'ast, '_>| {
+                            write!(
+                                f,
+                                [
+                                    token("{"),
+                                    block_indent(&format_with(
+                                        |f: &mut DestackFormatter<'ast, '_>| {
+                                            f.join_with(&format_args![
+                                                token(","),
+                                                soft_line_break_or_space()
+                                            ])
+                                            .entries(properties)
+                                            .finish()?;
+                                            write!(f, [if_group_breaks(&token(","))])
+                                        }
+                                    )),
+                                    token("}")
+                                ]
+                            )
+                        }))
+                        .should_expand(true),
+                        token(trailing),
+                        token(config.close)
+                    ]
+                )?;
             }
             Expression::ArrayExpression { elements } => {
-                write!(f, [
-                    token(config.open),
-                    group(&format_with(|f: &mut DestackFormatter<'ast, '_>| {
-                        write!(f, [
-                            token("["),
-                            block_indent(&format_with(|f: &mut DestackFormatter<'ast, '_>| {
-                                f.join_with(&format_args![token(","), soft_line_break_or_space()])
-                                    .entries(elements)
-                                    .finish()?;
-                                write!(f, [if_group_breaks(&token(","))])
-                            })),
-                            token("]")
-                        ])
-                    })).should_expand(true),
-                    token(trailing),
-                    token(config.close)
-                ])?;
+                write!(
+                    f,
+                    [
+                        token(config.open),
+                        group(&format_with(|f: &mut DestackFormatter<'ast, '_>| {
+                            write!(
+                                f,
+                                [
+                                    token("["),
+                                    block_indent(&format_with(
+                                        |f: &mut DestackFormatter<'ast, '_>| {
+                                            f.join_with(&format_args![
+                                                token(","),
+                                                soft_line_break_or_space()
+                                            ])
+                                            .entries(elements)
+                                            .finish()?;
+                                            write!(f, [if_group_breaks(&token(","))])
+                                        }
+                                    )),
+                                    token("]")
+                                ]
+                            )
+                        }))
+                        .should_expand(true),
+                        token(trailing),
+                        token(config.close)
+                    ]
+                )?;
             }
             Expression::Declaration(declaration_id) if config.allow_arrow_functions => {
                 // arrow function: format normally, handles its own expansion
@@ -399,7 +434,10 @@ fn format_hugged<'ast>(
         }
 
         if config.handle_annotations {
-            write!(f, [f.context().any_infix_or_postfix_annotations(argument_id)])?;
+            write!(
+                f,
+                [f.context().any_infix_or_postfix_annotations(argument_id)]
+            )?;
         }
         Ok(())
     });
@@ -434,30 +472,43 @@ fn format_tree_attribute_value<'ast>(
             // hugged: ={{ with expanded object contents then }}
             // uses fits_expanded so the outer tree element doesn't break
             let hugged_format = format_with(|f: &mut DestackFormatter<'ast, '_>| {
-                write!(f, [
-                    token("="),
-                    token("{"),
-                    fits_expanded(&format_with(|f: &mut DestackFormatter<'ast, '_>| {
-                        if let Some(ty) = ty {
-                            write!(f, [ty, space()])?;
-                        }
-                        write!(f, [
-                            group(&format_with(|f: &mut DestackFormatter<'ast, '_>| {
-                                write!(f, [
-                                    token("{"),
-                                    block_indent(&format_with(|f: &mut DestackFormatter<'ast, '_>| {
-                                        f.join_with(&format_args![token(","), soft_line_break_or_space()])
-                                            .entries(&properties)
-                                            .finish()?;
-                                        write!(f, [if_group_breaks(&token(","))])
-                                    })),
-                                    token("}")
-                                ])
-                            })).should_expand(true)
-                        ])
-                    })),
-                    token("}")
-                ])
+                write!(
+                    f,
+                    [
+                        token("="),
+                        token("{"),
+                        fits_expanded(&format_with(|f: &mut DestackFormatter<'ast, '_>| {
+                            if let Some(ty) = ty {
+                                write!(f, [ty, space()])?;
+                            }
+                            write!(
+                                f,
+                                [group(&format_with(|f: &mut DestackFormatter<'ast, '_>| {
+                                    write!(
+                                        f,
+                                        [
+                                            token("{"),
+                                            block_indent(&format_with(
+                                                |f: &mut DestackFormatter<'ast, '_>| {
+                                                    f.join_with(&format_args![
+                                                        token(","),
+                                                        soft_line_break_or_space()
+                                                    ])
+                                                    .entries(&properties)
+                                                    .finish()?;
+                                                    write!(f, [if_group_breaks(&token(","))])
+                                                }
+                                            )),
+                                            token("}")
+                                        ]
+                                    )
+                                }))
+                                .should_expand(true)]
+                            )
+                        })),
+                        token("}")
+                    ]
+                )
             });
 
             best_fitting![inline_format, hugged_format]
@@ -475,23 +526,37 @@ fn format_tree_attribute_value<'ast>(
             // hugged: ={[ with expanded array contents then ]}
             // uses fits_expanded so the outer tree element doesn't break
             let hugged_format = format_with(|f: &mut DestackFormatter<'ast, '_>| {
-                write!(f, [
-                    token("="),
-                    token("{"),
-                    fits_expanded(&group(&format_with(|f: &mut DestackFormatter<'ast, '_>| {
-                        write!(f, [
-                            token("["),
-                            block_indent(&format_with(|f: &mut DestackFormatter<'ast, '_>| {
-                                f.join_with(&format_args![token(","), soft_line_break_or_space()])
-                                    .entries(&elements)
-                                    .finish()?;
-                                write!(f, [if_group_breaks(&token(","))])
-                            })),
-                            token("]")
-                        ])
-                    })).should_expand(true)),
-                    token("}")
-                ])
+                write!(
+                    f,
+                    [
+                        token("="),
+                        token("{"),
+                        fits_expanded(
+                            &group(&format_with(|f: &mut DestackFormatter<'ast, '_>| {
+                                write!(
+                                    f,
+                                    [
+                                        token("["),
+                                        block_indent(&format_with(
+                                            |f: &mut DestackFormatter<'ast, '_>| {
+                                                f.join_with(&format_args![
+                                                    token(","),
+                                                    soft_line_break_or_space()
+                                                ])
+                                                .entries(&elements)
+                                                .finish()?;
+                                                write!(f, [if_group_breaks(&token(","))])
+                                            }
+                                        )),
+                                        token("]")
+                                    ]
+                                )
+                            }))
+                            .should_expand(true)
+                        ),
+                        token("}")
+                    ]
+                )
             });
 
             best_fitting![inline_format, hugged_format]
@@ -549,18 +614,22 @@ fn flatten_binary_recursive(
     operands: &mut Vec<BinaryOperand>,
     preceding_operator: Option<BinaryOperator>,
 ) {
-    if let Expression::Binary { left, operator, right } = tree.get(expression_id) {
-        if should_flatten_binary(*operator, target_operator) {
-            // recursively flatten the left side
-            flatten_binary_recursive(tree, *left, target_operator, operands, None);
+    if let Expression::Binary {
+        left,
+        operator,
+        right,
+    } = tree.get(expression_id)
+        && should_flatten_binary(*operator, target_operator)
+    {
+        // recursively flatten the left side
+        flatten_binary_recursive(tree, *left, target_operator, operands, None);
 
-            // add the right operand with its operator
-            operands.push(BinaryOperand {
-                operator: Some(*operator),
-                expression: *right,
-            });
-            return;
-        }
+        // add the right operand with its operator
+        operands.push(BinaryOperand {
+            operator: Some(*operator),
+            expression: *right,
+        });
+        return;
     }
 
     // not a binary expression or different precedence - add as-is
@@ -1183,9 +1252,9 @@ pub(crate) fn format_struct_literal<'ast>(
         .collect::<SmallVec<[_; 3]>>();
 
     // check for conditions that REQUIRE expansion
-    let has_methods = properties.iter().any(|property| {
-        matches!(property, Property::Method { body: Some(_), .. })
-    });
+    let has_methods = properties
+        .iter()
+        .any(|property| matches!(property, Property::Method { body: Some(_), .. }));
     let has_annotations = f.context().has_infix_annotation(expression_id)
         || properties_ids
             .iter()
@@ -1287,15 +1356,16 @@ pub(crate) fn format_tree_literal<'ast>(
                 // - Source has newlines (preserve author's formatting intent), OR
                 // - ALL children are tree elements and there are multiple
                 let all_elements = element_children_count == elements.len();
-                let force_break =
-                    source_has_newline || (all_elements && has_multiple_elements);
+                let force_break = source_has_newline || (all_elements && has_multiple_elements);
 
                 // Format children using TreeExpressionArgument for proper brace handling
                 let format_children = format_with(|f| {
                     f.join_with(soft_line_break_or_space())
-                        .entries(elements.iter().map(|elem| TreeExpressionArgument {
-                            argument_id: *elem,
-                        }))
+                        .entries(
+                            elements
+                                .iter()
+                                .map(|elem| TreeExpressionArgument { argument_id: *elem }),
+                        )
                         .finish()
                 });
 
@@ -2017,12 +2087,14 @@ pub(crate) fn format_expression<'ast>(
                             // subsequent operands: soft break, operator, space, operand
                             write!(
                                 f,
-                                [indent(&format_with(|f: &mut DestackFormatter<'ast, '_>| {
-                                    if !has_postfix {
-                                        write!(f, [soft_line_break_or_space()])?;
+                                [indent(&format_with(
+                                    |f: &mut DestackFormatter<'ast, '_>| {
+                                        if !has_postfix {
+                                            write!(f, [soft_line_break_or_space()])?;
+                                        }
+                                        write!(f, [op, space(), operand.expression])
                                     }
-                                    write!(f, [op, space(), operand.expression])
-                                }))]
+                                ))]
                             )?;
                         } else {
                             // first operand has no preceding operator
@@ -2064,10 +2136,7 @@ pub(crate) fn format_expression<'ast>(
         } => {
             let has_postfix = f.context().has_postfix_annotation(*left);
             // Check if the right side is a binary expression - if so, let it handle its own breaking
-            let right_is_binary = matches!(
-                f.context().tree.get(*right),
-                Expression::Binary { .. }
-            );
+            let right_is_binary = matches!(f.context().tree.get(*right), Expression::Binary { .. });
 
             if right_is_binary {
                 // Binary expressions handle their own indentation - keep on same line
