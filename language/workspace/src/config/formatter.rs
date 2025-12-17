@@ -1,40 +1,5 @@
 use destack_source::{IndentStyle, LineEnding};
 
-/// Semicolon insertion behavior.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
-pub enum Semicolons {
-    /// Always insert semicolons at statement ends.
-    #[default]
-    Always,
-    /// Only insert semicolons where required by ASI rules.
-    AsNeeded,
-}
-
-impl Semicolons {
-    /// Parse from string.
-    pub fn parse(s: &str) -> Option<Self> {
-        match s.to_lowercase().as_str() {
-            "always" | "true" => Some(Self::Always),
-            "as-needed" | "asneeded" | "false" => Some(Self::AsNeeded),
-            _ => None,
-        }
-    }
-
-    /// Get the string representation.
-    pub fn as_str(&self) -> &'static str {
-        match self {
-            Self::Always => "always",
-            Self::AsNeeded => "as-needed",
-        }
-    }
-}
-
-impl std::fmt::Display for Semicolons {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(self.as_str())
-    }
-}
-
 /// Quote style for string literals.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub enum QuoteStyle {
@@ -43,6 +8,9 @@ pub enum QuoteStyle {
     Double,
     /// Use single quotes: `'hello'`.
     Single,
+    /// Use single quotes for single characters, double quotes for strings.
+    /// `'a'` for characters, `"hello"` and `""` for strings.
+    Semantic,
 }
 
 impl QuoteStyle {
@@ -51,6 +19,7 @@ impl QuoteStyle {
         match s.to_lowercase().as_str() {
             "double" | "false" => Some(Self::Double),
             "single" | "true" => Some(Self::Single),
+            "semantic" | "auto" => Some(Self::Semantic),
             _ => None,
         }
     }
@@ -60,14 +29,33 @@ impl QuoteStyle {
         match self {
             Self::Double => "double",
             Self::Single => "single",
+            Self::Semantic => "semantic",
         }
     }
 
-    /// Get the quote character.
+    /// Get the quote character for a given content.
+    /// For `Semantic`, returns single quote for single-char content, double otherwise.
+    pub fn char_for(&self, content: &str) -> char {
+        match self {
+            Self::Double => '"',
+            Self::Single => '\'',
+            Self::Semantic => {
+                // Single char (not empty) uses single quotes
+                if content.chars().count() == 1 {
+                    '\''
+                } else {
+                    '"'
+                }
+            }
+        }
+    }
+
+    /// Get the default quote character (for non-semantic contexts).
     pub fn char(&self) -> char {
         match self {
             Self::Double => '"',
             Self::Single => '\'',
+            Self::Semantic => '"', // default to double for semantic
         }
     }
 }
@@ -216,8 +204,6 @@ pub struct FormatterOptions {
     /// Target line width (best effort, not a hard limit).
     pub line_width: u16,
 
-    /// Semicolon insertion policy.
-    pub semicolons: Semicolons,
     /// Quote style for string literals.
     pub quote_style: QuoteStyle,
     /// Trailing comma policy for multi-line constructs.
@@ -251,8 +237,7 @@ impl FormatterOptions {
             indent_width: 4,
             line_width: 100,
             // syntax
-            semicolons: Semicolons::Always,
-            quote_style: QuoteStyle::Double,
+            quote_style: QuoteStyle::Semantic,
             trailing_comma: TrailingComma::All,
             bracket_spacing: true,
             arrow_parens: ArrowParentheses::Always,
@@ -293,12 +278,6 @@ impl FormatterOptions {
     /// Set the line width.
     pub fn with_line_width(mut self, line_width: u16) -> Self {
         self.line_width = line_width;
-        self
-    }
-
-    /// Set the semicolon policy.
-    pub fn with_semicolons(mut self, semicolons: Semicolons) -> Self {
-        self.semicolons = semicolons;
         self
     }
 

@@ -8,7 +8,7 @@ use destack_source::{File, FileContent, FileId, IndentStyle, LineEnding};
 
 use crate::{
     ArrowParentheses, FormatterOptions, LintCategory, LintPreset, LintSeverity, LinterOptions,
-    QuoteProperty, QuoteStyle, Semicolons, TrailingComma,
+    QuoteProperty, QuoteStyle, TrailingComma,
 };
 
 use super::target::{
@@ -200,9 +200,6 @@ impl DsConfig {
             self.options.formatter.line_width = parent.formatter.line_width;
         }
         // syntax
-        if child_json.semicolons.is_none() {
-            self.options.formatter.semicolons = parent.formatter.semicolons;
-        }
         if child_json.quote_style.is_none() && child_json.single_quote.is_none() {
             self.options.formatter.quote_style = parent.formatter.quote_style;
         }
@@ -1054,26 +1051,6 @@ pub struct DsConfigTargetJson {
     pub shrink_level: Option<u8>,
 }
 
-/// Semicolons style for JSON deserialization (Prettier: `semi`).
-#[derive(Debug, Clone, Copy, Deserialize)]
-#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
-#[serde(rename_all = "camelCase")]
-pub enum SemicolonsJson {
-    /// Always insert semicolons.
-    Always,
-    /// Only where required by ASI.
-    AsNeeded,
-}
-
-impl From<SemicolonsJson> for Semicolons {
-    fn from(value: SemicolonsJson) -> Self {
-        match value {
-            SemicolonsJson::Always => Semicolons::Always,
-            SemicolonsJson::AsNeeded => Semicolons::AsNeeded,
-        }
-    }
-}
-
 /// Quote style for JSON deserialization (Prettier: `singleQuote`).
 #[derive(Debug, Clone, Copy, Deserialize)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
@@ -1083,6 +1060,9 @@ pub enum QuoteStyleJson {
     Double,
     /// Use single quotes.
     Single,
+    /// Use single quotes for single characters, double quotes for strings.
+    #[serde(alias = "auto")]
+    Semantic,
 }
 
 impl From<QuoteStyleJson> for QuoteStyle {
@@ -1090,6 +1070,7 @@ impl From<QuoteStyleJson> for QuoteStyle {
         match value {
             QuoteStyleJson::Double => QuoteStyle::Double,
             QuoteStyleJson::Single => QuoteStyle::Single,
+            QuoteStyleJson::Semantic => QuoteStyle::Semantic,
         }
     }
 }
@@ -1182,10 +1163,7 @@ pub struct DsConfigFormatterJson {
     #[serde(alias = "printWidth")]
     pub line_width: Option<u16>,
 
-    /// Semicolon insertion: "always" or "asNeeded".
-    #[serde(alias = "semi")]
-    pub semicolons: Option<SemicolonsJson>,
-    /// Quote style: "double" or "single".
+    /// Quote style: "double", "single", or "semantic".
     pub quote_style: Option<QuoteStyleJson>,
     /// Use single quotes (Prettier shorthand). Takes precedence over quoteStyle.
     pub single_quote: Option<bool>,
@@ -1224,11 +1202,7 @@ impl DsConfigFormatterJson {
             options.line_width = line_width;
         }
 
-        // syntax
-        if let Some(semicolons) = self.semicolons {
-            options.semicolons = semicolons.into();
-        }
-        // singleQuote takes precedence over quoteStyle
+        // syntax: singleQuote takes precedence over quoteStyle
         if let Some(single_quote) = self.single_quote {
             options.quote_style = if single_quote {
                 QuoteStyle::Single
