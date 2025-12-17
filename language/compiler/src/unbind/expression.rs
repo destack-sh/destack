@@ -77,11 +77,16 @@ impl Compiler {
 
                 dir::Expression::Let { descriptor, mutability, declarators } => {
                     let descriptor = self.unbind_declaration_descriptor(descriptor, ast_strings);
-                    let mutability = self.unbind_mutability(*mutability);
+                    let ast_mutability = self.unbind_mutability(*mutability);
+                    // Derive LetKind from mutability (DIR doesn't preserve original keyword)
+                    let kind = match mutability {
+                        dir::Mutability::Immutable => ast::LetKind::Const,
+                        dir::Mutability::Mutable => ast::LetKind::Let,
+                    };
                     let declarators = declarators.iter().map(|decl| {
                         self.unbind_declarator(module, *decl, tree, symbols, ast_tree, ast_strings)
                     }).collect();
-                    ast::Expression::Let { descriptor, mutability, declarators }
+                    ast::Expression::Let { kind, descriptor, mutability: ast_mutability, declarators }
                 }
 
                 dir::Expression::TypeUnary { operator, right } => {

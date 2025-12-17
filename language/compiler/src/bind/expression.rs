@@ -233,6 +233,7 @@ impl Compiler {
                 descriptor,
                 mutability,
                 declarators: ast_declarators,
+                ..
             } => {
                 let symbol_kind = if descriptor.export.is_some() {
                     SymbolKind::Item
