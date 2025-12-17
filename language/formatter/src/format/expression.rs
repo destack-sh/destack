@@ -1,7 +1,7 @@
 use destack_ast::{
-    Argument, Asynchrony, Declarator, DependencyItem, DependencyKind, DependencyMode, Expression,
-    ForEachKind, IfKind, Keyword, LetKind, LocalNodeId, NodeTree, PostfixPosition, Property,
-    ScalarLiteral, TypeUnaryOperator, WhileKind, YieldCardinality,
+    Argument, Asynchrony, BinaryOperator, Declaration, Declarator, DependencyItem, DependencyKind,
+    DependencyMode, Expression, ForEachKind, IfKind, Keyword, LetKind, LocalNodeId, NodeTree,
+    PostfixPosition, Property, ScalarLiteral, TypeUnaryOperator, WhileKind, YieldCardinality,
 };
 use destack_base::StringId;
 use destack_fir::format::{BestFittingMode, FormatError};
@@ -233,6 +233,246 @@ fn format_index_expression<'ast>(
     Ok(())
 }
 
+/// Hugging configuration for different delimiter contexts.
+struct HugOptions {
+    /// The opening delimiter.
+    open: &'static str,
+    /// The closing delimiter.
+    close: &'static str,
+    /// Whether to force a trailing comma.
+    force_trailing: bool,
+    /// Whether to allow arrow functions.
+    allow_arrow_functions: bool,
+    /// Whether to handle annotations.
+    handle_annotations: bool,
+}
+
+impl HugOptions {
+    const CALL: Self = Self {
+        open: "(",
+        close: ")",
+        force_trailing: false,
+        allow_arrow_functions: true,
+        handle_annotations: true,
+    };
+
+    const ARRAY: Self = Self {
+        open: "[",
+        close: "]",
+        force_trailing: false,
+        allow_arrow_functions: false,
+        handle_annotations: false,
+    };
+
+    const TUPLE: Self = Self {
+        open: "(",
+        close: ")",
+        force_trailing: true,
+        allow_arrow_functions: false,
+        handle_annotations: false,
+    };
+}
+
+/// Extract the value expression from a positional argument.
+#[inline]
+fn get_argument_value(tree: &NodeTree, argument_id: LocalNodeId<Argument>) -> Option<LocalNodeId<Expression>> {
+    match tree.get(argument_id) {
+        Argument::Positional { value } => Some(*value),
+        _ => None,
+    }
+}
+
+/// Check if an expression is huggable with the given configuration.
+#[inline]
+fn is_huggable_expression(tree: &NodeTree, expression_id: LocalNodeId<Expression>, config: &HugOptions) -> bool {
+    match tree.get(expression_id) {
+        Expression::ObjectExpression { .. } | Expression::ArrayExpression { .. } => true,
+        Expression::Declaration(declaration_id) if config.allow_arrow_functions => {
+            // arrow function with block body
+            if let Declaration::Function { body: Some(body_id), .. } = tree.get(*declaration_id) {
+                matches!(tree.get(*body_id), Expression::Block(_))
+            } else {
+                false
+            }
+        }
+        _ => false,
+    }
+}
+
+/// Format a single-element argument list with hugging for expandable elements.
+///
+/// When a single object/array (or arrow function for calls) is the only argument,
+/// format as `foo({...})` instead of `foo(\n    {...},\n)`.
+/// Returns true if hugging was applied, false if regular list_like should be used.
+fn format_hugged<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    arguments: &Vec<LocalNodeId<Argument>>,
+    config: HugOptions,
+) -> FormatResult<bool> {
+    // only hug single positional arguments
+    if arguments.len() != 1 {
+        return Ok(false);
+    }
+
+    let argument_id = arguments[0];
+    let tree = f.context().tree;
+
+    let Some(value_id) = get_argument_value(tree, argument_id) else {
+        return Ok(false);
+    };
+
+    if !is_huggable_expression(tree, value_id, &config) {
+        return Ok(false);
+    }
+
+    let trailing = if config.force_trailing { "," } else { "" };
+
+    // inline: keep everything on one line
+    let inline_format = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+        write!(f, [token(config.open), argument_id])?;
+        if config.force_trailing {
+            write!(f, [token(",")])?;
+        }
+        write!(f, [token(config.close)])
+    });
+
+    // hugged: argument expands but delimiters hug
+    let hugged_format = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+        if config.handle_annotations {
+            write!(f, [f.context().any_prefix_annotations(argument_id)])?;
+        }
+
+        match f.context().tree.get(value_id) {
+            Expression::ObjectExpression { ty, properties } => {
+                write!(f, [token(config.open)])?;
+                if let Some(ty) = ty {
+                    write!(f, [ty, space()])?;
+                }
+                write!(f, [
+                    group(&format_with(|f: &mut DestackFormatter<'ast, '_>| {
+                        write!(f, [
+                            token("{"),
+                            block_indent(&format_with(|f: &mut DestackFormatter<'ast, '_>| {
+                                f.join_with(&format_args![token(","), soft_line_break_or_space()])
+                                    .entries(properties)
+                                    .finish()?;
+                                write!(f, [if_group_breaks(&token(","))])
+                            })),
+                            token("}")
+                        ])
+                    })).should_expand(true),
+                    token(trailing),
+                    token(config.close)
+                ])?;
+            }
+            Expression::ArrayExpression { elements } => {
+                write!(f, [
+                    token(config.open),
+                    group(&format_with(|f: &mut DestackFormatter<'ast, '_>| {
+                        write!(f, [
+                            token("["),
+                            block_indent(&format_with(|f: &mut DestackFormatter<'ast, '_>| {
+                                f.join_with(&format_args![token(","), soft_line_break_or_space()])
+                                    .entries(elements)
+                                    .finish()?;
+                                write!(f, [if_group_breaks(&token(","))])
+                            })),
+                            token("]")
+                        ])
+                    })).should_expand(true),
+                    token(trailing),
+                    token(config.close)
+                ])?;
+            }
+            Expression::Declaration(declaration_id) if config.allow_arrow_functions => {
+                // arrow function: format normally, handles its own expansion
+                write!(f, [token(config.open), declaration_id, token(config.close)])?;
+            }
+            _ => {
+                write!(f, [token(config.open), value_id])?;
+                if config.force_trailing {
+                    write!(f, [token(",")])?;
+                }
+                write!(f, [token(config.close)])?;
+            }
+        }
+
+        if config.handle_annotations {
+            write!(f, [f.context().any_infix_or_postfix_annotations(argument_id)])?;
+        }
+        Ok(())
+    });
+
+    best_fitting![inline_format, hugged_format]
+        .with_mode(BestFittingMode::AllLines)
+        .format(f)?;
+
+    Ok(true)
+}
+
+/// Returns the precedence group for a binary operator.
+#[inline]
+fn binary_operator_precedence_group(operator: BinaryOperator) -> u8 {
+    // first two digits of discriminant encode precedence
+    (operator as u16 / 100) as u8
+}
+
+/// Checks if two binary operators should be flattened together.
+#[inline]
+fn should_flatten_binary(left_operator: BinaryOperator, right_operator: BinaryOperator) -> bool {
+    binary_operator_precedence_group(left_operator)
+        == binary_operator_precedence_group(right_operator)
+}
+
+/// Represents a flattened binary expression operand with its preceding operator.
+struct BinaryOperand {
+    /// The operator before this operand (None for first).
+    operator: Option<BinaryOperator>,
+    /// The expression node.
+    expression: LocalNodeId<Expression>,
+}
+
+/// Flattens a binary expression chain into a list of operands.
+///
+/// For `a + b + c`, returns [(None, a), (Some(+), b), (Some(+), c)].
+fn flatten_binary_expression(
+    tree: &NodeTree,
+    expression_id: LocalNodeId<Expression>,
+    target_operator: BinaryOperator,
+) -> Vec<BinaryOperand> {
+    let mut operands = Vec::new();
+    flatten_binary_recursive(tree, expression_id, target_operator, &mut operands, None);
+    operands
+}
+
+fn flatten_binary_recursive(
+    tree: &NodeTree,
+    expression_id: LocalNodeId<Expression>,
+    target_operator: BinaryOperator,
+    operands: &mut Vec<BinaryOperand>,
+    preceding_operator: Option<BinaryOperator>,
+) {
+    if let Expression::Binary { left, operator, right } = tree.get(expression_id) {
+        if should_flatten_binary(*operator, target_operator) {
+            // recursively flatten the left side
+            flatten_binary_recursive(tree, *left, target_operator, operands, None);
+
+            // add the right operand with its operator
+            operands.push(BinaryOperand {
+                operator: Some(*operator),
+                expression: *right,
+            });
+            return;
+        }
+    }
+
+    // not a binary expression or different precedence - add as-is
+    operands.push(BinaryOperand {
+        operator: preceding_operator,
+        expression: expression_id,
+    });
+}
+
 /// Format a call expression without considering chaining.
 #[inline]
 fn format_call_expression<'ast>(
@@ -253,7 +493,11 @@ fn format_call_expression<'ast>(
         if let Some(static_arguments) = static_arguments {
             write!(f, [list_like("<", ">", ",", static_arguments)])?;
         }
-        write!(f, [list_like("(", ")", ",", dynamic_arguments)])?;
+
+        // try hugged format for single object/array arguments
+        if !format_hugged(f, dynamic_arguments, HugOptions::CALL)? {
+            write!(f, [list_like("(", ")", ",", dynamic_arguments)])?;
+        }
     } else {
         debug_assert!(false, "unexpected expression kind for call formatter");
     }
@@ -378,7 +622,10 @@ fn format_chain_expression<'ast>(
             if *position == PostfixPosition::Indirect {
                 write!(f, [token(".")])?;
             }
-            write!(f, [list_like("(", ")", ",", dynamic_arguments)])?;
+            // try hugged format for single object/array arguments
+            if !format_hugged(f, dynamic_arguments, HugOptions::CALL)? {
+                write!(f, [list_like("(", ")", ",", dynamic_arguments)])?;
+            }
         }
         ChainExpression::Index { position, index } => {
             if *position == PostfixPosition::Indirect {
@@ -612,16 +859,18 @@ pub(crate) fn format_expression_chain<'ast>(
             // always print the base first so indentation aligns subsequent lines
             format_chain_base(f, &base)?;
             // indent chained entries so each operation sits on its own line
+            // Use indent with manual line breaks instead of block_indent to avoid trailing newline
+            // This ensures semicolons stay on the same line as the last chain element
             if !lines.is_empty() {
                 write!(
                     f,
-                    [block_indent(&format_with(|f| {
+                    [indent(&format_with(|f| {
                         // each chain line renders in isolation to mirror prettier style
-                        let mut join = f.join_with(hard_line_break());
                         for line in &lines {
-                            join.entry(&format_with(|f| format_chain_expression_line(f, line)));
+                            write!(f, [hard_line_break()])?;
+                            format_chain_expression_line(f, line)?;
                         }
-                        join.finish()
+                        Ok(())
                     }))]
                 )?;
             }
@@ -1435,22 +1684,25 @@ pub(crate) fn format_expression<'ast>(
         Expression::ArrayExpression {
             elements: elements_ids,
         } => {
-            let span = f.context().get_span(node_id);
-            let elements = elements_ids
-                .iter()
-                .map(|id| tree.get(*id))
-                .collect::<SmallVec<[_; 3]>>();
-            let should_expand = elements.len() > 1
-                && elements
+            // try hugged format for single object/array elements
+            if !format_hugged(f, elements_ids, HugOptions::ARRAY)? {
+                let span = f.context().get_span(node_id);
+                let elements = elements_ids
                     .iter()
-                    .any(|element| is_complex_argument(tree, element))
-                || f.context().has_newline(span) && elements.len() > 1;
-            write!(
-                f,
-                [list_like("[", "]", ",", elements_ids)
-                    .as_collection()
-                    .should_expand(should_expand)]
-            )?;
+                    .map(|id| tree.get(*id))
+                    .collect::<SmallVec<[_; 3]>>();
+                let should_expand = elements.len() > 1
+                    && elements
+                        .iter()
+                        .any(|element| is_complex_argument(tree, element))
+                    || f.context().has_newline(span) && elements.len() > 1;
+                write!(
+                    f,
+                    [list_like("[", "]", ",", elements_ids)
+                        .as_collection()
+                        .should_expand(should_expand)]
+                )?;
+            }
         }
 
         // tuple literal
@@ -1459,7 +1711,8 @@ pub(crate) fn format_expression<'ast>(
         } => {
             if elements_ids.is_empty() {
                 write!(f, [token("()")])?;
-            } else {
+            } else if !format_hugged(f, elements_ids, HugOptions::TUPLE)? {
+                // not a single huggable element - use regular formatting
                 let span = f.context().get_span(node_id);
                 let elements = elements_ids
                     .iter()
@@ -1642,24 +1895,46 @@ pub(crate) fn format_expression<'ast>(
 
         // binary
         Expression::Binary {
-            left,
+            left: _,
             operator,
-            right,
+            right: _,
         } => {
-            // group binary expressions so they can break across lines
-            // skip space before operator if left has postfix annotation (it adds its own space)
-            let has_postfix = f.context().has_postfix_annotation(*left);
+            // flatten binary expression chain for Prettier-style formatting
+            // e.g. `a + b + c` formats as:
+            //   a
+            //       + b
+            //       + c
+            // all operands at the same indentation level
+            let operands = flatten_binary_expression(f.context().tree, node_id, *operator);
+
+            // format as a group with the first operand inline, rest indented
             write!(
                 f,
-                [group(&format_args![
-                    left,
-                    indent(&format_with(|f| {
-                        if !has_postfix {
-                            write!(f, [soft_line_break_or_space()])?;
+                [group(&format_with(|f: &mut DestackFormatter<'ast, '_>| {
+                    let mut prev_expression: Option<LocalNodeId<Expression>> = None;
+                    for operand in &operands {
+                        if let Some(op) = operand.operator {
+                            // check if previous operand has postfix annotation (it adds its own space)
+                            let has_postfix = prev_expression
+                                .is_some_and(|e| f.context().has_postfix_annotation(e));
+                            // subsequent operands: soft break, operator, space, operand
+                            write!(
+                                f,
+                                [indent(&format_with(|f: &mut DestackFormatter<'ast, '_>| {
+                                    if !has_postfix {
+                                        write!(f, [soft_line_break_or_space()])?;
+                                    }
+                                    write!(f, [op, space(), operand.expression])
+                                }))]
+                            )?;
+                        } else {
+                            // first operand has no preceding operator
+                            write!(f, [operand.expression])?;
                         }
-                        write!(f, [operator, space(), right])
-                    }))
-                ])]
+                        prev_expression = Some(operand.expression);
+                    }
+                    Ok(())
+                }))]
             )?;
         }
 
@@ -1691,20 +1966,46 @@ pub(crate) fn format_expression<'ast>(
             right,
         } => {
             let has_postfix = f.context().has_postfix_annotation(*left);
-            write!(
-                f,
-                [group(&format_args![
-                    left,
-                    format_with(|f| {
-                        if !has_postfix {
-                            write!(f, [space()])?;
-                        }
-                        Ok(())
-                    }),
-                    operator,
-                    indent(&format_args![soft_line_break_or_space(), right])
-                ])]
-            )?;
+            // Check if the right side is a binary expression - if so, let it handle its own breaking
+            let right_is_binary = matches!(
+                f.context().tree.get(*right),
+                Expression::Binary { .. }
+            );
+
+            if right_is_binary {
+                // Binary expressions handle their own indentation - keep on same line
+                write!(
+                    f,
+                    [group(&format_args![
+                        left,
+                        format_with(|f| {
+                            if !has_postfix {
+                                write!(f, [space()])?;
+                            }
+                            Ok(())
+                        }),
+                        operator,
+                        space(),
+                        right
+                    ])]
+                )?;
+            } else {
+                // Other expressions get indented on break
+                write!(
+                    f,
+                    [group(&format_args![
+                        left,
+                        format_with(|f| {
+                            if !has_postfix {
+                                write!(f, [space()])?;
+                            }
+                            Ok(())
+                        }),
+                        operator,
+                        indent(&format_args![soft_line_break_or_space(), right])
+                    ])]
+                )?;
+            }
         }
 
         // debugger
@@ -1920,8 +2221,8 @@ mod tests {
     #[test]
     fn test_format_member_call_chain_retains_breaks() {
         assert_format!(
-            "call()\n\t.followed()\n\t.by()\n\t.many()\n\t.calls()\n",
-            "call()\n\t.followed()\n\t.by()\n\t.many()\n\t.calls()\n",
+            "call()\n\t.followed()\n\t.by()\n\t.many()\n\t.calls()",
+            "call()\n\t.followed()\n\t.by()\n\t.many()\n\t.calls()",
             |p| p.eat_expression(),
             DestackFormatOptions::default_tab_with_line_width(20)
         );
@@ -1930,8 +2231,8 @@ mod tests {
     #[test]
     fn test_format_member_call_chain_breaks() {
         assert_format!(
-            "call().followed().by().many().calls()\n",
-            "call()\n\t.followed()\n\t.by()\n\t.many()\n\t.calls()\n",
+            "call().followed().by().many().calls()",
+            "call()\n\t.followed()\n\t.by()\n\t.many()\n\t.calls()",
             |p| p.eat_expression(),
             DestackFormatOptions::default_tab_with_line_width(20)
         );
@@ -1940,8 +2241,8 @@ mod tests {
     #[test]
     fn test_format_member_call_chain_breaks_with_maybe_and_index() {
         assert_format!(
-            "call().followed()?.by()[0]?.many()?.calls()\n",
-            "call()\n\t.followed()\n\t?.by()\n\t[0]\n\t?.many()\n\t?.calls()\n",
+            "call().followed()?.by()[0]?.many()?.calls()",
+            "call()\n\t.followed()\n\t?.by()\n\t[0]\n\t?.many()\n\t?.calls()",
             |p| p.eat_expression(),
             DestackFormatOptions::default_tab_with_line_width(20)
         );
@@ -1950,8 +2251,8 @@ mod tests {
     #[test]
     fn test_format_path_member_call_chain_breaks() {
         assert_format!(
-            "long.base.path.followed().by().many().calls()\n",
-            "long\n\t.base\n\t.path\n\t.followed()\n\t.by()\n\t.many()\n\t.calls()\n",
+            "long.base.path.followed().by().many().calls()",
+            "long\n\t.base\n\t.path\n\t.followed()\n\t.by()\n\t.many()\n\t.calls()",
             |p| p.eat_expression(),
             DestackFormatOptions::default_tab_with_line_width(20)
         );
@@ -1960,8 +2261,8 @@ mod tests {
     #[test]
     fn test_format_index_member_chain_breaks() {
         assert_format!(
-            "identifier1.identifier2.identifier3[indexA].identifier4[indexB]?.[indexC][indexD]\n",
-            "identifier1\n\t.identifier2\n\t.identifier3[indexA]\n\t.identifier4[indexB]\n\t?.[indexC]\n\t[indexD]\n",
+            "identifier1.identifier2.identifier3[indexA].identifier4[indexB]?.[indexC][indexD]",
+            "identifier1\n\t.identifier2\n\t.identifier3[indexA]\n\t.identifier4[indexB]\n\t?.[indexC]\n\t[indexD]",
             |p| p.eat_expression(),
             DestackFormatOptions::default_tab_with_line_width(20)
         );
@@ -1979,7 +2280,6 @@ mod tests {
 
     #[test]
     fn test_format_expression_tree_literal_with_arguments() {
-        // JSX-compliant: numbers need braces
         assert_format!(
             "<Entity a={1} b = {2} />",
             "<Entity a={1} b={2} />",
@@ -1990,7 +2290,6 @@ mod tests {
 
     #[test]
     fn test_format_expression_tree_literal_parenthesized() {
-        // JSX-compliant: numbers need braces
         let source = r"(
     <Entity a={1} b={2}>
         <Entity a={1} b={2} />
@@ -2006,7 +2305,6 @@ mod tests {
 
     #[test]
     fn test_format_expression_tree_literal_nested() {
-        // JSX-compliant: numbers need braces, strings don't
         let source = r#"<A x={4} y={4}>
     <B x="hey">
         <C>
@@ -2025,7 +2323,6 @@ mod tests {
 
     #[test]
     fn test_format_expression_tree_literal_with_array_of_struct_element() {
-        // JSX-compliant: arrays need braces
         let source = r#"<Menu
     items=[
         { to: "/posts" },

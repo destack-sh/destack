@@ -183,19 +183,17 @@ process(Point { x: 1, y: 2 });
 
 ### struct argument breaks
 
-Long struct arguments cause both to break.
+Long struct arguments expand with hugging.
 
 ```ds line-width=30
 process(Config { name: "test", value: 42 })
 ```
 
 ```ds expected
-process(
-    Config {
-        name: "test",
-        value: 42,
-    },
-);
+process(Config {
+    name: "test",
+    value: 42,
+});
 ```
 
 ## Struct Construction

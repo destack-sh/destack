@@ -453,3 +453,40 @@ Method chains on array literals work. Arrow params get parens.
 ```ds expected
 [1, 2, 3].map((x) => x * 2);
 ```
+
+## Single Element Hugging
+
+### single object in array hugs brackets
+
+When an array contains a single object that expands, it should hug the brackets.
+
+```ds line-width=20
+[{ a: 1, b: 2, c: 3 }]
+```
+
+```ds expected
+[{
+    a: 1,
+    b: 2,
+    c: 3,
+}];
+```
+
+### single array in array hugs brackets
+
+Nested arrays also hug when single element expands.
+
+```ds line-width=20
+[[1, 2, 3, 4, 5, 6]]
+```
+
+```ds expected
+[[
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+]];
+```

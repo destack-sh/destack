@@ -173,10 +173,7 @@ fn format_file(file: Arc<File>, formatter: FormatterOptions, program: Arc<Progra
     let parents = NodeParentIndex::from_tree(&parser.tree);
     let format_options = DestackFormatOptions {
         language_type,
-        line_ending: formatter.line_ending,
-        indent_style: formatter.indent_style,
-        indent_width: formatter.indent_width,
-        line_width: formatter.line_width,
+        ..formatter.into()
     };
     let context = DestackFormatContext {
         options: format_options,

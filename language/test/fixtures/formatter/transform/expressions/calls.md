@@ -147,7 +147,7 @@ foo().bar().baz();
 
 ### long chain breaks at each method
 
-When chains exceed line width, each method gets its own line.
+When chains exceed line width, each method gets its own line with semicolon on last line.
 
 ```ds line-width=30
 data.filter(x => x.active).map(x => x.name).join(", ")
@@ -157,13 +157,12 @@ data.filter(x => x.active).map(x => x.name).join(", ")
 data
     .filter((x) => x.active)
     .map((x) => x.name)
-    .join(", ")
-;
+    .join(", ");
 ```
 
 ### promise chain
 
-Promise chains break nicely across lines.
+Promise chains break nicely across lines with semicolon on last line.
 
 ```ds line-width=40
 fetch(url).then(r => r.json()).then(data => process(data)).catch(handleError)
@@ -173,8 +172,7 @@ fetch(url).then(r => r.json()).then(data => process(data)).catch(handleError)
 fetch(url)
     .then((r) => r.json())
     .then((data) => process(data))
-    .catch(handleError)
-;
+    .catch(handleError);
 ```
 
 ### chain with mixed access
@@ -277,6 +275,34 @@ a + b * c - d / e
 
 ```ds expected
 a + b * c - d / e;
+```
+
+### long binary expression breaks
+
+Long binary expressions break at operators with all operands at same indentation.
+
+```ds line-width=30
+result = aLongVariableName + anotherLongName + thirdLongName
+```
+
+```ds expected
+result = aLongVariableName
+    + anotherLongName
+    + thirdLongName;
+```
+
+### binary with logical operators
+
+Logical operators break the same way.
+
+```ds line-width=40
+const isValid = hasPermission && isActive && !isDisabled
+```
+
+```ds expected
+const isValid = hasPermission
+    && isActive
+    && !isDisabled;
 ```
 
 ## Spread Arguments
