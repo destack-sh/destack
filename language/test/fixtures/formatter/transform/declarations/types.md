@@ -6,6 +6,8 @@ Tests for type alias declaration formatting.
 
 ### simple type alias
 
+Extra whitespace around the type alias should be normalized.
+
 ```ds
 type   Foo   =   number
 ```

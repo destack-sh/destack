@@ -12,6 +12,8 @@ Extensions use `for` to specify the type being extended.
 extension for  Vector2  { }
 ```
 
+Empty extension bodies stay on one line with internal spacing.
+
 ```ds expected
 extension for Vector2 { }
 ```

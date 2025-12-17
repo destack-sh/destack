@@ -8,14 +8,14 @@ Conformance tests check that the Destack parser conforms both to the ECMAScript 
 <!-- begin:summary-results -->
 | Suite    | Passed | Failed | Skipped | Total |  Rate   |
 |:---------|-------:|-------:|--------:|------:|--------:|
-| babel    |   484  |   224  |     7  |   708 |  68.36% |
+| babel    |   485  |   223  |     7  |   708 |  68.50% |
 | biome    |   415  |   222  |     -  |   637 |  65.15% |
-| swc      |   401  |   137  |     -  |   538 |  74.54% |
-| test262  |  4360  |  1003  |     -  |  5363 |  81.30% |
+| swc      |   403  |   135  |     -  |   538 |  74.91% |
+| test262  |  4350  |  1013  |     -  |  5363 |  81.11% |
 |----------|--------|--------|---------|-------|---------|
-| total    |  5660  |  1586  |      7  |  7246 |  78.11% |
+| total    |  5653  |  1593  |      7  |  7246 |  78.02% |
 
-Total Blended Pass Rate: **78.11%**
+Total Blended Pass Rate: **78.02%**
 <!-- end:summary-results -->
 
 ### babel
@@ -26,7 +26,7 @@ Total Blended Pass Rate: **78.11%**
 | assert-predicate     |     7  |     3  |    10 |  70.00% |
 | assign               |     1  |     2  |     3 |  33.33% |
 | async-call           |     0  |     1  |     1 |   0.00% |
-| basic                |    28  |     9  |    37 |  75.68% |
+| basic                |    29  |     8  |    37 |  78.38% |
 | binary-expression    |     2  |     0  |     2 | 100.00% |
 | cast                 |    30  |     7  |    37 |  81.08% |
 | catch-clause         |     1  |     0  |     1 | 100.00% |
@@ -60,7 +60,7 @@ Total Blended Pass Rate: **78.11%**
 | types-arrow-function |     3  |     0  |     3 | 100.00% |
 | variable-declarator  |     1  |     2  |     3 |  33.33% |
 |----------------------|--------|--------|-------|---------|
-| total                |   484  |   224  |   708 |  68.36% |
+| total                |   485  |   223  |   708 |  68.50% |
 <!-- end:babel-results -->
 
 ### biome
@@ -79,7 +79,7 @@ Total Blended Pass Rate: **78.11%**
 |:---------------------|-------:|-------:|------:|--------:|
 | amaro-194            |     0  |     1  |     1 |   0.00% |
 | arrow-function       |     9  |     6  |    15 |  60.00% |
-| basic                |    46  |    17  |    63 |  73.02% |
+| basic                |    47  |    16  |    63 |  74.60% |
 | case1                |     1  |     0  |     1 | 100.00% |
 | cast                 |    11  |     5  |    16 |  68.75% |
 | class                |    18  |    21  |    39 |  46.15% |
@@ -100,7 +100,7 @@ Total Blended Pass Rate: **78.11%**
 | import-assertions    |     7  |     0  |     7 | 100.00% |
 | instantiation-expr   |     6  |     2  |     8 |  75.00% |
 | interface            |    16  |     0  |    16 | 100.00% |
-| issue                |    99  |    37  |   136 |  72.79% |
+| issue                |   100  |    36  |   136 |  73.53% |
 | meta-property        |     3  |     0  |     3 | 100.00% |
 | module-namespace     |     9  |     0  |     9 | 100.00% |
 | next                 |     0  |     2  |     2 |   0.00% |
@@ -123,19 +123,19 @@ Total Blended Pass Rate: **78.11%**
 | variance-annotations |     0  |     2  |     2 |   0.00% |
 | vercel               |     1  |     0  |     1 | 100.00% |
 |----------------------|--------|--------|-------|---------|
-| total                |   401  |   137  |   538 |  74.54% |
+| total                |   403  |   135  |   538 |  74.91% |
 <!-- end:swc-results -->
 
 ### test262
 <!-- begin:test262-results -->
 | Category             | Passed | Failed | Total |  Rate   |
 |:---------------------|-------:|-------:|------:|--------:|
-| early                |   363  |   305  |   668 |  54.34% |
-| fail                 |   346  |   383  |   729 |  47.46% |
-| pass                 |  1798  |   185  |  1983 |  90.67% |
-| pass-explicit        |  1853  |   130  |  1983 |  93.44% |
+| early                |   375  |   293  |   668 |  56.14% |
+| fail                 |   343  |   386  |   729 |  47.05% |
+| pass                 |  1787  |   196  |  1983 |  90.12% |
+| pass-explicit        |  1845  |   138  |  1983 |  93.04% |
 |----------------------|--------|--------|-------|---------|
-| total                |  4360  |  1003  |  5363 |  81.30% |
+| total                |  4350  |  1013  |  5363 |  81.11% |
 <!-- end:test262-results -->
 
 ## Notes
