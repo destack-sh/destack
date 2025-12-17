@@ -113,6 +113,7 @@ fn parse_expected_block(lang: &str, content: &str) -> Option<MdTestFile> {
     Some(MdTestFile {
         path,
         content: content.to_string(),
+        options: std::collections::HashMap::new(),
     })
 }
 

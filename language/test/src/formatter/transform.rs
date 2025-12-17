@@ -41,12 +41,25 @@ pub(super) fn run(test: &MdTestCase) -> TestResult {
         FileType::Destack
     };
 
+    // build formatter options from test options
+    let mut formatter_options = FormatterOptions::default();
+    if let Some(line_width) = input_file.options.get("line-width") {
+        if let Ok(width) = line_width.parse::<u8>() {
+            formatter_options = formatter_options.with_line_width(width);
+        }
+    }
+    if let Some(indent_width) = input_file.options.get("indent-width") {
+        if let Ok(width) = indent_width.parse::<u8>() {
+            formatter_options = formatter_options.with_indent_width(width);
+        }
+    }
+
     // set up program context
     let cwd = std::env::current_dir().unwrap_or_default();
     let files = Arc::new(FileRegistry::new());
     let fs: Arc<dyn FileSystem> = Arc::new(MemoryFileSystem::new());
     let program = Arc::new(Program::from_options(
-        FormatterOptions::default(),
+        formatter_options,
         LinterOptions::default(),
         cwd,
         fs,
