@@ -70,22 +70,15 @@ impl DestackLanguageServer {
         self.session.get().expect("session not initialized")
     }
 
-    /// Recompile a module at the given path and publish diagnostics.
+    /// Invalidate a module at the given path and publish diagnostics.
     ///
     /// NOTE #Incomplete: incremental recompilation (currently recompiles entire module)
-    async fn recompile_and_publish(&self, uri: &lsp::Uri, path: &std::path::Path) {
+    async fn invalidate_and_publish(&self, uri: &lsp::Uri, path: &std::path::Path) {
         let session = self.session().clone();
         let program = session.find_program_for_path(path);
 
         // create compiler with existing session
-        let compiler = Compiler::new(
-            session.clone(),
-            program.clone(),
-            CompilerOptions {
-                workers: 1,
-                ..Default::default()
-            },
-        );
+        let compiler = Compiler::new(session.clone(), program.clone(), CompilerOptions::default());
 
         // resolve path to module and enqueue analysis
         let Ok(module_id) = compiler.resolve_path_to_module(&path.to_path_buf()) else {
@@ -293,8 +286,8 @@ impl LanguageServer for DestackLanguageServer {
         self.open_documents
             .insert(uri_str, OpenDocument { file_id });
 
-        // recompile and publish diagnostics
-        self.recompile_and_publish(&params.text_document.uri, &path)
+        // invalidate and publish diagnostics
+        self.invalidate_and_publish(&params.text_document.uri, &path)
             .await;
     }
 
@@ -315,8 +308,8 @@ impl LanguageServer for DestackLanguageServer {
         // update overlay with new content
         self.overlay_fs.set_overlay(&path, change.text);
 
-        // recompile and publish diagnostics
-        self.recompile_and_publish(&params.text_document.uri, &path)
+        // invalidate and publish diagnostics
+        self.invalidate_and_publish(&params.text_document.uri, &path)
             .await;
     }
 

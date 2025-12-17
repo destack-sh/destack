@@ -144,7 +144,7 @@ pub fn signature_help(session: &Session, file: FileId, offset: u32) -> Option<Si
                 // method call: obj.method(...)
                 Expression::Member { name, .. } => {
                     let name = module_guard.ast.strings.get(*name).to_string();
-                    (Some(name), None) // TODO: resolve method to get actual signature
+                    (Some(name), None) // TODO #Incomplete: resolve method to get actual signature
                 }
                 _ => (None, None),
             };

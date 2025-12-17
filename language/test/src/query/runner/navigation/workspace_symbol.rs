@@ -22,7 +22,7 @@ pub fn run(session: &QueryTestSession, expectation: Option<&QueryExpectation>) -
     };
     let query_str = query_str.trim_matches('"');
 
-    let symbols = query::workspace_symbols(&session.session, query_str);
+    let symbols = query::workspace_symbols(&session.session, query_str, 1000);
 
     let expected = exp.content.trim();
 

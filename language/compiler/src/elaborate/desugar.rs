@@ -29,7 +29,7 @@ impl Compiler {
         }
 
         // desugar annotations
-        // TODO: desugar annotations (function annotations into expressions)
+        // TODO #Incomplete: desugar annotations (function annotations into expressions)
 
         Ok(())
     }

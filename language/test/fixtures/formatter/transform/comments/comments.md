@@ -43,11 +43,11 @@ function foo() { }
 Comment content is never modified by the formatter.
 
 ```ds
-// TODO: fix this later
+// XOXO: something something this later
 const x = 1
 ```
 
 ```ds expected
-// TODO: fix this later
+// XOXO: something something this later
 const x = 1;
 ```
