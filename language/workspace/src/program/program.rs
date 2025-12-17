@@ -210,8 +210,14 @@ impl Program {
 
         // root module (uses ephemeral module id)
         let root_module_id = ModuleId::EPHEMERAL;
-        let root_module_ast =
-            ModuleAst::from_tree(root_module_id, root_ast, Vec::new(), StringPool::new());
+        let root_module_ast = ModuleAst::from_tree(
+            root_module_id,
+            root_ast,
+            Vec::new(),
+            StringPool::new(),
+            Vec::new(),
+            Vec::new(),
+        );
         let root_file = files.get(root_file_id);
         let root_module = Module::from_ast(
             root_module_id,

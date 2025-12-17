@@ -132,18 +132,23 @@ impl Module {
 }
 
 /// AST-level module data.
+/// NOTE #Performance: revisit required ModuleAst state (tokens add ~10-20% memory overhead)
 #[derive(Debug)]
 pub struct ModuleAst {
     /// The id of the Module.
     pub id: ModuleId,
     /// The AST of the Module (may be empty).
     pub tree: ast::NodeTree,
-    /// THe AST parent index.
+    /// The AST parent index.
     pub parents: ast::NodeParentIndex,
     /// The top-level AST expressions of the Module.
     pub roots: Vec<ast::LocalNodeId<ast::Expression>>,
     /// The string pool of the Module.
     pub strings: StringPool,
+    /// The tokens of the Module.
+    pub tokens: Vec<ast::TokenSpan>,
+    /// The side tokens (comments, whitespace) of the Module.
+    pub side_tokens: Vec<ast::TokenSpan>,
 }
 
 impl ModuleAst {
@@ -155,6 +160,8 @@ impl ModuleAst {
             parents: ast::NodeParentIndex::new(),
             roots: Vec::new(),
             strings: StringPool::new(),
+            tokens: Vec::new(),
+            side_tokens: Vec::new(),
         }
     }
 
@@ -164,6 +171,8 @@ impl ModuleAst {
         tree: ast::NodeTree,
         roots: Vec<ast::LocalNodeId<ast::Expression>>,
         strings: StringPool,
+        tokens: Vec<ast::TokenSpan>,
+        side_tokens: Vec<ast::TokenSpan>,
     ) -> Self {
         let parents = ast::NodeParentIndex::from_tree(&tree);
         Self {
@@ -172,6 +181,8 @@ impl ModuleAst {
             parents,
             roots,
             strings,
+            tokens,
+            side_tokens,
         }
     }
 }
