@@ -1,4 +1,4 @@
-use destack_ast::{self as ast, Mutability};
+use destack_ast::{self as ast, LetKind};
 use destack_workspace::LintSeverity;
 
 use crate::{LintDiagnostic, LintModuleAstContext, LintRule, declare_lint};
@@ -6,8 +6,8 @@ use crate::{LintDiagnostic, LintModuleAstContext, LintRule, declare_lint};
 declare_lint! {
     /// Disallow `var` declarations.
     ///
-    /// Use `const` for values that don't change and `let` for loop counters.
-    /// In Destack, `var` and `let` are synonyms but `const` is preferred.
+    /// Use `const` for values that don't change and `let` for mutable bindings.
+    /// The `var` keyword is a legacy syntax; prefer `let` or `const`.
     #[lint(
         id = "no-var",
         code = "LY012",
@@ -26,9 +26,7 @@ impl LintRule for NoVar {
     fn check_module_ast<'a>(&self, severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
         for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
             let expr = ctx.tree.get(node_id);
-            if let ast::Expression::Let { mutability, .. } = expr
-                && *mutability == Mutability::Mutable
-            {
+            if let ast::Expression::Let { kind: LetKind::Var, .. } = expr {
                 ctx.report(
                     LintDiagnostic::new(
                         NO_VAR.id,
@@ -39,7 +37,7 @@ impl LintRule for NoVar {
                         ctx.module.file_id,
                         ctx.tree.get_span(node_id),
                     )
-                    .with_label("use `const` instead"),
+                    .with_label("use `let` or `const` instead"),
                 );
             }
         }
@@ -61,6 +59,18 @@ var x = 1
 "#,
         );
         test.result(result).assert_lint("no-var");
+    }
+
+    #[test]
+    fn test_allows_let() {
+        let test = TestProgram::for_rule(NoVar);
+        let result = test.lint_ast(
+            "test.ds",
+            r#"
+let x = 1
+"#,
+        );
+        test.result(result).assert_no_lint("no-var");
     }
 
     #[test]
@@ -87,5 +97,19 @@ for (var i = 0; i < 10; i++) {
 "#,
         );
         test.result(result).assert_lint("no-var");
+    }
+
+    #[test]
+    fn test_allows_let_in_for() {
+        let test = TestProgram::for_rule(NoVar);
+        let result = test.lint_ast(
+            "test.ds",
+            r#"
+for (let i = 0; i < 10; i++) {
+    console.log(i)
+}
+"#,
+        );
+        test.result(result).assert_no_lint("no-var");
     }
 }
