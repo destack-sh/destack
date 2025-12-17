@@ -446,6 +446,7 @@ impl_dump_display! {
     FunctionKind,
     FunctionMode,
     IfKind,
+    LetKind,
     WhileKind,
     MatchKind,
     Mutability,
@@ -744,11 +745,13 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .end();
             }
             Expression::Let {
+                kind,
                 mutability,
                 descriptor,
                 declarators: _,
             } => {
                 self.node("Expression::Let", _id.id)
+                    .field("kind", kind)
                     .field("mutability", mutability)
                     .field("descriptor", descriptor)
                     .end();

@@ -184,6 +184,7 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
         }
 
         Expression::Let {
+            kind: _,
             mutability: _,
             descriptor: _,
             declarators,

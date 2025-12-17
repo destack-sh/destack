@@ -1,6 +1,6 @@
 use destack_ast::{
     Argument, Asynchrony, Declarator, DependencyItem, DependencyKind, DependencyMode, Expression,
-    ForEachKind, IfKind, Keyword, LocalNodeId, Mutability, NodeTree, PostfixPosition, Property,
+    ForEachKind, IfKind, Keyword, LetKind, LocalNodeId, NodeTree, PostfixPosition, Property,
     TypeUnaryOperator, WhileKind, YieldCardinality,
 };
 use destack_base::StringId;
@@ -1058,21 +1058,22 @@ pub(crate) fn format_expression<'ast>(
 
         // let
         Expression::Let {
-            mutability,
+            kind,
             descriptor,
             declarators,
+            ..
         } => {
-            // keyword header (export + const/let)
+            // keyword header (export + const/let/var)
             let keyword_header = format_with(|f| {
                 // export
                 if let Some(export) = descriptor.export {
                     write!(f, [export, space()])?;
                 }
-                // keyword
-                if *mutability == Mutability::Immutable {
-                    write!(f, [Keyword::Const])?;
-                } else {
-                    write!(f, [Keyword::Let])?;
+                // keyword (based on LetKind)
+                match kind {
+                    LetKind::Let => write!(f, [Keyword::Let])?,
+                    LetKind::Var => write!(f, [Keyword::Var])?,
+                    LetKind::Const => write!(f, [Keyword::Const])?,
                 }
                 Ok(())
             });

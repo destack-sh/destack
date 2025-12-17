@@ -3,7 +3,7 @@ use crate::{ParseResult, Parser};
 
 use destack_ast::{
     DeclarationDescriptor, Declarator, DependencyItem, DependencyKind, DependencyMode, Expression,
-    Keyword, LocalNodeId, Mutability, Pattern, ScalarLiteral, TokenType,
+    Keyword, LetKind, LocalNodeId, Mutability, Pattern, ScalarLiteral, TokenType,
 };
 use destack_base::StringId;
 
@@ -65,9 +65,10 @@ impl Parser {
                 },
                 self.get_span_from(start),
             );
-            // let
+            // let (import equals is semantically const)
             let let_id = self.tree.insert(
                 Expression::Let {
+                    kind: LetKind::Const,
                     descriptor: DeclarationDescriptor::default(),
                     mutability: Mutability::Immutable,
                     declarators: vec![declarator],

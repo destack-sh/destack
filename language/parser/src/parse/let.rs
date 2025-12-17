@@ -1,7 +1,8 @@
 use crate::{ParseError, ParseResult, Parser};
 
 use destack_ast::{
-    DeclarationDescriptor, Declarator, Expression, Keyword, LocalNodeId, Mutability, TokenType,
+    DeclarationDescriptor, Declarator, Expression, Keyword, LetKind, LocalNodeId, Mutability,
+    TokenType,
 };
 
 impl Parser {
@@ -22,26 +23,33 @@ impl Parser {
         }
     }
 
-    /// Eat a mutability modifier.
-    pub fn eat_mutability(&mut self) -> ParseResult<Mutability> {
+    /// Eat a let/var/const keyword and return the kind and mutability.
+    pub fn eat_let_kind(&mut self) -> ParseResult<(LetKind, Mutability)> {
         let keyword = self.peek_any_keyword()?;
-        // mutable
-        if keyword == Keyword::Let || keyword == Keyword::Var || keyword == Keyword::Mut {
-            self.bump(); // eat mutability
-            Ok(Mutability::Mutable)
-        }
-        // immutable
-        else if keyword == Keyword::Const || keyword == Keyword::Readonly {
-            self.bump(); // eat readonly
-            Ok(Mutability::Immutable)
-        }
-        // nothing
-        else {
-            Err(ParseError::expected(
+        match keyword {
+            Keyword::Let => {
+                self.bump();
+                Ok((LetKind::Let, Mutability::Mutable))
+            }
+            Keyword::Var | Keyword::Mut => {
+                self.bump();
+                Ok((LetKind::Var, Mutability::Mutable))
+            }
+            Keyword::Const | Keyword::Readonly => {
+                self.bump();
+                Ok((LetKind::Const, Mutability::Immutable))
+            }
+            _ => Err(ParseError::expected(
                 self.peek_token(TokenType::Identifier)?.span,
                 TokenType::Identifier,
-            ))
+            )),
         }
+    }
+
+    /// Eat a mutability modifier.
+    pub fn eat_mutability(&mut self) -> ParseResult<Mutability> {
+        let (_, mutability) = self.eat_let_kind()?;
+        Ok(mutability)
     }
 
     /// Eat a mutability modifier maybe.
@@ -96,8 +104,8 @@ impl Parser {
     ) -> ParseResult<LocalNodeId<Expression>> {
         let start = self.mark();
 
-        // mutability
-        let mutability = self.eat_mutability()?;
+        // kind and mutability
+        let (kind, mutability) = self.eat_let_kind()?;
 
         // Parse declarators (comma-separated list)
         let mut declarators = Vec::new();
@@ -117,6 +125,7 @@ impl Parser {
         // let
         let let_id = self.tree.insert(
             Expression::Let {
+                kind,
                 descriptor,
                 mutability,
                 declarators,

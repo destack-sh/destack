@@ -95,6 +95,7 @@ pub enum Expression {
     ///     ...
     /// }
     Let {
+        kind: LetKind,
         descriptor: DeclarationDescriptor,
         mutability: Mutability,
         declarators: Vec<LocalNodeId<Declarator>>,
@@ -782,6 +783,17 @@ impl VarianceBound {
             VarianceBound::Super => Keyword::Super,
         }
     }
+}
+
+/// The kind of a let/var/const binding.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum LetKind {
+    /// `let` binding (mutable in Destack, same as `var`)
+    Let,
+    /// `var` binding (mutable, legacy syntax)
+    Var,
+    /// `const` binding (immutable)
+    Const,
 }
 
 /// The style of if expression.
