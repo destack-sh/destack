@@ -68,7 +68,7 @@ import { foo as f, bar as b, baz as z } from "module";
 
 ## Default Imports
 
-### _default import
+### default import
 
 Default imports use the value directly without braces.
 
@@ -314,7 +314,7 @@ export * as ns from "module";
 
 ### _type re-export
 
-Type-only re-exports use `export type`.
+Type-only re-exports use `export type` (parser issue).
 
 ```ds
 export type { Foo, Bar } from "module"

@@ -632,7 +632,7 @@ class Point {
 
 ### _field with doc comment
 
-Inline doc comments before fields are moved to their own line.
+Inline doc comments before fields are moved to their own line (parser issue - doc comment eats line).
 
 ```ds
 class Point { /// The x coordinate. x: number }

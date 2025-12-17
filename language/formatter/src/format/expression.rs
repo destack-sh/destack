@@ -1,7 +1,7 @@
 use destack_ast::{
     Argument, Asynchrony, Declarator, DependencyItem, DependencyKind, DependencyMode, Expression,
     ForEachKind, IfKind, Keyword, LetKind, LocalNodeId, NodeTree, PostfixPosition, Property,
-    TypeUnaryOperator, WhileKind, YieldCardinality,
+    ScalarLiteral, TypeUnaryOperator, WhileKind, YieldCardinality,
 };
 use destack_base::StringId;
 use destack_fir::format::{BestFittingMode, FormatError};
@@ -29,10 +29,28 @@ impl<'ast> Format<DestackFormatContext<'ast>> for TreeExpressionArgument {
         let argument = f.context().tree.get(self.argument_id);
         match argument {
             Argument::Named { name, value } => {
-                // name
-                write!(f, [name])?;
-                // value
-                write!(f, [token("="), value])?;
+                let value_expr = f.context().tree.get(*value);
+
+                // JSX-compliant attribute formatting:
+                // - Boolean true uses shorthand: `disabled` not `disabled=true`
+                // - String literals don't need braces: `name="value"`
+                // - Everything else needs braces: `count={5}`, `items={[...]}`, `onClick={handler}`
+                if let Expression::ScalarLiteral(ScalarLiteral::Boolean(true)) = value_expr {
+                    // boolean shorthand
+                    write!(f, [name])?;
+                } else {
+                    write!(f, [name])?;
+                    let is_string_literal = matches!(
+                        value_expr,
+                        Expression::ScalarLiteral(ScalarLiteral::String(_))
+                            | Expression::ScalarLiteral(ScalarLiteral::Character(_))
+                    );
+                    if is_string_literal {
+                        write!(f, [token("="), value])?;
+                    } else {
+                        write!(f, [token("="), token("{"), value, token("}")])?;
+                    }
+                }
             }
             Argument::Labeled { label, value } => {
                 // label
@@ -41,14 +59,22 @@ impl<'ast> Format<DestackFormatContext<'ast>> for TreeExpressionArgument {
                 write!(f, [token(":"), space(), value])?;
             }
             Argument::Positional { value } => {
-                // value
-                write!(f, [value])?;
+                // In tree expressions, expression children need braces too
+                let value_expr = f.context().tree.get(*value);
+                let needs_braces = !matches!(
+                    value_expr,
+                    Expression::ScalarLiteral(ScalarLiteral::String(_))
+                        | Expression::TreeExpression { .. }
+                );
+                if needs_braces {
+                    write!(f, [token("{"), value, token("}")])?;
+                } else {
+                    write!(f, [value])?;
+                }
             }
             Argument::Spread { value } => {
-                // keyword
-                write!(f, [token("...")])?;
-                // value
-                write!(f, [value])?;
+                // Spread in JSX needs braces: {...props}
+                write!(f, [token("{"), token("..."), value, token("}")])?;
             }
         }
 
@@ -702,7 +728,9 @@ pub fn is_trivial_expression(tree: &NodeTree, expression: &Expression) -> bool {
 pub fn is_complex_expression(_tree: &NodeTree, expression: &Expression) -> bool {
     match expression {
         Expression::Statement { .. } => true,
-        Expression::ObjectExpression { ty, properties, .. } => ty.is_some() || properties.len() > 1,
+        // only expand objects with many (>3) properties by default
+        // let best_fitting handle the rest based on line width
+        Expression::ObjectExpression { properties, .. } => properties.len() > 3,
         Expression::TreeExpression { .. } => true,
         _ => false,
     }
@@ -808,11 +836,10 @@ pub(crate) fn format_struct_literal<'ast>(
         .map(|property| f.context().tree.get(*property))
         .collect::<SmallVec<[_; 3]>>();
 
-    let is_trivial = properties.is_empty()
-        || properties.len() <= 5
-            && properties
-                .iter()
-                .all(|property| is_trivial_property(f.context().tree, property));
+    // check for conditions that REQUIRE expansion
+    let has_methods = properties.iter().any(|property| {
+        matches!(property, Property::Method { body: Some(_), .. })
+    });
     let has_annotations = f.context().has_infix_annotation(expression_id)
         || properties_ids
             .iter()
@@ -820,12 +847,16 @@ pub(crate) fn format_struct_literal<'ast>(
     let keep_newline =
         f.context().has_newline(f.context().get_span(expression_id)) && properties.len() > 1;
 
+    // only force expand for methods, annotations, or explicit newlines
+    // otherwise let best_fitting decide based on line width
+    let must_expand = has_methods || has_annotations || keep_newline;
+
     write!(
         f,
         [list_like("{", "}", ",", properties_ids)
             .as_collection()
             .include_space()
-            .should_expand(!is_trivial || has_annotations || keep_newline)]
+            .should_expand(must_expand)]
     )?;
     Ok(())
 }
@@ -885,25 +916,48 @@ pub(crate) fn format_tree_literal<'ast>(
 
             // body
             if let Some(elements) = elements {
+                // Check if source has newlines in the tree body
                 let span = f.context().get_span(expression_id);
-                let force_newline =
-                    f.context().has_newline(span) || f.context().is_at_line_start(expression_id.id);
+                let source_has_newline = f.context().has_newline(span);
 
-                // elements
-                if !force_newline {
-                    write!(
-                        f,
-                        [group(&format_args![soft_block_indent(&format_with(|f| {
-                            f.join_with(soft_line_break()).entries(elements).finish()
-                        }))])]
-                    )?;
+                // Check child types for formatting decisions
+                let has_multiple_elements = elements.len() > 1;
+                let element_children_count = elements
+                    .iter()
+                    .filter(|elem_id| {
+                        let arg = f.context().tree.get(**elem_id);
+                        if let Argument::Positional { value } = arg {
+                            matches!(
+                                f.context().tree.get(*value),
+                                Expression::TreeExpression { .. }
+                            )
+                        } else {
+                            false
+                        }
+                    })
+                    .count();
+
+                // Force breaking when:
+                // - Source has newlines (preserve author's formatting intent), OR
+                // - ALL children are tree elements and there are multiple
+                let all_elements = element_children_count == elements.len();
+                let force_break =
+                    source_has_newline || (all_elements && has_multiple_elements);
+
+                // Format children using TreeExpressionArgument for proper brace handling
+                let format_children = format_with(|f| {
+                    f.join_with(soft_line_break_or_space())
+                        .entries(elements.iter().map(|elem| TreeExpressionArgument {
+                            argument_id: *elem,
+                        }))
+                        .finish()
+                });
+
+                if force_break {
+                    write!(f, [block_indent(&format_children)])?;
                 } else {
-                    write!(
-                        f,
-                        [group(&format_args![block_indent(&format_with(|f| {
-                            f.join_with(hard_line_break()).entries(elements).finish()
-                        }))])]
-                    )?;
+                    // Use soft indent - stays on one line if it fits
+                    write!(f, [group(&soft_block_indent(&format_children))])?;
                 }
 
                 // closing tag
@@ -980,10 +1034,11 @@ pub(crate) fn format_expression<'ast>(
                 if let Some(first_item) = first_item
                     && first_item.mode == DependencyMode::Default
                 {
-                    write!(f, [first_item.alias, token(","), space()])?;
                     let rest_items: Vec<LocalNodeId<DependencyItem>> =
                         items.iter().skip(1).copied().collect();
+                    write!(f, [first_item.alias])?;
                     if !rest_items.is_empty() {
+                        write!(f, [token(","), space()])?;
                         write!(
                             f,
                             [list_like("{", "}", ",", &rest_items)
@@ -1924,9 +1979,10 @@ mod tests {
 
     #[test]
     fn test_format_expression_tree_literal_with_arguments() {
+        // JSX-compliant: numbers need braces
         assert_format!(
-            "<Entity a=1 b = 2 />",
-            "<Entity a=1 b=2 />",
+            "<Entity a={1} b = {2} />",
+            "<Entity a={1} b={2} />",
             |p| p.eat_expression(),
             DestackFormatOptions::default()
         );
@@ -1934,9 +1990,10 @@ mod tests {
 
     #[test]
     fn test_format_expression_tree_literal_parenthesized() {
+        // JSX-compliant: numbers need braces
         let source = r"(
-    <Entity a=1 b=2>
-        <Entity a=1 b=2 />
+    <Entity a={1} b={2}>
+        <Entity a={1} b={2} />
     </Entity>
 )";
         assert_format!(
@@ -1949,7 +2006,8 @@ mod tests {
 
     #[test]
     fn test_format_expression_tree_literal_nested() {
-        let source = r#"<A x=4 y=4>
+        // JSX-compliant: numbers need braces, strings don't
+        let source = r#"<A x={4} y={4}>
     <B x="hey">
         <C>
             <D />
@@ -1967,15 +2025,22 @@ mod tests {
 
     #[test]
     fn test_format_expression_tree_literal_with_array_of_struct_element() {
+        // JSX-compliant: arrays need braces
         let source = r#"<Menu
     items=[
         { to: "/posts" },
         { to: "/posts/$postId", params: { postId: "postId" } },
     ]
 />"#;
+        let expected = r#"<Menu
+    items={[
+        { to: "/posts" },
+        { to: "/posts/$postId", params: { postId: "postId" } },
+    ]}
+/>"#;
         assert_format!(
             source,
-            source,
+            expected,
             |p| p.eat_expression(),
             DestackFormatOptions::default()
         );
