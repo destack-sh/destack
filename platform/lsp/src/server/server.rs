@@ -528,7 +528,7 @@ impl LanguageServer for DestackLanguageServer {
         let session = self.session();
 
         // query workspace symbols
-        let symbols = query::workspace_symbols(session, &params.query);
+        let symbols = query::workspace_symbols(session, &params.query, 100);
 
         // convert to LSP
         let lsp_symbols: Vec<lsp::SymbolInformation> = symbols

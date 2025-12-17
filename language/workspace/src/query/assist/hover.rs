@@ -1,4 +1,4 @@
-use destack_dir::SymbolType;
+use destack_dir::{DynamicKey, EnumField, Member, NodeType, Parameter, SymbolType};
 use destack_source::{FileId, Span};
 
 use crate::Session;
@@ -68,7 +68,50 @@ pub fn hover(session: &Session, file: FileId, offset: u32) -> Option<HoverInfo> 
     let name = symbol
         .name()
         .map(|id| module_guard.ast.strings.get(id).to_string());
-    let signature = format_simple_signature(symbol.ty, name.as_deref());
+
+    // use node type to provide better context for members/fields/parameters
+    let signature = match symbol_at.node_id.ty {
+        NodeType::Member => {
+            let dir_tree = module_guard.dir.tree.read();
+            if let Ok(member_id) = symbol_at.node_id.try_into() {
+                let member = dir_tree.get::<Member>(member_id);
+                // get member name from key field
+                let member_name = member.key().and_then(|key| match key {
+                    DynamicKey::Name(string_id) => {
+                        Some(module_guard.ast.strings.get(*string_id).to_string())
+                    }
+                    DynamicKey::NamedExpression { name, .. } => {
+                        Some(module_guard.ast.strings.get(*name).to_string())
+                    }
+                    DynamicKey::Expression(_) => None,
+                });
+                format_member_signature(member, member_name.as_deref())
+            } else {
+                format_simple_signature(symbol.ty, name.as_deref())
+            }
+        }
+        NodeType::EnumField => {
+            let dir_tree = module_guard.dir.tree.read();
+            if let Ok(field_id) = symbol_at.node_id.try_into() {
+                let field = dir_tree.get::<EnumField>(field_id);
+                let field_name = module_guard.ast.strings.get(field.name).to_string();
+                format!("enum field {field_name}")
+            } else {
+                format_simple_signature(symbol.ty, name.as_deref())
+            }
+        }
+        NodeType::Parameter => {
+            let dir_tree = module_guard.dir.tree.read();
+            if let Ok(param_id) = symbol_at.node_id.try_into() {
+                let _param = dir_tree.get::<Parameter>(param_id);
+                let param_name = name.as_deref().unwrap_or("<anonymous>");
+                format!("parameter {param_name}")
+            } else {
+                format_simple_signature(symbol.ty, name.as_deref())
+            }
+        }
+        _ => format_simple_signature(symbol.ty, name.as_deref()),
+    };
 
     Some(HoverInfo::signature(signature).with_range(symbol_at.span))
 }
@@ -87,5 +130,16 @@ fn format_simple_signature(symbol_type: SymbolType, name: Option<&str>) -> Strin
         SymbolType::Extension => format!("extension {name}"),
         SymbolType::TypeAlias => format!("type {name}"),
         SymbolType::Newtype => format!("newtype {name}"),
+    }
+}
+
+/// Format signature for a member (field, method, embed, static block).
+fn format_member_signature(member: &Member, name: Option<&str>) -> String {
+    let name = name.unwrap_or("<anonymous>");
+    match member {
+        Member::Field { .. } => format!("field {name}"),
+        Member::Method { .. } => format!("method {name}"),
+        Member::Embed { .. } => format!("embed {name}"),
+        Member::StaticBlock { .. } => "static block".to_string(),
     }
 }

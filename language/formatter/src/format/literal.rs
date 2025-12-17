@@ -396,4 +396,28 @@ mod tests {
         let source = r#"sql.stmt`SELECT * FROM users WHERE name = ${name} AND age > ${group.age()} LIMIT 10`"#;
         assert_format!(source, source, |p| p.eat_expression());
     }
+
+    /// Long strings are NOT broken even when they exceed line width (like Prettier).
+    #[test]
+    fn test_format_long_string_not_broken() {
+        let source = r#""This is a very long string that exceeds the line width but should not be broken""#;
+        assert_format!(
+            source,
+            source,
+            |p| p.eat_expression(),
+            DestackFormatOptions::default_with_line_width(40)
+        );
+    }
+
+    /// Long template literals are NOT broken even when they exceed line width.
+    #[test]
+    fn test_format_long_template_literal_not_broken() {
+        let source = r#"`This is a very long template literal that exceeds the line width but should not be broken`"#;
+        assert_format!(
+            source,
+            source,
+            |p| p.eat_expression(),
+            DestackFormatOptions::default_with_line_width(40)
+        );
+    }
 }

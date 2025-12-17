@@ -187,3 +187,220 @@ When an attribute value doesn't fit, the whole element breaks to multi-line form
     }}
 />;
 ```
+
+### boolean attribute without value
+
+Boolean attributes can omit the value.
+
+```ds
+<Input disabled readonly />
+```
+
+```ds expected
+<Input disabled readonly />;
+```
+
+## JSX Comments
+
+### comment in expression container
+
+Comments inside JSX use expression containers. Block infix comments cause expansion with proper indent.
+
+```ds
+<Container>{/* TODO: add content */}</Container>
+```
+
+```ds expected
+<Container>
+    {
+        /* TODO: add content */
+    }
+</Container>;
+```
+
+## Complex Expression Children
+
+### map expression in children
+
+Map expressions can generate multiple elements.
+
+```ds line-width=50
+<List>{items.map((item) => <Item key={item.id} />)}</List>
+```
+
+```ds expected
+<List>
+    {items.map((item) => <Item key={item.id} />)}
+</List>;
+```
+
+### long map with block body
+
+Map with block body breaks appropriately.
+
+```ds line-width=40
+<List>{items.map((item) => { return <Item key={item.id} name={item.name} /> })}</List>
+```
+
+```ds expected
+<List>
+    {items.map((item) => {
+        return <Item
+            key={item.id}
+            name={item.name}
+        />
+    })}
+</List>;
+```
+
+### conditional with jsx
+
+Conditional expressions with JSX children.
+
+```ds
+<div>{loading && <Spinner />}</div>
+```
+
+```ds expected
+<div>{loading && <Spinner />}</div>;
+```
+
+### ternary with complex jsx branches
+
+Ternary with multi-attribute JSX in branches.
+
+```ds line-width=50
+<div>{loading ? <Spinner size="large" /> : <Content data={data} />}</div>
+```
+
+```ds expected
+<div>
+    {loading
+        ? <Spinner size="large" />
+        : <Content data={data} />}
+</div>;
+```
+
+## Multiple Callbacks
+
+### element with multiple callback props
+
+Multiple callbacks break element to multi-line.
+
+```ds line-width=50
+<Button onClick={handleClick} onHover={handleHover} onFocus={handleFocus} />
+```
+
+```ds expected
+<Button
+    onClick={handleClick}
+    onHover={handleHover}
+    onFocus={handleFocus}
+/>;
+```
+
+### callback with inline arrow function
+
+Inline arrow functions as callbacks.
+
+```ds line-width=60
+<Button onClick={() => setOpen(true)} onClose={() => setOpen(false)} />
+```
+
+```ds expected
+<Button
+    onClick={() => setOpen(true)}
+    onClose={() => setOpen(false)}
+/>;
+```
+
+## JSX as Arguments
+
+### jsx in function call
+
+JSX can be passed as function argument.
+
+```ds
+render(<App />)
+```
+
+```ds expected
+render(<App />);
+```
+
+### jsx with props in function call
+
+JSX with attributes in function arguments.
+
+```ds
+createPortal(<Modal isOpen={true} />, document.body)
+```
+
+```ds expected
+createPortal(<Modal isOpen={true} />, document.body);
+```
+
+### complex jsx in function call breaks
+
+Complex JSX in function call breaks appropriately.
+
+```ds line-width=40
+render(<Container><Header /><Content /></Container>)
+```
+
+```ds expected
+render(
+    <Container>
+        <Header />
+        <Content />
+    </Container>,
+);
+```
+
+## Return Statements with JSX
+
+### return jsx inline
+
+Short JSX in return statements stays inline.
+
+```ds
+return <App />
+```
+
+```ds expected
+return <App />;
+```
+
+### return jsx multiline gets wrapped
+
+When JSX in return breaks, it gets wrapped in parentheses (Prettier convention).
+
+```ds line-width=30
+return <App prop="value" another="thing" />
+```
+
+```ds expected
+return (
+    <App
+        prop="value"
+        another="thing"
+    />
+);
+```
+
+### return nested jsx wrapped
+
+Nested JSX in returns also gets wrapped.
+
+```ds line-width=40
+return <Container><Header /><Content /></Container>
+```
+
+```ds expected
+return (
+    <Container>
+        <Header />
+        <Content />
+    </Container>
+);
+```

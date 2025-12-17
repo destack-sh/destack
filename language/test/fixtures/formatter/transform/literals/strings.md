@@ -567,3 +567,29 @@ const x = /^[a-z]+$/i
 ```ds expected
 const x = /^[a-z]+$/i;
 ```
+
+## Long Strings
+
+### long string not broken
+
+Long strings are NOT broken even when they exceed line width (like Prettier).
+
+```ds line-width=40
+const msg = "This is a very long string that exceeds the line width but should not be broken"
+```
+
+```ds expected
+const msg = "This is a very long string that exceeds the line width but should not be broken";
+```
+
+### long template literal not broken
+
+Long template literals are also preserved as-is.
+
+```ds line-width=40
+const msg = `This is a very long template literal that exceeds the line width but should not be broken`
+```
+
+```ds expected
+const msg = `This is a very long template literal that exceeds the line width but should not be broken`;
+```

@@ -1,4 +1,7 @@
-use destack_dir::{Declaration, Expression, GlobalSymbolId, LocalNodeIdAny, NodeType, Pattern};
+use destack_dir::{
+    Declaration, EnumField, Expression, GlobalSymbolId, LocalNodeIdAny, Member, NodeType,
+    Parameter, Pattern,
+};
 use destack_source::{FileId, Span};
 
 use super::span::{get_dir_node_main_span, get_module_by_file_id};
@@ -99,6 +102,56 @@ pub fn find_symbol_at_offset(
                 };
                 let declaration = dir_tree.get::<Declaration>(declaration_id);
                 let local_symbol = declaration.symbol();
+                let symbol_id = GlobalSymbolId {
+                    module_id,
+                    local_id: local_symbol,
+                };
+                return Some(SymbolAtOffset {
+                    symbol_id,
+                    node_id: dir_node_id,
+                    span: Span::new(file_id, enclosing_span.span.start, enclosing_span.span.end),
+                });
+            }
+            // check if it's a member (class/struct field or method)
+            NodeType::Member => {
+                let Ok(member_id) = dir_node_id.try_into() else {
+                    continue;
+                };
+                let member = dir_tree.get::<Member>(member_id);
+                let local_symbol = member.symbol();
+                let symbol_id = GlobalSymbolId {
+                    module_id,
+                    local_id: local_symbol,
+                };
+                return Some(SymbolAtOffset {
+                    symbol_id,
+                    node_id: dir_node_id,
+                    span: Span::new(file_id, enclosing_span.span.start, enclosing_span.span.end),
+                });
+            }
+            // check if it's an enum field
+            NodeType::EnumField => {
+                let Ok(field_id) = dir_node_id.try_into() else {
+                    continue;
+                };
+                let field = dir_tree.get::<EnumField>(field_id);
+                let symbol_id = GlobalSymbolId {
+                    module_id,
+                    local_id: field.symbol,
+                };
+                return Some(SymbolAtOffset {
+                    symbol_id,
+                    node_id: dir_node_id,
+                    span: Span::new(file_id, enclosing_span.span.start, enclosing_span.span.end),
+                });
+            }
+            // check if it's a parameter
+            NodeType::Parameter => {
+                let Ok(param_id) = dir_node_id.try_into() else {
+                    continue;
+                };
+                let param = dir_tree.get::<Parameter>(param_id);
+                let local_symbol = param.symbol();
                 let symbol_id = GlobalSymbolId {
                     module_id,
                     local_id: local_symbol,

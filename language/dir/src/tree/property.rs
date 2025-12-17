@@ -173,6 +173,28 @@ pub enum Member {
     },
 }
 
+impl Member {
+    /// Get the symbol of the member.
+    pub fn symbol(&self) -> LocalSymbolId {
+        match self {
+            Member::Field { symbol, .. } => *symbol,
+            Member::Method { symbol, .. } => *symbol,
+            Member::Embed { symbol, .. } => *symbol,
+            Member::StaticBlock { symbol, .. } => *symbol,
+        }
+    }
+
+    /// Get the key of the member (name or dynamic key).
+    pub fn key(&self) -> Option<&DynamicKey> {
+        match self {
+            Member::Field { key, .. } => key.as_ref(),
+            Member::Method { key, .. } => key.as_ref(),
+            Member::Embed { .. } => None,
+            Member::StaticBlock { .. } => None,
+        }
+    }
+}
+
 impl Node for Member {
     const TYPE: NodeType = NodeType::Member;
 }
