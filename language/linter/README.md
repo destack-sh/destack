@@ -161,7 +161,7 @@ Subjective preferences for consistent coding style.
 | `prefer-const` | ESLint | DIR | ✗ | 🟡 | Needs reassignment tracking |
 | `prefer-destructuring` | ESLint | DIR | ✗ | 🟡 | Needs symbol tracking |
 | `prefer-exponentiation-operator` | ESLint | DIR | ✗ | 🟡 | Needs `Math.pow` builtin check |
-| `prefer-expression` | Destack | AST | ✓ | 🟡 | `let x; if (...) x=a` → `const x = if (...) { a }` |
+| `prefer-expression` | Destack | AST | ✓ | ✅ | `let x; if (...) x=a` → `const x = if (...) { a }` |
 | `prefer-implicit-return` | Destack | AST | ✓ | ✅ | `return x` → `x` |
 | `prefer-loop` | Destack | AST | ✓ | 🟡 | Prefer explicit `loop` over `while(true)` or `for (;;)` |
 | `prefer-newtype-over-alias` | Destack | DIR | ✗ | 🟡 | Type alias → newtype |
@@ -186,7 +186,7 @@ Overly complex code that is harder to understand and maintain.
 | `max-params` | ESLint | AST | ✓ | ✅ | Maximum function parameters |
 | `max-statements` | ESLint | AST | ✓ | ✅ | Maximum statements per function |
 | `no-multi-assign` | ESLint | AST | ✓ | ✅ | `a = b = c` chains |
-| `no-multi-declarators` | ESLint | AST | ✓ | 🟡 | `a = b, c = d` chains |
+| `no-multi-declarators` | ESLint | AST | ✓ | ✅ | `let a = 1, b = 2` multi-declarators |
 
 ## Restriction (R)
 
@@ -197,28 +197,25 @@ Opt-in rules that ban certain patterns by project choice.
 | Rule | Source | Level | Ready | Status | Notes |
 |------|--------|-------|-------|--------|-------|
 | `no-alert` | ESLint | DIR | ✗ | 🟡 | Needs `alert` builtin check |
-| `no-anonymous-default-export` | Unicorn | AST | ✓ | 🟡 | Named exports only |
+| `no-anonymous-default-export` | Unicorn | AST | ✓ | ✅ | Named exports only |
 | `no-arguments` | ESLint | DIR | ✗ | 🟡 | Needs `arguments` binding in resolve |
-| `no-any` | Destack | AST | ✓ | 🟡 | Ban `any` entirely |
-| `no-bitwise` | ESLint | AST | ✓ | 🟡 | Bitwise operators |
-| `no-class` | Destack | AST | ✓ | 🟡 | Prefer struct over class |
+| `no-bitwise` | ESLint | AST | ✓ | ✅ | Bitwise operators |
+| `no-class` | Destack | AST | ✓ | ✅ | Prefer struct over class |
 | `no-console` | ESLint | DIR | ✗ | 🟡 | Needs `console` builtin check |
-| `no-continue` | ESLint | AST | ✓ | 🟡 | `continue` statement |
-| `no-explicit-any` | TS-ESLint | AST | ✓ | 🟡 | `any` type annotations |
+| `no-continue` | ESLint | AST | ✓ | ✅ | `continue` statement |
+| `no-explicit-any` | TS-ESLint | AST | ✓ | ✅ | Ban explicit `any` type |
 | `no-implicit-return` | Destack | AST | ✓ | 🟡 | Require explicit `return` |
-| `no-labels` | ESLint | AST | ✓ | 🟡 | Labeled statements |
-| `no-magic-numbers` | ESLint | AST | ✓ | 🟡 | Unnamed numeric literals |
-| `no-namespace` | TS-ESLint | AST | ✓ | 🟡 | `namespace` keyword |
-| `no-non-null-assertion` | TS-ESLint | AST | ✓ | 🟡 | `!` assertion operator |
-| `no-plusplus` | ESLint | AST | ✓ | 🟡 | `++` and `--` |
+| `no-labels` | ESLint | AST | ✓ | ✅ | Labeled statements |
+| `no-magic-numbers` | ESLint | AST | ✓ | ✅ | Unnamed numeric literals |
+| `no-namespace` | TS-ESLint | AST | ✓ | ✅ | `namespace` keyword |
+| `no-non-null-assertion` | TS-ESLint | AST | ✓ | ✅ | `!` assertion operator |
+| `no-plusplus` | ESLint | AST | ✓ | ✅ | `++` and `--` |
 | `no-process-exit` | Unicorn | DIR | ✗ | 🟡 | Needs `process` builtin check |
-| `no-require-imports` | TS-ESLint | AST | ✓ | 🟡 | CommonJS `require()` |
+| `no-require-imports` | TS-ESLint | AST | ✓ | ✅ | CommonJS `require()` |
 | `no-restricted-imports` | ESLint | AST | ✓ | 🟡 | Banned imports |
 | `no-sequences` | ESLint | AST | ✓ | ✅ | Comma operator (JS/TS only) |
-| `no-ternary` | ESLint | AST | ✓ | 🟡 | Ternary operator |
-| `no-void` | ESLint | AST | ✓ | 🟡 | `void` operator |
-| `no-warning-comments` | ESLint | AST | ✓ | 🟡 | `TODO`, `FIXME` etc |
-| `no-with` | ESLint | AST | ✓ | 🟡 | `with` statement |
+| `no-ternary` | ESLint | AST | ✓ | ✅ | Ternary operator |
+| `no-warning-comments` | ESLint | AST | ✗ | 🟡 | Needs comment API |
 | `strict-boolean-expressions` | TS-ESLint | DIR | ✗ | 🔶 | No truthy/falsy |
 
 ## Pedantic (D)
@@ -230,7 +227,7 @@ Very strict or opinionated checks that may be too noisy.
 | Rule | Source | Level | Ready | Status | Notes |
 |------|--------|-------|-------|--------|-------|
 | `consistent-return` | ESLint | DIR | ✗ | 🟡 | Needs flow analysis |
-| `explicit-function-return-type` | TS-ESLint | AST | ✓ | 🟡 | Explicit return types |
+| `explicit-function-return-type` | TS-ESLint | AST | ✓ | ✅ | Explicit return types |
 | `explicit-length-check` | Unicorn | DIR | ✗ | 🟡 | Needs type info |
 | `guard-for-in` | ESLint | AST | ✗ | 🟡 | `hasOwnProperty` in for-in |
 | `no-caller` | ESLint | AST | ✗ | 🟡 | `arguments.caller` |
