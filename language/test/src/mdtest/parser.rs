@@ -205,6 +205,7 @@ pub fn parse_mdtest(content: &str) -> Vec<MdTestCase> {
                     current_files.push(MdTestFile {
                         path,
                         content: code_block_content.clone(),
+                        options: parsed.options,
                     });
                 } else if !code_block_language.is_empty() {
                     // non-source block (query, expected, etc.)
@@ -441,6 +442,16 @@ const f: Foo = Foo {}
         assert_eq!(tag.base, "ds");
         assert_eq!(tag.filename, Some("out.ds"));
         assert_eq!(tag.markers, vec!["expected"]);
+
+        let tag = parse_language_tag("ds line-width=40");
+        assert_eq!(tag.base, "ds");
+        assert_eq!(tag.options.get("line-width"), Some(&"40".to_string()));
+
+        let tag = parse_language_tag("ds expected line-width=40 indent-width=2");
+        assert_eq!(tag.base, "ds");
+        assert_eq!(tag.markers, vec!["expected"]);
+        assert_eq!(tag.options.get("line-width"), Some(&"40".to_string()));
+        assert_eq!(tag.options.get("indent-width"), Some(&"2".to_string()));
     }
 
     #[test]
