@@ -4,12 +4,14 @@
 #![feature(thread_id_value)]
 
 pub mod config;
+pub mod format;
 pub mod program;
 pub mod query;
 pub mod session;
 pub mod workspace;
 
 pub use config::*;
+pub use format::*;
 pub use program::*;
 pub use query::*;
 pub use session::*;
