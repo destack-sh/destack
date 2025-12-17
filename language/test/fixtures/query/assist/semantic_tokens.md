@@ -28,6 +28,7 @@ class Animal {
 
 ```query semantic_tokens $0
 Animal: class [declaration]
+name: property [declaration]
 string: type
 ```
 
@@ -44,7 +45,9 @@ struct Point {
 
 ```query semantic_tokens $0
 Point: struct [declaration]
+x: property [declaration]
 float32: type
+y: property [declaration]
 float32: type
 ```
 
@@ -54,12 +57,13 @@ Interface declarations should be highlighted.
 
 ```ds
 interface Drawable {
-    function draw(): void;
+    draw(): void;
 }
 ```
 
 ```query semantic_tokens $0
 Drawable: interface [declaration]
+draw: method [declaration]
 void: type
 ```
 
@@ -172,6 +176,7 @@ class Container<T> {
 ```query semantic_tokens $0
 Container: class [declaration]
 T: type_parameter [declaration]
+value: property [declaration]
 T: variable
 ```
 
