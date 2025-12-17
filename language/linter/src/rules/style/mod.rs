@@ -6,6 +6,7 @@ mod dot_notation;
 mod eqeqeq;
 mod filename_case;
 mod no_else_return;
+mod no_empty_interface;
 mod no_lonely_if;
 mod no_nested_ternary;
 mod no_unneeded_ternary;
@@ -30,6 +31,7 @@ pub use dot_notation::*;
 pub use eqeqeq::*;
 pub use filename_case::*;
 pub use no_else_return::*;
+pub use no_empty_interface::*;
 pub use no_lonely_if::*;
 pub use no_nested_ternary::*;
 pub use no_unneeded_ternary::*;
@@ -55,6 +57,7 @@ pub fn rules() -> Vec<BoxedLintRule> {
         boxed(Eqeqeq),
         boxed(FilenameCaseRule),
         boxed(NoElseReturn),
+        boxed(NoEmptyInterface),
         boxed(NoLonelyIf),
         boxed(NoNestedTernary),
         boxed(NoUnneededTernary),
