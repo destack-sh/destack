@@ -6,7 +6,7 @@ use crate::{Lexer, is_semantic};
 use destack_ast::{BlockFormat, Expression, LocalNodeId, NodeTree, NodeType, TokenSpan, TokenType};
 use destack_base::StringPool;
 use destack_source::{
-    DiagnosticCollector, EnclosingSpan, File, FileId, LanguageType, MultiSpan, NodeSearch, Span,
+    DiagnosticCollector, EnclosingSpan, File, FileId, LanguageType, MultiSpan, NodeSearchMode, Span,
 };
 
 use crate::{ParseError, ParseResult};
@@ -815,7 +815,7 @@ impl Parser {
     }
 
     /// Get the node starting at a token.
-    pub fn find_node_starting_at(&self, span: &Span, search: NodeSearch) -> Option<EnclosingSpan> {
+    pub fn find_node_starting_at(&self, span: &Span, search: NodeSearchMode) -> Option<EnclosingSpan> {
         let mut enclosing_spans = self
             .tree
             .source_map
@@ -824,13 +824,13 @@ impl Parser {
             .filter(|s| s.span.start == span.start)
             .collect::<Vec<_>>();
         match search {
-            NodeSearch::BiggestOutermost => {
+            NodeSearchMode::BiggestOutermost => {
                 enclosing_spans.sort_by_key(|span| (-(span.length as i64), -(span.idx as i64)));
             }
-            NodeSearch::SmallestOutermost => {
+            NodeSearchMode::SmallestOutermost => {
                 enclosing_spans.sort_by_key(|span| (span.length as i64, -(span.idx as i64)));
             }
-            NodeSearch::SmallestInnermost => {
+            NodeSearchMode::SmallestInnermost => {
                 enclosing_spans.sort_by_key(|span| (span.length as i64, (span.idx as i64)));
             }
         }
@@ -838,7 +838,7 @@ impl Parser {
     }
 
     /// Get the node ending at a token.
-    pub fn find_node_ending_at(&self, span: &Span, search: NodeSearch) -> Option<EnclosingSpan> {
+    pub fn find_node_ending_at(&self, span: &Span, search: NodeSearchMode) -> Option<EnclosingSpan> {
         let mut enclosing_spans = self
             .tree
             .source_map
@@ -847,13 +847,13 @@ impl Parser {
             .filter(|s| s.span.end == span.end)
             .collect::<Vec<_>>();
         match search {
-            NodeSearch::BiggestOutermost => {
+            NodeSearchMode::BiggestOutermost => {
                 enclosing_spans.sort_by_key(|span| (-(span.length as i64), -(span.idx as i64)));
             }
-            NodeSearch::SmallestOutermost => {
+            NodeSearchMode::SmallestOutermost => {
                 enclosing_spans.sort_by_key(|span| (span.length as i64, -(span.idx as i64)));
             }
-            NodeSearch::SmallestInnermost => {
+            NodeSearchMode::SmallestInnermost => {
                 enclosing_spans.sort_by_key(|span| (span.length as i64, (span.idx as i64)));
             }
         }
@@ -864,7 +864,7 @@ impl Parser {
     pub fn find_node_enclosing_at(
         &self,
         span: &Span,
-        search: NodeSearch,
+        search: NodeSearchMode,
         filter: impl Fn(&EnclosingSpan) -> bool,
     ) -> Option<EnclosingSpan> {
         let mut enclosing_spans = self
@@ -878,13 +878,13 @@ impl Parser {
             return None;
         }
         match search {
-            NodeSearch::BiggestOutermost => {
+            NodeSearchMode::BiggestOutermost => {
                 enclosing_spans.sort_by_key(|span| (-(span.length as i64), -(span.idx as i64)));
             }
-            NodeSearch::SmallestOutermost => {
+            NodeSearchMode::SmallestOutermost => {
                 enclosing_spans.sort_by_key(|span| (span.length as i64, -(span.idx as i64)));
             }
-            NodeSearch::SmallestInnermost => {
+            NodeSearchMode::SmallestInnermost => {
                 enclosing_spans.sort_by_key(|span| (span.length as i64, (span.idx as i64)));
             }
         }
