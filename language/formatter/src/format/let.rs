@@ -98,4 +98,18 @@ mod tests {
             DestackFormatOptions::default_with_line_width(40)
         );
     }
+
+    #[test]
+    fn test_format_let_destructuring_pattern_expanded() {
+        assert_format!(
+            r#"const { name = "default", count: total = 0, items: [...rest] } = config"#,
+            r#"const {
+    name = "default",
+    count: total = 0,
+    items: [...rest],
+} = config"#,
+            |p| p.eat_let(DeclarationDescriptor::default()),
+            DestackFormatOptions::default_with_line_width(60)
+        );
+    }
 }

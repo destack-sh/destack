@@ -174,6 +174,29 @@ where
                 continue;
             }
 
+            // for line comments (// style), use line_postfix to defer to end of line
+            // this keeps `x, // comment` together; block comments stay inline
+            let is_slash_comment = if let Annotation::Comment { node: comment_id, .. } = annotation
+            {
+                let comment = f.context().tree.get::<Comment>(*comment_id);
+                comment.style == CommentStyle::Slash
+            } else {
+                false
+            };
+            if is_slash_comment
+                && matches!(
+                    position,
+                    AnnotationPosition::LinePostfix | AnnotationPosition::LinePostfixBoundary
+                )
+            {
+                let content = format_with(|f| {
+                    write!(f, [space()])?;
+                    annotation.format_node(annotation_id, f)
+                });
+                write!(f, [line_postfix(&content, 0)])?;
+                continue;
+            }
+
             // insert space/newline for first annotation in group
             if first_node_type.is_none() {
                 first_node_type = Some(node_type);
@@ -186,6 +209,7 @@ where
                         write!(f, [hard_line_break()])?;
                     }
                     AnnotationPosition::LinePostfix | AnnotationPosition::LinePostfixBoundary => {
+                        // block comments in line postfix still need spacing (slash handled above)
                         write!(f, [space()])?;
                     }
                     AnnotationPosition::LinePrefix => {
@@ -385,6 +409,7 @@ impl<'ast> FormatNode<'ast, Decorator> for Decorator {
 #[cfg(test)]
 mod tests {
     use crate::{DestackFormatOptions, TestFormatter, assert_format};
+    use destack_ast::DeclarationDescriptor;
 
     /// Block comments should retain all their newlines (including leading and trailing newlines).
     #[test]
@@ -544,6 +569,80 @@ mod tests {
             source,
             source,
             |p| p.eat_block(),
+            DestackFormatOptions::default()
+        );
+    }
+
+    /// Comments inside function call arguments.
+    #[test]
+    fn test_format_comment_in_call_arguments() {
+        assert_format!(
+            "foo(/* first */ a, /* second */ b)",
+            "foo(/* first */ a, /* second */ b)",
+            |p| p.eat_expression(),
+            DestackFormatOptions::default()
+        );
+    }
+
+    /// Comments inside array literals.
+    #[test]
+    fn test_format_comment_in_array() {
+        assert_format!(
+            "[/* first */ 1, /* second */ 2, /* third */ 3]",
+            "[/* first */ 1, /* second */ 2, /* third */ 3]",
+            |p| p.eat_expression(),
+            DestackFormatOptions::default()
+        );
+    }
+
+    /// Comments inside object literals cause expansion.
+    #[test]
+    fn test_format_comment_in_object() {
+        assert_format!(
+            "{ /* key */ a: 1, /* another */ b: 2 }",
+            "{
+    /* key */ a: 1,
+    /* another */ b: 2,
+}",
+            |p| p.eat_expression(),
+            DestackFormatOptions::default()
+        );
+    }
+
+    /// Format trailing comments on array elements.
+    /// Parser classifies `3, // comment` as BlockPostfix because comma is not part of the expression node.
+    /// A proper fix would require parser changes to detect this pattern.
+    #[test]
+    fn test_format_trailing_comment_array() {
+        assert_format!(
+            "{
+    const arr = [
+        1,
+        2,
+        3, // last element
+    ]
+}",
+            "{
+    const arr = [
+        1,
+        2,
+        3
+        // last element
+        ,
+    ]
+}",
+            |p| p.eat_block(),
+            DestackFormatOptions::default()
+        );
+    }
+
+    /// Comment inside function body.
+    #[test]
+    fn test_format_comment_in_function_body() {
+        assert_format!(
+            "function foo() { /* empty */ }",
+            "function foo() {\n    /* empty */\n}",
+            |p| p.eat_function(DeclarationDescriptor::default(), false, false),
             DestackFormatOptions::default()
         );
     }

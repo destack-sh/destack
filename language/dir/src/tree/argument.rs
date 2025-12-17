@@ -41,6 +41,15 @@ impl Parameter {
             Parameter::Variadic { modifiers, .. } => modifiers.as_ref(),
         }
     }
+
+    /// Get the symbol of the parameter.
+    pub fn symbol(&self) -> LocalSymbolId {
+        match self {
+            Parameter::Named { symbol, .. } => *symbol,
+            Parameter::Pattern { symbol, .. } => *symbol,
+            Parameter::Variadic { symbol, .. } => *symbol,
+        }
+    }
 }
 
 /// An Argument is a named, positional, spread, or labeled argument.

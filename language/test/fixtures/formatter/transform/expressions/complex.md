@@ -258,9 +258,7 @@ const {
     name = "default",
     count: total = 0,
     items: [...rest],
-} =
-    config
-;
+} = config;
 ```
 
 ### array destructuring with rest
@@ -357,4 +355,222 @@ const result = primary ?? secondary ?? fallback
 
 ```ds expected
 const result = primary ?? secondary ?? fallback;
+```
+
+## Chained Assignments
+
+### simple chained assignment
+
+Multiple assignments in one expression.
+
+```ds
+a = b = c = 1
+```
+
+```ds expected
+a = b = c = 1;
+```
+
+### long chained assignment breaks
+
+When chained assignments exceed line width, each breaks at same indent level.
+
+```ds line-width=30
+veryLongName = anotherLongName = thirdLongName = 42
+```
+
+```ds expected
+veryLongName =
+    anotherLongName =
+    thirdLongName =
+    42;
+```
+
+## Deeply Nested Callbacks
+
+### nested callbacks in chain
+
+Deeply nested callbacks within method chains.
+
+```ds line-width=50
+fetch(url).then((res) => res.json()).then((data) => process(data)).catch((err) => handle(err))
+```
+
+```ds expected
+fetch(url)
+    .then((res) => res.json())
+    .then((data) => process(data))
+    .catch((err) => handle(err));
+```
+
+### callback inside callback
+
+Callbacks passed as arguments to other callbacks.
+
+```ds line-width=50
+outer((x) => inner((y) => transform(x, y)))
+```
+
+```ds expected
+outer((x) => inner((y) => transform(x, y)));
+```
+
+### deeply nested callback breaks
+
+Very deep nesting breaks appropriately.
+
+```ds line-width=40
+a((x) => b((y) => c((z) => d(x, y, z))))
+```
+
+```ds expected
+a(
+    (x) => b(
+        (y) => c((z) => d(x, y, z)),
+    ),
+);
+```
+
+## Async/Await Patterns
+
+### simple await
+
+Await expressions format normally.
+
+```ds
+const data = await fetch(url)
+```
+
+```ds expected
+const data = await fetch(url);
+```
+
+### await in chain
+
+Await works with method chains.
+
+```ds line-width=40
+const json = await fetch(url).then((r) => r.json())
+```
+
+```ds expected
+const json = await fetch(url).then(
+    (r) => r.json(),
+);
+```
+
+### multiple awaits in expression
+
+Multiple awaits in one expression.
+
+```ds
+const result = await process(await fetch(url))
+```
+
+```ds expected
+const result = await process(await fetch(url));
+```
+
+### async arrow function
+
+Async arrow functions.
+
+```ds
+const handler = async (event) => await processEvent(event)
+```
+
+```ds expected
+const handler = async (event) => await processEvent(event);
+```
+
+### async iife
+
+Async immediately invoked function expression.
+
+```ds
+(async () => { const data = await fetch(url); return data })()
+```
+
+```ds expected
+(async () => {
+    const data = await fetch(url);
+    return data
+})();
+```
+
+## Mixed Operators
+
+### arithmetic with different precedence
+
+Mixed arithmetic operators respect precedence.
+
+```ds
+const x = a + b * c - d / e
+```
+
+```ds expected
+const x = a + b * c - d / e;
+```
+
+### logical with comparison
+
+Logical operators with comparisons.
+
+```ds
+const valid = x > 0 && x < 100 || y === 0
+```
+
+```ds expected
+const valid = x > 0 && x < 100 || y === 0;
+```
+
+### long mixed expression breaks
+
+Long expressions with mixed operators break appropriately.
+
+```ds line-width=30
+const x = veryLongA + veryLongB * veryLongC
+```
+
+```ds expected
+const x = veryLongA
+    + veryLongB * veryLongC;
+```
+
+## Compound Patterns
+
+### optional chain with nullish coalescing
+
+Optional chaining combined with nullish coalescing.
+
+```ds
+const name = user?.profile?.name ?? "Anonymous"
+```
+
+```ds expected
+const name = user?.profile?.name ?? "Anonymous";
+```
+
+### optional chain with method call
+
+Optional chaining with method invocation.
+
+```ds
+const result = obj?.method?.(arg1, arg2)
+```
+
+```ds expected
+const result = obj?.method?.(arg1, arg2);
+```
+
+### complex optional access
+
+Multiple optional accesses and calls.
+
+```ds
+data?.items?.[0]?.value?.toString()
+```
+
+```ds expected
+data?.items?.[0]?.value?.toString();
 ```

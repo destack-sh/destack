@@ -1,7 +1,8 @@
 use destack_ast::{
     Argument, Asynchrony, BinaryOperator, Declaration, Declarator, DependencyItem, DependencyKind,
     DependencyMode, Expression, ForEachKind, IfKind, Keyword, LetKind, LocalNodeId, NodeTree,
-    PostfixPosition, Property, ScalarLiteral, TypeUnaryOperator, WhileKind, YieldCardinality,
+    Pattern, PostfixPosition, Property, ScalarLiteral, TypeUnaryOperator, WhileKind,
+    YieldCardinality,
 };
 use destack_base::StringId;
 use destack_fir::format::{BestFittingMode, FormatError};
@@ -68,7 +69,15 @@ impl<'ast> Format<DestackFormatContext<'ast>> for TreeExpressionArgument {
                         | Expression::TreeExpression { .. }
                 );
                 if needs_braces {
-                    write!(f, [token("{"), value, token("}")])?;
+                    // group expression container for proper indentation when it breaks
+                    write!(
+                        f,
+                        [group(&format_args![
+                            token("{"),
+                            soft_block_indent(&value),
+                            token("}")
+                        ])]
+                    )?;
                 } else {
                     write!(f, [value])?;
                 }
@@ -1234,6 +1243,18 @@ pub fn is_expression_breakable(tree: &NodeTree, expression: &Expression) -> bool
     }
 }
 
+/// Check if a pattern can expand to multiple lines (object, array, tuple patterns).
+pub fn is_pattern_breakable(tree: &NodeTree, pattern_id: LocalNodeId<Pattern>) -> bool {
+    let pattern = tree.get(pattern_id);
+    match pattern {
+        Pattern::Object { fields } | Pattern::TaggedObject { fields, .. } => !fields.is_empty(),
+        Pattern::Array { fields }
+        | Pattern::Tuple { fields }
+        | Pattern::TaggedTuple { fields, .. } => !fields.is_empty(),
+        _ => false,
+    }
+}
+
 /// Format a struct literal.
 #[inline]
 pub(crate) fn format_struct_literal<'ast>(
@@ -1795,8 +1816,27 @@ pub(crate) fn format_expression<'ast>(
         // return
         Expression::Return { value } => {
             write!(f, [token("return")])?;
-            if let Some(value) = value {
-                write!(f, [space(), value])?;
+            if let Some(value_id) = value {
+                let value_expr = tree.get(*value_id);
+                // For JSX returns, wrap in parens when breaking (Prettier convention)
+                if let Expression::TreeExpression { .. } = value_expr {
+                    let format_inline = format_with(|f| {
+                        write!(f, [space(), value_id])
+                    });
+                    let format_wrapped = format_with(|f| {
+                        write!(f, [
+                            space(),
+                            token("("),
+                            soft_block_indent(&value_id),
+                            token(")")
+                        ])
+                    });
+                    best_fitting![format_inline, format_wrapped]
+                        .with_mode(BestFittingMode::AllLines)
+                        .format(f)?;
+                } else {
+                    write!(f, [space(), value_id])?;
+                }
             }
         }
 
@@ -2214,13 +2254,16 @@ fn format_declarator<'ast>(
         return Ok(());
     };
 
+    let pattern_breakable = is_pattern_breakable(tree, *pattern);
+    let value_breakable = is_expression_breakable(tree, tree.get(*value_id));
+
     // prefer keeping the value on a single line
     let format_inline = format_with(|f| {
         write!(f, [header, space(), token("="), space(), *value_id])?;
         Ok(())
     });
-    // expand inline if breakable (like let x = [\n ... ])
-    let format_inline_expanded = format_with(|f| {
+    // expand inline if value is breakable (like let x = [\n ... ])
+    let format_value_expanded = format_with(|f| {
         write!(
             f,
             [
@@ -2232,7 +2275,25 @@ fn format_declarator<'ast>(
             ]
         )
     });
-    // expand and indent the value
+    // expand the header (pattern) while keeping value inline
+    // e.g., const { a, b } = value becomes:
+    // const {
+    //     a,
+    //     b,
+    // } = value;
+    let format_header_expanded = format_with(|f| {
+        write!(
+            f,
+            [
+                fits_expanded(&group(&header).should_expand(true)),
+                space(),
+                token("="),
+                space(),
+                *value_id,
+            ]
+        )
+    });
+    // expand and indent the value on a new line (last resort)
     let format_indented = format_with(|f| {
         group(&format_args![
             header,
@@ -2243,12 +2304,30 @@ fn format_declarator<'ast>(
         .format(f)
     });
 
-    if is_expression_breakable(tree, tree.get(*value_id)) {
-        best_fitting![format_inline, format_inline_expanded, format_indented]
+    match (pattern_breakable, value_breakable) {
+        (true, true) => {
+            best_fitting![
+                format_inline,
+                format_value_expanded,
+                format_header_expanded,
+                format_indented
+            ]
             .with_mode(BestFittingMode::AllLines)
             .format(f)?;
-    } else {
-        best_fitting![format_inline, format_indented].format(f)?;
+        }
+        (true, false) => {
+            best_fitting![format_inline, format_header_expanded, format_indented]
+                .with_mode(BestFittingMode::AllLines)
+                .format(f)?;
+        }
+        (false, true) => {
+            best_fitting![format_inline, format_value_expanded, format_indented]
+                .with_mode(BestFittingMode::AllLines)
+                .format(f)?;
+        }
+        (false, false) => {
+            best_fitting![format_inline, format_indented].format(f)?;
+        }
     }
 
     Ok(())
@@ -2540,6 +2619,109 @@ mod tests {
             source,
             |p| p.eat_expression(),
             DestackFormatOptions::default_with_line_width(40)
+        );
+    }
+
+    #[test]
+    fn test_format_chained_assignment() {
+        assert_format!(
+            "a = b = c = 1",
+            "a = b = c = 1",
+            |p| p.eat_expression(),
+            DestackFormatOptions::default()
+        );
+    }
+
+    #[test]
+    fn test_format_chained_assignment_long() {
+        assert_format!(
+            "veryLongName = anotherLongName = thirdLongName = 42",
+            "veryLongName =\n    anotherLongName =\n    thirdLongName =\n    42",
+            |p| p.eat_expression(),
+            DestackFormatOptions::default_with_line_width(30)
+        );
+    }
+
+    #[test]
+    fn test_format_jsx_with_comment() {
+        // block infix comments in expression containers cause expansion with proper indent
+        assert_format!(
+            "<Container>{/* TODO */}</Container>",
+            "<Container>\n    {\n        /* TODO */\n    }\n</Container>",
+            |p| p.eat_expression(),
+            DestackFormatOptions::default()
+        );
+    }
+
+    #[test]
+    fn test_format_jsx_conditional_child() {
+        assert_format!(
+            "<div>{loading && <Spinner />}</div>",
+            "<div>{loading && <Spinner />}</div>",
+            |p| p.eat_expression(),
+            DestackFormatOptions::default()
+        );
+    }
+
+    #[test]
+    fn test_format_jsx_in_function_call() {
+        assert_format!(
+            "render(<App />)",
+            "render(<App />)",
+            |p| p.eat_expression(),
+            DestackFormatOptions::default()
+        );
+    }
+
+    #[test]
+    fn test_format_deeply_nested_callbacks() {
+        assert_format!(
+            "fetch(url).then((res) => res.json()).then((data) => process(data))",
+            "fetch(url)\n    .then((res) => res.json())\n    .then((data) => process(data))",
+            |p| p.eat_expression(),
+            DestackFormatOptions::default_with_line_width(40)
+        );
+    }
+
+    #[test]
+    fn test_format_optional_chain_with_nullish() {
+        assert_format!(
+            r#"user?.profile?.name ?? "Anonymous""#,
+            r#"user?.profile?.name ?? "Anonymous""#,
+            |p| p.eat_expression(),
+            DestackFormatOptions::default()
+        );
+    }
+
+    #[test]
+    fn test_format_async_arrow() {
+        assert_format!(
+            "async (event) => await processEvent(event)",
+            "async (event) => await processEvent(event)",
+            |p| p.eat_expression(),
+            DestackFormatOptions::default()
+        );
+    }
+
+    #[test]
+    fn test_format_return_jsx_inline() {
+        // Short JSX returns stay inline
+        assert_format!(
+            "return <App />",
+            "return <App />",
+            |p| p.eat_expression(),
+            DestackFormatOptions::default()
+        );
+    }
+
+    #[test]
+    fn test_format_return_jsx_multiline() {
+        // When JSX doesn't fit, it gets wrapped in parentheses (Prettier convention)
+        assert_format!(
+            "return <App prop=\"value\" another=\"thing\" />",
+            "return (\n    <App\n        prop=\"value\"\n        another=\"thing\"\n    />\n)",
+            |p| p.eat_expression(),
+            DestackFormatOptions::default_with_line_width(30)
         );
     }
 }

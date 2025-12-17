@@ -7,6 +7,7 @@ mod highlight;
 mod implementation;
 mod selection_range;
 mod type_hierarchy;
+mod workspace_symbol;
 
 pub use call_hierarchy::*;
 pub use definition::*;
@@ -17,3 +18,4 @@ pub use highlight::*;
 pub use implementation::*;
 pub use selection_range::*;
 pub use type_hierarchy::*;
+pub use workspace_symbol::*;
