@@ -44,14 +44,40 @@ pub fn parse_mdtest_file(path: &Path) -> std::io::Result<Vec<MdTestCase>> {
     Ok(parse_mdtest(&content))
 }
 
-/// Parse the language tag to extract the base language and optional filename.
-fn parse_language_tag(language: &str) -> (&str, Option<&str>) {
-    if let Some(colon_pos) = language.find(':') {
-        let base_language = &language[..colon_pos];
-        let filename = &language[colon_pos + 1..];
-        (base_language, Some(filename))
+/// Parsed language tag with base language, optional filename, and markers.
+struct ParsedLanguageTag<'a> {
+    /// Base language (e.g., "ds", "ts").
+    base: &'a str,
+    /// Optional filename after colon (e.g., "main.ds" from "ds:main.ds").
+    filename: Option<&'a str>,
+    /// Space-separated markers (e.g., ["expected"] from "ds expected").
+    markers: Vec<&'a str>,
+}
+
+/// Parse the language tag to extract base language, optional filename, and markers.
+///
+/// Supports formats like:
+/// - `ds` -> base "ds"
+/// - `ds:main.ds` -> base "ds", filename "main.ds"
+/// - `ds expected` -> base "ds", marker "expected"
+/// - `ds:main.ds expected` -> base "ds", filename "main.ds", marker "expected"
+fn parse_language_tag(language: &str) -> ParsedLanguageTag<'_> {
+    let mut parts = language.split_whitespace();
+    let first = parts.next().unwrap_or("");
+
+    // first part may have colon for filename
+    let (base, filename) = if let Some(colon_pos) = first.find(':') {
+        (&first[..colon_pos], Some(&first[colon_pos + 1..]))
     } else {
-        (language, None)
+        (first, None)
+    };
+
+    let markers: Vec<&str> = parts.collect();
+
+    ParsedLanguageTag {
+        base,
+        filename,
+        markers,
     }
 }
 
@@ -152,9 +178,12 @@ pub fn parse_mdtest(content: &str) -> Vec<MdTestCase> {
                 }
 
                 // check if it's a source code block
-                let (base_language, filename) = parse_language_tag(&code_block_language);
-                if is_code_language(base_language) {
-                    let path = filename.unwrap_or("main.ds").to_string();
+                let parsed = parse_language_tag(&code_block_language);
+                let is_expected = parsed.markers.contains(&"expected");
+
+                if is_code_language(parsed.base) && !is_expected {
+                    // regular source code file
+                    let path = parsed.filename.unwrap_or("main.ds").to_string();
                     current_files.push(MdTestFile {
                         path,
                         content: code_block_content.clone(),
@@ -371,12 +400,54 @@ const f: Foo = Foo {}
 
     #[test]
     fn test_parse_language_tag() {
-        assert_eq!(parse_language_tag("ds"), ("ds", None));
-        assert_eq!(parse_language_tag("ds:main.ds"), ("ds", Some("main.ds")));
-        assert_eq!(
-            parse_language_tag("typescript:utils.ts"),
-            ("typescript", Some("utils.ts"))
-        );
+        let tag = parse_language_tag("ds");
+        assert_eq!(tag.base, "ds");
+        assert_eq!(tag.filename, None);
+        assert!(tag.markers.is_empty());
+
+        let tag = parse_language_tag("ds:main.ds");
+        assert_eq!(tag.base, "ds");
+        assert_eq!(tag.filename, Some("main.ds"));
+        assert!(tag.markers.is_empty());
+
+        let tag = parse_language_tag("typescript:utils.ts");
+        assert_eq!(tag.base, "typescript");
+        assert_eq!(tag.filename, Some("utils.ts"));
+
+        let tag = parse_language_tag("ds expected");
+        assert_eq!(tag.base, "ds");
+        assert_eq!(tag.filename, None);
+        assert_eq!(tag.markers, vec!["expected"]);
+
+        let tag = parse_language_tag("ds:out.ds expected");
+        assert_eq!(tag.base, "ds");
+        assert_eq!(tag.filename, Some("out.ds"));
+        assert_eq!(tag.markers, vec!["expected"]);
+    }
+
+    #[test]
+    fn test_parse_expected_block() {
+        let md = r#"
+## Formatter
+
+### spacing test
+
+```ds
+const   x   =   1
+```
+
+```ds expected
+const x = 1;
+```
+"#;
+
+        let tests = parse_mdtest(md);
+        assert_eq!(tests.len(), 1);
+        assert_eq!(tests[0].files.len(), 1);
+        assert_eq!(tests[0].files[0].content.trim(), "const   x   =   1");
+        assert_eq!(tests[0].extra_blocks.len(), 1);
+        assert_eq!(tests[0].extra_blocks[0].language, "ds expected");
+        assert_eq!(tests[0].extra_blocks[0].content.trim(), "const x = 1;");
     }
 
     #[test]
