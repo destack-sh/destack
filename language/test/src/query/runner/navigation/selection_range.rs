@@ -45,10 +45,7 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> T
     if content.is_empty() {
         let depth = ranges.first().map(|r| r.depth()).unwrap_or(0);
         return TestResult::Failed {
-            message: format!(
-                "selection_range expectation is empty, got depth {}",
-                depth
-            ),
+            message: format!("selection_range expectation is empty, got depth {depth}"),
         };
     }
 

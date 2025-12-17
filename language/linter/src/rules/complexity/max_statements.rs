@@ -55,9 +55,7 @@ impl LintRule for MaxStatements {
                         MAX_STATEMENTS.code,
                         MAX_STATEMENTS.category,
                         severity,
-                        format!(
-                            "function has {statement_count} statements (max {max_statements})"
-                        ),
+                        format!("function has {statement_count} statements (max {max_statements})"),
                         ctx.module.file_id,
                         body_span,
                     )

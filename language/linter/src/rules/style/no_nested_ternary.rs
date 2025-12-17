@@ -60,10 +60,7 @@ impl LintRule for NoNestedTernary {
 }
 
 /// Check if an expression is a ternary (possibly wrapped in parentheses).
-fn is_ternary(
-    ctx: &LintModuleAstContext<'_>,
-    expr_id: ast::LocalNodeId<ast::Expression>,
-) -> bool {
+fn is_ternary(ctx: &LintModuleAstContext<'_>, expr_id: ast::LocalNodeId<ast::Expression>) -> bool {
     let expr = ctx.tree.get(expr_id);
     match expr {
         ast::Expression::If {

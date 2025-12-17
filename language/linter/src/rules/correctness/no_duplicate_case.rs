@@ -81,7 +81,10 @@ enum LiteralKey {
 }
 
 /// Convert a pattern to a literal key for duplicate detection.
-fn pattern_to_literal_key(ctx: &LintModuleAstContext<'_>, pattern: &ast::Pattern) -> Option<LiteralKey> {
+fn pattern_to_literal_key(
+    ctx: &LintModuleAstContext<'_>,
+    pattern: &ast::Pattern,
+) -> Option<LiteralKey> {
     match pattern {
         ast::Pattern::Expression { value } => {
             let expression = ctx.tree.get(*value);

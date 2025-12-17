@@ -7,7 +7,7 @@
 Multi-line declarations like functions, classes, and structs should be foldable.
 
 ```ds
-fn add(a: int, b: int) -> int {
+function add(a: int, b: int): int {
     return a + b;
 }
 
@@ -22,8 +22,8 @@ struct Vector {
 }
 ```
 
-This file has 2 multi-line declarations that produce folding ranges: a function and a class.
+This file has 3 multi-line declarations that produce folding ranges: function, class, and struct.
 
 ```query folding $0
-2
+3
 ```
