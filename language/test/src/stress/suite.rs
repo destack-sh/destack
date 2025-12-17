@@ -1,7 +1,7 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use destack_compiler::{AnalyzeTask, CompileOptions, Compiler, ResolveTask};
+use destack_compiler::{AnalyzeTask, Compiler, CompilerOptions, ResolveTask};
 use destack_parser::Parser;
 use destack_source::{
     File, FileRegistry, FileSystem, FileType, LanguageType, MemoryFileSystem, Uri,
@@ -175,7 +175,7 @@ fn run_resolver_stress(test: &TestCase) -> TestResult {
     let compiler = Arc::new(Compiler::new(
         session.clone(),
         program.clone(),
-        CompileOptions::default(),
+        CompilerOptions::default(),
     ));
 
     // resolve entry module
@@ -252,7 +252,7 @@ fn run_checker_stress(test: &TestCase) -> TestResult {
     let compiler = Arc::new(Compiler::new(
         session.clone(),
         program.clone(),
-        CompileOptions::default(),
+        CompilerOptions::default(),
     ));
 
     // resolve module

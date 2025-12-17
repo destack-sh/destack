@@ -573,7 +573,7 @@ if (!nativeBinding) {
 
 module.exports = nativeBinding
 module.exports.Workspace = nativeBinding.Workspace
-module.exports.defaultCompileOptions = nativeBinding.defaultCompileOptions
+module.exports.defaultCompilerOptions = nativeBinding.defaultCompilerOptions
 module.exports.defaultResolveOptions = nativeBinding.defaultResolveOptions
 module.exports.defaultWorkspaceOptions = nativeBinding.defaultWorkspaceOptions
 module.exports.EnforceExtension = nativeBinding.EnforceExtension

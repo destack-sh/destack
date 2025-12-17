@@ -78,25 +78,24 @@ Code that is likely unintentional but may occasionally be intentional.
 
 | Rule | Source | Level | Ready | Status | Notes |
 |------|--------|-------|-------|--------|-------|
-| `no-cond-assign` | ESLint | AST | ✓ | 🟡 | Assignment in condition |
-| `no-confusing-non-null-assertion` | TS-ESLint | AST | ✓ | 🟡 | `!` near `?` |
+| `no-cond-assign` | ESLint | AST | ✓ | ✅ | Assignment in condition (allows `let`) |
+| `no-confusing-non-null-assertion` | TS-ESLint | AST | ✓ | ✅ | `!` near `?` |
 | `no-confusing-void-expression` | TS-ESLint | DIR | | 🔶 | Void in expression position |
-| `no-constructor-return` | ESLint | AST | ✓ | 🟡 | Return in constructor |
+| `no-constructor-return` | ESLint | AST | ✓ | ✅ | Return in constructor |
 | `no-debugger` | ESLint | AST | ✓ | ✅ | Debugger statements |
-| `no-dupe-else-if` | ESLint | AST | ✓ | 🟡 | Duplicate else-if |
+| `no-dupe-else-if` | ESLint | AST | ✓ | ✅ | Duplicate else-if |
 | `no-empty` | ESLint | AST | ✓ | ✅ | Empty `{}` blocks |
-| `no-empty-pattern` | ESLint | AST | ✓ | 🟡 | Empty destructuring `{}` |
+| `no-empty-pattern` | ESLint | AST | ✓ | ✅ | Empty destructuring `{}` |
 | `no-ex-assign` | ESLint | DIR | | 🟡 | Needs exception binding tracking |
-| `no-misleading-character-class` | ESLint | AST | ✓ | 🟡 | Misleading regex chars |
-| `no-negation-in-equality-check` | Unicorn | AST | ✓ | 🟡 | `!a == b` confusion |
+| `no-misleading-character-class` | ESLint | AST | ✓ | ✅ | Misleading regex chars |
+| `no-negation-in-equality-check` | Unicorn | AST | ✓ | ✅ | `!a == b` confusion |
 | `no-prototype-builtins` | ESLint | DIR | | 🟡 | Needs builtin method check |
-| `no-redundant-pattern` | Destack | AST | ✓ | 🟡 | Pattern binds nothing useful |
-| `no-self-assign` | ESLint | AST | ✓ | 🟡 | `x = x` |
-| `no-template-curly-in-string` | ESLint | AST | ✓ | 🟡 | `"${x}"` in regular string |
+| `no-redundant-pattern` | Destack | AST | ✓ | ✅ | Pattern binds nothing useful |
+| `no-self-assign` | ESLint | AST | ✓ | ✅ | `x = x` |
+| `no-template-curly-in-string` | ESLint | AST | ✓ | ✅ | `"${x}"` in regular string |
 | `no-thenable` | Unicorn | DIR | | 🔶 | Object with `.then()` |
-| `no-unexpected-multiline` | ESLint | AST | ✓ | 🟡 | Confusing line breaks |
 | `no-unnecessary-type-assertion` | TS-ESLint | DIR | | 🔶 | Redundant `as T` |
-| `no-useless-backreference` | ESLint | AST | ✓ | 🟡 | Invalid regex backrefs |
+| `no-useless-backreference` | ESLint | AST | ✓ | ✅ | Invalid regex backrefs |
 | `no-useless-catch` | ESLint | AST | ✓ | ✅ | Catch that just rethrows |
 | `no-useless-computed-key` | ESLint | AST | ✓ | ✅ | `{["x"]: 1}` |
 | `no-useless-concat` | ESLint | AST | ✓ | ✅ | `"a" + "b"` |
@@ -104,8 +103,8 @@ Code that is likely unintentional but may occasionally be intentional.
 | `no-useless-escape` | ESLint | AST | ✓ | ✅ | Unnecessary escape chars |
 | `no-useless-rename` | ESLint | AST | ✓ | ✅ | `{x: x}` in destructuring |
 | `no-useless-return` | ESLint | AST | ✓ | ✅ | Return with no value at end |
-| `prefer-match` | Destack | AST | ✓ | 🟡 | Complex if-else → match |
-| `require-yield` | ESLint | AST | ✓ | 🟡 | Generator without yield |
+| `prefer-match` | Destack | AST | ✓ | ✅ | Complex if-else → match |
+| `require-yield` | ESLint | AST | ✓ | ✅ | Generator without yield |
 
 ## Security (S)
 

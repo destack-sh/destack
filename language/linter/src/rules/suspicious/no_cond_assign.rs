@@ -55,12 +55,15 @@ impl LintRule for NoCondAssign {
 }
 
 /// Check if an expression is an assignment (possibly wrapped in parentheses).
+/// Let expressions are allowed (like Rust's `if let`).
 fn is_assignment(
     ctx: &LintModuleAstContext<'_>,
     expr_id: ast::LocalNodeId<ast::Expression>,
 ) -> bool {
     let expr = ctx.tree.get(expr_id);
     match expr {
+        // let expressions are allowed (like `if const Some(x) = foo()`)
+        ast::Expression::Let { .. } => false,
         ast::Expression::Assign { .. } => true,
         ast::Expression::Parenthesized { expression } => is_assignment(ctx, *expression),
         _ => false,
@@ -149,7 +152,21 @@ if (isReady) {
             "test.ds",
             r#"
 while (hasMore()) {
-    processNext();
+    processNext()
+}
+"#,
+        );
+        test.result(result).assert_no_lint("no-cond-assign");
+    }
+
+    #[test]
+    fn test_allows_let_expression_in_condition() {
+        let test = TestProgram::for_rule(NoCondAssign);
+        let result = test.lint_ast(
+            "test.ds",
+            r#"
+if (const x = getValue()) {
+    process(x)
 }
 "#,
         );

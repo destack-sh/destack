@@ -18,7 +18,7 @@ use destack_workspace::{Module, Program, Session};
 use parking_lot::RwLock;
 
 use crate::{
-    AnalyzeTask, BindTask, CompileOptions, Compiler, ElaborateTask, ImportTask, LintTask,
+    AnalyzeTask, BindTask, Compiler, CompilerOptions, ElaborateTask, ImportTask, LintTask,
     ResolveTask, Task, default_workers,
 };
 
@@ -75,10 +75,10 @@ impl TestProgram {
         let session = Arc::new(Session::new(root_directory.clone()).with_fs(fs.fs()));
         let program = session.add_root(root_directory);
 
-        let compiler_options = CompileOptions {
+        let compiler_options = CompilerOptions {
             workers,
             inject_prelude,
-            ..CompileOptions::default()
+            ..CompilerOptions::default()
         };
         let compiler = Arc::new(Compiler::new(
             session.clone(),

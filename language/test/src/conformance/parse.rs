@@ -3,7 +3,7 @@ use std::path::Path;
 use std::sync::Arc;
 
 use destack_compiler::{
-    AnalyzeError, AnalyzeTask, BindError, CompileOptions, Compiler, ImportError, ResolveError,
+    AnalyzeError, AnalyzeTask, BindError, Compiler, CompilerOptions, ImportError, ResolveError,
 };
 use destack_source::{DiagnosticSeverity, FileSystem, FileType, MemoryFileSystem, Uri};
 use destack_workspace::Session;
@@ -95,7 +95,7 @@ pub(super) fn parse_file(
     let compiler = Compiler::new(
         session.clone(),
         program.clone(),
-        CompileOptions {
+        CompilerOptions {
             workers: 1,
             ..Default::default()
         },

@@ -22,7 +22,7 @@ pub fn default_workers() -> u16 {
 
 /// The options for compiling a Workspace.
 #[derive(Debug, Clone)]
-pub struct CompileOptions {
+pub struct CompilerOptions {
     /// The diagnostic options.
     pub diagnostic: DiagnosticOptions,
     /// The number of worker threads to use.
@@ -52,7 +52,7 @@ pub struct CompileOptions {
     pub emit_dry_run: bool,
 }
 
-impl Default for CompileOptions {
+impl Default for CompilerOptions {
     fn default() -> Self {
         Self {
             diagnostic: DiagnosticOptions::default(),
@@ -82,7 +82,7 @@ pub struct Compiler {
     /// The program.
     pub program: Arc<Program>,
     /// The options for compiling.
-    pub options: CompileOptions,
+    pub options: CompilerOptions,
     /// Seen errors for deduplication.
     seen_errors: Mutex<Vec<TaskError>>,
     /// Seen warnings for deduplication.
@@ -109,7 +109,7 @@ impl std::fmt::Debug for Compiler {
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
     /// Create a new Compiler.
-    pub fn new(session: Arc<Session>, program: Arc<Program>, options: CompileOptions) -> Self {
+    pub fn new(session: Arc<Session>, program: Arc<Program>, options: CompilerOptions) -> Self {
         Self {
             session,
             program,

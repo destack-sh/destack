@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use destack_compiler::{AnalyzeTask, CompileOptions, Compiler};
+use destack_compiler::{AnalyzeTask, Compiler, CompilerOptions};
 use destack_source::{FileSystem, MemoryFileSystem};
 use destack_workspace::Session;
 
@@ -59,7 +59,7 @@ fn run_compiler_case(test: &TestCase) -> TestResult {
     let compiler = Compiler::new(
         session.clone(),
         program.clone(),
-        CompileOptions {
+        CompilerOptions {
             workers: 1,
             ..Default::default()
         },

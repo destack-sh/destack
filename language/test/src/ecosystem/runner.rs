@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 use std::process::{Command, ExitCode};
 use std::sync::Arc;
 
-use destack_compiler::{AnalyzeTask, CompileOptions, Compiler};
+use destack_compiler::{AnalyzeTask, Compiler, CompilerOptions};
 use destack_parser::Parser;
 use destack_source::{
     File, FileRegistry, FileSystem, FileType, MemoryFileSystem, PhysicalFileSystem, Uri, glob,
@@ -308,7 +308,7 @@ fn run_analyze_tier(package_dir: &Path, files: &[PathBuf]) -> TestResult {
     let compiler = Compiler::new(
         session.clone(),
         program.clone(),
-        CompileOptions {
+        CompilerOptions {
             workers: 1,
             ..Default::default()
         },

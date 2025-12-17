@@ -40,7 +40,7 @@ export interface BindOptions {
 }
 
 /** The options for compiling a workspace. */
-export interface CompileOptions {
+export interface CompilerOptions {
   /** The diagnostic options. */
   diagnostic: DiagnosticOptions
   /** The number of worker threads to use. */
@@ -66,7 +66,7 @@ export interface CompileOptions {
 }
 
 /** Get the default compiler options. */
-export declare function defaultCompileOptions(): CompileOptions
+export declare function defaultCompilerOptions(): CompilerOptions
 
 /** Get the default resolve options. */
 export declare function defaultResolveOptions(): ResolveOptions

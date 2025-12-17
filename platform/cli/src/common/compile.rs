@@ -2,7 +2,7 @@ use std::fmt;
 use std::io::Read;
 use std::sync::Arc;
 
-use destack_compiler::{AnalyzeTask, CompileOptions, Compiler, GenerateTask, LintTask};
+use destack_compiler::{AnalyzeTask, Compiler, CompilerOptions, GenerateTask, LintTask};
 use destack_source::{DiagnosticOptions, FileType, ModuleId, Uri};
 use destack_workspace::{Program, Session};
 
@@ -85,7 +85,7 @@ impl CompileContext {
         let compiler = Compiler::new(
             session.clone(),
             program.clone(),
-            CompileOptions {
+            CompilerOptions {
                 diagnostic: diagnostic_options.clone(),
                 workers: program_args.workers,
                 ..Default::default()

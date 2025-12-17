@@ -29,14 +29,14 @@ impl From<DiagnosticOptions> for destack_source::DiagnosticOptions {
 /// The options for compiling a workspace.
 #[napi(object)]
 #[derive(Debug, Clone)]
-pub struct CompileOptions {
+pub struct CompilerOptions {
     /// The diagnostic options.
     pub diagnostic: DiagnosticOptions,
     /// The number of worker threads to use.
     pub workers: u16,
 }
 
-impl Default for CompileOptions {
+impl Default for CompilerOptions {
     fn default() -> Self {
         Self {
             diagnostic: DiagnosticOptions::default(),
@@ -45,8 +45,8 @@ impl Default for CompileOptions {
     }
 }
 
-impl From<CompileOptions> for destack_compiler::CompileOptions {
-    fn from(options: CompileOptions) -> Self {
+impl From<CompilerOptions> for destack_compiler::CompilerOptions {
+    fn from(options: CompilerOptions) -> Self {
         Self {
             diagnostic: options.diagnostic.into(),
             workers: options.workers,
@@ -56,7 +56,7 @@ impl From<CompileOptions> for destack_compiler::CompileOptions {
 }
 
 /// Get the default compiler options.
-#[napi(js_name = "defaultCompileOptions")]
-pub fn default_compile_options() -> CompileOptions {
-    CompileOptions::default()
+#[napi(js_name = "defaultCompilerOptions")]
+pub fn default_compile_options() -> CompilerOptions {
+    CompilerOptions::default()
 }
