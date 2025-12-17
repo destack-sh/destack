@@ -141,7 +141,11 @@ impl Parser {
         let is_generator = self.eat_token_maybe(TokenType::Multiply)?;
 
         // key
-        let key = self.eat_key_maybe()?;
+        let (key, key_span) = if let Some((key, span)) = self.eat_key_maybe_with_span()? {
+            (Some(key), Some(span))
+        } else {
+            (None, None)
+        };
 
         // modifiers postfix
         let modifiers = self.eat_binding_modifiers_postfix_maybe(modifiers)?;
@@ -232,6 +236,11 @@ impl Parser {
             };
             let property_id = self.tree.insert(property, self.get_span_from(start));
 
+            // set main span to the key identifier
+            if let Some(span) = key_span {
+                self.tree.set_main_span(property_id, span);
+            }
+
             // set type span for return type annotation
             if let Some(span) = return_type_span {
                 self.tree
@@ -294,6 +303,11 @@ impl Parser {
                 default,
             };
             let property_id = self.tree.insert(property, self.get_span_from(start));
+
+            // set main span to the key identifier
+            if let Some(span) = key_span {
+                self.tree.set_main_span(property_id, span);
+            }
 
             // set type span for field type annotation
             if let Some(span) = type_span {
@@ -478,7 +492,11 @@ impl Parser {
         let is_generator = self.eat_token_maybe(TokenType::Multiply)?;
 
         // key
-        let key = self.eat_key_maybe()?;
+        let (key, key_span) = if let Some((key, span)) = self.eat_key_maybe_with_span()? {
+            (Some(key), Some(span))
+        } else {
+            (None, None)
+        };
 
         // modifiers postfix
         let modifiers = self.eat_binding_modifiers_postfix_maybe(modifiers)?;
@@ -569,6 +587,11 @@ impl Parser {
             };
             let member_id = self.tree.insert(member, self.get_span_from(start));
 
+            // set main span to the key identifier
+            if let Some(span) = key_span {
+                self.tree.set_main_span(member_id, span);
+            }
+
             // set type span for return type annotation
             if let Some(span) = return_type_span {
                 self.tree.set_side_span(member_id, NodeSpanType::Type, span);
@@ -630,6 +653,11 @@ impl Parser {
                 default,
             };
             let member_id = self.tree.insert(member, self.get_span_from(start));
+
+            // set main span to the key identifier
+            if let Some(span) = key_span {
+                self.tree.set_main_span(member_id, span);
+            }
 
             // set type span for field type annotation
             if let Some(span) = type_span {

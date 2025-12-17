@@ -297,4 +297,57 @@ impl Parser {
             Ok(None)
         }
     }
+
+    /// Eat a name or a dynamic key, returning both the key and its span.
+    #[inline]
+    pub fn eat_key_with_span(&mut self) -> ParseResult<(Key, destack_source::Span)> {
+        let start = self.mark();
+        if self.peek_name().is_ok() {
+            let (name, span) = self.eat_name_with_span()?;
+            Ok((Key::Name(name), span))
+        } else if self.peek_numeric_literal().is_ok() {
+            // numeric key (like `{123: value}` or `{2e308: value}`)
+            let token = *self.eat()?;
+            let key_str = self.get_token_str(token);
+            let string_id = self.strings.intern(key_str);
+            Ok((Key::Name(Name::Number(string_id)), token.span))
+        } else if self.peek_token(TokenType::OpenBracket).is_ok() {
+            self.bump(); // eat open bracket
+            // name: type
+            if self.peek_token(TokenType::Identifier).is_ok()
+                && self.peek_next_token(TokenType::Colon).is_ok()
+            {
+                let name = self.eat_identifier()?;
+                self.bump(); // eat colon
+                let key_type =
+                    self.with_options(self.options.in_type(), |parser| parser.eat_expression())?;
+                self.eat_token(TokenType::CloseBracket)?;
+                Ok((
+                    Key::NamedExpression {
+                        name,
+                        key: key_type,
+                    },
+                    self.get_span_from(start),
+                ))
+            }
+            // expression
+            else {
+                let key = self.eat_expression()?;
+                self.eat_token(TokenType::CloseBracket)?;
+                Ok((Key::Expression(key), self.get_span_from(start)))
+            }
+        } else {
+            Err(ParseError::unexpected(self.peek()?.span))
+        }
+    }
+
+    /// Eat a name or a dynamic key maybe, returning both the key and its span.
+    #[inline]
+    pub fn eat_key_maybe_with_span(&mut self) -> ParseResult<Option<(Key, destack_source::Span)>> {
+        if self.peek_key().is_ok() {
+            Ok(Some(self.eat_key_with_span()?))
+        } else {
+            Ok(None)
+        }
+    }
 }
