@@ -2,6 +2,7 @@ use destack_source::{FileId, Span};
 
 use crate::Session;
 use crate::query::common::{find_symbol_at_offset, get_dir_node_span, get_symbol_definition_span};
+use destack_dir as dir;
 
 /// Result of a goto definition query.
 #[derive(Debug, Clone, Default)]
@@ -61,7 +62,7 @@ pub fn goto_declaration(session: &Session, file: FileId, offset: u32) -> Option<
 }
 
 /// Get the declaration span without following canonical_symbol.
-fn get_declaration_span(session: &Session, symbol_id: destack_dir::GlobalSymbolId) -> Option<Span> {
+fn get_declaration_span(session: &Session, symbol_id: dir::GlobalSymbolId) -> Option<Span> {
     let module = session.modules.get(symbol_id.module_id);
     let module = module.read();
 
@@ -85,6 +86,6 @@ pub fn goto_type_definition(
     _file: FileId,
     _offset: u32,
 ) -> Option<DefinitionResult> {
-    // TODO: implement type definition lookup
+    // TODO #Incomplete: implement type definition lookup
     None
 }

@@ -1,9 +1,7 @@
-//! Common utilities for query operations.
-//!
-//! Provides helpers for navigating between Symbol, DIR, and AST layers.
-
+mod module;
 mod span;
 mod symbol;
 
+pub use module::*;
 pub use span::*;
 pub use symbol::*;
