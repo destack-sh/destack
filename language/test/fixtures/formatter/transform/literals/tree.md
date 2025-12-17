@@ -168,3 +168,20 @@ Fragment syntax groups elements without a wrapper.
     <Footer />
 </>;
 ```
+
+## Hugging
+
+### attribute with object value hugs
+
+When an object attribute value expands, the braces should hug.
+
+```ds line-width=30
+<Button style={{ color: "red", fontSize: 14 }} />
+```
+
+```ds expected
+<Button style={{
+    color: "red",
+    fontSize: 14,
+}} />;
+```
