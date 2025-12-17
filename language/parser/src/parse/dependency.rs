@@ -283,9 +283,7 @@ impl Parser {
     /// "foo"
     /// "foo/bar:something"
     /// ```
-    fn eat_dependency_target_with_span(
-        &mut self,
-    ) -> ParseResult<(StringId, destack_source::Span)> {
+    fn eat_dependency_target_with_span(&mut self) -> ParseResult<(StringId, destack_source::Span)> {
         let (string_id, span) = self.eat_string_literal_with_span()?;
         Ok((string_id, span))
     }

@@ -307,7 +307,8 @@ impl Parser {
 
         // set type span for return type annotation
         if let Some(span) = return_type_span {
-            self.tree.set_side_span(function_id, NodeSpanType::Type, span);
+            self.tree
+                .set_side_span(function_id, NodeSpanType::Type, span);
         }
 
         Ok(function_id)

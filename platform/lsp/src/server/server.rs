@@ -2,9 +2,16 @@ use std::path::PathBuf;
 use std::sync::{Arc, OnceLock};
 
 use dashmap::DashMap;
+use destack_ast::NodeParentIndex;
 use destack_compiler::{AnalyzeTask, Compiler, CompilerOptions};
-use destack_source::{FileId, FileSystem, FileType, OverlayFileSystem, PhysicalFileSystem, Uri};
-use destack_workspace::{Session, query};
+use destack_fir::format as fir_format;
+use destack_formatter::{DestackFormatContext, DestackFormatOptions};
+use destack_parser::Parser;
+use destack_source::{
+    DiagnosticSeverity, File, FileId, FileSystem, FileType, LanguageType, OverlayFileSystem,
+    PhysicalFileSystem, Span, Uri,
+};
+use destack_workspace::{FormatterOptions, Session, query};
 use tower_lsp_server::{Client, LanguageServer, UriExt, jsonrpc, lsp_types as lsp};
 
 use crate::query::common::{byte_span_to_range, position_to_byte, span_to_location};
@@ -157,6 +164,7 @@ impl LanguageServer for DestackLanguageServer {
                 ),
             ),
             document_formatting_provider: Some(lsp::OneOf::Left(true)),
+            document_range_formatting_provider: Some(lsp::OneOf::Left(true)),
             folding_range_provider: Some(lsp::FoldingRangeProviderCapability::Simple(true)),
             workspace: Some(lsp::WorkspaceServerCapabilities {
                 workspace_folders: Some(lsp::WorkspaceFoldersServerCapabilities {
@@ -715,10 +723,91 @@ impl LanguageServer for DestackLanguageServer {
 
     async fn formatting(
         &self,
-        _params: lsp::DocumentFormattingParams,
+        params: lsp::DocumentFormattingParams,
     ) -> jsonrpc::Result<Option<Vec<lsp::TextEdit>>> {
-        // TODO #Incomplete: implement formatting
-        Ok(None)
+        // resolve file
+        let uri_str = params.text_document.uri.to_string();
+        let session = self.session();
+        let Some(doc) = self.open_documents.get(&uri_str) else {
+            return Ok(None);
+        };
+        let file = session.files.get(doc.file_id);
+
+        // get formatter options from program (respects dsconfig.json)
+        let formatter = file
+            .path
+            .as_ref()
+            .map(|p| session.find_program_for_path(p).formatter)
+            .unwrap_or_default();
+
+        // format the file
+        let Some(formatted) = format_file(&file, formatter) else {
+            return Ok(None);
+        };
+
+        // return single edit replacing entire document
+        let line_count = file.line_count();
+        let last_line_len = file
+            .get_line_str(line_count.saturating_sub(1))
+            .map(|l| l.len())
+            .unwrap_or(0);
+
+        Ok(Some(vec![lsp::TextEdit {
+            range: lsp::Range {
+                start: lsp::Position {
+                    line: 0,
+                    character: 0,
+                },
+                end: lsp::Position {
+                    line: line_count,
+                    character: last_line_len as u32,
+                },
+            },
+            new_text: formatted,
+        }]))
+    }
+
+    async fn range_formatting(
+        &self,
+        params: lsp::DocumentRangeFormattingParams,
+    ) -> jsonrpc::Result<Option<Vec<lsp::TextEdit>>> {
+        // resolve file
+        let uri_str = params.text_document.uri.to_string();
+        let session = self.session();
+        let Some(doc) = self.open_documents.get(&uri_str) else {
+            return Ok(None);
+        };
+        let file = session.files.get(doc.file_id);
+
+        // get formatter options from program
+        let formatter = file
+            .path
+            .as_ref()
+            .map(|p| session.find_program_for_path(p).formatter)
+            .unwrap_or_default();
+
+        // convert range to byte offsets
+        let Some(start_offset) = position_to_byte(&file, &params.range.start) else {
+            return Ok(None);
+        };
+        let Some(end_offset) = position_to_byte(&file, &params.range.end) else {
+            return Ok(None);
+        };
+
+        // format range
+        let Some((formatted, edit_range)) =
+            format_range(&file, formatter, start_offset, end_offset)
+        else {
+            return Ok(None);
+        };
+
+        // convert byte range back to LSP range
+        let lsp_range = byte_span_to_range(&file, edit_range);
+
+        Ok(Some(vec![lsp::TextEdit {
+            range: lsp_range,
+            new_text: formatted,
+        }]))
     }
 }
 
@@ -755,4 +844,145 @@ fn completion_kind_to_lsp(kind: query::CompletionKind) -> lsp::CompletionItemKin
         query::CompletionKind::Operator => lsp::CompletionItemKind::OPERATOR,
         query::CompletionKind::TypeParameter => lsp::CompletionItemKind::TYPE_PARAMETER,
     }
+}
+
+/// Format a file and return the formatted content.
+fn format_file(file: &Arc<File>, formatter: FormatterOptions) -> Option<String> {
+    // parse file
+    let language_type = LanguageType::from(file.ty);
+    let mut parser = Parser::lex_file(file.clone(), language_type);
+    let expressions = parser.parse();
+    parser.finish();
+
+    // bail if parse errors (don't format broken code)
+    if parser
+        .diagnostics
+        .has_diagnostics_of_severity(DiagnosticSeverity::Error)
+    {
+        return None;
+    }
+
+    // build format context
+    let side_span = parser.compute_side_span();
+    let strings = parser.strings.into_immutable();
+    let parents = NodeParentIndex::from_tree(&parser.tree);
+    let format_options = DestackFormatOptions {
+        language_type,
+        line_ending: formatter.line_ending,
+        indent_style: formatter.indent_style,
+        indent_width: formatter.indent_width,
+        line_width: formatter.line_width,
+    };
+    let context = DestackFormatContext {
+        options: format_options,
+        file: file.as_ref(),
+        tree: &parser.tree,
+        source_map: &parser.tree.source_map,
+        parents,
+        tokens: &parser.tokens,
+        side_tokens: &parser.side_tokens,
+        side_span: &side_span,
+        strings: &strings,
+    };
+
+    // format each expression
+    let mut result = String::new();
+    for (i, expr) in expressions.iter().enumerate() {
+        let formatted = fir_format!(context.clone(), [expr]).ok()?;
+        let printed = formatted.print().ok()?;
+        result.push_str(printed.as_str());
+        if i < expressions.len() - 1 {
+            result.push('\n');
+        }
+    }
+
+    // ensure trailing newline
+    if !result.is_empty() && !result.ends_with('\n') {
+        result.push('\n');
+    }
+
+    Some(result)
+}
+
+/// Format a range within a file and return the formatted content with the actual range.
+fn format_range(
+    file: &Arc<File>,
+    formatter: FormatterOptions,
+    start_offset: u32,
+    end_offset: u32,
+) -> Option<(String, Span)> {
+    // parse file
+    let language_type = LanguageType::from(file.ty);
+    let mut parser = Parser::lex_file(file.clone(), language_type);
+    let expressions = parser.parse();
+    parser.finish();
+
+    // bail if parse errors
+    if parser
+        .diagnostics
+        .has_diagnostics_of_severity(DiagnosticSeverity::Error)
+    {
+        return None;
+    }
+
+    // find expressions that overlap with the range
+    let overlapping: Vec<_> = expressions
+        .iter()
+        .filter(|expr_id| {
+            let span = parser.tree.get_span(**expr_id);
+            span.start < end_offset && span.end > start_offset
+        })
+        .copied()
+        .collect();
+
+    if overlapping.is_empty() {
+        return None;
+    }
+
+    // compute the actual range we're formatting (union of overlapping expressions)
+    let first_span = parser.tree.get_span(overlapping[0]);
+    let last_span = parser.tree.get_span(*overlapping.last().unwrap());
+    let actual_range = Span::new(file.id, first_span.start, last_span.end);
+
+    // build format context
+    let side_span = parser.compute_side_span();
+    let strings = parser.strings.into_immutable();
+    let parents = NodeParentIndex::from_tree(&parser.tree);
+    let format_options = DestackFormatOptions {
+        language_type,
+        line_ending: formatter.line_ending,
+        indent_style: formatter.indent_style,
+        indent_width: formatter.indent_width,
+        line_width: formatter.line_width,
+    };
+    let context = DestackFormatContext {
+        options: format_options,
+        file: file.as_ref(),
+        tree: &parser.tree,
+        source_map: &parser.tree.source_map,
+        parents,
+        tokens: &parser.tokens,
+        side_tokens: &parser.side_tokens,
+        side_span: &side_span,
+        strings: &strings,
+    };
+
+    // format overlapping expressions
+    let mut result = String::new();
+    for (i, expr) in overlapping.iter().enumerate() {
+        let formatted = fir_format!(context.clone(), [expr]).ok()?;
+        let printed = formatted.print().ok()?;
+        result.push_str(printed.as_str());
+        if i < overlapping.len() - 1 {
+            result.push('\n');
+        }
+    }
+
+    // ensure trailing newline if we're at end of file
+    let is_at_end = last_span.end >= file.len.saturating_sub(1);
+    if is_at_end && !result.is_empty() && !result.ends_with('\n') {
+        result.push('\n');
+    }
+
+    Some((result, actual_range))
 }

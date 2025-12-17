@@ -234,7 +234,8 @@ impl Parser {
 
             // set type span for return type annotation
             if let Some(span) = return_type_span {
-                self.tree.set_side_span(property_id, NodeSpanType::Type, span);
+                self.tree
+                    .set_side_span(property_id, NodeSpanType::Type, span);
             }
 
             Ok(property_id)
@@ -296,7 +297,8 @@ impl Parser {
 
             // set type span for field type annotation
             if let Some(span) = type_span {
-                self.tree.set_side_span(property_id, NodeSpanType::Type, span);
+                self.tree
+                    .set_side_span(property_id, NodeSpanType::Type, span);
             }
 
             Ok(property_id)

@@ -257,7 +257,8 @@ impl Parser {
 
         // set type span for the type annotation
         if let Some(span) = ty_span {
-            self.tree.set_side_span(parameter_id, NodeSpanType::Type, span);
+            self.tree
+                .set_side_span(parameter_id, NodeSpanType::Type, span);
         }
 
         Ok(parameter_id)
