@@ -6,7 +6,10 @@ use serde::Deserialize;
 
 use destack_source::{File, FileContent, FileId, IndentStyle, LineEnding};
 
-use crate::{FormatterOptions, LintCategory, LintPreset, LintSeverity, LinterOptions};
+use crate::{
+    ArrowParentheses, FormatterOptions, LintCategory, LintPreset, LintSeverity, LinterOptions,
+    QuoteProperty, QuoteStyle, Semicolons, TrailingComma,
+};
 
 use super::target::{
     OptimizeLevel, OutputFormat, OutputMode, Platform, Runtime, ShrinkLevel, Target,
@@ -183,10 +186,11 @@ impl DsConfig {
 
         // inherit formatter options (child overrides if explicitly set in JSON)
         let child_json = &self.content.formatter;
+        // layout
         if child_json.line_ending.is_none() {
             self.options.formatter.line_ending = parent.formatter.line_ending;
         }
-        if child_json.indent_style.is_none() {
+        if child_json.indent_style.is_none() && child_json.use_tabs.is_none() {
             self.options.formatter.indent_style = parent.formatter.indent_style;
         }
         if child_json.indent_width.is_none() {
@@ -194,6 +198,33 @@ impl DsConfig {
         }
         if child_json.line_width.is_none() {
             self.options.formatter.line_width = parent.formatter.line_width;
+        }
+        // syntax
+        if child_json.semicolons.is_none() {
+            self.options.formatter.semicolons = parent.formatter.semicolons;
+        }
+        if child_json.quote_style.is_none() && child_json.single_quote.is_none() {
+            self.options.formatter.quote_style = parent.formatter.quote_style;
+        }
+        if child_json.trailing_comma.is_none() {
+            self.options.formatter.trailing_comma = parent.formatter.trailing_comma;
+        }
+        if child_json.bracket_spacing.is_none() {
+            self.options.formatter.bracket_spacing = parent.formatter.bracket_spacing;
+        }
+        if child_json.arrow_parens.is_none() {
+            self.options.formatter.arrow_parens = parent.formatter.arrow_parens;
+        }
+        if child_json.quote_props.is_none() {
+            self.options.formatter.quote_props = parent.formatter.quote_props;
+        }
+        // tree/jsx
+        if child_json.bracket_same_line.is_none() {
+            self.options.formatter.bracket_same_line = parent.formatter.bracket_same_line;
+        }
+        if child_json.single_attribute_per_line.is_none() {
+            self.options.formatter.single_attribute_per_line =
+                parent.formatter.single_attribute_per_line;
         }
 
         // inherit linter options (child overrides if explicitly set in JSON)
@@ -1023,28 +1054,167 @@ pub struct DsConfigTargetJson {
     pub shrink_level: Option<u8>,
 }
 
+/// Semicolons style for JSON deserialization (Prettier: `semi`).
+#[derive(Debug, Clone, Copy, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "camelCase")]
+pub enum SemicolonsJson {
+    /// Always insert semicolons.
+    Always,
+    /// Only where required by ASI.
+    AsNeeded,
+}
+
+impl From<SemicolonsJson> for Semicolons {
+    fn from(value: SemicolonsJson) -> Self {
+        match value {
+            SemicolonsJson::Always => Semicolons::Always,
+            SemicolonsJson::AsNeeded => Semicolons::AsNeeded,
+        }
+    }
+}
+
+/// Quote style for JSON deserialization (Prettier: `singleQuote`).
+#[derive(Debug, Clone, Copy, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "camelCase")]
+pub enum QuoteStyleJson {
+    /// Use double quotes.
+    Double,
+    /// Use single quotes.
+    Single,
+}
+
+impl From<QuoteStyleJson> for QuoteStyle {
+    fn from(value: QuoteStyleJson) -> Self {
+        match value {
+            QuoteStyleJson::Double => QuoteStyle::Double,
+            QuoteStyleJson::Single => QuoteStyle::Single,
+        }
+    }
+}
+
+/// Trailing comma policy for JSON deserialization (Prettier: `trailingComma`).
+#[derive(Debug, Clone, Copy, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "camelCase")]
+pub enum TrailingCommaJson {
+    /// Trailing commas everywhere valid.
+    All,
+    /// Trailing commas where valid in ES5.
+    Es5,
+    /// No trailing commas.
+    None,
+}
+
+impl From<TrailingCommaJson> for TrailingComma {
+    fn from(value: TrailingCommaJson) -> Self {
+        match value {
+            TrailingCommaJson::All => TrailingComma::All,
+            TrailingCommaJson::Es5 => TrailingComma::Es5,
+            TrailingCommaJson::None => TrailingComma::None,
+        }
+    }
+}
+
+/// Arrow function parentheses for JSON deserialization.
+#[derive(Debug, Clone, Copy, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "camelCase")]
+pub enum ArrowParenthesesJson {
+    /// Always include parentheses.
+    Always,
+    /// Omit when possible.
+    Avoid,
+}
+
+impl From<ArrowParenthesesJson> for ArrowParentheses {
+    fn from(value: ArrowParenthesesJson) -> Self {
+        match value {
+            ArrowParenthesesJson::Always => ArrowParentheses::Always,
+            ArrowParenthesesJson::Avoid => ArrowParentheses::Avoid,
+        }
+    }
+}
+
+/// Object property quoting for JSON deserialization.
+#[derive(Debug, Clone, Copy, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "kebab-case")]
+pub enum QuotePropertyJson {
+    /// Only quote when required.
+    AsNeeded,
+    /// Quote all if any require quotes.
+    Consistent,
+    /// Preserve original quoting.
+    Preserve,
+}
+
+impl From<QuotePropertyJson> for QuoteProperty {
+    fn from(value: QuotePropertyJson) -> Self {
+        match value {
+            QuotePropertyJson::AsNeeded => QuoteProperty::AsNeeded,
+            QuotePropertyJson::Consistent => QuoteProperty::Consistent,
+            QuotePropertyJson::Preserve => QuoteProperty::Preserve,
+        }
+    }
+}
+
 /// Formatter options (top-level, like Biome/Deno).
+///
+/// Field names use Prettier-compatible naming for familiarity.
 #[derive(Debug, Default, Deserialize, Clone)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
 pub struct DsConfigFormatterJson {
     /// Line ending style: "lf", "crlf", or "cr".
+    #[serde(alias = "endOfLine")]
     pub line_ending: Option<LineEndingJson>,
+    /// Use tabs instead of spaces.
+    #[serde(alias = "useTabs")]
+    pub use_tabs: Option<bool>,
     /// Indent style: "tab" or "space".
     pub indent_style: Option<IndentStyleJson>,
-    /// Number of spaces per indent (when using spaces). Default: 4.
+    /// Number of spaces per indent. Default: 4.
+    #[serde(alias = "tabWidth")]
     pub indent_width: Option<u8>,
     /// Maximum line width (best effort). Default: 100.
-    pub line_width: Option<u8>,
+    #[serde(alias = "printWidth")]
+    pub line_width: Option<u16>,
+
+    /// Semicolon insertion: "always" or "asNeeded".
+    #[serde(alias = "semi")]
+    pub semicolons: Option<SemicolonsJson>,
+    /// Quote style: "double" or "single".
+    pub quote_style: Option<QuoteStyleJson>,
+    /// Use single quotes (Prettier shorthand). Takes precedence over quoteStyle.
+    pub single_quote: Option<bool>,
+    /// Trailing comma policy: "all", "es5", or "none".
+    pub trailing_comma: Option<TrailingCommaJson>,
+    /// Spaces inside object braces: `{ foo }` (true) vs `{foo}` (false). Default: true.
+    pub bracket_spacing: Option<bool>,
+    /// Arrow function parentheses: "always" or "avoid".
+    pub arrow_parens: Option<ArrowParenthesesJson>,
+    /// Object property quoting: "as-needed", "consistent", or "preserve".
+    pub quote_props: Option<QuotePropertyJson>,
+
+    /// Put `>` of multi-line JSX on same line as last attribute.
+    #[serde(alias = "jsxBracketSameLine")]
+    pub bracket_same_line: Option<bool>,
+    /// Force each JSX attribute onto its own line.
+    pub single_attribute_per_line: Option<bool>,
 }
 
 impl DsConfigFormatterJson {
     /// Apply formatter options to a FormatterOptions struct.
     pub fn apply(&self, options: &mut FormatterOptions) {
+        // layout
         if let Some(line_ending) = self.line_ending {
             options.line_ending = line_ending.into();
         }
-        if let Some(indent_style) = self.indent_style {
+        if let Some(true) = self.use_tabs {
+            options.indent_style = IndentStyle::Tab;
+        } else if let Some(indent_style) = self.indent_style {
             options.indent_style = indent_style.into();
         }
         if let Some(indent_width) = self.indent_width {
@@ -1052,6 +1222,41 @@ impl DsConfigFormatterJson {
         }
         if let Some(line_width) = self.line_width {
             options.line_width = line_width;
+        }
+
+        // syntax
+        if let Some(semicolons) = self.semicolons {
+            options.semicolons = semicolons.into();
+        }
+        // singleQuote takes precedence over quoteStyle
+        if let Some(single_quote) = self.single_quote {
+            options.quote_style = if single_quote {
+                QuoteStyle::Single
+            } else {
+                QuoteStyle::Double
+            };
+        } else if let Some(quote_style) = self.quote_style {
+            options.quote_style = quote_style.into();
+        }
+        if let Some(trailing_comma) = self.trailing_comma {
+            options.trailing_comma = trailing_comma.into();
+        }
+        if let Some(bracket_spacing) = self.bracket_spacing {
+            options.bracket_spacing = bracket_spacing;
+        }
+        if let Some(arrow_parens) = self.arrow_parens {
+            options.arrow_parens = arrow_parens.into();
+        }
+        if let Some(quote_props) = self.quote_props {
+            options.quote_props = quote_props.into();
+        }
+
+        // tree/jsx
+        if let Some(bracket_same_line) = self.bracket_same_line {
+            options.bracket_same_line = bracket_same_line;
+        }
+        if let Some(single_attribute_per_line) = self.single_attribute_per_line {
+            options.single_attribute_per_line = single_attribute_per_line;
         }
     }
 }

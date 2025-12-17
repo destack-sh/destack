@@ -44,7 +44,7 @@ pub(super) fn run(test: &MdTestCase) -> TestResult {
     // build formatter options from test options
     let mut formatter_options = FormatterOptions::default();
     if let Some(line_width) = input_file.options.get("line-width") {
-        if let Ok(width) = line_width.parse::<u8>() {
+        if let Ok(width) = line_width.parse::<u16>() {
             formatter_options = formatter_options.with_line_width(width);
         }
     }

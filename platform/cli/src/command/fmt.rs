@@ -63,7 +63,7 @@ struct DsConfigFormatting {
     line_ending: Option<LineEndingJson>,
     indent_style: Option<IndentStyleJson>,
     indent_width: Option<u8>,
-    line_width: Option<u8>,
+    line_width: Option<u16>,
 }
 
 /// Minimal dsconfig.json structure for formatting.

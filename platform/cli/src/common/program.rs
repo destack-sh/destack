@@ -73,7 +73,7 @@ pub struct FormatterOptionsArgs {
 
     /// The maximum line width (default: 100).
     #[arg(long = "line-width")]
-    pub line_width: Option<u8>,
+    pub line_width: Option<u16>,
 }
 
 impl From<FormatterOptionsArgs> for FormatterOptions {
