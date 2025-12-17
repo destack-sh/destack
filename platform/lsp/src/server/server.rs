@@ -14,11 +14,15 @@ use destack_source::{
 use destack_workspace::{FormatterOptions, Session, query};
 use tower_lsp_server::{Client, LanguageServer, UriExt, jsonrpc, lsp_types as lsp};
 
+use crate::query::assist::{code_lens_to_lsp, inlay_hint_to_lsp};
 use crate::query::common::{byte_span_to_range, position_to_byte, span_to_location};
-use crate::query::diagnostic::diagnostic_to_lsp_diagnostic;
+use crate::query::diagnostic::{code_action_to_lsp, diagnostic_to_lsp_diagnostic};
 use crate::query::navigation::{
-    definition_to_location, document_highlight_to_lsp, document_symbol_to_lsp,
+    call_hierarchy_item_to_lsp, definition_to_location, document_highlight_to_lsp,
+    document_link_to_lsp, document_symbol_to_lsp, implementation_to_location,
+    selection_range_to_lsp, type_hierarchy_item_to_lsp,
 };
+use crate::query::refactor::batch_edit_to_workspace_edit;
 use crate::query::semantic;
 
 pub const TRACKED_FILE_TYPES: [FileType; 8] = [
@@ -185,6 +189,23 @@ impl LanguageServer for DestackLanguageServer {
             document_formatting_provider: Some(lsp::OneOf::Left(true)),
             document_range_formatting_provider: Some(lsp::OneOf::Left(true)),
             folding_range_provider: Some(lsp::FoldingRangeProviderCapability::Simple(true)),
+            selection_range_provider: Some(lsp::SelectionRangeProviderCapability::Simple(true)),
+            document_link_provider: Some(lsp::DocumentLinkOptions {
+                resolve_provider: Some(true),
+                work_done_progress_options: Default::default(),
+            }),
+            rename_provider: Some(lsp::OneOf::Right(lsp::RenameOptions {
+                prepare_provider: Some(true),
+                work_done_progress_options: Default::default(),
+            })),
+            code_action_provider: Some(lsp::CodeActionProviderCapability::Simple(true)),
+            code_lens_provider: Some(lsp::CodeLensOptions {
+                resolve_provider: Some(true),
+            }),
+            inlay_hint_provider: Some(lsp::OneOf::Left(true)),
+            implementation_provider: Some(lsp::ImplementationProviderCapability::Simple(true)),
+            call_hierarchy_provider: Some(lsp::CallHierarchyServerCapability::Simple(true)),
+            // NOTE #Incomplete: type_hierarchy_provider not in lsp-types ServerCapabilities (?)
             workspace: Some(lsp::WorkspaceServerCapabilities {
                 workspace_folders: Some(lsp::WorkspaceFoldersServerCapabilities {
                     supported: Some(true),
@@ -832,6 +853,381 @@ impl LanguageServer for DestackLanguageServer {
             new_text: formatted,
         }]))
     }
+
+    // ------------------------------------------------------------------------
+    // SELECTION & NAVIGATION
+    // ------------------------------------------------------------------------
+
+    async fn selection_range(
+        &self,
+        params: lsp::SelectionRangeParams,
+    ) -> jsonrpc::Result<Option<Vec<lsp::SelectionRange>>> {
+        // look up file
+        let uri_str = params.text_document.uri.to_string();
+        let session = self.session();
+        let Some(doc) = self.open_documents.get(&uri_str) else {
+            return Ok(None);
+        };
+        let file = session.files.get(doc.file_id);
+
+        // convert positions to byte offsets
+        let positions: Vec<u32> = params
+            .positions
+            .iter()
+            .filter_map(|p| position_to_byte(&file, p))
+            .collect();
+
+        // query selection ranges
+        let ranges = query::selection_ranges(session, doc.file_id, &positions);
+
+        // convert to LSP
+        let lsp_ranges: Vec<lsp::SelectionRange> = ranges
+            .into_iter()
+            .map(|r| selection_range_to_lsp(&file, r))
+            .collect();
+
+        Ok(Some(lsp_ranges))
+    }
+
+    async fn goto_implementation(
+        &self,
+        params: lsp::request::GotoImplementationParams,
+    ) -> jsonrpc::Result<Option<lsp::request::GotoImplementationResponse>> {
+        // look up file and position
+        let uri_str = params
+            .text_document_position_params
+            .text_document
+            .uri
+            .to_string();
+        let session = self.session();
+        let Some(doc) = self.open_documents.get(&uri_str) else {
+            return Ok(None);
+        };
+        let file = session.files.get(doc.file_id);
+        let Some(offset) = position_to_byte(&file, &params.text_document_position_params.position)
+        else {
+            return Ok(None);
+        };
+
+        // query implementation
+        let Some(result) = query::goto_implementation(session, doc.file_id, offset) else {
+            return Ok(None);
+        };
+
+        // convert to LSP
+        let Some(location) = implementation_to_location(session, &result) else {
+            return Ok(None);
+        };
+
+        Ok(Some(lsp::GotoDefinitionResponse::Scalar(location)))
+    }
+
+    // ------------------------------------------------------------------------
+    // DOCUMENT LINKS
+    // ------------------------------------------------------------------------
+
+    async fn document_link(
+        &self,
+        params: lsp::DocumentLinkParams,
+    ) -> jsonrpc::Result<Option<Vec<lsp::DocumentLink>>> {
+        // look up file
+        let uri_str = params.text_document.uri.to_string();
+        let session = self.session();
+        let Some(doc) = self.open_documents.get(&uri_str) else {
+            return Ok(None);
+        };
+        let file = session.files.get(doc.file_id);
+
+        // query document links
+        let links = query::document_links(session, doc.file_id);
+
+        // convert to LSP
+        let lsp_links: Vec<lsp::DocumentLink> = links
+            .iter()
+            .filter_map(|link| document_link_to_lsp(&file, link))
+            .collect();
+
+        Ok(Some(lsp_links))
+    }
+
+    async fn document_link_resolve(
+        &self,
+        params: lsp::DocumentLink,
+    ) -> jsonrpc::Result<lsp::DocumentLink> {
+        // links are already resolved in document_link
+        Ok(params)
+    }
+
+    // ------------------------------------------------------------------------
+    // CODE ACTIONS
+    // ------------------------------------------------------------------------
+
+    async fn code_action(
+        &self,
+        params: lsp::CodeActionParams,
+    ) -> jsonrpc::Result<Option<lsp::CodeActionResponse>> {
+        // look up file
+        let uri_str = params.text_document.uri.to_string();
+        let session = self.session();
+        let Some(doc) = self.open_documents.get(&uri_str) else {
+            return Ok(None);
+        };
+        let file = session.files.get(doc.file_id);
+
+        // convert range to span
+        let Some(start) = position_to_byte(&file, &params.range.start) else {
+            return Ok(None);
+        };
+        let Some(end) = position_to_byte(&file, &params.range.end) else {
+            return Ok(None);
+        };
+        let span = Span::new(doc.file_id, start, end);
+
+        // query code actions
+        let context = query::CodeActionContext::default();
+        let actions = query::code_actions(session, doc.file_id, span, &context);
+
+        // convert to LSP
+        let lsp_actions: Vec<lsp::CodeActionOrCommand> = actions
+            .iter()
+            .filter_map(|a| code_action_to_lsp(session, a))
+            .collect();
+
+        Ok(Some(lsp_actions))
+    }
+
+    // ------------------------------------------------------------------------
+    // CODE LENS
+    // ------------------------------------------------------------------------
+
+    async fn code_lens(
+        &self,
+        params: lsp::CodeLensParams,
+    ) -> jsonrpc::Result<Option<Vec<lsp::CodeLens>>> {
+        // look up file
+        let uri_str = params.text_document.uri.to_string();
+        let session = self.session();
+        let Some(doc) = self.open_documents.get(&uri_str) else {
+            return Ok(None);
+        };
+        let file = session.files.get(doc.file_id);
+
+        // query code lenses
+        let lenses = query::code_lenses(session, doc.file_id);
+
+        // convert to LSP
+        let lsp_lenses: Vec<lsp::CodeLens> = lenses
+            .iter()
+            .map(|lens| code_lens_to_lsp(&file, lens))
+            .collect();
+
+        Ok(Some(lsp_lenses))
+    }
+
+    async fn code_lens_resolve(&self, params: lsp::CodeLens) -> jsonrpc::Result<lsp::CodeLens> {
+        // lenses are already resolved
+        Ok(params)
+    }
+
+    // ------------------------------------------------------------------------
+    // INLAY HINTS
+    // ------------------------------------------------------------------------
+
+    async fn inlay_hint(
+        &self,
+        params: lsp::InlayHintParams,
+    ) -> jsonrpc::Result<Option<Vec<lsp::InlayHint>>> {
+        let uri_str = params.text_document.uri.to_string();
+        let session = self.session();
+        let Some(doc) = self.open_documents.get(&uri_str) else {
+            return Ok(None);
+        };
+        let file = session.files.get(doc.file_id);
+
+        // convert range to span
+        let Some(start) = position_to_byte(&file, &params.range.start) else {
+            return Ok(None);
+        };
+        let Some(end) = position_to_byte(&file, &params.range.end) else {
+            return Ok(None);
+        };
+        let span = Span::new(doc.file_id, start, end);
+
+        // query inlay hints
+        let hints = query::inlay_hints(session, doc.file_id, span);
+
+        // convert to LSP
+        let lsp_hints: Vec<lsp::InlayHint> = hints
+            .iter()
+            .filter_map(|h| inlay_hint_to_lsp(&file, h))
+            .collect();
+
+        Ok(Some(lsp_hints))
+    }
+
+    // ------------------------------------------------------------------------
+    // RENAME
+    // ------------------------------------------------------------------------
+
+    async fn prepare_rename(
+        &self,
+        params: lsp::TextDocumentPositionParams,
+    ) -> jsonrpc::Result<Option<lsp::PrepareRenameResponse>> {
+        // look up file and position
+        let uri_str = params.text_document.uri.to_string();
+        let session = self.session();
+        let Some(doc) = self.open_documents.get(&uri_str) else {
+            return Ok(None);
+        };
+        let file = session.files.get(doc.file_id);
+        let Some(offset) = position_to_byte(&file, &params.position) else {
+            return Ok(None);
+        };
+
+        // query prepare rename
+        let Some(result) = query::prepare_rename(session, doc.file_id, offset) else {
+            return Ok(None);
+        };
+
+        // convert to LSP
+        let range = byte_span_to_range(&file, result.range);
+        Ok(Some(lsp::PrepareRenameResponse::RangeWithPlaceholder {
+            range,
+            placeholder: result.placeholder,
+        }))
+    }
+
+    async fn rename(
+        &self,
+        params: lsp::RenameParams,
+    ) -> jsonrpc::Result<Option<lsp::WorkspaceEdit>> {
+        // look up file and position
+        let uri_str = params.text_document_position.text_document.uri.to_string();
+        let session = self.session();
+        let Some(doc) = self.open_documents.get(&uri_str) else {
+            return Ok(None);
+        };
+        let file = session.files.get(doc.file_id);
+        let Some(offset) = position_to_byte(&file, &params.text_document_position.position) else {
+            return Ok(None);
+        };
+
+        // query rename
+        let Some(result) = query::rename(session, doc.file_id, offset, &params.new_name) else {
+            return Ok(None);
+        };
+
+        // convert to LSP
+        let workspace_edit = batch_edit_to_workspace_edit(session, &result.edits);
+        Ok(Some(workspace_edit))
+    }
+
+    // ------------------------------------------------------------------------
+    // CALL HIERARCHY
+    // ------------------------------------------------------------------------
+
+    async fn prepare_call_hierarchy(
+        &self,
+        params: lsp::CallHierarchyPrepareParams,
+    ) -> jsonrpc::Result<Option<Vec<lsp::CallHierarchyItem>>> {
+        // look up file and position
+        let uri_str = params
+            .text_document_position_params
+            .text_document
+            .uri
+            .to_string();
+        let session = self.session();
+        let Some(doc) = self.open_documents.get(&uri_str) else {
+            return Ok(None);
+        };
+        let file = session.files.get(doc.file_id);
+        let Some(offset) = position_to_byte(&file, &params.text_document_position_params.position)
+        else {
+            return Ok(None);
+        };
+
+        // query prepare call hierarchy
+        let Some(item) = query::prepare_call_hierarchy(session, doc.file_id, offset) else {
+            return Ok(None);
+        };
+
+        // convert to LSP
+        let Some(lsp_item) = call_hierarchy_item_to_lsp(session, &item) else {
+            return Ok(None);
+        };
+
+        Ok(Some(vec![lsp_item]))
+    }
+
+    async fn incoming_calls(
+        &self,
+        params: lsp::CallHierarchyIncomingCallsParams,
+    ) -> jsonrpc::Result<Option<Vec<lsp::CallHierarchyIncomingCall>>> {
+        // TODO #Incomplete: convert params.item back to query::CallHierarchyItem
+        let _ = params;
+        Ok(Some(vec![]))
+    }
+
+    async fn outgoing_calls(
+        &self,
+        params: lsp::CallHierarchyOutgoingCallsParams,
+    ) -> jsonrpc::Result<Option<Vec<lsp::CallHierarchyOutgoingCall>>> {
+        // TODO #Incomplete: convert params.item back to query::CallHierarchyItem
+        let _ = params;
+        Ok(Some(vec![]))
+    }
+
+    // ------------------------------------------------------------------------
+    // TYPE HIERARCHY
+    // ------------------------------------------------------------------------
+
+    async fn prepare_type_hierarchy(
+        &self,
+        params: lsp::TypeHierarchyPrepareParams,
+    ) -> jsonrpc::Result<Option<Vec<lsp::TypeHierarchyItem>>> {
+        let uri_str = params
+            .text_document_position_params
+            .text_document
+            .uri
+            .to_string();
+        let session = self.session();
+        let Some(doc) = self.open_documents.get(&uri_str) else {
+            return Ok(None);
+        };
+        let file = session.files.get(doc.file_id);
+        let Some(offset) = position_to_byte(&file, &params.text_document_position_params.position)
+        else {
+            return Ok(None);
+        };
+
+        let Some(item) = query::prepare_type_hierarchy(session, doc.file_id, offset) else {
+            return Ok(None);
+        };
+
+        let Some(lsp_item) = type_hierarchy_item_to_lsp(session, &item) else {
+            return Ok(None);
+        };
+
+        Ok(Some(vec![lsp_item]))
+    }
+
+    async fn supertypes(
+        &self,
+        params: lsp::TypeHierarchySupertypesParams,
+    ) -> jsonrpc::Result<Option<Vec<lsp::TypeHierarchyItem>>> {
+        // TODO #Incomplete: convert params.item back to query::TypeHierarchyItem
+        let _ = params;
+        Ok(Some(vec![]))
+    }
+
+    async fn subtypes(
+        &self,
+        params: lsp::TypeHierarchySubtypesParams,
+    ) -> jsonrpc::Result<Option<Vec<lsp::TypeHierarchyItem>>> {
+        // TODO #Incomplete: convert params.item back to query::TypeHierarchyItem
+        let _ = params;
+        Ok(Some(vec![]))
+    }
 }
 
 // ----------------------------------------------------------------------------
@@ -880,10 +1276,7 @@ fn format_file(
     let language_type = LanguageType::from(file.ty);
     let format_options = DestackFormatOptions {
         language_type,
-        line_ending: formatter.line_ending,
-        indent_style: formatter.indent_style,
-        indent_width: formatter.indent_width,
-        line_width: formatter.line_width,
+        ..formatter.into()
     };
 
     // try to use module's pre-parsed AST
@@ -1011,10 +1404,7 @@ fn format_range(
     let parents = NodeParentIndex::from_tree(&parser.tree);
     let format_options = DestackFormatOptions {
         language_type,
-        line_ending: formatter.line_ending,
-        indent_style: formatter.indent_style,
-        indent_width: formatter.indent_width,
-        line_width: formatter.line_width,
+        ..formatter.into()
     };
     let context = DestackFormatContext {
         options: format_options,
