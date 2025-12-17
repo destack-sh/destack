@@ -1,10 +1,30 @@
+mod no_else_return;
+mod no_lonely_if;
 mod no_nested_ternary;
+mod no_unneeded_ternary;
+mod no_var;
+mod object_shorthand;
+mod operator_assignment;
 
 use crate::{BoxedLintRule, boxed};
 
+pub use no_else_return::*;
+pub use no_lonely_if::*;
 pub use no_nested_ternary::*;
+pub use no_unneeded_ternary::*;
+pub use no_var::*;
+pub use object_shorthand::*;
+pub use operator_assignment::*;
 
 /// Get all style rules.
 pub fn rules() -> Vec<BoxedLintRule> {
-    vec![boxed(NoNestedTernary)]
+    vec![
+        boxed(NoElseReturn),
+        boxed(NoLonelyIf),
+        boxed(NoNestedTernary),
+        boxed(NoUnneededTernary),
+        boxed(NoVar),
+        boxed(ObjectShorthand),
+        boxed(OperatorAssignment),
+    ]
 }
