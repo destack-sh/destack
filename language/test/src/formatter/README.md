@@ -1,15 +1,23 @@
-## Formatter Tests
+# Formatter Tests
 
-Formatter tests are roundtrip checks: formatting a file should produce the same text.
+The formatter test suite includes two types of tests:
 
-### Fixtures
-- `fixtures/formatter/*.ds`
-- `fixtures/formatter/*.d.ds`
+1. **Transform tests** (`.md` files): Verify formatting produces correct output from input
+2. **Roundtrip tests** (`.ds` files): Verify formatted code remains stable
 
-### Running
+## Fixtures
+
+- `fixtures/formatter/transform/*.md` - MDTest transform tests
+- `fixtures/formatter/roundtrip/*.ds` - Roundtrip stability tests
+
+## Running
+
 ```bash
-cargo test -p destack_test --test formatter
-cargo test -p destack_test --test formatter -- --list
-cargo test -p destack_test --test formatter -- parser-0017
-```
+# Run all formatter tests
+just test-formatter
 
+# Run specific tests
+just test-formatter spacing        # tests matching "spacing"
+just test-formatter roundtrip      # only roundtrip tests
+just test-formatter transform      # only transform tests
+```

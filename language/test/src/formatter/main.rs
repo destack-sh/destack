@@ -7,5 +7,6 @@ use destack_test::harness::{Runner, TestOptions};
 
 fn main() -> ExitCode {
     let options = TestOptions::parse();
-    Runner::run_suite(&FormatterSuite, &options)
+    let suite = FormatterSuite::load();
+    Runner::run_suite(&suite, &options)
 }
