@@ -5,6 +5,7 @@ mod no_debugger;
 mod no_dupe_else_if;
 mod no_empty;
 mod no_empty_pattern;
+mod no_extra_non_null_assertion;
 mod no_misleading_character_class;
 mod no_negation_in_equality_check;
 mod no_redundant_pattern;
@@ -30,6 +31,7 @@ pub use no_debugger::*;
 pub use no_dupe_else_if::*;
 pub use no_empty::*;
 pub use no_empty_pattern::*;
+pub use no_extra_non_null_assertion::*;
 pub use no_misleading_character_class::*;
 pub use no_negation_in_equality_check::*;
 pub use no_redundant_pattern::*;
@@ -56,6 +58,7 @@ pub fn rules() -> Vec<BoxedLintRule> {
         boxed(NoDupeElseIf),
         boxed(NoEmpty),
         boxed(NoEmptyPattern),
+        boxed(NoExtraNonNullAssertion),
         boxed(NoMisleadingCharacterClass),
         boxed(NoNegationInEqualityCheck),
         boxed(NoRedundantPattern),

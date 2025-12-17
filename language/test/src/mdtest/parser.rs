@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::path::Path;
 
 use pulldown_cmark::{Event, HeadingLevel, Parser, Tag, TagEnd};
@@ -9,6 +10,8 @@ pub struct MdTestFile {
     pub path: String,
     /// The source code content.
     pub content: String,
+    /// Options from the language tag (e.g., "line-width=40").
+    pub options: HashMap<String, String>,
 }
 
 /// A raw code block from markdown (before interpretation).
@@ -44,7 +47,7 @@ pub fn parse_mdtest_file(path: &Path) -> std::io::Result<Vec<MdTestCase>> {
     Ok(parse_mdtest(&content))
 }
 
-/// Parsed language tag with base language, optional filename, and markers.
+/// Parsed language tag with base language, optional filename, markers, and options.
 struct ParsedLanguageTag<'a> {
     /// Base language (e.g., "ds", "ts").
     base: &'a str,
@@ -52,15 +55,18 @@ struct ParsedLanguageTag<'a> {
     filename: Option<&'a str>,
     /// Space-separated markers (e.g., ["expected"] from "ds expected").
     markers: Vec<&'a str>,
+    /// Key-value options (e.g., {"line-width": "40"} from "ds line-width=40").
+    options: HashMap<String, String>,
 }
 
-/// Parse the language tag to extract base language, optional filename, and markers.
+/// Parse the language tag to extract base language, optional filename, markers, and options.
 ///
 /// Supports formats like:
 /// - `ds` -> base "ds"
 /// - `ds:main.ds` -> base "ds", filename "main.ds"
 /// - `ds expected` -> base "ds", marker "expected"
-/// - `ds:main.ds expected` -> base "ds", filename "main.ds", marker "expected"
+/// - `ds line-width=40` -> base "ds", option line-width=40
+/// - `ds:main.ds expected line-width=40` -> all combined
 fn parse_language_tag(language: &str) -> ParsedLanguageTag<'_> {
     let mut parts = language.split_whitespace();
     let first = parts.next().unwrap_or("");
@@ -72,12 +78,24 @@ fn parse_language_tag(language: &str) -> ParsedLanguageTag<'_> {
         (first, None)
     };
 
-    let markers: Vec<&str> = parts.collect();
+    let mut markers = Vec::new();
+    let mut options = HashMap::new();
+
+    for part in parts {
+        if let Some(eq_pos) = part.find('=') {
+            let key = &part[..eq_pos];
+            let value = &part[eq_pos + 1..];
+            options.insert(key.to_string(), value.to_string());
+        } else {
+            markers.push(part);
+        }
+    }
 
     ParsedLanguageTag {
         base,
         filename,
         markers,
+        options,
     }
 }
 

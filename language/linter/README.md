@@ -86,6 +86,7 @@ Code that is likely unintentional but may occasionally be intentional.
 | `no-dupe-else-if` | ESLint | AST | ✓ | ✅ | Duplicate else-if |
 | `no-empty` | ESLint | AST | ✓ | ✅ | Empty `{}` blocks |
 | `no-empty-pattern` | ESLint | AST | ✓ | ✅ | Empty destructuring `{}` |
+| `no-extra-non-null-assertion` | TS-ESLint | AST | ✓ | ✅ | `value!!` |
 | `no-ex-assign` | ESLint | DIR | ✗ | 🟡 | Needs exception binding tracking |
 | `no-misleading-character-class` | ESLint | AST | ✓ | ✅ | Misleading regex chars |
 | `no-negation-in-equality-check` | Unicorn | AST | ✓ | ✅ | `!a == b` confusion |
@@ -150,6 +151,7 @@ Subjective preferences for consistent coding style.
 | `eqeqeq` | ESLint | AST | ✓ | ✅ | `==` → `===` (Destack `==` is typed / overloadable!) |
 | `filename-case` | Unicorn | AST | ✓ | ✅ | File naming convention |
 | `no-else-return` | ESLint | AST | ✓ | ✅ | Early return style |
+| `no-empty-interface` | TS-ESLint | AST | ✓ | ✅ | Empty `interface {}` |
 | `no-lonely-if` | ESLint | AST | ✓ | ✅ | Lonely `if` in `else` |
 | `no-nested-ternary` | ESLint | AST | ✓ | ✅ | Nested `?:` |
 | `no-unneeded-ternary` | ESLint | AST | ✓ | ✅ | `x ? true : false` |
