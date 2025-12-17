@@ -142,14 +142,13 @@ Subjective preferences for consistent coding style.
 | Rule | Source | Level | Ready | Status | Notes |
 |------|--------|-------|-------|--------|-------|
 | `array-type` | TS-ESLint | AST | ✗ | 🟡 | `T[]` vs `Array<T>` |
-| `catch-error-name` | Unicorn | AST | ✓ | 🟡 | Consistent error name |
-| `consistent-extension-style` | Destack | AST | ✓ | 🟡 | Named vs anonymous extensions |
-| `consistent-type-definitions` | TS-ESLint | AST | ✓ | 🟡 | `type` vs `interface` |
-| `consistent-type-imports` | TS-ESLint | AST | ✓ | 🟡 | `import type` |
-| `curly` | ESLint | AST | ✓ | 🟡 | Require braces |
-| `dot-notation` | ESLint | AST | ✓ | 🟡 | `obj["x"]` → `obj.x` |
-| `eqeqeq` | ESLint | AST | ✓ | 🟡 | `==` → `===` (Destack `==` is typed / overloadable!) |
-| `filename-case` | Unicorn | AST | ✓ | 🟡 | File naming convention |
+| `catch-error-name` | Unicorn | AST | ✓ | ✅ | Consistent error name |
+| `consistent-extension-style` | Destack | AST | ✓ | ✅ | Named vs anonymous extensions |
+| `consistent-type-definitions` | TS-ESLint | AST | ✓ | ✅ | `type` vs `interface` |
+| `consistent-type-imports` | TS-ESLint | AST | ✓ | ✅ | `import type` |
+| `dot-notation` | ESLint | AST | ✓ | ✅ | `obj["x"]` → `obj.x` |
+| `eqeqeq` | ESLint | AST | ✓ | ✅ | `==` → `===` (Destack `==` is typed / overloadable!) |
+| `filename-case` | Unicorn | AST | ✓ | ✅ | File naming convention |
 | `no-else-return` | ESLint | AST | ✓ | ✅ | Early return style |
 | `no-lonely-if` | ESLint | AST | ✓ | ✅ | Lonely `if` in `else` |
 | `no-nested-ternary` | ESLint | AST | ✓ | ✅ | Nested `?:` |
@@ -157,18 +156,19 @@ Subjective preferences for consistent coding style.
 | `no-var` | ESLint | AST | ✓ | ✅ | `var` → `let`/`const` |
 | `object-shorthand` | ESLint | AST | ✓ | ✅ | `{x: x}` → `{x}` |
 | `operator-assignment` | ESLint | AST | ✓ | ✅ | `x = x + 1` → `x += 1` |
-| `prefer-arrow-callback` | ESLint | AST | ✓ | 🟡 | Function → arrow |
-| `prefer-as-const` | TS-ESLint | AST | ✓ | 🟡 | `as const` |
+| `prefer-arrow-callback` | ESLint | AST | ✓ | ✅ | Function → arrow |
+| `prefer-as-const` | TS-ESLint | AST | ✓ | ✅ | `as const` |
 | `prefer-const` | ESLint | DIR | ✗ | 🟡 | Needs reassignment tracking |
 | `prefer-destructuring` | ESLint | DIR | ✗ | 🟡 | Needs symbol tracking |
 | `prefer-exponentiation-operator` | ESLint | DIR | ✗ | 🟡 | Needs `Math.pow` builtin check |
-| `prefer-implicit-return` | Destack | AST | ✓ | 🟡 | `return x` → `x` |
+| `prefer-implicit-return` | Destack | AST | ✓ | ✅ | `return x` → `x` |
+| `prefer-loop` | Destack | AST | ✓ | 🟡 | Prefer explicit `loop` over `while(true)` or `for (;;)` |
 | `prefer-newtype-over-alias` | Destack | DIR | ✗ | 🟡 | Type alias → newtype |
 | `prefer-object-spread` | ESLint | DIR | ✗ | 🟡 | Needs `Object.assign` builtin check |
-| `prefer-range-literal` | Destack | AST | ✓ | 🟡 | `for (let i=0; i<n; i++)` → `for i of 0..n` |
+| `prefer-range-literal` | Destack | AST | ✓ | ✅ | `for (let i=0; i<n; i++)` → `for i of 0..n` |
 | `prefer-struct-over-class` | Destack | DIR | ✗ | 🟡 | Needs usage analysis |
-| `prefer-template` | ESLint | AST | ✓ | 🟡 | Concat → template literal |
-| `prefer-tuple-destructuring` | Destack | AST | ✓ | 🟡 | `[a, b]` → `(a, b)` |
+| `prefer-template` | ESLint | AST | ✓ | ✅ | Concat → template literal |
+| `prefer-tuple-destructuring` | Destack | AST | ✓ | ✅ | `[a, b]` → `(a, b)` |
 
 ## Complexity (X)
 
@@ -205,7 +205,6 @@ Opt-in rules that ban certain patterns by project choice.
 | `no-explicit-any` | TS-ESLint | AST | ✓ | 🟡 | `any` type annotations |
 | `no-implicit-return` | Destack | AST | ✓ | 🟡 | Require explicit `return` |
 | `no-labels` | ESLint | AST | ✓ | 🟡 | Labeled statements |
-| `no-loop-keyword` | Destack | AST | ✓ | 🟡 | Prefer `while(true)` over `loop` |
 | `no-magic-numbers` | ESLint | AST | ✓ | 🟡 | Unnamed numeric literals |
 | `no-namespace` | TS-ESLint | AST | ✓ | 🟡 | `namespace` keyword |
 | `no-non-null-assertion` | TS-ESLint | AST | ✓ | 🟡 | `!` assertion operator |

@@ -55,7 +55,10 @@ impl LintRule for NoElseReturn {
     }
 }
 
-fn ends_with_return(ctx: &LintModuleAstContext<'_>, expr_id: ast::LocalNodeId<ast::Expression>) -> bool {
+fn ends_with_return(
+    ctx: &LintModuleAstContext<'_>,
+    expr_id: ast::LocalNodeId<ast::Expression>,
+) -> bool {
     let expr = ctx.tree.get(expr_id);
     match expr {
         ast::Expression::Return { .. } => true,

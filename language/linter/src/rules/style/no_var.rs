@@ -26,7 +26,10 @@ impl LintRule for NoVar {
     fn check_module_ast<'a>(&self, severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
         for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
             let expr = ctx.tree.get(node_id);
-            if let ast::Expression::Let { kind: LetKind::Var, .. } = expr {
+            if let ast::Expression::Let {
+                kind: LetKind::Var, ..
+            } = expr
+            {
                 ctx.report(
                     LintDiagnostic::new(
                         NO_VAR.id,
