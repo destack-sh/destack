@@ -56,21 +56,22 @@ pub(crate) fn format_scalar_literal<'ast>(
             )?;
         }
         ScalarLiteral::String(string_id) => {
+            let quote_style = f.context().options.quote_style;
+            let content = f.context().strings.get(*string_id);
+            let quote_char = quote_style.char_for(content);
+
             if span_str.is_empty() {
                 // fallback: no source span available, format from string pool
-                let string = f.context().strings.get(*string_id);
-                write!(f, [token("\""), text(string), token("\"")])?;
-            } else if span_str.len() >= 2 && span_str.starts_with('\'') && span_str.ends_with('\'')
-            {
-                // single-quoted string -> convert to double quotes
-                let mut normalized = String::with_capacity(span_str.len());
-                normalized.push('"');
-                normalized.push_str(&span_str[1..span_str.len() - 1]);
-                normalized.push('"');
-                write!(f, [text(normalized.as_str())])?;
+                let quote_str = if quote_char == '"' { "\"" } else { "'" };
+                write!(f, [token(quote_str), text(content), token(quote_str)])?;
             } else if span_str.starts_with('"') || span_str.starts_with('\'') {
-                // quoted string -> use as-is
-                write!(f, [text(span_str)])?;
+                // quoted string -> normalize to preferred quote style
+                let inner = &span_str[1..span_str.len() - 1];
+                let mut normalized = String::with_capacity(span_str.len());
+                normalized.push(quote_char);
+                normalized.push_str(inner);
+                normalized.push(quote_char);
+                write!(f, [text(normalized.as_str())])?;
             } else {
                 // JSX text content (unquoted) -> trim whitespace
                 write!(f, [text(span_str.trim())])?;
@@ -343,10 +344,22 @@ fn normalize_float(input: &str) -> Cow<'_, str> {
 mod tests {
     use crate::{DestackFormatOptions, TestFormatter, assert_format};
 
-    /// Strings parsed with single quotes should be rewritten with double quotes.
+    /// Multi-char strings use double quotes in semantic mode.
     #[test]
-    fn test_format_string_literal_single_quote_leniency() {
+    fn test_format_string_literal_multi_char() {
         assert_format!("'hello'", "\"hello\"", |p| p.eat_expression());
+    }
+
+    /// Single-char strings use single quotes in semantic mode.
+    #[test]
+    fn test_format_string_literal_single_char() {
+        assert_format!("\"a\"", "'a'", |p| p.eat_expression());
+    }
+
+    /// Empty strings use double quotes in semantic mode.
+    #[test]
+    fn test_format_string_literal_empty() {
+        assert_format!("''", "\"\"", |p| p.eat_expression());
     }
 
     /// Formats a template literal string with no interpolation.

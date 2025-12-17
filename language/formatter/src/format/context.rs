@@ -8,14 +8,20 @@ use destack_base::ImmutableStringPool;
 use destack_fir::format::{Format, FormatContext, FormatOptions, FormatResult, Formatter};
 use destack_fir::print::PrintOptions;
 use destack_source::{File, IndentStyle, LanguageType, LineEnding, MultiSpan, NodeSourceMap, Span};
+use destack_workspace::{
+    ArrowParentheses, FormatterOptions, QuoteProperty, QuoteStyle, TrailingComma,
+};
 
 pub type DestackFormatter<'ast, 'buf> = Formatter<'buf, DestackFormatContext<'ast>>;
 
 /// Destack format options.
 #[derive(Debug, Default, PartialEq, Clone)]
 pub struct DestackFormatOptions {
+    // source
     /// The source language type.
     pub language_type: LanguageType = LanguageType::Destack,
+
+    // layout
     /// The type of line ending to apply to the printed input.
     pub line_ending: LineEnding = LineEnding::LineFeed,
     /// The indent style.
@@ -24,6 +30,24 @@ pub struct DestackFormatOptions {
     pub indent_width: u8 = 4,
     /// Maximum line length (best effort).
     pub line_width: u16 = 100,
+
+    // syntax
+    /// Quote style for string literals.
+    pub quote_style: QuoteStyle = QuoteStyle::Semantic,
+    /// Trailing comma policy for multi-line constructs.
+    pub trailing_comma: TrailingComma = TrailingComma::All,
+    /// Spaces inside object braces: `{ foo }` (true) vs `{foo}` (false).
+    pub bracket_spacing: bool = true,
+    /// Arrow function parentheses policy.
+    pub arrow_parens: ArrowParentheses = ArrowParentheses::Always,
+    /// Object property quoting policy.
+    pub quote_props: QuoteProperty = QuoteProperty::AsNeeded,
+
+    // tree/jsx
+    /// Put `>` of multi-line tree/JSX on same line as last attribute.
+    pub bracket_same_line: bool = false,
+    /// Force each tree/JSX attribute onto its own line.
+    pub single_attribute_per_line: bool = false,
 }
 
 impl DestackFormatOptions {
@@ -84,6 +108,30 @@ impl DestackFormatOptions {
             indent_style: self.indent_style,
             indent_width: self.indent_width,
         }
+    }
+
+    /// Create from workspace FormatterOptions.
+    pub fn from_formatter_options(options: FormatterOptions, language_type: LanguageType) -> Self {
+        Self {
+            language_type,
+            line_ending: options.line_ending,
+            indent_style: options.indent_style,
+            indent_width: options.indent_width,
+            line_width: options.line_width,
+            quote_style: options.quote_style,
+            trailing_comma: options.trailing_comma,
+            bracket_spacing: options.bracket_spacing,
+            arrow_parens: options.arrow_parens,
+            quote_props: options.quote_props,
+            bracket_same_line: options.bracket_same_line,
+            single_attribute_per_line: options.single_attribute_per_line,
+        }
+    }
+}
+
+impl From<FormatterOptions> for DestackFormatOptions {
+    fn from(options: FormatterOptions) -> Self {
+        Self::from_formatter_options(options, LanguageType::Destack)
     }
 }
 

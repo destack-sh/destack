@@ -823,6 +823,7 @@ pub(crate) fn format_struct_literal<'ast>(
     write!(
         f,
         [list_like("{", "}", ",", properties_ids)
+            .as_collection()
             .include_space()
             .should_expand(!is_trivial || has_annotations || keep_newline)]
     )?;
@@ -983,12 +984,22 @@ pub(crate) fn format_expression<'ast>(
                     let rest_items: Vec<LocalNodeId<DependencyItem>> =
                         items.iter().skip(1).copied().collect();
                     if !rest_items.is_empty() {
-                        write!(f, [list_like("{", "}", ",", &rest_items).include_space(),])?;
+                        write!(
+                            f,
+                            [list_like("{", "}", ",", &rest_items)
+                                .as_collection()
+                                .include_space(),]
+                        )?;
                     }
                 }
                 // items
                 else if !items.is_empty() {
-                    write!(f, [list_like("{", "}", ",", items).include_space()])?;
+                    write!(
+                        f,
+                        [list_like("{", "}", ",", items)
+                            .as_collection()
+                            .include_space()]
+                    )?;
                 }
             }
 
@@ -1008,7 +1019,9 @@ pub(crate) fn format_expression<'ast>(
                         space(),
                         Keyword::With,
                         space(),
-                        list_like("{", "}", ",", arguments).include_space()
+                        list_like("{", "}", ",", arguments)
+                            .as_collection()
+                            .include_space()
                     ]
                 )?;
             }
@@ -1037,7 +1050,12 @@ pub(crate) fn format_expression<'ast>(
             }
             // items
             else if !items.is_empty() {
-                write!(f, [list_like("{", "}", ",", items).include_space()])?;
+                write!(
+                    f,
+                    [list_like("{", "}", ",", items)
+                        .as_collection()
+                        .include_space()]
+                )?;
             }
 
             // target
@@ -1097,17 +1115,21 @@ pub(crate) fn format_expression<'ast>(
             else_expression,
             ..
         } => {
+            // prettier style: condition ? then : else
+            // breaks to:
+            //   condition
+            //     ? then
+            //     : else
             write!(
                 f,
                 [group(&format_args![
                     condition,
-                    if_group_fits_on_line(&space()),
-                    soft_block_indent(&format_args![
+                    indent(&format_args![
+                        soft_line_break_or_space(),
                         token("?"),
                         space(),
                         then_expression,
-                        soft_line_break(),
-                        if_group_fits_on_line(&space()),
+                        soft_line_break_or_space(),
                         token(":"),
                         space(),
                         else_expression
@@ -1370,7 +1392,9 @@ pub(crate) fn format_expression<'ast>(
                 || f.context().has_newline(span) && elements.len() > 1;
             write!(
                 f,
-                [list_like("[", "]", ",", elements_ids).should_expand(should_expand)]
+                [list_like("[", "]", ",", elements_ids)
+                    .as_collection()
+                    .should_expand(should_expand)]
             )?;
         }
 
@@ -1391,9 +1415,11 @@ pub(crate) fn format_expression<'ast>(
                         .iter()
                         .any(|element| is_complex_argument(tree, element))
                     || f.context().has_newline(span) && elements.len() > 1;
+                // trailing comma disambiguates tuples from parenthesized expressions
                 write!(
                     f,
                     [list_like("(", ")", ",", elements_ids)
+                        .as_collection()
                         .force_trailing_separator()
                         .should_expand(should_expand)]
                 )?;
@@ -1565,11 +1591,19 @@ pub(crate) fn format_expression<'ast>(
             operator,
             right,
         } => {
-            write!(f, [left])?;
-            if !f.context().has_postfix_annotation(*left) {
-                write!(f, [space()])?;
-            }
-            write!(f, [operator, space(), right])?;
+            // group binary expressions so they can break across lines
+            write!(
+                f,
+                [group(&format_args![
+                    left,
+                    indent(&format_args![
+                        soft_line_break_or_space(),
+                        operator,
+                        space(),
+                        right
+                    ])
+                ])]
+            )?;
         }
 
         // type binary
@@ -1578,11 +1612,18 @@ pub(crate) fn format_expression<'ast>(
             operator,
             right,
         } => {
-            write!(f, [left])?;
-            if !f.context().has_postfix_annotation(*left) {
-                write!(f, [space()])?;
-            }
-            write!(f, [operator, space(), right])?;
+            write!(
+                f,
+                [group(&format_args![
+                    left,
+                    indent(&format_args![
+                        soft_line_break_or_space(),
+                        operator,
+                        space(),
+                        right
+                    ])
+                ])]
+            )?;
         }
 
         // assign
@@ -1591,11 +1632,15 @@ pub(crate) fn format_expression<'ast>(
             operator,
             right,
         } => {
-            write!(f, [left])?;
-            if !f.context().has_postfix_annotation(*left) {
-                write!(f, [space()])?;
-            }
-            write!(f, [operator, space(), right])?;
+            write!(
+                f,
+                [group(&format_args![
+                    left,
+                    space(),
+                    operator,
+                    indent(&format_args![soft_line_break_or_space(), right])
+                ])]
+            )?;
         }
 
         // debugger
