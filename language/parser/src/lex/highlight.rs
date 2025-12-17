@@ -1,39 +1,61 @@
+use std::str::FromStr;
 use std::sync::Arc;
 
-use destack_ast::SemanticType;
+use destack_ast::{Keyword, LiteralType, TokenSpan, TokenType};
 use destack_base::Color;
 use destack_source::{File, SourceColorizer};
 
 use super::Lexer;
 
-/// Map a SemanticType to a Color for syntax highlighting.
+/// Map a token to a color for terminal syntax highlighting.
 ///
-/// When `bright` is true, uses full brightness (BrightWhite for neutral tokens).
-/// When false, uses dimmed colors (White for neutral tokens).
-pub fn semantic_type_to_color(semantic_type: SemanticType, bright: bool) -> Option<Color> {
+/// This is purely lexical - it doesn't resolve symbols.
+/// For resolved semantic highlighting, use workspace's semantic tokens.
+fn token_to_color(file: &File, token: &TokenSpan, bright: bool) -> Option<Color> {
     let neutral = if bright {
         Color::BrightWhite
     } else {
         Color::White
     };
-    match semantic_type {
-        SemanticType::Whitespace => None,
-        SemanticType::Identifier => Some(neutral),
-        SemanticType::Keyword => Some(Color::Magenta),
-        SemanticType::LiteralNumbery => Some(Color::Cyan),
-        SemanticType::LiteralStringy => Some(Color::Green),
-        SemanticType::Parenthesis => Some(neutral),
-        SemanticType::Symbol => Some(neutral),
-        SemanticType::Operator => Some(Color::Yellow),
-        SemanticType::Doc => Some(Color::BrightGreen),
-        SemanticType::Comment => Some(Color::BrightBlue),
-        SemanticType::Modifier => Some(Color::Magenta),
-        SemanticType::Macro => Some(Color::BrightMagenta),
-        SemanticType::Type => Some(Color::Cyan),
-        SemanticType::Function => Some(Color::BrightYellow),
-        SemanticType::Parameter => Some(Color::BrightCyan),
-        SemanticType::Argument => Some(neutral),
-        SemanticType::Variable => Some(neutral),
+
+    match token.token.ty {
+        TokenType::Newline | TokenType::Whitespace | TokenType::Unknown | TokenType::End => None,
+
+        TokenType::LineComment | TokenType::BlockComment => Some(Color::BrightBlue),
+        TokenType::DocLineComment | TokenType::DocBlockComment => Some(Color::BrightGreen),
+
+        TokenType::Identifier | TokenType::InvalidIdentifier | TokenType::UnknownLiteralPrefix => {
+            let span_str = file.get_span_str(token.span).unwrap_or_default();
+            if Keyword::from_str(span_str).is_ok() {
+                Some(Color::Magenta)
+            } else {
+                Some(neutral)
+            }
+        }
+
+        TokenType::Literal => {
+            if let Some(literal) = token.token.literal {
+                match literal {
+                    LiteralType::Boolean { .. }
+                    | LiteralType::Int { .. }
+                    | LiteralType::Float { .. } => Some(Color::Cyan),
+                    LiteralType::Character { .. }
+                    | LiteralType::String { .. }
+                    | LiteralType::RegexString { .. }
+                    | LiteralType::TreeString => Some(Color::Green),
+                }
+            } else {
+                Some(Color::Green)
+            }
+        }
+
+        TokenType::TemplateStringStart
+        | TokenType::TemplateStringMiddle
+        | TokenType::TemplateStringEnd
+        | TokenType::TemplateString => Some(Color::Green),
+
+        // operators and punctuation
+        _ => Some(Color::Yellow),
     }
 }
 
@@ -51,7 +73,6 @@ pub fn colorize_slice(file: &File, start_byte: u32, end_byte: u32, bright: bool)
     let start = start_byte as usize;
     let end = end_byte as usize;
 
-    // bounds check
     if start >= source.len() || end > source.len() || start >= end {
         return source.get(start..end).unwrap_or("").to_string();
     }
@@ -65,31 +86,23 @@ pub fn colorize_slice(file: &File, start_byte: u32, end_byte: u32, bright: bool)
         let tok_start = token_span.span.start as usize;
         let tok_end = token_span.span.end as usize;
 
-        // skip tokens entirely before our slice
         if tok_end <= start {
             continue;
         }
-
-        // stop if we've passed our slice
         if tok_start >= end {
             break;
         }
 
-        // clip token to slice boundaries
         let visible_start = tok_start.max(start);
         let visible_end = tok_end.min(end);
 
-        // add any gap before this token (within our slice)
         if visible_start > last_end {
             result.push_str(&source[last_end..visible_start]);
         }
 
-        // get the visible portion of this token
         let token_str = &source[visible_start..visible_end];
 
-        // get semantic type and color
-        let semantic_type = SemanticType::from_token(file, token_span);
-        if let Some(color) = semantic_type_to_color(semantic_type, bright) {
+        if let Some(color) = token_to_color(file, token_span, bright) {
             result.push_str(&color.apply(token_str));
         } else {
             result.push_str(token_str);
@@ -98,7 +111,6 @@ pub fn colorize_slice(file: &File, start_byte: u32, end_byte: u32, bright: bool)
         last_end = visible_end;
     }
 
-    // add any remaining text within the slice
     if last_end < end {
         result.push_str(&source[last_end..end]);
     }
@@ -106,7 +118,7 @@ pub fn colorize_slice(file: &File, start_byte: u32, end_byte: u32, bright: bool)
     result
 }
 
-/// Colorize source code using lexical tokens and semantic types.
+/// Colorize source code using lexical tokens.
 /// Returns a string with ANSI color codes (using bright colors).
 pub fn colorize_source(file: &File) -> String {
     colorize_slice(file, 0, file.text().len() as u32, true)
@@ -128,9 +140,7 @@ mod tests {
             "let x = 42;".to_string(),
         );
         let colorized = colorize_source(&file);
-        // should contain ANSI escape codes
         assert!(colorized.contains("\x1b["));
-        // should still contain the original text
         assert!(colorized.contains("let"));
         assert!(colorized.contains("42"));
     }

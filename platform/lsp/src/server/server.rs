@@ -706,18 +706,63 @@ impl LanguageServer for DestackLanguageServer {
 
     async fn semantic_tokens_full(
         &self,
-        _params: lsp::SemanticTokensParams,
+        params: lsp::SemanticTokensParams,
     ) -> jsonrpc::Result<Option<lsp::SemanticTokensResult>> {
-        // TODO #Incomplete: implement semantic tokens
-        Ok(None)
+        // look up file
+        let uri_str = params.text_document.uri.to_string();
+        let session = self.session();
+        let Some(doc) = self.open_documents.get(&uri_str) else {
+            return Ok(None);
+        };
+        let file = session.files.get(doc.file_id);
+
+        // query semantic tokens
+        let tokens = query::semantic_tokens(session, doc.file_id);
+
+        // convert to LSP
+        let lsp_tokens = semantic::tokens_to_lsp(&file, &tokens);
+
+        Ok(Some(lsp::SemanticTokensResult::Tokens(
+            lsp::SemanticTokens {
+                result_id: None,
+                data: lsp_tokens,
+            },
+        )))
     }
 
     async fn semantic_tokens_range(
         &self,
-        _params: lsp::SemanticTokensRangeParams,
+        params: lsp::SemanticTokensRangeParams,
     ) -> jsonrpc::Result<Option<lsp::SemanticTokensRangeResult>> {
-        // TODO #Incomplete: implement semantic tokens range
-        Ok(None)
+        // look up file
+        let uri_str = params.text_document.uri.to_string();
+        let session = self.session();
+        let Some(doc) = self.open_documents.get(&uri_str) else {
+            return Ok(None);
+        };
+        let file = session.files.get(doc.file_id);
+
+        // convert range to span
+        let Some(start) = position_to_byte(&file, &params.range.start) else {
+            return Ok(None);
+        };
+        let Some(end) = position_to_byte(&file, &params.range.end) else {
+            return Ok(None);
+        };
+        let span = Span::new(doc.file_id, start, end);
+
+        // query semantic tokens for range
+        let tokens = query::semantic_tokens_range(session, doc.file_id, span);
+
+        // convert to LSP
+        let lsp_tokens = semantic::tokens_to_lsp(&file, &tokens);
+
+        Ok(Some(lsp::SemanticTokensRangeResult::Tokens(
+            lsp::SemanticTokens {
+                result_id: None,
+                data: lsp_tokens,
+            },
+        )))
     }
 
     // ------------------------------------------------------------------------

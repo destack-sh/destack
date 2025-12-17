@@ -63,7 +63,7 @@ impl Parser {
         self.eat_token(TokenType::At)?;
 
         // receiver
-        let left = self.eat_path().for_node_type(NodeType::Decorator)?;
+        let (left, left_span) = self.eat_path_with_span().for_node_type(NodeType::Decorator)?;
 
         // arguments
         let arguments = if self.peek_token(TokenType::OpenParenthesis).is_ok() {
@@ -91,6 +91,7 @@ impl Parser {
         let decorator = self
             .tree
             .insert(Decorator { left, arguments }, self.get_span_from(start));
+        self.tree.set_main_span(decorator, left_span);
         Ok(decorator)
     }
 

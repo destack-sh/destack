@@ -1,11 +1,12 @@
 use destack_base::StringId;
+use destack_source::Span;
 use smallvec::SmallVec;
 
 use crate::{ParseResult, Parser};
 use destack_ast::{Path, TokenType};
 
 impl Parser {
-    /// Eat a Path.
+    /// Eat a path.
     pub fn eat_path(&mut self) -> ParseResult<Path> {
         let mut segments: SmallVec<[StringId; 3]> = SmallVec::new();
 
@@ -40,6 +41,14 @@ impl Parser {
 
         let path = Path { segments };
         Ok(path)
+    }
+
+    /// Eat a path and get its span.
+    pub fn eat_path_with_span(&mut self) -> ParseResult<(Path, Span)> {
+        let start = self.mark();
+        let path = self.eat_path()?;
+        let span = self.get_span_from(start);
+        Ok((path, span))
     }
 }
 

@@ -1,5 +1,4 @@
 pub mod dir;
-pub mod lex;
 pub mod parse;
 pub mod resolve;
 pub mod version;
@@ -7,7 +6,6 @@ pub mod version;
 use clap::Subcommand;
 
 pub use dir::DirArgs;
-pub use lex::LexArgs;
 pub use parse::ParseArgs;
 pub use resolve::ResolveArgs;
 pub use version::VersionCommands;
@@ -15,8 +13,6 @@ pub use version::VersionCommands;
 /// Developer subcommands for compiler development and release management.
 #[derive(Subcommand, Debug, Clone)]
 pub enum DevCommand {
-    /// Tokenize source and show tokens.
-    Lex(LexArgs),
     /// Parse source into AST.
     Parse(ParseArgs),
     /// Compile and dump DIR (Destack IR).
