@@ -1,6 +1,7 @@
 use std::marker::PhantomData;
 
 use destack_fir::format::{BestFittingMode, FormatResult};
+use destack_workspace::TrailingComma;
 
 use crate::property::{
     format_binding_modifiers_postfix_maybe, format_binding_modifiers_prefix_maybe,
@@ -9,6 +10,27 @@ use crate::{DestackFormatContext, DestackFormatter, FormatNode};
 use destack_ast::{Argument, LocalNodeId, Node, NodeTree, NodeTreeImpl, Parameter};
 use destack_fir::prelude::*;
 use destack_fir::{best_fitting, format_args, write};
+
+/// The kind of list, which affects trailing comma behavior.
+#[derive(Debug, Clone, Copy, PartialEq, Default)]
+pub(crate) enum ListKind {
+    /// Function parameters/arguments - trailing comma only with `All`.
+    #[default]
+    FunctionParameters,
+    /// Collections (arrays, objects, tuples) - trailing comma with `All` or `Es5`.
+    Collection,
+}
+
+impl ListKind {
+    /// Whether a trailing comma should be added based on this kind and the option.
+    pub(crate) fn should_add_trailing_comma(&self, option: TrailingComma) -> bool {
+        match option {
+            TrailingComma::All => true,
+            TrailingComma::Es5 => matches!(self, ListKind::Collection),
+            TrailingComma::None => false,
+        }
+    }
+}
 
 /// List like thing infix annotations.
 #[derive(Debug, Clone, PartialEq)]
@@ -23,6 +45,7 @@ where
     include_space: bool,
     force_trailing_separator: bool,
     force_expand: bool,
+    kind: ListKind,
     elements: &'e Vec<LocalNodeId<T>>,
 
     _phantom: PhantomData<&'ast ()>,
@@ -53,6 +76,12 @@ where
         self.force_trailing_separator = true;
         self
     }
+
+    /// Mark this as a collection (arrays, objects, tuples) for trailing comma purposes.
+    pub(crate) fn as_collection(&mut self) -> &mut Self {
+        self.kind = ListKind::Collection;
+        self
+    }
 }
 
 impl<'ast, 'e, T> Format<DestackFormatContext<'ast>> for ListLike<'ast, 'e, T>
@@ -62,9 +91,14 @@ where
 {
     #[inline]
     fn format(&self, f: &mut Formatter<'_, DestackFormatContext<'ast>>) -> FormatResult<()> {
+        let options = &f.context().options;
+        let trailing_comma_option = options.trailing_comma;
+        let should_add_trailing = self.kind.should_add_trailing_comma(trailing_comma_option);
+        let should_add_space = self.include_space && options.bracket_spacing;
+
         let body = &format_with(|f| {
             // leading space
-            if self.include_space {
+            if should_add_space {
                 write!(f, [if_group_fits_on_line(&space())])?;
             }
 
@@ -76,15 +110,15 @@ where
             .entries(self.elements)
             .finish()?;
 
-            // trailing separator (always if forced, otherwise only if group breaks)
+            // trailing separator
             if self.force_trailing_separator {
                 write!(f, [token(self.separator)])?;
-            } else {
+            } else if should_add_trailing {
                 write!(f, [if_group_breaks(&token(self.separator))])?;
             }
 
             // trailing space
-            if self.include_space && !self.elements.is_empty() {
+            if should_add_space && !self.elements.is_empty() {
                 write!(f, [if_group_fits_on_line(&space())])?;
             }
 
@@ -132,6 +166,9 @@ where
 ///  - beginning with `start_token`
 ///  - ending with `end_token`
 ///  - separated by `separator`
+///
+/// By default, treats the list as function params for trailing comma purposes.
+/// Call `.as_collection()` for arrays, objects, and tuples.
 pub(crate) fn list_like<'ast, 'e, T>(
     start_token: &'static str,
     end_token: &'static str,
@@ -149,6 +186,7 @@ where
         include_space: false,
         force_trailing_separator: false,
         force_expand: false,
+        kind: ListKind::FunctionParameters,
         elements,
         _phantom: PhantomData,
     }

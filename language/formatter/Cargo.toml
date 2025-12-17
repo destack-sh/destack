@@ -18,6 +18,7 @@ destack_base = { workspace = true }
 destack_fir = { workspace = true }
 destack_parser = { workspace = true }
 destack_source = { workspace = true }
+destack_workspace = { workspace = true }
 
 # general
 smallvec = { workspace = true }

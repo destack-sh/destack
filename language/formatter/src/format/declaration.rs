@@ -9,11 +9,12 @@ use crate::{
 use destack_ast::{
     Asynchrony, Declaration, DeclarationKind, DependencyMode, EnumKind, Expression,
     FunctionAbstraction, FunctionCardinality, FunctionKind, FunctionMode, Keyword, LocalNodeId,
-    Mutability, TypeKind, Visibility,
+    Mutability, Parameter, TypeKind, Visibility,
 };
 use destack_fir::format::{BestFittingMode, FormatResult};
 use destack_fir::prelude::*;
 use destack_fir::{best_fitting, format_args, write};
+use destack_workspace::ArrowParentheses;
 
 /// Format a super type clause.
 pub(crate) fn format_super_type_clause<'ast>(
@@ -651,6 +652,9 @@ impl<'ast> FormatNode<'ast, Declaration> for Declaration {
                 }
 
                 // static parameters
+                let has_static_parameters = generics
+                    .and_then(|generics| generics.static_parameters.as_ref())
+                    .is_some_and(|params| !params.is_empty());
                 if let Some(static_parameters) =
                     generics.and_then(|generics| generics.static_parameters.as_ref())
                     && !static_parameters.is_empty()
@@ -658,25 +662,48 @@ impl<'ast> FormatNode<'ast, Declaration> for Declaration {
                     write!(f, [list_like("<", ">", ",", static_parameters)])?;
                 }
 
-                // self parameter and dynamic parameters
-                write!(
-                    f,
-                    [group(&format_args![
-                        token("("),
-                        soft_block_indent(&format_with(|f| {
-                            // dynamic parameters
-                            f.join_with(&format_args![&token(","), soft_line_break_or_space()])
-                                .entries(&signature.dynamic_parameters)
-                                .finish()?;
+                // omit arrow function parentheses for simple single param lambdas
+                let can_omit_parens = signature.kind == FunctionKind::Lambda
+                    && !has_static_parameters
+                    && signature.cardinality != FunctionCardinality::Generator
+                    && signature.dynamic_parameters.len() == 1
+                    && matches!(f.context().options.arrow_parens, ArrowParentheses::Avoid)
+                    && {
+                        let param = f.context().tree.get(signature.dynamic_parameters[0]);
+                        matches!(
+                            param,
+                            Parameter::Named {
+                                modifiers: None,
+                                ty: None,
+                                default: None,
+                                ..
+                            }
+                        )
+                    };
 
-                            // trailing comma
-                            write!(f, [if_group_breaks(&token(","))])?;
+                // dynamic parameters
+                if can_omit_parens {
+                    write!(f, [&signature.dynamic_parameters[0]])?;
+                } else {
+                    write!(
+                        f,
+                        [group(&format_args![
+                            token("("),
+                            soft_block_indent(&format_with(|f| {
+                                // dynamic parameters
+                                f.join_with(&format_args![&token(","), soft_line_break_or_space()])
+                                    .entries(&signature.dynamic_parameters)
+                                    .finish()?;
 
-                            Ok(())
-                        })),
-                        token(")")
-                    ])]
-                )?;
+                                // trailing comma
+                                write!(f, [if_group_breaks(&token(","))])?;
+
+                                Ok(())
+                            })),
+                            token(")")
+                        ])]
+                    )?;
+                }
 
                 // return type
                 if let Some(return_type) = signature.return_type {

@@ -99,13 +99,7 @@ fn format_expressions(
     let strings = parser.strings.clone().into_immutable();
     let parents = NodeParentIndex::from_tree(&parser.tree);
 
-    let format_options = DestackFormatOptions {
-        language_type,
-        line_ending: formatter.line_ending,
-        indent_style: formatter.indent_style,
-        indent_width: formatter.indent_width,
-        line_width: formatter.line_width,
-    };
+    let format_options = DestackFormatOptions::from_formatter_options(formatter, language_type);
 
     let context = DestackFormatContext {
         options: format_options,
