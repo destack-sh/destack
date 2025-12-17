@@ -609,9 +609,7 @@ mod tests {
         );
     }
 
-    /// Format trailing comments on array elements.
-    /// Parser classifies `3, // comment` as BlockPostfix because comma is not part of the expression node.
-    /// A proper fix would require parser changes to detect this pattern.
+    /// Format trailing comments on array elements to stay with the comma.
     #[test]
     fn test_format_trailing_comment_array() {
         assert_format!(
@@ -626,9 +624,7 @@ mod tests {
     const arr = [
         1,
         2,
-        3
-        // last element
-        ,
+        3, // last element
     ]
 }",
             |p| p.eat_block(),

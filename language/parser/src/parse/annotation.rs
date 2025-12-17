@@ -4,7 +4,7 @@ use destack_ast::{
     ANNOTATION_NODE_TYPES, Annotation, AnnotationPosition, Blank, Comment, CommentStyle, Decorator,
     Doc, DocStyle, LocalNodeId, NodeType, TokenSpan, TokenType,
 };
-use destack_source::{MultiSpan, NodeSearch, Span};
+use destack_source::{MultiSpan, NodeSearchMode, Span};
 
 const ANNOTATION_TOKEN_TYPES: [TokenType; 5] = [
     TokenType::Newline,
@@ -269,7 +269,7 @@ impl Parser {
         let end_token = group[group.len() - 1];
         let is_one_line = self.is_same_line(start_token.span, end_token.span);
         let enclosing_scope =
-            self.find_node_enclosing_at(&start_token.span, NodeSearch::SmallestInnermost, |span| {
+            self.find_node_enclosing_at(&start_token.span, NodeSearchMode::SmallestInnermost, |span| {
                 !ANNOTATION_NODE_TYPES.contains(&self.tree.get_node_type(span.idx))
                     && !ignore_span.contains(&span.span)
             });
@@ -338,20 +338,49 @@ impl Parser {
             };
 
             // line postfix: check for directly preceding node that ends at the start token
-            if let Some(prev_token) = prev_token
+            let line_postfix_target = if let Some(prev_token) = prev_token
                 && self.is_same_line(prev_token.span, end_token.span)
                 && prev_token.token.ty != TokenType::Newline
-                && let Some(target_node_id) = self
-                    .find_node_ending_at(
-                        &prev_token.span,
-                        if is_full_line {
-                            NodeSearch::BiggestOutermost
-                        } else {
-                            NodeSearch::SmallestOutermost
-                        },
-                    )
-                    .map(|span| span.idx)
             {
+                let search_mode = if is_full_line {
+                    NodeSearchMode::BiggestOutermost
+                } else {
+                    NodeSearchMode::SmallestOutermost
+                };
+                self.find_node_ending_at(&prev_token.span, search_mode)
+                    .or_else(|| {
+                        // if prev_token is a separator and comment is at end of line,
+                        // look past the separator to find the element (handles `3, // comment`)
+                        let is_end_of_line = next_token.is_none()
+                            || next_token.unwrap().token.ty == TokenType::Newline
+                            || next_token.unwrap().token.ty == TokenType::End;
+                        if is_end_of_line
+                            && matches!(
+                                prev_token.token.ty,
+                                TokenType::Comma | TokenType::Semicolon
+                            )
+                            && token_idx > 1
+                        {
+                            let mut before_sep_idx = token_idx as usize - 1;
+                            while before_sep_idx > 0 {
+                                before_sep_idx -= 1;
+                                let before_token = tokens.get(before_sep_idx)?;
+                                if ignore_span.contains(&before_token.span)
+                                    || before_token.token.ty == TokenType::Whitespace
+                                {
+                                    continue;
+                                }
+                                return self.find_node_ending_at(&before_token.span, search_mode);
+                            }
+                        }
+                        None
+                    })
+                    .map(|span| span.idx)
+            } else {
+                None
+            };
+
+            if let Some(target_node_id) = line_postfix_target {
                 // line postfix boundary if next token is newline (or end)
                 if next_token.is_none()
                     || next_token.unwrap().token.ty == TokenType::Newline
@@ -369,7 +398,7 @@ impl Parser {
                 && next_token.token.ty != TokenType::Newline
                 && self.is_same_line(end_token.span, next_token.span)
                 && let Some(target_node_id) = self
-                    .find_node_starting_at(&next_token.span, NodeSearch::SmallestOutermost)
+                    .find_node_starting_at(&next_token.span, NodeSearchMode::SmallestOutermost)
                     .map(|span| span.idx)
             {
                 return Some((AnnotationPosition::LinePrefix, target_node_id));
@@ -394,7 +423,7 @@ impl Parser {
                 break; // stop outside the enclosing scope
             }
             if let Some(next_node) =
-                self.find_node_starting_at(&next_token.span, NodeSearch::BiggestOutermost)
+                self.find_node_starting_at(&next_token.span, NodeSearchMode::BiggestOutermost)
             {
                 return Some((AnnotationPosition::BlockPrefix, next_node.idx));
             }
@@ -423,7 +452,7 @@ impl Parser {
                     break; // stop outside the enclosing scope
                 }
                 if let Some(prev_node) =
-                    self.find_node_ending_at(&prev_token.span, NodeSearch::BiggestOutermost)
+                    self.find_node_ending_at(&prev_token.span, NodeSearchMode::BiggestOutermost)
                 {
                     return Some((AnnotationPosition::BlockPostfix, prev_node.idx));
                 }
