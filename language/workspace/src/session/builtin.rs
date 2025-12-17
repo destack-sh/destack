@@ -74,6 +74,7 @@ impl LanguageBuiltins {
                 FileType::Destack,
                 source.content.to_string(),
             );
+            let file_version = file.version;
             files.insert(file);
 
             // create module id from path
@@ -91,6 +92,7 @@ impl LanguageBuiltins {
             let module = Module::blank(
                 module_id,
                 file_id,
+                file_version,
                 uri,
                 None,
                 BUILTIN_PACKAGE_ID,

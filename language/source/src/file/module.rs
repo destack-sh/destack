@@ -109,3 +109,35 @@ impl ModuleId {
         Self::from_relative_path(package, relative)
     }
 }
+
+/// Version of a module's compiled state (increments on recompilation).
+#[repr(transparent)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Default)]
+pub struct ModuleVersion(pub u64);
+
+impl std::fmt::Debug for ModuleVersion {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "v{}", self.0)
+    }
+}
+
+impl std::fmt::Display for ModuleVersion {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "v{}", self.0)
+    }
+}
+
+impl ModuleVersion {
+    /// Initial version.
+    pub const INITIAL: Self = Self(0);
+
+    /// Create a new ModuleVersion.
+    pub fn new(version: u64) -> Self {
+        Self(version)
+    }
+
+    /// Increment the version, returning the new value.
+    pub fn next(self) -> Self {
+        Self(self.0 + 1)
+    }
+}

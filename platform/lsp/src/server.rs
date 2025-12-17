@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use dashmap::DashMap;
 use destack_compiler::{AnalyzeTask, Compiler, CompilerOptions};
-use destack_source::{FileId, FileType, Uri};
+use destack_source::{FileId, FileSystem, FileType, OverlayFileSystem, PhysicalFileSystem, Uri};
 use destack_workspace::{Session, query};
 use parking_lot::RwLock;
 use tower_lsp_server::{Client, LanguageServer, UriExt, jsonrpc, lsp_types as lsp};
@@ -16,13 +16,13 @@ use crate::workspace::TRACKED_FILE_TYPES;
 #[derive(Debug)]
 struct OpenDocument {
     file_id: FileId,
-    #[allow(dead_code)]
-    content: String,
 }
 
 #[derive(Debug)]
 pub struct DestackLanguageServer {
     pub(super) client: Client,
+    /// overlay filesystem for open document content
+    overlay_fs: Arc<OverlayFileSystem>,
     session: RwLock<Option<Arc<Session>>>,
     open_documents: DashMap<String, OpenDocument>,
 }
@@ -30,8 +30,11 @@ pub struct DestackLanguageServer {
 impl DestackLanguageServer {
     /// Create a new language server instance.
     pub fn new(client: Client) -> Self {
+        let physical_fs = Arc::new(PhysicalFileSystem::new());
+        let overlay_fs = Arc::new(OverlayFileSystem::with_inner(physical_fs));
         Self {
             client,
+            overlay_fs,
             session: RwLock::new(None),
             open_documents: DashMap::new(),
         }
@@ -84,8 +87,8 @@ impl LanguageServer for DestackLanguageServer {
             .or_else(|| params.root_path.clone().map(PathBuf::from))
             .unwrap_or_else(|| std::env::current_dir().unwrap_or_default());
 
-        // create session and add root
-        let session = Arc::new(Session::new(cwd.clone()));
+        // create session with overlay filesystem and add root
+        let session = Arc::new(Session::new(cwd.clone()).with_fs(self.overlay_fs.clone()));
         session.add_root(cwd);
         *self.session.write() = Some(session);
 
@@ -201,22 +204,25 @@ impl LanguageServer for DestackLanguageServer {
             return;
         };
 
+        // set overlay for any subsequent file reads during compilation
+        self.overlay_fs.set_overlay(&path, content.clone());
+
         // register module with inline content
         let uri = Uri::from_path(&path);
         let program = session.find_program_for_path(&path);
-        let module_id = program.register_inline_module(uri, content.clone(), FileType::Destack);
+        let module_id = program.register_inline_module(uri, content, FileType::Destack);
 
         let module = session.modules.get(module_id);
         let file_id = module.read().file_id;
 
         self.open_documents
-            .insert(uri_str, OpenDocument { file_id, content });
+            .insert(uri_str, OpenDocument { file_id });
 
         self.compile_module(&session, &path);
     }
 
     async fn did_change(&self, params: lsp::DidChangeTextDocumentParams) {
-        let uri_str = params.text_document.uri.to_string();
+        let _uri_str = params.text_document.uri.to_string();
 
         // full sync: we get entire new content
         let Some(change) = params.content_changes.into_iter().next() else {
@@ -237,43 +243,47 @@ impl LanguageServer for DestackLanguageServer {
             return;
         };
 
-        // TODO #Incomplete: re-registering creates a new module, should update existing
-        let uri = Uri::from_path(&path);
-        let program = session.find_program_for_path(&path);
-        let module_id = program.register_inline_module(uri, content.clone(), FileType::Destack);
+        // update overlay content
+        self.overlay_fs.set_overlay(&path, content);
 
-        let module = session.modules.get(module_id);
-        let file_id = module.read().file_id;
-
-        self.open_documents
-            .insert(uri_str, OpenDocument { file_id, content });
-
+        // nocheckin TODO #Incomplete: proper incremental recompilation (for LSP)
+        // for now just recompile the module (this accumulates stale state)
         self.compile_module(&session, &path);
     }
 
     async fn did_close(&self, params: lsp::DidCloseTextDocumentParams) {
         let uri_str = params.text_document.uri.to_string();
         self.open_documents.remove(&uri_str);
+
+        // remove overlay to fall back to disk content
+        if let Some(path) = params
+            .text_document
+            .uri
+            .to_file_path()
+            .map(|p| p.into_owned())
+        {
+            self.overlay_fs.remove_overlay(&path);
+        }
     }
 
     async fn did_change_workspace_folders(&self, _params: lsp::DidChangeWorkspaceFoldersParams) {
-        // TODO #Incomplete: handle workspace folder changes
+        // #Incomplete: handle workspace folder changes
     }
 
     async fn did_change_watched_files(&self, _params: lsp::DidChangeWatchedFilesParams) {
-        // TODO #Incomplete: handle external file changes
+        // #Incomplete: handle external file changes
     }
 
     async fn did_create_files(&self, _params: lsp::CreateFilesParams) {
-        // TODO #Incomplete: handle file creation
+        // #Incomplete: handle file creation
     }
 
     async fn did_rename_files(&self, _params: lsp::RenameFilesParams) {
-        // TODO #Incomplete: handle file renames
+        // #Incomplete: handle file renames
     }
 
     async fn did_delete_files(&self, _params: lsp::DeleteFilesParams) {
-        // TODO #Incomplete: handle file deletion
+        // #Incomplete: handle file deletion
     }
 
     // ------------------------------------------------------------------------
@@ -325,7 +335,7 @@ impl LanguageServer for DestackLanguageServer {
         &self,
         _params: lsp::SemanticTokensParams,
     ) -> jsonrpc::Result<Option<lsp::SemanticTokensResult>> {
-        // TODO #Incomplete: implement semantic tokens
+        // #Incomplete: implement semantic tokens
         Ok(None)
     }
 
@@ -333,7 +343,7 @@ impl LanguageServer for DestackLanguageServer {
         &self,
         _params: lsp::SemanticTokensRangeParams,
     ) -> jsonrpc::Result<Option<lsp::SemanticTokensRangeResult>> {
-        // TODO #Incomplete: implement semantic tokens range
+        // #Incomplete: implement semantic tokens range
         Ok(None)
     }
 
@@ -345,7 +355,7 @@ impl LanguageServer for DestackLanguageServer {
         &self,
         _params: lsp::DocumentFormattingParams,
     ) -> jsonrpc::Result<Option<Vec<lsp::TextEdit>>> {
-        // TODO #Incomplete: implement formatting
+        // #Incomplete: implement formatting
         Ok(None)
     }
 }

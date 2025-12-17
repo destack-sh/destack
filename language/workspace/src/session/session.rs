@@ -3,11 +3,10 @@ use std::sync::Arc;
 
 use dashmap::DashMap;
 use destack_base::StringPool;
-use destack_mir as mir;
 use destack_source::{FileRegistry, FileSystem, ModuleId, PhysicalFileSystem};
 
 use crate::{
-    ArtifactRegistry, FormatterOptions, LanguageBuiltins, LinterOptions, ModuleDir, ModuleRegistry,
+    ArtifactRegistry, FormatterOptions, LanguageBuiltins, LinterOptions, ModuleRegistry,
     PackageRegistry, Program, TsConfigRegistry, Workspace,
 };
 
@@ -178,50 +177,5 @@ impl Session {
 
         // fallback: create/get a program for the cwd
         self.get_or_create_program(self.cwd.clone())
-    }
-
-    /// Invalidate a module by its id, resetting analysis data.
-    ///
-    /// This clears the DIR and MIR data while preserving the AST,
-    /// allowing the module to be re-analyzed without re-parsing. 
-    /// nocheckin #Suspicious: invalidating modules in-place feels wrong (what about outstanding references?)
-    ///  (like we could well still have GlobalSymbolIds/GlobalTypeIds/.. pointing to this module?)
-    pub fn invalidate_module(&self, module_id: ModuleId) {
-        if !self.modules.contains(module_id) {
-            return;
-        }
-
-        let module = self.modules.get(module_id);
-        let guard = module.write();
-
-        // reset DIR data by creating fresh instances
-        let fresh_dir = ModuleDir::new(module_id);
-        *guard.dir.tree.write() = fresh_dir.tree.into_inner();
-        *guard.dir.symbols.write() = fresh_dir.symbols.into_inner();
-        *guard.dir.types.write() = fresh_dir.types.into_inner();
-        guard.dir.namespace_exports.write().clear();
-        guard.dir.imported_modules.write().clear();
-        guard.dir.exported_symbols.write().clear();
-
-        // reset MIR data
-        *guard.mir.tree.write() = mir::NodeTree::new();
-    }
-
-    /// Invalidate a module by its file path.
-    pub fn invalidate_path(&self, path: &Path) -> bool {
-        if let Some(module_id) = self.modules.get_id_by_path(path) {
-            self.invalidate_module(module_id);
-            true
-        } else {
-            false
-        }
-    }
-
-    /// Invalidate all modules in the session.
-    pub fn invalidate_all(&self) {
-        for module in self.modules.iter() {
-            let module_id = module.read().id;
-            self.invalidate_module(module_id);
-        }
     }
 }

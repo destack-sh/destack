@@ -80,7 +80,6 @@ Code that is likely unintentional but may occasionally be intentional.
 |------|--------|-------|-------|--------|-------|
 | `no-cond-assign` | ESLint | AST | ✓ | ✅ | Assignment in condition (allows `let`) |
 | `no-confusing-non-null-assertion` | TS-ESLint | AST | ✓ | ✅ | `!` near `?` |
-| `no-confusing-void-expression` | TS-ESLint | DIR | ✗ | 🔶 | Void in expression position |
 | `no-constructor-return` | ESLint | AST | ✓ | ✅ | Return in constructor |
 | `no-debugger` | ESLint | AST | ✓ | ✅ | Debugger statements |
 | `no-dupe-else-if` | ESLint | AST | ✓ | ✅ | Duplicate else-if |

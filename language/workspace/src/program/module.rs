@@ -9,7 +9,7 @@ use destack_ast::{self as ast};
 use destack_base::{StringId, StringPool};
 use destack_dir::{self as dir};
 use destack_mir::{self as mir};
-use destack_source::{FileId, LanguageType, ModuleId, PackageId, Uri};
+use destack_source::{FileId, FileVersion, LanguageType, ModuleId, ModuleVersion, PackageId, Uri};
 
 use crate::{ModuleType, TsConfigId};
 
@@ -19,6 +19,10 @@ use crate::{ModuleType, TsConfigId};
 pub struct Module {
     /// The id of the Module itself.
     pub id: ModuleId,
+    /// The version of the Module (increments on each recompilation).
+    pub version: ModuleVersion,
+    /// The version of the source File this module was compiled from.
+    pub source_version: FileVersion,
     /// The underlying source File.
     pub file_id: FileId,
     /// The URI of the Module.
@@ -48,6 +52,7 @@ impl Module {
     pub fn blank(
         id: ModuleId,
         file_id: FileId,
+        source_version: FileVersion,
         uri: Uri,
         path: Option<PathBuf>,
         package_id: PackageId,
@@ -57,6 +62,8 @@ impl Module {
     ) -> Self {
         Self {
             id,
+            version: ModuleVersion::INITIAL,
+            source_version,
             file_id,
             uri,
             path,
@@ -74,6 +81,7 @@ impl Module {
     pub fn from_ast(
         id: ModuleId,
         file_id: FileId,
+        source_version: FileVersion,
         uri: Uri,
         path: Option<PathBuf>,
         package_id: PackageId,
@@ -86,6 +94,8 @@ impl Module {
         let mir = ModuleMir::new(id);
         Self {
             id,
+            version: ModuleVersion::INITIAL,
+            source_version,
             file_id,
             uri,
             path,
@@ -102,6 +112,22 @@ impl Module {
     /// Check if this module has been parsed (has AST content).
     pub fn is_parsed(&self) -> bool {
         !self.ast.roots.is_empty() || !self.ast.tree.is_empty()
+    }
+
+    /// Reset the module for recompilation.
+    /// Clears AST, DIR, and MIR data, increments version, and updates source_version.
+    pub fn reset(&mut self, new_source_version: FileVersion) {
+        // nocheckin #Suspicious: revisit Module::reset
+        self.version = self.version.next();
+        self.source_version = new_source_version;
+        self.ast = ModuleAst::new(self.id);
+        self.dir = ModuleDir::new(self.id);
+        self.mir = ModuleMir::new(self.id);
+    }
+
+    /// Check if this module is stale (source file has changed since compilation).
+    pub fn is_stale(&self, file_version: FileVersion) -> bool {
+        self.source_version != file_version
     }
 }
 

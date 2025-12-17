@@ -7,7 +7,8 @@ use destack_base::StringPool;
 use destack_dir::{NodeTree as DirTree, SymbolTable, TypeTable};
 use destack_source::FileType;
 use destack_workspace::{
-    Artifact, ArtifactContent, ArtifactId, ArtifactScope, Module, OutputFormat, Target,
+    Artifact, ArtifactContent, ArtifactId, ArtifactScope, ArtifactVersion, Module, OutputFormat,
+    Target,
 };
 
 use crate::tree::NodeTree as JsTree;
@@ -199,6 +200,7 @@ impl<'a> ModuleLowerer<'a> {
 
             let artifact = Artifact {
                 id: registry_next_id(),
+                version: ArtifactVersion::INITIAL,
                 scope: ArtifactScope::Module(self.module.id),
                 target: self.target.name.clone(),
                 uri,

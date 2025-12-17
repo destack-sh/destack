@@ -212,9 +212,11 @@ impl Program {
         let root_module_id = ModuleId::EPHEMERAL;
         let root_module_ast =
             ModuleAst::from_tree(root_module_id, root_ast, Vec::new(), StringPool::new());
+        let root_file = files.get(root_file_id);
         let root_module = Module::from_ast(
             root_module_id,
             root_file_id,
+            root_file.version,
             root_uri,
             None,
             root_package_id,
@@ -242,6 +244,7 @@ impl Program {
             .and_then(|p| p.file_name().map(|n| n.to_string_lossy().into_owned()))
             .unwrap_or_else(|| "<string>".to_string());
         let file = File::from_text(file_id, name, uri.clone(), None, ty, content);
+        let file_version = file.version;
         self.files.insert(file);
 
         // use ephemeral package for inline content
@@ -256,6 +259,7 @@ impl Program {
         let module = Module::blank(
             module_id,
             file_id,
+            file_version,
             uri,
             None,
             package_id,
