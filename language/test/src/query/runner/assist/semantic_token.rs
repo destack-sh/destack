@@ -50,10 +50,7 @@ fn run_with_expectation(
     if content.is_empty() {
         let formatted = format_tokens(session, tokens);
         return TestResult::Failed {
-            message: format!(
-                "semantic_tokens expectation is empty, got:\n{}",
-                formatted
-            ),
+            message: format!("semantic_tokens expectation is empty, got:\n{formatted}",),
         };
     }
 
@@ -64,7 +61,7 @@ fn run_with_expectation(
         } else {
             let formatted = format_tokens(session, tokens);
             TestResult::Failed {
-                message: format!("semantic_tokens expected no tokens, got:\n{}", formatted),
+                message: format!("semantic_tokens expected no tokens, got:\n{formatted}"),
             }
         };
     }
@@ -78,7 +75,7 @@ fn run_with_expectation(
 
     if expected.is_empty() {
         return TestResult::Failed {
-            message: format!("failed to parse any expected tokens from:\n{}", content),
+            message: format!("failed to parse any expected tokens from:\n{content}"),
         };
     }
 
@@ -93,10 +90,9 @@ fn run_with_expectation(
         let formatted = format_tokens(session, tokens);
         return TestResult::Failed {
             message: format!(
-                "semantic_tokens count mismatch: expected {}, got {}\nActual:\n{}",
+                "semantic_tokens count mismatch: expected {}, got {}\nActual:\n{formatted}",
                 expected.len(),
                 actual.len(),
-                formatted
             ),
         };
     }
@@ -122,10 +118,7 @@ fn run_with_expectation(
         for modifier in &exp.modifiers {
             if !act.modifiers.contains(modifier) {
                 return TestResult::Failed {
-                    message: format!(
-                        "token '{}' missing modifier: {:?}",
-                        exp.text, modifier
-                    ),
+                    message: format!("token '{}' missing modifier: {:?}", exp.text, modifier),
                 };
             }
         }
@@ -229,7 +222,10 @@ fn parse_modifier(s: &str) -> Option<SemanticTokenModifiers> {
 }
 
 /// Convert an actual token to ExpectedToken for comparison.
-fn token_to_expected(session: &QueryTestSession, token: &query::SemanticToken) -> Option<ExpectedToken> {
+fn token_to_expected(
+    session: &QueryTestSession,
+    token: &query::SemanticToken,
+) -> Option<ExpectedToken> {
     let start = token.span.start as usize;
     let end = token.span.end as usize;
     let text = session.source.get(start..end)?.to_string();

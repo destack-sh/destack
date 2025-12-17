@@ -1,6 +1,10 @@
+use destack_dir::{GlobalSymbolId, SymbolType};
 use destack_source::{FileId, Span};
 
 use crate::Session;
+use crate::query::common::{
+    find_symbol_at_offset, get_canonical_symbol, get_symbol_definition_span,
+};
 
 /// An item in the type hierarchy.
 #[derive(Debug, Clone)]
@@ -17,6 +21,8 @@ pub struct TypeHierarchyItem {
     pub range: Span,
     /// The range of the type's name.
     pub selection_range: Span,
+    /// The symbol ID (internal use for follow-up queries).
+    pub symbol_id: GlobalSymbolId,
 }
 
 /// Kind of type hierarchy item.
@@ -29,18 +35,64 @@ pub enum TypeHierarchyKind {
     TypeAlias,
 }
 
+impl TypeHierarchyKind {
+    /// Convert from SymbolType if it's a type kind.
+    fn from_symbol_type(ty: SymbolType) -> Option<Self> {
+        match ty {
+            SymbolType::Class => Some(Self::Class),
+            SymbolType::Interface => Some(Self::Interface),
+            SymbolType::Struct => Some(Self::Struct),
+            SymbolType::Enum => Some(Self::Enum),
+            SymbolType::TypeAlias => Some(Self::TypeAlias),
+            _ => None,
+        }
+    }
+}
+
 /// Prepare a type hierarchy item at the given position.
 ///
 /// Returns the item if the position is on a type.
 pub fn prepare_type_hierarchy(
-    _session: &Session,
-    _file: FileId,
-    _offset: u32,
+    session: &Session,
+    file: FileId,
+    offset: u32,
 ) -> Option<TypeHierarchyItem> {
-    // 1. find the symbol at offset
-    // 2. check if it's a type (class, interface, struct, enum)
-    // 3. return TypeHierarchyItem with its info
-    todo!("#Incomplete: prepare_type_hierarchy")
+    // find the symbol at offset
+    let symbol_at = find_symbol_at_offset(session, file, offset)?;
+    let canonical_id = get_canonical_symbol(session, symbol_at.symbol_id);
+
+    // check if it's a type
+    let module = session.modules.get(canonical_id.module_id);
+    let module_guard = module.read();
+    let symbols = module_guard.dir.symbols.read();
+    let symbol = symbols.get_symbol(canonical_id.local_id);
+
+    let kind = TypeHierarchyKind::from_symbol_type(symbol.ty)?;
+
+    // get the name
+    let name = symbol
+        .name()
+        .map(|id| module_guard.ast.strings.get(id).to_string())?;
+
+    drop(symbols);
+    drop(module_guard);
+
+    // get the definition span
+    let selection_range = get_symbol_definition_span(session, canonical_id)?;
+
+    // for full range, we'd ideally get the entire declaration
+    // for now, use selection_range as both
+    let range = selection_range;
+
+    Some(TypeHierarchyItem {
+        name,
+        kind,
+        detail: None,
+        file: selection_range.file,
+        range,
+        selection_range,
+        symbol_id: canonical_id,
+    })
 }
 
 /// Get supertypes of a type hierarchy item.
@@ -48,23 +100,101 @@ pub fn prepare_type_hierarchy(
 /// For classes: base class and implemented interfaces.
 /// For interfaces: extended interfaces.
 /// For structs: implemented interfaces.
-pub fn supertypes(_session: &Session, _item: &TypeHierarchyItem) -> Vec<TypeHierarchyItem> {
-    // 1. get the type's declaration
-    // 2. collect:
-    //    - for class: extends clause, implements clause
-    //    - for interface: extends clause
-    //    - for struct: implements clause
-    // 3. resolve each to its declaration
-    todo!("#Incomplete: supertypes")
+pub fn supertypes(session: &Session, item: &TypeHierarchyItem) -> Vec<TypeHierarchyItem> {
+    let canonical_id = get_canonical_symbol(session, item.symbol_id);
+
+    // get the lineage for this type
+    let module = session.modules.get(canonical_id.module_id);
+    let module_guard = module.read();
+    let types = module_guard.dir.types.read();
+    let Some(lineage) = types.get_lineage_for_symbol(canonical_id) else {
+        return Vec::new();
+    };
+
+    // collect supertype symbol ids
+    let mut supertype_ids: Vec<GlobalSymbolId> = Vec::new();
+
+    // add extended type (parent class or extended interface)
+    if let Some(extends_id) = lineage.extends {
+        supertype_ids.push(extends_id);
+    }
+
+    // add implemented interfaces
+    supertype_ids.extend(lineage.implements.iter().copied());
+
+    // add embedded types (for structs with composition)
+    supertype_ids.extend(lineage.embedded.iter().copied());
+
+    drop(types);
+    drop(module_guard);
+
+    // convert to TypeHierarchyItems
+    supertype_ids
+        .into_iter()
+        .filter_map(|symbol_id| type_hierarchy_item_from_symbol(session, symbol_id))
+        .collect()
 }
 
 /// Get subtypes of a type hierarchy item.
 ///
 /// For classes: subclasses.
 /// For interfaces: implementing types and extending interfaces.
-pub fn subtypes(_session: &Session, _item: &TypeHierarchyItem) -> Vec<TypeHierarchyItem> {
-    // 1. search all types in the workspace
-    // 2. for each type, check if it extends/implements this type
-    // 3. return matching types
-    todo!("#Incomplete: subtypes")
+pub fn subtypes(session: &Session, item: &TypeHierarchyItem) -> Vec<TypeHierarchyItem> {
+    let canonical_id = get_canonical_symbol(session, item.symbol_id);
+
+    // collect all subtype symbol ids first, then convert
+    let mut subtype_ids: Vec<GlobalSymbolId> = Vec::new();
+
+    // search all modules for types that extend/implement this type
+    for module in session.modules.iter() {
+        let module_guard = module.read();
+        let types = module_guard.dir.types.read();
+
+        for (symbol_id, lineage) in types.iter_lineages() {
+            // check if this type extends or implements our target
+            let is_subtype = lineage.directly_extends(canonical_id)
+                || lineage.directly_implements(canonical_id)
+                || lineage.directly_embeds(canonical_id);
+
+            if is_subtype {
+                subtype_ids.push(symbol_id);
+            }
+        }
+    }
+
+    // convert to TypeHierarchyItems
+    subtype_ids
+        .into_iter()
+        .filter_map(|symbol_id| type_hierarchy_item_from_symbol(session, symbol_id))
+        .collect()
+}
+
+/// Convert a symbol ID to a TypeHierarchyItem.
+pub fn type_hierarchy_item_from_symbol(
+    session: &Session,
+    symbol_id: GlobalSymbolId,
+) -> Option<TypeHierarchyItem> {
+    let module = session.modules.get(symbol_id.module_id);
+    let module_guard = module.read();
+    let symbols = module_guard.dir.symbols.read();
+    let symbol = symbols.get_symbol(symbol_id.local_id);
+    let kind = TypeHierarchyKind::from_symbol_type(symbol.ty)?;
+    let name = symbol
+        .name()
+        .map(|id| module_guard.ast.strings.get(id).to_string())?;
+
+    drop(symbols);
+    drop(module_guard);
+
+    let selection_range = get_symbol_definition_span(session, symbol_id)?;
+
+    Some(TypeHierarchyItem {
+        name,
+        kind,
+        detail: None,
+        file: selection_range.file,
+        range: selection_range,
+        selection_range,
+        symbol_id,
+    })
 }

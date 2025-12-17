@@ -63,7 +63,9 @@ impl Parser {
         self.eat_token(TokenType::At)?;
 
         // receiver
-        let (left, left_span) = self.eat_path_with_span().for_node_type(NodeType::Decorator)?;
+        let (left, left_span) = self
+            .eat_path_with_span()
+            .for_node_type(NodeType::Decorator)?;
 
         // arguments
         let arguments = if self.peek_token(TokenType::OpenParenthesis).is_ok() {

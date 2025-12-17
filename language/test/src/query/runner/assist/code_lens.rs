@@ -43,7 +43,7 @@ fn run_with_expectation(exp: &QueryExpectation, lenses: &[query::CodeLens]) -> T
         } else {
             let formatted = format_lenses(lenses);
             TestResult::Failed {
-                message: format!("code_lenses expected no lenses, got:\n{}", formatted),
+                message: format!("code_lenses expected no lenses, got:\n{formatted}"),
             }
         };
     }
@@ -76,10 +76,7 @@ fn run_with_expectation(exp: &QueryExpectation, lenses: &[query::CodeLens]) -> T
     for (i, (exp_title, act_title)) in expected.iter().zip(actual.iter()).enumerate() {
         if *exp_title != act_title {
             return TestResult::Failed {
-                message: format!(
-                    "lens {} mismatch: expected '{}', got '{}'",
-                    i, exp_title, act_title
-                ),
+                message: format!("lens {i} mismatch: expected '{exp_title}', got '{act_title}'"),
             };
         }
     }

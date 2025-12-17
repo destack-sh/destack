@@ -92,6 +92,7 @@ pub fn code_actions(
     _range: Span,
     _context: &CodeActionContext,
 ) -> Vec<CodeAction> {
+    // NOTE #Incomplete: code_actions
     // 1. get diagnostics that overlap with range
     // 2. collect quick fixes from those diagnostics (from linter)
     // 3. check for available refactorings at this location:
@@ -100,5 +101,5 @@ pub fn code_actions(
     //    - inline variable (if on variable reference)
     //    - organize imports (if in imports section)
     // 4. filter by context.only if specified
-    todo!("#Incomplete: code_actions")
+    Vec::new()
 }
