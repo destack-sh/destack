@@ -260,7 +260,7 @@ struct Err<E> { kind: 'err' = 'err', error: E }
 newtype Result<T, E> = Ok<T> | Err<E>
 ```
 
-Since `Result` is now a newtype, it can be extended with methods:
+Since `Result` is a nominal type, it can be extended with methods:
 
 ```
 extension<T, E> for Result<T, E> {

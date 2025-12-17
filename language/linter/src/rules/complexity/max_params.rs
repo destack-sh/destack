@@ -18,15 +18,14 @@ declare_lint! {
     "Limit function parameters"
 }
 
-/// Default maximum number of parameters.
-const DEFAULT_MAX_PARAMS: usize = 4;
-
 impl LintRule for MaxParams {
     fn meta(&self) -> &'static crate::LintMeta {
         MaxParams::meta()
     }
 
     fn check_module_ast<'a>(&self, severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+        let max_params = ctx.options.max_params;
+
         for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
             let ast::Expression::Declaration(decl_id) = ctx.tree.get(node_id) else {
                 continue;
@@ -37,14 +36,14 @@ impl LintRule for MaxParams {
             };
 
             let param_count = signature.dynamic_parameters.len();
-            if param_count > DEFAULT_MAX_PARAMS {
+            if param_count > max_params {
                 ctx.report(
                     LintDiagnostic::new(
                         MAX_PARAMS.id,
                         MAX_PARAMS.code,
                         MAX_PARAMS.category,
                         severity,
-                        format!("function has {param_count} parameters (max {DEFAULT_MAX_PARAMS})"),
+                        format!("function has {param_count} parameters (max {max_params})"),
                         ctx.module.file_id,
                         ctx.tree.get_span(node_id),
                     )
