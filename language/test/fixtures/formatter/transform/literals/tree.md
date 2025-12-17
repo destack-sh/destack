@@ -169,19 +169,21 @@ Fragment syntax groups elements without a wrapper.
 </>;
 ```
 
-## Hugging
+## Attribute Values
 
-### attribute with object value hugs
+### attribute with object value breaks with element
 
-When an object attribute value expands, the braces should hug.
+When an attribute value doesn't fit, the whole element breaks to multi-line format.
 
 ```ds line-width=30
 <Button style={{ color: "red", fontSize: 14 }} />
 ```
 
 ```ds expected
-<Button style={{
-    color: "red",
-    fontSize: 14,
-}} />;
+<Button
+    style={{
+        color: "red",
+        fontSize: 14,
+    }}
+/>;
 ```

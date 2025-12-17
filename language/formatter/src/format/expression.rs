@@ -48,7 +48,8 @@ impl<'ast> Format<DestackFormatContext<'ast>> for TreeExpressionArgument {
                     if is_string_literal {
                         write!(f, [token("="), value])?;
                     } else {
-                        write!(f, [token("="), token("{"), value, token("}")])?;
+                        // try hugged format for object/array attribute values
+                        format_tree_attribute_value(f, *value)?;
                     }
                 }
             }
@@ -408,6 +409,102 @@ fn format_hugged<'ast>(
         .format(f)?;
 
     Ok(true)
+}
+
+/// Format a tree/JSX attribute value with hugging for objects/arrays.
+///
+/// Uses `fits_expanded` so inner breaks don't cause the outer tree element to break.
+fn format_tree_attribute_value<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    value_id: LocalNodeId<Expression>,
+) -> FormatResult<()> {
+    let tree = f.context().tree;
+    let value_expr = tree.get(value_id);
+
+    match value_expr {
+        Expression::ObjectExpression { ty, properties } => {
+            let ty = *ty;
+            let properties = properties.clone();
+
+            // inline: ={value} all on one line
+            let inline_format = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+                write!(f, [token("="), token("{"), value_id, token("}")])
+            });
+
+            // hugged: ={{ with expanded object contents then }}
+            // uses fits_expanded so the outer tree element doesn't break
+            let hugged_format = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+                write!(f, [
+                    token("="),
+                    token("{"),
+                    fits_expanded(&format_with(|f: &mut DestackFormatter<'ast, '_>| {
+                        if let Some(ty) = ty {
+                            write!(f, [ty, space()])?;
+                        }
+                        write!(f, [
+                            group(&format_with(|f: &mut DestackFormatter<'ast, '_>| {
+                                write!(f, [
+                                    token("{"),
+                                    block_indent(&format_with(|f: &mut DestackFormatter<'ast, '_>| {
+                                        f.join_with(&format_args![token(","), soft_line_break_or_space()])
+                                            .entries(&properties)
+                                            .finish()?;
+                                        write!(f, [if_group_breaks(&token(","))])
+                                    })),
+                                    token("}")
+                                ])
+                            })).should_expand(true)
+                        ])
+                    })),
+                    token("}")
+                ])
+            });
+
+            best_fitting![inline_format, hugged_format]
+                .with_mode(BestFittingMode::AllLines)
+                .format(f)?;
+        }
+        Expression::ArrayExpression { elements } => {
+            let elements = elements.clone();
+
+            // inline: ={value} all on one line
+            let inline_format = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+                write!(f, [token("="), token("{"), value_id, token("}")])
+            });
+
+            // hugged: ={[ with expanded array contents then ]}
+            // uses fits_expanded so the outer tree element doesn't break
+            let hugged_format = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+                write!(f, [
+                    token("="),
+                    token("{"),
+                    fits_expanded(&group(&format_with(|f: &mut DestackFormatter<'ast, '_>| {
+                        write!(f, [
+                            token("["),
+                            block_indent(&format_with(|f: &mut DestackFormatter<'ast, '_>| {
+                                f.join_with(&format_args![token(","), soft_line_break_or_space()])
+                                    .entries(&elements)
+                                    .finish()?;
+                                write!(f, [if_group_breaks(&token(","))])
+                            })),
+                            token("]")
+                        ])
+                    })).should_expand(true)),
+                    token("}")
+                ])
+            });
+
+            best_fitting![inline_format, hugged_format]
+                .with_mode(BestFittingMode::AllLines)
+                .format(f)?;
+        }
+        _ => {
+            // regular format for non-huggable values
+            write!(f, [token("="), token("{"), value_id, token("}")])?;
+        }
+    }
+
+    Ok(())
 }
 
 /// Returns the precedence group for a binary operator.
@@ -2323,18 +2420,17 @@ mod tests {
 
     #[test]
     fn test_format_expression_tree_literal_with_array_of_struct_element() {
+        // array attribute values hug: <Menu items={[...]} />
         let source = r#"<Menu
     items=[
         { to: "/posts" },
         { to: "/posts/$postId", params: { postId: "postId" } },
     ]
 />"#;
-        let expected = r#"<Menu
-    items={[
+        let expected = r#"<Menu items={[
         { to: "/posts" },
         { to: "/posts/$postId", params: { postId: "postId" } },
-    ]}
-/>"#;
+    ]} />"#;
         assert_format!(
             source,
             expected,
