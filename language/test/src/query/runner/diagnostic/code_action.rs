@@ -61,8 +61,7 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> T
         let action_titles: Vec<_> = actions.iter().map(|a| a.title.clone()).collect();
         return TestResult::Failed {
             message: format!(
-                "no code action with title containing '{}'\navailable: {:?}",
-                content, action_titles
+                "no code action with title containing '{content}'\navailable: {action_titles:?}"
             ),
         };
     }

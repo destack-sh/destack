@@ -9,6 +9,7 @@ pub mod expression;
 pub mod extension;
 pub mod function;
 pub mod r#if;
+pub mod imports;
 pub mod interface;
 pub mod key;
 pub mod r#let;

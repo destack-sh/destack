@@ -63,6 +63,11 @@ pub(super) fn run(test: &MdTestCase) -> TestResult {
     {
         formatter_options = formatter_options.with_single_attribute_per_line(value);
     }
+    if let Some(organize_imports) = input_file.options.get("organize-imports")
+        && let Some(value) = destack_workspace::OrganizeImports::parse(organize_imports)
+    {
+        formatter_options = formatter_options.with_organize_imports(value);
+    }
 
     // set up program context
     let cwd = std::env::current_dir().unwrap_or_default();

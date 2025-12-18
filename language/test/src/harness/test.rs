@@ -84,7 +84,7 @@ pub struct TestCase {
     pub category: String,
     /// Kind of test (file or directory).
     pub kind: TestKind,
-    /// Minimum severity that causes test failure (default: Warning).
+    /// Minimum severity that causes test failure.
     pub min_fail_severity: DiagnosticSeverity,
     /// Whether this test is marked as skipped (e.g., prefixed with `_`).
     pub is_skipped: bool,

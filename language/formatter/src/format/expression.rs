@@ -1,3 +1,5 @@
+use std::cmp::Ordering;
+
 use destack_ast::{
     Argument, Asynchrony, BinaryOperator, Declaration, Declarator, DependencyItem, DependencyKind,
     DependencyMode, Expression, ForEachKind, IfKind, Keyword, LetKind, LocalNodeId, NodeTree,
@@ -8,6 +10,7 @@ use destack_base::StringId;
 use destack_fir::format::{BestFittingMode, FormatError};
 use destack_fir::prelude::*;
 use destack_fir::{best_fitting, format_args, write};
+use destack_workspace::ImportSortOrder;
 use smallvec::{SmallVec, smallvec};
 
 use crate::argument::list_like;
@@ -16,6 +19,108 @@ use crate::literal::{format_scalar_literal, format_template_literal};
 use crate::{
     DestackFormatContext, DestackFormatter, FormatNode, empty_block_with_infix_annotations,
 };
+
+/// Compare two strings using natural sort order (numbers ordered as integers).
+/// Example: `"a1" < "a2" < "a10"` (not `"a1" < "a10" < "a2"`).
+fn natural_cmp(a: &str, b: &str) -> Ordering {
+    let mut a_chars = a.chars().peekable();
+    let mut b_chars = b.chars().peekable();
+
+    loop {
+        match (a_chars.peek(), b_chars.peek()) {
+            (None, None) => return Ordering::Equal,
+            (None, Some(_)) => return Ordering::Less,
+            (Some(_), None) => return Ordering::Greater,
+            (Some(ac), Some(bc)) => {
+                // both are digits: compare as numbers
+                if ac.is_ascii_digit() && bc.is_ascii_digit() {
+                    let mut a_num: u64 = 0;
+                    while let Some(&c) = a_chars.peek()
+                        && c.is_ascii_digit()
+                    {
+                        a_num = a_num
+                            .saturating_mul(10)
+                            .saturating_add((c as u64) - ('0' as u64));
+                        a_chars.next();
+                    }
+                    let mut b_num: u64 = 0;
+                    while let Some(&c) = b_chars.peek()
+                        && c.is_ascii_digit()
+                    {
+                        b_num = b_num
+                            .saturating_mul(10)
+                            .saturating_add((c as u64) - ('0' as u64));
+                        b_chars.next();
+                    }
+                    match a_num.cmp(&b_num) {
+                        Ordering::Equal => continue,
+                        other => return other,
+                    }
+                }
+
+                // compare characters case-insensitively
+                let ac_lower = ac.to_ascii_lowercase();
+                let bc_lower = bc.to_ascii_lowercase();
+                match ac_lower.cmp(&bc_lower) {
+                    Ordering::Equal => {
+                        // same letter different case: uppercase comes first
+                        match ac.cmp(bc) {
+                            Ordering::Equal => {
+                                a_chars.next();
+                                b_chars.next();
+                            }
+                            other => return other,
+                        }
+                    }
+                    other => return other,
+                }
+            }
+        }
+    }
+}
+
+/// Sort dependency items (import/export specifiers) according to the given sort order.
+fn sort_dependency_items(
+    items: &[LocalNodeId<DependencyItem>],
+    tree: &NodeTree,
+    strings: &destack_base::ImmutableStringPool,
+    sort_order: ImportSortOrder,
+) -> Vec<LocalNodeId<DependencyItem>> {
+    let mut sorted: Vec<_> = items.to_vec();
+
+    sorted.sort_by(|a, b| {
+        let a_item = tree.get(*a);
+        let b_item = tree.get(*b);
+
+        // type imports come before value imports
+        let a_is_type = a_item.kind == Some(DependencyKind::Type);
+        let b_is_type = b_item.kind == Some(DependencyKind::Type);
+        match (a_is_type, b_is_type) {
+            (true, false) => return Ordering::Less,
+            (false, true) => return Ordering::Greater,
+            _ => {}
+        }
+
+        // sort key: use alias if present, otherwise name
+        let a_key = a_item
+            .alias
+            .or(a_item.name)
+            .map(|s| strings.get(s))
+            .unwrap_or("");
+        let b_key = b_item
+            .alias
+            .or(b_item.name)
+            .map(|s| strings.get(s))
+            .unwrap_or("");
+
+        match sort_order {
+            ImportSortOrder::Natural => natural_cmp(a_key, b_key),
+            ImportSortOrder::Alphabetical => a_key.cmp(b_key),
+        }
+    });
+
+    sorted
+}
 
 /// Tree fragment argument (with `=` instead of `: `)
 #[derive(Debug, Clone, PartialEq)]
@@ -1676,6 +1781,9 @@ pub(crate) fn format_expression<'ast>(
             items,
             arguments,
         } => {
+            let organize = f.context().options.organize_imports.is_enabled();
+            let sort_order = f.context().options.import_sort_order;
+
             // keyword
             write!(f, [Keyword::Import, space()])?;
             if *kind == DependencyKind::Type {
@@ -1709,10 +1817,21 @@ pub(crate) fn format_expression<'ast>(
                         items.iter().skip(1).copied().collect();
                     write!(f, [first_item.alias])?;
                     if !rest_items.is_empty() {
+                        // sort rest items if organize_imports is enabled
+                        let sorted_rest = if organize {
+                            sort_dependency_items(
+                                &rest_items,
+                                tree,
+                                f.context().strings,
+                                sort_order,
+                            )
+                        } else {
+                            rest_items
+                        };
                         write!(f, [token(","), space()])?;
                         write!(
                             f,
-                            [list_like("{", "}", ",", &rest_items)
+                            [list_like("{", "}", ",", &sorted_rest)
                                 .as_collection()
                                 .include_space(),]
                         )?;
@@ -1720,9 +1839,15 @@ pub(crate) fn format_expression<'ast>(
                 }
                 // items
                 else if !items.is_empty() {
+                    // sort items if organize_imports is enabled
+                    let sorted_items = if organize {
+                        sort_dependency_items(items, tree, f.context().strings, sort_order)
+                    } else {
+                        items.to_vec()
+                    };
                     write!(
                         f,
-                        [list_like("{", "}", ",", items)
+                        [list_like("{", "}", ",", &sorted_items)
                             .as_collection()
                             .include_space()]
                     )?;
@@ -1759,6 +1884,9 @@ pub(crate) fn format_expression<'ast>(
             target,
             items,
         } => {
+            let organize = f.context().options.organize_imports.is_enabled();
+            let sort_order = f.context().options.import_sort_order;
+
             // keyword
             write!(f, [Keyword::Export, space()])?;
             if *kind == DependencyKind::Type {
@@ -1767,6 +1895,7 @@ pub(crate) fn format_expression<'ast>(
 
             // items
             let first_item = items.first().map(|item| tree.get(*item));
+
             // default export with value (export default <expression>)
             if items.len() == 1
                 && first_item.is_some_and(|item| {
@@ -1793,9 +1922,15 @@ pub(crate) fn format_expression<'ast>(
             }
             // items
             else if !items.is_empty() {
+                // sort items if organize_imports is enabled
+                let sorted_items = if organize {
+                    sort_dependency_items(items, tree, f.context().strings, sort_order)
+                } else {
+                    items.to_vec()
+                };
                 write!(
                     f,
-                    [list_like("{", "}", ",", items)
+                    [list_like("{", "}", ",", &sorted_items)
                         .as_collection()
                         .include_space()]
                 )?;

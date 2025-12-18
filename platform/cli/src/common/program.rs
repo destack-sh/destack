@@ -6,7 +6,9 @@ use std::thread;
 use clap::{Args, ValueEnum};
 use destack_resolver::{ResolveOptions, Resolver};
 use destack_source::{FileSystem, IndentStyle, LineEnding, PhysicalFileSystem};
-use destack_workspace::{FormatterOptions, LinterOptions, Session, TsConfigRegistry};
+use destack_workspace::{
+    FormatterOptions, ImportSortOrder, LinterOptions, OrganizeImports, Session, TsConfigRegistry,
+};
 
 /// Get the default number of worker threads (available parallelism, or 1 if unknown).
 pub fn default_workers() -> u16 {
@@ -56,6 +58,44 @@ impl From<LineEndingArg> for LineEnding {
     }
 }
 
+/// Whether to organize imports.
+#[derive(Clone, Copy, Debug, Default, ValueEnum)]
+pub enum OrganizeImportsArg {
+    /// Organize imports: sort statements by group and specifiers alphabetically.
+    On,
+    /// Don't reorder imports (preserve original order).
+    #[default]
+    Off,
+}
+
+impl From<OrganizeImportsArg> for OrganizeImports {
+    fn from(value: OrganizeImportsArg) -> Self {
+        match value {
+            OrganizeImportsArg::On => OrganizeImports::On,
+            OrganizeImportsArg::Off => OrganizeImports::Off,
+        }
+    }
+}
+
+/// Sort order for import specifiers.
+#[derive(Clone, Copy, Debug, Default, ValueEnum)]
+pub enum ImportSortOrderArg {
+    /// Natural sort: numbers ordered as integers (a1 < a2 < a10).
+    #[default]
+    Natural,
+    /// Alphabetical/lexicographic sort (a1 < a10 < a2).
+    Alphabetical,
+}
+
+impl From<ImportSortOrderArg> for ImportSortOrder {
+    fn from(value: ImportSortOrderArg) -> Self {
+        match value {
+            ImportSortOrderArg::Natural => ImportSortOrder::Natural,
+            ImportSortOrderArg::Alphabetical => ImportSortOrder::Alphabetical,
+        }
+    }
+}
+
 /// Arguments for configuring formatter options.
 #[derive(Args, Debug, Clone, Default)]
 pub struct FormatterOptionsArgs {
@@ -63,7 +103,7 @@ pub struct FormatterOptionsArgs {
     #[arg(long = "indent-style", value_enum)]
     pub indent_style: Option<IndentStyleArg>,
 
-    /// The indent width in spaces (default: 4).
+    /// The indent width in spaces.
     #[arg(long = "indent-width")]
     pub indent_width: Option<u8>,
 
@@ -74,6 +114,14 @@ pub struct FormatterOptionsArgs {
     /// The maximum line width (default: 100).
     #[arg(long = "line-width")]
     pub line_width: Option<u16>,
+
+    /// Whether to organize imports (on|off, default: off).
+    #[arg(long = "organize-imports", value_enum)]
+    pub organize_imports: Option<OrganizeImportsArg>,
+
+    /// Sort order for import specifiers (natural|alphabetical, default: natural).
+    #[arg(long = "import-sort-order", value_enum)]
+    pub import_sort_order: Option<ImportSortOrderArg>,
 }
 
 impl From<FormatterOptionsArgs> for FormatterOptions {
@@ -90,6 +138,12 @@ impl From<FormatterOptionsArgs> for FormatterOptions {
         }
         if let Some(width) = args.line_width {
             options.line_width = width;
+        }
+        if let Some(organize) = args.organize_imports {
+            options.organize_imports = organize.into();
+        }
+        if let Some(sort_order) = args.import_sort_order {
+            options.import_sort_order = sort_order.into();
         }
         options
     }
