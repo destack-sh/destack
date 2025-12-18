@@ -17,14 +17,14 @@ use crate::query::{QueryExpectation, QueryTestSession};
 /// ▶ Run test_foo
 /// ```
 pub fn run(session: &QueryTestSession, expectation: Option<&QueryExpectation>) -> TestResult {
+    let Some(exp) = expectation else {
+        return TestResult::Skipped {
+            reason: "no code_lens expectation defined".to_string(),
+        };
+    };
+
     let lenses = query::code_lenses(&session.session, session.file_id);
-
-    if let Some(exp) = expectation {
-        return run_with_expectation(exp, &lenses);
-    }
-
-    // no expectation - just pass if we didn't crash
-    TestResult::Passed
+    run_with_expectation(exp, &lenses)
 }
 
 /// Run with markdown expectation.

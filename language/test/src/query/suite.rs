@@ -256,6 +256,9 @@ fn dispatch_query(
         "goto_definition" | "definition" => {
             runner::navigation::definition::run(session, expectation)
         }
+        "goto_type_definition" | "type_definition" => {
+            runner::navigation::definition::run_type_definition(session, expectation)
+        }
         "find_references" | "references" => {
             runner::navigation::find_references::run(session, expectation)
         }

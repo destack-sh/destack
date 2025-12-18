@@ -1,7 +1,8 @@
-use destack_dir::{Declaration, Expression, GlobalSymbolId, NodeType, Parameter};
+use destack_dir::{Declaration, Declarator, Expression, GlobalSymbolId, NodeType, Parameter, Pattern};
 use destack_source::{FileId, Span};
 
 use crate::Session;
+use crate::format::format_type;
 use crate::query::common::get_module_by_file_id;
 
 /// Kind of inlay hint.
@@ -62,9 +63,11 @@ pub fn inlay_hints(session: &Session, file: FileId, range: Span) -> Vec<InlayHin
     };
 
     let module_guard = module.read();
+    let module_id = module_guard.id;
     let dir_tree = module_guard.dir.tree.read();
+    let types = module_guard.dir.types.read();
 
-    // 2. iterate through all call expressions
+    // 2. iterate through all call expressions for parameter hints
     for (expression_id, expression) in dir_tree.iter_nodes_of_type::<Expression>() {
         // check if this is a call expression
         let Expression::Call {
@@ -115,6 +118,41 @@ pub fn inlay_hints(session: &Session, file: FileId, range: Span) -> Vec<InlayHin
                 .unwrap_or_else(|| format!("arg{index}"));
 
             hints.push(InlayHint::parameter_hint(arg_span.start, param_name));
+        }
+    }
+
+    // 3. iterate through all declarators for type hints
+    for (_declarator_id, declarator) in dir_tree.iter_nodes_of_type::<Declarator>() {
+        // skip if already has explicit type annotation
+        if declarator.ty.is_some() {
+            continue;
+        }
+
+        // get the pattern to find its span and symbol
+        let pattern = dir_tree.get::<Pattern>(declarator.pattern);
+        if let Pattern::Binding { symbol, .. } = pattern {
+            // get the span of the binding name
+            let ast_node_id = dir_tree.get_source(declarator.pattern.id);
+            let pattern_span = module_guard.ast.tree.source_map.get(ast_node_id);
+
+            // skip if outside the requested range
+            if pattern_span.end < range.start || pattern_span.start > range.end {
+                continue;
+            }
+
+            // try to get the value type for this symbol
+            let global_symbol_id = GlobalSymbolId {
+                module_id,
+                local_id: *symbol,
+            };
+
+            if let Some(type_id) = types.get_value_type_id(global_symbol_id) {
+                let ty = types.get_type(type_id);
+                let type_str = format_type(ty, &types, &session.modules, &session.strings);
+
+                // add type hint after the pattern
+                hints.push(InlayHint::type_hint(pattern_span.end, type_str));
+            }
         }
     }
 

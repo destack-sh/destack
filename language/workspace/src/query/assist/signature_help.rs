@@ -1,8 +1,9 @@
-use destack_dir::{Declaration, Expression, GlobalSymbolId, NodeType, Parameter};
+use destack_dir::{Argument, Declaration, Expression, GlobalSymbolId, NodeType, Parameter};
 use destack_source::FileId;
 
 use crate::Session;
 use crate::query::common::get_module_by_file_id;
+use crate::Module;
 
 /// A parameter in a signature.
 #[derive(Debug, Clone)]
@@ -162,8 +163,9 @@ pub fn signature_help(session: &Session, file: FileId, offset: u32) -> Option<Si
                 signature = signature.with_parameter(param);
             }
 
-            // determine active parameter (NOTE #Broken: assume first for now)
-            let active_parameter = 0;
+            // determine active parameter based on cursor position
+            let active_parameter =
+                determine_active_parameter(&module_guard, &dir_tree, dynamic_arguments, offset);
 
             return Some(SignatureHelp::single(signature, active_parameter));
         }
@@ -233,4 +235,61 @@ fn get_function_parameters(
     (0..count)
         .map(|i| ParameterInfo::new(format!("arg{i}")))
         .collect()
+}
+
+/// Determine which parameter is active based on cursor position.
+///
+/// Counts how many arguments come before the cursor position.
+fn determine_active_parameter(
+    module: &Module,
+    dir_tree: &destack_dir::NodeTree,
+    arguments: &[destack_dir::LocalNodeId<Argument>],
+    cursor_offset: u32,
+) -> usize {
+    // if no arguments, we're on parameter 0
+    if arguments.is_empty() {
+        return 0;
+    }
+
+    // find which argument the cursor is in or after
+    let mut active_param = 0;
+
+    for (idx, arg_id) in arguments.iter().enumerate() {
+        // get the argument's source span
+        let arg_node_id: destack_dir::LocalNodeIdAny = (*arg_id).into();
+        if let Some(span) = get_argument_span(module, dir_tree, arg_node_id) {
+            // if cursor is before this argument's start, we're on the previous parameter
+            if cursor_offset < span.start {
+                break;
+            }
+            // cursor is in or after this argument
+            active_param = idx;
+
+            // if cursor is within this argument, stop here
+            if cursor_offset <= span.end {
+                break;
+            }
+        }
+    }
+
+    active_param
+}
+
+/// Get the span of an argument node.
+fn get_argument_span(
+    module: &Module,
+    dir_tree: &destack_dir::NodeTree,
+    node_id: destack_dir::LocalNodeIdAny,
+) -> Option<destack_source::Span> {
+    // get the AST source id for this DIR node
+    let source_id = dir_tree.get_source(node_id.id);
+
+    // look up in AST source map
+    let ast_span = module.ast.tree.source_map.get(source_id);
+
+    Some(destack_source::Span::new(
+        module.file_id,
+        ast_span.start,
+        ast_span.end,
+    ))
 }

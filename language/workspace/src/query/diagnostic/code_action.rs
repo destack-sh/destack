@@ -1,4 +1,4 @@
-use destack_source::{BatchEdit, FileId, Span};
+use destack_source::{Applicability, BatchEdit, Edit, FileEdit, FileId, Span};
 
 use crate::Session;
 
@@ -36,6 +36,8 @@ pub struct CodeAction {
     pub is_preferred: bool,
     /// Whether this action is disabled (with reason).
     pub disabled_reason: Option<String>,
+    /// The diagnostic code this action fixes (if from a diagnostic).
+    pub diagnostic_code: Option<String>,
 }
 
 impl CodeAction {
@@ -47,6 +49,7 @@ impl CodeAction {
             edits,
             is_preferred: false,
             disabled_reason: None,
+            diagnostic_code: None,
         }
     }
 
@@ -58,6 +61,7 @@ impl CodeAction {
             edits,
             is_preferred: false,
             disabled_reason: None,
+            diagnostic_code: None,
         }
     }
 
@@ -72,6 +76,12 @@ impl CodeAction {
         self.disabled_reason = Some(reason.into());
         self
     }
+
+    /// Set the diagnostic code this action fixes.
+    pub fn with_diagnostic_code(mut self, code: impl Into<String>) -> Self {
+        self.diagnostic_code = Some(code.into());
+        self
+    }
 }
 
 /// Context for code action requests.
@@ -80,26 +90,93 @@ pub struct CodeActionContext {
     /// Requested action kinds (empty = all).
     pub only: Vec<CodeActionKind>,
     /// Whether to include disabled actions.
-    pub include_disabled: bool = false,
+    pub include_disabled: bool,
 }
 
 /// Get code actions for a range in a file.
 ///
 /// Includes quick fixes from diagnostics and available refactorings.
 pub fn code_actions(
-    _session: &Session,
-    _file: FileId,
-    _range: Span,
-    _context: &CodeActionContext,
+    session: &Session,
+    file: FileId,
+    range: Span,
+    context: &CodeActionContext,
 ) -> Vec<CodeAction> {
-    // NOTE #Incomplete: code_actions
-    // 1. get diagnostics that overlap with range
-    // 2. collect quick fixes from those diagnostics (from linter)
-    // 3. check for available refactorings at this location:
-    //    - extract variable (if expression selected)
-    //    - extract function (if statements selected)
-    //    - inline variable (if on variable reference)
-    //    - organize imports (if in imports section)
-    // 4. filter by context.only if specified
-    Vec::new()
+    let mut actions = Vec::new();
+
+    // 1. collect quick fixes from diagnostics
+    collect_diagnostic_fixes(session, file, range, &mut actions);
+
+    // 2. filter by context.only if specified
+    if !context.only.is_empty() {
+        actions.retain(|a| context.only.contains(&a.kind));
+    }
+
+    // 3. filter out disabled unless requested
+    if !context.include_disabled {
+        actions.retain(|a| a.disabled_reason.is_none());
+    }
+
+    actions
+}
+
+/// Collect quick fixes from diagnostics that overlap with the range.
+fn collect_diagnostic_fixes(
+    session: &Session,
+    file: FileId,
+    range: Span,
+    actions: &mut Vec<CodeAction>,
+) {
+    // iterate through all programs to find diagnostics for this file
+    for program_ref in session.programs.iter() {
+        let program = program_ref.value();
+        let diagnostics = program.diagnostics.iter();
+
+        for diagnostic in diagnostics {
+            // skip diagnostics for other files
+            if diagnostic.file_id != file {
+                continue;
+            }
+
+            // check if diagnostic overlaps with the requested range
+            let diag_span = &diagnostic.primary_span.span;
+            if diag_span.end < range.start || diag_span.start > range.end {
+                continue;
+            }
+
+            // convert suggestions to code actions
+            if let Some(suggestions) = &diagnostic.suggestions {
+                for suggestion in suggestions {
+                    // skip non-automatic suggestions
+                    if suggestion.applicability != Applicability::Automatic {
+                        continue;
+                    }
+
+                    // create edit from suggestion
+                    let Some(replacement) = &suggestion.replacement else {
+                        continue;
+                    };
+
+                    // build the batch edit from suggestion spans
+                    let mut file_edit = FileEdit::new(file);
+                    for labeled_span in &suggestion.spans {
+                        file_edit.push(Edit::replace(labeled_span.span, replacement.clone()));
+                    }
+
+                    if file_edit.is_empty() {
+                        continue;
+                    }
+
+                    let mut batch_edit = BatchEdit::new();
+                    batch_edit.files.push(file_edit);
+
+                    let action = CodeAction::quick_fix(&suggestion.message, batch_edit)
+                        .with_diagnostic_code(&diagnostic.code)
+                        .preferred();
+
+                    actions.push(action);
+                }
+            }
+        }
+    }
 }

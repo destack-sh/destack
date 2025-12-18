@@ -24,10 +24,10 @@ pub fn run(session: &QueryTestSession, expectation: Option<&QueryExpectation>) -
     let range = Span::new(session.file_id, 0, session.source.len() as u32);
     let hints = query::inlay_hints(&session.session, session.file_id, range);
 
-    for exp in expected_hints {
+    for expected_hint in expected_hints {
         let found = hints
             .iter()
-            .any(|h| h.position == exp.offset && h.label.contains(&exp.label));
+            .any(|h| h.position == expected_hint.offset && h.label.contains(&expected_hint.label));
 
         if !found {
             let actual: Vec<_> = hints
@@ -37,7 +37,7 @@ pub fn run(session: &QueryTestSession, expectation: Option<&QueryExpectation>) -
             return TestResult::Failed {
                 message: format!(
                     "inlay_hint at offset {} with label '{}' not found\nactual: {:?}",
-                    exp.offset, exp.label, actual
+                    expected_hint.offset, expected_hint.label, actual
                 ),
             };
         }

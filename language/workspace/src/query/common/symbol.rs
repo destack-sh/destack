@@ -44,7 +44,7 @@ pub fn find_symbol_at_offset(
 
     // sort by length (smallest first) to get most specific node
     let mut enclosing = enclosing;
-    enclosing.sort_by_key(|e| e.length); // nocheckin #Suspicious: use source map sort?
+    enclosing.sort_by_key(|span| (span.length, -(span.idx as i64))); // "smallest outermost"
 
     // try each AST node from smallest to largest
     let dir_tree = module_guard.dir.tree.read();
