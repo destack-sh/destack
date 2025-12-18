@@ -1,6 +1,7 @@
-use destack_ast::{self as ast, Expression};
+use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
+use crate::rules::common::expression_has_side_effects;
 use crate::{LintDiagnostic, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {
@@ -61,12 +62,10 @@ impl LintRule for NoUnusedExpressions {
 fn check_expression_statement(
     ctx: &mut LintModuleAstContext<'_>,
     severity: LintSeverity,
-    expr_id: ast::LocalNodeId<Expression>,
+    expr_id: ast::LocalNodeId<ast::Expression>,
 ) {
-    let expression = ctx.tree.get(expr_id);
-
     // skip expressions that have side effects or are useful
-    if !has_side_effect(ctx, expression) {
+    if !expression_has_side_effects(ctx, expr_id) {
         ctx.report(
             LintDiagnostic::new(
                 NO_UNUSED_EXPRESSIONS.id,
@@ -79,78 +78,6 @@ fn check_expression_statement(
             )
             .with_label("this expression does nothing"),
         );
-    }
-}
-
-/// Return whether an expression has side effects.
-fn has_side_effect(ctx: &LintModuleAstContext<'_>, expression: &Expression) -> bool {
-    match expression {
-        // expressions with "side effects"
-        Expression::Declaration(_)
-        | Expression::Block(_)
-        | Expression::Labelled { .. }
-        | Expression::Let { .. }
-        | Expression::Assign { .. }
-        | Expression::Call { .. }
-        | Expression::New { .. }
-        | Expression::Delete { .. }
-        | Expression::Return { .. }
-        | Expression::Break { .. }
-        | Expression::Continue { .. }
-        | Expression::Throw { .. }
-        | Expression::For { .. }
-        | Expression::ForEach { .. }
-        | Expression::While { .. }
-        | Expression::Loop { .. }
-        | Expression::If { .. }
-        | Expression::Match { .. }
-        | Expression::Await { .. }
-        | Expression::Yield { .. }
-        | Expression::Try { .. }
-        | Expression::Export { .. }
-        | Expression::Import { .. }
-        | Expression::Debugger
-        | Expression::Error
-        | Expression::Stub => true,
-
-        // statements: check inner expression
-        Expression::Statement(inner_id) => {
-            let inner = ctx.tree.get(*inner_id);
-            has_side_effect(ctx, inner)
-        }
-
-        // parenthesized: check inner expression
-        Expression::Parenthesized { expression: inner } => {
-            let inner_expr = ctx.tree.get(*inner);
-            has_side_effect(ctx, inner_expr)
-        }
-
-        // maybe/must propagation: check inner for side effect
-        Expression::Maybe { left, .. } | Expression::Must { left, .. } => {
-            let inner_expr = ctx.tree.get(*left);
-            has_side_effect(ctx, inner_expr)
-        }
-
-        // expressions without side effects
-        Expression::ScalarLiteral(_)
-        | Expression::TypeLiteral(_)
-        | Expression::TemplateExpression { .. }
-        | Expression::TaggedTemplateExpression { .. }
-        | Expression::RangeExpression { .. }
-        | Expression::ArrayExpression { .. }
-        | Expression::TupleExpression { .. }
-        | Expression::ObjectExpression { .. }
-        | Expression::TreeExpression { .. }
-        | Expression::SequenceExpression { .. }
-        | Expression::Binary { .. }
-        | Expression::Unary { .. }
-        | Expression::TypeUnary { .. }
-        | Expression::TypeBinary { .. }
-        | Expression::Path { .. }
-        | Expression::Member { .. }
-        | Expression::Index { .. }
-        | Expression::ReferenceOf { .. }
-        | Expression::ValueOf { .. } => false,
     }
 }
 

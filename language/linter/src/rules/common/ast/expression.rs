@@ -341,3 +341,116 @@ fn string_ids_equal(
     let right_string = ctx.strings.get(right);
     left_string.as_ref() == right_string.as_ref()
 }
+
+/// Check if an expression has side effects (conservatively returns true if unsure).
+///
+/// This is useful for lints that want to detect expressions that can be safely removed
+/// or that need to distinguish between pure and impure expressions.
+pub fn expression_has_side_effects(
+    ctx: &LintModuleAstContext<'_>,
+    expr_id: ast::LocalNodeId<Expression>,
+) -> bool {
+    let expr = ctx.tree.get(expr_id);
+    match expr {
+        // pure: literals
+        Expression::ScalarLiteral(_) | Expression::TypeLiteral(_) => false,
+
+        // pure: paths (variable references)
+        Expression::Path { .. } => false,
+
+        // pure: containers (if elements are pure)
+        Expression::ArrayExpression { elements } | Expression::TupleExpression { elements } => {
+            elements.iter().any(|arg_id| {
+                let arg = ctx.tree.get(*arg_id);
+                match arg {
+                    ast::Argument::Positional { value }
+                    | ast::Argument::Spread { value }
+                    | ast::Argument::Named { value, .. }
+                    | ast::Argument::Labeled { value, .. } => {
+                        expression_has_side_effects(ctx, *value)
+                    }
+                }
+            })
+        }
+
+        // pure: member access (if object is pure)
+        Expression::Member { left, .. } => expression_has_side_effects(ctx, *left),
+
+        // pure: index access (if object and index are pure)
+        Expression::Index { left, index, .. } => {
+            expression_has_side_effects(ctx, *left)
+                || index.is_some_and(|idx| expression_has_side_effects(ctx, idx))
+        }
+
+        // pure: unary/binary ops on pure expressions
+        Expression::Unary { right, .. } => expression_has_side_effects(ctx, *right),
+        Expression::Binary { left, right, .. } => {
+            expression_has_side_effects(ctx, *left) || expression_has_side_effects(ctx, *right)
+        }
+
+        // pure: type operations
+        Expression::TypeUnary { right, .. } => expression_has_side_effects(ctx, *right),
+        Expression::TypeBinary { left, right, .. } => {
+            expression_has_side_effects(ctx, *left) || expression_has_side_effects(ctx, *right)
+        }
+
+        // pure: reference/value of (if operand is pure)
+        Expression::ReferenceOf { right, .. } | Expression::ValueOf { right, .. } => {
+            expression_has_side_effects(ctx, *right)
+        }
+
+        // pure: range (if bounds are pure)
+        Expression::RangeExpression { start, end, .. } => {
+            expression_has_side_effects(ctx, *start) || expression_has_side_effects(ctx, *end)
+        }
+
+        // side effects: calls, assignments, new, await, yield, etc.
+        Expression::Call { .. }
+        | Expression::Assign { .. }
+        | Expression::New { .. }
+        | Expression::Await { .. }
+        | Expression::Yield { .. }
+        | Expression::Delete { .. }
+        | Expression::Throw { .. } => true,
+
+        // side effects: control flow
+        Expression::Return { .. }
+        | Expression::Break { .. }
+        | Expression::Continue { .. }
+        | Expression::For { .. }
+        | Expression::ForEach { .. }
+        | Expression::While { .. }
+        | Expression::Loop { .. }
+        | Expression::If { .. }
+        | Expression::Match { .. }
+        | Expression::Try { .. } => true,
+
+        // side effects: declarations, imports, exports
+        Expression::Declaration(_)
+        | Expression::Block(_)
+        | Expression::Let { .. }
+        | Expression::Import { .. }
+        | Expression::Export { .. }
+        | Expression::Labelled { .. } => true,
+
+        // side effects: debugger, error, stub
+        Expression::Debugger | Expression::Error | Expression::Stub => true,
+
+        // wrapped expressions: check inner
+        Expression::Parenthesized { expression } => expression_has_side_effects(ctx, *expression),
+        Expression::Statement(inner) => expression_has_side_effects(ctx, *inner),
+
+        // maybe/must propagation: check inner for side effect
+        Expression::Maybe { left, .. } | Expression::Must { left, .. } => {
+            expression_has_side_effects(ctx, *left)
+        }
+
+        // templates: conservatively assume side effects (could have interpolations with calls)
+        Expression::TemplateExpression { .. } | Expression::TaggedTemplateExpression { .. } => true,
+
+        // object expressions: check properties for side effects
+        Expression::ObjectExpression { .. }
+        | Expression::TreeExpression { .. }
+        | Expression::SequenceExpression { .. } => true,
+    }
+}

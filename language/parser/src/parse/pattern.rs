@@ -292,8 +292,12 @@ impl Parser {
             // field
             let field_start = self.mark();
             let pattern_field = {
+                // elision: empty slot before separator (like `[,a]` or `[,,b]`)
+                if self.peek_token(seperator).is_ok() {
+                    PatternField::Elision
+                }
                 // named or named alias or spread
-                if self.peek_name().is_ok()
+                else if self.peek_name().is_ok()
                     || self.peek_mutability().is_ok()
                     || self.peek_token(TokenType::Spread).is_ok()
                 {
@@ -755,6 +759,67 @@ mod tests {
             assert_string!(parser, *name, "value");
             assert_node!(parser.tree, *pattern, Pattern::Expression { value } => {
                 assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(5)));
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_pattern_array_elision() {
+        // [,a] - elision before 'a'
+        let mut test = TestParser::new("[,a]");
+        let mut parser = test.prepare();
+        let pattern_id = parser.eat_pattern().unwrap();
+
+        assert_node!(parser.tree, pattern_id, Pattern::Array { fields } => {
+            assert_eq!(fields.len(), 2);
+
+            // elision (empty slot)
+            assert_node!(parser.tree, fields[0], PatternField::Elision);
+
+            // a (identifiers are parsed as Named shorthand)
+            assert_node!(parser.tree, fields[1], PatternField::Named { mutability: None, name, pattern: None, default: None } => {
+                assert_name!(parser, *name, "a");
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_pattern_array_multiple_elisions() {
+        // [,,a] - two elisions before 'a'
+        let mut test = TestParser::new("[,,a]");
+        let mut parser = test.prepare();
+        let pattern_id = parser.eat_pattern().unwrap();
+
+        assert_node!(parser.tree, pattern_id, Pattern::Array { fields } => {
+            assert_eq!(fields.len(), 3);
+
+            // first elision
+            assert_node!(parser.tree, fields[0], PatternField::Elision);
+
+            // second elision
+            assert_node!(parser.tree, fields[1], PatternField::Elision);
+
+            // a (identifiers are parsed as Named shorthand)
+            assert_node!(parser.tree, fields[2], PatternField::Named { mutability: None, name, pattern: None, default: None } => {
+                assert_name!(parser, *name, "a");
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_pattern_array_trailing_elision() {
+        // [a,] - element followed by trailing comma (not elision)
+        let mut test = TestParser::new("[a,]");
+        let mut parser = test.prepare();
+        let pattern_id = parser.eat_pattern().unwrap();
+
+        assert_node!(parser.tree, pattern_id, Pattern::Array { fields } => {
+            // trailing comma doesn't create elision, just 'a'
+            assert_eq!(fields.len(), 1);
+
+            // a (identifiers are parsed as Named shorthand)
+            assert_node!(parser.tree, fields[0], PatternField::Named { mutability: None, name, pattern: None, default: None } => {
+                assert_name!(parser, *name, "a");
             });
         });
     }
