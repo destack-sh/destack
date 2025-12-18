@@ -4,13 +4,27 @@ use destack_workspace::LintSeverity;
 use crate::{LintDiagnostic, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {
-    /// Suggest struct for data-only classes.
+    /// Prefer struct for data-only classes.
     ///
     /// Classes that only contain fields without any methods are better
     /// expressed as structs, which are simpler and more explicit about
     /// their purpose as plain data containers.
+    ///
+    /// ```
+    /// // bad
+    /// class Point {
+    ///     x: int32
+    ///     y: int32
+    /// }
+    ///
+    /// // good
+    /// struct Point {
+    ///     x: int32
+    ///     y: int32
+    /// }
+    /// ```
     #[lint(
-        id = "no-class-for-data",
+        id = "prefer-struct",
         code = "LY044",
         category = Style,
         level = Ast,
@@ -18,13 +32,13 @@ declare_lint! {
         recommended = Strict,
         stability = Stable
     )]
-    pub NoClassForData,
-    "Suggest struct for data-only classes"
+    pub PreferStruct,
+    "Prefer struct for data-only classes"
 }
 
-impl LintRule for NoClassForData {
+impl LintRule for PreferStruct {
     fn meta(&self) -> &'static crate::LintMeta {
-        NoClassForData::meta()
+        PreferStruct::meta()
     }
 
     fn check_module_ast<'a>(&self, severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
@@ -57,9 +71,9 @@ impl LintRule for NoClassForData {
             if all_fields {
                 ctx.report(
                     LintDiagnostic::new(
-                        NO_CLASS_FOR_DATA.id,
-                        NO_CLASS_FOR_DATA.code,
-                        NO_CLASS_FOR_DATA.category,
+                        PREFER_STRUCT.id,
+                        PREFER_STRUCT.code,
+                        PREFER_STRUCT.category,
                         severity,
                         "class with only fields should be a struct",
                         ctx.module.file_id,
@@ -79,7 +93,7 @@ mod tests {
 
     #[test]
     fn test_data_only_class_detected() {
-        let test = TestProgram::for_rule(NoClassForData);
+        let test = TestProgram::for_rule(PreferStruct);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -89,12 +103,12 @@ class Point {
 }
 "#,
         );
-        test.result(result).assert_lint("no-class-for-data");
+        test.result(result).assert_lint("prefer-struct");
     }
 
     #[test]
     fn test_class_with_method_allowed() {
-        let test = TestProgram::for_rule(NoClassForData);
+        let test = TestProgram::for_rule(PreferStruct);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -108,12 +122,12 @@ class Point {
 }
 "#,
         );
-        test.result(result).assert_no_lint("no-class-for-data");
+        test.result(result).assert_no_lint("prefer-struct");
     }
 
     #[test]
     fn test_class_with_extends_allowed() {
-        let test = TestProgram::for_rule(NoClassForData);
+        let test = TestProgram::for_rule(PreferStruct);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -122,12 +136,12 @@ class Point3D extends Point {
 }
 "#,
         );
-        test.result(result).assert_no_lint("no-class-for-data");
+        test.result(result).assert_no_lint("prefer-struct");
     }
 
     #[test]
     fn test_struct_not_affected() {
-        let test = TestProgram::for_rule(NoClassForData);
+        let test = TestProgram::for_rule(PreferStruct);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -137,18 +151,18 @@ struct Point {
 }
 "#,
         );
-        test.result(result).assert_no_lint("no-class-for-data");
+        test.result(result).assert_no_lint("prefer-struct");
     }
 
     #[test]
     fn test_empty_class_allowed() {
-        let test = TestProgram::for_rule(NoClassForData);
+        let test = TestProgram::for_rule(PreferStruct);
         let result = test.lint_ast(
             "test.ds",
             r#"
 class Empty {}
 "#,
         );
-        test.result(result).assert_no_lint("no-class-for-data");
+        test.result(result).assert_no_lint("prefer-struct");
     }
 }

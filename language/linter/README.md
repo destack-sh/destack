@@ -81,6 +81,7 @@ Code that is likely unintentional but may occasionally be intentional.
 | `no-cond-assign` | ESLint | AST | ✓ | ✅ | Disallow assignment operators in conditional expressions |
 | `no-confusing-assignment` | Destack | AST | ✓ | ✅ | Warn on assignments that look like comparisons |
 | `no-confusing-non-null-assertion` | TS-ESLint | AST | ✓ | ✅ | Disallow non-null assertions after optional chain expressions |
+| `no-constant-assertion` | Destack | AST | ✓ | ✅ | Disallow assertions on constant values |
 | `no-constructor-return` | ESLint | AST | ✓ | ✅ | Disallow returning values from constructors |
 | `no-debugger` | ESLint | AST | ✓ | ✅ | Disallow debugger statements |
 | `no-dupe-else-if` | ESLint | AST | ✓ | ✅ | Disallow duplicate conditions in if-else-if chains |
@@ -93,7 +94,7 @@ Code that is likely unintentional but may occasionally be intentional.
 | `no-extra-non-null-assertion` | TS-ESLint | AST | ✓ | ✅ | Disallow extra non-null assertions |
 | `no-global-assign` | ESLint | DIR | ✗ | 🔶 | Disallow assignments to native objects or read-only globals |
 | `no-implicit-void-expression` | Destack | AST | ✗ | 🔶 | Disallow implicit void returns from expression blocks |
-| `no-incomplete-range` | Destack | AST | ✓ | 🟡 | Warn on exclusive ranges that are likely meant to be inclusive |
+| `no-incomplete-range` | Destack | AST | ✓ | ✅ | Warn on exclusive ranges that are likely meant to be inclusive |
 | `no-inner-declarations` | ESLint | AST | ✓ | ✅ | Disallow variable or function declarations in nested blocks |
 | `no-loop-func` | ESLint | DIR | ✓ | 🔶 | Disallow functions that capture loop variables |
 | `no-method-shadowing` | Destack | DIR | ✓ | 🔶 | Warn when a method shadows an inherited method |
@@ -188,11 +189,9 @@ Subjective preferences for consistent coding style.
 | `eqeqeq` | ESLint | AST | ✓ | ✅ | Require `===` and `!==` |
 | `explicit-function-return-type` | TS-ESLint | AST | ✓ | ✅ | Require explicit return types on functions |
 | `filename-case` | Unicorn | AST | ✓ | ✅ | Enforce a case style for filenames |
-| `grouped-accessor-pairs` | ESLint | AST | ✓ | 🟡 | Require grouped accessor pairs in object literals and classes |
+| `grouped-accessor-pairs` | ESLint | AST | ✓ | ✅ | Require grouped accessor pairs in object literals and classes |
 | `no-boolean-literal-compare` | Unicorn | AST | ✓ | ✅ | Disallow comparing boolean expressions to boolean literals |
-| `no-class-for-data` | Destack | AST | ✓ | ✅ | Suggest struct for classes with only data fields |
 | `no-collapsible-if` | Unicorn | AST | ✓ | ✅ | Suggest merging nested if statements without else |
-| `no-constant-assertion` | Destack | AST | ✓ | 🟡 | Disallow assertions on constant values |
 | `no-duplicate-type-constituents` | TS-ESLint | AST | ✓ | ✅ | Disallow duplicate constituents in union/intersection types |
 | `no-else-return` | ESLint | AST | ✓ | ✅ | Disallow else blocks after return statements |
 | `no-empty-interface` | TS-ESLint | AST | ✓ | ✅ | Disallow empty interfaces |
@@ -215,39 +214,38 @@ Subjective preferences for consistent coding style.
 | `prefer-exponentiation-operator` | ESLint | DIR | ✗ | 🔶 | Prefer `**` over `Math.pow()` |
 | `prefer-expression` | Destack | AST | ✓ | ✅ | Prefer expression syntax for assignments |
 | `prefer-extension-method` | Destack | DIR | ✗ | 🔶 | Suggest converting functions to extension methods |
-| `prefer-fragment-shorthand` | React | AST | ✓ | 🟡 | Prefer `<>` shorthand over `<Fragment>` |
-| `prefer-if-else-over-match-bool` | Destack | AST | ✓ | 🟡 | Suggest using if/else instead of match on booleans |
+| `prefer-fragment-shorthand` | Destack | AST | ✓ | ✅ | Prefer `<>` shorthand over `<Fragment>` |
+| `prefer-if-else-over-match-bool` | Destack | AST | ✓ | ✅ | Suggest using if/else instead of match on booleans |
 | `prefer-implicit-return` | Destack | AST | ✓ | ✅ | Prefer implicit returns in expression-bodied functions |
-| `prefer-inclusive-range` | Destack | AST | ✓ | 🟡 | Prefer inclusive range syntax where applicable |
+| `prefer-inclusive-range` | Destack | AST | ✓ | ✅ | Prefer inclusive range syntax where applicable |
 | `prefer-loop` | Destack | AST | ✓ | ✅ | Prefer `loop` keyword over `while(true)` or `for(;;)` |
 | `prefer-map-or-else` | Destack | DIR | ✓ | 🔶 | Prefer `mapOrElse()` over `map().unwrap()` |
 | `prefer-named-extension` | Destack | AST | ✓ | ✅ | Prefer named extensions for foreign types |
 | `prefer-numeric-literals` | ESLint | DIR | ✗ | 🔶 | Prefer numeric literals over `parseInt()` |
 | `prefer-object-has-own` | ESLint | DIR | ✗ | 🔶 | Prefer `Object.hasOwn()` over `Object.prototype.hasOwnProperty` |
 | `prefer-object-spread` | ESLint | DIR | ✗ | 🔶 | Prefer spread operator over `Object.assign()` |
-| `prefer-pattern-over-guard` | Destack | AST | ✓ | 🟡 | Suggest moving match guards into the pattern |
+| `prefer-pattern-over-guard` | Destack | AST | ✓ | ✅ | Suggest moving match guards into the pattern |
 | `prefer-precise-numeric` | Destack | AST | ✓ | ✅ | Prefer precise numeric types over `number` |
 | `prefer-promise-reject-errors` | TS-ESLint | DIR | ✗ | 🔶 | Require Error objects in Promise rejections |
 | `prefer-propagate-operator` | Destack | DIR | ✗ | 🟡 | Prefer `?` operator over manual Result matching |
-| `prefer-range-contains` | Destack | AST | ✓ | 🟡 | Prefer range contains method over comparison chains |
+| `prefer-range-contains` | Destack | AST | ✓ | ✅ | Prefer range contains method over comparison chains |
 | `prefer-range-literal` | Destack | AST | ✓ | ✅ | Prefer range literals over C-style for loops |
 | `prefer-result-type` | Destack | DIR | ✓ | 🔶 | Prefer `Result<T, E>` return type over throwing |
-| `prefer-self-closing-tree` | React | AST | ✓ | 🟡 | Prefer self-closing tree elements when possible |
+| `prefer-self-closing-tree` | Destack | AST | ✓ | ✅ | Prefer self-closing tree elements when possible |
 | `prefer-set-over-empty-map` | Destack | DIR | ✗ | 🔶 | Suggest `Set<K>` over `Map<K, void>` |
-| `prefer-struct-literal` | Destack | AST | ✓ | 🟡 | Prefer struct literal syntax over constructor calls |
-| `prefer-struct-over-class` | Destack | DIR | ✓ | 🔶 | Suggest struct over class when possible |
+| `prefer-struct` | Destack | AST | ✓ | ✅ | Prefer struct for data-only classes |
+| `prefer-struct-literal` | Destack | AST | ✓ | ✅ | Prefer struct literal syntax over constructor calls |
 | `prefer-template` | ESLint | AST | ✓ | ✅ | Prefer template literals over string concatenation |
-| `prefer-tuple` | Destack | DIR | ✓ | 🔶 | Suggest tuple type for fixed-length heterogeneous arrays |
-| `prefer-tuple-destructure` | Destack | AST | ✓ | 🟡 | Prefer tuple destructuring over indexed access |
-| `prefer-tuple-swap` | Destack | AST | ✓ | 🟡 | Prefer tuple swap syntax over temporary variable |
+| `prefer-tuple` | Destack | AST | ✓ | 🔶 | Suggest tuple type for fixed-length heterogeneous arrays |
+| `prefer-tuple-destructure` | Destack | AST | ✓ | ✅ | Prefer tuple destructuring over indexed access |
+| `prefer-tuple-swap` | Destack | AST | ✓ | ✅ | Prefer tuple swap syntax over temporary variable |
 | `prefer-unary-negation` | Destack | AST | ✓ | ✅ | Prefer unary negation over multiplying by -1 |
 | `promise-function-async` | TS-ESLint | DIR | ✗ | 🔶 | Require `async` keyword for Promise-returning functions |
 | `require-jsdoc` | ESLint | AST | ✓ | ✅ | Require documentation on public items |
 | `require-returns-doc` | ESLint | AST | ✓ | ✅ | Require return type documentation |
 | `restrict-template-expressions` | TS-ESLint | DIR | ✓ | 🔶 | Require template expressions to be strings or numbers |
-| `sort-imports` | ESLint | AST | ✓ | 🟡 | Enforce sorted import declarations |
+| `sort-imports` | ESLint | AST | ✓ | ✅ | Enforce sorted import declarations |
 | `symbol-description` | ESLint | DIR | ✗ | 🔶 | Require symbol descriptions |
-| `tree-prop-spread-candidate` | Destack | AST | ✓ | 🟡 | Suggest spreading repeated tree props |
 | `yoda` | ESLint | AST | ✓ | ✅ | Disallow Yoda conditions |
 
 ## Complexity (X)
@@ -258,8 +256,8 @@ Overly complex code that is harder to understand and maintain.
 
 | Rule | Source | Level | Ready | Status | Description |
 |------|--------|-------|-------|--------|-------------|
-| `cognitive-complexity` | Biome | DIR | ✓ | 🟡 | Enforce a maximum cognitive complexity |
-| `cyclomatic-complexity` | ESLint | DIR | ✓ | 🟡 | Enforce a maximum cyclomatic complexity |
+| `cognitive-complexity` | Biome | AST | ✓ | ✅ | Enforce a maximum cognitive complexity |
+| `cyclomatic-complexity` | ESLint | AST | ✓ | ✅ | Enforce a maximum cyclomatic complexity |
 | `max-depth` | ESLint | AST | ✓ | ✅ | Enforce a maximum depth of nested blocks |
 | `max-lines` | ESLint | AST | ✓ | ✅ | Enforce a maximum number of lines per file |
 | `max-lines-per-function` | ESLint | AST | ✓ | ✅ | Enforce a maximum number of lines per function |
@@ -267,7 +265,7 @@ Overly complex code that is harder to understand and maintain.
 | `max-params` | ESLint | AST | ✓ | ✅ | Enforce a maximum number of function parameters |
 | `max-statements` | ESLint | AST | ✓ | ✅ | Enforce a maximum number of statements per function |
 | `no-complex-boolean-expression` | Destack | AST | ✓ | ✅ | Suggest simplifying complex boolean expressions |
-| `no-complex-type` | Destack | AST/DIR | ✓ | 🔶 | Warn on overly complex types that should be aliased |
+| `no-complex-type` | Destack | AST | ✓ | 🔶 | Warn on overly complex types that should be aliased |
 | `no-excessive-booleans` | Destack | AST | ✓ | ✅ | Disallow too many boolean parameters or struct fields |
 | `no-multi-assign` | ESLint | AST | ✓ | ✅ | Disallow chained assignment expressions |
 | `no-multi-declarators` | ESLint | AST | ✓ | ✅ | Disallow multiple variable declarations per statement |

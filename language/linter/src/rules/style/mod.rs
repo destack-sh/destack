@@ -12,7 +12,6 @@ mod explicit_function_return_type;
 mod filename_case;
 mod grouped_accessor_pairs;
 mod no_boolean_literal_compare;
-mod no_class_for_data;
 mod no_collapsible_if;
 mod no_else_return;
 mod no_empty_interface;
@@ -37,14 +36,15 @@ mod prefer_precise_numeric;
 mod prefer_range_contains;
 mod prefer_range_literal;
 mod prefer_self_closing_tree;
+mod prefer_struct;
 mod prefer_struct_literal;
 mod prefer_template;
 mod prefer_tuple_destructure;
+mod prefer_tuple_swap;
 mod prefer_unary_negation;
 mod require_jsdoc;
 mod require_returns_doc;
 mod sort_imports;
-mod tree_prop_spread_candidate;
 mod yoda;
 
 use crate::{BoxedLintRule, boxed};
@@ -63,7 +63,6 @@ pub use explicit_function_return_type::*;
 pub use filename_case::*;
 pub use grouped_accessor_pairs::*;
 pub use no_boolean_literal_compare::*;
-pub use no_class_for_data::*;
 pub use no_collapsible_if::*;
 pub use no_else_return::*;
 pub use no_empty_interface::*;
@@ -88,14 +87,15 @@ pub use prefer_precise_numeric::*;
 pub use prefer_range_contains::*;
 pub use prefer_range_literal::*;
 pub use prefer_self_closing_tree::*;
+pub use prefer_struct::*;
 pub use prefer_struct_literal::*;
 pub use prefer_template::*;
 pub use prefer_tuple_destructure::*;
+pub use prefer_tuple_swap::*;
 pub use prefer_unary_negation::*;
 pub use require_jsdoc::*;
 pub use require_returns_doc::*;
 pub use sort_imports::*;
-pub use tree_prop_spread_candidate::*;
 pub use yoda::*;
 
 /// Get all style rules.
@@ -115,7 +115,6 @@ pub fn rules() -> Vec<BoxedLintRule> {
         boxed(FilenameCaseRule),
         boxed(GroupedAccessorPairs),
         boxed(NoBooleanLiteralCompare),
-        boxed(NoClassForData),
         boxed(NoCollapsibleIf),
         boxed(NoElseReturn),
         boxed(NoEmptyInterface),
@@ -137,8 +136,10 @@ pub fn rules() -> Vec<BoxedLintRule> {
         boxed(PreferPatternOverGuard),
         boxed(PreferRangeContains),
         boxed(PreferSelfClosingTree),
+        boxed(PreferStruct),
         boxed(PreferStructLiteral),
         boxed(PreferTupleDestructure),
+        boxed(PreferTupleSwap),
         boxed(PreferNamedExtension),
         boxed(PreferPreciseNumeric),
         boxed(PreferRangeLiteral),
@@ -147,7 +148,6 @@ pub fn rules() -> Vec<BoxedLintRule> {
         boxed(RequireJsdoc),
         boxed(RequireReturnsDoc),
         boxed(SortImports),
-        boxed(TreePropSpreadCandidate),
         boxed(Yoda),
     ]
 }
