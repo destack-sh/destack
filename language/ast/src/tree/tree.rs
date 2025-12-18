@@ -376,6 +376,13 @@ impl NodeTree {
             });
     }
 
+    /// Build position index for fast enclosing span lookups.
+    /// Call this after parsing is complete.
+    #[inline]
+    pub fn build_position_index(&mut self) {
+        self.source_map.build_position_index();
+    }
+
     /// Get blank annotation attached to a node, cloned as a Vec.
     #[inline]
     pub fn get_blanks_for(&self, node_id: u32) -> Vec<(LocalNodeId<Blank>, AnnotationPosition)> {

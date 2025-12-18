@@ -401,6 +401,7 @@ impl Parser {
     pub fn finish(&mut self) {
         if !self.is_finished {
             self.attach_annotations();
+            self.tree.build_position_index();
             self.is_finished = true;
         }
     }

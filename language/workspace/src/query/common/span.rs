@@ -6,17 +6,9 @@ use parking_lot::RwLock;
 
 use crate::{Module, Session};
 
-/// Get a module by FileId (searches through modules).
+/// Get a module by FileId.
 pub fn get_module_by_file_id(session: &Session, file_id: FileId) -> Option<Arc<RwLock<Module>>> {
-    // iterate through modules to find one with matching file_id
-    for module in session.modules.iter() {
-        let module_guard = module.read();
-        if module_guard.file_id == file_id {
-            drop(module_guard);
-            return Some(module);
-        }
-    }
-    None
+    session.modules.get_by_file_id(file_id)
 }
 
 /// Get the span of a DIR node by mapping through AST source map.

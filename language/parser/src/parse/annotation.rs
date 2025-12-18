@@ -125,7 +125,7 @@ impl Parser {
         self.attach_side_annotations(&tokens, &side_span);
         self.attach_main_annotations(&tokens, &side_span);
 
-        // sort annotations per node
+        // finalize tree structure
         self.tree.sort_annotations();
     }
 
