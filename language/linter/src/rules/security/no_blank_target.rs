@@ -83,7 +83,10 @@ impl LintRule for NoBlankTarget {
 }
 
 /// Check if the left expression is an anchor tag `<a>`.
-fn is_anchor_tag(ctx: &LintModuleAstContext<'_>, left: Option<ast::LocalNodeId<Expression>>) -> bool {
+fn is_anchor_tag(
+    ctx: &LintModuleAstContext<'_>,
+    left: Option<ast::LocalNodeId<Expression>>,
+) -> bool {
     let Some(left_id) = left else {
         return false;
     };

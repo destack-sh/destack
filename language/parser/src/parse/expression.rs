@@ -1146,8 +1146,8 @@ impl Parser {
             }
             // range (`..`, `..=`)
             else if self.peek_token(TokenType::Range).is_ok() {
-                self.bump(); // eat .. or ...
-                let is_inclusive = if self.peek_token(TokenType::Equal).is_ok() {
+                self.bump(); // eat ..
+                let is_inclusive = if self.peek_token(TokenType::Assign).is_ok() {
                     self.bump(); // eat =
                     true
                 } else {

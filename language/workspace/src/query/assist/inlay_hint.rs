@@ -1,4 +1,6 @@
-use destack_dir::{Declaration, Declarator, Expression, GlobalSymbolId, NodeType, Parameter, Pattern};
+use destack_dir::{
+    Declaration, Declarator, Expression, GlobalSymbolId, NodeType, Parameter, Pattern,
+};
 use destack_source::{FileId, Span};
 
 use crate::Session;

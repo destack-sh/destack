@@ -75,7 +75,10 @@ impl LintRule for UseIsnan {
 }
 
 /// Check if an expression is the identifier `NaN` or `Number.NaN`
-fn is_nan_identifier(ctx: &LintModuleAstContext<'_>, expr_id: ast::LocalNodeId<ast::Expression>) -> bool {
+fn is_nan_identifier(
+    ctx: &LintModuleAstContext<'_>,
+    expr_id: ast::LocalNodeId<ast::Expression>,
+) -> bool {
     let expression = ctx.tree.get(expr_id);
 
     match expression {

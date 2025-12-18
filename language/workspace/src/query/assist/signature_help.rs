@@ -1,9 +1,8 @@
 use destack_dir::{Argument, Declaration, Expression, GlobalSymbolId, NodeType, Parameter};
 use destack_source::FileId;
 
-use crate::Session;
 use crate::query::common::get_module_by_file_id;
-use crate::Module;
+use crate::{Module, Session};
 
 /// A parameter in a signature.
 #[derive(Debug, Clone)]

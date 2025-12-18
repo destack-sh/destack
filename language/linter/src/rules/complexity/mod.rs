@@ -4,8 +4,11 @@ mod max_lines_per_function;
 mod max_nested_callbacks;
 mod max_params;
 mod max_statements;
+mod no_complex_boolean_expression;
+mod no_excessive_booleans;
 mod no_multi_assign;
 mod no_multi_declarators;
+mod no_unused_expressions;
 
 use crate::{BoxedLintRule, boxed};
 
@@ -15,8 +18,11 @@ pub use max_lines_per_function::*;
 pub use max_nested_callbacks::*;
 pub use max_params::*;
 pub use max_statements::*;
+pub use no_complex_boolean_expression::*;
+pub use no_excessive_booleans::*;
 pub use no_multi_assign::*;
 pub use no_multi_declarators::*;
+pub use no_unused_expressions::*;
 
 /// Get all complexity rules.
 pub fn rules() -> Vec<BoxedLintRule> {
@@ -27,7 +33,10 @@ pub fn rules() -> Vec<BoxedLintRule> {
         boxed(MaxNestedCallbacks),
         boxed(MaxParams),
         boxed(MaxStatements),
+        boxed(NoComplexBooleanExpression),
+        boxed(NoExcessiveBooleans),
         boxed(NoMultiAssign),
         boxed(NoMultiDeclarators),
+        boxed(NoUnusedExpressions),
     ]
 }

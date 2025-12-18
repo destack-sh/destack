@@ -1,9 +1,13 @@
 mod for_direction;
+mod no_approx_constant;
 mod no_compare_neg_zero;
 mod no_constant_binary_expression;
 mod no_constant_condition;
+mod no_control_regex;
 mod no_duplicate_case;
+mod no_empty_range;
 mod no_fallthrough;
+mod no_invalid_regexp;
 mod no_self_compare;
 mod no_unsafe_finally;
 mod no_unsafe_negation;
@@ -12,11 +16,15 @@ mod use_isnan;
 use crate::{BoxedLintRule, boxed};
 
 pub use for_direction::*;
+pub use no_approx_constant::*;
 pub use no_compare_neg_zero::*;
 pub use no_constant_binary_expression::*;
 pub use no_constant_condition::*;
+pub use no_control_regex::*;
 pub use no_duplicate_case::*;
+pub use no_empty_range::*;
 pub use no_fallthrough::*;
+pub use no_invalid_regexp::*;
 pub use no_self_compare::*;
 pub use no_unsafe_finally::*;
 pub use no_unsafe_negation::*;
@@ -26,10 +34,14 @@ pub use use_isnan::*;
 pub fn rules() -> Vec<BoxedLintRule> {
     vec![
         boxed(ForDirection),
+        boxed(NoApproxConstant),
         boxed(NoCompareNegZero),
+        boxed(NoControlRegex),
         boxed(NoConstantBinaryExpression),
         boxed(NoConstantCondition),
         boxed(NoDuplicateCase),
+        boxed(NoEmptyRange),
+        boxed(NoInvalidRegexp),
         boxed(NoFallthrough),
         boxed(NoSelfCompare),
         boxed(NoUnsafeFinally),
