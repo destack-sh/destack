@@ -406,3 +406,50 @@ return (
     </Container>
 );
 ```
+
+## JSX Formatting Options
+
+### single attribute per line forces expansion
+
+When `single_attribute_per_line` is true, multiple attributes each get their own line.
+
+```ds single-attribute-per-line=true
+<Button variant="primary" size="large" />
+```
+
+```ds expected
+<Button
+    variant="primary"
+    size="large"
+/>;
+```
+
+### bracket same line keeps closing on last attr line
+
+When `bracket_same_line` is true, the `>` stays on the same line as the last attribute.
+
+```ds bracket-same-line=true line-width=30
+<Button variant="primary" size="large" disabled />
+```
+
+```ds expected
+<Button
+    variant="primary"
+    size="large"
+    disabled />;
+```
+
+### single attr per line with bracket same line combined
+
+Both options can be used together.
+
+```ds single-attribute-per-line=true bracket-same-line=true
+<Button variant="primary" size="large" onClick={handleClick} />
+```
+
+```ds expected
+<Button
+    variant="primary"
+    size="large"
+    onClick={handleClick} />;
+```
