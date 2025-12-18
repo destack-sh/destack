@@ -1,12 +1,13 @@
-use destack_fir::format::FormatResult;
-
-use crate::expression::format_expression;
-use crate::{DestackFormatContext, DestackFormatter, FormatNode};
 use destack_ast::{
     Block, Expression, LocalNodeId, LocalNodeIdAny, Node, NodeTree, NodeTreeImpl, NodeType,
 };
+use destack_fir::format::FormatResult;
 use destack_fir::prelude::*;
 use destack_fir::{format_args, write};
+
+use super::imports;
+use crate::expression::format_expression;
+use crate::{DestackFormatContext, DestackFormatter, FormatNode};
 
 /// Empty block with infix annotations.
 #[derive(Debug, Clone, PartialEq)]
@@ -110,18 +111,64 @@ pub(crate) fn format_block_of_statements<'ast>(
     _scope_id: LocalNodeIdAny,
     expressions: &[LocalNodeId<Expression>],
 ) -> FormatResult<()> {
-    for (i, &expression_id) in expressions.iter().enumerate() {
+    let organize = f.context().options.organize_imports.is_enabled();
+    let tree = f.context().tree;
+    let strings = f.context().strings;
+
+    // find contiguous import section at the start
+    let import_count = expressions
+        .iter()
+        .take_while(|&&expr_id| imports::is_import(expr_id, tree))
+        .count();
+
+    // prepare the expression list (potentially with sorted imports)
+    let sorted_imports: Vec<LocalNodeId<Expression>>;
+    let effective_expressions: Vec<LocalNodeId<Expression>> = if organize && import_count > 1 {
+        sorted_imports = imports::sort_imports(&expressions[..import_count], tree, strings);
+        sorted_imports
+            .iter()
+            .copied()
+            .chain(expressions[import_count..].iter().copied())
+            .collect()
+    } else {
+        expressions.to_vec()
+    };
+
+    let mut prev_was_import = false;
+    let mut prev_import_id: Option<LocalNodeId<Expression>> = None;
+
+    for (i, &expression_id) in effective_expressions.iter().enumerate() {
         let expression = f.context().tree.get(expression_id);
+        let is_import_expr = imports::is_import(expression_id, tree);
 
         // blank line between expressions
         if i > 0 {
             write!(f, [hard_line_break()])?;
-            // extra blank line between declarations
-            if matches!(expression, Expression::Declaration(_))
-                && !f
-                    .context()
+
+            // determine if we need an extra blank line
+            let needs_blank = if organize && prev_was_import && is_import_expr {
+                // check if different import groups
+                prev_import_id.is_some_and(|prev_id| {
+                    imports::should_insert_blank_between(
+                        prev_id,
+                        expression_id,
+                        f.context().tree,
+                        f.context().strings,
+                    )
+                })
+            } else if prev_was_import && !is_import_expr {
+                // blank line after import section (if not already present)
+                !f.context()
                     .has_blank_prefix_annotation_in_first_position(expression_id)
-            {
+            } else if matches!(expression, Expression::Declaration(_)) {
+                // extra blank line between declarations
+                !f.context()
+                    .has_blank_prefix_annotation_in_first_position(expression_id)
+            } else {
+                false
+            };
+
+            if needs_blank {
                 write!(f, [empty_line()])?;
             }
         }
@@ -130,11 +177,23 @@ pub(crate) fn format_block_of_statements<'ast>(
         write!(f, [f.context().any_prefix_annotations(expression_id)])?;
         format_expression(f, expression_id, expression)?;
 
+        // add semicolon for bare Import if not last expression (when sorting moved it)
+        let is_last = i == effective_expressions.len() - 1;
+        let is_bare_import = matches!(expression, Expression::Import { .. });
+        if !is_last && is_bare_import {
+            write!(f, [token(";")])?;
+        }
+
         // postfix annotations
         write!(
             f,
             [f.context().any_infix_or_postfix_annotations(expression_id)]
         )?;
+
+        prev_was_import = is_import_expr;
+        if is_import_expr {
+            prev_import_id = Some(expression_id);
+        }
     }
     Ok(())
 }
@@ -381,6 +440,31 @@ mod tests {
             source,
             |p| p.eat_block(),
             DestackFormatOptions::default_tab()
+        );
+    }
+
+    /// Import statements should be sorted when organize_imports is enabled.
+    #[test]
+    fn test_format_block_import_sorting() {
+        use destack_workspace::OrganizeImports;
+        let options = DestackFormatOptions {
+            organize_imports: OrganizeImports::On,
+            ..DestackFormatOptions::default()
+        };
+        assert_format!(
+            r#"{
+    import lodash from "lodash"
+    import fs from "node:fs"
+    import path from "node:path"
+}"#,
+            r#"{
+    import fs from "node:fs";
+    import path from "node:path";
+
+    import lodash from "lodash";
+}"#,
+            |p| p.eat_block(),
+            options
         );
     }
 }

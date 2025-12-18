@@ -9,7 +9,8 @@ use destack_fir::format::{Format, FormatContext, FormatOptions, FormatResult, Fo
 use destack_fir::print::PrintOptions;
 use destack_source::{File, IndentStyle, LanguageType, LineEnding, MultiSpan, NodeSourceMap, Span};
 use destack_workspace::{
-    ArrowParentheses, FormatterOptions, QuoteProperty, QuoteStyle, TrailingComma,
+    ArrowParentheses, FormatterOptions, ImportSortOrder, OrganizeImports, QuoteProperty,
+    QuoteStyle, TrailingComma,
 };
 
 pub type DestackFormatter<'ast, 'buf> = Formatter<'buf, DestackFormatContext<'ast>>;
@@ -48,6 +49,12 @@ pub struct DestackFormatOptions {
     pub bracket_same_line: bool = false,
     /// Force each tree/JSX attribute onto its own line.
     pub single_attribute_per_line: bool = false,
+
+    // imports
+    /// Whether to organize/sort imports and exports.
+    pub organize_imports: OrganizeImports = OrganizeImports::Off,
+    /// Sort order for import/export specifiers within `{ }`.
+    pub import_sort_order: ImportSortOrder = ImportSortOrder::Natural,
 }
 
 impl DestackFormatOptions {
@@ -125,6 +132,8 @@ impl DestackFormatOptions {
             quote_props: options.quote_property,
             bracket_same_line: options.bracket_same_line,
             single_attribute_per_line: options.single_attribute_per_line,
+            organize_imports: options.organize_imports,
+            import_sort_order: options.import_sort_order,
         }
     }
 }

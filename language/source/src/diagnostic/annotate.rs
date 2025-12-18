@@ -29,13 +29,13 @@ pub struct AnnotateOptions {
     pub suffix_lines: u8 = 2,
     /// Whether to emit ANSI color escape sequences.
     pub use_color: bool = true,
-    /// Color for normal text (default: White).
+    /// Color for normal text.
     pub color_normal: Color = Color::BrightWhite,
-    /// Color for dim/less prominent text (default: White).
+    /// Color for dim/less prominent text.
     pub color_dim: Color = Color::White,
-    /// Color for metadata like line numbers and separators (default: BrightMagenta).
+    /// Color for metadata like line numbers and separators.
     pub color_meta: Color = Color::BrightMagenta,
-    /// Color for highlights and labels (default: BrightYellow).
+    /// Color for highlights and labels.
     pub color_highlight: Color = Color::BrightYellow,
     /// Optional syntax colorizer for source code.
     pub colorizer: Option<SourceColorizer> = None,

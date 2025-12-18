@@ -7,7 +7,7 @@ use serde::Deserialize;
 use destack_source::{File, FileContent, FileId, IndentStyle, LineEnding};
 
 use crate::{
-    ArrowParentheses, ArrayTypeStyle, FilenameCase, FormatterOptions, ImportSortOrder,
+    ArrayTypeStyle, ArrowParentheses, FilenameCase, FormatterOptions, ImportSortOrder,
     LintCategory, LintPreset, LintSeverity, LinterOptions, OrganizeImports, QuoteProperty,
     QuoteStyle, TrailingComma, TypeDefinitionStyle,
 };
