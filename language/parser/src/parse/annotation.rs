@@ -1565,4 +1565,37 @@ export namespace Outer {
             });
         });
     }
+
+    /// Blank lines between array elements should be attached as block prefix annotations.
+    #[test]
+    fn test_attach_blanks_in_array_elements() {
+        let mut test = TestParser::new(
+            r"[
+    1,
+
+    2,
+]",
+        );
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression().unwrap();
+        parser.finish();
+
+        assert_node!(parser.tree, expr_id, Expression::ArrayExpression { elements } => {
+            assert_eq!(elements.len(), 2);
+
+            // first element has no annotations
+            let first_annotations = parser.tree.get_annotations(elements[0].id);
+            assert!(first_annotations.is_empty(), "first element should have no annotations");
+
+            // second element has blank prefix annotation
+            let second_annotations = parser.tree.get_annotations(elements[1].id);
+            assert_eq!(second_annotations.len(), 1, "second element should have one blank annotation");
+            assert_node!(parser.tree, second_annotations[0], Annotation::Blank { node, position } => {
+                assert_eq!(*position, AnnotationPosition::BlockPrefix);
+                assert_node!(parser.tree, *node, Blank { lines } => {
+                    assert_eq!(*lines, 1);
+                });
+            });
+        });
+    }
 }

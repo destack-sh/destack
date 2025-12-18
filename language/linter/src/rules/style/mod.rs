@@ -2,6 +2,7 @@ mod catch_error_name;
 mod consistent_extension_style;
 mod consistent_type_definitions;
 mod consistent_type_imports;
+mod default_param_last;
 mod dot_notation;
 mod eqeqeq;
 mod filename_case;
@@ -20,6 +21,7 @@ mod prefer_implicit_return;
 mod prefer_loop;
 mod prefer_range_literal;
 mod prefer_template;
+mod yoda;
 
 use crate::{BoxedLintRule, boxed};
 
@@ -27,6 +29,7 @@ pub use catch_error_name::*;
 pub use consistent_extension_style::*;
 pub use consistent_type_definitions::*;
 pub use consistent_type_imports::*;
+pub use default_param_last::*;
 pub use dot_notation::*;
 pub use eqeqeq::*;
 pub use filename_case::*;
@@ -45,6 +48,7 @@ pub use prefer_implicit_return::*;
 pub use prefer_loop::*;
 pub use prefer_range_literal::*;
 pub use prefer_template::*;
+pub use yoda::*;
 
 /// Get all style rules.
 pub fn rules() -> Vec<BoxedLintRule> {
@@ -53,6 +57,7 @@ pub fn rules() -> Vec<BoxedLintRule> {
         boxed(ConsistentExtensionStyle),
         boxed(ConsistentTypeDefinitions),
         boxed(ConsistentTypeImports),
+        boxed(DefaultParamLast),
         boxed(DotNotation),
         boxed(Eqeqeq),
         boxed(FilenameCaseRule),
@@ -71,5 +76,6 @@ pub fn rules() -> Vec<BoxedLintRule> {
         boxed(PreferLoop),
         boxed(PreferRangeLiteral),
         boxed(PreferTemplate),
+        boxed(Yoda),
     ]
 }
