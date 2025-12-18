@@ -363,10 +363,13 @@ impl Parser {
                 let start = self.mark();
                 // leading hole: if we expected an element but got comma instead
                 if expect_element {
-                    let stub = self.tree.insert(Expression::Stub, self.get_span_from(start));
-                    let hole = self
+                    let stub = self
                         .tree
-                        .insert(Argument::Positional { value: stub }, self.get_span_from(start));
+                        .insert(Expression::Stub, self.get_span_from(start));
+                    let hole = self.tree.insert(
+                        Argument::Positional { value: stub },
+                        self.get_span_from(start),
+                    );
                     elements.push(hole);
                 }
                 self.eat_item_stop_with_newlines()?;

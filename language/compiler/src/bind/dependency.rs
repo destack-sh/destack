@@ -95,7 +95,10 @@ impl Compiler {
                     symbols,
                     types,
                 );
-                let item = DependencyItem::Value { mode, value: value_id };
+                let item = DependencyItem::Value {
+                    mode,
+                    value: value_id,
+                };
                 tree.insert(item_id, item)
             }
             // `import` or `export { foo } from "foo"`
