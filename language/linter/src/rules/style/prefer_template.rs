@@ -12,7 +12,10 @@ declare_lint! {
         id = "prefer-template",
         code = "LY029",
         category = Style,
-        level = Ast
+        level = Ast,
+        fixable = No,
+        recommended = Strict,
+        stability = Stable
     )]
     pub PreferTemplate,
     "Prefer template literals for string concatenation"

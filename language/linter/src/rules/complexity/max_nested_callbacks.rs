@@ -16,7 +16,10 @@ declare_lint! {
         id = "max-nested-callbacks",
         code = "LX005",
         category = Complexity,
-        level = Ast
+        level = Ast,
+        fixable = No,
+        recommended = Strict,
+        stability = Stable
     )]
     pub MaxNestedCallbacks,
     "Limit nested callback depth"

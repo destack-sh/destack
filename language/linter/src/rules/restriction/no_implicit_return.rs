@@ -12,7 +12,10 @@ declare_lint! {
         id = "no-implicit-return",
         code = "LR017",
         category = Restriction,
-        level = Ast
+        level = Ast,
+        fixable = No,
+        recommended = Off,
+        stability = Stable
     )]
     pub NoImplicitReturn,
     "Require explicit return statements"

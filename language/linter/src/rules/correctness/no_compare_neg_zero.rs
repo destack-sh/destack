@@ -13,7 +13,10 @@ declare_lint! {
         id = "no-compare-neg-zero",
         code = "LC005",
         category = Correctness,
-        level = Ast
+        level = Ast,
+        fixable = No,
+        recommended = Always,
+        stability = Stable
     )]
     pub NoCompareNegZero,
     "Disallow comparisons to negative zero"

@@ -12,7 +12,10 @@ declare_lint! {
         id = "no-unneeded-ternary",
         code = "LY013",
         category = Style,
-        level = Ast
+        level = Ast,
+        fixable = No,
+        recommended = Strict,
+        stability = Stable
     )]
     pub NoUnneededTernary,
     "Disallow unneeded ternary expressions"

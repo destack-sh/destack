@@ -23,6 +23,37 @@ pub enum LintScope {
     Program,
 }
 
+/// Whether a lint is part of the recommended set.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum Recommended {
+    /// Always recommended (core recommended set).
+    Always,
+    /// Only recommended in strict/pedantic mode.
+    Strict,
+    /// Not recommended by default.
+    Off,
+}
+
+/// Whether a lint can provide automatic fixes.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum Fixable {
+    /// Always provides a fix when it reports.
+    Always,
+    /// Can fix some cases but not all.
+    Sometimes,
+    /// Never provides fixes.
+    No,
+}
+
+/// The stability/maturity of a lint rule.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum Stability {
+    /// Mature and well-tested.
+    Stable,
+    /// New rule, may have rough edges or false positives.
+    Experimental,
+}
+
 /// Static metadata about a lint rule.
 #[derive(Debug, Clone, Copy)]
 pub struct LintMeta {
@@ -40,8 +71,12 @@ pub struct LintMeta {
     pub default_severity: DiagnosticSeverity,
     /// URL to documentation.
     pub docs_url: Option<&'static str>,
-    /// Whether this lint has an auto-fix.
-    pub fixable: bool,
+    /// Whether this lint can provide automatic fixes.
+    pub fixable: Fixable,
+    /// Whether this lint is part of the recommended set.
+    pub recommended: Recommended,
+    /// The stability/maturity of this lint.
+    pub stability: Stability,
     /// IR level this lint operates on.
     pub level: LintLevel,
     /// Scope this lint operates on.
@@ -54,9 +89,24 @@ impl LintMeta {
         format!("{}/{}", self.category.name(), self.id)
     }
 
-    /// Check if this lint is enabled by default (part of recommended set).
+    /// Check if this lint is part of the core recommended set.
     pub fn is_recommended(&self) -> bool {
-        self.category.is_recommended()
+        matches!(self.recommended, Recommended::Always)
+    }
+
+    /// Check if this lint is recommended in strict mode.
+    pub fn is_strict(&self) -> bool {
+        matches!(self.recommended, Recommended::Always | Recommended::Strict)
+    }
+
+    /// Check if this lint can provide fixes.
+    pub fn is_fixable(&self) -> bool {
+        matches!(self.fixable, Fixable::Always | Fixable::Sometimes)
+    }
+
+    /// Check if this lint is stable.
+    pub fn is_stable(&self) -> bool {
+        matches!(self.stability, Stability::Stable)
     }
 }
 

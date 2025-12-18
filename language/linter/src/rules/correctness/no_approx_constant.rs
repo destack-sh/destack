@@ -13,7 +13,10 @@ declare_lint! {
         id = "no-approx-constant",
         code = "LC016",
         category = Correctness,
-        level = Ast
+        level = Ast,
+        fixable = No,
+        recommended = Always,
+        stability = Stable
     )]
     pub NoApproxConstant,
     "Disallow approximate math constants"

@@ -12,7 +12,10 @@ declare_lint! {
         id = "no-lonely-if",
         code = "LY015",
         category = Style,
-        level = Ast
+        level = Ast,
+        fixable = No,
+        recommended = Strict,
+        stability = Stable
     )]
     pub NoLonelyIf,
     "Disallow lonely if in else"

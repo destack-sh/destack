@@ -12,7 +12,10 @@ declare_lint! {
         id = "max-lines",
         code = "LX003",
         category = Complexity,
-        level = Ast
+        level = Ast,
+        fixable = No,
+        recommended = Strict,
+        stability = Stable
     )]
     pub MaxLines,
     "Limit lines per file"

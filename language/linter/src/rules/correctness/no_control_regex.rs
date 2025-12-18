@@ -13,7 +13,10 @@ declare_lint! {
         id = "no-control-regex",
         code = "LC017",
         category = Correctness,
-        level = Ast
+        level = Ast,
+        fixable = No,
+        recommended = Always,
+        stability = Stable
     )]
     pub NoControlRegex,
     "Disallow control characters in regex"

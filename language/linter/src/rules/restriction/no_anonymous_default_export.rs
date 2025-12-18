@@ -13,7 +13,10 @@ declare_lint! {
         id = "no-anonymous-default-export",
         code = "LR003",
         category = Restriction,
-        level = Ast
+        level = Ast,
+        fixable = No,
+        recommended = Off,
+        stability = Stable
     )]
     pub NoAnonymousDefaultExport,
     "Disallow anonymous default exports"

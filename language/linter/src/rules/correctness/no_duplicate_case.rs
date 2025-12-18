@@ -13,7 +13,10 @@ declare_lint! {
         id = "no-duplicate-case",
         code = "LC009",
         category = Correctness,
-        level = Ast
+        level = Ast,
+        fixable = No,
+        recommended = Always,
+        stability = Stable
     )]
     pub NoDuplicateCase,
     "Disallow duplicate case labels"

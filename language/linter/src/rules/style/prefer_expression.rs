@@ -16,7 +16,10 @@ declare_lint! {
         id = "prefer-expression",
         code = "LY032",
         category = Style,
-        level = Ast
+        level = Ast,
+        fixable = No,
+        recommended = Strict,
+        stability = Stable
     )]
     pub PreferExpression,
     "Prefer expression-based if over statement pattern"

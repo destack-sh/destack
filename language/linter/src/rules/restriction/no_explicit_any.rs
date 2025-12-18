@@ -12,7 +12,10 @@ declare_lint! {
         id = "no-explicit-any",
         code = "LR004",
         category = Restriction,
-        level = Ast
+        level = Ast,
+        fixable = No,
+        recommended = Strict,
+        stability = Stable
     )]
     pub NoExplicitAny,
     "Disallow explicit `any` type"

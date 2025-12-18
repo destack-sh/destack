@@ -11,7 +11,10 @@ declare_lint! {
         id = "prefer-as-const",
         code = "LY027",
         category = Style,
-        level = Ast
+        level = Ast,
+        fixable = No,
+        recommended = Strict,
+        stability = Stable
     )]
     pub PreferAsConst,
     "Prefer `as const` over literal type assertions"

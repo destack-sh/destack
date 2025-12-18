@@ -12,7 +12,10 @@ declare_lint! {
         id = "no-useless-escape",
         code = "LU007",
         category = Suspicious,
-        level = Ast
+        level = Ast,
+        fixable = No,
+        recommended = Always,
+        stability = Stable
     )]
     pub NoUselessEscape,
     "Disallow useless escape characters"

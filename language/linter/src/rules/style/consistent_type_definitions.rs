@@ -12,7 +12,10 @@ declare_lint! {
         id = "consistent-type-definitions",
         code = "LY023",
         category = Style,
-        level = Ast
+        level = Ast,
+        fixable = No,
+        recommended = Strict,
+        stability = Stable
     )]
     pub ConsistentTypeDefinitions,
     "Enforce consistent type definition style"

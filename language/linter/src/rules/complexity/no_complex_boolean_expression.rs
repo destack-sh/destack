@@ -15,7 +15,10 @@ declare_lint! {
         id = "no-complex-boolean-expression",
         code = "LX010",
         category = Complexity,
-        level = Ast
+        level = Ast,
+        fixable = No,
+        recommended = Strict,
+        stability = Stable
     )]
     pub NoComplexBooleanExpression,
     "Suggest simplifying boolean expressions"

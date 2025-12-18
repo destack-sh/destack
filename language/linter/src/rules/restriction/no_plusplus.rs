@@ -12,7 +12,10 @@ declare_lint! {
         id = "no-plusplus",
         code = "LR010",
         category = Restriction,
-        level = Ast
+        level = Ast,
+        fixable = No,
+        recommended = Off,
+        stability = Stable
     )]
     pub NoPlusplus,
     "Disallow `++` and `--` operators"

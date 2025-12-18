@@ -12,7 +12,10 @@ declare_lint! {
         id = "no-enum",
         code = "LR016",
         category = Restriction,
-        level = Ast
+        level = Ast,
+        fixable = No,
+        recommended = Off,
+        stability = Stable
     )]
     pub NoEnum,
     "Disallow TypeScript enums"

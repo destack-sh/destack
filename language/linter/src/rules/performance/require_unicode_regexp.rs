@@ -20,7 +20,10 @@ declare_lint! {
         id = "require-unicode-regexp",
         code = "LP003",
         category = Performance,
-        level = Ast
+        level = Ast,
+        fixable = No,
+        recommended = Strict,
+        stability = Stable
     )]
     pub RequireUnicodeRegexp,
     "Require unicode flag on regex"

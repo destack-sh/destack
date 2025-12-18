@@ -12,7 +12,10 @@ declare_lint! {
         id = "no-constant-condition",
         code = "LC003",
         category = Suspicious,
-        level = Ast
+        level = Ast,
+        fixable = No,
+        recommended = Always,
+        stability = Stable
     )]
     pub NoConstantCondition,
     "Disallow constant expressions in conditions"

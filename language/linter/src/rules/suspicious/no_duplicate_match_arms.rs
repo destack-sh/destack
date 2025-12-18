@@ -14,7 +14,10 @@ declare_lint! {
         id = "no-duplicate-match-arms",
         code = "LU012",
         category = Suspicious,
-        level = Ast
+        level = Ast,
+        fixable = No,
+        recommended = Always,
+        stability = Stable
     )]
     pub NoDuplicateMatchArms,
     "Warn on match arms with identical bodies"

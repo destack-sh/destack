@@ -11,7 +11,10 @@ declare_lint! {
         id = "filename-case",
         code = "LY022",
         category = Style,
-        level = Ast
+        level = Ast,
+        fixable = No,
+        recommended = Strict,
+        stability = Stable
     )]
     pub FilenameCaseRule,
     "Enforce filename case style"

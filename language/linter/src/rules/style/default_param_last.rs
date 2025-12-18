@@ -15,7 +15,10 @@ declare_lint! {
         id = "default-param-last",
         code = "LY034",
         category = Style,
-        level = Ast
+        level = Ast,
+        fixable = No,
+        recommended = Strict,
+        stability = Stable
     )]
     pub DefaultParamLast,
     "Enforce default parameters to be last"

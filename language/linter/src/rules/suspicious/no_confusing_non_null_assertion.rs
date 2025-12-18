@@ -12,7 +12,10 @@ declare_lint! {
         id = "no-confusing-non-null-assertion",
         code = "LU009",
         category = Suspicious,
-        level = Ast
+        level = Ast,
+        fixable = No,
+        recommended = Always,
+        stability = Stable
     )]
     pub NoConfusingNonNullAssertion,
     "Disallow confusing non-null assertions"

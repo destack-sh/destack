@@ -12,7 +12,10 @@ declare_lint! {
         id = "dot-notation",
         code = "LY020",
         category = Style,
-        level = Ast
+        level = Ast,
+        fixable = No,
+        recommended = Strict,
+        stability = Stable
     )]
     pub DotNotation,
     "Prefer dot notation for property access"

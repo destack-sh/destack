@@ -12,7 +12,10 @@ declare_lint! {
         id = "no-empty-function",
         code = "LU013",
         category = Suspicious,
-        level = Ast
+        level = Ast,
+        fixable = No,
+        recommended = Always,
+        stability = Stable
     )]
     pub NoEmptyFunction,
     "Disallow empty functions"

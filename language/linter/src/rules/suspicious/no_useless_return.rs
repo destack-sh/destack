@@ -12,7 +12,10 @@ declare_lint! {
         id = "no-useless-return",
         code = "LU004",
         category = Suspicious,
-        level = Ast
+        level = Ast,
+        fixable = No,
+        recommended = Always,
+        stability = Stable
     )]
     pub NoUselessReturn,
     "Disallow useless return statements"

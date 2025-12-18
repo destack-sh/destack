@@ -12,7 +12,10 @@ declare_lint! {
         id = "no-return-assign",
         code = "LU015",
         category = Suspicious,
-        level = Ast
+        level = Ast,
+        fixable = No,
+        recommended = Always,
+        stability = Stable
     )]
     pub NoReturnAssign,
     "Disallow assignment in return statements"

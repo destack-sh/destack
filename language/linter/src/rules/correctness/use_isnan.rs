@@ -13,7 +13,10 @@ declare_lint! {
         id = "use-isnan",
         code = "LC019",
         category = Correctness,
-        level = Ast
+        level = Ast,
+        fixable = No,
+        recommended = Always,
+        stability = Stable
     )]
     pub UseIsnan,
     "Require Number.isNaN() instead of NaN comparisons"

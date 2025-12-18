@@ -14,7 +14,10 @@ declare_lint! {
         id = "no-useless-backreference",
         code = "LU019",
         category = Suspicious,
-        level = Ast
+        level = Ast,
+        fixable = No,
+        recommended = Always,
+        stability = Stable
     )]
     pub NoUselessBackreference,
     "Disallow useless regex backreferences"

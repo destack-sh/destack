@@ -12,7 +12,10 @@ declare_lint! {
         id = "no-unsafe-negation",
         code = "LC012",
         category = Correctness,
-        level = Ast
+        level = Ast,
+        fixable = No,
+        recommended = Always,
+        stability = Stable
     )]
     pub NoUnsafeNegation,
     "Disallow negation of left operand in relational operators"

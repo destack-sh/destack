@@ -12,7 +12,10 @@ declare_lint! {
         id = "no-self-compare",
         code = "LC004",
         category = Suspicious,
-        level = Dir
+        level = Dir,
+        fixable = No,
+        recommended = Always,
+        stability = Stable
     )]
     pub NoSelfCompare,
     "Disallow comparing a value to itself"

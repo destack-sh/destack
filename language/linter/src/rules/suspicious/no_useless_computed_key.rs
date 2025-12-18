@@ -13,7 +13,10 @@ declare_lint! {
         id = "no-useless-computed-key",
         code = "LU005",
         category = Suspicious,
-        level = Ast
+        level = Ast,
+        fixable = No,
+        recommended = Always,
+        stability = Stable
     )]
     pub NoUselessComputedKey,
     "Disallow useless computed keys"

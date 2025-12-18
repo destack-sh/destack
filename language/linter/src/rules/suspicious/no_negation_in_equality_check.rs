@@ -12,7 +12,10 @@ declare_lint! {
         id = "no-negation-in-equality-check",
         code = "LU014",
         category = Suspicious,
-        level = Ast
+        level = Ast,
+        fixable = No,
+        recommended = Always,
+        stability = Stable
     )]
     pub NoNegationInEqualityCheck,
     "Disallow negation in equality checks"

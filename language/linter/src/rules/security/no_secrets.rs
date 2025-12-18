@@ -14,7 +14,10 @@ declare_lint! {
         id = "no-secrets",
         code = "LS003",
         category = Security,
-        level = Ast
+        level = Ast,
+        fixable = No,
+        recommended = Always,
+        stability = Stable
     )]
     pub NoSecrets,
     "Disallow hardcoded secrets"

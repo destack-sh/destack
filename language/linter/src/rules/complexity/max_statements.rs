@@ -12,7 +12,10 @@ declare_lint! {
         id = "max-statements",
         code = "LX006",
         category = Complexity,
-        level = Ast
+        level = Ast,
+        fixable = No,
+        recommended = Strict,
+        stability = Stable
     )]
     pub MaxStatements,
     "Limit statements per function"

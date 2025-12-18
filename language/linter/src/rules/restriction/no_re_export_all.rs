@@ -13,7 +13,10 @@ declare_lint! {
         id = "no-re-export-all",
         code = "LR015",
         category = Restriction,
-        level = Ast
+        level = Ast,
+        fixable = No,
+        recommended = Off,
+        stability = Stable
     )]
     pub NoReExportAll,
     "Disallow export * from"

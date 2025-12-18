@@ -12,7 +12,10 @@ declare_lint! {
         id = "no-useless-catch",
         code = "LU002",
         category = Suspicious,
-        level = Ast
+        level = Ast,
+        fixable = No,
+        recommended = Always,
+        stability = Stable
     )]
     pub NoUselessCatch,
     "Disallow catch that just rethrows"

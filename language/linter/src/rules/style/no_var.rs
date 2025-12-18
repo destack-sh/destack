@@ -12,7 +12,10 @@ declare_lint! {
         id = "no-var",
         code = "LY012",
         category = Style,
-        level = Ast
+        level = Ast,
+        fixable = No,
+        recommended = Strict,
+        stability = Stable
     )]
     pub NoVar,
     "Disallow var declarations"

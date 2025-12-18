@@ -13,7 +13,10 @@ declare_lint! {
         id = "no-multi-assign",
         code = "LX007",
         category = Complexity,
-        level = Ast
+        level = Ast,
+        fixable = No,
+        recommended = Strict,
+        stability = Stable
     )]
     pub NoMultiAssign,
     "Disallow chained assignments"

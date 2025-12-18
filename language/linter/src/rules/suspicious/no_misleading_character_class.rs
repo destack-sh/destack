@@ -13,7 +13,10 @@ declare_lint! {
         id = "no-misleading-character-class",
         code = "LU013",
         category = Suspicious,
-        level = Ast
+        level = Ast,
+        fixable = No,
+        recommended = Always,
+        stability = Stable
     )]
     pub NoMisleadingCharacterClass,
     "Disallow misleading regex character classes"

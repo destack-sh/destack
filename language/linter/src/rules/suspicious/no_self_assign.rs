@@ -11,7 +11,10 @@ declare_lint! {
         id = "no-self-assign",
         code = "LU016",
         category = Suspicious,
-        level = Ast
+        level = Ast,
+        fixable = No,
+        recommended = Always,
+        stability = Stable
     )]
     pub NoSelfAssign,
     "Disallow self-assignment"

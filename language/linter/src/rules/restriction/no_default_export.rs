@@ -12,7 +12,10 @@ declare_lint! {
         id = "no-default-export",
         code = "LR015",
         category = Restriction,
-        level = Dir
+        level = Dir,
+        fixable = No,
+        recommended = Off,
+        stability = Stable
     )]
     pub NoDefaultExport,
     "Disallow default exports"

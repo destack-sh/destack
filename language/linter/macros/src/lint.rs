@@ -29,10 +29,12 @@ struct LintAttr {
     level: Ident,
     /// The rule scope (e.g., Module).
     scope: Option<Ident>,
-    /// Whether the rule is fixable.
-    is_fixable: bool,
-    /// Whether the rule is recommended (overrides category default).
-    is_recommended: Option<bool>,
+    /// Whether the rule can provide fixes (Always, Sometimes, No).
+    fixable: Ident,
+    /// Whether the rule is recommended (Always, Strict, Off).
+    recommended: Ident,
+    /// The stability of the rule (Stable, Experimental).
+    stability: Ident,
     /// The URL to the rule documentation.
     docs_url: Option<String>,
 }
@@ -85,8 +87,9 @@ fn parse_lint_attr(attrs: &[Attribute]) -> Result<LintAttr> {
     let mut category = None;
     let mut level = None;
     let mut scope = None;
-    let mut is_fixable = false;
-    let mut is_recommended: Option<bool> = None;
+    let mut fixable = None;
+    let mut recommended = None;
+    let mut stability = None;
     let mut docs_url = None;
 
     lint_attr.parse_nested_meta(|meta| {
@@ -111,14 +114,17 @@ fn parse_lint_attr(attrs: &[Attribute]) -> Result<LintAttr> {
             let ident: Ident = meta.input.parse()?;
             scope = Some(ident);
         } else if meta.path.is_ident("fixable") {
-            // can be just `fixable` or `fixable = true`
-            if meta.input.peek(Token![=]) {
-                meta.input.parse::<Token![=]>()?;
-                let lit: syn::LitBool = meta.input.parse()?;
-                is_fixable = lit.value();
-            } else {
-                is_fixable = true;
-            }
+            meta.input.parse::<Token![=]>()?;
+            let ident: Ident = meta.input.parse()?;
+            fixable = Some(ident);
+        } else if meta.path.is_ident("recommended") {
+            meta.input.parse::<Token![=]>()?;
+            let ident: Ident = meta.input.parse()?;
+            recommended = Some(ident);
+        } else if meta.path.is_ident("stability") {
+            meta.input.parse::<Token![=]>()?;
+            let ident: Ident = meta.input.parse()?;
+            stability = Some(ident);
         } else if meta.path.is_ident("docs") {
             meta.input.parse::<Token![=]>()?;
             let lit: LitStr = meta.input.parse()?;
@@ -135,6 +141,13 @@ fn parse_lint_attr(attrs: &[Attribute]) -> Result<LintAttr> {
         .ok_or_else(|| syn::Error::new_spanned(lint_attr, "missing `category` in #[lint(...)]"))?;
     let level = level
         .ok_or_else(|| syn::Error::new_spanned(lint_attr, "missing `level` in #[lint(...)]"))?;
+    let fixable = fixable
+        .ok_or_else(|| syn::Error::new_spanned(lint_attr, "missing `fixable` in #[lint(...)]"))?;
+    let recommended = recommended.ok_or_else(|| {
+        syn::Error::new_spanned(lint_attr, "missing `recommended` in #[lint(...)]")
+    })?;
+    let stability = stability
+        .ok_or_else(|| syn::Error::new_spanned(lint_attr, "missing `stability` in #[lint(...)]"))?;
 
     Ok(LintAttr {
         id,
@@ -142,8 +155,9 @@ fn parse_lint_attr(attrs: &[Attribute]) -> Result<LintAttr> {
         category,
         level,
         scope,
-        is_fixable,
-        is_recommended: None,
+        fixable,
+        recommended,
+        stability,
         docs_url,
     })
 }
@@ -186,8 +200,9 @@ pub(crate) fn declare_lint_impl(input: TokenStream) -> TokenStream {
         category,
         level,
         scope,
-        is_fixable: fixable,
-        is_recommended: recommended, // nocheckin TODO: support per-rule recommended override
+        fixable,
+        recommended,
+        stability,
         docs_url,
     } = lint_attr;
 
@@ -225,7 +240,9 @@ pub(crate) fn declare_lint_impl(input: TokenStream) -> TokenStream {
             category: crate::linter::LintCategory::#category,
             default_severity: #default_severity,
             docs_url: #docs_url_tokens,
-            fixable: #fixable,
+            fixable: crate::linter::Fixable::#fixable,
+            recommended: crate::linter::Recommended::#recommended,
+            stability: crate::linter::Stability::#stability,
             level: crate::linter::LintLevel::#level,
             scope: crate::linter::LintScope::#scope,
         };

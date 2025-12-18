@@ -12,7 +12,10 @@ declare_lint! {
         id = "no-empty-static-block",
         code = "LU014",
         category = Suspicious,
-        level = Ast
+        level = Ast,
+        fixable = No,
+        recommended = Always,
+        stability = Stable
     )]
     pub NoEmptyStaticBlock,
     "Disallow empty static initialization blocks"

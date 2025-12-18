@@ -27,7 +27,10 @@ declare_lint! {
         id = "no-unused-expressions",
         code = "LX011",
         category = Complexity,
-        level = Ast
+        level = Ast,
+        fixable = No,
+        recommended = Strict,
+        stability = Stable
     )]
     pub NoUnusedExpressions,
     "Disallow expressions without effect"

@@ -13,7 +13,9 @@ declare_lint! {
         code = "LC001",
         category = Suspicious,
         level = Ast,
-        fixable
+        fixable = Always,
+        recommended = Always,
+        stability = Stable
     )]
     pub NoDebugger,
     "Disallow debugger statements"
