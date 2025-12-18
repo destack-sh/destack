@@ -104,8 +104,8 @@ pub fn signature_help(session: &Session, file: FileId, offset: u32) -> Option<Si
     let dir_tree = module_guard.dir.tree.read();
 
     // 3. look for a call expression among the enclosing nodes
-    for enc in &enclosing {
-        let Some(dir_node_id) = dir_tree.get_node_id_by_source_id(enc.idx) else {
+    for enclosing_span in &enclosing {
+        let Some(dir_node_id) = dir_tree.get_node_id_by_source_id(enclosing_span.idx) else {
             continue;
         };
 
@@ -144,7 +144,7 @@ pub fn signature_help(session: &Session, file: FileId, offset: u32) -> Option<Si
                 // method call: obj.method(...)
                 Expression::Member { name, .. } => {
                     let name = module_guard.ast.strings.get(*name).to_string();
-                    (Some(name), None) // TODO #Incomplete: resolve method to get actual signature
+                    (Some(name), None)
                 }
                 _ => (None, None),
             };

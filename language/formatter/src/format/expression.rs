@@ -1767,8 +1767,21 @@ pub(crate) fn format_expression<'ast>(
 
             // items
             let first_item = items.first().map(|item| tree.get(*item));
+            // default export with value (export default <expression>)
+            if items.len() == 1
+                && first_item.is_some_and(|item| {
+                    item.mode == DependencyMode::Default && item.value.is_some()
+                })
+            {
+                write!(
+                    f,
+                    [Keyword::Default, space(), first_item.unwrap().value.unwrap()]
+                )?;
+            }
             // namespace
-            if items.len() == 1 && first_item.unwrap().mode == DependencyMode::Namespace {
+            else if items.len() == 1
+                && first_item.is_some_and(|item| item.mode == DependencyMode::Namespace)
+            {
                 write!(f, [token("*")])?;
                 if let Some(alias) = first_item.unwrap().alias {
                     write!(f, [space(), Keyword::As, space(), alias])?;

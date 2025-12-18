@@ -136,12 +136,12 @@ impl Parser {
 
         self.eat_keyword(Keyword::Export)?;
 
-        // export default <identifier>
-        if self.peek_keyword(Keyword::Default).is_ok()
-            && self.peek_next_token(TokenType::Identifier).is_ok()
-        {
+        // export default <expression>
+        if self.peek_keyword(Keyword::Default).is_ok() {
             self.bump(); // eat default
-            let value = self.eat_expression()?;
+            let value = self.with_options(self.options.not_in_position(), |parser| {
+                parser.eat_expression()
+            })?;
             let item = self.tree.insert(
                 DependencyItem {
                     mode: DependencyMode::Default,

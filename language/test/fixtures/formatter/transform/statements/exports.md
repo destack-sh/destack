@@ -212,7 +212,7 @@ export default 42;
 
 ### _export default object
 
-Object literals can be the default export (requires parentheses in Destack).
+Object literals can be the default export.
 
 ```ds
 export default { x: 1, y: 2 }
@@ -238,7 +238,7 @@ export default (x) => x * 2;
 
 ### _type-only export
 
-Type-only exports use `export type` (parser issue - export keyword dropped).
+Type-only exports use `export type`.
 
 ```ds
 export type { Foo }
