@@ -136,6 +136,7 @@ pub enum CompletionTrigger {
 }
 
 /// Get completions at the given position.
+/// NOTE #Incomplete: improve completions queries
 pub fn completions(
     session: &Session,
     file: FileId,
@@ -157,8 +158,7 @@ pub fn completions(
         }
 
         CompletionContext::ImportPath => {
-            // TODO #Incomplete: complete module paths
-            Vec::new()
+            Vec::new() // #Incomplete: complete module paths
         }
 
         CompletionContext::ImportClause { target_module } => {

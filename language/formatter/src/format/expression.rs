@@ -31,11 +31,6 @@ impl<'ast> Format<DestackFormatContext<'ast>> for TreeExpressionArgument {
         match argument {
             Argument::Named { name, value } => {
                 let value_expr = f.context().tree.get(*value);
-
-                // JSX-compliant attribute formatting:
-                // - Boolean true uses shorthand: `disabled` not `disabled=true`
-                // - String literals don't need braces: `name="value"`
-                // - Everything else needs braces: `count={5}`, `items={[...]}`, `onClick={handler}`
                 if let Expression::ScalarLiteral(ScalarLiteral::Boolean(true)) = value_expr {
                     // boolean shorthand
                     write!(f, [name])?;
@@ -2819,10 +2814,9 @@ mod tests {
 
     #[test]
     fn test_format_jsx_with_comment() {
-        // block infix comments in expression containers cause expansion with proper indent
         assert_format!(
-            "<Container>{/* TODO */}</Container>",
-            "<Container>\n    {\n        /* TODO */\n    }\n</Container>",
+            "<Container>{/* XOXO */}</Container>",
+            "<Container>\n    {\n        /* XOXO */\n    }\n</Container>",
             |p| p.eat_expression(),
             DestackFormatOptions::default()
         );

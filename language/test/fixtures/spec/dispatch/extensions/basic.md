@@ -145,5 +145,3 @@ declare function getStatus(): Status;
 const status = getStatus();
 status.isActive() satisfies boolean;
 ```
-
-// TODO #Incomplete: test #Extensions
