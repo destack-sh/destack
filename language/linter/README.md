@@ -34,12 +34,14 @@ High-confidence issues that are almost always wrong.
 | `no-approx-constant` | Destack | AST | ✓ | ✅ | Disallow approximate representations of mathematical constants |
 | `no-array-delete` | TS-ESLint | DIR | ✓ | 🔶 | Disallow `delete` on arrays (creates holes) |
 | `no-async-promise-executor` | ESLint | DIR | ✗ | 🔶 | Disallow async functions as Promise executor |
+| `no-base-to-string` | TS-ESLint | DIR | ✓ | 🔶 | Disallow `.toString()` on objects without useful representation |
 | `no-class-assign` | ESLint | DIR | ✓ | 🔶 | Disallow reassigning class/struct declarations |
 | `no-compare-neg-zero` | ESLint | AST | ✓ | ✅ | Disallow comparing against negative zero |
 | `no-const-assign` | ESLint | DIR | ✓ | 🔶 | Disallow reassigning const variables |
 | `no-constant-binary-expression` | ESLint | AST | ✓ | ✅ | Disallow expressions where the operation doesn't affect the value |
 | `no-constant-condition` | ESLint | AST | ✓ | ✅ | Disallow constant expressions in conditions |
 | `no-control-regex` | ESLint | AST | ✓ | ✅ | Disallow control characters in regular expressions |
+| `no-deprecated` | TS-ESLint | DIR | ✗ | 🔶 | Disallow use of `@deprecated` APIs |
 | `no-duplicate-case` | ESLint | AST | ✓ | ✅ | Disallow duplicate case labels |
 | `no-empty-range` | Destack | AST | ✓ | ✅ | Disallow empty ranges where start > end |
 | `no-fallthrough` | ESLint | AST | ✓ | ✅ | Disallow fallthrough of case statements |
@@ -63,6 +65,7 @@ High-confidence issues that are almost always wrong.
 | `no-unsafe-negation` | ESLint | AST | ✓ | ✅ | Disallow negating the left operand of relational operators |
 | `no-unsafe-optional-chaining` | ESLint | DIR | ✓ | 🔶 | Disallow optional chaining in contexts where undefined is not allowed |
 | `no-useless-assignment` | ESLint | DIR | ✓ | 🔶 | Disallow assignments that are immediately overwritten |
+| `require-array-sort-compare` | TS-ESLint | DIR | ✓ | 🔶 | Require comparison function for `.sort()` |
 | `switch-exhaustiveness-check` | TS-ESLint | DIR | ✓ | 🔶 | Require switch statements to be exhaustive |
 | `unbound-method` | TS-ESLint | DIR | ✓ | 🔶 | Disallow unbound methods as callbacks |
 | `unused-must-use` | Destack | DIR | ✓ | 🔶 | Disallow ignoring return values of `@mustUse` functions |
@@ -125,6 +128,7 @@ Code that is likely unintentional but may occasionally be intentional.
 | `prefer-array-map` | Destack | DIR | ✓ | 🔶 | Suggest `.map()` over manual mapping loops |
 | `prefer-flat-map` | Unicorn | DIR | ✓ | 🔶 | Suggest `.flatMap()` over `.map().flatten()` |
 | `prefer-match` | Destack | AST | ✓ | ✅ | Suggest match expressions over complex if-else chains |
+| `return-await` | TS-ESLint | DIR | ✓ | 🔶 | Enforce consistent `return await` usage |
 | `require-yield` | ESLint | AST | ✓ | ✅ | Require generator functions to contain yield |
 
 ## Security (S)
@@ -185,14 +189,18 @@ Subjective preferences for consistent coding style.
 | `no-collapsible-if` | Unicorn | AST | ✓ | 🟡 | Suggest merging nested if statements without else |
 | `no-constant-assertion` | Destack | AST | ✓ | 🟡 | Disallow assertions on constant values |
 | `no-declarations-after-statements` | Destack | AST | ✓ | 🟡 | Disallow declarations after statements |
+| `no-duplicate-type-constituents` | TS-ESLint | AST | ✓ | ✅ | Disallow duplicate constituents in union/intersection types |
 | `no-else-return` | ESLint | AST | ✓ | ✅ | Disallow else blocks after return statements |
 | `no-empty-interface` | TS-ESLint | AST | ✓ | ✅ | Disallow empty interfaces |
 | `no-extra-boolean-cast` | ESLint | DIR | ✗ | 🟡 | Disallow unnecessary boolean casts |
 | `no-implicit-coercion` | ESLint | DIR | ✗ | 🟡 | Disallow shorthand type conversions |
 | `no-lonely-if` | ESLint | AST | ✓ | ✅ | Disallow if statements as the only statement in else blocks |
 | `no-negated-condition` | ESLint | AST | ✓ | 🟡 | Disallow negated conditions with else branches |
+| `no-redundant-type-constituents` | TS-ESLint | DIR | ✓ | 🔶 | Disallow type constituents made redundant by others |
 | `no-nested-ternary` | ESLint | AST | ✓ | ✅ | Disallow nested ternary expressions |
 | `no-unneeded-ternary` | ESLint | AST | ✓ | ✅ | Disallow ternary operators when simpler alternatives exist |
+| `no-unnecessary-template-expression` | TS-ESLint | DIR | ✓ | 🔶 | Disallow unnecessary template literal expressions |
+| `no-unnecessary-type-arguments` | TS-ESLint | DIR | ✓ | 🔶 | Disallow type arguments that equal the default |
 | `no-var` | ESLint | AST | ✓ | ✅ | Require `let` or `const` instead of `var` |
 | `object-shorthand` | ESLint | AST | ✓ | ✅ | Require or disallow method and property shorthand syntax |
 | `operator-assignment` | ESLint | AST | ✓ | ✅ | Require or disallow assignment operator shorthand |
@@ -213,6 +221,7 @@ Subjective preferences for consistent coding style.
 | `prefer-object-has-own` | ESLint | DIR | ✗ | 🔶 | Prefer `Object.hasOwn()` over `Object.prototype.hasOwnProperty` |
 | `prefer-object-spread` | ESLint | DIR | ✗ | 🔶 | Prefer spread operator over `Object.assign()` |
 | `prefer-pattern-over-guard` | Destack | AST | ✓ | 🟡 | Suggest moving match guards into the pattern |
+| `prefer-promise-reject-errors` | TS-ESLint | DIR | ✗ | 🔶 | Require Error objects in Promise rejections |
 | `prefer-propagate-operator` | Destack | DIR | ✗ | 🟡 | Prefer `?` operator over manual Result matching |
 | `prefer-range-contains` | Destack | AST | ✓ | 🟡 | Prefer range contains method over comparison chains |
 | `prefer-range-literal` | Destack | AST | ✓ | ✅ | Prefer range literals over C-style for loops |
@@ -227,6 +236,8 @@ Subjective preferences for consistent coding style.
 | `prefer-tuple-destructure` | Destack | AST | ✓ | 🟡 | Prefer tuple destructuring over indexed access |
 | `prefer-tuple-swap` | Destack | AST | ✓ | 🟡 | Prefer tuple swap syntax over temporary variable |
 | `prefer-unary-negation` | Destack | AST | ✓ | 🟡 | Prefer unary negation over multiplying by -1 |
+| `promise-function-async` | TS-ESLint | DIR | ✗ | 🔶 | Require `async` keyword for Promise-returning functions |
+| `restrict-template-expressions` | TS-ESLint | DIR | ✓ | 🔶 | Require template expressions to be strings or numbers |
 | `sort-imports` | ESLint | AST | ✓ | 🟡 | Enforce sorted import declarations |
 | `symbol-description` | ESLint | DIR | ✗ | 🔶 | Require symbol descriptions |
 | `tree-prop-spread-candidate` | Destack | AST | ✓ | 🟡 | Suggest spreading repeated tree props |
