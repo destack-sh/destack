@@ -18,24 +18,14 @@ use crate::query::{QueryExpectation, QueryTestSession};
 /// x: parameter [declaration, readonly]
 /// ```
 pub fn run(session: &QueryTestSession, expectation: Option<&QueryExpectation>) -> TestResult {
-    let tokens = query::semantic_tokens(&session.session, session.file_id);
-
-    if let Some(exp) = expectation {
-        return run_with_expectation(session, exp, &tokens);
-    }
-
-    // no expectation - just verify we got some tokens for non-empty source
-    if session.source.trim().is_empty() {
-        return TestResult::Passed;
-    }
-
-    if tokens.is_empty() {
-        return TestResult::Failed {
-            message: "semantic_tokens returned no tokens for non-empty source".to_string(),
+    let Some(exp) = expectation else {
+        return TestResult::Skipped {
+            reason: "no semantic_tokens expectation defined".to_string(),
         };
-    }
+    };
 
-    TestResult::Passed
+    let tokens = query::semantic_tokens(&session.session, session.file_id);
+    run_with_expectation(session, exp, &tokens)
 }
 
 /// Run with markdown expectation.

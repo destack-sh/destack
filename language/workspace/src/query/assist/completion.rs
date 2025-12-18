@@ -229,17 +229,12 @@ fn get_symbol_owned_scope(
     symbols: &dir::SymbolTable,
     symbol_id: dir::LocalSymbolId,
 ) -> Option<dir::LocalScopeId> {
-    // find a scope that has this symbol as its owner
-    for scope in symbols.scopes() {
+    // iterate through scopes to find the one owned by this symbol
+    for (idx, scope) in symbols.scopes().enumerate() {
         if scope.owner_id == Some(symbol_id) {
-            // return the scope id - we need to find it
-            // this is a bit awkward, let's iterate with index
-            break;
+            return Some(dir::LocalScopeId::new(idx as u32));
         }
     }
-
-    // #Incomplete alternative: iterate scopes with their ids
-    // for now, return None and rely on extension methods or other fallbacks
     None
 }
 

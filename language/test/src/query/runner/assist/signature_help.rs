@@ -22,8 +22,8 @@ pub fn run(session: &QueryTestSession, expectation: Option<&QueryExpectation>) -
         let result = query::signature_help(&session.session, session.file_id, cursor.offset);
 
         match result {
-            Some(sig_help) => {
-                if sig_help.signatures.is_empty() {
+            Some(signature_help) => {
+                if signature_help.signatures.is_empty() {
                     return TestResult::Failed {
                         message: format!(
                             "signature_help at ${cursor_idx} returned empty signatures"
@@ -31,23 +31,23 @@ pub fn run(session: &QueryTestSession, expectation: Option<&QueryExpectation>) -
                     };
                 }
 
-                let sig = &sig_help.signatures[sig_help.active_signature];
-                if !sig.label.contains(expected_sig) {
+                let signature = &signature_help.signatures[signature_help.active_signature];
+                if !signature.label.contains(expected_sig) {
                     return TestResult::Failed {
                         message: format!(
                             "signature_help at ${} expected '{}', got '{}'",
-                            cursor_idx, expected_sig, sig.label
+                            cursor_idx, expected_sig, signature.label
                         ),
                     };
                 }
 
                 if let Some(active) = expected_active
-                    && sig_help.active_parameter != *active
+                    && signature_help.active_parameter != *active
                 {
                     return TestResult::Failed {
                         message: format!(
                             "signature_help at ${cursor_idx} expected active parameter {active}, got {}",
-                            sig_help.active_parameter
+                            signature_help.active_parameter
                         ),
                     };
                 }
