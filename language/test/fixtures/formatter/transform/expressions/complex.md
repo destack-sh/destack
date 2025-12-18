@@ -575,3 +575,333 @@ data?.items?.[0]?.value?.toString()
 ```ds expected
 data?.items?.[0]?.value?.toString();
 ```
+
+## Member Chain Formatting
+
+### short chain stays on one line
+
+Short chains fit on one line.
+
+```ds
+obj.method().result
+```
+
+```ds expected
+obj.method().result;
+```
+
+### property access chain
+
+Property access chains stay on one line when possible.
+
+```ds line-width=50
+very.long.deeply.nested.property.access
+```
+
+```ds expected
+very.long.deeply.nested.property.access;
+```
+
+### method chain with arguments
+
+Method chains with various argument lengths.
+
+```ds line-width=40
+array.filter((x) => x > 0).map((x) => x * 2).reduce((a, b) => a + b, 0)
+```
+
+```ds expected
+array
+    .filter((x) => x > 0)
+    .map((x) => x * 2)
+    .reduce((a, b) => a + b, 0);
+```
+
+### chain starting with call
+
+Chain starting with a function call.
+
+```ds line-width=35
+getData().process().transform().result()
+```
+
+```ds expected
+getData()
+    .process()
+    .transform()
+    .result();
+```
+
+### chain with constructor
+
+Chain starting with new expression.
+
+```ds line-width=40
+new Builder().setName("test").setAge(25).build()
+```
+
+```ds expected
+new Builder()
+    .setName("test")
+    .setAge(25)
+    .build();
+```
+
+### conditional in method argument
+
+Ternary inside a chained method call.
+
+```ds line-width=50
+data.filter((x) => isValid ? x.active : x.pending).map((x) => x.id)
+```
+
+```ds expected
+data
+    .filter((x) => isValid ? x.active : x.pending)
+    .map((x) => x.id);
+```
+
+### chain with array index
+
+Member chain including array indexing.
+
+```ds line-width=40
+users[0].profile.settings.theme
+```
+
+```ds expected
+users[0].profile.settings.theme;
+```
+
+### complex chain with index and call
+
+Mix of property access, indexing, and method calls. Chains break after the receiver.
+
+```ds line-width=35
+obj.items[0].getValue().transform()
+```
+
+```ds expected
+obj
+    .items[0]
+    .getValue()
+    .transform();
+```
+
+## Curried Function Calls
+
+### simple curried call
+
+Curried function application.
+
+```ds
+curry(a)(b)(c)
+```
+
+```ds expected
+curry(a)(b)(c);
+```
+
+### long curried call breaks
+
+Long curried calls break with each call on its own line.
+
+```ds line-width=30
+curriedFunction(firstArg)(secondArg)(thirdArg)
+```
+
+```ds expected
+curriedFunction(firstArg)
+    (secondArg)
+    (thirdArg);
+```
+
+### curried call with objects
+
+Curried calls with object arguments break similarly.
+
+```ds line-width=40
+configure({ mode: "dev" })({ debug: true })({ verbose: false })
+```
+
+```ds expected
+configure({ mode: "dev" })
+    ({ debug: true })
+    ({ verbose: false });
+```
+
+## Long Binary Expression Patterns
+
+### many additions
+
+Long chain of additions.
+
+```ds line-width=30
+const sum = a + b + c + d + e + f + g
+```
+
+```ds expected
+const sum = a
+    + b
+    + c
+    + d
+    + e
+    + f
+    + g;
+```
+
+### mixed logical operators
+
+Chain of mixed && and || operators.
+
+```ds line-width=40
+const ok = a && b || c && d || e && f
+```
+
+```ds expected
+const ok = a && b || c && d || e && f;
+```
+
+### nullish chain
+
+Multiple nullish coalescing operators.
+
+```ds line-width=50
+const value = first ?? second ?? third ?? fourth ?? fallback
+```
+
+```ds expected
+const value = first
+    ?? second
+    ?? third
+    ?? fourth
+    ?? fallback;
+```
+
+### comparison chain with logical
+
+Comparison operators combined with logical.
+
+```ds line-width=35
+const inBounds = x >= 0 && x < width && y >= 0 && y < height
+```
+
+```ds expected
+const inBounds = x >= 0
+    && x < width
+    && y >= 0
+    && y < height;
+```
+
+## Advanced Destructuring
+
+### deeply nested object destructuring
+
+Multiple levels of nested object destructuring.
+
+```ds line-width=60
+const { user: { profile: { settings: { theme, language } } } } = config
+```
+
+```ds expected
+const {
+    user: { profile: { settings: { theme, language } } },
+} = config;
+```
+
+### nested destructuring with defaults
+
+Defaults at various nesting levels. Expands when over line width.
+
+```ds line-width=50
+const { a: { b = 1, c: { d = 2 } = {} } = {} } = obj
+```
+
+```ds expected
+const {
+    a: { b = 1, c: { d = 2 } = { } } = { },
+} = obj;
+```
+
+### array destructuring with nested objects
+
+Array elements containing object destructuring expand when needed.
+
+```ds line-width=50
+const [{ name, id }, { name: secondName }] = items
+```
+
+```ds expected
+const [
+    { name, id },
+    { name: secondName },
+] = items;
+```
+
+### mixed array and object destructuring
+
+Complex pattern combining arrays and objects.
+
+```ds line-width=60
+const { items: [first, { value: secondValue }, ...rest] } = data
+```
+
+```ds expected
+const {
+    items: [first, { value: secondValue }, ...rest],
+} = data;
+```
+
+### destructuring in function parameters
+
+Destructuring in arrow function parameters. Assignment breaks when too long.
+
+```ds line-width=50
+const handler = ({ event: { target, type }, timestamp }) => process(target, type)
+```
+
+```ds expected
+const handler =
+    (
+        { event: { target, type }, timestamp },
+    ) => process(target, type)
+;
+```
+
+### rest in nested destructuring
+
+Rest patterns at different levels.
+
+```ds
+const { a, ...rest } = obj
+const [first, ...remaining] = arr
+```
+
+```ds expected
+const { a, ...rest } = obj;
+const [first, ...remaining] = arr;
+```
+
+### _computed property in destructuring
+
+TODO #Incomplete: Destack doesn't support computed property names in destructuring patterns yet.
+
+```ds
+const { [key]: value, [prefix + suffix]: other } = obj
+```
+
+```ds expected
+const { [key]: value, [prefix + suffix]: other } = obj;
+```
+
+### destructuring with type annotation
+
+Destructuring with TypeScript-style type annotations.
+
+```ds line-width=60
+const { name, age }: { name: string, age: number } = person
+```
+
+```ds expected
+const { name, age }: { name: string, age: number } = person;
+```

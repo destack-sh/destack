@@ -160,3 +160,122 @@ Multiple consecutive line comments are preserved.
     const A = 1
 }
 ```
+
+## Comments in Logical Operators
+
+### comment between logical and operands
+
+Comments between logical operators can cause expansion when they add visual weight.
+
+```ds line-width=60
+const valid = isActive() && /* must have permission */ hasPermission()
+```
+
+```ds expected
+const valid = isActive()
+    && /* must have permission */ hasPermission();
+```
+
+### comments in multiline logical chain
+
+When logical chains break, comments stay with their operands.
+
+```ds line-width=40
+const valid = isActive() && /* perm */ hasPermission() && /* not blocked */ !isBlocked()
+```
+
+```ds expected
+const valid = isActive()
+    && /* perm */ hasPermission()
+    && /* not blocked */ !isBlocked();
+```
+
+### comment in nullish coalescing
+
+Comments in nullish coalescing expressions.
+
+```ds
+const value = input ?? /* fallback */ defaultValue
+```
+
+```ds expected
+const value = input ?? /* fallback */ defaultValue;
+```
+
+## Comments in Ternary Expressions
+
+### comment before ternary branches
+
+Comments before ternary branches are preserved.
+
+```ds line-width=60
+const x = condition ? /* then */ valueA : /* else */ valueB
+```
+
+```ds expected
+const x = condition ? /* then */ valueA : /* else */ valueB;
+```
+
+### comment in breaking ternary
+
+Comments preserved when ternary breaks across lines.
+
+```ds line-width=30
+const x = condition ? /* yes */ valueA : /* no */ valueB
+```
+
+```ds expected
+const x = condition
+    ? /* yes */ valueA
+    : /* no */ valueB;
+```
+
+## Comments in Assignments
+
+### comment in chained assignment
+
+Comments in chained assignments are preserved.
+
+```ds
+x = /* important */ y = /* also important */ z
+```
+
+```ds expected
+x = /* important */ y = /* also important */ z;
+```
+
+### comment before assignment value
+
+Comment between equals and value.
+
+```ds
+const result = /* computed */ calculate(a, b)
+```
+
+```ds expected
+const result = /* computed */ calculate(a, b);
+```
+
+## Comments in Member Access
+
+### _comment in method chain
+
+```ds
+obj.method() /* step 1 */ .transform() /* step 2 */ .result()
+```
+
+```ds expected
+obj.method() /* step 1 */.transform() /* step 2 */.result();
+```
+
+### _comment before method call
+
+```ds line-width=40
+data.filter(x => x.valid) /* now map */ .map(x => x.value)
+```
+
+```ds expected
+data
+    .filter(x => x.valid) /* now map */
+    .map(x => x.value);
+```
