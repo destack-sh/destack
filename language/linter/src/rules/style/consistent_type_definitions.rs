@@ -7,7 +7,7 @@ declare_lint! {
     /// Enforce consistent type definition style.
     ///
     /// Choose between `type` aliases and `interface` declarations.
-    /// Configure via `type_definition_style` option (default: type).
+    /// Configure via `type_definition_style` option.
     #[lint(
         id = "consistent-type-definitions",
         code = "LY023",

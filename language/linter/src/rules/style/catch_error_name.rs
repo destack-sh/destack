@@ -7,7 +7,7 @@ declare_lint! {
     /// Enforce a specific name for caught errors.
     ///
     /// Consistent naming of caught errors improves code readability.
-    /// Configure the expected name via `catch_error_name` option (default: "error").
+    /// Configure the expected name via `catch_error_name` option.
     #[lint(
         id = "catch-error-name",
         code = "LY018",
