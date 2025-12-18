@@ -1,3 +1,5 @@
+mod cognitive_complexity;
+mod cyclomatic_complexity;
 mod max_depth;
 mod max_lines;
 mod max_lines_per_function;
@@ -16,6 +18,8 @@ mod prefer_simplified_comparison;
 
 use crate::{BoxedLintRule, boxed};
 
+pub use cognitive_complexity::*;
+pub use cyclomatic_complexity::*;
 pub use max_depth::*;
 pub use max_lines::*;
 pub use max_lines_per_function::*;
@@ -35,6 +39,8 @@ pub use prefer_simplified_comparison::*;
 /// Get all complexity rules.
 pub fn rules() -> Vec<BoxedLintRule> {
     vec![
+        boxed(CognitiveComplexity),
+        boxed(CyclomaticComplexity),
         boxed(MaxDepth),
         boxed(MaxLines),
         boxed(MaxLinesPerFunction),
