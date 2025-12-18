@@ -289,6 +289,8 @@ pub struct ModuleRegistry {
     modules_by_uri: DashMap<Uri, ModuleId>,
     /// Path-based index for looking up modules by their path (only for modules with valid paths).
     modules_by_path: DashMap<PathBuf, ModuleId>,
+    /// FileId-based index for looking up modules by their source file id.
+    modules_by_file_id: DashMap<FileId, ModuleId>,
 }
 
 impl Default for ModuleRegistry {
@@ -304,6 +306,7 @@ impl ModuleRegistry {
             modules_by_id: DashMap::new(),
             modules_by_uri: DashMap::new(),
             modules_by_path: DashMap::new(),
+            modules_by_file_id: DashMap::new(),
         }
     }
 
@@ -311,9 +314,11 @@ impl ModuleRegistry {
     pub fn insert(&self, module: Module) {
         let uri = module.uri.clone();
         let path = module.path.clone();
+        let file_id = module.file_id;
         let id = module.id;
         self.modules_by_id.insert(id, Arc::new(RwLock::new(module)));
         self.modules_by_uri.insert(uri, id);
+        self.modules_by_file_id.insert(file_id, id);
         if let Some(path) = path {
             self.modules_by_path.insert(path, id);
         }
@@ -366,6 +371,17 @@ impl ModuleRegistry {
     /// Check if a module exists at the given path.
     pub fn contains_path(&self, path: &Path) -> bool {
         self.modules_by_path.contains_key(path)
+    }
+
+    /// Get a module id by its source file id.
+    pub fn get_id_by_file_id(&self, file_id: FileId) -> Option<ModuleId> {
+        self.modules_by_file_id.get(&file_id).map(|r| *r.value())
+    }
+
+    /// Get a module by its source file id.
+    pub fn get_by_file_id(&self, file_id: FileId) -> Option<Arc<RwLock<Module>>> {
+        let id = self.get_id_by_file_id(file_id)?;
+        Some(self.get(id))
     }
 
     /// Iterate over the modules in the registry.
