@@ -575,23 +575,30 @@ mod tests {
         );
     }
 
-    /// Comments inside function call arguments.
+    /// Comments inside function call arguments cause expansion.
     #[test]
     fn test_format_comment_in_call_arguments() {
         assert_format!(
             "foo(/* first */ a, /* second */ b)",
-            "foo(/* first */ a, /* second */ b)",
+            "foo(
+    /* first */ a,
+    /* second */ b,
+)",
             |p| p.eat_expression(),
             DestackFormatOptions::default()
         );
     }
 
-    /// Comments inside array literals.
+    /// Comments inside array literals cause expansion.
     #[test]
     fn test_format_comment_in_array() {
         assert_format!(
             "[/* first */ 1, /* second */ 2, /* third */ 3]",
-            "[/* first */ 1, /* second */ 2, /* third */ 3]",
+            "[
+    /* first */ 1,
+    /* second */ 2,
+    /* third */ 3,
+]",
             |p| p.eat_expression(),
             DestackFormatOptions::default()
         );

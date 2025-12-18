@@ -6,26 +6,33 @@ Tests for comments in various positions within expressions.
 
 ### comment before argument
 
-Comments before arguments are preserved with spacing.
+Comments before arguments cause expansion to multiline format.
 
 ```ds
 foo(/* first */ a, /* second */ b)
 ```
 
 ```ds expected
-foo(/* first */ a, /* second */ b);
+foo(
+    /* first */ a,
+    /* second */ b,
+);
 ```
 
 ### comment in array elements
 
-Comments inside arrays are preserved.
+Comments inside arrays cause expansion to multiline format.
 
 ```ds
 [/* first */ 1, /* second */ 2, /* third */ 3]
 ```
 
 ```ds expected
-[/* first */ 1, /* second */ 2, /* third */ 3];
+[
+    /* first */ 1,
+    /* second */ 2,
+    /* third */ 3,
+];
 ```
 
 ### comment in binary expression

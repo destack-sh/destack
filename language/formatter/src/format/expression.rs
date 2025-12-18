@@ -793,7 +793,15 @@ fn format_call_expression<'ast>(
         // try hugged format for single object/array arguments
         if !format_hugged(f, dynamic_arguments, HugOptions::CALL)? {
             // force expansion when single argument is multi-line JSX
-            let force_expand = has_multiline_jsx_argument(f.context().tree, dynamic_arguments);
+            let force_expand_jsx = has_multiline_jsx_argument(f.context().tree, dynamic_arguments);
+
+            // force expansion when arguments have annotations (comments)
+            let has_annotations = f.context().has_infix_annotation(node_id)
+                || dynamic_arguments
+                    .iter()
+                    .any(|arg| f.context().has_annotation(*arg));
+
+            let force_expand = force_expand_jsx || has_annotations;
             write!(
                 f,
                 [list_like("(", ")", ",", dynamic_arguments).should_expand(force_expand)]
@@ -933,16 +941,25 @@ fn format_chain_expression<'ast>(
             }
         }
         ChainExpression::Call {
+            node_id: call_node_id,
             position,
             dynamic_arguments,
-            ..
         } => {
             if *position == PostfixPosition::Indirect {
                 write!(f, [token(".")])?;
             }
             // try hugged format for single object/array arguments
             if !format_hugged(f, dynamic_arguments, HugOptions::CALL)? {
-                write!(f, [list_like("(", ")", ",", dynamic_arguments)])?;
+                // force expansion when arguments have annotations (comments)
+                let has_annotations = f.context().has_infix_annotation(*call_node_id)
+                    || dynamic_arguments
+                        .iter()
+                        .any(|arg| f.context().has_annotation(*arg));
+
+                write!(
+                    f,
+                    [list_like("(", ")", ",", dynamic_arguments).should_expand(has_annotations)]
+                )?;
             }
         }
         ChainExpression::Index {
@@ -1477,25 +1494,57 @@ pub(crate) fn format_tree_literal<'ast>(
                     }
                     // arguments
                     if let Some(arguments) = arguments {
-                        write!(
-                            f,
-                            [
-                                if_group_fits_on_line(&space()),
-                                soft_block_indent(&format_with(|f| {
-                                    f.join_with(&format_args![soft_line_break_or_space()])
-                                        .entries(arguments.iter().map(|argument| {
-                                            TreeExpressionArgument {
-                                                argument_id: *argument,
-                                            }
-                                        }))
-                                        .finish()
+                        let single_attr_per_line = f.context().options.single_attribute_per_line;
+                        let bracket_same_line = f.context().options.bracket_same_line;
+
+                        // separator between attributes
+                        let attr_separator: &dyn Format<DestackFormatContext<'ast>> =
+                            if single_attr_per_line && arguments.len() > 1 {
+                                &hard_line_break()
+                            } else {
+                                &soft_line_break_or_space()
+                            };
+
+                        // format attribute list
+                        let format_attrs = format_with(|f| {
+                            f.join_with(attr_separator)
+                                .entries(arguments.iter().map(|argument| {
+                                    TreeExpressionArgument {
+                                        argument_id: *argument,
+                                    }
                                 }))
-                            ]
-                        )?;
+                                .finish()
+                        });
+
+                        // when bracket_same_line is true, don't add trailing line break before >
+                        // when false (default), soft_block_indent adds trailing soft_line_break
+                        if bracket_same_line {
+                            write!(
+                                f,
+                                [
+                                    if_group_fits_on_line(&space()),
+                                    indent(&format_args![soft_line_break(), format_attrs])
+                                ]
+                            )?;
+                        } else {
+                            write!(
+                                f,
+                                [
+                                    if_group_fits_on_line(&space()),
+                                    soft_block_indent(&format_attrs)
+                                ]
+                            )?;
+                        }
                     }
                     // /
                     if elements.is_none() {
-                        if left.is_some() {
+                        let bracket_same_line = f.context().options.bracket_same_line;
+                        let has_attributes = arguments.is_some();
+                        if left.is_some() || has_attributes {
+                            // space before /> when inline, or when bracket_same_line is true
+                            if bracket_same_line && has_attributes {
+                                write!(f, [if_group_breaks(&space())])?;
+                            }
                             write!(f, [if_group_fits_on_line(&space())])?;
                         }
                         write!(f, [token("/")])?;
@@ -2080,11 +2129,19 @@ pub(crate) fn format_expression<'ast>(
                     .iter()
                     .map(|id| tree.get(*id))
                     .collect::<SmallVec<[_; 3]>>();
-                let should_expand = elements.len() > 1
-                    && elements
+
+                // check for annotations that require expansion
+                let has_annotations = f.context().has_infix_annotation(node_id)
+                    || elements_ids
                         .iter()
-                        .any(|element| is_complex_argument(tree, element))
-                    || f.context().has_newline(span) && elements.len() > 1;
+                        .any(|element| f.context().has_annotation(*element));
+
+                let should_expand = has_annotations
+                    || (elements.len() > 1
+                        && elements
+                            .iter()
+                            .any(|element| is_complex_argument(tree, element)))
+                    || (f.context().has_newline(span) && elements.len() > 1);
                 write!(
                     f,
                     [list_like("[", "]", ",", elements_ids)
@@ -2107,11 +2164,19 @@ pub(crate) fn format_expression<'ast>(
                     .iter()
                     .map(|id| tree.get(*id))
                     .collect::<SmallVec<[_; 3]>>();
-                let should_expand = elements.len() > 1
-                    && elements
+
+                // check for annotations that require expansion
+                let has_annotations = f.context().has_infix_annotation(node_id)
+                    || elements_ids
                         .iter()
-                        .any(|element| is_complex_argument(tree, element))
-                    || f.context().has_newline(span) && elements.len() > 1;
+                        .any(|element| f.context().has_annotation(*element));
+
+                let should_expand = has_annotations
+                    || (elements.len() > 1
+                        && elements
+                            .iter()
+                            .any(|element| is_complex_argument(tree, element)))
+                    || (f.context().has_newline(span) && elements.len() > 1);
                 // trailing comma disambiguates tuples from parenthesized expressions
                 write!(
                     f,
@@ -2930,6 +2995,30 @@ mod tests {
             "const x = isFirst\n    ? firstValue\n    : isSecond\n    ? secondValue\n    : defaultValue",
             |p| p.eat_expression(),
             DestackFormatOptions::default_with_line_width(50)
+        );
+    }
+
+    #[test]
+    fn test_format_jsx_bracket_same_line_true() {
+        let mut options = DestackFormatOptions::default_with_line_width(30);
+        options.bracket_same_line = true;
+        assert_format!(
+            r#"<Button variant="primary" size="large" disabled />"#,
+            "<Button\n    variant=\"primary\"\n    size=\"large\"\n    disabled />",
+            |p| p.eat_expression(),
+            options
+        );
+    }
+
+    #[test]
+    fn test_format_jsx_bracket_same_line_false() {
+        let mut options = DestackFormatOptions::default_with_line_width(30);
+        options.bracket_same_line = false;
+        assert_format!(
+            r#"<Button variant="primary" size="large" disabled />"#,
+            "<Button\n    variant=\"primary\"\n    size=\"large\"\n    disabled\n/>",
+            |p| p.eat_expression(),
+            options
         );
     }
 }
