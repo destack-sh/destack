@@ -10,11 +10,11 @@ declare_lint! {
     /// missing logic for unhandled cases.
     #[lint(
         id = "require-else-in-if-chain",
-        code = "LD012",
-        category = Pedantic,
+        code = "LU025",
+        category = Suspicious,
         level = Ast,
         fixable = No,
-        recommended = Off,
+        recommended = Strict,
         stability = Stable
     )]
     pub RequireElseInIfChain,
@@ -123,7 +123,8 @@ function foo(x: int32) {
 }
 "#,
         );
-        test.result(result).assert_no_lint("require-else-in-if-chain");
+        test.result(result)
+            .assert_no_lint("require-else-in-if-chain");
     }
 
     #[test]
@@ -139,7 +140,8 @@ function foo(x: int32) {
 }
 "#,
         );
-        test.result(result).assert_no_lint("require-else-in-if-chain");
+        test.result(result)
+            .assert_no_lint("require-else-in-if-chain");
     }
 
     #[test]
@@ -157,6 +159,7 @@ function foo(x: int32) {
 }
 "#,
         );
-        test.result(result).assert_no_lint("require-else-in-if-chain");
+        test.result(result)
+            .assert_no_lint("require-else-in-if-chain");
     }
 }

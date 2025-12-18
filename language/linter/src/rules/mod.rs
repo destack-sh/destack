@@ -3,7 +3,6 @@ use crate::BoxedLintRule;
 pub mod common;
 pub mod complexity;
 pub mod correctness;
-pub mod pedantic;
 pub mod performance;
 pub mod restriction;
 pub mod security;
@@ -17,7 +16,6 @@ pub fn all_rules() -> Vec<BoxedLintRule> {
     let mut rules = Vec::new();
     rules.extend(complexity::rules());
     rules.extend(correctness::rules());
-    rules.extend(pedantic::rules());
     rules.extend(performance::rules());
     rules.extend(restriction::rules());
     rules.extend(security::rules());

@@ -9,11 +9,11 @@ declare_lint! {
     /// Comparisons like `x >= y + 1` can be simplified to `x > y` for clarity.
     #[lint(
         id = "prefer-simplified-comparison",
-        code = "LD017",
-        category = Pedantic,
+        code = "LX015",
+        category = Complexity,
         level = Ast,
         fixable = No,
-        recommended = Off,
+        recommended = Strict,
         stability = Stable
     )]
     pub PreferSimplifiedComparison,

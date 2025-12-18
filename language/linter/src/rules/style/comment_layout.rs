@@ -10,11 +10,11 @@ declare_lint! {
     /// Hyphens in comments should be replaced with colons or commas.
     #[lint(
         id = "comment-layout",
-        code = "LD003",
-        category = Pedantic,
+        code = "LY037",
+        category = Style,
         level = Ast,
         fixable = No,
-        recommended = Off,
+        recommended = Strict,
         stability = Stable
     )]
     pub CommentLayout,

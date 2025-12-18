@@ -10,11 +10,11 @@ declare_lint! {
     /// They also provide better IDE support and documentation.
     #[lint(
         id = "explicit-function-return-type",
-        code = "LD001",
-        category = Pedantic,
+        code = "LY043",
+        category = Style,
         level = Ast,
         fixable = No,
-        recommended = Off,
+        recommended = Strict,
         stability = Stable
     )]
     pub ExplicitFunctionReturnType,

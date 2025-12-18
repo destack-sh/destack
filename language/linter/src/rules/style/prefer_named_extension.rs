@@ -10,11 +10,11 @@ declare_lint! {
     /// for better discoverability and to avoid conflicts.
     #[lint(
         id = "prefer-named-extension",
-        code = "LD015",
-        category = Pedantic,
+        code = "LY039",
+        category = Style,
         level = Ast,
         fixable = No,
-        recommended = Off,
+        recommended = Strict,
         stability = Stable
     )]
     pub PreferNamedExtension,

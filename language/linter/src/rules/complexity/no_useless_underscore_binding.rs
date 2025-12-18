@@ -12,11 +12,11 @@ declare_lint! {
     /// effects, the binding is useless and can be removed.
     #[lint(
         id = "no-useless-underscore-binding",
-        code = "LD008",
-        category = Pedantic,
+        code = "LX012",
+        category = Complexity,
         level = Ast,
         fixable = No,
-        recommended = Off,
+        recommended = Strict,
         stability = Stable
     )]
     pub NoUselessUnderscoreBinding,

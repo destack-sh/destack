@@ -9,6 +9,10 @@ mod no_excessive_booleans;
 mod no_multi_assign;
 mod no_multi_declarators;
 mod no_unused_expressions;
+mod no_useless_underscore_binding;
+mod prefer_expression_over_let_if;
+mod prefer_if_let;
+mod prefer_simplified_comparison;
 
 use crate::{BoxedLintRule, boxed};
 
@@ -23,6 +27,10 @@ pub use no_excessive_booleans::*;
 pub use no_multi_assign::*;
 pub use no_multi_declarators::*;
 pub use no_unused_expressions::*;
+pub use no_useless_underscore_binding::*;
+pub use prefer_expression_over_let_if::*;
+pub use prefer_if_let::*;
+pub use prefer_simplified_comparison::*;
 
 /// Get all complexity rules.
 pub fn rules() -> Vec<BoxedLintRule> {
@@ -38,5 +46,9 @@ pub fn rules() -> Vec<BoxedLintRule> {
         boxed(NoMultiAssign),
         boxed(NoMultiDeclarators),
         boxed(NoUnusedExpressions),
+        boxed(NoUselessUnderscoreBinding),
+        boxed(PreferExpressionOverLetIf),
+        boxed(PreferIfLet),
+        boxed(PreferSimplifiedComparison),
     ]
 }

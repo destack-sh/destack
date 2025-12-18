@@ -11,11 +11,11 @@ declare_lint! {
     /// their purpose as plain data containers.
     #[lint(
         id = "no-class-for-data",
-        code = "LD006",
-        category = Pedantic,
+        code = "LY044",
+        category = Style,
         level = Ast,
         fixable = No,
-        recommended = Off,
+        recommended = Strict,
         stability = Stable
     )]
     pub NoClassForData,

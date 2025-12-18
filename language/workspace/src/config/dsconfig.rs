@@ -1351,8 +1351,6 @@ pub enum LintCategoryJson {
     Complexity,
     /// Restriction lints enforce project-specific restrictions.
     Restriction,
-    /// Pedantic lints are very strict or opinionated.
-    Pedantic,
 }
 
 impl From<LintCategoryJson> for LintCategory {
@@ -1365,7 +1363,6 @@ impl From<LintCategoryJson> for LintCategory {
             LintCategoryJson::Security => LintCategory::Security,
             LintCategoryJson::Complexity => LintCategory::Complexity,
             LintCategoryJson::Restriction => LintCategory::Restriction,
-            LintCategoryJson::Pedantic => LintCategory::Pedantic,
         }
     }
 }
