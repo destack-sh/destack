@@ -14,8 +14,7 @@ impl Compiler {
     /// - `AssignBinary` → `Assign` + `Binary` (`x += 1` → `x = x + 1`)
     /// - `RangeExpression` → iterator construction
     /// - `TreeExpression` → runtime construction calls
-    /// - `Maybe`/`Must` → explicit error handling
-    /// - `Tagged*Expression` → underlying value (newtype erasure)
+    /// - `Maybe`/`Must` → explicit error handling (if not overloaded)
     pub(super) fn desugar_module(&self, module_id: ModuleId) -> ElaborateResult<()> {
         let module = self.program.modules.get(module_id);
         let module = module.read();
