@@ -376,9 +376,11 @@ impl Parser {
 
             // just parse the export if followed by dependency items or module export
             let keyword = self.peek_any_keyword().ok();
+            let is_not_declaration_keyword =
+                keyword.is_none() || !DECLARATION_KEYWORDS.contains(&keyword.unwrap());
             if mode == Some(DependencyMode::Namespace)
-                || (keyword.is_none() || !DECLARATION_KEYWORDS.contains(&keyword.unwrap()))
-                    && self.peek_dependency_binding().is_ok()
+                || is_not_declaration_keyword && self.peek_dependency_binding().is_ok()
+                || mode == Some(DependencyMode::Default) && is_not_declaration_keyword
             {
                 self.rewind(start);
                 let export = self.eat_export()?;

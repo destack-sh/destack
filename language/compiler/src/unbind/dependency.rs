@@ -38,12 +38,13 @@ impl Compiler {
         let item = tree.get(item_id);
         let span = self.unbind_span(module, item_id.into());
         let ast_item = match item {
-            dir::DependencyItem::Value { value } => {
+            dir::DependencyItem::Value { mode, value } => {
+                let mode = self.unbind_dependency_mode(*mode);
                 let value =
                     self.unbind_expression(module, *value, tree, symbols, ast_tree, ast_strings);
                 ast::DependencyItem {
                     kind: None,
-                    mode: ast::DependencyMode::Default,
+                    mode,
                     name: None,
                     alias: None,
                     value: Some(value),

@@ -60,8 +60,11 @@ pub enum DependencyItem {
         alias: Option<StringId>,
         symbol: LocalSymbolId,
     },
-    /// Value expression dependency (like `export = foo`).
-    Value { value: LocalNodeId<Expression> },
+    /// Value expression dependency (like `export = foo` or `export default foo`).
+    Value {
+        mode: DependencyMode,
+        value: LocalNodeId<Expression>,
+    },
     /// Internal to the module (i.e., plain exports).
     Local {
         mode: DependencyMode,

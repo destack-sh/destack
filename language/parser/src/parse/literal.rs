@@ -351,14 +351,26 @@ impl Parser {
         if let Some(first) = first_element {
             elements.push(first);
         }
+        // track whether we expect an element (at start or after comma)
+        let mut expect_element = first_element.is_none();
         while self.peek().is_ok() {
-            // stop at closing parenthesis
+            // stop at closing parenthesis (trailing commas are allowed, no hole)
             if self.peek_token(close_token).is_ok() {
                 break;
             }
-            // consume any stop
+            // consume separator (comma)
             else if self.peek_comma().is_ok() {
+                let start = self.mark();
+                // leading hole: if we expected an element but got comma instead
+                if expect_element {
+                    let stub = self.tree.insert(Expression::Stub, self.get_span_from(start));
+                    let hole = self
+                        .tree
+                        .insert(Argument::Positional { value: stub }, self.get_span_from(start));
+                    elements.push(hole);
+                }
                 self.eat_item_stop_with_newlines()?;
+                expect_element = true;
                 continue;
             }
             // keep eating elements (positional/spread only)
@@ -366,6 +378,7 @@ impl Parser {
                 .eat_positional_argument()
                 .for_node_type(NodeType::Argument)?;
             elements.push(element);
+            expect_element = false;
         }
         Ok(elements)
     }
@@ -879,6 +892,82 @@ mod tests {
             elements[1],
             Argument::Positional { value } => {
                 assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(2)));
+            }
+        );
+    }
+
+    #[test]
+    fn test_parse_sparse_array_middle_hole() {
+        let mut test = TestParser::new("[1, , 3]");
+        let mut parser = test.prepare();
+
+        let elements = parser.eat_array_literal().unwrap();
+        assert_eq!(elements.len(), 3);
+        // 1
+        assert_node!(
+            parser.tree,
+            elements[0],
+            Argument::Positional { value } => {
+                assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
+            }
+        );
+        // hole (stub)
+        assert_node!(
+            parser.tree,
+            elements[1],
+            Argument::Positional { value } => {
+                assert_node!(parser.tree, *value, Expression::Stub);
+            }
+        );
+        // 3
+        assert_node!(
+            parser.tree,
+            elements[2],
+            Argument::Positional { value } => {
+                assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(3)));
+            }
+        );
+    }
+
+    #[test]
+    fn test_parse_sparse_array_leading_hole() {
+        let mut test = TestParser::new("[, 1]");
+        let mut parser = test.prepare();
+
+        let elements = parser.eat_array_literal().unwrap();
+        assert_eq!(elements.len(), 2);
+        // hole (stub)
+        assert_node!(
+            parser.tree,
+            elements[0],
+            Argument::Positional { value } => {
+                assert_node!(parser.tree, *value, Expression::Stub);
+            }
+        );
+        // 1
+        assert_node!(
+            parser.tree,
+            elements[1],
+            Argument::Positional { value } => {
+                assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
+            }
+        );
+    }
+
+    #[test]
+    fn test_parse_sparse_array_trailing_hole() {
+        let mut test = TestParser::new("[1, ]");
+        let mut parser = test.prepare();
+
+        let elements = parser.eat_array_literal().unwrap();
+        // trailing comma without hole is allowed
+        assert_eq!(elements.len(), 1);
+        // 1
+        assert_node!(
+            parser.tree,
+            elements[0],
+            Argument::Positional { value } => {
+                assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
             }
         );
     }
