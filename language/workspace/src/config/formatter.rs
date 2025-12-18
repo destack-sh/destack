@@ -189,6 +189,81 @@ impl std::fmt::Display for QuoteProperty {
     }
 }
 
+/// Import organization mode.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+pub enum OrganizeImports {
+    /// Organize imports: sort statements by group and specifiers alphabetically.
+    On,
+    /// Don't reorder imports (preserve original order).
+    #[default]
+    Off,
+}
+
+impl OrganizeImports {
+    /// Parse from string.
+    pub fn parse(s: &str) -> Option<Self> {
+        match s.to_lowercase().as_str() {
+            "on" | "true" => Some(Self::On),
+            "off" | "false" => Some(Self::Off),
+            _ => None,
+        }
+    }
+
+    /// Get the string representation.
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Self::On => "on",
+            Self::Off => "off",
+        }
+    }
+
+    /// Whether import organization is enabled.
+    pub fn is_enabled(&self) -> bool {
+        matches!(self, Self::On)
+    }
+}
+
+impl std::fmt::Display for OrganizeImports {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.as_str())
+    }
+}
+
+/// Sort order for import/export specifiers.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+pub enum ImportSortOrder {
+    /// Natural sort: numbers ordered as integers (a1 < a2 < a10).
+    #[default]
+    Natural,
+    /// Alphabetical/lexicographic sort (a1 < a10 < a2).
+    Alphabetical,
+}
+
+impl ImportSortOrder {
+    /// Parse from string.
+    pub fn parse(s: &str) -> Option<Self> {
+        match s.to_lowercase().as_str() {
+            "natural" => Some(Self::Natural),
+            "alphabetical" | "lexicographic" => Some(Self::Alphabetical),
+            _ => None,
+        }
+    }
+
+    /// Get the string representation.
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Self::Natural => "natural",
+            Self::Alphabetical => "alphabetical",
+        }
+    }
+}
+
+impl std::fmt::Display for ImportSortOrder {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.as_str())
+    }
+}
+
 /// Formatter options.
 ///
 /// Controls code style decisions made by the formatter.
@@ -219,6 +294,11 @@ pub struct FormatterOptions {
     pub bracket_same_line: bool,
     /// Force each tree/JSX attribute onto its own line.
     pub single_attribute_per_line: bool,
+
+    /// Whether to organize/sort imports and exports.
+    pub organize_imports: OrganizeImports,
+    /// Sort order for import/export specifiers within `{ }`.
+    pub import_sort_order: ImportSortOrder,
 }
 
 impl Default for FormatterOptions {
@@ -245,6 +325,9 @@ impl FormatterOptions {
             // tree/jsx
             bracket_same_line: false,
             single_attribute_per_line: false,
+            // imports
+            organize_imports: OrganizeImports::Off,
+            import_sort_order: ImportSortOrder::Natural,
         }
     }
 
@@ -320,6 +403,18 @@ impl FormatterOptions {
     /// Set single attribute per line policy.
     pub fn with_single_attribute_per_line(mut self, single_attribute_per_line: bool) -> Self {
         self.single_attribute_per_line = single_attribute_per_line;
+        self
+    }
+
+    /// Set import organization mode.
+    pub fn with_organize_imports(mut self, organize_imports: OrganizeImports) -> Self {
+        self.organize_imports = organize_imports;
+        self
+    }
+
+    /// Set import sort order.
+    pub fn with_import_sort_order(mut self, import_sort_order: ImportSortOrder) -> Self {
+        self.import_sort_order = import_sort_order;
         self
     }
 }

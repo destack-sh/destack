@@ -115,7 +115,7 @@ impl std::fmt::Display for LintCategory {
 pub enum LintPreset {
     /// No rules enabled by default.
     None,
-    /// Recommended rules enabled (default).
+    /// Recommended rules enabled.
     #[default]
     Recommended,
     /// All rules enabled.
@@ -201,19 +201,23 @@ pub struct LinterOptions {
     pub overrides: IndexMap<String, LintSeverity>,
 
     // complexity thresholds
-    /// Maximum boolean parameters or fields (default: 3).
+    /// Maximum boolean parameters or fields.
     pub max_booleans: usize,
-    /// Maximum nesting depth (default: 4).
+    /// Maximum cognitive complexity.
+    pub max_cognitive_complexity: usize,
+    /// Maximum cyclomatic complexity.
+    pub max_cyclomatic_complexity: usize,
+    /// Maximum nesting depth.
     pub max_depth: usize,
-    /// Maximum lines per file (default: 500).
+    /// Maximum lines per file.
     pub max_lines: usize,
-    /// Maximum lines per function (default: 50).
+    /// Maximum lines per function.
     pub max_lines_per_function: usize,
-    /// Maximum callback nesting (default: 4).
+    /// Maximum callback nesting.
     pub max_nested_callbacks: usize,
-    /// Maximum function parameters (default: 4).
+    /// Maximum function parameters.
     pub max_params: usize,
-    /// Maximum statements per function (default: 50).
+    /// Maximum statements per function.
     pub max_statements: usize,
 
     // style options
@@ -221,19 +225,19 @@ pub struct LinterOptions {
     pub array_type: ArrayTypeStyle,
     /// Preferred type definition syntax.
     pub type_definition_style: TypeDefinitionStyle,
-    /// Required catch clause error name (default: "error").
+    /// Required catch clause error name.
     pub catch_error_name: String,
     /// Required filename case style.
     pub filename_case: FilenameCase,
 
     // restriction options
-    /// Magic numbers to allow (default: [-1, 0, 1, 2]).
+    /// Magic numbers to allow.
     pub allowed_magic_numbers: Vec<f64>,
     /// Globals to restrict.
     pub restricted_globals: Vec<String>,
     /// Import paths to restrict.
     pub restricted_imports: Vec<String>,
-    /// Comment terms to warn on (default: ["TODO", "FIXME", "HACK"]).
+    /// Comment terms to warn on.
     pub warning_comment_terms: Vec<String>,
 }
 
@@ -246,6 +250,8 @@ impl Default for LinterOptions {
             overrides: IndexMap::new(),
             // complexity
             max_booleans: 3,
+            max_cognitive_complexity: 30,
+            max_cyclomatic_complexity: 40,
             max_depth: 4,
             max_lines: 500,
             max_lines_per_function: 50,

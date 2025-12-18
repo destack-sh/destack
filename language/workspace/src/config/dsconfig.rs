@@ -7,8 +7,9 @@ use serde::Deserialize;
 use destack_source::{File, FileContent, FileId, IndentStyle, LineEnding};
 
 use crate::{
-    ArrowParentheses, FormatterOptions, LintCategory, LintPreset, LintSeverity, LinterOptions,
-    QuoteProperty, QuoteStyle, TrailingComma,
+    ArrowParentheses, ArrayTypeStyle, FilenameCase, FormatterOptions, ImportSortOrder,
+    LintCategory, LintPreset, LintSeverity, LinterOptions, OrganizeImports, QuoteProperty,
+    QuoteStyle, TrailingComma, TypeDefinitionStyle,
 };
 
 use super::target::{
@@ -1141,6 +1142,46 @@ impl From<QuotePropertyJson> for QuoteProperty {
     }
 }
 
+/// Whether to organize imports.
+#[derive(Debug, Clone, Copy, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "lowercase")]
+pub enum OrganizeImportsJson {
+    /// Organize imports: sort statements by group and specifiers alphabetically.
+    On,
+    /// Don't reorder imports (preserve original order).
+    Off,
+}
+
+impl From<OrganizeImportsJson> for OrganizeImports {
+    fn from(value: OrganizeImportsJson) -> Self {
+        match value {
+            OrganizeImportsJson::On => OrganizeImports::On,
+            OrganizeImportsJson::Off => OrganizeImports::Off,
+        }
+    }
+}
+
+/// Sort order for import specifiers.
+#[derive(Debug, Clone, Copy, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "lowercase")]
+pub enum ImportSortOrderJson {
+    /// Natural sort: numbers ordered as integers (a1 < a2 < a10).
+    Natural,
+    /// Alphabetical/lexicographic sort (a1 < a10 < a2).
+    Alphabetical,
+}
+
+impl From<ImportSortOrderJson> for ImportSortOrder {
+    fn from(value: ImportSortOrderJson) -> Self {
+        match value {
+            ImportSortOrderJson::Natural => ImportSortOrder::Natural,
+            ImportSortOrderJson::Alphabetical => ImportSortOrder::Alphabetical,
+        }
+    }
+}
+
 /// Formatter options (top-level, like Biome/Deno).
 ///
 /// Field names use Prettier-compatible naming for familiarity.
@@ -1181,6 +1222,11 @@ pub struct DsConfigFormatterJson {
     pub bracket_same_line: Option<bool>,
     /// Force each JSX attribute onto its own line.
     pub single_attribute_per_line: Option<bool>,
+
+    /// Whether to organize imports: "on" or "off". Default: off.
+    pub organize_imports: Option<OrganizeImportsJson>,
+    /// Sort order for import specifiers: "natural" or "alphabetical". Default: natural.
+    pub import_sort_order: Option<ImportSortOrderJson>,
 }
 
 impl DsConfigFormatterJson {
@@ -1232,6 +1278,14 @@ impl DsConfigFormatterJson {
         if let Some(single_attribute_per_line) = self.single_attribute_per_line {
             options.single_attribute_per_line = single_attribute_per_line;
         }
+
+        // imports
+        if let Some(organize_imports) = self.organize_imports {
+            options.organize_imports = organize_imports.into();
+        }
+        if let Some(import_sort_order) = self.import_sort_order {
+            options.import_sort_order = import_sort_order.into();
+        }
     }
 }
 
@@ -1245,6 +1299,46 @@ pub struct DsConfigLinterJson {
     /// Rule configuration.
     #[serde(default)]
     pub rules: DsConfigLinterRulesJson,
+
+    // complexity thresholds
+    /// Maximum boolean parameters or fields.
+    pub max_booleans: Option<usize>,
+    /// Maximum cognitive complexity.
+    pub max_cognitive_complexity: Option<usize>,
+    /// Maximum cyclomatic complexity.
+    pub max_cyclomatic_complexity: Option<usize>,
+    /// Maximum nesting depth.
+    pub max_depth: Option<usize>,
+    /// Maximum lines per file.
+    pub max_lines: Option<usize>,
+    /// Maximum lines per function.
+    pub max_lines_per_function: Option<usize>,
+    /// Maximum callback nesting.
+    pub max_nested_callbacks: Option<usize>,
+    /// Maximum function parameters.
+    pub max_params: Option<usize>,
+    /// Maximum statements per function.
+    pub max_statements: Option<usize>,
+
+    // style options
+    /// Preferred array type syntax: "array" or "generic".
+    pub array_type: Option<ArrayTypeStyleJson>,
+    /// Preferred type definition syntax: "type" or "interface".
+    pub type_definition_style: Option<TypeDefinitionStyleJson>,
+    /// Required catch clause error name.
+    pub catch_error_name: Option<String>,
+    /// Required filename case style.
+    pub filename_case: Option<FilenameCaseJson>,
+
+    // restriction options
+    /// Magic numbers to allow.
+    pub allowed_magic_numbers: Option<Vec<f64>>,
+    /// Globals to restrict.
+    pub restricted_globals: Option<Vec<String>>,
+    /// Import paths to restrict.
+    pub restricted_imports: Option<Vec<String>>,
+    /// Comment terms to warn on.
+    pub warning_comment_terms: Option<Vec<String>>,
 }
 
 impl DsConfigLinterJson {
@@ -1254,6 +1348,63 @@ impl DsConfigLinterJson {
             options.enabled = enabled;
         }
         self.rules.apply(options);
+
+        // complexity thresholds
+        if let Some(max_booleans) = self.max_booleans {
+            options.max_booleans = max_booleans;
+        }
+        if let Some(max_cognitive_complexity) = self.max_cognitive_complexity {
+            options.max_cognitive_complexity = max_cognitive_complexity;
+        }
+        if let Some(max_cyclomatic_complexity) = self.max_cyclomatic_complexity {
+            options.max_cyclomatic_complexity = max_cyclomatic_complexity;
+        }
+        if let Some(max_depth) = self.max_depth {
+            options.max_depth = max_depth;
+        }
+        if let Some(max_lines) = self.max_lines {
+            options.max_lines = max_lines;
+        }
+        if let Some(max_lines_per_function) = self.max_lines_per_function {
+            options.max_lines_per_function = max_lines_per_function;
+        }
+        if let Some(max_nested_callbacks) = self.max_nested_callbacks {
+            options.max_nested_callbacks = max_nested_callbacks;
+        }
+        if let Some(max_params) = self.max_params {
+            options.max_params = max_params;
+        }
+        if let Some(max_statements) = self.max_statements {
+            options.max_statements = max_statements;
+        }
+
+        // style options
+        if let Some(array_type) = self.array_type {
+            options.array_type = array_type.into();
+        }
+        if let Some(type_definition_style) = self.type_definition_style {
+            options.type_definition_style = type_definition_style.into();
+        }
+        if let Some(ref catch_error_name) = self.catch_error_name {
+            options.catch_error_name = catch_error_name.clone();
+        }
+        if let Some(filename_case) = self.filename_case {
+            options.filename_case = filename_case.into();
+        }
+
+        // restriction options
+        if let Some(ref allowed_magic_numbers) = self.allowed_magic_numbers {
+            options.allowed_magic_numbers = allowed_magic_numbers.clone();
+        }
+        if let Some(ref restricted_globals) = self.restricted_globals {
+            options.restricted_globals = restricted_globals.clone();
+        }
+        if let Some(ref restricted_imports) = self.restricted_imports {
+            options.restricted_imports = restricted_imports.clone();
+        }
+        if let Some(ref warning_comment_terms) = self.warning_comment_terms {
+            options.warning_comment_terms = warning_comment_terms.clone();
+        }
     }
 }
 
@@ -1363,6 +1514,72 @@ impl From<LintCategoryJson> for LintCategory {
             LintCategoryJson::Security => LintCategory::Security,
             LintCategoryJson::Complexity => LintCategory::Complexity,
             LintCategoryJson::Restriction => LintCategory::Restriction,
+        }
+    }
+}
+
+/// Preferred array type syntax for the `array-type` rule.
+#[derive(Debug, Clone, Copy, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "lowercase")]
+pub enum ArrayTypeStyleJson {
+    /// Prefer `T[]` syntax.
+    Array,
+    /// Prefer `Array<T>` syntax.
+    Generic,
+}
+
+impl From<ArrayTypeStyleJson> for ArrayTypeStyle {
+    fn from(value: ArrayTypeStyleJson) -> Self {
+        match value {
+            ArrayTypeStyleJson::Array => ArrayTypeStyle::Array,
+            ArrayTypeStyleJson::Generic => ArrayTypeStyle::Generic,
+        }
+    }
+}
+
+/// Preferred type definition syntax for the `consistent-type-definitions` rule.
+#[derive(Debug, Clone, Copy, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "lowercase")]
+pub enum TypeDefinitionStyleJson {
+    /// Prefer `type` aliases.
+    Type,
+    /// Prefer `interface` declarations.
+    Interface,
+}
+
+impl From<TypeDefinitionStyleJson> for TypeDefinitionStyle {
+    fn from(value: TypeDefinitionStyleJson) -> Self {
+        match value {
+            TypeDefinitionStyleJson::Type => TypeDefinitionStyle::Type,
+            TypeDefinitionStyleJson::Interface => TypeDefinitionStyle::Interface,
+        }
+    }
+}
+
+/// Filename case style for the `filename-case` rule.
+#[derive(Debug, Clone, Copy, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "lowercase")]
+pub enum FilenameCaseJson {
+    /// kebab-case (e.g., `my-component.ts`).
+    Kebab,
+    /// snake_case (e.g., `my_component.ts`).
+    Snake,
+    /// camelCase (e.g., `myComponent.ts`).
+    Camel,
+    /// PascalCase (e.g., `MyComponent.ts`).
+    Pascal,
+}
+
+impl From<FilenameCaseJson> for FilenameCase {
+    fn from(value: FilenameCaseJson) -> Self {
+        match value {
+            FilenameCaseJson::Kebab => FilenameCase::Kebab,
+            FilenameCaseJson::Snake => FilenameCase::Snake,
+            FilenameCaseJson::Camel => FilenameCase::Camel,
+            FilenameCaseJson::Pascal => FilenameCase::Pascal,
         }
     }
 }

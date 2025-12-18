@@ -6,7 +6,7 @@ declare_lint! {
     /// Enforce a specific case style for filenames.
     ///
     /// Consistent filename casing improves project organization.
-    /// Configure via `filename_case` option (default: kebab-case).
+    /// Configure via `filename_case` option.
     #[lint(
         id = "filename-case",
         code = "LY022",
