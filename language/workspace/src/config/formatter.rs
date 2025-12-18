@@ -211,9 +211,9 @@ pub struct FormatterOptions {
     /// Spaces inside object braces: `{ foo }` (true) vs `{foo}` (false).
     pub bracket_spacing: bool,
     /// Arrow function parentheses policy.
-    pub arrow_parens: ArrowParentheses,
+    pub arrow_parentheses: ArrowParentheses,
     /// Object property quoting policy.
-    pub quote_props: QuoteProperty,
+    pub quote_property: QuoteProperty,
 
     /// Put `>` of multi-line tree/JSX on same line as last attribute.
     pub bracket_same_line: bool,
@@ -240,8 +240,8 @@ impl FormatterOptions {
             quote_style: QuoteStyle::Semantic,
             trailing_comma: TrailingComma::All,
             bracket_spacing: true,
-            arrow_parens: ArrowParentheses::Always,
-            quote_props: QuoteProperty::AsNeeded,
+            arrow_parentheses: ArrowParentheses::Always,
+            quote_property: QuoteProperty::AsNeeded,
             // tree/jsx
             bracket_same_line: false,
             single_attribute_per_line: false,
@@ -301,13 +301,13 @@ impl FormatterOptions {
 
     /// Set arrow function parentheses policy.
     pub fn with_arrow_parens(mut self, arrow_parens: ArrowParentheses) -> Self {
-        self.arrow_parens = arrow_parens;
+        self.arrow_parentheses = arrow_parens;
         self
     }
 
     /// Set object property quoting policy.
     pub fn with_quote_props(mut self, quote_props: QuoteProperty) -> Self {
-        self.quote_props = quote_props;
+        self.quote_property = quote_props;
         self
     }
 

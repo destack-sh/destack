@@ -150,10 +150,10 @@ export struct TetrisPiece {
         match (shape) {
             TetrisPieceShape.I => if (normalizedRotation == 0 || normalizedRotation == 2) {
                 [
-                    <Position x=0 y=0 />,
-                    <Position x=1 y=0 />,
-                    <Position x=2 y=0 />,
-                    <Position x=3 y=0 />,
+                    <Position x={0} y={0} />,
+                    <Position x={1} y={0} />,
+                    <Position x={2} y={0} />,
+                    <Position x={3} y={0} />,
                 ]
             } else {
                 [
@@ -365,10 +365,8 @@ extension for TetrisGame {
             if (this.collidesWith(this.currentPosition)) {
                 // rotation failed, revert
                 this.currentPiece.rotation = oldRotation;
-                this.currentPiece.blocks = TetrisPiece.getBlocksForShape(
-                    this.currentPiece.shape,
-                    oldRotation,
-                );
+                this.currentPiece.blocks =
+                    TetrisPiece.getBlocksForShape(this.currentPiece.shape, oldRotation);
                 false
             } else {
                 true
@@ -464,7 +462,7 @@ extension for TetrisGame {
     }
 }
 
-extension TetrisGame implements Tick {
+extension for TetrisGame implements Tick {
     tick() {
         // spawn initial piece if needed
         if (this.currentPiece == null) {

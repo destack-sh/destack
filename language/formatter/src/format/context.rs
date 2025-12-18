@@ -121,8 +121,8 @@ impl DestackFormatOptions {
             quote_style: options.quote_style,
             trailing_comma: options.trailing_comma,
             bracket_spacing: options.bracket_spacing,
-            arrow_parens: options.arrow_parens,
-            quote_props: options.quote_props,
+            arrow_parens: options.arrow_parentheses,
+            quote_props: options.quote_property,
             bracket_same_line: options.bracket_same_line,
             single_attribute_per_line: options.single_attribute_per_line,
         }

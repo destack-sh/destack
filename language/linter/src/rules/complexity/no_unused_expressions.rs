@@ -11,14 +11,14 @@ declare_lint! {
     /// leftover code. This rule flags expressions that don't produce side effects
     /// and whose values are discarded.
     ///
-    /// Bad:
+    /// bad:
     /// ```
     /// x + 1;  // computed but not used
     /// "hello";  // string literal with no effect
     /// a && b;  // result discarded
     /// ```
     ///
-    /// Good:
+    /// good:
     /// ```
     /// let y = x + 1;  // value is used
     /// console.log("hello");  // has side effect

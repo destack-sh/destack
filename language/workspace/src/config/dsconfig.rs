@@ -210,10 +210,10 @@ impl DsConfig {
             self.options.formatter.bracket_spacing = parent.formatter.bracket_spacing;
         }
         if child_json.arrow_parens.is_none() {
-            self.options.formatter.arrow_parens = parent.formatter.arrow_parens;
+            self.options.formatter.arrow_parentheses = parent.formatter.arrow_parentheses;
         }
         if child_json.quote_props.is_none() {
-            self.options.formatter.quote_props = parent.formatter.quote_props;
+            self.options.formatter.quote_property = parent.formatter.quote_property;
         }
         // tree/jsx
         if child_json.bracket_same_line.is_none() {
@@ -1219,10 +1219,10 @@ impl DsConfigFormatterJson {
             options.bracket_spacing = bracket_spacing;
         }
         if let Some(arrow_parens) = self.arrow_parens {
-            options.arrow_parens = arrow_parens.into();
+            options.arrow_parentheses = arrow_parens.into();
         }
         if let Some(quote_props) = self.quote_props {
-            options.quote_props = quote_props.into();
+            options.quote_property = quote_props.into();
         }
 
         // tree/jsx

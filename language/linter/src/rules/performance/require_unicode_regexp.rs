@@ -14,8 +14,8 @@ declare_lint! {
     /// The `v` flag (unicodeSets) is a more powerful alternative that also
     /// enables set notation and properties of strings.
     ///
-    /// Bad: `/foo/`
-    /// Good: `/foo/u` or `/foo/v`
+    /// bad: `/foo/`
+    /// good: `/foo/u` or `/foo/v`
     #[lint(
         id = "require-unicode-regexp",
         code = "LP003",

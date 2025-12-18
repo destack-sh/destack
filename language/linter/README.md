@@ -175,34 +175,31 @@ Subjective preferences for consistent coding style.
 
 | Rule | Source | Level | Ready | Status | Description |
 |------|--------|-------|-------|--------|-------------|
-| `array-type` | TS-ESLint | AST | ✓ | 🟡 | Require consistently using either `T[]` or `Array<T>` |
+| `array-type` | TS-ESLint | DIR | ✓ | 🔶 | Require consistently using either `T[]` or `Array<T>` |
 | `catch-error-name` | Unicorn | AST | ✓ | ✅ | Enforce a specific name for catch clause error parameters |
 | `comment-casing` | Destack | AST | ✓ | ✅ | Enforce comment / doc casing |
 | `comment-layout` | Destack | AST | ✓ | ✅ | Enforce comment / doc layout |
 | `comment-punctuation` | Destack | AST | ✓ | ✅ | Enforce comment / doc punctuation style |
 | `consistent-extension-style` | Destack | AST | ✓ | ✅ | Enforce consistent use of named or anonymous extensions |
-| `consistent-struct-construction` | Destack | AST | ✓ | 🟡 | Enforce consistent struct construction syntax |
 | `consistent-type-definitions` | TS-ESLint | AST | ✓ | ✅ | Enforce type definitions to use either `interface` or `type` |
 | `consistent-type-imports` | TS-ESLint | AST | ✓ | ✅ | Enforce consistent usage of type imports |
-| `decorator-order` | Destack | AST | ✓ | 🟡 | Enforce consistent decorator ordering |
 | `default-param-last` | ESLint | AST | ✓ | ✅ | Enforce default parameters to be last |
 | `dot-notation` | ESLint | AST | ✓ | ✅ | Enforce dot notation whenever possible |
 | `eqeqeq` | ESLint | AST | ✓ | ✅ | Require `===` and `!==` |
 | `explicit-function-return-type` | TS-ESLint | AST | ✓ | ✅ | Require explicit return types on functions |
 | `filename-case` | Unicorn | AST | ✓ | ✅ | Enforce a case style for filenames |
 | `grouped-accessor-pairs` | ESLint | AST | ✓ | 🟡 | Require grouped accessor pairs in object literals and classes |
-| `no-boolean-literal-compare` | Unicorn | AST | ✓ | 🟡 | Disallow comparing boolean expressions to boolean literals |
+| `no-boolean-literal-compare` | Unicorn | AST | ✓ | ✅ | Disallow comparing boolean expressions to boolean literals |
 | `no-class-for-data` | Destack | AST | ✓ | ✅ | Suggest struct for classes with only data fields |
-| `no-collapsible-if` | Unicorn | AST | ✓ | 🟡 | Suggest merging nested if statements without else |
+| `no-collapsible-if` | Unicorn | AST | ✓ | ✅ | Suggest merging nested if statements without else |
 | `no-constant-assertion` | Destack | AST | ✓ | 🟡 | Disallow assertions on constant values |
-| `no-declarations-after-statements` | Destack | AST | ✓ | 🟡 | Disallow declarations after statements |
 | `no-duplicate-type-constituents` | TS-ESLint | AST | ✓ | ✅ | Disallow duplicate constituents in union/intersection types |
 | `no-else-return` | ESLint | AST | ✓ | ✅ | Disallow else blocks after return statements |
 | `no-empty-interface` | TS-ESLint | AST | ✓ | ✅ | Disallow empty interfaces |
 | `no-extra-boolean-cast` | ESLint | DIR | ✗ | 🟡 | Disallow unnecessary boolean casts |
 | `no-implicit-coercion` | ESLint | DIR | ✗ | 🟡 | Disallow shorthand type conversions |
 | `no-lonely-if` | ESLint | AST | ✓ | ✅ | Disallow if statements as the only statement in else blocks |
-| `no-negated-condition` | ESLint | AST | ✓ | 🟡 | Disallow negated conditions with else branches |
+| `no-negated-condition` | ESLint | AST | ✓ | ✅ | Disallow negated conditions with else branches |
 | `no-redundant-type-constituents` | TS-ESLint | DIR | ✓ | 🔶 | Disallow type constituents made redundant by others |
 | `no-nested-ternary` | ESLint | AST | ✓ | ✅ | Disallow nested ternary expressions |
 | `no-unneeded-ternary` | ESLint | AST | ✓ | ✅ | Disallow ternary operators when simpler alternatives exist |
@@ -234,7 +231,6 @@ Subjective preferences for consistent coding style.
 | `prefer-propagate-operator` | Destack | DIR | ✗ | 🟡 | Prefer `?` operator over manual Result matching |
 | `prefer-range-contains` | Destack | AST | ✓ | 🟡 | Prefer range contains method over comparison chains |
 | `prefer-range-literal` | Destack | AST | ✓ | ✅ | Prefer range literals over C-style for loops |
-| `prefer-rest-params` | ESLint | DIR | ✗ | 🔶 | Prefer rest parameters over the `arguments` object |
 | `prefer-result-type` | Destack | DIR | ✓ | 🔶 | Prefer `Result<T, E>` return type over throwing |
 | `prefer-self-closing-tree` | React | AST | ✓ | 🟡 | Prefer self-closing tree elements when possible |
 | `prefer-set-over-empty-map` | Destack | DIR | ✗ | 🔶 | Suggest `Set<K>` over `Map<K, void>` |
@@ -244,7 +240,7 @@ Subjective preferences for consistent coding style.
 | `prefer-tuple` | Destack | DIR | ✓ | 🔶 | Suggest tuple type for fixed-length heterogeneous arrays |
 | `prefer-tuple-destructure` | Destack | AST | ✓ | 🟡 | Prefer tuple destructuring over indexed access |
 | `prefer-tuple-swap` | Destack | AST | ✓ | 🟡 | Prefer tuple swap syntax over temporary variable |
-| `prefer-unary-negation` | Destack | AST | ✓ | 🟡 | Prefer unary negation over multiplying by -1 |
+| `prefer-unary-negation` | Destack | AST | ✓ | ✅ | Prefer unary negation over multiplying by -1 |
 | `promise-function-async` | TS-ESLint | DIR | ✗ | 🔶 | Require `async` keyword for Promise-returning functions |
 | `require-jsdoc` | ESLint | AST | ✓ | ✅ | Require documentation on public items |
 | `require-returns-doc` | ESLint | AST | ✓ | ✅ | Require return type documentation |
