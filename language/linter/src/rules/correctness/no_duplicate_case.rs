@@ -1,8 +1,7 @@
-use std::collections::HashSet;
-
 use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
+use crate::rules::common::expressions_equal;
 use crate::{LintDiagnostic, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {
@@ -36,9 +35,8 @@ impl LintRule for NoDuplicateCase {
                 continue;
             }
 
-            // collect case patterns and check for duplicates
-            let mut seen_literals: HashSet<LiteralKey> = HashSet::new();
-
+            // collect case expression IDs and check for duplicates
+            let mut seen: Vec<ast::LocalNodeId<ast::Expression>> = Vec::new();
             for case_id in cases {
                 let case = ctx.tree.get(*case_id);
                 let pattern_id = match case {
@@ -47,76 +45,40 @@ impl LintRule for NoDuplicateCase {
                 };
 
                 let pattern = ctx.tree.get(*pattern_id);
-                if let Some(literal_key) = pattern_to_literal_key(ctx, pattern) {
-                    if seen_literals.contains(&literal_key) {
-                        ctx.report(
-                            LintDiagnostic::new(
-                                NO_DUPLICATE_CASE.id,
-                                NO_DUPLICATE_CASE.code,
-                                NO_DUPLICATE_CASE.category,
-                                severity,
-                                "duplicate case label",
-                                ctx.module.file_id,
-                                ctx.tree.get_span(*case_id),
-                            )
-                            .with_label("this case was already handled"),
-                        );
-                    } else {
-                        seen_literals.insert(literal_key);
-                    }
+                let Some(expr_id) = pattern_to_expression(pattern) else {
+                    continue;
+                };
+
+                // check against all previously seen expressions
+                let is_duplicate = seen
+                    .iter()
+                    .any(|&prev| expressions_equal(ctx, prev, expr_id));
+
+                if is_duplicate {
+                    ctx.report(
+                        LintDiagnostic::new(
+                            NO_DUPLICATE_CASE.id,
+                            NO_DUPLICATE_CASE.code,
+                            NO_DUPLICATE_CASE.category,
+                            severity,
+                            "duplicate case label",
+                            ctx.module.file_id,
+                            ctx.tree.get_span(*case_id),
+                        )
+                        .with_label("this case was already handled"),
+                    );
+                } else {
+                    seen.push(expr_id);
                 }
             }
         }
     }
 }
 
-/// A hashable key representing a literal value for comparison.
-#[derive(Debug, Clone, Hash, PartialEq, Eq)]
-enum LiteralKey {
-    Boolean(bool),
-    Integer(i64),
-    String(String),
-    Null,
-    Undefined,
-}
-
-/// Convert a pattern to a literal key for duplicate detection.
-fn pattern_to_literal_key(
-    ctx: &LintModuleAstContext<'_>,
-    pattern: &ast::Pattern,
-) -> Option<LiteralKey> {
+/// Extract the expression from a pattern if it's an expression pattern.
+fn pattern_to_expression(pattern: &ast::Pattern) -> Option<ast::LocalNodeId<ast::Expression>> {
     match pattern {
-        ast::Pattern::Expression { value } => {
-            let expression = ctx.tree.get(*value);
-            expression_to_literal_key(ctx, expression)
-        }
-        _ => None,
-    }
-}
-
-/// Convert an expression to a literal key.
-fn expression_to_literal_key(
-    ctx: &LintModuleAstContext<'_>,
-    expression: &ast::Expression,
-) -> Option<LiteralKey> {
-    match expression {
-        ast::Expression::ScalarLiteral(literal) => match literal {
-            ast::ScalarLiteral::Boolean(b) => Some(LiteralKey::Boolean(*b)),
-            ast::ScalarLiteral::Integer(i) => Some(LiteralKey::Integer(*i)),
-            ast::ScalarLiteral::String(s) => {
-                Some(LiteralKey::String(ctx.strings.get(*s).to_string()))
-            }
-            _ => None,
-        },
-        ast::Expression::TypeLiteral(literal) => match literal {
-            ast::TypeLiteral::Null => Some(LiteralKey::Null),
-            ast::TypeLiteral::Undefined => Some(LiteralKey::Undefined),
-            _ => None,
-        },
-        ast::Expression::Parenthesized { expression } => {
-            let inner = ctx.tree.get(*expression);
-            expression_to_literal_key(ctx, inner)
-        }
+        ast::Pattern::Expression { value } => Some(*value),
         _ => None,
     }
 }

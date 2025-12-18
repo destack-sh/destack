@@ -1,6 +1,7 @@
-use destack_ast::{self as ast, BinaryOperator, Expression, Path, UnaryOperator};
+use destack_ast::{self as ast, BinaryOperator, Expression, UnaryOperator};
 use destack_workspace::LintSeverity;
 
+use crate::rules::common::expressions_equal;
 use crate::{LintDiagnostic, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {
@@ -116,49 +117,6 @@ impl LintRule for NoComplexBooleanExpression {
             }
         }
     }
-}
-
-/// Return whether two expressions are structurally equal.
-fn expressions_equal(
-    ctx: &LintModuleAstContext<'_>,
-    left_id: ast::LocalNodeId<Expression>,
-    right_id: ast::LocalNodeId<Expression>,
-) -> bool {
-    let left = ctx.tree.get(left_id);
-    let right = ctx.tree.get(right_id);
-    match (left, right) {
-        // compare identifiers by name
-        (
-            Expression::Path {
-                path: left_path, ..
-            },
-            Expression::Path {
-                path: right_path, ..
-            },
-        ) => paths_equal(ctx, left_path, right_path),
-        // compare scalar literals
-        (Expression::ScalarLiteral(left_lit), Expression::ScalarLiteral(right_lit)) => {
-            left_lit == right_lit
-        }
-        // #Cleanup: compare more complex expressions in lints? (see no_duplicate_case, no_dupe_else_if, ...)
-        _ => false,
-    }
-}
-
-/// Return whether two paths are equal.
-fn paths_equal(ctx: &LintModuleAstContext<'_>, left: &Path, right: &Path) -> bool {
-    if left.segments.len() != right.segments.len() {
-        return false;
-    }
-    // compare each segment by resolving the string IDs
-    for (left_seg, right_seg) in left.segments.iter().zip(right.segments.iter()) {
-        let left_str = ctx.strings.get(*left_seg);
-        let right_str = ctx.strings.get(*right_seg);
-        if left_str.as_ref() != right_str.as_ref() {
-            return false;
-        }
-    }
-    true
 }
 
 /// Return whether `right` is the negation of `left`.

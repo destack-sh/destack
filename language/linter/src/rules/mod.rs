@@ -1,3 +1,6 @@
+use crate::BoxedLintRule;
+
+pub mod common;
 pub mod complexity;
 pub mod correctness;
 pub mod pedantic;
@@ -7,7 +10,7 @@ pub mod security;
 pub mod style;
 pub mod suspicious;
 
-use crate::BoxedLintRule;
+pub use common::*;
 
 /// Get all built-in lint rules.
 pub fn all_rules() -> Vec<BoxedLintRule> {

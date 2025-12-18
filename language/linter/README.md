@@ -142,7 +142,6 @@ Patterns that may expose the application to attacks.
 | Rule | Source | Level | Ready | Status | Description |
 |------|--------|-------|-------|--------|-------------|
 | `no-blank-target` | Biome | AST | ✓ | ✅ | Disallow `target="_blank"` without `rel="noopener"` |
-| `no-dangerously-set-inner-html` | React | AST | ✓ | 🟡 | Disallow using `dangerouslySetInnerHTML` |
 | `no-eval` | ESLint | DIR | ✗ | 🔶 | Disallow the use of `eval()` |
 | `no-implied-eval` | ESLint | DIR | ✗ | 🔶 | Disallow `setTimeout` and `setInterval` with string arguments |
 | `no-new-func` | ESLint | DIR | ✗ | 🔶 | Disallow `new Function()` |
@@ -358,10 +357,7 @@ Very strict or opinionated checks.
 | `no-redundant-result-wrap` | Destack | DIR | ✓ | 🔶 | Warn when function always returns Ok/Some |
 | `refinement-always-true` | Destack | DIR | ✓ | 🔶 | Warn on refinement checks that always succeed |
 | `prefer-if-let` | Destack | AST | ✓ | 🟡 | Suggest if-let over single-arm match |
-| `no-redundant-field-name` | Destack | AST | ✓ | 🟡 | Warn when field name contains struct name |
-| `test-naming-convention` | AGENTS.md | AST | ✓ | 🟡 | Enforce test naming convention |
-| `todo-requires-tag` | AGENTS.md | AST | ✓ | 🟡 | Require TODO comments to have owner or issue tag |
-| `jsx-key` | React | AST | ✓ | 🟡 | Require key prop on list children |
+| `jsx-key` | Biome | AST | ✓ | 🟡 | Require key prop on list children |
 | `undocumented-branches` | AGENTS.md | AST | ✓ | 🟡 | Require comments on non-trivial conditional branches |
 | `no-unnecessary-wraps` | Destack | DIR | ✓ | 🔶 | Warn on functions that always return Ok/Some |
 | `require-await` | TS-ESLint | AST | ✓ | 🟡 | Disallow async functions with no await expressions |
