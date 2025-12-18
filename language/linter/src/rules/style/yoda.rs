@@ -13,7 +13,10 @@ declare_lint! {
         id = "yoda",
         code = "LY035",
         category = Style,
-        level = Ast
+        level = Ast,
+        fixable = No,
+        recommended = Strict,
+        stability = Stable
     )]
     pub Yoda,
     "Disallow Yoda conditions"

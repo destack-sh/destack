@@ -12,7 +12,10 @@ declare_lint! {
         id = "prefer-match",
         code = "LU020",
         category = Suspicious,
-        level = Ast
+        level = Ast,
+        fixable = No,
+        recommended = Always,
+        stability = Stable
     )]
     pub PreferMatch,
     "Prefer match over complex if-else-if"

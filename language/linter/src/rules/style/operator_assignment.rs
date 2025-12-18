@@ -11,7 +11,10 @@ declare_lint! {
         id = "operator-assignment",
         code = "LY016",
         category = Style,
-        level = Ast
+        level = Ast,
+        fixable = No,
+        recommended = Strict,
+        stability = Stable
     )]
     pub OperatorAssignment,
     "Prefer compound assignment operators"

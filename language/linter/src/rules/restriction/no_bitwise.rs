@@ -13,7 +13,10 @@ declare_lint! {
         id = "no-bitwise",
         code = "LR005",
         category = Restriction,
-        level = Ast
+        level = Ast,
+        fixable = No,
+        recommended = Off,
+        stability = Stable
     )]
     pub NoBitwise,
     "Disallow bitwise operators"

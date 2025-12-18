@@ -11,7 +11,10 @@ declare_lint! {
         id = "prefer-implicit-return",
         code = "LY028",
         category = Style,
-        level = Ast
+        level = Ast,
+        fixable = No,
+        recommended = Strict,
+        stability = Stable
     )]
     pub PreferImplicitReturn,
     "Prefer implicit return for arrow functions"

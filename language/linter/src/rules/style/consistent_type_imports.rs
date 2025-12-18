@@ -12,7 +12,10 @@ declare_lint! {
         id = "consistent-type-imports",
         code = "LY024",
         category = Style,
-        level = Ast
+        level = Ast,
+        fixable = No,
+        recommended = Strict,
+        stability = Stable
     )]
     pub ConsistentTypeImports,
     "Enforce consistent type import style"

@@ -12,7 +12,10 @@ declare_lint! {
         id = "no-else-return",
         code = "LY014",
         category = Style,
-        level = Ast
+        level = Ast,
+        fixable = No,
+        recommended = Strict,
+        stability = Stable
     )]
     pub NoElseReturn,
     "Disallow else after return"

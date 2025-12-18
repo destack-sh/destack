@@ -12,7 +12,10 @@ declare_lint! {
         id = "no-fallthrough",
         code = "LC016",
         category = Correctness,
-        level = Ast
+        level = Ast,
+        fixable = No,
+        recommended = Always,
+        stability = Stable
     )]
     pub NoFallthrough,
     "Disallow switch case fallthrough"

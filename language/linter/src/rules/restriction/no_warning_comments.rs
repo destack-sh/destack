@@ -12,7 +12,10 @@ declare_lint! {
         id = "no-warning-comments",
         code = "LR019",
         category = Restriction,
-        level = Ast
+        level = Ast,
+        fixable = No,
+        recommended = Strict,
+        stability = Stable
     )]
     pub NoWarningComments,
     "Disallow warning comments"

@@ -12,7 +12,10 @@ declare_lint! {
         id = "prefer-loop",
         code = "LY031",
         category = Style,
-        level = Ast
+        level = Ast,
+        fixable = No,
+        recommended = Strict,
+        stability = Stable
     )]
     pub PreferLoop,
     "Prefer explicit `loop` for infinite loops"

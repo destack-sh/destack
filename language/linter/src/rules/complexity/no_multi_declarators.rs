@@ -13,7 +13,10 @@ declare_lint! {
         id = "no-multi-declarators",
         code = "LX008",
         category = Complexity,
-        level = Ast
+        level = Ast,
+        fixable = No,
+        recommended = Strict,
+        stability = Stable
     )]
     pub NoMultiDeclarators,
     "Disallow multiple declarators in let/const statements"

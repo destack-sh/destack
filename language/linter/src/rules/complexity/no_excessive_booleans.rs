@@ -18,7 +18,10 @@ declare_lint! {
         id = "no-excessive-booleans",
         code = "LX009",
         category = Complexity,
-        level = Ast
+        level = Ast,
+        fixable = No,
+        recommended = Strict,
+        stability = Stable
     )]
     pub NoExcessiveBooleans,
     "Disallow too many boolean params"

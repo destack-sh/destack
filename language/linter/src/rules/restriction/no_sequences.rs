@@ -13,7 +13,10 @@ declare_lint! {
         id = "no-sequences",
         code = "LR002",
         category = Restriction,
-        level = Ast
+        level = Ast,
+        fixable = No,
+        recommended = Always,
+        stability = Stable
     )]
     pub NoSequences,
     "Disallow sequence expressions"

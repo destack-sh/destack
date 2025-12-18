@@ -13,7 +13,10 @@ declare_lint! {
         id = "no-class",
         code = "LR006",
         category = Restriction,
-        level = Ast
+        level = Ast,
+        fixable = No,
+        recommended = Off,
+        stability = Stable
     )]
     pub NoClass,
     "Disallow class declarations"

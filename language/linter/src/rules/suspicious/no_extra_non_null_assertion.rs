@@ -12,7 +12,10 @@ declare_lint! {
         id = "no-extra-non-null-assertion",
         code = "LU022",
         category = Suspicious,
-        level = Ast
+        level = Ast,
+        fixable = No,
+        recommended = Always,
+        stability = Stable
     )]
     pub NoExtraNonNullAssertion,
     "Disallow extra non-null assertions"

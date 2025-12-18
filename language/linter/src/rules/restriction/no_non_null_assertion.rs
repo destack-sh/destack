@@ -12,7 +12,10 @@ declare_lint! {
         id = "no-non-null-assertion",
         code = "LR012",
         category = Restriction,
-        level = Ast
+        level = Ast,
+        fixable = No,
+        recommended = Off,
+        stability = Stable
     )]
     pub NoNonNullAssertion,
     "Disallow non-null assertions"

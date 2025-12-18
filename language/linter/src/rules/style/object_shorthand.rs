@@ -12,7 +12,10 @@ declare_lint! {
         id = "object-shorthand",
         code = "LY017",
         category = Style,
-        level = Ast
+        level = Ast,
+        fixable = No,
+        recommended = Strict,
+        stability = Stable
     )]
     pub ObjectShorthand,
     "Prefer object shorthand syntax"

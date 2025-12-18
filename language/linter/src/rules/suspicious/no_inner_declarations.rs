@@ -13,7 +13,10 @@ declare_lint! {
         id = "no-inner-declarations",
         code = "LU019",
         category = Suspicious,
-        level = Ast
+        level = Ast,
+        fixable = No,
+        recommended = Always,
+        stability = Stable
     )]
     pub NoInnerDeclarations,
     "Disallow declarations in nested blocks"

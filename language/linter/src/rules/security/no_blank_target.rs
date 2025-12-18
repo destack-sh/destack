@@ -15,7 +15,10 @@ declare_lint! {
         id = "no-blank-target",
         code = "LS002",
         category = Security,
-        level = Ast
+        level = Ast,
+        fixable = No,
+        recommended = Always,
+        stability = Stable
     )]
     pub NoBlankTarget,
     "Disallow target=\"_blank\" without rel=\"noopener\""

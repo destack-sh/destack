@@ -12,7 +12,10 @@ declare_lint! {
         id = "explicit-function-return-type",
         code = "LD001",
         category = Pedantic,
-        level = Ast
+        level = Ast,
+        fixable = No,
+        recommended = Off,
+        stability = Stable
     )]
     pub ExplicitFunctionReturnType,
     "Require explicit function return types"

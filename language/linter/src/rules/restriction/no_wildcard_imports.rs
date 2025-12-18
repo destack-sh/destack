@@ -12,7 +12,10 @@ declare_lint! {
         id = "no-wildcard-imports",
         code = "LR022",
         category = Restriction,
-        level = Ast
+        level = Ast,
+        fixable = No,
+        recommended = Off,
+        stability = Stable
     )]
     pub NoWildcardImports,
     "Disallow wildcard imports"

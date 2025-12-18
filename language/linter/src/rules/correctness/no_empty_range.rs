@@ -12,7 +12,10 @@ declare_lint! {
         id = "no-empty-range",
         code = "LC018",
         category = Correctness,
-        level = Ast
+        level = Ast,
+        fixable = No,
+        recommended = Always,
+        stability = Stable
     )]
     pub NoEmptyRange,
     "Disallow empty ranges"

@@ -12,7 +12,10 @@ declare_lint! {
         id = "consistent-extension-style",
         code = "LY025",
         category = Style,
-        level = Ast
+        level = Ast,
+        fixable = No,
+        recommended = Strict,
+        stability = Stable
     )]
     pub ConsistentExtensionStyle,
     "Enforce consistent extension naming"

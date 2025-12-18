@@ -16,7 +16,10 @@ declare_lint! {
         id = "no-constructor-return",
         code = "LU010",
         category = Suspicious,
-        level = Ast
+        level = Ast,
+        fixable = No,
+        recommended = Always,
+        stability = Stable
     )]
     pub NoConstructorReturn,
     "Disallow return with value in constructor"

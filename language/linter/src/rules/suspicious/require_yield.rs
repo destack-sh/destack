@@ -12,7 +12,10 @@ declare_lint! {
         id = "require-yield",
         code = "LU021",
         category = Suspicious,
-        level = Ast
+        level = Ast,
+        fixable = No,
+        recommended = Always,
+        stability = Stable
     )]
     pub RequireYield,
     "Require yield in generator functions"

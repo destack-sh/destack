@@ -12,7 +12,10 @@ declare_lint! {
         id = "no-namespace",
         code = "LR011",
         category = Restriction,
-        level = Ast
+        level = Ast,
+        fixable = No,
+        recommended = Off,
+        stability = Stable
     )]
     pub NoNamespace,
     "Disallow namespace declarations"

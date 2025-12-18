@@ -15,7 +15,10 @@ declare_lint! {
         id = "prefer-range-literal",
         code = "LY030",
         category = Style,
-        level = Ast
+        level = Ast,
+        fixable = No,
+        recommended = Strict,
+        stability = Stable
     )]
     pub PreferRangeLiteral,
     "Prefer range literal for simple counted loops"

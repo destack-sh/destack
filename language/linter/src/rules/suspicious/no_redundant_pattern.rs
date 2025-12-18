@@ -12,7 +12,10 @@ declare_lint! {
         id = "no-redundant-pattern",
         code = "LU015",
         category = Suspicious,
-        level = Ast
+        level = Ast,
+        fixable = No,
+        recommended = Always,
+        stability = Stable
     )]
     pub NoRedundantPattern,
     "Disallow patterns that bind nothing"

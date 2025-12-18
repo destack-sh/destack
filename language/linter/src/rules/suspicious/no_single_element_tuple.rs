@@ -12,7 +12,10 @@ declare_lint! {
         id = "no-single-element-tuple",
         code = "LU016",
         category = Suspicious,
-        level = Ast
+        level = Ast,
+        fixable = No,
+        recommended = Always,
+        stability = Stable
     )]
     pub NoSingleElementTuple,
     "Warn on single-element tuples"

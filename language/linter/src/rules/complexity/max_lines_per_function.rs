@@ -12,7 +12,10 @@ declare_lint! {
         id = "max-lines-per-function",
         code = "LX004",
         category = Complexity,
-        level = Ast
+        level = Ast,
+        fixable = No,
+        recommended = Strict,
+        stability = Stable
     )]
     pub MaxLinesPerFunction,
     "Limit lines per function"

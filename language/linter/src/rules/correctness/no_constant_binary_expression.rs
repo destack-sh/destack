@@ -13,7 +13,10 @@ declare_lint! {
         id = "no-constant-binary-expression",
         code = "LC006",
         category = Correctness,
-        level = Ast
+        level = Ast,
+        fixable = No,
+        recommended = Always,
+        stability = Stable
     )]
     pub NoConstantBinaryExpression,
     "Disallow expressions that always produce the same result"

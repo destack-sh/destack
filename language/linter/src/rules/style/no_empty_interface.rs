@@ -13,7 +13,10 @@ declare_lint! {
         id = "no-empty-interface",
         code = "LY033",
         category = Style,
-        level = Ast
+        level = Ast,
+        fixable = No,
+        recommended = Strict,
+        stability = Stable
     )]
     pub NoEmptyInterface,
     "Disallow empty interface declarations"

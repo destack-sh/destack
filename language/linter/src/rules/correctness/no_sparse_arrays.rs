@@ -12,7 +12,10 @@ declare_lint! {
         id = "no-sparse-arrays",
         code = "LC015",
         category = Correctness,
-        level = Ast
+        level = Ast,
+        fixable = No,
+        recommended = Always,
+        stability = Stable
     )]
     pub NoSparseArrays,
     "Disallow sparse arrays and tuples"

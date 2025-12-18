@@ -15,7 +15,10 @@ declare_lint! {
         id = "no-unsafe-finally",
         code = "LC011",
         category = Correctness,
-        level = Ast
+        level = Ast,
+        fixable = No,
+        recommended = Always,
+        stability = Stable
     )]
     pub NoUnsafeFinally,
     "Disallow control flow in finally blocks"

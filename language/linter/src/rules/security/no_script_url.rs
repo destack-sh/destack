@@ -12,7 +12,10 @@ declare_lint! {
         id = "no-script-url",
         code = "LS001",
         category = Security,
-        level = Ast
+        level = Ast,
+        fixable = No,
+        recommended = Always,
+        stability = Stable
     )]
     pub NoScriptUrl,
     "Disallow javascript: URLs"

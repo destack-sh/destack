@@ -12,7 +12,10 @@ declare_lint! {
         id = "no-null",
         code = "LR018",
         category = Restriction,
-        level = Ast
+        level = Ast,
+        fixable = No,
+        recommended = Off,
+        stability = Stable
     )]
     pub NoNull,
     "Disallow null"

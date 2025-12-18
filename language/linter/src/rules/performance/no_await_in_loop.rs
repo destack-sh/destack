@@ -15,7 +15,10 @@ declare_lint! {
         id = "no-await-in-loop",
         code = "LP001",
         category = Performance,
-        level = Ast
+        level = Ast,
+        fixable = No,
+        recommended = Strict,
+        stability = Stable
     )]
     pub NoAwaitInLoop,
     "Disallow await inside loops"

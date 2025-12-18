@@ -16,7 +16,10 @@ declare_lint! {
         id = "prefer-arrow-callback",
         code = "LY026",
         category = Style,
-        level = Ast
+        level = Ast,
+        fixable = No,
+        recommended = Strict,
+        stability = Stable
     )]
     pub PreferArrowCallback,
     "Prefer arrow functions for callbacks"

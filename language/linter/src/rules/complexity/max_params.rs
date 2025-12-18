@@ -12,7 +12,10 @@ declare_lint! {
         id = "max-params",
         code = "LX001",
         category = Complexity,
-        level = Ast
+        level = Ast,
+        fixable = No,
+        recommended = Strict,
+        stability = Stable
     )]
     pub MaxParams,
     "Limit function parameters"

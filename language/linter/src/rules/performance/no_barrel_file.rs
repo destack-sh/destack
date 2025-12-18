@@ -22,7 +22,10 @@ declare_lint! {
         id = "no-barrel-file",
         code = "LP002",
         category = Performance,
-        level = Ast
+        level = Ast,
+        fixable = No,
+        recommended = Strict,
+        stability = Stable
     )]
     pub NoBarrelFile,
     "Disallow barrel files"

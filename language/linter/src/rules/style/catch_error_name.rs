@@ -12,7 +12,10 @@ declare_lint! {
         id = "catch-error-name",
         code = "LY018",
         category = Style,
-        level = Ast
+        level = Ast,
+        fixable = No,
+        recommended = Strict,
+        stability = Stable
     )]
     pub CatchErrorName,
     "Enforce consistent catch error naming"

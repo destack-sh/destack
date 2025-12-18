@@ -12,7 +12,10 @@ declare_lint! {
         id = "no-placeholder-implementation",
         code = "LR020",
         category = Restriction,
-        level = Ast
+        level = Ast,
+        fixable = No,
+        recommended = Off,
+        stability = Stable
     )]
     pub NoPlaceholderImplementation,
     "Disallow placeholder implementations"

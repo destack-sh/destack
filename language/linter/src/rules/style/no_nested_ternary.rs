@@ -13,7 +13,10 @@ declare_lint! {
         id = "no-nested-ternary",
         code = "LY001",
         category = Style,
-        level = Ast
+        level = Ast,
+        fixable = No,
+        recommended = Strict,
+        stability = Stable
     )]
     pub NoNestedTernary,
     "Disallow nested ternary expressions"

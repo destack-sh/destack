@@ -13,7 +13,10 @@ declare_lint! {
         id = "no-magic-numbers",
         code = "LR013",
         category = Restriction,
-        level = Ast
+        level = Ast,
+        fixable = No,
+        recommended = Off,
+        stability = Stable
     )]
     pub NoMagicNumbers,
     "Disallow magic numbers"

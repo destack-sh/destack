@@ -12,7 +12,10 @@ declare_lint! {
         id = "for-direction",
         code = "LC004",
         category = Correctness,
-        level = Ast
+        level = Ast,
+        fixable = No,
+        recommended = Always,
+        stability = Stable
     )]
     pub ForDirection,
     "Disallow for loops with incorrect direction"

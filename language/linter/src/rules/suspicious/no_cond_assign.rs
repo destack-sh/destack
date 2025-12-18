@@ -13,7 +13,10 @@ declare_lint! {
         id = "no-cond-assign",
         code = "LU001",
         category = Suspicious,
-        level = Ast
+        level = Ast,
+        fixable = No,
+        recommended = Always,
+        stability = Stable
     )]
     pub NoCondAssign,
     "Disallow assignment in conditions"

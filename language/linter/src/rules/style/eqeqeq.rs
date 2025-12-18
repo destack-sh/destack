@@ -13,7 +13,10 @@ declare_lint! {
         id = "eqeqeq",
         code = "LY021",
         category = Style,
-        level = Ast
+        level = Ast,
+        fixable = No,
+        recommended = Strict,
+        stability = Stable
     )]
     pub Eqeqeq,
     "Require strict equality operators"

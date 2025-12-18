@@ -13,7 +13,10 @@ declare_lint! {
         id = "no-confusing-assignment",
         code = "LU017",
         category = Suspicious,
-        level = Ast
+        level = Ast,
+        fixable = No,
+        recommended = Always,
+        stability = Stable
     )]
     pub NoConfusingAssignment,
     "Warn on assignments that look like comparisons"

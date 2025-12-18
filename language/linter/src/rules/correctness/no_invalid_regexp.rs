@@ -13,7 +13,10 @@ declare_lint! {
         id = "no-invalid-regexp",
         code = "LC019",
         category = Correctness,
-        level = Ast
+        level = Ast,
+        fixable = No,
+        recommended = Always,
+        stability = Stable
     )]
     pub NoInvalidRegexp,
     "Disallow invalid regular expressions"
