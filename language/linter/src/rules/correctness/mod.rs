@@ -9,6 +9,7 @@ mod no_empty_range;
 mod no_fallthrough;
 mod no_invalid_regexp;
 mod no_self_compare;
+mod no_sparse_arrays;
 mod no_unsafe_finally;
 mod no_unsafe_negation;
 mod use_isnan;
@@ -26,6 +27,7 @@ pub use no_empty_range::*;
 pub use no_fallthrough::*;
 pub use no_invalid_regexp::*;
 pub use no_self_compare::*;
+pub use no_sparse_arrays::*;
 pub use no_unsafe_finally::*;
 pub use no_unsafe_negation::*;
 pub use use_isnan::*;
@@ -44,6 +46,7 @@ pub fn rules() -> Vec<BoxedLintRule> {
         boxed(NoInvalidRegexp),
         boxed(NoFallthrough),
         boxed(NoSelfCompare),
+        boxed(NoSparseArrays),
         boxed(NoUnsafeFinally),
         boxed(NoUnsafeNegation),
         boxed(UseIsnan),

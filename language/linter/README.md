@@ -60,7 +60,7 @@ High-confidence issues that are almost always wrong.
 | `no-overlapping-match-arms` | Destack | DIR | ✓ | 🔶 | Disallow match patterns that subsume later arms |
 | `no-promise-executor-return` | ESLint | DIR | ✗ | 🔶 | Disallow returning values from Promise executor |
 | `no-self-compare` | ESLint | AST | ✓ | ✅ | Disallow comparisons where both sides are exactly the same |
-| `no-sparse-arrays` | ESLint | AST | ✓ | 🟡 | Disallow sparse arrays with holes |
+| `no-sparse-arrays` | ESLint | AST | ✓ | ✅ | Disallow sparse arrays with holes |
 | `no-struct-identity-compare` | Destack | DIR | ✓ | 🔶 | Disallow identity comparison on value types |
 | `no-this-before-super` | ESLint | DIR | ✓ | 🔶 | Disallow `this` before calling `super()` in constructors |
 | `no-unhandled-result` | Destack | DIR | ✓ | 🔶 | Require Result values to be handled |
@@ -86,7 +86,7 @@ Code that is likely unintentional but may occasionally be intentional.
 | `prefer-array-find` | Unicorn | DIR | ✓ | 🔶 | Suggest `.find()` over manual search loops |
 | `prefer-array-map` | Destack | DIR | ✓ | 🔶 | Suggest `.map()` over manual mapping loops |
 | `prefer-flat-map` | Unicorn | DIR | ✓ | 🔶 | Suggest `.flatMap()` over `.map().flatten()` |
-| `no-duplicate-match-arms` | Destack | AST | ✓ | 🟡 | Warn on match arms with identical bodies |
+| `no-duplicate-match-arms` | Destack | AST | ✓ | ✅ | Warn on match arms with identical bodies |
 | `no-mixed-read-write` | Destack | DIR | ✓ | 🔶 | Disallow reading and mutating the same variable in one expression |
 | `no-cond-assign` | ESLint | AST | ✓ | ✅ | Disallow assignment operators in conditional expressions |
 | `no-confusing-non-null-assertion` | TS-ESLint | AST | ✓ | ✅ | Disallow non-null assertions after optional chain expressions |
@@ -94,28 +94,28 @@ Code that is likely unintentional but may occasionally be intentional.
 | `no-debugger` | ESLint | AST | ✓ | ✅ | Disallow debugger statements |
 | `no-dupe-else-if` | ESLint | AST | ✓ | ✅ | Disallow duplicate conditions in if-else-if chains |
 | `no-empty` | ESLint | AST | ✓ | ✅ | Disallow empty block statements |
-| `no-empty-function` | ESLint | AST | ✓ | 🟡 | Disallow empty functions |
+| `no-empty-function` | ESLint | AST | ✓ | ✅ | Disallow empty functions |
 | `no-empty-pattern` | ESLint | AST | ✓ | ✅ | Disallow empty destructuring patterns |
-| `no-empty-static-block` | ESLint | AST | ✓ | 🟡 | Disallow empty static initialization blocks in classes |
+| `no-empty-static-block` | ESLint | AST | ✓ | ✅ | Disallow empty static initialization blocks in classes |
 | `no-ex-assign` | ESLint | DIR | ✓ | 🔶 | Disallow reassigning exceptions in catch clauses |
 | `no-extra-non-null-assertion` | TS-ESLint | AST | ✓ | ✅ | Disallow extra non-null assertions |
 | `no-global-assign` | ESLint | DIR | ✗ | 🔶 | Disallow assignments to native objects or read-only globals |
-| `no-implicit-void-expression` | Destack | AST | ✓ | 🟡 | Disallow implicit void returns from expression blocks |
-| `no-inner-declarations` | ESLint | AST | ✓ | 🟡 | Disallow variable or function declarations in nested blocks |
+| `no-implicit-void-expression` | Destack | AST | ✗ | 🔶 | Disallow implicit void returns from expression blocks |
+| `no-inner-declarations` | ESLint | AST | ✓ | ✅ | Disallow variable or function declarations in nested blocks |
 | `no-loop-func` | ESLint | DIR | ✓ | 🔶 | Disallow functions that capture loop variables |
 | `no-misleading-character-class` | ESLint | AST | ✓ | ✅ | Disallow characters that behave unexpectedly in regex |
 | `no-negation-in-equality-check` | Unicorn | AST | ✓ | ✅ | Disallow negation in the left operand of equality tests |
 | `no-prototype-builtins` | ESLint | DIR | ✗ | 🔶 | Disallow calling Object.prototype methods directly on objects |
 | `no-redundant-match-guard` | Destack | DIR | ✓ | 🔶 | Disallow match guards that are always true or false |
 | `no-redundant-pattern` | Destack | AST | ✓ | ✅ | Disallow patterns that bind nothing useful |
-| `no-return-assign` | ESLint | AST | ✓ | 🟡 | Disallow assignment operators in return statements |
+| `no-return-assign` | ESLint | AST | ✓ | ✅ | Disallow assignment operators in return statements |
 | `no-self-assign` | ESLint | AST | ✓ | ✅ | Disallow assignments where both sides are exactly the same |
 | `no-shadow-restricted-names` | ESLint | DIR | ✓ | 🔶 | Disallow shadowing of restricted names |
-| `no-single-element-tuple` | Destack | AST | ✓ | 🟡 | Warn on single-element tuples that may be accidental |
+| `no-single-element-tuple` | Destack | AST | ✓ | ✅ | Warn on single-element tuples that may be accidental |
 | `no-template-curly-in-string` | ESLint | AST | ✓ | ✅ | Disallow template literal placeholder syntax in regular strings |
 | `no-thenable` | Unicorn | DIR | ✓ | 🔶 | Disallow `then` property on non-Promise objects |
 | `no-throw-literal` | ESLint | DIR | ✓ | 🔶 | Disallow throwing literals instead of Error objects |
-| `no-unexpected-multiline` | ESLint | AST | ✓ | 🟡 | Disallow confusing multiline expressions |
+| `no-unexpected-multiline` | ESLint | AST | ✗ | 🔶 | Disallow confusing multiline expressions |
 | `no-unnecessary-type-assertion` | TS-ESLint | DIR | ✓ | 🔶 | Disallow type assertions that do not change the type |
 | `no-unsafe-declaration-merging` | TS-ESLint | DIR | ✓ | 🔶 | Disallow unsafe declaration merging |
 | `no-useless-backreference` | ESLint | AST | ✓ | ✅ | Disallow useless backreferences in regular expressions |
@@ -131,7 +131,7 @@ Code that is likely unintentional but may occasionally be intentional.
 | `no-unnecessary-clone` | TS-ESLint | DIR | ✓ | 🔶 | Warn on cloning values that are not used afterward |
 | `require-yield` | ESLint | AST | ✓ | ✅ | Require generator functions to contain yield |
 | `no-method-shadowing` | Destack | DIR | ✓ | 🔶 | Warn when a method shadows an inherited method |
-| `no-confusing-assignment` | Destack | AST | ✓ | 🟡 | Warn on assignments that look like comparisons |
+| `no-confusing-assignment` | Destack | AST | ✓ | ✅ | Warn on assignments that look like comparisons |
 
 ## Security (S)
 
@@ -146,7 +146,7 @@ Patterns that may expose the application to attacks.
 | `no-implied-eval` | ESLint | DIR | ✗ | 🔶 | Disallow `setTimeout` and `setInterval` with string arguments |
 | `no-new-func` | ESLint | DIR | ✗ | 🔶 | Disallow `new Function()` |
 | `no-script-url` | ESLint | AST | ✓ | ✅ | Disallow `javascript:` URLs |
-| `no-secrets` | Biome | AST | ✓ | 🟡 | Disallow hardcoded secrets and credentials |
+| `no-secrets` | Biome | AST | ✓ | ✅ | Disallow hardcoded secrets and credentials |
 
 ## Performance (P)
 
@@ -280,26 +280,26 @@ Opt-in rules that ban certain patterns by project choice. These rules may confli
 | `no-class` | Destack | AST | ✓ | ✅ | Disallow class declarations (prefer structs) |
 | `no-console` | ESLint | DIR | ✗ | 🔶 | Disallow the use of `console` |
 | `no-continue` | ESLint | AST | ✓ | ✅ | Disallow `continue` statements |
-| `no-default-export` | Import | AST | ✓ | 🟡 | Disallow default exports |
-| `no-enum` | Biome | AST | ✓ | 🟡 | Disallow TypeScript enums (prefer union types) |
+| `no-default-export` | Import | AST | ✓ | ✅ | Disallow default exports |
+| `no-enum` | Biome | AST | ✓ | ✅ | Disallow TypeScript enums (prefer union types) |
 | `no-explicit-any` | TS-ESLint | AST | ✓ | ✅ | Disallow the `any` type |
-| `no-implicit-return` | Destack | AST | ✓ | 🟡 | Require explicit `return` statements |
+| `no-implicit-return` | Destack | AST | ✓ | ✅ | Require explicit `return` statements |
 | `no-labels` | ESLint | AST | ✓ | ✅ | Disallow labeled statements |
 | `no-magic-numbers` | ESLint | AST | ✓ | ✅ | Disallow magic numbers |
 | `no-namespace` | TS-ESLint | AST | ✓ | ✅ | Disallow TypeScript namespaces |
 | `no-non-null-assertion` | TS-ESLint | AST | ✓ | ✅ | Disallow non-null assertions using the `!` postfix |
-| `no-null` | Unicorn | AST | ✓ | 🟡 | Disallow `null` (prefer `undefined`) |
+| `no-null` | Unicorn | AST | ✓ | ✅ | Disallow `null` (prefer `undefined`) |
 | `no-plusplus` | ESLint | AST | ✓ | ✅ | Disallow `++` and `--` operators |
 | `no-process-exit` | Unicorn | DIR | ✗ | 🔶 | Disallow `process.exit()` |
-| `no-require-imports` | TS-ESLint | AST | ✓ | 🟡 | Disallow `require()` imports |
+| `no-require-imports` | TS-ESLint | DIR | ✗ | 🟡 | Disallow `require()` imports |
 | `no-sequences` | ESLint | AST | ✓ | ✅ | Disallow comma operators |
 | `no-struct` | Destack | AST | ✓ | ✅ | Disallow struct declarations (prefer classes) |
 | `no-struct-mutation` | Destack | DIR | ✓ | 🔶 | Disallow mutating struct fields |
 | `no-ternary` | ESLint | AST | ✓ | ✅ | Disallow ternary operators |
-| `no-warning-comments` | ESLint | AST | ✓ | 🟡 | Disallow specified warning terms in comments (TODO, FIXME, etc.) |
-| `no-placeholder-implementation` | ESLint | AST | ✓ | 🟡 | Disallow placeholder implementations (throw "not implemented", etc.) |
-| `no-void` | ESLint | AST | ✓ | 🟡 | Disallow the `void` operator |
-| `no-wildcard-imports` | Destack | AST | ✓ | 🟡 | Disallow wildcard imports |
+| `no-warning-comments` | ESLint | AST | ✓ | ✅ | Disallow specified warning terms in comments (TODO, FIXME, etc.) |
+| `no-placeholder-implementation` | ESLint | AST | ✓ | ✅ | Disallow placeholder implementations (throw "not implemented", etc.) |
+| `no-void` | ESLint | AST | ✗ | 🔶 | Disallow the `void` operator |
+| `no-wildcard-imports` | Destack | AST | ✓ | ✅ | Disallow wildcard imports |
 | `no-shadow-reuse` | Destack | DIR | ✓ | 🔶 | Disallow shadowing by rebinding a value |
 | `no-shadow-same` | Destack | DIR | ✓ | 🔶 | Disallow shadowing by binding the same name |
 | `no-shadow-unrelated` | Destack | DIR | ✓ | 🔶 | Disallow shadowing with an unrelated value |

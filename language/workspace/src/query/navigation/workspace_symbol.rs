@@ -88,7 +88,7 @@ pub fn workspace_symbols(
             });
 
             if symbols.len() >= max_results {
-                // NOTE #Performance #Suspicious: revisit workspace_symbols limits
+                // NOTE #Performance: revisit workspace_symbols limits
                 break 'outer;
             }
         }

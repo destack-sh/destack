@@ -257,6 +257,46 @@ pub fn expressions_equal(
                 && expressions_equal(ctx, *left_right, *right_right)
         }
 
+        // call expressions: compare callee and arguments
+        (
+            Expression::Call {
+                left: left_callee,
+                dynamic_arguments: left_args,
+                ..
+            },
+            Expression::Call {
+                left: right_callee,
+                dynamic_arguments: right_args,
+                ..
+            },
+        ) => {
+            if !expressions_equal(ctx, *left_callee, *right_callee) {
+                return false;
+            }
+            if left_args.len() != right_args.len() {
+                return false;
+            }
+            for (left_arg_id, right_arg_id) in left_args.iter().zip(right_args.iter()) {
+                let left_arg = ctx.tree.get(*left_arg_id);
+                let right_arg = ctx.tree.get(*right_arg_id);
+                let args_equal = match (left_arg, right_arg) {
+                    (
+                        ast::Argument::Positional { value: left_value },
+                        ast::Argument::Positional { value: right_value },
+                    ) => expressions_equal(ctx, *left_value, *right_value),
+                    (
+                        ast::Argument::Spread { value: left_value },
+                        ast::Argument::Spread { value: right_value },
+                    ) => expressions_equal(ctx, *left_value, *right_value),
+                    _ => false,
+                };
+                if !args_equal {
+                    return false;
+                }
+            }
+            true
+        }
+
         // for other expression types, don't try to compare
         _ => false,
     }
