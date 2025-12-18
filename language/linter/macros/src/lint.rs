@@ -10,7 +10,7 @@ struct DeclareLintInput {
     /// The #[lint(...)] attribute with configuration.
     lint_attr: LintAttr,
     /// Visibility (usually `pub`).
-    vis: Visibility,
+    visibility: Visibility,
     /// The struct name (e.g., NoDebugger).
     name: Ident,
     /// Short description string.
@@ -19,12 +19,21 @@ struct DeclareLintInput {
 
 /// Parsed #[lint(...)] attribute.
 struct LintAttr {
+    /// The rule ID (e.g., "no-debugger").
     id: String,
+    /// The rule code (e.g., "LC001").
     code: String,
+    /// The rule category (e.g., Correctness).
     category: Ident,
+    /// The rule level (e.g., Dir).
     level: Ident,
+    /// The rule scope (e.g., Module).
     scope: Option<Ident>,
-    fixable: bool,
+    /// Whether the rule is fixable.
+    is_fixable: bool,
+    /// Whether the rule is recommended (overrides category default).
+    is_recommended: Option<bool>,
+    /// The URL to the rule documentation.
     docs_url: Option<String>,
 }
 
@@ -57,7 +66,7 @@ impl Parse for DeclareLintInput {
         Ok(DeclareLintInput {
             attrs,
             lint_attr,
-            vis,
+            visibility: vis,
             name,
             description: description.value(),
         })
@@ -71,12 +80,13 @@ fn parse_lint_attr(attrs: &[Attribute]) -> Result<LintAttr> {
         .find(|a| a.path().is_ident("lint"))
         .ok_or_else(|| syn::Error::new_spanned(&attrs[0], "missing #[lint(...)] attribute"))?;
 
-    let mut id = None;
-    let mut code = None;
+    let mut id: Option<String> = None;
+    let mut code: Option<String> = None;
     let mut category = None;
     let mut level = None;
     let mut scope = None;
-    let mut fixable = false;
+    let mut is_fixable = false;
+    let mut is_recommended: Option<bool> = None;
     let mut docs_url = None;
 
     lint_attr.parse_nested_meta(|meta| {
@@ -105,9 +115,9 @@ fn parse_lint_attr(attrs: &[Attribute]) -> Result<LintAttr> {
             if meta.input.peek(Token![=]) {
                 meta.input.parse::<Token![=]>()?;
                 let lit: syn::LitBool = meta.input.parse()?;
-                fixable = lit.value();
+                is_fixable = lit.value();
             } else {
-                fixable = true;
+                is_fixable = true;
             }
         } else if meta.path.is_ident("docs") {
             meta.input.parse::<Token![=]>()?;
@@ -132,7 +142,8 @@ fn parse_lint_attr(attrs: &[Attribute]) -> Result<LintAttr> {
         category,
         level,
         scope,
-        fixable,
+        is_fixable,
+        is_recommended: None,
         docs_url,
     })
 }
@@ -164,7 +175,7 @@ pub(crate) fn declare_lint_impl(input: TokenStream) -> TokenStream {
     let DeclareLintInput {
         attrs,
         lint_attr,
-        vis,
+        visibility: vis,
         name,
         description,
     } = input;
@@ -175,7 +186,8 @@ pub(crate) fn declare_lint_impl(input: TokenStream) -> TokenStream {
         category,
         level,
         scope,
-        fixable,
+        is_fixable: fixable,
+        is_recommended: recommended, // nocheckin TODO: support per-rule recommended override
         docs_url,
     } = lint_attr;
 

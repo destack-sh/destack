@@ -300,9 +300,7 @@ Opt-in rules that ban certain patterns by project choice. These rules may confli
 | `no-placeholder-implementation` | ESLint | AST | ✓ | ✅ | Disallow placeholder implementations (throw "not implemented", etc.) |
 | `no-void` | ESLint | AST | ✗ | 🔶 | Disallow the `void` operator |
 | `no-wildcard-imports` | Destack | AST | ✓ | ✅ | Disallow wildcard imports |
-| `no-shadow-reuse` | Destack | DIR | ✓ | 🔶 | Disallow shadowing by rebinding a value |
-| `no-shadow-same` | Destack | DIR | ✓ | 🔶 | Disallow shadowing by binding the same name |
-| `no-shadow-unrelated` | Destack | DIR | ✓ | 🔶 | Disallow shadowing with an unrelated value |
+| `no-shadow` | Destack | DIR | ✓ | 🔶 | Disallow shadowing by rebinding a value |
 | `strict-boolean-expressions` | TS-ESLint | DIR | ✓ | 🔶 | Disallow truthy/falsy coercion in conditions |
 
 ## Pedantic (D)
