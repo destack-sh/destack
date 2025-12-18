@@ -1,4 +1,6 @@
-use destack_dir::{DynamicKey, EnumField, GlobalNodeIdAny, Member, NodeType, Parameter, SymbolType};
+use destack_dir::{
+    DynamicKey, EnumField, GlobalNodeIdAny, Member, NodeType, Parameter, SymbolType,
+};
 use destack_source::{FileId, Span};
 
 use crate::Session;

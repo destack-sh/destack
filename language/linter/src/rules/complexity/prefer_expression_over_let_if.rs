@@ -10,11 +10,11 @@ declare_lint! {
     /// use an if expression or ternary to initialize directly.
     #[lint(
         id = "prefer-expression-over-let-if",
-        code = "LD009",
-        category = Pedantic,
+        code = "LX013",
+        category = Complexity,
         level = Ast,
         fixable = No,
-        recommended = Off,
+        recommended = Strict,
         stability = Stable
     )]
     pub PreferExpressionOverLetIf,

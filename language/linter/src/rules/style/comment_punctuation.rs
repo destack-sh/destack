@@ -10,11 +10,11 @@ declare_lint! {
     /// Doc comments should end with proper punctuation.
     #[lint(
         id = "comment-punctuation",
-        code = "LD004",
-        category = Pedantic,
+        code = "LY040",
+        category = Style,
         level = Ast,
         fixable = No,
-        recommended = Off,
+        recommended = Strict,
         stability = Stable
     )]
     pub CommentPunctuation,

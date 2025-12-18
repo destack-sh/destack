@@ -32,10 +32,6 @@ pub enum LintCategory {
     /// Restriction (R) lints enforce project-specific restrictions.
     /// These are opt-in rules that ban certain patterns by choice.
     Restriction,
-
-    /// Pedantic (D) lints are very strict or opinionated.
-    /// These may have false positives or be too noisy for some projects.
-    Pedantic,
 }
 
 impl LintCategory {
@@ -49,7 +45,6 @@ impl LintCategory {
             Self::Security => 'S',
             Self::Complexity => 'X',
             Self::Restriction => 'R',
-            Self::Pedantic => 'D',
         }
     }
 
@@ -63,7 +58,6 @@ impl LintCategory {
             Self::Security => "security",
             Self::Complexity => "complexity",
             Self::Restriction => "restriction",
-            Self::Pedantic => "pedantic",
         }
     }
 
@@ -77,7 +71,6 @@ impl LintCategory {
             Self::Security => "detects potential vulnerabilities",
             Self::Complexity => "detects overly complex code",
             Self::Restriction => "enforces project-specific restrictions",
-            Self::Pedantic => "very strict or opinionated checks",
         }
     }
 
@@ -95,8 +88,7 @@ impl LintCategory {
             Self::Style => LintSeverity::Warning,
             Self::Security => LintSeverity::Error,
             Self::Complexity => LintSeverity::Warning,
-            Self::Restriction => LintSeverity::Off, // opt-in
-            Self::Pedantic => LintSeverity::Off,    // opt-in
+            Self::Restriction => LintSeverity::Note, // opt-in
         }
     }
 
@@ -109,7 +101,6 @@ impl LintCategory {
         Self::Security,
         Self::Complexity,
         Self::Restriction,
-        Self::Pedantic,
     ];
 }
 

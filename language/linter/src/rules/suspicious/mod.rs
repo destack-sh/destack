@@ -1,3 +1,4 @@
+mod guard_for_in;
 mod no_cond_assign;
 mod no_confusing_assignment;
 mod no_confusing_non_null_assertion;
@@ -27,10 +28,13 @@ mod no_useless_escape;
 mod no_useless_rename;
 mod no_useless_return;
 mod prefer_match;
+mod require_await;
+mod require_else_in_if_chain;
 mod require_yield;
 
 use crate::{BoxedLintRule, boxed};
 
+pub use guard_for_in::*;
 pub use no_cond_assign::*;
 pub use no_confusing_assignment::*;
 pub use no_confusing_non_null_assertion::*;
@@ -60,11 +64,14 @@ pub use no_useless_escape::*;
 pub use no_useless_rename::*;
 pub use no_useless_return::*;
 pub use prefer_match::*;
+pub use require_await::*;
+pub use require_else_in_if_chain::*;
 pub use require_yield::*;
 
 /// Get all suspicious rules.
 pub fn rules() -> Vec<BoxedLintRule> {
     vec![
+        boxed(GuardForIn),
         boxed(NoCondAssign),
         boxed(NoConfusingAssignment),
         boxed(NoConfusingNonNullAssertion),
@@ -94,6 +101,8 @@ pub fn rules() -> Vec<BoxedLintRule> {
         boxed(NoUselessRename),
         boxed(NoUselessReturn),
         boxed(PreferMatch),
+        boxed(RequireAwait),
+        boxed(RequireElseInIfChain),
         boxed(RequireYield),
     ]
 }

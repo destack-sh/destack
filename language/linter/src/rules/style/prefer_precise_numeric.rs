@@ -10,11 +10,11 @@ declare_lint! {
     /// types like `int32`, `int64`, or `float64` for clearer intent.
     #[lint(
         id = "prefer-precise-numeric",
-        code = "LD016",
-        category = Pedantic,
+        code = "LY042",
+        category = Style,
         level = Ast,
         fixable = No,
-        recommended = Off,
+        recommended = Strict,
         stability = Stable
     )]
     pub PreferPreciseNumeric,

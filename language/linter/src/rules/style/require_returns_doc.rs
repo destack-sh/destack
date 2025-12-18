@@ -9,11 +9,11 @@ declare_lint! {
     /// Functions with non-void return types should document what they return.
     #[lint(
         id = "require-returns-doc",
-        code = "LD014",
-        category = Pedantic,
+        code = "LY041",
+        category = Style,
         level = Ast,
         fixable = No,
-        recommended = Off,
+        recommended = Strict,
         stability = Stable
     )]
     pub RequireReturnsDoc,

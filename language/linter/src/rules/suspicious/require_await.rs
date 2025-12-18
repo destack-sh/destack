@@ -10,11 +10,11 @@ declare_lint! {
     /// will still return a Promise, but won't actually do async work.
     #[lint(
         id = "require-await",
-        code = "LD011",
-        category = Pedantic,
+        code = "LU024",
+        category = Suspicious,
         level = Ast,
         fixable = No,
-        recommended = Off,
+        recommended = Strict,
         stability = Stable
     )]
     pub RequireAwait,

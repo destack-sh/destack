@@ -10,11 +10,11 @@ declare_lint! {
     /// documentation to help users understand their purpose and usage.
     #[lint(
         id = "require-jsdoc",
-        code = "LD013",
-        category = Pedantic,
+        code = "LY038",
+        category = Style,
         level = Ast,
         fixable = No,
-        recommended = Off,
+        recommended = Strict,
         stability = Stable
     )]
     pub RequireJsdoc,

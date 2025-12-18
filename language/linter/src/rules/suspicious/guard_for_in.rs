@@ -20,11 +20,11 @@ declare_lint! {
     /// Use hasOwnProperty or Object.hasOwn to guard against inherited properties.
     #[lint(
         id = "guard-for-in",
-        code = "LD005",
-        category = Pedantic,
+        code = "LU023",
+        category = Suspicious,
         level = Ast,
         fixable = No,
-        recommended = Off,
+        recommended = Strict,
         stability = Stable
     )]
     pub GuardForIn,

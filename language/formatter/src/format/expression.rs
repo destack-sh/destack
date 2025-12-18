@@ -1775,7 +1775,11 @@ pub(crate) fn format_expression<'ast>(
             {
                 write!(
                     f,
-                    [Keyword::Default, space(), first_item.unwrap().value.unwrap()]
+                    [
+                        Keyword::Default,
+                        space(),
+                        first_item.unwrap().value.unwrap()
+                    ]
                 )?;
             }
             // namespace

@@ -9,14 +9,13 @@ Rules are organized into categories, each with a letter code for diagnostic IDs:
 
 | Category | Code | Default | Description |
 |----------|------|---------|-------------|
-| [Correctness](#correctness-c) | `C` | Error | Likely bugs and logic errors |
-| [Suspicious](#suspicious-u) | `U` | Warning | Code that is likely unintentional |
-| [Security](#security-s) | `S` | Error | Potential vulnerabilities |
-| [Performance](#performance-p) | `P` | Warning | Inefficient patterns |
-| [Style](#style-y) | `Y` | Warning | Consistent coding style |
 | [Complexity](#complexity-x) | `X` | Warning | Overly complex code |
+| [Correctness](#correctness-c) | `C` | Error | Likely bugs and logic errors |
+| [Performance](#performance-p) | `P` | Warning | Inefficient patterns |
 | [Restriction](#restriction-r) | `R` | Off | Project-specific restrictions (opt-in) |
-| [Pedantic](#pedantic-d) | `D` | Off | Very strict checks (opt-in) |
+| [Security](#security-s) | `S` | Error | Potential vulnerabilities |
+| [Style](#style-y) | `Y` | Warning | Consistent coding style |
+| [Suspicious](#suspicious-u) | `U` | Warning | Code that is likely unintentional |
 
 ---
 
@@ -128,8 +127,11 @@ Code that is likely unintentional but may occasionally be intentional.
 | `prefer-array-map` | Destack | DIR | ✓ | 🔶 | Suggest `.map()` over manual mapping loops |
 | `prefer-flat-map` | Unicorn | DIR | ✓ | 🔶 | Suggest `.flatMap()` over `.map().flatten()` |
 | `prefer-match` | Destack | AST | ✓ | ✅ | Suggest match expressions over complex if-else chains |
-| `return-await` | TS-ESLint | DIR | ✓ | 🔶 | Enforce consistent `return await` usage |
+| `require-await` | TS-ESLint | AST | ✓ | ✅ | Disallow async functions with no await expressions |
+| `require-else-in-if-chain` | Destack | AST | ✓ | ✅ | Require final else in if-else-if chains |
 | `require-yield` | ESLint | AST | ✓ | ✅ | Require generator functions to contain yield |
+| `return-await` | TS-ESLint | DIR | ✓ | 🔶 | Enforce consistent `return await` usage |
+| `guard-for-in` | ESLint | AST | ✓ | ✅ | Require `hasOwnProperty` guard in for-in loops |
 
 ## Security (S)
 
@@ -175,6 +177,9 @@ Subjective preferences for consistent coding style.
 |------|--------|-------|-------|--------|-------------|
 | `array-type` | TS-ESLint | AST | ✓ | 🟡 | Require consistently using either `T[]` or `Array<T>` |
 | `catch-error-name` | Unicorn | AST | ✓ | ✅ | Enforce a specific name for catch clause error parameters |
+| `comment-casing` | Destack | AST | ✓ | ✅ | Enforce comment / doc casing |
+| `comment-layout` | Destack | AST | ✓ | ✅ | Enforce comment / doc layout |
+| `comment-punctuation` | Destack | AST | ✓ | ✅ | Enforce comment / doc punctuation style |
 | `consistent-extension-style` | Destack | AST | ✓ | ✅ | Enforce consistent use of named or anonymous extensions |
 | `consistent-struct-construction` | Destack | AST | ✓ | 🟡 | Enforce consistent struct construction syntax |
 | `consistent-type-definitions` | TS-ESLint | AST | ✓ | ✅ | Enforce type definitions to use either `interface` or `type` |
@@ -183,9 +188,11 @@ Subjective preferences for consistent coding style.
 | `default-param-last` | ESLint | AST | ✓ | ✅ | Enforce default parameters to be last |
 | `dot-notation` | ESLint | AST | ✓ | ✅ | Enforce dot notation whenever possible |
 | `eqeqeq` | ESLint | AST | ✓ | ✅ | Require `===` and `!==` |
+| `explicit-function-return-type` | TS-ESLint | AST | ✓ | ✅ | Require explicit return types on functions |
 | `filename-case` | Unicorn | AST | ✓ | ✅ | Enforce a case style for filenames |
 | `grouped-accessor-pairs` | ESLint | AST | ✓ | 🟡 | Require grouped accessor pairs in object literals and classes |
 | `no-boolean-literal-compare` | Unicorn | AST | ✓ | 🟡 | Disallow comparing boolean expressions to boolean literals |
+| `no-class-for-data` | Destack | AST | ✓ | ✅ | Suggest struct for classes with only data fields |
 | `no-collapsible-if` | Unicorn | AST | ✓ | 🟡 | Suggest merging nested if statements without else |
 | `no-constant-assertion` | Destack | AST | ✓ | 🟡 | Disallow assertions on constant values |
 | `no-declarations-after-statements` | Destack | AST | ✓ | 🟡 | Disallow declarations after statements |
@@ -217,10 +224,12 @@ Subjective preferences for consistent coding style.
 | `prefer-inclusive-range` | Destack | AST | ✓ | 🟡 | Prefer inclusive range syntax where applicable |
 | `prefer-loop` | Destack | AST | ✓ | ✅ | Prefer `loop` keyword over `while(true)` or `for(;;)` |
 | `prefer-map-or-else` | Destack | DIR | ✓ | 🔶 | Prefer `mapOrElse()` over `map().unwrap()` |
+| `prefer-named-extension` | Destack | AST | ✓ | ✅ | Prefer named extensions for foreign types |
 | `prefer-numeric-literals` | ESLint | DIR | ✗ | 🔶 | Prefer numeric literals over `parseInt()` |
 | `prefer-object-has-own` | ESLint | DIR | ✗ | 🔶 | Prefer `Object.hasOwn()` over `Object.prototype.hasOwnProperty` |
 | `prefer-object-spread` | ESLint | DIR | ✗ | 🔶 | Prefer spread operator over `Object.assign()` |
 | `prefer-pattern-over-guard` | Destack | AST | ✓ | 🟡 | Suggest moving match guards into the pattern |
+| `prefer-precise-numeric` | Destack | AST | ✓ | ✅ | Prefer precise numeric types over `number` |
 | `prefer-promise-reject-errors` | TS-ESLint | DIR | ✗ | 🔶 | Require Error objects in Promise rejections |
 | `prefer-propagate-operator` | Destack | DIR | ✗ | 🟡 | Prefer `?` operator over manual Result matching |
 | `prefer-range-contains` | Destack | AST | ✓ | 🟡 | Prefer range contains method over comparison chains |
@@ -237,6 +246,8 @@ Subjective preferences for consistent coding style.
 | `prefer-tuple-swap` | Destack | AST | ✓ | 🟡 | Prefer tuple swap syntax over temporary variable |
 | `prefer-unary-negation` | Destack | AST | ✓ | 🟡 | Prefer unary negation over multiplying by -1 |
 | `promise-function-async` | TS-ESLint | DIR | ✗ | 🔶 | Require `async` keyword for Promise-returning functions |
+| `require-jsdoc` | ESLint | AST | ✓ | ✅ | Require documentation on public items |
+| `require-returns-doc` | ESLint | AST | ✓ | ✅ | Require return type documentation |
 | `restrict-template-expressions` | TS-ESLint | DIR | ✓ | 🔶 | Require template expressions to be strings or numbers |
 | `sort-imports` | ESLint | AST | ✓ | 🟡 | Enforce sorted import declarations |
 | `symbol-description` | ESLint | DIR | ✗ | 🔶 | Require symbol descriptions |
@@ -265,6 +276,10 @@ Overly complex code that is harder to understand and maintain.
 | `no-multi-assign` | ESLint | AST | ✓ | ✅ | Disallow chained assignment expressions |
 | `no-multi-declarators` | ESLint | AST | ✓ | ✅ | Disallow multiple variable declarations per statement |
 | `no-unused-expressions` | ESLint | AST | ✓ | ✅ | Disallow expressions that have no effect |
+| `no-useless-underscore-binding` | Destack | AST | ✓ | ✅ | Warn on underscore bindings with no side effects |
+| `prefer-expression-over-let-if` | Destack | AST | ✓ | ✅ | Suggest expression syntax over let-if sequences |
+| `prefer-if-let` | Destack | AST | ✓ | ✅ | Suggest if-let over single-arm match |
+| `prefer-simplified-comparison` | Destack | AST | ✓ | ✅ | Suggest simplifying comparisons like `x >= y + 1` |
 
 ## Restriction (R)
 
@@ -303,51 +318,6 @@ Opt-in rules that ban certain patterns by project choice. These rules may confli
 | `no-wildcard-imports` | Destack | AST | ✓ | ✅ | Disallow wildcard imports |
 | `strict-boolean-expressions` | TS-ESLint | DIR | ✓ | 🔶 | Disallow truthy/falsy coercion in conditions |
 
-## Pedantic (D)
-
-Very strict or opinionated checks.
-
-[`src/rules/pedantic/`](src/rules/pedantic/)
-
-| Rule | Source | Level | Ready | Status | Description |
-|------|--------|-------|-------|--------|-------------|
-| `boolean-naming` | Destack | DIR | ✗ | 🔶 | Require boolean names to have `is_`, `has_`, `can_`, etc. prefix |
-| `comment-casing` | Destack | AST | ✓ | 🟡 | Enforce comment / doc casing |
-| `comment-layout` | Destack | AST | ✓ | 🟡 | Enforce comment / doc layout |
-| `comment-punctuation` | Destack | AST | ✓ | 🟡 | Enforce comment / doc punctuation style |
-| `explicit-function-return-type` | TS-ESLint | AST | ✓ | ✅ | Require explicit return types on functions |
-| `explicit-length-check` | Unicorn | DIR | ✓ | 🔶 | Enforce explicit `.length` comparison style |
-| `guard-for-in` | ESLint | AST | ✓ | 🟡 | Require `hasOwnProperty` guard in for-in loops |
-| `jsx-key` | Biome | AST | ✓ | 🟡 | Require key prop on TSX list children |
-| `no-class-for-data` | Destack | AST | ✓ | 🔶 | Suggest struct for classes with only data fields |
-| `no-extend-native` | ESLint | DIR | ✗ | 🔶 | Disallow extending native prototypes |
-| `no-param-reassign` | ESLint | DIR | ✓ | 🔶 | Disallow reassigning function parameters |
-| `no-redundant-result-wrap` | Destack | DIR | ✓ | 🔶 | Warn when function always returns Ok/Some |
-| `no-shadow` | ESLint | DIR | ✓ | 🔶 | Disallow variable shadowing |
-| `no-throw-in-result` | Destack | DIR | ✗ | 🔶 | Disallow throwing in functions that return Result |
-| `no-unnecessary-callback-wrapper` | TS-ESLint | DIR | ✓ | 🔶 | Suggest using function reference instead of wrapper closure |
-| `no-unreadable-array-destructuring` | Unicorn | AST | ✓ | 🟡 | Disallow unreadable array destructuring |
-| `no-useless-underscore-binding` | Destack | AST | ✓ | 🟡 | Warn on underscore bindings with no side effects |
-| `no-void-assignment` | Destack | DIR | ✓ | 🔶 | Warn on binding variables to void expressions |
-| `prefer-bare-primitive-id` | Destack | DIR | ✓ | 🔶 | Suggest type alias over bare primitive for IDs |
-| `prefer-expression-over-let-if` | Destack | AST | ✓ | 🟡 | Suggest expression syntax over let-if sequences |
-| `prefer-if-let` | Destack | AST | ✓ | 🟡 | Suggest if-let over single-arm match |
-| `prefer-is-empty` | Destack | DIR | ✓ | 🔶 | Prefer `.isEmpty()` over `.length === 0` |
-| `prefer-match-for-comparisons` | Destack | DIR | ✓ | 🔶 | Suggest match expression for comparison chains |
-| `prefer-named-extension` | Destack | AST | ✓ | 🟡 | Prefer named extensions for foreign types |
-| `prefer-newtype` | Destack | DIR | ✓ | 🔶 | Suggest newtype wrapper for certain fields |
-| `prefer-nullish-coalescing` | TS-ESLint | DIR | ✓ | 🔶 | Prefer `??` over `\|\|` for nullish values |
-| `prefer-precise-numeric` | Destack | AST | ✓ | 🟡 | Prefer precise numeric types over `number` |
-| `prefer-simplified-comparison` | Destack | AST | ✓ | 🟡 | Suggest simplifying comparisons like `x >= y + 1` |
-| `radix` | ESLint | DIR | ✗ | 🔶 | Require radix parameter in `parseInt()` |
-| `redundant-refinement` | Destack | DIR | ✓ | 🔶 | Warn on refinement checks that are always satisfied |
-| `refinement-always-true` | Destack | DIR | ✓ | 🔶 | Warn on refinement checks that always succeed |
-| `require-await` | TS-ESLint | AST | ✓ | 🟡 | Disallow async functions with no await expressions |
-| `require-else-in-if-chain` | Destack | AST | ✓ | 🟡 | Require final else in if-else-if chains |
-| `require-is-empty-method` | Destack | DIR | ✗ | 🔶 | Suggest adding `isEmpty()` method when `length` exists |
-| `require-jsdoc` | ESLint | AST | ✓ | 🟡 | Require documentation on public items |
-| `require-returns-doc` | ESLint | AST | ✓ | 🟡 | Require return type documentation |
-
 ---
 
 ## Implementation Notes
@@ -360,6 +330,7 @@ Some checks are handled by the **compiler** rather than the linter:
 |-------|-------|-----------|
 | Type mismatches | Compiler | Fundamental type system |
 | Unbound symbols | Compiler | Required for compilation |
+| Conflicting symbols | Compiler | Required for compilation |
 | Unreachable code | Compiler | CFG analysis for codegen |
 | Precision loss | Compiler | Numeric type semantics |
 | Pattern exhaustiveness | Compiler | Required for correctness |
