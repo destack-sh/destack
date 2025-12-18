@@ -1,7 +1,7 @@
 use destack_ast::{self as ast, BinaryOperator, Expression};
 use destack_workspace::LintSeverity;
 
-use crate::{LintDiagnostic, LintModuleAstContext, LintRule, declare_lint};
+use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {
     /// Require `Number.isNaN()` instead of comparisons with `NaN`.
@@ -14,7 +14,7 @@ declare_lint! {
         code = "LC019",
         category = Correctness,
         level = Ast,
-        fixable = No,
+        fixable = Sometimes,
         recommended = Always,
         stability = Stable
     )]
@@ -59,20 +59,30 @@ impl LintRule for UseIsnan {
             // check if either side is NaN
             let left_is_nan = is_nan_identifier(ctx, *left);
             let right_is_nan = is_nan_identifier(ctx, *right);
-            if left_is_nan || right_is_nan {
-                ctx.report(
-                    LintDiagnostic::new(
-                        USE_ISNAN.id,
-                        USE_ISNAN.code,
-                        USE_ISNAN.category,
-                        severity,
-                        "comparison with NaN is always false",
-                        ctx.module.file_id,
-                        ctx.tree.get_span(node_id),
-                    )
-                    .with_label("use Number.isNaN() instead"),
-                );
+            if !left_is_nan && !right_is_nan {
+                continue;
             }
+
+            let expression_span = ctx.tree.get_span(node_id);
+            let mut diagnostic = LintDiagnostic::new(
+                USE_ISNAN.id,
+                USE_ISNAN.code,
+                USE_ISNAN.category,
+                severity,
+                "comparison with NaN is always false",
+                ctx.module.file_id,
+                expression_span,
+            )
+            .with_label("use Number.isNaN() instead");
+
+            // construct fix for equality operators only
+            if let Some(fix) =
+                make_isnan_fix(ctx, *left, *right, *operator, left_is_nan, expression_span)
+            {
+                diagnostic = diagnostic.with_fix(fix);
+            }
+
+            ctx.report(diagnostic);
         }
     }
 }
@@ -104,6 +114,35 @@ fn is_nan_identifier(
         }
         _ => false,
     }
+}
+
+/// Create a fix for NaN comparison (equality operators only).
+fn make_isnan_fix(
+    ctx: &LintModuleAstContext<'_>,
+    left: ast::LocalNodeId<ast::Expression>,
+    right: ast::LocalNodeId<ast::Expression>,
+    operator: BinaryOperator,
+    left_is_nan: bool,
+    expr_span: destack_source::Span,
+) -> Option<LintFix> {
+    // get the non-NaN operand
+    let other_id = if left_is_nan { right } else { left };
+    let other_span = ctx.tree.get_span(other_id);
+    let other_text = ctx.get_span_text(other_span);
+
+    // only fix equality operators - relational comparisons with NaN don't have a meaningful fix
+    let replacement = match operator {
+        BinaryOperator::Equal | BinaryOperator::EqualStrict => {
+            format!("Number.isNaN({other_text})")
+        }
+        BinaryOperator::NotEqual | BinaryOperator::NotEqualStrict => {
+            format!("!Number.isNaN({other_text})")
+        }
+        // relational operators - no fix (comparison is always false)
+        _ => return None,
+    };
+
+    Some(LintFix::safe("Replace with Number.isNaN()").replace(expr_span, replacement))
 }
 
 #[cfg(test)]
@@ -226,5 +265,100 @@ let x = NaN
 "#,
         );
         test.result(result).assert_no_lint("use-isnan");
+    }
+
+    #[test]
+    fn test_fix_strict_equal() {
+        let test = TestProgram::for_rule(UseIsnan);
+        let result = test.lint_ast(
+            "test.ds",
+            r#"
+let x = 1.0
+if (x === NaN) {}
+"#,
+        );
+        test.result(result)
+            .assert_lint("use-isnan")
+            .assert_safe_fixed(
+                r#"
+let x = 1.0;
+if (Number.isNaN(x)) { }
+"#,
+            );
+    }
+
+    #[test]
+    fn test_fix_not_equal() {
+        let test = TestProgram::for_rule(UseIsnan);
+        let result = test.lint_ast(
+            "test.ds",
+            r#"
+let x = 1.0
+if (x !== NaN) {}
+"#,
+        );
+        test.result(result)
+            .assert_lint("use-isnan")
+            .assert_safe_fixed(
+                r#"
+let x = 1.0;
+if (!Number.isNaN(x)) { }
+"#,
+            );
+    }
+
+    #[test]
+    fn test_fix_nan_on_left() {
+        let test = TestProgram::for_rule(UseIsnan);
+        let result = test.lint_ast(
+            "test.ds",
+            r#"
+let x = 1.0
+if (NaN === x) {}
+"#,
+        );
+        test.result(result)
+            .assert_lint("use-isnan")
+            .assert_safe_fixed(
+                r#"
+let x = 1.0;
+if (Number.isNaN(x)) { }
+"#,
+            );
+    }
+
+    #[test]
+    fn test_fix_complex_expression() {
+        let test = TestProgram::for_rule(UseIsnan);
+        let result = test.lint_ast(
+            "test.ds",
+            r#"
+let y = 1.0
+let x = (y + 1) === NaN
+"#,
+        );
+        test.result(result)
+            .assert_lint("use-isnan")
+            .assert_safe_fixed(
+                r#"
+let y = 1.0;
+let x = Number.isNaN((y + 1));
+"#,
+            );
+    }
+
+    #[test]
+    fn test_no_fix_for_relational() {
+        let test = TestProgram::for_rule(UseIsnan);
+        let result = test.lint_ast(
+            "test.ds",
+            r#"
+let x = 1.0
+if (x < NaN) {}
+"#,
+        );
+        test.result(result)
+            .assert_lint("use-isnan")
+            .assert_has_no_fix("use-isnan");
     }
 }

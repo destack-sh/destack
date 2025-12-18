@@ -8,12 +8,12 @@ pub struct LintFix {
     /// Edits to apply.
     pub edits: Vec<Edit>,
     /// How safe the fix is to apply automatically.
-    pub applicability: FixApplicability,
+    pub applicability: Fixability,
 }
 
 impl LintFix {
     /// Create a new lint fix.
-    pub fn new(description: impl Into<String>, applicability: FixApplicability) -> Self {
+    pub fn new(description: impl Into<String>, applicability: Fixability) -> Self {
         Self {
             description: description.into(),
             edits: Vec::new(),
@@ -23,17 +23,17 @@ impl LintFix {
 
     /// Create a safe fix (can be applied with `--fix`).
     pub fn safe(description: impl Into<String>) -> Self {
-        Self::new(description, FixApplicability::Safe)
+        Self::new(description, Fixability::Safe)
     }
 
     /// Create an unsafe fix (requires `--fix-unsafe`).
     pub fn r#unsafe(description: impl Into<String>) -> Self {
-        Self::new(description, FixApplicability::Unsafe)
+        Self::new(description, Fixability::Unsafe)
     }
 
     /// Create a suggestion (human review required).
     pub fn suggestion(description: impl Into<String>) -> Self {
-        Self::new(description, FixApplicability::Suggestion)
+        Self::new(description, Fixability::Suggestion)
     }
 
     /// Add an edit.
@@ -93,8 +93,8 @@ impl LintFix {
             message: self.description,
             style: SuggestionStyle::Normal,
             applicability: match self.applicability {
-                FixApplicability::Safe => Applicability::Automatic,
-                FixApplicability::Unsafe | FixApplicability::Suggestion => Applicability::Dangerous,
+                Fixability::Safe => Applicability::Automatic,
+                Fixability::Unsafe | Fixability::Suggestion => Applicability::Dangerous,
             },
         }
     }
@@ -102,7 +102,7 @@ impl LintFix {
 
 /// How safe a fix is to apply automatically.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum FixApplicability {
+pub enum Fixability {
     /// Safe to apply automatically with `--fix`.
     /// The fix preserves the program's semantics.
     Safe,

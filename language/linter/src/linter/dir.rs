@@ -135,4 +135,11 @@ impl<'a> LintModuleDirContext<'a> {
         let ast_node_id = self.tree.get_source(id.id);
         self.ast.get_span_by_id(ast_node_id)
     }
+
+    /// Get the source text for a span.
+    pub fn get_span_text(&self, span: Span) -> String {
+        let file = self.program.files.get(span.file);
+        let text = file.text();
+        text[span.start as usize..span.end as usize].to_string()
+    }
 }
