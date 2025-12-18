@@ -1,8 +1,8 @@
-use destack_dir::{DynamicKey, EnumField, Member, NodeType, Parameter, SymbolType};
+use destack_dir::{DynamicKey, EnumField, GlobalNodeIdAny, Member, NodeType, Parameter, SymbolType};
 use destack_source::{FileId, Span};
 
 use crate::Session;
-use crate::format::format_symbol_signature;
+use crate::format::{format_local_type, format_symbol_signature};
 use crate::query::common::find_symbol_at_offset;
 
 /// Hover information for a symbol.
@@ -70,11 +70,14 @@ pub fn hover(session: &Session, file: FileId, offset: u32) -> Option<HoverInfo> 
         .map(|id| module_guard.ast.strings.get(id).to_string());
 
     // use node type to provide better context for members/fields/parameters
+    let module_id = module_guard.id;
     let signature = match symbol_at.node_id.ty {
         NodeType::Member => {
             let dir_tree = module_guard.dir.tree.read();
+            let types = module_guard.dir.types.read();
             if let Ok(member_id) = symbol_at.node_id.try_into() {
                 let member = dir_tree.get::<Member>(member_id);
+
                 // get member name from key field
                 let member_name = member.key().and_then(|key| match key {
                     DynamicKey::Name(string_id) => {
@@ -85,7 +88,17 @@ pub fn hover(session: &Session, file: FileId, offset: u32) -> Option<HoverInfo> 
                     }
                     DynamicKey::Expression(_) => None,
                 });
-                format_member_signature(member, member_name.as_deref())
+
+                // get type if available
+                let node_id = GlobalNodeIdAny {
+                    module_id,
+                    local_id: member_id.into(),
+                };
+                let type_str = types.get_inferred_type_id(node_id).map(|type_id| {
+                    format_local_type(type_id, &types, &session.modules, &session.strings)
+                });
+
+                format_member_signature(member, member_name.as_deref(), type_str.as_deref())
             } else {
                 format_simple_signature(symbol.ty, name.as_deref())
             }
@@ -102,10 +115,24 @@ pub fn hover(session: &Session, file: FileId, offset: u32) -> Option<HoverInfo> 
         }
         NodeType::Parameter => {
             let dir_tree = module_guard.dir.tree.read();
+            let types = module_guard.dir.types.read();
             if let Ok(param_id) = symbol_at.node_id.try_into() {
                 let _param = dir_tree.get::<Parameter>(param_id);
                 let param_name = name.as_deref().unwrap_or("<anonymous>");
-                format!("parameter {param_name}")
+
+                // get type if available
+                let node_id = GlobalNodeIdAny {
+                    module_id,
+                    local_id: param_id.into(),
+                };
+                let type_str = types.get_inferred_type_id(node_id).map(|type_id| {
+                    format!(
+                        ": {}",
+                        format_local_type(type_id, &types, &session.modules, &session.strings)
+                    )
+                });
+
+                format!("parameter {param_name}{}", type_str.unwrap_or_default())
             } else {
                 format_simple_signature(symbol.ty, name.as_deref())
             }
@@ -134,10 +161,16 @@ fn format_simple_signature(symbol_type: SymbolType, name: Option<&str>) -> Strin
 }
 
 /// Format signature for a member (field, method, embed, static block).
-fn format_member_signature(member: &Member, name: Option<&str>) -> String {
+fn format_member_signature(member: &Member, name: Option<&str>, type_str: Option<&str>) -> String {
     let name = name.unwrap_or("<anonymous>");
     match member {
-        Member::Field { .. } => format!("field {name}"),
+        Member::Field { .. } => {
+            if let Some(ty) = type_str {
+                format!("field {name}: {ty}")
+            } else {
+                format!("field {name}")
+            }
+        }
         Member::Method { .. } => format!("method {name}"),
         Member::Embed { .. } => format!("embed {name}"),
         Member::StaticBlock { .. } => "static block".to_string(),

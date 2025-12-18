@@ -373,3 +373,24 @@ export namespace ExportedNS {
 ```query hover hover:export_ns
 namespace ExportedNS
 ```
+
+## Documentation Comments
+
+### Hover on documentation should not return symbol
+
+Hovering over a documentation comment should NOT return the symbol it documents.
+
+```ds
+class Person {
+    /// The person's name.
+//      ^^^^^^^^^^^^^^^^^ hover:doc_span
+    name: string
+//  ^^^^ def:name_field
+}
+```
+
+Hovering over the doc comment text should return nothing (no symbol).
+
+```query hover hover:doc_span
+<none>
+```
