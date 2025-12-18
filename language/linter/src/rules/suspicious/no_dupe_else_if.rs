@@ -1,6 +1,7 @@
 use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
+use crate::rules::common::expressions_equal;
 use crate::{LintDiagnostic, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {
@@ -23,7 +24,6 @@ impl LintRule for NoDupeElseIf {
         NoDupeElseIf::meta()
     }
 
-    #[allow(clippy::needless_range_loop)]
     fn check_module_ast<'a>(&self, severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
         // find all if expressions and check their else-if chains
         for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
@@ -47,17 +47,10 @@ impl LintRule for NoDupeElseIf {
             let mut conditions = vec![*condition];
             collect_else_if_conditions(ctx, *else_expr, &mut conditions);
 
-            // check for duplicates by comparing source text (?)
-            let file = ctx.program.files.get(ctx.module.file_id);
-            let source = file.text();
+            // check for duplicates using structural comparison
             for i in 0..conditions.len() {
-                let span_i = ctx.tree.get_span(conditions[i]);
-                let text_i = get_span_text(source, span_i);
                 for j in (i + 1)..conditions.len() {
-                    let span_j = ctx.tree.get_span(conditions[j]);
-                    let text_j = get_span_text(source, span_j);
-
-                    if text_i == text_j {
+                    if expressions_equal(ctx, conditions[i], conditions[j]) {
                         ctx.report(
                             LintDiagnostic::new(
                                 NO_DUPE_ELSE_IF.id,
@@ -66,7 +59,7 @@ impl LintRule for NoDupeElseIf {
                                 severity,
                                 "duplicate condition in if-else-if chain",
                                 ctx.module.file_id,
-                                span_j,
+                                ctx.tree.get_span(conditions[j]),
                             )
                             .with_label("this condition was already checked above"),
                         );
@@ -121,17 +114,6 @@ fn collect_else_if_conditions(
         if let Some(else_expr) = else_expression {
             collect_else_if_conditions(ctx, *else_expr, conditions);
         }
-    }
-}
-
-/// Get the source text for a span.
-fn get_span_text(source: &str, span: destack_source::Span) -> &str {
-    let start = span.start as usize;
-    let end = span.end as usize;
-    if start < source.len() && end <= source.len() && start <= end {
-        &source[start..end]
-    } else {
-        ""
     }
 }
 
