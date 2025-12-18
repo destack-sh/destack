@@ -235,6 +235,7 @@ mod tests {
 
     #[test]
     fn test_detects_high_cognitive_complexity() {
+        // nocheckin: set explicit complexity for cognitive/cyclomatic complexity tests
         let test = TestProgram::for_rule(CognitiveComplexity);
         // nested structures have higher cognitive complexity
         let result = test.lint_ast(

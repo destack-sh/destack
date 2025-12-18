@@ -13,7 +13,7 @@ use destack_source::{
 use destack_workspace::{LintCategory, LintSeverity, LinterOptions, Program, Session};
 
 use crate::{
-    BoxedLintRule, FixApplicability, LintDiagnostic, LintLevel, LintRunner, all_rules, print_diff,
+    BoxedLintRule, Fixability, LintDiagnostic, LintLevel, LintRunner, all_rules, print_diff,
 };
 
 /// Test wrapper for linting.
@@ -324,7 +324,7 @@ impl<'a> LintResult<'a> {
     }
 
     /// Apply fixes from diagnostics with the given applicability and return the fixed source.
-    pub(crate) fn apply_fixes(&self, applicability: Option<FixApplicability>) -> String {
+    pub(crate) fn apply_fixes(&self, applicability: Option<Fixability>) -> String {
         // collect all edits from fixes with matching applicability
         let edits: Vec<&Edit> = self
             .diagnostics
@@ -341,7 +341,7 @@ impl<'a> LintResult<'a> {
     /// Assert the safely fixed code matches expected.
     #[track_caller]
     pub(crate) fn assert_safe_fixed(&self, expected: &str) -> &Self {
-        let fixed = self.apply_fixes(Some(FixApplicability::Safe));
+        let fixed = self.apply_fixes(Some(Fixability::Safe));
         let fixed = fixed.trim();
         let expected = expected.trim();
         if fixed != expected {
@@ -354,7 +354,7 @@ impl<'a> LintResult<'a> {
     /// Assert the unsafely fixed code matches expected.
     #[track_caller]
     pub(crate) fn assert_unsafe_fixed(&self, expected: &str) -> &Self {
-        let fixed = self.apply_fixes(Some(FixApplicability::Unsafe));
+        let fixed = self.apply_fixes(Some(Fixability::Unsafe));
         let fixed = fixed.trim();
         let expected = expected.trim();
         if fixed != expected {
@@ -386,6 +386,18 @@ impl<'a> LintResult<'a> {
             .filter(|d| d.rule_id == rule_id)
             .any(|d| !d.fixes.is_empty());
         assert!(has_fix, "expected fix for '{rule_id}' but none found");
+        self
+    }
+
+    /// Assert that no fix exists for the given rule.
+    #[track_caller]
+    pub(crate) fn assert_has_no_fix(&self, rule_id: &str) -> &Self {
+        let has_fix = self
+            .diagnostics
+            .iter()
+            .filter(|d| d.rule_id == rule_id)
+            .any(|d| !d.fixes.is_empty());
+        assert!(!has_fix, "expected no fix for '{rule_id}' but found one");
         self
     }
 
