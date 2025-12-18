@@ -230,7 +230,7 @@ Subjective preferences for consistent coding style.
 | `prefer-self-closing-tree` | React | AST | ✓ | 🟡 | Prefer self-closing tree elements when possible |
 | `prefer-set-over-empty-map` | Destack | DIR | ✗ | 🔶 | Suggest `Set<K>` over `Map<K, void>` |
 | `prefer-struct-literal` | Destack | AST | ✓ | 🟡 | Prefer struct literal syntax over constructor calls |
-| `prefer-struct-over-class` | Destack | DIR | ✓ | 🔶 | Suggest struct when class has no methods |
+| `prefer-struct-over-class` | Destack | DIR | ✓ | 🔶 | Suggest struct over class when possible |
 | `prefer-template` | ESLint | AST | ✓ | ✅ | Prefer template literals over string concatenation |
 | `prefer-tuple` | Destack | DIR | ✓ | 🔶 | Suggest tuple type for fixed-length heterogeneous arrays |
 | `prefer-tuple-destructure` | Destack | AST | ✓ | 🟡 | Prefer tuple destructuring over indexed access |
@@ -297,7 +297,6 @@ Opt-in rules that ban certain patterns by project choice. These rules may confli
 | `no-sequences` | ESLint | AST | ✓ | ✅ | Disallow comma operators |
 | `no-shadow` | Destack | DIR | ✓ | 🔶 | Disallow shadowing by rebinding a value |
 | `no-struct` | Destack | AST | ✓ | ✅ | Disallow struct declarations (prefer classes) |
-| `no-struct-mutation` | Destack | DIR | ✓ | 🔶 | Disallow mutating struct fields |
 | `no-ternary` | ESLint | AST | ✓ | ✅ | Disallow ternary operators |
 | `no-void` | ESLint | AST | ✗ | 🔶 | Disallow the `void` operator |
 | `no-warning-comments` | ESLint | AST | ✓ | ✅ | Disallow specified warning terms in comments (TODO, FIXME, etc.) |
@@ -312,40 +311,34 @@ Very strict or opinionated checks.
 
 | Rule | Source | Level | Ready | Status | Description |
 |------|--------|-------|-------|--------|-------------|
-| `boolean-naming` | AGENTS.md | DIR | ✗ | 🔶 | Require boolean names to have `is_`, `has_`, `can_`, etc. prefix |
-| `code-block-comment-ratio` | Destack | AST | ✓ | 🟡 | Require minimum comment density in complex code |
-| `comment-casing` | AGENTS.md | AST | ✓ | 🟡 | Enforce lowercase comments (except proper nouns) |
-| `comment-punctuation` | AGENTS.md | AST | ✓ | 🟡 | Disallow trailing periods in comments |
-| `consistent-struct-field-order` | Destack | AST | ✓ | 🟡 | Warn when field order differs from struct definition |
-| `doc-starts-with-verb` | AGENTS.md | AST | ✓ | 🟡 | Require doc comments to start with a verb |
+| `boolean-naming` | Destack | DIR | ✗ | 🔶 | Require boolean names to have `is_`, `has_`, `can_`, etc. prefix |
+| `comment-casing` | Destack | AST | ✓ | 🟡 | Enforce comment / doc casing |
+| `comment-layout` | Destack | AST | ✓ | 🟡 | Enforce comment / doc layout |
+| `comment-punctuation` | Destack | AST | ✓ | 🟡 | Enforce comment / doc punctuation style |
 | `explicit-function-return-type` | TS-ESLint | AST | ✓ | ✅ | Require explicit return types on functions |
 | `explicit-length-check` | Unicorn | DIR | ✓ | 🔶 | Enforce explicit `.length` comparison style |
 | `guard-for-in` | ESLint | AST | ✓ | 🟡 | Require `hasOwnProperty` guard in for-in loops |
-| `jsx-key` | Biome | AST | ✓ | 🟡 | Require key prop on list children |
-| `no-class-for-data` | Destack | DIR | ✓ | 🔶 | Suggest struct for classes with only data fields |
+| `jsx-key` | Biome | AST | ✓ | 🟡 | Require key prop on TSX list children |
+| `no-class-for-data` | Destack | AST | ✓ | 🔶 | Suggest struct for classes with only data fields |
 | `no-extend-native` | ESLint | DIR | ✗ | 🔶 | Disallow extending native prototypes |
 | `no-param-reassign` | ESLint | DIR | ✓ | 🔶 | Disallow reassigning function parameters |
-| `no-potentially-infinite-iterator` | Destack | DIR | ✗ | 🔶 | Warn on possibly infinite iterations |
 | `no-redundant-result-wrap` | Destack | DIR | ✓ | 🔶 | Warn when function always returns Ok/Some |
 | `no-shadow` | ESLint | DIR | ✓ | 🔶 | Disallow variable shadowing |
 | `no-throw-in-result` | Destack | DIR | ✗ | 🔶 | Disallow throwing in functions that return Result |
-| `no-type-name-repetition` | Destack | AST | ✓ | 🟡 | Warn when type name repeats module name |
 | `no-unnecessary-callback-wrapper` | TS-ESLint | DIR | ✓ | 🔶 | Suggest using function reference instead of wrapper closure |
 | `no-unreadable-array-destructuring` | Unicorn | AST | ✓ | 🟡 | Disallow unreadable array destructuring |
 | `no-useless-underscore-binding` | Destack | AST | ✓ | 🟡 | Warn on underscore bindings with no side effects |
 | `no-void-assignment` | Destack | DIR | ✓ | 🔶 | Warn on binding variables to void expressions |
-| `no-write-only-collection` | Destack | MIR | ✗ | 🔷 | Warn on collections that are populated but never read |
 | `prefer-bare-primitive-id` | Destack | DIR | ✓ | 🔶 | Suggest type alias over bare primitive for IDs |
 | `prefer-expression-over-let-if` | Destack | AST | ✓ | 🟡 | Suggest expression syntax over let-if sequences |
 | `prefer-if-let` | Destack | AST | ✓ | 🟡 | Suggest if-let over single-arm match |
 | `prefer-is-empty` | Destack | DIR | ✓ | 🔶 | Prefer `.isEmpty()` over `.length === 0` |
-| `prefer-match-for-comparisons` | Destack | DIR | ✗ | 🔶 | Suggest match expression for comparison chains |
+| `prefer-match-for-comparisons` | Destack | DIR | ✓ | 🔶 | Suggest match expression for comparison chains |
 | `prefer-named-extension` | Destack | AST | ✓ | 🟡 | Prefer named extensions for foreign types |
-| `prefer-newtype-for-id` | Destack | DIR | ✓ | 🔶 | Suggest newtype wrapper for ID fields |
+| `prefer-newtype` | Destack | DIR | ✓ | 🔶 | Suggest newtype wrapper for certain fields |
 | `prefer-nullish-coalescing` | TS-ESLint | DIR | ✓ | 🔶 | Prefer `??` over `\|\|` for nullish values |
 | `prefer-precise-numeric` | Destack | AST | ✓ | 🟡 | Prefer precise numeric types over `number` |
 | `prefer-simplified-comparison` | Destack | AST | ✓ | 🟡 | Suggest simplifying comparisons like `x >= y + 1` |
-| `prefer-written-names` | AGENTS.md | AST | ✓ | 🟡 | Prefer full names over abbreviations |
 | `radix` | ESLint | DIR | ✗ | 🔶 | Require radix parameter in `parseInt()` |
 | `redundant-refinement` | Destack | DIR | ✓ | 🔶 | Warn on refinement checks that are always satisfied |
 | `refinement-always-true` | Destack | DIR | ✓ | 🔶 | Warn on refinement checks that always succeed |
@@ -354,8 +347,6 @@ Very strict or opinionated checks.
 | `require-is-empty-method` | Destack | DIR | ✗ | 🔶 | Suggest adding `isEmpty()` method when `length` exists |
 | `require-jsdoc` | ESLint | AST | ✓ | 🟡 | Require documentation on public items |
 | `require-returns-doc` | ESLint | AST | ✓ | 🟡 | Require return type documentation |
-| `suggest-must-use` | Destack | DIR | ✓ | 🔶 | Suggest `@mustUse` for functions with important return values |
-| `undocumented-branches` | AGENTS.md | AST | ✓ | 🟡 | Require comments on non-trivial conditional branches |
 
 ---
 

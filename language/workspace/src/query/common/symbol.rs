@@ -46,6 +46,17 @@ pub fn find_symbol_at_offset(
     let mut enclosing = enclosing;
     enclosing.sort_by_key(|span| (span.length, -(span.idx as i64))); // "smallest outermost"
 
+    // check if we're in a doc/comment first (these should not return symbols)
+    for enclosing_span in &enclosing {
+        let node_type = module_guard.ast.tree.get_node_type(enclosing_span.idx);
+        if matches!(
+            node_type,
+            destack_ast::NodeType::Doc | destack_ast::NodeType::Comment
+        ) {
+            return None;
+        }
+    }
+
     // try each AST node from smallest to largest
     let dir_tree = module_guard.dir.tree.read();
     for enclosing_span in &enclosing {
