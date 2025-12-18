@@ -31,13 +31,11 @@ impl LintRule for NoAnonymousDefaultExport {
         // nocheckin TODO #Incomplete: `export default expression` (e.g., `export default { foo: 1 }`)
         for declaration_id in ctx.tree.iter_nodes::<ast::Declaration>() {
             let declaration = ctx.tree.get(declaration_id);
-
             let (descriptor, is_anonymous) = match declaration {
                 Declaration::Function { descriptor, .. } => (descriptor, descriptor.name.is_none()),
                 Declaration::Class { descriptor, .. } => (descriptor, descriptor.name.is_none()),
                 _ => continue,
             };
-
             if descriptor.export != Some(DependencyMode::Default) || !is_anonymous {
                 continue;
             }

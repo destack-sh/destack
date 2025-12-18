@@ -99,18 +99,16 @@ pub fn document_links(session: &Session, file: FileId) -> Vec<DocumentLink> {
 
                 // get the span of this import expression
                 let ast_node_id = dir_tree.get_source(expr_id.id);
-                let span = module_guard.ast.tree.source_map.get(ast_node_id);
+                let span = module_guard
+                    .ast
+                    .tree
+                    .source_map
+                    .get_main_or_enclosing(ast_node_id);
 
-                // the link should be on the import path string, not the whole statement
-                // for now, use the whole span but ideally we'd narrow to just the string
-                // nocheckin #Suspicious: why not just make the target the main_span in parser..?
-                let link_span = Span::new(file, span.start, span.end);
-
-                // get the import path string for tooltip
+                // make the link
                 let import_path = session.strings.get(*target).to_string();
-
                 links.push(
-                    DocumentLink::file(link_span, path.to_string_lossy().to_string())
+                    DocumentLink::file(span, path.to_string_lossy().to_string())
                         .with_tooltip(format!("Go to {import_path}")),
                 );
             }

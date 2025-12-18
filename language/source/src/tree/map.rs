@@ -108,6 +108,20 @@ impl NodeSourceMap {
         self.side_spans.get(&(node_id, span_type)).copied()
     }
 
+    /// Get a side span or the enclosing span if no side span is set.
+    #[inline]
+    pub fn get_side_or_enclosing(&self, node_id: u32, span_type: NodeSpanType) -> Span {
+        self.get_side(node_id, span_type)
+            .unwrap_or_else(|| self.get(node_id))
+    }
+
+    /// Get a side span or a main span or a enclosing span if no side or main span is set.
+    #[inline]
+    pub fn get_side_or_main_or_enclosing(&self, node_id: u32, span_type: NodeSpanType) -> Span {
+        self.get_side(node_id, span_type)
+            .unwrap_or_else(|| self.get_main(node_id).unwrap_or_else(|| self.get(node_id)))
+    }
+
     /// Set the main span for a node.
     #[inline]
     pub fn set_main(&mut self, node_id: u32, span: Span) {
@@ -118,6 +132,12 @@ impl NodeSourceMap {
     #[inline]
     pub fn get_main(&self, node_id: u32) -> Option<Span> {
         self.get_side(node_id, NodeSpanType::Main)
+    }
+
+    /// Get the main span or the enclosing span if no main span is set.
+    #[inline]
+    pub fn get_main_or_enclosing(&self, node_id: u32) -> Span {
+        self.get_main(node_id).unwrap_or_else(|| self.get(node_id))
     }
 
     /// Get the span for a node by its id.
