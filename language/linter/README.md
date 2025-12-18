@@ -28,11 +28,10 @@ High-confidence issues that are almost always wrong.
 
 | Rule | Source | Level | Ready | Status | Description |
 |------|--------|-------|-------|--------|-------------|
-| `no-approx-constant` | Destack | AST | ✓ | 🟡 | Disallow approximate representations of mathematical constants |
+| `no-approx-constant` | Destack | AST | ✓ | ✅ | Disallow approximate representations of mathematical constants |
 | `await-holding-lock` | Clippy | DIR | ✗ | 🔶 | Disallow holding a mutex lock across an await point |
 | `await-holding-ref` | Clippy | DIR | ✗ | 🔶 | Disallow holding a reference across an await point |
 | `await-thenable` | TS-ESLint | DIR | ✗ | 🔶 | Disallow awaiting a value that is not a Promise |
-| `constructor-super` | ESLint | AST | ✓ | 🟡 | Require `super()` calls in constructors |
 | `for-direction` | ESLint | AST | ✓ | ✅ | Enforce for loop update clause moving in the correct direction |
 | `no-useless-assignment` | ESLint | DIR | ✓ | 🔶 | Disallow assignments that are immediately overwritten |
 | `no-infinite-iterator` | Destack | DIR | ✗ | 🔶 | Disallow using methods that produce infinite iterators |
@@ -44,15 +43,15 @@ High-confidence issues that are almost always wrong.
 | `no-const-assign` | ESLint | DIR | ✓ | 🔶 | Disallow reassigning const variables |
 | `no-constant-binary-expression` | ESLint | AST | ✓ | ✅ | Disallow expressions where the operation doesn't affect the value |
 | `no-constant-condition` | ESLint | AST | ✓ | ✅ | Disallow constant expressions in conditions |
-| `no-control-regex` | ESLint | AST | ✓ | 🟡 | Disallow control characters in regular expressions |
+| `no-control-regex` | ESLint | AST | ✓ | ✅ | Disallow control characters in regular expressions |
 | `no-duplicate-case` | ESLint | AST | ✓ | ✅ | Disallow duplicate case labels |
-| `no-empty-range` | Destack | AST | ✓ | 🟡 | Disallow empty ranges where start > end |
+| `no-empty-range` | Destack | AST | ✓ | ✅ | Disallow empty ranges where start > end |
 | `no-fallthrough` | ESLint | AST | ✓ | ✅ | Disallow fallthrough of case statements |
 | `no-floating-promises` | TS-ESLint | DIR | ✗ | 🔶 | Require Promises to be awaited or returned |
 | `no-for-in-array` | TS-ESLint | DIR | ✓ | 🔶 | Disallow iterating over arrays with for-in |
 | `no-func-assign` | ESLint | DIR | ✓ | 🔶 | Disallow reassigning function declarations |
 | `no-import-assign` | ESLint | DIR | ✓ | 🔶 | Disallow assigning to imported bindings |
-| `no-invalid-regexp` | ESLint | AST | ✓ | 🟡 | Disallow invalid regular expression strings |
+| `no-invalid-regexp` | ESLint | AST | ✓ | ✅ | Disallow invalid regular expression strings |
 | `no-misused-promises` | TS-ESLint | DIR | ✗ | 🔶 | Disallow Promises in places not designed to handle them |
 | `no-misused-spread` | TS-ESLint | DIR | ✓ | 🔶 | Disallow spread syntax in contexts where it's incorrect |
 | `no-new-native-nonconstructor` | ESLint | DIR | ✗ | 🔶 | Disallow `new` on Symbol and BigInt |
@@ -89,7 +88,6 @@ Code that is likely unintentional but may occasionally be intentional.
 | `prefer-flat-map` | Unicorn | DIR | ✓ | 🔶 | Suggest `.flatMap()` over `.map().flatten()` |
 | `no-duplicate-match-arms` | Destack | AST | ✓ | 🟡 | Warn on match arms with identical bodies |
 | `no-mixed-read-write` | Destack | DIR | ✓ | 🔶 | Disallow reading and mutating the same variable in one expression |
-| `no-case-declarations` | ESLint | AST | ✓ | 🟡 | Disallow lexical declarations in case clauses |
 | `no-cond-assign` | ESLint | AST | ✓ | ✅ | Disallow assignment operators in conditional expressions |
 | `no-confusing-non-null-assertion` | TS-ESLint | AST | ✓ | ✅ | Disallow non-null assertions after optional chain expressions |
 | `no-constructor-return` | ESLint | AST | ✓ | ✅ | Disallow returning values from constructors |
@@ -134,7 +132,6 @@ Code that is likely unintentional but may occasionally be intentional.
 | `require-yield` | ESLint | AST | ✓ | ✅ | Require generator functions to contain yield |
 | `no-method-shadowing` | Destack | DIR | ✓ | 🔶 | Warn when a method shadows an inherited method |
 | `no-confusing-assignment` | Destack | AST | ✓ | 🟡 | Warn on assignments that look like comparisons |
-| `no-confusing-else` | Destack | AST | ✓ | 🟡 | Warn on else branches that look like else-if |
 
 ## Security (S)
 
@@ -165,11 +162,11 @@ Correct code that could be faster or use less memory.
 | `no-accumulating-spread` | Biome | DIR | ✗ | 🔶 | Disallow spreading in accumulators (causes O(n²) allocations) |
 | `no-array-for-each` | Unicorn | DIR | ✗ | 🔶 | Prefer for-of over `Array.forEach()` |
 | `no-await-in-loop` | ESLint | AST | ✓ | ✅ | Disallow await inside of loops |
-| `no-barrel-file` | Biome | AST | ✓ | 🟡 | Disallow barrel files that re-export everything |
+| `no-barrel-file` | Biome | AST | ✓ | ✅ | Disallow barrel files that re-export everything |
 | `no-re-export-all` | Biome | AST | ✓ | ✅ | Disallow `export * from` (hurts tree-shaking) |
 | `prefer-for-of` | TS-ESLint | DIR | ✗ | 🔶 | Prefer for-of loops over index-based for loops |
 | `prefer-includes` | TS-ESLint | DIR | ✗ | 🔶 | Prefer `.includes()` over `.indexOf() !== -1` |
-| `require-unicode-regexp` | ESLint | AST | ✓ | 🟡 | Require `u` or `v` flag on regular expressions |
+| `require-unicode-regexp` | ESLint | AST | ✓ | ✅ | Require `u` or `v` flag on regular expressions |
 | `prefer-some-over-find` | Destack | DIR | ✗ | 🔶 | Prefer `.some()` over `.find() !== undefined` |
 | `prefer-string-interning` | Destack | DIR | ✗ | 🔶 | Suggest interning repeated string literals |
 
@@ -192,7 +189,6 @@ Subjective preferences for consistent coding style.
 | `consistent-type-imports` | TS-ESLint | AST | ✓ | ✅ | Enforce consistent usage of type imports |
 | `constructor-naming` | Destack | AST | ✓ | 🟡 | Enforce struct constructor names match the struct name |
 | `decorator-order` | Destack | AST | ✓ | 🟡 | Enforce consistent decorator ordering |
-| `default-case-last` | ESLint | AST | ✓ | 🟡 | Enforce default clause to be last in switch statements |
 | `default-param-last` | ESLint | AST | ✓ | ✅ | Enforce default parameters to be last |
 | `dot-notation` | ESLint | AST | ✓ | ✅ | Enforce dot notation whenever possible |
 | `eqeqeq` | ESLint | AST | ✓ | ✅ | Require `===` and `!==` |
@@ -263,11 +259,11 @@ Overly complex code that is harder to understand and maintain.
 | `max-nested-callbacks` | ESLint | AST | ✓ | ✅ | Enforce a maximum depth of nested callbacks |
 | `max-params` | ESLint | AST | ✓ | ✅ | Enforce a maximum number of function parameters |
 | `max-statements` | ESLint | AST | ✓ | ✅ | Enforce a maximum number of statements per function |
-| `no-excessive-booleans` | Destack | AST | ✓ | 🟡 | Disallow too many boolean parameters or struct fields |
+| `no-excessive-booleans` | Destack | AST | ✓ | ✅ | Disallow too many boolean parameters or struct fields |
 | `no-multi-assign` | ESLint | AST | ✓ | ✅ | Disallow chained assignment expressions |
 | `no-multi-declarators` | ESLint | AST | ✓ | ✅ | Disallow multiple variable declarations per statement |
-| `no-complex-boolean-expression` | Destack | AST | ✓ | 🟡 | Suggest simplifying complex boolean expressions |
-| `no-unused-expressions` | ESLint | AST | ✓ | 🟡 | Disallow expressions that have no effect |
+| `no-complex-boolean-expression` | Destack | AST | ✓ | ✅ | Suggest simplifying complex boolean expressions |
+| `no-unused-expressions` | ESLint | AST | ✓ | ✅ | Disallow expressions that have no effect |
 | `no-complex-type` | Destack | DIR | ✓ | 🔶 | Warn on overly complex types that should be aliased |
 
 ## Restriction (R)

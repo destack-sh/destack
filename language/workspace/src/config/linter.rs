@@ -210,6 +210,8 @@ pub struct LinterOptions {
     pub overrides: IndexMap<String, LintSeverity>,
 
     // complexity thresholds
+    /// Maximum boolean parameters or fields (default: 3).
+    pub max_booleans: usize,
     /// Maximum nesting depth (default: 4).
     pub max_depth: usize,
     /// Maximum lines per file (default: 500).
@@ -252,6 +254,7 @@ impl Default for LinterOptions {
             categories: IndexMap::new(),
             overrides: IndexMap::new(),
             // complexity
+            max_booleans: 3,
             max_depth: 4,
             max_lines: 500,
             max_lines_per_function: 50,

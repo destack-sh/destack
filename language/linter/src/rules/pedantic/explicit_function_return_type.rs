@@ -30,7 +30,7 @@ impl LintRule for ExplicitFunctionReturnType {
                 continue;
             };
 
-            // skip lambda functions, they often have inferred types
+            // skip lambda functions, they may have inferred types
             if signature.kind == FunctionKind::Lambda {
                 continue;
             }

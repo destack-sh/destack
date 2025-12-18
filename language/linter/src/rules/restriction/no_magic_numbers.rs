@@ -1,4 +1,4 @@
-use destack_ast::{self as ast, ScalarLiteral};
+use destack_ast::{self as ast};
 use destack_workspace::LintSeverity;
 
 use crate::{LintDiagnostic, LintModuleAstContext, LintRule, declare_lint};
@@ -25,20 +25,20 @@ impl LintRule for NoMagicNumbers {
     }
 
     fn check_module_ast<'a>(&self, severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
-        let allowed = &ctx.options.allowed_magic_numbers;
-
+        let allowed_numbers = &ctx.options.allowed_magic_numbers;
         for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
+            // extract numeric literals
             let expression = ctx.tree.get(node_id);
             let ast::Expression::ScalarLiteral(literal) = expression else {
                 continue;
             };
 
+            // check if the number is allowed
             let is_allowed = match literal {
-                ScalarLiteral::Integer(value) => allowed.contains(&(*value as f64)),
-                ScalarLiteral::Float(value) => allowed.contains(value),
+                ast::ScalarLiteral::Integer(value) => allowed_numbers.contains(&(*value as f64)),
+                ast::ScalarLiteral::Float(value) => allowed_numbers.contains(value),
                 _ => true,
             };
-
             if is_allowed {
                 continue;
             }

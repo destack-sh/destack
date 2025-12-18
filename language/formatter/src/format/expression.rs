@@ -1508,10 +1508,8 @@ pub(crate) fn format_tree_literal<'ast>(
                         // format attribute list
                         let format_attrs = format_with(|f| {
                             f.join_with(attr_separator)
-                                .entries(arguments.iter().map(|argument| {
-                                    TreeExpressionArgument {
-                                        argument_id: *argument,
-                                    }
+                                .entries(arguments.iter().map(|argument| TreeExpressionArgument {
+                                    argument_id: *argument,
                                 }))
                                 .finish()
                         });
