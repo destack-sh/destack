@@ -1012,7 +1012,7 @@ pub fn walk_dependency_item<V: NodeVisitor + ?Sized>(
         } => {
             // nothing to do
         }
-        DependencyItem::Value { value } => {
+        DependencyItem::Value { value, .. } => {
             let value_expression = tree.get(*value);
             visitor.visit_expression(tree, *value, value_expression);
         }

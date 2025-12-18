@@ -83,12 +83,13 @@ impl ModuleLowerer<'_> {
                         value: None,
                     }
                 }
-                dir::DependencyItem::Value { value } => {
+                dir::DependencyItem::Value { mode, value } => {
+                    let mode = self.lower_dependency_mode(*mode);
                     let value_id = self
                         .lower_expression(*value)
                         .expect_node::<Expression>(value.into_global_any(self.module.id), self)?;
                     DependencyItem {
-                        mode: DependencyMode::Namespace,
+                        mode,
                         kind: None,
                         name: None,
                         alias: None,

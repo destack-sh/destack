@@ -297,6 +297,7 @@ fn get_argument_value(
 }
 
 /// Collect ternary chain into a flat list of (condition, then) pairs plus final else.
+#[allow(clippy::type_complexity)]
 fn collect_ternary_chain(
     tree: &NodeTree,
     node_id: LocalNodeId<Expression>,

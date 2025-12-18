@@ -136,17 +136,19 @@ impl Parser {
 
         self.eat_keyword(Keyword::Export)?;
 
-        // export default
-        if self.peek_keyword(Keyword::Default).is_ok() {
+        // export default <identifier>
+        if self.peek_keyword(Keyword::Default).is_ok()
+            && self.peek_next_token(TokenType::Identifier).is_ok()
+        {
             self.bump(); // eat default
-            let name = self.eat_identifier()?;
+            let value = self.eat_expression()?;
             let item = self.tree.insert(
                 DependencyItem {
                     mode: DependencyMode::Default,
                     kind: Some(DependencyKind::Value),
-                    name: Some(name),
+                    name: None,
                     alias: None,
-                    value: None,
+                    value: Some(value),
                 },
                 self.get_span_from(start),
             );
@@ -765,10 +767,9 @@ export type { CreateUIMessage, UIMessage }
         assert_node!(parser.tree, export_id, Expression::Export { kind, target: None, items, .. } => {
             assert_eq!(*kind, DependencyKind::Value);
             assert_eq!(items.len(), 1);
-            assert_node!(parser.tree, items[0], DependencyItem { mode, name: Some(name), alias, .. } => {
+            assert_node!(parser.tree, items[0], DependencyItem { mode, name: None, alias: None, value: Some(value), .. } => {
                 assert_eq!(*mode, DependencyMode::Default);
-                assert_string!(parser, *name, "foo");
-                assert!(alias.is_none());
+                assert_expression_path!(parser, parser.tree.get(*value), "foo");
             });
         });
     }

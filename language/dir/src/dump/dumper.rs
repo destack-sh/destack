@@ -1486,8 +1486,10 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .field("symbol", symbol)
                     .end();
             }
-            DependencyItem::Value { value: _ } => {
-                self.node("DependencyItem::Value", id.id).end();
+            DependencyItem::Value { mode, value: _ } => {
+                self.node("DependencyItem::Value", id.id)
+                    .field("mode", mode)
+                    .end();
             }
             DependencyItem::Local {
                 mode,
