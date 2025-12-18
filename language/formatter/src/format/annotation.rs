@@ -644,4 +644,23 @@ mod tests {
             DestackFormatOptions::default()
         );
     }
+
+    /// Blank lines between array elements should be preserved.
+    #[test]
+    fn test_format_blank_in_array() {
+        assert_format!(
+            "[
+    1,
+
+    2,
+]",
+            "[
+    1,
+
+    2,
+]",
+            |p| p.eat_expression(),
+            DestackFormatOptions::default()
+        );
+    }
 }

@@ -845,21 +845,27 @@ struct ChainExpressionBase {
 enum ChainExpression {
     /// Member expression.
     Member {
+        node_id: LocalNodeId<Expression>,
         segment: StringId,
         static_arguments: Option<Vec<LocalNodeId<Argument>>>,
     },
     /// Call expression.
     Call {
+        node_id: LocalNodeId<Expression>,
         position: PostfixPosition,
         dynamic_arguments: Vec<LocalNodeId<Argument>>,
     },
     /// Index expression.
     Index {
+        node_id: LocalNodeId<Expression>,
         position: PostfixPosition,
         index: Option<LocalNodeId<Expression>>,
     },
     /// Maybe expression.
-    Maybe { position: PostfixPosition },
+    Maybe {
+        node_id: LocalNodeId<Expression>,
+        position: PostfixPosition,
+    },
 }
 
 /// Format the base portion of the chain.
@@ -905,10 +911,20 @@ fn format_chain_expression<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     op: &ChainExpression,
 ) -> FormatResult<()> {
+    // output any line prefix annotations before the operation
+    let node_id = match op {
+        ChainExpression::Member { node_id, .. }
+        | ChainExpression::Call { node_id, .. }
+        | ChainExpression::Index { node_id, .. }
+        | ChainExpression::Maybe { node_id, .. } => *node_id,
+    };
+    write!(f, [f.context().line_prefix_annotations(node_id)])?;
+
     match op {
         ChainExpression::Member {
             segment,
             static_arguments,
+            ..
         } => {
             write!(f, [token(".")])?;
             write!(f, [*segment])?;
@@ -919,6 +935,7 @@ fn format_chain_expression<'ast>(
         ChainExpression::Call {
             position,
             dynamic_arguments,
+            ..
         } => {
             if *position == PostfixPosition::Indirect {
                 write!(f, [token(".")])?;
@@ -928,7 +945,9 @@ fn format_chain_expression<'ast>(
                 write!(f, [list_like("(", ")", ",", dynamic_arguments)])?;
             }
         }
-        ChainExpression::Index { position, index } => {
+        ChainExpression::Index {
+            position, index, ..
+        } => {
             if *position == PostfixPosition::Indirect {
                 write!(f, [token(".")])?;
             }
@@ -938,13 +957,17 @@ fn format_chain_expression<'ast>(
                 write!(f, [token("[]")])?;
             }
         }
-        ChainExpression::Maybe { position } => match position {
+        ChainExpression::Maybe { position, .. } => match position {
             PostfixPosition::Direct => write!(f, [token("?")])?,
             PostfixPosition::Indirect => {
                 write!(f, [token("."), token("?")])?;
             }
         },
     }
+
+    // output any line postfix annotations after the operation
+    write!(f, [f.context().line_postfix_annotations(node_id)])?;
+
     Ok(())
 }
 
@@ -1077,6 +1100,8 @@ pub(crate) fn format_expression_chain<'ast>(
         };
 
         // path rest (tail segments)
+        // NOTE: path segments are synthetic, they come from a single Path expression,
+        // so we use root_id for annotations (though they won't have intra-path comments)
         let tail_len = remaining_segments.len();
         for (index, segment) in remaining_segments.into_iter().enumerate() {
             // last segment keeps static arguments if there are any
@@ -1086,6 +1111,7 @@ pub(crate) fn format_expression_chain<'ast>(
                 None
             };
             body.push(ChainExpression::Member {
+                node_id: root_id,
                 segment,
                 static_arguments: static_args,
             });
@@ -1096,10 +1122,11 @@ pub(crate) fn format_expression_chain<'ast>(
         body: Vec::new(),
     };
 
-    // convert the chain into individual chain expression
+    // convert the chain into individual chain expressions, preserving node IDs for annotations
     for &expression_id in &chain[1..] {
         let chain_expression = match tree.get(expression_id) {
             Expression::Member { name, .. } => ChainExpression::Member {
+                node_id: expression_id,
                 segment: *name,
                 static_arguments: None,
             },
@@ -1108,16 +1135,19 @@ pub(crate) fn format_expression_chain<'ast>(
                 dynamic_arguments,
                 ..
             } => ChainExpression::Call {
+                node_id: expression_id,
                 position: *position,
                 dynamic_arguments: dynamic_arguments.clone(),
             },
             Expression::Index {
                 position, index, ..
             } => ChainExpression::Index {
+                node_id: expression_id,
                 position: *position,
                 index: *index,
             },
             Expression::Maybe { position, .. } => ChainExpression::Maybe {
+                node_id: expression_id,
                 position: *position,
             },
             _ => {

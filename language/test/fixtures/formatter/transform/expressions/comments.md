@@ -258,24 +258,28 @@ const result = /* computed */ calculate(a, b);
 
 ## Comments in Member Access
 
-### _comment in method chain
+### comment in method chain
+
+Comments between method calls in chains are preserved.
 
 ```ds
 obj.method() /* step 1 */ .transform() /* step 2 */ .result()
 ```
 
 ```ds expected
-obj.method() /* step 1 */.transform() /* step 2 */.result();
+obj.method() /* step 1 */ .transform() /* step 2 */ .result();
 ```
 
-### _comment before method call
+### comment before method call
 
-```ds line-width=40
+When chains break, comments stay with their associated element.
+
+```ds line-width=50
 data.filter(x => x.valid) /* now map */ .map(x => x.value)
 ```
 
 ```ds expected
 data
-    .filter(x => x.valid) /* now map */
-    .map(x => x.value);
+    .filter((x) => x.valid) /* now map */
+    .map((x) => x.value);
 ```
