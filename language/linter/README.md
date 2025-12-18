@@ -99,7 +99,6 @@ Code that is likely unintentional but may occasionally be intentional.
 | `no-loop-func` | ESLint | DIR | ✓ | 🔶 | Disallow functions that capture loop variables |
 | `no-method-shadowing` | Destack | DIR | ✓ | 🔶 | Warn when a method shadows an inherited method |
 | `no-misleading-character-class` | ESLint | AST | ✓ | ✅ | Disallow characters that behave unexpectedly in regex |
-| `no-mixed-read-write` | Destack | DIR | ✓ | 🔶 | Disallow reading and mutating the same variable in one expression |
 | `no-negation-in-equality-check` | Unicorn | AST | ✓ | ✅ | Disallow negation in the left operand of equality tests |
 | `no-prototype-builtins` | ESLint | DIR | ✗ | 🔶 | Disallow calling Object.prototype methods directly on objects |
 | `no-redundant-match-guard` | Destack | DIR | ✓ | 🔶 | Disallow match guards that are always true or false |

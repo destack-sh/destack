@@ -27,10 +27,10 @@ pub enum ImportGroup {
 /// Categorize an import target path into a group.
 pub fn categorize_import(target: &str) -> ImportGroup {
     // builtin protocols: "protocol:module" but not URLs ("protocol://...")
-    if let Some(colon_pos) = target.find(':') {
-        if !target[colon_pos..].starts_with("://") {
-            return ImportGroup::Builtin;
-        }
+    if let Some(colon_pos) = target.find(':')
+        && !target[colon_pos..].starts_with("://")
+    {
+        return ImportGroup::Builtin;
     }
 
     // relative imports

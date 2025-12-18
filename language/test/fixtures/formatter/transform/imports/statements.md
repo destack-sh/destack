@@ -4,40 +4,42 @@ Tests for sorting import statements by group and alphabetically.
 
 ## group ordering
 
-### node builtins first
+### builtin imports first
 
-Node.js builtins come before external packages.
+Builtin imports (using protocol prefix like `node:`, `bun:`, `deno:`) come before external packages.
 
 ```ds organize-imports=on
 {
     import lodash from "lodash"
-    import fs from "fs"
-    import path from "path"
+    import fs from "node:fs"
+    import path from "node:path"
 }
 ```
 
 ```ds expected
 {
-    import fs from "fs";
-    import path from "path";
+    import fs from "node:fs";
+    import path from "node:path";
 
     import lodash from "lodash";
 }
 ```
 
-### node protocol
+### multiple runtime protocols
 
-The `node:` protocol is recognized as a builtin.
+Any protocol prefix (not just `node:`) is recognized as a builtin.
 
 ```ds organize-imports=on
 {
     import lodash from "lodash"
+    import test from "bun:test"
     import fs from "node:fs"
 }
 ```
 
 ```ds expected
 {
+    import test from "bun:test";
     import fs from "node:fs";
 
     import lodash from "lodash";
@@ -181,7 +183,7 @@ All groups in their correct order.
     import "./polyfill"
     import local from "./components/Button"
     import React from "react"
-    import path from "path"
+    import path from "node:path"
     import util from "@/utils"
     import fs from "node:fs"
     import lodash from "lodash"
@@ -194,7 +196,7 @@ All groups in their correct order.
     import "./polyfill";
 
     import fs from "node:fs";
-    import path from "path";
+    import path from "node:path";
 
     import lodash from "lodash";
     import React from "react";
