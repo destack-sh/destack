@@ -291,6 +291,30 @@ const arr = [];
 const call = foo();
 ```
 
+### blank lines between elements
+
+Blank lines between array and object elements are preserved.
+
+```ds
+const arr = [
+    1,
+
+    2,
+
+    3,
+]
+```
+
+```ds expected
+const arr = [
+    1,
+
+    2,
+
+    3,
+];
+```
+
 ### single element with trailing comma preserved
 
 Trailing commas in source are normalized.
