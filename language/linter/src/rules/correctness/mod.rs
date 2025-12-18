@@ -7,6 +7,7 @@ mod no_fallthrough;
 mod no_self_compare;
 mod no_unsafe_finally;
 mod no_unsafe_negation;
+mod use_isnan;
 
 use crate::{BoxedLintRule, boxed};
 
@@ -19,6 +20,7 @@ pub use no_fallthrough::*;
 pub use no_self_compare::*;
 pub use no_unsafe_finally::*;
 pub use no_unsafe_negation::*;
+pub use use_isnan::*;
 
 /// Get all correctness rules.
 pub fn rules() -> Vec<BoxedLintRule> {
@@ -32,5 +34,6 @@ pub fn rules() -> Vec<BoxedLintRule> {
         boxed(NoSelfCompare),
         boxed(NoUnsafeFinally),
         boxed(NoUnsafeNegation),
+        boxed(UseIsnan),
     ]
 }

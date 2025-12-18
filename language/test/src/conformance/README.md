@@ -8,14 +8,14 @@ Conformance tests check that the Destack parser conforms both to the ECMAScript 
 <!-- begin:summary-results -->
 | Suite    | Passed | Failed | Skipped | Total |  Rate   |
 |:---------|-------:|-------:|--------:|------:|--------:|
-| babel    |   485  |   223  |     7  |   708 |  68.50% |
-| biome    |   415  |   222  |     -  |   637 |  65.15% |
-| swc      |   403  |   135  |     -  |   538 |  74.91% |
-| test262  |  4350  |  1013  |     -  |  5363 |  81.11% |
+| babel    |   481  |   227  |     7  |   708 |  68.62% |
+| biome    |   412  |   225  |     -  |   637 |  64.68% |
+| swc      |   403  |   135  |     -  |   538 |  75.19% |
+| test262  |  4328  |  1035  |     -  |  5363 |  81.14% |
 |----------|--------|--------|---------|-------|---------|
-| total    |  5653  |  1593  |      7  |  7246 |  78.02% |
+| total    |  5624  |  1622  |      7  |  7246 |  77.62% |
 
-Total Blended Pass Rate: **78.02%**
+Total Blended Pass Rate: **77.62%**
 <!-- end:summary-results -->
 
 ### babel
@@ -32,19 +32,19 @@ Total Blended Pass Rate: **78.02%**
 | catch-clause         |     1  |     0  |     1 | 100.00% |
 | class                |    57  |    40  |    97 |  58.76% |
 | const                |     1  |     3  |     4 |  25.00% |
-| declare              |    15  |    12  |    27 |  55.56% |
+| declare              |    14  |    13  |    27 |  51.85% |
 | decorators           |     1  |     1  |     2 |  50.00% |
 | disallow-jsx-ambiguity |     3  |     0  |     3 | 100.00% |
-| dts                  |     3  |     2  |     5 |  60.00% |
+| dts                  |     2  |     3  |     5 |  40.00% |
 | enum                 |    13  |     0  |    13 | 100.00% |
 | errors               |    19  |     9  |    28 |  67.86% |
 | expect-plugin        |     0  |     3  |     3 |   0.00% |
 | exponentiation       |     1  |     2  |     3 |  33.33% |
 | export               |    11  |     2  |    13 |  84.62% |
-| function             |     9  |     4  |    13 |  69.23% |
+| function             |     8  |     5  |    13 |  61.54% |
 | html-entities        |     3  |     1  |     4 |  75.00% |
 | import               |    13  |     8  |    21 |  61.90% |
-| interface            |    33  |    14  |    47 |  70.21% |
+| interface            |    32  |    15  |    47 |  68.09% |
 | legacy-decorators    |     1  |     1  |     2 |  50.00% |
 | module-namespace     |    13  |     3  |    16 |  81.25% |
 | optional-chaining    |     1  |     0  |     1 | 100.00% |
@@ -60,7 +60,7 @@ Total Blended Pass Rate: **78.02%**
 | types-arrow-function |     3  |     0  |     3 | 100.00% |
 | variable-declarator  |     1  |     2  |     3 |  33.33% |
 |----------------------|--------|--------|-------|---------|
-| total                |   485  |   223  |   708 |  68.50% |
+| total                |   481  |   227  |   708 |  67.94% |
 <!-- end:babel-results -->
 
 ### biome
@@ -68,9 +68,9 @@ Total Blended Pass Rate: **78.02%**
 | Category             | Passed | Failed | Total |  Rate   |
 |:---------------------|-------:|-------:|------:|--------:|
 | error                |   196  |   106  |   302 |  64.90% |
-| ok                   |   219  |   116  |   335 |  65.37% |
+| ok                   |   216  |   119  |   335 |  64.48% |
 |----------------------|--------|--------|-------|---------|
-| total                |   415  |   222  |   637 |  65.15% |
+| total                |   412  |   225  |   637 |  64.68% |
 <!-- end:biome-results -->
 
 ### swc
@@ -132,10 +132,10 @@ Total Blended Pass Rate: **78.02%**
 |:---------------------|-------:|-------:|------:|--------:|
 | early                |   375  |   293  |   668 |  56.14% |
 | fail                 |   343  |   386  |   729 |  47.05% |
-| pass                 |  1787  |   196  |  1983 |  90.12% |
-| pass-explicit        |  1845  |   138  |  1983 |  93.04% |
+| pass                 |  1776  |   207  |  1983 |  89.56% |
+| pass-explicit        |  1834  |   149  |  1983 |  92.49% |
 |----------------------|--------|--------|-------|---------|
-| total                |  4350  |  1013  |  5363 |  81.11% |
+| total                |  4328  |  1035  |  5363 |  80.70% |
 <!-- end:test262-results -->
 
 ## Notes

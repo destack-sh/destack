@@ -113,6 +113,14 @@ impl Type {
     pub fn is_evaluated(&self) -> bool {
         !matches!(self, Type::Unevaluated { .. })
     }
+
+    /// Get the type symbol if this type is a direct reference to a declared type.
+    pub fn symbol(&self) -> Option<GlobalSymbolId> {
+        match self {
+            Type::Reference { symbol, .. } => Some(*symbol),
+            _ => None,
+        }
+    }
 }
 
 /// Type fields in an object-like type.

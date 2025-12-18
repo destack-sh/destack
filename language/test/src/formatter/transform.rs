@@ -53,6 +53,16 @@ pub(super) fn run(test: &MdTestCase) -> TestResult {
     {
         formatter_options = formatter_options.with_indent_width(width);
     }
+    if let Some(bracket_same_line) = input_file.options.get("bracket-same-line")
+        && let Ok(value) = bracket_same_line.parse::<bool>()
+    {
+        formatter_options = formatter_options.with_bracket_same_line(value);
+    }
+    if let Some(single_attr_per_line) = input_file.options.get("single-attribute-per-line")
+        && let Ok(value) = single_attr_per_line.parse::<bool>()
+    {
+        formatter_options = formatter_options.with_single_attribute_per_line(value);
+    }
 
     // set up program context
     let cwd = std::env::current_dir().unwrap_or_default();
