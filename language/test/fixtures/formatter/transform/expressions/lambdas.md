@@ -403,3 +403,90 @@ const f = (a) => (b) => (c) => a + b + c
 ```ds expected
 const f = (a) => (b) => (c) => a + b + c;
 ```
+
+## Generic Arrow Functions
+
+### _arrow function with type parameter
+
+```ds
+const identity = <T>(x: T): T => x
+```
+
+```ds expected
+const identity = <T>(x: T): T => x;
+```
+
+### _arrow function with constrained type parameter
+
+```ds
+const first = <T: Iterable<U>, U>(items: T): U => items[0]
+```
+
+```ds expected
+const first = <T: Iterable<U>, U>(items: T): U => items[0];
+```
+
+### arrow function with multiple type parameters
+
+Multiple generic type parameters in function type syntax.
+
+```ds
+const map = <T, U>(arr: T[], fn: (x: T) => U): U[] => arr.map(fn)
+```
+
+```ds expected
+const map = <T, U>(arr: T[], fn: (x: T) => U): U[] => arr.map(fn);
+```
+
+## Line Breaking in Arrow Functions
+
+### long arrow function breaks
+
+Long arrow functions break at the assignment when needed.
+
+```ds line-width=40
+const processItem = (item) => transformAndValidate(item)
+```
+
+```ds expected
+const processItem =
+    (item) => transformAndValidate(item)
+;
+```
+
+### arrow function with long params breaks
+
+Many parameters cause the param list to break.
+
+```ds line-width=40
+const fn = (first, second, third, fourth) => first + second
+```
+
+```ds expected
+const fn =
+    (
+        first,
+        second,
+        third,
+        fourth,
+    ) => first + second
+;
+```
+
+### arrow function with complex return breaks
+
+Complex return expressions break appropriately.
+
+```ds line-width=50
+const handler = (event) => ({ type: event.type, target: event.target, timestamp: Date.now() })
+```
+
+```ds expected
+const handler =
+    (event) => ({
+        type: event.type,
+        target: event.target,
+        timestamp: Date.now(),
+    })
+;
+```
