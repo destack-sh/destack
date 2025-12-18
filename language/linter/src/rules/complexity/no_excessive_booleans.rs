@@ -12,8 +12,8 @@ declare_lint! {
     ///
     /// Consider using an enum or options object instead.
     ///
-    /// Bad: `fn process(a: bool, b: bool, c: bool, d: bool) { ... }`
-    /// Good: `fn process(options: ProcessOptions) { ... }`
+    /// bad: `fn process(a: bool, b: bool, c: bool, d: bool) { ... }`
+    /// good: `fn process(options: ProcessOptions) { ... }`
     #[lint(
         id = "no-excessive-booleans",
         code = "LX009",

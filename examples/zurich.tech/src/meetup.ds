@@ -1,7 +1,7 @@
 /// The status of a Meetup.
 export enum MeetupStatus {
     /// The Meetup is a draft.
-    @default 
+    @default
     Draft,
     /// The Meetup is upcoming.
     Upcoming,
@@ -35,7 +35,7 @@ export class Meetup {
     /// The name of the Meetup.
     name: string,
     /// The number of the Meetup.
-    number: uint,   
+    number: uint,
     /// The Series this Meetup is part of.
     series?: MeetupSeries,
     /// The language of the Meetup.
@@ -54,10 +54,7 @@ export class MeetupRegistration {
 
 /// Register for a Meetup.
 @action
-export async function register(
-    meetup: Meetup,
-    user: User,
-): MeetupRegistration {
+export async function register(meetup: Meetup, user: User): MeetupRegistration {
     const registration: MeetupRegistration = MeetupRegistration { meetup, user };
     session.create(registration);
     return registration;

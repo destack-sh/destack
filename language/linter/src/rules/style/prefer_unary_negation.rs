@@ -1,0 +1,247 @@
+use destack_ast::{self as ast, BinaryOperator, ScalarLiteral, UnaryOperator};
+use destack_workspace::LintSeverity;
+
+use crate::{LintDiagnostic, LintModuleAstContext, LintRule, declare_lint};
+
+declare_lint! {
+    /// Prefer unary negation over multiplying by -1.
+    ///
+    /// Using `-x` is clearer and more concise than `x * -1` or `-1 * x`.
+    /// This also applies to saturating and wrapping multiplication variants.
+    #[lint(
+        id = "prefer-unary-negation",
+        code = "LY047",
+        category = Style,
+        level = Ast,
+        fixable = No,
+        recommended = Strict,
+        stability = Stable
+    )]
+    pub PreferUnaryNegation,
+    "Prefer unary negation over multiplying by -1"
+}
+
+impl LintRule for PreferUnaryNegation {
+    fn meta(&self) -> &'static crate::LintMeta {
+        PreferUnaryNegation::meta()
+    }
+
+    fn check_module_ast<'a>(&self, severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+        for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
+            let expression = ctx.tree.get(node_id);
+
+            let ast::Expression::Binary {
+                operator,
+                left,
+                right,
+            } = expression
+            else {
+                continue;
+            };
+
+            // check for multiplication operators (including wrapping/saturating)
+            if !matches!(
+                operator,
+                BinaryOperator::Multiply
+                    | BinaryOperator::WrappingMultiply
+                    | BinaryOperator::SaturatingMultiply
+            ) {
+                continue;
+            }
+
+            let left_expression = ctx.tree.get(*left);
+            let right_expression = ctx.tree.get(*right);
+
+            // check if either side is -1 (can be literal -1 or unary negate of 1)
+            let left_is_neg_one = is_negative_one(ctx, left_expression, *left);
+            let right_is_neg_one = is_negative_one(ctx, right_expression, *right);
+
+            if left_is_neg_one || right_is_neg_one {
+                ctx.report(
+                    LintDiagnostic::new(
+                        PREFER_UNARY_NEGATION.id,
+                        PREFER_UNARY_NEGATION.code,
+                        PREFER_UNARY_NEGATION.category,
+                        severity,
+                        "prefer unary negation over multiplying by -1",
+                        ctx.module.file_id,
+                        ctx.tree.get_span(node_id),
+                    )
+                    .with_label("use `-x` instead"),
+                );
+            }
+        }
+    }
+}
+
+/// Check if an expression represents the value -1.
+fn is_negative_one(
+    ctx: &LintModuleAstContext<'_>,
+    expression: &ast::Expression,
+    expression_id: ast::LocalNodeId<ast::Expression>,
+) -> bool {
+    // check for literal -1 (some languages might parse it directly as a negative literal)
+    if let ast::Expression::ScalarLiteral(ScalarLiteral::Integer(value)) = expression
+        && *value == -1
+    {
+        return true;
+    }
+
+    // check for unary negate of 1
+    if let ast::Expression::Unary { operator, right } = expression
+        && *operator == UnaryOperator::Negate
+    {
+        let inner = ctx.tree.get(*right);
+        if is_one(inner) {
+            return true;
+        }
+    }
+
+    // check for parenthesized -1
+    if let ast::Expression::Parenthesized {
+        expression: inner_expression_id,
+    } = expression
+    {
+        let inner = ctx.tree.get(*inner_expression_id);
+        return is_negative_one(ctx, inner, *inner_expression_id);
+    }
+
+    // check the original expression ID for more context
+    let _ = expression_id; // we've already handled this through the expression parameter
+
+    false
+}
+
+/// Check if an expression is the literal 1.
+fn is_one(expression: &ast::Expression) -> bool {
+    if let ast::Expression::ScalarLiteral(ScalarLiteral::Integer(value)) = expression {
+        return *value == 1;
+    }
+    false
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::linter::TestProgram;
+
+    #[test]
+    fn test_multiply_by_negative_one_right_detected() {
+        let test = TestProgram::for_rule(PreferUnaryNegation);
+        let result = test.lint_ast(
+            "test.ds",
+            r#"
+const result = x * -1;
+"#,
+        );
+        test.result(result).assert_lint("prefer-unary-negation");
+    }
+
+    #[test]
+    fn test_multiply_by_negative_one_left_detected() {
+        let test = TestProgram::for_rule(PreferUnaryNegation);
+        let result = test.lint_ast(
+            "test.ds",
+            r#"
+const result = -1 * x;
+"#,
+        );
+        test.result(result).assert_lint("prefer-unary-negation");
+    }
+
+    #[test]
+    fn test_multiply_by_negative_one_parenthesized_detected() {
+        let test = TestProgram::for_rule(PreferUnaryNegation);
+        let result = test.lint_ast(
+            "test.ds",
+            r#"
+const result = x * (-1);
+"#,
+        );
+        test.result(result).assert_lint("prefer-unary-negation");
+    }
+
+    #[test]
+    fn test_wrapping_multiply_by_negative_one_detected() {
+        let test = TestProgram::for_rule(PreferUnaryNegation);
+        let result = test.lint_ast(
+            "test.ds",
+            r#"
+const result = x *% -1;
+"#,
+        );
+        test.result(result).assert_lint("prefer-unary-negation");
+    }
+
+    #[test]
+    fn test_saturating_multiply_by_negative_one_detected() {
+        let test = TestProgram::for_rule(PreferUnaryNegation);
+        let result = test.lint_ast(
+            "test.ds",
+            r#"
+const result = x *| -1;
+"#,
+        );
+        test.result(result).assert_lint("prefer-unary-negation");
+    }
+
+    #[test]
+    fn test_multiply_by_other_number_allowed() {
+        let test = TestProgram::for_rule(PreferUnaryNegation);
+        let result = test.lint_ast(
+            "test.ds",
+            r#"
+const result = x * 2;
+"#,
+        );
+        test.result(result).assert_no_lint("prefer-unary-negation");
+    }
+
+    #[test]
+    fn test_multiply_by_negative_two_allowed() {
+        let test = TestProgram::for_rule(PreferUnaryNegation);
+        let result = test.lint_ast(
+            "test.ds",
+            r#"
+const result = x * -2;
+"#,
+        );
+        test.result(result).assert_no_lint("prefer-unary-negation");
+    }
+
+    #[test]
+    fn test_multiply_two_variables_allowed() {
+        let test = TestProgram::for_rule(PreferUnaryNegation);
+        let result = test.lint_ast(
+            "test.ds",
+            r#"
+const result = x * y;
+"#,
+        );
+        test.result(result).assert_no_lint("prefer-unary-negation");
+    }
+
+    #[test]
+    fn test_unary_negation_allowed() {
+        let test = TestProgram::for_rule(PreferUnaryNegation);
+        let result = test.lint_ast(
+            "test.ds",
+            r#"
+const result = -x;
+"#,
+        );
+        test.result(result).assert_no_lint("prefer-unary-negation");
+    }
+
+    #[test]
+    fn test_multiply_by_one_allowed() {
+        let test = TestProgram::for_rule(PreferUnaryNegation);
+        let result = test.lint_ast(
+            "test.ds",
+            r#"
+const result = x * 1;
+"#,
+        );
+        test.result(result).assert_no_lint("prefer-unary-negation");
+    }
+}

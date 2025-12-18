@@ -31,15 +31,14 @@ impl LintRule for DefaultParamLast {
 
     fn check_module_ast<'a>(&self, severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
         // iterate over all parameters, deduplicate by parent to check each list once
-        let mut checked_parents: HashSet<u32> = HashSet::new();
-
+        let mut seen_parents: HashSet<u32> = HashSet::new();
         for param_id in ctx.tree.iter_nodes::<ast::Parameter>() {
             let Some(parent_id) = ctx.parents.get(param_id) else {
                 continue;
             };
 
             // skip if we already checked this parent's parameters
-            if !checked_parents.insert(parent_id) {
+            if !seen_parents.insert(parent_id) {
                 continue;
             }
 

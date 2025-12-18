@@ -7,7 +7,9 @@ declare_lint! {
     /// Enforce comment layout conventions.
     ///
     /// Doc comments should have one sentence per line for better readability.
-    /// Hyphens in comments should be replaced with colons or commas.
+    /// Doc comments should be upper case sentences.
+    /// Single-line inline comments should be lowercase sentences.
+    /// Non-trivial logic blocks should have preceding comments.
     #[lint(
         id = "comment-layout",
         code = "LY037",
@@ -64,9 +66,8 @@ impl LintRule for CommentLayout {
     fn check_module_ast<'a>(&self, severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
         for node_id in ctx.tree.iter_nodes::<ast::Annotation>() {
             let annotation = ctx.tree.get(node_id);
-
             match annotation {
-                // check doc comments for layout issues
+                // check doc comments
                 ast::Annotation::Doc { node, .. } => {
                     let doc = ctx.tree.get(*node);
                     let text = ctx.strings.get(doc.string);
@@ -117,11 +118,12 @@ impl LintRule for CommentLayout {
                     }
                 }
 
-                // check inline comments for hyphens
+                // check inline comments
                 ast::Annotation::Comment { node, .. } => {
                     let comment = ctx.tree.get(*node);
                     let text = ctx.strings.get(comment.string);
 
+                    // check for problematic hyphens
                     if has_problematic_hyphen(text.as_ref()) {
                         ctx.report(
                             LintDiagnostic::new(

@@ -10,14 +10,14 @@ declare_lint! {
     /// can hurt tree-shaking and bundle size because bundlers may have difficulty
     /// determining which exports are actually used.
     ///
-    /// Bad:
+    /// bad:
     /// ```
     /// export * from "./foo";
     /// export * from "./bar";
     /// export { baz } from "./baz";
     /// ```
     ///
-    /// Good: Import directly from the source modules.
+    /// good: Import directly from the source modules.
     #[lint(
         id = "no-barrel-file",
         code = "LP002",

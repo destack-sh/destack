@@ -3,7 +3,7 @@ use destack_workspace::LintSeverity;
 
 use crate::{LintDiagnostic, LintModuleAstContext, LintRule, declare_lint};
 
-// #Correctness: no_blank_target works but would be better with canonical DIR symbols?
+// #Correctness: no-blank-target works but would be better with canonical DIR symbols?
 
 declare_lint! {
     /// Disallow `target="_blank"` without `rel="noopener noreferrer"`.
@@ -127,7 +127,6 @@ fn is_blank_target(ctx: &LintModuleAstContext<'_>, arg: &Argument) -> bool {
     let Expression::ScalarLiteral(ScalarLiteral::String(string_id)) = value_expr else {
         return false;
     };
-
     let value_str = ctx.strings.get(*string_id);
     value_str.as_ref() == "_blank"
 }

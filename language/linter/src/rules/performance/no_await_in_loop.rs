@@ -9,8 +9,8 @@ declare_lint! {
     /// Using `await` in a loop causes sequential execution of async operations,
     /// which is often slower than running them in parallel with `Promise.all()`.
     ///
-    /// Bad: `for (const url of urls) { await fetch(url); }`
-    /// Good: `await Promise.all(urls.map(url => fetch(url)));`
+    /// bad: `for (const url of urls) { await fetch(url); }`
+    /// good: `await Promise.all(urls.map(url => fetch(url)));`
     #[lint(
         id = "no-await-in-loop",
         code = "LP001",

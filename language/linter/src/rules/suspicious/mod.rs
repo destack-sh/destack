@@ -2,6 +2,7 @@ mod guard_for_in;
 mod no_cond_assign;
 mod no_confusing_assignment;
 mod no_confusing_non_null_assertion;
+mod no_constant_assertion;
 mod no_constructor_return;
 mod no_debugger;
 mod no_dupe_else_if;
@@ -11,6 +12,7 @@ mod no_empty_function;
 mod no_empty_pattern;
 mod no_empty_static_block;
 mod no_extra_non_null_assertion;
+mod no_incomplete_range;
 mod no_inner_declarations;
 mod no_misleading_character_class;
 mod no_negation_in_equality_check;
@@ -38,6 +40,7 @@ pub use guard_for_in::*;
 pub use no_cond_assign::*;
 pub use no_confusing_assignment::*;
 pub use no_confusing_non_null_assertion::*;
+pub use no_constant_assertion::*;
 pub use no_constructor_return::*;
 pub use no_debugger::*;
 pub use no_dupe_else_if::*;
@@ -47,6 +50,7 @@ pub use no_empty_function::*;
 pub use no_empty_pattern::*;
 pub use no_empty_static_block::*;
 pub use no_extra_non_null_assertion::*;
+pub use no_incomplete_range::*;
 pub use no_inner_declarations::*;
 pub use no_misleading_character_class::*;
 pub use no_negation_in_equality_check::*;
@@ -74,6 +78,7 @@ pub fn rules() -> Vec<BoxedLintRule> {
         boxed(GuardForIn),
         boxed(NoCondAssign),
         boxed(NoConfusingAssignment),
+        boxed(NoConstantAssertion),
         boxed(NoConfusingNonNullAssertion),
         boxed(NoConstructorReturn),
         boxed(NoDebugger),
@@ -84,6 +89,7 @@ pub fn rules() -> Vec<BoxedLintRule> {
         boxed(NoEmptyPattern),
         boxed(NoEmptyStaticBlock),
         boxed(NoExtraNonNullAssertion),
+        boxed(NoIncompleteRange),
         boxed(NoInnerDeclarations),
         boxed(NoMisleadingCharacterClass),
         boxed(NoNegationInEqualityCheck),
