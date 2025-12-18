@@ -1,8 +1,0 @@
-import * as ds from "destack";
-
-/// A container that splits its children
-@entity
-export class SplitView2D {
-    ...LayoutView2D
-}
-

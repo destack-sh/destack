@@ -1,6 +1,6 @@
 {
     "name": "@destack-sh/monorepo",
-    "version": "0.51.3",
+    "version": "0.51.4",
     "license": "Apache-2.0",
     "private": true,
     "type": "module",
@@ -10,7 +10,6 @@
             "examples/tetris",
             "examples/zurich.tech",
             "platform/bun",
-            "platform/editor",
             "platform/vite",
             "platform/vscode",
             "library/entity",

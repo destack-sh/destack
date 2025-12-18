@@ -1,7 +1,0 @@
-export * from "./color";
-export * from "./fill";
-export * from "./font";
-export * from "./gradient";
-export * from "./shadow";
-export * from "./stroke";
-export * from "./border";

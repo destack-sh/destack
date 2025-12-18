@@ -132,7 +132,6 @@ impl FunctionMode {
 }
 
 /// A Property is a property of a variant type (may be a field or method).
-/// TODO #Cleanup: remove modifiers from Property (across language)?
 ///
 /// Examples:
 /// ```
