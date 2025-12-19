@@ -1,6 +1,5 @@
 mod context;
 mod diagnostic;
-pub mod diff;
 mod discover;
 mod expected_failures;
 mod options;

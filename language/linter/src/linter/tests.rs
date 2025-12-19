@@ -13,7 +13,8 @@ use destack_source::{
 use destack_workspace::{LintCategory, LintSeverity, LinterOptions, Program, Session};
 
 use crate::{
-    BoxedLintRule, Fixability, LintDiagnostic, LintLevel, LintRunner, all_rules, print_diff,
+    BoxedLintRule, DiffOptions, Fixability, LintDiagnostic, LintLevel, LintRunner, all_rules,
+    print_diff,
 };
 
 /// Test wrapper for linting.
@@ -351,7 +352,7 @@ impl<'a> LintResult<'a> {
         let fixed = fixed.trim();
         let expected = expected.trim();
         if fixed != expected {
-            print_diff(expected, fixed);
+            print_diff(expected, fixed, &DiffOptions::new().with_whitespace());
             panic!("fixed code mismatch");
         }
         self
@@ -364,7 +365,7 @@ impl<'a> LintResult<'a> {
         let fixed = fixed.trim();
         let expected = expected.trim();
         if fixed != expected {
-            print_diff(expected, fixed);
+            print_diff(expected, fixed, &DiffOptions::new().with_whitespace());
             panic!("fixed code mismatch");
         }
         self

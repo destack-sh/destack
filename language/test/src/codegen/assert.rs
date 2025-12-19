@@ -2,8 +2,9 @@ use std::collections::HashSet;
 use std::fs;
 use std::path::Path;
 
+use destack_source::{DiffOptions, print_diff};
+
 use crate::harness::TestResult;
-use crate::harness::diff::print_diff;
 use crate::harness::print::color;
 
 use super::discover::collect_files;
@@ -74,9 +75,8 @@ pub(super) fn compare_directory(expected: &Path, actual: &Path) -> TestResult {
 
             // compare file content
             if expected_content != actual_content {
-                eprintln!();
-                eprintln!("{}:", color::red(&format!("diff {}", path.display())));
-                print_diff(&expected_content, &actual_content);
+                let options = DiffOptions::new().with_path(path.display().to_string());
+                print_diff(&expected_content, &actual_content, &options);
                 errors.push(format!("content mismatch: {}", path.display()));
             }
         }

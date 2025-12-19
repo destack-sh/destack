@@ -5,11 +5,10 @@ use destack_fir::format as fir_format;
 use destack_formatter::{DestackFormatContext, DestackFormatOptions};
 use destack_parser::Parser;
 use destack_source::{
-    File, FileRegistry, FileSystem, FileType, LanguageType, MemoryFileSystem, Uri,
+    DiffOptions, File, FileRegistry, FileSystem, FileType, LanguageType, MemoryFileSystem, Uri,
+    print_diff,
 };
 use destack_workspace::{FormatterOptions, LinterOptions, Program};
-
-use crate::harness::diff::print_diff;
 use crate::harness::{TestCase, TestResult, check_diagnostics};
 
 /// Run a single formatter roundtrip test.
@@ -81,7 +80,7 @@ pub(super) fn run(test: &TestCase) -> TestResult {
     if formatted == original {
         TestResult::Passed
     } else {
-        print_diff(&original, &formatted);
+        print_diff(&original, &formatted, &DiffOptions::new());
         TestResult::Failed {
             message: "formatted output differs from original".to_string(),
         }

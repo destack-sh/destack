@@ -5,12 +5,10 @@ use destack_fir::format as fir_format;
 use destack_formatter::{DestackFormatContext, DestackFormatOptions};
 use destack_parser::{Parser, source_colorizer};
 use destack_source::{
-    DiagnosticCollection, DiagnosticSeverity, File, FileRegistry, FileSystem, FileType,
-    LanguageType, MemoryFileSystem, PrintOptions, Uri,
+    DiagnosticCollection, DiagnosticSeverity, DiffOptions, File, FileRegistry, FileSystem,
+    FileType, LanguageType, MemoryFileSystem, PrintOptions, Uri, print_diff,
 };
 use destack_workspace::{FormatterOptions, LinterOptions, Program};
-
-use crate::harness::diff::print_diff;
 use crate::harness::{TestResult, format_diagnostics};
 use crate::mdtest::MdTestCase;
 
@@ -134,7 +132,7 @@ pub(super) fn run(test: &MdTestCase) -> TestResult {
     if formatted_normalized == expected_normalized {
         TestResult::Passed
     } else {
-        print_diff(&expected_normalized, &formatted_normalized);
+        print_diff(&expected_normalized, &formatted_normalized, &DiffOptions::new());
         TestResult::Failed {
             message: "formatted output differs from expected".to_string(),
         }
