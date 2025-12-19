@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use destack_linter::{Fixability, LintDiagnostic, LintLevel, LintRunner};
-use destack_source::{DiagnosticOptions, FileId, ModuleId};
+use destack_source::{DiagnosticOptions, DiffOptions, FileId, ModuleId, print_diff};
 use destack_workspace::Program;
 
 use crate::common::format::{FormatOptions, format_diagnostics};
@@ -167,7 +167,8 @@ fn show_diff(program: &Program, diagnostics: &[LintDiagnostic], include_unsafe: 
                 .as_ref()
                 .map(|p| p.display().to_string())
                 .unwrap_or_else(|| file.name.clone());
-            print_unified_diff(&path, &original, &modified);
+            let options = DiffOptions::new().with_path(&path);
+            print_diff(&original, &modified, &options);
         }
     }
 
@@ -206,60 +207,4 @@ fn collect_edits(
     }
 
     edits_by_file
-}
-
-/// Print a simple unified diff.
-fn print_unified_diff(path: &str, original: &str, modified: &str) {
-    console::print(&format!("--- a/{path}"));
-    console::print(&format!("+++ b/{path}"));
-
-    let original_lines: Vec<&str> = original.lines().collect();
-    let modified_lines: Vec<&str> = modified.lines().collect();
-
-    // simple line-by-line diff (not a real unified diff algorithm, but good enough)
-    let max_lines = original_lines.len().max(modified_lines.len());
-    let mut in_hunk = false;
-    let mut hunk_start = 0;
-
-    for i in 0..max_lines {
-        let orig = original_lines.get(i);
-        let modi = modified_lines.get(i);
-
-        if orig != modi {
-            if !in_hunk {
-                in_hunk = true;
-                hunk_start = i.saturating_sub(2);
-                console::print(&format!(
-                    "@@ -{},{} +{},{} @@",
-                    hunk_start + 1,
-                    5,
-                    hunk_start + 1,
-                    5
-                ));
-                // print context before
-                for j in hunk_start..i {
-                    if let Some(line) = original_lines.get(j) {
-                        console::print(&format!(" {line}"));
-                    }
-                }
-            }
-
-            if let Some(line) = orig {
-                console::print(&console::color(&format!("-{line}"), "31"));
-            }
-            if let Some(line) = modi {
-                console::print(&console::color(&format!("+{line}"), "32"));
-            }
-        } else if in_hunk {
-            // print context after change
-            if let Some(line) = orig {
-                console::print(&format!(" {line}"));
-            }
-            if i > hunk_start + 6 {
-                in_hunk = false;
-            }
-        }
-    }
-
-    console::print("");
 }

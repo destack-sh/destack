@@ -18,7 +18,7 @@ pub struct Module {
     pub version: ModuleVersion,
     /// The version of the source File this module was compiled from.
     pub source_version: FileVersion,
-    /// The underlying source File.
+    /// The underlying source File (might be empty if placeholder or synthetic module).
     pub file_id: FileId,
     /// The URI of the Module.
     pub uri: Uri,
@@ -106,6 +106,7 @@ impl Module {
 
     /// Check if this module has been parsed (has AST content).
     pub fn is_parsed(&self) -> bool {
+        // nocheckin
         !self.ast.roots.is_empty() || !self.ast.tree.is_empty()
     }
 
