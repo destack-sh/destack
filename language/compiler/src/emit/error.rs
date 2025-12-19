@@ -12,23 +12,23 @@ use destack_workspace::{ArtifactId, Program};
 #[phase(Emit)]
 pub enum EmitError {
     /// Wait for task dependency.
-    #[error(code = "EX000", r#yield)]
+    #[error(code = "EW000", r#yield)]
     Yield { dependency: TaskDependency },
 
     /// Yield dependency has failed.
-    #[error(code = "EX001", yield_failed)]
+    #[error(code = "EW001", yield_failed)]
     UnsatisfiedDependency { dependency: TaskDependency },
 
     /// Target not found in package.
-    #[error(code = "EX002", message = "target not found: {target}")]
+    #[error(code = "EW002", message = "target not found: {target}")]
     TargetNotFound { package: PackageId, target: String },
 
     /// Artifact has invalid or missing output path.
-    #[error(code = "EX003", message = "artifact has invalid output path: {uri}")]
+    #[error(code = "EW003", message = "artifact has invalid output path: {uri}")]
     InvalidOutputPath { artifact: ArtifactId, uri: Uri },
 
     /// Unsupported artifact.
-    #[error(code = "EX004", message = "unsupported artifact type '{file_type}'")]
+    #[error(code = "EW004", message = "unsupported artifact type '{file_type}'")]
     UnsupportedArtifact {
         artifact: ArtifactId,
         uri: Uri,
@@ -36,7 +36,7 @@ pub enum EmitError {
     },
 
     /// Failed to write output file.
-    #[error(code = "EX005", message = "failed to write file '{path}': {message}")]
+    #[error(code = "EW005", message = "failed to write file '{path}': {message}")]
     FailedWrite {
         artifact: ArtifactId,
         path: PathBuf,

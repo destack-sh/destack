@@ -4,9 +4,9 @@ use destack_workspace::Program;
 
 use crate::{
     AnalyzeError, AnalyzeWarning, BindError, BindWarning, ElaborateError, ElaborateWarning,
-    EmitError, EmitWarning, GenerateError, GenerateWarning, ImportError, ImportWarning, LinkError,
-    LinkWarning, LowerError, LowerWarning, OptimizeError, OptimizeWarning, ResolveError,
-    ResolveWarning, VerifyError, VerifyWarning,
+    EmitError, EmitWarning, ExecuteError, ExecuteWarning, GenerateError, GenerateWarning,
+    ImportError, ImportWarning, LinkError, LinkWarning, LowerError, LowerWarning, OptimizeError,
+    OptimizeWarning, ResolveError, ResolveWarning, VerifyError, VerifyWarning,
 };
 
 /// Static metadata about a diagnostic variant.
@@ -151,6 +151,7 @@ impl DiagnosticRegistry {
         ElaborateError::ALL,
         LowerError::ALL,
         VerifyError::ALL,
+        ExecuteError::ALL,
         OptimizeError::ALL,
         GenerateError::ALL,
         LinkError::ALL,
@@ -166,6 +167,7 @@ impl DiagnosticRegistry {
         ElaborateWarning::ALL,
         LowerWarning::ALL,
         VerifyWarning::ALL,
+        ExecuteWarning::ALL,
         OptimizeWarning::ALL,
         GenerateWarning::ALL,
         LinkWarning::ALL,
@@ -181,6 +183,7 @@ impl DiagnosticRegistry {
             || ElaborateError::is_valid_code(code)
             || LowerError::is_valid_code(code)
             || VerifyError::is_valid_code(code)
+            || ExecuteError::is_valid_code(code)
             || OptimizeError::is_valid_code(code)
             || GenerateError::is_valid_code(code)
             || LinkError::is_valid_code(code)
@@ -196,6 +199,7 @@ impl DiagnosticRegistry {
             || ElaborateWarning::is_valid_code(code)
             || LowerWarning::is_valid_code(code)
             || VerifyWarning::is_valid_code(code)
+            || ExecuteWarning::is_valid_code(code)
             || OptimizeWarning::is_valid_code(code)
             || GenerateWarning::is_valid_code(code)
             || LinkWarning::is_valid_code(code)
@@ -216,12 +220,13 @@ impl DiagnosticRegistry {
             'R' => ResolveError::ALL_CODES,
             'A' => AnalyzeError::ALL_CODES,
             'E' => ElaborateError::ALL_CODES,
-            'L' => LowerError::ALL_CODES,
+            'M' => LowerError::ALL_CODES,
             'V' => VerifyError::ALL_CODES,
+            'X' => ExecuteError::ALL_CODES,
             'O' => OptimizeError::ALL_CODES,
             'G' => GenerateError::ALL_CODES,
             'K' => LinkError::ALL_CODES,
-            'M' => EmitError::ALL_CODES,
+            'W' => EmitError::ALL_CODES,
             _ => &[],
         }
     }
@@ -234,12 +239,13 @@ impl DiagnosticRegistry {
             'R' => ResolveWarning::ALL_CODES,
             'A' => AnalyzeWarning::ALL_CODES,
             'E' => ElaborateWarning::ALL_CODES,
-            'L' => LowerWarning::ALL_CODES,
+            'M' => LowerWarning::ALL_CODES,
             'V' => VerifyWarning::ALL_CODES,
+            'X' => ExecuteWarning::ALL_CODES,
             'O' => OptimizeWarning::ALL_CODES,
             'G' => GenerateWarning::ALL_CODES,
             'K' => LinkWarning::ALL_CODES,
-            'M' => EmitWarning::ALL_CODES,
+            'W' => EmitWarning::ALL_CODES,
             _ => &[],
         }
     }

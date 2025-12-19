@@ -8,11 +8,11 @@ use destack_workspace::Program;
 #[phase(Lower)]
 pub enum LowerWarning {
     /// Complex type in target language.
-    #[warning(code = "WL001", message = "complex type in target")]
+    #[warning(code = "WM001", message = "complex type in target")]
     ComplexType { node: GlobalNodeIdAny },
 
     /// This feature will be emulated slowly on this target.
-    #[warning(code = "WL002", message = "slow emulation in target: '{feature}'")]
+    #[warning(code = "WM002", message = "slow emulation in target: '{feature}'")]
     SlowEmulation {
         node: GlobalNodeIdAny,
         feature: String,
