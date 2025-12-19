@@ -457,6 +457,11 @@ impl Compiler {
                     ast::Expression::Await { expression }
                 }
 
+                dir::Expression::Comptime { body } => {
+                    let body = self.unbind_expression(module, *body, tree, symbols, ast_tree, ast_strings);
+                    ast::Expression::Comptime { body }
+                }
+
                 dir::Expression::Yield { cardinality, value } => {
                     let cardinality = self.unbind_yield_cardinality(*cardinality);
                     let value = value.map(|v| self.unbind_expression(module, v, tree, symbols, ast_tree, ast_strings));

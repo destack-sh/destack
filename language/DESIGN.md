@@ -44,6 +44,7 @@ Technically, you can even use none at all, and then Destack is just TypeScript.
 | [Trees](#trees) | Tree literals: TSX-like syntax generalized for any tree-shaped data | |
 | [Annotations](#annotations) | Annotations: decorators (`@`) for any expression | |
 | [Types](#types) | Type system extensions: newtypes, primitives, structs, constraints | [types/](test/fixtures/mdtest/types/) |
+| [Comptime](#comptime) | Compile-time evaluation: precomputation, conditional compilation | |
 | [Reflection](#reflection) | Types as values, runtime type descriptors, refinements, schema validation | [reflection/](test/fixtures/mdtest/reflection/) |
 | [Dispatch](#dispatch) | Type-based dispatch: extensions and overloading | [dispatch/](test/fixtures/mdtest/dispatch/) |
 | [Ownership](#ownership) | Value ownership (`&T`, `^T`), mutability (`const`/`var`), and explicit dispatch | [ownership/](test/fixtures/mdtest/ownership/) |
@@ -247,6 +248,66 @@ function merge<T: int, U>(): T where (
 ```
 
 <sub>See [test/fixtures/mdtest/types/](test/fixtures/mdtest/types/) for specification tests.</sub>
+
+## Comptime
+
+Destack supports explicit compile-time evaluation via the `comptime` keyword (inspired by Zig).
+The compiler already optimizes aggressively and will evaluate pure expressions at compile time when possible.
+The `comptime` keyword lets you *enforce* compile-time evaluation for expressions and bindings: if the operand cannot be evaluated at compile time, it is a compile error.
+
+### Compile-Time Expressions
+
+The `comptime` keyword can wrap any expression (or block, which is an expression):
+
+```
+// precompute expensive data at compile time
+const LOOKUP_TABLE = comptime {
+    let table = [];
+    for (let i = 0; i < 256; i++) {
+        table.push(computeCRC(i));
+    }
+    table
+};
+
+// simple compile-time expression
+const COMPUTED = comptime 1 + 2 + 3; // (redundant, but allowed for explicitness)
+```
+
+With `comptime`, the result is guaranteed to be computed during compilation and embedded in the output.
+Without `comptime`, the `LOOKUP_TABLE` may be computed at module initialization time (i.e., runtime) instead.
+
+### Comptime Functions
+
+Functions are not explicitly marked as "comptime" and "not comptime".
+Any function can be called at comptime if its body uses only comptime-valid operations:
+
+```
+function factorial(n: int): int {
+    if (n <= 1) { 1 } else { n * factorial(n - 1) }
+}
+
+const FACT_10 = comptime factorial(10);    // evaluated at compile time
+const runtime = factorial(getUserInput()); // evaluated at runtime
+```
+
+The call site determines when the function runs, not the function definition.
+
+### Static Parameters
+
+Static parameters are inherently comptime.
+Their values must be known at compile time and are executed using the same mechanism as comptime expressions (because they are comptime expressions):
+
+```
+function repeat<N: int>(value: string): string {
+    comptime {
+        let result = "";
+        for (let i = 0; i < N; i++) { result += value; }
+        result
+    }
+}
+
+const greeting = repeat<3>("hello ");
+```
 
 ## Reflection
 

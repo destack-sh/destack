@@ -9,13 +9,14 @@ use destack_source::NodeSpanType;
 use crate::{ParseError, ParseResult, Parser, ParserMark};
 
 /// The keywords that can appear before a binding.
-pub static BINDING_MODIFIERS: [Keyword; 6] = [
+pub static BINDING_MODIFIERS: [Keyword; 7] = [
     Keyword::Static,
     Keyword::Override,
     Keyword::Readonly,
     Keyword::Public,
     Keyword::Protected,
     Keyword::Private,
+    Keyword::Comptime,
 ];
 
 impl Parser {

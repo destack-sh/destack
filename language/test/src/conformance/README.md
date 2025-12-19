@@ -8,14 +8,14 @@ Conformance tests check that the Destack parser conforms both to the ECMAScript 
 <!-- begin:summary-results -->
 | Suite    | Passed | Failed | Skipped | Total |  Rate   |
 |:---------|-------:|-------:|--------:|------:|--------:|
-| babel    |   481  |   227  |     7  |   708 |  68.62% |
-| biome    |   412  |   225  |     -  |   637 |  64.68% |
-| swc      |   403  |   135  |     -  |   538 |  75.19% |
-| test262  |  4328  |  1035  |     -  |  5363 |  81.14% |
+| babel    |   479  |   229  |     7  |   708 |  67.66% |
+| biome    |   410  |   227  |     -  |   637 |  64.36% |
+| swc      |   392  |   146  |     -  |   538 |  72.86% |
+| test262  |  4305  |  1058  |     -  |  5363 |  80.27% |
 |----------|--------|--------|---------|-------|---------|
-| total    |  5624  |  1622  |      7  |  7246 |  77.62% |
+| total    |  5586  |  1660  |      7  |  7246 |  77.09% |
 
-Total Blended Pass Rate: **77.62%**
+Total Blended Pass Rate: **77.09%**
 <!-- end:summary-results -->
 
 ### babel
@@ -32,45 +32,45 @@ Total Blended Pass Rate: **77.62%**
 | catch-clause         |     1  |     0  |     1 | 100.00% |
 | class                |    57  |    40  |    97 |  58.76% |
 | const                |     1  |     3  |     4 |  25.00% |
-| declare              |    14  |    13  |    27 |  51.85% |
+| declare              |    15  |    12  |    27 |  55.56% |
 | decorators           |     1  |     1  |     2 |  50.00% |
 | disallow-jsx-ambiguity |     3  |     0  |     3 | 100.00% |
-| dts                  |     2  |     3  |     5 |  40.00% |
+| dts                  |     3  |     2  |     5 |  60.00% |
 | enum                 |    13  |     0  |    13 | 100.00% |
 | errors               |    19  |     9  |    28 |  67.86% |
 | expect-plugin        |     0  |     3  |     3 |   0.00% |
 | exponentiation       |     1  |     2  |     3 |  33.33% |
-| export               |    11  |     2  |    13 |  84.62% |
-| function             |     8  |     5  |    13 |  61.54% |
+| export               |    10  |     3  |    13 |  76.92% |
+| function             |     9  |     4  |    13 |  69.23% |
 | html-entities        |     3  |     1  |     4 |  75.00% |
-| import               |    13  |     8  |    21 |  61.90% |
-| interface            |    32  |    15  |    47 |  68.09% |
+| import               |     8  |    13  |    21 |  38.10% |
+| interface            |    33  |    14  |    47 |  70.21% |
 | legacy-decorators    |     1  |     1  |     2 |  50.00% |
 | module-namespace     |    13  |     3  |    16 |  81.25% |
 | optional-chaining    |     1  |     0  |     1 | 100.00% |
-| regression           |    21  |     4  |    25 |  84.00% |
-| scope                |    46  |    20  |    66 |  69.70% |
+| regression           |    22  |     3  |    25 |  88.00% |
+| scope                |    43  |    23  |    66 |  65.15% |
 | static-blocks        |    19  |     1  |    20 |  95.00% |
 | tsx                  |     5  |     3  |     8 |  62.50% |
 | type-alias           |     5  |     2  |     7 |  71.43% |
 | type-arguments       |    27  |     6  |    33 |  81.82% |
 | type-arguments-bit-shift-left-like |     3  |     6  |     9 |  33.33% |
-| type-only-import-export-specifiers |    14  |    10  |    24 |  58.33% |
-| types                |    62  |    33  |    95 |  65.26% |
+| type-only-import-export-specifiers |    15  |     9  |    24 |  62.50% |
+| types                |    63  |    32  |    95 |  66.32% |
 | types-arrow-function |     3  |     0  |     3 | 100.00% |
 | variable-declarator  |     1  |     2  |     3 |  33.33% |
 |----------------------|--------|--------|-------|---------|
-| total                |   481  |   227  |   708 |  67.94% |
+| total                |   479  |   229  |   708 |  67.66% |
 <!-- end:babel-results -->
 
 ### biome
 <!-- begin:biome-results -->
 | Category             | Passed | Failed | Total |  Rate   |
 |:---------------------|-------:|-------:|------:|--------:|
-| error                |   196  |   106  |   302 |  64.90% |
-| ok                   |   216  |   119  |   335 |  64.48% |
+| error                |   199  |   103  |   302 |  65.89% |
+| ok                   |   211  |   124  |   335 |  62.99% |
 |----------------------|--------|--------|-------|---------|
-| total                |   412  |   225  |   637 |  64.68% |
+| total                |   410  |   227  |   637 |  64.36% |
 <!-- end:biome-results -->
 
 ### swc
@@ -78,13 +78,13 @@ Total Blended Pass Rate: **77.62%**
 | Category             | Passed | Failed | Total |  Rate   |
 |:---------------------|-------:|-------:|------:|--------:|
 | amaro-194            |     0  |     1  |     1 |   0.00% |
-| arrow-function       |     9  |     6  |    15 |  60.00% |
-| basic                |    47  |    16  |    63 |  74.60% |
+| arrow-function       |    10  |     5  |    15 |  66.67% |
+| basic                |    45  |    18  |    63 |  71.43% |
 | case1                |     1  |     0  |     1 | 100.00% |
 | cast                 |    11  |     5  |    16 |  68.75% |
 | class                |    18  |    21  |    39 |  46.15% |
 | const                |     1  |     0  |     1 | 100.00% |
-| custom               |    43  |    13  |    56 |  76.79% |
+| custom               |    40  |    16  |    56 |  71.43% |
 | declare              |     5  |     0  |     5 | 100.00% |
 | decorators           |     0  |     2  |     2 |   0.00% |
 | deno                 |     6  |     1  |     7 |  85.71% |
@@ -93,14 +93,14 @@ Total Blended Pass Rate: **77.62%**
 | errors               |    15  |    10  |    25 |  60.00% |
 | es2019               |     0  |     1  |     1 |   0.00% |
 | estree-compat        |     1  |     0  |     1 | 100.00% |
-| export               |     5  |     0  |     5 | 100.00% |
+| export               |     4  |     1  |     5 |  80.00% |
 | export-default-interface |     1  |     0  |     1 | 100.00% |
 | function             |     5  |     1  |     6 |  83.33% |
-| import               |     7  |     1  |     8 |  87.50% |
+| import               |     6  |     2  |     8 |  75.00% |
 | import-assertions    |     7  |     0  |     7 | 100.00% |
 | instantiation-expr   |     6  |     2  |     8 |  75.00% |
 | interface            |    16  |     0  |    16 | 100.00% |
-| issue                |   100  |    36  |   136 |  73.53% |
+| issue                |    95  |    41  |   136 |  69.85% |
 | meta-property        |     3  |     0  |     3 | 100.00% |
 | module-namespace     |     9  |     0  |     9 | 100.00% |
 | next                 |     0  |     2  |     2 |   0.00% |
@@ -123,7 +123,7 @@ Total Blended Pass Rate: **77.62%**
 | variance-annotations |     0  |     2  |     2 |   0.00% |
 | vercel               |     1  |     0  |     1 | 100.00% |
 |----------------------|--------|--------|-------|---------|
-| total                |   403  |   135  |   538 |  74.91% |
+| total                |   392  |   146  |   538 |  72.86% |
 <!-- end:swc-results -->
 
 ### test262
@@ -131,11 +131,11 @@ Total Blended Pass Rate: **77.62%**
 | Category             | Passed | Failed | Total |  Rate   |
 |:---------------------|-------:|-------:|------:|--------:|
 | early                |   375  |   293  |   668 |  56.14% |
-| fail                 |   343  |   386  |   729 |  47.05% |
-| pass                 |  1776  |   207  |  1983 |  89.56% |
-| pass-explicit        |  1834  |   149  |  1983 |  92.49% |
+| fail                 |   355  |   374  |   729 |  48.70% |
+| pass                 |  1759  |   224  |  1983 |  88.70% |
+| pass-explicit        |  1816  |   167  |  1983 |  91.58% |
 |----------------------|--------|--------|-------|---------|
-| total                |  4328  |  1035  |  5363 |  80.70% |
+| total                |  4305  |  1058  |  5363 |  80.27% |
 <!-- end:test262-results -->
 
 ## Notes

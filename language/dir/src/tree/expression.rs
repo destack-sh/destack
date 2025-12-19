@@ -314,6 +314,8 @@ pub enum Expression {
     Throw { value: LocalNodeId<Expression> },
     /// Await expression.
     Await { expression: LocalNodeId<Expression> },
+    /// Compile-time evaluated expression.
+    Comptime { body: LocalNodeId<Expression> },
     /// Yield expression.
     Yield {
         cardinality: YieldCardinality,
@@ -416,6 +418,7 @@ impl Expression {
             Expression::Continue { .. } => "continue",
             Expression::Throw { .. } => "throw",
             Expression::Await { .. } => "await",
+            Expression::Comptime { .. } => "comptime",
             Expression::Yield { .. } => "yield",
             Expression::Return { .. } => "return",
 

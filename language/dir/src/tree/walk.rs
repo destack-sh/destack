@@ -622,6 +622,10 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             let expression_node = tree.get(*expression);
             visitor.visit_expression(tree, *expression, expression_node);
         }
+        Expression::Comptime { body } => {
+            let body_expr = tree.get(*body);
+            visitor.visit_expression(tree, *body, body_expr);
+        }
         Expression::Yield {
             cardinality: _,
             value,

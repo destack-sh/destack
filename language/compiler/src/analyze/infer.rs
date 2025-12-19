@@ -837,6 +837,12 @@ impl Compiler {
                 types.insert_type_from(ty, expression_id)
             }
 
+            // comptime -> type of body (evaluated at compile time)
+            Expression::Comptime { body } => {
+                // #Incomplete: validate that body can be evaluated at comptime
+                self.infer_expression(module, *body, tree, symbols, types, ctx)?
+            }
+
             // yield -> yielded type
             Expression::Yield {
                 cardinality: _,

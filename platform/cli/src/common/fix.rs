@@ -35,7 +35,7 @@ pub fn run_with_fixes(
     format_options: &FormatOptions,
 ) -> FixResult {
     let linter_options = program.linter.clone();
-    let runner = LintRunner::from_options(&linter_options);
+    let runner = LintRunner::from_options(&linter_options).with_fixes(true);
 
     // collect all lint diagnostics
     let mut all_diagnostics: Vec<LintDiagnostic> = Vec::new();

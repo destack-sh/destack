@@ -906,6 +906,10 @@ impl Parser {
             {
                 self.eat_await()?
             }
+            // comptime
+            else if keyword == Some(Keyword::Comptime) && self.language.is_destack() {
+                self.eat_comptime()?
+            }
             // yield (only valid inside generator functions)
             else if keyword == Some(Keyword::Yield) && self.options.in_generator {
                 self.eat_yield()?

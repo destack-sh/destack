@@ -35,6 +35,13 @@ pub enum AccessorKind {
     Accessor,
 }
 
+/// The evaluation timing of a binding.
+#[derive(Debug, Copy, Clone, PartialEq)]
+pub enum Timing {
+    /// Must be evaluated at compile time.
+    Comptime,
+}
+
 /// The modifiers of a field-like item.
 #[derive(Debug, Copy, Clone, PartialEq, Default)]
 pub struct BindingModifier {
@@ -50,6 +57,8 @@ pub struct BindingModifier {
     pub operator: Option<BindingOperator> = None,
     /// The accessor kind of the binding.
     pub accessor: Option<AccessorKind> = None,
+    /// The evaluation timing of the binding.
+    pub timing: Option<Timing> = None,
 }
 
 impl BindingModifier {
@@ -97,6 +106,14 @@ impl BindingModifier {
     pub fn with_accessor(self, accessor: AccessorKind) -> Self {
         Self {
             accessor: Some(accessor),
+            ..self
+        }
+    }
+
+    /// Create a new binding modifiers with the given timing.
+    pub fn with_timing(self, timing: Timing) -> Self {
+        Self {
+            timing: Some(timing),
             ..self
         }
     }

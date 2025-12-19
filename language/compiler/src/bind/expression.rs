@@ -1379,6 +1379,19 @@ impl Compiler {
                 );
                 Expression::Await { expression }
             }
+            ast::Expression::Comptime { body } => {
+                let body = self.bind_expression(
+                    module,
+                    ast,
+                    scope,
+                    *body,
+                    Some(expression_id),
+                    tree,
+                    symbols,
+                    types,
+                );
+                Expression::Comptime { body }
+            }
             ast::Expression::Yield { cardinality, value } => {
                 let cardinality = match *cardinality {
                     ast::YieldCardinality::Generator => YieldCardinality::Generator,
